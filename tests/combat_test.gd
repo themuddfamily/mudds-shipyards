@@ -19,6 +19,13 @@ func _run() -> void:
 	var host := Node3D.new()
 	host.name = "CombatTestWorld"
 	root.add_child(host)
+	var opponent_parent := Node3D.new()
+	opponent_parent.name = "TransformedOpponentParent"
+	opponent_parent.transform = Transform3D(
+		Basis(Vector3(0.2, 1.0, -0.1).normalized(), 0.58).scaled(Vector3(1.2, 0.85, 1.1)),
+		Vector3(23.0, -4.0, 17.0)
+	)
+	host.add_child(opponent_parent)
 
 	var packed := load(OPPONENT_SCENE) as PackedScene
 	if packed == null:
@@ -39,7 +46,7 @@ func _run() -> void:
 	opponent.connect(&"destroyed", Callable(self, "_on_destroyed"))
 	var target := _make_target()
 	host.add_child(target)
-	host.add_child(opponent)
+	opponent_parent.add_child(opponent)
 	opponent.call("set_target", target)
 	await process_frame
 	await physics_frame
@@ -70,6 +77,8 @@ func _run() -> void:
 	_check(opponent.collision_mask == 1 | SHIP_LAYER, "activation collides with world and ships")
 	_check(is_equal_approx(float(opponent.call("get_health")), maximum_health), "activation restores maximum health")
 	_check(_health_events.size() == 1 and _health_event_matches(0, maximum_health, maximum_health), "activation reports restored health")
+	var authority_collision_ids := _direct_collision_shape_ids(opponent)
+	_check(authority_collision_ids.size() == 7, "opponent retains its exact seven authoritative hull colliders")
 
 	var damage_sparks := opponent.get_node_or_null("DamageSparks") as CPUParticles3D
 	var engine_smoke := opponent.get_node_or_null("EngineSmoke") as CPUParticles3D
@@ -98,10 +107,20 @@ func _run() -> void:
 	_check(opponent.collision_layer == 0 and opponent.collision_mask == 0, "destroyed opponent stops colliding")
 	_check(visual_root != null and not visual_root.visible, "destroyed hull leaves active play immediately")
 	_check(_destroyed_positions.size() == 1 and _destroyed_positions[0].is_equal_approx(death_position), "destruction reports its world position once")
-	_check(opponent.get_node_or_null("InterceptorDestructionBurst") != null, "destruction creates a spark burst")
-	_check(opponent.get_node_or_null("DestructionSmoke") != null, "destruction creates a smoke burst")
-	_check(opponent.get_node_or_null("DestructionFlash") != null, "destruction creates a flash")
-	_check(_count_debris(opponent) == 10, "destruction creates the complete physical debris stage")
+	var destruction_root := opponent.call("get_destruction_effect_root") as Node3D
+	_check(destruction_root != null and destruction_root.is_inside_tree(), "destruction creates a tracked world-effect root")
+	_check(destruction_root != null and not opponent.is_ancestor_of(destruction_root), "destruction effects detach from the authoritative craft")
+	_check(destruction_root != null and destruction_root.global_position.is_equal_approx(death_position), "transformed-parent destruction begins at the exact world position")
+	_check(destruction_root != null and destruction_root.get_node_or_null("InterceptorDestructionBurst") != null, "destruction creates a spark burst")
+	_check(destruction_root != null and destruction_root.get_node_or_null("DestructionSmoke") != null, "destruction creates a smoke burst")
+	_check(destruction_root != null and destruction_root.get_node_or_null("DestructionFlash") != null, "destruction creates a flash")
+	_check(_count_debris(destruction_root) == 10, "destruction creates the complete physical debris stage")
+	var destruction_pose := destruction_root.global_transform if destruction_root != null else Transform3D.IDENTITY
+	var moved_owner_pose := opponent.global_transform
+	moved_owner_pose.origin += Vector3(91.0, -26.0, 48.0)
+	moved_owner_pose.basis = Basis(Vector3.UP, -0.73) * moved_owner_pose.basis
+	opponent.global_transform = moved_owner_pose
+	_check(destruction_root != null and destruction_root.global_transform.is_equal_approx(destruction_pose), "owner motion cannot drag or rotate detached destruction effects")
 	var events_after_destruction := _health_events.size()
 	opponent.call("apply_damage", 1.0, death_position)
 	_check(_health_events.size() == events_after_destruction and _destroyed_positions.size() == 1, "destroyed opponent ignores repeated damage")
@@ -116,7 +135,83 @@ func _run() -> void:
 	_check(is_equal_approx(float(opponent.call("get_health")), maximum_health), "reactivation restores health")
 	_check(visual_root != null and visual_root.visible, "reactivation restores the hull presentation")
 	_check(damage_sparks != null and not damage_sparks.emitting and engine_smoke != null and not engine_smoke.emitting, "reactivation clears damage stages")
-	_check(not _has_destruction_effects(opponent), "reactivation clears every destruction effect")
+	_check(not destruction_root.is_inside_tree(), "reactivation synchronously detaches the prior world-effect root")
+	_check(opponent.call("get_destruction_effect_root") == null, "reactivation clears every destruction effect reference")
+
+	# Authority remains immediate while pulse-travel presentation is sequence keyed.
+	var deferred_hit := opponent.global_position + Vector3(-0.4, 0.65, -1.1)
+	var impact_count_before_defer := _count_named_descendants(root, &"ImpactSparks")
+	opponent.call("apply_damage", maximum_health * 0.4, deferred_hit, 501, true)
+	_check(is_equal_approx(float(opponent.call("get_health")), maximum_health * 0.6), "deferred nonlethal damage mutates authoritative health immediately")
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 1, "deferred nonlethal damage stores one sequence-keyed presentation")
+	_check(_count_named_descendants(root, &"ImpactSparks") == impact_count_before_defer, "deferred nonlethal damage does not present impact sparks early")
+	_check(not damage_sparks.emitting and not engine_smoke.emitting, "deferred nonlethal damage does not advance persistent cues early")
+	_check(not bool(opponent.call("commit_deferred_damage_presentation", 500)), "an unrelated pulse sequence cannot commit queued damage presentation")
+	_check(bool(opponent.call("commit_deferred_damage_presentation", 501)), "the matching pulse sequence commits nonlethal presentation")
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 0, "nonlethal presentation commit consumes its pending record")
+	_check(_count_named_descendants(root, &"ImpactSparks") == impact_count_before_defer + 1, "nonlethal commit creates exactly one world impact")
+	_check(damage_sparks.emitting and not engine_smoke.emitting, "nonlethal commit advances the matching damage stage")
+
+	# Different shot ranges can reverse receipt arrival. An older mild hit may add
+	# its transient spark later, but it must never undo the current critical cue.
+	opponent.call("apply_damage", maximum_health * 0.15, deferred_hit, 503, true)
+	opponent.call("apply_damage", maximum_health * 0.20, deferred_hit, 504, true)
+	_check(bool(opponent.call("commit_deferred_damage_presentation", 504)), "newer critical receipt can arrive before an older hit")
+	_check(engine_smoke.emitting, "newer receipt presents current critical authority")
+	_check(bool(opponent.call("commit_deferred_damage_presentation", 503)), "older nonterminal receipt can arrive afterward")
+	_check(engine_smoke.emitting, "older receipt cannot visually heal current critical damage")
+
+	var deferred_death_pose := opponent.global_transform
+	var deferred_death_hit := opponent.global_position + Vector3(0.7, -0.2, -1.6)
+	var destroyed_before_defer := _destroyed_positions.size()
+	opponent.call("apply_damage", maximum_health, deferred_death_hit, 502, true)
+	_check(not bool(opponent.call("is_active")) and is_zero_approx(float(opponent.call("get_health"))), "deferred lethal damage resolves health and active authority immediately")
+	_check(opponent.collision_layer == 0 and opponent.collision_mask == 0, "deferred lethal damage disables collision immediately")
+	_check(_destroyed_positions.size() == destroyed_before_defer + 1 and _destroyed_positions.back().is_equal_approx(deferred_death_pose.origin), "deferred lethal damage emits destruction authority immediately")
+	_check(visual_root.visible and opponent.visible, "deferred lethal damage leaves the physical hull visible until impact")
+	_check(opponent.call("get_destruction_effect_root") == null, "deferred lethal damage cannot create the explosion early")
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 1, "deferred lethal damage stores one exact terminal presentation sequence")
+	await process_frame
+	_check(visual_root.visible and opponent.visible, "inactive processing cannot hide a hull with terminal presentation in flight")
+
+	var held_owner_pose := opponent.global_transform
+	held_owner_pose.origin += Vector3(-73.0, 19.0, 44.0)
+	opponent.global_transform = held_owner_pose
+	_check(bool(opponent.call("commit_deferred_damage_presentation", 502)), "the terminal pulse sequence commits lethal presentation")
+	var deferred_destruction_root := opponent.call("get_destruction_effect_root") as Node3D
+	_check(deferred_destruction_root != null and deferred_destruction_root.global_transform.is_equal_approx(deferred_death_pose), "deferred destruction uses its captured authoritative world pose after owner motion")
+	_check(visual_root != null and not visual_root.visible, "terminal commit hides the hull at impact time")
+	_check(_count_debris(deferred_destruction_root) == 10, "terminal commit preserves the exact ten-debris contract")
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 0, "terminal commit clears all pending presentation records")
+
+	# Owner streaming tears down detached effects and invalidates stale commits;
+	# the same instance can then re-enter and activate without orphaned VFX.
+	var opponent_id := opponent.get_instance_id()
+	opponent_parent.remove_child(opponent)
+	await process_frame
+	_check(
+		not is_instance_valid(deferred_destruction_root) or not deferred_destruction_root.is_inside_tree(),
+		"owner exit cleans its detached destruction root"
+	)
+	_check(opponent.call("get_destruction_effect_root") == null, "owner exit clears detached-effect tracking")
+	opponent_parent.add_child(opponent)
+	await process_frame
+	_check(opponent.get_instance_id() == opponent_id and opponent.is_inside_tree(), "the same RangeOpponent instance supports tree re-entry")
+	_check(_direct_collision_shape_ids(opponent) == authority_collision_ids, "tree re-entry preserves every authoritative collider identity")
+	_check(not bool(opponent.call("commit_deferred_damage_presentation", 502)), "re-entry cannot replay a committed or stale sequence")
+	opponent.call("activate", respawn)
+	_check(bool(opponent.call("is_active")) and visual_root.visible, "re-entered opponent activates with a clean hull presentation")
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 0 and opponent.call("get_destruction_effect_root") == null, "re-entered activation owns no stale pending or world effects")
+
+	for sequence in range(600, 618):
+		opponent.call("apply_damage", 0.1, opponent.global_position, sequence, true)
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 16, "deferred presentation storage remains bounded at sixteen records")
+	_check(not bool(opponent.call("commit_deferred_damage_presentation", 600)), "bounded storage evicts the oldest presentation sequence")
+	_check(bool(opponent.call("commit_deferred_damage_presentation", 617)), "bounded storage retains and commits the newest presentation sequence")
+	opponent.call("deactivate")
+	_check(int(opponent.call("get_pending_damage_presentation_count")) == 0, "deactivate clears every uncommitted presentation record")
+	_check(not bool(opponent.call("commit_deferred_damage_presentation", 616)), "deactivate invalidates stale deferred sequences")
+	opponent.call("activate", respawn)
 
 	# Pin translation while retaining the real attitude and weapon state machines.
 	# Directly-above and directly-below targets exercise the polar look-up fallback.
@@ -210,21 +305,30 @@ func _health_event_matches(index: int, current: float, maximum: float) -> bool:
 	return _health_events[index].is_equal_approx(Vector2(current, maximum))
 
 
-func _count_debris(opponent: Node) -> int:
+func _count_debris(effect_root: Node) -> int:
+	if not is_instance_valid(effect_root):
+		return 0
 	var count := 0
-	for child in opponent.get_children():
+	for child in effect_root.get_children():
 		if String(child.name).begins_with("HullDebris"):
 			count += 1
 	return count
 
 
-func _has_destruction_effects(opponent: Node) -> bool:
-	return (
-		opponent.get_node_or_null("InterceptorDestructionBurst") != null
-		or opponent.get_node_or_null("DestructionSmoke") != null
-		or opponent.get_node_or_null("DestructionFlash") != null
-		or _count_debris(opponent) > 0
-	)
+func _count_named_descendants(node: Node, target_name: StringName) -> int:
+	var count := 1 if node.name == target_name else 0
+	for child in node.get_children():
+		count += _count_named_descendants(child, target_name)
+	return count
+
+
+func _direct_collision_shape_ids(node: Node) -> Array[int]:
+	var ids: Array[int] = []
+	for child in node.get_children():
+		if child is CollisionShape3D:
+			ids.append(child.get_instance_id())
+	ids.sort()
+	return ids
 
 
 func _clean_up(host: Node, opponent: Node) -> void:

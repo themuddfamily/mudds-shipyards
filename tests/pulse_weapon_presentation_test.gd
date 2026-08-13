@@ -33,6 +33,11 @@ var _recycle_order_reentry_armed := false
 var _recycle_order_reentry_attempted := false
 var _recycle_order_reentry_accepted := false
 var _recycle_order_reentry_events: Array[String] = []
+var _aborted_receipt_ids: Array[int] = []
+var _abort_reentry_armed := false
+var _abort_reentry_attempted := false
+var _abort_reentry_accepted := false
+var _abort_reentry_presentation: PulseWeaponPresentation
 
 
 func _init() -> void:
@@ -63,6 +68,7 @@ func _run() -> void:
 	presentation.shot_presented.connect(_on_shot_presented)
 	presentation.shot_finished.connect(_on_shot_finished)
 	presentation.impact_started.connect(_on_impact_started)
+	presentation.impact_receipt_aborted.connect(_on_impact_receipt_aborted)
 	presentation.shot_recycled.connect(_on_shot_recycled)
 	presentation.effects_cleared.connect(_on_effects_cleared)
 	host.add_child(presentation)
@@ -141,10 +147,16 @@ func _run() -> void:
 	)
 	_check(
 		int(performance.resident_mesh_resources) == 2
-		and int(performance.resident_style_materials) == 3
+		and int(performance.resident_style_materials) == 9
 		and not bool(performance.runtime_node_allocation)
 		and not bool(performance.runtime_resource_allocation),
-		"all visuals share two meshes and three resident immutable materials"
+		"all visuals share two meshes plus three core and six atlas materials"
+	)
+	_check(
+		bool(performance.uses_external_assets)
+		and performance.external_asset_path == "res://assets/effects/mudds-combat-vfx-atlas-v1.png"
+		and performance.external_asset_sha256 == "e748314a287112a11f809b417fa262b184199715f029b0915b63ca8ccecd3aac",
+		"audit pins the exact project-original combat VFX atlas"
 	)
 	_check(_all_generated_nodes_are_presentational(presentation), "every generated child carries presentation-only metadata")
 
@@ -299,6 +311,27 @@ func _run() -> void:
 	)
 	_check(not _finished_shot_ids.is_empty(), "natural and explicit slot retirement reports finished shot IDs")
 
+	# A single hitch that crosses the whole effect must still publish the accepted
+	# endpoint before completion. Visual loss cannot silently suppress audio or a
+	# deferred target-presentation receipt.
+	var hitch_impacts_before := _impact_events.size()
+	var hitch_finished_before := _finished_shot_ids.size()
+	_check(
+		presentation.present_shot(Vector3.ZERO, Vector3.FORWARD, &"cyan", null, true),
+		"hitch regression accepts a minimum-duration hit"
+	)
+	var hitch_state := presentation.get_active_shot_snapshots()[0]
+	_check(
+		presentation.advance_simulation(float(hitch_state.total_lifetime) + 0.05),
+		"one oversized frame safely crosses arrival and retirement"
+	)
+	_check(
+		_impact_events.size() == hitch_impacts_before + 1
+		and _finished_shot_ids.size() == hitch_finished_before + 1
+		and presentation.get_active_effect_count() == 0,
+		"oversized frame emits impact before completion exactly once"
+	)
+
 	# Equal total time produces equal state regardless of frame subdivision.
 	var deterministic_a := PRESENTATION_SCENE.instantiate() as PulseWeaponPresentation
 	var deterministic_b := PRESENTATION_SCENE.instantiate() as PulseWeaponPresentation
@@ -361,6 +394,79 @@ func _run() -> void:
 		bool(presentation.get_audit_report().valid),
 		"fully saturated mixed-style pool still passes immutable resource audit"
 	)
+
+	# A receipt released by oldest-slot recycling is published only after the
+	# replacement is fully installed. Its synchronous handler may present again
+	# without being overwritten or corrupting the bounded pool counts.
+	var abort_reentry := PRESENTATION_SCENE.instantiate() as PulseWeaponPresentation
+	abort_reentry.pool_capacity = 1
+	abort_reentry.set_auto_advance_enabled(false)
+	abort_reentry.impact_receipt_aborted.connect(_on_impact_receipt_aborted)
+	host.add_child(abort_reentry)
+	await process_frame
+	_abort_reentry_presentation = abort_reentry
+	_check(
+		abort_reentry.present_shot(Vector3.ZERO, Vector3.FORWARD * 48.0, &"cyan", null, true, 701),
+		"abort reentry fixture accepts its receipt-owned hit"
+	)
+	_abort_reentry_armed = true
+	_check(
+		abort_reentry.present_shot(Vector3.RIGHT, Vector3.RIGHT + Vector3.FORWARD * 52.0, &"amber"),
+		"saturated replacement releases the retired receipt after installation"
+	)
+	_abort_reentry_armed = false
+	_check(
+		_aborted_receipt_ids.has(701)
+		and _abort_reentry_attempted
+		and _abort_reentry_accepted,
+		"abort receipt handler can synchronously present a nested replacement"
+	)
+	var abort_snapshots := abort_reentry.get_active_shot_snapshots()
+	_check(
+		abort_reentry.get_active_effect_count() == 1
+		and abort_snapshots.size() == 1
+		and (abort_snapshots[0].origin as Vector3).is_equal_approx(Vector3(7.0, 2.0, -4.0)),
+		"abort reentry leaves only the nested shot live with coherent pool counts"
+	)
+	_check(bool(abort_reentry.get_audit_report().valid), "abort reentry preserves the immutable pool audit")
+	abort_reentry.clear_effects()
+	_check(
+		abort_reentry.present_shot(Vector3.ZERO, Vector3.FORWARD * 44.0, &"cyan", null, true, 702),
+		"reset abort fixture accepts one receipt-owned hit"
+	)
+	_abort_reentry_attempted = false
+	_abort_reentry_accepted = false
+	_abort_reentry_armed = true
+	abort_reentry.reset_for_reuse()
+	_abort_reentry_armed = false
+	_check(
+		_aborted_receipt_ids.has(702)
+		and _abort_reentry_attempted
+		and not _abort_reentry_accepted
+		and abort_reentry.get_active_effect_count() == 0
+		and int(abort_reentry.get_statistics().presented) == 0,
+		"reset publishes its receipt only after telemetry reset and rejects callback reentry"
+	)
+	_check(
+		abort_reentry.present_shot(Vector3.UP, Vector3.UP + Vector3.FORWARD * 44.0, &"cyan", null, true, 703),
+		"tree-exit abort fixture accepts one receipt-owned hit"
+	)
+	_abort_reentry_attempted = false
+	_abort_reentry_accepted = false
+	_abort_reentry_armed = true
+	abort_reentry.get_parent().remove_child(abort_reentry)
+	_abort_reentry_armed = false
+	_check(
+		_aborted_receipt_ids.has(703)
+		and _abort_reentry_attempted
+		and not _abort_reentry_accepted
+		and abort_reentry.get_active_effect_count() == 0,
+		"tree exit clears the receipt before publishing and rejects callback reentry"
+	)
+	host.add_child(abort_reentry)
+	await process_frame
+	_check(bool(abort_reentry.get_audit_report().valid), "aborted tree-exit fixture re-enters cleanly")
+	_abort_reentry_presentation = null
 
 	# Synchronous lifecycle callbacks observe an atomic pool mutation. A nested
 	# presentation from shot_finished must not claim the outer replacement's slot.
@@ -933,6 +1039,18 @@ func _on_shot_recycled(retired_shot_id: int, replacement_shot_id: int) -> void:
 
 func _on_effects_cleared() -> void:
 	_clear_events += 1
+
+
+func _on_impact_receipt_aborted(receipt_id: int) -> void:
+	_aborted_receipt_ids.append(receipt_id)
+	if not _abort_reentry_armed or _abort_reentry_attempted:
+		return
+	_abort_reentry_attempted = true
+	_abort_reentry_accepted = _abort_reentry_presentation.present_shot(
+		Vector3(7.0, 2.0, -4.0),
+		Vector3(7.0, 2.0, -64.0),
+		&"magenta"
+	)
 
 
 func _check(condition: bool, description: String) -> void:

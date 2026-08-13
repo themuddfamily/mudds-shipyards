@@ -161,6 +161,8 @@ var _weapon_timer := 0.0
 var _throttle := 0.0
 var _hull := 100.0
 var _critical_damage_emitted := false
+var _deferred_terminal_presentation_receipt_id := -1
+var _destroyed_hull_hide_pending := false
 var _travel_sign := 1.0
 var _roll_animation := 0.0
 var _visual_bank := 0.0
@@ -232,6 +234,8 @@ func _enter_tree() -> void:
 	var rig := get_node_or_null("ShipAudioRig") as ShipAudioRig
 	if rig != null and ship_definition != null:
 		rig.profile_id = ship_definition.audio_profile_id
+	if _destroyed and _destroyed_hull_hide_pending:
+		call_deferred("_resume_destroyed_hull_hide_after_reentry")
 
 
 func _ready() -> void:
@@ -1067,6 +1071,8 @@ func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	_throttle = 0.0
 	_hull = maximum_hull
 	_critical_damage_emitted = false
+	_deferred_terminal_presentation_receipt_id = -1
+	_destroyed_hull_hide_pending = false
 	_clear_pending_look_motion()
 	_roll_animation = 0.0
 	_visual_bank = 0.0
@@ -1238,21 +1244,30 @@ func _mesh_is_translucent(mesh_instance: MeshInstance3D) -> bool:
 func apply_damage(
 		amount: float,
 		world_hit_position: Vector3 = Vector3.INF,
-		world_hit_normal: Vector3 = Vector3.ZERO
+		world_hit_normal: Vector3 = Vector3.ZERO,
+		presentation_receipt_id: int = -1,
+		defer_presentation: bool = false
 	) -> void:
 	if amount <= 0.0 or _hull <= 0.0 or _destroyed:
 		return
-	if _damage_presentation != null and world_hit_position.is_finite():
-		var safe_normal := world_hit_normal.normalized()
-		if safe_normal.length_squared() <= 0.001 or not safe_normal.is_finite():
-			safe_normal = (world_hit_position - global_position).normalized()
+	var safe_normal := world_hit_normal.normalized()
+	if safe_normal.length_squared() <= 0.001 or not safe_normal.is_finite():
+		safe_normal = (world_hit_position - global_position).normalized()
+	if (
+		_damage_presentation != null
+		and world_hit_position.is_finite()
+		and not defer_presentation
+	):
 		_damage_presentation.present_impact(
 			world_hit_position,
 			safe_normal,
 			clampf(amount / 18.0, 0.35, 2.0)
 		)
 	_hull = maxf(0.0, _hull - amount)
-	_sync_damage_presentation()
+	# Apply stage/alarm/engine-power state immediately. Terminal explosion is the
+	# only part withheld when a travelling-pulse receipt owns presentation.
+	if _damage_presentation != null and _hull > 0.0:
+		_sync_damage_presentation()
 	hull_changed.emit(_hull, maximum_hull)
 	if _hull <= maximum_hull * 0.3 and not _critical_damage_emitted:
 		_critical_damage_emitted = true
@@ -1263,8 +1278,26 @@ func apply_damage(
 		var destruction_serial := _destruction_serial
 		var destruction_position := global_position
 		var inherited_velocity := velocity
-		# Silence continuous engine state. GameFlow owns the one accepted positional
-		# destruction cue at the immutable signal position.
+		if (
+			defer_presentation
+			and presentation_receipt_id >= 0
+			and _damage_presentation != null
+		):
+			_deferred_terminal_presentation_receipt_id = presentation_receipt_id
+			_damage_presentation.defer_damage_presentation(
+				presentation_receipt_id,
+				world_hit_position if world_hit_position.is_finite() else destruction_position,
+				safe_normal,
+				clampf(amount / 18.0, 0.35, 2.0),
+				true,
+				inherited_velocity,
+				global_transform
+			)
+		elif _damage_presentation != null:
+			_sync_damage_presentation()
+		# Silence continuous engine state without playing the legacy ship-local
+		# destruction cue. GameFlow owns the single authored positional explosion at
+		# the captured receipt pose (or immediately for non-receipt damage).
 		request_engine_stop(false)
 		_end_landing_for_lifecycle(&"ship_destroyed")
 		_clear_landing_authority_snapshot()
@@ -1282,12 +1315,46 @@ func apply_damage(
 		for child in get_children():
 			if child is CollisionShape3D:
 				(child as CollisionShape3D).set_deferred("disabled", true)
-		if is_inside_tree():
+		if is_inside_tree() and not defer_presentation:
 			get_tree().create_timer(0.18).timeout.connect(
 				_hide_destroyed_hull.bind(destruction_serial),
 				CONNECT_ONE_SHOT
 			)
 		destroyed.emit(destruction_position, inherited_velocity)
+	elif (
+		defer_presentation
+		and presentation_receipt_id >= 0
+		and _damage_presentation != null
+		and world_hit_position.is_finite()
+	):
+		_damage_presentation.defer_damage_presentation(
+			presentation_receipt_id,
+			world_hit_position,
+			safe_normal,
+			clampf(amount / 18.0, 0.35, 2.0),
+			false,
+			velocity,
+			global_transform
+		)
+
+
+func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+	if _damage_presentation == null:
+		return false
+	var committed := _damage_presentation.commit_deferred_damage_presentation(receipt_id)
+	if committed and receipt_id == _deferred_terminal_presentation_receipt_id:
+		_deferred_terminal_presentation_receipt_id = -1
+		_destroyed_hull_hide_pending = true
+		if is_inside_tree():
+			get_tree().create_timer(0.18).timeout.connect(
+				_hide_destroyed_hull.bind(_destruction_serial),
+				CONNECT_ONE_SHOT
+			)
+	return committed
+
+
+func get_pending_terminal_damage_presentation_receipt_id() -> int:
+	return _deferred_terminal_presentation_receipt_id
 
 
 func _update_engine(delta: float) -> void:
@@ -1885,6 +1952,8 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 func _sync_damage_presentation() -> void:
 	if _damage_presentation == null:
 		return
+	if _destroyed and _deferred_terminal_presentation_receipt_id >= 0:
+		return
 	var state := HeroDamagePresentation.STATE_POWERED_DOWN
 	if _hull <= 0.0:
 		state = HeroDamagePresentation.STATE_DESTROYED
@@ -1928,6 +1997,16 @@ func _hide_destroyed_hull(destruction_serial: int) -> void:
 		return
 	if _visual_root != null:
 		_visual_root.visible = false
+	_destroyed_hull_hide_pending = false
+
+
+func _resume_destroyed_hull_hide_after_reentry() -> void:
+	if not is_inside_tree() or not _destroyed or not _destroyed_hull_hide_pending:
+		return
+	get_tree().create_timer(0.18).timeout.connect(
+		_hide_destroyed_hull.bind(_destruction_serial),
+		CONNECT_ONE_SHOT
+	)
 
 
 func _get_damage_engine_multiplier() -> float:

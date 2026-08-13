@@ -150,8 +150,14 @@ func _run() -> void:
 	var damage_direction := hud.get("_damage_direction") as Control
 	_check(damage_direction != null and damage_direction.visible, "resolved enemy damage retains directional HUD feedback")
 	_check(
+		hero.get_damage_presentation().get_live_world_effect_count() == 0
+		and hero.get_damage_presentation().get_pending_damage_presentation_count() == 1,
+		"enemy health authority resolves before the travelling pulse presents its impact"
+	)
+	pulse_presentation.advance_simulation(0.29)
+	_check(
 		hero.get_damage_presentation().get_live_world_effect_count() > 0,
-		"resolved enemy damage retains the hero impact presentation"
+		"pulse arrival releases the resolved hero impact presentation"
 	)
 
 	# Range targets use the same request/resolver path, then forward lethal damage
@@ -167,6 +173,15 @@ func _run() -> void:
 	for _shot in 2:
 		var range_direction := (range_target.global_position - range_origin).normalized()
 		game.call("_on_projectile_fired", range_origin, range_direction, hero)
+		if _shot == 1:
+			_check(
+				bool(range_target.get_meta("destroyed", false))
+				and game.destroyed_targets == 1
+				and range_target.collision_layer == 0
+				and world.find_children("TargetBurst", "Node3D", true, false).is_empty(),
+				"lethal target collision and mission authority resolve before pulse-arrival art"
+			)
+		pulse_presentation.advance_simulation(0.2)
 		await physics_frame
 	_check(bool(range_target.get_meta("destroyed", false)), "authoritative range fire reaches the established target destruction lifecycle")
 	_check(game.destroyed_targets == 1, "range target destruction still advances mission state exactly once")
@@ -242,6 +257,54 @@ func _run() -> void:
 	_check(faction_result.get("status") == &"source_mismatch" and not bool(faction_result.get("accepted", true)), "source faction spoof is rejected")
 	_check(_production_sequences_are_monotonic(hero_source_id), "captured production resolver events preserve source sequence order")
 
+	# The integrated authored-audio + pulse-receipt contract must keep destruction
+	# silent at authority time, then start exactly one positional explosion when
+	# the lethal pulse reaches the captured opponent pose.
+	var combat_audio := game.get_combat_audio_presentation()
+	_check(combat_audio != null, "integrated lethal chronology resolves the authored positional combat bank")
+	if combat_audio != null:
+		pulse_presentation.clear_effects()
+		pulse_presentation.set_auto_advance_enabled(false)
+		hero.global_position = Vector3(420.0, 86.0, -460.0)
+		reserve.global_position = hero.global_position + Vector3(90.0, 0.0, 0.0)
+		jovian.global_position = hero.global_position + Vector3(-90.0, 0.0, 0.0)
+		var lethal_target_position := hero.global_position + Vector3(0.0, 0.0, -32.0)
+		opponent.call("activate", Transform3D(Basis.IDENTITY, lethal_target_position))
+		opponent.set_physics_process(false)
+		game.phase = GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
+		await physics_frame
+		var explosion_count_before := _combat_cue_count(
+			combat_audio,
+			CombatAudioPresentation.CUE_EXPLOSION
+		)
+		for _shot in 3:
+			var lethal_origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
+			var lethal_direction := (opponent.global_position - lethal_origin).normalized()
+			game.call("_on_projectile_fired", lethal_origin, lethal_direction, hero)
+		_check(
+			not opponent.call("is_active")
+			and int(opponent.call("get_pending_damage_presentation_count")) > 0
+			and opponent.call("get_destruction_effect_root") == null
+			and _combat_cue_count(combat_audio, CombatAudioPresentation.CUE_EXPLOSION)
+				== explosion_count_before,
+			"lethal authority disables the opponent without early explosion art or authored audio"
+		)
+		pulse_presentation.advance_simulation(0.31)
+		var explosion_state := combat_audio.get_state_snapshot()
+		_check(
+			_combat_cue_count(combat_audio, CombatAudioPresentation.CUE_EXPLOSION)
+				== explosion_count_before + 1
+			and explosion_state.get("last_world_position") == lethal_target_position
+			and opponent.call("get_destruction_effect_root") != null
+			and int(opponent.call("get_pending_damage_presentation_count")) == 0,
+			"lethal pulse arrival starts one authored explosion and matching art at the captured pose"
+		)
+		# Retire the detached world-space presentation before freeing Main so the
+		# test also proves the production reset path releases its GPU resources.
+		opponent.call("deactivate")
+		pulse_presentation.clear_effects()
+		await process_frame
+
 	await _clean_up(game)
 	_finish()
 
@@ -281,6 +344,12 @@ func _production_sequences_are_monotonic(source_id: int) -> bool:
 		previous = request.sequence
 		observed += 1
 	return observed >= 5
+
+
+func _combat_cue_count(presentation: CombatAudioPresentation, cue_id: StringName) -> int:
+	var snapshot := presentation.get_state_snapshot()
+	var counts := snapshot.get("cue_counts", {}) as Dictionary
+	return int(counts.get(cue_id, 0))
 
 
 func _on_shot_resolved(request: ShotRequest, result: Dictionary) -> void:

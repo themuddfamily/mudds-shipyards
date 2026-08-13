@@ -158,6 +158,72 @@ func _run() -> void:
 	_check(int(presentation.call("get_live_world_effect_count")) == 0, "lethal effects expire without timers or orphan nodes")
 	_check(not is_instance_valid(second_root) or not second_root.is_inside_tree(), "automatic expiry detaches the second effect root")
 
+	# Detaching and re-entering must restore synchronous reset cleanup. The
+	# teardown path deliberately avoids remove_child while the tree is exiting,
+	# but that guard must not remain latched for the component's next lifetime.
+	presentation.call("reset_for_reuse", 1.0, &"active")
+	transformed_ship.remove_child(presentation)
+	_check(not presentation.is_inside_tree(), "damage presentation can leave the tree for owner recycling")
+	transformed_ship.add_child(presentation)
+	_check(presentation.is_inside_tree(), "damage presentation can re-enter with the recycled owner")
+
+	var reentry_impact_position := Vector3(31.0, -6.0, 14.0)
+	presentation.call("present_impact", reentry_impact_position, Vector3.BACK, 1.0)
+	var reentry_impact := root.get_node_or_null("HeroDamageImpact") as Node3D
+	presentation.call("present_destruction", Vector3(7.0, 0.5, -11.0))
+	var reentry_destruction := presentation.call("get_destruction_effect_root") as Node3D
+	_check(reentry_impact != null and reentry_impact.is_inside_tree(), "re-entered component creates a detached impact effect")
+	_check(reentry_destruction != null and reentry_destruction.is_inside_tree(), "re-entered component creates detached destruction effects")
+	_check(int(presentation.call("get_live_world_effect_count")) == 2, "re-entered component tracks every live world effect")
+
+	clear_events_before_reset = _clear_events
+	presentation.call("reset_for_reuse", 1.0, &"powered_down")
+	_check(int(presentation.call("get_live_world_effect_count")) == 0, "reset clears re-entry world-effect tracking synchronously")
+	_check(reentry_impact != null and not reentry_impact.is_inside_tree(), "reset synchronously detaches the re-entry impact")
+	_check(reentry_destruction != null and not reentry_destruction.is_inside_tree(), "reset synchronously detaches the re-entry destruction root")
+	_check(_clear_events == clear_events_before_reset + 1, "re-entry reset reports cleanup only after synchronous detachment")
+
+	# A receipt may complete while the owning ship is streamed out. It must retain
+	# the exact authority-time pose (including valid world identity), then create
+	# the detached explosion on the same instance's next tree entry.
+	presentation.call("reset_for_reuse", 1.0, &"active")
+	var captured_identity_pose := Transform3D.IDENTITY
+	var detached_velocity := Vector3(9.0, -1.0, 4.0)
+	_check(
+		bool(presentation.call(
+			"defer_damage_presentation",
+			9001,
+			Vector3.ZERO,
+			Vector3.UP,
+			1.4,
+			true,
+			detached_velocity,
+			captured_identity_pose
+		)),
+		"detached terminal fixture stores a receipt with an explicit identity pose"
+	)
+	transformed_ship.remove_child(presentation)
+	transformed_ship.position = Vector3(130.0, 42.0, -76.0)
+	_check(
+		bool(presentation.call("commit_deferred_damage_presentation", 9001))
+		and presentation.call("get_destruction_effect_root") == null,
+		"detached receipt commits without creating an out-of-tree explosion"
+	)
+	transformed_ship.add_child(presentation)
+	await process_frame
+	await process_frame
+	var detached_commit_root := presentation.call("get_destruction_effect_root") as Node3D
+	_check(
+		detached_commit_root != null
+		and detached_commit_root.global_transform.is_equal_approx(captured_identity_pose),
+		"re-entry creates the terminal effect at its captured identity pose"
+	)
+	_check(
+		(presentation.call("get_last_world_velocity") as Vector3).is_equal_approx(detached_velocity),
+		"detached receipt preserves inherited velocity through re-entry"
+	)
+	presentation.call("reset_for_reuse", 1.0, &"powered_down")
+
 	# Explicit disposal is idempotent and owner teardown leaves no root siblings.
 	presentation.call("dispose_effects")
 	presentation.call("dispose_effects")

@@ -24,6 +24,8 @@ const SIGNAL_AMBER := Color("f4b94f")
 const ENGINE_BLUE := Color("63efff")
 const DAMAGE_ORANGE := Color("ff8b3d")
 const SMOKE_DARK := Color(0.08, 0.12, 0.14, 0.62)
+const DESTRUCTION_EFFECT_LIFETIME := 4.5
+const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
 
 @export_category("Defense craft")
 @export_range(1.0, 1000.0, 1.0) var maximum_health := 85.0
@@ -66,9 +68,19 @@ var _engine_lights: Array[OmniLight3D] = []
 var _materials: Dictionary = {}
 var _damage_sparks: CPUParticles3D
 var _damage_smoke: CPUParticles3D
+var _destruction_root: Node3D
 var _destruction_light: OmniLight3D
 var _debris: Dictionary = {}
 var _transient_effects: Dictionary = {}
+var _destruction_generation := 0
+var _tearing_down := false
+var _pending_damage_presentations: Dictionary = {}
+var _pending_damage_presentation_order: Array[int] = []
+var _pending_terminal_presentation_sequence := -1
+
+
+func _enter_tree() -> void:
+	_tearing_down = false
 
 
 func _ready() -> void:
@@ -80,6 +92,11 @@ func _ready() -> void:
 			_apply_spawn_on_ready = false
 	else:
 		deactivate()
+
+
+func _exit_tree() -> void:
+	_tearing_down = true
+	_clear_destruction_effects()
 
 
 func _physics_process(delta: float) -> void:
@@ -122,7 +139,12 @@ func _process(delta: float) -> void:
 			if _destruction_time <= 0.0:
 				_destruction_light.queue_free()
 				_destruction_light = null
-	if not _active and _destruction_time <= 0.0 and _debris.is_empty():
+	if (
+		not _active
+		and _pending_terminal_presentation_sequence < 0
+		and _destruction_time <= 0.0
+		and _debris.is_empty()
+	):
 		visible = false
 
 
@@ -204,16 +226,37 @@ func deactivate() -> void:
 	visible = false
 
 
-## Applies hull damage and drives the readable three-stage damage presentation.
-func apply_damage(amount: float, hit_position: Vector3 = Vector3.ZERO) -> void:
+## Applies hull damage immediately, with optional sequence-keyed presentation delay.
+## Authority (health, collision, activity and destruction notification) is never
+## deferred. Combat presentation may wait for the matching travelling pulse.
+func apply_damage(
+	amount: float,
+	hit_position: Vector3 = Vector3.ZERO,
+	sequence: int = -1,
+	defer_visuals: bool = false
+	) -> void:
 	if not _active or amount <= 0.0 or _health <= 0.0:
 		return
 	_health = maxf(0.0, _health - amount)
-	_spawn_impact_sparks(hit_position)
-	_set_damage_stage()
+	var terminal := _health <= 0.0
+	var effect_pose := global_transform
+	effect_pose.basis = effect_pose.basis.orthonormalized()
+	var presentation := {
+		"sequence": sequence,
+		"hit_position": hit_position,
+		"health": _health,
+		"terminal": terminal,
+		"effect_pose": effect_pose,
+		"inherited_velocity": velocity,
+	}
+	if defer_visuals and sequence >= 0:
+		_queue_damage_presentation(sequence, presentation)
+	else:
+		_clear_pending_damage_presentations()
+		_present_damage_record(presentation)
 	health_changed.emit(_health, maximum_health)
-	if _health <= 0.0:
-		_destroy_interceptor()
+	if terminal:
+		_destroy_interceptor(effect_pose.origin)
 
 
 func get_health() -> float:
@@ -222,6 +265,29 @@ func get_health() -> float:
 
 func is_active() -> bool:
 	return _active
+
+
+## Returns the detached, world-owned lethal-effect root while it is alive.
+func get_destruction_effect_root() -> Node3D:
+	return _destruction_root if is_instance_valid(_destruction_root) else null
+
+
+func get_pending_damage_presentation_count() -> int:
+	return _pending_damage_presentations.size()
+
+
+## Commits exactly one delayed hit presentation. Missing, evicted and stale
+## sequences are harmless so recycled opponents cannot replay prior-life VFX.
+func commit_deferred_damage_presentation(sequence: int) -> bool:
+	if not _pending_damage_presentations.has(sequence):
+		return false
+	var presentation := _pending_damage_presentations[sequence] as Dictionary
+	_pending_damage_presentations.erase(sequence)
+	_pending_damage_presentation_order.erase(sequence)
+	if bool(presentation.get("terminal", false)):
+		_clear_pending_damage_presentations()
+	_present_damage_record(presentation)
+	return true
 
 
 func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
@@ -337,11 +403,15 @@ func _fire_at_target(target_position: Vector3) -> void:
 
 
 func _set_damage_stage() -> void:
+	_set_damage_stage_for_health(_health, _active)
+
+
+func _set_damage_stage_for_health(presented_health: float, presentation_active: bool) -> void:
 	if _damage_sparks == null or _damage_smoke == null:
 		return
-	var ratio := _health / maxf(maximum_health, 0.001)
-	_damage_sparks.emitting = _active and ratio <= 0.67
-	_damage_smoke.emitting = _active and ratio <= 0.34
+	var ratio := presented_health / maxf(maximum_health, 0.001)
+	_damage_sparks.emitting = presentation_active and ratio <= 0.67
+	_damage_smoke.emitting = presentation_active and ratio <= 0.34
 
 
 func _update_presentation(delta: float) -> void:
@@ -372,19 +442,53 @@ func _update_presentation(delta: float) -> void:
 		lens.visible = _active
 	if _warning_light != null:
 		_warning_light.light_energy = charge * 5.0
-func _destroy_interceptor() -> void:
-	var death_position := global_position
-	var inherited_velocity := velocity
+
+
+func _destroy_interceptor(death_position: Vector3) -> void:
 	_active = false
 	velocity = Vector3.ZERO
 	collision_layer = 0
 	collision_mask = 0
 	_telegraph_remaining = 0.0
-	_damage_sparks.emitting = false
-	_damage_smoke.emitting = false
-	_visual_root.visible = false
-	_spawn_destruction_burst(inherited_velocity)
 	destroyed.emit(death_position)
+
+
+func _queue_damage_presentation(sequence: int, presentation: Dictionary) -> void:
+	if _pending_damage_presentations.has(sequence):
+		_pending_damage_presentation_order.erase(sequence)
+	_pending_damage_presentations[sequence] = presentation.duplicate(true)
+	_pending_damage_presentation_order.append(sequence)
+	if bool(presentation.get("terminal", false)):
+		_pending_terminal_presentation_sequence = sequence
+	while _pending_damage_presentation_order.size() > MAX_PENDING_DAMAGE_PRESENTATIONS:
+		var evicted_sequence: int = _pending_damage_presentation_order.pop_front()
+		_pending_damage_presentations.erase(evicted_sequence)
+		if evicted_sequence == _pending_terminal_presentation_sequence:
+			_pending_terminal_presentation_sequence = -1
+
+
+func _present_damage_record(presentation: Dictionary) -> void:
+	var hit_position: Vector3 = presentation.get("hit_position", Vector3.ZERO)
+	_spawn_impact_sparks(hit_position)
+	if bool(presentation.get("terminal", false)):
+		_damage_sparks.emitting = false
+		_damage_smoke.emitting = false
+		_visual_root.visible = false
+		_pending_terminal_presentation_sequence = -1
+		var effect_pose: Transform3D = presentation.get("effect_pose", global_transform)
+		var inherited_velocity: Vector3 = presentation.get("inherited_velocity", Vector3.ZERO)
+		_spawn_destruction_burst(inherited_velocity, effect_pose)
+		return
+	# Receipts may arrive out of firing order when shot ranges differ. Persistent
+	# damage cues must reflect current authority, never an older receipt that
+	# would visually heal a craft after a newer critical hit was presented.
+	_set_damage_stage_for_health(_health, _active)
+
+
+func _clear_pending_damage_presentations() -> void:
+	_pending_damage_presentations.clear()
+	_pending_damage_presentation_order.clear()
+	_pending_terminal_presentation_sequence = -1
 
 
 func _spawn_impact_sparks(hit_position: Vector3) -> void:
@@ -392,10 +496,7 @@ func _spawn_impact_sparks(hit_position: Vector3) -> void:
 		return
 	var sparks := _make_spark_particles(15, 0.42, 7.5)
 	sparks.name = "ImpactSparks"
-	var effect_host := get_tree().current_scene
-	if effect_host == null:
-		effect_host = get_tree().root
-	effect_host.add_child(sparks)
+	_get_world_effect_host().add_child(sparks)
 	if hit_position != Vector3.ZERO:
 		sparks.global_position = hit_position
 	else:
@@ -411,10 +512,7 @@ func _spawn_muzzle_flash(world_position: Vector3) -> void:
 		return
 	var flash := _make_spark_particles(9, 0.16, 3.2)
 	flash.name = "DefenseMuzzleFlash"
-	var effect_host := get_tree().current_scene
-	if effect_host == null:
-		effect_host = get_tree().root
-	effect_host.add_child(flash)
+	_get_world_effect_host().add_child(flash)
 	flash.global_position = world_position
 	flash.emitting = true
 	var effect_id := flash.get_instance_id()
@@ -422,12 +520,23 @@ func _spawn_muzzle_flash(world_position: Vector3) -> void:
 	get_tree().create_timer(0.45).timeout.connect(_remove_transient_effect.bind(effect_id))
 
 
-func _spawn_destruction_burst(inherited_velocity: Vector3) -> void:
+func _spawn_destruction_burst(
+	inherited_velocity: Vector3,
+	effect_pose: Transform3D
+	) -> void:
 	if not is_inside_tree():
 		return
+	_destruction_generation += 1
+	var effect_generation := _destruction_generation
+	effect_pose.basis = effect_pose.basis.orthonormalized()
+	_destruction_root = Node3D.new()
+	_destruction_root.name = "RangeOpponentDestructionEffects"
+	_get_world_effect_host().add_child(_destruction_root)
+	_destruction_root.global_transform = effect_pose
+
 	var burst := _make_spark_particles(72, 1.15, 14.0)
 	burst.name = "InterceptorDestructionBurst"
-	add_child(burst)
+	_destruction_root.add_child(burst)
 	burst.position = Vector3.ZERO
 	burst.emitting = true
 	get_tree().create_timer(2.2).timeout.connect(burst.queue_free)
@@ -440,7 +549,7 @@ func _spawn_destruction_burst(inherited_velocity: Vector3) -> void:
 	smoke_burst.explosiveness = 0.95
 	smoke_burst.initial_velocity_min = 1.5
 	smoke_burst.initial_velocity_max = 5.0
-	add_child(smoke_burst)
+	_destruction_root.add_child(smoke_burst)
 	smoke_burst.emitting = true
 	get_tree().create_timer(3.0).timeout.connect(smoke_burst.queue_free)
 
@@ -450,7 +559,7 @@ func _spawn_destruction_burst(inherited_velocity: Vector3) -> void:
 	_destruction_light.light_energy = 10.0
 	_destruction_light.omni_range = 7.0
 	_destruction_light.shadow_enabled = false
-	add_child(_destruction_light)
+	_destruction_root.add_child(_destruction_light)
 	_destruction_time = 0.72
 
 	for index in 10:
@@ -476,20 +585,33 @@ func _spawn_destruction_burst(inherited_velocity: Vector3) -> void:
 		shape.size = debris_mesh.size
 		collision_shape.shape = shape
 		debris.add_child(collision_shape)
-		add_child(debris)
+		_destruction_root.add_child(debris)
 		var burst_direction := Vector3(cos(angle), 0.18 + float(index % 4) * 0.12, sin(angle)).normalized()
 		debris.linear_velocity = inherited_velocity * 0.28 + burst_direction * (5.5 + float(index % 5))
 		debris.angular_velocity = Vector3(1.4 + index, 2.1 + index * 0.4, -1.8 - index * 0.25)
 		var debris_id := debris.get_instance_id()
 		_debris[debris_id] = debris
-		get_tree().create_timer(4.5).timeout.connect(_remove_debris.bind(debris_id))
+		get_tree().create_timer(DESTRUCTION_EFFECT_LIFETIME).timeout.connect(
+			_remove_debris.bind(debris_id, effect_generation)
+		)
+	get_tree().create_timer(DESTRUCTION_EFFECT_LIFETIME).timeout.connect(
+		_expire_destruction_effect.bind(effect_generation)
+	)
 
 
-func _remove_debris(debris_id: int) -> void:
+func _remove_debris(debris_id: int, effect_generation: int) -> void:
+	if effect_generation != _destruction_generation:
+		return
 	var debris: Variant = _debris.get(debris_id)
 	_debris.erase(debris_id)
 	if is_instance_valid(debris):
 		debris.queue_free()
+
+
+func _expire_destruction_effect(effect_generation: int) -> void:
+	if effect_generation != _destruction_generation:
+		return
+	_clear_destruction_root()
 
 
 func _remove_transient_effect(effect_id: int) -> void:
@@ -507,28 +629,37 @@ func _restart_particles_cleared(particles: CPUParticles3D) -> void:
 
 
 func _clear_destruction_effects() -> void:
-	_destruction_time = 0.0
-	if is_instance_valid(_destruction_light):
-		if _destruction_light.get_parent() != null:
-			_destruction_light.get_parent().remove_child(_destruction_light)
-		_destruction_light.queue_free()
-	_destruction_light = null
-	for debris in _debris.values():
-		if is_instance_valid(debris):
-			if debris.get_parent() != null:
-				debris.get_parent().remove_child(debris)
-			debris.queue_free()
-	_debris.clear()
+	_clear_pending_damage_presentations()
+	_clear_destruction_root()
 	for effect in _transient_effects.values():
-		if is_instance_valid(effect):
-			if effect.get_parent() != null:
-				effect.get_parent().remove_child(effect)
-			effect.queue_free()
+		_remove_world_node(effect)
 	_transient_effects.clear()
-	for child in get_children():
-		if child.name in [&"InterceptorDestructionBurst", &"DestructionSmoke"]:
-			remove_child(child)
-			child.queue_free()
+
+
+func _clear_destruction_root() -> void:
+	_destruction_generation += 1
+	_destruction_time = 0.0
+	_remove_world_node(_destruction_root)
+	_destruction_root = null
+	_destruction_light = null
+	_debris.clear()
+
+
+func _remove_world_node(node: Variant) -> void:
+	if not is_instance_valid(node):
+		return
+	# Explicit deactivate/reactivate calls detach immediately. During tree exit,
+	# the world host may itself be busy removing children, so defer only deletion.
+	if not _tearing_down and node.get_parent() != null:
+		node.get_parent().remove_child(node)
+	node.queue_free()
+
+
+func _get_world_effect_host() -> Node:
+	var current_scene := get_tree().current_scene
+	if is_instance_valid(current_scene) and current_scene != self and not is_ancestor_of(current_scene):
+		return current_scene
+	return get_tree().root
 
 
 func _build_interceptor() -> void:

@@ -1,0 +1,1484 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+Vulkan 1.4.318 - Forward+ - Using Device #0: Unknown - llvmpipe (LLVM 20.1.2, 256 bits)
+WARNING: Started the engine as `root`/superuser. This is a security risk, and subsystems like audio may not work correctly.
+Set the environment variable `GODOT_SILENCE_ROOT_WARNING` to 1 to silence this warning.
+     at: setup2 (main/main.cpp:3577)
+
+COMBAT_VISUAL_PASS: combat-visual output directory is available
+COMBAT_VISUAL_PASS: fresh isolated combat capture transaction is available
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/rendering
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/settings
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/combat
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/game
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/core
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/physics
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/control
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/components
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/modules
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships/presentation
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/materials
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/textures
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/hero
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/blender
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/audio
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/pilot/pilot_motion_v2.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend1
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_authored_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/arrow_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/jovian_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/torrent_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://default_bus_layout.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://export_presets.cfg
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://project.godot
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/ship_audio_rig.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/station_machinery_ambience.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/hero_damage_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/pulse_weapon_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/interaction/ship_boarding_area.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/main.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/player.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/arrow_recon_ship.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/jovian_light_freighter.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/range_opponent.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/torrent_interceptor.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ui/hud.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth_feedback.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_door.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_operations_activity.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_structural_service_dressing.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/aft_junction_stack.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/habitat_spine.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/jovian_freight_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/shipyard_world.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_pilot_motion_v2.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_torrent_hero_v1.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd.uid
+COMBAT_VISUAL_PASS: source freeze recursively expands the declared production roots
+COMBAT_VISUAL_PASS: source freeze has a nonempty aggregate SHA-256
+COMBAT_VISUAL_PASS: capture uses the Forward+ renderer
+COMBAT_VISUAL_PASS: capture uses a native X11 display rather than headless rendering
+COMBAT_VISUAL_PASS: native capture window is exactly 2560x1440
+COMBAT_VISUAL_RENDERER: method=forward_plus adapter=llvmpipe (LLVM 20.1.2, 256 bits) display=X11 window=(2560, 1440)
+COMBAT_VISUAL_PASS: complete production main scene instantiates
+COMBAT_VISUAL_PASS: production ShipyardWorld exists
+COMBAT_VISUAL_PASS: production Torrent hero exists
+COMBAT_VISUAL_PASS: production range interceptor exists
+COMBAT_VISUAL_PASS: production pooled pulse presentation exists
+COMBAT_VISUAL_PASS: production live combat authority exists
+COMBAT_VISUAL_PASS: production combat resolver exists
+COMBAT_VISUAL_PASS: opponent exposes its authored hull presentation root
+COMBAT_VISUAL_PASS: opponent exposes its critical engine-smoke presentation
+COMBAT_VISUAL_PASS: production pulse publishes deterministic manual timing controls
+COMBAT_VISUAL_PASS: production pulse component passes its deep audit
+COMBAT_VISUAL_PASS: capture is bound to the Combat V2 pulse schema
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: production High visual-quality profile applies
+COMBAT_VISUAL_PASS: pulse automatic advancement is disabled for exact phase capture
+COMBAT_VISUAL_CAMERA: position=(215.9774, 67.70731, -246.9375) focus=(180.0, 55.475, -246.9375) fov=42.0 radius=21.48
+COMBAT_VISUAL_PASS: fixed combat composition keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: opponent is active in the staged production encounter
+COMBAT_VISUAL_PASS: opponent begins at production maximum health
+COMBAT_VISUAL_PASS: hero begins at production maximum hull
+COMBAT_VISUAL_PASS: opponent begins with authoritative collision enabled
+COMBAT_VISUAL_PASS: setup cyan hit is accepted by live authority
+COMBAT_VISUAL_PASS: setup cyan hit is resolved by the production resolver
+COMBAT_VISUAL_PASS: setup cyan hit hits a production collision surface
+COMBAT_VISUAL_PASS: setup cyan hit applies authoritative damage
+COMBAT_VISUAL_PASS: setup cyan hit identifies the opponent lifecycle
+COMBAT_VISUAL_PASS: setup cyan hit publishes a finite collision endpoint
+COMBAT_VISUAL_PASS: setup cyan hit has exactly one active pooled shot
+COMBAT_VISUAL_PASS: setup hit leaves opponent at 51 health
+COMBAT_VISUAL_PASS: setup receipt is fully presented before baseline
+COMBAT_VISUAL_PASS: setup pulse retires before baseline
+COMBAT_VISUAL_PASS: damaged baseline has no critical smoke
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 01_damaged_opponent_baseline.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/01_damaged_opponent_baseline.png state=damaged_opponent_baseline bytes=1383729 range=0.85814 variance=0.010228 roi_peak=0.9520
+COMBAT_VISUAL_PASS: critical cyan hit is accepted by live authority
+COMBAT_VISUAL_PASS: critical cyan hit is resolved by the production resolver
+COMBAT_VISUAL_PASS: critical cyan hit hits a production collision surface
+COMBAT_VISUAL_PASS: critical cyan hit applies authoritative damage
+COMBAT_VISUAL_PASS: critical cyan hit identifies the opponent lifecycle
+COMBAT_VISUAL_PASS: critical cyan hit publishes a finite collision endpoint
+COMBAT_VISUAL_PASS: critical cyan hit has exactly one active pooled shot
+COMBAT_VISUAL_PASS: cyan midflight has exactly one active pooled shot
+COMBAT_VISUAL_PASS: cyan in-flight authority has already reduced opponent health to critical
+COMBAT_VISUAL_PASS: cyan in-flight owns exactly one pending opponent presentation receipt
+COMBAT_VISUAL_PASS: cyan in-flight critical smoke has not started before pulse arrival
+COMBAT_VISUAL_PASS: cyan in-flight pulse is visible
+COMBAT_VISUAL_PASS: cyan in-flight impact is hidden
+COMBAT_VISUAL_PASS: cyan in-flight uses exact 0.38 travel progress
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 02_cyan_muzzle_midflight.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/02_cyan_muzzle_midflight.png state=cyan_muzzle_midflight bytes=1390734 range=0.78366 variance=0.009969 roi_peak=0.7309
+COMBAT_VISUAL_PASS: cyan arrival has exactly one active pooled shot
+COMBAT_VISUAL_PASS: cyan arrival releases the opponent presentation receipt
+COMBAT_VISUAL_PASS: cyan arrival starts critical opponent smoke
+COMBAT_VISUAL_PASS: cyan arrival hides the travelling pulse
+COMBAT_VISUAL_PASS: cyan arrival displays the impact flare
+COMBAT_VISUAL_PASS: cyan arrival snapshot is at or beyond the exact endpoint
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 03_cyan_impact_critical.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/03_cyan_impact_critical.png state=cyan_impact_critical bytes=1387178 range=0.81216 variance=0.010059 roi_peak=0.8558
+COMBAT_VISUAL_PASS: amber shot is accepted by live authority
+COMBAT_VISUAL_PASS: amber shot is resolved by the production resolver
+COMBAT_VISUAL_PASS: amber shot hits a production hero collision surface
+COMBAT_VISUAL_PASS: amber shot applies authoritative hero damage
+COMBAT_VISUAL_PASS: amber shot identifies the active hero lifecycle
+COMBAT_VISUAL_PASS: amber hero hit has exactly one active pooled shot
+COMBAT_VISUAL_PASS: amber midflight has exactly one active pooled shot
+COMBAT_VISUAL_PASS: amber in-flight authority has already reduced hero hull to 89
+COMBAT_VISUAL_PASS: amber in-flight owns exactly one pending hero presentation receipt
+COMBAT_VISUAL_PASS: amber in-flight has not spawned the hero world-space impact
+COMBAT_VISUAL_PASS: amber in-flight pulse is visible
+COMBAT_VISUAL_PASS: amber in-flight impact is hidden
+COMBAT_VISUAL_PASS: amber in-flight uses exact 0.58 travel progress
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 04_amber_midflight.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 04_amber_midflight.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 04_amber_midflight.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 04_amber_midflight.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 04_amber_midflight.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 04_amber_midflight.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 04_amber_midflight.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 04_amber_midflight.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 04_amber_midflight.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 04_amber_midflight.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 04_amber_midflight.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 04_amber_midflight.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 04_amber_midflight.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 04_amber_midflight.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 04_amber_midflight.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 04_amber_midflight.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/04_amber_midflight.png state=amber_midflight bytes=1389455 range=0.78366 variance=0.009965 roi_peak=0.6674
+COMBAT_VISUAL_PASS: amber arrival has exactly one active pooled shot
+COMBAT_VISUAL_PASS: amber arrival releases the hero presentation receipt
+COMBAT_VISUAL_PASS: amber arrival owns a live detached hero impact
+COMBAT_VISUAL_PASS: amber arrival hides the travelling pulse
+COMBAT_VISUAL_PASS: amber arrival displays the impact flare
+COMBAT_VISUAL_PASS: amber arrival creates the named production HeroDamageImpact
+COMBAT_VISUAL_PASS: hero impact is detached into world space rather than parented under the moving hull
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 05_amber_hero_impact.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/05_amber_hero_impact.png state=amber_hero_impact bytes=1384821 range=0.78366 variance=0.010007 roi_peak=0.7257
+COMBAT_VISUAL_PASS: lethal cyan hit is accepted by live authority
+COMBAT_VISUAL_PASS: lethal cyan hit is resolved by the production resolver
+COMBAT_VISUAL_PASS: lethal cyan hit hits a production collision surface
+COMBAT_VISUAL_PASS: lethal cyan hit applies authoritative damage
+COMBAT_VISUAL_PASS: lethal cyan hit identifies the opponent lifecycle
+COMBAT_VISUAL_PASS: lethal cyan hit publishes a finite collision endpoint
+COMBAT_VISUAL_PASS: lethal cyan hit has exactly one active pooled shot
+COMBAT_VISUAL_PASS: lethal cyan midflight has exactly one active pooled shot
+COMBAT_VISUAL_PASS: lethal in-flight authority has reduced opponent health to zero
+COMBAT_VISUAL_PASS: lethal in-flight authority has deactivated the opponent
+COMBAT_VISUAL_PASS: lethal in-flight authority has removed opponent collision
+COMBAT_VISUAL_PASS: lethal in-flight owns exactly one pending terminal receipt
+COMBAT_VISUAL_PASS: lethal in-flight keeps the opponent hull presentation visible
+COMBAT_VISUAL_PASS: lethal in-flight has no premature destruction root
+COMBAT_VISUAL_PASS: lethal in-flight pulse is visible
+COMBAT_VISUAL_PASS: lethal in-flight impact is hidden
+COMBAT_VISUAL_PASS: lethal in-flight uses exact 0.55 travel progress
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 06_lethal_cyan_inflight.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/06_lethal_cyan_inflight.png state=lethal_cyan_inflight bytes=1385314 range=0.80050 variance=0.009982 roi_peak=0.7062
+COMBAT_VISUAL_PASS: lethal cyan arrival has exactly one active pooled shot
+COMBAT_VISUAL_PASS: lethal arrival releases the terminal presentation receipt
+COMBAT_VISUAL_PASS: lethal arrival hides the opponent hull presentation
+COMBAT_VISUAL_PASS: lethal arrival creates the detached destruction root
+COMBAT_VISUAL_PASS: lethal arrival hides the travelling pulse
+COMBAT_VISUAL_PASS: lethal arrival displays the endpoint impact flare
+COMBAT_VISUAL_PASS: destruction root is not parented under the opponent
+COMBAT_VISUAL_PASS: destruction root is world-owned rather than opponent-owned
+COMBAT_VISUAL_PASS: destruction root retains the captured world pose at pulse arrival
+COMBAT_VISUAL_PASS: ROI world anchor is finite
+COMBAT_VISUAL_PASS: ROI world anchor is in front of the evidence camera
+COMBAT_VISUAL_PASS: 144x144 effect ROI remains inside the 3.5% frame margin
+COMBAT_VISUAL_PASS: production HUD exists and is explicitly excluded
+COMBAT_VISUAL_PASS: production scene contains CanvasLayer presentation
+COMBAT_VISUAL_PASS: all HUD and CanvasLayer presentation is hidden and disabled
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png retains the capture-only camera
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png retains the manual pulse clock
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png keeps all 118 source/target/bounds/corridor anchors inside the 3.5% margin
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png [settled] retains the capture-only camera
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png [settled] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png [settled] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png [post-draw] retains the capture-only camera
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png [post-draw] retains the immutable camera and projection contract
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png [post-draw] retains the manual pulse clock
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png is exactly 2560x1440
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png has luminance range at least 0.035
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png has luminance variance at least 0.00010
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png saves into the isolated capture transaction
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png contains at least 140 KB of rendered detail
+COMBAT_VISUAL_PASS: 07_lethal_arrival_destruction.png is exact RGB8 non-interlaced 2560x1440 PNG
+COMBAT_VISUAL_CAPTURED: /root/keths-shipyard/artifacts/combat_visuals/.capture_transaction/07_lethal_arrival_destruction.png state=lethal_arrival_destruction bytes=1396339 range=0.81608 variance=0.009419 roi_peak=0.9111
+COMBAT_VISUAL_PASS: exactly seven semantic combat frames were captured
+COMBAT_VISUAL_PASS: all seven frame filenames are unique
+COMBAT_VISUAL_PASS: required combat frame exists: 01_damaged_opponent_baseline.png
+COMBAT_VISUAL_PASS: frame 1 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: required combat frame exists: 02_cyan_muzzle_midflight.png
+COMBAT_VISUAL_PASS: frame 2 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: required combat frame exists: 03_cyan_impact_critical.png
+COMBAT_VISUAL_PASS: frame 3 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: required combat frame exists: 04_amber_midflight.png
+COMBAT_VISUAL_PASS: frame 4 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: required combat frame exists: 05_amber_hero_impact.png
+COMBAT_VISUAL_PASS: frame 5 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: required combat frame exists: 06_lethal_cyan_inflight.png
+COMBAT_VISUAL_PASS: frame 6 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: required combat frame exists: 07_lethal_arrival_destruction.png
+COMBAT_VISUAL_PASS: frame 7 retains its exact file/state inventory
+COMBAT_VISUAL_PASS: all seven PNGs have unique SHA-256 digests
+COMBAT_VISUAL_PASS: baseline_to_cyan_midflight 144x144 ROI mean RGB difference is at least 0.010 (0.02556)
+COMBAT_VISUAL_PASS: baseline_to_cyan_midflight 144x144 ROI changed fraction is at least 0.025 (0.0494)
+COMBAT_VISUAL_PASS: baseline_to_cyan_midflight contains at least 48 cyan effect-coloured pixels (20736)
+COMBAT_VISUAL_PASS: baseline_to_cyan_midflight effect ROI peak luminance is at least 0.55 (0.731)
+COMBAT_VISUAL_PASS: cyan_midflight_to_critical_impact 144x144 ROI mean RGB difference is at least 0.010 (0.01013)
+COMBAT_VISUAL_PASS: cyan_midflight_to_critical_impact 144x144 ROI changed fraction is at least 0.025 (0.0358)
+COMBAT_VISUAL_PASS: cyan_midflight_to_critical_impact contains at least 48 cyan effect-coloured pixels (18728)
+COMBAT_VISUAL_PASS: cyan_midflight_to_critical_impact effect ROI peak luminance is at least 0.55 (0.856)
+COMBAT_VISUAL_PASS: critical_impact_to_amber_midflight 144x144 ROI mean RGB difference is at least 0.010 (0.03096)
+COMBAT_VISUAL_PASS: critical_impact_to_amber_midflight 144x144 ROI changed fraction is at least 0.025 (0.0610)
+COMBAT_VISUAL_PASS: critical_impact_to_amber_midflight contains at least 48 amber effect-coloured pixels (1097)
+COMBAT_VISUAL_PASS: critical_impact_to_amber_midflight effect ROI peak luminance is at least 0.55 (0.667)
+COMBAT_VISUAL_PASS: amber_midflight_to_hero_impact 144x144 ROI mean RGB difference is at least 0.010 (0.01508)
+COMBAT_VISUAL_PASS: amber_midflight_to_hero_impact 144x144 ROI changed fraction is at least 0.025 (0.0440)
+COMBAT_VISUAL_PASS: amber_midflight_to_hero_impact contains at least 48 amber effect-coloured pixels (737)
+COMBAT_VISUAL_PASS: amber_midflight_to_hero_impact effect ROI peak luminance is at least 0.55 (0.726)
+COMBAT_VISUAL_PASS: hero_impact_to_lethal_midflight 144x144 ROI mean RGB difference is at least 0.010 (0.02472)
+COMBAT_VISUAL_PASS: hero_impact_to_lethal_midflight 144x144 ROI changed fraction is at least 0.025 (0.0487)
+COMBAT_VISUAL_PASS: hero_impact_to_lethal_midflight contains at least 48 cyan effect-coloured pixels (20736)
+COMBAT_VISUAL_PASS: hero_impact_to_lethal_midflight effect ROI peak luminance is at least 0.55 (0.706)
+COMBAT_VISUAL_PASS: destruction target ROI mean difference is at least 0.012 (0.26807)
+COMBAT_VISUAL_PASS: destruction target ROI changed fraction is at least 0.035 (0.9574)
+COMBAT_VISUAL_PASS: lethal-arrival ROI peak luminance is at least 0.55
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/rendering
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/settings
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/combat
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/game
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/core
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/physics
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/control
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/components
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/modules
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships/presentation
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/materials
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/textures
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/hero
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/blender
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/audio
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/pilot/pilot_motion_v2.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend1
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_authored_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/arrow_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/jovian_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/torrent_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://default_bus_layout.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://export_presets.cfg
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://project.godot
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/ship_audio_rig.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/station_machinery_ambience.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/hero_damage_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/pulse_weapon_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/interaction/ship_boarding_area.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/main.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/player.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/arrow_recon_ship.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/jovian_light_freighter.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/range_opponent.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/torrent_interceptor.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ui/hud.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth_feedback.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_door.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_operations_activity.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_structural_service_dressing.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/aft_junction_stack.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/habitat_spine.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/jovian_freight_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/shipyard_world.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_pilot_motion_v2.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_torrent_hero_v1.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd.uid
+COMBAT_VISUAL_PASS: recursive source roster and every declared production byte remain identical through capture
+COMBAT_VISUAL_PASS: staged source SHA-256 manifest opens for writing
+COMBAT_VISUAL_PASS: staged source SHA-256 manifest flushes without error
+COMBAT_VISUAL_PASS: staged source SHA-256 manifest commits atomically
+COMBAT_VISUAL_PASS: staged combat evidence manifest opens for writing
+COMBAT_VISUAL_PASS: staged combat evidence manifest flushes without error
+COMBAT_VISUAL_PASS: staged combat evidence manifest commits atomically
+COMBAT_VISUAL_PASS: combat output opens for bounded stale-file cleanup
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 02_cyan_muzzle_midflight.png
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 04_amber_midflight.png
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 06_lethal_cyan_inflight.png
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 03_cyan_impact_critical.png
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 01_damaged_opponent_baseline.png
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 07_lethal_arrival_destruction.png
+COMBAT_VISUAL_PASS: bounded stale combat file clears: 05_amber_hero_impact.png
+COMBAT_VISUAL_PASS: published validated PNG 01_damaged_opponent_baseline.png is byte-identical to staging
+COMBAT_VISUAL_PASS: published validated PNG 02_cyan_muzzle_midflight.png is byte-identical to staging
+COMBAT_VISUAL_PASS: published validated PNG 03_cyan_impact_critical.png is byte-identical to staging
+COMBAT_VISUAL_PASS: published validated PNG 04_amber_midflight.png is byte-identical to staging
+COMBAT_VISUAL_PASS: published validated PNG 05_amber_hero_impact.png is byte-identical to staging
+COMBAT_VISUAL_PASS: published validated PNG 06_lethal_cyan_inflight.png is byte-identical to staging
+COMBAT_VISUAL_PASS: published validated PNG 07_lethal_arrival_destruction.png is byte-identical to staging
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/rendering
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/settings
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/combat
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/game
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/core
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/physics
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/control
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/components
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/modules
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships/presentation
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/materials
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/textures
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/hero
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/blender
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/audio
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/pilot/pilot_motion_v2.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend1
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_authored_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/arrow_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/jovian_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/torrent_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://default_bus_layout.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://export_presets.cfg
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://project.godot
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/ship_audio_rig.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/station_machinery_ambience.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/hero_damage_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/pulse_weapon_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/interaction/ship_boarding_area.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/main.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/player.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/arrow_recon_ship.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/jovian_light_freighter.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/range_opponent.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/torrent_interceptor.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ui/hud.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth_feedback.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_door.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_operations_activity.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_structural_service_dressing.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/aft_junction_stack.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/habitat_spine.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/jovian_freight_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/shipyard_world.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_pilot_motion_v2.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_torrent_hero_v1.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd.uid
+COMBAT_VISUAL_PASS: recursive source roster and every declared production byte remain identical through capture
+COMBAT_VISUAL_PASS: published source SHA-256 manifest is byte-identical to staging
+COMBAT_VISUAL_PASS: precommit staged combat output opens for exact inventory
+COMBAT_VISUAL_PASS: precommit staged combat output enumeration begins
+COMBAT_VISUAL_PASS: precommit staged PNG inventory is exactly the declared seven frames
+COMBAT_VISUAL_PASS: precommit staged inventory has no stale PNG import sidecars
+COMBAT_VISUAL_PASS: precommit staged evidence manifest authenticates exact ordered state/file/hash inventory
+COMBAT_VISUAL_PASS: precommit staged manifest authenticates the frozen source roster and published source manifest
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/rendering
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/settings
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/combat
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/game
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/core
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/physics
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/control
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scripts/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/components
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/world/modules
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ui
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/interaction
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/audio
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://scenes/ships/presentation
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/effects
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/concepts/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/materials
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/textures
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/torrent/hero
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/models/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/characters/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://assets/ships
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/torrent
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/player
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://art_source/pilot
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/blender
+COMBAT_VISUAL_PASS: source freeze directory enumeration begins: res://tools/audio
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/pilot/pilot_motion_v2.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://art_source/torrent/torrent_hero_v1.blend1
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/effects/mudds-combat-vfx-atlas-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-icon.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/keth-nebula.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/arrow-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/cockpit-anti-glare-composite-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/jovian-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/shipyard-deck-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-normal-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/materials/torrent-hull-roughness-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/pilot/pilot_motion_v2_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_art.glb.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/hero/torrent_hero_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_authored_asset_manifest.json
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj.import
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/arrow_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/jovian_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://assets/ships/torrent_provisional.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://default_bus_layout.tres
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://export_presets.cfg
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://project.godot
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/ship_audio_rig.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/audio/station_machinery_ambience.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/hero_damage_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/effects/pulse_weapon_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/interaction/ship_boarding_area.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/main.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/pilot_skinned_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/player/player.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/arrow_recon_ship.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/jovian_light_freighter.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_authored_macroform.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/presentation/torrent_hero_presentation.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/range_opponent.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ships/torrent_interceptor.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/ui/hud.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/ship_berth_feedback.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_door.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_operations_activity.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/components/station_structural_service_dressing.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/aft_junction_stack.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/habitat_spine.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/modules/jovian_freight_berth.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scenes/world/shipyard_world.tscn
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/audio_director.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/ship_audio_rig.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/audio/station_machinery_ambience.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/combat_resolver.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/damageable.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/lifecycle_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/live_combat_authority.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/range_target_damageable_adapter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/combat/shot_request.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/local_ship_input_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/control/ship_command_source.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/core/physics_layers.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/hero_damage_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/effects/pulse_weapon_presentation.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/game/game_flow.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/interaction/ship_boarding_area.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/physics/moving_interior_frame.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/player/player_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/rendering/visual_quality_controller.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/settings/runtime_settings.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/arrow_recon_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/hero_ship.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/jovian_light_freighter.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/range_opponent.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ships/ship_definition.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/flight_path_cue.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/ui/hud.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/aft_junction_stack.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/habitat_spine.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/jovian_freight_berth_audit.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/ship_berth_feedback.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/shipyard_world.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_door.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_operations_activity.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://scripts/world/station_structural_service_dressing.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tests/capture_combat_visuals.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_pilot_motion_v2.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/blender/generate_torrent_hero_v1.py
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_material_maps.gd.uid
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd
+COMBAT_VISUAL_PASS: source freeze path exists and hashes: res://tools/generate_torrent_authored_assets.gd.uid
+COMBAT_VISUAL_PASS: recursive source roster and every declared production byte remain identical through capture
+COMBAT_VISUAL_PASS: published evidence sentinel is byte-identical to staging
+COMBAT_VISUAL_PASS: postcommit published combat output opens for exact inventory
+COMBAT_VISUAL_PASS: postcommit published combat output enumeration begins
+COMBAT_VISUAL_PASS: postcommit published PNG inventory is exactly the declared seven frames
+COMBAT_VISUAL_PASS: postcommit published inventory has no stale PNG import sidecars
+COMBAT_VISUAL_PASS: postcommit published evidence manifest authenticates exact ordered state/file/hash inventory
+COMBAT_VISUAL_PASS: postcommit published manifest authenticates the frozen source roster and published source manifest
+MUDDS_COMBAT_VISUAL_CAPTURE_OK: 7 HUD-free source-frozen native X11 Forward+ frames at 2560x1440
+WARNING: 7 RIDs of type "Texture" were leaked.
+   at: finalize (servers/rendering/rendering_device.cpp:8900)

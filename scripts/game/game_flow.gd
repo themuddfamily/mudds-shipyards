@@ -157,6 +157,10 @@ var _berth_tokens: Dictionary = {}
 var _reserved_berth_ids: Dictionary = {}
 var _last_player_shot_result: Dictionary = {}
 var _last_opponent_shot_result: Dictionary = {}
+## Receipt-keyed audio metadata captured at authoritative damage time. Gameplay
+## state is already final; this only lets the authored positional cue start at
+## the same endpoint/ship pose as the delayed impact or destruction art.
+var _pending_combat_audio_receipts: Dictionary = {}
 var _initialized := false
 var _last_lifecycle_command_ship_instance_id := 0
 var _last_lifecycle_command_stream_id := -1
@@ -239,6 +243,16 @@ func _connect_runtime_signals() -> void:
 		_on_authoritative_shot_submitted
 	)
 	_connect_signal_once(pulse_presentation, &"impact_started", _on_pulse_impact_started)
+	_connect_signal_once(
+		pulse_presentation,
+		&"impact_receipt_ready",
+		_on_pulse_impact_receipt_ready
+	)
+	_connect_signal_once(
+		pulse_presentation,
+		&"impact_receipt_aborted",
+		_on_pulse_impact_receipt_aborted
+	)
 	_connect_signal_once(hud, &"start_requested", start_shift)
 	_connect_signal_once(hud, &"restart_requested", _restart_shift)
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
@@ -918,7 +932,9 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 		if phase in [Phase.LAUNCH, Phase.TARGET_PRACTICE]
 		else COMBAT_WEAPON_ID
 	)
-	var result: Dictionary = combat_authority.submit_hitscan(firing_ship, weapon_id, origin, direction)
+	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
+		firing_ship, weapon_id, origin, direction
+	)
 	_last_player_shot_result = result.duplicate(true)
 
 
@@ -943,13 +959,37 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
 			endpoint = resolved_position as Vector3
 	var style_id: StringName = &"amber" if request.source_entity == opponent else &"cyan"
-	_present_pulse_shot(
+	var receipt_id := request.presentation_receipt_id
+	if bool(result.get("damaged", false)) and receipt_id >= 0:
+		var target_entity: Variant = result.get("target_entity")
+		var terminal := bool(result.get("destroyed", false))
+		var terminal_position := endpoint
+		var target_instance_id := 0
+		if is_instance_valid(target_entity):
+			target_instance_id = (target_entity as Object).get_instance_id()
+			if terminal and target_entity is Node3D:
+				terminal_position = (target_entity as Node3D).global_position
+		_pending_combat_audio_receipts[receipt_id] = {
+			"target": weakref(target_entity) if is_instance_valid(target_entity) else null,
+			"target_instance_id": target_instance_id,
+			"endpoint": endpoint,
+			"terminal_position": terminal_position,
+			"terminal": terminal,
+			"style_id": style_id,
+			"source_instance_id": source_instance_id,
+		}
+	var presented := _present_pulse_shot(
 		request.origin,
 		endpoint,
 		style_id,
 		request.source_entity if is_instance_valid(request.source_entity) else null,
-		bool(result.get("hit", false))
+		bool(result.get("hit", false)),
+		receipt_id
 	)
+	if bool(result.get("damaged", false)) and receipt_id >= 0 and not presented:
+		var impact_weight := 0.45 if style_id == &"amber" else 0.9
+		combat_audio.play_impact(endpoint, impact_weight, maxi(source_instance_id, 0))
+		_commit_damage_presentation_receipt(receipt_id, result.get("target_entity"), endpoint)
 
 
 func _on_pulse_impact_started(
@@ -965,12 +1005,88 @@ func _on_pulse_impact_started(
 	combat_audio.play_impact(position, impact_weight, maxi(source_instance_id, 0))
 
 
+func _on_pulse_impact_receipt_ready(receipt_id: int, position: Vector3) -> void:
+	_commit_damage_presentation_receipt(receipt_id, null, position)
+
+
+func _on_pulse_impact_receipt_aborted(receipt_id: int) -> void:
+	# Damage/health authority is already final. If a bounded visual slot is
+	# recycled or torn down before arrival, release its queued presentation now
+	# so a destroyed hull or impact can never remain visually pending forever.
+	var record := _pending_combat_audio_receipts.get(receipt_id, {}) as Dictionary
+	if not record.is_empty():
+		var endpoint := record.get("endpoint", Vector3.INF) as Vector3
+		if endpoint.is_finite():
+			var style_id := StringName(record.get("style_id", &"cyan"))
+			var impact_weight := 0.45 if style_id == &"amber" else 0.9
+			combat_audio.play_impact(
+				endpoint,
+				impact_weight,
+				maxi(int(record.get("source_instance_id", 0)), 0)
+			)
+	_commit_damage_presentation_receipt(receipt_id)
+
+
+func _commit_damage_presentation_receipt(
+		receipt_id: int,
+		target_hint: Variant = null,
+		arrival_position: Vector3 = Vector3.INF
+	) -> bool:
+	if receipt_id < 0:
+		return false
+	var record := _pending_combat_audio_receipts.get(receipt_id, {}) as Dictionary
+	var target: Variant = target_hint
+	if not is_instance_valid(target):
+		var target_ref := record.get("target") as WeakRef
+		if target_ref != null:
+			target = target_ref.get_ref()
+	var committed := false
+	if is_instance_valid(target) and target.has_method("commit_deferred_damage_presentation"):
+		committed = bool(target.call("commit_deferred_damage_presentation", receipt_id))
+	for fleet_ship in ships:
+		if not committed and (
+			is_instance_valid(fleet_ship)
+			and fleet_ship.has_method("commit_deferred_damage_presentation")
+			and bool(fleet_ship.call("commit_deferred_damage_presentation", receipt_id))
+		):
+			committed = true
+			target = fleet_ship
+			break
+	if (
+		not committed
+		and
+		is_instance_valid(opponent)
+		and opponent.has_method("commit_deferred_damage_presentation")
+		and bool(opponent.call("commit_deferred_damage_presentation", receipt_id))
+	):
+		committed = true
+		target = opponent
+	if not committed:
+		committed = (
+		bool(world.call("commit_deferred_damage_presentation", receipt_id))
+		if is_instance_valid(world) and world.has_method("commit_deferred_damage_presentation")
+		else false
+		)
+	if not committed:
+		return false
+	_pending_combat_audio_receipts.erase(receipt_id)
+	if bool(record.get("terminal", false)):
+		var effect_position := record.get("terminal_position", arrival_position) as Vector3
+		if not effect_position.is_finite():
+			effect_position = arrival_position
+		if effect_position.is_finite():
+			combat_audio.play_explosion(
+				effect_position,
+				maxi(int(record.get("target_instance_id", 0)), 0)
+			)
+	return true
+
+
 func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:
 	if active_ship != ship or (phase != Phase.LAUNCH and phase != Phase.TARGET_PRACTICE):
 		return
 	destroyed_targets = mini(total_targets, destroyed_targets + 1)
 	hud.set_target_count(destroyed_targets, total_targets)
-	audio.play_target_destroyed()
 	if destroyed_targets >= total_targets and phase == Phase.TARGET_PRACTICE:
 		_begin_interceptor_engagement()
 	elif destroyed_targets >= total_targets:
@@ -1082,13 +1198,14 @@ func _on_opponent_destroyed(position: Vector3) -> void:
 	if phase != Phase.INTERCEPTOR_ENGAGEMENT:
 		return
 	hud.set_enemy_status("", 0.0, 1.0, false)
-	combat_audio.play_explosion(position, opponent.get_instance_id())
+	if opponent.get_pending_damage_presentation_count() == 0:
+		combat_audio.play_explosion(position, opponent.get_instance_id())
 	_begin_return_to_yard()
 
 
 func _on_opponent_projectile_fired(origin: Vector3, direction: Vector3) -> void:
 	var ray_end := origin + direction.normalized() * ENEMY_WEAPON_RANGE
-	var result: Dictionary = combat_authority.submit_hitscan(
+	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
 		opponent,
 		OPPONENT_WEAPON_ID,
 		origin,
@@ -1574,7 +1691,8 @@ func _on_ship_destroyed(
 	) -> void:
 	if not is_instance_valid(source_ship) or not ships.has(source_ship):
 		return
-	combat_audio.play_explosion(world_position, source_ship.get_instance_id())
+	if source_ship.get_pending_terminal_damage_presentation_receipt_id() < 0:
+		combat_audio.play_explosion(world_position, source_ship.get_instance_id())
 	_release_ship_berth(source_ship)
 	var active_transition_loss := (
 		source_ship == active_ship
@@ -1921,8 +2039,16 @@ func _present_pulse_shot(
 	end: Vector3,
 	style_id: StringName,
 	source_entity: Node,
-	hit: bool
-	) -> void:
+		hit: bool,
+		presentation_receipt_id: int = -1
+	) -> bool:
 	if not is_instance_valid(pulse_presentation):
-		return
-	pulse_presentation.present_shot(origin, end, style_id, source_entity, hit)
+		return false
+	return pulse_presentation.present_shot(
+		origin,
+		end,
+		style_id,
+		source_entity,
+		hit,
+		presentation_receipt_id
+	)

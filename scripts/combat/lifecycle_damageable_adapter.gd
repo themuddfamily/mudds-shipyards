@@ -122,10 +122,25 @@ func apply_damage(
 	else:
 		safe_normal = safe_normal.normalized()
 	var target := get_target_entity()
+	var presentation_receipt_id := int(source_context.get("presentation_receipt_id", -1))
+	var defer_presentation := presentation_receipt_id >= 0
 	if lifecycle_kind == LifecycleKind.HERO_SHIP:
-		target.call("apply_damage", amount, safe_position, safe_normal)
+		target.call(
+			"apply_damage",
+			amount,
+			safe_position,
+			safe_normal,
+			presentation_receipt_id,
+			defer_presentation
+		)
 	else:
-		target.call("apply_damage", amount, safe_position)
+		target.call(
+			"apply_damage",
+			amount,
+			safe_position,
+			presentation_receipt_id,
+			defer_presentation
+		)
 
 	var after := get_health()
 	var applied := maxf(0.0, before - after)
