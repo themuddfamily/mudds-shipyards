@@ -179,6 +179,9 @@ var _crane_hook: Node3D
 var _built := false
 var _elapsed := 0.0
 var _destroyed_target_count := 0
+const MAX_PENDING_TARGET_PRESENTATIONS := 16
+var _pending_target_presentations: Dictionary = {}
+var _pending_target_presentation_order: Array[int] = []
 var _visual_quality_report: Dictionary = {}
 var _berth_transforms: Dictionary = {}
 var _berth_half_extents: Dictionary = {}
@@ -1390,6 +1393,47 @@ func get_target_count() -> int:
 
 func get_destroyed_target_count() -> int:
 	return _destroyed_target_count
+
+
+func defer_target_damage_presentation(
+		receipt_id: int,
+		target: StaticBody3D,
+		target_id: StringName,
+		hit_position: Vector3,
+		terminal: bool
+	) -> bool:
+	if receipt_id < 0 or not is_instance_valid(target):
+		return false
+	if _pending_target_presentations.has(receipt_id):
+		_pending_target_presentation_order.erase(receipt_id)
+	_pending_target_presentations[receipt_id] = {
+		"target": weakref(target),
+		"target_id": target_id,
+		"hit_position": hit_position,
+		"terminal": terminal,
+	}
+	_pending_target_presentation_order.append(receipt_id)
+	while _pending_target_presentation_order.size() > MAX_PENDING_TARGET_PRESENTATIONS:
+		var evicted: int = _pending_target_presentation_order.pop_front()
+		_pending_target_presentations.erase(evicted)
+	return true
+
+
+func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+	if not _pending_target_presentations.has(receipt_id):
+		return false
+	var record := _pending_target_presentations[receipt_id] as Dictionary
+	_pending_target_presentations.erase(receipt_id)
+	_pending_target_presentation_order.erase(receipt_id)
+	var target_ref := record.get("target") as WeakRef
+	var target := target_ref.get_ref() as StaticBody3D if target_ref != null else null
+	if not is_instance_valid(target):
+		return false
+	if bool(record.terminal):
+		present_authorized_target_destruction(target, record.hit_position)
+	else:
+		_spawn_impact(record.hit_position, KETH_ORANGE)
+	return true
 
 
 func get_visual_quality_report() -> Dictionary:
@@ -2623,14 +2667,46 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 	_targets.append(target)
 
 
-func _destroy_target(target: StaticBody3D, target_id: StringName, hit_position: Vector3) -> void:
+func _destroy_target(
+		target: StaticBody3D,
+		target_id: StringName,
+		hit_position: Vector3
+	) -> void:
+	authorize_target_destruction(target, target_id, hit_position)
+	present_authorized_target_destruction(target, hit_position)
+
+
+## Commits the target's gameplay authority synchronously. The visible burst and
+## collapse may be receipt-delayed, but collision, mission count, and the
+## one-shot target signal must be final as soon as authoritative damage lands.
+func authorize_target_destruction(
+		target: StaticBody3D,
+		target_id: StringName,
+		hit_position: Vector3
+	) -> bool:
+	if not is_instance_valid(target) or bool(target.get_meta("destruction_authority_committed", false)):
+		return false
 	target.set_meta("destroyed", true)
+	target.set_meta("destruction_authority_committed", true)
 	_destroyed_target_count += 1
+	target.collision_layer = 0
+	target.collision_mask = 0
 	for child in target.get_children():
 		if child is CollisionShape3D:
 			(child as CollisionShape3D).set_deferred("disabled", true)
-	_spawn_target_burst(target.global_position)
 	target_destroyed.emit(target_id, hit_position)
+	return true
+
+
+## Releases only the already-authorized target presentation at pulse arrival.
+func present_authorized_target_destruction(
+		target: StaticBody3D,
+		_hit_position: Vector3
+	) -> void:
+	if not is_instance_valid(target) or bool(target.get_meta("destruction_visual_committed", false)):
+		return
+	target.set_meta("destruction_visual_committed", true)
+	_spawn_target_burst(target.global_position)
 
 	var tween := create_tween()
 	tween.set_parallel(true)
@@ -2648,6 +2724,8 @@ func _destroy_target(target: StaticBody3D, target_id: StringName, hit_position: 
 func _spawn_impact(world_position: Vector3, color: Color) -> void:
 	var impact_material := _material(color, 0.0, 0.3, color, 6.0)
 	var impact := _sphere(self, "ProjectileImpact", world_position, 0.16, impact_material, false)
+	impact.top_level = true
+	impact.global_position = world_position
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(impact, "scale", Vector3.ONE * 4.0, 0.18)
@@ -2658,8 +2736,9 @@ func _spawn_impact(world_position: Vector3, color: Color) -> void:
 func _spawn_target_burst(world_position: Vector3) -> void:
 	var burst := Node3D.new()
 	burst.name = "TargetBurst"
-	burst.position = world_position
 	add_child(burst)
+	burst.top_level = true
+	burst.global_position = world_position
 	for index in 12:
 		var angle := TAU * float(index) / 12.0
 		var vertical := sin(float(index) * 2.17) * 0.75

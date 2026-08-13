@@ -124,9 +124,39 @@ func apply_damage(
 		safe_context.duplicate(true)
 	)
 	health_changed.emit(after, get_maximum_health())
+	var presentation_receipt_id := int(safe_context.get("presentation_receipt_id", -1))
 	if after <= 0.0 and not bool(target.get_meta("destroyed", false)):
 		var world_owner := _get_world_owner()
-		if is_instance_valid(world_owner) and world_owner.has_method("_destroy_target"):
+		var authority_committed := false
+		if is_instance_valid(world_owner) and world_owner.has_method("authorize_target_destruction"):
+			authority_committed = bool(world_owner.call(
+				"authorize_target_destruction",
+				target,
+				StringName(target.get_meta("target_id", &"UNKNOWN")),
+				safe_position
+			))
+		if (
+			presentation_receipt_id >= 0
+			and is_instance_valid(world_owner)
+			and world_owner.has_method("defer_target_damage_presentation")
+		):
+			if not authority_committed:
+				target.set_meta("destroyed", true)
+			world_owner.call(
+				"defer_target_damage_presentation",
+				presentation_receipt_id,
+				target,
+				StringName(target.get_meta("target_id", &"UNKNOWN")),
+				safe_position,
+				true
+			)
+		elif is_instance_valid(world_owner) and world_owner.has_method("present_authorized_target_destruction"):
+			world_owner.call(
+				"present_authorized_target_destruction",
+				target,
+				safe_position
+			)
+		elif is_instance_valid(world_owner) and world_owner.has_method("_destroy_target"):
 			world_owner.call(
 				"_destroy_target",
 				target,
@@ -135,7 +165,8 @@ func apply_damage(
 			)
 		else:
 			target.set_meta("destroyed", true)
-		result["destroyed"] = true
+	result["destroyed"] = after <= 0.0
+	if after <= 0.0:
 		destroyed.emit(safe_position, safe_normal, safe_context.duplicate(true))
 	return result
 

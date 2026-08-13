@@ -20,14 +20,23 @@ signal impact_started(
 	source_instance_id: int,
 	position: Vector3
 )
+signal impact_receipt_ready(receipt_id: int, position: Vector3)
+## A fail-safe completion for a resolved hit whose visual was retired before it
+## could reach the endpoint (pool saturation, explicit clear, or tree exit).
+## Gameplay authority is already committed; listeners use this only to release
+## the corresponding delayed damage presentation instead of stranding it.
+signal impact_receipt_aborted(receipt_id: int)
 signal shot_finished(shot_id: int)
 signal shot_recycled(retired_shot_id: int, replacement_shot_id: int)
 signal effects_cleared
 signal presentation_enabled_changed(enabled: bool)
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 const COMPONENT_ID: StringName = &"pulse-weapon-presentation"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
+const VFX_ATLAS_PATH := "res://assets/effects/mudds-combat-vfx-atlas-v1.png"
+const VFX_ATLAS_SHA256 := "e748314a287112a11f809b417fa262b184199715f029b0915b63ca8ccecd3aac"
+const VFX_ATLAS: Texture2D = preload(VFX_ATLAS_PATH)
 
 const STYLE_CYAN: StringName = &"cyan"
 const STYLE_AMBER: StringName = &"amber"
@@ -53,13 +62,13 @@ const MAX_TRAVEL_DURATION := 0.28
 const MUZZLE_DURATION := 0.065
 const MISS_TAIL_DURATION := 0.055
 const IMPACT_DURATION := 0.24
-const SEGMENT_LENGTH := 0.72
-const SEGMENT_SPACING := 1.18
+const SEGMENT_LENGTH := 1.08
+const SEGMENT_SPACING := 1.44
 const MIN_VISIBLE_SEGMENT_LENGTH := 0.015
 
 const CONTENT_NOTE := (
-	"The segmented travelling pulse, muzzle flash, palette, timing, impact flare, "
-	+ "spark arrangement, dimensions, and pooling policy are an original modern "
+	"The authored atlas, segmented travelling pulse, muzzle flash, palette, timing, "
+	+ "impact flare, spark arrangement, dimensions, and pooling policy are an original modern "
 	+ "presentation treatment. They do not claim to reproduce an authenticated "
 	+ "historical Keth Shipyards weapon effect or weapon-system behaviour."
 )
@@ -82,9 +91,11 @@ var _auto_advance_overridden := false
 
 var _shared_meshes: Dictionary = {}
 var _style_materials: Dictionary = {}
+var _atlas_materials: Dictionary = {}
 var _slots: Array[Dictionary] = []
 var _built_node_instance_ids: Dictionary = {}
 var _built_material_contracts: Dictionary = {}
+var _built_atlas_material_contracts: Dictionary = {}
 var _built_mesh_contracts: Dictionary = {}
 
 var _next_shot_id := 1
@@ -97,6 +108,7 @@ var _presented_count := 0
 var _finished_count := 0
 var _recycled_count := 0
 var _rejected_count := 0
+var _lifecycle_transaction_active := false
 
 
 func _enter_tree() -> void:
@@ -130,8 +142,11 @@ func _process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
-	_clear_effects_internal(false)
+	_lifecycle_transaction_active = true
+	var aborted_receipts := _clear_effects_internal(false, false)
 	set_process(false)
+	_emit_aborted_receipts(aborted_receipts)
+	_lifecycle_transaction_active = false
 
 
 func get_component_id() -> StringName:
@@ -148,7 +163,8 @@ func present_shot(
 		end: Vector3,
 		style_id: StringName = DEFAULT_STYLE_ID,
 		source_entity: Node = null,
-		hit: bool = false
+		hit: bool = false,
+		presentation_receipt_id: int = -1
 	) -> bool:
 	if not _can_present(origin, end, style_id, source_entity):
 		_rejected_count += 1
@@ -160,13 +176,14 @@ func present_shot(
 		return false
 
 	var retired_shot_id := 0
+	var aborted_receipt_id := -1
 	var slot: Dictionary = _slots[slot_index]
 	if bool(slot.get("active", false)):
 		retired_shot_id = int(slot.get("shot_id", 0))
 		# Retire atomically but emit completion only after the replacement has been
 		# fully installed. A synchronous signal handler may present another shot;
 		# no outer mutation may overwrite that nested transaction.
-		_deactivate_slot(slot_index, false)
+		aborted_receipt_id = _deactivate_slot(slot_index, false)
 		_recycled_count += 1
 
 	var shot_id := _next_shot_id
@@ -192,6 +209,7 @@ func present_shot(
 	slot["source_instance_id"] = source_instance_id
 	slot["hit"] = hit
 	slot["impact_started"] = false
+	slot["presentation_receipt_id"] = presentation_receipt_id
 	slot["age"] = 0.0
 	slot["travel_duration"] = travel_duration
 	slot["total_lifetime"] = travel_duration + (IMPACT_DURATION if hit else MISS_TAIL_DURATION)
@@ -209,6 +227,8 @@ func present_shot(
 	if retired_shot_id > 0:
 		shot_recycled.emit(retired_shot_id, shot_id)
 		shot_finished.emit(retired_shot_id)
+	if aborted_receipt_id >= 0:
+		impact_receipt_aborted.emit(aborted_receipt_id)
 	return true
 
 
@@ -237,7 +257,18 @@ func advance_simulation(delta: float) -> bool:
 		slot["age"] = float(slot.get("age", 0.0)) + delta
 		_slots[slot_index] = slot
 		if float(slot["age"]) >= float(slot["total_lifetime"]):
-			_deactivate_slot(slot_index, true)
+			# A hitch may cross both arrival and retirement in one frame. Publish the
+			# endpoint transition before completion even when no impact frame can be
+			# drawn. Re-entrant callbacks may recycle this slot, so retire only the
+			# activation that entered this transaction.
+			if bool(slot.get("hit", false)) and not bool(slot.get("impact_started", false)):
+				_update_slot(slot_index)
+			var live_slot: Dictionary = _slots[slot_index]
+			if (
+				bool(live_slot.get("active", false))
+				and int(live_slot.get("activation_serial", 0)) == int(slot.get("activation_serial", 0))
+			):
+				_deactivate_slot(slot_index, true)
 		else:
 			_update_slot(slot_index)
 		advanced = true
@@ -259,7 +290,8 @@ func clear_effects() -> void:
 ## Clears active visuals and statistics while preserving the allocated pool.
 ## This is the explicit reentry API for recycled combat/world presentations.
 func reset_for_reuse() -> void:
-	_clear_effects_internal(false)
+	_lifecycle_transaction_active = true
+	var aborted_receipts := _clear_effects_internal(false, false)
 	_next_shot_id = 1
 	_presented_count = 0
 	_finished_count = 0
@@ -268,6 +300,8 @@ func reset_for_reuse() -> void:
 	_presentation_enabled = true
 	_enabled_overridden = true
 	_refresh_lifecycle()
+	_emit_aborted_receipts(aborted_receipts)
+	_lifecycle_transaction_active = false
 	effects_cleared.emit()
 
 
@@ -278,7 +312,10 @@ func set_presentation_enabled(enabled: bool) -> void:
 		return
 	_presentation_enabled = enabled
 	if not enabled:
-		_clear_effects_internal(true)
+		_lifecycle_transaction_active = true
+		var aborted_receipts := _clear_effects_internal(true, false)
+		_emit_aborted_receipts(aborted_receipts)
+		_lifecycle_transaction_active = false
 	else:
 		_refresh_lifecycle()
 	presentation_enabled_changed.emit(enabled)
@@ -358,7 +395,7 @@ func get_integration_contract() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
-		"api": &"present_shot(origin_world, end_world, style_id, source_entity, hit)",
+		"api": &"present_shot(origin_world, end_world, style_id, source_entity, hit, presentation_receipt_id=-1)",
 		"returns": &"bool_accepted",
 		"coordinate_space": &"world_space",
 		"authority_policy": &"external_hitscan_authority_presentation_only",
@@ -399,7 +436,8 @@ func get_evidence_metadata() -> Dictionary:
 			"short travelling train of three pulse-beam dashes",
 			"cyan, amber, and magenta emissive presentation styles",
 			"spherical muzzle flash and tightly bounded practical light",
-			"mesh-based impact flare and four deterministic radial sparks",
+			"tintable authored pulse, impact, and shock-ring atlas treatment",
+			"atlas impact with eight painted streaks plus four deterministic mesh sparks",
 			"timing, scale, brightness, pool size, and oldest-visual recycle policy",
 		]),
 		"explicit_unknowns": PackedStringArray([
@@ -478,11 +516,13 @@ func get_performance_audit() -> Dictionary:
 		"pool_capacity": get_pool_capacity(),
 		"active_effects": _active_effect_count,
 		"resident_mesh_resources": _shared_meshes.size(),
-		"resident_style_materials": _style_materials.size(),
+		"resident_style_materials": _style_materials.size() + _atlas_materials.size() * 2,
 		"runtime_node_allocation": false,
 		"runtime_resource_allocation": false,
 		"per_frame_allocation": false,
-		"uses_external_assets": false,
+		"uses_external_assets": true,
+		"external_asset_path": VFX_ATLAS_PATH,
+		"external_asset_sha256": VFX_ATLAS_SHA256,
 		"dummy_renderer_safe": true,
 	}.duplicate(true)
 
@@ -567,7 +607,12 @@ func _can_present(
 		style_id: StringName,
 		source_entity: Node
 	) -> bool:
-	if not _built or not is_inside_tree() or not _presentation_enabled:
+	if (
+		not _built
+		or not is_inside_tree()
+		or not _presentation_enabled
+		or _lifecycle_transaction_active
+	):
 		return false
 	if not origin.is_finite() or not end.is_finite():
 		return false
@@ -596,13 +641,10 @@ func _find_available_slot() -> int:
 
 
 func _build_shared_resources() -> void:
-	var orb := SphereMesh.new()
-	orb.resource_name = "PulsePresentationSharedOrb"
-	orb.radius = 0.5
-	orb.height = 1.0
-	orb.radial_segments = 12
-	orb.rings = 6
-	_shared_meshes[&"orb"] = orb
+	var atlas_quad := QuadMesh.new()
+	atlas_quad.resource_name = "PulsePresentationSharedAtlasQuad"
+	atlas_quad.size = Vector2.ONE
+	_shared_meshes[&"orb"] = atlas_quad
 
 	var dash := BoxMesh.new()
 	dash.resource_name = "PulsePresentationSharedDash"
@@ -611,6 +653,10 @@ func _build_shared_resources() -> void:
 
 	for style_id: StringName in STYLE_IDS:
 		_style_materials[style_id] = _make_style_material(style_id)
+		_atlas_materials[style_id] = {
+			"pulse": _make_atlas_material(style_id, Vector3.ZERO, &"Pulse"),
+			"impact": _make_atlas_material(style_id, Vector3(0.5, 0.0, 0.0), &"Impact"),
+		}
 
 
 func _build_pool() -> void:
@@ -664,11 +710,13 @@ func _build_pool() -> void:
 			"source_instance_id": 0,
 			"hit": false,
 			"impact_started": false,
+			"presentation_receipt_id": -1,
 			"age": 0.0,
 			"travel_duration": MIN_TRAVEL_DURATION,
 			"total_lifetime": MIN_TRAVEL_DURATION + MISS_TAIL_DURATION,
 		}
 		_slots.append(slot)
+		_apply_slot_style(slot_index)
 		_hide_slot(slot)
 
 
@@ -713,12 +761,41 @@ func _make_style_material(style_id: StringName) -> StandardMaterial3D:
 	return result
 
 
+func _make_atlas_material(
+		style_id: StringName,
+		atlas_offset: Vector3,
+		role: StringName
+	) -> StandardMaterial3D:
+	var color := _style_color(style_id)
+	var result := StandardMaterial3D.new()
+	result.resource_name = "PulsePresentation_%s%sAtlas" % [style_id, role]
+	result.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	result.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	result.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	result.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	result.albedo_texture = VFX_ATLAS
+	result.albedo_color = Color(color.r, color.g, color.b, 0.96)
+	result.emission_enabled = true
+	result.emission_texture = VFX_ATLAS
+	result.emission = color
+	result.emission_energy_multiplier = _style_emission(style_id) * (1.15 if role == &"Impact" else 1.0)
+	result.uv1_scale = Vector3(0.5, 0.5, 1.0)
+	result.uv1_offset = atlas_offset
+	result.metallic = 0.0
+	result.roughness = 0.0
+	return result
+
+
 func _apply_slot_style(slot_index: int) -> void:
 	var slot: Dictionary = _slots[slot_index]
 	var style_id := StringName(slot.get("style_id", DEFAULT_STYLE_ID))
 	var material := _style_materials.get(style_id) as Material
 	for mesh_instance in _get_slot_meshes(slot):
 		mesh_instance.material_override = material
+	var atlas_roles := _atlas_materials.get(style_id, {}) as Dictionary
+	(slot.get("muzzle") as MeshInstance3D).material_override = atlas_roles.get("pulse") as Material
+	(slot.get("pulse") as MeshInstance3D).material_override = atlas_roles.get("pulse") as Material
+	(slot.get("impact") as MeshInstance3D).material_override = atlas_roles.get("impact") as Material
 	var color := _style_color(style_id)
 	var muzzle_light := slot.get("muzzle_light") as OmniLight3D
 	var impact_light := slot.get("impact_light") as OmniLight3D
@@ -746,7 +823,7 @@ func _update_slot(slot_index: int) -> void:
 
 	var muzzle := slot.get("muzzle") as MeshInstance3D
 	var muzzle_light := slot.get("muzzle_light") as OmniLight3D
-	var muzzle_visible := age < MUZZLE_DURATION
+	var muzzle_visible := age < minf(MUZZLE_DURATION, travel_duration)
 	var muzzle_ratio := clampf(1.0 - age / MUZZLE_DURATION, 0.0, 1.0)
 	muzzle.visible = muzzle_visible
 	muzzle_light.visible = muzzle_visible
@@ -755,7 +832,7 @@ func _update_slot(slot_index: int) -> void:
 			muzzle,
 			origin,
 			direction,
-			Vector3.ONE * (0.16 + muzzle_ratio * 0.25) * width_scale
+			Vector3(1.15, 0.82, 1.0) * (0.48 + muzzle_ratio * 0.52) * width_scale
 		)
 		muzzle_light.global_position = origin
 		muzzle_light.light_energy = (0.55 + muzzle_ratio * 1.85) * _style_light(style_id)
@@ -779,7 +856,7 @@ func _update_slot(slot_index: int) -> void:
 			pulse,
 			origin.lerp(end, travel_progress),
 			direction,
-			Vector3(0.14, 0.14, 0.38) * width_scale
+			Vector3(1.18, 0.62, 1.0) * width_scale
 		)
 	_update_beam_segments(slot, travelling, origin, direction, distance, travel_progress, width_scale)
 	_update_impact(slot, age - travel_duration, end, direction, width_scale, style_id)
@@ -793,6 +870,9 @@ func _update_slot(slot_index: int) -> void:
 			int(slot.get("source_instance_id", 0)),
 			end
 		)
+		var receipt_id := int(slot.get("presentation_receipt_id", -1))
+		if receipt_id >= 0:
+			impact_receipt_ready.emit(receipt_id, end)
 
 
 func _update_beam_segments(
@@ -821,7 +901,7 @@ func _update_beam_segments(
 			segment,
 			origin + direction * visible_center,
 			direction,
-			Vector3(0.055, 0.055, visible_length) * width_scale
+			Vector3(0.14, 0.14, visible_length) * width_scale
 		)
 
 
@@ -846,8 +926,8 @@ func _update_impact(
 		return
 
 	var phase := clampf(impact_age / IMPACT_DURATION, 0.0, 1.0)
-	var flare_scale := (0.2 + sin(phase * PI) * 0.42) * width_scale
-	_set_world_mesh_transform(impact, end, direction, Vector3.ONE * flare_scale)
+	var flare_scale := (1.15 + sin(phase * PI) * 1.05) * width_scale
+	_set_world_mesh_transform(impact, end, direction, Vector3(1.12, 1.12, 1.0) * flare_scale)
 	impact_light.global_position = end
 	impact_light.light_energy = (1.0 - phase) * 2.7 * _style_light(style_id)
 
@@ -868,7 +948,7 @@ func _update_impact(
 			sparks[spark_index],
 			end + spark_direction * travel,
 			spark_direction,
-			Vector3(0.035, 0.035, maxf(0.035, 0.28 * (1.0 - phase))) * width_scale
+			Vector3(0.065, 0.065, maxf(0.065, 0.52 * (1.0 - phase))) * width_scale
 		)
 
 
@@ -890,14 +970,18 @@ func _basis_for_forward(forward: Vector3) -> Basis:
 	return Basis.looking_at(safe_forward, up).orthonormalized()
 
 
-func _deactivate_slot(slot_index: int, emit_completion: bool) -> void:
+func _deactivate_slot(slot_index: int, emit_completion: bool) -> int:
 	var slot: Dictionary = _slots[slot_index]
 	if not bool(slot.get("active", false)):
 		_hide_slot(slot)
-		return
+		return -1
 	var completed_shot_id := int(slot.get("shot_id", 0))
+	var aborted_receipt_id := -1
+	if bool(slot.get("hit", false)) and not bool(slot.get("impact_started", false)):
+		aborted_receipt_id = int(slot.get("presentation_receipt_id", -1))
 	slot["active"] = false
 	slot["source_instance_id"] = 0
+	slot["presentation_receipt_id"] = -1
 	slot["age"] = 0.0
 	_slots[slot_index] = slot
 	_active_effect_count = maxi(0, _active_effect_count - 1)
@@ -905,19 +989,35 @@ func _deactivate_slot(slot_index: int, emit_completion: bool) -> void:
 	_hide_slot(slot)
 	if emit_completion and completed_shot_id > 0:
 		shot_finished.emit(completed_shot_id)
+	return aborted_receipt_id
 
 
-func _clear_effects_internal(emit_signal: bool) -> void:
+func _clear_effects_internal(emit_signal: bool, publish_aborts: bool = true) -> Array[int]:
+	var aborted_receipts: Array[int] = []
 	for slot_index in _slots.size():
 		var slot: Dictionary = _slots[slot_index]
 		if bool(slot.get("active", false)):
-			_deactivate_slot(slot_index, false)
+			var aborted_receipt_id := _deactivate_slot(slot_index, false)
+			if aborted_receipt_id >= 0:
+				aborted_receipts.append(aborted_receipt_id)
 		else:
 			_hide_slot(slot)
 	_active_effect_count = 0
 	set_process(false)
+	# Publish fail-safe receipts only after every pool mutation is complete. A
+	# synchronous listener may re-enter presentation without an outer clear or
+	# recycle transaction overwriting that nested activation.
+	if publish_aborts:
+		_emit_aborted_receipts(aborted_receipts)
+	_refresh_lifecycle()
 	if emit_signal:
 		effects_cleared.emit()
+	return aborted_receipts
+
+
+func _emit_aborted_receipts(receipt_ids: Array[int]) -> void:
+	for aborted_receipt_id in receipt_ids:
+		impact_receipt_aborted.emit(aborted_receipt_id)
 
 
 func _hide_slot(slot: Dictionary) -> void:
@@ -1001,9 +1101,15 @@ func _capture_built_contract() -> void:
 	for candidate in find_children("*", "", true, false):
 		_built_node_instance_ids[str(get_path_to(candidate))] = candidate.get_instance_id()
 	_built_material_contracts.clear()
+	_built_atlas_material_contracts.clear()
 	for style_id: StringName in STYLE_IDS:
 		var material := _style_materials.get(style_id) as StandardMaterial3D
 		_built_material_contracts[style_id] = _material_contract(material)
+		var atlas_roles := _atlas_materials.get(style_id, {}) as Dictionary
+		_built_atlas_material_contracts[style_id] = {
+			"pulse": _material_contract(atlas_roles.get("pulse") as StandardMaterial3D),
+			"impact": _material_contract(atlas_roles.get("impact") as StandardMaterial3D),
+		}
 	_built_mesh_contracts = {
 		"orb": _mesh_contract(_shared_meshes.get(&"orb") as Mesh),
 		"dash": _mesh_contract(_shared_meshes.get(&"dash") as Mesh),
@@ -1032,7 +1138,12 @@ func _built_hierarchy_is_live() -> bool:
 
 
 func _resource_contracts_are_live() -> bool:
-	if _shared_meshes.size() != 2 or _style_materials.size() != STYLE_IDS.size():
+	if (
+		_shared_meshes.size() != 2
+		or _style_materials.size() != STYLE_IDS.size()
+		or _atlas_materials.size() != STYLE_IDS.size()
+		or not _atlas_contract_is_live()
+	):
 		return false
 	if _mesh_contract(_shared_meshes.get(&"orb") as Mesh) != _built_mesh_contracts.get("orb", {}):
 		return false
@@ -1042,10 +1153,21 @@ func _resource_contracts_are_live() -> bool:
 		var material := _style_materials.get(style_id) as StandardMaterial3D
 		if _material_contract(material) != _built_material_contracts.get(style_id, {}):
 			return false
+		var atlas_roles := _atlas_materials.get(style_id, {}) as Dictionary
+		var built_roles := _built_atlas_material_contracts.get(style_id, {}) as Dictionary
+		for role: String in ["pulse", "impact"]:
+			if _material_contract(atlas_roles.get(role) as StandardMaterial3D) != built_roles.get(role, {}):
+				return false
 	for slot: Dictionary in _slots:
 		var style_id := StringName(slot.get("style_id", DEFAULT_STYLE_ID))
-		var expected_material := _style_materials.get(style_id) as Material
+		var core_material := _style_materials.get(style_id) as Material
+		var atlas_roles := _atlas_materials.get(style_id, {}) as Dictionary
 		for mesh_instance in _get_slot_meshes(slot):
+			var expected_material := core_material
+			if mesh_instance.name in [&"MuzzleFlash", &"TravellingPulse"]:
+				expected_material = atlas_roles.get("pulse") as Material
+			elif mesh_instance.name == &"ImpactFlare":
+				expected_material = atlas_roles.get("impact") as Material
 			var expected_mesh := (
 				_shared_meshes[&"orb"] as Mesh
 				if mesh_instance.name in [&"MuzzleFlash", &"TravellingPulse", &"ImpactFlare"]
@@ -1059,6 +1181,17 @@ func _resource_contracts_are_live() -> bool:
 			):
 				return false
 	return true
+
+
+func _atlas_contract_is_live() -> bool:
+	if VFX_ATLAS == null or VFX_ATLAS.get_size() != Vector2(1254.0, 1254.0):
+		return false
+	var physical_path := ProjectSettings.globalize_path(VFX_ATLAS_PATH)
+	if FileAccess.file_exists(physical_path):
+		return FileAccess.get_sha256(physical_path) == VFX_ATLAS_SHA256
+	# Exported PCKs expose the imported texture through remap rather than a loose
+	# PNG. The immutable texture/material/content audit remains mandatory there.
+	return ResourceLoader.exists(VFX_ATLAS_PATH)
 
 
 func _slot_state_is_valid() -> bool:
@@ -1111,6 +1244,15 @@ func _material_contract(material: StandardMaterial3D) -> Dictionary:
 		"emission_energy_multiplier": material.emission_energy_multiplier,
 		"metallic": material.metallic,
 		"roughness": material.roughness,
+		"transparency": material.transparency,
+		"blend_mode": material.blend_mode,
+		"billboard_mode": material.billboard_mode,
+		"albedo_texture_id": material.albedo_texture.get_instance_id() if material.albedo_texture != null else 0,
+		"albedo_texture_path": material.albedo_texture.resource_path if material.albedo_texture != null else "",
+		"emission_texture_id": material.emission_texture.get_instance_id() if material.emission_texture != null else 0,
+		"emission_texture_path": material.emission_texture.resource_path if material.emission_texture != null else "",
+		"uv1_scale": material.uv1_scale,
+		"uv1_offset": material.uv1_offset,
 	}
 
 
@@ -1130,6 +1272,8 @@ func _mesh_contract(mesh: Mesh) -> Dictionary:
 		result["rings"] = sphere.rings
 	elif mesh is BoxMesh:
 		result["size"] = (mesh as BoxMesh).size
+	elif mesh is QuadMesh:
+		result["size"] = (mesh as QuadMesh).size
 	return result
 
 

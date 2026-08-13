@@ -59,6 +59,27 @@ func submit_hitscan(
 	origin: Vector3,
 	direction: Vector3
 	) -> Dictionary:
+	return _submit_hitscan(source_entity, weapon_id, origin, direction, false)
+
+
+## Resolves authority immediately while issuing a stable receipt that lets the
+## visual coordinator align target feedback with the travelling pulse endpoint.
+func submit_hitscan_with_deferred_presentation(
+	source_entity: Node3D,
+	weapon_id: StringName,
+	origin: Vector3,
+	direction: Vector3
+	) -> Dictionary:
+	return _submit_hitscan(source_entity, weapon_id, origin, direction, true)
+
+
+func _submit_hitscan(
+	source_entity: Node3D,
+	weapon_id: StringName,
+	origin: Vector3,
+	direction: Vector3,
+	defer_damage_presentation: bool
+	) -> Dictionary:
 	_ensure_resolver()
 	var registration := _get_registration(source_entity)
 	if registration.is_empty():
@@ -82,16 +103,23 @@ func submit_hitscan(
 		)
 		return resolver.resolve_hitscan(unauthorized)
 	var sequence := _next_sequence(source_entity, registration)
+	var source_id := int(registration.get("source_id", 0))
+	var presentation_receipt_id := (
+		(source_id << 32) | (sequence & 0xffffffff)
+		if defer_damage_presentation
+		else -1
+	)
 	var request := ShotRequestType.new(
 		source_entity,
-		int(registration.get("source_id", 0)),
+		source_id,
 		registration.get("faction_id", &""),
 		weapon_id,
 		sequence,
 		origin,
 		direction,
 		float(profile.get("range", 0.0)),
-		float(profile.get("damage", 0.0))
+		float(profile.get("damage", 0.0)),
+		presentation_receipt_id
 	)
 	var result := resolver.resolve_hitscan(request)
 	authoritative_shot_submitted.emit(request, result.duplicate(true))

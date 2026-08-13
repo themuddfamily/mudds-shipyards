@@ -17,6 +17,9 @@ var origin: Vector3 = Vector3.ZERO
 var direction: Vector3 = Vector3.FORWARD
 var range: float = 0.0
 var damage: float = 0.0
+## Optional globally unique visual receipt. Negative keeps damage presentation
+## immediate; non-negative lets a presentation coordinator commit it at impact.
+var presentation_receipt_id: int = -1
 
 
 func _init(
@@ -28,7 +31,8 @@ func _init(
 	p_origin: Vector3 = Vector3.ZERO,
 	p_direction: Vector3 = Vector3.FORWARD,
 	p_range: float = 0.0,
-	p_damage: float = 0.0
+	p_damage: float = 0.0,
+	p_presentation_receipt_id: int = -1
 	) -> void:
 	source_entity = p_source_entity
 	source_id = p_source_id
@@ -39,6 +43,7 @@ func _init(
 	direction = p_direction
 	range = p_range
 	damage = p_damage
+	presentation_receipt_id = p_presentation_receipt_id
 
 
 ## Returns every malformed field so callers can log one useful rejection.
@@ -60,6 +65,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("range must be finite and positive")
 	if not is_finite(damage) or damage <= 0.0:
 		errors.append("damage must be finite and positive")
+	if presentation_receipt_id < -1:
+		errors.append("presentation_receipt_id must be -1 or non-negative")
 	return errors
 
 
@@ -90,4 +97,5 @@ func get_source_context() -> Dictionary:
 		"faction_id": faction_id,
 		"weapon_id": weapon_id,
 		"sequence": sequence,
+		"presentation_receipt_id": presentation_receipt_id,
 	}

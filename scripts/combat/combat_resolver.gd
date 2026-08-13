@@ -366,6 +366,7 @@ func _make_authoritative_source_context(
 		"faction_id": authority_context.faction_id,
 		"weapon_id": request.weapon_id,
 		"sequence": request.sequence,
+		"presentation_receipt_id": request.presentation_receipt_id,
 	}
 
 

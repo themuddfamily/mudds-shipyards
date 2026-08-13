@@ -1,0 +1,1096 @@
+{
+  "schema": "mudds_combat_visual_rendered_evidence_v1",
+  "frame_count": 7,
+  "frame_inventory": [
+    "01_damaged_opponent_baseline.png",
+    "02_cyan_muzzle_midflight.png",
+    "03_cyan_impact_critical.png",
+    "04_amber_midflight.png",
+    "05_amber_hero_impact.png",
+    "06_lethal_cyan_inflight.png",
+    "07_lethal_arrival_destruction.png"
+  ],
+  "semantic_state_inventory": [
+    "damaged_opponent_baseline",
+    "cyan_muzzle_midflight",
+    "cyan_impact_critical",
+    "amber_midflight",
+    "amber_hero_impact",
+    "lethal_cyan_inflight",
+    "lethal_arrival_destruction"
+  ],
+  "capture_resolution": [
+    2560,
+    1440
+  ],
+  "png_contract": "PNG RGB8, non-interlaced, exact 2560x1440",
+  "renderer": "forward_plus",
+  "adapter": "llvmpipe (LLVM 20.1.2, 256 bits)",
+  "display": "X11",
+  "native_window_size": [
+    2560,
+    1440
+  ],
+  "hud_policy": "HUD_OFF_ALL_CANVASLAYERS_HIDDEN_AND_DISABLED",
+  "production_main_scene": "res://scenes/main.tscn",
+  "source_manifest": "res://artifacts/combat_visuals/source_manifest.sha256",
+  "source_manifest_sha256": "3f8fd51d70a2d48c6f05a2eacae225dead6142ac45954d6d51c0ecfdb60b50e1",
+  "source_aggregate_sha256": "3f8fd51d70a2d48c6f05a2eacae225dead6142ac45954d6d51c0ecfdb60b50e1",
+  "source_file_count": 236,
+  "source_files": {
+    "res://art_source/pilot/pilot_motion_v2.blend": "02b2a1f292fbeee92a01f33c1af0c7914b142dfdf949a9b4e2d5618c5bcd1a57",
+    "res://art_source/torrent/torrent_hero_v1.blend": "18f3d75ae5279b38b3315eef19d3413c0004d8cdaefc998fc402c101817b7739",
+    "res://art_source/torrent/torrent_hero_v1.blend1": "d732b032ff5bd8e16c004f35d0004e627e90cd490577181c6fc9d9a356025431",
+    "res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png": "673bf61d3c2875ec2358b622c1410d46fb766426303f7e34fcf83716b2e05318",
+    "res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import": "d50da2025cc9b1d09984db0e4c6f25ad05e18d15224ca3a78e76c7bf50e89a68",
+    "res://assets/effects/mudds-combat-vfx-atlas-v1.png": "e748314a287112a11f809b417fa262b184199715f029b0915b63ca8ccecd3aac",
+    "res://assets/effects/mudds-combat-vfx-atlas-v1.png.import": "287d562b7e851fd1e3f5ee2b4d1f8eb198c80341de1cddae1427f6e6fbfc0cf4",
+    "res://assets/keth-icon.png": "08f8427bd4cc74c8109150ede9df87feec181a1bdb97fc762853db8bf497d473",
+    "res://assets/keth-icon.png.import": "28ea4863fa21bed36684d0f61a52885dafcdf5b041815ae8480bc70425dfc15d",
+    "res://assets/keth-nebula.png": "f84b9528f039e2c5abd6cad72f775ba89778a91cbfe778d7d3872998edee0e55",
+    "res://assets/keth-nebula.png.import": "8f794098861d00379b3b47913b4d60bea3bf1babd93a5200f8aa5117ea830b84",
+    "res://assets/materials/arrow-hull-albedo-v1.png": "cd43f78d07e7dc29b287c89e8877020c7df9c54be83782bad5bc90f7da10adb8",
+    "res://assets/materials/arrow-hull-albedo-v1.png.import": "2092fa5d9a9d1a91d410d7852e9097b9096039aaf8245b9c1dbe7272e36e861a",
+    "res://assets/materials/arrow-hull-normal-v1.png": "cae5b106246d7ab32f5b608c26df70e52548a1890c425fb51b5d692c43f1ec74",
+    "res://assets/materials/arrow-hull-normal-v1.png.import": "bbae855a1fc3917b00af85476a0b41870dda73d7ff437057a29f0c500e843896",
+    "res://assets/materials/arrow-hull-roughness-v1.png": "2391f4f3e5c9f2b2770d99a6aa6a093a4bef833e0b91a65410ae70426b2a5ae8",
+    "res://assets/materials/arrow-hull-roughness-v1.png.import": "060ce152f6af91ceabf0e9406be541cf047512c07a844fb7735b172bfebdc5c0",
+    "res://assets/materials/cockpit-anti-glare-composite-v1.png": "430afcac9bf524ec31f8da7109b645982a1a80c4de14386c4f96bc5974e30a18",
+    "res://assets/materials/cockpit-anti-glare-composite-v1.png.import": "7db41cc5072edcc600854a6db3499725eb873c3de7c0800b2591e0c7bcdf6769",
+    "res://assets/materials/jovian-hull-albedo-v1.png": "dbccef10794d8bb0d66eefb5775bca9077aff2ce0f7033f607c5fc1bd97d6b87",
+    "res://assets/materials/jovian-hull-albedo-v1.png.import": "cfc6dfe710aac8a64d1a1d6eaf1c3eba4f11f7ffc9811bd65cfc523d4e2721fb",
+    "res://assets/materials/jovian-hull-normal-v1.png": "f6fd6f501d5ced31cbb5a0e253e3c53e0ce4411206db677ce606eb4ffcb1a117",
+    "res://assets/materials/jovian-hull-normal-v1.png.import": "a5eb2ac5aabe5ecba8967aa99df1e9b6f0930c00b1070a5fcdf7b7762d5f74e0",
+    "res://assets/materials/jovian-hull-roughness-v1.png": "0c3623f918f0dcc0754cfdb16dbd529251eba68734bc4e0f60aa2fb2b9ba6918",
+    "res://assets/materials/jovian-hull-roughness-v1.png.import": "82ba0364421111626f4f86d846e02b9adeb3fbed7582023ff60de604f90d226e",
+    "res://assets/materials/shipyard-deck-albedo-v1.png": "8ab875a2bcdf61ae24b7fd3ed917052caab4f5eaa8053efceaeea5272071c1f5",
+    "res://assets/materials/shipyard-deck-albedo-v1.png.import": "4f2b474eb2d80189250291683cfcbea06f61df03ed35682de0cd255f6d32daec",
+    "res://assets/materials/shipyard-deck-normal-v1.png": "49024f90ceb10c0cce703f64f6f8167c954fc7a440c4e8e003bf006dc0fd12de",
+    "res://assets/materials/shipyard-deck-normal-v1.png.import": "eeb748d1ac8e69d2f85fbfd63e89c909e47d904fdf6f1077961195092dfaf15e",
+    "res://assets/materials/shipyard-deck-roughness-v1.png": "e9d256467f44f5e1d2925be69a81b3578602d3419af2d3d9458fed1d072dc720",
+    "res://assets/materials/shipyard-deck-roughness-v1.png.import": "43ee3007409fcee0ea17f37eff02f7f5a20441892dad41b69f1a2de895ca8507",
+    "res://assets/materials/torrent-hull-albedo-v1.png": "400622bf4a56a8d289ef2a00cf1a8104b5a3dc0454ed1cebbd98c5d2721dd6f0",
+    "res://assets/materials/torrent-hull-albedo-v1.png.import": "d6b46819d0cae74b7dd7ab2da6b72034d59d77e287a26e338bda18c537e2918b",
+    "res://assets/materials/torrent-hull-normal-v1.png": "41158b76b1d0d17dd4fdc6881de3e7522ab2f74fad841fc6f541b01e56ecaa42",
+    "res://assets/materials/torrent-hull-normal-v1.png.import": "b49333998d8e502bc397c3bb933eb00bb89e9be8fd990a17adc000c5f6f819b8",
+    "res://assets/materials/torrent-hull-roughness-v1.png": "f630c58c11f1f8b1fa70617974f38da0e7cdcb97598400919510d6af6400e69c",
+    "res://assets/materials/torrent-hull-roughness-v1.png.import": "d93e84fa9a5899783e72432905704685fec42e853cf94afc086175586c10da75",
+    "res://assets/models/pilot/pilot_motion_v2.glb": "c0a59952e140bfec03042b63cbd894cc25c8d050061d4d549bc7603c8dd182ca",
+    "res://assets/models/pilot/pilot_motion_v2.glb.import": "92f75474995e182a4b8db720808e52dafbda33fc9ebcf58b7cf26d4daf03bb83",
+    "res://assets/models/pilot/pilot_motion_v2_asset_manifest.json": "1862ff689fd037e06d5c82701e7be5b3f7f6d8f89d75e3d3975744c3c522c69b",
+    "res://assets/models/torrent/hero/torrent_hero_art.glb": "4c88002ac947e919d5f9b54561bb4d4b0bcc694748a5bfb23681f9f89f0f729e",
+    "res://assets/models/torrent/hero/torrent_hero_art.glb.import": "4d7c12622383328c8794a657f360a963085d8a65142759855b209d43d473544f",
+    "res://assets/models/torrent/hero/torrent_hero_asset_manifest.json": "8ebf59f3632e33932c0195cb916a8a7420144eea0f09877a53181f903f5da194",
+    "res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png": "f2305695d1b6f924da73be35b4d3a9aec3e5702fb36b4346a920ae29f60fae6e",
+    "res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-runtime-v2.png.import": "1559ed3abe0817731668b1bfb7f209853308196b387d873d3fb558ec6e8456cf",
+    "res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png": "c480681c5c94ca7baa01668127f0084e61adbf86e8c3826dbe208b7f8c81f063",
+    "res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png.import": "225721785948d258bbef5f8e637260cd76242d6d1d81209b061dd26216c12290",
+    "res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png": "17ccc04b8e641b4890cbacb7842b2fb24e2bbbbd00a7628fc5d9fa86c1b74b12",
+    "res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png.import": "3e60bd51c96d4956b88abdaae9821e90f14d8f11cb6d8ea3e77f70aa82562200",
+    "res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png": "21536687fe1b5b7ddba305f696d1e7a53f29bd14774db3ec1411af12b6622b76",
+    "res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png.import": "12478c1cc22b23fde56b844feb2569d3ff2408f566678f6c39e468bb0166e991",
+    "res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png": "398be72d094af6a429d9f06ec7eeeb855850b9873648d2d2f70e6b85e47cbd69",
+    "res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png.import": "5d65bdb234fdc11ddacfdf4a80e1da7baa286085024d4b8b9d55a7b8a35d3aee",
+    "res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png": "c86817d88739b85835efd8626a2ce2c540620fa8a0af985e4bc5384d1599e357",
+    "res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png.import": "7165c73ff47bec61c0ff37420c1b5dad049cae545bf5fcfef65ed00f64a40fc8",
+    "res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png": "8f754d93a36b12eb6a031c8c9675da6e54591844c5582fee1063d6d3b523b2cd",
+    "res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png.import": "f2f0a20bfdc8455b27090bab6c39654b21cd0b011aa522f6a953ded8a2bcb32e",
+    "res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png": "57255d680fc060dd74a040f3bea27d55e9e93dba35f42985ada956f92bacfa42",
+    "res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png.import": "e0ecdc01cd2c6267c76ede32d9e889169399316a1c254381595415d0f89466c3",
+    "res://assets/models/torrent/torrent_authored_asset_manifest.json": "cedc7b08096d6b317f431d381cb71c7c97eaab9b3164451c226a2ba5c9372ff0",
+    "res://assets/models/torrent/torrent_macroform_lod0.obj": "6d6e15fbc906d9a9e4636e0595597a05bae4d345dadf945aab2a88434518abc9",
+    "res://assets/models/torrent/torrent_macroform_lod0.obj.import": "5e8dcfec842d500d5ae230c77f332e39599eb01b08aef2f0eb0545ff76872436",
+    "res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj": "96a7dfdc8f7f2835cd55f9803d486dbcebb09b80228f36984dd09846381f4b47",
+    "res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj.import": "688fd5a5c3b699f29d2646b5b80ee400442d5e394f5c7d6bc7385ee0e0187c5a",
+    "res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj": "cf40b433448779c9d5489e3e651c29c863178ec988489fddd4bda573626ec469",
+    "res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj.import": "6ac896fb2db334e821f1167d54c155a698b74af8a455930ce0d7c11f0a33f499",
+    "res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj": "9ea7ff0e6b1d910b71e4679986880af9bfddfa712741a706c3b0006c5ee78a4f",
+    "res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj.import": "a73c739e114276681b585893b284a4c9679682624a6af9b711be23721519e843",
+    "res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj": "9ca99ac65b5c14d69d8849a17ba88b76758c6f8bb953ce704a99b31fa63c3a2f",
+    "res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj.import": "c5327d510973bd29de127df3ce566d4941397bf26806e953f1696286bb4b71cc",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj": "26f52934495a8280adc198b207d19e8c44979d03c5d50a2f34958402ec5d819f",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj.import": "6e8afd59cceecdf9b4306c5497e6bb7c04c82305df1a15a233c30fb1b3054806",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj": "b8107dfb4745402e28cc77982b023791b7c76dafd7777adaab4cf7b177f71dc9",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj.import": "c0b6f8421dd1207dc39e495a8bea15d42b9a56943f14556d3adc33d5bed91ea5",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj": "94b8c2f5cd6263d7520deecdc61ac23baf30abd51ff96fa9a3e1cb3e2d203e98",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj.import": "773f8bd1de0cc1166c7c7a96c213b22d3f127c10dd91f4c6326d05166c00cfe1",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj": "1985be26ede8abae1adda71b53c88733f3df01007d79b73053492a8172ed5d45",
+    "res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj.import": "79a87bfb8f1107fad38ca2305a3b2fc98e2dc3077e739164b8a8f6e218505cf3",
+    "res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj": "49d89527f2e8745c42ccd4ba66c44413fb6ce5888c73b397319711c85566130d",
+    "res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj.import": "ceb01cb4089ce6f4bb43754841affbab97a36a15e5daff59365157ef04a6f7a1",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj": "d3223f0e89e9ba8be331c09966d758bb1ee3cb4c5a47039fbd7912cba188a3be",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj.import": "3713f3174a0fab1bd7a6874c0c0b7048edd804230ca2f760d6fc876183c4d58e",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj": "1a0c46d366840d7d000f58c7ac5fcca28134c400926e63e1af78753b0f6c891c",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj.import": "34401a06721d26cbab74cb653d7b9e4b7269032169a197efa1ba522983173d78",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj": "3bfe1f1715595d8cbae6a95e4e1d183917ff3f04a2be1f450b7b8798dd4879eb",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj.import": "cf34a7638177b8761ba48d325e043c767feb005f8a2ebbafd79d6fac27c92021",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj": "abbe71fb97736b57217dba26f66e999240da1a7f45985a1a86fd991e1bb06342",
+    "res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj.import": "0881a20cc302c34c69b16e6445b5766b95d2373f50a2dd1e0c649be669f34b2b",
+    "res://assets/models/torrent/torrent_macroform_lod1.obj": "2755293411bbf2f5a38b59ff1390c1198b7d6013b693d1a742698ebfccf00110",
+    "res://assets/models/torrent/torrent_macroform_lod1.obj.import": "80ea741073fcfaa1d8fe8baad00c08dba17e54069bbef4a60b52fa3b2a2f3cf6",
+    "res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj": "3cbc98efcac32208f06db5dfdde57566639d5ce22a003c0a3eb12efe5809fc35",
+    "res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj.import": "844a18e91dc35c87d7f829b2ca142f285f4029038ecf0831ffb39f370ab92d3d",
+    "res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj": "4b4323a744a670b14f6d7d8caafd6c75e5507703e8e99741d7e702f4e3344062",
+    "res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj.import": "e10f4fa5bb56ceee0c97223eb2508f13b35e48d4c77a69f5d457458303919d42",
+    "res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj": "65b34013ded29b4ccb6ea7883fe52f4be76fc9ac0c576ff46c56dc9e67a46ebd",
+    "res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj.import": "509b1f60d164efe337f09168eb6c034b9cefb8cf66a7c591cf4ae9c8f931f31d",
+    "res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj": "13dbb39b87f89e2fda65ba7fd0ab1de09459bdd5716224bb77ad564eefa93371",
+    "res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj.import": "72a291b2af1ba7a3d5781ec7bb3962d273157ff3a545822d0736b9574668ab16",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj": "dc62a2f3f1c2743e6e029c5a6d5f0974e4e7236e605d5ae4a6df6cc21f0673e7",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj.import": "42256c04ebae5312fae2b7b27e04b5a76f88b4239092b665dec9fdcc983d0d0d",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj": "f4504a8284662f0a4ef73b1c97f4374038f16b914fbc70f9e3f045c68b56f899",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj.import": "85c203ba1f9869be7b2dcd2f2fd882785a3899160b956d4f259858d78350aa16",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj": "28a95e32e3e8648928f40c66709dbc016149053d4a7d633234969f70095d0e18",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj.import": "32ee69a12fbcbf32f89caadee388ff5c7d91d7b594e5f00f86be89bc6b1205b0",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj": "65d25d006422621e8d3936766b51bf2a3ad9c77201860ac9294a591a9a9762fe",
+    "res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj.import": "a44873cbf33d9fc5d39636c8ad96578e765e3c41310cd37a1c63ab730468a9d2",
+    "res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj": "b348926d869c7afe1c89d2595d692e9808da254e4b13b7efcce764e85165344a",
+    "res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj.import": "9cc5562e805b67e164daead98eef2e9e1a9d125abaf84c5bb35515d24f482f13",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj": "a582360073260e4a7dd7a1238b9381b2a5ff9eff1e87d8f63f1058fd0d3c94f4",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj.import": "bcf75f87548863308c1390e49bdbe0c62b5435f8432ee21148d710db5f14dbfc",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj": "41c29504226b101680e23e251c72e0ae489c8720124b0ea39e8f35b05d192a9d",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj.import": "a2c1b3600d621c4d671637e1db60bdb4f1bba9d15d61733977d1e83b98c933be",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj": "f32a349ffb678f489d8ab211b009d46ea9027ad57ce6acfd06e0f8f8b1a60a78",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj.import": "b20d923136f30ad0b3597fe993f4cf5a5d8e04c77a48ad8236e6e9ed219dc7f7",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj": "53de9cab9cf72ca777ccc74e7cf44b615589f6795398b90af79d87b2dea5de26",
+    "res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj.import": "75b554e8c67ea1178ab26539d2e9ed3ea20f3ab6d016244332c4b6b1eaf3e496",
+    "res://assets/ships/arrow_provisional.tres": "203af672195cbd74e6f32d47821c0b2c2b68d451d11d9e759625609ac5361dbd",
+    "res://assets/ships/jovian_provisional.tres": "6a7957d4d98e51918db332809851e8f531b63b5a3594b229845689cc8e281ea9",
+    "res://assets/ships/torrent_provisional.tres": "eaf13c6cfa3111bed5153e775812d77964da20ebc66f5df5a09fed742a2e85b7",
+    "res://default_bus_layout.tres": "65904f315f0da06c7a14b9e746dd4678be6547274d53b9027b7746e81e6769dd",
+    "res://export_presets.cfg": "8ff91d12f126bbe3639fcde09342d63afaa8b01893eb8f76758d80fd0d5f05b7",
+    "res://project.godot": "3d7c227a7f9c7e0c1d48d91127bc6b268e3b911059178f8d01dc357b1686d7d9",
+    "res://scenes/audio/ship_audio_rig.tscn": "ebb23ac430eda41487898b47a66775340a9a13d7ba6da0c7ce276c2762cade28",
+    "res://scenes/audio/station_machinery_ambience.tscn": "1f2e8a30d4cd60ce59d3b35306c63e413c1509f1213df48c33eedad975c71332",
+    "res://scenes/effects/hero_damage_presentation.tscn": "4a8a2f286ce6613acf540e8f571f2f5f04d597b0e57110feb77a46ad4f415109",
+    "res://scenes/effects/pulse_weapon_presentation.tscn": "32dc006771367dc5561ae465b79701f0a422172b61bca094d50fae6648d46c8a",
+    "res://scenes/interaction/ship_boarding_area.tscn": "26d886b48ca2900b78f9c9c49d45a96817f22f1c25508873f0247a3c84e867eb",
+    "res://scenes/main.tscn": "781d3fbe4f4c0250e0dee299bea1ed550f882bb0e62d4a5dba1cc0e0fa99eaa5",
+    "res://scenes/player/pilot_skinned_presentation.gd": "5d68dc247b73af57942cfd2337273cdc19548e41b401b4edf3437df34a96f191",
+    "res://scenes/player/pilot_skinned_presentation.gd.uid": "5bdcff5747d8768b9e2d821ab228f3967f2411b73266a15c3090a2d307c5bd45",
+    "res://scenes/player/pilot_skinned_presentation.tscn": "291b84eebe0375cdbd60d7d196068a1787a62b1ce9c0b9e0da3760e631878971",
+    "res://scenes/player/player.tscn": "f0a0cc189258a488df6ae2aa885249bba666de07e45001e1c5a8565f6920788f",
+    "res://scenes/ships/arrow_recon_ship.tscn": "5f9c3fa1119947ce1dd948e32cc28c5f8f6054f153438a04db408e7f7aa36e87",
+    "res://scenes/ships/jovian_light_freighter.tscn": "7970adaa4e83c18c402ddee37a63f06425aa9133d23631bf4cef25c2f00d7efc",
+    "res://scenes/ships/presentation/torrent_authored_macroform.gd": "7d66365fc1dbdd7fccab288b927a3a93e7b4fd84c2e48839f781fc382b9629d6",
+    "res://scenes/ships/presentation/torrent_authored_macroform.gd.uid": "53afdb8009a43cdae154c319527a1ae57d4e834ee636324185e0a0448044ebe1",
+    "res://scenes/ships/presentation/torrent_authored_macroform.tscn": "51ea8a9179c024fa52f91e0485f90c64396a761d6d5bcda63f58971354ae84a5",
+    "res://scenes/ships/presentation/torrent_hero_presentation.gd": "14689f4c588f15116d9fc80f77a802472f85623895d9456aff848f89bfd3aaa5",
+    "res://scenes/ships/presentation/torrent_hero_presentation.gd.uid": "aee0a18e2136768aa6d4bd83fb5aac72a5f8b95843877a7fbe0be0b4dc17b57c",
+    "res://scenes/ships/presentation/torrent_hero_presentation.tscn": "9b188a6f81881ba434d349c384bc0384e8d1b6390acc3eb123b59104f26db574",
+    "res://scenes/ships/range_opponent.tscn": "9ec8b251082819617ee9a2f8628d77f96480349e1fee7a93fa51154aea80800a",
+    "res://scenes/ships/torrent_interceptor.tscn": "57235b2f7934b63940a6e79ebd54050753b94285bf57f7b966f0ae3314f31e4e",
+    "res://scenes/ui/hud.tscn": "5c0f833debdb79044bf68d2995adde342ee315bf793484e0dc4f1cfba56637a7",
+    "res://scenes/world/components/ship_berth.tscn": "23dc63c2668f381e222159a206cc4dc91d1aa759fe421162a8b7793f55e35ed4",
+    "res://scenes/world/components/ship_berth_feedback.tscn": "8b8f461d008552cab72206347abbdc1b4911808d7f8a2b5c71f70a53cf04ca3a",
+    "res://scenes/world/components/station_door.tscn": "c75402b2524a06dfd5732954894c4ff3e8fed3495888e188feec20cc90623ae6",
+    "res://scenes/world/components/station_operations_activity.tscn": "167d040e2ea1a6756b64690aef5fb28b620e5482d7481e7ab043b2357ebc43e3",
+    "res://scenes/world/components/station_structural_service_dressing.tscn": "5140992b7e551e354a9e9915bbbcdaba50c383eea4a0f1deded574b321f37913",
+    "res://scenes/world/modules/aft_junction_stack.tscn": "b64bd2f6fe4bdfd36bddea54f246ce89e4946f71504e7fd94331f50e5331008b",
+    "res://scenes/world/modules/habitat_spine.tscn": "de2bb31a3f65493ce0df50f32f67c0baae0798b3999c75d6c92134fd1d3d7d59",
+    "res://scenes/world/modules/jovian_freight_berth.tscn": "5cfb05e157a4735f64edc9a86901fbac940cf21ea45bc700d7ab15ecdf25660c",
+    "res://scenes/world/shipyard_world.tscn": "c52de09764f37261058fb1af71a45cd99fc3882c9b30ff267a7daca4c75ee09c",
+    "res://scripts/audio/audio_director.gd": "184d2372bc2d04df08739d7f1ea13e585d4f08ed5a57bc0a863f481ff36650e9",
+    "res://scripts/audio/audio_director.gd.uid": "842da9ec905a18723f6535ad05fbcccc69340674a15f4885a77112cf27ac493d",
+    "res://scripts/audio/ship_audio_rig.gd": "90fbb2956eb9378f947591373b7ed4e2c71ba339a11a72f431918e3080252dd0",
+    "res://scripts/audio/ship_audio_rig.gd.uid": "9222e7e5c87660d48ccc18c5f198646792f35d4d160b9f8b94ccdc007282fac0",
+    "res://scripts/audio/station_machinery_ambience.gd": "e305f42381ca3055d6dcfa5001fd1b8c067c24625327963fe4457cccb6957750",
+    "res://scripts/audio/station_machinery_ambience.gd.uid": "2111d645529c96d8284c8c79ae3d75c45befbad027caa0b04306d65aa00442ef",
+    "res://scripts/combat/combat_resolver.gd": "ea59e56b637205aa3e44ae327ab2dfdcb05df1b8d4401528219da465086ddbd8",
+    "res://scripts/combat/combat_resolver.gd.uid": "38293db9ece4f141308274e3c0196adc5e4d3d037e35e2d357fdc0ed495454a5",
+    "res://scripts/combat/damageable.gd": "49f4638f0a3e8a1284f7c26e33007400c30eec34d3ef8c3802c5b7afa9a9d7d9",
+    "res://scripts/combat/damageable.gd.uid": "e6e95d893c24f6bb4ecfcb9faebc4ff973d2ee1d4ab052def42c5aabe966d312",
+    "res://scripts/combat/lifecycle_damageable_adapter.gd": "078a7365f6bec95d11afa66b2f57bdedf2653fe2ff73d2aa314ae35d0460b753",
+    "res://scripts/combat/lifecycle_damageable_adapter.gd.uid": "12cf600dfeb5ad50c19946771a3cf68899ab4692fa5915d5bbe7fb2739ff2aad",
+    "res://scripts/combat/live_combat_authority.gd": "19a413ac52775ecdda11809294f36e3873012ba2538f19a41c0d0ab227c34ee3",
+    "res://scripts/combat/live_combat_authority.gd.uid": "f5e3b7cf734d90cbd4a5b2dd21d5645ef70b3a6a5094533911d157cfd11db3e3",
+    "res://scripts/combat/range_target_damageable_adapter.gd": "45fd32984ee87786bc96c80bd22150ebad75524dc359fb01b67112e016401f55",
+    "res://scripts/combat/range_target_damageable_adapter.gd.uid": "eb9367028af16dd91593a32472465ed376dca9a80764755037ea37ef0303df3b",
+    "res://scripts/combat/shot_request.gd": "a238abf0e6988b91b4ac3be5f1f015b78c11dd232a77395134960b590d9286a4",
+    "res://scripts/combat/shot_request.gd.uid": "748744d27fa32e341e262b6546ccd91d000ae08d0fced3516630d4e854fb5f91",
+    "res://scripts/control/local_ship_input_source.gd": "2e95a17978dcd8a1a2a88df3ded2c030c9c32a2a5c6d1ab4ceda192d57c534ba",
+    "res://scripts/control/local_ship_input_source.gd.uid": "ebfbc0ca9ef75d3bdb0a327c51a6e58b3a3e0ad5ae57dd653185b27d50ddd56f",
+    "res://scripts/control/ship_command.gd": "e362ce0e6329d6fe77700f3edc20bc74f2b5a33554b4061b3a268cdb0c913c63",
+    "res://scripts/control/ship_command.gd.uid": "384e062e8f2e10b7f322e5358deb091217599b7b2deff76a2a7508083a3cfdf5",
+    "res://scripts/control/ship_command_source.gd": "897647898f1003c672ad0343061e0b5e0f338da58f9e702a6e2c45d9b3945c10",
+    "res://scripts/control/ship_command_source.gd.uid": "44f539590e7f24b74bf78a266c1a764d2b4784357ea0adaf2a0a8e0b169422b4",
+    "res://scripts/core/physics_layers.gd": "2a0f61d50510aa734d297e14b7c929709c7bdbd0abf8d0bee17fd57b6ecc0095",
+    "res://scripts/core/physics_layers.gd.uid": "3aa7abedfe4d7a6ddf6e68aa2a8be11e21e853d56f8cc6d23ba52c462b53ca4b",
+    "res://scripts/effects/hero_damage_presentation.gd": "88bed0fa550209819831e511e7c30c3c70c4a616d4b659279dc4dfb506d8fdb0",
+    "res://scripts/effects/hero_damage_presentation.gd.uid": "d98e68e4c9dd6da2e1b53342969ffb8e1e3addabd313d9176a48117878fd11a1",
+    "res://scripts/effects/pulse_weapon_presentation.gd": "cbf78c34c3d03c2c48b5091e5559e37df0ad8981713aba270b6a10cc2fe500cb",
+    "res://scripts/effects/pulse_weapon_presentation.gd.uid": "3a6334972e3a2b3d5c5e1c66507cd03c96274ca0e78f064ce25fde8df9a7472b",
+    "res://scripts/game/game_flow.gd": "5478dbbd2946de3b2277daa07e3d17334f45a3d71b50069ee9ef830c42cdf5bf",
+    "res://scripts/game/game_flow.gd.uid": "e0c32cedf93fdf74ba0faf23325575be6e935f5e604024a650a989fcbc5c74c9",
+    "res://scripts/interaction/ship_boarding_area.gd": "b8b89938ac79a8e0d3d92d8d43f2b04d04feee27f793252fbb87cb43aa877f9b",
+    "res://scripts/interaction/ship_boarding_area.gd.uid": "e9c2eb012b1e39462229cee74b086e67156f8df8f8a8b202f0a410dc0bb4569c",
+    "res://scripts/physics/moving_interior_frame.gd": "b8f6e1fdd5983fb752a25c19aecdf12388e0634633135942d550d61a61bf9445",
+    "res://scripts/physics/moving_interior_frame.gd.uid": "b5c6bfc7c83fdae9b5770e7195d608a4096e8c1a0d5fede2d1daf7a59f1c35bd",
+    "res://scripts/player/player_controller.gd": "8c9b005026eb2b76d29cd6e516dc5df057635e236b27faeb45cc78d7eb875a5d",
+    "res://scripts/player/player_controller.gd.uid": "10c86d329144dc392d201c90682d4ca54ea903038dfd3792a812ba36498f25ef",
+    "res://scripts/rendering/visual_quality_controller.gd": "67dd25ac15727920f76e845a1fc4b8078068311382c3b9e42e999f65e610cf3b",
+    "res://scripts/rendering/visual_quality_controller.gd.uid": "8f66a31399870e25e79626a7a01ddc00bb47751993e2047cfb83c58b11cb8164",
+    "res://scripts/settings/runtime_settings.gd": "0a15b27ba3138e51dfb3292217debf2e56042e7c0e21d37d914153547f064aba",
+    "res://scripts/settings/runtime_settings.gd.uid": "053e7cd6dd68920080a794d9e7cd1a18c545bfb59e80950c5efcd93222127d46",
+    "res://scripts/ships/arrow_recon_ship.gd": "dbd8c9ef1034cf0dbd789e204aae16c6818760a878307c6aa52459ed4aa49815",
+    "res://scripts/ships/arrow_recon_ship.gd.uid": "22f59bf98fcd9097448c767e59ec25db9cb5e12994d48e47eecdf47cf3dca289",
+    "res://scripts/ships/hero_ship.gd": "5dcf428c9e234d38512b8a68f63b5efe0be913ea1f4141297471b3eb7dcc999f",
+    "res://scripts/ships/hero_ship.gd.uid": "dbba4a3b140481034a0c09e6ab9d2fe6e3f7fe657ef09258a4911409e7d9698d",
+    "res://scripts/ships/jovian_light_freighter.gd": "36ff4c8c66a37e3c0081417b9e6c2d9e063426a5e65ba6161f5e6b565e82c1a1",
+    "res://scripts/ships/jovian_light_freighter.gd.uid": "bd1001fff4262a3147edad00714ea6d68f49c0d504ae40987e66a7e0e710e597",
+    "res://scripts/ships/range_opponent.gd": "b17b16b4214e623abbe1f38265364b9130f4ff4b8fbfa5e662c6b757727fd0ba",
+    "res://scripts/ships/range_opponent.gd.uid": "bd9314289bda7f6fad04f80a56d8bd689b297ddea61aafa4a94d469333fcbe96",
+    "res://scripts/ships/ship_definition.gd": "0150533f5b1ea08c0026a4780a08c3771558f0ce63d51a176bd39d46ae740a05",
+    "res://scripts/ships/ship_definition.gd.uid": "bcc55cbc5158bee94cbd8f1dd938f384d6ee9ae600842a9c6b9b64192bd5bb5e",
+    "res://scripts/ui/flight_path_cue.gd": "f593a4c1158b98f9dd4c4f9b83a2fea7484895a34af51a5231ff6c6c3e333176",
+    "res://scripts/ui/flight_path_cue.gd.uid": "d1d6c6822633d1e95920ee269757fd21524e6e36ba5c9b39660a5bbf03630e8f",
+    "res://scripts/ui/hud.gd": "3371a65c7d9e68640a4baf48c68c34705692168589cdf8bbe91c95914f2719dd",
+    "res://scripts/ui/hud.gd.uid": "ee78e7b538fe1a97cd64ef84dec9d1aad34b4b8415b94a5ca4596bc346d7d946",
+    "res://scripts/world/aft_junction_stack.gd": "ec33e8808e1fec8cde81de8fcde0b4c56cf7f8e7458a4dac07f1fdbefaa7002d",
+    "res://scripts/world/aft_junction_stack.gd.uid": "ec9263ad3326d64d930bf417ba25305f683d6469543b071b61b873c4cd03a306",
+    "res://scripts/world/habitat_spine.gd": "3dd79602b9f8c5a507dc512a073dfa1e8be1c05b7b0847e5360fefcb4a571038",
+    "res://scripts/world/habitat_spine.gd.uid": "66bf0b2a893be09d7fdd88f06f2c64ef601a11f010c8e1ad3ee8cda48642d3a8",
+    "res://scripts/world/jovian_freight_berth.gd": "ed11fc12327532655b96f8bcc46b76d8cff4da3817b0056610eb0159a48a4b5d",
+    "res://scripts/world/jovian_freight_berth.gd.uid": "2db75dafa83747d3098161b2e814ed25639ef2abbdf07d7c02b9d16e772f6669",
+    "res://scripts/world/jovian_freight_berth_audit.gd": "9167c3b906a9fa63bd58dd04587796ce1a7e0131f7d12e975bb3b65d9f231b34",
+    "res://scripts/world/jovian_freight_berth_audit.gd.uid": "0604def673590c6c6e2413e5a44c7a762bcf96039ac901c4622fd853e3c63330",
+    "res://scripts/world/ship_berth.gd": "f4a35e9936024c497cf3edc930fce53da8a8a047fc9147caf58a96e64457dea3",
+    "res://scripts/world/ship_berth.gd.uid": "0dbe00f7d47b327ed1b7769f1fd637c8855d8861a0c79b2b6d8ddfe5d956b3c3",
+    "res://scripts/world/ship_berth_feedback.gd": "568074f8df728ffc285bd862ccf4e04f3cece135032908b9b0b761461998a704",
+    "res://scripts/world/ship_berth_feedback.gd.uid": "02ed0f400d9bd3c6ecbdb497880e52a39c7da2ae7deee320ab19dcc2d6954f7c",
+    "res://scripts/world/shipyard_world.gd": "b8ed3d7c45b7d4bb3d7e16d8ac9d3f74525bcb2825d59c00bce60e522a40b714",
+    "res://scripts/world/shipyard_world.gd.uid": "b56f3cdec57f24768fa9784158b14f4df0903a7e87c6eda632fc34dac5c1ab3d",
+    "res://scripts/world/station_door.gd": "462909378a0b69ce281914ef2774e389b778c90e87d57314584d331e0164bf2d",
+    "res://scripts/world/station_door.gd.uid": "158dbea5c633818ac0c706a4535a04fc8e87ac975922ee6930a8daf208f81d53",
+    "res://scripts/world/station_operations_activity.gd": "fcebde2331311c3d2539851c5864ed4c0ab5084363067591a3438d1e9cf31ffc",
+    "res://scripts/world/station_operations_activity.gd.uid": "e0ce4b7011ffc5607fb74df404733f7369cefa378a090c14062754bf1bb062b4",
+    "res://scripts/world/station_structural_service_dressing.gd": "b1bcfd892ea62b1ace4a55e275749f4d959d8d49d596f5849ea6e6c6d1a89062",
+    "res://scripts/world/station_structural_service_dressing.gd.uid": "04cac646ae98c49fc85869d63f71c200e4be6e9a48c6cfc5ce9b54fe4122e2c2",
+    "res://tests/capture_combat_visuals.gd": "41281212d7b4f488d8ba1193a2c3e32426864af558cafd8b68c15d84228fa505",
+    "res://tests/capture_combat_visuals.gd.uid": "97f10fa328e9055f0bc692e221aa68c7bb8c6029b5f7c93435bf10021960c216",
+    "res://tools/blender/generate_pilot_motion_v2.py": "db0942e70f2265f8a4c7d5c6802354bd9baef7dc9b9134d6af6baae2a03511d0",
+    "res://tools/blender/generate_torrent_hero_v1.py": "88b30f28d2f25035635432fc594989fa19ae5c2223cb6e4d7e26b94db976602c",
+    "res://tools/generate_material_maps.gd": "bb83d77a7e2235c0f3234b923a21c96f1e291f606c0fe04d09c1498900ceee84",
+    "res://tools/generate_material_maps.gd.uid": "5680fd359501a3c3749ccb3e6d373d739071cdecb4de593990a1db5b482525d8",
+    "res://tools/generate_torrent_authored_assets.gd": "dd4a65a8d6e47dcb4e4bb26a739ca3abb63489f2cae7936bab148673edb55676",
+    "res://tools/generate_torrent_authored_assets.gd.uid": "b967163d3600ad64557fc5572df6928863f0fb2d1c4abcbcdc6b6e0300ebeee6"
+  },
+  "source_unchanged_during_capture": true,
+  "capture_log_path": "res://artifacts/combat_visuals/capture_forward_plus_2560x1440.log",
+  "capture_log_policy": "External native launcher redirects raw stdout/stderr to this path; the evidence manifest is the transactional green sentinel.",
+  "fixed_camera": {
+    "name": "CombatVisualEvidenceCamera",
+    "transform": {
+      "origin": [
+        215.977356,
+        67.707306,
+        -246.9375
+      ],
+      "basis_x": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "basis_y": [
+        -0.315987,
+        0.948764,
+        0.0
+      ],
+      "basis_z": [
+        0.948764,
+        0.315987,
+        0.0
+      ]
+    },
+    "fov": 42.0,
+    "near": 0.0599999986588955,
+    "far": 1800.0,
+    "frame_margin_fraction": 0.035
+  },
+  "manual_pulse_phases": {
+    "cyan_midflight_progress": 0.38,
+    "cyan_arrival_impact_age_seconds": 0.045,
+    "amber_midflight_progress": 0.58,
+    "amber_arrival_impact_age_seconds": 0.04,
+    "lethal_midflight_progress": 0.55,
+    "lethal_arrival_impact_age_seconds": 0.045
+  },
+  "frames": [
+    {
+      "file": "01_damaged_opponent_baseline.png",
+      "semantic_state": "damaged_opponent_baseline",
+      "sha256": "445aee085fb12a76da3b5740b7ff567eb33daca90257acfd3ae1e8523d1b96e8",
+      "png_bytes": 1383729,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.858144,
+      "luminance_variance": 0.010228,
+      "effect_roi_pixels": {
+        "x": 2040,
+        "y": 728,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.952009,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 51.0,
+        "critical_smoke": false
+      }
+    },
+    {
+      "file": "02_cyan_muzzle_midflight.png",
+      "semantic_state": "cyan_muzzle_midflight",
+      "sha256": "4eb536f796c47825d1f0f8caea191d5ef9f8d38c3085c14feb7aa5f8a5186ffc",
+      "png_bytes": 1390734,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.78366,
+      "luminance_variance": 0.009969,
+      "effect_roi_pixels": {
+        "x": 1107,
+        "y": 702,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.730878,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 17.0,
+        "opponent_active": true,
+        "opponent_collision_layer": 36,
+        "opponent_collision_mask": 5,
+        "opponent_pending_presentations": 1,
+        "opponent_hull_visible": true,
+        "opponent_critical_smoke": false,
+        "opponent_destruction_root": false,
+        "opponent_destruction_parented_under_hull": false,
+        "hero_hull": 100.0,
+        "hero_pending_presentations": 0,
+        "hero_world_effect_count": 0,
+        "pulse_snapshot": {
+          "shot_id": 2,
+          "style_id": "cyan",
+          "source_instance_id": 74004301677,
+          "hit": true,
+          "age": 0.044824,
+          "travel_duration": 0.117959,
+          "total_lifetime": 0.357959,
+          "travel_progress": 0.38,
+          "origin": [
+            180.0,
+            54.849998,
+            -235.25
+          ],
+          "end": [
+            180.0,
+            54.100521,
+            -260.600006
+          ],
+          "pulse_position": [
+            180.0,
+            54.565197,
+            -244.882996
+          ],
+          "pulse_visible": true,
+          "impact_visible": false,
+          "visible_beam_segments": 3
+        }
+      }
+    },
+    {
+      "file": "03_cyan_impact_critical.png",
+      "semantic_state": "cyan_impact_critical",
+      "sha256": "62d26ea94c62f08423cb2de1fec93cda57ae78f9c1862317b2ecb4c0632ba5fa",
+      "png_bytes": 1387178,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.812162,
+      "luminance_variance": 0.010059,
+      "effect_roi_pixels": {
+        "x": 1875,
+        "y": 723,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.855815,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 17.0,
+        "opponent_active": true,
+        "opponent_collision_layer": 36,
+        "opponent_collision_mask": 5,
+        "opponent_pending_presentations": 0,
+        "opponent_hull_visible": true,
+        "opponent_critical_smoke": true,
+        "opponent_destruction_root": false,
+        "opponent_destruction_parented_under_hull": false,
+        "hero_hull": 100.0,
+        "hero_pending_presentations": 0,
+        "hero_world_effect_count": 0,
+        "pulse_snapshot": {
+          "shot_id": 2,
+          "style_id": "cyan",
+          "source_instance_id": 74004301677,
+          "hit": true,
+          "age": 0.162959,
+          "travel_duration": 0.117959,
+          "total_lifetime": 0.357959,
+          "travel_progress": 1.0,
+          "origin": [
+            180.0,
+            54.849998,
+            -235.25
+          ],
+          "end": [
+            180.0,
+            54.100521,
+            -260.600006
+          ],
+          "pulse_position": [
+            180.0,
+            54.565197,
+            -244.882996
+          ],
+          "pulse_visible": false,
+          "impact_visible": true,
+          "visible_beam_segments": 0
+        }
+      }
+    },
+    {
+      "file": "04_amber_midflight.png",
+      "semantic_state": "amber_midflight",
+      "sha256": "28623458c440e720efb2d6181a9ddf9667184667edad8e64f9ff0bb0e8beaf43",
+      "png_bytes": 1389455,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.78366,
+      "luminance_variance": 0.009965,
+      "effect_roi_pixels": {
+        "x": 1107,
+        "y": 732,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.667399,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 17.0,
+        "opponent_active": true,
+        "opponent_collision_layer": 36,
+        "opponent_collision_mask": 5,
+        "opponent_pending_presentations": 0,
+        "opponent_hull_visible": true,
+        "opponent_critical_smoke": true,
+        "opponent_destruction_root": false,
+        "opponent_destruction_parented_under_hull": false,
+        "hero_hull": 89.0,
+        "hero_pending_presentations": 1,
+        "hero_world_effect_count": 0,
+        "pulse_snapshot": {
+          "shot_id": 3,
+          "style_id": "amber",
+          "source_instance_id": 75329701820,
+          "hit": true,
+          "age": 0.06552,
+          "travel_duration": 0.112966,
+          "total_lifetime": 0.352966,
+          "travel_progress": 0.58,
+          "origin": [
+            182.649994,
+            53.919998,
+            -258.970001
+          ],
+          "end": [
+            180.439072,
+            54.821056,
+            -234.800003
+          ],
+          "pulse_position": [
+            181.367661,
+            54.442612,
+            -244.951401
+          ],
+          "pulse_visible": true,
+          "impact_visible": false,
+          "visible_beam_segments": 3
+        }
+      }
+    },
+    {
+      "file": "05_amber_hero_impact.png",
+      "semantic_state": "amber_hero_impact",
+      "sha256": "0648209c4dccacbf8f02f7a3a1f5c5cc7e4c5b3824f2c773d78edcb6a93b2992",
+      "png_bytes": 1384821,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.78366,
+      "luminance_variance": 0.010007,
+      "effect_roi_pixels": {
+        "x": 606,
+        "y": 697,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.725672,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 17.0,
+        "opponent_active": true,
+        "opponent_collision_layer": 36,
+        "opponent_collision_mask": 5,
+        "opponent_pending_presentations": 0,
+        "opponent_hull_visible": true,
+        "opponent_critical_smoke": true,
+        "opponent_destruction_root": false,
+        "opponent_destruction_parented_under_hull": false,
+        "hero_hull": 89.0,
+        "hero_pending_presentations": 0,
+        "hero_world_effect_count": 1,
+        "pulse_snapshot": {
+          "shot_id": 3,
+          "style_id": "amber",
+          "source_instance_id": 75329701820,
+          "hit": true,
+          "age": 0.152966,
+          "travel_duration": 0.112966,
+          "total_lifetime": 0.352966,
+          "travel_progress": 1.0,
+          "origin": [
+            182.649994,
+            53.919998,
+            -258.970001
+          ],
+          "end": [
+            180.439072,
+            54.821056,
+            -234.800003
+          ],
+          "pulse_position": [
+            181.367661,
+            54.442612,
+            -244.951401
+          ],
+          "pulse_visible": false,
+          "impact_visible": true,
+          "visible_beam_segments": 0
+        }
+      }
+    },
+    {
+      "file": "06_lethal_cyan_inflight.png",
+      "semantic_state": "lethal_cyan_inflight",
+      "sha256": "c8b4da1f2e61c41f523aa991ae6b88a7a0ab70c9d08e5488e7fdff4e2c0dc837",
+      "png_bytes": 1385314,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.8005,
+      "luminance_variance": 0.009982,
+      "effect_roi_pixels": {
+        "x": 1318,
+        "y": 708,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.706232,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 0.0,
+        "opponent_active": false,
+        "opponent_collision_layer": 0,
+        "opponent_collision_mask": 0,
+        "opponent_pending_presentations": 1,
+        "opponent_hull_visible": true,
+        "opponent_critical_smoke": true,
+        "opponent_destruction_root": false,
+        "opponent_destruction_parented_under_hull": false,
+        "hero_hull": 89.0,
+        "hero_pending_presentations": 0,
+        "hero_world_effect_count": 1,
+        "pulse_snapshot": {
+          "shot_id": 4,
+          "style_id": "cyan",
+          "source_instance_id": 74004301677,
+          "hit": true,
+          "age": 0.064877,
+          "travel_duration": 0.117959,
+          "total_lifetime": 0.357959,
+          "travel_progress": 0.55,
+          "origin": [
+            180.0,
+            54.849998,
+            -235.25
+          ],
+          "end": [
+            180.0,
+            54.100521,
+            -260.600006
+          ],
+          "pulse_position": [
+            180.0,
+            54.437786,
+            -249.192505
+          ],
+          "pulse_visible": true,
+          "impact_visible": false,
+          "visible_beam_segments": 3
+        }
+      }
+    },
+    {
+      "file": "07_lethal_arrival_destruction.png",
+      "semantic_state": "lethal_arrival_destruction",
+      "sha256": "f9bdbb92bfcebf9351120578ad8053b6bbd4d3eff142821aca70db8ac78afd1a",
+      "png_bytes": 1396339,
+      "resolution": [
+        2560,
+        1440
+      ],
+      "png_header": {
+        "valid": true,
+        "width": 2560,
+        "height": 1440,
+        "bit_depth": 8,
+        "colour_type": 2,
+        "compression": 0,
+        "filter": 0,
+        "interlace": 0
+      },
+      "luminance_range": 0.816084,
+      "luminance_variance": 0.009419,
+      "effect_roi_pixels": {
+        "x": 2040,
+        "y": 728,
+        "width": 144,
+        "height": 144
+      },
+      "effect_roi_peak_luminance": 0.911146,
+      "camera_transform": {
+        "origin": [
+          215.977356,
+          67.707306,
+          -246.9375
+        ],
+        "basis_x": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "basis_y": [
+          -0.315987,
+          0.948764,
+          0.0
+        ],
+        "basis_z": [
+          0.948764,
+          0.315987,
+          0.0
+        ]
+      },
+      "camera_fov": 42.0,
+      "markers": {
+        "opponent_health": 0.0,
+        "opponent_active": false,
+        "opponent_collision_layer": 0,
+        "opponent_collision_mask": 0,
+        "opponent_pending_presentations": 0,
+        "opponent_hull_visible": false,
+        "opponent_critical_smoke": false,
+        "opponent_destruction_root": true,
+        "opponent_destruction_parented_under_hull": false,
+        "hero_hull": 89.0,
+        "hero_pending_presentations": 0,
+        "hero_world_effect_count": 0,
+        "pulse_snapshot": {
+          "shot_id": 4,
+          "style_id": "cyan",
+          "source_instance_id": 74004301677,
+          "hit": true,
+          "age": 0.162959,
+          "travel_duration": 0.117959,
+          "total_lifetime": 0.357959,
+          "travel_progress": 1.0,
+          "origin": [
+            180.0,
+            54.849998,
+            -235.25
+          ],
+          "end": [
+            180.0,
+            54.100521,
+            -260.600006
+          ],
+          "pulse_position": [
+            180.0,
+            54.437786,
+            -249.192505
+          ],
+          "pulse_visible": false,
+          "impact_visible": true,
+          "visible_beam_segments": 0
+        }
+      }
+    }
+  ],
+  "localized_pair_metrics": {
+    "baseline_to_cyan_midflight": {
+      "roi": {
+        "x": 1107,
+        "y": 702,
+        "width": 144,
+        "height": 144
+      },
+      "sample_count": 20736,
+      "mean_difference": 0.0255565143358761,
+      "changed_fraction": 0.0494309413580247,
+      "changed_pixels": 1025,
+      "pixel_change_threshold": 0.045,
+      "style_id": "cyan",
+      "effect_colour": {
+        "style_id": "cyan",
+        "coloured_pixels": 20736,
+        "minimum_coloured_pixels": 48,
+        "peak_luminance": 0.730878412723541,
+        "colour_rule": "green and blue each exceed red by 0.05"
+      }
+    },
+    "cyan_midflight_to_critical_impact": {
+      "roi": {
+        "x": 1875,
+        "y": 723,
+        "width": 144,
+        "height": 144
+      },
+      "sample_count": 20736,
+      "mean_difference": 0.0101293323985621,
+      "changed_fraction": 0.0358314043209877,
+      "changed_pixels": 743,
+      "pixel_change_threshold": 0.045,
+      "style_id": "cyan",
+      "effect_colour": {
+        "style_id": "cyan",
+        "coloured_pixels": 18728,
+        "minimum_coloured_pixels": 48,
+        "peak_luminance": 0.855814933776855,
+        "colour_rule": "green and blue each exceed red by 0.05"
+      }
+    },
+    "critical_impact_to_amber_midflight": {
+      "roi": {
+        "x": 1107,
+        "y": 732,
+        "width": 144,
+        "height": 144
+      },
+      "sample_count": 20736,
+      "mean_difference": 0.0309617833695683,
+      "changed_fraction": 0.0609567901234568,
+      "changed_pixels": 1264,
+      "pixel_change_threshold": 0.045,
+      "style_id": "amber",
+      "effect_colour": {
+        "style_id": "amber",
+        "coloured_pixels": 1097,
+        "minimum_coloured_pixels": 48,
+        "peak_luminance": 0.667399227619171,
+        "colour_rule": "red exceeds blue by 0.12 and green exceeds blue by 0.08"
+      }
+    },
+    "amber_midflight_to_hero_impact": {
+      "roi": {
+        "x": 606,
+        "y": 697,
+        "width": 144,
+        "height": 144
+      },
+      "sample_count": 20736,
+      "mean_difference": 0.0150846246735562,
+      "changed_fraction": 0.0439814814814815,
+      "changed_pixels": 912,
+      "pixel_change_threshold": 0.045,
+      "style_id": "amber",
+      "effect_colour": {
+        "style_id": "amber",
+        "coloured_pixels": 737,
+        "minimum_coloured_pixels": 48,
+        "peak_luminance": 0.725672125816345,
+        "colour_rule": "red exceeds blue by 0.12 and green exceeds blue by 0.08"
+      }
+    },
+    "hero_impact_to_lethal_midflight": {
+      "roi": {
+        "x": 1318,
+        "y": 708,
+        "width": 144,
+        "height": 144
+      },
+      "sample_count": 20736,
+      "mean_difference": 0.0247179613824349,
+      "changed_fraction": 0.0487075617283951,
+      "changed_pixels": 1010,
+      "pixel_change_threshold": 0.045,
+      "style_id": "cyan",
+      "effect_colour": {
+        "style_id": "cyan",
+        "coloured_pixels": 20736,
+        "minimum_coloured_pixels": 48,
+        "peak_luminance": 0.706232130527496,
+        "colour_rule": "green and blue each exceed red by 0.05"
+      }
+    },
+    "lethal_inflight_to_arrival_destruction": {
+      "roi": {
+        "x": 2040,
+        "y": 728,
+        "width": 144,
+        "height": 144
+      },
+      "sample_count": 20736,
+      "mean_difference": 0.268070314798539,
+      "changed_fraction": 0.957368827160494,
+      "changed_pixels": 19852,
+      "pixel_change_threshold": 0.045
+    }
+  },
+  "automated_acceptance_thresholds": {
+    "minimum_png_bytes": 140000,
+    "minimum_luminance_range": 0.035,
+    "minimum_luminance_variance": 0.0001,
+    "roi_size_pixels": [
+      144,
+      144
+    ],
+    "pixel_change_threshold": 0.045,
+    "minimum_roi_mean_rgb_difference": 0.01,
+    "minimum_roi_changed_fraction": 0.025,
+    "minimum_effect_coloured_pixels": 48,
+    "minimum_roi_peak_luminance": 0.55,
+    "minimum_destruction_mean_difference": 0.012,
+    "minimum_destruction_changed_fraction": 0.035
+  },
+  "semantic_chronology_gates": [
+    "cyan authority is critical while smoke and impact remain pending in flight",
+    "cyan arrival clears receipt, shows impact, and starts critical smoke",
+    "amber authority reduces hero hull while detached impact remains pending in flight",
+    "amber arrival clears receipt and creates a detached world-space hero impact",
+    "lethal authority deactivates health and collision while hull art remains visible in flight",
+    "lethal arrival clears receipt, hides hull, and creates a world-owned destruction root at the captured pose"
+  ],
+  "staging_interventions": [
+    "Adds one capture-only Camera3D and disables every CanvasLayer.",
+    "Repositions production combatants to the established 180,54,-230 test arena and disables their physics navigation.",
+    "Calls production GameFlow fire handlers and never calls target damage methods directly.",
+    "Disables PulseWeaponPresentation automatic advancement and advances its public deterministic clock to exact photographed phases."
+  ],
+  "evidence_limits": [
+    "These are deterministic staged production-state frames, not an uninterrupted player-controlled dogfight.",
+    "Native X11 Forward+ output does not prove native-Windows rendering, native-GPU performance, combat feel, audibility, controller ergonomics, or camera comfort.",
+    "Localized pixel and semantic gates reject blank, duplicate, mistimed, weak-colour, and missing-effect captures but do not replace original-resolution human art review.",
+    "The Combat V2 presentation is an original modern treatment and is not claimed as authenticated historical Keth weapon art."
+  ]
+}

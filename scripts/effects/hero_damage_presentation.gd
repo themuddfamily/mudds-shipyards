@@ -67,8 +67,13 @@ var _alarm_urgency := 0.0
 var _engine_failure_active := false
 var _engine_power_multiplier := 1.0
 var _pending_destruction := false
+var _pending_destruction_pose := Transform3D.IDENTITY
+var _pending_destruction_pose_valid := false
 var _destruction_remaining := 0.0
 var _tearing_down := false
+const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
+var _pending_damage_presentations: Dictionary = {}
+var _pending_damage_presentation_order: Array[int] = []
 
 var _damage_sparks: CPUParticles3D
 var _engine_failure_sparks: CPUParticles3D
@@ -83,12 +88,18 @@ var _transient_effects: Array[Dictionary] = []
 var _materials: Dictionary = {}
 
 
+func _enter_tree() -> void:
+	_tearing_down = false
+	if _built and _pending_destruction:
+		call_deferred("_resume_pending_destruction_after_reentry")
+
+
 func _ready() -> void:
 	_ensure_built()
 	_apply_stage_visuals()
 	if _pending_destruction:
 		_pending_destruction = false
-		_spawn_destruction_effects()
+		_spawn_destruction_effects(_pending_destruction_pose, _pending_destruction_pose_valid)
 
 
 func _process(delta: float) -> void:
@@ -169,9 +180,60 @@ func present_impact(
 	})
 
 
+## Queues only transient/terminal art. Health stage, alarm and engine-power state
+## remain immediate through [method update_state], preserving gameplay authority.
+func defer_damage_presentation(
+		receipt_id: int,
+		world_position: Vector3,
+		world_normal: Vector3,
+		intensity: float,
+		terminal: bool,
+		world_velocity: Vector3,
+		world_pose: Variant = null
+	) -> bool:
+	if receipt_id < 0 or not world_position.is_finite():
+		return false
+	if _pending_damage_presentations.has(receipt_id):
+		_pending_damage_presentation_order.erase(receipt_id)
+	_pending_damage_presentations[receipt_id] = {
+		"position": world_position,
+		"normal": world_normal,
+		"intensity": clampf(intensity, 0.25, 2.5),
+		"terminal": terminal,
+		"velocity": world_velocity if world_velocity.is_finite() else Vector3.ZERO,
+		"world_pose": world_pose if world_pose is Transform3D else global_transform,
+	}
+	_pending_damage_presentation_order.append(receipt_id)
+	while _pending_damage_presentation_order.size() > MAX_PENDING_DAMAGE_PRESENTATIONS:
+		var evicted: int = _pending_damage_presentation_order.pop_front()
+		_pending_damage_presentations.erase(evicted)
+	return true
+
+
+func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+	if not _pending_damage_presentations.has(receipt_id):
+		return false
+	var record := _pending_damage_presentations[receipt_id] as Dictionary
+	_pending_damage_presentations.erase(receipt_id)
+	_pending_damage_presentation_order.erase(receipt_id)
+	present_impact(record.position, record.normal, float(record.intensity))
+	if bool(record.terminal):
+		present_destruction(record.velocity, record.world_pose)
+		_pending_damage_presentations.clear()
+		_pending_damage_presentation_order.clear()
+	return true
+
+
+func get_pending_damage_presentation_count() -> int:
+	return _pending_damage_presentations.size()
+
+
 ## Enters the terminal stage once and detaches the lethal effects into world
 ## space. The owner can hide or recycle its hull without moving the explosion.
-func present_destruction(world_velocity: Vector3 = Vector3.ZERO) -> void:
+func present_destruction(
+		world_velocity: Vector3 = Vector3.ZERO,
+		world_pose: Variant = null
+	) -> void:
 	_ensure_built()
 	if _stage == DamageStage.DESTROYED:
 		return
@@ -180,8 +242,11 @@ func present_destruction(world_velocity: Vector3 = Vector3.ZERO) -> void:
 	_ship_state = STATE_DESTROYED
 	_set_stage(DamageStage.DESTROYED)
 	_apply_stage_visuals()
+	_pending_destruction_pose = world_pose as Transform3D if world_pose is Transform3D else global_transform
+	_pending_destruction_pose.basis = _pending_destruction_pose.basis.orthonormalized()
+	_pending_destruction_pose_valid = true
 	if is_inside_tree():
-		_spawn_destruction_effects()
+		_spawn_destruction_effects(_pending_destruction_pose, true)
 	else:
 		_pending_destruction = true
 
@@ -195,7 +260,10 @@ func reset_for_reuse(
 	) -> void:
 	_ensure_built()
 	_clear_all_world_effects(false)
+	_pending_damage_presentations.clear()
+	_pending_damage_presentation_order.clear()
 	_pending_destruction = false
+	_pending_destruction_pose_valid = false
 	_elapsed = 0.0
 	_last_world_velocity = Vector3.ZERO
 	_health_ratio = clampf(health_ratio, 0.001, 1.0)
@@ -214,7 +282,10 @@ func reset_for_reuse(
 ## This is safe to call before freeing the component or its owning ship.
 func dispose_effects() -> void:
 	_clear_all_world_effects(false)
+	_pending_damage_presentations.clear()
+	_pending_damage_presentation_order.clear()
 	_pending_destruction = false
+	_pending_destruction_pose_valid = false
 	_ship_state = STATE_HIDDEN
 	_apply_stage_visuals()
 	effects_cleared.emit()
@@ -354,10 +425,14 @@ func _update_local_cues() -> void:
 		_engine_failure_light.light_energy = 0.0
 
 
-func _spawn_destruction_effects() -> void:
+func _spawn_destruction_effects(
+		effect_pose: Transform3D = Transform3D.IDENTITY,
+		has_effect_pose: bool = false
+	) -> void:
 	if not is_inside_tree() or is_instance_valid(_destruction_root):
 		return
-	var effect_pose := global_transform
+	if not has_effect_pose:
+		effect_pose = global_transform
 	effect_pose.basis = effect_pose.basis.orthonormalized()
 	_destruction_root = Node3D.new()
 	_destruction_root.name = "HeroDamageDestructionEffects"
@@ -415,6 +490,13 @@ func _spawn_destruction_effects() -> void:
 
 	_destruction_remaining = destruction_effect_lifetime
 	destruction_started.emit(_destruction_root.global_position, _last_world_velocity)
+
+
+func _resume_pending_destruction_after_reentry() -> void:
+	if not is_inside_tree() or not _pending_destruction:
+		return
+	_pending_destruction = false
+	_spawn_destruction_effects(_pending_destruction_pose, _pending_destruction_pose_valid)
 
 
 func _spawn_debris_piece(index: int) -> void:

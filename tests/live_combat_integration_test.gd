@@ -150,8 +150,14 @@ func _run() -> void:
 	var damage_direction := hud.get("_damage_direction") as Control
 	_check(damage_direction != null and damage_direction.visible, "resolved enemy damage retains directional HUD feedback")
 	_check(
+		hero.get_damage_presentation().get_live_world_effect_count() == 0
+		and hero.get_damage_presentation().get_pending_damage_presentation_count() == 1,
+		"enemy health authority resolves before the travelling pulse presents its impact"
+	)
+	pulse_presentation.advance_simulation(0.29)
+	_check(
 		hero.get_damage_presentation().get_live_world_effect_count() > 0,
-		"resolved enemy damage retains the hero impact presentation"
+		"pulse arrival releases the resolved hero impact presentation"
 	)
 
 	# Range targets use the same request/resolver path, then forward lethal damage
@@ -167,6 +173,15 @@ func _run() -> void:
 	for _shot in 2:
 		var range_direction := (range_target.global_position - range_origin).normalized()
 		game.call("_on_projectile_fired", range_origin, range_direction, hero)
+		if _shot == 1:
+			_check(
+				bool(range_target.get_meta("destroyed", false))
+				and game.destroyed_targets == 1
+				and range_target.collision_layer == 0
+				and world.find_children("TargetBurst", "Node3D", true, false).is_empty(),
+				"lethal target collision and mission authority resolve before pulse-arrival art"
+			)
+		pulse_presentation.advance_simulation(0.2)
 		await physics_frame
 	_check(bool(range_target.get_meta("destroyed", false)), "authoritative range fire reaches the established target destruction lifecycle")
 	_check(game.destroyed_targets == 1, "range target destruction still advances mission state exactly once")

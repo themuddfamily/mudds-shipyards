@@ -1,5 +1,25 @@
 # Asset register
 
+## `assets/effects/mudds-combat-vfx-atlas-v1.png`
+
+- Purpose: project-original, tintable presentation atlas for the shared Mudds
+  Shipyards pulse, muzzle and endpoint-impact renderer. The four equal cells are
+  a forward pulse/head, an energetic impact, a reserved explosion study, and a
+  shock ring. The current runtime uses only the pulse and impact cells; the
+  explosion and ring cells are retained as visual development rather than
+  claimed as integrated destruction effects.
+- Created: 2026-08-13 with OpenAI's built-in image generation tool.
+- SHA-256:
+  `e748314a287112a11f809b417fa262b184199715f029b0915b63ca8ccecd3aac`.
+- Project status: modern project-original imagegen output; not sourced from
+  Roblox, the original Keth Shipyards, or third-party artwork. The neutral
+  white/grey energy shapes are intentionally tinted by the runtime's cyan,
+  amber and magenta style contract. This is a presentation texture, not
+  historical evidence for any original weapon effect.
+- Final prompt (verbatim):
+
+> Use case: game-asset. Asset type: transparent-background, tintable grayscale 2x2 VFX sprite atlas for a Godot 4 real-time 3D game. Create exactly four equal square cells with no dividers and generous transparent padding: top-left a compact forward-stretched white energy pulse with a hard brilliant core and soft layered halo; top-right a radial white impact flash with a crisp centre, partial shock ring and eight tapered outward streaks; bottom-left a layered white energy explosion with bright core, irregular expanding front and wispy smoke-like outer breakup; bottom-right a clean expanding circular shock ring with a soft falloff. Neutral white and pale grey only so every cell can be multiplied by cyan, amber or magenta at runtime. Premium modern arcade science-fiction game VFX, readable at small screen size, strong silhouette, smooth antialiased alpha, physically plausible falloff but stylised and powerful. Orthographic sprite treatment, each effect centred in its cell except the top-left pulse which points exactly to the right. Transparent background; no black matte, no stars, no environment, no UI, no text, no letters, no numbers, no logos, no watermark, no colored pixels, no hard rectangular cell edges, no lens-flare photography, no copied franchise effects.
+
 ## `assets/concepts/torrent/torrent-hero-concept-multiview-v1.png`
 
 - Purpose: project-original, four-view visual-development reference for the

@@ -77,9 +77,17 @@ func _physics_process(delta: float) -> void:
 func apply_damage(
 		amount: float,
 		world_hit_position: Vector3 = Vector3.INF,
-		world_hit_normal: Vector3 = Vector3.ZERO
+		world_hit_normal: Vector3 = Vector3.ZERO,
+		presentation_receipt_id: int = -1,
+		defer_presentation: bool = false
 	) -> void:
-	super.apply_damage(amount, world_hit_position, world_hit_normal)
+	super.apply_damage(
+		amount,
+		world_hit_position,
+		world_hit_normal,
+		presentation_receipt_id,
+		defer_presentation
+	)
 	if is_destroyed():
 		_set_interior_operational(false)
 

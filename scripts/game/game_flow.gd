@@ -238,6 +238,16 @@ func _connect_runtime_signals() -> void:
 		_on_authoritative_shot_submitted
 	)
 	_connect_signal_once(pulse_presentation, &"impact_started", _on_pulse_impact_started)
+	_connect_signal_once(
+		pulse_presentation,
+		&"impact_receipt_ready",
+		_on_pulse_impact_receipt_ready
+	)
+	_connect_signal_once(
+		pulse_presentation,
+		&"impact_receipt_aborted",
+		_on_pulse_impact_receipt_aborted
+	)
 	_connect_signal_once(hud, &"start_requested", start_shift)
 	_connect_signal_once(hud, &"restart_requested", _restart_shift)
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
@@ -918,7 +928,9 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 	)
 	var weapon_profile: Dictionary = combat_authority.get_weapon_profile(firing_ship, weapon_id)
 	var weapon_range := float(weapon_profile.get("range", 360.0))
-	var result: Dictionary = combat_authority.submit_hitscan(firing_ship, weapon_id, origin, direction)
+	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
+		firing_ship, weapon_id, origin, direction
+	)
 	_last_player_shot_result = result.duplicate(true)
 
 
@@ -934,13 +946,17 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
 			endpoint = resolved_position as Vector3
 	var style_id: StringName = &"amber" if request.source_entity == opponent else &"cyan"
-	_present_pulse_shot(
+	var receipt_id := request.presentation_receipt_id
+	var presented := _present_pulse_shot(
 		request.origin,
 		endpoint,
 		style_id,
 		request.source_entity if is_instance_valid(request.source_entity) else null,
-		bool(result.get("hit", false))
+		bool(result.get("hit", false)),
+		receipt_id
 	)
+	if bool(result.get("damaged", false)) and receipt_id >= 0 and not presented:
+		_commit_damage_presentation_receipt(receipt_id, result.get("target_entity"))
 
 
 func _on_pulse_impact_started(
@@ -969,12 +985,55 @@ func _on_pulse_impact_started(
 	audio.play_impact()
 
 
+func _on_pulse_impact_receipt_ready(receipt_id: int, _position: Vector3) -> void:
+	_commit_damage_presentation_receipt(receipt_id)
+
+
+func _on_pulse_impact_receipt_aborted(receipt_id: int) -> void:
+	# Damage/health authority is already final. If a bounded visual slot is
+	# recycled or torn down before arrival, release its queued presentation now
+	# so a destroyed hull or impact can never remain visually pending forever.
+	_commit_damage_presentation_receipt(receipt_id)
+
+
+func _commit_damage_presentation_receipt(receipt_id: int, target_hint: Variant = null) -> bool:
+	if receipt_id < 0:
+		return false
+	if is_instance_valid(target_hint) and target_hint.has_method("commit_deferred_damage_presentation"):
+		if bool(target_hint.call("commit_deferred_damage_presentation", receipt_id)):
+			if target_hint == opponent and not opponent.is_active():
+				audio.play_enemy_destroyed()
+			return true
+	for fleet_ship in ships:
+		if (
+			is_instance_valid(fleet_ship)
+			and fleet_ship.has_method("commit_deferred_damage_presentation")
+			and bool(fleet_ship.call("commit_deferred_damage_presentation", receipt_id))
+		):
+			return true
+	if (
+		is_instance_valid(opponent)
+		and opponent.has_method("commit_deferred_damage_presentation")
+		and bool(opponent.call("commit_deferred_damage_presentation", receipt_id))
+	):
+		if not opponent.is_active():
+			audio.play_enemy_destroyed()
+		return true
+	var world_committed := (
+		bool(world.call("commit_deferred_damage_presentation", receipt_id))
+		if is_instance_valid(world) and world.has_method("commit_deferred_damage_presentation")
+		else false
+	)
+	if world_committed:
+		audio.play_target_destroyed()
+	return world_committed
+
+
 func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:
 	if active_ship != ship or (phase != Phase.LAUNCH and phase != Phase.TARGET_PRACTICE):
 		return
 	destroyed_targets = mini(total_targets, destroyed_targets + 1)
 	hud.set_target_count(destroyed_targets, total_targets)
-	audio.play_target_destroyed()
 	if destroyed_targets >= total_targets and phase == Phase.TARGET_PRACTICE:
 		_begin_interceptor_engagement()
 	elif destroyed_targets >= total_targets:
@@ -1086,13 +1145,12 @@ func _on_opponent_destroyed(_position: Vector3) -> void:
 	if phase != Phase.INTERCEPTOR_ENGAGEMENT:
 		return
 	hud.set_enemy_status("", 0.0, 1.0, false)
-	audio.play_enemy_destroyed()
 	_begin_return_to_yard()
 
 
 func _on_opponent_projectile_fired(origin: Vector3, direction: Vector3) -> void:
 	var ray_end := origin + direction.normalized() * ENEMY_WEAPON_RANGE
-	var result: Dictionary = combat_authority.submit_hitscan(
+	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
 		opponent,
 		OPPONENT_WEAPON_ID,
 		origin,
@@ -1920,8 +1978,16 @@ func _present_pulse_shot(
 	end: Vector3,
 	style_id: StringName,
 	source_entity: Node,
-	hit: bool
-	) -> void:
+		hit: bool,
+		presentation_receipt_id: int = -1
+	) -> bool:
 	if not is_instance_valid(pulse_presentation):
-		return
-	pulse_presentation.present_shot(origin, end, style_id, source_entity, hit)
+		return false
+	return pulse_presentation.present_shot(
+		origin,
+		end,
+		style_id,
+		source_entity,
+		hit,
+		presentation_receipt_id
+	)
