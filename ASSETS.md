@@ -1,5 +1,32 @@
 # Asset register
 
+## `art_source/station/central_berth_hero_v1.blend`
+
+- Purpose: editable Blender source for the presentation-only central Torrent
+  berth shell. It replaces the old runtime-primitive pad inset, fascia and
+  trusses while the existing Godot walking floor, berth, clamps, utilities,
+  lights and route collision remain authoritative.
+- Created: 2026-08-13 with the deterministic project generator
+  `tools/blender/generate_central_berth_hero_v1.py` under Blender 4.0.2.
+- Authorship: original script-assisted Blender work. It is a modern design, not
+  recovered Roblox geometry and not evidence of the historical station layout.
+- Contract: 111 editable components grouped under the exact semantic roots
+  `deck_panels`, `edge_fascia`, `primary_structure`, `secondary_structure`, and
+  `service_channels`; five material roles; 8 runtime static batches/surfaces;
+  5,976 vertices; 11,508 triangles; exact Godot-space bounds
+  `(-12.75, -2.58, -27.75)` to `(12.75, 0.095, 7.75)`.
+- Runtime: `assets/models/station/central_berth_hero_v1.glb`, mounted at identity
+  by `CentralBerthHeroPresentation`. `DeckComposite` binds the registered
+  shipyard-deck albedo/normal/roughness through authored UV0; triplanar mapping
+  is disabled. The imported subtree contains no collision, body, area, camera,
+  audio, navigation or walking-surface authority.
+- Final SHA-256: generator
+  `68a78fcdd9f1370be7d92a633ce6e7ad7a77fb5908c49baa4442912c704fa625`;
+  Blend `30ae770d8d31d89dceab7334be1fa373ca4caf20469ae4944c00f62773cf8b14`;
+  GLB `6d35d3c61dba7ba841ba062be65e6ef8cb56286953fb48551a7cfcfcd8423a7e`;
+  manifest `dbf354f26f5333d3b4e831eee00998527cfef49297808b21bb8704d99b396459`.
+
+
 ## `assets/concepts/torrent/torrent-hero-concept-multiview-v1.png`
 
 - Purpose: project-original, four-view visual-development reference for the
@@ -263,11 +290,12 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
 
 > Use case: stylized-concept. Asset type: panoramic deep-space background texture for a modern standalone arcade spaceflight game vertical slice. An original richly detailed starfield with a restrained luminous teal-and-amber nebula, deep navy-black space, distant dust clouds and tiny varied stars; evocative of optimistic colorful late-2000s science fiction rebuilt with modern polish. Polished hand-authored cinematic game-sky texture, realistic-stylized, no visible brush strokes. Very wide panoramic composition, visual interest mostly around the outer thirds, calmer dark central area for readable gameplay silhouettes. Awe-inspiring, adventurous, clean and colorful rather than grim military. Deep navy, cyan-teal, muted cobalt, small warm amber highlights. Environment only; no spacecraft, station, planets, text, logos, watermark, obvious constellations, photoreal NASA-photo mimicry, overbright central cloud, purple-heavy vaporwave, or UI.
 
-All station, player, and ship geometry, UI, effects, and audio in the current
-slice are produced from original project code and Godot primitives. Registered
-project-original raster textures and their locally derived material maps are the
-explicit exception documented above. No original Roblox assets or scripts are
-bundled.
+All geometry, UI, effects, and audio in the current slice are original project
+work. The Torrent, pilot, and central-berth packages preserve editable Blender
+sources and deterministic import contracts; much of the remaining station and
+fleet still uses code-authored Godot geometry. Registered project-original
+raster textures and their locally derived material maps are documented above.
+No original Roblox assets or scripts are bundled.
 
 ## `assets/keth-icon.png`
 

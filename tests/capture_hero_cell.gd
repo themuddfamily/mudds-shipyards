@@ -666,11 +666,14 @@ func _validate_source_components() -> void:
 		"capture berth passes its production hero-cell audit"
 	)
 	var berth_features := berth_audit.get("feature_counts", {}) as Dictionary
+	var berth_asset_audit := berth_audit.get("authored_asset_audit", {}) as Dictionary
 	_check(
 		int(berth_features.get(&"docking_clamp", 0)) == 3
-		and int(berth_features.get(&"primary_truss", 0)) >= 5
-		and int(berth_features.get(&"umbilical_housing", 0)) == 3,
-		"capture berth has exact clamps plus its truss and service hierarchy"
+		and int(berth_features.get(&"umbilical_housing", 0)) == 3
+		and bool(berth_asset_audit.get("valid", false))
+		and int(berth_asset_audit.get("runtime_mesh_count", 0)) == 8
+		and int(berth_asset_audit.get("runtime_triangle_count", 0)) == 11_508,
+		"capture berth has exact clamps and its source-current Blender-authored service hierarchy"
 	)
 
 	_check(_torrent.has_method(ART_AUDIT_METHOD), "Torrent publishes the combined production art audit")
@@ -772,8 +775,14 @@ func _validate_source_components() -> void:
 		and bool(batching.get("source_preserved_in_blend", false))
 		and int(batching.get("runtime_mesh_count_total", -1)) == 32
 		and int(batching.get("source_mesh_count_total", -1)) == 317
-		and batching.get("runtime_mesh_counts_by_root", {}) == EXPECTED_RUNTIME_MESH_COUNTS
-		and batching.get("source_mesh_counts_by_root", {}) == EXPECTED_SOURCE_MESH_COUNTS,
+		and _integer_dictionary_matches(
+			batching.get("runtime_mesh_counts_by_root", {}) as Dictionary,
+			EXPECTED_RUNTIME_MESH_COUNTS
+		)
+		and _integer_dictionary_matches(
+			batching.get("source_mesh_counts_by_root", {}) as Dictionary,
+			EXPECTED_SOURCE_MESH_COUNTS
+		),
 		"capture pins the exact 317-source / 32-runtime semantic-root batching contract"
 	)
 
@@ -2385,6 +2394,15 @@ func _rect2i_dictionary(value: Rect2i) -> Dictionary:
 		"width": value.size.x,
 		"height": value.size.y,
 	}
+
+
+func _integer_dictionary_matches(actual: Dictionary, expected: Dictionary) -> bool:
+	if actual.size() != expected.size():
+		return false
+	for key: String in expected:
+		if not actual.has(key) or int(actual.get(key, -1)) != int(expected[key]):
+			return false
+	return true
 
 
 func _read_json(path: String) -> Dictionary:

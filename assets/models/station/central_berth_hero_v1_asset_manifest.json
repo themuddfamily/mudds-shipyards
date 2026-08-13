@@ -1,0 +1,300 @@
+{
+  "asset_id": "mudds.station.central_berth_hero.v1",
+  "authorship": "original_script_assisted_blender",
+  "blend_sha256": "30ae770d8d31d89dceab7334be1fa373ca4caf20469ae4944c00f62773cf8b14",
+  "blender_version": "4.0.2",
+  "collision_authority": false,
+  "coordinate_contract": {
+    "mount": "identity transform beneath world-aligned LandingPad",
+    "runtime": "Godot +Y up, -Z forward, metres",
+    "source": "Blender Z-up, -Y forward, metres"
+  },
+  "envelope_contract_godot_metres": {
+    "all_authored_form_at_or_below_deck_top": true,
+    "deck_top_y": 0.095,
+    "existing_pad_envelope_preserved": true,
+    "maximum": [
+      12.75,
+      0.095,
+      7.75
+    ],
+    "minimum": [
+      -12.75,
+      -2.58,
+      -27.75
+    ],
+    "size_metres": [
+      25.5,
+      2.675,
+      35.5
+    ]
+  },
+  "forbidden_authority_nodes": [
+    "CollisionObject3D",
+    "CollisionShape3D",
+    "Area3D",
+    "Camera3D",
+    "AudioStreamPlayer3D",
+    "NavigationRegion3D",
+    "VehicleBody3D"
+  ],
+  "gameplay_authority": false,
+  "generator": "tools/blender/generate_central_berth_hero_v1.py",
+  "generator_sha256": "68a78fcdd9f1370be7d92a633ce6e7ad7a77fb5908c49baa4442912c704fa625",
+  "glb_sha256": "6d35d3c61dba7ba841ba062be65e6ef8cb56286953fb48551a7cfcfcd8423a7e",
+  "hierarchy_contract": [
+    "CentralBerthHeroArt",
+    "deck_panels",
+    "edge_fascia",
+    "primary_structure",
+    "secondary_structure",
+    "service_channels"
+  ],
+  "historical_geometry_authenticated": false,
+  "material_role_count": 5,
+  "material_roles": {
+    "DeckComposite": {
+      "color": [
+        0.105,
+        0.145,
+        0.165,
+        1.0
+      ],
+      "metallic": 0.52,
+      "roughness": 0.38
+    },
+    "EdgeIvory": {
+      "color": [
+        0.7,
+        0.72,
+        0.66,
+        1.0
+      ],
+      "metallic": 0.18,
+      "roughness": 0.34
+    },
+    "GuidanceCyan": {
+      "color": [
+        0.015,
+        0.36,
+        0.42,
+        1.0
+      ],
+      "emission": [
+        0.015,
+        0.73,
+        0.84,
+        1.0
+      ],
+      "emission_strength": 2.1,
+      "metallic": 0.16,
+      "roughness": 0.25
+    },
+    "ServiceGraphite": {
+      "color": [
+        0.018,
+        0.032,
+        0.038,
+        1.0
+      ],
+      "metallic": 0.42,
+      "roughness": 0.48
+    },
+    "StructuralAlloy": {
+      "color": [
+        0.13,
+        0.22,
+        0.27,
+        1.0
+      ],
+      "metallic": 0.72,
+      "roughness": 0.29
+    }
+  },
+  "mesh_triangles_exported_runtime": 11508,
+  "mesh_vertices_exported_runtime": 5976,
+  "presentation_only": true,
+  "runtime_generation": false,
+  "runtime_path": "assets/models/station/central_berth_hero_v1.glb",
+  "runtime_static_batching": {
+    "runtime_batch_names_by_root": {
+      "deck_panels": [
+        "deck_panels__DeckComposite"
+      ],
+      "edge_fascia": [
+        "edge_fascia__EdgeIvory",
+        "edge_fascia__ServiceGraphite"
+      ],
+      "primary_structure": [
+        "primary_structure__StructuralAlloy"
+      ],
+      "secondary_structure": [
+        "secondary_structure__StructuralAlloy"
+      ],
+      "service_channels": [
+        "service_channels__EdgeIvory",
+        "service_channels__GuidanceCyan",
+        "service_channels__ServiceGraphite"
+      ]
+    },
+    "runtime_mesh_counts_by_root": {
+      "deck_panels": 1,
+      "edge_fascia": 2,
+      "primary_structure": 1,
+      "secondary_structure": 1,
+      "service_channels": 3
+    },
+    "runtime_mesh_instance_budget": 12,
+    "runtime_mesh_instance_count": 8,
+    "runtime_surface_budget": 12,
+    "source_preserved_in_blend": true,
+    "strategy": "per_semantic_root_per_material_static_join"
+  },
+  "schema_version": 1,
+  "semantic_root_count": 5,
+  "semantic_roots": [
+    "deck_panels",
+    "edge_fascia",
+    "primary_structure",
+    "secondary_structure",
+    "service_channels"
+  ],
+  "source_component_count": 111,
+  "source_component_counts_by_material": {
+    "DeckComposite": 19,
+    "EdgeIvory": 10,
+    "GuidanceCyan": 9,
+    "ServiceGraphite": 23,
+    "StructuralAlloy": 50
+  },
+  "source_component_counts_by_root": {
+    "deck_panels": 19,
+    "edge_fascia": 24,
+    "primary_structure": 22,
+    "secondary_structure": 28,
+    "service_channels": 18
+  },
+  "source_component_names": [
+    "AftDeckMargin",
+    "AftLowerFasciaPanel_1",
+    "AftLowerFasciaPanel_2",
+    "AftLowerFasciaPanel_3",
+    "AftLowerFasciaPanel_4",
+    "AftLowerFasciaPanel_5",
+    "AftUpperFascia",
+    "CentreGuidanceRecess",
+    "CentreGuidanceSegment_1",
+    "CentreGuidanceSegment_2",
+    "CentreGuidanceSegment_3",
+    "CentreGuidanceSegment_4",
+    "CentreGuidanceSegment_5",
+    "CentreGuidanceSegment_6",
+    "CentreGuidanceSegment_7",
+    "CrossLowerFlange_1",
+    "CrossLowerFlange_2",
+    "CrossLowerFlange_3",
+    "CrossLowerFlange_4",
+    "CrossLowerFlange_5",
+    "CrossUpperFlange_1",
+    "CrossUpperFlange_2",
+    "CrossUpperFlange_3",
+    "CrossUpperFlange_4",
+    "CrossUpperFlange_5",
+    "CrossWeb_1",
+    "CrossWeb_2",
+    "CrossWeb_3",
+    "CrossWeb_4",
+    "CrossWeb_5",
+    "DeckCassette_1_1",
+    "DeckCassette_1_2",
+    "DeckCassette_1_3",
+    "DeckCassette_1_4",
+    "DeckCassette_1_5",
+    "DeckCassette_2_1",
+    "DeckCassette_2_2",
+    "DeckCassette_2_3",
+    "DeckCassette_2_4",
+    "DeckCassette_2_5",
+    "DeckCassette_3_1",
+    "DeckCassette_3_2",
+    "DeckCassette_3_3",
+    "DeckCassette_3_4",
+    "DeckCassette_3_5",
+    "ForwardDeckMargin",
+    "ForwardLowerFasciaPanel_1",
+    "ForwardLowerFasciaPanel_2",
+    "ForwardLowerFasciaPanel_3",
+    "ForwardLowerFasciaPanel_4",
+    "ForwardLowerFasciaPanel_5",
+    "ForwardUpperFascia",
+    "LongitudinalLowerFlange_1",
+    "LongitudinalLowerFlange_2",
+    "LongitudinalUpperFlange_1",
+    "LongitudinalUpperFlange_2",
+    "LongitudinalWeb_1",
+    "LongitudinalWeb_2",
+    "LowerDatumSpine",
+    "LowerPlanBracePort_138",
+    "LowerPlanBracePort_15",
+    "LowerPlanBracePort_215",
+    "LowerPlanBracePort_62",
+    "LowerPlanBraceStarboard_138",
+    "LowerPlanBraceStarboard_15",
+    "LowerPlanBraceStarboard_215",
+    "LowerPlanBraceStarboard_62",
+    "OuterBraceFall_10",
+    "OuterBraceFall_12",
+    "OuterBraceFall_14",
+    "OuterBraceFall_16",
+    "OuterBraceFall_18",
+    "OuterBraceFall_2",
+    "OuterBraceFall_20",
+    "OuterBraceFall_4",
+    "OuterBraceFall_6",
+    "OuterBraceFall_8",
+    "OuterBraceRise_1",
+    "OuterBraceRise_11",
+    "OuterBraceRise_13",
+    "OuterBraceRise_15",
+    "OuterBraceRise_17",
+    "OuterBraceRise_19",
+    "OuterBraceRise_3",
+    "OuterBraceRise_5",
+    "OuterBraceRise_7",
+    "OuterBraceRise_9",
+    "PortChannelAccess_1",
+    "PortChannelAccess_2",
+    "PortChannelAccess_3",
+    "PortDeckMargin",
+    "PortLowerFasciaPanel_1",
+    "PortLowerFasciaPanel_2",
+    "PortLowerFasciaPanel_3",
+    "PortLowerFasciaPanel_4",
+    "PortLowerFasciaPanel_5",
+    "PortServiceChannel",
+    "PortServiceTracer",
+    "PortUpperFascia",
+    "StarboardChannelAccess_1",
+    "StarboardChannelAccess_2",
+    "StarboardChannelAccess_3",
+    "StarboardDeckMargin",
+    "StarboardLowerFasciaPanel_1",
+    "StarboardLowerFasciaPanel_2",
+    "StarboardLowerFasciaPanel_3",
+    "StarboardLowerFasciaPanel_4",
+    "StarboardLowerFasciaPanel_5",
+    "StarboardServiceChannel",
+    "StarboardServiceTracer",
+    "StarboardUpperFascia"
+  ],
+  "source_path": "art_source/station/central_berth_hero_v1.blend",
+  "uv0_contract": {
+    "method": "authored_component_uv0_preserved_through_static_join",
+    "minimum_uv_axis_span": 0.75,
+    "runtime_meshes_with_uv0": 8,
+    "runtime_uv_loop_count": 23016,
+    "texture_coordinate": "UV0/TEXCOORD_0",
+    "triplanar": false
+  },
+  "walking_surface_authority": false
+}
