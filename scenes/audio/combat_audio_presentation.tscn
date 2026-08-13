@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/combat_audio_presentation.gd" id="1_audio"]
+
+[node name="CombatAudioPresentation" type="Node3D" groups=["combat_audio_presentation"]]
+script = ExtResource("1_audio")
+
+[node name="FireVoice0" type="AudioStreamPlayer3D" parent="."]
+[node name="FireVoice1" type="AudioStreamPlayer3D" parent="."]
+[node name="FireVoice2" type="AudioStreamPlayer3D" parent="."]
+[node name="ImpactVoice0" type="AudioStreamPlayer3D" parent="."]
+[node name="ImpactVoice1" type="AudioStreamPlayer3D" parent="."]
+[node name="ImpactVoice2" type="AudioStreamPlayer3D" parent="."]
+[node name="ImpactVoice3" type="AudioStreamPlayer3D" parent="."]
+[node name="ExplosionVoice0" type="AudioStreamPlayer3D" parent="."]
+[node name="ExplosionVoice1" type="AudioStreamPlayer3D" parent="."]
+[node name="DryFireVoice" type="AudioStreamPlayer3D" parent="."]

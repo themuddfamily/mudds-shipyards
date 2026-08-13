@@ -356,9 +356,9 @@ func _test_destroyed_source_impact_ordering(
 	_check(source_ship != null, "destroyed-source delayed-impact fixture finds the Arrow craft")
 	if source_ship == null:
 		return
-	var rig := source_ship.get_ship_audio_rig()
-	_check(rig != null, "destroyed-source delayed-impact fixture finds the local combat cue rig")
-	if rig == null:
+	var combat_audio := game.get_combat_audio_presentation()
+	_check(combat_audio != null, "destroyed-source fixture finds the authored world-space combat bank")
+	if combat_audio == null:
 		return
 
 	pulse.clear_effects()
@@ -378,20 +378,24 @@ func _test_destroyed_source_impact_ordering(
 		source_ship.global_position,
 		Vector3.BACK
 	)
-	var destruction_state := rig.get_state_snapshot()
-	var destruction_count := int(destruction_state.get("cue_request_count", 0))
+	var destruction_state := combat_audio.get_state_snapshot()
+	var destruction_counts := destruction_state.get("cue_counts", {}) as Dictionary
+	var destruction_count := int(destruction_counts.get(CombatAudioPresentation.CUE_EXPLOSION, 0))
+	var impact_count := int(destruction_counts.get(CombatAudioPresentation.CUE_IMPACT_MEDIUM, 0))
 	_check(
 		source_ship.is_destroyed()
-		and destruction_state.get("last_cue_id", &"") == ShipAudioRig.CUE_DESTRUCTION,
-		"lethal damage establishes destruction as the ship-local final combat cue"
+		and destruction_count > 0
+		and destruction_state.get("last_world_position") == source_ship.global_position,
+		"lethal damage starts exactly one authored explosion at the immutable ship position"
 	)
 	pulse.advance_simulation(0.30)
-	var after_impact := rig.get_state_snapshot()
+	var after_impact := combat_audio.get_state_snapshot()
+	var after_counts := after_impact.get("cue_counts", {}) as Dictionary
 	_check(
 		impact_events.size() == 1
-		and int(after_impact.get("cue_request_count", -1)) == destruction_count
-		and after_impact.get("last_cue_id", &"") == ShipAudioRig.CUE_DESTRUCTION,
-		"a delayed impact from a destroyed source cannot replace its final destruction cue"
+		and int(after_counts.get(CombatAudioPresentation.CUE_EXPLOSION, 0)) == destruction_count
+		and int(after_counts.get(CombatAudioPresentation.CUE_IMPACT_MEDIUM, 0)) == impact_count + 1,
+		"a delayed endpoint impact overlaps rather than replacing the independent explosion pool"
 	)
 
 

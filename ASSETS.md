@@ -263,11 +263,28 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
 
 > Use case: stylized-concept. Asset type: panoramic deep-space background texture for a modern standalone arcade spaceflight game vertical slice. An original richly detailed starfield with a restrained luminous teal-and-amber nebula, deep navy-black space, distant dust clouds and tiny varied stars; evocative of optimistic colorful late-2000s science fiction rebuilt with modern polish. Polished hand-authored cinematic game-sky texture, realistic-stylized, no visible brush strokes. Very wide panoramic composition, visual interest mostly around the outer thirds, calmer dark central area for readable gameplay silhouettes. Awe-inspiring, adventurous, clean and colorful rather than grim military. Deep navy, cyan-teal, muted cobalt, small warm amber highlights. Environment only; no spacecraft, station, planets, text, logos, watermark, obvious constellations, photoreal NASA-photo mimicry, overbright central cloud, purple-heavy vaporwave, or UI.
 
-All station, player, and ship geometry, UI, effects, and audio in the current
-slice are produced from original project code and Godot primitives. Registered
-project-original raster textures and their locally derived material maps are the
-explicit exception documented above. No original Roblox assets or scripts are
-bundled.
+## `assets/audio/combat/`
+
+- Purpose: seven non-looping combat one-shots for accepted player/defender fire,
+  three hull-impact weights, ship destruction, and restrained safed-trigger
+  feedback.
+- Format: checked-in mono 48 kHz signed 16-bit little-endian PCM WAV; Godot
+  import sidecars preserve the PCM data rather than applying lossy compression.
+- Editable source: `tools/audio/generate_combat_audio_v1.py`; the fixed-seed
+  offline generator and per-cue hashes/measurements are pinned by
+  `combat_audio_v1_asset_manifest.json`.
+- Project status: original fixed-seed offline procedural synthesis authored for
+  Mudds Shipyards; no recorded, sampled, or third-party source material. The
+  checked-in PCM WAVs are the runtime assets and the generator is reproducible
+  editable source. Byte-identical regeneration was verified on CPython 3.12.3
+  under Linux; cross-libm byte identity, historical authenticity, real-output
+  audibility, and final mix quality are not claimed.
+
+All station, player, and ship geometry, UI, and effects in the current slice are
+produced from original project code and Godot primitives. Registered
+project-original raster textures, their locally derived material maps, and the
+original generated PCM bank documented above are the explicit checked-in media
+exceptions. No original Roblox assets or scripts are bundled.
 
 ## `assets/keth-icon.png`
 

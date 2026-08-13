@@ -110,6 +110,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 @onready var opponent: CharacterBody3D = $RangeOpponent
 @onready var combat_authority: LiveCombatAuthorityType = $CombatAuthority as LiveCombatAuthorityType
 @onready var pulse_presentation: PulseWeaponPresentation = $PulseWeaponPresentation
+@onready var combat_audio: CombatAudioPresentation = $CombatAudioPresentation
 @onready var hud: CanvasLayer = $HUD
 @onready var audio: Node = $AudioDirector
 
@@ -903,6 +904,7 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 		# visual inside the muzzle envelope so it cannot resemble an unoccluded
 		# max-range miss or imply that world geometry/damage resolution occurred.
 		if safe_direction.length_squared() > 0.000001 and origin.is_finite():
+			combat_audio.play_dry_fire(origin, firing_ship.get_instance_id())
 			_present_pulse_shot(
 				origin,
 				origin + safe_direction * SAFED_PULSE_DISTANCE,
@@ -916,8 +918,6 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 		if phase in [Phase.LAUNCH, Phase.TARGET_PRACTICE]
 		else COMBAT_WEAPON_ID
 	)
-	var weapon_profile: Dictionary = combat_authority.get_weapon_profile(firing_ship, weapon_id)
-	var weapon_range := float(weapon_profile.get("range", 360.0))
 	var result: Dictionary = combat_authority.submit_hitscan(firing_ship, weapon_id, origin, direction)
 	_last_player_shot_result = result.duplicate(true)
 
@@ -928,6 +928,15 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 	var direction := request.get_normalized_direction()
 	if direction.length_squared() <= 0.000001:
 		return
+	var source_instance_id := (
+		request.source_entity.get_instance_id()
+		if is_instance_valid(request.source_entity)
+		else maxi(request.source_id, 0)
+	)
+	if request.source_entity == opponent:
+		combat_audio.play_defender_fire(request.origin, source_instance_id)
+	else:
+		combat_audio.play_player_fire(request.origin, source_instance_id)
 	var endpoint := request.origin + direction * request.range
 	if bool(result.get("hit", false)):
 		var resolved_position: Variant = result.get("position", endpoint)
@@ -945,28 +954,15 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 
 func _on_pulse_impact_started(
 	_shot_id: int,
-	_style_id: StringName,
+	style_id: StringName,
 	source_instance_id: int,
-	_position: Vector3
+	position: Vector3
 	) -> void:
-	# Player impacts use the same bounded ship-local transient bank as the weapon.
-	# The travelling pulse delays this cue until its endpoint rather than replacing
-	# the fire transient synchronously at trigger pull. Opponent/world impacts keep
-	# the fixed, pre-synthesized global cue because no opponent ShipAudioRig exists.
-	for fleet_ship in ships:
-		if not is_instance_valid(fleet_ship):
-			continue
-		if fleet_ship.get_instance_id() != source_instance_id:
-			continue
-		# Destruction owns the ship-local combat transient as its final cue. A
-		# delayed pulse impact from that former source must never replace it.
-		if fleet_ship.is_destroyed():
-			return
-		var rig := fleet_ship.get_ship_audio_rig()
-		if rig != null:
-			rig.play_impact()
-		return
-	audio.play_impact()
+	# The pulse owns travel timing; its endpoint event is the first frame on which
+	# the positional impact cue is allowed to start. A separate fixed pool lets a
+	# close impact overlap the already travelling fire transient.
+	var impact_weight := 0.45 if style_id == &"amber" else 0.9
+	combat_audio.play_impact(position, impact_weight, maxi(source_instance_id, 0))
 
 
 func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:
@@ -1082,11 +1078,11 @@ func _on_opponent_health_changed(current: float, maximum: float) -> void:
 	hud.set_enemy_status("Mudds range defence interceptor", current, maximum, opponent.is_active())
 
 
-func _on_opponent_destroyed(_position: Vector3) -> void:
+func _on_opponent_destroyed(position: Vector3) -> void:
 	if phase != Phase.INTERCEPTOR_ENGAGEMENT:
 		return
 	hud.set_enemy_status("", 0.0, 1.0, false)
-	audio.play_enemy_destroyed()
+	combat_audio.play_explosion(position, opponent.get_instance_id())
 	_begin_return_to_yard()
 
 
@@ -1572,12 +1568,13 @@ func _landing_report_has_error(report: Dictionary, error_id: String) -> bool:
 
 
 func _on_ship_destroyed(
-		_world_position: Vector3,
+		world_position: Vector3,
 		_inherited_velocity: Vector3,
 		source_ship: HeroShip
 	) -> void:
 	if not is_instance_valid(source_ship) or not ships.has(source_ship):
 		return
+	combat_audio.play_explosion(world_position, source_ship.get_instance_id())
 	_release_ship_berth(source_ship)
 	var active_transition_loss := (
 		source_ship == active_ship
@@ -1817,6 +1814,10 @@ func get_combat_authority() -> LiveCombatAuthorityType:
 
 func get_combat_resolver() -> CombatResolverType:
 	return combat_authority.get_resolver() if is_instance_valid(combat_authority) else null
+
+
+func get_combat_audio_presentation() -> CombatAudioPresentation:
+	return combat_audio
 
 
 func get_last_player_shot_result() -> Dictionary:

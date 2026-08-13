@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/combat/combat_resolver.gd" id="11_combat_resolver"]
 [ext_resource type="PackedScene" path="res://scenes/ships/jovian_light_freighter.tscn" id="12_jovian"]
 [ext_resource type="PackedScene" path="res://scenes/effects/pulse_weapon_presentation.tscn" id="13_pulse_presentation"]
+[ext_resource type="PackedScene" path="res://scenes/audio/combat_audio_presentation.tscn" id="14_combat_audio"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -37,6 +38,8 @@ script = ExtResource("10_combat_authority")
 script = ExtResource("11_combat_resolver")
 
 [node name="PulseWeaponPresentation" parent="." instance=ExtResource("13_pulse_presentation")]
+
+[node name="CombatAudioPresentation" parent="." instance=ExtResource("14_combat_audio")]
 
 [node name="AudioDirector" type="Node" parent="."]
 script = ExtResource("6_audio")
