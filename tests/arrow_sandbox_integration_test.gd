@@ -1,0 +1,344 @@
+extends SceneTree
+
+## Focused integration regression for the provisional Arrow's place in the
+## persistent three-craft yard. This deliberately begins before the guided
+## Torrent activity so an Arrow sortie cannot accidentally consume mission
+## state or replace the authored guide.
+
+const MAIN_SCENE := preload("res://scenes/main.tscn")
+
+var _failures: Array[String] = []
+
+
+func _init() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_check(game != null, "three-craft production scene instantiates")
+	if game == null:
+		_finish()
+		return
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await physics_frame
+
+	var player := game.get_node("Player") as PlayerController
+	var world := game.get_node("ShipyardWorld") as ShipyardWorld
+	var torrent := game.get_node("TorrentInterceptor") as HeroShip
+	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
+	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
+	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
+	var original_game_id := game.get_instance_id()
+	var original_player_id := player.get_instance_id()
+	var fleet := game.get_flyable_ships()
+	_check(fleet.size() == 3, "main scene registers exactly three physical flyable craft")
+	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian), "fleet registry contains the Torrent, Arrow, and Jovian instances")
+	_check(game.get_node_or_null("ReserveInterceptor") == null, "retired duplicate handling article is absent")
+	_check(game.get_guided_ship() == torrent, "Torrent remains the explicit guided-activity craft")
+	_check(torrent.get_ship_id() == &"torrent_provisional", "Torrent exposes its stable production identity")
+	_check(arrow.get_ship_id() == &"arrow_provisional", "Arrow exposes its distinct stable production identity")
+	_check(jovian.get_ship_id() == &"jovian_provisional", "Jovian exposes its distinct stable production identity")
+	_check(torrent.get_home_berth_id() == &"central_berth", "Torrent owns the central guided berth")
+	_check(arrow.get_home_berth_id() == &"arrow_recon_berth", "Arrow owns the dedicated recon berth")
+	_check(jovian.get_home_berth_id() == &"jovian_freight_berth", "Jovian owns the dedicated freight berth")
+	_check(world.has_berth(torrent.get_home_berth_id()), "shared world registers the Torrent berth")
+	_check(world.has_berth(arrow.get_home_berth_id()), "shared world registers the Arrow berth")
+	_check(world.has_berth(jovian.get_home_berth_id()), "shared world registers the Jovian berth")
+	var arrow_berth := world.get_berth_node(arrow.get_home_berth_id())
+	_check(arrow_berth != null and arrow_berth.get_occupant() == arrow, "Arrow begins physically occupying its recon berth")
+	_check(
+		arrow_berth != null
+		and arrow_berth.get_compatibility_tags() == PackedStringArray(["recon"]),
+		"Arrow's branch-rail berth exposes the exact recon-only compatibility contract"
+	)
+	var torrent_berth := world.get_berth_node(torrent.get_home_berth_id())
+	var jovian_berth := world.get_berth_node(jovian.get_home_berth_id())
+	_check(
+		jovian_berth != null
+		and jovian_berth.get_reservation_owner() == jovian
+		and jovian_berth.get_occupant() == jovian
+		and jovian_berth.get_reserved_ship_id() == jovian.get_ship_id(),
+		"Jovian begins with the authoritative occupied lease for its freight berth"
+	)
+
+	var targets := _get_live_range_targets(world)
+	var target_health_before: Dictionary = {}
+	for target in targets:
+		target_health_before[target.get_instance_id()] = float(target.get_meta("health", -1.0))
+	var target_total_before := world.get_target_count()
+	var destroyed_before := world.get_destroyed_target_count()
+	_check(targets.size() == target_total_before and target_total_before > 0, "guided range contacts are live before either sortie")
+
+	game.canopy_motion_time = 0.02
+	game.boarding_motion_time = 0.04
+	game.disembarking_motion_time = 0.04
+	game.start_shift()
+	await process_frame
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "shift begins on foot with the guide still pending")
+
+	# Walk into the Arrow's real interaction volume and board through the same E
+	# action used by the player. No menu, node-name selection, or direct board call
+	# participates in this handoff.
+	player.teleport_to(Transform3D(Basis.IDENTITY, arrow.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
+	await physics_frame
+	await physics_frame
+	await process_frame
+	_check(game.boarding_candidate == arrow, "physical proximity selects the Arrow boarding area")
+	await _press_live_action(&"interact", 1)
+	await create_timer(0.24).timeout
+	await physics_frame
+	_check(game.get_active_ship() == arrow, "live interaction makes Arrow the active craft")
+	_check(player.is_seated() and arrow.is_piloted(), "the same visible player occupies Arrow's physical seat")
+	_check(game.phase == GameFlow.Phase.START_ENGINES, "Arrow boarding reaches its engine-start phase")
+	_check(arrow.get_camera().current and not player.get_camera().current, "boarding transfers the live camera to Arrow")
+	game.set("_transition_busy", true)
+	_dispatch_pilot_action(game, &"engine_start")
+	await physics_frame
+	_check(
+		str(arrow.get_telemetry().get("engine_state", &"")) == "OFFLINE"
+		and game.phase == GameFlow.Phase.START_ENGINES,
+		"engine-start input is ignored during an atomic transition handoff"
+	)
+	game.set("_transition_busy", false)
+
+	# Start via GameFlow's actual piloting action path. Arrow is intentionally a
+	# free sortie, while the pending Torrent guide and its defender remain dormant.
+	arrow.engine_start_time = 0.03
+	_dispatch_pilot_action(game, &"engine_start")
+	await create_timer(0.12).timeout
+	await physics_frame
+	_check(str(arrow.get_telemetry().get("engine_state", &"")) == "ONLINE", "Arrow starts from the physical pilot seat")
+	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "Arrow-first startup enters unrestricted free flight")
+	_check(not game.is_guided_activity_complete(), "Arrow-first free flight does not complete the Torrent guide")
+	_check(not bool(opponent.call("is_active")), "guided range defender stays dormant during the Arrow sortie")
+	_check(
+		arrow_berth.get_occupant() == arrow
+		and arrow_berth.get_reservation_owner() == arrow,
+		"engine startup alone preserves Arrow's occupied berth authority"
+	)
+
+	# Fire through the ship-owned command source. GameFlow should still produce a
+	# tracer/result, but its explicit reservation status must protect every guided
+	# range contact from damage or mission-counter mutation.
+	arrow.weapon_cooldown = 0.02
+	await _press_live_action(&"fire", 2)
+	await process_frame
+	var protected_result := game.get_last_player_shot_result()
+	_check(protected_result.get("status") == &"guided_range_reserved", "Arrow fire is explicitly rejected from the pending guided range")
+	_check(protected_result.get("source_entity") == arrow, "protected shot result retains Arrow source identity")
+	_check(int(protected_result.get("source_id", 0)) == 1102, "protected Arrow shot retains its stable combat source ID")
+	_check(game.destroyed_targets == 0, "Arrow fire cannot advance guided target progress")
+	_check(world.get_destroyed_target_count() == destroyed_before, "Arrow fire cannot mutate world target-destruction state")
+	_check(world.get_target_count() == target_total_before, "all guided range contacts remain registered")
+	for target in targets:
+		_check(
+			not bool(target.get_meta("destroyed", false))
+			and is_equal_approx(
+				float(target.get_meta("health", -2.0)),
+				float(target_health_before.get(target.get_instance_id(), -1.0))
+			),
+			"%s retains full pre-guide health after Arrow fire" % target.name
+		)
+
+	# Depart under real thrust input, proving the sandbox does not treat the
+	# initially parked landed flag as an immediate completed return.
+	var launch_position := arrow.global_position
+	var launch_forward := -arrow.global_basis.z.normalized()
+	Input.action_press(&"move_forward")
+	for _step in 18:
+		await physics_frame
+	Input.action_release(&"move_forward")
+	for _settle in 3:
+		await physics_frame
+	var departed_telemetry := arrow.get_telemetry()
+	_check(not bool(departed_telemetry.get("landed", true)), "real forward thrust clears Arrow's landed state")
+	_check(arrow.global_position.distance_to(launch_position) > 0.05, "Arrow physically departs its recon berth")
+	_check(arrow.velocity.normalized().dot(launch_forward) > 0.9, "Arrow thrust travels along the craft's visible forward axis")
+	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "departure remains in free flight instead of auto-shutdown")
+	_check(
+		arrow_berth.get_occupant() == null
+		and arrow_berth.get_reservation_owner() == null,
+		"authoritative landed-to-airborne departure releases Arrow's berth claim"
+	)
+
+	# ShipBerth deliberately matches any advertised tag. Prove the authored
+	# recon-only contract closes the former small-craft false positive before a
+	# wider Torrent can acquire landing authority near the port branch rails.
+	_check(
+		not arrow_berth.can_accept(torrent.get_ship_definition(), torrent),
+		"clear Arrow berth rejects Torrent by exact compatibility rather than occupancy"
+	)
+	var torrent_cross_berth_token := arrow_berth.try_reserve(
+		torrent,
+		torrent.get_ship_definition()
+	)
+	_check(
+		torrent_cross_berth_token.is_empty()
+		and arrow_berth.get_reservation_owner() == null
+		and arrow_berth.get_reserved_ship_id().is_empty(),
+		"Torrent cannot reserve the rail-constrained Arrow berth"
+	)
+	_check(
+		not torrent.request_berth_landing(arrow_berth)
+		and not torrent.is_landing_active()
+		and StringName(torrent.get_landing_contract_report().get("last_abort_reason", &"")) == &"reservation_lost",
+		"Torrent cannot request Arrow landing assist without a compatible berth lease"
+	)
+	_check(
+		torrent_berth != null
+		and torrent_berth.get_occupant() == torrent
+		and torrent_berth.get_reservation_owner() == torrent,
+		"rejected cross-berth request preserves Torrent's central small-craft lease"
+	)
+
+	# Return over the full rotated berth transform and invoke landing through the
+	# piloting L action. The common assist owns alignment, clamps, and shutdown.
+	var arrow_berth_transform := world.get_berth_transform(arrow.get_home_berth_id())
+	arrow.global_transform = arrow_berth_transform.translated_local(Vector3(0.0, 3.0, 0.0))
+	arrow.velocity = Vector3.ZERO
+	await physics_frame
+	_dispatch_pilot_action(game, &"landing_assist")
+	await physics_frame
+	_check(
+		arrow.is_landing_active()
+		and arrow_berth.get_reservation_owner() == arrow
+		and arrow_berth.get_reserved_ship_id() == arrow.get_ship_id(),
+		"recon Arrow acquires the real berth lease and starts strict landing assist"
+	)
+	await create_timer(2.2).timeout
+	await physics_frame
+	var landed_telemetry := arrow.get_telemetry()
+	_check(bool(landed_telemetry.get("landed", false)), "Arrow completes landing assist at its own berth")
+	_check(arrow.global_transform.is_equal_approx(arrow_berth_transform), "Arrow landing restores the recon berth's complete transform")
+	_check(game.phase == GameFlow.Phase.SHUT_DOWN, "completed Arrow landing reaches safe shutdown")
+	_check(
+		arrow_berth.get_occupant() == arrow
+		and arrow_berth.get_reservation_owner() == arrow
+		and arrow_berth.get_reserved_ship_id() == arrow.get_ship_id(),
+		"completed Arrow landing physically occupies its exact recon lease"
+	)
+
+	_dispatch_pilot_action(game, &"engine_stop")
+	await physics_frame
+	_check(str(arrow.get_telemetry().get("engine_state", &"")) == "OFFLINE", "Arrow shuts down before disembarking")
+	_dispatch_pilot_action(game, &"engine_start")
+	await physics_frame
+	_check(
+		str(arrow.get_telemetry().get("engine_state", &"")) == "OFFLINE"
+		and game.phase == GameFlow.Phase.SHUT_DOWN,
+		"engine-start input is ignored after landing reaches SHUT_DOWN"
+	)
+	_dispatch_pilot_action(game, &"interact")
+	await create_timer(0.24).timeout
+	await physics_frame
+	_check(not player.is_seated() and player.is_control_enabled(), "Arrow exit returns the same character to on-foot control")
+	_check(not arrow.is_piloted() and arrow.is_boardable(), "Arrow remains a reusable physical craft after exit")
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "pre-guide Arrow exit returns to the pending approach phase")
+	_check(not game.is_guided_activity_complete() and game.destroyed_targets == 0, "the guided activity remains completely untouched after the Arrow sortie")
+
+	# Physically clear the just-exited Arrow's reboard suppression, then fly and
+	# destroy it before guide completion. Recovery must recall this same pilot in
+	# this same world and leave Torrent available for the pending activity.
+	player.teleport_to(Transform3D(Basis.IDENTITY, torrent.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
+	for _clear_refresh in 3:
+		await physics_frame
+		await process_frame
+	player.teleport_to(Transform3D(Basis.IDENTITY, arrow.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
+	for _arrow_refresh in 3:
+		await physics_frame
+		await process_frame
+	_check(game.boarding_candidate == arrow, "Arrow can be selected again after physically clearing its reboard block")
+	await _press_live_action(&"interact", 1)
+	await create_timer(0.24).timeout
+	await physics_frame
+	arrow.engine_start_time = 0.03
+	_dispatch_pilot_action(game, &"engine_start")
+	await create_timer(0.12).timeout
+	await physics_frame
+	_check(game.phase == GameFlow.Phase.FREE_FLIGHT and game.get_active_ship() == arrow, "second pre-guide Arrow sortie becomes active")
+	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
+	await create_timer(0.30).timeout
+	await physics_frame
+	_check(arrow.is_destroyed(), "lethal damage destroys the active Arrow through its common lifecycle")
+	_check(game.get_instance_id() == original_game_id, "Arrow destruction recovery preserves the same world/session instance")
+	_check(player.get_instance_id() == original_player_id, "Arrow destruction recovery preserves the same player instance")
+	_check(not player.is_seated() and player.is_control_enabled(), "pre-guide Arrow destruction recalls the pilot to on-foot control")
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "pre-guide Arrow loss returns to the pending Torrent approach")
+	_check(not game.is_guided_activity_complete() and game.get_guided_ship() == torrent, "Arrow loss cannot complete or replace the Torrent guide")
+	_check(torrent.is_boardable(), "Torrent remains physically available after pre-guide Arrow destruction")
+	_check(not bool(opponent.call("is_active")), "range defender remains dormant after Arrow recovery")
+
+	# Physically cross the yard to Torrent. Its startup must still enter LAUNCH,
+	# demonstrating that an earlier Arrow sortie neither substitutes for nor
+	# corrupts the authored vertical-slice progression.
+	player.teleport_to(Transform3D(Basis.IDENTITY, torrent.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
+	await physics_frame
+	await physics_frame
+	await process_frame
+	_check(game.boarding_candidate == torrent, "walking to the central berth selects Torrent after the Arrow sortie")
+	await _press_live_action(&"interact", 1)
+	await create_timer(0.24).timeout
+	await physics_frame
+	_check(game.get_active_ship() == torrent and player.is_seated(), "physical interaction transfers the same pilot into Torrent")
+	torrent.engine_start_time = 0.03
+	_dispatch_pilot_action(game, &"engine_start")
+	await create_timer(0.12).timeout
+	await physics_frame
+	_check(game.phase == GameFlow.Phase.LAUNCH, "Torrent startup still enters the guided launch phase")
+	_check(not game.is_guided_activity_complete(), "entering Torrent launch does not prematurely complete the guide")
+	_check(game.destroyed_targets == 0 and world.get_destroyed_target_count() == destroyed_before, "all reserved target progress is intact for Torrent")
+
+	await _clean_up(game)
+	_finish()
+
+
+func _get_live_range_targets(world: Node) -> Array[StaticBody3D]:
+	var targets: Array[StaticBody3D] = []
+	for candidate in world.find_children("*", "StaticBody3D", true, false):
+		if candidate.get_meta("is_shipyard_target", false):
+			targets.append(candidate as StaticBody3D)
+	return targets
+
+
+func _press_live_action(action: StringName, physics_ticks: int) -> void:
+	Input.action_press(action)
+	for _tick in maxi(1, physics_ticks):
+		await physics_frame
+	Input.action_release(action)
+	await physics_frame
+
+
+func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	game._unhandled_input(event)
+
+
+func _clean_up(game: Node) -> void:
+	for action in [&"interact", &"move_forward", &"fire", &"engine_start", &"engine_stop", &"landing_assist"]:
+		Input.action_release(action)
+	game.queue_free()
+	await process_frame
+	await physics_frame
+	await process_frame
+
+
+func _check(condition: bool, description: String) -> void:
+	if condition:
+		print("PASS: ", description)
+	else:
+		_failures.append(description)
+		push_error("FAIL: " + description)
+
+
+func _finish() -> void:
+	if _failures.is_empty():
+		print("ARROW_SANDBOX_INTEGRATION_TEST_OK")
+		quit(0)
+	else:
+		print("ARROW_SANDBOX_INTEGRATION_TEST_FAILED: ", "; ".join(_failures))
+		quit(1)

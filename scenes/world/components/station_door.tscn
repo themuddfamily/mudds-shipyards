@@ -1,0 +1,118 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/station_door.gd" id="1_door"]
+
+[sub_resource type="StandardMaterial3D" id="Material_frame"]
+albedo_color = Color(0.105, 0.145, 0.16, 1)
+metallic = 0.55
+roughness = 0.38
+
+[sub_resource type="StandardMaterial3D" id="Material_trim"]
+albedo_color = Color(0.72, 0.79, 0.78, 1)
+metallic = 0.42
+roughness = 0.32
+
+[sub_resource type="StandardMaterial3D" id="Material_panel"]
+albedo_color = Color(0.055, 0.205, 0.265, 1)
+metallic = 0.48
+roughness = 0.3
+
+[sub_resource type="StandardMaterial3D" id="Material_indicator"]
+albedo_color = Color(0.282, 0.859, 0.886, 1)
+roughness = 0.22
+emission_enabled = true
+emission = Color(0.12, 0.68, 0.72, 1)
+emission_energy_multiplier = 1.8
+
+[sub_resource type="BoxShape3D" id="Shape_interaction"]
+size = Vector3(5, 4.2, 4.2)
+
+[sub_resource type="BoxShape3D" id="Shape_panel"]
+size = Vector3(3.2, 3.4, 0.34)
+
+[sub_resource type="BoxMesh" id="Mesh_panel"]
+material = SubResource("Material_panel")
+size = Vector3(3.2, 3.4, 0.28)
+
+[sub_resource type="BoxMesh" id="Mesh_indicator"]
+material = SubResource("Material_indicator")
+size = Vector3(0.12, 2.65, 0.035)
+
+[sub_resource type="BoxMesh" id="Mesh_frame_post"]
+material = SubResource("Material_frame")
+size = Vector3(0.5, 3.9, 0.72)
+
+[sub_resource type="BoxMesh" id="Mesh_frame_header"]
+material = SubResource("Material_trim")
+size = Vector3(4.2, 0.5, 0.72)
+
+[sub_resource type="BoxShape3D" id="Shape_frame_post"]
+size = Vector3(0.5, 3.9, 0.72)
+
+[sub_resource type="BoxShape3D" id="Shape_frame_header"]
+size = Vector3(4.2, 0.5, 0.72)
+
+[node name="StationDoor" type="Area3D"]
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("1_door")
+
+[node name="InteractionShape" type="CollisionShape3D" parent="."]
+position = Vector3(0, 1.8, 0)
+shape = SubResource("Shape_interaction")
+
+[node name="FrameVisuals" type="Node3D" parent="."]
+
+[node name="LeftPost" type="MeshInstance3D" parent="FrameVisuals"]
+position = Vector3(-1.85, 1.95, 0)
+mesh = SubResource("Mesh_frame_post")
+
+[node name="RightPost" type="MeshInstance3D" parent="FrameVisuals"]
+position = Vector3(1.85, 1.95, 0)
+mesh = SubResource("Mesh_frame_post")
+
+[node name="Header" type="MeshInstance3D" parent="FrameVisuals"]
+position = Vector3(0, 3.65, 0)
+mesh = SubResource("Mesh_frame_header")
+
+[node name="FrameBody" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="LeftPostCollision" type="CollisionShape3D" parent="FrameBody"]
+position = Vector3(-1.85, 1.95, 0)
+shape = SubResource("Shape_frame_post")
+
+[node name="RightPostCollision" type="CollisionShape3D" parent="FrameBody"]
+position = Vector3(1.85, 1.95, 0)
+shape = SubResource("Shape_frame_post")
+
+[node name="HeaderCollision" type="CollisionShape3D" parent="FrameBody"]
+position = Vector3(0, 3.65, 0)
+shape = SubResource("Shape_frame_header")
+
+[node name="PortalBlocker" type="StaticBody3D" parent="."]
+unique_name_in_owner = true
+collision_layer = 1
+collision_mask = 0
+
+[node name="PortalCollision" type="CollisionShape3D" parent="PortalBlocker"]
+position = Vector3(0, 1.7, 0)
+shape = SubResource("Shape_panel")
+
+[node name="SlidingPanel" type="Node3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 1.7, 0)
+
+[node name="PanelMesh" type="MeshInstance3D" parent="SlidingPanel"]
+mesh = SubResource("Mesh_panel")
+
+[node name="LeftIndicator" type="MeshInstance3D" parent="SlidingPanel"]
+position = Vector3(-1.37, 0, -0.158)
+mesh = SubResource("Mesh_indicator")
+
+[node name="RightIndicator" type="MeshInstance3D" parent="SlidingPanel"]
+position = Vector3(1.37, 0, -0.158)
+mesh = SubResource("Mesh_indicator")

@@ -1,0 +1,36 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/arrow_recon_ship.gd" id="1_arrow"]
+[ext_resource type="Resource" path="res://assets/ships/arrow_provisional.tres" id="2_definition"]
+[ext_resource type="PackedScene" path="res://scenes/effects/hero_damage_presentation.tscn" id="3_damage"]
+[ext_resource type="PackedScene" path="res://scenes/interaction/ship_boarding_area.tscn" id="4_boarding"]
+[ext_resource type="PackedScene" path="res://scenes/audio/ship_audio_rig.tscn" id="5_ship_audio"]
+
+[node name="ArrowReconShip" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 7
+motion_mode = 1
+floor_stop_on_slope = false
+script = ExtResource("1_arrow")
+ship_id = &"arrow_provisional"
+display_name = "Arrow-class Recon Ship candidate"
+role_name = "Reconnaissance ship"
+home_berth_id = &"arrow_recon_berth"
+identification_accent = Color(0.27, 0.87, 0.9, 1)
+ship_definition = ExtResource("2_definition")
+minimum_chase_camera_distance = 11.0
+maximum_chase_camera_distance = 28.0
+cockpit_camera_position = Vector3(0, 3.32, -0.62)
+impact_damage_threshold = 38.0
+
+[node name="HeroDamagePresentation" parent="." instance=ExtResource("3_damage")]
+spark_anchor = Vector3(-1.3, 1.2, 0.8)
+smoke_anchor = Vector3(-0.92, 0.94, 6.45)
+warning_anchor = Vector3(0, 2.7, -0.65)
+destruction_debris_count = 8
+
+[node name="ShipBoardingArea" parent="." instance=ExtResource("4_boarding")]
+position = Vector3(-2.45, 0.48, 0.15)
+prompt_text = "[ E ]  BOARD ARROW RECON SHIP"
+
+[node name="ShipAudioRig" parent="." instance=ExtResource("5_ship_audio")]

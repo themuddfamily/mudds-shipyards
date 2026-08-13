@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/station_operations_activity.gd" id="1_activity"]
+
+[node name="StationOperationsActivity" type="Node3D" groups=["station_operations_activity"]]
+script = ExtResource("1_activity")
+
+[node name="MountAnchor" type="Marker3D" parent="."]
+
+[node name="ServiceZoneAnchor" type="Marker3D" parent="."]
+position = Vector3(0, 2.9, 0)
+
+[node name="PresentationRoot" type="Node3D" parent="."]

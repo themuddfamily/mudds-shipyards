@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"torrent_provisional"
+display_name = "Torrent-class Interceptor — 2011 reconstruction"
+role_name = "Interceptor"
+evidence_status = 1
+evidence_references = PackedStringArray("A3: creator-authored 2009-11-12 roster", "B5@00:10.200-00:41.000 decisive uncut dated-2011 Torrent name-to-model chain", "B6@05:31.167-05:33.333 independent dated corroboration", "docs/TORRENT_2011_RECONSTRUCTION_SPEC.md")
+evidence_notes = "The Torrent-class name and interceptor role are creator-supported, and B5 source-locks this broad model identity to the observed 2011 revision. The reconstruction is intentionally partial: exact dimensions, systems, entry mechanism, material finish, handling, and continuity with the 2009 model remain unproved modern interpretation."
+compatibility_tags = PackedStringArray("small_craft", "interceptor")
+audio_profile_id = &"standard_fighter"

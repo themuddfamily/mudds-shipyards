@@ -1,0 +1,2 @@
+# Editable DCC sources are retained for provenance and iteration, but Godot
+# imports the checked-in GLB runtime exports rather than invoking Blender.

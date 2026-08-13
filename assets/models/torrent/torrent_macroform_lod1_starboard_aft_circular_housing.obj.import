@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cvb37tnksfg7v"
+path="res://.godot/imported/torrent_macroform_lod1_starboard_aft_circular_housing.obj-3bfc58d1f6bac93b86415bb9202a6460.mesh"
+
+[deps]
+
+files=["res://.godot/imported/torrent_macroform_lod1_starboard_aft_circular_housing.obj-3bfc58d1f6bac93b86415bb9202a6460.mesh"]
+
+source_file="res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj"
+dest_files=["res://.godot/imported/torrent_macroform_lod1_starboard_aft_circular_housing.obj-3bfc58d1f6bac93b86415bb9202a6460.mesh", "res://.godot/imported/torrent_macroform_lod1_starboard_aft_circular_housing.obj-3bfc58d1f6bac93b86415bb9202a6460.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=false
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=true

@@ -1,0 +1,878 @@
+[gd_scene load_steps=35 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
+[ext_resource type="PackedScene" path="res://scenes/player/pilot_skinned_presentation.tscn" id="2_pilot_skinned"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_player"]
+radius = 0.38
+height = 1.94
+
+[sub_resource type="SphereShape3D" id="SphereShape_interaction"]
+radius = 2.35
+
+[sub_resource type="SphereShape3D" id="SphereShape_camera"]
+radius = 0.16
+
+[sub_resource type="StandardMaterial3D" id="Material_undersuit"]
+albedo_color = Color(0.018, 0.047, 0.073, 1)
+metallic = 0.18
+roughness = 0.64
+
+[sub_resource type="StandardMaterial3D" id="Material_suit"]
+albedo_color = Color(0.035, 0.22, 0.31, 1)
+metallic = 0.28
+roughness = 0.42
+
+[sub_resource type="StandardMaterial3D" id="Material_armor"]
+albedo_color = Color(0.16, 0.62, 0.77, 1)
+metallic = 0.36
+roughness = 0.31
+
+[sub_resource type="StandardMaterial3D" id="Material_accent"]
+albedo_color = Color(1, 0.31, 0.075, 1)
+metallic = 0.22
+roughness = 0.35
+emission_enabled = true
+emission = Color(0.45, 0.055, 0.005, 1)
+emission_energy_multiplier = 0.65
+
+[sub_resource type="StandardMaterial3D" id="Material_visor"]
+albedo_color = Color(0.005, 0.055, 0.082, 1)
+metallic = 0.82
+roughness = 0.12
+emission_enabled = true
+emission = Color(0.015, 0.23, 0.31, 1)
+emission_energy_multiplier = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Material_light"]
+albedo_color = Color(0.31, 0.95, 1, 1)
+roughness = 0.18
+emission_enabled = true
+emission = Color(0.1, 0.8, 1, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_torso"]
+material = SubResource("Material_suit")
+size = Vector3(0.7, 0.67, 0.38)
+
+[sub_resource type="BoxMesh" id="BoxMesh_chest"]
+material = SubResource("Material_armor")
+size = Vector3(0.56, 0.37, 0.055)
+
+[sub_resource type="BoxMesh" id="BoxMesh_chest_accent"]
+material = SubResource("Material_accent")
+size = Vector3(0.2, 0.055, 0.025)
+
+[sub_resource type="BoxMesh" id="BoxMesh_backpack"]
+material = SubResource("Material_undersuit")
+size = Vector3(0.45, 0.53, 0.18)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_waist"]
+material = SubResource("Material_undersuit")
+top_radius = 0.26
+bottom_radius = 0.29
+height = 0.18
+radial_segments = 12
+
+[sub_resource type="BoxMesh" id="BoxMesh_hips"]
+material = SubResource("Material_armor")
+size = Vector3(0.53, 0.22, 0.35)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_arm"]
+material = SubResource("Material_suit")
+radius = 0.105
+height = 0.6
+radial_segments = 12
+rings = 4
+
+[sub_resource type="SphereMesh" id="SphereMesh_joint"]
+material = SubResource("Material_armor")
+radius = 0.14
+height = 0.28
+radial_segments = 12
+rings = 6
+
+[sub_resource type="SphereMesh" id="SphereMesh_glove"]
+material = SubResource("Material_undersuit")
+radius = 0.115
+height = 0.23
+radial_segments = 12
+rings = 6
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_leg"]
+material = SubResource("Material_suit")
+radius = 0.135
+height = 0.71
+radial_segments = 12
+rings = 4
+
+[sub_resource type="BoxMesh" id="BoxMesh_boot"]
+material = SubResource("Material_undersuit")
+size = Vector3(0.25, 0.18, 0.43)
+
+[sub_resource type="SphereMesh" id="SphereMesh_helmet"]
+material = SubResource("Material_armor")
+radius = 0.3
+height = 0.6
+radial_segments = 16
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_visor"]
+material = SubResource("Material_visor")
+radius = 0.285
+height = 0.57
+radial_segments = 16
+rings = 8
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_earpiece"]
+material = SubResource("Material_accent")
+top_radius = 0.105
+bottom_radius = 0.105
+height = 0.055
+radial_segments = 12
+
+[sub_resource type="BoxMesh" id="BoxMesh_light"]
+material = SubResource("Material_light")
+size = Vector3(0.12, 0.035, 0.025)
+
+[sub_resource type="Animation" id="Animation_motion_reset"]
+resource_name = "RESET"
+length = 0.0
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, -0.08)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, 0.08)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, 0)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_idle"]
+resource_name = "idle"
+length = 2.4
+loop_mode = 1
+step = 0.1
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.004, 0.009, 0.004, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.012, -0.02, -0.012, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.006, 0.0, -0.006, 0.0]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, -0.08), Vector3(0.008, 0, -0.083), Vector3(0.018, 0, -0.085), Vector3(0.008, 0, -0.082), Vector3(0, 0, -0.08)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0.08), Vector3(0.008, 0, 0.082), Vector3(0.018, 0, 0.085), Vector3(0.008, 0, 0.083), Vector3(0, 0, 0.08)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0.004, 0, -0.004), Vector3(0.008, 0, 0), Vector3(0.004, 0, 0.004), Vector3(0, 0, 0)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(-0.004, 0, 0.004), Vector3(-0.008, 0, 0), Vector3(-0.004, 0, -0.004), Vector3(0, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_walk"]
+resource_name = "walk"
+length = 0.8
+loop_mode = 1
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.028, 0.0, 0.028, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [-0.04, -0.055, -0.04, -0.055, -0.04]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [-0.025, 0.0, 0.025, 0.0, -0.025]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.38, 0, -0.1), Vector3(0, 0, -0.085), Vector3(0.38, 0, -0.065), Vector3(0, 0, -0.085), Vector3(-0.38, 0, -0.1)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0.38, 0, 0.065), Vector3(0, 0, 0.085), Vector3(-0.38, 0, 0.1), Vector3(0, 0, 0.085), Vector3(0.38, 0, 0.065)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0.54, 0, -0.018), Vector3(0, 0, -0.012), Vector3(-0.54, 0, 0.018), Vector3(0, 0, 0.012), Vector3(0.54, 0, -0.018)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.54, 0, 0.018), Vector3(0, 0, 0.012), Vector3(0.54, 0, -0.018), Vector3(0, 0, -0.012), Vector3(-0.54, 0, 0.018)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_run"]
+resource_name = "run"
+length = 0.56
+loop_mode = 1
+step = 0.04
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.01, 0.055, 0.01, 0.055, 0.01]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [-0.13, -0.16, -0.13, -0.16, -0.13]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [-0.045, 0.0, 0.045, 0.0, -0.045]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.58, 0, -0.13), Vector3(0, 0, -0.09), Vector3(0.58, 0, -0.045), Vector3(0, 0, -0.09), Vector3(-0.58, 0, -0.13)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0.58, 0, 0.045), Vector3(0, 0, 0.09), Vector3(-0.58, 0, 0.13), Vector3(0, 0, 0.09), Vector3(0.58, 0, 0.045)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0.78, 0, -0.025), Vector3(0.05, 0, -0.018), Vector3(-0.78, 0, 0.025), Vector3(-0.05, 0, 0.018), Vector3(0.78, 0, -0.025)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.14, 0.28, 0.42, 0.56),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.78, 0, 0.025), Vector3(-0.05, 0, 0.018), Vector3(0.78, 0, -0.025), Vector3(0.05, 0, -0.018), Vector3(-0.78, 0, 0.025)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_jump"]
+resource_name = "jump"
+length = 0.42
+step = 0.04
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.025, 0.035, 0.055]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [-0.04, -0.14, -0.1, -0.06]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.015, 0.018, 0.01]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, -0.08), Vector3(-0.25, 0, -0.11), Vector3(-0.65, 0, -0.16), Vector3(-0.72, 0, -0.18)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0.08), Vector3(-0.22, 0, 0.11), Vector3(-0.58, 0, 0.16), Vector3(-0.68, 0, 0.18)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0.22, 0, -0.02), Vector3(0.5, 0, -0.04), Vector3(0.35, 0, -0.03)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.22, 0.42),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0.1, 0, 0.02), Vector3(-0.18, 0, 0.04), Vector3(-0.28, 0, 0.03)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_airborne"]
+resource_name = "airborne"
+length = 0.9
+loop_mode = 1
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.045, 0.035, 0.045]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [-0.06, -0.035, -0.06]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.01, -0.012, 0.01]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.72, 0, -0.18), Vector3(-0.62, 0, -0.15), Vector3(-0.72, 0, -0.18)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.68, 0, 0.18), Vector3(-0.58, 0, 0.15), Vector3(-0.68, 0, 0.18)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.35, 0, -0.03), Vector3(0.25, 0, -0.02), Vector3(0.35, 0, -0.03)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.28, 0, 0.03), Vector3(-0.18, 0, 0.02), Vector3(-0.28, 0, 0.03)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_boarding"]
+resource_name = "boarding"
+length = 1.1
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.02, 0.06, 0.025, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.04, -0.14, -0.16, -0.1]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.025, -0.02, 0.01, 0.0]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, -0.08), Vector3(0.22, 0, -0.11), Vector3(0.62, 0, -0.16), Vector3(0.92, 0, -0.19), Vector3(1.02, 0, -0.2)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0.08), Vector3(0.18, 0, 0.11), Vector3(0.58, 0, 0.16), Vector3(0.9, 0, 0.19), Vector3(1.02, 0, 0.2)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0.1, 0, -0.01), Vector3(0.48, 0, -0.035), Vector3(0.96, 0, -0.055), Vector3(1.18, 0, -0.06)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.55, 0.82, 1.1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(-0.1, 0, 0.01), Vector3(0.38, 0, 0.035), Vector3(0.9, 0, 0.055), Vector3(1.18, 0, 0.06)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_seated"]
+resource_name = "seated_control"
+length = 2.4
+loop_mode = 1
+step = 0.1
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.003, 0.006, 0.003, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [-0.1, -0.112, -0.106, -0.094, -0.1]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.006, 0.0, -0.006, 0.0]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.02, 0, -0.2), Vector3(1.035, 0, -0.205), Vector3(1.045, 0, -0.2), Vector3(1.03, 0, -0.195), Vector3(1.02, 0, -0.2)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.02, 0, 0.2), Vector3(1.03, 0, 0.195), Vector3(1.045, 0, 0.2), Vector3(1.035, 0, 0.205), Vector3(1.02, 0, 0.2)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.18, 0, -0.06), Vector3(1.17, 0, -0.06), Vector3(1.18, 0, -0.06), Vector3(1.19, 0, -0.06), Vector3(1.18, 0, -0.06)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.18, 0, 0.06), Vector3(1.19, 0, 0.06), Vector3(1.18, 0, 0.06), Vector3(1.17, 0, 0.06), Vector3(1.18, 0, 0.06)]
+}
+
+[sub_resource type="Animation" id="Animation_motion_disembark"]
+resource_name = "disembark_recovery"
+length = 0.9
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("VisualRoot:position:y")
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.025, 0.055, 0.02, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("VisualRoot/BodyPivot:rotation:x")
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [-0.1, -0.16, -0.12, -0.045, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("VisualRoot/BodyPivot:rotation:z")
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.015, 0.022, -0.01, 0.0]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("VisualRoot/BodyPivot/LeftArm:rotation")
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.02, 0, -0.2), Vector3(0.86, 0, -0.18), Vector3(0.58, 0, -0.14), Vector3(0.2, 0, -0.1), Vector3(0, 0, -0.08)]
+}
+tracks/4/type = "value"
+tracks/4/path = NodePath("VisualRoot/BodyPivot/RightArm:rotation")
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.02, 0, 0.2), Vector3(0.9, 0, 0.18), Vector3(0.54, 0, 0.14), Vector3(0.16, 0, 0.1), Vector3(0, 0, 0.08)]
+}
+tracks/5/type = "value"
+tracks/5/path = NodePath("VisualRoot/BodyPivot/LeftLeg:rotation")
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.18, 0, -0.06), Vector3(1.02, 0, -0.055), Vector3(0.62, 0, -0.04), Vector3(0.2, 0, -0.015), Vector3(0, 0, 0)]
+}
+tracks/6/type = "value"
+tracks/6/path = NodePath("VisualRoot/BodyPivot/RightLeg:rotation")
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.18, 0.42, 0.68, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(1.18, 0, 0.06), Vector3(0.96, 0, 0.055), Vector3(0.56, 0, 0.04), Vector3(0.16, 0, 0.015), Vector3(0, 0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_player_motion"]
+_data = {
+&"RESET": SubResource("Animation_motion_reset"),
+&"airborne": SubResource("Animation_motion_airborne"),
+&"boarding": SubResource("Animation_motion_boarding"),
+&"disembark_recovery": SubResource("Animation_motion_disembark"),
+&"idle": SubResource("Animation_motion_idle"),
+&"jump": SubResource("Animation_motion_jump"),
+&"run": SubResource("Animation_motion_run"),
+&"seated_control": SubResource("Animation_motion_seated"),
+&"walk": SubResource("Animation_motion_walk")
+}
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 7
+floor_snap_length = 0.35
+floor_max_angle = 0.872665
+script = ExtResource("1_player")
+
+[node name="PlayerCollision" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.97, 0)
+shape = SubResource("CapsuleShape_player")
+
+[node name="VisualRoot" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="MotionAnimationPlayer" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+callback_mode_process = 2
+callback_mode_discrete = 2
+libraries = {
+&"": SubResource("AnimationLibrary_player_motion")
+}
+
+[node name="BodyPivot" type="Node3D" parent="VisualRoot"]
+unique_name_in_owner = true
+
+[node name="PilotSkinnedPresentation" parent="VisualRoot/BodyPivot" instance=ExtResource("2_pilot_skinned")]
+unique_name_in_owner = true
+
+[node name="Backpack" type="MeshInstance3D" parent="VisualRoot/BodyPivot"]
+position = Vector3(0, 1.19, 0.285)
+mesh = SubResource("BoxMesh_backpack")
+
+[node name="BackpackLight" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Backpack"]
+position = Vector3(0, 0.12, 0.105)
+mesh = SubResource("BoxMesh_light")
+
+[node name="Torso" type="MeshInstance3D" parent="VisualRoot/BodyPivot"]
+position = Vector3(0, 1.19, 0)
+mesh = SubResource("BoxMesh_torso")
+
+[node name="ChestPlate" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Torso"]
+position = Vector3(0, 0.03, -0.218)
+mesh = SubResource("BoxMesh_chest")
+
+[node name="ChestAccent" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Torso/ChestPlate"]
+position = Vector3(0.13, 0.09, -0.041)
+mesh = SubResource("BoxMesh_chest_accent")
+
+[node name="StatusLight" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Torso/ChestPlate"]
+position = Vector3(-0.17, -0.08, -0.044)
+mesh = SubResource("BoxMesh_light")
+
+[node name="Waist" type="MeshInstance3D" parent="VisualRoot/BodyPivot"]
+position = Vector3(0, 0.82, 0)
+mesh = SubResource("CylinderMesh_waist")
+
+[node name="Hips" type="MeshInstance3D" parent="VisualRoot/BodyPivot"]
+position = Vector3(0, 0.72, 0)
+mesh = SubResource("BoxMesh_hips")
+
+[node name="LeftArm" type="Node3D" parent="VisualRoot/BodyPivot"]
+unique_name_in_owner = true
+position = Vector3(-0.46, 1.43, 0)
+rotation = Vector3(0, 0, -0.08)
+
+[node name="Shoulder" type="MeshInstance3D" parent="VisualRoot/BodyPivot/LeftArm"]
+mesh = SubResource("SphereMesh_joint")
+
+[node name="UpperArm" type="MeshInstance3D" parent="VisualRoot/BodyPivot/LeftArm"]
+position = Vector3(0, -0.295, 0)
+mesh = SubResource("CapsuleMesh_arm")
+
+[node name="Glove" type="MeshInstance3D" parent="VisualRoot/BodyPivot/LeftArm"]
+position = Vector3(0, -0.6, -0.015)
+mesh = SubResource("SphereMesh_glove")
+
+[node name="RightArm" type="Node3D" parent="VisualRoot/BodyPivot"]
+unique_name_in_owner = true
+position = Vector3(0.46, 1.43, 0)
+rotation = Vector3(0, 0, 0.08)
+
+[node name="Shoulder" type="MeshInstance3D" parent="VisualRoot/BodyPivot/RightArm"]
+mesh = SubResource("SphereMesh_joint")
+
+[node name="UpperArm" type="MeshInstance3D" parent="VisualRoot/BodyPivot/RightArm"]
+position = Vector3(0, -0.295, 0)
+mesh = SubResource("CapsuleMesh_arm")
+
+[node name="Glove" type="MeshInstance3D" parent="VisualRoot/BodyPivot/RightArm"]
+position = Vector3(0, -0.6, -0.015)
+mesh = SubResource("SphereMesh_glove")
+
+[node name="LeftLeg" type="Node3D" parent="VisualRoot/BodyPivot"]
+unique_name_in_owner = true
+position = Vector3(-0.17, 0.73, 0)
+
+[node name="Leg" type="MeshInstance3D" parent="VisualRoot/BodyPivot/LeftLeg"]
+position = Vector3(0, -0.34, 0)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="Boot" type="MeshInstance3D" parent="VisualRoot/BodyPivot/LeftLeg"]
+position = Vector3(0, -0.63, -0.075)
+mesh = SubResource("BoxMesh_boot")
+
+[node name="RightLeg" type="Node3D" parent="VisualRoot/BodyPivot"]
+unique_name_in_owner = true
+position = Vector3(0.17, 0.73, 0)
+
+[node name="Leg" type="MeshInstance3D" parent="VisualRoot/BodyPivot/RightLeg"]
+position = Vector3(0, -0.34, 0)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="Boot" type="MeshInstance3D" parent="VisualRoot/BodyPivot/RightLeg"]
+position = Vector3(0, -0.63, -0.075)
+mesh = SubResource("BoxMesh_boot")
+
+[node name="Helmet" type="MeshInstance3D" parent="VisualRoot/BodyPivot"]
+position = Vector3(0, 1.74, 0)
+mesh = SubResource("SphereMesh_helmet")
+
+[node name="Visor" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Helmet"]
+position = Vector3(0, 0.005, -0.255)
+scale = Vector3(0.78, 0.62, 0.2)
+mesh = SubResource("SphereMesh_visor")
+
+[node name="HelmetLight" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Helmet"]
+position = Vector3(0, 0.235, -0.19)
+mesh = SubResource("BoxMesh_light")
+
+[node name="LeftEarpiece" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Helmet"]
+position = Vector3(-0.3, 0, 0)
+rotation = Vector3(0, 0, 1.5708)
+mesh = SubResource("CylinderMesh_earpiece")
+
+[node name="RightEarpiece" type="MeshInstance3D" parent="VisualRoot/BodyPivot/Helmet"]
+position = Vector3(0.3, 0, 0)
+rotation = Vector3(0, 0, 1.5708)
+mesh = SubResource("CylinderMesh_earpiece")
+
+[node name="InteractionOrigin" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 1.42, -0.32)
+
+[node name="InteractionArea" type="Area3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 1.05, 0)
+collision_layer = 0
+collision_mask = 8
+monitorable = false
+
+[node name="InteractionShape" type="CollisionShape3D" parent="InteractionArea"]
+shape = SubResource("SphereShape_interaction")
+
+[node name="CameraRig" type="Node3D" parent="."]
+position = Vector3(0, 1.42, 0)
+
+[node name="CameraYaw" type="Node3D" parent="CameraRig"]
+unique_name_in_owner = true
+
+[node name="CameraPitch" type="Node3D" parent="CameraRig/CameraYaw"]
+unique_name_in_owner = true
+rotation = Vector3(-0.174533, 0, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig/CameraYaw/CameraPitch"]
+unique_name_in_owner = true
+collision_mask = 5
+shape = SubResource("SphereShape_camera")
+spring_length = 5.2
+margin = 0.12
+
+[node name="PlayerCamera" type="Camera3D" parent="CameraRig/CameraYaw/CameraPitch/SpringArm3D"]
+unique_name_in_owner = true
+current = true
+fov = 72.0
+near = 0.08

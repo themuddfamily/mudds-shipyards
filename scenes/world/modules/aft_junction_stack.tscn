@@ -1,0 +1,60 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/aft_junction_stack.gd" id="1_module"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/station_door.tscn" id="2_door"]
+
+[node name="AftJunctionStack" type="Node3D"]
+script = ExtResource("1_module")
+
+[node name="ModuleAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="RouteApproach" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, -1.7)
+
+[node name="RouteLowerJunction" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 7.2)
+
+[node name="RouteStairBase" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-5.7, 0.15, 3)
+
+[node name="RouteStairTop" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-5.7, 4.35, 12.8)
+
+[node name="OperationsRoomAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(5.6, 0.15, 13.2)
+
+[node name="UpperFloorAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-5.2, 4.35, 16.2)
+
+[node name="VIPAccessAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-5.15, 4.35, 18.9)
+
+[node name="OperationsEntrance" parent="." instance=ExtResource("2_door")]
+unique_name_in_owner = true
+position = Vector3(2.2, 0, 9.08)
+motion_duration = 0.55
+interaction_label = "OPERATIONS ACCESS"
+locked_prompt = "OPERATIONS OFFLINE"
+evidence_status = &"modern_interpretation"
+content_note = "Cyan operated access is source-bounded; this door's exact form, scale, and placement are modern design."
+
+[node name="VIPAccess" parent="." instance=ExtResource("2_door")]
+unique_name_in_owner = true
+position = Vector3(-5.15, 4.2, 20.08)
+motion_duration = 0.65
+interaction_label = "VIP ACCESS"
+locked_prompt = "CLEARANCE REQUIRED"
+locked = true
+deferred_access = true
+deferred_label = "VIP ACCESS"
+deferred_prompt = "INTERIOR NOT YET AUTHENTICATED"
+evidence_status = &"modern_interpretation"
+content_note = "Red VIP access is a source-bounded landmark only. No unsupported VIP room or recovered adjacency is claimed."

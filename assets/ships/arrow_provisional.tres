@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"arrow_provisional"
+display_name = "Arrow-class Recon Ship candidate"
+role_name = "Reconnaissance ship"
+evidence_status = 1
+evidence_references = PackedStringArray("A3: creator-authored 2009-11-12 roster", "RESEARCH.md#best-creator-authored-original-roster-2009-11-12", "B3@06:15 regeneration label")
+evidence_notes = "The Arrow-class name, reconnaissance role, and two escape pods are creator-supported. The slender silhouette, proportions, pod placement and release concept, cockpit, entry, sensors, engines, weapons, materials, and flight values are a provisional modern interpretation; no historical name-to-model mapping is claimed."
+compatibility_tags = PackedStringArray("small_craft", "recon")
+maximum_speed = 94.0
+thrust_acceleration = 29.0
+brake_acceleration = 42.0
+passive_drag = 1.9
+throttle_response = 8.5
+boost_speed = 132.0
+boost_multiplier = 1.42
+yaw_speed_degrees = 62.0
+roll_speed_degrees = 128.0
+flight_assist_strength = 4.7
+visual_bank_degrees = 18.0
+maximum_mouse_turn_degrees = 16.0
+engine_start_time = 1.65
+weapon_cooldown = 0.38
+maximum_hull = 82.0
+landing_maximum_speed = 17.0
+entry_noun = "canopy"
+entry_open_verb = "raise"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"efficient_twin_recon"

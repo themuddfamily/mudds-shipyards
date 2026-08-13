@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/station_structural_service_dressing.gd" id="1_dressing"]
+
+[node name="StationStructuralServiceDressing" type="Node3D"]
+script = ExtResource("1_dressing")
+
+[node name="MountAnchor" type="Marker3D" parent="."]
+
+[node name="DressingCenterAnchor" type="Marker3D" parent="."]
+
+[node name="PresentationRoot" type="Node3D" parent="."]
+
+[node name="StructuralCoreRoot" type="Node3D" parent="PresentationRoot"]
+
+[node name="ServiceDetailRoot" type="Node3D" parent="PresentationRoot"]
+
+[node name="HighDetailRoot" type="Node3D" parent="PresentationRoot"]

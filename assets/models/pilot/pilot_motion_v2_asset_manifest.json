@@ -1,0 +1,196 @@
+{
+  "actions": [
+    {
+      "duration": 0.0,
+      "loop": false,
+      "runtime": "RESET",
+      "source": "RESET"
+    },
+    {
+      "duration": 2.4,
+      "loop": true,
+      "runtime": "idle",
+      "source": "idle-loop"
+    },
+    {
+      "duration": 0.8,
+      "loop": true,
+      "runtime": "walk",
+      "source": "walk-loop"
+    },
+    {
+      "duration": 0.56,
+      "loop": true,
+      "runtime": "run",
+      "source": "run-loop"
+    },
+    {
+      "duration": 0.42,
+      "loop": false,
+      "runtime": "jump",
+      "source": "jump"
+    },
+    {
+      "duration": 0.9,
+      "loop": true,
+      "runtime": "airborne",
+      "source": "airborne-loop"
+    },
+    {
+      "duration": 1.1,
+      "loop": false,
+      "runtime": "boarding",
+      "source": "boarding"
+    },
+    {
+      "duration": 2.4,
+      "loop": true,
+      "runtime": "seated_control",
+      "source": "seated_control-loop"
+    },
+    {
+      "duration": 0.9,
+      "loop": false,
+      "runtime": "disembark_recovery",
+      "source": "disembark_recovery"
+    }
+  ],
+  "asset_id": "keth.pilot.motion.v2",
+  "authorship": "original_script_assisted_blender",
+  "bind_bounds": {
+    "max_blender_xyz": [
+      0.571891,
+      0.23,
+      1.945
+    ],
+    "min_blender_xyz": [
+      -0.571891,
+      -0.315,
+      0.0
+    ],
+    "size_metres": [
+      1.143782,
+      0.545,
+      1.945
+    ]
+  },
+  "blend_sha256": "02b2a1f292fbeee92a01f33c1af0c7914b142dfdf949a9b4e2d5618c5bcd1a57",
+  "blender_version": "4.0.2",
+  "bone_count": 23,
+  "bone_tree": {
+    "calf_l": "thigh_l",
+    "calf_r": "thigh_r",
+    "chest": "spine_02",
+    "clavicle_l": "chest",
+    "clavicle_r": "chest",
+    "foot_l": "calf_l",
+    "foot_r": "calf_r",
+    "forearm_l": "upper_arm_l",
+    "forearm_r": "upper_arm_r",
+    "hand_l": "forearm_l",
+    "hand_r": "forearm_r",
+    "head": "neck",
+    "neck": "chest",
+    "pelvis": "root",
+    "root": null,
+    "spine_01": "pelvis",
+    "spine_02": "spine_01",
+    "thigh_l": "pelvis",
+    "thigh_r": "pelvis",
+    "toe_l": "foot_l",
+    "toe_r": "foot_r",
+    "upper_arm_l": "clavicle_l",
+    "upper_arm_r": "clavicle_r"
+  },
+  "coordinate_contract": {
+    "root_motion": "in_place_no_horizontal_or_yaw",
+    "runtime": "Godot +Y up, -Z forward, metres",
+    "soles_ground_plane_metres": 0.0,
+    "source": "Blender Z-up, -Y forward, metres"
+  },
+  "generator": "tools/blender/generate_pilot_motion_v2.py",
+  "glb_sha256": "c0a59952e140bfec03042b63cbd894cc25c8d050061d4d549bc7603c8dd182ca",
+  "hierarchy_contract": [
+    "PilotArt",
+    "PilotRig",
+    "PilotSkeleton",
+    "PilotSuit"
+  ],
+  "material_roles": [
+    "AmberStatusLight",
+    "CeramicArmor",
+    "CyanStatusLight",
+    "GraphiteArmor",
+    "HarnessWebbing",
+    "JointRubber",
+    "PressureTextile",
+    "VisorGlazing"
+  ],
+  "mesh_triangles_exported_evaluated": 14988,
+  "mesh_vertices_exported_evaluated": 7588,
+  "motion_capture": false,
+  "runtime_generation": false,
+  "runtime_path": "assets/models/pilot/pilot_motion_v2.glb",
+  "schema_version": 2,
+  "skinned_mesh_count": 1,
+  "source_part_count": 56,
+  "source_part_names": [
+    "PelvisPressureLayer",
+    "PelvisArmor",
+    "AbdomenPressureLayer",
+    "ChestPressureLayer",
+    "ChestArmor",
+    "ChestInset",
+    "BackLifeSupport",
+    "LeftHarness",
+    "RightHarness",
+    "NeckPressureSeal",
+    "HelmetShell",
+    "HelmetRearModule",
+    "Visor",
+    "VisorBrow",
+    "HelmetChin",
+    "HelmetStatus",
+    "ShoulderPressureL",
+    "ShoulderPlateL",
+    "UpperArmSuitL",
+    "ElbowBellowL",
+    "ForearmSuitL",
+    "ForearmGuardL",
+    "WristSealL",
+    "GloveL",
+    "ShoulderPressureR",
+    "ShoulderPlateR",
+    "UpperArmSuitR",
+    "ElbowBellowR",
+    "ForearmSuitR",
+    "ForearmGuardR",
+    "WristSealR",
+    "GloveR",
+    "ThighSuitL",
+    "ThighPlateL",
+    "KneeBellowL",
+    "KneeCapL",
+    "CalfSuitL",
+    "ShinGuardL",
+    "AnkleSealL",
+    "BootBodyL",
+    "BootToeL",
+    "BootSoleL",
+    "ThighSuitR",
+    "ThighPlateR",
+    "KneeBellowR",
+    "KneeCapR",
+    "CalfSuitR",
+    "ShinGuardR",
+    "AnkleSealR",
+    "BootBodyR",
+    "BootToeR",
+    "BootSoleR",
+    "BeltWebbing",
+    "HarnessRelease",
+    "ServiceHoseL",
+    "ServiceHoseR"
+  ],
+  "source_path": "art_source/pilot/pilot_motion_v2.blend"
+}

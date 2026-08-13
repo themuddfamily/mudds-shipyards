@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/station_machinery_ambience.gd" id="1_ambience"]
+
+[node name="StationMachineryAmbience" type="Node3D" groups=["station_machinery_ambience"]]
+script = ExtResource("1_ambience")
+
+[node name="MachineryLoop" type="AudioStreamPlayer3D" parent="."]
+bus = &"Ambience"
+volume_db = -17.0
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 4.0
+max_db = -3.0
+max_distance = 32.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="CueVoice" type="AudioStreamPlayer3D" parent="."]
+bus = &"Ambience"
+volume_db = -10.0
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 4.0
+max_db = -3.0
+max_distance = 32.0
+area_mask = 0
+doppler_tracking = 0

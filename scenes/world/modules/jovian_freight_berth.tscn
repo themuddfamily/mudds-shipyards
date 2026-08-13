@@ -1,0 +1,53 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/jovian_freight_berth.gd" id="1_module"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/station_door.tscn" id="3_door"]
+
+[node name="JovianFreightBerth" type="Node3D"]
+script = ExtResource("1_module")
+
+[node name="ModuleAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="RouteApproach" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, -3.4)
+
+[node name="RouteApronThreshold" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 9.5)
+
+[node name="RouteBoardingStaging" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(8.9, 0.15, 27.8)
+
+[node name="RouteCargoTransfer" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(12.9, 0.15, 29)
+
+[node name="RouteServiceThreshold" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(15.15, 0.15, 29)
+
+[node name="RouteServiceRoom" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(19.2, 0.15, 29)
+
+[node name="RouteCargoRack" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-18.7, 0.15, 28)
+
+[node name="BerthDockMarker" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 1.25, 28.5)
+rotation = Vector3(0, 3.1415927, 0)
+
+[node name="ServiceAccess" parent="." instance=ExtResource("3_door")]
+unique_name_in_owner = true
+position = Vector3(15.75, 0, 29)
+rotation = Vector3(0, 1.5707964, 0)
+motion_duration = 0.62
+interaction_label = "FREIGHT CONTROL"
+locked_prompt = "FREIGHT CONTROL OFFLINE"
+evidence_status = &"creator_roster_supported_modern_interpretation"
+content_note = "The Jovian name and light-freighter role are creator-supported. This service access, its placement, room, motion, and freight workflow are original modern design."

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/ship_berth_feedback.gd" id="1_feedback"]
+
+[node name="ShipBerthFeedback" type="Node3D"]
+script = ExtResource("1_feedback")
+metadata/evidence_status = &"modern_interpretation"
+metadata/presentation_only = true
+metadata/authenticated_original_docking_feedback = false

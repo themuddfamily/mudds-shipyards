@@ -1,0 +1,333 @@
+[gd_scene load_steps=36 format=3]
+
+[ext_resource type="Script" path="res://scenes/ships/presentation/torrent_authored_macroform.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png" id="2_albedo"]
+[ext_resource type="Texture2D" path="res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png" id="3_normal"]
+[ext_resource type="Texture2D" path="res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png" id="4_roughness"]
+[ext_resource type="Texture2D" path="res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png" id="5_orm"]
+[ext_resource type="Texture2D" path="res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png" id="6_emissive"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj" id="10_l0_nose"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj" id="11_l0_keel"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj" id="12_l0_spine"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj" id="13_l0_aft"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj" id="14_l0_plower"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj" id="15_l0_pupper"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj" id="16_l0_slower"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj" id="17_l0_supper"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj" id="18_l0_phousing"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj" id="19_l0_shousing"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj" id="20_l0_prail"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj" id="21_l0_srail"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj" id="22_l0_crossbar"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj" id="30_l1_nose"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj" id="31_l1_keel"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj" id="32_l1_spine"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj" id="33_l1_aft"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj" id="34_l1_plower"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj" id="35_l1_pupper"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj" id="36_l1_slower"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj" id="37_l1_supper"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj" id="38_l1_phousing"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj" id="39_l1_shousing"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj" id="40_l1_prail"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj" id="41_l1_srail"]
+[ext_resource type="Mesh" path="res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj" id="42_l1_crossbar"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_torrent_atlas"]
+resource_name = "TorrentHeroAtlasMaterial"
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("2_albedo")
+metallic = 1.0
+metallic_texture = ExtResource("5_orm")
+metallic_texture_channel = 2
+roughness = 1.0
+roughness_texture = ExtResource("4_roughness")
+roughness_texture_channel = 0
+emission_enabled = true
+emission = Color(0.35, 0.85, 0.9, 1)
+emission_energy_multiplier = 0.18
+emission_texture = ExtResource("6_emissive")
+normal_enabled = true
+normal_scale = 0.2
+normal_texture = ExtResource("3_normal")
+ao_enabled = true
+ao_light_affect = 0.2
+ao_texture = ExtResource("5_orm")
+ao_texture_channel = 0
+texture_repeat = false
+uv1_triplanar = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_torrent_ivory"]
+resource_name = "TorrentHeroWarmIvoryMaterial"
+albedo_color = Color(0.9, 0.88, 0.78, 1)
+metallic = 0.08
+roughness = 0.58
+texture_repeat = false
+uv1_triplanar = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_torrent_graphite"]
+resource_name = "TorrentHeroRestrainedGraphiteMaterial"
+albedo_color = Color(0.035, 0.055, 0.06, 1)
+metallic = 0.28
+roughness = 0.42
+texture_repeat = false
+uv1_triplanar = false
+
+[node name="TorrentAuthoredMacroform" type="Node3D"]
+script = ExtResource("1_script")
+metadata/identity_lock = &"dated_2011"
+metadata/historical_revision = "2011"
+metadata/reconstruction_status = &"partial"
+metadata/geometry_status = &"source_aligned_partial"
+metadata/authenticated_geometry = false
+metadata/exact_geometry = false
+metadata/authenticated_exact_geometry = false
+metadata/authenticated_historical_silhouette = false
+metadata/continuity_2009 = &"unproved"
+metadata/source_reference = &"B5"
+metadata/absolute_scale_status = &"modern_ergonomic_normalization"
+metadata/collision_authority = false
+
+[node name="Dated2011Form" type="Node3D" parent="."]
+metadata/evidence_status = &"source_aligned_partial"
+metadata/source_reference = &"B5"
+metadata/historically_supported = true
+metadata/exact_topology_authenticated = false
+
+[node name="MacroformLOD0" type="Node3D" parent="Dated2011Form"]
+metadata/lod = 0
+metadata/lod_strategy = &"authored_primary"
+
+[node name="PointedNose" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("10_l0_nose")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"pointed_nose"
+metadata/source_reference = &"B5"
+
+[node name="CentralPressureKeel" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("11_l0_keel")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/evidence_status = &"derived_support_construction"
+
+[node name="RaisedSpine" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("12_l0_spine")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"raised_spine"
+metadata/source_reference = &"B5"
+
+[node name="BlockyAftBody" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("13_l0_aft")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"blocky_aft"
+metadata/source_reference = &"B5"
+metadata/aft_inset_historical_function = &"unknown"
+
+[node name="PortLowerSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("14_l0_plower")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"stepped_side_plane"
+metadata/side = &"port"
+metadata/tier = &"lower"
+metadata/stepped_edge = true
+metadata/source_reference = &"B5"
+
+[node name="PortUpperSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("15_l0_pupper")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"stepped_side_plane"
+metadata/side = &"port"
+metadata/tier = &"upper"
+metadata/stepped_edge = true
+metadata/source_reference = &"B5"
+
+[node name="StarboardLowerSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("16_l0_slower")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"stepped_side_plane"
+metadata/side = &"starboard"
+metadata/tier = &"lower"
+metadata/stepped_edge = true
+metadata/source_reference = &"B5"
+
+[node name="StarboardUpperSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("17_l0_supper")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"stepped_side_plane"
+metadata/side = &"starboard"
+metadata/tier = &"upper"
+metadata/stepped_edge = true
+metadata/source_reference = &"B5"
+
+[node name="PortAftCircularHousing" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("18_l0_phousing")
+material_override = SubResource("StandardMaterial3D_torrent_graphite")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/circular_form = true
+metadata/historical_function = &"unknown"
+metadata/historical_function_unresolved = true
+metadata/modern_interpretation = &"engine"
+metadata/interpretation_status = &"modern"
+metadata/source_reference = &"B5"
+
+[node name="StarboardAftCircularHousing" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("19_l0_shousing")
+material_override = SubResource("StandardMaterial3D_torrent_graphite")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/circular_form = true
+metadata/historical_function = &"unknown"
+metadata/historical_function_unresolved = true
+metadata/modern_interpretation = &"engine"
+metadata/interpretation_status = &"modern"
+metadata/source_reference = &"B5"
+
+[node name="PortAftRail" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("20_l0_prail")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"upright_aft_rail"
+metadata/source_reference = &"B5"
+
+[node name="StarboardAftRail" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("21_l0_srail")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"upright_aft_rail"
+metadata/source_reference = &"B5"
+
+[node name="AftCrossbar" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD0"]
+visibility_range_end = 60.0
+visibility_range_end_margin = 5.0
+mesh = ExtResource("22_l0_crossbar")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+metadata/silhouette_role = &"aft_crossbar"
+metadata/evidence_status = &"inferred_reconstruction"
+metadata/historically_supported = false
+metadata/source_basis = &"B5_u_like_rear_read"
+
+[node name="MacroformLOD1" type="Node3D" parent="Dated2011Form"]
+metadata/lod = 1
+metadata/lod_strategy = &"analytic_rebuild"
+
+[node name="PointedNose" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("30_l1_nose")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="CentralPressureKeel" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("31_l1_keel")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="RaisedSpine" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("32_l1_spine")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="BlockyAftBody" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("33_l1_aft")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="PortLowerSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("34_l1_plower")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="PortUpperSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("35_l1_pupper")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="StarboardLowerSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("36_l1_slower")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="StarboardUpperSidePlane" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("37_l1_supper")
+material_override = SubResource("StandardMaterial3D_torrent_atlas")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="PortAftCircularHousing" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("38_l1_phousing")
+material_override = SubResource("StandardMaterial3D_torrent_graphite")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="StarboardAftCircularHousing" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("39_l1_shousing")
+material_override = SubResource("StandardMaterial3D_torrent_graphite")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="PortAftRail" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("40_l1_prail")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="StarboardAftRail" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("41_l1_srail")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)
+
+[node name="AftCrossbar" type="MeshInstance3D" parent="Dated2011Form/MacroformLOD1"]
+visibility_range_begin = 60.0
+visibility_range_begin_margin = 5.0
+mesh = ExtResource("42_l1_crossbar")
+material_override = SubResource("StandardMaterial3D_torrent_ivory")
+custom_aabb = AABB(-3.6, -0.39, -4.8, 7.2, 4.54, 8.4)

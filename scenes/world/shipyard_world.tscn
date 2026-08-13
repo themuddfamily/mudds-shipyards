@@ -1,0 +1,85 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
+[ext_resource type="PackedScene" path="res://scenes/world/modules/aft_junction_stack.tscn" id="3_aft_junction"]
+[ext_resource type="PackedScene" path="res://scenes/world/modules/habitat_spine.tscn" id="4_habitat_spine"]
+[ext_resource type="PackedScene" path="res://scenes/world/modules/jovian_freight_berth.tscn" id="5_freight_berth"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth_feedback.tscn" id="6_berth_feedback"]
+
+[node name="ShipyardWorld" type="Node3D"]
+script = ExtResource("1_world")
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-8.5, 0.18, 11)
+rotation_degrees = Vector3(0, -14, 0)
+
+[node name="ShipSpawn" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 1.15, -10)
+
+[node name="LandingZone" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.12, -10)
+
+[node name="LaunchGate" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 8, -64)
+
+[node name="CentralBerth" parent="." instance=ExtResource("2_berth")]
+position = Vector3(0, 1.15, -10)
+berth_id = &"central_berth"
+compatibility_tags = PackedStringArray("small_craft")
+landing_half_extents = Vector3(12, 3.8, 17)
+assist_capture_center = Vector3(0, 8, -22)
+assist_capture_half_extents = Vector3(30, 16, 45)
+assist_capture_maximum_speed = 35.0
+assist_maximum_tilt_degrees = 75.0
+
+[node name="BerthFeedback" parent="CentralBerth" instance=ExtResource("6_berth_feedback")]
+position = Vector3(0, -0.96, 0)
+cue_half_width = 8.2
+cue_half_length = 12.5
+
+[node name="ArrowReconBerth" parent="." instance=ExtResource("2_berth")]
+position = Vector3(-43, 1.15, 15.5)
+rotation_degrees = Vector3(0, 90, 0)
+berth_id = &"arrow_recon_berth"
+compatibility_tags = PackedStringArray("recon")
+landing_half_extents = Vector3(8, 4.5, 9)
+assist_capture_center = Vector3(0, 8, -15)
+assist_capture_half_extents = Vector3(22, 14, 32)
+assist_capture_maximum_speed = 32.0
+assist_maximum_tilt_degrees = 75.0
+
+[node name="BerthFeedback" parent="ArrowReconBerth" instance=ExtResource("6_berth_feedback")]
+position = Vector3(0, -0.93, 0)
+cue_half_width = 6.3
+cue_half_length = 7.2
+
+[node name="AftJunctionStack" parent="." instance=ExtResource("3_aft_junction")]
+position = Vector3(0, 0, 48)
+
+[node name="HabitatSpine" parent="." instance=ExtResource("4_habitat_spine")]
+position = Vector3(49, 0, 15.5)
+rotation = Vector3(0, 1.570796, 0)
+
+[node name="JovianFreightBerth" parent="." instance=ExtResource("5_freight_berth")]
+position = Vector3(-53, 0.38, 28.8)
+
+[node name="JovianFreightShipBerth" parent="." instance=ExtResource("2_berth")]
+position = Vector3(-53, 1.63, 57.3)
+rotation_degrees = Vector3(0, 180, 0)
+berth_id = &"jovian_freight_berth"
+compatibility_tags = PackedStringArray("medium_craft", "freighter", "cargo", "walkable_interior", "light_freighter", "freight")
+landing_half_extents = Vector3(14, 8, 21.5)
+assist_capture_center = Vector3(0, 12, -26)
+assist_capture_half_extents = Vector3(36, 20, 52)
+assist_capture_maximum_speed = 24.0
+assist_maximum_tilt_degrees = 75.0
+
+[node name="BerthFeedback" parent="JovianFreightShipBerth" instance=ExtResource("6_berth_feedback")]
+position = Vector3(0, -1.18, 0)
+cue_half_width = 11.6
+cue_half_length = 16.5

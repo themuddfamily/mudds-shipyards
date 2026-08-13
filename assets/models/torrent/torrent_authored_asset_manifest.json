@@ -1,0 +1,3285 @@
+{
+	"schema_version": 2,
+	"asset_id": "torrent_dated_2011_authored_macroform",
+	"asset_revision": "v2",
+	"generator_path": "res://tools/generate_torrent_authored_assets.gd",
+	"generation_command": "godot --headless --path . --script res://tools/generate_torrent_authored_assets.gd",
+	"toolchain": "Godot 4.7.1 deterministic GDScript OBJ writer",
+	"coordinate_contract": {
+		"units": "metres",
+		"up": "+Y",
+		"forward": "-Z",
+		"root_transform": "identity"
+	},
+	"lod_strategy": {
+		"count": 2,
+		"manual_switch_distance_m": 60.0,
+		"automatic_import_lods": false,
+		"lod1_method": "analytic_rebuild"
+	},
+	"geometry_refinement": {
+		"revision": "bounded_authored_relief_v2",
+		"lod0_triangle_target": [
+			3000,
+			6000
+		],
+		"lod1_maximum_fraction_of_lod0": 0.25,
+		"features": [
+			"restrained chamfers on primary pressure-body, aft-body and rail solids",
+			"shallow non-functional structural relief on the stepped side planes",
+			"stepped collars on source-observed aft circular housings",
+			"faceted longitudinal transitions on the nose and central keel"
+		],
+		"exact_aabb_locked": true,
+		"new_historical_claims": false
+	},
+	"required_objects": [
+		"PointedNose",
+		"CentralPressureKeel",
+		"RaisedSpine",
+		"BlockyAftBody",
+		"PortLowerSidePlane",
+		"PortUpperSidePlane",
+		"StarboardLowerSidePlane",
+		"StarboardUpperSidePlane",
+		"PortAftCircularHousing",
+		"StarboardAftCircularHousing",
+		"PortAftRail",
+		"StarboardAftRail",
+		"AftCrossbar"
+	],
+	"lods": [
+		{
+			"lod": 0,
+			"path": "res://assets/models/torrent/torrent_macroform_lod0.obj",
+			"sha256": "6d6e15fbc906d9a9e4636e0595597a05bae4d345dadf945aab2a88434518abc9",
+			"geometry_only_sha256": "91a24751b27f9e30949241db18914f3ca9820324d0ecf29f5507fc89c9820050",
+			"bytes": 1366714,
+			"vertex_count": 13908,
+			"triangle_count": 4636,
+			"object_count": 13,
+			"objects": [
+				{
+					"name": "PointedNose",
+					"uv_role": "forward_pressure_hull",
+					"vertex_count": 660,
+					"triangle_count": 220,
+					"aabb": {
+						"position": [
+							-1.84,
+							0.19,
+							-4.8
+						],
+						"size": [
+							3.68,
+							1.46,
+							3.18
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.0,
+								0.1985
+							],
+							"projected_max": [
+								0.37857,
+								0.4011
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.62143,
+								0.1985
+							],
+							"projected_max": [
+								1.0,
+								0.4011
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.27511,
+								0.0
+							],
+							"projected_max": [
+								0.72489,
+								0.37857
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.24444,
+								0.62143
+							],
+							"projected_max": [
+								0.75556,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.49167,
+								0.27093
+							],
+							"projected_max": [
+								0.50833,
+								0.30617
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.24444,
+								0.12996
+							],
+							"projected_max": [
+								0.75556,
+								0.44714
+							]
+						}
+					]
+				},
+				{
+					"name": "CentralPressureKeel",
+					"uv_role": "forward_pressure_hull",
+					"vertex_count": 540,
+					"triangle_count": 180,
+					"aabb": {
+						"position": [
+							-1.92,
+							-0.39,
+							-1.7
+						],
+						"size": [
+							3.84,
+							2.3,
+							5.18
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.36905,
+								0.11145
+							],
+							"projected_max": [
+								0.98571,
+								0.43062
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.01429,
+								0.11145
+							],
+							"projected_max": [
+								0.63095,
+								0.43062
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.26533,
+								0.36905
+							],
+							"projected_max": [
+								0.73467,
+								0.98571
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.23333,
+								0.01429
+							],
+							"projected_max": [
+								0.76667,
+								0.63095
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.25278,
+								0.11233
+							],
+							"projected_max": [
+								0.74722,
+								0.39427
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.23333,
+								0.0
+							],
+							"projected_max": [
+								0.76667,
+								0.50661
+							]
+						}
+					]
+				},
+				{
+					"name": "RaisedSpine",
+					"uv_role": "aft_pressure_hull",
+					"vertex_count": 1944,
+					"triangle_count": 648,
+					"aabb": {
+						"position": [
+							-1.55,
+							1.67,
+							-2.28
+						],
+						"size": [
+							3.1,
+							2.04,
+							4.785
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.30244,
+								0.45891
+							],
+							"projected_max": [
+								0.86546,
+								0.90192
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.13454,
+								0.45891
+							],
+							"projected_max": [
+								0.69756,
+								0.90192
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.28798,
+								0.30244
+							],
+							"projected_max": [
+								0.71202,
+								0.86546
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.28798,
+								0.13454
+							],
+							"projected_max": [
+								0.71202,
+								0.69756
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.28798,
+								0.45891
+							],
+							"projected_max": [
+								0.71202,
+								0.90192
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.28798,
+								0.45891
+							],
+							"projected_max": [
+								0.71202,
+								0.90192
+							]
+						}
+					]
+				},
+				{
+					"name": "BlockyAftBody",
+					"uv_role": "aft_pressure_hull",
+					"vertex_count": 2268,
+					"triangle_count": 756,
+					"aabb": {
+						"position": [
+							-1.92,
+							0.16,
+							1.51
+						],
+						"size": [
+							3.84,
+							2.41,
+							2.09
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.75572,
+								0.12953
+							],
+							"projected_max": [
+								0.99992,
+								0.64682
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.00008,
+								0.12953
+							],
+							"projected_max": [
+								0.24428,
+								0.64682
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.23862,
+								0.75572
+							],
+							"projected_max": [
+								0.76138,
+								0.99992
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.23862,
+								0.00008
+							],
+							"projected_max": [
+								0.76138,
+								0.24428
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.23862,
+								0.12953
+							],
+							"projected_max": [
+								0.76138,
+								0.64682
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.23862,
+								0.12953
+							],
+							"projected_max": [
+								0.76138,
+								0.64682
+							]
+						}
+					]
+				},
+				{
+					"name": "PortLowerSidePlane",
+					"uv_role": "lower_side_planes",
+					"vertex_count": 816,
+					"triangle_count": 272,
+					"aabb": {
+						"position": [
+							-3.6,
+							0.41,
+							-3.35
+						],
+						"size": [
+							2.5,
+							0.37,
+							6.55
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.17262,
+								0.17621
+							],
+							"projected_max": [
+								0.89286,
+								0.25669
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10714,
+								0.17621
+							],
+							"projected_max": [
+								0.82738,
+								0.25669
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.00526,
+								0.17262
+							],
+							"projected_max": [
+								0.34722,
+								0.95238
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.00526,
+								0.04762
+							],
+							"projected_max": [
+								0.34722,
+								0.82738
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.72917,
+								0.18943
+							],
+							"projected_max": [
+								0.98889,
+								0.25669
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.09857,
+								0.18943
+							],
+							"projected_max": [
+								0.34722,
+								0.25669
+							]
+						}
+					]
+				},
+				{
+					"name": "PortUpperSidePlane",
+					"uv_role": "upper_side_planes",
+					"vertex_count": 792,
+					"triangle_count": 264,
+					"aabb": {
+						"position": [
+							-3.42,
+							0.79,
+							-2.55
+						],
+						"size": [
+							2.17,
+							0.31,
+							5.5
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.26786,
+								0.25991
+							],
+							"projected_max": [
+								0.8631,
+								0.32718
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.1369,
+								0.25991
+							],
+							"projected_max": [
+								0.73214,
+								0.32718
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.025,
+								0.26786
+							],
+							"projected_max": [
+								0.32639,
+								0.92262
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.025,
+								0.07738
+							],
+							"projected_max": [
+								0.32639,
+								0.73214
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.70556,
+								0.27048
+							],
+							"projected_max": [
+								0.96667,
+								0.32718
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.11172,
+								0.27048
+							],
+							"projected_max": [
+								0.32639,
+								0.32718
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardLowerSidePlane",
+					"uv_role": "lower_side_planes",
+					"vertex_count": 816,
+					"triangle_count": 272,
+					"aabb": {
+						"position": [
+							1.1,
+							0.41,
+							-3.35
+						],
+						"size": [
+							2.5,
+							0.37,
+							6.55
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.17262,
+								0.17621
+							],
+							"projected_max": [
+								0.89286,
+								0.25669
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10714,
+								0.17621
+							],
+							"projected_max": [
+								0.82738,
+								0.25669
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.65278,
+								0.17262
+							],
+							"projected_max": [
+								0.99474,
+								0.95238
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.65278,
+								0.04762
+							],
+							"projected_max": [
+								0.99474,
+								0.82738
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.01111,
+								0.18943
+							],
+							"projected_max": [
+								0.27083,
+								0.25669
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.65278,
+								0.18943
+							],
+							"projected_max": [
+								0.90143,
+								0.25669
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardUpperSidePlane",
+					"uv_role": "upper_side_planes",
+					"vertex_count": 792,
+					"triangle_count": 264,
+					"aabb": {
+						"position": [
+							1.25,
+							0.79,
+							-2.55
+						],
+						"size": [
+							2.17,
+							0.31,
+							5.5
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.26786,
+								0.25991
+							],
+							"projected_max": [
+								0.8631,
+								0.32718
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.1369,
+								0.25991
+							],
+							"projected_max": [
+								0.73214,
+								0.32718
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.67361,
+								0.26786
+							],
+							"projected_max": [
+								0.975,
+								0.92262
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.67361,
+								0.07738
+							],
+							"projected_max": [
+								0.975,
+								0.73214
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.03333,
+								0.27048
+							],
+							"projected_max": [
+								0.29444,
+								0.32718
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.67361,
+								0.27048
+							],
+							"projected_max": [
+								0.88828,
+								0.32718
+							]
+						}
+					]
+				},
+				{
+					"name": "PortAftCircularHousing",
+					"uv_role": "aft_circular_housings",
+					"vertex_count": 1344,
+					"triangle_count": 448,
+					"aabb": {
+						"position": [
+							-2.92,
+							0.62,
+							0.25
+						],
+						"size": [
+							0.8,
+							0.8,
+							3.35
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.60119,
+								0.24827
+							],
+							"projected_max": [
+								1.0,
+								0.37287
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.0,
+								0.24827
+							],
+							"projected_max": [
+								0.39881,
+								0.37287
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.11072,
+								0.60119
+							],
+							"projected_max": [
+								0.18928,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.11072,
+								0.0
+							],
+							"projected_max": [
+								0.18928,
+								0.39881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.80556,
+								0.24009
+							],
+							"projected_max": [
+								0.89444,
+								0.38106
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.10556,
+								0.24009
+							],
+							"projected_max": [
+								0.19444,
+								0.38106
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardAftCircularHousing",
+					"uv_role": "aft_circular_housings",
+					"vertex_count": 1344,
+					"triangle_count": 448,
+					"aabb": {
+						"position": [
+							2.12,
+							0.62,
+							0.25
+						],
+						"size": [
+							0.8,
+							0.8,
+							3.35
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.60119,
+								0.24827
+							],
+							"projected_max": [
+								1.0,
+								0.37287
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.0,
+								0.24827
+							],
+							"projected_max": [
+								0.39881,
+								0.37287
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.81072,
+								0.60119
+							],
+							"projected_max": [
+								0.88928,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.81072,
+								0.0
+							],
+							"projected_max": [
+								0.88928,
+								0.39881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.10556,
+								0.24009
+							],
+							"projected_max": [
+								0.19444,
+								0.38106
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.80556,
+								0.24009
+							],
+							"projected_max": [
+								0.89444,
+								0.38106
+							]
+						}
+					]
+				},
+				{
+					"name": "PortAftRail",
+					"uv_role": "aft_frame",
+					"vertex_count": 972,
+					"triangle_count": 324,
+					"aabb": {
+						"position": [
+							-1.78,
+							1.57,
+							2.02
+						],
+						"size": [
+							0.46,
+							2.58,
+							0.73
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.81417,
+								0.43591
+							],
+							"projected_max": [
+								0.89693,
+								0.99652
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10307,
+								0.43591
+							],
+							"projected_max": [
+								0.18583,
+								0.99652
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.25542,
+								0.81417
+							],
+							"projected_max": [
+								0.31402,
+								0.89693
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.25542,
+								0.10307
+							],
+							"projected_max": [
+								0.31402,
+								0.18583
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.68598,
+								0.43591
+							],
+							"projected_max": [
+								0.74458,
+								0.99652
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.25542,
+								0.43591
+							],
+							"projected_max": [
+								0.31402,
+								0.99652
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardAftRail",
+					"uv_role": "aft_frame",
+					"vertex_count": 972,
+					"triangle_count": 324,
+					"aabb": {
+						"position": [
+							1.32,
+							1.57,
+							2.02
+						],
+						"size": [
+							0.46,
+							2.58,
+							0.73
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.81417,
+								0.43591
+							],
+							"projected_max": [
+								0.89693,
+								0.99652
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10307,
+								0.43591
+							],
+							"projected_max": [
+								0.18583,
+								0.99652
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.68598,
+								0.81417
+							],
+							"projected_max": [
+								0.74458,
+								0.89693
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.68598,
+								0.10307
+							],
+							"projected_max": [
+								0.74458,
+								0.18583
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.25542,
+								0.43591
+							],
+							"projected_max": [
+								0.31402,
+								0.99652
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.68598,
+								0.43591
+							],
+							"projected_max": [
+								0.74458,
+								0.99652
+							]
+						}
+					]
+				},
+				{
+					"name": "AftCrossbar",
+					"uv_role": "aft_frame",
+					"vertex_count": 648,
+					"triangle_count": 216,
+					"aabb": {
+						"position": [
+							-1.67,
+							3.97,
+							2.41
+						],
+						"size": [
+							3.34,
+							0.18,
+							0.34
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.85975,
+								0.96108
+							],
+							"projected_max": [
+								0.8974,
+								0.99739
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.1026,
+								0.96108
+							],
+							"projected_max": [
+								0.14025,
+								0.99739
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.2697,
+								0.85975
+							],
+							"projected_max": [
+								0.7303,
+								0.8974
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.2697,
+								0.1026
+							],
+							"projected_max": [
+								0.7303,
+								0.14025
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.2697,
+								0.96108
+							],
+							"projected_max": [
+								0.7303,
+								0.99739
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.2697,
+								0.96108
+							],
+							"projected_max": [
+								0.7303,
+								0.99739
+							]
+						}
+					]
+				}
+			],
+			"component_artifacts": [
+				{
+					"name": "PointedNose",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_pointed_nose.obj",
+					"sha256": "9ca99ac65b5c14d69d8849a17ba88b76758c6f8bb953ce704a99b31fa63c3a2f",
+					"bytes": 63034
+				},
+				{
+					"name": "CentralPressureKeel",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_central_pressure_keel.obj",
+					"sha256": "9ea7ff0e6b1d910b71e4679986880af9bfddfa712741a706c3b0006c5ee78a4f",
+					"bytes": 51191
+				},
+				{
+					"name": "RaisedSpine",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_raised_spine.obj",
+					"sha256": "49d89527f2e8745c42ccd4ba66c44413fb6ce5888c73b397319711c85566130d",
+					"bytes": 186702
+				},
+				{
+					"name": "BlockyAftBody",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_blocky_aft_body.obj",
+					"sha256": "cf40b433448779c9d5489e3e651c29c863178ec988489fddd4bda573626ec469",
+					"bytes": 217592
+				},
+				{
+					"name": "PortLowerSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_port_lower_side_plane.obj",
+					"sha256": "94b8c2f5cd6263d7520deecdc61ac23baf30abd51ff96fa9a3e1cb3e2d203e98",
+					"bytes": 77561
+				},
+				{
+					"name": "PortUpperSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_port_upper_side_plane.obj",
+					"sha256": "1985be26ede8abae1adda71b53c88733f3df01007d79b73053492a8172ed5d45",
+					"bytes": 75292
+				},
+				{
+					"name": "StarboardLowerSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_starboard_lower_side_plane.obj",
+					"sha256": "3bfe1f1715595d8cbae6a95e4e1d183917ff3f04a2be1f450b7b8798dd4879eb",
+					"bytes": 76768
+				},
+				{
+					"name": "StarboardUpperSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_starboard_upper_side_plane.obj",
+					"sha256": "abbe71fb97736b57217dba26f66e999240da1a7f45985a1a86fd991e1bb06342",
+					"bytes": 74517
+				},
+				{
+					"name": "PortAftCircularHousing",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_port_aft_circular_housing.obj",
+					"sha256": "26f52934495a8280adc198b207d19e8c44979d03c5d50a2f34958402ec5d819f",
+					"bytes": 128485
+				},
+				{
+					"name": "StarboardAftCircularHousing",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_circular_housing.obj",
+					"sha256": "d3223f0e89e9ba8be331c09966d758bb1ee3cb4c5a47039fbd7912cba188a3be",
+					"bytes": 127146
+				},
+				{
+					"name": "PortAftRail",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_port_aft_rail.obj",
+					"sha256": "b8107dfb4745402e28cc77982b023791b7c76dafd7777adaab4cf7b177f71dc9",
+					"bytes": 92073
+				},
+				{
+					"name": "StarboardAftRail",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_starboard_aft_rail.obj",
+					"sha256": "1a0c46d366840d7d000f58c7ac5fcca28134c400926e63e1af78753b0f6c891c",
+					"bytes": 91106
+				},
+				{
+					"name": "AftCrossbar",
+					"path": "res://assets/models/torrent/torrent_macroform_lod0_aft_crossbar.obj",
+					"sha256": "96a7dfdc8f7f2835cd55f9803d486dbcebb09b80228f36984dd09846381f4b47",
+					"bytes": 60963
+				}
+			],
+			"aabb": {
+				"position": [
+					-3.6,
+					-0.39,
+					-4.8
+				],
+				"size": [
+					7.2,
+					4.54,
+					8.4
+				]
+			}
+		},
+		{
+			"lod": 1,
+			"path": "res://assets/models/torrent/torrent_macroform_lod1.obj",
+			"sha256": "2755293411bbf2f5a38b59ff1390c1198b7d6013b693d1a742698ebfccf00110",
+			"geometry_only_sha256": "c1da2f93e70fb30d30e2db5da2c1ad75e00988d9339944af49672026548cb856",
+			"bytes": 182343,
+			"vertex_count": 1896,
+			"triangle_count": 632,
+			"object_count": 13,
+			"objects": [
+				{
+					"name": "PointedNose",
+					"uv_role": "forward_pressure_hull",
+					"vertex_count": 300,
+					"triangle_count": 100,
+					"aabb": {
+						"position": [
+							-1.84,
+							0.2,
+							-4.8
+						],
+						"size": [
+							3.68,
+							1.44,
+							3.18
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.0,
+								0.19974
+							],
+							"projected_max": [
+								0.37857,
+								0.39956
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.62143,
+								0.19974
+							],
+							"projected_max": [
+								1.0,
+								0.39956
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.27511,
+								0.0
+							],
+							"projected_max": [
+								0.72489,
+								0.37857
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.24444,
+								0.62143
+							],
+							"projected_max": [
+								0.75556,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.49167,
+								0.27093
+							],
+							"projected_max": [
+								0.50833,
+								0.30617
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.24444,
+								0.12996
+							],
+							"projected_max": [
+								0.75556,
+								0.44714
+							]
+						}
+					]
+				},
+				{
+					"name": "CentralPressureKeel",
+					"uv_role": "forward_pressure_hull",
+					"vertex_count": 240,
+					"triangle_count": 80,
+					"aabb": {
+						"position": [
+							-1.92,
+							-0.39,
+							-1.7
+						],
+						"size": [
+							3.84,
+							2.3,
+							5.18
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.36905,
+								0.11145
+							],
+							"projected_max": [
+								0.98571,
+								0.43062
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.01429,
+								0.11145
+							],
+							"projected_max": [
+								0.63095,
+								0.43062
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.26533,
+								0.36905
+							],
+							"projected_max": [
+								0.73467,
+								0.98571
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.23333,
+								0.01429
+							],
+							"projected_max": [
+								0.76667,
+								0.63095
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.25278,
+								0.11233
+							],
+							"projected_max": [
+								0.74722,
+								0.39427
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.23333,
+								0.0
+							],
+							"projected_max": [
+								0.76667,
+								0.50661
+							]
+						}
+					]
+				},
+				{
+					"name": "RaisedSpine",
+					"uv_role": "aft_pressure_hull",
+					"vertex_count": 180,
+					"triangle_count": 60,
+					"aabb": {
+						"position": [
+							-1.55,
+							1.67,
+							-2.28
+						],
+						"size": [
+							3.1,
+							1.96,
+							4.785
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.3,
+								0.45374
+							],
+							"projected_max": [
+								0.86964,
+								0.88546
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.13036,
+								0.45374
+							],
+							"projected_max": [
+								0.7,
+								0.88546
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.28472,
+								0.3
+							],
+							"projected_max": [
+								0.71528,
+								0.86964
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.28472,
+								0.13036
+							],
+							"projected_max": [
+								0.71528,
+								0.7
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.28472,
+								0.45374
+							],
+							"projected_max": [
+								0.71528,
+								0.88546
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.28472,
+								0.45374
+							],
+							"projected_max": [
+								0.71528,
+								0.88546
+							]
+						}
+					]
+				},
+				{
+					"name": "BlockyAftBody",
+					"uv_role": "aft_pressure_hull",
+					"vertex_count": 108,
+					"triangle_count": 36,
+					"aabb": {
+						"position": [
+							-1.92,
+							0.16,
+							1.51
+						],
+						"size": [
+							3.84,
+							2.41,
+							2.09
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.75119,
+								0.12115
+							],
+							"projected_max": [
+								1.0,
+								0.65198
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.0,
+								0.12115
+							],
+							"projected_max": [
+								0.24881,
+								0.65198
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.23333,
+								0.75119
+							],
+							"projected_max": [
+								0.76667,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.23333,
+								0.0
+							],
+							"projected_max": [
+								0.76667,
+								0.24881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.23333,
+								0.12115
+							],
+							"projected_max": [
+								0.76667,
+								0.65198
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.23333,
+								0.12115
+							],
+							"projected_max": [
+								0.76667,
+								0.65198
+							]
+						}
+					]
+				},
+				{
+					"name": "PortLowerSidePlane",
+					"uv_role": "lower_side_planes",
+					"vertex_count": 84,
+					"triangle_count": 28,
+					"aabb": {
+						"position": [
+							-3.6,
+							0.41,
+							-3.35
+						],
+						"size": [
+							2.5,
+							0.3,
+							6.55
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.17262,
+								0.17621
+							],
+							"projected_max": [
+								0.89286,
+								0.24229
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.1131,
+								0.17621
+							],
+							"projected_max": [
+								0.80357,
+								0.24229
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.0,
+								0.17262
+							],
+							"projected_max": [
+								0.34722,
+								0.95238
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.0,
+								0.04762
+							],
+							"projected_max": [
+								0.34722,
+								0.82738
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.72917,
+								0.17621
+							],
+							"projected_max": [
+								0.98889,
+								0.24229
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.24306,
+								0.17621
+							],
+							"projected_max": [
+								0.34722,
+								0.24229
+							]
+						}
+					]
+				},
+				{
+					"name": "PortUpperSidePlane",
+					"uv_role": "upper_side_planes",
+					"vertex_count": 72,
+					"triangle_count": 24,
+					"aabb": {
+						"position": [
+							-3.42,
+							0.79,
+							-2.55
+						],
+						"size": [
+							2.17,
+							0.24,
+							5.5
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.26786,
+								0.25991
+							],
+							"projected_max": [
+								0.8631,
+								0.31278
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.14881,
+								0.25991
+							],
+							"projected_max": [
+								0.70833,
+								0.31278
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.025,
+								0.26786
+							],
+							"projected_max": [
+								0.32639,
+								0.92262
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.025,
+								0.07738
+							],
+							"projected_max": [
+								0.32639,
+								0.73214
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.70556,
+								0.25991
+							],
+							"projected_max": [
+								0.96667,
+								0.31278
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.24306,
+								0.25991
+							],
+							"projected_max": [
+								0.32639,
+								0.31278
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardLowerSidePlane",
+					"uv_role": "lower_side_planes",
+					"vertex_count": 84,
+					"triangle_count": 28,
+					"aabb": {
+						"position": [
+							1.1,
+							0.41,
+							-3.35
+						],
+						"size": [
+							2.5,
+							0.3,
+							6.55
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.19643,
+								0.17621
+							],
+							"projected_max": [
+								0.8869,
+								0.24229
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10714,
+								0.17621
+							],
+							"projected_max": [
+								0.82738,
+								0.24229
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.65278,
+								0.17262
+							],
+							"projected_max": [
+								1.0,
+								0.95238
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.65278,
+								0.04762
+							],
+							"projected_max": [
+								1.0,
+								0.82738
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.01111,
+								0.17621
+							],
+							"projected_max": [
+								0.27083,
+								0.24229
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.65278,
+								0.17621
+							],
+							"projected_max": [
+								0.75694,
+								0.24229
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardUpperSidePlane",
+					"uv_role": "upper_side_planes",
+					"vertex_count": 72,
+					"triangle_count": 24,
+					"aabb": {
+						"position": [
+							1.25,
+							0.79,
+							-2.55
+						],
+						"size": [
+							2.17,
+							0.24,
+							5.5
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.29167,
+								0.25991
+							],
+							"projected_max": [
+								0.85119,
+								0.31278
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.1369,
+								0.25991
+							],
+							"projected_max": [
+								0.73214,
+								0.31278
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.67361,
+								0.26786
+							],
+							"projected_max": [
+								0.975,
+								0.92262
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.67361,
+								0.07738
+							],
+							"projected_max": [
+								0.975,
+								0.73214
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.03333,
+								0.25991
+							],
+							"projected_max": [
+								0.29444,
+								0.31278
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.67361,
+								0.25991
+							],
+							"projected_max": [
+								0.75694,
+								0.31278
+							]
+						}
+					]
+				},
+				{
+					"name": "PortAftCircularHousing",
+					"uv_role": "aft_circular_housings",
+					"vertex_count": 288,
+					"triangle_count": 96,
+					"aabb": {
+						"position": [
+							-2.92,
+							0.62,
+							0.25
+						],
+						"size": [
+							0.8,
+							0.8,
+							3.35
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.60119,
+								0.23427
+							],
+							"projected_max": [
+								1.0,
+								0.38687
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.0,
+								0.23427
+							],
+							"projected_max": [
+								0.39881,
+								0.38687
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.12222,
+								0.60119
+							],
+							"projected_max": [
+								0.17778,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.12222,
+								0.0
+							],
+							"projected_max": [
+								0.17778,
+								0.39881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.80278,
+								0.23568
+							],
+							"projected_max": [
+								0.89722,
+								0.38546
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.10278,
+								0.23568
+							],
+							"projected_max": [
+								0.19722,
+								0.38546
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardAftCircularHousing",
+					"uv_role": "aft_circular_housings",
+					"vertex_count": 288,
+					"triangle_count": 96,
+					"aabb": {
+						"position": [
+							2.12,
+							0.62,
+							0.25
+						],
+						"size": [
+							0.8,
+							0.8,
+							3.35
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.60119,
+								0.23427
+							],
+							"projected_max": [
+								1.0,
+								0.38687
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.0,
+								0.23427
+							],
+							"projected_max": [
+								0.39881,
+								0.38687
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.82222,
+								0.60119
+							],
+							"projected_max": [
+								0.87778,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.82222,
+								0.0
+							],
+							"projected_max": [
+								0.87778,
+								0.39881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.10278,
+								0.23568
+							],
+							"projected_max": [
+								0.19722,
+								0.38546
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.80278,
+								0.23568
+							],
+							"projected_max": [
+								0.89722,
+								0.38546
+							]
+						}
+					]
+				},
+				{
+					"name": "PortAftRail",
+					"uv_role": "aft_frame",
+					"vertex_count": 72,
+					"triangle_count": 24,
+					"aabb": {
+						"position": [
+							-1.78,
+							1.57,
+							2.02
+						],
+						"size": [
+							0.46,
+							2.58,
+							0.73
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.8119,
+								0.43172
+							],
+							"projected_max": [
+								0.89881,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10119,
+								0.43172
+							],
+							"projected_max": [
+								0.1881,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.25278,
+								0.8119
+							],
+							"projected_max": [
+								0.31667,
+								0.89881
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.25278,
+								0.10119
+							],
+							"projected_max": [
+								0.31667,
+								0.1881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.68333,
+								0.43172
+							],
+							"projected_max": [
+								0.74722,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.25278,
+								0.43172
+							],
+							"projected_max": [
+								0.31667,
+								1.0
+							]
+						}
+					]
+				},
+				{
+					"name": "StarboardAftRail",
+					"uv_role": "aft_frame",
+					"vertex_count": 72,
+					"triangle_count": 24,
+					"aabb": {
+						"position": [
+							1.32,
+							1.57,
+							2.02
+						],
+						"size": [
+							0.46,
+							2.58,
+							0.73
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.8119,
+								0.43172
+							],
+							"projected_max": [
+								0.89881,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10119,
+								0.43172
+							],
+							"projected_max": [
+								0.1881,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.68333,
+								0.8119
+							],
+							"projected_max": [
+								0.74722,
+								0.89881
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.68333,
+								0.10119
+							],
+							"projected_max": [
+								0.74722,
+								0.1881
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.25278,
+								0.43172
+							],
+							"projected_max": [
+								0.31667,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.68333,
+								0.43172
+							],
+							"projected_max": [
+								0.74722,
+								1.0
+							]
+						}
+					]
+				},
+				{
+					"name": "AftCrossbar",
+					"uv_role": "aft_frame",
+					"vertex_count": 36,
+					"triangle_count": 12,
+					"aabb": {
+						"position": [
+							-1.67,
+							3.97,
+							2.41
+						],
+						"size": [
+							3.34,
+							0.18,
+							0.34
+						]
+					},
+					"uv_projection_bounds": [
+						{
+							"signed_axis": "+X",
+							"projected_min": [
+								0.85833,
+								0.96035
+							],
+							"projected_max": [
+								0.89881,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-X",
+							"projected_min": [
+								0.10119,
+								0.96035
+							],
+							"projected_max": [
+								0.14167,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "+Y",
+							"projected_min": [
+								0.26806,
+								0.85833
+							],
+							"projected_max": [
+								0.73194,
+								0.89881
+							]
+						},
+						{
+							"signed_axis": "-Y",
+							"projected_min": [
+								0.26806,
+								0.10119
+							],
+							"projected_max": [
+								0.73194,
+								0.14167
+							]
+						},
+						{
+							"signed_axis": "+Z",
+							"projected_min": [
+								0.26806,
+								0.96035
+							],
+							"projected_max": [
+								0.73194,
+								1.0
+							]
+						},
+						{
+							"signed_axis": "-Z",
+							"projected_min": [
+								0.26806,
+								0.96035
+							],
+							"projected_max": [
+								0.73194,
+								1.0
+							]
+						}
+					]
+				}
+			],
+			"component_artifacts": [
+				{
+					"name": "PointedNose",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_pointed_nose.obj",
+					"sha256": "13dbb39b87f89e2fda65ba7fd0ab1de09459bdd5716224bb77ad564eefa93371",
+					"bytes": 28522
+				},
+				{
+					"name": "CentralPressureKeel",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_central_pressure_keel.obj",
+					"sha256": "65b34013ded29b4ccb6ea7883fe52f4be76fc9ac0c576ff46c56dc9e67a46ebd",
+					"bytes": 22659
+				},
+				{
+					"name": "RaisedSpine",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_raised_spine.obj",
+					"sha256": "b348926d869c7afe1c89d2595d692e9808da254e4b13b7efcce764e85165344a",
+					"bytes": 16767
+				},
+				{
+					"name": "BlockyAftBody",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_blocky_aft_body.obj",
+					"sha256": "4b4323a744a670b14f6d7d8caafd6c75e5507703e8e99741d7e702f4e3344062",
+					"bytes": 9953
+				},
+				{
+					"name": "PortLowerSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_port_lower_side_plane.obj",
+					"sha256": "28a95e32e3e8648928f40c66709dbc016149053d4a7d633234969f70095d0e18",
+					"bytes": 7854
+				},
+				{
+					"name": "PortUpperSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_port_upper_side_plane.obj",
+					"sha256": "65d25d006422621e8d3936766b51bf2a3ad9c77201860ac9294a591a9a9762fe",
+					"bytes": 6751
+				},
+				{
+					"name": "StarboardLowerSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_starboard_lower_side_plane.obj",
+					"sha256": "f32a349ffb678f489d8ab211b009d46ea9027ad57ce6acfd06e0f8f8b1a60a78",
+					"bytes": 7757
+				},
+				{
+					"name": "StarboardUpperSidePlane",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_starboard_upper_side_plane.obj",
+					"sha256": "53de9cab9cf72ca777ccc74e7cf44b615589f6795398b90af79d87b2dea5de26",
+					"bytes": 6672
+				},
+				{
+					"name": "PortAftCircularHousing",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_port_aft_circular_housing.obj",
+					"sha256": "dc62a2f3f1c2743e6e029c5a6d5f0974e4e7236e605d5ae4a6df6cc21f0673e7",
+					"bytes": 27170
+				},
+				{
+					"name": "StarboardAftCircularHousing",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_circular_housing.obj",
+					"sha256": "a582360073260e4a7dd7a1238b9381b2a5ff9eff1e87d8f63f1058fd0d3c94f4",
+					"bytes": 26887
+				},
+				{
+					"name": "PortAftRail",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_port_aft_rail.obj",
+					"sha256": "f4504a8284662f0a4ef73b1c97f4374038f16b914fbc70f9e3f045c68b56f899",
+					"bytes": 6696
+				},
+				{
+					"name": "StarboardAftRail",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_starboard_aft_rail.obj",
+					"sha256": "41c29504226b101680e23e251c72e0ae489c8720124b0ea39e8f35b05d192a9d",
+					"bytes": 6629
+				},
+				{
+					"name": "AftCrossbar",
+					"path": "res://assets/models/torrent/torrent_macroform_lod1_aft_crossbar.obj",
+					"sha256": "3cbc98efcac32208f06db5dfdde57566639d5ce22a003c0a3eb12efe5809fc35",
+					"bytes": 3396
+				}
+			],
+			"aabb": {
+				"position": [
+					-3.6,
+					-0.39,
+					-4.8
+				],
+				"size": [
+					7.2,
+					4.54,
+					8.4
+				]
+			}
+		}
+	],
+	"provenance": {
+		"identity_lock": "dated_2011",
+		"historical_revision": "2011",
+		"source_references": [
+			"B5"
+		],
+		"source_upload_date": "2011-06-29",
+		"source_rendition_sha256": "c1f1ed745ce507729228c62deee7798c9af51d98681f2dda65acba0d5a36948d",
+		"geometry_status": "source_aligned_partial",
+		"reconstruction_status": "partial",
+		"authenticated_geometry": false,
+		"exact_geometry": false,
+		"authenticated_exact_geometry": false,
+		"authenticated_historical_silhouette": false,
+		"2009_continuity": "unproved",
+		"absolute_scale_status": "modern_ergonomic_normalization",
+		"copied_source_geometry": false,
+		"bilateral_symmetry": "modern_reconstruction_assumption",
+		"aft_housing_historical_function": "unknown",
+		"aft_crossbar_evidence_status": "inferred_reconstruction",
+		"aft_crossbar_historically_supported": false
+	},
+	"texture_contract": {
+		"origin": "modern_project_original",
+		"mapping": "intentional_non_seamless_weighted_role_signed_axis_trim_v2",
+		"uv_set": 0,
+		"triplanar": false,
+		"repeat": false,
+		"source_kind": "image_derived_proxy_trim_atlas",
+		"final_hand_authored_pbr": false,
+		"production_usage": "selected_stepped_side_planes_only",
+		"atlas_sampling_roles": [
+			"lower_side_planes",
+			"upper_side_planes"
+		],
+		"atlas_sampling_semantics": [
+			"PortLowerSidePlane",
+			"StarboardLowerSidePlane",
+			"PortUpperSidePlane",
+			"StarboardUpperSidePlane"
+		],
+		"uv_layout": {
+			"layout_id": "declared_role_weighted_columns_signed_axis_rows_v2",
+			"semantic_order": [
+				"PointedNose",
+				"CentralPressureKeel",
+				"RaisedSpine",
+				"BlockyAftBody",
+				"PortLowerSidePlane",
+				"PortUpperSidePlane",
+				"StarboardLowerSidePlane",
+				"StarboardUpperSidePlane",
+				"PortAftCircularHousing",
+				"StarboardAftCircularHousing",
+				"PortAftRail",
+				"StarboardAftRail",
+				"AftCrossbar"
+			],
+			"role_order": [
+				"forward_pressure_hull",
+				"aft_pressure_hull",
+				"lower_side_planes",
+				"upper_side_planes",
+				"aft_circular_housings",
+				"aft_frame"
+			],
+			"role_members": [
+				[
+					"PointedNose",
+					"CentralPressureKeel"
+				],
+				[
+					"RaisedSpine",
+					"BlockyAftBody"
+				],
+				[
+					"PortLowerSidePlane",
+					"StarboardLowerSidePlane"
+				],
+				[
+					"PortUpperSidePlane",
+					"StarboardUpperSidePlane"
+				],
+				[
+					"PortAftCircularHousing",
+					"StarboardAftCircularHousing"
+				],
+				[
+					"PortAftRail",
+					"StarboardAftRail",
+					"AftCrossbar"
+				]
+			],
+			"signed_axis_order": [
+				"+X",
+				"-X",
+				"+Y",
+				"-Y",
+				"+Z",
+				"-Z"
+			],
+			"columns": 6,
+			"rows": 6,
+			"column_weights": [
+				0.06,
+				0.06,
+				0.38,
+				0.38,
+				0.06,
+				0.06
+			],
+			"outer_guard": 0.02,
+			"cell_gutter": 0.004,
+			"island_count": 36,
+			"cross_role_overlap": false,
+			"intentional_within_role_reuse": true,
+			"cross_semantic_overlap": "within_declared_role_only",
+			"cross_signed_axis_overlap": false,
+			"lods_share_layout": true,
+			"dominant_axis_tie_break": "X_then_Y_then_Z",
+			"dominant_axis_tie_epsilon": 0.0005,
+			"obj_v_encoding": "one_minus_internal_v",
+			"projection_normalization": "per_lod_semantic_signed_axis_local_bounds",
+			"islands": [
+				{
+					"role": "forward_pressure_hull",
+					"members": [
+						"PointedNose",
+						"CentralPressureKeel"
+					],
+					"signed_axis": "+X",
+					"column": 0,
+					"row": 0,
+					"uv_min": [
+						0.024,
+						0.024
+					],
+					"uv_max": [
+						0.0736,
+						0.176
+					]
+				},
+				{
+					"role": "forward_pressure_hull",
+					"members": [
+						"PointedNose",
+						"CentralPressureKeel"
+					],
+					"signed_axis": "-X",
+					"column": 0,
+					"row": 1,
+					"uv_min": [
+						0.024,
+						0.184
+					],
+					"uv_max": [
+						0.0736,
+						0.336
+					]
+				},
+				{
+					"role": "forward_pressure_hull",
+					"members": [
+						"PointedNose",
+						"CentralPressureKeel"
+					],
+					"signed_axis": "+Y",
+					"column": 0,
+					"row": 2,
+					"uv_min": [
+						0.024,
+						0.344
+					],
+					"uv_max": [
+						0.0736,
+						0.496
+					]
+				},
+				{
+					"role": "forward_pressure_hull",
+					"members": [
+						"PointedNose",
+						"CentralPressureKeel"
+					],
+					"signed_axis": "-Y",
+					"column": 0,
+					"row": 3,
+					"uv_min": [
+						0.024,
+						0.504
+					],
+					"uv_max": [
+						0.0736,
+						0.656
+					]
+				},
+				{
+					"role": "forward_pressure_hull",
+					"members": [
+						"PointedNose",
+						"CentralPressureKeel"
+					],
+					"signed_axis": "+Z",
+					"column": 0,
+					"row": 4,
+					"uv_min": [
+						0.024,
+						0.664
+					],
+					"uv_max": [
+						0.0736,
+						0.816
+					]
+				},
+				{
+					"role": "forward_pressure_hull",
+					"members": [
+						"PointedNose",
+						"CentralPressureKeel"
+					],
+					"signed_axis": "-Z",
+					"column": 0,
+					"row": 5,
+					"uv_min": [
+						0.024,
+						0.824
+					],
+					"uv_max": [
+						0.0736,
+						0.976
+					]
+				},
+				{
+					"role": "aft_pressure_hull",
+					"members": [
+						"RaisedSpine",
+						"BlockyAftBody"
+					],
+					"signed_axis": "+X",
+					"column": 1,
+					"row": 0,
+					"uv_min": [
+						0.0816,
+						0.024
+					],
+					"uv_max": [
+						0.1312,
+						0.176
+					]
+				},
+				{
+					"role": "aft_pressure_hull",
+					"members": [
+						"RaisedSpine",
+						"BlockyAftBody"
+					],
+					"signed_axis": "-X",
+					"column": 1,
+					"row": 1,
+					"uv_min": [
+						0.0816,
+						0.184
+					],
+					"uv_max": [
+						0.1312,
+						0.336
+					]
+				},
+				{
+					"role": "aft_pressure_hull",
+					"members": [
+						"RaisedSpine",
+						"BlockyAftBody"
+					],
+					"signed_axis": "+Y",
+					"column": 1,
+					"row": 2,
+					"uv_min": [
+						0.0816,
+						0.344
+					],
+					"uv_max": [
+						0.1312,
+						0.496
+					]
+				},
+				{
+					"role": "aft_pressure_hull",
+					"members": [
+						"RaisedSpine",
+						"BlockyAftBody"
+					],
+					"signed_axis": "-Y",
+					"column": 1,
+					"row": 3,
+					"uv_min": [
+						0.0816,
+						0.504
+					],
+					"uv_max": [
+						0.1312,
+						0.656
+					]
+				},
+				{
+					"role": "aft_pressure_hull",
+					"members": [
+						"RaisedSpine",
+						"BlockyAftBody"
+					],
+					"signed_axis": "+Z",
+					"column": 1,
+					"row": 4,
+					"uv_min": [
+						0.0816,
+						0.664
+					],
+					"uv_max": [
+						0.1312,
+						0.816
+					]
+				},
+				{
+					"role": "aft_pressure_hull",
+					"members": [
+						"RaisedSpine",
+						"BlockyAftBody"
+					],
+					"signed_axis": "-Z",
+					"column": 1,
+					"row": 5,
+					"uv_min": [
+						0.0816,
+						0.824
+					],
+					"uv_max": [
+						0.1312,
+						0.976
+					]
+				},
+				{
+					"role": "lower_side_planes",
+					"members": [
+						"PortLowerSidePlane",
+						"StarboardLowerSidePlane"
+					],
+					"signed_axis": "+X",
+					"column": 2,
+					"row": 0,
+					"uv_min": [
+						0.1392,
+						0.024
+					],
+					"uv_max": [
+						0.496,
+						0.176
+					]
+				},
+				{
+					"role": "lower_side_planes",
+					"members": [
+						"PortLowerSidePlane",
+						"StarboardLowerSidePlane"
+					],
+					"signed_axis": "-X",
+					"column": 2,
+					"row": 1,
+					"uv_min": [
+						0.1392,
+						0.184
+					],
+					"uv_max": [
+						0.496,
+						0.336
+					]
+				},
+				{
+					"role": "lower_side_planes",
+					"members": [
+						"PortLowerSidePlane",
+						"StarboardLowerSidePlane"
+					],
+					"signed_axis": "+Y",
+					"column": 2,
+					"row": 2,
+					"uv_min": [
+						0.1392,
+						0.344
+					],
+					"uv_max": [
+						0.496,
+						0.496
+					]
+				},
+				{
+					"role": "lower_side_planes",
+					"members": [
+						"PortLowerSidePlane",
+						"StarboardLowerSidePlane"
+					],
+					"signed_axis": "-Y",
+					"column": 2,
+					"row": 3,
+					"uv_min": [
+						0.1392,
+						0.504
+					],
+					"uv_max": [
+						0.496,
+						0.656
+					]
+				},
+				{
+					"role": "lower_side_planes",
+					"members": [
+						"PortLowerSidePlane",
+						"StarboardLowerSidePlane"
+					],
+					"signed_axis": "+Z",
+					"column": 2,
+					"row": 4,
+					"uv_min": [
+						0.1392,
+						0.664
+					],
+					"uv_max": [
+						0.496,
+						0.816
+					]
+				},
+				{
+					"role": "lower_side_planes",
+					"members": [
+						"PortLowerSidePlane",
+						"StarboardLowerSidePlane"
+					],
+					"signed_axis": "-Z",
+					"column": 2,
+					"row": 5,
+					"uv_min": [
+						0.1392,
+						0.824
+					],
+					"uv_max": [
+						0.496,
+						0.976
+					]
+				},
+				{
+					"role": "upper_side_planes",
+					"members": [
+						"PortUpperSidePlane",
+						"StarboardUpperSidePlane"
+					],
+					"signed_axis": "+X",
+					"column": 3,
+					"row": 0,
+					"uv_min": [
+						0.504,
+						0.024
+					],
+					"uv_max": [
+						0.8608,
+						0.176
+					]
+				},
+				{
+					"role": "upper_side_planes",
+					"members": [
+						"PortUpperSidePlane",
+						"StarboardUpperSidePlane"
+					],
+					"signed_axis": "-X",
+					"column": 3,
+					"row": 1,
+					"uv_min": [
+						0.504,
+						0.184
+					],
+					"uv_max": [
+						0.8608,
+						0.336
+					]
+				},
+				{
+					"role": "upper_side_planes",
+					"members": [
+						"PortUpperSidePlane",
+						"StarboardUpperSidePlane"
+					],
+					"signed_axis": "+Y",
+					"column": 3,
+					"row": 2,
+					"uv_min": [
+						0.504,
+						0.344
+					],
+					"uv_max": [
+						0.8608,
+						0.496
+					]
+				},
+				{
+					"role": "upper_side_planes",
+					"members": [
+						"PortUpperSidePlane",
+						"StarboardUpperSidePlane"
+					],
+					"signed_axis": "-Y",
+					"column": 3,
+					"row": 3,
+					"uv_min": [
+						0.504,
+						0.504
+					],
+					"uv_max": [
+						0.8608,
+						0.656
+					]
+				},
+				{
+					"role": "upper_side_planes",
+					"members": [
+						"PortUpperSidePlane",
+						"StarboardUpperSidePlane"
+					],
+					"signed_axis": "+Z",
+					"column": 3,
+					"row": 4,
+					"uv_min": [
+						0.504,
+						0.664
+					],
+					"uv_max": [
+						0.8608,
+						0.816
+					]
+				},
+				{
+					"role": "upper_side_planes",
+					"members": [
+						"PortUpperSidePlane",
+						"StarboardUpperSidePlane"
+					],
+					"signed_axis": "-Z",
+					"column": 3,
+					"row": 5,
+					"uv_min": [
+						0.504,
+						0.824
+					],
+					"uv_max": [
+						0.8608,
+						0.976
+					]
+				},
+				{
+					"role": "aft_circular_housings",
+					"members": [
+						"PortAftCircularHousing",
+						"StarboardAftCircularHousing"
+					],
+					"signed_axis": "+X",
+					"column": 4,
+					"row": 0,
+					"uv_min": [
+						0.8688,
+						0.024
+					],
+					"uv_max": [
+						0.9184,
+						0.176
+					]
+				},
+				{
+					"role": "aft_circular_housings",
+					"members": [
+						"PortAftCircularHousing",
+						"StarboardAftCircularHousing"
+					],
+					"signed_axis": "-X",
+					"column": 4,
+					"row": 1,
+					"uv_min": [
+						0.8688,
+						0.184
+					],
+					"uv_max": [
+						0.9184,
+						0.336
+					]
+				},
+				{
+					"role": "aft_circular_housings",
+					"members": [
+						"PortAftCircularHousing",
+						"StarboardAftCircularHousing"
+					],
+					"signed_axis": "+Y",
+					"column": 4,
+					"row": 2,
+					"uv_min": [
+						0.8688,
+						0.344
+					],
+					"uv_max": [
+						0.9184,
+						0.496
+					]
+				},
+				{
+					"role": "aft_circular_housings",
+					"members": [
+						"PortAftCircularHousing",
+						"StarboardAftCircularHousing"
+					],
+					"signed_axis": "-Y",
+					"column": 4,
+					"row": 3,
+					"uv_min": [
+						0.8688,
+						0.504
+					],
+					"uv_max": [
+						0.9184,
+						0.656
+					]
+				},
+				{
+					"role": "aft_circular_housings",
+					"members": [
+						"PortAftCircularHousing",
+						"StarboardAftCircularHousing"
+					],
+					"signed_axis": "+Z",
+					"column": 4,
+					"row": 4,
+					"uv_min": [
+						0.8688,
+						0.664
+					],
+					"uv_max": [
+						0.9184,
+						0.816
+					]
+				},
+				{
+					"role": "aft_circular_housings",
+					"members": [
+						"PortAftCircularHousing",
+						"StarboardAftCircularHousing"
+					],
+					"signed_axis": "-Z",
+					"column": 4,
+					"row": 5,
+					"uv_min": [
+						0.8688,
+						0.824
+					],
+					"uv_max": [
+						0.9184,
+						0.976
+					]
+				},
+				{
+					"role": "aft_frame",
+					"members": [
+						"PortAftRail",
+						"StarboardAftRail",
+						"AftCrossbar"
+					],
+					"signed_axis": "+X",
+					"column": 5,
+					"row": 0,
+					"uv_min": [
+						0.9264,
+						0.024
+					],
+					"uv_max": [
+						0.976,
+						0.176
+					]
+				},
+				{
+					"role": "aft_frame",
+					"members": [
+						"PortAftRail",
+						"StarboardAftRail",
+						"AftCrossbar"
+					],
+					"signed_axis": "-X",
+					"column": 5,
+					"row": 1,
+					"uv_min": [
+						0.9264,
+						0.184
+					],
+					"uv_max": [
+						0.976,
+						0.336
+					]
+				},
+				{
+					"role": "aft_frame",
+					"members": [
+						"PortAftRail",
+						"StarboardAftRail",
+						"AftCrossbar"
+					],
+					"signed_axis": "+Y",
+					"column": 5,
+					"row": 2,
+					"uv_min": [
+						0.9264,
+						0.344
+					],
+					"uv_max": [
+						0.976,
+						0.496
+					]
+				},
+				{
+					"role": "aft_frame",
+					"members": [
+						"PortAftRail",
+						"StarboardAftRail",
+						"AftCrossbar"
+					],
+					"signed_axis": "-Y",
+					"column": 5,
+					"row": 3,
+					"uv_min": [
+						0.9264,
+						0.504
+					],
+					"uv_max": [
+						0.976,
+						0.656
+					]
+				},
+				{
+					"role": "aft_frame",
+					"members": [
+						"PortAftRail",
+						"StarboardAftRail",
+						"AftCrossbar"
+					],
+					"signed_axis": "+Z",
+					"column": 5,
+					"row": 4,
+					"uv_min": [
+						0.9264,
+						0.664
+					],
+					"uv_max": [
+						0.976,
+						0.816
+					]
+				},
+				{
+					"role": "aft_frame",
+					"members": [
+						"PortAftRail",
+						"StarboardAftRail",
+						"AftCrossbar"
+					],
+					"signed_axis": "-Z",
+					"column": 5,
+					"row": 5,
+					"uv_min": [
+						0.9264,
+						0.824
+					],
+					"uv_max": [
+						0.976,
+						0.976
+					]
+				}
+			]
+		},
+		"source_albedo": "res://assets/models/torrent/textures/torrent-hero-trim-albedo-v1.png",
+		"runtime_albedo": "res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png",
+		"runtime_normal": "res://assets/models/torrent/textures/torrent-hero-trim-normal-runtime-v2.png",
+		"runtime_roughness": "res://assets/models/torrent/textures/torrent-hero-trim-roughness-runtime-v2.png",
+		"runtime_orm": "res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png",
+		"runtime_emissive": "res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png"
+	},
+	"content_note": "B5 bounds only the broad dated-2011 macroform. Exact topology, dimensions, UV layout, normals, finish, symmetry, and 2009 continuity are not authenticated."
+}

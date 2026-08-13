@@ -1,0 +1,78 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/ship_audio_rig.gd" id="1_rig"]
+
+[node name="ShipAudioRig" type="Node3D" groups=["ship_audio_rig"]]
+script = ExtResource("1_rig")
+
+[node name="ThrustIdle" type="AudioStreamPlayer3D" parent="."]
+bus = &"Engines"
+volume_db = -15.0
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 5.0
+max_db = -2.0
+max_distance = 180.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="ThrustLoad" type="AudioStreamPlayer3D" parent="."]
+bus = &"Engines"
+volume_db = -36.5206
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 5.0
+max_db = -2.0
+max_distance = 180.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="ThrustBoost" type="AudioStreamPlayer3D" parent="."]
+bus = &"Engines"
+volume_db = -7.0
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 5.0
+max_db = -2.0
+max_distance = 180.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="DamageAlarm" type="AudioStreamPlayer3D" parent="."]
+bus = &"UI"
+volume_db = -8.5
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 5.0
+max_db = -2.0
+max_distance = 180.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="EngineCueVoice" type="AudioStreamPlayer3D" parent="."]
+bus = &"Engines"
+volume_db = -5.0
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 5.0
+max_db = -2.0
+max_distance = 180.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="CombatCueVoice" type="AudioStreamPlayer3D" parent="."]
+bus = &"Weapons"
+volume_db = -3.0
+max_polyphony = 1
+attenuation_model = 0
+unit_size = 5.0
+max_db = -2.0
+max_distance = 180.0
+area_mask = 0
+doppler_tracking = 0
+
+[node name="EngineCueExpiry" type="Timer" parent="."]
+one_shot = true
+
+[node name="CombatCueExpiry" type="Timer" parent="."]
+one_shot = true

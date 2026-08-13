@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/interaction/ship_boarding_area.gd" id="1_boarding"]
+
+[sub_resource type="SphereShape3D" id="SphereShape_boarding"]
+radius = 4.5
+
+[node name="ShipBoardingArea" type="Area3D"]
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_boarding")
+
+[node name="BoardingRange" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape_boarding")

@@ -1,0 +1,815 @@
+class_name RangeOpponent
+extends CharacterBody3D
+
+## Reusable range-defense interceptor for the prototype combat encounter.
+##
+## The craft is assembled entirely from procedural Godot geometry. Local
+## forward is negative Z. It begins hidden and non-colliding, and can therefore
+## live in the station scene until the range encounter explicitly activates it.
+
+signal projectile_fired(origin: Vector3, direction: Vector3)
+signal health_changed(current: float, maximum: float)
+signal destroyed(position: Vector3)
+
+const WORLD_LAYER := PhysicsLayers.WORLD
+const SHIP_LAYER := PhysicsLayers.SHIP
+const TARGET_LAYER := PhysicsLayers.TARGET
+
+const HULL_IVORY := Color("f0eee2")
+const HULL_SHADE := Color("aab7b4")
+const FRAME_DARK := Color("10242c")
+const FRAME_DEEP := Color("06141b")
+const KETH_CYAN := Color("48dbe2")
+const SIGNAL_AMBER := Color("f4b94f")
+const ENGINE_BLUE := Color("63efff")
+const DAMAGE_ORANGE := Color("ff8b3d")
+const SMOKE_DARK := Color(0.08, 0.12, 0.14, 0.62)
+
+@export_category("Defense craft")
+@export_range(1.0, 1000.0, 1.0) var maximum_health := 85.0
+@export_range(10.0, 160.0, 1.0) var cruise_speed := 38.0
+@export_range(10.0, 200.0, 1.0) var chase_speed := 58.0
+@export_range(1.0, 100.0, 1.0) var acceleration := 29.0
+@export_range(10.0, 240.0, 1.0) var turn_speed_degrees := 94.0
+
+@export_category("Tactics")
+@export_range(10.0, 200.0, 1.0) var preferred_range := 52.0
+@export_range(5.0, 100.0, 1.0) var retreat_range := 24.0
+@export_range(20.0, 400.0, 1.0) var engagement_range := 170.0
+@export_range(0.1, 3.0, 0.05) var telegraph_time := 0.62
+@export_range(0.2, 8.0, 0.05) var weapon_cooldown := 1.55
+@export_range(20.0, 400.0, 1.0) var projectile_speed := 135.0
+
+var _active := false
+var _built := false
+var _health := 0.0
+var _elapsed := 0.0
+var _cooldown_remaining := 0.0
+var _telegraph_remaining := 0.0
+var _orbit_sign := 1.0
+var _target: Node3D
+var _alternate_muzzle := false
+var _destruction_time := 0.0
+var _last_motion_direction := Vector3.FORWARD
+var _bank_angle := 0.0
+var _pending_spawn_transform := Transform3D.IDENTITY
+var _apply_spawn_on_ready := false
+var _target_aim_shape: CollisionShape3D
+
+var _visual_root: Node3D
+var _muzzle_port: Marker3D
+var _muzzle_starboard: Marker3D
+var _warning_light: OmniLight3D
+var _warning_lenses: Array[MeshInstance3D] = []
+var _engine_glows: Array[MeshInstance3D] = []
+var _engine_lights: Array[OmniLight3D] = []
+var _materials: Dictionary = {}
+var _damage_sparks: CPUParticles3D
+var _damage_smoke: CPUParticles3D
+var _destruction_light: OmniLight3D
+var _debris: Dictionary = {}
+var _transient_effects: Dictionary = {}
+
+
+func _ready() -> void:
+	_build_interceptor()
+	if _active:
+		if _apply_spawn_on_ready:
+			global_transform = _pending_spawn_transform
+			global_basis = global_basis.orthonormalized()
+			_apply_spawn_on_ready = false
+	else:
+		deactivate()
+
+
+func _physics_process(delta: float) -> void:
+	if not _active:
+		return
+	_elapsed += delta
+	_cooldown_remaining = maxf(0.0, _cooldown_remaining - delta)
+	var valid_target := is_instance_valid(_target) and _target.is_inside_tree()
+	if not valid_target:
+		_telegraph_remaining = 0.0
+		velocity = velocity.move_toward(Vector3.ZERO, acceleration * 0.45 * delta)
+		move_and_slide()
+		return
+
+	var target_position := _get_target_aim_position()
+	var offset := target_position - global_position
+	var distance := offset.length()
+	if distance <= 0.001:
+		return
+	var target_direction := offset / distance
+	var desired_direction := _choose_motion_direction(target_direction, distance)
+	desired_direction = _avoid_world_geometry(desired_direction)
+	_last_motion_direction = desired_direction
+	var desired_speed := chase_speed if distance > preferred_range * 1.65 else cruise_speed
+	velocity = velocity.move_toward(desired_direction * desired_speed, acceleration * delta)
+	_update_attitude(target_direction, delta)
+	move_and_slide()
+	_resolve_slide_collisions()
+	_update_weapon(target_position, target_direction, distance, delta)
+
+
+func _process(delta: float) -> void:
+	_update_presentation(delta)
+	if _destruction_time > 0.0:
+		_destruction_time = maxf(0.0, _destruction_time - delta)
+		if _destruction_light != null:
+			var normalized_time := _destruction_time / 0.72
+			_destruction_light.light_energy = 10.0 * normalized_time * normalized_time
+			_destruction_light.omni_range = 7.0 + 8.0 * (1.0 - normalized_time)
+			if _destruction_time <= 0.0:
+				_destruction_light.queue_free()
+				_destruction_light = null
+	if not _active and _destruction_time <= 0.0 and _debris.is_empty():
+		visible = false
+
+
+## Assigns the craft that the range defender should pursue and engage.
+func set_target(target: Node3D) -> void:
+	_target = target
+	_target_aim_shape = null
+	if not is_instance_valid(target):
+		return
+	for candidate in target.find_children("*", "CollisionShape3D", true, false):
+		var collision_shape := candidate as CollisionShape3D
+		if collision_shape != null and not collision_shape.disabled and collision_shape.shape != null:
+			_target_aim_shape = collision_shape
+			break
+
+
+func _get_target_aim_position() -> Vector3:
+	if is_instance_valid(_target_aim_shape) and not _target_aim_shape.disabled:
+		return _target_aim_shape.global_position
+	return _target.global_position if is_instance_valid(_target) else global_position - global_basis.z
+
+
+## Restores the interceptor and places it at a world-space spawn transform.
+func activate(spawn_transform: Transform3D) -> void:
+	_build_interceptor()
+	_clear_destruction_effects()
+	var clean_spawn := spawn_transform
+	clean_spawn.basis = clean_spawn.basis.orthonormalized()
+	if is_inside_tree():
+		global_transform = clean_spawn
+		_apply_spawn_on_ready = false
+	else:
+		# Preserve world-space activation semantics if a coordinator prepares the
+		# encounter before adding this instance to its transformed parent.
+		_pending_spawn_transform = clean_spawn
+		_apply_spawn_on_ready = true
+	velocity = Vector3.ZERO
+	_health = maximum_health
+	_active = true
+	visible = true
+	_visual_root.visible = true
+	# The interceptor is both a physical ship body and a damageable hitscan target.
+	# Keeping both bits makes ship-to-ship collision reciprocal while preserving
+	# the dedicated Target query used by the current combat presentation path.
+	collision_layer = SHIP_LAYER | TARGET_LAYER
+	collision_mask = WORLD_LAYER | SHIP_LAYER
+	_elapsed = 0.0
+	_cooldown_remaining = 0.85
+	_telegraph_remaining = 0.0
+	_alternate_muzzle = false
+	_orbit_sign = 1.0 if spawn_transform.origin.x >= 0.0 else -1.0
+	_bank_angle = 0.0
+	_visual_root.rotation = Vector3.ZERO
+	_damage_sparks.emitting = false
+	_damage_smoke.emitting = false
+	_restart_particles_cleared(_damage_sparks)
+	_restart_particles_cleared(_damage_smoke)
+	_set_damage_stage()
+	health_changed.emit(_health, maximum_health)
+
+
+## Removes the craft from play without producing a destruction effect.
+func deactivate() -> void:
+	_active = false
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	collision_mask = 0
+	_telegraph_remaining = 0.0
+	_cooldown_remaining = 0.0
+	if _damage_sparks != null:
+		_damage_sparks.emitting = false
+		_restart_particles_cleared(_damage_sparks)
+	if _damage_smoke != null:
+		_damage_smoke.emitting = false
+		_restart_particles_cleared(_damage_smoke)
+	if _visual_root != null:
+		_visual_root.visible = true
+	_clear_destruction_effects()
+	visible = false
+
+
+## Applies hull damage and drives the readable three-stage damage presentation.
+func apply_damage(amount: float, hit_position: Vector3 = Vector3.ZERO) -> void:
+	if not _active or amount <= 0.0 or _health <= 0.0:
+		return
+	_health = maxf(0.0, _health - amount)
+	_spawn_impact_sparks(hit_position)
+	_set_damage_stage()
+	health_changed.emit(_health, maximum_health)
+	if _health <= 0.0:
+		_destroy_interceptor()
+
+
+func get_health() -> float:
+	return _health
+
+
+func is_active() -> bool:
+	return _active
+
+
+func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
+	var orbit_direction := Vector3.UP.cross(target_direction).normalized() * _orbit_sign
+	var vertical_weave := Vector3.UP * sin(_elapsed * 0.83 + 0.7) * 0.25
+	var radial_weight := clampf((distance - preferred_range) / maxf(preferred_range, 1.0), -1.0, 1.0)
+	var desired := orbit_direction * 0.78 + target_direction * radial_weight * 0.95 + vertical_weave
+	if distance > preferred_range * 1.75:
+		desired = target_direction * 0.9 + orbit_direction * 0.24 + vertical_weave
+	elif distance < retreat_range:
+		desired = -target_direction * 0.86 + orbit_direction * 0.52 + vertical_weave
+	if desired.length_squared() <= 0.001:
+		return target_direction
+	return desired.normalized()
+
+
+func _avoid_world_geometry(desired_direction: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return desired_direction
+	var look_ahead := 12.0 + velocity.length() * 0.28
+	var origin := global_position
+	var query := PhysicsRayQueryParameters3D.create(
+		origin,
+		origin + desired_direction * look_ahead,
+		WORLD_LAYER,
+		[get_rid()]
+	)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return desired_direction
+	var surface_normal: Vector3 = hit.get("normal", Vector3.UP)
+	var tangent := desired_direction.slide(surface_normal).normalized()
+	if tangent.length_squared() <= 0.001:
+		tangent = surface_normal.cross(Vector3.UP).normalized()
+	return (tangent * 0.8 + surface_normal * 0.65).normalized()
+
+
+func _update_attitude(target_direction: Vector3, delta: float) -> void:
+	var aim_direction := target_direction
+	if aim_direction.length_squared() <= 0.001:
+		aim_direction = _last_motion_direction
+	var look_up := Vector3.UP
+	if absf(aim_direction.dot(look_up)) > 0.965:
+		look_up = Vector3.FORWARD
+	var desired_basis := Basis.looking_at(aim_direction, look_up).orthonormalized()
+	var lateral_speed := global_basis.x.dot(velocity)
+	var bank_target := clampf(lateral_speed / maxf(cruise_speed, 1.0), -0.18, 0.18)
+	_bank_angle = lerpf(_bank_angle, bank_target, 1.0 - exp(-5.0 * delta))
+	desired_basis = (desired_basis * Basis(Vector3.BACK, _bank_angle)).orthonormalized()
+	var blend := 1.0 - exp(-deg_to_rad(turn_speed_degrees) * delta)
+	global_basis = Basis(Quaternion(global_basis.orthonormalized()).slerp(
+		Quaternion(desired_basis),
+		blend
+	)).orthonormalized()
+
+
+func _resolve_slide_collisions() -> void:
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		velocity = velocity.slide(collision.get_normal()) * 0.88
+
+
+func _update_weapon(target_position: Vector3, target_direction: Vector3, distance: float, delta: float) -> void:
+	if _telegraph_remaining > 0.0:
+		# Charging is a visible commitment, not a guaranteed hit. A player who
+		# breaks line of sight, range, or the defender's firing cone cancels it.
+		var still_aimed := (-global_basis.z).dot(target_direction) >= 0.86
+		if distance > engagement_range or not still_aimed or not _has_line_of_sight(target_position):
+			_telegraph_remaining = 0.0
+			_cooldown_remaining = maxf(_cooldown_remaining, 0.28)
+			return
+		_telegraph_remaining = maxf(0.0, _telegraph_remaining - delta)
+		if _telegraph_remaining <= 0.0:
+			_fire_at_target(_get_target_aim_position())
+		return
+	if _cooldown_remaining > 0.0 or distance > engagement_range:
+		return
+	var forward := -global_basis.z
+	if forward.dot(target_direction) < 0.94 or not _has_line_of_sight(target_position):
+		return
+	_telegraph_remaining = telegraph_time
+
+
+func _has_line_of_sight(target_position: Vector3) -> bool:
+	if not is_inside_tree():
+		return true
+	var query := PhysicsRayQueryParameters3D.create(
+		global_position,
+		target_position,
+		WORLD_LAYER,
+		[get_rid()]
+	)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _fire_at_target(target_position: Vector3) -> void:
+	if not _active or not is_instance_valid(_target):
+		return
+	var muzzle := _muzzle_starboard if _alternate_muzzle else _muzzle_port
+	_alternate_muzzle = not _alternate_muzzle
+	var target_velocity := Vector3.ZERO
+	var target_body := _target as CharacterBody3D
+	if target_body != null:
+		target_velocity = target_body.velocity
+	var flight_time := clampf(muzzle.global_position.distance_to(target_position) / projectile_speed, 0.0, 1.15)
+	var predicted_position := target_position + target_velocity * flight_time
+	var direction := (predicted_position - muzzle.global_position).normalized()
+	if direction.length_squared() <= 0.001:
+		direction = -global_basis.z
+	projectile_fired.emit(muzzle.global_position, direction)
+	_spawn_muzzle_flash(muzzle.global_position)
+	_cooldown_remaining = weapon_cooldown
+
+
+func _set_damage_stage() -> void:
+	if _damage_sparks == null or _damage_smoke == null:
+		return
+	var ratio := _health / maxf(maximum_health, 0.001)
+	_damage_sparks.emitting = _active and ratio <= 0.67
+	_damage_smoke.emitting = _active and ratio <= 0.34
+
+
+func _update_presentation(delta: float) -> void:
+	if not _built:
+		return
+	var ratio := clampf(_health / maxf(maximum_health, 0.001), 0.0, 1.0)
+	var engine_strength := 0.0
+	if _active:
+		engine_strength = 0.78 + clampf(velocity.length() / maxf(chase_speed, 1.0), 0.0, 1.0) * 0.4
+		if ratio <= 0.34:
+			engine_strength *= 0.42 + 0.28 * maxf(0.0, sin(_elapsed * 23.0))
+	for index in _engine_glows.size():
+		var glow := _engine_glows[index]
+		var side_damage := 0.42 if ratio <= 0.34 and index == 0 else 1.0
+		# CylinderMesh length is local Y even after the visual node is rotated.
+		glow.scale.y = lerpf(glow.scale.y, 0.55 + engine_strength * side_damage, 1.0 - exp(-9.0 * delta))
+		glow.visible = _active
+		if index < _engine_lights.size():
+			_engine_lights[index].light_energy = engine_strength * side_damage * 1.9
+
+	var charge := 0.0
+	if _active and _telegraph_remaining > 0.0:
+		charge = 1.0 - _telegraph_remaining / maxf(telegraph_time, 0.001)
+		charge = clampf(charge, 0.0, 1.0)
+		charge = 0.22 + charge * 1.15 + sin(_elapsed * 34.0) * 0.08
+	for lens in _warning_lenses:
+		lens.scale = Vector3.ONE * (0.8 + charge * 0.55)
+		lens.visible = _active
+	if _warning_light != null:
+		_warning_light.light_energy = charge * 5.0
+func _destroy_interceptor() -> void:
+	var death_position := global_position
+	var inherited_velocity := velocity
+	_active = false
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	collision_mask = 0
+	_telegraph_remaining = 0.0
+	_damage_sparks.emitting = false
+	_damage_smoke.emitting = false
+	_visual_root.visible = false
+	_spawn_destruction_burst(inherited_velocity)
+	destroyed.emit(death_position)
+
+
+func _spawn_impact_sparks(hit_position: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var sparks := _make_spark_particles(15, 0.42, 7.5)
+	sparks.name = "ImpactSparks"
+	var effect_host := get_tree().current_scene
+	if effect_host == null:
+		effect_host = get_tree().root
+	effect_host.add_child(sparks)
+	if hit_position != Vector3.ZERO:
+		sparks.global_position = hit_position
+	else:
+		sparks.global_position = global_position - global_basis.z * 1.5
+	sparks.emitting = true
+	var effect_id := sparks.get_instance_id()
+	_transient_effects[effect_id] = sparks
+	get_tree().create_timer(0.9).timeout.connect(_remove_transient_effect.bind(effect_id))
+
+
+func _spawn_muzzle_flash(world_position: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var flash := _make_spark_particles(9, 0.16, 3.2)
+	flash.name = "DefenseMuzzleFlash"
+	var effect_host := get_tree().current_scene
+	if effect_host == null:
+		effect_host = get_tree().root
+	effect_host.add_child(flash)
+	flash.global_position = world_position
+	flash.emitting = true
+	var effect_id := flash.get_instance_id()
+	_transient_effects[effect_id] = flash
+	get_tree().create_timer(0.45).timeout.connect(_remove_transient_effect.bind(effect_id))
+
+
+func _spawn_destruction_burst(inherited_velocity: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var burst := _make_spark_particles(72, 1.15, 14.0)
+	burst.name = "InterceptorDestructionBurst"
+	add_child(burst)
+	burst.position = Vector3.ZERO
+	burst.emitting = true
+	get_tree().create_timer(2.2).timeout.connect(burst.queue_free)
+
+	var smoke_burst := _make_smoke_particles(true)
+	smoke_burst.name = "DestructionSmoke"
+	smoke_burst.amount = 28
+	smoke_burst.lifetime = 1.75
+	smoke_burst.one_shot = true
+	smoke_burst.explosiveness = 0.95
+	smoke_burst.initial_velocity_min = 1.5
+	smoke_burst.initial_velocity_max = 5.0
+	add_child(smoke_burst)
+	smoke_burst.emitting = true
+	get_tree().create_timer(3.0).timeout.connect(smoke_burst.queue_free)
+
+	_destruction_light = OmniLight3D.new()
+	_destruction_light.name = "DestructionFlash"
+	_destruction_light.light_color = SIGNAL_AMBER
+	_destruction_light.light_energy = 10.0
+	_destruction_light.omni_range = 7.0
+	_destruction_light.shadow_enabled = false
+	add_child(_destruction_light)
+	_destruction_time = 0.72
+
+	for index in 10:
+		var debris := RigidBody3D.new()
+		debris.name = "HullDebris%02d" % index
+		debris.collision_layer = 0
+		debris.collision_mask = WORLD_LAYER
+		debris.gravity_scale = 0.0
+		debris.mass = 0.35 + float(index % 3) * 0.18
+		debris.linear_damp = 0.18
+		debris.angular_damp = 0.22
+		var angle := TAU * float(index) / 10.0
+		var offset := Vector3(cos(angle) * (0.8 + float(index % 2)), sin(angle * 1.7) * 0.65, sin(angle) * 1.8)
+		debris.position = offset
+		var mesh_instance := MeshInstance3D.new()
+		var debris_mesh := BoxMesh.new()
+		debris_mesh.size = Vector3(0.28 + float(index % 3) * 0.2, 0.14 + float(index % 2) * 0.16, 0.65 + float(index % 4) * 0.22)
+		debris_mesh.material = _materials.ivory if index % 3 != 0 else _materials.cyan
+		mesh_instance.mesh = debris_mesh
+		debris.add_child(mesh_instance)
+		var collision_shape := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = debris_mesh.size
+		collision_shape.shape = shape
+		debris.add_child(collision_shape)
+		add_child(debris)
+		var burst_direction := Vector3(cos(angle), 0.18 + float(index % 4) * 0.12, sin(angle)).normalized()
+		debris.linear_velocity = inherited_velocity * 0.28 + burst_direction * (5.5 + float(index % 5))
+		debris.angular_velocity = Vector3(1.4 + index, 2.1 + index * 0.4, -1.8 - index * 0.25)
+		var debris_id := debris.get_instance_id()
+		_debris[debris_id] = debris
+		get_tree().create_timer(4.5).timeout.connect(_remove_debris.bind(debris_id))
+
+
+func _remove_debris(debris_id: int) -> void:
+	var debris: Variant = _debris.get(debris_id)
+	_debris.erase(debris_id)
+	if is_instance_valid(debris):
+		debris.queue_free()
+
+
+func _remove_transient_effect(effect_id: int) -> void:
+	var effect: Variant = _transient_effects.get(effect_id)
+	_transient_effects.erase(effect_id)
+	if is_instance_valid(effect):
+		effect.queue_free()
+
+
+func _restart_particles_cleared(particles: CPUParticles3D) -> void:
+	if particles == null or not particles.is_inside_tree():
+		return
+	particles.restart(true)
+	particles.emitting = false
+
+
+func _clear_destruction_effects() -> void:
+	_destruction_time = 0.0
+	if is_instance_valid(_destruction_light):
+		if _destruction_light.get_parent() != null:
+			_destruction_light.get_parent().remove_child(_destruction_light)
+		_destruction_light.queue_free()
+	_destruction_light = null
+	for debris in _debris.values():
+		if is_instance_valid(debris):
+			if debris.get_parent() != null:
+				debris.get_parent().remove_child(debris)
+			debris.queue_free()
+	_debris.clear()
+	for effect in _transient_effects.values():
+		if is_instance_valid(effect):
+			if effect.get_parent() != null:
+				effect.get_parent().remove_child(effect)
+			effect.queue_free()
+	_transient_effects.clear()
+	for child in get_children():
+		if child.name in [&"InterceptorDestructionBurst", &"DestructionSmoke"]:
+			remove_child(child)
+			child.queue_free()
+
+
+func _build_interceptor() -> void:
+	if _built:
+		return
+	_built = true
+	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	floor_stop_on_slope = false
+	_create_materials()
+	_visual_root = Node3D.new()
+	_visual_root.name = "RangeInterceptorVisual"
+	add_child(_visual_root)
+
+	# A narrow forked dart distinguishes this range defender from the hero's
+	# broad Torrent arrowhead. Twin forward prongs frame a warm amber cockpit.
+	_wedge(_visual_root, "CentralKeel", Vector3(0.0, 0.18, 0.1), Vector3(2.25, 1.15, 7.2), _materials.ivory)
+	_wedge(_visual_root, "DarkUnderkeel", Vector3(0.0, -0.45, 0.7), Vector3(1.55, 0.48, 5.8), _materials.deep)
+	_wedge(_visual_root, "AmberCanopy", Vector3(0.0, 0.93, -0.35), Vector3(1.46, 0.88, 2.8), _materials.glass)
+	_box(_visual_root, "DorsalFrame", Vector3(0.0, 1.16, 1.22), Vector3(0.4, 0.24, 2.5), _materials.frame)
+	_box(_visual_root, "AftCrossbar", Vector3(0.0, 0.05, 2.55), Vector3(7.3, 0.5, 1.2), _materials.shade)
+	_box(_visual_root, "AftCyanBand", Vector3(0.0, 0.36, 2.4), Vector3(6.5, 0.12, 0.34), _materials.cyan)
+
+	for side in [-1.0, 1.0]:
+		_wedge(_visual_root, "ForwardProng", Vector3(side * 2.65, -0.02, -0.65), Vector3(1.18, 0.72, 8.35), _materials.ivory, side * 0.025)
+		_box(_visual_root, "ProngInset", Vector3(side * 2.65, 0.38, -1.1), Vector3(0.52, 0.13, 4.4), _materials.cyan)
+		_box(_visual_root, "SweptBrace", Vector3(side * 1.55, 0.0, 1.05), Vector3(3.3, 0.36, 1.0), _materials.frame, Vector3(0.0, side * -0.48, 0.0))
+		_box(_visual_root, "OuterVane", Vector3(side * 3.65, 0.7, 1.95), Vector3(0.26, 1.5, 2.5), _materials.ivory, Vector3(0.0, side * -0.1, side * -0.17))
+		_box(_visual_root, "VaneTip", Vector3(side * 3.73, 1.4, 1.7), Vector3(0.3, 0.22, 1.15), _materials.amber)
+		_cylinder(_visual_root, "GunHousing", Vector3(side * 2.65, -0.08, -4.35), 0.31, 1.0, _materials.frame, Vector3(90.0, 0.0, 0.0))
+		_cylinder(_visual_root, "ChargeLens", Vector3(side * 2.65, -0.08, -4.88), 0.18, 0.12, _materials.amber_emissive, Vector3(90.0, 0.0, 0.0))
+		var lens := _sphere(_visual_root, "WeaponTelegraph", Vector3(side * 2.65, -0.08, -4.98), 0.16, _materials.amber_emissive)
+		_warning_lenses.append(lens)
+
+		_cylinder(_visual_root, "EnginePod", Vector3(side * 2.67, 0.05, 3.1), 0.58, 1.45, _materials.frame, Vector3(90.0, 0.0, 0.0))
+		_cylinder(_visual_root, "EngineCollar", Vector3(side * 2.67, 0.05, 3.82), 0.68, 0.26, _materials.shade, Vector3(90.0, 0.0, 0.0))
+		_cylinder(_visual_root, "EngineCore", Vector3(side * 2.67, 0.05, 3.99), 0.39, 0.15, _materials.engine, Vector3(90.0, 0.0, 0.0))
+		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 2.67, 0.05, 4.42), 0.24, 0.78, _materials.engine, Vector3(90.0, 0.0, 0.0))
+		_engine_glows.append(plume)
+		var engine_light := OmniLight3D.new()
+		engine_light.name = "EngineLight"
+		engine_light.position = Vector3(side * 2.67, 0.05, 4.08)
+		engine_light.light_color = ENGINE_BLUE
+		engine_light.light_energy = 0.0
+		engine_light.omni_range = 5.5
+		engine_light.shadow_enabled = false
+		_visual_root.add_child(engine_light)
+		_engine_lights.append(engine_light)
+
+	_muzzle_port = Marker3D.new()
+	_muzzle_port.name = "PortMuzzle"
+	_muzzle_port.position = Vector3(-2.65, -0.08, -5.03)
+	add_child(_muzzle_port)
+	_muzzle_starboard = Marker3D.new()
+	_muzzle_starboard.name = "StarboardMuzzle"
+	_muzzle_starboard.position = Vector3(2.65, -0.08, -5.03)
+	add_child(_muzzle_starboard)
+	_warning_light = OmniLight3D.new()
+	_warning_light.name = "WeaponChargeLight"
+	_warning_light.position = Vector3(0.0, -0.08, -4.75)
+	_warning_light.light_color = SIGNAL_AMBER
+	_warning_light.light_energy = 0.0
+	_warning_light.omni_range = 7.0
+	_warning_light.shadow_enabled = false
+	add_child(_warning_light)
+
+	_build_collision()
+	_build_damage_effects()
+
+
+func _build_collision() -> void:
+	var keel_collision := CollisionShape3D.new()
+	keel_collision.name = "KeelCollision"
+	keel_collision.position = Vector3(0.0, 0.05, 0.2)
+	var keel_shape := BoxShape3D.new()
+	keel_shape.size = Vector3(2.2, 1.4, 7.2)
+	keel_collision.shape = keel_shape
+	add_child(keel_collision)
+	var cockpit_collision := CollisionShape3D.new()
+	cockpit_collision.name = "CockpitCollision"
+	cockpit_collision.position = Vector3(0.0, 0.58, -0.35)
+	var cockpit_shape := BoxShape3D.new()
+	cockpit_shape.size = Vector3(1.7, 1.65, 3.0)
+	cockpit_collision.shape = cockpit_shape
+	add_child(cockpit_collision)
+	var crossbar_collision := CollisionShape3D.new()
+	crossbar_collision.name = "AftCrossbarCollision"
+	crossbar_collision.position = Vector3(0.0, 0.2, 2.55)
+	var crossbar_shape := BoxShape3D.new()
+	crossbar_shape.size = Vector3(7.35, 0.85, 1.3)
+	crossbar_collision.shape = crossbar_shape
+	add_child(crossbar_collision)
+	for side in [-1.0, 1.0]:
+		var prong_collision := CollisionShape3D.new()
+		prong_collision.name = "PortProngCollision" if side < 0.0 else "StarboardProngCollision"
+		prong_collision.position = Vector3(side * 2.65, -0.02, -0.55)
+		var prong_shape := BoxShape3D.new()
+		prong_shape.size = Vector3(1.28, 0.92, 9.25)
+		prong_collision.shape = prong_shape
+		add_child(prong_collision)
+		var vane_collision := CollisionShape3D.new()
+		vane_collision.name = "PortVaneCollision" if side < 0.0 else "StarboardVaneCollision"
+		vane_collision.position = Vector3(side * 3.65, 0.7, 1.95)
+		var vane_shape := BoxShape3D.new()
+		vane_shape.size = Vector3(0.42, 1.65, 2.55)
+		vane_collision.shape = vane_shape
+		add_child(vane_collision)
+
+
+func _build_damage_effects() -> void:
+	_damage_sparks = _make_spark_particles(18, 0.7, 4.4)
+	_damage_sparks.name = "DamageSparks"
+	_damage_sparks.position = Vector3(-1.2, 0.45, 1.8)
+	_damage_sparks.one_shot = false
+	_damage_sparks.emitting = false
+	add_child(_damage_sparks)
+	_damage_smoke = _make_smoke_particles(false)
+	_damage_smoke.name = "EngineSmoke"
+	_damage_smoke.position = Vector3(-2.67, 0.15, 3.55)
+	_damage_smoke.emitting = false
+	add_child(_damage_smoke)
+
+
+func _make_spark_particles(count: int, lifetime_value: float, speed: float) -> CPUParticles3D:
+	var particles := CPUParticles3D.new()
+	particles.amount = count
+	particles.lifetime = lifetime_value
+	particles.one_shot = true
+	particles.explosiveness = 0.92
+	particles.randomness = 0.52
+	particles.local_coords = false
+	particles.direction = Vector3(0.0, 0.1, 1.0)
+	particles.spread = 180.0
+	particles.gravity = Vector3.ZERO
+	particles.initial_velocity_min = speed * 0.55
+	particles.initial_velocity_max = speed
+	particles.scale_amount_min = 0.35
+	particles.scale_amount_max = 1.0
+	var spark_mesh := BoxMesh.new()
+	spark_mesh.size = Vector3(0.035, 0.035, 0.42)
+	spark_mesh.material = _materials.spark
+	particles.mesh = spark_mesh
+	return particles
+
+
+func _make_smoke_particles(one_shot_value: bool) -> CPUParticles3D:
+	var particles := CPUParticles3D.new()
+	particles.amount = 16
+	particles.lifetime = 1.45
+	particles.one_shot = one_shot_value
+	particles.explosiveness = 0.18 if not one_shot_value else 0.88
+	particles.randomness = 0.7
+	particles.local_coords = false
+	particles.direction = Vector3(0.0, 0.3, 1.0)
+	particles.spread = 42.0
+	particles.gravity = Vector3(0.0, 0.28, 0.0)
+	particles.initial_velocity_min = 0.4
+	particles.initial_velocity_max = 1.8
+	particles.scale_amount_min = 0.35
+	particles.scale_amount_max = 1.25
+	var smoke_quad := QuadMesh.new()
+	smoke_quad.size = Vector2(0.85, 0.85)
+	smoke_quad.material = _materials.smoke
+	particles.mesh = smoke_quad
+	return particles
+
+
+func _create_materials() -> void:
+	_materials.ivory = _material(HULL_IVORY, 0.32, 0.5)
+	_materials.shade = _material(HULL_SHADE, 0.42, 0.46)
+	_materials.frame = _material(FRAME_DARK, 0.58, 0.35)
+	_materials.deep = _material(FRAME_DEEP, 0.62, 0.28)
+	_materials.cyan = _material(KETH_CYAN, 0.24, 0.3, KETH_CYAN, 1.15)
+	_materials.amber = _material(SIGNAL_AMBER, 0.3, 0.36)
+	_materials.amber_emissive = _material(SIGNAL_AMBER, 0.14, 0.24, SIGNAL_AMBER, 2.3)
+	_materials.engine = _material(ENGINE_BLUE, 0.08, 0.2, ENGINE_BLUE, 2.8)
+	_materials.spark = _material(DAMAGE_ORANGE, 0.08, 0.2, DAMAGE_ORANGE, 4.2)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.82, 0.45, 0.12, 0.76)
+	glass.metallic = 0.4
+	glass.roughness = 0.13
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glass.emission_enabled = true
+	glass.emission = Color("9b4e18")
+	glass.emission_energy_multiplier = 0.85
+	_materials.glass = glass
+	var smoke := StandardMaterial3D.new()
+	smoke.albedo_color = SMOKE_DARK
+	smoke.roughness = 1.0
+	smoke.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smoke.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smoke.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_materials.smoke = smoke
+
+
+func _material(color: Color, metallic: float, roughness: float, emission := Color.BLACK, energy := 0.0) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.metallic = metallic
+	material.roughness = roughness
+	if energy > 0.0:
+		material.emission_enabled = true
+		material.emission = emission
+		material.emission_energy_multiplier = energy
+	return material
+
+
+func _box(parent: Node3D, node_name: String, position_value: Vector3, size: Vector3, material: Material, rotation_value := Vector3.ZERO) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	instance.rotation = rotation_value
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = material
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
+
+
+func _cylinder(parent: Node3D, node_name: String, position_value: Vector3, radius: float, height: float, material: Material, rotation_degrees_value := Vector3.ZERO) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	instance.rotation_degrees = rotation_degrees_value
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 28
+	mesh.material = material
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
+
+
+func _sphere(parent: Node3D, node_name: String, position_value: Vector3, radius: float, material: Material) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 24
+	mesh.rings = 12
+	mesh.material = material
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
+
+
+## Creates a crisp, tapered prism with its point toward local negative Z.
+func _wedge(parent: Node3D, node_name: String, position_value: Vector3, size: Vector3, material: Material, skew := 0.0) -> MeshInstance3D:
+	var half_width := size.x * 0.5
+	var half_height := size.y * 0.5
+	var half_length := size.z * 0.5
+	var nose_x := skew * size.z
+	var vertices := PackedVector3Array([
+		Vector3(nose_x, -half_height, -half_length),
+		Vector3(-half_width, -half_height, half_length),
+		Vector3(half_width, -half_height, half_length),
+		Vector3(nose_x, half_height, -half_length),
+		Vector3(-half_width, half_height, half_length),
+		Vector3(half_width, half_height, half_length),
+	])
+	var indices := PackedInt32Array([
+		0, 2, 1,
+		3, 4, 5,
+		0, 3, 5, 0, 5, 2,
+		0, 1, 4, 0, 4, 3,
+		1, 2, 5, 1, 5, 4,
+	])
+	var surface_tool := SurfaceTool.new()
+	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface_tool.set_material(material)
+	for index in indices:
+		surface_tool.add_vertex(vertices[index])
+	surface_tool.generate_normals()
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	instance.mesh = surface_tool.commit()
+	parent.add_child(instance)
+	return instance

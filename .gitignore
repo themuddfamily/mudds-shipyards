@@ -1,0 +1,7 @@
+.godot/
+builds/
+artifacts/
+*.log
+__pycache__/
+*.pyc
+*.blend1

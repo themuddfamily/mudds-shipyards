@@ -1,0 +1,75 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/habitat_spine.gd" id="1_module"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/station_door.tscn" id="2_door"]
+
+[node name="HabitatSpine" type="Node3D"]
+script = ExtResource("1_module")
+
+[node name="ModuleAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="RouteApproach" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, -3)
+
+[node name="RouteThreshold" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 0.35)
+
+[node name="RouteCorridor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 10.15)
+
+[node name="RouteCommonEntry" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 18.65)
+
+[node name="RouteObservation" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 25.3)
+
+[node name="RouteDeferredBranch" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(6.1, 0.15, 20)
+
+[node name="BunkAlcoveMarker01" type="Marker3D" parent="."]
+position = Vector3(-4.25, 0.15, 5.1)
+
+[node name="BunkAlcoveMarker02" type="Marker3D" parent="."]
+position = Vector3(-4.25, 0.15, 10.1)
+
+[node name="BunkAlcoveMarker03" type="Marker3D" parent="."]
+position = Vector3(-4.25, 0.15, 15.1)
+
+[node name="BunkAlcoveMarker04" type="Marker3D" parent="."]
+position = Vector3(4.25, 0.15, 5.1)
+
+[node name="BunkAlcoveMarker05" type="Marker3D" parent="."]
+position = Vector3(4.25, 0.15, 10.1)
+
+[node name="BunkAlcoveMarker06" type="Marker3D" parent="."]
+position = Vector3(4.25, 0.15, 15.1)
+
+[node name="MainAccess" parent="." instance=ExtResource("2_door")]
+unique_name_in_owner = true
+position = Vector3(0, 0, 0.72)
+motion_duration = 0.55
+interaction_label = "HABITAT ACCESS"
+locked_prompt = "HABITAT PRESSURE LOCK"
+evidence_status = &"fixed_era_inspired_modern_interpretation"
+content_note = "A later secondary walkthrough supports habitat access, not this door's exact design, scale, placement, or mechanics."
+
+[node name="DeferredBranchAccess" parent="." instance=ExtResource("2_door")]
+unique_name_in_owner = true
+position = Vector3(7.48, 0, 20)
+rotation = Vector3(0, 1.570796, 0)
+motion_duration = 0.65
+interaction_label = "HABITAT SIDE BRANCH"
+locked_prompt = "NO AUTHENTICATED ROUTE"
+locked = true
+deferred_access = true
+deferred_label = "HABITAT SIDE BRANCH"
+deferred_prompt = "INTERIOR DEFERRED"
+evidence_status = &"fixed_era_inspired_modern_interpretation"
+content_note = "This branch is a deliberate closed endpoint. No source proves an adjacent room, so no unsupported interior exists behind it."

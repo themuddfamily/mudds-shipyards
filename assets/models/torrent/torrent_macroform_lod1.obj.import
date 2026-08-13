@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://ybj1ms6xlmi1"
+path="res://.godot/imported/torrent_macroform_lod1.obj-99cbb64c82020512c81037db5d1f6929.mesh"
+
+[deps]
+
+files=["res://.godot/imported/torrent_macroform_lod1.obj-99cbb64c82020512c81037db5d1f6929.mesh"]
+
+source_file="res://assets/models/torrent/torrent_macroform_lod1.obj"
+dest_files=["res://.godot/imported/torrent_macroform_lod1.obj-99cbb64c82020512c81037db5d1f6929.mesh", "res://.godot/imported/torrent_macroform_lod1.obj-99cbb64c82020512c81037db5d1f6929.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=false
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=true

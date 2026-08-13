@@ -1,0 +1,44 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
+[ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/ships/torrent_interceptor.tscn" id="4_ship"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+[ext_resource type="Script" path="res://scripts/audio/audio_director.gd" id="6_audio"]
+[ext_resource type="PackedScene" path="res://scenes/ships/range_opponent.tscn" id="7_opponent"]
+[ext_resource type="Resource" path="res://assets/ships/torrent_provisional.tres" id="8_torrent_definition"]
+[ext_resource type="PackedScene" path="res://scenes/ships/arrow_recon_ship.tscn" id="9_arrow"]
+[ext_resource type="Script" path="res://scripts/combat/live_combat_authority.gd" id="10_combat_authority"]
+[ext_resource type="Script" path="res://scripts/combat/combat_resolver.gd" id="11_combat_resolver"]
+[ext_resource type="PackedScene" path="res://scenes/ships/jovian_light_freighter.tscn" id="12_jovian"]
+[ext_resource type="PackedScene" path="res://scenes/effects/pulse_weapon_presentation.tscn" id="13_pulse_presentation"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_flow")
+
+[node name="ShipyardWorld" parent="." instance=ExtResource("2_world")]
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+
+[node name="TorrentInterceptor" parent="." instance=ExtResource("4_ship")]
+ship_definition = ExtResource("8_torrent_definition")
+
+[node name="ArrowReconShip" parent="." instance=ExtResource("9_arrow")]
+
+[node name="JovianLightFreighter" parent="." instance=ExtResource("12_jovian")]
+
+[node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
+
+[node name="CombatAuthority" type="Node3D" parent="."]
+script = ExtResource("10_combat_authority")
+
+[node name="Resolver" type="Node3D" parent="CombatAuthority"]
+script = ExtResource("11_combat_resolver")
+
+[node name="PulseWeaponPresentation" parent="." instance=ExtResource("13_pulse_presentation")]
+
+[node name="AudioDirector" type="Node" parent="."]
+script = ExtResource("6_audio")
+
+[node name="HUD" parent="." instance=ExtResource("5_hud")]
