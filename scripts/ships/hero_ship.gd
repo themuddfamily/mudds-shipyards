@@ -1252,8 +1252,6 @@ func apply_damage(
 			clampf(amount / 18.0, 0.35, 2.0)
 		)
 	_hull = maxf(0.0, _hull - amount)
-	if _ship_audio_rig != null and _hull > 0.0:
-		_ship_audio_rig.play_hull_hit(clampf(amount / 18.0, 0.35, 1.5))
 	_sync_damage_presentation()
 	hull_changed.emit(_hull, maximum_hull)
 	if _hull <= maximum_hull * 0.3 and not _critical_damage_emitted:
@@ -1265,11 +1263,9 @@ func apply_damage(
 		var destruction_serial := _destruction_serial
 		var destruction_position := global_position
 		var inherited_velocity := velocity
-		# Silence continuous engine state without replacing the destruction voice
-		# with an engine-stop cue, then make destruction the final transient.
+		# Silence continuous engine state. GameFlow owns the one accepted positional
+		# destruction cue at the immutable signal position.
 		request_engine_stop(false)
-		if _ship_audio_rig != null:
-			_ship_audio_rig.play_destruction()
 		_end_landing_for_lifecycle(&"ship_destroyed")
 		_clear_landing_authority_snapshot()
 		_landing_contract = {}
@@ -1774,8 +1770,6 @@ func _fire_weapon() -> void:
 	if _weapon_timer > 0.0 or _engine_state != ENGINE_ONLINE:
 		return
 	_weapon_timer = weapon_cooldown
-	if _ship_audio_rig != null:
-		_ship_audio_rig.play_weapon_fire()
 	var muzzle := _muzzle_left if _fire_from_left else _muzzle_right
 	_fire_from_left = not _fire_from_left
 	var aiming_camera := get_camera()
@@ -1922,6 +1916,11 @@ func _apply_collision_damage(pre_collision_velocity: Vector3) -> void:
 	_impact_cooldown_remaining = impact_damage_cooldown
 	var impact_damage := (strongest_closing_speed - impact_damage_threshold) * impact_damage_scale
 	apply_damage(impact_damage, strongest_position, strongest_normal)
+	# Collision damage has no travelling pulse endpoint. Keep the bounded local
+	# operational thud for surviving hulls; combat hits are exclusively routed by
+	# GameFlow into the authored positional impact bank.
+	if not _destroyed and _ship_audio_rig != null:
+		_ship_audio_rig.play_hull_hit(clampf(impact_damage / 18.0, 0.35, 1.5))
 
 
 func _hide_destroyed_hull(destruction_serial: int) -> void:

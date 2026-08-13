@@ -500,11 +500,13 @@ func _test_destruction_audio_ordering() -> void:
 	await physics_frame
 	await physics_frame
 	var rig := ship.get_ship_audio_rig()
+	var cue_count_before := int(rig.get_state_snapshot().get("cue_request_count", -1))
 	ship.apply_damage(ship.maximum_hull + 1.0, ship.global_position, Vector3.UP)
 	var audio_state := rig.get_state_snapshot()
 	_check(
-		not bool(audio_state.engine_running) and audio_state.last_cue_id == &"destruction",
-		"lethal damage silences the engine without replacing the final destruction cue"
+		not bool(audio_state.engine_running)
+		and int(audio_state.get("cue_request_count", -2)) == cue_count_before,
+		"lethal damage silences the operational rig without inventing a local combat cue"
 	)
 	stage.queue_free()
 	await process_frame

@@ -111,8 +111,12 @@ func _run() -> void:
 
 	var torrent := fleet_by_id.get(&"torrent_provisional") as HeroShip
 	var torrent_rig := torrent.get_ship_audio_rig() if torrent != null else null
-	_check(torrent != null and torrent_rig != null, "Torrent audio integration fixture is available")
-	if torrent == null or torrent_rig == null:
+	var combat_audio := game.get_combat_audio_presentation()
+	_check(
+		torrent != null and torrent_rig != null and combat_audio != null,
+		"Torrent operational and authored-combat audio fixtures are available"
+	)
+	if torrent == null or torrent_rig == null or combat_audio == null:
 		await _clean_up(game)
 		_finish()
 		return
@@ -184,26 +188,27 @@ func _run() -> void:
 			"queue-capable audio routes the requested boost layer through its fixed voice"
 		)
 
-	var fire_state_before := torrent_rig.get_state_snapshot()
-	var fire_event_count_before := cue_events.size()
+	var fire_state_before := combat_audio.get_state_snapshot()
 	provider.set_pressed(source.fire_action, true)
 	await physics_frame
 	await physics_frame
 	provider.set_pressed(source.fire_action, false)
-	var fire_state := torrent_rig.get_state_snapshot()
-	var fire_event: Dictionary = cue_events.back() if not cue_events.is_empty() else {}
+	var fire_state := combat_audio.get_state_snapshot()
+	var fire_counts_before := fire_state_before.get("cue_counts", {}) as Dictionary
+	var fire_counts := fire_state.get("cue_counts", {}) as Dictionary
 	_check(
-		int(fire_state.get("cue_request_count", -1))
-			== int(fire_state_before.get("cue_request_count", 0)) + 1
-		and fire_state.get("last_cue_id", &"") == ShipAudioRig.CUE_FIRE,
-		"one accepted local weapon fire action requests exactly one weapon cue"
+		int(fire_counts.get(CombatAudioPresentation.CUE_DRY_FIRE, 0))
+			== int(fire_counts_before.get(CombatAudioPresentation.CUE_DRY_FIRE, 0)) + 1
+		and int(fire_counts.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0))
+			== int(fire_counts_before.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0))
+		and fire_state.get("last_cue_id", &"") == CombatAudioPresentation.CUE_DRY_FIRE,
+		"one locally safed weapon action requests one restrained dry cue and no accepted fire cue"
 	)
 	_check(
-		cue_events.size() == fire_event_count_before + 1
-		and fire_event.get("cue_id", &"") == ShipAudioRig.CUE_FIRE
-		and bool(fire_event.get("playback_queued", true))
-			== bool(fire_state.get("playback_queue_allowed", false)),
-		"weapon cue remains observable and truthful when Dummy declines playback"
+		fire_state.get("last_world_position") is Vector3
+		and (fire_state.get("last_world_position") as Vector3).is_finite()
+		and int(fire_state.get("last_source_instance_id", 0)) == torrent.get_instance_id(),
+		"safed cue remains observable at its finite muzzle origin under Dummy audio"
 	)
 
 	var combat := game.get_node_or_null("CombatAuthority") as LiveCombatAuthority
@@ -223,6 +228,7 @@ func _run() -> void:
 				})
 		)
 		var statistics_before := pulse.get_statistics()
+		var authored_fire_before := combat_audio.get_state_snapshot()
 		var shot_origin := torrent.global_position + Vector3(0.0, 0.8, -5.5)
 		var result := combat.submit_hitscan(
 			torrent,
@@ -231,6 +237,9 @@ func _run() -> void:
 			Vector3.FORWARD
 		)
 		var statistics_after := pulse.get_statistics()
+		var authored_fire_after := combat_audio.get_state_snapshot()
+		var authored_counts_before := authored_fire_before.get("cue_counts", {}) as Dictionary
+		var authored_counts_after := authored_fire_after.get("cue_counts", {}) as Dictionary
 		var presented_event: Dictionary = presented_events[0] if presented_events.size() == 1 else {}
 		_check(
 			bool(result.get("accepted", false)) and bool(result.get("resolved", false)),
@@ -241,6 +250,12 @@ func _run() -> void:
 				== int(statistics_before.get("presented", 0)) + 1
 			and int(statistics_after.get("active", -1)) == 1,
 			"accepted authoritative combat shot enters the one global pool"
+		)
+		_check(
+			int(authored_counts_after.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0))
+				== int(authored_counts_before.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0)) + 1
+			and authored_fire_after.get("last_world_position") == shot_origin,
+			"accepted authoritative combat shot requests one authored positional fire cue"
 		)
 		_check(
 			presented_events.size() == 1
