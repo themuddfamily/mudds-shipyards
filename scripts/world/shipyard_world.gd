@@ -91,7 +91,7 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"cue_half_length": 16.5,
 	},
 }
-const CENTRAL_HERO_SCHEMA_VERSION := 1
+const CENTRAL_HERO_SCHEMA_VERSION := 2
 const OPERATIONAL_LATTICE_SCHEMA_VERSION := 1
 const CENTRAL_HERO_MODULE_ID: StringName = &"central-berth-hero-cell"
 const CENTRAL_HERO_SHIP_ID: StringName = &"torrent_provisional"
@@ -118,12 +118,12 @@ const STATION_DRESSING_SPECS := {
 	&"HabitatOuterServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/HabitatOuterServiceDressing"), "transform": Transform3D(Basis.IDENTITY, Vector3(59.15, 4.45, 21.94)), "length": 12.0, "profile": &"standard", "orientation": &"along_mount_x"},
 	&"FreightRackServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/FreightRackServiceDressing"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), "length": 20.0, "profile": &"light", "orientation": &"along_mount_x"},
 }
-const SHIPYARD_DECK_ALBEDO_PATH := "res://assets/materials/shipyard-deck-albedo-v1.png"
-const SHIPYARD_DECK_NORMAL_PATH := "res://assets/materials/shipyard-deck-normal-v1.png"
-const SHIPYARD_DECK_ROUGHNESS_PATH := "res://assets/materials/shipyard-deck-roughness-v1.png"
 const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 const STATION_AMBIENCE_SCENE := preload("res://scenes/audio/station_machinery_ambience.tscn")
 const STATION_DRESSING_SCENE := preload("res://scenes/world/components/station_structural_service_dressing.tscn")
+const CENTRAL_BERTH_HERO_PRESENTATION_SCENE := preload(
+	"res://scenes/world/presentation/central_berth_hero_presentation.tscn"
+)
 
 # The ship root is authored at the berth transform. These presentation contacts
 # match the three visible Torrent feet, but remain non-colliding so the berth's
@@ -185,6 +185,7 @@ var _berth_half_extents: Dictionary = {}
 var _berth_nodes: Dictionary = {}
 var _berth_feedback_nodes: Dictionary = {}
 var _central_berth_root: Node3D
+var _central_berth_hero_presentation: CentralBerthHeroPresentation
 var _station_operations_activities: Array[StationOperationsActivity] = []
 var _station_machinery_ambience_nodes: Array[StationMachineryAmbience] = []
 var _station_structural_service_dressings: Array[StationStructuralServiceDressing] = []
@@ -1423,6 +1424,13 @@ func get_central_berth_evidence_metadata() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_central_berth_hero_presentation() -> CentralBerthHeroPresentation:
+	return (
+		_central_berth_hero_presentation
+		if is_instance_valid(_central_berth_hero_presentation) else null
+	)
+
+
 ## Deep-detached construction audit for focused visual, clearance, and material
 ## tests. It intentionally does not claim that modern presentation metadata is
 ## historical evidence.
@@ -1433,9 +1441,6 @@ func get_central_berth_audit_report() -> Dictionary:
 	var feature_counts := _get_central_feature_counts(hero_root)
 	var errors: PackedStringArray = []
 	var expected_counts := {
-		&"primary_truss": 5,
-		&"secondary_truss": 12,
-		&"deck_fascia": 4,
 		&"docking_clamp": 3,
 		&"umbilical_housing": 3,
 		&"parked_umbilical_hose": 3,
@@ -1449,6 +1454,26 @@ func get_central_berth_audit_report() -> Dictionary:
 	}
 	if hero_root == null:
 		errors.append("LandingPad hero-cell root is unavailable")
+	var authored_presentation := get_central_berth_hero_presentation()
+	var authored_audit: Dictionary = {}
+	if authored_presentation == null:
+		errors.append("Blender-authored central berth presentation is unavailable")
+	else:
+		authored_audit = authored_presentation.get_asset_audit_report()
+		if (
+			authored_presentation.get_parent() != hero_root
+			or authored_presentation.name != &"CentralBerthHeroPresentation"
+			or authored_presentation.top_level
+			or not authored_presentation.transform.is_equal_approx(Transform3D.IDENTITY)
+		):
+			errors.append("Blender-authored presentation mount changed")
+		if not bool(authored_audit.get("valid", false)):
+			errors.append("Blender-authored presentation audit is red")
+	if hero_root != null and (
+		hero_root.get_node_or_null(^"PadInset") != null
+		or hero_root.get_node_or_null(^"HeroBerthStructure") != null
+	):
+		errors.append("legacy procedural central berth shell is still present")
 	for feature_id: StringName in expected_counts:
 		var actual_count := int(feature_counts.get(feature_id, 0))
 		var expected_count := int(expected_counts[feature_id])
@@ -1471,23 +1496,6 @@ func get_central_berth_audit_report() -> Dictionary:
 	for contact_id: StringName in TORRENT_GEAR_CONTACT_OFFSETS:
 		gear_contacts[contact_id] = berth_transform * (TORRENT_GEAR_CONTACT_OFFSETS[contact_id] as Vector3)
 
-	var deck_material := _materials.get("hero_deck_surface") as StandardMaterial3D
-	if deck_material == null:
-		errors.append("hero deck PBR material is unavailable")
-	else:
-		if deck_material.albedo_texture == null \
-				or deck_material.albedo_texture.resource_path != SHIPYARD_DECK_ALBEDO_PATH:
-			errors.append("hero deck albedo map is not assigned")
-		if not deck_material.normal_enabled \
-				or deck_material.normal_texture == null \
-				or deck_material.normal_texture.resource_path != SHIPYARD_DECK_NORMAL_PATH:
-			errors.append("hero deck normal map is not assigned")
-		if deck_material.roughness_texture == null \
-				or deck_material.roughness_texture.resource_path != SHIPYARD_DECK_ROUGHNESS_PATH:
-			errors.append("hero deck roughness map is not assigned")
-		if not deck_material.uv1_triplanar:
-			errors.append("hero deck material is not triplanar")
-
 	return {
 		"schema_version": CENTRAL_HERO_SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -1503,10 +1511,15 @@ func get_central_berth_audit_report() -> Dictionary:
 		"protected_small_craft_half_width": 6.5,
 		"protected_small_craft_half_length": 6.6,
 		"presentation_collision_free": true,
+		"authored_presentation": true,
+		"authored_asset_valid": bool(authored_audit.get("valid", false)),
+		"authored_asset_audit": authored_audit,
 		"deck_pbr": {
-			"albedo": SHIPYARD_DECK_ALBEDO_PATH,
-			"normal": SHIPYARD_DECK_NORMAL_PATH,
-			"roughness": SHIPYARD_DECK_ROUGHNESS_PATH,
+			"albedo": str((authored_audit.get("deck_maps", {}) as Dictionary).get("albedo", "")),
+			"normal": str((authored_audit.get("deck_maps", {}) as Dictionary).get("normal", "")),
+			"roughness": str((authored_audit.get("deck_maps", {}) as Dictionary).get("roughness", "")),
+			"texture_coordinate": authored_audit.get("deck_texture_coordinate", &""),
+			"triplanar": bool(authored_audit.get("deck_triplanar", true)),
 			"scope": &"operational_walking_surface_only",
 		},
 	}.duplicate(true)
@@ -1599,29 +1612,6 @@ func _create_materials() -> void:
 		Color("d7772d"),
 		0.72
 	)
-
-	# This purpose-built finish is intentionally isolated to the thin operational
-	# walking skin. Structure, fascia, pressure hardware, signs, and distant set
-	# dressing retain separate untinted materials rather than inheriting a ship or
-	# deck texture through a shared key.
-	var hero_deck := _material(Color("253c45"), 0.48, 0.62)
-	var deck_albedo := load(SHIPYARD_DECK_ALBEDO_PATH) as Texture2D
-	var deck_normal := load(SHIPYARD_DECK_NORMAL_PATH) as Texture2D
-	var deck_roughness := load(SHIPYARD_DECK_ROUGHNESS_PATH) as Texture2D
-	hero_deck.albedo_texture = deck_albedo
-	hero_deck.normal_enabled = deck_normal != null
-	hero_deck.normal_texture = deck_normal
-	hero_deck.normal_scale = 0.42
-	hero_deck.roughness_texture = deck_roughness
-	hero_deck.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-	hero_deck.uv1_triplanar = true
-	hero_deck.uv1_triplanar_sharpness = 4.5
-	hero_deck.uv1_scale = Vector3.ONE * 0.16
-	hero_deck.clearcoat_enabled = true
-	hero_deck.clearcoat = 0.2
-	hero_deck.clearcoat_roughness = 0.58
-	_materials["hero_deck_surface"] = hero_deck
-
 
 func _build_environment() -> void:
 	var world_environment := WorldEnvironment.new()
@@ -1716,7 +1706,19 @@ func _build_architecture() -> void:
 	# Each visible deck module carries its own collision; there is deliberately no
 	# hidden full-footprint slab bridging the gaps.
 	_box(shell, "CentralJunction", Vector3(0, -0.62, 14.0), Vector3(25.0, 1.2, 18.0), _materials["deck"])
-	_box(shell, "HeroBerthNode", Vector3(0, -0.62, -10.0), Vector3(27.0, 1.2, 30.0), _materials["deck"])
+	var hero_berth_body := _box(
+		shell,
+		"HeroBerthNode",
+		Vector3(0, -0.62, -10.0),
+		Vector3(27.0, 1.2, 30.0),
+		_materials["deck"]
+	)
+	# The physical floor remains authoritative, but its old generic render slab
+	# must not double-render through the Blender-authored presentation shell.
+	var legacy_hero_mesh := hero_berth_body.get_node_or_null(^"Mesh") as MeshInstance3D
+	if legacy_hero_mesh != null:
+		legacy_hero_mesh.visible = false
+		legacy_hero_mesh.set_meta("hidden_by_authored_central_berth", true)
 	_box(shell, "JunctionLink", Vector3(0, -0.62, 1.5), Vector3(13.0, 1.2, 9.0), _materials["deck_light"])
 	_box(shell, "PortBranchArm", Vector3(-25.0, -0.62, 15.5), Vector3(25.0, 1.2, 7.0), _materials["deck_light"])
 	_box(shell, "PortBerthNode", Vector3(-43.0, -0.62, 15.5), Vector3(12.0, 1.2, 17.0), _materials["deck"])
@@ -1792,18 +1794,12 @@ func _build_landing_pad() -> void:
 	add_child(pad)
 	_central_berth_root = pad
 	_apply_central_berth_metadata(pad)
-	_build_central_berth_understructure(pad)
-
-	var pad_inset := _box(
-		pad,
-		"PadInset",
-		Vector3(0, 0.045, -10),
-		Vector3(25.5, 0.1, 35.5),
-		_materials["hero_deck_surface"],
-		false
+	_central_berth_hero_presentation = (
+		CENTRAL_BERTH_HERO_PRESENTATION_SCENE.instantiate()
+		as CentralBerthHeroPresentation
 	)
-	pad_inset.set_meta("surface_role", &"operational_walking_deck")
-	pad_inset.set_meta("deck_pbr_scope", &"central_berth_top_skin")
+	_central_berth_hero_presentation.name = "CentralBerthHeroPresentation"
+	pad.add_child(_central_berth_hero_presentation)
 	# Bright border, split into straightforward bars for crisp silhouettes.
 	for x_position in [-12.2, 12.2]:
 		_box(pad, "PadBorder", Vector3(x_position, 0.115, -10), Vector3(0.28, 0.05, 34.5), _materials["ivory"], false)
@@ -1907,69 +1903,6 @@ func _tag_central_feature(node: Node, feature_id: StringName) -> void:
 	node.set_meta("central_berth_feature", feature_id)
 	node.set_meta("geometry_status", &"provisional")
 	node.set_meta("authenticated_original_geometry", false)
-
-
-func _build_central_berth_understructure(pad: Node3D) -> void:
-	var structure := Node3D.new()
-	structure.name = "HeroBerthStructure"
-	structure.set_meta("surface_role", &"structural_lattice")
-	pad.add_child(structure)
-
-	var fascia_specs := [
-		["PortDeckFascia", Vector3(-13.32, -0.62, -10.0), Vector3(0.34, 1.12, 29.4)],
-		["StarboardDeckFascia", Vector3(13.32, -0.62, -10.0), Vector3(0.34, 1.12, 29.4)],
-		["ForwardDeckFascia", Vector3(0.0, -0.62, -24.82), Vector3(26.3, 1.12, 0.34)],
-		["AftDeckFascia", Vector3(0.0, -0.62, 4.82), Vector3(26.3, 1.12, 0.34)],
-	]
-	for spec: Array in fascia_specs:
-		var fascia := _box(
-			structure,
-			spec[0] as String,
-			spec[1] as Vector3,
-			spec[2] as Vector3,
-			_materials["navy"],
-			false
-		)
-		fascia.set_meta("surface_role", &"deck_fascia")
-		_tag_central_feature(fascia, &"deck_fascia")
-
-	# Two deep longitudinal chords and three transverse girders make the pad mass
-	# legible from launch and open-space angles without adding gameplay collision.
-	for side in [-1.0, 1.0]:
-		var long_truss := _box(
-			structure,
-			"PrimaryLongitudinalTruss",
-			Vector3(side * 7.25, -1.78, -10.0),
-			Vector3(0.72, 0.72, 28.6),
-			_materials["steel_blue"],
-			false
-		)
-		_tag_central_feature(long_truss, &"primary_truss")
-	for z_position in [-20.8, -10.0, 0.8]:
-		var cross_truss := _box(
-			structure,
-			"PrimaryCrossTruss",
-			Vector3(0.0, -1.7, z_position),
-			Vector3(24.8, 0.58, 0.72),
-			_materials["steel_blue"],
-			false
-		)
-		_tag_central_feature(cross_truss, &"primary_truss")
-
-	# Paired diagonals form three restrained X bays on each exposed side.
-	for side in [-1.0, 1.0]:
-		for z_position in [-19.0, -10.0, -1.0]:
-			for lean in [-1.0, 1.0]:
-				var brace := _box(
-					structure,
-					"SecondaryDiagonalTruss",
-					Vector3(side * 11.9, -1.48, z_position),
-					Vector3(0.24, 0.3, 6.4),
-					_materials["orange"],
-					false,
-					Vector3(lean * 13.0, 0.0, 0.0)
-				)
-				_tag_central_feature(brace, &"secondary_truss")
 
 
 func _build_central_docking_hardware(pad: Node3D) -> void:
@@ -2206,6 +2139,23 @@ func _build_launch_corridor() -> void:
 	var launch := Node3D.new()
 	launch.name = "OpenLaunchSpine"
 	add_child(launch)
+
+	# The authored berth skin reaches the launch-arm threshold. Fill the prior
+	# 3 m support gap with collision only, keeping the visible Blender shell and
+	# the existing HeroBerthNode/LaunchArmDeck bodies otherwise unchanged.
+	var transition := StaticBody3D.new()
+	transition.name = "CentralBerthLaunchTransitionCollision"
+	transition.position = Vector3(0.0, -0.5625, -26.5)
+	transition.collision_layer = WORLD_LAYER
+	transition.collision_mask = 0
+	transition.set_meta("authored_surface_support", true)
+	var transition_shape := CollisionShape3D.new()
+	transition_shape.name = "Collision"
+	var transition_box := BoxShape3D.new()
+	transition_box.size = Vector3(25.5, 1.315, 3.0)
+	transition_shape.shape = transition_box
+	transition.add_child(transition_shape)
+	launch.add_child(transition)
 
 	# A narrow exposed flight arm replaces the previous enclosed runway. Width is
 	# a modern safety allowance for the hero ship, not an inferred measurement.

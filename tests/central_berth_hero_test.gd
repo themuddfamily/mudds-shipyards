@@ -76,8 +76,36 @@ func _test_audit_and_evidence(world: ShipyardWorld) -> void:
 	var expected_counts := audit.get("expected_feature_counts", {}) as Dictionary
 	var feature_counts := audit.get("feature_counts", {}) as Dictionary
 	_check(feature_counts == expected_counts, "feature inventory is complete and deliberately bounded")
+	var authored_audit := audit.get("authored_asset_audit", {}) as Dictionary
 	_check(
-		str((audit.get("deck_pbr", {}) as Dictionary).get("scope", "")) == "operational_walking_surface_only",
+		bool(audit.get("authored_presentation", false))
+		and bool(audit.get("authored_asset_valid", false))
+		and bool(authored_audit.get("valid", false)),
+		"world delegates presentation integrity to the Blender-authored berth audit"
+	)
+	_check(
+		str(authored_audit.get("authorship", "")) == "original_script_assisted_blender"
+		and int(authored_audit.get("semantic_root_count", 0)) == 5
+		and int(authored_audit.get("material_role_count", 0)) == 5,
+		"authored platform retains five semantic layers and five material roles"
+	)
+	_check(
+		int(authored_audit.get("runtime_mesh_count", 0)) == 8
+		and int(authored_audit.get("runtime_surface_count", 0)) == 8
+		and int(authored_audit.get("runtime_triangle_count", 0)) == 11_508,
+		"111 editable components remain batched to eight runtime draws and 11,508 triangles"
+	)
+	_check(
+		not bool(authored_audit.get("gameplay_authority", true))
+		and not bool(authored_audit.get("collision_authority", true))
+		and not bool(authored_audit.get("walking_surface_authority", true))
+		and int(authored_audit.get("forbidden_authority_node_count", -1)) == 0,
+		"authored platform remains strictly visual and authority-free"
+	)
+	_check(
+		str((audit.get("deck_pbr", {}) as Dictionary).get("scope", "")) == "operational_walking_surface_only"
+		and str((audit.get("deck_pbr", {}) as Dictionary).get("texture_coordinate", "")) == "UV0/TEXCOORD_0"
+		and not bool((audit.get("deck_pbr", {}) as Dictionary).get("triplanar", true)),
 		"PBR audit explicitly limits the deck maps to walking surfaces"
 	)
 
@@ -147,13 +175,36 @@ func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
 	var hero_body := world.get_node_or_null("ExposedDockLattice/HeroBerthNode") as StaticBody3D
 	var launch_body := world.get_node_or_null("OpenLaunchSpine/LaunchArmDeck") as StaticBody3D
 	_check(_box_body_matches(hero_body, Vector3(0.0, -0.62, -10.0), Vector3(27.0, 1.2, 30.0)), "HeroBerthNode collider and transform remain unchanged")
+	var hidden_legacy_mesh := hero_body.get_node_or_null("Mesh") as MeshInstance3D if hero_body != null else null
+	_check(
+		hidden_legacy_mesh != null
+		and not hidden_legacy_mesh.visible
+		and bool(hidden_legacy_mesh.get_meta("hidden_by_authored_central_berth", false)),
+		"legacy physical berth slab retains collision but no longer double-renders"
+	)
 	_check(_box_body_matches(launch_body, Vector3(0.0, -0.36, -48.0), Vector3(21.5, 0.72, 40.0)), "LaunchArmDeck collider and transform remain unchanged")
+	var transition := world.get_node_or_null("OpenLaunchSpine/CentralBerthLaunchTransitionCollision") as StaticBody3D
+	_check(
+		_box_body_matches(transition, Vector3(0.0, -0.5625, -26.5), Vector3(25.5, 1.315, 3.0))
+		and transition.get_node_or_null("Mesh") == null
+		and bool(transition.get_meta("authored_surface_support", false)),
+		"collision-only transition supports the authored berth-to-launch seam"
+	)
 
 
 func _test_structure_and_material_scope(world: ShipyardWorld) -> void:
 	var pad := world.get_node("LandingPad") as Node3D
-	var pad_inset := pad.get_node("PadInset") as MeshInstance3D
-	var deck_material := pad_inset.material_override as StandardMaterial3D
+	var presentation := world.get_central_berth_hero_presentation()
+	var deck_root := presentation.get_semantic_root(&"deck_panels") if presentation != null else null
+	var deck_material := presentation.get_runtime_material(&"DeckComposite") if presentation != null else null
+	_check(
+		presentation != null
+		and presentation.get_parent() == pad
+		and presentation.transform.is_equal_approx(Transform3D.IDENTITY)
+		and pad.get_node_or_null("PadInset") == null
+		and pad.get_node_or_null("HeroBerthStructure") == null,
+		"identity-mounted authored shell replaces both legacy procedural presentation nodes"
+	)
 	_check(
 		deck_material != null
 		and deck_material.albedo_texture != null
@@ -173,14 +224,23 @@ func _test_structure_and_material_scope(world: ShipyardWorld) -> void:
 		and deck_material.roughness_texture != null
 		and deck_material.roughness_texture.resource_path == DECK_ROUGHNESS_PATH
 		and deck_material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
-		and deck_material.uv1_triplanar,
-		"operational pad skin uses roughness and triplanar mapping"
+		and not deck_material.uv1_triplanar,
+		"authored deck uses roughness and UV0 rather than procedural triplanar mapping"
 	)
-	var rounded_mesh := pad_inset.mesh as ArrayMesh
-	var tangent_array: Variant = null
-	if rounded_mesh != null and rounded_mesh.get_surface_count() > 0:
-		tangent_array = rounded_mesh.surface_get_arrays(0)[Mesh.ARRAY_TANGENT]
-	_check(tangent_array is PackedFloat32Array and not (tangent_array as PackedFloat32Array).is_empty(), "procedural deck mesh contains normal-map tangents")
+	var deck_uv0_is_meaningful := false
+	if deck_root != null:
+		for candidate in deck_root.find_children("*", "MeshInstance3D", true, false):
+			var mesh := (candidate as MeshInstance3D).mesh
+			if mesh == null or mesh.get_surface_count() == 0:
+				continue
+			var uv_value: Variant = mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV]
+			if uv_value is PackedVector2Array and (uv_value as PackedVector2Array).size() >= 3:
+				var uv := uv_value as PackedVector2Array
+				deck_uv0_is_meaningful = (
+					uv[0].distance_to(uv[1]) > 0.0001
+					or uv[1].distance_to(uv[2]) > 0.0001
+				)
+	_check(deck_uv0_is_meaningful, "authored deck batch contains non-collapsed UV0 coordinates")
 
 	var mapped_meshes: Array[MeshInstance3D] = []
 	for candidate in world.find_children("*", "MeshInstance3D", true, false):
@@ -191,19 +251,20 @@ func _test_structure_and_material_scope(world: ShipyardWorld) -> void:
 			mapped_meshes.append(mesh_instance)
 	_check(
 		mapped_meshes.size() == 1
-		and mapped_meshes[0] == pad_inset
-		and str(pad_inset.get_meta("surface_role", "")) == "operational_walking_deck",
+		and presentation != null
+		and presentation.is_ancestor_of(mapped_meshes[0])
+		and str(mapped_meshes[0].get_meta("central_berth_material_role", "")) == "DeckComposite",
 		"shipyard deck maps do not leak onto fascia, trusses, pressure/service objects, signs, or the moon"
 	)
-
-	var hero_structure := pad.get_node("HeroBerthStructure") as Node3D
 	_check(
-		_features(hero_structure, &"primary_truss").size() == 5
-		and _features(hero_structure, &"secondary_truss").size() == 12
-		and _features(hero_structure, &"deck_fascia").size() == 4,
-		"primary/secondary trusses and separate deck fascia are visible and restrained"
+		presentation != null
+		and presentation.get_semantic_root(&"edge_fascia") != null
+		and presentation.get_semantic_root(&"primary_structure") != null
+		and presentation.get_semantic_root(&"secondary_structure") != null
+		and presentation.get_semantic_root(&"service_channels") != null,
+		"authored fascia, primary structure, secondary structure, and service channels remain distinct"
 	)
-	_check(not _contains_collision(hero_structure), "hero understructure adds no hidden gameplay collision")
+	_check(presentation != null and not _contains_collision(presentation), "authored berth shell adds no hidden gameplay collision")
 
 
 func _test_clamp_alignment_and_service_clearance(world: ShipyardWorld, torrent: HeroShip) -> void:
@@ -321,6 +382,9 @@ func _test_floor_routes_and_launch_volume(world: ShipyardWorld, torrent: HeroShi
 		Vector3(-5.0, 0.2, -2.0),
 		Vector3(-3.2, 0.2, -9.35),
 		Vector3(-7.6, 0.2, -9.25),
+		Vector3(0.0, 0.2, -25.25),
+		Vector3(0.0, 0.2, -26.5),
+		Vector3(0.0, 0.2, -27.75),
 	]
 	var route_supported := true
 	var route_clear := true
@@ -335,7 +399,7 @@ func _test_floor_routes_and_launch_volume(world: ShipyardWorld, torrent: HeroShi
 		capsule_query.transform = Transform3D(Basis.IDENTITY, Vector3(sample.x, 1.15, sample.z))
 		capsule_query.collision_mask = PhysicsLayers.WORLD
 		route_clear = route_clear and space.intersect_shape(capsule_query, 8).is_empty()
-	_check(route_supported, "spawn-to-boarding and exit samples retain continuous deck support")
+	_check(route_supported, "spawn, boarding, exit, and authored berth-to-launch seam retain continuous deck support")
 	_check(route_clear, "spawn-to-boarding and port exit player capsules remain unobstructed")
 
 	var launch_clear := true
