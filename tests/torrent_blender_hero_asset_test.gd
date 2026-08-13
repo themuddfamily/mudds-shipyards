@@ -38,6 +38,12 @@ func _run() -> void:
 	_check(int(audit.get("runtime_material_role_count", 0)) == 10, "runtime presentation owns the exact ten-role PBR material bank")
 	_check(str(audit.get("hull_texture_coordinate", "")) == "UV0/TEXCOORD_0" and not bool(audit.get("hull_triplanar", true)), "runtime hull material contract uses authored UV0 rather than triplanar projection")
 	_check(bool(audit.get("far_lod_unbounded", false)), "atomic mid/far LOD remains unbounded without a disappearing-ship hole")
+	_check(
+		str(audit.get("glb_hash_verification_mode", "")) == "raw_source_file_sha256"
+		and bool(audit.get("raw_source_glb_hash_checked", false))
+		and bool(audit.get("raw_source_glb_hash_verified", false)),
+		"source checkout audits the physical authored GLB hash rather than an imported-resource remap"
+	)
 	_check(_runtime_uses_only_authored_whole_ship_lods(root_art), "Godot importer keeps every per-surface auto-LOD table empty so switching remains whole-ship atomic")
 	presentation.update_lod_for_distance(1000.0)
 	_check(presentation.get_active_lod() == 1 and not presentation.get_lod0_root().visible and presentation.get_lod1_root().visible, "far distance atomically switches the complete craft to unbounded LOD1")

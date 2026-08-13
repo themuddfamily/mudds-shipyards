@@ -308,6 +308,11 @@ func set_canopy_fraction(open_fraction: float) -> void:
 
 func get_asset_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
+	var raw_source_glb_path := _get_raw_source_glb_path()
+	var raw_source_glb_sha256 := (
+		FileAccess.get_sha256(raw_source_glb_path)
+		if not raw_source_glb_path.is_empty() else ""
+	)
 	if (
 		_imported_container == null
 		or not is_instance_valid(_imported_container)
@@ -426,7 +431,7 @@ func get_asset_audit_report() -> Dictionary:
 		errors.append("cockpit visibility disagrees with the atomic LOD state")
 	if live_canopy != null and live_canopy.visible != (_active_lod == 0):
 		errors.append("canopy visibility disagrees with the atomic LOD state")
-	_append_integrity_errors(errors)
+	_append_integrity_errors(errors, raw_source_glb_path, raw_source_glb_sha256)
 	var canopy_glass := (
 		live_canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
 		if live_canopy != null else null
@@ -484,6 +489,17 @@ func get_asset_audit_report() -> Dictionary:
 		"hull_triplanar": false,
 		"runtime_triangle_count": _subtree_triangle_count(live_asset_root),
 		"manifest_glb_sha256": _manifest_glb_sha256,
+		"glb_hash_verification_mode": (
+			&"raw_source_file_sha256"
+			if not raw_source_glb_path.is_empty()
+			else &"packaged_import_runtime_contract"
+		),
+		"raw_source_glb_hash_checked": not raw_source_glb_path.is_empty(),
+		"raw_source_glb_hash_verified": (
+			not raw_source_glb_path.is_empty()
+			and not _manifest_glb_sha256.is_empty()
+			and raw_source_glb_sha256 == _manifest_glb_sha256
+		),
 	}
 
 
@@ -552,10 +568,19 @@ func _capture_integrity_contract() -> void:
 		_integrity_materials[role] = _material_signature(material)
 
 
-func _append_integrity_errors(errors: PackedStringArray) -> void:
+func _append_integrity_errors(
+	errors: PackedStringArray,
+	raw_source_glb_path: String,
+	raw_source_glb_sha256: String
+) -> void:
 	if _asset_root == null or not is_instance_valid(_asset_root):
 		return
-	if _manifest_glb_sha256.is_empty() or FileAccess.get_sha256(HERO_ASSET_PATH) != _manifest_glb_sha256:
+	if _manifest_glb_sha256.is_empty():
+		errors.append("runtime GLB manifest hash is missing")
+	elif (
+		not raw_source_glb_path.is_empty()
+		and raw_source_glb_sha256 != _manifest_glb_sha256
+	):
 		errors.append("runtime GLB hash does not match its checked-in manifest")
 	var nodes: Array[Node] = [_asset_root]
 	nodes.append_array(_asset_root.find_children("*", "Node", true, false))
@@ -602,6 +627,20 @@ func _append_integrity_errors(errors: PackedStringArray) -> void:
 		var material := _runtime_materials[role] as StandardMaterial3D
 		if _material_signature(material) != _integrity_materials.get(role, {}):
 			errors.append("runtime material content drifted: %s" % role)
+
+
+func _get_raw_source_glb_path() -> String:
+	# Imported resources are remapped inside exported PCKs. Hashing
+	# `HERO_ASSET_PATH` there hashes the generated PackedScene rather than the
+	# authored GLB and falsely rejects an otherwise exact import. A loose source
+	# checkout has a physical, globalized GLB, so retain the strict source hash
+	# check whenever that file is actually present. Packaged builds continue to
+	# enforce the manifest, live hierarchy, mesh-content, triangle-count,
+	# material, and authority contracts below.
+	var global_path := ProjectSettings.globalize_path(HERO_ASSET_PATH)
+	if global_path.is_empty() or global_path.begins_with("res://"):
+		return ""
+	return global_path if FileAccess.file_exists(global_path) else ""
 
 
 func _append_mesh_integrity_errors(
