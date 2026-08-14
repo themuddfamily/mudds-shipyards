@@ -91,6 +91,11 @@ var _footstep_cooldown := 0.0
 var _audio_enabled := true
 var _shutting_down := false
 var _initialized := false
+# The flow owns the ambient mix mode (on-foot, piloting, or the pre-shift
+# default), while this director owns backend recovery. Keep the requested
+# volume separate from the transient AudioStreamPlayer so a detached Main
+# scene cannot silently revert the mode on re-entry.
+var _desired_ambience_volume_db := -13.0
 
 
 func _enter_tree() -> void:
@@ -212,8 +217,9 @@ func play_footstep(intensity: float = 1.0) -> void:
 
 
 func set_on_foot(on_foot: bool) -> void:
+	_desired_ambience_volume_db = -10.0 if on_foot else -18.0
 	if is_instance_valid(_ambience):
-		_ambience.volume_db = -10.0 if on_foot else -18.0
+		_ambience.volume_db = _desired_ambience_volume_db
 
 
 func get_resident_stream_ids() -> PackedStringArray:
@@ -453,10 +459,16 @@ func _restore_backend_state() -> void:
 	# accounting, but it never receives a playback handle. Its mixer does not
 	# advance, so attaching streams would pin needless playback state at exit.
 	_audio_enabled = AudioServer.get_driver_name() != "Dummy"
-	if not _audio_enabled or not is_instance_valid(_ambience):
+	if not is_instance_valid(_ambience):
+		return
+	# Restore the requested gameplay mix before deciding whether the current
+	# backend can play. This keeps detach/re-entry deterministic even under the
+	# Dummy driver and prevents a real backend from reverting to the default
+	# -13 dB while the player remains on foot or in a cockpit.
+	_ambience.volume_db = _desired_ambience_volume_db
+	if not _audio_enabled:
 		return
 	_ambience.stream = _get_stream(STREAM_AMBIENCE)
-	_ambience.volume_db = -13.0
 	_ambience.play()
 	if not _ambience.playing:
 		# A named backend can still reject playback. Fall back to the exact silent
