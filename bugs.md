@@ -2,5 +2,5 @@
 
 These items were found during a conservative audit but are not confirmed defects, so no behavioural code was changed.
 
-- `scripts/ui/hud.gd:66`: F1 toggles the help panel while the pause overlay is visible. This may be intentional, but it can change the resumed HUD state from the pause menu.
-- `scripts/combat/live_combat_authority.gd:116`: deferred-presentation receipt IDs encode `source_id << 32`. The public source-ID API has no upper bound, so IDs at or above `2^31` can become negative and be treated as non-deferred. Production source IDs are small; add a bound or a non-negative encoding only if large IDs are supported.
+- `scripts/combat/live_combat_authority.gd:107-110`: deferred-presentation receipt IDs pack `source_id` and only the low 32 bits of an unbounded sequence. A sequence separated by `2^32` aliases the same receipt, and source IDs at or above `2^31` produce a negative receipt that disables deferred presentation. Production sources and sessions are far below those limits; use a collision-free ID allocator or enforce bounds if such sessions/IDs are supported.
+- `scripts/audio/station_machinery_ambience.gd:123-147`: `play_cue()` documents that `true` means the audio backend accepted playback, but returns `true` immediately after `AudioStreamPlayer3D.play()` without checking `playing`. Dummy mode correctly returns `false`; confirm real-backend rejection behaviour before changing the API contract or implementation.
