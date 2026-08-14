@@ -375,6 +375,7 @@ func _get_bunk_local_center(index: int) -> Vector3:
 
 func _create_materials() -> void:
 	_materials["shell_light"] = _material(Color("cbd2d0"), 0.34, 0.32)
+	_materials["shell_light_floor"] = _material(Color("cbd2d0"), 0.34, 0.32)
 	_materials["shell_mid"] = _material(Color("8d9999"), 0.44, 0.38)
 	_materials["structural"] = _material(Color("35464a"), 0.58, 0.34)
 	_materials["graphite"] = _material(Color("172226"), 0.48, 0.46)
@@ -390,14 +391,23 @@ func _create_materials() -> void:
 	_materials["screen"] = _material(Color("b4efec"), 0.08, 0.24, Color("51cdd2"), 1.35)
 	_materials["warm_light"] = _material(Color("f4ede0"), 0.02, 0.2, Color("ffe6bd"), 2.3)
 	_materials["glass"] = _transparent_material(Color(0.33, 0.67, 0.73, 0.2), 0.06, 0.12)
-	var pressure_panel_albedo := load("res://assets/materials/arrow-hull-albedo-v1.png") as Texture2D
-	if pressure_panel_albedo != null:
-		for key in ["shell_light", "shell_mid"]:
+	var pressure_panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
+	var pressure_panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
+	var pressure_panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	if pressure_panel_albedo != null and pressure_panel_normal != null and pressure_panel_roughness != null:
+		for key in ["shell_light", "shell_light_floor", "shell_mid"]:
 			var panel_material := _materials[key] as StandardMaterial3D
 			panel_material.albedo_texture = pressure_panel_albedo
+			panel_material.normal_enabled = true
+			panel_material.normal_texture = pressure_panel_normal
+			panel_material.normal_scale = 0.48
+			panel_material.roughness_texture = pressure_panel_roughness
+			panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 			panel_material.uv1_triplanar = true
+			panel_material.uv1_world_triplanar = true
 			panel_material.uv1_triplanar_sharpness = 4.0
 			panel_material.uv1_scale = Vector3(0.28, 0.28, 0.28)
+			panel_material.texture_repeat = true
 
 
 func _build_structure() -> void:
@@ -418,7 +428,7 @@ func _build_connector(structure: Node3D) -> void:
 	connector.set_meta("clear_width", CONNECTOR_CLEAR_WIDTH)
 	structure.add_child(connector)
 
-	_box(connector, "ConnectorFloor", Vector3(0, -0.25, -1.7), Vector3(5.4, 0.5, 4.8), _materials["shell_light"])
+	_box(connector, "ConnectorFloor", Vector3(0, -0.25, -1.7), Vector3(5.4, 0.5, 4.8), _materials["shell_light_floor"])
 	_box(connector, "ConnectorInset", Vector3(0, 0.018, -1.65), Vector3(4.5, 0.035, 4.25), _materials["floor"], false)
 	for side in [-1.0, 1.0]:
 		var rail_x := float(side) * 2.63
@@ -456,8 +466,8 @@ func _build_habitat_corridor(structure: Node3D) -> void:
 	habitat.set_meta("clear_width", CORRIDOR_CLEAR_WIDTH)
 	structure.add_child(habitat)
 
-	_box(habitat, "HabitatFloor", Vector3(0, -0.25, 10.15), Vector3(12.4, 0.5, 15.7), _materials["shell_light"])
-	_box(habitat, "EntryVestibuleFloor", Vector3(0, -0.25, 1.5), Vector3(5.35, 0.5, 1.6), _materials["shell_light"])
+	_box(habitat, "HabitatFloor", Vector3(0, -0.25, 10.15), Vector3(12.4, 0.5, 15.7), _materials["shell_light_floor"])
+	_box(habitat, "EntryVestibuleFloor", Vector3(0, -0.25, 1.5), Vector3(5.35, 0.5, 1.6), _materials["shell_light_floor"])
 	_box(habitat, "HabitatCeiling", Vector3(0, 4.65, 10.15), Vector3(12.4, 0.46, 15.7), _materials["shell_mid"])
 	_box(habitat, "CorridorLane", Vector3(0, 0.022, 10.15), Vector3(4.6, 0.04, 15.15), _materials["floor"], false)
 	for edge_x in [-2.26, 2.26]:
@@ -539,7 +549,7 @@ func _build_observation_common(structure: Node3D) -> void:
 	common.set_meta("evidence_status", EVIDENCE_STATUS)
 	structure.add_child(common)
 
-	_box(common, "CommonFloor", Vector3(0, -0.25, 23.2), Vector3(15.0, 0.5, 10.6), _materials["shell_light"])
+	_box(common, "CommonFloor", Vector3(0, -0.25, 23.2), Vector3(15.0, 0.5, 10.6), _materials["shell_light_floor"])
 	_box(common, "CommonCeiling", Vector3(0, 4.85, 23.2), Vector3(15.0, 0.46, 10.6), _materials["shell_mid"])
 	_box(common, "CommonFloorInset", Vector3(0, 0.025, 23.2), Vector3(13.8, 0.045, 9.45), _materials["floor"], false)
 	# Front partitions retain the compact spine entrance instead of turning the

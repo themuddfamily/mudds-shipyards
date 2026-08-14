@@ -44,6 +44,21 @@ const TORRENT_HERO_RUNTIME := {
 	},
 }
 
+const SYMMETRIC_TRIPLANAR_RUNTIME := {
+	"albedo": {
+		"path": "res://assets/materials/procedural-panel-triplanar-albedo-v2.png",
+		"sha256": "5477c96d6270815e87ddd7d394e15915d2848aa388615a6d595f0fc668e705c1",
+	},
+	"normal": {
+		"path": "res://assets/materials/procedural-panel-triplanar-normal-v2.png",
+		"sha256": "a55957b6ea2a90c5d2e82f7ed579dcd59b34ebc534714c41b262a18bbd2e9fcd",
+	},
+	"roughness": {
+		"path": "res://assets/materials/procedural-panel-triplanar-roughness-v2.png",
+		"sha256": "b35de83ad27917dbb99c42decd828ac76569b09db797916c814a7ca114e6eb6f",
+	},
+}
+
 const LEGACY_DERIVATIVE_HASHES := {
 	"res://assets/materials/arrow-hull-normal-v1.png": "cae5b106246d7ab32f5b608c26df70e52548a1890c425fb51b5d692c43f1ec74",
 	"res://assets/materials/arrow-hull-roughness-v1.png": "2391f4f3e5c9f2b2770d99a6aa6a093a4bef833e0b91a65410ae70426b2a5ae8",
@@ -68,6 +83,8 @@ func _run() -> void:
 	_test_legacy_derivatives_were_not_overwritten()
 	_test_torrent_hero_source_contracts()
 	_test_torrent_hero_runtime_maps()
+	_test_symmetric_triplanar_runtime_maps()
+	_test_symmetric_triplanar_provenance()
 	_finish()
 
 
@@ -166,6 +183,62 @@ func _test_torrent_hero_runtime_maps() -> void:
 	)
 
 
+func _test_symmetric_triplanar_runtime_maps() -> void:
+	var images := {}
+	for map_key: String in SYMMETRIC_TRIPLANAR_RUNTIME:
+		var spec: Dictionary = SYMMETRIC_TRIPLANAR_RUNTIME[map_key]
+		var path := str(spec.path)
+		var image := _load_image(path)
+		images[map_key] = image
+		_check(image != null, "%s symmetric triplanar map exists" % map_key)
+		_check(
+			image != null and image.get_size() == Vector2i(512, 512),
+			"%s symmetric triplanar map is exactly 512 square" % map_key
+		)
+		_check(
+			_sha256(path) == str(spec.sha256),
+			"%s symmetric triplanar map has its deterministic registered hash" % map_key
+		)
+		_check(
+			_import_contains(path, "mipmaps/generate=true"),
+			"%s symmetric triplanar map imports with mipmaps" % map_key
+		)
+
+	var albedo := images.get("albedo") as Image
+	var normal := images.get("normal") as Image
+	var roughness := images.get("roughness") as Image
+	if albedo == null or normal == null or roughness == null:
+		return
+	_check(_scalar_map_has_exact_d4_symmetry(albedo), "triplanar albedo is exactly mirror- and 90-degree-rotation symmetric")
+	_check(_scalar_map_has_exact_d4_symmetry(roughness), "triplanar roughness is exactly mirror- and 90-degree-rotation symmetric")
+	_check(_albedo_is_lighting_neutral(albedo), "triplanar albedo is neutral grayscale with no privileged lighting direction")
+	_check(_normal_has_d4_vector_symmetry(normal), "triplanar normal vectors transform correctly under mirrors and 90-degree rotation")
+	_check(_edges_are_visually_tileable(albedo), "triplanar albedo has continuous repeating edges")
+	_check(_edges_are_visually_tileable(normal), "triplanar normal has continuous repeating edges")
+	_check(_edges_are_visually_tileable(roughness), "triplanar roughness has continuous repeating edges")
+	var normal_path := str(SYMMETRIC_TRIPLANAR_RUNTIME.normal.path)
+	var importer_inverts_y := _import_contains(normal_path, "process/normal_map_invert_y=true")
+	_check(_import_contains(normal_path, "compress/normal_map=1"), "triplanar normal uses Godot normal-map import mode")
+	_check(importer_inverts_y, "triplanar normal importer performs the required image-row Y conversion")
+	_check(_normal_is_plausible(normal), "triplanar normal contains bounded tangent-space relief")
+	_check(
+		_normal_import_matches_height_gradient(albedo, normal, importer_inverts_y),
+		"triplanar effective imported normal follows the registered Godot height-gradient direction"
+	)
+	_check(_roughness_is_plausible(roughness), "triplanar roughness remains in a restrained physical range")
+
+
+func _test_symmetric_triplanar_provenance() -> void:
+	var assets_file := FileAccess.open(ProjectSettings.globalize_path("res://ASSETS.md"), FileAccess.READ)
+	var registration := assets_file.get_as_text() if assets_file != null else ""
+	_check(
+		"procedural-panel-triplanar-albedo-v2.png" in registration
+		and "tools/generate_material_maps.gd" in registration
+		and "project-original" in registration,
+		"ASSETS register records the triplanar set's project-original deterministic provenance"
+	)
+
+
 func _load_image(path: String) -> Image:
 	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
 	return image if image != null and not image.is_empty() else null
@@ -213,6 +286,59 @@ func _edges_are_visually_tileable(image: Image) -> bool:
 
 func _rgb_distance(a: Color, b: Color) -> float:
 	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b)
+
+
+func _scalar_map_has_exact_d4_symmetry(image: Image) -> bool:
+	var last := image.get_width() - 1
+	if image.get_width() != image.get_height():
+		return false
+	for y in image.get_height():
+		for x in image.get_width():
+			var value := image.get_pixel(x, y)
+			if (
+				value != image.get_pixel(last - x, y)
+				or value != image.get_pixel(x, last - y)
+				or value != image.get_pixel(last - y, x)
+			):
+				return false
+	return true
+
+
+func _albedo_is_lighting_neutral(image: Image) -> bool:
+	var minimum := 1.0
+	var maximum := 0.0
+	for y in range(0, image.get_height(), 7):
+		for x in range(0, image.get_width(), 7):
+			var pixel := image.get_pixel(x, y)
+			if not is_zero_approx(pixel.r - pixel.g) or not is_zero_approx(pixel.r - pixel.b):
+				return false
+			minimum = minf(minimum, pixel.r)
+			maximum = maxf(maximum, pixel.r)
+	return minimum >= 0.5 and maximum <= 0.93 and maximum - minimum >= 0.25
+
+
+func _normal_has_d4_vector_symmetry(image: Image) -> bool:
+	var last := image.get_width() - 1
+	if image.get_width() != image.get_height():
+		return false
+	var tolerance := 2.1 / 255.0
+	for y in range(0, image.get_height(), 3):
+		for x in range(0, image.get_width(), 3):
+			var source := image.get_pixel(x, y)
+			var source_vector := Vector3(source.r * 2.0 - 1.0, source.g * 2.0 - 1.0, source.b * 2.0 - 1.0)
+			var mirror := image.get_pixel(last - x, y)
+			var mirror_vector := Vector3(mirror.r * 2.0 - 1.0, mirror.g * 2.0 - 1.0, mirror.b * 2.0 - 1.0)
+			if absf(mirror_vector.x + source_vector.x) > tolerance:
+				return false
+			if absf(mirror_vector.y - source_vector.y) > tolerance or absf(mirror_vector.z - source_vector.z) > tolerance:
+				return false
+			var rotated := image.get_pixel(last - y, x)
+			var rotated_vector := Vector3(rotated.r * 2.0 - 1.0, rotated.g * 2.0 - 1.0, rotated.b * 2.0 - 1.0)
+			if absf(rotated_vector.x + source_vector.y) > tolerance:
+				return false
+			if absf(rotated_vector.y - source_vector.x) > tolerance or absf(rotated_vector.z - source_vector.z) > tolerance:
+				return false
+	return true
 
 
 func _normal_is_plausible(image: Image) -> bool:

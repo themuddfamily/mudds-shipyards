@@ -455,6 +455,7 @@ func _index_semantics() -> void:
 func _create_materials() -> void:
 	_materials["ceramic"] = _material(Color("d6dedb"), 0.32, 0.34)
 	_materials["ceramic_warm"] = _material(Color("b8c2be"), 0.3, 0.39)
+	_materials["ceramic_floor"] = _material(Color("b8c2be"), 0.3, 0.39)
 	_materials["steel_blue"] = _material(Color("315868"), 0.68, 0.28)
 	_materials["deep_blue"] = _material(Color("102d3b"), 0.52, 0.43)
 	_materials["graphite"] = _material(Color("172329"), 0.55, 0.48)
@@ -469,14 +470,23 @@ func _create_materials() -> void:
 	_materials["glass"] = _transparent_material(Color(0.2, 0.72, 0.78, 0.22), 0.16, 0.12)
 	_materials["screen"] = _material(Color("8debe6"), 0.05, 0.22, Color("49cbd2"), 1.35)
 
-	var panel_texture := load("res://assets/materials/arrow-hull-albedo-v1.png") as Texture2D
-	if panel_texture != null:
-		for key in ["ceramic", "ceramic_warm", "steel_blue", "deck"]:
+	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
+	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
+	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	if panel_albedo != null and panel_normal != null and panel_roughness != null:
+		for key in ["ceramic", "ceramic_warm", "ceramic_floor", "steel_blue", "deck"]:
 			var panel := _materials[key] as StandardMaterial3D
-			panel.albedo_texture = panel_texture
+			panel.albedo_texture = panel_albedo
+			panel.normal_enabled = true
+			panel.normal_texture = panel_normal
+			panel.normal_scale = 0.48
+			panel.roughness_texture = panel_roughness
+			panel.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 			panel.uv1_triplanar = true
+			panel.uv1_world_triplanar = true
 			panel.uv1_triplanar_sharpness = 4.0
-			panel.uv1_scale = Vector3.ONE * (0.22 if key == "deck" else 0.3)
+			panel.uv1_scale = Vector3.ONE * (0.22 if key in ["deck", "ceramic_floor"] else 0.3)
+			panel.texture_repeat = true
 			panel.clearcoat_enabled = true
 			panel.clearcoat = 0.28
 			panel.clearcoat_roughness = 0.38
@@ -495,7 +505,7 @@ func _build_connection_lattice() -> void:
 	# A short east-facing leaf lands on the open edge of the existing elevated
 	# registry shelf. The main approach remains west of its back wall, so only
 	# this explicitly named handoff shares legacy floor collision.
-	var handoff := _rounded_box(root_node, "ConnectionHandoffDeck", Vector3(3.5, -0.3, -3.2), Vector3(7.0, 0.6, 3.0), _materials["ceramic_warm"])
+	var handoff := _rounded_box(root_node, "ConnectionHandoffDeck", Vector3(3.5, -0.3, -3.2), Vector3(7.0, 0.6, 3.0), _materials["ceramic_floor"])
 	handoff.set_meta("intentional_connection_overlap", true)
 
 	for side in [-1.0, 1.0]:
@@ -573,7 +583,7 @@ func _build_service_room() -> void:
 	room.set_meta("evidence_status", EVIDENCE_STATUS)
 	add_child(room)
 
-	_rounded_box(room, "RoomFloor", Vector3(19.25, -0.19, 29.0), Vector3(6.2, 0.38, 10.0), _materials["ceramic_warm"])
+	_rounded_box(room, "RoomFloor", Vector3(19.25, -0.19, 29.0), Vector3(6.2, 0.38, 10.0), _materials["ceramic_floor"])
 	_rounded_box(room, "RoomRoof", Vector3(19.25, 4.55, 29.0), Vector3(6.2, 0.42, 10.0), _materials["ceramic"])
 	_rounded_box(room, "OuterWallLower", Vector3(22.2, 1.0, 29.0), Vector3(0.42, 2.0, 10.0), _materials["steel_blue"])
 	_rounded_box(room, "OuterWallUpper", Vector3(22.2, 4.0, 29.0), Vector3(0.42, 1.1, 10.0), _materials["ceramic"])

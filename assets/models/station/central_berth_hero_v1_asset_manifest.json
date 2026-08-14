@@ -1,7 +1,7 @@
 {
   "asset_id": "mudds.station.central_berth_hero.v1",
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "30ae770d8d31d89dceab7334be1fa373ca4caf20469ae4944c00f62773cf8b14",
+  "blend_sha256": "29b6a145ed8041b9018d3d4e0855e07ee86462617722f9772211cf322804e80b",
   "blender_version": "4.0.2",
   "collision_authority": false,
   "coordinate_contract": {
@@ -40,8 +40,8 @@
   ],
   "gameplay_authority": false,
   "generator": "tools/blender/generate_central_berth_hero_v1.py",
-  "generator_sha256": "68a78fcdd9f1370be7d92a633ce6e7ad7a77fb5908c49baa4442912c704fa625",
-  "glb_sha256": "6d35d3c61dba7ba841ba062be65e6ef8cb56286953fb48551a7cfcfcd8423a7e",
+  "generator_sha256": "d27b0a615b645f0885a083e53320ab4c8f76ead19fcc592bc2c92fc52a3b74d1",
+  "glb_sha256": "c4eb42c2b8e70f5f5e6d05542e823797705cdd8c94db9b3963a3148529014836",
   "hierarchy_contract": [
     "CentralBerthHeroArt",
     "deck_panels",
@@ -289,6 +289,23 @@
   ],
   "source_path": "art_source/station/central_berth_hero_v1.blend",
   "uv0_contract": {
+    "deck_top_metric_uv0": {
+      "degenerate_top_triangle_count": 0,
+      "density_maximum_relative_deviation": 4.7e-05,
+      "maximum_density_metres_per_uv": 7.000196,
+      "maximum_singular_value_anisotropy": 1.000114,
+      "median_density_metres_per_uv": 7.0,
+      "metres_per_texture_tile": 7.0,
+      "minimum_density_metres_per_uv": 6.999672,
+      "p95_singular_value_anisotropy": 1.000071,
+      "runtime_axes_after_gltf_v_flip": "+U=>Godot +X, +V=>Godot -Z",
+      "runtime_outward_non_mirrored": true,
+      "source_axes_before_gltf_v_flip": "+U=>Godot +X, +V=>Godot +Z",
+      "source_jacobian_determinant_signs": [
+        1
+      ],
+      "top_triangle_sample_count": 190
+    },
     "method": "authored_component_uv0_preserved_through_static_join",
     "minimum_uv_axis_span": 0.75,
     "runtime_meshes_with_uv0": 8,

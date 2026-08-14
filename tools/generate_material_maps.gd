@@ -6,6 +6,14 @@ extends SceneTree
 ## they are not geometry-derived or measured surface data.
 
 const HERO_RUNTIME_SIZE := 1024
+const TRIPLANAR_RUNTIME_SIZE := 512
+const TRIPLANAR_CELL_SIZE := 64
+
+const TRIPLANAR_RUNTIME_PATHS := {
+	"albedo": "res://assets/materials/procedural-panel-triplanar-albedo-v2.png",
+	"normal": "res://assets/materials/procedural-panel-triplanar-normal-v2.png",
+	"roughness": "res://assets/materials/procedural-panel-triplanar-roughness-v2.png",
+}
 
 const HERO_SOURCE_CONTRACTS := {
 	"trim": {
@@ -101,6 +109,7 @@ func _generate_all() -> void:
 	var trim_runtime := _runtime_copy(trim_source)
 	var flat_runtime := _runtime_copy(flat_source)
 	var registered_maps := _derive_registered_maps(trim_runtime)
+	var triplanar_maps := _derive_symmetric_triplanar_maps()
 	var outputs := {
 		str(HERO_RUNTIME_PATHS.albedo): trim_runtime,
 		str(HERO_RUNTIME_PATHS.normal): registered_maps.normal,
@@ -108,6 +117,9 @@ func _generate_all() -> void:
 		str(HERO_RUNTIME_PATHS.orm): registered_maps.orm,
 		str(HERO_RUNTIME_PATHS.emissive): registered_maps.emissive,
 		str(HERO_RUNTIME_PATHS.flat_study): flat_runtime,
+		str(TRIPLANAR_RUNTIME_PATHS.albedo): triplanar_maps.albedo,
+		str(TRIPLANAR_RUNTIME_PATHS.normal): triplanar_maps.normal,
+		str(TRIPLANAR_RUNTIME_PATHS.roughness): triplanar_maps.roughness,
 	}
 
 	for output_path: String in outputs:
@@ -117,10 +129,11 @@ func _generate_all() -> void:
 			push_error("Unable to save %s: %s" % [output_path, error_string(save_error)])
 			quit(1)
 			return
-		print("GENERATED_TORRENT_HERO_MAP: %s" % output_path)
+		print("GENERATED_MATERIAL_MAP: %s" % output_path)
 
 	print(
-		"MATERIAL_MAP_GENERATION_OK: 6 Torrent hero runtime assets; "
+		"MATERIAL_MAP_GENERATION_OK: 6 Torrent hero runtime assets, "
+		+ "3 symmetric procedural triplanar PBR assets; "
 		+ "%d legacy v1 derivatives preserved, %d regenerated from the v1 recipe"
 		% [LEGACY_DERIVATIVE_HASHES.size() - legacy_regenerated, legacy_regenerated]
 	)
@@ -252,6 +265,107 @@ func _runtime_copy(source: Image) -> Image:
 	runtime.resize(HERO_RUNTIME_SIZE, HERO_RUNTIME_SIZE, Image.INTERPOLATE_LANCZOS)
 	runtime.convert(Image.FORMAT_RGB8)
 	return runtime
+
+
+func _derive_symmetric_triplanar_maps() -> Dictionary:
+	# This material is deliberately procedural and lighting-neutral. Its colour
+	# contains no preferred light direction; physical relief exists only in the
+	# registered normal map. Every scalar term is invariant under X/Y reflection
+	# and 90-degree rotation so triplanar axis changes cannot rotate or mirror a
+	# readable atlas motif on station architecture or procedural hull lofts.
+	var albedo := Image.create(
+		TRIPLANAR_RUNTIME_SIZE, TRIPLANAR_RUNTIME_SIZE, false, Image.FORMAT_RGB8
+	)
+	var normal := Image.create(
+		TRIPLANAR_RUNTIME_SIZE, TRIPLANAR_RUNTIME_SIZE, false, Image.FORMAT_RGB8
+	)
+	var roughness := Image.create(
+		TRIPLANAR_RUNTIME_SIZE, TRIPLANAR_RUNTIME_SIZE, false, Image.FORMAT_L8
+	)
+	for y in TRIPLANAR_RUNTIME_SIZE:
+		for x in TRIPLANAR_RUNTIME_SIZE:
+			var sample := _triplanar_scalar_sample(x, y)
+			var tone := float(sample.albedo)
+			albedo.set_pixel(x, y, Color(tone, tone, tone))
+			roughness.set_pixel(x, y, Color(float(sample.roughness), 0.0, 0.0))
+
+			var left_height := float(_triplanar_scalar_sample(
+				posmod(x - 1, TRIPLANAR_RUNTIME_SIZE), y
+			).height)
+			var right_height := float(_triplanar_scalar_sample(
+				posmod(x + 1, TRIPLANAR_RUNTIME_SIZE), y
+			).height)
+			var up_height := float(_triplanar_scalar_sample(
+				x, posmod(y - 1, TRIPLANAR_RUNTIME_SIZE)
+			).height)
+			var down_height := float(_triplanar_scalar_sample(
+				x, posmod(y + 1, TRIPLANAR_RUNTIME_SIZE)
+			).height)
+			var direction := Vector3(
+				-(right_height - left_height) * 2.8,
+				-(down_height - up_height) * 2.8,
+				1.0
+			).normalized()
+			normal.set_pixel(
+				x,
+				y,
+				Color(
+					direction.x * 0.5 + 0.5,
+					direction.y * 0.5 + 0.5,
+					direction.z * 0.5 + 0.5
+				)
+			)
+	return {"albedo": albedo, "normal": normal, "roughness": roughness}
+
+
+func _triplanar_scalar_sample(x: int, y: int) -> Dictionary:
+	var cell_x := posmod(x, TRIPLANAR_CELL_SIZE)
+	var cell_y := posmod(y, TRIPLANAR_CELL_SIZE)
+	var edge_x := mini(cell_x, TRIPLANAR_CELL_SIZE - 1 - cell_x)
+	var edge_y := mini(cell_y, TRIPLANAR_CELL_SIZE - 1 - cell_y)
+	var nearest_edge := mini(edge_x, edge_y)
+
+	var height := 0.72
+	var tone := 0.91
+	var roughness := 0.61
+	if nearest_edge <= 1:
+		height = 0.05
+		tone = 0.54
+		roughness = 0.80
+	elif nearest_edge == 2:
+		height = 0.34
+		tone = 0.72
+		roughness = 0.70
+	elif nearest_edge == 3:
+		height = 0.58
+		tone = 0.84
+		roughness = 0.65
+
+	# Four identical inset fasteners per cell. Squared distances avoid any
+	# platform-dependent trigonometry and retain exact D4 scalar symmetry.
+	var fastener_x := mini(absi(cell_x - 10), absi(cell_x - 53))
+	var fastener_y := mini(absi(cell_y - 10), absi(cell_y - 53))
+	var fastener_radius_squared := fastener_x * fastener_x + fastener_y * fastener_y
+	if fastener_radius_squared <= 5:
+		height = 0.27
+		tone = 0.64
+		roughness = 0.43
+	elif fastener_radius_squared <= 12:
+		height = 0.49
+		tone = 0.78
+		roughness = 0.53
+
+	# A concentric centre service ring adds readable mid-scale detail without
+	# introducing arrows, text, or a privileged projection orientation.
+	var centre_x := mini(absi(cell_x - 31), absi(cell_x - 32))
+	var centre_y := mini(absi(cell_y - 31), absi(cell_y - 32))
+	var centre_radius_squared := centre_x * centre_x + centre_y * centre_y
+	if centre_radius_squared >= 52 and centre_radius_squared <= 72:
+		height = 0.62
+		tone = 0.86
+		roughness = 0.67
+
+	return {"height": height, "albedo": tone, "roughness": roughness}
 
 
 func _derive_registered_maps(albedo: Image) -> Dictionary:

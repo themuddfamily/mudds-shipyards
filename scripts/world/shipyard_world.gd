@@ -2166,7 +2166,10 @@ func _build_architecture() -> void:
 
 	# Freestanding rounded mast pairs establish several readable heights without
 	# becoming a roof cage.
-	for mast_position in [Vector3(-11.0, 0.0, 10.0), Vector3(11.0, 0.0, 10.0), Vector3(-11.0, 0.0, -23.0), Vector3(11.0, 0.0, -23.0)]:
+	# Keep the port mast outside the observation-stair approach while retaining
+	# physical support on CentralJunction. Its previous (-11, 0, 10) position
+	# overlapped the production player's centreline before the first tread.
+	for mast_position in [Vector3(-11.0, 0.0, 14.0), Vector3(11.0, 0.0, 10.0), Vector3(-11.0, 0.0, -23.0), Vector3(11.0, 0.0, -23.0)]:
 		_cylinder(shell, "DockMast", mast_position + Vector3(0, 5.2, 0), 0.46, 10.4, _materials["steel_blue"], true)
 		_torus(shell, "DockMastCollar", mast_position + Vector3(0, 1.0, 0), 0.55, 0.74, _materials["orange"])
 		_box(shell, "MastCap", mast_position + Vector3(0, 10.15, 0), Vector3(2.4, 0.55, 1.6), _materials["ivory"], false)
@@ -2626,14 +2629,50 @@ func _build_catwalks_and_control_room() -> void:
 	# spawn. The observed spawn/ladder relationship is source-supported; this
 	# modern stair geometry and exact placement are provisional.
 	_box(upper, "ObservationLanding", Vector3(-11.5, 3.05, 3.0), Vector3(4.6, 0.55, 4.4), _materials["deck_light"])
+	# CharacterBody3D has no implicit step-up solver. The former seven physical
+	# boxes rose 0.425 m per tread, so continuous W stalled against the first
+	# vertical face even though the stairs looked traversable. One rendered and
+	# colliding ramp is now the true walking surface and terminates flush inside
+	# the unchanged landing. Seven shallow overlays retain tread rhythm without
+	# diverging materially from the capsule's physical foot plane.
+	var ramp_surface_start := Vector3(-11.5, 0.0, 9.6)
+	var ramp_surface_finish := Vector3(-11.5, 3.325, 5.2)
+	var ramp_down_direction := ramp_surface_start - ramp_surface_finish
+	var ramp_up_normal := Vector3(0.0, ramp_down_direction.z, -ramp_down_direction.y).normalized()
+	var stair_ramp := StaticBody3D.new()
+	stair_ramp.name = "JunctionAccessRamp"
+	stair_ramp.collision_layer = WORLD_LAYER
+	stair_ramp.collision_mask = 0
+	stair_ramp.position = (ramp_surface_start + ramp_surface_finish) * 0.5 - ramp_up_normal * 0.11
+	stair_ramp.quaternion = Quaternion(Vector3.BACK, ramp_down_direction.normalized())
+	stair_ramp.set_meta("continuous_player_stair", true)
+	stair_ramp.set_meta("visible_tread_count", 7)
+	upper.add_child(stair_ramp)
+	var stair_ramp_mesh_instance := MeshInstance3D.new()
+	stair_ramp_mesh_instance.name = "Mesh"
+	var stair_ramp_mesh := BoxMesh.new()
+	stair_ramp_mesh.size = Vector3(3.6, 0.22, ramp_down_direction.length())
+	stair_ramp_mesh_instance.mesh = stair_ramp_mesh
+	stair_ramp_mesh_instance.material_override = _materials["deck_light"]
+	stair_ramp.add_child(stair_ramp_mesh_instance)
+	var stair_ramp_collision := CollisionShape3D.new()
+	stair_ramp_collision.name = "Collision"
+	var stair_ramp_shape := BoxShape3D.new()
+	stair_ramp_shape.size = Vector3(3.6, 0.22, ramp_down_direction.length())
+	stair_ramp_collision.shape = stair_ramp_shape
+	stair_ramp.add_child(stair_ramp_collision)
 	for step in 7:
 		var progress := float(step) / 6.0
+		var tread_z := lerpf(ramp_surface_start.z - 0.12, ramp_surface_finish.z + 0.12, progress)
+		var ramp_progress := inverse_lerp(ramp_surface_start.z, ramp_surface_finish.z, tread_z)
+		var tread_top := lerpf(ramp_surface_start.y, ramp_surface_finish.y, ramp_progress)
 		_box(
 			upper,
-			"JunctionAccessStep",
-			Vector3(-11.5, 0.16 + progress * 2.55, 9.0 - progress * 3.6),
-			Vector3(3.6, 0.34, 1.05),
-			_materials["deck_light"]
+			"JunctionAccessTread%02d" % (step + 1),
+			Vector3(-11.5, tread_top, tread_z),
+			Vector3(3.6, 0.024, 0.12),
+			_materials["deck_light"],
+			false
 		)
 	for side in [-1.0, 1.0]:
 		_box(upper, "JunctionStairRail", Vector3(-11.5 + side * 1.85, 2.2, 7.2), Vector3(0.15, 0.15, 5.2), _materials["orange"], true, Vector3(38, 0, 0))

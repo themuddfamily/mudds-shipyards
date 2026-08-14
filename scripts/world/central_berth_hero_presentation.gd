@@ -296,6 +296,22 @@ func _append_manifest_errors(errors: PackedStringArray, mesh_count: int, surface
 		or surface_count != mesh_count
 	):
 		errors.append("manifest_runtime_geometry_or_uv0_contract_drift")
+	var deck_uv_metrics := (
+		(_manifest.get("uv0_contract", {}) as Dictionary).get("deck_top_metric_uv0", {})
+		as Dictionary
+	)
+	if (
+		int(deck_uv_metrics.get("top_triangle_sample_count", 0)) != 190
+		or int(deck_uv_metrics.get("degenerate_top_triangle_count", -1)) != 0
+		or float(deck_uv_metrics.get("maximum_singular_value_anisotropy", 99.0)) > 1.25
+		or float(deck_uv_metrics.get("p95_singular_value_anisotropy", 99.0)) > 1.25
+		or float(deck_uv_metrics.get("density_maximum_relative_deviation", 99.0)) > 0.25
+		or PackedInt32Array(deck_uv_metrics.get("source_jacobian_determinant_signs", [])) != PackedInt32Array([1])
+		or not bool(deck_uv_metrics.get("runtime_outward_non_mirrored", false))
+		or not is_equal_approx(float(deck_uv_metrics.get("metres_per_texture_tile", 0.0)), 7.0)
+		or str(deck_uv_metrics.get("runtime_axes_after_gltf_v_flip", "")) != "+U=>Godot +X, +V=>Godot -Z"
+	):
+		errors.append("manifest_deck_top_metric_uv0_contract_drift")
 
 
 func _append_integrity_errors(errors: PackedStringArray) -> void:

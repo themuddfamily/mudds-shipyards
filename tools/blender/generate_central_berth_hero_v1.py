@@ -15,6 +15,7 @@ from __future__ import annotations
 import bpy
 import hashlib
 import json
+import math
 from collections import Counter, defaultdict
 from pathlib import Path
 from mathutils import Vector
@@ -65,6 +66,7 @@ MATERIALS: dict[str, bpy.types.Material] = {}
 SOURCE_PARTS: list[bpy.types.Object] = []
 SOURCE_COUNTS_BY_ROOT: Counter[str] = Counter()
 SOURCE_COUNTS_BY_MATERIAL: Counter[str] = Counter()
+DECK_UV_METRES_PER_TILE = 7.0
 
 
 def sha256(path: Path) -> str:
@@ -104,6 +106,64 @@ def apply_modifiers(obj: bpy.types.Object) -> None:
     obj.select_set(False)
 
 
+def apply_metric_uv0(obj: bpy.types.Object, material_role: str) -> None:
+    """Apply deterministic physical-density UV0 after authored bevels.
+
+    DeckComposite uses a canonical world-aligned top projection. Blender flips
+    source V during glTF export, so source ``U=+X, V=+Godot Z`` becomes runtime
+    ``U=+X, V=-Godot Z``. On an upward face that runtime basis is non-mirrored:
+    ``cross(dP/dU, dP/dV)`` points outward +Y in Godot.
+    """
+    if material_role != "DeckComposite":
+        return
+    mesh = obj.data
+    while mesh.uv_layers:
+        mesh.uv_layers.remove(mesh.uv_layers[0])
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    world_matrix = obj.matrix_world
+    normal_matrix = world_matrix.to_3x3().inverted_safe().transposed()
+    for polygon in mesh.polygons:
+        coordinates = [
+            world_matrix @ mesh.vertices[mesh.loops[index].vertex_index].co
+            for index in polygon.loop_indices
+        ]
+        root_normal = (normal_matrix @ polygon.normal).normalized()
+        projection_axis = max(
+            range(3), key=lambda axis: (abs(float(root_normal[axis])), -axis)
+        )
+        projected = [
+            (coordinate.y, coordinate.z) if projection_axis == 0 else
+            (coordinate.x, coordinate.z) if projection_axis == 1 else
+            (coordinate.x, -coordinate.y)
+            for coordinate in coordinates
+        ]
+
+        # Keep every source polygon negative-handed. Blender's glTF V flip then
+        # publishes one positive outward tangent frame at runtime. The top-plane
+        # projection above already has the canonical +U axis, so this correction
+        # is normally needed only on side and bevel polygons.
+        source_handedness = 0.0
+        for triangle_index in range(1, len(coordinates) - 1):
+            edge_a = coordinates[triangle_index] - coordinates[0]
+            edge_b = coordinates[triangle_index + 1] - coordinates[0]
+            uv_a = Vector(projected[triangle_index]) - Vector(projected[0])
+            uv_b = Vector(projected[triangle_index + 1]) - Vector(projected[0])
+            uv_determinant = uv_a.x * uv_b.y - uv_a.y * uv_b.x
+            normal_alignment = root_normal.dot(edge_a.cross(edge_b))
+            if abs(uv_determinant) > 1e-12 and abs(normal_alignment) > 1e-12:
+                source_handedness = normal_alignment * uv_determinant
+                break
+        if source_handedness > 0.0:
+            projected = [(-value[0], value[1]) for value in projected]
+
+        for loop_index, value in zip(polygon.loop_indices, projected):
+            uv_layer.data[loop_index].uv = (
+                float(value[0]) / DECK_UV_METRES_PER_TILE,
+                float(value[1]) / DECK_UV_METRES_PER_TILE,
+            )
+    mesh.update()
+
+
 def finish_source_part(
     obj: bpy.types.Object,
     name: str,
@@ -123,6 +183,7 @@ def finish_source_part(
         modifier.limit_method = "ANGLE"
         modifier.affect = "EDGES"
         apply_modifiers(obj)
+    apply_metric_uv0(obj, material_role)
     obj["semantic_root"] = semantic_root
     obj["material_role"] = material_role
     obj["presentation_only"] = True
@@ -425,6 +486,7 @@ def uv_report(objects: list[bpy.types.Object]) -> dict:
         u_values = [loop.uv.x for loop in uv_layer.data]
         v_values = [loop.uv.y for loop in uv_layer.data]
         minimum_span = min(minimum_span, max(u_values) - min(u_values), max(v_values) - min(v_values))
+    deck_metrics = deck_top_uv_metrics(objects)
     return {
         "method": "authored_component_uv0_preserved_through_static_join",
         "runtime_meshes_with_uv0": uv_mesh_count,
@@ -432,6 +494,83 @@ def uv_report(objects: list[bpy.types.Object]) -> dict:
         "minimum_uv_axis_span": round(minimum_span if minimum_span != float("inf") else 0.0, 6),
         "texture_coordinate": "UV0/TEXCOORD_0",
         "triplanar": False,
+        "deck_top_metric_uv0": deck_metrics,
+    }
+
+
+def deck_top_uv_metrics(objects: list[bpy.types.Object]) -> dict:
+    anisotropy_values: list[float] = []
+    density_values: list[float] = []
+    source_determinant_signs: set[int] = set()
+    degenerate_triangle_count = 0
+    for obj in objects:
+        if obj.type != "MESH" or obj.get("material_role") != "DeckComposite":
+            continue
+        mesh = obj.data
+        uv_layer = mesh.uv_layers.active
+        if uv_layer is None:
+            continue
+        mesh.calc_loop_triangles()
+        normal_matrix = obj.matrix_world.to_3x3().inverted_safe().transposed()
+        for triangle in mesh.loop_triangles:
+            polygon = mesh.polygons[triangle.polygon_index]
+            root_normal = (normal_matrix @ polygon.normal).normalized()
+            if root_normal.z < 0.9:
+                continue
+            loops = list(triangle.loops)
+            points = []
+            uvs = []
+            for loop_index in loops:
+                vertex = obj.matrix_world @ mesh.vertices[mesh.loops[loop_index].vertex_index].co
+                points.append(Vector((vertex.x, -vertex.y)))  # Godot deck X/Z.
+                uvs.append(uv_layer.data[loop_index].uv.copy())
+            p1 = points[1] - points[0]
+            p2 = points[2] - points[0]
+            duv1 = uvs[1] - uvs[0]
+            duv2 = uvs[2] - uvs[0]
+            uv_determinant = duv1.x * duv2.y - duv1.y * duv2.x
+            if abs(uv_determinant) <= 1e-10:
+                degenerate_triangle_count += 1
+                continue
+            dp_du = (p1 * duv2.y - p2 * duv1.y) / uv_determinant
+            dp_dv = (-p1 * duv2.x + p2 * duv1.x) / uv_determinant
+            gram_a = dp_du.dot(dp_du)
+            gram_b = dp_du.dot(dp_dv)
+            gram_c = dp_dv.dot(dp_dv)
+            discriminant = math.sqrt(max((gram_a - gram_c) ** 2 + 4.0 * gram_b ** 2, 0.0))
+            lambda_max = max((gram_a + gram_c + discriminant) * 0.5, 0.0)
+            lambda_min = max((gram_a + gram_c - discriminant) * 0.5, 0.0)
+            if lambda_min <= 1e-10:
+                degenerate_triangle_count += 1
+                continue
+            anisotropy_values.append(math.sqrt(lambda_max / lambda_min))
+            jacobian_determinant = dp_du.x * dp_dv.y - dp_du.y * dp_dv.x
+            density_values.append(math.sqrt(abs(jacobian_determinant)))
+            source_determinant_signs.add(1 if jacobian_determinant > 0.0 else -1)
+
+    if not anisotropy_values or not density_values:
+        raise RuntimeError("DeckComposite has no measurable upward UV0 triangles")
+    anisotropy_values.sort()
+    density_values.sort()
+    median_density = density_values[len(density_values) // 2]
+    return {
+        "top_triangle_sample_count": len(anisotropy_values),
+        "degenerate_top_triangle_count": degenerate_triangle_count,
+        "maximum_singular_value_anisotropy": round(max(anisotropy_values), 6),
+        "p95_singular_value_anisotropy": round(
+            anisotropy_values[min(int(len(anisotropy_values) * 0.95), len(anisotropy_values) - 1)], 6
+        ),
+        "minimum_density_metres_per_uv": round(min(density_values), 6),
+        "median_density_metres_per_uv": round(median_density, 6),
+        "maximum_density_metres_per_uv": round(max(density_values), 6),
+        "density_maximum_relative_deviation": round(
+            max(abs(value - median_density) / median_density for value in density_values), 6
+        ),
+        "source_jacobian_determinant_signs": sorted(source_determinant_signs),
+        "source_axes_before_gltf_v_flip": "+U=>Godot +X, +V=>Godot +Z",
+        "runtime_axes_after_gltf_v_flip": "+U=>Godot +X, +V=>Godot -Z",
+        "runtime_outward_non_mirrored": True,
+        "metres_per_texture_tile": DECK_UV_METRES_PER_TILE,
     }
 
 

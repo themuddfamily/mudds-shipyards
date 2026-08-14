@@ -98,6 +98,19 @@ func _test_source_and_manifest() -> void:
 		and float(uv_contract.get("minimum_uv_axis_span", 0.0)) >= 0.75,
 		"every runtime batch retains non-collapsed authored UV0"
 	)
+	var deck_uv_metrics := uv_contract.get("deck_top_metric_uv0", {}) as Dictionary
+	_check(
+		int(deck_uv_metrics.get("top_triangle_sample_count", 0)) == 190
+		and int(deck_uv_metrics.get("degenerate_top_triangle_count", -1)) == 0
+		and float(deck_uv_metrics.get("maximum_singular_value_anisotropy", 99.0)) <= 1.25
+		and float(deck_uv_metrics.get("p95_singular_value_anisotropy", 99.0)) <= 1.25
+		and float(deck_uv_metrics.get("density_maximum_relative_deviation", 99.0)) <= 0.25
+		and PackedInt32Array(deck_uv_metrics.get("source_jacobian_determinant_signs", [])) == PackedInt32Array([1])
+		and bool(deck_uv_metrics.get("runtime_outward_non_mirrored", false))
+		and is_equal_approx(float(deck_uv_metrics.get("metres_per_texture_tile", 0.0)), 7.0)
+		and str(deck_uv_metrics.get("runtime_axes_after_gltf_v_flip", "")) == "+U=>Godot +X, +V=>Godot -Z",
+		"DeckComposite manifest freezes uniform 7 m UV0 density and canonical non-mirrored runtime axes"
+	)
 	var envelope := manifest.get("envelope_contract_godot_metres", {}) as Dictionary
 	_check(
 		_array_matches_vector3(envelope.get("minimum", []), Vector3(-12.75, -2.58, -27.75))

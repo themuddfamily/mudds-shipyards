@@ -297,11 +297,13 @@ func _index_routes() -> void:
 
 
 func _create_materials() -> void:
-	# Layered PBR values and a project-original triplanar aerospace panel albedo
+	# Layered PBR values and a project-original lighting-neutral station panel set
 	# keep broad pressure surfaces from reading as uniformly shaded primitives.
 	_materials["off_white"] = _material(Color("cbd0ce"), 0.38, 0.34)
+	_materials["off_white_floor"] = _material(Color("cbd0ce"), 0.38, 0.34)
 	_materials["panel_light"] = _material(Color("aeb8b8"), 0.42, 0.29)
 	_materials["warm_grey"] = _material(Color("818b8b"), 0.46, 0.39)
+	_materials["warm_grey_floor"] = _material(Color("818b8b"), 0.46, 0.39)
 	_materials["mid_grey"] = _material(Color("526166"), 0.58, 0.31)
 	_materials["hull_dark"] = _material(Color("29363a"), 0.62, 0.28)
 	_materials["graphite"] = _material(Color("141d21"), 0.48, 0.47)
@@ -318,14 +320,23 @@ func _create_materials() -> void:
 	_materials["glass"] = _transparent_material(Color(0.38, 0.68, 0.72, 0.18), 0.03, 0.08)
 	_materials["chair"] = _material(Color("4a5557"), 0.14, 0.7)
 	_materials["chair_pad"] = _material(Color("273236"), 0.04, 0.92)
-	var pressure_panel_albedo := load("res://assets/materials/arrow-hull-albedo-v1.png") as Texture2D
-	if pressure_panel_albedo != null:
-		for key in ["off_white", "panel_light", "warm_grey"]:
+	var pressure_panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
+	var pressure_panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
+	var pressure_panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	if pressure_panel_albedo != null and pressure_panel_normal != null and pressure_panel_roughness != null:
+		for key in ["off_white", "off_white_floor", "panel_light", "warm_grey", "warm_grey_floor"]:
 			var panel_material := _materials[key] as StandardMaterial3D
 			panel_material.albedo_texture = pressure_panel_albedo
+			panel_material.normal_enabled = true
+			panel_material.normal_texture = pressure_panel_normal
+			panel_material.normal_scale = 0.48
+			panel_material.roughness_texture = pressure_panel_roughness
+			panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 			panel_material.uv1_triplanar = true
+			panel_material.uv1_world_triplanar = true
 			panel_material.uv1_triplanar_sharpness = 4.0
 			panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
+			panel_material.texture_repeat = true
 
 
 func _build_structure() -> void:
@@ -345,9 +356,14 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 	lower.name = "LowerOpenDeck"
 	structure.add_child(lower)
 
-	_box(lower, "ConnectionDeck", Vector3(0.0, -0.32, 2.5), Vector3(7.0, 0.64, 5.0), _materials["off_white"])
-	_box(lower, "JunctionDeck", Vector3(0.0, -0.32, 7.5), Vector3(11.0, 0.64, 5.0), _materials["warm_grey"])
-	_box(lower, "JunctionInset", Vector3(0.0, 0.025, 7.35), Vector3(5.8, 0.05, 3.5), _materials["off_white"], false)
+	_box(lower, "ConnectionDeck", Vector3(0.0, -0.32, 2.5), Vector3(7.0, 0.64, 5.0), _materials["off_white_floor"])
+	_box(lower, "JunctionDeck", Vector3(0.0, -0.32, 7.5), Vector3(11.0, 0.64, 5.0), _materials["warm_grey_floor"])
+	# The stair begins west of ConnectionDeck. Its former first tread and ramp
+	# floated across a 0.8 m physics gap, while the port rail prevented a direct
+	# lateral mount. This compact landing overlaps the existing deck only at the
+	# open rail end and provides a straight, level run onto the unchanged ramp.
+	_box(lower, "StairBaseLanding", Vector3(-4.6, -0.32, 3.25), Vector3(4.4, 0.64, 3.5), _materials["off_white_floor"])
+	_box(lower, "JunctionInset", Vector3(0.0, 0.025, 7.35), Vector3(5.8, 0.05, 3.5), _materials["off_white_floor"], false)
 	_box(lower, "RouteStripe", Vector3(0.0, 0.06, 4.8), Vector3(0.18, 0.055, 9.1), _materials["cyan"], false)
 
 	# The incomplete ring makes the junction readable without becoming another
@@ -447,7 +463,7 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 			progress * UPPER_FLOOR_ELEVATION + 0.06,
 			3.0 + progress * 9.8
 		)
-		_box(circulation, "VisibleTread%02d" % index, tread_position, Vector3(2.92, 0.1, 0.72), _materials["off_white"], false)
+		_box(circulation, "VisibleTread%02d" % index, tread_position, Vector3(2.92, 0.1, 0.72), _materials["off_white_floor"], false)
 		_box(
 			circulation,
 			"TreadNosing%02d" % index,
@@ -530,8 +546,8 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	var upper := Node3D.new()
 	upper.name = "UpperOpenDeck"
 	structure.add_child(upper)
-	_box(upper, "UpperFloor", Vector3(-5.15, 3.88, 16.55), Vector3(10.3, 0.64, 8.1), _materials["off_white"])
-	_box(upper, "UpperFloorInset", Vector3(-5.15, 4.225, 16.4), Vector3(7.7, 0.05, 5.8), _materials["warm_grey"], false)
+	_box(upper, "UpperFloor", Vector3(-5.15, 3.88, 16.55), Vector3(10.3, 0.64, 8.1), _materials["off_white_floor"])
+	_box(upper, "UpperFloorInset", Vector3(-5.15, 4.225, 16.4), Vector3(7.7, 0.05, 5.8), _materials["warm_grey_floor"], false)
 	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 16.2), Vector3(0.16, 0.05, 6.5), _materials["red"], false)
 	_add_rail(upper, Vector3(-10.1, 4.2, 12.7), Vector3(-10.1, 4.2, 20.25), "UpperWestRail")
 	_add_rail(upper, Vector3(-9.8, 4.2, 12.55), Vector3(-7.45, 4.2, 12.55), "UpperSouthRail")
@@ -557,7 +573,7 @@ func _build_operations_room(structure: Node3D) -> void:
 	room.name = "OperationsRoom"
 	structure.add_child(room)
 
-	_box(room, "OperationsFloor", Vector3(5.6, -0.32, 13.2), Vector3(10.4, 0.64, 8.2), _materials["off_white"])
+	_box(room, "OperationsFloor", Vector3(5.6, -0.32, 13.2), Vector3(10.4, 0.64, 8.2), _materials["off_white_floor"])
 	_box(room, "OperationsCeiling", Vector3(5.6, 4.75, 13.2), Vector3(10.4, 0.48, 8.2), _materials["warm_grey"])
 	_box(room, "WestWall", Vector3(0.4, 2.38, 13.25), Vector3(0.38, 4.75, 7.8), _materials["warm_grey"])
 	_box(room, "SouthWallLeft", Vector3(0.5, 2.1, 9.1), Vector3(0.6, 4.2, 0.42), _materials["warm_grey"])

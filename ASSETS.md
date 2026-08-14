@@ -89,13 +89,16 @@ unknown.
 - Runtime: `assets/models/station/central_berth_hero_v1.glb`, mounted at identity
   by `CentralBerthHeroPresentation`. `DeckComposite` binds the registered
   shipyard-deck albedo/normal/roughness through authored UV0; triplanar mapping
-  is disabled. The imported subtree contains no collision, body, area, camera,
-  audio, navigation or walking-surface authority.
+  is disabled. Upward faces use a canonical non-mirrored 7 m tile basis; the
+  live imported top has 190 non-degenerate samples, p95/max anisotropy
+  `1.048`/`1.069`, and 2.93% maximum density deviation. The imported subtree
+  contains no collision, body, area, camera, audio, navigation or
+  walking-surface authority.
 - Final SHA-256: generator
-  `68a78fcdd9f1370be7d92a633ce6e7ad7a77fb5908c49baa4442912c704fa625`;
-  Blend `30ae770d8d31d89dceab7334be1fa373ca4caf20469ae4944c00f62773cf8b14`;
-  GLB `6d35d3c61dba7ba841ba062be65e6ef8cb56286953fb48551a7cfcfcd8423a7e`;
-  manifest `dbf354f26f5333d3b4e831eee00998527cfef49297808b21bb8704d99b396459`.
+  `d27b0a615b645f0885a083e53320ab4c8f76ead19fcc592bc2c92fc52a3b74d1`;
+  Blend `29b6a145ed8041b9018d3d4e0855e07ee86462617722f9772211cf322804e80b`;
+  GLB `c4eb42c2b8e70f5f5e6d05542e823797705cdd8c94db9b3963a3148529014836`;
+  manifest `9f6aab53f202e9eebc8487ce1b8753584d8a42a40c241b14f2237d1f5640e004`.
 
 
 ## `assets/effects/mudds-combat-vfx-atlas-v1.png`
@@ -229,6 +232,37 @@ that those marks emit light. Atlas-border sampling is clamped, never wrapped,
 because the trim is deliberately classified non-tileable. None of these assets
 is a high/low geometry bake, measured scan, recovered historical texture, or
 final authored PBR material set.
+
+## Symmetric station triplanar PBR set
+
+`tools/generate_material_maps.gd` deterministically creates this 512 x 512
+station-only material set:
+
+- `assets/materials/procedural-panel-triplanar-albedo-v2.png`
+  (`5477c96d6270815e87ddd7d394e15915d2848aa388615a6d595f0fc668e705c1`)
+- `assets/materials/procedural-panel-triplanar-normal-v2.png`
+  (`a55957b6ea2a90c5d2e82f7ed579dcd59b34ebc534714c41b262a18bbd2e9fcd`)
+- `assets/materials/procedural-panel-triplanar-roughness-v2.png`
+  (`b35de83ad27917dbb99c42decd828ac76569b09db797916c814a7ca114e6eb6f`)
+
+Purpose: replace the directional Arrow ship atlas formerly projected onto the
+Aft Junction, Habitat and Jovian freight-berth floors, walls and stairs. The
+new scalar layout is exactly invariant under horizontal/vertical reflection and
+90-degree rotation, repeats continuously at every border, and contains only
+isotropic seams, concentric service rings and four-way fasteners. Its grayscale
+albedo has no preferred lighting direction. Physical relief is carried by the
+registered normal map, whose import sidecar performs the image-row-to-Godot
+tangent-Y conversion; roughness is a bounded matched scalar map. Station
+materials use continuous world triplanar projection while retaining their
+existing physical scales and colours.
+
+Authorship: project-original fixed-recipe procedural raster work created locally
+on 2026-08-14. It uses no image-generation source, source-game pixels, recovered
+historical texture, photographed scan, third-party artwork or ship atlas. It is
+a modern station presentation material and does not authenticate historical
+surface construction. Arrow, Jovian, Torrent and Zenith retain their separately
+registered ship-specific material identities; this symmetric set is not bound
+to those ships.
 
 ## `assets/materials/cockpit-anti-glare-composite-v1.png`
 
