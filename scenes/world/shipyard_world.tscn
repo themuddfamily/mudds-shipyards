@@ -66,6 +66,21 @@ position = Vector3(0, 0, 48)
 position = Vector3(12, 4.2, 68.3)
 rotation = Vector3(0, 1.570796, 0)
 
+[node name="ZenithFleetDockBerth" parent="." instance=ExtResource("2_berth")]
+position = Vector3(22, 5.28, 53.3)
+berth_id = &"zenith_fleet_dock_berth"
+compatibility_tags = PackedStringArray("zenith_b7")
+landing_half_extents = Vector3(8.4, 4.6, 7.4)
+assist_capture_center = Vector3(0, 10, -18)
+assist_capture_half_extents = Vector3(20, 14, 30)
+assist_capture_maximum_speed = 34.0
+assist_maximum_tilt_degrees = 75.0
+
+[node name="BerthFeedback" parent="ZenithFleetDockBerth" instance=ExtResource("6_berth_feedback")]
+position = Vector3(0, -1.04, 0)
+cue_half_width = 5.0
+cue_half_length = 4.8
+
 [node name="HabitatSpine" parent="." instance=ExtResource("4_habitat_spine")]
 position = Vector3(49, 0, 15.5)
 rotation = Vector3(0, 1.570796, 0)

@@ -1,5 +1,76 @@
 # Asset register
 
+## Zenith B7 evidence and project-original runtime assets
+
+The B7-observed Zenith implementation adds no source media or derived historical
+asset to the repository. The exact inspected public rendition is registered only
+by metadata and SHA-256
+`c716c506d9fd7042ac98720e8815725cf083d24967bc8c9f842cdfa58e8ca144`
+in [`docs/research/source_ledger.json`](docs/research/source_ledger.json); the
+video and every extracted screenshot/frame remain untracked and must not be
+bundled or shipped. Permission and redistribution rights are not recorded.
+
+[`docs/ZENITH_B7_RECONSTRUCTION_SPEC.md`](docs/ZENITH_B7_RECONSTRUCTION_SPEC.md)
+is the written evidence/art constraint, not an asset licence, source model,
+texture, concept image or authentication record. Only the bounded pale wide-
+delta/arrow macroform, raised central wedge/spine, long strakes, repeated simple
+subdivisions and cautiously indexed pod-like forms may be claimed as B7-directed.
+The upload date does not date the recording or game build, the A5/B7 Interceptor
+versus A9 Fighter conflict remains unresolved, and exact construction, scale,
+access, materials, systems, handling and berth placement remain modern or
+unknown.
+
+### `art_source/zenith/zenith_authored_v1.blend`
+
+- Purpose: editable source for the accepted bounded B7-observed Zenith partial
+  reconstruction, with the recognition-bearing `SourceCore` separable from the
+  project-original `ModernSystems` hierarchy.
+- Created with the deterministic project generator
+  `tools/blender/generate_zenith_authored_v1.py` under Blender 4.0.2.
+- Authorship: original script-assisted Blender work. No source pixels, source
+  meshes, Roblox assets, or extracted third-party geometry are redistributed.
+- Size: 4,303,884 bytes. SHA-256:
+  `355319f3bd541d2cd28c0abce49fa3cc35e6a0d5b95a702d1888a2029465a677`.
+- The metre envelope is a modern ergonomic normalization. Pod-like source-core
+  forms retain unknown historical function; the cockpit, canopy, engine
+  internals, exhaust, weapons, landing gear, boarding aids, docking hardware,
+  materials, damage anchors and handling presentation are modern additions.
+
+### `assets/models/zenith/zenith_authored_art.glb`
+
+- Purpose: presentation-only imported Zenith art used through
+  `scenes/ships/presentation/zenith_authored_presentation.tscn`.
+- Size: 1,968,952 bytes. SHA-256:
+  `bc1d8a7f381654a547ca7e6b3993fa60b033cea5101a2ee866f02318b2d4a736`.
+- The close/far whole-ship levels contain 47,274 / 5,412 triangles. Runtime
+  batching exposes 22 meshes and 22 surfaces across ten material roles. The GLB
+  owns no gameplay or collision authority.
+
+### `assets/models/zenith/zenith_authored_asset_manifest.json`
+
+- Purpose: machine-readable authorship, evidence-scope, SourceCore/ModernSystems,
+  mesh/material, anchor, whole-ship LOD, and non-authoritative collision-proposal
+  record for `mudds.ship.zenith.b7_authored.v1`.
+- SHA-256:
+  `3264eee6c3e2af4c7494545d0cfeeb2806c465445e10a997eee6a1bf4e4c15fa`.
+- It pins B7 frames `f373–f467`, excludes `f468+`, records that dimensions are
+  modern normalization, and marks source pixels/geometry as not redistributed.
+  The authoritative runtime instead owns an independently hard-coded 24-shape
+  mixed collision contract; passing its art and gameplay audits does not
+  authenticate historical geometry.
+
+### Zenith definition and runtime wrappers
+
+- `assets/ships/zenith_b7_observed.tres` defines the deliberately versioned
+  `zenith_b7_observed` partial reconstruction and its modern agile-interceptor
+  balance; those numeric values are not recovered B7 handling.
+- `scenes/ships/zenith_interceptor.tscn` and
+  `scripts/ships/zenith_interceptor.gd` own collision, flight, boarding, damage,
+  weapons, audio and docking authority independently of the presentation GLB.
+- `scenes/ships/presentation/zenith_authored_presentation.tscn` keeps imported
+  authored art presentation-only. The world-owned Fleet Dock berth and its
+  placement are modern and are not a historical class-to-berth claim.
+
 ## `art_source/station/central_berth_hero_v1.blend`
 
 - Purpose: editable Blender source for the presentation-only central Torrent

@@ -90,7 +90,8 @@ flowchart LR
   S --- HB["Habitat Spine"]
   C --- AF["AftSpine"]
   AF --- AJ["Aft Junction Stack"]
-  AJ --- FC["Fleet Dock Comb / three empty deferred slabs"]
+  AJ --- FC["Fleet Dock Comb / Dock01 modern external assignment; Dock02/03 empty"]
+  FC -. "non-authoritative marker link" .-> Z["ShipyardWorld / Zenith berth"]
 ```
 
 Exact implementation anchors:
@@ -106,7 +107,8 @@ Exact implementation anchors:
 | Operations | Starboard node → Dock Operations pod near `(43, 27)` | Compact-room motif only; role, shape, and adjacency are modern. |
 | Habitat | Habitat root `(49, 0, 15.5)`, yaw `90°`, extends east | C1-inspired later-source interpretation, not recovered original geometry. |
 | Aft | Central → AftSpine → AftModuleConnector → AftJunctionStack `(0, 0, 48)` | Open spine/room/vertical motifs are supported; exact module graph is modern. |
-| Fleet dock comb | Aft upper deck → visible connector → FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`; local `+Z` becomes the starboard outbound trunk | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style and adjacency are modern; all three dock markers are empty/deferred and non-authoritative. |
+| Fleet dock comb | Aft upper deck → visible connector → FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`; local `+Z` becomes the starboard outbound trunk. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth`; Dock02 and Dock03 remain empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and the Zenith assignment are modern; no source authenticates a historical class-to-berth topology. |
+| Production berth registry | `ShipyardWorld` owns exactly four lease-bound production berths: Central/Torrent, Arrow, Jovian, and Zenith. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
 | Operational overlay | Activities, ambience, and facade dressing at Central/Aft/Habitat/Freight | Entirely modern presentation; no topology authority. |
 
 ## Evidence ledger for topology claims
@@ -115,7 +117,7 @@ Exact implementation anchors:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `OE-B2-COMB` | original era | long trunk with perpendicular rung-like arms | B2 `04:55–05:10` | medium-high | `original_era_observed` | Current orthogonal branches echo but do not reproduce it | count, orientation, scale |
 | `OE-B2-SLABS` | original era | broad parallel slabs/end volumes through thin necks and voids | B2 `04:55–05:10` | medium | `original_era_observed` | No strong repeated live equivalent | functions, dimensions |
-| `OE-B2-BERTHS` | original era | ships at separate lattice offsets | B2 `04:40–05:10`; B4 `03:43–03:53` | high/medium layout | `original_era_observed` | Three current physical berths | class assignment, simultaneous roster |
+| `OE-B2-BERTHS` | original era | ships at separate lattice offsets | B2 `04:40–05:10`; B4 `03:43–03:53` | high/medium layout | `original_era_observed` | Current world has exactly four lease-bound production berths; the comb's three dock markers do not establish a historical mapping | class assignment, simultaneous roster |
 | `OE-B3-SPAWN` | observed build | exposed deck and short vertical transition | B3 `00:04–00:52` | medium-high | `original_era_observed` | Central spawn and observation stair | first-login vs return |
 | `OE-B3-ROOM` | observed build | deck → blue opening → console/window room | B3 `02:40–03:00` | medium | `original_era_observed` | Dock Operations motif only | function, wider adjacency |
 | `OE-B3-LEVELS` | observed build | projecting routes at several elevations | B3 `06:13–07:10` | medium | `original_era_observed` | Aft stack and observation stair | obscured connections |
@@ -139,13 +141,17 @@ The first evidence-safe architecture correction is now the bounded
 1. A visible collision-backed bridge continues from the Aft upper circulation
    into a narrow 48 m outbound trunk.
 2. Three short orthogonal teeth terminate in broad physically separated slabs.
-3. All three dock markers remain empty, unassigned and explicitly deferred.
+3. The Dock01 marker carries a modern external assignment from `ShipyardWorld`
+   to the Zenith berth; Dock02 and Dock03 remain empty and explicitly deferred.
+   The markers and FleetDockComb module remain non-authoritative.
 4. Genuine voids remain; no hidden full-footprint collision slab exists.
 5. One short ramp supplies a second local elevation without importing C1
    habitat adjacency.
-6. The exact three existing lease-bound berths and their routes remain unchanged.
+6. `ShipyardWorld` now owns exactly four lease-bound production berths; the
+   FleetDockComb module owns none of their berth, lease, landing, boarding, or
+   spawn authority.
 
 This corrects one high-confidence silhouette mismatch without establishing a
-canonical floor plan or populating unsupported ship reconstructions. Further
-station expansion still requires new evidence or equally explicit modern/deferred
-boundaries.
+canonical floor plan or promoting the modern Zenith-to-Dock01 assignment into
+source-authenticated topology. Further station expansion still requires new
+evidence or equally explicit modern/deferred boundaries.

@@ -15,12 +15,14 @@ const RAYCAST_MASK := WORLD_LAYER | TARGET_LAYER
 const CENTRAL_BERTH_ID: StringName = &"central_berth"
 const ARROW_RECON_BERTH_ID: StringName = &"arrow_recon_berth"
 const JOVIAN_FREIGHT_BERTH_ID: StringName = &"jovian_freight_berth"
+const ZENITH_FLEET_DOCK_BERTH_ID: StringName = &"zenith_fleet_dock_berth"
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
 const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
 const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
 	CENTRAL_BERTH_ID,
 	ARROW_RECON_BERTH_ID,
 	JOVIAN_FREIGHT_BERTH_ID,
+	ZENITH_FLEET_DOCK_BERTH_ID,
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -89,6 +91,24 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.18, 0.0)),
 		"cue_half_width": 11.6,
 		"cue_half_length": 16.5,
+	},
+	ZENITH_FLEET_DOCK_BERTH_ID: {
+		"berth_path": NodePath("ZenithFleetDockBerth"),
+		"berth_local_transform": Transform3D(
+			Basis.IDENTITY,
+			Vector3(22.0, 5.28, 53.3)
+		),
+		"dock_transform": Transform3D.IDENTITY,
+		"landing_half_extents": Vector3(8.4, 4.6, 7.4),
+		"assist_capture_center": Vector3(0.0, 10.0, -18.0),
+		"assist_capture_half_extents": Vector3(20.0, 14.0, 30.0),
+		"assist_capture_maximum_speed": 34.0,
+		"assist_maximum_tilt_degrees": 75.0,
+		"compatibility_tags": ["zenith_b7"],
+		"feedback_path": NodePath("ZenithFleetDockBerth/BerthFeedback"),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
+		"cue_half_width": 5.0,
+		"cue_half_length": 4.8,
 	},
 }
 const CENTRAL_HERO_SCHEMA_VERSION := 2
@@ -302,9 +322,10 @@ func get_jovian_freight_berth() -> JovianFreightBerth:
 	return jovian_freight_berth
 
 
-## Source-bounded B2 comb/slab macro correction. Its three pads are intentionally
-## empty and deferred: this accessor exposes station circulation, not berth or
-## ship-regeneration authority.
+## Source-bounded B2 comb/slab macro correction. Dock 01 records one modern,
+## externally owned Zenith assignment; docks 02/03 remain empty and deferred.
+## The component exposes station circulation and landmarks, never berth or
+## ship-regeneration authority itself.
 func get_fleet_dock_comb() -> FleetDockComb:
 	return fleet_dock_comb
 
@@ -314,10 +335,16 @@ func get_fleet_dock_comb() -> FleetDockComb:
 func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var module_audit := {}
+	var assigned_docks: Array[Dictionary] = []
+	var deferred_docks: Array[Dictionary] = []
+	var expected_berth_origin := Vector3(22.0, 5.28, 53.3)
+	var assigned_marker_transform := Transform3D.IDENTITY
 	if not is_instance_valid(fleet_dock_comb):
 		errors.append("fleet dock comb instance is missing")
 	else:
 		module_audit = fleet_dock_comb.get_audit_report()
+		assigned_docks = fleet_dock_comb.get_assigned_dock_roster()
+		deferred_docks = fleet_dock_comb.get_deferred_dock_roster()
 		if not bool(module_audit.get("valid", false)):
 			errors.append("fleet dock comb component audit is invalid")
 		var expected_transform := Transform3D(
@@ -327,7 +354,47 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 		if not fleet_dock_comb.transform.is_equal_approx(expected_transform):
 			errors.append("fleet dock comb integration transform drifted")
 		if not fleet_dock_comb.find_children("*", "ShipBerth", true, false).is_empty():
-			errors.append("deferred fleet dock comb gained live berth authority")
+			errors.append("fleet dock comb landmark module gained live berth authority")
+		if assigned_docks.size() != 1:
+			errors.append("fleet dock comb must expose exactly one external dock assignment")
+		else:
+			var assignment := assigned_docks[0]
+			if assignment.get("dock_id", &"") != &"assigned-dock-01" \
+				or assignment.get("ship_assignment", &"") != &"zenith_b7_observed" \
+				or assignment.get("berth_id", &"") != ZENITH_FLEET_DOCK_BERTH_ID \
+				or bool(assignment.get("owns_berth_authority", true)) \
+				or bool(assignment.get("historical_class_to_berth_mapping", true)):
+				errors.append("fleet dock 01 Zenith assignment contract drifted")
+			assigned_marker_transform = assignment.get("marker_transform", Transform3D.IDENTITY) as Transform3D
+			expected_berth_origin = assigned_marker_transform.origin + Vector3.UP * 0.93
+		if deferred_docks.size() != 2:
+			errors.append("fleet dock comb must retain exactly two deferred empty docks")
+		else:
+			for dock in deferred_docks:
+				if dock.get("status", &"") != &"deferred_empty" \
+					or dock.get("ship_assignment", &"") != &"none" \
+					or bool(dock.get("owns_berth_authority", true)):
+					errors.append("fleet dock 02/03 deferred landmark contract drifted")
+					break
+	var zenith_berth := get_berth_node(ZENITH_FLEET_DOCK_BERTH_ID)
+	if not is_instance_valid(zenith_berth):
+		errors.append("world-owned Zenith fleet dock berth is missing")
+	else:
+		if zenith_berth.get_parent() != self:
+			errors.append("Zenith fleet dock berth must remain owned directly by ShipyardWorld")
+		if not zenith_berth.global_transform.is_equal_approx(
+			Transform3D(Basis.IDENTITY, expected_berth_origin)
+		):
+			errors.append("Zenith fleet dock berth no longer aligns above assigned dock 01")
+		if not zenith_berth.get_landing_half_extents().is_equal_approx(Vector3(8.4, 4.6, 7.4)):
+			errors.append("Zenith fleet dock berth strict landing volume drifted")
+		if zenith_berth.get_compatibility_tags() != PackedStringArray(["zenith_b7"]):
+			errors.append("Zenith fleet dock berth compatibility must remain class-specific")
+		if not zenith_berth.get_assist_capture_center().is_equal_approx(Vector3(0.0, 10.0, -18.0)) \
+			or not zenith_berth.get_assist_capture_half_extents().is_equal_approx(Vector3(20.0, 14.0, 30.0)) \
+			or not is_equal_approx(zenith_berth.get_assist_capture_maximum_speed(), 34.0) \
+			or not is_equal_approx(zenith_berth.get_assist_maximum_tilt_degrees(), 75.0):
+			errors.append("Zenith fleet dock assist-capture contract drifted")
 	var connector := get_node_or_null(^"ExposedDockLattice/FleetDockCombConnector") as Node3D
 	if connector == null:
 		errors.append("fleet dock comb connector is missing")
@@ -338,15 +405,23 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 		elif floor.get_node_or_null(^"Collision") == null:
 			errors.append("fleet dock comb connector floor lacks collision")
 	return {
-		"schema_version": 1,
+		"schema_version": 2,
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"evidence_status": &"modern_interpretation",
 		"source_claim": &"OE-B2-COMB",
 		"placement_authored": true,
-		"empty_deferred_docks": true,
+		"external_assignment_count": assigned_docks.size(),
+		"deferred_empty_dock_count": deferred_docks.size(),
+		"historical_class_to_berth_mapping": false,
 		"module_transform": fleet_dock_comb.global_transform if is_instance_valid(fleet_dock_comb) else Transform3D.IDENTITY,
+		"assigned_marker_transform": assigned_marker_transform,
+		"zenith_berth_transform": zenith_berth.global_transform if is_instance_valid(zenith_berth) else Transform3D.IDENTITY,
+		"zenith_berth_id": ZENITH_FLEET_DOCK_BERTH_ID,
+		"zenith_ship_id": &"zenith_b7_observed",
 		"connector_local_bounds": AABB(Vector3(-0.25, 3.56, 66.5), Vector3(12.5, 1.94, 3.6)),
+		"assigned_docks": assigned_docks.duplicate(true),
+		"deferred_docks": deferred_docks.duplicate(true),
 		"component": module_audit.duplicate(true),
 	}
 
@@ -1686,6 +1761,7 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			String(CENTRAL_BERTH_ID),
 			String(ARROW_RECON_BERTH_ID),
 			String(JOVIAN_FREIGHT_BERTH_ID),
+			String(ZENITH_FLEET_DOCK_BERTH_ID),
 		]),
 	}.duplicate(true)
 

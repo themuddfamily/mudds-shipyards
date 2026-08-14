@@ -199,10 +199,18 @@ func _test_station_topology(topology: String) -> void:
 	_check(
 		topology.contains("fleet-dock-comb")
 		and topology.contains("Three short orthogonal teeth")
-		and topology.contains("empty, unassigned and explicitly deferred")
+		and topology.contains("Dock01 marker is externally assigned by `ShipyardWorld`")
+		and topology.contains("modern Zenith berth `zenith_fleet_dock_berth`")
+		and topology.contains("Dock02 and Dock03 remain empty/deferred")
+		and topology.contains("All three markers and the module itself remain non-authoritative")
+		and topology.contains("FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority")
 		and topology.contains("no hidden full-footprint collision slab exists")
-		and topology.contains("exact three existing lease-bound berths"),
-		"implemented station correction preserves the evidence-backed comb silhouette without inventing a fleet mapping"
+		and topology.contains("exactly four lease-bound production berths")
+		and topology.contains("no source authenticates a historical class-to-berth topology")
+		and topology.contains("promoting the modern Zenith-to-Dock01 assignment into\nsource-authenticated topology")
+		and not topology.contains("all three dock markers are empty/deferred")
+		and not topology.contains("exact three existing lease-bound berths"),
+		"live topology pins the non-authoritative Dock01 Zenith assignment, two deferred markers and four world-owned production berths"
 	)
 
 
@@ -238,16 +246,24 @@ func _test_ship_matrix(matrix: Dictionary) -> void:
 	var policy := matrix.get("policy", {}) as Dictionary
 	_check(
 		int(policy.get("current_authenticated_ship_count", -1)) == 0
-		and int(policy.get("current_partial_reconstruction_count", -1)) == 1
+		and int(policy.get("current_partial_reconstruction_count", -1)) == 2
 		and int(policy.get("current_provisional_candidate_count", -1)) == 2,
-		"matrix truthfully reports zero authenticated ships, one partial reconstruction and two provisional candidates"
+		"matrix truthfully reports zero authenticated ships, two partial reconstructions and two provisional candidates"
 	)
 	var torrent := _ship_by_id(matrix, "torrent")
 	var zenith := _ship_by_id(matrix, "zenith")
 	var arrow := _ship_by_id(matrix, "arrow")
 	var jovian := _ship_by_id(matrix, "jovian")
-	_check(str(torrent.get("implementation_status", "")) == "b5_observed_partial_reconstruction", "Torrent alone is the bounded B5-observed partial reconstruction")
-	_check(str(zenith.get("implementation_status", "")) == "not_implemented_research_candidate", "Zenith's strong B7 lock remains research rather than an unreviewed implementation")
+	_check(str(torrent.get("implementation_status", "")) == "b5_observed_partial_reconstruction", "Torrent remains the bounded B5-observed partial reconstruction")
+	var zenith_scope := zenith.get("versioned_scope", {}) as Dictionary
+	_check(
+		str(zenith.get("implementation_status", "")) == "b7_observed_partial_reconstruction"
+		and str(zenith_scope.get("scope_id", "")) == "zenith_b7_observed_interceptor"
+		and str(zenith_scope.get("status", "")) == "specification_complete_implemented_bounded_partial"
+		and str(zenith_scope.get("public_label", "")) == "Zenith-class Interceptor — B7-observed reconstruction"
+		and str(zenith_scope.get("specification", "")) == "docs/ZENITH_B7_RECONSTRUCTION_SPEC.md",
+		"Zenith is implemented only as the explicitly versioned, bounded B7-observed partial reconstruction"
+	)
 	_check(str(arrow.get("implementation_status", "")).ends_with("_frozen") and str(jovian.get("implementation_status", "")).ends_with("_frozen"), "Arrow and Jovian silhouette redesigns remain frozen pending name-to-model evidence")
 
 

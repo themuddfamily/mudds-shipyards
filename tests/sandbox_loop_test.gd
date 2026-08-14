@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## End-to-end regression for the first repeatable physical sandbox foundation:
-## enter the completed-activity sandbox, choose among three parked craft, berth/exit,
+## enter the completed-activity sandbox, choose among four parked craft, berth/exit,
 ## move to another craft, crash it, recover without a reload, and keep flying.
 
 var _failures: Array[String] = []
@@ -27,8 +27,8 @@ func _run() -> void:
 	var original_player_id := player.get_instance_id()
 	var world := game.get_node("ShipyardWorld") as ShipyardWorld
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
-	_check(fleet.size() == 3, "exactly three physical flyable craft share the station")
-	if fleet.size() != 3:
+	_check(fleet.size() == 4, "exactly four physical flyable craft share the station")
+	if fleet.size() != 4:
 		game.queue_free()
 		await process_frame
 		_finish()
@@ -37,11 +37,12 @@ func _run() -> void:
 	var primary := game.get_node("TorrentInterceptor") as HeroShip
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
+	var zenith := game.get_node("ZenithInterceptor") as HeroShip
 	_check(primary != arrow, "fleet registry contains distinct ship instances")
 	_check(primary.get_ship_id() != arrow.get_ship_id(), "fleet ships expose unique stable IDs")
 	_check(
-		fleet.has(primary) and fleet.has(arrow) and fleet.has(jovian),
-		"fleet registry contains the Torrent, Arrow, and Jovian instances"
+		fleet.has(primary) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith),
+		"fleet registry contains the Torrent, Arrow, Jovian, and Zenith instances"
 	)
 	_check(
 		jovian.get_ship_id() == &"jovian_provisional"
@@ -50,6 +51,11 @@ func _run() -> void:
 		"Jovian exposes a unique stable production ID"
 	)
 	_check(jovian.get_home_berth_id() == &"jovian_freight_berth", "Jovian retains its dedicated freight home berth")
+	_check(
+		zenith.get_ship_id() == &"zenith_b7_observed"
+		and zenith.get_home_berth_id() == &"zenith_fleet_dock_berth",
+		"Zenith retains its B7-observed identity and assigned Fleet Dock berth"
+	)
 	_check(primary.global_position.distance_to(arrow.global_position) > 25.0, "both craft occupy separate visible berths")
 	_check(jovian.global_position.distance_to(primary.global_position) > 25.0, "Jovian occupies a separate visible freight berth")
 	_check(
@@ -57,7 +63,7 @@ func _run() -> void:
 		and primary.yaw_speed_degrees != arrow.yaw_speed_degrees,
 		"Torrent and Arrow have measurably different handling profiles"
 	)
-	_check(world.get_berth_ids().size() == 3, "world exposes exactly three registered production landing berths")
+	_check(world.get_berth_ids().size() == 4, "world exposes exactly four registered production landing berths")
 	var jovian_berth := world.get_berth_node(jovian.get_home_berth_id())
 	_check(
 		jovian_berth != null
@@ -71,7 +77,7 @@ func _run() -> void:
 		(-arrow_transform.basis.z).dot(Vector3.LEFT) > 0.99,
 		"Arrow berth preserves a full rotated docking transform"
 	)
-	for craft in [primary, arrow, jovian]:
+	for craft in [primary, arrow, jovian, zenith]:
 		var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 		_check(area != null, "%s has a physical boarding interaction area" % craft.name)
 		if area != null:

@@ -49,10 +49,10 @@ func _test_evidence_roster_and_audit(module: FleetDockComb) -> void:
 	_check(int(roster.walkable_surface_count) == 7, "roster exposes exactly seven collision-backed walkable surfaces")
 	_check(int(roster.rung_count) == 3 and int(roster.dock_slab_count) == 3, "roster contains exactly three rungs and three broad end slabs")
 	_check(int(roster.vertical_transition_count) == 1, "roster contains exactly one short vertical transition")
-	_check(int(roster.deferred_dock_count) == 3, "roster contains exactly three deferred empty docks")
+	_check(int(roster.assigned_dock_count) == 1 and int(roster.deferred_dock_count) == 2, "roster separates one external assignment from two deferred empty docks")
 	_check(roster.surface_ids == roster.expected_surface_ids, "actual surface identities exactly match the public roster")
 	var audit := module.get_audit_report()
-	_check(bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "fresh module passes its complete public audit")
+	_check(int(audit.schema_version) == 2 and bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "fresh module passes its complete v2 assignment-aware public audit")
 	(audit.roster as Dictionary)["walkable_surface_count"] = -1
 	_check(int(module.get_audit_report().roster.walkable_surface_count) == 7, "audit snapshots are deeply detached from live module state")
 
@@ -61,6 +61,12 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 	var footprint := module.get_integration_footprint()
 	_check((footprint.local_min as Vector3).is_equal_approx(Vector3(-2.6, -2.5, 0.0)), "declared footprint begins at the compact root connection plane")
 	_check((footprint.local_max as Vector3).is_equal_approx(Vector3(21.0, 5.0, 48.0)), "declared footprint contains the complete starboard-biased comb")
+	_check(
+		(footprint.get("assigned_dock_01_walkable_aabb", AABB()) as AABB).is_equal_approx(
+			AABB(Vector3(9.0, -0.6, 1.0), Vector3(12.0, 0.6, 15.0))
+		),
+		"assigned dock 01 publishes its exact widened collision-backed boarding apron"
+	)
 	_check(bool(footprint.starboard_biased) and (footprint.comb_teeth_axis_local as Vector3) == Vector3.RIGHT, "integration contract keeps every tooth on local +X")
 	_check(module.get_module_anchor().global_transform.is_equal_approx(module.global_transform), "module anchor is the exact root connection transform")
 	_check(module.get_route_ids().size() == 9, "nine explicit approach, trunk, threshold, and vertical route markers are registered")
@@ -68,7 +74,7 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 		_check(module.has_route_marker(route_id) and module.get_route_marker(route_id) != null, "route marker resolves: %s" % route_id)
 
 	var docks := module.get_deferred_dock_roster()
-	_check(docks.size() == 3, "three dock landmarks are exposed without creating a berth specification")
+	_check(docks.size() == 2, "dock 02 and dock 03 remain deferred without creating berth specifications")
 	var every_dock_deferred := true
 	for dock in docks:
 		every_dock_deferred = every_dock_deferred \
@@ -77,7 +83,18 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 			and not bool(dock.owns_berth_authority) \
 			and not bool(dock.landing_volume_present) \
 			and not bool(dock.boarding_area_present)
-	_check(every_dock_deferred, "every dock remains empty, deferred, unassigned, and non-authoritative")
+	_check(every_dock_deferred, "both deferred docks remain empty, unassigned, and non-authoritative")
+	var assigned := module.get_assigned_dock_roster()
+	_check(
+		assigned.size() == 1
+		and assigned[0].dock_id == &"assigned-dock-01"
+		and assigned[0].ship_assignment == &"zenith_b7_observed"
+		and assigned[0].berth_id == &"zenith_fleet_dock_berth"
+		and not bool(assigned[0].owns_berth_authority)
+		and not bool(assigned[0].historical_class_to_berth_mapping),
+		"dock 01 exposes one modern external Zenith assignment without owning authority"
+	)
+	_check(module.get_dock_roster().size() == 3, "combined roster preserves all three physical dock landmarks")
 	var authority := module.get_authority_contract()
 	_check(int(authority.ship_berth_count) == 0 and int(authority.landing_or_interaction_area_count) == 0, "module owns no ShipBerth, landing, boarding, or interaction area")
 	_check(int(authority.audio_node_count) == 0 and int(authority.activity_node_count) == 0, "module owns no audio or station-activity component")
@@ -89,6 +106,7 @@ func _test_collision_backed_comb_and_voids(module: FleetDockComb) -> void:
 		[Vector3(0, 2.0, 4.0), 0.0, "narrow trunk"],
 		[Vector3(6.0, 2.0, 10.0), 0.0, "first orthogonal rung"],
 		[Vector3(15.0, 2.0, 10.0), 0.0, "first broad slab"],
+		[Vector3(15.0, 2.0, 2.15), 0.0, "Zenith exit-side boarding apron"],
 		[Vector3(6.0, 2.0, 25.0), 0.0, "second orthogonal rung"],
 		[Vector3(15.0, 2.0, 25.0), 0.0, "second broad slab"],
 		[Vector3(5.5, 4.0, 40.0), 1.2, "third rising rung"],

@@ -44,7 +44,7 @@ position = Vector3(9, 2.55, 40)
 unique_name_in_owner = true
 position = Vector3(9.25, 2.55, 40)
 
-[node name="DeferredDock01" type="Marker3D" parent="."]
+[node name="AssignedDock01" type="Marker3D" parent="."]
 unique_name_in_owner = true
 position = Vector3(15, 0.15, 10)
 

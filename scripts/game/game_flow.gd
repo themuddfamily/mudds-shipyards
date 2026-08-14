@@ -32,6 +32,7 @@ const PLAYER_SOURCE_IDS := {
 	&"torrent_provisional": 1101,
 	&"arrow_provisional": 1102,
 	&"jovian_provisional": 1103,
+	&"zenith_b7_observed": 1104,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -73,6 +74,11 @@ const PLAYER_COMBAT_WEAPON_OVERRIDES := {
 		"range": 315.0,
 		"damage": 23.0,
 		"origin_tolerance": 32.0,
+	},
+	&"zenith_b7_observed": {
+		"range": 390.0,
+		"damage": 27.0,
+		"origin_tolerance": 24.0,
 	},
 }
 const OPPONENT_WEAPON_PROFILES := {

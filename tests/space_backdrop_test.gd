@@ -17,6 +17,7 @@ const EXPECTED_BERTH_IDS: Array[String] = [
 	"central_berth",
 	"arrow_recon_berth",
 	"jovian_freight_berth",
+	"zenith_fleet_dock_berth",
 ]
 const EXPECTED_BODY_SPECS := {
 	&"CelestialGreenBody": {
@@ -375,7 +376,7 @@ func _test_authority_invariants(world: ShipyardWorld) -> void:
 	)
 	_check(
 		reported_berths == expected_berths and live_berths == expected_berths,
-		"visual backdrop construction preserves the exact three-berth authority registry"
+		"visual backdrop construction preserves the exact four-berth authority registry"
 	)
 	var all_berths_live := true
 	for berth_id_string in EXPECTED_BERTH_IDS:
@@ -418,7 +419,7 @@ func _test_deep_copy_safety(world: ShipyardWorld) -> void:
 		"nested audit mutations cannot change live or future backdrop reports"
 	)
 	_check(
-		world.get_target_count() == 4 and world.get_berth_ids().size() == 3,
+		world.get_target_count() == 4 and world.get_berth_ids().size() == 4,
 		"report mutation cannot escape into target or berth authority state"
 	)
 

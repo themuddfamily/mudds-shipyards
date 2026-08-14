@@ -38,7 +38,7 @@ func _run() -> void:
 		and resolver != null
 		and pulse != null
 		and opponent != null
-		and fleet.size() == 3,
+		and fleet.size() == 4,
 		"production re-entry fixture exposes the world, audio, pulse, authority, resolver, opponent, and exact fleet"
 	)
 	if (
@@ -48,7 +48,7 @@ func _run() -> void:
 		or resolver == null
 		or pulse == null
 		or opponent == null
-		or fleet.size() != 3
+		or fleet.size() != 4
 	):
 		await _clean_up(game)
 		_finish()
@@ -75,11 +75,12 @@ func _test_whole_main_reentry(
 	var torrent := _ship_by_id(fleet, &"torrent_provisional")
 	var arrow := _ship_by_id(fleet, &"arrow_provisional")
 	var jovian := _ship_by_id(fleet, &"jovian_provisional")
+	var zenith := _ship_by_id(fleet, &"zenith_b7_observed")
 	_check(
-		torrent != null and arrow != null and jovian != null,
-		"whole-tree fixture retains all three exact production ship identities"
+		torrent != null and arrow != null and jovian != null and zenith != null,
+		"whole-tree fixture retains all four exact production ship identities"
 	)
-	if torrent == null or arrow == null or jovian == null:
+	if torrent == null or arrow == null or jovian == null or zenith == null:
 		return
 
 	# Capture one accepted, damaging request before any detach. The exact request
@@ -159,8 +160,9 @@ func _test_whole_main_reentry(
 			and authority.get_source_id(torrent) == 0
 			and authority.get_source_id(arrow) == 0
 			and authority.get_source_id(jovian) == 0
+			and authority.get_source_id(zenith) == 0
 			and authority.get_source_id(opponent) == 0,
-			"detach cycle %d clears all four source registrations and resolver ownership" % (cycle + 1)
+			"detach cycle %d clears all five source registrations and resolver ownership" % (cycle + 1)
 		)
 		_check(
 			not bool(detached_audio.resources_ready)
@@ -196,13 +198,14 @@ func _test_whole_main_reentry(
 		for instance_id in restored_resource_ids.values():
 			unique_resource_ids[int(instance_id)] = true
 		_check(
-			resolver.get_registered_source_count() == 4
-			and int(authority.get("_registrations_by_instance").size()) == 4
+			resolver.get_registered_source_count() == 5
+			and int(authority.get("_registrations_by_instance").size()) == 5
 			and authority.get_source_id(torrent) == 1101
 			and authority.get_source_id(arrow) == 1102
 			and authority.get_source_id(jovian) == 1103
+			and authority.get_source_id(zenith) == 1104
 			and authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID,
-			"re-entry cycle %d restores the exact four combat authority/resolver sources" % (cycle + 1)
+			"re-entry cycle %d restores the exact five combat authority/resolver sources" % (cycle + 1)
 		)
 		_check(
 			bool(restored_audio.resources_ready)
@@ -263,8 +266,9 @@ func _test_whole_main_reentry(
 
 		pulse.clear_effects()
 		var presented_before := int(pulse.get_statistics().presented)
-		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, opponent]
+		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, zenith, opponent]
 		var submission_weapons: Array[StringName] = [
+			GameFlow.COMBAT_WEAPON_ID,
 			GameFlow.COMBAT_WEAPON_ID,
 			GameFlow.COMBAT_WEAPON_ID,
 			GameFlow.COMBAT_WEAPON_ID,
@@ -287,9 +291,9 @@ func _test_whole_main_reentry(
 			)
 		_check(
 			every_submission_live
-			and int(pulse.get_statistics().presented) == presented_before + 4
-			and pulse.get_active_effect_count() == 4,
-			"re-entry cycle %d accepts live submissions from all four sources and presents each exactly once" % (cycle + 1)
+			and int(pulse.get_statistics().presented) == presented_before + 5
+			and pulse.get_active_effect_count() == 5,
+			"re-entry cycle %d accepts live submissions from all five sources and presents each exactly once" % (cycle + 1)
 		)
 
 
@@ -340,7 +344,7 @@ func _test_safed_fire_contract(
 	_check(
 		all_safed_truthful
 		and is_equal_approx(float(opponent.call("get_health")), opponent_health_before),
-		"all three craft report safed fire as unresolved and show only an exact 0.2 m muzzle pulse before world geometry"
+		"all four craft report safed fire as unresolved and show only an exact 0.2 m muzzle pulse before world geometry"
 	)
 	game.active_ship = game.get_guided_ship()
 	blocker.queue_free()

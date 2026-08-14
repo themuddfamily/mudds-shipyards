@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"zenith_b7_observed"
+display_name = "Zenith-class Interceptor — B7-observed reconstruction"
+role_name = "Interceptor (B7 label)"
+evidence_status = 1
+evidence_references = PackedStringArray("A5: archived official page calls the VIP Zenith an Interceptor", "A9: creator-written 2009 VIP shirt calls Zenith a Fighter, conflicting with A5/B7", "B7@00:33.455-00:42.455/f368-f467: label, empty berth, spawn, approach, boarding and flight identity chain", "docs/research/ship_evidence_matrix.json#zenith")
+evidence_notes = "B7 securely links a wide pale delta/arrow craft to the Zenith-class Interceptor label in footage uploaded in 2012. The exact B7-observed geometry scope is frames 373-467; recording date and build revision are unknown. A5 says Interceptor while A9 says Fighter, so the dated role conflict remains explicit. The implemented single-pilot cockpit, dimensions, access, canopy, propulsion, weapons, collision, audio, damage, docking, materials and every numeric flight value are modern gameplay design. No historical handling claim is made."
+compatibility_tags = PackedStringArray("small_craft", "interceptor", "single_pilot", "zenith_b7")
+maximum_speed = 94.0
+thrust_acceleration = 42.0
+brake_acceleration = 54.0
+passive_drag = 3.8
+throttle_response = 14.0
+boost_speed = 126.0
+boost_multiplier = 1.42
+yaw_speed_degrees = 94.0
+roll_speed_degrees = 168.0
+flight_assist_strength = 7.2
+visual_bank_degrees = 20.0
+maximum_mouse_turn_degrees = 24.0
+engine_start_time = 1.35
+weapon_cooldown = 0.24
+maximum_hull = 68.0
+landing_maximum_speed = 18.0
+entry_noun = "canopy"
+entry_open_verb = "raise"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"standard_fighter"

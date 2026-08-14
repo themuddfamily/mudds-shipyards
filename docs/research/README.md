@@ -13,6 +13,10 @@ reproducible without redistributing third-party media.
   in its own version scope before mapping the current station onto those motifs.
 - [`ship_evidence_matrix.json`](ship_evidence_matrix.json) applies the same six
   reconstruction gates to every currently known ship name.
+- [`../ZENITH_B7_RECONSTRUCTION_SPEC.md`](../ZENITH_B7_RECONSTRUCTION_SPEC.md)
+  deliberately versions the A5/A9 role conflict and freezes the non-media,
+  frame-bounded source core now used by the bounded partial B7-observed Zenith
+  implementation. Implementation and capture acceptance do not authenticate it.
 
 ## Source-media policy
 
@@ -41,6 +45,11 @@ The current B5 audit used a 640×480, constant-30-fps, 2,753-frame public
 rendition with SHA-256
 `c1f1ed745ce507729228c62deee7798c9af51d98681f2dda65acba0d5a36948d`.
 That file is intentionally absent from the repository.
+
+The B7 Zenith audit used an 854×480, constant-11-fps, 48-second public
+rendition of 2,264,402 bytes with SHA-256
+`c716c506d9fd7042ac98720e8815725cf083d24967bc8c9f842cdfa58e8ca144`.
+That file and every extracted frame are also intentionally absent.
 
 ## Frame convention
 

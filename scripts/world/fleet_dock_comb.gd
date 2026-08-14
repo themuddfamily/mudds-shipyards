@@ -5,12 +5,13 @@ extends Node3D
 ## in B2. The repeated trunk/rung/slab rhythm is observed; this exact geometry,
 ## scale, direction, count, vertical transition, and placement are modern.
 ##
-## DeferredDock markers are deliberately non-authoritative landmarks. This
-## component owns no ShipBerth, landing area, lease, audio, activity, or process
-## loop. World integration may expose the empty slabs without inventing a ship
-## assignment.
+## Dock markers are deliberately non-authoritative landmarks. Dock 01 records a
+## modern external Zenith assignment while ShipyardWorld owns its actual berth,
+## lease and landing volume; docks 02/03 remain visibly empty and deferred. This
+## component itself owns no ShipBerth, landing area, lease, audio, activity, or
+## process loop.
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 const MODULE_ID: StringName = &"fleet-dock-comb"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const WORLD_LAYER := PhysicsLayers.WORLD
@@ -22,10 +23,14 @@ const UPPER_DECK_ELEVATION := 2.4
 const RUNG_CLEAR_WIDTH := 3.6
 const RUNG_COUNT := 3
 const DOCK_SLAB_COUNT := 3
-const DEFERRED_DOCK_COUNT := 3
+const DOCK_MARKER_COUNT := 3
+const ASSIGNED_DOCK_COUNT := 1
+const DEFERRED_DOCK_COUNT := 2
 const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
+const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
+const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
 # The root is the connection plane. Local +Z follows the narrow trunk and every
 # broad slab is on local +X, keeping the module starboard-biased and rotatable.
@@ -35,7 +40,7 @@ const FOOTPRINT_MAX := Vector3(21.0, 5.0, 48.0)
 const MESH_INSTANCE_BUDGET := 64
 const STATIC_BODY_BUDGET := COLLISION_BODY_COUNT
 const COLLISION_SHAPE_BUDGET := COLLISION_SHAPE_COUNT
-const LABEL_BUDGET := DEFERRED_DOCK_COUNT
+const LABEL_BUDGET := DOCK_MARKER_COUNT
 const LIGHT_BUDGET := 0
 
 const SURFACE_IDS := [
@@ -71,8 +76,10 @@ const CONTENT_NOTE := (
 	+ "distributed at lattice offsets. Fleet Dock Comb is not recovered original "
 	+ "geometry: its name, exact three-tooth count, measurements, starboard bias, "
 	+ "surface design, short ramp, materials, labels, and world adjacency are modern "
-	+ "interpretation. All three dock landmarks are empty and explicitly deferred; "
-	+ "they grant no landing, lease, boarding, regeneration, or ship-spawn authority."
+	+ "interpretation. Dock 01 is a modern externally-owned assignment for the "
+	+ "B7-observed Zenith partial reconstruction; docks 02/03 remain empty and "
+	+ "deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
+	+ "spawn authority inside this module."
 )
 
 @onready var _module_anchor: Marker3D = %ModuleAnchor
@@ -85,7 +92,7 @@ const CONTENT_NOTE := (
 @onready var _route_vertical_base: Marker3D = %RouteVerticalBase
 @onready var _route_vertical_top: Marker3D = %RouteVerticalTop
 @onready var _route_dock_03_threshold: Marker3D = %RouteDock03Threshold
-@onready var _deferred_dock_01: Marker3D = %DeferredDock01
+@onready var _assigned_dock_01: Marker3D = %AssignedDock01
 @onready var _deferred_dock_02: Marker3D = %DeferredDock02
 @onready var _deferred_dock_03: Marker3D = %DeferredDock03
 
@@ -151,17 +158,40 @@ func get_route_transforms() -> Dictionary:
 func get_deferred_dock_ids() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for dock_id: StringName in _dock_markers.keys():
-		result.append(dock_id)
+		var marker := _dock_markers[dock_id] as Marker3D
+		if StringName(marker.get_meta("dock_status", &"")) == &"deferred_empty":
+			result.append(dock_id)
 	result.sort()
 	return result
 
 
 func get_deferred_dock_marker(dock_id: StringName) -> Marker3D:
-	return _dock_markers.get(dock_id) as Marker3D
+	if dock_id not in get_deferred_dock_ids():
+		return null
+	return get_dock_marker(dock_id)
 
 
 func get_deferred_dock_transform(dock_id: StringName) -> Transform3D:
 	var marker := get_deferred_dock_marker(dock_id)
+	return marker.global_transform if marker != null else Transform3D.IDENTITY
+
+
+func get_assigned_dock_ids() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for dock_id: StringName in _dock_markers.keys():
+		var marker := _dock_markers[dock_id] as Marker3D
+		if StringName(marker.get_meta("dock_status", &"")) == &"assigned_external":
+			result.append(dock_id)
+	result.sort()
+	return result
+
+
+func get_dock_marker(dock_id: StringName) -> Marker3D:
+	return _dock_markers.get(dock_id) as Marker3D
+
+
+func get_dock_transform(dock_id: StringName) -> Transform3D:
+	var marker := get_dock_marker(dock_id)
 	return marker.global_transform if marker != null else Transform3D.IDENTITY
 
 
@@ -170,7 +200,7 @@ func get_deferred_dock_transform(dock_id: StringName) -> Transform3D:
 func get_deferred_dock_roster() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for dock_id in get_deferred_dock_ids():
-		var marker := get_deferred_dock_marker(dock_id)
+		var marker := get_dock_marker(dock_id)
 		result.append({
 			"dock_id": dock_id,
 			"status": &"deferred_empty",
@@ -181,6 +211,34 @@ func get_deferred_dock_roster() -> Array[Dictionary]:
 			"boarding_area_present": false,
 			"evidence_claim": &"OE-B2-BERTHS",
 		})
+	return result.duplicate(true)
+
+
+func get_assigned_dock_roster() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for dock_id in get_assigned_dock_ids():
+		var marker := get_dock_marker(dock_id)
+		result.append({
+			"dock_id": dock_id,
+			"status": &"assigned_external",
+			"marker_transform": marker.global_transform,
+			"ship_assignment": StringName(marker.get_meta("ship_assignment", &"")),
+			"berth_id": StringName(marker.get_meta("external_berth_id", &"")),
+			"owns_berth_authority": false,
+			"landing_volume_present": false,
+			"boarding_area_present": false,
+			"evidence_claim": &"OE-B2-BERTHS",
+			"historical_class_to_berth_mapping": false,
+		})
+	return result.duplicate(true)
+
+
+func get_dock_roster() -> Array[Dictionary]:
+	var result := get_assigned_dock_roster()
+	result.append_array(get_deferred_dock_roster())
+	result.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
+		return str(first.get("dock_id", &"")) < str(second.get("dock_id", &""))
+	)
 	return result.duplicate(true)
 
 
@@ -195,6 +253,10 @@ func get_integration_footprint() -> Dictionary:
 		"module_extends_local": Vector3.BACK,
 		"comb_teeth_axis_local": Vector3.RIGHT,
 		"starboard_biased": true,
+		"assigned_dock_01_walkable_aabb": AABB(
+			ASSIGNED_DOCK_01_CENTER - ASSIGNED_DOCK_01_SIZE * 0.5,
+			ASSIGNED_DOCK_01_SIZE
+		),
 	}
 
 
@@ -211,6 +273,10 @@ func get_bounds_contract() -> Dictionary:
 		"floor_elevations": PackedFloat32Array([LOWER_DECK_ELEVATION, UPPER_DECK_ELEVATION]),
 		"full_footprint_floor_present": _has_full_footprint_floor(),
 		"negative_space_samples_local": get_negative_space_samples(),
+		"assigned_dock_01_walkable_aabb": AABB(
+			ASSIGNED_DOCK_01_CENTER - ASSIGNED_DOCK_01_SIZE * 0.5,
+			ASSIGNED_DOCK_01_SIZE
+		),
 	}
 
 
@@ -241,8 +307,11 @@ func get_component_roster() -> Dictionary:
 		"dock_slab_ids": PackedStringArray(DOCK_SLAB_IDS),
 		"dock_slab_count": DOCK_SLAB_COUNT,
 		"vertical_transition_count": 1,
+		"dock_marker_count": _dock_markers.size(),
+		"assigned_dock_ids": PackedStringArray(get_assigned_dock_ids()),
+		"assigned_dock_count": get_assigned_dock_ids().size(),
 		"deferred_dock_ids": PackedStringArray(get_deferred_dock_ids()),
-		"deferred_dock_count": _dock_markers.size(),
+		"deferred_dock_count": get_deferred_dock_ids().size(),
 		"route_ids": PackedStringArray(get_route_ids()),
 	}
 
@@ -305,7 +374,7 @@ func get_authority_contract() -> Dictionary:
 		"spawn_authority_count": 0,
 		"boarding_authority_count": 0,
 		"network_authority_role": &"none",
-		"deferred_markers_are_authoritative": false,
+		"dock_markers_are_authoritative": false,
 	}
 
 
@@ -390,7 +459,7 @@ func get_evidence_metadata() -> Dictionary:
 			"Fleet Dock Comb name and exact three-tooth roster",
 			"all dimensions, directions, surface details, and station placement",
 			"starboard-only bias and one short vertical ramp",
-			"deferred dock labels and marker transforms",
+			"dock labels, marker transforms, and the Zenith-to-dock-01 assignment",
 		]),
 		"explicit_unknowns": PackedStringArray([
 			"historical arm, slab, and berth count",
@@ -406,8 +475,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("module integration anchor must match the exact root connection plane")
 	if _route_markers.size() != 9:
 		errors.append("route marker registry must contain exactly nine explicit nodes")
-	if _dock_markers.size() != DEFERRED_DOCK_COUNT:
-		errors.append("deferred dock registry must contain exactly three empty landmarks")
+	if _dock_markers.size() != DOCK_MARKER_COUNT:
+		errors.append("dock registry must contain exactly three physical landmarks")
+	if get_assigned_dock_ids().size() != ASSIGNED_DOCK_COUNT:
+		errors.append("dock registry must contain exactly one external assignment")
+	if get_deferred_dock_ids().size() != DEFERRED_DOCK_COUNT:
+		errors.append("dock registry must retain exactly two empty deferred landmarks")
 	if _surface_nodes.size() != WALKABLE_SURFACE_COUNT:
 		errors.append("walkable surface roster must contain exactly seven collision-backed surfaces")
 	var roster := get_component_roster()
@@ -428,13 +501,23 @@ func get_validation_errors() -> PackedStringArray:
 		or int(authority.audio_node_count) != 0 \
 		or int(authority.activity_node_count) != 0:
 		errors.append("comb module must own no berth, area, audio, or activity authority")
-	for dock in get_deferred_dock_roster():
-		if dock.status != &"deferred_empty" \
-			or bool(dock.owns_berth_authority) \
+	for dock in get_dock_roster():
+		if bool(dock.owns_berth_authority) \
 			or bool(dock.landing_volume_present) \
 			or bool(dock.boarding_area_present):
-			errors.append("every dock marker must remain empty, deferred, and non-authoritative")
+			errors.append("dock landmarks must remain non-authoritative inside the comb")
 			break
+	for dock in get_deferred_dock_roster():
+		if dock.status != &"deferred_empty" \
+			or dock.ship_assignment != &"none":
+			errors.append("dock 02/03 must remain empty, deferred, and non-authoritative")
+			break
+	var assigned := get_assigned_dock_roster()
+	if assigned.size() != 1 \
+		or assigned[0].ship_assignment != &"zenith_b7_observed" \
+		or assigned[0].berth_id != &"zenith_fleet_dock_berth" \
+		or bool(assigned[0].historical_class_to_berth_mapping):
+		errors.append("dock 01 external Zenith assignment drifted or gained a historical claim")
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its fixed geometry or processing budget")
 	var lifecycle := get_lifecycle_contract()
@@ -460,7 +543,9 @@ func get_audit_report() -> Dictionary:
 		"authority": get_authority_contract(),
 		"performance": get_performance_contract(),
 		"lifecycle": get_lifecycle_contract(),
+		"assigned_docks": get_assigned_dock_roster(),
 		"deferred_docks": get_deferred_dock_roster(),
+		"docks": get_dock_roster(),
 	}.duplicate(true)
 
 
@@ -481,7 +566,7 @@ func _index_semantics() -> void:
 		&"dock-03-threshold": _route_dock_03_threshold,
 	}
 	_dock_markers = {
-		&"deferred-dock-01": _deferred_dock_01,
+		&"assigned-dock-01": _assigned_dock_01,
 		&"deferred-dock-02": _deferred_dock_02,
 		&"deferred-dock-03": _deferred_dock_03,
 	}
@@ -491,11 +576,19 @@ func _index_semantics() -> void:
 		marker.set_meta("route_id", route_id)
 	for dock_id: StringName in _dock_markers.keys():
 		var marker := _dock_markers[dock_id] as Marker3D
-		marker.set_meta("deferred_dock", true)
 		marker.set_meta("dock_id", dock_id)
-		marker.set_meta("dock_status", &"deferred_empty")
 		marker.set_meta("owns_berth_authority", false)
 		marker.set_meta("evidence_claim", &"OE-B2-BERTHS")
+		if dock_id == &"assigned-dock-01":
+			marker.set_meta("deferred_dock", false)
+			marker.set_meta("dock_status", &"assigned_external")
+			marker.set_meta("ship_assignment", &"zenith_b7_observed")
+			marker.set_meta("external_berth_id", &"zenith_fleet_dock_berth")
+			marker.set_meta("historical_class_to_berth_mapping", false)
+		else:
+			marker.set_meta("deferred_dock", true)
+			marker.set_meta("dock_status", &"deferred_empty")
+			marker.set_meta("ship_assignment", &"none")
 
 
 func _create_materials() -> void:
@@ -522,7 +615,7 @@ func _build_structure() -> void:
 
 	_register_surface(_surface_box(surfaces, "Trunk", Vector3(0, -0.3, 24.0), Vector3(4.8, 0.6, 48.0), _materials["deck"]), &"trunk", &"trunk")
 	_register_surface(_surface_box(surfaces, "Rung01", Vector3(5.5, -0.3, 10.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-01", &"orthogonal-rung")
-	_register_surface(_surface_box(surfaces, "DockSlab01", Vector3(15.0, -0.3, 10.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-01", &"broad-deferred-slab")
+	_register_surface(_surface_box(surfaces, "DockSlab01", ASSIGNED_DOCK_01_CENTER, ASSIGNED_DOCK_01_SIZE, _materials["deck"]), &"dock-slab-01", &"broad-assigned-slab")
 	_register_surface(_surface_box(surfaces, "Rung02", Vector3(5.5, -0.3, 25.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-02", &"orthogonal-rung")
 	_register_surface(_surface_box(surfaces, "DockSlab02", Vector3(15.0, -0.3, 25.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-02", &"broad-deferred-slab")
 
@@ -563,7 +656,7 @@ func _build_surface_detail() -> void:
 		_visual_box(detail, "TrunkRouteLight", Vector3(0, 0.045, float(z_position)), Vector3(0.22, 0.05, 1.25), _materials["cyan"])
 
 	var slab_specs := [
-		[Vector3(15.0, 0.02, 10.0), 0.0],
+		[Vector3(15.0, 0.02, 8.5), 0.0],
 		[Vector3(15.0, 0.02, 25.0), 0.0],
 		[Vector3(15.0, 2.42, 40.0), 2.4],
 	]
@@ -571,8 +664,9 @@ func _build_surface_detail() -> void:
 		var top_center := slab_specs[index][0] as Vector3
 		var elevation := float(slab_specs[index][1])
 		_visual_box(detail, "SlabInset%02d" % (index + 1), top_center, Vector3(10.4, 0.04, 10.4), _materials["grip"])
-		_visual_box(detail, "DeferredCrossStripe%02d" % (index + 1), top_center + Vector3(0, 0.035, 0), Vector3(8.2, 0.03, 0.18), _materials["deferred"])
-		_visual_box(detail, "DeferredLongStripe%02d" % (index + 1), top_center + Vector3(0, 0.038, 0), Vector3(0.18, 0.03, 8.2), _materials["deferred"])
+		var status_material: Material = _materials["cyan"] if index == 0 else _materials["deferred"]
+		_visual_box(detail, "DockCrossStripe%02d" % (index + 1), top_center + Vector3(0, 0.035, 0), Vector3(8.2, 0.03, 0.18), status_material)
+		_visual_box(detail, "DockLongStripe%02d" % (index + 1), top_center + Vector3(0, 0.038, 0), Vector3(0.18, 0.03, 8.2), status_material)
 		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
 			_visual_box(
 				detail,
@@ -599,7 +693,7 @@ func _build_understructure() -> void:
 	_beam_between(underframe, "TrunkChordStarboard", Vector3(2.05, -0.85, 0.5), Vector3(2.05, -0.85, 47.5), 0.16, _materials["underframe"])
 	for rung_z in [10.0, 25.0, 40.0]:
 		_beam_between(underframe, "RungUnderChord", Vector3(2.0, -0.82, float(rung_z)), Vector3(20.4, (-0.82 if rung_z < 40.0 else 1.58), float(rung_z)), 0.18, _materials["frame"])
-	for slab_spec in [[10.0, -1.75], [25.0, -1.75], [40.0, 0.65]]:
+	for slab_spec in [[8.5, -1.75], [25.0, -1.75], [40.0, 0.65]]:
 		var slab_z := float(slab_spec[0])
 		var support_y := float(slab_spec[1])
 		for support_x in [11.0, 19.0]:
@@ -608,27 +702,29 @@ func _build_understructure() -> void:
 
 func _build_deferred_landmarks() -> void:
 	var landmarks := Node3D.new()
-	landmarks.name = "DeferredLandmarks"
+	landmarks.name = "DockLandmarks"
 	landmarks.set_meta("non_authoritative_presentation", true)
 	_build_root.add_child(landmarks)
 	var label_specs := [
-		["DEFERRED DOCK 01", Vector3(15.0, 0.18, 4.55)],
-		["DEFERRED DOCK 02", Vector3(15.0, 0.18, 19.55)],
-		["DEFERRED DOCK 03", Vector3(15.0, 2.58, 34.55)],
+		["ZENITH // B7 OBSERVED", Vector3(15.0, 0.18, 4.55), true],
+		["DEFERRED DOCK 02", Vector3(15.0, 0.18, 19.55), false],
+		["DEFERRED DOCK 03", Vector3(15.0, 2.58, 34.55), false],
 	]
 	for index in label_specs.size():
 		var label := Label3D.new()
-		label.name = "DeferredDockLabel%02d" % (index + 1)
+		var assigned := bool(label_specs[index][2])
+		label.name = ("AssignedDockLabel%02d" if assigned else "DeferredDockLabel%02d") % (index + 1)
 		label.text = str(label_specs[index][0])
 		label.position = label_specs[index][1] as Vector3
 		label.rotation_degrees = Vector3(-90, 0, 0)
 		label.font_size = 42
 		label.pixel_size = 0.018
-		label.modulate = Color("e36a60")
-		label.outline_modulate = Color("2a1112")
+		label.modulate = Color("67e4e6") if assigned else Color("e36a60")
+		label.outline_modulate = Color("0d2a2c") if assigned else Color("2a1112")
 		label.outline_size = 8
 		label.no_depth_test = false
-		label.set_meta("deferred_dock_label", true)
+		label.set_meta("assigned_dock_label", assigned)
+		label.set_meta("deferred_dock_label", not assigned)
 		landmarks.add_child(label)
 
 
@@ -740,6 +836,8 @@ func _apply_metadata() -> void:
 	set_meta("source_bounded", true)
 	set_meta("authenticated_original_geometry", false)
 	set_meta("owns_berth_authority", false)
+	set_meta("dock_marker_count", DOCK_MARKER_COUNT)
+	set_meta("assigned_dock_count", ASSIGNED_DOCK_COUNT)
 	set_meta("deferred_dock_count", DEFERRED_DOCK_COUNT)
 	set_meta("integration_footprint_min", FOOTPRINT_MIN)
 	set_meta("integration_footprint_max", FOOTPRINT_MAX)

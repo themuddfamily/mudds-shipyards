@@ -27,6 +27,7 @@ func _run() -> void:
 	var hero := game.get_node("TorrentInterceptor") as HeroShip
 	var reserve := game.get_node("ArrowReconShip") as HeroShip
 	var jovian := game.get_node("JovianLightFreighter") as HeroShip
+	var zenith := game.get_node("ZenithInterceptor") as HeroShip
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var hud := game.get_node("HUD") as CanvasLayer
 	var authority := game.call("get_combat_authority") as LiveCombatAuthority
@@ -37,20 +38,33 @@ func _run() -> void:
 		_finish()
 		return
 	resolver.shot_resolved.connect(_on_shot_resolved)
-	_check(resolver.get_registered_source_count() == 4, "all three player craft and the defender have registered authority identities")
+	_check(resolver.get_registered_source_count() == 5, "all four player craft and the defender have registered authority identities")
 	_check(authority.get_source_id(hero) == 1101, "Torrent keeps its explicit stable combat identity")
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
 	_check(authority.get_source_id(jovian) == 1103, "Jovian owns an explicit stable combat identity")
-	_check(authority.get_source_id(opponent) > 0, "opponent source has a stable positive combat identity")
+	_check(authority.get_source_id(zenith) == 1104, "Zenith owns its protected stable combat identity")
+	_check(authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID, "opponent source keeps its explicit stable combat identity")
 	_check(authority.get_source_id(hero) != authority.get_source_id(reserve), "physical player craft never share a source ledger")
 	_check(
 		authority.get_source_id(jovian) != authority.get_source_id(hero)
 		and authority.get_source_id(jovian) != authority.get_source_id(reserve),
 		"Jovian's combat source ledger is unique within the production fleet"
 	)
+	var production_source_ids := {
+		authority.get_source_id(hero): true,
+		authority.get_source_id(reserve): true,
+		authority.get_source_id(jovian): true,
+		authority.get_source_id(zenith): true,
+		authority.get_source_id(opponent): true,
+	}
+	_check(
+		production_source_ids.size() == 5,
+		"Zenith source 1104 remains unique across all four player craft and the defender"
+	)
 	var torrent_profile := authority.get_weapon_profile(hero, &"combat_pulse_cannon")
 	var arrow_profile := authority.get_weapon_profile(reserve, &"combat_pulse_cannon")
 	var jovian_profile := authority.get_weapon_profile(jovian, &"combat_pulse_cannon")
+	var zenith_profile := authority.get_weapon_profile(zenith, &"combat_pulse_cannon")
 	_check(
 		is_equal_approx(float(torrent_profile.get("range", 0.0)), 360.0)
 		and is_equal_approx(float(torrent_profile.get("damage", 0.0)), 34.0),
@@ -67,9 +81,17 @@ func _run() -> void:
 		"Jovian receives its distinct defensive production combat profile"
 	)
 	_check(
+		zenith_profile.size() == 3
+		and is_equal_approx(float(zenith_profile.get("range", 0.0)), 390.0)
+		and is_equal_approx(float(zenith_profile.get("damage", 0.0)), 27.0)
+		and is_equal_approx(float(zenith_profile.get("origin_tolerance", 0.0)), 24.0),
+		"Zenith retains its exact protected production combat profile"
+	)
+	_check(
 		hero.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and reserve.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and jovian.get_node_or_null("AuthoritativeDamageable") is DamageableScript
+		and zenith.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and opponent.get_node_or_null("AuthoritativeDamageable") is DamageableScript,
 		"production craft expose typed Damageable lifecycle proxies"
 	)

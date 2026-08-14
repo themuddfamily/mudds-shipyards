@@ -4,6 +4,7 @@ const RIG_SCENE := preload("res://scenes/audio/ship_audio_rig.tscn")
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
 const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
+const ZENITH_DEFINITION := preload("res://assets/ships/zenith_b7_observed.tres")
 
 
 ## Deterministic backend seams: both represent a named non-Dummy driver whose
@@ -92,13 +93,22 @@ func _test_declared_identity(rigs: Dictionary) -> void:
 		"efficient_twin_recon",
 		"heavy_quad_freighter",
 	])
-	_check(ShipAudioRig.get_declared_profile_ids() == exact_ids, "public profile roster exposes the three exact ShipDefinition audio_profile_id values")
+	_check(ShipAudioRig.get_declared_profile_ids() == exact_ids, "public profile roster exposes the three exact reusable audio profile IDs")
 	var definition_profile_ids := PackedStringArray([
 		str(TORRENT_DEFINITION.get("audio_profile_id")),
 		str(ARROW_DEFINITION.get("audio_profile_id")),
 		str(JOVIAN_DEFINITION.get("audio_profile_id")),
+		str(ZENITH_DEFINITION.get("audio_profile_id")),
 	])
-	_check(definition_profile_ids == exact_ids, "declared rig profiles exactly match the three live ShipDefinition resources")
+	_check(
+		definition_profile_ids == PackedStringArray([
+			"standard_fighter",
+			"efficient_twin_recon",
+			"heavy_quad_freighter",
+			"standard_fighter",
+		]),
+		"four live ShipDefinitions use the declared profiles and Zenith deliberately reuses standard_fighter"
+	)
 	for profile in exact_ids:
 		_check(ShipAudioRig.is_declared_profile_id(StringName(profile)), "%s is accepted as an exact declared profile" % profile)
 	_check(not ShipAudioRig.is_declared_profile_id(&"Standard_Fighter"), "profile validation is case-sensitive")

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Focused integration regression for the provisional Arrow's place in the
-## persistent three-craft yard. This deliberately begins before the guided
+## persistent four-craft yard. This deliberately begins before the guided
 ## Torrent activity so an Arrow sortie cannot accidentally consume mission
 ## state or replace the authored guide.
 
@@ -16,7 +16,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
-	_check(game != null, "three-craft production scene instantiates")
+	_check(game != null, "four-craft production scene instantiates")
 	if game == null:
 		_finish()
 		return
@@ -30,23 +30,27 @@ func _run() -> void:
 	var torrent := game.get_node("TorrentInterceptor") as HeroShip
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
+	var zenith := game.get_node("ZenithInterceptor") as HeroShip
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var original_game_id := game.get_instance_id()
 	var original_player_id := player.get_instance_id()
 	var fleet := game.get_flyable_ships()
-	_check(fleet.size() == 3, "main scene registers exactly three physical flyable craft")
-	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian), "fleet registry contains the Torrent, Arrow, and Jovian instances")
+	_check(fleet.size() == 4, "main scene registers exactly four physical flyable craft")
+	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith), "fleet registry contains the Torrent, Arrow, Jovian, and Zenith instances")
 	_check(game.get_node_or_null("ReserveInterceptor") == null, "retired duplicate handling article is absent")
 	_check(game.get_guided_ship() == torrent, "Torrent remains the explicit guided-activity craft")
 	_check(torrent.get_ship_id() == &"torrent_provisional", "Torrent exposes its stable production identity")
 	_check(arrow.get_ship_id() == &"arrow_provisional", "Arrow exposes its distinct stable production identity")
 	_check(jovian.get_ship_id() == &"jovian_provisional", "Jovian exposes its distinct stable production identity")
+	_check(zenith.get_ship_id() == &"zenith_b7_observed", "Zenith exposes its B7-observed stable production identity")
 	_check(torrent.get_home_berth_id() == &"central_berth", "Torrent owns the central guided berth")
 	_check(arrow.get_home_berth_id() == &"arrow_recon_berth", "Arrow owns the dedicated recon berth")
 	_check(jovian.get_home_berth_id() == &"jovian_freight_berth", "Jovian owns the dedicated freight berth")
+	_check(zenith.get_home_berth_id() == &"zenith_fleet_dock_berth", "Zenith owns the assigned Fleet Dock Comb berth")
 	_check(world.has_berth(torrent.get_home_berth_id()), "shared world registers the Torrent berth")
 	_check(world.has_berth(arrow.get_home_berth_id()), "shared world registers the Arrow berth")
 	_check(world.has_berth(jovian.get_home_berth_id()), "shared world registers the Jovian berth")
+	_check(world.has_berth(zenith.get_home_berth_id()), "shared world registers the Zenith berth")
 	var arrow_berth := world.get_berth_node(arrow.get_home_berth_id())
 	_check(arrow_berth != null and arrow_berth.get_occupant() == arrow, "Arrow begins physically occupying its recon berth")
 	_check(

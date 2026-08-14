@@ -15,8 +15,10 @@
     "partial_reconstruction_requires": "identity_and_role and name_tied_multiview pass; every unsupported feature remains explicit",
     "freeze_rule": "No original-labelled silhouette redesign may advance beyond its gate_status without new ledger evidence.",
     "current_authenticated_ship_count": 0,
-    "current_partial_reconstruction_count": 1,
-    "current_provisional_candidate_count": 2
+    "current_partial_reconstruction_count": 2,
+    "current_provisional_candidate_count": 2,
+    "count_semantics": "Implementation counts; a written evidence specification alone does not count as an implemented reconstruction.",
+    "current_versioned_unimplemented_spec_count": 0
   },
   "ships": [
     {
@@ -43,17 +45,27 @@
       "creator_roster_sources": ["A5", "A9"],
       "model_sources": ["B7"],
       "gate_status": {
-        "identity_and_role": "conflicted",
+        "identity_and_role": "pass",
         "name_tied_multiview": "pass",
         "visual_feature_index": "partial",
         "observed_role_and_handling": "fail",
         "timestamped_confidence": "pass",
         "conflicts_and_unknowns": "pass"
       },
-      "implementation_status": "not_implemented_research_candidate",
-      "safe_claim": "B7 securely links a wide pale delta/arrow craft to the Zenith Interceptor label in footage uploaded in 2012.",
-      "unknowns": ["Fighter versus Interceptor role conflict", "recording/build date", "dimensions", "access detail", "systems", "handling"],
-      "next_evidence_gate": "Resolve or deliberately version the Fighter/Interceptor conflict and index the B7 views into a bounded feature sheet."
+      "implementation_status": "b7_observed_partial_reconstruction",
+      "versioned_scope": {
+        "scope_id": "zenith_b7_observed_interceptor",
+        "status": "specification_complete_implemented_bounded_partial",
+        "public_label": "Zenith-class Interceptor — B7-observed reconstruction",
+        "role_basis": "B7 runtime label; A5 independently uses Interceptor while A9 Fighter remains a dated conflict.",
+        "feature_index_frames_zero_based": [373, 400, 440, 460, 467],
+        "excluded_from_frame_zero_based": 468,
+        "source_core": ["pale width-dominant full-delta/arrow planform", "raised faceted central body/spine", "long strakes", "repeated stepped subdivisions", "function-unresolved pod-like exterior form"],
+        "specification": "docs/ZENITH_B7_RECONSTRUCTION_SPEC.md"
+      },
+      "safe_claim": "B7 securely links a wide pale delta/arrow craft to the Zenith Interceptor label in footage uploaded on 2012-03-18; that upload date does not date the recording or game build.",
+      "unknowns": ["Fighter versus Interceptor role outside the deliberately versioned B7 scope", "whether A5, A9 and B7 concern the same model or build", "recording date", "live build revision", "dimensions and scale", "exact access and interior", "pod count and function", "engines and weapons", "materials", "class-specific handling"],
+      "next_evidence_gate": "Find a higher-resolution uninterrupted name-tied source that resolves scale, access, surface topology, systems or class-specific handling; implementation must remain within the B7-observed specification until then."
     },
     {
       "ship_id": "arrow",

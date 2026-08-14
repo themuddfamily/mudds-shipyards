@@ -240,9 +240,10 @@ func _run() -> void:
 	var ship := game.get_node_or_null("TorrentInterceptor") as CharacterBody3D
 	var arrow := game.get_node_or_null("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node_or_null("JovianLightFreighter") as JovianLightFreighter
+	var zenith := game.get_node_or_null("ZenithInterceptor") as HeroShip
 	var opponent := game.get_node_or_null("RangeOpponent") as CharacterBody3D
 	var hud := _hud
-	if world == null or player == null or ship == null or arrow == null or jovian == null or opponent == null or hud == null:
+	if world == null or player == null or ship == null or arrow == null or jovian == null or zenith == null or opponent == null or hud == null:
 		_fail("main scene is missing a required vertical-slice node")
 		await _dispose(game)
 		_finish()
@@ -263,8 +264,8 @@ func _run() -> void:
 	_check(game.get_node_or_null("ReserveInterceptor") == null, "retired duplicate ReserveInterceptor is absent from capture world")
 	var fleet: Array[HeroShip] = game.call("get_flyable_ships")
 	_check(
-		fleet.size() == 3 and fleet.has(ship) and fleet.has(arrow) and fleet.has(jovian),
-		"capture world contains exactly the distinct Torrent, Arrow, and Jovian production fleet"
+		fleet.size() == 4 and fleet.has(ship) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith),
+		"capture world contains exactly the distinct Torrent, Arrow, Jovian, and Zenith production fleet"
 	)
 
 	# Long enough to photograph each physical transition, short enough for this

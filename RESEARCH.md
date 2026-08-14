@@ -174,15 +174,20 @@ weapons or destruction.
   independent medium-high-confidence corroboration of the label/berth and a
   broadly compatible craft family, but not an adequate multi-view lock alone.
 - **B7 — [The Flight](https://www.youtube.com/watch?v=J0GVOdxftXI)**,
-  uploaded 2012-03-18 by Becker260. In the highest public `854x480`, constant
-  `11 fps` rendition, “Regenerating Zenith-class Interceptor” begins at
+  uploaded 2012-03-18 by Becker260. The registered public rendition is
+  `2,264,402` bytes, `854x480`, constant `11 fps`, and 48 seconds, with SHA-256
+  `c716c506d9fd7042ac98720e8815725cf083d24967bc8c9f842cdfa58e8ca144`.
+  “Regenerating Zenith-class Interceptor” begins at
   `00:33.455` (`f368`); the berth remains empty through `00:33.818` (`f372`),
   then a pale delta/arrow craft appears at `00:33.909` (`f373`) in the same
   near-static shot. The message lasts through `00:36.818` (`f405`). Continuous
   approach, boarding, and flight identify that craft as Zenith through
-  `00:42.455` (`f467`), before a discontinuity at `f468`. This is a strong
-  2012 Zenith lock and an explicit exclusion: its wide swept delta/arrowhead
-  imagery must not be reassigned to Torrent.
+  `00:42.455` (`f467`), before a discontinuity at `f468`; `f468+` is excluded
+  from the identity chain. This is a strong B7 name-to-model lock in footage
+  uploaded in 2012, not proof of a 2012 recording or build. Its wide swept
+  delta/arrowhead imagery must not be reassigned to Torrent. The bounded feature
+  index and rights-safe reconstruction constraint are frozen in the
+  [B7-observed Zenith specification](docs/ZENITH_B7_RECONSTRUCTION_SPEC.md).
 
 ### Tier C: later reference and memory
 
@@ -328,12 +333,15 @@ Before calling any model an original-ship remake, record:
 6. conflicts between builds rather than silently choosing one.
 
 No surviving source currently satisfies all six requirements for every ship.
-A3 and B3–B7 now clear requirements 1, 2, 5, and 6 for the B5-linked Torrent and
+A3 and B3–B7 clear requirements 1, 2, 5, and 6 for the B5-linked Torrent and
 supply most of requirement 3. B5 observes flight but does not isolate or
-measure class-specific handling, so requirement 4 remains partial. Exact
-dimensions, hardpoints, whether the paired circular forms are engines, a
-hatch/canopy animation, and equivalence to the 2009 model are also unresolved;
-those prevent a fully specified original-ship reproduction.
+measure class-specific handling, so requirement 4 remains partial. A5, A9 and
+B7 now clear requirements 1, 2, 5, and 6 for the deliberately versioned
+**B7-observed Zenith Interceptor** scope and supply a bounded subset of
+requirement 3. They do not resolve exact dimensions, access, systems, interior,
+materials or class-specific handling, and the A9 Fighter/A5+B7 Interceptor role
+conflict remains explicit. Neither craft is therefore a fully specified or
+authenticated original-ship reproduction.
 
 ## Visual direction of the original/fixed experience
 
@@ -501,10 +509,11 @@ The [per-ship evidence matrix](docs/research/ship_evidence_matrix.json) applies
 one six-gate contract to every currently known name: identity/role, name-tied
 multi-view mapping, visual-feature index, observed role/handling, timestamped
 confidence, and conflicts/unknowns. It currently records zero authenticated
-ship reconstructions, one bounded partial reconstruction (Torrent), two frozen
-modern candidates (Arrow and Jovian), and one strong unimplemented research
-candidate (Zenith). Further original-labelled silhouette work remains frozen at
-the recorded gate unless new ledger evidence supports it.
+ship reconstructions, two bounded partial reconstructions (the B5-linked Torrent
+and B7-observed Zenith), and two frozen modern candidates (Arrow and Jovian).
+The accepted Zenith runtime changes its implementation count, not its evidence
+gates or historical confidence. Further original-labelled silhouette work
+remains frozen at the recorded gate unless ledger evidence supports it.
 
 The prototype uses the **Torrent-class Interceptor** as its first candidate.
 
@@ -586,6 +595,29 @@ hierarchies with their own variant-specific implementations, preventing
 Torrent-only reconstruction evidence from leaking into either provisional
 candidate.
 
+### B7-observed Zenith reconstruction boundary
+
+Zenith is the second implemented defensible original-labelled ship slice, but
+only as the versioned **Zenith-class Interceptor — B7-observed reconstruction**
+described in
+the [B7 specification](docs/ZENITH_B7_RECONSTRUCTION_SPEC.md). B7 securely ties
+the runtime Interceptor label to one pale, very wide swept delta/arrow craft
+through an uncut empty-berth, appearance, approach, boarding and flight chain.
+The bounded frame index resolves a raised faceted central body/spine, long
+strakes, repeated simple subdivisions and at least one function-unknown
+cylindrical or pod-like exterior form. It does not supply orthographic views,
+absolute scale, exact topology, systems, interior, materials or handling.
+
+The role is deliberately versioned rather than silently canonicalised. A5 and
+B7 say **Interceptor**; A9 says **Fighter**. The upload date of 2012-03-18 does
+not establish the recording date, game build or model date. The implemented art
+slice keeps the pale wide-delta macroform in a removable source core and keeps
+pressure glazing, controls, engine internals, weapons, landing gear, docking,
+boarding aids, damage hardware, PBR detail and flight balance explicitly modern.
+The evidence document and feature index remain the limit: implementation and
+capture acceptance make Zenith a bounded partial reconstruction, not an
+authenticated historical ship.
+
 ## Design invariants derived from evidence
 
 These are the safest Phase 1 constraints for later development:
@@ -622,11 +654,12 @@ an exact copy.
 | **Solid nodes are separated by long, narrow orthogonal arms and substantial negative space.** | B2 `4:55–5:10` gives the clearest original-era oblique overview: a central crossing/spine links rectangular end volumes through thin beams, with voids at least as visually important as the solids. B3 `6:13–7:10` shows narrow projecting routes at several heights. A8 corroborates the broad-spine/thin-arm hierarchy in the fixed build. | Medium-high for hierarchy; low for measurements. | The current station uses a central junction/spine, narrower arms, broader nodes, and genuine gaps rather than one continuous slab. The bounded Fleet Dock Comb adds one 48 m narrow trunk, three short teeth and three broad empty/deferred slabs without a hidden full-footprint floor. Retain this hierarchy while using modern avatar-clear dimensions and keeping the exact module tagged `modern_interpretation`. | No orthographic view, absolute scale, arm length, deck thickness, exact rung/slab count, berth assignment, or authoritative coordinate map survives. |
 | **Enclosed rooms are compact insertions within the open framework.** | In B3 `2:40–3:00`, the avatar moves from an exposed deck through a small blue-operated opening into a grey console room with windows; the surrounding deck remains visible. B2 `7:04–7:22` and B4 `4:20–4:30` show chair/console banks and wide space-facing windows, although the containing station-versus-large-ship context is not always certain. A3 records a command-section proposal in November 2009, but does not prove that any later filmed room implements it. | Medium for original-era spatial relationship; medium that later footage contains comparable room motifs, with function/context unresolved. | The current operations, Habitat, and freight rooms, together with the fixed-rail activity, procedural machinery audio, and outer-face dressing, remain secondary modern insertions attached to the lattice. Keep their roles, routes, layouts, dressing, and audio tagged `modern_interpretation`. | Exact room purposes, station-versus-ship context, build dates, and adjacency are uncertain; no command-room geometry can be projected back to launch day. No cited source authenticates the new operational roles, rails, routes, dressing, or soundscape. |
 | **Named regeneration is creator-proven; a physical bank of per-ship regeneration consoles is not.** | A3–A6 explicitly instruct players to say a ship name. In B3 the top message reads “Regenerating Titan-class Medium Transport” at `05:10.000` (`f1860`) and changes to “Regenerating Torrent-class Interceptor” at `05:13.167` (`f1879`) while the same craft remains visible. B4 supplies an uncut Torrent spawn at `04:50.333` (`f1742`), and B5 supplies the decisive continuous spawn/boarding chain. Blue/green pads and consoles appear elsewhere (B2 `0:00–1:00`; B3 `2:40–3:00`), but no cited sequence shows one causing a named regeneration. | High for name/chat regeneration; low for the function of individual coloured controls. | The former console bank is now one explicitly modern registry terminal displaying the classic `SAY SHIP NAME` convention beside a physical berth indicator. Do not present the terminal itself as recovered machinery. | Whether any build also offered a physical regeneration control, and whether the coloured pads are doors, spawn pads, teleports, or controls, remains unproved. |
-| **Several ships are parked around separate arms/nodes rather than one hero craft centred on one runway.** | A8 visibly places multiple pale craft at different offsets and orientations around the fixed-build lattice. B2 `4:40–5:10` and B4 `3:43–3:53` show several craft around the station in original-era footage; creator pages A3–A6 describe a facility that stores a fleet of ten to twelve completed ships depending on date. | High for a physically present fleet; medium for exact simultaneous arrangement. | The current sandbox places exactly three provisional flyables—Torrent, Arrow, and Jovian—at distinct physical berths. Their classes do not authenticate their modern models or berth transforms. | Which class belongs at which historical berth, how many ships were simultaneously spawned, and exact parking transforms are unknown. |
-| **A visible historical docking/berth-state display is not established.** | The registered sources support physically present ships, name-based regeneration, embodied boarding, and return/landing motifs, but no cited sequence resolves a three-state lease display, its wording, colour language, geometry, animation, or control relationship. Coloured pads and controls elsewhere have unresolved functions and cannot be reassigned to docking feedback. | Absent for the implemented display; unknown for whether some original build had comparable feedback. | The exact three production berths may expose presentation-only modern lease feedback derived from their existing authority: cyan `BERTH OPEN` for released, amber `APPROACH VECTOR` for reserved-only approach, and green `BERTH SECURED` for occupied. Keep it collision-, audio-, navigation-, and authority-free and tagged `modern_interpretation`. | Any original docking aid, state model, label, colour, animation, dimensions, placement, material, light, sound, or relationship to landing authority remains unresolved. |
+| **Several ships are parked around separate arms/nodes rather than one hero craft centred on one runway.** | A8 visibly places multiple pale craft at different offsets and orientations around the fixed-build lattice. B2 `4:40–5:10` and B4 `3:43–3:53` show several craft around the station in original-era footage; creator pages A3–A6 describe a facility that stores a fleet of ten to twelve completed ships depending on date. | High for a physically present fleet; medium for exact simultaneous arrangement. | The current sandbox places exactly four flyables—bounded partial Torrent and Zenith reconstructions plus provisional Arrow and Jovian candidates—at distinct physical berths. Torrent and Zenith have version-bounded name-to-model locks; none of the current berth transforms is authenticated. | Which class belongs at which historical berth, how many ships were simultaneously spawned, and exact parking transforms are unknown. |
+| **A visible historical docking/berth-state display is not established.** | The registered sources support physically present ships, name-based regeneration, embodied boarding, and return/landing motifs, but no cited sequence resolves a three-state lease display, its wording, colour language, geometry, animation, or control relationship. Coloured pads and controls elsewhere have unresolved functions and cannot be reassigned to docking feedback. | Absent for the implemented display; unknown for whether some original build had comparable feedback. | The exact four production berths may expose presentation-only modern lease feedback derived from their existing authority: cyan `BERTH OPEN` for released, amber `APPROACH VECTOR` for reserved-only approach, and green `BERTH SECURED` for occupied. Keep it collision-, audio-, navigation-, and authority-free and tagged `modern_interpretation`. | Any original docking aid, state model, label, colour, animation, dimensions, placement, material, light, sound, or relationship to landing authority remains unresolved. |
 | **The observed spawn/return anchor is on or immediately beside an exposed main deck with a short ladder transition.** | B3 begins with an avatar materialising in a protective bubble on the uncovered deck at `0:04–0:10`; after a death, `1:03–1:10` returns to the same deck. A ladder is directly ahead, and the red VIP entrance and branching arms remain in sight (`0:20–0:52`). C1 `0:00–0:24` shows a visually similar later relationship, but its exact build is unverified. | Medium-high for the observed 2012 return point; medium for the recurring later motif; unresolved for first-join spawn. | The current slice begins at an exposed junction facing a short stair and visible craft. Treat that placement as a source-bounded remake decision, not a recovered first-login coordinate. | First-login and death respawn may differ; C1's build, exact orientation, VIP adjacency in earlier builds, menu availability, and the route to each ship are unknown. |
 | **Torrent boarding reaches a visible physical pilot position; the exact hatch/canopy mechanism is unresolved.** | B5 continuously links the named spawn at `00:10.733` to an on-foot approach around `00:13`, entry into the central pilot space around `00:14.5–00:15.5`, a visible red occupied seat at `00:15.500`, and chase view by `00:16.833–00:17.000`. Compression/clipping prevents a defensible animated-door or canopy claim. B2 and B4 independently support embodied access for other craft. | High for Torrent physical entry and one visible pilot seat in the B5-observed model; low for exact entry side, hatch/canopy mechanics, or controls. | Preserve a physically reachable central single-pilot position and same-world boarding. Keep the current side steps, hinged canopy, detailed controls, camera transition, and exit path modular and labelled as modern design. | Exact entry side, door/canopy existence and motion, instrument layout, restraints, egress, and whether the yellow/translucent panel is glazing remain unresolved. |
 | **The B5 Torrent name-to-model identity is locked; bounded reconstruction v1 is source-aligned but partial.** | A3 is creator-authored name/role evidence. In B5 the exact label begins at `00:10.200` (`f306`), the berth remains empty through `f321`, the craft appears at `00:10.733` (`f322`), and continuous boarding/flight supplies named rear/dorsal (`00:23`, `f690`), side/top (`00:29`, `f870`), and close side/front (`00:41`, `f1230`) views. B6 independently corroborates a compatible pale pointed craft at a Torrent-labelled berth. B3 is a warning against label overlap; B4 supplies a separate tiny spawn link. B7 positively identifies a different wide delta/arrow craft as Zenith. | High for the B5 name-to-model identity and broad silhouette; medium for fine geometry/colour; low for recording/build provenance, 2009 equivalence, and unobserved systems. | Reconstruction v1 implements the compact faceted wedge, pointed nose, raised spine/blocky aft, four stepped side-plane tiers, paired round housings and dominant upright rails. Its crossbar is an explicitly inferred reconstruction used to preserve the U-like rear read, not a separately authenticated B5 part. The central red seat and restrained amber forward panel remain visible. Its metre envelope is a modern ergonomic normalization; the panel and housing functions remain unknown. Engine internals, canopy, controls, weapons, gear, RCS/service/docking hardware, materials, handling and damage behaviour remain separated/tagged modern design. Arrow and Jovian use isolated visual/collision implementations; do not import B7's Zenith-locked delta details or Torrent evidence into either candidate. | Exact source dimensions/proportions/topology, function of the circular housings and forward panel, hardpoints/weapons, landing gear, exhaust, hatch animation, materials, symmetric fin geometry, handling, recording/build provenance, and continuity with the 2009 model remain unresolved. |
+| **The B7 Zenith name-to-model identity is locked for a deliberately versioned scope; the bounded partial reconstruction is implemented.** | A5 calls Zenith an Interceptor, A9 calls it a Fighter, and the conflict remains dated rather than resolved. In B7 the Interceptor label begins at `00:33.455` (`f368`), the berth remains empty through `f372`, and a pale wide-delta craft appears without a cut at `00:33.909` (`f373`). Continuous approach, boarding and flight retain that identity through `00:42.455` (`f467`); `f468+` follows a discontinuity and is excluded. | High for the B7 name-to-model identity and physical boarding/flight chain; medium-high for the width-dominant pale macroform; medium for centre/spine, strake and step features; low for fine geometry; absent for recording/build provenance and class-specific handling. | Keep the versioned label `Zenith-class Interceptor — B7-observed reconstruction`. The removable source core implements the pale full-delta/arrow planform, raised faceted centre/spine, long strakes, repeated stepped subdivisions and cautiously indexed pod-like forms. Pod-like forms remain function-unknown. Exact dimensions, cockpit/access construction, engines, weapons, gear, materials, handling and Fleet Dock berth placement are modern or unresolved. Tests and captures accept this bounded implementation but do not authenticate it. | Whether A5/A9/B7 concern the same model/build, Fighter versus Interceptor outside the B7 scope, exact proportions/topology/scale, pod count/function, interior, access mechanism, engines, weapons, materials, handling, recording date, live build revision and 2009 continuity remain unresolved. |
 | **“Jovian-class Light Freighter” is proven; the current freighter, interior, and berth are not.** | A3 is creator-authored name/role evidence. B4 `4:50–5:20` independently repeats the Jovian regeneration label, but the sequence does not securely tie a visible model to that name. No registered source establishes a Jovian silhouette, interior, ramp, handling, weapons, or berth. | High for the name and light-freighter role; absent for an authenticated name-to-model, interior, or berth mapping. | Keep the implemented Jovian explicitly provisional. Treat its silhouette, dimensions, colours, cargo/passenger/cockpit route, ramp, capacity, engines, weapons, materials, handling, mechanics, and port freight berth as modern design that can be replaced without revising the historical claim. | Name-linked multi-view geometry, scale, colours, access, interior plan, crew/cargo capacity, propulsion, weapons, handling, and historical berth placement are unresolved. |
 
 ### Current implementation status and next evidence work (2026-08-14)
@@ -635,12 +668,18 @@ The exposed station prototype and settled Phase 3 operational-lattice slice are
 implemented as a **modern, source-bounded prototype**, not a recovered floor
 plan, historical operations simulation, or audio reconstruction:
 
+The B7-observed Zenith evidence boundary remains frozen as a non-media written
+specification, and the accepted project-original implementation now adds a
+fourth runtime craft and world-owned berth. It deliberately versions the
+Interceptor/Fighter conflict and remains a bounded partial reconstruction, not
+an authenticated ship.
+
 1. The old enclosing runway blockout has been replaced by an exposed central
    junction, orthogonal berth arms, narrow aft/launch spines, and genuine voids.
 2. The speculative per-ship console bank was replaced by one explicitly modern
    registry terminal. Its labels preserve creator-documented names and the
    `SAY SHIP NAME` convention without claiming that the terminal itself existed.
-3. Exactly three physical flyables now occupy separate registered berths. The
+3. Exactly four physical flyables now occupy separate registered berths. The
    Torrent uses the bounded B5-linked reconstruction v1 described above: its
    high-confidence identity lock is distinct from its partial reconstruction
    status and unproved 2009 continuity. Its compact faceted macroform, four
@@ -654,6 +693,15 @@ plan, historical operations simulation, or audio reconstruction:
    materials, handling and damage behaviour remain separated or tagged as
    modern interpretations. Collision envelopes and damage anchors were revised
    for the compact form while retaining the gameplay contracts.
+   The Zenith uses a separately versioned B7-observed partial reconstruction:
+   47,274 close and 5,412 far presentation triangles batch to 22 meshes/surfaces,
+   while 24 mixed runtime shapes independently own collision authority. Its
+   removable source core preserves the wide pale delta/arrow, raised centre,
+   long strakes, stepped subdivisions and cautiously indexed pod-like forms;
+   their function remains unknown. Its cockpit/access, engines, weapons, gear,
+   materials, handling and Fleet Dock placement remain modern. Focused physical
+   lifecycle validation passed all 49 assertions twice, but that is gameplay
+   integration evidence rather than historical authentication.
 4. The distinct **provisional Arrow-class Recon Ship candidate** and larger
    **provisional Jovian-class Light Freighter candidate** retain their own visual
    and collision hierarchies rather than inheriting Torrent reconstruction claims.
@@ -672,11 +720,13 @@ plan, historical operations simulation, or audio reconstruction:
    ramp-to-cargo-to-passenger traversal, while cockpit boarding is separately
    tested through the exterior pilot hatch; a continuous ramp-to-cockpit walk has
    not yet been demonstrated.
-6. All three candidates have visible cockpits, seats, physical access, seated
+6. All four flyables have visible cockpits, seats, physical access, seated
    pilots, and same-world exits. B5 shows that its linked Torrent model had a
    physical central entry and one visible red pilot seat, but it does not prove
    the current canopy, steps, controls, camera, exit, or transition design. No
    cited sequence proves those model-specific implementations for Arrow or Jovian.
+   B7 directly supports an approach/boarding/flight chain for Zenith, but not the
+   current canopy, entry side, access construction or single-seat layout.
    The Torrent's compact translucent forward panel, anti-glare instrument hood
    and side consoles, restrained live readouts, practical light, and sampled
    `10 m` pilot-eye sight corridor are likewise modern presentation choices, not
@@ -689,8 +739,9 @@ plan, historical operations simulation, or audio reconstruction:
    its upper circulation into the Fleet Dock Comb: one narrow starboard trunk,
    three short teeth, three broad separated slabs, real voids and one short
    ramp. B2 supports that repeated macro rhythm, not the exact implementation.
-   Its three dock markers remain empty/deferred and add no live berth,
-   regeneration, interaction, audio or gameplay authority.
+   Dock 01 records a modern external Zenith assignment aligned to a world-owned
+   berth; Docks 02/03 remain empty and deferred. The comb's markers themselves
+   add no berth, lease, regeneration, interaction, audio or gameplay authority.
 8. A Habitat Spine is integrated through the starboard lattice with an operated
    door, corridor, six bunk alcoves, an eight-chair observation/common room,
    glazing, consoles, service detail, and a sealed deferred branch. C1 motivates
@@ -767,20 +818,22 @@ plan, historical operations simulation, or audio reconstruction:
     a coherent retry. These completion, lease, landing, and transition rules are
     modern remake design; the sources do not establish their exact historical
     state machine, dimensions, tolerances, latch rules, feedback, or timing.
-16. Exactly three direct-child `ShipBerthFeedback` components render the real
+16. Exactly four direct-child `ShipBerthFeedback` components render the real
     production berth leases as `BERTH OPEN`, `APPROACH VECTOR`, and `BERTH
     SECURED`. They have deterministic manual clocks and instance-local materials,
     but no collision, physics queries, lights, audio, particles, timers,
     navigation, or docking authority. Their roster, geometry, labels, colours,
     animation, dimensions, materials, and placements are explicit
     `modern_interpretation`; no cited source authenticates an original docking
-    display. The definitive v0.10 harness passes nine HUD-free 2560x1440 views
-    across the three states and three berths; that verifies current presentation
-    integration and visible state variation, not a historical docking-display
-    claim.
+    display. The now-superseded v0.10 harness passed nine HUD-free 2560x1440
+    views across the three states and then-current three berths; that remains
+    historical presentation evidence, not validation of the four-berth source or
+    a historical docking-display claim. The current runner declares twelve views
+    across all four berths; a source-current four-berth rerun remains pending.
 17. Each production craft owns one definition-selected finite-range positional 3D
-    `ShipAudioRig`: Torrent `standard_fighter`, Arrow `efficient_twin_recon`, and
-    Jovian `heavy_quad_freighter`. Each synthesizes four loop layers and eight cues
+    `ShipAudioRig`: Torrent and Zenith `standard_fighter`, Arrow
+    `efficient_twin_recon`, and Jovian `heavy_quad_freighter`. Four craft therefore
+    share three modern profiles. Each synthesizes four loop layers and eight cues
     into a fixed six-voice/two-transient hierarchy, releases PCM/playback handles
     on detach, and regenerates deterministically on re-entry. One global
     `PulseWeaponPresentation` renders accepted resolved shots through a fixed
@@ -814,7 +867,7 @@ plan, historical operations simulation, or audio reconstruction:
     its scoped 221-file manifest was byte-identical before and after at SHA-256
     `66d33185ee8d922af931d90330296518e16fbdc58eeb24c08c6e6c7133161273`.
 
-    The definitive v0.10 inventory contains exactly 54 `tests/*_test.gd` headless
+    The now-superseded v0.10 inventory contained exactly 54 `tests/*_test.gd` headless
     suites. Under Godot 4.7.1, the editor/import gate exited `0`; all 54 of 54
     suites exited `0` with 4,075 anchored `PASS:` assertions and 54 exact terminal
     sentinels. The raw matrix contained zero failures, errors, warnings, timeouts,
@@ -824,8 +877,8 @@ plan, historical operations simulation, or audio reconstruction:
     SHA-256
     `204f6d482370684c823e84ecef66a44540d37f84f583915802df56533cf5197c`.
 
-    The definitive v0.10 automated integration exercises Arrow- and
-    Jovian-first free-sortie boundaries, the protected guided range, three-craft
+    That historical v0.10 automated integration exercised Arrow- and
+    Jovian-first free-sortie boundaries, the protected guided range, then-current three-craft
     berth/damage/recovery lifecycle, station/Habitat/freight traversal,
     moving-interior behaviour, transition-destruction recovery, and the 27
     distinct 1280x720 states declared by the main rendered-evidence runner. A
@@ -835,7 +888,7 @@ plan, historical operations simulation, or audio reconstruction:
     2560x1440 operational-lattice views cover the exposed overview, Central, Aft,
     Habitat, Freight, and launch flypast. Nine more HUD-free 2560x1440 Forward+
     berth-feedback views cover released, approach, and occupied at the Central,
-    Arrow, and Jovian berths. The current automated evidence total is therefore 54
+    Arrow, and Jovian berths. That historical automated evidence total is 54
     frames (`27 + 12 + 6 + 9`). All four harnesses exit `0` with exact sentinels;
     all 54 declared PNGs have the correct type and dimensions and unique full-file
     SHA-256 hashes. The closest pair in every harness passes its threshold: main
@@ -859,7 +912,36 @@ plan, historical operations simulation, or audio reconstruction:
     historical accuracy, final human visual sign-off, native-GPU or native-Windows
     behaviour, representative performance, an uninterrupted human playthrough,
     or audio audibility; broader human review remains pending.
-20. The source-current v0.10 Windows export completed with exit `0`.
+
+    The definitive Godot 4.7.1 v0.12 matrix recorded an editor/import exit of `0`
+    in 2,844 ms and exactly 75 of 75 suite exits of `0`, with 6,969 anchored
+    `PASS:` assertions and exactly 75 terminal sentinels (73 `OK` plus two
+    `PASS`). Logs contained zero timeout, failure, error, fatal, RID, ObjectDB,
+    resource, or orphan diagnostics; the only warnings were 76 generic root-
+    startup warnings. Its 452-file source scope remained byte-identical before
+    and after at SHA-256
+    `2115dddd6c11fa751c804b1e3140e0b2cf1b476b478675fe17ed2f7383e68792`.
+    Results-table, exact-sentinel-validation, and ordered process-hash-aggregate
+    SHA-256 values are respectively
+    `521d9bfd278ddec4ba0623f070b08487d962e7748d9eeafce09134f9125fe349`,
+    `c243dfea866cb07a01343ad0300db10f9a72a12948b5a7c9a1d6e76c45ac1e05`,
+    and `f0338503e70ca534a666b04c2ee41e4cb22d180f45fa7818ce110a6cbd493b10`.
+    The prior 72-suite, 6,673-assertion matrix remains a byte-pinned historical
+    checkpoint rather than the v0.12 result.
+
+    The final Zenith-specific X11 Forward+ capture passed all seven declared
+    2560x1440 frames with distinct bounded semantic states; original-resolution
+    review found no blocker. Evidence-manifest SHA-256 is
+    `6e6d66b3d6a7a1254da6da8ce1259b5c593f7820312c74ed199c4712a529c89a`,
+    286-file frozen-source aggregate SHA-256 is
+    `68d23207b9841463c61273b8c3de610a25519e82dc56f46eeddfb7befdef77c4`,
+    and raw-log SHA-256 is
+    `6da081c58304bb152d7553669395fd481fd64862276a944fd17be6cedd117704`.
+    Its only post-sentinel diagnostic was the known seven-Texture-RID capture
+    warning. These staged captures and bounded review validate presentation
+    integration, not historical fidelity or authentication, complete-project
+    craftsmanship sign-off, native-Windows behaviour, or an uninterrupted sortie.
+20. The now-superseded v0.10 Windows export completed with exit `0`.
     `builds/windows/KethShipyardsReforged.exe` is 137,356,496 bytes, was modified
     `2026-08-13 08:25:39.484373665 +0100`, and has SHA-256
     `fe41f1b52e43c6e11b3fd3782088a66efb851b6e70ca0ea49a99f8c5126d6147`.
@@ -881,18 +963,38 @@ plan, historical operations simulation, or audio reconstruction:
     error, warning, leak, or orphan markers. The 133-file release scope remained
     byte-identical before and after at SHA-256
     `1db8afc2e44d809c5df2802885e292e9181d3df96e598e7f63bc2c8f12166b87`.
-    This verifies the package and Linux embedded-pack startup, not native-Windows
+    This verified that historical package and Linux embedded-pack startup, not native-Windows
     behaviour, representative performance, audible output, historical
     authenticity, or an uninterrupted human playthrough. Native-Windows
-    validation and a no-shortcut human playtest remain pending.
+    validation and a no-shortcut human playtest.
+
+    The later v0.11 `MuddsShipyards.exe` package is also historical source
+    evidence now: it predates the accepted fourth craft and must not be treated as
+    v0.12 evidence. The source-current v0.12 Windows x86-64 artifact at
+    `builds/windows/MuddsShipyards.exe` is 153,657,032 bytes, was modified
+    `2026-08-14 07:42:29.806068718 +0100`, and has SHA-256
+    `014b6e443822cf263d8811af946bda43f29bf10f8986b0dabb6a6d804282b669`.
+    It is a 12-section PE32+ x86-64 Windows GUI executable with product name
+    `Mudds Shipyards`, file description `Modern standalone Keth Shipyards fan
+    remake prototype`, and file/product version `0.12.0.0`. Its zero-offset/zero-
+    size Security Directory records no embedded Authenticode certificate;
+    signing remains pending. It embeds a 44,428,988-byte format-4 Godot 4.7.1 PCK
+    at offset 109,228,032 with flags `2`, and has no external PCK. Isolated
+    candidate and promoted-artifact Linux headless Dummy-audio smokes each ran 300
+    frames in about 3.72 seconds, exited `0`, and emitted no diagnostics. These
+    checks prove bounded package structure and Linux startup, not native-Windows
+    behaviour, representative performance, audibility, signing, release
+    permission, historical authenticity, or uninterrupted human play; each of
+    those applicable release checks remains pending.
 
 The next evidence work is to triangulate a confidence-graded relative station
 map, resolve the remaining Torrent reconstruction details, establish B5's
-recording/build provenance and test continuity with 2009, prove or reject the
-Arrow and Jovian name-to-model hypotheses, and
-repeat name-linked visual indexing before treating any additional historical
-name as an authenticated model. New implementation must keep those unknowns
-visible in data and UI.
+recording/build provenance and test continuity with 2009, deepen Zenith beyond
+the bounded B7 macroform with higher-resolution name-tied views, prove or reject
+the Arrow and Jovian name-to-model hypotheses, and repeat name-linked visual
+indexing before treating any additional historical name as an authenticated
+model. Further implementation revisions must keep those unknowns visible in
+data and UI.
 
 These changes are geometry and interaction priorities, not permission to copy
 source assets. No source model, place file, script, texture, or audio is needed
@@ -912,7 +1014,9 @@ Priority order:
    mark every segment as original-era observed, fixed-era only, or inferred.
 3. **Fleet visual index:** repeat the name-to-model process for all creator-listed
    ships, particularly Paradox, Jovian, Titan, Vortex, Katana, Predator, Dynamic,
-   Utopia, Arrow, Salyut, and Zenith.
+   Utopia, Arrow, and Salyut. For Zenith, seek higher-resolution uninterrupted
+   views that extend the bounded B7 feature sheet without promoting the upload
+   date to a recording/build date or silently resolving Fighter/Interceptor.
 4. **Spawn and interaction locations:** document player spawn, each regeneration
    control, VIP access, cockpit/seat route, launch direction, landing pads, and
    cleanup behaviour.

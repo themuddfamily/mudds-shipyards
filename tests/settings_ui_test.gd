@@ -152,8 +152,12 @@ func _test_product_branding(hud: GameHUD) -> void:
 			"the Windows executable embeds the Mudds Shipyards product name"
 		)
 		_check(
-			str(export_config.get_value("preset.0.options", "application/file_version", "")) == "0.11.0.0",
-			"the branded Windows export advances to version 0.11"
+			str(export_config.get_value("preset.0.options", "application/file_version", "")) == "0.12.0.0",
+			"the branded Windows file metadata advances to v0.12"
+		)
+		_check(
+			str(export_config.get_value("preset.0.options", "application/product_version", "")) == "0.12.0.0",
+			"the branded Windows product metadata advances to v0.12"
 		)
 
 

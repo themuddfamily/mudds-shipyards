@@ -135,15 +135,17 @@ func _test_audit_and_evidence(world: ShipyardWorld) -> void:
 func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
 	var berth_ids := world.get_berth_ids()
 	_check(
-		berth_ids.size() == 3
+		berth_ids.size() == 4
 		and berth_ids.has(&"arrow_recon_berth")
 		and berth_ids.has(&"central_berth")
-		and berth_ids.has(&"jovian_freight_berth"),
-		"exactly the three production berth IDs remain registered"
+		and berth_ids.has(&"jovian_freight_berth")
+		and berth_ids.has(&"zenith_fleet_dock_berth"),
+		"exactly the four production berth IDs remain registered"
 	)
 	var central_transform := world.get_berth_transform(&"central_berth")
 	var arrow_transform := world.get_berth_transform(&"arrow_recon_berth")
 	var jovian_transform := world.get_berth_transform(&"jovian_freight_berth")
+	var zenith_transform := world.get_berth_transform(&"zenith_fleet_dock_berth")
 	_check(
 		central_transform.is_equal_approx(Transform3D(Basis.IDENTITY, Vector3(0.0, 1.15, -10.0))),
 		"central berth transform remains exact"
@@ -155,6 +157,10 @@ func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
 	_check(
 		jovian_transform.is_equal_approx(Transform3D(Basis(Vector3.UP, PI), Vector3(-53.0, 1.63, 57.3))),
 		"Jovian berth transform remains exact"
+	)
+	_check(
+		zenith_transform.is_equal_approx(Transform3D(Basis.IDENTITY, Vector3(22.0, 5.28, 53.3))),
+		"Zenith fleet-dock berth transform remains exact"
 	)
 	var central_berth := world.get_berth_node(&"central_berth")
 	_check(

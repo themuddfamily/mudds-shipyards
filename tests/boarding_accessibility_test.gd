@@ -33,13 +33,14 @@ func _run() -> void:
 	var torrent := game.get_node_or_null("TorrentInterceptor") as HeroShip
 	var arrow := game.get_node_or_null("ArrowReconShip") as HeroShip
 	var jovian := game.get_node_or_null("JovianLightFreighter") as HeroShip
+	var zenith := game.get_node_or_null("ZenithInterceptor") as HeroShip
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 	_check(
-		player != null and torrent != null and arrow != null and jovian != null,
-		"production player and complete three-craft fleet resolve"
+		player != null and torrent != null and arrow != null and jovian != null and zenith != null,
+		"production player and complete four-craft fleet resolve"
 	)
-	_check(fleet.size() == 3, "accessibility fixture covers all three production spacecraft")
-	if player == null or torrent == null or arrow == null or jovian == null or fleet.size() != 3:
+	_check(fleet.size() == 4, "accessibility fixture covers all four production spacecraft")
+	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or fleet.size() != 4:
 		game.queue_free()
 		await process_frame
 		_finish()
@@ -55,6 +56,7 @@ func _run() -> void:
 		craft.set_physics_process(false)
 
 	_test_exact_radius_contract(player, fleet)
+	await _test_zenith_collision_clear_approach(game, player, fleet, zenith)
 	await _test_arrow_collision_clear_approach(game, player, fleet, arrow)
 	await _test_torrent_opposite_side_rejection(game, player, fleet, torrent)
 	await _test_nearest_eligible_choice(game, player, fleet, torrent, arrow, jovian)
@@ -127,6 +129,46 @@ func _test_arrow_collision_clear_approach(
 	)
 
 
+func _test_zenith_collision_clear_approach(
+		game: GameFlow,
+		player: CharacterBody3D,
+		fleet: Array[HeroShip],
+		zenith: HeroShip
+	) -> void:
+	_park_fleet_far(fleet)
+	zenith.global_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, TEST_ALTITUDE, 0.0))
+	var boarding_local := zenith.to_local(zenith.get_boarding_position())
+	var exit_local := zenith.to_local(zenith.get_exit_transform().origin)
+	var port_extent := _fleet_side_extent(zenith, false)
+	var capsule_radius := _player_capsule_radius(player)
+	var approach_local := Vector3(
+		port_extent - capsule_radius - COLLISION_CLEARANCE_METRES,
+		boarding_local.y,
+		boarding_local.z
+	)
+	_place_player_interaction_origin(player, zenith.to_global(approach_local))
+	await _physics_frames(3)
+
+	_check(
+		boarding_local.is_equal_approx(Vector3(-7.65, -0.55, 0.55)),
+		"Zenith publishes the exact collision-clear modern boarding centre"
+	)
+	_check(
+		exit_local.is_equal_approx(Vector3(-7.85, -0.55, 0.85))
+		and exit_local.x < port_extent - capsule_radius,
+		"Zenith exit clears the full port wing for the widened Fleet Dock deck"
+	)
+	_check(
+		approach_local.x + capsule_radius < port_extent
+		and player.get_interaction_origin().distance_to(zenith.get_boarding_position()) <= FALLBACK_REACH_METRES,
+		"Zenith's widened access reaches a collision-clear port-side approach"
+	)
+	_check(
+		_find_candidate(game) == zenith,
+		"collision-clear Zenith approach exposes its physical pilot seat"
+	)
+
+
 func _test_torrent_opposite_side_rejection(
 		game: GameFlow,
 		player: CharacterBody3D,
@@ -193,7 +235,7 @@ func _test_nearest_eligible_choice(
 		player.get_nearby_interactables().has(_get_boarding_area(torrent))
 		and player.get_nearby_interactables().has(_get_boarding_area(arrow))
 		and player.get_nearby_interactables().has(_get_boarding_area(jovian)),
-		"all three production boarding areas overlap during nearest-choice regression"
+		"three selected production boarding areas overlap during nearest-choice regression"
 	)
 	_check(
 		_find_candidate(game) == arrow,

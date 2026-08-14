@@ -1,6 +1,6 @@
 extends SceneTree
 
-## HUD-free Forward+ evidence for the three production berth-state displays.
+## HUD-free Forward+ evidence for the four production berth-state displays.
 ##
 ## The complete production main scene supplies every photographed berth, ship,
 ## deck, and feedback component. This harness adds only an evidence camera and
@@ -18,6 +18,7 @@ const BERTH_ORDER: Array[StringName] = [
 	&"central_berth",
 	&"arrow_recon_berth",
 	&"jovian_freight_berth",
+	&"zenith_fleet_dock_berth",
 ]
 const STATE_ORDER: Array[StringName] = [
 	&"released",
@@ -28,16 +29,19 @@ const EXPECTED_SHIP_BY_BERTH := {
 	&"central_berth": &"torrent_provisional",
 	&"arrow_recon_berth": &"arrow_provisional",
 	&"jovian_freight_berth": &"jovian_provisional",
+	&"zenith_fleet_dock_berth": &"zenith_b7_observed",
 }
 const CAMERA_LOCAL_DIRECTIONS := {
 	&"central_berth": Vector3(0.76, 0.92, 0.82),
 	&"arrow_recon_berth": Vector3(-0.82, 0.90, 0.72),
 	&"jovian_freight_berth": Vector3(0.72, 0.96, -0.82),
+	&"zenith_fleet_dock_berth": Vector3(-0.78, 0.92, 0.78),
 }
 const CAMERA_FOV := {
 	&"central_berth": 45.0,
 	&"arrow_recon_berth": 43.0,
 	&"jovian_freight_berth": 47.0,
+	&"zenith_fleet_dock_berth": 44.0,
 }
 const CAPTURE_FILES := {
 	&"central_berth": {
@@ -55,9 +59,14 @@ const CAPTURE_FILES := {
 		&"approach": "08_jovian_freight_berth_approach.png",
 		&"occupied": "09_jovian_freight_berth_occupied.png",
 	},
+	&"zenith_fleet_dock_berth": {
+		&"released": "10_zenith_fleet_dock_berth_released.png",
+		&"approach": "11_zenith_fleet_dock_berth_approach.png",
+		&"occupied": "12_zenith_fleet_dock_berth_occupied.png",
+	},
 }
 
-const EXPECTED_COMPONENT_COUNT := 3
+const EXPECTED_COMPONENT_COUNT := 4
 const EXPECTED_MESHES_PER_COMPONENT := 11
 const EXPECTED_MATERIALS_PER_COMPONENT := 4
 const MINIMUM_PNG_BYTES := 220_000
@@ -220,7 +229,7 @@ func _validate_exact_feedback_roster() -> void:
 	var actual_ids := _world.get_berth_ids()
 	_check(
 		_string_name_arrays_match(actual_ids, BERTH_ORDER),
-		"world registry is exactly central, Arrow recon, and Jovian freight berths"
+		"world registry is exactly central, Arrow recon, Jovian freight, and Zenith fleet-dock berths"
 	)
 
 	var feedback_nodes := _world.get_ship_berth_feedback_nodes()
@@ -231,7 +240,7 @@ func _validate_exact_feedback_roster() -> void:
 	var typed_descendants := _world.find_children("*", "ShipBerthFeedback", true, false)
 	_check(
 		feedback_nodes.size() == EXPECTED_COMPONENT_COUNT,
-		"production world exposes exactly three berth-feedback components"
+		"production world exposes exactly four berth-feedback components"
 	)
 	_check(
 		_node_sets_match(feedback_nodes, grouped_nodes),
@@ -256,7 +265,7 @@ func _validate_exact_feedback_roster() -> void:
 			_feedback_by_berth[berth_id] = feedback
 	_check(
 		_feedback_by_berth.size() == EXPECTED_COMPONENT_COUNT,
-		"all and only the three authoritative berths map to feedback components"
+		"all and only the four authoritative berths map to feedback components"
 	)
 	var freight_marker := _world.get_node_or_null("JovianFreightBerth/BerthDockMarker")
 	_check(
@@ -268,7 +277,7 @@ func _validate_exact_feedback_roster() -> void:
 	_check(_report_is_valid(world_audit), "production berth-feedback roster audit is valid")
 	_check(
 		int(world_audit.get("component_count", 0)) == EXPECTED_COMPONENT_COUNT,
-		"world audit reports exactly three feedback components"
+		"world audit reports exactly four feedback components"
 	)
 	_check(
 		StringName(world_audit.get("evidence_status", &"")) == &"modern_interpretation"
@@ -280,7 +289,7 @@ func _validate_exact_feedback_roster() -> void:
 
 func _validate_initial_fleet_leases() -> void:
 	var fleet := _game.get_flyable_ships()
-	_check(fleet.size() == EXPECTED_COMPONENT_COUNT, "production main scene contains exactly three flyable ships")
+	_check(fleet.size() == EXPECTED_COMPONENT_COUNT, "production main scene contains exactly four flyable ships")
 	_ships_by_berth.clear()
 	_initial_ship_transforms.clear()
 	for candidate in fleet:
@@ -400,14 +409,14 @@ func _validate_component_audits_and_budgets() -> void:
 	_check(
 		aggregate_meshes == EXPECTED_COMPONENT_COUNT * EXPECTED_MESHES_PER_COMPONENT
 		and aggregate_meshes <= aggregate_mesh_budget,
-		"three-component roster owns exactly 33 meshes within aggregate budget"
+		"four-component roster owns exactly 44 meshes within aggregate budget"
 	)
 	_check(
 		aggregate_materials == EXPECTED_COMPONENT_COUNT * EXPECTED_MATERIALS_PER_COMPONENT
 		and aggregate_materials <= aggregate_material_budget,
-		"three-component roster owns exactly 12 isolated materials within aggregate budget"
+		"four-component roster owns exactly 16 isolated materials within aggregate budget"
 	)
-	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "three-component roster owns exactly three diegetic labels")
+	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "four-component roster owns exactly four diegetic labels")
 	for key: String in prohibited_totals:
 		_check(int(prohibited_totals[key]) == 0, "aggregate feedback roster owns zero %s" % key)
 	print(
@@ -773,9 +782,9 @@ func _sample_luminance_statistics(image: Image) -> Dictionary:
 
 func _validate_capture_set() -> void:
 	var expected_file_count := BERTH_ORDER.size() * STATE_ORDER.size()
-	_check(_capture_order.size() == expected_file_count, "exactly nine berth-state frames were captured")
-	_check(_captured_images.size() == expected_file_count, "all nine captured images have distinct filenames")
-	_check(_capture_contracts.size() == expected_file_count, "all nine frames retain semantic berth/state contracts")
+	_check(_capture_order.size() == expected_file_count, "exactly twelve berth-state frames were captured")
+	_check(_captured_images.size() == expected_file_count, "all twelve captured images have distinct filenames")
+	_check(_capture_contracts.size() == expected_file_count, "all twelve frames retain semantic berth/state contracts")
 	for berth_id in BERTH_ORDER:
 		for state in STATE_ORDER:
 			var file_name := str((CAPTURE_FILES[berth_id] as Dictionary)[state])
@@ -856,7 +865,7 @@ func _validate_all_berths_restored() -> void:
 			_validate_ship_was_not_staged(berth_id, ship)
 	_check(
 		_report_is_valid(_world.get_ship_berth_feedback_audit_report()),
-		"final three-component production feedback audit is valid"
+		"final four-component production feedback audit is valid"
 	)
 
 
