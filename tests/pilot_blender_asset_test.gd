@@ -2,6 +2,7 @@ extends SceneTree
 
 const PRESENTATION_SCENE := preload("res://scenes/player/pilot_skinned_presentation.tscn")
 const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest.json"
+const GENERATOR_PATH := "res://tools/blender/generate_pilot_motion_v2.py"
 const GLB_PATH := "res://assets/models/pilot/pilot_motion_v2.glb"
 const BLEND_PATH := "res://art_source/pilot/pilot_motion_v2.blend"
 
@@ -103,6 +104,11 @@ func _test_runtime_boundary(presentation: PilotSkinnedPresentation) -> void:
 	)
 	_check(absf(float(audit.get("root_motion_horizontal_m", 1.0))) <= .0001, "all imported motion remains horizontally in place")
 	_check(absf(float(audit.get("root_motion_yaw_rad", 1.0))) <= .0001, "all imported motion leaves player yaw to gameplay authority")
+	_check(
+		audit.get("imported_visual_forward_axis", Vector3.ZERO) == Vector3.BACK
+		and audit.get("player_canonical_forward_axis", Vector3.ZERO) == Vector3.FORWARD,
+		"audit distinguishes the raw +Z semantic face from Player's compensated -Z forward"
+	)
 	var bounds := audit.get("bind_bounds") as AABB
 	_check(bounds.size.y >= 1.90 and bounds.size.y <= 1.96, "bind silhouette remains a practical roughly 1.95 metre pilot")
 	_check(absf(bounds.position.y) <= .002, "flat boot soles meet the Godot Y=0 ground plane")
@@ -148,6 +154,13 @@ func _test_exact_rig_and_skin(presentation: PilotSkinnedPresentation) -> void:
 		"HarnessWebbing", "VisorGlazing", "CyanStatusLight", "AmberStatusLight",
 	]:
 		_check(role_names.has(required_role), "%s material role survives the GLB boundary" % required_role)
+	var visor_bounds := _surface_bounds_for_role(suit.mesh, &"VisorGlazing")
+	var face_light_bounds := _surface_bounds_for_role(suit.mesh, &"CyanStatusLight")
+	_check(
+		visor_bounds.has_volume() and visor_bounds.position.z >= 0.16
+		and face_light_bounds.has_volume() and face_light_bounds.position.z >= 0.21,
+		"raw GLB visor and face status light prove semantic imported forward is +Z"
+	)
 
 
 func _test_imported_motion_library(presentation: PilotSkinnedPresentation) -> void:
@@ -572,6 +585,34 @@ func _test_manifest() -> void:
 	_check((manifest.get("actions", []) as Array).size() == 9, "manifest records the complete nine-action source library")
 	_check(str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256(GLB_PATH), "manifest pins the exact runtime GLB hash")
 	_check(str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256(BLEND_PATH), "manifest pins the exact editable Blender source hash")
+	_check(
+		str(manifest.get("generator_sha256", "")) == FileAccess.get_sha256(GENERATOR_PATH),
+		"manifest pins the exact offline pilot generator without changing GLB or Blend bytes"
+	)
+	var coordinates := manifest.get("coordinate_contract", {}) as Dictionary
+	_check(
+		str(coordinates.get("imported_visual_forward_axis", "")) == "+Z"
+		and str(coordinates.get("mounted_player_forward_axis", "")).begins_with("-Z"),
+		"manifest truthfully distinguishes imported mesh and mounted Player forward axes"
+	)
+
+
+func _surface_bounds_for_role(mesh: Mesh, material_role: StringName) -> AABB:
+	if mesh == null:
+		return AABB()
+	for surface_index in mesh.get_surface_count():
+		var material := mesh.surface_get_material(surface_index)
+		if material == null or StringName(material.resource_name) != material_role:
+			continue
+		var arrays := mesh.surface_get_arrays(surface_index)
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		if vertices.is_empty():
+			return AABB()
+		var bounds := AABB(vertices[0], Vector3.ZERO)
+		for vertex in vertices:
+			bounds = bounds.expand(vertex)
+		return bounds
+	return AABB()
 
 
 func _read_json(path: String) -> Dictionary:

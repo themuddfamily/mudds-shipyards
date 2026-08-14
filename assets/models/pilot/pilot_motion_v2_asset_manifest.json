@@ -103,12 +103,15 @@
     "upper_arm_r": "clavicle_r"
   },
   "coordinate_contract": {
+    "imported_visual_forward_axis": "+Z",
+    "mounted_player_forward_axis": "-Z after Player BodyPivot PI yaw offset",
     "root_motion": "in_place_no_horizontal_or_yaw",
-    "runtime": "Godot +Y up, -Z forward, metres",
+    "runtime": "Godot +Y up, imported semantic visual forward +Z, metres",
     "soles_ground_plane_metres": 0.0,
     "source": "Blender Z-up, -Y forward, metres"
   },
   "generator": "tools/blender/generate_pilot_motion_v2.py",
+  "generator_sha256": "febd050b9705fb62b182b8b09ab499433585f0417872971c9c6f405c8020b72c",
   "glb_sha256": "c0a59952e140bfec03042b63cbd894cc25c8d050061d4d549bc7603c8dd182ca",
   "hierarchy_contract": [
     "PilotArt",

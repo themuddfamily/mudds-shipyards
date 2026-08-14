@@ -36,6 +36,11 @@ const PILOT_INTEGRITY_PROBE_INTERVAL := 0.2
 const BOARDING_CLIP_LENGTH := 1.1
 const DISEMBARK_CLIP_LENGTH := 0.9
 const PILOT_MOTION_VERSION := &"blender_skinned_motion_v2"
+## The imported Blender suit's semantic face (visor, chest plate and status
+## lights) is +Z after glTF import. Player traversal and every native seat frame
+## use -Z as forward, so the visible imported presentation needs one mount-only
+## half turn. This never changes input, CharacterBody velocity, or clip playback.
+const IMPORTED_PILOT_FACING_YAW_OFFSET := PI
 const PILOT_MOTION_CLIPS: Array[StringName] = [
 	MOTION_RESET,
 	MOTION_IDLE,
@@ -110,6 +115,8 @@ var _control_enabled: bool = true
 var _camera_active: bool = true
 var _target_camera_distance: float = 5.2
 var _pitch: float = deg_to_rad(-10.0)
+## Travel-facing yaw in Player-local space, before the active presentation's
+## visual-axis correction is applied.
 var _target_body_yaw: float = 0.0
 var _motion_state: StringName = &""
 
@@ -568,6 +575,20 @@ func get_pilot_visual_root() -> Node3D:
 	return result if result != null and is_instance_valid(result) else null
 
 
+## Semantic world-space direction in which the visible pilot is looking. The
+## imported suit publishes its authored +Z face; the legacy fallback is -Z.
+func get_pilot_visual_forward_direction() -> Vector3:
+	if (
+		_using_imported_pilot_presentation
+		and _pilot_presentation != null
+		and is_instance_valid(_pilot_presentation)
+	):
+		return _pilot_presentation.get_visual_forward_direction()
+	if _body_pivot != null and is_instance_valid(_body_pivot):
+		return -_body_pivot.global_basis.z.normalized()
+	return Vector3.ZERO
+
+
 ## Current player-local bounds of the visible suit. Because these are sampled
 ## from the live rig they can be used to audit both the standing and seated
 ## silhouettes without assuming a particular ship or seat transform.
@@ -700,6 +721,8 @@ func get_pilot_presentation_audit() -> Dictionary:
 	report["motion_authorship"] = &"original_script_assisted_blender"
 	report["motion_capture"] = false
 	report["motion_state"] = _motion_state
+	report["visual_facing_yaw_offset_rad"] = _get_visual_facing_yaw_offset()
+	report["visual_forward_direction"] = get_pilot_visual_forward_direction()
 	report["animation_player_roster_exact"] = _motion_animation_player_roster_is_exact()
 	report["legacy_library_trusted"] = _legacy_motion_library_is_trusted()
 	report["fallback_active"] = not _using_imported_pilot_presentation
@@ -843,7 +866,26 @@ func _process_after_seat_hierarchy(seat_anchor: Node3D) -> void:
 
 func _reset_body_facing() -> void:
 	_target_body_yaw = 0.0
-	_body_pivot.rotation.y = 0.0
+	_apply_body_facing_rotation()
+
+
+func _get_visual_facing_yaw_offset() -> float:
+	return (
+		IMPORTED_PILOT_FACING_YAW_OFFSET
+		if _using_imported_pilot_presentation else 0.0
+	)
+
+
+func _get_body_pivot_target_yaw() -> float:
+	return wrapf(_target_body_yaw + _get_visual_facing_yaw_offset(), -PI, PI)
+
+
+func _apply_body_facing_rotation() -> void:
+	if _body_pivot == null or not is_instance_valid(_body_pivot):
+		return
+	if not is_finite(_target_body_yaw):
+		_target_body_yaw = 0.0
+	_body_pivot.rotation = Vector3(0.0, _get_body_pivot_target_yaw(), 0.0)
 
 
 func _clean_transform(value: Transform3D) -> Transform3D:
@@ -1356,7 +1398,7 @@ func _repair_pilot_mount_contract() -> bool:
 	_body_pivot.scale = Vector3.ONE
 	if not is_finite(_target_body_yaw):
 		_target_body_yaw = 0.0
-	_body_pivot.rotation = Vector3(0.0, _target_body_yaw, 0.0)
+	_apply_body_facing_rotation()
 	if _pilot_presentation != null and is_instance_valid(_pilot_presentation):
 		if (
 			_pilot_presentation.get_parent() != null
@@ -1455,12 +1497,14 @@ func _select_imported_motion_authority(run_full_audit: bool = false) -> bool:
 	expected_player.active = true
 	_motion_animation_player = expected_player
 	_using_imported_pilot_presentation = true
+	_apply_body_facing_rotation()
 	_capture_imported_skeleton_pose_contract()
 	return _repair_cached_motion_state(true)
 
 
 func _select_fallback_motion_authority() -> bool:
 	_using_imported_pilot_presentation = false
+	_apply_body_facing_rotation()
 	_imported_presentation_rejected = true
 	var imported_player := _live_imported_animation_player()
 	if imported_player != null:
@@ -2352,7 +2396,7 @@ func _update_facing(desired_direction: Vector3, delta: float) -> void:
 		_target_body_yaw = atan2(-local_direction.x, -local_direction.z)
 	_body_pivot.rotation.y = lerp_angle(
 		_body_pivot.rotation.y,
-		_target_body_yaw,
+		_get_body_pivot_target_yaw(),
 		1.0 - exp(-facing_speed * delta)
 	)
 
