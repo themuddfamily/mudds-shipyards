@@ -144,6 +144,10 @@ func _test_preserved_character_contract(player: PlayerController) -> void:
 	var body := player.get_node_or_null("VisualRoot/BodyPivot") as Node3D
 	_check(body != null and body.position.is_zero_approx(), "BodyPivot remains the canonical visual-yaw mount")
 	_check(
+		body != null and absf(absf(wrapf(body.rotation.y, -PI, PI)) - PI) <= 0.001,
+		"valid imported presentation starts at the canonical PI mount compensation"
+	)
+	_check(
 		player.get_camera() != null
 			and player.get_node_or_null("CameraRig/CameraYaw/CameraPitch/SpringArm3D") is SpringArm3D,
 		"third-person camera rig remains available outside the visual asset"
@@ -510,6 +514,7 @@ func _test_authored_locomotion_state_machine(player: PlayerController, fixture: 
 	player.set_physics_process(true)
 	await _wait_physics_frames(5)
 	_check(player.get_authored_motion_state() == &"idle", "grounded state machine begins in imported idle")
+	await _test_travel_facing_matrix(player, fixture)
 
 	Input.action_press("move_forward")
 	await _wait_physics_frames(12)
@@ -541,6 +546,85 @@ func _test_authored_locomotion_state_machine(player: PlayerController, fixture: 
 	player.teleport_to(Transform3D.IDENTITY)
 	floor_body.queue_free()
 	await process_frame
+
+
+func _test_travel_facing_matrix(player: PlayerController, fixture: Node3D) -> void:
+	var camera_yaw := player.get_node("CameraRig/CameraYaw") as Node3D
+	var presentation := (
+		player.get_node("VisualRoot/BodyPivot/PilotSkinnedPresentation")
+		as PilotSkinnedPresentation
+	)
+	var player_id := player.get_instance_id()
+	var presentation_id := presentation.get_instance_id()
+	var cases: Array[Dictionary] = [
+		{"label": "W", "yaw_degrees": 0.0, "input": Vector2(0.0, -1.0), "actions": [&"move_forward"]},
+		{"label": "A", "yaw_degrees": 0.0, "input": Vector2(-1.0, 0.0), "actions": [&"move_left"]},
+		{"label": "S", "yaw_degrees": 0.0, "input": Vector2(0.0, 1.0), "actions": [&"move_back"]},
+		{"label": "D", "yaw_degrees": 0.0, "input": Vector2(1.0, 0.0), "actions": [&"move_right"]},
+		{"label": "W+D", "yaw_degrees": 0.0, "input": Vector2(1.0, -1.0), "actions": [&"move_forward", &"move_right"]},
+		{"label": "W+A @ 73 degrees", "yaw_degrees": 73.0, "input": Vector2(-1.0, -1.0), "actions": [&"move_forward", &"move_left"]},
+		{"label": "S+D @ 73 degrees", "yaw_degrees": 73.0, "input": Vector2(1.0, 1.0), "actions": [&"move_back", &"move_right"]},
+		{"label": "W @ -137 degrees", "yaw_degrees": -137.0, "input": Vector2(0.0, -1.0), "actions": [&"move_forward"]},
+		{"label": "D @ -137 degrees", "yaw_degrees": -137.0, "input": Vector2(1.0, 0.0), "actions": [&"move_right"]},
+	]
+	for movement_case in cases:
+		player.teleport_to(Transform3D.IDENTITY)
+		camera_yaw.rotation.y = deg_to_rad(float(movement_case.get("yaw_degrees", 0.0)))
+		await _wait_physics_frames(4)
+		var actions := movement_case.get("actions", []) as Array
+		for action_value: Variant in actions:
+			Input.action_press(StringName(action_value))
+		await _wait_physics_frames(30)
+		var movement_up := player.up_direction.normalized()
+		var horizontal_velocity := player.velocity.slide(movement_up)
+		var camera_forward := (-camera_yaw.global_basis.z).slide(movement_up).normalized()
+		var camera_right := camera_forward.cross(movement_up).normalized()
+		var input_vector := movement_case.get("input", Vector2.ZERO) as Vector2
+		var expected_direction := (
+			camera_right * input_vector.x + camera_forward * -input_vector.y
+		).normalized()
+		var visual_forward := (
+			player.get_pilot_visual_forward_direction().slide(movement_up).normalized()
+		)
+		var label := str(movement_case.get("label", "movement"))
+		_check(
+			horizontal_velocity.length() > 5.0
+			and horizontal_velocity.normalized().dot(expected_direction) >= 0.995,
+			"%s preserves camera-relative physical movement direction" % label
+		)
+		_check(
+			not visual_forward.is_zero_approx()
+			and visual_forward.dot(horizontal_velocity.normalized()) >= 0.995,
+			"%s turns the imported pilot's semantic face into actual travel" % label
+		)
+		for action_value: Variant in actions:
+			Input.action_release(StringName(action_value))
+		await _wait_physics_frames(16)
+
+	var facing_before_orbit := player.get_pilot_visual_forward_direction().normalized()
+	camera_yaw.rotation.y = wrapf(camera_yaw.rotation.y + deg_to_rad(119.0), -PI, PI)
+	await _wait_physics_frames(5)
+	_check(
+		player.get_pilot_visual_forward_direction().normalized().dot(facing_before_orbit) >= 0.999,
+		"camera orbit without movement cannot flip the settled visible facing"
+	)
+
+	player.teleport_to(Transform3D(Basis(Vector3.UP, deg_to_rad(41.0)), Vector3.ZERO))
+	var expected_reentry_forward := -player.global_basis.z.normalized()
+	fixture.remove_child(player)
+	await process_frame
+	fixture.add_child(player)
+	await process_frame
+	await _wait_physics_frames(3)
+	_check(
+		player.get_instance_id() == player_id
+		and presentation.get_instance_id() == presentation_id
+		and player.get_pilot_visual_forward_direction().normalized().dot(expected_reentry_forward) >= 0.999,
+		"whole-Player detach/re-entry preserves identity and the compensated canonical face"
+	)
+	camera_yaw.rotation.y = 0.0
+	player.teleport_to(Transform3D.IDENTITY)
+	await _wait_physics_frames(4)
 
 
 func _wait_physics_frames(frame_count: int) -> void:
@@ -645,8 +729,9 @@ func _test_standing_and_seated_lifecycle(player: PlayerController, fixture: Node
 	_check(player.begin_boarding(animated_entry, seat, 0.24), "public animated boarding accepts the sideways locomotion pose")
 	Input.action_release("move_right")
 	_check(
-		player.get_authored_motion_state() == &"boarding" and is_zero_approx(body.rotation.y),
-		"boarding immediately releases locomotion yaw for canonical imported facing"
+		player.get_authored_motion_state() == &"boarding"
+		and player.get_pilot_visual_forward_direction().dot(-player.global_basis.z) >= 0.999,
+		"boarding immediately releases locomotion yaw into canonical seat-facing"
 	)
 	await _wait_physics_frames(5)
 	_check(
@@ -660,7 +745,10 @@ func _test_standing_and_seated_lifecycle(player: PlayerController, fixture: Node
 		player.is_seated() and player.global_transform.is_equal_approx(seat.global_transform),
 		"sideways animated boarding completes at the exact live seat transform"
 	)
-	_check(is_zero_approx(body.rotation.y), "seated BodyPivot yaw is canonical after sideways locomotion")
+	_check(
+		player.get_pilot_visual_forward_direction().dot(-player.global_basis.z) >= 0.999,
+		"seated imported pilot faces the live seat frame after sideways locomotion"
+	)
 
 	var animated_exit := Transform3D(
 		Basis(Vector3.UP, deg_to_rad(-22.0)),
@@ -672,7 +760,7 @@ func _test_standing_and_seated_lifecycle(player: PlayerController, fixture: Node
 	_check(
 		player.global_transform.is_equal_approx(animated_exit)
 			and player.get_authored_motion_state() == &"idle"
-			and is_zero_approx(body.rotation.y),
+			and player.get_pilot_visual_forward_direction().dot(-player.global_basis.z) >= 0.999,
 		"animated exit restores canonical on-foot facing and imported idle recovery"
 	)
 	_check(player.collision_layer == standing_layer and not collision.disabled, "animated exit restores physical standing collision")
@@ -957,6 +1045,10 @@ func _test_periodic_integrity_fallback(fixture: Node3D) -> void:
 		and visible_generated > 0
 		and hidden_blockout == LEGACY_FALLBACK_MESH_COUNT,
 		"the bounded automatic integrity probe terminally rejects mutated imported content and exposes only the generated fallback"
+	)
+	_check(
+		absf(wrapf(body.rotation.y, -PI, PI)) <= 0.001,
+		"legacy fallback removes the imported PI mount compensation"
 	)
 	periodic_player.queue_free()
 	await process_frame

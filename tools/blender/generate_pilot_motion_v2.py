@@ -24,6 +24,7 @@ ROOT = Path.cwd()
 BLEND_PATH = ROOT / "art_source/pilot/pilot_motion_v2.blend"
 GLB_PATH = ROOT / "assets/models/pilot/pilot_motion_v2.glb"
 MANIFEST_PATH = ROOT / "assets/models/pilot/pilot_motion_v2_asset_manifest.json"
+GENERATOR_PATH = Path(__file__).resolve()
 # One hundred source frames per second lets the requested .42 and .56 second
 # one-shots end on exact source frames. Godot may resample tracks at import, but
 # retains these exact authored clip boundaries.
@@ -584,7 +585,10 @@ def main() -> None:
     pilot_art = bpy.data.objects.new("PilotArt", None)
     pilot_art.empty_display_type = "PLAIN_AXES"
     pilot_art["asset_id"] = "keth.pilot.motion.v2"
-    pilot_art["coordinate_contract"] = "Godot +Y up, -Z forward, metres"
+    pilot_art["coordinate_contract"] = (
+        "Godot +Y up, imported semantic visual forward +Z, metres; "
+        "Player mount rotates PI to canonical -Z"
+    )
     pilot_art["gameplay_authority"] = False
     bpy.context.collection.objects.link(pilot_art)
     rig = build_rig(pilot_art)
@@ -624,11 +628,14 @@ def main() -> None:
         "runtime_generation": False,
         "blender_version": bpy.app.version_string,
         "generator": "tools/blender/generate_pilot_motion_v2.py",
+        "generator_sha256": sha256(GENERATOR_PATH),
         "source_path": "art_source/pilot/pilot_motion_v2.blend",
         "runtime_path": "assets/models/pilot/pilot_motion_v2.glb",
         "coordinate_contract": {
             "source": "Blender Z-up, -Y forward, metres",
-            "runtime": "Godot +Y up, -Z forward, metres",
+            "runtime": "Godot +Y up, imported semantic visual forward +Z, metres",
+            "imported_visual_forward_axis": "+Z",
+            "mounted_player_forward_axis": "-Z after Player BodyPivot PI yaw offset",
             "soles_ground_plane_metres": 0.0,
             "root_motion": "in_place_no_horizontal_or_yaw",
         },

@@ -86,6 +86,12 @@ const REQUIRED_CLIP_DURATIONS := {
 }
 
 const LOOPING_CLIPS := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
+## Semantic mesh evidence (visor, chest plate and face status light) establishes
+## that the raw imported suit looks along local +Z. PlayerController applies the
+## mount-only PI yaw that converts this to its canonical local -Z travel/seat
+## forward without altering the Blender resource or animation playback.
+const IMPORTED_VISUAL_FORWARD_AXIS := Vector3.BACK
+const PLAYER_CANONICAL_FORWARD_AXIS := Vector3.FORWARD
 const EXPECTED_CLIP_TRACK_COUNTS := {
 	&"RESET": 17,
 	&"idle": 17,
@@ -1091,6 +1097,9 @@ func get_asset_audit_report() -> Dictionary:
 		"ground_contact_y_bind": bounds.position.y,
 		"root_motion_horizontal_m": root_motion.horizontal_metres,
 		"root_motion_yaw_rad": root_motion.yaw_radians,
+		"imported_visual_forward_axis": IMPORTED_VISUAL_FORWARD_AXIS,
+		"player_canonical_forward_axis": PLAYER_CANONICAL_FORWARD_AXIS,
+		"visual_forward_direction": get_visual_forward_direction(),
 		"forbidden_authority_node_count": forbidden_count,
 		"identity_transform": transform.is_equal_approx(Transform3D.IDENTITY),
 		"integrity_contract_captured": not _integrity_contract.is_empty(),
@@ -1165,3 +1174,11 @@ func get_skeleton() -> Skeleton3D:
 
 func get_visual_root() -> Node3D:
 	return _visual_root if is_instance_valid(_visual_root) else null
+
+
+## World-space semantic face direction of the raw imported suit. This is +Z in
+## PilotArt local space; its Player-owned BodyPivot mount supplies the PI offset.
+func get_visual_forward_direction() -> Vector3:
+	if not is_instance_valid(_visual_root):
+		return Vector3.ZERO
+	return (_visual_root.global_basis * IMPORTED_VISUAL_FORWARD_AXIS).normalized()

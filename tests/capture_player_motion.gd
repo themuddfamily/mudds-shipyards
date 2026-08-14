@@ -15,6 +15,7 @@ const OUTPUT_DIR := "res://artifacts/player_motion"
 const PILOT_GLTF_PATH := "res://assets/models/pilot/pilot_motion_v2.glb"
 const PILOT_BLEND_PATH := "res://art_source/pilot/pilot_motion_v2.blend"
 const PILOT_MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest.json"
+const PILOT_GENERATOR_PATH := "res://tools/blender/generate_pilot_motion_v2.py"
 const PILOT_WRAPPER_PATH := NodePath("VisualRoot/BodyPivot/PilotSkinnedPresentation")
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
 const CAPTURE_FILES := [
@@ -220,7 +221,7 @@ func _run() -> void:
 	await _capture_semantic_frame(
 		CAPTURE_FILES[1],
 		&"walk",
-		{"grounded": true, "contact": "A", "natural_phase_target_seconds": 0.76}
+		{"grounded": true, "contact": "A", "natural_phase_target_seconds": 0.76, "travel_facing": true}
 	)
 
 	var contact_b_ready := await _wait_for_clip_phase(&"walk", 0.44, 0.035)
@@ -236,7 +237,7 @@ func _run() -> void:
 	await _capture_semantic_frame(
 		CAPTURE_FILES[2],
 		&"walk",
-		{"grounded": true, "contact": "B", "natural_phase_target_seconds": 0.44}
+		{"grounded": true, "contact": "B", "natural_phase_target_seconds": 0.44, "travel_facing": true}
 	)
 
 	Input.action_press(&"sprint_boost")
@@ -246,7 +247,7 @@ func _run() -> void:
 	_check(run_phase_ready, "run naturally advances to a readable long-stride phase")
 	_frame_character(_player.global_position, 51.0)
 	await _capture_semantic_frame(
-		CAPTURE_FILES[3], &"run", {"grounded": true, "speed_band": "sprint"}
+		CAPTURE_FILES[3], &"run", {"grounded": true, "speed_band": "sprint", "travel_facing": true}
 	)
 
 	Input.action_release(&"sprint_boost")
@@ -736,8 +737,15 @@ func _validate_asset_manifest_provenance() -> void:
 	)
 	_check(
 		str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256(PILOT_GLTF_PATH)
-		and str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256(PILOT_BLEND_PATH),
-		"manifest pins the exact runtime GLB and editable Blender source hashes"
+		and str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256(PILOT_BLEND_PATH)
+		and str(manifest.get("generator_sha256", "")) == FileAccess.get_sha256(PILOT_GENERATOR_PATH),
+		"manifest pins the exact runtime GLB, editable Blender source, and offline generator hashes"
+	)
+	var coordinates := manifest.get("coordinate_contract", {}) as Dictionary
+	_check(
+		str(coordinates.get("imported_visual_forward_axis", "")) == "+Z"
+		and str(coordinates.get("mounted_player_forward_axis", "")).begins_with("-Z"),
+		"manifest records the raw +Z face and mounted Player -Z compensation"
 	)
 	var actions := manifest.get("actions", []) as Array
 	var exact_actions := actions.size() == REQUIRED_CLIPS.size()
@@ -1033,6 +1041,18 @@ func _validate_semantic_markers(
 			_check(_horizontal_speed() <= 0.15, "%s has idle horizontal speed" % file_name)
 		"sprint":
 			_check(_horizontal_speed() > _player.walk_speed * 1.08, "%s has production run-speed motion" % file_name)
+	if bool(markers.get("travel_facing", false)):
+		var movement_up := _player.up_direction.normalized()
+		var travel := _player.velocity.slide(movement_up).normalized()
+		var visible_forward := (
+			_player.get_pilot_visual_forward_direction().slide(movement_up).normalized()
+		)
+		_check(
+			not travel.is_zero_approx()
+			and not visible_forward.is_zero_approx()
+			and visible_forward.dot(travel) >= 0.995,
+			"%s visibly faces its unchanged physical travel direction" % file_name
+		)
 	match str(markers.get("contact", "")):
 		"A":
 			_check(
@@ -1351,6 +1371,7 @@ func _write_evidence_manifest() -> void:
 		"pilot_editable_blend_sha256": FileAccess.get_sha256(PILOT_BLEND_PATH),
 		"pilot_asset_manifest": PILOT_MANIFEST_PATH,
 		"pilot_asset_manifest_sha256": FileAccess.get_sha256(PILOT_MANIFEST_PATH),
+		"pilot_generator_sha256": FileAccess.get_sha256(PILOT_GENERATOR_PATH),
 		"capture_harness": "res://tests/capture_player_motion.gd",
 		"capture_harness_sha256": FileAccess.get_sha256(ProjectSettings.globalize_path("res://tests/capture_player_motion.gd")),
 		"motion_version": "blender_skinned_motion_v2",
@@ -1359,6 +1380,8 @@ func _write_evidence_manifest() -> void:
 		"motion_capture": false,
 		"runtime_clip_generation": false,
 		"manual_physics_sampling": true,
+		"imported_visual_forward_axis": "+Z",
+		"mounted_player_forward_axis": "-Z after BodyPivot PI yaw offset",
 		"direct_glb_subresource_provenance": true,
 		"semantic_pose_evidence": "live Skeleton3D bone local rotations and global transforms sampled during natural controller playback",
 		"static_mesh_aabb_used_as_pose_proof": false,
