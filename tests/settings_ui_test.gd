@@ -92,6 +92,25 @@ func _run() -> void:
 	_check(_change_events.size() == 4 and _change_events[3].key == &"control_preset" and int(_change_events[3].value) == 0, "control-hint edit emits its integer descriptor")
 
 	hud.set("_started", true)
+	var help_panel := hud.get("_help_panel") as Control
+	var help_initially_visible := help_panel.visible
+	var help_press := InputEventKey.new()
+	help_press.physical_keycode = KEY_F1
+	help_press.pressed = true
+	hud._unhandled_input(help_press)
+	_check(
+		help_panel.visible != help_initially_visible,
+		"an initial F1 key press toggles the help panel"
+	)
+	var help_repeat := InputEventKey.new()
+	help_repeat.physical_keycode = KEY_F1
+	help_repeat.pressed = true
+	help_repeat.echo = true
+	hud._unhandled_input(help_repeat)
+	_check(
+		help_panel.visible != help_initially_visible,
+		"F1 key-repeat events do not toggle help repeatedly"
+	)
 	hud.set_paused(true)
 	var pause := hud.get("_pause") as Control
 	var main_page := hud.get("_pause_main_page") as Control

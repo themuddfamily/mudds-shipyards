@@ -79,7 +79,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			set_paused(not _pause.visible)
 		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and event.physical_keycode == KEY_F1 and _started:
+	elif event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F1 and _started:
 		_help_panel.visible = not _help_panel.visible
 
 
