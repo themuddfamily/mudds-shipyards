@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Deterministic offline authoring step for the dated-2011 Torrent macroform.
+## Deterministic offline authoring step for the B5-observed Torrent macroform.
 ##
 ## This script writes checked-in Wavefront OBJ sources. Production scenes load
 ## Godot's imported ArrayMesh resources; they never execute this generator.
@@ -706,6 +706,8 @@ func _atlas_island_rect(role_index: int, signed_axis_index: int) -> Rect2:
 
 func _write_obj(lod: int, path: String, write_outputs: bool) -> Dictionary:
 	var lines := PackedStringArray([
+		# Compatibility: preserve the historical aggregate-OBJ trust-root header.
+		# Public provenance uses b5_observed_name_to_model and does not date the build.
 		"# Torrent dated-2011 source-aligned partial macroform LOD%d" % lod,
 		"# Deterministic project-authored geometry; exact geometry/authenticity false",
 		"# +Y up, -Z forward, metres; no collision authority",
@@ -837,7 +839,7 @@ func _component_obj_text(lod: int, object: Dictionary) -> String:
 func _build_manifest(lods: Array[Dictionary]) -> Dictionary:
 	return {
 		"schema_version": 2,
-		"asset_id": "torrent_dated_2011_authored_macroform",
+		"asset_id": "torrent_b5_observed_authored_macroform",
 		"asset_revision": "v2",
 		"generator_path": "res://tools/generate_torrent_authored_assets.gd",
 		"generation_command": GENERATION_COMMAND,
@@ -860,10 +862,12 @@ func _build_manifest(lods: Array[Dictionary]) -> Dictionary:
 		"required_objects": REQUIRED_OBJECTS.duplicate(),
 		"lods": lods,
 		"provenance": {
-			"identity_lock": "dated_2011",
-			"historical_revision": "2011",
+			"identity_lock": "b5_observed_name_to_model",
+			"historical_revision": "unverified",
 			"source_references": ["B5"],
 			"source_upload_date": "2011-06-29",
+			"recording_date_status": "unknown",
+			"game_build_revision_status": "unknown",
 			"source_rendition_sha256": SOURCE_RENDITION_SHA256,
 			"geometry_status": "source_aligned_partial",
 			"reconstruction_status": "partial",
@@ -898,7 +902,7 @@ func _build_manifest(lods: Array[Dictionary]) -> Dictionary:
 			"runtime_orm": "res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png",
 			"runtime_emissive": "res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png",
 		},
-		"content_note": "B5 bounds only the broad dated-2011 macroform. Exact topology, dimensions, UV layout, normals, finish, symmetry, and 2009 continuity are not authenticated.",
+		"content_note": "B5 bounds only the broad observed macroform. Its recording date and live build revision are unknown; exact topology, dimensions, UV layout, normals, finish, symmetry, and 2009 continuity are not authenticated.",
 	}
 
 

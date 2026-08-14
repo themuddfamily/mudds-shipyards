@@ -1,9 +1,10 @@
-# Dated-2011 Torrent Reconstruction Specification
+# B5-Observed Torrent Reconstruction Specification
 
-Status: implementation constraint for a **modern interpretation of the observed
-2011 Torrent-class Interceptor**. This is not evidence that the 2009 launch
-model was identical, and it is not a claim that the source supplies CAD-grade
-dimensions.
+Status: implementation constraint for a **modern interpretation of the
+Torrent-class Interceptor observed in B5**. B5 was uploaded on 2011-06-29; its
+recording date and live build revision are unknown. This is not evidence that
+the 2009 launch model was identical, and it is not a claim that the source
+supplies CAD-grade dimensions.
 
 This sheet converts the primary/contemporary evidence registered in
 [`RESEARCH.md`](../RESEARCH.md) into a bounded art target. Large source-visible
@@ -14,7 +15,7 @@ design unless an item below says otherwise.
 
 | ID | Direct evidence used here | Permitted use |
 | --- | --- | --- |
-| B5, [`gcYx2zm1TfI`](https://www.youtube.com/watch?v=gcYx2zm1TfI), uploaded 2011-06-29 | Torrent label `f306`/`10.200`; empty berth through `f321`; uncut spawn `f322`/`10.733`; approach and entry `f390–465`; occupied red seat `f465`; chase/aft `f510`; dorsal `f690`; side/dorsal `f870–900`; clean aft `f1050–1080`; close side/front `f1230` | Decisive dated-2011 identity and all reconstruction measurements below. Stop before the unrelated Atlantis regeneration around `46.5 s`. |
+| B5, [`gcYx2zm1TfI`](https://www.youtube.com/watch?v=gcYx2zm1TfI), uploaded 2011-06-29 | Torrent label `f306`/`10.200`; empty berth through `f321`; uncut spawn `f322`/`10.733`; approach and entry `f390–465`; occupied red seat `f465`; chase/aft `f510`; dorsal `f690`; side/dorsal `f870–900`; clean aft `f1050–1080`; close side/front `f1230` | Decisive B5-observed identity and all reconstruction measurements below. The upload date does not date the recording or build. Stop before the unrelated Atlantis regeneration around `46.5 s`. |
 | B6, [`duOswIVCYKQ`](https://www.youtube.com/watch?v=duOswIVCYKQ), uploaded 2011-04-21 | Torrent label `f1987–2007`; partial compatible pale craft `f1996–2000`; small warm-yellow upper/forward patch | Corroboration only. Occlusion and perspective make it unsuitable for envelope measurements. |
 | B7, [`J0GVOdxftXI`](https://www.youtube.com/watch?v=J0GVOdxftXI), uploaded 2012-03-18 | Uncut Zenith label, spawn, boarding and flight `f368–467` | Positive exclusion: its much wider full-delta/arrow, long-strake and pod language belongs to Zenith, not Torrent. |
 
@@ -149,7 +150,7 @@ first read.
 
 | Element | Required implementation read | Confidence and evidence |
 | --- | --- | --- |
-| identity label | “2011-source-locked Torrent reconstruction” or equally explicit dated wording; keep 2009 equivalence unproved | High: A3 name/role plus B5 uncut identity chain |
+| identity label | “B5-observed Torrent reconstruction” or equally explicit source wording; state that recording/build dates are unknown and keep 2009 equivalence unproved | High: A3 name/role plus B5 uncut identity chain |
 | overall form | compact pale, low-part-count, faceted wedge with a rising centre/aft volume | High broad silhouette: B5 `f322`, `f690`, `f870–900`, `f1230` |
 | nose | short pointed/faceted nose with a chamfered shoulder, not a long smooth point | Medium-high: B5 `f322`, `f870–900`, `f1230` |
 | centre/aft | long raised central spine into a tall blunt box; large darker aft rectangle may be a function-neutral inset | High form, medium function: B5 `f510`, `f690`, `f1050–1080` |

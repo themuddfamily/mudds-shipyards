@@ -88,13 +88,19 @@ func _test_evidence_boundary(torrent: HeroShip) -> void:
 	_check(_audit.has("errors") and _string_array(_audit.get("errors", [])).is_empty(), "dated-reconstruction audit reports no construction errors")
 	_check(int(_audit.get("schema_version", 0)) >= 3, "dated-reconstruction audit has the authored-macroform v3 schema")
 	var authored_mesh := _audit.get("authored_mesh", {}) as Dictionary
-	_check(bool(authored_mesh.get("valid", false)), "dated reconstruction delegates to a valid authored-macroform audit")
+	_check(bool(authored_mesh.get("valid", false)), "B5-observed reconstruction delegates to a valid authored-macroform audit")
 	_check(
 		str(authored_mesh.get("asset_revision", "")) == "v2",
-		"dated reconstruction identifies the bounded authored-geometry refinement revision"
+		"B5-observed reconstruction identifies the bounded authored-geometry refinement revision"
 	)
-	_check(str(_audit.get("identity_lock", "")) == "dated_2011", "identity is source-locked specifically to the dated 2011 Torrent")
-	_check(str(_audit.get("historical_revision", "")) == "2011", "audit does not silently generalise the observed craft to another revision")
+	_check(str(_audit.get("identity_lock", "")) == "b5_observed_name_to_model", "identity is source-locked specifically to the B5-observed Torrent")
+	_check(
+		str(_audit.get("historical_revision", "")) == "unverified"
+		and str(_audit.get("source_upload_date", "")) == "2011-06-29"
+		and str(_audit.get("recording_date_status", "")) == "unknown"
+		and str(_audit.get("game_build_revision_status", "")) == "unknown",
+		"audit separates the documented B5 upload date from unknown recording/build dates"
+	)
 	_check(str(_audit.get("reconstruction_status", "")) == "partial", "detailed reconstruction remains explicitly partial")
 	_check(str(_audit.get("2009_continuity", "")) == "unproved", "continuity with the creator-listed 2009 Torrent remains unproved")
 	_check(not bool(_audit.get("authenticated_geometry", true)), "partial reconstruction does not claim authenticated exact geometry")
@@ -125,9 +131,9 @@ func _test_evidence_boundary(torrent: HeroShip) -> void:
 	)
 
 	_check(
-		str(torrent.get_meta("identity_lock", "")) == "dated_2011"
+		str(torrent.get_meta("identity_lock", "")) == "b5_observed_name_to_model"
 		or bool(torrent.get_meta("torrent_2011_identity_locked", false)),
-		"ship root mirrors the dated-2011 identity boundary"
+		"ship root mirrors the B5-observed identity boundary"
 	)
 	_check(
 		str(torrent.get_meta("reconstruction_status", "")) in ["partial", "source_aligned_partial"],
@@ -153,7 +159,7 @@ func _test_reconstruction_node_contract(torrent: HeroShip) -> void:
 	var visual := _contract_node(torrent, "visual_root") as Node3D
 	_check(visual != null and visual == torrent.get_variant_visual_root(), "contract visual root is the authoritative banked Torrent presentation")
 	if visual != null:
-		_check(str(visual.get_meta("identity_lock", "")) == "dated_2011" or bool(visual.get_meta("torrent_2011_identity_locked", false)), "visual root carries the dated-2011 source lock")
+		_check(str(visual.get_meta("identity_lock", "")) == "b5_observed_name_to_model" or bool(visual.get_meta("torrent_2011_identity_locked", false)), "visual root carries the B5-observed source lock")
 		_check(str(visual.get_meta("reconstruction_status", "")) in ["partial", "source_aligned_partial"], "visual root carries partial-reconstruction status")
 		_check(
 			not bool(visual.get_meta("authenticated_exact_geometry", false))

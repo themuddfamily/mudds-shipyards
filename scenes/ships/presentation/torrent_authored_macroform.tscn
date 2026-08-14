@@ -75,8 +75,11 @@ uv1_triplanar = false
 
 [node name="TorrentAuthoredMacroform" type="Node3D"]
 script = ExtResource("1_script")
-metadata/identity_lock = &"dated_2011"
-metadata/historical_revision = "2011"
+metadata/identity_lock = &"b5_observed_name_to_model"
+metadata/historical_revision = "unverified"
+metadata/source_upload_date = "2011-06-29"
+metadata/recording_date_status = &"unknown"
+metadata/game_build_revision_status = &"unknown"
 metadata/reconstruction_status = &"partial"
 metadata/geometry_status = &"source_aligned_partial"
 metadata/authenticated_geometry = false

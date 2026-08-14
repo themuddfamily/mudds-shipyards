@@ -5,10 +5,10 @@
 [resource]
 script = ExtResource("1_definition")
 ship_id = &"torrent_provisional"
-display_name = "Torrent-class Interceptor — 2011 reconstruction"
+display_name = "Torrent-class Interceptor — B5-observed reconstruction"
 role_name = "Interceptor"
 evidence_status = 1
-evidence_references = PackedStringArray("A3: creator-authored 2009-11-12 roster", "B5@00:10.200-00:41.000 decisive uncut dated-2011 Torrent name-to-model chain", "B6@05:31.167-05:33.333 independent dated corroboration", "docs/TORRENT_2011_RECONSTRUCTION_SPEC.md")
-evidence_notes = "The Torrent-class name and interceptor role are creator-supported, and B5 source-locks this broad model identity to the observed 2011 revision. The reconstruction is intentionally partial: exact dimensions, systems, entry mechanism, material finish, handling, and continuity with the 2009 model remain unproved modern interpretation."
+evidence_references = PackedStringArray("A3: creator-authored 2009-11-12 roster", "B5@00:10.200-00:41.000 decisive uncut Torrent name-to-model chain in footage uploaded 2011-06-29", "B6@05:31.167-05:33.333 independent upload-era corroboration", "docs/TORRENT_2011_RECONSTRUCTION_SPEC.md")
+evidence_notes = "The Torrent-class name and interceptor role are creator-supported, and B5 source-locks this broad model identity to the craft observed in that upload. The recording date and live build revision are unknown. The reconstruction is intentionally partial: exact dimensions, systems, entry mechanism, material finish, handling, and continuity with the 2009 model remain unproved modern interpretation."
 compatibility_tags = PackedStringArray("small_craft", "interceptor")
 audio_profile_id = &"standard_fighter"

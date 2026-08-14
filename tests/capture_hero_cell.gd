@@ -330,7 +330,7 @@ func _run() -> void:
 	)
 	await _capture_frame(CAPTURE_FILES[1], &"front_three_quarter_sealed", {
 		"canopy": "sealed",
-		"identity": "dated_2011_source_aligned_partial",
+		"identity": "b5_observed_source_aligned_partial",
 	})
 
 	# 03 — Exact starboard profile: camera-to-focus is ship-local -X.
@@ -732,11 +732,14 @@ func _validate_source_components() -> void:
 	_check(
 		bool(reconstruction.get("valid", false))
 		and _string_array(reconstruction.get("errors", PackedStringArray())).is_empty(),
-		"capture Torrent retains a valid source-aligned dated-2011 reconstruction audit"
+		"capture Torrent retains a valid source-aligned B5-observed reconstruction audit"
 	)
 	_check(
-		str(reconstruction.get("identity_lock", "")) == "dated_2011"
-		and str(reconstruction.get("historical_revision", "")) == "2011"
+		str(reconstruction.get("identity_lock", "")) == "b5_observed_name_to_model"
+		and str(reconstruction.get("historical_revision", "")) == "unverified"
+		and str(reconstruction.get("source_upload_date", "")) == "2011-06-29"
+		and str(reconstruction.get("recording_date_status", "")) == "unknown"
+		and str(reconstruction.get("game_build_revision_status", "")) == "unknown"
 		and str(reconstruction.get("reconstruction_status", "")) == "partial"
 		and str(reconstruction.get("2009_continuity", "")) == "unproved"
 		and not bool(reconstruction.get("authenticated_geometry", true)),
@@ -2010,7 +2013,7 @@ func _write_evidence_manifest() -> void:
 				"Finite TriangleMesh sight samples and UV/normal-map contracts do not prove continuous visibility, motif handedness, or correct perceived relief; those remain listed original-resolution reviews.",
 				"Pixel ROI and luminance checks do not replace the listed original-resolution human silhouette, glazing, depth, UV, or overall art reviews.",
 				"Raw all-pixels-outside-display metrics are recorded but not gated because live warning/practical lights intentionally change opaque cockpit surfaces; the 0.5 percent gate applies only to triangle-unoccluded exterior/world pixels.",
-			"The dated-2011 identity is source-locked, but exact historical geometry and continuity with 2009 remain unproved.",
+			"The B5-observed identity is source-locked; recording/build dates, exact historical geometry, and continuity with 2009 remain unproved.",
 		],
 	}
 	var temporary_path := STAGED_EVIDENCE_MANIFEST_PATH + ".tmp"

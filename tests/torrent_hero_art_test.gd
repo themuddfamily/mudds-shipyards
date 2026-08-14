@@ -67,12 +67,19 @@ func _test_construction_audit(torrent: HeroShip) -> void:
 	var audit := torrent.get_torrent_art_audit_report()
 	_check(bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "constructed Torrent passes its focused art audit")
 	_check(int(audit.schema_version) == 4, "art audit exposes the Blender-close-art v4 schema")
-	_check(str(audit.identity_lock) == "dated_2011" and str(audit.historical_revision) == "2011", "art audit source-locks this presentation specifically to the dated 2011 Torrent")
+	_check(
+		str(audit.identity_lock) == "b5_observed_name_to_model"
+		and str(audit.historical_revision) == "unverified"
+		and str(audit.source_upload_date) == "2011-06-29"
+		and str(audit.recording_date_status) == "unknown"
+		and str(audit.game_build_revision_status) == "unknown",
+		"art audit separates the B5-observed identity from unknown recording/build provenance"
+	)
 	_check(str(audit.reconstruction_status) == "partial" and str(audit["2009_continuity"]) == "unproved", "art audit keeps reconstruction detail partial and 2009 continuity unproved")
 	_check(str(audit.geometry_status) == "source_aligned_partial" and not bool(audit.authenticated_geometry), "art audit makes no unsupported authenticated-geometry claim")
 	var fallback := audit.get("far_fallback_reconstruction", {}) as Dictionary
 	var close_art := audit.get("close_presentation", {}) as Dictionary
-	_check(bool(fallback.get("valid", false)), "art audit retains one independently valid dated-2011 far/fallback macroform")
+	_check(bool(fallback.get("valid", false)), "art audit retains one independently valid B5-observed far/fallback macroform")
 	_check(bool(close_art.get("valid", false)) and int(close_art.get("lod0_triangle_count", 0)) >= 45000 and int(close_art.get("near_surface_count", 999)) <= 32, "art audit requires dense Blender close geometry within its draw-surface budget")
 	_check(int(fallback.get("engine_assembly_count", 0)) == 2 and int(fallback.get("landing_gear_assembly_count", 0)) == 3, "fallback audit retains twin engines and tricycle gear")
 	_check(int(fallback.get("rcs_cluster_count", 0)) == 4 and int(fallback.get("service_panel_count", 0)) >= 4, "fallback audit inventories RCS clusters and service access panels")
@@ -83,7 +90,7 @@ func _test_airframe_and_surface_materials(torrent: HeroShip) -> void:
 	var visual := torrent.get_variant_visual_root()
 	_check(visual != null and visual.name == &"TorrentVisual", "Torrent keeps its stable visual-root seam")
 	_check(str(visual.get_meta("geometry_status", "")) == "source_aligned_partial", "visual root records source-aligned partial geometry status")
-	_check(str(visual.get_meta("identity_lock", "")) == "dated_2011", "visual root carries the dated-2011 identity lock")
+	_check(str(visual.get_meta("identity_lock", "")) == "b5_observed_name_to_model", "visual root carries the B5-observed identity lock")
 	_check(not bool(visual.get_meta("authenticated_historical_silhouette", true)) and not bool(visual.get_meta("authenticated_exact_geometry", true)), "visual root denies authenticated silhouette and exact-geometry claims")
 	var authored_root := visual.get_node_or_null("LegacyFarPresentation/TorrentAuthoredMacroform") as Node3D
 	var dated_form := authored_root.get_node_or_null("Dated2011Form") as Node3D if authored_root != null else null
@@ -98,7 +105,7 @@ func _test_airframe_and_surface_materials(torrent: HeroShip) -> void:
 		_check(str(modern_systems.get_meta("evidence_status", "")) == "modern_interpretation" and not bool(modern_systems.get_meta("historically_supported", true)), "modern systems cannot masquerade as recovered historical detail")
 
 	var pointed_nose := lod0.get_node_or_null("PointedNose") as MeshInstance3D if lod0 != null else null
-	_check(pointed_nose != null and pointed_nose.mesh is ArrayMesh, "dated macroform begins with an imported authored pointed mesh")
+	_check(pointed_nose != null and pointed_nose.mesh is ArrayMesh, "B5-observed macroform begins with an imported authored pointed mesh")
 	if pointed_nose != null:
 		_check(pointed_nose.mesh.resource_path.ends_with("torrent_macroform_lod0_pointed_nose.obj"), "pointed nose resolves to its checked-in authored OBJ rather than runtime geometry")
 		_check(str(pointed_nose.get_meta("silhouette_role", "")) == "pointed_nose", "pointed loft publishes its source-safe silhouette role")
@@ -110,7 +117,7 @@ func _test_airframe_and_surface_materials(torrent: HeroShip) -> void:
 		"StarboardUpperSidePlane",
 	]
 	var side_planes := lod0.find_children("*SidePlane", "MeshInstance3D", false, false) if lod0 != null else []
-	_check(side_planes.size() == 4, "dated macroform has exactly four stepped side-plane tiers")
+	_check(side_planes.size() == 4, "B5-observed macroform has exactly four stepped side-plane tiers")
 	for plane_name: String in plane_names:
 		var plane := lod0.get_node_or_null(NodePath(plane_name)) as MeshInstance3D if lod0 != null else null
 		_check(plane != null and plane.mesh is ArrayMesh, "%s is an authored sealed planform" % plane_name)

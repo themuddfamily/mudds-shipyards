@@ -202,6 +202,7 @@ const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 @onready var launch_gate: Marker3D = %LaunchGate
 @onready var habitat_spine: HabitatSpine = $HabitatSpine
 @onready var jovian_freight_berth: JovianFreightBerth = $JovianFreightBerth
+@onready var fleet_dock_comb: FleetDockComb = $FleetDockComb
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
@@ -299,6 +300,55 @@ func get_habitat_spine() -> HabitatSpine:
 
 func get_jovian_freight_berth() -> JovianFreightBerth:
 	return jovian_freight_berth
+
+
+## Source-bounded B2 comb/slab macro correction. Its three pads are intentionally
+## empty and deferred: this accessor exposes station circulation, not berth or
+## ship-regeneration authority.
+func get_fleet_dock_comb() -> FleetDockComb:
+	return fleet_dock_comb
+
+
+## Integration-only audit for the authored modern placement and its narrow,
+## visible collision-backed connector from the existing Aft upper deck.
+func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var module_audit := {}
+	if not is_instance_valid(fleet_dock_comb):
+		errors.append("fleet dock comb instance is missing")
+	else:
+		module_audit = fleet_dock_comb.get_audit_report()
+		if not bool(module_audit.get("valid", false)):
+			errors.append("fleet dock comb component audit is invalid")
+		var expected_transform := Transform3D(
+			Basis(Vector3.UP, PI * 0.5),
+			Vector3(12.0, 4.2, 68.3)
+		)
+		if not fleet_dock_comb.transform.is_equal_approx(expected_transform):
+			errors.append("fleet dock comb integration transform drifted")
+		if not fleet_dock_comb.find_children("*", "ShipBerth", true, false).is_empty():
+			errors.append("deferred fleet dock comb gained live berth authority")
+	var connector := get_node_or_null(^"ExposedDockLattice/FleetDockCombConnector") as Node3D
+	if connector == null:
+		errors.append("fleet dock comb connector is missing")
+	else:
+		var floor := connector.get_node_or_null(^"FleetDockCombConnectorDeck") as StaticBody3D
+		if floor == null:
+			errors.append("fleet dock comb connector floor is missing")
+		elif floor.get_node_or_null(^"Collision") == null:
+			errors.append("fleet dock comb connector floor lacks collision")
+	return {
+		"schema_version": 1,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"evidence_status": &"modern_interpretation",
+		"source_claim": &"OE-B2-COMB",
+		"placement_authored": true,
+		"empty_deferred_docks": true,
+		"module_transform": fleet_dock_comb.global_transform if is_instance_valid(fleet_dock_comb) else Transform3D.IDENTITY,
+		"connector_local_bounds": AABB(Vector3(-0.25, 3.56, 66.5), Vector3(12.5, 1.94, 3.6)),
+		"component": module_audit.duplicate(true),
+	}
 
 
 ## Integrated, presentation-only activity components. The returned arrays are
@@ -1983,6 +2033,36 @@ func _build_architecture() -> void:
 	# bridges the original spine to that module's connection plane without
 	# hiding its open-space footprint beneath a legacy service slab.
 	_box(shell, "AftModuleConnector", Vector3(0, -0.62, 43.5), Vector3(7.0, 1.2, 9.0), _materials["deck_light"])
+
+	# The B2-bounded comb is mounted beyond the Aft upper deck rather than across
+	# any live landing volume. This short, visibly modelled bridge is the complete
+	# connection—there is no hidden slab beneath the module's large open voids.
+	var fleet_comb_connector := Node3D.new()
+	fleet_comb_connector.name = "FleetDockCombConnector"
+	fleet_comb_connector.set_meta("evidence_status", &"modern_interpretation")
+	fleet_comb_connector.set_meta("connects_station_module", &"fleet-dock-comb")
+	shell.add_child(fleet_comb_connector)
+	_box(
+		fleet_comb_connector,
+		"FleetDockCombConnectorDeck",
+		Vector3(6.0, 3.88, 68.3),
+		Vector3(12.5, 0.64, 3.6),
+		_materials["deck_light"]
+	)
+	_box(
+		fleet_comb_connector,
+		"FleetDockCombConnectorPortRail",
+		Vector3(6.0, 4.85, 66.5),
+		Vector3(12.5, 1.3, 0.16),
+		_materials["ivory"]
+	)
+	_box(
+		fleet_comb_connector,
+		"FleetDockCombConnectorStarboardRail",
+		Vector3(6.0, 4.85, 70.1),
+		Vector3(12.5, 1.3, 0.16),
+		_materials["ivory"]
+	)
 
 	# Deep under-deck beams make the separated modules read as one supported
 	# station lattice while leaving space visible between every branch.

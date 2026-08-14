@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "matrix_id": "known_keth_ship_reconstruction_gates",
+  "gate_order": [
+    "identity_and_role",
+    "name_tied_multiview",
+    "visual_feature_index",
+    "observed_role_and_handling",
+    "timestamped_confidence",
+    "conflicts_and_unknowns"
+  ],
+  "gate_states": ["pass", "partial", "fail", "conflicted", "not_applicable"],
+  "policy": {
+    "authenticated_reconstruction_requires": "all six gates pass and written manual review",
+    "partial_reconstruction_requires": "identity_and_role and name_tied_multiview pass; every unsupported feature remains explicit",
+    "freeze_rule": "No original-labelled silhouette redesign may advance beyond its gate_status without new ledger evidence.",
+    "current_authenticated_ship_count": 0,
+    "current_partial_reconstruction_count": 1,
+    "current_provisional_candidate_count": 2
+  },
+  "ships": [
+    {
+      "ship_id": "torrent",
+      "canonical_label": "Torrent-class Interceptor",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B5", "B6"],
+      "gate_status": {
+        "identity_and_role": "pass",
+        "name_tied_multiview": "pass",
+        "visual_feature_index": "partial",
+        "observed_role_and_handling": "fail",
+        "timestamped_confidence": "pass",
+        "conflicts_and_unknowns": "pass"
+      },
+      "implementation_status": "b5_observed_partial_reconstruction",
+      "safe_claim": "B5 securely links the Torrent label to one spawned, boarded, flown craft and supports a bounded broad macroform.",
+      "unknowns": ["recording date", "live build revision", "continuity with 2009", "absolute scale", "systems", "class-specific handling", "weapon geometry"],
+      "next_evidence_gate": "Independent recording/build provenance or another name-tied multi-view source with clearer surface/access detail."
+    },
+    {
+      "ship_id": "zenith",
+      "canonical_label": "Zenith-class Interceptor / Fighter",
+      "creator_roster_sources": ["A5", "A9"],
+      "model_sources": ["B7"],
+      "gate_status": {
+        "identity_and_role": "conflicted",
+        "name_tied_multiview": "pass",
+        "visual_feature_index": "partial",
+        "observed_role_and_handling": "fail",
+        "timestamped_confidence": "pass",
+        "conflicts_and_unknowns": "pass"
+      },
+      "implementation_status": "not_implemented_research_candidate",
+      "safe_claim": "B7 securely links a wide pale delta/arrow craft to the Zenith Interceptor label in footage uploaded in 2012.",
+      "unknowns": ["Fighter versus Interceptor role conflict", "recording/build date", "dimensions", "access detail", "systems", "handling"],
+      "next_evidence_gate": "Resolve or deliberately version the Fighter/Interceptor conflict and index the B7 views into a bounded feature sheet."
+    },
+    {
+      "ship_id": "arrow",
+      "canonical_label": "Arrow-class Recon Ship",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B3"],
+      "gate_status": {
+        "identity_and_role": "pass",
+        "name_tied_multiview": "fail",
+        "visual_feature_index": "partial",
+        "observed_role_and_handling": "fail",
+        "timestamped_confidence": "partial",
+        "conflicts_and_unknowns": "pass"
+      },
+      "implementation_status": "provisional_modern_candidate_frozen",
+      "safe_claim": "Creator evidence supports the name, reconnaissance role, and exactly two escape pods; current geometry and pod placement are modern.",
+      "unknowns": ["name-to-model mapping", "silhouette", "pod placement", "access", "engines", "weapons", "palette", "handling"],
+      "next_evidence_gate": "Uncut label-to-spawn-to-multi-view footage or creator-authored model imagery."
+    },
+    {
+      "ship_id": "jovian",
+      "canonical_label": "Jovian-class Light Freighter",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B4"],
+      "gate_status": {
+        "identity_and_role": "pass",
+        "name_tied_multiview": "fail",
+        "visual_feature_index": "fail",
+        "observed_role_and_handling": "fail",
+        "timestamped_confidence": "partial",
+        "conflicts_and_unknowns": "pass"
+      },
+      "implementation_status": "provisional_modern_candidate_frozen",
+      "safe_claim": "Creator evidence supports only the name and light-freighter role; B4 supplies a later label but no tied model.",
+      "unknowns": ["name-to-model mapping", "silhouette", "scale", "cargo/passenger plan", "ramp", "cockpit", "systems", "palette", "handling"],
+      "next_evidence_gate": "Uncut Jovian label-to-spawn chain followed by two or more tied exterior/interior views."
+    },
+    {
+      "ship_id": "titan",
+      "canonical_label": "Titan-class Medium Transport",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B3", "B4"],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "partial", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Name and medium-transport role are creator-supported; B3/B4 labels do not yet provide a secure multi-view model mapping.",
+      "unknowns": ["model", "scale", "interior", "access", "systems", "handling"],
+      "next_evidence_gate": "Name-tied spawn and multi-view index."
+    },
+    {
+      "ship_id": "vortex",
+      "canonical_label": "Vortex-class Troop Transport",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B4"],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "partial", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Name and troop-transport role are creator-supported; a later label is not a model lock.",
+      "unknowns": ["model", "capacity", "access", "systems", "handling"],
+      "next_evidence_gate": "Name-tied spawn and multi-view index."
+    },
+    {
+      "ship_id": "paradox",
+      "canonical_label": "Paradox-class Cruiser",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B4"],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "partial", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Creator evidence calls Paradox a cruiser and the first warship produced at Keth Shipyards.",
+      "unknowns": ["model", "scale", "interior", "weapons", "handling"],
+      "next_evidence_gate": "Name-tied spawn and multi-view index."
+    },
+    {
+      "ship_id": "katana",
+      "canonical_label": "Katana-class Fighter",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B3", "B4"],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "partial", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Name and fighter role are creator-supported; later labels do not yet identify a model.",
+      "unknowns": ["model", "access", "weapons", "handling"],
+      "next_evidence_gate": "Name-tied spawn and multi-view index."
+    },
+    {
+      "ship_id": "predator",
+      "canonical_label": "Predator-class Detention Ship",
+      "creator_roster_sources": ["A3"],
+      "model_sources": ["B4"],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "partial", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Creator evidence supports its specialist criminal-transport role; no model/interior plan is locked.",
+      "unknowns": ["model", "detention layout", "capacity", "access", "systems", "handling"],
+      "next_evidence_gate": "Name-tied exterior and interior views."
+    },
+    {
+      "ship_id": "dynamic",
+      "canonical_label": "Dynamic-class Gunship",
+      "creator_roster_sources": ["A3"],
+      "model_sources": [],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "fail", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Creator evidence supports only a small, powerful gunship role.",
+      "unknowns": ["model", "weapon layout", "access", "handling"],
+      "next_evidence_gate": "Any direct name-tied visual source."
+    },
+    {
+      "ship_id": "utopia",
+      "canonical_label": "Utopia-class Dropship",
+      "creator_roster_sources": ["A3"],
+      "model_sources": [],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "fail", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "Creator evidence supports a dropship able to bring supplies to front lines.",
+      "unknowns": ["model", "payload", "access", "weapons", "handling"],
+      "next_evidence_gate": "Any direct name-tied visual source."
+    },
+    {
+      "ship_id": "salyut",
+      "canonical_label": "Salyut-class Transport",
+      "creator_roster_sources": ["A4"],
+      "model_sources": [],
+      "gate_status": {"identity_and_role": "pass", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "fail", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "A4 documents Salyut as a newly arrived Transport by the 2010-01-09 capture.",
+      "unknowns": ["model", "transport subtype", "scale", "interior", "handling"],
+      "next_evidence_gate": "Creator-authored detail or direct name-tied visual source."
+    },
+    {
+      "ship_id": "altair",
+      "canonical_label": "Altair-class Light Fighter",
+      "creator_roster_sources": [],
+      "model_sources": ["B3"],
+      "gate_status": {"identity_and_role": "partial", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "partial", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "not_implemented_frozen",
+      "safe_claim": "A regeneration label supports presence and Light Fighter wording in the observed 2012 upload, not launch-era presence or a model.",
+      "unknowns": ["creator-written role", "original-era continuity", "model", "systems", "handling"],
+      "next_evidence_gate": "Creator-authored roster detail plus name-tied visual source."
+    },
+    {
+      "ship_id": "corona",
+      "canonical_label": "Corona",
+      "creator_roster_sources": ["A3"],
+      "model_sources": [],
+      "gate_status": {"identity_and_role": "partial", "name_tied_multiview": "fail", "visual_feature_index": "fail", "observed_role_and_handling": "fail", "timestamped_confidence": "pass", "conflicts_and_unknowns": "pass"},
+      "implementation_status": "historical_mention_only_not_reconstructable",
+      "safe_claim": "A3 comments say Corona had been removed after approaching one thousand bricks; no role or geometry survives in the current evidence set.",
+      "unknowns": ["class label", "role", "model", "all mechanics"],
+      "next_evidence_gate": "Any creator-authored or direct visual source that identifies the ship."
+    }
+  ]
+}

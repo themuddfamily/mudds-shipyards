@@ -1,0 +1,57 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/fleet_dock_comb.gd" id="1_module"]
+
+[node name="FleetDockComb" type="Node3D"]
+script = ExtResource("1_module")
+
+[node name="ModuleAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="RouteApproach" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 1)
+
+[node name="RouteTrunkForward" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 10)
+
+[node name="RouteDock01Threshold" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(9.25, 0.15, 10)
+
+[node name="RouteTrunkMid" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 25)
+
+[node name="RouteDock02Threshold" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(9.25, 0.15, 25)
+
+[node name="RouteTrunkAft" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 40)
+
+[node name="RouteVerticalBase" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(2, 0.15, 40)
+
+[node name="RouteVerticalTop" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(9, 2.55, 40)
+
+[node name="RouteDock03Threshold" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(9.25, 2.55, 40)
+
+[node name="DeferredDock01" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(15, 0.15, 10)
+
+[node name="DeferredDock02" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(15, 0.15, 25)
+
+[node name="DeferredDock03" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(15, 2.55, 40)

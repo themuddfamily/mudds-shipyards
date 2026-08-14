@@ -19,7 +19,7 @@ const RUNTIME_TEXTURES := {
 	"orm": ["res://assets/models/torrent/textures/torrent-hero-trim-orm-runtime-v2.png", "8f754d93a36b12eb6a031c8c9675da6e54591844c5582fee1063d6d3b523b2cd"],
 	"emissive": ["res://assets/models/torrent/textures/torrent-hero-trim-emissive-runtime-v2.png", "398be72d094af6a429d9f06ec7eeeb855850b9873648d2d2f70e6b85e47cbd69"],
 }
-const GOLDEN_MANIFEST_SHA256 := "cedc7b08096d6b317f431d381cb71c7c97eaab9b3164451c226a2ba5c9372ff0"
+const GOLDEN_MANIFEST_SHA256 := "a44136e7d9374206269391a64536a890576ddac29ca1949ef3e57db6c9a8c459"
 const GOLDEN_LOD_SHA256 := [
 	"6d6e15fbc906d9a9e4636e0595597a05bae4d345dadf945aab2a88434518abc9",
 	"2755293411bbf2f5a38b59ff1390c1198b7d6013b693d1a742698ebfccf00110",
@@ -129,7 +129,7 @@ func _test_checked_in_integrity() -> void:
 		return
 	_manifest = parsed as Dictionary
 	_check(int(_manifest.get("schema_version", 0)) == 2, "manifest schema publishes the semantic signed-axis UV contract")
-	_check(str(_manifest.get("asset_id", "")) == "torrent_dated_2011_authored_macroform", "manifest has the dedicated Torrent asset identity")
+	_check(str(_manifest.get("asset_id", "")) == "torrent_b5_observed_authored_macroform", "manifest has the dedicated B5-observed Torrent asset identity")
 	_check(str(_manifest.get("asset_revision", "")) == "v2", "manifest pins the bounded authored-relief v2 revision")
 	var refinement := _manifest.get("geometry_refinement", {}) as Dictionary
 	var triangle_target := refinement.get("lod0_triangle_target", []) as Array
@@ -245,8 +245,14 @@ func _test_exact_runtime_roster(presentation: TorrentAuthoredMacroform) -> void:
 func _test_evidence_boundary(presentation: TorrentAuthoredMacroform) -> void:
 	var audit := presentation.get_torrent_authored_asset_audit_report()
 	var provenance := audit.get("provenance", {}) as Dictionary
-	_check(str(provenance.get("identity_lock", "")) == "dated_2011", "authored mesh is locked only to the dated-2011 identity")
-	_check(str(provenance.get("historical_revision", "")) == "2011", "historical revision remains specifically 2011")
+	_check(str(provenance.get("identity_lock", "")) == "b5_observed_name_to_model", "authored mesh is locked only to the B5-observed identity")
+	_check(
+		str(provenance.get("historical_revision", "")) == "unverified"
+		and str(provenance.get("source_upload_date", "")) == "2011-06-29"
+		and str(provenance.get("recording_date_status", "")) == "unknown"
+		and str(provenance.get("game_build_revision_status", "")) == "unknown",
+		"asset provenance separates the documented upload date from unknown recording/build dates"
+	)
 	_check(provenance.get("source_references", []) == ["B5"], "authored geometry uses source B5 only")
 	_check(str(provenance.get("geometry_status", "")) == "source_aligned_partial", "macroform is explicitly source-aligned and partial")
 	_check(str(provenance.get("reconstruction_status", "")) == "partial", "reconstruction detail remains partial")
@@ -773,7 +779,7 @@ func _test_audit_contract(presentation: TorrentAuthoredMacroform, live_metrics: 
 	var mutable_provenance := first.get("provenance", {}) as Dictionary
 	mutable_provenance["identity_lock"] = "corrupted_by_caller"
 	var fresh := presentation.get_torrent_authored_asset_audit_report()
-	_check(str((fresh.get("provenance", {}) as Dictionary).get("identity_lock", "")) == "dated_2011", "caller mutation cannot alter a fresh nested audit report")
+	_check(str((fresh.get("provenance", {}) as Dictionary).get("identity_lock", "")) == "b5_observed_name_to_model", "caller mutation cannot alter a fresh nested audit report")
 	presentation.set_meta("authenticated_exact_geometry", true)
 	var fail_red := presentation.get_torrent_authored_asset_audit_report()
 	_check(not bool(fail_red.get("valid", true)) and not (fail_red.get("errors", PackedStringArray()) as PackedStringArray).is_empty(), "live evidence-metadata drift makes the audit fail red")

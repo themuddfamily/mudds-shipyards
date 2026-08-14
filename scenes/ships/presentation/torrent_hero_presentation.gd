@@ -6,7 +6,7 @@ signal lod_changed(lod_index: int)
 ## Runtime boundary for the production-intent Blender Torrent presentation.
 ##
 ## The imported GLB is visual-only. HeroShip continues to own collision, flight,
-## boarding, weapons, cameras, damage and lease authority. The older dated-2011
+## boarding, weapons, cameras, damage and lease authority. The older B5-observed
 ## macroform remains an evidence-bounded far LOD rather than masquerading as the
 ## close-range final craft.
 

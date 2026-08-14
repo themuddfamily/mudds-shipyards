@@ -6,7 +6,7 @@ extends Node3D
 ## outside this scene. No meshes or primitives are constructed at runtime.
 
 const SCHEMA_VERSION := 2
-const ASSET_ID := "torrent_dated_2011_authored_macroform"
+const ASSET_ID := "torrent_b5_observed_authored_macroform"
 const ASSET_REVISION := "v2"
 const COMPONENT_ID := "torrent_authored_macroform_presentation_v2"
 const PRESENTATION_PATH := "res://scenes/ships/presentation/torrent_authored_macroform.tscn"
@@ -29,7 +29,7 @@ const EXPECTED_MATERIAL_PATHS := [
 ]
 const FORBIDDEN_FLAT_STUDY_TEXTURE := "res://assets/models/torrent/textures/torrent-hero-flat-albedo-study-v1.png"
 const MANIFEST_PATH := "res://assets/models/torrent/torrent_authored_asset_manifest.json"
-const EXPECTED_MANIFEST_SHA256 := "cedc7b08096d6b317f431d381cb71c7c97eaab9b3164451c226a2ba5c9372ff0"
+const EXPECTED_MANIFEST_SHA256 := "a44136e7d9374206269391a64536a890576ddac29ca1949ef3e57db6c9a8c459"
 const LOD_SWITCH_DISTANCE_M := 60.0
 const LOD_SWITCH_MARGIN_M := 5.0
 const EXPECTED_BOUNDS := AABB(Vector3(-3.60, -0.39, -4.80), Vector3(7.20, 4.54, 8.40))
@@ -194,7 +194,7 @@ func get_torrent_authored_asset_audit_report() -> Dictionary:
 			"size": EXPECTED_BOUNDS.size,
 		},
 		"content_note": (
-			"B5 bounds only the broad dated-2011 macroform. The v2 chamfers and shallow "
+			"B5 bounds only the broad observed macroform. The recording/build dates are unknown. The v2 chamfers and shallow "
 			+ "structural relief are modern authored refinement; exact topology, dimensions, "
 			+ "UVs, normals, finish, symmetry, and 2009 continuity are not authenticated."
 		),
@@ -628,8 +628,11 @@ func _audit_untextured_material(
 
 func _audit_identity_metadata(errors: PackedStringArray) -> void:
 	var expected_root_metadata := {
-		"identity_lock": "dated_2011",
-		"historical_revision": "2011",
+		"identity_lock": "b5_observed_name_to_model",
+		"historical_revision": "unverified",
+		"source_upload_date": "2011-06-29",
+		"recording_date_status": "unknown",
+		"game_build_revision_status": "unknown",
 		"reconstruction_status": "partial",
 		"geometry_status": "source_aligned_partial",
 		"continuity_2009": "unproved",
@@ -713,8 +716,11 @@ func _audit_semantic_metadata(errors: PackedStringArray) -> void:
 
 func _audit_manifest_provenance(provenance: Dictionary, errors: PackedStringArray) -> void:
 	if (
-		str(provenance.get("identity_lock", "")) != "dated_2011"
-		or str(provenance.get("historical_revision", "")) != "2011"
+		str(provenance.get("identity_lock", "")) != "b5_observed_name_to_model"
+		or str(provenance.get("historical_revision", "")) != "unverified"
+		or str(provenance.get("source_upload_date", "")) != "2011-06-29"
+		or str(provenance.get("recording_date_status", "")) != "unknown"
+		or str(provenance.get("game_build_revision_status", "")) != "unknown"
 		or provenance.get("source_references", []) != ["B5"]
 		or str(provenance.get("geometry_status", "")) != "source_aligned_partial"
 		or str(provenance.get("reconstruction_status", "")) != "partial"

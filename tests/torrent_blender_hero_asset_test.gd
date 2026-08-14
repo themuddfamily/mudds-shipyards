@@ -171,7 +171,7 @@ func _run() -> void:
 		exact_collision_roster = exact_collision_roster and hero.get_node_or_null(collision_name) is CollisionShape3D
 	_check(exact_collision_roster, "canonical seven-shape gameplay collision remains external to imported art")
 	_check(hero.get_node_or_null("TorrentVisual/TorrentHeroPresentation") is TorrentHeroPresentation, "production Torrent owns exactly one close presentation adapter")
-	_check(hero.get_node_or_null("TorrentVisual/LegacyFarPresentation/TorrentAuthoredMacroform") != null, "trusted dated macroform remains available as far/fallback art")
+	_check(hero.get_node_or_null("TorrentVisual/LegacyFarPresentation/TorrentAuthoredMacroform") != null, "trusted B5-observed macroform remains available as far/fallback art")
 	_check(hero.get_node_or_null("TorrentVisual/LegacyFarPresentation/ModernSystems") != null, "legacy systems remain isolated in the fallback gate")
 	_check(hero.find_child("CockpitArt", true, false) != null and hero.get_node_or_null("TorrentVisual/CanopyHinge") != null, "audited Blender cockpit and functional canopy roots coexist without duplicate art")
 	_check(not (hero.get_node("TorrentVisual/CockpitInterior/LegacyCockpitArt") as Node3D).visible and not (hero.get_node("TorrentVisual/CanopyHinge/LegacyCanopyArt") as Node3D).visible, "legacy close meshes are hidden instead of double-rendered")

@@ -64,8 +64,9 @@
   generated sheet is not a dimensionally exact turntable and must not be used
   as an authenticated reconstruction or a final production-art claim.
 - Evidence-date note: B5 was uploaded in June 2011, but its recording date and
-  live build revision are unverified. The `dated-2011` wording preserved in the
-  verbatim generation prompt below was project shorthand, not a verified date.
+  live build revision are unverified. The `dated-2011` wording preserved only
+  inside the verbatim generation prompt below was project shorthand, not a
+  verified date; current public provenance uses `b5_observed_name_to_model`.
 - Final prompt (verbatim):
 
 > Use case: stylized-concept

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/themuddfamily/mudds-shipyards/blob/main/docs/research/source_ledger.schema.json",
+  "title": "Mudds Shipyards historical source ledger",
+  "type": "object",
+  "required": ["schema_version", "ledger_id", "frame_numbering", "sources"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "ledger_id": {"const": "keth_shipyards_source_ledger"},
+    "frame_numbering": {"const": "zero_based_decoded_frame"},
+    "sources": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/source"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["artifact_id", "relation", "url", "accessed_on", "archive_status"],
+      "properties": {
+        "artifact_id": {"type": "string", "minLength": 2},
+        "relation": {"enum": ["canonical", "metadata", "archive", "media", "catalog"]},
+        "url": {"type": "string", "pattern": "^https://"},
+        "accessed_on": {"type": "string", "format": "date"},
+        "archive_status": {"enum": ["canonical_archive", "not_located", "live_endpoint"]}
+      },
+      "additionalProperties": false
+    },
+    "date_event": {
+      "type": "object",
+      "required": ["kind", "value", "status"],
+      "properties": {
+        "kind": {"enum": ["uploaded", "recorded", "game_build_revision", "archive_captured", "page_created", "page_updated", "asset_created"]},
+        "value": {"type": ["string", "null"]},
+        "status": {"enum": ["documented", "unknown", "page_claim"]}
+      },
+      "additionalProperties": false
+    },
+    "rights": {
+      "type": "object",
+      "required": ["license", "permission_status", "redistribution_policy", "allowed_project_policy"],
+      "properties": {
+        "license": {"type": ["string", "null"]},
+        "permission_status": {"const": "permission_not_recorded"},
+        "redistribution_policy": {"const": "do_not_bundle_or_commit"},
+        "allowed_project_policy": {"const": "citation_and_limited_internal_study_only"}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "tier", "title", "source_type", "artifacts", "date_events", "claims_supported", "limitations", "rights"],
+      "properties": {
+        "id": {"pattern": "^[ABC](10|[1-9])$"},
+        "tier": {"enum": ["A", "B", "C"]},
+        "title": {"type": "string", "minLength": 1},
+        "source_type": {"type": "string", "minLength": 1},
+        "artifacts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifact"}},
+        "parties": {"type": "array"},
+        "date_events": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/date_event"}},
+        "rendition": {"type": ["object", "null"]},
+        "anchors": {"type": "array"},
+        "claims_supported": {"type": "array", "minItems": 1},
+        "limitations": {"type": "array", "minItems": 1},
+        "rights": {"$ref": "#/$defs/rights"},
+        "repo_references": {"type": "array"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

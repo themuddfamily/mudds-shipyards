@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/modules/habitat_spine.tscn" id="4_habitat_spine"]
 [ext_resource type="PackedScene" path="res://scenes/world/modules/jovian_freight_berth.tscn" id="5_freight_berth"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth_feedback.tscn" id="6_berth_feedback"]
+[ext_resource type="PackedScene" path="res://scenes/world/modules/fleet_dock_comb.tscn" id="7_fleet_dock_comb"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -60,6 +61,10 @@ cue_half_length = 7.2
 
 [node name="AftJunctionStack" parent="." instance=ExtResource("3_aft_junction")]
 position = Vector3(0, 0, 48)
+
+[node name="FleetDockComb" parent="." instance=ExtResource("7_fleet_dock_comb")]
+position = Vector3(12, 4.2, 68.3)
+rotation = Vector3(0, 1.570796, 0)
 
 [node name="HabitatSpine" parent="." instance=ExtResource("4_habitat_spine")]
 position = Vector3(49, 0, 15.5)

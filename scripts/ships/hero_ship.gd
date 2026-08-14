@@ -3,7 +3,7 @@ extends CharacterBody3D
 
 ## Flyable Torrent-class interceptor.
 ##
-## The dated-2011 Torrent macroform is a checked-in authored/imported asset.
+## The B5-observed Torrent macroform is a checked-in authored/imported asset.
 ## Cockpit and modern-system presentation remains separately assembled so its
 ## speculative detail cannot be mistaken for recovered historical geometry.
 ## Local forward is negative Z and the parked root height is 1.15 metres.
@@ -79,7 +79,7 @@ const NAV_RED := Color("ff5c55")
 const NAV_GREEN := Color("78ee9b")
 const TORRENT_ART_SCHEMA_VERSION := 3
 const TORRENT_GEOMETRY_STATUS: StringName = &"source_aligned_partial"
-const TORRENT_IDENTITY_LOCK: StringName = &"dated_2011"
+const TORRENT_IDENTITY_LOCK: StringName = &"b5_observed_name_to_model"
 const TORRENT_RECONSTRUCTION_STATUS: StringName = &"partial"
 const TORRENT_2009_CONTINUITY: StringName = &"unproved"
 
@@ -2079,11 +2079,12 @@ func _apply_torrent_reconstruction_metadata() -> void:
 	_visual_root.set_meta("reconstruction_status", TORRENT_RECONSTRUCTION_STATUS)
 	_visual_root.set_meta("authenticated_historical_silhouette", false)
 	_visual_root.set_meta("authenticated_exact_geometry", false)
-	_visual_root.set_meta("construction_revision", &"torrent_dated_2011_authored_macroform_v1")
+	_visual_root.set_meta("construction_revision", &"torrent_b5_observed_authored_macroform_v1")
 	_visual_root.set_meta(
 		"content_note",
-		"B5 source-locks the dated 2011 identity and broad form. Exact geometry, "
-		+ "systems, finish, handling, and 2009 continuity remain unproved."
+		"B5 source-locks the observed craft identity and broad form. Its upload "
+		+ "date does not establish the recording date or live build revision; exact "
+		+ "geometry, systems, finish, handling, and 2009 continuity remain unproved."
 	)
 
 
@@ -2396,7 +2397,7 @@ func get_variant_materials() -> Dictionary:
 	return _materials
 
 
-## Evidence-bounded audit for the dated-2011 reconstruction. The identity lock
+## Evidence-bounded audit for the B5-observed reconstruction. The identity lock
 ## is high confidence; exact dimensions, function, finish, and 2009 continuity
 ## are intentionally kept outside the authenticated claim.
 func get_torrent_reconstruction_audit_report() -> Dictionary:
@@ -2493,13 +2494,16 @@ func get_torrent_reconstruction_audit_report() -> Dictionary:
 		"errors": errors,
 		"geometry_status": TORRENT_GEOMETRY_STATUS,
 		"identity_lock": TORRENT_IDENTITY_LOCK,
-		"historical_revision": "2011",
+		"historical_revision": "unverified",
+		"source_upload_date": "2011-06-29",
+		"recording_date_status": "unknown",
+		"game_build_revision_status": "unknown",
 		"reconstruction_status": TORRENT_RECONSTRUCTION_STATUS,
 		"2009_continuity": TORRENT_2009_CONTINUITY,
 		"authenticated_geometry": false,
 		"source_references": PackedStringArray([
-			"B5@00:10.200-00:41.000 decisive uncut 2011 Torrent chain",
-			"B6@05:31.167-05:33.333 independent dated corroboration",
+			"B5@00:10.200-00:41.000 decisive uncut Torrent chain in footage uploaded 2011-06-29",
+			"B6@05:31.167-05:33.333 independent upload-era corroboration",
 		]),
 		"safe_historical_features": PackedStringArray([
 			"pointed faceted nose", "raised central spine", "blocky aft body",
@@ -2562,7 +2566,7 @@ func get_torrent_art_audit_report() -> Dictionary:
 	)
 	var errors := PackedStringArray()
 	if not bool(reconstruction.get("valid", false)):
-		errors.append("dated-2011 far/fallback macroform fails its audit")
+		errors.append("B5-observed far/fallback macroform fails its audit")
 	if hero.is_empty():
 		errors.append("Blender-authored close presentation is missing")
 	elif not bool(hero.get("valid", false)):
@@ -2586,7 +2590,10 @@ func get_torrent_art_audit_report() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"identity_lock": TORRENT_IDENTITY_LOCK,
-		"historical_revision": "2011",
+		"historical_revision": "unverified",
+		"source_upload_date": "2011-06-29",
+		"recording_date_status": "unknown",
+		"game_build_revision_status": "unknown",
 		"geometry_status": TORRENT_GEOMETRY_STATUS,
 		"reconstruction_status": TORRENT_RECONSTRUCTION_STATUS,
 		"2009_continuity": TORRENT_2009_CONTINUITY,
@@ -2606,7 +2613,7 @@ func get_torrent_art_audit_report() -> Dictionary:
 		"collision_authority_unchanged": collision_errors.is_empty(),
 		"functional_authority_unchanged": functional_errors.is_empty(),
 		"presentation_lifecycle_valid": lifecycle_errors.is_empty(),
-		"content_note": "Original Blender close art over an independently audited dated-2011 far/fallback macroform; neither is authenticated exact historical geometry.",
+		"content_note": "Original Blender close art over an independently audited B5-observed far/fallback macroform; neither is authenticated exact historical geometry, and B5's recording/build dates remain unknown.",
 	}
 
 
