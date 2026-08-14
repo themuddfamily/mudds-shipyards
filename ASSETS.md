@@ -58,11 +58,14 @@
   `673bf61d3c2875ec2358b622c1410d46fb766426303f7e34fcf83716b2e05318`.
 - Project status: modern project-original concept art. It is not sourced from
   Roblox or the original Keth Shipyards and is not historical evidence for the
-  dated-2011 Torrent. Its panel layout, engine construction, cockpit shell,
+  B5-linked Torrent. Its panel layout, engine construction, cockpit shell,
   landing gear, boarding hardware, weapons, materials and surface detail are
   modern design proposals. Although the four views are visually coherent, the
   generated sheet is not a dimensionally exact turntable and must not be used
   as an authenticated reconstruction or a final production-art claim.
+- Evidence-date note: B5 was uploaded in June 2011, but its recording date and
+  live build revision are unverified. The `dated-2011` wording preserved in the
+  verbatim generation prompt below was project shorthand, not a verified date.
 - Final prompt (verbatim):
 
 > Use case: stylized-concept
@@ -87,7 +90,7 @@
 - Created: 2026-08-13 with OpenAI's built-in image generation tool.
 - Project status: modern project-original imagegen output; not sourced from
   Roblox or the original Keth Shipyards, and not historical evidence for the
-  dated 2011 Torrent. Its plate layout, livery, wear, cyan accents and material
+  B5-linked Torrent. Its plate layout, livery, wear, cyan accents and material
   response are modern visual interpretation.
 - Actual-output classification: despite the prompt's requested flat and seamless
   result, the image visibly contains bevel-like highlights, shadow/AO-like edge
@@ -303,7 +306,11 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
 
 ## `assets/keth-nebula.png`
 
-- Purpose: original panoramic space backdrop used outside the vertical-slice hangar and behind the title screen.
+- Purpose: project-original panoramic backdrop used at full strength for the
+  title treatment. In the live world it is now only an `8%`-modulated sky cover
+  over a near-black procedural sky; source evidence more strongly supports
+  near-black, densely starred space and large simple colour bodies than a
+  dominant teal nebula.
 - Created: 2026-08-12 with OpenAI's built-in image generation tool (`gpt-image 2.0` provenance is retained in the PNG metadata).
 - Project status: newly generated project asset; not sourced from Roblox or the original Keth Shipyards.
 - Final prompt:

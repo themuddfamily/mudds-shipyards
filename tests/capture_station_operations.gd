@@ -20,6 +20,7 @@ const CAPTURE_FILES: Array[String] = [
 	"04_habitat_service_access.png",
 	"05_jovian_freight_operations.png",
 	"06_launch_landmark_flypast.png",
+	"07_original_identity_backdrop.png",
 ]
 
 const EXPECTED_SHIP_IDS: Array[StringName] = [
@@ -155,6 +156,7 @@ func _run() -> void:
 	await _capture_habitat_operations()
 	await _capture_freight_operations()
 	await _capture_launch_flypast()
+	await _capture_original_identity_backdrop()
 
 	_validate_capture_set()
 	Input.action_release("move_forward")
@@ -682,6 +684,33 @@ func _capture_launch_flypast() -> void:
 	torrent.request_engine_stop()
 
 
+func _capture_original_identity_backdrop() -> void:
+	var audit := _world.get_space_backdrop_audit_report()
+	_check(bool(audit.get("valid", false)), "source-bounded production space backdrop audit is green")
+	var points := PackedVector3Array([
+		_world.get_node("LaunchGate").global_position + Vector3.UP * 6.0,
+		_world.get_berth_transform(&"central_berth").origin + Vector3.UP * 4.0,
+	])
+	var body_specs := audit.get("body_specs", {}) as Dictionary
+	for spec_value: Variant in body_specs.values():
+		var spec := spec_value as Dictionary
+		var centre := spec.get("position", Vector3.ZERO) as Vector3
+		var radius := float(spec.get("radius", 0.0))
+		points.append(centre)
+		points.append(centre + Vector3.RIGHT * radius)
+		points.append(centre + Vector3.LEFT * radius)
+		points.append(centre + Vector3.UP * radius)
+		points.append(centre + Vector3.DOWN * radius)
+	await _render_shot(
+		CAPTURE_FILES[6],
+		points,
+		Vector3(0.10, 0.04, 1.0),
+		58.0,
+		20.0,
+		1.08
+	)
+
+
 func _render_shot(
 	file_name: String,
 	anchors: PackedVector3Array,
@@ -842,7 +871,7 @@ func _sample_luminance_statistics(image: Image) -> Dictionary:
 
 
 func _validate_capture_set() -> void:
-	_check(_capture_order.size() == CAPTURE_FILES.size(), "exactly six station-operations frames were captured")
+	_check(_capture_order.size() == CAPTURE_FILES.size(), "exactly seven station-operations frames were captured")
 	for file_name in CAPTURE_FILES:
 		_check(_captured_images.has(file_name), "required station-operations frame exists: %s" % file_name)
 		_check(

@@ -93,6 +93,39 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 }
 const CENTRAL_HERO_SCHEMA_VERSION := 2
 const OPERATIONAL_LATTICE_SCHEMA_VERSION := 1
+const SPACE_BACKDROP_SCHEMA_VERSION := 1
+const SPACE_BACKDROP_MODULE_ID: StringName = &"source-bounded-space-backdrop"
+const SPACE_BACKDROP_STAR_SEED := 19780704
+const SPACE_BACKDROP_STAR_COUNT := 2600
+const SPACE_BACKDROP_STAR_RADIUS_MIN := 1450.0
+const SPACE_BACKDROP_STAR_RADIUS_MAX := 1650.0
+const SPACE_BACKDROP_NEBULA_COVER_STRENGTH := 0.08
+const SPACE_BACKDROP_BODY_SPECS := {
+	&"CelestialGreenBody": {
+		"position": Vector3(-310.0, 100.0, -890.0),
+		"radius": 135.0,
+		"palette_role": &"green",
+		"color": Color("5a9b58"),
+	},
+	&"CelestialTanBody": {
+		"position": Vector3(250.0, -120.0, -1040.0),
+		"radius": 165.0,
+		"palette_role": &"tan_cream",
+		"color": Color("c7b887"),
+	},
+	&"CelestialGreyBody": {
+		"position": Vector3(70.0, 230.0, -1250.0),
+		"radius": 120.0,
+		"palette_role": &"grey",
+		"color": Color("86878c"),
+	},
+	&"CelestialOrangeBody": {
+		"position": Vector3(-500.0, -160.0, -1150.0),
+		"radius": 105.0,
+		"palette_role": &"orange",
+		"color": Color("d57635"),
+	},
+}
 const CENTRAL_HERO_MODULE_ID: StringName = &"central-berth-hero-cell"
 const CENTRAL_HERO_SHIP_ID: StringName = &"torrent_provisional"
 const CENTRAL_HERO_EVIDENCE_STATUS: StringName = &"creator_roster_supported_modern_interpretation"
@@ -233,7 +266,7 @@ func _ready() -> void:
 	_build_industrial_details()
 	_build_cargo_and_machinery()
 	_build_exterior_range()
-	_build_nebula_backdrop()
+	_build_space_backdrop()
 	_index_operational_lattice_components()
 	_connect_operational_lattice_audio()
 	_apply_operational_dressing_quality()
@@ -1441,6 +1474,172 @@ func get_visual_quality_report() -> Dictionary:
 	return _visual_quality_report.duplicate(true)
 
 
+func get_space_backdrop_evidence_metadata() -> Dictionary:
+	return {
+		"schema_version": SPACE_BACKDROP_SCHEMA_VERSION,
+		"module_id": SPACE_BACKDROP_MODULE_ID,
+		"sources": PackedStringArray(["A8", "B1", "B2", "B3", "B4"]),
+		"source_bounded": true,
+		"broad_composition_supported": true,
+		"authenticated_exact_count": false,
+		"authenticated_exact_placement": false,
+		"authenticated_exact_scale": false,
+		"authenticated_exact_materials": false,
+		"content_note": (
+			"Registered sources support near-black dense stars, large simple colourful "
+			+ "bodies, exposed grey station forms, and pale craft as a broad relationship. "
+			+ "The exact four-body count, blocking colours, positions, radii, materials, "
+			+ "star count, and nebula attenuation are modern composition decisions."
+		),
+	}.duplicate(true)
+
+
+func get_space_backdrop_audit_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var backdrop := get_node_or_null(^"SpaceBackdrop") as Node3D
+	var stars := get_node_or_null(^"SpaceBackdrop/ParallaxStars") as MultiMeshInstance3D
+	var environment_node := get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
+	var environment := environment_node.environment if environment_node != null else null
+	var sky_material: ProceduralSkyMaterial = null
+	if environment != null and environment.sky != null:
+		sky_material = environment.sky.sky_material as ProceduralSkyMaterial
+	if backdrop == null:
+		errors.append("SpaceBackdrop root is unavailable")
+	elif (
+		backdrop.get_meta(&"presentation_only", false) != true
+		or backdrop.get_meta(&"gameplay_authority", true) != false
+	):
+		errors.append("space backdrop authority metadata drifted")
+	if sky_material == null:
+		errors.append("near-black procedural sky is unavailable")
+	else:
+		if (
+			not sky_material.sky_top_color.is_equal_approx(Color("020204"))
+			or not sky_material.sky_horizon_color.is_equal_approx(Color("030305"))
+			or not sky_material.ground_horizon_color.is_equal_approx(Color("030305"))
+			or not sky_material.ground_bottom_color.is_equal_approx(Color("010102"))
+			or not is_zero_approx(sky_material.sun_angle_max)
+		):
+			errors.append("near-black procedural sky palette drifted")
+		var cover_strength := sky_material.sky_cover_modulate.r
+		if (
+			sky_material.sky_cover == null
+			or sky_material.sky_cover.resource_path != "res://assets/keth-nebula.png"
+			or not is_equal_approx(cover_strength, SPACE_BACKDROP_NEBULA_COVER_STRENGTH)
+			or not is_equal_approx(sky_material.sky_cover_modulate.g, cover_strength)
+			or not is_equal_approx(sky_material.sky_cover_modulate.b, cover_strength)
+		):
+			errors.append("faint legacy-nebula cover contract drifted")
+	if (
+		stars == null
+		or stars.multimesh == null
+		or stars.multimesh.instance_count != SPACE_BACKDROP_STAR_COUNT
+		or not stars.multimesh.use_colors
+		or stars.multimesh.transform_format != MultiMesh.TRANSFORM_3D
+		or stars.multimesh.mesh is not SphereMesh
+		or stars.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		or stars.gi_mode != GeometryInstance3D.GI_MODE_DISABLED
+	):
+		errors.append("deterministic instanced star-shell contract drifted")
+	elif stars.multimesh.mesh is SphereMesh:
+		var star_sphere := stars.multimesh.mesh as SphereMesh
+		var star_material := star_sphere.material as StandardMaterial3D
+		if (
+			not is_equal_approx(star_sphere.radius, 0.9)
+			or not is_equal_approx(star_sphere.height, 1.8)
+			or star_sphere.radial_segments != 6
+			or star_sphere.rings != 3
+			or star_material == null
+			or star_material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED
+			or not star_material.vertex_color_use_as_albedo
+			or not star_material.emission_enabled
+			or not is_equal_approx(star_material.emission_energy_multiplier, 0.55)
+		):
+			errors.append("star mesh or material readability contract drifted")
+		if not stars.custom_aabb.is_equal_approx(
+			AABB(Vector3.ONE * -SPACE_BACKDROP_STAR_RADIUS_MAX, Vector3.ONE * SPACE_BACKDROP_STAR_RADIUS_MAX * 2.0)
+		):
+			errors.append("star shell culling envelope drifted")
+
+	var body_specs: Dictionary = {}
+	for body_name: StringName in SPACE_BACKDROP_BODY_SPECS:
+		var spec := SPACE_BACKDROP_BODY_SPECS[body_name] as Dictionary
+		body_specs[body_name] = spec.duplicate(true)
+		var body := get_node_or_null(NodePath("SpaceBackdrop/%s" % String(body_name))) as MeshInstance3D
+		if body == null or body.mesh is not SphereMesh:
+			errors.append("space body is unavailable: %s" % String(body_name))
+			continue
+		var sphere := body.mesh as SphereMesh
+		var material := body.material_override as StandardMaterial3D
+		if (
+			not body.position.is_equal_approx(spec.position as Vector3)
+			or not is_equal_approx(sphere.radius, float(spec.radius))
+			or not is_equal_approx(sphere.height, float(spec.radius) * 2.0)
+			or material == null
+			or not material.albedo_color.is_equal_approx(spec.color as Color)
+			or not material.emission_enabled
+			or not material.emission.is_equal_approx(spec.color as Color)
+			or not is_equal_approx(material.emission_energy_multiplier, 0.32)
+			or not is_equal_approx(material.roughness, 0.9)
+			or body.get_meta(&"palette_role", &"") != spec.palette_role
+			or body.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			or body.gi_mode != GeometryInstance3D.GI_MODE_DISABLED
+		):
+			errors.append("space body presentation contract drifted: %s" % String(body_name))
+
+	var authority_node_count := 0
+	var renderable_count := 0
+	if backdrop != null:
+		if backdrop.get_child_count() != SPACE_BACKDROP_BODY_SPECS.size() + 1:
+			errors.append("space backdrop direct-child roster drifted")
+		for candidate in backdrop.find_children("*", "Node", true, false):
+			if candidate is GeometryInstance3D:
+				renderable_count += 1
+			if (
+				candidate is CollisionObject3D
+				or candidate is CollisionShape3D
+				or candidate is Light3D
+				or candidate is GPUParticles3D
+				or candidate is CPUParticles3D
+				or candidate is AudioStreamPlayer
+				or candidate is AudioStreamPlayer3D
+				or candidate is Camera3D
+				or candidate is NavigationRegion3D
+			):
+				authority_node_count += 1
+	if authority_node_count != 0:
+		errors.append("space backdrop gained gameplay or active presentation authority")
+	if renderable_count != SPACE_BACKDROP_BODY_SPECS.size() + 1:
+		errors.append("space backdrop renderable roster drifted")
+
+	return {
+		"schema_version": SPACE_BACKDROP_SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"module_id": SPACE_BACKDROP_MODULE_ID,
+		"evidence": get_space_backdrop_evidence_metadata(),
+		"star_seed": SPACE_BACKDROP_STAR_SEED,
+		"star_count": SPACE_BACKDROP_STAR_COUNT,
+		"star_radius_min": SPACE_BACKDROP_STAR_RADIUS_MIN,
+		"star_radius_max": SPACE_BACKDROP_STAR_RADIUS_MAX,
+		"body_count": SPACE_BACKDROP_BODY_SPECS.size(),
+		"body_specs": body_specs,
+		"near_black_sky": sky_material != null and errors.find("near-black procedural sky palette drifted") < 0,
+		"legacy_nebula_cover_strength": SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
+		"authority_node_count": authority_node_count,
+		"renderable_count": renderable_count,
+		"runtime_draw_upper_bound": SPACE_BACKDROP_BODY_SPECS.size() + 1,
+		# 2,600 instances * 48 star triangles + 4 bodies * 624 triangles.
+		"runtime_triangle_upper_bound": 127_296,
+		"target_count": get_target_count(),
+		"berth_ids": PackedStringArray([
+			String(CENTRAL_BERTH_ID),
+			String(ARROW_RECON_BERTH_ID),
+			String(JOVIAN_FREIGHT_BERTH_ID),
+		]),
+	}.duplicate(true)
+
+
 ## Explicit evidence boundary for the central Torrent presentation. The
 ## authoritative ShipBerth remains scene-owned; this reports only the modern
 ## visual/operational dressing assembled around it.
@@ -1662,13 +1861,24 @@ func _build_environment() -> void:
 	world_environment.name = "ShipyardEnvironment"
 	var environment := Environment.new()
 	var sky := Sky.new()
-	# Use the project's wide original nebula as a continuous panorama rather
-	# than a finite quad. The old plane exposed hard black edges whenever flight
-	# pitch or a wide camera crossed its bounds, which made space read like a set.
-	var sky_material := PanoramaSkyMaterial.new()
-	sky_material.panorama = load("res://assets/keth-nebula.png") as Texture2D
-	sky_material.filter = true
-	sky_material.energy_multiplier = 0.72
+	# Original-era and later surviving sources consistently read as near-black space
+	# with dense stars and large simple colour bodies. Retain the project-original
+	# nebula only as faint modern atmosphere rather than the live composition's
+	# dominant identity. Exact colours/placement remain explicitly unauthenticated.
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("020204")
+	sky_material.sky_horizon_color = Color("030305")
+	sky_material.ground_horizon_color = Color("030305")
+	sky_material.ground_bottom_color = Color("010102")
+	sky_material.sun_angle_max = 0.0
+	sky_material.sky_cover = load("res://assets/keth-nebula.png") as Texture2D
+	sky_material.sky_cover_modulate = Color(
+		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
+		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
+		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
+		1.0
+	)
+	sky_material.energy_multiplier = 1.0
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
@@ -2544,42 +2754,86 @@ func _build_exterior_range() -> void:
 	_add_guide_light(exterior, Vector3(-48, 13.4, -145), ALERT_RED, true, 8.0, 38.0)
 
 
-func _build_nebula_backdrop() -> void:
+func _build_space_backdrop() -> void:
 	var backdrop := Node3D.new()
 	backdrop.name = "SpaceBackdrop"
+	backdrop.set_meta(&"presentation_only", true)
+	backdrop.set_meta(&"gameplay_authority", false)
 	add_child(backdrop)
 
-	# A sparse star volume adds parallax ahead of the panoramic sky.
+	# One deterministic instanced shell supplies the dense star identity without
+	# per-star nodes, processing, collision, lights, or camera-relative updates.
 	var star_mesh := SphereMesh.new()
-	star_mesh.radius = 0.12
-	star_mesh.height = 0.24
+	# A base 0.9 m radius yields roughly one default-window pixel for the mean
+	# scale at shell distance, so TAA does not erase the entire identity cue.
+	star_mesh.radius = 0.9
+	star_mesh.height = 1.8
 	star_mesh.radial_segments = 6
 	star_mesh.rings = 3
-	star_mesh.material = _materials["white_glow"]
+	var star_material := _material(
+		Color("e7edf2"), 0.0, 1.0, Color("e7edf2"), 0.55
+	)
+	star_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	star_material.vertex_color_use_as_albedo = true
+	star_material.disable_receive_shadows = true
+	star_mesh.material = star_material
 	var stars := MultiMeshInstance3D.new()
 	stars.name = "ParallaxStars"
+	stars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	stars.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	stars.custom_aabb = AABB(
+		Vector3.ONE * -SPACE_BACKDROP_STAR_RADIUS_MAX,
+		Vector3.ONE * SPACE_BACKDROP_STAR_RADIUS_MAX * 2.0
+	)
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = true
 	multimesh.mesh = star_mesh
-	multimesh.instance_count = 140
+	multimesh.instance_count = SPACE_BACKDROP_STAR_COUNT
 	var random := RandomNumberGenerator.new()
-	random.seed = 19780704
+	random.seed = SPACE_BACKDROP_STAR_SEED
 	for index in multimesh.instance_count:
-		var star_position := Vector3(
-			random.randf_range(-150.0, 150.0),
-			random.randf_range(-65.0, 100.0),
-			random.randf_range(-245.0, -88.0)
+		var y := random.randf_range(-1.0, 1.0)
+		var longitude := random.randf_range(-PI, PI)
+		var planar_radius := sqrt(maxf(0.0, 1.0 - y * y))
+		var direction := Vector3(
+			planar_radius * cos(longitude),
+			y,
+			planar_radius * sin(longitude)
 		)
-		var scale_value := random.randf_range(0.45, 2.2)
+		var radius := random.randf_range(
+			SPACE_BACKDROP_STAR_RADIUS_MIN,
+			SPACE_BACKDROP_STAR_RADIUS_MAX
+		)
+		var scale_value := random.randf_range(0.55, 2.35)
 		multimesh.set_instance_transform(
 			index,
-			Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * scale_value), star_position)
+			Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * scale_value), direction * radius)
+		)
+		var warmth := random.randf()
+		multimesh.set_instance_color(
+			index,
+			Color("fff1df").lerp(Color("dceaff"), warmth) * random.randf_range(0.52, 1.0)
 		)
 	stars.multimesh = multimesh
 	backdrop.add_child(stars)
 
-	_sphere(backdrop, "DistantMoon", Vector3(91, -18, -220), 18.0, _materials["deck_light"], false)
-	_torus(backdrop, "MoonRing", Vector3(91, -18, -220), 25.0, 26.2, _materials["orange"], Vector3(68, 20, 4))
+	for body_name: StringName in SPACE_BACKDROP_BODY_SPECS:
+		var spec := SPACE_BACKDROP_BODY_SPECS[body_name] as Dictionary
+		var body_color := spec.color as Color
+		var body_material := _material(body_color, 0.0, 0.9, body_color, 0.32)
+		body_material.disable_receive_shadows = true
+		var body := _sphere(
+			backdrop,
+			String(body_name),
+			spec.position as Vector3,
+			float(spec.radius),
+			body_material,
+			false
+		) as MeshInstance3D
+		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		body.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		body.set_meta(&"palette_role", spec.palette_role)
 
 
 func _create_target(parent: Node3D, index: int, target_position: Vector3) -> void:

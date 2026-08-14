@@ -14,10 +14,12 @@ recognisable while separating observed history from design inference.
 The evidence is useful but incomplete. The strongest surviving material proves
 the broad station language, the physical walk-to-a-ship loop, a versioned ship
 roster, changing controls, arcade combat, and a frame-resolved name-to-model lock
-for the **2011 Torrent-class Interceptor revision**. It does **not** yet prove an
-exact floor plan, dimensions, physics values, a complete fleet-wide
-name-to-model mapping, or that the observed 2011 Torrent was unchanged from the
-2009 launch build. Those gaps must not be filled by treating the remake brief,
+for the **Torrent-class Interceptor shown in B5, footage uploaded in June 2011**.
+That upload date does not establish the recording date or live build revision.
+The evidence also does **not** yet prove an exact floor plan, dimensions, physics
+values, a complete fleet-wide name-to-model mapping, or that the B5-observed
+Torrent was unchanged from the 2009 launch build. Those gaps must not be filled
+by treating the remake brief,
 *Keth Shipyards II*, or a fan recreation as evidence about the original.
 
 ### Confidence scale
@@ -33,9 +35,9 @@ name-to-model mapping, or that the observed 2011 Torrent was unchanged from the
 
 - **A — primary:** official Roblox metadata, creator-owned assets, and archived
   creator-written descriptions/comments.
-- **B — direct contemporary observation:** player-recorded footage of the live
-  experience from 2010–2012. Strong for what appears on screen; weaker for exact
-  build provenance and hidden mechanics.
+- **B — direct contemporary observation:** player-recorded footage uploaded from
+  2010–2012. Strong for what appears on screen; weaker for exact recording date,
+  live build provenance, and hidden mechanics.
 - **C — later/secondary:** later fixed-build walkthroughs, contemporary-player
   recollections written years later, and preservation/recreation projects.
 - **D — design only:** the remake brief and this project's proposals. These are
@@ -153,8 +155,10 @@ weapons or destruction.
   rear/dorsal (`00:23.000`, `f690`), side/top (`00:29.000`, `f870`), and close
   side/front (`00:41.000`, `f1230`) views. This uncut
   label-to-empty-berth-to-spawn-to-boarding-to-flight chain is the decisive
-  high-confidence lock for the observed 2011 Torrent model. Do not use views
-  after the unrelated Atlantis regeneration begins around `00:46.5`.
+  high-confidence lock for the B5-observed Torrent model. The June 2011 upload
+  date does not verify when it was recorded or which live build revision it
+  shows. Do not use views after the unrelated Atlantis regeneration begins
+  around `00:46.5`.
 - **B6 — [Roblox Space Stunts By Caine2000](https://www.youtube.com/watch?v=duOswIVCYKQ)**,
   uploaded 2011-04-21 by CaineTheAwesomenator. In the highest public `854x480`,
   constant `6 fps` rendition, the Torrent message begins at `05:31.167`
@@ -295,8 +299,9 @@ A3 says the facility housed ten completed ships and gives useful role text.
 B3 and B4 collectively corroborate regeneration labels across this roster, but
 not every name appears in both recordings. B3 shows Titan, Torrent, Arrow,
 Altair, and Katana; B4 shows Torrent, Predator, Jovian, Titan, Paradox, Katana,
-and Vortex. B5 and B6 independently show Torrent in 2011. These are not complete
-roster snapshots. A regeneration label alone does not identify whichever ship is
+and Vortex. B5 and B6 independently show Torrent in footage uploaded in 2011;
+their upload dates do not establish recording dates or live build revisions.
+These are not complete roster snapshots. A regeneration label alone does not identify whichever ship is
 already visible: B3 demonstrates a Titan-to-Torrent label change over the same
 unchanged craft. B4 and, decisively, B5 identify the regenerated instance by
 holding on an empty berth until a new object appears.
@@ -314,8 +319,8 @@ Before calling any model an original-ship remake, record:
 6. conflicts between builds rather than silently choosing one.
 
 No surviving source currently satisfies all six requirements for every ship.
-A3 and B3–B7 now clear requirements 1, 2, 5, and 6 for the dated 2011 Torrent
-and supply most of requirement 3. B5 observes flight but does not isolate or
+A3 and B3–B7 now clear requirements 1, 2, 5, and 6 for the B5-linked Torrent and
+supply most of requirement 3. B5 observes flight but does not isolate or
 measure class-specific handling, so requirement 4 remains partial. Exact
 dimensions, hardpoints, whether the paired circular forms are engines, a
 hatch/canopy animation, and equivalence to the 2009 model are also unresolved;
@@ -488,20 +493,22 @@ The prototype uses the **Torrent-class Interceptor** as its first candidate.
 Why it was selected:
 
 - it appears in the creator-authored 2009 roster (A3);
-- its exact regeneration label recurs across independent 2011 and 2012 footage
-  (B3–B6); B5 securely ties the 2011 label to one spawned, boarded, flown model;
+- its exact regeneration label recurs across independent footage uploaded in
+  2011 and 2012 (B3–B6); B5 securely ties its label to one spawned, boarded,
+  flown model;
   and
 - an interceptor suits the required boarding, startup, launch, flight, weapon,
   dogfight, and landing vertical slice without first solving a large interior.
 
-### Dated 2011 Torrent model lock
+### B5-linked Torrent model lock
 
 B5 overturns the former low-confidence name-to-model hypothesis. In one uncut
 sequence, the exact Torrent message precedes materialisation at a fixed empty
 berth; the avatar then approaches, physically enters, sits, and flies that same
-object through multiple views. The **2011 name-to-model identity gate passes at
-high confidence**. This is not proof that the model is unchanged from 2009, and
-the **detailed reconstruction gate remains partial**.
+object through multiple views. The **B5 name-to-model identity gate passes at
+high confidence**. B5 was uploaded in June 2011, but its recording date and live
+build revision are unverified. This is not proof that the model is unchanged
+from 2009, and the **detailed reconstruction gate remains partial**.
 
 Safe visual invariants from B5 are:
 
@@ -524,14 +531,15 @@ specific material finish; or that observed flight proves class-specific handling
 B7 independently locks a different, wider pale delta/arrowhead craft to Zenith;
 do not blend its swept-wing, strake, pod, or cockpit details into Torrent.
 
-### Current dated-2011 Torrent reconstruction v1
+### Current B5-linked Torrent reconstruction v1
 
-The current implementation is a bounded **dated-2011 Torrent reconstruction
-v1**, not an authenticated exact reproduction. Its evidence identity is
-`dated_2011` at high confidence, its reconstruction status is `partial`, and its
-continuity with the 2009 model remains `unproved`. The source-to-art measurements
-and required evidence boundary are recorded in the
-[dated-2011 reconstruction specification](docs/TORRENT_2011_RECONSTRUCTION_SPEC.md).
+The current implementation is a bounded **B5-linked Torrent reconstruction v1**,
+not an authenticated exact reproduction. Its legacy internal evidence ID remains
+`dated_2011` for compatibility; that identifier is not a verified recording or
+build date. The B5 name-to-model link is high-confidence, reconstruction status
+is `partial`, and continuity with the 2009 model remains `unproved`. The
+source-to-art measurements and required evidence boundary are recorded in the
+[B5-linked reconstruction specification](docs/TORRENT_2011_RECONSTRUCTION_SPEC.md).
 
 The v1 macroform replaces the former width-dominant smooth arrowhead with a
 compact longitudinal faceted wedge: a pointed/chamfered nose, raised central
@@ -590,15 +598,16 @@ an exact copy.
 
 | Invariant / correction | Source and direct observation | Confidence | Exact safe implementation implication | Explicit unknown |
 | --- | --- | --- | --- | --- |
-| **The dominant station experience is an exposed dock lattice, not a roofed runway hangar.** | B2 `4:40–5:10` circles a perforated station in open space; `5:25–5:43` shows an avatar on an uncovered deck beside open void and a ladder. B3 `0:04–0:44` and `2:24–2:40` likewise traverse uncovered slabs. A8 independently shows the official 2017 station as exposed booms and blocks. | High that 2011–2012 and fixed builds are open; medium for unchanged 2009 geometry. | The current blockout replaces the enclosing hangar with an exposed junction, berth arms, launch spine, and compact modules. Preserve direct space/planet sightlines in later refinement. | The exact launch-era enclosure count, pressure-field fiction, and which 2009 revisions used each module are unknown. |
+| **The dominant station experience is an exposed dock lattice, not a roofed runway hangar.** | B2 `4:40–5:10` circles a perforated station in open space; `5:25–5:43` shows an avatar on an uncovered deck beside open void and a ladder. B3 `0:04–0:44` and `2:24–2:40` likewise traverse uncovered slabs. A8 independently shows the official 2017 station as exposed booms and blocks. | High that B2/B3 and the fixed build show open station revisions; medium for unchanged 2009 geometry. The footage upload dates do not establish live build dates. | The current blockout replaces the enclosing hangar with an exposed junction, berth arms, launch spine, and compact modules. Preserve direct space/planet sightlines in later refinement. | The exact launch-era enclosure count, pressure-field fiction, and which 2009 revisions used each module are unknown. |
+| **Near-black dense stars and conspicuously large simple colour bodies are a recurring space-composition anchor.** | A8 and B1–B4 collectively show dark space, many small stars, and close-looking green, tan/cream, grey, and orange bodies around station and flight views. This broad relationship is better supported than the former teal-nebula/single-ringed-moon composition; no one cited view establishes the live implementation's exact roster. | Medium-high for the broad palette/apparent-scale relationship; low for exact count, placement, radii, materials, or any ring system. | The live world now uses a deterministic dense star shell and four large green/tan/grey/orange presentation-only spheres clustered beyond the launch range. The project-original nebula remains only as a faint cover. Preserve broad colour blocking and direct sightlines; keep every exact value tagged modern composition. | The exact historical body count, orbital relationship, names, surface detail, position from every station revision, scale, shading, atmosphere, and whether any body had rings are unknown. |
 | **Solid nodes are separated by long, narrow orthogonal arms and substantial negative space.** | B2 `4:55–5:10` gives the clearest original-era oblique overview: a central crossing/spine links rectangular end volumes through thin beams, with voids at least as visually important as the solids. B3 `6:13–7:10` shows narrow projecting routes at several heights. A8 corroborates the broad-spine/thin-arm hierarchy in the fixed build. | Medium-high for hierarchy; low for measurements. | The current station uses a central junction/spine, narrower arms, broader nodes, and genuine gaps rather than one continuous slab. Retain this hierarchy while using modern avatar-clear dimensions. | No orthographic view, absolute scale, arm length, deck thickness, or authoritative coordinate map survives. |
 | **Enclosed rooms are compact insertions within the open framework.** | In B3 `2:40–3:00`, the avatar moves from an exposed deck through a small blue-operated opening into a grey console room with windows; the surrounding deck remains visible. B2 `7:04–7:22` and B4 `4:20–4:30` show chair/console banks and wide space-facing windows, although the containing station-versus-large-ship context is not always certain. A3 records a command-section proposal in November 2009, but does not prove that any later filmed room implements it. | Medium for original-era spatial relationship; medium that later footage contains comparable room motifs, with function/context unresolved. | The current operations, Habitat, and freight rooms, together with the fixed-rail activity, procedural machinery audio, and outer-face dressing, remain secondary modern insertions attached to the lattice. Keep their roles, routes, layouts, dressing, and audio tagged `modern_interpretation`. | Exact room purposes, station-versus-ship context, build dates, and adjacency are uncertain; no command-room geometry can be projected back to launch day. No cited source authenticates the new operational roles, rails, routes, dressing, or soundscape. |
 | **Named regeneration is creator-proven; a physical bank of per-ship regeneration consoles is not.** | A3–A6 explicitly instruct players to say a ship name. In B3 the top message reads “Regenerating Titan-class Medium Transport” at `05:10.000` (`f1860`) and changes to “Regenerating Torrent-class Interceptor” at `05:13.167` (`f1879`) while the same craft remains visible. B4 supplies an uncut Torrent spawn at `04:50.333` (`f1742`), and B5 supplies the decisive continuous spawn/boarding chain. Blue/green pads and consoles appear elsewhere (B2 `0:00–1:00`; B3 `2:40–3:00`), but no cited sequence shows one causing a named regeneration. | High for name/chat regeneration; low for the function of individual coloured controls. | The former console bank is now one explicitly modern registry terminal displaying the classic `SAY SHIP NAME` convention beside a physical berth indicator. Do not present the terminal itself as recovered machinery. | Whether any build also offered a physical regeneration control, and whether the coloured pads are doors, spawn pads, teleports, or controls, remains unproved. |
 | **Several ships are parked around separate arms/nodes rather than one hero craft centred on one runway.** | A8 visibly places multiple pale craft at different offsets and orientations around the fixed-build lattice. B2 `4:40–5:10` and B4 `3:43–3:53` show several craft around the station in original-era footage; creator pages A3–A6 describe a facility that stores a fleet of ten to twelve completed ships depending on date. | High for a physically present fleet; medium for exact simultaneous arrangement. | The current sandbox places exactly three provisional flyables—Torrent, Arrow, and Jovian—at distinct physical berths. Their classes do not authenticate their modern models or berth transforms. | Which class belongs at which historical berth, how many ships were simultaneously spawned, and exact parking transforms are unknown. |
 | **A visible historical docking/berth-state display is not established.** | The registered sources support physically present ships, name-based regeneration, embodied boarding, and return/landing motifs, but no cited sequence resolves a three-state lease display, its wording, colour language, geometry, animation, or control relationship. Coloured pads and controls elsewhere have unresolved functions and cannot be reassigned to docking feedback. | Absent for the implemented display; unknown for whether some original build had comparable feedback. | The exact three production berths may expose presentation-only modern lease feedback derived from their existing authority: cyan `BERTH OPEN` for released, amber `APPROACH VECTOR` for reserved-only approach, and green `BERTH SECURED` for occupied. Keep it collision-, audio-, navigation-, and authority-free and tagged `modern_interpretation`. | Any original docking aid, state model, label, colour, animation, dimensions, placement, material, light, sound, or relationship to landing authority remains unresolved. |
 | **The observed spawn/return anchor is on or immediately beside an exposed main deck with a short ladder transition.** | B3 begins with an avatar materialising in a protective bubble on the uncovered deck at `0:04–0:10`; after a death, `1:03–1:10` returns to the same deck. A ladder is directly ahead, and the red VIP entrance and branching arms remain in sight (`0:20–0:52`). C1 `0:00–0:24` shows a visually similar later relationship, but its exact build is unverified. | Medium-high for the observed 2012 return point; medium for the recurring later motif; unresolved for first-join spawn. | The current slice begins at an exposed junction facing a short stair and visible craft. Treat that placement as a source-bounded remake decision, not a recovered first-login coordinate. | First-login and death respawn may differ; C1's build, exact orientation, VIP adjacency in earlier builds, menu availability, and the route to each ship are unknown. |
-| **Torrent boarding reaches a visible physical pilot position; the exact hatch/canopy mechanism is unresolved.** | B5 continuously links the named spawn at `00:10.733` to an on-foot approach around `00:13`, entry into the central pilot space around `00:14.5–00:15.5`, a visible red occupied seat at `00:15.500`, and chase view by `00:16.833–00:17.000`. Compression/clipping prevents a defensible animated-door or canopy claim. B2 and B4 independently support embodied access for other craft. | High for Torrent physical entry and one visible pilot seat in the 2011 model; low for exact entry side, hatch/canopy mechanics, or controls. | Preserve a physically reachable central single-pilot position and same-world boarding. Keep the current side steps, hinged canopy, detailed controls, camera transition, and exit path modular and labelled as modern design. | Exact entry side, door/canopy existence and motion, instrument layout, restraints, egress, and whether the yellow/translucent panel is glazing remain unresolved. |
-| **The dated-2011 Torrent name-to-model identity is locked; bounded reconstruction v1 is source-aligned but partial.** | A3 is creator-authored name/role evidence. In B5 the exact label begins at `00:10.200` (`f306`), the berth remains empty through `f321`, the craft appears at `00:10.733` (`f322`), and continuous boarding/flight supplies named rear/dorsal (`00:23`, `f690`), side/top (`00:29`, `f870`), and close side/front (`00:41`, `f1230`) views. B6 independently corroborates a compatible pale pointed craft at a Torrent-labelled berth. B3 is a warning against label overlap; B4 supplies a separate tiny spawn link. B7 positively identifies a different wide delta/arrow craft as Zenith. | High for the 2011 name-to-model identity and broad silhouette; medium for fine geometry/colour; low for 2009 equivalence and unobserved systems. | Reconstruction v1 implements the compact faceted wedge, pointed nose, raised spine/blocky aft, four stepped side-plane tiers, paired round housings and dominant upright rails. Its crossbar is an explicitly inferred reconstruction used to preserve the U-like rear read, not a separately authenticated B5 part. The central red seat and restrained amber forward panel remain visible. Its metre envelope is a modern ergonomic normalization; the panel and housing functions remain unknown. Engine internals, canopy, controls, weapons, gear, RCS/service/docking hardware, materials, handling and damage behaviour remain separated/tagged modern design. Arrow and Jovian use isolated visual/collision implementations; do not import B7's Zenith-locked delta details or Torrent evidence into either candidate. | Exact source dimensions/proportions/topology, function of the circular housings and forward panel, hardpoints/weapons, landing gear, exhaust, hatch animation, materials, symmetric fin geometry, handling, and continuity with the 2009 model remain unresolved. |
+| **Torrent boarding reaches a visible physical pilot position; the exact hatch/canopy mechanism is unresolved.** | B5 continuously links the named spawn at `00:10.733` to an on-foot approach around `00:13`, entry into the central pilot space around `00:14.5–00:15.5`, a visible red occupied seat at `00:15.500`, and chase view by `00:16.833–00:17.000`. Compression/clipping prevents a defensible animated-door or canopy claim. B2 and B4 independently support embodied access for other craft. | High for Torrent physical entry and one visible pilot seat in the B5-observed model; low for exact entry side, hatch/canopy mechanics, or controls. | Preserve a physically reachable central single-pilot position and same-world boarding. Keep the current side steps, hinged canopy, detailed controls, camera transition, and exit path modular and labelled as modern design. | Exact entry side, door/canopy existence and motion, instrument layout, restraints, egress, and whether the yellow/translucent panel is glazing remain unresolved. |
+| **The B5 Torrent name-to-model identity is locked; bounded reconstruction v1 is source-aligned but partial.** | A3 is creator-authored name/role evidence. In B5 the exact label begins at `00:10.200` (`f306`), the berth remains empty through `f321`, the craft appears at `00:10.733` (`f322`), and continuous boarding/flight supplies named rear/dorsal (`00:23`, `f690`), side/top (`00:29`, `f870`), and close side/front (`00:41`, `f1230`) views. B6 independently corroborates a compatible pale pointed craft at a Torrent-labelled berth. B3 is a warning against label overlap; B4 supplies a separate tiny spawn link. B7 positively identifies a different wide delta/arrow craft as Zenith. | High for the B5 name-to-model identity and broad silhouette; medium for fine geometry/colour; low for recording/build provenance, 2009 equivalence, and unobserved systems. | Reconstruction v1 implements the compact faceted wedge, pointed nose, raised spine/blocky aft, four stepped side-plane tiers, paired round housings and dominant upright rails. Its crossbar is an explicitly inferred reconstruction used to preserve the U-like rear read, not a separately authenticated B5 part. The central red seat and restrained amber forward panel remain visible. Its metre envelope is a modern ergonomic normalization; the panel and housing functions remain unknown. Engine internals, canopy, controls, weapons, gear, RCS/service/docking hardware, materials, handling and damage behaviour remain separated/tagged modern design. Arrow and Jovian use isolated visual/collision implementations; do not import B7's Zenith-locked delta details or Torrent evidence into either candidate. | Exact source dimensions/proportions/topology, function of the circular housings and forward panel, hardpoints/weapons, landing gear, exhaust, hatch animation, materials, symmetric fin geometry, handling, recording/build provenance, and continuity with the 2009 model remain unresolved. |
 | **“Jovian-class Light Freighter” is proven; the current freighter, interior, and berth are not.** | A3 is creator-authored name/role evidence. B4 `4:50–5:20` independently repeats the Jovian regeneration label, but the sequence does not securely tie a visible model to that name. No registered source establishes a Jovian silhouette, interior, ramp, handling, weapons, or berth. | High for the name and light-freighter role; absent for an authenticated name-to-model, interior, or berth mapping. | Keep the implemented Jovian explicitly provisional. Treat its silhouette, dimensions, colours, cargo/passenger/cockpit route, ramp, capacity, engines, weapons, materials, handling, mechanics, and port freight berth as modern design that can be replaced without revising the historical claim. | Name-linked multi-view geometry, scale, colours, access, interior plan, crew/cargo capacity, propulsion, weapons, handling, and historical berth placement are unresolved. |
 
 ### Current implementation status and next evidence work (2026-08-13)
@@ -613,7 +622,7 @@ plan, historical operations simulation, or audio reconstruction:
    registry terminal. Its labels preserve creator-documented names and the
    `SAY SHIP NAME` convention without claiming that the terminal itself existed.
 3. Exactly three physical flyables now occupy separate registered berths. The
-   Torrent uses the bounded dated-2011 reconstruction v1 described above: its
+   Torrent uses the bounded B5-linked reconstruction v1 described above: its
    high-confidence identity lock is distinct from its partial reconstruction
    status and unproved 2009 continuity. Its compact faceted macroform, four
    stepped side-plane tiers, upright rail hierarchy, red seat and amber
@@ -645,7 +654,7 @@ plan, historical operations simulation, or audio reconstruction:
    tested through the exterior pilot hatch; a continuous ramp-to-cockpit walk has
    not yet been demonstrated.
 6. All three candidates have visible cockpits, seats, physical access, seated
-   pilots, and same-world exits. B5 now proves that the dated 2011 Torrent had a
+   pilots, and same-world exits. B5 shows that its linked Torrent model had a
    physical central entry and one visible red pilot seat, but it does not prove
    the current canopy, steps, controls, camera, exit, or transition design. No
    cited sequence proves those model-specific implementations for Arrow or Jovian.
@@ -854,8 +863,9 @@ plan, historical operations simulation, or audio reconstruction:
     validation and a no-shortcut human playtest remain pending.
 
 The next evidence work is to triangulate a confidence-graded relative station
-map, resolve the remaining Torrent reconstruction details and 2009/2011 version
-boundary, prove or reject the Arrow and Jovian name-to-model hypotheses, and
+map, resolve the remaining Torrent reconstruction details, establish B5's
+recording/build provenance and test continuity with 2009, prove or reject the
+Arrow and Jovian name-to-model hypotheses, and
 repeat name-linked visual indexing before treating any additional historical
 name as an authenticated model. New implementation must keep those unknowns
 visible in data and UI.
@@ -868,8 +878,9 @@ or authorised by this evidence map.
 
 Priority order:
 
-1. **Torrent reconstruction completion:** B5 now locks the dated 2011
-   name-to-model identity. Seek less-compressed front/side/top/rear and cockpit
+1. **Torrent reconstruction completion:** B5 now locks its observed
+   name-to-model identity, while recording/build provenance remains unverified.
+   Seek less-compressed front/side/top/rear and cockpit
    views that resolve exact proportions, fins, access mechanics, dimensions,
    circular-housing function, engines/exhaust, hardpoints/firing, landing gear,
    materials, handling, and whether the 2009 model was the same revision.

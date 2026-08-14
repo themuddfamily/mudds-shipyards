@@ -270,11 +270,36 @@ func _run() -> void:
 	await process_frame
 	_check(game.phase == GameFlow.Phase.COMPLETE, "completed shift cannot accidentally reboard into a stale mission")
 
+	await _release_combat_audio_before_main_teardown(game)
 	game.queue_free()
 	await process_frame
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _release_combat_audio_before_main_teardown(game: Node) -> void:
+	var combat_audio := game.get_node_or_null("CombatAudioPresentation") as CombatAudioPresentation
+	if combat_audio == null:
+		return
+	for candidate in combat_audio.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := candidate as AudioStreamPlayer3D
+		player.stop()
+		player.stream_paused = false
+		player.stream = null
+	# Give both the scene loop and audio backend a bounded boundary in which to
+	# release the final explosion playback before the presentation bank is freed.
+	await process_frame
+	var mixer_release_seconds := maxf(
+		0.05,
+		AudioServer.get_time_to_next_mix() + AudioServer.get_output_latency()
+	)
+	await create_timer(mixer_release_seconds).timeout
+	var parent := combat_audio.get_parent()
+	if parent != null:
+		parent.remove_child(combat_audio)
+	combat_audio.free()
+	await process_frame
 
 
 func _check(condition: bool, description: String) -> void:
