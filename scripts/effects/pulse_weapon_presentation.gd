@@ -153,6 +153,10 @@ func get_component_id() -> StringName:
 	return COMPONENT_ID
 
 
+func is_lifecycle_transaction_active() -> bool:
+	return _lifecycle_transaction_active
+
+
 ## Displays an externally resolved hitscan in world space.
 ##
 ## Returns `false` without mutating the pool when geometry, style, lifecycle,

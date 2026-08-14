@@ -273,7 +273,7 @@ func _test_whole_main_reentry(
 		var every_submission_live := true
 		for source_index in submission_sources.size():
 			var source := submission_sources[source_index]
-			var result := authority.submit_hitscan(
+			var result := authority.submit_hitscan_with_deferred_presentation(
 				source,
 				submission_weapons[source_index],
 				source.global_position + Vector3.UP * 0.25,

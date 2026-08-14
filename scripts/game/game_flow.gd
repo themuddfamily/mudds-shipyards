@@ -177,6 +177,14 @@ func _enter_tree() -> void:
 		call_deferred("_restore_runtime_bindings_after_reentry")
 
 
+func _exit_tree() -> void:
+	# Travelling pulse slots are presentation-only and are cleared by their own
+	# exit transaction. Their target-side records are likewise invalidated by the
+	# relevant lifecycle components. Do not carry coordinator metadata across a
+	# streamed whole-Main detach: no transient effect is resurrected on re-entry.
+	_pending_combat_audio_receipts.clear()
+
+
 func _ready() -> void:
 	if _initialized:
 		_restore_runtime_bindings_after_reentry()
@@ -949,6 +957,11 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 		if is_instance_valid(request.source_entity)
 		else maxi(request.source_id, 0)
 	)
+	if bool(result.get("damaged", false)) and request.presentation_receipt_id < 0:
+		# submit_hitscan() is the explicit authority/component-presentation API used
+		# by deterministic probes and non-travelling integrations. The target has
+		# already reacted synchronously; do not append a late fire/pulse/impact cue.
+		return
 	if request.source_entity == opponent:
 		combat_audio.play_defender_fire(request.origin, source_instance_id)
 	else:
@@ -1013,7 +1026,28 @@ func _on_pulse_impact_receipt_aborted(receipt_id: int) -> void:
 	# Damage/health authority is already final. If a bounded visual slot is
 	# recycled or torn down before arrival, release its queued presentation now
 	# so a destroyed hull or impact can never remain visually pending forever.
+	if (
+		is_instance_valid(pulse_presentation)
+		and pulse_presentation.is_lifecycle_transaction_active()
+	):
+		# Clear/reset/exit publishes only after the pool mutation is atomic. Finalise
+		# one message-turn later so a whole-Main exit can finish removing children;
+		# ordinary in-tree reset still commits on the following idle turn.
+		call_deferred("_finalize_aborted_combat_receipt", receipt_id)
+		return
+	_finalize_aborted_combat_receipt(receipt_id)
+
+
+func _finalize_aborted_combat_receipt(receipt_id: int) -> void:
 	var record := _pending_combat_audio_receipts.get(receipt_id, {}) as Dictionary
+	if record.is_empty():
+		return
+	if not is_inside_tree() or not _receipt_target_is_inside_tree(record):
+		# Whole-Main teardown can remove the target before the pulse child publishes
+		# its abort. That transaction intentionally discards transient presentation;
+		# never spawn nodes or start audio into a tree that is dismantling.
+		_pending_combat_audio_receipts.erase(receipt_id)
+		return
 	if not record.is_empty():
 		var endpoint := record.get("endpoint", Vector3.INF) as Vector3
 		if endpoint.is_finite():
@@ -1027,6 +1061,14 @@ func _on_pulse_impact_receipt_aborted(receipt_id: int) -> void:
 	_commit_damage_presentation_receipt(receipt_id)
 
 
+func _receipt_target_is_inside_tree(record: Dictionary) -> bool:
+	var target_ref := record.get("target") as WeakRef
+	if target_ref == null:
+		return false
+	var target := target_ref.get_ref() as Node
+	return is_instance_valid(target) and target.is_inside_tree()
+
+
 func _commit_damage_presentation_receipt(
 		receipt_id: int,
 		target_hint: Variant = null,
@@ -1035,6 +1077,11 @@ func _commit_damage_presentation_receipt(
 	if receipt_id < 0:
 		return false
 	var record := _pending_combat_audio_receipts.get(receipt_id, {}) as Dictionary
+	# A ready/abort callback is the terminal coordinator event for this receipt.
+	# The target may legitimately have discarded an older record after a later
+	# lethal commit, deactivation, reuse, or streamed teardown. Retire our metadata
+	# before the one best-effort commit so those no-op callbacks cannot leak state.
+	_pending_combat_audio_receipts.erase(receipt_id)
 	var target: Variant = target_hint
 	if not is_instance_valid(target):
 		var target_ref := record.get("target") as WeakRef
@@ -1069,7 +1116,6 @@ func _commit_damage_presentation_receipt(
 		)
 	if not committed:
 		return false
-	_pending_combat_audio_receipts.erase(receipt_id)
 	if bool(record.get("terminal", false)):
 		var effect_position := record.get("terminal_position", arrival_position) as Vector3
 		if not effect_position.is_finite():
@@ -1080,6 +1126,10 @@ func _commit_damage_presentation_receipt(
 				maxi(int(record.get("target_instance_id", 0)), 0)
 			)
 	return true
+
+
+func get_pending_combat_presentation_receipt_count() -> int:
+	return _pending_combat_audio_receipts.size()
 
 
 func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:

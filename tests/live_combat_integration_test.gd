@@ -268,19 +268,47 @@ func _run() -> void:
 		hero.global_position = Vector3(420.0, 86.0, -460.0)
 		reserve.global_position = hero.global_position + Vector3(90.0, 0.0, 0.0)
 		jovian.global_position = hero.global_position + Vector3(-90.0, 0.0, 0.0)
-		var lethal_target_position := hero.global_position + Vector3(0.0, 0.0, -32.0)
-		opponent.call("activate", Transform3D(Basis.IDENTITY, lethal_target_position))
+		var far_target_position := hero.global_position + Vector3(0.0, 0.0, -60.0)
+		var lethal_target_position := hero.global_position + Vector3(0.0, 0.0, -12.0)
+		opponent.call("activate", Transform3D(Basis.IDENTITY, far_target_position))
 		opponent.set_physics_process(false)
 		game.phase = GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
 		await physics_frame
+		var immediate_audio_count := int(combat_audio.get_state_snapshot().get("cue_count", 0))
+		var direct_origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
+		var direct_result := authority.submit_hitscan(
+			hero,
+			GameFlow.COMBAT_WEAPON_ID,
+			direct_origin,
+			(opponent.global_position - direct_origin).normalized()
+		)
+		_check(
+			bool(direct_result.get("damaged", false))
+			and pulse_presentation.get_active_effect_count() == 0
+			and int(combat_audio.get_state_snapshot().get("cue_count", 0)) == immediate_audio_count,
+			"explicit non-deferred damage stays authority/component-only without late travelling audio"
+		)
+		# Reset the target, then leave two long-flight nonterminal receipts behind a
+		# shorter lethal shot. The terminal record reaches first and clears the
+		# target queue; later callbacks must still retire GameFlow metadata.
+		opponent.call("activate", Transform3D(Basis.IDENTITY, far_target_position))
 		var explosion_count_before := _combat_cue_count(
 			combat_audio,
 			CombatAudioPresentation.CUE_EXPLOSION
 		)
-		for _shot in 3:
+		for _shot in 2:
 			var lethal_origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
 			var lethal_direction := (opponent.global_position - lethal_origin).normalized()
 			game.call("_on_projectile_fired", lethal_origin, lethal_direction, hero)
+		opponent.global_position = lethal_target_position
+		await physics_frame
+		var lethal_origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
+		game.call(
+			"_on_projectile_fired",
+			lethal_origin,
+			(opponent.global_position - lethal_origin).normalized(),
+			hero
+		)
 		_check(
 			not opponent.call("is_active")
 			and int(opponent.call("get_pending_damage_presentation_count")) > 0
@@ -289,7 +317,7 @@ func _run() -> void:
 				== explosion_count_before,
 			"lethal authority disables the opponent without early explosion art or authored audio"
 		)
-		pulse_presentation.advance_simulation(0.31)
+		pulse_presentation.advance_simulation(0.07)
 		var explosion_state := combat_audio.get_state_snapshot()
 		_check(
 			_combat_cue_count(combat_audio, CombatAudioPresentation.CUE_EXPLOSION)
@@ -299,11 +327,58 @@ func _run() -> void:
 			and int(opponent.call("get_pending_damage_presentation_count")) == 0,
 			"lethal pulse arrival starts one authored explosion and matching art at the captured pose"
 		)
+		_check(
+			game.get_pending_combat_presentation_receipt_count() == 2,
+			"older long-flight receipt metadata remains bounded until its own terminal callbacks"
+		)
+		pulse_presentation.advance_simulation(0.3)
+		_check(
+			game.get_pending_combat_presentation_receipt_count() == 0,
+			"out-of-order no-op target callbacks still retire all coordinator receipt metadata"
+		)
 		# Retire the detached world-space presentation before freeing Main so the
 		# test also proves the production reset path releases its GPU resources.
 		opponent.call("deactivate")
 		pulse_presentation.clear_effects()
 		await process_frame
+
+		# Whole-Main streaming intentionally discards transient shots. Health and
+		# destruction authority remain final, but neither effect nor audio is
+		# resurrected after the same Main instance re-enters the tree.
+		opponent.call("activate", Transform3D(Basis.IDENTITY, far_target_position))
+		for _shot in 3:
+			var stream_origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
+			game.call(
+				"_on_projectile_fired",
+				stream_origin,
+				(opponent.global_position - stream_origin).normalized(),
+				hero
+			)
+		var streamed_explosion_count := _combat_cue_count(
+			combat_audio,
+			CombatAudioPresentation.CUE_EXPLOSION
+		)
+		_check(
+			game.get_pending_combat_presentation_receipt_count() == 3
+			and not opponent.call("is_active"),
+			"streaming fixture starts with terminal authority and three in-flight receipts"
+		)
+		root.remove_child(game)
+		await process_frame
+		_check(
+			game.get_pending_combat_presentation_receipt_count() == 0,
+			"whole-Main exit atomically discards transient receipt metadata"
+		)
+		root.add_child(game)
+		await process_frame
+		await physics_frame
+		_check(
+			pulse_presentation.get_active_effect_count() == 0
+			and opponent.call("get_destruction_effect_root") == null
+			and _combat_cue_count(combat_audio, CombatAudioPresentation.CUE_EXPLOSION)
+				== streamed_explosion_count,
+			"whole-Main re-entry does not resurrect discarded transient art or audio"
+		)
 
 	await _clean_up(game)
 	_finish()
