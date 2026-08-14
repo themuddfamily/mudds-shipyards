@@ -230,12 +230,20 @@ func _test_detach_reentry_cycles(director: AudioDirector) -> void:
 	var initial_generation := int(director.get_synthesis_report().generation_count)
 	var initial_wave_calls := int(director.get_synthesis_report().wave_synthesis_call_count)
 	for cycle in 3:
+		var expected_on_foot := cycle % 2 == 0
+		var expected_ambience_volume := -10.0 if expected_on_foot else -18.0
+		director.set_on_foot(expected_on_foot)
 		var bank := director.get("_stream_bank") as Dictionary
 		var released_stream_refs := _weak_refs_for_resources(bank.values())
 		bank = {}
 
 		parent.remove_child(director)
 		await process_frame
+		# A detached backend handle may carry stale mixer state. Re-entry must
+		# restore the last gameplay-selected mix rather than a fixed default.
+		var ambience := director.get_node_or_null("Ambience") as AudioStreamPlayer
+		if ambience != null:
+			ambience.volume_db = -42.0
 		var detached := director.get_synthesis_report()
 		var detached_performance := director.get_performance_report()
 		_check(
@@ -298,6 +306,16 @@ func _test_detach_reentry_cycles(director: AudioDirector) -> void:
 			) == fixed_timer_ids
 			and bool(director.get_audit_report().valid),
 			"re-entry cycle %d reuses the exact fixed hierarchy with a green audit" % (cycle + 1)
+		)
+		var restored_ambience := director.get_node_or_null("Ambience") as AudioStreamPlayer
+		_check(
+			restored_ambience != null
+			and is_equal_approx(restored_ambience.volume_db, expected_ambience_volume)
+			and is_equal_approx(
+				float(director.get("_desired_ambience_volume_db")),
+				expected_ambience_volume
+			),
+			"re-entry cycle %d restores the selected on-foot or piloting ambience mix" % (cycle + 1)
 		)
 
 
