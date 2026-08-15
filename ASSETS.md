@@ -457,12 +457,45 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
   under Linux; cross-libm byte identity, historical authenticity, real-output
   audibility, and final mix quality are not claimed.
 
+## `assets/audio/music/`
+
+- Purpose: three seamless loops that make up one bounded music/ambient bed for
+  the non-combat station state — a 16 s sustained root/fifth deck drone, a 12 s
+  Dm9 swell layer, and a 20 s sparse descending bell motif. `StationMusicBed`
+  plays them through a fixed three-voice ceiling on the dedicated `Music` bus.
+- Format: checked-in mono 22.05 kHz signed 16-bit little-endian PCM WAV; the
+  Godot import sidecars keep `compress/mode=0` and `edit/loop_mode=2`, so the
+  runtime resources are the same uncompressed PCM data looping forward across
+  their complete sample range.
+- Editable source: `tools/audio/generate_station_music_v1.py`. It is **fixed-seed
+  offline synthesis**: a standard-library script with no wall-clock, no unseeded
+  randomness, and no runtime generation. Per-layer hashes, frame counts, peak/RMS
+  measurements, and loop-join measurements are pinned by
+  `station_music_v1_asset_manifest.json`.
+- Musical content: D natural minor (Aeolian) at A4 = 440 Hz with no metrical
+  pulse. Every partial and modulation rate in the two sustaining layers is snapped
+  to an integer number of cycles per loop, so each file loops without a seam by
+  construction rather than by a crossfade; the motif layer is exactly silent at
+  both boundaries. The 16 s, 12 s, and 20 s lengths only realign every 240 s, so
+  the exact three-layer combination repeats once every four minutes.
+- Project status: original fixed-seed offline procedural synthesis authored for
+  Mudds Shipyards; no recorded, sampled, or third-party source material, and no
+  claim that any music for the original Keth Shipyards is recovered, authentic, or
+  historically supported. This is tagged `modern_interpretation` throughout.
+  Byte-identical regeneration was verified on CPython 3.12.3 under Linux.
+- **Not signed off:** automated checks cover determinism, the three-voice ceiling,
+  bus routing, lifecycle, loop seamlessness, and that the decoded buffers are
+  non-silent at the declared duration and sample rate. None of that can establish
+  that the bed sounds good. A human listening pass on real hardware, together with
+  the final mix review, remains outstanding.
+
 All geometry, UI, effects, and audio in the current slice are original project
 work. The Torrent, pilot, and central-berth packages preserve editable Blender
 sources and deterministic import contracts; much of the remaining station and
 fleet still uses code-authored Godot geometry. Registered project-original
-raster textures, their locally derived material maps, and the original generated
-PCM bank documented above are the explicit checked-in media. No original Roblox
+raster textures, their locally derived material maps, and the two original
+generated PCM banks documented above — the combat one-shot library and the
+station-rest music bed — are the explicit checked-in media. No original Roblox
 assets or scripts are bundled.
 
 ## `assets/keth-icon.png`

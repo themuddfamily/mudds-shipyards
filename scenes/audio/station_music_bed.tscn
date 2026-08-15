@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/station_music_bed.gd" id="1_music_bed"]
+
+[node name="StationMusicBed" type="Node" groups=["station_music_bed"]]
+script = ExtResource("1_music_bed")
+
+[node name="DroneLayer" type="AudioStreamPlayer" parent="."]
+bus = &"Music"
+volume_db = 0.0
+max_polyphony = 1
+
+[node name="HarmonicsLayer" type="AudioStreamPlayer" parent="."]
+bus = &"Music"
+volume_db = -1.5
+max_polyphony = 1
+
+[node name="MotifLayer" type="AudioStreamPlayer" parent="."]
+bus = &"Music"
+volume_db = -2.5
+max_polyphony = 1
