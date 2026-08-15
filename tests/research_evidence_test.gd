@@ -10,7 +10,56 @@ const TOPOLOGY_PATH := "res://docs/research/STATION_TOPOLOGY.md"
 const SHIP_MATRIX_PATH := "res://docs/research/ship_evidence_matrix.json"
 const FLEET_ROSTER_VARIANTS_PATH := "res://docs/research/fleet_roster_variants.json"
 const TORRENT_SPEC_PATH := "res://docs/TORRENT_2011_RECONSTRUCTION_SPEC.md"
+const RESEARCH_PATH := "res://RESEARCH.md"
+const ROADMAP_PATH := "res://ROADMAP.md"
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
+const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
+const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
+const EVIDENCE_STATUS_VOCABULARY := [
+	"authenticated", "bounded_partial_reconstruction", "provisional_candidate",
+	"modern_interpretation", "unknown",
+]
+## Arrow and Jovian carry no name-to-model evidence at all. These are the exact
+## sources whose label strings are repeatedly mistaken for a mapping, and the
+## ledger claim IDs that actually hold those strings.
+const UNMAPPED_CANDIDATES := {
+	"arrow": {
+		"label_source": "B3",
+		"label_claim": "fleet.labels_titan_torrent_arrow_altair_katana",
+		"anchor_word": "arrow",
+		"definition_id": "arrow_provisional",
+	},
+	"jovian": {
+		"label_source": "B4",
+		"label_claim": "fleet.labels_jovian_titan_paradox_katana_vortex_predator",
+		"anchor_word": "jovian",
+		"definition_id": "jovian_provisional",
+	},
+}
+## Wording that would assert a mapping the ledger does not contain. None of it
+## may appear in the tracked evidence prose or the runtime evidence copy.
+const PROHIBITED_MAPPING_WORDING := [
+	"Arrow name-to-model lock", "Arrow name-to-model link", "B3-observed Arrow",
+	"authenticated Arrow", "Arrow reconstruction", "the Arrow seen in B3",
+	"Jovian name-to-model lock", "Jovian name-to-model link", "B4-observed Jovian",
+	"authenticated Jovian", "Jovian reconstruction", "the Jovian seen in B4",
+]
+## Timestamps that were cited for the Arrow and Jovian labels but exist in no
+## ledger anchor, so no independent reader could extract or check them.
+const UNREGISTERED_ANCHOR_CITATIONS := [
+	"B3@06:15", "06:15 regeneration label", "04:50-05:20", "4:50–5:20", "B4@04:50",
+	"visible craft is labelled Paradox",
+]
+const ANCHOR_CITATION_SCAN_PATHS := [
+	"res://RESEARCH.md",
+	"res://README.md",
+	"res://ROADMAP.md",
+	"res://assets/ships/arrow_provisional.tres",
+	"res://assets/ships/jovian_provisional.tres",
+	"res://scripts/ships/arrow_recon_ship.gd",
+	"res://scripts/ships/jovian_light_freighter.gd",
+	"res://scripts/world/jovian_freight_berth.gd",
+]
 const EXPECTED_SOURCE_IDS := [
 	"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
 	"B1", "B2", "B3", "B4", "B5", "B6", "B7", "C1", "C2", "C3",
@@ -53,6 +102,9 @@ func _run() -> void:
 	_test_schema_contract(schema)
 	_test_station_topology(topology)
 	_test_ship_matrix(ship_matrix)
+	_test_name_to_model_status_vocabulary(ship_matrix)
+	_test_arrow_and_jovian_are_unmapped(ship_matrix, ledger)
+	_test_arrow_and_jovian_runtime_wording()
 	_test_fleet_roster_variants(roster_variants, ship_matrix, ledger)
 	_test_runtime_torrent_wording(torrent_spec)
 	_finish()
@@ -272,6 +324,156 @@ func _test_ship_matrix(matrix: Dictionary) -> void:
 	_check(str(arrow.get("implementation_status", "")).ends_with("_frozen") and str(jovian.get("implementation_status", "")).ends_with("_frozen"), "Arrow and Jovian silhouette redesigns remain frozen pending name-to-model evidence")
 
 
+func _test_name_to_model_status_vocabulary(matrix: Dictionary) -> void:
+	var policy := matrix.get("policy", {}) as Dictionary
+	var vocabulary: Array[String] = []
+	for value in policy.get("evidence_status_vocabulary", []) as Array:
+		vocabulary.append(str(value))
+	_check(vocabulary == EVIDENCE_STATUS_VOCABULARY, "matrix policy publishes the exact five-value evidence status vocabulary")
+	var every_status_in_vocabulary := true
+	var unknown_count := 0
+	var authenticated_ids: Array[String] = []
+	for ship_variant in matrix.get("ships", []) as Array:
+		var ship := ship_variant as Dictionary
+		var status := str(ship.get("name_to_model_status", ""))
+		every_status_in_vocabulary = every_status_in_vocabulary and vocabulary.has(status)
+		if status == "unknown":
+			unknown_count += 1
+		if status == "authenticated":
+			authenticated_ids.append(str(ship.get("ship_id", "")))
+	_check(every_status_in_vocabulary, "every ship draws name_to_model_status from the controlled vocabulary")
+	_check(authenticated_ids.is_empty(), "no ship claims an authenticated name-to-model mapping")
+	_check(
+		unknown_count == int(policy.get("current_name_to_model_unknown_count", -1)),
+		"policy count of unknown name-to-model mappings matches the per-ship records"
+	)
+	var torrent := _ship_by_id(matrix, "torrent")
+	var zenith := _ship_by_id(matrix, "zenith")
+	_check(
+		str(torrent.get("name_to_model_status", "")) == "bounded_partial_reconstruction"
+		and str(zenith.get("name_to_model_status", "")) == "bounded_partial_reconstruction",
+		"only the B5-linked Torrent and B7-observed Zenith hold a bounded name-to-model status"
+	)
+
+
+## Freezes the audited Arrow/Jovian boundary. Every assertion here is tied to
+## what the ledger actually contains, so the statuses can only be raised by
+## adding a real anchor that ties the class name to a craft.
+func _test_arrow_and_jovian_are_unmapped(matrix: Dictionary, ledger: Dictionary) -> void:
+	var research := FileAccess.get_file_as_string(RESEARCH_PATH)
+	for ship_id: String in UNMAPPED_CANDIDATES:
+		var expectation := UNMAPPED_CANDIDATES[ship_id] as Dictionary
+		var ship := _ship_by_id(matrix, ship_id)
+		var gates := ship.get("gate_status", {}) as Dictionary
+		var label_source := str(expectation["label_source"])
+		var source := _source_by_id(ledger, label_source)
+		var claims: Array[String] = []
+		for claim in source.get("claims_supported", []) as Array:
+			claims.append(str(claim))
+		_check(
+			claims.has(str(expectation["label_claim"])),
+			"%s still records the %s label only as the bulk label claim" % [label_source, ship_id]
+		)
+		var anchored := _ledger_anchor_mentions(ledger, label_source, str(expectation["anchor_word"]))
+		_check(
+			not anchored,
+			"%s registers no frame or timestamp anchor for the %s label" % [label_source, ship_id]
+		)
+		# The tripwire: the status may only leave "unknown" when the ledger
+		# actually gains an anchor tying that name to a craft. An implementation,
+		# render or passing test can never satisfy this.
+		_check(
+			str(ship.get("name_to_model_status", "")) == "unknown" or anchored,
+			"%s name-to-model status stays unknown until a registered %s anchor ties the name to a craft" % [ship_id, label_source]
+		)
+		_check(
+			(ship.get("model_sources", []) as Array).is_empty(),
+			"%s lists no name-to-model source" % ship_id
+		)
+		_check(
+			(ship.get("name_only_sources", []) as Array) == [label_source],
+			"%s records %s as a label-only source rather than a model source" % [ship_id, label_source]
+		)
+		_check(
+			str(gates.get("name_tied_multiview", "")) == "fail"
+			and str(gates.get("visual_feature_index", "")) == "fail"
+			and str(gates.get("observed_role_and_handling", "")) == "fail",
+			"%s fails the name-tied multi-view, visual-feature and observed-handling gates" % ship_id
+		)
+		_check(
+			str(ship.get("implementation_status", "")) == "provisional_modern_candidate_frozen",
+			"%s remains a frozen provisional candidate" % ship_id
+		)
+		_check(
+			(ship.get("unknowns", []) as Array).has("name-to-model mapping")
+			and not str(ship.get("name_to_model_evidence", "")).is_empty()
+			and not (ship.get("prohibited_wording", []) as Array).is_empty(),
+			"%s records the unknown mapping, its evidence basis and prohibited stronger wording" % ship_id
+		)
+	_check(
+		research.contains("### Arrow and Jovian name-to-model boundary")
+		and research.contains("Neither name-to-model mapping is"),
+		"RESEARCH.md publishes the audited Arrow/Jovian name-to-model boundary"
+	)
+	var no_prohibited_wording := true
+	var offending := ""
+	for phrase: String in PROHIBITED_MAPPING_WORDING:
+		if research.contains(phrase):
+			no_prohibited_wording = false
+			offending = phrase
+	_check(no_prohibited_wording, "RESEARCH.md never asserts an Arrow or Jovian name-to-model mapping (%s)" % offending)
+	var no_unregistered_citation := true
+	for path: String in ANCHOR_CITATION_SCAN_PATHS:
+		var text := FileAccess.get_file_as_string(path)
+		for citation: String in UNREGISTERED_ANCHOR_CITATIONS:
+			no_unregistered_citation = no_unregistered_citation and not text.contains(citation)
+	_check(no_unregistered_citation, "no tracked file cites an Arrow or Jovian timestamp that the ledger does not register")
+
+
+func _test_arrow_and_jovian_runtime_wording() -> void:
+	var arrow_audit := ARROW_DEFINITION.audit()
+	var jovian_audit := JOVIAN_DEFINITION.audit()
+	_check(
+		bool(arrow_audit.get("valid", false)) and bool(jovian_audit.get("valid", false)),
+		"both provisional candidate definitions remain valid after the evidence rewording"
+	)
+	_check(
+		str(arrow_audit.get("evidence_status", "")) == "provisional"
+		and str(jovian_audit.get("evidence_status", "")) == "provisional"
+		and not bool(arrow_audit.get("authenticated", true))
+		and not bool(jovian_audit.get("authenticated", true)),
+		"neither candidate definition may claim authenticated status"
+	)
+	for audit: Dictionary in [arrow_audit, jovian_audit]:
+		var notes := str(audit.get("evidence_notes", ""))
+		_check(
+			notes.contains("name-to-model mapping is therefore unknown")
+			and notes.contains("no registered frame anchor and no craft tied to it")
+			and notes.contains("no historical name-to-model mapping is claimed"),
+			"%s player-facing notes state the unknown mapping and the label-only source" % str(audit.get("ship_id", ""))
+		)
+		var references := audit.get("evidence_references", PackedStringArray()) as PackedStringArray
+		var cites_label_only := false
+		for reference in references:
+			if reference.contains("label string only"):
+				cites_label_only = true
+		_check(cites_label_only, "%s cites its 2012 footage as a label string only" % str(audit.get("ship_id", "")))
+	var runtime_sources := [
+		"res://scripts/ships/arrow_recon_ship.gd",
+		"res://scripts/ships/jovian_light_freighter.gd",
+		"res://scripts/world/jovian_freight_berth.gd",
+	]
+	var runtime_declares_unknown := true
+	var no_prohibited_runtime_wording := true
+	for path: String in runtime_sources:
+		var text := FileAccess.get_file_as_string(path)
+		runtime_declares_unknown = runtime_declares_unknown and text.contains("name-to-model mapping is")
+		for phrase: String in PROHIBITED_MAPPING_WORDING:
+			no_prohibited_runtime_wording = no_prohibited_runtime_wording and not text.contains(phrase)
+	_check(runtime_declares_unknown, "Arrow, Jovian and the freight berth repeat the unknown-mapping wording in runtime copy")
+	_check(no_prohibited_runtime_wording, "runtime evidence copy never asserts an Arrow or Jovian name-to-model mapping")
+
+
 func _test_runtime_torrent_wording(torrent_spec: String) -> void:
 	var audit := TORRENT_DEFINITION.audit()
 	_check(bool(audit.get("valid", false)), "updated Torrent definition remains valid")
@@ -473,6 +675,17 @@ func _ship_by_id(matrix: Dictionary, ship_id: String) -> Dictionary:
 		if str(ship.get("ship_id", "")) == ship_id:
 			return ship
 	return {}
+
+
+## True when any registered anchor on the source names the class, which is the
+## minimum a name-to-model claim would need before it could be believed.
+func _ledger_anchor_mentions(ledger: Dictionary, source_id: String, needle: String) -> bool:
+	var source := _source_by_id(ledger, source_id)
+	for anchor_variant in source.get("anchors", []) as Array:
+		var anchor := anchor_variant as Dictionary
+		if str(anchor.get("observation", "")).to_lower().contains(needle.to_lower()):
+			return true
+	return false
 
 
 func _has_date_event(events: Array, kind: String, status: String, require_null: bool) -> bool:

@@ -3,7 +3,10 @@ extends HeroShip
 
 ## Evidence-bounded Jovian-class Light Freighter candidate.
 ##
-## Creator-authored material supports the class name and light-freighter role.
+## Creator-authored material (A3, page archived 2009-11-12) supports the class
+## name and light-freighter role. No registered source shows a craft identified
+## as Jovian: B4 records the label string alone, with no ledger frame anchor and
+## no tied craft, so the Jovian name-to-model mapping is `unknown`.
 ## Every visible dimension, colour, access route, interior, system, hardpoint,
 ## and handling value in this component is a revisable modern interpretation.
 ## The cargo deck, passenger cabin, cockpit, and exterior ramp are one physical
@@ -12,14 +15,17 @@ extends HeroShip
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"provisional"
 const EVIDENCE_SCOPE: StringName = &"name_and_role_only"
+const NAME_TO_MODEL_STATUS: StringName = &"unknown"
 const COMBAT_SOURCE_ID := 1103
 const INTERIOR_SCHEMA_VERSION := 1
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
 const PROVISIONAL_NOTE := (
-	"Creator-supported facts: Jovian-class Light Freighter name and light-"
-	+ "freighter role. The displayed geometry, dimensions, colours, cargo and "
+	"Creator-supported facts (A3 page text): Jovian-class Light Freighter name "
+	+ "and light-freighter role. No registered source ties any visible craft to "
+	+ "the Jovian name, so the name-to-model mapping is unknown. "
+	+ "The displayed geometry, dimensions, colours, cargo and "
 	+ "passenger interior, ramp, cockpit access, capacity, systems, weapons, "
 	+ "materials, and handling are modern provisional interpretation; no "
 	+ "authenticated historical silhouette mapping is claimed."
@@ -216,10 +222,11 @@ func get_jovian_evidence_report() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"evidence_status": EVIDENCE_STATUS,
 		"evidence_scope": EVIDENCE_SCOPE,
+		"name_to_model_status": NAME_TO_MODEL_STATUS,
 		"authenticated_geometry": false,
 		"creator_supported": PackedStringArray([
-			"Jovian-class Light Freighter name",
-			"light-freighter role",
+			"Jovian-class Light Freighter name (A3 page text)",
+			"light-freighter role (A3 page text)",
 		]),
 		"modern_provisional": PackedStringArray([
 			"silhouette, dimensions, proportions, and colours",
@@ -1002,6 +1009,7 @@ func _apply_jovian_metadata() -> void:
 	set_meta("jovian_light_freighter_candidate", true)
 	set_meta("evidence_status", EVIDENCE_STATUS)
 	set_meta("evidence_scope", EVIDENCE_SCOPE)
+	set_meta("name_to_model_status", NAME_TO_MODEL_STATUS)
 	set_meta("authenticated_historical_silhouette", false)
 	set_meta("connected_walkable_interior", true)
 	set_meta("content_note", PROVISIONAL_NOTE)
