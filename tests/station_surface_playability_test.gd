@@ -155,8 +155,8 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 
 func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 	var specs := [
-		[world.get_node_or_null(^"AftJunctionStack"), ["off_white", "off_white_floor", "panel_light", "warm_grey", "warm_grey_floor"], 0.30],
-		[world.get_node_or_null(^"HabitatSpine"), ["shell_light", "shell_light_floor", "shell_mid"], 0.28],
+		[world.get_node_or_null(^"AftJunctionStack"), ["off_white", "off_white_floor", "panel_light", "warm_grey", "warm_grey_floor", "mid_grey_floor", "hull_dark_floor"], 0.30],
+		[world.get_node_or_null(^"HabitatSpine"), ["shell_light", "shell_light_floor", "shell_mid", "floor"], 0.28],
 		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic", "ceramic_warm", "steel_blue"], 0.30],
 		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic_floor", "deck"], 0.22],
 	]
@@ -275,6 +275,48 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 		for raw_path in phase_group[2] as Array:
 			coplanar_phase_exact = coplanar_phase_exact and _surface_material(owner, NodePath(raw_path)) == reference
 	_check(coplanar_phase_exact, "coplanar station floor segments share one material resource, scale, and world-metric triplanar phase across seams")
+
+	# Overlay pieces the player physically walks on used to sit unmapped on top of
+	# mapped floors: the Aft continuous stair ramp, the Aft operations pressure
+	# plates, and the Habitat connector/corridor/common insets. They must carry the
+	# same station family as the floor they interrupt.
+	var walked_overlays_mapped := true
+	for overlay_spec in [
+		[aft, "Structure/Circulation/ContinuousStairRamp/RampMesh"],
+		[habitat, "Structure/PlayerClearConnector/ConnectorInset"],
+		[habitat, "Structure/PressurizedHabitatCorridor/CorridorLane"],
+		[habitat, "Structure/ObservationCommon/CommonFloorInset"],
+	]:
+		var overlay_owner := overlay_spec[0] as Node3D
+		var overlay: MeshInstance3D
+		if overlay_owner != null:
+			overlay = overlay_owner.get_node_or_null(NodePath(overlay_spec[1] as String)) as MeshInstance3D
+		var overlay_material: StandardMaterial3D
+		if overlay != null and overlay.mesh != null and overlay.mesh.get_surface_count() > 0:
+			overlay_material = overlay.get_active_material(0) as StandardMaterial3D
+		walked_overlays_mapped = walked_overlays_mapped \
+			and overlay_material != null \
+			and overlay_material.albedo_texture != null \
+			and overlay_material.albedo_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-albedo-v2.png" \
+			and overlay_material.uv1_world_triplanar
+	_check(walked_overlays_mapped, "the Aft stair ramp and the Habitat connector/corridor/common floor overlays carry the station panel family")
+
+	var mapped_pressure_plates := 0
+	if aft != null:
+		var aft_materials := aft.get("_materials") as Dictionary
+		var plate_materials := [aft_materials.get("hull_dark_floor"), aft_materials.get("mid_grey_floor")]
+		for candidate in aft.get_node(^"Structure/OperationsRoom").find_children("*", "MeshInstance3D", true, false):
+			var plate := candidate as MeshInstance3D
+			if plate.mesh == null or plate.mesh.get_surface_count() == 0:
+				continue
+			var plate_material := plate.get_active_material(0) as StandardMaterial3D
+			if plate_material == null or not plate_materials.has(plate_material):
+				continue
+			if plate_material.albedo_texture != null \
+					and plate_material.albedo_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-albedo-v2.png" \
+					and plate_material.uv1_world_triplanar:
+				mapped_pressure_plates += 1
+	_check(mapped_pressure_plates == 9, "all nine Aft operations-room floor pressure plates read as mapped station floor, not unmapped voids")
 
 
 func _surface_material(owner: Node3D, path: NodePath) -> Material:

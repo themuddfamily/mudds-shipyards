@@ -256,6 +256,19 @@ tangent-Y conversion; roughness is a bounded matched scalar map. Station
 materials use continuous world triplanar projection while retaining their
 existing physical scales and colours.
 
+Coverage extension (2026-08-15, no new asset bytes): the same three registered
+files are now also bound to the walked-on overlay surfaces that previously sat
+unmapped on top of mapped station floors — the Aft Junction continuous stair
+ramp and its nine operations-room floor pressure plates at the module's existing
+0.30 scale, and the Habitat connector inset, corridor walking lane and
+observation-common floor inset at the module's existing 0.28 scale. Only the
+material bindings changed; no geometry, collision, walkable-surface roster,
+route marker, module contract, texture byte, physical scale or albedo colour was
+altered, and the identically coloured structural beams, frames, vents, trim,
+glass and emissive accents stay deliberately unmapped. Live station coverage
+therefore moves from 507 to 520 mapped surfaces (11 at 0.22, 265 at 0.28, 244 at
+0.30), re-frozen in `tests/station_triplanar_material_test.gd`.
+
 Authorship: project-original fixed-recipe procedural raster work created locally
 on 2026-08-14. It uses no image-generation source, source-game pixels, recovered
 historical texture, photographed scan, third-party artwork or ship atlas. It is
@@ -367,8 +380,12 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
 ## `assets/materials/arrow-hull-albedo-v1.png`
 
 - Purpose: original warm ceramic-composite panel albedo used by the provisional
-  Arrow recon craft and the Aft/Habitat pressure shells through triplanar PBR
-  treatments.
+  Arrow recon craft through triplanar PBR treatments. It is a ship-specific
+  atlas and is no longer projected onto any station structure: the Aft Junction
+  and Habitat pressure shells that once borrowed it moved to the symmetric
+  station triplanar PBR set above, and
+  `tests/station_triplanar_material_test.gd` asserts that no live station
+  surface reuses this directional atlas.
 - Created: 2026-08-12 with OpenAI's built-in image generation tool.
 - Project status: newly generated project asset; not sourced from Roblox or the
   original Keth Shipyards. Its panel layout is modern and provisional, just like
