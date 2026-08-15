@@ -3,6 +3,12 @@ extends SceneTree
 const MODULE_SCENE := preload("res://scenes/world/modules/habitat_spine.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. A frame count, never a wall-clock grace: the door advances in
+## `_physics_process`, and only a frame budget measures the same amount of panel
+## motion on a loaded box as on an idle one.
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 var _test_root: Node3D
 
@@ -149,7 +155,8 @@ func _test_physical_support_and_clearance(module: HabitatSpine) -> void:
 	# envelope through its threshold.
 	var main_access := module.get_main_access()
 	_check(main_access.interact(module), "main habitat access accepts interaction before clearance test")
-	await _wait_for_door_state(main_access, StationDoor.DoorState.OPEN, 1.5)
+	var clearance_access_opened := await _wait_for_door_state(main_access, StationDoor.DoorState.OPEN, 1.5)
+	_check(clearance_access_opened, "main access opens fully inside its physics-frame budget before the clearance sweep")
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.38
 	capsule.height = 1.94
@@ -181,12 +188,14 @@ func _test_main_station_door(module: HabitatSpine) -> void:
 	var open_hit := await _ray_through_door(door)
 	_check(open_hit.is_empty(), "open StationDoor exposes an unobstructed physical threshold")
 	_check(door.interact(module), "main StationDoor accepts a close interaction")
-	await _wait_for_door_state(door, StationDoor.DoorState.CLOSED, 1.5)
+	var main_access_closed := await _wait_for_door_state(door, StationDoor.DoorState.CLOSED, 1.5)
+	_check(main_access_closed, "main StationDoor completes its closing motion inside its physics-frame budget")
 	_check(door.is_portal_blocked(), "closed main access restores its physical pressure barrier")
 	var closed_hit := await _ray_through_door(door)
 	_check(not closed_hit.is_empty(), "closed StationDoor blocks a real physics ray")
 	_check(door.interact(module), "main StationDoor reopens repeatably")
-	await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	var main_access_reopened := await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	_check(main_access_reopened, "the second opening completes inside its physics-frame budget")
 	_check(door.is_open(), "main StationDoor completes a second opening lifecycle")
 
 
@@ -374,13 +383,37 @@ func _intersect_shape_local(module: HabitatSpine, shape: Shape3D, local_transfor
 	return module.get_world_3d().direct_space_state.intersect_shape(query, max_results)
 
 
-func _wait_for_door_state(door: StationDoor, expected_state: int, timeout_seconds: float) -> void:
-	var started_at := Time.get_ticks_msec()
+## Physics frames a nominal duration of simulated time is worth at the project's
+## configured tick rate, plus a fixed frame grace.
+func _frame_budget(seconds: float) -> int:
+	var required := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	return maxi(required, 1) + FRAME_BUDGET_GRACE
+
+
+## Waits for a door to reach `expected_state` on the physics clock, which is the
+## clock `StationDoor` actually advances its panel on.
+##
+## The budget deliberately counts physics steps rather than wall-clock seconds. A
+## `Time.get_ticks_msec()` deadline measures the monotonic clock, and under load
+## Godot drops physics steps rather than letting the simulation spiral, so the
+## wall clock reaches the deadline while the panel has been stepped only part of
+## the way. The wait then returned silently and the caller asserted on a door
+## caught mid-travel — a false failure, not a defect. Counting frames gives the
+## door the same amount of simulation however busy the box is, and still fails a
+## genuinely stuck door because the budget remains finite.
+##
+## Returns whether the state was actually reached so callers can assert on it
+## rather than assume it.
+func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds: float) -> bool:
+	var frame_budget := _frame_budget(travel_seconds)
+	var frames := 0
 	while is_instance_valid(door) and door.get_state() != expected_state:
-		if float(Time.get_ticks_msec() - started_at) / 1000.0 > timeout_seconds:
-			return
+		if frames >= frame_budget:
+			break
 		await physics_frame
+		frames += 1
 	await process_frame
+	return is_instance_valid(door) and door.get_state() == expected_state
 
 
 func _capture_forward_plus() -> void:
