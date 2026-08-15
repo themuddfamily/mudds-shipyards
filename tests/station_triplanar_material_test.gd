@@ -136,12 +136,30 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# threshold aprons use `deck_light`, which is not in this family, so they do
 	# not appear here. No previously mapped surface was removed and no scale
 	# changed.
+	#
+	# Re-frozen again from 523/11/265/247 when the two station components that had
+	# stayed outside the family joined it. Nothing was removed and no existing
+	# surface changed scale.
+	#
+	#   +104 at 0.22 — the four structural service dressings, 26 plate-stock
+	#     surfaces each: fascia, both keel chords, five keel posts, four conduit
+	#     clamps, the service manifold, six radiator vent blades, six fascia
+	#     fasteners and the radiator backplate. Their conduits, cross braces and
+	#     task strips stay outside the family: extruded pipe, rod and a lens are
+	#     not plate stock.
+	#   +20 at 0.28 — five station doors, four surfaces each: both frame posts,
+	#     the header and the sliding leaf. There are five live doors, not the
+	#     three the component survey recorded (Aft has two, Habitat has two,
+	#     Freight has one). The leaf counts because the door now binds the family
+	#     onto the module-supplied leaf material after host styling; before this
+	#     change the scene's own leaf material was overridden by every host and
+	#     never reached a frame. The indicator strips stay outside the family.
 	_check(
-		mapped_surface_count == 523
-		and scale_022_count == 11
-		and scale_028_count == 265
+		mapped_surface_count == 647
+		and scale_022_count == 115
+		and scale_028_count == 285
 		and scale_030_count == 247,
-		"live station binds exactly 523 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		"live station binds exactly 647 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

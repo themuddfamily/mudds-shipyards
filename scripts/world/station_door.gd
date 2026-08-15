@@ -8,6 +8,17 @@ extends Area3D
 ## becomes physically clear before its state is fully OPEN. The visible panel
 ## slides independently, allowing deterministic mid-motion reversal without a
 ## tween reset or a discontinuous transform jump.
+##
+## The scene remains the authority on the door's dimensions, materials and
+## collision. The only geometry work done here is an edge treatment: each raw
+## `BoxMesh` authored in the scene is rebuilt once, at exactly its authored size,
+## with chamfered edges. This door is the closest a player ever gets to a station
+## primitive — a 3.2 x 3.4 m leaf filling the screen at about a metre — and a
+## hard 90 degree corner at eye level is the single loudest "untooled box" cue in
+## the game. Every rebuilt mesh keeps the authored outer extents exactly, and no
+## node name, node transform, collision shape or panel travel is touched here.
+## (The scene itself does shorten the posts' render mesh where it was buried
+## inside the header; their collision shapes are unchanged. See the note there.)
 
 signal state_changed(previous_state: int, current_state: int)
 signal motion_completed(final_state: int)
@@ -44,21 +55,54 @@ const INTERACTION_LAYER := 1 << 3
 @export var evidence_status: StringName = &"modern_interpretation"
 @export_multiline var content_note := ""
 
+## Every authored mesh in the scene, in the order a player meets them.
+const PRESENTATION_MESH_PATHS: Array[NodePath] = [
+	^"FrameVisuals/LeftPost",
+	^"FrameVisuals/RightPost",
+	^"FrameVisuals/Header",
+	^"SlidingPanel/PanelMesh",
+	^"SlidingPanel/LeftIndicator",
+	^"SlidingPanel/RightIndicator",
+]
+const PANEL_MESH_PATH: NodePath = ^"SlidingPanel/PanelMesh"
+## Frozen station panel family scale used by the module shells these doors are
+## set into, so a door frame and the wall it pierces share one grain size.
+const PANEL_SURFACE_SCALE := 0.28
+## Ceiling on the leaf's own emission. Four of the five production leaves are
+## painted with a module accent that carries 1.15-1.45 emission energy, which was
+## authored for 0.1 m route stripes and arc tiles. On an 11 m² leaf at a metre it
+## clips to a flat white-cyan rectangle: it hides the leaf's own material
+## response entirely and is the loudest "lit box" cue at the threshold. Damping
+## the leaf copy keeps the access colour — albedo and emission hue are untouched,
+## and the indicator strips, which are the element meant to glow, keep their full
+## energy — while letting the leaf read as a surface again.
+const MAXIMUM_PANEL_EMISSION_ENERGY := 0.35
+
 @onready var _sliding_panel: Node3D = %SlidingPanel
 @onready var _portal_blocker: StaticBody3D = %PortalBlocker
 
 var _state: int = DoorState.CLOSED
 var _motion_progress := 0.0
 var _closed_panel_transform := Transform3D.IDENTITY
+var _rounded_box_cache: Dictionary = {}
+var _panel_grain_materials: Array[StandardMaterial3D] = []
+var _panel_grain_scales: Array[Vector3] = []
 
 
 func _ready() -> void:
+	_apply_manufactured_edges()
 	_closed_panel_transform = _sliding_panel.transform
 	_motion_progress = 1.0 if starts_open else 0.0
 	_state = DoorState.OPEN if starts_open else DoorState.CLOSED
 	_apply_panel_transform()
 	_set_portal_blocked(_state != DoorState.OPEN)
 	_update_metadata()
+	# Every production host recolours this door's leaf from its own `_ready`,
+	# which runs after this one, so the leaf material present here is not the one
+	# the player sees. Deferring the leaf's surface binding to the end of the
+	# frame keeps colour authority with the module — access colour-coding is the
+	# module's language — while the finish stays with the door.
+	_bind_panel_surface_family.call_deferred()
 
 
 func _physics_process(delta: float) -> void:
@@ -200,8 +244,88 @@ func _apply_panel_transform() -> void:
 	# progress, so reversing direction cannot introduce a positional discontinuity.
 	var eased_progress := _motion_progress * _motion_progress * (3.0 - 2.0 * _motion_progress)
 	var panel_transform := _closed_panel_transform
-	panel_transform.origin = _closed_panel_transform.origin + open_offset * eased_progress
+	var local_travel := open_offset * eased_progress
+	panel_transform.origin = _closed_panel_transform.origin + local_travel
 	_sliding_panel.transform = panel_transform
+	_pin_panel_grain(local_travel)
+
+
+## The station panel family samples world position, which is exactly right for
+## fixed structure and exactly wrong for the one part that moves: an uncorrected
+## leaf drags a full tile of grain across its own face during its 3.6 m travel.
+## Cancelling the travel out of the UV phase keeps the grain welded to the leaf
+## while every static surface keeps the shared world-metric phase.
+func _pin_panel_grain(local_travel: Vector3) -> void:
+	if _panel_grain_materials.is_empty():
+		return
+	var world_travel := global_transform.basis * local_travel
+	for material_index in _panel_grain_materials.size():
+		var scale_value := _panel_grain_scales[material_index]
+		_panel_grain_materials[material_index].uv1_offset = Vector3(
+			-world_travel.x * scale_value.x,
+			-world_travel.y * scale_value.y,
+			-world_travel.z * scale_value.z
+		)
+
+
+## Rebuilds every authored `BoxMesh` at its exact authored size with chamfered
+## edges. The scene keeps ownership of dimensions, materials and collision: this
+## reads the authored size back out and never writes one.
+func _apply_manufactured_edges() -> void:
+	for mesh_path in PRESENTATION_MESH_PATHS:
+		var mesh_instance := get_node_or_null(mesh_path) as MeshInstance3D
+		if mesh_instance == null:
+			continue
+		var authored_box := mesh_instance.mesh as BoxMesh
+		if authored_box == null:
+			continue
+		# An ArrayMesh carries no surface material of its own, so the authored
+		# material moves onto the instance as the mesh is replaced.
+		mesh_instance.material_override = authored_box.material
+		mesh_instance.mesh = StationSurfaceKit.rounded_box_mesh_cached(
+			authored_box.size,
+			_rounded_box_cache
+		)
+
+
+## Binds the station panel family onto whichever leaf material survived host
+## styling, on a copy so a module accent shared with fixtures elsewhere in the
+## module never acquires a door's finish, and so each door owns the UV phase it
+## has to correct while it moves.
+func _bind_panel_surface_family() -> void:
+	var panel_mesh := get_node_or_null(PANEL_MESH_PATH) as MeshInstance3D
+	if panel_mesh == null:
+		return
+	var live_material := panel_mesh.material_override as StandardMaterial3D
+	if live_material == null:
+		return
+	var leaf_material := live_material.duplicate() as StandardMaterial3D
+	StationSurfaceKit.apply_panel_triplanar(leaf_material, PANEL_SURFACE_SCALE)
+	if leaf_material.emission_enabled:
+		leaf_material.emission_energy_multiplier = minf(
+			leaf_material.emission_energy_multiplier,
+			MAXIMUM_PANEL_EMISSION_ENERGY
+		)
+	panel_mesh.material_override = leaf_material
+	_refresh_panel_grain_materials()
+	_apply_panel_transform()
+
+
+## Collects the world-triplanar materials that travel with the leaf, so their UV
+## phase can be corrected for the leaf's own motion.
+func _refresh_panel_grain_materials() -> void:
+	_panel_grain_materials.clear()
+	_panel_grain_scales.clear()
+	if _sliding_panel == null:
+		return
+	for candidate in _sliding_panel.find_children("*", "MeshInstance3D", true, false):
+		var material := (candidate as MeshInstance3D).material_override as StandardMaterial3D
+		if material == null or not material.uv1_world_triplanar:
+			continue
+		if _panel_grain_materials.has(material):
+			continue
+		_panel_grain_materials.append(material)
+		_panel_grain_scales.append(material.uv1_scale)
 
 
 func _set_portal_blocked(blocked: bool) -> void:
