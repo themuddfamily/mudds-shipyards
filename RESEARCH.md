@@ -134,7 +134,10 @@ weapons or destruction.
   craft changes or appears. The Torrent message persists through `05:17.000`
   (`f1902`) and is absent at `05:17.167` (`f1903`). This corroborates both label
   strings but is negative evidence for identifying the visible craft as Torrent.
-  Later messages corroborate Arrow, Altair, and Katana labels.
+  Later messages corroborate Arrow, Altair, and Katana label strings. Those three
+  labels carry **no registered frame anchor and no tied craft**: B3 is not
+  name-to-model evidence for any of them, and its 2012 upload date does not place
+  them in the 2009 build.
 - **B4 — [Jommy101 Video Keth Shipyards My Favorite Ships](https://www.youtube.com/watch?v=W32fCS_Fif8)**,
   uploaded 2012-05-06. The description repeats the official control set. In the
   inspected `640x360`, `6 fps` rendition, chat contains `Torrent` at
@@ -145,8 +148,10 @@ weapons or destruction.
   (`f1758`) and is absent at `04:53.167` (`f1759`); Predator follows at
   `04:53.833` (`f1763`). This is a medium-high-confidence name-to-instance link,
   but the craft is only about `61x32` pixels and ladder-obscured, so it supplies
-  no reconstruction-grade view. Later messages identify Jovian, Titan, Paradox,
-  Katana, and Vortex; earlier footage shows seats, flight, collision, and debris.
+  no reconstruction-grade view. Later messages repeat the Jovian, Titan, Paradox,
+  Katana, and Vortex label strings; those labels carry **no registered frame
+  anchor and no tied craft**, so B4 is name-to-model evidence for Torrent only.
+  Earlier footage shows seats, flight, collision, and debris.
 - **B5 — [keth shipyard.wmv](https://www.youtube.com/watch?v=gcYx2zm1TfI)**,
   uploaded 2011-06-29 by army22nd. The highest public rendition is `640x480`,
   constant `30 fps`, 2,753 frames. At `00:10.200` (`f306`) the exact message
@@ -343,6 +348,12 @@ materials or class-specific handling, and the A9 Fighter/A5+B7 Interceptor role
 conflict remains explicit. Neither craft is therefore a fully specified or
 authenticated original-ship reproduction.
 
+The two implemented **provisional candidates fail requirement 2 outright**. A3
+clears requirement 1 for the Arrow and Jovian names and roles, but no registered
+source supplies even one view tied to either name, so requirements 2 and 3 are
+absent and requirement 4 is unreachable. Their bounded audit is recorded in
+[Arrow and Jovian name-to-model boundary](#arrow-and-jovian-name-to-model-boundary).
+
 ## Visual direction of the original/fixed experience
 
 ### Supported motifs
@@ -510,7 +521,8 @@ one six-gate contract to every currently known name: identity/role, name-tied
 multi-view mapping, visual-feature index, observed role/handling, timestamped
 confidence, and conflicts/unknowns. It currently records zero authenticated
 ship reconstructions, two bounded partial reconstructions (the B5-linked Torrent
-and B7-observed Zenith), and two frozen modern candidates (Arrow and Jovian).
+and B7-observed Zenith), and two frozen modern candidates (Arrow and Jovian,
+both recorded `name_to_model_status: unknown`).
 The accepted Zenith runtime changes its implementation count, not its evidence
 gates or historical confidence. Further original-labelled silhouette work
 remains frozen at the recorded gate unless ledger evidence supports it.
@@ -618,6 +630,44 @@ The evidence document and feature index remain the limit: implementation and
 capture acceptance make Zenith a bounded partial reconstruction, not an
 authenticated historical ship.
 
+### Arrow and Jovian name-to-model boundary
+
+Arrow and Jovian are implemented as provisional candidates, so their evidence
+was re-audited against the ledger alone. **Neither name-to-model mapping is
+supported by any registered source, and neither can be proved from the material
+currently held.** The matrix therefore records `name_to_model_status: unknown`
+for both, and the audit below is the only claim set either candidate may carry.
+
+| Claim | Source and registered anchor | What it actually supports | What it does not support |
+| --- | --- | --- | --- |
+| “Arrow-class Recon Ship” is a class name in the fleet | A3, Wayback capture `2009-11-12T09:12:26Z`, claim `fleet.original_ten_name_role_roster`. Page text; no imagery, no frame anchor. | The exact name appeared in the creator's own roster **as of that capture**. | Any geometry. It is also not a launch-date claim: the place was created `2009-03-28` and no capture between those dates is registered. |
+| Arrow is a reconnaissance ship “with two escape pods” | A3, same page text. | The creator-written role, and a written pod count. | That any pod was ever seen. Pod appearance, size, placement, and release behaviour are unobserved; the count is read from prose, not counted in an image. |
+| The string “Arrow” appears as a regeneration label | B3, uploaded `2012-03-23`, claim `fleet.labels_titan_torrent_arrow_altair_katana`. **No frame or timestamp anchor is registered for this label.** | That the label string existed in the inspected rendition. | A model, a craft, a berth, a date, or a build. The 2012 upload date is not a recording date and not a 2009 presence claim. |
+| “Jovian-class Light Freighter” is a class name and a light freighter | A3, same capture, claim `fleet.original_ten_name_role_roster`. Page text. | The exact name and the light-freighter role as of that capture. | Any geometry, scale, interior, ramp, capacity, or berth. |
+| The string “Jovian” appears as a regeneration label | B4, uploaded `2012-05-06`, claim `fleet.labels_jovian_titan_paradox_katana_vortex_predator`. **No frame or timestamp anchor is registered for this label.** | That the label string existed in the inspected rendition. | A model. B4's registered anchors (`f1739`, `f1742`) resolve the *Torrent* label and spawn only. |
+| A regeneration label does not identify a craft | B3 `05:13.167` (`f1879`): the message changes Titan → Torrent while the visible craft does not change. | That label-to-visible-craft inference is invalid in this game. | Nothing in Arrow's or Jovian's favour. This is the specific reason a bare label can never be promoted to a mapping. |
+
+Consequences, stated plainly:
+
+1. There is no registered footage in which a craft is identified as an Arrow or
+   as a Jovian. The B3/B4 labels are bare strings held in bulk claim IDs with no
+   anchor an independent reader could extract and check.
+2. Neither candidate can reach `bounded_partial_reconstruction`. The Torrent and
+   Zenith locks were earned by an uncut label → empty-berth → appearance →
+   boarding → flight chain (B5 `f306`–`f1230`; B7 `f368`–`f467`). No comparable
+   chain exists for Arrow or Jovian, so both remain `provisional_candidate`
+   implementations of an `unknown` mapping.
+3. Even the creator-authored facts are dated, not timeless: A3 is a
+   `2009-11-12` capture, and A6 (`2010-11-30`) shows the fleet shrinking to
+   eleven without naming which classes were removed. Neither Arrow nor Jovian is
+   proved to have existed at launch or to have survived past its capture.
+4. Only new ledger evidence can change this. Raising either status requires a
+   registered anchor that ties the name to a craft; an implementation, render,
+   capture comparison, or passing test never raises it. `RESEARCH.md`,
+   `docs/research/ship_evidence_matrix.json`, both `ShipDefinition` resources,
+   both ship scripts, and the Jovian freight berth now repeat this same bounded
+   wording, and `tests/research_evidence_test.gd` fails if any of them drifts.
+
 ## Design invariants derived from evidence
 
 These are the safest Phase 1 constraints for later development:
@@ -660,7 +710,7 @@ an exact copy.
 | **Torrent boarding reaches a visible physical pilot position; the exact hatch/canopy mechanism is unresolved.** | B5 continuously links the named spawn at `00:10.733` to an on-foot approach around `00:13`, entry into the central pilot space around `00:14.5–00:15.5`, a visible red occupied seat at `00:15.500`, and chase view by `00:16.833–00:17.000`. Compression/clipping prevents a defensible animated-door or canopy claim. B2 and B4 independently support embodied access for other craft. | High for Torrent physical entry and one visible pilot seat in the B5-observed model; low for exact entry side, hatch/canopy mechanics, or controls. | Preserve a physically reachable central single-pilot position and same-world boarding. Keep the current side steps, hinged canopy, detailed controls, camera transition, and exit path modular and labelled as modern design. | Exact entry side, door/canopy existence and motion, instrument layout, restraints, egress, and whether the yellow/translucent panel is glazing remain unresolved. |
 | **The B5 Torrent name-to-model identity is locked; bounded reconstruction v1 is source-aligned but partial.** | A3 is creator-authored name/role evidence. In B5 the exact label begins at `00:10.200` (`f306`), the berth remains empty through `f321`, the craft appears at `00:10.733` (`f322`), and continuous boarding/flight supplies named rear/dorsal (`00:23`, `f690`), side/top (`00:29`, `f870`), and close side/front (`00:41`, `f1230`) views. B6 independently corroborates a compatible pale pointed craft at a Torrent-labelled berth. B3 is a warning against label overlap; B4 supplies a separate tiny spawn link. B7 positively identifies a different wide delta/arrow craft as Zenith. | High for the B5 name-to-model identity and broad silhouette; medium for fine geometry/colour; low for recording/build provenance, 2009 equivalence, and unobserved systems. | Reconstruction v1 implements the compact faceted wedge, pointed nose, raised spine/blocky aft, four stepped side-plane tiers, paired round housings and dominant upright rails. Its crossbar is an explicitly inferred reconstruction used to preserve the U-like rear read, not a separately authenticated B5 part. The central red seat and restrained amber forward panel remain visible. Its metre envelope is a modern ergonomic normalization; the panel and housing functions remain unknown. Engine internals, canopy, controls, weapons, gear, RCS/service/docking hardware, materials, handling and damage behaviour remain separated/tagged modern design. Arrow and Jovian use isolated visual/collision implementations; do not import B7's Zenith-locked delta details or Torrent evidence into either candidate. | Exact source dimensions/proportions/topology, function of the circular housings and forward panel, hardpoints/weapons, landing gear, exhaust, hatch animation, materials, symmetric fin geometry, handling, recording/build provenance, and continuity with the 2009 model remain unresolved. |
 | **The B7 Zenith name-to-model identity is locked for a deliberately versioned scope; the bounded partial reconstruction is implemented.** | A5 calls Zenith an Interceptor, A9 calls it a Fighter, and the conflict remains dated rather than resolved. In B7 the Interceptor label begins at `00:33.455` (`f368`), the berth remains empty through `f372`, and a pale wide-delta craft appears without a cut at `00:33.909` (`f373`). Continuous approach, boarding and flight retain that identity through `00:42.455` (`f467`); `f468+` follows a discontinuity and is excluded. | High for the B7 name-to-model identity and physical boarding/flight chain; medium-high for the width-dominant pale macroform; medium for centre/spine, strake and step features; low for fine geometry; absent for recording/build provenance and class-specific handling. | Keep the versioned label `Zenith-class Interceptor — B7-observed reconstruction`. The removable source core implements the pale full-delta/arrow planform, raised faceted centre/spine, long strakes, repeated stepped subdivisions and cautiously indexed pod-like forms. Pod-like forms remain function-unknown. Exact dimensions, cockpit/access construction, engines, weapons, gear, materials, handling and Fleet Dock berth placement are modern or unresolved. Tests and captures accept this bounded implementation but do not authenticate it. | Whether A5/A9/B7 concern the same model/build, Fighter versus Interceptor outside the B7 scope, exact proportions/topology/scale, pod count/function, interior, access mechanism, engines, weapons, materials, handling, recording date, live build revision and 2009 continuity remain unresolved. |
-| **“Jovian-class Light Freighter” is proven; the current freighter, interior, and berth are not.** | A3 is creator-authored name/role evidence. B4 `4:50–5:20` independently repeats the Jovian regeneration label, but the sequence does not securely tie a visible model to that name. No registered source establishes a Jovian silhouette, interior, ramp, handling, weapons, or berth. | High for the name and light-freighter role; absent for an authenticated name-to-model, interior, or berth mapping. | Keep the implemented Jovian explicitly provisional. Treat its silhouette, dimensions, colours, cargo/passenger/cockpit route, ramp, capacity, engines, weapons, materials, handling, mechanics, and port freight berth as modern design that can be replaced without revising the historical claim. | Name-linked multi-view geometry, scale, colours, access, interior plan, crew/cargo capacity, propulsion, weapons, handling, and historical berth placement are unresolved. |
+| **The Arrow and Jovian class names and roles are creator-documented; neither name-to-model mapping exists.** | A3 is creator-authored name/role evidence dated to its `2009-11-12` capture: “Arrow-class Recon Ship” with a written two-escape-pod description, and “Jovian-class Light Freighter”. B3 repeats the Arrow label string and B4 repeats the Jovian label string, but both are registered as bulk label claims with **no frame or timestamp anchor and no craft tied to either name**. B3 `05:13.167` (`f1879`) further shows a regeneration label changing over an unchanged craft, so a bare label can never be promoted to a mapping. No registered source establishes an Arrow or Jovian silhouette, pod, scale, interior, ramp, access, systems, handling, weapons, or berth. | High for both names and roles at the A3 capture date; absent for either name-to-model mapping, and absent for launch-era or later-build persistence. Both are recorded `name_to_model_status: unknown`. | Keep both implementations explicitly provisional candidates. Treat every Arrow silhouette, proportion, pod appearance/placement/release, sensor, cockpit, engine, weapon and handling value, and every Jovian silhouette, dimension, colour, cargo/passenger/cockpit route, ramp, capacity, engine, weapon, material, handling value, mechanic and port freight berth as modern design that can be replaced without revising the historical claim. Do not describe either craft as observed, locked, reconstructed or recreated. | Whether any surviving footage shows an Arrow or a Jovian at all; name-linked multi-view geometry, scale, colours, access, pod or interior plan, capacity, propulsion, weapons, handling, historical berth placement, and whether either class existed at launch or survived the eleven-ship A6 roster are all unresolved. |
 
 ### Current implementation status and next evidence work (2026-08-14)
 
@@ -705,11 +755,14 @@ an authenticated ship.
 4. The distinct **provisional Arrow-class Recon Ship candidate** and larger
    **provisional Jovian-class Light Freighter candidate** retain their own visual
    and collision hierarchies rather than inheriting Torrent reconstruction claims.
-   Creator evidence supports the Arrow name, reconnaissance role, and exactly two
-   escape pods (A3), and supports only the Jovian name and light-freighter role
-   (A3; independently repeated as a regeneration label in B4). Neither candidate's
-   current shape is authenticated or securely name-linked to adequate historical
-   views.
+   A3's `2009-11-12` page text supports the Arrow name, reconnaissance role, and
+   a written description of two escape pods, and supports only the Jovian name
+   and light-freighter role. B3 and B4 repeat the Arrow and Jovian label strings
+   with no registered frame anchor and no craft tied to either name. Both
+   name-to-model mappings are therefore recorded `unknown`, and neither
+   candidate's current shape is authenticated or name-linked to any historical
+   view. See
+   [Arrow and Jovian name-to-model boundary](#arrow-and-jovian-name-to-model-boundary).
 5. Every current Jovian silhouette, dimension, colour, cargo and passenger
    interior, ramp, cockpit/access route, capacity, engine, weapon, material,
    handling value, mechanic, and berth detail is an explicitly modern provisional
@@ -990,8 +1043,9 @@ an authenticated ship.
 The next evidence work is to triangulate a confidence-graded relative station
 map, resolve the remaining Torrent reconstruction details, establish B5's
 recording/build provenance and test continuity with 2009, deepen Zenith beyond
-the bounded B7 macroform with higher-resolution name-tied views, prove or reject
-the Arrow and Jovian name-to-model hypotheses, and repeat name-linked visual
+the bounded B7 macroform with higher-resolution name-tied views, find any source
+that ties a craft to the Arrow or Jovian name at all — the current ledger holds
+none, so those mappings stay `unknown` rather than pending — and repeat name-linked visual
 indexing before treating any additional historical name as an authenticated
 model. Further implementation revisions must keep those unknowns visible in
 data and UI.

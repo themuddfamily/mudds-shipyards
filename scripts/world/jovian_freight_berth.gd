@@ -53,16 +53,18 @@ const CRANE_CENTER_Z := 27.0
 const EVIDENCE_REFERENCES := [
 	"RESEARCH.md:A3@2009-11-12 / creator-authored roster names the Jovian-class Light Freighter",
 	"RESEARCH.md:best creator-authored original roster / exact name and light-freighter role",
-	"RESEARCH.md:B4@04:50-05:20 / regeneration message independently repeats the class name",
+	"RESEARCH.md:B4 label roster / a regeneration message repeats the class name with no registered frame anchor and no tied craft",
 	"RESEARCH.md:shipyard structure / physically parked fleet on separated exposed lattice nodes",
 	"RESEARCH.md:implementation evidence map / pale angular fleet language is fleet-wide guidance only",
 ]
 
 const CONTENT_NOTE := (
 	"The exact Jovian-class Light Freighter name, its light-freighter role, and "
-	+ "membership in the creator's dated ten-ship roster are supported. The later "
-	+ "regeneration message independently repeats the name but does not identify a "
-	+ "model: the visible craft is labelled Paradox. No source authenticates Jovian "
+	+ "membership in the creator's dated ten-ship roster are supported by A3's "
+	+ "page text. The later B4 regeneration message repeats the name but does not "
+	+ "identify a model: the ledger registers no frame anchor for that label and "
+	+ "ties no visible craft to it, so the Jovian name-to-model mapping is "
+	+ "unknown. No source authenticates Jovian "
 	+ "geometry, colours, scale, capacity, interior, cargo ramp, controls, berth, or "
 	+ "equipment. This module's apron, exposed lattice, dimensions, cargo handling, "
 	+ "service room, door, crane, signage, lighting, and station adjacency are all "

@@ -3,22 +3,30 @@ extends HeroShip
 
 ## Evidence-bounded Arrow-class Recon Ship candidate.
 ##
-## Creator-authored material supports only the Arrow-class name, reconnaissance
-## role, and two escape pods. This slender procedural airframe, all proportions,
-## pod placement/release treatment, cockpit, entry, sensors, engines, weapons,
-## materials, and handling are a modern provisional interpretation. The common
-## HeroShip controller supplies already-tested flight, cameras, boarding,
-## landing, damage, destruction, and reuse behavior.
+## Creator-authored material (A3, page archived 2009-11-12) supports only the
+## Arrow-class name, reconnaissance role, and a written description of two
+## escape pods. No registered source shows a craft identified as Arrow: B3
+## records the label string alone, with no ledger frame anchor and no tied
+## craft, so the Arrow name-to-model mapping is `unknown`. This slender
+## procedural airframe, all proportions, pod appearance/placement/release
+## treatment, cockpit, entry, sensors, engines, weapons, materials, and handling
+## are a modern provisional interpretation. The common HeroShip controller
+## supplies already-tested flight, cameras, boarding, landing, damage,
+## destruction, and reuse behavior.
 
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"provisional"
 const EVIDENCE_SCOPE: StringName = &"name_role_pod_count_only"
+const NAME_TO_MODEL_STATUS: StringName = &"unknown"
 const SUPPORTED_ESCAPE_POD_COUNT := 2
 const PROVISIONAL_NOTE := (
-	"Creator-supported facts: Arrow-class Recon Ship; reconnaissance role; two "
-	+ "escape pods. The displayed geometry, materials, entry, pod locations and "
-	+ "release concept, systems, handling, and weapons are a modern provisional "
-	+ "interpretation with no authenticated historical silhouette mapping."
+	"Creator-supported facts (A3 page text): Arrow-class Recon Ship; "
+	+ "reconnaissance role; two escape pods. No registered source ties any "
+	+ "visible craft to the Arrow name, so the name-to-model mapping is "
+	+ "unknown. The displayed geometry, materials, entry, pod appearance and "
+	+ "locations, release concept, systems, handling, and weapons are a modern "
+	+ "provisional interpretation with no authenticated historical silhouette "
+	+ "mapping."
 )
 
 const PEARL := Color("e9eee9")
@@ -88,11 +96,12 @@ func get_arrow_evidence_report() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"evidence_status": EVIDENCE_STATUS,
 		"evidence_scope": EVIDENCE_SCOPE,
+		"name_to_model_status": NAME_TO_MODEL_STATUS,
 		"authenticated_geometry": false,
 		"creator_supported": PackedStringArray([
-			"Arrow-class Recon Ship name",
-			"reconnaissance role",
-			"two escape pods",
+			"Arrow-class Recon Ship name (A3 page text)",
+			"reconnaissance role (A3 page text)",
+			"two escape pods described in A3 page text, never observed",
 		]),
 		"modern_provisional": PackedStringArray([
 			"slender silhouette and every dimension",
@@ -368,7 +377,8 @@ func _build_escape_pods() -> void:
 		pod.set_meta("escape_pod", true)
 		pod.set_meta("pod_side", &"port" if side < 0 else &"starboard")
 		pod.set_meta("pod_index", 0 if side < 0 else 1)
-		pod.set_meta("historical_fact", &"two_escape_pods_total")
+		pod.set_meta("creator_roster_claim", &"two_escape_pods_total")
+		pod.set_meta("creator_roster_source", &"A3")
 		pod.set_meta("geometry_status", EVIDENCE_STATUS)
 		pod.set_meta("separable_visual_module", true)
 		pod.set_meta("release_mechanism_implemented", false)
@@ -541,6 +551,7 @@ func _apply_arrow_metadata() -> void:
 	set_meta("arrow_recon_candidate", true)
 	set_meta("evidence_status", EVIDENCE_STATUS)
 	set_meta("evidence_scope", EVIDENCE_SCOPE)
+	set_meta("name_to_model_status", NAME_TO_MODEL_STATUS)
 	set_meta("authenticated_historical_silhouette", false)
 	set_meta("creator_supported_escape_pod_count", SUPPORTED_ESCAPE_POD_COUNT)
 	set_meta("content_note", PROVISIONAL_NOTE)

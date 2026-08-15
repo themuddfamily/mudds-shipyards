@@ -2365,9 +2365,10 @@ func _build_landing_pad() -> void:
 	)
 
 	# The established port-side physical node now hosts the provisional Arrow
-	# recon interpretation. Only Arrow's creator-proven name/role and two-pod
-	# requirement carry historical support; this berth label and placement are
-	# modern layout decisions and do not authenticate the model or adjacency.
+	# recon interpretation. Only the name, reconnaissance role and written
+	# two-pod count in A3's dated page text carry historical support; the Arrow
+	# name-to-model mapping is unknown, and this berth label and placement are
+	# modern layout decisions that authenticate neither the model nor adjacency.
 	var arrow_berth_origin := get_berth_transform(ARROW_RECON_BERTH_ID).origin
 	_torus(pad, "ArrowReconBerthOuterRing", arrow_berth_origin + Vector3(0.0, -0.94, 0.0), 4.45, 4.68, _materials["ivory"])
 	_torus(pad, "ArrowReconBerthInnerRing", arrow_berth_origin + Vector3(0.0, -0.93, 0.0), 3.15, 3.34, _materials["orange_glow"])

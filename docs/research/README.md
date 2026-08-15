@@ -12,7 +12,14 @@ reproducible without redistributing third-party media.
 - [`STATION_TOPOLOGY.md`](STATION_TOPOLOGY.md) keeps each observed station graph
   in its own version scope before mapping the current station onto those motifs.
 - [`ship_evidence_matrix.json`](ship_evidence_matrix.json) applies the same six
-  reconstruction gates to every currently known ship name.
+  reconstruction gates to every currently known ship name. Each ship also carries
+  a `name_to_model_status` drawn from the `authenticated`,
+  `bounded_partial_reconstruction`, `provisional_candidate`,
+  `modern_interpretation`, `unknown` vocabulary. It separates `model_sources`
+  (accepted name-to-model evidence) from `name_only_sources` (sources that record
+  the label string but tie no craft to it); twelve of the fourteen known names,
+  including Arrow and Jovian, are currently `unknown`. Raising one requires a new
+  registered ledger anchor, never an implementation or a render.
 - [`fleet_roster_variants.json`](fleet_roster_variants.json) keeps source-scoped
   fleet rosters by variant (for example, a stable vertical-slice production
   roster and a dated/full-name roster), with source IDs and matrix-to-runtime ship

@@ -39,7 +39,7 @@ func _test_definition_evidence_and_validation() -> void:
 		"Documented craft",
 		"Recon ship",
 		DefinitionScript.EvidenceStatus.AUTHENTICATED,
-		PackedStringArray(["A3", "B3@06:15"])
+		PackedStringArray(["EXAMPLE-A@page-text", "EXAMPLE-B@f0000"])
 	)
 	var authenticated_audit: Dictionary = authenticated.audit()
 	_check(authenticated.is_definition_valid() and authenticated.is_authenticated(), "authenticated is a distinct valid evidence state")

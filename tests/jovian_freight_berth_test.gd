@@ -61,7 +61,12 @@ func _test_identity_evidence_and_audits(module: JovianFreightBerth) -> void:
 	_check(bool(evidence.creator_supported_identity) and bool(evidence.creator_supported_role), "name and role support are explicit")
 	_check(not bool(evidence.authenticated_original_geometry) and not bool(evidence.authenticated_berth_layout), "geometry and berth are never authenticated")
 	_check((evidence.references as PackedStringArray).size() >= 5, "evidence supplies creator, recording, and station references")
-	_check("visible craft is labelled Paradox" in str(evidence.content_note), "evidence note blocks the false B4 name-to-model inference")
+	_check(
+		"ties no visible craft to it" in str(evidence.content_note)
+		and "name-to-model mapping is unknown" in str(evidence.content_note)
+		and not ("labelled Paradox" in str(evidence.content_note)),
+		"evidence note blocks the B4 name-to-model inference without asserting an unregistered observation"
+	)
 	_check("all explicitly provisional" in str(evidence.content_note), "evidence note bounds every authored berth feature")
 	var unknowns := evidence.explicit_unknowns as PackedStringArray
 	_check(unknowns.size() >= 3 and "authoritative Jovian name-to-model mapping" in unknowns[0], "unknown model mapping remains explicit")
