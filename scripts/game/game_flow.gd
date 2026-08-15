@@ -475,7 +475,24 @@ func start_shift() -> void:
 	audio.play_ui_confirm()
 
 
-func _update_on_foot_flow() -> void:
+## Recomputes the on-foot interaction targets from live world state.
+##
+## This is the only writer of `station_interaction_candidate`, `boarding_candidate`
+## and `_near_ship`, and it is called from two places: the idle on-foot update that
+## draws the prompt, and `_on_interact_requested()` immediately before it acts.
+##
+## The second call site is load-bearing rather than defensive. `interact_requested`
+## is emitted from `PlayerController._physics_process()`, and Godot runs every
+## physics iteration of a frame ahead of that frame's idle pass, so a handler that
+## reads a cached selection can be served a snapshot taken before the state that
+## selection depends on last changed. `_try_exit_ship()` is exactly that case: it
+## sets `_reboard_blocked_ship` and re-enables control in one synchronous tail, and
+## the cached pair it leaves behind still names the craft the pilot just left,
+## because the idle refresh is skipped for the whole time the pilot is seated.
+## Deciding from a selection computed inside the handler removes the snapshot, so
+## the suppression, the boarding-area reservation and the station facing test are
+## all evaluated against the world as it is at the instant of the press.
+func _refresh_interaction_targets() -> void:
 	if is_instance_valid(_reboard_blocked_ship):
 		if player.get_interaction_origin().distance_to(
 			_reboard_blocked_ship.get_boarding_position()
@@ -484,6 +501,10 @@ func _update_on_foot_flow() -> void:
 	station_interaction_candidate = _find_station_interaction_candidate()
 	boarding_candidate = _find_boarding_candidate()
 	_near_ship = is_instance_valid(boarding_candidate)
+
+
+func _update_on_foot_flow() -> void:
+	_refresh_interaction_targets()
 	if phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.FAILED, Phase.RECOVERING]:
 		hud.set_interaction("", false)
 		return
@@ -719,6 +740,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_interact_requested() -> void:
 	if _piloting or _transition_busy:
 		return
+	# Physics-emitted signal, idle-refreshed selection: recompute before deciding.
+	# See `_refresh_interaction_targets()`.
+	_refresh_interaction_targets()
 	if is_instance_valid(station_interaction_candidate):
 		var accepted := bool(station_interaction_candidate.call("interact", player))
 		if accepted:

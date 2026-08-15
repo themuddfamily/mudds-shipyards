@@ -401,3 +401,131 @@ boundary strips that hover 0.22-0.37 m over their pads (projected landing cue).
 Closed `StationDoor` portals were excluded from every reachability query so a door
 that simply needs an interact press is never miscounted as a blocked route; only
 the two `deferred_access` landmark doors stay solid.
+
+## SANDBOX-001 — re-board suppression bypassed by a physics-tick interact — **FIXED**
+
+Configuration: Linux (WSL2 6.18.33.2), Godot 4.7.1.stable.official.a13da4feb,
+`--headless`, audio driver `Dummy`, 32 cores, source at `f88419e`.
+
+### Reproduced before it was touched
+
+The recorded diagnosis was verified against the code and then reproduced twice,
+independently of the existing witness, before any production edit:
+
+1. **Through the real input path.** A scratch script boarded the Arrow by pressing
+   the real `interact` action (`PlayerController._physics_process` →
+   `interact_requested`), flew a sortie, landed, shut down, left the seat through
+   the piloted interact edge, and then mashed `interact` on every physics tick.
+   With idle frames starved to 10 Hz while physics kept 60 Hz — what a loaded
+   machine does — the first post-exit press re-boarded the craft:
+   `phase` COMPLETE → BOARDING, `_transition_busy` true, on the same idle frame
+   (`idle=32`) as the exit, with `boarding_candidate` still naming the Arrow and
+   `_reboard_blocked_ship` already set to it.
+2. **At the handler.** Calling `_on_interact_requested()` in the window shows the
+   same transition with the cached pair intact.
+
+**The diagnosis held exactly**, with two additions worth recording.
+
+- The window is *frame-phase dependent*, not merely narrow. When idle frames run
+  freely — which is what `--headless` does by default, at 2-3 idle frames per
+  physics tick — the idle refresh lands first and the window never opens on that
+  run. That is why the defect only ever surfaced on a busy box, and it is why the
+  witness now starves idle frames explicitly instead of relying on ambient load:
+  its red assertion was itself timing-dependent, and passed on unfixed code on a
+  quiet machine.
+- The stale pair is not only the ship. `station_interaction_candidate` is cached
+  by the same idle pass and consulted *first* by `_on_interact_requested()`, so the
+  same window could actuate a station control the pilot was standing next to before
+  the sortie, from wherever they exited.
+
+### Root cause and the seam chosen
+
+`_reboard_blocked_ship` was correct and was set in time. The defect was that the
+consumer read a snapshot: `boarding_candidate` / `_near_ship` /
+`station_interaction_candidate` are written only by `_update_on_foot_flow()` from
+`_process()`, which is skipped for the whole sortie, while `interact_requested` is
+emitted from `PlayerController._physics_process()` and Godot runs every physics
+iteration of a frame ahead of that frame's idle pass.
+
+The fix is `GameFlow._refresh_interaction_targets()`, called both from the idle
+on-foot update and from `_on_interact_requested()` immediately before it acts.
+This was preferred over adding a `candidate == _reboard_blocked_ship` rejection to
+`_board_ship()`, which was the originally suggested repair, for three reasons: it
+keeps the suppression rule in one place (`_find_boarding_candidate()`) instead of
+duplicating the predicate at a second site; it fixes the station-door half of the
+same window, which a boarding-only check does not; and it does not change the
+contract of `_board_ship()`, which thirteen call sites across six suites use as a
+scripted boarding entry point.
+
+**Why this closes the window rather than narrowing it.** After the fix there is no
+cached value between the state change and the decision. `_on_interact_requested()`
+already returns early while `_transition_busy`, and `_try_exit_ship()` clears that
+flag only at the very end of a synchronous tail that has already assigned
+`_reboard_blocked_ship`. So at every instant the handler is permitted to act, the
+suppression state is final, and the candidate it acts on is computed from the live
+scene in the same call. No arrival order of physics and idle can produce a decision
+from stale data, because there is no longer a stale copy to read — for the
+suppression, the boarding-area reservation, and the station facing test alike.
+
+### Evidence
+
+`tests/sandbox_stale_reboard_defect_witness_test.gd` (sentinel
+`SANDBOX_STALE_REBOARD_DEFECT_WITNESS_TEST_OK`), renamed into the gate glob, 19
+assertions. Red 3/3 on the unfixed production file with the fix reverted — both
+defect assertions — and green 3/3 immediately after restoring it.
+
+Under genuine parallel load (background headless Godot runs, `/proc/loadavg`
+1-minute figure sampled at each run start):
+
+| Suite | Runs | Pass | Load range |
+|---|---|---|---|
+| `sandbox_stale_reboard_defect_witness_test` | 12 | 12 | 13.5 – 36.7 |
+| `sandbox_loop_test` | 12 | 12 | 12.4 – 40.7 |
+
+The second set of six of each ran entirely above 23, peaking at 40.7.
+
+### The one witness assertion that was wrong
+
+The red assertion's first conjunct was `game.get_active_ship() != arrow`. It is
+unsatisfiable and never discriminated the defect: `active_ship` is a persistent
+"selected craft" pointer, assigned in exactly two places (`_ready()` seeds it with
+the guided Torrent before any boarding; `_board_ship()` re-points it), and nothing
+clears it on disembark — `_try_exit_ship()` reads it at its tail to populate
+`_reboard_blocked_ship`. It still names the Arrow after a clean exit with no
+re-board, which was checked directly on the unfixed code. It is replaced by the
+observables that do discriminate a re-board — `phase`, `_transition_busy`,
+`_piloting`, `player.is_seated()`, `arrow.is_piloted()` — which is strictly
+stronger than the original pair. Both this and the added real-input leg are
+recorded in the suite header rather than made quietly.
+
+### Same class elsewhere — surveyed, reported, not fixed
+
+Every signal reachable from a `_physics_process()` was traced to its production
+handlers and the handlers' decision state to its writers.
+
+- **`GameFlow._on_opponent_projectile_fired`** (emitter `range_opponent.gd:405`,
+  physics) reads **no** coordinator gate at all — not `phase`, not `_piloting`,
+  not `_transition_busy` — and submits damage against `active_ship`
+  unconditionally; `opponent.is_active()` is consulted afterwards, and only for the
+  HUD flash. It is the one fail-open handler in the set, and it fails open by
+  having no guard rather than by holding a stale one. Not fixed: it is combat
+  authority behaviour, outside this change.
+- **`GameFlow._on_target_destroyed`** reads idle-written `phase`; a drop is
+  permanent, because `authorize_target_destruction` is one-shot and GameFlow never
+  re-reads the world's destroyed count. Fails closed. Reachability is low: the
+  emission is synchronous inside `_on_projectile_fired`'s own stack and shares its
+  phase snapshot.
+- **`GameFlow._on_opponent_destroyed`** reads idle-written `phase` and would drop
+  the guided victory with no polling fallback. Currently unreachable:
+  `_begin_interceptor_engagement()` sets `phase` synchronously before
+  `opponent.activate()`.
+- **`GameFlow._on_projectile_fired`** and **`_on_landing_completed`** read
+  idle-written `phase` / `_sortie_departed_berth`; both fail closed, and the
+  landing path already has an idle polling fallback in `_update_pilot_flow()` that
+  re-invokes the handler under the same strict gate.
+- Cleared: `boarding_completed` / `disembarking_completed` / `canopy_motion_finished`
+  are `call_deferred` and additionally generation-guarded; `_on_ship_destroyed`,
+  `_on_landing_aborted`, `_on_engine_state_changed` and
+  `_on_authoritative_shot_submitted` have no idle-only writer in their gates;
+  `ShipBoardingArea.is_available_for()` re-derives on every call, which is why the
+  refresh above is race-free; `MovingInteriorFrame` is physics-only.
