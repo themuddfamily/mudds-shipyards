@@ -174,6 +174,40 @@ const STATION_DRESSING_SPECS := {
 const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 const STATION_AMBIENCE_SCENE := preload("res://scenes/audio/station_machinery_ambience.tscn")
 const STATION_DRESSING_SCENE := preload("res://scenes/world/components/station_structural_service_dressing.tscn")
+const STATION_ROUTE_REGISTRY_SCENE := preload("res://scripts/world/station_route_registry.gd")
+
+## The world-side half of every station connection slot. Each entry names the
+## real lattice geometry the player crosses to reach that module, so the station
+## graph stays one connected structure instead of four isolated islands. The
+## adjacency itself is declared, not measured: physical continuity across these
+## connectors is proved by `station_surface_playability_test.gd` and the
+## per-module integration suites.
+const STATION_HUB_ENDPOINT_DECLARATIONS := [
+	{
+		"slot_id": &"hub-aft-junction",
+		"expects_module": &"aft-junction-stack",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "ExposedDockLattice/AftModuleConnector",
+	},
+	{
+		"slot_id": &"hub-starboard-habitat",
+		"expects_module": &"habitat-spine",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "ExposedDockLattice/StarboardBerthNode",
+	},
+	{
+		"slot_id": &"hub-fleet-dock-comb",
+		"expects_module": &"fleet-dock-comb",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "ExposedDockLattice/FleetDockCombConnector/FleetDockCombConnectorDeck",
+	},
+	{
+		"slot_id": &"hub-registry-pod-freight",
+		"expects_module": &"jovian-freight-berth",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "ModernFleetRegistry/RegistryPodDeck",
+	},
+]
 const CENTRAL_BERTH_HERO_PRESENTATION_SCENE := preload(
 	"res://scenes/world/presentation/central_berth_hero_presentation.tscn"
 )
@@ -249,6 +283,8 @@ var _station_structural_service_dressings: Array[StationStructuralServiceDressin
 var _station_activity_enabled := true
 var _station_door_audio_hook_count := 0
 var _station_door_audio_bindings: Dictionary = {}
+var _station_route_registry := STATION_ROUTE_REGISTRY_SCENE.new() as StationRouteRegistry
+var _station_route_registry_report: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -269,6 +305,7 @@ func _ready() -> void:
 		# Re-entering the SceneTree must restore the world-owned presentation
 		# lifecycle after component teardown disabled processing/audio resources.
 		_index_operational_lattice_components()
+		_initialize_station_route_registry()
 		_connect_operational_lattice_audio()
 		_apply_operational_dressing_quality()
 		set_station_activity_enabled(_station_activity_enabled)
@@ -289,6 +326,9 @@ func _ready() -> void:
 	_build_exterior_range()
 	_build_space_backdrop()
 	_index_operational_lattice_components()
+	# The hub endpoints resolve against lattice geometry built above, so the
+	# registry can only be assembled once the environment exists.
+	_initialize_station_route_registry()
 	_connect_operational_lattice_audio()
 	_apply_operational_dressing_quality()
 	set_station_activity_enabled(_station_activity_enabled)
@@ -451,6 +491,17 @@ func get_station_structural_service_dressings() -> Array[StationStructuralServic
 		if is_instance_valid(dressing) and is_ancestor_of(dressing):
 			result.append(dressing)
 	return result
+
+
+## Deep-detached route-registry report for static station modules. The data is
+## refreshed when the world is built and on reentry reindex.
+func get_station_route_registry_report() -> Dictionary:
+	return _station_route_registry_report.duplicate(true)
+
+
+## Convenience accessor for the registry's edge graph and singleton summary.
+func get_station_route_adjacency_graph() -> Dictionary:
+	return (_station_route_registry_report.get("adjacency", {}) as Dictionary).duplicate(true)
 
 
 ## One reversible switch for station movers, the existing freight crane, and
@@ -1150,6 +1201,45 @@ func _collect_ship_berth_feedback_nodes(
 		_collect_ship_berth_feedback_nodes(child, result)
 
 
+func _initialize_station_route_registry() -> void:
+	var discovered_modules: Array[Node] = []
+	_collect_station_route_modules(self, discovered_modules)
+	_station_route_registry_report = _station_route_registry.build_registry(
+		discovered_modules,
+		_build_station_hub_endpoints()
+	)
+
+
+## The world owns placement, so it also owns the hub half of every station
+## connection. Each endpoint points at the real lattice geometry that carries the
+## player onto the module, and names the module it is built to serve, so a module
+## tagged with the wrong slot is reported instead of silently forming an edge.
+func _build_station_hub_endpoints() -> Array:
+	var endpoints: Array = []
+	for declaration in STATION_HUB_ENDPOINT_DECLARATIONS:
+		var anchor_path := str(declaration.get("anchor_path", ""))
+		endpoints.append({
+			"slot_id": declaration.get("slot_id", &""),
+			"expects_module": declaration.get("expects_module", &""),
+			"evidence_status": declaration.get("evidence_status", &""),
+			"anchor": get_node_or_null(NodePath(anchor_path)),
+		})
+	return endpoints
+
+
+## Station modules already join the `station_modules` group in `_apply_metadata`,
+## so discovery uses that exact roster rather than duck-typing on a partial
+## method list. Duck-typing collected any node that merely resembled a module,
+## missed `has_route_marker`, and kept descending into a module it had already
+## matched — which would have registered a future nested sub-module as a peer.
+func _collect_station_route_modules(search_root: Node, result: Array[Node]) -> void:
+	for child in search_root.get_children():
+		if child.is_in_group(&"station_modules"):
+			result.append(child)
+			continue
+		_collect_station_route_modules(child, result)
+
+
 func _dictionary_has_exact_keys(source: Dictionary, expected_keys: Array[StringName]) -> bool:
 	if source.size() != expected_keys.size():
 		return false
@@ -1177,6 +1267,7 @@ func _restore_operational_lattice_after_reentry() -> void:
 	if not is_inside_tree() or not _built:
 		return
 	_index_operational_lattice_components()
+	_initialize_station_route_registry()
 	_connect_operational_lattice_audio()
 	_apply_operational_dressing_quality()
 	set_station_activity_enabled(_station_activity_enabled)
