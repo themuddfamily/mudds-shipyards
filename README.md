@@ -80,6 +80,8 @@ An **Accessibility** group in the same panel adds four presentation-only presets
 
 The colour-vision presets are verified rather than asserted. `tests/accessibility_presets_test.gd` simulates each palette through the Machado et al. (2009) severity-1.0 dichromacy matrices and scores every state-role pair with CIEDE2000. The authored palette collapses to a minimum separation of **11.6** under deuteranopia (amber caution against red danger), 14.1 under protanopia, and 17.4 under tritanopia. The presets measure **24.4**, **29.2**, and **30.6** respectively under the deficiency each targets, while keeping at least 26.0 separation for normal colour vision and at least a 5.5:1 contrast ratio against the HUD panel. Rendered evidence is in `artifacts/accessibility/`.
 
+The UI-scale ceiling is likewise measured rather than assumed. `GameHUD` caps a requested scale at the largest factor whose logical layout still fits the viewport, and `GameHUD.MIN_LOGICAL_WIDTH`/`MIN_LOGICAL_HEIGHT` (1180x690) is the layout that cap promises. The gameplay panels were originally authored against a 1512 px logical width, so the cap was not collision-free: at the shipping 1600x900 stretch viewport the ceiling resolves to 1.3043, and at that factor the centre-top enemy readout covered the objective card by **120x86** viewport px while the interaction prompt met the telemetry card by **16x83**. The layout already overlapped at a plain 100% on a 1280x720 viewport. The panels were re-anchored into a three-column layout that genuinely fits 1180x690 rather than raising the floor, which would have capped an uncapped 100% request and cost every player scale headroom. `tests/hud_panel_layout_test.gd` measures the real `Control.get_rect()` of all eight panels across 163 viewport/scale combinations with the worst-case authored text and proves every pair disjoint, with **60 px** of width and **20 px** of height headroom below the contract. Rendered evidence is in `artifacts/accessibility/`.
+
 Colour is never the only channel: engine state, hull state, throttle direction, and enemy status all carry their state as text alongside the colour.
 
 Modern and Classic control descriptors are also shown. They document the current modern layout and the surviving `Y`/`X`/`H`/`F`/`G`-style legacy actions; Classic is currently a descriptor, not a complete alternate `InputMap` or a claim that one historical build's controls have been reconstructed exactly.
@@ -212,6 +214,9 @@ godot --headless --path . --script res://tests/pilot_visual_test.gd
 
 # Check pause-settings widgets, signal wiring, snapshots, and accessibility labels.
 godot --headless --path . --script res://tests/settings_ui_test.gd
+
+# Prove no two gameplay HUD panels overlap anywhere in the supported UI-scale range.
+godot --headless --path . --script res://tests/hud_panel_layout_test.gd
 
 # Prove repeatable physical fleet selection, berth use, crash recovery, and regeneration.
 godot --headless --path . --script res://tests/sandbox_loop_test.gd
