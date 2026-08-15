@@ -383,6 +383,39 @@ scans, or final hand-authored ORM sets. The original v1 pass deliberately wrappe
 its samples at every edge so those legacy derivatives preserve their source tile
 boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
 
+## Fleet structural surface treatment (runtime rebinding, no new bytes)
+
+- Purpose: stop the fleet's secondary structure from reading as untextured
+  primitives. Each craft rendered as two visual populations — hull lofts and
+  authored hull shells carrying a registered albedo/normal/roughness family,
+  and everything else (engine housings, landing gear, collars, escape pods,
+  cargo-aperture hardware, deck plate, thermal panels, livery) carrying a flat
+  scalar `albedo_color` and no map at all, with each craft's structural
+  roughness clustered inside a narrow band so two structural surfaces differed
+  in hue and in nothing else.
+- Created: 2026-08-15. **No image asset was produced, modified or imported for
+  this pass, and no file in `assets/` changed by a single byte.** The work is
+  entirely a runtime rebinding in `scripts/ships/ship_surface_detail.gd` plus
+  hand-picked scalar `metallic`/`roughness` values in the four craft scripts.
+  Each craft's existing registered **normal map** — `torrent-hull-normal-v1.png`
+  for the Torrent hero presentation and for Zenith, `arrow-hull-normal-v1.png`
+  for the Arrow, `jovian-hull-normal-v1.png` for the Jovian — is bound a second
+  time to that craft's structural materials through triplanar projection at
+  roughly 3-6x the frequency its hull uses. No albedo texture and no roughness
+  texture is bound to any structural material, so every craft's authored scalar
+  colour still reaches the renderer unmultiplied and each material's `roughness`
+  property is the roughness the player sees.
+- Project status: modern project-original presentation work. These maps remain
+  the same interim procedural derivatives described in the section above,
+  reused at a second projection scale. This pass is **not** authored surface
+  art, not a high/low-poly bake, not a material scan, and not a hand-authored
+  ORM set; it adds no historical claim to any craft. Zenith's `SourceCore`
+  geometry and the Torrent's evidence-bounded macroform are untouched — both
+  reconstruction specs place PBR response and finish inside the modern
+  boundary, and the Torrent spec explicitly welcomes subtle roughness and
+  normal maps provided they do not erase its large clean planes.
+- Regression: `tests/fleet_surface_detail_test.gd`.
+
 ## Fleet readability palette (runtime scalar tints)
 
 - Purpose: separate the four flyable craft by colour so at-a-glance

@@ -114,13 +114,23 @@ func _configure_runtime_materials() -> void:
 	_runtime_materials = {
 		&"WarmIvoryHull": _pbr_material(Color("e8e2cf"), 0.08, 0.48, true),
 		&"IvorySecondary": _pbr_material(Color("aeb2a5"), 0.16, 0.42, true),
-		&"GraphiteMachinery": _pbr_material(Color("10191c"), 0.58, 0.28),
-		&"ExposedAlloy": _pbr_material(Color("434b4d"), 0.78, 0.22),
+		# Secondary structure. `docs/TORRENT_2011_RECONSTRUCTION_SPEC.md` puts the
+		# finish inside the modern boundary and explicitly welcomes subtle
+		# roughness and normal maps while forbidding dense noisy greebling that
+		# would erase the large clean planes, so these five roles take relief
+		# and a widened material response and the two hull roles are left
+		# alone. Before this pass the canopy rails, dorsal spar, gear, aft
+		# grille, engine collars, heat panels, seat and livery band ran at
+		# roughness 0.28/0.22/0.66/0.43/0.64 with no map at all, and the
+		# baseline touchdown frame shows every one of them as a flat slab
+		# beside a panelled hull.
+		&"GraphiteMachinery": _structural_material(Color("10191c"), 0.36, 0.62, 1.1, 0.65),
+		&"ExposedAlloy": _structural_material(Color("434b4d"), 0.84, 0.18, 1.25, 0.50),
 		&"CyanStatus": _emissive_material(Color("0aa3b3"), Color("0cc6dc"), 2.2),
 		&"AmberPanel": _amber_panel_material(),
-		&"CrimsonSeat": _pbr_material(Color("8b1622"), 0.04, 0.66),
-		&"CrimsonLivery": _pbr_material(Color("8f1723"), 0.12, 0.43),
-		&"ThermalCeramic": _pbr_material(Color("171b1a"), 0.34, 0.64),
+		&"CrimsonSeat": _structural_material(Color("8b1622"), 0.04, 0.78, 2.0, 0.60),
+		&"CrimsonLivery": _structural_material(Color("8f1723"), 0.06, 0.34, 1.0, 0.35),
+		&"ThermalCeramic": _structural_material(Color("171b1a"), 0.12, 0.86, 0.9, 0.80),
 		&"NeutralCanopyGlass": _canopy_material(),
 	}
 	if _asset_root == null:
@@ -166,6 +176,29 @@ func _pbr_material(
 		material.clearcoat_enabled = true
 		material.clearcoat = 0.34
 		material.clearcoat_roughness = 0.30
+	return material
+
+
+## A secondary-structure material: flat scalar colour plus the Torrent's own
+## registered normal map at a machined-part frequency. The hull roles keep
+## their authored UV0 mapping; this reaches the untextured population only. It
+## binds no albedo texture, so `EXPECTED_BODY_TONE` and the frozen CIEDE2000
+## floors still read the exact colours above, and no roughness map, so each
+## role's roughness scalar is the roughness the player sees.
+func _structural_material(
+	color: Color,
+	metallic_value: float,
+	roughness_value: float,
+	texture_scale: float,
+	normal_strength: float
+) -> StandardMaterial3D:
+	var material := _pbr_material(color, metallic_value, roughness_value)
+	ShipSurfaceDetail.bind_structural_detail(
+		material,
+		load("res://assets/materials/torrent-hull-normal-v1.png") as Texture2D,
+		texture_scale,
+		normal_strength
+	)
 	return material
 
 

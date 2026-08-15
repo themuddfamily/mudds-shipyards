@@ -204,10 +204,16 @@ func _create_arrow_materials() -> void:
 	# material API and are left alone; only the tints they carry changed.
 	_arrow_materials.pearl = _material(HULL_SLATE, 0.18, 0.28)
 	_arrow_materials.ceramic = _material(HULL_SLATE_SHADE, 0.12, 0.36)
-	_arrow_materials.titanium = _material(TITANIUM, 0.58, 0.34)
-	_arrow_materials.graphite = _material(GRAPHITE, 0.64, 0.3)
+	# Secondary structure carries a deliberately wide material response. Before
+	# this pass titanium/graphite/pod sat at roughness 0.34/0.30/0.42 and
+	# metallic 0.58/0.64/0.20 — three surfaces a player could only tell apart by
+	# hue. They are now bare machined alloy, matte painted composite, and a
+	# painted survival-orange shell, which is three different behaviours under
+	# the same light. Colours are untouched; see the palette note above.
+	_arrow_materials.titanium = _material(TITANIUM, 0.72, 0.24)
+	_arrow_materials.graphite = _material(GRAPHITE, 0.30, 0.68)
 	_arrow_materials.sensor = _material(SENSOR_CYAN, 0.18, 0.22, SENSOR_CYAN, 1.7)
-	_arrow_materials.pod = _material(POD_ORANGE, 0.2, 0.42)
+	_arrow_materials.pod = _material(POD_ORANGE, 0.10, 0.58)
 	_arrow_materials.engine = _material(ENGINE_CYAN, 0.1, 0.16, ENGINE_CYAN, 3.0)
 	_arrow_materials.nav_red = _material(ARROW_NAV_RED, 0.1, 0.2, ARROW_NAV_RED, 2.2)
 	_arrow_materials.nav_green = _material(ARROW_NAV_GREEN, 0.1, 0.2, ARROW_NAV_GREEN, 2.2)
@@ -233,6 +239,23 @@ func _create_arrow_materials() -> void:
 		hull_material.clearcoat_enabled = true
 		hull_material.clearcoat = 0.48
 		hull_material.clearcoat_roughness = 0.2
+	# Nacelles, wing-root ribs, wingtip pods, the sensor gimbal, the fuselage
+	# panel bands, gear feet and the mast pedestal all shared one flat slab of
+	# `TITANIUM` with no map of any kind: the aft crop of the baseline capture
+	# shows the engine housing as a single uniform grey cylinder. The registered
+	# Arrow normal map that already dresses the hull is reused here through
+	# triplanar projection at 2.6x the hull's frequency, so the parts read as
+	# machined hardware rather than as scaled-down hull plate. No albedo texture
+	# is bound, so the fleet colour floors see exactly the tints above.
+	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.titanium, hull_normal, 0.9, 0.55)
+	# Struts, keel, mast stem and pod collars are painted composite, not bare
+	# metal, so they take the matte end of the craft's roughness range while
+	# titanium takes the glossy end.
+	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.graphite, hull_normal, 1.15, 0.75)
+	# The escape pods were the single most primitive-looking object on the
+	# craft: a saturated flat orange blob beside a textured fuselage. A coarser
+	# projection than the hardware gives them shell seams at pod scale.
+	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.pod, hull_normal, 0.65, 0.85)
 
 
 func get_variant_materials() -> Dictionary:
