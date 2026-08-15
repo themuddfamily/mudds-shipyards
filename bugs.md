@@ -29,13 +29,14 @@ collected by `run_test_matrix.sh`:
 [`tests/station_traversal_defect_witness_test.gd`](tests/station_traversal_defect_witness_test.gd)
 (sentinel `STATION_TRAVERSAL_DEFECT_WITNESS_TEST_OK`).
 
-Witness for the still-open presentation items (MAP-004…MAP-006), intentionally
-**RED** and deliberately outside the `*_test.gd` glob:
-[`tests/station_presentation_defect_witness.gd`](tests/station_presentation_defect_witness.gd)
-(sentinel `STATION_PRESENTATION_DEFECT_WITNESS_FAILED`). Its three assertions
+Witness for the presentation items (MAP-004…MAP-006), now **GREEN** and collected
+by `run_test_matrix.sh`:
+[`tests/station_presentation_defect_witness_test.gd`](tests/station_presentation_defect_witness_test.gd)
+(sentinel `STATION_PRESENTATION_DEFECT_WITNESS_TEST_OK`). Its three assertions
 were moved there verbatim when MAP-001…MAP-003 were fixed, so a P2 presentation
-defect no longer holds the P1 traversal gate red. Rename it into the glob once
-those three are closed.
+defect did not hold the P1 traversal gate red; it was renamed into the glob when
+they were closed. One roster in it was widened — six mirrored legends to eleven —
+and that is recorded in the suite header.
 
 ### Measurement that underpins the traversal items
 
@@ -191,7 +192,53 @@ are frozen by [`tests/player_step_up_assist_test.gd`](tests/player_step_up_assis
 
 ### MAP-004 — Pod facade and registry terminal legends are mirrored to the approaching player
 
-- Status: `REPRODUCED`. Severity: **P2** (roadmap: "isolated visual mismatch").
+- Status: `CLOSED` (fixed 2026-08-15). Severity was **P2**.
+- Fix: `scripts/world/shipyard_world.gd`, `scripts/world/aft_junction_stack.gd`,
+  `scripts/world/habitat_spine.gd`. Each affected legend is yawed
+  `Vector3(0, 180, 0)` so its readable `+Z` face points at the deck it is
+  approached from. `TextMesh` extrudes symmetrically about local `z = 0`, so the
+  yaw does not move the sign's depth footprint at all — verified in the live
+  world, where the four terminal legends still occupy `z = 23.558 … 23.574`
+  against a `RegistryScreen` front face at `z = 23.590`, i.e. they stand
+  0.016-0.028 m proud of the panel and the readable glyph face now points away
+  from it. **The rotation alone was checked against burial before it was
+  trusted, not assumed.**
+- Scope widened, deliberately and recorded: the intake listed six legends. A
+  sweep of all 20 live `TextMesh` nodes in `Main` found **five more** with the
+  identical cause — `Vector3.ZERO` on the approach-side face of a backing plate.
+  All five were rendered and read backwards before the change:
+  `ExposedDockLattice/Sign_MUDDS__--__REGENERATION_DECK` and
+  `.../Sign_CENTRAL_JUNCTION__--__FLEET_DOCKS` (both on `JunctionSignFace`
+  `z = 21.95`, the station's most prominent navigation board, mirrored to
+  everyone walking aft through the portal);
+  `AftJunctionStack/Structure/VIPLandmark/Sign_VIP_ACCESS__--__DEFERRED`
+  (in front of the facade panels at `z = 20.12 …`); and
+  `HabitatSpine/Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED`
+  (in front of `EntryFacadeRight` at `z = 0.48 …`); and
+  `AftJunctionStack/Structure/OpenStructureDetails/Sign_AFT_JUNCTION__--__MODERN_INTERPRETATION`,
+  which `bugs.md` had misfiled under "floor decals". Both modules already had a
+  correctly yawed sibling (`AFT OPERATIONS`, `OBSERVATION COMMON`), so this was
+  an authoring slip, not a convention.
+- Secondary defect found only because the fix made the text readable:
+  `RegistryScreen` was 1.35 m tall (`y = 1.195 … 2.545`) while the legend block
+  runs `y = 1.134 … 2.254`, so the bottom line `UTOPIA  ARROW` fell 0.061 m off
+  the lit panel onto the navy terminal body — black on near-black. The panel is
+  now 1.50 m tall (`y = 1.08 … 2.58`). Legend positions are unchanged, so every
+  coordinate recorded below still holds.
+- Second defect on the VIP legend, found only by photographing it rather than
+  trusting the rotation: `Sign_VIP_ACCESS__--__DEFERRED` stood at z = 67.96 while
+  `AftJunctionStack/VIPAccess/FrameVisuals/Header` occupies z = 67.72 … 68.44 at
+  exactly that height, so the sign was **buried inside its own door frame and
+  rendered to nobody from either side**. Five camera positions from 1.06 m to
+  6.0 m photographed blank frame header. It is now at z = 67.64, 0.08 m proud of
+  the frame's front face. An un-mirrored sign hidden in its own panel is not
+  fixed; this is why every legend in this pass was rendered and read, not just
+  asserted.
+- Regression: `tests/station_presentation_defect_witness_test.gd`
+  `_test_approach_facing_signs`, roster widened from six to eleven. The original
+  six entries are byte-identical; nothing was loosened.
+- Original record follows.
+- Status at intake: `REPRODUCED`. Severity: **P2** (roadmap: "isolated visual mismatch").
   Argued escalation: the roadmap's P1 clause "systematically reverses or destroys
   scene readability" plausibly applies, because six adjacent legends including the
   only diegetic regeneration interface are all reversed. Left at P2 pending review
@@ -212,7 +259,31 @@ are frozen by [`tests/player_step_up_assist_test.gd`](tests/player_step_up_assis
 
 ### MAP-005 — Eight safety beacons hover 0.19 m above the roofs they stand on
 
-- Status: `REPRODUCED`. Severity: **P2** ("isolated visual mismatch"); it does not
+- Status: `CLOSED` (fixed 2026-08-15). Severity was **P2**.
+- Fix: `scripts/world/station_operations_activity.gd`. `_get_beacon_positions()`
+  placed every beacon's origin at local `y = 0.27` while the `Base` pedestal is
+  0.18 m tall and centred on that origin, so the pedestal's underside sat 0.18 m
+  above the component's own mounting plane. It now uses
+  `BEACON_SEAT_HEIGHT = 0.09`, half the pedestal height, which puts the underside
+  on the plane every `FootPad` in the same component already rests on.
+- Scope widened: the intake found eight because it only probed two activities.
+  **All sixteen** beacons in the live roster were hovering — 0.19 m on
+  `AftOperationsActivity`, `HabitatServicePatrol` and `FreightApproachGantry`,
+  and 0.21 m on `CentralTowServiceActivity`. All sixteen now measure a 0.010 m
+  residual except the Central berth's four at 0.030 m; that residual is the
+  activity's mount transform sitting above the deck below it and is shared by
+  every foot pad in the component, not a per-beacon defect. Recorded, not
+  silently absorbed — see "found, not fixed" below.
+- Second defect in the same assembly: on the `drone_patrol` profile the
+  `AnchorFoot` was a plinth at local `y = -0.22`, whose top (`-0.16`) sat 0.07 m
+  *below* the pedestal underside (`-0.09`). The pedestal was therefore hovering
+  over its own anchor as well as over the roof. `AnchorFoot` is now a 0.06 m
+  bolt-down flange sharing the pedestal's underside plane.
+- Regression: `tests/station_presentation_defect_witness_test.gd`
+  `_test_seated_decorations_rest_on_their_surface`, unchanged roster and
+  unchanged 0.03 m tolerance.
+- Original record follows.
+- Status at intake: `REPRODUCED`. Severity: **P2** ("isolated visual mismatch"); it does not
   imply a route, so it does not escalate.
 - Node paths: `ShipyardWorld/OperationalLattice/Activities/AftOperationsActivity/PresentationRoot/SafetyBeacon01-04/Base`
   (around `(3.9 … 7.7, 5.26, 60.0 … 62.5)`, resting surface
@@ -224,31 +295,96 @@ are frozen by [`tests/player_step_up_assist_test.gd`](tests/player_step_up_assis
 
 ### MAP-006 — Orphan freight dock guide lens hangs in open space
 
-- Status: `REPRODUCED`. Severity: **P2** ("isolated visual mismatch").
+- Status: `CLOSED` (fixed 2026-08-15). Severity was **P2**.
+- Fix: `scripts/world/jovian_freight_berth.gd`. The centreline guide-light run was
+  authored at berth-local `z = [10, 18, 26, 34, 42, 49]`, but the apron's outbound
+  leaf `ApronDeck04` ends at local `z = 47.85`, so the last entry alone was off
+  the deck. It is now `47.0` — still the outermost cue on the outbound edge, now
+  0.85 m inboard of the lip it sits on. World centre moves `(-53.0, 0.63, 77.8)`
+  → `(-53.0, 0.63, 75.8)` and the drop `2.040 m` → `0.130 m`, matching all
+  seventeen sibling lenses. The eighteenth `DockGuideLight` moves with it; nothing
+  else in the roster changes.
+- Regression: `tests/station_presentation_defect_witness_test.gd`
+  `_test_orphan_dock_guide_lens`, unchanged 0.35 m threshold.
+- Original record follows.
+- Status at intake: `REPRODUCED`. Severity: **P2** ("isolated visual mismatch").
 - Node path: `ShipyardWorld/JovianFreightBerth/FreightPresentation/DockGuideLens18`,
   centre `(-53.0, 0.63, 77.8)`.
 - `LoadingApron/ApronDeck04` ends at z = 76.65, so the lens sits 1.15 m beyond the
   apron edge with a 2.04 m drop to `LoadingApron/ApronCrossChord6` below. Every
   other dock guide lens rests on the apron.
 
-### Unconfirmed observations (not yet reproduced, no witness)
+### Unconfirmed observations — all four adjudicated 2026-08-15
 
-- `ShipyardWorld/OperationalLattice/Activities/CentralTowServiceActivity/PresentationRoot/MaintenanceGantry/OverheadRail`
-  (world min y = 5.61) floats 0.08 m above the top of its own
-  `MaintenanceGantry/Column` (max y = 5.53) at `(9.5, 5.8, 9.5 … 18.5)`. The same
-  0.08 m assembly gap appears on `FreightApproachGantry`. Numerically confirmed,
-  not yet confirmed as visible to a player — likely P3.
-- Floor decals rendered mirrored in overview frames ("BERTH F-01" on the freight
-  berth, "ZENITH // RESERVED" on `FleetDockComb`, "AFT JUNCTION // MODERN
-  INTERPRETATION"). Same root cause family as MAP-004 but the correct readable
-  orientation for a floor decal was not determined, so no witness was written.
-- `ShipyardWorld/ArrowReconBerth/BerthFeedback/FeedbackVisual/Boundary_*`
-  (four strips around `(-50 … -36, 0.40, 10.5 … 20.5)`) return no downward hit at
-  all — the berth-cue rectangle overhangs the structure it marks. Possibly
-  intentional projected cue geometry; not classified.
-- `ShipyardWorld/ModernFleetRegistry/Sign_ACTIVE_BERTH__--__CENTRE_SPINE`
-  `(-38.5, 3.35, 26.9)` has no geometry within 0.62 m in any direction and a
-  1.86 m drop. Probably a floating sign, but its intended mount is unclear.
+**1. Gantry overhead rail floats above its own columns — CONFIRMED, FIXED.**
+`MaintenanceGantry/OverheadRail` started at y = 5.610 while
+`MaintenanceGantry/Column` stopped at y = 5.530. The gap is real and it is not
+bridged by anything: `BridgeBeam` (y = 5.490 … 5.810) ties the two rails to each
+other at x = 0, but the columns stand at x = ±4.3, so the entire rail-plus-beam
+assembly hung as one rigid unit 0.08 m clear of all four columns with no
+connecting member anywhere. Identical on `FreightApproachGantry` (rail 5.990,
+column top 5.910). Fixed in `scripts/world/station_operations_activity.gd` by
+lengthening `Column` 5.42 → 5.50 m (centre 2.82 → 2.86), so the column top now
+measures exactly the rail underside: 5.610 / 5.990. Rail height, `GANTRY_TRAVEL`,
+`GANTRY_ELEVATION` and the component footprint are untouched. Visibility was the
+open question and it is answered: at 5.5 m over a walkable deck the joint is in
+frame from the Central berth approach, and a 0.08 m gap in a 0.42 m-wide column
+head reads as a break, not as clearance.
+
+**2. Floor decals rendered mirrored — DISMISSED as stated; one different defect
+found underneath it.** Not mirrored. All eleven floor-facing legends in the live
+world (`Sign_ACTIVE`, `Sign_ARROW_RECON…`, `FreightSign2 "BERTH F-01"`,
+`FreightSign4`, the four `LeaseStateLabel`s, `AssignedDockLabel01`,
+`DeferredDockLabel02/03`) have an orthonormalized basis **determinant of exactly
++1.000** with `basis.z = (0, 1, 0)`, i.e. the readable face points at the sky and
+the glyphs are not reflected. What the overview frames actually showed is a 180°
+*rotation*: these decals carry `rotation_degrees (-90, 0, 0)`, so their reading
+"up" is world -Z, which is upright for a viewer travelling -Z and upside-down for
+one travelling +Z. That is inherent to floor text, which can only be upright for
+one of two travel directions. Verified in frame: "BERTH F-01" photographs
+upside-down from the station-side approach — rotated, with unreflected letter
+forms. Residual, recorded not fixed because the intended reading direction is a
+design choice nobody has made: `BERTH F-01` and `KEEP TRANSFER LANE CLEAR` are
+upright for someone walking *back* toward the station, while the freight apron's
+primary travel is outbound.
+**However**, the third item in the same bullet, "AFT JUNCTION // MODERN
+INTERPRETATION", is **not a floor decal at all** — it is a vertical `TextMesh`
+plaque at `(0, 1.23, 57.82)` on `AftJunctionStack/Structure/OpenStructureDetails`,
+and it really was mirrored, for the ordinary MAP-004 reason. Rendered from the
+aft connection deck at `(0, 2.4, 52)` it read backwards. Fixed with the rest of
+the MAP-004 family and added to the witness roster.
+
+**3. Arrow berth cue strips overhang the structure they mark — CONFIRMED and
+visible, deliberately NOT fixed.** All four `Boundary_*` corners return no
+downward hit within 400 m, and a deck grid sampled at 1 m over
+`x = -52 … -34`, `z = 9 … 22` shows why: the port node deck spans roughly
+`x = -49.5 … -36.5` at the cue's `z` extremes, while the cue rectangle's corners
+sit at `x = ±7.02` and `z = ±4.977` from `(-43, 15.5)`, i.e. at `x = -50.02` and
+`x = -35.98`. Both ends are past the deck edge. This is *not* the same as the
+three sibling berths, whose strips hover a benign 0.19-0.36 m over their pads;
+here they hang over the void, and frame `13_arrow_berth_cue` shows the outboard
+strips glowing in open space beyond the deck outline.
+Not fixed here because every available fix leaves this pass's remit: the
+rectangle's size comes from `cue_half_width = 6.3` / `cue_half_length = 7.2` in
+`SHIP_BERTH_SPECS`, which `get_ship_berth_feedback_audit_report()` verifies as a
+**module contract** (`feedback_cue_half_width_drift_*`), and the cue honestly
+advertises the Arrow's `landing_half_extents (8.0, 4.5, 9.0)` envelope — shrinking
+it would make the cue lie about where the ship lands. The other repair, widening
+the port node deck, is **walkable geometry**, explicitly out of scope for a
+presentation pass. Owner needed for one of: enlarge the port node deck to cover
+the envelope it advertises, or shrink the Arrow's berth envelope and cue together
+and re-freeze the contract.
+
+**4. `Sign_ACTIVE_BERTH__--__CENTRE_SPINE` is a floating sign — CONFIRMED, FIXED,
+and it was mirrored as well.** Its intended mount was not "unclear": the legend
+belongs to the berth indicator assembly directly beside it
+(`BerthIndicatorBase` `(-38.5, 0.75, 27.6)`, `BerthIndicatorRing` y = 1.52,
+`BerthIndicatorNeedle` `(-38.5, 2.55, 27.6)` spanning y = 1.50 … 3.60,
+z = 27.52 … 27.68). At z = 26.90 it stood 0.62 m clear of the needle's -Z face —
+exactly the 0.62 m the sweep measured — and, authored with `Vector3.ZERO`, it
+also faced +Z, away from the deck. It is now a blade sign on the mast head at
+z = 27.50, 0.018 m proud of the needle, yawed to the reader. Rendered and
+confirmed: the legend reads forwards and the mast is visibly behind it.
 
 ### Explicit false positives — swept and dismissed
 

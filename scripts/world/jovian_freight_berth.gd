@@ -825,7 +825,13 @@ func _build_lighting_and_signage() -> void:
 	for side in [-1.0, 1.0]:
 		for z_position in [10.5, 17.5, 24.5, 32.5, 40.5, 47.5]:
 			_guide_light(presentation, Vector3(side * 15.1, 0.35, z_position), Color("4bdce3"), 1.0, 5.5)
-	for z_position in [10.0, 18.0, 26.0, 34.0, 42.0, 49.0]:
+	# MAP-006. The last centreline guide lens was authored at z = 49.0, but the
+	# apron's outbound leaf (`ApronDeck04`) ends at z = 47.85, so that one lens
+	# hung 1.15 m past the edge with a 2.04 m drop to `ApronCrossChord6` below —
+	# the only lens of the eighteen not resting on the surface it marks. It is
+	# pulled back to z = 47.0, still the outermost cue on the outbound edge and
+	# still inboard of the deck lip it now sits on.
+	for z_position in [10.0, 18.0, 26.0, 34.0, 42.0, 47.0]:
 		_guide_light(presentation, Vector3(0, 0.25, z_position), Color("f6a445"), 0.65, 4.0)
 
 	for side in [-1.0, 1.0]:

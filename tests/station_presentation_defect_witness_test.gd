@@ -1,24 +1,30 @@
 extends SceneTree
 
-## Failing witnesses for the P2 presentation half of the 2026-08-15 human
-## playtest report: "…random objects floating in the air and it ruins the
-## experience."
+## Regression for the P2 presentation half of the 2026-08-15 human playtest
+## report: "…random objects floating in the air and it ruins the experience."
 ##
 ## These three assertions were split out of
 ## `station_traversal_defect_witness_test.gd` when the P1 traversal defects
-## (MAP-001/002/003) were fixed. They cover MAP-004, MAP-005 and MAP-006, which
-## are explicitly reserved for a separate presentation pass, and they are
-## reproduced here **verbatim** — thresholds, node rosters and expectations are
-## unchanged from the original witness. They are expected to be RED until that
-## pass lands.
+## (MAP-001/002/003) were fixed, and reproduced there **verbatim** so a P2
+## presentation defect could not hold the P1 traversal gate red. They cover
+## MAP-004, MAP-005 and MAP-006, which are now fixed, so this file has been
+## renamed into the `*_test.gd` glob and is collected by
+## `tools/release/run_test_matrix.sh`.
 ##
-## Like the original witness this file is deliberately **not** named `*_test.gd`,
-## so `tools/release/run_test_matrix.sh` does not collect it and the gate stays
-## meaningful. Run it directly:
+## One deliberate change was made when the defects were fixed, recorded here
+## rather than made quietly:
 ##
-##   godot --headless --path . --script tests/station_presentation_defect_witness.gd
+##   `APPROACH_FACING_SIGNS` gained five entries. The intake listed six mirrored
+##   legends; sweeping every live `TextMesh` in the production world found five
+##   more with exactly the same cause — `Vector3.ZERO` rotation on a structure's
+##   approach-side face — including both legends on `JunctionPortalHeader`, the
+##   station's most prominent navigation board. The original six are unchanged
+##   in wording, path and expectation; the roster is only widened, from six entries to eleven. No threshold
+##   was loosened and no assertion was removed.
 ##
-## Rename it into the `*_test.gd` glob once MAP-004/005/006 are fixed.
+## Run it directly with:
+##
+##   godot --headless --path . --script tests/station_presentation_defect_witness_test.gd
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
@@ -33,6 +39,19 @@ const APPROACH_FACING_SIGNS := [
 	["ModernFleetRegistry/Sign_TORRENT__JOVIAN__TITAN__VORTEX", Vector3(0.0, 0.0, -1.0)],
 	["ModernFleetRegistry/Sign_KATANA__PARADOX__PREDATOR__DYNAMIC", Vector3(0.0, 0.0, -1.0)],
 	["ModernFleetRegistry/Sign_UTOPIA__ARROW", Vector3(0.0, 0.0, -1.0)],
+	# Widened beyond the intake's six after a sweep of every live `TextMesh`.
+	# Same cause, same fix; all five were rendered and read backwards first.
+	["ExposedDockLattice/Sign_MUDDS__--__REGENERATION_DECK", Vector3(0.0, 0.0, -1.0)],
+	["ExposedDockLattice/Sign_CENTRAL_JUNCTION__--__FLEET_DOCKS", Vector3(0.0, 0.0, -1.0)],
+	["AftJunctionStack/Structure/VIPLandmark/Sign_VIP_ACCESS__--__DEFERRED", Vector3(0.0, 0.0, -1.0)],
+	[
+		"AftJunctionStack/Structure/OpenStructureDetails/Sign_AFT_JUNCTION__--__MODERN_INTERPRETATION",
+		Vector3(0.0, 0.0, -1.0),
+	],
+	[
+		"HabitatSpine/Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED",
+		Vector3(-1.0, 0.0, 0.0),
+	],
 ]
 
 ## MAP-005. Decorative pieces that must rest on the surface they are placed against.
@@ -208,8 +227,8 @@ func _check(condition: bool, description: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("STATION_PRESENTATION_DEFECT_WITNESS_OK")
+		print("STATION_PRESENTATION_DEFECT_WITNESS_TEST_OK")
 		quit(0)
 	else:
-		print("STATION_PRESENTATION_DEFECT_WITNESS_FAILED: ", "; ".join(_failures))
+		print("STATION_PRESENTATION_DEFECT_WITNESS_TEST_FAILED: ", "; ".join(_failures))
 		quit(1)

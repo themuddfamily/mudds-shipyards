@@ -35,6 +35,10 @@ const GANTRY_TRAVEL := 3.15
 const GANTRY_ELEVATION := 5.78
 const DRONE_COUNT := 2
 const BEACON_COUNT := 4
+## Half the safety beacon `Base` pedestal height (0.18 m), so the pedestal's
+## underside rests on this component's mounting plane instead of hovering. See
+## `_get_beacon_positions()` and MAP-005 in `bugs.md`.
+const BEACON_SEAT_HEIGHT := 0.09
 const RECOMMENDED_MAX_INSTANCES := 6
 
 const PROFILE_PERFORMANCE_BUDGETS := {
@@ -1190,7 +1194,13 @@ func _build_gantry() -> void:
 			var x: float = float(x_side) * 4.3
 			var z: float = float(z_side) * 2.72
 			_box(gantry, "FootPad", Vector3(x, 0.11, z), Vector3(0.92, 0.22, 1.05), _materials["graphite"])
-			_box(gantry, "Column", Vector3(x, 2.82, z), Vector3(0.42, 5.42, 0.5), _materials["frame"])
+			# Recorded in `bugs.md` as an unconfirmed observation and confirmed here:
+			# the column stopped at y = 5.53 while `OverheadRail` starts at y = 5.61,
+			# so the rail pair and `BridgeBeam` hung as one rigid unit 0.08 m clear of
+			# all four columns with nothing joining them. The column is lengthened by
+			# exactly that 0.08 m to meet the rail underside. The rail, the carriage
+			# travel (`GANTRY_ELEVATION`) and the footprint are unchanged.
+			_box(gantry, "Column", Vector3(x, 2.86, z), Vector3(0.42, 5.5, 0.5), _materials["frame"])
 			_box(gantry, "ColumnEdge", Vector3(x - x_side * 0.19, 2.82, z), Vector3(0.055, 5.0, 0.34), _materials["frame_edge"])
 			_box(gantry, "SafetyBand", Vector3(x, 0.72, z - z_side * 0.27), Vector3(0.5, 0.28, 0.06), _materials["orange"])
 	for z_side in [-1.0, 1.0]:
@@ -1280,10 +1290,20 @@ func _build_safety_beacons() -> void:
 		var lens := _cylinder(beacon, "Lens", Vector3(0.0, 0.2, 0.0), 0.15, 0.24, _materials["amber_dim"])
 		_beacon_lenses.append(lens)
 		if _built_profile == ActivityProfile.DRONE_PATROL:
-			_box(beacon, "AnchorFoot", Vector3(0.0, -0.22, 0.0), Vector3(0.55, 0.12, 0.55), _materials["frame_edge"])
+			# MAP-005. The anchor foot used to be a plinth 0.13 m *below* the base
+			# pedestal, which left the pedestal hanging 0.07 m over its own foot. It
+			# is now a bolt-down flange around the foot of the pedestal, sharing the
+			# pedestal's underside, so the whole assembly seats on one plane.
+			_box(beacon, "AnchorFoot", Vector3(0.0, -0.06, 0.0), Vector3(0.62, 0.06, 0.62), _materials["frame_edge"])
 
 
 func _get_beacon_positions() -> Array[Vector3]:
+	# MAP-005. `BEACON_SEAT_HEIGHT` is half the `Base` pedestal's 0.18 m height, so
+	# the pedestal's underside lands on the activity's own mounting plane (local
+	# y = 0) — the same plane every `FootPad` in this component already sits on.
+	# The previous 0.27 m left all sixteen beacons in the roster hovering: 0.19 m
+	# over the Aft, Habitat and Freight roofs and 0.21 m over the Central berth
+	# deck. Only the mount transform's own offset from the deck below it remains.
 	var x_extent := 4.72
 	var z_extent := 3.15
 	match _built_profile:
@@ -1297,10 +1317,10 @@ func _get_beacon_positions() -> Array[Vector3]:
 			x_extent = 4.72
 			z_extent = 3.05
 	return [
-		Vector3(-x_extent, 0.27, -z_extent),
-		Vector3(x_extent, 0.27, -z_extent),
-		Vector3(-x_extent, 0.27, z_extent),
-		Vector3(x_extent, 0.27, z_extent),
+		Vector3(-x_extent, BEACON_SEAT_HEIGHT, -z_extent),
+		Vector3(x_extent, BEACON_SEAT_HEIGHT, -z_extent),
+		Vector3(-x_extent, BEACON_SEAT_HEIGHT, z_extent),
+		Vector3(x_extent, BEACON_SEAT_HEIGHT, z_extent),
 	]
 
 
