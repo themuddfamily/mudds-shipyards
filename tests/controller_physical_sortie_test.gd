@@ -7,6 +7,9 @@ extends SceneTree
 ## read by the production LocalShipInputSource; no gameplay method is called to
 ## board, launch, return, land, shut down, or exit. The only accelerated values
 ## are exported transition/system durations and ordinary flight-response properties.
+##
+## The shift start, controls overlay, and pause/resume steps are driven by real
+## joypad button events so the loop needs no keyboard at any point.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -20,13 +23,15 @@ const AXIS_RIGHT_TRIGGER := 5
 const BUTTON_A := 0
 const BUTTON_X := 2
 const BUTTON_Y := 3
+const BUTTON_BACK := 4
+const BUTTON_START := 6
 const BUTTON_LEFT_STICK := 7
 const BUTTON_RIGHT_SHOULDER := 10
 const BUTTON_DPAD_UP := 11
 const BUTTON_DPAD_DOWN := 12
 const BUTTON_DPAD_LEFT := 13
 
-const EXPECTED_ASSERTIONS := 39
+const EXPECTED_ASSERTIONS := 44
 const WALK_TIMEOUT_SECONDS := 5.0
 const FLIGHT_TIMEOUT_SECONDS := 14.0
 
@@ -138,6 +143,40 @@ func _run() -> void:
 		and player.is_control_enabled()
 		and not player.is_seated(),
 		"controller X starts the production HUD and grants on-foot approach authority"
+	)
+
+	# Gate C's settings/re-entry scenario also needs the overlay and pause panel
+	# without a keyboard. Both are driven here by real joypad button events.
+	var hud := game.hud
+	var help_panel: Control = null
+	var pause_panel: Control = null
+	if hud != null:
+		help_panel = hud.get("_help_panel") as Control
+		pause_panel = hud.get("_pause") as Control
+	_check(
+		help_panel != null and pause_panel != null and not pause_panel.visible,
+		"the started HUD exposes a live controls overlay and a hidden pause panel"
+	)
+	var help_initially_visible := help_panel != null and help_panel.visible
+	await _tap_physical_joy_button(BUTTON_BACK)
+	_check(
+		help_panel != null and help_panel.visible != help_initially_visible,
+		"controller Back toggles the controls overlay with no keyboard involved"
+	)
+	await _tap_physical_joy_button(BUTTON_BACK)
+	_check(
+		help_panel != null and help_panel.visible == help_initially_visible,
+		"a released and re-pressed controller Back toggles the same overlay exactly once"
+	)
+	await _tap_physical_joy_button(BUTTON_START)
+	_check(
+		pause_panel != null and pause_panel.visible and paused,
+		"controller Start pauses the live shift and halts the gameplay tree"
+	)
+	await _tap_physical_joy_button(BUTTON_START)
+	_check(
+		pause_panel != null and not pause_panel.visible and not paused,
+		"controller Start resumes the same shift and restores the gameplay tree"
 	)
 
 	var walked_to_ship := await _walk_player_to_ship(player, torrent, game)
@@ -403,7 +442,7 @@ func _run() -> void:
 		"CONTROLLER_PHYSICAL_SORTIE_PHASES: APPROACH_SHIP > START_ENGINES > LAUNCH > TARGET_PRACTICE > INTERCEPTOR_ENGAGEMENT > RETURN_TO_YARD > SHUT_DOWN > COMPLETE"
 	)
 	print(
-		"CONTROLLER_PHYSICAL_SORTIE_INPUTS: left-stick/L3/X/RB/Y/D-pad-Up/right-stick/LT/RT/A/D-pad-Left/D-pad-Down"
+		"CONTROLLER_PHYSICAL_SORTIE_INPUTS: left-stick/L3/X/Back/Start/RB/Y/D-pad-Up/right-stick/LT/RT/A/D-pad-Left/D-pad-Down"
 	)
 
 	await _clean_up(game, provider)
@@ -606,6 +645,8 @@ func _release_physical_joypad() -> void:
 		BUTTON_A,
 		BUTTON_X,
 		BUTTON_Y,
+		BUTTON_BACK,
+		BUTTON_START,
 		BUTTON_LEFT_STICK,
 		BUTTON_RIGHT_SHOULDER,
 		BUTTON_DPAD_UP,

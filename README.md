@@ -25,7 +25,7 @@ the permission and legal-review gate described below remains open.
 - An integrated port freight branch connects the station lattice to the Jovian's separate berth, loading apron, and service room. Its deployed ramp, cargo bay, passenger cabin, and cockpit form one attached collision-backed ship-local hierarchy rather than a detached interior or separate teleported level. Automated locomotion walks the production player from the ramp through the cargo bay into the passenger cabin; cockpit boarding is separately exercised through the exterior pilot hatch, so a continuous ramp-to-cockpit walk remains unproven.
 - A reusable `MovingInteriorFrame` carries registered occupants through ship translation and rotation, aligns floor classification, exposes ship-local gravity, and applies exit velocity once. The production `PlayerController` consumes that gravity and resolves movement in the deck-tangent plane. This is a tested local-authority foundation for moving interiors with one player avatar, not implemented multiplayer or multi-crew gameplay.
 - The Torrent's source-directed macroform uses a modern ergonomic normalization of about `L 8.4 m × W 7.2 m × H 4.54 m`; those metres are not recovered source dimensions. Its two observed aft housings use a nominal `0.80 m` diameter and `3.35 m` fore-aft length, but their historical function is unknown. Recessed engine internals, exhaust, opening pressure canopy, controls, weapons, tricycle visual gear, docking receiver, RCS and service detail remain separated or explicitly tagged modern interpretations. Compact hull/side-plane collision envelopes and the gameplay damage anchors were updated for the new form while preserving boarding, camera, flight, landing, damage and reuse contracts.
-- Explicit engine startup/shutdown and keyboard, mouse, and partial gamepad arcade flight using a mixture of version-informed bindings and new prototype controls. Each piloted craft samples one validated `ShipCommand` snapshot per physics tick from a swappable command source; the production `LocalShipInputSource` drives the same flight/fire path that a later replay or network source could use. This is an authority seam, not multiplayer or implemented network play. Mouse motion maps directly to yaw/pitch attitude, `A`/`D` provide keyboard yaw, the arrow keys provide pitch, and `Q`/`R` provide roll without taking `E` away from interaction. Coalesced mouse motion is bounded per physics tick but retained as a backlog until consumed, rather than losing excess input at a clamp; simultaneous mouse yaw/pitch is composed as one local rotation vector so proportional diagonal sweeps do not acquire a polling-rate-dependent roll artifact. Ownership, parked/startup, camera and reset boundaries clear stale motion. Equivalent 30/60/120 Hz input trials—including a saturated diagonal sweep—are covered by deterministic regressions. A common SDL-style gamepad layout supplies separate throttle/yaw and pitch/roll sticks, triggers and flight buttons with a shared `0.18` deadzone, although engine start/stop and landing still require the keyboard. A brief `W` tap cannot falsely undock a parked craft; sustained `W` departs along the visible nose; real external collision motion and impulses remain preserved and clear the landed state rather than being suppressed.
+- Explicit engine startup/shutdown and keyboard, mouse, and gamepad arcade flight using a mixture of version-informed bindings and new prototype controls. Each piloted craft samples one validated `ShipCommand` snapshot per physics tick from a swappable command source; the production `LocalShipInputSource` drives the same flight/fire path that a later replay or network source could use. This is an authority seam, not multiplayer or implemented network play. Mouse motion maps directly to yaw/pitch attitude, `A`/`D` provide keyboard yaw, the arrow keys provide pitch, and `Q`/`R` provide roll without taking `E` away from interaction. Coalesced mouse motion is bounded per physics tick but retained as a backlog until consumed, rather than losing excess input at a clamp; simultaneous mouse yaw/pitch is composed as one local rotation vector so proportional diagonal sweeps do not acquire a polling-rate-dependent roll artifact. Ownership, parked/startup, camera and reset boundaries clear stale motion. Equivalent 30/60/120 Hz input trials—including a saturated diagonal sweep—are covered by deterministic regressions. A common SDL-style gamepad layout supplies separate throttle/yaw and pitch/roll sticks, triggers and flight buttons with a shared `0.18` deadzone. Every action the core loop needs—begin shift, board, start engines, launch, fly, fire, land, shut down, disembark, pause, and the controls overlay—now has a gamepad binding, so the loop can be completed without touching the keyboard; a headless controller-only run through the production `Main` scene asserts that path. This is binding coverage, not remapping: bindings are still fixed, no controller glyphs are drawn, and no physical controller has been validated on hardware. A brief `W` tap cannot falsely undock a parked craft; sustained `W` departs along the visible nose; real external collision motion and impulses remain preserved and clear the landed state rather than being suppressed.
 - The fixed centre reticle continues to show the physical nose and weapon axis, while a separate hollow cyan flight-path cue projects actual world velocity through the active chase or cockpit camera. Slip moves that cue away from the reticle, off-screen travel clamps it to a safe ellipse, and rearward travel receives a distinct reverse state. The cue hides when travel is too slow, the craft is landed or destroyed, or the player is not piloting, and every control in the gameplay HUD remains pointer-transparent.
 - `V` switches between a physical cockpit-eye view and a swept-sphere SpringArm chase view; the chase sweep collides with the world and other physical ships while excluding its own craft, and the mouse wheel adjusts distance. The chase boom now follows attitude with a bounded response and capped angular lag while the camera's optical axis stays exactly nose-aligned; view and authority boundaries snap away latent lag. Handling still needs a player-led packaged-build tuning pass. Engine start/stop, landing, and interaction remain explicit `GameFlow` events. Ship-local thrust presentation now follows the same sampled `ShipCommand` boost value and the resulting actual throttle instead of reading the local input action separately.
 - An exterior target range followed by a live AI range-defence interceptor that manoeuvres, telegraphs and fires signal-driven hitscan weapons, damages the player's hull, and drives directional HUD feedback. Player and opponent shots traverse one live `CombatResolver` through registered stable source identities, authority-owned factions and weapon profiles, monotonic sequence checks, source collision exclusion, world occlusion, and typed damageable proxies. One global `PulseWeaponPresentation` renders accepted resolved shots through a fixed preallocated six-slot, oldest-visual-recycle pool with three modern emissive styles and no collision, damage, audio, or firing authority. The resolver's local sequence history survives whole-tree detach/re-entry, so a captured request cannot apply damage again; this is local replay hardening, not a networked combat implementation.
@@ -93,7 +93,7 @@ In any current prototype craft:
 | `V` | Toggle chase / cockpit view |
 | Mouse wheel | Adjust chase-camera distance |
 | `Shift` | Boost |
-| `Ctrl` or right mouse | Brake |
+| `Page Up` or right mouse | Brake |
 | `H` | Hover (creator-listed in later original-era builds) |
 | `F` or left mouse | Fire (`F` is creator-listed; mouse fire is new) |
 | `G` | Barrel roll (fixed-era binding) |
@@ -102,19 +102,25 @@ In any current prototype craft:
 | `Esc` | Pause; open **Settings** from the pause panel |
 | `F1` | Toggle controls |
 
-Common SDL-style gamepad while piloting (current partial support, `0.18` stick/trigger deadzone):
+Common SDL-style gamepad, on foot and while piloting (`0.18` stick/trigger deadzone):
 
 | Input | Action |
 |---|---|
-| Left stick vertical / horizontal | Throttle / yaw |
+| Left stick vertical / horizontal | Walk; throttle / yaw while piloting |
 | Right stick vertical / horizontal | Pitch / roll |
 | Left trigger / right trigger | Brake / fire |
-| Left-stick press (`L3`) | Boost |
-| `A` / `B` | Hover / barrel roll |
-| `X` / `Y` | Interact / toggle chase-cockpit camera |
-| Start | Pause |
+| Left-stick press (`L3`) | Sprint on foot; boost while piloting |
+| `A` | Jump on foot; hover while piloting |
+| `B` | Barrel roll |
+| `X` | Begin shift, interact, board, operate station doors, disembark |
+| `Y` | Toggle chase / cockpit view |
+| `LB` / `RB` | Chase-camera distance nearer / farther |
+| D-pad Up / Down | Start / stop engines |
+| D-pad Left | Landing assist |
+| Start | Pause; the pause panel and settings take controller focus |
+| Back | Toggle the controls overlay |
 
-Gamepad engine start/stop, landing assist, chase-distance adjustment, and the controls overlay are not yet bound, so the current build is not controller-only.
+Every step of the core loop—begin shift, walk, board, start, launch, fly, fire, return, land, shut down, disembark, pause, and read the controls overlay—is bound on the gamepad and is covered by a controller-only regression through the production scene. Bindings remain fixed: there is no runtime remapping, no conflict resolution, no deadzone/curve or hold-versus-toggle choice, and no controller glyph set, and no physical controller has been exercised on hardware. `F1` and `Back` share one `toggle_controls_overlay` action.
 
 The historical bindings changed between builds. Movement handling, mouse flight, boost, brake, landing assist, weapon/damage values, and AI behaviour are current remake design rather than recovered simulation parameters.
 
