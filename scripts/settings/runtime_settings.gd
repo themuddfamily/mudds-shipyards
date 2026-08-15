@@ -29,7 +29,23 @@ enum ControlPreset {
 	CLASSIC,
 }
 
-const SCHEMA_VERSION := 1
+## Colour-vision presets for HUD state signalling. NONE keeps the authored
+## cyan/amber/red set; the remaining entries select palettes whose separation
+## under the matching dichromacy simulation is verified by
+## `tests/accessibility_presets_test.gd`, not merely asserted.
+enum ColorblindPalette {
+	NONE,
+	DEUTERANOPIA,
+	PROTANOPIA,
+	TRITANOPIA,
+}
+
+## Written by every save. Files stamped with any version in
+## [constant MINIMUM_SUPPORTED_SCHEMA_VERSION]..[constant SCHEMA_VERSION] load
+## and are upgraded in memory; keys a older writer never stored fall back to
+## their authored defaults. Anything outside that range still fails closed.
+const SCHEMA_VERSION := 2
+const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
 const _BACKUP_SUFFIX := ".bak"
@@ -55,9 +71,16 @@ const DEFAULT_ENGINE_VOLUME := 1.0
 const DEFAULT_WEAPONS_VOLUME := 1.0
 const DEFAULT_UI_VOLUME := 1.0
 
+const MIN_UI_SCALE := 0.75
+const MAX_UI_SCALE := 1.6
+const DEFAULT_UI_SCALE := 1.0
+
 const DEFAULT_GRAPHICS_PROFILE := GraphicsProfile.HIGH
 const DEFAULT_WINDOW_MODE := WindowMode.WINDOWED
 const DEFAULT_CONTROL_PRESET := ControlPreset.MODERN
+const DEFAULT_COLORBLIND_PALETTE := ColorblindPalette.NONE
+const DEFAULT_REDUCED_MOTION := false
+const DEFAULT_CAPTIONS_ENABLED := false
 
 const _SECTION_META := "meta"
 const _SECTION_CONTROLS := "controls"
@@ -65,6 +88,14 @@ const _SECTION_CAMERA := "camera"
 const _SECTION_AUDIO := "audio"
 const _SECTION_GRAPHICS := "graphics"
 const _SECTION_DISPLAY := "display"
+const _SECTION_ACCESSIBILITY := "accessibility"
+
+const _COLORBLIND_PALETTE_IDS := {
+	ColorblindPalette.NONE: &"none",
+	ColorblindPalette.DEUTERANOPIA: &"deuteranopia",
+	ColorblindPalette.PROTANOPIA: &"protanopia",
+	ColorblindPalette.TRITANOPIA: &"tritanopia",
+}
 
 const _AUDIO_BUS_PROPERTIES := {
 	&"Master": &"master_volume",
@@ -233,6 +264,36 @@ var control_preset: int = DEFAULT_CONTROL_PRESET:
 		control_preset = validated
 		_queue_change(&"control_preset", validated)
 
+var ui_scale: float = DEFAULT_UI_SCALE:
+	set(value):
+		var validated := _validated_float(value, DEFAULT_UI_SCALE, MIN_UI_SCALE, MAX_UI_SCALE)
+		if is_equal_approx(ui_scale, validated):
+			return
+		ui_scale = validated
+		_queue_change(&"ui_scale", validated)
+
+var colorblind_palette: int = DEFAULT_COLORBLIND_PALETTE:
+	set(value):
+		var validated := _validated_colorblind_palette(value)
+		if colorblind_palette == validated:
+			return
+		colorblind_palette = validated
+		_queue_change(&"colorblind_palette", validated)
+
+var reduced_motion := DEFAULT_REDUCED_MOTION:
+	set(value):
+		if reduced_motion == value:
+			return
+		reduced_motion = value
+		_queue_change(&"reduced_motion", value)
+
+var captions_enabled := DEFAULT_CAPTIONS_ENABLED:
+	set(value):
+		if captions_enabled == value:
+			return
+		captions_enabled = value
+		_queue_change(&"captions_enabled", value)
+
 var _batch_depth := 0
 var _pending_changes: Array[StringName] = []
 var _dispatching_changes := false
@@ -259,6 +320,10 @@ func to_dictionary() -> Dictionary:
 		"graphics_profile": graphics_profile,
 		"window_mode": window_mode,
 		"control_preset": control_preset,
+		"ui_scale": ui_scale,
+		"colorblind_palette": colorblind_palette,
+		"reduced_motion": reduced_motion,
+		"captions_enabled": captions_enabled,
 	}
 
 
@@ -278,6 +343,10 @@ func reset_to_defaults() -> void:
 	graphics_profile = DEFAULT_GRAPHICS_PROFILE
 	window_mode = DEFAULT_WINDOW_MODE
 	control_preset = DEFAULT_CONTROL_PRESET
+	ui_scale = DEFAULT_UI_SCALE
+	colorblind_palette = DEFAULT_COLORBLIND_PALETTE
+	reduced_motion = DEFAULT_REDUCED_MOTION
+	captions_enabled = DEFAULT_CAPTIONS_ENABLED
 	_end_batch()
 
 
@@ -328,6 +397,14 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_AUDIO, "ui", ui_volume)
 	config.set_value(_SECTION_GRAPHICS, "profile", String(_graphics_profile_id(graphics_profile)))
 	config.set_value(_SECTION_DISPLAY, "window_mode", String(_window_mode_id(window_mode)))
+	config.set_value(_SECTION_ACCESSIBILITY, "ui_scale", ui_scale)
+	config.set_value(
+		_SECTION_ACCESSIBILITY,
+		"colorblind_palette",
+		String(_colorblind_palette_id(colorblind_palette))
+	)
+	config.set_value(_SECTION_ACCESSIBILITY, "reduced_motion", reduced_motion)
+	config.set_value(_SECTION_ACCESSIBILITY, "captions", captions_enabled)
 
 	var save_error := config.save(staging_path)
 	if save_error != OK:
@@ -335,7 +412,7 @@ func save_to_file(path_override: String = "") -> Error:
 
 	var verification := ConfigFile.new()
 	var verification_error := verification.load(staging_path)
-	if verification_error != OK or not _has_current_schema(verification):
+	if verification_error != OK or not _has_supported_schema(verification):
 		DirAccess.remove_absolute(absolute_staging_path)
 		return verification_error if verification_error != OK else ERR_INVALID_DATA
 
@@ -356,7 +433,7 @@ func save_to_file(path_override: String = "") -> Error:
 
 	var published := ConfigFile.new()
 	var published_error := published.load(target_path)
-	if published_error != OK or not _has_current_schema(published):
+	if published_error != OK or not _has_supported_schema(published):
 		# The staged file parsed before publication, so this is defensive against
 		# filesystem corruption. Restore the previous verified file when possible.
 		if had_target and FileAccess.file_exists(backup_path):
@@ -384,7 +461,7 @@ func load_from_file(path_override: String = "") -> Error:
 	if load_error != OK:
 		return load_error
 
-	if not _has_current_schema(config):
+	if not _has_supported_schema(config):
 		return ERR_INVALID_DATA
 
 	var loaded_ship_sensitivity := _read_number(
@@ -405,6 +482,9 @@ func load_from_file(path_override: String = "") -> Error:
 	var loaded_engine := _read_number(config, _SECTION_AUDIO, "engine", DEFAULT_ENGINE_VOLUME)
 	var loaded_weapons := _read_number(config, _SECTION_AUDIO, "weapons", DEFAULT_WEAPONS_VOLUME)
 	var loaded_ui := _read_number(config, _SECTION_AUDIO, "ui", DEFAULT_UI_VOLUME)
+	var loaded_ui_scale := _read_number(
+		config, _SECTION_ACCESSIBILITY, "ui_scale", DEFAULT_UI_SCALE
+	)
 
 	_begin_batch()
 	ship_mouse_sensitivity = loaded_ship_sensitivity
@@ -425,6 +505,20 @@ func load_from_file(path_override: String = "") -> Error:
 	)
 	window_mode = _parse_window_mode(
 		config.get_value(_SECTION_DISPLAY, "window_mode", _window_mode_id(DEFAULT_WINDOW_MODE))
+	)
+	ui_scale = loaded_ui_scale
+	colorblind_palette = _parse_colorblind_palette(
+		config.get_value(
+			_SECTION_ACCESSIBILITY,
+			"colorblind_palette",
+			_colorblind_palette_id(DEFAULT_COLORBLIND_PALETTE)
+		)
+	)
+	reduced_motion = _read_bool(
+		config, _SECTION_ACCESSIBILITY, "reduced_motion", DEFAULT_REDUCED_MOTION
+	)
+	captions_enabled = _read_bool(
+		config, _SECTION_ACCESSIBILITY, "captions", DEFAULT_CAPTIONS_ENABLED
 	)
 	_end_batch()
 	return OK
@@ -450,6 +544,25 @@ func get_window_mode_id() -> StringName:
 
 func get_control_preset_id() -> StringName:
 	return _control_preset_id(control_preset)
+
+
+## Stable textual ID of the active colour-vision preset. This is the only seam
+## the HUD uses, so the palette tables never depend on enum ordering.
+func get_colorblind_palette_id() -> StringName:
+	return _colorblind_palette_id(colorblind_palette)
+
+
+## Detached, side-effect-free snapshot of every accessibility preference. HUD and
+## presentation owners consume this instead of reading individual properties, so
+## a partially applied preset is impossible.
+func get_accessibility_descriptor() -> Dictionary:
+	return {
+		"ui_scale": ui_scale,
+		"colorblind_palette": colorblind_palette,
+		"colorblind_palette_id": get_colorblind_palette_id(),
+		"reduced_motion": reduced_motion,
+		"captions_enabled": captions_enabled,
+	}
 
 
 ## Converts normalized audio preferences to bus decibels without changing the
@@ -580,7 +693,7 @@ func _recover_interrupted_save(target_path: String) -> Error:
 	):
 		return ERR_ALREADY_EXISTS
 
-	var target_valid := _is_current_config_file(target_path)
+	var target_valid := _is_supported_config_file(target_path)
 	if target_valid:
 		# A valid target means publication completed. Transaction remnants can be
 		# discarded without risking the only verified copy.
@@ -597,10 +710,10 @@ func _recover_interrupted_save(target_path: String) -> Error:
 	# Prefer the last-known-good backup, then a fully verified staged successor.
 	var recovery_path := ""
 	var absolute_recovery_path := ""
-	if _is_current_config_file(backup_path):
+	if _is_supported_config_file(backup_path):
 		recovery_path = backup_path
 		absolute_recovery_path = absolute_backup_path
-	elif _is_current_config_file(staging_path):
+	elif _is_supported_config_file(staging_path):
 		recovery_path = staging_path
 		absolute_recovery_path = absolute_staging_path
 	if recovery_path.is_empty():
@@ -613,16 +726,16 @@ func _recover_interrupted_save(target_path: String) -> Error:
 	var restore_error := DirAccess.rename_absolute(absolute_recovery_path, absolute_target_path)
 	if restore_error != OK:
 		return restore_error
-	if not _is_current_config_file(target_path):
+	if not _is_supported_config_file(target_path):
 		return ERR_INVALID_DATA
 	return OK
 
 
-func _is_current_config_file(path: String) -> bool:
+func _is_supported_config_file(path: String) -> bool:
 	if not FileAccess.file_exists(path):
 		return false
 	var config := ConfigFile.new()
-	return config.load(path) == OK and _has_current_schema(config)
+	return config.load(path) == OK and _has_supported_schema(config)
 
 
 static func _validated_float(value: float, default_value: float, minimum: float, maximum: float) -> float:
@@ -643,6 +756,10 @@ static func _validated_control_preset(value: int) -> int:
 	return value if value in [ControlPreset.MODERN, ControlPreset.CLASSIC] else DEFAULT_CONTROL_PRESET
 
 
+static func _validated_colorblind_palette(value: int) -> int:
+	return value if _COLORBLIND_PALETTE_IDS.has(value) else DEFAULT_COLORBLIND_PALETTE
+
+
 static func _read_number(config: ConfigFile, section: String, key: String, default_value: float) -> float:
 	var value: Variant = config.get_value(section, key, default_value)
 	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
@@ -656,11 +773,14 @@ static func _read_bool(config: ConfigFile, section: String, key: String, default
 	return bool(value) if typeof(value) == TYPE_BOOL else default_value
 
 
-static func _has_current_schema(config: ConfigFile) -> bool:
+static func _has_supported_schema(config: ConfigFile) -> bool:
 	if not config.has_section_key(_SECTION_META, "schema_version"):
 		return false
 	var schema: Variant = config.get_value(_SECTION_META, "schema_version", null)
-	return typeof(schema) == TYPE_INT and int(schema) == SCHEMA_VERSION
+	if typeof(schema) != TYPE_INT:
+		return false
+	var version := int(schema)
+	return version >= MINIMUM_SUPPORTED_SCHEMA_VERSION and version <= SCHEMA_VERSION
 
 
 static func _graphics_profile_id(value: int) -> StringName:
@@ -715,3 +835,17 @@ static func _parse_control_preset(value: Variant) -> int:
 	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
 		return DEFAULT_CONTROL_PRESET
 	return ControlPreset.CLASSIC if String(value).to_lower() == "classic" else DEFAULT_CONTROL_PRESET
+
+
+static func _colorblind_palette_id(value: int) -> StringName:
+	return _COLORBLIND_PALETTE_IDS.get(value, _COLORBLIND_PALETTE_IDS[DEFAULT_COLORBLIND_PALETTE])
+
+
+static func _parse_colorblind_palette(value: Variant) -> int:
+	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
+		return DEFAULT_COLORBLIND_PALETTE
+	var wanted := StringName(String(value).to_lower())
+	for palette: int in _COLORBLIND_PALETTE_IDS:
+		if _COLORBLIND_PALETTE_IDS[palette] == wanted:
+			return palette
+	return DEFAULT_COLORBLIND_PALETTE

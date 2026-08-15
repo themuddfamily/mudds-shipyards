@@ -7,6 +7,20 @@ extends Node
 ## this node becomes ready. Cue requests only select a resident template and one
 ## of four replacement-style effect voices; no request creates an AudioStreamWAV.
 
+## Announces that a named cue event occurred. This describes the *event*, not the
+## backend: it fires even when audio is unavailable, so the caption channel stays
+## correct under a Dummy driver or a muted mix. Footsteps deliberately have no
+## cue ID; they are far too frequent to caption.
+signal cue_started(cue_id: StringName)
+
+const CUE_UI_CONFIRM: StringName = &"ui_confirm"
+const CUE_IMPACT: StringName = &"impact"
+const CUE_TARGET_DESTROYED: StringName = &"target_destroyed"
+const CUE_COMBAT_ALERT: StringName = &"combat_alert"
+const CUE_CANOPY_OPEN: StringName = &"canopy_open"
+const CUE_CANOPY_CLOSE: StringName = &"canopy_close"
+const CUE_ENEMY_DESTROYED: StringName = &"enemy_destroyed"
+
 const SAMPLE_RATE := 22050
 const EFFECT_VOICE_COUNT := 4
 const SEQUENCE_TIMER_COUNT := 3
@@ -173,24 +187,29 @@ func _exit_tree() -> void:
 
 
 func play_ui_confirm() -> void:
+	cue_started.emit(CUE_UI_CONFIRM)
 	_play_resident(STREAM_UI_CONFIRM, &"UI", -7.0)
 
 
 func play_impact() -> void:
+	cue_started.emit(CUE_IMPACT)
 	_play_resident(STREAM_IMPACT, &"Weapons", -1.0)
 
 
 func play_target_destroyed() -> void:
+	cue_started.emit(CUE_TARGET_DESTROYED)
 	if _play_resident(STREAM_TARGET_DESTROYED_PRIMARY, &"Weapons", -1.0):
 		_restart_sequence_timer(_target_destroyed_timer)
 
 
 func play_combat_alert() -> void:
+	cue_started.emit(CUE_COMBAT_ALERT)
 	if _play_resident(STREAM_COMBAT_ALERT_PRIMARY, &"UI", -4.0):
 		_restart_sequence_timer(_combat_alert_timer)
 
 
 func play_canopy(opening: bool) -> void:
+	cue_started.emit(CUE_CANOPY_OPEN if opening else CUE_CANOPY_CLOSE)
 	_play_resident(
 		STREAM_CANOPY_OPEN if opening else STREAM_CANOPY_CLOSE,
 		&"Ambience",
@@ -199,6 +218,7 @@ func play_canopy(opening: bool) -> void:
 
 
 func play_enemy_destroyed() -> void:
+	cue_started.emit(CUE_ENEMY_DESTROYED)
 	if _play_resident(STREAM_ENEMY_DESTROYED_PRIMARY, &"Weapons", 0.0):
 		_restart_sequence_timer(_enemy_destroyed_timer)
 

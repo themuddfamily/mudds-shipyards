@@ -65,6 +65,23 @@ The project starts at 1280×720 and scales its 1600×900 UI viewport to the wind
 
 The pause settings panel exposes separate ship and on-foot mouse sensitivity and invert-Y options, shared camera FOV, Master/Ambience/Engines/Weapons/UI volumes, Low/Medium/High graphics profiles, and Windowed/Borderless/Fullscreen display modes. Changes preview immediately; **Save settings** stores validated values through Godot's `ConfigFile` API at `user://settings.cfg`, while **Restore defaults** reapplies and saves the authored defaults.
 
+Every value is clamped or rejected at the settings resource, not at the widget: out-of-range numbers clamp to their bounds, `NaN`/infinite values fall back to the authored default, unknown enum IDs resolve to the authored choice, and a missing, unparsable, or unsupported-schema file leaves the live settings untouched. Saves are staged, verified, and published as a recoverable same-directory replacement, so an interrupted write never destroys the last known-good file. The file carries a schema version; files written by an older supported schema still load, and keys the older writer never stored take their authored defaults.
+
+### Accessibility presets
+
+An **Accessibility** group in the same panel adds four presentation-only presets. None of them change flight handling, deadzones, combat balance, or the sampled `ShipCommand` path.
+
+| Preset | Effect |
+|---|---|
+| HUD and menu scale | Scales the HUD panels and the pause/settings panels from 75% to 160%. The reticle and flight-path cue stay 1:1 with the camera. The request is capped at the largest factor whose layout still fits the current viewport, so a large request on a small window never overlaps readouts. |
+| Colour-vision preset | Off / Deuteranopia / Protanopia / Tritanopia. Retints the HUD's four state roles (nominal, caution, danger, muted) live. |
+| Reduced motion | Damps the full-screen damage flash to a low-alpha hold with no animated fade, removes the toast and intro cross-fades, and snaps every chase boom to the physical hull by zeroing its authored presentation lag. The directional damage cue is kept: it is information, not motion. |
+| Audio cue captions | Prints authored audio cue events as readable text above the telemetry panel, keeping the three most recent lines. Captions describe cue *events*, so they stay correct even when the audio backend is unavailable. Footsteps are deliberately excluded. |
+
+The colour-vision presets are verified rather than asserted. `tests/accessibility_presets_test.gd` simulates each palette through the Machado et al. (2009) severity-1.0 dichromacy matrices and scores every state-role pair with CIEDE2000. The authored palette collapses to a minimum separation of **11.6** under deuteranopia (amber caution against red danger), 14.1 under protanopia, and 17.4 under tritanopia. The presets measure **24.4**, **29.2**, and **30.6** respectively under the deficiency each targets, while keeping at least 26.0 separation for normal colour vision and at least a 5.5:1 contrast ratio against the HUD panel. Rendered evidence is in `artifacts/accessibility/`.
+
+Colour is never the only channel: engine state, hull state, throttle direction, and enemy status all carry their state as text alongside the colour.
+
 Modern and Classic control descriptors are also shown. They document the current modern layout and the surviving `Y`/`X`/`H`/`F`/`G`-style legacy actions; Classic is currently a descriptor, not a complete alternate `InputMap` or a claim that one historical build's controls have been reconstructed exactly.
 
 ## Controls

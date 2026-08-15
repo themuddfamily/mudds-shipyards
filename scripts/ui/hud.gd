@@ -2,6 +2,7 @@ class_name GameHUD
 extends CanvasLayer
 
 const FlightPathCueType := preload("res://scripts/ui/flight_path_cue.gd")
+const PaletteType := preload("res://scripts/ui/hud_palette.gd")
 
 signal start_requested
 signal restart_requested
@@ -12,17 +13,66 @@ signal settings_reset_requested
 const INK := Color("07111d")
 const PANEL := Color("101c2bd9")
 const PANEL_SOLID := Color("0c1724")
-const CYAN := Color("62e6ef")
-const CYAN_SOFT := Color("a9f7f5")
-const AMBER := Color("ffb85c")
-const RED := Color("ff6b64")
-const WHITE := Color("edfaff")
-const MUTED := Color("87a8b5")
+
+## Semantic role names. Every state-bearing readout resolves its colour through
+## these instead of a fixed constant, so a colour-vision preset can retint the
+## complete HUD without any element being missed.
+const NOMINAL := PaletteType.ROLE_NOMINAL
+const NOMINAL_SOFT := PaletteType.ROLE_NOMINAL_SOFT
+const CAUTION := PaletteType.ROLE_CAUTION
+const DANGER := PaletteType.ROLE_DANGER
+const PRIMARY := PaletteType.ROLE_PRIMARY
+const MUTED := PaletteType.ROLE_MUTED
+
+## Captions describe cue *events*, so they stay correct even when the audio
+## backend is unavailable. Cues with no entry here are deliberately silent in the
+## caption channel; footsteps in particular would drown every other line.
+const CAPTION_TEXTS := {
+	&"ui_confirm": "[ interface confirm ]",
+	&"impact": "[ hull impact ]",
+	&"target_destroyed": "[ range target destroyed ]",
+	&"combat_alert": "[ combat alert ]",
+	&"canopy_open": "[ canopy opening ]",
+	&"canopy_close": "[ canopy closing ]",
+	&"enemy_destroyed": "[ hostile craft destroyed ]",
+	&"player_pulse_fire": "[ pulse cannon fires ]",
+	&"defender_pulse_fire": "[ hostile pulse fire ]",
+	&"dry_fire_click": "[ weapon dry click ]",
+	&"hull_impact_light": "[ light hull impact ]",
+	&"hull_impact_medium": "[ hull impact ]",
+	&"hull_impact_heavy": "[ heavy hull impact ]",
+	&"ship_explosion": "[ ship explosion ]",
+}
+
+const CAPTION_HISTORY_LIMIT := 3
+const CAPTION_HOLD_SECONDS := 3.4
+
+## Reduced motion keeps the informational content of the damage cue but removes
+## the full-screen luminance sweep and the animated fades that cause discomfort.
+const DAMAGE_FLASH_ALPHA := 0.24
+const REDUCED_DAMAGE_FLASH_ALPHA := 0.07
+const DAMAGE_FLASH_FADE_SECONDS := 0.42
+const DAMAGE_DIRECTION_FADE_SECONDS := 0.62
+const REDUCED_MOTION_HOLD_SECONDS := 0.45
+## Smallest logical layout the HUD panels were authored for. The gameplay panels
+## use fixed pixel offsets, so scaling past the point where that layout stops
+## fitting the viewport makes readouts overlap instead of becoming more legible.
+## The requested scale is therefore capped, never silently allowed to collide.
+const MIN_LOGICAL_WIDTH := 1180.0
+const MIN_LOGICAL_HEIGHT := 690.0
+const MIN_UI_SCALE := 0.75
+const MAX_UI_SCALE := 1.6
+
+const TOAST_FADE_IN_SECONDS := 0.18
+const TOAST_FADE_OUT_SECONDS := 0.35
+const INTRO_FADE_SECONDS := 0.45
 
 var _root: Control
 var _intro: Control
 var _hud: Control
+var _hud_panels: Control
 var _pause: Control
+var _pause_panels: Control
 var _pause_main_page: Control
 var _settings_page: Control
 var _settings_controls: Dictionary = {}
@@ -62,11 +112,48 @@ var _started := false
 var _active_ship_name := "TORRENT-CLASS INTERCEPTOR"
 var _active_ship_role := "INTERCEPTOR"
 
+var _palette_mode: StringName = PaletteType.MODE_NONE
+var _palette: Dictionary = PaletteType.get_palette(PaletteType.MODE_NONE)
+## Every element whose colour is a palette role, recorded as it is built so a
+## preset change retints the live HUD without rebuilding or reloading it.
+var _palette_targets: Array[Dictionary] = []
+var _ui_scale := 1.0
+var _reduced_motion := false
+var _captions_enabled := false
+## Containers whose contents scale with the UI-scale preference. The reticle,
+## flight-path cue, and damage flash are deliberately excluded: they are
+## registered against camera-space pixels and must stay 1:1 with the viewport.
+var _scaled_layers: Array[Control] = []
+var _caption_panel: PanelContainer
+var _caption_stack: VBoxContainer
+var _caption_lines: Array[Label] = []
+var _caption_log: Array[String] = []
+var _caption_hold := 0.0
+## Last known signal state, so a palette change repaints state colours
+## immediately instead of waiting for the next telemetry tick.
+var _state_piloting := false
+var _state_engine := "OFFLINE"
+var _state_damage := "HEALTHY"
+var _state_throttle_reverse := false
+var _state_enemy_breaking := false
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_interface()
 	set_process_unhandled_input(true)
+	set_process(true)
+	var viewport := get_viewport()
+	if viewport != null and not viewport.size_changed.is_connected(_apply_ui_scale):
+		viewport.size_changed.connect(_apply_ui_scale)
+
+
+func _process(delta: float) -> void:
+	if _caption_hold <= 0.0:
+		return
+	_caption_hold = maxf(_caption_hold - delta, 0.0)
+	if _caption_hold <= 0.0:
+		_clear_captions()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -93,8 +180,9 @@ func show_intro() -> void:
 
 func set_mode(mode: String) -> void:
 	var piloting := mode.to_lower().contains("pilot")
+	_state_piloting = piloting
 	_mode_label.text = "PILOTING  //  %s" % _active_ship_name if piloting else "ON FOOT  //  REGENERATION DECK"
-	_mode_label.modulate = AMBER if piloting else CYAN
+	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
 	_telemetry_panel.visible = piloting
 	_reticle.visible = piloting
 	if _flight_cue_layer != null:
@@ -147,6 +235,8 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	var maximum_hull: float = maxf(0.001, float(data.get("maximum_hull", 100.0)))
 	var hull: float = clampf(float(data.get("hull", maximum_hull)), 0.0, maximum_hull)
 	var damage_status := str(data.get("damage_status", "healthy")).to_upper()
+	_state_damage = damage_status
+	_state_throttle_reverse = throttle < -0.04
 	var engine_power := clampf(float(data.get("engine_power", 1.0)), 0.0, 1.0)
 	_speed_label.text = "%03d" % roundi(speed)
 	_altitude_label.text = "%04d M" % roundi(altitude)
@@ -154,13 +244,13 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	_throttle_label.text = "THROTTLE  //  %s" % (
 		"REVERSE" if throttle < -0.04 else ("FORWARD" if throttle > 0.04 else "NEUTRAL")
 	)
-	_throttle_label.modulate = AMBER if throttle < -0.04 else MUTED
+	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
 	_damage_status_label.text = "HULL  //  %s    ENGINE OUTPUT  %03d%%" % [
 		damage_status,
 		roundi(engine_power * 100.0),
 	]
-	_damage_status_label.modulate = RED if damage_status == "CRITICAL" else (AMBER if damage_status == "DAMAGED" else MUTED)
+	_damage_status_label.modulate = _damage_status_color(damage_status)
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
 		_flight_cue_layer.update_from_telemetry(data)
@@ -190,11 +280,12 @@ func get_flight_cue_report() -> Dictionary:
 
 func set_engine_state(state: String) -> void:
 	var normalized := state.to_upper()
+	_state_engine = normalized
 	_engine_label.text = "ENGINE  //  " + normalized
 	match normalized:
-		"ONLINE": _engine_label.modulate = CYAN
-		"STARTING": _engine_label.modulate = AMBER
-		_: _engine_label.modulate = RED
+		"ONLINE": _engine_label.modulate = _c(NOMINAL)
+		"STARTING": _engine_label.modulate = _c(CAUTION)
+		_: _engine_label.modulate = _c(DANGER)
 
 
 func set_target_count(destroyed: int, total: int) -> void:
@@ -208,19 +299,20 @@ func set_enemy_status(display_name: String, current: float, maximum: float, visi
 	_enemy_name_label.text = display_name.to_upper()
 	var safe_maximum := maxf(maximum, 0.001)
 	var ratio := clampf(current / safe_maximum, 0.0, 1.0)
+	_state_enemy_breaking = ratio <= 0.35
 	_enemy_health_bar.value = ratio * 100.0
 	_enemy_status_label.text = "%03d%%  //  %s" % [
 		roundi(ratio * 100.0),
 		"BREAKING" if ratio <= 0.35 else "ENGAGED",
 	]
-	_enemy_health_bar.modulate = RED if ratio <= 0.35 else AMBER
+	_enemy_health_bar.modulate = _c(DANGER) if ratio <= 0.35 else _c(CAUTION)
 
 
 func flash_damage(intensity: float = 1.0, direction: Vector2 = Vector2.ZERO) -> void:
 	var strength := clampf(intensity, 0.2, 1.0)
 	if is_instance_valid(_damage_tween):
 		_damage_tween.kill()
-	_damage_flash.color = Color(0.95, 0.08, 0.035, 0.24 * strength)
+	_damage_flash.color = Color(0.95, 0.08, 0.035, get_damage_flash_alpha() * strength)
 	_damage_flash.modulate = Color.WHITE
 	var normalized_direction := direction.normalized() if not direction.is_zero_approx() else Vector2.UP
 	var viewport_size := get_viewport().get_visible_rect().size
@@ -238,9 +330,20 @@ func flash_damage(intensity: float = 1.0, direction: Vector2 = Vector2.ZERO) -> 
 	_damage_direction.modulate = Color(1.0, 1.0, 1.0, strength)
 	_damage_direction.visible = true
 	_damage_tween = create_tween()
+	if _reduced_motion:
+		# Reduced motion keeps the direction of the hit legible but removes the
+		# animated full-screen luminance sweep: the cue simply holds, then clears.
+		_damage_tween.tween_interval(REDUCED_MOTION_HOLD_SECONDS)
+		_damage_tween.tween_callback(func() -> void:
+			_damage_flash.modulate = Color.TRANSPARENT
+			_damage_direction.modulate = Color.TRANSPARENT
+			_damage_direction.visible = false
+			_damage_tween = null
+		)
+		return
 	_damage_tween.set_parallel(true)
-	_damage_tween.tween_property(_damage_flash, "modulate", Color.TRANSPARENT, 0.42)
-	_damage_tween.tween_property(_damage_direction, "modulate", Color.TRANSPARENT, 0.62)
+	_damage_tween.tween_property(_damage_flash, "modulate", Color.TRANSPARENT, DAMAGE_FLASH_FADE_SECONDS)
+	_damage_tween.tween_property(_damage_direction, "modulate", Color.TRANSPARENT, DAMAGE_DIRECTION_FADE_SECONDS)
 	_damage_tween.chain().tween_callback(func() -> void:
 		_damage_direction.visible = false
 		_damage_tween = null
@@ -254,13 +357,13 @@ func toast(title: String, detail: String = "", duration: float = 3.2) -> void:
 	var serial := _toast_serial
 	_toast_title.text = title.to_upper()
 	_toast_detail.text = detail
-	_toast_panel.modulate = Color.TRANSPARENT
+	_toast_panel.modulate = Color.WHITE if _reduced_motion else Color.TRANSPARENT
 	_toast_panel.visible = true
 	_toast_tween = create_tween()
 	_toast_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_toast_tween.tween_property(_toast_panel, "modulate", Color.WHITE, 0.18)
+	_toast_tween.tween_property(_toast_panel, "modulate", Color.WHITE, get_toast_fade_seconds())
 	_toast_tween.tween_interval(duration)
-	_toast_tween.tween_property(_toast_panel, "modulate", Color.TRANSPARENT, 0.35)
+	_toast_tween.tween_property(_toast_panel, "modulate", Color.TRANSPARENT, get_toast_fade_seconds())
 	_toast_tween.tween_callback(func() -> void:
 		if serial == _toast_serial:
 			_toast_panel.visible = false
@@ -305,8 +408,226 @@ func set_settings_status(text: String, success: bool = true) -> void:
 	if _settings_status_label == null:
 		return
 	_settings_status_label.text = text
-	_settings_status_label.modulate = CYAN_SOFT if success else RED
+	_settings_status_label.modulate = _c(NOMINAL_SOFT) if success else _c(DANGER)
 	_settings_status_label.visible = not text.is_empty()
+
+
+## Applies a complete accessibility descriptor from
+## [method RuntimeSettings.get_accessibility_descriptor]. Missing keys keep the
+## current value, and every supplied value is revalidated here so the HUD can
+## never be driven into an unreadable state by a malformed caller.
+func set_accessibility(descriptor: Dictionary) -> void:
+	if descriptor.has("ui_scale"):
+		set_ui_scale(float(descriptor["ui_scale"]))
+	if descriptor.has("colorblind_palette_id"):
+		set_hud_palette(StringName(str(descriptor["colorblind_palette_id"])))
+	if descriptor.has("reduced_motion"):
+		set_reduced_motion(bool(descriptor["reduced_motion"]))
+	if descriptor.has("captions_enabled"):
+		set_captions_enabled(bool(descriptor["captions_enabled"]))
+
+
+## Retints every registered element. An unknown ID resolves to the authored
+## palette rather than leaving a half-applied preset on screen.
+func set_hud_palette(mode_id: StringName) -> void:
+	var resolved := mode_id if PaletteType.has_mode(mode_id) else PaletteType.MODE_NONE
+	_palette_mode = resolved
+	_palette = PaletteType.get_palette(resolved)
+	# The help panel rebuilds its labels whenever the control hints change, so
+	# prune retired targets here rather than letting the registry grow forever.
+	var live: Array[Dictionary] = []
+	for entry in _palette_targets:
+		if _apply_palette_target(entry):
+			live.append(entry)
+	_palette_targets = live
+	_refresh_state_tints()
+
+
+func get_hud_palette_id() -> StringName:
+	return _palette_mode
+
+
+## Clamps a requested scale, then caps it at the largest factor whose logical
+## layout still fits `viewport_size`. Exposed so callers and tests can reason
+## about the ceiling without owning a viewport.
+static func compute_effective_ui_scale(requested: float, viewport_size: Vector2) -> float:
+	var validated := requested
+	if is_nan(validated) or is_inf(validated):
+		validated = 1.0
+	validated = clampf(validated, MIN_UI_SCALE, MAX_UI_SCALE)
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return validated
+	var ceiling := minf(
+		viewport_size.x / MIN_LOGICAL_WIDTH,
+		viewport_size.y / MIN_LOGICAL_HEIGHT
+	)
+	return minf(validated, maxf(ceiling, MIN_UI_SCALE))
+
+
+func set_ui_scale(scale: float) -> void:
+	var validated := scale
+	if is_nan(validated) or is_inf(validated):
+		validated = 1.0
+	_ui_scale = clampf(validated, MIN_UI_SCALE, MAX_UI_SCALE)
+	_apply_ui_scale()
+
+
+## The scale the player asked for, which persists unchanged across resolutions.
+func get_ui_scale() -> float:
+	return _ui_scale
+
+
+## The scale actually in use once the current viewport's layout ceiling is
+## applied. A small window honours less of a large request than a large one.
+func get_effective_ui_scale() -> float:
+	return compute_effective_ui_scale(_ui_scale, _viewport_size())
+
+
+func set_reduced_motion(enabled: bool) -> void:
+	_reduced_motion = enabled
+
+
+func is_reduced_motion() -> bool:
+	return _reduced_motion
+
+
+func get_damage_flash_alpha() -> float:
+	return REDUCED_DAMAGE_FLASH_ALPHA if _reduced_motion else DAMAGE_FLASH_ALPHA
+
+
+func get_toast_fade_seconds() -> float:
+	return 0.0 if _reduced_motion else TOAST_FADE_OUT_SECONDS
+
+
+func set_captions_enabled(enabled: bool) -> void:
+	if _captions_enabled == enabled:
+		return
+	_captions_enabled = enabled
+	if not enabled:
+		_clear_captions()
+	elif _caption_panel != null:
+		_caption_panel.visible = not _caption_log.is_empty()
+
+
+func are_captions_enabled() -> bool:
+	return _captions_enabled
+
+
+## Presents one authored audio cue as readable text. Cues without an authored
+## caption are ignored, and nothing is shown while captions are disabled.
+func caption_cue(cue_id: StringName) -> bool:
+	if not _captions_enabled or not CAPTION_TEXTS.has(cue_id):
+		return false
+	return show_caption(str(CAPTION_TEXTS[cue_id]))
+
+
+func show_caption(text: String) -> bool:
+	if not _captions_enabled or _caption_panel == null:
+		return false
+	var line := text.strip_edges()
+	if line.is_empty():
+		return false
+	_caption_log.append(line)
+	while _caption_log.size() > CAPTION_HISTORY_LIMIT:
+		_caption_log.remove_at(0)
+	_refresh_caption_lines()
+	_caption_hold = CAPTION_HOLD_SECONDS
+	_caption_panel.visible = true
+	return true
+
+
+func get_caption_log() -> PackedStringArray:
+	return PackedStringArray(_caption_log)
+
+
+## Detached snapshot of everything a preset changed. Tests and the settings owner
+## read this instead of reaching into private HUD state.
+func get_accessibility_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"ui_scale": _ui_scale,
+		"effective_ui_scale": get_effective_ui_scale(),
+		"viewport_size": _viewport_size(),
+		"scaled_layer_count": _scaled_layers.size(),
+		"scaled_layer_scale": _scaled_layers[0].scale.x if not _scaled_layers.is_empty() else 1.0,
+		"reticle_scale": _reticle.scale.x if is_instance_valid(_reticle) else 1.0,
+		"palette": _palette_mode,
+		"palette_target_count": _palette_targets.size(),
+		"nominal_color": _c(NOMINAL),
+		"caution_color": _c(CAUTION),
+		"danger_color": _c(DANGER),
+		"muted_color": _c(MUTED),
+		"engine_label_color": _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
+		"hull_label_color": _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
+		"reduced_motion": _reduced_motion,
+		"damage_flash_alpha": get_damage_flash_alpha(),
+		"toast_fade_seconds": get_toast_fade_seconds(),
+		"captions_enabled": _captions_enabled,
+		"caption_visible": _caption_panel != null and _caption_panel.visible,
+		"caption_log": PackedStringArray(_caption_log),
+	}
+
+
+func _refresh_state_tints() -> void:
+	if is_instance_valid(_mode_label):
+		_mode_label.modulate = _c(CAUTION) if _state_piloting else _c(NOMINAL)
+	if is_instance_valid(_engine_label):
+		match _state_engine:
+			"ONLINE": _engine_label.modulate = _c(NOMINAL)
+			"STARTING": _engine_label.modulate = _c(CAUTION)
+			_: _engine_label.modulate = _c(DANGER)
+	if is_instance_valid(_throttle_label):
+		_throttle_label.modulate = _c(CAUTION) if _state_throttle_reverse else _c(MUTED)
+	if is_instance_valid(_damage_status_label):
+		_damage_status_label.modulate = _damage_status_color(_state_damage)
+	if is_instance_valid(_enemy_health_bar):
+		_enemy_health_bar.modulate = _c(DANGER) if _state_enemy_breaking else _c(CAUTION)
+
+
+func _apply_ui_scale() -> void:
+	var viewport_size := _viewport_size()
+	var effective := compute_effective_ui_scale(_ui_scale, viewport_size)
+	var logical := viewport_size / maxf(effective, 0.01)
+	for layer in _scaled_layers:
+		if not is_instance_valid(layer):
+			continue
+		layer.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		layer.position = Vector2.ZERO
+		layer.size = logical
+		layer.scale = Vector2(effective, effective)
+
+
+func _viewport_size() -> Vector2:
+	var viewport := get_viewport()
+	if viewport != null:
+		var rect := viewport.get_visible_rect().size
+		if rect.x > 1.0 and rect.y > 1.0:
+			return rect
+	return Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width", 1920)),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height", 1080))
+	)
+
+
+func _refresh_caption_lines() -> void:
+	for index in _caption_lines.size():
+		var label := _caption_lines[index]
+		var source_index := _caption_log.size() - _caption_lines.size() + index
+		if source_index < 0:
+			label.text = ""
+			label.visible = false
+			continue
+		label.text = _caption_log[source_index]
+		label.visible = true
+		label.modulate = Color(1.0, 1.0, 1.0, 0.55 if source_index < _caption_log.size() - 1 else 1.0)
+
+
+func _clear_captions() -> void:
+	_caption_log.clear()
+	_caption_hold = 0.0
+	_refresh_caption_lines()
+	if _caption_panel != null:
+		_caption_panel.visible = false
 
 
 func _begin() -> void:
@@ -315,7 +636,7 @@ func _begin() -> void:
 	_started = true
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.tween_property(_intro, "modulate", Color.TRANSPARENT, 0.45)
+	tween.tween_property(_intro, "modulate", Color.TRANSPARENT, 0.0 if _reduced_motion else INTRO_FADE_SECONDS)
 	tween.tween_callback(func() -> void:
 		_intro.visible = false
 		_hud.visible = true
@@ -333,6 +654,7 @@ func _build_interface() -> void:
 	_build_hud()
 	_build_pause()
 	_set_mouse_passthrough(_hud)
+	_apply_ui_scale()
 	show_intro()
 
 
@@ -366,17 +688,17 @@ func _build_intro() -> void:
 	stack.add_theme_constant_override("separation", 10)
 	corner.add_child(stack)
 
-	var eyebrow := _label("INSPIRED BY ZOLARKETH'S CLASSIC SANDBOX", 14, AMBER)
+	var eyebrow := _label("INSPIRED BY ZOLARKETH'S CLASSIC SANDBOX", 14, CAUTION)
 	eyebrow.add_theme_constant_override("outline_size", 5)
 	eyebrow.add_theme_color_override("font_outline_color", INK)
 	stack.add_child(eyebrow)
 
-	var title := _label("MUDDS", 82, WHITE)
+	var title := _label("MUDDS", 82, PRIMARY)
 	title.add_theme_constant_override("outline_size", 12)
 	title.add_theme_color_override("font_outline_color", INK)
 	stack.add_child(title)
 
-	var title_two := _label("SHIPYARDS", 54, CYAN)
+	var title_two := _label("SHIPYARDS", 54, NOMINAL)
 	title_two.add_theme_constant_override("outline_size", 10)
 	title_two.add_theme_color_override("font_outline_color", INK)
 	stack.add_child(title_two)
@@ -386,10 +708,10 @@ func _build_intro() -> void:
 
 	var rule := ColorRect.new()
 	rule.custom_minimum_size = Vector2(310.0, 3.0)
-	rule.color = AMBER
+	_tint_rect(rule, CAUTION)
 	stack.add_child(rule)
 
-	var copy := _label("Walk the yard. Board the ship. Start the engines.\nThe launch deck is waiting.", 18, WHITE)
+	var copy := _label("Walk the yard. Board the ship. Start the engines.\nThe launch deck is waiting.", 18, PRIMARY)
 	copy.add_theme_constant_override("line_spacing", 6)
 	stack.add_child(copy)
 
@@ -400,9 +722,9 @@ func _build_intro() -> void:
 	start.add_theme_font_size_override("font_size", 16)
 	start.add_theme_color_override("font_color", INK)
 	start.add_theme_color_override("font_hover_color", INK)
-	start.add_theme_stylebox_override("normal", _box(CYAN, 4, 0, Color.TRANSPARENT))
-	start.add_theme_stylebox_override("hover", _box(CYAN_SOFT, 4, 0, Color.TRANSPARENT))
-	start.add_theme_stylebox_override("pressed", _box(AMBER, 4, 0, Color.TRANSPARENT))
+	start.add_theme_stylebox_override("normal", _fill_box(NOMINAL, 4))
+	start.add_theme_stylebox_override("hover", _fill_box(NOMINAL_SOFT, 4))
+	start.add_theme_stylebox_override("pressed", _fill_box(CAUTION, 4))
 	start.pressed.connect(_begin)
 	stack.add_child(start)
 
@@ -420,33 +742,42 @@ func _build_hud() -> void:
 	_hud.visible = false
 	_root.add_child(_hud)
 
+	# Everything inside this container obeys the UI-scale preference. The reticle,
+	# flight-path cue, and damage flash are added to `_hud` directly because they
+	# are positioned from camera-space pixels and must not be rescaled.
+	_hud_panels = Control.new()
+	_hud_panels.name = "HudScaledPanels"
+	_hud_panels.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.add_child(_hud_panels)
+	_scaled_layers.append(_hud_panels)
+
 	var brand := VBoxContainer.new()
 	brand.position = Vector2(30.0, 26.0)
 	brand.size = Vector2(460.0, 96.0)
 	brand.add_theme_constant_override("separation", 2)
-	_hud.add_child(brand)
-	var brand_title := _label("MUDDS  /  SHIPYARDS", 20, WHITE)
+	_hud_panels.add_child(brand)
+	var brand_title := _label("MUDDS  /  SHIPYARDS", 20, PRIMARY)
 	brand.add_child(brand_title)
-	_mode_label = _label("ON FOOT  //  REGENERATION DECK", 12, CYAN)
+	_mode_label = _label("ON FOOT  //  REGENERATION DECK", 12, NOMINAL)
 	brand.add_child(_mode_label)
 	var brand_rule := ColorRect.new()
 	brand_rule.custom_minimum_size = Vector2(245.0, 2.0)
-	brand_rule.color = CYAN
+	_tint_rect(brand_rule, NOMINAL)
 	brand.add_child(brand_rule)
 
 	var objective := PanelContainer.new()
 	objective.position = Vector2(30.0, 126.0)
 	objective.size = Vector2(440.0, 112.0)
 	objective.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
-	_hud.add_child(objective)
+	_hud_panels.add_child(objective)
 	var objective_margin := _margin(18, 14, 18, 14)
 	objective.add_child(objective_margin)
 	var objective_stack := VBoxContainer.new()
 	objective_stack.add_theme_constant_override("separation", 6)
 	objective_margin.add_child(objective_stack)
-	_objective_kicker = _label("CURRENT OBJECTIVE", 11, AMBER)
+	_objective_kicker = _label("CURRENT OBJECTIVE", 11, CAUTION)
 	objective_stack.add_child(_objective_kicker)
-	_objective_label = _label("Approach the Torrent-class interceptor", 17, WHITE)
+	_objective_label = _label("Approach the Torrent-class interceptor", 17, PRIMARY)
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	objective_stack.add_child(_objective_label)
 	_target_label = _label("RANGE TARGETS  0 / 3", 11, MUTED)
@@ -459,7 +790,7 @@ func _build_hud() -> void:
 	_help_panel.offset_top = 28.0
 	_help_panel.offset_bottom = 342.0
 	_help_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
-	_hud.add_child(_help_panel)
+	_hud_panels.add_child(_help_panel)
 	_set_help_text([])
 
 	_interaction_panel = PanelContainer.new()
@@ -468,11 +799,11 @@ func _build_hud() -> void:
 	_interaction_panel.offset_right = 250.0
 	_interaction_panel.offset_top = -118.0
 	_interaction_panel.offset_bottom = -54.0
-	_interaction_panel.add_theme_stylebox_override("panel", _box(Color("101c2bf2"), 7, 1, CYAN))
-	_hud.add_child(_interaction_panel)
+	_interaction_panel.add_theme_stylebox_override("panel", _border_box(Color("101c2bf2"), 7, NOMINAL))
+	_hud_panels.add_child(_interaction_panel)
 	var interaction_margin := _margin(18, 12, 18, 12)
 	_interaction_panel.add_child(interaction_margin)
-	_interaction_label = _label("[ E ]  BOARD TORRENT", 15, WHITE)
+	_interaction_label = _label("[ E ]  BOARD TORRENT", 15, PRIMARY)
 	_interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	interaction_margin.add_child(_interaction_label)
 	_interaction_panel.visible = false
@@ -495,13 +826,14 @@ func _build_hud() -> void:
 		var mark := ColorRect.new()
 		mark.position = rect_data[0]
 		mark.size = rect_data[1]
-		mark.color = CYAN
+		_tint_rect(mark, NOMINAL)
 		_reticle.add_child(mark)
 	_reticle.visible = false
 
 	_build_telemetry()
 	_build_enemy_status()
 	_build_toast()
+	_build_captions()
 	_build_damage_flash()
 
 
@@ -513,33 +845,33 @@ func _build_telemetry() -> void:
 	_telemetry_panel.offset_top = -260.0
 	_telemetry_panel.offset_bottom = -28.0
 	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
-	_hud.add_child(_telemetry_panel)
+	_hud_panels.add_child(_telemetry_panel)
 	var margin := _margin(18, 15, 18, 15)
 	_telemetry_panel.add_child(margin)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 7)
 	margin.add_child(stack)
-	_engine_label = _label("ENGINE  //  OFFLINE", 12, RED)
+	_engine_label = _label("ENGINE  //  OFFLINE", 12, DANGER)
 	stack.add_child(_engine_label)
 	var readouts := HBoxContainer.new()
 	readouts.add_theme_constant_override("separation", 26)
 	stack.add_child(readouts)
 	var speed_stack := VBoxContainer.new()
 	readouts.add_child(speed_stack)
-	_speed_label = _label("000", 38, WHITE)
+	_speed_label = _label("000", 38, PRIMARY)
 	speed_stack.add_child(_speed_label)
 	speed_stack.add_child(_label("M / S", 10, MUTED))
 	var alt_stack := VBoxContainer.new()
 	readouts.add_child(alt_stack)
-	_altitude_label = _label("0000 M", 27, CYAN_SOFT)
+	_altitude_label = _label("0000 M", 27, NOMINAL_SOFT)
 	alt_stack.add_child(_altitude_label)
 	alt_stack.add_child(_label("ALTITUDE", 10, MUTED))
 	_throttle_label = _label("THROTTLE  //  NEUTRAL", 9, MUTED)
 	stack.add_child(_throttle_label)
-	_throttle_bar = _bar(CYAN)
+	_throttle_bar = _bar(NOMINAL)
 	stack.add_child(_throttle_bar)
 	stack.add_child(_label("HULL INTEGRITY", 9, MUTED))
-	_hull_bar = _bar(AMBER)
+	_hull_bar = _bar(CAUTION)
 	_hull_bar.value = 100.0
 	stack.add_child(_hull_bar)
 	_damage_status_label = _label("HULL  //  HEALTHY    ENGINE OUTPUT  100%", 9, MUTED)
@@ -554,17 +886,17 @@ func _build_toast() -> void:
 	_toast_panel.offset_right = 265.0
 	_toast_panel.offset_top = 32.0
 	_toast_panel.offset_bottom = 112.0
-	_toast_panel.add_theme_stylebox_override("panel", _box(PANEL_SOLID, 6, 1, AMBER))
-	_hud.add_child(_toast_panel)
+	_toast_panel.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 6, CAUTION))
+	_hud_panels.add_child(_toast_panel)
 	var margin := _margin(18, 10, 18, 10)
 	_toast_panel.add_child(margin)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 2)
 	margin.add_child(stack)
-	_toast_title = _label("SYSTEM ONLINE", 13, AMBER)
+	_toast_title = _label("SYSTEM ONLINE", 13, CAUTION)
 	_toast_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_toast_title)
-	_toast_detail = _label("", 12, WHITE)
+	_toast_detail = _label("", 12, PRIMARY)
 	_toast_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_toast_detail)
 	_toast_panel.visible = false
@@ -577,8 +909,8 @@ func _build_enemy_status() -> void:
 	_enemy_panel.offset_right = 238.0
 	_enemy_panel.offset_top = 124.0
 	_enemy_panel.offset_bottom = 192.0
-	_enemy_panel.add_theme_stylebox_override("panel", _box(Color("180f16e8"), 7, 1, RED))
-	_hud.add_child(_enemy_panel)
+	_enemy_panel.add_theme_stylebox_override("panel", _border_box(Color("180f16e8"), 7, DANGER))
+	_hud_panels.add_child(_enemy_panel)
 	var margin := _margin(16, 9, 16, 9)
 	_enemy_panel.add_child(margin)
 	var stack := VBoxContainer.new()
@@ -586,15 +918,43 @@ func _build_enemy_status() -> void:
 	margin.add_child(stack)
 	var heading := HBoxContainer.new()
 	stack.add_child(heading)
-	_enemy_name_label = _label("RANGE DEFENCE INTERCEPTOR", 11, WHITE)
+	_enemy_name_label = _label("RANGE DEFENCE INTERCEPTOR", 11, PRIMARY)
 	_enemy_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(_enemy_name_label)
-	_enemy_status_label = _label("100%  //  ENGAGED", 10, AMBER)
+	_enemy_status_label = _label("100%  //  ENGAGED", 10, CAUTION)
 	heading.add_child(_enemy_status_label)
-	_enemy_health_bar = _bar(AMBER)
+	_enemy_health_bar = _bar(CAUTION)
 	_enemy_health_bar.value = 100.0
 	stack.add_child(_enemy_health_bar)
 	_enemy_panel.visible = false
+
+
+func _build_captions() -> void:
+	_caption_panel = PanelContainer.new()
+	_caption_panel.name = "CaptionPanel"
+	_caption_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	# Seated entirely above the telemetry panel's top edge (-260) and above the
+	# interaction prompt, so captions never cover speed, altitude, hull state, or
+	# the board/dock prompt at any supported UI scale.
+	_caption_panel.offset_left = -250.0
+	_caption_panel.offset_right = 250.0
+	_caption_panel.offset_top = -358.0
+	_caption_panel.offset_bottom = -268.0
+	_caption_panel.add_theme_stylebox_override("panel", _border_box(Color("06101ae8"), 6, NOMINAL_SOFT))
+	_hud_panels.add_child(_caption_panel)
+	var margin := _margin(16, 10, 16, 10)
+	_caption_panel.add_child(margin)
+	_caption_stack = VBoxContainer.new()
+	_caption_stack.add_theme_constant_override("separation", 3)
+	margin.add_child(_caption_stack)
+	for index in CAPTION_HISTORY_LIMIT:
+		var line := _label("", 15, PRIMARY)
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.visible = false
+		_caption_stack.add_child(line)
+		_caption_lines.append(line)
+	_caption_panel.visible = false
 
 
 func _build_damage_flash() -> void:
@@ -604,7 +964,7 @@ func _build_damage_flash() -> void:
 	_damage_flash.modulate = Color.TRANSPARENT
 	_damage_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_damage_flash)
-	_damage_direction = _label("▲", 30, RED)
+	_damage_direction = _label("▲", 30, DANGER)
 	_damage_direction.size = Vector2(50.0, 50.0)
 	_damage_direction.pivot_offset = Vector2(25.0, 25.0)
 	_damage_direction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -628,6 +988,12 @@ func _build_pause() -> void:
 	dim.color = Color("020711c7")
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pause.add_child(dim)
+	# The dimmer stays viewport-sized; only the readable panels scale.
+	_pause_panels = Control.new()
+	_pause_panels.name = "PauseScaledPanels"
+	_pause_panels.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause.add_child(_pause_panels)
+	_scaled_layers.append(_pause_panels)
 	_build_pause_main_page()
 	_build_settings_page()
 	_show_pause_main()
@@ -640,35 +1006,35 @@ func _build_pause_main_page() -> void:
 	_pause_main_page.position = Vector2(-240.0, -204.0)
 	_pause_main_page.size = Vector2(480.0, 408.0)
 	_pause_main_page.mouse_filter = Control.MOUSE_FILTER_STOP
-	_pause_main_page.add_theme_stylebox_override("panel", _box(PANEL_SOLID, 10, 1, CYAN))
-	_pause.add_child(_pause_main_page)
+	_pause_main_page.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 10, NOMINAL))
+	_pause_panels.add_child(_pause_main_page)
 	var margin := _margin(34, 28, 34, 28)
 	_pause_main_page.add_child(margin)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 12)
 	margin.add_child(stack)
-	var paused_title := _label("SHIFT PAUSED", 30, WHITE)
+	var paused_title := _label("SHIFT PAUSED", 30, PRIMARY)
 	paused_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(paused_title)
 	var paused_subtitle := _label("Station systems remain on standby.", 13, MUTED)
 	paused_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(paused_subtitle)
-	var resume := _menu_button("RESUME", CYAN)
+	var resume := _menu_button("RESUME", NOMINAL)
 	resume.name = "ResumeButton"
 	resume.pressed.connect(func() -> void: set_paused(false))
 	stack.add_child(resume)
-	var settings := _menu_button("SETTINGS", CYAN_SOFT)
+	var settings := _menu_button("SETTINGS", NOMINAL_SOFT)
 	settings.name = "SettingsOpenButton"
 	settings.pressed.connect(_show_settings_page)
 	stack.add_child(settings)
-	var restart := _menu_button("RESTART SHIFT", AMBER)
+	var restart := _menu_button("RESTART SHIFT", CAUTION)
 	restart.name = "RestartButton"
 	restart.pressed.connect(func() -> void:
 		set_paused(false)
 		restart_requested.emit()
 	)
 	stack.add_child(restart)
-	var exit := _menu_button("EXIT TO DESKTOP", RED)
+	var exit := _menu_button("EXIT TO DESKTOP", DANGER)
 	exit.name = "ExitButton"
 	exit.pressed.connect(func() -> void: get_tree().quit())
 	stack.add_child(exit)
@@ -681,8 +1047,8 @@ func _build_settings_page() -> void:
 	_settings_page.position = Vector2(-430.0, -330.0)
 	_settings_page.size = Vector2(860.0, 660.0)
 	_settings_page.mouse_filter = Control.MOUSE_FILTER_STOP
-	_settings_page.add_theme_stylebox_override("panel", _box(PANEL_SOLID, 10, 1, CYAN))
-	_pause.add_child(_settings_page)
+	_settings_page.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 10, NOMINAL))
+	_pause_panels.add_child(_settings_page)
 
 	var margin := _margin(30, 24, 30, 24)
 	_settings_page.add_child(margin)
@@ -697,12 +1063,12 @@ func _build_settings_page() -> void:
 	heading_copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading_copy.add_theme_constant_override("separation", 2)
 	heading.add_child(heading_copy)
-	heading_copy.add_child(_label("SHIP SYSTEM SETTINGS", 25, WHITE))
+	heading_copy.add_child(_label("SHIP SYSTEM SETTINGS", 25, PRIMARY))
 	heading_copy.add_child(_label("Tune flight, camera, display and mix. Changes preview immediately.", 12, MUTED))
 	var header_rule := ColorRect.new()
 	header_rule.custom_minimum_size = Vector2(92.0, 3.0)
 	header_rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header_rule.color = AMBER
+	_tint_rect(header_rule, CAUTION)
 	header_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	heading.add_child(header_rule)
 
@@ -748,24 +1114,40 @@ func _build_settings_page() -> void:
 	_add_slider_setting(audio_group, &"weapons_volume", "Weapons", 0.0, 1.0, 0.01, 1.0)
 	_add_slider_setting(audio_group, &"ui_volume", "Interface", 0.0, 1.0, 0.01, 1.0)
 
+	var accessibility_group := _settings_group(
+		right_column,
+		"ACCESSIBILITY",
+		"Presentation only. Flight handling is never changed."
+	)
+	_add_slider_setting(accessibility_group, &"ui_scale", "HUD and menu scale", 0.75, 1.6, 0.05, 1.0)
+	_add_option_setting(
+		accessibility_group,
+		&"colorblind_palette",
+		"Colour-vision preset",
+		["Off", "Deuteranopia", "Protanopia", "Tritanopia"],
+		0
+	)
+	_add_toggle_setting(accessibility_group, &"reduced_motion", "Reduced motion", false)
+	_add_toggle_setting(accessibility_group, &"captions_enabled", "Audio cue captions", false)
+
 	var hint_panel := PanelContainer.new()
 	hint_panel.add_theme_stylebox_override("panel", _box(Color("122638"), 5, 1, Color("315367")))
 	right_column.add_child(hint_panel)
 	var hint_margin := _margin(14, 12, 14, 12)
 	hint_panel.add_child(hint_margin)
-	var hint := _label("TIP  //  Start with the cockpit camera and lower steering sensitivity if the nose feels too eager.", 11, CYAN_SOFT)
+	var hint := _label("TIP  //  Start with the cockpit camera and lower steering sensitivity if the nose feels too eager.", 11, NOMINAL_SOFT)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint_margin.add_child(hint)
 
 	var footer := HBoxContainer.new()
 	footer.add_theme_constant_override("separation", 10)
 	page_stack.add_child(footer)
-	var save := _menu_button("APPLY + SAVE", CYAN)
+	var save := _menu_button("APPLY + SAVE", NOMINAL)
 	save.name = "SettingsSaveButton"
 	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	save.pressed.connect(func() -> void: settings_save_requested.emit())
 	footer.add_child(save)
-	var reset := _menu_button("RESET DEFAULTS", AMBER)
+	var reset := _menu_button("RESET DEFAULTS", CAUTION)
 	reset.name = "SettingsResetButton"
 	reset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reset.pressed.connect(func() -> void: settings_reset_requested.emit())
@@ -775,7 +1157,7 @@ func _build_settings_page() -> void:
 	back.custom_minimum_size.x = 150.0
 	back.pressed.connect(_show_pause_main)
 	footer.add_child(back)
-	_settings_status_label = _label("", 10, CYAN_SOFT)
+	_settings_status_label = _label("", 10, NOMINAL_SOFT)
 	_settings_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_status_label.visible = false
 	page_stack.add_child(_settings_status_label)
@@ -791,7 +1173,7 @@ func _settings_group(parent: VBoxContainer, title: String, detail: String) -> VB
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 9)
 	margin.add_child(stack)
-	stack.add_child(_label(title, 12, AMBER))
+	stack.add_child(_label(title, 12, CAUTION))
 	stack.add_child(_label(detail, 10, MUTED))
 	return stack
 
@@ -811,10 +1193,10 @@ func _add_slider_setting(
 	parent.add_child(row)
 	var copy := HBoxContainer.new()
 	row.add_child(copy)
-	var title_label := _label(title, 11, WHITE)
+	var title_label := _label(title, 11, PRIMARY)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	copy.add_child(title_label)
-	var value_label := _label("", 10, CYAN_SOFT)
+	var value_label := _label("", 10, NOMINAL_SOFT)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.custom_minimum_size.x = 68.0
 	copy.add_child(value_label)
@@ -830,10 +1212,10 @@ func _add_slider_setting(
 	var slider_track := _box(Color("29475b"), 4, 0, Color.TRANSPARENT)
 	slider_track.content_margin_top = 3.0
 	slider_track.content_margin_bottom = 3.0
-	var slider_fill := _box(CYAN.darkened(0.28), 4, 0, Color.TRANSPARENT)
+	var slider_fill := _fill_box(NOMINAL, 4, 0.28)
 	slider_fill.content_margin_top = 3.0
 	slider_fill.content_margin_bottom = 3.0
-	var slider_fill_highlight := _box(CYAN, 4, 0, Color.TRANSPARENT)
+	var slider_fill_highlight := _fill_box(NOMINAL, 4)
 	slider_fill_highlight.content_margin_top = 3.0
 	slider_fill_highlight.content_margin_bottom = 3.0
 	slider.add_theme_stylebox_override("slider", slider_track)
@@ -853,8 +1235,8 @@ func _add_toggle_setting(parent: VBoxContainer, key: StringName, title: String, 
 	toggle.button_pressed = initial
 	toggle.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	toggle.add_theme_font_size_override("font_size", 11)
-	toggle.add_theme_color_override("font_color", WHITE)
-	toggle.add_theme_color_override("font_hover_color", CYAN_SOFT)
+	_tint_theme_color(toggle, &"font_color", PRIMARY)
+	_tint_theme_color(toggle, &"font_hover_color", NOMINAL_SOFT)
 	toggle.toggled.connect(func(value: bool) -> void: _on_setting_value_changed(key, value))
 	parent.add_child(toggle)
 	_settings_controls[key] = toggle
@@ -871,15 +1253,15 @@ func _add_option_setting(
 	row.name = String(key).to_pascal_case() + "Row"
 	row.add_theme_constant_override("separation", 4)
 	parent.add_child(row)
-	row.add_child(_label(title, 11, WHITE))
+	row.add_child(_label(title, 11, PRIMARY))
 	var selector := OptionButton.new()
 	selector.name = String(key).to_pascal_case() + "Control"
 	selector.custom_minimum_size.y = 38.0
 	selector.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	selector.add_theme_font_size_override("font_size", 11)
-	selector.add_theme_color_override("font_color", WHITE)
+	_tint_theme_color(selector, &"font_color", PRIMARY)
 	selector.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
-	selector.add_theme_stylebox_override("hover", _box(Color("173044"), 4, 1, CYAN))
+	selector.add_theme_stylebox_override("hover", _border_box(Color("173044"), 4, NOMINAL))
 	for option: Variant in options:
 		selector.add_item(str(option))
 	selector.select(initial)
@@ -933,11 +1315,11 @@ func _set_help_text(rows: Array) -> void:
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 7)
 	margin.add_child(stack)
-	var heading := _label("CONTROLS  //  F1", 11, AMBER)
+	var heading := _label("CONTROLS  //  F1", 11, CAUTION)
 	stack.add_child(heading)
 	for row: Array in rows:
 		var line := HBoxContainer.new()
-		var key := _label(str(row[0]), 11, CYAN_SOFT)
+		var key := _label(str(row[0]), 11, NOMINAL_SOFT)
 		key.custom_minimum_size.x = 92.0
 		line.add_child(key)
 		line.add_child(_label(str(row[1]), 10, MUTED))
@@ -945,12 +1327,84 @@ func _set_help_text(rows: Array) -> void:
 	_set_mouse_passthrough(_help_panel)
 
 
-func _label(text: String, size: int, color: Color) -> Label:
+func _label(text: String, size: int, role: StringName) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", color)
+	_tint_theme_color(label, &"font_color", role)
 	return label
+
+
+## Resolves a semantic role to the colour of the active palette.
+func _c(role: StringName) -> Color:
+	return _palette.get(role, _palette[PaletteType.ROLE_PRIMARY]) as Color
+
+
+func _damage_status_color(damage_status: String) -> Color:
+	if damage_status == "CRITICAL":
+		return _c(DANGER)
+	return _c(CAUTION) if damage_status == "DAMAGED" else _c(MUTED)
+
+
+func _register_palette_target(entry: Dictionary) -> void:
+	_palette_targets.append(entry)
+	_apply_palette_target(entry)
+
+
+func _tint_theme_color(node: Control, property: StringName, role: StringName) -> void:
+	_register_palette_target({"kind": &"theme_color", "node": node, "property": property, "role": role})
+
+
+func _tint_rect(rect: ColorRect, role: StringName) -> void:
+	_register_palette_target({"kind": &"rect", "node": rect, "role": role})
+
+
+func _fill_box(role: StringName, radius: int, darken := 0.0) -> StyleBoxFlat:
+	var box := _box(Color.TRANSPARENT, radius, 0, Color.TRANSPARENT)
+	_register_palette_target({"kind": &"box_fill", "box": box, "role": role, "darken": darken})
+	return box
+
+
+func _border_box(fill: Color, radius: int, role: StringName) -> StyleBoxFlat:
+	var box := _box(fill, radius, 1, Color.TRANSPARENT)
+	_register_palette_target({"kind": &"box_border", "box": box, "role": role, "darken": 0.0})
+	return box
+
+
+## Repaints one registered element. Returns false when the target no longer
+## exists, which is how retired help-panel labels leave the registry.
+func _apply_palette_target(entry: Dictionary) -> bool:
+	var role := StringName(entry.get("role", PRIMARY))
+	var color := _c(role)
+	var darken := float(entry.get("darken", 0.0))
+	if darken > 0.0:
+		color = color.darkened(darken)
+	match StringName(entry.get("kind", &"")):
+		&"theme_color":
+			var raw_node: Variant = entry.get("node")
+			if not is_instance_valid(raw_node):
+				return false
+			(raw_node as Control).add_theme_color_override(String(entry["property"]), color)
+			return true
+		&"rect":
+			var raw_rect: Variant = entry.get("node")
+			if not is_instance_valid(raw_rect):
+				return false
+			(raw_rect as ColorRect).color = color
+			return true
+		&"box_fill":
+			var fill_box := entry.get("box") as StyleBoxFlat
+			if fill_box == null:
+				return false
+			fill_box.bg_color = color
+			return true
+		&"box_border":
+			var border_box := entry.get("box") as StyleBoxFlat
+			if border_box == null:
+				return false
+			border_box.border_color = color
+			return true
+	return false
 
 
 func _box(color: Color, radius: int, border_width: int, border_color: Color) -> StyleBoxFlat:
@@ -977,25 +1431,37 @@ func _margin(left: int, top: int, right: int, bottom: int) -> MarginContainer:
 	return margin
 
 
-func _bar(fill_color: Color) -> ProgressBar:
+func _bar(role: StringName) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(0.0, 8.0)
 	bar.show_percentage = false
 	bar.add_theme_stylebox_override("background", _box(Color("213444"), 3, 0, Color.TRANSPARENT))
-	bar.add_theme_stylebox_override("fill", _box(fill_color, 3, 0, Color.TRANSPARENT))
+	bar.add_theme_stylebox_override("fill", _fill_box(role, 3))
 	return bar
 
 
-func _menu_button(text: String, color: Color) -> Button:
+func _menu_button(text: String, role: StringName) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size.y = 48.0
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", 13)
-	button.add_theme_color_override("font_color", WHITE)
+	_tint_theme_color(button, &"font_color", PRIMARY)
 	button.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
-	button.add_theme_stylebox_override("hover", _box(color.darkened(0.55), 4, 1, color))
-	button.add_theme_stylebox_override("pressed", _box(color.darkened(0.35), 4, 1, color))
+	var hover := _fill_box(role, 4, 0.55)
+	hover.border_width_left = 1
+	hover.border_width_top = 1
+	hover.border_width_right = 1
+	hover.border_width_bottom = 1
+	_register_palette_target({"kind": &"box_border", "box": hover, "role": role, "darken": 0.0})
+	var pressed := _fill_box(role, 4, 0.35)
+	pressed.border_width_left = 1
+	pressed.border_width_top = 1
+	pressed.border_width_right = 1
+	pressed.border_width_bottom = 1
+	_register_palette_target({"kind": &"box_border", "box": pressed, "role": role, "darken": 0.0})
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
 	return button
 
 
