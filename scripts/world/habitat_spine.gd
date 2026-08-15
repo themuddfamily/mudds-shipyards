@@ -282,6 +282,7 @@ func get_evidence_metadata() -> Dictionary:
 			"six-alcove arrangement and observation/common room function",
 			"service systems, furniture layout, pressure shell, connector, and door mechanics",
 			"the existence and location of the sealed deferred branch",
+			"the project-original station panel material family mapped across floors, walls, and walking lanes",
 		]),
 		"explicit_unknowns": PackedStringArray([
 			"recording date and exact fixed-build revision",
@@ -484,6 +485,10 @@ func _create_materials() -> void:
 	_materials["structural"] = _material(Color("35464a"), 0.58, 0.34)
 	_materials["graphite"] = _material(Color("172226"), 0.48, 0.46)
 	_materials["rubber"] = _material(Color("101719"), 0.04, 0.88)
+	# `floor` is used only by the connector inset, the corridor walking lane and
+	# the observation-common inset. Those are the surfaces the player actually
+	# walks on, so they belong to the station panel family rather than reading as
+	# one flat unmapped plane inside a mapped floor.
 	_materials["floor"] = _material(Color("667579"), 0.35, 0.48)
 	_materials["teal"] = _material(Color("55d8dc"), 0.14, 0.3, Color("2ab8c0"), 1.4)
 	_materials["teal_dim"] = _material(Color("326a70"), 0.32, 0.42, Color("258f96"), 0.35)
@@ -499,7 +504,7 @@ func _create_materials() -> void:
 	var pressure_panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
 	var pressure_panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
 	if pressure_panel_albedo != null and pressure_panel_normal != null and pressure_panel_roughness != null:
-		for key in ["shell_light", "shell_light_floor", "shell_mid"]:
+		for key in ["shell_light", "shell_light_floor", "shell_mid", "floor"]:
 			var panel_material := _materials[key] as StandardMaterial3D
 			panel_material.albedo_texture = pressure_panel_albedo
 			panel_material.normal_enabled = true

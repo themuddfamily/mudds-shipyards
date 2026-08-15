@@ -231,6 +231,7 @@ func get_evidence_metadata() -> Dictionary:
 			"asymmetric two-level arrangement",
 			"operations furniture and service wall",
 			"door mechanics and exact adjacency",
+			"the project-original station panel material family mapped across floors, stair ramp, and pressure plates",
 		]),
 	}
 
@@ -407,7 +408,13 @@ func _create_materials() -> void:
 	_materials["warm_grey"] = _material(Color("818b8b"), 0.46, 0.39)
 	_materials["warm_grey_floor"] = _material(Color("818b8b"), 0.46, 0.39)
 	_materials["mid_grey"] = _material(Color("526166"), 0.58, 0.31)
+	# Floor-role twins of the structural greys. The continuous stair ramp and the
+	# operations-room pressure plates are walked-on station surfaces, so they join
+	# the station panel family while the identically coloured structural beams,
+	# frames and vents stay untextured.
+	_materials["mid_grey_floor"] = _material(Color("526166"), 0.58, 0.31)
 	_materials["hull_dark"] = _material(Color("29363a"), 0.62, 0.28)
+	_materials["hull_dark_floor"] = _material(Color("29363a"), 0.62, 0.28)
 	_materials["graphite"] = _material(Color("141d21"), 0.48, 0.47)
 	_materials["rubber"] = _material(Color("101719"), 0.06, 0.86)
 	_materials["cyan"] = _material(Color("55dce2"), 0.12, 0.34, Color("3acbd3"), 1.45)
@@ -426,7 +433,15 @@ func _create_materials() -> void:
 	var pressure_panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
 	var pressure_panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
 	if pressure_panel_albedo != null and pressure_panel_normal != null and pressure_panel_roughness != null:
-		for key in ["off_white", "off_white_floor", "panel_light", "warm_grey", "warm_grey_floor"]:
+		for key in [
+			"off_white",
+			"off_white_floor",
+			"panel_light",
+			"warm_grey",
+			"warm_grey_floor",
+			"mid_grey_floor",
+			"hull_dark_floor",
+		]:
 			var panel_material := _materials[key] as StandardMaterial3D
 			panel_material.albedo_texture = pressure_panel_albedo
 			panel_material.normal_enabled = true
@@ -549,7 +564,7 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	var ramp_mesh := BoxMesh.new()
 	ramp_mesh.size = Vector3(STAIR_CLEAR_WIDTH, 0.22, ramp_length)
 	ramp_mesh_instance.mesh = ramp_mesh
-	ramp_mesh_instance.material_override = _materials["mid_grey"]
+	ramp_mesh_instance.material_override = _materials["mid_grey_floor"]
 	ramp.add_child(ramp_mesh_instance)
 	var ramp_collision := CollisionShape3D.new()
 	ramp_collision.name = "RampCollision"
@@ -687,7 +702,7 @@ func _build_operations_room(structure: Node3D) -> void:
 				"FloorPressurePlate",
 				Vector3(float(floor_x), 0.015, float(floor_z)),
 				Vector3(3.45, 0.025, 2.25),
-				_materials["hull_dark"] if int(floor_x * 10.0 + floor_z * 10.0) % 2 else _materials["mid_grey"],
+				_materials["hull_dark_floor"] if int(floor_x * 10.0 + floor_z * 10.0) % 2 else _materials["mid_grey_floor"],
 				false
 			)
 		for seam_z in [11.85, 14.45]:
