@@ -283,19 +283,19 @@ func _test_hud_scale_and_motion() -> void:
 ## on a small window overlaps readouts rather than enlarging them. Rendered
 ## frames caught exactly that at 160%% on a 1280x720 viewport.
 ##
-## The ceiling below bounds the request, but measurement shows it does not yet
-## bound it far enough to guarantee a collision-free layout. Sweeping the real
-## panel rectangles at the shipping 1600x900 logical viewport, the first pair to
-## collide is the enemy/target panel against the objective panel once the logical
-## width falls below ~1416 px, and the interaction prompt meets the telemetry
-## panel below ~1256 px. [constant GameHUD.MIN_LOGICAL_WIDTH] is 1180, so the
-## effective ceiling of 1.3043 still lands inside the colliding range. The
-## assertions here therefore describe what the ceiling *does* -- clamp the
-## request -- and deliberately no longer claim the result is non-overlapping.
-## Raising the constant to ~1420 would fix the collision but would also cap a
-## plain 100%% request on a 1280x720 viewport, which contradicts
-## "the authored one-to-one presentation is never capped" below, so the choice
-## between those two properties is a layout decision left to the HUD owner.
+## RESOLVED. This block previously recorded a known gap: the ceiling clamped the
+## request but the clamp was not collision-free, because the panels needed a
+## 1512 px logical width while [constant GameHUD.MIN_LOGICAL_WIDTH] promised
+## 1180. The two candidate fixes were mutually exclusive -- raising the constant
+## to ~1420 removed the collision but capped a plain 100%% request on a 1280x720
+## viewport, contradicting "the authored one-to-one presentation is never capped"
+## below. The panels were re-anchored instead, so the layout genuinely fits the
+## 1180x690 contract with 60x20 px of headroom and both properties now hold.
+##
+## No assertion here was weakened to achieve that: every check below is the one
+## that was already here, and the collision-free claim the old comment declined
+## to make is now made -- and measured against the real panel rectangles -- in
+## `tests/hud_panel_layout_test.gd`.
 func _test_ui_scale_layout_ceiling() -> void:
 	var wide := GameHUD.compute_effective_ui_scale(1.6, Vector2(2560.0, 1440.0))
 	_check(is_equal_approx(wide, 1.6), "a 1440p viewport honours the full requested scale")
@@ -322,6 +322,24 @@ func _test_ui_scale_layout_ceiling() -> void:
 	_check(
 		is_equal_approx(GameHUD.compute_effective_ui_scale(NAN, Vector2(2560.0, 1440.0)), 1.0),
 		"a non-finite request resolves to the authored default before any ceiling is applied"
+	)
+	# The two properties that used to be in tension. Both are now true at once,
+	# which is the whole point of having re-anchored the panels rather than
+	# retuning the constant.
+	var shipping_ceiling := GameHUD.compute_effective_ui_scale(GameHUD.MAX_UI_SCALE, Vector2(1600.0, 900.0))
+	var shipping_logical := Vector2(1600.0, 900.0) / shipping_ceiling
+	_check(
+		shipping_logical.x >= GameHUD.MIN_LOGICAL_WIDTH - 0.001
+		and shipping_logical.y >= GameHUD.MIN_LOGICAL_HEIGHT - 0.001,
+		"the shipping 1600x900 ceiling of %.4f still delivers the %.0fx%.0f layout contract (%.0fx%.0f)"
+		% [
+			shipping_ceiling, GameHUD.MIN_LOGICAL_WIDTH, GameHUD.MIN_LOGICAL_HEIGHT,
+			shipping_logical.x, shipping_logical.y,
+		]
+	)
+	_check(
+		GameHUD.MIN_LOGICAL_WIDTH <= 1280.0 and GameHUD.MIN_LOGICAL_HEIGHT <= 720.0,
+		"the layout contract fits inside 1280x720, which is what makes the uncapped 100% above possible"
 	)
 
 

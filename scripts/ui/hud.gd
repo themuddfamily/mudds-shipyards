@@ -54,23 +54,39 @@ const REDUCED_DAMAGE_FLASH_ALPHA := 0.07
 const DAMAGE_FLASH_FADE_SECONDS := 0.42
 const DAMAGE_DIRECTION_FADE_SECONDS := 0.62
 const REDUCED_MOTION_HOLD_SECONDS := 0.45
-## Smallest logical layout the HUD panels were authored for. The gameplay panels
+## Smallest logical layout the HUD panels are authored for. The gameplay panels
 ## use fixed pixel offsets, so scaling past the point where that layout stops
 ## fitting the viewport makes readouts overlap instead of becoming more legible.
 ## The requested scale is therefore capped rather than honoured without limit.
 ##
-## KNOWN GAP: the width here is not yet tight enough to make that cap
-## collision-free. Measuring the real panel rectangles shows the enemy/target
-## panel meets the objective panel once the logical width drops below ~1416 px,
-## and the interaction prompt meets the telemetry panel below ~1256 px, so a
-## 1180 px floor still admits both collisions -- at the shipping 1600x900 logical
-## viewport the ceiling resolves to 1.3043, which is inside the colliding range.
-## Raising this to ~1420 removes the collision but would also cap a plain 100%
-## request on a 1280x720 viewport, so closing the gap properly means moving the
-## panels rather than only retuning this number. The vertical floor is sound:
-## the caption panel clears the telemetry panel by ~8 px at 690.
+## This is a *contract*, not an estimate: [method get_hud_panel_rects] measures
+## the real rectangles and `tests/hud_panel_layout_test.gd` proves every pair is
+## disjoint from this size upwards, for the worst-case text the game sets. The
+## panels were re-anchored to honour it -- see [constant PANEL_LEFT_COLUMN_WIDTH]
+## -- rather than raising the floor, because raising it to the ~1512 px the
+## original offsets needed would also cap a plain 100% request on a 1280x720
+## viewport and cost every player scale headroom on a 900p or 1080p screen.
 const MIN_LOGICAL_WIDTH := 1180.0
 const MIN_LOGICAL_HEIGHT := 690.0
+
+## The gameplay HUD is a three-column layout: a fixed left gutter (wordmark and
+## objective), a fixed right gutter (controls and telemetry), and a centre band
+## that carries the transient panels. Every collision this layout can suffer is
+## one of the centre panels meeting a gutter, and each such clearance is monotone
+## in the logical width -- the gutters are pinned to the edges while the centre
+## panels track the midpoint -- so proving the layout at
+## [constant MIN_LOGICAL_WIDTH] proves it for every larger size.
+##
+## Measured worst-case content minimums at the time these were chosen (logical
+## px): objective 154x125, controls 273x391, telemetry 226x217, toast 385x59,
+## interaction 417x48, enemy 322x48, wordmark 254x51. Each width below keeps a
+## margin over its minimum so a longer string grows the panel instead of pushing
+## it into a neighbour.
+const PANEL_MARGIN := 28.0
+const PANEL_LEFT_COLUMN_WIDTH := 350.0
+const PANEL_BRAND_WIDTH := 262.0
+const PANEL_TELEMETRY_WIDTH := 312.0
+const PANEL_HELP_WIDTH := 272.0
 const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
 
@@ -90,6 +106,8 @@ var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 var _settings_status_label: Label
 var _updating_settings := false
+var _brand_block: VBoxContainer
+var _objective_panel: PanelContainer
 var _objective_label: Label
 var _objective_kicker: Label
 var _interaction_panel: PanelContainer
@@ -481,6 +499,58 @@ static func compute_effective_ui_scale(requested: float, viewport_size: Vector2)
 	return minf(validated, maxf(ceiling, MIN_UI_SCALE))
 
 
+## Every gameplay HUD panel's live rectangle, in the logical (pre-scale) space of
+## the scaled panel layer, keyed by a stable name. Exposed so the layout contract
+## in [constant MIN_LOGICAL_WIDTH] can be *measured* rather than asserted by
+## inspection: two panels overlapping here is exactly the defect where a readout
+## occludes another. Only laid-out panels appear; visibility is deliberately
+## ignored, because a panel that is hidden right now still has to have somewhere
+## to go when it appears.
+func get_hud_panel_rects() -> Dictionary:
+	var sources := {
+		"brand": _brand_block,
+		"objective": _objective_panel,
+		"help": _help_panel,
+		"interaction": _interaction_panel,
+		"telemetry": _telemetry_panel,
+		"toast": _toast_panel,
+		"enemy": _enemy_panel,
+		"caption": _caption_panel,
+	}
+	var rects := {}
+	for key: String in sources:
+		var control := sources[key] as Control
+		if is_instance_valid(control):
+			rects[key] = control.get_rect()
+	return rects
+
+
+## Lays the scaled layers out for an explicit viewport instead of the live one,
+## and returns the effective factor that was applied. This is the single code
+## path [method _apply_ui_scale] uses, exposed so the layout regression measures
+## the shipping layout at window sizes a headless run cannot give the window.
+func layout_for_viewport(viewport_size: Vector2) -> float:
+	var effective := compute_effective_ui_scale(_ui_scale, viewport_size)
+	var logical := viewport_size / maxf(effective, 0.01)
+	for layer in _scaled_layers:
+		if not is_instance_valid(layer):
+			continue
+		layer.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		layer.position = Vector2.ZERO
+		layer.size = logical
+		layer.scale = Vector2(effective, effective)
+	return effective
+
+
+## The logical size the gameplay panels are currently laid out into. This is the
+## viewport divided by the effective scale, and is what the panel rectangles from
+## [method get_hud_panel_rects] are expressed in.
+func get_hud_logical_size() -> Vector2:
+	if _hud_panels != null and is_instance_valid(_hud_panels):
+		return _hud_panels.size
+	return _viewport_size()
+
+
 func set_ui_scale(scale: float) -> void:
 	var validated := scale
 	if is_nan(validated) or is_inf(validated):
@@ -602,16 +672,7 @@ func _refresh_state_tints() -> void:
 
 
 func _apply_ui_scale() -> void:
-	var viewport_size := _viewport_size()
-	var effective := compute_effective_ui_scale(_ui_scale, viewport_size)
-	var logical := viewport_size / maxf(effective, 0.01)
-	for layer in _scaled_layers:
-		if not is_instance_valid(layer):
-			continue
-		layer.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		layer.position = Vector2.ZERO
-		layer.size = logical
-		layer.scale = Vector2(effective, effective)
+	layout_for_viewport(_viewport_size())
 
 
 func _viewport_size() -> Vector2:
@@ -745,7 +806,11 @@ func _build_intro() -> void:
 	start.pressed.connect(_begin)
 	stack.add_child(start)
 
-	var footer := _label("STANDALONE FAN PROTOTYPE  •  NO ROBLOX REQUIRED", 11, MUTED)
+	# "STANDALONE FAN PROTOTYPE" is the in-game half of the unofficial-fan-project
+	# boundary README and ROADMAP rely on, so the footer stays. The second clause
+	# it used to carry was dropped after a playtest; the label is right-aligned
+	# inside a fixed box, so the shorter string moves no edge.
+	var footer := _label("STANDALONE FAN PROTOTYPE", 11, MUTED)
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	footer.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	footer.position = Vector2(-570.0, -42.0)
@@ -768,27 +833,34 @@ func _build_hud() -> void:
 	_hud.add_child(_hud_panels)
 	_scaled_layers.append(_hud_panels)
 
-	var brand := VBoxContainer.new()
-	brand.position = Vector2(30.0, 26.0)
-	brand.size = Vector2(460.0, 96.0)
-	brand.add_theme_constant_override("separation", 2)
-	_hud_panels.add_child(brand)
-	var brand_title := _label("MUDDS  /  SHIPYARDS", 20, PRIMARY)
-	brand.add_child(brand_title)
+	# Sized to its own wordmark rather than to a round number. The block used to
+	# reserve 460x96 for 254x51 of text, and that empty reservation is what the
+	# centre-top toast was measured as colliding with.
+	_brand_block = VBoxContainer.new()
+	_brand_block.name = "BrandBlock"
+	_brand_block.position = Vector2(30.0, 26.0)
+	_brand_block.size = Vector2(PANEL_BRAND_WIDTH, 84.0)
+	_brand_block.add_theme_constant_override("separation", 2)
+	_hud_panels.add_child(_brand_block)
+	_brand_block.add_child(_label("MUDDS  /  SHIPYARDS", 20, PRIMARY))
 	_mode_label = _label("ON FOOT  //  REGENERATION DECK", 12, NOMINAL)
-	brand.add_child(_mode_label)
+	_brand_block.add_child(_mode_label)
 	var brand_rule := ColorRect.new()
 	brand_rule.custom_minimum_size = Vector2(245.0, 2.0)
 	_tint_rect(brand_rule, NOMINAL)
-	brand.add_child(brand_rule)
+	_brand_block.add_child(brand_rule)
 
-	var objective := PanelContainer.new()
-	objective.position = Vector2(30.0, 126.0)
-	objective.size = Vector2(440.0, 112.0)
-	objective.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
-	_hud_panels.add_child(objective)
+	# The objective card defines the left gutter. It is narrower than the original
+	# 440 so the centre-top enemy readout clears it at MIN_LOGICAL_WIDTH; the text
+	# wraps to one more line instead of being occluded by that readout.
+	_objective_panel = PanelContainer.new()
+	_objective_panel.name = "ObjectivePanel"
+	_objective_panel.position = Vector2(30.0, 126.0)
+	_objective_panel.size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
+	_objective_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
+	_hud_panels.add_child(_objective_panel)
 	var objective_margin := _margin(18, 14, 18, 14)
-	objective.add_child(objective_margin)
+	_objective_panel.add_child(objective_margin)
 	var objective_stack := VBoxContainer.new()
 	objective_stack.add_theme_constant_override("separation", 6)
 	objective_margin.add_child(objective_stack)
@@ -801,19 +873,25 @@ func _build_hud() -> void:
 	objective_stack.add_child(_target_label)
 
 	_help_panel = PanelContainer.new()
+	_help_panel.name = "HelpPanel"
 	_help_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_help_panel.offset_left = -300.0
-	_help_panel.offset_right = -28.0
+	_help_panel.offset_left = -(PANEL_HELP_WIDTH + PANEL_MARGIN)
+	_help_panel.offset_right = -PANEL_MARGIN
 	_help_panel.offset_top = 28.0
 	_help_panel.offset_bottom = 342.0
 	_help_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_help_panel)
 	_set_help_text([])
 
+	# Narrowed from +/-250 so the prompt clears the telemetry column at
+	# MIN_LOGICAL_WIDTH. 430 still clears the longest authored prompt ("Clear the
+	# berth before requesting a return approach", 417 px) on one line, and the
+	# label wraps rather than widening the panel if a longer one is ever added.
 	_interaction_panel = PanelContainer.new()
+	_interaction_panel.name = "InteractionPanel"
 	_interaction_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_interaction_panel.offset_left = -250.0
-	_interaction_panel.offset_right = 250.0
+	_interaction_panel.offset_left = -215.0
+	_interaction_panel.offset_right = 215.0
 	_interaction_panel.offset_top = -118.0
 	_interaction_panel.offset_bottom = -54.0
 	_interaction_panel.add_theme_stylebox_override("panel", _border_box(Color("101c2bf2"), 7, NOMINAL))
@@ -822,6 +900,7 @@ func _build_hud() -> void:
 	_interaction_panel.add_child(interaction_margin)
 	_interaction_label = _label("[ E ]  BOARD TORRENT", 15, PRIMARY)
 	_interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_interaction_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	interaction_margin.add_child(_interaction_label)
 	_interaction_panel.visible = false
 
@@ -855,12 +934,17 @@ func _build_hud() -> void:
 
 
 func _build_telemetry() -> void:
+	# The telemetry card defines the right gutter below the controls card. It is
+	# narrower and shorter than the original 350x232 so the bottom-centre
+	# interaction prompt clears it horizontally and the controls card clears it
+	# vertically at the MIN_LOGICAL_WIDTH x MIN_LOGICAL_HEIGHT floor.
 	_telemetry_panel = PanelContainer.new()
+	_telemetry_panel.name = "TelemetryPanel"
 	_telemetry_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_telemetry_panel.offset_left = -378.0
-	_telemetry_panel.offset_right = -28.0
-	_telemetry_panel.offset_top = -260.0
-	_telemetry_panel.offset_bottom = -28.0
+	_telemetry_panel.offset_left = -(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN)
+	_telemetry_panel.offset_right = -PANEL_MARGIN
+	_telemetry_panel.offset_top = -250.0
+	_telemetry_panel.offset_bottom = -PANEL_MARGIN
 	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_telemetry_panel)
 	var margin := _margin(18, 15, 18, 15)
@@ -898,9 +982,10 @@ func _build_telemetry() -> void:
 
 func _build_toast() -> void:
 	_toast_panel = PanelContainer.new()
+	_toast_panel.name = "ToastPanel"
 	_toast_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_toast_panel.offset_left = -265.0
-	_toast_panel.offset_right = 265.0
+	_toast_panel.offset_left = -255.0
+	_toast_panel.offset_right = 255.0
 	_toast_panel.offset_top = 32.0
 	_toast_panel.offset_bottom = 112.0
 	_toast_panel.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 6, CAUTION))
@@ -915,15 +1000,22 @@ func _build_toast() -> void:
 	stack.add_child(_toast_title)
 	_toast_detail = _label("", 12, PRIMARY)
 	_toast_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_toast_detail)
 	_toast_panel.visible = false
 
 
 func _build_enemy_status() -> void:
+	# Narrowed from +/-238. This readout shares its band with the objective card,
+	# and at MIN_LOGICAL_WIDTH a 476 px centred panel reached 118 px into it --
+	# the measured defect that hid the objective text. There is no vertical slot
+	# for it instead: the gap between the objective card and the caption panel is
+	# 81 px at MIN_LOGICAL_HEIGHT and this readout is 68 px tall.
 	_enemy_panel = PanelContainer.new()
+	_enemy_panel.name = "EnemyPanel"
 	_enemy_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_enemy_panel.offset_left = -238.0
-	_enemy_panel.offset_right = 238.0
+	_enemy_panel.offset_left = -180.0
+	_enemy_panel.offset_right = 180.0
 	_enemy_panel.offset_top = 124.0
 	_enemy_panel.offset_bottom = 192.0
 	_enemy_panel.add_theme_stylebox_override("panel", _border_box(Color("180f16e8"), 7, DANGER))
@@ -950,13 +1042,15 @@ func _build_captions() -> void:
 	_caption_panel = PanelContainer.new()
 	_caption_panel.name = "CaptionPanel"
 	_caption_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	# Seated entirely above the telemetry panel's top edge (-260) and above the
+	# Seated entirely above the telemetry panel's top edge (-250) and above the
 	# interaction prompt, so captions never cover speed, altitude, hull state, or
-	# the board/dock prompt at any supported UI scale.
-	_caption_panel.offset_left = -250.0
-	_caption_panel.offset_right = 250.0
-	_caption_panel.offset_top = -358.0
-	_caption_panel.offset_bottom = -268.0
+	# the board/dock prompt at any supported UI scale. The three caption lines
+	# push the real height to 94 px, so the authored 90 px band is the floor, not
+	# the actual extent -- the clearance below is measured against 94.
+	_caption_panel.offset_left = -235.0
+	_caption_panel.offset_right = 235.0
+	_caption_panel.offset_top = -362.0
+	_caption_panel.offset_bottom = -272.0
 	_caption_panel.add_theme_stylebox_override("panel", _border_box(Color("06101ae8"), 6, NOMINAL_SOFT))
 	_hud_panels.add_child(_caption_panel)
 	var margin := _margin(16, 10, 16, 10)
