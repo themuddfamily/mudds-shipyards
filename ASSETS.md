@@ -18,7 +18,10 @@ subdivisions and cautiously indexed pod-like forms may be claimed as B7-directed
 The upload date does not date the recording or game build, the A5/B7 Interceptor
 versus A9 Fighter conflict remains unresolved, and exact construction, scale,
 access, materials, systems, handling and berth placement remain modern or
-unknown.
+unknown. On 2026-08-15 the runtime hull tint moved from `#e6e2d5` to `#bac8d6`
+under the fleet readability palette recorded further down this register; that is
+a modern swatch change inside the observed pale read, and it neither adds nor
+weakens any B7 claim.
 
 ### `art_source/zenith/zenith_authored_v1.blend`
 
@@ -306,7 +309,10 @@ to those ships.
 - Purpose: original warm pearl-grey cargo-spacecraft panel albedo used by the
   provisional Jovian light freighter. Its larger service hatches and restrained
   teal/amber inspection marks distinguish the freighter from the Arrow's small
-  ceramic-composite pattern.
+  ceramic-composite pattern. The image itself is unchanged; since 2026-08-15 the
+  runtime multiplies it by the warm clay-sand fleet readability tint recorded
+  above, so the rendered freighter hull is warmer and deeper than this swatch
+  alone.
 - Created: 2026-08-12 with OpenAI's built-in image generation tool.
 - Project status: newly generated project asset; not sourced from Roblox or the
   original Keth Shipyards. The material is a modern, provisional visual design.
@@ -377,6 +383,78 @@ scans, or final hand-authored ORM sets. The original v1 pass deliberately wrappe
 its samples at every edge so those legacy derivatives preserve their source tile
 boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
 
+## Fleet readability palette (runtime scalar tints)
+
+- Purpose: separate the four flyable craft by colour so at-a-glance
+  identification does not rest on silhouette and scale alone. Before this pass
+  all four shared one near-white body tone whose closest pair measured CIEDE2000
+  0.82 in normal vision and 0.45 under simulated deuteranopia — below the
+  just-noticeable difference — while the Arrow/Jovian/Zenith identification
+  accents clustered in cyan-teal at 6.40 under simulated protanopia.
+- Created: 2026-08-15. These are **hand-picked scalar `albedo_color` values
+  chosen by numeric search against the CIEDE2000 and Viénot 1999 dichromat
+  maths in `tests/fleet_colour_metrics.gd`**. They are not authored artwork, not
+  baked, not scanned, not sampled from any source recording, and no new image
+  asset was produced for them. No hull albedo, normal or roughness map changed;
+  each craft's bound map is multiplied by the new tint at runtime.
+- Project status: modern project-original visual design. It authenticates
+  nothing and raises no `name_to_model_status`.
+
+| Craft | Body tone before | Body tone after | Accent before | Accent after | Defined in |
+| --- | --- | --- | --- | --- | --- |
+| Torrent | `#e8e2cf` | `#e8e2cf` (unchanged) | `#f0b94d` | `#f0b94d` (unchanged) | `scenes/ships/presentation/torrent_hero_presentation.gd`, `scripts/ships/hero_ship.gd` |
+| Zenith | `#e6e2d5` | `#bac8d6` | `#c9dee0` | `#2f5fbe` | `scenes/ships/presentation/zenith_authored_presentation.gd`, `scenes/ships/zenith_interceptor.tscn` |
+| Arrow | `#e9eee9` | `#7891ab` | `#45dee6` | `#45dee6` (unchanged) | `scripts/ships/arrow_recon_ship.gd` |
+| Jovian | `#e7e4d6` | `#e0ab74` | `#38bdb5` | `#b32620` | `scripts/ships/jovian_light_freighter.gd`, `scenes/ships/jovian_light_freighter.tscn` |
+
+The subordinate hull tone of each changed craft moved with its primary so the
+primary stays the brightest large surface: Arrow `CERAMIC` `#c7d2ce` →
+`#66798d`, Jovian `HULL_COOL` `#bbc8c5` → `#bd9270`, Zenith
+`PaleFacetSecondary` `#aeb1aa` → `#97a3ad`.
+
+Evidence boundary observed for each craft, checked against
+`docs/research/ship_evidence_matrix.json` and the two reconstruction
+specifications rather than assumed:
+
+- **Torrent — bounded, so unchanged.** `docs/TORRENT_2011_RECONSTRUCTION_SPEC.md`
+  registers a source-observed exterior palette of "high-value low-saturation
+  off-white/light grey across all silhouette-defining masses" and requires at
+  least about 70% of the source-core exterior to stay pale and low-saturation.
+  Its warm ivory and warm gold were therefore left exactly as they were, and the
+  Torrent hero Blender asset and its baked derivatives are untouched.
+- **Zenith — bounded, but only in relative value.** The B7 source core records a
+  "pale width-dominant full-delta/arrow planform", and
+  `docs/ZENITH_B7_RECONSTRUCTION_SPEC.md` states B7 "supports relative value,
+  not an exact albedo swatch, paint system, reflectance or weathering level" and
+  explicitly does not establish "exact colours, materials, PBR response". The
+  new `#bac8d6` is a pale light-grey at L\* 79.96, so the observed pale read is
+  preserved while the exact swatch — which no source establishes — moves off the
+  fleet's shared warm ivory. Its identification accent is modern systems detail
+  under the same specification.
+- **Arrow — unbounded.** `docs/research/ship_evidence_matrix.json` records
+  `name_to_model_status: unknown` for Arrow and lists "palette" among its
+  unknowns; ROADMAP Phase 4 states no Arrow colours are authenticated. The
+  palette is modern design and freely changeable.
+- **Jovian — unbounded.** Same record: `name_to_model_status: unknown`, with
+  "palette" among its unknowns, and ROADMAP Phase 4 states every current Jovian
+  colour remains modern interpretation.
+
+Achieved separation, measured from the running production Main scene under all
+four vision models and frozen as floors in
+`tests/fleet_role_differentiation_test.gd`:
+
+| Vision model | Body-tone minimum CIEDE2000 | Accent minimum CIEDE2000 |
+| --- | --- | --- |
+| normal | 16.95 | 42.57 |
+| protanopia | 16.62 | 37.38 |
+| deuteranopia | 16.91 | 31.38 |
+| tritanopia | 17.45 | 34.19 |
+
+The frozen floors are 12.0 for body tones and 25.0 for accents. The body-tone
+figure is capped by the evidence boundary, not by taste: with Torrent's warm
+ivory fixed and Zenith required to stay pale, that pair cannot be separated
+further without contradicting a registered source observation.
+
 ## `assets/materials/arrow-hull-albedo-v1.png`
 
 - Purpose: original warm ceramic-composite panel albedo used by the provisional
@@ -385,7 +463,10 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
   and Habitat pressure shells that once borrowed it moved to the symmetric
   station triplanar PBR set above, and
   `tests/station_triplanar_material_test.gd` asserts that no live station
-  surface reuses this directional atlas.
+  surface reuses this directional atlas. The image itself is unchanged; since
+  2026-08-15 the runtime multiplies it by the slate-blue fleet readability tint
+  recorded above, so the rendered recon hull is cooler and deeper than this
+  swatch alone.
 - Created: 2026-08-12 with OpenAI's built-in image generation tool.
 - Project status: newly generated project asset; not sourced from Roblox or the
   original Keth Shipyards. Its panel layout is modern and provisional, just like
