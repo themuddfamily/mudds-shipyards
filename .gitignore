@@ -7,3 +7,7 @@ __pycache__/
 *.blend1
 docs/research/private/
 docs/research/tmp/
+
+# Claude Code transient agent worktrees and local settings
+.claude/worktrees/
+.claude/settings.local.json
