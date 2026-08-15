@@ -77,6 +77,19 @@ Use this sequence for every roadmap task. Do not skip directly from an isolated 
 
 The minimum change report should state: outcome, root cause/design decision, files, tests/assertions, native/human evidence, package hash, and remaining risks. A junior developer should be able to hand that report to a reviewer without relying on unstated conversation context.
 
+## Art direction — player feedback, 2026-08-15
+
+After playtesting the traversal fixes the player confirmed the layout is right — *"I wanted the same map and everything, yes we have that, perfect"* — and gave a specific direction for the presentation: it currently **looks too close to the original Keth's Shipyards**, and should **feel more realistic than Keth's did**, i.e. **"more like its own game, less like Roblox."**
+
+This does not change the stated visual target above; it records that the target has not been reached, and sharpens what "reached" means:
+
+- **Layout, adjacency, silhouettes and scale are correct and must not be changed** to chase realism. The evidence boundary and the recovered/inferred station shape stay exactly as they are.
+- What must change is **how surfaces read**. The current presentation reads as untextured primitives: flat scalar colour over large areas, sharp unbevelled 90° edges, uniform roughness, and little contact shading. Those four properties, not the shapes, are what make blocky geometry read as a toy.
+- Highest-leverage work, in rough order: edge bevelling/chamfering on structural geometry so edges catch a highlight; extending the station material family to the wider lattice, catwalks and control room, which are still entirely flat scalar; ambient-occlusion and indirect-light tuning at the station's actual 10–50 m scale rather than defaults; tonemapping and specular response; and lighting coherence.
+- Two parts of this remain **outside what can be produced headlessly** and need a human artist: final authored/baked/scanned normal/roughness/ORM sets, and the curved/bevelled *authored* geometry pass on ships. Procedural bevelling of structural primitives and material-family extension are achievable here; authored art is not.
+
+Presentation changes require real-time human review; automated checks cannot establish that something reads as a manufactured place.
+
 ## Session handoff — 2026-08-15
 
 State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
