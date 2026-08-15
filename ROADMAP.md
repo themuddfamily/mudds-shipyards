@@ -77,6 +77,32 @@ Use this sequence for every roadmap task. Do not skip directly from an isolated 
 
 The minimum change report should state: outcome, root cause/design decision, files, tests/assertions, native/human evidence, package hash, and remaining risks. A junior developer should be able to hand that report to a reviewer without relying on unstated conversation context.
 
+## Session handoff — 2026-08-15
+
+State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
+
+### Landed on `main` this session
+
+Station module contract and non-metric route registry (Phase 3 playbook steps 1–2); Arrow/Jovian name-to-model evidence audit; station panel family extended onto walked-on overlay surfaces; controller overlay binding plus a no-action-remains-keyboard-only sweep; station topology validation with a doc/implementation drift regression. Matrix at the last merge: 82 suites, source manifest unchanged.
+
+### Open threads
+
+- **Map defect sweep — highest priority.** The player reported floating objects and hard-to-reach areas from real play. Per the priority order above, an unreachable required route is P1 and takes precedence over the content work below. Findings belong in [`bugs.md`](bugs.md) with a failing witness each. **Resume here first**; its witness tests are intentionally red until the defects are fixed.
+- **Navigation graph (`worktree-agent-a33d5d8b5dbb488a9`, complete, deliberately unmerged).** Reviewed and held. Two reasons: it adds four couriers hovering 3.4–3.7 m above their routes with no rendered or human review, which is the same visual category the player is complaining about; and the graph resolves to four disjoint components, so cross-module routing does not exist and the couriers behave much like the four fixed rails already shipped. Decide after the map sweep triage.
+- **Fleet role differentiation audit (Phase 4) — landed, item stays open at 3 of 5 properties.** `tests/fleet_role_differentiation_test.gd` freezes what holds. Two properties do not, and are recorded rather than quietly fixed because the roadmap reserves feel and art changes for a reviewed pass:
+  - **Colours are not readable apart.** All four craft share an off-white body tone; CIEDE2000 separation falls to **0.82** between Jovian and Zenith, below the just-noticeable difference, and to 0.45 under dichromacy. Accents only partly rescue it — Arrow, Jovian and Zenith cluster in cyan-teal at 6.40 under protanopia, while only Torrent's warm gold stays clearly apart. At-a-glance identification currently rests on silhouette and scale, not colour.
+  - **Zenith cockpit seating is wrong.** Its cockpit camera sits **0.859 m below** the seated pilot's head bone — chest height, not an eye point — and leaves only **0.061 m** between the head bone and the top of the hull, so the seated pilot's skull crosses the outer surface with the canopy shut. The other three craft place the camera exactly `+0.201 m` above the head bone. Both Zenith anchors are frozen by `zenith_interceptor_test.gd`, so correcting this means revisiting that suite deliberately.
+  - Roles themselves are verified: no strict dominance across 12 ordered pairs and 13 trade-off axes. Arrow and Zenith converge on exactly two axes (`maximum_speed` 94.0, `boost_multiplier` 1.42) of sixteen.
+- **Windows package build and probes** — no package has been produced since several fixes landed, so the work-item contract's package-parity clause is currently unmet. Export templates and a Windows preset are both present. Gate E remains unsatisfiable here: it needs performance figures and a native Windows run.
+- **Accessibility presets and settings coverage (Phase 9 subset)** — including a colourblind-safe option for berth cues, which currently lean on cyan/amber/green.
+
+### Findings worth acting on
+
+- **Documentation drift is the recurring defect of this session.** Four cases: the README claimed the Aft/Habitat shells still used the Arrow ship atlas (fixed months earlier); stored berth evidence failed its own source manifest, with 7 of 9 files changed; the README claimed engine start/stop and landing required the keyboard when all three were already gamepad-bound; and `STATION_TOPOLOGY.md` documented an Aft-to-Fleet-Dock edge the registry would actually reject. Three of these caused work to be dispatched at defects that did not exist. **Verify a prose claim against the code before acting on it**, and prefer a test that fails on drift over a corrected sentence — see `tests/station_topology_evidence_test.gd` for the pattern.
+- **Unregistered evidence citations keep appearing.** Two in ship code and five in the topology doc cited timestamps present in no ledger anchor, so no reader could reproduce them. Both sets are corrected and regression-locked.
+- **`tests/station_interaction_flow_test.gd:45` is load-flaky.** It waits on a wall-clock `0.15 s` timer against a `0.08 s` door tween and starves under heavy parallel load. It passes in isolation. Not yet fixed; replace the wall-clock wait with a deterministic condition.
+- **`scripts/world/shipyard_world.gd` asserts in a comment that the spawn/ladder relationship is source-supported.** No ledger anchor registers a ladder; B3 supports only a "short vertical transition". Unrepaired.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
