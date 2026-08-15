@@ -12,6 +12,9 @@ extends Node3D
 const SCHEMA_VERSION := 1
 const MODULE_ID: StringName = &"habitat-spine"
 const EVIDENCE_STATUS: StringName = &"fixed_era_inspired_modern_interpretation"
+## Declared station connection slot. `ShipyardWorld` publishes the matching hub
+## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
+const HUB_CONNECTION_SLOT: StringName = &"hub-starboard-habitat"
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 const FLOOR_ELEVATION := 0.0
@@ -69,17 +72,20 @@ var _chair_nodes: Array[Node3D] = []
 var _service_nodes: Array[Node3D] = []
 var _window_panes: Array[Node3D] = []
 var _built := false
+var _module_enabled := true
 
 
 func _ready() -> void:
-	if _built:
-		return
-	_built = true
-	_create_materials()
-	_index_semantics()
-	_build_structure()
-	_style_access_landmarks()
-	_apply_metadata()
+	if not _built:
+		_built = true
+		_create_materials()
+		_index_semantics()
+		_build_structure()
+		_style_access_landmarks()
+		_apply_metadata()
+	# Reconcile the real node state against `_module_enabled` on every ready, so a
+	# scene-authored or externally drifted layer/visibility cannot survive.
+	_apply_enabled_state()
 
 
 func get_module_id() -> StringName:
@@ -311,6 +317,26 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("published circulation width is not player-clear")
 	if float(clearance.minimum_head_clearance) < 2.4:
 		errors.append("published circulation head clearance is below avatar height")
+	# The collision, performance, and lifecycle contracts are only meaningful if
+	# this module rejects on them. Without these checks a drifted collision layer
+	# or a blown budget is reported in the contract dictionary and validated
+	# clean, so `validate_contract` would call the module valid anyway.
+	var collision := get_collision_contract()
+	if not bool(collision.all_layers_match_lifecycle):
+		errors.append("static body collision layers differ from the current lifecycle state")
+	if not bool(collision.all_masks_zero):
+		errors.append("station structure must not query collision through a mask")
+	if not bool(collision.all_shapes_present_and_enabled):
+		errors.append("a walkable surface is missing an enabled collision shape")
+	if not bool(get_performance_contract().within_budget):
+		errors.append("module component counts exceed the declared quality budget")
+	var lifecycle := get_lifecycle_contract()
+	if not bool(lifecycle.reversible) \
+		or not bool(lifecycle.visible_matches_enabled) \
+		or not bool(lifecycle.collision_matches_enabled):
+		errors.append("module lifecycle state does not match the enabled flag")
+	if not bool(lifecycle.process_matches_lifecycle):
+		errors.append("module keeps processing while disabled")
 	return errors
 
 
@@ -341,6 +367,80 @@ func get_audit_report() -> Dictionary:
 	return audit().duplicate(true)
 
 
+func get_component_roster() -> Dictionary:
+	var roster := StationModuleContract.build_component_roster(self)
+	roster["schema_version"] = SCHEMA_VERSION
+	roster["module_id"] = MODULE_ID
+	roster["room_count"] = get_room_ids().size()
+	roster["bunk_count"] = get_bunk_count()
+	roster["chair_count"] = get_chair_count()
+	roster["window_pane_count"] = get_window_pane_count()
+	return roster
+
+
+func get_collision_contract() -> Dictionary:
+	var contract := StationModuleContract.build_collision_contract(
+		self, WORLD_LAYER, _module_enabled
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+func get_authority_contract() -> Dictionary:
+	var contract := StationModuleContract.build_authority_contract(self)
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+func get_performance_contract() -> Dictionary:
+	# Budgets are this module's own policy: declared regression ceilings measured
+	# against the built module, not representative-hardware performance evidence.
+	# The spine carries the living quarters, so its 663 glazing, bunk, chair, and
+	# service primitives need the loosest mesh ceiling of the four; it was
+	# previously set to 260, a figure no build ever met.
+	var contract := StationModuleContract.build_performance_contract(self, {
+		"mesh_instances": 740,
+		"static_bodies": 180,
+		"collision_shapes": 220,
+		"labels": 25,
+		"lights": 12,
+		"process_loops": 1,
+		"physics_process_loops": 1,
+	})
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+## Applied unconditionally. A no-op guard on the flag made drifted state
+## unrepairable: if the nodes lost their layer or visibility while the flag still
+## read `true`, the obvious repair call returned immediately and the module
+## stayed unwalkable.
+func set_module_enabled(enabled: bool) -> void:
+	_module_enabled = enabled
+	_apply_enabled_state()
+
+
+func is_module_enabled() -> bool:
+	return _module_enabled
+
+
+func get_lifecycle_contract() -> Dictionary:
+	# This module hides in place, so its own node is the visibility root.
+	var contract := StationModuleContract.build_lifecycle_contract(
+		self, WORLD_LAYER, _module_enabled, self
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	contract["built"] = _built
+	contract["build_generation"] = 1
+	return contract
+
+
+func _apply_enabled_state() -> void:
+	StationModuleContract.apply_enabled_state(
+		StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _module_enabled, self
+	)
+
+
 func _index_semantics() -> void:
 	_route_markers = {
 		&"approach": _route_approach,
@@ -361,6 +461,10 @@ func _index_semantics() -> void:
 		marker.set_meta("station_room_marker", true)
 		marker.set_meta("room_id", StringName("bunk-alcove-%02d" % (index + 1)))
 		_bunk_markers.append(marker)
+	# The outward approach face is the only station connection slot. `threshold`
+	# sits inside the pressure door and the sealed deferred branch is a
+	# deliberate closed endpoint, so neither may join the adjacency graph.
+	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	_route_corridor.set_meta("station_room_marker", true)
 	_route_corridor.set_meta("room_id", &"habitat-corridor")
 	_route_observation.set_meta("station_room_marker", true)

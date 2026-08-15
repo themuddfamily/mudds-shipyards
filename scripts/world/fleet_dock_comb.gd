@@ -14,6 +14,9 @@ extends Node3D
 const SCHEMA_VERSION := 2
 const MODULE_ID: StringName = &"fleet-dock-comb"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
+## Declared station connection slot. `ShipyardWorld` publishes the matching hub
+## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
+const HUB_CONNECTION_SLOT: StringName = &"hub-fleet-dock-comb"
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 const TRUNK_LENGTH := 48.0
@@ -317,97 +320,38 @@ func get_component_roster() -> Dictionary:
 
 
 func get_collision_contract() -> Dictionary:
-	var bodies := find_children("*", "StaticBody3D", true, false)
-	var shapes := find_children("*", "CollisionShape3D", true, false)
-	var body_paths := PackedStringArray()
-	var all_layers_valid := true
-	var all_masks_valid := true
-	var all_shapes_enabled := true
-	for raw_body in bodies:
-		var body := raw_body as StaticBody3D
-		body_paths.append(str(get_path_to(body)))
-		all_layers_valid = all_layers_valid and body.collision_layer == (WORLD_LAYER if _enabled else 0)
-		all_masks_valid = all_masks_valid and body.collision_mask == 0
-	for raw_shape in shapes:
-		var shape := raw_shape as CollisionShape3D
-		all_shapes_enabled = all_shapes_enabled and not shape.disabled
-	body_paths.sort()
-	return {
-		"schema_version": SCHEMA_VERSION,
-		"body_count": bodies.size(),
-		"shape_count": shapes.size(),
-		"active_body_count": bodies.size() if _enabled else 0,
-		"body_paths": body_paths,
-		"expected_surface_ids": PackedStringArray(SURFACE_IDS),
-		"enabled_layer": WORLD_LAYER,
-		"current_enabled_state": _enabled,
-		"all_layers_match_lifecycle": all_layers_valid,
-		"all_masks_zero": all_masks_valid,
-		"all_shapes_present_and_enabled": all_shapes_enabled,
-		"full_footprint_floor_present": _has_full_footprint_floor(),
-	}
+	var contract := StationModuleContract.build_collision_contract(self, WORLD_LAYER, _enabled)
+	contract["schema_version"] = SCHEMA_VERSION
+	contract["expected_surface_ids"] = PackedStringArray(SURFACE_IDS)
+	contract["full_footprint_floor_present"] = _has_full_footprint_floor()
+	return contract
 
 
 func get_authority_contract() -> Dictionary:
-	var ship_berth_count := 0
-	var area_count := 0
-	var audio_node_count := 0
-	var activity_node_count := 0
-	for node in _all_descendants():
-		if node is Area3D:
-			area_count += 1
-		if node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D:
-			audio_node_count += 1
-		var script := node.get_script() as Script
-		var script_path := script.resource_path if script != null else ""
-		if script_path.ends_with("/ship_berth.gd"):
-			ship_berth_count += 1
-		if script_path.ends_with("/station_operations_activity.gd") or bool(node.get_meta("station_activity", false)):
-			activity_node_count += 1
-	return {
-		"schema_version": SCHEMA_VERSION,
-		"ship_berth_count": ship_berth_count,
-		"landing_or_interaction_area_count": area_count,
-		"audio_node_count": audio_node_count,
-		"activity_node_count": activity_node_count,
-		"lease_authority_count": 0,
-		"spawn_authority_count": 0,
-		"boarding_authority_count": 0,
-		"network_authority_role": &"none",
-		"dock_markers_are_authoritative": false,
-	}
+	var contract := StationModuleContract.build_authority_contract(self)
+	contract["schema_version"] = SCHEMA_VERSION
+	contract["boarding_authority_count"] = 0
+	# Dock markers are placement hints for the fleet layer, never a claim of
+	# ownership over the ships parked against them.
+	contract["dock_markers_are_authoritative"] = false
+	return contract
 
 
 func get_performance_contract() -> Dictionary:
-	var meshes := find_children("*", "MeshInstance3D", true, false)
-	var bodies := find_children("*", "StaticBody3D", true, false)
-	var shapes := find_children("*", "CollisionShape3D", true, false)
-	var labels := find_children("*", "Label3D", true, false)
-	var lights := find_children("*", "Light3D", true, false)
-	return {
-		"schema_version": SCHEMA_VERSION,
-		"mesh_instances": meshes.size(),
-		"static_bodies": bodies.size(),
-		"collision_shapes": shapes.size(),
-		"labels": labels.size(),
-		"lights": lights.size(),
-		"process_loops": int(is_processing()) + int(is_physics_processing()),
-		"budgets": {
-			"mesh_instances": MESH_INSTANCE_BUDGET,
-			"static_bodies": STATIC_BODY_BUDGET,
-			"collision_shapes": COLLISION_SHAPE_BUDGET,
-			"labels": LABEL_BUDGET,
-			"lights": LIGHT_BUDGET,
-			"process_loops": 0,
-		},
-		"within_budget": meshes.size() <= MESH_INSTANCE_BUDGET \
-			and bodies.size() <= STATIC_BODY_BUDGET \
-			and shapes.size() <= COLLISION_SHAPE_BUDGET \
-			and labels.size() <= LABEL_BUDGET \
-			and lights.is_empty() \
-			and not is_processing() \
-			and not is_physics_processing(),
-	}
+	# Budgets are this module's own policy: the comb is fixed geometry with an
+	# exact surface and marker count, so its ceilings are the counts themselves
+	# and it is allowed no lights and no frame or physics loop at all.
+	var contract := StationModuleContract.build_performance_contract(self, {
+		"mesh_instances": MESH_INSTANCE_BUDGET,
+		"static_bodies": STATIC_BODY_BUDGET,
+		"collision_shapes": COLLISION_SHAPE_BUDGET,
+		"labels": LABEL_BUDGET,
+		"lights": LIGHT_BUDGET,
+		"process_loops": 0,
+		"physics_process_loops": 0,
+	})
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -420,24 +364,23 @@ func is_module_enabled() -> bool:
 
 
 func get_lifecycle_contract() -> Dictionary:
+	# The generated build root carries this module's visibility: the module node
+	# itself stays visible so its markers keep resolving while it is disabled.
+	var contract := StationModuleContract.build_lifecycle_contract(
+		self, WORLD_LAYER, _enabled, _build_root
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	contract["built"] = _built and _build_root != null
+	contract["build_generation"] = _build_generation
+	# Surfaces are reported in declared order from the authoritative map rather
+	# than in tree order, so the ids line up with `SURFACE_IDS`.
 	var surface_instance_ids := PackedInt64Array()
 	for surface_id in SURFACE_IDS:
 		var surface := _surface_nodes.get(surface_id) as StaticBody3D
 		if surface != null:
 			surface_instance_ids.append(surface.get_instance_id())
-	return {
-		"schema_version": SCHEMA_VERSION,
-		"mode": &"identity_preserving_enable_disable",
-		"enabled": _enabled,
-		"built": _built and _build_root != null,
-		"build_generation": _build_generation,
-		"runtime_rebuild_allowed": false,
-		"reversible": true,
-		"visible_matches_enabled": _build_root != null and _build_root.visible == _enabled,
-		"collision_matches_enabled": bool(get_collision_contract().all_layers_match_lifecycle),
-		"process_free": not is_processing() and not is_physics_processing(),
-		"surface_instance_ids": surface_instance_ids,
-	}
+	contract["surface_instance_ids"] = surface_instance_ids
+	return contract
 
 
 func get_evidence_metadata() -> Dictionary:
@@ -574,6 +517,10 @@ func _index_semantics() -> void:
 		var marker := _route_markers[route_id] as Marker3D
 		marker.set_meta("station_route_marker", true)
 		marker.set_meta("route_id", route_id)
+	# The trunk approach is the only station connection slot. The three dock
+	# thresholds serve deferred or externally assigned docks and own no berth
+	# authority, so they never join the station adjacency graph.
+	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	for dock_id: StringName in _dock_markers.keys():
 		var marker := _dock_markers[dock_id] as Marker3D
 		marker.set_meta("dock_id", dock_id)
@@ -822,10 +769,15 @@ func _material(
 func _apply_enabled_state() -> void:
 	if _build_root == null:
 		return
-	_build_root.visible = _enabled
-	for raw_surface in _surface_nodes.values():
+	# The authoritative surface map is passed in rather than a subtree scan: this
+	# runs during `_ready()`, before the build root is guaranteed to be reachable
+	# from a `find_children()` sweep of this node.
+	var surfaces := _surface_nodes.values()
+	StationModuleContract.apply_enabled_state(surfaces, WORLD_LAYER, _enabled, _build_root)
+	for raw_surface in surfaces:
 		var surface := raw_surface as StaticBody3D
-		surface.collision_layer = WORLD_LAYER if _enabled else 0
+		# Generated bodies would otherwise keep the default mask; the station
+		# never queries outward from its own architecture.
 		surface.collision_mask = 0
 
 
@@ -854,17 +806,6 @@ func _has_full_footprint_floor() -> bool:
 		if box != null and box.size.x >= footprint_size.x * 0.9 and box.size.z >= footprint_size.z * 0.9:
 			return true
 	return false
-
-
-func _all_descendants() -> Array[Node]:
-	var result: Array[Node] = []
-	var queue: Array[Node] = [self]
-	while not queue.is_empty():
-		var current: Node = queue.pop_front()
-		result.append(current)
-		for child in current.get_children():
-			queue.append(child)
-	return result
 
 
 func _transform_aabb(local_aabb: AABB, transform: Transform3D) -> AABB:

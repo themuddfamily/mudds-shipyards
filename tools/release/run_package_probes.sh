@@ -10,6 +10,7 @@ GODOT_BIN="${GODOT_BIN:-godot}"
 TIMEOUT_SECONDS="${PACKAGE_PROBE_TIMEOUT_SECONDS:-300}"
 RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-probes}"
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 
 if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "Invalid timeout: $TIMEOUT_SECONDS"
@@ -88,7 +89,11 @@ for test_file in "${PROBES[@]}"; do
 
   start_ms="$(date +%s%3N)"
   set +e
-  timeout "${TIMEOUT_SECONDS}s" "$GODOT_BIN" --headless --main-pack "$PACKAGE_PATH" --path "$PROJECT_ROOT" --script "res://$relative_test_path" > "$log_path" 2>&1
+  if [[ -n "$AUDIO_DRIVER" ]]; then
+    timeout "${TIMEOUT_SECONDS}s" "$GODOT_BIN" --headless --main-pack "$PACKAGE_PATH" --path "$PROJECT_ROOT" --audio-driver "$AUDIO_DRIVER" --script "res://$relative_test_path" > "$log_path" 2>&1
+  else
+    timeout "${TIMEOUT_SECONDS}s" "$GODOT_BIN" --headless --main-pack "$PACKAGE_PATH" --path "$PROJECT_ROOT" --script "res://$relative_test_path" > "$log_path" 2>&1
+  fi
   exit_code=$?
   set -e
 

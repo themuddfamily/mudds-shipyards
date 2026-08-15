@@ -12,6 +12,9 @@ extends Node3D
 const SCHEMA_VERSION := 1
 const MODULE_ID: StringName = &"aft-junction-stack"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
+## Declared station connection slot. `ShipyardWorld` publishes the matching hub
+## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
+const HUB_CONNECTION_SLOT: StringName = &"hub-aft-junction"
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 const LOWER_FLOOR_ELEVATION := 0.0
@@ -65,17 +68,20 @@ var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
 var _built := false
+var _module_enabled := true
 
 
 func _ready() -> void:
-	if _built:
-		return
-	_built = true
-	_create_materials()
-	_index_routes()
-	_build_structure()
-	_style_access_landmarks()
-	_apply_metadata()
+	if not _built:
+		_built = true
+		_create_materials()
+		_index_routes()
+		_build_structure()
+		_style_access_landmarks()
+		_apply_metadata()
+	# Reconcile the real node state against `_module_enabled` on every ready, so a
+	# scene-authored or externally drifted layer/visibility cannot survive.
+	_apply_enabled_state()
 
 
 func get_module_id() -> StringName:
@@ -249,6 +255,26 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("operations service wall is missing")
 	if get_open_to_space_ratio() < 0.5:
 		errors.append("less than half of the estimated walkable area is open to space")
+	# The collision, performance, and lifecycle contracts are only meaningful if
+	# this module rejects on them. Without these checks a drifted collision layer
+	# or a blown budget is reported in the contract dictionary and validated
+	# clean, so `validate_contract` would call the module valid anyway.
+	var collision := get_collision_contract()
+	if not bool(collision.all_layers_match_lifecycle):
+		errors.append("static body collision layers differ from the current lifecycle state")
+	if not bool(collision.all_masks_zero):
+		errors.append("station structure must not query collision through a mask")
+	if not bool(collision.all_shapes_present_and_enabled):
+		errors.append("a walkable surface is missing an enabled collision shape")
+	if not bool(get_performance_contract().within_budget):
+		errors.append("module component counts exceed the declared quality budget")
+	var lifecycle := get_lifecycle_contract()
+	if not bool(lifecycle.reversible) \
+		or not bool(lifecycle.visible_matches_enabled) \
+		or not bool(lifecycle.collision_matches_enabled):
+		errors.append("module lifecycle state does not match the enabled flag")
+	if not bool(lifecycle.process_matches_lifecycle):
+		errors.append("module keeps processing while disabled")
 	return errors
 
 
@@ -276,6 +302,78 @@ func get_audit_report() -> Dictionary:
 	return audit().duplicate(true)
 
 
+func get_component_roster() -> Dictionary:
+	var roster := StationModuleContract.build_component_roster(self)
+	roster["schema_version"] = SCHEMA_VERSION
+	roster["module_id"] = MODULE_ID
+	roster["chair_count"] = get_chair_count()
+	roster["console_bay_count"] = get_console_bay_count()
+	return roster
+
+
+func get_collision_contract() -> Dictionary:
+	var contract := StationModuleContract.build_collision_contract(
+		self, WORLD_LAYER, _module_enabled
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+func get_authority_contract() -> Dictionary:
+	var contract := StationModuleContract.build_authority_contract(self)
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+func get_performance_contract() -> Dictionary:
+	# Budgets are this module's own policy: declared regression ceilings measured
+	# against the built module, not representative-hardware performance evidence.
+	# The mesh ceiling sits just above the 532 primitives the stair treads,
+	# railings, and service detail actually produce; it was previously set to 170,
+	# a figure no build ever met.
+	var contract := StationModuleContract.build_performance_contract(self, {
+		"mesh_instances": 600,
+		"static_bodies": 120,
+		"collision_shapes": 120,
+		"labels": 4,
+		"lights": 12,
+		"process_loops": 1,
+		"physics_process_loops": 1,
+	})
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+## Applied unconditionally. A no-op guard on the flag made drifted state
+## unrepairable: if the nodes lost their layer or visibility while the flag still
+## read `true`, the obvious repair call returned immediately and the module
+## stayed unwalkable.
+func set_module_enabled(enabled: bool) -> void:
+	_module_enabled = enabled
+	_apply_enabled_state()
+
+
+func is_module_enabled() -> bool:
+	return _module_enabled
+
+
+func get_lifecycle_contract() -> Dictionary:
+	# This module hides in place, so its own node is the visibility root.
+	var contract := StationModuleContract.build_lifecycle_contract(
+		self, WORLD_LAYER, _module_enabled, self
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	contract["built"] = _built
+	contract["build_generation"] = 1
+	return contract
+
+
+func _apply_enabled_state() -> void:
+	StationModuleContract.apply_enabled_state(
+		StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _module_enabled, self
+	)
+
+
 func _index_routes() -> void:
 	_route_markers = {
 		&"approach": _route_approach,
@@ -290,6 +388,10 @@ func _index_routes() -> void:
 		var marker := _route_markers[route_id] as Marker3D
 		marker.set_meta("station_route_marker", true)
 		marker.set_meta("route_id", route_id)
+	# Only the outward approach face is a station connection slot. Every other
+	# marker is an internal waypoint, and the VIP landmark is a deliberate dead
+	# end, so none of them may join the station adjacency graph.
+	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	_operations_room_anchor.set_meta("station_room_marker", true)
 	_operations_room_anchor.set_meta("room_id", &"aft-operations")
 	_upper_floor_anchor.set_meta("station_upper_floor_marker", true)

@@ -11,6 +11,9 @@ extends Node3D
 
 const SCHEMA_VERSION := 1
 const MODULE_ID: StringName = &"jovian-freight-berth"
+## Declared station connection slot. `ShipyardWorld` publishes the matching hub
+## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
+const HUB_CONNECTION_SLOT: StringName = &"hub-registry-pod-freight"
 const BERTH_ID: StringName = &"jovian_freight_berth"
 const SHIP_CLASS_ID: StringName = &"jovian_provisional"
 const SHIP_CLASS_NAME := "Jovian-class Light Freighter"
@@ -87,24 +90,27 @@ var _crane_trolley: Node3D
 var _crane_hook: Node3D
 var _equipment_elapsed := 0.0
 var _equipment_animation_enabled := true
+var _module_enabled := true
 var _built := false
 
 
 func _ready() -> void:
-	if _built:
-		return
-	_built = true
-	_create_materials()
-	_index_semantics()
-	_build_connection_lattice()
-	_build_loading_apron()
-	_build_service_room()
-	_build_cargo_infrastructure()
-	_build_crane()
-	_build_lighting_and_signage()
-	_style_service_access()
-	_apply_metadata()
-	_update_equipment_transforms()
+	if not _built:
+		_built = true
+		_create_materials()
+		_index_semantics()
+		_build_connection_lattice()
+		_build_loading_apron()
+		_build_service_room()
+		_build_cargo_infrastructure()
+		_build_crane()
+		_build_lighting_and_signage()
+		_style_service_access()
+		_apply_metadata()
+		_update_equipment_transforms()
+	# Reconcile the real node state against `_module_enabled` on every ready, so a
+	# scene-authored or externally drifted layer/visibility cannot survive.
+	_apply_enabled_state()
 
 
 func _process(delta: float) -> void:
@@ -298,7 +304,8 @@ func get_equipment_motion_contract() -> Dictionary:
 
 func set_equipment_animation_enabled(enabled: bool) -> void:
 	_equipment_animation_enabled = enabled
-	set_process(enabled)
+	# A disabled module never processes, whatever the animation flag says.
+	set_process(enabled and _module_enabled)
 
 
 func is_equipment_animation_enabled() -> bool:
@@ -393,6 +400,26 @@ func get_validation_errors() -> PackedStringArray:
 	var clearance := get_clearance_profile()
 	if float(clearance.connection_clear_width) < 3.0 or float(clearance.minimum_head_clearance) < 2.4:
 		errors.append("published player circulation clearance is invalid")
+	# The collision, performance, and lifecycle contracts are only meaningful if
+	# this module rejects on them. Without these checks a drifted collision layer
+	# or a blown budget is reported in the contract dictionary and validated
+	# clean, so `validate_contract` would call the module valid anyway.
+	var collision := get_collision_contract()
+	if not bool(collision.all_layers_match_lifecycle):
+		errors.append("static body collision layers differ from the current lifecycle state")
+	if not bool(collision.all_masks_zero):
+		errors.append("station structure must not query collision through a mask")
+	if not bool(collision.all_shapes_present_and_enabled):
+		errors.append("a walkable surface is missing an enabled collision shape")
+	if not bool(get_performance_contract().within_budget):
+		errors.append("module component counts exceed the declared quality budget")
+	var lifecycle := get_lifecycle_contract()
+	if not bool(lifecycle.reversible) \
+		or not bool(lifecycle.visible_matches_enabled) \
+		or not bool(lifecycle.collision_matches_enabled):
+		errors.append("module lifecycle state does not match the enabled flag")
+	if not bool(lifecycle.process_matches_lifecycle):
+		errors.append("module keeps processing while disabled")
 	return errors
 
 
@@ -430,6 +457,84 @@ func get_audit_report() -> Dictionary:
 	return result.duplicate(true)
 
 
+func get_component_roster() -> Dictionary:
+	var roster := StationModuleContract.build_component_roster(self)
+	roster["schema_version"] = SCHEMA_VERSION
+	roster["module_id"] = MODULE_ID
+	roster["cargo_unit_count"] = get_cargo_unit_count()
+	roster["service_detail_count"] = get_service_detail_count()
+	roster["animated_equipment_count"] = get_animated_equipment_count()
+	return roster
+
+
+func get_collision_contract() -> Dictionary:
+	var contract := StationModuleContract.build_collision_contract(
+		self, WORLD_LAYER, _module_enabled
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+func get_authority_contract() -> Dictionary:
+	var contract := StationModuleContract.build_authority_contract(self)
+	contract["schema_version"] = SCHEMA_VERSION
+	# The berth publishes a ship-facing specification; it still claims no
+	# gameplay authority over the ships that use it.
+	contract["berth_specification_available"] = true
+	return contract
+
+
+func get_performance_contract() -> Dictionary:
+	# Budgets are this module's own policy. The berth is the largest and most
+	# heavily lit module, and it is the only one allowed a frame loop, which it
+	# spends on the crane animation.
+	var contract := StationModuleContract.build_performance_contract(self, {
+		"mesh_instances": 420,
+		"static_bodies": 220,
+		"collision_shapes": 220,
+		"labels": 30,
+		"lights": 24,
+		"process_loops": 1,
+		"physics_process_loops": 1,
+	})
+	contract["schema_version"] = SCHEMA_VERSION
+	return contract
+
+
+## Applied unconditionally. A no-op guard on the flag made drifted state
+## unrepairable: if the nodes lost their layer or visibility while the flag still
+## read `true`, the obvious repair call returned immediately and the module
+## stayed unwalkable.
+func set_module_enabled(enabled: bool) -> void:
+	_module_enabled = enabled
+	_apply_enabled_state()
+
+
+func is_module_enabled() -> bool:
+	return _module_enabled
+
+
+func get_lifecycle_contract() -> Dictionary:
+	# This module hides in place, so its own node is the visibility root.
+	var contract := StationModuleContract.build_lifecycle_contract(
+		self, WORLD_LAYER, _module_enabled, self
+	)
+	contract["schema_version"] = SCHEMA_VERSION
+	contract["built"] = _built
+	contract["build_generation"] = 1
+	return contract
+
+
+func _apply_enabled_state() -> void:
+	StationModuleContract.apply_enabled_state(
+		StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _module_enabled, self
+	)
+	# The crane simulation is the one process loop in the four modules. Disabling
+	# the module must stop it rather than leave it advancing behind hidden
+	# geometry, which would snap the trolley and hook on re-enable.
+	set_process(_module_enabled and _equipment_animation_enabled)
+
+
 func audit() -> Dictionary:
 	return get_audit_report()
 
@@ -448,6 +553,9 @@ func _index_semantics() -> void:
 		var marker := _route_markers[route_id] as Marker3D
 		marker.set_meta("station_route_marker", true)
 		marker.set_meta("route_id", route_id)
+	# Only the outward approach face over the connection hand-off deck is a
+	# station connection slot; the apron and service thresholds are internal.
+	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	_berth_dock_marker.set_meta("station_berth_marker", true)
 	_berth_dock_marker.set_meta("berth_id", BERTH_ID)
 
