@@ -38,14 +38,20 @@ const EXPECTED_LANDING_COLLISION_BOUNDS := AABB(
 	Vector3(14.42, 4.2755, 10.45)
 )
 
+# Cockpit seating is modern ergonomic normalization; B7 establishes no cockpit
+# plan, canopy, seat or eye point. `PilotSeatAnchor` is a feet-frame marker
+# (PlayerController carries its hips 0.72 m above its own root), so it is the
+# authored 1.83 m `InterceptorSeat` cushion minus 0.72 m. `CockpitCamera`
+# follows the fleet-wide seat + 1.76 m eye convention and sits at z = -0.80 m
+# so the eye stays under the modern canopy dome.
 const EXPECTED_ANCHORS := {
-	&"PilotSeatAnchor": Vector3(0.0, 1.58, -0.55),
+	&"PilotSeatAnchor": Vector3(0.0, 1.11, -0.55),
 	&"BoardingEntry": Vector3(-1.18, 1.62, -0.32),
 	&"BoardingPoint": Vector3(-7.65, -0.55, 0.55),
 	&"ExitPoint": Vector3(-7.85, -0.55, 0.85),
 	&"LeftMuzzle": Vector3(-1.25, 0.34, -4.25),
 	&"RightMuzzle": Vector3(1.25, 0.34, -4.25),
-	&"CockpitCamera": Vector3(0.0, 2.28, -1.24),
+	&"CockpitCamera": Vector3(0.0, 2.87, -0.80),
 	&"DockingReceiver": Vector3(0.0, -0.82, 1.05),
 	&"DamageCenter": Vector3(0.0, 0.48, 0.0),
 	&"DamagePortWing": Vector3(-4.55, 0.18, 0.20),

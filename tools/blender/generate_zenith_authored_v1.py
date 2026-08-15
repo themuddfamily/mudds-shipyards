@@ -91,14 +91,23 @@ MATERIAL_SPECS = {
     },
 }
 
+# Modern ergonomic normalization only; B7 establishes no cockpit plan, seat or
+# eye point.  `PilotSeatAnchor` is a *feet-frame* marker: `PlayerController`
+# carries its hips 0.72 m above its own root, so the anchor is the authored seat
+# cushion height minus 0.72.  `InterceptorSeat` tops out at 1.83 m, which fixes
+# the anchor at 1.11 m.  The cockpit eye point then follows the fleet-wide
+# `seat + 1.76 m` convention (Torrent/Arrow/Jovian all use it), placing the
+# camera 0.201 m above the seated pilot's head bone.  Its `z` sits at -0.80 m so
+# the eye stays inside the modern canopy dome, whose glass crown is 2.986 m
+# there.  See the re-freeze note in `tests/zenith_interceptor_test.gd`.
 ANCHORS_GODOT = {
-    "PilotSeatAnchor": (0.0, 1.58, -0.55),
+    "PilotSeatAnchor": (0.0, 1.11, -0.55),
     "BoardingEntry": (-1.18, 1.62, -0.32),
     "BoardingPoint": (-7.65, -0.55, 0.55),
     "ExitPoint": (-7.85, -0.55, 0.85),
     "LeftMuzzle": (-1.25, 0.34, -4.25),
     "RightMuzzle": (1.25, 0.34, -4.25),
-    "CockpitCamera": (0.0, 2.28, -1.24),
+    "CockpitCamera": (0.0, 2.87, -0.80),
     "DockingReceiver": (0.0, -0.82, 1.05),
     "DamageCenter": (0.0, 0.48, 0.0),
     "DamagePortWing": (-4.55, 0.18, 0.20),

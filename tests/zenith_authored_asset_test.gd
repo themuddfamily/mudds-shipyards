@@ -138,14 +138,19 @@ func _run() -> void:
 		"engine graphite is materially lifted and roughened for readable modern engine separation"
 	)
 
+	# RE-FROZEN 2026-08-15 alongside tests/zenith_interceptor_test.gd: the seat
+	# anchor moved 1.58 -> 1.11 (feet-frame marker, not cushion height) and the
+	# cockpit camera 2.28/-1.24 -> 2.87/-0.80 (fleet seat + 1.76 m eye point,
+	# held inside the modern canopy dome). Modern ergonomics only; the B7
+	# source-core macroform and its evidence scope are unchanged.
 	var expected_anchors := {
-		&"PilotSeatAnchor": Vector3(0.0, 1.58, -0.55),
+		&"PilotSeatAnchor": Vector3(0.0, 1.11, -0.55),
 		&"BoardingEntry": Vector3(-1.18, 1.62, -0.32),
 		&"BoardingPoint": Vector3(-7.65, -0.55, 0.55),
 		&"ExitPoint": Vector3(-7.85, -0.55, 0.85),
 		&"LeftMuzzle": Vector3(-1.25, 0.34, -4.25),
 		&"RightMuzzle": Vector3(1.25, 0.34, -4.25),
-		&"CockpitCamera": Vector3(0.0, 2.28, -1.24),
+		&"CockpitCamera": Vector3(0.0, 2.87, -0.80),
 		&"DockingReceiver": Vector3(0.0, -0.82, 1.05),
 		&"DamageCenter": Vector3(0.0, 0.48, 0.0),
 		&"DamagePortWing": Vector3(-4.55, 0.18, 0.20),

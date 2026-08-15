@@ -45,14 +45,18 @@ const MODERN_MATERIAL_ROLES := [
 	&"GraphitePanel", &"EngineGraphite", &"ExposedAlloy", &"CanopyGlass", &"EngineEmission",
 	&"PortNavRed", &"StarboardNavGreen", &"CockpitEmission",
 ]
+# Modern ergonomic normalization; no B7 observation supports a cockpit plan,
+# seat or eye point. The seat marker is a feet-frame anchor 0.72 m below the
+# authored 1.83 m seat cushion; the camera follows the fleet seat + 1.76 m eye
+# convention and stays inside the modern canopy dome.
 const REQUIRED_ANCHORS := {
-	&"PilotSeatAnchor": Vector3(0.0, 1.58, -0.55),
+	&"PilotSeatAnchor": Vector3(0.0, 1.11, -0.55),
 	&"BoardingEntry": Vector3(-1.18, 1.62, -0.32),
 	&"BoardingPoint": Vector3(-7.65, -0.55, 0.55),
 	&"ExitPoint": Vector3(-7.85, -0.55, 0.85),
 	&"LeftMuzzle": Vector3(-1.25, 0.34, -4.25),
 	&"RightMuzzle": Vector3(1.25, 0.34, -4.25),
-	&"CockpitCamera": Vector3(0.0, 2.28, -1.24),
+	&"CockpitCamera": Vector3(0.0, 2.87, -0.80),
 	&"DockingReceiver": Vector3(0.0, -0.82, 1.05),
 	&"DamageCenter": Vector3(0.0, 0.48, 0.0),
 	&"DamagePortWing": Vector3(-4.55, 0.18, 0.20),

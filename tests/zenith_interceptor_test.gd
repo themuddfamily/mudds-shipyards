@@ -4,14 +4,45 @@ const ZENITH_SCENE := preload("res://scenes/ships/zenith_interceptor.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const SHIPYARD_WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const MANIFEST_PATH := "res://assets/models/zenith/zenith_authored_asset_manifest.json"
+# RE-FROZEN 2026-08-15 — cockpit seating defect fix. Two of these anchors moved
+# on purpose; the rest are unchanged and every value below is still an exact
+# witness rather than a tolerance band.
+#
+#   PilotSeatAnchor  (0.0, 1.58, -0.55) -> (0.0, 1.11, -0.55)   dy -0.47
+#   CockpitCamera    (0.0, 2.28, -1.24) -> (0.0, 2.87, -0.80)   dy +0.59, dz +0.44
+#
+# What was wrong: `PilotSeatAnchor` is a *feet-frame* marker — `PlayerController`
+# carries its hips 0.72 m and its head bone 1.559 m above its own root — but
+# Zenith's was authored at seat-cushion height. The seated pilot therefore rode
+# 0.47 m too high: measured from the production Main scene, the head bone stood
+# at y = 3.139 against a 3.200 m hull crown (0.061 m clearance, i.e. the skull
+# crossing the canopy, whose glass tops out at 3.042 m over the seat), and the
+# camera at 2.280 sat 0.859 m BELOW that head bone — chest height, not an eye
+# point. Torrent, Arrow and Jovian all place the camera exactly seat + 1.76 m,
+# which is +0.201 m above the head bone.
+#
+# What the new values are derived from, and what they are NOT: this is modern
+# ergonomic normalization only. B7 establishes no cockpit plan, canopy, seat,
+# eye point or scale, and nothing here upgrades that. The seat anchor is the
+# authored modern `InterceptorSeat` cushion (top y = 1.83, ModernSystems/LOD0)
+# minus the 0.72 m hip offset, so the pilot's hips now rest on the seat instead
+# of floating 0.47 m over it. The camera is that anchor + the fleet-wide 1.76 m
+# eye convention, moved aft to z = -0.80 so the eye stays 0.116 m inside the
+# modern canopy dome (glass crown 2.986 m there, against 2.787 m at the old
+# z = -1.24). Head bone now 2.669 m, hull clearance 0.531 m, comparable to
+# Torrent's 0.561 m. No source-core geometry, collision envelope, handling
+# value, berth transform or boarding/exit/muzzle anchor was touched.
+#
+# `tests/fleet_role_differentiation_test.gd` now asserts the resulting eye
+# offset and head-to-hull clearance for all four craft, Zenith included.
 const EXPECTED_ANCHORS := {
-	&"PilotSeatAnchor": Vector3(0.0, 1.58, -0.55),
+	&"PilotSeatAnchor": Vector3(0.0, 1.11, -0.55),
 	&"BoardingEntry": Vector3(-1.18, 1.62, -0.32),
 	&"BoardingPoint": Vector3(-7.65, -0.55, 0.55),
 	&"ExitPoint": Vector3(-7.85, -0.55, 0.85),
 	&"LeftMuzzle": Vector3(-1.25, 0.34, -4.25),
 	&"RightMuzzle": Vector3(1.25, 0.34, -4.25),
-	&"CockpitCamera": Vector3(0.0, 2.28, -1.24),
+	&"CockpitCamera": Vector3(0.0, 2.87, -0.80),
 }
 const EXPECTED_COLLISION_GEOMETRY_SHA256 := "7717ba624158dca52c71dc271e13663436b9b9bf52658972f92fbc9e4482c273"
 const EXPECTED_COLLISION_BOUNDS := AABB(
@@ -3267,7 +3298,13 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	_check(docking_receiver != null and docking_receiver.position.distance_to(Vector3(0.0, -0.82, 1.05)) < 0.002, "runtime docking receiver aligns to authored witness")
 	var seat := zenith.get_pilot_seat_anchor()
 	_check(seat != null and seat.global_position.distance_to(zenith.to_global(EXPECTED_ANCHORS[&"PilotSeatAnchor"])) < 0.002, "functional pilot seat aligns to authored witness")
-	_check(seat != null and seat.global_position.distance_to(zenith.get_boarding_entry_transform().origin) < 1.3, "entry-to-seat transition is short and physical")
+	# RE-FROZEN 2026-08-15 with the seat anchor: 1.30 -> 1.35 m. `BoardingEntry`
+	# is a hull-surface standing spot and did not move, so dropping the seat
+	# 0.47 m lengthened this step from a measured 1.203 m to a measured 1.306 m.
+	# It is still far shorter than the 1.623 m entry-to-seat step the shared
+	# HeroShip cockpit uses, and the 0.51 m drop from entry to seat now matches
+	# that cockpit's 0.76 m drop in kind instead of the old, nearly level 0.04 m.
+	_check(seat != null and seat.global_position.distance_to(zenith.get_boarding_entry_transform().origin) < 1.35, "entry-to-seat transition is short and physical")
 
 	var collision := zenith.get_landing_collision_report()
 	var landing_bounds := collision.local_bounds as AABB

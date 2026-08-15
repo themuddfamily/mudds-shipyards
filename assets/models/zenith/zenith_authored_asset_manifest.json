@@ -17,7 +17,7 @@
   },
   "asset_id": "mudds.ship.zenith.b7_authored.v1",
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "355319f3bd541d2cd28c0abce49fa3cc35e6a0d5b95a702d1888a2029465a677",
+  "blend_sha256": "33a29154bb0028cd8494506ef874a2cb6d44e82fb8738cfc0c227ae0dec44712",
   "blender_version": "4.0.2",
   "bounds_godot_metres": {
     "maximum": [
@@ -16795,8 +16795,8 @@
     "gameplay_state"
   ],
   "generator": "tools/blender/generate_zenith_authored_v1.py",
-  "generator_sha256": "af63e2e154a4dcca1065e573940abcd3319f6adba28ccd53b46a4cdeb1aad83b",
-  "glb_sha256": "bc1d8a7f381654a547ca7e6b3993fa60b033cea5101a2ee866f02318b2d4a736",
+  "generator_sha256": "7d623eb871ff01d54aeb8ec4fab29b19e6ff02edf1dcd0376fd3140f798619f3",
+  "glb_sha256": "d22f26152b275e6d295c9de36968c08af0f83f55af7942b93818924dca789476",
   "hierarchy_contract": {
     "ModernSystems_direct_children_exact": [
       "LOD0",
@@ -17252,8 +17252,8 @@
     ],
     "CockpitCamera": [
       0.0,
-      2.28,
-      -1.24
+      2.87,
+      -0.8
     ],
     "DamageCenter": [
       0.0,
@@ -17287,7 +17287,7 @@
     ],
     "PilotSeatAnchor": [
       0.0,
-      1.58,
+      1.11,
       -0.55
     ],
     "PortEnginePlume": [
@@ -17398,7 +17398,7 @@
     "SourceCore/LOD1": 15
   },
   "source_path": "art_source/zenith/zenith_authored_v1.blend",
-  "source_semantic_sha256": "f89154b2e55291afee7889a47db43b1a06824a6dd2fdbe071cf4523a277c157a",
+  "source_semantic_sha256": "30c33c780c58bef40898f54bb54878bcffeec3c6d9098759fb41bd2de062035f",
   "triangle_order_contract": {
     "canonicalized_triangle_count": 52686,
     "method": "lexicographic_indexed_triangle_tuple_sort_v1",
