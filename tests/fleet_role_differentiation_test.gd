@@ -11,16 +11,6 @@ extends SceneTree
 ## floor so a later player-led feel pass can only improve it. One deficiency is
 ## deliberately NOT asserted as passing and is documented instead:
 ##
-<<<<<<< HEAD
-##   * All four craft share one near-white body tone. The measured CIEDE2000
-##     between the closest pair (Jovian #e7e4d6 and Zenith #e6e2d5) is 0.82,
-##     below the just-noticeable difference, and the widest pair reaches only
-##     7.3. The Arrow/Jovian/Zenith identification accents also cluster in
-##     cyan-teal (min CIEDE2000 6.40 under simulated protanopia), so only the
-##     warm-gold Torrent accent separates at a glance. Body-tone separations
-##     are printed as evidence rather than asserted, because no floor over
-##     numbers this small would mean anything.
-##
 ## Cockpit seating was the second recorded deficiency and is now fixed rather
 ## than recorded. Zenith used to place its cockpit camera 0.859 m BELOW the
 ## seated pilot's head bone and left that head bone only 0.061 m under its own
@@ -30,12 +20,6 @@ extends SceneTree
 ## values — see the re-freeze note in `tests/zenith_interceptor_test.gd` — and
 ## the eye-point and head-inside-hull assertions below now cover all four
 ## craft, so the defect cannot silently return.
-=======
-##   * Zenith places its cockpit camera 0.86 m BELOW the seated pilot's head
-##     bone (the other three place it 0.20 m above), and the seated pilot's
-##     head bone clears Zenith's outer hull by only 0.06 m against 0.56 m or
-##     more elsewhere. Zenith's eye point is therefore not frozen as plausible.
->>>>>>> worktree-agent-a95094a8e503e2d38
 ##
 ## The colour deficiency this suite originally recorded has since been fixed and
 ## is now asserted rather than merely printed. The audited state was four craft
