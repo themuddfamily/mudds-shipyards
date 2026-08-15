@@ -319,6 +319,9 @@ static func build_authority_contract(module: Node) -> Dictionary:
 		if node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D:
 			audio_node_count += 1
 	return {
+		# Authority identities are explicit declarations. Evidence records and
+		# berth specifications describe a module; they do not grant ownership.
+		"authority_ids": PackedStringArray(),
 		"ship_berth_count": berth_count,
 		"landing_or_interaction_area_count": landing_or_interaction_area_count,
 		"audio_node_count": audio_node_count,

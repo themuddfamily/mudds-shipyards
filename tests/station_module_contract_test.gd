@@ -21,7 +21,7 @@ class ProbeModule extends Node:
 	var _route_ids: Array[StringName] = []
 	var _route_markers: Dictionary = {}
 	var _route_markers_present: Dictionary = {}
-	var _berth_id: StringName = &""
+	var _authority_ids := PackedStringArray()
 	var _component_roster: Dictionary = {}
 
 	func _init(module_id: StringName = &"probe") -> void:
@@ -71,7 +71,10 @@ class ProbeModule extends Node:
 		return {"solid_shapes": 0}
 
 	func get_authority_contract() -> Dictionary:
-		return {"module_authority": _module_id}
+		return {
+			"module_authority": _module_id,
+			"authority_ids": _authority_ids.duplicate(),
+		}
 
 	func get_performance_contract() -> Dictionary:
 		return {"within_budget": true}
@@ -95,13 +98,8 @@ class ProbeModule extends Node:
 	func get_validation_errors() -> PackedStringArray:
 		return _validation_errors.duplicate()
 
-	func get_berth_specification() -> Dictionary:
-		if _berth_id.is_empty():
-			return {}
-		return {"berth_id": _berth_id}
-
-	func set_berth_id(berth_id: StringName) -> void:
-		_berth_id = berth_id
+	func set_authority_ids(authority_ids: PackedStringArray) -> void:
+		_authority_ids = authority_ids.duplicate()
 
 	func set_evidence_metadata(value: Dictionary) -> void:
 		_evidence_metadata = value
@@ -143,6 +141,7 @@ func _run() -> void:
 	_test_untagged_markers_stay_internal(registry)
 	_test_module_without_connection_slot(registry)
 	_test_duplicate_slot_on_one_module(registry)
+	_test_two_modules_same_slot_rejected(registry)
 	_test_overclaimed_connection_slot(registry)
 	_test_dangling_connection_slot(registry)
 
@@ -303,6 +302,21 @@ func _test_duplicate_slot_on_one_module(registry: StationRouteRegistry) -> void:
 	)
 
 
+func _test_two_modules_same_slot_rejected(registry: StationRouteRegistry) -> void:
+	var first := _probe_module(&"claim-a", Vector3.ZERO, true, &"approach", true, &"shared-module-slot")
+	var second := _probe_module(&"claim-b", Vector3(4.0, 0.0, 0.0), true, &"approach", true, &"shared-module-slot")
+	var report := registry.build_registry([first, second])
+	var adjacency := report.get("adjacency", {}) as Dictionary
+	var slot := (adjacency.get("slots", {}) as Dictionary).get(&"shared-module-slot", {}) as Dictionary
+	_check(
+		not bool(report.get("valid", false))
+		and _errors_include(report.get("errors", PackedStringArray()), "claimed by two modules")
+		and bool(slot.get("overclaimed", false))
+		and int(adjacency.get("connected_slots", -1)) == 0,
+		"two modules claiming the same connection slot are rejected instead of forming an edge"
+	)
+
+
 func _test_overclaimed_connection_slot(registry: StationRouteRegistry) -> void:
 	var first := _probe_module(&"claim-a", Vector3(4.0, 0.0, 0.0), true, &"approach", true, &"contested-slot")
 	var second := _probe_module(&"claim-b", Vector3(4.0, 0.0, 0.0), true, &"approach", true, &"contested-slot")
@@ -423,9 +437,9 @@ func _test_reserved_hub_id_rejected(registry: StationRouteRegistry) -> void:
 
 func _test_authority_overlap_between_modules(registry: StationRouteRegistry) -> void:
 	var first := _probe_module(&"berth-owner", Vector3.ZERO, true, &"approach", true, &"slot-one")
-	first.set_berth_id(&"contested_berth")
+	first.set_authority_ids(PackedStringArray(["contested_berth"]))
 	var second := _probe_module(&"berth-thief", Vector3(9.0, 0.0, 0.0), true, &"approach", true, &"slot-two")
-	second.set_berth_id(&"contested_berth")
+	second.set_authority_ids(PackedStringArray(["contested_berth"]))
 
 	var report := registry.build_registry([first, second])
 	_check(
@@ -439,7 +453,7 @@ func _test_authority_overlap_between_modules(registry: StationRouteRegistry) -> 
 
 func _test_self_authority_overlap_ignored(registry: StationRouteRegistry) -> void:
 	var module := _probe_module(&"authority-self", Vector3(6.0, 0.0, 0.0), true, &"route-one", true, &"slot-one")
-	module.set_berth_id(&"own_berth")
+	module.set_authority_ids(PackedStringArray(["own_berth", "own_berth"]))
 	var second_marker := Marker3D.new()
 	second_marker.position = Vector3(7.5, 0.0, 0.0)
 	module.add_child(second_marker)
@@ -476,8 +490,7 @@ func _test_report_is_pure(registry: StationRouteRegistry) -> void:
 
 func _test_deep_copy_report_invariance(registry: StationRouteRegistry) -> void:
 	var first := _probe_module(&"copy-a", Vector3.ZERO, true, &"approach", true, &"shared-copy-slot")
-	var second := _probe_module(&"copy-b", Vector3(5.0, 0.0, 0.0), true, &"approach", true, &"shared-copy-slot")
-	var baseline := registry.build_registry([first, second])
+	var baseline := registry.build_registry([first], [_hub_endpoint(&"shared-copy-slot", &"copy-a")])
 
 	var baseline_slots := (baseline.get("modules", {}) as Dictionary).get(&"copy-a", {}) as Dictionary
 	var baseline_route_id := StringName(

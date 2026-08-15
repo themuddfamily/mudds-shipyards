@@ -9,9 +9,10 @@ extends RefCounted
 ## so the graph stays stable when placement is retuned and a matching pair can
 ## never be manufactured by two markers drifting onto the same position.
 ##
-## A slot ID is claimed by exactly two endpoints — either a module and a station
-## hub endpoint published by `ShipyardWorld`, or two modules. One claimant is a
-## dangling connection; three or more is an overclaimed slot. Both are rejected.
+## A slot ID is claimed by exactly one module and one station hub endpoint
+## published by `ShipyardWorld`. One claimant is a dangling connection, two
+## modules claiming the same slot is a conflict, and three or more endpoints is
+## an overclaimed slot. All three invalid states are rejected.
 ##
 ## The registry intentionally assigns no gameplay authority, and it does not
 ## prove the player can physically walk a slot. Physical continuity remains the
@@ -272,11 +273,14 @@ func _build_adjacency_graph() -> Dictionary:
 		var claim_count := claims.size()
 		var endpoint_summaries := PackedStringArray()
 		var claimant_modules := PackedStringArray()
+		var module_claim_count := 0
 		for claim in claims:
 			var claimant_id := String((claim as Dictionary).get("module_id", &""))
 			endpoint_summaries.append("%s:%s" % [claimant_id, String((claim as Dictionary).get("route_id", &""))])
 			if not claimant_modules.has(claimant_id):
 				claimant_modules.append(claimant_id)
+			if StringName(claimant_id) != HUB_ENDPOINT_ID:
+				module_claim_count += 1
 		slot_reports[slot_id] = {
 			"slot_id": slot_id,
 			"claim_count": claim_count,
@@ -290,6 +294,15 @@ func _build_adjacency_graph() -> Dictionary:
 			dangling_slots.append(String(slot_id))
 			_errors.append(
 				"connection slot %s is dangling; only %s claims it" % [slot_id, endpoint_summaries[0]]
+			)
+		elif claim_count == 2 and module_claim_count == 2:
+			# The world owns station placement and therefore the other half of every
+			# registered connection. Letting two modules pair directly would bypass
+			# that ownership boundary and contradict the roadmap contract.
+			(slot_reports[slot_id] as Dictionary)["overclaimed"] = true
+			overclaimed_slots.append(String(slot_id))
+			_errors.append(
+				"connection slot %s is claimed by two modules: %s" % [slot_id, endpoint_summaries]
 			)
 		elif claim_count == 2:
 			edges.append({"slot_id": slot_id, "endpoints": endpoint_summaries})
@@ -317,15 +330,20 @@ func _build_adjacency_graph() -> Dictionary:
 
 func _extract_authority_ids(module: Node) -> PackedStringArray:
 	var authority_ids := PackedStringArray()
-	var spec: Variant = _safe_variant(module, &"get_berth_specification")
-	if spec is Dictionary and (spec as Dictionary).has("berth_id"):
-		var spec_id := StringName((spec as Dictionary).get("berth_id", &""))
-		if not spec_id.is_empty() and not authority_ids.has(String(spec_id)):
-			authority_ids.append(String(spec_id))
-	var berth_id: Variant = _safe_variant(module, &"get_berth_id")
-	if berth_id is StringName and not (berth_id as StringName).is_empty():
-		if not authority_ids.has(String(berth_id)):
-			authority_ids.append(String(berth_id))
+	var contract: Variant = _safe_variant(module, &"get_authority_contract")
+	if not (contract is Dictionary):
+		return authority_ids
+	var declared: Variant = (contract as Dictionary).get("authority_ids", PackedStringArray())
+	if declared is PackedStringArray:
+		for authority_id in declared as PackedStringArray:
+			var normalized := StringName(authority_id)
+			if not normalized.is_empty() and not authority_ids.has(String(normalized)):
+				authority_ids.append(String(normalized))
+	elif declared is Array:
+		for authority_id in declared as Array:
+			var normalized := StringName(authority_id)
+			if not normalized.is_empty() and not authority_ids.has(String(normalized)):
+				authority_ids.append(String(normalized))
 	return authority_ids
 
 

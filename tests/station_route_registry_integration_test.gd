@@ -56,12 +56,6 @@ const EXPECTED_BERTH_TRANSFORMS := {
 	&"zenith_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(22.0, 5.28, 53.3)),
 }
 
-## The only berth specification a station module publishes. Every other berth
-## identity stays entirely world-owned and must never appear as a module claim.
-const EXPECTED_AUTHORITY_CLAIMS := {
-	&"jovian_freight_berth": &"jovian-freight-berth",
-}
-
 var _failures: Array[String] = []
 
 
@@ -285,16 +279,9 @@ func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> v
 func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	var report := world.get_station_route_registry_report()
 	var authority_claims := report.get("authority_claims", {}) as Dictionary
-	var claims_are_exact := authority_claims.size() == EXPECTED_AUTHORITY_CLAIMS.size()
-	for authority_id: StringName in EXPECTED_AUTHORITY_CLAIMS.keys():
-		claims_are_exact = claims_are_exact \
-			and StringName(authority_claims.get(authority_id, &"")) == EXPECTED_AUTHORITY_CLAIMS[authority_id]
-	_check(claims_are_exact, "only the freight module declares a berth specification, and it claims exactly its own berth id")
 	_check(
-		not authority_claims.has(&"zenith_fleet_dock_berth")
-		and not authority_claims.has(&"central_berth")
-		and not authority_claims.has(&"arrow_recon_berth"),
-		"no module claims a berth identity the world assigns elsewhere"
+		authority_claims.is_empty(),
+		"station modules declare no gameplay authority ids; berth specifications remain descriptive"
 	)
 
 	var live_berth_ids := world.get_berth_ids()
@@ -309,26 +296,13 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	_check(berth_roster_exact, "the world still owns exactly the four assigned physical berths")
 	_check(berths_unchanged, "all four authoritative berth identities and transforms are untouched by the route registry")
 
-	var claimed_berths_stay_world_owned := true
-	for authority_id: StringName in authority_claims.keys():
-		var berth := world.get_berth_node(authority_id)
-		var module := _module_by_id(world, StringName(authority_claims[authority_id]))
-		if berth == null or module == null:
-			claimed_berths_stay_world_owned = false
-			continue
-		# A declared claim is bookkeeping only: the real ShipBerth stays a
-		# world-owned node, never re-parented under the claiming module.
-		if module.is_ancestor_of(berth) or not world.is_ancestor_of(berth):
-			claimed_berths_stay_world_owned = false
-	_check(claimed_berths_stay_world_owned, "a registry authority claim never takes ownership of the live ShipBerth node")
-
 	var modules := report.get("modules", {}) as Dictionary
-	var non_berth_modules_claim_nothing := true
-	for module_id: StringName in [&"aft-junction-stack", &"habitat-spine", &"fleet-dock-comb"]:
+	var modules_claim_nothing := true
+	for module_id: StringName in EXPECTED_MODULE_IDS:
 		var entry := modules.get(module_id, {}) as Dictionary
-		non_berth_modules_claim_nothing = non_berth_modules_claim_nothing \
+		modules_claim_nothing = modules_claim_nothing \
 			and (entry.get("authority_ids", PackedStringArray()) as PackedStringArray).is_empty()
-	_check(non_berth_modules_claim_nothing, "the aft junction, habitat and comb modules declare no authority ids at all")
+	_check(modules_claim_nothing, "all four station modules declare no authority ids at all")
 
 	var comb := world.get_fleet_dock_comb()
 	var docks_own_no_authority := comb != null and comb.get_dock_roster().size() == 3
@@ -419,7 +393,7 @@ func _test_report_is_deeply_detached(world: ShipyardWorld) -> void:
 	)
 	_check(
 		(fresh.get("hub_endpoints", {}) as Dictionary).size() == EXPECTED_HUB_ENDPOINT_COUNT
-		and (fresh.get("authority_claims", {}) as Dictionary).size() == EXPECTED_AUTHORITY_CLAIMS.size(),
+		and (fresh.get("authority_claims", {}) as Dictionary).is_empty(),
 		"hub endpoints and authority claims survive caller mutation"
 	)
 	_check(
