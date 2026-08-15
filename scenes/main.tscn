@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://scenes/audio/combat_audio_presentation.tscn" id="14_combat_audio"]
 [ext_resource type="PackedScene" path="res://scenes/ships/zenith_interceptor.tscn" id="15_zenith"]
 [ext_resource type="PackedScene" path="res://scenes/ships/standoff_picket_opponent.tscn" id="16_picket"]
+[ext_resource type="PackedScene" path="res://scenes/audio/station_music_bed.tscn" id="17_music_bed"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -46,6 +47,8 @@ script = ExtResource("11_combat_resolver")
 [node name="PulseWeaponPresentation" parent="." instance=ExtResource("13_pulse_presentation")]
 
 [node name="CombatAudioPresentation" parent="." instance=ExtResource("14_combat_audio")]
+
+[node name="StationMusicBed" parent="." instance=ExtResource("17_music_bed")]
 
 [node name="AudioDirector" type="Node" parent="."]
 script = ExtResource("6_audio")

@@ -44,7 +44,7 @@ enum ColorblindPalette {
 ## [constant MINIMUM_SUPPORTED_SCHEMA_VERSION]..[constant SCHEMA_VERSION] load
 ## and are upgraded in memory; keys a older writer never stored fall back to
 ## their authored defaults. Anything outside that range still fails closed.
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -70,6 +70,7 @@ const DEFAULT_AMBIENCE_VOLUME := 1.0
 const DEFAULT_ENGINE_VOLUME := 1.0
 const DEFAULT_WEAPONS_VOLUME := 1.0
 const DEFAULT_UI_VOLUME := 1.0
+const DEFAULT_MUSIC_VOLUME := 1.0
 
 const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
@@ -103,10 +104,11 @@ const _AUDIO_BUS_PROPERTIES := {
 	&"Engines": &"engine_volume",
 	&"Weapons": &"weapons_volume",
 	&"UI": &"ui_volume",
+	&"Music": &"music_volume",
 }
 
 # User volumes are gain multipliers over the authored bus mix. A default 100%
-# slider therefore preserves the current -3/-1/-1/-2 dB balance rather than
+# slider therefore preserves the current -3/-1/-1/-2/-6 dB balance rather than
 # flattening every category to 0 dB the first time settings are applied.
 const _AUDIO_BUS_BASE_DB := {
 	&"Master": 0.0,
@@ -114,6 +116,7 @@ const _AUDIO_BUS_BASE_DB := {
 	&"Engines": -1.0,
 	&"Weapons": -1.0,
 	&"UI": -2.0,
+	&"Music": -6.0,
 }
 
 const _CONTROL_PRESET_DESCRIPTORS := {
@@ -240,6 +243,18 @@ var ui_volume: float = DEFAULT_UI_VOLUME:
 		ui_volume = validated
 		_queue_change(&"ui_volume", validated)
 
+## Gain over the authored `Music` bus mix. The music/ambient bed is a separate
+## category from `Ambience` on purpose: silencing station machinery must not
+## silence the score, and silencing the score must not silence the station.
+var music_volume: float = DEFAULT_MUSIC_VOLUME:
+	set(value):
+		var validated := _validated_float(value, DEFAULT_MUSIC_VOLUME, MIN_VOLUME, MAX_VOLUME)
+		if is_equal_approx(music_volume, validated):
+			return
+		music_volume = validated
+		_queue_change(&"music_volume", validated)
+
+
 var graphics_profile: int = DEFAULT_GRAPHICS_PROFILE:
 	set(value):
 		var validated := _validated_graphics_profile(value)
@@ -317,6 +332,7 @@ func to_dictionary() -> Dictionary:
 		"engine_volume": engine_volume,
 		"weapons_volume": weapons_volume,
 		"ui_volume": ui_volume,
+		"music_volume": music_volume,
 		"graphics_profile": graphics_profile,
 		"window_mode": window_mode,
 		"control_preset": control_preset,
@@ -340,6 +356,7 @@ func reset_to_defaults() -> void:
 	engine_volume = DEFAULT_ENGINE_VOLUME
 	weapons_volume = DEFAULT_WEAPONS_VOLUME
 	ui_volume = DEFAULT_UI_VOLUME
+	music_volume = DEFAULT_MUSIC_VOLUME
 	graphics_profile = DEFAULT_GRAPHICS_PROFILE
 	window_mode = DEFAULT_WINDOW_MODE
 	control_preset = DEFAULT_CONTROL_PRESET
@@ -395,6 +412,7 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_AUDIO, "engine", engine_volume)
 	config.set_value(_SECTION_AUDIO, "weapons", weapons_volume)
 	config.set_value(_SECTION_AUDIO, "ui", ui_volume)
+	config.set_value(_SECTION_AUDIO, "music", music_volume)
 	config.set_value(_SECTION_GRAPHICS, "profile", String(_graphics_profile_id(graphics_profile)))
 	config.set_value(_SECTION_DISPLAY, "window_mode", String(_window_mode_id(window_mode)))
 	config.set_value(_SECTION_ACCESSIBILITY, "ui_scale", ui_scale)
@@ -482,6 +500,7 @@ func load_from_file(path_override: String = "") -> Error:
 	var loaded_engine := _read_number(config, _SECTION_AUDIO, "engine", DEFAULT_ENGINE_VOLUME)
 	var loaded_weapons := _read_number(config, _SECTION_AUDIO, "weapons", DEFAULT_WEAPONS_VOLUME)
 	var loaded_ui := _read_number(config, _SECTION_AUDIO, "ui", DEFAULT_UI_VOLUME)
+	var loaded_music := _read_number(config, _SECTION_AUDIO, "music", DEFAULT_MUSIC_VOLUME)
 	var loaded_ui_scale := _read_number(
 		config, _SECTION_ACCESSIBILITY, "ui_scale", DEFAULT_UI_SCALE
 	)
@@ -500,6 +519,7 @@ func load_from_file(path_override: String = "") -> Error:
 	engine_volume = loaded_engine
 	weapons_volume = loaded_weapons
 	ui_volume = loaded_ui
+	music_volume = loaded_music
 	graphics_profile = _parse_graphics_profile(
 		config.get_value(_SECTION_GRAPHICS, "profile", _graphics_profile_id(DEFAULT_GRAPHICS_PROFILE))
 	)

@@ -99,6 +99,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"engine_volume",
 	&"weapons_volume",
 	&"ui_volume",
+	&"music_volume",
 	&"graphics_profile",
 	&"window_mode",
 	&"control_preset",
@@ -123,6 +124,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 @onready var combat_audio: CombatAudioPresentation = $CombatAudioPresentation
 @onready var hud: CanvasLayer = $HUD
 @onready var audio: Node = $AudioDirector
+@onready var music_bed: StationMusicBed = $StationMusicBed
 
 var phase := Phase.INTRO
 var destroyed_targets := 0
@@ -227,11 +229,13 @@ func _ready() -> void:
 	hud.set_interaction("", false)
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	_apply_all_runtime_settings()
+	_update_music_bed_state()
 	_initialized = true
 
 
 func _process(delta: float) -> void:
 	_update_pending_regeneration(delta)
+	_update_music_bed_state()
 	if phase == Phase.INTRO:
 		return
 	if _piloting:
@@ -273,6 +277,10 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# is idempotent, and `tests/accessibility_reentry_integration_test.gd` records
 	# which half of this call each of its assertions actually witnesses.
 	_apply_all_runtime_settings()
+	# The bed retained its own envelope and loop positions across the detach; this
+	# only re-states the observed session state so a re-entered tree cannot resume
+	# under a stale one.
+	_update_music_bed_state()
 
 
 func _connect_runtime_signals() -> void:
@@ -2021,6 +2029,31 @@ func get_combat_audio_presentation() -> CombatAudioPresentation:
 	return combat_audio
 
 
+func get_music_bed() -> StationMusicBed:
+	return music_bed
+
+
+## Reports the already decided session state to the bounded music bed.
+##
+## This is a one-way observation seam. The bed receives the state the flow has
+## already reached and can only change its own three voices; it never sets a
+## phase, spawns or clears an opponent, or touches combat authority. An active
+## encounter always resolves to `combat`, so an authored bed can never play over
+## a live fight.
+func _update_music_bed_state() -> void:
+	if not is_instance_valid(music_bed):
+		return
+	var state := StationMusicBed.STATE_REST
+	if (
+		phase == Phase.INTERCEPTOR_ENGAGEMENT
+		or (is_instance_valid(opponent) and opponent.is_active())
+	):
+		state = StationMusicBed.STATE_COMBAT
+	elif _piloting:
+		state = StationMusicBed.STATE_FLIGHT
+	music_bed.notify_session_state(state)
+
+
 func get_last_player_shot_result() -> Dictionary:
 	return _last_player_shot_result.duplicate(true)
 
@@ -2121,7 +2154,7 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		player.set_camera_fov(runtime_settings.camera_fov)
 	elif setting in [
 		&"master_volume", &"ambience_volume", &"engine_volume",
-		&"weapons_volume", &"ui_volume"
+		&"weapons_volume", &"ui_volume", &"music_volume"
 	]:
 		runtime_settings.apply_audio_settings()
 	elif setting == &"graphics_profile" and world.has_method("apply_visual_quality"):
