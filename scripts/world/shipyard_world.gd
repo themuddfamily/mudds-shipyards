@@ -2284,11 +2284,17 @@ func _build_architecture() -> void:
 		_box(shell, "JunctionPortalPost", Vector3(x_position, 3.25, 22.6), Vector3(1.1, 6.5, 1.2), _materials["blue"])
 	_box(shell, "JunctionPortalHeader", Vector3(0, 7.4, 22.6), Vector3(13.3, 2.0, 1.2), _materials["blue"])
 	_box(shell, "JunctionSignFace", Vector3(0, 7.4, 21.95), Vector3(12.0, 1.3, 0.12), _materials["navy"], false)
+	# MAP-004 family, found by sweeping every live `TextMesh` rather than only the
+	# six the intake listed. Both legends stand at z = 21.86/21.84, in front of
+	# `JunctionSignFace` (z = 21.95) on the -Z side of the portal, and both were
+	# authored with `Vector3.ZERO`, so the station's most prominent navigation
+	# board read backwards to everyone walking aft through it. Rendered and
+	# confirmed reversed before the change.
 	_text_sign(
 		shell,
 		"MUDDS  //  REGENERATION DECK",
 		Vector3(0, 7.65, 21.86),
-		Vector3.ZERO,
+		Vector3(0.0, 180.0, 0.0),
 		0.54,
 		_materials["cyan_glow"]
 	)
@@ -2296,7 +2302,7 @@ func _build_architecture() -> void:
 		shell,
 		"CENTRAL JUNCTION  //  FLEET DOCKS",
 		Vector3(0, 7.08, 21.84),
-		Vector3.ZERO,
+		Vector3(0.0, 180.0, 0.0),
 		0.27,
 		_materials["orange_glow"]
 	)
@@ -2801,11 +2807,17 @@ func _build_catwalks_and_control_room() -> void:
 	for x_position in [37.5, 41.2, 44.8, 48.5]:
 		_box(upper, "OperationsWindowMullion", Vector3(x_position, 3.0, 22.95), Vector3(0.26, 5.4, 0.32), _materials["steel_blue"])
 		_box(upper, "OperationsWindow", Vector3(x_position + 1.75, 3.0, 22.8), Vector3(3.15, 4.7, 0.08), _materials["glass"], false)
+	# MAP-004. `TextMesh` renders its readable face toward local +Z, so a legend
+	# authored with `Vector3.ZERO` on a structure's -Z frontage reads as mirror
+	# writing to the only person who can see it. The pod is approached from the
+	# lattice deck at lower z, so the legend is yawed 180 degrees to face them.
+	# The glyph extrusion is symmetric about local z = 0, so this does not change
+	# the sign's depth footprint and cannot push it into the glazing behind it.
 	_text_sign(
 		upper,
 		"DOCK OPERATIONS",
 		Vector3(43.0, 5.15, 22.68),
-		Vector3.ZERO,
+		Vector3(0.0, 180.0, 0.0),
 		0.48,
 		_materials["cyan_glow"]
 	)
@@ -2834,22 +2846,38 @@ func _build_regeneration_gallery() -> void:
 	)
 	_box(gallery, "RegistryPodBack", Vector3(-43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["ivory"])
 	_box(gallery, "RegistryPodRoof", Vector3(-43.0, 5.9, 27.0), Vector3(12.0, 0.55, 8.0), _materials["steel_blue"])
+	# MAP-004, same cause as the Dock Operations legend above.
 	_text_sign(
 		gallery,
 		"FLEET REGISTRY  //  MODERN INTERFACE",
 		Vector3(-43.0, 5.05, 22.82),
-		Vector3.ZERO,
+		Vector3(0.0, 180.0, 0.0),
 		0.4,
 		_materials["orange_glow"]
 	)
 
 	var terminal_position := Vector3(-43.0, 1.45, 24.6)
 	_box(gallery, "FleetRegistryTerminal", terminal_position, Vector3(4.6, 2.7, 1.9), _materials["navy"])
-	_box(gallery, "RegistryScreen", terminal_position + Vector3(0, 0.42, -0.98), Vector3(3.8, 1.35, 0.06), _materials["cyan_glow"], false)
-	_text_sign(gallery, "SAY SHIP NAME", terminal_position + Vector3(0, 0.72, -1.03), Vector3.ZERO, 0.34, _materials["black"])
-	_text_sign(gallery, "TORRENT  JOVIAN  TITAN  VORTEX", terminal_position + Vector3(0, 0.25, -1.04), Vector3.ZERO, 0.18, _materials["black"])
-	_text_sign(gallery, "KATANA  PARADOX  PREDATOR  DYNAMIC", terminal_position + Vector3(0, -0.02, -1.04), Vector3.ZERO, 0.14, _materials["black"])
-	_text_sign(gallery, "UTOPIA  ARROW", terminal_position + Vector3(0, -0.27, -1.04), Vector3.ZERO, 0.15, _materials["black"])
+	# The panel was 1.35 m tall, spanning y = 1.195 … 2.545, while the legend block
+	# in front of it runs y = 1.134 … 2.254. The bottom line ("UTOPIA  ARROW") fell
+	# 0.061 m off the lit panel onto the navy terminal body — black-on-near-black,
+	# invisible. Nobody could see that while the legends were still mirrored. The
+	# panel now spans y = 1.08 … 2.58 so the whole block reads on it. Legend
+	# positions are unchanged, so the coordinates recorded in `bugs.md` still hold.
+	_box(gallery, "RegistryScreen", terminal_position + Vector3(0, 0.38, -0.98), Vector3(3.8, 1.5, 0.06), _materials["cyan_glow"], false)
+	# MAP-004. These four legends are the only diegetic regeneration interface in
+	# the game and every one of them was reading backwards *into* `RegistryScreen`.
+	# They are yawed 180 degrees for the reader standing on the deck at lower z.
+	# Depth ordering was checked rather than assumed: `RegistryScreen` presents its
+	# -Z face at z = 23.590, and the four legends occupy z = 23.558 … 23.574, so
+	# they already stand 0.016-0.028 m proud of the panel. `TextMesh` extrudes
+	# symmetrically about local z = 0, so the yaw leaves that clearance untouched
+	# and moves the readable glyph face further towards the reader, not into the
+	# panel.
+	_text_sign(gallery, "SAY SHIP NAME", terminal_position + Vector3(0, 0.72, -1.03), Vector3(0.0, 180.0, 0.0), 0.34, _materials["black"])
+	_text_sign(gallery, "TORRENT  JOVIAN  TITAN  VORTEX", terminal_position + Vector3(0, 0.25, -1.04), Vector3(0.0, 180.0, 0.0), 0.18, _materials["black"])
+	_text_sign(gallery, "KATANA  PARADOX  PREDATOR  DYNAMIC", terminal_position + Vector3(0, -0.02, -1.04), Vector3(0.0, 180.0, 0.0), 0.14, _materials["black"])
+	_text_sign(gallery, "UTOPIA  ARROW", terminal_position + Vector3(0, -0.27, -1.04), Vector3(0.0, 180.0, 0.0), 0.15, _materials["black"])
 	_add_guide_light(gallery, terminal_position + Vector3(1.72, 0.95, -1.05), KETH_ORANGE, false, 1.4, 6.0)
 
 	# Physical destination indicator for the active berth. It communicates the
@@ -2857,7 +2885,13 @@ func _build_regeneration_gallery() -> void:
 	_cylinder(gallery, "BerthIndicatorBase", Vector3(-38.5, 0.75, 27.6), 1.05, 1.4, _materials["steel_blue"], true)
 	_torus(gallery, "BerthIndicatorRing", Vector3(-38.5, 1.52, 27.6), 0.72, 0.92, _materials["cyan_glow"])
 	_box(gallery, "BerthIndicatorNeedle", Vector3(-38.5, 2.55, 27.6), Vector3(0.16, 2.1, 0.16), _materials["orange_glow"], false)
-	_text_sign(gallery, "ACTIVE BERTH  //  CENTRE SPINE", Vector3(-38.5, 3.35, 26.9), Vector3.ZERO, 0.2, _materials["white_glow"])
+	# Recorded in `bugs.md` as an unconfirmed observation ("a sign with nothing
+	# within 0.62 m") and confirmed here: at z = 26.90 this legend hung 0.62 m clear
+	# of `BerthIndicatorNeedle` (z = 27.52 … 27.68), the mast it belongs to, and it
+	# faced +Z — away from the deck, so it was mirrored as well as unmounted. It is
+	# now a blade sign on the mast head, 0.018 m proud of the needle's -Z face and
+	# yawed to the reader. Height and copy are unchanged.
+	_text_sign(gallery, "ACTIVE BERTH  //  CENTRE SPINE", Vector3(-38.5, 3.35, 27.5), Vector3(0.0, 180.0, 0.0), 0.2, _materials["white_glow"])
 
 
 func _build_provisional_fleet() -> void:

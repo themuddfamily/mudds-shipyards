@@ -89,6 +89,7 @@ func _test_defaults_and_descriptors() -> void:
 	_check(is_equal_approx(float(levels[&"Engines"]), -1.0), "neutral engine gain retains the authored -1 dB mix")
 	_check(is_equal_approx(float(levels[&"Weapons"]), -1.0), "neutral weapons gain retains the authored -1 dB mix")
 	_check(is_equal_approx(float(levels[&"UI"]), -2.0), "neutral UI gain retains the authored -2 dB mix")
+	_check(is_equal_approx(float(levels[&"Music"]), -6.0), "neutral music gain retains the authored -6 dB mix")
 
 	var fallback_path_settings := Settings.new("")
 	_check(fallback_path_settings.config_path == Settings.DEFAULT_CONFIG_PATH, "empty injected paths fall back to the safe user path")
@@ -233,6 +234,7 @@ func _test_round_trip_and_stable_storage() -> void:
 	original.engine_volume = 0.67
 	original.weapons_volume = 0.81
 	original.ui_volume = 0.29
+	original.music_volume = 0.53
 	original.graphics_profile = Settings.GraphicsProfile.MEDIUM
 	original.window_mode = Settings.WindowMode.FULLSCREEN
 	original.control_preset = Settings.ControlPreset.CLASSIC
@@ -253,6 +255,7 @@ func _test_round_trip_and_stable_storage() -> void:
 	var stored := ConfigFile.new()
 	_check(stored.load(_temp_path) == OK, "saved settings are valid ConfigFile data")
 	_check(int(stored.get_value("meta", "schema_version", -1)) == Settings.SCHEMA_VERSION, "save writes a schema version")
+	_check(is_equal_approx(float(stored.get_value("audio", "music", 0.0)), 0.53), "the music volume persists in the audio section")
 	_check(typeof(stored.get_value("graphics", "profile", null)) == TYPE_STRING and stored.get_value("graphics", "profile") == "medium", "graphics persists as a stable plain-string ID")
 	_check(typeof(stored.get_value("display", "window_mode", null)) == TYPE_STRING and stored.get_value("display", "window_mode") == "fullscreen", "window mode persists as a stable plain-string ID")
 	_check(typeof(stored.get_value("controls", "preset", null)) == TYPE_STRING and stored.get_value("controls", "preset") == "classic", "control preset persists as a stable plain-string ID")
@@ -288,6 +291,7 @@ func _test_round_trip_and_stable_storage() -> void:
 		"engine_volume",
 		"weapons_volume",
 		"ui_volume",
+		"music_volume",
 		"graphics_profile",
 		"window_mode",
 		"ui_scale",
@@ -510,7 +514,7 @@ func _test_window_application_contract() -> void:
 
 func _snapshot_audio_buses() -> Dictionary:
 	var snapshot := {}
-	for bus_name: StringName in [&"Master", &"Ambience", &"Engines", &"Weapons", &"UI"]:
+	for bus_name: StringName in [&"Master", &"Ambience", &"Engines", &"Weapons", &"UI", &"Music"]:
 		var index := AudioServer.get_bus_index(bus_name)
 		if index >= 0:
 			snapshot[bus_name] = AudioServer.get_bus_volume_db(index)

@@ -1030,7 +1030,19 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	_box(vip, "VIPRedCrown", Vector3(-5.15, 8.15, 20.03), Vector3(6.2, 0.18, 0.12), _materials["red"], false)
 	for side in [-1.0, 1.0]:
 		_box(vip, "VIPRedMarker", Vector3(-5.15 + side * 2.35, 6.25, 20.02), Vector3(0.12, 3.4, 0.12), _materials["red"], false)
-	_text_sign(vip, "VIP ACCESS  //  DEFERRED", Vector3(-5.15, 7.75, 19.96), Vector3.ZERO, 0.31, _materials["red"])
+	# MAP-004 family. The legend sits at z = 19.96, in front of the facade panels
+	# (z = 20.12 …) on the -Z side of the landmark, and was authored with
+	# `Vector3.ZERO`, so it read backwards to anyone walking aft towards it. Yawed
+	# to the reader; `AFT OPERATIONS` in the same module already does this.
+	# MAP-004 family, plus a second defect found only by photographing it. The
+	# legend was authored with `Vector3.ZERO`, so it read backwards; and it stood
+	# at z = 19.96 while `VIPAccess/FrameVisuals/Header` — the door frame added
+	# later — occupies world z = 67.72 … 68.44 at exactly this height, so the sign
+	# was buried inside the frame and rendered to nobody from either side. Five
+	# camera positions from 1.06 m to 6.0 m photographed blank frame header. It is
+	# now yawed to the reader and pulled to z = 19.64 (world 67.64), 0.08 m proud
+	# of the frame's front face, where it reads as the header's legend.
+	_text_sign(vip, "VIP ACCESS  //  DEFERRED", Vector3(-5.15, 7.75, 19.64), Vector3(0, 180, 0), 0.31, _materials["red"])
 
 
 func _build_open_structure_details(structure: Node3D) -> void:
@@ -1049,7 +1061,13 @@ func _build_open_structure_details(structure: Node3D) -> void:
 		_cylinder(details, "OutriggerEndCap", Vector3(support_x + float(side) * 2.0, -1.75, 7.4), 0.26, 0.24, _materials["gold"], false, Vector3(0, 0, 90))
 		for z_position in [5.55, 9.25]:
 			_omni_light(details, "ExteriorMarkerLight", Vector3(support_x, -0.05, float(z_position)), Color("66d7dc"), 0.28, 2.4)
-	_text_sign(details, "AFT JUNCTION  //  MODERN INTERPRETATION", Vector3(0, 1.25, 9.82), Vector3.ZERO, 0.2, _materials["gold"])
+	# MAP-004 family. `bugs.md` filed this under "floor decals rendered mirrored";
+	# it is not a floor decal, it is a vertical identity plaque, and it genuinely
+	# did read backwards. Rendered from the aft connection deck at world
+	# `(0, 2.4, 52)` — the only place a player stands to see it — the legend was
+	# reversed. Yawed to that reader. It remains deliberately unbacked, like the
+	# rest of this open-lattice exterior dressing.
+	_text_sign(details, "AFT JUNCTION  //  MODERN INTERPRETATION", Vector3(0, 1.25, 9.82), Vector3(0, 180, 0), 0.2, _materials["gold"])
 
 
 func _style_access_landmarks() -> void:

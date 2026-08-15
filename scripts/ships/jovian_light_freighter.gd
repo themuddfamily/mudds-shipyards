@@ -31,8 +31,16 @@ const PROVISIONAL_NOTE := (
 	+ "authenticated historical silhouette mapping is claimed."
 )
 
-const HULL_WARM := Color("e7e4d6")
-const HULL_COOL := Color("bbc8c5")
+# Fleet readability palette. The Jovian's name-to-model mapping is unknown and
+# its palette is listed among its unknowns in docs/research/ship_evidence_matrix.json,
+# so these are freely chosen modern hull tints picked to separate the freighter
+# from the rest of the fleet under normal and dichromatic vision. See
+# tests/fleet_role_differentiation_test.gd for the frozen separation floors.
+# HULL_COOL keeps its name because `hull_cool` is the craft's stable public
+# material-family key, asserted by tests/fleet_pbr_test.gd; it now carries the
+# subordinate shade of the same warm clay family rather than a cool grey.
+const HULL_WARM := Color("e0ab74")
+const HULL_COOL := Color("bd9270")
 const JOVIAN_STRUCTURE := Color("283c42")
 const JOVIAN_STRUCTURE_DARK := Color("0e2026")
 const FREIGHT_TEAL := Color("35bbb5")

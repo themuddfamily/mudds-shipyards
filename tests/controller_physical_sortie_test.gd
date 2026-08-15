@@ -32,8 +32,20 @@ const BUTTON_DPAD_DOWN := 12
 const BUTTON_DPAD_LEFT := 13
 
 const EXPECTED_ASSERTIONS := 44
-const WALK_TIMEOUT_SECONDS := 5.0
-const FLIGHT_TIMEOUT_SECONDS := 14.0
+
+## Nominal durations for the two locomotion budgets. These are no longer wall-clock
+## timeouts: each is converted into a number of simulated frames by
+## [method _frame_budget], because every metre the avatar walks and the craft flies
+## is integrated in `_physics_process`. See [method _frame_budget] for why the
+## wall clock is the wrong instrument here.
+const WALK_TRAVEL_SECONDS := 5.0
+const FLIGHT_TRAVEL_SECONDS := 14.0
+
+## Extra simulated frames every bounded loop is granted on top of the frames its
+## nominal duration implies. A frame count, never a wall-clock grace: widening a
+## timeout would make the divergence worse rather than better, since the wall clock
+## keeps running exactly while the physics loop is being starved.
+const FRAME_BUDGET_GRACE := 30
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -454,9 +466,11 @@ func _walk_player_to_ship(
 	ship: HeroShip,
 	game: GameFlow
 	) -> bool:
-	var deadline := Time.get_ticks_msec() + int(WALK_TIMEOUT_SECONDS * 1000.0)
+	var frame_budget := _frame_budget(WALK_TRAVEL_SECONDS)
+	var frames := 0
 	_set_physical_joy_button(BUTTON_LEFT_STICK, true)
-	while Time.get_ticks_msec() < deadline:
+	while frames < frame_budget:
+		frames += 1
 		var offset := ship.get_boarding_position() - player.get_interaction_origin()
 		var flat_offset := offset.slide(Vector3.UP)
 		if flat_offset.length() <= 3.1:
@@ -468,8 +482,11 @@ func _walk_player_to_ship(
 		var right := forward.cross(Vector3.UP).normalized()
 		_set_physical_joy_axis(AXIS_LEFT_X, clampf(desired.dot(right), -1.0, 1.0))
 		_set_physical_joy_axis(AXIS_LEFT_Y, clampf(-desired.dot(forward), -1.0, 1.0))
+		# Advance exactly one simulation step per steering update. `PlayerController`
+		# integrates locomotion in `_physics_process`, so also awaiting an idle frame
+		# here would let a load-dependent number of physics steps run against stale
+		# stick values and make the walked path itself a function of machine load.
 		await physics_frame
-		await process_frame
 	_release_physical_joypad()
 	for _settle in 4:
 		await physics_frame
@@ -483,8 +500,10 @@ func _fly_to_waypoint(
 	waypoint: Vector3,
 	arrival_radius: float
 	) -> bool:
-	var deadline := Time.get_ticks_msec() + int(FLIGHT_TIMEOUT_SECONDS * 1000.0)
-	while Time.get_ticks_msec() < deadline:
+	var frame_budget := _frame_budget(FLIGHT_TRAVEL_SECONDS)
+	var frames := 0
+	while frames < frame_budget:
+		frames += 1
 		var offset := waypoint - ship.global_position
 		var distance := offset.length()
 		if distance <= arrival_radius:
@@ -504,8 +523,12 @@ func _fly_to_waypoint(
 		provider.set_axis(AXIS_RIGHT_Y, -clampf(local_desired.y * 3.4, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_TRIGGER, 1.0 if should_brake else 0.0)
 		provider.set_axis(AXIS_RIGHT_TRIGGER, 0.0)
+		# Advance exactly one simulation step per guidance update. `HeroShip` samples
+		# one immutable command per `_physics_process` tick, so awaiting an idle frame
+		# as well would run a load-dependent number of ticks against stale axes and
+		# make the flown trajectory — and therefore the arrival pose — a function of
+		# machine load rather than of the controller behaviour under test.
 		await physics_frame
-		await process_frame
 	_neutralize_flight_axes(provider)
 	return ship.global_position.distance_to(waypoint) <= arrival_radius
 
@@ -514,13 +537,13 @@ func _brake_ship(
 	ship: HeroShip,
 	provider: ControllerStateProvider,
 	maximum_speed: float,
-	timeout_seconds: float
+	nominal_seconds: float
 	) -> bool:
 	_neutralize_flight_axes(provider)
 	provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
 	var stopped := await _wait_until(
 		func() -> bool: return ship.velocity.length() <= maximum_speed,
-		timeout_seconds
+		nominal_seconds
 	)
 	provider.set_axis(AXIS_LEFT_TRIGGER, 0.0)
 	await physics_frame
@@ -532,12 +555,14 @@ func _align_ship(
 	provider: ControllerStateProvider,
 	desired_direction: Vector3,
 	minimum_dot: float,
-	timeout_seconds: float
+	nominal_seconds: float
 	) -> bool:
 	var direction := desired_direction.normalized()
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
+	var frame_budget := _frame_budget(nominal_seconds)
+	var frames := 0
 	provider.set_button(BUTTON_A, true)
-	while Time.get_ticks_msec() < deadline:
+	while frames < frame_budget:
+		frames += 1
 		var forward := -ship.global_basis.z.normalized()
 		if forward.dot(direction) >= minimum_dot and ship.global_basis.y.dot(Vector3.UP) > 0.94:
 			_neutralize_flight_axes(provider)
@@ -551,8 +576,10 @@ func _align_ship(
 		provider.set_axis(AXIS_RIGHT_Y, -clampf(local_desired.y * 3.8, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
 		provider.set_axis(AXIS_RIGHT_TRIGGER, 0.0)
+		# One simulation step per attitude update, for the reason given on
+		# [method _fly_to_waypoint]: the achieved heading must not depend on how many
+		# physics ticks the engine happened to fit inside an idle frame.
 		await physics_frame
-		await process_frame
 	_neutralize_flight_axes(provider)
 	provider.set_button(BUTTON_A, false)
 	await physics_frame
@@ -567,10 +594,12 @@ func _aim_and_fire_until_removed(
 	provider: ControllerStateProvider,
 	target: Node3D,
 	completion: Callable,
-	timeout_seconds: float
+	nominal_seconds: float
 	) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline and not bool(completion.call()):
+	var frame_budget := _frame_budget(nominal_seconds)
+	var frames := 0
+	while frames < frame_budget and not bool(completion.call()):
+		frames += 1
 		if not is_instance_valid(target):
 			break
 		var aiming_origin := ship.get_camera().global_position
@@ -586,8 +615,10 @@ func _aim_and_fire_until_removed(
 		provider.set_axis(AXIS_RIGHT_Y, -clampf(local_desired.y * 4.2, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
 		provider.set_axis(AXIS_RIGHT_TRIGGER, 1.0 if alignment >= 0.997 else 0.0)
+		# One simulation step per aim/fire update, for the reason given on
+		# [method _fly_to_waypoint]. The firing gate reads `alignment` sampled on this
+		# same tick, so an idle await here would fire against a stale alignment.
 		await physics_frame
-		await process_frame
 	_neutralize_flight_axes(provider)
 	return bool(completion.call())
 
@@ -656,13 +687,32 @@ func _release_physical_joypad() -> void:
 		_set_physical_joy_button(button, false)
 
 
-func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
+## Frames a nominal duration of simulated time is worth at the project's configured
+## physics tick rate, plus a fixed frame grace.
+##
+## Every loop in this suite drives the production controller stack and then waits
+## for the result, and every one of those results — avatar locomotion, craft
+## translation and rotation, weapon cooldowns, phase transitions — is integrated in
+## `_physics_process`. Under load Godot drops physics steps to avoid a spiral of
+## death while the wall clock keeps running, so a `Time.get_ticks_msec()` deadline
+## ends a loop after far fewer simulated steps than the manoeuvre needs and scores
+## a perfectly healthy sortie as a failure. Counting frames grants the same amount
+## of simulation however busy the box is, and still fails a genuinely stuck
+## manoeuvre because the budget remains finite.
+func _frame_budget(seconds: float) -> int:
+	var required := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	return maxi(required, 1) + FRAME_BUDGET_GRACE
+
+
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := _frame_budget(nominal_seconds)
+	var frames := 0
+	while frames < frame_budget:
 		if bool(predicate.call()):
 			return true
 		await physics_frame
 		await process_frame
+		frames += 1
 	return bool(predicate.call())
 
 

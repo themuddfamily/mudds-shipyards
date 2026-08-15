@@ -174,8 +174,14 @@ func _build_once() -> void:
 
 func _configure_runtime_materials() -> void:
 	_runtime_materials = {
-		&"PaleCeramicHull": _hull_material(Color("e6e2d5"), 0.10, 0.43, 0.18),
-		&"PaleFacetSecondary": _hull_material(Color("aeb1aa"), 0.14, 0.49, 0.10),
+		# B7 supports a pale off-white/light-grey dominant exterior as a relative
+		# value only; it establishes no albedo swatch, paint system or weathering
+		# level (docs/ZENITH_B7_RECONSTRUCTION_SPEC.md). These modern tints stay
+		# inside that pale read while moving off the fleet's shared warm ivory so
+		# the four craft separate at a glance; see the frozen floors in
+		# tests/fleet_role_differentiation_test.gd.
+		&"PaleCeramicHull": _hull_material(Color("bac8d6"), 0.10, 0.43, 0.18),
+		&"PaleFacetSecondary": _hull_material(Color("97a3ad"), 0.14, 0.49, 0.10),
 		&"GraphitePanel": _pbr_material(Color(0.075, 0.095, 0.105), 0.48, 0.43),
 		&"EngineGraphite": _pbr_material(Color(0.115, 0.140, 0.150), 0.46, 0.52),
 		&"ExposedAlloy": _pbr_material(Color("384244"), 0.82, 0.24),

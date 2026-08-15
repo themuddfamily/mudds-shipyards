@@ -30,6 +30,37 @@ const RENDERER_FORWARD_PLUS := &"forward_plus"
 const RENDERER_MOBILE := &"mobile"
 const RENDERER_COMPATIBILITY := &"gl_compatibility"
 
+## Station-scale tuning notes.
+##
+## The shipyard is built from decametre-scale slabs: deck plates 25-30 m across,
+## module walls 4-9 m tall, catwalks and railings at human scale on top of them.
+## Screen-space effects tuned at their engine defaults are sized for human-scale
+## interiors and do almost nothing at that spread, which is why large flat faces
+## previously read as untextured primitives rather than manufactured plate.
+##
+## Exposure carries most of the perceptual work. Measured against the previous
+## grade, walking surfaces sat at roughly 0.08 display luminance -- close enough
+## to black that no screen-space effect had signal to work with and panel joints
+## were invisible. Lifting exposure and narrowing the AgX white point onto the
+## range this scene actually occupies moves them to roughly 0.11 and puts deck
+## seams, edge lips and previously black service dressing back on screen.
+##
+## [code]ssao_light_affect[/code] defaults to 0.0, so ambient occlusion only
+## modulates ambient -- and nearly every readable surface here is lit by the
+## directional key or a spot mast. It is raised so contact darkening reaches
+## directly lit faces. Be honest about the size of that win: with the scene's
+## current ambient energy, and with a station built from convex slabs floating in
+## vacuum rather than enclosed rooms, SSAO measurably changes the frame by only a
+## few percent. The lever that would unlock it is ambient energy in the world
+## scene, not anything reachable from here.
+##
+## [code]glow_levels[/code] defaults to a narrow 2/3/4 pyramid, which turns
+## emissive strips into hard-edged decals instead of fixtures that spill light.
+## The spread has a hard ceiling found by measurement rather than taste: levels 6
+## and 7 are effectively full-screen mips, and giving them any weight veils the
+## whole frame whenever a bright emissive changes state, which both washes dark
+## hull back into the black background and lets a cockpit alert lamp repaint the
+## view through the canopy. Levels 2-5 carry the spill; 6 and 7 stay at zero.
 const _PROFILES := {
 	QualityLevel.LOW: {
 		"name": &"low",
@@ -37,15 +68,31 @@ const _PROFILES := {
 		"ssao_intensity": 1.0,
 		"ssao_radius": 0.8,
 		"ssao_detail": 0.3,
+		"ssao_power": 1.5,
+		"ssao_horizon": 0.06,
+		"ssao_light_affect": 0.0,
 		"ssil_enabled": false,
 		"ssil_intensity": 0.55,
 		"ssil_radius": 2.0,
+		"ssil_normal_rejection": 1.0,
 		"taa_enabled": false,
 		"glow_enabled": false,
 		"glow_intensity": 0.18,
+		"glow_strength": 1.0,
 		"glow_bloom": 0.0,
 		"glow_hdr_threshold": 1.35,
+		"glow_hdr_scale": 2.0,
+		"glow_hdr_luminance_cap": 12.0,
+		"glow_levels": [0.0, 0.8, 0.4, 0.1, 0.0, 0.0, 0.0],
 		"tonemap_mode": Environment.TONE_MAPPER_REINHARDT,
+		"tonemap_exposure": 1.0,
+		"tonemap_white": 3.0,
+		"tonemap_agx_white": 16.29,
+		"tonemap_agx_contrast": 1.25,
+		"adjustment_enabled": false,
+		"adjustment_brightness": 1.0,
+		"adjustment_contrast": 1.0,
+		"adjustment_saturation": 1.0,
 		"fog_enabled": false,
 		"fog_aerial_perspective": 0.0,
 		"fog_sun_scatter": 0.0,
@@ -57,18 +104,34 @@ const _PROFILES := {
 	QualityLevel.MEDIUM: {
 		"name": &"medium",
 		"ssao_enabled": true,
-		"ssao_intensity": 1.3,
-		"ssao_radius": 1.0,
-		"ssao_detail": 0.45,
+		"ssao_intensity": 3.0,
+		"ssao_radius": 2.6,
+		"ssao_detail": 0.6,
+		"ssao_power": 1.9,
+		"ssao_horizon": 0.035,
+		"ssao_light_affect": 0.28,
 		"ssil_enabled": false,
 		"ssil_intensity": 0.65,
 		"ssil_radius": 2.75,
+		"ssil_normal_rejection": 1.0,
 		"taa_enabled": true,
 		"glow_enabled": true,
-		"glow_intensity": 0.28,
-		"glow_bloom": 0.04,
+		"glow_intensity": 0.32,
+		"glow_strength": 1.05,
+		"glow_bloom": 0.03,
 		"glow_hdr_threshold": 1.2,
+		"glow_hdr_scale": 2.2,
+		"glow_hdr_luminance_cap": 7.0,
+		"glow_levels": [0.0, 0.7, 0.5, 0.22, 0.0, 0.0, 0.0],
 		"tonemap_mode": Environment.TONE_MAPPER_FILMIC,
+		"tonemap_exposure": 1.15,
+		"tonemap_white": 2.6,
+		"tonemap_agx_white": 16.29,
+		"tonemap_agx_contrast": 1.25,
+		"adjustment_enabled": true,
+		"adjustment_brightness": 1.0,
+		"adjustment_contrast": 1.0,
+		"adjustment_saturation": 0.97,
 		"fog_enabled": true,
 		"fog_aerial_perspective": 0.06,
 		"fog_sun_scatter": 0.025,
@@ -80,18 +143,34 @@ const _PROFILES := {
 	QualityLevel.HIGH: {
 		"name": &"high",
 		"ssao_enabled": true,
-		"ssao_intensity": 1.5,
-		"ssao_radius": 1.25,
-		"ssao_detail": 0.55,
+		"ssao_intensity": 4.0,
+		"ssao_radius": 3.0,
+		"ssao_detail": 1.0,
+		"ssao_power": 2.2,
+		"ssao_horizon": 0.02,
+		"ssao_light_affect": 0.4,
 		"ssil_enabled": true,
-		"ssil_intensity": 0.7,
-		"ssil_radius": 3.5,
+		"ssil_intensity": 1.1,
+		"ssil_radius": 6.0,
+		"ssil_normal_rejection": 0.75,
 		"taa_enabled": true,
 		"glow_enabled": true,
-		"glow_intensity": 0.38,
-		"glow_bloom": 0.06,
-		"glow_hdr_threshold": 1.05,
+		"glow_intensity": 0.46,
+		"glow_strength": 1.12,
+		"glow_bloom": 0.02,
+		"glow_hdr_threshold": 1.3,
+		"glow_hdr_scale": 2.4,
+		"glow_hdr_luminance_cap": 5.0,
+		"glow_levels": [0.0, 0.6, 0.6, 0.42, 0.15, 0.0, 0.0],
 		"tonemap_mode": Environment.TONE_MAPPER_AGX,
+		"tonemap_exposure": 1.4,
+		"tonemap_white": 4.0,
+		"tonemap_agx_white": 9.0,
+		"tonemap_agx_contrast": 1.3,
+		"adjustment_enabled": true,
+		"adjustment_brightness": 1.0,
+		"adjustment_contrast": 1.03,
+		"adjustment_saturation": 0.94,
 		"fog_enabled": true,
 		"fog_aerial_perspective": 0.12,
 		"fog_sun_scatter": 0.05,
@@ -195,17 +274,39 @@ static func apply_profile(
 	# Tonemapping, glow, and depth/height fog are available in every known
 	# Godot 4.7 renderer. Numeric values are profile-owned, while scene-scale fog
 	# density remains authored by the supplied Environment.
+	#
+	# Exposure is profile-owned rather than scene-owned because it is meaningless
+	# without its curve: the same linear input reads very differently through
+	# Reinhard, Filmic and AgX, so a single scene-authored exposure cannot serve
+	# all three tiers. It is written absolutely, never multiplied, so repeated
+	# calls from the settings menu stay idempotent.
 	environment.tonemap_mode = int(profile["tonemap_mode"])
-	if environment.tonemap_mode == Environment.TONE_MAPPER_AGX:
-		environment.tonemap_agx_contrast = 1.25
-		environment.tonemap_agx_white = 16.29
+	environment.tonemap_exposure = float(profile["tonemap_exposure"])
+	environment.tonemap_white = float(profile["tonemap_white"])
+	environment.tonemap_agx_contrast = float(profile["tonemap_agx_contrast"])
+	environment.tonemap_agx_white = float(profile["tonemap_agx_white"])
 	applied.append("tonemap")
+
+	# Colour grading is a single full-screen pass and is deliberately absent from
+	# the Low profile so the cheap tier stays cheap.
+	environment.adjustment_enabled = bool(profile["adjustment_enabled"])
+	environment.adjustment_brightness = float(profile["adjustment_brightness"])
+	environment.adjustment_contrast = float(profile["adjustment_contrast"])
+	environment.adjustment_saturation = float(profile["adjustment_saturation"])
+	applied.append("adjustment")
 
 	environment.glow_enabled = bool(profile["glow_enabled"])
 	environment.glow_intensity = float(profile["glow_intensity"])
+	environment.glow_strength = float(profile["glow_strength"])
 	environment.glow_bloom = float(profile["glow_bloom"])
 	environment.glow_hdr_threshold = float(profile["glow_hdr_threshold"])
+	environment.glow_hdr_scale = float(profile["glow_hdr_scale"])
+	environment.glow_hdr_luminance_cap = float(profile["glow_hdr_luminance_cap"])
 	environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	# set_glow_level is zero-based and maps onto the inspector's glow_levels/1..7.
+	var glow_levels := profile["glow_levels"] as Array
+	for level_index in range(glow_levels.size()):
+		environment.set_glow_level(level_index, float(glow_levels[level_index]))
 	applied.append("glow")
 
 	environment.fog_enabled = bool(profile["fog_enabled"])
@@ -218,6 +319,9 @@ static func apply_profile(
 		environment.ssao_intensity = float(profile["ssao_intensity"])
 		environment.ssao_radius = float(profile["ssao_radius"])
 		environment.ssao_detail = float(profile["ssao_detail"])
+		environment.ssao_power = float(profile["ssao_power"])
+		environment.ssao_horizon = float(profile["ssao_horizon"])
+		environment.ssao_light_affect = float(profile["ssao_light_affect"])
 		applied.append("ssao")
 	else:
 		skipped.append("ssao")
@@ -226,6 +330,7 @@ static func apply_profile(
 		environment.ssil_enabled = bool(profile["ssil_enabled"])
 		environment.ssil_intensity = float(profile["ssil_intensity"])
 		environment.ssil_radius = float(profile["ssil_radius"])
+		environment.ssil_normal_rejection = float(profile["ssil_normal_rejection"])
 		applied.append("ssil")
 	else:
 		skipped.append("ssil")
@@ -272,4 +377,13 @@ static func _make_report(quality: int, context: RenderContext, capabilities: Dic
 
 
 static func _all_features() -> PackedStringArray:
-	return PackedStringArray(["tonemap", "glow", "fog", "ssao", "ssil", "volumetric_fog", "taa"])
+	return PackedStringArray([
+		"tonemap",
+		"adjustment",
+		"glow",
+		"fog",
+		"ssao",
+		"ssil",
+		"volumetric_fog",
+		"taa",
+	])

@@ -29,8 +29,13 @@ const PROVISIONAL_NOTE := (
 	+ "mapping."
 )
 
-const PEARL := Color("e9eee9")
-const CERAMIC := Color("c7d2ce")
+# Fleet readability palette. The Arrow's name-to-model mapping is unknown and
+# its palette is listed among its unknowns in docs/research/ship_evidence_matrix.json,
+# so these are freely chosen modern hull tints picked to separate the recon craft
+# from the rest of the fleet under normal and dichromatic vision. See
+# tests/fleet_role_differentiation_test.gd for the frozen separation floors.
+const HULL_SLATE := Color("7891ab")
+const HULL_SLATE_SHADE := Color("66798d")
 const TITANIUM := Color("59686c")
 const GRAPHITE := Color("15282e")
 const SENSOR_CYAN := Color("65e4e8")
@@ -195,8 +200,10 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 
 
 func _create_arrow_materials() -> void:
-	_arrow_materials.pearl = _material(PEARL, 0.18, 0.28)
-	_arrow_materials.ceramic = _material(CERAMIC, 0.12, 0.36)
+	# The `pearl`/`ceramic` material-family keys are the craft's stable public
+	# material API and are left alone; only the tints they carry changed.
+	_arrow_materials.pearl = _material(HULL_SLATE, 0.18, 0.28)
+	_arrow_materials.ceramic = _material(HULL_SLATE_SHADE, 0.12, 0.36)
 	_arrow_materials.titanium = _material(TITANIUM, 0.58, 0.34)
 	_arrow_materials.graphite = _material(GRAPHITE, 0.64, 0.3)
 	_arrow_materials.sensor = _material(SENSOR_CYAN, 0.18, 0.22, SENSOR_CYAN, 1.7)

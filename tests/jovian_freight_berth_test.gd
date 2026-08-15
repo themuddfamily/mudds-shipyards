@@ -7,6 +7,12 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const PLAYER_RADIUS := 0.38
 const PLAYER_HEIGHT := 1.94
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. A frame count, never a wall-clock grace: the door advances in
+## `_physics_process`, and only a frame budget measures the same amount of panel
+## motion on a loaded box as on an idle one.
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 var _test_root: Node3D
 
@@ -257,7 +263,8 @@ func _test_service_door_lifecycle(module: JovianFreightBerth) -> void:
 	_check(door.interact(module), "service door accepts opening interaction")
 	_check(door.get_state() == StationDoor.DoorState.OPENING, "service door enters deterministic opening state")
 	_check(not (await _ray_through_door(door)).is_empty(), "portal remains blocked during motion")
-	await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	var service_door_opened := await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	_check(service_door_opened, "service door completes its opening motion inside its physics-frame budget")
 	_check(door.is_open() and not door.is_portal_blocked(), "fully open service access clears its physical portal")
 	_check((await _ray_through_door(door)).is_empty(), "open threshold is unobstructed")
 
@@ -267,7 +274,8 @@ func _test_service_door_lifecycle(module: JovianFreightBerth) -> void:
 	var threshold := door.to_global(Vector3(0, 1.08, 0))
 	_check((await _intersect_shape_world(module, capsule, Transform3D(Basis.IDENTITY, threshold), 32)).is_empty(), "production player capsule clears the open door")
 	_check(door.interact(module), "service door accepts repeatable close")
-	await _wait_for_door_state(door, StationDoor.DoorState.CLOSED, 1.5)
+	var service_door_closed := await _wait_for_door_state(door, StationDoor.DoorState.CLOSED, 1.5)
+	_check(service_door_closed, "service door completes its closing motion inside its physics-frame budget")
 	_check(door.is_portal_blocked(), "closed lifecycle restores the pressure barrier")
 
 
@@ -416,11 +424,37 @@ func _intersect_shape_world(module: JovianFreightBerth, shape: Shape3D, world_tr
 	return module.get_world_3d().direct_space_state.intersect_shape(query, max_results)
 
 
-func _wait_for_door_state(door: StationDoor, expected_state: int, timeout_seconds: float) -> void:
-	var timeout := create_timer(timeout_seconds)
-	while is_instance_valid(door) and door.get_state() != expected_state and timeout.time_left > 0.0:
+## Physics frames a nominal duration of simulated time is worth at the project's
+## configured tick rate, plus a fixed frame grace.
+func _frame_budget(seconds: float) -> int:
+	var required := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	return maxi(required, 1) + FRAME_BUDGET_GRACE
+
+
+## Waits for a door to reach `expected_state` on the physics clock, which is the
+## clock `StationDoor` actually advances its panel on.
+##
+## The budget deliberately counts physics steps rather than wall-clock seconds. A
+## `SceneTree` timer counts Godot's smoothed idle delta, and under load the engine
+## drops physics steps rather than letting the simulation spiral, so the timer runs
+## out while the panel has been stepped only part of the way. The wait then
+## returned silently and the caller asserted on a door caught mid-travel — a false
+## failure, not a defect. Counting frames gives the door the same amount of
+## simulation however busy the box is, and still fails a genuinely stuck door
+## because the budget remains finite.
+##
+## Returns whether the state was actually reached so callers can assert on it
+## rather than assume it.
+func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds: float) -> bool:
+	var frame_budget := _frame_budget(travel_seconds)
+	var frames := 0
+	while is_instance_valid(door) and door.get_state() != expected_state:
+		if frames >= frame_budget:
+			break
 		await physics_frame
+		frames += 1
 	await process_frame
+	return is_instance_valid(door) and door.get_state() == expected_state
 
 
 func _check(condition: bool, description: String) -> void:
