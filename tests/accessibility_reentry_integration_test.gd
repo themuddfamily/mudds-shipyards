@@ -120,7 +120,7 @@ func _test_live_application(
 	_check(
 		float(applied["effective_ui_scale"]) > 1.0
 		and float(applied["effective_ui_scale"]) <= 1.35,
-		"the request enlarges the HUD up to this viewport's non-overlapping layout ceiling"
+		"the request enlarges the HUD up to this viewport's layout ceiling"
 	)
 	_check(hud.get_hud_palette_id() == Palette.MODE_DEUTERANOPIA, "a colour-vision request from the pause panel retints the live HUD")
 	_check(
@@ -269,14 +269,64 @@ func _test_persistence_across_restart(settings: RuntimeSettings) -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(corrupt_path))
 
 
+## Re-entry has two genuinely different halves, and this test keeps them apart
+## because conflating them is what made the original re-entry leg vacuous.
+##
+## **Node-local presets are preserved, not reapplied.** `ui_scale`, the palette,
+## reduced motion and captions live as plain fields on the HUD and as export
+## floats on each `HeroShip`. Godot does not re-run `_ready()` when a subtree
+## re-enters and clears none of that state, and `RuntimeSettings` emits
+## `setting_changed` through a connection that a detach does not break, so even a
+## change made *while* Main is detached is applied live. Every assertion below
+## about those four presets therefore verifies preservation. Deleting
+## `_apply_all_runtime_settings()` from `GameFlow._restore_runtime_bindings_after_reentry()`
+## leaves all of them green, which is exactly why they must not be described as
+## proving the reapply.
+##
+## **Global state genuinely is restored by the reapply.** The same validated
+## settings snapshot also owns `AudioServer` bus volumes, which are process-wide
+## rather than node-local: while Main is streamed out, whatever else is on screen
+## owns those buses. `_test_reentry_restores_global_settings_state` drives that
+## case and is the structured-red witness for the reapply — removing the call
+## turns it red while leaving the four preset assertions green.
 func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShip]) -> void:
 	var before := hud.get_accessibility_report()
+	var settings := game.get_runtime_settings()
+
+	# A non-default level, so the restored value is a player preference rather
+	# than something an unconditional authored default could also produce.
+	hud.setting_change_requested.emit(&"master_volume", 0.4)
+	await process_frame
+	var expected_bus_levels: Dictionary = settings.get_audio_bus_levels_db()
+	_check(
+		not expected_bus_levels.is_empty()
+		and _bus_levels_match(expected_bus_levels),
+		"the applied volume preference reaches the process-wide audio buses before the detach"
+	)
+
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
+
+	# Stand in for whatever owns the global audio state while Main is streamed
+	# out. Nothing about this is exotic: any other scene setting its own levels
+	# leaves the buses holding a foreign value that only Main's re-entry can undo.
+	var foreign_db := -3.5
+	for bus_name: StringName in expected_bus_levels:
+		AudioServer.set_bus_volume_db(AudioServer.get_bus_index(bus_name), foreign_db)
+	_check(
+		not _bus_levels_match(expected_bus_levels),
+		"a foreign owner really does displace the settings-owned bus levels while Main is detached"
+	)
+
 	parent.add_child(game)
 	await process_frame
 	await process_frame
+
+	_check(
+		_bus_levels_match(expected_bus_levels),
+		"re-entry reapplies the settings snapshot to the process-wide audio buses a foreign owner displaced"
+	)
 
 	var after := hud.get_accessibility_report()
 	_check(
@@ -300,7 +350,10 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 	for fleet_ship in fleet:
 		if not is_zero_approx(fleet_ship.maximum_chase_camera_rotation_lag_degrees):
 			still_damped = false
-	_check(still_damped, "reduced motion is reapplied to every chase boom after re-entry")
+	# Preserved, not reapplied: the damped value is an export float on a HeroShip
+	# the detach never touched. Claiming this proves the re-entry reapply would be
+	# claiming something the mutation test disproves.
+	_check(still_damped, "every chase boom stays damped across a whole-Main detach and re-entry")
 
 	# The caption channel must survive re-entry as a working channel, not just as
 	# a remembered flag.
@@ -353,6 +406,21 @@ func _test_reset_restores_defaults(
 		if not is_equal_approx(fleet_ship.maximum_chase_camera_rotation_lag_degrees, expected):
 			restored = false
 	_check(restored, "Reset Defaults restores the exact authored chase-boom lag rather than leaving it snapped")
+
+
+## True when every named bus currently sits at the level the settings snapshot
+## asks for. A missing bus counts as a mismatch rather than being skipped.
+func _bus_levels_match(expected_levels: Dictionary) -> bool:
+	for bus_name: StringName in expected_levels:
+		var bus_index := AudioServer.get_bus_index(bus_name)
+		if bus_index < 0:
+			return false
+		if not is_equal_approx(
+			AudioServer.get_bus_volume_db(bus_index),
+			float(expected_levels[bus_name])
+		):
+			return false
+	return true
 
 
 func _flight_snapshot(fleet: Array[HeroShip]) -> Dictionary:

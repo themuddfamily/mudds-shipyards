@@ -57,7 +57,18 @@ const REDUCED_MOTION_HOLD_SECONDS := 0.45
 ## Smallest logical layout the HUD panels were authored for. The gameplay panels
 ## use fixed pixel offsets, so scaling past the point where that layout stops
 ## fitting the viewport makes readouts overlap instead of becoming more legible.
-## The requested scale is therefore capped, never silently allowed to collide.
+## The requested scale is therefore capped rather than honoured without limit.
+##
+## KNOWN GAP: the width here is not yet tight enough to make that cap
+## collision-free. Measuring the real panel rectangles shows the enemy/target
+## panel meets the objective panel once the logical width drops below ~1416 px,
+## and the interaction prompt meets the telemetry panel below ~1256 px, so a
+## 1180 px floor still admits both collisions -- at the shipping 1600x900 logical
+## viewport the ceiling resolves to 1.3043, which is inside the colliding range.
+## Raising this to ~1420 removes the collision but would also cap a plain 100%
+## request on a 1280x720 viewport, so closing the gap properly means moving the
+## panels rather than only retuning this number. The vertical floor is sound:
+## the caption panel clears the telemetry panel by ~8 px at 690.
 const MIN_LOGICAL_WIDTH := 1180.0
 const MIN_LOGICAL_HEIGHT := 690.0
 const MIN_UI_SCALE := 0.75

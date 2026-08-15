@@ -5,6 +5,14 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const PLAYER_RADIUS := 0.38
 const PLAYER_HEIGHT := 1.94
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace: locomotion,
+## door motion and every other physical result advance on the physics clock, and
+## Godot drops physics steps under load rather than letting the simulation spiral,
+## so only a frame budget measures the same amount of simulation on a busy box as
+## on an idle one.
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 
 
@@ -227,7 +235,16 @@ func _test_production_player_traversal(
 	Input.action_press("interact")
 	await physics_frame
 	Input.action_release("interact")
-	await create_timer(0.7).timeout
+	# The door drives its panel in `_physics_process`, so a `SceneTree` timer is
+	# the wrong clock to measure it with: the timer counts smoothed idle delta and
+	# fires while dropped physics steps have left the panel mid-travel. Wait for
+	# the door's real state on a physics-frame budget derived from its own export.
+	var door_opened := await _wait_for_door_state(
+		door,
+		StationDoor.DoorState.OPEN,
+		door.motion_duration
+	)
+	_check(door_opened, "the interacted door completes its motion inside its own physics-frame budget")
 	_check(door.is_open() and not door.is_portal_blocked(), "real interact Input opens the integrated StationDoor")
 
 	var reached_corridor := await _drive_player_x(player, 58.0, true, 2.5)
@@ -271,9 +288,22 @@ func _test_room_support_and_closed_branch(world: ShipyardWorld, habitat: Habitat
 	_check("No source proves" in str(deferred.get_meta("content_note")), "integrated endpoint retains its explicit evidence caveat")
 
 
-func _drive_player_x(player: PlayerController, target_x: float, increasing: bool, timeout_seconds: float) -> bool:
+## Walks the production avatar along X with real Input until it reaches
+## `target_x`, bounded by the number of physics frames `travel_seconds` of
+## simulated walking implies.
+##
+## The budget deliberately counts physics steps rather than wall-clock seconds.
+## Locomotion is integrated in `_physics_process`, and on a loaded machine Godot
+## drops physics steps to avoid a spiral of death while the wall clock keeps
+## running. A wall-clock budget therefore ends the walk after far fewer simulated
+## steps than the avatar needs to cover the distance and scores a perfectly
+## healthy traversal as a failure. Counting frames gives the avatar the same
+## amount of simulation however busy the box is, and still fails a genuinely
+## blocked route because the budget remains finite.
+func _drive_player_x(player: PlayerController, target_x: float, increasing: bool, travel_seconds: float) -> bool:
 	var action := "move_forward" if increasing else "move_back"
-	var started_at := Time.get_ticks_msec()
+	var frame_budget := _frame_budget(travel_seconds)
+	var frames := 0
 	Input.action_press(action)
 	Input.action_press("sprint_boost")
 	while is_instance_valid(player):
@@ -281,9 +311,10 @@ func _drive_player_x(player: PlayerController, target_x: float, increasing: bool
 			break
 		if not increasing and player.global_position.x <= target_x:
 			break
-		if float(Time.get_ticks_msec() - started_at) / 1000.0 > timeout_seconds:
+		if frames >= frame_budget:
 			break
 		await physics_frame
+		frames += 1
 	Input.action_release(action)
 	Input.action_release("sprint_boost")
 	await physics_frame
@@ -314,13 +345,26 @@ func _intersect_shape(
 	return world.get_world_3d().direct_space_state.intersect_shape(query, max_results)
 
 
-func _wait_for_door_state(door: StationDoor, expected_state: int, timeout_seconds: float) -> void:
-	var started_at := Time.get_ticks_msec()
+## Physics frames a nominal duration of simulated time is worth at the project's
+## configured tick rate, plus a fixed frame grace.
+func _frame_budget(seconds: float) -> int:
+	var required := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	return maxi(required, 1) + FRAME_BUDGET_GRACE
+
+
+## Waits for a door to reach `expected_state` on the physics clock, which is the
+## clock `StationDoor` actually advances its panel on. Returns whether the state
+## was reached so callers can assert on it instead of assuming it.
+func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds: float) -> bool:
+	var frame_budget := _frame_budget(travel_seconds)
+	var frames := 0
 	while is_instance_valid(door) and door.get_state() != expected_state:
-		if float(Time.get_ticks_msec() - started_at) / 1000.0 > timeout_seconds:
-			return
+		if frames >= frame_budget:
+			break
 		await physics_frame
+		frames += 1
 	await process_frame
+	return is_instance_valid(door) and door.get_state() == expected_state
 
 
 func _transformed_local_aabb(transform: Transform3D, local_min: Vector3, local_max: Vector3) -> AABB:

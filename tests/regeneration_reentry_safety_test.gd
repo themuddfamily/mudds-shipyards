@@ -8,6 +8,17 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const SHORT_DEADLINE_MSEC := 50
 
+## Extra simulated frames every bounded wait is granted on top of the frames its
+## nominal duration implies. A frame count, not a wall-clock grace: widening a
+## sleep would hide the clock divergence described on [method _wait_until], while
+## a frame budget removes it.
+const FRAME_BUDGET_GRACE := 30
+
+## Bound for the wait that lets the shortened regeneration deadline expire while
+## Main is detached. Only an upper bound; the wait ends the moment the monotonic
+## clock actually crosses the deadline.
+const DETACHED_DEADLINE_TIMEOUT_SECONDS := 1.0
+
 var _failures := PackedStringArray()
 var _assertions := 0
 
@@ -97,7 +108,20 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
-	await create_timer(0.12).timeout
+	# `ready_at_msec` is a monotonic wall-clock deadline owned by GameFlow, but a
+	# `SceneTree` timer counts Godot's smoothed engine delta, which is a different
+	# clock. Under parallel load the smoothed delta runs *ahead* of the monotonic
+	# clock while the engine catches up from a stall, so `create_timer(0.12)` was
+	# observed firing when only ~42 ms of real time had passed and the 50 ms
+	# deadline had therefore not expired. Wait for the deadline itself instead.
+	var deadline_expired := await _wait_until(
+		func() -> bool: return Time.get_ticks_msec() >= short_ready_at,
+		DETACHED_DEADLINE_TIMEOUT_SECONDS
+	)
+	_check(
+		deadline_expired,
+		"the shortened regeneration deadline really expires while Main is detached"
+	)
 
 	var detached_entry := _pending_entry(game, arrow_id)
 	var detached_ship_reference := detached_entry.get("ship") as WeakRef
@@ -344,13 +368,35 @@ func _set_pending_ready_at(game: GameFlow, instance_id: int, ready_at_msec: int)
 	return true
 
 
+## Waits for `predicate` on the simulation clock instead of the wall clock.
+##
+## Three clocks run in this process and they diverge under parallel load: the
+## monotonic clock behind `Time.get_ticks_msec()`, Godot's smoothed engine delta
+## behind `SceneTree` timers, and the physics clock, whose steps the engine drops
+## on a busy machine rather than letting the simulation spiral. A wall-clock-only
+## deadline therefore abandons a condition that is still progressing perfectly
+## well, which is a false failure rather than a defect.
+##
+## `timeout_seconds` is kept as the *nominal* duration and is now converted into
+## a budget of simulated frames as well. The wait gives up only once both budgets
+## are spent, so it stays bounded and a genuinely stuck condition still fails,
+## but a merely slow box is given the same number of simulated frames as an idle
+## one. Both `physics_frame` and `process_frame` are awaited each iteration so
+## conditions owned by either loop make progress.
 func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(timeout_seconds * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
 	var deadline := Time.get_ticks_msec() + int(ceil(timeout_seconds * 1000.0))
-	while Time.get_ticks_msec() < deadline:
-		if bool(predicate.call()):
-			return true
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
 		await process_frame
-	return bool(predicate.call())
+		frames += 1
+	return true
 
 
 func _clean_up(game: Node) -> void:

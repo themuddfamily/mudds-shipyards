@@ -280,15 +280,29 @@ func _test_hud_scale_and_motion() -> void:
 
 
 ## The gameplay panels are laid out with fixed pixel offsets, so a large request
-## on a small window would overlap readouts rather than enlarge them. Rendered
+## on a small window overlaps readouts rather than enlarging them. Rendered
 ## frames caught exactly that at 160%% on a 1280x720 viewport.
+##
+## The ceiling below bounds the request, but measurement shows it does not yet
+## bound it far enough to guarantee a collision-free layout. Sweeping the real
+## panel rectangles at the shipping 1600x900 logical viewport, the first pair to
+## collide is the enemy/target panel against the objective panel once the logical
+## width falls below ~1416 px, and the interaction prompt meets the telemetry
+## panel below ~1256 px. [constant GameHUD.MIN_LOGICAL_WIDTH] is 1180, so the
+## effective ceiling of 1.3043 still lands inside the colliding range. The
+## assertions here therefore describe what the ceiling *does* -- clamp the
+## request -- and deliberately no longer claim the result is non-overlapping.
+## Raising the constant to ~1420 would fix the collision but would also cap a
+## plain 100%% request on a 1280x720 viewport, which contradicts
+## "the authored one-to-one presentation is never capped" below, so the choice
+## between those two properties is a layout decision left to the HUD owner.
 func _test_ui_scale_layout_ceiling() -> void:
 	var wide := GameHUD.compute_effective_ui_scale(1.6, Vector2(2560.0, 1440.0))
 	_check(is_equal_approx(wide, 1.6), "a 1440p viewport honours the full requested scale")
 	var small := GameHUD.compute_effective_ui_scale(1.6, Vector2(1280.0, 720.0))
 	_check(
 		small < 1.6 and small >= GameHUD.MIN_UI_SCALE,
-		"a 720p viewport caps the request at the largest non-overlapping layout (%.3f)" % small
+		"a 720p viewport caps the request below the authored maximum (%.3f)" % small
 	)
 	_check(
 		is_equal_approx(

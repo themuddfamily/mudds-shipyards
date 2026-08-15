@@ -264,9 +264,14 @@ func _restore_runtime_bindings_after_reentry() -> void:
 		return
 	_connect_runtime_signals()
 	_initialize_live_combat()
-	# Presentation preferences live on nodes that a whole-Main detach can reset
-	# (audio buses, HUD scale, palette targets). Reapplying the already-validated
-	# settings snapshot is idempotent and keeps re-entry visually identical.
+	# Part of the settings snapshot is process-wide rather than node-local: the
+	# `AudioServer` bus levels and the window mode belong to whatever is on screen,
+	# so while this subtree is detached another scene legitimately owns them.
+	# Reapplying the already-validated snapshot reclaims that global state. The
+	# node-local presentation presets (HUD scale, palette, reduced motion,
+	# captions, per-ship boom lag) survive the detach on their own; reapplying them
+	# is idempotent, and `tests/accessibility_reentry_integration_test.gd` records
+	# which half of this call each of its assertions actually witnesses.
 	_apply_all_runtime_settings()
 
 
