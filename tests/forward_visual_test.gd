@@ -108,7 +108,19 @@ func _test_application_and_safety() -> void:
 		_check(environment.ssao_enabled and environment.ssil_enabled and environment.volumetric_fog_enabled, "Forward+ high enables advanced Environment effects")
 		_check(viewport.use_taa, "Forward+ high enables viewport TAA")
 		_check(environment.tonemap_mode == Environment.TONE_MAPPER_AGX, "Forward+ high applies AgX tonemapping")
-		_check(is_equal_approx(environment.glow_intensity, 0.38), "Forward+ high applies the authored glow intensity")
+		_check(is_equal_approx(environment.glow_intensity, 0.46), "Forward+ high applies the authored glow intensity")
+		# Station-scale grading: contact darkening must reach directly lit faces,
+		# emissive spill must span more than the default narrow blur pyramid, and
+		# AgX must not compress the scene into the flat foot of its curve.
+		_check(environment.ssao_light_affect > 0.0, "Forward+ high lets SSAO darken directly lit surfaces")
+		_check(environment.ssao_radius > 2.0, "Forward+ high uses a station-scale SSAO radius")
+		# Zero-based accessor: indices 3 and 4 are the inspector's glow_levels/4 and /5.
+		# Index 5 must stay silent: that mip is effectively full-screen, and letting
+		# it through veils the whole frame whenever an emissive changes state.
+		_check(environment.get_glow_level(3) > 0.0 and environment.get_glow_level(4) > 0.0, "Forward+ high spreads glow past the default narrow pyramid")
+		_check(is_zero_approx(environment.get_glow_level(5)) and is_zero_approx(environment.get_glow_level(6)), "Forward+ high withholds the full-screen glow mips")
+		_check(environment.tonemap_agx_white < 16.0, "Forward+ high narrows the AgX white point onto the scene's real range")
+		_check(environment.adjustment_enabled and environment.adjustment_saturation < 1.0, "Forward+ high grades saturation down after tonemapping")
 		_check(is_equal_approx(environment.fog_density, 0.0037), "profiles preserve scene-scale fog density")
 		_check((high_report["applied_features"] as PackedStringArray).has("taa"), "application report includes viewport work")
 
@@ -116,6 +128,7 @@ func _test_application_and_safety() -> void:
 		_check(bool(low_report["applied"]), "Forward+ low profile applies after high")
 		_check(not environment.ssao_enabled and not environment.ssil_enabled and not environment.volumetric_fog_enabled, "low disables supported advanced effects")
 		_check(not environment.glow_enabled and not environment.fog_enabled and not viewport.use_taa, "low removes expensive post-processing")
+		_check(not environment.adjustment_enabled, "low removes the colour-grading pass")
 		_check(environment.tonemap_mode == Environment.TONE_MAPPER_REINHARDT, "low applies its inexpensive tonemapper")
 
 	# Compatibility applies supported state but leaves unsupported values exactly
