@@ -6,6 +6,9 @@ extends SceneTree
 
 const MODULE_SCENE := preload("res://scenes/world/modules/jovian_freight_berth.tscn")
 const OUTPUT_DIR := "res://artifacts"
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. A frame count, never a wall-clock grace.
+const FRAME_BUDGET_GRACE := 30
 const CAPTURES := [
 	"freight_berth_overview.png",
 	"freight_control_room.png",
@@ -54,7 +57,8 @@ func _run() -> void:
 
 	var door := module.get_service_access()
 	_check(door.interact(module), "interior evidence opens the real production StationDoor")
-	await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	var service_door_opened := await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	_check(service_door_opened, "service door completes its opening motion inside its physics-frame budget")
 	_check(door.is_open() and not door.is_portal_blocked(), "interior capture uses a physically clear service portal")
 	_frame(Vector3(8.8, 2.8, 34.5), Vector3(19.0, 1.8, 29.0), 55.0)
 	await _wait_frames(8)
@@ -208,11 +212,30 @@ func _wait_frames(count: int) -> void:
 		await process_frame
 
 
-func _wait_for_door_state(door: StationDoor, expected_state: int, timeout_seconds: float) -> void:
-	var timeout := create_timer(timeout_seconds)
-	while is_instance_valid(door) and door.get_state() != expected_state and timeout.time_left > 0.0:
+## Physics frames a nominal duration of simulated time is worth at the project's
+## configured tick rate, plus a fixed frame grace.
+func _frame_budget(seconds: float) -> int:
+	var required := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	return maxi(required, 1) + FRAME_BUDGET_GRACE
+
+
+## Waits for a door to reach `expected_state` on the physics clock, which is the
+## clock `StationDoor` actually advances its panel on. A `SceneTree` timer counts
+## Godot's smoothed idle delta instead, and under load the engine drops physics
+## steps rather than letting the simulation spiral, so the timer expired with the
+## panel still mid-travel and the interior frame was captured through a partly
+## blocked portal. Counting frames grants the same amount of simulation however
+## busy the box is while staying bounded.
+func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds: float) -> bool:
+	var frame_budget := _frame_budget(travel_seconds)
+	var frames := 0
+	while is_instance_valid(door) and door.get_state() != expected_state:
+		if frames >= frame_budget:
+			break
 		await physics_frame
+		frames += 1
 	await process_frame
+	return is_instance_valid(door) and door.get_state() == expected_state
 
 
 func _check(condition: bool, description: String) -> void:
