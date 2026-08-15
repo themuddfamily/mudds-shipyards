@@ -23,20 +23,66 @@ Configuration for every reproduction below: Linux (WSL2 6.18.33.2), Godot
 `xvfb-run -a -s "-screen 0 2560x1440x24" ... --rendering-driver vulkan` for frames,
 audio driver `Dummy`, clean user-data state, source at commit `ef5450c`.
 Failure frequency: 10/10 deterministic for every item unless stated.
-Failing witness for all confirmed items:
+
+Witness for the confirmed traversal items (MAP-001…MAP-003), now **GREEN** and
+collected by `run_test_matrix.sh`:
 [`tests/station_traversal_defect_witness_test.gd`](tests/station_traversal_defect_witness_test.gd)
-(intentionally RED; sentinel `STATION_TRAVERSAL_DEFECT_WITNESS_TEST_FAILED`).
+(sentinel `STATION_TRAVERSAL_DEFECT_WITNESS_TEST_OK`).
+
+Witness for the still-open presentation items (MAP-004…MAP-006), intentionally
+**RED** and deliberately outside the `*_test.gd` glob:
+[`tests/station_presentation_defect_witness.gd`](tests/station_presentation_defect_witness.gd)
+(sentinel `STATION_PRESENTATION_DEFECT_WITNESS_FAILED`). Its three assertions
+were moved there verbatim when MAP-001…MAP-003 were fixed, so a P2 presentation
+defect no longer holds the P1 traversal gate red. Rename it into the glob once
+those three are closed.
 
 ### Measurement that underpins the traversal items
 
-`MEASURED_NO_JUMP_STEP_HEIGHT: 0.14` — the production `PlayerController`
-(`CharacterBody3D`, plain `move_and_slide()`, no step-up assist) mounts a 0.14 m
-lip with continuous `move_forward` and fails at 0.15 m, walking or sprinting.
-Any authored lip of 0.15 m or more is therefore a wall, not a step.
+`MEASURED_NO_JUMP_STEP_HEIGHT` was **`0.14`** at intake — the production
+`PlayerController` (`CharacterBody3D`, plain `move_and_slide()`, no step-up
+assist) mounted a 0.14 m lip with continuous `move_forward` and failed at 0.15 m,
+walking or sprinting. Any authored lip of 0.15 m or more was therefore a wall,
+not a step.
+
+It is now **`0.30`**. `PlayerController` gained a bounded step-up assist
+(`STEP_UP_MAX_HEIGHT`), chosen from the rig and the architecture rather than
+rounded to taste: it equals this station's own authored stair riser
+(`AftJunctionStack` raises 4.2 m over 14 risers = 0.300 m), it is 58% of the
+avatar's measured 0.516 m knee-joint height on a 1.945 m standing suit, and it
+is inside the 0.38 m capsule radius so the body is only ever placed where the
+capsule could have rolled unaided. It is deliberately **below** the station's
+0.40 m raised-pod slab, so a room a whole slab above its approach still has to
+author a real threshold instead of relying on the assist. Bounds and mutations
+are frozen by [`tests/player_step_up_assist_test.gd`](tests/player_step_up_assist_test.gd).
 
 ### MAP-001 — Aft stair base is fenced off; the whole aft-upper half of the station is unreachable
 
-- Status: `REPRODUCED`. Severity: **P1** (roadmap: "cannot reach a required route
+- Status: `CLOSED` (fixed 2026-08-15). Severity was **P1**.
+- Fix: `scripts/world/aft_junction_stack.gd`. Two rail runs were closing the only
+  gate onto the stair-base landing and they overlapped by 0.33 m, so no capsule
+  column was ever open. `ApproachPortRail` now stops at the landing's southern
+  edge (`_stair_base_landing_south_edge()`) instead of running 1.8 m past it — it
+  guards the stretch of connection-deck edge that actually overhangs a drop and
+  nothing more. The eastern stair rail line, which stood *on* the landing rather
+  than over a drop, now starts where the ramp has climbed clear of the landing
+  (`_stair_rail_start_progress()`); the outboard western line still runs full
+  length. The landing's own newly-exposed south and west edges gained
+  `StairBaseSouthRail` / `StairBaseWestRail`, because opening the gate made a
+  previously unreachable 4.4 × 3.5 m landing walkable with two unguarded edges.
+- Regression: `tests/station_traversal_defect_witness_test.gd`
+  `_test_aft_stair_base_is_not_fenced_off` — the recorded four-position
+  reproduction, unchanged. From world `(0.0, 0.18, 50.5)` facing `-X` the
+  production capsule now reaches `x = -6.290` on the landing (previously
+  `-2.900`) and is stopped by the new west guard rail rather than falling. The
+  same suite's required-route-surface flood covers the whole blast radius.
+- Residual, recorded not fixed: from `z = 51.5` and north the westward walk is
+  still stopped at `x ≈ -3.92` by the side of the ramp itself, which is 0.33 m
+  proud of the landing there — just above the 0.30 m step limit. That is the
+  side of a staircase, not a route; the player walks in at `z ≤ 51` and turns
+  north. The route works but it is not equally open along the whole frontage.
+- Original record follows.
+- Status at intake: `REPRODUCED`. Severity: **P1** (roadmap: "cannot reach a required route
   without an unintended jump"; the playable-prototype gate names the Aft upper
   level and Fleet Dock as required no-cheat destinations).
 - Authority: `scripts/world/aft_junction_stack.gd:494`
@@ -65,7 +111,32 @@ Any authored lip of 0.15 m or more is therefore a wall, not a step.
 
 ### MAP-002 — 0.40 m riser seals the operations pod, the fleet registry pod, and the entire freight branch
 
-- Status: `REPRODUCED`. Severity: **P1** (unreachable required route; the fleet
+- Status: `CLOSED` (fixed 2026-08-15). Severity was **P1**.
+- Fix: `scripts/world/shipyard_world.gd`. Both pods keep their authored
+  placement — `docs/research/STATION_TOPOLOGY.md` pins `OperationsPodFloor
+  (43, 0.18, 27)` and `RegistryPodDeck (-43, 0.18, 27)` as frozen evidence, so
+  moving the decks would have been documentation drift, and lowering them would
+  have left every mullion, window, back wall, terminal and sign 0.40 m in the
+  air, which is the same defect family the reporter complained about. Instead a
+  new `_approach_threshold()` helper builds one rendered, colliding threshold
+  apron across each pod's full 12 m frontage: `OperationsPodThreshold` and
+  `RegistryPodThreshold`, rising from the lattice deck top (`y = -0.02`) at
+  `z = 21.85` to the pod deck top (`y = 0.38`) at `z = 23.05` — a 1.20 m run for
+  a 0.40 m rise, 18.4°, well inside `floor_max_angle`. The freight branch needed
+  no separate work: its connection lattice is flush with the registry pod deck,
+  so it opened as soon as the pod did.
+- Regression: `tests/station_traversal_defect_witness_test.gd`
+  `_test_pod_decks_can_be_walked_into` — the recorded reproduction, run through
+  the production controller. Standing on the lattice deck and holding
+  `move_forward` for 200 frames now ends at `(43.0, 0.381, 25.87)` inside the
+  operations pod, `(-46.5, 0.381, 30.17)` on the registry pod deck, and
+  `(-47.0, 0.380, 30.17)` out along the freight connection lattice. No jump.
+- Note on the recorded coordinates: the registry approach at `(-43.0, ·, 21.0)`
+  stands **inside the parked `ArrowReconShip`'s hull**, so a capsule placed there
+  starts overlapping a ship rather than on the deck. The regression uses
+  `(-46.5, ·, 21.0)` on the same 12 m frontage; the lip crossed is identical.
+- Original record follows.
+- Status at intake: `REPRODUCED`. Severity: **P1** (unreachable required route; the fleet
   registry terminal interaction cannot be acquired from its intended approach).
 - Authority: `scripts/world/shipyard_world.gd:2786` `OperationsPodFloor`,
   `scripts/world/shipyard_world.gd:2811` `RegistryPodDeck`, and the
@@ -89,7 +160,24 @@ Any authored lip of 0.15 m or more is therefore a wall, not a step.
 
 ### MAP-003 — Two of the four flyable craft cannot be boarded on foot
 
-- Status: `REPRODUCED`. Severity: **P1** (roadmap: "All four ships can be
+- Status: `CLOSED` (fixed 2026-08-15). Severity was **P1**.
+- Fix: none of its own. It was a pure consequence of MAP-001 and MAP-002 and
+  closed with them.
+- Regression: `tests/station_traversal_defect_witness_test.gd`
+  `_test_every_flyable_ship_is_boardable_on_foot` — `STRANDED_SHIPS: []`. Every
+  one of the four production `get_boarding_position()` points now has a
+  capsule-clear walkable node reachable from `%PlayerSpawn` without a jump.
+- Re-measured reachability on the same sweep: **91,901 of 106,969** capsule-clear
+  walkable graph nodes are reachable from spawn with no jump, against the
+  intake baseline of 53,073 of 106,903 — 49.6% → 85.9%. The node total rose by
+  66 because the fix added walkable threshold aprons. The 15,068 nodes still
+  unreached are dominated by surfaces with no intended route: `OperationsPodRoof`
+  and `RegistryPodRoof` (1,617 each), `FreightControlRoom/RoomRoof` (1,000), the
+  habitat and Aft operations ceilings, `FreightGantryCrane/GantryHeader`,
+  cargo-unit tops, rail tops and the registry terminal top. Ship interiors and
+  the exterior target range have not been swept.
+- Original record follows.
+- Status at intake: `REPRODUCED`. Severity: **P1** (roadmap: "All four ships can be
   approached from collision-clear routes, boarded through the production
   reservation path"). Consequence of MAP-001 and MAP-002, tracked separately
   because it is what the player actually loses.

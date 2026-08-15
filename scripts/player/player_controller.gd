@@ -21,6 +21,34 @@ const BOARDING_ENTRY_FRACTION := 0.42
 const BOARDING_STEP_HEIGHT := 0.16
 const DISEMBARK_STEP_HEIGHT := 0.12
 
+## Locomotion step-up assist.
+##
+## `CharacterBody3D` has no step solver: `move_and_slide()` treats any lip the
+## capsule cannot roll over as a wall. Measured on this exact capsule the limit
+## was 0.14 m — it mounted 0.14 m and failed at 0.15 m, walking or sprinting — so
+## every authored lip at or above 0.15 m was a wall rather than a step and whole
+## branches of the station became unreachable.
+##
+## `STEP_UP_MAX_HEIGHT` is chosen from the rig and the architecture, not rounded
+## to taste:
+##  - it equals the station's own authored stair riser (`AftJunctionStack`
+##    raises 4.2 m over 14 risers = 0.300 m), so an authored stair can never be
+##    a wall again;
+##  - it is 58% of this avatar's measured knee-joint height (0.516 m above the
+##    ground-contact plane on a 1.945 m standing suit), i.e. an unassisted step
+##    rather than a climb;
+##  - it is below the 0.38 m capsule radius, so the body is only ever placed
+##    where the capsule's lower sphere could have rolled unaided;
+##  - it is deliberately below the station's 0.40 m raised-pod slab, so a room a
+##    whole slab above its approach still has to author a real threshold instead
+##    of relying on the assist to paper over it.
+const STEP_UP_MAX_HEIGHT := 0.30
+## Minimum vertical headroom that must exist before a step is even attempted.
+const STEP_UP_MIN_CLEARANCE := 0.02
+## Minimum tangent progress a step must buy. Prevents lifting the body without
+## actually getting it anywhere.
+const STEP_UP_MIN_ADVANCE := 0.01
+
 const MOTION_RESET := &"RESET"
 const MOTION_IDLE := &"idle"
 const MOTION_WALK := &"walk"
@@ -146,12 +174,17 @@ var _imported_presentation_rejected := false
 var _ensuring_motion_authority := false
 var _motion_authority_contaminated := false
 var _pilot_integrity_probe_elapsed := 0.0
+## Horizontal reach of the step-up probe: far enough to place the capsule axis
+## over the surface it is stepping onto. Derived from the live capsule so a
+## future collision-shape change cannot silently stale it.
+var _step_probe_reach := 0.40
 var _imported_skeleton_pose_contract: Array[Dictionary] = []
 
 
 func _ready() -> void:
 	_initialize_legacy_motion_authority()
 	_activate_skinned_pilot_presentation()
+	_step_probe_reach = _resolve_step_probe_reach()
 	_standing_collision_layer = collision_layer
 	_standing_collision_mask = collision_mask
 	_standing_interaction_mask = _interaction_area.collision_mask
@@ -206,7 +239,10 @@ func _physics_process(delta: float) -> void:
 		_decelerate_horizontal_velocity(delta)
 
 	_apply_gravity(delta)
+	var pre_move_transform := global_transform
+	var pre_move_velocity := velocity
 	move_and_slide()
+	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
 	_update_facing(desired_direction, delta)
 	_update_authored_locomotion(is_sprinting)
 	_advance_motion_animation(delta)
@@ -2345,6 +2381,146 @@ func _update_horizontal_velocity(direction: Vector3, sprinting: bool, delta: flo
 		acceleration = ground_acceleration if accelerating else ground_deceleration
 	horizontal_velocity = horizontal_velocity.move_toward(target_velocity, acceleration * delta)
 	velocity = horizontal_velocity + movement_up * up_speed
+
+
+## Mounts a low lip that `move_and_slide()` has just refused, and does nothing
+## else. Called immediately after the slide with the pre-slide state, so the
+## slide itself remains the only mover; this either accepts the slide's result or
+## replaces it with a position the capsule could have reached by stepping.
+##
+## Every bound here exists to keep the assist from becoming a climbing tool:
+## it only runs while walking on a floor with control enabled and no upward
+## speed, only when the slide was actually stopped by a wall, only when the
+## destination is a floor by this body's own `floor_max_angle` measured against
+## its current up direction (ship-local while aboard a `MovingInteriorFrame`),
+## only when the whole capsule fits there, and only for a net rise inside
+## [constant STEP_UP_MAX_HEIGHT] that also buys real forward progress. A lip with
+## nothing walkable on top of it — a rail, a hull, the edge of a void — fails
+## every one of those and is left exactly as solid as it was.
+func _resolve_step_up(
+		pre_move_transform: Transform3D,
+		pre_move_velocity: Vector3,
+		delta: float
+	) -> bool:
+	if not _control_enabled or _embodiment_state != EmbodimentState.ON_FOOT:
+		return false
+	if not is_on_wall() or not is_on_floor():
+		return false
+	var movement_up := _get_movement_up_direction()
+	if pre_move_velocity.dot(movement_up) > 0.01:
+		return false
+	var intended := pre_move_velocity.slide(movement_up) * delta
+	var intended_distance := intended.length()
+	if intended_distance < STEP_UP_MIN_ADVANCE:
+		return false
+	var achieved := (global_position - pre_move_transform.origin).slide(movement_up)
+	if achieved.length() >= intended_distance - STEP_UP_MIN_ADVANCE:
+		return false
+
+	var landing := _probe_step_up_landing(pre_move_transform, intended, movement_up)
+	if landing.is_empty():
+		return false
+
+	global_position = (landing["transform"] as Transform3D).origin
+	# Keep the tangent speed the wall just consumed; the body is grounded again,
+	# so the vertical component is re-established by gravity on the next tick.
+	velocity = pre_move_velocity.slide(movement_up)
+	return true
+
+
+## Up-forward-down capsule probe. Returns the accepted landing transform, or an
+## empty dictionary when any bound fails. Uses `test_move` throughout so nothing
+## is committed until every bound has passed.
+func _probe_step_up_landing(
+		pre_move_transform: Transform3D,
+		intended: Vector3,
+		movement_up: Vector3
+	) -> Dictionary:
+	var collision := KinematicCollision3D.new()
+
+	# Lift one clearance past the limit so a lip of exactly STEP_UP_MAX_HEIGHT is
+	# probed with the capsule above it rather than tangent to it. The accepted
+	# rise is still clamped to STEP_UP_MAX_HEIGHT below, so this widens nothing.
+	var lifted := pre_move_transform
+	var lift := movement_up * (STEP_UP_MAX_HEIGHT + STEP_UP_MIN_CLEARANCE)
+	if test_move(pre_move_transform, lift, collision):
+		var lift_travel := collision.get_travel()
+		if lift_travel.length() <= STEP_UP_MIN_CLEARANCE:
+			return {}
+		lifted = pre_move_transform.translated(lift_travel)
+	else:
+		lifted = pre_move_transform.translated(lift)
+
+	# One physics tick of walking is a fraction of the capsule radius, so probing
+	# only that far would still leave the body hanging off the lip and the drop
+	# would find the floor it started on. Reach at least far enough to put the
+	# capsule axis over the new surface.
+	var forward := intended.normalized() * maxf(intended.length(), _step_probe_reach)
+	var advanced := lifted
+	if test_move(lifted, forward, collision):
+		var forward_travel := collision.get_travel()
+		if forward_travel.length() <= STEP_UP_MIN_ADVANCE:
+			return {}
+		advanced = lifted.translated(forward_travel)
+	else:
+		advanced = lifted.translated(forward)
+
+	# Never step out over a void: the probe has to find something to stand on.
+	var drop := -movement_up * (STEP_UP_MAX_HEIGHT + STEP_UP_MIN_CLEARANCE * 2.0)
+	if not test_move(advanced, drop, collision):
+		return {}
+	if collision.get_normal().dot(movement_up) < cos(floor_max_angle):
+		return {}
+
+	var landed := advanced.translated(collision.get_travel())
+	var offset := landed.origin - pre_move_transform.origin
+	var rise := offset.dot(movement_up)
+	if rise <= 0.001 or rise > STEP_UP_MAX_HEIGHT + 0.001:
+		return {}
+	var advance := offset.slide(movement_up)
+	if advance.length() < STEP_UP_MIN_ADVANCE or advance.dot(intended) <= 0.0:
+		return {}
+	if advance.length() > _step_probe_reach + STEP_UP_MIN_ADVANCE:
+		return {}
+	return {"transform": landed, "rise": rise, "advance": advance.length()}
+
+
+func _resolve_step_probe_reach() -> float:
+	if _player_collision == null or not is_instance_valid(_player_collision):
+		return 0.40
+	var capsule := _player_collision.shape as CapsuleShape3D
+	if capsule == null:
+		return 0.40
+	return capsule.radius + STEP_UP_MIN_CLEARANCE
+
+
+## Frozen, inspectable contract for the locomotion step-up assist. Reported from
+## the live body rather than from duplicated nominal constants so a future
+## capsule or floor-angle change cannot silently stale it.
+func get_step_up_assist_audit() -> Dictionary:
+	var capsule_radius := 0.0
+	var capsule_height := 0.0
+	if _player_collision != null and is_instance_valid(_player_collision):
+		var capsule := _player_collision.shape as CapsuleShape3D
+		if capsule != null:
+			capsule_radius = capsule.radius
+			capsule_height = capsule.height
+	return {
+		"max_step_height": STEP_UP_MAX_HEIGHT,
+		"min_clearance": STEP_UP_MIN_CLEARANCE,
+		"min_advance": STEP_UP_MIN_ADVANCE,
+		"probe_reach": _step_probe_reach,
+		"capsule_radius": capsule_radius,
+		"capsule_height": capsule_height,
+		"floor_max_angle_rad": floor_max_angle,
+		"movement_up": _get_movement_up_direction(),
+		"requires_floor_contact": true,
+		"requires_wall_contact": true,
+		"requires_walkable_landing": true,
+		"steps_into_void": false,
+		# The capsule can only be placed where its lower sphere could have rolled.
+		"within_capsule_radius": STEP_UP_MAX_HEIGHT <= capsule_radius,
+	}
 
 
 func _decelerate_horizontal_velocity(delta: float) -> void:

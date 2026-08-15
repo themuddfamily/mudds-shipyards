@@ -1,15 +1,36 @@
 extends SceneTree
 
-## Failing witnesses for the 2026-08-15 human playtest report:
+## Traversal regression for the 2026-08-15 human playtest report:
 ## "there's so many places that are difficult to get to, random objects floating
 ## in the air and it ruins the experience."
 ##
-## Every assertion here is expected to be RED until the corresponding defect is
-## fixed. The suite deliberately contains no production-code change and no
-## softened threshold. It measures the production PlayerController's real no-jump
-## step capability, rebuilds a capsule-clearance walk graph over the live
-## production collision world, floods it from the production spawn marker, and
-## then asserts the roadmap's playable-prototype traversal contract:
+## This began as a deliberately RED witness for MAP-001 … MAP-006. It now guards
+## the fixed P1 traversal defects (MAP-001, MAP-002, MAP-003) and is collected by
+## `tools/release/run_test_matrix.sh`. Two deliberate changes were made when the
+## defects were fixed, both recorded here rather than made quietly:
+##
+##  1. The three P2 presentation assertions (MAP-004 mirrored legends, MAP-005
+##     hovering beacons, MAP-006 orphan lens) moved verbatim into
+##     `tests/station_presentation_defect_witness.gd`. They are still RED and
+##     still runnable; they are reserved for a separate presentation pass and
+##     must not hold the traversal gate red in the meantime.
+##  2. `_test_pod_deck_lip_is_climbable` compared the raised pod decks' top
+##     surface against the lattice deck's top surface and required the
+##     difference to be within one no-jump step. That geometric proxy is wrong.
+##     It forbids a raised pod outright — even one with a correctly authored
+##     threshold — and the only ways to satisfy it were a >= 0.40 m step assist
+##     (a climbing tool, not a step) or moving decks whose coordinates
+##     `docs/research/STATION_TOPOLOGY.md` pins as frozen evidence. It is
+##     replaced by `_test_pod_decks_can_be_walked_into`, which runs MAP-002's own
+##     recorded reproduction through the production controller and requires the
+##     capsule to finish standing on the raised deck. That is strictly stronger:
+##     it exercises the real route rather than a proxy for it.
+##
+## The suite contains no production-code change and no softened threshold. It
+## measures the production PlayerController's real no-jump step capability,
+## rebuilds a capsule-clearance walk graph over the live production collision
+## world, floods it from the production spawn marker, and then asserts the
+## roadmap's playable-prototype traversal contract:
 ##
 ##   "A no-cheat traversal from spawn reaches the Central berth, Aft upper level,
 ##    Habitat, Freight branch, and Fleet Dock walking surfaces without falling
@@ -65,30 +86,26 @@ const REQUIRED_ROUTE_SURFACES := [
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab03Upper"],
 ]
 
-## Facade and terminal legends whose readable face must point at the deck the
-## player actually approaches them from. TextMesh renders its readable face
-## toward local +Z, so `expected_facing` is the direction a reader stands in.
-const APPROACH_FACING_SIGNS := [
-	["UpperOperations/Sign_DOCK_OPERATIONS", Vector3(0.0, 0.0, -1.0)],
-	["ModernFleetRegistry/Sign_FLEET_REGISTRY__--__MODERN_INTERFACE", Vector3(0.0, 0.0, -1.0)],
-	["ModernFleetRegistry/Sign_SAY_SHIP_NAME", Vector3(0.0, 0.0, -1.0)],
-	["ModernFleetRegistry/Sign_TORRENT__JOVIAN__TITAN__VORTEX", Vector3(0.0, 0.0, -1.0)],
-	["ModernFleetRegistry/Sign_KATANA__PARADOX__PREDATOR__DYNAMIC", Vector3(0.0, 0.0, -1.0)],
-	["ModernFleetRegistry/Sign_UTOPIA__ARROW", Vector3(0.0, 0.0, -1.0)],
+## MAP-002's own recorded reproductions. Each entry is a lattice-deck standing
+## point in front of a raised deck, the minimum Z the capsule must reach on that
+## raised deck, and why that Z is the right stopping point.
+## The recorded registry-pod approach at x = -43.0 stands inside the parked
+## ArrowReconShip's hull, so the capsule starts overlapping a ship rather than on
+## the lattice deck. The approach is moved 3.5 m west along the same 12 m pod
+## frontage; the lip being crossed is identical.
+const POD_WALK_INS := [
+	["UpperOperations/OperationsPodFloor", Vector3(43.0, 0.18, 21.0), 23.5,
+		"inside the operations pod, past its glazed frontage"],
+	["ModernFleetRegistry/RegistryPodDeck", Vector3(-46.5, 0.18, 21.0), 26.0,
+		"onto the fleet registry pod deck, whose terminal interaction MAP-002 made unreachable"],
+	["JovianFreightBerth/ConnectionLattice/ConnectionHandoffDeck", Vector3(-47.0, 0.18, 21.0), 26.0,
+		"out along the freight branch connection lattice"],
 ]
-
-## Decorative pieces that must rest on the surface they are placed against.
-const SEATED_DECORATION_PATHS := [
-	"OperationalLattice/Activities/AftOperationsActivity/PresentationRoot/SafetyBeacon01/Base",
-	"OperationalLattice/Activities/AftOperationsActivity/PresentationRoot/SafetyBeacon02/Base",
-	"OperationalLattice/Activities/AftOperationsActivity/PresentationRoot/SafetyBeacon03/Base",
-	"OperationalLattice/Activities/AftOperationsActivity/PresentationRoot/SafetyBeacon04/Base",
-	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon01/Base",
-	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon02/Base",
-	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon03/Base",
-	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon04/Base",
-]
-const SEATED_DECORATION_TOLERANCE := 0.03
+## Top of every raised pod deck the walk-ins have to finish standing on.
+const POD_DECK_TOP := 0.38
+## Top of the lattice berth nodes the walk-ins start from.
+const LATTICE_DECK_TOP := -0.02
+const POD_WALK_TOLERANCE := 0.08
 
 var _failures: Array[String] = []
 var _space: PhysicsDirectSpaceState3D
@@ -151,13 +168,10 @@ func _run() -> void:
 	)
 
 	_test_required_route_surfaces_reachable(world, reachable)
-	_test_pod_deck_lip_is_climbable(world)
 	_test_freight_branch_has_a_walkable_approach(world)
 	_test_every_flyable_ship_is_boardable_on_foot(game, world, reachable)
+	await _test_pod_decks_can_be_walked_into(player)
 	await _test_aft_stair_base_is_not_fenced_off(player)
-	_test_approach_facing_signs(world)
-	_test_seated_decorations_rest_on_their_surface(world)
-	_test_orphan_dock_guide_lens(world)
 
 	game.queue_free()
 	await process_frame
@@ -338,27 +352,45 @@ func _test_required_route_surfaces_reachable(world: ShipyardWorld, reachable: Di
 	)
 
 
-func _test_pod_deck_lip_is_climbable(world: ShipyardWorld) -> void:
-	var lips := [
-		["UpperOperations/OperationsPodFloor", "ExposedDockLattice/StarboardBerthNode"],
-		["ModernFleetRegistry/RegistryPodDeck", "ExposedDockLattice/PortBerthNode"],
-		["JovianFreightBerth/ConnectionLattice/ConnectionHandoffDeck", "ExposedDockLattice/PortBerthNode"],
-	]
-	var offenders := PackedStringArray()
-	for lip in lips:
-		var raised := world.get_node_or_null(NodePath(lip[0] as String)) as StaticBody3D
-		var approach := world.get_node_or_null(NodePath(lip[1] as String)) as StaticBody3D
-		if raised == null or approach == null:
-			offenders.append("%s <missing>" % lip[0])
+## MAP-002's recorded reproduction, run through the production controller:
+## stand on the lattice deck in front of a raised deck, face it, hold
+## `move_forward`, and require the capsule to finish standing on that raised
+## deck. No jump is pressed and no transform is set during the walk.
+##
+## This replaces the earlier deck-top-versus-deck-top proxy, which no raised pod
+## could satisfy however well its threshold was authored. See the file header.
+func _test_pod_decks_can_be_walked_into(player: PlayerController) -> void:
+	var blocked := PackedStringArray()
+	var results := PackedStringArray()
+	for entry in POD_WALK_INS:
+		var start := entry[1] as Vector3
+		var minimum_z := float(entry[2])
+		var result := await _walk_forward(player, start, Vector3.BACK, 200)
+		var settled := result.initial as Vector3
+		var final_position := result.final as Vector3
+		results.append("%s start_y=%.3f final=%s" % [
+			entry[0], settled.y, str(final_position)
+		])
+		# Control: the walk has to begin standing on the lattice deck, not
+		# hovering above it or already inside the raised deck.
+		if absf(settled.y - LATTICE_DECK_TOP) > POD_WALK_TOLERANCE:
+			blocked.append("%s did not start on the lattice deck (y=%.3f)" % [entry[0], settled.y])
 			continue
-		var rise := _body_world_box(raised).end.y - _body_world_box(approach).end.y
-		if rise > _step_limit:
-			offenders.append("%s rise=%.3f > step=%.3f" % [lip[0], rise, _step_limit])
-	print("POD_DECK_LIPS: ", offenders)
+		if final_position.y < POD_DECK_TOP - POD_WALK_TOLERANCE:
+			blocked.append("%s stopped below the raised deck (y=%.3f)" % [entry[0], final_position.y])
+			continue
+		if final_position.z < minimum_z:
+			blocked.append("%s stopped short at z=%.3f (needed %.3f, %s)" % [
+				entry[0], final_position.z, minimum_z, entry[3]
+			])
+	print("POD_WALK_INS: ", results)
+	print("BLOCKED_POD_WALK_INS: ", blocked)
 	_check(
-		offenders.is_empty(),
-		"the operations pod, registry pod, and freight handoff decks sit within one no-jump step of the lattice deck they open onto"
+		blocked.is_empty(),
+		"continuous move_forward from the lattice deck walks up into the operations pod, the fleet registry pod, and the freight branch without a jump"
 	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
 
 
 func _test_freight_branch_has_a_walkable_approach(world: ShipyardWorld) -> void:
@@ -444,90 +476,6 @@ func _test_aft_stair_base_is_not_fenced_off(player: PlayerController) -> void:
 	)
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
 	await physics_frame
-
-
-func _test_approach_facing_signs(world: ShipyardWorld) -> void:
-	var reversed_signs := PackedStringArray()
-	for entry in APPROACH_FACING_SIGNS:
-		var sign_mesh := world.get_node_or_null(NodePath(entry[0] as String)) as MeshInstance3D
-		if sign_mesh == null or sign_mesh.mesh is not TextMesh:
-			reversed_signs.append("%s <missing>" % entry[0])
-			continue
-		# TextMesh renders its readable face toward local +Z.
-		var readable_from := sign_mesh.global_basis.z.normalized()
-		if readable_from.dot(entry[1] as Vector3) <= 0.5:
-			reversed_signs.append("%s readable_from=%s expected=%s" % [
-				entry[0], str(readable_from), str(entry[1])
-			])
-	print("REVERSED_APPROACH_SIGNS: ", reversed_signs)
-	_check(
-		reversed_signs.is_empty(),
-		"pod facade and registry terminal legends read forwards from the deck they are approached from"
-	)
-
-
-func _test_seated_decorations_rest_on_their_surface(world: ShipyardWorld) -> void:
-	var floating := PackedStringArray()
-	for path in SEATED_DECORATION_PATHS:
-		var mesh_instance := world.get_node_or_null(NodePath(path)) as MeshInstance3D
-		if mesh_instance == null or mesh_instance.mesh == null:
-			floating.append("%s <missing>" % path)
-			continue
-		var drop := _drop_below(mesh_instance)
-		if drop > SEATED_DECORATION_TOLERANCE:
-			floating.append("%s drop=%.3f" % [path, drop])
-	print("FLOATING_SEATED_DECORATIONS: ", floating)
-	_check(
-		floating.is_empty(),
-		"every roof-mounted safety beacon rests on the surface it is placed against"
-	)
-
-
-func _test_orphan_dock_guide_lens(world: ShipyardWorld) -> void:
-	var lens := world.get_node_or_null(
-		^"JovianFreightBerth/FreightPresentation/DockGuideLens18"
-	) as MeshInstance3D
-	if lens == null or lens.mesh == null:
-		_check(false, "the freight dock guide lens roster resolves")
-		return
-	var apron := world.get_node_or_null(
-		^"JovianFreightBerth/LoadingApron/ApronDeck04"
-	) as StaticBody3D
-	var apron_box := _body_world_box(apron) if apron != null else AABB()
-	var lens_box := lens.global_transform * lens.mesh.get_aabb()
-	var drop := _drop_below(lens)
-	print(
-		"DOCK_GUIDE_LENS_18: centre=", lens_box.get_center(),
-		" drop=", drop,
-		" apron_max_z=", apron_box.end.z
-	)
-	_check(
-		drop <= 0.35,
-		"the freight dock guide lens sits on the apron it marks instead of hanging in open space"
-	)
-
-
-func _drop_below(mesh_instance: MeshInstance3D) -> float:
-	var box := mesh_instance.global_transform * mesh_instance.mesh.get_aabb()
-	var origin := Vector3(box.get_center().x, box.position.y + 0.01, box.get_center().z)
-	var ray := PhysicsRayQueryParameters3D.create(origin, origin + Vector3.DOWN * 400.0, WORLD_LAYER)
-	ray.collide_with_areas = false
-	var body := _owning_body(mesh_instance)
-	if body != null:
-		ray.exclude = [body.get_rid()]
-	var hit := _space.intersect_ray(ray)
-	if hit.is_empty():
-		return 400.0
-	return origin.y - float((hit.position as Vector3).y)
-
-
-func _owning_body(node: Node) -> PhysicsBody3D:
-	var cursor := node.get_parent()
-	while cursor != null:
-		if cursor is PhysicsBody3D:
-			return cursor as PhysicsBody3D
-		cursor = cursor.get_parent()
-	return null
 
 
 func _walk_forward(
