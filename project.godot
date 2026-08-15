@@ -114,6 +114,10 @@ pause={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":4194305), Object(InputEventJoypadButton,"button_index":6)]
 }
+toggle_controls_overlay={
+"deadzone": 0.18,
+"events": [Object(InputEventKey,"physical_keycode":4194332), Object(InputEventJoypadButton,"button_index":4)]
+}
 
 [layer_names]
 

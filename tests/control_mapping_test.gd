@@ -17,6 +17,7 @@ const BUTTON_A := 0
 const BUTTON_B := 1
 const BUTTON_X := 2
 const BUTTON_Y := 3
+const BUTTON_BACK := 4
 const BUTTON_START := 6
 const BUTTON_LEFT_STICK := 7
 const BUTTON_LEFT_SHOULDER := 9
@@ -31,8 +32,33 @@ const GAMEPLAY_ACTIONS: Array[StringName] = [
 	&"jump", &"sprint_boost", &"interact", &"engine_start", &"engine_stop",
 	&"hover", &"fire", &"barrel_roll", &"landing_assist",
 	&"toggle_ship_camera_view", &"camera_distance_in", &"camera_distance_out",
-	&"brake", &"pause",
+	&"brake", &"pause", &"toggle_controls_overlay",
 ]
+
+# Every action a player must reach to finish one complete shift, paired with the
+# loop step it serves. Enumerated from the project InputMap rather than prose so
+# a keyboard-only regression on any single step turns this audit red.
+const LOOP_CRITICAL_ACTIONS := {
+	&"interact": "begin shift / board / operate doors / disembark",
+	&"jump": "begin shift alternate and on-foot traversal",
+	&"move_forward": "walk to the craft and apply forward throttle",
+	&"move_back": "walk back and apply reverse throttle",
+	&"move_left": "strafe on foot and yaw left",
+	&"move_right": "strafe on foot and yaw right",
+	&"sprint_boost": "sprint on foot and boost in flight",
+	&"pitch_up": "pitch up during flight and landing approach",
+	&"pitch_down": "pitch down during flight and landing approach",
+	&"roll_left": "roll left during flight",
+	&"roll_right": "roll right during flight",
+	&"brake": "decelerate for combat and dock approach",
+	&"fire": "engage the range targets and the defender",
+	&"hover": "hold station while lining up a berth",
+	&"engine_start": "start engines from the pilot seat",
+	&"engine_stop": "shut down after the strict dock",
+	&"landing_assist": "request the strict landing contract",
+	&"pause": "pause and reach the settings panel",
+	&"toggle_controls_overlay": "read the in-game control reference",
+}
 
 var _failures: Array[String] = []
 
@@ -79,6 +105,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_keyboard_attitude_bindings()
+	_test_loop_critical_actions_reach_the_gamepad()
 	_test_controller_mapping_and_deadzone()
 	_test_new_controller_bindings_are_collision_free()
 	_test_system_edges_and_camera_distance_backlog()
@@ -106,6 +133,39 @@ func _test_keyboard_attitude_bindings() -> void:
 	_check(_has_physical_key(&"toggle_ship_camera_view", KEY_V), "V still toggles the ship camera")
 	_check(_has_mouse_button(&"fire", MOUSE_BUTTON_LEFT), "left mouse still fires")
 	_check(_has_mouse_button(&"brake", MOUSE_BUTTON_RIGHT), "right mouse still brakes")
+	_check(
+		_has_physical_key(&"toggle_controls_overlay", KEY_F1),
+		"F1 still toggles the controls overlay after it became a mapped action"
+	)
+
+
+## Loop coverage, not tuning: each action a full shift requires must be usable
+## without a keyboard, and no loop action may sit outside the audited roster.
+func _test_loop_critical_actions_reach_the_gamepad() -> void:
+	for action: StringName in LOOP_CRITICAL_ACTIONS:
+		_check(
+			InputMap.has_action(action),
+			"loop-critical action %s exists in the project InputMap" % action
+		)
+		_check(
+			_has_any_joypad_event(action),
+			"%s is reachable from the gamepad (%s)" % [
+				action,
+				str(LOOP_CRITICAL_ACTIONS[action]),
+			]
+		)
+		_check(
+			GAMEPLAY_ACTIONS.has(action),
+			"loop-critical action %s stays inside the audited gameplay roster" % action
+		)
+	var unreachable: Array[StringName] = []
+	for action: StringName in GAMEPLAY_ACTIONS:
+		if not _has_any_joypad_event(action):
+			unreachable.append(action)
+	_check(
+		unreachable.is_empty(),
+		"no audited gameplay action remains keyboard-only (offenders: %s)" % str(unreachable)
+	)
 
 
 func _test_controller_mapping_and_deadzone() -> void:
@@ -144,6 +204,7 @@ func _test_controller_mapping_and_deadzone() -> void:
 		[&"camera_distance_in", BUTTON_LEFT_SHOULDER, "LB moves the chase camera nearer"],
 		[&"camera_distance_out", BUTTON_RIGHT_SHOULDER, "RB moves the chase camera farther"],
 		[&"pause", BUTTON_START, "Start opens pause"],
+		[&"toggle_controls_overlay", BUTTON_BACK, "Back opens the controls overlay"],
 	]
 	for expected: Array in expected_buttons:
 		var action := expected[0] as StringName
@@ -164,6 +225,7 @@ func _test_new_controller_bindings_are_collision_free() -> void:
 		&"landing_assist": BUTTON_DPAD_LEFT,
 		&"camera_distance_in": BUTTON_LEFT_SHOULDER,
 		&"camera_distance_out": BUTTON_RIGHT_SHOULDER,
+		&"toggle_controls_overlay": BUTTON_BACK,
 	}
 	var distinct_buttons := {}
 	for action: StringName in expected_bindings:
@@ -621,6 +683,15 @@ func _has_joy_button(action: StringName, button_index: int) -> bool:
 			event is InputEventJoypadButton
 			and (event as InputEventJoypadButton).button_index == button_index
 		):
+			return true
+	return false
+
+
+func _has_any_joypad_event(action: StringName) -> bool:
+	if not InputMap.has_action(action):
+		return false
+	for event: InputEvent in InputMap.action_get_events(action):
+		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 			return true
 	return false
 

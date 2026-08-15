@@ -79,7 +79,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			set_paused(not _pause.visible)
 		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F1 and _started:
+	elif event.is_action_pressed("toggle_controls_overlay") and _started:
+		# One InputMap action now owns the overlay so `F1` and the gamepad Back
+		# button reach the identical toggle. `is_action_pressed()` still rejects
+		# key repeats, so the previous physical-`F1` behaviour is unchanged.
 		_help_panel.visible = not _help_panel.visible
 
 
@@ -107,12 +110,14 @@ func set_mode(mode: String) -> void:
 			["SHIFT / CTRL/RMB", "BOOST / BRAKE"], ["V / WHEEL", "VIEW / DISTANCE"],
 			["H / G", "HOVER / BARREL ROLL"], ["L", "LANDING ASSIST"],
 			["X", "STOP ENGINES"], ["E", "EXIT: LANDED + OFFLINE"],
+			["F1 / BACK", "CONTROLS"],
 			["GAMEPAD", "STICKS FLY / TRIGGERS + FACE"]
 		])
 	else:
 		_set_help_text([
 			["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
-			["SPACE", "JUMP"], ["E", "INTERACT / BOARD"], ["F1", "CONTROLS"]
+			["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
+			["F1 / BACK", "CONTROLS"]
 		])
 
 
@@ -126,7 +131,8 @@ func set_ship_identity(display_name: String, role: String = "") -> void:
 	else:
 		_set_help_text([
 			["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
-			["SPACE", "JUMP"], ["E", "INTERACT / BOARD"], ["F1", "CONTROLS"]
+			["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
+			["F1 / BACK", "CONTROLS"]
 		])
 
 
@@ -933,7 +939,7 @@ func _set_help_text(rows: Array) -> void:
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 7)
 	margin.add_child(stack)
-	var heading := _label("CONTROLS  //  F1", 11, AMBER)
+	var heading := _label("CONTROLS  //  F1 / BACK", 11, AMBER)
 	stack.add_child(heading)
 	for row: Array in rows:
 		var line := HBoxContainer.new()
