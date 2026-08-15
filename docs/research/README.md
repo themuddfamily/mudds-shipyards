@@ -13,6 +13,10 @@ reproducible without redistributing third-party media.
   in its own version scope before mapping the current station onto those motifs.
 - [`ship_evidence_matrix.json`](ship_evidence_matrix.json) applies the same six
   reconstruction gates to every currently known ship name.
+- [`fleet_roster_variants.json`](fleet_roster_variants.json) keeps source-scoped
+  fleet rosters by variant (for example, a stable vertical-slice production
+  roster and a dated/full-name roster), with source IDs and matrix-to-runtime ship
+  mappings.
 - [`../ZENITH_B7_RECONSTRUCTION_SPEC.md`](../ZENITH_B7_RECONSTRUCTION_SPEC.md)
   deliberately versions the A5/A9 role conflict and freezes the non-media,
   frame-bounded source core now used by the bounded partial B7-observed Zenith

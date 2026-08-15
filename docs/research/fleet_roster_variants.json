@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "document_id": "keth_shipyard_fleet_roster_variants",
+  "variants": [
+    {
+      "variant_id": "working_fleet_vertical_slice_v1",
+      "variant_name": "Playable vertical-slice fleet",
+      "variant_type": "working",
+      "scope_id": "current_production_registry",
+      "scope_summary": "The runtime production scene and current lifecycle tests are built around this four-craft vertical slice.",
+      "evidence_links": {
+        "source_ids": ["A3", "B3", "B4", "B5", "B6", "B7", "A9"],
+        "matrix_ship_ids": ["torrent", "zenith", "arrow", "jovian"]
+      },
+      "ships": [
+        {
+          "matrix_ship_id": "torrent",
+          "runtime_ship_id": "torrent_provisional",
+          "implemented": true
+        },
+        {
+          "matrix_ship_id": "zenith",
+          "runtime_ship_id": "zenith_b7_observed",
+          "implemented": true
+        },
+        {
+          "matrix_ship_id": "arrow",
+          "runtime_ship_id": "arrow_provisional",
+          "implemented": true
+        },
+        {
+          "matrix_ship_id": "jovian",
+          "runtime_ship_id": "jovian_provisional",
+          "implemented": true
+        }
+      ]
+    },
+    {
+      "variant_id": "dated_source_roster_v1",
+      "variant_name": "Dated creator/media name roster",
+      "variant_type": "dated",
+      "scope_id": "A3_A4_A5_A6_B3_B4_B5_B6_B7_sources",
+      "scope_summary": "Evidence documents all historic ship names and role hints; only some remain implemented in the production slice.",
+      "evidence_links": {
+        "source_ids": ["A3", "A4", "A5", "A6", "A9", "B3", "B4", "B5", "B6", "B7"],
+        "matrix_ship_ids": [
+          "torrent",
+          "zenith",
+          "arrow",
+          "jovian",
+          "titan",
+          "vortex",
+          "paradox",
+          "katana",
+          "predator",
+          "dynamic",
+          "utopia",
+          "salyut",
+          "altair",
+          "corona"
+        ]
+      },
+      "ships": [
+        {"matrix_ship_id": "torrent", "implemented": false},
+        {"matrix_ship_id": "zenith", "implemented": false},
+        {"matrix_ship_id": "arrow", "implemented": false},
+        {"matrix_ship_id": "jovian", "implemented": false},
+        {"matrix_ship_id": "titan", "implemented": false},
+        {"matrix_ship_id": "vortex", "implemented": false},
+        {"matrix_ship_id": "paradox", "implemented": false},
+        {"matrix_ship_id": "katana", "implemented": false},
+        {"matrix_ship_id": "predator", "implemented": false},
+        {"matrix_ship_id": "dynamic", "implemented": false},
+        {"matrix_ship_id": "utopia", "implemented": false},
+        {"matrix_ship_id": "salyut", "implemented": false},
+        {"matrix_ship_id": "altair", "implemented": false},
+        {"matrix_ship_id": "corona", "implemented": false}
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ const LEDGER_PATH := "res://docs/research/source_ledger.json"
 const SCHEMA_PATH := "res://docs/research/source_ledger.schema.json"
 const TOPOLOGY_PATH := "res://docs/research/STATION_TOPOLOGY.md"
 const SHIP_MATRIX_PATH := "res://docs/research/ship_evidence_matrix.json"
+const FLEET_ROSTER_VARIANTS_PATH := "res://docs/research/fleet_roster_variants.json"
 const TORRENT_SPEC_PATH := "res://docs/TORRENT_2011_RECONSTRUCTION_SPEC.md"
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
 const EXPECTED_SOURCE_IDS := [
@@ -27,6 +28,8 @@ const RIGHTS_POLICY := {
 	"redistribution_policy": "do_not_bundle_or_commit",
 	"allowed_project_policy": "citation_and_limited_internal_study_only",
 }
+const WORKING_ROSTER_VARIANT_ID := "working_fleet_vertical_slice_v1"
+const WORKING_FLEET_SIZE := 4
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -40,6 +43,7 @@ func _run() -> void:
 	var ledger := _load_json(LEDGER_PATH)
 	var schema := _load_json(SCHEMA_PATH)
 	var ship_matrix := _load_json(SHIP_MATRIX_PATH)
+	var roster_variants := _load_json(FLEET_ROSTER_VARIANTS_PATH)
 	var topology := FileAccess.get_file_as_string(TOPOLOGY_PATH)
 	var torrent_spec := FileAccess.get_file_as_string(TORRENT_SPEC_PATH)
 
@@ -49,6 +53,7 @@ func _run() -> void:
 	_test_schema_contract(schema)
 	_test_station_topology(topology)
 	_test_ship_matrix(ship_matrix)
+	_test_fleet_roster_variants(roster_variants, ship_matrix, ledger)
 	_test_runtime_torrent_wording(torrent_spec)
 	_finish()
 
@@ -299,6 +304,152 @@ func _test_runtime_torrent_wording(torrent_spec: String) -> void:
 			and not text.contains("metadata/historical_revision = \"2011\"")
 		)
 	_check(no_false_revision_claim, "runtime, authored asset, generator and manifest no longer assert a verified 2011 revision")
+
+
+func _test_fleet_roster_variants(
+		variants: Dictionary,
+		matrix: Dictionary,
+		ledger: Dictionary
+) -> void:
+	_check(
+		int(variants.get("schema_version", 0)) == 1
+		and str(variants.get("document_id", "")) == "keth_shipyard_fleet_roster_variants",
+		"fleet roster variants expose a stable versioned schema and stable document id"
+	)
+	var matrix_ids: Array[String] = []
+	for ship in matrix.get("ships", []) as Array:
+		var ship_data := ship as Dictionary
+		matrix_ids.append(str(ship_data.get("ship_id", "")))
+	var source_ids: Array[String] = []
+	for source in ledger.get("sources", []) as Array:
+		var source_data := source as Dictionary
+		source_ids.append(str(source_data.get("id", "")))
+	var variants_array := variants.get("variants", []) as Array
+	_check(variants_array.size() >= 2, "fleet roster variant catalog documents production and dated source scopes")
+	var all_variant_ids_unique := true
+	var found_working := false
+	var working_roster_size_ok := false
+	var dated_roster_contains_matrix_ids := false
+	var evidence_links_valid := true
+	var variant_ids: Array[String] = []
+	var working_matrix_ships: Array[String] = []
+	var working_runtime_ship_ids: Array[String] = []
+
+	for variant in variants_array:
+		var variant_data := variant as Dictionary
+		var variant_id := str(variant_data.get("variant_id", ""))
+		var variant_type := str(variant_data.get("variant_type", ""))
+		var variant_roster := variant_data.get("ships", []) as Array
+		var evidence := variant_data.get("evidence_links", {}) as Dictionary
+		var linked_sources := evidence.get("source_ids", []) as Array
+		var linked_matrix_ids := evidence.get("matrix_ship_ids", []) as Array
+		all_variant_ids_unique = all_variant_ids_unique and not variant_ids.has(variant_id) and not variant_id.is_empty()
+		if not variant_id.is_empty():
+			variant_ids.append(variant_id)
+
+		for source_ref in linked_sources:
+			evidence_links_valid = evidence_links_valid and (source_ids.has(str(source_ref)))
+		var declared_matrix: Array[String] = []
+		var manifest_matrix: Array[String] = []
+		for matrix_id in linked_matrix_ids:
+			manifest_matrix.append(str(matrix_id))
+		for ship_entry in variant_roster:
+			var entry := ship_entry as Dictionary
+			var matrix_id := str(entry.get("matrix_ship_id", ""))
+			declared_matrix.append(matrix_id)
+			_check(not matrix_id.is_empty(), "variant %s only lists entries with a matrix_ship_id" % variant_id)
+			if variant_type == "working":
+				var runtime_id := str(entry.get("runtime_ship_id", ""))
+				if not runtime_id.is_empty():
+					working_runtime_ship_ids.append(runtime_id)
+		_check(variant_id != "" and variant_data.get("scope_id", "").is_empty() == false, "every variant stores a stable variant_id and scope_id")
+		_check(variant_type in ["working", "dated", "historical"], "each roster variant uses a recognized variant_type")
+		_check(not declared_matrix.is_empty(), "variant %s explicitly lists at least one ship in its matrix roster" % variant_id)
+		_check(int(variant_roster.size()) >= 1, "variant %s ships array is populated" % variant_id)
+		var seen_declarations := {}
+		for item in variant_roster:
+			var entry := item as Dictionary
+			var matrix_id := str(entry.get("matrix_ship_id", ""))
+			if matrix_id.is_empty():
+				continue
+			var row: bool = seen_declarations.has(matrix_id)
+			seen_declarations[matrix_id] = true
+			all_variant_ids_unique = all_variant_ids_unique and not row
+			var matrix_ship_ok := matrix_ids.has(matrix_id)
+			_check(matrix_ship_ok, "variant %s references known matrix ship id %s" % [variant_id, matrix_id])
+			if variant_type == "working":
+				working_matrix_ships.append(matrix_id)
+		for linked_matrix_id in manifest_matrix:
+			var matrix_exists := matrix_ids.has(linked_matrix_id)
+			evidence_links_valid = evidence_links_valid and matrix_exists
+
+		if variant_type == "working":
+			found_working = variant_id == WORKING_ROSTER_VARIANT_ID
+			working_roster_size_ok = working_roster_size_ok or int(variant_roster.size()) == WORKING_FLEET_SIZE
+			_check(int(variant_roster.size()) == WORKING_FLEET_SIZE, "working fleet variant keeps exactly four physical entries for production")
+			_check(_list_is_subset(
+				["torrent", "zenith", "arrow", "jovian"],
+				manifest_matrix,
+			), "working roster variant references the four matrix roster IDs currently used in the vertical slice")
+			for required in ["torrent", "zenith", "arrow", "jovian"]:
+				_check(
+					manifest_matrix.has(required),
+					"working roster variant includes matrix ship %s" % required
+				)
+			_check(
+				int(working_runtime_ship_ids.filter(func(value): return value.ends_with("_provisional") or value == "zenith_b7_observed").size())
+				== WORKING_FLEET_SIZE,
+				"working roster variant lists the four production implementation ids"
+			)
+		elif variant_type == "dated":
+			var unique_matrix_ship_ids: Array[String] = []
+			for matrix_id in manifest_matrix:
+				if not unique_matrix_ship_ids.has(matrix_id):
+					unique_matrix_ship_ids.append(matrix_id)
+			dated_roster_contains_matrix_ids = _set_is_subset(
+				matrix_ids,
+				manifest_matrix
+			)
+			_check(unique_matrix_ship_ids.size() == matrix_ids.size(), "dated source variant includes each known matrix ship id once")
+
+		_check(seen_declarations.size() == declared_matrix.size(), "variant %s ship declarations are unique" % variant_id)
+		_check(variant_id != "" and variant_data.get("scope_summary", "").is_empty() == false, "variant %s stores a non-empty scope summary" % variant_id)
+
+	_check(all_variant_ids_unique, "all roster variant IDs are unique and non-empty")
+	_check(found_working, "a working-production roster variant is present and named %s" % WORKING_ROSTER_VARIANT_ID)
+	_check(working_roster_size_ok, "working variant stores exactly four ship entries")
+	_check(_list_is_subset(_stable_working_ship_ids(), working_matrix_ships), "working matrix roster includes every four stable production entries")
+	_check(_list_is_unique(working_matrix_ships), "working matrix roster entries are unique")
+	_check(dated_roster_contains_matrix_ids, "dated roster variant includes every known matrix roster ID")
+	_check(evidence_links_valid, "every evidence source link exists in the source ledger")
+
+
+func _stable_working_ship_ids() -> Array[String]:
+	var ids: Array[String] = ["torrent", "zenith", "arrow", "jovian"]
+	return ids
+
+
+func _list_is_unique(values: Array[String]) -> bool:
+	var seen: Dictionary = {}
+	for value in values:
+		if seen.has(value):
+			return false
+		seen[value] = true
+	return true
+
+
+func _list_is_subset(required: Array[String], candidate: Array[String]) -> bool:
+	for item in required:
+		if not candidate.has(item):
+			return false
+	return true
+
+
+func _set_is_subset(expected: Array[String], actual: Array[String]) -> bool:
+	for item in expected:
+		if not actual.has(item):
+			return false
+	return true
 
 
 func _load_json(path: String) -> Dictionary:

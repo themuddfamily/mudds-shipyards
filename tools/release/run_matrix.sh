@@ -8,6 +8,7 @@ cd "$ROOT_DIR"
 OUT_DIR="${1:-artifacts/matrix/$(date -u +%Y%m%d_%H%M%S)-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 TIMEOUT_SECONDS="${2:-120}"
 GODOT_BIN="${3:-godot}"
+AUDIO_DRIVER="${MATRIX_AUDIO_DRIVER:-Dummy}"
 
 mkdir -p "$OUT_DIR/logs"
 
@@ -43,7 +44,11 @@ for suite in "${SUITES[@]}"; do
   echo "RUN $suite"
 
   exit_code=0
-  if ! timeout "$TIMEOUT_SECONDS" "$GODOT_BIN" --headless --path . --script "$suite" >"$log_path" 2>&1; then
+  GODOT_ARGS=("$GODOT_BIN" --headless --path . --script "$suite")
+  if [[ -n "$AUDIO_DRIVER" ]]; then
+    GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
+  fi
+  if ! timeout "$TIMEOUT_SECONDS" "${GODOT_ARGS[@]}" >"$log_path" 2>&1; then
     exit_code=$?
   fi
 

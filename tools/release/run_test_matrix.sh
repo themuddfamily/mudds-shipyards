@@ -10,12 +10,13 @@ GODOT_BIN="${GODOT_BIN:-godot}"
 TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-180}"
 RUN_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/test-matrix}"
 RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
 
 DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\\bFATAL ERROR\\b|\\bObjectDB\\b|Resource.*still in use|\\bOrphaned\\b|\\bLeaked\\b|\\bObjectDB\\b'
 
 usage() {
 	cat <<EOF
-Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR]
+Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR] [--audio-driver NAME]
 
 Run every tests/*_test.gd file under Godot --headless and write a timestamped matrix manifest.
 
@@ -24,7 +25,9 @@ Environment variables:
   TEST_MATRIX_TIMEOUT_SECONDS Defaults to 180.
   TEST_MATRIX_RESULTS_ROOT   Defaults to artifacts/test-matrix.
   TEST_MATRIX_TEST_FILTER    Extended-regular-expression filter applied to tests/*_test.gd paths.
+  TEST_MATRIX_AUDIO_DRIVER   Audio backend passed to --audio-driver (defaults to Dummy).
   TEST_MATRIX_RUN_ID         Override the timestamp label.
+  --audio-driver NAME       Override TEST_MATRIX_AUDIO_DRIVER for this invocation.
 EOF
 }
 
@@ -40,6 +43,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--results-dir)
 			RUN_RESULTS_ROOT="$2"
+			shift 2
+			;;
+		--audio-driver)
+			AUDIO_DRIVER="$2"
 			shift 2
 			;;
 		-h|--help)
@@ -180,11 +187,16 @@ for test_file in "${TEST_FILES[@]}"; do
 	fi
 
 	set +e
+	GODOT_ARGS=("$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script "$res_path")
+	if [[ -n "$AUDIO_DRIVER" ]]; then
+		GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
+	fi
+
 	if (( HAVE_TIMEOUT_BIN == 1 )); then
-		timeout "${TIMEOUT_SECONDS}s" "$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script "$res_path" > "$log_path" 2>&1
+		timeout "${TIMEOUT_SECONDS}s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	else
-		"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script "$res_path" > "$log_path" 2>&1
+		"${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	fi
 	set -e
@@ -286,6 +298,7 @@ run_started_utc=${RUN_STARTED_UTC}
 run_completed_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 godot_binary=${GODOT_BIN}
 timeout_seconds=${TIMEOUT_SECONDS}
+audio_driver=${AUDIO_DRIVER}
 project_root=${PROJECT_ROOT}
 overall_status=${overall_status}
 total_suites=${#TEST_FILES[@]}

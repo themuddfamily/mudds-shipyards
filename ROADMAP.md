@@ -313,7 +313,7 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 - [ ] Prove or revise the isolated Arrow and Jovian name-to-model mappings before calling either candidate an original-ship recreation.
 - [ ] Complete the B5-linked Torrent reconstruction beyond bounded v1 and resolve that footage's recording/build provenance and continuity with 2009 before calling it an authenticated original-ship recreation.
 - [x] Implement and review the bounded B7-observed Zenith partial reconstruction with a removable source core, separately tagged modern systems, a modern world-owned Fleet Dock berth, common physical lifecycle, and capture comparisons restricted to the registered `f373–f467` chain. The 47,274 / 5,412-triangle authored levels batch to 22 meshes/surfaces, the runtime owns exactly 24 mixed collision shapes, and the focused full lifecycle passed 49/49 assertions twice. Those checks do not authenticate dimensions, access/interior, systems, handling, materials or berth placement; the A5/B7 Interceptor versus A9 Fighter conflict and unknown recording/build remain explicit.
-- [ ] Build dated roster variants rather than claiming one timeless canonical list.
+- [x] Build dated roster variants rather than claiming one timeless canonical list.
 - [ ] Recreate Torrent, Arrow, Jovian, Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut, and Zenith only as evidence permits.
 - [ ] Preserve differentiated roles, readable colours, physical boarding, cockpit seating, and interiors appropriate to vessel size across the researched fleet.
 

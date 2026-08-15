@@ -120,11 +120,15 @@ The historical bindings changed between builds. Movement handling, mouse flight,
 ## Validation and export
 
 ```bash
+# For non-audio runs (including matrix runs), add --audio-driver Dummy to keep tests silent.
+# Example:
+# godot --headless --audio-driver Dummy --path . --script res://tests/smoke_test.gd
+
 # Import and parse every project resource.
 godot --headless --editor --path . --quit
 
 # Run the project smoke tests.
-godot --headless --path . --script res://tests/smoke_test.gd
+godot --headless --audio-driver Dummy --path . --script res://tests/smoke_test.gd
 
 # Check that steering remains upright and momentum follows the visible nose.
 godot --headless --path . --script res://tests/flight_input_test.gd
