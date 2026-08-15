@@ -1,0 +1,923 @@
+class_name StandoffPicketOpponent
+extends RangeOpponent
+
+## Standoff picket lance — a second, laterally differentiated range-defence
+## archetype for the Phase 6 encounter.
+##
+## Where `RangeOpponent` is a close orbiting dogfighter that leans on cadence,
+## this craft is a fragile long-reach marksman. It holds a wide standoff band,
+## charges a long, loud lance telegraph, and lands one heavy shot. Closing the
+## distance is the whole counterplay: inside `minimum_arming_range` its lance
+## cannot arm, an in-progress charge is aborted with a recovery penalty, and its
+## slow hull and slow turn rate cannot re-open the gap against a hero craft.
+##
+## Authority reuse (nothing here owns a second damage path):
+##   * identity, faction and weapon envelope    -> LiveCombatAuthority.register_source
+##   * damage proxy                             -> LiveCombatAuthority.attach_lifecycle_damageable
+##   * every shot                               -> the one live CombatResolver
+##   * presentation receipts                    -> LiveCombatAuthority's 64-bit allocator
+##   * hull/damage/destruction/debris lifecycle -> inherited from RangeOpponent
+##   * shot visuals                             -> the shared fixed PulseWeaponPresentation pool
+##   * fire/impact/explosion cues               -> the shared ten-voice CombatAudioPresentation
+##
+## The production coordinator (`GameFlow`) hard-binds its pulse style and fire
+## cue to exactly two identities (the player fleet and `$RangeOpponent`), so a
+## third combatant that routed through `LiveCombatAuthority.submit_hitscan*`
+## would be presented in the player's cyan with the player's fire cue. This
+## craft therefore submits to the same resolver under its own registered
+## identity and consumes the same pooled presentation seams itself. It adds no
+## ray query, no health store, and no second damage application.
+##
+## Evidence status: modern_interpretation. No original Keth Shipyards craft,
+## weapon, tactic, or class name is authenticated or claimed by this archetype.
+
+signal lance_fired(origin: Vector3, direction: Vector3, result: Dictionary)
+signal engagement_state_changed(state: StringName)
+
+const SCHEMA_VERSION := 1
+const COMPONENT_ID: StringName = &"standoff-picket-opponent"
+const EVIDENCE_STATUS: StringName = &"modern_interpretation"
+const DISPLAY_NAME := "Mudds range standoff picket"
+
+const DEFAULT_SOURCE_ID := 2102
+const DEFAULT_FACTION: StringName = &"range_defence"
+const LANCE_WEAPON_ID: StringName = &"picket_lance_cannon"
+const LANCE_PULSE_STYLE: StringName = &"magenta"
+
+const STATE_DORMANT: StringName = &"dormant"
+const STATE_CLOSING: StringName = &"closing"
+const STATE_HOLDING: StringName = &"holding"
+const STATE_BREAKING: StringName = &"breaking"
+
+## Deliberately darker and cooler than the defender's ivory dart so the two
+## opponent archetypes separate at a glance, but light enough to hold a readable
+## silhouette against the black backdrop at standoff distance.
+const HULL_GRAPHITE := Color("5a6472")
+const HULL_SLATE := Color("7d879a")
+const HULL_BONE := Color("d5dae2")
+const LANCE_MAGENTA := Color("ff54d7")
+const LANCE_VIOLET := Color("8a5bff")
+const PICKET_ENGINE := Color("9ce8ff")
+
+const MAX_PENDING_LANCE_RECEIPTS := 8
+
+const CONTENT_NOTE := (
+	"The picket silhouette, palette, lance telegraph, standoff band, minimum arming "
+	+ "range, and every balance value are an original modern interpretation. They do "
+	+ "not reproduce or claim any authenticated historical Keth Shipyards craft, "
+	+ "weapon, tactic, or class name."
+)
+
+@export_category("Combat authority")
+## Stable session identity. Must not collide with the fleet or the defender.
+@export var source_id := DEFAULT_SOURCE_ID
+@export var faction_id: StringName = DEFAULT_FACTION
+@export var lance_range := 520.0
+@export var lance_damage := 21.0
+@export var lance_origin_tolerance := 22.0
+
+@export_category("Picket tactics")
+## Distance the picket tries to hold. Far outside the defender's orbit band.
+@export_range(20.0, 400.0, 1.0) var standoff_range := 132.0
+## Inside this radius the lance cannot arm and an active charge is aborted.
+@export_range(5.0, 200.0, 1.0) var minimum_arming_range := 58.0
+## Cosine gate on the firing cone. Much narrower than the defender's.
+@export_range(0.5, 0.9999, 0.0001) var lance_aim_tolerance := 0.985
+## Cosine gate that keeps an in-progress charge alive.
+@export_range(0.5, 0.9999, 0.0001) var lance_hold_tolerance := 0.965
+## Cooldown forced when a charge is broken by range, cone, or occlusion.
+@export_range(0.0, 8.0, 0.05) var lance_abort_recovery := 0.9
+## Cooldown applied on dispatch so the picket never opens instantly.
+@export_range(0.0, 12.0, 0.05) var initial_arming_delay := 1.6
+
+@export_category("Escort dispatch")
+## The picket is dispatched as the defender's second wave and withdraws with it.
+@export var escort_enabled := true
+@export_range(0.0, 30.0, 0.1) var escort_launch_delay := 3.0
+@export var defender_path := NodePath("../RangeOpponent")
+@export var combat_authority_path := NodePath("../CombatAuthority")
+@export var pulse_presentation_path := NodePath("../PulseWeaponPresentation")
+@export var combat_audio_path := NodePath("../CombatAudioPresentation")
+@export var encounter_host_path := NodePath("..")
+@export var hud_path := NodePath("../HUD")
+
+var _registered := false
+var _escort_dispatched := false
+var _escort_elapsed := 0.0
+var _engagement_state: StringName = STATE_DORMANT
+var _last_shot_result: Dictionary = {}
+var _lance_receipts: Dictionary = {}
+var _lance_receipt_order: Array[int] = []
+var _pulse_signals_connected := false
+var _lance_lens: MeshInstance3D
+var _lance_emitter: MeshInstance3D
+var _shots_fired := 0
+var _shots_aborted := 0
+
+
+# ------------------------------------------------------------- lifecycle ----
+
+func _enter_tree() -> void:
+	super()
+	# A whole-`Main` detach/re-entry re-adds this node without calling `_ready()`
+	# again. Restoring the registration is deferred so the coordinator's own
+	# deferred combat restore observes the same source roster it built at boot.
+	if _built:
+		call_deferred("_restore_after_reentry")
+
+
+func _ready() -> void:
+	super()
+	set_meta("component_id", COMPONENT_ID)
+	set_meta("evidence_status", EVIDENCE_STATUS)
+	set_meta("historically_supported", false)
+	set_meta("modern_interpretation", &"standoff_picket_opponent")
+	_attach_damage_proxy()
+	_connect_pulse_signals()
+
+
+func _exit_tree() -> void:
+	_disconnect_pulse_signals()
+	# Damage authority is already final; only queued presentation is dropped so a
+	# streamed teardown can never resurrect a transient on re-entry.
+	_discard_lance_receipts()
+	# The resolver drops the live registration through its own `tree_exiting`
+	# hook while deliberately retaining this identity's replay high-water mark.
+	# Mirror that here so the claim cannot outlive the registration it describes.
+	_registered = false
+	super()
+
+
+func _physics_process(delta: float) -> void:
+	_update_escort_dispatch(delta)
+	super(delta)
+	_update_engagement_state()
+
+
+# -------------------------------------------------------- public contract ----
+
+func get_display_name() -> String:
+	return DISPLAY_NAME
+
+
+func get_component_id() -> StringName:
+	return COMPONENT_ID
+
+
+func get_engagement_state() -> StringName:
+	return _engagement_state
+
+
+func is_escort_dispatched() -> bool:
+	return _escort_dispatched
+
+
+func is_combat_source_registered() -> bool:
+	return _registered
+
+
+func get_pending_lance_receipt_count() -> int:
+	return _lance_receipts.size()
+
+
+func get_last_shot_result() -> Dictionary:
+	return _last_shot_result.duplicate(true)
+
+
+## Immutable authority envelope submitted to `LiveCombatAuthority`.
+func get_weapon_profiles() -> Dictionary:
+	return {
+		LANCE_WEAPON_ID: {
+			"range": lance_range,
+			"damage": lance_damage,
+			"origin_tolerance": lance_origin_tolerance,
+		},
+	}.duplicate(true)
+
+
+## Ordered trade-off axes used by the opponent role-differentiation audit. Every
+## value has an unambiguous "better for this opponent" reading so no-strict-
+## dominance can be measured the same way the fleet audit measures the player
+## craft.
+func get_tactics_profile() -> Dictionary:
+	return {
+		"maximum_health": maximum_health,
+		"cruise_speed": cruise_speed,
+		"chase_speed": chase_speed,
+		"acceleration": acceleration,
+		"turn_speed_degrees": turn_speed_degrees,
+		"engagement_range": engagement_range,
+		"weapon_range": lance_range,
+		"weapon_damage": lance_damage,
+		"sustained_damage_per_second": get_sustained_damage_per_second(),
+		"telegraph_time": telegraph_time,
+		"weapon_cooldown": weapon_cooldown,
+		"minimum_arming_range": minimum_arming_range,
+		"preferred_engagement_distance": standoff_range,
+	}.duplicate(true)
+
+
+func get_sustained_damage_per_second() -> float:
+	var cycle := maxf(0.001, telegraph_time + weapon_cooldown)
+	return lance_damage / cycle
+
+
+func get_evidence_metadata() -> Dictionary:
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"component_id": COMPONENT_ID,
+		"evidence_status": EVIDENCE_STATUS,
+		"historically_supported": false,
+		"authenticated_original_geometry": false,
+		"authenticated_original_weapon": false,
+		"authenticated_original_tactic": false,
+		"claims_historical_class_name": false,
+		"modern_interpretations": PackedStringArray([
+			"graphite standoff picket silhouette with a forward lance barrel",
+			"magenta lance telegraph, charge lens, and pooled magenta pulse style",
+			"standoff band, minimum arming range, and abort-recovery tactic",
+			"every balance, cadence, range, and damage value",
+		]),
+		"explicit_unknowns": PackedStringArray([
+			"any historical opposing craft, weapon, loadout, tactic, or class name",
+		]),
+		"content_note": CONTENT_NOTE,
+	}.duplicate(true)
+
+
+func get_audit_report() -> Dictionary:
+	var errors := get_validation_errors()
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"component_id": COMPONENT_ID,
+		"display_name": DISPLAY_NAME,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"evidence": get_evidence_metadata(),
+		"weapon_profiles": get_weapon_profiles(),
+		"tactics": get_tactics_profile(),
+		"authority": {
+			"source_id": source_id,
+			"faction_id": faction_id,
+			"registered": _registered,
+			"weapon_id": LANCE_WEAPON_ID,
+			"pulse_style_id": LANCE_PULSE_STYLE,
+		},
+		"lifecycle": {
+			"inside_tree": is_inside_tree(),
+			"active": is_active(),
+			"escort_enabled": escort_enabled,
+			"escort_dispatched": _escort_dispatched,
+			"engagement_state": _engagement_state,
+			"pending_lance_receipts": _lance_receipts.size(),
+			"shots_fired": _shots_fired,
+			"shots_aborted": _shots_aborted,
+		},
+	}.duplicate(true)
+
+
+func get_validation_errors() -> PackedStringArray:
+	var errors := PackedStringArray()
+	if not _built:
+		errors.append("picket presentation has not been built")
+	if source_id <= 0:
+		errors.append("source_id must be a positive stable identity")
+	if faction_id.is_empty():
+		errors.append("faction_id is required")
+	if not is_finite(lance_range) or lance_range <= 0.0:
+		errors.append("lance range must be finite and positive")
+	if not is_finite(lance_damage) or lance_damage <= 0.0:
+		errors.append("lance damage must be finite and positive")
+	if not is_finite(lance_origin_tolerance) or lance_origin_tolerance <= 0.0:
+		errors.append("lance origin tolerance must be finite and positive")
+	if minimum_arming_range >= standoff_range:
+		errors.append("minimum arming range must sit inside the standoff band")
+	if standoff_range >= engagement_range:
+		errors.append("standoff band must sit inside the engagement range")
+	if lance_hold_tolerance > lance_aim_tolerance:
+		errors.append("charge hold cone must not be narrower than the arming cone")
+	if _registered and not is_instance_valid(_get_combat_authority()):
+		errors.append("registration is claimed without a live combat authority")
+	if _lance_receipts.size() > MAX_PENDING_LANCE_RECEIPTS:
+		errors.append("pending lance receipts exceed the fixed bound")
+	if _active and is_inside_tree() and not _registered:
+		errors.append("an active picket must own a live combat registration")
+	if not _active and _registered:
+		errors.append("a dormant picket must not retain a live combat registration")
+	return errors
+
+
+# ------------------------------------------------------------- activation ----
+
+func activate(spawn_transform: Transform3D) -> void:
+	super(spawn_transform)
+	_cooldown_remaining = maxf(_cooldown_remaining, initial_arming_delay)
+	_shots_fired = 0
+	_shots_aborted = 0
+	_discard_lance_receipts()
+	_register_combat_source()
+	_set_engagement_state(STATE_CLOSING)
+
+
+func deactivate() -> void:
+	_release_combat_registration()
+	_discard_lance_receipts()
+	super()
+	_set_engagement_state(STATE_DORMANT)
+
+
+func _destroy_interceptor(death_position: Vector3) -> void:
+	_release_combat_registration()
+	# The engagement latch stays claimed so a destroyed picket is not re-dispatched
+	# while the same defender wave is still live.
+	_escort_dispatched = true
+	super(death_position)
+	_set_engagement_state(STATE_DORMANT)
+
+
+func _restore_after_reentry() -> void:
+	if not is_inside_tree():
+		return
+	_connect_pulse_signals()
+	_attach_damage_proxy()
+	if _active:
+		_register_combat_source()
+
+
+# --------------------------------------------------------------- dispatch ----
+
+## Dispatches and withdraws the picket with the defender wave it escorts. The
+## delay is accumulated from fixed physics deltas, never from a wall clock.
+func _update_escort_dispatch(delta: float) -> void:
+	if not escort_enabled or not is_inside_tree():
+		return
+	var defender := get_node_or_null(defender_path)
+	var defender_active := (
+		is_instance_valid(defender)
+		and defender.has_method(&"is_active")
+		and bool(defender.call(&"is_active"))
+	)
+	if not defender_active:
+		_escort_elapsed = 0.0
+		if _escort_dispatched:
+			_escort_dispatched = false
+			if _active:
+				deactivate()
+		return
+	if _escort_dispatched or not _encounter_authorizes_dispatch():
+		return
+	if not is_finite(delta) or delta < 0.0:
+		return
+	_escort_elapsed += delta
+	if _escort_elapsed < escort_launch_delay:
+		return
+	var target := _resolve_encounter_target()
+	if not is_instance_valid(target):
+		return
+	_escort_dispatched = true
+	activate(_compute_dispatch_transform(defender as Node3D, target))
+	set_target(target)
+
+
+## Dispatch is authorized only while the coordinator is actually running its
+## interceptor engagement. Withdrawal stays keyed to the defender wave, so a
+## craft already in play is never stranded by a phase change. A non-coordinator
+## host (isolated fixtures, evidence harnesses, tools) delegates the decision
+## entirely to the defender it escorts.
+func _encounter_authorizes_dispatch() -> bool:
+	var host := get_node_or_null(encounter_host_path)
+	if host is GameFlow:
+		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
+	return true
+
+
+func _resolve_encounter_target() -> Node3D:
+	if is_instance_valid(_target) and _target.is_inside_tree():
+		return _target
+	var host := get_node_or_null(encounter_host_path)
+	if is_instance_valid(host) and host.has_method(&"get_active_ship"):
+		var active_ship := host.call(&"get_active_ship") as Node3D
+		if is_instance_valid(active_ship) and active_ship.is_inside_tree():
+			return active_ship
+	return null
+
+
+## Places the picket well behind and beside the defender, already looking at the
+## target, so it reads on screen as a second wave holding back rather than as a
+## duplicate of the craft the player is already fighting.
+func _compute_dispatch_transform(defender: Node3D, target: Node3D) -> Transform3D:
+	var anchor := defender.global_position if is_instance_valid(defender) else global_position
+	var to_target := target.global_position - anchor
+	if to_target.length_squared() <= 0.001:
+		to_target = Vector3.FORWARD
+	to_target = to_target.normalized()
+	var lateral := Vector3.UP.cross(to_target)
+	if lateral.length_squared() <= 0.001:
+		lateral = Vector3.RIGHT
+	lateral = lateral.normalized()
+	var origin := anchor - to_target * 62.0 + lateral * 74.0 + Vector3.UP * 24.0
+	var facing := target.global_position - origin
+	if facing.length_squared() <= 0.001:
+		facing = to_target
+	var up := Vector3.UP
+	if absf(facing.normalized().dot(up)) > 0.965:
+		up = Vector3.FORWARD
+	return Transform3D(Basis.looking_at(facing.normalized(), up).orthonormalized(), origin)
+
+
+# ---------------------------------------------------------------- tactics ----
+
+## Standoff kiting instead of the defender's tight orbit. Three bands: close to
+## the standoff ring, hold it with a slow wide drift, and break directly away
+## when the player gets inside the arming radius.
+func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
+	var lateral := Vector3.UP.cross(target_direction)
+	if lateral.length_squared() <= 0.001:
+		lateral = Vector3.RIGHT
+	lateral = lateral.normalized() * _orbit_sign
+	var weave := Vector3.UP * sin(_elapsed * 0.41 + 1.3) * 0.12
+	var desired := Vector3.ZERO
+	if distance < minimum_arming_range:
+		# Break: face-on retreat, only a shallow lateral component so the escape
+		# reads as a deliberate withdrawal instead of another orbit.
+		desired = -target_direction * 0.94 + lateral * 0.26
+	elif distance > standoff_range * 1.25:
+		desired = target_direction * 0.92 + lateral * 0.18 + weave
+	else:
+		var band_error := clampf(
+			(distance - standoff_range) / maxf(standoff_range, 1.0),
+			-1.0,
+			1.0
+		)
+		desired = lateral * 0.34 + target_direction * band_error * 0.72 + weave
+	if desired.length_squared() <= 0.001:
+		return target_direction
+	return desired.normalized()
+
+
+## Long, cancellable lance charge with a hard minimum arming radius.
+func _update_weapon(
+		target_position: Vector3,
+		target_direction: Vector3,
+		distance: float,
+		delta: float
+	) -> void:
+	var forward := -global_basis.z
+	if _telegraph_remaining > 0.0:
+		var aim_held := forward.dot(target_direction) >= lance_hold_tolerance
+		var in_band := distance <= engagement_range and distance >= minimum_arming_range
+		if not in_band or not aim_held or not _has_line_of_sight(target_position):
+			# Closing the gap, breaking the cone, or breaking line of sight all
+			# cancel a committed charge and cost the picket real time.
+			_telegraph_remaining = 0.0
+			_cooldown_remaining = maxf(_cooldown_remaining, lance_abort_recovery)
+			_shots_aborted += 1
+			return
+		_telegraph_remaining = maxf(0.0, _telegraph_remaining - delta)
+		if _telegraph_remaining <= 0.0:
+			_fire_at_target(_get_target_aim_position())
+		return
+	if _cooldown_remaining > 0.0:
+		return
+	if distance > engagement_range or distance < minimum_arming_range:
+		return
+	if forward.dot(target_direction) < lance_aim_tolerance:
+		return
+	if not _has_line_of_sight(target_position):
+		return
+	_telegraph_remaining = telegraph_time
+
+
+func _update_engagement_state() -> void:
+	if not _active:
+		_set_engagement_state(STATE_DORMANT)
+		return
+	if not is_instance_valid(_target):
+		_set_engagement_state(STATE_CLOSING)
+		return
+	var distance := global_position.distance_to(_get_target_aim_position())
+	if distance < minimum_arming_range:
+		_set_engagement_state(STATE_BREAKING)
+	elif distance > standoff_range * 1.25:
+		_set_engagement_state(STATE_CLOSING)
+	else:
+		_set_engagement_state(STATE_HOLDING)
+
+
+func _set_engagement_state(state: StringName) -> void:
+	if _engagement_state == state:
+		return
+	_engagement_state = state
+	engagement_state_changed.emit(state)
+
+
+# ----------------------------------------------------------------- firing ----
+
+## Resolves one lance shot on the single live `CombatResolver` under this craft's
+## registered identity, then consumes the shared pooled presentation seams. No
+## ray query, health store, or damage application lives here.
+func _fire_at_target(target_position: Vector3) -> void:
+	if not _active or not is_inside_tree():
+		return
+	var authority := _get_combat_authority()
+	var resolver: CombatResolver = (
+		authority.get_resolver() as CombatResolver if is_instance_valid(authority) else null
+	)
+	if not is_instance_valid(resolver) or not _registered:
+		_cooldown_remaining = weapon_cooldown
+		return
+	var muzzle := _muzzle_port if is_instance_valid(_muzzle_port) else self as Node3D
+	var origin: Vector3 = muzzle.global_position
+	var direction := target_position - origin
+	if direction.length_squared() <= 0.000001:
+		direction = -global_basis.z
+	direction = direction.normalized()
+
+	# One receipt from the shared session-monotonic allocator. Saturation fails
+	# closed here exactly as it does inside the authority's own submit path.
+	var receipt_id := authority.allocate_presentation_receipt_id()
+	if receipt_id < 0:
+		_cooldown_remaining = weapon_cooldown
+		_last_shot_result = {"accepted": false, "status": &"receipt_exhausted"}
+		return
+	var sequence := resolver.get_last_sequence(self, source_id) + 1
+	var request := ShotRequest.new(
+		self,
+		source_id,
+		faction_id,
+		LANCE_WEAPON_ID,
+		sequence,
+		origin,
+		direction,
+		lance_range,
+		lance_damage,
+		receipt_id
+	)
+	var result := resolver.resolve_hitscan(request)
+	_cooldown_remaining = weapon_cooldown
+	_last_shot_result = result.duplicate(true)
+	_shots_fired += 1
+	# `projectile_fired` is deliberately NOT raised. On the defender that signal is
+	# a request for the coordinator to submit a shot; this craft has already
+	# resolved its own, so re-raising it could produce a second submission.
+	lance_fired.emit(origin, direction, result.duplicate(true))
+	if not bool(result.get("accepted", false)) or not bool(result.get("resolved", false)):
+		return
+	_spawn_muzzle_flash(origin)
+	_present_lance_shot(origin, direction, receipt_id, result)
+
+
+func _present_lance_shot(
+		origin: Vector3,
+		direction: Vector3,
+		receipt_id: int,
+		result: Dictionary
+	) -> void:
+	var endpoint := origin + direction * lance_range
+	if bool(result.get("hit", false)):
+		var resolved_position: Variant = result.get("position", endpoint)
+		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
+			endpoint = resolved_position as Vector3
+	var audio := _get_combat_audio()
+	if is_instance_valid(audio):
+		audio.play_defender_fire(origin, get_instance_id())
+	var damaged := bool(result.get("damaged", false))
+	if damaged:
+		_record_lance_receipt(receipt_id, result, endpoint)
+		_flash_target_damage(origin, result)
+	# A receipt only travels with a shot that actually queued target presentation.
+	# A miss or a blocked shot carries none, so no listener can be handed an ID
+	# with nothing behind it.
+	var presented := false
+	var pulse := _get_pulse_presentation()
+	if is_instance_valid(pulse):
+		presented = pulse.present_shot(
+			origin,
+			endpoint,
+			LANCE_PULSE_STYLE,
+			self,
+			bool(result.get("hit", false)),
+			receipt_id if damaged else -1
+		)
+	if damaged and not presented:
+		# The pool refused or is unavailable. Authority is already final, so the
+		# queued target presentation is released immediately rather than stranded.
+		_finalize_lance_receipt(receipt_id, endpoint, true)
+
+
+func _record_lance_receipt(receipt_id: int, result: Dictionary, endpoint: Vector3) -> void:
+	var target_entity: Variant = result.get("target_entity")
+	var terminal := bool(result.get("destroyed", false))
+	var terminal_position := endpoint
+	var target_instance_id := 0
+	if is_instance_valid(target_entity):
+		target_instance_id = (target_entity as Object).get_instance_id()
+		if terminal and target_entity is Node3D:
+			terminal_position = (target_entity as Node3D).global_position
+	_lance_receipts[receipt_id] = {
+		"target": weakref(target_entity) if is_instance_valid(target_entity) else null,
+		"target_instance_id": target_instance_id,
+		"endpoint": endpoint,
+		"terminal_position": terminal_position,
+		"terminal": terminal,
+	}
+	_lance_receipt_order.append(receipt_id)
+	while _lance_receipt_order.size() > MAX_PENDING_LANCE_RECEIPTS:
+		var evicted: int = _lance_receipt_order.pop_front()
+		_lance_receipts.erase(evicted)
+
+
+## Directional hit feedback. The coordinator owns this cue for the defender it
+## knows about; the picket raises the same presentation-only cue for its own
+## shots without touching hull, score, or phase state.
+func _flash_target_damage(origin: Vector3, result: Dictionary) -> void:
+	var hud := get_node_or_null(hud_path)
+	var target_entity: Variant = result.get("target_entity")
+	if (
+		not is_instance_valid(hud)
+		or not hud.has_method(&"flash_damage")
+		or not is_instance_valid(target_entity)
+		or target_entity is not Node3D
+	):
+		return
+	var target_node := target_entity as Node3D
+	var local_source := target_node.global_basis.inverse() * (origin - target_node.global_position)
+	hud.call(
+		&"flash_damage",
+		float(result.get("applied_damage", lance_damage)) / 20.0,
+		Vector2(local_source.x, local_source.z)
+	)
+
+
+# ------------------------------------------------------ receipt lifecycle ----
+
+func _on_lance_receipt_ready(receipt_id: int, position: Vector3) -> void:
+	if not _lance_receipts.has(receipt_id):
+		return
+	_finalize_lance_receipt(receipt_id, position, false)
+
+
+func _on_lance_receipt_aborted(receipt_id: int) -> void:
+	if not _lance_receipts.has(receipt_id):
+		return
+	# The visual was recycled or torn down before arrival. Damage authority is
+	# already committed, so release the queued target presentation now instead of
+	# leaving a damaged hull visually pending forever.
+	_finalize_lance_receipt(receipt_id, Vector3.INF, true)
+
+
+func _finalize_lance_receipt(
+		receipt_id: int,
+		arrival_position: Vector3,
+		play_impact_cue: bool
+	) -> void:
+	var record := _lance_receipts.get(receipt_id, {}) as Dictionary
+	_lance_receipts.erase(receipt_id)
+	_lance_receipt_order.erase(receipt_id)
+	if record.is_empty():
+		return
+	var endpoint := record.get("endpoint", Vector3.INF) as Vector3
+	if arrival_position.is_finite():
+		endpoint = arrival_position
+	var audio := _get_combat_audio()
+	if play_impact_cue and is_instance_valid(audio) and endpoint.is_finite() and is_inside_tree():
+		audio.play_impact(endpoint, 0.9, get_instance_id())
+	var target_reference := record.get("target") as WeakRef
+	var target := target_reference.get_ref() as Node if target_reference != null else null
+	# The target's own commit is one-shot and idempotent, so it does not matter
+	# whether the coordinator's pooled-impact listener reached it first; the queued
+	# presentation is released exactly once either way. The lethal cue is still
+	# ours to raise, because the coordinator holds no record of a shot it did not
+	# submit and would otherwise leave a destroyed hull silent.
+	if is_instance_valid(target) and target.has_method(&"commit_deferred_damage_presentation"):
+		target.call(&"commit_deferred_damage_presentation", receipt_id)
+	if bool(record.get("terminal", false)) and is_instance_valid(audio) and is_inside_tree():
+		var effect_position := record.get("terminal_position", endpoint) as Vector3
+		if not effect_position.is_finite():
+			effect_position = endpoint
+		if effect_position.is_finite():
+			audio.play_explosion(
+				effect_position,
+				maxi(int(record.get("target_instance_id", 0)), 0)
+			)
+
+
+func _discard_lance_receipts() -> void:
+	_lance_receipts.clear()
+	_lance_receipt_order.clear()
+
+
+# ------------------------------------------------------------- authority ----
+
+func _register_combat_source() -> void:
+	var authority := _get_combat_authority()
+	if not is_instance_valid(authority):
+		return
+	if _registered and authority.get_source_id(self) == source_id:
+		return
+	_registered = authority.register_source(self, source_id, faction_id, get_weapon_profiles())
+
+
+func _release_combat_registration() -> void:
+	if not _registered:
+		return
+	_registered = false
+	var authority := _get_combat_authority()
+	if is_instance_valid(authority):
+		# Retire only the live registration: the stable identity keeps its replay
+		# high-water mark so a captured pre-withdrawal request stays stale.
+		authority.retire_source_registration(self, source_id)
+
+
+func _attach_damage_proxy() -> void:
+	var authority := _get_combat_authority()
+	if not is_instance_valid(authority):
+		return
+	authority.attach_lifecycle_damageable(
+		self,
+		LifecycleDamageableAdapter.LifecycleKind.RANGE_OPPONENT,
+		faction_id
+	)
+
+
+func _get_combat_authority() -> LiveCombatAuthority:
+	return get_node_or_null(combat_authority_path) as LiveCombatAuthority
+
+
+func _get_pulse_presentation() -> PulseWeaponPresentation:
+	return get_node_or_null(pulse_presentation_path) as PulseWeaponPresentation
+
+
+func _get_combat_audio() -> CombatAudioPresentation:
+	return get_node_or_null(combat_audio_path) as CombatAudioPresentation
+
+
+func _connect_pulse_signals() -> void:
+	if _pulse_signals_connected:
+		return
+	var pulse := _get_pulse_presentation()
+	if not is_instance_valid(pulse):
+		return
+	if not pulse.impact_receipt_ready.is_connected(_on_lance_receipt_ready):
+		pulse.impact_receipt_ready.connect(_on_lance_receipt_ready)
+	if not pulse.impact_receipt_aborted.is_connected(_on_lance_receipt_aborted):
+		pulse.impact_receipt_aborted.connect(_on_lance_receipt_aborted)
+	_pulse_signals_connected = true
+
+
+func _disconnect_pulse_signals() -> void:
+	_pulse_signals_connected = false
+	var pulse := _get_pulse_presentation()
+	if not is_instance_valid(pulse):
+		return
+	if pulse.impact_receipt_ready.is_connected(_on_lance_receipt_ready):
+		pulse.impact_receipt_ready.disconnect(_on_lance_receipt_ready)
+	if pulse.impact_receipt_aborted.is_connected(_on_lance_receipt_aborted):
+		pulse.impact_receipt_aborted.disconnect(_on_lance_receipt_aborted)
+
+
+# ---------------------------------------------------------- presentation ----
+
+## Builds the picket hull. Every primitive helper, material helper, particle
+## helper, and the inherited charge/engine animation are reused from
+## `RangeOpponent`; only the silhouette, palette, and mounts differ.
+func _build_interceptor() -> void:
+	if _built:
+		return
+	_built = true
+	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	floor_stop_on_slope = false
+	# The picket band is the single source of truth for its tactics. The inherited
+	# orbit fields are kept in step so the shared movement loop bands speed against
+	# the same distances this craft actually manoeuvres to.
+	preferred_range = standoff_range
+	retreat_range = minimum_arming_range
+	_create_materials()
+	_create_picket_materials()
+	_visual_root = Node3D.new()
+	_visual_root.name = "StandoffPicketVisual"
+	add_child(_visual_root)
+
+	# A long dark spine with a single forward lance barrel. Deliberately the
+	# opposite read from the defender's broad ivory forked dart.
+	_wedge(_visual_root, "SpineNose", Vector3(0.0, 0.0, -2.6), Vector3(1.15, 0.9, 5.4), _materials.picket_hull)
+	_box(_visual_root, "SpineBody", Vector3(0.0, 0.0, 1.4), Vector3(1.25, 1.0, 6.2), _materials.picket_hull)
+	_box(_visual_root, "SpineKeel", Vector3(0.0, -0.62, 1.6), Vector3(0.8, 0.34, 5.4), _materials.picket_deep)
+	_box(_visual_root, "DorsalRail", Vector3(0.0, 0.66, 1.9), Vector3(0.42, 0.3, 4.6), _materials.picket_slate)
+	# A continuous dorsal identification stripe. This is the identity read that
+	# survives at standoff distance where hull tone alone does not.
+	_box(_visual_root, "DorsalStripe", Vector3(0.0, 0.83, 1.2), Vector3(0.2, 0.06, 7.4), _materials.picket_magenta)
+	_box(_visual_root, "FlankStripePort", Vector3(-0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
+	_box(_visual_root, "FlankStripeStarboard", Vector3(0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
+	_wedge(_visual_root, "SensorCowl", Vector3(0.0, 0.68, -1.1), Vector3(0.9, 0.5, 2.4), _materials.picket_slate)
+	_sphere(_visual_root, "SensorBlister", Vector3(0.0, 0.78, -1.9), 0.26, _materials.picket_magenta)
+
+	# Forward lance barrel. The charge lens is the long-range read.
+	_cylinder(_visual_root, "LanceBarrel", Vector3(0.0, -0.06, -5.6), 0.3, 5.6, _materials.picket_slate, Vector3(90.0, 0.0, 0.0))
+	_cylinder(_visual_root, "LanceCollar", Vector3(0.0, -0.06, -3.2), 0.46, 0.5, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
+	_cylinder(_visual_root, "LanceRailPort", Vector3(-0.34, 0.16, -5.4), 0.07, 4.6, _materials.picket_magenta, Vector3(90.0, 0.0, 0.0))
+	_cylinder(_visual_root, "LanceRailStarboard", Vector3(0.34, 0.16, -5.4), 0.07, 4.6, _materials.picket_magenta, Vector3(90.0, 0.0, 0.0))
+	_cylinder(_visual_root, "LanceMuzzleRing", Vector3(0.0, -0.06, -8.15), 0.38, 0.32, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
+	_lance_emitter = _cylinder(
+		_visual_root, "LanceEmitter", Vector3(0.0, -0.06, -8.4), 0.17, 0.4,
+		_materials.picket_violet_emissive, Vector3(90.0, 0.0, 0.0)
+	)
+	_warning_lenses.append(_lance_emitter)
+	_lance_lens = _sphere(_visual_root, "LanceChargeLens", Vector3(0.0, -0.06, -8.62), 0.22, _materials.picket_magenta_emissive)
+	_warning_lenses.append(_lance_lens)
+	var spine_lens := _sphere(_visual_root, "LanceSpineLens", Vector3(0.0, 0.34, -3.4), 0.15, _materials.picket_magenta_emissive)
+	_warning_lenses.append(spine_lens)
+
+	for side in [-1.0, 1.0]:
+		# Swept radiator vanes replace the defender's forward prongs entirely.
+		_box(_visual_root, "RadiatorVane", Vector3(side * 2.3, 0.12, 2.9), Vector3(3.7, 0.16, 3.1), _materials.picket_bone, Vector3(0.0, side * 0.46, side * -0.12))
+		_box(_visual_root, "VaneSpar", Vector3(side * 1.15, 0.05, 2.3), Vector3(1.9, 0.28, 0.6), _materials.picket_slate, Vector3(0.0, side * 0.46, 0.0))
+		_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
+		_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
+
+		_cylinder(_visual_root, "EnginePod", Vector3(side * 0.86, -0.02, 4.3), 0.4, 1.5, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
+		_cylinder(_visual_root, "EngineCore", Vector3(side * 0.86, -0.02, 5.02), 0.27, 0.16, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
+		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
+		_engine_glows.append(plume)
+		var engine_light := OmniLight3D.new()
+		engine_light.name = "EngineLight"
+		engine_light.position = Vector3(side * 0.86, -0.02, 5.1)
+		engine_light.light_color = PICKET_ENGINE
+		engine_light.light_energy = 0.0
+		engine_light.omni_range = 4.6
+		engine_light.shadow_enabled = false
+		_visual_root.add_child(engine_light)
+		_engine_lights.append(engine_light)
+
+	_muzzle_port = Marker3D.new()
+	_muzzle_port.name = "LanceMuzzle"
+	_muzzle_port.position = Vector3(0.0, -0.06, -8.75)
+	add_child(_muzzle_port)
+	# The picket mounts a single lance. The inherited alternating-muzzle field is
+	# pinned to the same marker so no inherited path can fire from a phantom port.
+	_muzzle_starboard = _muzzle_port
+
+	_warning_light = OmniLight3D.new()
+	_warning_light.name = "LanceChargeLight"
+	_warning_light.position = Vector3(0.0, -0.06, -8.2)
+	_warning_light.light_color = LANCE_MAGENTA
+	_warning_light.light_energy = 0.0
+	_warning_light.omni_range = 11.0
+	_warning_light.shadow_enabled = false
+	add_child(_warning_light)
+
+	_build_collision()
+	_build_damage_effects()
+
+
+func _build_collision() -> void:
+	var spine := CollisionShape3D.new()
+	spine.name = "SpineCollision"
+	spine.position = Vector3(0.0, 0.0, 0.4)
+	var spine_shape := BoxShape3D.new()
+	spine_shape.size = Vector3(1.4, 1.5, 10.2)
+	spine.shape = spine_shape
+	add_child(spine)
+
+	var barrel := CollisionShape3D.new()
+	barrel.name = "LanceBarrelCollision"
+	barrel.position = Vector3(0.0, -0.06, -6.2)
+	var barrel_shape := BoxShape3D.new()
+	barrel_shape.size = Vector3(0.75, 0.75, 5.4)
+	barrel.shape = barrel_shape
+	add_child(barrel)
+
+	for side in [-1.0, 1.0]:
+		var vane := CollisionShape3D.new()
+		vane.name = "PortVaneCollision" if side < 0.0 else "StarboardVaneCollision"
+		vane.position = Vector3(side * 2.3, 0.12, 3.0)
+		var vane_shape := BoxShape3D.new()
+		vane_shape.size = Vector3(3.6, 0.6, 3.2)
+		vane.shape = vane_shape
+		vane.rotation = Vector3(0.0, side * 0.46, 0.0)
+		add_child(vane)
+
+
+func _build_damage_effects() -> void:
+	_damage_sparks = _make_spark_particles(16, 0.68, 4.0)
+	_damage_sparks.name = "DamageSparks"
+	_damage_sparks.position = Vector3(0.5, 0.35, 1.6)
+	_damage_sparks.one_shot = false
+	_damage_sparks.emitting = false
+	add_child(_damage_sparks)
+	_damage_smoke = _make_smoke_particles(false)
+	_damage_smoke.name = "LanceSmoke"
+	_damage_smoke.position = Vector3(-0.86, 0.1, 4.6)
+	_damage_smoke.emitting = false
+	add_child(_damage_smoke)
+
+
+func _create_picket_materials() -> void:
+	_materials.picket_hull = _material(HULL_GRAPHITE, 0.34, 0.46)
+	_materials.picket_slate = _material(HULL_SLATE, 0.42, 0.4)
+	_materials.picket_deep = _material(Color("2a3038"), 0.55, 0.32)
+	_materials.picket_bone = _material(HULL_BONE, 0.24, 0.5)
+	_materials.picket_magenta = _material(LANCE_MAGENTA, 0.2, 0.28, LANCE_MAGENTA, 2.4)
+	_materials.picket_magenta_emissive = _material(LANCE_MAGENTA, 0.1, 0.2, LANCE_MAGENTA, 3.1)
+	_materials.picket_violet_emissive = _material(LANCE_VIOLET, 0.12, 0.22, LANCE_VIOLET, 2.4)
+	_materials.picket_engine = _material(PICKET_ENGINE, 0.08, 0.2, PICKET_ENGINE, 2.6)
