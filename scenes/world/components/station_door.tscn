@@ -1,25 +1,67 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/station_door.gd" id="1_door"]
+[ext_resource type="Texture2D" path="res://assets/materials/procedural-panel-triplanar-albedo-v2.png" id="2_panel_albedo"]
+[ext_resource type="Texture2D" path="res://assets/materials/procedural-panel-triplanar-normal-v2.png" id="3_panel_normal"]
+[ext_resource type="Texture2D" path="res://assets/materials/procedural-panel-triplanar-roughness-v2.png" id="4_panel_roughness"]
+
+; The three structural materials bind the registered station panel family at the
+; 0.28 m physical scale, matching the Habitat shell the doors are set into, so a
+; door frame reads as the same manufactured plate stock as the wall around it
+; rather than as flat-shaded trim. Metallic and roughness are also spread much
+; further apart than the original 0.30-0.38 band: a cast frame post, a machined
+; alloy header and a painted pressure leaf should differ in how they answer a
+; light, not only in hue.
 
 [sub_resource type="StandardMaterial3D" id="Material_frame"]
 albedo_color = Color(0.105, 0.145, 0.16, 1)
-metallic = 0.55
-roughness = 0.38
+metallic = 0.44
+roughness = 0.62
+normal_enabled = true
+normal_scale = 0.48
+albedo_texture = ExtResource("2_panel_albedo")
+normal_texture = ExtResource("3_panel_normal")
+roughness_texture = ExtResource("4_panel_roughness")
+roughness_texture_channel = 0
+uv1_scale = Vector3(0.28, 0.28, 0.28)
+uv1_triplanar = true
+uv1_world_triplanar = true
+uv1_triplanar_sharpness = 4.0
 
 [sub_resource type="StandardMaterial3D" id="Material_trim"]
 albedo_color = Color(0.72, 0.79, 0.78, 1)
-metallic = 0.42
-roughness = 0.32
+metallic = 0.58
+roughness = 0.27
+normal_enabled = true
+normal_scale = 0.48
+albedo_texture = ExtResource("2_panel_albedo")
+normal_texture = ExtResource("3_panel_normal")
+roughness_texture = ExtResource("4_panel_roughness")
+roughness_texture_channel = 0
+uv1_scale = Vector3(0.28, 0.28, 0.28)
+uv1_triplanar = true
+uv1_world_triplanar = true
+uv1_triplanar_sharpness = 4.0
 
 [sub_resource type="StandardMaterial3D" id="Material_panel"]
 albedo_color = Color(0.055, 0.205, 0.265, 1)
-metallic = 0.48
-roughness = 0.3
+metallic = 0.22
+roughness = 0.52
+normal_enabled = true
+normal_scale = 0.48
+albedo_texture = ExtResource("2_panel_albedo")
+normal_texture = ExtResource("3_panel_normal")
+roughness_texture = ExtResource("4_panel_roughness")
+roughness_texture_channel = 0
+uv1_scale = Vector3(0.28, 0.28, 0.28)
+uv1_triplanar = true
+uv1_world_triplanar = true
+uv1_triplanar_sharpness = 4.0
 
 [sub_resource type="StandardMaterial3D" id="Material_indicator"]
 albedo_color = Color(0.282, 0.859, 0.886, 1)
-roughness = 0.22
+metallic = 0.0
+roughness = 0.14
 emission_enabled = true
 emission = Color(0.12, 0.68, 0.72, 1)
 emission_energy_multiplier = 1.8
@@ -38,9 +80,17 @@ size = Vector3(3.2, 3.4, 0.28)
 material = SubResource("Material_indicator")
 size = Vector3(0.12, 2.65, 0.035)
 
+; The posts' collision and structural extent is the full 3.9 m below, but their
+; top 0.5 m sits entirely inside the header's solid, where nothing has ever been
+; visible. While both were raw boxes their coincident top and side faces were
+; hidden by depth; once both are chamfered the two rolled corners interpenetrate
+; at a grazing angle inside the header and the junction self-shadows into a band
+; of acne at eye level. The visible post therefore stops 0.05 m into the header
+; instead of running through it. Shape_frame_post below is unchanged: this moves
+; a hidden render surface, not a collidable one.
 [sub_resource type="BoxMesh" id="Mesh_frame_post"]
 material = SubResource("Material_frame")
-size = Vector3(0.5, 3.9, 0.72)
+size = Vector3(0.5, 3.45, 0.72)
 
 [sub_resource type="BoxMesh" id="Mesh_frame_header"]
 material = SubResource("Material_trim")
@@ -66,11 +116,11 @@ shape = SubResource("Shape_interaction")
 [node name="FrameVisuals" type="Node3D" parent="."]
 
 [node name="LeftPost" type="MeshInstance3D" parent="FrameVisuals"]
-position = Vector3(-1.85, 1.95, 0)
+position = Vector3(-1.85, 1.725, 0)
 mesh = SubResource("Mesh_frame_post")
 
 [node name="RightPost" type="MeshInstance3D" parent="FrameVisuals"]
-position = Vector3(1.85, 1.95, 0)
+position = Vector3(1.85, 1.725, 0)
 mesh = SubResource("Mesh_frame_post")
 
 [node name="Header" type="MeshInstance3D" parent="FrameVisuals"]

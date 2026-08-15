@@ -84,6 +84,7 @@ const CONTENT_NOTE := (
 @onready var _high_detail_root: Node3D = get_node(^"PresentationRoot/HighDetailRoot") as Node3D
 
 var _materials: Dictionary = {}
+var _rounded_box_cache: Dictionary = {}
 var _task_light: OmniLight3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
@@ -328,7 +329,12 @@ func get_performance_audit() -> Dictionary:
 		"per_frame_allocation": false,
 		"runtime_rebuild_allowed": false,
 		"quality_changes_allocate": false,
-		"uses_external_assets": false,
+		# True since the plate-stock roles joined the registered station panel
+		# family: this component now loads three shared project texture assets.
+		# They are shared with the station modules, so they cost no additional
+		# VRAM in the production world, but the published audit must not claim a
+		# component is asset-free when it is not.
+		"uses_external_assets": true,
 		"uses_collision": false,
 		"uses_movers": false,
 		"uses_audio": false,
@@ -702,14 +708,50 @@ func _refresh_visibility() -> void:
 
 
 func _create_materials() -> void:
-	_materials["frame"] = _material(Color("263a43"), 0.68, 0.38)
-	_materials["frame_edge"] = _material(Color("647b80"), 0.62, 0.34)
-	_materials["brace"] = _material(Color("1b2a31"), 0.72, 0.42)
-	_materials["conduit_dark"] = _material(Color("121a1f"), 0.36, 0.66)
-	_materials["conduit_cyan"] = _material(Color("35747a"), 0.3, 0.48)
-	_materials["conduit_amber"] = _material(Color("a46e35"), 0.28, 0.5)
-	_materials["radiator"] = _material(Color("18252b"), 0.78, 0.4)
-	_materials["task_strip"] = _material(Color("665b3d"), 0.18, 0.44, Color("d8b96e"), 0.55)
+	# Roughness, not hue, is what tells a viewer which of these parts is a
+	# galvanised structural member, which is a machined edge cap and which is a
+	# thermal fin. The previous set answered light almost identically across the
+	# whole component (0.34-0.66, and 0.34-0.42 across everything structural), so
+	# the dressing read as one moulded object in several colours. The spread is
+	# now 0.24-0.82, and the finish order is deliberate: radiator fin brightest,
+	# machined edge next, painted brace and conduit sheath flattest.
+	#
+	# Metallic moves too, but only part of the way. The shipyard deck palette caps
+	# at 0.32 because it is painted pressure panelling; this component is exposed
+	# hardware bolted onto the outside of that panelling, so converging on the
+	# deck's cap would erase a distinction that is real and worth keeping. What
+	# was wrong was the magnitude: at 0.68-0.78 with no texture and no local
+	# reflection detail, a StandardMaterial3D returns almost nothing but the sky
+	# term and reads as flat dark plastic rather than steel. The structural
+	# members now sit at 0.46-0.66 — still clearly above the deck, still legibly
+	# metal, no longer black mirrors.
+	# `frame`, `frame_edge` and `radiator` are lifted about 1.5x from their former
+	# values because the station panel albedo they now bind is a mid-grey tile
+	# that multiplies into them. Without the lift the textured members land at
+	# roughly half their previous value and the dressing sinks into the deck
+	# behind it; with it they hold their original apparent brightness and gain the
+	# grain. This is the same reason the module shells author bright base colours
+	# under the same tile.
+	_materials["frame"] = _material(Color("3b5a68"), 0.52, 0.56)
+	_materials["frame_edge"] = _material(Color("96b8c0"), 0.58, 0.31)
+	_materials["brace"] = _material(Color("1b2a31"), 0.46, 0.68)
+	_materials["conduit_dark"] = _material(Color("121a1f"), 0.24, 0.82)
+	_materials["conduit_cyan"] = _material(Color("35747a"), 0.3, 0.42)
+	_materials["conduit_amber"] = _material(Color("a46e35"), 0.28, 0.38)
+	_materials["radiator"] = _material(Color("243740"), 0.66, 0.24)
+	_materials["task_strip"] = _material(Color("665b3d"), 0.14, 0.3, Color("d8b96e"), 0.55)
+	# The registered station panel family goes on the plate-stock roles only: the
+	# fascia, keel chords and posts, the clamps, manifold, vent blades and
+	# radiator backplate. These are the long, repeated, near-eye faces the player
+	# reads from the branch arms and from the launch spine looking back, and they
+	# are the ones the survey found untextured. The conduits and cross braces keep
+	# their own untextured finish: they are extruded pipe and rod a few
+	# centimetres across, and a metric plate grain on them would be a texture
+	# applied to something that is not plate.
+	# 0.22 m is the family's finest frozen scale, which suits members 0.11-0.17 m
+	# thick better than the 0.28/0.30 wall scales.
+	for panel_key in ["frame", "frame_edge", "radiator"]:
+		StationSurfaceKit.apply_panel_triplanar(_materials[panel_key] as StandardMaterial3D, 0.22)
 
 
 func _apply_evidence_metadata() -> void:
@@ -1230,9 +1272,14 @@ func _box(
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh_instance.mesh = mesh
+	# Chamfered, not raw. This component is the outer face of the modules, so its
+	# members are seen end-on and in repetition from the branch arms and from the
+	# launch spine looking back; an unbroken 90 degree edge on a repeated member
+	# is the loudest untooled-primitive cue the silhouette has. The chamfer is an
+	# edge treatment only: `StationSurfaceKit.rounded_box_mesh` keeps the outer
+	# extents identical to the equivalent `BoxMesh`, so the published footprint,
+	# the mesh-corner AABB and the collision-free contract are all unmoved.
+	mesh_instance.mesh = StationSurfaceKit.rounded_box_mesh_cached(size, _rounded_box_cache)
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = (
 		GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -1261,7 +1308,11 @@ func _cylinder(
 	mesh.top_radius = radius
 	mesh.bottom_radius = radius
 	mesh.height = height
-	mesh.radial_segments = 8
+	# Eight segments is a visible octagon on a 0.07 m manifold coupler or a
+	# 0.042 m cross brace at the ranges these are seen from. Sixteen still has its
+	# cardinal vertices, so the mesh AABB — and therefore the published footprint
+	# check — is bit-identical to the eight-segment ring it replaces.
+	mesh.radial_segments = 16
 	mesh.rings = 1
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material

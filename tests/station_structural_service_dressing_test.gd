@@ -329,11 +329,24 @@ func _run() -> void:
 	_check(dressing.get_dressing_center_anchor().transform.is_equal_approx(stable_center_transform), "idle frames cannot move static dressing")
 
 	var fascia := dressing.get_node("PresentationRoot/StructuralCoreRoot/UpperFascia") as MeshInstance3D
-	var fascia_mesh := fascia.mesh as BoxMesh
-	var original_fascia_size := fascia_mesh.size
-	fascia_mesh.size = Vector3.ONE * 0.001
+	# The structural members are now chamfered ArrayMesh surfaces rather than raw
+	# BoxMesh primitives, so the drift and winding mutations below rewrite the
+	# same mesh resource in place through its surface arrays instead of through
+	# BoxMesh.size and PrimitiveMesh.flip_faces. Both remain exact in-place
+	# mutations of the identical resource instance the component built, which is
+	# what the audit is being asked to reject.
+	var fascia_mesh := fascia.mesh as ArrayMesh
+	_check(fascia_mesh != null and fascia_mesh.get_surface_count() == 1, "structural fascia is a single-surface chamfered generated mesh")
+	var original_fascia_surfaces: Variant = fascia_mesh.get("_surfaces")
+	var original_fascia_arrays := fascia_mesh.surface_get_arrays(0)
+	var shrunken_arrays := original_fascia_arrays.duplicate(true)
+	var shrunken_vertices := shrunken_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	for vertex_index in shrunken_vertices.size():
+		shrunken_vertices[vertex_index] = shrunken_vertices[vertex_index] * 0.001
+	shrunken_arrays[Mesh.ARRAY_VERTEX] = shrunken_vertices
+	_rewrite_only_surface(fascia_mesh, shrunken_arrays)
 	_check(not bool(dressing.get_audit_report().valid), "audit rejects in-place structural mesh geometry drift")
-	fascia_mesh.size = original_fascia_size
+	fascia_mesh.set("_surfaces", original_fascia_surfaces)
 	var fascia_material := fascia.material_override as StandardMaterial3D
 	var original_cull_mode := fascia_material.cull_mode
 	fascia_material.cull_mode = BaseMaterial3D.CULL_FRONT
@@ -343,10 +356,18 @@ func _run() -> void:
 	fascia.layers = 0
 	_check(not bool(dressing.get_audit_report().valid), "audit rejects a generated mesh removed from all render layers")
 	fascia.layers = original_layers
-	var original_flip_faces := (fascia.mesh as PrimitiveMesh).flip_faces
-	(fascia.mesh as PrimitiveMesh).flip_faces = true
-	_check(not bool(dressing.get_audit_report().valid), "audit rejects reversed procedural mesh winding")
-	(fascia.mesh as PrimitiveMesh).flip_faces = original_flip_faces
+	var reversed_arrays := original_fascia_arrays.duplicate(true)
+	var forward_vertices := original_fascia_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var reversed_vertices := PackedVector3Array()
+	reversed_vertices.resize(forward_vertices.size())
+	for triangle_index in forward_vertices.size() / 3:
+		reversed_vertices[triangle_index * 3] = forward_vertices[triangle_index * 3 + 2]
+		reversed_vertices[triangle_index * 3 + 1] = forward_vertices[triangle_index * 3 + 1]
+		reversed_vertices[triangle_index * 3 + 2] = forward_vertices[triangle_index * 3]
+	reversed_arrays[Mesh.ARRAY_VERTEX] = reversed_vertices
+	_rewrite_only_surface(fascia_mesh, reversed_arrays)
+	_check(not bool(dressing.get_audit_report().valid), "audit rejects reversed generated mesh winding")
+	fascia_mesh.set("_surfaces", original_fascia_surfaces)
 	var original_cull_mask := task_light.light_cull_mask
 	task_light.light_cull_mask = 0
 	_check(not bool(dressing.get_audit_report().valid), "audit rejects a bounded task light removed from all render layers")
@@ -412,6 +433,17 @@ func _audit_rejects_live_structural_divergence(
 		and "live structural authoring configuration diverges from immutable build snapshot"
 		in (audit_report["errors"] as PackedStringArray)
 	)
+
+
+## Rewrites the one surface of a generated mesh in place, on the same resource
+## instance the component built, so the audit sees drift rather than a swapped
+## resource. Restoring goes back through the saved `_surfaces` snapshot instead
+## of this helper: an arrays round trip is not byte-identical to the committed
+## surface, so re-adding the original arrays would leave a permanently drifted
+## fingerprint and the later restore assertion would never be able to pass.
+func _rewrite_only_surface(mesh: ArrayMesh, arrays: Array) -> void:
+	mesh.clear_surfaces()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
 
 func _subtree_mesh_corner_aabb(dressing: StationStructuralServiceDressing) -> AABB:
