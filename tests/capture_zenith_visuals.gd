@@ -75,16 +75,22 @@ const EXPECTED_RUNTIME_SURFACES := 22
 const EXPECTED_MATERIAL_ROLES := 10
 const EXPECTED_COLLISION_SHAPE_COUNT := 24
 const EXPECTED_COLLISION_GEOMETRY_SHA256 := "7717ba624158dca52c71dc271e13663436b9b9bf52658972f92fbc9e4482c273"
-const EXPECTED_RUNTIME_V2_SHA256 := "0cd48827f3411cc35a34e390bb3ff8d7928fe93909716636322a89d8f6984004"
+# Re-frozen 2026-08-15 for the cockpit seat/camera anchor correction below.
+const EXPECTED_RUNTIME_V2_SHA256 := "d74e5f31665502c714b3ef96d615ebd56a24d99124573da346b8c09e01d54062"
 const EXPECTED_INTEGRATION_SHA256 := "a9559c66cd0d743c7cfbd4c4c7d42d63e6e68ddf3a9077a01a4ba06b6b0601fd"
+# RE-FROZEN 2026-08-15 with tests/zenith_interceptor_test.gd: the cockpit seat
+# anchor moved 1.58 -> 1.11 (it is a feet-frame marker, not a cushion height)
+# and the cockpit camera (0, 2.28, -1.24) -> (0, 2.87, -0.80). Modern cockpit
+# ergonomics only; the B7 source-core macroform and its evidence scope are
+# unchanged, so these captures still show the same silhouette.
 const EXPECTED_ANCHORS := {
-	&"PilotSeatAnchor": Vector3(0.0, 1.58, -0.55),
+	&"PilotSeatAnchor": Vector3(0.0, 1.11, -0.55),
 	&"BoardingEntry": Vector3(-1.18, 1.62, -0.32),
 	&"BoardingPoint": Vector3(-7.65, -0.55, 0.55),
 	&"ExitPoint": Vector3(-7.85, -0.55, 0.85),
 	&"LeftMuzzle": Vector3(-1.25, 0.34, -4.25),
 	&"RightMuzzle": Vector3(1.25, 0.34, -4.25),
-	&"CockpitCamera": Vector3(0.0, 2.28, -1.24),
+	&"CockpitCamera": Vector3(0.0, 2.87, -0.80),
 	&"DockingReceiver": Vector3(0.0, -0.82, 1.05),
 	&"DamageCenter": Vector3(0.0, 0.48, 0.0),
 	&"DamagePortWing": Vector3(-4.55, 0.18, 0.20),

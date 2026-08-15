@@ -8,8 +8,8 @@ extends SceneTree
 ## This is an audit regression, not a tuning pass. Where a property does not
 ## hold across all four craft the suite freezes it only for the craft where it
 ## genuinely holds, and records the measured deficiency as a non-regression
-## floor so a later player-led feel pass can only improve it. Two deficiencies
-## are deliberately NOT asserted as passing and are documented instead:
+## floor so a later player-led feel pass can only improve it. One deficiency is
+## deliberately NOT asserted as passing and is documented instead:
 ##
 ##   * All four craft share one near-white body tone. The measured CIEDE2000
 ##     between the closest pair (Jovian #e7e4d6 and Zenith #e6e2d5) is 0.82,
@@ -19,10 +19,16 @@ extends SceneTree
 ##     warm-gold Torrent accent separates at a glance. Body-tone separations
 ##     are printed as evidence rather than asserted, because no floor over
 ##     numbers this small would mean anything.
-##   * Zenith places its cockpit camera 0.86 m BELOW the seated pilot's head
-##     bone (the other three place it 0.20 m above), and the seated pilot's
-##     head bone clears Zenith's outer hull by only 0.06 m against 0.56 m or
-##     more elsewhere. Zenith's eye point is therefore not frozen as plausible.
+##
+## Cockpit seating was the second recorded deficiency and is now fixed rather
+## than recorded. Zenith used to place its cockpit camera 0.859 m BELOW the
+## seated pilot's head bone and left that head bone only 0.061 m under its own
+## hull crown, so the skull crossed the closed canopy. Its `PilotSeatAnchor`
+## had been authored at seat-cushion height instead of the feet-frame height
+## `PlayerController` expects. Both Zenith anchors were re-frozen at corrected
+## values — see the re-freeze note in `tests/zenith_interceptor_test.gd` — and
+## the eye-point and head-inside-hull assertions below now cover all four
+## craft, so the defect cannot silently return.
 ##
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
@@ -85,13 +91,24 @@ const ACCENT_FLOORS := {
 const TORRENT_ACCENT_FLOOR := 25.0
 const VISION_MODELS := ["normal", "protanopia", "deuteranopia", "tritanopia"]
 
-# Craft whose cockpit camera sits at a plausible seated eye point.
+# Every craft must now sit its cockpit camera at a plausible seated eye point
+# and keep the seated pilot's head bone inside its own outer hull. Zenith joined
+# this list once its seat/camera anchors were re-frozen; see the suite header.
 const PLAUSIBLE_EYE_POINT_CRAFT := [
 	&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
+	&"zenith_b7_observed",
 ]
 const EYE_ABOVE_HEAD_BONE_MINIMUM := 0.15
 const EYE_ABOVE_HEAD_BONE_MAXIMUM := 0.35
+# Stated minimum vertical gap between the seated pilot's head bone and the top
+# of the craft's own rendered hull. Below this the skull is at or through the
+# outer surface with the canopy shut. Measured today: Zenith 0.531 (the tightest
+# cockpit in the fleet), Torrent 0.561, Arrow 1.401, Jovian 3.256.
 const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
+# Exact fleet-wide seat-to-eye rise. `PilotSeatAnchor` is a feet-frame marker,
+# so this is what makes the camera land 0.201 m above the head bone on every
+# craft. Frozen exactly, not as a band: it is the convention Zenith broke.
+const SEAT_TO_COCKPIT_CAMERA_RISE := 1.76
 
 const FIGHTER_IDS := [&"torrent_provisional", &"arrow_provisional", &"zenith_b7_observed"]
 const INTERIOR_NODE_NAMES := [
@@ -642,18 +659,32 @@ func _assert_cockpit_seating(
 		"FLEET_SEATING_EVIDENCE: %s camera_above_head_bone=%.3f head_hull_clearance=%.3f"
 			% [ship_id, eye_offset, head_clearance]
 	)
-	if not PLAUSIBLE_EYE_POINT_CRAFT.has(ship_id):
-		# Zenith is deliberately excluded; see the suite header.
-		return
+	_check(
+		PLAUSIBLE_EYE_POINT_CRAFT.has(ship_id),
+		"%s is covered by the seated eye-point and head-clearance gates" % ship_id
+	)
 	_check(
 		eye_offset >= EYE_ABOVE_HEAD_BONE_MINIMUM and eye_offset <= EYE_ABOVE_HEAD_BONE_MAXIMUM,
 		"%s places its cockpit camera at a seated eye point above the pilot's head bone (%.3f m)"
 			% [ship_id, eye_offset]
 	)
+	# The specific defect this guards: a cockpit camera authored below the seated
+	# pilot's head is a chest-height view, never an eye point.
+	_check(
+		eye_offset > 0.0,
+		"%s cockpit camera is above the seated pilot's head bone, not at chest height (%.3f m)"
+			% [ship_id, eye_offset]
+	)
+	_check(
+		is_equal_approx(camera_local.y - seat_local.y, SEAT_TO_COCKPIT_CAMERA_RISE),
+		"%s raises its cockpit camera exactly %.2f m above its feet-frame seat anchor (%.3f m)"
+			% [ship_id, SEAT_TO_COCKPIT_CAMERA_RISE, camera_local.y - seat_local.y]
+	)
+	# The seated pilot's skull must not cross the outer hull with the canopy shut.
 	_check(
 		head_clearance >= HEAD_HULL_CLEARANCE_MINIMUM,
-		"%s seats the pilot's head inside its own outer hull (%.3f m clearance)"
-			% [ship_id, head_clearance]
+		"%s seats the pilot's head at least %.2f m inside its own outer hull (%.3f m clearance)"
+			% [ship_id, HEAD_HULL_CLEARANCE_MINIMUM, head_clearance]
 	)
 
 

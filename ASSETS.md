@@ -30,7 +30,7 @@ unknown.
 - Authorship: original script-assisted Blender work. No source pixels, source
   meshes, Roblox assets, or extracted third-party geometry are redistributed.
 - Size: 4,303,884 bytes. SHA-256:
-  `355319f3bd541d2cd28c0abce49fa3cc35e6a0d5b95a702d1888a2029465a677`.
+  `33a29154bb0028cd8494506ef874a2cb6d44e82fb8738cfc0c227ae0dec44712`.
 - The metre envelope is a modern ergonomic normalization. Pod-like source-core
   forms retain unknown historical function; the cockpit, canopy, engine
   internals, exhaust, weapons, landing gear, boarding aids, docking hardware,
@@ -40,8 +40,8 @@ unknown.
 
 - Purpose: presentation-only imported Zenith art used through
   `scenes/ships/presentation/zenith_authored_presentation.tscn`.
-- Size: 1,968,952 bytes. SHA-256:
-  `bc1d8a7f381654a547ca7e6b3993fa60b033cea5101a2ee866f02318b2d4a736`.
+- Size: 1,968,948 bytes. SHA-256:
+  `d22f26152b275e6d295c9de36968c08af0f83f55af7942b93818924dca789476`.
 - The close/far whole-ship levels contain 47,274 / 5,412 triangles. Runtime
   batching exposes 22 meshes and 22 surfaces across ten material roles. The GLB
   owns no gameplay or collision authority.
