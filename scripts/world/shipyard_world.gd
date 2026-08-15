@@ -2784,6 +2784,18 @@ func _build_catwalks_and_control_room() -> void:
 	# A compact modern operations pod is attached to, rather than enclosing, the
 	# starboard node. Its purpose and adjacency are not recovered original facts.
 	_box(upper, "OperationsPodFloor", Vector3(43.0, 0.18, 27.0), Vector3(12.0, 0.4, 8.0), _materials["deck_light"])
+	# The pod floor is a 0.40 m slab resting on the starboard node, so its glazed
+	# frontage presented a 0.40 m vertical face to anyone walking up to it — a wall,
+	# not a step, for a CharacterBody3D. The pod keeps its authored placement; a
+	# rendered threshold apron closes the seam across the whole frontage.
+	_approach_threshold(
+		upper,
+		"OperationsPodThreshold",
+		Vector3(43.0, -0.02, 21.85),
+		Vector3(43.0, 0.38, 23.05),
+		12.0,
+		_materials["deck_light"]
+	)
 	_box(upper, "OperationsPodRoof", Vector3(43.0, 5.9, 27.0), Vector3(12.0, 0.55, 8.0), _materials["ivory"])
 	_box(upper, "OperationsPodBack", Vector3(43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["steel_blue"])
 	for x_position in [37.5, 41.2, 44.8, 48.5]:
@@ -2809,6 +2821,17 @@ func _build_regeneration_gallery() -> void:
 	add_child(gallery)
 
 	_box(gallery, "RegistryPodDeck", Vector3(-43.0, 0.18, 27.0), Vector3(12.0, 0.4, 8.0), _materials["deck_light"])
+	# Same 0.40 m slab seam as the operations pod, and the one that also sealed the
+	# entire freight branch: the freight connection lattice hands off to this deck,
+	# so nothing beyond it could be walked to either (MAP-002).
+	_approach_threshold(
+		gallery,
+		"RegistryPodThreshold",
+		Vector3(-43.0, -0.02, 21.85),
+		Vector3(-43.0, 0.38, 23.05),
+		12.0,
+		_materials["deck_light"]
+	)
 	_box(gallery, "RegistryPodBack", Vector3(-43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["ivory"])
 	_box(gallery, "RegistryPodRoof", Vector3(-43.0, 5.9, 27.0), Vector3(12.0, 0.55, 8.0), _materials["steel_blue"])
 	_text_sign(
@@ -3385,6 +3408,52 @@ func _box(
 		mesh_instance.mesh = box_mesh
 		mesh_instance.material_override = material
 	return container
+
+
+## One rendered, colliding threshold ramp between two decks at different heights.
+##
+## `surface_start` and `surface_finish` are points on the finished walking plane,
+## not box centres, so the caller states the seam it wants closed and the helper
+## derives the slab beneath it. This is the same construction the junction access
+## stair already uses; it exists as a helper because raised pods hand off to the
+## lattice deck in more than one place (MAP-002).
+func _approach_threshold(
+	parent: Node3D,
+	node_name: String,
+	surface_start: Vector3,
+	surface_finish: Vector3,
+	width: float,
+	material: Material,
+	thickness: float = 0.22
+) -> StaticBody3D:
+	var along := surface_finish - surface_start
+	var run := along.length()
+	if run <= 0.001:
+		push_error("Threshold %s has no run between its two surface points" % node_name)
+		return null
+	var length_axis := along / run
+	var width_axis := Vector3.UP.cross(length_axis).normalized()
+	var up_normal := length_axis.cross(width_axis)
+	var threshold := StaticBody3D.new()
+	threshold.name = node_name
+	threshold.collision_layer = WORLD_LAYER
+	threshold.collision_mask = 0
+	threshold.basis = Basis(width_axis, up_normal, length_axis)
+	threshold.position = (surface_start + surface_finish) * 0.5 - up_normal * (thickness * 0.5)
+	threshold.set_meta("continuous_player_threshold", true)
+	parent.add_child(threshold)
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "Mesh"
+	mesh_instance.mesh = _rounded_box_mesh(Vector3(width, thickness, run))
+	mesh_instance.material_override = material
+	threshold.add_child(mesh_instance)
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(width, thickness, run)
+	collision.shape = shape
+	threshold.add_child(collision)
+	return threshold
 
 
 func _rounded_box_mesh(size: Vector3) -> ArrayMesh:

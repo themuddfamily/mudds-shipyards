@@ -25,6 +25,14 @@ const STAIR_RUN := 9.8 / float(STAIR_STEP_COUNT - 1)
 const STAIR_CLEAR_WIDTH := 2.8
 const STAIR_HEAD_CLEARANCE := 2.7
 
+## The stair-base landing is walked across, not looked at. Its footprint is a
+## constant because two separate rail runs have to be kept off it: the approach
+## rail must stop at its southern edge, and the eastern stair rail must not begin
+## until the ramp has climbed clear of it. MAP-001 was exactly that pair of rails
+## closing the only gate between the connection deck and the ramp foot.
+const STAIR_BASE_LANDING_CENTRE := Vector3(-4.6, -0.32, 3.25)
+const STAIR_BASE_LANDING_SIZE := Vector3(4.4, 0.64, 3.5)
+
 const OPERATIONS_ROOM_CENTER := Vector3(5.6, 2.4, 13.2)
 # Include the floor-contact tolerance of a CharacterBody root. The previous
 # 2.35 m half-height began at local Y=0.05 and incorrectly rejected an avatar
@@ -476,10 +484,11 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 	_box(lower, "ConnectionDeck", Vector3(0.0, -0.32, 2.5), Vector3(7.0, 0.64, 5.0), _materials["off_white_floor"])
 	_box(lower, "JunctionDeck", Vector3(0.0, -0.32, 7.5), Vector3(11.0, 0.64, 5.0), _materials["warm_grey_floor"])
 	# The stair begins west of ConnectionDeck. Its former first tread and ramp
-	# floated across a 0.8 m physics gap, while the port rail prevented a direct
-	# lateral mount. This compact landing overlaps the existing deck only at the
-	# open rail end and provides a straight, level run onto the unchanged ramp.
-	_box(lower, "StairBaseLanding", Vector3(-4.6, -0.32, 3.25), Vector3(4.4, 0.64, 3.5), _materials["off_white_floor"])
+	# floated across a 0.8 m physics gap, so this compact landing gives a
+	# straight, level run onto the unchanged ramp. It shares its whole eastern
+	# strip with ConnectionDeck: the two are coplanar, and that strip is the gate
+	# onto the stair, so no rail may stand in it (MAP-001).
+	_box(lower, "StairBaseLanding", STAIR_BASE_LANDING_CENTRE, STAIR_BASE_LANDING_SIZE, _materials["off_white_floor"])
 	_box(lower, "JunctionInset", Vector3(0.0, 0.025, 7.35), Vector3(5.8, 0.05, 3.5), _materials["off_white_floor"], false)
 	_box(lower, "RouteStripe", Vector3(0.0, 0.06, 4.8), Vector3(0.18, 0.055, 9.1), _materials["cyan"], false)
 
@@ -491,7 +500,33 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 		_box(lower, "JunctionArcTile", ring_position, Vector3(1.25, 0.08, 0.24), _materials["gold"], false, Vector3(0, -angle + 90.0, 0))
 
 	# Sparse rails leave the approach and circulation branches genuinely open.
-	_add_rail(lower, Vector3(-3.35, 0.0, 0.25), Vector3(-3.35, 0.0, 3.3), "ApproachPortRail")
+	# The port rail guards only the stretch of the connection deck's west edge that
+	# actually overhangs a drop. It stops at the stair-base landing's southern edge,
+	# because beyond that the landing *is* the floor and the rail would fence the
+	# only lateral mount onto the stair (MAP-001).
+	_add_rail(
+		lower,
+		Vector3(-3.35, 0.0, 0.25),
+		Vector3(-3.35, 0.0, _stair_base_landing_south_edge() - 0.05),
+		"ApproachPortRail"
+	)
+	# Opening the stair gate exposes the landing's own outboard edges, which
+	# previously nothing could walk to. Guard them, and leave the whole eastern
+	# side of the landing open as the gate itself.
+	var landing_south := _stair_base_landing_south_edge()
+	var landing_west := STAIR_BASE_LANDING_CENTRE.x - STAIR_BASE_LANDING_SIZE.x * 0.5
+	_add_rail(
+		lower,
+		Vector3(landing_west + 0.06, 0.0, landing_south + 0.06),
+		Vector3(-3.4, 0.0, landing_south + 0.06),
+		"StairBaseSouthRail"
+	)
+	_add_rail(
+		lower,
+		Vector3(landing_west + 0.06, 0.0, landing_south + 0.06),
+		Vector3(landing_west + 0.06, 0.0, 2.85),
+		"StairBaseWestRail"
+	)
 	_add_rail(lower, Vector3(3.35, 0.0, 0.25), Vector3(3.35, 0.0, 3.3), "ApproachStarboardRail")
 	_add_rail(lower, Vector3(5.35, 0.0, 5.15), Vector3(5.35, 0.0, 8.8), "JunctionEastRail")
 
@@ -618,14 +653,22 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 
 	for side in [-1.0, 1.0]:
 		var rail_x: float = -5.7 + float(side) * 1.7
+		# A stair rail that stands on the stair-base landing is a fence across a
+		# walking surface, not a guard over a drop. Where the rail line crosses the
+		# landing footprint it starts where the ramp has climbed clear of it; the
+		# outboard line, which overhangs the void, still runs the full length.
+		var rail_start_progress := _stair_rail_start_progress(rail_x, start, finish)
+		var rail_start: Vector3 = start.lerp(finish, rail_start_progress)
 		for raw_progress in [0.0, 0.25, 0.5, 0.75, 1.0]:
 			var progress := float(raw_progress)
+			if progress < rail_start_progress:
+				continue
 			var route_point: Vector3 = start.lerp(finish, progress)
 			_cylinder(circulation, "StairRailPost", Vector3(rail_x, route_point.y + 0.7, route_point.z), 0.055, 1.4, _materials["warm_grey"], true)
 		_beam_between(
 			circulation,
 			"StairHandrail",
-			Vector3(rail_x, start.y + 1.38, start.z),
+			Vector3(rail_x, rail_start.y + 1.38, rail_start.z),
 			Vector3(rail_x, finish.y + 1.38, finish.z),
 			0.075,
 			_materials["gold"],
@@ -634,7 +677,7 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 		_beam_between(
 			circulation,
 			"StairMidRail",
-			Vector3(rail_x, start.y + 0.76, start.z),
+			Vector3(rail_x, rail_start.y + 0.76, rail_start.z),
 			Vector3(rail_x, finish.y + 0.76, finish.z),
 			0.045,
 			_materials["mid_grey"],
@@ -1317,6 +1360,30 @@ func _torus(
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+## Module-local Z of the stair-base landing's southern edge.
+func _stair_base_landing_south_edge() -> float:
+	return STAIR_BASE_LANDING_CENTRE.z - STAIR_BASE_LANDING_SIZE.z * 0.5
+
+
+## Module-local Z of the stair-base landing's northern edge.
+func _stair_base_landing_north_edge() -> float:
+	return STAIR_BASE_LANDING_CENTRE.z + STAIR_BASE_LANDING_SIZE.z * 0.5
+
+
+## Fraction along the ramp at which a stair rail line may begin. A rail line that
+## passes over the stair-base landing begins only once the ramp has climbed past
+## the landing's northern edge, so the landing stays a continuous walking surface.
+func _stair_rail_start_progress(rail_x: float, start: Vector3, finish: Vector3) -> float:
+	var west_edge := STAIR_BASE_LANDING_CENTRE.x - STAIR_BASE_LANDING_SIZE.x * 0.5
+	var east_edge := STAIR_BASE_LANDING_CENTRE.x + STAIR_BASE_LANDING_SIZE.x * 0.5
+	if rail_x <= west_edge or rail_x >= east_edge:
+		return 0.0
+	var run := finish.z - start.z
+	if is_zero_approx(run):
+		return 0.0
+	return clampf((_stair_base_landing_north_edge() - start.z) / run, 0.0, 1.0)
 
 
 func _add_rail(parent: Node3D, from: Vector3, to: Vector3, rail_name: String) -> void:

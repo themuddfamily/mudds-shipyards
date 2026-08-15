@@ -118,16 +118,30 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 				scale_030_count += 1
 			else:
 				exact_recipe = false
+	print(
+		"LIVE_STATION_TRIPLANAR_COVERAGE: mapped=", mapped_surface_count,
+		" scale_0.22=", scale_022_count,
+		" scale_0.28=", scale_028_count,
+		" scale_0.30=", scale_030_count
+	)
 	# Re-frozen from 507/11/262/234 when the walked-on overlays joined the family:
 	# the Aft continuous stair ramp plus nine operations pressure plates (+10 at
 	# 0.30) and the three Habitat connector/corridor/common floor insets (+3 at
 	# 0.28). No previously mapped surface was removed and no scale changed.
+	#
+	# Re-frozen again from 520/11/265/244 by the MAP-001 stair-gate fix: the
+	# stair-base landing gained a south and a west guard rail (+4 `warm_grey`
+	# posts) and the eastern stair rail line no longer starts on the landing
+	# (-1 post), a net +3 at the Aft module's 0.30 scale. The two new pod
+	# threshold aprons use `deck_light`, which is not in this family, so they do
+	# not appear here. No previously mapped surface was removed and no scale
+	# changed.
 	_check(
-		mapped_surface_count == 520
+		mapped_surface_count == 523
 		and scale_022_count == 11
 		and scale_028_count == 265
-		and scale_030_count == 244,
-		"live station binds exactly 520 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 247,
+		"live station binds exactly 523 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
