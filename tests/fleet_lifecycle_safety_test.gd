@@ -77,8 +77,16 @@ func _test_engine_and_departure_authority() -> void:
 	arrow.engine_start_time = 0.02
 	_dispatch_pilot_action(game, &"engine_start")
 	_check(await _wait_for_engine_state(arrow, "ONLINE", 0.3), "authorized engine startup reaches ONLINE")
-	await process_frame
-	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "pre-guide Arrow startup enters its free sortie")
+	# The phase transition that follows ONLINE lands in `_process`, but the wait
+	# above advances the physics loop, and a loaded machine runs several physics
+	# steps per idle frame. A single hardcoded `process_frame` is therefore not a
+	# bound on anything: this assertion was observed failing under parallel load
+	# purely because the idle tick had not come round yet. Use the same bounded
+	# frame budget every other phase assertion in this suite already uses.
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.5),
+		"pre-guide Arrow startup enters its free sortie"
+	)
 	_check(
 		bool(arrow.get_telemetry().get("landed", false))
 		and berth.get_occupant() == arrow

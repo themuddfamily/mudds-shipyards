@@ -102,6 +102,10 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"graphics_profile",
 	&"window_mode",
 	&"control_preset",
+	&"ui_scale",
+	&"colorblind_palette",
+	&"reduced_motion",
+	&"captions_enabled",
 ]
 
 @export_range(0.0, 3.0, 0.05) var canopy_motion_time := 0.65
@@ -135,6 +139,9 @@ var _transition_busy := false
 var _transition_generation := 0
 var _opponent_spawned := false
 var runtime_settings: RuntimeSettings
+## Authored chase-boom lag per ship, captured before reduced motion ever damps
+## it, so turning the preset back off restores the exact authored feel.
+var _authored_chase_camera_lag: Dictionary = {}
 var ships: Array[HeroShip] = []
 var active_ship: HeroShip
 var boarding_candidate: HeroShip
@@ -257,6 +264,15 @@ func _restore_runtime_bindings_after_reentry() -> void:
 		return
 	_connect_runtime_signals()
 	_initialize_live_combat()
+	# Part of the settings snapshot is process-wide rather than node-local: the
+	# `AudioServer` bus levels and the window mode belong to whatever is on screen,
+	# so while this subtree is detached another scene legitimately owns them.
+	# Reapplying the already-validated snapshot reclaims that global state. The
+	# node-local presentation presets (HUD scale, palette, reduced motion,
+	# captions, per-ship boom lag) survive the detach on their own; reapplying them
+	# is idempotent, and `tests/accessibility_reentry_integration_test.gd` records
+	# which half of this call each of its assertions actually witnesses.
+	_apply_all_runtime_settings()
 
 
 func _connect_runtime_signals() -> void:
@@ -286,6 +302,8 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(opponent, &"health_changed", _on_opponent_health_changed)
 	_connect_signal_once(opponent, &"destroyed", _on_opponent_destroyed)
 	_connect_signal_once(world, &"target_destroyed", _on_target_destroyed)
+	_connect_signal_once(audio, &"cue_started", _on_audio_cue_started)
+	_connect_signal_once(combat_audio, &"cue_started", _on_combat_audio_cue_started)
 	if runtime_settings != null:
 		_connect_signal_once(runtime_settings, &"setting_changed", _on_runtime_setting_changed)
 	for fleet_ship in ships:
@@ -2033,8 +2051,51 @@ func _apply_all_runtime_settings() -> void:
 	runtime_settings.apply_window_mode()
 	if world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
+	_apply_accessibility_settings()
 	if hud.has_method("set_settings_snapshot"):
 		hud.set_settings_snapshot(runtime_settings.to_dictionary())
+
+
+## Pushes the validated accessibility snapshot to the presentation owners.
+##
+## Nothing here touches flight handling, deadzones, or the sampled `ShipCommand`
+## path. Reduced motion only removes presentation lag: the chase boom's softened
+## orbit is an authored `HeroShip` presentation export whose zero value already
+## snaps the boom to the physical hull, so damping it changes what the camera
+## does, never what the craft does.
+func _apply_accessibility_settings() -> void:
+	if runtime_settings == null:
+		return
+	if hud.has_method("set_accessibility"):
+		hud.set_accessibility(runtime_settings.get_accessibility_descriptor())
+	for fleet_ship in ships:
+		if not is_instance_valid(fleet_ship):
+			continue
+		var instance_id := fleet_ship.get_instance_id()
+		if not _authored_chase_camera_lag.has(instance_id):
+			_authored_chase_camera_lag[instance_id] = (
+				fleet_ship.maximum_chase_camera_rotation_lag_degrees
+			)
+		fleet_ship.maximum_chase_camera_rotation_lag_degrees = (
+			0.0
+			if runtime_settings.reduced_motion
+			else float(_authored_chase_camera_lag[instance_id])
+		)
+
+
+func _on_audio_cue_started(cue_id: StringName) -> void:
+	if hud.has_method("caption_cue"):
+		hud.caption_cue(cue_id)
+
+
+func _on_combat_audio_cue_started(
+	cue_id: StringName,
+	_voice_name: StringName,
+	_world_position: Vector3,
+	_source_instance_id: int
+) -> void:
+	if hud.has_method("caption_cue"):
+		hud.caption_cue(cue_id)
 
 
 func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
@@ -2067,6 +2128,10 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	elif setting == &"window_mode":
 		runtime_settings.apply_window_mode()
+	elif setting in [
+		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
+	]:
+		_apply_accessibility_settings()
 
 
 func _on_settings_save_requested() -> void:

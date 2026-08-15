@@ -51,6 +51,22 @@ func _test_defaults_and_descriptors() -> void:
 	_check(settings.get_graphics_profile_id() == &"high", "graphics exposes a stable high ID")
 	_check(settings.get_window_mode_id() == &"windowed", "window mode exposes a stable windowed ID")
 	_check(settings.get_control_preset_id() == &"modern", "controls expose a stable modern ID")
+	_check(is_equal_approx(settings.ui_scale, 1.0), "UI scale defaults to the authored one-to-one presentation")
+	_check(settings.colorblind_palette == Settings.ColorblindPalette.NONE, "colour-vision preset defaults to the authored palette")
+	_check(not settings.reduced_motion, "reduced motion is off by default")
+	_check(not settings.captions_enabled, "audio cue captions are off by default")
+	_check(settings.get_colorblind_palette_id() == &"none", "colour-vision preset exposes a stable off ID")
+	var accessibility: Dictionary = settings.get_accessibility_descriptor()
+	_check(
+		accessibility == {
+			"ui_scale": 1.0,
+			"colorblind_palette": Settings.ColorblindPalette.NONE,
+			"colorblind_palette_id": &"none",
+			"reduced_motion": false,
+			"captions_enabled": false,
+		},
+		"the accessibility descriptor exposes exactly the four presentation presets"
+	)
 
 	var modern: Dictionary = settings.get_control_preset_descriptor(Settings.ControlPreset.MODERN)
 	var classic: Dictionary = settings.get_control_preset_descriptor(Settings.ControlPreset.CLASSIC)
@@ -220,6 +236,10 @@ func _test_round_trip_and_stable_storage() -> void:
 	original.graphics_profile = Settings.GraphicsProfile.MEDIUM
 	original.window_mode = Settings.WindowMode.FULLSCREEN
 	original.control_preset = Settings.ControlPreset.CLASSIC
+	original.ui_scale = 1.35
+	original.colorblind_palette = Settings.ColorblindPalette.PROTANOPIA
+	original.reduced_motion = true
+	original.captions_enabled = true
 	var expected: Dictionary = original.to_dictionary()
 
 	var actions_before := _snapshot_input_map()
@@ -236,6 +256,17 @@ func _test_round_trip_and_stable_storage() -> void:
 	_check(typeof(stored.get_value("graphics", "profile", null)) == TYPE_STRING and stored.get_value("graphics", "profile") == "medium", "graphics persists as a stable plain-string ID")
 	_check(typeof(stored.get_value("display", "window_mode", null)) == TYPE_STRING and stored.get_value("display", "window_mode") == "fullscreen", "window mode persists as a stable plain-string ID")
 	_check(typeof(stored.get_value("controls", "preset", null)) == TYPE_STRING and stored.get_value("controls", "preset") == "classic", "control preset persists as a stable plain-string ID")
+	_check(
+		typeof(stored.get_value("accessibility", "colorblind_palette", null)) == TYPE_STRING
+		and stored.get_value("accessibility", "colorblind_palette") == "protanopia",
+		"colour-vision preset persists as a stable plain-string ID"
+	)
+	_check(
+		is_equal_approx(float(stored.get_value("accessibility", "ui_scale", 0.0)), 1.35)
+		and stored.get_value("accessibility", "reduced_motion") == true
+		and stored.get_value("accessibility", "captions") == true,
+		"every accessibility preset is written to its own section"
+	)
 
 	var restored := Settings.new(_temp_path)
 	var audio_before_load := _snapshot_audio_buses()
@@ -259,6 +290,10 @@ func _test_round_trip_and_stable_storage() -> void:
 		"ui_volume",
 		"graphics_profile",
 		"window_mode",
+		"ui_scale",
+		"colorblind_palette",
+		"reduced_motion",
+		"captions_enabled",
 	])
 	_check(_batch_events.size() == 1 and _batch_events[0] == expected_load_order, "load emits one deterministic batched change list")
 	_check(_setting_events.size() == expected_load_order.size() and _resource_changed_count == 1, "load emits one individual signal per effective change and one Resource change")

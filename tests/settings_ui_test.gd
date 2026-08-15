@@ -40,6 +40,10 @@ func _run() -> void:
 		&"graphics_profile",
 		&"window_mode",
 		&"control_preset",
+		&"ui_scale",
+		&"colorblind_palette",
+		&"reduced_motion",
+		&"captions_enabled",
 	]
 	var controls := hud.get("_settings_controls") as Dictionary
 	_check(controls.size() == expected_keys.size(), "settings page builds one real control for every runtime preference")
@@ -62,6 +66,10 @@ func _run() -> void:
 		"graphics_profile": 1,
 		"window_mode": 2,
 		"control_preset": 1,
+		"ui_scale": 1.25,
+		"colorblind_palette": 2,
+		"reduced_motion": true,
+		"captions_enabled": true,
 	}
 	hud.set_settings_snapshot(snapshot)
 	_check(_change_events.is_empty(), "programmatic snapshot population never produces feedback events")
@@ -71,6 +79,10 @@ func _run() -> void:
 	_check((controls[&"graphics_profile"] as OptionButton).selected == 1, "graphics profile snapshot reaches its selector")
 	_check((controls[&"window_mode"] as OptionButton).selected == 2, "window mode snapshot reaches its selector")
 	_check((controls[&"control_preset"] as OptionButton).selected == 1, "control-hint descriptor snapshot reaches its selector")
+	_check(is_equal_approx((controls[&"ui_scale"] as HSlider).value, 1.25), "UI scale snapshot reaches its slider")
+	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
+	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
+	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")
 	var value_labels := hud.get("_settings_value_labels") as Dictionary
 	_check((value_labels[&"ship_mouse_sensitivity"] as Label).text == "200%", "sensitivity is presented as a friendly relative percentage")
 	_check((value_labels[&"camera_fov"] as Label).text == "88°", "field of view is presented in degrees")
