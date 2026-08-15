@@ -237,6 +237,29 @@ func forget_source(source_entity: Node3D = null, source_id: int = 0) -> void:
 	resolver.forget_source(source_entity, resolved_source_id)
 
 
+## Retires a source's live registration without disposing of its identity. The
+## replay high-water mark and this authority's next-sequence cursor both survive,
+## so a craft that leaves and re-enters play cannot replay a captured request.
+func retire_source_registration(source_entity: Node3D = null, source_id: int = 0) -> bool:
+	_ensure_resolver()
+	var resolved_source_id := source_id
+	if is_instance_valid(source_entity):
+		var instance_id := source_entity.get_instance_id()
+		if resolved_source_id <= 0:
+			resolved_source_id = int(_source_id_by_instance.get(instance_id, 0))
+		# Only the live registration is dropped. `_next_sequence_by_instance` is
+		# deliberately retained for the lifetime of this physical instance.
+		_registrations_by_instance.erase(instance_id)
+	return resolver.retire_source_registration(source_entity, resolved_source_id)
+
+
+## Issues one presentation receipt from the shared session-monotonic allocator.
+## Callers that resolve on `CombatResolver` directly use this instead of keeping
+## a second allocator; saturation still fails closed by returning -1.
+func allocate_presentation_receipt_id() -> int:
+	return _allocate_presentation_receipt_id()
+
+
 func get_source_id(source_entity: Node3D) -> int:
 	return int(_get_registration(source_entity).get("source_id", 0))
 

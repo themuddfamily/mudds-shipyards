@@ -220,6 +220,30 @@ func forget_source(source_entity: Node = null, source_id: int = 0) -> void:
 		_forget_history(key)
 
 
+## Retires only the live collision/weapon registration while the stable source
+## identity keeps its replay high-water mark. This is the in-tree equivalent of
+## the automatic `tree_exiting` retirement: a source that leaves play but is
+## still the same physical object (a dormant encounter craft, a pooled opponent)
+## must not be able to make a captured pre-retirement request current again by
+## re-registering. Use `forget_source()` only to genuinely dispose of an identity.
+func retire_source_registration(source_entity: Node = null, source_id: int = 0) -> bool:
+	var key := _source_key(source_entity, source_id)
+	if key.is_empty() or not _source_registry.has(key):
+		return false
+	var registration: Dictionary = _source_registry[key]
+	var source_reference: WeakRef = registration.get("entity") as WeakRef
+	var registered_entity := source_reference.get_ref() as Node if source_reference != null else null
+	_remove_source_registration(key)
+	# A retired identity is only worth remembering while its physical owner is
+	# still alive; a freed owner can never submit again and its ledger entry is
+	# reclaimed by the ordinary pruning path.
+	if is_instance_valid(registered_entity):
+		_remember_history_owner(key, registered_entity, int(registration.get("source_id", source_id)))
+	else:
+		_forget_history(key)
+	return true
+
+
 func reset_sequence_history() -> void:
 	_last_sequence_by_source.clear()
 	_history_owner_by_source.clear()

@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" path="res://scenes/effects/pulse_weapon_presentation.tscn" id="13_pulse_presentation"]
 [ext_resource type="PackedScene" path="res://scenes/audio/combat_audio_presentation.tscn" id="14_combat_audio"]
 [ext_resource type="PackedScene" path="res://scenes/ships/zenith_interceptor.tscn" id="15_zenith"]
+[ext_resource type="PackedScene" path="res://scenes/ships/standoff_picket_opponent.tscn" id="16_picket"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -33,6 +34,8 @@ ship_definition = ExtResource("8_torrent_definition")
 [node name="ZenithInterceptor" parent="." instance=ExtResource("15_zenith")]
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
+
+[node name="StandoffPicket" parent="." instance=ExtResource("16_picket")]
 
 [node name="CombatAuthority" type="Node3D" parent="."]
 script = ExtResource("10_combat_authority")
