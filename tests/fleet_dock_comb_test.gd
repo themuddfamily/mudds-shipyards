@@ -129,6 +129,35 @@ func _test_collision_backed_comb_and_voids(module: FleetDockComb) -> void:
 	_check(int(collision.body_count) == 7 and int(collision.shape_count) == 7, "collision roster is exactly one body and shape per walkable surface")
 	_check(bool(collision.all_layers_match_lifecycle) and bool(collision.all_masks_zero), "all collision uses the canonical World layer with zero static mask")
 	_check(not bool(collision.full_footprint_floor_present), "collision audit proves no hidden full-footprint floor exists")
+	_test_chamfered_meshes_do_not_move_collision(module)
+
+
+## Every walkable surface renders a chamfered box, and chamfering must remain a
+## purely visual edge treatment. This is the guard for that: each surface body's
+## rendered mesh must still report exactly the extent of its own `BoxShape3D`, so
+## no chamfer can shrink, grow or offset a collidable deck.
+func _test_chamfered_meshes_do_not_move_collision(module: FleetDockComb) -> void:
+	var checked := 0
+	var every_mesh_matches_its_shape := true
+	for candidate in module.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
+		var collision_shape := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var box_shape := collision_shape.shape as BoxShape3D if collision_shape != null else null
+		if mesh_instance == null or mesh_instance.mesh == null or box_shape == null:
+			every_mesh_matches_its_shape = false
+			continue
+		var bounds := mesh_instance.mesh.get_aabb()
+		every_mesh_matches_its_shape = (
+			every_mesh_matches_its_shape
+			and bounds.size.is_equal_approx(box_shape.size)
+			and bounds.get_center().is_zero_approx()
+		)
+		checked += 1
+	_check(
+		checked == 7 and every_mesh_matches_its_shape,
+		"all seven chamfered surface meshes report exactly their collider extent and centre"
+	)
 
 
 func _test_performance_contract(module: FleetDockComb) -> void:

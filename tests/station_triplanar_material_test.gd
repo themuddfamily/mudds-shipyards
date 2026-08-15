@@ -136,12 +136,24 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# threshold aprons use `deck_light`, which is not in this family, so they do
 	# not appear here. No previously mapped surface was removed and no scale
 	# changed.
+	#
+	# Re-frozen again from 523/11/265/247 when the two remaining unmapped station
+	# populations joined the family. `StationOperationsActivity` bound its four
+	# structural greys (`frame`, `frame_edge`, `graphite`, `ceramic`) at the Aft
+	# module's existing 0.30 scale, adding 106 surfaces across the four production
+	# placements (FULL, GANTRY, SERVICE_ARM, DRONE_PATROL). `FleetDockComb` bound
+	# `deck`, `deck_light`, `frame`, `underframe` and `grip` at the Habitat
+	# module's existing 0.28 scale, adding 33 surfaces. Net +139: 0.28 goes
+	# 265 -> 298, 0.30 goes 247 -> 353, 0.22 is untouched. Painted hazard bands,
+	# tyre rubber and every emissive route/status/beacon lens deliberately stay
+	# outside the family, as they do in the sibling modules. No previously mapped
+	# surface was removed, no scale changed, and no new scale was introduced.
 	_check(
-		mapped_surface_count == 523
+		mapped_surface_count == 662
 		and scale_022_count == 11
-		and scale_028_count == 265
-		and scale_030_count == 247,
-		"live station binds exactly 523 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_028_count == 298
+		and scale_030_count == 353,
+		"live station binds exactly 662 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
