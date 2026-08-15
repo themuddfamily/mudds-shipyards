@@ -276,6 +276,11 @@ func get_pending_damage_presentation_count() -> int:
 	return _pending_damage_presentations.size()
 
 
+## Removes all queued deferred damage receipts for re-entry/teardown safety.
+func discard_deferred_damage_presentations() -> void:
+	_clear_pending_damage_presentations()
+
+
 ## Commits exactly one delayed hit presentation. Missing, evicted and stale
 ## sequences are harmless so recycled opponents cannot replay prior-life VFX.
 func commit_deferred_damage_presentation(sequence: int) -> bool:

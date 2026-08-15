@@ -138,13 +138,22 @@ func play_cue(cue_id: StringName = CUE_SERVO, intensity: float = 1.0) -> bool:
 	var stream := _cue_streams.get(cue_id) as AudioStreamWAV
 	if stream == null:
 		return false
+	var safe_intensity := clampf(intensity, 0.1, 1.5)
 	_stop_and_detach(_cue_player)
 	var built_cue_volume := _built_cue_volume_db if _has_player_configuration_snapshot else cue_volume_db
-	_expected_cue_volume_db = built_cue_volume + linear_to_db(clampf(intensity, 0.1, 1.5))
-	_cue_player.volume_db = _expected_cue_volume_db
+	var requested_cue_volume_db := built_cue_volume + linear_to_db(safe_intensity)
+	_cue_player.volume_db = requested_cue_volume_db
 	_cue_player.stream = stream
 	_cue_player.play()
+	if not _request_cue_playback(_cue_player):
+		_stop_and_detach(_cue_player)
+		return false
+	_expected_cue_volume_db = requested_cue_volume_db
 	return true
+
+
+func _request_cue_playback(player: AudioStreamPlayer3D) -> bool:
+	return player.playing
 
 
 func get_supported_cues() -> PackedStringArray:

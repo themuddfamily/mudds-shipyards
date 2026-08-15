@@ -1,8 +1,15 @@
 # Review candidates
 
-These items were found during a conservative audit but are not confirmed defects, so no behavioural code was changed.
+Previously identified candidates were reproduced and addressed in the current branch:
 
-- `scripts/combat/live_combat_authority.gd:107-110`: deferred-presentation receipt IDs pack `source_id` and only the low 32 bits of an unbounded sequence. A sequence separated by `2^32` aliases the same receipt, and source IDs at or above `2^31` produce a negative receipt that disables deferred presentation. Production sources and sessions are far below those limits; use a collision-free ID allocator or enforce bounds if such sessions/IDs are supported.
-- `scripts/audio/station_machinery_ambience.gd:123-147`: `play_cue()` documents that `true` means the audio backend accepted playback, but returns `true` immediately after `AudioStreamPlayer3D.play()` without checking `playing`. Dummy mode correctly returns `false`; confirm real-backend rejection behaviour before changing the API contract or implementation.
-- `scripts/audio/combat_audio_presentation.gd:250-261`: the combat-audio equivalent reports `true` after calling `play()` without checking whether a real backend accepted the stream. Its current callers treat the return as success, but headless mode is intentionally permissive; confirm rejection behaviour on a real driver before changing it.
-- `scripts/game/game_flow.gd:186-191`, `scripts/effects/hero_damage_presentation.gd:123-125`, and `scripts/world/shipyard_world.gd:261-264`: whole-Main teardown clears GameFlow's pending combat-audio receipt map but leaves target-side deferred damage records. This is bounded and cannot replay without the cleared GameFlow metadata; retain or clear the target queues based on whether standalone target components must preserve deferred work across re-entry.
+- `scripts/combat/live_combat_authority.gd`: receipt allocation now uses a monotonic
+  64-bit session allocator for deferred presentations, with explicit fail-closed
+  saturation behavior.
+- `scripts/audio/station_machinery_ambience.gd` and
+  `scripts/audio/combat_audio_presentation.gd`: playback acceptance now includes an
+  explicit backend-aware seam and atomic detach-on-rejection behavior.
+- `scripts/game/game_flow.gd`, `scripts/effects/hero_damage_presentation.gd`,
+  and `scripts/world/shipyard_world.gd`: whole-Main teardown now clears owner-side
+  deferred presentation queues to prevent stale replay after re-entry.
+
+There are currently no open review candidates in this file.

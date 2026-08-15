@@ -228,6 +228,16 @@ func get_pending_damage_presentation_count() -> int:
 	return _pending_damage_presentations.size()
 
 
+## Clears every pending deferred receipt record without affecting active world effects.
+##
+## Deferred visual queues are replayed through receipt identities. This is intended
+## for owner re-entry and ownership handoff where stale queued sequences must
+## never commit after teardown.
+func discard_deferred_damage_presentations() -> void:
+	_pending_damage_presentations.clear()
+	_pending_damage_presentation_order.clear()
+
+
 ## Enters the terminal stage once and detaches the lethal effects into world
 ## space. The owner can hide or recycle its hull without moving the explosion.
 func present_destruction(

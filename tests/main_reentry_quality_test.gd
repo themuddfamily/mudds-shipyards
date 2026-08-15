@@ -71,6 +71,8 @@ func _test_whole_main_reentry(
 	opponent: Node3D,
 	fleet: Array[HeroShip]
 	) -> void:
+	var world_owner := world as ShipyardWorld
+	var opponent_ship := opponent as RangeOpponent
 	var parent := game.get_parent()
 	var torrent := _ship_by_id(fleet, &"torrent_provisional")
 	var arrow := _ship_by_id(fleet, &"arrow_provisional")
@@ -81,6 +83,9 @@ func _test_whole_main_reentry(
 		"whole-tree fixture retains all four exact production ship identities"
 	)
 	if torrent == null or arrow == null or jovian == null or zenith == null:
+		return
+	_check(world_owner != null and opponent_ship != null, "re-entry opponent and world targets are correctly typed runtime components")
+	if world_owner == null or opponent_ship == null:
 		return
 
 	# Capture one accepted, damaging request before any detach. The exact request
@@ -124,6 +129,67 @@ func _test_whole_main_reentry(
 		"re-entry replay fixture captures one accepted damaging authority request"
 	)
 
+	var hero_receipt_id := 91001
+	var opponent_receipt_id := 91002
+	var world_receipt_id := 91003
+	torrent.discard_deferred_damage_presentations()
+	var hero_pending_before := torrent.get_pending_damage_presentation_count()
+	var hero_health_before := float(torrent.get_telemetry().get("hull", 10000.0))
+	torrent.apply_damage(
+		6.5,
+		torrent.global_position + Vector3(0.2, 0.3, 0.0),
+		Vector3.ZERO,
+		hero_receipt_id,
+		true
+	)
+	_check(
+		float(torrent.get_telemetry().get("hull")) < hero_health_before
+		and int(torrent.get_pending_damage_presentation_count()) == hero_pending_before + 1,
+		"re-entry fixture stores one deferred hero ship damage receipt"
+	)
+	opponent_ship.activate(opponent.global_transform)
+	opponent_ship.discard_deferred_damage_presentations()
+	var opponent_health_before := opponent_ship.get_health()
+	var opponent_pending_before := opponent_ship.get_pending_damage_presentation_count()
+	opponent_ship.apply_damage(
+		4.0,
+		opponent.global_position + Vector3(0.4, 0.2, -0.8),
+		opponent_receipt_id,
+		true
+	)
+	_check(
+		opponent_ship.get_health() < opponent_health_before
+		and int(opponent_ship.get_pending_damage_presentation_count()) == opponent_pending_before + 1,
+		"re-entry fixture stores one deferred opponent damage receipt"
+	)
+	opponent_ship.deactivate()
+	# Locate one live shipyard target for a deferred target-side presentation queue.
+	var world_targets := world.find_children("*", "StaticBody3D", true, false)
+	var reentry_world_target: StaticBody3D = null
+	for candidate in world_targets:
+		var target := candidate as StaticBody3D
+		if target != null:
+			reentry_world_target = target
+			break
+	var world_replay_hit := (
+		reentry_world_target.global_position + Vector3.UP * 0.15
+		if reentry_world_target != null
+		else Vector3.ZERO
+	)
+	var world_defer_result := false
+	if world_owner != null and reentry_world_target != null:
+		world_defer_result = world_owner.defer_target_damage_presentation(
+			world_receipt_id,
+			reentry_world_target,
+			StringName(reentry_world_target.get_meta("target_id", &"reentry_test")),
+			world_replay_hit,
+			false
+		)
+	_check(
+		reentry_world_target != null and world_defer_result,
+		"re-entry fixture stores one deferred world target damage receipt"
+	)
+
 	# Sentinels make an accidental replay of `_ready()` observable. In particular,
 	# startup would replace Arrow with Torrent as the active craft and would reset
 	# the target/HUD setup even though this is the same gameplay instance.
@@ -155,6 +221,25 @@ func _test_whole_main_reentry(
 		parent.remove_child(game)
 		await process_frame
 		var detached_audio := audio.get_synthesis_report()
+		var opponent_replay_rejected := true
+		var world_replay_rejected := true
+		if opponent_ship != null:
+			opponent_replay_rejected = not bool(opponent_ship.commit_deferred_damage_presentation(opponent_receipt_id))
+		if world_owner != null:
+			world_replay_rejected = not bool(world_owner.commit_deferred_damage_presentation(world_receipt_id))
+		_check(
+			not bool(torrent.commit_deferred_damage_presentation(hero_receipt_id))
+			and opponent_replay_rejected
+			and world_replay_rejected,
+			"detach cycle %d cannot replay deferred hero/opponent/world receipts before rebuild" % (cycle + 1)
+		)
+		_check(
+			game.get_pending_combat_presentation_receipt_count() == 0
+			and int(torrent.get_pending_damage_presentation_count()) == 0
+			and int(opponent_ship.get_pending_damage_presentation_count()) == 0
+			and int(world_owner.get_pending_target_damage_presentation_count()) == 0,
+			"detach cycle %d clears each deferred queue in owner components and coordinator metadata" % (cycle + 1)
+		)
 		_check(
 			resolver.get_registered_source_count() == 0
 			and authority.get_source_id(torrent) == 0
@@ -188,6 +273,8 @@ func _test_whole_main_reentry(
 			old_resources_released = old_resources_released and reference.get_ref() == null
 		_check(old_resources_released, "detach cycle %d leaks no resident AudioDirector WAV" % (cycle + 1))
 
+		var expected_torrent_health := float(torrent.get_telemetry().get("hull"))
+		var expected_opponent_health := float(opponent_ship.get_health())
 		parent.add_child(game)
 		await process_frame
 		await physics_frame
@@ -237,6 +324,15 @@ func _test_whole_main_reentry(
 			and game.active_ship == expected_active_ship
 			and bool(game.get("_guided_activity_complete")),
 			"re-entry cycle %d preserves every Main node identity and gameplay sentinel without replaying startup/world build" % (cycle + 1)
+		)
+		_check(
+			is_equal_approx(float(torrent.get_telemetry().get("hull")), expected_torrent_health)
+			and is_equal_approx(float(opponent_ship.get_health()), expected_opponent_health)
+			and game.get_pending_combat_presentation_receipt_count() == 0
+			and int(torrent.get_pending_damage_presentation_count()) == 0
+			and int(opponent_ship.get_pending_damage_presentation_count()) == 0
+			and int(world_owner.get_pending_target_damage_presentation_count()) == 0,
+			"re-entry cycle %d preserves authority health and shows an empty deferred queue state" % (cycle + 1)
 		)
 		_check(
 			_connection_count(
@@ -377,17 +473,21 @@ func _test_destroyed_source_impact_ordering(
 		pulse.present_shot(origin, origin + Vector3.FORWARD * 20.0, &"cyan", source_ship, true),
 		"hit presentation is in flight before its source is destroyed"
 	)
+	var source_health_before := float(source_ship.get_telemetry().get("hull", 1000.0))
 	source_ship.apply_damage(
 		float(source_ship.get_telemetry().get("maximum_hull", 100.0)) + 1.0,
 		source_ship.global_position,
 		Vector3.BACK
 	)
+	var source_health_after := float(source_ship.get_telemetry().get("hull", 0.0))
 	var destruction_state := combat_audio.get_state_snapshot()
 	var destruction_counts := destruction_state.get("cue_counts", {}) as Dictionary
 	var destruction_count := int(destruction_counts.get(CombatAudioPresentation.CUE_EXPLOSION, 0))
 	var impact_count := int(destruction_counts.get(CombatAudioPresentation.CUE_IMPACT_MEDIUM, 0))
 	_check(
 		source_ship.is_destroyed()
+		and source_health_after < source_health_before
+		and is_equal_approx(source_health_after, 0.0)
 		and destruction_count > 0
 		and destruction_state.get("last_world_position") == source_ship.global_position,
 		"lethal damage starts exactly one authored explosion at the immutable ship position"

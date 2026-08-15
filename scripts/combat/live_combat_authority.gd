@@ -5,6 +5,7 @@ const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const RangeTargetAdapterType := preload("res://scripts/combat/range_target_damageable_adapter.gd")
+const MAX_PRESENTATION_RECEIPT_ID: int = 9223372036854775807
 
 signal authoritative_shot_submitted(request: ShotRequestType, result: Dictionary)
 
@@ -14,6 +15,10 @@ var _registrations_by_instance: Dictionary = {}
 var _next_sequence_by_instance: Dictionary = {}
 var _sequence_source_by_instance: Dictionary = {}
 var _source_id_by_instance: Dictionary = {}
+## Monotonic, session-local deferred-receipt allocator.
+## Positive, 64-bit signed IDs are assigned to deferred shots independent of source
+## identity and source sequence.
+var _next_presentation_receipt_id: int = 1
 
 
 func _ready() -> void:
@@ -104,11 +109,9 @@ func _submit_hitscan(
 		return resolver.resolve_hitscan(unauthorized)
 	var sequence := _next_sequence(source_entity, registration)
 	var source_id := int(registration.get("source_id", 0))
-	var presentation_receipt_id := (
-		(source_id << 32) | (sequence & 0xffffffff)
-		if defer_damage_presentation
-		else -1
-	)
+	var presentation_receipt_id := -1
+	if defer_damage_presentation:
+		presentation_receipt_id = _allocate_presentation_receipt_id()
 	var request := ShotRequestType.new(
 		source_entity,
 		source_id,
@@ -121,8 +124,55 @@ func _submit_hitscan(
 		float(profile.get("damage", 0.0)),
 		presentation_receipt_id
 	)
+	if presentation_receipt_id < 0 and defer_damage_presentation:
+		var saturation_result := _make_rejected_receipt_result(request, &"receipt_exhausted")
+		authoritative_shot_submitted.emit(request, saturation_result.duplicate(true))
+		return saturation_result
 	var result := resolver.resolve_hitscan(request)
 	authoritative_shot_submitted.emit(request, result.duplicate(true))
+	return result
+
+
+func _allocate_presentation_receipt_id() -> int:
+	# Use a 64-bit positive signed allocator with fail-closed saturation.
+	# Exhaustion is detected one step before integer overflow and ID wrap.
+	if _next_presentation_receipt_id <= 0:
+		return -1
+	if _next_presentation_receipt_id >= MAX_PRESENTATION_RECEIPT_ID:
+		_next_presentation_receipt_id = -1
+		return -1
+	var receipt_id := _next_presentation_receipt_id
+	_next_presentation_receipt_id += 1
+	return receipt_id
+
+
+func _make_rejected_receipt_result(request: ShotRequestType, status: StringName) -> Dictionary:
+	var result := resolver._make_result(request) if is_instance_valid(resolver) else {
+		"accepted": false,
+		"resolved": false,
+		"hit": false,
+		"damaged": false,
+		"destroyed": false,
+		"status": &"unresolved",
+		"reason": "",
+		"request": request,
+		"collider": null,
+		"damageable": null,
+		"target_entity": null,
+		"position": Vector3.INF,
+		"normal": Vector3.ZERO,
+		"distance": 0.0,
+		"applied_damage": 0.0,
+		"remaining_health": -1.0,
+		"last_sequence": -1,
+		"source_entity": request.source_entity,
+		"source_id": request.source_id,
+		"source_faction_id": request.faction_id,
+		"target_faction_id": &"",
+		"damage_result": {},
+	}
+	result["status"] = status
+	result["reason"] = "presentation receipt IDs are saturated"
 	return result
 
 

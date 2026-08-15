@@ -5,6 +5,10 @@ const AMBIENCE_SCENE := preload("res://scenes/audio/station_machinery_ambience.t
 var _failures: Array[String] = []
 var _test_root: Node3D
 
+class RejectingStationAmbience extends StationMachineryAmbience:
+	func _request_cue_playback(_player: AudioStreamPlayer3D) -> bool:
+		return false
+
 
 func _init() -> void:
 	call_deferred("_run")
@@ -136,6 +140,19 @@ func _test_determinism_and_lifecycle(ambience: StationMachineryAmbience) -> void
 		str((variant.get_synthesis_report().fingerprints_sha256 as Dictionary).get(&"loop")) != str(original_fingerprints.get(&"loop")),
 		"a different seed produces a deliberate deterministic emitter variation"
 	)
+	var pre_cue_volume := float(ambience.get_spatial_contract().current_cue_volume_db)
+	_check(
+		not ambience.play_cue(&"servo", 0.0)
+		and not ambience.play_cue(&"servo", NAN)
+		and not ambience.play_cue(&"servo", -1.0),
+		"invalid cue intensity remains rejected and deterministic"
+	)
+	_check(
+		is_equal_approx(float(ambience.get_spatial_contract().current_cue_volume_db), pre_cue_volume),
+		"invalid cue intensity leaves last supported cue volume unchanged"
+	)
+	if AudioServer.get_driver_name() != "Dummy":
+		_check(ambience.play_cue(&"servo", 12.0), "real audio clamps cue intensity and still accepts extremely loud inputs")
 
 	ambience.set_ambience_enabled(false)
 	ambience.set_ambience_enabled(false)
@@ -152,6 +169,17 @@ func _test_determinism_and_lifecycle(ambience: StationMachineryAmbience) -> void
 	else:
 		_check((ambience.get_node("MachineryLoop") as AudioStreamPlayer3D).playing, "real audio driver starts the positional machinery loop")
 		_check(ambience.play_cue(&"latch"), "real audio driver accepts a supported transient cue")
+		var rejecting_probe := _make_ambience("RejectingProbe", ambience.synthesis_seed, ambience.base_frequency_hz)
+		_check(rejecting_probe != null, "rejection probe ambience instantiates for playback-seams checks")
+		rejecting_probe.set_script(RejectingStationAmbience)
+		await process_frame
+		var rejection_probe_volume_before := float(rejecting_probe.get_spatial_contract().current_cue_volume_db)
+		var rejection_probe_generation := int(rejecting_probe.get_synthesis_report().generation_count)
+		_check(not rejecting_probe.play_cue(&"servo"), "simulated real-driver rejection reports playback failure")
+		_check(_players_are_stopped_and_detached(rejecting_probe), "simulated playback rejection leaves a detached deterministic cue player")
+		_check(is_equal_approx(float(rejecting_probe.get_spatial_contract().current_cue_volume_db), rejection_probe_volume_before), "simulated cue rejection leaves last cue volume state unchanged")
+		_check(int(rejecting_probe.get_synthesis_report().generation_count) == rejection_probe_generation, "simulated cue rejection does not trigger synthesis churn")
+		rejecting_probe.queue_free()
 	_check(not ambience.play_cue(&"unsupported"), "unknown cue IDs have no implicit sound fallback")
 
 	var original_parent := ambience.get_parent()

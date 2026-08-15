@@ -1117,13 +1117,18 @@ func reset_for_reuse(spawn_transform: Transform3D) -> void:
 
 ## Stable snapshot consumed by the HUD and gameplay coordinator.
 func get_telemetry() -> Dictionary:
+	var flight_forward_world := Vector3.FORWARD
+	var altitude := 0.0
+	if is_inside_tree():
+		flight_forward_world = -global_basis.z.normalized()
+		altitude = maxf(0.0, global_position.y - 1.15)
 	return {
 		"speed": velocity.length(),
 		"velocity_world": velocity,
-		"flight_forward_world": -global_basis.z.normalized(),
+		"flight_forward_world": flight_forward_world,
 		"camera_view": get_camera_view(),
 		"throttle": _throttle,
-		"altitude": maxf(0.0, global_position.y - 1.15),
+		"altitude": altitude,
 		"hull": _hull,
 		"maximum_hull": maximum_hull,
 		"damage_status": _damage_presentation.get_status() if _damage_presentation != null else &"healthy",
@@ -1351,6 +1356,20 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 				CONNECT_ONE_SHOT
 			)
 	return committed
+
+
+## For re-entry and teardown, discard pending deferred presentation records so
+## stale receipt IDs can never commit on a recycled ship instance.
+func discard_deferred_damage_presentations() -> void:
+	if _damage_presentation != null:
+		_damage_presentation.discard_deferred_damage_presentations()
+	_deferred_terminal_presentation_receipt_id = -1
+
+
+func get_pending_damage_presentation_count() -> int:
+	if _damage_presentation == null:
+		return 0
+	return _damage_presentation.get_pending_damage_presentation_count()
 
 
 func get_pending_terminal_damage_presentation_receipt_id() -> int:

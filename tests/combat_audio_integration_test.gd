@@ -1,7 +1,12 @@
 extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const COMBAT_AUDIO_SCENE := preload("res://scenes/audio/combat_audio_presentation.tscn")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
+
+class RejectingCombatAudioPresentation extends CombatAudioPresentation:
+	func _request_player_playback(_player: AudioStreamPlayer3D) -> bool:
+		return false
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -128,6 +133,27 @@ func _run() -> void:
 		"accepted player miss starts exactly one authored fire cue at the request origin"
 	)
 
+	# A driver can reject after the selected voice has been configured. That failed
+	# request must not consume the next voice, publish cue metadata, or retain a
+	# transient stream that could play later.
+	var rejecting_probe := COMBAT_AUDIO_SCENE.instantiate() as CombatAudioPresentation
+	rejecting_probe.set_script(RejectingCombatAudioPresentation)
+	root.add_child(rejecting_probe)
+	await process_frame
+	var rejection_snapshot := rejecting_probe.get_state_snapshot()
+	var rejection_cursors := (rejecting_probe.get("_pool_cursors") as Dictionary).duplicate(true)
+	var fire_pool := rejecting_probe.get("_pools").get(&"fire") as Array
+	var rejected_voice := fire_pool[int(rejection_cursors.get(&"fire", 0)) % fire_pool.size()] as AudioStreamPlayer3D
+	_check(
+		not rejecting_probe.play_player_fire(accepted_origin + Vector3.RIGHT, hero.get_instance_id())
+		and rejecting_probe.get_state_snapshot() == rejection_snapshot
+		and rejecting_probe.get("_pool_cursors") == rejection_cursors
+		and rejected_voice != null and not rejected_voice.playing and rejected_voice.stream == null,
+		"post-play backend rejection detaches its transient without advancing combat-audio state"
+	)
+	rejecting_probe.queue_free()
+	await process_frame
+
 	# A rejected callback is presentation-inert even if it contains a plausible
 	# request. This protects replay/invalid/not-authority paths from fake gunfire.
 	var rejected_request := ShotRequestType.new(
@@ -219,8 +245,42 @@ func _impact_count(snapshot: Dictionary) -> int:
 
 
 func _clean_up(game: Node) -> void:
+	await _release_combat_audio(game)
 	game.queue_free()
 	await process_frame
+	await process_frame
+	await process_frame
+
+
+func _release_combat_audio(game: Node) -> void:
+	var combat_audio := game.get_node_or_null("CombatAudioPresentation") as CombatAudioPresentation
+	if combat_audio == null:
+		return
+	var maximum_active_stream_seconds := 0.0
+	for candidate in combat_audio.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := candidate as AudioStreamPlayer3D
+		if player.playing and player.stream != null:
+			maximum_active_stream_seconds = maxf(
+				maximum_active_stream_seconds,
+				player.stream.get_length()
+			)
+	if maximum_active_stream_seconds > 0.0:
+		await create_timer(maximum_active_stream_seconds + 0.05).timeout
+	for candidate in combat_audio.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := candidate as AudioStreamPlayer3D
+		player.stop()
+		player.stream_paused = false
+		player.stream = null
+	await process_frame
+	var mixer_release_seconds := maxf(
+		0.05,
+		AudioServer.get_time_to_next_mix() + AudioServer.get_output_latency()
+	)
+	await create_timer(mixer_release_seconds).timeout
+	var parent := combat_audio.get_parent()
+	if parent != null:
+		parent.remove_child(combat_audio)
+	combat_audio.free()
 	await process_frame
 
 

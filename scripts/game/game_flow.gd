@@ -186,8 +186,17 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
-	# relevant lifecycle components. Do not carry coordinator metadata across a
-	# streamed whole-Main detach: no transient effect is resurrected on re-entry.
+	# relevant lifecycle components.
+	for fleet_ship in ships:
+		if is_instance_valid(fleet_ship) and fleet_ship.has_method(&"discard_deferred_damage_presentations"):
+			fleet_ship.call(&"discard_deferred_damage_presentations")
+	if is_instance_valid(opponent) and opponent.has_method(&"discard_deferred_damage_presentations"):
+		opponent.call(&"discard_deferred_damage_presentations")
+	if is_instance_valid(world) and world.has_method(&"discard_deferred_damage_presentations"):
+		world.call(&"discard_deferred_damage_presentations")
+
+	# Do not carry coordinator metadata across a streamed whole-Main detach: no
+	# transient effect is resurrected on re-entry.
 	_pending_combat_audio_receipts.clear()
 
 

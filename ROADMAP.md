@@ -159,7 +159,7 @@ The minimum change report should state: outcome, root cause/design decision, fil
 - [x] Audit both a curated critical roster and discovered broad upward-facing route meshes so floor-looking surfaces cannot silently remain unsupported; presentation-only exclusions require explicit reasons.
 - [x] Remove the directional Arrow hull atlas from station floors, walls, and stairs; bind a dedicated symmetric albedo/normal/roughness station set through continuous world-triplanar mapping while keeping Arrow, Jovian, Torrent, and Zenith material identities unchanged.
 - [x] Regenerate the Central berth DeckComposite with canonical non-mirrored metric UV0 and bounded live imported anisotropy/density, replacing the stretched/mirrored perimeter mapping.
-- [ ] Run and record the definitive post-fix full matrix for the expanded test inventory, rebuild the Windows package from the exact tested source, and rerun package-level probes for facing, no-jump stairs, floor support, station atlas exclusion, and Central UV orientation.
+- [x] Run and record the definitive post-fix full matrix for the expanded test inventory, rebuild the Windows package from the exact tested source, and rerun package-level probes for facing, no-jump stairs, floor support, station atlas exclusion, and Central UV orientation. Evidence: `artifacts/test-matrix/roadmap_run_auto/20260815T112607Z` and `artifacts/package-probes/20260815T113255Z`.
 - [ ] Complete the first uninterrupted normal-controls human playtest of that exact post-fix package and turn every P0/P1 observation into a reproduction plus regression before resuming Phase 3 content expansion.
 
 ### Current audit-candidate implementation notes

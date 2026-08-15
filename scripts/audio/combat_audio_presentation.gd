@@ -61,9 +61,11 @@ var _last_cue_id: StringName = &""
 var _last_world_position := Vector3.ZERO
 var _last_source_instance_id := 0
 var _initialized := false
+var _audio_available := true
 
 
 func _enter_tree() -> void:
+	_audio_available = AudioServer.get_driver_name() != "Dummy"
 	if _initialized:
 		call_deferred("_restore_players_after_reentry")
 
@@ -73,6 +75,7 @@ func _ready() -> void:
 		_restore_players_after_reentry()
 		return
 	_initialized = true
+	_audio_available = AudioServer.get_driver_name() != "Dummy"
 	for cue_id in STREAM_PATHS:
 		var stream := load(STREAM_PATHS[cue_id]) as AudioStreamWAV
 		_streams[cue_id] = stream
@@ -176,7 +179,7 @@ func get_audit_report() -> Dictionary:
 	if live_voice_count != EXPECTED_VOICE_COUNT or _voice_ids.size() != EXPECTED_VOICE_COUNT:
 		errors.append("fixed voice roster drifted")
 	for pool_id in POOL_COUNTS:
-		var pool: Array[AudioStreamPlayer3D] = _pools.get(pool_id, [])
+		var pool := _get_pool(pool_id)
 		if pool.size() != int(POOL_COUNTS[pool_id]):
 			errors.append("voice-pool count drifted: %s" % String(pool_id))
 		for player in pool:
@@ -226,7 +229,7 @@ func _play(
 	if not is_inside_tree() or not world_position.is_finite() or source_instance_id < 0:
 		return false
 	var stream := _streams.get(cue_id) as AudioStreamWAV
-	var pool: Array[AudioStreamPlayer3D] = _pools.get(pool_id, [])
+	var pool := _get_pool(pool_id)
 	if (
 		stream == null
 		or pool.is_empty()
@@ -234,8 +237,7 @@ func _play(
 	):
 		return false
 	var cursor := int(_pool_cursors.get(pool_id, 0)) % pool.size()
-	_pool_cursors[pool_id] = (cursor + 1) % pool.size()
-	var player := pool[cursor]
+	var player := pool[cursor] as AudioStreamPlayer3D
 	if (
 		not is_instance_valid(player)
 		or player.get_parent() != self
@@ -252,6 +254,10 @@ func _play(
 	player.stream = stream
 	player.volume_db = volume_db
 	player.play()
+	if not _request_player_playback(player):
+		_stop_and_detach_player(player)
+		return false
+	_pool_cursors[pool_id] = (cursor + 1) % pool.size()
 	_cue_count += 1
 	_cue_counts[cue_id] = int(_cue_counts.get(cue_id, 0)) + 1
 	_last_cue_id = cue_id
@@ -259,6 +265,30 @@ func _play(
 	_last_source_instance_id = source_instance_id
 	cue_started.emit(cue_id, StringName(player.name), world_position, source_instance_id)
 	return true
+
+
+func _get_pool(pool_id: StringName) -> Array[AudioStreamPlayer3D]:
+	var typed_pool: Array[AudioStreamPlayer3D] = []
+	var raw_pool: Variant = _pools.get(pool_id, null)
+	if raw_pool == null:
+		return typed_pool
+	if raw_pool is Array:
+		for candidate in raw_pool:
+			if candidate is AudioStreamPlayer3D:
+				typed_pool.append(candidate)
+	return typed_pool
+
+
+func _request_player_playback(player: AudioStreamPlayer3D) -> bool:
+	if not _audio_available:
+		return true
+	return player.playing
+
+
+func _stop_and_detach_player(player: AudioStreamPlayer3D) -> void:
+	if is_instance_valid(player):
+		player.stop()
+		player.stream = null
 
 
 func _configure_player(player: AudioStreamPlayer3D) -> void:
@@ -284,8 +314,7 @@ func _stop_all_players() -> void:
 	for pool_value in _pools.values():
 		for player: AudioStreamPlayer3D in pool_value:
 			if is_instance_valid(player):
-				player.stop()
-				player.stream = null
+				_stop_and_detach_player(player)
 
 
 func _restore_players_after_reentry() -> void:

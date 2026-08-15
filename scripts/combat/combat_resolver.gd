@@ -90,8 +90,16 @@ func resolve_hitscan(request: ShotRequestType) -> Dictionary:
 			"; ".join(validation_errors),
 			request
 		)
-	if enforce_multiplayer_authority and not is_multiplayer_authority():
-		return _reject(result, &"not_authority", "resolver is not multiplayer authority", request)
+	if enforce_multiplayer_authority:
+		if not is_inside_tree():
+			return _reject(
+				result,
+				&"not_in_tree",
+				"resolver is not in a scene tree",
+				request
+			)
+		if not is_multiplayer_authority():
+			return _reject(result, &"not_authority", "resolver is not multiplayer authority", request)
 
 	var authority_context := _resolve_authority_context(request)
 	if not bool(authority_context.get("valid", false)):

@@ -1578,6 +1578,16 @@ func defer_target_damage_presentation(
 	return true
 
 
+func get_pending_target_damage_presentation_count() -> int:
+	return _pending_target_presentations.size()
+
+
+## Clears deferred target presentation queues for whole-Main re-entry safety.
+func discard_deferred_damage_presentations() -> void:
+	_pending_target_presentations.clear()
+	_pending_target_presentation_order.clear()
+
+
 func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 	if not _pending_target_presentations.has(receipt_id):
 		return false
