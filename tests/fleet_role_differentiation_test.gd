@@ -11,6 +11,7 @@ extends SceneTree
 ## floor so a later player-led feel pass can only improve it. One deficiency is
 ## deliberately NOT asserted as passing and is documented instead:
 ##
+<<<<<<< HEAD
 ##   * All four craft share one near-white body tone. The measured CIEDE2000
 ##     between the closest pair (Jovian #e7e4d6 and Zenith #e6e2d5) is 0.82,
 ##     below the just-noticeable difference, and the widest pair reaches only
@@ -29,10 +30,54 @@ extends SceneTree
 ## values — see the re-freeze note in `tests/zenith_interceptor_test.gd` — and
 ## the eye-point and head-inside-hull assertions below now cover all four
 ## craft, so the defect cannot silently return.
+=======
+##   * Zenith places its cockpit camera 0.86 m BELOW the seated pilot's head
+##     bone (the other three place it 0.20 m above), and the seated pilot's
+##     head bone clears Zenith's outer hull by only 0.06 m against 0.56 m or
+##     more elsewhere. Zenith's eye point is therefore not frozen as plausible.
+>>>>>>> worktree-agent-a95094a8e503e2d38
+##
+## The colour deficiency this suite originally recorded has since been fixed and
+## is now asserted rather than merely printed. The audited state was four craft
+## sharing one near-white body tone (Torrent #e8e2cf, Arrow #e9eee9, Jovian
+## #e7e4d6, Zenith #e6e2d5) whose closest pair measured CIEDE2000 0.82 in normal
+## vision and 0.45 under simulated deuteranopia — below the just-noticeable
+## difference — while the widest pair reached only 7.3; the Arrow/Jovian/Zenith
+## accents additionally clustered in cyan-teal at 6.40 under protanopia. The
+## floors below freeze the replacement palette.
+##
+## Why these floors. CIEDE2000 is scaled so that roughly 1.0 is a just-noticeable
+## difference for two large patches held side by side, and ~2.3 is the value
+## usually quoted as the practical JND. At-a-glance craft identification is a
+## much harder task than side-by-side comparison: the two hulls are never
+## adjacent, are seen at different distances and attitudes, under different
+## lighting, and are matched against colour memory rather than against each
+## other. On top of that the runtime multiplies each authored albedo tint by a
+## bound hull map and then tonemaps it, which compresses authored differences
+## further. BODY_TONE_FLOOR is therefore set at 12.0 — an order of magnitude
+## above the patch JND — and the accent floor at 25.0. The body floor is capped
+## by the evidence boundary rather than by taste: Torrent's warm off-white and
+## Zenith's pale exterior are both source-observed claims (see
+## docs/TORRENT_2011_RECONSTRUCTION_SPEC.md and
+## docs/ZENITH_B7_RECONSTRUCTION_SPEC.md), so those two craft cannot be pulled
+## apart in hue or value without contradicting a registered source observation.
+## PALE_BODY_CRAFT freezes that boundary alongside the separation floors.
+##
+## Waiting. Every wait in this suite is bounded by a budget of simulated frames
+## rather than by the wall clock, and every production input request is re-issued
+## until the state machine accepts it. Nothing about what the suite proves
+## changed; only how it waits. Measured at load average 14-17 on a 32-core box,
+## the previous waits produced two hangs in five runs — 409 s runs killed by the
+## harness where the bounded version finished in 11-13 s — because a single
+## swallowed input edge left an unbounded `await player.disembarking_completed`
+## with no signal to receive. See FRAME_BUDGET_GRACE and _tap_button_until.
 ##
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+# One implementation of the sRGB -> Viénot dichromat -> CIE L*a*b* -> CIEDE2000
+# chain, shared with the design probes that chose the palette below.
+const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
 
 # Staging is a single placement outside the production 7.0 m boarding fallback
 # reach. Every metre after that is real joypad locomotion through the live
@@ -53,7 +98,28 @@ const AXIS_LEFT_X := 0
 const AXIS_LEFT_Y := 1
 const BUTTON_X := 2
 const BUTTON_LEFT_STICK := 7
-const WALK_TIMEOUT_SECONDS := 8.0
+## Simulated seconds of walking each approach is allowed, converted below into a
+## physics-frame budget. It is never used as a wall-clock deadline.
+const WALK_BUDGET_SECONDS := 8.0
+
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace: locomotion,
+## boarding motion and every other physical result advance on the physics clock,
+## and Godot drops physics steps under load rather than letting the simulation
+## spiral, so only a frame budget measures the same amount of simulation on a
+## busy box as on an idle one. Measured on this suite: a full matrix run under
+## five concurrent agents took 175 s and timed out where the identical commit
+## finished in 10.6 s in isolation, because the old wall-clock deadlines expired
+## while the avatar still had metres to walk in simulated time.
+const FRAME_BUDGET_GRACE := 30
+
+## Simulated seconds allowed for one disembark request to be accepted, and how
+## many times the same production input may be re-issued before the suite calls
+## the request genuinely unaccepted. Both bounds are finite, so a state machine
+## that never accepts the request still fails instead of hanging.
+const DISEMBARK_REQUEST_BUDGET_SECONDS := 1.0
+const DISEMBARK_REQUEST_ATTEMPTS := 8
+const DISEMBARK_BUDGET_SECONDS := 3.0
 
 # Trade-off axes with an unambiguous "more is better for the pilot" reading.
 # Feel-only axes (flight_assist_strength, maximum_mouse_turn_degrees,
@@ -66,30 +132,40 @@ const HIGHER_IS_BETTER := [
 const LOWER_IS_BETTER := ["passive_drag", "engine_start_time", "weapon_cooldown"]
 
 # Exact identification accents as authored in the four production ship scenes.
+# Torrent's warm gold and Arrow's cyan are unchanged; Jovian moved off teal to
+# crimson and Zenith off pale cyan to deep blue so the four no longer cluster.
 const EXPECTED_ACCENTS := {
 	&"torrent_provisional": "f0b94d",
 	&"arrow_provisional": "45dee6",
-	&"jovian_provisional": "38bdb5",
-	&"zenith_b7_observed": "c9dee0",
+	&"jovian_provisional": "b32620",
+	&"zenith_b7_observed": "2f5fbe",
 }
 
 # Each craft's body tone: the brightest rendered opaque albedo holding at least
 # a tenth of the craft's visible surface area. This is the colour a player reads
 # off the hull at a glance, as opposed to trim, machinery, or emissive detail.
 const EXPECTED_BODY_TONE := {
+	# Unchanged: B5/B6 record a high-value low-saturation off-white across every
+	# silhouette-defining Torrent mass, so this warm ivory is evidence-bounded.
 	&"torrent_provisional": "e8e2cf",
-	&"arrow_provisional": "e9eee9",
-	&"jovian_provisional": "e7e4d6",
-	&"zenith_b7_observed": "e6e2d5",
+	&"arrow_provisional": "7891ab",
+	&"jovian_provisional": "e0ab74",
+	# B7 observes a pale exterior as a relative value only, so Zenith keeps a
+	# pale light-grey read while moving off the shared warm ivory.
+	&"zenith_b7_observed": "bac8d6",
 }
 const BODY_TONE_MINIMUM_SHARE := 0.10
 
-# Measured CIEDE2000 floors. Accents: separation is genuine only for Torrent.
-const ACCENT_FLOORS := {
-	"normal": 10.0, "protanopia": 6.3, "deuteranopia": 10.4, "tritanopia": 8.7,
-}
-const TORRENT_ACCENT_FLOOR := 25.0
-const VISION_MODELS := ["normal", "protanopia", "deuteranopia", "tritanopia"]
+# Craft whose body tone carries a source-observed "pale" claim and must stay
+# pale whatever else the readability pass does to it.
+const PALE_BODY_CRAFT := [&"torrent_provisional", &"zenith_b7_observed"]
+const PALE_BODY_MINIMUM_LIGHTNESS := 78.0
+
+# Frozen CIEDE2000 floors; see the "Why these floors" note in the header.
+const BODY_TONE_FLOOR := 12.0
+const ACCENT_FLOOR := 25.0
+const TORRENT_ACCENT_FLOOR := 30.0
+const VISION_MODELS := ColourMetrics.VISION_MODELS
 
 # Every craft must now sit its cockpit camera at a plausible seated eye point
 # and keep the seated pilot's head bone inside its own outer hull. Zenith joined
@@ -296,23 +372,38 @@ func _test_readable_colours(by_id: Dictionary) -> void:
 			"%s presents its exact rendered body tone #%s" % [ship_id, body_tone]
 		)
 	_check(_distinct_value_count(accents) == 4, "all four craft carry distinct identification accents")
+	_check(_distinct_value_count(hulls) == 4, "all four craft carry distinct body tones")
+
+	# The two craft carrying a source-observed pale claim must still read pale.
+	# This is the boundary that caps how far the palette may be pulled apart, so
+	# it is frozen next to the separation floors rather than left to review.
+	for ship_id: StringName in PALE_BODY_CRAFT:
+		var pale_lightness := ColourMetrics.lightness(str(hulls[ship_id]))
+		_check(
+			pale_lightness >= PALE_BODY_MINIMUM_LIGHTNESS,
+			"%s keeps the pale exterior its registered source observation records (L* %.2f)"
+				% [ship_id, pale_lightness]
+		)
 
 	for mode: String in VISION_MODELS:
 		var accent_minimum := _minimum_separation(accents, mode)
 		_check(
-			accent_minimum >= float(ACCENT_FLOORS[mode]),
+			accent_minimum >= ACCENT_FLOOR,
 			"accent separation under %s stays at or above its %.1f floor (%.2f)"
-				% [mode, ACCENT_FLOORS[mode], accent_minimum]
+				% [mode, ACCENT_FLOOR, accent_minimum]
 		)
-		# Body-tone separation is recorded rather than asserted: the four hulls
-		# are the same off-white and no floor here would mean anything. The
-		# measured numbers are the audit finding for the feel pass.
+		var body_minimum := _minimum_separation(hulls, mode)
+		_check(
+			body_minimum >= BODY_TONE_FLOOR,
+			"body-tone separation under %s stays at or above its %.1f floor (%.2f)"
+				% [mode, BODY_TONE_FLOOR, body_minimum]
+		)
 		_colour_evidence.append(
-			"FLEET_COLOUR_EVIDENCE: body_tone_min_ciede2000 under %s = %.2f"
-				% [mode, _minimum_separation(hulls, mode)]
+			"FLEET_COLOUR_EVIDENCE: under %s body_tone_min_ciede2000=%.2f accent_min_ciede2000=%.2f"
+				% [mode, body_minimum, accent_minimum]
 		)
 
-	# Only the warm-gold Torrent accent is genuinely readable against the rest.
+	# The warm-gold Torrent accent carries the strongest separation of the four.
 	var torrent_minimum := INF
 	for mode: String in VISION_MODELS:
 		for ship_id: StringName in accents:
@@ -386,7 +477,7 @@ func _body_tone_albedo(craft: HeroShip) -> String:
 	for hex: String in keys:
 		if float(weights[hex]) / maxf(total, 0.0001) < BODY_TONE_MINIMUM_SHARE:
 			continue
-		var lightness := _linear_to_lab(_hex_to_linear(hex)).x
+		var lightness := ColourMetrics.lightness(hex)
 		if lightness > best_lightness:
 			best_lightness = lightness
 			best = hex
@@ -395,125 +486,10 @@ func _body_tone_albedo(craft: HeroShip) -> String:
 
 ## CIEDE2000 between two sRGB hex colours, optionally through a Viénot 1999
 ## dichromat simulation, so separation is measured perceptually rather than by
-## comparing hex digits.
+## comparing hex digits. The maths lives in tests/fleet_colour_metrics.gd so
+## that this audit and the palette design probes share one implementation.
 func _separation(first_hex: String, second_hex: String, mode: String) -> float:
-	return _ciede2000(
-		_linear_to_lab(_simulate(_hex_to_linear(first_hex), mode)),
-		_linear_to_lab(_simulate(_hex_to_linear(second_hex), mode))
-	)
-
-
-func _hex_to_linear(hex: String) -> Vector3:
-	var colour := Color(hex)
-	return Vector3(
-		_srgb_component_to_linear(colour.r),
-		_srgb_component_to_linear(colour.g),
-		_srgb_component_to_linear(colour.b)
-	)
-
-
-func _srgb_component_to_linear(value: float) -> float:
-	if value <= 0.04045:
-		return value / 12.92
-	return pow((value + 0.055) / 1.055, 2.4)
-
-
-func _simulate(linear: Vector3, mode: String) -> Vector3:
-	if mode == "normal":
-		return linear
-	var long_wave := 17.8824 * linear.x + 43.5161 * linear.y + 4.11935 * linear.z
-	var medium_wave := 3.45565 * linear.x + 27.1554 * linear.y + 3.86714 * linear.z
-	var short_wave := 0.0299566 * linear.x + 0.184309 * linear.y + 1.46709 * linear.z
-	match mode:
-		"protanopia":
-			long_wave = 2.02344 * medium_wave - 2.52581 * short_wave
-		"deuteranopia":
-			medium_wave = 0.494207 * long_wave + 1.24827 * short_wave
-		"tritanopia":
-			short_wave = -0.395913 * long_wave + 0.801109 * medium_wave
-	return Vector3(
-		0.080944 * long_wave - 0.130504 * medium_wave + 0.116721 * short_wave,
-		-0.0102485 * long_wave + 0.0540194 * medium_wave - 0.113615 * short_wave,
-		-0.000365294 * long_wave - 0.00412163 * medium_wave + 0.693513 * short_wave
-	)
-
-
-func _linear_to_lab(linear: Vector3) -> Vector3:
-	var x := 0.4124564 * linear.x + 0.3575761 * linear.y + 0.1804375 * linear.z
-	var y := 0.2126729 * linear.x + 0.7151522 * linear.y + 0.0721750 * linear.z
-	var z := 0.0193339 * linear.x + 0.1191920 * linear.y + 0.9503041 * linear.z
-	var fx := _lab_transfer(x / 0.95047)
-	var fy := _lab_transfer(y)
-	var fz := _lab_transfer(z / 1.08883)
-	return Vector3(116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz))
-
-
-func _lab_transfer(value: float) -> float:
-	var safe := maxf(value, 0.0)
-	if safe > 216.0 / 24389.0:
-		return pow(safe, 1.0 / 3.0)
-	return (841.0 / 108.0) * safe + 4.0 / 29.0
-
-
-func _ciede2000(first: Vector3, second: Vector3) -> float:
-	var chroma_first := Vector2(first.y, first.z).length()
-	var chroma_second := Vector2(second.y, second.z).length()
-	var chroma_mean := (chroma_first + chroma_second) * 0.5
-	var chroma_seventh := pow(chroma_mean, 7.0)
-	var g_factor := 0.5 * (1.0 - sqrt(chroma_seventh / (chroma_seventh + pow(25.0, 7.0))))
-	var a_first := (1.0 + g_factor) * first.y
-	var a_second := (1.0 + g_factor) * second.y
-	var chroma_first_prime := Vector2(a_first, first.z).length()
-	var chroma_second_prime := Vector2(a_second, second.z).length()
-	var hue_first := _positive_degrees(rad_to_deg(atan2(first.z, a_first)))
-	var hue_second := _positive_degrees(rad_to_deg(atan2(second.z, a_second)))
-	var delta_lightness := second.x - first.x
-	var delta_chroma := chroma_second_prime - chroma_first_prime
-	var delta_hue := 0.0
-	if chroma_first_prime * chroma_second_prime != 0.0:
-		delta_hue = hue_second - hue_first
-		if delta_hue > 180.0:
-			delta_hue -= 360.0
-		elif delta_hue < -180.0:
-			delta_hue += 360.0
-	var delta_hue_term := 2.0 * sqrt(chroma_first_prime * chroma_second_prime) \
-		* sin(deg_to_rad(delta_hue) * 0.5)
-	var lightness_mean := (first.x + second.x) * 0.5
-	var chroma_prime_mean := (chroma_first_prime + chroma_second_prime) * 0.5
-	var hue_mean := hue_first + hue_second
-	if chroma_first_prime * chroma_second_prime != 0.0:
-		if absf(hue_first - hue_second) <= 180.0:
-			hue_mean = (hue_first + hue_second) * 0.5
-		elif hue_first + hue_second < 360.0:
-			hue_mean = (hue_first + hue_second + 360.0) * 0.5
-		else:
-			hue_mean = (hue_first + hue_second - 360.0) * 0.5
-	var t_factor := 1.0 \
-		- 0.17 * cos(deg_to_rad(hue_mean - 30.0)) \
-		+ 0.24 * cos(deg_to_rad(2.0 * hue_mean)) \
-		+ 0.32 * cos(deg_to_rad(3.0 * hue_mean + 6.0)) \
-		- 0.20 * cos(deg_to_rad(4.0 * hue_mean - 63.0))
-	var delta_theta := 30.0 * exp(-pow((hue_mean - 275.0) / 25.0, 2.0))
-	var chroma_prime_seventh := pow(chroma_prime_mean, 7.0)
-	var rotation_chroma := 2.0 * sqrt(chroma_prime_seventh / (chroma_prime_seventh + pow(25.0, 7.0)))
-	var lightness_scale := 1.0 + (0.015 * pow(lightness_mean - 50.0, 2.0)) \
-		/ sqrt(20.0 + pow(lightness_mean - 50.0, 2.0))
-	var chroma_scale := 1.0 + 0.045 * chroma_prime_mean
-	var hue_scale := 1.0 + 0.015 * chroma_prime_mean * t_factor
-	var rotation := -sin(deg_to_rad(2.0 * delta_theta)) * rotation_chroma
-	var lightness_term := delta_lightness / lightness_scale
-	var chroma_term := delta_chroma / chroma_scale
-	var hue_term := delta_hue_term / hue_scale
-	return sqrt(
-		lightness_term * lightness_term
-		+ chroma_term * chroma_term
-		+ hue_term * hue_term
-		+ rotation * chroma_term * hue_term
-	)
-
-
-func _positive_degrees(degrees: float) -> float:
-	return fposmod(degrees, 360.0)
+	return ColourMetrics.separation(first_hex, second_hex, mode)
 
 
 # --------------------------------------------- boarding and seating ----
@@ -526,11 +502,12 @@ func _test_physical_boarding_and_cockpit_seating(
 	game.canopy_motion_time = 0.0
 	game.boarding_motion_time = 0.05
 	game.disembarking_motion_time = 0.05
-	await _tap_button(BUTTON_X)
-	var approach_ready := await _wait_until(
+	var approach_ready := await _tap_button_until(
+		BUTTON_X,
 		func() -> bool:
 			return game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(),
-		2.0
+		2.0,
+		DISEMBARK_REQUEST_ATTEMPTS
 	)
 	_check(
 		approach_ready,
@@ -567,7 +544,8 @@ func _test_physical_boarding_and_cockpit_seating(
 		)
 
 		var staged_position := player.global_position
-		var grounded_ticks := await _walk_to_candidate(player, craft, game)
+		var walk: Dictionary = await _walk_to_candidate(player, craft, game)
+		var grounded_ticks := int(walk["grounded_ticks"])
 		var walked := player.global_position.distance_to(staged_position)
 		_check(
 			walked >= MINIMUM_WALK_METRES,
@@ -580,16 +558,22 @@ func _test_physical_boarding_and_cockpit_seating(
 				% [ship_id, grounded_ticks]
 		)
 		_check(
+			int(walk["frames"]) < int(walk["frame_budget"]),
+			"%s approach reaches its prompt inside its own physics-frame budget (%d of %d frames)"
+				% [ship_id, int(walk["frames"]), int(walk["frame_budget"])]
+		)
+		_check(
 			game.boarding_candidate == craft,
 			"%s exposes its boarding prompt only after the physical approach" % ship_id
 		)
 		if game.boarding_candidate != craft:
 			continue
 
-		await _tap_button(BUTTON_X)
-		var boarded := await _wait_until(
+		var boarded := await _tap_button_until(
+			BUTTON_X,
 			func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES,
-			3.0
+			3.0,
+			DISEMBARK_REQUEST_ATTEMPTS
 		)
 		_check(boarded, "%s completes production boarding from the walked-up prompt" % ship_id)
 		_check(
@@ -601,8 +585,39 @@ func _test_physical_boarding_and_cockpit_seating(
 
 		_assert_cockpit_seating(craft, player, skeleton, head_bone, ship_id)
 
-		await _tap_button(BUTTON_X)
-		await player.disembarking_completed
+		# GameFlow drops an input edge outright while a transition is still busy
+		# (`_transition_busy` in `_unhandled_input`), so a single one-frame tap can
+		# be swallowed with no retry. The old code then awaited
+		# `player.disembarking_completed` unbounded, and a swallowed tap meant that
+		# signal never arrived and the suite hung until the harness killed it —
+		# measured here as a 409 s `exit=124` where neighbouring runs finished in
+		# 9 s. Re-issue the same production input until the state machine accepts
+		# it, then wait for the real completion on a bounded frame budget.
+		var disembark_completed := [false]
+		var on_disembarked := func() -> void: disembark_completed[0] = true
+		player.disembarking_completed.connect(on_disembarked, CONNECT_ONE_SHOT)
+		var disembark_requested := await _tap_button_until(
+			BUTTON_X,
+			func() -> bool:
+				return bool(disembark_completed[0]) \
+					or game.phase == GameFlow.Phase.DISEMBARKING,
+			DISEMBARK_REQUEST_BUDGET_SECONDS,
+			DISEMBARK_REQUEST_ATTEMPTS
+		)
+		_check(
+			disembark_requested,
+			"%s accepts the production disembark request through the real input path" % ship_id
+		)
+		var disembarked := await _wait_until(
+			func() -> bool: return bool(disembark_completed[0]),
+			DISEMBARK_BUDGET_SECONDS
+		)
+		if player.disembarking_completed.is_connected(on_disembarked):
+			player.disembarking_completed.disconnect(on_disembarked)
+		_check(
+			disembarked,
+			"%s completes its physical disembark inside its physics-frame budget" % ship_id
+		)
 		await _wait_until(func() -> bool: return player.is_control_enabled(), 2.0)
 		for _settle in 10:
 			await physics_frame
@@ -819,11 +834,26 @@ func _collision_envelope(craft: HeroShip) -> AABB:
 
 # -------------------------------------------------------------- harness ----
 
-func _walk_to_candidate(player: PlayerController, craft: HeroShip, game: GameFlow) -> int:
-	var deadline := Time.get_ticks_msec() + int(WALK_TIMEOUT_SECONDS * 1000.0)
+## Walks the production avatar to `craft` with real left-stick Input, bounded by
+## the number of physics frames `WALK_BUDGET_SECONDS` of simulated walking
+## implies rather than by the wall clock.
+##
+## Locomotion is integrated in `_physics_process`. On a loaded machine Godot
+## drops physics steps to avoid a spiral of death while the wall clock keeps
+## running, so a wall-clock budget ends the walk after far fewer simulated steps
+## than the avatar needs to cover the staged distance and scores a perfectly
+## healthy traversal as a failure. Counting frames gives the avatar the same
+## amount of simulation however busy the box is, and still fails a genuinely
+## blocked route because the budget remains finite.
+##
+## Returns the grounded physics ticks, the frames spent, and the budget, so the
+## caller can assert on the budget instead of assuming it was never reached.
+func _walk_to_candidate(player: PlayerController, craft: HeroShip, game: GameFlow) -> Dictionary:
+	var frame_budget := _frame_budget(WALK_BUDGET_SECONDS)
+	var frames := 0
 	var grounded_ticks := 0
 	_set_button(BUTTON_LEFT_STICK, true)
-	while Time.get_ticks_msec() < deadline:
+	while frames < frame_budget:
 		if game.boarding_candidate == craft:
 			break
 		var offset := craft.get_boarding_position() - player.get_interaction_origin()
@@ -838,6 +868,7 @@ func _walk_to_candidate(player: PlayerController, craft: HeroShip, game: GameFlo
 		_set_axis(AXIS_LEFT_X, clampf(desired.dot(right), -1.0, 1.0))
 		_set_axis(AXIS_LEFT_Y, clampf(-desired.dot(forward), -1.0, 1.0))
 		await physics_frame
+		frames += 1
 		if player.is_on_floor():
 			grounded_ticks += 1
 		await process_frame
@@ -845,7 +876,34 @@ func _walk_to_candidate(player: PlayerController, craft: HeroShip, game: GameFlo
 	for _settle in 5:
 		await physics_frame
 		await process_frame
-	return grounded_ticks
+	return {
+		"grounded_ticks": grounded_ticks,
+		"frames": frames,
+		"frame_budget": frame_budget,
+	}
+
+
+## Re-issues the same production button until `predicate` holds, bounded both by
+## a per-attempt frame budget and by a fixed attempt count.
+##
+## Re-sending a dropped input does not weaken anything the suite proves: the
+## transition must still be produced by the real production input path, and the
+## attempt count stays finite so a request the game genuinely refuses still
+## fails. It only stops a single swallowed edge from turning into an unbounded
+## wait on a signal that will now never be emitted.
+func _tap_button_until(
+		index: int,
+		predicate: Callable,
+		budget_seconds: float,
+		attempts: int
+	) -> bool:
+	for _attempt in attempts:
+		if bool(predicate.call()):
+			return true
+		await _tap_button(index)
+		if await _wait_until(predicate, budget_seconds):
+			return true
+	return bool(predicate.call())
 
 
 func _tap_button(index: int) -> void:
@@ -880,9 +938,22 @@ func _release_joypad() -> void:
 		_set_button(button, false)
 
 
-func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
+## Physics frames a nominal duration of simulated time is worth at the project's
+## configured tick rate, plus the fixed frame grace.
+func _frame_budget(seconds: float) -> int:
+	var required := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	return maxi(required, 1) + FRAME_BUDGET_GRACE
+
+
+## Waits for `predicate` on the simulation clock. `budget_seconds` is a nominal
+## amount of simulated time, converted to a frame budget for the same reason the
+## walk is: GameFlow advances boarding, seating and control authority from its
+## own frame callbacks, so a wall-clock deadline expires part-way through a
+## perfectly healthy transition whenever the machine is busy. The budget stays
+## finite, so a genuinely stuck transition still fails.
+func _wait_until(predicate: Callable, budget_seconds: float) -> bool:
+	var frame_budget := _frame_budget(budget_seconds)
+	for _frame in frame_budget:
 		if bool(predicate.call()):
 			return true
 		await physics_frame
