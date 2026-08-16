@@ -196,6 +196,8 @@ func _run() -> void:
 			and int(profile_counts.particle_emitters) == 0,
 			"%s presentation subtree stays collision-free and headless-safe" % profiled.get_activity_profile_id()
 		)
+		if profile == StationOperationsActivity.ActivityProfile.CREW_WORKPOST:
+			_check_crew_workpost_hung_tool_batch(profiled)
 		var first_seek := profiled.set_activity_time(6.75)
 		var seek_state := profiled.get_activity_state()
 		profiled.set_activity_time(14.0)
@@ -230,10 +232,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 416
+		int(roster_catalog.bound_material_references) == 412
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 416 visible bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 412 renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -259,11 +261,14 @@ func _run() -> void:
 	# 79 + 48 + 19 + 32 + 34 + 33 + 33 + 48 + 39 + 39 = 404.
 	#
 	# The instanced copies are audited separately and exactly, so the reduction
-	# cannot hide geometry: 12 batches drawing 57 copies across the roster.
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) <= 404, "ten production placements stay within the 404-mesh aggregate budget")
+	# cannot hide geometry. The crew workpost then moved 404 -> 399 drawn meshes,
+	# 12 -> 13 batches and 57 -> 62 visible batched copies when its five identical
+	# hung tools became one renderer submission at their exact authored transforms.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 527, "ten production placements have the exact 527-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 399, "ten production placements have the exact 399 drawn-mesh aggregate")
 	_check(
-		int((roster_audit.counts as Dictionary).multimesh_batches) == 12
-		and int((roster_audit.counts as Dictionary).multimesh_instances) == 57,
+		int((roster_audit.counts as Dictionary).multimesh_batches) == 13
+		and int((roster_audit.counts as Dictionary).multimesh_instances) == 62,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(int((roster_audit.counts as Dictionary).instance_count) == 10, "the recommended production roster is exactly ten placements")
@@ -604,6 +609,54 @@ func _first_station_life_lens_path(activity: StationOperationsActivity) -> Strin
 			return "PresentationRoot/SkywatchPost/AnimatedSkywatchYoke/AnimatedOpticTube/OpticLens"
 		_:
 			return "PresentationRoot/CrewWorkPost/AnimatedWeldJig/WeldArc"
+
+
+func _check_crew_workpost_hung_tool_batch(activity: StationOperationsActivity) -> void:
+	var batch := activity.get_node_or_null(
+		^"PresentationRoot/CrewWorkPost/HungTools"
+	) as MultiMeshInstance3D
+	var graphite_peer := activity.get_node_or_null(
+		^"PresentationRoot/CrewWorkPost/BenchShelf"
+	) as MeshInstance3D
+	var expected: Array[Transform3D] = []
+	for index in 5:
+		expected.append(
+			Transform3D(Basis.IDENTITY, Vector3(-1.85 + float(index) * 0.48, 1.72, 0.935))
+		)
+	var authored := (
+		batch.get_meta("authored_instance_transforms", []) as Array
+		if batch != null else []
+	)
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (
+			authored[index] as Transform3D
+		).is_equal_approx(expected[index])
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and batch.multimesh.mesh != null
+		and batch.multimesh.instance_count == 5
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.09, 0.55, 0.05))
+		and graphite_peer != null
+		and batch.material_override == graphite_peer.material_override
+		and authored_exact,
+		"crew workpost batches the exact five graphite hung-tool copies without changing their authored geometry"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var live_exact := true
+		for index in expected.size():
+			live_exact = live_exact and batch.multimesh.get_instance_transform(index).is_equal_approx(
+				expected[index]
+			)
+		_check(live_exact, "Forward+ MultiMesh buffer exactly matches the five-copy authored hung-tool roster")
+		var original := batch.multimesh.get_instance_transform(0)
+		batch.multimesh.set_instance_transform(0, original.translated(Vector3(0.25, 0.0, 0.0)))
+		_check(not bool(activity.get_audit_report().valid), "rendering-buffer drift from the authored hung-tool roster fails the component audit")
+		batch.multimesh.set_instance_transform(0, original)
+		_check(bool(activity.get_audit_report().valid), "restoring the hung-tool rendering buffer restores the complete component audit")
 
 
 func _states_match(first: Dictionary, second: Dictionary, compare_lifecycle: bool = true) -> bool:
