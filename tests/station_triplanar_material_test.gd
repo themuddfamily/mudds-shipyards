@@ -197,12 +197,42 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# `glass`, `rubber`, seating fabric, screens, the dark `graphite` seam and
 	# reveal trim whose whole job is to read as a clean unbroken line, and the
 	# `copper` pipe runs, which are drawn tube stock rather than panel.
+	#
+	# Re-frozen again from 1495/115/532/848 by the station-life pass, which added
+	# four new `StationOperationsActivity` placements to the production lattice.
+	# Measured per placement against the live scene, all at the component's own
+	# 0.30 physical scale:
+	#
+	#   `CentralCargoTransferLine` (cargo_line) +30 of its 47 meshes.
+	#   `FreightApproachSignage` (signage_pylon) +19 of 33.
+	#   `HabitatSkywatchPost` (observatory) +26 of 33.
+	#   `AftCrewWorkPost` (crew_workpost) +37 of 48.
+	#
+	# The two new painted-container colours `crate` and `crate_alt` joined the
+	# family, because a shipping container is plate stock like everything else the
+	# component bolts to a deck. The other three new materials did not: `green_dim`
+	# / `green_lit` are a status cue and `sign_lit` is a lit sign face, and every
+	# module already keeps its cues flat and readable.
+	#
+	# Net +112, 1495 -> 1607. 0.22 is untouched at 115 and 0.28 is untouched at
+	# 532; 0.30 goes 848 -> 960. No previously mapped surface was removed and no
+	# new scale was introduced.
+	#
+	# Re-frozen once more, 1607 -> 1627, by the station-navigation slice. Its four
+	# `StationServiceAgent` couriers were the last visible station bodies still
+	# built from raw `BoxMesh` with flat scalar colour; a rendered review at player
+	# eye height showed them reading as untextured primitives beside the plated
+	# deck they fly over, so their `hull`, `hull_edge` and `graphite` greys joined
+	# the family at 0.30. Five of each courier's seven meshes are structural
+	# (`Hull`, `ForwardCowl`, `PortPod`, `StarboardPod`, `TailFin`), so 4 x 5 = +20
+	# at 0.30, 960 -> 980. The painted `orange` cargo pod and the cyan status lens
+	# stay outside the family like every other module's painted and lit cues.
 	_check(
-		mapped_surface_count == 1495
+		mapped_surface_count == 1627
 		and scale_022_count == 115
 		and scale_028_count == 532
-		and scale_030_count == 848,
-		"live station binds exactly 1495 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 980,
+		"live station binds exactly 1627 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

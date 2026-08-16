@@ -17,6 +17,10 @@ enum ActivityProfile {
 	GANTRY,
 	SERVICE_ARM,
 	DRONE_PATROL,
+	CARGO_LINE,
+	SIGNAGE_PYLON,
+	OBSERVATORY,
+	CREW_WORKPOST,
 }
 
 const PROFILE_IDS := {
@@ -24,6 +28,21 @@ const PROFILE_IDS := {
 	ActivityProfile.GANTRY: &"gantry",
 	ActivityProfile.SERVICE_ARM: &"service_arm",
 	ActivityProfile.DRONE_PATROL: &"drone_patrol",
+	ActivityProfile.CARGO_LINE: &"cargo_line",
+	ActivityProfile.SIGNAGE_PYLON: &"signage_pylon",
+	ActivityProfile.OBSERVATORY: &"observatory",
+	ActivityProfile.CREW_WORKPOST: &"crew_workpost",
+}
+
+## Movers and material-swapped lenses each station-life profile is required to
+## build. The four original profiles predate this table and keep their bespoke
+## gantry/arm/drone accessors; everything added afterwards is described here so a
+## new beat is one data row plus one builder rather than five parallel edits.
+const PROFILE_STATION_LIFE_COUNTS := {
+	ActivityProfile.CARGO_LINE: {"movers": 2, "lenses": 2},
+	ActivityProfile.SIGNAGE_PYLON: {"movers": 1, "lenses": 5},
+	ActivityProfile.OBSERVATORY: {"movers": 2, "lenses": 1},
+	ActivityProfile.CREW_WORKPOST: {"movers": 2, "lenses": 1},
 }
 
 const FOOTPRINT_MIN := Vector3(-5.4, 0.0, -4.5)
@@ -41,11 +60,22 @@ const BEACON_COUNT := 4
 const BEACON_SEAT_HEIGHT := 0.09
 const RECOMMENDED_MAX_INSTANCES := 6
 
+## Exact, not merely bounding: `get_validation_errors()` rejects a live count that
+## differs from its profile row in either direction.
+##
+## Re-frozen by the station-life pass. `unique_materials` went 12 -> 17 on all
+## four original profiles because the component's material set is built whole
+## regardless of profile, and the pass added `crate`, `crate_alt`, `green_dim`,
+## `green_lit` and `sign_lit`. That is a real cost the audit is designed to
+## report rather than hide — it already counts momentarily unassigned beacon
+## variants for the same reason — and no original profile's node, mesh or
+## animated-assembly count moved. The four new rows were measured against the
+## live builds: 58/47, 43/33, 44/33 and 59/48 nodes/meshes.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
 		"node_count": 96,
 		"mesh_instances": 79,
-		"unique_materials": 12,
+		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -54,7 +84,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.GANTRY: {
 		"node_count": 59,
 		"mesh_instances": 48,
-		"unique_materials": 12,
+		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -63,7 +93,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.SERVICE_ARM: {
 		"node_count": 31,
 		"mesh_instances": 19,
-		"unique_materials": 12,
+		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -72,7 +102,43 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.DRONE_PATROL: {
 		"node_count": 42,
 		"mesh_instances": 32,
-		"unique_materials": 12,
+		"unique_materials": 17,
+		"lights": 0,
+		"particle_emitters": 0,
+		"collision_nodes": 0,
+		"animated_assemblies": 2,
+	},
+	ActivityProfile.CARGO_LINE: {
+		"node_count": 58,
+		"mesh_instances": 47,
+		"unique_materials": 17,
+		"lights": 0,
+		"particle_emitters": 0,
+		"collision_nodes": 0,
+		"animated_assemblies": 2,
+	},
+	ActivityProfile.SIGNAGE_PYLON: {
+		"node_count": 43,
+		"mesh_instances": 33,
+		"unique_materials": 17,
+		"lights": 0,
+		"particle_emitters": 0,
+		"collision_nodes": 0,
+		"animated_assemblies": 1,
+	},
+	ActivityProfile.OBSERVATORY: {
+		"node_count": 44,
+		"mesh_instances": 33,
+		"unique_materials": 17,
+		"lights": 0,
+		"particle_emitters": 0,
+		"collision_nodes": 0,
+		"animated_assemblies": 2,
+	},
+	ActivityProfile.CREW_WORKPOST: {
+		"node_count": 59,
+		"mesh_instances": 48,
+		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -81,26 +147,36 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 }
 
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
-	"instance_count": 4,
-	"node_count": 228,
-	"mesh_instances": 180,
-	"unique_materials": 64,
+	"instance_count": 8,
+	"node_count": 432,
+	"mesh_instances": 339,
+	"unique_materials": 136,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"animated_assemblies": 10,
+	"animated_assemblies": 17,
 }
 
 const CONTENT_NOTE := (
 	"The remake brief supports richer station machinery, docking equipment, cargo, "
 	+ "animated equipment, landing lights, and ambient station activity. It does not "
 	+ "authenticate this gantry, articulated service arm, drones, beacon arrangement, "
+	+ "cargo transfer line, wayfinding pylon, skywatch post, crew work post, "
 	+ "dimensions, motion, colours, or placement. Every visible detail in this reusable "
 	+ "component is an original modern interpretation and not recovered station geometry."
 )
 
 @export_category("Activity")
-@export_enum("Full:0", "Gantry:1", "Service Arm:2", "Drone Patrol:3") var activity_profile: int = ActivityProfile.FULL
+@export_enum(
+	"Full:0",
+	"Gantry:1",
+	"Service Arm:2",
+	"Drone Patrol:3",
+	"Cargo Line:4",
+	"Signage Pylon:5",
+	"Observatory:6",
+	"Crew Workpost:7"
+) var activity_profile: int = ActivityProfile.FULL
 @export var starts_enabled := true
 @export var starts_paused := false
 @export_range(0.1, 3.0, 0.05) var playback_speed := 1.0
@@ -119,6 +195,14 @@ var _service_arm_tool: Node3D
 var _drone_roots: Array[Node3D] = []
 var _drone_beacon_lenses: Array[MeshInstance3D] = []
 var _beacon_lenses: Array[MeshInstance3D] = []
+## Station-life movers in the fixed build order each `_build_*` function emits.
+## `_station_life_mover_pose()` is the single source of every one of their poses;
+## both the clock update and the audit's pose check read it, so a mover cannot
+## drift from the state the audit believes it is in.
+var _station_life_movers: Array[Node3D] = []
+var _station_life_lenses: Array[MeshInstance3D] = []
+## One `{dim, lit, period, duty, offset}` row per entry in `_station_life_lenses`.
+var _station_life_lens_specs: Array[Dictionary] = []
 var _elapsed := 0.0
 var _activity_enabled := true
 var _activity_paused := false
@@ -166,6 +250,15 @@ func _ready() -> void:
 		_build_service_arm()
 	if _profile_has_drones():
 		_build_service_drones()
+	match _built_profile:
+		ActivityProfile.CARGO_LINE:
+			_build_cargo_transfer_line()
+		ActivityProfile.SIGNAGE_PYLON:
+			_build_wayfinding_pylon()
+		ActivityProfile.OBSERVATORY:
+			_build_skywatch_post()
+		ActivityProfile.CREW_WORKPOST:
+			_build_crew_work_post()
 	_build_safety_beacons()
 	_service_zone_anchor.position = _get_profile_service_zone_center()
 	_apply_evidence_metadata()
@@ -204,6 +297,10 @@ func get_activity_profile_ids() -> PackedStringArray:
 		PROFILE_IDS[ActivityProfile.GANTRY],
 		PROFILE_IDS[ActivityProfile.SERVICE_ARM],
 		PROFILE_IDS[ActivityProfile.DRONE_PATROL],
+		PROFILE_IDS[ActivityProfile.CARGO_LINE],
+		PROFILE_IDS[ActivityProfile.SIGNAGE_PYLON],
+		PROFILE_IDS[ActivityProfile.OBSERVATORY],
+		PROFILE_IDS[ActivityProfile.CREW_WORKPOST],
 	])
 
 
@@ -234,6 +331,14 @@ func get_mount_footprint_count() -> int:
 		ActivityProfile.SERVICE_ARM:
 			return 1
 		ActivityProfile.DRONE_PATROL:
+			return 4
+		ActivityProfile.CARGO_LINE:
+			return 4
+		ActivityProfile.SIGNAGE_PYLON:
+			return 1
+		ActivityProfile.OBSERVATORY:
+			return 3
+		ActivityProfile.CREW_WORKPOST:
 			return 4
 		_:
 			return 0
@@ -297,11 +402,17 @@ func get_evidence_metadata() -> Dictionary:
 			"articulated maintenance arm, tool head, materials, dimensions, and motion sequence",
 			"two autonomous service drones, their routes, lights, cargo pods, and timing",
 			"four warning beacons, visual cadence, colour, component footprint, and placement",
+			"cargo transfer rail, container sled, overhead hoist, crate stacks, and their timing",
+			"wayfinding pylon, sign board, bay plaque, notice rack, chevron chase, and identifier drum",
+			"skywatch post, optic tube, pan and elevation arcs, and instrument cabinet",
+			"crew work post, bench, tool wall, parts bins, hard hat, tool carousel, and weld jig",
 		]),
 		"explicit_unknowns": PackedStringArray([
 			"historical station machinery layout, dimensions, appearance, and animation",
 			"whether autonomous service drones existed in any original or fixed-era build",
 			"authoritative maintenance workflows and traffic-control light patterns",
+			"any original station signage, wayfinding language, cargo handling method, or crew practice",
+			"whether the station ever carried an observation or sensor instrument of any kind",
 		]),
 		"content_note": CONTENT_NOTE,
 	}
@@ -373,6 +484,18 @@ func get_activity_state() -> Dictionary:
 			"position": drone.position,
 			"rotation": drone.rotation,
 		})
+	var station_life: Array[Dictionary] = []
+	for mover in _station_life_movers:
+		station_life.append({
+			"position": mover.position,
+			"rotation": mover.rotation,
+		})
+	var station_life_lit: Array[bool] = []
+	for index in _station_life_lenses.size():
+		station_life_lit.append(
+			_station_life_lenses[index].material_override
+			== _materials[_station_life_lens_specs[index].lit]
+		)
 	return {
 		"activity_profile": get_activity_profile(),
 		"activity_profile_id": get_activity_profile_id(),
@@ -386,6 +509,8 @@ func get_activity_state() -> Dictionary:
 		"service_arm_shoulder_rotation": _service_arm_shoulder.rotation if _service_arm_shoulder != null else Vector3.ZERO,
 		"service_arm_elbow_rotation": _service_arm_elbow.rotation if _service_arm_elbow != null else Vector3.ZERO,
 		"drones": drones,
+		"station_life_movers": station_life,
+		"station_life_lit": station_life_lit,
 		"beacon_pattern": _get_beacon_pattern(),
 	}
 
@@ -394,7 +519,7 @@ func get_determinism_fingerprint() -> String:
 	var equipment := get_equipment_counts()
 	var local_min := _get_profile_local_min()
 	var local_max := _get_profile_local_max()
-	return "%s|v%d|profile=%s|seed=%d|gantry=%d|arm=%d|drones=%d|beacons=%d|envelope=%s:%s" % [
+	return "%s|v%d|profile=%s|seed=%d|gantry=%d|arm=%d|drones=%d|beacons=%d|movers=%d|lenses=%d|envelope=%s:%s" % [
 		str(COMPONENT_ID),
 		SCHEMA_VERSION,
 		str(get_activity_profile_id()),
@@ -403,6 +528,8 @@ func get_determinism_fingerprint() -> String:
 		equipment.service_arm_count,
 		equipment.service_drone_count,
 		equipment.safety_beacon_count,
+		equipment.station_life_mover_count,
+		equipment.station_life_lens_count,
 		str(local_min),
 		str(local_max),
 	]
@@ -411,12 +538,19 @@ func get_determinism_fingerprint() -> String:
 func get_equipment_counts() -> Dictionary:
 	var gantry_count := 1 if _gantry_carriage != null and _gantry_tool != null else 0
 	var service_arm_count := 1 if _service_arm_shoulder != null and _service_arm_elbow != null and _service_arm_tool != null else 0
-	var animated_assembly_count := gantry_count + service_arm_count * 2 + _drone_roots.size()
+	var animated_assembly_count := (
+		gantry_count
+		+ service_arm_count * 2
+		+ _drone_roots.size()
+		+ _station_life_movers.size()
+	)
 	return {
 		"gantry_count": gantry_count,
 		"service_arm_count": service_arm_count,
 		"service_drone_count": _drone_roots.size(),
 		"safety_beacon_count": _beacon_lenses.size(),
+		"station_life_mover_count": _station_life_movers.size(),
+		"station_life_lens_count": _station_life_lenses.size(),
 		"animated_assembly_count": animated_assembly_count,
 	}
 
@@ -427,7 +561,8 @@ func get_recommended_production_roster_budget() -> Dictionary:
 		"profiles": get_activity_profile_ids(),
 		"budgets": RECOMMENDED_PRODUCTION_ROSTER_BUDGET.duplicate(true),
 		"mesh_budget_rationale": (
-			"One distinct FULL, GANTRY, SERVICE_ARM, and DRONE_PATROL placement; "
+			"One distinct FULL, GANTRY, SERVICE_ARM, DRONE_PATROL, CARGO_LINE, "
+			+ "SIGNAGE_PYLON, OBSERVATORY, and CREW_WORKPOST placement; "
 			+ "specialized roles omit unrelated assemblies instead of hiding them."
 		),
 	}
@@ -449,6 +584,10 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		&"gantry": 0,
 		&"service_arm": 0,
 		&"drone_patrol": 0,
+		&"cargo_line": 0,
+		&"signage_pylon": 0,
+		&"observatory": 0,
+		&"crew_workpost": 0,
 	}
 	var errors := PackedStringArray()
 	for candidate in activities:
@@ -672,16 +811,25 @@ func _profile_has_drones() -> bool:
 	return _built_profile == ActivityProfile.FULL or _built_profile == ActivityProfile.DRONE_PATROL
 
 
+func _get_expected_station_life_counts() -> Dictionary:
+	var counts: Variant = PROFILE_STATION_LIFE_COUNTS.get(_built_profile)
+	return counts as Dictionary if counts is Dictionary else {"movers": 0, "lenses": 0}
+
+
 func _get_expected_equipment_counts() -> Dictionary:
+	var station_life := _get_expected_station_life_counts()
 	return {
 		"gantry_count": 1 if _profile_has_gantry() else 0,
 		"service_arm_count": 1 if _profile_has_service_arm() else 0,
 		"service_drone_count": DRONE_COUNT if _profile_has_drones() else 0,
 		"safety_beacon_count": BEACON_COUNT,
+		"station_life_mover_count": int(station_life.movers),
+		"station_life_lens_count": int(station_life.lenses),
 		"animated_assembly_count": (
 			(1 if _profile_has_gantry() else 0)
 			+ (2 if _profile_has_service_arm() else 0)
 			+ (DRONE_COUNT if _profile_has_drones() else 0)
+			+ int(station_life.movers)
 		),
 	}
 
@@ -725,6 +873,21 @@ func _cached_presentation_references_are_live() -> bool:
 		return false
 	if _beacon_lenses.size() != BEACON_COUNT:
 		return false
+	var station_life := _get_expected_station_life_counts()
+	if (
+		_station_life_movers.size() != int(station_life.movers)
+		or _station_life_lenses.size() != int(station_life.lenses)
+		or _station_life_lens_specs.size() != _station_life_lenses.size()
+	):
+		return false
+	for mover in _station_life_movers:
+		if not is_instance_valid(mover):
+			return false
+		required_nodes.append(mover)
+	for lens in _station_life_lenses:
+		if not is_instance_valid(lens):
+			return false
+		required_nodes.append(lens)
 	for drone in _drone_roots:
 		if not is_instance_valid(drone):
 			return false
@@ -775,6 +938,7 @@ func _capture_built_presentation_contract() -> void:
 				"dynamic_material": (
 					_beacon_lenses.has(mesh_instance)
 					or _drone_beacon_lenses.has(mesh_instance)
+					or _station_life_lenses.has(mesh_instance)
 				),
 				"cast_shadow": mesh_instance.cast_shadow,
 				"layers": mesh_instance.layers,
@@ -898,6 +1062,9 @@ func _dynamic_node_instance_ids() -> Dictionary:
 	for drone in _drone_roots:
 		if is_instance_valid(drone):
 			result[drone.get_instance_id()] = true
+	for mover in _station_life_movers:
+		if is_instance_valid(mover):
+			result[mover.get_instance_id()] = true
 	return result
 
 
@@ -1036,6 +1203,13 @@ func _activity_pose_matches_clock() -> bool:
 				Vector3(0.04 * sin(phase * 1.7), -phase + PI * 0.5, 0.08 * cos(phase))
 			):
 				return false
+	for index in _station_life_movers.size():
+		var pose := _station_life_mover_pose(index, seed_phase)
+		if not _node_matches_expected_pose(_station_life_movers[index], pose[0], pose[1]):
+			return false
+	for index in _station_life_lenses.size():
+		if _station_life_lenses[index].material_override != _station_life_lens_material(index):
+			return false
 	var beacon_pattern := _get_beacon_pattern()
 	for index in _beacon_lenses.size():
 		var expected_beacon_material: Material = _materials["amber_lit"] if beacon_pattern[index] else _materials["amber_dim"]
@@ -1109,6 +1283,14 @@ func _get_profile_local_min() -> Vector3:
 			return Vector3(-2.4, 0.0, -1.75)
 		ActivityProfile.DRONE_PATROL:
 			return Vector3(-4.55, 0.0, -3.55)
+		ActivityProfile.CARGO_LINE:
+			return Vector3(-4.85, 0.0, -2.65)
+		ActivityProfile.SIGNAGE_PYLON:
+			return Vector3(-1.8, 0.0, -1.5)
+		ActivityProfile.OBSERVATORY:
+			return Vector3(-2.35, 0.0, -2.35)
+		ActivityProfile.CREW_WORKPOST:
+			return Vector3(-2.85, 0.0, -1.95)
 		_:
 			return FOOTPRINT_MIN
 
@@ -1121,6 +1303,14 @@ func _get_profile_local_max() -> Vector3:
 			return Vector3(2.4, 5.45, 1.75)
 		ActivityProfile.DRONE_PATROL:
 			return Vector3(4.55, 2.4, 3.55)
+		ActivityProfile.CARGO_LINE:
+			return Vector3(4.85, 2.98, 2.65)
+		ActivityProfile.SIGNAGE_PYLON:
+			return Vector3(1.8, 4.5, 1.5)
+		ActivityProfile.OBSERVATORY:
+			return Vector3(2.35, 3.75, 2.35)
+		ActivityProfile.CREW_WORKPOST:
+			return Vector3(2.85, 2.6, 1.95)
 		_:
 			return FOOTPRINT_MAX
 
@@ -1131,6 +1321,14 @@ func _get_profile_service_zone_center() -> Vector3:
 			return Vector3(0.15, 2.3, 0.0)
 		ActivityProfile.DRONE_PATROL:
 			return Vector3(0.0, 1.35, 0.0)
+		ActivityProfile.CARGO_LINE:
+			return Vector3(0.0, 1.5, 0.0)
+		ActivityProfile.SIGNAGE_PYLON:
+			return Vector3(0.0, 2.2, 0.0)
+		ActivityProfile.OBSERVATORY:
+			return Vector3(0.0, 2.3, 0.0)
+		ActivityProfile.CREW_WORKPOST:
+			return Vector3(0.0, 1.3, 0.0)
 		_:
 			return SERVICE_ZONE_CENTER
 
@@ -1143,13 +1341,21 @@ func _get_profile_service_zone_half_extents() -> Vector3:
 			return Vector3(2.6, 2.6, 1.9)
 		ActivityProfile.DRONE_PATROL:
 			return Vector3(5.0, 1.6, 4.2)
+		ActivityProfile.CARGO_LINE:
+			return Vector3(5.1, 1.8, 3.0)
+		ActivityProfile.SIGNAGE_PYLON:
+			return Vector3(2.0, 2.5, 1.8)
+		ActivityProfile.OBSERVATORY:
+			return Vector3(2.5, 2.4, 2.5)
+		ActivityProfile.CREW_WORKPOST:
+			return Vector3(3.0, 1.5, 2.2)
 		_:
 			return SERVICE_ZONE_HALF_EXTENTS
 
 
 func _get_profile_mount_type() -> StringName:
 	match _built_profile:
-		ActivityProfile.SERVICE_ARM:
+		ActivityProfile.SERVICE_ARM, ActivityProfile.CREW_WORKPOST:
 			return &"deck_edge"
 		ActivityProfile.DRONE_PATROL:
 			return &"deck_or_inverted_ceiling_anchor"
@@ -1163,6 +1369,14 @@ func _get_profile_mount_description() -> String:
 			return "Origin is the service-arm rotary base at a level deck edge; local -Z faces the service lane."
 		ActivityProfile.DRONE_PATROL:
 			return "Origin is the patrol-zone mount plane; use upright on deck or rotate 180 degrees around local X for an inverted ceiling anchor."
+		ActivityProfile.CARGO_LINE:
+			return "Origin is the centre of the transfer rail on a level deck; the rail runs along local X and local -Z faces the handling apron."
+		ActivityProfile.SIGNAGE_PYLON:
+			return "Origin is the pylon base plinth on a level deck; the lit board, plaque and chevron strip all face local +Z, so the pylon is mounted facing the approach."
+		ActivityProfile.OBSERVATORY:
+			return "Origin is the centre of the three-legged skywatch plinth on a level deck; the instrument needs open sky above and pans a full arc."
+		ActivityProfile.CREW_WORKPOST:
+			return "Origin is the deck-edge work post; the bench and tool wall back onto local +Z and the crew stands on the local -Z side."
 		_:
 			return "Origin is the centre of the level deck footprint; local -Z faces the serviced berth or traffic lane."
 
@@ -1202,6 +1416,14 @@ func _create_materials() -> void:
 	_materials["amber_lit"] = _material(Color("ffc069"), 0.12, 0.3, Color("ff8a2b"), 1.8)
 	_materials["red_dim"] = _material(Color("632d2d"), 0.16, 0.42, Color("67201e"), 0.16)
 	_materials["red_lit"] = _material(Color("ff6b60"), 0.1, 0.3, Color("ef342d"), 1.65)
+	# Station-life additions. The two crate colours are painted container steel
+	# and join the mapped panel family below; the green pair and the sign face are
+	# lit cues and deliberately stay flat, exactly as the amber/cyan/red pairs do.
+	_materials["crate"] = _material(Color("2f6f63"), 0.44, 0.46)
+	_materials["crate_alt"] = _material(Color("a8552f"), 0.4, 0.5)
+	_materials["green_dim"] = _material(Color("2c5f3a"), 0.2, 0.42, Color("1f7a3c"), 0.2)
+	_materials["green_lit"] = _material(Color("8ef2a8"), 0.1, 0.3, Color("34d566"), 1.5)
+	_materials["sign_lit"] = _material(Color("e8f2ef"), 0.08, 0.28, Color("cfe6df"), 1.15)
 	_apply_station_panel_family()
 
 
@@ -1223,7 +1445,7 @@ func _apply_station_panel_family() -> void:
 	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
 	if panel_albedo == null or panel_normal == null or panel_roughness == null:
 		return
-	for key in ["frame", "frame_edge", "graphite", "ceramic"]:
+	for key in ["frame", "frame_edge", "graphite", "ceramic", "crate", "crate_alt"]:
 		var panel_material := _materials[key] as StandardMaterial3D
 		panel_material.albedo_texture = panel_albedo
 		panel_material.normal_enabled = true
@@ -1340,6 +1562,223 @@ func _build_service_drones() -> void:
 		_drone_beacon_lenses.append(lens)
 
 
+## Cargo movement: a short fixed transfer rail with a powered container sled, an
+## overhead hoist working the same line, two palletised crate stacks and a
+## control pedestal. Nothing here routes, reserves or carries anything; the sled
+## and the hoist are closed-form functions of the clock like every other mover in
+## this component.
+func _build_cargo_transfer_line() -> void:
+	var line := Node3D.new()
+	line.name = "CargoTransferLine"
+	_presentation_root.add_child(line)
+
+	for z_side in [-1.0, 1.0]:
+		_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(8.6, 0.14, 0.28), _materials["frame_edge"])
+	for x in [-3.6, -1.8, 0.0, 1.8, 3.6]:
+		_box(line, "RailTie", Vector3(x, 0.07, 0.0), Vector3(0.5, 0.14, 1.9), _materials["graphite"])
+	for x_side in [-1.0, 1.0]:
+		_box(line, "RailStop", Vector3(x_side * 4.34, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"])
+
+	_box(line, "PalletDeckPort", Vector3(-2.9, 0.09, 1.85), Vector3(2.3, 0.18, 1.25), _materials["graphite"])
+	_box(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), _materials["crate"])
+	_box(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), _materials["crate_alt"])
+	_box(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), _materials["crate"])
+	_box(line, "CrateManifest", Vector3(-2.9, 1.3, 1.33), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"])
+
+	_box(line, "PalletDeckStarboard", Vector3(3.0, 0.09, -1.9), Vector3(2.0, 0.18, 1.2), _materials["graphite"])
+	_box(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), _materials["crate_alt"])
+	_box(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), _materials["crate"])
+
+	for z_side in [-1.0, 1.0]:
+		_box(line, "HoistPost", Vector3(0.0, 1.45, z_side * 1.55), Vector3(0.26, 2.9, 0.3), _materials["frame"])
+		_box(line, "HoistPostBand", Vector3(0.0, 0.6, z_side * 1.55), Vector3(0.3, 0.22, 0.34), _materials["orange"])
+	_box(line, "HoistBeam", Vector3(0.0, 2.78, 0.0), Vector3(0.3, 0.26, 3.4), _materials["frame_edge"])
+
+	_cylinder(line, "ControlPedestal", Vector3(-4.15, 0.5, -1.7), 0.22, 1.0, _materials["frame_edge"])
+	_box(line, "ControlHousing", Vector3(-4.15, 1.08, -1.7), Vector3(0.5, 0.3, 0.36), _materials["graphite"])
+	var readout := _box(line, "ControlReadout", Vector3(-4.15, 1.2, -1.89), Vector3(0.36, 0.16, 0.04), _materials["green_dim"])
+
+	var sled := _add_station_life_mover(line, "AnimatedCargoSled")
+	_box(sled, "SledDeck", Vector3.ZERO, Vector3(1.9, 0.2, 1.5), _materials["frame_edge"])
+	_box(sled, "SledSkirt", Vector3(0.0, -0.13, 0.0), Vector3(1.7, 0.1, 1.3), _materials["graphite"])
+	for x_side in [-1.0, 1.0]:
+		for z_side in [-1.0, 1.0]:
+			_cylinder(sled, "SledWheel", Vector3(x_side * 0.72, -0.14, z_side * 0.62), 0.13, 0.1, _materials["rubber"], Vector3(90, 0, 0))
+	_box(sled, "SledContainer", Vector3(0.0, 0.6, 0.0), Vector3(1.7, 1.0, 1.35), _materials["crate"])
+	for x in [-0.5, 0.5]:
+		_box(sled, "ContainerRib", Vector3(x, 0.6, 0.0), Vector3(0.08, 0.98, 1.37), _materials["crate_alt"])
+	_box(sled, "ContainerManifest", Vector3(0.0, 0.88, -0.69), Vector3(0.7, 0.22, 0.04), _materials["sign_lit"])
+	var strobe := _box(sled, "SledStrobe", Vector3(0.0, 1.15, 0.0), Vector3(0.3, 0.1, 0.3), _materials["amber_dim"])
+
+	var hoist := _add_station_life_mover(line, "AnimatedCargoHoist")
+	_box(hoist, "HoistCarriage", Vector3.ZERO, Vector3(0.62, 0.22, 0.7), _materials["ceramic"])
+	_cylinder(hoist, "HoistCable", Vector3(0.0, -0.45, 0.0), 0.035, 0.7, _materials["graphite"])
+	_box(hoist, "HoistHook", Vector3(0.0, -0.86, 0.0), Vector3(0.3, 0.24, 0.3), _materials["orange"])
+
+	_register_station_life_lens(strobe, "amber_dim", "amber_lit", 1.6, 0.3, 0.0)
+	_register_station_life_lens(readout, "green_dim", "green_lit", 2.4, 1.5, 0.7)
+
+
+## Signage variety: a wayfinding pylon with a lit board, a bay plaque, a printed
+## notice rack, a chasing chevron strip and a slowly rotating identifier drum.
+func _build_wayfinding_pylon() -> void:
+	var pylon := Node3D.new()
+	pylon.name = "WayfindingPylon"
+	_presentation_root.add_child(pylon)
+
+	_box(pylon, "BasePlinth", Vector3(0.0, 0.13, 0.0), Vector3(1.5, 0.26, 1.2), _materials["graphite"])
+	_box(pylon, "BaseHazardBand", Vector3(0.0, 0.31, 0.0), Vector3(1.54, 0.1, 1.24), _materials["orange"])
+	_box(pylon, "Mast", Vector3(0.0, 2.08, 0.0), Vector3(0.44, 3.64, 0.44), _materials["frame"])
+	for z_side in [-1.0, 1.0]:
+		_box(pylon, "MastEdge", Vector3(0.0, 2.1, z_side * 0.21), Vector3(0.34, 3.3, 0.04), _materials["frame_edge"])
+
+	_box(pylon, "SignBoard", Vector3(0.0, 3.0, 0.28), Vector3(1.7, 1.15, 0.12), _materials["graphite"])
+	_box(pylon, "SignFace", Vector3(0.0, 3.0, 0.35), Vector3(1.55, 1.0, 0.04), _materials["sign_lit"])
+	_box(pylon, "SignRule", Vector3(0.0, 3.02, 0.375), Vector3(1.4, 0.06, 0.02), _materials["graphite"])
+
+	_box(pylon, "ChevronRail", Vector3(0.0, 2.15, 0.26), Vector3(1.9, 0.5, 0.1), _materials["graphite"])
+	for index in 5:
+		var chevron := _box(
+			pylon,
+			"Chevron",
+			Vector3(-0.72 + float(index) * 0.36, 2.15, 0.305),
+			Vector3(0.22, 0.36, 0.05),
+			_materials["amber_dim"]
+		)
+		# A chase, not a blink: each chevron lights 0.16 s after the one behind
+		# it, so the strip reads as pointing somewhere.
+		_register_station_life_lens(chevron, "amber_dim", "amber_lit", 1.5, 0.34, float(index) * -0.16)
+
+	_box(pylon, "BayPlaque", Vector3(0.0, 1.2, 0.25), Vector3(0.9, 0.42, 0.08), _materials["frame_edge"])
+	_box(pylon, "BayGlyph", Vector3(0.0, 1.2, 0.3), Vector3(0.7, 0.28, 0.03), _materials["amber_lit"])
+
+	_box(pylon, "NoticeBoard", Vector3(0.0, 1.5, -0.265), Vector3(1.1, 0.7, 0.09), _materials["graphite"])
+	for index in 3:
+		_box(pylon, "NoticeSheet", Vector3(-0.32 + float(index) * 0.32, 1.5, -0.325), Vector3(0.26, 0.5, 0.03), _materials["ceramic"])
+
+	var drum := _add_station_life_mover(pylon, "AnimatedIdentifierDrum")
+	_cylinder(drum, "DrumBody", Vector3.ZERO, 0.42, 0.5, _materials["ceramic"])
+	_cylinder(drum, "DrumBand", Vector3(0.0, -0.16, 0.0), 0.44, 0.12, _materials["frame_edge"])
+	for z_side in [-1.0, 1.0]:
+		_box(drum, "DrumGlyph", Vector3(0.0, 0.02, z_side * 0.41), Vector3(0.5, 0.3, 0.04), _materials["cyan_lit"])
+	_cylinder(drum, "DrumCap", Vector3(0.0, 0.29, 0.0), 0.3, 0.08, _materials["graphite"])
+
+
+## Observatory beat: a three-legged skywatch post whose yoke pans and whose optic
+## tube elevates, with a lit aperture that pulses while it is tracking and a
+## instrument cabinet at deck level.
+func _build_skywatch_post() -> void:
+	var post := Node3D.new()
+	post.name = "SkywatchPost"
+	_presentation_root.add_child(post)
+
+	for index in 3:
+		var angle := float(index) * TAU / 3.0
+		var leg_x := cos(angle) * 1.05
+		var leg_z := sin(angle) * 1.05
+		_box(post, "LegFoot", Vector3(leg_x, 0.09, leg_z), Vector3(0.52, 0.18, 0.52), _materials["graphite"])
+		_box(post, "LegColumn", Vector3(leg_x, 0.72, leg_z), Vector3(0.24, 1.28, 0.24), _materials["frame"])
+		_box(
+			post,
+			"MountRib",
+			Vector3(cos(angle) * 0.6, 1.44, sin(angle) * 0.6),
+			Vector3(0.9, 0.16, 0.18),
+			_materials["frame_edge"],
+			Vector3(0.0, -rad_to_deg(angle), 0.0)
+		)
+	_cylinder(post, "MountRing", Vector3(0.0, 1.44, 0.0), 1.15, 0.22, _materials["frame_edge"])
+	_cylinder(post, "Pedestal", Vector3(0.0, 1.78, 0.0), 0.5, 0.5, _materials["frame"])
+
+	_box(post, "InstrumentCabinet", Vector3(1.5, 0.525, -1.0), Vector3(0.8, 1.05, 0.6), _materials["ceramic"])
+	_box(post, "CabinetScreen", Vector3(1.5, 0.72, -1.31), Vector3(0.55, 0.42, 0.04), _materials["cyan_lit"])
+	_box(post, "CabinetVent", Vector3(1.5, 0.35, -1.31), Vector3(0.5, 0.2, 0.03), _materials["graphite"])
+	_box(post, "ConduitRun", Vector3(0.75, 0.06, -0.8), Vector3(1.5, 0.12, 0.14), _materials["graphite"], Vector3(0.0, 35.0, 0.0))
+
+	var yoke := _add_station_life_mover(post, "AnimatedSkywatchYoke")
+	_cylinder(yoke, "YokeBase", Vector3.ZERO, 0.42, 0.28, _materials["frame_edge"])
+	for x_side in [-1.0, 1.0]:
+		_box(yoke, "YokeArm", Vector3(x_side * 0.62, 0.55, 0.0), Vector3(0.16, 0.95, 0.34), _materials["ceramic"])
+	_box(yoke, "YokeCap", Vector3(0.0, 1.02, 0.0), Vector3(1.4, 0.14, 0.3), _materials["frame_edge"])
+
+	var tube := _add_station_life_mover(yoke, "AnimatedOpticTube")
+	_cylinder(tube, "TubeBody", Vector3.ZERO, 0.3, 1.7, _materials["ceramic"], Vector3(90, 0, 0))
+	_cylinder(tube, "TubeCollar", Vector3(0.0, 0.0, 0.55), 0.34, 0.16, _materials["orange"], Vector3(90, 0, 0))
+	_cylinder(tube, "Aperture", Vector3(0.0, 0.0, -0.88), 0.28, 0.08, _materials["graphite"], Vector3(90, 0, 0))
+	var optic := _cylinder(tube, "OpticLens", Vector3(0.0, 0.0, -0.94), 0.22, 0.05, _materials["cyan_dim"], Vector3(90, 0, 0))
+	_cylinder(tube, "Counterweight", Vector3(0.0, 0.0, 0.92), 0.24, 0.3, _materials["graphite"], Vector3(90, 0, 0))
+	_cylinder(tube, "FinderScope", Vector3(0.0, 0.34, -0.2), 0.08, 0.6, _materials["frame_edge"], Vector3(90, 0, 0))
+
+	_register_station_life_lens(optic, "cyan_dim", "cyan_lit", 3.4, 2.1, 0.0)
+
+
+## Crew activity: a work post someone plainly uses. Bench, vice, parts bins, a
+## tool wall, a task lamp, a cable drum, supply crates, a hard hat left on the
+## bench, an indexing tool carousel and a nodding weld jig with a flickering arc.
+func _build_crew_work_post() -> void:
+	var post := Node3D.new()
+	post.name = "CrewWorkPost"
+	_presentation_root.add_child(post)
+
+	_box(post, "BenchTop", Vector3(-0.9, 0.92, 0.55), Vector3(2.6, 0.12, 0.9), _materials["ceramic"])
+	_box(post, "BenchApron", Vector3(-0.9, 0.8, 0.96), Vector3(2.5, 0.14, 0.06), _materials["frame_edge"])
+	for x_side in [-1.0, 1.0]:
+		for z_side in [-1.0, 1.0]:
+			_box(post, "BenchLeg", Vector3(-0.9 + x_side * 1.15, 0.43, 0.55 + z_side * 0.32), Vector3(0.12, 0.86, 0.12), _materials["frame"])
+	_box(post, "BenchShelf", Vector3(-0.9, 0.3, 0.55), Vector3(2.3, 0.06, 0.7), _materials["graphite"])
+	for index in 3:
+		_box(post, "PartsBin", Vector3(-1.7 + float(index) * 0.8, 0.45, 0.55), Vector3(0.6, 0.24, 0.5), _materials["orange"])
+	_box(post, "BenchVice", Vector3(-1.85, 1.08, 0.55), Vector3(0.28, 0.2, 0.3), _materials["graphite"])
+	_box(post, "ViceJaw", Vector3(-1.85, 1.2, 0.55), Vector3(0.3, 0.06, 0.32), _materials["frame_edge"])
+	_cylinder(post, "HardHat", Vector3(0.15, 1.06, 0.55), 0.17, 0.16, _materials["orange"])
+
+	_box(post, "ToolWall", Vector3(-0.9, 1.72, 1.0), Vector3(2.5, 1.46, 0.08), _materials["frame"])
+	_box(post, "ToolWallInset", Vector3(-0.9, 1.75, 0.955), Vector3(2.35, 1.25, 0.02), _materials["frame_edge"])
+	for index in 5:
+		_box(post, "HungTool", Vector3(-1.85 + float(index) * 0.48, 1.72, 0.935), Vector3(0.09, 0.55, 0.05), _materials["graphite"])
+	_box(post, "TaskLamp", Vector3(-0.9, 2.42, 0.86), Vector3(0.9, 0.1, 0.22), _materials["ceramic"])
+	_box(post, "TaskLampGlow", Vector3(-0.9, 2.355, 0.86), Vector3(0.8, 0.04, 0.16), _materials["sign_lit"])
+
+	# Seated at y = 0.52 rather than at its own body radius: the 0.5 m flanges are
+	# wider than the drum, and any lower they would cut through the mount plane.
+	_cylinder(post, "CableDrum", Vector3(1.95, 0.52, 0.7), 0.42, 0.5, _materials["graphite"], Vector3(90, 0, 0))
+	for z_side in [-1.0, 1.0]:
+		_cylinder(post, "DrumFlange", Vector3(1.95, 0.52, 0.7 + z_side * 0.28), 0.5, 0.06, _materials["frame_edge"], Vector3(90, 0, 0))
+
+	_box(post, "SupplyCrate", Vector3(2.15, 0.34, -0.55), Vector3(1.0, 0.68, 0.9), _materials["crate"])
+	_box(post, "SupplyCrateTop", Vector3(2.15, 0.92, -0.55), Vector3(0.85, 0.48, 0.8), _materials["crate_alt"])
+
+	# The post sign caps the tool wall rather than standing on nothing: its
+	# underside at y = 2.34 overlaps the wall head at y = 2.45.
+	_box(post, "PostSignBack", Vector3(-0.9, 2.46, 1.0), Vector3(1.4, 0.24, 0.06), _materials["graphite"])
+	_box(post, "PostSignFace", Vector3(-0.9, 2.46, 0.955), Vector3(1.2, 0.16, 0.03), _materials["sign_lit"])
+	_cylinder(post, "JigPost", Vector3(-2.0, 0.775, -0.75), 0.16, 1.55, _materials["frame"])
+
+	var carousel := _add_station_life_mover(post, "AnimatedToolCarousel")
+	_cylinder(carousel, "CarouselHub", Vector3.ZERO, 0.12, 0.62, _materials["frame_edge"])
+	for index in 3:
+		var angle := float(index) * TAU / 3.0
+		var tray_x := cos(angle) * 0.3
+		var tray_z := sin(angle) * 0.3
+		_box(
+			carousel,
+			"CarouselTray",
+			Vector3(tray_x, -0.24, tray_z),
+			Vector3(0.34, 0.06, 0.22),
+			_materials["graphite"],
+			Vector3(0.0, -rad_to_deg(angle), 0.0)
+		)
+		_box(carousel, "CarouselTool", Vector3(tray_x, -0.03, tray_z), Vector3(0.08, 0.42, 0.08), _materials["ceramic"])
+
+	var jig := _add_station_life_mover(post, "AnimatedWeldJig")
+	_box(jig, "JigArm", Vector3(0.45, 0.0, 0.0), Vector3(0.95, 0.14, 0.16), _materials["frame_edge"])
+	_box(jig, "JigHead", Vector3(0.95, -0.1, 0.0), Vector3(0.26, 0.26, 0.22), _materials["graphite"])
+	var arc := _box(jig, "WeldArc", Vector3(0.95, -0.28, 0.0), Vector3(0.14, 0.12, 0.14), _materials["cyan_dim"])
+
+	# A short, uneven duty cycle: the arc strikes for a fifth of a second at a
+	# time, which is what makes it read as work rather than as a status lamp.
+	_register_station_life_lens(arc, "cyan_dim", "cyan_lit", 0.85, 0.19, 0.0)
+
+
 func _build_safety_beacons() -> void:
 	var positions := _get_beacon_positions()
 	for index in positions.size():
@@ -1377,6 +1816,18 @@ func _get_beacon_positions() -> Array[Vector3]:
 		ActivityProfile.GANTRY:
 			x_extent = 4.72
 			z_extent = 3.05
+		ActivityProfile.CARGO_LINE:
+			x_extent = 4.55
+			z_extent = 2.3
+		ActivityProfile.SIGNAGE_PYLON:
+			x_extent = 1.5
+			z_extent = 1.2
+		ActivityProfile.OBSERVATORY:
+			x_extent = 2.0
+			z_extent = 2.0
+		ActivityProfile.CREW_WORKPOST:
+			x_extent = 2.4
+			z_extent = 1.6
 	return [
 		Vector3(-x_extent, BEACON_SEAT_HEIGHT, -z_extent),
 		Vector3(x_extent, BEACON_SEAT_HEIGHT, -z_extent),
@@ -1412,6 +1863,13 @@ func _update_activity_transforms() -> void:
 		)
 		drone.rotation = Vector3(0.04 * sin(phase * 1.7), -phase + PI * 0.5, 0.08 * cos(phase))
 
+	for index in _station_life_movers.size():
+		var pose := _station_life_mover_pose(index, seed_phase)
+		_station_life_movers[index].position = pose[0]
+		_station_life_movers[index].rotation = pose[1]
+	for index in _station_life_lenses.size():
+		_station_life_lenses[index].material_override = _station_life_lens_material(index)
+
 	var pattern := _get_beacon_pattern()
 	for index in _beacon_lenses.size():
 		_beacon_lenses[index].material_override = _materials["amber_lit"] if pattern[index] else _materials["amber_dim"]
@@ -1427,6 +1885,105 @@ func _get_beacon_pattern() -> Array[bool]:
 		var pulse_time := fmod(_elapsed + seed_phase_seconds + float(index % 2) * 0.55, 1.1)
 		result.append(pulse_time < 0.22)
 	return result
+
+
+## The complete pose of one station-life mover as a pure function of the clock.
+##
+## Returns `[position, rotation]`. Every branch is a closed-form function of
+## `_elapsed` and the build seed only, so a 120 Hz process and a single 30 Hz
+## step land on the same transform, and `set_activity_time()` reproduces any
+## earlier frame exactly.
+func _station_life_mover_pose(index: int, seed_phase: float) -> Array:
+	match _built_profile:
+		ActivityProfile.CARGO_LINE:
+			if index == 0:
+				# Container sled shuttling the fixed rail, easing at both stops.
+				var travel := sin(_elapsed * 0.23 + seed_phase * 0.31)
+				# y = 0.50 puts the wheel treads exactly on the rail heads at
+				# y = 0.23; anything lower sinks the sled into its own track.
+				return [
+					Vector3(travel * 3.3, 0.5, 0.0),
+					Vector3(0.0, 0.0, 0.0),
+				]
+			# Overhead hoist tracking across the line and dipping to the deck.
+			# Traverse only. The carriage stays at y = 2.62 so it always meets the
+			# underside of `HoistBeam` at y = 2.65; a vertical beat would need a
+			# stretching cable, and a scaled mover is exactly what the audit's
+			# pose check forbids, so the carriage would visibly detach from its
+			# own rail instead. It is confined to the +Z apron lane because at
+			# z >= 1.05 the hook clears the sled container it would otherwise
+			# pass straight through.
+			var hoist_phase := _elapsed * 0.31 + seed_phase
+			return [
+				Vector3(0.0, 2.62, 1.35 + sin(hoist_phase) * 0.3),
+				Vector3(0.0, sin(hoist_phase * 0.5) * 0.15, 0.0),
+			]
+		ActivityProfile.SIGNAGE_PYLON:
+			# Slow continuous drum rotation; the chevrons below do the chasing.
+			return [
+				Vector3(0.0, 4.05, 0.0),
+				Vector3(0.0, _elapsed * 0.19 + seed_phase, 0.0),
+			]
+		ActivityProfile.OBSERVATORY:
+			if index == 0:
+				# Yoke pans across a bounded arc rather than spinning freely.
+				return [
+					Vector3(0.0, 2.05, 0.0),
+					Vector3(0.0, sin(_elapsed * 0.11 + seed_phase) * 1.05, 0.0),
+				]
+			# Optic tube elevation. The sign is positive so the -Z aperture end
+			# rises: the instrument always reads as looking out of the station
+			# rather than down at the deck it stands on.
+			return [
+				Vector3(0.0, 0.85, 0.0),
+				Vector3(0.34 + sin(_elapsed * 0.17 + seed_phase + 0.9) * 0.26, 0.0, 0.0),
+			]
+		ActivityProfile.CREW_WORKPOST:
+			if index == 0:
+				# Tool carousel indexing round the bench.
+				return [
+					Vector3(0.55, 1.28, 0.55),
+					Vector3(0.0, _elapsed * 0.27 + seed_phase, 0.0),
+				]
+			# Weld jig nodding over the work.
+			return [
+				Vector3(-2.0, 1.55, -0.75),
+				Vector3(0.0, sin(_elapsed * 0.37 + seed_phase) * 0.21, -0.24 + sin(_elapsed * 0.83 + seed_phase) * 0.22),
+			]
+	return [Vector3.ZERO, Vector3.ZERO]
+
+
+func _station_life_lens_material(index: int) -> Material:
+	var spec := _station_life_lens_specs[index]
+	var seed_phase_seconds := fmod(float(_get_effective_variation_seed()), 31.0) * 0.013
+	var pulse := fmod(_elapsed + seed_phase_seconds + float(spec.offset), float(spec.period))
+	return _materials[spec.lit] if pulse < float(spec.duty) else _materials[spec.dim]
+
+
+func _register_station_life_lens(
+		lens: MeshInstance3D,
+		dim_key: String,
+		lit_key: String,
+		period: float,
+		duty: float,
+		offset: float
+	) -> void:
+	_station_life_lenses.append(lens)
+	_station_life_lens_specs.append({
+		"dim": dim_key,
+		"lit": lit_key,
+		"period": period,
+		"duty": duty,
+		"offset": offset,
+	})
+
+
+func _add_station_life_mover(parent: Node3D, node_name: String) -> Node3D:
+	var mover := Node3D.new()
+	mover.name = node_name
+	parent.add_child(mover)
+	_station_life_movers.append(mover)
+	return mover
 
 
 func _apply_evidence_metadata() -> void:

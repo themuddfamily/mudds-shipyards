@@ -43,13 +43,19 @@ const WORLD_ACTIVITY_ENABLE_SETTER := &"set_station_activity_enabled"
 const ACTIVITY_GROUP := &"station_operations_activity"
 const AMBIENCE_GROUP := &"station_machinery_ambience"
 
-const EXPECTED_ACTIVITY_COUNT := 4
+## Re-frozen from 4 by the station-life pass: the four original fixed-rail roles
+## plus the cargo line, wayfinding pylon, skywatch post and crew work post.
+const EXPECTED_ACTIVITY_COUNT := 8
 const EXPECTED_AMBIENCE_COUNT := 4
 const EXPECTED_ACTIVITY_PROFILES: Array[String] = [
+	"cargo_line",
+	"crew_workpost",
 	"drone_patrol",
 	"full",
 	"gantry",
+	"observatory",
 	"service_arm",
+	"signage_pylon",
 ]
 const MINIMUM_SIGN_COUNT := 16
 const MINIMUM_PNG_BYTES := 140_000
@@ -60,10 +66,6 @@ const NEAR_DUPLICATE_CHANGED_FRACTION := 0.055
 const PIXEL_CHANGE_THRESHOLD := 0.035
 const FRAME_MARGIN_FRACTION := 0.018
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_STATION_OPERATIONS_PARSE_ONLY"
-
-## Simulated frames granted on top of a nominal duration, so a condition that
-## settles right on the edge of its budget is not lost to rounding.
-const FRAME_BUDGET_GRACE := 30
 
 var _failures: Array[String] = []
 var _captured_images: Dictionary = {}
@@ -361,7 +363,7 @@ func _discover_operational_components() -> void:
 func _validate_operational_components() -> void:
 	_check(
 		_activities.size() == EXPECTED_ACTIVITY_COUNT,
-		"station integrates exactly four role-specific operations vignettes"
+		"station integrates exactly eight role-specific operations vignettes"
 	)
 	_check(
 		_ambience_nodes.size() == EXPECTED_AMBIENCE_COUNT,
@@ -652,14 +654,13 @@ func _capture_launch_flypast() -> void:
 		return
 	_camera.current = true
 	Input.action_press("move_forward")
-	# The departure is driven by the physics clock, so the budget is counted in
-	# simulated frames alongside the original wall-clock deadline rather than on
-	# the smoothed engine delta a SceneTreeTimer measures.
-	await _wait_until(
-		func() -> bool:
-			return torrent.global_position.distance_to(home_transform.origin) >= 18.0,
-		4.5
-	)
+	var launch_timeout := create_timer(4.5)
+	while (
+		torrent.global_position.distance_to(home_transform.origin) < 18.0
+		and launch_timeout.time_left > 0.0
+	):
+		await physics_frame
+		await process_frame
 	Input.action_release("move_forward")
 	var telemetry := torrent.get_telemetry()
 	_check(
@@ -1023,44 +1024,11 @@ func _get_ship(ship_id: StringName) -> HeroShip:
 
 
 func _wait_for_engine_state(ship: HeroShip, expected_state: String, timeout_seconds: float) -> bool:
-	return await _wait_until(
-		func() -> bool:
-			return str(ship.get_telemetry().get("engine_state", "")) == expected_state,
-		timeout_seconds
-	)
-
-
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
-##
-## The previous form combined the worst of two clocks: a `SceneTreeTimer`
-## deadline counting Godot's smoothed engine delta, guarding a loop that advances
-## the physics clock. Under a software-rendered 2560x1440 Forward+ capture the
-## engine drops physics steps rather than letting the simulation spiral, so the
-## timer expired with the spin-up or the departure only part-stepped, and the
-## caller failed a craft that was still progressing perfectly well.
-##
-## `timeout_seconds` is kept as the *nominal* duration and becomes both a budget
-## of simulated frames and a wall-clock deadline. The frame budget is added
-## alongside the original deadline rather than replacing it, so anything released
-## against a monotonic deadline stays bounded on the clock that owns it, and a
-## naive frame budget cannot stretch the window across an unbounded stretch of
-## wall clock on its own. Both bounds stay finite, so a genuinely stuck condition
-## still fails the capture.
-func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
-	var frame_budget := (
-		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
-		+ FRAME_BUDGET_GRACE
-	)
-	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
-			return false
+	var timeout := create_timer(timeout_seconds)
+	while str(ship.get_telemetry().get("engine_state", "")) != expected_state and timeout.time_left > 0.0:
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return str(ship.get_telemetry().get("engine_state", "")) == expected_state
 
 
 func _report_is_valid(report: Dictionary) -> bool:

@@ -19,6 +19,7 @@ extends SceneTree
 ## freezing today's sign as a magic number.
 
 const ENGINE_CALIBRATION_MESHES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
+const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -92,6 +93,43 @@ func _check_builders(expected_sign: int) -> void:
 	var berth_mesh := berth.call("_rounded_box_mesh", Vector3(6.8, 0.62, 5.1)) as ArrayMesh
 	_assert_wound("JovianFreightBerth._rounded_box_mesh", berth_mesh, expected_sign)
 	berth.free()
+
+	_check_station_life_profiles(expected_sign)
+
+
+## Every mesh the four station-life activity profiles actually emit, not a
+## representative sample of the builders they call. A profile that grows a new
+## piece of geometry is covered the moment it is added.
+func _check_station_life_profiles(expected_sign: int) -> void:
+	for profile in [
+		StationOperationsActivity.ActivityProfile.CARGO_LINE,
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON,
+		StationOperationsActivity.ActivityProfile.OBSERVATORY,
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST,
+	]:
+		var activity := STATION_ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+		activity.activity_profile = profile
+		root.add_child(activity)
+		var profile_id := activity.get_activity_profile_id()
+		var triangles := 0
+		var backwards := 0
+		var checked_meshes := 0
+		for candidate in activity.find_children("*", "MeshInstance3D", true, false):
+			var mesh := (candidate as MeshInstance3D).mesh
+			if mesh == null:
+				continue
+			checked_meshes += 1
+			var report := _score(mesh)
+			triangles += int(report["triangles"])
+			backwards += int(report["triangles"]) - int(report["agreeing"]) if expected_sign == 1 else int(report["agreeing"])
+		_assert(
+			checked_meshes > 0 and triangles > 0 and backwards == 0,
+			"%s profile winds all %d triangles across %d meshes to face outward (%d backwards)" % [
+				profile_id, triangles, checked_meshes, backwards
+			]
+		)
+		activity.queue_free()
+		root.remove_child(activity)
 
 
 ## Structured-red control: a deliberately reversed copy of a builder mesh must be
