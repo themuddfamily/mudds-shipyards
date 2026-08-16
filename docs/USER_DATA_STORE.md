@@ -1,8 +1,10 @@
 # Atomic user-data store foundation
 
 `scripts/persistence/user_data_store.gd` is the Phase 9 persistence boundary for
-future user data. It is deliberately not wired into `RuntimeSettings`,
-`GameFlow`, HUD, save slots, networking, cloud sync, or migration policy yet.
+user data. The store itself remains independent of `RuntimeSettings`,
+`GameFlow`, HUD, save slots, networking, cloud sync, and migration policy.
+`scripts/settings/runtime_settings_store_adapter.gd` now composes this boundary
+for settings without adding settings knowledge to the store.
 
 The compact JSON envelope is schema version 1 and has exactly four fields:
 `schema_version`, positive `generation`, `commit`, and `payload`. Commit metadata
@@ -56,3 +58,40 @@ recoverable through the next load, but this layer cannot promise persistence
 through every kernel/filesystem/power-loss ordering. It also does not provide
 cross-process locking, encryption, authentication, compression, migrations, or
 multi-file transactions.
+
+## Runtime settings adapter
+
+`RuntimeSettingsStoreAdapter` owns one `runtime_settings` key inside the shared
+store payload and preserves all unrelated keys on save. Its section has an
+independent schema version and contains every validated runtime preference plus
+the complete `InputBindingProfile`. `RuntimeSettings.to_user_data_payload()`
+converts all `StringName` keys/values to JSON strings;
+`apply_user_data_payload()` strictly reconstructs JSON-normalized integral
+binding fields before validating the whole profile against the captured project
+defaults. A malformed, sparse, out-of-range, conflicting, unknown-field, or
+newer section leaves the live resource untouched. Load and save remain
+side-effect free: audio, display, and `InputMap` application are still explicit
+runtime operations.
+
+Call `load()` to select and validate current atomic authority. A supported
+`user://settings.cfg` is imported only when the store reports an authoritative
+empty generation zero with both primary and backup missing. Migration first
+loads into a detached `RuntimeSettings`, then commits
+`runtime-settings-legacy-v1`; live state changes only after that commit succeeds.
+The source ConfigFile is retained. A valid nonempty store without a settings
+key, corrupt atomic data, or a newer atomic/settings/input-profile schema never
+falls back to legacy data and is not overwritten.
+
+Call `save(commit_id)` with a new printable stable commit ID. It reloads exact
+authority, validates any existing settings section, replaces only that payload
+key, and delegates publication/rollback to `UserDataStore`. The returned status
+includes the adapter `reason`, `store_reason`, generation, and detached complete
+`store_status`; failed commits do not roll back or otherwise alter the live
+settings being saved, and the store preserves its preceding authority. Ordinary
+save also refuses a backup-recovery load (`store_recovery_required`) so replacing
+a corrupt primary remains a separate explicit repair decision.
+
+This foundation is not invoked by `GameFlow` or HUD yet. It does not delete the
+legacy ConfigFile after migration, automatically invent commit IDs, repair
+corrupt authority, resolve cross-process writers, or apply process-global
+settings side effects.

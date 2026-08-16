@@ -47,6 +47,10 @@ enum ColorblindPalette {
 ## their authored defaults. Anything outside that range still fails closed.
 const SCHEMA_VERSION := 4
 const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
+## Version of the typed RuntimeSettings section stored inside UserDataStore's
+## independently versioned envelope. This starts at one because ConfigFile
+## schema versions describe a different wire format and migration history.
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 1
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
 const _BACKUP_SUFFIX := ".bak"
@@ -92,6 +96,29 @@ const _SECTION_AUDIO := "audio"
 const _SECTION_GRAPHICS := "graphics"
 const _SECTION_DISPLAY := "display"
 const _SECTION_ACCESSIBILITY := "accessibility"
+
+const _USER_DATA_SECTION_KEYS := ["schema_version", "values"]
+const _USER_DATA_VALUE_KEYS := [
+	"ship_mouse_sensitivity",
+	"on_foot_mouse_sensitivity",
+	"invert_ship_y",
+	"invert_on_foot_y",
+	"camera_fov",
+	"master_volume",
+	"ambience_volume",
+	"engine_volume",
+	"weapons_volume",
+	"ui_volume",
+	"music_volume",
+	"graphics_profile",
+	"window_mode",
+	"control_preset",
+	"ui_scale",
+	"colorblind_palette",
+	"reduced_motion",
+	"captions_enabled",
+	"input_binding_profile",
+]
 
 const _COLORBLIND_PALETTE_IDS := {
 	ColorblindPalette.NONE: &"none",
@@ -363,6 +390,84 @@ func to_dictionary() -> Dictionary:
 		"captions_enabled": captions_enabled,
 		"input_binding_profile": _input_binding_profile.to_dictionary(),
 	}
+
+
+## Produces the strict JSON-safe RuntimeSettings section embedded by
+## RuntimeSettingsStoreAdapter in UserDataStore.payload. StringName values and
+## keys are converted deliberately rather than relying on JSON.stringify's
+## implicit coercion.
+func to_user_data_payload() -> Dictionary:
+	return {
+		"schema_version": USER_DATA_PAYLOAD_SCHEMA_VERSION,
+		"values": {
+			"ship_mouse_sensitivity": ship_mouse_sensitivity,
+			"on_foot_mouse_sensitivity": on_foot_mouse_sensitivity,
+			"invert_ship_y": invert_ship_y,
+			"invert_on_foot_y": invert_on_foot_y,
+			"camera_fov": camera_fov,
+			"master_volume": master_volume,
+			"ambience_volume": ambience_volume,
+			"engine_volume": engine_volume,
+			"weapons_volume": weapons_volume,
+			"ui_volume": ui_volume,
+			"music_volume": music_volume,
+			"graphics_profile": String(get_graphics_profile_id()),
+			"window_mode": String(get_window_mode_id()),
+			"control_preset": String(get_control_preset_id()),
+			"ui_scale": ui_scale,
+			"colorblind_palette": String(get_colorblind_palette_id()),
+			"reduced_motion": reduced_motion,
+			"captions_enabled": captions_enabled,
+			"input_binding_profile": _input_profile_to_json_dictionary(
+				_input_binding_profile
+			),
+		},
+	}
+
+
+## Validates a complete atomic-store section without mutating this Resource.
+## The returned reason distinguishes a newer schema so an older build can
+## preserve it byte-for-byte instead of treating it as replaceable corruption.
+func validate_user_data_payload(candidate: Variant) -> Dictionary:
+	var decoded := _decode_user_data_payload(candidate)
+	return {
+		"accepted": bool(decoded.accepted),
+		"reason": decoded.reason,
+	}
+
+
+## Atomically installs a complete typed section after every scalar, stable enum
+## ID, and binding descriptor has validated. Rejected input emits no changes and
+## leaves the prior live snapshot intact.
+func apply_user_data_payload(candidate: Variant) -> Dictionary:
+	var decoded := _decode_user_data_payload(candidate)
+	if not bool(decoded.accepted):
+		return {"accepted": false, "reason": decoded.reason}
+	var values := decoded.values as Dictionary
+	var profile := decoded.input_binding_profile as InputBindingProfile
+	_begin_batch()
+	ship_mouse_sensitivity = float(values.ship_mouse_sensitivity)
+	on_foot_mouse_sensitivity = float(values.on_foot_mouse_sensitivity)
+	invert_ship_y = bool(values.invert_ship_y)
+	invert_on_foot_y = bool(values.invert_on_foot_y)
+	camera_fov = float(values.camera_fov)
+	master_volume = float(values.master_volume)
+	ambience_volume = float(values.ambience_volume)
+	engine_volume = float(values.engine_volume)
+	weapons_volume = float(values.weapons_volume)
+	ui_volume = float(values.ui_volume)
+	music_volume = float(values.music_volume)
+	graphics_profile = int(values.graphics_profile)
+	window_mode = int(values.window_mode)
+	control_preset = int(values.control_preset)
+	ui_scale = float(values.ui_scale)
+	colorblind_palette = int(values.colorblind_palette)
+	reduced_motion = bool(values.reduced_motion)
+	captions_enabled = bool(values.captions_enabled)
+	# Compatibility was proven by the decoder against this same service.
+	set_input_binding_profile(profile)
+	_end_batch()
+	return {"accepted": true, "reason": &"applied"}
 
 
 ## Restores authored defaults and emits one batched change notification.
@@ -725,6 +830,200 @@ func apply_window_mode(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Diction
 		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false, window_id)
 		DisplayServer.window_set_mode(int(descriptor["display_mode"]), window_id)
 	return {"applied": true, "reason": &"", "window_mode": descriptor["id"]}
+
+
+func _decode_user_data_payload(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary:
+		return {"accepted": false, "reason": &"payload_not_dictionary"}
+	var section := candidate as Dictionary
+	if not _has_exact_string_keys(section, _USER_DATA_SECTION_KEYS):
+		return {"accepted": false, "reason": &"payload_fields_invalid"}
+	var raw_schema: Variant = section.schema_version
+	if not _is_integral_json_number(raw_schema):
+		return {"accepted": false, "reason": &"schema_invalid"}
+	var schema := int(raw_schema)
+	if schema > USER_DATA_PAYLOAD_SCHEMA_VERSION:
+		return {"accepted": false, "reason": &"newer_schema"}
+	if schema != USER_DATA_PAYLOAD_SCHEMA_VERSION:
+		return {"accepted": false, "reason": &"unsupported_schema"}
+	if not section.values is Dictionary:
+		return {"accepted": false, "reason": &"values_not_dictionary"}
+	var raw_values := section.values as Dictionary
+	if not _has_exact_string_keys(raw_values, _USER_DATA_VALUE_KEYS):
+		return {"accepted": false, "reason": &"value_fields_invalid"}
+
+	var decoded := {}
+	var bounded_numbers := {
+		"ship_mouse_sensitivity": [MIN_SHIP_MOUSE_SENSITIVITY, MAX_SHIP_MOUSE_SENSITIVITY],
+		"on_foot_mouse_sensitivity": [MIN_ON_FOOT_MOUSE_SENSITIVITY, MAX_ON_FOOT_MOUSE_SENSITIVITY],
+		"camera_fov": [MIN_CAMERA_FOV, MAX_CAMERA_FOV],
+		"master_volume": [MIN_VOLUME, MAX_VOLUME],
+		"ambience_volume": [MIN_VOLUME, MAX_VOLUME],
+		"engine_volume": [MIN_VOLUME, MAX_VOLUME],
+		"weapons_volume": [MIN_VOLUME, MAX_VOLUME],
+		"ui_volume": [MIN_VOLUME, MAX_VOLUME],
+		"music_volume": [MIN_VOLUME, MAX_VOLUME],
+		"ui_scale": [MIN_UI_SCALE, MAX_UI_SCALE],
+	}
+	for key: String in bounded_numbers:
+		var bounds := bounded_numbers[key] as Array
+		var raw_value: Variant = raw_values[key]
+		if not _is_bounded_number(raw_value, float(bounds[0]), float(bounds[1])):
+			return {"accepted": false, "reason": StringName("invalid_%s" % key)}
+		decoded[key] = float(raw_value)
+	for key: String in [
+		"invert_ship_y", "invert_on_foot_y", "reduced_motion", "captions_enabled"
+	]:
+		if not raw_values[key] is bool:
+			return {"accepted": false, "reason": StringName("invalid_%s" % key)}
+		decoded[key] = bool(raw_values[key])
+
+	var stable_ids := {
+		"graphics_profile": {
+			"low": GraphicsProfile.LOW,
+			"medium": GraphicsProfile.MEDIUM,
+			"high": GraphicsProfile.HIGH,
+		},
+		"window_mode": {
+			"windowed": WindowMode.WINDOWED,
+			"borderless": WindowMode.BORDERLESS,
+			"fullscreen": WindowMode.FULLSCREEN,
+		},
+		"control_preset": {
+			"modern": ControlPreset.MODERN,
+			"classic": ControlPreset.CLASSIC,
+		},
+		"colorblind_palette": {
+			"none": ColorblindPalette.NONE,
+			"deuteranopia": ColorblindPalette.DEUTERANOPIA,
+			"protanopia": ColorblindPalette.PROTANOPIA,
+			"tritanopia": ColorblindPalette.TRITANOPIA,
+		},
+	}
+	for key: String in stable_ids:
+		var raw_id: Variant = raw_values[key]
+		var choices := stable_ids[key] as Dictionary
+		if not raw_id is String or not choices.has(raw_id):
+			return {"accepted": false, "reason": StringName("invalid_%s" % key)}
+		decoded[key] = int(choices[raw_id])
+
+	var profile_result := _decode_input_profile_json(raw_values.input_binding_profile)
+	if not bool(profile_result.accepted):
+		return {
+			"accepted": false,
+			"reason": (
+				&"newer_input_binding_profile"
+				if profile_result.get("reason") == &"newer_schema"
+				else &"invalid_input_binding_profile"
+			),
+		}
+	return {
+		"accepted": true,
+		"reason": &"valid",
+		"values": decoded,
+		"input_binding_profile": profile_result.profile,
+	}
+
+
+func _decode_input_profile_json(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary:
+		return {"accepted": false}
+	var raw_profile := (candidate as Dictionary).duplicate(true)
+	if not _has_exact_string_keys(
+		raw_profile, ["schema_version", "bindings", "action_options"]
+	):
+		return {"accepted": false}
+	if not _is_integral_json_number(raw_profile.schema_version):
+		return {"accepted": false}
+	var profile_schema := int(raw_profile.schema_version)
+	if profile_schema > InputBindingProfile.SCHEMA_VERSION:
+		return {"accepted": false, "reason": &"newer_schema"}
+	if profile_schema < InputBindingProfile.MINIMUM_SUPPORTED_SCHEMA_VERSION:
+		return {"accepted": false}
+	raw_profile.schema_version = profile_schema
+	if not raw_profile.bindings is Dictionary or not raw_profile.action_options is Dictionary:
+		return {"accepted": false}
+	var raw_bindings := raw_profile.bindings as Dictionary
+	var raw_options := raw_profile.action_options as Dictionary
+	for raw_action: Variant in raw_bindings:
+		if not raw_action is String or (raw_action as String).is_empty():
+			return {"accepted": false}
+		if not raw_bindings[raw_action] is Array:
+			return {"accepted": false}
+		for raw_binding: Variant in raw_bindings[raw_action] as Array:
+			if not raw_binding is Dictionary:
+				return {"accepted": false}
+			var binding := raw_binding as Dictionary
+			# Godot's JSON parser promotes all descriptor integers to floats.
+			# Restore only the known integral fields before domain validation;
+			# canonical comparison below still rejects unknown or extra fields.
+			for integer_key: String in ["physical_keycode", "button_index", "axis"]:
+				if not binding.has(integer_key):
+					continue
+				if not _is_integral_json_number(binding[integer_key]):
+					return {"accepted": false}
+				binding[integer_key] = int(binding[integer_key])
+	for raw_action: Variant in raw_options:
+		if not raw_action is String or (raw_action as String).is_empty():
+			return {"accepted": false}
+
+	var profile := InputBindingProfile.from_dictionary(raw_profile)
+	if not _input_rebind_service.is_profile_compatible_with_defaults(profile):
+		return {"accepted": false}
+	if _input_profile_to_json_dictionary(profile) != raw_profile:
+		return {"accepted": false}
+	return {"accepted": true, "profile": profile}
+
+
+static func _input_profile_to_json_dictionary(profile: InputBindingProfile) -> Dictionary:
+	var encoded_bindings := {}
+	var encoded_options := {}
+	for action: StringName in profile.bindings:
+		var encoded_action_bindings: Array[Dictionary] = []
+		for binding: Dictionary in profile.get_bindings(action):
+			var encoded := {}
+			for key: Variant in binding:
+				var value: Variant = binding[key]
+				encoded[String(key)] = String(value) if value is StringName else value
+			encoded_action_bindings.append(encoded)
+		encoded_bindings[String(action)] = encoded_action_bindings
+		var options := profile.get_action_options(action)
+		encoded_options[String(action)] = {
+			"deadzone": float(options.deadzone),
+			"curve": String(options.curve),
+			"hold_mode": String(options.hold_mode),
+		}
+	return {
+		"schema_version": profile.schema_version,
+		"bindings": encoded_bindings,
+		"action_options": encoded_options,
+	}
+
+
+static func _has_exact_string_keys(candidate: Dictionary, expected: Array) -> bool:
+	if candidate.size() != expected.size():
+		return false
+	for key: Variant in candidate:
+		if not key is String or not expected.has(key):
+			return false
+	for key: String in expected:
+		if not candidate.has(key):
+			return false
+	return true
+
+
+static func _is_bounded_number(value: Variant, minimum: float, maximum: float) -> bool:
+	if not value is int and not value is float:
+		return false
+	var number := float(value)
+	return not is_nan(number) and not is_inf(number) and number >= minimum and number <= maximum
+
+
+static func _is_integral_json_number(value: Variant) -> bool:
+	if not value is int and not value is float:
+		return false
+	var number := float(value)
+	return not is_nan(number) and not is_inf(number) and number == floor(number)
 
 
 func _resolve_path(path_override: String) -> String:
