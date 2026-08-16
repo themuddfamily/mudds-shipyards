@@ -1,8 +1,10 @@
 class_name LocalShipInputSource
 extends ShipCommandSource
 
-## Local InputMap adapter. An injected provider with `get_action_strength()` and
-## `is_action_pressed()` methods can drive the exact same path deterministically.
+## Local InputMap adapter. Logical action sampling passes through the validated
+## InputActionTransformBank/Sampler/ShipCommand mapper path. An injected provider
+## with `get_action_strength()` and `is_action_pressed()` drives that exact path
+## deterministically.
 ## Keyboard/gamepad attitude axes are rates. Mouse motion is transported in the
 ## dedicated normalized per-tick look-delta fields so a consumer never has to
 ## guess whether a yaw value is a rate or an instantaneous attitude change.
@@ -10,6 +12,80 @@ extends ShipCommandSource
 ## signed step stream: negative moves the chase camera nearer, positive farther.
 
 const MAX_PENDING_CAMERA_DISTANCE_STEPS := 32.0
+const InputBindingProfileType := preload("res://scripts/settings/input_binding_profile.gd")
+const RuntimeSettingsType := preload("res://scripts/settings/runtime_settings.gd")
+const InputActionTransformBankType := preload("res://scripts/settings/input_action_transform_bank.gd")
+const InputActionTransformSamplerType := preload("res://scripts/settings/input_action_transform_sampler.gd")
+const TransformedShipCommandMapperType := preload("res://scripts/control/transformed_ship_command_mapper.gd")
+
+
+## Legacy injected providers commonly supplied analogue strengths without also
+## marking those rate axes pressed, and button presses without duplicating them
+## into action strength, because the old source read each family independently.
+## Preserve that public seam while still giving InputActionTransform coherent
+## physical state. Each underlying method is still invoked exactly once/action.
+class AxisCompatibleInputProvider:
+	extends RefCounted
+
+	var provider: Object
+	var axis_actions: Array[StringName]
+	var last_strengths := {}
+	var prefetched_pressed := {}
+
+	func _init(p_provider: Object, p_axis_actions: Array[StringName]) -> void:
+		provider = p_provider
+		axis_actions = p_axis_actions.duplicate()
+
+	func get_action_strength(action: StringName) -> Variant:
+		if (
+			provider == null
+			or not is_instance_valid(provider)
+			or not provider.has_method(&"get_action_strength")
+		):
+			return null
+		var value: Variant = provider.call(&"get_action_strength", action)
+		var normalized: Variant = value
+		if (value is float or value is int) and is_finite(float(value)):
+			normalized = clampf(float(value), 0.0, 1.0)
+			# The sampler asks for strength before pressed. Pre-fetch only a
+			# zero-strength button so a pressed-only legacy provider becomes the
+			# same scalar=1/pressed=true sample Input would expose. Cache the
+			# answer for is_action_pressed() to retain one underlying read.
+			if (
+				is_zero_approx(float(normalized))
+				and not action in axis_actions
+				and provider.has_method(&"is_action_pressed")
+			):
+				var candidate: Variant = provider.call(&"is_action_pressed", action)
+				prefetched_pressed[action] = candidate
+				if candidate is bool and bool(candidate):
+					normalized = 1.0
+		last_strengths[action] = normalized
+		return normalized
+
+	func is_action_pressed(action: StringName) -> Variant:
+		if (
+			provider == null
+			or not is_instance_valid(provider)
+			or not provider.has_method(&"is_action_pressed")
+		):
+			return null
+		var candidate: Variant
+		if prefetched_pressed.has(action):
+			candidate = prefetched_pressed[action]
+			prefetched_pressed.erase(action)
+		else:
+			candidate = provider.call(&"is_action_pressed", action)
+		if not candidate is bool:
+			return candidate
+		if bool(candidate) or not action in axis_actions:
+			return bool(candidate)
+		var strength: Variant = last_strengths.get(action)
+		return (
+			absf(float(strength)) > 0.0
+			if (strength is float or strength is int) and is_finite(float(strength))
+			else false
+		)
 
 @export_category("Analogue / held actions")
 @export var throttle_forward_action: StringName = &"move_forward"
@@ -39,7 +115,7 @@ const MAX_PENDING_CAMERA_DISTANCE_STEPS := 32.0
 @export var camera_distance_out_action: StringName = &"camera_distance_out"
 
 var _input_provider: Object
-var _previous_edge_states: Dictionary = {}
+var _sampler_input_provider: Object
 var _pending_look_motion := Vector2.ZERO
 var _pending_camera_distance_delta := 0.0
 var _pending_explicit_edges: Dictionary = {}
@@ -47,6 +123,40 @@ var _edge_reprime_pending := false
 var _application_focused := true
 var _scene_tree_paused := false
 var _has_entered_tree := false
+var _authored_input_profile: InputBindingProfile
+var _input_transform_bank: InputActionTransformBank
+var _input_transform_sampler: InputActionTransformSampler
+var _ship_command_mapper: TransformedShipCommandMapper
+var _input_transform_physics_delta := 1.0 / 60.0
+var _input_configuration_errors := PackedStringArray()
+var _transform_boundary_committed := false
+
+
+func _init() -> void:
+	_input_transform_physics_delta = 1.0 / maxf(float(Engine.physics_ticks_per_second), 1.0)
+	_ship_command_mapper = TransformedShipCommandMapperType.new()
+	# RuntimeSettings owns the process-stable project snapshot. Reusing it here
+	# prevents whole-Main re-entry after a live remap from redefining that custom
+	# InputMap as the source's authored reset target.
+	var captured := RuntimeSettingsType.new().get_project_input_binding_defaults()
+	_authored_input_profile = _make_authored_compatibility_profile(captured)
+	if _authored_input_profile == null:
+		_input_configuration_errors.append("authored_input_profile_invalid")
+		return
+	for action_id: StringName in TransformedShipCommandMapperType.FLIGHT_ACTION_ORDER:
+		if not _authored_input_profile.bindings.has(action_id):
+			_input_configuration_errors.append("missing_flight_action:%s" % action_id)
+	if not _input_configuration_errors.is_empty():
+		return
+	_input_transform_bank = InputActionTransformBankType.new(_authored_input_profile)
+	if not _input_transform_bank.is_configuration_valid():
+		_input_configuration_errors.append("input_transform_bank_invalid")
+		return
+	var attached := _input_transform_bank.attach(_input_transform_bank.get_generation())
+	if not bool(attached.accepted):
+		_input_configuration_errors.append("input_transform_bank_attach_failed")
+		return
+	_rebuild_input_transform_sampler()
 
 
 func _enter_tree() -> void:
@@ -147,6 +257,7 @@ func queue_action_edge(action: StringName) -> void:
 func set_input_provider(provider: Object) -> void:
 	var replacing_live_provider := get_next_sequence() > 0 or get_stream_id() > 0
 	_input_provider = provider
+	_rebuild_input_transform_sampler()
 	# Initial injection has no produced or queued history to revoke and preserves
 	# the established contract that an initially-held edge is observable once.
 	# A live provider swap is a true boundary and invalidates sampled delivery.
@@ -158,7 +269,7 @@ func set_input_provider(provider: Object) -> void:
 	# already held on the replacement device must be released before it edges.
 	if replacing_live_provider and is_enabled_owner():
 		if _is_input_sampling_active():
-			_prime_edge_states()
+			_prime_transform_states()
 		else:
 			_edge_reprime_pending = true
 
@@ -167,34 +278,203 @@ func get_input_provider() -> Object:
 	return _input_provider
 
 
+## Atomically installs a complete RuntimeSettings-compatible binding profile.
+## The bank enforces the exact authored action roster. A successful replacement
+## advances both bank generation and command stream; stale/invalid candidates do
+## neither. Bindings remain provider-owned while action options become executable.
+func replace_input_binding_profile(
+		profile: InputBindingProfile,
+		expected_generation: int,
+	) -> Dictionary:
+	if not is_input_configuration_valid():
+		return _input_configuration_result(false, &"invalid_configuration")
+	var replaced := _input_transform_bank.replace_profile(profile, expected_generation)
+	if not bool(replaced.accepted):
+		return _input_configuration_result(false, StringName(replaced.reason))
+	_commit_transform_boundary()
+	return _input_configuration_result(true, &"profile_replaced")
+
+
+## Convenience seam for RuntimeSettings owners that hold the current detached
+## profile but do not retain the bank generation separately.
+func configure_input_binding_profile(profile: InputBindingProfile) -> Dictionary:
+	return replace_input_binding_profile(profile, get_input_profile_generation())
+
+
+## Restores the process-captured authored binding roster with compatibility
+## options that preserve LocalShipInputSource's pre-transform raw behavior.
+func reset_input_binding_profile(expected_generation: int) -> Dictionary:
+	if not is_input_configuration_valid():
+		return _input_configuration_result(false, &"invalid_configuration")
+	var replaced := _input_transform_bank.replace_profile(
+		_authored_input_profile,
+		expected_generation,
+	)
+	if not bool(replaced.accepted):
+		return _input_configuration_result(false, StringName(replaced.reason))
+	_commit_transform_boundary()
+	return _input_configuration_result(true, &"profile_reset")
+
+
+func reset_input_binding_profile_to_authored() -> Dictionary:
+	return reset_input_binding_profile(get_input_profile_generation())
+
+
+## Clears transformed held/toggle/edge state without changing the current
+## profile. This is an explicit authority boundary and begins a new command epoch.
+func reset_input_transform_state(expected_generation: int) -> Dictionary:
+	if not is_input_configuration_valid():
+		return _input_configuration_result(false, &"invalid_configuration")
+	var reset := _input_transform_bank.reset(expected_generation)
+	if not bool(reset.accepted):
+		return _input_configuration_result(false, StringName(reset.reason))
+	_commit_transform_boundary()
+	return _input_configuration_result(true, &"transform_state_reset")
+
+
+## Explicit lifecycle gates make detached/stale behavior testable without
+## exposing the retained bank or letting a caller partially mutate its children.
+func detach_input_transform(expected_generation: int) -> Dictionary:
+	if not is_input_configuration_valid():
+		return _input_configuration_result(false, &"invalid_configuration")
+	var detached := _input_transform_bank.detach(expected_generation)
+	if not bool(detached.accepted):
+		return _input_configuration_result(false, StringName(detached.reason))
+	_commit_transform_boundary()
+	return _input_configuration_result(true, &"detached")
+
+
+func attach_input_transform(expected_generation: int) -> Dictionary:
+	if not is_input_configuration_valid():
+		return _input_configuration_result(false, &"invalid_configuration")
+	var attached := _input_transform_bank.attach(expected_generation)
+	if not bool(attached.accepted):
+		return _input_configuration_result(false, StringName(attached.reason))
+	_commit_transform_boundary()
+	return _input_configuration_result(true, &"attached")
+
+
+## LocalShipInputSource remains the caller-physics owner. The default matches the
+## configured physics tick rate; deterministic callers may supply their exact
+## non-negative finite tick delta explicitly.
+func set_input_transform_physics_delta(physics_delta: Variant) -> Dictionary:
+	if (
+		(not physics_delta is float and not physics_delta is int)
+		or not is_finite(float(physics_delta))
+		or float(physics_delta) < 0.0
+	):
+		return _input_configuration_result(false, &"invalid_physics_delta")
+	_input_transform_physics_delta = float(physics_delta)
+	return _input_configuration_result(true, &"physics_delta_configured")
+
+
+func is_input_configuration_valid() -> bool:
+	return (
+		_input_configuration_errors.is_empty()
+		and _input_transform_bank != null
+		and _input_transform_bank.is_configuration_valid()
+		and _input_transform_sampler != null
+		and _input_transform_sampler.is_configuration_valid()
+		and _ship_command_mapper != null
+	)
+
+
+func get_input_profile_generation() -> int:
+	return _input_transform_bank.get_generation() if _input_transform_bank != null else -1
+
+
+func get_input_binding_profile() -> InputBindingProfile:
+	return _input_transform_bank.get_profile() if _input_transform_bank != null else null
+
+
+func get_authored_input_binding_profile() -> InputBindingProfile:
+	return _authored_input_profile.duplicate_profile() if _authored_input_profile != null else null
+
+
+func get_input_transform_snapshot() -> Dictionary:
+	return (
+		_input_transform_bank.get_snapshot().duplicate(true)
+		if _input_transform_bank != null
+		else {}
+	)
+
+
+func get_input_integration_audit() -> Dictionary:
+	return {
+		"valid": is_input_configuration_valid() and _action_contract_matches_mapper(),
+		"errors": _input_configuration_errors.duplicate(),
+		"profile_generation": get_input_profile_generation(),
+		"profile": (
+			get_input_binding_profile().to_dictionary()
+			if get_input_binding_profile() != null
+			else {}
+		),
+		"authored_profile": (
+			get_authored_input_binding_profile().to_dictionary()
+			if get_authored_input_binding_profile() != null
+			else {}
+		),
+		"physics_delta": _input_transform_physics_delta,
+		"uses_transform_bank": true,
+		"uses_transform_sampler": true,
+		"uses_ship_command_mapper": true,
+		"preserves_mouse_motion_backlog": true,
+		"preserves_camera_distance_backlog": true,
+		"owns_command_stream": true,
+		"owns_command_sequence": true,
+		"owns_command_timestamp": true,
+		"emits_engine_start": false,
+		"emits_engine_stop": false,
+		"bank": _input_transform_bank.audit() if _input_transform_bank != null else {},
+		"sampler": _input_transform_sampler.audit() if _input_transform_sampler != null else {},
+		"mapper": _ship_command_mapper.audit() if _ship_command_mapper != null else {},
+	}.duplicate(true)
+
+
 func _sample_controls() -> Dictionary:
-	if not _is_input_sampling_active():
+	if (
+		not _is_input_sampling_active()
+		or not is_input_configuration_valid()
+		or not _action_contract_matches_mapper()
+	):
+		return {}
+	var generation := _input_transform_bank.get_generation()
+	var frame := _input_transform_sampler.sample_physics_frame(
+		_input_transform_physics_delta,
+		generation,
+	)
+	if not bool(frame.accepted):
 		return {}
 	if _edge_reprime_pending:
-		_prime_edge_states()
-	var edges := _sample_edge_actions()
+		_suppress_frame_edges(frame)
+		_edge_reprime_pending = false
+	var mapped := _ship_command_mapper.map_frame(frame, generation, 0, 0, 0)
+	if not bool(mapped.accepted):
+		return {}
+	var command := mapped.command as ShipCommand
+	if command == null or not command.is_valid():
+		return {}
+
+	# Motion events remain source-owned and are consumed only after the complete
+	# action frame has validated. A malformed/stale/detached frame is fully neutral
+	# and cannot discard a queued look or wheel event.
 	var look := _consume_look_deltas()
-	if bool(edges.get(camera_distance_in_action, false)):
-		_pending_camera_distance_delta -= 1.0
-	if bool(edges.get(camera_distance_out_action, false)):
-		_pending_camera_distance_delta += 1.0
-	return {
-		"throttle": _axis(throttle_reverse_action, throttle_forward_action),
-		"yaw": _axis(yaw_left_action, yaw_right_action),
-		"pitch": _axis(pitch_down_action, pitch_up_action),
-		"roll": _axis(roll_left_action, roll_right_action),
-		"look_yaw_delta": look.x,
-		"look_pitch_delta": look.y,
-		"boost": _action_pressed(boost_action),
-		"brake": _action_pressed(brake_action),
-		"hover": _action_pressed(hover_action),
-		"fire": _action_pressed(fire_action),
-		"barrel_roll": bool(edges.get(barrel_roll_action, false)),
-		"landing": bool(edges.get(landing_action, false)),
-		"interact": bool(edges.get(interact_action, false)),
-		"camera_toggle": bool(edges.get(camera_toggle_action, false)),
-		"camera_distance_delta": _consume_camera_distance_delta(),
-	}
+	_pending_camera_distance_delta = clampf(
+		_pending_camera_distance_delta + command.camera_distance_delta,
+		-MAX_PENDING_CAMERA_DISTANCE_STEPS,
+		MAX_PENDING_CAMERA_DISTANCE_STEPS,
+	)
+	var values := command.to_dictionary()
+	values["look_yaw_delta"] = look.x
+	values["look_pitch_delta"] = look.y
+	values["camera_distance_delta"] = _consume_camera_distance_delta()
+	_apply_explicit_edges(values)
+	_pending_explicit_edges.clear()
+	# Deprecated fields stay false even if a malformed provider exposes retired
+	# action names or an automation caller tries to queue them explicitly.
+	values["engine_start"] = false
+	values["engine_stop"] = false
+	return values
 
 
 func _on_consumption_state_changed(consuming: bool) -> void:
@@ -204,37 +484,36 @@ func _on_consumption_state_changed(consuming: bool) -> void:
 	# Ownership/enabled transitions are mode boundaries. Seed currently held
 	# actions so they must be released before becoming a new edge for this owner.
 	if _application_focused:
-		_prime_edge_states()
+		_prime_transform_states()
 	else:
 		_edge_reprime_pending = true
 
 
-func _prime_edge_states() -> void:
-	_previous_edge_states.clear()
-	for action in _edge_actions():
-		_previous_edge_states[action] = _action_pressed(action)
-	_edge_reprime_pending = false
+func _prime_transform_states() -> void:
+	if not is_input_configuration_valid() or not _is_input_sampling_active():
+		_edge_reprime_pending = true
+		return
+	var frame := _input_transform_sampler.sample_physics_frame(
+		0.0,
+		_input_transform_bank.get_generation(),
+	)
+	_edge_reprime_pending = not bool(frame.accepted)
 
 
 func _on_stream_reset() -> void:
 	_clear_transient_input(false)
+	_reset_transform_bank_for_boundary()
 	if is_enabled_owner():
 		if _application_focused:
-			_prime_edge_states()
+			_prime_transform_states()
 		else:
 			_edge_reprime_pending = true
 
 
 func _on_delivery_invalidated() -> void:
 	_clear_transient_input(true)
-
-
-func _axis(negative_action: StringName, positive_action: StringName) -> float:
-	return clampf(
-		_action_strength(positive_action) - _action_strength(negative_action),
-		-1.0,
-		1.0
-	)
+	if not _transform_boundary_committed:
+		_reset_transform_bank_for_boundary()
 
 
 func _consume_look_deltas() -> Vector2:
@@ -274,52 +553,6 @@ func _consume_camera_distance_delta() -> float:
 	return consumed
 
 
-func _sample_edge_actions() -> Dictionary:
-	var edges := {}
-	for action in _edge_actions():
-		# Multiple logical commands may deliberately share one binding. Sample a
-		# physical action once so every mapped command observes the same edge.
-		if edges.has(action):
-			continue
-		var pressed := _action_pressed(action)
-		var was_pressed := bool(_previous_edge_states.get(action, false))
-		_previous_edge_states[action] = pressed
-		edges[action] = (
-			(pressed and not was_pressed)
-			or bool(_pending_explicit_edges.get(action, false))
-		)
-	_pending_explicit_edges.clear()
-	return edges
-
-
-func _action_strength(action: StringName) -> float:
-	if _input_provider != null:
-		if not is_instance_valid(_input_provider):
-			return 0.0
-		if not _input_provider.has_method(&"get_action_strength"):
-			return 0.0
-		var injected: Variant = _input_provider.call(&"get_action_strength", action)
-		if injected is float or injected is int:
-			var value := float(injected)
-			return clampf(value, 0.0, 1.0) if is_finite(value) else 0.0
-		return 0.0
-	if not InputMap.has_action(action):
-		return 0.0
-	var value := Input.get_action_strength(action)
-	return clampf(value, 0.0, 1.0) if is_finite(value) else 0.0
-
-
-func _action_pressed(action: StringName) -> bool:
-	if _input_provider != null:
-		if not is_instance_valid(_input_provider):
-			return false
-		if not _input_provider.has_method(&"is_action_pressed"):
-			return false
-		var injected: Variant = _input_provider.call(&"is_action_pressed", action)
-		return bool(injected) if injected is bool else false
-	return InputMap.has_action(action) and Input.is_action_pressed(action)
-
-
 func _can_accept_transient_input() -> bool:
 	return (
 		_is_input_sampling_active()
@@ -351,7 +584,6 @@ func _query_application_focus() -> bool:
 
 
 func _clear_transient_input(reprime_edges: bool) -> void:
-	_previous_edge_states.clear()
 	_pending_look_motion = Vector2.ZERO
 	_pending_camera_distance_delta = 0.0
 	_pending_explicit_edges.clear()
@@ -367,3 +599,133 @@ func _edge_actions() -> Array[StringName]:
 		camera_distance_in_action,
 		camera_distance_out_action,
 	]
+
+
+func _axis_actions() -> Array[StringName]:
+	return [
+		throttle_forward_action,
+		throttle_reverse_action,
+		yaw_left_action,
+		yaw_right_action,
+		pitch_up_action,
+		pitch_down_action,
+		roll_left_action,
+		roll_right_action,
+	]
+
+
+func _make_authored_compatibility_profile(captured: InputBindingProfile) -> InputBindingProfile:
+	if captured == null:
+		return null
+	var serialized := captured.to_dictionary()
+	# Input.get_action_strength()/injected providers were the old source boundary.
+	# A zero-deadzone linear HOLD transform is the identity over those already
+	# resolved logical values, preserving default flight response byte-for-value.
+	var compatibility_options := {}
+	for raw_action: Variant in serialized.action_options as Dictionary:
+		compatibility_options[StringName(raw_action)] = {
+			"deadzone": 0.0,
+			"curve": InputBindingProfileType.CURVE_LINEAR,
+			"hold_mode": InputBindingProfileType.HOLD,
+		}
+	serialized["action_options"] = compatibility_options
+	return InputBindingProfileType.from_dictionary(serialized)
+
+
+func _rebuild_input_transform_sampler() -> void:
+	if _input_transform_bank == null:
+		_input_transform_sampler = null
+		return
+	_sampler_input_provider = (
+		AxisCompatibleInputProvider.new(_input_provider, _axis_actions())
+		if _input_provider != null
+		else null
+	)
+	_input_transform_sampler = InputActionTransformSamplerType.new(
+		_input_transform_bank,
+		_sampler_input_provider,
+	)
+
+
+func _reset_transform_bank_for_boundary() -> void:
+	if _input_transform_bank == null or not _input_transform_bank.is_configuration_valid():
+		return
+	var snapshot := _input_transform_bank.get_snapshot()
+	if not bool(snapshot.attached):
+		return
+	_input_transform_bank.reset(_input_transform_bank.get_generation())
+
+
+func _commit_transform_boundary() -> void:
+	_rebuild_input_transform_sampler()
+	_transform_boundary_committed = true
+	invalidate_pending_commands()
+	_transform_boundary_committed = false
+	_edge_reprime_pending = true
+
+
+func _suppress_frame_edges(frame: Dictionary) -> void:
+	var actions := frame.get("actions", {}) as Dictionary
+	for action_id: Variant in actions:
+		var snapshot := actions[action_id] as Dictionary
+		snapshot["physical_just_pressed"] = false
+		snapshot["physical_just_released"] = false
+		snapshot["just_pressed"] = false
+		snapshot["just_released"] = false
+
+
+func _apply_explicit_edges(values: Dictionary) -> void:
+	if bool(_pending_explicit_edges.get(barrel_roll_action, false)):
+		values["barrel_roll"] = true
+	if bool(_pending_explicit_edges.get(landing_action, false)):
+		values["landing"] = true
+	if bool(_pending_explicit_edges.get(interact_action, false)):
+		values["interact"] = true
+	if bool(_pending_explicit_edges.get(camera_toggle_action, false)):
+		values["camera_toggle"] = true
+	if bool(_pending_explicit_edges.get(camera_distance_in_action, false)):
+		values["camera_distance_delta"] = clampf(
+			float(values.get("camera_distance_delta", 0.0)) - 1.0,
+			-1.0,
+			1.0,
+		)
+	if bool(_pending_explicit_edges.get(camera_distance_out_action, false)):
+		values["camera_distance_delta"] = clampf(
+			float(values.get("camera_distance_delta", 0.0)) + 1.0,
+			-1.0,
+			1.0,
+		)
+
+
+func _action_contract_matches_mapper() -> bool:
+	return (
+		throttle_forward_action == &"move_forward"
+		and throttle_reverse_action == &"move_back"
+		and yaw_left_action == &"move_left"
+		and yaw_right_action == &"move_right"
+		and pitch_up_action == &"pitch_up"
+		and pitch_down_action == &"pitch_down"
+		and roll_left_action == &"roll_left"
+		and roll_right_action == &"roll_right"
+		and boost_action == &"sprint_boost"
+		and brake_action == &"brake"
+		and hover_action == &"hover"
+		and fire_action == &"fire"
+		and barrel_roll_action == &"barrel_roll"
+		and landing_action == &"landing_assist"
+		and interact_action == &"interact"
+		and camera_toggle_action == &"toggle_ship_camera_view"
+		and camera_distance_in_action == &"camera_distance_in"
+		and camera_distance_out_action == &"camera_distance_out"
+	)
+
+
+func _input_configuration_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"generation": get_input_profile_generation(),
+		"stream_id": get_stream_id(),
+		"delivery_generation": get_delivery_generation(),
+		"snapshot": get_input_transform_snapshot(),
+	}.duplicate(true)

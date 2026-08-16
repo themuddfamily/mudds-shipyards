@@ -90,11 +90,11 @@ snapshot, exact-roster and atomicity declarations, and explicit boundaries:
 - no device inference or device-family combination;
 - no Player, ship, HUD, `GameFlow`, command, persistence, or gameplay authority.
 
-## Remaining production seam
+## Production integration
 
-One explicit integration seam remains: a production input owner must create and
-replace the bank from `RuntimeSettings`' validated profile, feed each required
-action's raw scalar/pressed/echo sample with physics delta, and consume the
-returned transformed values/edges when building existing gameplay commands.
-Until that owner is deliberately wired and tested, persisted curve/hold choices
-remain executable foundations rather than production flight behavior.
+`LocalShipInputSource` is now the explicit ship-control owner of this bank. It
+constructs the authored compatibility profile, accepts generation-safe complete
+profiles from a RuntimeSettings owner, and maps the atomic transformed frame into
+the existing command stream. See `docs/LOCAL_SHIP_TRANSFORMED_INPUT.md` for that
+boundary. Startup still must pass the active RuntimeSettings profile; the bank
+itself remains free of persistence, startup, and gameplay authority.

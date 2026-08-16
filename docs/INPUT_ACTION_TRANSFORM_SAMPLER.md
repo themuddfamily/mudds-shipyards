@@ -92,15 +92,16 @@ action snapshots, preventing a caller from treating a partial provider/bank
 read as a frame. `failed_action`/`failed_method` or roster differences are added
 when they are safe and relevant.
 
-## Authority and remaining integration
+## Authority and production integration
 
 The sampler owns no profile persistence, `InputMap` mutation, device inference,
 Player, ship, HUD, `GameFlow`, command, or gameplay authority. It does not attach,
 detach, reset, or replace the bank, and it has no `_process` or
 `_physics_process` callback.
 
-Startup/production wiring remains a separately owned step: that owner must hold
-the validated profile/bank lifecycle, call this adapter once per intended
-physics tick, and map the detached transformed frame into existing input/command
-consumers. This file deliberately does not choose that owner or bypass its
-authority.
+`LocalShipInputSource` now owns the ship-control composition: it calls this
+sampler for an active command sample and passes the detached frame into
+`TransformedShipCommandMapper`, while retaining mouse-event backlog and existing
+command-stream authority. See `docs/LOCAL_SHIP_TRANSFORMED_INPUT.md`. Startup
+still owns passing the active RuntimeSettings profile; this sampler deliberately
+does not choose that profile or bypass source authority.

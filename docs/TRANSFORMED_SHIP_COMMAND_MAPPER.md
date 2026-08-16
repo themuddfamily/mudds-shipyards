@@ -42,7 +42,7 @@ Every rejection returns a fresh, valid neutral `ShipCommand`. The frame is never
 retained or mutated. Caller metadata must already be non-negative integers in
 the transport's lossless JSON range; it is rejected rather than clamped.
 
-## Authority boundary and remaining seam
+## Authority boundary and production integration
 
 The mapper never calls `Input` or `InputMap`, owns no process callback or physics
 clock, does not select devices, and owns no command sequence, queue, delivery,
@@ -50,13 +50,12 @@ clock, does not select devices, and owns no command sequence, queue, delivery,
 `engine_stop = false`: accepted movement, hover, fire, landing, and other intent
 continue to drive the existing automatic-propulsion semantics.
 
-Mouse-look motion remains neutral because the logical sampler frame contains no
-motion-event stream. A later production input owner must combine this mapper
-with the existing motion backlog (or a separately specified transformed motion
-seam), call it once per intended physics sample, and publish the resulting
-command through the existing authority-aware source. The stateless mapper does
-not prevent a caller from reusing a detached frame; single-consumption remains
-that owner's transport responsibility.
+Mouse-look motion remains neutral inside this mapper because the logical sampler
+frame contains no motion-event stream. `LocalShipInputSource` now composes it
+with the existing motion and camera-distance backlogs and publishes through the
+authority-aware command source. See `docs/LOCAL_SHIP_TRANSFORMED_INPUT.md`.
+The mapper remains stateless and does not itself prevent frame reuse;
+single-consumption belongs to that source composition.
 
 Focused verification:
 
