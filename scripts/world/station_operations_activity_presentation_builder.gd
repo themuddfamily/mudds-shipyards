@@ -42,13 +42,22 @@ func build(
 		presentation_root: Node3D,
 		profile_id: StringName,
 		drone_count: int,
-		beacon_seat_height: float
+		beacon_seat_height: float,
+		shared_material_catalog: Dictionary = {}
 	) -> void:
 	_presentation_root = presentation_root
 	_profile_id = profile_id
 	_drone_count = drone_count
 	_beacon_seat_height = beacon_seat_height
-	_create_materials()
+	# Materials are immutable presentation recipes. The owning activity injects
+	# its process-wide catalog after the first build so later placements bind the
+	# same resources instead of allocating seventeen identical copies. Each
+	# builder still owns its dictionary, and animated lenses only swap the
+	# per-node material reference; no mutable clock or hierarchy state is shared.
+	if shared_material_catalog.is_empty():
+		_create_materials()
+	else:
+		_materials = shared_material_catalog.duplicate(false)
 	if _profile_id == PROFILE_FULL or _profile_id == PROFILE_GANTRY:
 		_build_gantry()
 	if _profile_id == PROFILE_FULL or _profile_id == PROFILE_SERVICE_ARM:

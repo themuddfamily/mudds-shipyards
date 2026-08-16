@@ -564,6 +564,20 @@ func _test_agent_mutations_turn_audit_red() -> void:
 		carriage.position = original
 		_check(bool(agent.get_audit_report().valid), "restoring the carriage pose returns the courier audit to green")
 
+	var hull := agent.get_node_or_null(^"PresentationRoot/ServiceCarriage/Hull") as MeshInstance3D
+	_check(hull != null, "the courier hull material is reachable at its stable path")
+	if hull != null:
+		var shared_hull_material := hull.material_override as StandardMaterial3D
+		var original_roughness := shared_hull_material.roughness
+		shared_hull_material.roughness = 0.01
+		_check(
+			not bool(agent.get_material_catalog_audit().valid)
+			and _has_error(agent.get_validation_errors(), "material catalog diverged"),
+			"MUTATION: changing a shared immutable courier material turns its visible-parameter audit red"
+		)
+		shared_hull_material.roughness = original_roughness
+		_check(bool(agent.get_audit_report().valid), "restoring the shared material returns the courier audit to green")
+
 	agent.hover_lift = StationServiceAgent.MINIMUM_HOVER_LIFT
 	_check(
 		_has_error(agent.get_validation_errors(), "hover_lift cannot be changed"),
@@ -686,6 +700,50 @@ func _test_production_graph_reuses_the_route_registry(world: ShipyardWorld) -> v
 func _test_production_courier_roster(world: ShipyardWorld) -> void:
 	var agents := world.get_station_service_agents()
 	_check(agents.size() == 4, "the production station integrates exactly four declared-slot couriers")
+	var material_roster_nodes: Array[Node] = []
+	for agent in agents:
+		material_roster_nodes.append(agent)
+	var material_roster := StationServiceAgent.audit_material_catalog_roster(material_roster_nodes)
+	var material_counts := material_roster.counts as Dictionary
+	print("STATION_SERVICE_MATERIAL_ROSTER: ", material_roster)
+	_check(
+		bool(material_roster.valid)
+		and bool(material_roster.catalog_shared)
+		and int(material_counts.instance_count) == 4
+		and int(material_counts.catalog_entries) == 6
+		and int(material_counts.retained_unique_materials) == 6,
+		"four production couriers retain one six-entry material catalog instead of 24 duplicate resources"
+	)
+	_check(
+		int(material_counts.bound_material_references) == 28,
+		"catalog sharing preserves all seven visible material bindings on each of four couriers"
+	)
+	if not agents.is_empty():
+		var catalog := agents[0].get_material_catalog_audit()
+		var visible_parameters := catalog.visible_parameters_by_key as Dictionary
+		var hull_parameters := visible_parameters.hull as Dictionary
+		var lens_parameters := visible_parameters.cyan_lit as Dictionary
+		_check(
+			(catalog.catalog_keys as PackedStringArray) == PackedStringArray([
+				"cyan_dim", "cyan_lit", "graphite", "hull", "hull_edge", "orange",
+			])
+			and (hull_parameters.albedo_color as Color).is_equal_approx(Color("2b4753"))
+			and is_equal_approx(float(hull_parameters.metallic), 0.66)
+			and is_equal_approx(float(hull_parameters.roughness), 0.34)
+			and (lens_parameters.albedo_color as Color).is_equal_approx(Color("78f1ec"))
+			and is_equal_approx(float(lens_parameters.emission_energy), 1.5),
+			"shared courier catalog preserves its exact key roster and visible hull/lens parameters"
+		)
+		var all_dynamic_bindings_valid := true
+		for agent in agents:
+			all_dynamic_bindings_valid = (
+				all_dynamic_bindings_valid
+				and bool(agent.get_material_catalog_audit().dynamic_lens_bindings_valid)
+			)
+		_check(
+			all_dynamic_bindings_valid,
+			"each courier keeps its own clock-driven status-lens reference while sharing catalog values"
+		)
 	var by_id := {}
 	for agent in agents:
 		by_id[agent.get_agent_id()] = agent

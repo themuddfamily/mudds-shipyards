@@ -74,6 +74,12 @@ const BEACON_COUNT := 4
 const BEACON_SEAT_HEIGHT := 0.09
 const RECOMMENDED_MAX_INSTANCES := 6
 
+## The catalog is process-wide because every entry is an immutable visible
+## recipe. Instances receive a shallow dictionary copy, so their key roster
+## cannot affect a peer, while every value is the same retained Material. Runtime
+## animation remains per instance and swaps only MeshInstance3D overrides.
+static var _shared_material_catalog: Dictionary = {}
+
 ## Exact, not merely bounding: `get_validation_errors()` rejects a live count that
 ## differs from its profile row in either direction.
 ##
@@ -214,8 +220,9 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ##   `instance_count` 8 -> 10.
 ##   `node_count` 432 -> 531: -9 as `cargo_line` instanced its repeats, +2 x 54.
 ##   `mesh_instances` 339 -> 404: -13 from the same instancing, +2 x 39.
-##   `unique_materials` 136 -> 170: +2 x 17, because the material set is built
-##     whole per component regardless of profile.
+##   `unique_materials` was historically 136 -> 170 because the same 17-entry
+##     catalog was rebuilt per placement. Catalog sharing later reduced the
+##     retained production-roster total 170 -> 17 without changing any binding.
 ##   `animated_assemblies` 17 -> 21: +2 x 2, a sled and a hoist each.
 ##   `multimesh_batches` 0 -> 12 and `multimesh_instances` 0 -> 57.
 ##
@@ -226,7 +233,7 @@ const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
 	"node_count": 531,
 	"mesh_instances": 404,
-	"unique_materials": 170,
+	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
@@ -361,9 +368,12 @@ func _ready() -> void:
 		_presentation_root,
 		PROFILE_IDS.get(_built_profile, &"invalid") as StringName,
 		DRONE_COUNT,
-		BEACON_SEAT_HEIGHT
+		BEACON_SEAT_HEIGHT,
+		_shared_material_catalog
 	)
 	_adopt_presentation_builder_state()
+	if _shared_material_catalog.is_empty():
+		_shared_material_catalog = _materials.duplicate(false)
 	_service_zone_anchor.position = _get_profile_service_zone_center()
 	_apply_evidence_metadata()
 	if not _enabled_overridden:
@@ -865,6 +875,56 @@ func get_recommended_production_roster_budget() -> Dictionary:
 	}
 
 
+## Observable proof for resource/performance audits. Contracts include every
+## stored material property captured after construction, while identities prove
+## that all placements retain the same resources. The returned dictionaries are
+## detached; callers cannot alter the live catalog through this API.
+func get_material_catalog_audit() -> Dictionary:
+	var identities := {}
+	var keys := PackedStringArray()
+	var shared_identity := true
+	for key in _materials:
+		var material := _materials[key] as Material
+		var shared_material := _shared_material_catalog.get(key) as Material
+		keys.append(str(key))
+		identities[key] = material.get_instance_id() if material != null else 0
+		shared_identity = (
+			shared_identity
+			and material != null
+			and shared_material != null
+			and material == shared_material
+		)
+	keys.sort()
+	var bound_references := 0
+	for candidate in find_children("*", "", true, false):
+		if (
+			(candidate is MeshInstance3D or candidate is MultiMeshInstance3D)
+			and (candidate as GeometryInstance3D).material_override != null
+		):
+			bound_references += 1
+	return {
+		"valid": (
+			_materials.size() == 17
+			and shared_identity
+			and _materials_match_build_contract()
+			and _dynamic_lens_materials_match_clock()
+		),
+		"catalog_shared": shared_identity,
+		"catalog_keys": keys,
+		"catalog_entry_count": _materials.size(),
+		"retained_unique_materials": identities.size(),
+		"bound_material_references": bound_references,
+		"dynamic_lens_count": (
+			_beacon_lenses.size()
+			+ _drone_beacon_lenses.size()
+			+ _station_life_lenses.size()
+		),
+		"dynamic_lens_bindings_valid": _dynamic_lens_materials_match_clock(),
+		"identity_by_key": identities.duplicate(true),
+		"visible_parameters_by_key": _built_material_contracts.duplicate(true),
+	}
+
+
 static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 	var counts := {
 		"instance_count": 0,
@@ -882,6 +942,12 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 	for profile_id: StringName in RECOMMENDED_PRODUCTION_ROSTER_PROFILE_COUNTS:
 		profile_counts[profile_id] = 0
 	var errors := PackedStringArray()
+	var retained_material_ids := {}
+	var reference_identity_by_key := {}
+	var bound_material_references := 0
+	var dynamic_lens_count := 0
+	var dynamic_lens_bindings_valid := true
+	var catalogs_share_identity := true
 	for candidate in activities:
 		if not candidate is StationOperationsActivity:
 			errors.append("production roster contains a node that is not StationOperationsActivity")
@@ -904,7 +970,28 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		var activity_counts := report.counts as Dictionary
 		counts.instance_count = int(counts.instance_count) + 1
 		for key: String in activity_counts.keys():
+			if key == "unique_materials":
+				continue
 			counts[key] = int(counts.get(key, 0)) + int(activity_counts[key])
+		var catalog_audit := activity.get_material_catalog_audit()
+		if not bool(catalog_audit.valid):
+			errors.append("production roster '%s' material catalog fails its own audit" % profile_id)
+		var identities := catalog_audit.identity_by_key as Dictionary
+		if reference_identity_by_key.is_empty():
+			reference_identity_by_key = identities.duplicate(true)
+		else:
+			catalogs_share_identity = catalogs_share_identity and identities == reference_identity_by_key
+		for material_id in identities.values():
+			retained_material_ids[int(material_id)] = true
+		bound_material_references += int(catalog_audit.bound_material_references)
+		dynamic_lens_count += int(catalog_audit.dynamic_lens_count)
+		dynamic_lens_bindings_valid = (
+			dynamic_lens_bindings_valid
+			and bool(catalog_audit.dynamic_lens_bindings_valid)
+		)
+	counts.unique_materials = retained_material_ids.size()
+	if not catalogs_share_identity:
+		errors.append("production roster placements do not share one material catalog identity")
 	for profile_id: StringName in profile_counts.keys():
 		var required := int(RECOMMENDED_PRODUCTION_ROSTER_PROFILE_COUNTS[profile_id])
 		if int(profile_counts[profile_id]) != required:
@@ -924,6 +1011,20 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		"profile_counts": profile_counts.duplicate(true),
 		"counts": counts.duplicate(true),
 		"budgets": RECOMMENDED_PRODUCTION_ROSTER_BUDGET.duplicate(true),
+		"material_catalog": {
+			"valid": (
+				catalogs_share_identity
+				and retained_material_ids.size() == 17
+				and dynamic_lens_bindings_valid
+			),
+			"catalog_shared": catalogs_share_identity,
+			"catalog_entries": reference_identity_by_key.size(),
+			"retained_unique_materials": retained_material_ids.size(),
+			"bound_material_references": bound_material_references,
+			"dynamic_lens_count": dynamic_lens_count,
+			"dynamic_lens_bindings_valid": dynamic_lens_bindings_valid,
+			"identity_by_key": reference_identity_by_key.duplicate(true),
+		},
 	}
 
 
@@ -962,8 +1063,11 @@ func get_performance_audit(instance_count: int = 1) -> Dictionary:
 	var aggregate_counts := {}
 	var aggregate_budgets := {}
 	for key: String in counts.keys():
-		aggregate_counts[key] = int(counts[key]) * audited_instance_count
-		aggregate_budgets[key] = int(performance_budget.get(key, 0)) * audited_instance_count
+		# Geometry and nodes scale per placement. The immutable material catalog
+		# does not: all placements retain the same seventeen resources.
+		var multiplier := 1 if key == "unique_materials" else audited_instance_count
+		aggregate_counts[key] = int(counts[key]) * multiplier
+		aggregate_budgets[key] = int(performance_budget.get(key, 0)) * multiplier
 	var aggregate_errors := PackedStringArray()
 	for key: String in aggregate_budgets.keys():
 		if int(aggregate_counts.get(key, 0)) > int(aggregate_budgets[key]):
@@ -1075,6 +1179,7 @@ func get_audit_report() -> Dictionary:
 		"evidence": get_evidence_metadata(),
 		"integration": get_integration_contract(),
 		"performance": get_performance_audit(),
+		"material_catalog": get_material_catalog_audit(),
 		"lifecycle": {
 			"enabled": _activity_enabled,
 			"paused": _activity_paused,
@@ -1503,6 +1608,38 @@ func _materials_match_build_contract() -> bool:
 			)
 			or _resource_storage_fingerprint(material)
 				!= (contract.get("storage", PackedStringArray()) as PackedStringArray)
+		):
+			return false
+	return true
+
+
+func _dynamic_lens_materials_match_clock() -> bool:
+	for index in _station_life_lenses.size():
+		if (
+			not is_instance_valid(_station_life_lenses[index])
+			or _station_life_lenses[index].material_override
+				!= _station_life_lens_material(index)
+		):
+			return false
+	var beacon_pattern := _get_beacon_pattern()
+	for index in _beacon_lenses.size():
+		var expected_beacon: Material = (
+			_materials["amber_lit"] if beacon_pattern[index] else _materials["amber_dim"]
+		)
+		if (
+			not is_instance_valid(_beacon_lenses[index])
+			or _beacon_lenses[index].material_override != expected_beacon
+		):
+			return false
+	var seed_phase := fmod(float(_get_effective_variation_seed()), 997.0) / 997.0 * TAU
+	for index in _drone_beacon_lenses.size():
+		var lit := fmod(_elapsed + float(index) * 0.42 + seed_phase, 1.35) < 0.24
+		var expected_drone: Material = (
+			_materials["red_lit"] if lit else _materials["cyan_dim"]
+		)
+		if (
+			not is_instance_valid(_drone_beacon_lenses[index])
+			or _drone_beacon_lenses[index].material_override != expected_drone
 		):
 			return false
 	return true
