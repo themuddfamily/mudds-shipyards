@@ -77,6 +77,11 @@ const PERFORMANCE_BUDGET := {
 
 const RECOMMENDED_MAX_INSTANCES := 6
 
+## Every courier uses the same immutable six-recipe surface catalog. The
+## dictionary itself is copied per instance; only Material values are shared.
+## Route clocks, poses, and the status-lens override remain instance-owned.
+static var _shared_material_catalog: Dictionary = {}
+
 const CONTENT_NOTE := (
 	"The remake brief supports ambient station activity, cargo movement, and "
 	+ "animated equipment. It does not authenticate this courier silhouette, its "
@@ -130,6 +135,7 @@ var _built_lateral_sway := 0.22
 var _built_vertical_sway := 0.16
 var _built_route_fingerprint := ""
 var _built_node_instance_ids: Dictionary = {}
+var _built_material_contracts: Dictionary = {}
 var _envelope_min := Vector3.ZERO
 var _envelope_max := Vector3.ZERO
 
@@ -158,6 +164,7 @@ func _ready() -> void:
 	_built_route_fingerprint = _route_fingerprint()
 	_create_materials()
 	_build_courier()
+	_capture_built_material_contracts()
 	_recompute_service_envelope()
 	_route_anchor.transform = Transform3D.IDENTITY
 	_service_envelope_anchor.transform = Transform3D(Basis.IDENTITY, get_service_envelope_center())
@@ -487,6 +494,91 @@ func get_performance_audit() -> Dictionary:
 	}
 
 
+## Detached resource evidence for focused audits. It proves that the visible
+## parameter contracts are unchanged, that every courier retains the process
+## catalog identities, and that the dynamic lens still points at the correct
+## dim/lit entry for this instance's clock.
+func get_material_catalog_audit() -> Dictionary:
+	var identities := {}
+	var shared_identity := true
+	var keys := PackedStringArray()
+	for key in _materials:
+		var material := _materials[key] as Material
+		var shared_material := _shared_material_catalog.get(key) as Material
+		keys.append(str(key))
+		identities[key] = material.get_instance_id() if material != null else 0
+		shared_identity = (
+			shared_identity
+			and material != null
+			and shared_material != null
+			and material == shared_material
+		)
+	keys.sort()
+	var bound_references := 0
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		if (candidate as MeshInstance3D).material_override != null:
+			bound_references += 1
+	return {
+		"valid": (
+			_materials.size() == 6
+			and shared_identity
+			and _materials_match_build_contract()
+			and _agent_lens_material_matches_clock()
+		),
+		"catalog_shared": shared_identity,
+		"catalog_keys": keys,
+		"catalog_entry_count": _materials.size(),
+		"retained_unique_materials": identities.size(),
+		"bound_material_references": bound_references,
+		"dynamic_lens_bindings_valid": _agent_lens_material_matches_clock(),
+		"identity_by_key": identities.duplicate(true),
+		"visible_parameters_by_key": _built_material_contracts.duplicate(true),
+	}
+
+
+static func audit_material_catalog_roster(candidates: Array[Node]) -> Dictionary:
+	var errors := PackedStringArray()
+	var reference_identity_by_key := {}
+	var retained_material_ids := {}
+	var bound_material_references := 0
+	var instance_count := 0
+	var catalogs_share_identity := true
+	for candidate in candidates:
+		if not candidate is StationServiceAgent:
+			errors.append("material roster contains a node that is not StationServiceAgent")
+			continue
+		var agent := candidate as StationServiceAgent
+		var audit := agent.get_material_catalog_audit()
+		instance_count += 1
+		if not bool(audit.valid):
+			errors.append("courier '%s' material catalog fails its own audit" % agent.get_agent_id())
+		var identities := audit.identity_by_key as Dictionary
+		if reference_identity_by_key.is_empty():
+			reference_identity_by_key = identities.duplicate(true)
+		else:
+			catalogs_share_identity = catalogs_share_identity and identities == reference_identity_by_key
+		for material_id in identities.values():
+			retained_material_ids[int(material_id)] = true
+		bound_material_references += int(audit.bound_material_references)
+	if not catalogs_share_identity:
+		errors.append("couriers do not share one material catalog identity")
+	if instance_count > 0 and retained_material_ids.size() != 6:
+		errors.append("courier roster retains %d materials instead of the shared six-entry catalog" % retained_material_ids.size())
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"catalog_shared": catalogs_share_identity,
+		"identity_by_key": reference_identity_by_key.duplicate(true),
+		"counts": {
+			"instance_count": instance_count,
+			"catalog_entries": reference_identity_by_key.size(),
+			"retained_unique_materials": retained_material_ids.size(),
+			"bound_material_references": bound_material_references,
+		},
+	}
+
+
 func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if _route_anchor == null or _service_envelope_anchor == null or _presentation_root == null:
@@ -582,6 +674,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("service courier must never contain berth authority")
 	if not _agent_pose_matches_clock():
 		errors.append("live courier pose diverged from its deterministic clock")
+	if not _materials_match_build_contract():
+		errors.append("shared courier material catalog diverged from its built visible parameters")
 	if not _envelope_contains_complete_cycle():
 		errors.append("courier traversal leaves the published service envelope")
 	if not _live_meshes_fit_envelope():
@@ -602,6 +696,7 @@ func get_audit_report() -> Dictionary:
 		"integration": get_integration_contract(),
 		"authority": get_authority_contract(),
 		"performance": get_performance_audit(),
+		"material_catalog": get_material_catalog_audit(),
 		"lifecycle": {
 			"enabled": _agent_enabled,
 			"paused": _agent_paused,
@@ -715,6 +810,10 @@ func _agent_pose_matches_clock() -> bool:
 		Basis.from_euler(Vector3(0.0, float(pose.yaw), 0.0), _carriage.rotation_order)
 	):
 		return false
+	return _agent_lens_material_matches_clock()
+
+
+func _agent_lens_material_matches_clock() -> bool:
 	if not is_instance_valid(_status_lens):
 		return false
 	var expected_lens: Material = (
@@ -875,6 +974,9 @@ func _apply_evidence_metadata() -> void:
 
 
 func _create_materials() -> void:
+	if not _shared_material_catalog.is_empty():
+		_materials = _shared_material_catalog.duplicate(false)
+		return
 	_materials["hull"] = _material(Color("2b4753"), 0.66, 0.34)
 	_materials["hull_edge"] = _material(Color("6d868f"), 0.62, 0.28)
 	_materials["graphite"] = _material(Color("141d22"), 0.44, 0.6)
@@ -882,6 +984,80 @@ func _create_materials() -> void:
 	_materials["cyan_dim"] = _material(Color("347b80"), 0.28, 0.34, Color("20878e"), 0.32)
 	_materials["cyan_lit"] = _material(Color("78f1ec"), 0.12, 0.25, Color("35d8dc"), 1.5)
 	_apply_station_panel_family()
+	_shared_material_catalog = _materials.duplicate(false)
+
+
+func _capture_built_material_contracts() -> void:
+	_built_material_contracts.clear()
+	for key in _materials:
+		var material := _materials[key] as StandardMaterial3D
+		if material != null:
+			_built_material_contracts[key] = _standard_material_contract(material)
+
+
+func _standard_material_contract(material: StandardMaterial3D) -> Dictionary:
+	return {
+		"instance_id": material.get_instance_id(),
+		"albedo_color": material.albedo_color,
+		"metallic": material.metallic,
+		"roughness": material.roughness,
+		"emission_enabled": material.emission_enabled,
+		"emission": material.emission,
+		"emission_energy": material.emission_energy_multiplier,
+		"clearcoat_enabled": material.clearcoat_enabled,
+		"clearcoat": material.clearcoat,
+		"clearcoat_roughness": material.clearcoat_roughness,
+		"storage": _resource_storage_fingerprint(material),
+	}
+
+
+func _materials_match_build_contract() -> bool:
+	if _built_material_contracts.size() != _materials.size():
+		return false
+	for key in _built_material_contracts:
+		var material := _materials.get(key) as StandardMaterial3D
+		var contract := _built_material_contracts[key] as Dictionary
+		if (
+			material == null
+			or material.get_instance_id() != int(contract.get("instance_id", 0))
+			or not material.albedo_color.is_equal_approx(
+				contract.get("albedo_color", Color.TRANSPARENT) as Color
+			)
+			or not is_equal_approx(material.metallic, float(contract.get("metallic", 0.0)))
+			or not is_equal_approx(material.roughness, float(contract.get("roughness", 0.0)))
+			or material.emission_enabled != bool(contract.get("emission_enabled", false))
+			or not material.emission.is_equal_approx(
+				contract.get("emission", Color.TRANSPARENT) as Color
+			)
+			or not is_equal_approx(
+				material.emission_energy_multiplier,
+				float(contract.get("emission_energy", 0.0))
+			)
+			or material.clearcoat_enabled != bool(contract.get("clearcoat_enabled", false))
+			or not is_equal_approx(material.clearcoat, float(contract.get("clearcoat", 0.0)))
+			or not is_equal_approx(
+				material.clearcoat_roughness,
+				float(contract.get("clearcoat_roughness", 0.0))
+			)
+			or _resource_storage_fingerprint(material)
+				!= (contract.get("storage", PackedStringArray()) as PackedStringArray)
+		):
+			return false
+	return true
+
+
+func _resource_storage_fingerprint(resource: Resource) -> PackedStringArray:
+	var result := PackedStringArray()
+	if resource == null:
+		return result
+	for property_value in resource.get_property_list():
+		var property := property_value as Dictionary
+		if int(property.get("usage", 0)) & PROPERTY_USAGE_STORAGE == 0:
+			continue
+		var property_name := StringName(property.get("name", &""))
+		result.append("%s=%d" % [property_name, hash(resource.get(property_name))])
+	result.sort()
+	return result
 
 
 ## Bind the registered station panel/normal/roughness recipe to the courier's

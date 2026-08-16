@@ -54,6 +54,10 @@ func _run() -> void:
 	_check(int(counts.collision_nodes) == 0, "component contains no body, area, shape, or collision polygon")
 	_check(int(counts.lights) == 0 and int(counts.particle_emitters) == 0, "beacons use bounded emissive meshes without dynamic lights or particles")
 	_check(not bool(performance.uses_external_assets), "component requires no external art assets")
+	_check(
+		int((activity.get_performance_audit(6).aggregate_counts as Dictionary).unique_materials) == 17,
+		"aggregate performance audit counts the shared catalog once across six placements"
+	)
 
 	var profile_instances: Array[Node] = [activity]
 	var expected_equipment := {
@@ -207,6 +211,43 @@ func _run() -> void:
 	var roster_audit := StationOperationsActivity.audit_production_roster(profile_instances)
 	print("STATION_OPERATIONS_PRODUCTION_ROSTER: ", roster_audit)
 	_check(bool(roster_audit.valid), "the audited profile multiset satisfies the recommended production roster audit")
+	var roster_catalog := roster_audit.material_catalog as Dictionary
+	var full_catalog := activity.get_material_catalog_audit()
+	var visible_parameters := full_catalog.visible_parameters_by_key as Dictionary
+	_check(
+		bool(roster_catalog.valid)
+		and bool(roster_catalog.catalog_shared)
+		and int(roster_catalog.catalog_entries) == 17
+		and int(roster_catalog.retained_unique_materials) == 17,
+		"ten placements retain one shared 17-entry material catalog instead of 170 duplicate resources"
+	)
+	_check(
+		(full_catalog.catalog_keys as PackedStringArray) == PackedStringArray([
+			"amber_dim", "amber_lit", "ceramic", "crate", "crate_alt", "cyan_dim",
+			"cyan_lit", "frame", "frame_edge", "graphite", "green_dim", "green_lit",
+			"orange", "red_dim", "red_lit", "rubber", "sign_lit",
+		]),
+		"shared catalog preserves the exact visible material-key roster"
+	)
+	_check(
+		int(roster_catalog.bound_material_references) == 416
+		and int(roster_catalog.dynamic_lens_count) == 57
+		and bool(roster_catalog.dynamic_lens_bindings_valid),
+		"sharing leaves all 416 visible bindings and 57 per-instance dynamic lens bindings intact"
+	)
+	var frame_parameters := visible_parameters.frame as Dictionary
+	var amber_parameters := visible_parameters.amber_lit as Dictionary
+	var sign_parameters := visible_parameters.sign_lit as Dictionary
+	_check(
+		(frame_parameters.albedo_color as Color).is_equal_approx(Color("253943"))
+		and is_equal_approx(float(frame_parameters.metallic), 0.72)
+		and is_equal_approx(float(frame_parameters.roughness), 0.32)
+		and (amber_parameters.albedo_color as Color).is_equal_approx(Color("ffc069"))
+		and is_equal_approx(float(amber_parameters.emission_energy), 1.8)
+		and (sign_parameters.albedo_color as Color).is_equal_approx(Color("e8f2ef"))
+		and is_equal_approx(float(sign_parameters.emission_energy), 1.15),
+		"shared resources preserve representative structural, warning, and sign visible parameters"
+	)
 	# Re-frozen from 4 roles / 180 meshes by the station-life pass, 180 -> 339
 	# (79 + 48 + 19 + 32 + 47 + 33 + 33 + 48).
 	#
@@ -361,7 +402,11 @@ func _run() -> void:
 	var original_material := foot_pad.material_override as StandardMaterial3D
 	var original_cull_mode := original_material.cull_mode
 	original_material.cull_mode = BaseMaterial3D.CULL_FRONT
-	_check(not bool(activity.get_audit_report().valid), "audit rejects in-place shared material presentation drift")
+	_check(
+		not bool(activity.get_audit_report().valid)
+		and not bool(peer.get_material_catalog_audit().valid),
+		"all placements reject in-place drift of their deliberately shared immutable material"
+	)
 	original_material.cull_mode = original_cull_mode
 	var gantry := activity.get_node("PresentationRoot/MaintenanceGantry") as Node3D
 	var original_gantry_scale := gantry.scale
