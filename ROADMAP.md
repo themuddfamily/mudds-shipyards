@@ -378,6 +378,36 @@ Station module contract and non-metric route registry (Phase 3 playbook steps 1�
 - **`tests/station_interaction_flow_test.gd:45` is load-flaky.** It waits on a wall-clock `0.15 s` timer against a `0.08 s` door tween and starves under heavy parallel load. It passes in isolation. Not yet fixed; replace the wall-clock wait with a deterministic condition.
 - **`scripts/world/shipyard_world.gd` asserts in a comment that the spawn/ladder relationship is source-supported.** No ledger anchor registers a ladder; B3 supports only a "short vertical transition". Unrepaired.
 
+### Current-state reconciliation — 2026-08-16
+
+The older handoff bullets immediately above contain several historical dispositions that
+were stale when this tree resumed. Current evidence is:
+
+- The accessibility preset/settings slice is landed and passes `accessibility_presets_test`
+  (74 assertions) plus `accessibility_reentry_integration_test` (48 assertions). Runtime
+  rebinding is now a separate opt-in foundation in `scripts/settings/` with 45 focused
+  assertions; it is not yet wired into the settings UI or automatic `InputMap` mutation.
+- `station_interaction_flow_test`'s door wait is physics-frame bounded and passes 8
+  assertions. The remaining lower-priority wrong-clock inventory still needs separate
+  conversion where applicable.
+- The Cinder Reach activity foundation now has typed location/activity resources,
+  `ActivityDirector`, and a generation-safe checkpoint route (27 focused assertions),
+  but it is not yet integrated into `Main`, HUD objectives, rewards, or a packaged human
+  route. The Phase 8 activity item therefore remains open.
+- The torus tessellation pass is already landed: the current census records 180
+  `TorusMesh` instances at 174,260 triangles, and the rendered smoothness review is
+  recorded in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`. Remaining performance work is
+  native-hardware frame/GPU/VRAM benchmarking and the measured trim plan, not another
+  torus pass.
+- `MATRIX-001` now keeps run-variable terminal text out of `results-canonical.tsv` while
+  retaining strict exit, sentinel, assertion, and diagnostic gates. `CAPTURE-001` is
+  partially fixed: the neutral crop uses a controlled ship-material reference and the
+  harness fails closed without a renderer, but cockpit exterior noise still needs a
+  real-GPU qualification.
+- `tools/release/package_inventory.py` is deliberately partial. It parses conventional
+  format-4 PCK tables and rejects forbidden release paths, but the current exported EXE's
+  `GDSC`/zstd chunked TOC is explicitly unsupported and produces no manifest.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
@@ -756,7 +786,7 @@ It owns **no gameplay authority**: no rewards, no leases, no objectives, and del
 
 **Nothing in the range moved.** The header, both trusses and all four drones are frozen at their recorded positions by `tests/outbound_route_clearance_test.gd`, which fails if a later pass buys clearance by shifting them; every cue piece is presentation on the beam's own faces, adds no collider, and is checked to sit inside the beam's 8.5–9.5 m band so it cannot become drawn geometry standing in the lane it advertises. The suite also keeps the original defect reproducible: a Torrent on the old y = 8.0 aim must still be stopped by the gate. One defect in the cue itself was caught only by the render — a legend written 0.09 m "toward the viewer" on an axis that runs away from the station, so it was built 0.04 m inside the girder while every assertion passed — and there is now an assertion for that too.
 
-**Still open on the first item:** the *activity* half — races, patrols, cargo runs, convoys and station defence — plus the `WorldLocationDefinition` / `ActivityDefinition` resources and the `ActivityDirector` seam the playbook above specifies. None of that is started, and none of it should be layered onto scenery: the cluster exposes geometry and published anchors, not objectives.
+**Still open on the first item:** the *activity* half — races, patrols, cargo runs, convoys and station defence — plus production integration into `Main`, objective/HUD consumers, packaged travel and human review. The first typed foundation now exists in `scripts/activities/`, `scripts/world/definitions/`, and the two Cinder Reach resources: `ActivityDirector` and `CheckpointRouteActivity` cover ordered beacon checkpoints, complete/fail/reset, and generation-safe stale-call rejection in `tests/activity_director_test.gd` (27 assertions). It deliberately owns no reward, ship, berth, combat, or `GameFlow` authority and is not yet a player-facing activity; the cluster still exposes geometry and published anchors rather than a live objective.
 
 ## Phase 9 — Release polish
 
