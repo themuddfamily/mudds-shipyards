@@ -430,9 +430,11 @@ func _idle_engine_offline_exact(ship: HeroShip, description: String) -> void:
 		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
 		* float(Engine.physics_ticks_per_second)
 	))
-	for _tick in idle_ticks - 1:
+	# `physics_frame` resumes before node integration. The final boundary below
+	# therefore observes exactly `idle_ticks - 1` completed neutral ship ticks,
+	# without yielding to an idle frame that may contain multiple catch-up ticks.
+	for _tick in idle_ticks:
 		await physics_frame
-	await process_frame
 	_check(
 		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE,
 		"Arrow remains ONLINE one physics tick before the 1.5-second deadline"
@@ -440,8 +442,8 @@ func _idle_engine_offline_exact(ship: HeroShip, description: String) -> void:
 	# The engine accumulator is floating point: 90 nominal 60 Hz deltas can land
 	# infinitesimally below 1.5. One bounded threshold-crossing step is permitted.
 	await physics_frame
-	await physics_frame
-	await process_frame
+	if StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE:
+		await physics_frame
 	_check(
 		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE,
 		description

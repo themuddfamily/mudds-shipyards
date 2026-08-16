@@ -415,8 +415,11 @@ func _wait_for_phase(game: GameFlow, expected_phase: GameFlow.Phase, timeout: fl
 
 func _apply_forward_demand_for_one_tick(ship: HeroShip) -> bool:
 	Input.action_press(&"move_forward")
+	# The first boundary precedes the demanded tick; the second observes its
+	# completed state before another ship tick can run. `process_frame` is not a
+	# one-tick barrier on a loaded host because physics catch-up may precede it.
 	await physics_frame
-	await process_frame
+	await physics_frame
 	var accepted := (
 		str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "ONLINE"
 		and ship.get_last_ship_command().throttle > 0.0

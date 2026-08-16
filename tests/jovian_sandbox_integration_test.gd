@@ -463,17 +463,18 @@ func _idle_engine_offline_exact(ship: HeroShip, description: String) -> void:
 		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
 		* float(Engine.physics_ticks_per_second)
 	))
-	for _tick in idle_ticks - 1:
+	# Resume at the boundary before the threshold tick: unlike `process_frame`,
+	# this cannot hide extra catch-up physics work on a loaded matrix host.
+	for _tick in idle_ticks:
 		await physics_frame
-	await process_frame
 	_check(
 		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE,
 		"Jovian remains ONLINE one physics tick before the 1.5-second deadline"
 	)
 	# Allow the one discrete step that crosses a floating-point sum just below 1.5.
 	await physics_frame
-	await physics_frame
-	await process_frame
+	if StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE:
+		await physics_frame
 	_check(
 		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE,
 		description

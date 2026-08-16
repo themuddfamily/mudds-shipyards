@@ -343,17 +343,17 @@ func _idle_engine_offline(ship: HeroShip) -> bool:
 		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
 		* float(Engine.physics_ticks_per_second)
 	))
-	for _frame in idle_ticks - 1:
+	# Observe the boundary before the threshold tick. Yielding through an idle
+	# frame here is nondeterministic under load because several catch-up physics
+	# ticks may complete before that idle signal is emitted.
+	for _frame in idle_ticks:
 		await physics_frame
-	await process_frame
 	var online_before_deadline := (
 		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
 	)
 	await physics_frame
-	await process_frame
 	if StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE:
 		await physics_frame
-		await process_frame
 	return (
 		online_before_deadline
 		and StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE

@@ -442,9 +442,12 @@ func _tap_action(provider: LogicalInputProvider, action: StringName) -> void:
 
 func _advance_physics_seconds(seconds: float) -> void:
 	var frame_count := int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second)))
-	for _frame in frame_count:
+	# `physics_frame` is emitted before node integration. Await one following
+	# boundary so exactly `frame_count` ship ticks have completed, then resume
+	# before the next one. An intervening `process_frame` is not an observer
+	# barrier under load: Godot may run several catch-up physics ticks before it.
+	for _frame in frame_count + 1:
 		await physics_frame
-		await process_frame
 
 
 func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
