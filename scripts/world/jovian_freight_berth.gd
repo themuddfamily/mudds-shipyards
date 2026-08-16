@@ -1076,8 +1076,16 @@ func _add_bevelled_face(surface: SurfaceTool, normal: Vector3, axis_a: Vector3, 
 		_add_quad(surface, inner_points[index], corner_points[index], corner_points[next], inner_points[next], bevel_normal)
 
 
+## Emission order is the front-face winding. This builder is a different
+## algorithm from `StationSurfaceKit`'s chamfered box, but it carried the same
+## defect: `a, b, c / a, c, d` against these face axes puts
+## `(b - a) x (c - a)` along the outward normal, and Godot's front face is the
+## opposite one — measured against `BoxMesh`, `CylinderMesh` and `SphereMesh`,
+## which all score zero agreement. Every box this berth built therefore had its
+## outward faces culled and rendered the unlit inside of its own back faces.
+## Vertices and normals are unchanged; only the emission order is reversed.
 func _add_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, normal: Vector3) -> void:
-	for vertex in [a, b, c, a, c, d]:
+	for vertex in [a, c, b, a, d, c]:
 		surface.set_normal(normal)
 		surface.add_vertex(vertex)
 
