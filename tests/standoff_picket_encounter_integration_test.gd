@@ -80,9 +80,9 @@ func _test_production_encounter() -> void:
 		"the picket is dormant, hidden and non-colliding before the encounter"
 	)
 	_check(
-		resolver.get_registered_source_count() == 5
+		resolver.get_registered_source_count() == 6
 		and not picket.is_combat_source_registered(),
-		"a dormant picket leaves the coordinator's five-source census exactly as it was"
+		"a dormant picket leaves the coordinator's six-source census exactly as it was"
 	)
 	_check(
 		bool(picket.get_audit_report().valid),
@@ -133,7 +133,7 @@ func _test_production_encounter() -> void:
 		"the picket acquires the coordinator's active craft as its target"
 	)
 	_check(
-		resolver.get_registered_source_count() == 6
+		resolver.get_registered_source_count() == 7
 		and picket.is_combat_source_registered()
 		and authority.get_source_id(picket) == picket.source_id
 		and authority.get_source_id(defender) == GameFlow.OPPONENT_SOURCE_ID
@@ -268,10 +268,10 @@ func _test_production_encounter() -> void:
 	await physics_frame
 	await process_frame
 	_check(
-		resolver.get_registered_source_count() == 6
+		resolver.get_registered_source_count() == 7
 		and picket.is_combat_source_registered()
 		and authority.get_source_id(picket) == picket.source_id,
-		"re-entry restores exactly one picket registration beside the five coordinator sources"
+		"re-entry restores exactly one picket registration beside the six coordinator sources"
 	)
 	_check(
 		bool(picket.get_audit_report().valid),
@@ -292,9 +292,9 @@ func _test_production_encounter() -> void:
 	_check(withdrawn, "the picket withdraws with the defender wave it escorts")
 	_check(
 		not picket.is_combat_source_registered()
-		and resolver.get_registered_source_count() == 5
+		and resolver.get_registered_source_count() == 6
 		and picket.get_pending_lance_receipt_count() == 0,
-		"withdrawal restores the coordinator's five-source census and strands no receipt"
+		"withdrawal restores the coordinator's six-source census and strands no receipt"
 	)
 	_check(
 		resolver.get_last_sequence(picket, picket.source_id) >= 0,
