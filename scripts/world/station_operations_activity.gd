@@ -129,27 +129,39 @@ static var _shared_material_catalog: Dictionary = {}
 ## `mesh_instances` 48 -> 43, `multimesh_batches` 0 -> 1, and
 ## `multimesh_instances` 0 -> 5: four fewer renderer submissions with the same
 ## five visible copies.
+##
+## The gantry safety-band pass changes only the four childless orange bands at
+## the column feet. Foot pads retain their support-test paths, columns retain the
+## owning world's solid-volume contract, and column-edge names remain available
+## to obstruction captures. FULL/GANTRY each move by the same exact delta:
+## `node_count` -3, `mesh_instances` -4, `multimesh_batches` +1 and
+## `multimesh_instances` +4. Four visible copies and their shared cached mesh
+## remain; submissions fall by three.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
-		"node_count": 96,
-		"mesh_instances": 79,
+		"node_count": 93,
+		"mesh_instances": 75,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 0,
-		"multimesh_instances": 0,
+		"multimesh_batches": 1,
+		"multimesh_instances": 4,
+		"geometry_submissions": 76,
+		"drawn_copies": 79,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
-		"node_count": 59,
-		"mesh_instances": 48,
+		"node_count": 56,
+		"mesh_instances": 44,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 0,
-		"multimesh_instances": 0,
+		"multimesh_batches": 1,
+		"multimesh_instances": 4,
+		"geometry_submissions": 45,
+		"drawn_copies": 48,
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.SERVICE_ARM: {
@@ -161,6 +173,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
+		"geometry_submissions": 19,
+		"drawn_copies": 19,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.DRONE_PATROL: {
@@ -172,6 +186,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
+		"geometry_submissions": 32,
+		"drawn_copies": 32,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE: {
@@ -183,6 +199,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 13,
+		"geometry_submissions": 38,
+		"drawn_copies": 47,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.SIGNAGE_PYLON: {
@@ -194,6 +212,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
+		"geometry_submissions": 33,
+		"drawn_copies": 33,
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.OBSERVATORY: {
@@ -205,6 +225,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
+		"geometry_submissions": 33,
+		"drawn_copies": 33,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CREW_WORKPOST: {
@@ -216,6 +238,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 1,
 		"multimesh_instances": 5,
+		"geometry_submissions": 44,
+		"drawn_copies": 48,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE_LONG: {
@@ -227,6 +251,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 22,
+		"geometry_submissions": 43,
+		"drawn_copies": 61,
 		"animated_assemblies": 2,
 	},
 }
@@ -252,16 +278,23 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## `node_count` 531 -> 527, `mesh_instances` 404 -> 399,
 ## `multimesh_batches` 12 -> 13, and `multimesh_instances` 57 -> 62. Counting
 ## one renderer submission per drawn mesh or batch, the roster is 416 -> 412.
+##
+## The two production placements that carry a gantry then apply the safety-band
+## delta twice: nodes 527 -> 521, MeshInstances 399 -> 391, batches 13 -> 15,
+## batched copies 62 -> 70, and submissions 412 -> 406. Total drawn copies stay
+## 461; collision declarations, movers, lenses and materials do not change.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 527,
-	"mesh_instances": 399,
+	"node_count": 521,
+	"mesh_instances": 391,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"multimesh_batches": 13,
-	"multimesh_instances": 62,
+	"multimesh_batches": 15,
+	"multimesh_instances": 70,
+	"geometry_submissions": 406,
+	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }
 
@@ -959,6 +992,8 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
+		"geometry_submissions": 0,
+		"drawn_copies": 0,
 		"animated_assemblies": 0,
 	}
 	var profile_counts := {}
@@ -1066,10 +1101,18 @@ func get_performance_audit(instance_count: int = 1) -> Dictionary:
 		# only the second would hide that it costs one draw.
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
+		"geometry_submissions": 0,
+		"drawn_copies": 0,
 		"animated_assemblies": int(equipment.animated_assembly_count),
 	}
 	var material_ids := {}
 	_count_runtime_resources(self, counts, material_ids)
+	counts["geometry_submissions"] = (
+		int(counts.mesh_instances) + int(counts.multimesh_batches)
+	)
+	counts["drawn_copies"] = (
+		int(counts.mesh_instances) + int(counts.multimesh_instances)
+	)
 	# Retained but momentarily unassigned beacon variants still consume memory.
 	# Count every component-owned material instead of reporting only the current
 	# flash phase, keeping the audit stable across deterministic animation time.
@@ -1372,6 +1415,12 @@ func _capture_built_presentation_contract() -> void:
 				"mesh_storage": _resource_storage_fingerprint(
 					batch.multimesh.mesh if batch.multimesh != null else null
 				),
+				"custom_aabb": (
+					batch.multimesh.custom_aabb if batch.multimesh != null else AABB()
+				),
+				"explicit_authored_bounds": bool(
+					batch.get_meta("explicit_authored_bounds", false)
+				),
 				"instance_transforms": instance_transforms,
 				"material_instance_id": (
 					batch.material_override.get_instance_id()
@@ -1545,6 +1594,11 @@ func _built_multimesh_contracts_are_live() -> bool:
 			)
 			or _resource_storage_fingerprint(batch.multimesh.mesh)
 				!= (contract.get("mesh_storage", PackedStringArray()) as PackedStringArray)
+			or not batch.multimesh.custom_aabb.is_equal_approx(
+				contract.get("custom_aabb", AABB()) as AABB
+			)
+			or bool(batch.get_meta("explicit_authored_bounds", false))
+				!= bool(contract.get("explicit_authored_bounds", false))
 			or not batch.transform.is_equal_approx(
 				contract.get("transform", Transform3D.IDENTITY) as Transform3D
 			)
@@ -1563,6 +1617,12 @@ func _built_multimesh_contracts_are_live() -> bool:
 		for index in recorded.size():
 			if not live[index].is_equal_approx(recorded[index] as Transform3D):
 				return false
+		if bool(contract.get("explicit_authored_bounds", false)):
+			var expected_bounds := _transformed_mesh_bounds(
+				batch.multimesh.mesh.get_aabb(), recorded
+			)
+			if not batch.multimesh.custom_aabb.is_equal_approx(expected_bounds):
+				return false
 		# Headless has no rendering buffer, so its structural audit stops at the
 		# authored roster above. With a renderer, also prove the rendering server
 		# received every transform rather than trusting only the CPU-side record.
@@ -1573,6 +1633,19 @@ func _built_multimesh_contracts_are_live() -> bool:
 				):
 					return false
 	return true
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array) -> AABB:
+	var result := AABB()
+	var first := true
+	for value in transforms:
+		var transformed := ((value as Transform3D) * mesh_bounds).abs()
+		if first:
+			result = transformed
+			first = false
+		else:
+			result = result.merge(transformed)
+	return result
 
 
 func _dynamic_node_instance_ids() -> Dictionary:

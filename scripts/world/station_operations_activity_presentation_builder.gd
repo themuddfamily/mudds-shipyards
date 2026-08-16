@@ -199,6 +199,7 @@ func _build_gantry() -> void:
 	var gantry := Node3D.new()
 	gantry.name = "MaintenanceGantry"
 	_presentation_root.add_child(gantry)
+	var safety_band_transforms: Array[Transform3D] = []
 	for x_side in [-1.0, 1.0]:
 		for z_side in [-1.0, 1.0]:
 			var x: float = float(x_side) * 4.3
@@ -212,7 +213,27 @@ func _build_gantry() -> void:
 			# travel (`GANTRY_ELEVATION`) and the footprint are unchanged.
 			_box(gantry, "Column", Vector3(x, 2.86, z), Vector3(0.42, 5.5, 0.5), _materials["frame"])
 			_box(gantry, "ColumnEdge", Vector3(x - x_side * 0.19, 2.82, z), Vector3(0.055, 5.0, 0.34), _materials["frame_edge"])
-			_box(gantry, "SafetyBand", Vector3(x, 0.72, z - z_side * 0.27), Vector3(0.5, 0.28, 0.06), _materials["orange"])
+			safety_band_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(x, 0.72, z - z_side * 0.27)
+			))
+	# The band leaves are repeated, childless warning-colour trim. Foot pads keep
+	# their support-test paths, columns keep world collision authority, and the
+	# individually named column edges remain available to obstruction captures.
+	# One fixed batch retains the exact four band transforms and visible copies.
+	var safety_bands := _box_batch(
+		gantry,
+		"SafetyBands",
+		Vector3(0.5, 0.28, 0.06),
+		safety_band_transforms,
+		_materials["orange"]
+	)
+	safety_bands.multimesh.custom_aabb = _transformed_mesh_bounds(
+		safety_bands.multimesh.mesh.get_aabb(), safety_band_transforms
+	)
+	safety_bands.set_meta("explicit_authored_bounds", true)
+	safety_bands.set_meta("authored_visual_names", PackedStringArray([
+		"SafetyBand", "SafetyBand2", "SafetyBand3", "SafetyBand4",
+	]))
 	for z_side in [-1.0, 1.0]:
 		_box(gantry, "OverheadRail", Vector3(0.0, 5.82, z_side * 2.72), Vector3(9.08, 0.42, 0.48), _materials["frame"])
 		_box(gantry, "RailFace", Vector3(0.0, 5.83, z_side * 2.46), Vector3(8.55, 0.17, 0.055), _materials["frame_edge"])
@@ -842,6 +863,22 @@ func _instanced(
 	batch.set_meta("authored_instance_transforms", transforms.duplicate())
 	_multimesh_batch_transforms[batch.get_instance_id()] = transforms.duplicate()
 	return batch
+
+
+func _transformed_mesh_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for value in transforms:
+		var transformed := (value * mesh_bounds).abs()
+		if first:
+			result = transformed
+			first = false
+		else:
+			result = result.merge(transformed)
+	return result
 
 
 ## Box with softly chamfered edges, at this module's frozen bevel rule.
