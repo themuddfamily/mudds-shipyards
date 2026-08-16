@@ -6,6 +6,23 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until] for why every wait in this suite is budgeted in frames.
+const FRAME_BUDGET_GRACE := 30
+
+## Nominal simulated seconds allowed for every stale canopy/disembark
+## continuation queued before an exit destruction to resume. The fixture's canopy
+## motion is 0.02 s and its disembark motion 0.16 s, so this is roughly a 3x
+## margin. See [method _settle_stale_continuations].
+const STALE_CONTINUATION_SETTLE_SECONDS := 0.55
+
+## The fewest simulated frames the stale-continuation window must actually
+## deliver for the negative assertion after it to prove anything. Comfortably
+## covers the fixture's 0.02 s canopy plus 0.16 s disembark motion, so a window
+## that closed earlier than this would be a degenerate check rather than a pass.
+const STALE_CONTINUATION_MINIMUM_FRAMES := 12
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -306,12 +323,16 @@ func _test_return_exit_destruction_invalidates_completion() -> void:
 		"exit destruction invalidates the transition generation and restores on-foot authority"
 	)
 	var recovery_toast_serial := int(hud.get("_toast_serial"))
-	await create_timer(0.55).timeout
+	var stale_window := await _settle_stale_continuations(torrent, hud)
 	await process_frame
+	_check(
+		int(stale_window.get("frames", 0)) >= STALE_CONTINUATION_MINIMUM_FRAMES,
+		"the stale-continuation window delivers enough simulated frames to be conclusive"
+	)
 	_check(
 		game.phase == GameFlow.Phase.APPROACH_SHIP
 		and not game.is_guided_activity_complete()
-		and int(hud.get("_toast_serial")) == recovery_toast_serial,
+		and int(stale_window.get("toast_serial", -1)) == recovery_toast_serial,
 		"stale canopy/disembark continuations cannot complete the guide or replace recovery feedback"
 	)
 	await _free_fixture(game)
@@ -567,13 +588,80 @@ func _wait_for_engine_state(ship: HeroShip, expected: String, timeout: float) ->
 	)
 
 
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Every condition this suite waits on — phase transitions, landing, engine
+## spin-down, the physical exit handoff — is produced by `GameFlow`, `HeroShip`
+## or `PlayerController` from a frame callback. Under load Godot drops physics
+## steps rather than letting the simulation spiral while the wall clock keeps
+## running, so a `Time.get_ticks_msec()`-only deadline ends the wait after far
+## fewer simulated steps than the manoeuvre needs and scores a perfectly healthy
+## sortie as a failure. `timeout` is kept as the *nominal* duration and becomes
+## both a frame budget and a wall-clock deadline; both stay finite, so a
+## genuinely stuck sortie still fails the suite. `physics_frame` is awaited
+## alongside `process_frame` because the motion these phases depend on is
+## integrated in `_physics_process`.
 func _wait_until(predicate: Callable, timeout: float) -> bool:
-	var deadline_msec := Time.get_ticks_msec() + int(ceil(timeout * 1000.0))
-	while Time.get_ticks_msec() < deadline_msec:
-		if bool(predicate.call()):
-			return true
+	var frame_budget := (
+		int(ceil(maxf(timeout, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline_msec := Time.get_ticks_msec() + int(ceil(maxf(timeout, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline_msec:
+			return false
+		await physics_frame
 		await process_frame
-	return bool(predicate.call())
+		frames += 1
+	return true
+
+
+## Spends the stale-continuation window in simulated frames, closing early once
+## `ship` regenerates. Returns the frames actually spent inside the window and the
+## HUD toast serial as it stood on the last frame the craft was still destroyed,
+## so the caller can assert the window was not degenerate and can compare recovery
+## feedback over exactly the interval its claim is about.
+##
+## The window has to be counted in simulated frames, because the continuations it
+## is about resume from frame callbacks and a `SceneTree` timer measures neither
+## that clock nor the monotonic one. But it must also not outlast the interval it
+## is about. Regeneration is released against a *separate* monotonic 4 s deadline
+## owned by `GameFlow`, is not a stale continuation, and legitimately raises its
+## own toast. Under load a frame-counted window spans far more wall-clock time
+## than its nominal duration — 63 physics frames were measured taking 17.6 s on a
+## starved box — so a window that ran to its full frame budget regardless
+## swallowed the regeneration toast and reported that legitimate event as a stale
+## continuation. Closing on regeneration keeps the window exactly the interval the
+## assertion below is about, and every continuation queued before the destruction
+## resumes inside the fixture's 0.02 s canopy and 0.16 s disembark motion, far
+## short of the 4 s deadline.
+func _settle_stale_continuations(ship: HeroShip, hud: GameHUD) -> Dictionary:
+	var frame_budget := (
+		int(ceil(STALE_CONTINUATION_SETTLE_SECONDS * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline_msec := (
+		Time.get_ticks_msec() + int(ceil(STALE_CONTINUATION_SETTLE_SECONDS * 1000.0))
+	)
+	var frames := 0
+	var frames_while_destroyed := 0
+	var toast_serial := int(hud.get("_toast_serial"))
+	while frames < frame_budget or Time.get_ticks_msec() < deadline_msec:
+		if not ship.is_destroyed():
+			break
+		# Sampled only on frames where the craft is still destroyed, so the serial
+		# reported back can never include the toast regeneration itself raises.
+		toast_serial = int(hud.get("_toast_serial"))
+		frames_while_destroyed = frames
+		await physics_frame
+		await process_frame
+		frames += 1
+	return {
+		"frames": frames_while_destroyed,
+		"toast_serial": toast_serial,
+	}
 
 
 func _label_text(value: Variant) -> String:

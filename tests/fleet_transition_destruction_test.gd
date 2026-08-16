@@ -2,6 +2,22 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until] for why every wait in this suite is budgeted in frames.
+const FRAME_BUDGET_GRACE := 30
+
+## Nominal simulated seconds a transition probe is allowed to reach the state it
+## is about to be asserted on, and the nominal seconds a destroyed craft is
+## allowed to hand authority back to the on-foot player.
+const PROBE_SETTLE_SECONDS := 0.12
+
+## Nominal simulated seconds every stale canopy/boarding/disembark continuation
+## queued before a destruction is given to run. The assertion after it is a
+## negative one, so this settle deliberately spends both its frame budget and its
+## wall-clock deadline in full rather than returning at the first to expire.
+const STALE_CONTINUATION_SETTLE_SECONDS := 1.1
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -27,10 +43,13 @@ func _test_loss_during_opening_canopy() -> void:
 	await process_frame
 	_check(game.phase == GameFlow.Phase.BOARDING and not player.is_seated(), "opening-canopy probe enters BOARDING before pilot authority")
 	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
-	await _wait_seconds(0.12)
+	_check(
+		await _wait_for_on_foot_recovery(fixture, PROBE_SETTLE_SECONDS),
+		"opening-canopy destruction recovers on foot inside its bounded budget"
+	)
 	_assert_recovered_on_foot(fixture, "opening-canopy destruction")
 	_check(_range_state(fixture.world) == targets_before, "opening-canopy destruction preserves the pending guided range")
-	await _wait_seconds(1.1)
+	await _wait_seconds(STALE_CONTINUATION_SETTLE_SECONDS)
 	_assert_recovered_on_foot(fixture, "stale opening-canopy continuation")
 	await _free_fixture(game)
 
@@ -41,7 +60,19 @@ func _test_loss_during_player_boarding() -> void:
 	var player := fixture.player as PlayerController
 	var craft := fixture.craft as HeroShip
 	game.call("_board_ship", craft)
-	await _wait_seconds(0.12)
+	var boarding_probe_reached := await _wait_until(
+		func() -> bool:
+			return (
+				game.phase == GameFlow.Phase.BOARDING
+				and not player.is_seated()
+				and player.collision_layer == 0
+			),
+		PROBE_SETTLE_SECONDS
+	)
+	_check(
+		boarding_probe_reached,
+		"player-motion probe reaches collision-disabled physical BOARDING inside its bounded budget"
+	)
 	_check(
 		game.phase == GameFlow.Phase.BOARDING
 		and not player.is_seated()
@@ -49,9 +80,12 @@ func _test_loss_during_player_boarding() -> void:
 		"player-motion probe reaches collision-disabled physical BOARDING"
 	)
 	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
-	await _wait_seconds(0.12)
+	_check(
+		await _wait_for_on_foot_recovery(fixture, PROBE_SETTLE_SECONDS),
+		"mid-boarding destruction recovers on foot inside its bounded budget"
+	)
 	_assert_recovered_on_foot(fixture, "mid-boarding destruction")
-	await _wait_seconds(1.1)
+	await _wait_seconds(STALE_CONTINUATION_SETTLE_SECONDS)
 	_assert_recovered_on_foot(fixture, "stale player-boarding continuation")
 	await _free_fixture(game)
 
@@ -67,7 +101,19 @@ func _test_loss_during_disembarking_and_reuse() -> void:
 	_check(await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.7), "exit-race fixture reaches the physical pilot seat")
 	_check(player.is_seated() and craft.is_piloted(), "exit-race fixture owns one seated pilot and piloted craft")
 	game.call("_try_exit_ship")
-	await _wait_seconds(0.12)
+	var disembark_probe_reached := await _wait_until(
+		func() -> bool:
+			return (
+				game.phase == GameFlow.Phase.DISEMBARKING
+				and not player.is_seated()
+				and player.collision_layer == 0
+			),
+		PROBE_SETTLE_SECONDS
+	)
+	_check(
+		disembark_probe_reached,
+		"exit-race probe reaches collision-disabled DISEMBARKING motion inside its bounded budget"
+	)
 	_check(
 		game.phase == GameFlow.Phase.DISEMBARKING
 		and not player.is_seated()
@@ -75,9 +121,12 @@ func _test_loss_during_disembarking_and_reuse() -> void:
 		"exit-race probe reaches collision-disabled DISEMBARKING motion"
 	)
 	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
-	await _wait_seconds(0.12)
+	_check(
+		await _wait_for_on_foot_recovery(fixture, PROBE_SETTLE_SECONDS),
+		"mid-disembark destruction recovers on foot inside its bounded budget"
+	)
 	_assert_recovered_on_foot(fixture, "mid-disembark destruction")
-	await _wait_seconds(1.1)
+	await _wait_seconds(STALE_CONTINUATION_SETTLE_SECONDS)
 	_assert_recovered_on_foot(fixture, "stale disembarking continuation")
 
 	_check(await _wait_until(func() -> bool: return not craft.is_destroyed(), 5.2), "destroyed transition craft regenerates within the production bound")
@@ -149,17 +198,61 @@ func _wait_for_phase(game: GameFlow, expected: GameFlow.Phase, timeout: float) -
 	return await _wait_until(func() -> bool: return game.phase == expected, timeout)
 
 
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Canopy, boarding and disembarking motion, the destruction recovery that
+## interrupts them, and the regeneration that follows are all advanced by
+## `GameFlow` from its frame callbacks, while regeneration is released against a
+## monotonic deadline. Under load Godot drops physics steps rather than letting
+## the simulation spiral while the wall clock keeps running, so a
+## `Time.get_ticks_msec()`-only deadline abandons a transition that is still
+## progressing perfectly well. `timeout` is kept as the *nominal* duration and
+## becomes both a frame budget and a wall-clock deadline; both stay finite, so a
+## genuinely stuck transition still fails the suite.
 func _wait_until(predicate: Callable, timeout: float) -> bool:
-	var deadline_msec := Time.get_ticks_msec() + int(ceil(timeout * 1000.0))
-	while Time.get_ticks_msec() < deadline_msec:
-		if predicate.call():
-			return true
+	var frame_budget := (
+		int(ceil(maxf(timeout, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline_msec := Time.get_ticks_msec() + int(ceil(maxf(timeout, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline_msec:
+			return false
+		await physics_frame
 		await process_frame
-	return bool(predicate.call())
+		frames += 1
+	return true
 
 
+## Waits for the on-foot recovery the destruction is expected to produce, and
+## reports whether it actually arrived so the caller can assert on the budget
+## instead of assuming it was never reached. The full
+## [method _assert_recovered_on_foot] battery still runs afterwards unchanged.
+func _wait_for_on_foot_recovery(fixture: Dictionary, seconds: float) -> bool:
+	var game := fixture.game as GameFlow
+	var player := fixture.player as PlayerController
+	return await _wait_until(
+		func() -> bool:
+			return (
+				game.phase == GameFlow.Phase.APPROACH_SHIP
+				and not player.is_seated()
+				and player.is_control_enabled()
+				and not bool(game.get("_transition_busy"))
+				and not bool(game.get("_recovering"))
+			),
+		seconds
+	)
+
+
+## Spends `duration` of *both* simulated frames and wall clock without waiting on
+## any condition, for the negative assertions that need every stale continuation
+## to have had its chance to run. A `SceneTree` timer measures neither clock: it
+## counts Godot's smoothed engine delta, which was observed running both ahead of
+## and behind the monotonic clock on a busy box.
 func _wait_seconds(duration: float) -> void:
-	await create_timer(duration).timeout
+	await _wait_until(func() -> bool: return false, duration)
 
 
 func _free_fixture(game: GameFlow) -> void:

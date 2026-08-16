@@ -2,6 +2,15 @@ extends SceneTree
 
 const DAMAGE_PRESENTATION_SCENE := "res://scenes/effects/hero_damage_presentation.tscn"
 
+## Extra simulated frames granted on top of the frames a wait's nominal duration
+## implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until].
+const FRAME_BUDGET_GRACE := 30
+
+## Nominal simulated seconds the shortened lethal effect (0.18 s) is given to
+## age out and have its detached root freed.
+const LETHAL_EXPIRY_SECONDS := 0.35
+
 var _failures: Array[String] = []
 var _stage_events: Array[Vector2] = []
 var _status_events: Array[StringName] = []
@@ -152,9 +161,24 @@ func _run() -> void:
 	_check(_destruction_events.size() == 2, "reset makes the lethal presentation reusable")
 	var second_root := presentation.call("get_destruction_effect_root") as Node3D
 	_check(second_root != null and second_root.is_inside_tree(), "reused component creates a fresh destruction root")
-	# Real-time margin avoids coupling cleanup coverage to a renderer's frame rate.
-	await create_timer(0.35).timeout
+	# The effect ages out in `_process` and its root is then queue_freed, so the
+	# expiry is produced by the frame loop rather than by any clock a sleep can
+	# read. Wait for the expiry itself, bounded by a frame budget, instead of
+	# sleeping on a `SceneTree` timer's smoothed engine delta.
+	# Held through a WeakRef rather than captured directly: expiry frees the root,
+	# and a lambda that captures a freed object is reported as a script error.
+	var second_root_reference: WeakRef = weakref(second_root)
+	var expired_in_budget := await _wait_until(
+		func() -> bool:
+			var live_root := second_root_reference.get_ref() as Node3D
+			return (
+				int(presentation.call("get_live_world_effect_count")) == 0
+				and (live_root == null or not live_root.is_inside_tree())
+			),
+		LETHAL_EXPIRY_SECONDS
+	)
 	await process_frame
+	_check(expired_in_budget, "lethal effects expire inside their bounded simulated-frame budget")
 	_check(int(presentation.call("get_live_world_effect_count")) == 0, "lethal effects expire without timers or orphan nodes")
 	_check(not is_instance_valid(second_root) or not second_root.is_inside_tree(), "automatic expiry detaches the second effect root")
 
@@ -278,6 +302,33 @@ func _on_destruction_started(world_position: Vector3, inherited_velocity: Vector
 
 func _on_effects_cleared() -> void:
 	_clear_events += 1
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## `HeroDamagePresentation` ages its world effects down in `_process` and then
+## `queue_free`s the detached roots, so expiry advances only when frames actually
+## run. A `SceneTree` timer counts Godot's smoothed engine delta, which is a
+## third clock and was observed running both ahead of and behind the monotonic
+## one on a busy box, so a sleep could return before the effect had been stepped
+## and freed. `nominal_seconds` is kept as the duration the wait is *expected* to
+## take and becomes both a frame budget and a wall-clock deadline; both stay
+## finite, so an effect that genuinely never expires still fails the suite.
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _check(condition: bool, description: String) -> void:

@@ -15,6 +15,11 @@ const EXPECTED_DOCK_TRANSFORM := Transform3D(
 const EXPECTED_EXIT_LOCAL := Vector3(-7.85, -0.55, 0.85)
 const EXPECTED_EXIT_WORLD := Vector3(14.15, 4.73, 54.15)
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until] for why every wait in this suite is budgeted in frames.
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 var _assertion_count := 0
 
@@ -647,13 +652,10 @@ func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 
 
 func _wait_for_phase(game: GameFlow, expected_phase: int, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if game.phase == expected_phase:
-			return true
-		await process_frame
-		await physics_frame
-	return game.phase == expected_phase
+	return await _wait_until(
+		func() -> bool: return game.phase == expected_phase,
+		timeout_seconds
+	)
 
 
 func _wait_for_engine_state(
@@ -661,12 +663,38 @@ func _wait_for_engine_state(
 	expected_state: String,
 	timeout_seconds: float
 	) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state:
-			return true
+	return await _wait_until(
+		func() -> bool:
+			return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state,
+		timeout_seconds
+	)
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Phase transitions and engine spin-up are advanced by `GameFlow` and
+## `HeroShip` from their frame callbacks. Under load Godot drops physics steps
+## rather than letting the simulation spiral while the wall clock keeps running,
+## so a `Time.get_ticks_msec()`-only deadline ends the wait after far fewer
+## simulated steps than the transition needs and scores a perfectly healthy
+## sequence as a failure. `timeout_seconds` is kept as the *nominal* duration and
+## becomes both a frame budget and a wall-clock deadline; both stay finite, so a
+## genuinely stuck transition still fails the suite.
+func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
 		await physics_frame
-	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state
+		await process_frame
+		frames += 1
+	return true
 
 
 func _clean_up(game: Node) -> void:
