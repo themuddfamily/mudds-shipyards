@@ -2732,11 +2732,18 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		# 2,600 instances * 48 star triangles + 4 bodies * 624 triangles.
 		"runtime_triangle_upper_bound": 127_296,
 		"target_count": get_target_count(),
+		# Deliberately enumerated rather than derived from get_berth_ids(): the
+		# suite compares this list, the live registry and its own expectation
+		# against each other, so an independent statement here is what catches
+		# drift. Deriving it would make that comparison tautological.
+		# HALYARD_FLEET_DOCK_BERTH_ID was missing when the fifth craft landed,
+		# so this report under-stated the registry while the live one was right.
 		"berth_ids": PackedStringArray([
 			String(CENTRAL_BERTH_ID),
 			String(ARROW_RECON_BERTH_ID),
 			String(JOVIAN_FREIGHT_BERTH_ID),
 			String(ZENITH_FLEET_DOCK_BERTH_ID),
+			String(HALYARD_FLEET_DOCK_BERTH_ID),
 		]),
 	}.duplicate(true)
 
