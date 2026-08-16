@@ -430,3 +430,9 @@ with `python3 tools/release/package_inventory.py builds/windows/<artifact>.exe`.
 The tool intentionally fails closed on encrypted directories/files, sparse
 bundles, patch/removal/delta entries, older directory layouts, unknown GDScript
 tokenizer versions, and zstd streams without one declared bounded frame.
+
+The bounded Phase 9 candidate-record and checksum gate is documented in
+[`docs/RELEASE_EVIDENCE_TOOL.md`](docs/RELEASE_EVIDENCE_TOOL.md). It binds a
+clean source revision to a full matrix, package probes, the verified package
+inventory, PE metadata/signing state, and the exact executable before writing a
+schema-validated record plus `SHA256SUMS`; it does not export, sign, or publish.

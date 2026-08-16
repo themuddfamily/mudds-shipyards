@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keths-shipyard.invalid/schemas/release-candidate-v1.json",
+  "title": "Mudds Shipyards release candidate evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_id", "status", "source", "toolchain", "artifact", "evidence"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "candidate_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*-[0-9a-f]{7}$"},
+    "status": {"const": "PASS"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "short_revision", "dirty", "matrix_scope_manifest_sha256"],
+      "properties": {
+        "revision": {"$ref": "#/$defs/gitHash"},
+        "short_revision": {"type": "string", "pattern": "^[0-9a-f]{7}$"},
+        "dirty": {"const": false},
+        "matrix_scope_manifest_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["godot_version", "godot_executable_sha256"],
+      "properties": {
+        "godot_version": {"type": "string", "minLength": 5, "maxLength": 160},
+        "godot_executable_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "size", "sha256", "source_short_revision", "pe", "signing"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*-[0-9a-f]{7}\\.exe$"},
+        "size": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "source_short_revision": {"type": "string", "pattern": "^[0-9a-f]{7}$"},
+        "pe": {"$ref": "#/$defs/pe"},
+        "signing": {"$ref": "#/$defs/signing"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matrix", "package_probes", "package_inventory"],
+      "properties": {
+        "matrix": {"$ref": "#/$defs/matrix"},
+        "package_probes": {"$ref": "#/$defs/probes"},
+        "package_inventory": {"$ref": "#/$defs/inventory"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitHash": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "pe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "machine", "subsystem", "coff_timestamp", "image_checksum", "sections", "file_version", "product_version"],
+      "properties": {
+        "format": {"const": "PE32+"},
+        "machine": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "subsystem": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "coff_timestamp": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+        "image_checksum": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+        "sections": {"type": "array", "minItems": 1, "maxItems": 96, "uniqueItems": true, "items": {"type": "string", "pattern": "^[ -~]{1,8}$"}},
+        "file_version": {"$ref": "#/$defs/versionQuad"},
+        "product_version": {"$ref": "#/$defs/versionQuad"}
+      }
+    },
+    "versionQuad": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "integer", "minimum": 0, "maximum": 65535}},
+    "signing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "embedded_certificate_present", "certificate_table_offset", "certificate_table_size", "cryptographic_signature_verified", "external_catalog_assessed"],
+      "properties": {
+        "status": {"enum": ["unsigned", "embedded_certificate_present_unverified"]},
+        "embedded_certificate_present": {"type": "boolean"},
+        "certificate_table_offset": {"type": "integer", "minimum": 0},
+        "certificate_table_size": {"type": "integer", "minimum": 0},
+        "cryptographic_signature_verified": {"const": false},
+        "external_catalog_assessed": {"const": false}
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "run_id", "run_started_utc", "run_completed_utc", "manifest_sha256", "canonical_results_sha256", "source_manifest_sha256", "total_suites", "total_pass_assertions"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "run_id": {"$ref": "#/$defs/runId"},
+        "run_started_utc": {"type": "string", "format": "date-time"},
+        "run_completed_utc": {"type": "string", "format": "date-time"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_results_sha256": {"$ref": "#/$defs/sha256"},
+        "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "total_suites": {"type": "integer", "minimum": 1},
+        "total_pass_assertions": {"type": "integer", "minimum": 1}
+      }
+    },
+    "probes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "run_id", "run_started_utc", "run_completed_utc", "manifest_sha256", "results_sha256", "total_probes", "total_pass_assertions"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "run_id": {"$ref": "#/$defs/runId"},
+        "run_started_utc": {"type": "string", "format": "date-time"},
+        "run_completed_utc": {"type": "string", "format": "date-time"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "results_sha256": {"$ref": "#/$defs/sha256"},
+        "total_probes": {"type": "integer", "minimum": 1},
+        "total_pass_assertions": {"type": "integer", "minimum": 1}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "manifest_sha256", "path_manifest_sha256", "entry_count", "pck_format", "pck_offset", "pck_size"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "path_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "entry_count": {"type": "integer", "minimum": 1},
+        "pck_format": {"type": "integer", "enum": [3, 4]},
+        "pck_offset": {"type": "integer", "minimum": 0},
+        "pck_size": {"type": "integer", "minimum": 1}
+      }
+    },
+    "runId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}
+  }
+}
