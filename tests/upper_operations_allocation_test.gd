@@ -377,7 +377,7 @@ func _check(condition: bool, message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("Upper operations allocation tests passed (%d assertions)." % _assertions)
+		print("UPPER_OPERATIONS_ALLOCATION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 	else:
 		push_error("Upper operations allocation tests failed (%d/%d): %s" % [
