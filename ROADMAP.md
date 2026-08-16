@@ -790,6 +790,8 @@ It owns **no gameplay authority**: no rewards, no leases, no objectives, and del
 
 **Still open on the first item:** the *activity* half — races, patrols, cargo runs, convoys and station defence — plus production integration into `Main`, objective/HUD consumers, packaged travel and human review. The first typed foundation now exists in `scripts/activities/`, `scripts/world/definitions/`, and the two Cinder Reach resources: `ActivityDirector` and `CheckpointRouteActivity` cover ordered beacon checkpoints, complete/fail/reset, and generation-safe stale-call rejection in `tests/activity_director_test.gd` (27 assertions). It deliberately owns no reward, ship, berth, combat, or `GameFlow` authority and is not yet a player-facing activity; the cluster still exposes geometry and published anchors rather than a live objective.
 
+The cargo-delivery prerequisite now also has a standalone typed foundation in `scripts/cargo/`: stable item definitions, bounded integer manifests bound to live entity/manifest generations, and atomic source-to-destination transfers with duplicate, stale, owner, quantity and capacity rejection. Detach/re-entry preserves one physical entity's manifest while retirement or deletion invalidates its handles. `tests/cargo_transfer_authority_test.gd` covers this authority in isolation (63 assertions); it adds no cargo activity, reward, ship, berth, save, network, HUD, or `Main` integration.
+
 ## Phase 9 — Release polish
 
 ### Design and implementation specification
