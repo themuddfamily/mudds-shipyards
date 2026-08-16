@@ -286,11 +286,20 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	#   Observation landing, +5: deck inset (`deck`), console and viewer head
 	#   (`navy`), viewer post (`steel_blue`), equipment locker (`deck_light`). Its
 	#   lit readout and legend stay out with the other emissives.
+	# Re-frozen once more, 1703 -> 1706, by the interior legibility pass. The
+	# operations room's single centreline row of three ceiling luminaires became
+	# two rows of three, so three more `CeilingLuminaireBody` boxes exist and they
+	# are `hull_dark`, which is in the plate family. That is the entire delta:
+	# 0.30 goes 1042 -> 1045 (+3), 0.22 and 0.28 are untouched at 129 and 532. The
+	# same pass added three more luminaire bodies in the habitat common room and a
+	# sill cove lens, none of which appear here, because the habitat's `graphite`
+	# and every lens material (`worklight`, `warm_light`, `teal_dim`) are lit or
+	# painted cues and stay outside the family exactly as they did before.
 	_check(
-		mapped_surface_count == 1764
+		mapped_surface_count == 1767
 		and scale_022_count == 129
 		and scale_028_count == 532
-		and scale_030_count == 1103,
+		and scale_030_count == 1106,
 		"live station binds exactly 1764 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")

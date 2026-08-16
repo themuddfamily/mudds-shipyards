@@ -359,17 +359,30 @@ func get_performance_contract() -> Dictionary:
 		"static_bodies": 120,
 		"collision_shapes": 120,
 		"labels": 4,
-		# Light ceiling re-frozen in the open, 12 -> 32. The module built 11 lights
-		# against that 12; it now builds 32, and the 21 additions are all fixture
-		# practicals — see `_fixture_practical`. Every one is shadowless, under
-		# 6.5 m range, steeply attenuated and distance-faded out at 16 m, and they
-		# exist because emission illuminates nothing in Forward+, so a lens, strip,
+		# Light ceiling re-frozen in the open, 12 -> 32 -> 40. The module built 11
+		# lights against that 12; the fixture pass took it to 32, all of them
+		# fixture practicals — see `_fixture_practical`. Every one is shadowless,
+		# under 9 m range, steeply attenuated and distance-faded, and they exist
+		# because emission illuminates nothing in Forward+, so a lens, strip,
 		# status light or sign could not light the plate it is bolted to no matter
-		# what energy it carried. The ceiling is deliberately set at the exact
-		# built count rather than left with headroom, so the next addition has to
-		# be declared here too. Frame cost is unmeasured: this box renders through
-		# llvmpipe.
-		"lights": 32,
+		# what energy it carried.
+		#
+		# 32 -> 40 is the interior legibility pass, and all eight are in the
+		# operations room: the single centreline row of three ceiling luminaires
+		# becomes two rows of three (+3) in a 10.4 m-wide room that had no overhead
+		# over either side third, each of the two 7.3 m ceiling coves goes from one
+		# lamp at its midpoint to three down its length (+4), and the coordinator
+		# chair — the one seat in the room with no fixture within range of it in
+		# any direction — gets the same under-console task wash the other two
+		# working positions already had (+1). Per-fixture energy comes *down* in
+		# both places the count went up, so this is a redistribution of the room's
+		# existing luminaires across the room's actual volume and not added gain;
+		# see the long note on `_build_operations_lighting`.
+		#
+		# The ceiling is deliberately set at the exact built count rather than left
+		# with headroom, so the next addition has to be declared here too. Frame
+		# cost is unmeasured: this box renders through llvmpipe.
+		"lights": 40,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -883,13 +896,20 @@ func _build_operations_room(structure: Node3D) -> void:
 		# three copies of one pool over a 2.2 m console. Placed just above and in
 		# front of the glass so it washes the console top, the edge rail and the
 		# operator's chair back rather than the ceiling.
+		#
+		# Range 2.6 -> 3.4, energy unchanged. This is the only light in the room in
+		# front of a seated operator's face, and the face is 1.83 m away, where a
+		# 2.6 m range window was cutting 43% of it. Widening the window leaves the
+		# console top — 0.4 m away, where the window reads 1.00 either way —
+		# exactly as lit as it was, which is why this is a range change and not an
+		# energy change: the panel is what an energy raise would have blown first.
 		_fixture_practical(
 			bay,
 			"ConsoleGlow",
 			Vector3(0.0, 1.74, -0.36),
 			Color("93e4ea"),
 			0.42,
-			2.6
+			3.4
 		)
 		# The bay's one warm lamp gets its own tiny pool. It is the only warm
 		# source on the console line and it is what stops three identical cyan
@@ -1085,15 +1105,71 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 ## light added here is a low, broad, sub-1.0-energy wash at knee-to-waist height,
 ## which lands on floor and plinth and never on a cue face hard enough to shift
 ## what it reads as.
+##
+## ## The regrade follow-up: why this room "barely moved"
+##
+## The colour-temperature work above was right and is kept unchanged in kind. It
+## did not make the room legible, and the reason turned out to be arithmetic in
+## `omni_range` rather than anything about hue or level.
+##
+## Godot 4's omni falloff is a *windowed* inverse power, not a plain one:
+## `(1 - (d/range)^4)^2 * d^(-attenuation)`. The window term is the trap. A
+## luminaire 4.0 m above the deck with `omni_range = 5.6` sits at d/range = 0.71
+## for the floor directly beneath it, where the window has already removed 45% of
+## what the distance term left — and every wall, every corner and every chair
+## back is further away than that, so the pool was being cut off at exactly the
+## distances a person occupies. The room was three bright discs on the ceiling
+## plate and a deck that received 0.07. That is the "pair of spikes with nothing
+## between" the note above describes, and raising energy could not fix it: energy
+## scales the ceiling disc and the deck by the same factor, so it moves the
+## already-blown end up faster than the dark end.
+##
+## The fix is to widen the window, not the gain. `OperationsPoolLight` goes
+## 5.6 -> 9.0 m of range while its energy comes *down* 0.94 -> 0.82. Widening the
+## range does not touch the near field at all — at 0.5 m the window term is
+## 1.00 either way — so the bright disc on the ceiling plate does not get
+## brighter; only the tail that was being clipped comes back. Measured on the
+## deck beneath a luminaire that is 0.069 -> 0.101, and in the room's corners,
+## which were receiving a literal zero because they lay outside 5.6 m, it is zero
+## -> a small but nonzero value. Corners that are dark are fine; corners that are
+## algebraically excluded are a hole.
+##
+## Second, the ceiling was one row of three luminaires down the middle of a
+## 10.4 m-wide room, so the two side thirds had no overhead at all and the side
+## walls were lit only by one cove lamp each at the cove's midpoint — a 7.3 m
+## linear fixture represented by a single point at its centre. The overheads
+## become two rows of three (x = 3.2 and x = 8.0, the rows the console line and
+## the chair line actually sit under) and each cove gets three lamps down its
+## length instead of one. That is six overheads and six cove lamps where there
+## were three and two.
+##
+## More lights is the opposite of more fill here, and the distinction is the
+## whole point: a *uniform* lift is one term added to every surface regardless of
+## where it is, which is what the flat ambient the global pass removed used to
+## do. Six discrete pools with real falloff between them put a gradient across
+## the deck and let a player tell where the light is coming from. The total lens
+## area is deliberately held roughly constant while their number doubles — each
+## lens goes 2.85 x 0.24 -> 1.85 x 0.20, so 2.05 m^2 becomes 2.22 m^2 — because
+## `worklight` emission is what sets the blown top of this room's histogram and
+## doubling the emissive area would have paid for the added structure with a
+## wider bloom.
+##
+## Third, faces. An operator sits at z = 13.55 facing the window, so the only
+## thing in the room in front of their face is `ConsoleGlow`, and at 1.83 m the
+## 2.6 m range window was removing 43% of it — 0.067 arriving at a face. Range
+## 2.6 -> 3.4 at unchanged 0.42 energy leaves the console top exactly as lit as
+## it was and delivers 0.093 to the face. Range, again, not energy: the console
+## panel is 0.4 m from that light and any energy raise lands there first.
 func _build_operations_lighting(room: Node3D) -> void:
 	var lighting := Node3D.new()
 	lighting.name = "LocalizedLighting"
 	lighting.set_meta("forward_plus_local_lighting", true)
 	room.add_child(lighting)
-	for z_position in [11.15, 14.15, 16.15]:
-		_box(lighting, "CeilingLuminaireBody", Vector3(5.6, 4.47, float(z_position)), Vector3(3.35, 0.11, 0.48), _materials["hull_dark"], false)
-		_box(lighting, "CeilingLuminaireLens", Vector3(5.6, 4.405, float(z_position)), Vector3(2.85, 0.035, 0.24), _materials["worklight"], false)
-		_omni_light(lighting, "OperationsPoolLight", Vector3(5.6, 4.0, float(z_position)), Color("d9f6f3"), 0.94, 5.6)
+	for luminaire_x in [3.2, 8.0]:
+		for z_position in [11.15, 14.15, 16.15]:
+			_box(lighting, "CeilingLuminaireBody", Vector3(float(luminaire_x), 4.47, float(z_position)), Vector3(2.15, 0.11, 0.44), _materials["hull_dark"], false)
+			_box(lighting, "CeilingLuminaireLens", Vector3(float(luminaire_x), 4.405, float(z_position)), Vector3(1.85, 0.035, 0.2), _materials["worklight"], false)
+			_omni_light(lighting, "OperationsPoolLight", Vector3(float(luminaire_x), 4.0, float(z_position)), Color("d9f6f3"), 0.82, 9.0)
 	for cove_x in [0.86, 10.34]:
 		_beam_between(lighting, "CeilingCoveRail", Vector3(float(cove_x), 4.3, 9.55), Vector3(float(cove_x), 4.3, 16.85), 0.055, _materials["cyan_dim"], false)
 	# The two coves are the room's own fixtures and were lighting nothing. Giving
@@ -1101,17 +1177,35 @@ func _build_operations_lighting(room: Node3D) -> void:
 	# honest way to get two colour temperatures across a room: the walls now
 	# gradate from warm on one side to cool on the other instead of sitting at
 	# one value, and a viewer reads that as two luminaires rather than as tint.
-	_fixture_practical(lighting, "CoveSpillWarm", Vector3(10.1, 4.05, 13.2), Color("f0c48c"), 0.5, 6.4)
-	_fixture_practical(lighting, "CoveSpillCool", Vector3(1.1, 4.05, 13.2), Color("bfeef2"), 0.42, 6.4)
+	#
+	# Three lamps per cove rather than one. A cove is a 7.3 m line of light and it
+	# was standing in for itself with a single point at its midpoint, so the two
+	# ends of both side walls — which is where this room goes to black first —
+	# were outside the lamp entirely. Energy per lamp comes down with the count
+	# (warm 0.5 -> 0.34, cool 0.42 -> 0.29) so the midpoint is not brighter than
+	# it was; what changes is that the fixture now lights its own length.
+	for cove_z in [10.7, 13.2, 15.7]:
+		_fixture_practical(lighting, "CoveSpillWarm", Vector3(10.1, 4.05, float(cove_z)), Color("f0c48c"), 0.34, 6.4)
+		_fixture_practical(lighting, "CoveSpillCool", Vector3(1.1, 4.05, float(cove_z)), Color("bfeef2"), 0.29, 6.4)
 	# Under-console task light. Three consoles standing on a deck with nothing
 	# below waist height meant the plinths, kick strips and chair bases were the
 	# darkest band in the room. This is a tungsten-temperature wash at working
 	# height, which is what a real operations floor has and what gives the room a
 	# second hue where a player actually stands.
-	for task_x in [4.1, 8.7]:
-		_fixture_practical(lighting, "ConsoleTaskWash", Vector3(float(task_x), 1.05, 14.4), Color("f6c98c"), 0.44, 5.2)
+	#
+	# The third one is for the coordinator chair. That chair sits alone at
+	# (1.7, 12.0), yawed off the console line, and it was the one seat in the room
+	# with no fixture within range of it in any direction — the two washes at
+	# z = 14.4 start 2.4 m away and the nearest overhead was 4 m up and 3.9 m
+	# across. It is the same lamp as the other two, sited at that chair's own
+	# working position.
+	for task_position in [Vector3(4.1, 1.05, 14.4), Vector3(8.7, 1.05, 14.4), Vector3(2.0, 1.05, 12.4)]:
+		_fixture_practical(lighting, "ConsoleTaskWash", task_position, Color("f6c98c"), 0.44, 5.2)
 	_box(lighting, "DoorThresholdLight", Vector3(2.2, 0.065, 9.36), Vector3(2.35, 0.04, 0.09), _materials["cyan"], false)
-	_omni_light(lighting, "DoorPoolLight", Vector3(2.2, 2.6, 10.0), Color("72d9d9"), 0.35, 3.8)
+	# Same range correction as the overheads and for the same reason: at 3.8 m
+	# range from 2.6 m up, the threshold this lamp exists to light was sitting at
+	# 0.68 of the window and receiving 0.053. Range 3.8 -> 5.6, energy unchanged.
+	_omni_light(lighting, "DoorPoolLight", Vector3(2.2, 2.6, 10.0), Color("72d9d9"), 0.35, 5.6)
 
 
 func _build_chair(parent: Node3D, chair_index: int, chair_position: Vector3, yaw: float) -> void:

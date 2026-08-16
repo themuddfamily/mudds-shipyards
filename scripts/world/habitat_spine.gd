@@ -414,14 +414,25 @@ func get_performance_contract() -> Dictionary:
 		"static_bodies": 180,
 		"collision_shapes": 220,
 		"labels": 25,
-		# Light ceiling re-frozen in the open, 12 -> 15. The module built 6 lights
-		# against that 12 and now builds 15: one warm practical inside each of the
-		# six bunk alcoves, one cool one over the common-room table display, and a
-		# wash behind each of the two room legends. All shadowless, sub-3 m range
-		# except the table's 2.4 m, and distance-faded out at 16 m. The ceiling is
-		# set at the exact built count rather than left with headroom. Frame cost
-		# is unmeasured: this box renders through llvmpipe.
-		"lights": 15,
+		# Light ceiling re-frozen in the open, 12 -> 15 -> 21. The module built 6
+		# lights against that 12; the fixture pass took it to 15 — one warm
+		# practical inside each of the six bunk alcoves, one cool one over the
+		# common-room table display, and a wash behind each of the two room
+		# legends. All shadowless and distance-faded.
+		#
+		# 15 -> 21 is the interior legibility pass and all six are in the
+		# observation common room: the single row of three ceiling luminaires
+		# becomes two rows of three (+3) in a room 10.6 m deep whose front and rear
+		# thirds were outside the lamps' range entirely, and the rear glazing gets
+		# a sill cove with three lamps (+3) so the window surround is lit and the
+		# panes read as openings rather than as panels. Per-lamp energy comes down
+		# with the overhead count (0.76 -> 0.66), so the added lights redistribute
+		# this room's luminaires across its actual volume rather than adding gain;
+		# see the long note in `_build_observation_common`.
+		#
+		# The ceiling is set at the exact built count rather than left with
+		# headroom. Frame cost is unmeasured: this box renders through llvmpipe.
+		"lights": 21,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -780,10 +791,87 @@ func _build_observation_common(structure: Node3D) -> void:
 	# the only glazed volume on the station, and warm light through those panes
 	# against the cool lattice is what makes the habitat look inhabited in the wide
 	# shots. #e6f2ec -> #ffe0b4, energy 0.56 -> 0.76.
-	for light_x in [-4.7, 0.0, 4.7]:
-		_box(common, "CeilingLightBody", Vector3(float(light_x), 4.58, 23.0), Vector3(2.8, 0.12, 0.52), _materials["graphite"], false)
-		_box(common, "CeilingLightLens", Vector3(float(light_x), 4.5, 23.0), Vector3(2.35, 0.035, 0.25), _materials["warm_light"], false)
-		_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, 23.2), Color("ffe0b4"), 0.76, 5.6)
+	#
+	# The regrade follow-up. The hue correction above was right and its warm/cool
+	# split is kept exactly as it is — warm overheads with the cool table display
+	# as counterpoint is this room's deliberate inversion of the operations room,
+	# because a crew lounge is warm and because that is what reads through the
+	# station's only glazed wall from outside. What was wrong was reach, and it is
+	# the same arithmetic as the operations room: Godot's omni falloff is a
+	# windowed inverse power, `(1 - (d/range)^4)^2 * d^(-attenuation)`, and this
+	# room is 10.6 m deep and was lit by one row of three lamps at its middle with
+	# `omni_range = 5.6`. The rear window sill is 6.2 m from the nearest of them
+	# and the front partition 6.2 m from the nearest of them, so both ends of the
+	# room lay *outside the lights entirely* — a literal zero, not a dim value —
+	# and the chair line at z = 25.45 sat at d/range = 0.70 where the window term
+	# has already removed 42%. That is why the chairs went to silhouette when the
+	# uniform ambient fill came out: they were never being lit by the room's own
+	# fixtures, they were being lit by the fill.
+	#
+	# Two corrections, neither of them a level raise. The range goes 5.6 -> 9.0,
+	# which changes nothing in the near field — at 0.5 m below the lens the window
+	# term is 1.00 at either range, so the bright disc on the ceiling plate is
+	# untouched — and restores the clipped tail: the deck beneath a lamp goes
+	# 0.050 -> 0.078 and the seat of a chair on the observation line goes
+	# 0.060 -> 0.118. And the single row of three becomes two rows of three, at
+	# z = 20.5 over the shared table and z = 24.3 just in front of the observation
+	# line, which are the two places people in this room actually are. Energy comes
+	# down 0.76 -> 0.66 with the doubled count.
+	#
+	# The rear row's z is the single most load-bearing number in this room and it
+	# was got wrong once. At z = 25.6 it sat *behind* the observation chairs, whose
+	# backrests are at z = 25.07 and lean 6 degrees back. Rendered from the room's
+	# doorway — the framing the committed harness uses, and the one the "chairs go
+	# to silhouette" complaint was made about — the camera sees the -z face of
+	# those backrests, and the surface normal against a lamp behind them gives
+	# `n · l = -0.185`. Negative. That face was receiving *nothing*, and no amount
+	# of range or energy on a lamp in that position could have changed it, because
+	# the geometry was wrong rather than the level. Moved to z = 24.3 the same lamp
+	# gives `n · l = +0.402` on the same face. This is the difference between the
+	# chairs reading as furniture and reading as cut-outs, and it cost no light and
+	# no energy.
+	#
+	# Neither row is put near the rear glazing: a ceiling lamp within a metre or so
+	# of a window lays a sheet of light across the pane and turns the opening back
+	# into a panel, which is the defect the sill cove below exists to fix, so the
+	# window wall is lit from its own sill instead. The occupants' faces are lit by
+	# that sill cove rather than by the ceiling, which is correct for a room whose
+	# seating faces the view.
+	#
+	# Six discrete pools with falloff between them is the opposite of the uniform
+	# fill the global pass removed: a fill adds one value to every surface however
+	# it faces and wherever it sits, while these put a gradient down the room and
+	# let a viewer see where the light comes from. Total lens area is held roughly
+	# constant while the count doubles (2.35 x 0.25 -> 1.55 x 0.20, so 1.76 m^2 ->
+	# 1.86 m^2) because `warm_light` is shared with the corridor cove strips: its
+	# emission cannot be reduced to pay for more lenses here without dimming a
+	# corridor that was not the problem, so the lenses are made smaller instead.
+	for light_z in [20.5, 24.3]:
+		for light_x in [-4.7, 0.0, 4.7]:
+			_box(common, "CeilingLightBody", Vector3(float(light_x), 4.58, float(light_z) - 0.2), Vector3(1.95, 0.12, 0.46), _materials["graphite"], false)
+			_box(common, "CeilingLightLens", Vector3(float(light_x), 4.5, float(light_z) - 0.2), Vector3(1.55, 0.035, 0.2), _materials["warm_light"], false)
+			_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, float(light_z)), Color("ffe0b4"), 0.66, 9.0)
+	# The rear glazing, as a fixture.
+	#
+	# This room's back wall is four 3.4 m panes onto space and they were reading as
+	# flat panels, because nothing distinguished a pane from the plate beside it:
+	# the sill, header and mullions in front of them were the least-lit structure
+	# in the module, so the frame that should tell a viewer this is an opening had
+	# no more light on it than the glass. A window reads as a hole when its
+	# surround is lit and the hole is not.
+	#
+	# So the sill gets a real fixture — a shallow cool cove along its top, the same
+	# `teal_dim` strip the corridor uses at floor level — and three lamps that
+	# carry the strip's own hue. They are sited 0.65 m inboard of the glass and
+	# below its lower edge, so the panes see them at a grazing angle rather than
+	# face-on: a lamp closer than that puts a specular sheet across the glass and
+	# turns the window into a lit panel, which is precisely the defect being fixed
+	# here and the same mistake `TableDisplayGlow` was first tuned into. This is
+	# also the room's second colour temperature at working height, arriving from
+	# the room's own most prominent feature and opposing the warm ceiling.
+	_box(common, "RearSillCoveLens", Vector3(0.0, 0.99, 28.24), Vector3(14.2, 0.045, 0.16), _materials["teal_dim"], false)
+	for glazing_x in [-5.2, 0.0, 5.2]:
+		_fixture_practical(common, "RearGlazingSpill", Vector3(float(glazing_x), 1.18, 27.85), Color("86d2dc"), 0.3, 4.2)
 	# The table display was a lit rectangle lying on an unlit table. Its practical
 	# is cool: it is the room's cool counterpoint against the warm overheads, and
 	# it puts a gradient on the chair backs and the copper table edge so the
