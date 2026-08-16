@@ -349,23 +349,19 @@ func _release_combat_audio_before_main_teardown(game: Node) -> void:
 	await process_frame
 
 
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
+## Waits for `predicate` on a finite simulation-frame budget.
 ##
-## Godot runs three clocks in this slice: the monotonic clock behind
-## `Time.get_ticks_msec()`, the smoothed engine delta behind `SceneTree` timers,
-## and the physics clock, whose steps the engine drops on a busy machine rather
-## than letting the simulation spiral. Every condition this slice used to sleep
+## Godot's smoothed engine delta and the physics clock can diverge on a busy
+## machine because the engine drops physics steps rather than letting the
+## simulation spiral. Every condition this slice used to sleep
 ## for — canopy closure and seating, engine spin-up, landing, the physical exit
 ## — is advanced by a frame callback, and a `SceneTree` timer measures neither
 ## the clock that advances them nor the monotonic one. It was observed firing
 ## both early and late relative to what it stood in for, so lengthening a sleep
 ## would not have helped.
 ##
-## `nominal_seconds` is kept as the duration the wait is *expected* to take and
-## becomes both a frame budget and a wall-clock deadline. Both stay finite, so a
-## genuinely stuck slice still fails, but neither a starved physics loop nor a
-## drifting engine delta can end a wait early. Both loops are advanced each
+## `nominal_seconds` is kept as the expected simulated duration and becomes a
+## finite frame budget, so a genuinely stuck slice still fails. Both loops advance each
 ## iteration because some conditions settle in `_physics_process` and others in
 ## `_process`.
 func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
@@ -373,15 +369,12 @@ func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
 		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
-			return false
+	for _frame in frame_budget:
+		if bool(predicate.call()):
+			return true
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return bool(predicate.call())
 
 
 func _check(condition: bool, description: String) -> void:

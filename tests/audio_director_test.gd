@@ -372,32 +372,26 @@ func _instance_ids_by_name(nodes: Array[Node]) -> Dictionary:
 	return result
 
 
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
+## Waits for `predicate` on a finite simulation-frame budget.
 ##
 ## The sequence tails this suite waits on are `Timer` nodes configured for
 ## `TIMER_PROCESS_IDLE`, so they advance only when idle frames actually run. A
 ## `SceneTree` timer counts Godot's smoothed engine delta, which is a different
-## clock again and was observed running both ahead of and behind the monotonic
-## one on a busy box, so a sleep could return with a tail still pending and the
-## churn report taken too early. `nominal_seconds` is kept as the duration the
-## wait is *expected* to take and becomes both a frame budget and a wall-clock
-## deadline; both stay finite, so a tail that genuinely never fires still fails
-## the suite.
+## clock from the process steps, so a sleep could return with a tail still
+## pending and the churn report taken too early. `nominal_seconds` is kept as the
+## expected simulated duration and becomes a finite frame budget, so a tail that
+## genuinely never fires still fails the suite.
 func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
 	var frame_budget := (
 		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
-			return false
+	for _frame in frame_budget:
+		if bool(predicate.call()):
+			return true
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return bool(predicate.call())
 
 
 func _check(condition: bool, description: String) -> void:
