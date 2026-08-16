@@ -10,8 +10,10 @@ const Settings := preload("res://scripts/settings/runtime_settings.gd")
 const Profile := preload("res://scripts/settings/input_binding_profile.gd")
 const Service := preload("res://scripts/settings/input_rebind_service.gd")
 
-const ACTION_ALPHA := &"engine_start"
-const ACTION_BETA := &"engine_stop"
+const ACTION_ALPHA := &"landing_assist"
+const ACTION_BETA := &"barrel_roll"
+const REMOVED_ENGINE_START := &"engine_start"
+const REMOVED_ENGINE_STOP := &"engine_stop"
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -36,9 +38,14 @@ func _test_round_trip_explicit_apply_and_reentry() -> void:
 	var original := Settings.new(_temp_path)
 	var project_defaults := original.get_input_binding_profile()
 	_check(
-		_has_key(project_defaults, ACTION_ALPHA, KEY_Y)
-		and _has_joy_button(project_defaults, ACTION_ALPHA, JOY_BUTTON_DPAD_UP),
+		_has_key(project_defaults, ACTION_ALPHA, KEY_L)
+		and _has_joy_button(project_defaults, ACTION_ALPHA, JOY_BUTTON_DPAD_LEFT),
 		"the first settings owner captures the live project keyboard and controller bindings"
+	)
+	_check(
+		not project_defaults.bindings.has(REMOVED_ENGINE_START)
+		and not project_defaults.bindings.has(REMOVED_ENGINE_STOP),
+		"factory bindings omit the retired manual engine actions"
 	)
 	_check(
 		is_equal_approx(float(project_defaults.get_action_options(ACTION_ALPHA).deadzone), 0.18),
@@ -137,14 +144,14 @@ func _test_round_trip_explicit_apply_and_reentry() -> void:
 	var later_instance := Settings.new(_temp_path)
 	later_instance.reset_to_defaults()
 	_check(
-		_has_key(later_instance.get_input_binding_profile(), ACTION_ALPHA, KEY_Y)
-		and _has_joy_button(later_instance.get_input_binding_profile(), ACTION_ALPHA, JOY_BUTTON_DPAD_UP),
+		_has_key(later_instance.get_input_binding_profile(), ACTION_ALPHA, KEY_L)
+		and _has_joy_button(later_instance.get_input_binding_profile(), ACTION_ALPHA, JOY_BUTTON_DPAD_LEFT),
 		"a fresh post-remap instance resets to captured project bindings"
 	)
 	_check(bool(later_instance.apply_input_bindings().applied), "factory defaults apply through the same explicit seam")
 	_check(
-		_has_input_map_key(ACTION_ALPHA, KEY_Y)
-		and _has_input_map_joy_button(ACTION_ALPHA, JOY_BUTTON_DPAD_UP)
+		_has_input_map_key(ACTION_ALPHA, KEY_L)
+		and _has_input_map_joy_button(ACTION_ALPHA, JOY_BUTTON_DPAD_LEFT)
 		and not _has_input_map_key(ACTION_ALPHA, KEY_F13)
 		and is_equal_approx(InputMap.action_get_deadzone(ACTION_ALPHA), 0.18),
 		"factory reset plus explicit apply restores the captured project map"
@@ -177,10 +184,10 @@ func _test_invalid_saved_profiles_fall_back_as_one_unit() -> void:
 	)
 	_check(_has_input_map_key(ACTION_ALPHA, KEY_F14), "malformed-profile fallback is still side-effect free on load")
 	malformed_settings.apply_input_bindings()
-	_check(_has_input_map_key(ACTION_ALPHA, KEY_Y), "explicit apply after malformed data reaches only safe defaults")
+	_check(_has_input_map_key(ACTION_ALPHA, KEY_L), "explicit apply after malformed data reaches only safe defaults")
 
 	var conflict := custom.duplicate_profile()
-	conflict.set_bindings(ACTION_ALPHA, [_key(KEY_X), _joy_button(15)])
+	conflict.set_bindings(ACTION_ALPHA, [_key(KEY_G), _joy_button(15)])
 	_write_profile_fixture(conflict.to_dictionary(), 0.0062)
 	var conflicting_settings := Settings.new(_temp_path)
 	_check(conflicting_settings.load_from_file() == OK, "a newly conflicting saved profile does not invalidate the outer settings file")
@@ -233,12 +240,40 @@ func _test_legacy_settings_migrate_to_captured_defaults() -> void:
 	var migrated := Settings.new(_temp_path)
 	_check(migrated.load_from_file() == OK, "the prior supported settings schema still loads")
 	_check(
-		_has_key(migrated.get_input_binding_profile(), ACTION_ALPHA, KEY_Y),
+		_has_key(migrated.get_input_binding_profile(), ACTION_ALPHA, KEY_L),
 		"legacy settings migrate in memory to captured project bindings"
+	)
+	_check(
+		not migrated.get_input_binding_profile().bindings.has(REMOVED_ENGINE_START)
+		and not migrated.get_input_binding_profile().bindings.has(REMOVED_ENGINE_STOP),
+		"legacy default migration cannot resurrect retired engine actions"
 	)
 	_check(
 		is_equal_approx(migrated.ship_mouse_sensitivity, 0.0057),
 		"legacy migration preserves its unrelated stored setting"
+	)
+
+	# A schema-four settings file from the manual-engine era can contain a valid
+	# nested profile whose inventory is now too broad. It must fail closed to the
+	# current authored inventory instead of re-adding deleted actions on apply.
+	var obsolete_profile := migrated.get_input_binding_profile().to_dictionary()
+	(obsolete_profile.bindings as Dictionary)[REMOVED_ENGINE_START] = [_key(KEY_Y)]
+	(obsolete_profile.bindings as Dictionary)[REMOVED_ENGINE_STOP] = [_key(KEY_X)]
+	(obsolete_profile.action_options as Dictionary)[REMOVED_ENGINE_START] = Profile.default_action_options()
+	(obsolete_profile.action_options as Dictionary)[REMOVED_ENGINE_STOP] = Profile.default_action_options()
+	_write_profile_fixture(obsolete_profile, 0.0058)
+	var schema_four := Settings.new(_temp_path)
+	_check(schema_four.load_from_file() == OK, "schema-four settings with obsolete engine actions load safely")
+	_check(
+		not schema_four.get_input_binding_profile().bindings.has(REMOVED_ENGINE_START)
+		and not schema_four.get_input_binding_profile().bindings.has(REMOVED_ENGINE_STOP),
+		"obsolete schema-four profile inventory falls back without retired actions"
+	)
+	schema_four.apply_input_bindings()
+	_check(
+		not InputMap.has_action(REMOVED_ENGINE_START)
+		and not InputMap.has_action(REMOVED_ENGINE_STOP),
+		"explicitly applying migrated schema-four defaults does not recreate manual engine actions"
 	)
 
 

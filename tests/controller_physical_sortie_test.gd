@@ -27,8 +27,6 @@ const BUTTON_BACK := 4
 const BUTTON_START := 6
 const BUTTON_LEFT_STICK := 7
 const BUTTON_RIGHT_SHOULDER := 10
-const BUTTON_DPAD_UP := 11
-const BUTTON_DPAD_DOWN := 12
 const BUTTON_DPAD_LEFT := 13
 
 const EXPECTED_ASSERTIONS := 44
@@ -121,7 +119,6 @@ func _run() -> void:
 	game.canopy_motion_time = 0.0
 	game.boarding_motion_time = 0.08
 	game.disembarking_motion_time = 0.08
-	torrent.engine_start_time = 0.02
 	torrent.weapon_cooldown = 0.06
 	torrent.maximum_speed = 70.0
 	torrent.thrust_acceleration = 72.0
@@ -245,28 +242,29 @@ func _run() -> void:
 	torrent.engine_state_changed.connect(func(state: StringName) -> void:
 		engine_events.append(state)
 	)
-	await _tap_provider_button(provider, BUTTON_DPAD_UP)
+	provider.set_axis(AXIS_LEFT_Y, -1.0)
 	_check(
 		await _wait_until(
 			func() -> bool:
 				return str(torrent.get_telemetry().get("engine_state", "")) == "ONLINE",
 			0.6
 		),
-		"D-pad Up starts the engine through the immutable controller command"
+		"left-stick flight demand automatically wakes propulsion"
 	)
 	_check(
-		await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.LAUNCH, 0.4)
-		and engine_events == [&"STARTING", &"ONLINE"],
-		"startup produces one ordered transition and enters the guided launch phase"
+		game.phase == GameFlow.Phase.START_ENGINES and engine_events == [&"ONLINE"],
+		"automatic wake publishes one immediate transition without advancing the sortie"
 	)
-
-	provider.set_axis(AXIS_LEFT_Y, -1.0)
 	_check(
 		await _wait_until(
-			func() -> bool: return not bool(torrent.get_telemetry().get("landed", true)),
+			func() -> bool:
+				return (
+					not bool(torrent.get_telemetry().get("landed", true))
+					and game.phase == GameFlow.Phase.LAUNCH
+				),
 			1.0
 		),
-		"real left-stick thrust physically clears the docking latch"
+		"real left-stick thrust physically clears the docking latch and begins the sortie"
 	)
 	provider.set_axis(AXIS_LEFT_Y, 0.0)
 	await physics_frame
@@ -403,14 +401,13 @@ func _run() -> void:
 		"landing restores the exact dock transform, occupant, owner, and ship identity"
 	)
 
-	await _tap_provider_button(provider, BUTTON_DPAD_DOWN)
 	_check(
 		await _wait_until(
 			func() -> bool:
 				return str(torrent.get_telemetry().get("engine_state", "")) == "OFFLINE",
-			0.6
+			2.0
 		),
-		"D-pad Down shuts down the physically secured Torrent"
+		"the physically secured Torrent automatically idles offline"
 	)
 	await _tap_provider_button(provider, BUTTON_X)
 	_check(
@@ -454,7 +451,7 @@ func _run() -> void:
 		"CONTROLLER_PHYSICAL_SORTIE_PHASES: APPROACH_SHIP > START_ENGINES > LAUNCH > TARGET_PRACTICE > INTERCEPTOR_ENGAGEMENT > RETURN_TO_YARD > SHUT_DOWN > COMPLETE"
 	)
 	print(
-		"CONTROLLER_PHYSICAL_SORTIE_INPUTS: left-stick/L3/X/Back/Start/RB/Y/D-pad-Up/right-stick/LT/RT/A/D-pad-Left/D-pad-Down"
+		"CONTROLLER_PHYSICAL_SORTIE_INPUTS: left-stick/L3/X/Back/Start/RB/Y/right-stick/LT/RT/A/D-pad-Left"
 	)
 
 	await _clean_up(game, provider)
@@ -680,8 +677,6 @@ func _release_physical_joypad() -> void:
 		BUTTON_START,
 		BUTTON_LEFT_STICK,
 		BUTTON_RIGHT_SHOULDER,
-		BUTTON_DPAD_UP,
-		BUTTON_DPAD_DOWN,
 		BUTTON_DPAD_LEFT,
 	]:
 		_set_physical_joy_button(button, false)

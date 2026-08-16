@@ -4,8 +4,6 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 const AXIS_LEFT_Y := 1
 const BUTTON_X := 2
-const BUTTON_DPAD_UP := 11
-const BUTTON_DPAD_DOWN := 12
 const BUTTON_DPAD_LEFT := 13
 
 ## Extra simulated physics frames granted on top of the frames a wait's nominal
@@ -99,36 +97,22 @@ func _run() -> void:
 		_finish()
 		return
 	source.set_input_provider(provider)
-	arrow.engine_start_time = 0.01
 
 	var engine_events: Array[StringName] = []
 	arrow.engine_state_changed.connect(func(state: StringName) -> void:
 		engine_events.append(state)
 	)
-	provider.set_button(BUTTON_DPAD_UP, true)
+	var berth_id := arrow.get_home_berth_id()
+	var berth := world.get_berth_node(berth_id) as ShipBerth
+	provider.set_axis(AXIS_LEFT_Y, -1.0)
 	_check(
 		await _wait_until(
 			func() -> bool:
 				return str(arrow.get_telemetry().get("engine_state", "")) == "ONLINE",
 			0.5
 		),
-		"D-pad Up starts the physical ship through the immutable command stream"
+		"left-stick flight demand automatically wakes the physical ship"
 	)
-	provider.set_button(BUTTON_DPAD_UP, false)
-	await physics_frame
-	await process_frame
-	_check(
-		game.phase == GameFlow.Phase.FREE_FLIGHT,
-		"controller-only Arrow startup advances the production free-sortie phase"
-	)
-	_check(
-		engine_events == [&"STARTING", &"ONLINE"],
-		"held controller startup yields one ordered lifecycle transition without replay"
-	)
-
-	var berth_id := arrow.get_home_berth_id()
-	var berth := world.get_berth_node(berth_id) as ShipBerth
-	provider.set_axis(AXIS_LEFT_Y, -1.0)
 	_check(
 		await _wait_until(
 			func() -> bool: return not bool(arrow.get_telemetry().get("landed", true)),
@@ -138,6 +122,15 @@ func _run() -> void:
 	)
 	provider.set_axis(AXIS_LEFT_Y, 0.0)
 	await physics_frame
+	await process_frame
+	_check(
+		game.phase == GameFlow.Phase.FREE_FLIGHT,
+		"physical controller departure advances the production free-sortie phase"
+	)
+	_check(
+		engine_events == [&"ONLINE"],
+		"automatic controller demand yields one immediate ONLINE transition without replay"
+	)
 	_check(
 		berth != null and berth.get_occupant() == null and berth.get_reservation_owner() == null,
 		"controller departure releases the exact authoritative berth lease"
@@ -168,16 +161,18 @@ func _run() -> void:
 		"controller landing restores the complete occupied berth lease"
 	)
 
-	provider.set_button(BUTTON_DPAD_DOWN, true)
 	_check(
 		await _wait_until(
 			func() -> bool:
 				return str(arrow.get_telemetry().get("engine_state", "")) == "OFFLINE",
-			0.5
+			2.0
 		),
-		"D-pad Down stops the landed physical craft through the shared command"
+		"landed neutral Arrow automatically idles offline after the frozen delay"
 	)
-	provider.set_button(BUTTON_DPAD_DOWN, false)
+	_check(
+		engine_events == [&"ONLINE", &"OFFLINE"],
+		"automatic controller sortie publishes one wake and one idle transition"
+	)
 	await physics_frame
 	provider.set_button(BUTTON_X, true)
 	_check(

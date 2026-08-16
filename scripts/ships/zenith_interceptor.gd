@@ -3412,20 +3412,13 @@ func get_zenith_audit_report() -> Dictionary:
 	}.duplicate(true)
 
 
-func request_engine_start() -> void:
-	super.request_engine_start()
-	_sync_zenith_engine_presentation_immediately()
-
-
-func request_engine_stop(play_transition_cue: bool = true) -> void:
-	super.request_engine_stop(play_transition_cue)
+func _sync_variant_engine_presentation_immediately() -> void:
 	_sync_zenith_engine_presentation_immediately()
 
 
 func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	super.reset_for_reuse(spawn_transform)
 	_sync_zenith_canopy_immediately()
-	_sync_zenith_engine_presentation_immediately()
 
 
 func _set_canopy_open_fraction(open_fraction: float) -> void:

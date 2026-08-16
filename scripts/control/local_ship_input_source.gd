@@ -32,8 +32,6 @@ const MAX_PENDING_CAMERA_DISTANCE_STEPS := 32.0
 
 @export_category("Edge actions")
 @export var barrel_roll_action: StringName = &"barrel_roll"
-@export var engine_start_action: StringName = &"engine_start"
-@export var engine_stop_action: StringName = &"engine_stop"
 @export var landing_action: StringName = &"landing_assist"
 @export var interact_action: StringName = &"interact"
 @export var camera_toggle_action: StringName = &"toggle_ship_camera_view"
@@ -192,8 +190,6 @@ func _sample_controls() -> Dictionary:
 		"hover": _action_pressed(hover_action),
 		"fire": _action_pressed(fire_action),
 		"barrel_roll": bool(edges.get(barrel_roll_action, false)),
-		"engine_start": bool(edges.get(engine_start_action, false)),
-		"engine_stop": bool(edges.get(engine_stop_action, false)),
 		"landing": bool(edges.get(landing_action, false)),
 		"interact": bool(edges.get(interact_action, false)),
 		"camera_toggle": bool(edges.get(camera_toggle_action, false)),
@@ -365,8 +361,6 @@ func _clear_transient_input(reprime_edges: bool) -> void:
 func _edge_actions() -> Array[StringName]:
 	return [
 		barrel_roll_action,
-		engine_start_action,
-		engine_stop_action,
 		landing_action,
 		interact_action,
 		camera_toggle_action,

@@ -606,19 +606,12 @@ func _sync_arrow_engine_presentation_immediately() -> void:
 			light.light_energy = 0.55 if active and state == ENGINE_STARTING else (1.1 if active else 0.0)
 
 
-func request_engine_start() -> void:
-	super.request_engine_start()
-	_sync_arrow_engine_presentation_immediately()
-
-
-func request_engine_stop(play_transition_cue: bool = true) -> void:
-	super.request_engine_stop(play_transition_cue)
+func _sync_variant_engine_presentation_immediately() -> void:
 	_sync_arrow_engine_presentation_immediately()
 
 
 func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	super.reset_for_reuse(spawn_transform)
-	_sync_arrow_engine_presentation_immediately()
 
 
 func _apply_arrow_metadata() -> void:

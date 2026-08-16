@@ -7,8 +7,6 @@ const AXIS_RIGHT_TRIGGER := 5
 const BUTTON_X := 2
 const BUTTON_LEFT_SHOULDER := 9
 const BUTTON_RIGHT_SHOULDER := 10
-const BUTTON_DPAD_UP := 11
-const BUTTON_DPAD_DOWN := 12
 const BUTTON_DPAD_LEFT := 13
 
 var _failures: Array[String] = []
@@ -359,7 +357,6 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 		return
 	stage.add_child(controller_ship)
 	controller_ship.global_position = Vector3(220.0, 20.0, 0.0)
-	controller_ship.engine_start_time = 0.01
 	controller_ship.set_piloted(true)
 	var source := controller_ship.get_command_source() as LocalShipInputSource
 	_check(source != null, "controller-only fixture uses the production local command adapter")
@@ -369,29 +366,6 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 		return
 	var controller := ControllerOnlyInputProvider.new()
 	source.set_input_provider(controller)
-
-	# This provider accepts physical joypad indices only. The assertion therefore
-	# covers project mapping -> LocalShipInputSource -> immutable ShipCommand,
-	# without synthesizing any keyboard or mouse action.
-	controller.set_button(BUTTON_DPAD_UP, true)
-	await physics_frame
-	await physics_frame
-	var start_command := controller_ship.get_last_ship_command()
-	_check(
-		start_command.engine_start,
-		"D-pad Up reaches the production ship as the engine-start command edge"
-	)
-	await physics_frame
-	_check(
-		not controller_ship.get_last_ship_command().engine_start,
-		"held D-pad Up cannot repeat engine startup on later simulation ticks"
-	)
-	controller.set_button(BUTTON_DPAD_UP, false)
-	await physics_frame
-	if str(controller_ship.get_telemetry().get("engine_state", &"")) == "OFFLINE":
-		controller_ship.request_engine_start()
-	for _startup_tick in 2:
-		await physics_frame
 
 	var projectile_count := [0]
 	controller_ship.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3) -> void:
@@ -405,17 +379,24 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 	controller.set_axis(AXIS_RIGHT_TRIGGER, 1.0)
 	controller.set_button(BUTTON_RIGHT_SHOULDER, true)
 	await physics_frame
+	await process_frame
 	var flight_command := controller_ship.get_last_ship_command()
 	_check(
 		is_equal_approx(flight_command.throttle, 1.0)
 		and flight_command.fire
 		and projectile_count[0] == 1,
-		"controller sticks and trigger drive thrust and weapons through the live command path"
+		"controller thrust and fire drive the live command path"
 	)
 	_check(
-		is_equal_approx(flight_command.camera_distance_delta, 1.0)
-		and controller_ship.get_chase_camera_distance() > middle_zoom,
-		"RB reaches and adjusts the physical chase camera through the same command snapshot"
+		is_equal_approx(
+			controller_ship.get_chase_camera_distance(),
+			middle_zoom + controller_ship.chase_camera_zoom_step
+		),
+		"RB reaches and adjusts the physical chase camera exactly once"
+	)
+	_check(
+		str(controller_ship.get_telemetry().get("engine_state", &"")) == "ONLINE",
+		"the same controller flight demand automatically wakes propulsion"
 	)
 	await physics_frame
 	var held_flight_command := controller_ship.get_last_ship_command()
@@ -432,14 +413,13 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 	await physics_frame
 	var distance_before_near := controller_ship.get_chase_camera_distance()
 	controller.set_button(BUTTON_LEFT_SHOULDER, true)
-	controller.set_button(BUTTON_DPAD_DOWN, true)
 	controller.set_button(BUTTON_DPAD_LEFT, true)
 	controller.set_button(BUTTON_X, true)
 	await physics_frame
 	var return_command := controller_ship.get_last_ship_command()
 	_check(
-		return_command.engine_stop and return_command.landing and return_command.interact,
-		"controller-only return actions reach engine stop, landing, and exit command edges"
+		return_command.landing and return_command.interact,
+		"controller-only return actions reach landing and exit command edges"
 	)
 	_check(
 		is_equal_approx(return_command.camera_distance_delta, -1.0)
@@ -449,8 +429,7 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 	await physics_frame
 	var held_return_command := controller_ship.get_last_ship_command()
 	_check(
-		not held_return_command.engine_stop
-		and not held_return_command.landing
+		not held_return_command.landing
 		and not held_return_command.interact
 		and is_zero_approx(held_return_command.camera_distance_delta),
 		"held controller return buttons cannot replay lifecycle or camera edges"

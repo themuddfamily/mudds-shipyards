@@ -312,12 +312,12 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 	match mode:
 		MODE_PILOTING:
 			return [
-				["Y", "START ENGINES"], ["W / S", "FORWARD / REVERSE"],
+				["W / S", "FORWARD / REVERSE  //  AUTO POWER"],
 				["MOUSE", "STEER"], ["UP / DOWN", "PITCH"], ["A / D", "YAW"],
 				["Q / R", "ROLL"], ["F / LMB", "FIRE"],
 				["SHIFT / CTRL/RMB", "BOOST / BRAKE"], ["V / WHEEL", "VIEW / DISTANCE"],
 				["H / G", "HOVER / BARREL ROLL"], ["L", "LANDING ASSIST"],
-				["X", "STOP ENGINES"], ["E", "LEAVE SEAT: OFFLINE"],
+				["E", "LEAVE SEAT: AUTO-OFFLINE"],
 				["F1 / BACK", "CONTROLS"],
 				["GAMEPAD", "STICKS FLY / TRIGGERS + FACE"]
 			]
@@ -956,7 +956,7 @@ func _build_intro() -> void:
 	_tint_rect(rule, CAUTION)
 	stack.add_child(rule)
 
-	var copy := _label("Walk the yard. Board the ship. Start the engines.\nThe launch deck is waiting.", 18, PRIMARY)
+	var copy := _label("Walk the yard. Board the ship. Apply thrust.\nThe launch deck is waiting.", 18, PRIMARY)
 	copy.add_theme_constant_override("line_spacing", 6)
 	stack.add_child(copy)
 

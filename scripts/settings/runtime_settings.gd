@@ -141,10 +141,8 @@ const _CONTROL_PRESET_DESCRIPTORS := {
 	ControlPreset.CLASSIC: {
 		"id": &"classic",
 		"label": "Classic",
-		"description": "A classic-style presentation of the familiar Y, X, H, F, and G flight actions.",
+		"description": "A classic-style presentation of the familiar H, F, and G flight actions with automatic propulsion.",
 		"key_hints": {
-			"engine_start": "Y",
-			"engine_stop": "X",
 			"hover": "H",
 			"fire": "F",
 			"barrel_roll": "G",

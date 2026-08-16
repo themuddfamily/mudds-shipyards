@@ -70,14 +70,6 @@ interact={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":69), Object(InputEventJoypadButton,"button_index":2)]
 }
-engine_start={
-"deadzone": 0.18,
-"events": [Object(InputEventKey,"physical_keycode":89), Object(InputEventJoypadButton,"button_index":11)]
-}
-engine_stop={
-"deadzone": 0.18,
-"events": [Object(InputEventKey,"physical_keycode":88), Object(InputEventJoypadButton,"button_index":12)]
-}
 hover={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":72), Object(InputEventJoypadButton,"button_index":0)]

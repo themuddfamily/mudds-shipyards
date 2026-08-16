@@ -30,7 +30,7 @@ const BUTTON_DPAD_RIGHT := 14
 const GAMEPLAY_ACTIONS: Array[StringName] = [
 	&"move_forward", &"move_back", &"move_left", &"move_right",
 	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
-	&"jump", &"sprint_boost", &"interact", &"engine_start", &"engine_stop",
+	&"jump", &"sprint_boost", &"interact",
 	&"hover", &"fire", &"barrel_roll", &"landing_assist",
 	&"toggle_ship_camera_view", &"camera_distance_in", &"camera_distance_out",
 	&"brake", &"pause", &"toggle_controls_overlay", &"toggle_first_person",
@@ -54,8 +54,6 @@ const LOOP_CRITICAL_ACTIONS := {
 	&"brake": "decelerate for combat and dock approach",
 	&"fire": "engage the range targets and the defender",
 	&"hover": "hold station while lining up a berth",
-	&"engine_start": "start engines from the pilot seat",
-	&"engine_stop": "shut down after the strict dock",
 	&"landing_assist": "request the strict landing contract",
 	&"pause": "pause and reach the settings panel",
 	&"toggle_controls_overlay": "read the in-game control reference",
@@ -128,8 +126,10 @@ func _test_keyboard_attitude_bindings() -> void:
 		_has_physical_key(&"interact", KEY_E) and not _has_physical_key(&"roll_right", KEY_E),
 		"E remains interaction-only and cannot roll the craft while exiting"
 	)
-	_check(_has_physical_key(&"engine_start", KEY_Y), "Y still starts engines")
-	_check(_has_physical_key(&"engine_stop", KEY_X), "X still stops engines")
+	_check(
+		not InputMap.has_action(&"engine_start") and not InputMap.has_action(&"engine_stop"),
+		"retired manual engine actions are absent from the authored InputMap"
+	)
 	_check(_has_physical_key(&"landing_assist", KEY_L), "L still engages landing assist")
 	_check(_has_physical_key(&"toggle_ship_camera_view", KEY_V), "V still toggles the ship camera")
 	_check(_has_mouse_button(&"fire", MOUSE_BUTTON_LEFT), "left mouse still fires")
@@ -208,8 +208,6 @@ func _test_controller_mapping_and_deadzone() -> void:
 		[&"barrel_roll", BUTTON_B, "B triggers the classic barrel roll"],
 		[&"interact", BUTTON_X, "X controls interaction"],
 		[&"toggle_ship_camera_view", BUTTON_Y, "Y toggles the ship camera"],
-		[&"engine_start", BUTTON_DPAD_UP, "D-pad Up starts engines"],
-		[&"engine_stop", BUTTON_DPAD_DOWN, "D-pad Down stops engines"],
 		[&"landing_assist", BUTTON_DPAD_LEFT, "D-pad Left engages landing assist"],
 		[&"toggle_first_person", BUTTON_DPAD_RIGHT, "D-pad Right toggles the on-foot view"],
 		[&"camera_distance_in", BUTTON_LEFT_SHOULDER, "LB moves the chase camera nearer"],
@@ -231,8 +229,6 @@ func _test_controller_mapping_and_deadzone() -> void:
 
 func _test_new_controller_bindings_are_collision_free() -> void:
 	var expected_bindings := {
-		&"engine_start": BUTTON_DPAD_UP,
-		&"engine_stop": BUTTON_DPAD_DOWN,
 		&"landing_assist": BUTTON_DPAD_LEFT,
 		&"toggle_first_person": BUTTON_DPAD_RIGHT,
 		&"camera_distance_in": BUTTON_LEFT_SHOULDER,
@@ -261,8 +257,7 @@ func _test_system_edges_and_camera_distance_backlog() -> void:
 	var provider := MutableInputProvider.new()
 	provider.strengths[&"move_forward"] = 0.65
 	for action: StringName in [
-		&"engine_start",
-		&"engine_stop",
+		&"barrel_roll",
 		&"landing_assist",
 		&"camera_distance_in",
 	]:
@@ -272,8 +267,9 @@ func _test_system_edges_and_camera_distance_backlog() -> void:
 	var first := source.next_command(3000)
 	var held := source.next_command(3001)
 	_check(
-		first.engine_start and first.engine_stop and first.landing,
-		"controller lifecycle actions enter the first ShipCommand as explicit edges"
+		first.barrel_roll and first.landing
+		and not first.engine_start and not first.engine_stop,
+		"live controller edges are sampled without resurrecting retired engine fields"
 	)
 	_check(
 		is_equal_approx(first.camera_distance_delta, -1.0),
@@ -285,15 +281,13 @@ func _test_system_edges_and_camera_distance_backlog() -> void:
 		"held analogue input remains sampled on every command"
 	)
 	_check(
-		not held.engine_start
-		and not held.engine_stop
+		not held.barrel_roll
 		and not held.landing
 		and is_zero_approx(held.camera_distance_delta),
 		"held lifecycle and camera buttons cannot repeat edge-triggered commands"
 	)
 	for action: StringName in [
-		&"engine_start",
-		&"engine_stop",
+		&"barrel_roll",
 		&"landing_assist",
 		&"camera_distance_in",
 	]:
@@ -332,11 +326,11 @@ func _test_focus_and_tree_reentry_boundaries() -> void:
 	root.add_child(source)
 	source.set_input_provider(provider)
 	source.next_command(4000)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	provider.set_pressed(&"camera_distance_out", true)
 	var initial_edges := source.next_command(4001)
 	_check(
-		initial_edges.engine_start
+		initial_edges.landing
 		and is_equal_approx(initial_edges.camera_distance_delta, 1.0),
 		"focused input produces lifecycle and camera edges normally"
 	)
@@ -351,25 +345,25 @@ func _test_focus_and_tree_reentry_boundaries() -> void:
 	var focus_return := source.next_command(4003)
 	_check(
 		is_equal_approx(focus_return.throttle, 0.7)
-		and not focus_return.engine_start
+		and not focus_return.landing
 		and is_zero_approx(focus_return.camera_distance_delta)
 		and is_zero_approx(focus_return.look_yaw_delta)
 		and is_zero_approx(focus_return.look_pitch_delta),
 		"focus return restores held axes but primes held edges and clears stale impulses"
 	)
-	provider.set_pressed(&"engine_start", false)
+	provider.set_pressed(&"landing_assist", false)
 	provider.set_pressed(&"camera_distance_out", false)
 	source.next_command(4004)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	provider.set_pressed(&"camera_distance_out", true)
 	var focus_repress := source.next_command(4005)
 	_check(
-		focus_repress.engine_start
+		focus_repress.landing
 		and is_equal_approx(focus_repress.camera_distance_delta, 1.0),
 		"release and repress after focus return creates exactly one fresh edge"
 	)
 
-	provider.set_pressed(&"engine_start", false)
+	provider.set_pressed(&"landing_assist", false)
 	provider.set_pressed(&"camera_distance_out", false)
 	source.next_command(4006)
 	root.remove_child(source)
@@ -415,15 +409,15 @@ func _test_scene_tree_pause_boundary() -> void:
 	source.next_command(5000)
 	# Stage both sampled and unsampled transients before pausing. The pause boundary
 	# must revoke all of them, including the lifecycle FIFO copy.
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	var staged_edge := source.next_command(5001)
 	var generation_before_pause := source.get_delivery_generation()
 	source.queue_look_motion(Vector2(70.0, -50.0))
 	source.queue_camera_distance_delta(2.0)
 	source.queue_action_edge(&"landing_assist")
 	paused = true
-	provider.set_pressed(&"engine_start", false)
-	provider.set_pressed(&"engine_stop", true)
+	provider.set_pressed(&"landing_assist", false)
+	provider.set_pressed(&"interact", true)
 	provider.set_pressed(&"camera_distance_out", true)
 	provider.strengths[&"move_forward"] = 0.8
 	# Queues attempted while SceneTree-paused must also be rejected.
@@ -432,7 +426,7 @@ func _test_scene_tree_pause_boundary() -> void:
 	source.queue_action_edge(&"interact")
 	var paused_sample := source.next_command(5002)
 	_check(
-		staged_edge.engine_start
+		staged_edge.landing
 		and paused_sample.is_neutral()
 		and source.get_delivery_generation() > generation_before_pause
 		and source.drain_pending_commands().is_empty(),
@@ -444,29 +438,28 @@ func _test_scene_tree_pause_boundary() -> void:
 	var resumed_held := source.next_command(5004)
 	_check(
 		is_equal_approx(resumed.throttle, 0.8)
-		and not resumed.engine_stop
 		and not resumed.landing
 		and not resumed.interact
 		and is_zero_approx(resumed.camera_distance_delta)
 		and is_zero_approx(resumed.look_yaw_delta)
 		and is_zero_approx(resumed.look_pitch_delta)
-		and not resumed_held.engine_stop
+		and not resumed_held.interact
 		and is_zero_approx(resumed_held.camera_distance_delta),
 		"unpause restores held axes but primes paused UI/controller buttons without manufacturing edges"
 	)
 	_check(
 		_has_joy_button(&"ui_down", BUTTON_DPAD_DOWN)
-		and _has_joy_button(&"engine_stop", BUTTON_DPAD_DOWN),
-		"D-pad Down deliberately serves paused UI navigation and live engine stop"
+		and not InputMap.has_action(&"engine_stop"),
+		"D-pad Down remains UI navigation without a live manual engine action"
 	)
-	provider.set_pressed(&"engine_stop", false)
+	provider.set_pressed(&"interact", false)
 	provider.set_pressed(&"camera_distance_out", false)
 	source.next_command(5005)
-	provider.set_pressed(&"engine_stop", true)
+	provider.set_pressed(&"interact", true)
 	provider.set_pressed(&"camera_distance_out", true)
 	var repressed := source.next_command(5006)
 	_check(
-		repressed.engine_stop
+		repressed.interact
 		and is_equal_approx(repressed.camera_distance_delta, 1.0),
 		"release and repress after unpause creates exactly one fresh controller edge"
 	)
@@ -476,7 +469,7 @@ func _test_scene_tree_pause_boundary() -> void:
 	)
 	var resumed_batch := source.drain_pending_commands(generation_after_unpause)
 	_check(
-		resumed_batch.size() == 1 and resumed_batch[0].engine_stop,
+		resumed_batch.size() == 1 and resumed_batch[0].interact,
 		"stale-generation rejection preserves the fresh post-pause lifecycle edge"
 	)
 	source.queue_free()
@@ -491,7 +484,7 @@ func _test_detached_focus_resynchronization() -> void:
 	root.add_child(source)
 	source.set_input_provider(provider)
 	source.next_command(6000)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	var staged := source.next_command(6001)
 	var generation_before_detach := source.get_delivery_generation()
 	root.remove_child(source)
@@ -505,7 +498,7 @@ func _test_detached_focus_resynchronization() -> void:
 	root.add_child(source)
 	var reentered_unfocused := source.next_command(6002)
 	_check(
-		staged.engine_start
+		staged.landing
 		and reentered_unfocused.is_neutral()
 		and source.get_delivery_generation() > generation_before_detach
 		and source.drain_pending_commands().is_empty(),
@@ -525,18 +518,14 @@ func _test_detached_focus_resynchronization() -> void:
 	var reentered_held := source.next_command(6004)
 	_check(
 		is_equal_approx(reentered_focused.throttle, 0.7)
-		and not reentered_focused.engine_start
 		and not reentered_focused.landing
 		and is_zero_approx(reentered_focused.camera_distance_delta)
 		and is_zero_approx(reentered_focused.look_yaw_delta)
-		and not reentered_held.engine_start
 		and not reentered_held.landing
 		and is_zero_approx(reentered_held.camera_distance_delta),
 		"re-entry resnapshots missed detached focus gain while priming every held edge"
 	)
-	for action: StringName in [
-		&"engine_start", &"landing_assist", &"camera_distance_in",
-	]:
+	for action: StringName in [&"landing_assist", &"camera_distance_in"]:
 		provider.set_pressed(action, false)
 	source.next_command(6005)
 	provider.set_pressed(&"landing_assist", true)
