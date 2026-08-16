@@ -152,13 +152,22 @@ func _test_near_black_sky(world: ShipyardWorld) -> void:
 	_check(sky_material != null, "production environment uses ProceduralSkyMaterial rather than the former panorama sky")
 	if sky_material == null:
 		return
+	# Re-frozen from 020204/030305/030305/010102. The station's ambient is now
+	# sourced from this sky instead of a flat colour fill, so the sky has to carry
+	# a real hemispheric signal: a lighter, cooler top and horizon and a darker
+	# ground half. The values stay deep enough to read as near-black space at the
+	# scene's 0.55 background energy - the brightest of them is 0x0d1a24 - and the
+	# top/horizon pair is still deliberately above the ground pair rather than
+	# uniform, which is the whole point of the change. No sun disc was introduced.
 	_check(
-		sky_material.sky_top_color.is_equal_approx(Color("020204"))
-		and sky_material.sky_horizon_color.is_equal_approx(Color("030305"))
-		and sky_material.ground_horizon_color.is_equal_approx(Color("030305"))
-		and sky_material.ground_bottom_color.is_equal_approx(Color("010102"))
+		sky_material.sky_top_color.is_equal_approx(Color("0a1420"))
+		and sky_material.sky_horizon_color.is_equal_approx(Color("0d1a24"))
+		and sky_material.ground_horizon_color.is_equal_approx(Color("070d13"))
+		and sky_material.ground_bottom_color.is_equal_approx(Color("03060a"))
+		and sky_material.sky_top_color.get_luminance() > sky_material.ground_bottom_color.get_luminance()
+		and sky_material.sky_horizon_color.get_luminance() < 0.1
 		and is_zero_approx(sky_material.sun_angle_max),
-		"procedural sky is uniformly near-black with no synthetic sun disc"
+		"procedural sky stays near-black but carries a hemispheric top-to-ground gradient with no synthetic sun disc"
 	)
 	_check(
 		sky_material.sky_cover != null

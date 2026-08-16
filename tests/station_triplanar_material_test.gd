@@ -103,7 +103,13 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 				exact_recipe
 				and material.normal_enabled
 				and _texture_path(material.normal_texture) == NORMAL_PATH
-				and is_equal_approx(material.normal_scale, 0.48)
+				# Re-frozen from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9.
+				# 0.48 left plated walls nearly featureless at eye height; 1.9 domed
+				# the plate faces into embossed plastic on bright surfaces. 1.0 is the
+				# highest sampled value with no doming in any frame. This stays an
+				# exact equality on purpose: the whole point is that every module
+				# shares one relief depth.
+				and is_equal_approx(material.normal_scale, 1.0)
 				and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
 				and material.uv1_triplanar
@@ -137,29 +143,40 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# not appear here. No previously mapped surface was removed and no scale
 	# changed.
 	#
-	# Re-frozen again from 523/11/265/247 when the two station components that had
-	# stayed outside the family joined it. Nothing was removed and no existing
-	# surface changed scale.
+	# Re-frozen again from 523/11/265/247 when the last three unmapped station
+	# populations joined the family, all at the Aft module's existing 0.30 scale
+	# and all with the recipe copied verbatim:
 	#
-	#   +104 at 0.22 — the four structural service dressings, 26 plate-stock
-	#     surfaces each: fascia, both keel chords, five keel posts, four conduit
-	#     clamps, the service manifold, six radiator vent blades, six fascia
-	#     fasteners and the radiator backplate. Their conduits, cross braces and
-	#     task strips stay outside the family: extruded pipe, rod and a lens are
-	#     not plate stock.
-	#   +20 at 0.28 — five station doors, four surfaces each: both frame posts,
-	#     the header and the sliding leaf. There are five live doors, not the
-	#     three the component survey recorded (Aft has two, Habitat has two,
-	#     Freight has one). The leaf counts because the door now binds the family
-	#     onto the module-supplied leaf material after host styling; before this
-	#     change the scene's own leaf material was overridden by every host and
-	#     never reached a frame. The indicator strips stay outside the family.
+	#   `StationOperationsActivity` bound its four structural greys (`frame`,
+	#   `frame_edge`, `graphite`, `ceramic`), adding 106 surfaces across the four
+	#   production placements (FULL, GANTRY, SERVICE_ARM, DRONE_PATROL).
+	#   `FleetDockComb` bound `deck`, `deck_light`, `frame`, `underframe` and
+	#   `grip`, adding 33.
+	#   `ShipyardWorld` bound `deck`, `deck_light`, `navy`, `blue`, `steel_blue`,
+	#   `ivory` and `black`, adding 247. This was by far the largest gap: the hub
+	#   owns roughly 6.6 thousand square metres of walkable deck plus keels,
+	#   braces and pods, and `_material()` had produced pure scalar colour with no
+	#   albedo, normal, roughness or triplanar at all.
+	#
+	#   `AftJunctionStack` additionally bound `mid_grey` and `hull_dark`, adding
+	#   121. Those are the same two colours as its already-mapped `mid_grey_floor`
+	#   and `hull_dark_floor`, so a wall was reading as plastic while the plated
+	#   floor met it at the skirting.
+	#
+	# Net +368 mapped surfaces, 662 -> 1030. The 0.28 bucket returns to 265 because
+	# the Fleet Dock comb moved from 0.28 to 0.30 to match the hub it bolts onto,
+	# so no plate size changes across the connector seam; that is a move between
+	# frozen buckets, not a new scale. 0.30 goes 353 -> 633. 0.22 is untouched.
+	# Painted hazard bands, tyre rubber, transparent glass and every emissive
+	# legend, route cue and beacon lens deliberately stay outside the family in
+	# every module, so signage and lit cues keep their flat readable identity. No
+	# previously mapped surface was removed and no new scale was introduced.
 	_check(
-		mapped_surface_count == 647
+		mapped_surface_count == 1154
 		and scale_022_count == 115
 		and scale_028_count == 285
-		and scale_030_count == 247,
-		"live station binds exactly 647 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 754,
+		"live station binds exactly 1154 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

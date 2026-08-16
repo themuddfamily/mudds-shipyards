@@ -135,6 +135,10 @@ var _built_static_node_transforms: Dictionary = {}
 var _built_node_visibility: Dictionary = {}
 var _built_mesh_contracts: Dictionary = {}
 var _built_material_contracts: Dictionary = {}
+## Size-keyed chamfered box meshes. Equal-sized boxes deliberately share one
+## `ArrayMesh`, so the extra edge geometry costs vertices once per distinct size
+## rather than once per placement.
+var _rounded_box_cache: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -946,6 +950,20 @@ func _materials_match_build_contract() -> bool:
 	return true
 
 
+## Content fingerprint of every stored property on an owned resource.
+##
+## Values are recorded as a recursive content hash rather than as `var_to_str`
+## text. The hash covers the same stored bytes, so the fingerprint keeps the same
+## sensitivity; what it gives up is human-readable diagnostics, and nothing prints
+## this fingerprint. The reason is cost: once this component's boxes became
+## chamfered `ArrayMesh` resources, the text form had to serialise a full
+## vertex/normal/tangent/UV/index buffer per mesh on every audit call. Measured on
+## the FULL profile's 79 meshes that was 48-88 ms per pass, and it took
+## `station_operations_activity_test` from 0.5 s to over 175 s, past its 180 s
+## matrix timeout. With the hash the same suite runs in 0.6 s.
+##
+## `station_operations_activity_test` still drives this red by mutating a live
+## generated mesh in place; see the drift witness there.
 func _resource_storage_fingerprint(resource: Resource) -> PackedStringArray:
 	var result := PackedStringArray()
 	if resource == null:
@@ -955,7 +973,7 @@ func _resource_storage_fingerprint(resource: Resource) -> PackedStringArray:
 		if int(property.get("usage", 0)) & PROPERTY_USAGE_STORAGE == 0:
 			continue
 		var property_name := StringName(property.get("name", &""))
-		result.append("%s=%s" % [property_name, var_to_str(resource.get(property_name))])
+		result.append("%s=%d" % [property_name, hash(resource.get(property_name))])
 	result.sort()
 	return result
 
@@ -1183,6 +1201,48 @@ func _create_materials() -> void:
 	_materials["amber_lit"] = _material(Color("ffc069"), 0.12, 0.3, Color("ff8a2b"), 1.8)
 	_materials["red_dim"] = _material(Color("632d2d"), 0.16, 0.42, Color("67201e"), 0.16)
 	_materials["red_lit"] = _material(Color("ff6b60"), 0.1, 0.3, Color("ef342d"), 1.65)
+	_apply_station_panel_family()
+
+
+## Bind the registered station panel/normal/roughness recipe to this component's
+## structural greys.
+##
+## Before this pass the operations equipment was the only lattice population with
+## no mapped surface at all: flat scalar albedo on hard-edged primitives standing
+## on decks that are visibly plated. The recipe, its `normal_scale`, its
+## red-channel roughness, its world-triplanar mode and its sharpness are copied
+## verbatim from `AftJunctionStack`, including that module's 0.30 physical scale,
+## so a gantry column is stamped from the same plate stock as the deck under it
+## rather than acquiring a look of its own. Painted hazard bands, tyre rubber and
+## the emissive lenses stay unmapped, exactly as the sibling modules leave their
+## accent and light materials unmapped.
+func _apply_station_panel_family() -> void:
+	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
+	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
+	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	if panel_albedo == null or panel_normal == null or panel_roughness == null:
+		return
+	for key in ["frame", "frame_edge", "graphite", "ceramic"]:
+		var panel_material := _materials[key] as StandardMaterial3D
+		panel_material.albedo_texture = panel_albedo
+		panel_material.normal_enabled = true
+		panel_material.normal_texture = panel_normal
+		# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
+		# plated wall at eye height is nearly featureless: the seams and rivets are
+		# present in the map but too shallow to catch light, which is much of why
+		# plated geometry still read as untextured. At 1.9 the plate faces dome and
+		# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
+		# value at which no frame showed doming while the dark walls resolved into
+		# pressed sheet metal. Every module shares the value so a deck and the wall
+		# beside it cannot disagree.
+		panel_material.normal_scale = 1.0
+		panel_material.roughness_texture = panel_roughness
+		panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		panel_material.uv1_triplanar = true
+		panel_material.uv1_world_triplanar = true
+		panel_material.uv1_triplanar_sharpness = 4.0
+		panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
+		panel_material.texture_repeat = true
 
 
 func _build_gantry() -> void:
@@ -1407,6 +1467,12 @@ func _material(
 	result.albedo_color = color
 	result.metallic = metallic
 	result.roughness = roughness
+	# Same faint coated-plate specular the Aft, Habitat, Freight and Fleet Dock
+	# modules already give their station surfaces. Without it this equipment kept
+	# a dry, matte response that read as untextured plastic beside them.
+	result.clearcoat_enabled = true
+	result.clearcoat = 0.18
+	result.clearcoat_roughness = 0.48
 	if emission_energy > 0.0:
 		result.emission_enabled = true
 		result.emission = emission_color
@@ -1426,13 +1492,103 @@ func _box(
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
 	mesh_instance.rotation_degrees = rotation_degrees_value
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh_instance.mesh = mesh
+	# Chamfered rather than a raw `BoxMesh`: the bounding box, and therefore the
+	# published envelope and every declared footprint, is unchanged, but the edges
+	# now catch a highlight the way the surrounding plated decks already do.
+	mesh_instance.mesh = _rounded_box_mesh(size)
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(mesh_instance, true)
 	return mesh_instance
+
+
+## Box with softly chamfered edges, sharing the station's existing bevel rule.
+##
+## The bevel is `min(0.2 m, shortest_side * 0.22)`, the same proportional rule
+## `ShipyardWorld` uses, so a 0.3 m rail gets a 0.066 m chamfer while a 5.4 m
+## column is capped at 0.2 m. A fixed bevel would swallow the thin parts of this
+## equipment. The outer extent along each axis is preserved exactly: face
+## vertices are pushed back out to `half` after being clamped to `inner_half`,
+## so `get_aabb()` still returns the requested size and no published envelope,
+## footprint or collider derived from it moves.
+func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
+	var cache_key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
+	if _rounded_box_cache.has(cache_key):
+		return _rounded_box_cache[cache_key] as ArrayMesh
+	var half := size * 0.5
+	var bevel := minf(0.2, minf(size.x, minf(size.y, size.z)) * 0.22)
+	bevel = maxf(bevel, 0.003)
+	var inner_half := Vector3(
+		maxf(0.0, half.x - bevel),
+		maxf(0.0, half.y - bevel),
+		maxf(0.0, half.z - bevel)
+	)
+	var surface_tool := SurfaceTool.new()
+	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var faces: Array[Array] = [
+		[Vector3.RIGHT, Vector3.UP, Vector3.BACK],
+		[Vector3.LEFT, Vector3.BACK, Vector3.UP],
+		[Vector3.UP, Vector3.BACK, Vector3.RIGHT],
+		[Vector3.DOWN, Vector3.RIGHT, Vector3.BACK],
+		[Vector3.BACK, Vector3.RIGHT, Vector3.UP],
+		[Vector3.FORWARD, Vector3.UP, Vector3.RIGHT],
+	]
+	for face: Array in faces:
+		var normal_axis: Vector3 = face[0]
+		var u_axis: Vector3 = face[1]
+		var v_axis: Vector3 = face[2]
+		var face_center := Vector3(
+			normal_axis.x * half.x,
+			normal_axis.y * half.y,
+			normal_axis.z * half.z
+		)
+		var u_extent := absf(u_axis.x) * half.x + absf(u_axis.y) * half.y + absf(u_axis.z) * half.z
+		var v_extent := absf(v_axis.x) * half.x + absf(v_axis.y) * half.y + absf(v_axis.z) * half.z
+		var u_inner := maxf(0.0, u_extent - bevel)
+		var v_inner := maxf(0.0, v_extent - bevel)
+		var u_values := PackedFloat32Array([-u_extent, -u_inner, u_inner, u_extent])
+		var v_values := PackedFloat32Array([-v_extent, -v_inner, v_inner, v_extent])
+		for u_index in u_values.size() - 1:
+			for v_index in v_values.size() - 1:
+				var points := [
+					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index],
+					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index],
+					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index + 1],
+					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index + 1],
+				]
+				var u0 := float(u_index) / 3.0
+				var u1 := float(u_index + 1) / 3.0
+				var v0 := float(v_index) / 3.0
+				var v1 := float(v_index + 1) / 3.0
+				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_box_vertex(surface_tool, points[1], inner_half, bevel, Vector2(u1, v0))
+				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_add_rounded_box_vertex(surface_tool, points[3], inner_half, bevel, Vector2(u0, v1))
+	surface_tool.generate_tangents()
+	var rounded_mesh := surface_tool.commit()
+	_rounded_box_cache[cache_key] = rounded_mesh
+	return rounded_mesh
+
+
+func _add_rounded_box_vertex(
+		surface_tool: SurfaceTool,
+		point: Vector3,
+		inner_half: Vector3,
+		bevel: float,
+		uv: Vector2
+	) -> void:
+	var closest := Vector3(
+		clampf(point.x, -inner_half.x, inner_half.x),
+		clampf(point.y, -inner_half.y, inner_half.y),
+		clampf(point.z, -inner_half.z, inner_half.z)
+	)
+	var offset := point - closest
+	var normal := offset.normalized() if offset.length_squared() > 0.000001 else Vector3.UP
+	surface_tool.set_normal(normal)
+	surface_tool.set_uv(uv)
+	surface_tool.add_vertex(closest + normal * bevel)
 
 
 func _cylinder(

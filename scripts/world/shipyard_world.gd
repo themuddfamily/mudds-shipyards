@@ -325,6 +325,8 @@ func _ready() -> void:
 	_build_cargo_and_machinery()
 	_build_exterior_range()
 	_build_space_backdrop()
+	# After the backdrop, so the update-once bake sees the finished sky.
+	_build_module_reflection_probes()
 	_index_operational_lattice_components()
 	# The hub endpoints resolve against lattice geometry built above, so the
 	# registry can only be assembled once the environment exists.
@@ -1740,10 +1742,10 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		errors.append("near-black procedural sky is unavailable")
 	else:
 		if (
-			not sky_material.sky_top_color.is_equal_approx(Color("020204"))
-			or not sky_material.sky_horizon_color.is_equal_approx(Color("030305"))
-			or not sky_material.ground_horizon_color.is_equal_approx(Color("030305"))
-			or not sky_material.ground_bottom_color.is_equal_approx(Color("010102"))
+			not sky_material.sky_top_color.is_equal_approx(Color("0a1420"))
+			or not sky_material.sky_horizon_color.is_equal_approx(Color("0d1a24"))
+			or not sky_material.ground_horizon_color.is_equal_approx(Color("070d13"))
+			or not sky_material.ground_bottom_color.is_equal_approx(Color("03060a"))
 			or not is_zero_approx(sky_material.sun_angle_max)
 		):
 			errors.append("near-black procedural sky palette drifted")
@@ -2030,15 +2032,29 @@ func apply_visual_quality(quality_level: int) -> Dictionary:
 
 
 func _create_materials() -> void:
-	_materials["deck"] = _material(DECK, 0.08, 0.78)
-	_materials["deck_light"] = _material(DECK_LIGHT, 0.18, 0.66)
-	_materials["navy"] = _material(NAVY, 0.12, 0.72)
-	_materials["blue"] = _material(DEEP_BLUE, 0.22, 0.58)
-	_materials["steel_blue"] = _material(STEEL_BLUE, 0.32, 0.48)
-	_materials["ivory"] = _material(IVORY, 0.08, 0.55)
-	_materials["orange"] = _material(KETH_ORANGE, 0.16, 0.5)
-	_materials["red"] = _material(ALERT_RED, 0.1, 0.5)
-	_materials["black"] = _material(Color("03080d"), 0.15, 0.72)
+	# Metalness and roughness now separate the roles instead of only the hue.
+	# Every opaque hub surface previously sat inside metallic 0.08-0.32 and
+	# roughness 0.48-0.78, so two adjacent surfaces answered the same light almost
+	# identically and the whole station read as one painted polymer. The structural
+	# steel roles are raised toward the range the service dressing and the Freight
+	# berth already use, traffic-worn deck plate stays low-metal and rough, and the
+	# painted roles stay paint. Colours are unchanged.
+	#
+	# Metalness is deliberately capped below those modules' 0.62-0.78 on anything
+	# broad. Reflections come from the background, the background is near-black
+	# space, and ambient is now sky-sourced, so a high-metal surface has almost
+	# nothing to reflect and metalness only subtracts its diffuse response. That is
+	# fine on a keel or a mast, where dark steel is the intent; it is wrong on a
+	# 1809 square metre walkable launch-arm deck, which is what `navy` covers.
+	_materials["deck"] = _material(DECK, 0.06, 0.82)
+	_materials["deck_light"] = _material(DECK_LIGHT, 0.14, 0.7)
+	_materials["navy"] = _material(NAVY, 0.18, 0.6)
+	_materials["blue"] = _material(DEEP_BLUE, 0.42, 0.42)
+	_materials["steel_blue"] = _material(STEEL_BLUE, 0.5, 0.34)
+	_materials["ivory"] = _material(IVORY, 0.05, 0.62)
+	_materials["orange"] = _material(KETH_ORANGE, 0.1, 0.56)
+	_materials["red"] = _material(ALERT_RED, 0.08, 0.54)
+	_materials["black"] = _material(Color("03080d"), 0.34, 0.66)
 	_materials["cyan_glow"] = _material(
 		KETH_CYAN,
 		0.05,
@@ -2082,6 +2098,55 @@ func _create_materials() -> void:
 		Color("d7772d"),
 		0.72
 	)
+	_apply_station_panel_family()
+
+
+## Bind the registered station panel/normal/roughness recipe to the hub's
+## structural and deck greys.
+##
+## This was the largest single gap in the presentation. The hub's boxes have been
+## chamfered for a long time, but `_material()` produced pure scalar colour: no
+## albedo texture, no normal, no roughness map, no triplanar. That left roughly
+## 6.6 thousand square metres of walkable deck and another 2.8 thousand of keels,
+## cross braces and pods rendering as unbroken plastic in three colours, directly
+## alongside four modules that were already plated. Bevelling alone cannot fix
+## that; a 1.8 thousand square metre deck needs surface information across its
+## face, not only at its edge.
+##
+## The recipe, `normal_scale`, red-channel roughness, world-triplanar mode and
+## sharpness are copied verbatim from `AftJunctionStack`, at that module's 0.30
+## physical scale, so the hub is stamped from the same plate stock as everything
+## that joins it. Only structural roles are bound: hazard paint, every emissive
+## legend and the transparent glass deliberately stay unmapped, as they do in the
+## sibling modules, so signage and lit cues keep their flat readable identity.
+func _apply_station_panel_family() -> void:
+	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
+	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
+	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	if panel_albedo == null or panel_normal == null or panel_roughness == null:
+		return
+	for key in ["deck", "deck_light", "navy", "blue", "steel_blue", "ivory", "black"]:
+		var panel_material := _materials[key] as StandardMaterial3D
+		panel_material.albedo_texture = panel_albedo
+		panel_material.normal_enabled = true
+		panel_material.normal_texture = panel_normal
+		# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
+		# plated wall at eye height is nearly featureless: the seams and rivets are
+		# present in the map but too shallow to catch light, which is much of why
+		# plated geometry still read as untextured. At 1.9 the plate faces dome and
+		# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
+		# value at which no frame showed doming while the dark walls resolved into
+		# pressed sheet metal. Every module shares the value so a deck and the wall
+		# beside it cannot disagree.
+		panel_material.normal_scale = 1.0
+		panel_material.roughness_texture = panel_roughness
+		panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		panel_material.uv1_triplanar = true
+		panel_material.uv1_world_triplanar = true
+		panel_material.uv1_triplanar_sharpness = 4.0
+		panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
+		panel_material.texture_repeat = true
+
 
 func _build_environment() -> void:
 	var world_environment := WorldEnvironment.new()
@@ -2093,10 +2158,10 @@ func _build_environment() -> void:
 	# nebula only as faint modern atmosphere rather than the live composition's
 	# dominant identity. Exact colours/placement remain explicitly unauthenticated.
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("020204")
-	sky_material.sky_horizon_color = Color("030305")
-	sky_material.ground_horizon_color = Color("030305")
-	sky_material.ground_bottom_color = Color("010102")
+	sky_material.sky_top_color = Color("0a1420")
+	sky_material.sky_horizon_color = Color("0d1a24")
+	sky_material.ground_horizon_color = Color("070d13")
+	sky_material.ground_bottom_color = Color("03060a")
 	sky_material.sun_angle_max = 0.0
 	sky_material.sky_cover = load("res://assets/keth-nebula.png") as Texture2D
 	sky_material.sky_cover_modulate = Color(
@@ -2110,9 +2175,25 @@ func _build_environment() -> void:
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
 	environment.background_energy_multiplier = 0.55
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("6db3bd")
-	environment.ambient_light_energy = 0.44
+	# Ambient comes from the sky rather than a single colour. A flat colour fill
+	# lands identically on every face regardless of orientation, which is the
+	# reason a bevelled box still reads as a toy: nothing distinguishes a deck top
+	# from a catwalk underside except direct light. Sky ambient is hemispheric, so
+	# up-facing surfaces take the star hemisphere and down-facing surfaces take the
+	# darker ground hemisphere.
+	#
+	# Three quarters of the fill is that hemispheric sky. The remaining quarter is
+	# a flat colour floor, kept because the backdrop is deliberately near-black:
+	# pure sky ambient drove the outer Fleet Dock decks to near-black and cost
+	# readability. `ambient_light_energy` also only applies while
+	# `ambient_light_sky_contribution` is below 1.0, so this split is what makes
+	# the level tunable at all. The colour is desaturated from the previous
+	# `6db3bd` so the flat quarter stops tinting every face the same cyan. Levels
+	# were set by measuring frame luminance against the old flat fill.
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	environment.ambient_light_sky_contribution = 0.75
+	environment.ambient_light_color = Color("54808c")
+	environment.ambient_light_energy = 2.2
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_exposure = 0.94
@@ -2132,14 +2213,30 @@ func _build_environment() -> void:
 		visual_quality_level
 	)
 
+	# Key and counter-fill pair. A single grazing key gave every object exactly one
+	# lit face and one dead face, which is the strongest "flat primitive" tell
+	# after untextured albedo. Steepening the key raises NdotL on the broad decks
+	# and the cool counter-fill from behind separates a shape's dark side from the
+	# background instead of merging them. The fill casts no shadows: it is a
+	# lighting device, not a second sun, and it must not double the shadow cost.
 	var key_light := DirectionalLight3D.new()
 	key_light.name = "SpaceKeyLight"
-	key_light.rotation_degrees = Vector3(-34.0, -28.0, 0.0)
+	key_light.rotation_degrees = Vector3(-42.0, -28.0, 0.0)
 	key_light.light_color = Color("b8edf1")
-	key_light.light_energy = 0.84
+	key_light.light_energy = 1.35
+	key_light.light_specular = 0.6
 	key_light.shadow_enabled = true
 	key_light.directional_shadow_max_distance = 180.0
 	add_child(key_light)
+
+	var counter_fill := DirectionalLight3D.new()
+	counter_fill.name = "SpaceCounterFill"
+	counter_fill.rotation_degrees = Vector3(-16.0, 152.0, 0.0)
+	counter_fill.light_color = Color("3d6f8c")
+	counter_fill.light_energy = 0.35
+	counter_fill.light_specular = 0.25
+	counter_fill.shadow_enabled = false
+	add_child(counter_fill)
 
 	# Freestanding light masts keep the open decks readable without implying a
 	# roof. Exact placement is a modern blockout decision.
@@ -2656,6 +2753,36 @@ func _build_central_reflection_probe(pad: Node3D) -> void:
 	_tag_central_feature(probe, &"reflection_probe")
 
 
+## Bounded specular environment over the three module cells the hero probe never
+## reached.
+##
+## `reflected_light_source` is the background, and the backdrop is nearly black,
+## so before this every metal surface outside the central berth reflected nothing
+## and metalness only subtracted diffuse. These three probes give the raised
+## structural metalness something local to answer with. All are `UPDATE_ONCE`, so
+## they are baked at load and cost nothing per frame, and none is tagged as a
+## central feature, so the hero cell's single-probe contract is unchanged.
+func _build_module_reflection_probes() -> void:
+	var cells := [
+		["AftOperationsReflectionProbe", Vector3(6.0, 5.5, 58.0), Vector3(40.0, 14.0, 30.0), 52.0],
+		["HabitatExteriorReflectionProbe", Vector3(52.0, 5.0, 15.5), Vector3(34.0, 14.0, 30.0), 48.0],
+		["FreightBerthReflectionProbe", Vector3(-53.0, 4.5, 34.0), Vector3(44.0, 14.0, 40.0), 56.0],
+		["FleetDockCombReflectionProbe", Vector3(34.0, 5.0, 59.0), Vector3(58.0, 16.0, 30.0), 70.0],
+	]
+	for cell: Array in cells:
+		var probe := ReflectionProbe.new()
+		probe.name = str(cell[0])
+		probe.position = cell[1] as Vector3
+		probe.size = cell[2] as Vector3
+		probe.max_distance = float(cell[3])
+		probe.intensity = 0.85
+		probe.box_projection = true
+		probe.enable_shadows = true
+		probe.update_mode = ReflectionProbe.UPDATE_ONCE
+		probe.set_meta("presentation_only", true)
+		add_child(probe)
+
+
 func _build_launch_corridor() -> void:
 	var launch := Node3D.new()
 	launch.name = "OpenLaunchSpine"
@@ -2758,15 +2885,19 @@ func _build_catwalks_and_control_room() -> void:
 	upper.add_child(stair_ramp)
 	var stair_ramp_mesh_instance := MeshInstance3D.new()
 	stair_ramp_mesh_instance.name = "Mesh"
-	var stair_ramp_mesh := BoxMesh.new()
-	stair_ramp_mesh.size = Vector3(3.6, 0.22, ramp_down_direction.length())
-	stair_ramp_mesh_instance.mesh = stair_ramp_mesh
+	# The only raw `BoxMesh` left in this file, sitting directly under seven
+	# chamfered treads built by `_box()`. It now uses the same helper, so the ramp
+	# slab and its own treads stop disagreeing about their edge treatment. The
+	# helper preserves the requested extent exactly, so the collider below and the
+	# continuous-stair contract are untouched.
+	var stair_ramp_size := Vector3(3.6, 0.22, ramp_down_direction.length())
+	stair_ramp_mesh_instance.mesh = _rounded_box_mesh(stair_ramp_size)
 	stair_ramp_mesh_instance.material_override = _materials["deck_light"]
 	stair_ramp.add_child(stair_ramp_mesh_instance)
 	var stair_ramp_collision := CollisionShape3D.new()
 	stair_ramp_collision.name = "Collision"
 	var stair_ramp_shape := BoxShape3D.new()
-	stair_ramp_shape.size = Vector3(3.6, 0.22, ramp_down_direction.length())
+	stair_ramp_shape.size = stair_ramp_size
 	stair_ramp_collision.shape = stair_ramp_shape
 	stair_ramp.add_child(stair_ramp_collision)
 	for step in 7:
@@ -3385,6 +3516,13 @@ func _material(
 	result.albedo_color = color
 	result.metallic = metallic
 	result.roughness = roughness
+	# The four station modules already shade per pixel with Burley diffuse and
+	# Schlick-GGX specular; the hub was still on the engine defaults, so the same
+	# grey under the same light answered differently on either side of a module
+	# seam. `CentralBerthHeroPresentation` sets exactly this trio.
+	result.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	result.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+	result.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
 	if emission_energy > 0.0:
 		result.emission_enabled = true
 		result.emission = emission_color

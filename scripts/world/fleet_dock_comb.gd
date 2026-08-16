@@ -107,6 +107,10 @@ var _build_root: Node3D
 var _enabled := true
 var _built := false
 var _build_generation := 0
+## Size-keyed chamfered box meshes. Equal-sized boxes share one `ArrayMesh`, so
+## the twelve identical trunk expansion joints and the repeated dock furniture
+## pay for their extra edge geometry once.
+var _rounded_box_cache: Dictionary = {}
 
 
 func _ready() -> void:
@@ -539,14 +543,61 @@ func _index_semantics() -> void:
 
 
 func _create_materials() -> void:
-	_materials["deck"] = _material(Color("8b9698"), 0.62, 0.42)
-	_materials["deck_light"] = _material(Color("bdc5c4"), 0.42, 0.34)
+	# The two broad walking surfaces are traffic-worn plate, not mirror steel.
+	# They were metallic 0.62/0.42, which was survivable while station ambient was
+	# a flat cyan colour that metals could reflect. Ambient is now sky-sourced and
+	# the sky is near-black, so at that metalness a 12 m dock slab lost its diffuse
+	# response and photographed as an unreadable black rectangle. The structural
+	# frame, underframe and grip keep their original metal values.
+	_materials["deck"] = _material(Color("8b9698"), 0.16, 0.56)
+	_materials["deck_light"] = _material(Color("bdc5c4"), 0.14, 0.44)
 	_materials["frame"] = _material(Color("304248"), 0.72, 0.31)
 	_materials["underframe"] = _material(Color("17252b"), 0.76, 0.36)
 	_materials["grip"] = _material(Color("26363b"), 0.35, 0.68)
 	_materials["cyan"] = _material(Color("55dfe2"), 0.14, 0.28, Color("36cdd2"), 1.4)
 	_materials["amber"] = _material(Color("f2a84b"), 0.35, 0.31, Color("e9872c"), 1.1)
 	_materials["deferred"] = _material(Color("d5564d"), 0.18, 0.38, Color("a72f2b"), 0.9)
+	_apply_station_panel_family()
+
+
+## Bind the registered station panel/normal/roughness recipe to the comb's
+## structural greys.
+##
+## The 12 m dock slabs and the 48 m trunk were the largest unmapped surfaces in
+## the station: uniform scalar teal across a whole berth, which is the single
+## clearest "untextured primitive" read in the frames. The recipe, `normal_scale`,
+## red-channel roughness, world-triplanar mode and sharpness are copied verbatim
+## from the station family at the 0.30 physical scale `ShipyardWorld` and
+## `AftJunctionStack` use, so the comb decks are the same plate stock as the hub
+## they bolt onto and no plate size changes across the connector seam.
+## Emissive route/status cues stay unmapped, as they do in every sibling module.
+func _apply_station_panel_family() -> void:
+	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
+	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
+	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	if panel_albedo == null or panel_normal == null or panel_roughness == null:
+		return
+	for key in ["deck", "deck_light", "frame", "underframe", "grip"]:
+		var panel_material := _materials[key] as StandardMaterial3D
+		panel_material.albedo_texture = panel_albedo
+		panel_material.normal_enabled = true
+		panel_material.normal_texture = panel_normal
+		# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
+		# plated wall at eye height is nearly featureless: the seams and rivets are
+		# present in the map but too shallow to catch light, which is much of why
+		# plated geometry still read as untextured. At 1.9 the plate faces dome and
+		# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
+		# value at which no frame showed doming while the dark walls resolved into
+		# pressed sheet metal. Every module shares the value so a deck and the wall
+		# beside it cannot disagree.
+		panel_material.normal_scale = 1.0
+		panel_material.roughness_texture = panel_roughness
+		panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		panel_material.uv1_triplanar = true
+		panel_material.uv1_world_triplanar = true
+		panel_material.uv1_triplanar_sharpness = 4.0
+		panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
+		panel_material.texture_repeat = true
 
 
 func _build_structure() -> void:
@@ -700,9 +751,13 @@ func _surface_box(
 	parent.add_child(body)
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "Mesh"
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh_instance.mesh = mesh
+	# Chamfered visual, unchanged box collider. The mesh keeps the requested outer
+	# extent along every axis and the `BoxShape3D` below is still built from the
+	# same exact `size`, so nothing published or walkable moves. As on every other
+	# station deck built this way, the chamfer does soften the rendered top face
+	# for the last few centimetres at the rim; that softening is the point, and
+	# the deck's flat collision top is unaffected by it.
+	mesh_instance.mesh = _rounded_box_mesh(size)
 	mesh_instance.material_override = material
 	body.add_child(mesh_instance)
 	var collision := CollisionShape3D.new()
@@ -718,13 +773,99 @@ func _visual_box(parent: Node3D, node_name: String, local_position: Vector3, siz
 	var result := MeshInstance3D.new()
 	result.name = node_name
 	result.position = local_position
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	result.mesh = mesh
+	result.mesh = _rounded_box_mesh(size)
 	result.material_override = material
 	result.set_meta("visual_detail_only", true)
 	parent.add_child(result)
 	return result
+
+
+## Box with softly chamfered edges, sharing the station's existing bevel rule.
+##
+## The bevel is `min(0.2 m, shortest_side * 0.22)`, the same proportional rule
+## `ShipyardWorld` uses, so a 0.03 m route stripe gets a 0.007 m chamfer and a
+## 0.6 m dock slab gets 0.132 m; a fixed bevel would erase the stripes. The outer
+## extent along each axis is preserved exactly, so `get_aabb()` still returns the
+## requested size, the published footprint is unchanged, and the chamfer cannot
+## move a walkable surface or a collider.
+func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
+	var cache_key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
+	if _rounded_box_cache.has(cache_key):
+		return _rounded_box_cache[cache_key] as ArrayMesh
+	var half := size * 0.5
+	var bevel := minf(0.2, minf(size.x, minf(size.y, size.z)) * 0.22)
+	bevel = maxf(bevel, 0.003)
+	var inner_half := Vector3(
+		maxf(0.0, half.x - bevel),
+		maxf(0.0, half.y - bevel),
+		maxf(0.0, half.z - bevel)
+	)
+	var surface_tool := SurfaceTool.new()
+	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var faces: Array[Array] = [
+		[Vector3.RIGHT, Vector3.UP, Vector3.BACK],
+		[Vector3.LEFT, Vector3.BACK, Vector3.UP],
+		[Vector3.UP, Vector3.BACK, Vector3.RIGHT],
+		[Vector3.DOWN, Vector3.RIGHT, Vector3.BACK],
+		[Vector3.BACK, Vector3.RIGHT, Vector3.UP],
+		[Vector3.FORWARD, Vector3.UP, Vector3.RIGHT],
+	]
+	for face: Array in faces:
+		var normal_axis: Vector3 = face[0]
+		var u_axis: Vector3 = face[1]
+		var v_axis: Vector3 = face[2]
+		var face_center := Vector3(
+			normal_axis.x * half.x,
+			normal_axis.y * half.y,
+			normal_axis.z * half.z
+		)
+		var u_extent := absf(u_axis.x) * half.x + absf(u_axis.y) * half.y + absf(u_axis.z) * half.z
+		var v_extent := absf(v_axis.x) * half.x + absf(v_axis.y) * half.y + absf(v_axis.z) * half.z
+		var u_inner := maxf(0.0, u_extent - bevel)
+		var v_inner := maxf(0.0, v_extent - bevel)
+		var u_values := PackedFloat32Array([-u_extent, -u_inner, u_inner, u_extent])
+		var v_values := PackedFloat32Array([-v_extent, -v_inner, v_inner, v_extent])
+		for u_index in u_values.size() - 1:
+			for v_index in v_values.size() - 1:
+				var points := [
+					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index],
+					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index],
+					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index + 1],
+					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index + 1],
+				]
+				var u0 := float(u_index) / 3.0
+				var u1 := float(u_index + 1) / 3.0
+				var v0 := float(v_index) / 3.0
+				var v1 := float(v_index + 1) / 3.0
+				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_box_vertex(surface_tool, points[1], inner_half, bevel, Vector2(u1, v0))
+				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_add_rounded_box_vertex(surface_tool, points[3], inner_half, bevel, Vector2(u0, v1))
+	surface_tool.generate_tangents()
+	var rounded_mesh := surface_tool.commit()
+	_rounded_box_cache[cache_key] = rounded_mesh
+	return rounded_mesh
+
+
+func _add_rounded_box_vertex(
+		surface_tool: SurfaceTool,
+		point: Vector3,
+		inner_half: Vector3,
+		bevel: float,
+		uv: Vector2
+	) -> void:
+	var closest := Vector3(
+		clampf(point.x, -inner_half.x, inner_half.x),
+		clampf(point.y, -inner_half.y, inner_half.y),
+		clampf(point.z, -inner_half.z, inner_half.z)
+	)
+	var offset := point - closest
+	var normal := offset.normalized() if offset.length_squared() > 0.000001 else Vector3.UP
+	surface_tool.set_normal(normal)
+	surface_tool.set_uv(uv)
+	surface_tool.add_vertex(closest + normal * bevel)
 
 
 func _beam_between(parent: Node3D, node_name: String, from: Vector3, to: Vector3, radius: float, material: Material) -> MeshInstance3D:

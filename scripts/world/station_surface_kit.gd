@@ -17,7 +17,7 @@ extends RefCounted
 const PANEL_ALBEDO_PATH := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
 const PANEL_NORMAL_PATH := "res://assets/materials/procedural-panel-triplanar-normal-v2.png"
 const PANEL_ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar-roughness-v2.png"
-const PANEL_NORMAL_SCALE := 0.48
+const PANEL_NORMAL_SCALE := 1.0
 const PANEL_TRIPLANAR_SHARPNESS := 4.0
 
 ## Bevel rule.

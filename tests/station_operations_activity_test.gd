@@ -236,11 +236,19 @@ func _run() -> void:
 	foot_pad.transparency = 1.0
 	_check(not bool(activity.get_audit_report().valid), "audit rejects a fully transparent generated mesh")
 	foot_pad.transparency = original_transparency
-	var foot_mesh := foot_pad.mesh as BoxMesh
-	var original_size := foot_mesh.size
-	foot_mesh.size = Vector3.ONE * 0.001
+	# The generated boxes are chamfered `ArrayMesh` resources rather than
+	# `BoxMesh`, so the reversible in-place drift witness now shrinks the live
+	# mesh's declared bounds instead of resizing a primitive. It is the same class
+	# of mutation as the `BoxMesh.size` witness it replaces: one stored geometry
+	# property of the component's own generated resource, changed in place and
+	# restored exactly. Rebuilding the surface arrays instead is not usable here,
+	# because a `surface_get_arrays` round trip is not bit-exact and so cannot be
+	# undone without leaving the component permanently red.
+	var foot_mesh := foot_pad.mesh as ArrayMesh
+	var original_custom_aabb := foot_mesh.custom_aabb
+	foot_mesh.custom_aabb = AABB(Vector3.ZERO, Vector3.ONE * 0.001)
 	_check(not bool(activity.get_audit_report().valid), "audit rejects in-place generated mesh geometry drift")
-	foot_mesh.size = original_size
+	foot_mesh.custom_aabb = original_custom_aabb
 	var original_material := foot_pad.material_override as StandardMaterial3D
 	var original_cull_mode := original_material.cull_mode
 	original_material.cull_mode = BaseMaterial3D.CULL_FRONT

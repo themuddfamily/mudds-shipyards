@@ -178,7 +178,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 				and material.normal_enabled \
 				and material.normal_texture != null \
 				and material.normal_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-normal-v2.png" \
-				and is_equal_approx(material.normal_scale, 0.48) \
+				and is_equal_approx(material.normal_scale, 1.0) \
 				and material.roughness_texture != null \
 				and material.roughness_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-roughness-v2.png" \
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED \
