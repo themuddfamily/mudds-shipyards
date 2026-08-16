@@ -1802,3 +1802,182 @@ observes it at runtime, and no suite trips on it — the matrix never runs the b
 scene as `main_scene`. The alternative is the blocking `load()` fallback that is
 already in the code for a refused loader thread, which reproduces zero leaks and
 costs 1493 ms of frozen main thread. That is the wrong trade for this defect.
+
+---
+
+## VEHICLE-001 — the tow tractor drives through hulls and through station poles — **FIXED**
+
+Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim:
+
+> *"So Im just looking at the tow truck and it drives well but the collision logic
+> isn't fully there - if I drive into a spaceship I just clip through it... the
+> same with certain poles - can you get an agent checking and fixing that?"*
+
+Configuration: Linux (WSL2 6.18.33.2), Godot 4.7.1.stable.official.a13da4feb,
+`--headless --audio-driver Dummy` for physics probes,
+`VK_ICD_FILENAMES=... xvfb-run -a godot --rendering-driver vulkan` for frames.
+Deterministic; the drive probes reproduce it on every run.
+
+One sentence, two unrelated causes.
+
+### Cause A — the hulls: a mask that could not see a ship
+
+`scripts/vehicles/tow_tractor.gd` set `collision_mask = PhysicsLayers.WORLD`. Every
+craft body in the world is on `SHIP`, measured live:
+
+| body | layer | mask |
+| --- | --- | --- |
+| `TorrentInterceptor`, `ArrowReconShip`, `JovianLightFreighter`, `ZenithInterceptor`, `HalyardCrewTransport` | 4 (`SHIP`) | 7 (`WORLD\|PLAYER\|SHIP`) |
+| `TowTractor` (before) | 1 (`WORLD`) | 1 (`WORLD`) |
+
+The relationship was one-directional: a ship could see the tractor, the tractor
+could not see a ship. No hull could stop it however solid the hull was.
+
+Fixed by publishing a ground-vehicle row in the layer contract —
+`PhysicsLayers.GROUND_VEHICLE_BODY_LAYER` / `GROUND_VEHICLE_BODY_MASK` = `WORLD` /
+`WORLD|SHIP` — and using it. The layer deliberately does not change: a ground
+vehicle stays scenery, so no berth, lease, landing, AI-avoidance or fleet query
+can find it. `PLAYER` is deliberately still out of the mask.
+
+### Cause B — the poles: a presentation component with no collision at all
+
+`scripts/world/station_operations_activity.gd` created **zero** collision nodes and
+enforced that as an invariant. `CentralTowServiceActivity` is a `FULL` vignette
+mounted at world `(6.8, 0, 14.0)` — four metres from the tractor's parking spot at
+`(2.5, 0.45, 15.6)` — and draws four 5.5 m maintenance-gantry columns. Those are
+the poles. `CentralCargoTransferLine` at `(-7.0, 0, 18.0)`, beside the player
+spawn, adds two 2.9 m hoist posts, five crates and a control pedestal in the same
+state.
+
+Fixed by giving that component's static hard structure colliders built from its own
+meshes, and re-freezing its budgets in the open (see the constants' own comments).
+
+### The survey behind the fix
+
+A flood fill from the tractor's parking spot over the whole station, using the
+vehicle's own deck-edge rule (0.9 m rise / 2.2 m drop per metre) plus a body-sized
+clearance box, found **3527 drivable cells** spanning y = −0.02 … 0.81 over
+x −73 … 49, z −68 … 76. Every drawn mesh standing in that region was then tested
+for collision. Three findings worth keeping:
+
+- **The Fleet Dock Comb is not vehicle-reachable.** Its decks sit at y = 3.6 … 4.2
+  and the survey reports **0 drivable cells** on every one of them — `DockSlab01`
+  0/238, `DockSlab02` 0/196, `DockSlab03Upper` 0/196, `Trunk` 0/343, and 0/90 on the
+  connector deck that would have to carry a vehicle there — against 334/459 on
+  `CentralJunction` as a control. So its deliberate no-collision-on-dressing rule was
+  left exactly as its owner set it; nothing on that module was made solid. Its masts
+  and booms also stand *outboard* of the slab edge over open void by construction.
+- **The central berth utility bay stays deliberately hollow.** The umbilical
+  housings, service cabinet and berth control pedestal at x > 9.5 are inside the
+  Torrent's landing envelope (x −12…12, z −27…7) and are collision-free on purpose,
+  asserted by `tests/central_berth_hero_test.gd`. A tractor can still clip them.
+  Making them solid would put colliders in a landing volume; that trade was declined.
+- **Animated assemblies stay hollow.** Drones, the service arm above its pedestal,
+  the cargo sled and hoist. A collider that does not move with a mover is a lie.
+
+### Still open — not this report
+
+A walking player can pass through the crew workbench, skywatch legs and signage
+pylon mast of the `CREW_WORKPOST`, `OBSERVATORY` and `SIGNAGE_PYLON` vignettes.
+Those mount on the aft upper landing, the habitat roof and the freight approach —
+no drivable route reaches any of them, so they were left alone rather than widening
+a vehicle fix into four vignettes no vehicle has ever touched.
+
+### Latent defect found on the way — **FIXED**
+
+`tests/station_operational_lattice_test.gd` asserted by name which deck each gantry
+mount foot rays down onto. At `(-50.28, 25.4)` that was never decidable:
+`ConnectionDeckA` and `ConnectionHandoffDeck` overlap and their top faces are
+*both* at y = 0.380000, so a downward ray returns two hits at an identical distance
+and the engine names whichever the broadphase reached first. Adding any static body
+to the space can flip it, and the gantry columns did. That one row now carries the
+exact two-element set of bodies occupying the plane; the other three feet stand
+over exactly one deck each and stay single-valued.
+
+### Evidence
+
+- `tests/tow_tractor_obstruction_test.gd` — drives the shipped vehicle at a hull
+  and at a gantry column with a real held throttle, and requires it to finish
+  outside both. Each case carries a red witness that undoes only the fix: with the
+  mask back to `WORLD` the tractor travels 24.3 m straight through the Torrent, and
+  with the vignette's collision layer cleared it travels 13.8 m through two 5.5 m
+  columns. Green run stops 0.0005 m off the hull and 0.28 m off the column.
+- `tests/capture_tow_tractor_obstruction.gd` — the same drives, rendered.
+- `tools/vehicle_obstacle_survey.gd` — the survey tool.
+
+---
+
+## COMB-DOCK-02-001 — Fleet Dock 02 still read as deferred under a berthed craft, and kept a kerb with no edge — **FIXED**
+
+Handed over by the Halyard berth pass (`5dd426d`), which widened Dock 02's pad from
+12.0 m to one unbroken 34.4 m plate and deliberately stayed off `fleet_dock_comb.gd`.
+Two consequences of that widening, both in the comb's dressing.
+
+### 1. The presentation contradicted the module's own roster
+
+`FleetDockComb` publishes `assigned_dock_count == 2`: `assigned-dock-01` carries the
+Zenith and `deferred-dock-02` was promoted to carry the Halyard. But every builder
+that draws a dock's status tested the **slab index** rather than the dock's status:
+
+- `_build_surface_detail` picked its stripe material with `index == 0`.
+- `_build_dock_arm_service` set `var assigned := index == 0`.
+- `_build_deferred_landmarks` carried the literal string `DEFERRED DOCK 02`.
+
+So a 28.35 m crew transport stood on a deferred-red plate, under a red floor label,
+beside a boom stowed vertically against its mast with the head blanked. The module's
+stated grammar is that assigned versus deferred is carried by *hardware state, not
+paint*; a convention like that has to read the state from the same registry the
+roster does, or it is only a second kind of paint.
+
+All three now derive from the dock marker's own `dock_status` through
+`_dock_is_assigned()`. Dock 02 paints cyan, reads `HALYARD // MODERN DESIGN`, and
+runs its boom out with the umbilical hose dropped to the deck bracket. Dock 03 is
+still genuinely empty and still says so, in red, stowed.
+
+Re-frozen in the open: `deployed_service_boom_count` 1 -> 2, and the roster is now
+additionally asserted equal to `assigned_dock_count`, so the count cannot drift from
+the assignments it is supposed to describe. `MESH_INSTANCE_BUDGET` did **not** move
+and is recorded as checked: the pass removed one mesh and added one, so the module
+still builds exactly 100 against its 107 ceiling. Collision bodies, shapes, labels,
+lights and both loop counts are untouched — still 7/7/3/7/0/0.
+
+### 2. `DockEdgeKerb02` was an edge guard with no edge
+
+Measured on the live scene after the widening:
+
+| body | world extent |
+| --- | --- |
+| `DockEdgeKerb02` | x 31.80…42.20, y 4.19…4.33, z 47.30…47.58 |
+| `HalyardApronNose` | x 31.00…43.00, y 3.60…4.20, z 36.30…47.30 |
+| `DockSlab02` | x 31.00…43.00, y 3.60…4.20, z 47.30…59.30 |
+
+The kerb sat exactly on the seam at z = 47.30 where the slab's outboard face used to
+be a drop. The apron now continues the walking deck 11.0 m past it, so the kerb
+became a 0.130 m lip lying across the middle of one continuous berth pad with deck on
+both sides — 0.010 m under the walking player's own no-jump step height, marking
+nothing.
+
+Removed for arm 02 only, via `DROP_EDGE_DOCK_INDICES`. Not lowered (a stripe
+pretending to be structure) and not repurposed as a threshold (a meaning this
+module's grammar does not have). Docks 01 and 03 keep theirs: their outboard faces at
+x 15.30…25.70 and x 46.80…57.20 are nowhere near the apron and still drop into void.
+
+### The vehicle question, answered by measurement
+
+The handover asked whether the tractor would be jolted by that lip at 11.5 m/s. It
+would not, because **the tractor cannot reach Fleet Dock 02 at all.** The drive
+survey re-run over the widened pad flood-fills 2288 drivable cells, every one of them
+between y = −0.02 and y = 0.38, and reports drivable coverage per named surface:
+
+| surface | drivable cells |
+| --- | --- |
+| `DockSlab02` | 0 / 196 |
+| `HalyardApronNose` | 0 / 169 |
+| `HalyardApronTailPort` / `Starboard` | 0 / 56, 0 / 48 |
+| `DockSlab01`, `DockSlab03Upper`, `Trunk`, `Rung02` | 0 / 238, 0 / 196, 0 / 343, 0 / 45 |
+| `FleetDockCombConnectorDeck` | 0 / 90 |
+| `CentralJunction` (control) | 191 / 459 |
+
+The comb sits at y ≈ 3.6…4.2 and nothing drivable rises above 0.38 m. So the lip was
+a walking-player defect, not a vehicle one, and the comb's no-collision-on-dressing
+rule was left exactly as its owner set it — nothing on that module was made solid.

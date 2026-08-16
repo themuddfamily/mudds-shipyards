@@ -40,6 +40,18 @@ const PLAYER_BODY_MASK := SOLID_BODY_MASK
 const SHIP_BODY_LAYER := SHIP
 const SHIP_BODY_MASK := SOLID_BODY_MASK
 
+# Ground vehicles. A deck vehicle is *scenery that moves*: it advertises itself
+# on World, exactly as the static prop it replaced did, so everything that used
+# to collide with that prop — the walking player, the craft, hitscan treating it
+# as cover — still does, with no new bit to audit. What it needs that a static
+# prop never did is a mask: a parked hull is on Ship, and a body that masks World
+# alone drives straight through one. It masks World and Ship and deliberately not
+# Player, because a vehicle that shoved a CharacterBody player would be two
+# solvers fighting over the same metre; a walking pilot is stopped by the vehicle
+# through the player's own World bit instead, which is the direction that works.
+const GROUND_VEHICLE_BODY_LAYER := WORLD
+const GROUND_VEHICLE_BODY_MASK := WORLD | SHIP
+
 # Interaction and target volumes are query surfaces rather than solid bodies.
 # A ship should expose a child interaction area instead of mixing the
 # Interactable bit into its physical body layer.

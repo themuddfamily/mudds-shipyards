@@ -407,10 +407,13 @@ func _validate_operational_components() -> void:
 			and not bool(evidence.get("authenticated_original_placement", true)),
 			"activity %d makes no historical geometry or placement claim" % (index + 1)
 		)
+		# Was `collision_nodes == 0`. Reversed with the component's own rule on
+		# 2026-08-16: the gantry, service-arm and cargo-line vignettes now carry
+		# solid colliders for their own drawn columns, crates and posts. The budget
+		# check below is the one that still pins the count exactly, per profile.
 		_check(
-			bool(performance.get("within_budget", false))
-			and int(counts.get("collision_nodes", -1)) == 0,
-			"activity %d stays within budget and remains nonblocking" % (index + 1)
+			bool(performance.get("within_budget", false)),
+			"activity %d stays within its published budget" % (index + 1)
 		)
 	activity_profiles.sort()
 	_check(

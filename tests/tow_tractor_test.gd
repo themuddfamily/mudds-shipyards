@@ -62,10 +62,17 @@ func _run() -> void:
 
 func _check_construction_contract() -> void:
 	_check(_tractor is CharacterBody3D, "the tractor is a physical CharacterBody3D, not a marker or a static prop")
+	# The mask half of this used to read `== PhysicsLayers.WORLD`, and that is
+	# exactly the defect a playtester reported by driving through a parked hull:
+	# craft bodies are on `SHIP`, so a vehicle masking `WORLD` alone cannot see
+	# one. The layer half is unchanged and still exact — a ground vehicle stays
+	# scenery, so nothing that queries for craft can find it.
 	_check(
-		_tractor.collision_layer == PhysicsLayers.WORLD
-		and _tractor.collision_mask == PhysicsLayers.WORLD,
-		"the tractor keeps the replaced prop's World layer and masks only world geometry"
+		_tractor.collision_layer == PhysicsLayers.GROUND_VEHICLE_BODY_LAYER
+		and _tractor.collision_layer == PhysicsLayers.WORLD
+		and _tractor.collision_mask == PhysicsLayers.GROUND_VEHICLE_BODY_MASK
+		and _tractor.collision_mask == PhysicsLayers.WORLD | PhysicsLayers.SHIP,
+		"the tractor keeps the replaced prop's World layer and masks world geometry and craft hulls"
 	)
 	var station := _tractor.get_driver_station()
 	_check(station != null, "the tractor exposes a driver station")

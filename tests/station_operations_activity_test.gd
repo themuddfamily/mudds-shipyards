@@ -33,7 +33,18 @@ func _run() -> void:
 	var integration := activity.get_integration_contract()
 	_check(integration.mount_type == &"level_deck", "integration contract declares a reusable deck mount")
 	_check(integration.service_facing_axis_local == Vector3.FORWARD, "local negative Z is the stable service-facing convention")
-	_check(integration.collision_policy == &"presentation_only_nonblocking", "component explicitly promises nonblocking presentation")
+	# Reversed on 2026-08-16 with the component's own no-collision rule: the FULL
+	# vignette's maintenance-gantry columns are solid now, so the contract it
+	# publishes has to say so rather than promise a blanket nonblocking component.
+	_check(
+		integration.collision_policy == &"declared_solid_volumes_presentation_nonblocking",
+		"the FULL profile declares that its published solid volumes are really solid"
+	)
+	_check(
+		int(integration.solid_volume_count) == 6
+		and activity.get_solid_volume_contract().size() == 6,
+		"the FULL profile publishes its exact solid-volume count: 4 gantry columns and 2 service-arm pedestal drums"
+	)
 	_check((integration.local_size as Vector3).is_equal_approx(Vector3(11.3, 7.25, 9.0)), "integration footprint is complete and finite")
 	_check(_meshes_stay_inside_declared_envelope(activity), "FULL profile render and motion remain inside its published envelope")
 
@@ -41,7 +52,19 @@ func _run() -> void:
 	var counts := performance.counts as Dictionary
 	print("STATION_OPERATIONS_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget), "runtime node and material counts remain within the published budget")
-	_check(int(counts.collision_nodes) == 0, "component contains no body, area, shape, or collision polygon")
+	# Was "component contains no body, area, shape, or collision polygon". The FULL
+	# vignette now carries exactly one static body and six shapes, one per volume
+	# it publishes, and the audit's own live check proves each shape still matches
+	# an individually drawn mesh of that size and pose rather than merely counting.
+	_check(
+		int(counts.collision_nodes) == activity.get_solid_volume_contract().size() + 1,
+		"the FULL profile carries one static body and one shape per declared solid volume"
+	)
+	_check(
+		activity.get_validation_errors().is_empty(),
+		"every solid volume matches the individually drawn mesh it stands in for"
+	)
+	_check(bool(performance.uses_collision), "the audit reports the collision this component now owns")
 	_check(int(counts.lights) == 0 and int(counts.particle_emitters) == 0, "beacons use bounded emissive meshes without dynamic lights or particles")
 	_check(not bool(performance.uses_external_assets), "component requires no external art assets")
 
@@ -150,11 +173,35 @@ func _run() -> void:
 		)
 		_check(int(profile_integration.visible_mount_footprint_count) > 0, "%s profile retains a visible supported mount" % profiled.get_activity_profile_id())
 		_check(_meshes_stay_inside_declared_envelope(profiled), "%s profile render and motion remain inside its published envelope" % profiled.get_activity_profile_id())
+		# Per-profile collision roster, exact in both directions. The profiles whose
+		# production mounts a ground vehicle can reach declare solid volumes and
+		# carry one shape each; the four mounted on roofs and upper landings declare
+		# none and must own no body at all, so a later pass that quietly gives one of
+		# them colliders fails here.
+		var expected_solid_volumes := {
+			StationOperationsActivity.ActivityProfile.GANTRY: 4,
+			StationOperationsActivity.ActivityProfile.SERVICE_ARM: 2,
+			StationOperationsActivity.ActivityProfile.DRONE_PATROL: 0,
+			StationOperationsActivity.ActivityProfile.CARGO_LINE: 11,
+			StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: 14,
+			StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: 0,
+			StationOperationsActivity.ActivityProfile.OBSERVATORY: 0,
+			StationOperationsActivity.ActivityProfile.CREW_WORKPOST: 0,
+		}
+		var declared := int(expected_solid_volumes[profile])
 		_check(
-			int(profile_counts.collision_nodes) == 0
+			profiled.get_solid_volume_contract().size() == declared,
+			"%s profile publishes its exact solid-volume roster" % profiled.get_activity_profile_id()
+		)
+		_check(
+			int(profile_counts.collision_nodes) == (declared + 1 if declared > 0 else 0)
 			and int(profile_counts.lights) == 0
 			and int(profile_counts.particle_emitters) == 0,
-			"%s profile stays nonblocking and headless-safe" % profiled.get_activity_profile_id()
+			"%s profile holds its exact collision roster and stays headless-safe" % profiled.get_activity_profile_id()
+		)
+		_check(
+			profiled.get_validation_errors().is_empty(),
+			"%s profile's solid volumes match the meshes they stand in for" % profiled.get_activity_profile_id()
 		)
 		var first_seek := profiled.set_activity_time(6.75)
 		var seek_state := profiled.get_activity_state()

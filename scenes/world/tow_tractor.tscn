@@ -14,7 +14,7 @@ radius = 1.55
 
 [node name="TowTractor" type="CharacterBody3D"]
 collision_layer = 1
-collision_mask = 1
+collision_mask = 5
 script = ExtResource("1_tractor")
 
 [node name="ChassisCollision" type="CollisionShape3D" parent="."]

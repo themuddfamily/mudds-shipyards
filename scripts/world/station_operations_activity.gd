@@ -1,11 +1,46 @@
 class_name StationOperationsActivity
 extends Node3D
 
-## Reusable, presentation-only station operations vignette.
+## Reusable station operations vignette: presentation, plus collision for the
+## volumes it publishes as solid.
 ##
 ## This component supplies visible maintenance motion without owning gameplay,
-## navigation, docking, or collision. Its deterministic clock can be advanced
-## manually for captures, tests, replays, and future network presentation.
+## navigation or docking. Its deterministic clock can be advanced manually for
+## captures, tests, replays, and future network presentation.
+##
+## ## Why this stopped being collision-free
+##
+## Until 2026-08-16 this component created no collision node of any kind, and
+## `get_validation_errors()` enforced that as an invariant. The reasoning was
+## sound for what the station then was: a vignette is dressing, dressing that
+## carries colliders starts fouling landing volumes and navigation, and a walking
+## player mostly does not shoulder-charge a gantry leg.
+##
+## A playtester driving the tow tractor found the hole in it: *"if I drive into a
+## spaceship I just clip through it... the same with certain poles"*. The poles
+## are here. `CentralTowServiceActivity` is a `FULL` vignette mounted four metres
+## from the tractor's parking spot, and its four maintenance-gantry columns are
+## 5.5 m of drawn steel with nothing behind them; the `CARGO_LINE` vignette beside
+## the player spawn draws 2.9 m hoist posts and five palletised crates in the same
+## condition. At 11.5 m/s those are not details a player walks around.
+##
+## [method get_solid_volume_contract] already named that set and already carried
+## the reasoning for what belongs in it — it was written to let *the world* build
+## matching collision beside the component. Nothing did, and the declaration on
+## its own stopped nobody. So the contract is now realised by the component that
+## publishes it: [method _build_solid_volume_collision] turns each declared entry
+## into one shape on one `StaticBody3D`, and `get_validation_errors()` re-checks
+## on the live tree that every shape still matches an individually drawn
+## `MeshInstance3D` of that exact size and pose. Everything the contract excludes —
+## rail beams, ties, pallet decks, every mover, every lens and decal — stays as
+## collision-free as it was.
+##
+## Only the profiles that declare volumes gain a body. `DRONE_PATROL`,
+## `SIGNAGE_PYLON`, `OBSERVATORY` and `CREW_WORKPOST` declare none and build none:
+## a measured drive survey of the whole station found no reachable ground route to
+## any of their production mounts, which sit on the habitat roof, the aft upper
+## landing and the freight approach. A walking player can still pass through a
+## workbench there; that is a real defect and a different report.
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"station-operations-activity"
@@ -94,36 +129,50 @@ const RECOMMENDED_MAX_INSTANCES := 6
 ##
 ## The `CARGO_LINE_LONG` row was measured against its live build: 54/39, four
 ## batches drawing 22 copies.
+##
+## Re-frozen again in the open by the tow-tractor obstruction pass, and this time
+## the `collision_nodes` rows move off zero for the first time, because
+## `get_solid_volume_contract()` stopped being a declaration nobody realised.
+## Measured on the live builds: `full` 96 -> 103 nodes and 0 -> 7 collision,
+## `gantry` 59 -> 64 and 0 -> 5, `service_arm` 31 -> 34 and 0 -> 3, `cargo_line`
+## 49 -> 61 and 0 -> 12, `cargo_line_long` 54 -> 69 and 0 -> 15. Each figure is
+## one `StaticBody3D` plus one `CollisionShape3D` per declared volume, so every
+## `collision_nodes` row is exactly one more than that profile's contract length,
+## and `mesh_instances`, `unique_materials`, `lights`, `particle_emitters`,
+## `multimesh_batches`, `multimesh_instances` and `animated_assemblies` do not move
+## in any row. The four profiles that declare no solid volume build no body at all
+## and stay at 0, which is why `drone_patrol`, `signage_pylon`, `observatory` and
+## `crew_workpost` are unchanged below.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
-		"node_count": 96,
+		"node_count": 103,
 		"mesh_instances": 79,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
-		"collision_nodes": 0,
+		"collision_nodes": 7,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
-		"node_count": 59,
+		"node_count": 64,
 		"mesh_instances": 48,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
-		"collision_nodes": 0,
+		"collision_nodes": 5,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.SERVICE_ARM: {
-		"node_count": 31,
+		"node_count": 34,
 		"mesh_instances": 19,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
-		"collision_nodes": 0,
+		"collision_nodes": 3,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
 		"animated_assemblies": 2,
@@ -140,12 +189,12 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE: {
-		"node_count": 49,
+		"node_count": 61,
 		"mesh_instances": 34,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
-		"collision_nodes": 0,
+		"collision_nodes": 12,
 		"multimesh_batches": 4,
 		"multimesh_instances": 13,
 		"animated_assemblies": 2,
@@ -184,12 +233,12 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE_LONG: {
-		"node_count": 54,
+		"node_count": 69,
 		"mesh_instances": 39,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
-		"collision_nodes": 0,
+		"collision_nodes": 15,
 		"multimesh_batches": 4,
 		"multimesh_instances": 22,
 		"animated_assemblies": 2,
@@ -211,14 +260,26 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## In draw submissions that is 339 -> 461 for the whole roster: 38 for the short
 ## line where it used to be 47, and 43 for each 21.6 m run where the same
 ## geometry drawn one mesh at a time would have cost 61.
+##
+## Re-frozen again in the open by the tow-tractor obstruction pass, which turned
+## `get_solid_volume_contract()` from a declaration into real collision. Measured
+## on the live ten-placement roster, not derived: `node_count` 531 -> 603 and
+## `collision_nodes` 0 -> 72, the first time this component has carried any. The
+## delta is one `StaticBody3D` plus one `CollisionShape3D` per declared volume in
+## each placement that declares any — 7 for `full`, 5 for `gantry`, 3 for
+## `service_arm`, 12 for `cargo_line` and 15 for each of the three
+## `cargo_line_long` placements. Instance count, meshes, materials, lights,
+## emitters, batches, copies and animated assemblies are all unchanged: no volume
+## here is drawn by a batch, and the contract forbids that for the reason recorded
+## on `get_solid_volume_contract()`.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 531,
+	"node_count": 603,
 	"mesh_instances": 404,
 	"unique_materials": 170,
 	"lights": 0,
 	"particle_emitters": 0,
-	"collision_nodes": 0,
+	"collision_nodes": 72,
 	"multimesh_batches": 12,
 	"multimesh_instances": 57,
 	"animated_assemblies": 21,
@@ -275,6 +336,7 @@ const CONTENT_NOTE := (
 @onready var _presentation_root: Node3D = get_node(^"PresentationRoot") as Node3D
 
 var _materials: Dictionary = {}
+var _solid_volume_body: StaticBody3D
 var _gantry_carriage: Node3D
 var _gantry_tool: Node3D
 var _service_arm_shoulder: Node3D
@@ -366,6 +428,9 @@ func _ready() -> void:
 		ActivityProfile.CREW_WORKPOST:
 			_build_crew_work_post()
 	_build_safety_beacons()
+	# Last, so it can check every declared volume against the mesh actually drawn
+	# there before it makes any of it solid.
+	_build_solid_volume_collision()
 	_service_zone_anchor.position = _get_profile_service_zone_center()
 	_apply_evidence_metadata()
 	if not _enabled_overridden:
@@ -474,7 +539,17 @@ func get_integration_contract() -> Dictionary:
 		"service_zone_half_extents": _get_profile_service_zone_half_extents(),
 		"up_axis_local": Vector3.UP,
 		"service_facing_axis_local": Vector3.FORWARD,
-		"collision_policy": &"presentation_only_nonblocking",
+		# Two policies now, and a consumer can tell which it has been handed. The
+		# presentation of every profile is still nonblocking; a profile with
+		# declared solid volumes additionally owns colliders for its own drawn
+		# columns, crates and posts, and an owner siting one over a landing volume
+		# or a launch corridor needs to know that before it mounts it.
+		"collision_policy": (
+			&"declared_solid_volumes_presentation_nonblocking"
+			if _solid_volume_body != null
+			else &"presentation_only_nonblocking"
+		),
+		"solid_volume_count": get_solid_volume_contract().size(),
 		"requires_level_floor": mount_type == &"level_deck" or mount_type == &"deck_edge",
 		"required_floor_contact_depth": 0.0,
 		"recommended_instance_spacing": 12.0,
@@ -484,21 +559,30 @@ func get_integration_contract() -> Dictionary:
 	}
 
 
-## The parts of this component a player is stopped by, as local boxes.
+## The parts of this component a player or a vehicle is stopped by, as local boxes.
 ##
-## This component never builds collision itself and that has not changed: its
-## audit still requires `collision_nodes == 0`, because a presentation rail that
-## owned bodies could quietly acquire gameplay authority. What it can honestly do
-## is *declare* which of its drawn volumes are solid-looking, so the world that
-## places it can build matching World-layer collision beside it. Each entry is
-## `{name, position, size}` in this component's local space and is copied
-## verbatim from the drawn mesh's own position and size, so a collider built from
-## it is the drawn box and not an approximation of it.
+## This list used to be a declaration and nothing more: the component built no
+## collision itself, and the intent was that a world placing it would build
+## matching World-layer bodies beside it. No world ever did, and a playtester
+## drove the tow tractor through a gantry column. So the component now realises
+## its own contract — see [method _build_solid_volume_collision] — and this stays
+## the single place that decides what is solid. Each entry is `{name, position,
+## size}` in this component's local space and is copied verbatim from the drawn
+## mesh's own position and size, so the collider built from it is the drawn box
+## and not an approximation of it.
 ##
 ## Deliberately excluded, and why:
 ##   * the rail beams and ties, at 0.23 m and 0.14 m — a player steps over a rail,
 ##     and a knee-high invisible wall along a walkway would be the worse defect;
 ##   * the pallet decks, at 0.18 m — the same, a kerb rather than an obstacle;
+##   * the gantry foot pads, at 0.22 m. Colliding those was tried and reverted:
+##     the lattice's mount-support probes, which drop a ray from 0.25 m to prove
+##     each gantry foot is seated on a named deck, began reporting the pad instead
+##     of `CentralJunction`/`ConnectionDeckA`, and the freight berth's seam roster
+##     gained four contacts. Both audits were right — a solid 0.22 m plate lying on
+##     a deck *is* a new surface bolted onto that deck. The column standing in the
+##     middle of the same footprint stops a vehicle 0.25 m earlier than the pad
+##     edge would, which is the whole of what is given up;
 ##   * every mover. The sled and the hoist are closed-form functions of a clock
 ##     with no physics behind them; giving them colliders would make a body that
 ##     teleports through the player each frame. They stay nonblocking exactly as
@@ -513,6 +597,36 @@ func get_integration_contract() -> Dictionary:
 ## nothing drawn at it — the exact defect the sweep exists to catch.
 func get_solid_volume_contract() -> Array[Dictionary]:
 	var volumes: Array[Dictionary] = []
+	# The maintenance gantry's four columns: 0.42 x 5.5 x 0.5 of drawn steel each,
+	# standing on the deck. These are the "certain poles" of the playtest report.
+	if _profile_has_gantry():
+		for x_side in [-1.0, 1.0]:
+			for z_side in [-1.0, 1.0]:
+				volumes.append({
+					"name": "Column",
+					"position": Vector3(float(x_side) * 4.3, 2.86, float(z_side) * 2.72),
+					"size": Vector3(0.42, 5.5, 0.5),
+				})
+	# The service arm's fixed pedestal — 0.71 m of plant the whole arm turns on.
+	# Offset by the arm's own base position, which the FULL profile shifts.
+	if _profile_has_service_arm():
+		var arm_base := (
+			Vector3(3.72, 0.0, -2.05)
+			if get_activity_profile() == ActivityProfile.FULL
+			else Vector3.ZERO
+		)
+		volumes.append_array([
+			{
+				"name": "BasePlate",
+				"position": arm_base + Vector3(0.0, 0.16, 0.0),
+				"size": Vector3(1.3, 0.32, 1.3),
+			},
+			{
+				"name": "RotaryBase",
+				"position": arm_base + Vector3(0.0, 0.48, 0.0),
+				"size": Vector3(0.86, 0.46, 0.86),
+			},
+		])
 	match get_activity_profile():
 		ActivityProfile.CARGO_LINE:
 			volumes.append_array([
@@ -870,7 +984,7 @@ func get_performance_audit(instance_count: int = 1) -> Dictionary:
 		"uses_external_assets": false,
 		"uses_particles": false,
 		"uses_dynamic_lights": false,
-		"uses_collision": false,
+		"uses_collision": _solid_volume_body != null,
 		"determinism_fingerprint": get_determinism_fingerprint(),
 	}
 
@@ -932,8 +1046,14 @@ func get_validation_errors() -> PackedStringArray:
 	var performance := get_performance_audit()
 	if not bool(performance.within_budget):
 		errors.append_array(performance.errors as PackedStringArray)
-	if int((performance.counts as Dictionary).collision_nodes) != 0:
-		errors.append("presentation component must never create collision nodes")
+	# Was "must never create collision nodes". Reversed on 2026-08-16 by the tow
+	# tractor's obstruction pass; see the class documentation. The invariant is no
+	# longer the *absence* of collision, it is that whatever collision exists is a
+	# declared solid volume standing in for geometry individually drawn at exactly
+	# that size and pose — which is the property the old rule was protecting,
+	# stated directly instead of by prohibition.
+	if not _solid_volume_collision_matches_drawn_geometry():
+		errors.append("solid-volume collision must match the individually drawn mesh it stands in for")
 	var performance_counts := performance.counts as Dictionary
 	var expected_counts := _get_profile_performance_budget()
 	for key: String in expected_counts:
@@ -1719,6 +1839,13 @@ func _get_drone_motion_envelope() -> Dictionary:
 func _refresh_lifecycle() -> void:
 	if _presentation_root != null:
 		_presentation_root.visible = _activity_enabled
+	# Solid volumes follow visibility exactly. A disabled vignette that kept its
+	# colliders would be the mirror of the bug this collision exists to fix: a
+	# solid thing with nothing drawn at it.
+	if is_instance_valid(_solid_volume_body):
+		_solid_volume_body.collision_layer = (
+			PhysicsLayers.WORLD_BODY_LAYER if _activity_enabled else PhysicsLayers.NONE
+		)
 	set_process(_activity_enabled and not _activity_paused)
 
 
@@ -2228,6 +2355,111 @@ func _build_crew_work_post() -> void:
 	# A short, uneven duty cycle: the arc strikes for a fifth of a second at a
 	# time, which is what makes it read as work rather than as a status lamp.
 	_register_station_life_lens(arc, "cyan_dim", "cyan_lit", 0.85, 0.19, 0.0)
+
+
+const SOLID_VOLUME_BODY_NAME := "SolidVolumeCollision"
+## How far a declared volume may sit from the mesh drawn at it before the two are
+## not the same thing. Tight enough that a typo in either list fails.
+const SOLID_VOLUME_MATCH_TOLERANCE := 0.001
+
+
+## One `StaticBody3D` carrying one shape per entry in
+## [method get_solid_volume_contract].
+##
+## Built last and off the finished tree, and every entry is checked against the
+## geometry actually drawn at it before it is made solid: if no individually drawn
+## `MeshInstance3D` is standing at that position with that exact size, the shape is
+## not built and the audit goes red. That check is what keeps the two halves of the
+## invariant honest at once — nothing solid without something drawn, and nothing
+## drawn at a size the collider does not have — and it enforces the contract's own
+## rule that a solid volume is never a `MultiMesh` batch, because a batch has no
+## `MeshInstance3D` to match.
+##
+## One body rather than one per volume, because this is static scenery: the whole
+## assembly is a single non-moving obstacle to the physics server, and the
+## component's node budget pays for one body instead of a dozen. Profiles that
+## declare nothing build no body at all.
+func _build_solid_volume_collision() -> void:
+	var volumes := get_solid_volume_contract()
+	if volumes.is_empty():
+		return
+	var body := StaticBody3D.new()
+	body.name = SOLID_VOLUME_BODY_NAME
+	# Station geometry advertises itself on World and monitors nothing, exactly as
+	# every deck, wall and rail in the station does. This component still queries
+	# nothing and still owns no physics loop.
+	body.collision_layer = PhysicsLayers.WORLD_BODY_LAYER
+	body.collision_mask = PhysicsLayers.WORLD_BODY_MASK
+	body.set_meta("declared_solid_volumes", true)
+	_presentation_root.add_child(body)
+	_solid_volume_body = body
+
+	for volume in volumes:
+		var local_position := volume["position"] as Vector3
+		var size := volume["size"] as Vector3
+		if not _volume_is_drawn(local_position, size):
+			push_error(
+				"solid volume '%s' has no individually drawn mesh at %s" % [volume["name"], local_position]
+			)
+			continue
+		var collision := CollisionShape3D.new()
+		collision.name = "%sVolume" % str(volume["name"])
+		var box := BoxShape3D.new()
+		box.size = size
+		collision.shape = box
+		collision.position = local_position
+		body.add_child(collision, true)
+
+
+## True when some individually drawn mesh under the presentation root occupies
+## exactly this local box.
+func _volume_is_drawn(local_position: Vector3, size: Vector3) -> bool:
+	for candidate in _presentation_root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		# `PresentationRoot` sits at identity under this component, so a transform
+		# relative to the component is the same space the contract is written in.
+		var relative_value: Variant = _node_transform_relative_to_component(mesh_instance)
+		if not relative_value is Transform3D:
+			continue
+		var aabb := (relative_value as Transform3D) * mesh_instance.mesh.get_aabb()
+		if aabb.get_center().distance_to(local_position) > SOLID_VOLUME_MATCH_TOLERANCE:
+			continue
+		if aabb.size.distance_to(size) <= SOLID_VOLUME_MATCH_TOLERANCE:
+			return true
+	return false
+
+
+## Every declared volume still realised as one live shape of the declared size,
+## with a drawn mesh behind it, and nothing physical beyond that.
+func _solid_volume_collision_matches_drawn_geometry() -> bool:
+	var volumes := get_solid_volume_contract()
+	if _solid_volume_body == null:
+		return volumes.is_empty()
+	var expected_layer := (
+		PhysicsLayers.WORLD_BODY_LAYER if _activity_enabled else PhysicsLayers.NONE
+	)
+	if not is_instance_valid(_solid_volume_body) \
+		or _solid_volume_body.collision_layer != expected_layer \
+		or _solid_volume_body.collision_mask != PhysicsLayers.WORLD_BODY_MASK:
+		return false
+	var shapes := _solid_volume_body.find_children("*", "CollisionShape3D", true, false)
+	if shapes.size() != volumes.size():
+		return false
+	for index in volumes.size():
+		var volume := volumes[index] as Dictionary
+		var collision := shapes[index] as CollisionShape3D
+		if collision == null or collision.disabled:
+			return false
+		var box := collision.shape as BoxShape3D
+		if box == null \
+			or box.size.distance_to(volume["size"] as Vector3) > SOLID_VOLUME_MATCH_TOLERANCE \
+			or collision.position.distance_to(volume["position"] as Vector3) > SOLID_VOLUME_MATCH_TOLERANCE:
+			return false
+		if not _volume_is_drawn(volume["position"] as Vector3, volume["size"] as Vector3):
+			return false
+	return true
 
 
 func _build_safety_beacons() -> void:
