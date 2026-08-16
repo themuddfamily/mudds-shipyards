@@ -353,11 +353,19 @@ const OPERATIONAL_LATTICE_EVIDENCE_STATUS: StringName = &"modern_interpretation"
 ## keeps the equality exact rather than widening it.
 ##
 ## All ten activity subtrees remain presentation-only and collision-free. The
-## solid parts of the three cargo lines — crate stacks, gantry posts, rail stops,
-## control pedestals — are given matching World-layer collision by
-## `_build_station_activity_collision()` in a sibling group, because a 2.9 m post
-## a player walks through is the same defect as a floating one.
+## solid parts declared by seven placements — the three cargo lines' crate stacks,
+## gantry posts, rail stops and control pedestals, plus the fixed columns and
+## service-arm pedestals at Central, Aft and Freight — are given matching
+## World-layer collision by `_build_station_activity_collision()` in a sibling
+## group. Re-frozen after the tow-tractor report: 3 -> 7 bodies and 39 -> 63
+## shapes. The twenty-four additions are four FULL gantry columns plus two fixed
+## FULL pedestal drums, four GANTRY columns, two SERVICE_ARM pedestal drums and
+## twelve fixed Aft crew-workpost volumes on the tractor-reachable upper deck.
 const EXPECTED_STATION_ACTIVITY_COUNT := 10
+const EXPECTED_STATION_ACTIVITY_COLLISION_BODY_COUNT := 7
+const EXPECTED_STATION_ACTIVITY_COLLISION_SHAPE_COUNT := 63
+const EXPECTED_STATION_ACTIVITY_COLLISION_BOX_COUNT := 55
+const EXPECTED_STATION_ACTIVITY_COLLISION_CYLINDER_COUNT := 8
 const EXPECTED_STATION_AMBIENCE_COUNT := 4
 const EXPECTED_STATION_DRESSING_COUNT := 4
 const STATION_ACTIVITY_SPECS := {
@@ -367,8 +375,9 @@ const STATION_ACTIVITY_SPECS := {
 	&"FreightApproachGantry": {"path": NodePath("OperationalLattice/Activities/FreightApproachGantry"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-53.0, 0.38, 29.7)), "profile": &"gantry", "seed": 4409},
 	# Station-life placements. Each sits on a support body an existing sibling
 	# already proved walkable or roofed, keeps at least 12 m from every other
-	# activity root, and clears every berth landing volume; none of them adds
-	# collision, so no deliberate void is filled and no deck is widened.
+	# activity root, and clears every berth landing volume. Activity subtrees own
+	# no collision; selected profiles declare fixed hard volumes which this world
+	# realises as lifecycle-matched sibling bodies under `ActivityCollision`.
 	# Re-sited by the long-cargo pass, and this is the "open the space up" half of
 	# that request rather than a redesign. The line used to run along world Z with
 	# its far end buried in `JunctionPortalPost` — a solid 1.1 x 1.2 m gateway leg
@@ -931,10 +940,11 @@ func get_nearby_sector_cluster_audit_report() -> Dictionary:
 	return nearby_sector_cluster.get_cluster_audit_report()
 
 
-## Source-bounded B2 comb/slab macro correction. Dock 01 records one modern,
-## externally owned Zenith assignment; docks 02/03 remain empty and deferred.
-## The component exposes station circulation and landmarks, never berth or
-## ship-regeneration authority itself.
+## Source-bounded B2 comb/slab macro correction. Dock 01 records a modern,
+## externally owned Zenith assignment and Dock 02 a modern, externally owned
+## Halyard assignment; only Dock 03 remains empty and deferred. The component
+## exposes station circulation and landmarks, never berth or ship-regeneration
+## authority itself.
 func get_fleet_dock_comb() -> FleetDockComb:
 	return fleet_dock_comb
 
@@ -1003,7 +1013,7 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 				if dock.get("status", &"") != &"deferred_empty" \
 					or dock.get("ship_assignment", &"") != &"none" \
 					or bool(dock.get("owns_berth_authority", true)):
-					errors.append("fleet dock 02/03 deferred landmark contract drifted")
+					errors.append("fleet dock 03 deferred landmark contract drifted")
 					break
 	var zenith_berth := get_berth_node(ZENITH_FLEET_DOCK_BERTH_ID)
 	if not is_instance_valid(zenith_berth):
@@ -1066,6 +1076,157 @@ func get_station_operations_activities() -> Array[StationOperationsActivity]:
 	return result
 
 
+## Exact world-owned collision realised from each activity's declaration.
+##
+## The bodies are siblings rather than children so an activity never owns
+## gameplay authority. This audit closes the other half of that boundary: every
+## body must follow its declaring component's pose, enabled/tree lifecycle and
+## exact ordered `{name, position, size, shape_kind, basis}` contract, with no
+## extra body or shape. Optional kind/basis fields default to box/identity.
+func get_station_activity_collision_audit_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var collision_root := get_node_or_null(^"OperationalLattice/ActivityCollision") as Node3D
+	var activities_root := get_node_or_null(^"OperationalLattice/Activities") as Node3D
+	if collision_root == null:
+		return {
+			"valid": false,
+			"errors": PackedStringArray(["station activity collision root is missing"]),
+			"body_count": 0,
+			"shape_count": 0,
+			"expected_body_count": EXPECTED_STATION_ACTIVITY_COLLISION_BODY_COUNT,
+			"expected_shape_count": EXPECTED_STATION_ACTIVITY_COLLISION_SHAPE_COUNT,
+			"active_body_count": 0,
+			"placements": {},
+		}.duplicate(true)
+
+	var live_activity_instance_ids := {}
+	var ignored_ambience_instance_ids := {}
+	var ignored_dressing_instance_ids := {}
+	_collect_live_operational_lattice_component_ids(
+		self,
+		live_activity_instance_ids,
+		ignored_ambience_instance_ids,
+		ignored_dressing_instance_ids
+	)
+	var registered_activity_instance_ids := {}
+	for activity in _station_operations_activities:
+		if is_instance_valid(activity):
+			registered_activity_instance_ids[activity.get_instance_id()] = true
+	if not _instance_id_sets_match(
+		registered_activity_instance_ids, live_activity_instance_ids
+	):
+		errors.append("station activity collision declarations differ from the live activity hierarchy")
+
+	var expected_body_count := 0
+	var expected_shape_count := 0
+	var active_body_count := 0
+	var placements := {}
+	for activity in _station_operations_activities:
+		if not is_instance_valid(activity):
+			continue
+		var volumes := activity.get_solid_volume_contract()
+		if volumes.is_empty():
+			continue
+		expected_body_count += 1
+		expected_shape_count += volumes.size()
+		var body_name := "%sSolids" % activity.name
+		var body := collision_root.get_node_or_null(NodePath(body_name)) as StaticBody3D
+		if body == null:
+			errors.append("%s has declarations but no world-owned solid body" % activity.name)
+			continue
+		var activity_live := activity.is_inside_tree()
+		var canonically_owned := activities_root != null \
+			and activity.get_parent() == activities_root
+		if activity_live and not canonically_owned:
+			errors.append("%s is outside the canonical station Activities root" % activity.name)
+		var expected_active := activity_live and canonically_owned \
+			and collision_root.is_inside_tree() and activity.is_activity_enabled()
+		var expected_layer := WORLD_LAYER if expected_active else PhysicsLayers.NONE
+		if body.collision_layer == WORLD_LAYER:
+			active_body_count += 1
+		if body.collision_layer != expected_layer or body.collision_mask != PhysicsLayers.NONE:
+			errors.append("%s world-owned solid body differs from its declaring lifecycle" % activity.name)
+		if activity_live and canonically_owned \
+			and not body.global_transform.is_equal_approx(activity.global_transform):
+			errors.append("%s world-owned solid body differs from its declaring transform" % activity.name)
+		var shapes := body.find_children("*", "CollisionShape3D", true, false)
+		if shapes.size() != volumes.size():
+			errors.append("%s world-owned solid shape count differs from its declaration" % activity.name)
+		else:
+			for index in volumes.size():
+				var volume := volumes[index] as Dictionary
+				var collision := shapes[index] as CollisionShape3D
+				var shape_kind := StringName(volume.get("shape_kind", &"box"))
+				var expected_basis := volume.get("basis", Basis.IDENTITY) as Basis
+				var expected_name := "%s%02d" % [str(volume.name), index + 1]
+				if collision.get_parent() != body \
+					or collision.name != expected_name \
+					or not collision.transform.is_equal_approx(Transform3D(
+						expected_basis, volume.position as Vector3
+					)) \
+					or collision.disabled:
+					errors.append("%s world-owned solid %d differs from its declaration" % [activity.name, index])
+				elif shape_kind == &"cylinder":
+					var cylinder := collision.shape as CylinderShape3D
+					if cylinder == null \
+						or not is_equal_approx(cylinder.radius, float(volume.radius)) \
+						or not is_equal_approx(cylinder.height, float(volume.height)):
+						errors.append("%s world-owned cylinder %d differs from its declaration" % [activity.name, index])
+				else:
+					var box := collision.shape as BoxShape3D
+					if shape_kind != &"box" \
+						or box == null \
+						or not box.size.is_equal_approx(volume.size as Vector3):
+						errors.append("%s world-owned box %d differs from its declaration" % [activity.name, index])
+		placements[StringName(activity.name)] = {
+			"activity_path": activity.get_path() if activity_live else NodePath(),
+			"body_path": body.get_path(),
+			"body_instance_id": body.get_instance_id(),
+			"active": expected_active,
+			"shape_count": shapes.size(),
+			"transform": body.transform,
+		}
+
+	var bodies := collision_root.find_children("*", "StaticBody3D", true, false)
+	var actual_shape_count := 0
+	var actual_box_count := 0
+	var actual_cylinder_count := 0
+	for candidate in bodies:
+		var candidate_body := candidate as StaticBody3D
+		var candidate_shapes := candidate_body.find_children(
+			"*", "CollisionShape3D", true, false
+		)
+		actual_shape_count += candidate_shapes.size()
+		for shape_candidate in candidate_shapes:
+			var realised_shape := (shape_candidate as CollisionShape3D).shape
+			if realised_shape is BoxShape3D:
+				actual_box_count += 1
+			elif realised_shape is CylinderShape3D:
+				actual_cylinder_count += 1
+	if bodies.size() != expected_body_count:
+		errors.append("station activity collision body roster differs from live declarations")
+	if expected_body_count != EXPECTED_STATION_ACTIVITY_COLLISION_BODY_COUNT \
+		or expected_shape_count != EXPECTED_STATION_ACTIVITY_COLLISION_SHAPE_COUNT:
+		errors.append("station activity collision declaration roster drifted from the frozen 7-body/63-shape contract")
+	if actual_shape_count != expected_shape_count:
+		errors.append("station activity collision shape roster differs from live declarations")
+	if actual_box_count != EXPECTED_STATION_ACTIVITY_COLLISION_BOX_COUNT \
+		or actual_cylinder_count != EXPECTED_STATION_ACTIVITY_COLLISION_CYLINDER_COUNT:
+		errors.append("station activity collision primitive roster drifted from the frozen 55-box/8-cylinder contract")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"body_count": bodies.size(),
+		"shape_count": actual_shape_count,
+		"box_shape_count": actual_box_count,
+		"cylinder_shape_count": actual_cylinder_count,
+		"expected_body_count": expected_body_count,
+		"expected_shape_count": expected_shape_count,
+		"active_body_count": active_body_count,
+		"placements": placements,
+	}.duplicate(true)
+
+
 func get_station_machinery_ambience_nodes() -> Array[StationMachineryAmbience]:
 	var result: Array[StationMachineryAmbience] = []
 	for ambience in _station_machinery_ambience_nodes:
@@ -1121,7 +1282,20 @@ func get_station_route_adjacency_graph() -> Dictionary:
 ## stays visible because it remains part of the station silhouette.
 func set_station_activity_enabled(enabled: bool) -> void:
 	_station_activity_enabled = enabled
-	for activity in _station_operations_activities:
+	var target_activities: Array[StationOperationsActivity] = []
+	for registered_activity in _station_operations_activities:
+		target_activities.append(registered_activity)
+	# During frame-staged construction the activity hierarchy exists before the
+	# later indexing stage fills the cached roster. A loader may toggle from its
+	# progress callback in that interval; discover the live children so the next
+	# collision stage cannot briefly realise starts-enabled bodies.
+	if target_activities.is_empty():
+		var activities_root := get_node_or_null(^"OperationalLattice/Activities")
+		if activities_root != null:
+			for child in activities_root.get_children():
+				if child is StationOperationsActivity:
+					target_activities.append(child as StationOperationsActivity)
+	for activity in target_activities:
 		if is_instance_valid(activity):
 			activity.set_activity_enabled(enabled)
 	for ambience in _station_machinery_ambience_nodes:
@@ -1228,6 +1402,11 @@ func get_operational_lattice_audit_report() -> Dictionary:
 	var activity_roster := StationOperationsActivity.audit_production_roster(activity_nodes)
 	if not bool(activity_roster.get("valid", false)):
 		errors.append_array(activity_roster.get("errors", PackedStringArray()) as PackedStringArray)
+	var activity_collision := get_station_activity_collision_audit_report()
+	if not bool(activity_collision.get("valid", false)):
+		errors.append_array(
+			activity_collision.get("errors", PackedStringArray()) as PackedStringArray
+		)
 
 	var ambience_ids := PackedStringArray()
 	var ambience_placements := {}
@@ -1384,6 +1563,7 @@ func get_operational_lattice_audit_report() -> Dictionary:
 		},
 		"performance": {
 			"activity_roster": activity_roster,
+			"activity_collision": activity_collision,
 			"audio_totals": audio_totals,
 			"structural_totals": dressing_totals,
 			"dynamic_reflection_probes_added": 0,
@@ -1391,6 +1571,9 @@ func get_operational_lattice_audit_report() -> Dictionary:
 		},
 		"lifecycle": {
 			"enabled": _station_activity_enabled,
+			"activity_collision_active_body_count": int(
+				activity_collision.get("active_body_count", 0)
+			),
 			"freight_equipment_enabled": jovian_freight_berth.is_equipment_animation_enabled() if is_instance_valid(jovian_freight_berth) else false,
 			"door_audio_hook_count": _station_door_audio_hook_count,
 		},
@@ -2165,8 +2348,10 @@ func _build_operational_lattice_components() -> void:
 		Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(59.15, 4.88, 15.5)),
 		StationOperationsActivity.ActivityProfile.DRONE_PATROL, 3301
 	)
-	# Corrected station-ward mount: its service zone ends at world Z=35.6,
-	# preserving at least 0.2 m before the Jovian landing volume begins.
+	# The exact source-audited mount stays fixed. When its four drawn columns became
+	# honest solids, the south/east post exposed that the adjacent approach rail
+	# overran the only vehicle handoff; the freight module shortens that rail at its
+	# open end rather than moving this supported frame into a berth or pod roof.
 	_add_station_activity(
 		activities, "FreightApproachGantry",
 		Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-53.0, 0.38, 29.7)),
@@ -2227,10 +2412,10 @@ func _build_operational_lattice_components() -> void:
 ## The activity component itself stays collision-free — its own audit still
 ## requires `collision_nodes == 0`, so a presentation rail can never quietly grow
 ## gameplay authority — and the bodies are built here instead, as a sibling group
-## under the lattice. What is built is not an approximation: every shape's size
-## and local position is copied verbatim from `get_solid_volume_contract()`,
-## which in turn copies them from the drawn mesh, so a collider is the drawn box
-## rather than a box near it.
+## under the lattice. Every shape's primitive kind, dimensions and local position
+## come from `get_solid_volume_contract()`, which in turn copies them from the
+## drawn primitive: box stock stays BoxShape3D, while the fixed service-arm drums
+## stay cylindrical rather than acquiring a square AABB proxy.
 ##
 ## Only static structure is made solid. The movers stay nonblocking, because a
 ## sled whose pose is a closed-form function of a clock has no physics behind it,
@@ -2255,19 +2440,88 @@ func _build_station_activity_collision() -> void:
 			continue
 		var body := StaticBody3D.new()
 		body.name = "%sSolids" % activity.name
-		body.collision_layer = WORLD_LAYER
+		body.collision_layer = PhysicsLayers.NONE
 		body.collision_mask = 0
 		body.transform = activity.transform
 		collision_root.add_child(body)
 		for index in volumes.size():
 			var volume := volumes[index]
-			var shape := BoxShape3D.new()
-			shape.size = volume.size as Vector3
+			var shape: Shape3D
+			if StringName(volume.get("shape_kind", &"box")) == &"cylinder":
+				var cylinder := CylinderShape3D.new()
+				cylinder.radius = float(volume.radius)
+				cylinder.height = float(volume.height)
+				shape = cylinder
+			else:
+				var box := BoxShape3D.new()
+				box.size = volume.size as Vector3
+				shape = box
 			var collision := CollisionShape3D.new()
 			collision.name = "%s%02d" % [str(volume.name), index + 1]
 			collision.shape = shape
-			collision.position = volume.position as Vector3
+			collision.transform = Transform3D(
+				volume.get("basis", Basis.IDENTITY) as Basis,
+				volume.position as Vector3
+			)
 			body.add_child(collision)
+		# The activity remains the source of desired visibility and pose while the
+		# world remains the owner of physics. The bound body survives an independent
+		# activity detach, so the signal explicitly turns it off until re-entry.
+		activity.solid_volume_state_changed.connect(
+			_on_station_activity_solid_volume_state_changed.bind(activity, body)
+		)
+		_on_station_activity_solid_volume_state_changed(
+			activity.is_activity_enabled() and activity.is_inside_tree(),
+			activity.global_transform,
+			activity,
+			body
+		)
+
+
+func _on_station_activity_solid_volume_state_changed(
+	active: bool,
+	activity_global_transform: Transform3D,
+	activity: StationOperationsActivity,
+	body: StaticBody3D
+) -> void:
+	if not is_instance_valid(body):
+		return
+	body.collision_layer = PhysicsLayers.NONE
+	body.collision_mask = PhysicsLayers.NONE
+	# A declaration belongs to this world, not merely to whichever tree later
+	# receives the source node. If an activity is independently streamed into a
+	# different live root, its enter signal must never resurrect the old world's
+	# surviving sibling collider.
+	if not is_instance_valid(activity) or not self.is_ancestor_of(activity):
+		return
+	var collision_root := body.get_parent() as Node3D
+	var canonical_root := get_node_or_null(
+		^"OperationalLattice/ActivityCollision"
+	) as Node3D
+	var canonical_activities_root := get_node_or_null(
+		^"OperationalLattice/Activities"
+	) as Node3D
+	if collision_root == null or collision_root != canonical_root \
+		or canonical_activities_root == null \
+		or activity.get_parent() != canonical_activities_root:
+		return
+	# During whole-world teardown the activity exits after the sibling collision
+	# root has already left the tree. Turning the body off is sufficient and avoids
+	# asking Godot for an out-of-tree global transform. Re-entry's world lifecycle
+	# setter publishes a fresh active transform after every sibling is live again.
+	# A live but disabled activity still synchronises pose: otherwise moving it
+	# while hidden would leave a stale body waiting at the old site for re-enable.
+	if not collision_root.is_inside_tree():
+		return
+	# Activities and collision live under different sibling containers. Convert
+	# through world space so a future container transform or whole-world placement
+	# cannot desynchronise a body from the presentation it represents.
+	body.transform = (
+		collision_root.global_transform.affine_inverse()
+		* activity_global_transform
+	)
+	if active:
+		body.collision_layer = WORLD_LAYER
 
 
 ## Creates one courier per declared connection slot from routes the navigation
@@ -2328,6 +2582,10 @@ func _add_station_activity(
 	activity.transform = world_transform
 	activity.activity_profile = profile
 	activity.variation_seed = seed
+	# A pre-tree global disable is authoritative during both synchronous and
+	# frame-staged construction. Seed the component before `_ready()` so the later
+	# collision stage can never expose a starts-enabled body for one playable frame.
+	activity.starts_enabled = _station_activity_enabled
 	parent.add_child(activity)
 
 
@@ -3696,7 +3954,9 @@ func _build_architecture() -> void:
 
 	# The B2-bounded comb is mounted beyond the Aft upper deck rather than across
 	# any live landing volume. This short, visibly modelled bridge is the complete
-	# connection—there is no hidden slab beneath the module's large open voids.
+	# pedestrian connection—there is no hidden slab beneath the module's large
+	# open voids. Its 1.54/1.38 m guarded mouth is intentionally narrower than the
+	# 2.3 m tug; Fleet Dock is connected for walking circulation, not vehicle use.
 	var fleet_comb_connector := Node3D.new()
 	fleet_comb_connector.name = "FleetDockCombConnector"
 	fleet_comb_connector.set_meta("evidence_status", &"modern_interpretation")

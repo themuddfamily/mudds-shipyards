@@ -6,10 +6,10 @@ extends Node3D
 ## scale, direction, count, vertical transition, and placement are modern.
 ##
 ## Dock markers are deliberately non-authoritative landmarks. Dock 01 records a
-## modern external Zenith assignment while ShipyardWorld owns its actual berth,
-## lease and landing volume; docks 02/03 remain visibly empty and deferred. This
-## component itself owns no ShipBerth, landing area, lease, audio, activity, or
-## process loop.
+## modern external Zenith assignment and Dock 02 a modern external Halyard
+## assignment while ShipyardWorld owns both actual berths, leases and landing
+## volumes; only Dock 03 remains visibly empty and deferred. This component itself
+## owns no ShipBerth, landing area, lease, audio, activity, or process loop.
 
 const SCHEMA_VERSION := 2
 const MODULE_ID: StringName = &"fleet-dock-comb"
@@ -42,6 +42,27 @@ const COLLISION_SHAPE_COUNT := 7
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
+## Dock-slab indices whose outboard face is still a drop into open void, and which
+## therefore still carry a toe kerb along it.
+##
+## Arm 02 is absent, and the reason is measured rather than stylistic. The
+## Halyard berth pass built `ShipyardWorld`'s `HalyardApronNose` — a 12.0 x 11.0 m
+## walkable plate at world `x 31.0 … 43.0, z 36.3 … 47.3`, flush with this slab at
+## `y = 4.2` — directly against `DockSlab02`'s outboard face. `DockEdgeKerb02`
+## stood at world `x 31.80 … 42.20, z 47.30 … 47.58`: exactly on that seam. The
+## edge it was marking stopped being an edge, and what was left was a 0.130 m lip
+## lying across the middle of one unbroken 34.4 m berth pad with walkable deck on
+## both sides of it — 0.010 m under the walking player's own no-jump step height,
+## in the middle of the floor, marking nothing.
+##
+## Removed rather than lowered or repurposed. Lowering it leaves a stripe
+## pretending to be structure; repurposing it as a threshold invents a meaning
+## this module's grammar does not have, where the assigned/deferred distinction is
+## carried by service-hardware state. Docks 01 and 03 keep theirs, because their
+## outboard faces — `x 15.30 … 25.70` and `x 46.80 … 57.20` at the same `z` — are
+## nowhere near the apron and still drop into genuine void.
+const DROP_EDGE_DOCK_INDICES: Array[int] = [0, 2]
+
 # The root is the connection plane. Local +Z follows the narrow trunk and every
 # broad slab is on local +X, keeping the module starboard-biased and rotatable.
 const FOOTPRINT_MIN := Vector3(-2.6, -2.5, 0.0)
@@ -57,6 +78,13 @@ const FOOTPRINT_MAX := Vector3(21.0, 5.0, 48.0)
 # conduits that tie the arms back to the trunk. No collision body, shape, label,
 # route marker, dock marker, walkable surface or published envelope moves: the
 # collision and label budgets below are untouched and still exact.
+#
+# Not re-frozen by the 2026-08-16 dock-02 promotion pass, and that is a measured
+# statement rather than an omission: that pass removed one mesh (`DockEdgeKerb02`,
+# whose edge the Halyard apron built over) and added one (`DockUmbilicalHose02`,
+# because arm 02's boom now runs out like arm 01's), so the module still builds
+# exactly 100 visible meshes against this same 107 ceiling. Collision bodies,
+# shapes, labels, lights and both loop counts are all untouched too.
 const MESH_INSTANCE_BUDGET := 107
 const STATIC_BODY_BUDGET := COLLISION_BODY_COUNT
 const COLLISION_SHAPE_BUDGET := COLLISION_SHAPE_COUNT
@@ -109,6 +137,18 @@ const DOCK_SLAB_IDS := [
 	"dock-slab-03-upper",
 ]
 
+## Dock marker ids in slab order, so a builder working by slab index can ask the
+## registry what that dock's status actually is. The ids themselves are the
+## originals and deliberately keep their historical spelling: `deferred-dock-02`
+## was promoted to an external assignment without being renamed, and renaming a
+## published key to make a comment read better would break every consumer that
+## already knows it.
+const DOCK_MARKER_IDS: Array[StringName] = [
+	&"assigned-dock-01",
+	&"deferred-dock-02",
+	&"deferred-dock-03",
+]
+
 const EVIDENCE_REFERENCES := [
 	"B2@04:55-05:10 / OE-B2-COMB / long narrow trunk with perpendicular rung-like arms",
 	"B2@04:55-05:10 / OE-B2-SLABS / broad end slabs separated by genuine voids",
@@ -121,13 +161,14 @@ const CONTENT_NOTE := (
 	+ "geometry: its name, exact three-tooth count, measurements, starboard bias, "
 	+ "surface design, short ramp, materials, labels, and world adjacency are modern "
 	+ "interpretation. Dock 01 is a modern externally-owned assignment for the "
-	+ "B7-observed Zenith partial reconstruction; docks 02/03 remain empty and "
-	+ "deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
+	+ "B7-observed Zenith partial reconstruction; Dock 02 is a modern externally-"
+	+ "owned assignment for the project-original modern Halyard design; only Dock 03 remains empty "
+	+ "and deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
 	+ "spawn authority inside this module. The per-arm service hardware — mast, "
 	+ "umbilical head, boom, service pod, mooring cleats, toe kerb and the trunk/rung conduit "
 	+ "run — is modern interpretation with no source at all: no anchor in any "
 	+ "source describes how the original station moored, fed or serviced a docked "
-	+ "craft, and the deployed/stowed distinction between the assigned and the two "
+	+ "craft, and the deployed/stowed distinction between the assigned and the "
 	+ "deferred arms is a presentation convention, not a recovered operating state."
 )
 
@@ -459,7 +500,7 @@ func get_evidence_metadata() -> Dictionary:
 			"Fleet Dock Comb name and exact three-tooth roster",
 			"all dimensions, directions, surface details, and station placement",
 			"starboard-only bias and one short vertical ramp",
-			"dock labels, marker transforms, and the Zenith-to-dock-01 assignment",
+			"dock labels, marker transforms, the Zenith-to-dock-01 assignment, and the Halyard-to-dock-02 assignment",
 		]),
 		"explicit_unknowns": PackedStringArray([
 			"historical arm, slab, and berth count",
@@ -698,7 +739,7 @@ func _build_structure() -> void:
 	_register_surface(_surface_box(surfaces, "Rung01", Vector3(5.5, -0.3, 10.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-01", &"orthogonal-rung")
 	_register_surface(_surface_box(surfaces, "DockSlab01", ASSIGNED_DOCK_01_CENTER, ASSIGNED_DOCK_01_SIZE, _materials["deck"]), &"dock-slab-01", &"broad-assigned-slab")
 	_register_surface(_surface_box(surfaces, "Rung02", Vector3(5.5, -0.3, 25.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-02", &"orthogonal-rung")
-	_register_surface(_surface_box(surfaces, "DockSlab02", Vector3(15.0, -0.3, 25.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-02", &"broad-deferred-slab")
+	_register_surface(_surface_box(surfaces, "DockSlab02", Vector3(15.0, -0.3, 25.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-02", &"broad-assigned-slab")
 
 	var ramp_start := Vector3(2.0, LOWER_DECK_ELEVATION, 40.0)
 	var ramp_finish := Vector3(9.0, UPPER_DECK_ELEVATION, 40.0)
@@ -759,7 +800,15 @@ func _build_surface_detail() -> void:
 		var top_center := slab_specs[index][0] as Vector3
 		var elevation := float(slab_specs[index][1])
 		_visual_box(detail, "SlabInset%02d" % (index + 1), top_center, Vector3(10.4, 0.04, 10.4), _materials["grip"])
-		var status_material: Material = _materials["cyan"] if index == 0 else _materials["deferred"]
+		# Read off the dock registry rather than hard-coded to arm 01. That literal
+		# was correct exactly once: the module already counted two external
+		# assignments, and the Halyard has been standing on arm 02 since the berth
+		# pass, but this line kept painting arm 02 in the deferred red because it
+		# tested the index instead of the dock's own status. Paint now cannot
+		# disagree with the roster it is painting.
+		var status_material: Material = (
+			_materials["cyan"] if _dock_is_assigned(index) else _materials["deferred"]
+		)
 		_visual_box(detail, "DockCrossStripe%02d" % (index + 1), top_center + Vector3(0, 0.035, 0), Vector3(8.2, 0.03, 0.18), status_material)
 		_visual_box(detail, "DockLongStripe%02d" % (index + 1), top_center + Vector3(0, 0.038, 0), Vector3(0.18, 0.03, 8.2), status_material)
 		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
@@ -804,16 +853,25 @@ func _build_surface_detail() -> void:
 ## Before this, an arm was a 12 m plate with a painted cross, four corner beacons
 ## and a floor label. Nothing on it said a ship is fed, held down or serviced
 ## there, so the three arms differed from each other only by the colour of a
-## stripe, and the two deferred ones read as unfinished plate rather than as
+## stripe, and the deferred ones read as unfinished plate rather than as
 ## commissioned berths waiting for a hull. Each arm now carries a mast with an
-## umbilical head, a service boom, two mooring cleats and a toe kerb along the
-## drop edge, and the assigned/deferred distinction is carried by the *state* of
-## that hardware rather than by paint alone: dock 01's boom is run out along the
-## berth flank with its umbilical hose dropped to the deck bracket, docks 02 and
-## 03 have theirs stowed vertically against the mast with the head blanked. That
-## is a relationship a player can read at a glance and one this module can
-## honestly claim, because a dock's own servicing state is not a historical
-## assertion about the original station.
+## umbilical head, a service boom, two mooring cleats and — where there is still
+## an edge to mark — a toe kerb along the drop edge, and the assigned/deferred
+## distinction is carried by the *state* of that hardware rather than by paint
+## alone: an assigned arm's boom is run out along the berth flank with its
+## umbilical hose dropped to the deck bracket, a deferred arm's is stowed
+## vertically against the mast with the head blanked. That is a relationship a
+## player can read at a glance and one this module can honestly claim, because a
+## dock's own servicing state is not a historical assertion about the original
+## station.
+##
+## Which arm is which is read from the dock registry, never from a slab index.
+## That distinction became load-bearing when the Halyard was berthed on arm 02:
+## the module had already promoted that dock to an external assignment, but every
+## builder here still tested `index == 0`, so a 28 m crew transport stood on a
+## deferred-red plate with a blanked, stowed boom beside it. A convention that
+## says "state, not paint" has to derive the state from the same place the roster
+## does or it is just a second kind of paint.
 ##
 ## Three placement rules, all measured against the live scene rather than
 ## assumed, and all of them load-bearing:
@@ -848,7 +906,14 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 	for index in DOCK_SLAB_IDS.size():
 		var elevation := 0.0 if index < 2 else UPPER_DECK_ELEVATION
 		var slab_z := [8.5, 25.0, 40.0][index] as float
-		var assigned := index == 0
+		# Same correction as the slab paint above, and it matters more here, because
+		# this is the module's *own* stated grammar: assigned versus deferred is
+		# carried by the state of the service hardware, not by paint. Arm 02 has had
+		# a 28 m crew transport standing on it and its boom stowed against the mast
+		# with the head blanked, which said "no craft here" under a craft. Deriving
+		# it from the dock registry is what makes that grammar true rather than
+		# decorative.
+		var assigned := _dock_is_assigned(index)
 		var status_material: Material = _materials["cyan"] if assigned else _materials["deferred"]
 		var suffix := "%02d" % (index + 1)
 
@@ -961,14 +1026,18 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		# here would need collision to be honest, and collision is exactly what
 		# this module's frozen one-body-per-surface roster forbids; a 0.14 m kerb
 		# marks the edge without pretending to stop anyone.
-		_service_box(
-			service,
-			"DockEdgeKerb" + suffix,
-			Vector3(20.86, elevation + 0.06, slab_z),
-			Vector3(0.28, 0.14, 10.4),
-			_materials["frame"],
-			""
-		)
+		#
+		# It is only built where there is still an edge to mark. See
+		# [constant DROP_EDGE_DOCK_INDICES] for the arm that lost one.
+		if index in DROP_EDGE_DOCK_INDICES:
+			_service_box(
+				service,
+				"DockEdgeKerb" + suffix,
+				Vector3(20.86, elevation + 0.06, slab_z),
+				Vector3(0.28, 0.14, 10.4),
+				_materials["frame"],
+				""
+			)
 		for side: float in [-1.0, 1.0]:
 			var cleat_z := slab_z + side * 4.4
 			_service_box(
@@ -1092,19 +1161,40 @@ func _build_understructure() -> void:
 			_visual_box(underframe, "SlabSupport", Vector3(float(support_x), support_y, slab_z), Vector3(0.55, 2.5, 0.55), _materials["frame"])
 
 
+## Whether the dock slab at `index` currently carries an external ship assignment.
+##
+## Read off the marker registry `_index_semantics()` already builds, so the paint,
+## the service hardware and the deck label cannot drift from the roster the module
+## publishes. `_index_semantics()` runs before `_build_structure()`, so this is
+## live by the time any builder asks.
+func _dock_is_assigned(index: int) -> bool:
+	if index < 0 or index >= DOCK_MARKER_IDS.size():
+		return false
+	var marker := _dock_markers.get(DOCK_MARKER_IDS[index]) as Marker3D
+	if marker == null:
+		return false
+	return StringName(marker.get_meta("dock_status", &"")) == &"assigned_external"
+
+
 func _build_deferred_landmarks() -> void:
 	var landmarks := Node3D.new()
 	landmarks.name = "DockLandmarks"
 	landmarks.set_meta("non_authoritative_presentation", true)
 	_build_root.add_child(landmarks)
+	# Text and colour follow the dock registry for the same reason the paint and
+	# the hardware do. `DEFERRED DOCK 02` stood in red under a berthed Halyard,
+	# which is the plainest possible form of a module's presentation contradicting
+	# its own published roster. Dock 03 is still genuinely empty and still says so.
 	var label_specs := [
-		["ZENITH // B7 OBSERVED", Vector3(15.0, 0.18, 4.55), true],
-		["DEFERRED DOCK 02", Vector3(15.0, 0.18, 19.55), false],
-		["DEFERRED DOCK 03", Vector3(15.0, 2.58, 34.55), false],
+		["ZENITH // B7 OBSERVED", Vector3(15.0, 0.18, 4.55), "DEFERRED DOCK 01"],
+		["HALYARD // MODERN DESIGN", Vector3(15.0, 0.18, 19.55), "DEFERRED DOCK 02"],
+		["DEFERRED DOCK 03", Vector3(15.0, 2.58, 34.55), "DEFERRED DOCK 03"],
 	]
 	for index in label_specs.size():
 		var label := Label3D.new()
-		var assigned := bool(label_specs[index][2])
+		var assigned := _dock_is_assigned(index)
+		if not assigned:
+			label_specs[index][0] = label_specs[index][2]
 		label.name = ("AssignedDockLabel%02d" if assigned else "DeferredDockLabel%02d") % (index + 1)
 		label.text = str(label_specs[index][0])
 		label.position = label_specs[index][1] as Vector3

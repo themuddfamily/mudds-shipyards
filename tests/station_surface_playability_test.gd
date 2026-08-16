@@ -719,11 +719,43 @@ func _intentional_non_walkable_reason(mesh_instance: MeshInstance3D, world: Ship
 	if bool(mesh_instance.get_meta("non_authoritative_visual", false)):
 		return str(mesh_instance.get_meta("non_walkable_reason", ""))
 	var cursor := mesh_instance.get_parent()
+	var declaring_activity: StationOperationsActivity = null
+	var activity_cursor := cursor
+	while activity_cursor != null and activity_cursor != world:
+		if activity_cursor is StationOperationsActivity:
+			declaring_activity = activity_cursor as StationOperationsActivity
+			break
+		activity_cursor = activity_cursor.get_parent()
 	while cursor != null and cursor != world:
 		if bool(cursor.get_meta("presentation_only", false)) and bool(cursor.get_meta("nonblocking_collision", false)):
+			# The reusable component still owns no physics, but some exact static
+			# meshes now declare sibling World collision. Do not exempt those drawn
+			# surfaces merely because their presentation ancestor remains tagged.
+			if declaring_activity != null \
+				and _mesh_matches_declared_solid(mesh_instance, declaring_activity):
+				return ""
 			return "tagged presentation-only component with collision_policy=presentation_only_nonblocking"
 		cursor = cursor.get_parent()
 	return ""
+
+
+func _mesh_matches_declared_solid(
+		mesh_instance: MeshInstance3D,
+		activity: StationOperationsActivity
+	) -> bool:
+	if mesh_instance.mesh == null:
+		return false
+	var activity_local := activity.global_transform.affine_inverse() * mesh_instance.global_transform
+	var mesh_size := mesh_instance.mesh.get_aabb().size
+	for volume in activity.get_solid_volume_contract():
+		var expected := Transform3D(
+			volume.get("basis", Basis.IDENTITY) as Basis,
+			volume.position as Vector3
+		)
+		if activity_local.is_equal_approx(expected) \
+			and mesh_size.is_equal_approx(volume.size as Vector3):
+			return true
+	return false
 
 
 func _test_spawn_adjacent_stair(world: ShipyardWorld, player: PlayerController) -> void:

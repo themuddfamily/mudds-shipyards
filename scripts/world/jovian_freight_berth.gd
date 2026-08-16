@@ -776,11 +776,25 @@ func _build_connection_lattice() -> void:
 				continue
 			_cylinder(root_node, "LatticePost", Vector3(side * 3.45, -1.35, z_position), 0.22, 2.7, _materials["steel_blue"], true)
 			# Bottom on the deck plane, not 0.005 m over it.
-			_cylinder(root_node, "RailPost", Vector3(side * 3.45, 0.575, z_position), 0.1, 1.15, _materials["orange"], true)
+			# The +X rail's open end moved to local z=2.20 for the tow lane.
+			# Keep the below-deck lattice leg at 0.20, but move its former rail
+			# post 0.20 -> 2.20 so it supports the real shortened rail instead of
+			# becoming an orphan bollard in the opening. Count and role are stable.
+			var rail_post_z: float = 2.2 if side > 0.0 and is_equal_approx(z_position, 0.2) else z_position
+			_cylinder(root_node, "RailPost", Vector3(side * 3.45, 0.575, rail_post_z), 0.1, 1.15, _materials["orange"], true)
 		if side < 0.0:
 			_cylinder(root_node, "ApproachRail", Vector3(side * 3.45, 1.12, 2.1), 0.1, 12.5, _materials["ceramic"], true, Vector3(90, 0, 0))
 		else:
-			_cylinder(root_node, "ApproachRail", Vector3(side * 3.45, 1.12, 3.35), 0.1, 9.9, _materials["ceramic"], true, Vector3(90, 0, 0))
+			# Tow-obstruction refreeze: local span -1.60..8.30 (9.9 m) ->
+			# 2.20..8.30 (6.1 m), centre 3.35 -> 5.25. The removed world span,
+			# z=27.20..31.00, covered only the 0.60 m DeckA-to-Registry seam
+			# through z=28.80, then the 0.30 m DeckB-to-Registry seam through
+			# z=31.00. Both are narrower than the 0.76 m player diameter and the
+			# tug's 3.8 m support length. The rail now begins at the first exposed
+			# edge. Column face z=25.61 to rail surface z=30.90 leaves a measured
+			# 5.29 m vehicle opening while preserving the north endpoint and every
+			# floor surface.
+			_cylinder(root_node, "ApproachRail", Vector3(side * 3.45, 1.12, 5.25), 0.1, 6.1, _materials["ceramic"], true, Vector3(90, 0, 0))
 		_cylinder(root_node, "LowerChord", Vector3(side * 3.25, -2.6, 2.1), 0.2, 12.8, _materials["steel_blue"], true, Vector3(90, 0, 0))
 		for z_position in [-1.7, 5.9]:
 			_rounded_box(root_node, "DiagonalBrace", Vector3(side * 3.25, -1.75, z_position), Vector3(0.24, 0.42, 5.0), _materials["orange"], false, Vector3(32, 0, 0))

@@ -62,10 +62,18 @@ func _run() -> void:
 
 func _check_construction_contract() -> void:
 	_check(_tractor is CharacterBody3D, "the tractor is a physical CharacterBody3D, not a marker or a static prop")
+	# The mask half of this used to read `== PhysicsLayers.WORLD`, and that is
+	# exactly the defect a playtester reported by driving through a parked hull:
+	# craft bodies are on `SHIP`, so a vehicle masking `WORLD` alone cannot see
+	# one. The layer half is unchanged and still exact — player, camera, hitscan
+	# and AI queries continue to see the vehicle as World scenery. Craft authority
+	# is a separate type/definition/registry contract checked below.
 	_check(
-		_tractor.collision_layer == PhysicsLayers.WORLD
-		and _tractor.collision_mask == PhysicsLayers.WORLD,
-		"the tractor keeps the replaced prop's World layer and masks only world geometry"
+		_tractor.collision_layer == PhysicsLayers.GROUND_VEHICLE_BODY_LAYER
+		and _tractor.collision_layer == PhysicsLayers.WORLD
+		and _tractor.collision_mask == PhysicsLayers.GROUND_VEHICLE_BODY_MASK
+		and _tractor.collision_mask == PhysicsLayers.WORLD | PhysicsLayers.SHIP,
+		"the tractor keeps the replaced prop's World layer and masks world geometry and craft hulls"
 	)
 	var station := _tractor.get_driver_station()
 	_check(station != null, "the tractor exposes a driver station")
@@ -131,29 +139,64 @@ func _check_construction_contract() -> void:
 	)
 
 
-## The whole point of keeping this a ground vehicle. If any of these start
-## passing, the tractor has been handed craft authority and the berth suites will
-## be the next thing to notice.
+## Physics filters answer only who can touch or ray-hit the body. Craft authority
+## comes from HeroShip type/API, a ShipDefinition and registration in GameFlow;
+## none can be inferred from World or Ship bits.
 func _check_authority_exclusions() -> void:
 	var vehicle_node: Node = _tractor
 	_check(vehicle_node is not HeroShip, "the tractor is not a HeroShip")
-	for forbidden in [
+	var authority_methods: Array[StringName] = [
 		&"get_home_berth_id",
 		&"get_ship_definition",
 		&"get_ship_id",
+		&"request_landing",
 		&"request_berth_landing",
 		&"get_landing_contract_report",
 		&"apply_damage",
 		&"get_telemetry",
 		&"request_engine_start",
 		&"reset_for_reuse",
-	]:
+	]
+	for forbidden in authority_methods:
 		_check(
 			not _tractor.has_method(forbidden),
 			"the tractor exposes no %s authority" % forbidden
 		)
-	# Red witness: the same `has_method` probe must return true for the methods the
-	# tractor genuinely owns, or the exclusions above prove nothing.
+
+	# Positive authority witness: the same probes find the type-owned contract on
+	# a HeroShip even before either node enters a fleet registry.
+	var craft_witness := HeroShip.new()
+	_check(craft_witness is HeroShip, "authority witness is the production craft base type")
+	var witness_has_every_authority_method := true
+	for required in authority_methods:
+		witness_has_every_authority_method = (
+			witness_has_every_authority_method and craft_witness.has_method(required)
+		)
+	_check(
+		witness_has_every_authority_method,
+		"HeroShip owns the identity, definition, landing, lifecycle and damage APIs absent from the tractor"
+	)
+	_check(
+		(vehicle_node as HeroShip) == null,
+		"the tractor cannot enter GameFlow's HeroShip-typed fleet registry"
+	)
+	craft_witness.free()
+
+	# Layer-mutation witness: even advertising the physical Ship bit cannot create
+	# any of those APIs or turn this TowTractor instance into a registered craft.
+	var saved_layer := _tractor.collision_layer
+	_tractor.collision_layer = PhysicsLayers.SHIP
+	var bit_granted_authority := vehicle_node is HeroShip
+	for forbidden in authority_methods:
+		bit_granted_authority = bit_granted_authority or _tractor.has_method(forbidden)
+	_check(
+		not bit_granted_authority,
+		"red witness: a Ship collision bit alone grants no craft identity, definition, landing, fleet, or damage authority"
+	)
+	_tractor.collision_layer = saved_layer
+
+	# The same `has_method` probe must still find the methods the tractor genuinely
+	# owns, or a reflection failure could make every exclusion above pass vacuously.
 	for expected in [&"is_boardable", &"get_driver_seat_anchor", &"recover_to_home_transform"]:
 		_check(
 			_tractor.has_method(expected),

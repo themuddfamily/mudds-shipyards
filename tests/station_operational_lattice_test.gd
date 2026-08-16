@@ -195,6 +195,21 @@ func _test_pre_tree_lifecycle() -> void:
 		disabled_children = disabled_children and not ambience.is_ambience_enabled() and _players_stopped_and_detached(ambience)
 	_check(disabled_children, "pre-tree disable reaches every activity and ambience child on first ready")
 	_check(not world.get_jovian_freight_berth().is_equipment_animation_enabled(), "pre-tree disable reaches existing freight equipment")
+	var collision := world.get_station_activity_collision_audit_report()
+	var collision_root := world.get_node_or_null(^"OperationalLattice/ActivityCollision") as Node3D
+	var disabled_body := (
+		collision_root.get_node_or_null(^"CentralTowServiceActivitySolids") as StaticBody3D
+		if collision_root != null else null
+	)
+	_check(
+		bool(collision.valid) and int(collision.body_count) == 7
+		and int(collision.shape_count) == 63 and int(collision.active_body_count) == 0,
+		"pre-tree disable builds the exact 7-body/63-shape solid roster with zero active bodies"
+	)
+	_check(
+		disabled_body != null and not (await _physics_query_finds_body(world, disabled_body)),
+		"pre-tree disabled activity solids never enter the live World physics space"
+	)
 	world.queue_free()
 	world = null
 	activities.clear()
@@ -202,6 +217,63 @@ func _test_pre_tree_lifecycle() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+
+	# Repeat through the frame-yielding boot path. The callback observes every
+	# completed build stage, so a starts-enabled collision body cannot flash on
+	# between the collision stage and the later lifecycle-restore stage.
+	var staged := WORLD_SCENE.instantiate() as ShipyardWorld
+	staged.set_station_activity_enabled(false)
+	staged.prepare_staged_construction()
+	root.add_child(staged)
+	var staged_saw_active := [false]
+	await staged.run_staged_construction(func(_label: String) -> void:
+		var staged_root := staged.get_node_or_null(^"OperationalLattice/ActivityCollision") as Node3D
+		if staged_root == null:
+			return
+		for candidate in staged_root.find_children("*", "StaticBody3D", false, false):
+			if (candidate as StaticBody3D).collision_layer != PhysicsLayers.NONE:
+				staged_saw_active[0] = true
+	)
+	await physics_frame
+	var staged_collision := staged.get_station_activity_collision_audit_report()
+	_check(
+		not bool(staged_saw_active[0]) and bool(staged_collision.valid)
+		and int(staged_collision.body_count) == 7
+		and int(staged_collision.shape_count) == 63
+		and int(staged_collision.active_body_count) == 0,
+		"staged pre-tree disable never exposes collision and finishes at exact 7/63 active=0"
+	)
+	staged.queue_free()
+	await process_frame
+	await physics_frame
+
+	var staged_toggle := WORLD_SCENE.instantiate() as ShipyardWorld
+	staged_toggle.prepare_staged_construction()
+	root.add_child(staged_toggle)
+	var toggled_after_staffing := [false]
+	var toggle_saw_active := [false]
+	await staged_toggle.run_staged_construction(func(label: String) -> void:
+		if label == "Staffing the operations lattice":
+			staged_toggle.set_station_activity_enabled(false)
+			toggled_after_staffing[0] = true
+		var staged_root := staged_toggle.get_node_or_null(^"OperationalLattice/ActivityCollision") as Node3D
+		if staged_root == null:
+			return
+		for candidate in staged_root.find_children("*", "StaticBody3D", false, false):
+			if (candidate as StaticBody3D).collision_layer != PhysicsLayers.NONE:
+				toggle_saw_active[0] = true
+	)
+	await physics_frame
+	var toggled_collision := staged_toggle.get_station_activity_collision_audit_report()
+	_check(
+		bool(toggled_after_staffing[0]) and not bool(toggle_saw_active[0])
+		and bool(toggled_collision.valid)
+		and int(toggled_collision.active_body_count) == 0,
+		"staged true-to-false toggle after Staffing reaches live pre-index activities and never flashes a solid body"
+	)
+	staged_toggle.queue_free()
+	await process_frame
+	await physics_frame
 
 
 func _test_discovery_audit_and_exact_roster(
@@ -652,8 +724,11 @@ func _test_world_lifecycle(
 		activity_times[activities[index]] = activities[index].get_activity_time()
 	for ambience in ambience_nodes:
 		generations[ambience] = int(ambience.get_synthesis_report().generation_count)
+	var collision_root := world.get_node(^"OperationalLattice/ActivityCollision") as Node3D
+	var central_solids := collision_root.get_node(^"CentralTowServiceActivitySolids") as StaticBody3D
 	world.set_station_activity_enabled(false)
 	world.set_station_activity_enabled(false)
+	await physics_frame
 	var all_disabled := not world.is_station_activity_enabled() and not world.get_jovian_freight_berth().is_equipment_animation_enabled()
 	for activity in activities:
 		all_disabled = all_disabled and not activity.is_activity_enabled() and not activity.is_processing() and not bool(activity.get_activity_state().visible) and is_equal_approx(activity.get_activity_time(), float(activity_times[activity]))
@@ -661,15 +736,34 @@ func _test_world_lifecycle(
 		all_disabled = all_disabled and not ambience.is_ambience_enabled() and _players_stopped_and_detached(ambience)
 	for dressing in dressings:
 		all_disabled = all_disabled and dressing.is_dressing_enabled()
-	_check(all_disabled, "world disable is idempotent, stops movers/audio, preserves clocks, and leaves static silhouette visible")
+	var disabled_collision := world.get_station_activity_collision_audit_report()
+	_check(
+		all_disabled and bool(disabled_collision.valid)
+		and int(disabled_collision.active_body_count) == 0,
+		"world disable is idempotent, stops movers/audio and all seven sibling solid bodies, preserves clocks, and leaves static silhouette visible"
+	)
+	_check(
+		not (await _physics_query_finds_body(world, central_solids)),
+		"global disable removes an exact activity body from World physics"
+	)
 	world.set_station_activity_enabled(true)
 	world.set_station_activity_enabled(true)
+	await physics_frame
 	var all_enabled := world.is_station_activity_enabled() and world.get_jovian_freight_berth().is_equipment_animation_enabled()
 	for activity in activities:
 		all_enabled = all_enabled and activity.is_activity_enabled() and activity.is_processing()
 	for ambience in ambience_nodes:
 		all_enabled = all_enabled and ambience.is_ambience_enabled() and int(ambience.get_synthesis_report().generation_count) == int(generations[ambience])
-	_check(all_enabled, "world re-enable is idempotent and resumes all activity/audio without resynthesis churn")
+	var enabled_collision := world.get_station_activity_collision_audit_report()
+	_check(
+		all_enabled and bool(enabled_collision.valid)
+		and int(enabled_collision.active_body_count) == 7,
+		"world re-enable is idempotent and resumes activity/audio plus all seven solid bodies without resynthesis churn"
+	)
+	_check(
+		await _physics_query_finds_body(world, central_solids),
+		"global re-enable restores the exact activity body to World physics"
+	)
 	for activity in activities:
 		activity.set_activity_paused(true)
 	await process_frame
@@ -873,13 +967,136 @@ func _test_child_detach_readd_lifecycle(
 	var activity := activities[0]
 	activity.set_activity_enabled(true)
 	activity.set_activity_paused(false)
+	var collision_root := world.get_node(^"OperationalLattice/ActivityCollision") as Node3D
+	var solid_body := collision_root.get_node(
+		NodePath("%sSolids" % activity.name)
+	) as StaticBody3D
+	var solid_body_id := solid_body.get_instance_id()
+	var original_transform := activity.transform
+	var original_body_point := _first_shape_world_center(solid_body)
+	_check(
+		await _physics_query_finds_body(world, solid_body),
+		"independent activity lifecycle starts with its exact sibling body in physics"
+	)
 	var activity_parent := activity.get_parent()
 	activity_parent.remove_child(activity)
 	await process_frame
+	await physics_frame
+	_check(
+		solid_body.collision_layer == PhysicsLayers.NONE
+		and not (await _physics_query_finds_body(world, solid_body)),
+		"independently detached activity leaves its surviving sibling body disabled and absent from physics"
+	)
+	var detached_moved := Transform3D(
+		Basis(Vector3.UP, deg_to_rad(13.0)) * original_transform.basis,
+		original_transform.origin + Vector3(9.0, 0.0, 4.0)
+	)
+	activity.transform = detached_moved
+	await process_frame
+	await physics_frame
+	_check(
+		solid_body.get_instance_id() == solid_body_id
+		and solid_body.collision_layer == PhysicsLayers.NONE
+		and not (await _physics_query_finds_body(world, solid_body)),
+		"moving an independently detached source cannot publish or replace its surviving sibling body"
+	)
 	activity_parent.add_child(activity)
 	await process_frame
 	await physics_frame
-	_check(activity.is_activity_enabled() and activity.is_activity_advancing() and activity.is_processing() and bool(activity.get_audit_report().valid), "independently detached activity restores actual processing under the same live world")
+	_check(
+		activity.is_activity_enabled() and activity.is_activity_advancing()
+		and activity.is_processing() and bool(activity.get_audit_report().valid)
+		and solid_body.get_instance_id() == solid_body_id
+		and solid_body.collision_layer == WORLD_LAYER
+		and solid_body.global_transform.is_equal_approx(activity.global_transform)
+		and not (await _physics_query_finds_body_at(world, solid_body, original_body_point))
+		and await _physics_query_finds_body(world, solid_body),
+		"independently detached moved activity restores the same exact sibling body at its new pose and clears the old point"
+	)
+
+	# Enabled movement follows immediately, then disabled movement proves pose and
+	# layer are independent lifecycle dimensions. Rotation is included so the
+	# test cannot pass on origin-only synchronisation.
+	var enabled_moved := Transform3D(
+		Basis(Vector3.UP, deg_to_rad(7.0)) * original_transform.basis,
+		original_transform.origin + Vector3(0.0, 0.0, 2.0)
+	)
+	var enabled_old_body_point := _first_shape_world_center(solid_body)
+	activity.transform = enabled_moved
+	await process_frame
+	await physics_frame
+	_check(
+		solid_body.global_transform.is_equal_approx(activity.global_transform)
+		and not (await _physics_query_finds_body_at(world, solid_body, enabled_old_body_point))
+		and await _physics_query_finds_body(world, solid_body),
+		"enabled activity translation/rotation moves the exact sibling physics body old-to-new"
+	)
+	activity.set_activity_enabled(false)
+	var disabled_moved := Transform3D(
+		Basis(Vector3.UP, deg_to_rad(-11.0)) * original_transform.basis,
+		original_transform.origin + Vector3(0.0, 0.0, 2.5)
+	)
+	activity.transform = disabled_moved
+	await process_frame
+	await physics_frame
+	var disabled_collision := world.get_station_activity_collision_audit_report()
+	_check(
+		solid_body.get_instance_id() == solid_body_id
+		and solid_body.collision_layer == PhysicsLayers.NONE
+		and solid_body.global_transform.is_equal_approx(activity.global_transform)
+		and bool(disabled_collision.valid)
+		and not (await _physics_query_finds_body(world, solid_body)),
+		"disabled activity movement keeps the same body pose-synchronised, audited, and absent from physics"
+	)
+	activity.set_activity_enabled(true)
+	await physics_frame
+	_check(
+		solid_body.get_instance_id() == solid_body_id
+		and solid_body.collision_layer == WORLD_LAYER
+		and await _physics_query_finds_body(world, solid_body),
+		"re-enabling a moved activity restores the same body at its new exact pose"
+	)
+	activity.transform = original_transform
+	await process_frame
+	await physics_frame
+
+	# A live node in another owner must not retain authority over this world's
+	# surviving sibling body. Restore it to the canonical Activities container and
+	# require that the same instance, rather than a replacement, becomes physical.
+	var foreign_root := Node3D.new()
+	foreign_root.name = "ForeignActivityOwnerProbe"
+	root.add_child(foreign_root)
+	activity_parent.remove_child(activity)
+	foreign_root.add_child(activity)
+	activity.transform = Transform3D(
+		Basis(Vector3.UP, deg_to_rad(-17.0)) * original_transform.basis,
+		original_transform.origin + Vector3(-7.0, 0.0, 6.0)
+	)
+	await process_frame
+	await physics_frame
+	_check(
+		activity.is_inside_tree()
+		and solid_body.get_instance_id() == solid_body_id
+		and solid_body.collision_layer == PhysicsLayers.NONE
+		and not (await _physics_query_finds_body(world, solid_body)),
+		"reparenting a declaring activity into another live owner leaves the old world's sibling body fail-closed"
+	)
+	foreign_root.remove_child(activity)
+	activity_parent.add_child(activity)
+	await process_frame
+	await physics_frame
+	_check(
+		solid_body.get_instance_id() == solid_body_id
+		and solid_body.collision_layer == WORLD_LAYER
+		and solid_body.global_transform.is_equal_approx(activity.global_transform)
+		and await _physics_query_finds_body(world, solid_body),
+		"returning the declaring activity to its canonical owner reuses and resynchronises the exact sibling body"
+	)
+	activity.transform = original_transform
+	await process_frame
+	await physics_frame
+	foreign_root.queue_free()
+	await process_frame
 	activity.set_activity_paused(true)
 
 	var ambience := ambience_nodes[0]
@@ -949,11 +1166,39 @@ func _test_detach_readd_lifecycle(game: Node, world: ShipyardWorld) -> void:
 	world.set_station_activity_enabled(true)
 	for activity in world.get_station_operations_activities():
 		activity.set_activity_paused(false)
+	var collision_root := world.get_node(^"OperationalLattice/ActivityCollision") as Node3D
+	var central_activity := world.get_node(
+		^"OperationalLattice/Activities/CentralTowServiceActivity"
+	) as StationOperationsActivity
+	var central_solids := collision_root.get_node(
+		^"CentralTowServiceActivitySolids"
+	) as StaticBody3D
+	var central_body_id := central_solids.get_instance_id()
+	var original_central_transform := central_activity.transform
+	var collision_body_ids := PackedInt64Array()
+	for candidate in collision_root.find_children("*", "StaticBody3D", false, false):
+		collision_body_ids.append((candidate as StaticBody3D).get_instance_id())
+	collision_body_ids.sort()
+	var original_world_transform := world.transform
 	var original_parent := world.get_parent()
 	original_parent.remove_child(world)
 	await process_frame
-	_check(not world.is_inside_tree(), "built world can detach cleanly for streaming lifecycle")
+	_check(
+		not world.is_inside_tree() and central_solids.collision_layer == PhysicsLayers.NONE,
+		"built world detaches cleanly and its surviving activity solids are disabled before streaming"
+	)
+	world.transform = Transform3D(
+		original_world_transform.basis,
+		original_world_transform.origin + Vector3(3.0, 0.0, 1.5)
+	)
 	original_parent.add_child(world)
+	# Descendant `_enter_tree` signals run before the sibling collision root is
+	# live. They must leave every body NONE until the world's deferred restore has
+	# a complete hierarchy and can publish one authoritative resync.
+	_check(
+		central_solids.collision_layer == PhysicsLayers.NONE,
+		"whole-world re-entry exposes no stale old-pose activity collider before deferred resynchronisation"
+	)
 	await process_frame
 	await process_frame
 	await physics_frame
@@ -965,8 +1210,78 @@ func _test_detach_readd_lifecycle(game: Node, world: ShipyardWorld) -> void:
 	for ambience in ambience_nodes:
 		var synthesis := ambience.get_synthesis_report()
 		restored = restored and ambience.is_ambience_enabled() and bool(synthesis.resources_ready) and int(synthesis.resident_sample_bytes) > 0
-	_check(restored, "detach/re-add restores all surviving operational processing and audio resources without request_ready")
+	var restored_collision := world.get_station_activity_collision_audit_report()
+	var restored_body_ids := PackedInt64Array()
+	for candidate in collision_root.find_children("*", "StaticBody3D", false, false):
+		restored_body_ids.append((candidate as StaticBody3D).get_instance_id())
+	restored_body_ids.sort()
+	_check(
+		restored and bool(restored_collision.valid)
+		and int(restored_collision.active_body_count) == 7
+		and restored_body_ids == collision_body_ids
+		and central_solids.global_transform.is_equal_approx(central_activity.global_transform)
+		and await _physics_query_finds_body(world, central_solids),
+		"moved whole-world re-entry restores all processing plus the same seven bodies at their new exact poses"
+	)
 	_check(world.get_parent() == game, "re-added ShipyardWorld returns to its production parent")
+	world.transform = original_world_transform
+	await process_frame
+	await physics_frame
+	_check(
+		central_solids.global_transform.is_equal_approx(central_activity.global_transform)
+		and bool(world.get_operational_lattice_audit_report().valid),
+		"restoring the streamed world pose restores the complete frozen placement audit"
+	)
+
+	# Desired global disablement must compose with streaming. Move a declaring
+	# source relative to its sibling collision root while the whole world is out
+	# of tree, then require re-entry to resynchronise the same body without ever
+	# publishing it to physics.
+	world.set_station_activity_enabled(false)
+	await process_frame
+	await physics_frame
+	original_parent.remove_child(world)
+	central_activity.transform = Transform3D(
+		Basis(Vector3.UP, deg_to_rad(9.0)) * original_central_transform.basis,
+		original_central_transform.origin + Vector3(4.0, 0.0, -3.0)
+	)
+	original_parent.add_child(world)
+	_check(
+		central_solids.collision_layer == PhysicsLayers.NONE,
+		"globally disabled whole-world re-entry exposes no activity collider before deferred resynchronisation"
+	)
+	await process_frame
+	await process_frame
+	await physics_frame
+	var disabled_reentry := world.get_station_activity_collision_audit_report()
+	_check(
+		not world.is_station_activity_enabled()
+		and bool(disabled_reentry.valid)
+		and int(disabled_reentry.active_body_count) == 0
+		and central_solids.get_instance_id() == central_body_id
+		and central_solids.collision_layer == PhysicsLayers.NONE
+		and central_solids.global_transform.is_equal_approx(central_activity.global_transform)
+		and not (await _physics_query_finds_body(world, central_solids)),
+		"globally disabled detach/move/re-entry keeps all seven resynchronised activity bodies out of physics"
+	)
+	world.set_station_activity_enabled(true)
+	await process_frame
+	await physics_frame
+	var enabled_reentry := world.get_station_activity_collision_audit_report()
+	_check(
+		bool(enabled_reentry.valid)
+		and int(enabled_reentry.active_body_count) == 7
+		and central_solids.collision_layer == WORLD_LAYER
+		and await _physics_query_finds_body(world, central_solids),
+		"re-enabling after disabled streaming restores all seven exact activity bodies"
+	)
+	central_activity.transform = original_central_transform
+	await process_frame
+	await physics_frame
+	_check(
+		bool(world.get_operational_lattice_audit_report().valid),
+		"disabled streaming probe restores the frozen operational placement audit"
+	)
 
 
 func _activity_states_match(first: Dictionary, second: Dictionary) -> bool:
@@ -1133,6 +1448,39 @@ func _intersect_shape(world: Node3D, shape: Shape3D, transform_value: Transform3
 	return world.get_world_3d().direct_space_state.intersect_shape(query, max_results)
 
 
+func _first_shape_world_center(body: StaticBody3D) -> Vector3:
+	if body == null:
+		return Vector3.INF
+	for candidate in body.find_children("*", "CollisionShape3D", false, false):
+		var collision := candidate as CollisionShape3D
+		if collision.shape != null and not collision.disabled:
+			return collision.global_position
+	return Vector3.INF
+
+
+func _physics_query_finds_body(world: Node3D, body: StaticBody3D) -> bool:
+	return await _physics_query_finds_body_at(
+		world, body, _first_shape_world_center(body)
+	)
+
+
+func _physics_query_finds_body_at(
+		world: Node3D,
+		body: StaticBody3D,
+		point: Vector3
+	) -> bool:
+	if body == null or not point.is_finite():
+		return false
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.04
+	for hit in await _intersect_shape(
+		world, sphere, Transform3D(Basis.IDENTITY, point), 64
+	):
+		if hit.get("collider") == body:
+			return true
+	return false
+
+
 ## Physics frames a nominal duration of simulated time is worth at the project's
 ## configured tick rate, plus a fixed frame grace.
 func _frame_budget(seconds: float) -> int:
@@ -1180,6 +1528,20 @@ func _capture_lifetime_references(
 	dressings: Array[StationStructuralServiceDressing]
 ) -> Array[WeakRef]:
 	var references: Array[WeakRef] = [weakref(world)]
+	var collision_root := world.get_node_or_null(
+		^"OperationalLattice/ActivityCollision"
+	) as Node3D
+	if collision_root != null:
+		references.append(weakref(collision_root))
+		for body_candidate in collision_root.find_children(
+			"*", "StaticBody3D", true, false
+		):
+			var body := body_candidate as StaticBody3D
+			references.append(weakref(body))
+			for shape_candidate in body.find_children(
+				"*", "CollisionShape3D", true, false
+			):
+				references.append(weakref(shape_candidate))
 	for activity in activities:
 		references.append(weakref(activity))
 		var mover := activity.find_child("Animated*", true, false)

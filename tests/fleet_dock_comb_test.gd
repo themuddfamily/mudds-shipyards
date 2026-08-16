@@ -106,6 +106,12 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 		and not bool(assigned_dock_02.historical_class_to_berth_mapping),
 		"dock 02 exposes one modern external Halyard assignment without owning authority"
 	)
+	var dock_02_surface := module.find_child("DockSlab02", true, false) as StaticBody3D
+	_check(
+		dock_02_surface != null
+		and StringName(dock_02_surface.get_meta("surface_role", &"")) == &"broad-assigned-slab",
+		"dock 02's live walkable-surface role agrees with its Halyard assignment"
+	)
 	_check(module.get_dock_roster().size() == 3, "combined roster preserves all three physical dock landmarks")
 	var authority := module.get_authority_contract()
 	_check(int(authority.ship_berth_count) == 0 and int(authority.landing_or_interaction_area_count) == 0, "module owns no ShipBerth, landing, boarding, or interaction area")
@@ -241,11 +247,22 @@ func _test_performance_contract(module: FleetDockComb) -> void:
 ## this turns red while every count above stays green.
 func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
 	var roster := module.get_component_roster()
+	# `deployed_service_boom_count` was 1 and is now 2, re-frozen in the open: the
+	# Halyard berth pass put a 28 m crew transport on arm 02 and the module already
+	# counts that arm as an external assignment, but the hardware kept testing the
+	# slab index instead of the dock's status and so stayed stowed and blanked under
+	# a berthed craft. Both assigned arms run their booms out; dock 03 is still
+	# genuinely empty and still stowed, which is what keeps this an exact roster
+	# rather than "all three".
 	_check(
 		int(roster.dock_service_mast_count) == 3
 		and int(roster.dock_mooring_cleat_count) == 6
-		and int(roster.deployed_service_boom_count) == 1,
-		"every arm carries a service mast and two mooring cleats, and only the assigned arm is run out"
+		and int(roster.deployed_service_boom_count) == 2,
+		"every arm carries a service mast and two mooring cleats, and exactly the two assigned arms are run out"
+	)
+	_check(
+		int(roster.deployed_service_boom_count) == int(roster.assigned_dock_count),
+		"the number of arms run out is the number of arms with a craft assigned to them"
 	)
 
 	var service := module.find_child("DockArmService", true, false) as Node3D

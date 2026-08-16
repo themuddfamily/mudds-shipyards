@@ -13,6 +13,7 @@ func _run() -> void:
 	_test_project_layer_mapping()
 	_test_unique_layer_bits()
 	_test_actor_collision_matrix()
+	_test_ground_vehicle_contract()
 	_test_interaction_contract()
 	_test_weapon_query_contract()
 	_test_mask_composition()
@@ -107,6 +108,59 @@ func _test_actor_collision_matrix() -> void:
 	)
 
 
+## A deck vehicle is scenery that moves. Only its mask was wrong in the shipped
+## build; its World layer is the old prop's correct, observable scenery channel.
+##
+## The mask was `WORLD` alone, which is why a playtester drove the tow tractor
+## through a parked hull: craft bodies are on `SHIP`. The layer must nevertheless
+## stay `WORLD`: player collision, camera obstruction, hitscan occlusion and AI
+## avoidance all intentionally see World scenery. Physics bits do not confer
+## berth, lease, landing, fleet or damage authority; the tow-tractor suite checks
+## those separate type, definition, registry-facing and method boundaries.
+func _test_ground_vehicle_contract() -> void:
+	_check(
+		Layers.GROUND_VEHICLE_BODY_LAYER == Layers.WORLD,
+		"a ground vehicle occupies exactly the World layer, as the static prop it replaced did"
+	)
+	_check(
+		(Layers.GROUND_VEHICLE_BODY_LAYER & Layers.SHIP) == 0
+		and (Layers.GROUND_VEHICLE_BODY_LAYER & Layers.TARGET) == 0
+		and (Layers.GROUND_VEHICLE_BODY_LAYER & Layers.INTERACTABLE) == 0,
+		"a ground vehicle advertises no craft, hurtbox, or interaction query channel"
+	)
+	_check(
+		(Layers.GROUND_VEHICLE_BODY_MASK & Layers.WORLD) != 0,
+		"a ground vehicle collides with station geometry"
+	)
+	_check(
+		(Layers.GROUND_VEHICLE_BODY_MASK & Layers.SHIP) != 0,
+		"a ground vehicle collides with parked and flying craft hulls instead of passing through them"
+	)
+	_check(
+		(Layers.GROUND_VEHICLE_BODY_MASK & Layers.PLAYER) == 0,
+		"a ground vehicle never solves against a walking player; the player's own mask does that"
+	)
+	_check(
+		(Layers.PLAYER_BODY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0
+		and (Layers.SHIP_BODY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0,
+		"players and craft both still collide with a ground vehicle through its World bit"
+	)
+	_check(
+		(Layers.GROUND_VEHICLE_BODY_MASK & Layers.QUERY_ONLY_LAYERS) == 0
+		and (Layers.GROUND_VEHICLE_BODY_MASK & Layers.PROJECTILE) == 0,
+		"a ground vehicle solves against solid bodies only, never prompt areas or projectiles"
+	)
+	_check(
+		(Layers.HITSCAN_QUERY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0,
+		"hitscan rays still use a ground vehicle as World occlusion without making it damageable"
+	)
+	_check(
+		(Layers.CAMERA_OBSTRUCTION_QUERY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0
+		and (Layers.AI_AVOIDANCE_QUERY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0,
+		"camera and AI obstruction queries still observe the vehicle through its World bit"
+	)
+
+
 func _test_interaction_contract() -> void:
 	_check(
 		Layers.INTERACTABLE_AREA_LAYER == Layers.INTERACTABLE
@@ -179,6 +233,7 @@ func _test_mask_composition() -> void:
 		Layers.WORLD_BODY_MASK,
 		Layers.PLAYER_BODY_MASK,
 		Layers.SHIP_BODY_MASK,
+		Layers.GROUND_VEHICLE_BODY_MASK,
 		Layers.INTERACTABLE_AREA_MASK,
 		Layers.DAMAGEABLE_TARGET_AREA_MASK,
 		Layers.PROJECTILE_BODY_MASK,

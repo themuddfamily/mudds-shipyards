@@ -78,7 +78,8 @@ func _run() -> void:
 	)
 	var berth_occupants: Dictionary = {}
 	for berth_id in [
-		&"central_berth", &"arrow_recon_berth", &"jovian_freight_berth", &"zenith_fleet_dock_berth"
+		&"central_berth", &"arrow_recon_berth", &"jovian_freight_berth",
+		&"zenith_fleet_dock_berth", &"halyard_fleet_dock_berth"
 	]:
 		var berth := world.get_berth_node(berth_id)
 		_check(berth != null and berth.get_occupant() != tractor, "%s is not leased to the tractor" % berth_id)

@@ -1,11 +1,19 @@
 class_name StationOperationsActivity
 extends Node3D
 
-## Reusable, presentation-only station operations vignette.
+## Reusable station-operations presentation vignette.
 ##
 ## This component supplies visible maintenance motion without owning gameplay,
-## navigation, docking, or collision. Its deterministic clock can be advanced
+## navigation, docking, or collision. Profiles may declare solid-looking static
+## volumes for an owning world to realise beside the component, but the activity
+## subtree itself remains collision-free. Its deterministic clock can be advanced
 ## manually for captures, tests, replays, and future network presentation.
+
+## Emitted whenever the component's enabled/tree state or local transform changes.
+## An owning world uses this to keep its sibling collision body visible in physics
+## exactly when the presentation it represents exists, without moving collision
+## authority into this component.
+signal solid_volume_state_changed(active: bool, activity_global_transform: Transform3D)
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"station-operations-activity"
@@ -334,6 +342,7 @@ func _enter_tree() -> void:
 	# `_ready()` only runs on the first tree entry. Restore the component's
 	# desired process state when an owning world removes and re-adds this child.
 	if _built:
+		set_notify_transform(true)
 		_refresh_lifecycle()
 
 
@@ -342,6 +351,7 @@ func _ready() -> void:
 	if _built:
 		return
 	_built = true
+	set_notify_transform(true)
 	_built_profile = activity_profile
 	_built_starts_enabled = starts_enabled
 	_built_starts_paused = starts_paused
@@ -382,7 +392,20 @@ func _process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	# The owning world's solid body is a sibling, so it does not leave the tree
+	# when this component alone is detached. Publish the absence before exit to
+	# prevent an invisible obstacle until the component is re-added.
+	solid_volume_state_changed.emit(false, global_transform)
 	set_process(false)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED and _built and is_inside_tree():
+		# Production mounts are static, but editor/test relocation must not leave a
+		# world-owned body behind at the old pose.
+		solid_volume_state_changed.emit(
+			_activity_enabled and is_inside_tree(), global_transform
+		)
 
 
 func get_component_id() -> StringName:
@@ -451,13 +474,15 @@ func get_mount_footprint_count() -> int:
 
 
 ## The origin is the centre of a level deck mount. Local +Y is up and local
-## -Z faces the serviced berth or traffic lane. No space in this envelope is
-## physically blocked because every generated child is presentation-only.
+## -Z faces the serviced berth or traffic lane. The generated subtree owns no
+## physics; an owning world may realise the exact static volumes declared by
+## [method get_solid_volume_contract] as sibling collision.
 func get_integration_contract() -> Dictionary:
 	var local_min := _get_profile_local_min()
 	var local_max := _get_profile_local_max()
 	var service_zone_center := _get_profile_service_zone_center()
 	var mount_type := _get_profile_mount_type()
+	var declared_solid_volume_count := get_solid_volume_contract().size()
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -474,7 +499,16 @@ func get_integration_contract() -> Dictionary:
 		"service_zone_half_extents": _get_profile_service_zone_half_extents(),
 		"up_axis_local": Vector3.UP,
 		"service_facing_axis_local": Vector3.FORWARD,
-		"collision_policy": &"presentation_only_nonblocking",
+		"collision_policy": (
+			&"world_owned_declared_solids_presentation_nonblocking"
+			if declared_solid_volume_count > 0
+			else &"presentation_only_nonblocking"
+		),
+		"declared_solid_volume_count": declared_solid_volume_count,
+		"owns_collision": false,
+		"intentionally_nonblocking_static_families": PackedStringArray([
+			"safety_beacon_sacrificial_route_marker",
+		]),
 		"requires_level_floor": mount_type == &"level_deck" or mount_type == &"deck_edge",
 		"required_floor_contact_depth": 0.0,
 		"recommended_instance_spacing": 12.0,
@@ -484,21 +518,37 @@ func get_integration_contract() -> Dictionary:
 	}
 
 
-## The parts of this component a player is stopped by, as local boxes.
+## The static parts of this component an owning world makes solid.
 ##
 ## This component never builds collision itself and that has not changed: its
 ## audit still requires `collision_nodes == 0`, because a presentation rail that
 ## owned bodies could quietly acquire gameplay authority. What it can honestly do
 ## is *declare* which of its drawn volumes are solid-looking, so the world that
-## places it can build matching World-layer collision beside it. Each entry is
-## `{name, position, size}` in this component's local space and is copied
-## verbatim from the drawn mesh's own position and size, so a collider built from
-## it is the drawn box and not an approximation of it.
+## places it can build matching World-layer collision beside it. Every entry
+## carries `{name, position, size, basis}` in this component's local space;
+## `basis` defaults to identity.
+## Box stock defaults to `shape_kind=box`; cylindrical fixed plant declares
+## `shape_kind=cylinder`, `radius`, and `height`. Position and dimensions are
+## copied from the drawn primitive. Boxes therefore match the drawn box exactly;
+## cylinders preserve the visual's axis, radius, height and round footprint while
+## deliberately omitting only its cosmetic rim chamfer.
 ##
 ## Deliberately excluded, and why:
+##   * all 0.42 m-high safety beacons. They are intentionally nonphysical,
+##     sacrificial route-marker trim — a gameplay abstraction that avoids forty
+##     wheel-height snags; no walking step-up or simulated yielding is claimed;
 ##   * the rail beams and ties, at 0.23 m and 0.14 m — a player steps over a rail,
 ##     and a knee-high invisible wall along a walkway would be the worse defect;
 ##   * the pallet decks, at 0.18 m — the same, a kerb rather than an obstacle;
+##   * the gantry foot pads, at 0.22 m. Those were tried as solid volumes by the
+##     tow-tractor pass and reverted: the lattice's mount-support probes, which
+##     drop a ray from 0.25 m to prove each gantry foot is seated on a *named*
+##     deck, began reporting the pad instead of `CentralJunction` and
+##     `ConnectionDeckA`, and the freight berth's exact seam roster gained four
+##     contacts. Both audits were right — a solid 0.22 m plate lying on a deck is a
+##     new surface bolted onto that deck. The column stands in the middle of the
+##     same footprint and stops a vehicle 0.25 m earlier than the pad edge would,
+##     which is the whole of what that costs;
 ##   * every mover. The sled and the hoist are closed-form functions of a clock
 ##     with no physics behind them; giving them colliders would make a body that
 ##     teleports through the player each frame. They stay nonblocking exactly as
@@ -513,7 +563,71 @@ func get_integration_contract() -> Dictionary:
 ## nothing drawn at it — the exact defect the sweep exists to catch.
 func get_solid_volume_contract() -> Array[Dictionary]:
 	var volumes: Array[Dictionary] = []
+	# The maintenance gantry's four columns. Added by the tow-tractor obstruction
+	# pass, from a playtest report: "if I drive into a spaceship I just clip
+	# through it... the same with certain poles". These are the poles.
+	# `CentralTowServiceActivity` is a `FULL` vignette mounted four metres from the
+	# tractor's parking spot, and each column is 0.42 x 5.5 x 0.5 of drawn steel
+	# standing on the deck with nothing at all behind it.
+	if _profile_has_gantry():
+		for x_side in [-1.0, 1.0]:
+			for z_side in [-1.0, 1.0]:
+				volumes.append({
+					"name": "Column",
+					"position": Vector3(float(x_side) * 4.3, 2.86, float(z_side) * 2.72),
+					"size": Vector3(0.42, 5.5, 0.5),
+				})
+	# The service arm's fixed pedestal: 0.71 m of plant the whole arm turns on, and
+	# the only part of that assembly that does not move. The sizes are the drawn
+	# cylinders' own bounding boxes — the kit's chamfer shrinks the cap radius and
+	# the lateral height but never the outer radius or the overall height, so
+	# `get_aabb()` is exactly 2r x h x 2r. The offset is the arm base's own, which
+	# the `FULL` profile shifts and the standalone profile does not.
+	if _profile_has_service_arm():
+		var arm_base := (
+			Vector3(3.72, 0.0, -2.05)
+			if get_activity_profile() == ActivityProfile.FULL
+			else Vector3.ZERO
+		)
+		volumes.append_array([
+			{
+				"name": "BasePlate",
+				"position": arm_base + Vector3(0.0, 0.16, 0.0),
+				"size": Vector3(1.3, 0.32, 1.3),
+				"shape_kind": &"cylinder",
+				"radius": 0.65,
+				"height": 0.32,
+			},
+			{
+				"name": "RotaryBase",
+				"position": arm_base + Vector3(0.0, 0.48, 0.0),
+				"size": Vector3(0.86, 0.46, 0.86),
+				"shape_kind": &"cylinder",
+				"radius": 0.43,
+				"height": 0.46,
+			},
+		])
 	match get_activity_profile():
+		ActivityProfile.CREW_WORKPOST:
+			# The Aft stair delivers the 2.3 m-wide production tractor directly
+			# into this fixed work post. Preserve the exact static gross shapes and
+			# rotations; dependent trim inherits its parent's obstruction, while the
+			# animated carousel and weld jig remain deliberately nonblocking.
+			var drum_basis := Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0))
+			volumes.append_array([
+				{"name": "BenchTop", "position": Vector3(-0.9, 0.92, 0.55), "size": Vector3(2.6, 0.12, 0.9)},
+				{"name": "BenchLeg", "position": Vector3(-2.05, 0.43, 0.23), "size": Vector3(0.12, 0.86, 0.12)},
+				{"name": "BenchLeg", "position": Vector3(-2.05, 0.43, 0.87), "size": Vector3(0.12, 0.86, 0.12)},
+				{"name": "BenchLeg", "position": Vector3(0.25, 0.43, 0.23), "size": Vector3(0.12, 0.86, 0.12)},
+				{"name": "BenchLeg", "position": Vector3(0.25, 0.43, 0.87), "size": Vector3(0.12, 0.86, 0.12)},
+				{"name": "ToolWall", "position": Vector3(-0.9, 1.72, 1.0), "size": Vector3(2.5, 1.46, 0.08)},
+				{"name": "CableDrum", "position": Vector3(1.95, 0.52, 0.7), "size": Vector3(0.84, 0.5, 0.84), "shape_kind": &"cylinder", "radius": 0.42, "height": 0.5, "basis": drum_basis},
+				{"name": "DrumFlange", "position": Vector3(1.95, 0.52, 0.42), "size": Vector3(1.0, 0.06, 1.0), "shape_kind": &"cylinder", "radius": 0.5, "height": 0.06, "basis": drum_basis},
+				{"name": "DrumFlange", "position": Vector3(1.95, 0.52, 0.98), "size": Vector3(1.0, 0.06, 1.0), "shape_kind": &"cylinder", "radius": 0.5, "height": 0.06, "basis": drum_basis},
+				{"name": "SupplyCrate", "position": Vector3(2.15, 0.34, -0.55), "size": Vector3(1.0, 0.68, 0.9)},
+				{"name": "SupplyCrateTop", "position": Vector3(2.15, 0.92, -0.55), "size": Vector3(0.85, 0.48, 0.8)},
+				{"name": "JigPost", "position": Vector3(-2.0, 0.775, -0.75), "size": Vector3(0.32, 1.55, 0.32), "shape_kind": &"cylinder", "radius": 0.16, "height": 1.55},
+			])
 		ActivityProfile.CARGO_LINE:
 			volumes.append_array([
 				{"name": "CrateLower", "position": Vector3(-3.4, 0.55, 1.85), "size": Vector3(1.05, 0.74, 1.0)},
@@ -1720,6 +1834,11 @@ func _refresh_lifecycle() -> void:
 	if _presentation_root != null:
 		_presentation_root.visible = _activity_enabled
 	set_process(_activity_enabled and not _activity_paused)
+	# Pre-tree setters are valid configuration and have no world-owned sibling to
+	# notify yet. Reading `global_transform` there emits an engine diagnostic; the
+	# explicit builder sync and `_enter_tree()` publish once a world frame exists.
+	if is_inside_tree():
+		solid_volume_state_changed.emit(_activity_enabled, global_transform)
 
 
 func _create_materials() -> void:
@@ -2236,6 +2355,7 @@ func _build_safety_beacons() -> void:
 		var beacon := Node3D.new()
 		beacon.name = "SafetyBeacon%02d" % (index + 1)
 		beacon.position = positions[index]
+		beacon.set_meta("collision_policy", &"sacrificial_nonblocking_route_marker")
 		_presentation_root.add_child(beacon)
 		_cylinder(beacon, "Base", Vector3.ZERO, 0.24, 0.18, _materials["graphite"])
 		var lens := _cylinder(beacon, "Lens", Vector3(0.0, 0.2, 0.0), 0.15, 0.24, _materials["amber_dim"])
