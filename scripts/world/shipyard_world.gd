@@ -343,8 +343,21 @@ const CENTRAL_HERO_EVIDENCE_STATUS: StringName = &"creator_roster_supported_mode
 const OPERATIONAL_LATTICE_EVIDENCE_STATUS: StringName = &"modern_interpretation"
 ## Re-frozen from 4 by the station-life pass: the four original fixed-rail roles
 ## plus one cargo transfer line, one crew work post, one skywatch post and one
-## wayfinding pylon. Every one of the eight remains presentation-only.
-const EXPECTED_STATION_ACTIVITY_COUNT := 8
+## wayfinding pylon.
+##
+## Re-frozen again from 8 by the long-cargo pass, which added two 21.6 m transfer
+## runs to the yard — one down the port branch and one down the starboard branch.
+## The roster is no longer one placement per profile and is not meant to be; the
+## exact per-profile counts live in
+## `StationOperationsActivity.RECOMMENDED_PRODUCTION_ROSTER_PROFILE_COUNTS`, which
+## keeps the equality exact rather than widening it.
+##
+## All ten activity subtrees remain presentation-only and collision-free. The
+## solid parts of the three cargo lines — crate stacks, gantry posts, rail stops,
+## control pedestals — are given matching World-layer collision by
+## `_build_station_activity_collision()` in a sibling group, because a 2.9 m post
+## a player walks through is the same defect as a floating one.
+const EXPECTED_STATION_ACTIVITY_COUNT := 10
 const EXPECTED_STATION_AMBIENCE_COUNT := 4
 const EXPECTED_STATION_DRESSING_COUNT := 4
 const STATION_ACTIVITY_SPECS := {
@@ -356,7 +369,27 @@ const STATION_ACTIVITY_SPECS := {
 	# already proved walkable or roofed, keeps at least 12 m from every other
 	# activity root, and clears every berth landing volume; none of them adds
 	# collision, so no deliberate void is filled and no deck is widened.
-	&"CentralCargoTransferLine": {"path": NodePath("OperationalLattice/Activities/CentralCargoTransferLine"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(-7.0, 0.0, 18.0)), "profile": &"cargo_line", "seed": 5507},
+	# Re-sited by the long-cargo pass, and this is the "open the space up" half of
+	# that request rather than a redesign. The line used to run along world Z with
+	# its far end buried in `JunctionPortalPost` — a solid 1.1 x 1.2 m gateway leg
+	# standing from y = 0 to 6.5 inside the published envelope, with `RailBeam` and
+	# `RailStop` passing straight through it. Nothing caught that: the roster audit
+	# is a budget count, the only spatial test is against berth landing volumes,
+	# and the four mount-foot raycasts straddled the leg without touching it. The
+	# line now runs along world X across the open middle of the same deck: 1.45 m
+	# clear of the portal leg, 0.44 m clear of the port dock mast, 2.45 m from the
+	# deck's +Z edge, and 4.25 m from the player spawn instead of 2.15 m. It is
+	# still the first thing in front of you when you turn around at spawn, and the
+	# whole 8.6 m run now reads broadside instead of receding behind a column.
+	&"CentralCargoTransferLine": {"path": NodePath("OperationalLattice/Activities/CentralCargoTransferLine"), "transform": Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.0, 17.9)), "profile": &"cargo_line", "seed": 5507},
+	# The two long runs. Each works the full length of a branch arm, moving
+	# containers between an outer berth and the hub, and each stands between the
+	# branch guard rails leaving a 2.8 m walking lane on the -Z side. Verified
+	# against the built world rather than by reading coordinates: zero overlaps
+	# with any station mesh, every envelope corner supported by deck, and 0.70 m
+	# and 7.90 m of clearance from the nearest berth landing volume.
+	&"PortBranchCargoLine": {"path": NodePath("OperationalLattice/Activities/PortBranchCargoLine"), "transform": Transform3D(Basis.IDENTITY, Vector3(-22.0, 0.0, 16.75)), "profile": &"cargo_line_long", "seed": 9931},
+	&"StarboardBranchCargoLine": {"path": NodePath("OperationalLattice/Activities/StarboardBranchCargoLine"), "transform": Transform3D(Basis.IDENTITY, Vector3(23.3, 0.0, 16.75)), "profile": &"cargo_line_long", "seed": 10739},
 	&"AftCrewWorkPost": {"path": NodePath("OperationalLattice/Activities/AftCrewWorkPost"), "transform": Transform3D(Basis.IDENTITY, Vector3(-7.0, 4.2, 65.0)), "profile": &"crew_workpost", "seed": 6607},
 	&"HabitatSkywatchPost": {"path": NodePath("OperationalLattice/Activities/HabitatSkywatchPost"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(73.0, 5.08, 19.0)), "profile": &"observatory", "seed": 7703},
 	&"FreightApproachSignage": {"path": NodePath("OperationalLattice/Activities/FreightApproachSignage"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-41.0, 6.18, 29.0)), "profile": &"signage_pylon", "seed": 8821},
@@ -713,6 +746,12 @@ func _ready() -> void:
 	# and indexed together with the rest of the lattice.
 	_initialize_station_route_registry()
 	_build_station_service_agents()
+	# Deliberately last of the geometry passes. Where two station decks meet, two
+	# coincident World colliders can both answer a downward ray, and which one
+	# wins is broad-phase registration order rather than anything meaningful.
+	# Registering these bodies after every deck exists leaves that order — and so
+	# every existing mount-foot support audit — exactly as it was.
+	_build_station_activity_collision()
 	_index_operational_lattice_components()
 	_connect_operational_lattice_audio()
 	_apply_operational_dressing_quality()
@@ -1088,8 +1127,13 @@ func get_operational_lattice_audit_report() -> Dictionary:
 		):
 			errors.append("station activity %s diverged from its audited placement/profile/seed" % activity.name)
 	activity_profiles.sort()
+	# Still an exact multiset, not a range. The long cargo run appears twice
+	# because the yard is meant to have two of them; a third, or one, is an error
+	# exactly as a missing role is.
 	var expected_profiles := PackedStringArray([
 		"cargo_line",
+		"cargo_line_long",
+		"cargo_line_long",
 		"crew_workpost",
 		"drone_patrol",
 		"full",
@@ -1099,7 +1143,7 @@ func get_operational_lattice_audit_report() -> Dictionary:
 		"signage_pylon",
 	])
 	if activity_profiles != expected_profiles:
-		errors.append("station activity roster must contain each role-specific profile exactly once")
+		errors.append("station activity roster must contain exactly the audited profile multiset")
 	if activity_placements.size() != STATION_ACTIVITY_SPECS.size():
 		errors.append("station activity roster must contain each exact production name once")
 	var activity_roster := StationOperationsActivity.audit_production_roster(activity_nodes)
@@ -2053,10 +2097,24 @@ func _build_operational_lattice_components() -> void:
 	# Station life. Cargo movement beside the Central berth, a crew work post at
 	# the head of the Aft upper stair, an observation instrument on the Habitat
 	# common roof, and wayfinding at the Freight approach.
+	# Turned across the deck and moved clear of `JunctionPortalPost`; see the note
+	# on this entry in `STATION_ACTIVITY_SPECS`.
 	_add_station_activity(
 		activities, "CentralCargoTransferLine",
-		Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(-7.0, 0.0, 18.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.0, 17.9)),
 		StationOperationsActivity.ActivityProfile.CARGO_LINE, 5507
+	)
+	# Two 21.6 m transfer runs, one per branch arm. Different seeds so the two
+	# sleds and hoists are out of phase with each other and with the short line.
+	_add_station_activity(
+		activities, "PortBranchCargoLine",
+		Transform3D(Basis.IDENTITY, Vector3(-22.0, 0.0, 16.75)),
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG, 9931
+	)
+	_add_station_activity(
+		activities, "StarboardBranchCargoLine",
+		Transform3D(Basis.IDENTITY, Vector3(23.3, 0.0, 16.75)),
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG, 10739
 	)
 	_add_station_activity(
 		activities, "AftCrewWorkPost",
@@ -2083,6 +2141,54 @@ func _build_operational_lattice_components() -> void:
 	_add_station_dressing(dressings, "AftOperationsOuterFascia", Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(10.86, 4.6, 60.55)), 6.0, StationStructuralServiceDressing.StructuralProfile.LIGHT)
 	_add_station_dressing(dressings, "HabitatOuterServiceDressing", Transform3D(Basis.IDENTITY, Vector3(59.15, 4.45, 21.94)), 12.0, StationStructuralServiceDressing.StructuralProfile.STANDARD)
 	_add_station_dressing(dressings, "FreightRackServiceDressing", Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), 20.0, StationStructuralServiceDressing.StructuralProfile.LIGHT)
+
+
+## Gives the solid-looking parts of an activity matching World-layer collision.
+##
+## The activity component itself stays collision-free — its own audit still
+## requires `collision_nodes == 0`, so a presentation rail can never quietly grow
+## gameplay authority — and the bodies are built here instead, as a sibling group
+## under the lattice. What is built is not an approximation: every shape's size
+## and local position is copied verbatim from `get_solid_volume_contract()`,
+## which in turn copies them from the drawn mesh, so a collider is the drawn box
+## rather than a box near it.
+##
+## Only static structure is made solid. The movers stay nonblocking, because a
+## sled whose pose is a closed-form function of a clock has no physics behind it,
+## and a body that teleports through the player each frame is worse than one they
+## can walk through. And only geometry drawn by an individual `MeshInstance3D`
+## appears in the contract, so `tests/station_surface_playability_test.gd`'s
+## inverse sweep can find something drawn at every standable surface these add.
+func _build_station_activity_collision() -> void:
+	var lattice := get_node_or_null(^"OperationalLattice") as Node3D
+	var activities := get_node_or_null(^"OperationalLattice/Activities") as Node3D
+	if lattice == null or activities == null:
+		return
+	var collision_root := Node3D.new()
+	collision_root.name = "ActivityCollision"
+	lattice.add_child(collision_root)
+	for child in activities.get_children():
+		var activity := child as StationOperationsActivity
+		if activity == null:
+			continue
+		var volumes := activity.get_solid_volume_contract()
+		if volumes.is_empty():
+			continue
+		var body := StaticBody3D.new()
+		body.name = "%sSolids" % activity.name
+		body.collision_layer = WORLD_LAYER
+		body.collision_mask = 0
+		body.transform = activity.transform
+		collision_root.add_child(body)
+		for index in volumes.size():
+			var volume := volumes[index]
+			var shape := BoxShape3D.new()
+			shape.size = volume.size as Vector3
+			var collision := CollisionShape3D.new()
+			collision.name = "%s%02d" % [str(volume.name), index + 1]
+			collision.shape = shape
+			collision.position = volume.position as Vector3
+			body.add_child(collision)
 
 
 ## Creates one courier per declared connection slot from routes the navigation

@@ -55,6 +55,7 @@ func _run() -> void:
 		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: [0, 0, 0, 4, 1],
 		StationOperationsActivity.ActivityProfile.OBSERVATORY: [0, 0, 0, 4, 2],
 		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: [0, 0, 0, 4, 2],
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: [0, 0, 0, 4, 2],
 	}
 	## Movers and material-swapped lenses each station-life profile must build.
 	var expected_station_life := {
@@ -65,6 +66,7 @@ func _run() -> void:
 		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: [1, 5],
 		StationOperationsActivity.ActivityProfile.OBSERVATORY: [2, 1],
 		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: [2, 1],
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: [2, 2],
 	}
 	var expected_mounts := {
 		StationOperationsActivity.ActivityProfile.GANTRY: &"level_deck",
@@ -74,6 +76,18 @@ func _run() -> void:
 		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: &"level_deck",
 		StationOperationsActivity.ActivityProfile.OBSERVATORY: &"level_deck",
 		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: &"deck_edge",
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: &"level_deck",
+	}
+	## The exact published mount envelope of each specialised profile, in metres.
+	var expected_envelopes := {
+		StationOperationsActivity.ActivityProfile.GANTRY: Vector3(10.8, 7.25, 7.2),
+		StationOperationsActivity.ActivityProfile.SERVICE_ARM: Vector3(4.8, 5.45, 3.5),
+		StationOperationsActivity.ActivityProfile.DRONE_PATROL: Vector3(9.1, 2.4, 7.1),
+		StationOperationsActivity.ActivityProfile.CARGO_LINE: Vector3(9.7, 2.98, 5.3),
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: Vector3(3.6, 4.5, 3.0),
+		StationOperationsActivity.ActivityProfile.OBSERVATORY: Vector3(4.7, 3.75, 4.7),
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: Vector3(5.7, 2.6, 3.9),
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: Vector3(22.8, 3.0, 3.6),
 	}
 	for profile: int in [
 		StationOperationsActivity.ActivityProfile.GANTRY,
@@ -83,10 +97,14 @@ func _run() -> void:
 		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON,
 		StationOperationsActivity.ActivityProfile.OBSERVATORY,
 		StationOperationsActivity.ActivityProfile.CREW_WORKPOST,
+		# Twice, because the recommended roster carries two long runs and
+		# `audit_production_roster` holds each profile to an exact count.
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG,
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG,
 	]:
 		var profiled := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
 		profiled.activity_profile = profile
-		profiled.variation_seed = 40000 + profile
+		profiled.variation_seed = 40000 + profile + profile_instances.size()
 		root.add_child(profiled)
 		await process_frame
 		profile_instances.append(profiled)
@@ -112,10 +130,19 @@ func _run() -> void:
 			and int(equipment.station_life_lens_count) == int(expected_life[1]),
 			"%s profile builds exactly its declared station-life movers and lenses" % profiled.get_activity_profile_id()
 		)
+		# Re-frozen from "smaller than FULL" to an exact size per profile. The old
+		# rule was a proxy for "a specialised profile omits the assemblies it does
+		# not use", and it stopped being that the moment a profile was deliberately
+		# longer than the gantry: a 21.6 m transfer run is not a bloated cargo line,
+		# it is the thing that was asked for. An exact envelope per profile is
+		# stricter than the bound it replaces — it fails on growth *and* shrinkage,
+		# in any single axis, rather than only on a longer diagonal.
 		_check(
 			profile_integration.mount_type == expected_mounts[profile]
-			and (profile_integration.local_size as Vector3).length() < (integration.local_size as Vector3).length(),
-			"%s profile publishes its compact, role-specific mount envelope" % profiled.get_activity_profile_id()
+			and (profile_integration.local_size as Vector3).is_equal_approx(
+				expected_envelopes[profile] as Vector3
+			),
+			"%s profile publishes its exact role-specific mount envelope" % profiled.get_activity_profile_id()
 		)
 		_check(
 			bool((profile_integration.drone_motion_envelope as Dictionary).present) == (profile == StationOperationsActivity.ActivityProfile.DRONE_PATROL),
@@ -143,13 +170,26 @@ func _run() -> void:
 
 	var roster_audit := StationOperationsActivity.audit_production_roster(profile_instances)
 	print("STATION_OPERATIONS_PRODUCTION_ROSTER: ", roster_audit)
-	_check(bool(roster_audit.valid), "one of each profile satisfies the recommended production roster audit")
-	# Re-frozen from 4 roles / 180 meshes by the station-life pass. The roster is
-	# now the four original fixed-rail roles plus cargo_line, signage_pylon,
-	# observatory and crew_workpost, and its aggregate mesh budget went 180 -> 339
+	_check(bool(roster_audit.valid), "the audited profile multiset satisfies the recommended production roster audit")
+	# Re-frozen from 4 roles / 180 meshes by the station-life pass, 180 -> 339
 	# (79 + 48 + 19 + 32 + 47 + 33 + 33 + 48).
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) <= 339, "eight distinct production roles stay within the 339-mesh aggregate budget")
-	_check(int((roster_audit.counts as Dictionary).instance_count) == 8, "the recommended production roster is exactly eight role-specific placements")
+	#
+	# Re-frozen again, 339 -> 404, by the long-cargo pass: the roster went eight
+	# placements to ten, both additions `cargo_line_long`, and `cargo_line` itself
+	# went 47 -> 34 drawn meshes when its thirteen repeated ties, wheels, ribs and
+	# post bands became four instanced batches drawing the same thirteen copies of
+	# the same meshes at the same sizes and positions.
+	# 79 + 48 + 19 + 32 + 34 + 33 + 33 + 48 + 39 + 39 = 404.
+	#
+	# The instanced copies are audited separately and exactly, so the reduction
+	# cannot hide geometry: 12 batches drawing 57 copies across the roster.
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) <= 404, "ten production placements stay within the 404-mesh aggregate budget")
+	_check(
+		int((roster_audit.counts as Dictionary).multimesh_batches) == 12
+		and int((roster_audit.counts as Dictionary).multimesh_instances) == 57,
+		"instanced structure is reported exactly rather than vanishing from the mesh count"
+	)
+	_check(int((roster_audit.counts as Dictionary).instance_count) == 10, "the recommended production roster is exactly ten placements")
 	var mutated_profile := profile_instances[1] as StationOperationsActivity
 	mutated_profile.activity_profile = StationOperationsActivity.ActivityProfile.FULL
 	_check(not bool(mutated_profile.get_audit_report().valid), "changing the exported profile after build is detected instead of misreporting geometry")

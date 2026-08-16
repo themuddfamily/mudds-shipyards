@@ -21,6 +21,7 @@ enum ActivityProfile {
 	SIGNAGE_PYLON,
 	OBSERVATORY,
 	CREW_WORKPOST,
+	CARGO_LINE_LONG,
 }
 
 const PROFILE_IDS := {
@@ -32,6 +33,7 @@ const PROFILE_IDS := {
 	ActivityProfile.SIGNAGE_PYLON: &"signage_pylon",
 	ActivityProfile.OBSERVATORY: &"observatory",
 	ActivityProfile.CREW_WORKPOST: &"crew_workpost",
+	ActivityProfile.CARGO_LINE_LONG: &"cargo_line_long",
 }
 
 ## Movers and material-swapped lenses each station-life profile is required to
@@ -43,6 +45,7 @@ const PROFILE_STATION_LIFE_COUNTS := {
 	ActivityProfile.SIGNAGE_PYLON: {"movers": 1, "lenses": 5},
 	ActivityProfile.OBSERVATORY: {"movers": 2, "lenses": 1},
 	ActivityProfile.CREW_WORKPOST: {"movers": 2, "lenses": 1},
+	ActivityProfile.CARGO_LINE_LONG: {"movers": 2, "lenses": 2},
 }
 
 const FOOTPRINT_MIN := Vector3(-5.4, 0.0, -4.5)
@@ -71,6 +74,26 @@ const RECOMMENDED_MAX_INSTANCES := 6
 ## variants for the same reason — and no original profile's node, mesh or
 ## animated-assembly count moved. The four new rows were measured against the
 ## live builds: 58/47, 43/33, 44/33 and 59/48 nodes/meshes.
+##
+## Re-frozen again by the long-cargo pass, which added two keys to every row
+## rather than to one. `multimesh_batches` is the number of `MultiMeshInstance3D`
+## nodes a profile builds and `multimesh_instances` the number of copies those
+## batches draw. They are 0 on the seven profiles whose geometry is untouched, and
+## the audit is stricter for carrying them: a batch is one draw submission but
+## many bodies, and only the pair says which.
+##
+## `CARGO_LINE` moved, and nothing about it is drawn differently. Its five rail
+## ties, four sled wheels, two container ribs and two hoist post bands were
+## already thirteen copies of four meshes at four sizes; they are now four
+## instanced batches of the same meshes at the same sizes, positions and
+## materials. `node_count` 58 -> 49, `mesh_instances` 47 -> 34,
+## `multimesh_batches` 0 -> 4, `multimesh_instances` 0 -> 13. That is nine fewer
+## draw submissions for a pixel-identical result, and it is what paid for most of
+## the second long line. Solid volumes were deliberately left un-instanced; see
+## `get_solid_volume_contract()`.
+##
+## The `CARGO_LINE_LONG` row was measured against its live build: 54/39, four
+## batches drawing 22 copies.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
 		"node_count": 96,
@@ -79,6 +102,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
@@ -88,6 +113,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.SERVICE_ARM: {
@@ -97,6 +124,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.DRONE_PATROL: {
@@ -106,15 +135,19 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE: {
-		"node_count": 58,
-		"mesh_instances": 47,
+		"node_count": 49,
+		"mesh_instances": 34,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 4,
+		"multimesh_instances": 13,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.SIGNAGE_PYLON: {
@@ -124,6 +157,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.OBSERVATORY: {
@@ -133,6 +168,8 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CREW_WORKPOST: {
@@ -142,26 +179,76 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
+		"animated_assemblies": 2,
+	},
+	ActivityProfile.CARGO_LINE_LONG: {
+		"node_count": 54,
+		"mesh_instances": 39,
+		"unique_materials": 17,
+		"lights": 0,
+		"particle_emitters": 0,
+		"collision_nodes": 0,
+		"multimesh_batches": 4,
+		"multimesh_instances": 22,
 		"animated_assemblies": 2,
 	},
 }
 
+## Re-frozen by the long-cargo pass, 8 -> 10 placements. Both additions are
+## `cargo_line_long`, because the request was for more of the same beat over a
+## longer run rather than for a new role.
+##
+##   `instance_count` 8 -> 10.
+##   `node_count` 432 -> 531: -9 as `cargo_line` instanced its repeats, +2 x 54.
+##   `mesh_instances` 339 -> 404: -13 from the same instancing, +2 x 39.
+##   `unique_materials` 136 -> 170: +2 x 17, because the material set is built
+##     whole per component regardless of profile.
+##   `animated_assemblies` 17 -> 21: +2 x 2, a sled and a hoist each.
+##   `multimesh_batches` 0 -> 12 and `multimesh_instances` 0 -> 57.
+##
+## In draw submissions that is 339 -> 461 for the whole roster: 38 for the short
+## line where it used to be 47, and 43 for each 21.6 m run where the same
+## geometry drawn one mesh at a time would have cost 61.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
-	"instance_count": 8,
-	"node_count": 432,
-	"mesh_instances": 339,
-	"unique_materials": 136,
+	"instance_count": 10,
+	"node_count": 531,
+	"mesh_instances": 404,
+	"unique_materials": 170,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"animated_assemblies": 17,
+	"multimesh_batches": 12,
+	"multimesh_instances": 57,
+	"animated_assemblies": 21,
+}
+
+## Exactly how many placements of each profile the recommended roster carries.
+##
+## This replaces a flat "exactly one of every profile" rule. That rule was a
+## proxy for role differentiation, and it stopped being the right proxy the
+## moment the roster deliberately carried the same beat twice: it would have read
+## a second cargo run as a defect rather than as the point. The equality is not
+## loosened into a range, only moved — each profile still has an exact required
+## count, and a live count that differs in either direction is still an error.
+const RECOMMENDED_PRODUCTION_ROSTER_PROFILE_COUNTS := {
+	&"full": 1,
+	&"gantry": 1,
+	&"service_arm": 1,
+	&"drone_patrol": 1,
+	&"cargo_line": 1,
+	&"signage_pylon": 1,
+	&"observatory": 1,
+	&"crew_workpost": 1,
+	&"cargo_line_long": 2,
 }
 
 const CONTENT_NOTE := (
 	"The remake brief supports richer station machinery, docking equipment, cargo, "
 	+ "animated equipment, landing lights, and ambient station activity. It does not "
 	+ "authenticate this gantry, articulated service arm, drones, beacon arrangement, "
-	+ "cargo transfer line, wayfinding pylon, skywatch post, crew work post, "
+	+ "cargo transfer lines of either length, wayfinding pylon, skywatch post, crew work post, "
 	+ "dimensions, motion, colours, or placement. Every visible detail in this reusable "
 	+ "component is an original modern interpretation and not recovered station geometry."
 )
@@ -175,7 +262,8 @@ const CONTENT_NOTE := (
 	"Cargo Line:4",
 	"Signage Pylon:5",
 	"Observatory:6",
-	"Crew Workpost:7"
+	"Crew Workpost:7",
+	"Cargo Line Long:8"
 ) var activity_profile: int = ActivityProfile.FULL
 @export var starts_enabled := true
 @export var starts_paused := false
@@ -218,6 +306,22 @@ var _built_node_instance_ids: Dictionary = {}
 var _built_static_node_transforms: Dictionary = {}
 var _built_node_visibility: Dictionary = {}
 var _built_mesh_contracts: Dictionary = {}
+## Instanced structure gets its own contract rather than riding on the mesh one.
+## A `MultiMeshInstance3D` is not a `MeshInstance3D`, so without this every batch
+## would silently escape the drift check, the envelope check and the mesh-count
+## equality that the drawn geometry has to satisfy.
+var _built_multimesh_contracts: Dictionary = {}
+## The authored copy of every batch's instance transforms, keyed by the
+## `MultiMeshInstance3D`'s instance id.
+##
+## The audit reads this rather than `MultiMesh.get_instance_transform()` because
+## the buffer lives on the rendering server: under `--headless`, where the whole
+## test matrix runs, `buffer` comes back empty and every instance reads as
+## identity. Auditing that would be worse than not auditing it — it would pass
+## vacuously in CI and disagree with what the player's build actually draws. What
+## is held here is the geometry this component authored, and the envelope check,
+## the drift check and the rendered captures all agree on it.
+var _multimesh_batch_transforms: Dictionary = {}
 var _built_material_contracts: Dictionary = {}
 ## Size-keyed chamfered box meshes. Equal-sized boxes deliberately share one
 ## `ArrayMesh`, so the extra edge geometry costs vertices once per distinct size
@@ -253,6 +357,8 @@ func _ready() -> void:
 	match _built_profile:
 		ActivityProfile.CARGO_LINE:
 			_build_cargo_transfer_line()
+		ActivityProfile.CARGO_LINE_LONG:
+			_build_long_cargo_transfer_line()
 		ActivityProfile.SIGNAGE_PYLON:
 			_build_wayfinding_pylon()
 		ActivityProfile.OBSERVATORY:
@@ -332,7 +438,7 @@ func get_mount_footprint_count() -> int:
 			return 1
 		ActivityProfile.DRONE_PATROL:
 			return 4
-		ActivityProfile.CARGO_LINE:
+		ActivityProfile.CARGO_LINE, ActivityProfile.CARGO_LINE_LONG:
 			return 4
 		ActivityProfile.SIGNAGE_PYLON:
 			return 1
@@ -378,6 +484,78 @@ func get_integration_contract() -> Dictionary:
 	}
 
 
+## The parts of this component a player is stopped by, as local boxes.
+##
+## This component never builds collision itself and that has not changed: its
+## audit still requires `collision_nodes == 0`, because a presentation rail that
+## owned bodies could quietly acquire gameplay authority. What it can honestly do
+## is *declare* which of its drawn volumes are solid-looking, so the world that
+## places it can build matching World-layer collision beside it. Each entry is
+## `{name, position, size}` in this component's local space and is copied
+## verbatim from the drawn mesh's own position and size, so a collider built from
+## it is the drawn box and not an approximation of it.
+##
+## Deliberately excluded, and why:
+##   * the rail beams and ties, at 0.23 m and 0.14 m — a player steps over a rail,
+##     and a knee-high invisible wall along a walkway would be the worse defect;
+##   * the pallet decks, at 0.18 m — the same, a kerb rather than an obstacle;
+##   * every mover. The sled and the hoist are closed-form functions of a clock
+##     with no physics behind them; giving them colliders would make a body that
+##     teleports through the player each frame. They stay nonblocking exactly as
+##     the patrol drones and the service couriers do.
+##
+## Every volume named here is drawn by an individual `MeshInstance3D` and never
+## by a `MultiMesh` batch, and that is a hard rule rather than a coincidence. The
+## station's collision-without-visible-geometry sweep builds its "is anything
+## drawn here" index by walking `MeshInstance3D` nodes, and a `MultiMesh` buffer
+## is not even readable under `--headless`, where that sweep runs. Instancing a
+## crate and then colliding it would therefore register as a solid surface with
+## nothing drawn at it — the exact defect the sweep exists to catch.
+func get_solid_volume_contract() -> Array[Dictionary]:
+	var volumes: Array[Dictionary] = []
+	match get_activity_profile():
+		ActivityProfile.CARGO_LINE:
+			volumes.append_array([
+				{"name": "CrateLower", "position": Vector3(-3.4, 0.55, 1.85), "size": Vector3(1.05, 0.74, 1.0)},
+				{"name": "CrateLowerAlt", "position": Vector3(-2.35, 0.55, 1.85), "size": Vector3(0.95, 0.74, 1.0)},
+				{"name": "CrateUpper", "position": Vector3(-2.9, 1.24, 1.85), "size": Vector3(1.5, 0.64, 1.05)},
+				{"name": "CrateOutbound", "position": Vector3(2.65, 0.52, -1.9), "size": Vector3(1.1, 0.68, 0.98)},
+				{"name": "CrateOutboundSmall", "position": Vector3(3.62, 0.44, -1.9), "size": Vector3(0.7, 0.52, 0.8)},
+				{"name": "HoistPostPort", "position": Vector3(0.0, 1.45, -1.55), "size": Vector3(0.26, 2.9, 0.3)},
+				{"name": "HoistPostStarboard", "position": Vector3(0.0, 1.45, 1.55), "size": Vector3(0.26, 2.9, 0.3)},
+				{"name": "RailStopPort", "position": Vector3(-4.34, 0.26, 0.0), "size": Vector3(0.24, 0.52, 1.7)},
+				{"name": "RailStopStarboard", "position": Vector3(4.34, 0.26, 0.0), "size": Vector3(0.24, 0.52, 1.7)},
+				{"name": "ControlPedestal", "position": Vector3(-4.15, 0.5, -1.7), "size": Vector3(0.44, 1.0, 0.44)},
+				{"name": "ControlHousing", "position": Vector3(-4.15, 1.08, -1.7), "size": Vector3(0.5, 0.3, 0.36)},
+			])
+		ActivityProfile.CARGO_LINE_LONG:
+			volumes.append_array([
+				{"name": "CrateInboundPort", "position": Vector3(-9.5, 0.54, 1.3), "size": Vector3(1.0, 0.72, 0.8)},
+				{"name": "CrateInboundStarboard", "position": Vector3(-7.9, 0.54, 1.3), "size": Vector3(1.0, 0.72, 0.8)},
+				{"name": "CrateInboundTop", "position": Vector3(-8.7, 1.19, 1.3), "size": Vector3(1.5, 0.6, 0.8)},
+				{"name": "CrateOutboundPort", "position": Vector3(7.5, 0.54, -1.3), "size": Vector3(0.9, 0.72, 0.8)},
+				{"name": "CrateOutboundStarboard", "position": Vector3(8.9, 0.54, -1.3), "size": Vector3(1.0, 0.72, 0.8)},
+				{"name": "CrateOutboundTop", "position": Vector3(8.2, 1.19, -1.3), "size": Vector3(1.3, 0.6, 0.8)},
+			])
+			for x_side in [-1.0, 1.0]:
+				for z_side in [-1.0, 1.0]:
+					volumes.append({
+						"name": "HoistPost",
+						"position": Vector3(x_side * 10.4, 1.45, z_side * 1.35),
+						"size": Vector3(0.26, 2.9, 0.3),
+					})
+				volumes.append({
+					"name": "RailStop",
+					"position": Vector3(x_side * 11.0, 0.26, 0.0),
+					"size": Vector3(0.24, 0.52, 1.7),
+				})
+			volumes.append_array([
+				{"name": "ControlPedestal", "position": Vector3(-6.0, 0.5, -1.15), "size": Vector3(0.44, 1.0, 0.44)},
+				{"name": "ControlHousing", "position": Vector3(-6.0, 1.08, -1.15), "size": Vector3(0.5, 0.3, 0.36)},
+			])
+	return volumes
+
+
 func get_evidence_metadata() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -403,6 +581,7 @@ func get_evidence_metadata() -> Dictionary:
 			"two autonomous service drones, their routes, lights, cargo pods, and timing",
 			"four warning beacons, visual cadence, colour, component footprint, and placement",
 			"cargo transfer rail, container sled, overhead hoist, crate stacks, and their timing",
+			"long transfer run, its full-length hoist gantry, travelling bridge, and instanced rail and crate stock",
 			"wayfinding pylon, sign board, bay plaque, notice rack, chevron chase, and identifier drum",
 			"skywatch post, optic tube, pan and elevation arcs, and instrument cabinet",
 			"crew work post, bench, tool wall, parts bins, hard hat, tool carousel, and weld jig",
@@ -577,18 +756,13 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": 0,
 	}
-	var profile_counts := {
-		&"full": 0,
-		&"gantry": 0,
-		&"service_arm": 0,
-		&"drone_patrol": 0,
-		&"cargo_line": 0,
-		&"signage_pylon": 0,
-		&"observatory": 0,
-		&"crew_workpost": 0,
-	}
+	var profile_counts := {}
+	for profile_id: StringName in RECOMMENDED_PRODUCTION_ROSTER_PROFILE_COUNTS:
+		profile_counts[profile_id] = 0
 	var errors := PackedStringArray()
 	for candidate in activities:
 		if not candidate is StationOperationsActivity:
@@ -614,8 +788,13 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		for key: String in activity_counts.keys():
 			counts[key] = int(counts.get(key, 0)) + int(activity_counts[key])
 	for profile_id: StringName in profile_counts.keys():
-		if int(profile_counts[profile_id]) != 1:
-			errors.append("recommended production roster requires exactly one '%s' profile" % profile_id)
+		var required := int(RECOMMENDED_PRODUCTION_ROSTER_PROFILE_COUNTS[profile_id])
+		if int(profile_counts[profile_id]) != required:
+			errors.append(
+				"recommended production roster requires exactly %d '%s' placement(s), found %d" % [
+					required, profile_id, profile_counts[profile_id],
+				]
+			)
 	for key: String in RECOMMENDED_PRODUCTION_ROSTER_BUDGET.keys():
 		if int(counts.get(key, 0)) > int(RECOMMENDED_PRODUCTION_ROSTER_BUDGET[key]):
 			errors.append("production roster %s exceeds budget (%d > %d)" % [key, counts.get(key, 0), RECOMMENDED_PRODUCTION_ROSTER_BUDGET[key]])
@@ -639,6 +818,12 @@ func get_performance_audit(instance_count: int = 1) -> Dictionary:
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
+		# Instanced structure is counted twice on purpose: `multimesh_batches` is
+		# what the renderer submits, `multimesh_instances` is what the player sees.
+		# Reporting only the first would let a batch grow without limit; reporting
+		# only the second would hide that it costs one draw.
+		"multimesh_batches": 0,
+		"multimesh_instances": 0,
 		"animated_assemblies": int(equipment.animated_assembly_count),
 	}
 	var material_ids := {}
@@ -911,6 +1096,7 @@ func _capture_built_presentation_contract() -> void:
 	_built_static_node_transforms.clear()
 	_built_node_visibility.clear()
 	_built_mesh_contracts.clear()
+	_built_multimesh_contracts.clear()
 	_built_material_contracts.clear()
 	var dynamic_node_ids := _dynamic_node_instance_ids()
 	for candidate in find_children("*", "", true, false):
@@ -920,7 +1106,35 @@ func _capture_built_presentation_contract() -> void:
 			_built_static_node_transforms[relative_path] = (candidate as Node3D).transform
 		if candidate is Node3D and candidate != _presentation_root:
 			_built_node_visibility[relative_path] = (candidate as Node3D).visible
-		if candidate is MeshInstance3D:
+		if candidate is MultiMeshInstance3D:
+			var batch := candidate as MultiMeshInstance3D
+			var instance_transforms := _batch_transforms(batch)
+			_built_multimesh_contracts[relative_path] = {
+				"instance_id": batch.get_instance_id(),
+				"transform": batch.transform,
+				"multimesh_instance_id": (
+					batch.multimesh.get_instance_id() if batch.multimesh != null else 0
+				),
+				"mesh_instance_id": (
+					batch.multimesh.mesh.get_instance_id()
+					if batch.multimesh != null and batch.multimesh.mesh != null else 0
+				),
+				"mesh_aabb": (
+					batch.multimesh.mesh.get_aabb()
+					if batch.multimesh != null and batch.multimesh.mesh != null else AABB()
+				),
+				"mesh_storage": _resource_storage_fingerprint(
+					batch.multimesh.mesh if batch.multimesh != null else null
+				),
+				"instance_transforms": instance_transforms,
+				"material_instance_id": (
+					batch.material_override.get_instance_id()
+					if batch.material_override != null else 0
+				),
+				"cast_shadow": batch.cast_shadow,
+				"layers": batch.layers,
+			}
+		elif candidate is MeshInstance3D:
 			var mesh_instance := candidate as MeshInstance3D
 			_built_mesh_contracts[relative_path] = {
 				"instance_id": mesh_instance.get_instance_id(),
@@ -1045,7 +1259,65 @@ func _built_mesh_contracts_are_live() -> bool:
 				!= int(contract.get("material_instance_id", 0))
 		):
 			return false
-	return _materials_match_build_contract() and _activity_pose_matches_clock()
+	return (
+		_built_multimesh_contracts_are_live()
+		and _materials_match_build_contract()
+		and _activity_pose_matches_clock()
+	)
+
+
+func _batch_transforms(batch: MultiMeshInstance3D) -> Array[Transform3D]:
+	var recorded: Variant = _multimesh_batch_transforms.get(batch.get_instance_id())
+	var result: Array[Transform3D] = []
+	if recorded is Array:
+		for value in recorded as Array:
+			result.append(value as Transform3D)
+	return result
+
+
+func _built_multimesh_contracts_are_live() -> bool:
+	var expected := int(_get_profile_performance_budget().get("multimesh_batches", 0))
+	if _built_multimesh_contracts.size() != expected:
+		return false
+	var owned_material_ids := _owned_material_instance_ids()
+	for relative_path_value in _built_multimesh_contracts:
+		var contract := _built_multimesh_contracts[relative_path_value] as Dictionary
+		var candidate := get_node_or_null(NodePath(str(relative_path_value)))
+		if not candidate is MultiMeshInstance3D:
+			return false
+		var batch := candidate as MultiMeshInstance3D
+		var recorded := contract.get("instance_transforms", []) as Array
+		if (
+			batch.get_instance_id() != int(contract.get("instance_id", 0))
+			or not batch.visible
+			or batch.multimesh == null
+			or batch.multimesh.get_instance_id() != int(contract.get("multimesh_instance_id", 0))
+			or batch.multimesh.mesh == null
+			or batch.multimesh.mesh.get_instance_id() != int(contract.get("mesh_instance_id", 0))
+			or not batch.multimesh.mesh.get_aabb().is_equal_approx(
+				contract.get("mesh_aabb", AABB()) as AABB
+			)
+			or _resource_storage_fingerprint(batch.multimesh.mesh)
+				!= (contract.get("mesh_storage", PackedStringArray()) as PackedStringArray)
+			or not batch.transform.is_equal_approx(
+				contract.get("transform", Transform3D.IDENTITY) as Transform3D
+			)
+			or batch.cast_shadow != int(contract.get("cast_shadow", -1))
+			or batch.layers != int(contract.get("layers", 0))
+			or batch.multimesh.instance_count != recorded.size()
+			or batch.material_override == null
+			or batch.material_override.get_instance_id()
+				!= int(contract.get("material_instance_id", 0))
+			or not owned_material_ids.has(batch.material_override.get_instance_id())
+		):
+			return false
+		var live := _batch_transforms(batch)
+		if live.size() != recorded.size():
+			return false
+		for index in recorded.size():
+			if not live[index].is_equal_approx(recorded[index] as Transform3D):
+				return false
+	return true
 
 
 func _dynamic_node_instance_ids() -> Dictionary:
@@ -1241,23 +1513,59 @@ func _all_live_meshes_fit_published_envelope() -> bool:
 		var relative_transform_value: Variant = _node_transform_relative_to_component(mesh_instance)
 		if not relative_transform_value is Transform3D:
 			return false
-		var relative_transform := relative_transform_value as Transform3D
-		var bounds := mesh_instance.get_aabb()
-		for corner_index in 8:
-			var corner := bounds.position + Vector3(
-				bounds.size.x if corner_index & 1 else 0.0,
-				bounds.size.y if corner_index & 2 else 0.0,
-				bounds.size.z if corner_index & 4 else 0.0
-			)
-			var point: Vector3 = relative_transform * corner
-			if (
-				point.x < local_min.x or point.x > local_max.x
-				or point.y < local_min.y or point.y > local_max.y
-				or point.z < local_min.z or point.z > local_max.z
-			):
-				return false
+		if not _bounds_fit(
+			relative_transform_value as Transform3D, mesh_instance.get_aabb(), local_min, local_max
+		):
+			return false
 		mesh_count += 1
-	return mesh_count == int(_get_profile_performance_budget().get("mesh_instances", -1))
+	# Instanced structure is held to the same envelope, per copy rather than per
+	# batch. A `MultiMeshInstance3D` node can sit inside the envelope while an
+	# instance transform puts a rail tie outside it, and only the per-copy check
+	# sees that.
+	var batch_count := 0
+	for candidate in find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			return false
+		var batch_transform_value: Variant = _node_transform_relative_to_component(batch)
+		if not batch_transform_value is Transform3D:
+			return false
+		var batch_transform := batch_transform_value as Transform3D
+		var bounds := batch.multimesh.mesh.get_aabb()
+		var instance_transforms := _batch_transforms(batch)
+		if instance_transforms.size() != batch.multimesh.instance_count:
+			return false
+		for instance_transform in instance_transforms:
+			if not _bounds_fit(batch_transform * instance_transform, bounds, local_min, local_max):
+				return false
+		batch_count += 1
+	var budget := _get_profile_performance_budget()
+	return (
+		mesh_count == int(budget.get("mesh_instances", -1))
+		and batch_count == int(budget.get("multimesh_batches", -1))
+	)
+
+
+func _bounds_fit(
+		relative_transform: Transform3D,
+		bounds: AABB,
+		local_min: Vector3,
+		local_max: Vector3
+	) -> bool:
+	for corner_index in 8:
+		var corner := bounds.position + Vector3(
+			bounds.size.x if corner_index & 1 else 0.0,
+			bounds.size.y if corner_index & 2 else 0.0,
+			bounds.size.z if corner_index & 4 else 0.0
+		)
+		var point: Vector3 = relative_transform * corner
+		if (
+			point.x < local_min.x or point.x > local_max.x
+			or point.y < local_min.y or point.y > local_max.y
+			or point.z < local_min.z or point.z > local_max.z
+		):
+			return false
+	return true
 
 
 func _node_transform_relative_to_component(node: Node3D) -> Variant:
@@ -1285,6 +1593,8 @@ func _get_profile_local_min() -> Vector3:
 			return Vector3(-4.55, 0.0, -3.55)
 		ActivityProfile.CARGO_LINE:
 			return Vector3(-4.85, 0.0, -2.65)
+		ActivityProfile.CARGO_LINE_LONG:
+			return Vector3(-11.4, 0.0, -1.8)
 		ActivityProfile.SIGNAGE_PYLON:
 			return Vector3(-1.8, 0.0, -1.5)
 		ActivityProfile.OBSERVATORY:
@@ -1305,6 +1615,8 @@ func _get_profile_local_max() -> Vector3:
 			return Vector3(4.55, 2.4, 3.55)
 		ActivityProfile.CARGO_LINE:
 			return Vector3(4.85, 2.98, 2.65)
+		ActivityProfile.CARGO_LINE_LONG:
+			return Vector3(11.4, 3.0, 1.8)
 		ActivityProfile.SIGNAGE_PYLON:
 			return Vector3(1.8, 4.5, 1.5)
 		ActivityProfile.OBSERVATORY:
@@ -1321,7 +1633,7 @@ func _get_profile_service_zone_center() -> Vector3:
 			return Vector3(0.15, 2.3, 0.0)
 		ActivityProfile.DRONE_PATROL:
 			return Vector3(0.0, 1.35, 0.0)
-		ActivityProfile.CARGO_LINE:
+		ActivityProfile.CARGO_LINE, ActivityProfile.CARGO_LINE_LONG:
 			return Vector3(0.0, 1.5, 0.0)
 		ActivityProfile.SIGNAGE_PYLON:
 			return Vector3(0.0, 2.2, 0.0)
@@ -1343,6 +1655,11 @@ func _get_profile_service_zone_half_extents() -> Vector3:
 			return Vector3(5.0, 1.6, 4.2)
 		ActivityProfile.CARGO_LINE:
 			return Vector3(5.1, 1.8, 3.0)
+		# Deliberately narrower in Z relative to its length than the short line's:
+		# both live runs stand between the branch guard rails, and a wider service
+		# claim would overlap a rail the rendered geometry clears by 0.36 m.
+		ActivityProfile.CARGO_LINE_LONG:
+			return Vector3(11.7, 1.8, 1.95)
 		ActivityProfile.SIGNAGE_PYLON:
 			return Vector3(2.0, 2.5, 1.8)
 		ActivityProfile.OBSERVATORY:
@@ -1371,6 +1688,8 @@ func _get_profile_mount_description() -> String:
 			return "Origin is the patrol-zone mount plane; use upright on deck or rotate 180 degrees around local X for an inverted ceiling anchor."
 		ActivityProfile.CARGO_LINE:
 			return "Origin is the centre of the transfer rail on a level deck; the rail runs along local X and local -Z faces the handling apron."
+		ActivityProfile.CARGO_LINE_LONG:
+			return "Origin is the centre of a 21.6 m transfer run on a level deck; the rail runs along local X under a full-length overhead hoist gantry, the inbound stack stands on local +Z and the outbound stack on local -Z, and the run needs 22.8 m of continuous level floor."
 		ActivityProfile.SIGNAGE_PYLON:
 			return "Origin is the pylon base plinth on a level deck; the lit board, plaque and chevron strip all face local +Z, so the pylon is mounted facing the approach."
 		ActivityProfile.OBSERVATORY:
@@ -1574,8 +1893,14 @@ func _build_cargo_transfer_line() -> void:
 
 	for z_side in [-1.0, 1.0]:
 		_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(8.6, 0.14, 0.28), _materials["frame_edge"])
+	# Instanced without moving anything. The five ties keep the same mesh, sizes,
+	# positions and material they were drawn with; what changes is that they are
+	# one draw submission instead of five. Only stock that is never given
+	# collision is instanced — see `get_solid_volume_contract()` for why.
+	var tie_transforms: Array[Transform3D] = []
 	for x in [-3.6, -1.8, 0.0, 1.8, 3.6]:
-		_box(line, "RailTie", Vector3(x, 0.07, 0.0), Vector3(0.5, 0.14, 1.9), _materials["graphite"])
+		tie_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.07, 0.0)))
+	_box_batch(line, "RailTies", Vector3(0.5, 0.14, 1.9), tie_transforms, _materials["graphite"])
 	for x_side in [-1.0, 1.0]:
 		_box(line, "RailStop", Vector3(x_side * 4.34, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"])
 
@@ -1589,9 +1914,11 @@ func _build_cargo_transfer_line() -> void:
 	_box(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), _materials["crate_alt"])
 	_box(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), _materials["crate"])
 
+	var band_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
 		_box(line, "HoistPost", Vector3(0.0, 1.45, z_side * 1.55), Vector3(0.26, 2.9, 0.3), _materials["frame"])
-		_box(line, "HoistPostBand", Vector3(0.0, 0.6, z_side * 1.55), Vector3(0.3, 0.22, 0.34), _materials["orange"])
+		band_transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.6, z_side * 1.55)))
+	_box_batch(line, "HoistPostBands", Vector3(0.3, 0.22, 0.34), band_transforms, _materials["orange"])
 	_box(line, "HoistBeam", Vector3(0.0, 2.78, 0.0), Vector3(0.3, 0.26, 3.4), _materials["frame_edge"])
 
 	_cylinder(line, "ControlPedestal", Vector3(-4.15, 0.5, -1.7), 0.22, 1.0, _materials["frame_edge"])
@@ -1601,12 +1928,19 @@ func _build_cargo_transfer_line() -> void:
 	var sled := _add_station_life_mover(line, "AnimatedCargoSled")
 	_box(sled, "SledDeck", Vector3.ZERO, Vector3(1.9, 0.2, 1.5), _materials["frame_edge"])
 	_box(sled, "SledSkirt", Vector3(0.0, -0.13, 0.0), Vector3(1.7, 0.1, 1.3), _materials["graphite"])
+	var wheel_transforms: Array[Transform3D] = []
 	for x_side in [-1.0, 1.0]:
 		for z_side in [-1.0, 1.0]:
-			_cylinder(sled, "SledWheel", Vector3(x_side * 0.72, -0.14, z_side * 0.62), 0.13, 0.1, _materials["rubber"], Vector3(90, 0, 0))
+			wheel_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+				Vector3(x_side * 0.72, -0.14, z_side * 0.62)
+			))
+	_cylinder_batch(sled, "SledWheels", 0.13, 0.1, wheel_transforms, _materials["rubber"])
 	_box(sled, "SledContainer", Vector3(0.0, 0.6, 0.0), Vector3(1.7, 1.0, 1.35), _materials["crate"])
+	var rib_transforms: Array[Transform3D] = []
 	for x in [-0.5, 0.5]:
-		_box(sled, "ContainerRib", Vector3(x, 0.6, 0.0), Vector3(0.08, 0.98, 1.37), _materials["crate_alt"])
+		rib_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.6, 0.0)))
+	_box_batch(sled, "ContainerRibs", Vector3(0.08, 0.98, 1.37), rib_transforms, _materials["crate_alt"])
 	_box(sled, "ContainerManifest", Vector3(0.0, 0.88, -0.69), Vector3(0.7, 0.22, 0.04), _materials["sign_lit"])
 	var strobe := _box(sled, "SledStrobe", Vector3(0.0, 1.15, 0.0), Vector3(0.3, 0.1, 0.3), _materials["amber_dim"])
 
@@ -1614,6 +1948,123 @@ func _build_cargo_transfer_line() -> void:
 	_box(hoist, "HoistCarriage", Vector3.ZERO, Vector3(0.62, 0.22, 0.7), _materials["ceramic"])
 	_cylinder(hoist, "HoistCable", Vector3(0.0, -0.45, 0.0), 0.035, 0.7, _materials["graphite"])
 	_box(hoist, "HoistHook", Vector3(0.0, -0.86, 0.0), Vector3(0.3, 0.24, 0.3), _materials["orange"])
+
+	_register_station_life_lens(strobe, "amber_dim", "amber_lit", 1.6, 0.3, 0.0)
+	_register_station_life_lens(readout, "green_dim", "green_lit", 2.4, 1.5, 0.7)
+
+
+## The same beat over a real distance: a 21.6 m transfer run with a container
+## sled that travels 19.2 m of it, a full-length overhead hoist gantry with a
+## bridge that tracks the whole rail, palletised stacks at both ends and a control
+## pedestal.
+##
+## Everything repeated is instanced. Twelve rail ties, four gantry posts, four
+## post bands, five crates, four alternate crates, four sled wheels and two
+## container ribs are 35 bodies drawn in 7 `MultiMeshInstance3D` batches, so the
+## whole run costs 36 draw submissions rather than 71. That is the difference
+## between two of these fitting the whole-scene draw ceiling and neither doing so;
+## see `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`.
+##
+## Every seat is deliberate and every one of them was checked in a render at four
+## points along the sled's travel, because the defects this family produced last
+## time — a hoist carriage leaving its own beam, a sled sinking through its rail —
+## were invisible at rest:
+##   * sled wheel treads meet the rail heads at y = 0.23, so the sled rides at
+##     y = 0.50 exactly as the short line's does;
+##   * the travelling bridge's top overlaps the hoist rail underside, so it can
+##     never separate from the rail it hangs on;
+##   * the hook's lowest point clears the sled container's roof by 0.13 m at
+##     every phase of both movers, so the two can cross without intersecting;
+##   * every crate rests on the pallet deck or on the crate below it.
+func _build_long_cargo_transfer_line() -> void:
+	var line := Node3D.new()
+	line.name = "LongCargoTransferLine"
+	_presentation_root.add_child(line)
+
+	for z_side in [-1.0, 1.0]:
+		_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(21.6, 0.14, 0.28), _materials["frame_edge"])
+	var tie_transforms: Array[Transform3D] = []
+	for index in 12:
+		tie_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(-9.9 + float(index) * 1.8, 0.07, 0.0))
+		)
+	_box_batch(line, "RailTies", Vector3(0.5, 0.14, 1.9), tie_transforms, _materials["graphite"])
+	for x_side in [-1.0, 1.0]:
+		_box(line, "RailStop", Vector3(x_side * 11.0, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"])
+
+	# Overhead gantry. The post heads reach y = 2.90 and the rail undersides sit
+	# at y = 2.76, so the rails bear on the posts rather than hanging beside them.
+	# The posts are drawn individually and not instanced, because they are solid
+	# and every solid volume has to be a `MeshInstance3D` the station's
+	# collision-without-geometry sweep can see.
+	#
+	# They stand at x = +/-10.4, outboard of both crate stacks. At the more
+	# natural-looking 9.6 a post ran straight down through the inbound stack; the
+	# clearance probe in `tools/cargo_line_travel_probe.gd` is what reports that.
+	var band_transforms: Array[Transform3D] = []
+	for x_side in [-1.0, 1.0]:
+		for z_side in [-1.0, 1.0]:
+			_box(
+				line,
+				"HoistPost",
+				Vector3(x_side * 10.4, 1.45, z_side * 1.35),
+				Vector3(0.26, 2.9, 0.3),
+				_materials["frame"]
+			)
+			band_transforms.append(
+				Transform3D(Basis.IDENTITY, Vector3(x_side * 10.4, 0.6, z_side * 1.35))
+			)
+	_box_batch(line, "HoistPostBands", Vector3(0.3, 0.22, 0.34), band_transforms, _materials["orange"])
+	for z_side in [-1.0, 1.0]:
+		_box(line, "HoistRail", Vector3(0.0, 2.86, z_side * 1.35), Vector3(21.2, 0.2, 0.26), _materials["frame_edge"])
+
+	# Inbound stack. Two crates on the pallet deck and one wide crate bridging
+	# both of them, so every box rests on the box or the deck below it. The stacks
+	# are 0.8 m deep and set at z = +/-1.30, which leaves the sled's 1.5 m body a
+	# 0.15 m lane past them; at 0.95 m deep the sled's container clipped the
+	# manifest plate by a centimetre on every pass.
+	_box(line, "PalletDeckInbound", Vector3(-8.6, 0.09, 1.3), Vector3(3.2, 0.18, 0.8), _materials["graphite"])
+	_box(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"])
+	_box(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate_alt"])
+	_box(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), _materials["crate"])
+	_box(line, "CrateManifest", Vector3(-8.7, 1.25, 0.88), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"])
+
+	_box(line, "PalletDeckOutbound", Vector3(8.2, 0.09, -1.3), Vector3(2.8, 0.18, 0.8), _materials["graphite"])
+	_box(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), _materials["crate_alt"])
+	_box(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"])
+	_box(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), _materials["crate_alt"])
+
+	# Mid-run, on the apron side. Every outboard position collided with something
+	# that has to be there: at x = -11.0 with the corner beacon, at x = -10.2 with
+	# the gantry post.
+	_cylinder(line, "ControlPedestal", Vector3(-6.0, 0.5, -1.15), 0.22, 1.0, _materials["frame_edge"])
+	_box(line, "ControlHousing", Vector3(-6.0, 1.08, -1.15), Vector3(0.5, 0.3, 0.36), _materials["graphite"])
+	var readout := _box(line, "ControlReadout", Vector3(-6.0, 1.2, -1.34), Vector3(0.36, 0.16, 0.04), _materials["green_dim"])
+
+	var sled := _add_station_life_mover(line, "AnimatedLongCargoSled")
+	_box(sled, "SledDeck", Vector3.ZERO, Vector3(1.9, 0.2, 1.5), _materials["frame_edge"])
+	_box(sled, "SledSkirt", Vector3(0.0, -0.13, 0.0), Vector3(1.7, 0.1, 1.3), _materials["graphite"])
+	var wheel_transforms: Array[Transform3D] = []
+	for x_side in [-1.0, 1.0]:
+		for z_side in [-1.0, 1.0]:
+			wheel_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+				Vector3(x_side * 0.72, -0.14, z_side * 0.62)
+			))
+	_cylinder_batch(sled, "SledWheels", 0.13, 0.1, wheel_transforms, _materials["rubber"])
+	_box(sled, "SledContainer", Vector3(0.0, 0.6, 0.0), Vector3(1.7, 1.0, 1.35), _materials["crate"])
+	var rib_transforms: Array[Transform3D] = []
+	for x in [-0.5, 0.5]:
+		rib_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.6, 0.0)))
+	_box_batch(sled, "ContainerRibs", Vector3(0.08, 0.98, 1.37), rib_transforms, _materials["crate_alt"])
+	_box(sled, "ContainerManifest", Vector3(0.0, 0.88, -0.69), Vector3(0.7, 0.22, 0.04), _materials["sign_lit"])
+	var strobe := _box(sled, "SledStrobe", Vector3(0.0, 1.15, 0.0), Vector3(0.3, 0.1, 0.3), _materials["amber_dim"])
+
+	var hoist := _add_station_life_mover(line, "AnimatedLongCargoHoist")
+	_box(hoist, "HoistBridge", Vector3.ZERO, Vector3(0.34, 0.28, 3.1), _materials["frame_edge"])
+	_box(hoist, "HoistCarriage", Vector3(0.0, -0.2, 0.0), Vector3(0.62, 0.22, 0.7), _materials["ceramic"])
+	_cylinder(hoist, "HoistCable", Vector3(0.0, -0.335, 0.0), 0.035, 0.39, _materials["graphite"])
+	_box(hoist, "HoistHook", Vector3(0.0, -0.68, 0.0), Vector3(0.3, 0.3, 0.3), _materials["orange"])
 
 	_register_station_life_lens(strobe, "amber_dim", "amber_lit", 1.6, 0.3, 0.0)
 	_register_station_life_lens(readout, "green_dim", "green_lit", 2.4, 1.5, 0.7)
@@ -1819,6 +2270,9 @@ func _get_beacon_positions() -> Array[Vector3]:
 		ActivityProfile.CARGO_LINE:
 			x_extent = 4.55
 			z_extent = 2.3
+		ActivityProfile.CARGO_LINE_LONG:
+			x_extent = 11.05
+			z_extent = 1.45
 		ActivityProfile.SIGNAGE_PYLON:
 			x_extent = 1.5
 			z_extent = 1.2
@@ -1898,11 +2352,16 @@ func _station_life_mover_pose(index: int, seed_phase: float) -> Array:
 		ActivityProfile.CARGO_LINE:
 			if index == 0:
 				# Container sled shuttling the fixed rail, easing at both stops.
+				# Travel re-frozen 3.3 -> 3.24 by the clearance probe: at 3.3 the
+				# 1.9 m sled deck reached x = 4.25 while the rail stop's inner face
+				# is at 4.22, so at each end of every pass the sled corner sat 0.03 m
+				# inside the stop that is meant to stop it. 3.24 leaves 0.03 m of
+				# daylight instead. Six centimetres of an 6.6 m stroke.
 				var travel := sin(_elapsed * 0.23 + seed_phase * 0.31)
 				# y = 0.50 puts the wheel treads exactly on the rail heads at
 				# y = 0.23; anything lower sinks the sled into its own track.
 				return [
-					Vector3(travel * 3.3, 0.5, 0.0),
+					Vector3(travel * 3.24, 0.5, 0.0),
 					Vector3(0.0, 0.0, 0.0),
 				]
 			# Overhead hoist tracking across the line and dipping to the deck.
@@ -1917,6 +2376,30 @@ func _station_life_mover_pose(index: int, seed_phase: float) -> Array:
 			return [
 				Vector3(0.0, 2.62, 1.35 + sin(hoist_phase) * 0.3),
 				Vector3(0.0, sin(hoist_phase * 0.5) * 0.15, 0.0),
+			]
+		ActivityProfile.CARGO_LINE_LONG:
+			if index == 0:
+				# Container sled working the full run: 19.2 m of travel, easing at
+				# both stops. The rail stops' inner faces are at x = +/-10.88 and
+				# the sled deck's half length is 0.95, so the sled comes to rest
+				# 0.33 m short of the stop rather than through it. y = 0.50 puts
+				# the wheel treads on the rail heads at y = 0.23, the same seat the
+				# short line uses.
+				return [
+					Vector3(sin(_elapsed * 0.135 + seed_phase * 0.31) * 9.6, 0.5, 0.0),
+					Vector3.ZERO,
+				]
+			# Travelling hoist bridge. It tracks the whole rail at a different rate
+			# from the sled, so the two pass each other rather than shadowing one
+			# another. Traverse only, and at a fixed height: y = 2.66 puts the
+			# bridge's top at 2.80, overlapping the hoist rail underside at 2.76,
+			# so the bridge cannot separate from the rail it rides. A vertical beat
+			# would need a stretching cable, and a scaled mover is exactly what the
+			# pose audit forbids. The hook's lowest point is y = 1.73, clearing the
+			# sled container roof at y = 1.60 by 0.13 m at every phase of both.
+			return [
+				Vector3(sin(_elapsed * 0.191 + seed_phase) * 8.4, 2.66, 0.0),
+				Vector3(0.0, 0.0, 0.0),
 			]
 		ActivityProfile.SIGNAGE_PYLON:
 			# Slow continuous drum rotation; the chevrons below do the chasing.
@@ -1999,7 +2482,16 @@ func _apply_evidence_metadata() -> void:
 
 func _count_runtime_resources(node: Node, counts: Dictionary, material_ids: Dictionary) -> void:
 	counts["node_count"] = int(counts.node_count) + 1
-	if node is MeshInstance3D:
+	if node is MultiMeshInstance3D:
+		var batch := node as MultiMeshInstance3D
+		counts["multimesh_batches"] = int(counts.multimesh_batches) + 1
+		if batch.multimesh != null:
+			counts["multimesh_instances"] = (
+				int(counts.multimesh_instances) + batch.multimesh.instance_count
+			)
+		if batch.material_override != null:
+			material_ids[batch.material_override.get_instance_id()] = true
+	elif node is MeshInstance3D:
 		counts["mesh_instances"] = int(counts.mesh_instances) + 1
 		var material := (node as MeshInstance3D).material_override
 		if material != null:
@@ -2058,6 +2550,67 @@ func _box(
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(mesh_instance, true)
 	return mesh_instance
+
+
+## One `MultiMeshInstance3D` drawing many copies of one chamfered box.
+##
+## Used only where the copies are genuinely identical stock — rail ties, gantry
+## posts, crates, wheels. The mesh is the same cached `ArrayMesh` a `_box()` of
+## the same size would get, so an instanced tie and a drawn tie are the same
+## object; what changes is that the batch is one draw submission instead of
+## twelve. `material_override` carries the same registered triplanar recipe the
+## drawn geometry uses, and world-space triplanar means every copy still samples
+## the plate by its own world position rather than repeating one mapping.
+func _box_batch(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		transforms: Array[Transform3D],
+		material: Material
+	) -> MultiMeshInstance3D:
+	return _instanced(parent, node_name, _rounded_box_mesh(size), transforms, material)
+
+
+func _cylinder_batch(
+		parent: Node3D,
+		node_name: String,
+		radius: float,
+		height: float,
+		transforms: Array[Transform3D],
+		material: Material
+	) -> MultiMeshInstance3D:
+	return _instanced(
+		parent,
+		node_name,
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			radius * 0.88, radius, height, 12, _chamfered_cylinder_cache, 1
+		),
+		transforms,
+		material
+	)
+
+
+func _instanced(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		transforms: Array[Transform3D],
+		material: Material
+	) -> MultiMeshInstance3D:
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	for index in transforms.size():
+		multimesh.set_instance_transform(index, transforms[index])
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multimesh
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	parent.add_child(batch, true)
+	_multimesh_batch_transforms[batch.get_instance_id()] = transforms.duplicate()
+	return batch
 
 
 ## Box with softly chamfered edges, at this module's frozen bevel rule.

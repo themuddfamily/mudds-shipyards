@@ -104,6 +104,63 @@ of 203 lights cast shadows; each of those re-rasterises the geometry in its rang
 every frame it is visible. Two more is the whole allowance. A new module that
 wants six shadow-casting work lights has to take them from somewhere.
 
+### Re-measured 2026-08-16, either side of the long-cargo pass
+
+The table above is a snapshot that parallel work has since moved a long way, and
+that movement matters more than the pass which measured it. Two census runs on
+the same day, either side of one content change:
+
+| Metric | Before | After | Delta | Budget | Headroom after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Scene triangles | 1,403,320 | 1,416,160 | +12,840 | 1,800,000 | 21.3% |
+| Mesh instances | 4,120 | 4,197 | +77 | 4,200 | **0.1%** |
+| Surfaces | 4,127 | 4,204 | +77 | 4,300 | 2.2% |
+| Unique meshes | 2,045 | 2,103 | +58 | 2,200 | 4.4% |
+| Unique materials | 522 | 544 | +22 | 550 | **1.1%** |
+| `Light3D` nodes | 240 | 240 | 0 | 240 | **0%** |
+| Scene-tree nodes | 6,440 | 6,582 | +142 | 7,000 | 6.0% |
+
+The content added is two 21.6 m cargo transfer runs plus a re-sited short one.
+Triangles are not the story: the whole addition is 0.9% of the scene and that
+line still has a fifth of its allowance left.
+
+**The three figures in bold are the ones to read, and none of them is this
+pass's doing.** All three were at or near the ceiling before it started — the
+table above this section records 3,605 mesh instances and 203 lights for the
+same budgets, and the scene was already at 4,120 and 240 when this pass began.
+`Light3D` is *exactly* at budget with no headroom at all, so the next module
+that wants a practical light has nowhere to take it from.
+
+The +77 mesh instances is deliberately the largest number this pass spends, and
+it is 77 rather than 154 because every repeated element in the cargo lines is
+drawn from a `MultiMesh`: twelve batches across the three lines draw 57 copies of
+rail ties, hoist post bands, sled wheels and container ribs, for twelve draw
+submissions instead of 57. The pre-existing short line was instanced the same way
+in passing and went 47 draws to 38 for a pixel-identical result, which paid for
+most of one of the two new runs.
+
+Two things learned doing that, worth recording before someone else instances
+something:
+
+- **A `MultiMesh` buffer does not exist under `--headless`.** `instance_count`
+  survives, but `buffer` comes back empty and `get_instance_transform()` returns
+  identity for every copy, because the data lives on the rendering server and the
+  dummy server discards it. Every audit in the test matrix runs headless, so an
+  audit that reads instance transforms back off the resource passes vacuously and
+  disagrees with the player's build. Audit the transforms you authored, not the
+  ones you can read back.
+- **Instanced geometry is invisible to the station's collision-without-visible-
+  geometry sweep**, which builds its index by walking `MeshInstance3D`. Anything
+  given collision must therefore stay a drawn mesh; only stock that is never
+  solid — ties, bands, wheels, ribs — is safe to batch.
+
+**Unique materials at 544/550 is the line that blocks the next placement of this
+kind.** `StationOperationsActivity` builds its complete 17-material set per
+instance regardless of profile — deliberately, so its audit reports retained
+memory rather than the current animation phase — so each new placement costs 17
+whether it uses them or not. Sharing that set across instances is the change that
+buys the next ten placements, and it is not this pass's to make.
+
 ## Where the geometry actually is
 
 Whole scene, after the sign fix:
