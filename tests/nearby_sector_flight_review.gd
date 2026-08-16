@@ -12,8 +12,9 @@ extends SceneTree
 ## Staged, and enumerated so nobody mistakes it for a playthrough: the on-foot
 ## walk to the craft is replaced by one teleport beside the boarding point, the
 ## range opponent is frozen so a fifteen-second transit is not a dogfight, and an
-## evidence camera is added for the three wide compositions. Boarding, engine
-## start, launch, every metre of flight and the return are the production path.
+## evidence camera is added for the three wide compositions. Boarding,
+## demand-driven propulsion, launch, every metre of flight and the return are
+## the production path.
 ##
 ## Run: xvfb-run -a -s "-screen 0 2560x1440x24" godot --path <worktree> \
 ##   --display-driver x11 --rendering-driver vulkan \
@@ -170,12 +171,27 @@ func _run() -> void:
 		_finish()
 		return
 
-	ship.request_engine_start()
-	if not await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 6.0):
-		_fail("engine start did not reach the launch phase")
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var propulsion_demand_accepted := (
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover
+	)
+	Input.action_release(&"hover")
+	if not propulsion_demand_accepted:
+		_fail("accepted hover demand did not wake propulsion in its physics tick")
 		await _dispose(game)
 		_finish()
 		return
+	Input.action_press(&"move_forward")
+	if not await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 6.0):
+		Input.action_release(&"move_forward")
+		_fail("automatic propulsion demand did not reach the launch phase")
+		await _dispose(game)
+		_finish()
+		return
+	Input.action_release(&"move_forward")
 
 	var source := ship.get_command_source() as LocalShipInputSource
 	if source == null:

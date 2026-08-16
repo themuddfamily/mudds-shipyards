@@ -654,9 +654,8 @@ func _capture_launch_flypast() -> void:
 	var home_transform := _world.get_berth_transform(&"central_berth")
 	torrent.set_cockpit_view(false)
 	torrent.set_piloted(true)
-	torrent.request_engine_start()
-	if not await _wait_for_engine_state(torrent, "ONLINE", torrent.engine_start_time + 1.5):
-		_fail("landmark flypast Torrent did not complete its real engine-start sequence")
+	if not await _wake_engine_with_hover_demand(torrent):
+		_fail("landmark flypast Torrent did not accept hover demand and wake propulsion")
 		Input.action_release("move_forward")
 		torrent.set_piloted(false)
 		return
@@ -697,7 +696,6 @@ func _capture_launch_flypast() -> void:
 		48.0,
 		18.25
 	)
-	torrent.request_engine_stop()
 
 
 func _capture_original_identity_backdrop() -> void:
@@ -1031,12 +1029,16 @@ func _get_ship(ship_id: StringName) -> HeroShip:
 	return null
 
 
-func _wait_for_engine_state(ship: HeroShip, expected_state: String, timeout_seconds: float) -> bool:
-	var timeout := create_timer(timeout_seconds)
-	while str(ship.get_telemetry().get("engine_state", "")) != expected_state and timeout.time_left > 0.0:
-		await physics_frame
-		await process_frame
-	return str(ship.get_telemetry().get("engine_state", "")) == expected_state
+func _wake_engine_with_hover_demand(ship: HeroShip) -> bool:
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover
+	)
+	Input.action_release(&"hover")
+	return accepted
 
 
 func _report_is_valid(report: Dictionary) -> bool:
@@ -1079,6 +1081,7 @@ func _settle_render(frame_count: int = 7) -> void:
 
 func _dispose_game() -> void:
 	Input.action_release("move_forward")
+	Input.action_release("hover")
 	if is_instance_valid(_game):
 		_game.queue_free()
 	await process_frame
