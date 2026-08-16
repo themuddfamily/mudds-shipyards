@@ -6,6 +6,11 @@ const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
 const ZENITH_DEFINITION := preload("res://assets/ships/zenith_b7_observed.tres")
 
+## Extra simulated frames granted on top of the frames a wait's nominal duration
+## implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until].
+const FRAME_BUDGET_GRACE := 30
+
 
 ## Deterministic backend seams: both represent a named non-Dummy driver whose
 ## latency query returns zero. The first uses the real engine playback request;
@@ -386,8 +391,23 @@ func _test_cue_contract_and_budget(rig: ShipAudioRig) -> void:
 		var longest_cleanup_timeout := 0.0
 		for cue_id in routes:
 			longest_cleanup_timeout = maxf(longest_cleanup_timeout, float(routes[cue_id].cleanup_timeout_seconds))
-		await create_timer(longest_cleanup_timeout + 0.20).timeout
+		# Cue expiry runs on the rig's own `Timer` nodes with `TIMER_PROCESS_IDLE`,
+		# so they advance only when idle frames actually run. A `SceneTree` timer
+		# counts Godot's smoothed engine delta, which is a different clock again
+		# and was observed running both ahead of and behind the monotonic one on a
+		# busy box, so a sleep could return with an expiry still pending and the
+		# snapshot below taken too early. Wait for the expiry timers themselves to
+		# report stopped instead of hoping the two clocks agree.
+		var expiries_fired := await _wait_until(
+			func() -> bool:
+				for candidate in rig.find_children("*", "Timer", true, false):
+					if not (candidate as Timer).is_stopped():
+						return false
+				return true,
+			longest_cleanup_timeout + 0.20
+		)
 		await process_frame
+		_check(expiries_fired, "every cue expiry timer fires inside its bounded budget")
 		_check((rig.get_state_snapshot().active_cues_by_voice as Dictionary).is_empty(), "bounded completion detaches docking and destruction even if mixer completion is unavailable")
 	var after_state := rig.get_state_snapshot()
 	_check(int(after_state.cue_request_count) == int(before_state.cue_request_count) + 8 and str(after_state.last_cue_id) == "docking", "state report counts accepted cue requests and records the exact latest ID")
@@ -598,6 +618,32 @@ func _test_detach_reentry_release_and_cleanup() -> void:
 	_check(root_reference.get_ref() == null, "rig root tears down without a retained instance")
 	_check(player_reference.get_ref() == null, "all owned positional voices tear down with the rig")
 	_check(timer_reference.get_ref() == null, "both bounded cue-expiry timers tear down with the rig")
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Three clocks run in this process and they diverge under parallel load: the
+## monotonic clock behind `Time.get_ticks_msec()`, Godot's smoothed engine delta
+## behind `SceneTree` timers, and the physics clock, whose steps the engine drops
+## on a busy machine rather than letting the simulation spiral. `nominal_seconds`
+## is kept as the duration the wait is *expected* to take and becomes both a
+## frame budget and a wall-clock deadline; both stay finite, so a cue expiry that
+## genuinely never fires still fails the suite.
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _players_stopped_and_detached(rig: ShipAudioRig) -> bool:
