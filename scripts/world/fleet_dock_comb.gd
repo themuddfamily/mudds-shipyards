@@ -543,8 +543,14 @@ func _index_semantics() -> void:
 
 
 func _create_materials() -> void:
-	_materials["deck"] = _material(Color("8b9698"), 0.62, 0.42)
-	_materials["deck_light"] = _material(Color("bdc5c4"), 0.42, 0.34)
+	# The two broad walking surfaces are traffic-worn plate, not mirror steel.
+	# They were metallic 0.62/0.42, which was survivable while station ambient was
+	# a flat cyan colour that metals could reflect. Ambient is now sky-sourced and
+	# the sky is near-black, so at that metalness a 12 m dock slab lost its diffuse
+	# response and photographed as an unreadable black rectangle. The structural
+	# frame, underframe and grip keep their original metal values.
+	_materials["deck"] = _material(Color("8b9698"), 0.16, 0.56)
+	_materials["deck_light"] = _material(Color("bdc5c4"), 0.14, 0.44)
 	_materials["frame"] = _material(Color("304248"), 0.72, 0.31)
 	_materials["underframe"] = _material(Color("17252b"), 0.76, 0.36)
 	_materials["grip"] = _material(Color("26363b"), 0.35, 0.68)
@@ -561,8 +567,9 @@ func _create_materials() -> void:
 ## the station: uniform scalar teal across a whole berth, which is the single
 ## clearest "untextured primitive" read in the frames. The recipe, `normal_scale`,
 ## red-channel roughness, world-triplanar mode and sharpness are copied verbatim
-## from `HabitatSpine`, including its 0.28 physical scale, so the comb decks are
-## the same plate stock as the pressurised decks rather than a separate look.
+## from the station family at the 0.30 physical scale `ShipyardWorld` and
+## `AftJunctionStack` use, so the comb decks are the same plate stock as the hub
+## they bolt onto and no plate size changes across the connector seam.
 ## Emissive route/status cues stay unmapped, as they do in every sibling module.
 func _apply_station_panel_family() -> void:
 	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
@@ -581,7 +588,7 @@ func _apply_station_panel_family() -> void:
 		panel_material.uv1_triplanar = true
 		panel_material.uv1_world_triplanar = true
 		panel_material.uv1_triplanar_sharpness = 4.0
-		panel_material.uv1_scale = Vector3(0.28, 0.28, 0.28)
+		panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
 		panel_material.texture_repeat = true
 
 

@@ -449,6 +449,11 @@ func _create_materials() -> void:
 			"warm_grey_floor",
 			"mid_grey_floor",
 			"hull_dark_floor",
+			# `mid_grey` and `hull_dark` are the same colours as their `_floor`
+			# twins and were the module's last flat scalar structural greys, so a
+			# wall read as plastic while the plated floor met it at the skirting.
+			"mid_grey",
+			"hull_dark",
 		]:
 			var panel_material := _materials[key] as StandardMaterial3D
 			panel_material.albedo_texture = pressure_panel_albedo

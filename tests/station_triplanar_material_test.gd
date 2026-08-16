@@ -137,23 +137,40 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# not appear here. No previously mapped surface was removed and no scale
 	# changed.
 	#
-	# Re-frozen again from 523/11/265/247 when the two remaining unmapped station
-	# populations joined the family. `StationOperationsActivity` bound its four
-	# structural greys (`frame`, `frame_edge`, `graphite`, `ceramic`) at the Aft
-	# module's existing 0.30 scale, adding 106 surfaces across the four production
-	# placements (FULL, GANTRY, SERVICE_ARM, DRONE_PATROL). `FleetDockComb` bound
-	# `deck`, `deck_light`, `frame`, `underframe` and `grip` at the Habitat
-	# module's existing 0.28 scale, adding 33 surfaces. Net +139: 0.28 goes
-	# 265 -> 298, 0.30 goes 247 -> 353, 0.22 is untouched. Painted hazard bands,
-	# tyre rubber and every emissive route/status/beacon lens deliberately stay
-	# outside the family, as they do in the sibling modules. No previously mapped
-	# surface was removed, no scale changed, and no new scale was introduced.
+	# Re-frozen again from 523/11/265/247 when the last three unmapped station
+	# populations joined the family, all at the Aft module's existing 0.30 scale
+	# and all with the recipe copied verbatim:
+	#
+	#   `StationOperationsActivity` bound its four structural greys (`frame`,
+	#   `frame_edge`, `graphite`, `ceramic`), adding 106 surfaces across the four
+	#   production placements (FULL, GANTRY, SERVICE_ARM, DRONE_PATROL).
+	#   `FleetDockComb` bound `deck`, `deck_light`, `frame`, `underframe` and
+	#   `grip`, adding 33.
+	#   `ShipyardWorld` bound `deck`, `deck_light`, `navy`, `blue`, `steel_blue`,
+	#   `ivory` and `black`, adding 247. This was by far the largest gap: the hub
+	#   owns roughly 6.6 thousand square metres of walkable deck plus keels,
+	#   braces and pods, and `_material()` had produced pure scalar colour with no
+	#   albedo, normal, roughness or triplanar at all.
+	#
+	#   `AftJunctionStack` additionally bound `mid_grey` and `hull_dark`, adding
+	#   121. Those are the same two colours as its already-mapped `mid_grey_floor`
+	#   and `hull_dark_floor`, so a wall was reading as plastic while the plated
+	#   floor met it at the skirting.
+	#
+	# Net +368 mapped surfaces, 662 -> 1030. The 0.28 bucket returns to 265 because
+	# the Fleet Dock comb moved from 0.28 to 0.30 to match the hub it bolts onto,
+	# so no plate size changes across the connector seam; that is a move between
+	# frozen buckets, not a new scale. 0.30 goes 353 -> 633. 0.22 is untouched.
+	# Painted hazard bands, tyre rubber, transparent glass and every emissive
+	# legend, route cue and beacon lens deliberately stay outside the family in
+	# every module, so signage and lit cues keep their flat readable identity. No
+	# previously mapped surface was removed and no new scale was introduced.
 	_check(
-		mapped_surface_count == 662
+		mapped_surface_count == 1030
 		and scale_022_count == 11
-		and scale_028_count == 298
-		and scale_030_count == 353,
-		"live station binds exactly 662 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_028_count == 265
+		and scale_030_count == 754,
+		"live station binds exactly 1030 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
