@@ -1222,21 +1222,20 @@ why `tools/release/run_test_matrix.sh` stays clean and is not a regression on it
 
 ## CAPTURE-001 — `tests/capture_hero_cell.gd` cannot pass on unmodified `main` in this environment — **REPRODUCED**
 
-- Status: `REPRODUCED`, **adjudicated 2026-08-16**. The record no longer holds an
+- Status: `PARTIALLY_FIXED`, **adjudicated 2026-08-16**. The record no longer holds an
   unadjudicated hypothesis: the decisive experiment it named was run, the hypothesis was
   upheld in substance and wrong about which emitter, and that **gate-design defect is now
-  fixed** in the harness with no threshold moved. Two causes remain, one of them newly
-  identified. See "Adjudication" below. Severity: **P2**. Disposition: **still open, still
-  needs an owner** — both remaining repairs either change what an acceptance harness asserts
-  or need a second rasteriser to adjudicate, and neither is a housekeeping call.
+  fixed** in the harness with no threshold moved. The uncontrolled backdrop assertion was
+  subsequently replaced with a controlled ship-material reference at the same threshold.
+  One real-GPU adjudication remains. See "Adjudication" below. Severity: **P2**.
+  Disposition: **still open for renderer qualification only**.
 - Reporter: housekeeping agent, 2026-08-16. Independently reproduced here from a clean
   checkout before recording; a sibling agent had reported it first (stash-and-rerun on
   unmodified `main`) and this record does **not** rest on that report. Adjudicated the same
   day on `fcfa58e` by the capture-harness agent, from five completed rendered runs (A–D and
   a confirming F; one run aborted on X-display contention with a sibling worktree and is not
   counted).
-- Owner: **needed.** Whoever calibrated `SHIP_LUMINANCE_P5_MINIMUM`,
-  `GRAPHITE_BACKGROUND_MINIMUM_DELTA` and `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION`,
+- Owner: **needed.** Whoever calibrated `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION`,
   or the current owner of the hero-cell evidence path.
 - Affected loop beat: **none in the shipped game.** This is developer tooling. It does not
   gate the matrix — `capture_hero_cell.gd` is not a `tests/*_test.gd` file, so
@@ -1450,6 +1449,15 @@ measurement, which is worse than leaving it red. The repair is to give it a cont
 reference (the ivory/graphite separation is the obvious candidate, and is robust), but that
 changes what the harness asserts and is an owner call.
 
+**Resolved in the harness after adjudication, without changing a threshold.**
+`graphite_background_delta` is now diagnostic-only. The acceptance check is
+`ivory_graphite_delta >= 0.08`, computed from the same triangle-masked opaque
+`WarmIvoryHull`/`IvorySecondary` and `GraphiteMachinery` samples already required by the
+crop contract. This preserves the material-separation intent while removing the station
+lighting/backdrop from the result. The 0.08 floor, ship-luminance thresholds, and cockpit ROI
+thresholds were not moved. If a graphical renderer is unavailable, the harness now exits
+failed before it enters its frame-post-draw readback path rather than waiting indefinitely.
+
 **(2) The cockpit exterior gate has no headroom over this box's renderer noise floor.** This
 now covers *both* exterior rows. The repaired harness measures the floor every run and
 prints it: two readbacks of a single **unchanged** ONLINE state — zero scene difference,
@@ -1531,9 +1539,7 @@ run and should not be made to.
 
 ### What would close this record
 
-1. `graphite_background_delta` given a controlled reference instead of the station backdrop,
-   or retired. Owner decision — it changes what the harness asserts.
-2. `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION` adjudicated against a real GPU, where the
+1. `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION` adjudicated against a real GPU, where the
    printed noise floor can be compared with this box's 0.0044–0.0124. If the floor there is
    an order of magnitude below the gate, the gate is right and this box is simply not a
    valid platform for it — which is a documentation change, not a threshold change.

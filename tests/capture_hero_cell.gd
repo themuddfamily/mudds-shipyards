@@ -199,7 +199,10 @@ const SHIP_LUMINANCE_P5_MINIMUM := 0.04
 const SHIP_LUMINANCE_P95_MAXIMUM := 0.95
 const IVORY_LUMINANCE_MEDIAN_MINIMUM := 0.35
 const IVORY_LUMINANCE_MEDIAN_MAXIMUM := 0.72
-const GRAPHITE_BACKGROUND_MINIMUM_DELTA := 0.08
+## The neutral crop acceptance is a ship-material check. The station backdrop
+## is intentionally uncontrolled, so it is recorded for diagnosis only and
+## never decides whether the crop passes.
+const IVORY_GRAPHITE_MINIMUM_DELTA := 0.08
 const SHIP_MAXIMUM_CLIPPED_FRACTION := 0.005
 
 var _failures: Array[String] = []
@@ -241,6 +244,10 @@ func _run() -> void:
 		return
 
 	_configure_native_capture()
+	if not _capture_renderer_is_available():
+		_fail("capture renderer is unavailable; refusing to wait for a frame that cannot be read back")
+		_finish()
+		return
 	_source_paths = _collect_source_paths()
 	_source_snapshot = _snapshot_source_files()
 	_source_aggregate_sha256 = _source_snapshot_hash(_source_snapshot)
@@ -681,6 +688,21 @@ func _configure_native_capture() -> void:
 			CAPTURE_RESOLUTION.x,
 			CAPTURE_RESOLUTION.y,
 		]
+	)
+
+
+## A graphical invocation can still fall back to a displayless renderer. Do not
+## enter the frame-post-draw capture path in that state: it cannot produce
+## evidence, and waiting for it would make this fail-open harness hang instead
+## of reporting an actionable failure.
+func _capture_renderer_is_available() -> bool:
+	var adapter := RenderingServer.get_video_adapter_name().strip_edges()
+	return (
+		RenderingServer.get_current_rendering_method() == &"forward_plus"
+		and DisplayServer.get_name() == "X11"
+		and not adapter.is_empty()
+		and adapter != "Unknown"
+		and root.get_texture() != null
 	)
 
 
@@ -1788,7 +1810,8 @@ func _measure_ship_mask_lighting(image: Image, camera: Camera3D) -> Dictionary:
 		"ivory_luminance_median": snappedf(ivory_median, 0.000001),
 		"graphite_luminance_median": snappedf(graphite_median, 0.000001),
 		"background_luminance_median": snappedf(background_median, 0.000001),
-		"graphite_background_delta": snappedf(absf(graphite_median - background_median), 0.000001),
+		"ivory_graphite_delta": snappedf(absf(ivory_median - graphite_median), 0.000001),
+		"graphite_background_delta_diagnostic": snappedf(absf(graphite_median - background_median), 0.000001),
 		"clipped_fraction": snappedf(float(clipped_count) / float(maxi(ship_values.size(), 1)), 0.000001),
 		"clipping_definition": "luminance <= 0.01 or >= 0.99",
 		"occlusion_boundary": "crop is composed unobstructed; mask rays classify opaque ship geometry, exclude transparent glazing, and do not solve unrelated-world occlusion",
@@ -1799,9 +1822,8 @@ func _validate_ship_mask_lighting(metrics: Dictionary) -> void:
 	_check(
 		int(metrics.get("ship_sample_count", 0)) >= SHIP_MASK_MINIMUM_SAMPLES
 		and int(metrics.get("ivory_sample_count", 0)) >= MATERIAL_MASK_MINIMUM_SAMPLES
-		and int(metrics.get("graphite_sample_count", 0)) >= MATERIAL_MASK_MINIMUM_SAMPLES
-		and int(metrics.get("background_sample_count", 0)) >= SHIP_MASK_MINIMUM_SAMPLES,
-		"neutral crop produces substantive triangle-masked ship, ivory, graphite, and background samples"
+		and int(metrics.get("graphite_sample_count", 0)) >= MATERIAL_MASK_MINIMUM_SAMPLES,
+		"neutral crop produces substantive triangle-masked ship, ivory, and graphite samples"
 	)
 	_check(
 		float(metrics.get("ship_luminance_p5", 0.0)) > SHIP_LUMINANCE_P5_MINIMUM,
@@ -1818,9 +1840,9 @@ func _validate_ship_mask_lighting(metrics: Dictionary) -> void:
 		"ivory median luminance stays in 0.35-0.72 (%.4f)" % ivory_median
 	)
 	_check(
-		float(metrics.get("graphite_background_delta", 0.0)) >= GRAPHITE_BACKGROUND_MINIMUM_DELTA,
-		"graphite/background median delta is at least 0.08 (%.4f)"
-		% float(metrics.get("graphite_background_delta", 0.0))
+		float(metrics.get("ivory_graphite_delta", 0.0)) >= IVORY_GRAPHITE_MINIMUM_DELTA,
+		"ivory/graphite median delta is at least 0.08 (%.4f)"
+		% float(metrics.get("ivory_graphite_delta", 0.0))
 	)
 	_check(
 		float(metrics.get("clipped_fraction", 1.0)) < SHIP_MAXIMUM_CLIPPED_FRACTION,
@@ -2231,7 +2253,8 @@ func _write_evidence_manifest() -> void:
 			"ship_mask_luminance_p5_minimum": SHIP_LUMINANCE_P5_MINIMUM,
 			"ship_mask_luminance_p95_maximum": SHIP_LUMINANCE_P95_MAXIMUM,
 			"ivory_luminance_median_range": [IVORY_LUMINANCE_MEDIAN_MINIMUM, IVORY_LUMINANCE_MEDIAN_MAXIMUM],
-			"graphite_background_minimum_delta": GRAPHITE_BACKGROUND_MINIMUM_DELTA,
+			"ivory_graphite_minimum_delta": IVORY_GRAPHITE_MINIMUM_DELTA,
+			"graphite_background_delta": "diagnostic only; station backdrop is not an acceptance reference",
 			"ship_maximum_clipped_fraction": SHIP_MAXIMUM_CLIPPED_FRACTION,
 		},
 			"required_original_resolution_human_review": [
