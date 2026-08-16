@@ -1,6 +1,8 @@
 class_name CourierRunnerOpponent
 extends ResolverBackedOpponent
 
+const MaterialCatalog := preload("res://scripts/ships/courier_runner_visual_resource_catalog.gd")
+
 ## Contract courier — an opponent whose objective is to *leave*.
 ##
 ## Every other craft in this encounter wants to be near the player. This one
@@ -52,6 +54,12 @@ const HULL_SHADOW := Color("3a3227")
 const CARGO_RUST := Color("d9662f")
 const DISTRESS_RED := Color("ff4a4a")
 const COURIER_ENGINE := Color("8fd0ff")
+const MATERIAL_CATALOG_ENTRY_COUNT := 19
+
+## The inherited eleven recipes plus the courier's eight palette recipes are
+## immutable after build. Each runner keeps its own dictionary and all dynamic
+## presentation state, while the standalone process catalog owns only Material
+## identities and avoids coupling lifetime to this scripted inheritance chain.
 
 @export_category("Escape run")
 ## Distance from the launch point at which the run is complete. The director
@@ -73,6 +81,8 @@ var _distress_beacon: MeshInstance3D
 var _distress_light: OmniLight3D
 var _cargo_lamps: Array[MeshInstance3D] = []
 var _shots_arc_denied := 0
+var _built_material_contracts: Dictionary = {}
+var _built_visual_material_bindings: Dictionary = {}
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -245,6 +255,52 @@ func get_audit_report() -> Dictionary:
 			"arc_denied": _shots_arc_denied,
 			"pending_shot_receipts": get_pending_shot_receipt_count(),
 		},
+		"visual_resources": get_visual_resource_audit(),
+	}.duplicate(true)
+
+
+## Detached identity, visible-parameter, allocation, and submission evidence for
+## the CourierRunner-local immutable catalog. No Resource handle is exposed.
+func get_visual_resource_audit() -> Dictionary:
+	var identity_by_key := {}
+	var visible_parameters_by_key := {}
+	var catalog_shared := true
+	var catalog_keys := PackedStringArray()
+	for key in _materials:
+		var material := _materials.get(key) as StandardMaterial3D
+		var shared_material := MaterialCatalog.get_material(key)
+		catalog_keys.append(str(key))
+		identity_by_key[key] = material.get_instance_id() if material != null else 0
+		var visible_contract := _material_contract(material)
+		visible_contract.erase("instance_id")
+		visible_parameters_by_key[key] = visible_contract
+		catalog_shared = (
+			catalog_shared
+			and material != null
+			and shared_material != null
+			and material == shared_material
+		)
+	catalog_keys.sort()
+	var counts := _count_visual_resources()
+	var visual_material_bindings := _visual_material_binding_contract()
+	return {
+		"valid": (
+			_material_catalog_is_live()
+			and int(counts.material_bindings) == int(counts.geometry_submissions)
+			and visual_material_bindings == _built_visual_material_bindings
+		),
+		"scope": &"courier_runner_process_wide_immutable_material_catalog",
+		"mapping_state_scope": &"courier_runner_instance",
+		"catalog_shared": catalog_shared,
+		"catalog_build_count": MaterialCatalog.get_build_count(),
+		"catalog_keys": catalog_keys,
+		"catalog_entry_count": identity_by_key.size(),
+		"legacy_material_resources_per_instance": MATERIAL_CATALOG_ENTRY_COUNT,
+		"shared_material_resources_per_process": MATERIAL_CATALOG_ENTRY_COUNT,
+		"identity_by_key": identity_by_key,
+		"visible_parameters_by_key": visible_parameters_by_key,
+		"visual_material_bindings": visual_material_bindings,
+		"counts": counts,
 	}.duplicate(true)
 
 
@@ -260,6 +316,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("a dormant courier must not hold a live distress broadcast")
 	if tail_arc_cosine <= 0.0:
 		errors.append("the tail arc must be a rear cone, not a hemisphere or wider")
+	if _built and not _material_catalog_is_live():
+		errors.append("the CourierRunner immutable material catalog changed")
 	return errors
 
 
@@ -467,8 +525,7 @@ func _build_interceptor() -> void:
 	# distance that means something on this craft.
 	preferred_range = clampf(evade_trigger_range * 0.6, 10.0, 200.0)
 	retreat_range = clampf(evade_trigger_range * 0.35, 5.0, 100.0)
-	_create_materials()
-	_create_courier_materials()
+	_adopt_shared_material_catalog()
 	_visual_root = Node3D.new()
 	_visual_root.name = "ContractCourierVisual"
 	add_child(_visual_root)
@@ -543,6 +600,7 @@ func _build_interceptor() -> void:
 
 	_build_collision()
 	_build_damage_effects()
+	_capture_material_contracts()
 
 
 func _build_collision() -> void:
@@ -577,6 +635,16 @@ func _build_damage_effects() -> void:
 	add_child(_damage_smoke)
 
 
+func _adopt_shared_material_catalog() -> void:
+	var catalog := MaterialCatalog.get_catalog()
+	if catalog.size() == MATERIAL_CATALOG_ENTRY_COUNT:
+		_materials = catalog
+		return
+	_create_materials()
+	_create_courier_materials()
+	_materials = MaterialCatalog.publish_catalog(_materials)
+
+
 func _create_courier_materials() -> void:
 	_materials.courier_hull = _material(HULL_SAND, 0.18, 0.58)
 	_materials.courier_clay = _material(HULL_CLAY, 0.3, 0.52)
@@ -586,3 +654,118 @@ func _create_courier_materials() -> void:
 	_materials.courier_muzzle = _material(CARGO_RUST, 0.12, 0.22, CARGO_RUST, 2.6)
 	_materials.courier_distress = _material(DISTRESS_RED, 0.08, 0.2, DISTRESS_RED, 5.0)
 	_materials.courier_engine = _material(COURIER_ENGINE, 0.08, 0.2, COURIER_ENGINE, 2.8)
+
+
+func _capture_material_contracts() -> void:
+	_built_material_contracts.clear()
+	for key in _materials:
+		_built_material_contracts[key] = _material_contract(
+			_materials.get(key) as StandardMaterial3D
+		)
+	_built_visual_material_bindings = _visual_material_binding_contract()
+
+
+func _material_catalog_is_live() -> bool:
+	if (
+		MaterialCatalog.get_build_count() != 1
+		or _materials.size() != MATERIAL_CATALOG_ENTRY_COUNT
+		or MaterialCatalog.get_entry_count() != MATERIAL_CATALOG_ENTRY_COUNT
+		or _built_material_contracts.size() != MATERIAL_CATALOG_ENTRY_COUNT
+		or _visual_material_binding_contract() != _built_visual_material_bindings
+	):
+		return false
+	for key in _materials:
+		var material := _materials.get(key) as StandardMaterial3D
+		if (
+			material == null
+			or material != MaterialCatalog.get_material(key)
+			or _material_contract(material) != _built_material_contracts.get(key, {})
+		):
+			return false
+	return true
+
+
+func _material_contract(material: StandardMaterial3D) -> Dictionary:
+	if material == null:
+		return {}
+	return {
+		"instance_id": material.get_instance_id(),
+		"albedo_color": material.albedo_color,
+		"metallic": material.metallic,
+		"roughness": material.roughness,
+		"transparency": material.transparency,
+		"cull_mode": material.cull_mode,
+		"shading_mode": material.shading_mode,
+		"billboard_mode": material.billboard_mode,
+		"emission_enabled": material.emission_enabled,
+		"emission": material.emission,
+		"emission_energy_multiplier": material.emission_energy_multiplier,
+	}
+
+
+func _count_visual_resources() -> Dictionary:
+	var counts := {
+		"node_count": 1,
+		"mesh_instance_nodes": 0,
+		"particle_nodes": 0,
+		"geometry_submissions": 0,
+		"material_bindings": 0,
+		"light_nodes": 0,
+		"collision_shape_nodes": 0,
+	}
+	for candidate in find_children("*", "", true, false):
+		counts.node_count = int(counts.node_count) + 1
+		if candidate is MeshInstance3D:
+			var mesh_instance := candidate as MeshInstance3D
+			counts.mesh_instance_nodes = int(counts.mesh_instance_nodes) + 1
+			if mesh_instance.mesh != null:
+				counts.geometry_submissions = (
+					int(counts.geometry_submissions) + mesh_instance.mesh.get_surface_count()
+				)
+				counts.material_bindings = (
+					int(counts.material_bindings)
+					+ _count_bound_mesh_materials(mesh_instance.mesh)
+				)
+		elif candidate is CPUParticles3D:
+			var particles := candidate as CPUParticles3D
+			counts.particle_nodes = int(counts.particle_nodes) + 1
+			if particles.mesh != null:
+				counts.geometry_submissions = (
+					int(counts.geometry_submissions) + particles.mesh.get_surface_count()
+				)
+				counts.material_bindings = (
+					int(counts.material_bindings)
+					+ _count_bound_mesh_materials(particles.mesh)
+				)
+		if candidate is Light3D:
+			counts.light_nodes = int(counts.light_nodes) + 1
+		if candidate is CollisionShape3D:
+			counts.collision_shape_nodes = int(counts.collision_shape_nodes) + 1
+	return counts
+
+
+func _count_bound_mesh_materials(mesh: Mesh) -> int:
+	var bound := 0
+	for surface_index in mesh.get_surface_count():
+		if mesh.surface_get_material(surface_index) != null:
+			bound += 1
+	return bound
+
+
+func _visual_material_binding_contract() -> Dictionary:
+	var bindings := {}
+	for candidate in find_children("*", "", true, false):
+		var mesh: Mesh
+		if candidate is MeshInstance3D:
+			mesh = (candidate as MeshInstance3D).mesh
+		elif candidate is CPUParticles3D:
+			mesh = (candidate as CPUParticles3D).mesh
+		if mesh == null:
+			continue
+		var relative_path := str(get_path_to(candidate))
+		for surface_index in mesh.get_surface_count():
+			var material := mesh.surface_get_material(surface_index)
+			bindings["%s#%d" % [relative_path, surface_index]] = (
+				material.get_instance_id() if material != null else 0
+			)
+	return bindings

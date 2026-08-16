@@ -68,6 +68,7 @@ func _init() -> void:
 func _run() -> void:
 	var original_children := root.get_child_count()
 	await _test_production_roster()
+	await _test_courier_visual_resource_sharing()
 	await _test_distinct_manoeuvres()
 	for line in _evidence:
 		print(line)
@@ -228,6 +229,175 @@ func _test_production_roster() -> void:
 			)
 
 	await _free_game(game)
+
+
+func _test_courier_visual_resource_sharing() -> void:
+	var host := Node3D.new()
+	host.name = "CourierVisualResourceWorld"
+	root.add_child(host)
+	var couriers: Array[CourierRunnerOpponent] = []
+	for index in 3:
+		var courier := COURIER_SCENE.instantiate() as CourierRunnerOpponent
+		courier.name = "ResourceCourier%d" % (index + 1)
+		host.add_child(courier)
+		couriers.append(courier)
+	await process_frame
+	await physics_frame
+
+	var audits: Array[Dictionary] = []
+	var unique_material_ids := {}
+	var aggregate_counts := {
+		"node_count": 0,
+		"mesh_instance_nodes": 0,
+		"particle_nodes": 0,
+		"geometry_submissions": 0,
+		"material_bindings": 0,
+		"light_nodes": 0,
+		"collision_shape_nodes": 0,
+	}
+	for courier in couriers:
+		var audit := courier.get_visual_resource_audit()
+		audits.append(audit)
+		for material_id in (audit.identity_by_key as Dictionary).values():
+			unique_material_ids[int(material_id)] = true
+		var counts := audit.counts as Dictionary
+		for key: String in aggregate_counts:
+			aggregate_counts[key] = int(aggregate_counts[key]) + int(counts[key])
+
+	var legacy_material_resources := (
+		couriers.size() * int(audits[0].legacy_material_resources_per_instance)
+	)
+	var sharing_evidence := {
+		"component_instances": couriers.size(),
+		"material_resources_old": legacy_material_resources,
+		"material_resources_new": unique_material_ids.size(),
+		"nodes_old": int(aggregate_counts.node_count),
+		"nodes_new": int(aggregate_counts.node_count),
+		"geometry_submissions_old": int(aggregate_counts.geometry_submissions),
+		"geometry_submissions_new": int(aggregate_counts.geometry_submissions),
+		"mesh_instance_nodes_old": int(aggregate_counts.mesh_instance_nodes),
+		"mesh_instance_nodes_new": int(aggregate_counts.mesh_instance_nodes),
+		"light_nodes_old": int(aggregate_counts.light_nodes),
+		"light_nodes_new": int(aggregate_counts.light_nodes),
+	}
+	print("COURIER_RUNNER_RESOURCE_SHARING: ", sharing_evidence)
+	_check(
+		bool(audits[0].valid) and bool(audits[1].valid) and bool(audits[2].valid)
+		and audits[0].scope == &"courier_runner_process_wide_immutable_material_catalog"
+		and audits[0].mapping_state_scope == &"courier_runner_instance"
+		and int(audits[0].catalog_build_count) == 1,
+		"courier materials build once process-wide while runner mapping state stays instance-owned"
+	)
+	_check(
+		(audits[0].identity_by_key as Dictionary) == (audits[1].identity_by_key as Dictionary)
+		and (audits[0].identity_by_key as Dictionary) == (audits[2].identity_by_key as Dictionary)
+		and (audits[0].identity_by_key as Dictionary).size() == 19,
+		"three live couriers bind one exact nineteen-entry Material identity roster"
+	)
+	_check(
+		(audits[0].visible_parameters_by_key as Dictionary)
+			== (audits[1].visible_parameters_by_key as Dictionary)
+		and (audits[0].visible_parameters_by_key as Dictionary)
+			== (audits[2].visible_parameters_by_key as Dictionary)
+		and _binding_identity_counts(audits[0].visual_material_bindings as Dictionary)
+			== _binding_identity_counts(audits[1].visual_material_bindings as Dictionary)
+		and _binding_identity_counts(audits[0].visual_material_bindings as Dictionary)
+			== _binding_identity_counts(audits[2].visual_material_bindings as Dictionary)
+		and (audits[0].visual_material_bindings as Dictionary).size() == 26
+		and (audits[1].visual_material_bindings as Dictionary).size() == 26
+		and (audits[2].visual_material_bindings as Dictionary).size() == 26,
+		"shared courier materials preserve every visible parameter and semantic binding"
+	)
+	_check(
+		legacy_material_resources == 57 and unique_material_ids.size() == 19,
+		"three couriers reduce immutable Material allocations from 57 to 19"
+	)
+	_check(
+		int(aggregate_counts.node_count) == 108
+		and int(aggregate_counts.mesh_instance_nodes) == 72
+		and int(aggregate_counts.particle_nodes) == 6
+		and int(aggregate_counts.geometry_submissions) == 78
+		and int(aggregate_counts.material_bindings) == 78
+		and int(aggregate_counts.light_nodes) == 12
+		and int(aggregate_counts.collision_shape_nodes) == 9,
+		"sharing preserves 108 nodes, 78 submissions, 12 lights, and all collision shapes"
+	)
+
+	# The catalog is shared; the distress latch, visibility, lights, and lifecycle
+	# remain private to one runner.
+	couriers[0].activate(Transform3D(Basis.IDENTITY, Vector3(8.0, 2.0, -14.0)))
+	_check(couriers[0].begin_distress_broadcast(), "first resource fixture enters distress")
+	var first_beacon := couriers[0].get_node(
+		"ContractCourierVisual/DistressBeacon"
+	) as MeshInstance3D
+	var second_beacon := couriers[1].get_node(
+		"ContractCourierVisual/DistressBeacon"
+	) as MeshInstance3D
+	var first_light := couriers[0].get_node(
+		"ContractCourierVisual/DistressLight"
+	) as OmniLight3D
+	var second_light := couriers[1].get_node(
+		"ContractCourierVisual/DistressLight"
+	) as OmniLight3D
+	_check(
+		first_beacon.visible and not second_beacon.visible
+		and is_equal_approx(first_light.light_energy, 4.2)
+		and is_zero_approx(second_light.light_energy)
+		and couriers[0].is_active() and not couriers[1].is_active(),
+		"shared materials do not share distress, light, visibility, or lifecycle state"
+	)
+	couriers[0].deactivate()
+
+	# A shared Resource drift invalidates every consumer and restores cleanly.
+	var hull := couriers[0].get_node(
+		"ContractCourierVisual/HullBody"
+	) as MeshInstance3D
+	var hull_material := hull.mesh.surface_get_material(0) as StandardMaterial3D
+	var pod_band := couriers[0].get_node(
+		"ContractCourierVisual/PodBand"
+	) as MeshInstance3D
+	var pod_band_material := pod_band.mesh.surface_get_material(0) as StandardMaterial3D
+	hull.mesh.surface_set_material(0, pod_band_material)
+	_check(
+		not bool(couriers[0].get_visual_resource_audit().valid)
+		and bool(couriers[1].get_visual_resource_audit().valid)
+		and bool(couriers[2].get_visual_resource_audit().valid),
+		"semantic material-binding drift remains instance-owned and fails its local audit"
+	)
+	hull.mesh.surface_set_material(0, hull_material)
+	_check(
+		bool(couriers[0].get_visual_resource_audit().valid),
+		"restoring the semantic material binding restores the local audit"
+	)
+	var original_roughness := hull_material.roughness
+	hull_material.roughness = 0.99
+	_check(
+		not bool(couriers[0].get_visual_resource_audit().valid)
+		and not bool(couriers[1].get_visual_resource_audit().valid)
+		and not bool(couriers[2].get_visual_resource_audit().valid),
+		"catalog audit fails red for shared visible-parameter drift"
+	)
+	hull_material.roughness = original_roughness
+	_check(
+		bool(couriers[0].get_visual_resource_audit().valid)
+		and bool(couriers[1].get_visual_resource_audit().valid)
+		and bool(couriers[2].get_visual_resource_audit().valid),
+		"restoring the visible parameter restores every courier catalog audit"
+	)
+
+	root.remove_child(host)
+	host.queue_free()
+	for _index in 8:
+		await process_frame
+	couriers.clear()
+	audits.clear()
+
+
+func _binding_identity_counts(bindings: Dictionary) -> Dictionary:
+	var counts := {}
+	for material_id in bindings.values():
+		counts[int(material_id)] = int(counts.get(int(material_id), 0)) + 1
+	return counts
 
 
 func _defender_profile(defender: RangeOpponent) -> Dictionary:
