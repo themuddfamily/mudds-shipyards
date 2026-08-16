@@ -20,9 +20,12 @@ const SafeStartProductionRecoveryType := preload(
 ## a progress-only route: the director and this integration own no rewards,
 ## combat, ship, landing, or berth state.
 const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
+const ACTIVITY_KIND_TIMED_RACE: StringName = &"timed_race"
+const ACTIVITY_KIND_PATROL: StringName = &"patrol"
 const CINDER_RACE_LAPS := 1
 const CINDER_RACE_COUNTDOWN_SECONDS := 2.0
 const CINDER_RACE_TIMEOUT_SECONDS := 120.0
+const CINDER_PATROL_DWELL_SECONDS := 2.0
 const CAPTION_CATEGORY_BY_ID := {
 	&"dialogue": CaptionPresentationEvent.Category.DIALOGUE,
 	&"radio": CaptionPresentationEvent.Category.RADIO,
@@ -189,6 +192,7 @@ var audio: Node
 var music_bed: StationMusicBed
 var activity_director: ActivityDirector
 var cinder_race_session: CinderTimedRaceSession
+var patrol_activity: PatrolActivity
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -299,8 +303,13 @@ var _startup_stager: MainStartupStagerType
 ## invents one.
 var _active_activity_id: StringName = &""
 var _active_activity_generation := 0
+## Activity kind is selected independently from the shared director route ID.
+## Selection locks on the first accepted start because both typed adapters keep
+## private generation history over that one route and cannot safely alternate.
+var _selected_activity_kind: StringName = ACTIVITY_KIND_TIMED_RACE
+var _activity_selection_locked := false
 ## Diagnostic only: exactly one increment accompanies each production physics
-## position submission, proving the retired director sampler is not still live.
+## position sample, proving no second adapter or retired director sampler is live.
 var _cinder_position_sample_count := 0
 
 
@@ -375,9 +384,10 @@ func _resolve_scene_bindings() -> void:
 	activity_director = get_node_or_null(^"ActivityDirector") as ActivityDirector
 
 
-## Owns exactly one adapter for this Main lifetime. It is detached rather than
-## discarded when Main leaves the tree, so re-entry preserves the current lap,
-## checkpoint, clock, and best result alongside the authored director.
+## Owns one lifetime-stable adapter of each supported presentation kind, while
+## attaching only the selected one to the single shared director route. The
+## selected adapter is detached rather than discarded when Main leaves the tree,
+## so re-entry preserves its clock, progress, results, and identity.
 func _initialize_cinder_race_session() -> void:
 	if cinder_race_session == null:
 		cinder_race_session = CinderTimedRaceSession.new(
@@ -389,28 +399,52 @@ func _initialize_cinder_race_session() -> void:
 			_on_cinder_session_presentation_changed
 		)
 		cinder_race_session.session_completed.connect(_on_cinder_session_completed)
+	if patrol_activity == null:
+		var route := activity_director.get_definition(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+		patrol_activity = PatrolActivity.new(route, CINDER_PATROL_DWELL_SECONDS)
+		patrol_activity.presentation_changed.connect(
+			_on_patrol_presentation_changed
+		)
+		patrol_activity.patrol_completed.connect(_on_patrol_completed)
 	_restore_cinder_race_session()
 
 
 func _restore_cinder_race_session() -> void:
-	if cinder_race_session == null:
+	if cinder_race_session == null or patrol_activity == null:
 		_initialize_cinder_race_session()
 		return
-	var snapshot := cinder_race_session.get_presentation_snapshot()
+	# Defensive exclusivity: re-entry may only restore the selected owner.
+	var inactive_snapshot := (
+		patrol_activity.get_presentation_snapshot()
+		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE
+		else cinder_race_session.get_presentation_snapshot()
+	)
+	if bool(inactive_snapshot.get("attached", false)):
+		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
+			patrol_activity.detach(patrol_activity.get_generation())
+		else:
+			cinder_race_session.detach(cinder_race_session.get_session_generation())
+	var snapshot := _get_selected_activity_snapshot()
 	if not bool(snapshot.get("attached", false)):
-		cinder_race_session.attach(
-			activity_director,
-			cinder_race_session.get_session_generation()
-		)
+		if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+			patrol_activity.attach(activity_director, patrol_activity.get_generation())
+		else:
+			cinder_race_session.attach(
+				activity_director,
+				cinder_race_session.get_session_generation()
+			)
 	_sync_activity_hud()
 
 
 func _detach_cinder_race_session() -> void:
-	if cinder_race_session == null:
+	if cinder_race_session == null or patrol_activity == null:
 		return
-	var snapshot := cinder_race_session.get_presentation_snapshot()
+	var snapshot := _get_selected_activity_snapshot()
 	if bool(snapshot.get("attached", false)):
-		cinder_race_session.detach(cinder_race_session.get_session_generation())
+		if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+			patrol_activity.detach(patrol_activity.get_generation())
+		else:
+			cinder_race_session.detach(cinder_race_session.get_session_generation())
 
 
 ## Creates exactly one service for this Main lifetime and binds the authored HUD
@@ -522,6 +556,19 @@ func _notification(what: int) -> void:
 		if not bool(snapshot.get("closed", false)):
 			cinder_race_session.close(cinder_race_session.get_session_generation())
 		cinder_race_session = null
+	if patrol_activity != null:
+		if patrol_activity.presentation_changed.is_connected(
+			_on_patrol_presentation_changed
+		):
+			patrol_activity.presentation_changed.disconnect(
+				_on_patrol_presentation_changed
+			)
+		if patrol_activity.patrol_completed.is_connected(_on_patrol_completed):
+			patrol_activity.patrol_completed.disconnect(_on_patrol_completed)
+		var patrol_snapshot := patrol_activity.get_presentation_snapshot()
+		if not bool(patrol_snapshot.get("closed", false)):
+			patrol_activity.close(patrol_activity.get_generation())
+		patrol_activity = null
 
 
 ## Detaches the authored children so a boot loader can add them back one frame
@@ -662,7 +709,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not is_instance_valid(active_ship):
 		return
-	_advance_cinder_race(delta, active_ship.global_position)
+	_advance_selected_activity(delta, active_ship.global_position)
 	var telemetry: Dictionary = active_ship.get_telemetry()
 	_decorate_flight_path_telemetry(telemetry)
 	hud.update_ship_telemetry(telemetry)
@@ -2693,24 +2740,59 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_replenish_destroyed_ship(destroyed_ship)
 
 
-## Public production seam used by a flight/session owner. Starting is allowed
-## only while the physical pilot is in the general free-flight lifecycle; the
+## Selects the typed interpretation of the one published Cinder route. This is
+## deliberately separate from the shared ActivityDefinition ID. Selection may
+## happen before boarding, but locks on the first accepted start so race and
+## patrol can never alternately claim generations from the same director route.
+func select_activity_kind(activity_kind: StringName) -> Dictionary:
+	if activity_kind not in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL]:
+		return _activity_selection_result(false, &"unsupported_activity_kind")
+	if _activity_selection_locked and activity_kind != _selected_activity_kind:
+		return _activity_selection_result(false, &"selection_locked")
+	if activity_kind == _selected_activity_kind:
+		return _activity_selection_result(true, &"already_selected")
+	if cinder_race_session == null or patrol_activity == null:
+		return _activity_selection_result(false, &"director_unavailable")
+	var current := _get_selected_activity_snapshot()
+	if bool(current.get("running", false)):
+		return _activity_selection_result(false, &"activity_in_progress")
+	_detach_cinder_race_session()
+	_selected_activity_kind = activity_kind
+	_restore_cinder_race_session()
+	var selected := _get_selected_activity_snapshot()
+	if not bool(selected.get("attached", false)):
+		return _activity_selection_result(false, &"activity_attach_failed")
+	_active_activity_id = &""
+	_active_activity_generation = 0
+	_sync_activity_hud()
+	return _activity_selection_result(true, &"selected")
+
+
+## Public production start seam used by a flight/session owner. Starting is
+## allowed only while the physical pilot is in general free flight; the
 ## ActivityDirector itself intentionally has no knowledge of that authority.
 func request_activity_start(activity_id: StringName) -> Dictionary:
-	if not is_instance_valid(activity_director) or cinder_race_session == null:
+	if (
+		not is_instance_valid(activity_director)
+		or cinder_race_session == null
+		or patrol_activity == null
+	):
 		return {"accepted": false, "reason": &"director_unavailable"}
 	if activity_id != DEFAULT_FREE_FLIGHT_ACTIVITY_ID:
 		return {"accepted": false, "reason": &"unsupported_activity"}
 	if not _piloting or not is_instance_valid(active_ship) or phase != Phase.FREE_FLIGHT:
 		return {"accepted": false, "reason": &"not_in_free_flight"}
-	var started := cinder_race_session.start(
-		cinder_race_session.get_session_generation()
+	var started := (
+		patrol_activity.start(patrol_activity.get_generation())
+		if _selected_activity_kind == ACTIVITY_KIND_PATROL
+		else cinder_race_session.start(cinder_race_session.get_session_generation())
 	)
 	if bool(started.get("accepted", false)):
 		_active_activity_id = activity_id
-		_active_activity_generation = int(started.get("session_generation", 0))
+		_activity_selection_locked = true
+		_active_activity_generation = _get_selected_activity_generation()
 		_sync_activity_hud()
-	return started
+	return _decorate_activity_snapshot(started)
 
 
 ## Explicit failure/recovery surface. A caller may end only the currently
@@ -2721,13 +2803,19 @@ func fail_active_activity(reason: StringName) -> bool:
 
 
 func reset_active_activity() -> bool:
-	if cinder_race_session == null or _active_activity_id.is_empty():
+	if (
+		cinder_race_session == null
+		or patrol_activity == null
+		or _active_activity_id.is_empty()
+	):
 		return false
-	var reset := cinder_race_session.reset(
-		cinder_race_session.get_session_generation()
+	var reset := (
+		patrol_activity.reset(patrol_activity.get_generation())
+		if _selected_activity_kind == ACTIVITY_KIND_PATROL
+		else cinder_race_session.reset(cinder_race_session.get_session_generation())
 	)
 	if bool(reset.get("accepted", false)):
-		_active_activity_generation = int(reset.get("session_generation", 0))
+		_active_activity_generation = _get_selected_activity_generation()
 		_sync_activity_hud()
 	return bool(reset.get("accepted", false))
 
@@ -2737,23 +2825,54 @@ func get_activity_director() -> ActivityDirector:
 
 
 func get_active_activity_snapshot() -> Dictionary:
-	if cinder_race_session == null or _active_activity_id.is_empty():
+	if (
+		cinder_race_session == null
+		or patrol_activity == null
+		or _active_activity_id.is_empty()
+	):
 		return {}
-	return cinder_race_session.get_presentation_snapshot()
+	return _decorate_activity_snapshot(_get_selected_activity_snapshot())
 
 
 ## Inspectable boundary proving this layer observes one physical ship and owns
 ## none of the authorities adjacent to it.
 func get_activity_integration_report() -> Dictionary:
 	var directors := find_children("ActivityDirector", "ActivityDirector", true, false)
+	var race_snapshot := (
+		cinder_race_session.get_presentation_snapshot()
+		if cinder_race_session != null
+		else {}
+	)
+	var patrol_snapshot := (
+		patrol_activity.get_presentation_snapshot()
+		if patrol_activity != null
+		else {}
+	)
+	var attached_route_owner_count := (
+		int(bool(race_snapshot.get("attached", false)))
+		+ int(bool(patrol_snapshot.get("attached", false)))
+	)
+	var selected_adapter: RefCounted = (
+		patrol_activity
+		if _selected_activity_kind == ACTIVITY_KIND_PATROL
+		else cinder_race_session
+	)
 	return {
 		"director": activity_director,
 		"director_count": directors.size(),
+		"route_activity_id": DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+		"selected_activity_kind": _selected_activity_kind,
+		"selection_locked": _activity_selection_locked,
+		"attached_route_owner_count": attached_route_owner_count,
 		"active_activity_id": _active_activity_id,
 		"active_generation": _active_activity_generation,
 		"snapshot": get_active_activity_snapshot(),
-		"session": cinder_race_session,
-		"session_instance_id": cinder_race_session.get_instance_id() if cinder_race_session != null else 0,
+		"session": selected_adapter,
+		"session_instance_id": selected_adapter.get_instance_id() if selected_adapter != null else 0,
+		"race_session": cinder_race_session,
+		"race_session_instance_id": cinder_race_session.get_instance_id() if cinder_race_session != null else 0,
+		"patrol_activity": patrol_activity,
+		"patrol_activity_instance_id": patrol_activity.get_instance_id() if patrol_activity != null else 0,
 		"position_sample_count": _cinder_position_sample_count,
 		"observed_ship": active_ship if _piloting and is_instance_valid(active_ship) else null,
 		"gameplay_authority": false,
@@ -2761,6 +2880,7 @@ func get_activity_integration_report() -> Dictionary:
 		"combat_authority": false,
 		"ship_authority": false,
 		"berth_authority": false,
+		"network_authority": false,
 	}
 
 
@@ -2772,14 +2892,18 @@ func _start_default_free_flight_activity() -> void:
 	request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
 
 
-func _advance_cinder_race(delta: float, world_position: Vector3) -> void:
+func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
 	if (
 		not is_finite(delta)
 		or delta < 0.0
 		or not world_position.is_finite()
 		or cinder_race_session == null
+		or patrol_activity == null
 		or _active_activity_id.is_empty()
 	):
+		return
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		_advance_patrol(delta, world_position)
 		return
 	var generation := cinder_race_session.get_session_generation()
 	var advanced := cinder_race_session.advance_physics(delta, generation)
@@ -2791,26 +2915,58 @@ func _advance_cinder_race(delta: float, world_position: Vector3) -> void:
 	cinder_race_session.submit_position(world_position, generation)
 
 
+func _advance_patrol(delta: float, world_position: Vector3) -> void:
+	var generation := patrol_activity.get_generation()
+	var before := patrol_activity.get_presentation_snapshot()
+	if before.get("state_id", &"") != &"active":
+		return
+	# One captured active-ship position is shared by arrival and continuous dwell
+	# for this physics tick. GameFlow samples; PatrolActivity and the director own
+	# every decision made from that value.
+	_cinder_position_sample_count += 1
+	if before.get("phase_id", &"") == &"travel":
+		patrol_activity.submit_position(world_position, generation)
+	var after_arrival := patrol_activity.get_presentation_snapshot()
+	if after_arrival.get("state_id", &"") == &"active":
+		patrol_activity.advance_physics(delta, world_position, generation)
+
+
 func _fail_active_activity(reason: StringName) -> bool:
-	if cinder_race_session == null or _active_activity_id.is_empty():
+	if (
+		cinder_race_session == null
+		or patrol_activity == null
+		or _active_activity_id.is_empty()
+	):
 		return false
-	var failed := cinder_race_session.fail(
-		reason,
-		cinder_race_session.get_session_generation()
-	)
+	var failed: Dictionary
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		if reason == &"returned_to_shipyard":
+			failed = patrol_activity.abort(reason, patrol_activity.get_generation())
+		else:
+			failed = patrol_activity.fail(reason, patrol_activity.get_generation())
+	else:
+		failed = cinder_race_session.fail(
+			reason,
+			cinder_race_session.get_session_generation()
+		)
 	return bool(failed.get("accepted", false))
 
 
 func _reset_terminal_activity_for_next_sortie() -> void:
-	if cinder_race_session == null or _active_activity_id.is_empty():
+	if (
+		cinder_race_session == null
+		or patrol_activity == null
+		or _active_activity_id.is_empty()
+	):
 		return
 	var state_id := StringName(get_active_activity_snapshot().get("state_id", &"idle"))
-	if state_id in [&"completed", &"failed"]:
+	if state_id in [&"completed", &"failed", &"aborted"]:
 		reset_active_activity()
 
 
 func _on_cinder_session_presentation_changed(_snapshot: Dictionary) -> void:
-	_sync_activity_hud()
+	if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
+		_sync_activity_hud()
 
 
 func _on_cinder_session_completed(_snapshot: Dictionary) -> void:
@@ -2818,18 +2974,79 @@ func _on_cinder_session_completed(_snapshot: Dictionary) -> void:
 		hud.toast("Cinder Reach race complete", "Time recorded — no reward granted", 3.2)
 
 
+func _on_patrol_presentation_changed(_snapshot: Dictionary) -> void:
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		_sync_activity_hud()
+
+
+func _on_patrol_completed(_snapshot: Dictionary) -> void:
+	if is_instance_valid(hud):
+		hud.toast("Cinder Reach patrol complete", "Sweep recorded — no reward granted", 3.2)
+
+
 func _sync_activity_hud() -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
-	if cinder_race_session == null or _active_activity_id.is_empty():
+	if (
+		cinder_race_session == null
+		or patrol_activity == null
+		or _active_activity_id.is_empty()
+	):
 		hud.call(&"clear_activity_objective")
 		return
-	var snapshot := cinder_race_session.get_presentation_snapshot()
+	var snapshot := get_active_activity_snapshot()
 	hud.call(
 		&"set_activity_objective",
 		str(snapshot.get("display_name", "Cinder Reach race")),
 		snapshot
 	)
+
+
+func _get_selected_activity_snapshot() -> Dictionary:
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		return (
+			patrol_activity.get_presentation_snapshot()
+			if patrol_activity != null
+			else {}
+		)
+	return (
+		cinder_race_session.get_presentation_snapshot()
+		if cinder_race_session != null
+		else {}
+	)
+
+
+func _get_selected_activity_generation() -> int:
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		return patrol_activity.get_generation() if patrol_activity != null else 0
+	return (
+		cinder_race_session.get_session_generation()
+		if cinder_race_session != null
+		else 0
+	)
+
+
+func _decorate_activity_snapshot(source: Dictionary) -> Dictionary:
+	var snapshot := source.duplicate(true)
+	snapshot["activity_kind"] = _selected_activity_kind
+	snapshot["selection_locked"] = _activity_selection_locked
+	# Patrol calls its public generation simply `generation`; mirror it into the
+	# established production field so consumers can remain kind-agnostic.
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		snapshot["session_generation"] = int(snapshot.get("generation", 0))
+		snapshot["race_generation"] = 0
+	return snapshot
+
+
+func _activity_selection_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"activity_id": DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+		"activity_kind": _selected_activity_kind,
+		"selection_locked": _activity_selection_locked,
+		"attached": bool(_get_selected_activity_snapshot().get("attached", false)),
+	}.duplicate(true)
 
 
 ## Restores one coherent, controllable on-foot pilot at the deck spawn.

@@ -248,6 +248,7 @@ var _state_enemy_breaking := false
 var _activity_objective_report: Dictionary = {
 	"visible": false,
 	"activity_id": &"",
+	"activity_kind": &"",
 	"display_name": "",
 	"state": TimedCheckpointRace.State.IDLE,
 	"state_id": &"idle",
@@ -265,6 +266,10 @@ var _activity_objective_report: Dictionary = {
 	"best_time_seconds": -1.0,
 	"penalty_seconds": 0.0,
 	"failure_reason": &"",
+	"phase_id": &"idle",
+	"completed_checkpoint_count": 0,
+	"dwell_remaining_seconds": 0.0,
+	"terminal_reason": &"",
 	"text": "",
 }
 
@@ -508,8 +513,10 @@ func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
 ## timed state ids below.
 func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	var activity_id := StringName(snapshot.get("activity_id", &""))
+	var activity_kind := StringName(snapshot.get("activity_kind", &""))
 	var state := int(snapshot.get("state", CheckpointRouteActivity.State.IDLE))
 	var state_id := StringName(snapshot.get("state_id", &""))
+	var phase_id := StringName(snapshot.get("phase_id", &"idle"))
 	var session_generation := int(snapshot.get("session_generation", snapshot.get("generation", 0)))
 	var activity_generation := int(snapshot.get("activity_generation", session_generation))
 	var race_generation := int(snapshot.get("race_generation", session_generation))
@@ -523,11 +530,51 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	var best_time := float(snapshot.get("best_time_seconds", -1.0))
 	var penalty := maxf(float(snapshot.get("penalty_seconds", 0.0)), 0.0)
 	var failure_reason := StringName(snapshot.get("failure_reason", &""))
+	var terminal_reason := StringName(snapshot.get("terminal_reason", failure_reason))
+	var completed_checkpoints := maxi(
+		int(snapshot.get("completed_checkpoint_count", 0)), 0
+	)
+	var dwell_remaining := maxf(
+		float(snapshot.get("dwell_remaining_seconds", 0.0)), 0.0
+	)
+	var last_duration := float(snapshot.get("last_duration_seconds", -1.0))
 	var short_name := display_name.strip_edges().to_upper()
 	if short_name.is_empty():
 		short_name = str(activity_id).replace("_", " ").to_upper()
 	var activity_text := ""
-	if not state_id.is_empty():
+	if activity_kind == &"patrol":
+		var gate_number := mini(next_index + 1, checkpoint_count)
+		match state_id:
+			&"active":
+				if phase_id == &"dwell":
+					activity_text = "PATROL  DWELL G%d/%d  HOLD %s" % [
+						gate_number,
+						checkpoint_count,
+						_format_activity_time(dwell_remaining),
+					]
+				else:
+					activity_text = "PATROL  TRAVEL G%d/%d  %s" % [
+						gate_number,
+						checkpoint_count,
+						_format_activity_time(current_time),
+					]
+			&"completed":
+				activity_text = "PATROL  COMPLETE %d/%d  %s" % [
+					completed_checkpoints,
+					checkpoint_count,
+					_format_activity_time(last_duration),
+				]
+			&"failed", &"aborted":
+				var readable_reason := str(terminal_reason).replace("_", " ").to_upper()
+				activity_text = "PATROL  %s%s  %d/%d" % [
+					"ABORTED" if state_id == &"aborted" else "FAILED",
+					(" — " + readable_reason) if not readable_reason.is_empty() else "",
+					completed_checkpoints,
+					checkpoint_count,
+				]
+			_:
+				activity_text = ""
+	elif not state_id.is_empty():
 		match state_id:
 			&"countdown":
 				activity_text = "RACE  START %s  L%d/%d  BEST %s" % [
@@ -579,6 +626,7 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	_activity_objective_report = {
 		"visible": visible,
 		"activity_id": activity_id,
+		"activity_kind": activity_kind,
 		"display_name": display_name,
 		"state": state,
 		"state_id": state_id if not state_id.is_empty() else &"legacy",
@@ -596,6 +644,10 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 		"best_time_seconds": best_time,
 		"penalty_seconds": penalty,
 		"failure_reason": failure_reason,
+		"phase_id": phase_id,
+		"completed_checkpoint_count": completed_checkpoints,
+		"dwell_remaining_seconds": dwell_remaining,
+		"terminal_reason": terminal_reason,
 		"text": activity_text,
 	}
 	if is_instance_valid(_activity_objective_label):

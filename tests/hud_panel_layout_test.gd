@@ -33,6 +33,7 @@ const LONGEST_INTERACTION := "Clear the berth before requesting a return approac
 const LONGEST_TOAST_TITLE := "Welcome back to Mudds Shipyards"
 const LONGEST_TOAST_DETAIL := "Guided Torrent test and free-flight fleet access are available"
 const LONGEST_ENEMY := "Mudds range defence interceptor"
+const LONGEST_PATROL_FAILURE: StringName = &"activity_patrol_desynchronized"
 
 ## Viewports the game is expected to run in. 1600x900 is the project's stretch
 ## viewport, which is what the HUD actually sees under `canvas_items` stretch
@@ -100,6 +101,22 @@ func _seed_worst_case_content() -> void:
 	_hud.set_ship_identity("Torrent-class Interceptor", "Interceptor")
 	_hud.set_mode("piloting")
 	_hud.set_objective(LONGEST_OBJECTIVE)
+	_hud.set_activity_objective("Cinder Reach beacon route", {
+		"activity_id": &"cinder_reach_checkpoint_route",
+		"activity_kind": &"patrol",
+		"state_id": &"failed",
+		"phase_id": &"failed",
+		"generation": 9,
+		"session_generation": 9,
+		"activity_generation": 12,
+		"next_checkpoint_index": 4,
+		"checkpoint_count": 5,
+		"completed_checkpoint_count": 4,
+		"current_time_seconds": 119.9,
+		"last_duration_seconds": -1.0,
+		"failure_reason": LONGEST_PATROL_FAILURE,
+		"terminal_reason": LONGEST_PATROL_FAILURE,
+	})
 	_hud.set_target_count(2, 3)
 	_hud.set_interaction(LONGEST_INTERACTION, true)
 	_hud.set_enemy_status(LONGEST_ENEMY, 22.0, 100.0, true)
@@ -158,6 +175,25 @@ func _test_contract_floor() -> void:
 		"the maximum 64-character speaker stays inside the narrow production host"
 	)
 	var logical := _hud.get_hud_logical_size()
+	var objective_panel := _hud.get("_objective_panel") as Control
+	var objective_label := _hud.get("_objective_label") as Label
+	var activity_label := _hud.get("_activity_objective_label") as Label
+	var target_label := _hud.get("_target_label") as Label
+	var objective_panel_rect := objective_panel.get_global_rect()
+	_check(
+		activity_label.visible
+		and "PATROL  FAILED — ACTIVITY PATROL DESYNCHRONIZED  4/5"
+		in activity_label.text
+		and objective_panel_rect.encloses(activity_label.get_global_rect())
+		and objective_panel_rect.encloses(target_label.get_global_rect())
+		and not activity_label.get_global_rect().intersects(
+			objective_label.get_global_rect()
+		)
+		and not activity_label.get_global_rect().intersects(
+			target_label.get_global_rect()
+		),
+		"the longest patrol failure remains visible inside the objective card without clipping adjacent rows"
+	)
 	_check(
 		logical.is_equal_approx(floor_size),
 		"a viewport at the contract floor lays the panels out at exactly %s (got %s)"
