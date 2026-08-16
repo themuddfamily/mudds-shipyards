@@ -77,8 +77,22 @@ const RIGHTS_POLICY := {
 	"redistribution_policy": "do_not_bundle_or_commit",
 	"allowed_project_policy": "citation_and_limited_internal_study_only",
 }
-const WORKING_ROSTER_VARIANT_ID := "working_fleet_vertical_slice_v1"
-const WORKING_FLEET_SIZE := 4
+const FROZEN_ROSTER_VARIANT_ID := "working_fleet_vertical_slice_v1"
+const CURRENT_RUNTIME_VARIANT_ID := "current_runtime_fleet_v2"
+const FROZEN_MATRIX_TO_RUNTIME := {
+	"torrent": "torrent_provisional",
+	"zenith": "zenith_b7_observed",
+	"arrow": "arrow_provisional",
+	"jovian": "jovian_provisional",
+}
+const FROZEN_MATRIX_SHIP_IDS: Array[String] = ["torrent", "zenith", "arrow", "jovian"]
+const CURRENT_RUNTIME_SHIP_IDS: Array[String] = [
+	"torrent_provisional",
+	"zenith_b7_observed",
+	"arrow_provisional",
+	"jovian_provisional",
+	"halyard_new_design",
+]
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -270,7 +284,7 @@ func _test_station_topology(topology: String) -> void:
 		and topology.contains("no hidden full-footprint collision slab exists")
 		and topology.contains("exactly five lease-bound production berths")
 		and topology.contains("no source authenticates a historical class-to-berth topology")
-		and topology.contains("promoting the modern Zenith-to-Dock01 assignment into\nsource-authenticated topology")
+		and topology.contains("promoting either modern Dock01/Dock02 class assignment\ninto source-authenticated topology")
 		and not topology.contains("all three dock markers are empty/deferred")
 		and not topology.contains("exact three existing lease-bound berths"),
 		"live topology pins the non-authoritative modern Dock01/Dock02 assignments, one deferred marker and five world-owned production berths"
@@ -520,9 +534,9 @@ func _test_fleet_roster_variants(
 		ledger: Dictionary
 ) -> void:
 	_check(
-		int(variants.get("schema_version", 0)) == 1
+		int(variants.get("schema_version", 0)) == 2
 		and str(variants.get("document_id", "")) == "keth_shipyard_fleet_roster_variants",
-		"fleet roster variants expose a stable versioned schema and stable document id"
+		"fleet roster variants expose the runtime-aware schema-v2 identity and stable document id"
 	)
 	var matrix_ids: Array[String] = []
 	for ship in matrix.get("ships", []) as Array:
@@ -533,15 +547,13 @@ func _test_fleet_roster_variants(
 		var source_data := source as Dictionary
 		source_ids.append(str(source_data.get("id", "")))
 	var variants_array := variants.get("variants", []) as Array
-	_check(variants_array.size() >= 2, "fleet roster variant catalog documents production and dated source scopes")
+	_check(variants_array.size() >= 3, "fleet roster variant catalog separates frozen, current-runtime, and dated-source scopes")
 	var all_variant_ids_unique := true
-	var found_working := false
-	var working_roster_size_ok := false
 	var dated_roster_contains_matrix_ids := false
 	var evidence_links_valid := true
 	var variant_ids: Array[String] = []
-	var working_matrix_ships: Array[String] = []
-	var working_runtime_ship_ids: Array[String] = []
+	var frozen_variant: Dictionary = {}
+	var runtime_variant: Dictionary = {}
 
 	for variant in variants_array:
 		var variant_data := variant as Dictionary
@@ -558,58 +570,47 @@ func _test_fleet_roster_variants(
 		for source_ref in linked_sources:
 			evidence_links_valid = evidence_links_valid and (source_ids.has(str(source_ref)))
 		var declared_matrix: Array[String] = []
+		var declared_runtime: Array[String] = []
 		var manifest_matrix: Array[String] = []
 		for matrix_id in linked_matrix_ids:
 			manifest_matrix.append(str(matrix_id))
+		var seen_matrix := {}
+		var seen_runtime := {}
 		for ship_entry in variant_roster:
 			var entry := ship_entry as Dictionary
 			var matrix_id := str(entry.get("matrix_ship_id", ""))
-			declared_matrix.append(matrix_id)
-			_check(not matrix_id.is_empty(), "variant %s only lists entries with a matrix_ship_id" % variant_id)
-			if variant_type == "working":
-				var runtime_id := str(entry.get("runtime_ship_id", ""))
-				if not runtime_id.is_empty():
-					working_runtime_ship_ids.append(runtime_id)
+			var runtime_id := str(entry.get("runtime_ship_id", ""))
+			_check(
+				not matrix_id.is_empty() or not runtime_id.is_empty(),
+				"variant %s only lists entries with a matrix or runtime identity" % variant_id
+			)
+			if not matrix_id.is_empty():
+				declared_matrix.append(matrix_id)
+				_check(not seen_matrix.has(matrix_id), "variant %s matrix ship %s is unique" % [variant_id, matrix_id])
+				seen_matrix[matrix_id] = true
+				_check(matrix_ids.has(matrix_id), "variant %s references known matrix ship id %s" % [variant_id, matrix_id])
+			if not runtime_id.is_empty():
+				declared_runtime.append(runtime_id)
+				_check(not seen_runtime.has(runtime_id), "variant %s runtime ship %s is unique" % [variant_id, runtime_id])
+				seen_runtime[runtime_id] = true
+			if variant_type in ["historical", "runtime"]:
+				_check(
+					not runtime_id.is_empty() and bool(entry.get("implemented", false)),
+					"%s variant entry %s is an implemented runtime craft" % [variant_type, runtime_id]
+				)
 		_check(variant_id != "" and variant_data.get("scope_id", "").is_empty() == false, "every variant stores a stable variant_id and scope_id")
-		_check(variant_type in ["working", "dated", "historical"], "each roster variant uses a recognized variant_type")
-		_check(not declared_matrix.is_empty(), "variant %s explicitly lists at least one ship in its matrix roster" % variant_id)
+		_check(variant_type in ["historical", "runtime", "dated"], "each roster variant uses a recognized variant_type")
+		_check(not declared_matrix.is_empty(), "variant %s explicitly lists at least one evidence-matrix ship" % variant_id)
 		_check(int(variant_roster.size()) >= 1, "variant %s ships array is populated" % variant_id)
-		var seen_declarations := {}
-		for item in variant_roster:
-			var entry := item as Dictionary
-			var matrix_id := str(entry.get("matrix_ship_id", ""))
-			if matrix_id.is_empty():
-				continue
-			var row: bool = seen_declarations.has(matrix_id)
-			seen_declarations[matrix_id] = true
-			all_variant_ids_unique = all_variant_ids_unique and not row
-			var matrix_ship_ok := matrix_ids.has(matrix_id)
-			_check(matrix_ship_ok, "variant %s references known matrix ship id %s" % [variant_id, matrix_id])
-			if variant_type == "working":
-				working_matrix_ships.append(matrix_id)
 		for linked_matrix_id in manifest_matrix:
 			var matrix_exists := matrix_ids.has(linked_matrix_id)
 			evidence_links_valid = evidence_links_valid and matrix_exists
 
-		if variant_type == "working":
-			found_working = variant_id == WORKING_ROSTER_VARIANT_ID
-			working_roster_size_ok = working_roster_size_ok or int(variant_roster.size()) == WORKING_FLEET_SIZE
-			_check(int(variant_roster.size()) == WORKING_FLEET_SIZE, "working fleet variant keeps exactly four physical entries for production")
-			_check(_list_is_subset(
-				["torrent", "zenith", "arrow", "jovian"],
-				manifest_matrix,
-			), "working roster variant references the four matrix roster IDs currently used in the vertical slice")
-			for required in ["torrent", "zenith", "arrow", "jovian"]:
-				_check(
-					manifest_matrix.has(required),
-					"working roster variant includes matrix ship %s" % required
-				)
-			_check(
-				int(working_runtime_ship_ids.filter(func(value): return value.ends_with("_provisional") or value == "zenith_b7_observed").size())
-				== WORKING_FLEET_SIZE,
-				"working roster variant lists the four production implementation ids"
-			)
-		elif variant_type == "dated":
+		if variant_id == FROZEN_ROSTER_VARIANT_ID:
+			frozen_variant = variant_data
+		elif variant_id == CURRENT_RUNTIME_VARIANT_ID:
+			runtime_variant = variant_data
+		if variant_type == "dated":
 			var unique_matrix_ship_ids: Array[String] = []
 			for matrix_id in manifest_matrix:
 				if not unique_matrix_ship_ids.has(matrix_id):
@@ -620,21 +621,111 @@ func _test_fleet_roster_variants(
 			)
 			_check(unique_matrix_ship_ids.size() == matrix_ids.size(), "dated source variant includes each known matrix ship id once")
 
-		_check(seen_declarations.size() == declared_matrix.size(), "variant %s ship declarations are unique" % variant_id)
+		_check(seen_matrix.size() == declared_matrix.size(), "variant %s matrix declarations are unique" % variant_id)
+		_check(seen_runtime.size() == declared_runtime.size(), "variant %s runtime declarations are unique" % variant_id)
 		_check(variant_id != "" and variant_data.get("scope_summary", "").is_empty() == false, "variant %s stores a non-empty scope summary" % variant_id)
 
 	_check(all_variant_ids_unique, "all roster variant IDs are unique and non-empty")
-	_check(found_working, "a working-production roster variant is present and named %s" % WORKING_ROSTER_VARIANT_ID)
-	_check(working_roster_size_ok, "working variant stores exactly four ship entries")
-	_check(_list_is_subset(_stable_working_ship_ids(), working_matrix_ships), "working matrix roster includes every four stable production entries")
-	_check(_list_is_unique(working_matrix_ships), "working matrix roster entries are unique")
+	_test_frozen_four_craft_variant(frozen_variant)
+	_test_current_runtime_variant(runtime_variant)
 	_check(dated_roster_contains_matrix_ids, "dated roster variant includes every known matrix roster ID")
 	_check(evidence_links_valid, "every evidence source link exists in the source ledger")
 
 
-func _stable_working_ship_ids() -> Array[String]:
-	var ids: Array[String] = ["torrent", "zenith", "arrow", "jovian"]
-	return ids
+func _test_frozen_four_craft_variant(variant: Dictionary) -> void:
+	_check(not variant.is_empty(), "the stable frozen four-craft variant remains present")
+	if variant.is_empty():
+		return
+	var entries := variant.get("ships", []) as Array
+	var by_runtime := _entries_by_runtime_id(entries)
+	var linked_matrix := _string_array(
+		((variant.get("evidence_links", {}) as Dictionary).get("matrix_ship_ids", []) as Array)
+	)
+	_check(
+		str(variant.get("variant_type", "")) == "historical"
+		and str(variant.get("scope_id", "")) == "frozen_four_craft_vertical_slice_v1",
+		"working_fleet_vertical_slice_v1 is explicitly a frozen historical baseline"
+	)
+	_check(entries.size() == 4 and by_runtime.size() == 4, "the frozen baseline retains exactly four runtime entries")
+	_check(
+		_string_set_matches(FROZEN_MATRIX_SHIP_IDS, linked_matrix),
+		"the frozen baseline retains exactly its four evidence-matrix identities"
+	)
+	var exact_pairs := true
+	for matrix_id: String in FROZEN_MATRIX_TO_RUNTIME:
+		var runtime_id := str(FROZEN_MATRIX_TO_RUNTIME[matrix_id])
+		var entry := by_runtime.get(runtime_id, {}) as Dictionary
+		exact_pairs = exact_pairs and str(entry.get("matrix_ship_id", "")) == matrix_id
+	_check(exact_pairs, "the frozen baseline preserves all four original matrix-to-runtime identity pairs")
+
+
+func _test_current_runtime_variant(variant: Dictionary) -> void:
+	_check(not variant.is_empty(), "the current five-craft runtime variant is present")
+	if variant.is_empty():
+		return
+	var entries := variant.get("ships", []) as Array
+	var by_runtime := _entries_by_runtime_id(entries)
+	var runtime_ids: Array[String] = []
+	for runtime_id in by_runtime:
+		runtime_ids.append(str(runtime_id))
+	var evidence := variant.get("evidence_links", {}) as Dictionary
+	var linked_matrix := _string_array(evidence.get("matrix_ship_ids", []) as Array)
+	_check(
+		str(variant.get("variant_type", "")) == "runtime"
+		and str(variant.get("scope_id", "")) == "current_production_registry",
+		"current_runtime_fleet_v2 is explicitly the current runtime registry"
+	)
+	_check(
+		entries.size() == 5
+		and _string_set_matches(CURRENT_RUNTIME_SHIP_IDS, runtime_ids),
+		"current runtime variant lists exactly the five production flyable identities"
+	)
+	_check(
+		_string_set_matches(FROZEN_MATRIX_SHIP_IDS, linked_matrix),
+		"current runtime evidence links remain bounded to the four ledger-backed craft"
+	)
+	var exact_evidence_pairs := true
+	for matrix_id: String in FROZEN_MATRIX_TO_RUNTIME:
+		var runtime_id := str(FROZEN_MATRIX_TO_RUNTIME[matrix_id])
+		var entry := by_runtime.get(runtime_id, {}) as Dictionary
+		exact_evidence_pairs = exact_evidence_pairs and str(entry.get("matrix_ship_id", "")) == matrix_id
+	_check(exact_evidence_pairs, "current runtime view preserves the four evidence-backed matrix-to-runtime pairs")
+
+	var halyard := by_runtime.get("halyard_new_design", {}) as Dictionary
+	_check(
+		not halyard.is_empty()
+		and not halyard.has("matrix_ship_id")
+		and bool(halyard.get("implemented", false))
+		and str(halyard.get("evidence_status", "")) == "new"
+		and (halyard.get("evidence_references", []) as Array).is_empty()
+		and not bool(halyard.get("historical_claim", true))
+		and str(halyard.get("implementation_label", "")) == "modern_interpretation",
+		"Halyard is runtime-only NEW content with no matrix identity, evidence references, or historical claim"
+	)
+
+
+func _entries_by_runtime_id(entries: Array) -> Dictionary:
+	var by_runtime := {}
+	for entry_variant in entries:
+		var entry := entry_variant as Dictionary
+		var runtime_id := str(entry.get("runtime_ship_id", ""))
+		if not runtime_id.is_empty():
+			by_runtime[runtime_id] = entry
+	return by_runtime
+
+
+func _string_array(values: Array) -> Array[String]:
+	var result: Array[String] = []
+	for value in values:
+		result.append(str(value))
+	return result
+
+
+func _string_set_matches(expected: Array[String], actual: Array[String]) -> bool:
+	return expected.size() == actual.size() \
+		and _list_is_unique(expected) \
+		and _list_is_unique(actual) \
+		and _list_is_subset(expected, actual)
 
 
 func _list_is_unique(values: Array[String]) -> bool:

@@ -178,7 +178,7 @@ func _configure_runtime_materials() -> void:
 		# value only; it establishes no albedo swatch, paint system or weathering
 		# level (docs/ZENITH_B7_RECONSTRUCTION_SPEC.md). These modern tints stay
 		# inside that pale read while moving off the fleet's shared warm ivory so
-		# the four craft separate at a glance; see the frozen floors in
+		# all five craft separate at a glance; see the frozen floors in
 		# tests/fleet_role_differentiation_test.gd.
 		&"PaleCeramicHull": _hull_material(Color("bac8d6"), 0.10, 0.43, 0.18),
 		&"PaleFacetSecondary": _hull_material(Color("97a3ad"), 0.14, 0.49, 0.10),

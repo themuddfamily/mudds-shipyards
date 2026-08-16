@@ -6,7 +6,7 @@ extends SceneTree
 ## Main scene rather than from source constants.
 ##
 ## This is an audit regression, not a tuning pass. Where a property does not
-## hold across all four craft the suite freezes it only for the craft where it
+## hold across all five craft the suite freezes it only for the craft where it
 ## genuinely holds, and records the measured deficiency as a non-regression
 ## floor so a later player-led feel pass can only improve it. One deficiency is
 ## deliberately NOT asserted as passing and is documented instead:
@@ -18,7 +18,7 @@ extends SceneTree
 ## had been authored at seat-cushion height instead of the feet-frame height
 ## `PlayerController` expects. Both Zenith anchors were re-frozen at corrected
 ## values — see the re-freeze note in `tests/zenith_interceptor_test.gd` — and
-## the eye-point and head-inside-hull assertions below now cover all four
+## the eye-point and head-inside-hull assertions below now cover all five
 ## craft, so the defect cannot silently return.
 ##
 ## The colour deficiency this suite originally recorded has since been fixed and
@@ -181,9 +181,10 @@ const HIGHER_IS_BETTER := [
 ]
 const LOWER_IS_BETTER := ["passive_drag", "engine_start_time", "weapon_cooldown"]
 
-# Exact identification accents as authored in the four production ship scenes.
+# Exact identification accents as authored across the five production craft.
 # Torrent's warm gold and Arrow's cyan are unchanged; Jovian moved off teal to
-# crimson and Zenith off pale cyan to deep blue so the four no longer cluster.
+# crimson and Zenith off pale cyan to deep blue so the original four no longer
+# cluster. Halyard's fifth accent is frozen alongside them below.
 const EXPECTED_ACCENTS := {
 	&"torrent_provisional": "f0b94d",
 	&"arrow_provisional": "45dee6",
@@ -243,7 +244,7 @@ const EYE_ABOVE_HEAD_BONE_MAXIMUM := 0.35
 # Stated minimum vertical gap between the seated pilot's head bone and the top
 # of the craft's own rendered hull. Below this the skull is at or through the
 # outer surface with the canopy shut. Measured today: Zenith 0.531 (the tightest
-# cockpit in the fleet), Torrent 0.561, Arrow 1.401, Jovian 3.256.
+# cockpit in the fleet), Torrent 0.561, Arrow 1.401, Halyard 3.010, Jovian 3.256.
 const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
 # Exact fleet-wide seat-to-eye rise. `PilotSeatAnchor` is a feet-frame marker,
 # so this is what makes the camera land 0.201 m above the head bone on every

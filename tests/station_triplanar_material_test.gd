@@ -508,12 +508,19 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# this census walks `MeshInstance3D`. The batching was done under whole-scene
 	# instance-budget pressure and it moves 16 mapped surfaces out of this count
 	# without changing a pixel.
+	#
+	# Re-frozen 2551 -> 2550 after the Halyard's live Dock 02 assignment was
+	# reconciled with the Central readiness board. The board keeps the same mesh
+	# roster: one orange withdrawn pin becomes an ivory seated pin, both mapped at
+	# 0.30, while the bay's former black deferred tile becomes an unmapped cyan
+	# assignment cue. Only 0.30 changes, 1559 -> 1558; 0.22 stays 130 and 0.28
+	# stays 862. This is measured on the rebased production tree.
 	_check(
-		mapped_surface_count == 2551
+		mapped_surface_count == 2550
 		and scale_022_count == 130
 		and scale_028_count == 862
-		and scale_030_count == 1559,
-		"live station binds exactly 2551 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1558,
+		"live station binds exactly 2550 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

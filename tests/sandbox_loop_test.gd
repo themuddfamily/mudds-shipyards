@@ -49,11 +49,13 @@ func _run() -> void:
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
+	var halyard := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
 	_check(primary != arrow, "fleet registry contains distinct ship instances")
 	_check(primary.get_ship_id() != arrow.get_ship_id(), "fleet ships expose unique stable IDs")
 	_check(
-		fleet.has(primary) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith),
-		"fleet registry contains the Torrent, Arrow, Jovian, and Zenith instances"
+		fleet.has(primary) and fleet.has(arrow) and fleet.has(jovian)
+		and fleet.has(zenith) and fleet.has(halyard),
+		"fleet registry contains exactly the Torrent, Arrow, Jovian, Zenith, and Halyard instances"
 	)
 	_check(
 		jovian.get_ship_id() == &"jovian_provisional"
@@ -66,6 +68,11 @@ func _run() -> void:
 		zenith.get_ship_id() == &"zenith_b7_observed"
 		and zenith.get_home_berth_id() == &"zenith_fleet_dock_berth",
 		"Zenith retains its B7-observed identity and assigned Fleet Dock berth"
+	)
+	_check(
+		halyard.get_ship_id() == &"halyard_new_design"
+		and halyard.get_home_berth_id() == &"halyard_fleet_dock_berth",
+		"Halyard retains its original-design identity and assigned Fleet Dock 02 berth"
 	)
 	_check(primary.global_position.distance_to(arrow.global_position) > 25.0, "both craft occupy separate visible berths")
 	_check(jovian.global_position.distance_to(primary.global_position) > 25.0, "Jovian occupies a separate visible freight berth")
@@ -88,7 +95,7 @@ func _run() -> void:
 		(-arrow_transform.basis.z).dot(Vector3.LEFT) > 0.99,
 		"Arrow berth preserves a full rotated docking transform"
 	)
-	for craft in [primary, arrow, jovian, zenith]:
+	for craft in [primary, arrow, jovian, zenith, halyard]:
 		var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 		_check(area != null, "%s has a physical boarding interaction area" % craft.name)
 		if area != null:

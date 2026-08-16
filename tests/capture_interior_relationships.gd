@@ -34,7 +34,7 @@ const SHOTS := [
 	# lower z. Frames are taken from trunk eye height walking out along a rung.
 	["01_comb_trunk_along.png", Vector3(14.5, 5.9, 68.3), Vector3(54.0, 4.6, 68.3)],
 	["02_dock01_assigned.png", Vector3(28.5, 6.6, 63.5), Vector3(20.5, 4.6, 53.3)],
-	["03_dock02_deferred_approach.png", Vector3(37.0, 5.9, 66.5), Vector3(37.0, 4.5, 53.3)],
+	["03_dock02_assigned_approach.png", Vector3(37.0, 5.9, 66.5), Vector3(37.0, 4.5, 53.3)],
 	["04_dock02_deck_grazing.png", Vector3(37.0, 4.55, 61.5), Vector3(37.0, 4.30, 51.5)],
 	["05_dock03_upper.png", Vector3(52.0, 8.6, 64.0), Vector3(52.0, 6.9, 53.3)],
 	["06_comb_from_outboard.png", Vector3(34.0, 12.0, 40.0), Vector3(36.0, 4.6, 58.0)],

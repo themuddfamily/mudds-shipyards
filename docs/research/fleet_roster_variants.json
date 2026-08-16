@@ -1,13 +1,13 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "document_id": "keth_shipyard_fleet_roster_variants",
   "variants": [
     {
       "variant_id": "working_fleet_vertical_slice_v1",
-      "variant_name": "Playable vertical-slice fleet",
-      "variant_type": "working",
-      "scope_id": "current_production_registry",
-      "scope_summary": "The runtime production scene and current lifecycle tests are built around this four-craft vertical slice.",
+      "variant_name": "Frozen four-craft vertical-slice fleet",
+      "variant_type": "historical",
+      "scope_id": "frozen_four_craft_vertical_slice_v1",
+      "scope_summary": "This frozen variant records the four evidence-scoped craft that established the production vertical slice before the Halyard expansion; it is not the current five-craft production registry.",
       "evidence_links": {
         "source_ids": ["A3", "B3", "B4", "B5", "B6", "B7", "A9"],
         "matrix_ship_ids": ["torrent", "zenith", "arrow", "jovian"]
@@ -32,6 +32,47 @@
           "matrix_ship_id": "jovian",
           "runtime_ship_id": "jovian_provisional",
           "implemented": true
+        }
+      ]
+    },
+    {
+      "variant_id": "current_runtime_fleet_v2",
+      "variant_name": "Current five-craft production fleet",
+      "variant_type": "runtime",
+      "scope_id": "current_production_registry",
+      "scope_summary": "The runtime production scene and current lifecycle tests contain exactly five lease-bound flyable craft: the frozen four-craft vertical slice plus the original-modern Halyard Crew Transport.",
+      "evidence_links": {
+        "source_ids": ["A3", "B3", "B4", "B5", "B6", "B7", "A9"],
+        "matrix_ship_ids": ["torrent", "zenith", "arrow", "jovian"]
+      },
+      "ships": [
+        {
+          "matrix_ship_id": "torrent",
+          "runtime_ship_id": "torrent_provisional",
+          "implemented": true
+        },
+        {
+          "matrix_ship_id": "zenith",
+          "runtime_ship_id": "zenith_b7_observed",
+          "implemented": true
+        },
+        {
+          "matrix_ship_id": "arrow",
+          "runtime_ship_id": "arrow_provisional",
+          "implemented": true
+        },
+        {
+          "matrix_ship_id": "jovian",
+          "runtime_ship_id": "jovian_provisional",
+          "implemented": true
+        },
+        {
+          "runtime_ship_id": "halyard_new_design",
+          "implemented": true,
+          "evidence_status": "new",
+          "evidence_references": [],
+          "historical_claim": false,
+          "implementation_label": "modern_interpretation"
         }
       ]
     },
