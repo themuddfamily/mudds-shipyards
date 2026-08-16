@@ -1320,3 +1320,77 @@ run and should not be made to.
 The ONLINE/CRITICAL **gate-design** defect is closed and needs nothing further; what remains
 on that row is item 2 above, shared with its sibling. The harness still exits `1` on this
 box, on `graphite_background_delta` and on both exterior comparisons.
+
+---
+
+## MATRIX-001 — four suites emit run-to-run-variable numeric evidence, so per-suite log hashes are not reproducible — **RECORDED, NOT FIXED**
+
+- Status: `OPEN (recorded)`. Severity **P3** — no suite ever changes status, and no
+  assertion is near its bound. What is not reproducible is the *evidence text* in
+  the logs, and therefore the per-suite `log_sha256` column and any aggregate built
+  from it.
+- Found while parallelising `tools/release/run_test_matrix.sh` (`--jobs`). It is
+  **not caused by parallelism** — parallel load only widens an existing variance —
+  so it is recorded rather than "fixed" by touching the suites.
+
+### Environment
+
+Linux (WSL2 6.18.33.2), 32 cores, Godot 4.7.1.stable.official.a13da4feb,
+`--headless --script` with `--audio-driver Dummy`, one process per suite, warm
+shared `.godot/`.
+
+### Measurement
+
+Six full or focused runs of the same commit were compared. Statuses, exit codes,
+sentinels, sentinel counts, assertion counts and diagnostic counts were **identical
+in every run** — `results-canonical.tsv` hashed to
+`5f6a69ac64d5b48a16eb9a7a6a7fd567da4c1c22db3a1fc286d6a91e6ac7d6a3` at `--jobs 1`,
+`--jobs 30` and `--jobs 64` alike. Only log *content* moved:
+
+| comparison | suites whose log bytes differ |
+| --- | --- |
+| serial vs serial, idle box | 1 — `player_step_up_assist_test` |
+| serial vs parallel (`--jobs 30`) | 4 — the three below plus `player_step_up_assist_test` |
+| parallel vs parallel, all 32 cores saturated by `yes` burners, 3 rounds | 3 — `controller_physical_sortie_test`, `fleet_role_differentiation_test`, `in_flight_cabin_integration_test` (`player_step_up_assist_test` was stable across those three) |
+
+So `controller_physical_sortie_test`, `fleet_role_differentiation_test` and
+`in_flight_cabin_integration_test` are **load-sensitive**: byte-stable when run
+serially on an idle box, variable under CPU contention.
+`player_step_up_assist_test` varies even between two serial runs on an idle box.
+
+Representative deltas (all still passing):
+
+- `controller_physical_sortie_test`: `exit_marker_error=0.000m` → `0.170m`.
+- `fleet_role_differentiation_test`: `zenith_b7_observed ... (1.68 m walked)` →
+  `(2.03 m walked)`; `15 grounded ticks` → `9`; `15 of 510 frames` → `9 of 510`.
+- `in_flight_cabin_integration_test`: `CABIN_OCCUPANT_CARRY before=(0.0, 0.480078,
+  7.925812)` → `(0.0, 0.479922, 8.022476)`; the reported `delta` stayed `0.0`.
+- `player_step_up_assist_test`: `travelled 5.75585031509399` → `5.75584602355957`.
+
+The shapes — walked distance, grounded tick counts, frame counts to reach a prompt
+— point at locomotion/physics advanced against something that is not a fixed step,
+rather than at floating-point noise alone; the `player_step_up_assist_test` delta,
+at the seventh significant figure, does look like ordinary float noise.
+
+### Failure frequency
+
+0/6 as a *test* failure. 3 suites out of 107 varied 3/3 rounds at 0% idle; all
+three rounds returned identical canonical results and exit `0`.
+
+### Why this matters here
+
+`ROADMAP.md` records "the aggregate SHA-256 of the ordered per-suite log hashes" as
+release evidence. That aggregate is **not reproducible** for any run that includes
+these four suites, at any `--jobs` value, and was already not reproducible serially
+for `player_step_up_assist_test`. Comparisons should use
+`artifacts/test-matrix/<run>/results-canonical.tsv` — statuses, exit codes,
+sentinels, assertion and diagnostic counts, no durations, no absolute paths — which
+*is* byte-stable across every configuration measured.
+
+### What would close this record
+
+1. An owner decision on whether these four suites should be deterministic. If yes,
+   the repair is in the suites' own time-stepping, which is game-adjacent test code
+   and was deliberately not touched here.
+2. Otherwise, replace the per-suite-log-hash aggregate in the release evidence with
+   the canonical results hash, and say so where the aggregate is quoted.
