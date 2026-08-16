@@ -1240,13 +1240,10 @@ func _sign(
 		scale_value: float,
 		material: Material
 	) -> MeshInstance3D:
-	var text_mesh := TextMesh.new()
-	text_mesh.text = text
-	text_mesh.font_size = 64
-	text_mesh.pixel_size = 0.012
-	text_mesh.depth = 0.03
-	text_mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	text_mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Same shared budget as the station: sector legends are read from a moving
+	# craft at tens of metres, where a 0.03 m extrusion on a sign scaled 2.2x is
+	# geometry nobody is ever placed to see. See `SignGeometryBudget`.
+	var text_mesh := SignGeometryBudget.build(text)
 	var instance := MeshInstance3D.new()
 	instance.name = "Sign_" + text.replace(" ", "_").replace("/", "-")
 	instance.position = text_position

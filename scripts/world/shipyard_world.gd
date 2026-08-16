@@ -581,6 +581,25 @@ func _ready() -> void:
 	_connect_operational_lattice_audio()
 	_apply_operational_dressing_quality()
 	set_station_activity_enabled(_station_activity_enabled)
+	_apply_sign_geometry_budget()
+
+
+## Brings every sign in the world under one geometry budget.
+##
+## The station's lettering is built by five different modules, and each of them
+## had independently authored the same expensive `TextMesh` settings. Rather
+## than five copies of the budget that drift apart, the world sweeps its whole
+## subtree once, after the modules have finished building. Godot readies children
+## before parents, so `AftJunctionStack`, `HabitatSpine`, `JovianFreightBerth`,
+## `FleetDockComb` and `NearbySectorCluster` have all built their signs by the
+## time this runs. Modules that already call `SignGeometryBudget` themselves are
+## detected and skipped, so this only ever catches what nothing else owns.
+##
+## It changes tessellation and extrusion only. Text, colour, alignment, scale,
+## position and rotation are untouched, so MAP-004 sign facing and the
+## colourblind-safe cue palette cannot be affected by it.
+func _apply_sign_geometry_budget() -> void:
+	SignGeometryBudget.normalise_tree(self)
 
 
 func _process(delta: float) -> void:
@@ -5025,13 +5044,12 @@ func _text_sign(
 	scale_value: float,
 	material: Material
 ) -> MeshInstance3D:
-	var text_mesh := TextMesh.new()
-	text_mesh.text = text
-	text_mesh.font_size = 64
-	text_mesh.pixel_size = 0.012
-	text_mesh.depth = 0.025
-	text_mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	text_mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Tessellation and extrusion are owned by `SignGeometryBudget`, not authored
+	# here, so the station cannot drift back to 10,000-triangle lettering one
+	# sign at a time. The glyph block this produces is the same world size as the
+	# former `font_size = 64`, `pixel_size = 0.012`; only the curve resolution and
+	# the invisible extrusion change.
+	var text_mesh := SignGeometryBudget.build(text)
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "Sign_" + text.replace(" ", "_").replace("/", "-")
 	mesh_instance.position = text_position
