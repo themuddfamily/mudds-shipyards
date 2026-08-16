@@ -1,0 +1,3 @@
+# Test-matrix manifests, logs and CSV/TSV evidence are release records, not
+# importable Godot resources. Keeping this boundary in the tracked tree prevents
+# the editor's CSV importer from scanning hundreds of generated matrix files.
