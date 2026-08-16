@@ -5112,9 +5112,10 @@ func _build_catwalks_and_control_room() -> void:
 	upper.name = "UpperOperations"
 	add_child(upper)
 
-	# A short traversable stair rises directly in front of the central-junction
-	# spawn. The observed spawn/ladder relationship is source-supported; this
-	# modern stair geometry and exact placement are provisional.
+	# B3's registered 00:04-00:52 anchor supports an exposed spawn/return deck
+	# and a "short vertical transition". It does not identify a ladder, stair or
+	# ramp, nor does it establish this implementation's placement, rise or tread
+	# count. The traversable stair/ramp below is therefore a modern interpretation.
 	_box(upper, "ObservationLanding", Vector3(-11.5, 3.05, 3.0), Vector3(4.6, 0.55, 4.4), _materials["deck_light"])
 	# CharacterBody3D has no implicit step-up solver. The former seven physical
 	# boxes rose 0.425 m per tread, so continuous W stalled against the first
@@ -5134,6 +5135,14 @@ func _build_catwalks_and_control_room() -> void:
 	stair_ramp.quaternion = Quaternion(Vector3.BACK, ramp_down_direction.normalized())
 	stair_ramp.set_meta("continuous_player_stair", true)
 	stair_ramp.set_meta("visible_tread_count", 7)
+	stair_ramp.set_meta("evidence_source", "B3")
+	stair_ramp.set_meta("evidence_anchor", "00:04-00:52")
+	stair_ramp.set_meta("evidence_claim_id", "station.spawn_deck_short_vertical_transition")
+	stair_ramp.set_meta("evidence_observation", "Exposed spawn/return deck, short vertical transition, branching arms, and red VIP sightline.")
+	stair_ramp.set_meta("evidence_status", "original_era_observed")
+	stair_ramp.set_meta("implementation_form", "modern_stair_ramp")
+	stair_ramp.set_meta("historical_form_identified", false)
+	stair_ramp.set_meta("historical_ladder_supported", false)
 	upper.add_child(stair_ramp)
 	var stair_ramp_mesh_instance := MeshInstance3D.new()
 	stair_ramp_mesh_instance.name = "Mesh"

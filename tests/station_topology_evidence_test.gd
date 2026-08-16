@@ -81,6 +81,7 @@ func _run() -> void:
 	var documented := _parse_document(document)
 	_test_document_tables_parse(documented)
 	_test_documented_graph_matches_live(documented, world)
+	_test_vertical_transition_evidence_boundary(world)
 	_test_documented_evidence_labels_stay_bounded(documented, document)
 	_test_structured_red_on_documentation_drift(documented, world)
 	await _test_structured_red_on_implementation_drift(documented, world)
@@ -121,6 +122,27 @@ func _test_documented_graph_matches_live(documented: Dictionary, world: Shipyard
 	_check(
 		divergences.is_empty(),
 		"the documented LIVE graph matches the running station registry exactly (%d divergences)" % divergences.size()
+	)
+
+
+func _test_vertical_transition_evidence_boundary(world: ShipyardWorld) -> void:
+	var ramp := world.get_node_or_null("UpperOperations/JunctionAccessRamp") as StaticBody3D
+	_check(ramp != null, "the live Central short-transition implementation is present")
+	if ramp == null:
+		return
+	_check(
+		str(ramp.get_meta("evidence_source", "")) == "B3"
+		and str(ramp.get_meta("evidence_anchor", "")) == "00:04-00:52"
+		and str(ramp.get_meta("evidence_claim_id", "")) == "station.spawn_deck_short_vertical_transition"
+		and str(ramp.get_meta("evidence_observation", "")) == "Exposed spawn/return deck, short vertical transition, branching arms, and red VIP sightline."
+		and str(ramp.get_meta("evidence_status", "")) == "original_era_observed",
+		"the live ramp pins only the exact registered B3 short-transition observation"
+	)
+	_check(
+		str(ramp.get_meta("implementation_form", "")) == "modern_stair_ramp"
+		and not bool(ramp.get_meta("historical_form_identified", true))
+		and not bool(ramp.get_meta("historical_ladder_supported", true)),
+		"the live ramp marks its form as modern and makes no historical ladder claim"
 	)
 
 
