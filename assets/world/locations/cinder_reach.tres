@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="WorldLocationDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/world_location_definition.gd" id="1_location"]
+
+[resource]
+script = ExtResource("1_location")
+location_id = &"cinder_reach"
+display_name = "Cinder Reach"
+sector_id = &"nearby_sector"
+content_note = "Cinder Reach is an original modern-remake destination anchored to the hand-authored extraction platform; it is not recovered historical content."
+anchor_source_id = &"nearby_sector_cluster_platform_anchor"
+anchor_position = Vector3(60, -70, -700)

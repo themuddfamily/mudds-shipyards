@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ActivityDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/activities/activity_definition.gd" id="1_activity"]
+[ext_resource type="Resource" path="res://assets/world/locations/cinder_reach.tres" id="2_location"]
+
+[resource]
+script = ExtResource("1_activity")
+activity_id = &"cinder_reach_checkpoint_route"
+display_name = "Cinder Reach beacon route"
+activity_kind = &"checkpoint_route"
+content_note = "A finite, opt-in route through the existing nearby-sector beacon chain to Cinder Reach; it records progress only and grants no rewards or vehicle authority."
+location = ExtResource("2_location")
+checkpoint_positions = PackedVector3Array(16, -9, -240, 32, -26, -372, 46, -44, -498, 30, -46, -600, 60, -70, -700)
+checkpoint_radius = 32.0
