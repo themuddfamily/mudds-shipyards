@@ -98,6 +98,7 @@ On foot:
 | `Shift` | Sprint |
 | `Space` | Jump |
 | `E` | Interact / board / operate station doors |
+| `C` | Toggle first / third person. Your choice, kept for the session: it survives walking a drifting craft's cabin, and it is suspended rather than forgotten while you are in a seat, so hopping out of a vehicle puts you back in the view you chose. Deliberately not `V`, which is the *ship* camera. |
 
 In any current prototype craft:
 
@@ -137,6 +138,7 @@ Common SDL-style gamepad, on foot and while piloting (`0.18` stick/trigger deadz
 | `LB` / `RB` | Chase-camera distance nearer / farther |
 | D-pad Up / Down | Start / stop engines |
 | D-pad Left | Landing assist |
+| D-pad Right | Toggle first / third person on foot |
 | Start | Pause; the pause panel and settings take controller focus |
 | Back | Toggle the controls overlay |
 

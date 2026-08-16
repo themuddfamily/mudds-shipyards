@@ -321,12 +321,14 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 			return [
 				["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
 				["SPACE", "JUMP"], ["E", "TAKE THE PILOT SEAT"],
+				["C / DPAD-R", "1ST / 3RD PERSON"],
 				["F1 / BACK", "CONTROLS"]
 			]
 		_:
 			return [
 				["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
 				["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
+				["C / DPAD-R", "1ST / 3RD PERSON"],
 				["F1 / BACK", "CONTROLS"]
 			]
 

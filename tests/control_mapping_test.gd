@@ -25,6 +25,7 @@ const BUTTON_RIGHT_SHOULDER := 10
 const BUTTON_DPAD_UP := 11
 const BUTTON_DPAD_DOWN := 12
 const BUTTON_DPAD_LEFT := 13
+const BUTTON_DPAD_RIGHT := 14
 
 const GAMEPLAY_ACTIONS: Array[StringName] = [
 	&"move_forward", &"move_back", &"move_left", &"move_right",
@@ -32,7 +33,7 @@ const GAMEPLAY_ACTIONS: Array[StringName] = [
 	&"jump", &"sprint_boost", &"interact", &"engine_start", &"engine_stop",
 	&"hover", &"fire", &"barrel_roll", &"landing_assist",
 	&"toggle_ship_camera_view", &"camera_distance_in", &"camera_distance_out",
-	&"brake", &"pause", &"toggle_controls_overlay",
+	&"brake", &"pause", &"toggle_controls_overlay", &"toggle_first_person",
 ]
 
 # Every action a player must reach to finish one complete shift, paired with the
@@ -137,6 +138,15 @@ func _test_keyboard_attitude_bindings() -> void:
 		_has_physical_key(&"toggle_controls_overlay", KEY_F1),
 		"F1 still toggles the controls overlay after it became a mapped action"
 	)
+	# The on-foot view toggle deliberately does not reuse V. V is the *ship*
+	# camera and is live in the same session; one key that means two different
+	# cameras depending on where you are standing is the kind of binding players
+	# learn wrong once and never trust again.
+	_check(
+		_has_physical_key(&"toggle_first_person", KEY_C)
+		and not _has_physical_key(&"toggle_ship_camera_view", KEY_C),
+		"C toggles the on-foot first/third person view without colliding with V"
+	)
 
 
 ## Loop coverage, not tuning: each action a full shift requires must be usable
@@ -201,6 +211,7 @@ func _test_controller_mapping_and_deadzone() -> void:
 		[&"engine_start", BUTTON_DPAD_UP, "D-pad Up starts engines"],
 		[&"engine_stop", BUTTON_DPAD_DOWN, "D-pad Down stops engines"],
 		[&"landing_assist", BUTTON_DPAD_LEFT, "D-pad Left engages landing assist"],
+		[&"toggle_first_person", BUTTON_DPAD_RIGHT, "D-pad Right toggles the on-foot view"],
 		[&"camera_distance_in", BUTTON_LEFT_SHOULDER, "LB moves the chase camera nearer"],
 		[&"camera_distance_out", BUTTON_RIGHT_SHOULDER, "RB moves the chase camera farther"],
 		[&"pause", BUTTON_START, "Start opens pause"],
@@ -223,6 +234,7 @@ func _test_new_controller_bindings_are_collision_free() -> void:
 		&"engine_start": BUTTON_DPAD_UP,
 		&"engine_stop": BUTTON_DPAD_DOWN,
 		&"landing_assist": BUTTON_DPAD_LEFT,
+		&"toggle_first_person": BUTTON_DPAD_RIGHT,
 		&"camera_distance_in": BUTTON_LEFT_SHOULDER,
 		&"camera_distance_out": BUTTON_RIGHT_SHOULDER,
 		&"toggle_controls_overlay": BUTTON_BACK,
