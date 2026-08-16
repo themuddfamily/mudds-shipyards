@@ -1,9 +1,13 @@
 extends SceneTree
 
+const Settings := preload("res://scripts/settings/runtime_settings.gd")
+const Profile := preload("res://scripts/settings/input_binding_profile.gd")
+
 var _failures: Array[String] = []
 var _change_events: Array[Dictionary] = []
 var _save_events := 0
 var _reset_events := 0
+var _temp_settings_path := ""
 
 
 func _init() -> void:
@@ -11,6 +15,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	root.content_scale_size = Vector2i(1280, 720)
+	_temp_settings_path = "user://settings_ui_binding_%d.cfg" % Time.get_ticks_usec()
+	_cleanup_settings_files()
+	var settings_owner := Settings.new(_temp_settings_path)
 	var hud := GameHUD.new()
 	hud.name = "SettingsHUDTest"
 	hud.setting_change_requested.connect(_on_setting_change_requested)
@@ -70,6 +78,7 @@ func _run() -> void:
 		"colorblind_palette": 2,
 		"reduced_motion": true,
 		"captions_enabled": true,
+		"input_binding_profile": settings_owner.get_input_binding_profile().to_dictionary(),
 	}
 	hud.set_settings_snapshot(snapshot)
 	_check(_change_events.is_empty(), "programmatic snapshot population never produces feedback events")
@@ -134,6 +143,7 @@ func _run() -> void:
 	open_button.pressed.emit()
 	_check(settings_page.visible and not main_page.visible, "Settings switches to a dedicated second page")
 	_check(settings_page.size.x <= 1280.0 and settings_page.size.y <= 720.0, "settings panel fits a 1280 by 720 window")
+	await _test_input_binding_editor(hud, settings_owner)
 
 	var save_button := settings_page.find_child("SettingsSaveButton", true, false) as Button
 	var reset_button := settings_page.find_child("SettingsResetButton", true, false) as Button
@@ -144,6 +154,19 @@ func _run() -> void:
 	_check(_reset_events == 1, "Reset Defaults emits one reset request")
 	back_button.pressed.emit()
 	_check(main_page.visible and not settings_page.visible, "Back returns to the main pause page")
+	var events_before_closed_input := _change_events.size()
+	_check(
+		not hud.begin_input_binding_capture(&"fire"),
+		"binding capture cannot remain active after the settings page closes"
+	)
+	var closed_page_key := InputEventKey.new()
+	closed_page_key.physical_keycode = KEY_F15
+	closed_page_key.pressed = true
+	hud._unhandled_input(closed_page_key)
+	_check(
+		_change_events.size() == events_before_closed_input,
+		"raw gameplay input passes through without changing bindings while settings is closed"
+	)
 
 	open_button.pressed.emit()
 	var pause_event := InputEventAction.new()
@@ -154,11 +177,244 @@ func _run() -> void:
 
 	var gameplay_hud := hud.get("_hud") as Control
 	_check(_all_controls_passthrough(gameplay_hud), "gameplay HUD remains fully transparent to look and fire input")
+	settings_owner.reset_to_defaults()
+	settings_owner.apply_input_bindings()
 	hud.set_paused(false)
 	hud.queue_free()
 	await process_frame
 	await process_frame
+	_cleanup_settings_files()
 	_finish()
+
+
+func _test_input_binding_editor(hud: GameHUD, settings_owner: RuntimeSettings) -> void:
+	var settings_flow := GameFlow.new()
+	settings_flow.runtime_settings = settings_owner
+	settings_owner.setting_changed.connect(settings_flow._on_runtime_setting_changed)
+	hud.setting_change_requested.connect(settings_flow._on_setting_change_requested)
+	var expected_actions := PackedStringArray([
+		"barrel_roll", "brake", "camera_distance_in", "camera_distance_out", "fire",
+		"hover", "interact", "jump", "landing_assist", "move_back", "move_forward",
+		"move_left", "move_right", "pause", "pitch_down", "pitch_up", "roll_left",
+		"roll_right", "sprint_boost", "toggle_controls_overlay", "toggle_first_person",
+		"toggle_ship_camera_view",
+	])
+	var report := hud.get_input_binding_report()
+	_check(report.actions == expected_actions, "settings builds the exact validated 22-action gameplay binding roster")
+	_check(int(report.action_count) == 22, "every validated gameplay action owns one real binding row")
+	var binding_buttons := hud.get("_binding_buttons") as Dictionary
+	var reset_buttons := hud.get("_binding_reset_buttons") as Dictionary
+	_check(
+		binding_buttons.size() == 22 and reset_buttons.size() == 22,
+		"each action exposes capture and per-action reset controls"
+	)
+	for action: StringName in binding_buttons:
+		_check(
+			(binding_buttons[action] as Button).focus_mode == Control.FOCUS_ALL
+			and (reset_buttons[action] as Button).focus_mode == Control.FOCUS_ALL,
+			"%s capture and reset controls participate in controller focus navigation" % action
+		)
+	var scroll := (hud.get("_settings_page") as Control).find_child("SettingsScroll", true, false) as ScrollContainer
+	_check(scroll != null and scroll.follow_focus, "binding focus automatically follows the scroll viewport")
+	var last_binding_button := binding_buttons[&"toggle_ship_camera_view"] as Button
+	last_binding_button.grab_focus()
+	await process_frame
+	await process_frame
+	_check(
+		scroll.scroll_vertical > 0
+		and last_binding_button.has_focus()
+		and scroll.get_global_rect().intersects(last_binding_button.get_global_rect()),
+		"the final binding row remains controller-reachable through focus scrolling at 1280 by 720"
+	)
+	_check(
+		GameFlow.RUNTIME_SETTING_KEYS.has(&"input_binding_profile"),
+		"GameFlow accepts the validated input profile emitted by the real HUD"
+	)
+
+	var events_before_bindings := _change_events.size()
+	_check(hud.begin_input_binding_capture(&"fire"), "keyboard capture starts from the visible Fire row")
+	var keyboard := InputEventKey.new()
+	keyboard.physical_keycode = KEY_F13
+	keyboard.pressed = true
+	hud._unhandled_input(keyboard)
+	_check(
+		_change_events.size() == events_before_bindings + 1
+		and _profile_has_key(settings_owner.get_input_binding_profile(), &"fire", KEY_F13)
+		and not _profile_has_key(settings_owner.get_input_binding_profile(), &"fire", KEY_F)
+		and not _profile_has_mouse(settings_owner.get_input_binding_profile(), &"fire", MOUSE_BUTTON_LEFT),
+		"keyboard capture replaces Fire's desktop-family bindings in RuntimeSettings"
+	)
+	_check(
+		_input_map_has_key(&"fire", KEY_F13)
+		and not _input_map_has_key(&"fire", KEY_F)
+		and not _input_map_has_mouse(&"fire", MOUSE_BUTTON_LEFT),
+		"accepted keyboard replacement changes the live InputMap immediately"
+	)
+
+	_check(hud.begin_input_binding_capture(&"brake"), "mouse capture starts from the visible Brake row")
+	var mouse := InputEventMouseButton.new()
+	mouse.button_index = MOUSE_BUTTON_MIDDLE
+	mouse.pressed = true
+	hud._unhandled_input(mouse)
+	_check(
+		_profile_has_mouse(settings_owner.get_input_binding_profile(), &"brake", MOUSE_BUTTON_MIDDLE),
+		"mouse-button capture reaches the canonical RuntimeSettings profile"
+	)
+
+	_check(hud.begin_input_binding_capture(&"landing_assist"), "gamepad capture starts from the visible Landing row")
+	var gamepad := InputEventJoypadButton.new()
+	gamepad.button_index = 15
+	gamepad.pressed = true
+	hud._unhandled_input(gamepad)
+	_check(
+		_profile_has_joy_button(settings_owner.get_input_binding_profile(), &"landing_assist", 15),
+		"gamepad-button capture reaches the canonical RuntimeSettings profile"
+	)
+	_check(hud.begin_input_binding_capture(&"landing_assist"), "gamepad-axis capture reuses the visible Landing row")
+	var gamepad_axis := InputEventJoypadMotion.new()
+	gamepad_axis.axis = JOY_AXIS_TRIGGER_LEFT
+	gamepad_axis.axis_value = -0.82
+	hud._unhandled_input(gamepad_axis)
+	_check(
+		_profile_has_joy_motion(
+			settings_owner.get_input_binding_profile(),
+			&"landing_assist",
+			JOY_AXIS_TRIGGER_LEFT,
+			-1.0
+		)
+		and not _profile_has_joy_button(
+			settings_owner.get_input_binding_profile(), &"landing_assist", 15
+		),
+		"gamepad-axis capture crosses its noise threshold and replaces the gamepad family"
+	)
+
+	var events_before_conflict := _change_events.size()
+	_check(hud.begin_input_binding_capture(&"barrel_roll"), "conflict probe listens on Barrel Roll")
+	var conflicting_key := InputEventKey.new()
+	conflicting_key.physical_keycode = KEY_H
+	conflicting_key.pressed = true
+	hud._unhandled_input(conflicting_key)
+	var conflict_panel := hud.get("_binding_conflict_panel") as Control
+	_check(
+		conflict_panel.visible
+		and bool(hud.get_input_binding_report().has_pending_conflict)
+		and _change_events.size() == events_before_conflict,
+		"a conflicting capture is rejected transactionally and presents an explicit choice"
+	)
+	var replace_button := hud.get("_binding_conflict_replace_button") as Button
+	var cancel_button := hud.get("_binding_conflict_cancel_button") as Button
+	_check(
+		replace_button.focus_mode == Control.FOCUS_ALL
+		and cancel_button.focus_mode == Control.FOCUS_ALL
+		and replace_button.has_focus(),
+		"conflict resolution moves controller focus to explicit Replace and Cancel actions"
+	)
+	replace_button.pressed.emit()
+	_check(
+		_profile_has_key(settings_owner.get_input_binding_profile(), &"barrel_roll", KEY_H)
+		and not _profile_has_key(settings_owner.get_input_binding_profile(), &"hover", KEY_H)
+		and not conflict_panel.visible
+		and (binding_buttons[&"barrel_roll"] as Button).has_focus(),
+		"explicit Replace transfers the conflict and returns controller focus to its row"
+	)
+
+	var fire_reset := reset_buttons[&"fire"] as Button
+	fire_reset.pressed.emit()
+	_check(
+		_profile_has_key(settings_owner.get_input_binding_profile(), &"fire", KEY_F)
+		and _profile_has_mouse(settings_owner.get_input_binding_profile(), &"fire", MOUSE_BUTTON_LEFT)
+		and not _profile_has_key(settings_owner.get_input_binding_profile(), &"fire", KEY_F13),
+		"per-action reset restores all authored Fire bindings after family replacement"
+	)
+
+	var reset_all := (hud.get("_settings_page") as Control).find_child("InputBindingsResetAllButton", true, false) as Button
+	reset_all.pressed.emit()
+	_check(
+		settings_owner.get_input_binding_profile().to_dictionary()
+		== InputRebindService.new().get_defaults().to_dictionary(),
+		"Reset All Bindings restores the complete captured project profile"
+	)
+
+	_check(hud.begin_input_binding_capture(&"toggle_first_person"), "persistence witness starts one final keyboard capture")
+	var persisted_key := InputEventKey.new()
+	persisted_key.physical_keycode = KEY_F14
+	persisted_key.pressed = true
+	hud._unhandled_input(persisted_key)
+	_check(hud.begin_input_binding_capture(&"landing_assist"), "re-entry witness starts one final gamepad capture")
+	var persisted_gamepad := InputEventJoypadButton.new()
+	persisted_gamepad.button_index = 15
+	persisted_gamepad.pressed = true
+	hud._unhandled_input(persisted_gamepad)
+	_check(settings_owner.save_to_file() == OK, "HUD-produced binding profile persists through RuntimeSettings")
+	var restored := Settings.new(_temp_settings_path)
+	_check(restored.load_from_file() == OK, "a fresh RuntimeSettings owner loads the HUD-produced profile")
+	_check(
+		_profile_has_key(restored.get_input_binding_profile(), &"toggle_first_person", KEY_F14)
+		and not _profile_has_key(restored.get_input_binding_profile(), &"toggle_first_person", KEY_C)
+		and _profile_has_joy_button(restored.get_input_binding_profile(), &"landing_assist", 15),
+		"saved desktop and gamepad replacements round-trip from the real settings UI"
+	)
+	await _test_recreated_hud_uses_project_defaults(settings_owner)
+	hud.setting_change_requested.disconnect(settings_flow._on_setting_change_requested)
+	settings_owner.setting_changed.disconnect(settings_flow._on_runtime_setting_changed)
+	settings_flow.free()
+
+
+func _test_recreated_hud_uses_project_defaults(settings_owner: RuntimeSettings) -> void:
+	var project_defaults := settings_owner.get_project_input_binding_defaults()
+	var detached_probe := project_defaults.duplicate_profile()
+	detached_probe.set_bindings(&"fire", [])
+	_check(
+		not settings_owner.get_project_input_binding_defaults().get_bindings(&"fire").is_empty(),
+		"RuntimeSettings exposes authored defaults as a detached process-stable profile"
+	)
+
+	# InputMap is intentionally still custom when this replacement HUD enters the
+	# tree, reproducing whole-Main re-entry without recapturing live bindings.
+	var second_hud := GameHUD.new()
+	second_hud.name = "ReenteredSettingsHUDTest"
+	root.add_child(second_hud)
+	await process_frame
+	var reentered_flow := GameFlow.new()
+	reentered_flow.runtime_settings = settings_owner
+	reentered_flow.hud = second_hud
+	settings_owner.setting_changed.connect(reentered_flow._on_runtime_setting_changed)
+	second_hud.setting_change_requested.connect(reentered_flow._on_setting_change_requested)
+	reentered_flow._sync_runtime_settings_hud()
+	second_hud.set("_started", true)
+	second_hud.set_paused(true)
+	var main_page := second_hud.get("_pause_main_page") as Control
+	var open_button := main_page.find_child("SettingsOpenButton", true, false) as Button
+	open_button.pressed.emit()
+
+	var reset_buttons := second_hud.get("_binding_reset_buttons") as Dictionary
+	(reset_buttons[&"toggle_first_person"] as Button).pressed.emit()
+	_check(
+		settings_owner.get_input_binding_profile().get_bindings(&"toggle_first_person")
+		== project_defaults.get_bindings(&"toggle_first_person")
+		and _input_map_has_key(&"toggle_first_person", KEY_C)
+		and not _input_map_has_key(&"toggle_first_person", KEY_F14),
+		"a per-action reset on the recreated HUD restores authored desktop defaults"
+	)
+	_check(
+		_profile_has_joy_button(settings_owner.get_input_binding_profile(), &"landing_assist", 15),
+		"the per-action reset leaves the separate custom gamepad action intact"
+	)
+	var reset_all := second_hud.find_child("InputBindingsResetAllButton", true, false) as Button
+	reset_all.pressed.emit()
+	_check(
+		settings_owner.get_input_binding_profile().to_dictionary() == project_defaults.to_dictionary()
+		and not _profile_has_joy_button(
+			settings_owner.get_input_binding_profile(), &"landing_assist", 15
+		),
+		"Reset All on the recreated HUD restores the original project profile, not the live custom map"
+	)
+
+	second_hud.setting_change_requested.disconnect(reentered_flow._on_setting_change_requested)
+	settings_owner.setting_changed.disconnect(reentered_flow._on_runtime_setting_changed)
+	reentered_flow.free()
+	second_hud.queue_free()
+	await process_frame
 
 
 func _test_product_branding(hud: GameHUD) -> void:
@@ -210,6 +466,91 @@ func _all_controls_passthrough(control: Control) -> bool:
 
 func _on_setting_change_requested(key: StringName, value: Variant) -> void:
 	_change_events.append({"key": key, "value": value})
+
+
+func _profile_has_key(
+	profile: InputBindingProfile,
+	action: StringName,
+	physical_keycode: Key
+) -> bool:
+	for binding: Dictionary in profile.get_bindings(action):
+		if (
+			StringName(binding.get("type", &"")) == &"key"
+			and int(binding.get("physical_keycode", 0)) == physical_keycode
+		):
+			return true
+	return false
+
+
+func _profile_has_mouse(
+	profile: InputBindingProfile,
+	action: StringName,
+	button_index: MouseButton
+) -> bool:
+	for binding: Dictionary in profile.get_bindings(action):
+		if (
+			StringName(binding.get("type", &"")) == &"mouse_button"
+			and int(binding.get("button_index", 0)) == button_index
+		):
+			return true
+	return false
+
+
+func _profile_has_joy_button(
+	profile: InputBindingProfile,
+	action: StringName,
+	button_index: int
+) -> bool:
+	for binding: Dictionary in profile.get_bindings(action):
+		if (
+			StringName(binding.get("type", &"")) == &"joy_button"
+			and int(binding.get("button_index", -1)) == button_index
+		):
+			return true
+	return false
+
+
+func _profile_has_joy_motion(
+	profile: InputBindingProfile,
+	action: StringName,
+	axis: JoyAxis,
+	direction: float
+) -> bool:
+	for binding: Dictionary in profile.get_bindings(action):
+		if (
+			StringName(binding.get("type", &"")) == &"joy_motion"
+			and int(binding.get("axis", -1)) == axis
+			and is_equal_approx(float(binding.get("axis_value", 0.0)), direction)
+		):
+			return true
+	return false
+
+
+func _input_map_has_key(action: StringName, physical_keycode: Key) -> bool:
+	for event: InputEvent in InputMap.action_get_events(action):
+		if (
+			event is InputEventKey
+			and (event as InputEventKey).physical_keycode == physical_keycode
+		):
+			return true
+	return false
+
+
+func _input_map_has_mouse(action: StringName, button_index: MouseButton) -> bool:
+	for event: InputEvent in InputMap.action_get_events(action):
+		if (
+			event is InputEventMouseButton
+			and (event as InputEventMouseButton).button_index == button_index
+		):
+			return true
+	return false
+
+
+func _cleanup_settings_files() -> void:
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var path := _temp_settings_path + suffix
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func _check(condition: bool, description: String) -> void:

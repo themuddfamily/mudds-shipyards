@@ -603,6 +603,13 @@ func get_input_binding_profile() -> InputBindingProfile:
 	return _input_binding_profile.duplicate_profile()
 
 
+## Returns the process-stable authored InputMap snapshot captured before any
+## persisted profile was applied. A newly recreated Main/HUD must use this
+## detached profile for reset controls instead of recapturing the live custom map.
+func get_project_input_binding_defaults() -> InputBindingProfile:
+	return _captured_project_input_defaults.duplicate_profile()
+
+
 ## Replaces the complete profile only when it is schema-valid, covers the
 ## captured project action inventory, and introduces no non-authored conflict.
 ## Invalid input leaves the prior profile untouched.

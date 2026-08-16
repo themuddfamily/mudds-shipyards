@@ -3,6 +3,8 @@ extends CanvasLayer
 
 const FlightPathCueType := preload("res://scripts/ui/flight_path_cue.gd")
 const PaletteType := preload("res://scripts/ui/hud_palette.gd")
+const InputBindingProfileType := preload("res://scripts/settings/input_binding_profile.gd")
+const InputRebindServiceType := preload("res://scripts/settings/input_rebind_service.gd")
 
 signal start_requested
 signal restart_requested
@@ -89,6 +91,32 @@ const PANEL_TELEMETRY_WIDTH := 312.0
 const PANEL_HELP_WIDTH := 272.0
 const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
+const GAMEPAD_CAPTURE_THRESHOLD := 0.75
+
+const INPUT_ACTION_LABELS := {
+	&"move_forward": "Move / thrust forward",
+	&"move_back": "Move / thrust reverse",
+	&"move_left": "Move / yaw left",
+	&"move_right": "Move / yaw right",
+	&"pitch_up": "Pitch up",
+	&"pitch_down": "Pitch down",
+	&"roll_left": "Roll left",
+	&"roll_right": "Roll right",
+	&"jump": "Jump",
+	&"sprint_boost": "Sprint / boost",
+	&"interact": "Interact / enter / exit",
+	&"hover": "Hover assist",
+	&"fire": "Fire",
+	&"barrel_roll": "Barrel roll",
+	&"landing_assist": "Landing assist",
+	&"toggle_ship_camera_view": "Ship camera view",
+	&"camera_distance_in": "Camera distance in",
+	&"camera_distance_out": "Camera distance out",
+	&"brake": "Brake",
+	&"pause": "Pause",
+	&"toggle_controls_overlay": "Controls overlay",
+	&"toggle_first_person": "On-foot camera view",
+}
 
 const TOAST_FADE_IN_SECONDS := 0.18
 const TOAST_FADE_OUT_SECONDS := 0.35
@@ -119,10 +147,23 @@ var _pause: Control
 var _pause_panels: Control
 var _pause_main_page: Control
 var _settings_page: Control
+var _settings_scroll: ScrollContainer
 var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 var _settings_status_label: Label
 var _updating_settings := false
+var _input_rebind_service: InputRebindService
+var _input_binding_profile: InputBindingProfile
+var _input_binding_defaults: InputBindingProfile
+var _binding_rows: Dictionary = {}
+var _binding_buttons: Dictionary = {}
+var _binding_reset_buttons: Dictionary = {}
+var _binding_capture_action: StringName = &""
+var _pending_binding_conflict: Dictionary = {}
+var _binding_conflict_panel: Control
+var _binding_conflict_label: Label
+var _binding_conflict_replace_button: Button
+var _binding_conflict_cancel_button: Button
 var _brand_block: VBoxContainer
 var _objective_panel: PanelContainer
 var _objective_label: Label
@@ -203,6 +244,9 @@ var _activity_objective_report: Dictionary = {
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_input_rebind_service = InputRebindServiceType.new()
+	_input_binding_defaults = _input_rebind_service.get_defaults()
+	_input_binding_profile = _input_binding_defaults.duplicate_profile()
 	_build_interface()
 	set_process_unhandled_input(true)
 	set_process(true)
@@ -220,6 +264,9 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _binding_capture_action.is_empty():
+		_capture_binding_event(event)
+		return
 	if not _started and (event.is_action_pressed("interact") or event.is_action_pressed("jump")):
 		_begin()
 		get_viewport().set_input_as_handled()
@@ -577,6 +624,9 @@ func set_paused(paused: bool) -> void:
 	_pause.visible = paused
 	if paused:
 		_show_pause_main()
+	else:
+		_binding_capture_action = &""
+		_cancel_pending_input_conflict(false)
 	get_tree().paused = paused
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if paused else Input.MOUSE_MODE_CAPTURED
 	if paused and _pause_main_page != null:
@@ -589,6 +639,16 @@ func set_paused(paused: bool) -> void:
 ## the settings owner. Missing keys retain the values currently shown.
 func set_settings_snapshot(snapshot: Dictionary) -> void:
 	_updating_settings = true
+	if snapshot.has("input_binding_profile"):
+		var parsed_profile := InputBindingProfileType.from_dictionary(
+			snapshot["input_binding_profile"]
+		)
+		if (
+			parsed_profile != null
+			and _input_rebind_service.is_profile_compatible_with_defaults(parsed_profile)
+		):
+			_input_binding_profile = parsed_profile.duplicate_profile()
+			_refresh_all_binding_rows()
 	for raw_key: Variant in snapshot:
 		var key := StringName(str(raw_key))
 		if not _settings_controls.has(key):
@@ -604,6 +664,27 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			var option := control as OptionButton
 			option.select(clampi(int(value), 0, option.item_count - 1))
 	_updating_settings = false
+
+
+## Supplies the process-stable authored defaults owned by RuntimeSettings.
+## Recreated HUDs cannot infer these from InputMap because the live map may
+## already contain a persisted remap from the previous Main instance.
+func set_input_binding_defaults(defaults: InputBindingProfile) -> bool:
+	if defaults == null:
+		return false
+	var replacement_service := InputRebindServiceType.new(defaults)
+	var detached_defaults := replacement_service.get_defaults()
+	if not replacement_service.is_profile_compatible_with_defaults(detached_defaults):
+		return false
+	_input_rebind_service = replacement_service
+	_input_binding_defaults = detached_defaults
+	if (
+		_input_binding_profile == null
+		or not _input_rebind_service.is_profile_compatible_with_defaults(_input_binding_profile)
+	):
+		_input_binding_profile = _input_binding_defaults.duplicate_profile()
+	_refresh_all_binding_rows()
+	return true
 
 
 func set_settings_status(text: String, success: bool = true) -> void:
@@ -1365,20 +1446,20 @@ func _build_settings_page() -> void:
 	header_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	heading.add_child(header_rule)
 
-	var scroll := ScrollContainer.new()
-	scroll.name = "SettingsScroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.follow_focus = true
-	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
-	page_stack.add_child(scroll)
+	_settings_scroll = ScrollContainer.new()
+	_settings_scroll.name = "SettingsScroll"
+	_settings_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_settings_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_settings_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_settings_scroll.follow_focus = true
+	_settings_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	page_stack.add_child(_settings_scroll)
 
 	var columns := HBoxContainer.new()
 	columns.custom_minimum_size.x = 780.0
 	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_theme_constant_override("separation", 14)
-	scroll.add_child(columns)
+	_settings_scroll.add_child(columns)
 	var left_column := VBoxContainer.new()
 	left_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_column.add_theme_constant_override("separation", 12)
@@ -1395,6 +1476,13 @@ func _build_settings_page() -> void:
 	_add_toggle_setting(controls_group, &"invert_on_foot_y", "Invert on-foot vertical look", false)
 	_add_slider_setting(controls_group, &"camera_fov", "Camera field of view", 55.0, 110.0, 1.0, 72.0)
 	_add_option_setting(controls_group, &"control_preset", "Control hints (labels only)", ["Modern", "Classic"], 0)
+
+	var bindings_group := _settings_group(
+		left_column,
+		"INPUT BINDINGS",
+		"Select an action, then press a keyboard, mouse, or gamepad control."
+	)
+	_build_input_binding_rows(bindings_group)
 
 	var display_group := _settings_group(left_column, "DISPLAY", "Choose clarity or headroom.")
 	_add_option_setting(display_group, &"graphics_profile", "Graphics quality", ["Low", "Medium", "High"], 2)
@@ -1469,6 +1557,383 @@ func _settings_group(parent: VBoxContainer, title: String, detail: String) -> VB
 	stack.add_child(_label(title, 12, CAUTION))
 	stack.add_child(_label(detail, 10, MUTED))
 	return stack
+
+
+func _build_input_binding_rows(parent: VBoxContainer) -> void:
+	var actions := PackedStringArray()
+	for action: StringName in _input_binding_profile.bindings:
+		actions.append(String(action))
+	actions.sort()
+	for raw_action: String in actions:
+		var action := StringName(raw_action)
+		var row := HBoxContainer.new()
+		row.name = String(action).to_pascal_case() + "BindingRow"
+		row.add_theme_constant_override("separation", 6)
+		parent.add_child(row)
+		var action_label := _label(
+			str(INPUT_ACTION_LABELS.get(action, String(action).replace("_", " ").capitalize())),
+			10,
+			PRIMARY
+		)
+		action_label.custom_minimum_size.x = 126.0
+		action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(action_label)
+		var binding_button := _binding_button("")
+		binding_button.name = String(action).to_pascal_case() + "BindingButton"
+		binding_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		binding_button.pressed.connect(func() -> void: begin_input_binding_capture(action))
+		binding_button.focus_entered.connect(_scroll_to_input_binding.bind(binding_button))
+		row.add_child(binding_button)
+		var reset_button := _binding_button("RESET")
+		reset_button.name = String(action).to_pascal_case() + "BindingResetButton"
+		reset_button.custom_minimum_size.x = 58.0
+		reset_button.pressed.connect(func() -> void: _reset_input_action(action))
+		reset_button.focus_entered.connect(_scroll_to_input_binding.bind(reset_button))
+		row.add_child(reset_button)
+		_binding_rows[action] = row
+		_binding_buttons[action] = binding_button
+		_binding_reset_buttons[action] = reset_button
+
+	_binding_conflict_panel = PanelContainer.new()
+	_binding_conflict_panel.name = "InputBindingConflictPanel"
+	_binding_conflict_panel.visible = false
+	_binding_conflict_panel.add_theme_stylebox_override(
+		"panel",
+		_border_box(Color("301820"), 4, DANGER)
+	)
+	parent.add_child(_binding_conflict_panel)
+	var conflict_margin := _margin(10, 8, 10, 8)
+	_binding_conflict_panel.add_child(conflict_margin)
+	var conflict_stack := VBoxContainer.new()
+	conflict_stack.add_theme_constant_override("separation", 6)
+	conflict_margin.add_child(conflict_stack)
+	_binding_conflict_label = _label("", 10, DANGER)
+	_binding_conflict_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	conflict_stack.add_child(_binding_conflict_label)
+	var conflict_actions := HBoxContainer.new()
+	conflict_actions.add_theme_constant_override("separation", 6)
+	conflict_stack.add_child(conflict_actions)
+	_binding_conflict_replace_button = _binding_button("REPLACE CONFLICTS")
+	_binding_conflict_replace_button.name = "InputBindingConflictReplaceButton"
+	_binding_conflict_replace_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_binding_conflict_replace_button.pressed.connect(_replace_pending_input_conflict)
+	conflict_actions.add_child(_binding_conflict_replace_button)
+	_binding_conflict_cancel_button = _binding_button("CANCEL")
+	_binding_conflict_cancel_button.name = "InputBindingConflictCancelButton"
+	_binding_conflict_cancel_button.pressed.connect(_cancel_pending_input_conflict)
+	conflict_actions.add_child(_binding_conflict_cancel_button)
+
+	var reset_all := _binding_button("RESET ALL BINDINGS")
+	reset_all.name = "InputBindingsResetAllButton"
+	reset_all.pressed.connect(_reset_all_input_bindings)
+	parent.add_child(reset_all)
+	_refresh_all_binding_rows()
+
+
+func _scroll_to_input_binding(control: Control) -> void:
+	if _settings_scroll != null:
+		_settings_scroll.ensure_control_visible.call_deferred(control)
+
+
+func _binding_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size.y = 32.0
+	button.focus_mode = Control.FOCUS_ALL
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_font_size_override("font_size", 9)
+	_tint_theme_color(button, &"font_color", NOMINAL_SOFT)
+	_tint_theme_color(button, &"font_hover_color", PRIMARY)
+	_tint_theme_color(button, &"font_focus_color", PRIMARY)
+	button.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
+	button.add_theme_stylebox_override("hover", _border_box(Color("173044"), 4, NOMINAL))
+	button.add_theme_stylebox_override("focus", _border_box(Color("173044"), 4, CAUTION))
+	return button
+
+
+## Begins one raw-event capture. It is public so controller-driven menus and
+## focused regression tests can enter the same state as the row button.
+func begin_input_binding_capture(action: StringName) -> bool:
+	if (
+		_input_binding_profile == null
+		or not _input_binding_profile.bindings.has(action)
+		or _settings_page == null
+		or not _settings_page.visible
+	):
+		return false
+	_cancel_pending_input_conflict()
+	_binding_capture_action = action
+	_refresh_all_binding_rows()
+	set_settings_status(
+		"LISTENING  //  %s  //  ESC CANCELS" % _input_action_label(action).to_upper(),
+		true
+	)
+	return true
+
+
+func _capture_binding_event(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key := event as InputEventKey
+		if not key.pressed or key.echo:
+			return
+		if key.physical_keycode == KEY_ESCAPE:
+			_cancel_input_binding_capture()
+			_get_viewport_and_handle_input()
+			return
+	elif event is InputEventMouseButton:
+		if not (event as InputEventMouseButton).pressed:
+			return
+	elif event is InputEventJoypadButton:
+		if not (event as InputEventJoypadButton).pressed:
+			return
+	elif event is InputEventJoypadMotion:
+		var motion := event as InputEventJoypadMotion
+		if absf(motion.axis_value) < GAMEPAD_CAPTURE_THRESHOLD:
+			return
+		var normalized_motion := InputEventJoypadMotion.new()
+		normalized_motion.axis = motion.axis
+		normalized_motion.axis_value = signf(motion.axis_value)
+		event = normalized_motion
+	else:
+		return
+	var candidate := InputRebindServiceType.event_to_binding(event)
+	if candidate.is_empty():
+		return
+	var action := _binding_capture_action
+	_binding_capture_action = &""
+	_attempt_input_rebind(action, candidate)
+	_get_viewport_and_handle_input()
+
+
+func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
+	var replacement_base := _profile_without_binding_family(
+		_input_binding_profile,
+		action,
+		_binding_device_family(candidate)
+	)
+	var result := _input_rebind_service.rebind(
+		replacement_base,
+		action,
+		candidate,
+		InputRebindServiceType.CONFLICT_REJECT
+	)
+	if bool(result.get("ok", false)):
+		_commit_input_binding_profile(
+			result.get("profile") as InputBindingProfile,
+			"BOUND  //  %s  //  %s" % [
+				_input_action_label(action).to_upper(),
+				_binding_text(candidate).to_upper(),
+			]
+		)
+		return
+	var conflicts := result.get("conflicts", []) as Array
+	if conflicts.is_empty():
+		set_settings_status("BINDING REJECTED", false)
+		_refresh_all_binding_rows()
+		return
+	_pending_binding_conflict = {
+		"action": action,
+		"candidate": candidate.duplicate(true),
+		"conflicts": conflicts.duplicate(true),
+		"replacement_base": replacement_base,
+	}
+	var conflict_names := PackedStringArray()
+	for conflict: Dictionary in conflicts:
+		conflict_names.append(_input_action_label(StringName(conflict.action)))
+	_binding_conflict_label.text = "%s is already bound to %s." % [
+		_binding_text(candidate),
+		", ".join(conflict_names),
+	]
+	_binding_conflict_panel.visible = true
+	set_settings_status("CONFLICT  //  CHOOSE REPLACE OR CANCEL", false)
+	_binding_conflict_replace_button.grab_focus()
+	_refresh_all_binding_rows()
+
+
+func _replace_pending_input_conflict() -> void:
+	if _pending_binding_conflict.is_empty():
+		return
+	var action := StringName(_pending_binding_conflict.action)
+	var candidate := (_pending_binding_conflict.candidate as Dictionary).duplicate(true)
+	var replacement_base := _pending_binding_conflict.replacement_base as InputBindingProfile
+	var result := _input_rebind_service.rebind(
+		replacement_base,
+		action,
+		candidate,
+		InputRebindServiceType.CONFLICT_REPLACE
+	)
+	if bool(result.get("ok", false)):
+		_commit_input_binding_profile(
+			result.get("profile") as InputBindingProfile,
+			"CONFLICT REPLACED  //  %s" % _input_action_label(action).to_upper()
+		)
+	else:
+		set_settings_status("CONFLICT REPLACEMENT FAILED", false)
+	_cancel_pending_input_conflict(false)
+
+
+func _cancel_pending_input_conflict(clear_status: bool = true) -> void:
+	var return_action := StringName(_pending_binding_conflict.get("action", &""))
+	_pending_binding_conflict.clear()
+	if _binding_conflict_panel != null:
+		_binding_conflict_panel.visible = false
+	if clear_status:
+		set_settings_status("BINDING CHANGE CANCELLED", true)
+	_refresh_all_binding_rows()
+	if (
+		not return_action.is_empty()
+		and _settings_page != null
+		and _settings_page.visible
+		and _binding_buttons.has(return_action)
+	):
+		(_binding_buttons[return_action] as Button).grab_focus()
+
+
+func _cancel_input_binding_capture() -> void:
+	_binding_capture_action = &""
+	set_settings_status("BINDING CAPTURE CANCELLED", true)
+	_refresh_all_binding_rows()
+
+
+func _reset_input_action(action: StringName) -> void:
+	if not _input_binding_defaults.bindings.has(action):
+		return
+	var updated := _input_binding_profile.duplicate_profile()
+	updated.set_bindings(action, [])
+	for binding: Dictionary in _input_binding_defaults.get_bindings(action):
+		var result := _input_rebind_service.rebind(
+			updated,
+			action,
+			binding,
+			InputRebindServiceType.CONFLICT_REPLACE
+		)
+		if not bool(result.get("ok", false)):
+			set_settings_status("RESET FAILED  //  %s" % _input_action_label(action).to_upper(), false)
+			return
+		updated = result.get("profile") as InputBindingProfile
+	updated.set_action_options(action, _input_binding_defaults.get_action_options(action))
+	_commit_input_binding_profile(
+		updated,
+		"DEFAULT RESTORED  //  %s" % _input_action_label(action).to_upper()
+	)
+
+
+func _reset_all_input_bindings() -> void:
+	_commit_input_binding_profile(
+		_input_rebind_service.reset_to_defaults(),
+		"ALL INPUT BINDINGS RESTORED"
+	)
+
+
+func _profile_without_binding_family(
+	profile: InputBindingProfile,
+	action: StringName,
+	family: StringName
+) -> InputBindingProfile:
+	var updated := profile.duplicate_profile()
+	var retained: Array[Dictionary] = []
+	for existing: Dictionary in updated.get_bindings(action):
+		if _binding_device_family(existing) != family:
+			retained.append(existing)
+	updated.set_bindings(action, retained)
+	return updated
+
+
+func _binding_device_family(binding: Dictionary) -> StringName:
+	return (
+		&"gamepad"
+		if StringName(binding.get("device", &"")) == InputBindingProfileType.DEVICE_GAMEPAD
+		else &"desktop"
+	)
+
+
+func _commit_input_binding_profile(profile: InputBindingProfile, status: String) -> void:
+	if (
+		profile == null
+		or not _input_rebind_service.is_profile_compatible_with_defaults(profile)
+	):
+		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
+		return
+	_input_binding_profile = profile.duplicate_profile()
+	_refresh_all_binding_rows()
+	set_settings_status(status, true)
+	setting_change_requested.emit(
+		&"input_binding_profile",
+		_input_binding_profile.duplicate_profile()
+	)
+
+
+func _refresh_all_binding_rows() -> void:
+	if _input_binding_profile == null:
+		return
+	for action: StringName in _binding_buttons:
+		var button := _binding_buttons[action] as Button
+		button.text = (
+			"PRESS A CONTROL..."
+			if action == _binding_capture_action
+			else _action_bindings_text(action)
+		)
+
+
+func _action_bindings_text(action: StringName) -> String:
+	var parts := PackedStringArray()
+	for binding: Dictionary in _input_binding_profile.get_bindings(action):
+		parts.append(_binding_text(binding))
+	return "UNBOUND  //  SELECT TO ADD" if parts.is_empty() else "  /  ".join(parts)
+
+
+func _binding_text(binding: Dictionary) -> String:
+	match StringName(binding.get("type", &"")):
+		&"key":
+			var key_name := OS.get_keycode_string(int(binding.get("physical_keycode", 0)))
+			return key_name if not key_name.is_empty() else "Key %d" % int(binding.get("physical_keycode", 0))
+		&"mouse_button":
+			match int(binding.get("button_index", 0)):
+				MOUSE_BUTTON_LEFT: return "Mouse Left"
+				MOUSE_BUTTON_RIGHT: return "Mouse Right"
+				MOUSE_BUTTON_MIDDLE: return "Mouse Middle"
+				MOUSE_BUTTON_WHEEL_UP: return "Wheel Up"
+				MOUSE_BUTTON_WHEEL_DOWN: return "Wheel Down"
+			return "Mouse %d" % int(binding.get("button_index", 0))
+		&"joy_button":
+			var button_index := int(binding.get("button_index", -1))
+			return "Pad Button %d" % button_index
+		&"joy_motion":
+			var axis := int(binding.get("axis", -1))
+			return "Pad Axis %d %s" % [
+				axis,
+				"+" if float(binding.get("axis_value", 0.0)) > 0.0 else "-",
+			]
+	return "Unknown"
+
+
+func _input_action_label(action: StringName) -> String:
+	return str(INPUT_ACTION_LABELS.get(action, String(action).replace("_", " ").capitalize()))
+
+
+func _get_viewport_and_handle_input() -> void:
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
+
+
+## Detached audit snapshot for settings owners and focused UI tests.
+func get_input_binding_report() -> Dictionary:
+	var actions := PackedStringArray()
+	var bindings := {}
+	for action: StringName in _input_binding_profile.bindings:
+		actions.append(String(action))
+	actions.sort()
+	for raw_action: String in actions:
+		var action := StringName(raw_action)
+		bindings[action] = _input_binding_profile.get_bindings(action)
+	return {
+		"actions": actions,
+		"action_count": actions.size(),
+		"bindings": bindings,
+		"capturing_action": _binding_capture_action,
+		"has_pending_conflict": not _pending_binding_conflict.is_empty(),
+	}
 
 
 func _add_slider_setting(
@@ -1596,8 +2061,13 @@ func _show_settings_page() -> void:
 func _show_pause_main() -> void:
 	if _pause_main_page == null or _settings_page == null:
 		return
+	_binding_capture_action = &""
+	_cancel_pending_input_conflict(false)
 	_pause_main_page.visible = true
 	_settings_page.visible = false
+	var settings_button := _pause_main_page.find_child("SettingsOpenButton", true, false) as Button
+	if _pause.visible and settings_button != null:
+		settings_button.grab_focus()
 
 
 func _set_help_text(rows: Array) -> void:

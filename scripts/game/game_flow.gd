@@ -128,6 +128,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"colorblind_palette",
 	&"reduced_motion",
 	&"captions_enabled",
+	&"input_binding_profile",
 ]
 
 @export_range(0.0, 3.0, 0.05) var canopy_motion_time := 0.65
@@ -2912,6 +2913,14 @@ func _apply_all_runtime_settings() -> void:
 	if world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	_apply_accessibility_settings()
+	_sync_runtime_settings_hud()
+
+
+func _sync_runtime_settings_hud() -> void:
+	if runtime_settings == null or not is_instance_valid(hud):
+		return
+	if hud.has_method("set_input_binding_defaults"):
+		hud.set_input_binding_defaults(runtime_settings.get_project_input_binding_defaults())
 	if hud.has_method("set_settings_snapshot"):
 		hud.set_settings_snapshot(runtime_settings.to_dictionary())
 
@@ -2992,6 +3001,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	elif setting == &"window_mode":
 		runtime_settings.apply_window_mode()
+	elif setting == &"input_binding_profile":
+		runtime_settings.apply_input_bindings()
 	elif setting in [
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:
