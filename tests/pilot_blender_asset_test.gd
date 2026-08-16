@@ -23,9 +23,12 @@ const EXPECTED_DURATIONS := {
 	&"seated_control": 2.4, &"disembark_recovery": .9,
 }
 const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
-## Re-frozen with the leg-pose sagittal sign correction; only the animation
-## curves changed. b0ed09b2da5a0223... -> dc7167a7e66a36ad...
-const SOURCE_CONTENT_SIGNATURE := "dc7167a7e66a36ad2b5c3b7257c439e89f0922cc1539f35a90409e8a6eef5a9b"
+## Re-frozen when the procedural placeholder pose tables were replaced with
+## authored motion. Every animation curve changed and the per-clip imported
+## track count went 17 -> 23; the mesh, rig, bind bounds, bone tree, skin,
+## materials, clip roster and clip durations did not.
+## dc7167a7e66a36ad... -> f9f0b788a140656c...
+const SOURCE_CONTENT_SIGNATURE := "f9f0b788a140656cc428ea7423d13ff874a12cc73da26bbefb16af1b58c829b2"
 
 var _failures: Array[String] = []
 var _assertions := 0
