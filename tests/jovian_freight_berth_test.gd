@@ -39,6 +39,7 @@ func _run() -> void:
 
 	_test_identity_evidence_and_audits(module)
 	_test_anchor_routes_and_room_contract(module)
+	_test_tow_handoff_rail(module)
 	_test_berth_specification(module)
 	await _test_physical_walkable_surfaces(module)
 	await _test_ship_envelope_is_structurally_clear(module)
@@ -138,6 +139,55 @@ func _test_anchor_routes_and_room_contract(module: JovianFreightBerth) -> void:
 	_check(module.contains_service_room(centre), "service-room centre is contained")
 	_check(module.contains_service_room(module.get_route_transform(&"service-room").origin), "service route terminates inside the room")
 	_check(not module.contains_service_room(module.get_route_transform(&"boarding-staging").origin), "boarding apron is not misreported as interior")
+
+
+## The solid FreightApproachGantry exposed that the old east rail crossed the
+## only declared tow handoff. Its south span guarded sub-capsule coplanar seams,
+## not a fall edge, so the rail and its above-deck support now begin at z=2.20.
+## Freeze the one-sided correction without weakening the opposite exposed edge.
+func _test_tow_handoff_rail(module: JovianFreightBerth) -> void:
+	var east_rail: StaticBody3D
+	var west_rail: StaticBody3D
+	for candidate in module.find_children("ApproachRail*", "StaticBody3D", true, false):
+		var rail := candidate as StaticBody3D
+		if rail.position.x > 0.0:
+			east_rail = rail
+		else:
+			west_rail = rail
+	_check(east_rail != null and west_rail != null, "both connection-lattice edge rails resolve")
+	if east_rail == null or west_rail == null:
+		return
+	var east_shape := east_rail.get_node_or_null(^"Collision") as CollisionShape3D
+	var west_shape := west_rail.get_node_or_null(^"Collision") as CollisionShape3D
+	var east_cylinder := east_shape.shape as CylinderShape3D if east_shape != null else null
+	var west_cylinder := west_shape.shape as CylinderShape3D if west_shape != null else null
+	_check(
+		east_rail.position.is_equal_approx(Vector3(3.45, 1.12, 5.25))
+		and east_cylinder != null and is_equal_approx(east_cylinder.height, 6.1),
+		"east rail refreezes centre 3.35 -> 5.25 and length 9.9 -> 6.1 so world span 27.20..31.00 becomes 31.00..37.10"
+	)
+	_check(
+		west_rail.position.is_equal_approx(Vector3(-3.45, 1.12, 2.1))
+		and west_cylinder != null and is_equal_approx(west_cylinder.height, 12.5),
+		"opposite exposed-edge rail remains unchanged"
+	)
+	var east_support_at_new_edge := false
+	var stale_support_in_tow_lane := false
+	var retained_lattice_leg := false
+	for candidate in module.find_children("RailPost*", "StaticBody3D", true, false):
+		var post := candidate as StaticBody3D
+		if is_equal_approx(post.position.x, 3.45):
+			east_support_at_new_edge = east_support_at_new_edge or is_equal_approx(post.position.z, 2.2)
+			stale_support_in_tow_lane = stale_support_in_tow_lane or is_equal_approx(post.position.z, 0.2)
+	for candidate in module.find_children("LatticePost*", "StaticBody3D", true, false):
+		var leg := candidate as StaticBody3D
+		retained_lattice_leg = retained_lattice_leg or (
+			is_equal_approx(leg.position.x, 3.45) and is_equal_approx(leg.position.z, 0.2)
+		)
+	_check(
+		east_support_at_new_edge and not stale_support_in_tow_lane and retained_lattice_leg,
+		"only the +X above-deck RailPost moves local z 0.20 -> 2.20; its below-deck LatticePost stays structural"
+	)
 
 
 func _test_berth_specification(module: JovianFreightBerth) -> void:

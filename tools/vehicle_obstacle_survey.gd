@@ -1,10 +1,11 @@
 extends SceneTree
 
-## Drives the reachable-deck question empirically: where can the tow tractor go,
-## and what visible geometry standing in that region has no collision under it?
+## Generates route and possible-obstacle candidates for embodied tow drives.
+## Its 1.7 m square, heading-free proxy is not the production 2.3 x 3.8 m
+## chassis, so neither a filled cell nor a mesh sample proves vehicle behaviour.
 ##
 ## Not a test. A survey tool, run by hand, whose output is the roster the fix is
-## measured against.
+## measured against. Named held-input drives remain the acceptance authority.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -14,9 +15,8 @@ const RISE := 0.9
 const DROP := 2.2
 const CLEARANCE_HEIGHT := 1.6
 const CLEARANCE_HALF_WIDTH := 0.85
-## A vehicle bonnet reaches roughly this high. Anything whose drawn geometry
-## crosses this band above a reachable deck cell is something the tractor drives
-## into rather than over.
+## A vehicle bonnet reaches roughly this high. Drawn geometry crossing this band
+## near a route-candidate cell is worth an embodied contact drive.
 const HIT_BAND_LOW := 0.30
 const HIT_BAND_HIGH := 2.1
 
@@ -50,17 +50,16 @@ func _run() -> void:
 	print("SURVEY: tractor home %s" % start)
 
 	var reachable := _flood(start)
-	print("SURVEY: reachable deck cells = %d at %.2f m spacing" % [reachable.size(), CELL])
+	print("SURVEY: route-candidate deck cells = %d at %.2f m spacing" % [reachable.size(), CELL])
 	var bounds := AABB(start, Vector3.ZERO)
 	for key: Vector2i in reachable:
 		bounds = bounds.expand(Vector3(float(key.x) * CELL, reachable[key], float(key.y) * CELL))
-	print("SURVEY: reachable bounds %s size %s" % [bounds.position, bounds.size])
+	print("SURVEY: route-candidate bounds %s size %s" % [bounds.position, bounds.size])
 
 	# The tractor is 2.3 x 3.8 m, so it touches geometry standing well outside the
-	# cells its own centre can occupy. Dilate the drivable set by the body radius
-	# before asking what is standing in it.
+	# proxy cells. Dilate the candidate set before asking what might stand nearby.
 	var contact := _dilate(reachable, 2)
-	print("SURVEY: contact cells = %d" % contact.size())
+	print("SURVEY: possible-contact candidate cells = %d" % contact.size())
 	_report_meshes(game, contact)
 	_report_named_reachability(game, reachable)
 	_report_ships(game)
@@ -105,8 +104,8 @@ func _flood(start: Vector3) -> Dictionary:
 	return result
 
 
-## Every cell within `radius` cells of a drivable cell that has ground of its own,
-## keyed to the drivable ground height beside it.
+## Every cell within `radius` cells of a route candidate, keyed to its nearby
+## ground height.
 func _dilate(reachable: Dictionary, radius: int) -> Dictionary:
 	var result: Dictionary = reachable.duplicate()
 	for key: Vector2i in reachable:
@@ -172,9 +171,9 @@ func _report_meshes(game: Node, reachable: Dictionary) -> void:
 			bucket[name_key] = []
 		(bucket[name_key] as Array).append(samples[0])
 
-	print("\n=== STOPS THE TRACTOR (drawn geometry with collision in the drive band) ===")
+	print("\n=== POSSIBLE SOLID CONTACT (candidate samples; drive to prove) ===")
 	_print_bucket(solid)
-	print("\n=== DRIVES STRAIGHT THROUGH (drawn geometry with no collision) ===")
+	print("\n=== POSSIBLE UNBACKED GEOMETRY (candidate samples; drive to prove) ===")
 	_print_bucket(phantom)
 
 
@@ -210,7 +209,7 @@ func _family(node: Node) -> String:
 	return "%s/%s" % [owner_text, name_text]
 
 
-## Points inside `world_aabb` that sit in the drive band above a reachable cell.
+## Points inside `world_aabb` that sit in the drive band above a candidate cell.
 func _band_samples(world_aabb: AABB, reachable: Dictionary) -> Array[Vector3]:
 	var result: Array[Vector3] = []
 	var min_key := Vector2i(int(floor(world_aabb.position.x / CELL)), int(floor(world_aabb.position.z / CELL)))
@@ -251,11 +250,10 @@ func _solid_at(point: Vector3) -> bool:
 	return not _space.intersect_shape(params, 1).is_empty()
 
 
-## Whether the drivable set actually covers named surfaces, and where named
-## dressing sits, so "the tractor cannot get there" is a measurement rather than
-## an inference from a bounding box.
+## Which named surfaces overlap candidate cells, and where named dressing sits.
+## This is coverage triage, not production-vehicle reachability evidence.
 func _report_named_reachability(game: Node, reachable: Dictionary) -> void:
-	print("\n=== NAMED SURFACE REACHABILITY ===")
+	print("\n=== NAMED SURFACE ROUTE-CANDIDATE COVERAGE ===")
 	for surface_name in [
 		"DockSlab01", "DockSlab02", "DockSlab03Upper", "Trunk", "Rung02",
 		"HalyardApronNose", "HalyardApronTailPort", "HalyardApronTailStarboard",
@@ -278,7 +276,7 @@ func _report_named_reachability(game: Node, reachable: Dictionary) -> void:
 					covered += 1
 				cell_z += 1
 			cell_x += 1
-		print("  %-30s aabb=%s drivable_cells=%d/%d" % [
+		print("  %-30s aabb=%s candidate_cells=%d/%d" % [
 			surface_name, world_aabb, covered, total
 		])
 	print("\n=== NAMED DRESSING POSITIONS ===")

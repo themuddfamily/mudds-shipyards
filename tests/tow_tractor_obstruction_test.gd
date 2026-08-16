@@ -60,6 +60,7 @@ func _run() -> void:
 	_test_declared_contract(tractor)
 	await _test_drives_into_a_hull(game, tractor)
 	await _test_drives_into_a_gantry_column(game, world, tractor)
+	await _test_drives_up_aft_ramp_into_workpost(world, tractor)
 	await _test_the_tractor_took_no_authority(game, world, tractor)
 
 	await _clean_up(game)
@@ -76,7 +77,7 @@ func _test_declared_contract(tractor: TowTractor) -> void:
 	)
 	_check(
 		(tractor.collision_mask & PhysicsLayers.SHIP) != 0,
-		"the live tractor masks the Ship layer its four parked neighbours are on"
+		"the live tractor masks the Ship layer used by all five parked craft"
 	)
 	_check(
 		(tractor.collision_mask & PhysicsLayers.PLAYER) == 0,
@@ -95,8 +96,11 @@ func _test_drives_into_a_hull(game: GameFlow, tractor: TowTractor) -> void:
 
 	# Approach down the deck from aft, on the hull's own centre line.
 	var approach := Vector3(hull.get_center().x, 0.0, hull.end.z + APPROACH_GAP)
-	var travelled := await _drive_at(tractor, approach, Vector3.FORWARD, hull)
+	var travelled := await _drive_at(
+		tractor, approach, Vector3.FORWARD, hull, &"TorrentInterceptor"
+	)
 	print("TRACTOR_HULL_APPROACH: ", travelled)
+	print("TRACTOR_HULL_CONTACT_SPEED_MPS: %.6f" % float(travelled.contact_speed))
 	_check(
 		bool(travelled.get("started_on_floor", false))
 		and bool(travelled.get("started_clear", false)),
@@ -115,6 +119,19 @@ func _test_drives_into_a_hull(game: GameFlow, tractor: TowTractor) -> void:
 		"the tractor is stopped *by* the hull rather than by something short of it"
 	)
 	_check(
+		float(travelled.get("contact_speed", 0.0))
+		>= tractor.maximum_forward_speed - 0.5
+		and float(travelled.get("contact_speed", INF))
+		<= tractor.maximum_forward_speed + 0.01,
+		"the tractor reaches approximately its 11.5 m/s authored limit before the hull stops it"
+	)
+	_check(
+		(travelled.get("blocked_by", PackedStringArray()) as PackedStringArray).has(
+			"TorrentInterceptor"
+		),
+		"the live Torrent hull is the exact collider that stops the tractor"
+	)
+	_check(
 		not tractor.has_reported_recovery(),
 		"colliding with a hull never costs the driver their vehicle"
 	)
@@ -126,7 +143,9 @@ func _test_drives_into_a_hull(game: GameFlow, tractor: TowTractor) -> void:
 	# Red witness: the same drive with the mask back the way the playtester found
 	# it. A tractor that masks World alone must end up inside the hull.
 	tractor.collision_mask = PhysicsLayers.WORLD
-	var red := await _drive_at(tractor, approach, Vector3.FORWARD, hull)
+	var red := await _drive_at(
+		tractor, approach, Vector3.FORWARD, hull, &"TorrentInterceptor"
+	)
 	tractor.collision_mask = PhysicsLayers.GROUND_VEHICLE_BODY_MASK
 	print("TRACTOR_HULL_RED_WITNESS: ", red)
 	_check(
@@ -163,12 +182,23 @@ func _test_drives_into_a_gantry_column(
 
 	var drawn := column.global_transform * column.mesh.get_aabb()
 	print("TRACTOR_COLUMN_TARGET: ", column.get_path(), " drawn=", drawn)
+	var bodies := world.find_children(
+		"%sSolids" % activity.name, "StaticBody3D", true, false
+	)
+	_check(bodies.size() == 1, "the world builds exactly one solid-volume body for this vignette")
+	if bodies.is_empty():
+		return
+	var solid_volume_body := bodies[0] as StaticBody3D
+	var expected_blocker := StringName(solid_volume_body.name)
 	# Approach along +X, which is the axis the tractor is parked facing. Measured
 	# off the column's near face, so the gap is a real run-up and not eaten by the
 	# vehicle's own 1.9 m half-length.
 	var approach := Vector3(drawn.position.x - APPROACH_GAP, 0.0, drawn.get_center().z)
-	var travelled := await _drive_at(tractor, approach, Vector3.RIGHT, drawn)
+	var travelled := await _drive_at(
+		tractor, approach, Vector3.RIGHT, drawn, expected_blocker
+	)
 	print("TRACTOR_COLUMN_APPROACH: ", travelled)
+	print("TRACTOR_COLUMN_CONTACT_SPEED_MPS: %.6f" % float(travelled.contact_speed))
 	_check(
 		bool(travelled.get("started_clear", false)),
 		"the tractor starts its run clear of the column"
@@ -184,6 +214,13 @@ func _test_drives_into_a_gantry_column(
 	_check(
 		float(travelled.get("closest_approach", 999.0)) < 0.5,
 		"the tractor is stopped *by* the column rather than by something short of it"
+	)
+	_check(
+		float(travelled.get("contact_speed", 0.0))
+		>= tractor.maximum_forward_speed - 0.5
+		and float(travelled.get("contact_speed", INF))
+		<= tractor.maximum_forward_speed + 0.01,
+		"the tractor reaches approximately its 11.5 m/s authored limit before the column stops it"
 	)
 	_check(
 		(travelled.get("blocked_by", PackedStringArray()) as PackedStringArray).has(
@@ -205,24 +242,135 @@ func _test_drives_into_a_gantry_column(
 		"the vignette declares all four of its maintenance-gantry columns as solid volumes"
 	)
 
-	# Red witness: clear the collision the world built from that declaration, and
-	# the same drive must pass straight through a 5.5 m column.
-	var body := world.find_children("%sSolids" % activity.name, "StaticBody3D", true, false)
-	_check(body.size() == 1, "the world builds exactly one solid-volume body for this vignette")
-	if body.is_empty():
-		return
-	var solid_volume_body := body[0] as StaticBody3D
-	solid_volume_body.collision_layer = PhysicsLayers.NONE
-	var red := await _drive_at(tractor, approach, Vector3.RIGHT, drawn)
-	solid_volume_body.collision_layer = PhysicsLayers.WORLD_BODY_LAYER
+	# Red witness through the public lifecycle, not an internal layer mutation.
+	# Hiding the presentation must also disable the sibling body; otherwise the
+	# player meets an invisible column. Re-enable then proves the same body returns.
+	var solid_body_identity := solid_volume_body.get_instance_id()
+	activity.set_activity_enabled(false)
+	await _advance(2)
+	_check(
+		not bool(activity.get_activity_state().visible)
+		and solid_volume_body.collision_layer == PhysicsLayers.NONE,
+		"disabling one activity hides it and disables its world-owned solids together"
+	)
+	var red := await _drive_at(
+		tractor, approach, Vector3.RIGHT, drawn, expected_blocker
+	)
 	print("TRACTOR_COLUMN_RED_WITNESS: ", red)
 	_check(
 		bool(red.get("entered_target", false)),
-		"red witness: with those volumes cleared the tractor drives straight through a 5.5 m column"
+		"red witness: with the declaring activity disabled the tractor drives through its saved 5.5 m column bound"
+	)
+	activity.set_activity_enabled(true)
+	await _advance(2)
+	_check(
+		bool(activity.get_activity_state().visible)
+		and solid_volume_body.collision_layer == PhysicsLayers.WORLD_BODY_LAYER
+		and solid_volume_body.get_instance_id() == solid_body_identity,
+		"re-enabling the activity restores the same world-owned solid body"
+	)
+	var reenabled := await _drive_at(
+		tractor, approach, Vector3.RIGHT, drawn, expected_blocker
+	)
+	print("TRACTOR_COLUMN_REENABLED: ", reenabled)
+	_check(
+		not bool(reenabled.get("entered_target", true))
+		and (reenabled.blocked_by as PackedStringArray).has(expected_blocker),
+		"the re-enabled lifecycle again stops the tractor at the exact column body"
 	)
 
 
-## Neither half of the fix may hand this deck toy any craft authority.
+## The false Fleet census hid a second reachable family: the actual Aft ramp
+## delivers this chassis directly into the fixed crew work post at its head.
+func _test_drives_up_aft_ramp_into_workpost(
+		world: ShipyardWorld,
+		tractor: TowTractor
+	) -> void:
+	var activity := world.get_node_or_null(
+		^"OperationalLattice/Activities/AftCrewWorkPost"
+	) as StationOperationsActivity
+	var body := world.get_node_or_null(
+		^"OperationalLattice/ActivityCollision/AftCrewWorkPostSolids"
+	) as StaticBody3D
+	var crate := activity.find_child("SupplyCrate", true, false) as MeshInstance3D if activity != null else null
+	_check(activity != null and body != null and crate != null, "Aft upper route resolves its crew workpost, exact sibling body, and east supply crate")
+	if activity == null or body == null or crate == null:
+		return
+	var target := crate.global_transform * crate.mesh.get_aabb()
+	var target_shape := BoxShape3D.new()
+	target_shape.size = crate.mesh.get_aabb().size - Vector3.ONE * 0.02
+	var target_transform := crate.global_transform * Transform3D(
+		Basis.IDENTITY, crate.mesh.get_aabb().get_center()
+	)
+	var approach := Vector3(-5.36, 0.0, 52.0)
+	var travelled := await _drive_at(
+		tractor, approach, Vector3.BACK, target, StringName(body.name),
+		target_shape, target_transform
+	)
+	print("TRACTOR_AFT_WORKPOST_APPROACH: ", travelled)
+	print("TRACTOR_AFT_WORKPOST_CONTACT_SPEED_MPS: %.6f" % float(travelled.contact_speed))
+	_check(
+		bool(travelled.started_on_floor) and float(travelled.distance) > 7.0
+		and tractor.global_position.y >= 4.0 and tractor.is_on_floor()
+		and not tractor.has_reported_recovery(),
+		"held production input climbs the real 23.2-degree Aft ramp before reaching the workpost"
+	)
+	_check(
+		not bool(travelled.entered_target)
+		and float(travelled.closest_approach) < 0.5
+		and (travelled.blocked_by as PackedStringArray).has(String(body.name)),
+		"the exact AftCrewWorkPostSolids body stops the tractor outside the drawn supply crate"
+	)
+	_check(
+		is_finite(float(travelled.contact_speed))
+		and float(travelled.contact_speed) >= tractor.maximum_forward_speed - 0.5,
+		"the workpost stops a measured near-limit impact after the full ramp-foot run-up"
+	)
+	var volumes := activity.get_solid_volume_contract()
+	var boxes := 0
+	var cylinders := 0
+	var rotated_cylinders := 0
+	var names := {}
+	for volume in volumes:
+		var volume_name := StringName(volume.name)
+		names[volume_name] = int(names.get(volume_name, 0)) + 1
+		if StringName(volume.get("shape_kind", &"box")) == &"cylinder":
+			cylinders += 1
+			if not (volume.get("basis", Basis.IDENTITY) as Basis).is_equal_approx(Basis.IDENTITY):
+				rotated_cylinders += 1
+		else:
+			boxes += 1
+	_check(
+		volumes.size() == 12 and boxes == 8 and cylinders == 4 and rotated_cylinders == 3,
+		"crew workpost declares exactly 8 fixed boxes plus 4 cylinders, including all 3 sideways drums"
+	)
+	_check(
+		names == {
+			&"BenchTop": 1, &"BenchLeg": 4, &"ToolWall": 1,
+			&"CableDrum": 1, &"DrumFlange": 2,
+			&"SupplyCrate": 1, &"SupplyCrateTop": 1, &"JigPost": 1,
+		},
+		"crew workpost freezes the exact static semantic roster without promoting trim or animated tools"
+	)
+	activity.set_activity_enabled(false)
+	await _advance(2)
+	var red := await _drive_at(
+		tractor, approach, Vector3.BACK, target, StringName(body.name),
+		target_shape, target_transform
+	)
+	print("TRACTOR_AFT_WORKPOST_RED_WITNESS: ", red)
+	_check(
+		bool(red.entered_target) and tractor.global_position.y >= 4.0
+		and not (red.blocked_by as PackedStringArray).has(String(body.name)),
+		"red witness: disabling the workpost continuously drives the production tractor up the ramp and through the saved crate bound onto the upper deck"
+	)
+	activity.set_activity_enabled(true)
+	await _advance(2)
+
+
+## The mask fix may not hand this deck toy any craft authority. Physics-layer
+## semantics and registry/type authority are deliberately asserted separately:
+## berth, lease, fleet and landing systems do not derive identity from SHIP.
 func _test_the_tractor_took_no_authority(
 		game: GameFlow,
 		world: ShipyardWorld,
@@ -230,16 +378,18 @@ func _test_the_tractor_took_no_authority(
 	) -> void:
 	_check(game.get_flyable_ships().size() == 5, "the fleet registry still holds exactly five flyable craft")
 	_check(
-		(tractor.collision_layer & PhysicsLayers.SHIP) == 0,
-		"the tractor is not on the Ship layer, so no berth, lease, or landing query can find it"
+		tractor.collision_layer == PhysicsLayers.WORLD
+		and (tractor.collision_layer & PhysicsLayers.SHIP) == 0,
+		"the tractor keeps exact World-scenery collision semantics without advertising Ship"
 	)
 	for berth_id in [
-		&"central_berth", &"arrow_recon_berth", &"jovian_freight_berth", &"zenith_fleet_dock_berth"
+		&"central_berth", &"arrow_recon_berth", &"jovian_freight_berth",
+		&"zenith_fleet_dock_berth", &"halyard_fleet_dock_berth"
 	]:
 		var berth := world.get_berth_node(berth_id)
 		_check(
 			berth != null and berth.get_occupant() != tractor,
-			"%s is not leased to the tractor after it has been driven into things" % berth_id
+			"%s registry/type authority does not lease the tractor after it has been driven into things" % berth_id
 		)
 	# The walking player is stopped by the tractor through the player's own mask,
 	# which is the direction of that pair that has always worked.
@@ -262,7 +412,10 @@ func _drive_at(
 		tractor: TowTractor,
 		from: Vector3,
 		heading: Vector3,
-		target: AABB
+		target: AABB,
+		expected_blocker: StringName,
+		exact_target_shape: Shape3D = null,
+		exact_target_transform: Transform3D = Transform3D.IDENTITY
 	) -> Dictionary:
 	var ground := _deck_under(tractor, from)
 	tractor.set_driven(false)
@@ -280,17 +433,33 @@ func _drive_at(
 	var closest := INF
 	var entered := false
 	var blockers := PackedStringArray()
+	var peak_approach_speed := 0.0
+	var last_clear_speed := 0.0
+	var contact_speed := NAN
 	tractor.set_driven(true)
 	Input.action_press(&"move_forward")
 	for _tick in DRIVE_TICKS:
 		await physics_frame
 		await process_frame
+		var sampled_speed := absf(tractor.get_drive_speed())
+		peak_approach_speed = maxf(peak_approach_speed, sampled_speed)
 		var chassis := _chassis_world_aabb(tractor)
 		closest = minf(closest, _aabb_separation(chassis, target))
-		if chassis.intersects(target):
+		if exact_target_shape != null:
+			var target_query := PhysicsShapeQueryParameters3D.new()
+			target_query.shape = exact_target_shape
+			target_query.transform = exact_target_transform
+			target_query.collision_mask = PhysicsLayers.WORLD
+			target_query.collide_with_areas = false
+			for hit in tractor.get_world_3d().direct_space_state.intersect_shape(target_query, 64):
+				if hit.get("collider") == tractor:
+					entered = true
+					break
+		elif chassis.intersects(target):
 			entered = true
 		# What actually stopped it, by name. Without this a red witness that fails
 		# to disarm the thing it is testing looks exactly like a green pass.
+		var expected_blocker_this_tick := false
 		for index in tractor.get_slide_collision_count():
 			var collider := tractor.get_slide_collision(index).get_collider() as Node
 			if collider == null:
@@ -298,6 +467,19 @@ func _drive_at(
 			var label := str(collider.name)
 			if not blockers.has(label):
 				blockers.append(label)
+			if StringName(collider.name) == expected_blocker:
+				expected_blocker_this_tick = true
+		if expected_blocker_this_tick:
+			if not is_finite(contact_speed):
+				# `get_drive_speed()` is sampled after `move_and_slide()` and the
+				# wall-response braking step. The immediately preceding clear sample
+				# and this first blocked sample bracket contact; the greater of them is
+				# the measured inbound speed, not a value inferred from run-up length.
+				contact_speed = maxf(last_clear_speed, sampled_speed)
+		elif not is_finite(contact_speed):
+			# Updated on every tick before the expected obstacle is first observed,
+			# including the whole clear run-up rather than only AABB-overlap ticks.
+			last_clear_speed = sampled_speed
 	Input.action_release(&"move_forward")
 	await _advance(SETTLE_TICKS)
 	tractor.set_driven(false)
@@ -311,6 +493,9 @@ func _drive_at(
 		"closest_approach": closest,
 		"entered_target": entered,
 		"blocked_by": blockers,
+		"peak_approach_speed": peak_approach_speed,
+		"last_clear_speed": last_clear_speed,
+		"contact_speed": contact_speed,
 	}
 
 

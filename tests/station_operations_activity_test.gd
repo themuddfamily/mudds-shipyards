@@ -33,7 +33,17 @@ func _run() -> void:
 	var integration := activity.get_integration_contract()
 	_check(integration.mount_type == &"level_deck", "integration contract declares a reusable deck mount")
 	_check(integration.service_facing_axis_local == Vector3.FORWARD, "local negative Z is the stable service-facing convention")
-	_check(integration.collision_policy == &"presentation_only_nonblocking", "component explicitly promises nonblocking presentation")
+	_check(
+		integration.collision_policy == &"world_owned_declared_solids_presentation_nonblocking"
+		and int(integration.declared_solid_volume_count) == 6
+		and not bool(integration.owns_collision),
+		"FULL declares six exact world-realised solids without giving its presentation subtree collision authority"
+	)
+	_check(
+		(integration.intentionally_nonblocking_static_families as PackedStringArray)
+		== PackedStringArray(["safety_beacon_sacrificial_route_marker"]),
+		"every profile publishes the safety beacon's intentional sacrificial nonphysical policy"
+	)
 	_check((integration.local_size as Vector3).is_equal_approx(Vector3(11.3, 7.25, 9.0)), "integration footprint is complete and finite")
 	_check(_meshes_stay_inside_declared_envelope(activity), "FULL profile render and motion remain inside its published envelope")
 
@@ -77,6 +87,16 @@ func _run() -> void:
 		StationOperationsActivity.ActivityProfile.OBSERVATORY: &"level_deck",
 		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: &"deck_edge",
 		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: &"level_deck",
+	}
+	var expected_solid_volume_counts := {
+		StationOperationsActivity.ActivityProfile.GANTRY: 4,
+		StationOperationsActivity.ActivityProfile.SERVICE_ARM: 2,
+		StationOperationsActivity.ActivityProfile.DRONE_PATROL: 0,
+		StationOperationsActivity.ActivityProfile.CARGO_LINE: 11,
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: 0,
+		StationOperationsActivity.ActivityProfile.OBSERVATORY: 0,
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: 12,
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG: 14,
 	}
 	## The exact published mount envelope of each specialised profile, in metres.
 	var expected_envelopes := {
@@ -149,12 +169,28 @@ func _run() -> void:
 			"%s profile publishes the correct drone motion-envelope presence" % profiled.get_activity_profile_id()
 		)
 		_check(int(profile_integration.visible_mount_footprint_count) > 0, "%s profile retains a visible supported mount" % profiled.get_activity_profile_id())
+		var expected_solid_count := int(expected_solid_volume_counts[profile])
+		_check(
+			int(profile_integration.declared_solid_volume_count) == expected_solid_count
+			and not bool(profile_integration.owns_collision)
+			and profile_integration.collision_policy == (
+				&"world_owned_declared_solids_presentation_nonblocking"
+				if expected_solid_count > 0
+				else &"presentation_only_nonblocking"
+			),
+			"%s publishes its exact owning-world solid declaration without local authority" % profiled.get_activity_profile_id()
+		)
+		_check(
+			(profile_integration.intentionally_nonblocking_static_families as PackedStringArray)
+			== PackedStringArray(["safety_beacon_sacrificial_route_marker"]),
+			"%s preserves the universal nonphysical safety-beacon policy" % profiled.get_activity_profile_id()
+		)
 		_check(_meshes_stay_inside_declared_envelope(profiled), "%s profile render and motion remain inside its published envelope" % profiled.get_activity_profile_id())
 		_check(
 			int(profile_counts.collision_nodes) == 0
 			and int(profile_counts.lights) == 0
 			and int(profile_counts.particle_emitters) == 0,
-			"%s profile stays nonblocking and headless-safe" % profiled.get_activity_profile_id()
+			"%s presentation subtree stays collision-free and headless-safe" % profiled.get_activity_profile_id()
 		)
 		var first_seek := profiled.set_activity_time(6.75)
 		var seek_state := profiled.get_activity_state()

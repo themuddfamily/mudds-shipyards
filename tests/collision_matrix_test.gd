@@ -108,15 +108,15 @@ func _test_actor_collision_matrix() -> void:
 	)
 
 
-## A deck vehicle is scenery that moves, and both halves of that are asserted
-## here because both were wrong in the shipped build for opposite reasons.
+## A deck vehicle is scenery that moves. Only its mask was wrong in the shipped
+## build; its World layer is the old prop's correct, observable scenery channel.
 ##
 ## The mask was `WORLD` alone, which is why a playtester drove the tow tractor
 ## through a parked hull: craft bodies are on `SHIP`. The layer must nevertheless
-## stay `WORLD` and nothing else — the moment a ground vehicle advertises `SHIP`
-## it becomes something berths, landing volumes, AI avoidance, hitscan
-## damageables and the fleet registry all have opinions about, and this vehicle
-## owns no berth, lease, landing or combat authority.
+## stay `WORLD`: player collision, camera obstruction, hitscan occlusion and AI
+## avoidance all intentionally see World scenery. Physics bits do not confer
+## berth, lease, landing, fleet or damage authority; the tow-tractor suite checks
+## those separate type, definition, registry-facing and method boundaries.
 func _test_ground_vehicle_contract() -> void:
 	_check(
 		Layers.GROUND_VEHICLE_BODY_LAYER == Layers.WORLD,
@@ -126,7 +126,7 @@ func _test_ground_vehicle_contract() -> void:
 		(Layers.GROUND_VEHICLE_BODY_LAYER & Layers.SHIP) == 0
 		and (Layers.GROUND_VEHICLE_BODY_LAYER & Layers.TARGET) == 0
 		and (Layers.GROUND_VEHICLE_BODY_LAYER & Layers.INTERACTABLE) == 0,
-		"a ground vehicle claims no ship, target, or interactable authority through its body bit"
+		"a ground vehicle advertises no craft, hurtbox, or interaction query channel"
 	)
 	_check(
 		(Layers.GROUND_VEHICLE_BODY_MASK & Layers.WORLD) != 0,
@@ -152,7 +152,12 @@ func _test_ground_vehicle_contract() -> void:
 	)
 	_check(
 		(Layers.HITSCAN_QUERY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0,
-		"weapons fire still treats a ground vehicle as the scenery it is drawn as"
+		"hitscan rays still use a ground vehicle as World occlusion without making it damageable"
+	)
+	_check(
+		(Layers.CAMERA_OBSTRUCTION_QUERY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0
+		and (Layers.AI_AVOIDANCE_QUERY_MASK & Layers.GROUND_VEHICLE_BODY_LAYER) != 0,
+		"camera and AI obstruction queries still observe the vehicle through its World bit"
 	)
 
 

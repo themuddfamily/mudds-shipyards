@@ -106,6 +106,12 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 		and not bool(assigned_dock_02.historical_class_to_berth_mapping),
 		"dock 02 exposes one modern external Halyard assignment without owning authority"
 	)
+	var dock_02_surface := module.find_child("DockSlab02", true, false) as StaticBody3D
+	_check(
+		dock_02_surface != null
+		and StringName(dock_02_surface.get_meta("surface_role", &"")) == &"broad-assigned-slab",
+		"dock 02's live walkable-surface role agrees with its Halyard assignment"
+	)
 	_check(module.get_dock_roster().size() == 3, "combined roster preserves all three physical dock landmarks")
 	var authority := module.get_authority_contract()
 	_check(int(authority.ship_berth_count) == 0 and int(authority.landing_or_interaction_area_count) == 0, "module owns no ShipBerth, landing, boarding, or interaction area")

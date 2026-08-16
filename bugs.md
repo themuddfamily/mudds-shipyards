@@ -14,7 +14,7 @@ Previously identified candidates were reproduced and addressed in the current br
 
 ## Open candidates — 2026-08-16 human playtest intake — **ALL FOUR CLOSED**
 
-Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim, four
+Reporter: project owner, 2026-08-16, verbatim, four
 reports across two messages:
 
 1. *"The Arrow-class recon ship candidate — I LOVE this but the walkway to enter
@@ -259,7 +259,7 @@ physics and geometry probes, `xvfb-run -a -s "-screen 0 1920x1080x24" ...
 
 ## Open candidates — 2026-08-16 human playtest intake, second pass (Halyard) — **BOTH CLOSED**
 
-Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim, one
+Reporter: project owner, 2026-08-16, verbatim, one
 report containing two defects:
 
 > *"I wasn't able to get on the new ship, its way too big for its stand (can you
@@ -435,7 +435,7 @@ because `scripts/world/fleet_dock_comb.gd` is being revised concurrently:
 
 ## Open candidates — 2026-08-15 human playtest intake
 
-Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-15, verbatim report:
+Reporter: project owner, 2026-08-15, verbatim report:
 *"there's so many places that are difficult to get to, random objects floating in
 the air and it ruins the experience."*
 
@@ -1618,7 +1618,7 @@ sentinels, assertion and diagnostic counts, no durations, no absolute paths — 
 
 ## BOOT-001 / BOOT-002 — the packaged build opened on a frozen window that had already taken the mouse — **FIXED**
 
-Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, from a live
+Reporter: project owner, 2026-08-16, from a live
 playtest of the packaged Windows build, verbatim:
 
 > *"how we load the game when you first start the .exe - at the moment it freezes
@@ -1805,9 +1805,9 @@ costs 1493 ms of frozen main thread. That is the wrong trade for this defect.
 
 ---
 
-## VEHICLE-001 — the tow tractor drives through hulls and through station poles — **FIXED**
+## VEHICLE-001 — the tow tractor drives through hulls and through station poles — **FIXED — scoped**
 
-Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim:
+Reporter: project owner, 2026-08-16, verbatim:
 
 > *"So Im just looking at the tow truck and it drives well but the collision logic
 > isn't fully there - if I drive into a spaceship I just clip through it... the
@@ -1816,116 +1816,188 @@ Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim:
 Configuration: Linux (WSL2 6.18.33.2), Godot 4.7.1.stable.official.a13da4feb,
 `--headless --audio-driver Dummy` for physics probes,
 `VK_ICD_FILENAMES=... xvfb-run -a godot --rendering-driver vulkan` for frames.
-Deterministic; the drive probes reproduce it on every run.
+The focused hull/Central/Aft production-drive test is deterministic and reproduces
+its paired green/red cases consistently.
 
-One sentence, two unrelated causes.
+One sentence, two unrelated causes. The original local fix stopped those two
+reproductions, but its station-wide survey and authority explanation overclaimed
+what had actually been proved. This is the corrected closure record.
 
 ### Cause A — the hulls: a mask that could not see a ship
 
 `scripts/vehicles/tow_tractor.gd` set `collision_mask = PhysicsLayers.WORLD`. Every
 craft body in the world is on `SHIP`, measured live:
 
-| body | layer | mask |
+| body | startup/parked layer | startup/parked mask |
 | --- | --- | --- |
 | `TorrentInterceptor`, `ArrowReconShip`, `JovianLightFreighter`, `ZenithInterceptor`, `HalyardCrewTransport` | 4 (`SHIP`) | 7 (`WORLD\|PLAYER\|SHIP`) |
 | `TowTractor` (before) | 1 (`WORLD`) | 1 (`WORLD`) |
+
+Layer 4 is the stable fact relevant to this defect. Some craft intentionally remove
+`PLAYER` from their mask while a moving-interior occupant is registered, and a
+destroyed craft can disable both filters; the table is the initial parked snapshot,
+not a lifecycle invariant.
 
 The relationship was one-directional: a ship could see the tractor, the tractor
 could not see a ship. No hull could stop it however solid the hull was.
 
 Fixed by publishing a ground-vehicle row in the layer contract —
 `PhysicsLayers.GROUND_VEHICLE_BODY_LAYER` / `GROUND_VEHICLE_BODY_MASK` = `WORLD` /
-`WORLD|SHIP` — and using it. The layer deliberately does not change: a ground
-vehicle stays scenery, so no berth, lease, landing, AI-avoidance or fleet query
-can find it. `PLAYER` is deliberately still out of the mask.
+`WORLD|SHIP` — and using it. **Only the mask was wrong.** The layer remains
+`WORLD`, exactly as it was on the static prop: the walking player's body, camera
+obstruction, hitscan occlusion and AI-avoidance queries all continue to observe the
+tractor as scenery. That does not make it a damageable craft.
 
-### Cause B — the poles: a presentation component with no collision at all
+Berth, lease, landing, fleet and damage authority never came from a collision bit.
+Fleet/berth/landing paths use `HeroShip` identity and definition, the typed
+`GameFlow` registry and `ShipBerth` lease as applicable. Damage is a separate API,
+not a consequence of registration or leasing. `TowTractor` has neither class of
+authority. The focused test temporarily puts the production tractor instance on
+`SHIP` and proves that no identity, definition, landing or damage API appears; it
+also fails the `HeroShip` cast required by the typed fleet registry. A `HeroShip`
+instance is the positive witness for the same reflection probes. `PLAYER`
+deliberately stays out of the tractor's mask because the player's own `WORLD` mask
+supplies the one physical solve.
 
-`scripts/world/station_operations_activity.gd` created **zero** collision nodes and
-enforced that as an invariant. `CentralTowServiceActivity` is a `FULL` vignette
-mounted at world `(6.8, 0, 14.0)` — four metres from the tractor's parking spot at
-`(2.5, 0.45, 15.6)` — and draws four 5.5 m maintenance-gantry columns. Those are
-the poles. `CentralCargoTransferLine` at `(-7.0, 0, 18.0)`, beside the player
-spawn, adds two 2.9 m hoist posts, five crates and a control pedestal in the same
-state.
+### Cause B — the poles: declared presentation, world-owned collision
 
-The first attempt at this built a `StaticBody3D` inside the component. It was
-thrown away, and the reason is worth recording: while it was being written, a
-sibling pass landed `StationOperationsActivity.get_solid_volume_contract()` and
-`ShipyardWorld._build_station_activity_collision()` — a *declaration* of which drawn
-volumes are solid, and a world-side builder that realises every declaration as a
-World-layer body with the shape copied verbatim from the drawn mesh. Same problem,
-same reasoning, better shape: the presentation component keeps `collision_nodes == 0`
-and cannot quietly grow gameplay authority, and the world owns the bodies.
+`StationOperationsActivity` still creates **zero** physics nodes and enforces that
+boundary. It declares exact static gross volumes through
+`get_solid_volume_contract()`; `ShipyardWorld` realises those declarations as
+World-layer sibling bodies. That keeps presentation from acquiring authority while
+making a drawn column and its shape share one name, primitive, size, basis and pose.
 
-So the fix here is four lines of declaration rather than a second mechanism. The
-contract gained the four maintenance-gantry columns and the two service-arm pedestal
-drums; the existing builder did the rest, and no budget in the component moved,
-because the component still builds no collision node of its own. The gap was that a
-column missing from the contract fails silently — the world builds what it is told
-about and nothing complains about what it is not — so
-`tests/tow_tractor_obstruction_test.gd` now asserts both halves: that the vignette
-declares all four columns, and that the thing which physically stopped the tractor
-was that vignette's own `...Solids` body, by name.
+The old closure's count was not truthful. Had the four columns and two pedestal
+drums it described at `CentralTowServiceActivity` been the only additions, its
+narrative would imply **45** shapes. The last source-current production measurement
+before these additions was **three activity roots / 39 shapes**: the short cargo
+line and two long cargo lines. The generic declarations actually materialise across
+Central, Aft and Freight, and the crew post contributes twelve more. The complete
+delta is 24 shapes across four newly solid roots:
 
-Gantry foot pads were tried as solid volumes and reverted: the lattice's
-mount-support probes began reporting the pad instead of the deck under it, and the
-freight berth's exact seam roster gained four contacts. Both audits were right — a
-solid 0.22 m plate lying on a deck is a new surface bolted onto that deck.
+| activity root | newly declared fixed volumes |
+| --- | ---: |
+| `CentralTowServiceActivity` | 4 gantry columns + 2 service-arm pedestal drums = 6 |
+| `AftOperationsActivity` | 2 fixed service-arm pedestal drums |
+| `FreightApproachGantry` | 4 gantry columns |
+| `AftCrewWorkPost` | 8 boxes + 4 cylinders = 12 |
 
-### The survey behind the fix
+The final live contract is therefore **7 sibling bodies / 63 shapes** (55 boxes,
+8 cylinders), not 45. Its audit derives expected counts from all live registered
+activity roots, then also freezes the exact 7/63 aggregate so an omitted root and
+an extra shape both fail. Lifecycle, transform and disable/re-enable identity are
+checked as part of the same world-owned contract.
 
-A flood fill from the tractor's parking spot over the whole station, using the
-vehicle's own deck-edge rule (0.9 m rise / 2.2 m drop per metre) plus a body-sized
-clearance box, found **3527 drivable cells** spanning y = −0.02 … 0.81 over
-x −73 … 49, z −68 … 76. Every drawn mesh standing in that region was then tested
-for collision. Three findings worth keeping:
+Gantry foot pads remain nonphysical. A 0.22 m plate on a deck becomes a new support
+surface: the attempted version intercepted the mount-support rays and added four
+freight seam contacts. The column occupies the centre of the same footprint and is
+the actual tall obstruction named in the report.
 
-- **The Fleet Dock Comb is not vehicle-reachable.** Its decks sit at y = 3.6 … 4.2
-  and the survey reports **0 drivable cells** on every one of them — `DockSlab01`
-  0/238, `DockSlab02` 0/196, `DockSlab03Upper` 0/196, `Trunk` 0/343, and 0/90 on the
-  connector deck that would have to carry a vehicle there — against 334/459 on
-  `CentralJunction` as a control. So its deliberate no-collision-on-dressing rule was
-  left exactly as its owner set it; nothing on that module was made solid. Its masts
-  and booms also stand *outboard* of the slab edge over open void by construction.
-- **The central berth utility bay stays deliberately hollow.** The umbilical
-  housings, service cabinet and berth control pedestal at x > 9.5 are inside the
-  Torrent's landing envelope (x −12…12, z −27…7) and are collision-free on purpose,
-  asserted by `tests/central_berth_hero_test.gd`. A tractor can still clip them.
-  Making them solid would put colliders in a landing volume; that trade was declined.
-- **Animated assemblies stay hollow.** Drones, the service arm above its pedestal,
-  the cargo sled and hoist. A collider that does not move with a mover is a lie.
+### Embodied route results
 
-### Still open — not this report
+The original grid result that put every upper deck at zero was false. Starting only
+at the lower Aft ramp foot, the production `TowTractor` climbs the real 23.2° ramp
+under held production input and reaches y >= 4.0 without recovery. A direct run at
+the east supply crate arrives at the authored **11.5 m/s** cap and is stopped by the
+exact `AftCrewWorkPostSolids` body outside the drawn crate. The paired red witness
+disables that activity, keeps the same vehicle, route and saved crate bound, and
+drives through it onto the upper deck. That proves this fixed workpost contact; it
+does not claim the workpost seals the entire 10.3 m-wide deck.
 
-A walking player can pass through the crew workbench, skywatch legs and signage
-pylon mast of the `CREW_WORKPOST`, `OBSERVATORY` and `SIGNAGE_PYLON` vignettes.
-Those mount on the aft upper landing, the habitat roof and the freight approach —
-no drivable route reaches any of them, so they were left alone rather than widening
-a vehicle fix into four vignettes no vehicle has ever touched.
+The same embodied exploration reaches the Aft upper floor but cannot enter Fleet
+Dock. Its contact roster at the connector mouth was `UpperFloor`, `VIPFacadeRight`
+and `FleetDockCombConnectorPortRail`. Measured between the rail inner faces and the
+facade, the two openings are exactly **1.54 m** and **1.38 m**; both are narrower
+than the tug's **2.30 m** body. Fleet Dock is therefore walking-only under the
+current geometry. Its uncollided cleats, kerbs, masts and booms remain latent behind
+that physical vehicle boundary and were not promoted by this fix.
 
-### Latent defect found on the way — **FIXED INDEPENDENTLY**
+The Registry-to-freight handoff exposed a different candidate route. The original
+solid `FreightApproachGantry` stays at its exact audit-frozen, support-probed
+`modern_interpretation` mount; the freight module instead shortens only the +X
+`ApproachRail` from 9.9 m to 6.1 m and moves its matching post from local z = 0.20
+to 2.20. The removed rail span had guarded only a 0.60 m coplanar
+DeckA-to-Registry seam through world z = 28.80 and a 0.30 m
+DeckB-to-Registry seam through z = 31.00 — both below the 0.76 m player diameter
+and the tug's 3.8 m support length. This preserves the real exposed edge and opens
+**5.29 m** between the gantry column face and the shortened rail/post surface.
 
-`tests/station_operational_lattice_test.gd` asserted by name which deck each gantry
-mount foot rays down onto. At `(-50.28, 25.4)` that was never decidable:
-`ConnectionDeckA` and `ConnectionHandoffDeck` overlap and their top faces are
-*both* at y = 0.380000, so a downward ray returns two hits at an identical distance
-and the engine names whichever the broadphase reached first. Adding any static body
-to the space can flip it, and the gantry foot-pad colliders did while they existed.
-A sibling pass reached the same conclusion from the other direction and landed the
-same fix first: that row now carries both names. Recorded here because it was
-reproduced independently, from a foot-pad collider that no longer exists.
+The production tug now traverses that Registry handoff and reaches the Jovian
+apron. Its direct east approach to the ramp is stopped by the existing ship side,
+`EnvelopeBollardStarboard02` and `ServiceCabinet01`: they leave a **1.60 m**
+transition against the **2.30 m** chassis, while the 2.50 m lateral interval leaves
+only 0.20 m after that chassis width. Runtime still stops there with the proposed
+ramp-mouth curb disabled. A long north loop reached world `(-42.32, 58.98)` before
+`ServiceAccess/FrameBody` stopped it; a theoretical 2.80 m outside lane was not
+completed. The bounded conclusion is therefore only that the freight approach is
+real and **no production route into the hold was established in this fix** — not
+that every possible approach is geometrically impossible.
+
+A visible, ship-owned, eight-point **0.16 m** `CargoRampVehicleStop` was prototyped
+as an explicit `modern_interpretation`, then fully reverted when its disable-only
+witness still could not reach the ramp. No Jovian apron or cabin fixture was moved
+to manufacture a route. The walking cargo ramp and the existing
+bollard/cabinet/hull boundary remain as authored; VEHICLE-001 does not publish a
+redundant new obstacle. Whether a future layout should permit driving inside the
+cabin remains an explicit vehicle policy decision, not a result inferred from this
+partial route search.
+
+### What the survey can and cannot say
+
+`tools/vehicle_obstacle_survey.gd` remains a candidate census, not route proof. Its
+1 m four-neighbour centre grid and 1.7 m square clearance proxy do not model a
+2.3 × 3.8 m heading-dependent chassis or turning radius. It still cannot seed the
+narrow Aft ramp: the true centreline falls between whole-metre cells, and the
+nearest cells either lack a ground hit or fail the proxy clearance query even
+though the embodied tractor climbs it.
+Its dilation copies floor height and normal into a 5 × 5 neighbourhood without new
+rays, which can create candidates over void; its vertical ground ray is not the
+tractor's deck-normal probe.
+
+The mesh pass is bounded too: it samples at most 24 AABB points, skips large AABBs,
+uses a 0.30 m lower band that omits wheel-height detail, accepts any nearby
+World/Ship collider without returning its identity, sees only currently visible
+`MeshInstance3D` nodes, and samples movers at one instant. It misses MultiMesh
+geometry and cannot prove a swept route or blocker family. Family-name reduction
+also loses exact path/RID provenance. The former aggregate drivable/contact totals
+are consequently removed as acceptance evidence: they count grid candidates, and
+the false Aft/Fleet conclusion demonstrates why they cannot close a route.
+
+### Explicit nonblocking boundaries retained
+
+- The central berth utility housings, cabinet and control pedestal remain hollow
+  inside the Torrent landing envelope. `central_berth_hero_test` freezes that
+  deliberate landing-clearance trade; a tractor can still clip them.
+- The three Dock Operations glazing panes remain visual-only. Their corrected
+  placement closes `OPS-GLAZING-001`'s floating/cantilever presentation defect,
+  not the separate fact that a body can pass through the authored glass. This
+  vehicle closure does not claim otherwise.
+- Drones, couriers, the service-arm links, cargo sled and hoists remain nonblocking.
+  Their transforms are presentation clocks, not continuous physics motion.
+- Activity rail beams/ties (0.23/0.14 m) and pallet decks (0.18 m) retain their
+  declared walk-over/kerb-trim policy rather than becoming knee-high invisible
+  walls or new deck surfaces.
+- Every 0.42 m `SafetyBeacon` explicitly publishes
+  `sacrificial_nonblocking_route_marker`; it is wheel-height route trim, not an
+  undiscovered solid. Tests pin that policy rather than claiming the survey found
+  every physical-looking fixture.
 
 ### Evidence
 
 - `tests/tow_tractor_obstruction_test.gd` — drives the shipped vehicle at a hull
-  and at a gantry column with a real held throttle, and requires it to finish
-  outside both. Each case carries a red witness that undoes only the fix: with the
-  mask back to `WORLD` the tractor travels 24.3 m straight through the Torrent, and
-  with the vignette's collision layer cleared it travels 13.8 m through two 5.5 m
-  columns. Green run stops 0.0005 m off the hull and 0.28 m off the column.
-- `tests/capture_tow_tractor_obstruction.gd` — the same drives, rendered.
-- `tools/vehicle_obstacle_survey.gd` — the survey tool.
+  and at exact world-owned Central and Aft activity solids under held production
+  input. Each red witness undoes the relevant mask or public activity lifecycle;
+  blocker identity, drawn-target exclusion and inbound contact speed are required.
+- `tests/collision_matrix_test.gd` and `tests/tow_tractor_test.gd` — freeze the
+  corrected World visibility semantics and positively witness that craft authority
+  is type/API/definition/registry-driven rather than granted by a collision layer.
+- `tests/station_operations_activity_test.gd` and
+  `tests/station_operational_lattice_test.gd` — freeze declaration semantics and
+  the exact 7-body/63-shape live roster.
+- `tests/capture_tow_tractor_obstruction.gd` — renders exactly the six passing
+  hull/Central/Aft green-stop and red-overlap frames.
+- `tools/vehicle_obstacle_survey.gd` — candidate discovery only, with the limits
+  above; it is not acceptance evidence for a production route.
 
 ---
 
@@ -1987,19 +2059,11 @@ x 15.30…25.70 and x 46.80…57.20 are nowhere near the apron and still drop in
 ### The vehicle question, answered by measurement
 
 The handover asked whether the tractor would be jolted by that lip at 11.5 m/s. It
-would not, because **the tractor cannot reach Fleet Dock 02 at all.** The drive
-survey re-run over the widened pad flood-fills 2288 drivable cells, every one of them
-between y = −0.02 and y = 0.38, and reports drivable coverage per named surface:
-
-| surface | drivable cells |
-| --- | --- |
-| `DockSlab02` | 0 / 196 |
-| `HalyardApronNose` | 0 / 169 |
-| `HalyardApronTailPort` / `Starboard` | 0 / 56, 0 / 48 |
-| `DockSlab01`, `DockSlab03Upper`, `Trunk`, `Rung02` | 0 / 238, 0 / 196, 0 / 343, 0 / 45 |
-| `FleetDockCombConnectorDeck` | 0 / 90 |
-| `CentralJunction` (control) | 191 / 459 |
-
-The comb sits at y ≈ 3.6…4.2 and nothing drivable rises above 0.38 m. So the lip was
-a walking-player defect, not a vehicle one, and the comb's no-collision-on-dressing
-rule was left exactly as its owner set it — nothing on that module was made solid.
+would not, because **the tractor cannot enter Fleet Dock 02.** This is no longer
+based on the survey's zero-cell result: that survey also missed the production Aft
+ramp the tractor demonstrably climbs. The embodied vehicle reaches the upper floor
+and stops at the Fleet connector mouth on `UpperFloor`, `VIPFacadeRight` and
+`FleetDockCombConnectorPortRail`. Its two possible gaps are 1.54 m and 1.38 m,
+both below the tug's 2.30 m width. The lip was therefore a walking-player defect,
+not a vehicle contact, and the comb's no-collision-on-dressing policy remains
+unchanged behind that explicit walking-only boundary.

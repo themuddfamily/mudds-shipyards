@@ -6,10 +6,10 @@ extends Node3D
 ## scale, direction, count, vertical transition, and placement are modern.
 ##
 ## Dock markers are deliberately non-authoritative landmarks. Dock 01 records a
-## modern external Zenith assignment while ShipyardWorld owns its actual berth,
-## lease and landing volume; docks 02/03 remain visibly empty and deferred. This
-## component itself owns no ShipBerth, landing area, lease, audio, activity, or
-## process loop.
+## modern external Zenith assignment and Dock 02 a modern external Halyard
+## assignment while ShipyardWorld owns both actual berths, leases and landing
+## volumes; only Dock 03 remains visibly empty and deferred. This component itself
+## owns no ShipBerth, landing area, lease, audio, activity, or process loop.
 
 const SCHEMA_VERSION := 2
 const MODULE_ID: StringName = &"fleet-dock-comb"
@@ -161,8 +161,9 @@ const CONTENT_NOTE := (
 	+ "geometry: its name, exact three-tooth count, measurements, starboard bias, "
 	+ "surface design, short ramp, materials, labels, and world adjacency are modern "
 	+ "interpretation. Dock 01 is a modern externally-owned assignment for the "
-	+ "B7-observed Zenith partial reconstruction; docks 02/03 remain empty and "
-	+ "deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
+	+ "B7-observed Zenith partial reconstruction; Dock 02 is a modern externally-"
+	+ "owned assignment for the project-original modern Halyard design; only Dock 03 remains empty "
+	+ "and deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
 	+ "spawn authority inside this module. The per-arm service hardware — mast, "
 	+ "umbilical head, boom, service pod, mooring cleats, toe kerb and the trunk/rung conduit "
 	+ "run — is modern interpretation with no source at all: no anchor in any "
@@ -499,7 +500,7 @@ func get_evidence_metadata() -> Dictionary:
 			"Fleet Dock Comb name and exact three-tooth roster",
 			"all dimensions, directions, surface details, and station placement",
 			"starboard-only bias and one short vertical ramp",
-			"dock labels, marker transforms, and the Zenith-to-dock-01 assignment",
+			"dock labels, marker transforms, the Zenith-to-dock-01 assignment, and the Halyard-to-dock-02 assignment",
 		]),
 		"explicit_unknowns": PackedStringArray([
 			"historical arm, slab, and berth count",
@@ -738,7 +739,7 @@ func _build_structure() -> void:
 	_register_surface(_surface_box(surfaces, "Rung01", Vector3(5.5, -0.3, 10.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-01", &"orthogonal-rung")
 	_register_surface(_surface_box(surfaces, "DockSlab01", ASSIGNED_DOCK_01_CENTER, ASSIGNED_DOCK_01_SIZE, _materials["deck"]), &"dock-slab-01", &"broad-assigned-slab")
 	_register_surface(_surface_box(surfaces, "Rung02", Vector3(5.5, -0.3, 25.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-02", &"orthogonal-rung")
-	_register_surface(_surface_box(surfaces, "DockSlab02", Vector3(15.0, -0.3, 25.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-02", &"broad-deferred-slab")
+	_register_surface(_surface_box(surfaces, "DockSlab02", Vector3(15.0, -0.3, 25.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-02", &"broad-assigned-slab")
 
 	var ramp_start := Vector3(2.0, LOWER_DECK_ELEVATION, 40.0)
 	var ramp_finish := Vector3(9.0, UPPER_DECK_ELEVATION, 40.0)

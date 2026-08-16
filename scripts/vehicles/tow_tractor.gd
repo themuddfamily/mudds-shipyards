@@ -5,7 +5,7 @@ extends CharacterBody3D
 ##
 ## `modern_interpretation`. No source authenticates a driveable ground vehicle at
 ## Mudds Shipyards; the prop this replaces was itself an invented dressing detail.
-## Nothing here claims otherwise, and the tractor is deliberately *not* a fifth
+## Nothing here claims otherwise, and the tractor is deliberately *not* a sixth
 ## spacecraft: it owns no berth lease, no landing contract, no weapon, no hull,
 ## and no regeneration lifecycle. It is a deck toy with one job — be fun to get
 ## into and drive around the station.
@@ -19,7 +19,7 @@ extends CharacterBody3D
 ##   [ShipBoardingArea], because that component's contract resolves to a craft the
 ##   fleet registry owns; a tractor must never appear there.
 ## - **Riding.** The driver seat is a live [Node3D] anchor handed to
-##   `PlayerController.begin_boarding()`. That is the same mechanism the four
+##   `PlayerController.begin_boarding()`. That is the same mechanism all five
 ##   craft use to keep the visible pilot aboard while the hull moves, so no
 ##   reparenting and no second interior frame is needed.
 ## - **Recovery.** When this vehicle decides it has left the station, it says so
@@ -202,7 +202,7 @@ func _ready() -> void:
 	slide_on_ceiling = false
 	# The prop this replaces was a `WORLD`-layer static body, so keeping that
 	# layer preserves exactly what already collided with it: the walking player,
-	# the four craft, and hitscan treating it as scenery.
+	# all five parked craft, and hitscan treating it as scenery.
 	#
 	# The mask masked `WORLD` alone, and that was the bug a playtester found: the
 	# parked craft are solid bodies on `SHIP`, not on `WORLD`, so a tractor that
