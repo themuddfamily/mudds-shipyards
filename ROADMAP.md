@@ -146,6 +146,18 @@ Frame cost is **unmeasured and unmeasurable here**: this box renders through llv
 
 **Screen-space AO cannot be evaluated on this machine.** Rendering the production scene to the root viewport under llvmpipe/Vulkan and capturing six framings, `ssao_enabled = false` at the profile level (applied before the world builds), the shipped `HIGH` settings, and a forced 4× maximum (intensity 16, radius 8 m, power 4, `light_affect` 1.0) all produce **bit-identical** frames to four decimal places on every statistic. A desaturation applied through the same Environment reference *does* land, so the reference is live and the pass is simply not contributing. Any earlier conclusion about how much AO does or does not do — including "AO's job is modulating ambient and there is almost no ambient to modulate" — was measured through an instrument that is inert on this box and needs re-taking on real hardware. The lighting result recorded above does not depend on AO either way.
 
+### Pilot seated pose — sagittal sign defect, fixed 2026-08-16
+
+The player reported, of every craft: *"the animation turns my legs the wrong way, it looks like my legs break to get in!"* Measured on the live skeleton, the seated pilot's knee sat **0.362 m behind** his hip — 78° of hip hyperextension with the shin folding forward — and the same sign error was present in all nine authored clips.
+
+It was not a facing problem and did not live in any ship. Every bone in `pilot_motion_v2` is built in the sagittal plane with roll 0, so a positive local-X key is a rotation about world +X. That tips an **up**-pointing bone (the spine) towards the face and swings a **down**-pointing bone (the leg chain) away from it. The pose tables are authored in the legacy Godot fallback rig's convention, where positive means "towards the face" for the legs as well — correct there, because that rig's leg node points -Y with forward at -Z, the mirror of a Blender -Y-forward bone pointing -Z. The two authorities disagreed and the Blender one lost.
+
+Recorded because this is the second orientation defect in this asset and the fix pattern matters more than the fix: it was corrected **at the one place authored degrees become bone-local euler** (`bone_local_euler_degrees`), not by mirroring the mount, the seat anchor or a downstream transform. Compensating there would have satisfied one camera and left every other one wrong, and would have collided with the gate clause above.
+
+`pilot_leg_pose_test.gd` now measures the shipped GLB's deformed skeleton in the raw imported frame: no clip may fold a knee forwards, and no seat-transition clip may swing a knee behind its hip. Both quantities are invariant under any mount-level flip, so the guard cannot be satisfied by the hack it exists to forbid.
+
+Left alone deliberately, as tuning rather than defect: the walk and run clips key `pelvis` location as `(0, 0, lift)`, which in pelvis-bone-local space is a ~18 mm **forward** shift, not the vertical bob the values were clearly meant to be.
+
 ## Unverified player recollections — leads, not evidence
 
 Recorded because they are useful for aiming work and for knowing what to look for if

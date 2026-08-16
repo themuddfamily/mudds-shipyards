@@ -395,6 +395,46 @@ def reset_pose(rig: bpy.types.Object) -> None:
         pose_bone.scale = (1.0, 1.0, 1.0)
 
 
+# The spine and leg bones are built in the sagittal plane with roll 0, so each
+# one's local X axis is world +X and a positive local-X key is a rotation about
+# world +X. That rotation carries a bone's tip from +Z round towards -Y, which
+# reads in opposite anatomical directions depending on which way the bone
+# points: the up-pointing spine leans FORWARD (towards the pilot's face at -Y)
+# while the down-pointing leg chain swings BACKWARD, behind him at +Y.
+#
+# The pose tables below are all authored in one anatomical convention, carried
+# over from the legacy Godot fallback rig: positive local X means "this segment
+# swings towards the face". That convention already holds for the spine, and
+# the arm bones lie out of the sagittal plane and are keyed to a measured
+# result, but it is inverted for the leg chain, because the legacy rig's leg
+# node points -Y with forward at -Z, the mirror image of a Blender
+# -Y-forward bone pointing -Z.
+# Keyed unconverted, it gave the seated pose 78 degrees of hip HYPEREXTENSION
+# and a knee folding forwards - the reported "legs break to get in" defect.
+#
+# The conversion belongs here, at the single place authored degrees become
+# bone-local euler. It must not be compensated for by mirroring the mount, the
+# seat anchor, or any downstream transform: those correct one camera angle and
+# leave every other one wrong.
+SAGITTAL_SIGN_INVERTED_BONES = frozenset(
+    {
+        "thigh_l", "calf_l", "foot_l", "toe_l",
+        "thigh_r", "calf_r", "foot_r", "toe_r",
+    }
+)
+
+
+def bone_local_euler_degrees(
+    name: str,
+    degrees: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Convert one authored anatomical key into this rig's bone-local euler."""
+    sagittal, local_y, local_z = degrees
+    if name in SAGITTAL_SIGN_INVERTED_BONES:
+        sagittal = -sagittal
+    return (sagittal, local_y, local_z)
+
+
 def key_pose(
     rig: bpy.types.Object,
     frame: float,
@@ -405,7 +445,9 @@ def key_pose(
     rotations = rotations or {}
     locations = locations or {}
     for name, degrees in rotations.items():
-        rig.pose.bones[name].rotation_euler = tuple(math.radians(value) for value in degrees)
+        rig.pose.bones[name].rotation_euler = tuple(
+            math.radians(value) for value in bone_local_euler_degrees(name, degrees)
+        )
     for name, location in locations.items():
         rig.pose.bones[name].location = location
 
@@ -497,6 +539,11 @@ def build_actions(rig: bpy.types.Object) -> None:
         {"time": .9, "rotations": {"spine_01": (-2,0,0), "thigh_l": (22,0,0), "thigh_r": (-12,0,0), "calf_l": (-24,0,0), "calf_r": (-30,0,0), "foot_l": (10,0,0), "upper_arm_l": (-14,0,-7), "upper_arm_r": (-10,0,8)}},
     ])
 
+    # Anatomical degrees, positive towards the face; see
+    # bone_local_euler_degrees for the leg chain's sign conversion. Seated is
+    # hip flexion 78 with the thigh forward and near level, knee flexion 76
+    # bringing the shin down under it, and the sole taken off its standing
+    # droop so it meets the pedal.
     seated = {"spine_01": (5,0,0), "spine_02": (-7,0,0),
               "thigh_l": (78,0,-4), "thigh_r": (78,0,4),
               "calf_l": (-76,0,0), "calf_r": (-76,0,0),
@@ -638,6 +685,15 @@ def main() -> None:
             "mounted_player_forward_axis": "-Z after Player BodyPivot PI yaw offset",
             "soles_ground_plane_metres": 0.0,
             "root_motion": "in_place_no_horizontal_or_yaw",
+            "authored_pose_sign": (
+                "anatomical degrees, positive towards the face; the leg chain's "
+                "sagittal sign is inverted into bone-local euler because a "
+                "-Z-pointing bone reads world +X rotation the opposite way "
+                "round from the -Y-forward source frame"
+            ),
+            "knee_flexion_world_axis": (
+                "+X; the shin never rotates forward past the thigh"
+            ),
         },
         "hierarchy_contract": ["PilotArt", "PilotRig", "PilotSkeleton", "PilotSuit"],
         "bone_tree": BONE_TREE,

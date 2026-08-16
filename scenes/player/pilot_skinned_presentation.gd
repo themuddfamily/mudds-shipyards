@@ -11,9 +11,17 @@ const SCHEMA_VERSION := 2
 const ASSET_PATH := "res://assets/models/pilot/pilot_motion_v2.glb"
 const SOURCE_PATH := "res://art_source/pilot/pilot_motion_v2.blend"
 const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest.json"
-const EXPECTED_ASSET_SHA256 := "c0a59952e140bfec03042b63cbd894cc25c8d050061d4d549bc7603c8dd182ca"
-const EXPECTED_SOURCE_SHA256 := "02b2a1f292fbeee92a01f33c1af0c7914b142dfdf949a9b4e2d5618c5bcd1a57"
-const EXPECTED_SOURCE_CONTENT_SHA256 := "b0ed09b2da5a02232a9f51c5e6aee9fc98397f8c9180e6952ec2df6040a86579"
+## Re-frozen when the authored leg poses had their sagittal sign corrected and
+## the pinned Blender 4.0.2 generator was re-run. Reason: every clip swung the
+## leg chain rearward, giving the seated pilot 78 degrees of hip
+## hyperextension. Mesh, rig, bind bounds, bone tree, clip roster and clip
+## durations are all unchanged; only the animation curves moved.
+##   GLB            c0a59952e140bfec... -> b869688643a78ba1...
+##   .blend         02b2a1f292fbeee9... -> e7001460e6223b8f...
+##   resource graph b0ed09b2da5a0223... -> dc7167a7e66a36ad...
+const EXPECTED_ASSET_SHA256 := "b869688643a78ba1f257c3521186d1ff13d05178af35fea25b38d994eb9eed72"
+const EXPECTED_SOURCE_SHA256 := "e7001460e6223b8f5af9369634f8596244b3c18cac0016198348c2bf8ac269a4"
+const EXPECTED_SOURCE_CONTENT_SHA256 := "dc7167a7e66a36ad2b5c3b7257c439e89f0922cc1539f35a90409e8a6eef5a9b"
 const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_s2leb"
 const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_uftr0"
 const EXPECTED_MATERIAL_RESOURCE_PATHS := [

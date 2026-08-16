@@ -23,7 +23,9 @@ const EXPECTED_DURATIONS := {
 	&"seated_control": 2.4, &"disembark_recovery": .9,
 }
 const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
-const SOURCE_CONTENT_SIGNATURE := "b0ed09b2da5a02232a9f51c5e6aee9fc98397f8c9180e6952ec2df6040a86579"
+## Re-frozen with the leg-pose sagittal sign correction; only the animation
+## curves changed. b0ed09b2da5a0223... -> dc7167a7e66a36ad...
+const SOURCE_CONTENT_SIGNATURE := "dc7167a7e66a36ad2b5c3b7257c439e89f0922cc1539f35a90409e8a6eef5a9b"
 
 var _failures: Array[String] = []
 var _assertions := 0
