@@ -175,6 +175,10 @@ const NEAR_DUPLICATE_MEAN_DIFFERENCE := 0.0075
 const NEAR_DUPLICATE_CHANGED_FRACTION := 0.065
 const PIXEL_CHANGE_THRESHOLD := 0.045
 
+## Simulated frames granted on top of a nominal duration, so a condition that
+## settles right on the edge of its budget is not lost to rounding.
+const FRAME_BUDGET_GRACE := 30
+
 var _capture_failures: Array[String] = []
 var _captured_images: Dictionary = {}
 var _capture_order: Array[String] = []
@@ -330,7 +334,8 @@ func _run() -> void:
 		# player discovers and walks through this same portal with E/W input.
 		var operations_door := aft_module.get_operations_entrance()
 		operations_door.interact(player)
-		await create_timer(0.7).timeout
+		# The panel travels on the physics clock; wait for it to actually be open.
+		await _wait_until(func() -> bool: return operations_door.is_open(), 0.7)
 		_check(operations_door.is_open(), "operations-room evidence uses the physically open production door")
 		_frame_camera(
 			aft_module.to_global(Vector3(5.6, 2.35, 10.15)),
@@ -358,7 +363,11 @@ func _run() -> void:
 	# capture-only object; room, furniture, glazing, avatar, and door state are live.
 	var habitat_door := habitat.get_main_access()
 	_check(habitat_door != null and habitat_door.interact(player), "habitat common-room evidence opens the real StationDoor")
-	await create_timer(0.7).timeout
+	# The panel travels on the physics clock; wait for the portal to actually clear.
+	await _wait_until(
+		func() -> bool: return habitat_door.is_open() and not habitat_door.is_portal_blocked(),
+		0.7
+	)
 	_check(habitat_door.is_open() and not habitat_door.is_portal_blocked(), "habitat pressure portal is physically clear for the interior frame")
 	var habitat_player_position := habitat.to_global(Vector3(-2.0, 0.18, 24.5))
 	player.call(
@@ -654,7 +663,18 @@ func _run() -> void:
 	jovian.set_cockpit_view(false)
 	await _frames(4)
 	Input.action_press("move_forward")
-	await create_timer(1.45).timeout
+	# Throttle motion is integrated in `_physics_process`; wait for the departure
+	# the frame below asserts on rather than for 1.45 s of smoothed engine delta.
+	await _wait_until(
+		func() -> bool:
+			var telemetry := jovian.get_telemetry()
+			return (
+				jovian.velocity.length() > 5.0
+				and not bool(telemetry.get("landed", true))
+				and jovian.global_position.distance_to(jovian_home_transform.origin) > 2.0
+			),
+		1.45
+	)
 	var jovian_launch_telemetry := jovian.get_telemetry()
 	_check(
 		jovian.velocity.length() > 5.0
@@ -808,9 +828,22 @@ func _run() -> void:
 		_ship_point(ship, Vector3(-0.15, 3.25, -0.35)),
 		50.0
 	)
-	# Canopy opens for 0.8 s, then the pilot climbs for 1.55 s. At this point
-	# the canopy is fully open and the pilot is visibly crossing the sill.
-	await create_timer(1.48).timeout
+	# Canopy opens for 0.8 s, then the pilot climbs for 1.55 s. Wait for the
+	# canopy to be fully open and the pilot visibly crossing the sill — the exact
+	# state the frame below asserts on — instead of for 1.48 s of smoothed engine
+	# delta. `is_seated()` ends the wait too, so an overshoot fails loudly on the
+	# assertions rather than silently burning the budget.
+	await _wait_until(
+		func() -> bool:
+			return (
+				bool(player.call("is_seated"))
+				or (
+					bool(ship.call("is_canopy_open"))
+					and player.global_position.distance_to(boarding_start) > 0.75
+				)
+			),
+		1.48
+	)
 	_frame_camera(
 		_ship_point(ship, Vector3(-8.6, 5.9, -0.25)),
 		_ship_point(ship, Vector3(-0.15, 3.25, -0.35)),
@@ -845,7 +878,11 @@ func _run() -> void:
 	# The rear evidence angle is intentionally different from the cockpit frame;
 	# it records the real STARTING state and both animated engine exhausts.
 	ship.call("request_engine_start")
-	await create_timer(0.82).timeout
+	# This frame wants the craft *mid* spin-up, so there is no settling condition
+	# to wait on — the 0.82 s is the intent. Spend it on the clock the exhaust
+	# animation and the engine timer actually advance on. The STARTING assertion
+	# below is what proves the window was not overshot.
+	await _advance_simulated(0.82)
 	_check(
 		str((ship.call("get_telemetry") as Dictionary).get("engine_state", "")).to_upper() == "STARTING",
 		"engine-start capture occurs during the deliberate startup state"
@@ -873,7 +910,9 @@ func _run() -> void:
 	var ship_camera := ship.call("get_camera") as Camera3D
 	ship_camera.current = true
 	Input.action_press("move_forward")
-	await create_timer(0.95).timeout
+	# Throttle acceleration is integrated in `_physics_process`; wait for the
+	# speed the frame asserts on rather than for 0.95 s of smoothed engine delta.
+	await _wait_until(func() -> bool: return ship.velocity.length() > 8.0, 0.95)
 	_check(ship.velocity.length() > 8.0, "chase-flight frame is backed by real throttle-driven motion")
 	var telemetry_panel := hud.get("_telemetry_panel") as Control
 	var reticle := hud.get("_reticle") as Control
@@ -916,7 +955,11 @@ func _run() -> void:
 	opponent.look_at(ship.global_position, Vector3.UP, true)
 	opponent.velocity = Vector3.ZERO
 	opponent.call("apply_damage", 58.0, opponent.global_position + Vector3.UP * 0.6)
-	await create_timer(0.18).timeout
+	# The damage stage is applied synchronously; this short wait only lets the
+	# persistent smoke emitter put particles in the world, which it does on the
+	# simulation clock. There is nothing to poll, so spend the same nominal
+	# duration in physics steps rather than in smoothed engine delta.
+	await _advance_simulated(0.18)
 	var hull_before := float((ship.call("get_telemetry") as Dictionary).get("hull", 0.0))
 	var hull_shape := ship.find_child("HullCollision", true, false) as CollisionShape3D
 	var hull_target := hull_shape.global_position if hull_shape != null else ship.global_position + Vector3.UP
@@ -987,7 +1030,20 @@ func _run() -> void:
 		_finish()
 		return
 	var disembark_seat_position := player.global_position
-	await create_timer(1.27).timeout
+	# Wait for the exit transition the frame below asserts on, rather than for
+	# 1.27 s of smoothed engine delta. Leaving DISEMBARKING ends the wait too, so
+	# an overshoot fails loudly on the assertions instead of burning the budget.
+	await _wait_until(
+		func() -> bool:
+			return (
+				int(game.get("phase")) != GameFlow.Phase.DISEMBARKING
+				or (
+					bool(ship.call("is_canopy_open"))
+					and player.global_position.distance_to(disembark_seat_position) > 0.6
+				)
+			),
+		1.27
+	)
 	_frame_camera(
 		_ship_point(ship, Vector3(-13.2, 6.2, 6.6)),
 		_ship_point(ship, Vector3(-3.5, 2.1, 0.35)),
@@ -1123,14 +1179,61 @@ func _ship_point(ship: Node3D, local_point: Vector3) -> Vector3:
 
 
 func _wait_for_phase(game: Node, expected_phase: int, timeout_seconds: float) -> bool:
-	# Software-rendered Forward+ evidence can take substantially longer than real
-	# time to advance one simulated second. A SceneTreeTimer tracks engine time and
-	# therefore measures the gameplay transition instead of PNG/rendering cost.
-	var timeout := create_timer(timeout_seconds)
-	while int(game.get("phase")) != expected_phase and timeout.time_left > 0.0:
+	return await _wait_until(
+		func() -> bool: return int(game.get("phase")) == expected_phase,
+		timeout_seconds
+	)
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Software-rendered 2560x1440 Forward+ evidence takes substantially longer than
+## real time to advance one simulated second, which the previous form tried to
+## absorb with a `SceneTreeTimer`. That is the worst of both clocks: the timer
+## counts Godot's smoothed engine delta, the loop advances the physics clock, and
+## the engine drops physics steps rather than letting the simulation spiral, so
+## the timer expired with the transition only part-stepped. `GameFlow` also
+## releases some work against a monotonic deadline (`Time.get_ticks_msec()`),
+## which neither of those clocks measures.
+##
+## `timeout_seconds` is kept as the *nominal* duration and becomes both a budget
+## of simulated frames and a wall-clock deadline. The frame budget is added
+## alongside the original deadline rather than replacing it, so a monotonic
+## release stays bounded on the clock that owns it and a frame budget cannot
+## stretch the window over an unbounded run of wall clock on its own. Both bounds
+## stay finite, so a genuinely stuck condition still fails the capture.
+func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
 		await physics_frame
 		await process_frame
-	return int(game.get("phase")) == expected_phase
+		frames += 1
+	return true
+
+
+## Advances `seconds` worth of simulated time as a count of physics steps.
+##
+## For the handful of waits that are genuinely "let the presentation play for a
+## while" with no condition to settle on, the nominal duration is still the
+## intent — but it has to be spent on the clock the presentation advances on. A
+## `SceneTreeTimer` spends it on the smoothed engine delta instead, and on a
+## starved box that expires having stepped the simulation only part of the way.
+func _advance_simulated(seconds: float) -> void:
+	var steps := maxi(
+		int(ceil(maxf(seconds, 0.0) * float(Engine.physics_ticks_per_second))),
+		1
+	)
+	for _step in steps:
+		await physics_frame
+	await process_frame
 
 
 func _frames(count: int) -> void:

@@ -783,12 +783,19 @@ why `tools/release/run_test_matrix.sh` stays clean and is not a regression on it
 
 ## CAPTURE-001 — `tests/capture_hero_cell.gd` cannot pass on unmodified `main` in this environment — **REPRODUCED**
 
-- Status: `REPRODUCED`. Severity: **P2**. Disposition: **open, needs an owner** — recorded
-  here rather than fixed, because every available repair is a threshold or gate change to
-  an acceptance harness and that is an owner decision, not a housekeeping one.
+- Status: `REPRODUCED`, **adjudicated 2026-08-16**. The record no longer holds an
+  unadjudicated hypothesis: the decisive experiment it named was run, the hypothesis was
+  upheld in substance and wrong about which emitter, and that **gate-design defect is now
+  fixed** in the harness with no threshold moved. Two causes remain, one of them newly
+  identified. See "Adjudication" below. Severity: **P2**. Disposition: **still open, still
+  needs an owner** — both remaining repairs either change what an acceptance harness asserts
+  or need a second rasteriser to adjudicate, and neither is a housekeeping call.
 - Reporter: housekeeping agent, 2026-08-16. Independently reproduced here from a clean
   checkout before recording; a sibling agent had reported it first (stash-and-rerun on
-  unmodified `main`) and this record does **not** rest on that report.
+  unmodified `main`) and this record does **not** rest on that report. Adjudicated the same
+  day on `fcfa58e` by the capture-harness agent, from five completed rendered runs (A–D and
+  a confirming F; one run aborted on X-display contention with a sibling worktree and is not
+  counted).
 - Owner: **needed.** Whoever calibrated `SHIP_LUMINANCE_P5_MINIMUM`,
   `GRAPHITE_BACKGROUND_MINIMUM_DELTA` and `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION`,
   or the current owner of the hero-cell evidence path.
@@ -865,6 +872,11 @@ capture) and all 18 frame captures.
 
 ### These are two different problems, not one
 
+> Retained as recorded on `e57d207`. **Superseded by "Adjudication" below**, which measured
+> all four metrics again after the station lighting scheme landed and found three
+> independent causes, not two. The split below was right about the *shape* of the
+> ONLINE/CRITICAL failure and wrong about the emitter behind it.
+
 The "thresholds were calibrated on real GPU hardware and this box is llvmpipe" reading
 covers **one** of the two failures and not the other. Both halves are recorded because
 recalibrating the numbers would close only the first and leave the harness red.
@@ -897,6 +909,153 @@ That would make this a **gate-design defect rather than an environment defect**,
 would fail on real hardware too. Confirming or refuting it needs one run with the damage
 presentation suppressed, which was not performed here.
 
+### Adjudication — 2026-08-16, on `fcfa58e`
+
+The decisive experiment was run. Everything above was measured on `e57d207`, which predates
+the station lighting scheme (`1ff7df2`, merged `6cca05d`), so all four metrics were
+re-measured first. **The lighting pass moved three of them, one of them by 40×**, which by
+itself retires the "these numbers just need widening" reading: the graphite figure the
+record calls "stable and ~4% short" is no longer 0.0766–0.0781 on `main`.
+
+Re-measurement on `fcfa58e`, same box, same documented invocation:
+
+Run A is unmodified `main` from a pristine copy (harness SHA-256 identical to the one this
+record was filed against). Runs B–D carry the instrumentation and then the repair.
+
+| Metric | Gate | on `e57d207` | run A (unmodified) | run B | run D (repaired) |
+| --- | --- | --- | --- | --- | --- |
+| `ship_luminance_p5` | `> 0.04` | 0.0440–0.0445 | **0.0829** ✅ | 0.0830 ✅ | 0.0830 ✅ |
+| `ship_luminance_p95` | `< 0.95` | 0.7546 | 0.7593 ✅ | 0.7593 ✅ | 0.7593 ✅ |
+| `graphite_background_delta` | `>= 0.08` | 0.0766–0.0781 ❌ | **0.0019** ❌ | **0.0006** ❌ | **0.0019** ❌ |
+| ship-mask clipped luminance | `< 0.005` | 0.0026–0.0029 | 0.0011 ✅ | 0.0011 ✅ | 0.0011 ✅ |
+| cockpit OFFLINE/ONLINE exterior | `<= 0.005` | 0.0044–0.0045 ✅ | **0.0074** ❌ | 0.0050 ✅ | **0.0074** ❌ |
+| cockpit ONLINE/CRITICAL exterior | `<= 0.005` | 0.0511–0.4148 ❌ | **0.4534** ❌ | **0.2748** ❌ | **0.0052** ❌ |
+
+`ship_luminance_p5` is no longer marginal: the lighting pass roughly doubled it and it now
+clears its gate by 2×. That half of finding (1) is closed by the lighting pass, not by any
+harness change.
+
+Note what the last two rows do after the repair. ONLINE/CRITICAL drops from 0.4534 to
+0.0052 and becomes **indistinguishable from its stable sibling** — the outlier that no
+threshold could fit is gone, and what is left on both rows is one shared, different problem
+described under "The remaining two failures".
+
+**Verdict on the ONLINE/CRITICAL hypothesis: upheld in substance, wrong in its named
+emitter.** The cause is the live production damage presentation, and it is a gate-design
+defect that fails on real hardware too — but it is not the stochastic particles. Three
+readbacks of the same frozen scene, with each candidate quiesced in turn, separate them:
+
+| Readback of the identical frozen CRITICAL scene | exterior changed fraction |
+| --- | --- |
+| fully live production damage presentation | 0.2748 |
+| `DamageSparks`/`EngineFailureSparks`/`EngineSmoke` hidden, damage lights still live | **0.3127** |
+| every transient damage emitter quiesced (particles **and** the two damage lights) | **0.0051** |
+
+Hiding the stochastic particles did not reduce the metric at all — it read *higher* than the
+live frame, because the lights kept moving between readbacks. Quiescing the lights collapsed
+it to the renderer's own noise floor. The emitters are
+`HeroDamagePresentation.DamageWarningLight` and `EngineFailureLight`
+(`scripts/effects/hero_damage_presentation.gd:419`), whose energies are
+`(1.4 + pulse) * urgency` with `pulse = sin(elapsed * 13)`, and
+`2.8 * clampf(0.48 + 0.28 * sin(elapsed * 29) + 0.18 * sin(elapsed * 61), 0.12, 0.88)`.
+Both are pure functions of accumulated presentation time, so the energy at readback is
+whatever phase the frame timing happens to land on — a 3.4× swing on the warning light
+alone. That is exactly the shape of the 0.0511 → 0.4534 spread across runs of identical
+input, and it reproduces on any GPU: the sinusoids do not care about the rasteriser.
+
+The particles are real and do reach exterior pixels — `local_coords = false`, `spread`
+165°/48°, `randomness` 0.58–0.72, and they are `CPUParticles3D`, which
+`_cockpit_occluder_mesh_records()` cannot classify because it only collects
+`MeshInstance3D` — but their contribution is inside the noise of the light pulse.
+
+**Fixed, in the harness, without moving a threshold.** The exterior comparison exists to
+prove the fixed camera, the craft pose and the frozen world are identical between the two
+frames, so that the physical-display ROI change is attributable to the readout. Pulsing
+damage illumination is neither the world nor the pose, so the gated comparison now uses the
+deterministic half of the critical state: after the fully live
+`18_cockpit_critical_fixed.png` is staged, the transient damage emitters are made invisible,
+the fixed-camera contract is re-validated, and one extra unpublished frame is read back for
+the control (`_capture_cockpit_critical_exterior_control`). This is the same carve-out the
+harness already documents for the raw outside-ROI metric — "live warning/practical lights
+intentionally change opaque cockpit surfaces" — carried the rest of the way, because those
+lights do not stop at the cockpit surfaces. `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION`
+is **unchanged at 0.005**, the published critical frame is **unchanged and fully live**, and
+the live exterior number is still measured and recorded as
+`cockpit_online_critical_live_damage_exterior_world_non_gated` so nothing is hidden.
+
+Measured on the repaired harness, three runs: live 0.4705 / 0.2765 / 0.4312 (recorded,
+non-gated), transient emitters quiesced **0.0026 / 0.0052 / 0.0053** against the same
+unchanged 0.005 gate — the live figure still swings by 1.7×, the gated one no longer moves
+in the third decimal. That separation is the whole result. The
+metric that ranged over an 8× spread across runs of identical input now lands inside the
+renderer's own noise band, alongside the sibling comparison that was always stable. Run D
+still trips the gate at 0.0052 — but for the reason the sibling trips it at 0.0074, not for
+the reason this comparison used to.
+
+### The remaining two failures, and why neither was "fixed" here
+
+**(1) `graphite_background_delta` was not recalibrated, deliberately.** The gate is
+`abs(graphite_median - background_median) >= 0.08`, where `background` is every mask sample
+that did *not* hit the ship — i.e. whatever the station happens to put behind it. On
+`fcfa58e` those two medians are `graphite 0.153652` and `background 0.153013`: the backdrop
+has drifted onto the same luminance as the material, and the delta is 0.0006. Nothing about
+the graphite material changed; the station lighting scheme did. The same run measures
+`ivory_luminance_median 0.575780` against that graphite, so the ship's own material
+separation is 0.42 and in excellent health — the material contrast this gate is presumably
+meant to protect is not in trouble at all.
+
+So the gate fails the "is it measuring the right thing" test: it benchmarks a ship material
+against an uncontrolled backdrop, which makes it a property of the scenery, not of the
+craft. Widening it to 0.0006 — or to anything — would be recalibrating to match a broken
+measurement, which is worse than leaving it red. The repair is to give it a controlled
+reference (the ivory/graphite separation is the obvious candidate, and is robust), but that
+changes what the harness asserts and is an owner call.
+
+**(2) The cockpit exterior gate has no headroom over this box's renderer noise floor.** This
+now covers *both* exterior rows. The repaired harness measures the floor every run and
+prints it: two readbacks of a single **unchanged** ONLINE state — zero scene difference,
+zero state change — compared through the same exterior mask.
+
+| Run | settle frames | measured noise floor | OFFLINE/ONLINE, same run | ONLINE/CRITICAL quiesced, same run |
+| --- | --- | --- | --- | --- |
+| B | 8 | 0.0044 | 0.0050 | 0.0051 (diagnostic) |
+| C | 48 | 0.0124 | 0.0115 | 0.0026 |
+| D | 8 | 0.0120 | 0.0074 | 0.0052 |
+| F | 8 | 0.0121 | 0.0072 | 0.0053 |
+
+The floor is **0.0044–0.0124 against a gate of 0.005**, and every gated exterior figure now
+sits inside that band. Runs D and F are the same shipped harness and reproduce each other to
+three decimals on every one of these figures, so what is left is stable and measurable — it
+is simply larger than the gate. That settles what these comparisons are measuring on this box:
+**renderer noise, and nothing else.** TAA is enabled on the capture viewport
+(`_configure_native_capture` sets `root.use_taa = true`) and never stops jittering, so a
+deliberately frozen scene is simply not reproducible below the gate here.
+
+Settling longer was tried as a candidate repair and bought nothing — 8 frames gave 0.0044
+and 0.0120 on two runs, 48 frames gave 0.0124 on one, so the floor is unstable run to run
+and independent of the settle length, while 48 frames cost roughly three times the harness
+runtime. `COCKPIT_DIFFERENTIAL_SETTLE_FRAMES` therefore stays at the original 8, with the
+measurement recorded in the constant's comment so the next person does not repeat the
+experiment. The floor is recorded, never gated: the harness does not get to pass by
+declaring its own noise acceptable.
+
+This one **is** genuinely environment-shaped — a real GPU with a stable TAA history would
+plausibly sit far below 0.005 — but it cannot be adjudicated from one rasteriser, and the
+gate value was not touched.
+
+### Two things found on the way that are not this defect
+
+- **`apply_damage` normalises an infinite vector on its own default path.**
+  `_torrent.apply_damage(amount)` with no hit position leaves `world_hit_position` at
+  `Vector3.INF`, and `scripts/ships/hero_ship.gd:1263` then evaluates
+  `(world_hit_position - global_position).normalized()`, which prints
+  `WARNING: Vector3 cannot be normalized, the elements must be finite`. The result is
+  discarded — `present_impact` is correctly skipped because `is_finite()` is false — so this
+  is cosmetic, but it fires on every damage call that omits a position. Not repaired here:
+  `scripts/ships/` is outside this worktree's scope.
+- **The stale transaction directory is still not cleaned on the failure path**, exactly as
+  the section below records. Unchanged.
+
 ### The harness publishes nothing on failure
 
 The capture is transactional. All 18 PNGs are written to
@@ -912,10 +1071,34 @@ three runs. Two consequences worth recording:
 - Anyone re-running the harness inherits the previous run's stale transaction directory.
   Nothing observed it being cleaned up on the failure path.
 
+**Partly addressed, 2026-08-16.** The first consequence was the more expensive one — the
+numbers this record exists to preserve were reachable only by scraping assertion text — so
+the harness now prints every measurement it took, on both paths, as `HERO_CELL_METRICS:`
+lines carrying the full JSON of `ship_mask_lighting` and of every pair comparison including
+the non-gated ones (`_print_measured_metrics`, called unconditionally from `_finish`). The
+stale-transaction consequence is **unchanged**: nothing cleans `.capture_transaction/` on
+the failure path.
+
 ### Linked reproducer / regression
 
 The reproducer is the three numbered steps above. **No regression was added**, deliberately:
 a `tests/*_test.gd` asserting that the hero-cell harness currently fails would land inside
 the matrix glob and turn a tooling defect into a gate, and it would go red the moment the
 harness is repaired. The correct regression is the harness itself, once an owner has
-decided what it should assert on a GPU-less box.
+decided what it should assert on a GPU-less box. That reasoning is unchanged by the
+adjudication: the ONLINE/CRITICAL repair is a change to `tests/capture_hero_cell.gd` and its
+regression is the harness's own `HERO_CELL_PASS` line, which the matrix structurally cannot
+run and should not be made to.
+
+### What would close this record
+
+1. `graphite_background_delta` given a controlled reference instead of the station backdrop,
+   or retired. Owner decision — it changes what the harness asserts.
+2. `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION` adjudicated against a real GPU, where the
+   printed noise floor can be compared with this box's 0.0044–0.0124. If the floor there is
+   an order of magnitude below the gate, the gate is right and this box is simply not a
+   valid platform for it — which is a documentation change, not a threshold change.
+
+The ONLINE/CRITICAL **gate-design** defect is closed and needs nothing further; what remains
+on that row is item 2 above, shared with its sibling. The harness still exits `1` on this
+box, on `graphite_background_delta` and on both exterior comparisons.
