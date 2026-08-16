@@ -125,6 +125,16 @@ const PILOT_PRESENTATION_VERSION := &"realistic_stylised_v2"
 @export var invert_mouse_y: bool = false
 @export_range(1.0, 12.0, 0.1) var minimum_camera_distance: float = 2.4
 @export_range(2.0, 18.0, 0.1) var maximum_camera_distance: float = 8.0
+## Ceiling applied to the chase boom while the body is confined to a craft's
+## cabin. The station is an exterior the 5.2 m default boom was authored for; a
+## pressurised cabin is not. The forward flight deck is 3.25 m long and the
+## through-lane 2.8 m wide, so the authored boom cannot fit behind the pilot at
+## all and every frame of the walk resolves by retraction or by clipping. The
+## SpringArm sweep handles the surfaces that carry collision; this keeps the boom
+## short enough that the retraction is small and continuous rather than a snap
+## from 5.2 m to nothing at every bulkhead, and keeps the camera out of the
+## interior dressing that is drawn but not collided.
+@export_range(1.0, 8.0, 0.1) var interior_camera_distance: float = 2.3
 @export_range(0.1, 3.0, 0.05) var camera_zoom_step: float = 0.65
 @export_range(1.0, 30.0, 0.5) var camera_zoom_speed: float = 12.0
 @export_range(-85.0, 0.0, 1.0) var minimum_pitch_degrees: float = -52.0
@@ -148,7 +158,13 @@ const PILOT_PRESENTATION_VERSION := &"realistic_stylised_v2"
 
 var _control_enabled: bool = true
 var _camera_active: bool = true
+## The distance the boom eases toward. This is the *requested* distance already
+## reduced by whatever ceiling the current space imposes; the request itself is
+## kept separately so a player who zoomed out before stepping into a cabin gets
+## their own framing back when they step out of it.
 var _target_camera_distance: float = 5.2
+var _requested_camera_distance: float = 5.2
+var _camera_distance_ceiling: float = 8.0
 var _pitch: float = deg_to_rad(-10.0)
 ## Travel-facing yaw in Player-local space, before the active presentation's
 ## visual-axis correction is applied.
@@ -213,11 +229,13 @@ func _ready() -> void:
 	_standing_interaction_mask = _interaction_area.collision_mask
 	_standing_physics_priority = process_physics_priority
 	_set_motion_state(MOTION_IDLE, 0.0, 1.0, true, true)
-	_target_camera_distance = clampf(
+	_camera_distance_ceiling = maximum_camera_distance
+	_requested_camera_distance = clampf(
 		_spring_arm.spring_length,
 		minimum_camera_distance,
 		maximum_camera_distance
 	)
+	_apply_camera_distance_ceiling()
 	_pitch = clampf(
 		_camera_pitch.rotation.x,
 		deg_to_rad(minimum_pitch_degrees),
@@ -1032,6 +1050,11 @@ func set_cabin_containment(
 		* _clean_transform(recall_transform)
 	_cabin_clamp_count = 0
 	_cabin_recall_count = 0
+	# The envelope that confines the body also bounds what the camera can see out
+	# of, so it is the right place to shorten the boom. Doing it here rather than
+	# at the call site means every future craft that publishes a cabin inherits
+	# the interior framing without its author having to know about the camera.
+	_set_camera_distance_ceiling(interior_camera_distance)
 	return true
 
 
@@ -1039,6 +1062,7 @@ func clear_cabin_containment() -> void:
 	_cabin_frame = null
 	_cabin_bounds = AABB()
 	_cabin_recall_local = Transform3D.IDENTITY
+	_set_camera_distance_ceiling(maximum_camera_distance)
 
 
 func is_cabin_containment_active() -> bool:
@@ -2889,8 +2913,40 @@ func _advance_motion_animation(delta: float) -> void:
 
 
 func _set_target_camera_distance(distance: float) -> void:
-	_target_camera_distance = clampf(
+	_requested_camera_distance = clampf(
 		distance,
 		minimum_camera_distance,
 		maximum_camera_distance
 	)
+	_apply_camera_distance_ceiling()
+
+
+## Applies the current space's ceiling to the player's requested distance. Never
+## raises the request, so zooming out inside a cabin does nothing surprising and
+## the request is still there on the way out.
+func _apply_camera_distance_ceiling() -> void:
+	_target_camera_distance = minf(_requested_camera_distance, _camera_distance_ceiling)
+
+
+## The boom distance the player asked for, before any interior ceiling.
+func get_requested_camera_distance() -> float:
+	return _requested_camera_distance
+
+
+## The boom distance actually being eased toward right now.
+func get_target_camera_distance() -> float:
+	return _target_camera_distance
+
+
+func _set_camera_distance_ceiling(ceiling: float) -> void:
+	var validated := ceiling
+	if is_nan(validated) or is_inf(validated):
+		validated = maximum_camera_distance
+	_camera_distance_ceiling = clampf(validated, 0.5, maximum_camera_distance)
+	_apply_camera_distance_ceiling()
+	# Shorten immediately rather than easing outward-to-inward across a doorway:
+	# the transition into a cabin already teleports the body, so the boom being
+	# long for a fifth of a second is exactly the frame that ends up inside a
+	# bulkhead. Growing back on the way out stays eased.
+	if _spring_arm != null and _spring_arm.spring_length > _target_camera_distance:
+		_spring_arm.spring_length = _target_camera_distance
