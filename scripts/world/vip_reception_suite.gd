@@ -110,6 +110,16 @@ const WELL_Z_MAX := 11.3
 const SEAT_COUNT := 15
 const GLAZING_PANE_COUNT := 11
 
+## Exact post-batch presentation census. Fourteen childless lacquer joint blocks
+## still draw, but one MultiMesh owns their submission instead of fourteen
+## individual MeshInstance3D nodes.
+const BANQUETTE_JOINT_COPY_COUNT := 14
+const RENDER_DESCENDANT_COUNT := 469
+const RENDER_MESH_INSTANCE_COUNT := 264
+const RENDER_MULTIMESH_BATCH_COUNT := 1
+const RENDER_DRAWN_COPY_COUNT := 278
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 265
+
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
 
@@ -142,6 +152,8 @@ var _seat_nodes: Array[Node3D] = []
 var _glazing_panes: Array[Node3D] = []
 var _support_members: Array[Node3D] = []
 var _practical_lights: Array[OmniLight3D] = []
+var _banquette_joint_transforms: Array[Transform3D] = []
+var _banquette_joint_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -345,6 +357,13 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("a walkable surface is missing an enabled collision shape")
 	if not bool(get_performance_contract().within_budget):
 		errors.append("component counts exceed the declared quality budget")
+	var rendering := get_render_batch_contract()
+	if not bool(rendering.exact_counts):
+		errors.append("VIP renderer node, batch, copy, or submission counts drifted")
+	if not bool(rendering.renderer_buffer_matches_authored):
+		errors.append("VIP banquette-joint renderer buffer drifted from its authored roster")
+	if not bool(rendering.bounds_match_authored):
+		errors.append("VIP banquette-joint batch bounds drifted from its authored copies")
 	return errors
 
 
@@ -362,6 +381,7 @@ func audit() -> Dictionary:
 		"seat_count": get_seat_count(),
 		"glazing_pane_count": get_glazing_pane_count(),
 		"practical_light_count": get_practical_light_count(),
+		"render_batches": get_render_batch_contract(),
 		"support_roster": get_support_roster(),
 		"footprint": get_integration_footprint(),
 	}
@@ -377,6 +397,7 @@ func get_component_roster() -> Dictionary:
 	roster["module_id"] = MODULE_ID
 	roster["seat_count"] = get_seat_count()
 	roster["glazing_pane_count"] = get_glazing_pane_count()
+	roster["render_batches"] = get_render_batch_contract()
 	return roster
 
 
@@ -405,6 +426,71 @@ func get_performance_contract() -> Dictionary:
 	})
 	contract["schema_version"] = SCHEMA_VERSION
 	return contract
+
+
+func get_render_batch_contract() -> Dictionary:
+	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
+	var batch_nodes := find_children("*", "MultiMeshInstance3D", true, false)
+	var drawn_copies := 0
+	var submissions := 0
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		submissions += batch.multimesh.mesh.get_surface_count()
+
+	var expected_buffer := _encode_multimesh_transforms(_banquette_joint_transforms)
+	var renderer_buffer_matches := (
+		is_instance_valid(_banquette_joint_batch)
+		and _banquette_joint_batch.multimesh != null
+		and _banquette_joint_batch.multimesh.buffer == expected_buffer
+	)
+	var bounds_match := false
+	if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null:
+		var expected_bounds := _transformed_mesh_bounds(
+			_banquette_joint_batch.multimesh.mesh.get_aabb(),
+			_banquette_joint_transforms
+		)
+		# The transforms are uploaded as a raw renderer buffer, so Godot does not
+		# rebuild MultiMesh.get_aabb() on the CPU in headless validation. The
+		# explicit custom AABB is the culling contract used by the renderer.
+		bounds_match = _banquette_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+	var descendant_count := find_children("*", "Node", true, false).size()
+	var exact_counts := (
+		descendant_count == RENDER_DESCENDANT_COUNT
+		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
+		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and drawn_copies == RENDER_DRAWN_COPY_COUNT
+		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
+	)
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"descendant_nodes": descendant_count,
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"banquette_joint_copies": _banquette_joint_transforms.size(),
+		"renderer_buffer_floats": (
+			_banquette_joint_batch.multimesh.buffer.size()
+			if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
+			else 0
+		),
+		"renderer_buffer_matches_authored": renderer_buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"exact_counts": exact_counts,
+		"authored_joint_transforms": _banquette_joint_transforms.duplicate(),
+	}
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -821,10 +907,25 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 	# entry side and both flanks and left open toward the view. Seat height is the
 	# perimeter floor level, so the well's edge becomes the seat.
 	var arc_centre := Vector3(-1.6, 0.0, 8.75)
+	var joint_transforms: Array[Transform3D] = []
 	for segment_index in 7:
 		var angle := deg_to_rad(lerpf(128.0, 232.0, float(segment_index) / 6.0))
 		var offset := Vector3(sin(angle), 0.0, cos(angle)) * 2.62
-		_build_banquette_segment(fitout, segment_index, arc_centre + offset, rad_to_deg(angle) + 180.0)
+		_build_banquette_segment(
+			fitout,
+			segment_index,
+			arc_centre + offset,
+			rad_to_deg(angle) + 180.0,
+			joint_transforms
+		)
+	_banquette_joint_transforms.assign(joint_transforms)
+	_banquette_joint_batch = _multimesh_boxes(
+		fitout,
+		"BanquetteSegmentJoints",
+		Vector3(0.05, 0.4, 0.76),
+		_materials["lacquer"],
+		_banquette_joint_transforms
+	)
 
 	# Low table on the well floor, with an inlaid ring that is the only light
 	# source below knee height in the room.
@@ -896,7 +997,13 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 	_box(fitout, "OutboardWindowBenchFillet", Vector3(-1.3, 0.4, 13.08), Vector3(8.4, 0.05, 0.06), _materials["bronze"], false)
 
 
-func _build_banquette_segment(parent: Node3D, index: int, segment_position: Vector3, yaw_degrees: float) -> void:
+func _build_banquette_segment(
+		parent: Node3D,
+		index: int,
+		segment_position: Vector3,
+		yaw_degrees: float,
+		joint_transforms: Array[Transform3D]
+	) -> void:
 	var segment := Node3D.new()
 	segment.name = "Banquette%02d" % (index + 1)
 	segment.position = segment_position
@@ -914,7 +1021,12 @@ func _build_banquette_segment(parent: Node3D, index: int, segment_position: Vect
 	# Segment joints. Photographed from the entry, seven touching segments read as
 	# one continuous tub; a piece of furniture has joints and these are them.
 	for side in [-1.0, 1.0]:
-		_box(segment, "SegmentJoint", Vector3(float(side) * 0.52, -0.16, -0.02), Vector3(0.05, 0.4, 0.76), _materials["lacquer"], false)
+		joint_transforms.append(
+			segment.transform * Transform3D(
+				Basis.IDENTITY,
+				Vector3(float(side) * 0.52, -0.16, -0.02)
+			)
+		)
 
 
 func _build_armchair(parent: Node3D, index: int, chair_position: Vector3, yaw_degrees: float) -> void:
@@ -1058,6 +1170,77 @@ func _register_pane(pane: Node3D) -> Node3D:
 # and cylinders carrying the registered triplanar panel recipe. A fancier room
 # built from raw `BoxMesh` with a flat scalar colour would read as an untextured
 # primitive at eye height, which is the opposite of the brief.
+
+
+## Batches only repeated, visual-only stock. Transforms are in `parent` space;
+## semantic seat roots and every solid/colliding piece stay independent nodes.
+func _multimesh_boxes(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _rounded_box_mesh(size)
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	# Author the exact renderer payload in one operation so both the roster and
+	# the raw 12-float-per-copy buffer are deterministic and mutation-auditable.
+	multi.buffer = _encode_multimesh_transforms(transforms)
+	# A raw-buffer-authored MultiMesh has no CPU-side transforms under headless,
+	# so publish the exact union explicitly rather than accepting an empty cull box.
+	multi.custom_aabb = _transformed_mesh_bounds(multi.mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _encode_multimesh_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 func _material(

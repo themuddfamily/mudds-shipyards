@@ -574,6 +574,35 @@ the chair, console and service interfaces retain the same apparent outlines and
 shading. The adapter was llvmpipe, so this is only a composition/silhouette
 inspection, never representative frame-time evidence.
 
+### Bounded VIP banquette-joint batching
+
+A submission-only pass against base `a6951659` batches the fourteen identical
+lacquer joint blocks carried by the seven reception banquette segments. These
+blocks were childless, visual-only and non-colliding. The seven named
+`BanquetteXX` roots, their colliding `Base` children, seats, route and interaction
+surfaces, materials, transforms, shadows, render layer and authored aggregate
+AABB are unchanged.
+
+The module-local renderer freeze is **482 -> 469 descendants, 278 -> 264
+`MeshInstance3D` nodes, 0 -> 1 `MultiMesh` batch, 278 -> 278 drawn copies and
+278 -> 265 surface submissions**. The batch stores the same fourteen transforms
+in parent space as a deterministic **168-float** renderer buffer (formerly no
+`MultiMesh` buffer) and publishes their exact transformed-mesh union as its
+culling AABB. Focused mutation coverage changes one buffer origin and requires
+the module audit to reject it before restoring the exact payload.
+
+The production census keeps **1,805,922 triangles, 2,795 unique meshes and 677
+retained materials** unchanged while renderer nodes/surface submissions move
+**5,830 -> 5,817 / 5,837 -> 5,824**, and scene nodes move **9,394 -> 9,381**.
+The VIP bucket itself stays at 65,504 triangles and fourteen rendered joint
+copies while moving 278 -> 265 renderer submissions and 483 -> 470 nodes.
+
+One matched 1400x900 Forward+ comparison used camera `(3.5, 1.45, 4.75)` aimed
+at `(-1.6, -0.05, 8.75)`, drawing the frozen authored roster first as fourteen
+ordinary meshes and then as the production batch. The two halves had zero pixel
+difference. The adapter was llvmpipe, so this is only a visual-equivalence check,
+not a frame-time or representative-hardware claim.
+
 ## The lettering fix, for the record
 
 The first thing this budget was used for. Before: 31 signs, 315,360 triangles,

@@ -62,6 +62,7 @@ func _run() -> void:
 		return
 
 	_test_contract(suite)
+	_test_banquette_joint_batch(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
 	_test_nothing_floats(world, suite)
@@ -107,6 +108,111 @@ func _test_contract(suite: VipReceptionSuite) -> void:
 	_check(every_member_named, "every published support member names what it carries and what it laps")
 
 
+func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
+	var fitout := suite.get_node_or_null(^"Structure/Fitout") as Node3D
+	var batch := suite.get_node_or_null(
+		^"Structure/Fitout/BanquetteSegmentJoints"
+	) as MultiMeshInstance3D
+	_check(fitout != null and batch != null and batch.multimesh != null, "banquette joints resolve as one Fitout-level MultiMesh batch")
+	if fitout == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var expected: Array[Transform3D] = []
+	var seats_intact := true
+	for segment_index in 7:
+		var segment := fitout.get_node_or_null(
+			NodePath("Banquette%02d" % (segment_index + 1))
+		) as Node3D
+		if segment == null:
+			seats_intact = false
+			continue
+		seats_intact = seats_intact \
+			and bool(segment.get_meta("station_seat", false)) \
+			and segment.get_node_or_null(^"Base") is StaticBody3D \
+			and segment.find_children("SegmentJoint", "MeshInstance3D", true, false).is_empty()
+		for side in [-1.0, 1.0]:
+			expected.append(
+				segment.transform * Transform3D(
+					Basis.IDENTITY,
+					Vector3(float(side) * 0.52, -0.16, -0.02)
+				)
+			)
+	_check(seats_intact, "all seven semantic/collision-backed banquette roots survive without duplicate joint nodes")
+	_check(
+		multi.instance_count == 14
+		and multi.visible_instance_count == -1
+		and authored.size() == 14
+		and expected.size() == 14,
+		"one batch retains all fourteen visible joint copies"
+	)
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(authored_exact, "authored batch roster preserves every old joint transform and ordering")
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var renderer_exact := multi.instance_count == expected.size()
+		for index in expected.size():
+			renderer_exact = renderer_exact and multi.get_instance_transform(index).is_equal_approx(expected[index])
+		_check(renderer_exact, "Forward+ renderer transforms preserve every old joint transform and ordering")
+
+	var first_base := fitout.get_node_or_null(^"Banquette01/Base/Mesh") as MeshInstance3D
+	_check(
+		multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.05, 0.4, 0.76))
+		and multi.mesh.get_surface_count() == 1
+		and first_base != null
+		and batch.material_override == first_base.material_override,
+		"batch preserves the rounded-box extent, one surface, and lacquer material identity"
+	)
+	_check(
+		batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"batch preserves parent-space transforms, shadow casting, and render layer"
+	)
+
+	var render := suite.get_render_batch_contract()
+	_check(
+		int(render.descendant_nodes) == 469
+		and int(render.mesh_instances) == 264
+		and int(render.multimesh_batches) == 1,
+		"renderer nodes freeze at 482 -> 469, MeshInstances 278 -> 264, batches 0 -> 1"
+	)
+	_check(
+		int(render.drawn_copies) == 278
+		and int(render.geometry_submissions) == 265
+		and int(render.banquette_joint_copies) == 14,
+		"drawn copies remain 278 while submissions fall 278 -> 265"
+	)
+	_check(
+		int(render.renderer_buffer_floats) == 168
+		and bool(render.renderer_buffer_matches_authored)
+		and bool(render.bounds_match_authored)
+		and bool(render.exact_counts),
+		"renderer transform buffer freezes at 0 -> 168 floats and its aggregate AABB matches the authored roster"
+	)
+
+	var detached := render.authored_joint_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((suite.get_render_batch_contract().authored_joint_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"render contract returns a detached authored-transform roster"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	var mutation_errors := suite.get_validation_errors()
+	_check(
+		mutation_errors.has("VIP banquette-joint renderer buffer drifted from its authored roster"),
+		"mutating one live renderer transform is rejected by the module audit"
+	)
+	multi.buffer = original_buffer
+	_check(suite.get_validation_errors().is_empty(), "restoring the exact buffer restores a clean module audit")
+
+
 func _test_evidence_label(suite: VipReceptionSuite) -> void:
 	var evidence := suite.get_evidence_metadata()
 	_check(str(evidence.evidence_status) == "modern_interpretation", "the interior publishes modern_interpretation")
@@ -141,9 +247,16 @@ func _test_is_not_a_fifth_station_module(world: ShipyardWorld, suite: VipRecepti
 	_check(not suite.is_in_group("station_modules"), "the interpretation interior is not registered as a station module")
 	_check(suite.is_in_group("station_interpretation_interiors"), "the interior is discoverable as what it is")
 	var report := world.get_station_route_registry_report()
-	_check(int(report.get("module_count", -1)) == 4, "the station still registers exactly four modules")
+	var modules := report.get("modules", {}) as Dictionary
+	_check(not modules.has(VipReceptionSuite.MODULE_ID), "the suite is absent from the station module roster")
 	var adjacency := report.get("adjacency", {}) as Dictionary
-	_check((adjacency.get("edges", []) as Array).size() == 4, "the suite adds no adjacency edge")
+	var suite_has_edge := false
+	for raw_edge in adjacency.get("edges", []) as Array:
+		var edge := raw_edge as Dictionary
+		for endpoint in edge.get("endpoints", PackedStringArray()) as PackedStringArray:
+			if String(endpoint).begins_with("%s:" % VipReceptionSuite.MODULE_ID):
+				suite_has_edge = true
+	_check(not suite_has_edge, "the suite adds no station adjacency edge")
 	var route_ids := PackedStringArray()
 	if suite.has_method("get_route_ids"):
 		route_ids = PackedStringArray(suite.call("get_route_ids"))
