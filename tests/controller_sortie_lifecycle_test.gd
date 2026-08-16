@@ -197,32 +197,27 @@ func _run() -> void:
 	_finish()
 
 
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
+## Waits for `predicate` on a finite simulation-frame budget.
 ##
 ## Every result this suite waits on — craft selection, boarding, seating, engine
 ## spin-up, flight and the on-foot handoff — is integrated in a frame callback,
 ## most of them in `_physics_process`. Under load Godot drops physics steps
 ## rather than letting the simulation spiral while the wall clock keeps running,
-## so a `Time.get_ticks_msec()`-only deadline ends the wait after far fewer
-## simulated steps than the manoeuvre needs and scores a perfectly healthy sortie
-## as a failure. `timeout_seconds` is kept as the *nominal* duration and becomes
-## both a frame budget and a wall-clock deadline; both stay finite, so a
-## genuinely stuck sortie still fails the suite.
+## so a wall-clock deadline ends the wait after far fewer simulated steps than
+## the manoeuvre needs and scores a perfectly healthy sortie as a failure.
+## `timeout_seconds` is kept as the nominal simulated duration and becomes a
+## finite frame budget, so a genuinely stuck sortie still fails the suite.
 func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 	var frame_budget := (
 		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
-			return false
+	for _frame in frame_budget:
+		if bool(predicate.call()):
+			return true
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return bool(predicate.call())
 
 
 func _clean_up(game: Node) -> void:
