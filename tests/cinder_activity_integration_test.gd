@@ -1,8 +1,8 @@
 extends SceneTree
 
-## Focused production integration for the first player-facing nearby activity.
-## It uses the real Main, director resource, active physical ship, and HUD, but
-## deliberately does not run the guided combat sortie or any reward path.
+## Focused production integration for the timed Cinder activity. It uses the
+## real Main, ActivityDirector, physical ship position, physics-delta seam, and
+## HUD without entering the guided combat or any reward path.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
@@ -17,7 +17,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
-	_check(game != null, "production Main instantiates with the activity integration")
+	_check(game != null, "production Main instantiates with the timed Cinder session")
 	if game == null:
 		_finish()
 		return
@@ -31,7 +31,7 @@ func _run() -> void:
 	var combat_before := game.get_combat_authority()
 	_check(
 		director != null and hud != null and combat_before != null,
-		"production Main exposes its one activity director beside the existing HUD and combat authority"
+		"Main exposes its director, HUD, and independent combat authority"
 	)
 	if director == null or hud == null or combat_before == null:
 		await _clean_up(game)
@@ -39,8 +39,10 @@ func _run() -> void:
 		return
 
 	_test_scene_and_authority_boundary(game, director, hud)
-	await _test_start_progress_reentry_and_completion(game, director, hud, combat_before)
-	_test_fail_reset_and_generation_recovery(game, director, hud)
+	await _test_countdown_pause_progress_reentry_and_completion(
+		game, director, hud, combat_before
+	)
+	_test_failure_reset_and_generation_recovery(game, director, hud)
 
 	await _clean_up(game)
 	_finish()
@@ -52,11 +54,15 @@ func _test_scene_and_authority_boundary(
 	hud: GameHUD
 	) -> void:
 	var integration := game.get_activity_integration_report()
-	var audit := director.audit()
+	var session := integration.get("session") as CinderTimedRaceSession
+	var audit := session.audit() if session != null else {}
 	_check(
 		int(integration.get("director_count", 0)) == 1
-		and director.get_definition(ROUTE.activity_id) == ROUTE,
-		"Main owns exactly one director with the published Cinder route resource registered"
+		and director.get_definition(ROUTE.activity_id) == ROUTE
+		and session != null
+		and audit.get("route_resource_path", "") == ROUTE.resource_path
+		and not bool(audit.get("owns_checkpoint_geometry", true)),
+		"one session composes the one registered shared route without checkpoint duplication"
 	)
 	_check(
 		not bool(integration.get("gameplay_authority", true))
@@ -64,31 +70,30 @@ func _test_scene_and_authority_boundary(
 		and not bool(integration.get("combat_authority", true))
 		and not bool(integration.get("ship_authority", true))
 		and not bool(integration.get("berth_authority", true))
-		and not bool(audit.get("gameplay_authority", true))
-		and not bool(audit.get("grants_rewards", true)),
-		"the production integration and director claim no reward, combat, ship, berth, or general gameplay authority"
+		and not bool(audit.get("grants_rewards", true))
+		and not bool(audit.get("network_authority", true)),
+		"the production adapter claims no reward, combat, ship, berth, network, or general gameplay authority"
 	)
 	var rejected := game.request_activity_start(ROUTE.activity_id)
 	_check(
 		not bool(rejected.get("accepted", true))
 		and rejected.get("reason", &"") == &"not_in_free_flight",
-		"an on-foot or guided phase cannot start the free-flight route"
+		"on-foot or guided play cannot start the free-flight race"
 	)
 	_check(
 		not bool(hud.get_activity_objective_report().get("visible", true)),
-		"the activity HUD line stays hidden before a route starts"
+		"the activity HUD line stays hidden before a race starts"
 	)
 
 
-func _test_start_progress_reentry_and_completion(
+func _test_countdown_pause_progress_reentry_and_completion(
 	game: GameFlow,
 	director: ActivityDirector,
 	hud: GameHUD,
 	combat_before: LiveCombatAuthority
 	) -> void:
-	# Stand in for the completed physical boarding/engine transition while leaving
-	# the real production ship as the position source. The integration's public
-	# start gate still sees exactly the state a normal sandbox flight produces.
+	# Stand in for the completed physical boarding/engine transition while keeping
+	# the production ship as the sole sampled position source.
 	var fleet := game.get_flyable_ships()
 	var route_ship := fleet[1] as HeroShip
 	game.active_ship = route_ship
@@ -96,163 +101,243 @@ func _test_start_progress_reentry_and_completion(
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	game.call("_start_default_free_flight_activity")
 	var started := game.get_active_activity_snapshot()
-	var generation := int(started.get("generation", -1))
+	var session_generation := int(started.get("session_generation", -1))
 	_check(
-		int(started.get("state", -1)) == CheckpointRouteActivity.State.ACTIVE
-		and generation == 1,
-		"a normal free-flight state starts the published route at generation one"
+		started.get("state_id", &"") == &"countdown"
+		and session_generation == 1
+		and is_equal_approx(float(started.get("countdown_remaining_seconds", -1.0)), 2.0)
+		and int(started.get("lap_count", 0)) == 1,
+		"normal free flight starts one timed lap with the readable two-second countdown"
 	)
 	game.call("_start_default_free_flight_activity")
 	_check(
-		int(game.get_active_activity_snapshot().get("generation", -1)) == generation,
-		"re-observing the same free-flight state cannot duplicate or restart the active route"
+		int(game.get_active_activity_snapshot().get("session_generation", -1))
+		== session_generation,
+		"re-observing free flight cannot duplicate or restart the running session"
 	)
 	var hud_started := hud.get_activity_objective_report()
 	_check(
 		bool(hud_started.get("visible", false))
-		and int(hud_started.get("state", -1)) == CheckpointRouteActivity.State.ACTIVE
-		and int(hud_started.get("next_checkpoint_index", -1)) == 0
-		and "CHECKPOINT 1 / 5" in str(hud_started.get("text", "")),
-		"the HUD consumes the live snapshot as checkpoint one of five"
+		and hud_started.get("state_id", &"") == &"countdown"
+		and "START 2.0s" in str(hud_started.get("text", ""))
+		and "L1/1" in str(hud_started.get("text", "")),
+		"the HUD presents countdown and lap state before accepting gates"
 	)
 
-	# A later published anchor is physically occupied first. Sampling the active
-	# ship must preserve route order rather than choosing the nearest anchor.
-	route_ship.global_position = ROUTE.get_checkpoint_position(1)
+	# A paused SceneTree does not dispatch GameFlow's physics callback, so the
+	# caller-owned race clock and sampler must remain byte-for-byte unchanged.
+	var before_pause := game.get_active_activity_snapshot()
+	var samples_before_pause := int(
+		game.get_activity_integration_report().get("position_sample_count", -1)
+	)
+	paused = true
 	await physics_frame
 	await physics_frame
+	paused = false
+	var after_pause := game.get_active_activity_snapshot()
 	_check(
-		int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1)) == 0,
-		"the production ship-position sampler rejects an out-of-order anchor"
+		after_pause == before_pause
+		and int(game.get_activity_integration_report().get("position_sample_count", -2))
+		== samples_before_pause,
+		"paused physics advances neither countdown nor physical position sampling"
+	)
+
+	# Disable automatic dispatch after the pause witness, then invoke the same
+	# production callback directly with exact finite physics deltas.
+	game.set_physics_process(false)
+	game.call("_physics_process", 1.25)
+	var countdown_step := game.get_active_activity_snapshot()
+	_check(
+		countdown_step.get("state_id", &"") == &"countdown"
+		and is_equal_approx(float(countdown_step.get("countdown_remaining_seconds", -1.0)), 0.75)
+		and int(game.get_activity_integration_report().get("position_sample_count", -1))
+		== samples_before_pause,
+		"caller physics delta advances countdown exactly without early route sampling"
+	)
+	game.call("_physics_process", 0.75)
+	var active := game.get_active_activity_snapshot()
+	_check(
+		active.get("state_id", &"") == &"active"
+		and is_zero_approx(float(active.get("current_time_seconds", -1.0)))
+		and int(game.get_activity_integration_report().get("position_sample_count", -1))
+		== samples_before_pause + 1,
+		"the countdown boundary activates and samples the real ship exactly once in that physics tick"
+	)
+
+	# A later anchor occupied first must preserve route order.
+	route_ship.global_position = ROUTE.get_checkpoint_position(1)
+	var before_out_of_order_samples := int(
+		game.get_activity_integration_report().get("position_sample_count", -1)
+	)
+	game.call("_physics_process", 0.1)
+	_check(
+		int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1)) == 0
+		and int(game.get_activity_integration_report().get("position_sample_count", -1))
+		== before_out_of_order_samples + 1,
+		"one production tick performs one sample and rejects an out-of-order physical anchor"
 	)
 	route_ship.global_position = ROUTE.get_checkpoint_position(0)
-	await physics_frame
-	await physics_frame
+	game.call("_physics_process", 0.1)
 	_check(
 		int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1)) == 1
-		and "CHECKPOINT 2 / 5" in str(hud.get_activity_objective_report().get("text", "")),
-		"occupying the first published anchor advances both director and HUD once"
+		and "G2/5" in str(hud.get_activity_objective_report().get("text", "")),
+		"occupying gate one advances the shared director, timed session, and HUD once"
 	)
 
+	var integration_before_reentry := game.get_activity_integration_report()
+	var session_id := int(integration_before_reentry.get("session_instance_id", 0))
 	var director_id := director.get_instance_id()
+	var samples_before_reentry := int(integration_before_reentry.get("position_sample_count", -1))
+	var snapshot_before_reentry := game.get_active_activity_snapshot()
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
 	_check(
-		int(director.get_activity_snapshot(ROUTE.activity_id).get("generation", -1)) == generation
-		and int(director.get_activity_snapshot(ROUTE.activity_id).get("next_checkpoint_index", -1)) == 1,
-		"whole-Main detach preserves the live route generation and ordered progress"
+		not bool(game.get_active_activity_snapshot().get("attached", true))
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"active"
+		and int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1)) == 1,
+		"whole-Main detach disconnects translation while retaining the live lap and gate"
 	)
 	parent.add_child(game)
 	await process_frame
 	await process_frame
 	var after_reentry := game.get_activity_integration_report()
-	var hud_after_reentry := hud.get_activity_objective_report()
+	var snapshot_after_reentry := game.get_active_activity_snapshot()
 	_check(
-		game.get_activity_director().get_instance_id() == director_id
-		and int(after_reentry.get("director_count", 0)) == 1
-		and bool(game.get("_piloting"))
-		and game.active_ship == route_ship
-		and int((after_reentry.get("snapshot", {}) as Dictionary).get("next_checkpoint_index", -1)) == 1,
-		"Main re-entry reuses one director and does not replay or duplicate route state"
+		int(after_reentry.get("session_instance_id", 0)) == session_id
+		and game.get_activity_director().get_instance_id() == director_id
+		and bool(snapshot_after_reentry.get("attached", false))
+		and int(snapshot_after_reentry.get("session_generation", -1)) == session_generation
+		and float(snapshot_after_reentry.get("current_time_seconds", -1.0))
+		== float(snapshot_before_reentry.get("current_time_seconds", -2.0))
+		and int(after_reentry.get("position_sample_count", -1)) == samples_before_reentry,
+		"Main re-entry reuses one session/director identity without hidden time, reset, or duplicate sampling"
 	)
 	_check(
-		bool(hud_after_reentry.get("visible", false))
-		and int(hud_after_reentry.get("generation", -1)) == generation
-		and "CHECKPOINT 2 / 5" in str(hud_after_reentry.get("text", "")),
-		"the HUD re-synchronises the preserved objective after Main re-entry"
-	)
-	_check(
-		game.get_combat_authority() == combat_before,
-		"activity re-entry does not replace or duplicate the existing combat authority"
+		bool(hud.get_activity_objective_report().get("visible", false))
+		and hud.get_activity_objective_report().get("state_id", &"") == &"active"
+		and "G2/5" in str(hud.get_activity_objective_report().get("text", ""))
+		and game.get_combat_authority() == combat_before,
+		"re-entry re-synchronises the detached activity card without replacing combat authority"
 	)
 
+	var session := after_reentry.get("session") as CinderTimedRaceSession
 	var completion_witness := {"count": 0}
-	director.activity_completed.connect(
-		func(activity_id: StringName, event_generation: int) -> void:
-			if activity_id == ROUTE.activity_id and event_generation == generation:
-				completion_witness["count"] = int(completion_witness["count"]) + 1
+	session.session_completed.connect(
+		func(_snapshot: Dictionary) -> void:
+			completion_witness["count"] = int(completion_witness["count"]) + 1
 	)
 	for index in range(1, ROUTE.get_checkpoint_count()):
 		route_ship.global_position = ROUTE.get_checkpoint_position(index)
-		await physics_frame
-		await physics_frame
+		var sample_before := int(
+			game.get_activity_integration_report().get("position_sample_count", -1)
+		)
+		game.call("_physics_process", 0.1)
 		var step := game.get_active_activity_snapshot()
+		var expected_next := (
+			0 if index == ROUTE.get_checkpoint_count() - 1 else index + 1
+		)
 		_check(
-			int(step.get("next_checkpoint_index", -1)) == index + 1,
-			"physical checkpoint %d advances the ordered production sampler" % (index + 1)
+			int(step.get("next_checkpoint_index", -1)) == expected_next
+			and int(game.get_activity_integration_report().get("position_sample_count", -1))
+			== sample_before + 1,
+			"physical gate %d advances through exactly one production sample" % (index + 1)
 		)
 	var completed := game.get_active_activity_snapshot()
 	_check(
-		int(completed.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED
-		and int(completed.get("next_checkpoint_index", -1)) == ROUTE.get_checkpoint_count(),
-		"the same physical ship completes the ordered route at the Cinder Reach anchor"
+		completed.get("state_id", &"") == &"completed"
+		and int(completed.get("next_checkpoint_index", -1)) == 0
+		and int(completed.get("lap_number", 0)) == 1
+		and float(completed.get("last_time_seconds", -1.0)) > 0.0
+		and is_equal_approx(
+			float(completed.get("last_time_seconds", -1.0)),
+			float(completed.get("best_time_seconds", -2.0))
+		),
+		"the real ship completes one ordered timed lap with its first best time"
 	)
+	var completed_text := str(hud.get_activity_objective_report().get("text", ""))
 	_check(
 		int(completion_witness["count"]) == 1
-		and "ROUTE COMPLETE" in str(hud.get_activity_objective_report().get("text", "")),
-		"completion is emitted once and the HUD presents the terminal result"
+		and "FINISH" in completed_text
+		and "BEST" in completed_text,
+		"completion emits once and the compact HUD records finish and best times"
 	)
-	route_ship.global_position = ROUTE.get_checkpoint_position(ROUTE.get_checkpoint_count() - 1)
-	await physics_frame
-	await physics_frame
+	var samples_at_finish := int(
+		game.get_activity_integration_report().get("position_sample_count", -1)
+	)
+	game.call("_physics_process", 0.1)
 	_check(
-		int(completion_witness["count"]) == 1,
-		"remaining inside the final volume cannot complete the route twice"
+		int(completion_witness["count"]) == 1
+		and int(game.get_activity_integration_report().get("position_sample_count", -2))
+		== samples_at_finish,
+		"a terminal session neither resamples nor emits duplicate completion"
 	)
 
 
-func _test_fail_reset_and_generation_recovery(
+func _test_failure_reset_and_generation_recovery(
 	game: GameFlow,
-	director: ActivityDirector,
+	_director: ActivityDirector,
 	hud: GameHUD
 	) -> void:
-	var completed_generation := int(game.get_active_activity_snapshot().get("generation", -1))
-	_check(game.reset_active_activity(), "the production integration explicitly resets a completed route")
+	var completed := game.get_active_activity_snapshot()
+	var completed_generation := int(completed.get("session_generation", -1))
+	var recorded_best := float(completed.get("best_time_seconds", -1.0))
+	_check(game.reset_active_activity(), "a completed production race resets explicitly")
 	var reset := game.get_active_activity_snapshot()
-	var reset_generation := int(reset.get("generation", -1))
+	var reset_generation := int(reset.get("session_generation", -1))
 	_check(
-		int(reset.get("state", -1)) == CheckpointRouteActivity.State.IDLE
+		reset.get("state_id", &"") == &"idle"
 		and reset_generation == completed_generation + 1
+		and is_equal_approx(float(reset.get("best_time_seconds", -2.0)), recorded_best)
 		and not bool(hud.get_activity_objective_report().get("visible", true)),
-		"reset clears progress, advances generation, and removes the terminal HUD line"
+		"reset clears current progress, advances generation, preserves best, and hides the card"
 	)
 	var restarted := game.request_activity_start(ROUTE.activity_id)
-	var active_generation := int(restarted.get("generation", -1))
+	var destruction_generation := int(restarted.get("session_generation", -1))
 	_check(
 		bool(restarted.get("accepted", false))
-		and active_generation == reset_generation + 1,
-		"the same normal flight can start a fresh route after reset"
+		and destruction_generation == reset_generation + 1,
+		"the same free flight starts a fresh countdown after reset"
 	)
-	_check(
-		game.fail_active_activity(&"pilot_abort")
-		and int(game.get_active_activity_snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED,
-		"the production integration exposes a finite failure transition for the current sortie"
-	)
-	var failed_hud := hud.get_activity_objective_report()
-	_check(
-		int(failed_hud.get("state", -1)) == CheckpointRouteActivity.State.FAILED
-		and "FAILED — PILOT ABORT" in str(failed_hud.get("text", "")),
-		"the HUD presents the failure reason without granting or implying a reward"
-	)
-	var stale := director.submit_position(
-		ROUTE.activity_id,
-		ROUTE.get_checkpoint_position(0),
-		completed_generation
-	)
+	game.call("_physics_process", 2.0)
+	var integration := game.get_activity_integration_report()
+	var session := integration.get("session") as CinderTimedRaceSession
+	var stale := session.fail(&"stale_destruction", completed_generation)
 	_check(
 		not bool(stale.get("accepted", true))
-		and stale.get("reason", &"") == &"stale_generation",
-		"a delayed pre-reset position cannot mutate the replacement route generation"
+		and stale.get("reason", &"") == &"stale_generation"
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"active",
+		"a delayed pre-reset destruction cannot fail the replacement generation"
+	)
+	_check(
+		game.call("_fail_active_activity", &"ship_destroyed")
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"failed"
+		and game.get_active_activity_snapshot().get("failure_reason", &"") == &"ship_destroyed",
+		"the production destruction seam synchronously fails the current generation"
+	)
+	_check(
+		"FAILED — SHIP DESTROYED" in str(hud.get_activity_objective_report().get("text", "")),
+		"the HUD presents destruction failure without reward language"
+	)
+	_check(game.reset_active_activity(), "a destruction failure resets for the next sortie")
+	var return_start := game.request_activity_start(ROUTE.activity_id)
+	var return_generation := int(return_start.get("session_generation", -1))
+	game.call("_physics_process", 2.0)
+	_check(
+		return_generation > destruction_generation
+		and game.call("_fail_active_activity", &"returned_to_shipyard")
+		and game.get_active_activity_snapshot().get("failure_reason", &"") == &"returned_to_shipyard",
+		"the production return seam fails only its fresh generation"
 	)
 	_check(
 		game.reset_active_activity()
-		and int(game.get_active_activity_snapshot().get("state", -1)) == CheckpointRouteActivity.State.IDLE,
-		"a failed route resets cleanly for the next physical sortie"
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
+		"return failure resets cleanly for later free-flight activation"
 	)
 
 
 func _clean_up(game: GameFlow) -> void:
+	paused = false
 	game.set("_piloting", false)
 	game.queue_free()
 	await process_frame

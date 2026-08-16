@@ -11,6 +11,9 @@ const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.g
 ## a progress-only route: the director and this integration own no rewards,
 ## combat, ship, landing, or berth state.
 const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
+const CINDER_RACE_LAPS := 1
+const CINDER_RACE_COUNTDOWN_SECONDS := 2.0
+const CINDER_RACE_TIMEOUT_SECONDS := 120.0
 
 enum Phase {
 	INTRO,
@@ -153,6 +156,7 @@ var hud: CanvasLayer
 var audio: Node
 var music_bed: StationMusicBed
 var activity_director: ActivityDirector
+var cinder_race_session: CinderTimedRaceSession
 
 var phase := Phase.INTRO
 var destroyed_targets := 0
@@ -228,10 +232,14 @@ var _last_lifecycle_command_sequence := -1
 ## detach, so a directly instantiated Main - every test, and every re-entry -
 ## builds synchronously in `_ready()` exactly as before.
 var _startup_stager: MainStartupStagerType
-## The generation expected by position submissions from the current physical
-## sortie. It is copied from ActivityDirector; GameFlow never invents one.
+## The adapter generation expected by timing and position submissions from the
+## current physical sortie. GameFlow copies it from the session and never
+## invents one.
 var _active_activity_id: StringName = &""
-var _active_activity_generation := CheckpointRouteActivity.ANY_GENERATION
+var _active_activity_generation := 0
+## Diagnostic only: exactly one increment accompanies each production physics
+## position submission, proving the retired director sampler is not still live.
+var _cinder_position_sample_count := 0
 
 
 func _enter_tree() -> void:
@@ -245,6 +253,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_detach_cinder_race_session()
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
 	# relevant lifecycle components.
@@ -303,6 +312,61 @@ func _resolve_scene_bindings() -> void:
 	activity_director = get_node_or_null(^"ActivityDirector") as ActivityDirector
 
 
+## Owns exactly one adapter for this Main lifetime. It is detached rather than
+## discarded when Main leaves the tree, so re-entry preserves the current lap,
+## checkpoint, clock, and best result alongside the authored director.
+func _initialize_cinder_race_session() -> void:
+	if cinder_race_session == null:
+		cinder_race_session = CinderTimedRaceSession.new(
+			CINDER_RACE_LAPS,
+			CINDER_RACE_COUNTDOWN_SECONDS,
+			CINDER_RACE_TIMEOUT_SECONDS
+		)
+		cinder_race_session.presentation_changed.connect(
+			_on_cinder_session_presentation_changed
+		)
+		cinder_race_session.session_completed.connect(_on_cinder_session_completed)
+	_restore_cinder_race_session()
+
+
+func _restore_cinder_race_session() -> void:
+	if cinder_race_session == null:
+		_initialize_cinder_race_session()
+		return
+	var snapshot := cinder_race_session.get_presentation_snapshot()
+	if not bool(snapshot.get("attached", false)):
+		cinder_race_session.attach(
+			activity_director,
+			cinder_race_session.get_session_generation()
+		)
+	_sync_activity_hud()
+
+
+func _detach_cinder_race_session() -> void:
+	if cinder_race_session == null:
+		return
+	var snapshot := cinder_race_session.get_presentation_snapshot()
+	if bool(snapshot.get("attached", false)):
+		cinder_race_session.detach(cinder_race_session.get_session_generation())
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_PREDELETE or cinder_race_session == null:
+		return
+	if cinder_race_session.presentation_changed.is_connected(
+		_on_cinder_session_presentation_changed
+	):
+		cinder_race_session.presentation_changed.disconnect(
+			_on_cinder_session_presentation_changed
+		)
+	if cinder_race_session.session_completed.is_connected(_on_cinder_session_completed):
+		cinder_race_session.session_completed.disconnect(_on_cinder_session_completed)
+	var snapshot := cinder_race_session.get_presentation_snapshot()
+	if not bool(snapshot.get("closed", false)):
+		cinder_race_session.close(cinder_race_session.get_session_generation())
+	cinder_race_session = null
+
+
 ## Detaches the authored children so a boot loader can add them back one frame
 ## at a time instead of paying for all of them in a single main-loop iteration.
 ##
@@ -354,6 +418,7 @@ func _start_up() -> void:
 	_register_flyable_ships()
 	_resolve_ground_vehicle()
 	active_ship = ship
+	_initialize_cinder_race_session()
 	_initialize_live_combat()
 	_connect_runtime_signals()
 	opponent.set_target(active_ship)
@@ -426,14 +491,14 @@ func _process(delta: float) -> void:
 			hud.toast("Regeneration safety recall", "Returned to the central junction", 2.0)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
 	if not _piloting:
 		return
 	if not is_instance_valid(active_ship):
 		return
-	_update_active_activity_from_position(active_ship.global_position)
+	_advance_cinder_race(delta, active_ship.global_position)
 	var telemetry: Dictionary = active_ship.get_telemetry()
 	_decorate_flight_path_telemetry(telemetry)
 	hud.update_ship_telemetry(telemetry)
@@ -451,6 +516,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# single vehicle rather than producing a second one. Re-resolving is what keeps
 	# the binding honest if the instance was released while detached.
 	_resolve_ground_vehicle()
+	_restore_cinder_race_session()
 	_connect_runtime_signals()
 	_initialize_live_combat()
 	# Part of the settings snapshot is process-wide rather than node-local: the
@@ -499,15 +565,6 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(world, &"target_destroyed", _on_target_destroyed)
 	_connect_signal_once(audio, &"cue_started", _on_audio_cue_started)
 	_connect_signal_once(combat_audio, &"cue_started", _on_combat_audio_cue_started)
-	_connect_signal_once(activity_director, &"activity_started", _on_activity_started)
-	_connect_signal_once(
-		activity_director,
-		&"activity_checkpoint_reached",
-		_on_activity_checkpoint_reached
-	)
-	_connect_signal_once(activity_director, &"activity_completed", _on_activity_completed)
-	_connect_signal_once(activity_director, &"activity_failed", _on_activity_failed)
-	_connect_signal_once(activity_director, &"activity_reset", _on_activity_reset)
 	if runtime_settings != null:
 		_connect_signal_once(runtime_settings, &"setting_changed", _on_runtime_setting_changed)
 	for fleet_ship in ships:
@@ -2475,14 +2532,18 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 ## only while the physical pilot is in the general free-flight lifecycle; the
 ## ActivityDirector itself intentionally has no knowledge of that authority.
 func request_activity_start(activity_id: StringName) -> Dictionary:
-	if not is_instance_valid(activity_director):
+	if not is_instance_valid(activity_director) or cinder_race_session == null:
 		return {"accepted": false, "reason": &"director_unavailable"}
+	if activity_id != DEFAULT_FREE_FLIGHT_ACTIVITY_ID:
+		return {"accepted": false, "reason": &"unsupported_activity"}
 	if not _piloting or not is_instance_valid(active_ship) or phase != Phase.FREE_FLIGHT:
 		return {"accepted": false, "reason": &"not_in_free_flight"}
-	var started := activity_director.start_activity(activity_id)
+	var started := cinder_race_session.start(
+		cinder_race_session.get_session_generation()
+	)
 	if bool(started.get("accepted", false)):
 		_active_activity_id = activity_id
-		_active_activity_generation = int(started.get("generation", CheckpointRouteActivity.ANY_GENERATION))
+		_active_activity_generation = int(started.get("session_generation", 0))
 		_sync_activity_hud()
 	return started
 
@@ -2495,17 +2556,15 @@ func fail_active_activity(reason: StringName) -> bool:
 
 
 func reset_active_activity() -> bool:
-	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+	if cinder_race_session == null or _active_activity_id.is_empty():
 		return false
-	var reset := activity_director.reset_activity(
-		_active_activity_id,
-		_active_activity_generation
+	var reset := cinder_race_session.reset(
+		cinder_race_session.get_session_generation()
 	)
-	if reset:
-		var snapshot := activity_director.get_activity_snapshot(_active_activity_id)
-		_active_activity_generation = int(snapshot.get("generation", CheckpointRouteActivity.ANY_GENERATION))
+	if bool(reset.get("accepted", false)):
+		_active_activity_generation = int(reset.get("session_generation", 0))
 		_sync_activity_hud()
-	return reset
+	return bool(reset.get("accepted", false))
 
 
 func get_activity_director() -> ActivityDirector:
@@ -2513,9 +2572,9 @@ func get_activity_director() -> ActivityDirector:
 
 
 func get_active_activity_snapshot() -> Dictionary:
-	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+	if cinder_race_session == null or _active_activity_id.is_empty():
 		return {}
-	return activity_director.get_activity_snapshot(_active_activity_id).duplicate(true)
+	return cinder_race_session.get_presentation_snapshot()
 
 
 ## Inspectable boundary proving this layer observes one physical ship and owns
@@ -2528,6 +2587,9 @@ func get_activity_integration_report() -> Dictionary:
 		"active_activity_id": _active_activity_id,
 		"active_generation": _active_activity_generation,
 		"snapshot": get_active_activity_snapshot(),
+		"session": cinder_race_session,
+		"session_instance_id": cinder_race_session.get_instance_id() if cinder_race_session != null else 0,
+		"position_sample_count": _cinder_position_sample_count,
 		"observed_ship": active_ship if _piloting and is_instance_valid(active_ship) else null,
 		"gameplay_authority": false,
 		"grants_rewards": false,
@@ -2540,99 +2602,68 @@ func get_activity_integration_report() -> Dictionary:
 func _start_default_free_flight_activity() -> void:
 	if not _active_activity_id.is_empty():
 		var existing := get_active_activity_snapshot()
-		if int(existing.get("state", CheckpointRouteActivity.State.IDLE)) == CheckpointRouteActivity.State.ACTIVE:
+		if bool(existing.get("running", false)):
 			return
 	request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
 
 
-func _update_active_activity_from_position(world_position: Vector3) -> void:
+func _advance_cinder_race(delta: float, world_position: Vector3) -> void:
 	if (
-		not world_position.is_finite()
-		or not is_instance_valid(activity_director)
+		not is_finite(delta)
+		or delta < 0.0
+		or not world_position.is_finite()
+		or cinder_race_session == null
 		or _active_activity_id.is_empty()
-		or _active_activity_generation == CheckpointRouteActivity.ANY_GENERATION
 	):
 		return
-	var snapshot := activity_director.get_activity_snapshot(_active_activity_id)
-	if int(snapshot.get("state", CheckpointRouteActivity.State.IDLE)) != CheckpointRouteActivity.State.ACTIVE:
+	var generation := cinder_race_session.get_session_generation()
+	var advanced := cinder_race_session.advance_physics(delta, generation)
+	if not bool(advanced.get("accepted", false)):
 		return
-	activity_director.submit_position(
-		_active_activity_id,
-		world_position,
-		_active_activity_generation
-	)
+	if advanced.get("state_id", &"") != &"active":
+		return
+	_cinder_position_sample_count += 1
+	cinder_race_session.submit_position(world_position, generation)
 
 
 func _fail_active_activity(reason: StringName) -> bool:
-	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+	if cinder_race_session == null or _active_activity_id.is_empty():
 		return false
-	return activity_director.fail_activity(
-		_active_activity_id,
+	var failed := cinder_race_session.fail(
 		reason,
-		_active_activity_generation
+		cinder_race_session.get_session_generation()
 	)
+	return bool(failed.get("accepted", false))
 
 
 func _reset_terminal_activity_for_next_sortie() -> void:
-	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+	if cinder_race_session == null or _active_activity_id.is_empty():
 		return
-	var snapshot := activity_director.get_activity_snapshot(_active_activity_id)
-	if int(snapshot.get("state", CheckpointRouteActivity.State.IDLE)) in [
-		CheckpointRouteActivity.State.COMPLETED,
-		CheckpointRouteActivity.State.FAILED,
-	]:
+	var state_id := StringName(get_active_activity_snapshot().get("state_id", &"idle"))
+	if state_id in [&"completed", &"failed"]:
 		reset_active_activity()
 
 
-func _on_activity_started(activity_id: StringName, generation: int) -> void:
-	_active_activity_id = activity_id
-	_active_activity_generation = generation
+func _on_cinder_session_presentation_changed(_snapshot: Dictionary) -> void:
 	_sync_activity_hud()
 
 
-func _on_activity_checkpoint_reached(
-	activity_id: StringName,
-	_checkpoint_index: int,
-	generation: int
-	) -> void:
-	if activity_id != _active_activity_id or generation != _active_activity_generation:
-		return
-	_sync_activity_hud()
-
-
-func _on_activity_completed(activity_id: StringName, generation: int) -> void:
-	if activity_id != _active_activity_id or generation != _active_activity_generation:
-		return
-	_sync_activity_hud()
+func _on_cinder_session_completed(_snapshot: Dictionary) -> void:
 	if is_instance_valid(hud):
-		hud.toast("Cinder Reach route complete", "Navigation record closed — no reward granted", 3.2)
-
-
-func _on_activity_failed(activity_id: StringName, _reason: StringName, generation: int) -> void:
-	if activity_id != _active_activity_id or generation != _active_activity_generation:
-		return
-	_sync_activity_hud()
-
-
-func _on_activity_reset(activity_id: StringName, generation: int) -> void:
-	if activity_id != _active_activity_id:
-		return
-	_active_activity_generation = generation
-	_sync_activity_hud()
+		hud.toast("Cinder Reach race complete", "Time recorded — no reward granted", 3.2)
 
 
 func _sync_activity_hud() -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
-	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+	if cinder_race_session == null or _active_activity_id.is_empty():
 		hud.call(&"clear_activity_objective")
 		return
-	var definition := activity_director.get_definition(_active_activity_id)
-	var display_name := definition.display_name if definition != null else str(_active_activity_id)
+	var snapshot := cinder_race_session.get_presentation_snapshot()
 	hud.call(
 		&"set_activity_objective",
-		display_name,
-		activity_director.get_activity_snapshot(_active_activity_id)
+		str(snapshot.get("display_name", "Cinder Reach race")),
+		snapshot
 	)
 
 

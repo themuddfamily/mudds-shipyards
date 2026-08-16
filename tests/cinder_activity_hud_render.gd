@@ -42,10 +42,20 @@ func _run() -> void:
 	hud.set_target_count(0, 3)
 	hud.set_activity_objective(ROUTE.display_name, {
 		"activity_id": ROUTE.activity_id,
-		"state": CheckpointRouteActivity.State.ACTIVE,
-		"generation": 1,
-		"next_checkpoint_index": 0,
+		"state": TimedCheckpointRace.State.ACTIVE,
+		"state_id": &"active",
+		"session_generation": 1,
+		"activity_generation": 1,
+		"race_generation": 1,
+		"lap_number": 1,
+		"lap_count": 1,
+		"next_checkpoint_index": 2,
 		"checkpoint_count": ROUTE.get_checkpoint_count(),
+		"countdown_remaining_seconds": 0.0,
+		"current_time_seconds": 18.4,
+		"last_time_seconds": -1.0,
+		"best_time_seconds": 42.7,
+		"penalty_seconds": 0.0,
 		"failure_reason": &"",
 	})
 	for _frame in 4:
@@ -64,11 +74,23 @@ func _run() -> void:
 	var objective := hud.get("_objective_label") as Label
 	var activity := hud.get("_activity_objective_label") as Label
 	var targets := hud.get("_target_label") as Label
+	var panel_rect := objective_panel.get_global_rect()
+	var activity_rect := activity.get_global_rect()
+	var target_rect := targets.get_global_rect()
+	if (
+		activity_rect.intersects(objective.get_global_rect())
+		or activity_rect.intersects(target_rect)
+		or not panel_rect.encloses(activity_rect)
+		or not panel_rect.encloses(target_rect)
+	):
+		push_error("CINDER_ACTIVITY_HUD_RENDER_FAILED: activity card overlap")
+		quit(1)
+		return
 	print(
-		"CINDER_ACTIVITY_HUD_RECTS panel=", objective_panel.get_global_rect(),
+		"CINDER_ACTIVITY_HUD_RECTS panel=", panel_rect,
 		" objective=", objective.get_global_rect(),
-		" activity=", activity.get_global_rect(),
-		" targets=", targets.get_global_rect()
+		" activity=", activity_rect,
+		" targets=", target_rect
 	)
 	print(
 		"CINDER_ACTIVITY_HUD_RENDER_OK renderer=", RenderingServer.get_current_rendering_method(),

@@ -235,10 +235,21 @@ var _activity_objective_report: Dictionary = {
 	"visible": false,
 	"activity_id": &"",
 	"display_name": "",
-	"state": CheckpointRouteActivity.State.IDLE,
+	"state": TimedCheckpointRace.State.IDLE,
+	"state_id": &"idle",
 	"generation": 0,
+	"session_generation": 0,
+	"activity_generation": 0,
+	"race_generation": 0,
+	"lap_number": 0,
+	"lap_count": 0,
 	"next_checkpoint_index": 0,
 	"checkpoint_count": 0,
+	"countdown_remaining_seconds": 0.0,
+	"current_time_seconds": 0.0,
+	"last_time_seconds": -1.0,
+	"best_time_seconds": -1.0,
+	"penalty_seconds": 0.0,
 	"failure_reason": &"",
 	"text": "",
 }
@@ -481,51 +492,114 @@ func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
 	_objective_label.text = text
 
 
-## Consumes the director's side-effect-free snapshot as presentation only. The
-## HUD never starts, advances, fails, resets, or rewards an activity.
+## Consumes the session's detached snapshot as presentation only. The HUD never
+## starts, advances, fails, resets, or rewards an activity. Legacy director
+## snapshots remain readable for isolated HUD callers while production uses the
+## timed state ids below.
 func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	var activity_id := StringName(snapshot.get("activity_id", &""))
 	var state := int(snapshot.get("state", CheckpointRouteActivity.State.IDLE))
-	var generation := int(snapshot.get("generation", 0))
+	var state_id := StringName(snapshot.get("state_id", &""))
+	var session_generation := int(snapshot.get("session_generation", snapshot.get("generation", 0)))
+	var activity_generation := int(snapshot.get("activity_generation", session_generation))
+	var race_generation := int(snapshot.get("race_generation", session_generation))
+	var lap_number := maxi(int(snapshot.get("lap_number", 0)), 0)
+	var lap_count := maxi(int(snapshot.get("lap_count", 0)), 0)
 	var next_index := maxi(int(snapshot.get("next_checkpoint_index", 0)), 0)
 	var checkpoint_count := maxi(int(snapshot.get("checkpoint_count", 0)), 0)
+	var countdown_remaining := maxf(float(snapshot.get("countdown_remaining_seconds", 0.0)), 0.0)
+	var current_time := float(snapshot.get("current_time_seconds", 0.0))
+	var last_time := float(snapshot.get("last_time_seconds", -1.0))
+	var best_time := float(snapshot.get("best_time_seconds", -1.0))
+	var penalty := maxf(float(snapshot.get("penalty_seconds", 0.0)), 0.0)
 	var failure_reason := StringName(snapshot.get("failure_reason", &""))
 	var short_name := display_name.strip_edges().to_upper()
 	if short_name.is_empty():
 		short_name = str(activity_id).replace("_", " ").to_upper()
 	var activity_text := ""
-	match state:
-		CheckpointRouteActivity.State.ACTIVE:
-			activity_text = "%s  //  CHECKPOINT %d / %d" % [
-				short_name,
-				mini(next_index + 1, checkpoint_count),
-				checkpoint_count,
-			]
-		CheckpointRouteActivity.State.COMPLETED:
-			activity_text = "%s  //  ROUTE COMPLETE" % short_name
-		CheckpointRouteActivity.State.FAILED:
-			var readable_reason := str(failure_reason).replace("_", " ").to_upper()
-			activity_text = "%s  //  FAILED%s" % [
-				short_name,
-				(" — " + readable_reason) if not readable_reason.is_empty() else "",
-			]
-		_:
-			activity_text = ""
+	if not state_id.is_empty():
+		match state_id:
+			&"countdown":
+				activity_text = "RACE  START %s  L%d/%d  BEST %s" % [
+					_format_activity_time(countdown_remaining),
+					lap_number,
+					lap_count,
+					_format_activity_time(best_time),
+				]
+			&"active":
+				activity_text = "RACE  L%d/%d  G%d/%d  %s  BEST %s" % [
+					lap_number,
+					lap_count,
+					mini(next_index + 1, checkpoint_count),
+					checkpoint_count,
+					_format_activity_time(current_time),
+					_format_activity_time(best_time),
+				]
+			&"completed":
+				activity_text = "RACE  FINISH %s  BEST %s" % [
+					_format_activity_time(last_time),
+					_format_activity_time(best_time),
+				]
+			&"failed":
+				var readable_reason := str(failure_reason).replace("_", " ").to_upper()
+				activity_text = "RACE  FAILED%s" % (
+					(" — " + readable_reason) if not readable_reason.is_empty() else ""
+				)
+			_:
+				activity_text = ""
+	else:
+		match state:
+			CheckpointRouteActivity.State.ACTIVE:
+				activity_text = "%s  //  CHECKPOINT %d / %d" % [
+					short_name,
+					mini(next_index + 1, checkpoint_count),
+					checkpoint_count,
+				]
+			CheckpointRouteActivity.State.COMPLETED:
+				activity_text = "%s  //  ROUTE COMPLETE" % short_name
+			CheckpointRouteActivity.State.FAILED:
+				var readable_reason := str(failure_reason).replace("_", " ").to_upper()
+				activity_text = "%s  //  FAILED%s" % [
+					short_name,
+					(" — " + readable_reason) if not readable_reason.is_empty() else "",
+				]
+			_:
+				activity_text = ""
 	var visible := not activity_text.is_empty()
 	_activity_objective_report = {
 		"visible": visible,
 		"activity_id": activity_id,
 		"display_name": display_name,
 		"state": state,
-		"generation": generation,
+		"state_id": state_id if not state_id.is_empty() else &"legacy",
+		"generation": session_generation,
+		"session_generation": session_generation,
+		"activity_generation": activity_generation,
+		"race_generation": race_generation,
+		"lap_number": lap_number,
+		"lap_count": lap_count,
 		"next_checkpoint_index": next_index,
 		"checkpoint_count": checkpoint_count,
+		"countdown_remaining_seconds": countdown_remaining,
+		"current_time_seconds": current_time,
+		"last_time_seconds": last_time,
+		"best_time_seconds": best_time,
+		"penalty_seconds": penalty,
 		"failure_reason": failure_reason,
 		"text": activity_text,
 	}
 	if is_instance_valid(_activity_objective_label):
 		_activity_objective_label.text = activity_text
 		_activity_objective_label.visible = visible
+
+
+func _format_activity_time(seconds: float) -> String:
+	if not is_finite(seconds) or seconds < 0.0:
+		return "--"
+	if seconds < 60.0:
+		return "%.1fs" % seconds
+	var whole_minutes := floori(seconds / 60.0)
+	return "%d:%04.1f" % [whole_minutes, seconds - whole_minutes * 60.0]
 
 
 func clear_activity_objective() -> void:
