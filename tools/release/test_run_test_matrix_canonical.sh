@@ -29,6 +29,29 @@ fi
 EOF
 chmod +x "$FAKE_GODOT"
 
+FAKE_BIN="$WORK_DIR/fake-bin"
+mkdir -p "$FAKE_BIN"
+cat > "$FAKE_BIN/date" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ " $* " == *" +%s%3N "* ]]; then
+	index=0
+	if [[ -f "${MATRIX_FAKE_DATE_STATE:?}" ]]; then
+		index="$(<"$MATRIX_FAKE_DATE_STATE")"
+	fi
+	printf '%s' "$(( index + 1 ))" > "$MATRIX_FAKE_DATE_STATE"
+	case "$index" in
+		0) printf '1000\n' ;; # suite phase start
+		1) printf '2000\n' ;; # suite start
+		2) printf '1900\n' ;; # suite end: wall clock moved backwards
+		*) printf '3000\n' ;; # suite phase end and any later reads
+	esac
+	else
+		exec /usr/bin/date "$@"
+fi
+EOF
+chmod +x "$FAKE_BIN/date"
+
 FIRST="$WORK_DIR/results/first"
 SECOND="$WORK_DIR/results/second"
 ASSERTION_CHANGED="$WORK_DIR/results/assertion-changed"
@@ -65,5 +88,13 @@ if TEST_MATRIX_RUN_ID=diagnostic MATRIX_FAKE_MEASUREMENT=42 MATRIX_FAKE_DIAGNOST
 fi
 grep -Fx $'tests/smoke_test.gd\tFAIL\t0\tSMOKE_TEST_OK\t1\t1\t1\tdiagnostic_detected' \
 	"$WORK_DIR/results/diagnostic/results-canonical.tsv" >/dev/null
+
+# Duration measurement is observational: a backwards wall-clock correction is
+# clamped to zero rather than contaminating results.tsv with a negative value.
+TEST_MATRIX_RUN_ID=clock-backward MATRIX_FAKE_MEASUREMENT=7 MATRIX_FAKE_DATE_STATE="$WORK_DIR/date-state" \
+	PATH="$FAKE_BIN:$PATH" "$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 1 \
+	--results-dir "$WORK_DIR/results" --scope smoke_test \
+	--manifest-scope tests/smoke_test.gd >/dev/null
+awk -F '\t' 'NR == 2 { exit $8 != 0 }' "$WORK_DIR/results/clock-backward/results.tsv"
 
 echo "matrix canonical evidence check: PASS"

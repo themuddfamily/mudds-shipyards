@@ -316,6 +316,19 @@ now_ms() {
 	printf '%s' "$ms"
 }
 
+# `date` is wall-clock time, so an NTP/host clock correction can move it
+# backwards while a suite is running. Durations are observational only; clamp
+# them rather than publishing an impossible negative value or affecting gates.
+elapsed_ms() {
+	local start_ms="$1"
+	local end_ms="$2"
+	local elapsed=$(( end_ms - start_ms ))
+	if (( elapsed < 0 )); then
+		elapsed=0
+	fi
+	printf '%s' "$elapsed"
+}
+
 # ---------------------------------------------------------------------------
 # Import gate
 # ---------------------------------------------------------------------------
@@ -353,7 +366,7 @@ run_import_gate() {
 	import_gate_exit="$?"
 	set -e
 	end_ms="$(now_ms)"
-	import_gate_duration_ms="$(( end_ms - start_ms ))"
+	import_gate_duration_ms="$(elapsed_ms "$start_ms" "$end_ms")"
 	import_gate_ran="true"
 
 	local restored=()
@@ -547,7 +560,7 @@ run_suite_worker() {
 	set -e
 
 	end_ms="$(now_ms)"
-	duration_ms="$(( end_ms - start_ms ))"
+	duration_ms="$(elapsed_ms "$start_ms" "$end_ms")"
 
 	local pass_count diag_count ok_count pass_token_count sentinel_count
 	pass_count="$(grep -aE '^PASS:' "$log_path" | wc -l || true)"
@@ -701,7 +714,7 @@ wait 2>/dev/null || true
 flush_ready
 
 suite_phase_end_ms="$(now_ms)"
-suite_phase_duration_ms="$(( suite_phase_end_ms - suite_phase_start_ms ))"
+suite_phase_duration_ms="$(elapsed_ms "$suite_phase_start_ms" "$suite_phase_end_ms")"
 godot_cache_after_sha="$(godot_cache_signature)"
 
 # ---------------------------------------------------------------------------
