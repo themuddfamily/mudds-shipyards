@@ -42,6 +42,8 @@ const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
 @export_range(0.2, 8.0, 0.05) var weapon_cooldown := 1.55
 @export_range(20.0, 400.0, 1.0) var projectile_speed := 135.0
 
+## Instance-owned, so the meshes are freed with the craft and never outlive it.
+var _chamfered_cylinder_cache: Dictionary = {}
 var _active := false
 var _built := false
 var _health := 0.0
@@ -890,13 +892,13 @@ func _cylinder(parent: Node3D, node_name: String, position_value: Vector3, radiu
 	instance.name = node_name
 	instance.position = position_value
 	instance.rotation_degrees = rotation_degrees_value
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 28
-	mesh.material = material
-	instance.mesh = mesh
+	# Chamfered rims at the opponent's frozen 28 radial segments. Inherited by
+	# `StandoffPicketOpponent`. Outer radius and overall height are unchanged and
+	# the encounter's collision bodies are authored separately.
+	instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, height, 28, _chamfered_cylinder_cache,
+		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, true, true, material
+	)
 	parent.add_child(instance)
 	return instance
 

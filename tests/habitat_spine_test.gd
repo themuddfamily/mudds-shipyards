@@ -273,10 +273,18 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 		func(candidate: Node) -> bool: return (candidate as MeshInstance3D).mesh is ArrayMesh
 	)
 	_check(rounded_surfaces.size() >= 30, "custom bevelled surfaces replace raw block primitives throughout occupied spaces")
+	# `CylinderMesh` used to be a sufficient test for "this is a turned round
+	# form". It no longer is: this module's cylinders are now chamfered-rim
+	# `ArrayMesh` builds from `StationSurfaceKit`, which is what gives the rail
+	# ends and column caps a highlight instead of a zero-width 90° edge. The kit
+	# publishes `is_cylindrical_mesh` so the check keeps asking the same question.
+	# Threshold unchanged at >= 50; the live count went 475 -> 475 across the swap
+	# (454 chamfered cylinders + 21 tori), so this is a spelling change, not a
+	# loosened bound.
 	var tubular_surfaces := module.find_children("*", "MeshInstance3D", true, false).filter(
 		func(candidate: Node) -> bool:
 			var mesh := (candidate as MeshInstance3D).mesh
-			return mesh is CylinderMesh or mesh is TorusMesh
+			return StationSurfaceKit.is_cylindrical_mesh(mesh) or mesh is TorusMesh
 	)
 	_check(tubular_surfaces.size() >= 50, "tubular rails, ribs, utilities, furniture, and fittings provide modern silhouette detail")
 	var material_sample := (module.find_child("ConnectorFloor", true, false) as StaticBody3D).get_node("Mesh") as MeshInstance3D

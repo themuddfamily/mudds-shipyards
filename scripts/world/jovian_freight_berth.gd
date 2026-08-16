@@ -90,6 +90,7 @@ const CONTENT_NOTE := (
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
+var _chamfered_cylinder_cache: Dictionary = {}
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
 var _service_details: Array[Node3D] = []
@@ -1094,12 +1095,14 @@ func _cylinder(
 	container.position = position_value
 	container.rotation_degrees = rotation_value
 	parent.add_child(container, true)
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius * 0.94
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 16
-	mesh.rings = 2
+	# Tapered stock: the wide bottom rim is the sole carrier of this mesh's
+	# radial extent, so the kit leaves it sharp and chamfers only the narrow top
+	# rim. That is the visible one anyway — these stand on their wide end against
+	# the apron. Outer radius and overall height are unchanged, so the collision
+	# cylinder below still matches the mesh envelope exactly.
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius * 0.94, radius, height, 16, _chamfered_cylinder_cache, 2
+	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.name = "Mesh"

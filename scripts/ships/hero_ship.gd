@@ -179,6 +179,9 @@ var _chase_follow_rotation := Quaternion.IDENTITY
 var _chase_camera_bank := 0.0
 var _chase_camera_rotation_lag_degrees := 0.0
 
+## Instance-owned, so the meshes are freed with the craft and never outlive it.
+var _chamfered_cylinder_cache: Dictionary = {}
+
 var _visual_root: Node3D
 var _cockpit_root: Node3D
 var _canopy_pivot: Node3D
@@ -3681,13 +3684,14 @@ func _cylinder(parent: Node3D, node_name: String, position: Vector3, radius: flo
 	mesh_instance.name = node_name
 	mesh_instance.position = position
 	mesh_instance.rotation_degrees = rotation_degrees_value
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 32
-	mesh.material = material
-	mesh_instance.mesh = mesh
+	# Chamfered rims at the frozen 32 radial segments. Inherited by every
+	# HeroShip subclass, so this is also what puts a highlight on the Jovian's
+	# four engine housings, collars and cores. Outer radius and overall height
+	# are unchanged; no collision shape reads this mesh.
+	mesh_instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, height, 32, _chamfered_cylinder_cache,
+		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, true, true, material
+	)
 	parent.add_child(mesh_instance)
 	return mesh_instance
 
@@ -3708,15 +3712,12 @@ func _frustum(
 	mesh_instance.name = node_name
 	mesh_instance.position = position
 	mesh_instance.rotation_degrees = rotation_degrees_value
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = top_radius
-	mesh.bottom_radius = bottom_radius
-	mesh.height = height
-	mesh.radial_segments = 32
-	mesh.cap_top = cap_top
-	mesh.cap_bottom = cap_bottom
-	mesh.material = material
-	mesh_instance.mesh = mesh
+	# Tapered: the kit chamfers only the narrow rim, because the wide rim is the
+	# sole carrier of the radial extent and moving it would move the silhouette.
+	mesh_instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		top_radius, bottom_radius, height, 32, _chamfered_cylinder_cache,
+		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, cap_top, cap_bottom, material
+	)
 	parent.add_child(mesh_instance)
 	return mesh_instance
 

@@ -260,6 +260,7 @@ const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
+var _chamfered_cylinder_cache: Dictionary = {}
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
@@ -3670,11 +3671,13 @@ func _cylinder(
 	container.rotation_degrees = cylinder_rotation_degrees
 	parent.add_child(container)
 
-	var cylinder_mesh := CylinderMesh.new()
-	cylinder_mesh.top_radius = radius
-	cylinder_mesh.bottom_radius = radius
-	cylinder_mesh.height = height
-	cylinder_mesh.radial_segments = 24
+	# Chamfered rims at the hub's frozen 24 radial segments. The cap radius and
+	# the lateral height both shrink by the chamfer; the outer radius and the
+	# overall height do not, so `get_aabb()` still returns the requested
+	# 2r x h x 2r and the collision cylinder below is untouched.
+	var cylinder_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, height, 24, _chamfered_cylinder_cache
+	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.mesh = cylinder_mesh

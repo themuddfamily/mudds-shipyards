@@ -581,7 +581,11 @@ func _subtree_has_circular_form(node: Node) -> bool:
 	meshes.append_array(node.find_children("*", "MeshInstance3D", true, false))
 	for candidate: Node in meshes:
 		var mesh := (candidate as MeshInstance3D).mesh
-		if mesh is CylinderMesh or mesh is TorusMesh:
+		# The spec's required "paired round forms" are built by `HeroShip._cylinder`,
+		# which now returns a chamfered-rim `ArrayMesh` rather than a `CylinderMesh`.
+		# The form is identical — same radii, same height, same AABB — so the kit's
+		# own predicate is what identifies it.
+		if StationSurfaceKit.is_cylindrical_mesh(mesh) or mesh is TorusMesh:
 			return true
 		if bool(candidate.get_meta("circular_form", false)):
 			return true
