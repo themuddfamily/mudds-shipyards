@@ -191,7 +191,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and int(changed.accepted_transaction_count) == 1
 		and not bool(changed.unsaved_changes)
 		and changed.last_save_status.reason == &"saved"
-		and changed.last_commit_id == "runtime-settings-0000000002",
+		and changed.last_commit_id == "runtime-settings-0000000003",
 		"an accepted live change commits once with the first deterministic monotonic ID"
 	)
 	var attempts_before_noop := int(changed.save_attempt_count)
@@ -235,9 +235,9 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and not bool(failed.last_save_status.accepted)
 		and failed.last_save_status.reason == &"store_commit_failed"
 		and failed.last_save_status.store_reason == &"temp_write_failed"
-		and failed.last_commit_id == "runtime-settings-0000000003"
-		and int(failed.commit_serial) == 3
-		and failed_candidate_id == "runtime-settings-0000000004"
+		and failed.last_commit_id == "runtime-settings-0000000004"
+		and int(failed.commit_serial) == 4
+		and failed_candidate_id == "runtime-settings-0000000005"
 		and filesystem.files[STORE_PATH] == disk_before_failure
 		and not filesystem.files.has(STORE_PATH + ".tmp"),
 		"failed save keeps the accepted live change, marks it unsaved and preserves canonical disk"
@@ -269,11 +269,11 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		bool(explicit.last_save_status.accepted)
 		and int(explicit.accepted_transaction_count) == 6
 		and commit_ids == PackedStringArray([
-			"runtime-settings-0000000002",
 			"runtime-settings-0000000003",
 			"runtime-settings-0000000004",
 			"runtime-settings-0000000005",
 			"runtime-settings-0000000006",
+			"runtime-settings-0000000007",
 		]),
 		"every committed change, reset and explicit-save ID is bounded, deterministic and monotonic"
 	)
@@ -317,8 +317,10 @@ func _test_empty_corrupt_newer_and_failed_loads() -> void:
 		and empty.report.load_status.reason == &"empty"
 		and (empty.flow as GameFlow).get_runtime_settings().to_dictionary()
 			== Settings.new(LEGACY_PATH).to_dictionary()
-		and empty_filesystem.files.is_empty(),
-		"empty authority keeps authored defaults live without writing a generation"
+		and (empty.flow as GameFlow).get_safe_start_recovery_report()
+			.policy_snapshot.state == "starting"
+		and empty_filesystem.files.has(STORE_PATH),
+		"empty settings authority keeps defaults live while the recovery marker owns generation one"
 	)
 	(empty.flow as GameFlow).free()
 

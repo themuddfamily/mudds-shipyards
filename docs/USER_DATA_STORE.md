@@ -91,7 +91,8 @@ settings being saved, and the store preserves its preceding authority. Ordinary
 save also refuses a backup-recovery load (`store_recovery_required`) so replacing
 a corrupt primary remains a separate explicit repair decision.
 
-This foundation is not invoked by `GameFlow` or HUD yet. It does not delete the
-legacy ConfigFile after migration, automatically invent commit IDs, repair
-corrupt authority, resolve cross-process writers, or apply process-global
-settings side effects.
+`GameFlow` now invokes this adapter as the production composition root, supplies
+deterministic bounded commit IDs, and explicitly applies validated settings to
+runtime consumers. The adapter itself still does not delete the legacy
+ConfigFile after migration, invent commit IDs, repair corrupt authority, resolve
+cross-process writers, or apply process-global settings side effects.

@@ -12,6 +12,9 @@ const RuntimeSettingsStoreAdapterType := preload(
 	"res://scripts/settings/runtime_settings_store_adapter.gd"
 )
 const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
+const SafeStartProductionRecoveryType := preload(
+	"res://scripts/recovery/safe_start_production_recovery.gd"
+)
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -28,6 +31,15 @@ const CAPTION_CATEGORY_BY_ID := {
 }
 const RUNTIME_SETTINGS_COMMIT_PREFIX := "runtime-settings-"
 const RUNTIME_SETTINGS_COMMIT_DIGITS := 10
+## Five seconds of successful physics callbacks is long enough to cross the
+## staged Main construction and first embodied simulation ticks without making
+## wall-clock, idle-frame, or scene-tree attachment time authoritative.
+const SAFE_START_STABILITY_PHYSICS_SECONDS := (
+	SafeStartProductionRecoveryType.STABILITY_PHYSICS_SECONDS
+)
+const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
+	SafeStartProductionRecoveryType.RECOMMENDATION_PRESERVED_KEYS
+)
 
 ## Production Main can be destroyed and rebuilt by the shift-restart loader
 ## without ending the OS process. Keep the atomic composition root here so that
@@ -229,6 +241,8 @@ var _runtime_settings_reentrant_rejection_count := 0
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _runtime_settings_persistence_injected := false
+## Retained safe-start composition over the exact same process-lifetime store.
+var _safe_start_production_recovery: SafeStartProductionRecovery
 ## Authored chase-boom lag per ship, captured before reduced motion ever damps
 ## it, so turning the preset back off restores the exact authored feel.
 var _authored_chase_camera_lag: Dictionary = {}
@@ -641,6 +655,7 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
+	_advance_safe_start_recovery_physics(delta)
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
 	if not _piloting:
@@ -3057,6 +3072,27 @@ func get_runtime_settings_persistence_report() -> Dictionary:
 	}.duplicate(true)
 
 
+## Detached diagnostics for the process startup marker and caller-owned
+## stability window. No live policy, store, settings, or filesystem object is
+## exposed. In particular, a scene-tree detach is not represented as shutdown.
+func get_safe_start_recovery_report() -> Dictionary:
+	return (
+		_safe_start_production_recovery.get_report()
+		if _safe_start_production_recovery != null else {}
+	)
+
+
+## Explicit application-owned orderly-shutdown seam. `_exit_tree()`, free, and
+## whole-Main streaming never call this method because none of them proves an OS
+## process shutdown. The caller may invoke it after deciding shutdown is clean.
+func mark_orderly_shutdown() -> Dictionary:
+	if _safe_start_production_recovery == null:
+		return {"accepted": false, "reason": &"policy_unavailable"}
+	var result := _safe_start_production_recovery.mark_orderly_shutdown()
+	_sync_production_runtime_settings_state()
+	return result
+
+
 ## The only public caption payload: the service's detached, validated consumer
 ## snapshot. Neither the service nor typed event objects escape GameFlow.
 func get_caption_presentation_snapshot() -> Dictionary:
@@ -3224,7 +3260,46 @@ func _initialize_runtime_settings() -> void:
 				str(_runtime_settings_load_status.get("store_reason", &"unknown")),
 			]
 		)
+	_initialize_safe_start_recovery()
 	_sync_production_runtime_settings_state()
+
+
+## Restores and begins exactly one process startup after the settings adapter's
+## store load, but before `_start_up()` exposes settings to any consumer. A
+## corrupt/newer settings namespace remains untouched even though the generic
+## store envelope itself loaded successfully.
+func _initialize_safe_start_recovery() -> void:
+	if _safe_start_production_recovery != null:
+		return
+	_safe_start_production_recovery = SafeStartProductionRecoveryType.new(
+		runtime_settings,
+		_runtime_settings_user_data_store,
+		_runtime_settings_persistence_injected
+	)
+	_safe_start_production_recovery.initialize(
+		_runtime_settings_load_status,
+		Callable(self, &"_persist_safe_start_recommended_settings")
+	)
+
+
+func _persist_safe_start_recommended_settings() -> Dictionary:
+	var prior_unsaved := _runtime_settings_unsaved_changes
+	_runtime_settings_unsaved_changes = true
+	var status := _persist_runtime_settings()
+	if not bool(status.get("accepted", false)):
+		_runtime_settings_unsaved_changes = prior_unsaved
+	return status
+
+
+func _validate_safe_start_recommendation(recommendation: Dictionary) -> Dictionary:
+	if _safe_start_production_recovery == null:
+		return {"accepted": false, "reason": &"policy_unavailable"}
+	return _safe_start_production_recovery.validate_recommendation(recommendation)
+
+
+func _advance_safe_start_recovery_physics(delta: float) -> void:
+	if _safe_start_production_recovery != null:
+		_safe_start_production_recovery.advance_physics(delta)
 
 
 func _adopt_production_runtime_settings_state() -> void:
@@ -3279,6 +3354,10 @@ func _adopt_production_runtime_settings_state() -> void:
 	_runtime_settings_first_apply_followed_load = bool(
 		_production_runtime_settings_state.get("first_apply_followed_load", false)
 	)
+	_safe_start_production_recovery = (
+		_production_runtime_settings_state.get("safe_start_recovery")
+		as SafeStartProductionRecovery
+	)
 
 
 func _sync_production_runtime_settings_state() -> void:
@@ -3302,6 +3381,7 @@ func _sync_production_runtime_settings_state() -> void:
 		"reentrant_rejection_count": _runtime_settings_reentrant_rejection_count,
 		"apply_count": _runtime_settings_apply_count,
 		"first_apply_followed_load": _runtime_settings_first_apply_followed_load,
+		"safe_start_recovery": _safe_start_production_recovery,
 	}
 
 
@@ -3315,6 +3395,8 @@ func _apply_all_runtime_settings() -> void:
 			and _runtime_settings_load_attempt_count == 1
 			and not _runtime_settings_load_status.is_empty()
 		)
+		if _safe_start_production_recovery != null:
+			_safe_start_production_recovery.note_first_settings_apply()
 	runtime_settings.apply_input_bindings()
 	for fleet_ship in ships:
 		fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
