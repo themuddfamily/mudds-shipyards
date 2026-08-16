@@ -57,6 +57,7 @@ func _run() -> void:
 	_check(opponent.collision_layer == 0 and opponent.collision_mask == 0, "dormant opponent cannot collide")
 	_check(is_zero_approx(float(opponent.call("get_health"))), "dormant opponent has no stale health")
 	_check(opponent.get_node_or_null("RangeInterceptorVisual") != null, "opponent presentation is built while dormant")
+	_test_symmetric_hull_box_allocation(opponent as RangeOpponent)
 	opponent.call("apply_damage", 10.0, Vector3(1.0, 2.0, 3.0))
 	for _frame in 3:
 		await physics_frame
@@ -198,6 +199,10 @@ func _run() -> void:
 	await process_frame
 	_check(opponent.get_instance_id() == opponent_id and opponent.is_inside_tree(), "the same RangeOpponent instance supports tree re-entry")
 	_check(_direct_collision_shape_ids(opponent) == authority_collision_ids, "tree re-entry preserves every authoritative collider identity")
+	_check(
+		bool((opponent as RangeOpponent).get_symmetric_hull_box_allocation_audit().get("valid", false)),
+		"tree re-entry preserves the shared visual allocation without rebuilding authority"
+	)
 	_check(not bool(opponent.call("commit_deferred_damage_presentation", 502)), "re-entry cannot replay a committed or stale sequence")
 	opponent.call("activate", respawn)
 	_check(bool(opponent.call("is_active")) and visual_root.visible, "re-entered opponent activates with a clean hull presentation")
@@ -248,6 +253,135 @@ func _run() -> void:
 	await _clean_up(host, opponent)
 	_check(root.get_child_count() == original_root_child_count, "combat fixture cleans up all scene nodes")
 	_finish()
+
+
+func _test_symmetric_hull_box_allocation(opponent: RangeOpponent) -> void:
+	_check(
+		opponent.has_method("get_symmetric_hull_box_allocation_audit"),
+		"RangeOpponent exposes its bounded symmetric-hull allocation audit"
+	)
+	var audit := opponent.get_symmetric_hull_box_allocation_audit()
+	_check(
+		bool(audit.get("valid", false)),
+		"symmetric-hull allocation audit is valid: %s" % [audit.get("errors", [])]
+	)
+	_check(
+		int(audit.get("family_count", 0)) == 4
+		and int(audit.get("node_count", 0)) == 8
+		and int(audit.get("baseline_node_count", 0)) == 8
+		and int(audit.get("node_delta", 99)) == 0
+		and int(audit.get("drawn_copy_count", 0)) == 8
+		and int(audit.get("structural_submission_count", 0)) == 8
+		and int(audit.get("baseline_structural_submission_count", 0)) == 8
+		and int(audit.get("submission_delta", 99)) == 0,
+		"four port/starboard families retain eight nodes, copies, and submissions"
+	)
+	_check(
+		int(audit.get("mesh_resource_identity_count", 0)) == 4
+		and int(audit.get("baseline_mesh_resource_identity_count", 0)) == 8
+		and int(audit.get("mesh_resource_identity_delta", 0)) == -4
+		and int(audit.get("material_resource_identity_count", 0)) == 4
+		and int(audit.get("material_resource_identity_delta", 99)) == 0
+		and int(audit.get("referenced_visual_resource_identity_count", 0)) == 8
+		and int(audit.get("baseline_referenced_visual_resource_identity_count", 0)) == 12
+		and int(audit.get("referenced_visual_resource_identity_delta", 0)) == -4,
+		"only paired box mesh identities fall from eight to four"
+	)
+	_check(
+		int(audit.get("authority_node_count", -1)) == 0
+		and int(audit.get("scripted_node_count", -1)) == 0
+		and int(audit.get("child_node_count", -1)) == 0
+		and int(audit.get("metadata_entry_count", -1)) == 0
+		and int(audit.get("processing_node_count", -1)) == 0
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("gpu_draw_call_claimed", true))
+		and not bool(audit.get("vram_claimed", true))
+		and not bool(audit.get("whole_scene_budget_claimed", true)),
+		"shared hull boxes remain childless, inert, unbatched, and claim-bounded"
+	)
+
+	var behavior_rows := audit.get("behavior_rows", []) as Array
+	(behavior_rows[0] as Dictionary)["material"] = "mutation"
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("mutation")
+	var detached := opponent.get_symmetric_hull_box_allocation_audit()
+	_check(
+		bool(detached.get("valid", false))
+		and (detached.get("behavior_rows", []) as Array).size() == 8
+		and str(((detached.get("behavior_rows", []) as Array)[0] as Dictionary).get("material", "")) != "mutation"
+		and not (detached.get("errors", PackedStringArray()) as PackedStringArray).has("mutation"),
+		"allocation snapshots are deeply detached"
+	)
+
+	var visual := opponent.get_node("RangeInterceptorVisual") as Node3D
+	var outer_vanes: Array[MeshInstance3D] = []
+	if visual != null:
+		for raw_node in visual.get_children():
+			var candidate := raw_node as MeshInstance3D
+			if candidate != null and (
+				candidate.position.is_equal_approx(Vector3(-3.65, 0.7, 1.95))
+				or candidate.position.is_equal_approx(Vector3(3.65, 0.7, 1.95))
+			):
+				outer_vanes.append(candidate)
+	_check(visual != null and outer_vanes.size() == 2, "both OuterVane copies remain under the defender visual root")
+	if visual == null or outer_vanes.size() != 2:
+		return
+	var shared_mesh := outer_vanes[0].mesh as BoxMesh
+	_check(
+		outer_vanes[1].mesh == shared_mesh,
+		"the two retained OuterVane nodes share one exact mesh"
+	)
+
+	shared_mesh.size = Vector3(0.27, 1.5, 2.5)
+	var recipe_mutation := opponent.get_symmetric_hull_box_allocation_audit()
+	_check(
+		not bool(recipe_mutation.get("valid", true))
+		and _audit_has_error(
+			recipe_mutation,
+			"symmetric_hull_box_mesh_recipe_drift:OuterVane"
+		)
+		and (outer_vanes[1].mesh as BoxMesh).size.is_equal_approx(
+			Vector3(0.27, 1.5, 2.5)
+		),
+		"shared mesh mutation reaches both copies and turns the recipe audit red"
+	)
+	shared_mesh.size = Vector3(0.26, 1.5, 2.5)
+
+	var second_vane := outer_vanes[1]
+	var original_second_mesh := second_vane.mesh
+	second_vane.mesh = shared_mesh.duplicate()
+	var identity_mutation := opponent.get_symmetric_hull_box_allocation_audit()
+	_check(
+		not bool(identity_mutation.get("valid", true))
+		and _audit_has_error(
+			identity_mutation,
+			"symmetric_hull_box_mesh_identity_not_shared:OuterVane"
+		),
+		"an exact-looking private box mesh turns the identity audit red"
+	)
+	second_vane.mesh = original_second_mesh
+
+	var rogue_authority := Area3D.new()
+	outer_vanes[0].add_child(rogue_authority)
+	var authority_mutation := opponent.get_symmetric_hull_box_allocation_audit()
+	_check(
+		not bool(authority_mutation.get("valid", true))
+		and _audit_has_error(
+			authority_mutation,
+			"symmetric_hull_box_stock_gained_authority_or_lifecycle"
+		),
+		"authority under shared visual stock turns the audit red"
+	)
+	outer_vanes[0].remove_child(rogue_authority)
+	rogue_authority.free()
+	_check(
+		bool(opponent.get_symmetric_hull_box_allocation_audit().get("valid", false)),
+		"restoring recipe, identity, and authority returns the allocation audit green"
+	)
+
+
+func _audit_has_error(audit: Dictionary, expected: String) -> bool:
+	return (audit.get("errors", PackedStringArray()) as PackedStringArray).has(expected)
 
 
 func _make_target() -> CharacterBody3D:

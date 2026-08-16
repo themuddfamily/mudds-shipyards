@@ -27,6 +27,45 @@ const SMOKE_DARK := Color(0.08, 0.12, 0.14, 0.62)
 const DESTRUCTION_EFFECT_LIFETIME := 4.5
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
 
+## Four exact port/starboard box families in the base defender hull. These are
+## childless presentation stock: authority lives on the craft root, its seven
+## CollisionShape3D children, the muzzle markers and the state-driven lights.
+## Each family retains two nodes/submissions and shares only its immutable mesh.
+const SYMMETRIC_HULL_BOX_SPECS := [
+	{
+		"name": &"ProngInset",
+		"size": Vector3(0.52, 0.13, 4.4),
+		"material_key": &"cyan",
+		"positions": [Vector3(-2.65, 0.38, -1.1), Vector3(2.65, 0.38, -1.1)],
+		"rotations": [Vector3.ZERO, Vector3.ZERO],
+	},
+	{
+		"name": &"SweptBrace",
+		"size": Vector3(3.3, 0.36, 1.0),
+		"material_key": &"frame",
+		"positions": [Vector3(-1.55, 0.0, 1.05), Vector3(1.55, 0.0, 1.05)],
+		"rotations": [Vector3(0.0, 0.48, 0.0), Vector3(0.0, -0.48, 0.0)],
+	},
+	{
+		"name": &"OuterVane",
+		"size": Vector3(0.26, 1.5, 2.5),
+		"material_key": &"ivory",
+		"positions": [Vector3(-3.65, 0.7, 1.95), Vector3(3.65, 0.7, 1.95)],
+		"rotations": [Vector3(0.0, 0.1, 0.17), Vector3(0.0, -0.1, -0.17)],
+	},
+	{
+		"name": &"VaneTip",
+		"size": Vector3(0.3, 0.22, 1.15),
+		"material_key": &"amber",
+		"positions": [Vector3(-3.73, 1.4, 1.7), Vector3(3.73, 1.4, 1.7)],
+		"rotations": [Vector3.ZERO, Vector3.ZERO],
+	},
+]
+const SYMMETRIC_HULL_BOX_BASELINE_NODES := 8
+const SYMMETRIC_HULL_BOX_BASELINE_SUBMISSIONS := 8
+const SYMMETRIC_HULL_BOX_BASELINE_MESH_RESOURCES := 8
+const SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES := 4
+
 @export_category("Defense craft")
 @export_range(1.0, 1000.0, 1.0) var maximum_health := 85.0
 @export_range(10.0, 160.0, 1.0) var cruise_speed := 38.0
@@ -267,6 +306,173 @@ func get_health() -> float:
 
 func is_active() -> bool:
 	return _active
+
+
+## Renderer-independent audit for the base defender's four paired box families.
+##
+## Structural submissions are mesh-surface counts, not driver draw calls. The
+## report proves only a component-local retained-resource reduction and returns
+## deep-detached primitive data suitable for a focused regression.
+func get_symmetric_hull_box_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var behavior_rows: Array[Dictionary] = []
+	var all_mesh_ids: Dictionary = {}
+	var all_material_ids: Dictionary = {}
+	var node_count := 0
+	var structural_submissions := 0
+	var authority_node_count := 0
+	var scripted_node_count := 0
+	var child_node_count := 0
+	var metadata_entry_count := 0
+	var processing_node_count := 0
+	var visual := _visual_root
+	if visual == null or not is_instance_valid(visual) or visual.name != &"RangeInterceptorVisual":
+		errors.append("range_opponent_visual_root_unavailable")
+	else:
+		var direct_mesh_nodes: Array[MeshInstance3D] = []
+		for raw_node in visual.get_children():
+			var direct_mesh := raw_node as MeshInstance3D
+			if direct_mesh != null:
+				direct_mesh_nodes.append(direct_mesh)
+		for spec in SYMMETRIC_HULL_BOX_SPECS:
+			var family_name := StringName(spec["name"])
+			var expected_size: Vector3 = spec["size"]
+			var material_key := StringName(spec["material_key"])
+			var expected_material := _materials.get(String(material_key)) as Material
+			var expected_positions := spec["positions"] as Array
+			var expected_rotations := spec["rotations"] as Array
+			var family_mesh_ids: Dictionary = {}
+			for side_index in 2:
+				var expected_position: Vector3 = expected_positions[side_index]
+				var expected_rotation: Vector3 = expected_rotations[side_index]
+				var matching_nodes: Array[MeshInstance3D] = []
+				for candidate in direct_mesh_nodes:
+					if candidate.position.is_equal_approx(expected_position):
+						matching_nodes.append(candidate)
+				if matching_nodes.size() != 1:
+					errors.append(
+						"symmetric_hull_box_transform_slot_count_drift:%s:%d"
+						% [String(family_name), side_index]
+					)
+					continue
+				var instance := matching_nodes[0]
+				node_count += 1
+				var mesh := instance.mesh as BoxMesh
+				if mesh == null:
+					errors.append("symmetric_hull_box_mesh_type_drift:%s" % String(family_name))
+				else:
+					family_mesh_ids[mesh.get_instance_id()] = true
+					all_mesh_ids[mesh.get_instance_id()] = true
+					structural_submissions += mesh.get_surface_count()
+					if mesh.material != null:
+						all_material_ids[mesh.material.get_instance_id()] = true
+					if (
+						not mesh.size.is_equal_approx(expected_size)
+						or mesh.material != expected_material
+						or mesh.get_surface_count() != 1
+					):
+						errors.append(
+							"symmetric_hull_box_mesh_recipe_drift:%s" % String(family_name)
+						)
+				if (
+					instance.get_parent() != visual
+					or not instance.rotation.is_equal_approx(expected_rotation)
+					or not instance.scale.is_equal_approx(Vector3.ONE)
+					or not instance.visible
+					or instance.layers != 1
+					or instance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				):
+					errors.append(
+						"symmetric_hull_box_node_recipe_drift:%s" % String(family_name)
+					)
+				if instance.get_script() != null:
+					scripted_node_count += 1
+				metadata_entry_count += instance.get_meta_list().size()
+				if instance.is_processing() or instance.is_physics_processing():
+					processing_node_count += 1
+				child_node_count += instance.get_child_count()
+				for child in instance.find_children("*", "Node", true, false):
+					if child.get_script() != null:
+						scripted_node_count += 1
+					if (
+						child is CollisionObject3D
+						or child is CollisionShape3D
+						or child is NavigationRegion3D
+						or child is Light3D
+						or child is AudioStreamPlayer
+						or child is AudioStreamPlayer3D
+						or child is Camera3D
+					):
+						authority_node_count += 1
+				behavior_rows.append({
+					"family": String(family_name),
+					"side": "port" if side_index == 0 else "starboard",
+					"position": [instance.position.x, instance.position.y, instance.position.z],
+					"rotation": [instance.rotation.x, instance.rotation.y, instance.rotation.z],
+					"scale": [instance.scale.x, instance.scale.y, instance.scale.z],
+					"size": [expected_size.x, expected_size.y, expected_size.z],
+					"material": String(material_key),
+				})
+			if family_mesh_ids.size() != 1:
+				errors.append(
+					"symmetric_hull_box_mesh_identity_not_shared:%s" % String(family_name)
+				)
+
+	if node_count != SYMMETRIC_HULL_BOX_BASELINE_NODES:
+		errors.append("symmetric_hull_box_total_node_count_drift")
+	if all_mesh_ids.size() != SYMMETRIC_HULL_BOX_SPECS.size():
+		errors.append("symmetric_hull_box_mesh_identity_count_drift")
+	if all_material_ids.size() != SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES:
+		errors.append("symmetric_hull_box_material_identity_count_drift")
+	if structural_submissions != SYMMETRIC_HULL_BOX_BASELINE_SUBMISSIONS:
+		errors.append("symmetric_hull_box_submission_count_drift")
+	if (
+		authority_node_count != 0
+		or scripted_node_count != 0
+		or child_node_count != 0
+		or metadata_entry_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("symmetric_hull_box_stock_gained_authority_or_lifecycle")
+
+	var referenced_resource_count := all_mesh_ids.size() + all_material_ids.size()
+	var baseline_referenced_resource_count := (
+		SYMMETRIC_HULL_BOX_BASELINE_MESH_RESOURCES
+		+ SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES
+	)
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"range_opponent_symmetric_childless_hull_boxes",
+		"family_count": SYMMETRIC_HULL_BOX_SPECS.size(),
+		"node_count": node_count,
+		"baseline_node_count": SYMMETRIC_HULL_BOX_BASELINE_NODES,
+		"node_delta": node_count - SYMMETRIC_HULL_BOX_BASELINE_NODES,
+		"drawn_copy_count": node_count,
+		"structural_submission_count": structural_submissions,
+		"baseline_structural_submission_count": SYMMETRIC_HULL_BOX_BASELINE_SUBMISSIONS,
+		"submission_delta": structural_submissions - SYMMETRIC_HULL_BOX_BASELINE_SUBMISSIONS,
+		"mesh_resource_identity_count": all_mesh_ids.size(),
+		"baseline_mesh_resource_identity_count": SYMMETRIC_HULL_BOX_BASELINE_MESH_RESOURCES,
+		"mesh_resource_identity_delta": all_mesh_ids.size() - SYMMETRIC_HULL_BOX_BASELINE_MESH_RESOURCES,
+		"material_resource_identity_count": all_material_ids.size(),
+		"baseline_material_resource_identity_count": SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES,
+		"material_resource_identity_delta": all_material_ids.size() - SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES,
+		"referenced_visual_resource_identity_count": referenced_resource_count,
+		"baseline_referenced_visual_resource_identity_count": baseline_referenced_resource_count,
+		"referenced_visual_resource_identity_delta": referenced_resource_count - baseline_referenced_resource_count,
+		"behavior_rows": behavior_rows,
+		"authority_node_count": authority_node_count,
+		"scripted_node_count": scripted_node_count,
+		"child_node_count": child_node_count,
+		"metadata_entry_count": metadata_entry_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"whole_scene_budget_claimed": false,
+	}.duplicate(true)
 
 
 ## Returns the detached, world-owned lethal-effect root while it is alive.
@@ -688,13 +894,24 @@ func _build_interceptor() -> void:
 	_box(_visual_root, "DorsalFrame", Vector3(0.0, 1.16, 1.22), Vector3(0.4, 0.24, 2.5), _materials.frame)
 	_box(_visual_root, "AftCrossbar", Vector3(0.0, 0.05, 2.55), Vector3(7.3, 0.5, 1.2), _materials.shade)
 	_box(_visual_root, "AftCyanBand", Vector3(0.0, 0.36, 2.4), Vector3(6.5, 0.12, 0.34), _materials.cyan)
+	var symmetric_box_meshes: Dictionary = {}
+	for spec in SYMMETRIC_HULL_BOX_SPECS:
+		var material := _materials.get(String(StringName(spec["material_key"]))) as Material
+		var family_name := StringName(spec["name"])
+		symmetric_box_meshes[family_name] = _make_box_mesh(spec["size"], material)
 
-	for side in [-1.0, 1.0]:
+	for side_index in 2:
+		var side := -1.0 if side_index == 0 else 1.0
 		_wedge(_visual_root, "ForwardProng", Vector3(side * 2.65, -0.02, -0.65), Vector3(1.18, 0.72, 8.35), _materials.ivory, side * 0.025)
-		_box(_visual_root, "ProngInset", Vector3(side * 2.65, 0.38, -1.1), Vector3(0.52, 0.13, 4.4), _materials.cyan)
-		_box(_visual_root, "SweptBrace", Vector3(side * 1.55, 0.0, 1.05), Vector3(3.3, 0.36, 1.0), _materials.frame, Vector3(0.0, side * -0.48, 0.0))
-		_box(_visual_root, "OuterVane", Vector3(side * 3.65, 0.7, 1.95), Vector3(0.26, 1.5, 2.5), _materials.ivory, Vector3(0.0, side * -0.1, side * -0.17))
-		_box(_visual_root, "VaneTip", Vector3(side * 3.73, 1.4, 1.7), Vector3(0.3, 0.22, 1.15), _materials.amber)
+		for spec in SYMMETRIC_HULL_BOX_SPECS:
+			var family_name := StringName(spec["name"])
+			_box_from_mesh(
+				_visual_root,
+				String(family_name),
+				(spec["positions"] as Array)[side_index],
+				symmetric_box_meshes[family_name] as BoxMesh,
+				(spec["rotations"] as Array)[side_index]
+			)
 		_cylinder(_visual_root, "GunHousing", Vector3(side * 2.65, -0.08, -4.35), 0.31, 1.0, _materials.frame, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "ChargeLens", Vector3(side * 2.65, -0.08, -4.88), 0.18, 0.12, _materials.amber_emissive, Vector3(90.0, 0.0, 0.0))
 		var lens := _sphere(_visual_root, "WeaponTelegraph", Vector3(side * 2.65, -0.08, -4.98), 0.16, _materials.amber_emissive)
@@ -872,6 +1089,29 @@ func _material(color: Color, metallic: float, roughness: float, emission := Colo
 		material.emission = emission
 		material.emission_energy_multiplier = energy
 	return material
+
+
+func _make_box_mesh(size: Vector3, material: Material) -> BoxMesh:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = material
+	return mesh
+
+
+func _box_from_mesh(
+	parent: Node3D,
+	node_name: String,
+	position_value: Vector3,
+	mesh: BoxMesh,
+	rotation_value := Vector3.ZERO
+) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	instance.rotation = rotation_value
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
 
 
 func _box(parent: Node3D, node_name: String, position_value: Vector3, size: Vector3, material: Material, rotation_value := Vector3.ZERO) -> MeshInstance3D:
