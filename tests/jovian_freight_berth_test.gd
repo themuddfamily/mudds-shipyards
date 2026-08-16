@@ -46,6 +46,9 @@ func _run() -> void:
 	_test_animated_equipment(module)
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
+	_test_handling_infrastructure(module)
+	_test_nothing_drawn_floats(module)
+	await _test_handling_fixtures_are_solid(module)
 	_test_collision_contract(module)
 	await _test_cleanup(module)
 	_finish()
@@ -349,6 +352,198 @@ func _test_materials_signage_and_detail(module: JovianFreightBerth) -> void:
 	_check(visual != null and visual.mesh is ArrayMesh, "load-bearing deck renders custom chamfered geometry")
 	_check(module.find_children("*", "CylinderMesh", true, false).is_empty(), "scene does not mistake resources for nodes")
 	_check(module.find_children("*", "MeshInstance3D", true, false).size() >= 150, "module has a high-detail rendered assembly rather than a generic blockout")
+
+
+## The freight-handling infrastructure a berth this size has to own before it
+## reads as the busiest working part of the yard rather than a parking slab.
+func _test_handling_infrastructure(module: JovianFreightBerth) -> void:
+	_check(
+		module.get_handling_fixture_count() >= JovianFreightBerth.HANDLING_FIXTURE_TARGET,
+		"berth owns at least %d collision-backed handling fixtures (%d)"
+			% [JovianFreightBerth.HANDLING_FIXTURE_TARGET, module.get_handling_fixture_count()]
+	)
+	var classes := module.get_handling_fixture_classes()
+	print("FREIGHT_HANDLING_FIXTURES: ", module.get_handling_fixture_count(), " ", classes)
+	# The roster has to span the whole job, not sixty copies of one bollard.
+	for required_class in [
+		&"approach-portal-mast",
+		&"envelope-bollard",
+		&"staged-pallet",
+		&"staged-crate",
+		&"rack-deck",
+		&"rack-stored-crate",
+		&"stores-locker",
+		&"gas-bottle",
+		&"boarding-step",
+		&"boarding-platform",
+		&"gantry-catwalk",
+		&"catwalk-ladder-stringer",
+		&"crane-control-cab",
+		&"manifest-kiosk",
+	]:
+		_check(
+			int(classes.get(required_class, 0)) > 0,
+			"handling roster covers the %s class" % required_class
+		)
+	classes[&"envelope-bollard"] = 999
+	_check(
+		int(module.get_handling_fixture_classes().get(&"envelope-bollard", 0)) != 999,
+		"the handling fixture class breakdown is detached from module state"
+	)
+
+	# Godot renames same-named siblings, so a set built under one shared name can
+	# only ever be resolved as one node by name. Every fixture set this pass builds
+	# is named per station side and index; these are the sets a name-driven audit
+	# has to be able to see whole.
+	for prefix in ["EnvelopeBollardPort", "EnvelopeBollardStarboard", "LashingRingPort", "LashingRingStarboard"]:
+		_check(
+			module.find_children("%s*" % prefix, "", true, false).size() >= 4,
+			"the %s set is addressable per station position, not collapsed under one name" % prefix
+		)
+	_check(module.find_children("BoardingStep*", "StaticBody3D", true, false).size() == 7, "the boarding flight has seven independently addressable steps")
+	_check(module.find_children("StoresLocker0*", "StaticBody3D", true, false).size() == 5, "the stores bank has five independently addressable lockers")
+	_check(module.find_children("CatwalkLadderRung*", "MeshInstance3D", true, false).size() == 12, "the gantry ladder is fully rungged")
+
+	var typed := module.get_typed_audit_report()
+	_check(
+		typed.handling_fixture_count == module.get_handling_fixture_count()
+		and not typed.handling_fixture_classes.is_empty(),
+		"typed audit publishes the handling roster and its class breakdown"
+	)
+	typed.handling_fixture_classes["mutation"] = 1
+	_check(
+		not module.get_typed_audit_report().handling_fixture_classes.has("mutation"),
+		"typed handling roster is detached"
+	)
+
+
+## The berth-wide "nothing floats" sweep.
+##
+## The standing complaint this exists for is "random objects floating in the air
+## and it ruins the experience", and the rosters that answer it elsewhere in the
+## suite are hand-listed paths. This module is generated, so a path roster can
+## only ever cover what someone remembered to add. Instead every drawn mesh the
+## module builds must share volume with, or come within `SEAT_TOLERANCE` of, some
+## other drawn mesh that is not its own ancestor or descendant.
+##
+## Ray-against-collision cannot answer this class here: most of what hangs off
+## this module - guide lenses, sign boards, catwalk rails, the crane cab - hangs
+## off structure that is drawn but not collidable, and in open space that ray
+## falls forever. Measured live before the fix, the module floated 39 pieces:
+## eighteen dock guide lenses at 0.120 - 0.220 m, twelve dock guide strips at
+## 0.073, the dock centreline at 0.068, both service-room utility trunks at 0.100
+## (touching neither floor nor roof), both trolley rails 0.050 under the header
+## they run on, three status bars and the six cabinet indicator strips standing
+## clear of the panels they read from.
+const SEAT_TOLERANCE := 0.002
+
+
+func _test_nothing_drawn_floats(module: JovianFreightBerth) -> void:
+	var floating := _floating_meshes(module)
+	print("FLOATING_FREIGHT_MESHES: ", floating)
+	_check(
+		floating.is_empty(),
+		"every drawn surface in the freight berth bears on other drawn geometry instead of hanging in space"
+	)
+
+	# Structured red, on the exact shape of the defect this module was repaired for
+	# today: a crate stacked on the crate below it. The port bay's top staged crate
+	# bears 0.010 m into the crate under it and carries nothing, so lifting it is
+	# the cleanest single mutation available. 0.100 m is deliberately close to the
+	# size of the hovers actually reported - thirteen pieces at 0.020 - 0.090 m, and
+	# the eight rack crates at 0.040 - 0.070 - so the guard is proven to bite at
+	# roughly the scale of the real defect rather than only at an absurd one.
+	#
+	# The mutation is asserted by name as well as by count. This sweep compares
+	# axis-aligned bounds, and the module under test is deliberately placed at a
+	# 23 degree yaw, which inflates every box: a lifted piece can pick up a
+	# spurious neighbour metres away and read as seated. Naming the piece is what
+	# makes the red a statement about this crate rather than about the roster.
+	var crate := module.find_child("StagedCrateUpperPort", true, false) as Node3D
+	if crate == null:
+		_check(false, "the structured-red fixture resolves")
+		return
+	var seated := crate.transform
+	crate.position.y += 0.1
+	var mutated := _floating_meshes(module)
+	var named := false
+	for entry in mutated:
+		named = named or entry.contains("StagedCrateUpperPort")
+	_check(
+		named,
+		"lifting the seated staged crate 0.10 m off the crate below it turns the sweep red (%s)"
+			% ", ".join(mutated)
+	)
+	crate.transform = seated
+	_check(_floating_meshes(module).is_empty(), "restoring the fixture returns the sweep to green")
+
+
+func _floating_meshes(module: JovianFreightBerth) -> PackedStringArray:
+	var drawn: Array[Dictionary] = []
+	for candidate in module.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		drawn.append({
+			"node": mesh_instance,
+			"box": (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs(),
+		})
+	var floating := PackedStringArray()
+	for entry in drawn:
+		var piece := entry["node"] as MeshInstance3D
+		var box := (entry["box"] as AABB).grow(SEAT_TOLERANCE)
+		var seated := false
+		for other_entry in drawn:
+			var other := other_entry["node"] as MeshInstance3D
+			if other == piece or piece.is_ancestor_of(other) or other.is_ancestor_of(piece):
+				continue
+			if box.intersects(other_entry["box"] as AABB):
+				seated = true
+				break
+		if not seated:
+			floating.append("%s @ %s" % [module.get_path_to(piece), str(box.get_center())])
+	return floating
+
+
+## The other half of the same promise: solid-looking apparatus a player can reach
+## has to actually stop them. A freight berth is where a tow tractor gets driven,
+## so every registered handling fixture is shape-cast and must answer.
+func _test_handling_fixtures_are_solid(module: JovianFreightBerth) -> void:
+	var permeable := PackedStringArray()
+	for candidate in module.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		if not bool(body.get_meta("station_handling_fixture", false)):
+			continue
+		var shapes := body.find_children("*", "CollisionShape3D", true, false)
+		if shapes.is_empty():
+			permeable.append("%s <no shape>" % body.name)
+			continue
+		for shape_node in shapes:
+			var collision := shape_node as CollisionShape3D
+			if collision.disabled or collision.shape == null:
+				permeable.append("%s <disabled>" % body.name)
+	var registered := 0
+	for fixture in module.find_children("*", "StaticBody3D", true, false):
+		if bool((fixture as StaticBody3D).get_meta("station_handling_fixture", false)):
+			registered += 1
+	_check(
+		registered == module.get_handling_fixture_count(),
+		"every published handling fixture is a real static body in the tree (%d of %d)"
+			% [registered, module.get_handling_fixture_count()]
+	)
+	_check(permeable.is_empty(), "no handling fixture is a solid-looking mesh a player passes through: %s" % ", ".join(permeable))
+
+	# The one place this module is allowed to be empty is the protected hull
+	# volume, and nothing the handling pass added may creep into it.
+	var envelope := module.get_ship_clearance_envelope()
+	var shape := BoxShape3D.new()
+	shape.size = (envelope.half_extents as Vector3) * 2.0
+	var intruders := PackedStringArray()
+	for hit in await _intersect_shape_world(module, shape, envelope.world_transform as Transform3D, 256):
+		var collider := hit.get("collider") as Node
+		if collider != null and not str(collider.name).begins_with("ApronDeck"):
+			intruders.append(str(collider.name))
+	_check(intruders.is_empty(), "no handling fixture stands inside the parked craft's protected volume: %s" % ", ".join(intruders))
 
 
 func _test_collision_contract(module: JovianFreightBerth) -> void:

@@ -337,12 +337,57 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# plated structure at 0.30, so neither branch's total is right on its own and
 	# they do not simply sum from either side. 0.22 stays 129 and 0.28 stays 532 -
 	# every added surface is plate stock at 0.30, which goes 1202 -> 1215.
+	# Re-frozen once more, 1767 -> 1890, by the Jovian freight-handling pass, which
+	# furnished the freight berth's apron. No structural role joined or left the
+	# family and no new scale was introduced: the freight module's registered plate
+	# roles are unchanged at `ceramic`, `ceramic_warm`, `ceramic_floor`,
+	# `steel_blue`, `deck` and `orange`, so the whole delta is +1 at 0.22 (129 ->
+	# 130) and +122 at 0.30 (1106 -> 1228), with 0.28 untouched at 532. It is
+	# arithmetic rather than a measurement, and it reconciles exactly:
+	#
+	#   0.22, +1: the boarding platform deck, the pass's one walked-on `deck`
+	#   surface. Its seven stair blocks and the gantry catwalk are `deck_grip`,
+	#   which has never been in the family.
+	#   Approach portal, +6: two masts and two mast feet, the header beam and the
+	#   freight-control door header. The sign board and its fascia are `deep_blue`,
+	#   the chevrons and mast bands `orange_glow`, the board edges `cyan` — all cues
+	#   and all outside the family, exactly as the module's other lane striping is.
+	#   Handling zones, +18: ten envelope bollards and eight lashing rings. The
+	#   bollard collars, both painted staging bays and every hatch strip are
+	#   `orange_glow`; the lashing plates are `graphite`; the chocks are `rubber`.
+	#   Freight stores, +42: six rack decks, six stored crates, six stored drums,
+	#   five lockers with five doors and five handles, the locker canopy, two
+	#   gas-bottle uprights and their rail, four pallet drums and the skip body. The
+	#   bottles themselves are `cyan_dim`/`red` alert paint, the bases and rims
+	#   `graphite`, the skip band `orange_glow`.
+	#   Loading apparatus, +19: four platform legs, four rail posts and three rails,
+	#   the toe board, two hose reel drums, the pallet truck body, and the two
+	#   staged stacks' lower and upper crates. Pallets, stands and the truck handle
+	#   are `graphite`; the straps are `deep_blue`.
+	#   Gantry access, +35: ten catwalk rail posts, two top rails, two toe boards,
+	#   twelve ladder rungs, two ladder stringers, four cage hoops, the crane cab,
+	#   its leg bracket and its floor plate. The catwalk deck and landing are
+	#   `deck_grip`, the cab glazing is transparent `glass`, the cable tray
+	#   `graphite`.
+	#   Dispatch annex, +2: the manifest kiosk and the load-check readout post. Its
+	#   screens are `screen`, its plate `deck_grip` and its corner marks
+	#   `orange_glow`.
+	#   The eighteen new dock-guide lens housings are `graphite` and add nothing
+	#   here, which is the point of them: they are the missing fitting under an
+	#   existing lens, not a new painted surface.
+	#
+	# Re-frozen 1876 -> 1999 on merge, measured on the merged tree. The freight
+	# berth pass adds 105 handling fixtures across 36 classes and 100 drawn
+	# meshes; 0.22 gains one surface (130) and 0.30 gains 122 (1337), with 0.28
+	# untouched at 532. Measured rather than summed: this branch was authored
+	# before the Halyard apron and the central berth service line landed, and
+	# neither branch's total is correct on its own.
 	_check(
-		mapped_surface_count == 1876
-		and scale_022_count == 129
+		mapped_surface_count == 1999
+		and scale_022_count == 130
 		and scale_028_count == 532
-		and scale_030_count == 1215,
-		"live station binds exactly 1876 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1337,
+		"live station binds exactly 1999 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

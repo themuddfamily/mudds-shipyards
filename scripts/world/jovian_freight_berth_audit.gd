@@ -23,6 +23,12 @@ var animated_equipment_count: int
 var footprint: Dictionary
 var ship_clearance: Dictionary
 var equipment_motion: Dictionary
+## Collision-backed freight-handling infrastructure, and its class breakdown.
+## Appended rather than folded into `service_detail_count`: the service count is
+## the control room and dock systems, and a berth can be richly detailed indoors
+## while its apron is still an empty slab.
+var handling_fixture_count: int
+var handling_fixture_classes: Dictionary
 
 
 func _init(
@@ -41,7 +47,9 @@ func _init(
 		p_animated_equipment_count: int,
 		p_footprint: Dictionary,
 		p_ship_clearance: Dictionary,
-		p_equipment_motion: Dictionary
+		p_equipment_motion: Dictionary,
+		p_handling_fixture_count: int,
+		p_handling_fixture_classes: Dictionary
 	) -> void:
 	schema_version = p_schema_version
 	module_id = p_module_id
@@ -59,6 +67,8 @@ func _init(
 	footprint = p_footprint.duplicate(true)
 	ship_clearance = p_ship_clearance.duplicate(true)
 	equipment_motion = p_equipment_motion.duplicate(true)
+	handling_fixture_count = p_handling_fixture_count
+	handling_fixture_classes = p_handling_fixture_classes.duplicate(true)
 
 
 func to_dictionary() -> Dictionary:
@@ -79,4 +89,6 @@ func to_dictionary() -> Dictionary:
 		"footprint": footprint.duplicate(true),
 		"ship_clearance": ship_clearance.duplicate(true),
 		"equipment_motion": equipment_motion.duplicate(true),
+		"handling_fixture_count": handling_fixture_count,
+		"handling_fixture_classes": handling_fixture_classes.duplicate(true),
 	}
