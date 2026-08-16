@@ -794,6 +794,8 @@ It owns **no gameplay authority**: no rewards, no leases, no objectives, and del
 
 The cargo-delivery prerequisite now also has a standalone typed foundation in `scripts/cargo/`: stable item definitions, bounded integer manifests bound to live entity/manifest generations, and atomic source-to-destination transfers with duplicate, stale, owner, quantity and capacity rejection. Detach/re-entry preserves one physical entity's manifest while retirement or deletion invalidates its handles. `tests/cargo_transfer_authority_test.gd` covers this authority in isolation (63 assertions); it adds no cargo activity, reward, ship, berth, save, network, HUD, or `Main` integration.
 
+The matching **explicit streaming foundation** now exists in `scripts/world/world_streaming_coordinator.gd`: registered `WorldLocationDefinition` anchors can be requested through an injectable asynchronous loader or an explicit `PackedScene` binding, with generation-stamped completion, deterministic coordinator-child placement, lifecycle-safe unload/reload, failure recovery, and detach/re-entry identity held by `tests/world_streaming_coordinator_test.gd`. This remains a foundation rather than production world streaming: it has no automatic distance policy, `Main` integration, save/network authority, objectives, rewards, ships, or berths, and scene selection is still supplied explicitly.
+
 ## Phase 9 — Release polish
 
 ### Design and implementation specification
