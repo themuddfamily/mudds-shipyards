@@ -18,6 +18,7 @@ signal critical_damage
 signal canopy_motion_finished(open: bool)
 signal camera_view_changed(view: StringName)
 signal damage_stage_changed(stage: int, status: StringName)
+signal component_damage_changed(component_id: StringName, state: int, integrity: float)
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
 
 const ENGINE_OFFLINE: StringName = &"OFFLINE"
@@ -202,6 +203,10 @@ var _engine_lights: Array[OmniLight3D] = []
 var _materials: Dictionary = {}
 var _fire_from_left := true
 var _damage_presentation: HeroDamagePresentation
+## Observational component model. It never owns hull; see
+## `scripts/combat/ship_component_damage.gd` for the authority boundary.
+var _component_damage: ShipComponentDamage
+var _last_component_damage_revision := -1
 var _command_source: ShipCommandSource
 var _default_local_command_source: LocalShipInputSource
 var _last_ship_command: ShipCommand = ShipCommandType.neutral()
@@ -258,6 +263,7 @@ func _ready() -> void:
 	if _damage_presentation != null:
 		_damage_presentation.stage_changed.connect(_on_damage_stage_changed)
 		_sync_damage_presentation()
+	_ensure_component_damage()
 	_set_camera_current(_piloted)
 	if _piloted and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -299,6 +305,7 @@ func _physics_process(delta: float) -> void:
 	_sync_ship_audio(command)
 	_update_presentation(delta, command)
 	_sync_damage_presentation()
+	_sync_component_damage(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1113,6 +1120,11 @@ func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	set_canopy_open(false, 0.0)
 	if _damage_presentation != null:
 		_damage_presentation.reset_for_reuse(1.0, HeroDamagePresentation.STATE_POWERED_DOWN)
+	# Respawn restores the whole roster in one call, so recovery never waits on the
+	# gradual berth repair. `reset_for_reuse()` clears the presentation rigs too.
+	if _component_damage != null:
+		_component_damage.reset_for_reuse()
+		_last_component_damage_revision = _component_damage.get_revision()
 	_set_camera_current(false)
 	engine_state_changed.emit(_engine_state)
 	hull_changed.emit(_hull, maximum_hull)
@@ -1135,6 +1147,18 @@ func get_telemetry() -> Dictionary:
 		"hull": _hull,
 		"maximum_hull": maximum_hull,
 		"damage_status": _damage_presentation.get_status() if _damage_presentation != null else &"healthy",
+		# Scalar component readings only. The full roster stays behind
+		# `get_component_damage_report()` so this per-frame snapshot allocates nothing
+		# proportional to the roster.
+		"components_failed": (
+			_component_damage.get_failed_component_count() if _component_damage != null else 0
+		),
+		"components_impaired": (
+			_component_damage.get_impaired_component_count() if _component_damage != null else 0
+		),
+		"component_integrity": (
+			_component_damage.get_worst_integrity() if _component_damage != null else 1.0
+		),
 		"engine_power": _get_damage_engine_multiplier(),
 		"engine_state": _engine_state,
 		"landed": _landed,
@@ -1272,6 +1296,9 @@ func apply_damage(
 			clampf(amount / 18.0, 0.35, 2.0)
 		)
 	_hull = maxf(0.0, _hull - amount)
+	# The component roster observes the hull loss that has just been decided. It
+	# cannot veto, refund, or re-apply it; hull authority is settled above.
+	_record_component_damage(amount, world_hit_position)
 	# Apply stage/alarm/engine-power state immediately. Terminal explosion is the
 	# only part withheld when a travelling-pulse receipt owns presentation.
 	if _damage_presentation != null and _hull > 0.0:
@@ -1969,6 +1996,87 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 			practical_energy = 0.25 + sin(_elapsed * 9.0) * 0.07
 		_cockpit_practical_light.light_energy = clampf(practical_energy, 0.04, 0.35)
 		_cockpit_practical_light.light_color = Color("ff746a") if _hull <= maximum_hull * 0.3 else Color("d8c7a5")
+
+
+## Creates or adopts the ship-local component model and derives its roster from
+## this craft's own collision envelope. Called once from `_ready()` after
+## `_build_ship()`; a scene-authored `ShipComponentDamage` child wins if present,
+## so no variant is forced to take the programmatic one.
+func _ensure_component_damage() -> void:
+	if _component_damage == null:
+		_component_damage = get_node_or_null("ShipComponentDamage") as ShipComponentDamage
+	if _component_damage == null:
+		_component_damage = ShipComponentDamage.new()
+		_component_damage.name = "ShipComponentDamage"
+		add_child(_component_damage)
+	if not _component_damage.component_state_changed.is_connected(_on_component_state_changed):
+		_component_damage.component_state_changed.connect(_on_component_state_changed)
+	var collision_report := get_landing_collision_report()
+	var local_bounds: AABB = collision_report.get("local_bounds", AABB())
+	if not bool(collision_report.get("valid", false)):
+		# A craft with no usable root collision keeps an unconfigured model. Every
+		# entry point below fails closed rather than inventing an envelope.
+		return
+	_component_damage.configure(local_bounds, maxf(maximum_hull, 0.001))
+	_last_component_damage_revision = -1
+
+
+## Advances repair and republishes the localized presentation channel. Repair is
+## authorized only while this craft is physically at rest and intact, so a hit
+## taken in a dogfight stays readable for the whole engagement and clears once the
+## craft is berthed. Nothing in the game waits on it: destruction recovery goes
+## through `reset_for_reuse()`, which restores the whole roster in one call.
+func _sync_component_damage(delta: float) -> void:
+	if _component_damage == null or not _component_damage.is_configured():
+		return
+	_component_damage.tick_repair(delta, _landed and not _destroyed and not _landing_active)
+	var revision := _component_damage.get_revision()
+	if revision == _last_component_damage_revision:
+		return
+	_last_component_damage_revision = revision
+	if _damage_presentation != null:
+		_damage_presentation.set_component_damage_states(
+			_component_damage.get_component_states()
+		)
+
+
+## Records an already-applied hull loss against the component roster. This is an
+## observation: the hull value is decided before this runs and is not read back.
+func _record_component_damage(amount: float, world_hit_position: Vector3) -> void:
+	if _component_damage == null or not _component_damage.is_configured():
+		return
+	var local_hit_position := Vector3.INF
+	if is_inside_tree() and world_hit_position.is_finite():
+		local_hit_position = to_local(world_hit_position)
+	_component_damage.record_damage(amount, local_hit_position)
+
+
+func get_component_damage() -> ShipComponentDamage:
+	return _component_damage
+
+
+## Deep-copied audit of the craft's component integrity.
+func get_component_damage_report() -> Dictionary:
+	if _component_damage == null:
+		return {
+			"schema_version": ShipComponentDamage.SCHEMA_VERSION,
+			"interpretation": ShipComponentDamage.INTERPRETATION,
+			"configured": false,
+			"component_count": 0,
+			"failed_count": 0,
+			"impaired_count": 0,
+			"worst_integrity": 1.0,
+			"components": [] as Array[Dictionary],
+		}
+	return _component_damage.get_component_report()
+
+
+func _on_component_state_changed(
+		component_id: StringName,
+		state: int,
+		integrity: float
+	) -> void:
+	component_damage_changed.emit(component_id, state, integrity)
 
 
 func _sync_damage_presentation() -> void:

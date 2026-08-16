@@ -15,6 +15,9 @@ signal alarm_changed(active: bool, urgency: float)
 signal engine_failure_changed(active: bool, power_multiplier: float)
 signal destruction_started(world_position: Vector3, inherited_velocity: Vector3)
 signal effects_cleared
+## Emitted whenever the localized component channel gains, loses, or re-grades a
+## section rig. `modern_interpretation` -- no source authenticates the roster.
+signal component_effects_changed(active_component_count: int)
 
 enum DamageStage {
 	HEALTHY,
@@ -74,6 +77,16 @@ var _tearing_down := false
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
 var _pending_damage_presentations: Dictionary = {}
 var _pending_damage_presentation_order: Array[int] = []
+## Bounded localized channel. One rig per damaged component id, all of them
+## ship-local children of this node so a moving, detached, or re-entered craft
+## carries them rather than stranding them in world space.
+const MAX_COMPONENT_EFFECTS := 8
+const COMPONENT_STATE_NOMINAL := 0
+const COMPONENT_STATE_IMPAIRED := 1
+const COMPONENT_STATE_FAILED := 2
+const COMPONENT_SPARK_AMOUNT := 28
+const COMPONENT_SMOKE_COLOR := Color(0.24, 0.22, 0.21, 0.46)
+var _component_effects: Dictionary = {}
 
 var _damage_sparks: CPUParticles3D
 var _engine_failure_sparks: CPUParticles3D
@@ -90,6 +103,10 @@ var _materials: Dictionary = {}
 
 func _enter_tree() -> void:
 	_tearing_down = false
+	# Localized component rigs are ship-local children and therefore re-enter with
+	# this node. Re-state their emitters so a detached-then-re-added craft resumes
+	# exactly the roster it left with, and never a stale one.
+	_apply_component_effect_visibility()
 	if _built and _pending_destruction:
 		call_deferred("_resume_pending_destruction_after_reentry")
 
@@ -105,6 +122,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_elapsed += delta
 	_update_local_cues()
+	_update_component_cues()
 	_update_transient_effects(delta)
 	_update_destruction_effects(delta)
 
@@ -178,6 +196,243 @@ func present_impact(
 		"node": effect_root,
 		"remaining": impact_effect_lifetime,
 	})
+
+
+## Expresses an already-resolved component-integrity roster as localized, ship-local
+## damage rigs. The caller (`ShipComponentDamage` via the owning ship) stays the
+## only owner of component state; nothing here decides integrity, and no rig
+## affects hull, handling, collision, or scoring.
+##
+## Each entry needs `id` (StringName), `state` (0 nominal / 1 impaired / 2 failed)
+## and `local_position` (Vector3, ship-local). Entries that are nominal, malformed,
+## or non-finite retire any rig they own instead of creating one. Returns the
+## number of live rigs after the update.
+func set_component_damage_states(states: Array) -> int:
+	_ensure_built()
+	# Pass one accepts only well-formed, damaged entries. Retirement is decided
+	# against that accepted roster before anything is created, so the bound below
+	# always applies to the roster the craft is about to show rather than to a
+	# transient union with the previous one.
+	var requested: Dictionary = {}
+	var order: Array[StringName] = []
+	for untyped_state: Variant in states:
+		if not untyped_state is Dictionary:
+			continue
+		var entry := untyped_state as Dictionary
+		var component_id := StringName(entry.get("id", &""))
+		if component_id.is_empty() or requested.has(component_id):
+			continue
+		var local_position: Variant = entry.get("local_position", null)
+		if not local_position is Vector3 or not (local_position as Vector3).is_finite():
+			continue
+		var state := int(entry.get("state", COMPONENT_STATE_NOMINAL))
+		if state < COMPONENT_STATE_IMPAIRED:
+			continue
+		requested[component_id] = {
+			"state": mini(state, COMPONENT_STATE_FAILED),
+			"local_position": local_position as Vector3,
+		}
+		order.append(component_id)
+
+	var changed := false
+	for existing_id: StringName in _component_effects.keys():
+		if not requested.has(existing_id):
+			changed = _retire_component_effect(existing_id) or changed
+	for component_id: StringName in order:
+		var record: Dictionary = requested[component_id]
+		var state := int(record.state)
+		var local_position: Vector3 = record.local_position
+		if _component_effects.has(component_id):
+			changed = _update_component_effect(component_id, state, local_position) or changed
+			continue
+		if _component_effects.size() >= MAX_COMPONENT_EFFECTS:
+			continue
+		_create_component_effect(component_id, state, local_position)
+		changed = true
+	if changed:
+		_apply_component_effect_visibility()
+		component_effects_changed.emit(_component_effects.size())
+	return _component_effects.size()
+
+
+## Retires every localized rig. Used by reuse, disposal and owner handoff so a
+## recycled craft can never inherit another life's failed sections.
+func clear_component_damage_effects() -> void:
+	if _component_effects.is_empty():
+		return
+	for component_id: StringName in _component_effects.keys():
+		_retire_component_effect(component_id)
+	component_effects_changed.emit(0)
+
+
+func get_active_component_effect_count() -> int:
+	return _component_effects.size()
+
+
+func get_component_effect_state(component_id: StringName) -> int:
+	var effect: Dictionary = _component_effects.get(component_id, {})
+	if effect.is_empty():
+		return COMPONENT_STATE_NOMINAL
+	return int(effect.get("state", COMPONENT_STATE_NOMINAL))
+
+
+## Live rig ids in a stable lexicographic order. StringName comparison is
+## address-ordered in Godot, so the sort is deliberately done on String values to
+## give callers and tests a reproducible roster.
+func get_component_effect_ids() -> Array[StringName]:
+	var names: Array[String] = []
+	for component_id: StringName in _component_effects.keys():
+		names.append(String(component_id))
+	names.sort()
+	var ids: Array[StringName] = []
+	for component_name: String in names:
+		ids.append(StringName(component_name))
+	return ids
+
+
+func _create_component_effect(
+		component_id: StringName,
+		state: int,
+		local_position: Vector3
+	) -> void:
+	var rig := Node3D.new()
+	rig.name = "ComponentDamage_%s" % String(component_id)
+	rig.position = local_position
+	add_child(rig)
+	# Reuse the same emitter builders as the staged hull channel: one spark/smoke
+	# grammar for the whole craft, no second particle vocabulary. Only the sizes
+	# are raised, because a section rig has to read at dogfight range against an
+	# unlit starfield rather than at cockpit distance.
+	var sparks := _make_sparks(COMPONENT_SPARK_AMOUNT, 0.72, 3.4, false)
+	sparks.name = "ComponentSparks"
+	sparks.direction = Vector3(0.0, 0.75, 0.25)
+	sparks.spread = 62.0
+	# A section vent is a continuous failure, not the staged hull channel's
+	# periodic burst, so it emits steadily and reads on every frame.
+	sparks.explosiveness = 0.08
+	sparks.scale_amount_min = 0.7
+	sparks.scale_amount_max = 1.7
+	sparks.emitting = false
+	rig.add_child(sparks)
+	var smoke := _make_smoke(false)
+	smoke.name = "ComponentSmoke"
+	smoke.amount = 12
+	smoke.lifetime = 1.15
+	smoke.initial_velocity_min = 0.28
+	smoke.initial_velocity_max = 1.05
+	smoke.scale_amount_min = 0.35
+	smoke.scale_amount_max = 1.15
+	smoke.direction = Vector3(0.0, 0.7, 0.35)
+	# Venting smoke has to separate from empty space, not from a lit station wall,
+	# so the section channel uses its own lifted-value variant of the same material.
+	var smoke_mesh := smoke.mesh as QuadMesh
+	if smoke_mesh != null:
+		smoke_mesh.material = _materials.component_smoke
+	smoke.emitting = false
+	rig.add_child(smoke)
+	# The same practical-light grammar the alarm and engine-failure cues already
+	# use, so a failing section is legible without a new visual vocabulary.
+	var glow := OmniLight3D.new()
+	glow.name = "ComponentGlow"
+	glow.light_color = DAMAGE_ORANGE
+	glow.light_energy = 0.0
+	glow.omni_range = 4.6
+	glow.shadow_enabled = false
+	rig.add_child(glow)
+	_component_effects[component_id] = {
+		"root": rig,
+		"sparks": sparks,
+		"smoke": smoke,
+		"glow": glow,
+		"state": state,
+	}
+
+
+func _update_component_effect(
+		component_id: StringName,
+		state: int,
+		local_position: Vector3
+	) -> bool:
+	var effect: Dictionary = _component_effects[component_id]
+	var rig := effect.get("root") as Node3D
+	if not is_instance_valid(rig):
+		_component_effects.erase(component_id)
+		_create_component_effect(component_id, state, local_position)
+		return true
+	var moved := not rig.position.is_equal_approx(local_position)
+	rig.position = local_position
+	if int(effect.get("state", COMPONENT_STATE_NOMINAL)) == state:
+		return moved
+	effect["state"] = state
+	_component_effects[component_id] = effect
+	return true
+
+
+func _retire_component_effect(component_id: StringName) -> bool:
+	var effect: Dictionary = _component_effects.get(component_id, {})
+	if effect.is_empty():
+		return false
+	_component_effects.erase(component_id)
+	var rig := effect.get("root") as Node3D
+	if is_instance_valid(rig):
+		# Synchronous detachment keeps `get_active_component_effect_count()` and the
+		# child roster consistent for reset callers and tests in the same frame.
+		if not _tearing_down and rig.get_parent() != null:
+			rig.get_parent().remove_child(rig)
+		rig.queue_free()
+	return true
+
+
+## Localized rigs follow the same suppression rule as the staged hull channel: a
+## hidden or destroyed craft emits nothing, and no rig ever survives destruction.
+func _apply_component_effect_visibility() -> void:
+	if _component_effects.is_empty():
+		return
+	var allowed := _ship_state != STATE_HIDDEN and _stage != DamageStage.DESTROYED
+	for component_id: StringName in _component_effects.keys():
+		var effect: Dictionary = _component_effects[component_id]
+		var sparks := effect.get("sparks") as CPUParticles3D
+		var smoke := effect.get("smoke") as CPUParticles3D
+		var glow := effect.get("glow") as OmniLight3D
+		var state := int(effect.get("state", COMPONENT_STATE_NOMINAL))
+		if is_instance_valid(sparks):
+			sparks.emitting = allowed and state >= COMPONENT_STATE_IMPAIRED
+		if is_instance_valid(smoke):
+			smoke.emitting = allowed and state >= COMPONENT_STATE_FAILED
+		if is_instance_valid(glow):
+			glow.light_color = (
+				DAMAGE_RED if state >= COMPONENT_STATE_FAILED else DAMAGE_AMBER
+			)
+			if not allowed or state < COMPONENT_STATE_IMPAIRED:
+				glow.light_energy = 0.0
+
+
+## Section glows flicker on the presentation's own accumulated simulation time,
+## offset per section so several failures never pulse in lockstep. No wall clock
+## is read here; `_elapsed` is advanced by the frame delta like every other cue.
+func _update_component_cues() -> void:
+	if _component_effects.is_empty():
+		return
+	var index := 0
+	for component_id: StringName in _component_effects.keys():
+		var effect: Dictionary = _component_effects[component_id]
+		var glow := effect.get("glow") as OmniLight3D
+		index += 1
+		if not is_instance_valid(glow):
+			continue
+		var state := int(effect.get("state", COMPONENT_STATE_NOMINAL))
+		if (
+			state < COMPONENT_STATE_IMPAIRED
+			or _ship_state == STATE_HIDDEN
+			or _stage == DamageStage.DESTROYED
+		):
+			glow.light_energy = 0.0
+			continue
+		var phase := _elapsed * (17.0 if state >= COMPONENT_STATE_FAILED else 9.0)
+		phase += float(index) * 1.37
+		var flicker := clampf(0.5 + 0.5 * sin(phase) + 0.18 * sin(phase * 2.7), 0.08, 1.0)
+		var peak := 4.6 if state >= COMPONENT_STATE_FAILED else 2.4
+		glow.light_energy = peak * flicker
 
 
 ## Queues only transient/terminal art. Health stage, alarm and engine-power state
@@ -270,6 +525,7 @@ func reset_for_reuse(
 	) -> void:
 	_ensure_built()
 	_clear_all_world_effects(false)
+	clear_component_damage_effects()
 	_pending_damage_presentations.clear()
 	_pending_damage_presentation_order.clear()
 	_pending_destruction = false
@@ -292,6 +548,7 @@ func reset_for_reuse(
 ## This is safe to call before freeing the component or its owning ship.
 func dispose_effects() -> void:
 	_clear_all_world_effects(false)
+	clear_component_damage_effects()
 	_pending_damage_presentations.clear()
 	_pending_damage_presentation_order.clear()
 	_pending_destruction = false
@@ -374,6 +631,7 @@ func _apply_stage_visuals() -> void:
 	if not _built:
 		return
 	var visible_damage := _ship_state != STATE_HIDDEN and _stage != DamageStage.DESTROYED
+	_apply_component_effect_visibility()
 	_damage_sparks.emitting = visible_damage and _stage >= DamageStage.DAMAGED
 	_engine_failure_sparks.emitting = visible_damage and _stage >= DamageStage.CRITICAL
 	_engine_smoke.emitting = visible_damage and _stage >= DamageStage.CRITICAL
@@ -735,6 +993,16 @@ func _create_materials() -> void:
 	smoke.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	smoke.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	_materials.smoke = smoke
+
+	# Section venting reads against empty space rather than a lit station surface,
+	# so it uses a lifted, slightly warm variant of the same unshaded billboard.
+	var component_smoke := StandardMaterial3D.new()
+	component_smoke.albedo_color = COMPONENT_SMOKE_COLOR
+	component_smoke.roughness = 1.0
+	component_smoke.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	component_smoke.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	component_smoke.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_materials.component_smoke = component_smoke
 
 	var shockwave := StandardMaterial3D.new()
 	shockwave.albedo_color = Color(1.0, 0.32, 0.08, 0.54)
