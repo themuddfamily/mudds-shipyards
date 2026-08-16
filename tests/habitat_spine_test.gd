@@ -14,8 +14,10 @@ var _test_root: Node3D
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--capture"):
-		call_deferred("_capture_forward_plus")
+	if OS.get_cmdline_user_args().has("--capture-service"):
+		call_deferred("_capture_forward_plus", true)
+	elif OS.get_cmdline_user_args().has("--capture"):
+		call_deferred("_capture_forward_plus", false)
 	else:
 		call_deferred("_run")
 
@@ -382,6 +384,20 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 		service_classes[candidate.get_meta("service_class")] = true
 	_check(service_classes.has(&"environmental-main") and service_classes.has(&"isolation-valve"), "service layer includes environmental mains and isolation valves")
 	_check(service_classes.has(&"service-cabinet") and service_classes.has(&"service-hatch"), "service layer includes cabinets and floor access hatches")
+	_test_cabinet_louvre_batch(module)
+	_check(
+		module.find_children("*", "Node", true, false).size() == 1922
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1275
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 11,
+		"cabinet batching re-freezes the Habitat census at 1922 nodes, 1275 meshes and 11 MultiMeshes"
+	)
+	var performance := module.get_performance_contract()
+	_check(
+		int(performance.static_bodies) == 250
+		and int(performance.collision_shapes) == 263
+		and bool(performance.within_budget),
+		"visual-only batching preserves the exact 250-body/263-shape collision census and performance contract"
+	)
 
 	var pressure_ribs := module.find_children("*", "Node3D", true, false).filter(
 		func(candidate: Node) -> bool: return "PressureRib" in candidate.name
@@ -408,6 +424,55 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	var material_sample := (module.find_child("ConnectorFloor", true, false) as StaticBody3D).get_node("Mesh") as MeshInstance3D
 	var pbr := material_sample.material_override as StandardMaterial3D
 	_check(pbr != null and pbr.clearcoat_enabled and pbr.roughness > 0.0 and pbr.metallic > 0.0, "primary shell uses layered PBR response rather than flat unlit colour")
+
+
+func _test_cabinet_louvre_batch(module: HabitatSpine) -> void:
+	var louvres := module.get_node_or_null(
+		^"Structure/MaintenanceServiceLayer/CabinetLouvres"
+	) as MultiMeshInstance3D
+	_check(louvres != null and louvres.multimesh != null, "nine cabinet louvres resolve through one visual-only MultiMesh")
+	if louvres == null or louvres.multimesh == null:
+		return
+	var multi := louvres.multimesh
+	var authored := louvres.get_meta("authored_instance_transforms", []) as Array
+	var expected: Array[Transform3D] = []
+	for cabinet_index in 3:
+		var cabinet_z := 4.35 + float(cabinet_index) * 5.05
+		for louvre_index in 3:
+			expected.append(
+				Transform3D(
+					Basis.IDENTITY,
+					Vector3(-5.5, 1.42 + float(louvre_index) * 0.16, cabinet_z)
+				)
+			)
+	_check(
+		multi.instance_count == 9 and authored.size() == 9 and expected.size() == 9,
+		"cabinet batch preserves the exact nine-piece visible roster"
+	)
+	var authored_exact := authored.size() == expected.size()
+	for instance_index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[instance_index] as Transform3D).is_equal_approx(
+			expected[instance_index]
+		)
+	_check(authored_exact, "cabinet batch preserves every authored louvre transform and ordering")
+	var door_seam := module.find_child("CabinetDoorSeam", true, false) as MeshInstance3D
+	_check(
+		multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.03, 0.05, 0.62))
+		and door_seam != null
+		and louvres.material_override == door_seam.material_override,
+		"cabinet batch preserves the louvre box extent and graphite material identity"
+	)
+	_check(
+		module.find_children("CabinetLouvre", "MeshInstance3D", true, false).is_empty(),
+		"cabinet louvres leave no duplicate individual renderer nodes"
+	)
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var renderer_exact := true
+		for instance_index in multi.instance_count:
+			renderer_exact = renderer_exact and multi.get_instance_transform(instance_index).is_equal_approx(
+				authored[instance_index] as Transform3D
+			)
+		_check(renderer_exact, "Forward+ renderer buffer exactly matches the nine authored louvre transforms")
 
 
 func _test_garden_branch(module: HabitatSpine) -> void:
@@ -558,7 +623,7 @@ func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds
 	return is_instance_valid(door) and door.get_state() == expected_state
 
 
-func _capture_forward_plus() -> void:
+func _capture_forward_plus(service_only: bool) -> void:
 	root.size = Vector2i(1400, 900)
 	var capture_root := Node3D.new()
 	capture_root.name = "HabitatSpineForwardPlusCapture"
@@ -596,6 +661,22 @@ func _capture_forward_plus() -> void:
 	camera.current = true
 	camera.position = Vector3(22.0, 14.5, -20.0)
 	capture_root.add_child(camera)
+	if service_only:
+		_test_cabinet_louvre_batch(module)
+		camera.position = Vector3(1.9, 1.68, 16.6)
+		camera.look_at(Vector3(-4.6, 1.5, 6.4), Vector3.UP)
+		for _frame in 8:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		var service_image := root.get_texture().get_image()
+		var service_error := service_image.save_png("/tmp/habitat-spine-cabinet-louvres.png")
+		if service_error != OK:
+			push_error("Failed to save habitat cabinet-louvre capture: %s" % service_error)
+		print("HABITAT_SPINE_SERVICE_CAPTURE_OK")
+		capture_root.queue_free()
+		await process_frame
+		quit(0 if service_error == OK and _failures.is_empty() else 1)
+		return
 	camera.look_at(Vector3(0, 2.1, 13.0), Vector3.UP)
 	for _frame in 8:
 		await process_frame
