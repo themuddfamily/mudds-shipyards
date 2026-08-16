@@ -36,6 +36,7 @@ func _run() -> void:
 		return
 
 	_test_audit_and_evidence(world)
+	_test_deck_connector_allocation(world)
 	_test_berth_contracts(world, torrent)
 	_test_structure_and_material_scope(world)
 	_test_clamp_alignment_and_service_clearance(world, torrent)
@@ -46,6 +47,126 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_deck_connector_allocation(world: ShipyardWorld) -> void:
+	_check(
+		world.has_method("get_landing_pad_deck_connector_allocation_audit"),
+		"world exposes the bounded LandingPad deck-connector allocation audit"
+	)
+	var audit := world.get_landing_pad_deck_connector_allocation_audit()
+	_check(
+		bool(audit.get("valid", false)),
+		"deck-connector allocation audit is valid: %s" % [audit.get("errors", [])]
+	)
+	_check(
+		int(audit.get("node_count", 0)) == 3
+		and int(audit.get("discovered_connector_count", 0)) == 3
+		and int(audit.get("baseline_node_count", 0)) == 3
+		and int(audit.get("node_delta", 99)) == 0
+		and int(audit.get("drawn_copy_count", 0)) == 3
+		and int(audit.get("structural_submission_count", 0)) == 3
+		and int(audit.get("baseline_structural_submission_count", 0)) == 3
+		and int(audit.get("submission_delta", 99)) == 0,
+		"three visible connector nodes and three structural submissions are unchanged"
+	)
+	_check(
+		int(audit.get("mesh_resource_identity_count", 0)) == 1
+		and int(audit.get("baseline_mesh_resource_identity_count", 0)) == 3
+		and int(audit.get("mesh_resource_identity_delta", 0)) == -2
+		and int(audit.get("material_resource_identity_count", 0)) == 1
+		and int(audit.get("material_resource_identity_delta", 99)) == 0,
+		"only connector mesh identities fall from three to one"
+	)
+	var mesh_recipe := audit.get("mesh_recipe", {}) as Dictionary
+	_check(
+		is_equal_approx(float(mesh_recipe.get("inner_radius", -1.0)), 0.16)
+		and is_equal_approx(float(mesh_recipe.get("outer_radius", -1.0)), 0.24)
+		and int(mesh_recipe.get("authored_rings", 0)) == 64
+		and int(mesh_recipe.get("authored_ring_segments", 0)) == 16
+		and int(mesh_recipe.get("rings", 0)) == 32
+		and int(mesh_recipe.get("ring_segments", 0)) == 13
+		and int(mesh_recipe.get("surface_count", 0)) == 1,
+		"shared connector retains the exact authored and budgeted torus recipe"
+	)
+	_check(
+		int(audit.get("authority_node_count", -1)) == 0
+		and int(audit.get("scripted_node_count", -1)) == 0
+		and int(audit.get("child_node_count", -1)) == 0
+		and int(audit.get("metadata_entry_count", -1)) == 0
+		and int(audit.get("processing_node_count", -1)) == 0
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("gpu_draw_call_claimed", true))
+		and not bool(audit.get("vram_claimed", true))
+		and not bool(audit.get("whole_scene_budget_claimed", true)),
+		"allocation scope remains childless, authority-free, unbatched, and claim-bounded"
+	)
+
+	var rows := audit.get("behavior_rows", []) as Array
+	(rows[0] as Dictionary)["material"] = "mutation"
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("mutation")
+	var detached := world.get_landing_pad_deck_connector_allocation_audit()
+	_check(
+		bool(detached.get("valid", false))
+		and str(((detached.get("behavior_rows", []) as Array)[0] as Dictionary).get("material", "")) == "black"
+		and not (detached.get("errors", PackedStringArray()) as PackedStringArray).has("mutation"),
+		"deck-connector allocation snapshots are deeply detached"
+	)
+
+	var connectors: Array[MeshInstance3D] = []
+	for path in [
+		^"LandingPad/StarboardUtilityBay/ParkedUmbilicalHosePower/DeckConnector",
+		^"LandingPad/StarboardUtilityBay/ParkedUmbilicalHoseData/DeckConnector",
+		^"LandingPad/StarboardUtilityBay/ParkedUmbilicalHoseFuel/DeckConnector",
+	]:
+		connectors.append(world.get_node(path) as MeshInstance3D)
+	var shared_mesh := connectors[0].mesh as TorusMesh
+	var resources_shared := true
+	for connector in connectors:
+		resources_shared = resources_shared and connector.mesh == shared_mesh
+	_check(
+		resources_shared
+		and connectors[0].material_override == connectors[1].material_override
+		and connectors[1].material_override == connectors[2].material_override,
+		"all three retained connector nodes share the exact mesh and black material"
+	)
+
+	shared_mesh.outer_radius = 0.25
+	var recipe_mutation := world.get_landing_pad_deck_connector_allocation_audit()
+	var mutation_reached_all := true
+	for connector in connectors:
+		mutation_reached_all = mutation_reached_all \
+			and is_equal_approx((connector.mesh as TorusMesh).outer_radius, 0.25)
+	_check(
+		not bool(recipe_mutation.get("valid", true))
+		and (recipe_mutation.get("errors", PackedStringArray()) as PackedStringArray).has("deck_connector_mesh_recipe_drift")
+		and mutation_reached_all,
+		"shared mesh mutation is visible to every copy and turns the audit red"
+	)
+	shared_mesh.outer_radius = 0.24
+
+	var original_second_mesh := connectors[1].mesh
+	connectors[1].mesh = shared_mesh.duplicate()
+	var identity_mutation := world.get_landing_pad_deck_connector_allocation_audit()
+	_check(
+		not bool(identity_mutation.get("valid", true))
+		and (identity_mutation.get("errors", PackedStringArray()) as PackedStringArray).has("deck_connector_mesh_identity_not_shared"),
+		"an exact-looking private connector mesh turns the identity audit red"
+	)
+	connectors[1].mesh = original_second_mesh
+
+	var rogue_authority := Area3D.new()
+	connectors[0].add_child(rogue_authority)
+	var authority_mutation := world.get_landing_pad_deck_connector_allocation_audit()
+	_check(
+		not bool(authority_mutation.get("valid", true))
+		and (authority_mutation.get("errors", PackedStringArray()) as PackedStringArray).has("deck_connector_stock_gained_authority_or_lifecycle_children"),
+		"authority under visual connector stock turns the audit red"
+	)
+	connectors[0].remove_child(rogue_authority)
+	rogue_authority.free()
+	_check(bool(world.get_landing_pad_deck_connector_allocation_audit().get("valid", false)), "restoring connector recipe, identity, and authority returns the audit green")
 
 
 func _test_audit_and_evidence(world: ShipyardWorld) -> void:

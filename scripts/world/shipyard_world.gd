@@ -679,6 +679,30 @@ const GUIDE_LENS_COLOR_COUNTS := {
 	"cfe6eeff": 1,
 }
 
+## The three parked LandingPad utility hoses end in the same childless visual
+## torus. They retain separate nodes, names, parents, transforms and one-surface
+## submissions because the hoses are separately identified presentation
+## assemblies; only their previously private mesh resource is shared.
+const LANDING_PAD_DECK_CONNECTOR_INNER_RADIUS := 0.16
+const LANDING_PAD_DECK_CONNECTOR_OUTER_RADIUS := 0.24
+const LANDING_PAD_DECK_CONNECTOR_AUTHORED_RINGS := 64
+const LANDING_PAD_DECK_CONNECTOR_AUTHORED_RING_SEGMENTS := 16
+const LANDING_PAD_DECK_CONNECTOR_BUDGETED_RINGS := 32
+const LANDING_PAD_DECK_CONNECTOR_BUDGETED_RING_SEGMENTS := 13
+const LANDING_PAD_DECK_CONNECTOR_BASELINE_NODES := 3
+const LANDING_PAD_DECK_CONNECTOR_BASELINE_SUBMISSIONS := 3
+const LANDING_PAD_DECK_CONNECTOR_BASELINE_MESH_RESOURCES := 3
+const LANDING_PAD_DECK_CONNECTOR_PATHS := [
+	NodePath("LandingPad/StarboardUtilityBay/ParkedUmbilicalHosePower/DeckConnector"),
+	NodePath("LandingPad/StarboardUtilityBay/ParkedUmbilicalHoseData/DeckConnector"),
+	NodePath("LandingPad/StarboardUtilityBay/ParkedUmbilicalHoseFuel/DeckConnector"),
+]
+const LANDING_PAD_DECK_CONNECTOR_POSITIONS := [
+	Vector3(8.62, 0.13, -5.4),
+	Vector3(8.62, 0.13, -9.6),
+	Vector3(8.62, 0.13, -13.8),
+]
+
 ## Aim of the station's key light, and of the sky's sun glow.
 ##
 ## One constant serves both. A backdrop whose bright side does not agree with the
@@ -776,6 +800,7 @@ var _guide_lens_mesh: SphereMesh
 var _guide_lens_material_cache: Dictionary = {}
 var _guide_lens_nodes: Array[MeshInstance3D] = []
 var _guide_light_nodes: Array[OmniLight3D] = []
+var _landing_pad_deck_connector_mesh: TorusMesh
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
@@ -1150,6 +1175,169 @@ func get_guide_light_allocation_audit() -> Dictionary:
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
 	}
+
+
+## Renderer-independent allocation audit for one LandingPad-local visual family.
+##
+## "Submission" is a structural mesh-surface count, not a driver draw-call
+## claim. The three childless connector nodes retain one surface each; this
+## report proves only that their identical TorusMesh allocation is shared.
+func get_landing_pad_deck_connector_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var connector_nodes: Array[MeshInstance3D] = []
+	var behavior_rows: Array[Dictionary] = []
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var structural_submissions := 0
+	var authority_node_count := 0
+	var scripted_node_count := 0
+	var child_node_count := 0
+	var metadata_entry_count := 0
+	var processing_node_count := 0
+	var utility_bay := get_node_or_null(
+		^"LandingPad/StarboardUtilityBay"
+	) as Node3D
+	var discovered_connector_count := 0
+	if utility_bay != null:
+		discovered_connector_count = utility_bay.find_children(
+			"DeckConnector", "MeshInstance3D", true, false
+		).size()
+
+	for index in LANDING_PAD_DECK_CONNECTOR_PATHS.size():
+		var connector_path: NodePath = LANDING_PAD_DECK_CONNECTOR_PATHS[index]
+		var expected_position: Vector3 = LANDING_PAD_DECK_CONNECTOR_POSITIONS[index]
+		var connector := get_node_or_null(connector_path) as MeshInstance3D
+		if connector == null:
+			errors.append("deck_connector_missing:%s" % String(connector_path))
+			continue
+		connector_nodes.append(connector)
+		if connector.mesh != null:
+			mesh_ids[connector.mesh.get_instance_id()] = true
+			structural_submissions += connector.mesh.get_surface_count()
+		if connector.material_override != null:
+			material_ids[connector.material_override.get_instance_id()] = true
+		if (
+			not connector.position.is_equal_approx(expected_position)
+			or not connector.rotation.is_equal_approx(Vector3.ZERO)
+			or not connector.scale.is_equal_approx(Vector3.ONE)
+			or not connector.visible
+			or connector.layers != 1
+			or connector.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		):
+			errors.append("deck_connector_visual_transform_or_visibility_drift")
+		if connector.mesh != _landing_pad_deck_connector_mesh:
+			errors.append("deck_connector_mesh_identity_not_shared")
+		if connector.material_override != _materials.get("black"):
+			errors.append("deck_connector_material_identity_drift")
+		if connector.get_script() != null:
+			scripted_node_count += 1
+		metadata_entry_count += connector.get_meta_list().size()
+		if connector.is_processing() or connector.is_physics_processing():
+			processing_node_count += 1
+		child_node_count += connector.get_child_count()
+		for child in connector.find_children("*", "Node", true, false):
+			if child.get_script() != null:
+				scripted_node_count += 1
+			if (
+				child is CollisionObject3D
+				or child is CollisionShape3D
+				or child is NavigationRegion3D
+				or child is Light3D
+				or child is AudioStreamPlayer
+				or child is AudioStreamPlayer3D
+				or child is Camera3D
+			):
+				authority_node_count += 1
+		behavior_rows.append({
+			"path": String(connector_path),
+			"position": [connector.position.x, connector.position.y, connector.position.z],
+			"rotation_degrees": [
+				connector.rotation_degrees.x,
+				connector.rotation_degrees.y,
+				connector.rotation_degrees.z,
+			],
+			"scale": [connector.scale.x, connector.scale.y, connector.scale.z],
+			"material": "black",
+		})
+
+	var mesh := _landing_pad_deck_connector_mesh
+	var authored_value: Variant = mesh.get_meta(
+		"torus_budget_authored_tessellation", Vector2i.ZERO
+	) if mesh != null else Vector2i.ZERO
+	var authored_segments := Vector2i.ZERO
+	if authored_value is Vector2i:
+		authored_segments = authored_value
+	if (
+		mesh == null
+		or not is_equal_approx(mesh.inner_radius, LANDING_PAD_DECK_CONNECTOR_INNER_RADIUS)
+		or not is_equal_approx(mesh.outer_radius, LANDING_PAD_DECK_CONNECTOR_OUTER_RADIUS)
+		or mesh.rings != LANDING_PAD_DECK_CONNECTOR_BUDGETED_RINGS
+		or mesh.ring_segments != LANDING_PAD_DECK_CONNECTOR_BUDGETED_RING_SEGMENTS
+		or authored_segments != Vector2i(
+			LANDING_PAD_DECK_CONNECTOR_AUTHORED_RINGS,
+			LANDING_PAD_DECK_CONNECTOR_AUTHORED_RING_SEGMENTS
+		)
+		or mesh.get_surface_count() != 1
+	):
+		errors.append("deck_connector_mesh_recipe_drift")
+	if connector_nodes.size() != LANDING_PAD_DECK_CONNECTOR_BASELINE_NODES:
+		errors.append("deck_connector_node_count_drift")
+	if discovered_connector_count != LANDING_PAD_DECK_CONNECTOR_BASELINE_NODES:
+		errors.append("deck_connector_local_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("deck_connector_mesh_identity_count_drift")
+	if material_ids.size() != 1:
+		errors.append("deck_connector_material_identity_count_drift")
+	if structural_submissions != LANDING_PAD_DECK_CONNECTOR_BASELINE_SUBMISSIONS:
+		errors.append("deck_connector_submission_count_drift")
+	if (
+		authority_node_count != 0
+		or scripted_node_count != 0
+		or child_node_count != 0
+		or metadata_entry_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("deck_connector_stock_gained_authority_or_lifecycle_children")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"landing_pad_parked_umbilical_deck_connectors",
+		"node_count": connector_nodes.size(),
+		"discovered_connector_count": discovered_connector_count,
+		"baseline_node_count": LANDING_PAD_DECK_CONNECTOR_BASELINE_NODES,
+		"node_delta": connector_nodes.size() - LANDING_PAD_DECK_CONNECTOR_BASELINE_NODES,
+		"drawn_copy_count": connector_nodes.size(),
+		"structural_submission_count": structural_submissions,
+		"baseline_structural_submission_count": LANDING_PAD_DECK_CONNECTOR_BASELINE_SUBMISSIONS,
+		"submission_delta": structural_submissions - LANDING_PAD_DECK_CONNECTOR_BASELINE_SUBMISSIONS,
+		"mesh_resource_identity_count": mesh_ids.size(),
+		"baseline_mesh_resource_identity_count": LANDING_PAD_DECK_CONNECTOR_BASELINE_MESH_RESOURCES,
+		"mesh_resource_identity_delta": mesh_ids.size() - LANDING_PAD_DECK_CONNECTOR_BASELINE_MESH_RESOURCES,
+		"material_resource_identity_count": material_ids.size(),
+		"baseline_material_resource_identity_count": 1,
+		"material_resource_identity_delta": material_ids.size() - 1,
+		"mesh_recipe": {
+			"inner_radius": mesh.inner_radius if mesh != null else -1.0,
+			"outer_radius": mesh.outer_radius if mesh != null else -1.0,
+			"rings": mesh.rings if mesh != null else -1,
+			"ring_segments": mesh.ring_segments if mesh != null else -1,
+			"authored_rings": authored_segments.x,
+			"authored_ring_segments": authored_segments.y,
+			"surface_count": mesh.get_surface_count() if mesh != null else 0,
+		},
+		"behavior_rows": behavior_rows,
+		"authority_node_count": authority_node_count,
+		"scripted_node_count": scripted_node_count,
+		"child_node_count": child_node_count,
+		"metadata_entry_count": metadata_entry_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"whole_scene_budget_claimed": false,
+	}.duplicate(true)
 
 
 func _guide_light_behavior_rows(lights: Array[OmniLight3D]) -> Array[Dictionary]:
@@ -4824,6 +5012,11 @@ func _build_central_utility_bay(pad: Node3D) -> void:
 	utility_bay.name = "StarboardUtilityBay"
 	utility_bay.set_meta("presentation_collision_free", true)
 	pad.add_child(utility_bay)
+	_landing_pad_deck_connector_mesh = TorusMesh.new()
+	_landing_pad_deck_connector_mesh.inner_radius = LANDING_PAD_DECK_CONNECTOR_INNER_RADIUS
+	_landing_pad_deck_connector_mesh.outer_radius = LANDING_PAD_DECK_CONNECTOR_OUTER_RADIUS
+	_landing_pad_deck_connector_mesh.rings = LANDING_PAD_DECK_CONNECTOR_AUTHORED_RINGS
+	_landing_pad_deck_connector_mesh.ring_segments = LANDING_PAD_DECK_CONNECTOR_AUTHORED_RING_SEGMENTS
 	var utility_specs := [
 		["Power", -5.4, "orange", "berth_orange_glow"],
 		["Data", -9.6, "steel_blue", "berth_cyan_glow"],
@@ -4872,14 +5065,12 @@ func _build_central_utility_bay(pad: Node3D) -> void:
 				hose_material,
 				false
 			)
-		_torus(
-			hose,
-			"DeckConnector",
-			Vector3(8.62, 0.13, z_position),
-			0.16,
-			0.24,
-			_materials["black"]
-		)
+		var deck_connector := MeshInstance3D.new()
+		deck_connector.name = "DeckConnector"
+		deck_connector.position = Vector3(8.62, 0.13, z_position)
+		deck_connector.mesh = _landing_pad_deck_connector_mesh
+		deck_connector.material_override = _materials["black"]
+		hose.add_child(deck_connector)
 
 	var cabinet := Node3D.new()
 	cabinet.name = "CentralServiceCabinet"
