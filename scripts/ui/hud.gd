@@ -127,6 +127,10 @@ var _brand_block: VBoxContainer
 var _objective_panel: PanelContainer
 var _objective_label: Label
 var _objective_kicker: Label
+## Optional secondary objective supplied by the activity integration. It lives
+## beside the ordinary GameFlow objective rather than replacing it, so docking,
+## recovery, and guided-flight copy retain their existing authority.
+var _activity_objective_label: Label
 var _interaction_panel: PanelContainer
 var _interaction_label: Label
 var _mode_label: Label
@@ -184,6 +188,17 @@ var _state_engine := "OFFLINE"
 var _state_damage := "HEALTHY"
 var _state_throttle_reverse := false
 var _state_enemy_breaking := false
+var _activity_objective_report: Dictionary = {
+	"visible": false,
+	"activity_id": &"",
+	"display_name": "",
+	"state": CheckpointRouteActivity.State.IDLE,
+	"generation": 0,
+	"next_checkpoint_index": 0,
+	"checkpoint_count": 0,
+	"failure_reason": &"",
+	"text": "",
+}
 
 
 func _ready() -> void:
@@ -351,6 +366,63 @@ func set_ship_identity(display_name: String, role: String = "") -> void:
 func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
 	_objective_kicker.text = kicker
 	_objective_label.text = text
+
+
+## Consumes the director's side-effect-free snapshot as presentation only. The
+## HUD never starts, advances, fails, resets, or rewards an activity.
+func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
+	var activity_id := StringName(snapshot.get("activity_id", &""))
+	var state := int(snapshot.get("state", CheckpointRouteActivity.State.IDLE))
+	var generation := int(snapshot.get("generation", 0))
+	var next_index := maxi(int(snapshot.get("next_checkpoint_index", 0)), 0)
+	var checkpoint_count := maxi(int(snapshot.get("checkpoint_count", 0)), 0)
+	var failure_reason := StringName(snapshot.get("failure_reason", &""))
+	var short_name := display_name.strip_edges().to_upper()
+	if short_name.is_empty():
+		short_name = str(activity_id).replace("_", " ").to_upper()
+	var activity_text := ""
+	match state:
+		CheckpointRouteActivity.State.ACTIVE:
+			activity_text = "%s  //  CHECKPOINT %d / %d" % [
+				short_name,
+				mini(next_index + 1, checkpoint_count),
+				checkpoint_count,
+			]
+		CheckpointRouteActivity.State.COMPLETED:
+			activity_text = "%s  //  ROUTE COMPLETE" % short_name
+		CheckpointRouteActivity.State.FAILED:
+			var readable_reason := str(failure_reason).replace("_", " ").to_upper()
+			activity_text = "%s  //  FAILED%s" % [
+				short_name,
+				(" — " + readable_reason) if not readable_reason.is_empty() else "",
+			]
+		_:
+			activity_text = ""
+	var visible := not activity_text.is_empty()
+	_activity_objective_report = {
+		"visible": visible,
+		"activity_id": activity_id,
+		"display_name": display_name,
+		"state": state,
+		"generation": generation,
+		"next_checkpoint_index": next_index,
+		"checkpoint_count": checkpoint_count,
+		"failure_reason": failure_reason,
+		"text": activity_text,
+	}
+	if is_instance_valid(_activity_objective_label):
+		_activity_objective_label.text = activity_text
+		_activity_objective_label.visible = visible
+
+
+func clear_activity_objective() -> void:
+	set_activity_objective("", {})
+
+
+## Detached copy for focused integration checks and non-visual accessibility
+## consumers. Mutating it cannot change the live HUD state.
+func get_activity_objective_report() -> Dictionary:
+	return _activity_objective_report.duplicate(true)
 
 
 func set_interaction(text: String, is_visible: bool = true) -> void:
@@ -974,6 +1046,11 @@ func _build_hud() -> void:
 	_objective_label = _label("Approach the Torrent-class interceptor", 17, PRIMARY)
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	objective_stack.add_child(_objective_label)
+	_activity_objective_label = _label("", 10, NOMINAL_SOFT)
+	_activity_objective_label.name = "ActivityObjectiveLabel"
+	_activity_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_activity_objective_label.visible = false
+	objective_stack.add_child(_activity_objective_label)
 	_target_label = _label("RANGE TARGETS  0 / 3", 11, MUTED)
 	objective_stack.add_child(_target_label)
 

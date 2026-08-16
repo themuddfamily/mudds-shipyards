@@ -7,6 +7,11 @@ const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
 const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.gd")
 
+## First production nearby activity. It is a modern interpretation and remains
+## a progress-only route: the director and this integration own no rewards,
+## combat, ship, landing, or berth state.
+const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
+
 enum Phase {
 	INTRO,
 	APPROACH_SHIP,
@@ -143,6 +148,7 @@ var combat_audio: CombatAudioPresentation
 var hud: CanvasLayer
 var audio: Node
 var music_bed: StationMusicBed
+var activity_director: ActivityDirector
 
 var phase := Phase.INTRO
 var destroyed_targets := 0
@@ -218,6 +224,10 @@ var _last_lifecycle_command_sequence := -1
 ## detach, so a directly instantiated Main - every test, and every re-entry -
 ## builds synchronously in `_ready()` exactly as before.
 var _startup_stager: MainStartupStagerType
+## The generation expected by position submissions from the current physical
+## sortie. It is copied from ActivityDirector; GameFlow never invents one.
+var _active_activity_id: StringName = &""
+var _active_activity_generation := CheckpointRouteActivity.ANY_GENERATION
 
 
 func _enter_tree() -> void:
@@ -286,6 +296,7 @@ func _resolve_scene_bindings() -> void:
 	hud = get_node_or_null(^"HUD") as CanvasLayer
 	audio = get_node_or_null(^"AudioDirector")
 	music_bed = get_node_or_null(^"StationMusicBed") as StationMusicBed
+	activity_director = get_node_or_null(^"ActivityDirector") as ActivityDirector
 
 
 ## Detaches the authored children so a boot loader can add them back one frame
@@ -351,6 +362,7 @@ func _start_up() -> void:
 	_apply_all_runtime_settings()
 	_update_music_bed_state()
 	_apply_torus_geometry_budget()
+	_sync_activity_hud()
 	_initialized = true
 
 
@@ -417,6 +429,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	if not is_instance_valid(active_ship):
 		return
+	_update_active_activity_from_position(active_ship.global_position)
 	var telemetry: Dictionary = active_ship.get_telemetry()
 	_decorate_flight_path_telemetry(telemetry)
 	hud.update_ship_telemetry(telemetry)
@@ -450,6 +463,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# under a stale one.
 	_update_music_bed_state()
 	_restore_cabin_occupancy_after_reentry()
+	_sync_activity_hud()
 
 
 func _connect_runtime_signals() -> void:
@@ -481,6 +495,15 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(world, &"target_destroyed", _on_target_destroyed)
 	_connect_signal_once(audio, &"cue_started", _on_audio_cue_started)
 	_connect_signal_once(combat_audio, &"cue_started", _on_combat_audio_cue_started)
+	_connect_signal_once(activity_director, &"activity_started", _on_activity_started)
+	_connect_signal_once(
+		activity_director,
+		&"activity_checkpoint_reached",
+		_on_activity_checkpoint_reached
+	)
+	_connect_signal_once(activity_director, &"activity_completed", _on_activity_completed)
+	_connect_signal_once(activity_director, &"activity_failed", _on_activity_failed)
+	_connect_signal_once(activity_director, &"activity_reset", _on_activity_reset)
 	if runtime_settings != null:
 		_connect_signal_once(runtime_settings, &"setting_changed", _on_runtime_setting_changed)
 	for fleet_ship in ships:
@@ -913,6 +936,7 @@ func _update_pilot_flow() -> void:
 				phase = Phase.FREE_FLIGHT
 				hud.set_objective("Free flight — explore, fight, or return to a compatible registered berth", "SANDBOX SORTIE")
 				hud.toast("Engines online", "Apply thrust to release the berth clamps")
+				_start_default_free_flight_activity()
 			else:
 				phase = Phase.LAUNCH
 				hud.set_objective("Launch through the illuminated bay aperture")
@@ -1188,6 +1212,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	_sortie_departed_berth = false
 	_landing_request_active = false
 	_active_landing_berth_id = &""
+	_reset_terminal_activity_for_next_sortie()
 	opponent.set_target(active_ship)
 	if hud.has_method("set_ship_identity"):
 		hud.set_ship_identity(active_ship.get_display_name(), active_ship.get_role())
@@ -1813,6 +1838,7 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		hud.set_objective("Docking claim interrupted — stop and restart engines to clear the pad")
 		hud.toast("Docking coordination fault", "The berth lease could not be secured; do not exit", 3.5)
 		return
+	_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
 	phase = Phase.SHUT_DOWN
 	hud.set_objective("Stop the engines, then exit %s" % active_ship.get_display_name())
@@ -2407,6 +2433,7 @@ func _on_ship_destroyed(
 		and phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.IN_FLIGHT_CABIN]
 	)
 	if source_ship == active_ship and (_piloting or active_transition_loss):
+		_fail_active_activity(&"ship_destroyed")
 		if not _recovering:
 			_invalidate_transition_generation()
 			_recover_from_destroyed_ship(source_ship)
@@ -2460,6 +2487,171 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_transition_busy = false
 	_recovering = false
 	_replenish_destroyed_ship(destroyed_ship)
+
+
+## Public production seam used by a flight/session owner. Starting is allowed
+## only while the physical pilot is in the general free-flight lifecycle; the
+## ActivityDirector itself intentionally has no knowledge of that authority.
+func request_activity_start(activity_id: StringName) -> Dictionary:
+	if not is_instance_valid(activity_director):
+		return {"accepted": false, "reason": &"director_unavailable"}
+	if not _piloting or not is_instance_valid(active_ship) or phase != Phase.FREE_FLIGHT:
+		return {"accepted": false, "reason": &"not_in_free_flight"}
+	var started := activity_director.start_activity(activity_id)
+	if bool(started.get("accepted", false)):
+		_active_activity_id = activity_id
+		_active_activity_generation = int(started.get("generation", CheckpointRouteActivity.ANY_GENERATION))
+		_sync_activity_hud()
+	return started
+
+
+## Explicit failure/recovery surface. A caller may end only the currently
+## observed generation, so a delayed destruction/landing callback cannot fail a
+## replacement route.
+func fail_active_activity(reason: StringName) -> bool:
+	return _fail_active_activity(reason)
+
+
+func reset_active_activity() -> bool:
+	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+		return false
+	var reset := activity_director.reset_activity(
+		_active_activity_id,
+		_active_activity_generation
+	)
+	if reset:
+		var snapshot := activity_director.get_activity_snapshot(_active_activity_id)
+		_active_activity_generation = int(snapshot.get("generation", CheckpointRouteActivity.ANY_GENERATION))
+		_sync_activity_hud()
+	return reset
+
+
+func get_activity_director() -> ActivityDirector:
+	return activity_director
+
+
+func get_active_activity_snapshot() -> Dictionary:
+	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+		return {}
+	return activity_director.get_activity_snapshot(_active_activity_id).duplicate(true)
+
+
+## Inspectable boundary proving this layer observes one physical ship and owns
+## none of the authorities adjacent to it.
+func get_activity_integration_report() -> Dictionary:
+	var directors := find_children("ActivityDirector", "ActivityDirector", true, false)
+	return {
+		"director": activity_director,
+		"director_count": directors.size(),
+		"active_activity_id": _active_activity_id,
+		"active_generation": _active_activity_generation,
+		"snapshot": get_active_activity_snapshot(),
+		"observed_ship": active_ship if _piloting and is_instance_valid(active_ship) else null,
+		"gameplay_authority": false,
+		"grants_rewards": false,
+		"combat_authority": false,
+		"ship_authority": false,
+		"berth_authority": false,
+	}
+
+
+func _start_default_free_flight_activity() -> void:
+	if not _active_activity_id.is_empty():
+		var existing := get_active_activity_snapshot()
+		if int(existing.get("state", CheckpointRouteActivity.State.IDLE)) == CheckpointRouteActivity.State.ACTIVE:
+			return
+	request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+
+
+func _update_active_activity_from_position(world_position: Vector3) -> void:
+	if (
+		not world_position.is_finite()
+		or not is_instance_valid(activity_director)
+		or _active_activity_id.is_empty()
+		or _active_activity_generation == CheckpointRouteActivity.ANY_GENERATION
+	):
+		return
+	var snapshot := activity_director.get_activity_snapshot(_active_activity_id)
+	if int(snapshot.get("state", CheckpointRouteActivity.State.IDLE)) != CheckpointRouteActivity.State.ACTIVE:
+		return
+	activity_director.submit_position(
+		_active_activity_id,
+		world_position,
+		_active_activity_generation
+	)
+
+
+func _fail_active_activity(reason: StringName) -> bool:
+	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+		return false
+	return activity_director.fail_activity(
+		_active_activity_id,
+		reason,
+		_active_activity_generation
+	)
+
+
+func _reset_terminal_activity_for_next_sortie() -> void:
+	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+		return
+	var snapshot := activity_director.get_activity_snapshot(_active_activity_id)
+	if int(snapshot.get("state", CheckpointRouteActivity.State.IDLE)) in [
+		CheckpointRouteActivity.State.COMPLETED,
+		CheckpointRouteActivity.State.FAILED,
+	]:
+		reset_active_activity()
+
+
+func _on_activity_started(activity_id: StringName, generation: int) -> void:
+	_active_activity_id = activity_id
+	_active_activity_generation = generation
+	_sync_activity_hud()
+
+
+func _on_activity_checkpoint_reached(
+	activity_id: StringName,
+	_checkpoint_index: int,
+	generation: int
+	) -> void:
+	if activity_id != _active_activity_id or generation != _active_activity_generation:
+		return
+	_sync_activity_hud()
+
+
+func _on_activity_completed(activity_id: StringName, generation: int) -> void:
+	if activity_id != _active_activity_id or generation != _active_activity_generation:
+		return
+	_sync_activity_hud()
+	if is_instance_valid(hud):
+		hud.toast("Cinder Reach route complete", "Navigation record closed — no reward granted", 3.2)
+
+
+func _on_activity_failed(activity_id: StringName, _reason: StringName, generation: int) -> void:
+	if activity_id != _active_activity_id or generation != _active_activity_generation:
+		return
+	_sync_activity_hud()
+
+
+func _on_activity_reset(activity_id: StringName, generation: int) -> void:
+	if activity_id != _active_activity_id:
+		return
+	_active_activity_generation = generation
+	_sync_activity_hud()
+
+
+func _sync_activity_hud() -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
+		return
+	if not is_instance_valid(activity_director) or _active_activity_id.is_empty():
+		hud.call(&"clear_activity_objective")
+		return
+	var definition := activity_director.get_definition(_active_activity_id)
+	var display_name := definition.display_name if definition != null else str(_active_activity_id)
+	hud.call(
+		&"set_activity_objective",
+		display_name,
+		activity_director.get_activity_snapshot(_active_activity_id)
+	)
 
 
 ## Restores one coherent, controllable on-foot pilot at the deck spawn.

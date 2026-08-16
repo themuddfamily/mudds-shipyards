@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -22,6 +22,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/courier_runner_opponent.tscn" id="19_courier"]
 [ext_resource type="Script" path="res://scripts/combat/encounter_scenario_director.gd" id="20_scenarios"]
 [ext_resource type="Script" path="res://scripts/combat/wing_coordinator.gd" id="21_wing"]
+[ext_resource type="Script" path="res://scripts/activities/activity_director.gd" id="22_activity_director"]
+[ext_resource type="Resource" path="res://assets/activities/cinder_reach_checkpoint_route.tres" id="23_cinder_route"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -73,5 +75,9 @@ script = ExtResource("11_combat_resolver")
 
 [node name="AudioDirector" type="Node" parent="."]
 script = ExtResource("6_audio")
+
+[node name="ActivityDirector" type="Node" parent="."]
+script = ExtResource("22_activity_director")
+activity_definitions = [ExtResource("23_cinder_route")]
 
 [node name="HUD" parent="." instance=ExtResource("5_hud")]
