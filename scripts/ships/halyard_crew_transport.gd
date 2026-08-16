@@ -1122,9 +1122,64 @@ func _replace_collision_and_markers() -> void:
 	var boarding_area := get_node_or_null("ShipBoardingArea") as Area3D
 	if boarding_area != null:
 		boarding_area.position = Vector3(-4.90, LANDING_CONTACT_Y + 0.50, AIRSTAIR_Z)
+		_add_deck_approach_range(boarding_area)
 	var camera_rig := get_node_or_null("CameraRig") as Node3D
 	if camera_rig != null:
 		camera_rig.position = Vector3(0.0, 3.60, 8.20)
+
+
+## HALYARD-BOARDING-001. The fleet-wide boarding volume is one 4.5 m sphere on
+## the craft's own boarding marker, and on a 28.35 m transport that is not a
+## marker in the wrong place — it is a marker of the wrong *size*.
+##
+## This craft's marker is correctly sited: local (-4.90, -0.58, -4.80), out on the
+## port lane 2.18 m clear of the port hull wall, at the foot of the airstair the
+## crew actually board by. Nothing is wrong with it. But a 4.5 m sphere there
+## covers world z = 44.0 … 53.0 of a craft that runs z = 39.45 … 67.8. The whole
+## aft two thirds of the hull and the entire starboard flank fall outside it, and
+## the ring sample over the live berth measured the result exactly: 5 of 14
+## standable points around the parked craft offered the prompt, and every silent
+## one was aft of the wing or on the wrong side.
+##
+## Proportion is the whole of it. The same 4.5 m sphere on the 12.2 m Arrow
+## reaches nose to tail; here it reaches 32% of the length. So the sphere is left
+## exactly as inherited — it is a published fleet-wide contract that
+## `boarding_accessibility_test` pins by name at `BoardingRange` — and a
+## craft-shaped approach volume is added beside it, as the Arrow's pass did.
+##
+## Sized to the craft plus a walk-up margin, not to the deck — the same rule the
+## Arrow's `ArrowApproachRange` was cut to, and it matters here because the deck
+## is now 34.4 m long and a volume sized to *that* would prompt from the far side
+## of the comb trunk, twenty metres from the hatch.
+##
+## Half extents 4.6 laterally and 12.0 along the hull, against a hull of 4.8 and
+## 14.5. With the production player's own 2.35 m interaction sphere that reaches
+## 6.95 and 14.35, which covers the full 12 m width of the pad (half extent 6.0)
+## on both flanks, the whole tail apron, and the deck ahead of the bow collar,
+## whose forward face stands at local z = -14.15. It is centred on the hull, not
+## on the marker, expressed relative to the area's offset so the marker keeps
+## publishing the same world position and `get_boarding_position()` is untouched.
+##
+## What it deliberately does not reach is the outer 2.65 m of the nose apron and
+## the outer 3.05 m of the comb trunk. Those are the walk-up: a player coming
+## down the trunk to dock 02 crosses into the prompt 2.37 m after they start,
+## which is what `fleet_role_differentiation_test` now stages and measures.
+##
+## Laterally it stops short of both neighbours: it reaches x = 43.95 against dock
+## 03's slab at 46.0 and x = 30.05 against dock 01's at 28.0, so it cannot put
+## this craft's prompt on the Zenith's pad.
+func _add_deck_approach_range(boarding_area: Area3D) -> void:
+	var existing := boarding_area.get_node_or_null("HalyardApproachRange")
+	if existing != null:
+		boarding_area.remove_child(existing)
+		existing.queue_free()
+	var approach := CollisionShape3D.new()
+	approach.name = "HalyardApproachRange"
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(9.2, 3.6, 24.0)
+	approach.shape = shape
+	approach.position = -boarding_area.position
+	boarding_area.add_child(approach)
 
 
 func _add_box_collision(

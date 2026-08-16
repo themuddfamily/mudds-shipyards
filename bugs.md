@@ -257,6 +257,182 @@ physics and geometry probes, `xvfb-run -a -s "-screen 0 1920x1080x24" ...
 
 ---
 
+## Open candidates — 2026-08-16 human playtest intake, second pass (Halyard) — **BOTH CLOSED**
+
+Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim, one
+report containing two defects:
+
+> *"I wasn't able to get on the new ship, its way too big for its stand (can you
+> increase the space it has? extend the walkway and then give it a much larger
+> square so you can walk all the way around it... but also even when I got
+> relatively close I wasn't able to get in"*
+
+Both halves are the Halyard Crew Transport at Fleet Dock 02
+(`halyard_fleet_dock_berth`), and both are the same defects the Arrow's
+PORT-DECK-001 / PORT-BOARDING-001 pass fixed hours earlier, at a craft more than
+twice the length. The two regressions that pass landed —
+`_test_parked_craft_are_fully_supported_by_their_berth_decks` and
+`_test_boarding_prompt_is_offered_all_round_each_craft` — were both already red
+against this craft on unmodified `main` and named the defect without a new probe
+having to be written. So did
+`_test_berth_cues_are_seated_on_the_deck_they_mark`.
+
+Configuration as recorded above. Failure frequency 10/10 deterministic.
+
+---
+
+### HALYARD-DECK-001 — a 28.35 m transport parked on a 12 m slab, with 16.35 m of it over open space
+
+- Status: `CLOSED` (fixed 2026-08-16). Severity **P1** — a craft the player
+  cannot walk round, standing on a pad that does not hold it.
+- **Measured before the fix.** `FleetDockComb`'s `DockSlab02` is 12.0 × 12.0 m,
+  spanning `x = 31.000 … 43.000`, `z = 47.300 … 59.300`, top plane `y = 4.200`.
+  The parked craft's merged collision footprint is **9.6 × 28.35 m**, spanning
+  `x = 32.200 … 41.800`, `z = 39.450 … 67.800`. So:
+  - the nose overhung by **7.850 m** and the tail by **8.500 m**;
+  - **only 12.0 m of a 28.35 m craft — 42% — stood on structure**, the rest over
+    open space, with the tail happening to land on the comb trunk;
+  - `_test_parked_craft_are_fully_supported_by_their_berth_decks` reported
+    `HalyardCrewTransport footprint=(9.6, 5.58, 28.35) unsupported_corners=2`,
+    against `unsupported_corners=0` for every other craft in the fleet.
+  - The only walkable approach was the comb's 3.6 m `Rung02`, which delivers a
+    player into a dead end at each flank. There was no way round the nose or the
+    tail at all, because there was no deck there.
+  - The berth cue said the same thing from the other side:
+    `_test_berth_cues_are_seated_on_the_deck_they_mark` reported
+    `halyard_fleet_dock_berth worst=0.215 supported=21/45` — **more than half the
+    cue rectangle was marking open space** — against 45/45 for all four other
+    berths. Its forward boundary strips spanned `z = 47.20 … 47.36` against a deck
+    edge at 47.300 and its aft strips `59.24 … 59.40` against an edge at 59.300.
+- **The comment in `SHIP_BERTH_FEEDBACK_SPECS` recorded this as a design.** It
+  read *"the Halyard's four feet sit inside the 12 m slab while its bow collar and
+  tail yoke overhang, so the strict landing volume is longer than the slab"*. It
+  is not a design; it is this defect, written down at berth-promotion time.
+- **Fix (`scripts/world/shipyard_world.gd`, `_build_halyard_berth_apron`).** A
+  world-owned berth apron, `ExposedDockLattice/HalyardBerthApron`, three decks
+  flush at `y = 4.200` with the comb's slab, rung and trunk and overlapping none
+  of them:
+  - `HalyardApronNose` `x 31.0 … 43.0`, `z 36.3 … 47.3`
+  - `HalyardApronTailPort` `x 31.0 … 35.2`, `z 59.3 … 65.9`
+  - `HalyardApronTailStarboard` `x 38.8 … 43.0`, `z 59.3 … 65.9`
+  The tail is two wings rather than one slab because `Rung02` already occupies
+  `x = 35.2 … 38.8` of that gap and two decks on one `y = 4.200` plane is the
+  coplanar-deck defect the Arrow pass recorded. With the comb's own pieces that
+  gives **one unbroken 12 m wide deck from `z = 36.3` to `z = 70.7` — 34.4 m under
+  a 28.35 m craft**, with 3.15 m of apron off the bow, 2.9 m off the tail, and a
+  3.28 m lane down each flank beside the cabin walls at `x = 34.28 / 39.72`.
+- **Why the world and not the comb**, recorded because it is the non-obvious part:
+  the craft is longer than the comb module is *wide*. Its tail is over the trunk
+  and its nose is 7.85 m outside the module's declared `FOOTPRINT_MAX` of
+  `(21.0, 5.0, 48.0)`, so a comb slab that supported it would have to break the
+  published integration envelope; stretching one tooth to 34 m would destroy the
+  repeated three-tooth rhythm that is that module's actual evidence claim
+  (`OE-B2-COMB`); and the comb owns no berth authority by design while this world
+  already owns `halyard_fleet_dock_berth`. `FleetDockCombConnector` is the
+  existing precedent for the world building walkable structure at that plane. The
+  comb's five published negative-space samples — `x = 29.5` and `44.5` at
+  `z = 53.3` and `61.8`, and `x = 59.5` — are all still genuine physics voids; the
+  apron is exactly as wide as the slab and does not touch them.
+- **No rail was added.** The Arrow's berth had to have one *removed* because it
+  fenced the only corridor shut; a rail round this pad would fence exactly the
+  loop the report asks for.
+- **Underframe.** Two keels and four struts under the nose apron and one of each
+  under each tail wing, seated by `FleetDockComb`'s own COMB-UNDERFRAME-001 rule
+  (strut heads enter the deck underside by 0.100 m, keel crowns by 0.060 m) so the
+  apron reads as carried rather than as plate hanging in space. Visual only — an
+  underframe a player can stand on is the invisible-ledge defect in a different
+  costume.
+- **Berth cue, re-cut and re-seated.** `local_transform.y` `-1.040 -> -1.210` and
+  the rectangle `5.4 × 6.2 -> 4.7 × 11.3`, in `scenes/world/shipyard_world.tscn`
+  and mirrored in both spec copies. This berth was the one Dock 01's cue re-freeze
+  missed: the Zenith beside it went `-1.040 -> -1.170` to seat on the comb's
+  0.040 m grip inset and this cue kept the old value over the identical 4.200 m
+  deck. The new rectangle sits at least **1.300 m inside every edge of the pad it
+  marks**, as the Arrow's does. Measured after: **`worst=0.011 supported=45/45`**,
+  every sample bearing on drawn deck at exactly `y = 4.200`.
+- Regressions (`tests/station_traversal_defect_witness_test.gd`):
+  - `_test_parked_craft_are_fully_supported_by_their_berth_decks` — already on
+    `main`, already red here, now **0 unsupported corners on all five craft**.
+  - `_test_halyard_berth_can_be_walked_around` — four standable cells, one on each
+    face, all in the no-jump flood from the production spawn marker.
+  - `_test_halyard_berth_is_one_continuous_loop` — the loop driven through the
+    production controller, four legs of continuous `move_forward` with no jump
+    pressed and no transform set inside a leg: **31.15 m** down the starboard
+    flank, **10.17 m** across the trunk under the tail yoke, **31.15 m** back up
+    the port flank, **10.17 m** across the nose apron. **82.64 m of circuit, 0
+    stuck frames, `y = 4.2004` throughout.** Three of those four legs ran over
+    open space before this pass.
+  - `tests/station_surface_playability_test.gd` roster extended 42 -> 45 surfaces;
+    the standable-collision-without-drawn-geometry sweep is **31949 probes, 31949
+    drawn, 0 orphans**.
+- Rendered and confirmed at `artifacts/halyard-apron/` (plan, three-quarter, nose
+  at eye height, starboard lane, trunk approach, under the tail, underframe).
+
+---
+
+### HALYARD-BOARDING-001 — a 4.5 m boarding sphere reaches 32% of a 28.35 m hull
+
+- Status: `CLOSED` (fixed 2026-08-16). Severity **P1** — the craft could not be
+  boarded from most of its own berth.
+- **Measured before the fix.** `_test_boarding_prompt_is_offered_all_round_each_craft`
+  reported `HalyardCrewTransport standable=14 prompted=5`. **9 of 14 standable
+  ring points around the parked craft offered no prompt** — every silent one aft
+  of the wing or on the starboard flank.
+- **This is not the Arrow's defect.** The Arrow's marker sat *inside its own wing
+  collision*, so no capsule could reach the sphere's centre. This craft's marker
+  is sited correctly: ship-local `(-4.90, -0.58, -4.80)`, out on the port lane
+  2.18 m clear of the port hull wall, at the foot of the airstair the crew board
+  by. The defect is **proportion**: the fleet-wide 4.5 m sphere covers
+  `z = 44.0 … 53.0` of a craft that runs `z = 39.45 … 67.8`. The same sphere on
+  the 12.2 m Arrow reaches nose to tail; here it reaches 32% of the length.
+- **Fix (`scripts/ships/halyard_crew_transport.gd`, `_add_deck_approach_range`).**
+  The inherited sphere is left exactly as it is — it is a published fleet-wide
+  contract that `tests/boarding_accessibility_test.gd` pins by name at
+  `BoardingRange`, and that suite's exact-radius and exact-7.0 m-fallback checks
+  are untouched — and a hull-centred `HalyardApproachRange` box is added beside
+  it, as the Arrow's pass did. Half extents **4.6 lateral, 12.0 along the hull**
+  against a hull of 4.8 and 14.5. With the production player's own 2.35 m
+  interaction sphere that reaches 6.95 and 14.35: the full 12 m width of the pad
+  on both flanks, the whole tail apron, and the deck ahead of the bow collar
+  whose forward face stands at ship-local `z = -14.15`.
+- **Sized to the craft plus a walk-up margin, not to the deck** — the Arrow's own
+  rule, and it bites here, because the deck is now 34.4 m long and a volume sized
+  to *that* prompted from the far end of the comb trunk twenty metres from the
+  hatch. What it deliberately does not reach is the outer 2.65 m of the nose apron
+  and the outer 3.05 m of the trunk. Those are the walk-up.
+- Laterally it stops short of both neighbours — `x = 43.95` against dock 03's slab
+  at 46.0 and `x = 30.05` against dock 01's at 28.0 — so it cannot put this
+  craft's prompt on the Zenith's pad.
+- Measured after: **`HalyardCrewTransport standable=14 prompted=14`**, asserted
+  all-round in `_test_boarding_prompt_is_offered_all_round_each_craft` alongside
+  the Arrow's 19/19. The Torrent and the Zenith keep their deliberate
+  port-quadrant-only reach and are still only required to stay boardable.
+- **Knock-on, recorded rather than made quietly.**
+  `tests/fleet_role_differentiation_test.gd`'s staged approach for this craft was
+  9.6 m, and its comment derived that number *from the defect*: "Fleet Dock 02 is
+  a 12 × 12 m slab and the Halyard is 26.9 m long, so its bow and tail overhang
+  the deck and only the strip alongside the midships hull is walkable." That
+  premise is now false, and the old stage began *inside* the new approach volume,
+  so the suite's "offers no prompt from the staged approach start" assertion went
+  red. Re-staged to `(0.0, 0.0, 21.5)`: standing on the comb trunk at the aft end
+  of the dock, walking straight forward down the port lane toward the airstair,
+  which is the approach a player actually makes. The prompt is acquired 2.37 m in.
+  That is a stronger fixture than the one it replaces — it is the real route, and
+  it exercises the walk-up boundary the box was cut to leave.
+
+**Two presentation defects observed at this site and deliberately not touched**,
+because `scripts/world/fleet_dock_comb.gd` is being revised concurrently:
+1. Dock 02 still carries the red `deferred` cross and long stripes and the
+   `DEFERRED DOCK 02` label at comb-local `(15.0, 0.18, 19.55)`, under a craft the
+   module's own `ASSIGNED_DOCK_COUNT := 2` already counts as assigned. Visible in
+   `artifacts/halyard-apron/apron_plan.png`.
+2. The comb's `DockEdgeKerb02` stands 0.130 m proud at `z ≈ 47.3`, which was the
+   slab's edge and is now an interior lip across the middle of the pad. The
+   production capsule crosses it (the loop walk above records 0 stuck frames), but
+   it is an edge guard that no longer guards an edge.
+
+---
+
 ## Open candidates — 2026-08-15 human playtest intake
 
 Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-15, verbatim report:

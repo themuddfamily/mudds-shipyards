@@ -118,11 +118,19 @@ const APPROACH_OFFSETS := {
 	# Fleet Dock 01 is an elevated 12 x 15 m slab; a longer aft stage walks off
 	# its edge, so Zenith is staged diagonally at 8.06 m instead.
 	&"zenith_b7_observed": Vector3(-4.0, 0.0, 7.0),
-	# Fleet Dock 02 is a 12 x 12 m slab and the Halyard is 26.9 m long, so its
-	# bow and tail overhang the deck and only the strip alongside the midships
-	# hull is walkable. The approach is therefore staged 9.6 m straight aft along
-	# that strip; any lateral component walks off the slab edge.
-	&"halyard_new_design": Vector3(0.0, 0.0, 9.6),
+	# HALYARD-DECK-001. Re-derived, because the premise of the old 9.6 m stage no
+	# longer holds. It read: "Fleet Dock 02 is a 12 x 12 m slab and the Halyard is
+	# 26.9 m long, so its bow and tail overhang the deck and only the strip
+	# alongside the midships hull is walkable." That overhang was the defect, not
+	# the design — 16.35 m of a 28.35 m craft stood over open space. The dock now
+	# carries a berth apron and the pad runs z = 36.3 … 70.7 under it.
+	#
+	# So this stages the approach a player actually makes: standing on the comb
+	# trunk at the aft end of the dock, walking straight forward down the port
+	# lane toward the airstair. 21.5 m out, which is 0.7 m inside the trunk's far
+	# edge, and pure aft so the whole walk is down the 12 m wide pad. The prompt
+	# is acquired 2.37 m in, where the craft-shaped approach volume begins.
+	&"halyard_new_design": Vector3(0.0, 0.0, 21.5),
 }
 const MINIMUM_STAGED_DISTANCE := 7.05
 const MINIMUM_WALK_METRES := 1.2

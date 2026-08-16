@@ -119,6 +119,29 @@ const ARROW_BERTH_WALKAROUND_POINTS := [
 	[Vector3(-36.0, -0.02, 15.5), "tail apron, where the branch arm hands off to the node"],
 ]
 
+## HALYARD-DECK-001. The 2026-08-16 report, second craft: "I wasn't able to get
+## on the new ship, its way too big for its stand ... extend the walkway and then
+## give it a much larger square so you can walk all the way around it".
+##
+## Measured before the fix: the Halyard's collision footprint is 9.6 x 28.35 m
+## and Fleet Dock 02's slab was 12.0 x 12.0 m, so 7.85 m of nose and 8.50 m of
+## tail stood over open space and two of four footprint corners had nothing
+## beneath them. The only walkable approach was the comb's 3.6 m `Rung02`, which
+## delivered a player into a dead end at each flank.
+##
+## These four points are one standable cell on each face of the parked craft, at
+## the y = 4.2 fleet-dock elevation. All four must be in the no-jump flood from
+## the production spawn marker.
+const HALYARD_BERTH_WALKAROUND_POINTS := [
+	[Vector3(42.0, 4.2, 53.3), "starboard flank, outboard of the cabin wall"],
+	[Vector3(32.0, 4.2, 53.3), "port flank, at the foot of the airstair"],
+	[Vector3(37.0, 4.2, 37.5), "nose apron, on deck that did not exist ahead of the bow collar"],
+	[Vector3(33.1, 4.2, 62.6), "aft apron, in the 6.6 m gap that used to be open space"],
+]
+## Top of the Fleet Dock decks: the comb's trunk, rungs and slabs, and the berth
+## apron the world adds around slab 02. All of them are one flush plane.
+const FLEET_DOCK_DECK_TOP := 4.2
+
 ## PORT-BOARDING-001. The same report, refined: "the option to enter never
 ## appears when you're standing to the side of the ship". A single staged
 ## approach vector cannot see that — `tests/fleet_role_differentiation_test.gd`
@@ -197,8 +220,10 @@ func _run() -> void:
 	_test_freight_branch_has_a_walkable_approach(world)
 	_test_every_flyable_ship_is_boardable_on_foot(game, world, reachable)
 	_test_arrow_berth_can_be_walked_around(reachable)
+	_test_halyard_berth_can_be_walked_around(reachable)
 	_test_parked_craft_are_fully_supported_by_their_berth_decks(game, world)
 	await _test_arrow_berth_rails_no_longer_fence_the_walkway(player)
+	await _test_halyard_berth_is_one_continuous_loop(player)
 	await _test_boarding_prompt_is_offered_all_round_each_craft(game, player)
 	await _test_pod_decks_can_be_walked_into(player)
 	await _test_aft_stair_base_is_not_fenced_off(player)
@@ -497,6 +522,22 @@ func _test_arrow_berth_can_be_walked_around(reachable: Dictionary) -> void:
 	)
 
 
+## HALYARD-DECK-001 reachability, the same shape of check as the Arrow's. Every
+## face of the parked Halyard must be walkable to from the production spawn
+## without a jump. Before the apron was built the nose and tail points below were
+## open space and the two flank points were dead ends off a 3.6 m rung.
+func _test_halyard_berth_can_be_walked_around(reachable: Dictionary) -> void:
+	var stranded := PackedStringArray()
+	for entry in HALYARD_BERTH_WALKAROUND_POINTS:
+		if not _has_reachable_node_near(entry[0] as Vector3, 0.6, reachable):
+			stranded.append("%s (%s)" % [str(entry[0]), entry[1]])
+	print("UNREACHABLE_HALYARD_BERTH_FACES: ", stranded)
+	_check(
+		stranded.is_empty(),
+		"the apron beside the parked Halyard is reachable on every face without jumping"
+	)
+
+
 ## PORT-DECK-001 structure. The recorded defect was that the 12.2 m craft is
 ## parked on a 12.0 m pad, so its nose projected 0.450 m past the deck edge with
 ## two of four footprint corners over open space. Probe the four corners of every
@@ -601,6 +642,113 @@ func _test_arrow_berth_rails_no_longer_fence_the_walkway(player: PlayerControlle
 	await physics_frame
 
 
+## HALYARD-DECK-001, through the production controller rather than the walk
+## graph, and the direct answer to "a much larger square so you can walk all the
+## way around it". Four legs, one down each side of the parked craft, each driven
+## with continuous `move_forward` and nothing else. No jump is pressed and no
+## transform is set inside a leg — only between them, to place the capsule at the
+## next corner facing the next side.
+##
+## The circuit is a rectangle at x = 32.0 / 42.0 and z = 37.5 / 68.5, which is
+## 0.62 m inside each deck edge at the flanks and clear of the craft everywhere:
+## the cabin walls stand at x = 34.28 and 39.72, the bow collar reaches z = 39.75,
+## and the tail yoke that spans the full 9.6 m beam sits at y = 6.255, which a
+## 1.94 m capsule on a 4.2 m deck passes under with 0.115 m to spare. Before the
+## apron existed, three of these four legs ran over open space.
+##
+## Each leg stops the moment it passes its target rather than running a fixed
+## budget, because the far edge of this deck is a 34 m drop into GameFlow's fall
+## recovery and a fixed budget that overshot would measure the respawn.
+func _test_halyard_berth_is_one_continuous_loop(player: PlayerController) -> void:
+	var legs := [
+		["starboard flank, nose apron to the comb trunk",
+			Vector3(42.0, FLEET_DOCK_DECK_TOP + 0.2, 37.5), Vector3.BACK, 2, 68.5, 1.0, 700],
+		["aft crossing, under the tail yoke and out over the trunk",
+			Vector3(42.0, FLEET_DOCK_DECK_TOP + 0.2, 68.5), Vector3.LEFT, 0, 32.0, -1.0, 400],
+		["port flank, comb trunk back to the nose apron",
+			Vector3(32.0, FLEET_DOCK_DECK_TOP + 0.2, 68.5), Vector3.FORWARD, 2, 37.5, -1.0, 700],
+		["nose crossing, across the apron ahead of the bow collar",
+			Vector3(32.0, FLEET_DOCK_DECK_TOP + 0.2, 37.5), Vector3.RIGHT, 0, 42.0, 1.0, 400],
+	]
+	var blocked := PackedStringArray()
+	var results := PackedStringArray()
+	for leg in legs:
+		var axis := int(leg[3])
+		var target := float(leg[4])
+		var toward_positive := float(leg[5]) > 0.0
+		var result := await _walk_until(
+			player,
+			leg[1] as Vector3,
+			leg[2] as Vector3,
+			axis,
+			target,
+			toward_positive,
+			int(leg[6])
+		)
+		var final_position := result.final as Vector3
+		results.append("%s final=%s travelled=%.2f frames=%d stuck=%d" % [
+			leg[0], str(final_position), float(result.travelled),
+			int(result.frames), int(result.stuck_frames)
+		])
+		if not bool(result.reached):
+			blocked.append("%s stopped at %.3f (needed %s %.1f)" % [
+				leg[0], final_position[axis], ">=" if toward_positive else "<=", target
+			])
+		if absf(final_position.y - FLEET_DOCK_DECK_TOP) > POD_WALK_TOLERANCE:
+			blocked.append("%s left the berth deck (y=%.3f)" % [leg[0], final_position.y])
+	print("HALYARD_BERTH_LOOP_WALKS: ", results)
+	_check(
+		blocked.is_empty(),
+		"the production capsule walks a full circuit around the parked Halyard without jumping or leaving the deck"
+	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
+
+
+## `_walk_forward` with a stopping condition instead of a frame count: hold
+## `move_forward` until `axis` passes `target`, or until `max_frames` runs out.
+func _walk_until(
+		player: PlayerController,
+		start: Vector3,
+		direction: Vector3,
+		axis: int,
+		target: float,
+		toward_positive: bool,
+		max_frames: int
+	) -> Dictionary:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+		Input.action_release(action)
+	player.teleport_to(Transform3D(Basis.looking_at(direction, Vector3.UP), start))
+	for _settle in 10:
+		await physics_frame
+	var initial := player.global_position
+	var previous := initial
+	var stuck_frames := 0
+	var frames := 0
+	var reached := false
+	Input.action_press(&"move_forward")
+	for _frame in max_frames:
+		await physics_frame
+		frames += 1
+		if player.global_position.distance_to(previous) < 0.005:
+			stuck_frames += 1
+		previous = player.global_position
+		var value := player.global_position[axis]
+		if (value >= target) if toward_positive else (value <= target):
+			reached = true
+			break
+	Input.action_release(&"move_forward")
+	await physics_frame
+	return {
+		"initial": initial,
+		"final": player.global_position,
+		"travelled": initial.distance_to(player.global_position),
+		"frames": frames,
+		"stuck_frames": stuck_frames,
+		"reached": reached,
+	}
+
+
 ## PORT-BOARDING-001. Ring sample, not a single staged vector.
 ##
 ## For each parked craft, walk a ring of candidate standing points around it at
@@ -620,6 +768,8 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 	var silent := PackedStringArray()
 	var arrow_standable := 0
 	var arrow_prompted := 0
+	var halyard_standable := 0
+	var halyard_prompted := 0
 	for entry in game.call("get_flyable_ships"):
 		var ship := entry as HeroShip
 		if ship == null:
@@ -677,6 +827,9 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 		if ship.name == "ArrowReconShip":
 			arrow_standable = standable
 			arrow_prompted = prompted
+		if ship.name == "HalyardCrewTransport":
+			halyard_standable = standable
+			halyard_prompted = prompted
 		if standable > 0:
 			_check(
 				prompted > 0,
@@ -700,6 +853,21 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 	_check(
 		arrow_standable > 0 and arrow_prompted == arrow_standable,
 		"the Arrow offers its boarding prompt from every standable point on a ring around it"
+	)
+	# HALYARD-BOARDING-001. The Halyard is asserted all-round for the same reason
+	# the Arrow is: its berth is a walk-around apron, not a one-sided pad, and the
+	# report is that the prompt never appeared. It measured 5 of 14 standable ring
+	# points before this pass — every silent one aft of the wing or on the wrong
+	# flank — because a 4.5 m sphere reaches 32% of a 28.35 m hull. The Torrent and
+	# the Zenith keep their deliberate port-quadrant-only reach and are still only
+	# required to stay boardable.
+	_check(
+		halyard_standable >= 12,
+		"the Halyard's berth apron offers a real ring of standing points around the parked craft"
+	)
+	_check(
+		halyard_standable > 0 and halyard_prompted == halyard_standable,
+		"the Halyard offers its boarding prompt from every standable point on a ring around it"
 	)
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
 	await physics_frame
