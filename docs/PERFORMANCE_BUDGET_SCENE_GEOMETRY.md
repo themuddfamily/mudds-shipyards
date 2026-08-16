@@ -60,55 +60,94 @@ triangle ceiling is a coarse headroom marker, not the binding constraint.
 
 ## The budget
 
-Measured with `godot --headless --audio-driver Dummy --script res://tools/geometry_census.gd`.
+Measured with the documented headless command and independently with Forward+
+Vulkan under Xvfb/llvmpipe.
 
-| Metric | Measured 2026-08-16 | Budget | Headroom |
+| Metric | Measured on merged `33bd5a9` | Budget | Status |
 | --- | ---: | ---: | ---: |
-| Scene triangles | 1,333,590 † | **1,800,000** | 26% |
-| Mesh instances | 3,605 | **4,200** | 17% |
-| Surfaces (draw-call upper bound) | 3,612 | **4,300** | 19% |
-| Unique meshes | 1,790 | **2,200** | 23% |
-| Unique materials | 458 | **550** | 20% |
-| Unique shaders | 0 | **8** | — |
-| Textures / uncompressed bytes | 22 / 107 MiB | **40 / 192 MiB** | 79% |
-| `Light3D` nodes | 203 | **240** | 18% |
-| …of which shadow-casting | 14 | **16** | 14% |
-| Particle systems | 16 | **24** | 50% |
-| Scene-tree nodes | 5,752 | **7,000** | 22% |
-| `TextMesh` lettering, total | 60,829 (4.3% of scene) | **80,000 and ≤ 5%** | 32% |
-| `TextMesh` lettering, worst sign | 4,239 | **6,000** | 42% |
+| Scene triangles | 1,792,816 | **1,800,000** | 7,184 / 0.4% under |
+| Mesh instances | 5,776 | **4,200** | **1,576 / 37.5% over** |
+| Surfaces (draw-call upper bound) | 5,783 | **4,300** | **1,483 / 34.5% over** |
+| Unique meshes | 2,756 | **2,200** | **556 / 25.3% over** |
+| Unique materials | 583 observed bound; retained total is higher † | **550** | **at least 33 / 6.0% over** |
+| Unique shaders | 0 | **8** | 8 under |
+| Textures / uncompressed bytes | 22 / 106.98 MiB | **40 / 192 MiB** | 18 / 85.02 MiB under |
+| `Light3D` nodes | 309 | **240** | **69 / 28.8% over** |
+| …of which shadow-casting | 19 | **16** | **3 / 18.8% over** |
+| Particle systems | 25 | **24** | **1 / 4.2% over** |
+| Scene-tree nodes | 9,128 | **7,000** | **2,128 / 30.4% over** |
+| `TextMesh` lettering, total | 75,702 / 4.22% of scene | **80,000 and ≤ 5%** | 4,298 / 0.78 percentage points under |
+| `TextMesh` lettering, worst sign | 4,239 | **6,000** | 1,761 / 29.4% under |
 
-† **This figure is arithmetic, not a census run, and it is the one number in this
-table that has not been measured end to end.** The ring budget below landed
-after the last full census. Its inputs *are* measured: `tools/torus_census.gd`
-read every one of the 129 live `TorusMesh` instances out of the built scene, and
-the scene total it was subtracted from — 1,418,938 — is a census run of the same
-day. What was not re-run is the census itself after the final tessellation floor
-was raised, because the session ended first. The next census run should replace
-this number and this footnote with a measured value; if the two disagree,
-**believe the census.**
+These are end-to-end census values from the exact clean merge commit
+`33bd5a9f0b7d87ef3318251b0de5cd627d96f64e`, after a fresh import. Three
+headless runs and two Forward+ Vulkan/X11 runs agreed exactly on every scalar,
+bucket and sign row except the material row. The two Vulkan JSON files were
+byte-identical. A 60-frame comparison also made headless and Vulkan agree on
+the same phase sample, confirming that the other figures are renderer
+independent.
 
-The 1,418,938 baseline is also worth recording because it does not match the
-1,410,035 written here on 2026-08-16 for the same commit-range. The 8,903
-difference is other work landing in parallel, not a measurement error, and it is
-left visible rather than reconciled away.
+† `unique_materials` is currently a sampled lower bound, not an exhaustive
+resource census. The tool sees materials bound to ordinary mesh surfaces at the
+instant it walks the tree. Activity, courier and berth components retain
+lit/dim alternatives and swap them from `_process()`, so an eight-frame
+headless sample observed 575–577 while the two Vulkan samples observed 583.
+The renderer did not create the difference: frame-count settling advances a
+different amount of wall-clock animation time. At least four additional
+`StationServiceAgent` alternatives are demonstrably retained but unbound, so
+the true retained total is at least 587 before other omitted alternatives,
+overlays and `MultiMesh` surface materials. The ceiling is exceeded under every
+interpretation. Do not re-freeze this row to a phase sample; extend the tool to
+report a deterministic retained-resource union first.
 
-The headroom column is an **allowance to spend**, not slack. The roadmap still
-owes enemy craft, a walkable freighter interior, station-wide modelling and a
-sibling's new craft. Roughly a fifth to a quarter of growth is what that has to
-fit into before something needs LOD, instancing or impostors rather than more
-budget.
+### Merge-time decision: trim, do not raise
 
-Shadow-casting lights are the tightest line and the most important one. Fourteen
-of 203 lights cast shadows; each of those re-rasterises the geometry in its range
-every frame it is visible. Two more is the whole allowance. A new module that
-wants six shadow-casting work lights has to take them from somewhere.
+The frozen ceilings stay unchanged. The minimum and target hardware have not
+changed, and no representative Windows GPU benchmark exists that would justify
+relaxing them. Raising each limit just enough to make this scene green would
+erase the allowance intentionally reserved for enemy craft, interiors and
+station work. This is not a marginal miss: submission/state proxies are 25–38%
+over, lights are 29% over, nodes are 30% over, and even the still-green triangle
+line has only 0.4% left.
 
-### Re-measured 2026-08-16, either side of the long-cargo pass
+The first trim should be structural and visually lossless:
 
-The table above is a snapshot that parallel work has since moved a long way, and
-that movement matters more than the pass which measured it. Two census runs on
-the same day, either side of one content change:
+1. Share `StationOperationsActivity`'s immutable 17-material catalogue across
+   its ten placements, and the six-material `StationServiceAgent` catalogue
+   across its four couriers. The animated lenses swap references; they do not
+   mutate those materials.
+2. Extend existing `MultiMesh` use over repeated **visual-only** stock in
+   `HabitatSpine` and the station-activity presentations. Named or collidable
+   nodes stay ordinary meshes until their audits and collision indexing support
+   batches.
+3. Measure maximum active and overlapping lights along representative routes
+   before removing practical fixtures. Most new habitat and VIP lights are
+   shadowless and were added after rendered dark-room failures. The total-light
+   ceiling remains a provisional proxy; the 16-shadow-light ceiling remains a
+   hard line until real Windows GPU evidence says otherwise.
+
+No ceiling changes from this remeasurement. Re-freeze summary: measured scene
+`1,416,160 -> 1,792,816` triangles, `4,197 -> 5,776` mesh instances,
+`4,204 -> 5,783` surfaces, `2,103 -> 2,756` unique meshes,
+`240 -> 309` lights, and `6,582 -> 9,128` nodes. The reason is the merged
+habitat, VIP, fifth craft/berth and operational presentation content that did
+not coexist in either earlier worktree census.
+
+Any remaining headroom is an **allowance to spend**, not slack. The fifth craft
+has now landed, while the roadmap still owes enemy craft, a walkable freighter
+interior and station-wide modelling. New content must fit through sharing,
+instancing, LOD or impostors rather than larger ceilings.
+
+Shadow-casting lights remain the most important line. Nineteen of 309 lights
+cast shadows, three above the ceiling; each can re-rasterise the geometry in its
+range every frame it is visible. Consolidate at least three before adding
+another shadowed fixture.
+
+### Historical: re-measured either side of the long-cargo pass
+
+The following historical snapshot records two census runs either side of one
+content change. It is retained to explain that pass, not as the current budget
+status:
 
 | Metric | Before | After | Delta | Budget | Headroom after |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -163,46 +202,47 @@ buys the next ten placements, and it is not this pass's to make.
 
 ## Where the geometry actually is
 
-Whole scene, after the sign fix:
+Whole merged scene at `33bd5a9`:
 
 | Bucket | Triangles | Share |
 | --- | ---: | ---: |
-| `ShipyardWorld/HabitatSpine` | 293,979 | 20.8% |
-| `ShipyardWorld/AftJunctionStack` | 221,146 | 15.7% |
-| `TorrentInterceptor` | 139,502 | 9.9% |
-| `ShipyardWorld/SpaceBackdrop` | 127,296 | 9.0% |
-| `ShipyardWorld/NearbySectorCluster` | 117,457 | 8.3% |
-| `JovianLightFreighter` | 76,508 | 5.4% |
-| `ArrowReconShip` | 66,012 | 4.7% |
-| `ShipyardWorld/OperationalLattice` | 59,764 | 4.2% |
-| `ShipyardWorld/LandingPad` | 59,221 | 4.2% |
-| `ZenithInterceptor` | 52,686 | 3.7% |
-| everything else | 196,464 | 13.9% |
+| `ShipyardWorld/HabitatSpine` | 450,337 | 25.1% |
+| `ShipyardWorld/AftJunctionStack` | 285,450 | 15.9% |
+| `TorrentInterceptor` | 133,818 | 7.5% |
+| `ShipyardWorld/SpaceBackdrop` | 127,296 | 7.1% |
+| `ShipyardWorld/NearbySectorCluster` | 117,457 | 6.6% |
+| `JovianLightFreighter` | 75,740 | 4.2% |
+| `ShipyardWorld/OperationalLattice` | 72,604 | 4.0% |
+| `ShipyardWorld/VipReceptionSuite` | 65,504 | 3.7% |
+| `ShipyardWorld/JovianFreightBerth` | 57,018 | 3.2% |
+| `ZenithInterceptor` | 52,686 | 2.9% |
+| everything else | 354,906 | 19.8% |
 
 By kind, which is the more useful cut:
 
 | Mesh kind | Triangles | Share | Instances | Triangles each |
 | --- | ---: | ---: | ---: | ---: |
-| `ArrayMesh` | 894,198 | 63.4% | 3,511 | 254 |
-| `SphereMesh` | 236,856 | 16.8% | 2,802 | 84 |
-| `TorusMesh` | 128,316 † | 9.6% | 129 | 995 |
-| `TextMesh` | 60,829 | 4.3% | 31 | 1,962 |
-| `BoxMesh` | 2,556 | 0.2% | 213 | 12 |
-| everything else | 1,908 | 0.1% | 25 | 76 |
+| `ArrayMesh` | 1,288,590 | 71.9% | 5,714 | 225 |
+| `SphereMesh` | 249,336 | 13.9% | 2,822 | 88 |
+| `TorusMesh` | 174,260 | 9.7% | 180 | 968 |
+| `TextMesh` | 75,702 | 4.2% | 39 | 1,941 |
+| `BoxMesh` | 2,988 | 0.2% | 249 | 12 |
+| everything else | 1,940 | 0.1% | 25 | 77 |
 
-The kind table sums to 24 triangles short of the scene total: twelve `Label3D`
+The kind table sums to 32 triangles short of the scene total: sixteen `Label3D`
 nodes, two triangles each, which have no `Mesh` resource to classify. They are
 listed here only to show what `Label3D` costs next to `TextMesh` — a quad and a
 font atlas versus real triangulated glyph contours.
 
-`ArrayMesh` at 63% is the authored art — Torrent, Zenith, the pilot, the central
-berth hero cell, the two `MultiMesh` fields — spread over 3,511 objects at 254
-triangles each. That is geometry doing its job and it is not a target.
+`ArrayMesh` at 72% is the authored art. The 5,714 kind instances count physical
+copies inside `MultiMesh` batches, not 5,714 draw submissions. Optimise repeated
+draw nodes and unshared resources before cutting authored silhouettes.
 
-## Named next targets, in measured order
+## Historical named triangle targets
 
-These came out of the census and are **not done**. They are recorded here so the
-next pass starts from a number.
+These came out of the earlier census and are retained as the record of the ring
+and lettering decisions. Current binding trim targets are listed in the
+merge-time decision above.
 
 1. **`TorusMesh`: done, and for less than the estimate. See "The ring fix" below.**
    213,664 → 128,316, a saving of 85,348 rather than the ~150,000 estimated here.
