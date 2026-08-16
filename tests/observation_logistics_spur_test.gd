@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_identity_evidence_and_contract(module)
 	_test_connection_slots(module)
 	_test_surface_roster_and_area(module)
+	_test_material_retention(module)
 	_test_deterministic_runtime_names(module)
 	await _test_collision_support_and_safe_edges(module)
 	await _test_embodied_loop_traversal(module)
@@ -168,6 +169,28 @@ func _test_deterministic_runtime_names(module: ObservationLogisticsSpur) -> void
 	_check(not bool(module.get_audit_report().valid), "red mutation: renamed indexed dressing child makes audit fail")
 	console.name = "ObservationConsole01"
 	_check(bool(module.get_audit_report().valid), "restoring the exact indexed runtime path returns audit to green")
+
+
+func _test_material_retention(module: ObservationLogisticsSpur) -> void:
+	var materials := module.get_material_retention_contract()
+	_check(
+		int(materials.catalog_entry_count) == 9
+		and int(materials.retained_unique_materials) == 9,
+		"practical recipe sharing reduces retained material resources exactly 12 -> 9"
+	)
+	_check(
+		int(materials.practical_lens_recipe_count) == 3
+		and bool(materials.practical_lens_identities_exact)
+		and (materials.practical_lens_material_ids as PackedInt64Array)
+			== (materials.expected_practical_lens_material_ids as PackedInt64Array),
+		"cyan x3, white x2 and amber x1 practical lenses retain their exact shared identities"
+	)
+	var lens := module.get_node(^"Structure/Dressing/LightLens04") as MeshInstance3D
+	var shared_cyan := lens.material_override
+	lens.material_override = shared_cyan.duplicate()
+	_check(not bool(module.get_audit_report().valid), "red mutation: duplicated practical recipe identity makes audit fail")
+	lens.material_override = shared_cyan
+	_check(bool(module.get_audit_report().valid), "restoring the shared practical recipe returns audit to green")
 
 
 func _test_collision_support_and_safe_edges(module: ObservationLogisticsSpur) -> void:
@@ -401,4 +424,4 @@ func _count_assertions() -> int:
 	# Kept explicit in output by counting anchored call sites from this suite is not
 	# available at runtime; successful and failed assertions together equal this
 	# frozen suite total.
-	return 52
+	return 56

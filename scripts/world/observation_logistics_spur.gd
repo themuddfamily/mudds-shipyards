@@ -260,7 +260,9 @@ func get_performance_contract() -> Dictionary:
 	# Exact standalone build census, frozen rather than estimated: 133 descendant
 	# nodes, 48 MeshInstance3D nodes, one MultiMesh submission holding ten repeated
 	# visual markers, 33 bodies/shapes, one Label3D and six practicals. The module
-	# owns no processing callback. Any later content must declare its cost here.
+	# owns no processing callback. The practical lenses reuse three exact recipes,
+	# reducing retained materials 12 -> 9 without changing a visible parameter.
+	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 48,
 		"static_bodies": 33,
@@ -272,6 +274,43 @@ func get_performance_contract() -> Dictionary:
 	})
 	contract["schema_version"] = SCHEMA_VERSION
 	return contract
+
+
+func get_material_retention_contract() -> Dictionary:
+	var retained_ids := {}
+	for candidate in find_children("*", "", true, false):
+		if candidate is GeometryInstance3D:
+			var material := (candidate as GeometryInstance3D).material_override
+			if material != null:
+				retained_ids[material.get_instance_id()] = true
+	var lens_material_ids := PackedInt64Array()
+	for fixture_index in 6:
+		var lens := get_node_or_null(NodePath(
+			"Structure/Dressing/LightLens%02d" % (fixture_index + 1)
+		)) as MeshInstance3D
+		lens_material_ids.append(
+			lens.material_override.get_instance_id()
+			if lens != null and lens.material_override != null else 0
+		)
+	var expected_lens_ids := PackedInt64Array([
+		(_materials["practical_cyan"] as Material).get_instance_id(),
+		(_materials["practical_cyan"] as Material).get_instance_id(),
+		(_materials["practical_white"] as Material).get_instance_id(),
+		(_materials["practical_cyan"] as Material).get_instance_id(),
+		(_materials["practical_amber"] as Material).get_instance_id(),
+		(_materials["practical_white"] as Material).get_instance_id(),
+	])
+	var practical_recipe_ids := {}
+	for material_id in lens_material_ids:
+		practical_recipe_ids[material_id] = true
+	return {
+		"catalog_entry_count": _materials.size(),
+		"retained_unique_materials": retained_ids.size(),
+		"practical_lens_recipe_count": practical_recipe_ids.size(),
+		"practical_lens_material_ids": lens_material_ids,
+		"expected_practical_lens_material_ids": expected_lens_ids,
+		"practical_lens_identities_exact": lens_material_ids == expected_lens_ids,
+	}
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -352,6 +391,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("collision contract does not match lifecycle")
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its frozen performance budgets")
+	var materials := get_material_retention_contract()
+	if int(materials.catalog_entry_count) != 9 \
+			or int(materials.retained_unique_materials) != 9 \
+			or int(materials.practical_lens_recipe_count) != 3 \
+			or not bool(materials.practical_lens_identities_exact):
+		errors.append("retained material or shared practical-lens identity drifted")
 	for child_path in INDEXED_RUNTIME_CHILD_PATHS:
 		if get_node_or_null(NodePath(child_path)) == null:
 			errors.append("indexed runtime child path drifted: %s" % child_path)
@@ -382,6 +427,7 @@ func audit() -> Dictionary:
 		"alternate_return_path": true,
 		"authority": get_authority_contract(),
 		"performance": get_performance_contract(),
+		"materials": get_material_retention_contract(),
 		"footprint": get_integration_footprint(),
 	}
 
@@ -516,19 +562,20 @@ func _build_dressing(parent: Node3D) -> void:
 
 func _build_lighting(parent: Node3D) -> void:
 	var fixtures := [
-		[Vector3(0.0, 2.8, 7.0), Color("8fe8ef")],
-		[Vector3(0.0, 2.8, 18.0), Color("8fe8ef")],
-		[Vector3(0.0, 2.8, 23.5), Color("dbe8e4")],
-		[Vector3(-8.0, 2.8, 32.0), Color("8fe8ef")],
-		[Vector3(8.0, 2.8, 32.0), Color("f4bf72")],
-		[Vector3(0.0, 2.8, 38.0), Color("dbe8e4")],
+		[Vector3(0.0, 2.8, 7.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(0.0, 2.8, 18.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(0.0, 2.8, 23.5), Color("dbe8e4"), "practical_white"],
+		[Vector3(-8.0, 2.8, 32.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(8.0, 2.8, 32.0), Color("f4bf72"), "practical_amber"],
+		[Vector3(0.0, 2.8, 38.0), Color("dbe8e4"), "practical_white"],
 	]
 	for fixture_index in fixtures.size():
 		var fixture := fixtures[fixture_index] as Array
 		var fixture_position := fixture[0] as Vector3
 		var fixture_color := fixture[1] as Color
+		var fixture_material_key := str(fixture[2])
 		_box(parent, "LightMast%02d" % (fixture_index + 1), fixture_position + Vector3(0, -1.4, 0), Vector3(0.16, 2.8, 0.16), _materials["rail"], false)
-		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, Vector3(0.42, 0.18, 0.42), _emissive_material(fixture_color), false)
+		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, Vector3(0.42, 0.18, 0.42), _materials[fixture_material_key], false)
 		var light := OmniLight3D.new()
 		light.name = "Practical%02d" % (fixture_index + 1)
 		light.position = fixture_position + Vector3(0, -0.16, 0)
@@ -560,6 +607,9 @@ func _create_materials() -> void:
 	_materials["cargo"] = _material(Color("735c3d"), 0.66, 0.18)
 	_materials["cyan"] = _emissive_material(Color("58dce5"))
 	_materials["amber"] = _emissive_material(Color("e5a94e"))
+	_materials["practical_cyan"] = _emissive_material(Color("8fe8ef"))
+	_materials["practical_white"] = _emissive_material(Color("dbe8e4"))
+	_materials["practical_amber"] = _emissive_material(Color("f4bf72"))
 
 
 func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
