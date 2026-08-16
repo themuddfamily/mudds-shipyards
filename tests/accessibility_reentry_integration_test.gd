@@ -78,7 +78,7 @@ func _run() -> void:
 
 	await _test_live_application(game, hud, fleet, authored_lag)
 	_test_flight_authority_untouched(fleet, flight_before)
-	await _test_captions_through_production_audio(hud, audio, combat_audio, fleet)
+	await _test_captions_through_production_audio(game, hud, audio, combat_audio, fleet)
 	_test_invalid_values_rejected(game, hud, settings)
 	_test_persistence_across_restart(settings)
 	await _test_whole_main_reentry(game, hud, fleet)
@@ -155,6 +155,7 @@ func _test_flight_authority_untouched(fleet: Array[HeroShip], before: Dictionary
 
 
 func _test_captions_through_production_audio(
+	game: GameFlow,
 	hud: GameHUD,
 	audio: AudioDirector,
 	combat_audio: CombatAudioPresentation,
@@ -162,26 +163,38 @@ func _test_captions_through_production_audio(
 ) -> void:
 	audio.play_target_destroyed()
 	await process_frame
-	var log := hud.get_caption_log()
+	var snapshot := game.get_caption_presentation_snapshot()
 	_check(
-		log.size() >= 1 and log[log.size() - 1] == "[ range target destroyed ]",
-		"a production flow cue reaches the caption channel"
+		bool(snapshot.visible)
+		and snapshot.caption.text == "[ range target destroyed ]"
+		and snapshot.caption.category_id == &"system"
+		and snapshot.caption.speaker == "Range control",
+		"a production flow cue reaches the typed snapshot and presenter channel"
 	)
 
+	var before_combat := game.get_caption_integration_report()
 	combat_audio.play_explosion(fleet[0].global_position, fleet[0].get_instance_id())
 	await process_frame
-	log = hud.get_caption_log()
+	var after_combat := game.get_caption_integration_report()
 	_check(
-		log[log.size() - 1] == "[ ship explosion ]",
-		"a production combat cue reaches the caption channel through the real presentation component"
+		int(after_combat.caption_accepted_count) == int(before_combat.caption_accepted_count) + 1
+		and int(after_combat.stored_caption_count) == 2
+		and game.get_caption_presentation_snapshot().caption.text == "[ range target destroyed ]",
+		"a production combat cue queues through the real service without preempting the active caption"
 	)
 
 	# Footsteps are the highest-rate cue in the build and must never caption.
-	var before := hud.get_caption_log().size()
+	var before := game.get_caption_integration_report()
 	for index in 8:
 		audio.play_footstep(1.0)
 	await process_frame
-	_check(hud.get_caption_log().size() == before, "footsteps never enter the caption channel")
+	var after := game.get_caption_integration_report()
+	_check(
+		int(after.caption_request_count) == int(before.caption_request_count)
+		and int(after.caption_accepted_count) == int(before.caption_accepted_count)
+		and int(after.stored_caption_count) == int(before.stored_caption_count),
+		"footsteps never enter the caption request or service channel"
+	)
 
 
 func _test_invalid_values_rejected(game: GameFlow, hud: GameHUD, settings: RuntimeSettings) -> void:
@@ -291,6 +304,8 @@ func _test_persistence_across_restart(settings: RuntimeSettings) -> void:
 ## turns it red while leaving the four preset assertions green.
 func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShip]) -> void:
 	var before := hud.get_accessibility_report()
+	var caption_before := game.get_caption_presentation_snapshot()
+	var caption_report_before := game.get_caption_integration_report()
 	var settings := game.get_runtime_settings()
 
 	# A non-default level, so the restored value is a player preference rather
@@ -307,6 +322,10 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
+	_check(
+		not bool(game.get_caption_integration_report().hud_request_sink_bound),
+		"whole-Main detach releases the HUD request sink while retaining the service"
+	)
 
 	# Stand in for whatever owns the global audio state while Main is streamed
 	# out. Nothing about this is exotic: any other scene setting its own levels
@@ -322,6 +341,23 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 	parent.add_child(game)
 	await process_frame
 	await process_frame
+	var caption_after := game.get_caption_presentation_snapshot()
+	var caption_report_after := game.get_caption_integration_report()
+	_check(
+		int(caption_report_after.service_instance_id) == int(caption_report_before.service_instance_id)
+		and int(caption_report_after.presenter_instance_id) == int(caption_report_before.presenter_instance_id)
+		and int(caption_report_after.service_count) == 1
+		and int(caption_report_after.presenter_count) == 1
+		and bool(caption_report_after.hud_request_sink_bound),
+		"re-entry restores one request binding around the same single service and presenter instances"
+	)
+	_check(
+		caption_after.caption.get("stable_id", &"") == caption_before.caption.get("stable_id", &"")
+		and float(caption_after.caption.get("remaining_physics_seconds", 0.0)) > 0.0
+		and float(caption_after.caption.get("remaining_physics_seconds", 0.0))
+			<= float(caption_before.caption.get("remaining_physics_seconds", 0.0)),
+		"the active detached caption resumes from retained physics time instead of restarting"
+	)
 
 	_check(
 		_bus_levels_match(expected_bus_levels),
@@ -357,16 +393,12 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 
 	# The caption channel must survive re-entry as a working channel, not just as
 	# a remembered flag.
-	var log_before := hud.get_caption_log().size()
+	var accepted_before := int(game.get_caption_integration_report().caption_accepted_count)
 	(game.get_node_or_null("AudioDirector") as AudioDirector).play_combat_alert()
 	await process_frame
 	_check(
-		hud.get_caption_log().size() > log_before or log_before == GameHUD.CAPTION_HISTORY_LIMIT,
-		"the caption channel still receives production cues after re-entry"
-	)
-	_check(
-		hud.get_caption_log()[hud.get_caption_log().size() - 1] == "[ combat alert ]",
-		"the post-re-entry caption reports the cue that actually fired"
+		int(game.get_caption_integration_report().caption_accepted_count) == accepted_before + 1,
+		"the rebound caption channel accepts a production combat cue after re-entry"
 	)
 
 

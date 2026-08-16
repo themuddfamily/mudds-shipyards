@@ -6,6 +6,8 @@ const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
 const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.gd")
+const CaptionPresentationEventType := preload("res://scripts/ui/caption_presentation_event.gd")
+const CaptionPresentationServiceType := preload("res://scripts/ui/caption_presentation_service.gd")
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -14,6 +16,12 @@ const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_ro
 const CINDER_RACE_LAPS := 1
 const CINDER_RACE_COUNTDOWN_SECONDS := 2.0
 const CINDER_RACE_TIMEOUT_SECONDS := 120.0
+const CAPTION_CATEGORY_BY_ID := {
+	&"dialogue": CaptionPresentationEvent.Category.DIALOGUE,
+	&"radio": CaptionPresentationEvent.Category.RADIO,
+	&"system": CaptionPresentationEvent.Category.SYSTEM,
+	&"ambient": CaptionPresentationEvent.Category.AMBIENT,
+}
 
 enum Phase {
 	INTRO,
@@ -157,6 +165,13 @@ var audio: Node
 var music_bed: StationMusicBed
 var activity_director: ActivityDirector
 var cinder_race_session: CinderTimedRaceSession
+## One presentation-only caption authority for this Main lifetime. It is a
+## RefCounted service rather than a scene node and survives whole-Main detach.
+var _caption_presentation_service: CaptionPresentationService
+var _caption_event_serial := 0
+var _caption_request_count := 0
+var _caption_accepted_count := 0
+var _caption_rejected_count := 0
 
 var phase := Phase.INTRO
 var destroyed_targets := 0
@@ -254,6 +269,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	_detach_cinder_race_session()
+	_detach_caption_presentation()
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
 	# relevant lifecycle components.
@@ -350,21 +366,115 @@ func _detach_cinder_race_session() -> void:
 		cinder_race_session.detach(cinder_race_session.get_session_generation())
 
 
-func _notification(what: int) -> void:
-	if what != NOTIFICATION_PREDELETE or cinder_race_session == null:
+## Creates exactly one service for this Main lifetime and binds the authored HUD
+## as a request-only producer plus snapshot-only consumer.
+func _initialize_caption_presentation() -> void:
+	if _caption_presentation_service == null:
+		_caption_presentation_service = CaptionPresentationServiceType.new()
+	_restore_caption_presentation()
+
+
+func _restore_caption_presentation() -> void:
+	if _caption_presentation_service == null:
+		_initialize_caption_presentation()
 		return
-	if cinder_race_session.presentation_changed.is_connected(
-		_on_cinder_session_presentation_changed
+	if not _caption_presentation_service.state_committed.is_connected(
+		_on_caption_service_state_committed
 	):
-		cinder_race_session.presentation_changed.disconnect(
-			_on_cinder_session_presentation_changed
+		_caption_presentation_service.state_committed.connect(
+			_on_caption_service_state_committed
 		)
-	if cinder_race_session.session_completed.is_connected(_on_cinder_session_completed):
-		cinder_race_session.session_completed.disconnect(_on_cinder_session_completed)
-	var snapshot := cinder_race_session.get_presentation_snapshot()
-	if not bool(snapshot.get("closed", false)):
-		cinder_race_session.close(cinder_race_session.get_session_generation())
-	cinder_race_session = null
+	if is_instance_valid(hud) and hud.has_method(&"bind_caption_event_submitter"):
+		hud.call(
+			&"bind_caption_event_submitter",
+			Callable(self, &"_submit_caption_request")
+		)
+	_sync_caption_presentation()
+
+
+func _detach_caption_presentation() -> void:
+	if is_instance_valid(hud) and hud.has_method(&"unbind_caption_event_submitter"):
+		hud.call(
+			&"unbind_caption_event_submitter",
+			Callable(self, &"_submit_caption_request")
+		)
+	if (
+		_caption_presentation_service != null
+		and _caption_presentation_service.state_committed.is_connected(
+			_on_caption_service_state_committed
+		)
+	):
+		_caption_presentation_service.state_committed.disconnect(
+			_on_caption_service_state_committed
+		)
+
+
+func _on_caption_service_state_committed(
+		_reason: StringName,
+		_state_snapshot: Dictionary
+	) -> void:
+	_sync_caption_presentation()
+
+
+func _sync_caption_presentation() -> void:
+	if (
+		_caption_presentation_service == null
+		or not is_instance_valid(hud)
+		or not hud.has_method(&"apply_caption_presentation_snapshot")
+	):
+		return
+	hud.call(
+		&"apply_caption_presentation_snapshot",
+		_caption_presentation_service.get_presentation_snapshot()
+	)
+
+
+## Sole request ingress from the HUD cue map. The HUD supplies scalar display
+## intent; GameFlow creates the typed event and the service validates/copies it.
+func _submit_caption_request(request: Dictionary) -> bool:
+	_caption_request_count += 1
+	if _caption_presentation_service == null:
+		_caption_rejected_count += 1
+		return false
+	var category_id := StringName(request.get("category_id", &""))
+	if not CAPTION_CATEGORY_BY_ID.has(category_id):
+		_caption_rejected_count += 1
+		return false
+	_caption_event_serial += 1
+	var event := CaptionPresentationEventType.new(
+		StringName("caption:%08d" % _caption_event_serial),
+		int(CAPTION_CATEGORY_BY_ID[category_id]) as CaptionPresentationEvent.Category,
+		str(request.get("speaker", "")),
+		str(request.get("text", "")),
+		float(request.get("duration_physics_seconds", -1.0)),
+		int(request.get("priority", -1))
+	) as CaptionPresentationEvent
+	var result := _caption_presentation_service.enqueue(event)
+	if bool(result.get("accepted", false)):
+		_caption_accepted_count += 1
+		return true
+	_caption_rejected_count += 1
+	return false
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_PREDELETE:
+		return
+	_detach_caption_presentation()
+	_caption_presentation_service = null
+	if cinder_race_session != null:
+		if cinder_race_session.presentation_changed.is_connected(
+			_on_cinder_session_presentation_changed
+		):
+			cinder_race_session.presentation_changed.disconnect(
+				_on_cinder_session_presentation_changed
+			)
+		if cinder_race_session.session_completed.is_connected(_on_cinder_session_completed):
+			cinder_race_session.session_completed.disconnect(_on_cinder_session_completed)
+		var snapshot := cinder_race_session.get_presentation_snapshot()
+		if not bool(snapshot.get("closed", false)):
+			cinder_race_session.close(cinder_race_session.get_session_generation())
+		cinder_race_session = null
 
 
 ## Detaches the authored children so a boot loader can add them back one frame
@@ -419,6 +529,7 @@ func _start_up() -> void:
 	_resolve_ground_vehicle()
 	active_ship = ship
 	_initialize_cinder_race_session()
+	_initialize_caption_presentation()
 	_initialize_live_combat()
 	_connect_runtime_signals()
 	opponent.set_target(active_ship)
@@ -494,6 +605,8 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
+	if _caption_presentation_service != null:
+		_caption_presentation_service.advance_physics(delta)
 	if not _piloting:
 		return
 	if not is_instance_valid(active_ship):
@@ -517,6 +630,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# the binding honest if the instance was released while detached.
 	_resolve_ground_vehicle()
 	_restore_cinder_race_session()
+	_restore_caption_presentation()
 	_connect_runtime_signals()
 	_initialize_live_combat()
 	# Part of the settings snapshot is process-wide rather than node-local: the
@@ -2840,6 +2954,53 @@ func get_runtime_settings() -> RuntimeSettings:
 	return runtime_settings
 
 
+## The only public caption payload: the service's detached, validated consumer
+## snapshot. Neither the service nor typed event objects escape GameFlow.
+func get_caption_presentation_snapshot() -> Dictionary:
+	return (
+		_caption_presentation_service.get_presentation_snapshot()
+		if _caption_presentation_service != null
+		else {}
+	)
+
+
+func get_caption_integration_report() -> Dictionary:
+	var service_state := (
+		_caption_presentation_service.get_state_snapshot()
+		if _caption_presentation_service != null
+		else {}
+	)
+	var hud_report := (
+		hud.call(&"get_caption_presentation_report")
+		if is_instance_valid(hud) and hud.has_method(&"get_caption_presentation_report")
+		else {}
+	) as Dictionary
+	return {
+		"schema_version": 1,
+		"service_count": 1 if _caption_presentation_service != null else 0,
+		"service_instance_id": _caption_presentation_service.get_instance_id() if _caption_presentation_service != null else 0,
+		"service_generation": int(service_state.get("generation", 0)),
+		"service_revision": int(service_state.get("revision", 0)),
+		"stored_caption_count": int(service_state.get("stored_caption_count", 0)),
+		"caption_request_count": _caption_request_count,
+		"caption_accepted_count": _caption_accepted_count,
+		"caption_rejected_count": _caption_rejected_count,
+		"presenter_count": int(hud_report.get("component_id", &"") == CaptionPresenter.COMPONENT_ID),
+		"presenter_instance_id": int(hud_report.get("presenter_instance_id", 0)),
+		"hud_request_sink_bound": bool(hud_report.get("request_sink_bound", false)),
+		"physics_time_owner": &"game_flow",
+		"snapshot_boundary": &"validated_presentation_dictionary_only",
+		"legacy_hud_history": false,
+		"presentation_only": true,
+		"gameplay_authority": false,
+		"reward_authority": false,
+		"audio_authority": false,
+		"activity_authority": false,
+		"ship_authority": false,
+		"berth_authority": false,
+	}.duplicate(true)
+
+
 func get_flyable_ships() -> Array[HeroShip]:
 	return ships.duplicate()
 
@@ -2968,6 +3129,12 @@ func _apply_accessibility_settings() -> void:
 		return
 	if hud.has_method("set_accessibility"):
 		hud.set_accessibility(runtime_settings.get_accessibility_descriptor())
+	if _caption_presentation_service != null:
+		_caption_presentation_service.set_presentation_flags(
+			runtime_settings.captions_enabled,
+			runtime_settings.reduced_motion
+		)
+		_sync_caption_presentation()
 	for fleet_ship in ships:
 		if not is_instance_valid(fleet_ship):
 			continue

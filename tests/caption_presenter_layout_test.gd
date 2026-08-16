@@ -9,7 +9,7 @@ const VIEWPORTS := [
 	Vector2i(1920, 1200),
 	Vector2i(3440, 1440),
 ]
-const UI_SCALES := [0.8, 1.0, 1.5]
+const UI_SCALES := [0.75, 0.8, 1.0, 1.5, 1.6]
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -41,25 +41,33 @@ func _run() -> void:
 func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 	var contract := presenter.get_layout_contract()
 	_check(
-		float(contract.minimum_ui_scale) == 0.8
-		and float(contract.maximum_ui_scale) == 1.5
+		float(contract.minimum_ui_scale) == 0.75
+		and float(contract.maximum_ui_scale) == 1.6
 		and float(contract.base_minimum_panel_width) == 560.0
 		and float(contract.base_maximum_panel_width) == 960.0
 		and float(contract.base_minimum_panel_height) == 104.0
 		and float(contract.base_safe_margin_x) == 32.0
 		and float(contract.base_safe_margin_top) == 24.0
 		and float(contract.base_safe_margin_bottom) == 42.0
+		and contract.host_bottom_safe_margin_unit == &"physical_viewport_pixels"
 		and contract.maximum_panel_height_policy == &"viewport_minus_scaled_safe_top_and_bottom"
 		and int(contract.maximum_text_characters) == 512,
 		"layout contract freezes exact UI-scale, panel, safe-area and text bounds"
 	)
 	_check(
-		not presenter.set_ui_scale(0.79)
-		and not presenter.set_ui_scale(1.51)
+		not presenter.set_ui_scale(0.74)
+		and not presenter.set_ui_scale(1.61)
 		and not presenter.set_ui_scale(NAN)
 		and is_equal_approx(presenter.get_ui_scale(), 1.0),
-		"UI scale outside 0.8..1.5 rejects without changing committed scale"
+		"UI scale outside 0.75..1.6 rejects without changing committed scale"
 	)
+	_check(
+		presenter.set_host_bottom_safe_margin(272.0)
+		and not presenter.set_host_bottom_safe_margin(-1.0)
+		and not presenter.set_host_bottom_safe_margin(NAN),
+		"a host can reserve a validated physical bottom band without weakening other safe margins"
+	)
+	presenter.clear_host_bottom_safe_margin()
 	var source := _snapshot(false, "Detached snapshot text.")
 	_check(presenter.apply_presentation_snapshot(source), "valid service presentation snapshot is accepted")
 	(source.caption as Dictionary)["text"] = "caller mutation"
@@ -136,7 +144,7 @@ func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPrese
 					]
 				)
 			print(
-				"MEASURED caption layout %dx%d @ %.1f panel=%s lines=%d content=%.1f"
+				"MEASURED caption layout %dx%d @ %.2f panel=%s lines=%d content=%.1f"
 				% [
 					viewport_size.x,
 					viewport_size.y,
@@ -173,6 +181,7 @@ func _test_hidden_and_reduced_flash(presenter: CaptionPresenter) -> void:
 		standard.transition_policy == &"consumer_standard"
 		and reduced.transition_policy == &"steady_no_flash"
 		and int(reduced.animation_player_count) == 0
+		and int(reduced.owned_tween_count) == 0
 		and int(reduced.tween_count) == 0
 		and presenter.modulate == Color.WHITE
 		and presenter.self_modulate == Color.WHITE,

@@ -348,30 +348,45 @@ func _test_hud_captions() -> void:
 	hud.name = "AccessibilityCaptionHUD"
 	root.add_child(hud)
 	await process_frame
+	var submitted: Array[Dictionary] = []
+	var sink := func(request: Dictionary) -> bool:
+		submitted.append(request.duplicate(true))
+		return true
+	_check(hud.bind_caption_event_submitter(sink), "the standalone HUD accepts one request-only caption sink")
 
 	_check(not hud.are_captions_enabled(), "captions start off")
 	_check(not hud.caption_cue(&"ship_explosion"), "no caption is produced while the preset is off")
-	_check(hud.get_caption_log().is_empty(), "a disabled caption channel records nothing")
+	_check(submitted.is_empty(), "a disabled caption channel submits nothing")
 
 	hud.set_captions_enabled(true)
 	_check(hud.caption_cue(&"ship_explosion"), "an authored combat cue produces a caption")
 	_check(hud.caption_cue(&"canopy_open"), "an authored flow cue produces a caption")
 	_check(not hud.caption_cue(&"footstep_low"), "footsteps are deliberately excluded from the caption channel")
 	_check(not hud.caption_cue(&"not_a_cue"), "an unknown cue never fabricates a caption")
-	var log := hud.get_caption_log()
-	_check(log.size() == 2 and log[0] == "[ ship explosion ]", "captions are recorded in cue order")
-	var caption_panel := hud.get("_caption_panel") as PanelContainer
-	_check(caption_panel.visible, "the caption panel becomes visible once a cue is captioned")
-
-	for index in 6:
-		hud.caption_cue(&"hull_impact_light")
 	_check(
-		hud.get_caption_log().size() == GameHUD.CAPTION_HISTORY_LIMIT,
-		"the caption history is bounded so a firefight cannot grow it without limit"
+		submitted.size() == 2
+		and submitted[0].cue_id == &"ship_explosion"
+		and submitted[0].category_id == &"ambient"
+		and str(submitted[0].speaker) == "Combat audio"
+		and str(submitted[0].text) == "[ ship explosion ]"
+		and is_equal_approx(
+			float(submitted[0].duration_physics_seconds),
+			GameHUD.CAPTION_DURATION_PHYSICS_SECONDS
+		),
+		"HUD cue mappings submit detached typed display intent in cue order"
+	)
+	(submitted[0] as Dictionary)["text"] = "caller mutation"
+	_check(
+		str(GameHUD.CAPTION_CUES[&"ship_explosion"][2]) == "[ ship explosion ]",
+		"a sink cannot mutate the authored cue mapping back through its detached request"
 	)
 
 	hud.set_captions_enabled(false)
-	_check(hud.get_caption_log().is_empty() and not caption_panel.visible, "disabling captions clears the channel")
+	_check(
+		not hud.caption_cue(&"combat_alert") and submitted.size() == 2,
+		"disabling captions stops requests without creating a parallel HUD queue"
+	)
+	_check(hud.unbind_caption_event_submitter(sink), "the request-only caption sink detaches cleanly")
 
 	hud.queue_free()
 	await process_frame

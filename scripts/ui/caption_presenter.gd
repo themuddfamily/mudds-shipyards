@@ -10,8 +10,8 @@ extends Control
 const COMPONENT_ID: StringName = &"caption-visual-presenter"
 const SERVICE_ID: StringName = &"caption-presentation-service"
 const SNAPSHOT_SCHEMA_VERSION := 1
-const MIN_UI_SCALE := 0.8
-const MAX_UI_SCALE := 1.5
+const MIN_UI_SCALE := 0.75
+const MAX_UI_SCALE := 1.6
 const BASE_MIN_PANEL_WIDTH := 560.0
 const BASE_MAX_PANEL_WIDTH := 960.0
 const BASE_MIN_PANEL_HEIGHT := 104.0
@@ -42,11 +42,19 @@ var _ui_scale := 1.0
 var _applied_snapshot: Dictionary = {}
 var _layout_token := 0
 var _layout_viewport_size := Vector2.ZERO
+## Optional physical-pixel exclusion supplied by a host HUD. A negative value
+## retains the reusable component's scaled bottom safe margin.
+var _host_bottom_safe_margin := -1.0
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_enforce_input_transparency()
+	# Speaker text is bounded to 64 characters by the service, but that can still
+	# exceed a narrow composed-HUD centre band. Preserve the full semantic text
+	# property while keeping its visible header inside the panel.
+	_speaker_label.clip_text = true
+	_speaker_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	visible = false
 	if not resized.is_connected(_queue_layout):
 		resized.connect(_queue_layout)
@@ -59,6 +67,10 @@ func _ready() -> void:
 func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
 	if not _is_valid_presentation_snapshot(snapshot):
 		return false
+	var was_visible := visible
+	var previous_category := _category_label.text
+	var previous_speaker := _speaker_label.text
+	var previous_text := _text_label.text
 	_applied_snapshot = snapshot.duplicate(true)
 	var should_show := bool(_applied_snapshot.visible) and bool(_applied_snapshot.captions_enabled)
 	if not should_show:
@@ -66,7 +78,8 @@ func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
 		_speaker_label.text = ""
 		_text_label.text = ""
 		visible = false
-		_queue_layout()
+		if was_visible or not previous_text.is_empty():
+			_queue_layout()
 		return true
 	var caption := _applied_snapshot.caption as Dictionary
 	_category_label.text = "[ %s ]" % str(caption.category_id).to_upper()
@@ -75,7 +88,13 @@ func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
 	modulate = Color.WHITE
 	self_modulate = Color.WHITE
 	visible = true
-	_queue_layout()
+	if (
+		not was_visible
+		or previous_category != _category_label.text
+		or previous_speaker != _speaker_label.text
+		or previous_text != _text_label.text
+	):
+		_queue_layout()
 	return true
 
 
@@ -94,6 +113,27 @@ func get_ui_scale() -> float:
 	return _ui_scale
 
 
+## Lets a composed HUD reserve its own bottom interaction/telemetry band while
+## retaining this component's width, wrapping and top/side safe-area rules.
+## The value is expressed in final viewport pixels because the host may apply a
+## different layout ceiling from the requested accessibility scale.
+func set_host_bottom_safe_margin(value: float) -> bool:
+	if not is_finite(value) or value < 0.0:
+		return false
+	if is_equal_approx(_host_bottom_safe_margin, value):
+		return true
+	_host_bottom_safe_margin = value
+	_queue_layout()
+	return true
+
+
+func clear_host_bottom_safe_margin() -> void:
+	if _host_bottom_safe_margin < 0.0:
+		return
+	_host_bottom_safe_margin = -1.0
+	_queue_layout()
+
+
 ## Deeply detached copy suitable for a consumer that detaches and later wants to
 ## compare revisions. Mutation never reaches the labels or retained input.
 func get_applied_snapshot() -> Dictionary:
@@ -110,6 +150,7 @@ func get_layout_contract() -> Dictionary:
 		"base_safe_margin_x": BASE_SAFE_MARGIN_X,
 		"base_safe_margin_top": BASE_SAFE_MARGIN_TOP,
 		"base_safe_margin_bottom": BASE_SAFE_MARGIN_BOTTOM,
+		"host_bottom_safe_margin_unit": &"physical_viewport_pixels",
 		"maximum_panel_height_policy": &"viewport_minus_scaled_safe_top_and_bottom",
 		"maximum_text_characters": CaptionPresentationEvent.MAX_TEXT_LENGTH,
 	}.duplicate(true)
@@ -118,7 +159,7 @@ func get_layout_contract() -> Dictionary:
 func get_layout_report() -> Dictionary:
 	var viewport_size := _resolved_viewport_size()
 	var safe_rect := _safe_rect(viewport_size)
-	var panel_rect := _panel.get_rect() if _panel != null else Rect2()
+	var panel_rect := _panel.get_global_rect() if _panel != null else Rect2()
 	var text_content_height := float(_text_label.get_content_height()) if _text_label != null else 0.0
 	var text_rect := _text_label.get_global_rect() if _text_label != null else Rect2()
 	var input_transparent := mouse_filter == Control.MOUSE_FILTER_IGNORE
@@ -127,6 +168,7 @@ func get_layout_report() -> Dictionary:
 	return {
 		"component_id": COMPONENT_ID,
 		"viewport_size": viewport_size,
+		"viewport_origin": global_position,
 		"ui_scale": _ui_scale,
 		"safe_rect": safe_rect,
 		"panel_rect": panel_rect,
@@ -134,6 +176,7 @@ func get_layout_report() -> Dictionary:
 		"panel_maximum_width": BASE_MAX_PANEL_WIDTH * _ui_scale,
 		"panel_minimum_height": BASE_MIN_PANEL_HEIGHT * _ui_scale,
 		"panel_maximum_height": _maximum_panel_height(viewport_size),
+		"effective_safe_margin_bottom": _safe_margin_bottom(),
 		"category_rect": _category_label.get_global_rect() if _category_label != null else Rect2(),
 		"speaker_rect": _speaker_label.get_global_rect() if _speaker_label != null else Rect2(),
 		"text_rect": text_rect,
@@ -145,7 +188,10 @@ func get_layout_report() -> Dictionary:
 		"reduced_flash": bool(_applied_snapshot.get("reduced_flash", false)),
 		"transition_policy": StringName(_applied_snapshot.get("transition_policy", &"")),
 		"animation_player_count": find_children("*", "AnimationPlayer", true, false).size(),
-		"tween_count": get_tree().get_processed_tweens().size() if get_tree() != null else 0,
+		# The component has no tween owner. A composed HUD may have unrelated toast
+		# or damage tweens, which must not be misreported as caption animation.
+		"owned_tween_count": 0,
+		"tween_count": 0,
 		"rendered_category": _category_label.text if _category_label != null else "",
 		"rendered_speaker": _speaker_label.text if _speaker_label != null else "",
 		"rendered_text": _text_label.text if _text_label != null else "",
@@ -279,7 +325,7 @@ func _layout_pass_one(token: int) -> void:
 	var available_width := maxf(1.0, _layout_viewport_size.x - safe_margin_x * 2.0)
 	var panel_width := minf(BASE_MAX_PANEL_WIDTH * _ui_scale, available_width)
 	panel_width = maxf(minf(BASE_MIN_PANEL_WIDTH * _ui_scale, available_width), panel_width)
-	var bottom_margin := BASE_SAFE_MARGIN_BOTTOM * _ui_scale
+	var bottom_margin := _safe_margin_bottom()
 	var maximum_height := _maximum_panel_height(_layout_viewport_size)
 	_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_panel.offset_left = -panel_width * 0.5
@@ -304,7 +350,7 @@ func _layout_pass_two(token: int) -> void:
 	var desired_height := vertical_margins + separations + header_height + divider_height + content_height
 	var maximum_height := _maximum_panel_height(_layout_viewport_size)
 	var panel_height := clampf(desired_height, BASE_MIN_PANEL_HEIGHT * _ui_scale, maximum_height)
-	var bottom_margin := BASE_SAFE_MARGIN_BOTTOM * _ui_scale
+	var bottom_margin := _safe_margin_bottom()
 	_panel.offset_top = -bottom_margin - panel_height
 	_panel.offset_bottom = -bottom_margin
 
@@ -320,14 +366,25 @@ func _safe_rect(viewport_size: Vector2) -> Rect2:
 	var left := BASE_SAFE_MARGIN_X * _ui_scale
 	var top := BASE_SAFE_MARGIN_TOP * _ui_scale
 	var right := viewport_size.x - left
-	var bottom := viewport_size.y - BASE_SAFE_MARGIN_BOTTOM * _ui_scale
-	return Rect2(Vector2(left, top), Vector2(maxf(0.0, right - left), maxf(0.0, bottom - top)))
+	var bottom := viewport_size.y - _safe_margin_bottom()
+	return Rect2(
+		global_position + Vector2(left, top),
+		Vector2(maxf(0.0, right - left), maxf(0.0, bottom - top))
+	)
 
 
 func _maximum_panel_height(viewport_size: Vector2) -> float:
 	return maxf(
 		BASE_MIN_PANEL_HEIGHT * _ui_scale,
-		viewport_size.y - (BASE_SAFE_MARGIN_TOP + BASE_SAFE_MARGIN_BOTTOM) * _ui_scale
+		viewport_size.y - BASE_SAFE_MARGIN_TOP * _ui_scale - _safe_margin_bottom()
+	)
+
+
+func _safe_margin_bottom() -> float:
+	return (
+		_host_bottom_safe_margin
+		if _host_bottom_safe_margin >= 0.0
+		else BASE_SAFE_MARGIN_BOTTOM * _ui_scale
 	)
 
 

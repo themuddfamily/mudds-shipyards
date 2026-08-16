@@ -105,8 +105,22 @@ func _seed_worst_case_content() -> void:
 	_hud.set_enemy_status(LONGEST_ENEMY, 22.0, 100.0, true)
 	_hud.toast(LONGEST_TOAST_TITLE, LONGEST_TOAST_DETAIL, 600.0)
 	_hud.set_captions_enabled(true)
-	for cue: StringName in [&"combat_alert", &"hull_impact_heavy", &"enemy_destroyed"]:
-		_hud.caption_cue(cue)
+	var caption_service := CaptionPresentationService.new()
+	var caption_event := CaptionPresentationEvent.new(
+		&"layout.worst-visible-cue",
+		CaptionPresentationEvent.Category.AMBIENT,
+		"S".repeat(CaptionPresentationEvent.MAX_SPEAKER_LENGTH),
+		"[ hostile craft destroyed ]",
+		12.0,
+		90
+	)
+	_check(caption_event.is_valid(), "worst-case caption event is valid")
+	caption_service.enqueue(caption_event)
+	var caption_snapshot := caption_service.get_presentation_snapshot()
+	_check(
+		_hud.apply_caption_presentation_snapshot(caption_snapshot),
+		"worst-case caption snapshot reaches the production presenter"
+	)
 	_hud.update_ship_telemetry({
 		"speed": 999.0,
 		"altitude": 9999.0,
@@ -122,7 +136,7 @@ func _seed_worst_case_content() -> void:
 	var rects := _hud.get_hud_panel_rects()
 	_check(
 		rects.size() == 8,
-		"all eight gameplay panels are laid out and measurable (found %d)" % rects.size()
+		"seven legacy HUD panels plus the snapshot presenter are laid out and measurable (found %d)" % rects.size()
 	)
 
 
@@ -133,6 +147,16 @@ func _seed_worst_case_content() -> void:
 func _test_contract_floor() -> void:
 	var floor_size := Vector2(GameHUD.MIN_LOGICAL_WIDTH, GameHUD.MIN_LOGICAL_HEIGHT)
 	var rects := await _layout(floor_size, 1.0)
+	var caption_report := _hud.get_caption_presentation_report()
+	var caption_panel := caption_report.panel_rect as Rect2
+	var caption_speaker := caption_report.speaker_rect as Rect2
+	_check(
+		str(caption_report.rendered_speaker).length()
+			== CaptionPresentationEvent.MAX_SPEAKER_LENGTH
+		and caption_speaker.position.x >= caption_panel.position.x
+		and caption_speaker.end.x <= caption_panel.end.x,
+		"the maximum 64-character speaker stays inside the narrow production host"
+	)
 	var logical := _hud.get_hud_logical_size()
 	_check(
 		logical.is_equal_approx(floor_size),

@@ -6,6 +6,7 @@ const PaletteType := preload("res://scripts/ui/hud_palette.gd")
 const InputBindingProfileType := preload("res://scripts/settings/input_binding_profile.gd")
 const InputRebindServiceType := preload("res://scripts/settings/input_rebind_service.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
+const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 
 signal start_requested
 signal restart_requested
@@ -30,25 +31,31 @@ const MUTED := PaletteType.ROLE_MUTED
 ## Captions describe cue *events*, so they stay correct even when the audio
 ## backend is unavailable. Cues with no entry here are deliberately silent in the
 ## caption channel; footsteps in particular would drown every other line.
-const CAPTION_TEXTS := {
-	&"ui_confirm": "[ interface confirm ]",
-	&"impact": "[ hull impact ]",
-	&"target_destroyed": "[ range target destroyed ]",
-	&"combat_alert": "[ combat alert ]",
-	&"canopy_open": "[ canopy opening ]",
-	&"canopy_close": "[ canopy closing ]",
-	&"enemy_destroyed": "[ hostile craft destroyed ]",
-	&"player_pulse_fire": "[ pulse cannon fires ]",
-	&"defender_pulse_fire": "[ hostile pulse fire ]",
-	&"dry_fire_click": "[ weapon dry click ]",
-	&"hull_impact_light": "[ light hull impact ]",
-	&"hull_impact_medium": "[ hull impact ]",
-	&"hull_impact_heavy": "[ heavy hull impact ]",
-	&"ship_explosion": "[ ship explosion ]",
+const CAPTION_CUES := {
+	&"ui_confirm": [&"system", "Interface", "[ interface confirm ]", 30],
+	&"impact": [&"ambient", "Hull sensors", "[ hull impact ]", 65],
+	&"target_destroyed": [&"system", "Range control", "[ range target destroyed ]", 60],
+	&"combat_alert": [&"system", "Threat warning", "[ combat alert ]", 90],
+	&"canopy_open": [&"ambient", "Canopy", "[ canopy opening ]", 40],
+	&"canopy_close": [&"ambient", "Canopy", "[ canopy closing ]", 40],
+	&"enemy_destroyed": [&"system", "Combat computer", "[ hostile craft destroyed ]", 90],
+	&"player_pulse_fire": [&"ambient", "Weapon audio", "[ pulse cannon fires ]", 45],
+	&"defender_pulse_fire": [&"ambient", "Threat audio", "[ hostile pulse fire ]", 70],
+	&"dry_fire_click": [&"ambient", "Weapon audio", "[ weapon dry click ]", 55],
+	&"hull_impact_light": [&"ambient", "Hull sensors", "[ light hull impact ]", 65],
+	&"hull_impact_medium": [&"ambient", "Hull sensors", "[ hull impact ]", 75],
+	&"hull_impact_heavy": [&"ambient", "Hull sensors", "[ heavy hull impact ]", 85],
+	&"ship_explosion": [&"ambient", "Combat audio", "[ ship explosion ]", 90],
 }
 
-const CAPTION_HISTORY_LIMIT := 3
-const CAPTION_HOLD_SECONDS := 3.4
+const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
+## The bottom band already occupied by interaction and telemetry. The presenter
+## receives this in final viewport pixels after the HUD scale ceiling resolves.
+const CAPTION_BOTTOM_SAFE_LOGICAL := 272.0
+## Gutter exclusions keep the wide presenter between objectives on the left and
+## controls/telemetry on the right. Its own safe margins sit inside this host.
+const CAPTION_HOST_LEFT_LOGICAL := PANEL_LEFT_COLUMN_WIDTH + PANEL_MARGIN
+const CAPTION_HOST_RIGHT_LOGICAL := PANEL_TELEMETRY_WIDTH + PANEL_MARGIN
 
 ## Reduced motion keeps the informational content of the damage cue but removes
 ## the full-screen luminance sweep and the animated fades that cause discomfort.
@@ -217,11 +224,11 @@ var _captions_enabled := false
 ## flight-path cue, and damage flash are deliberately excluded: they are
 ## registered against camera-space pixels and must stay 1:1 with the viewport.
 var _scaled_layers: Array[Control] = []
-var _caption_panel: PanelContainer
-var _caption_stack: VBoxContainer
-var _caption_lines: Array[Label] = []
-var _caption_log: Array[String] = []
-var _caption_hold := 0.0
+var _layout_effective_ui_scale := 1.0
+var _caption_presenter: CaptionPresenter
+## Request-only route into the GameFlow-owned service. The HUD stores no queue,
+## timer, event ID, or parallel visible-caption state.
+var _caption_event_submitter := Callable()
 ## Last known signal state, so a palette change repaints state colours
 ## immediately instead of waiting for the next telemetry tick.
 var _state_piloting := false
@@ -257,6 +264,11 @@ var _activity_objective_report: Dictionary = {
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_caption_presenter = get_node_or_null(^"CaptionPresenter") as CaptionPresenter
+	if not is_instance_valid(_caption_presenter):
+		_caption_presenter = CaptionPresenterScene.instantiate() as CaptionPresenter
+		_caption_presenter.name = "CaptionPresenter"
+		add_child(_caption_presenter)
 	_input_rebind_service = InputRebindServiceType.new()
 	_input_binding_defaults = _input_rebind_service.get_defaults()
 	_input_binding_profile = _input_binding_defaults.duplicate_profile()
@@ -264,18 +276,9 @@ func _ready() -> void:
 	_build_interface()
 	set_process_input(true)
 	set_process_unhandled_input(true)
-	set_process(true)
 	var viewport := get_viewport()
 	if viewport != null and not viewport.size_changed.is_connected(_apply_ui_scale):
 		viewport.size_changed.connect(_apply_ui_scale)
-
-
-func _process(delta: float) -> void:
-	if _caption_hold <= 0.0:
-		return
-	_caption_hold = maxf(_caption_hold - delta, 0.0)
-	if _caption_hold <= 0.0:
-		_clear_captions()
 
 
 func _input(event: InputEvent) -> void:
@@ -903,13 +906,19 @@ func get_hud_panel_rects() -> Dictionary:
 		"telemetry": _telemetry_panel,
 		"toast": _toast_panel,
 		"enemy": _enemy_panel,
-		"caption": _caption_panel,
 	}
 	var rects := {}
 	for key: String in sources:
 		var control := sources[key] as Control
 		if is_instance_valid(control):
 			rects[key] = control.get_rect()
+	if is_instance_valid(_caption_presenter):
+		var effective := maxf(_layout_effective_ui_scale, 0.01)
+		var report := _caption_presenter.get_layout_report()
+		rects["caption"] = Rect2(
+			(report.panel_rect as Rect2).position / effective,
+			(report.panel_rect as Rect2).size / effective
+		)
 	return rects
 
 
@@ -919,6 +928,7 @@ func get_hud_panel_rects() -> Dictionary:
 ## the shipping layout at window sizes a headless run cannot give the window.
 func layout_for_viewport(viewport_size: Vector2) -> float:
 	var effective := compute_effective_ui_scale(_ui_scale, viewport_size)
+	_layout_effective_ui_scale = effective
 	var logical := viewport_size / maxf(effective, 0.01)
 	for layer in _scaled_layers:
 		if not is_instance_valid(layer):
@@ -927,6 +937,21 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		layer.position = Vector2.ZERO
 		layer.size = logical
 		layer.scale = Vector2(effective, effective)
+	if is_instance_valid(_caption_presenter):
+		_caption_presenter.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_caption_presenter.position = Vector2(CAPTION_HOST_LEFT_LOGICAL * effective, 0.0)
+		_caption_presenter.size = Vector2(
+			maxf(
+				1.0,
+				viewport_size.x
+					- (CAPTION_HOST_LEFT_LOGICAL + CAPTION_HOST_RIGHT_LOGICAL) * effective
+			),
+			viewport_size.y
+		)
+		_caption_presenter.set_ui_scale(effective)
+		_caption_presenter.set_host_bottom_safe_margin(
+			CAPTION_BOTTOM_SAFE_LOGICAL * effective
+		)
 	return effective
 
 
@@ -975,13 +1000,12 @@ func get_toast_fade_seconds() -> float:
 
 
 func set_captions_enabled(enabled: bool) -> void:
-	if _captions_enabled == enabled:
-		return
 	_captions_enabled = enabled
-	if not enabled:
-		_clear_captions()
-	elif _caption_panel != null:
-		_caption_panel.visible = not _caption_log.is_empty()
+	# Production immediately follows with a service snapshot commit. This local
+	# gate also preserves the public HUD setter's fail-closed behavior for an
+	# isolated or currently detached HUD, without fabricating service state.
+	if not enabled and is_instance_valid(_caption_presenter):
+		_caption_presenter.visible = false
 
 
 func are_captions_enabled() -> bool:
@@ -991,28 +1015,91 @@ func are_captions_enabled() -> bool:
 ## Presents one authored audio cue as readable text. Cues without an authored
 ## caption are ignored, and nothing is shown while captions are disabled.
 func caption_cue(cue_id: StringName) -> bool:
-	if not _captions_enabled or not CAPTION_TEXTS.has(cue_id):
+	if not _captions_enabled or not CAPTION_CUES.has(cue_id):
 		return false
-	return show_caption(str(CAPTION_TEXTS[cue_id]))
+	var cue := CAPTION_CUES[cue_id] as Array
+	return _submit_caption_request({
+		"cue_id": cue_id,
+		"category_id": StringName(cue[0]),
+		"speaker": str(cue[1]),
+		"text": str(cue[2]),
+		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
+		"priority": int(cue[3]),
+	})
 
 
 func show_caption(text: String) -> bool:
-	if not _captions_enabled or _caption_panel == null:
+	if not _captions_enabled:
 		return false
 	var line := text.strip_edges()
 	if line.is_empty():
 		return false
-	_caption_log.append(line)
-	while _caption_log.size() > CAPTION_HISTORY_LIMIT:
-		_caption_log.remove_at(0)
-	_refresh_caption_lines()
-	_caption_hold = CAPTION_HOLD_SECONDS
-	_caption_panel.visible = true
+	return _submit_caption_request({
+		"cue_id": &"manual",
+		"category_id": &"system",
+		"speaker": "Shipyard",
+		"text": line,
+		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
+		"priority": 50,
+	})
+
+
+## GameFlow binds one request sink for the lifetime of a production Main. The
+## Callable receives a detached descriptor and returns whether the typed service
+## accepted it. Rebinding the same sink is idempotent; a competing owner fails.
+func bind_caption_event_submitter(submitter: Callable) -> bool:
+	if not submitter.is_valid():
+		return false
+	if _caption_event_submitter.is_valid() and _caption_event_submitter != submitter:
+		return false
+	_caption_event_submitter = submitter
 	return true
 
 
+func unbind_caption_event_submitter(submitter: Callable) -> bool:
+	if not _caption_event_submitter.is_valid():
+		return true
+	if not submitter.is_valid() or _caption_event_submitter != submitter:
+		return false
+	_caption_event_submitter = Callable()
+	return true
+
+
+## The sole visual ingress: a detached presentation dictionary produced by the
+## GameFlow-owned service. Invalid lookalikes never mutate the last view.
+func apply_caption_presentation_snapshot(snapshot: Dictionary) -> bool:
+	if not is_instance_valid(_caption_presenter):
+		return false
+	return _caption_presenter.apply_presentation_snapshot(snapshot)
+
+
+func get_caption_presentation_snapshot() -> Dictionary:
+	return (
+		_caption_presenter.get_applied_snapshot()
+		if is_instance_valid(_caption_presenter)
+		else {}
+	)
+
+
+func get_caption_presentation_report() -> Dictionary:
+	if not is_instance_valid(_caption_presenter):
+		return {}
+	var report := _caption_presenter.get_layout_report()
+	report["request_sink_bound"] = _caption_event_submitter.is_valid()
+	report["presenter_instance_id"] = _caption_presenter.get_instance_id()
+	return report.duplicate(true)
+
+
+## Legacy read-only compatibility now projects the one authoritative active
+## presentation. The retired three-line history is intentionally not recreated.
 func get_caption_log() -> PackedStringArray:
-	return PackedStringArray(_caption_log)
+	if not _captions_enabled:
+		return PackedStringArray()
+	var snapshot := get_caption_presentation_snapshot()
+	if not bool(snapshot.get("visible", false)):
+		return PackedStringArray()
+	var caption := snapshot.get("caption", {}) as Dictionary
+	return PackedStringArray([str(caption.get("text", ""))])
 
 
 ## Detached snapshot of everything a preset changed. Tests and the settings owner
@@ -1038,8 +1125,10 @@ func get_accessibility_report() -> Dictionary:
 		"damage_flash_alpha": get_damage_flash_alpha(),
 		"toast_fade_seconds": get_toast_fade_seconds(),
 		"captions_enabled": _captions_enabled,
-		"caption_visible": _caption_panel != null and _caption_panel.visible,
-		"caption_log": PackedStringArray(_caption_log),
+		"caption_visible": bool(get_caption_presentation_report().get("visible", false)),
+		"caption_log": get_caption_log(),
+		"caption_request_sink_bound": _caption_event_submitter.is_valid(),
+		"caption_presenter_count": 1 if is_instance_valid(_caption_presenter) else 0,
 	}
 
 
@@ -1075,25 +1164,10 @@ func _viewport_size() -> Vector2:
 	)
 
 
-func _refresh_caption_lines() -> void:
-	for index in _caption_lines.size():
-		var label := _caption_lines[index]
-		var source_index := _caption_log.size() - _caption_lines.size() + index
-		if source_index < 0:
-			label.text = ""
-			label.visible = false
-			continue
-		label.text = _caption_log[source_index]
-		label.visible = true
-		label.modulate = Color(1.0, 1.0, 1.0, 0.55 if source_index < _caption_log.size() - 1 else 1.0)
-
-
-func _clear_captions() -> void:
-	_caption_log.clear()
-	_caption_hold = 0.0
-	_refresh_caption_lines()
-	if _caption_panel != null:
-		_caption_panel.visible = false
+func _submit_caption_request(request: Dictionary) -> bool:
+	if not _caption_event_submitter.is_valid():
+		return false
+	return bool(_caption_event_submitter.call(request.duplicate(true)))
 
 
 func _begin() -> void:
@@ -1332,7 +1406,7 @@ func _build_hud() -> void:
 	_build_telemetry()
 	_build_enemy_status()
 	_build_toast()
-	_build_captions()
+	_attach_caption_presenter()
 	_build_damage_flash()
 
 
@@ -1441,34 +1515,15 @@ func _build_enemy_status() -> void:
 	_enemy_panel.visible = false
 
 
-func _build_captions() -> void:
-	_caption_panel = PanelContainer.new()
-	_caption_panel.name = "CaptionPanel"
-	_caption_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	# Seated entirely above the telemetry panel's top edge (-250) and above the
-	# interaction prompt, so captions never cover speed, altitude, hull state, or
-	# the board/dock prompt at any supported UI scale. The three caption lines
-	# push the real height to 94 px, so the authored 90 px band is the floor, not
-	# the actual extent -- the clearance below is measured against 94.
-	_caption_panel.offset_left = -235.0
-	_caption_panel.offset_right = 235.0
-	_caption_panel.offset_top = -362.0
-	_caption_panel.offset_bottom = -272.0
-	_caption_panel.add_theme_stylebox_override("panel", _border_box(Color("06101ae8"), 6, NOMINAL_SOFT))
-	_hud_panels.add_child(_caption_panel)
-	var margin := _margin(16, 10, 16, 10)
-	_caption_panel.add_child(margin)
-	_caption_stack = VBoxContainer.new()
-	_caption_stack.add_theme_constant_override("separation", 3)
-	margin.add_child(_caption_stack)
-	for index in CAPTION_HISTORY_LIMIT:
-		var line := _label("", 15, PRIMARY)
-		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		line.visible = false
-		_caption_stack.add_child(line)
-		_caption_lines.append(line)
-	_caption_panel.visible = false
+func _attach_caption_presenter() -> void:
+	if not is_instance_valid(_caption_presenter):
+		push_error("HUD scene is missing its authored CaptionPresenter")
+		return
+	_caption_presenter.reparent(_hud, false)
+	_caption_presenter.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_caption_presenter.position = Vector2.ZERO
+	_caption_presenter.size = _viewport_size()
+	_caption_presenter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _build_damage_flash() -> void:

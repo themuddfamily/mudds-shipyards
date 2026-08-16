@@ -16,7 +16,7 @@ bright world imagery.
 
 | Quantity | Exact value |
 | --- | ---: |
-| UI scale | 0.8–1.5 |
+| UI scale | 0.75–1.6 |
 | Base panel width | 560–960 px |
 | Base minimum height | 104 px |
 | Horizontal safe margin | 32 px per side |
@@ -30,8 +30,13 @@ high-scale viewports. Height is derived from the real wrapped RichTextLabel
 content metric, then constrained between the scaled 104 px minimum and the
 deterministic maximum `viewport height - scaled top margin - scaled bottom
 margin`. The focused suite measures 1280×720, 1920×1080 (16:9),
-1920×1200 (16:10) and 3440×1440 (ultrawide) at 0.8, 1.0 and 1.5 scale with an
-exact 512-character caption.
+1920×1200 (16:10) and 3440×1440 (ultrawide) at 0.75, 0.8, 1.0, 1.5 and 1.6
+scale with an exact 512-character caption.
+
+A composing HUD may reserve a larger physical-pixel bottom band through
+`set_host_bottom_safe_margin()`. This moves the panel above existing interaction
+and telemetry controls without changing its wrapping, size bounds, or top/side
+safe margins. The standalone default remains the scaled 42 px bottom margin.
 
 Hidden snapshots clear stale text, set the component invisible, and every
 Control in the subtree uses `MOUSE_FILTER_IGNORE`. Reduced-flash snapshots are
