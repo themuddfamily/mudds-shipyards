@@ -234,14 +234,13 @@ func _test_guided_mid_landing_reset_is_terminal() -> void:
 		"guided Torrent reaches one authoritative pilot seat"
 	)
 
-	torrent.engine_start_time = 0.01
-	torrent.request_engine_start()
 	_check(
-		await _wait_until(
-			func() -> bool: return game.phase == GameFlow.Phase.LAUNCH,
-			0.5
-		),
-		"guided Torrent reaches the launch phase"
+		await _apply_forward_demand_for_one_tick(torrent),
+		"one accepted flight-demand tick wakes the guided Torrent ONLINE"
+	)
+	_check(
+		game.phase == GameFlow.Phase.START_ENGINES,
+		"automatic engine wake alone retains the guided Torrent's launch-ready phase"
 	)
 	Input.action_press(&"move_forward")
 	var departed := await _wait_until(
@@ -251,6 +250,7 @@ func _test_guided_mid_landing_reset_is_terminal() -> void:
 	Input.action_release(&"move_forward")
 	await physics_frame
 	_check(departed, "physical thrust releases the guided Torrent's parked berth")
+	_check(game.phase == GameFlow.Phase.LAUNCH, "physical departure advances the guided Torrent to launch")
 
 	game.destroyed_targets = game.total_targets
 	game.call("_begin_interceptor_engagement")
@@ -407,6 +407,18 @@ func _clean_up(game: Node) -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+
+
+func _apply_forward_demand_for_one_tick(ship: HeroShip) -> bool:
+	Input.action_press(&"move_forward")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "ONLINE"
+		and ship.get_last_ship_command().throttle > 0.0
+	)
+	Input.action_release(&"move_forward")
+	return accepted
 
 
 func _release_combat_audio_before_main_teardown(game: Node) -> void:

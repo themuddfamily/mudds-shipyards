@@ -327,64 +327,70 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	ship.set_physics_process(false)
 	source.call(&"invalidate_pending_commands")
 	game.call("_reset_lifecycle_command_cursor")
-	ship.engine_start_time = 5.0
-	var starting_count := [0]
-	ship.engine_state_changed.connect(func(state: StringName) -> void:
-		if state == HeroShip.ENGINE_STARTING:
-			starting_count[0] += 1
-	)
 
-	source.queue_action_edge(&"engine_start")
+	source.queue_action_edge(&"landing_assist")
 	ship.call("_physics_process", 1.0 / 60.0)
 	var edge_sample := ship.get_last_ship_command()
 	ship.call("_physics_process", 1.0 / 60.0)
 	var neutral_sample := ship.get_last_ship_command()
 	_check(
-		edge_sample.engine_start
+		edge_sample.landing
 		and neutral_sample.sequence > edge_sample.sequence
-		and not neutral_sample.engine_start
-		and str(ship.get_telemetry().engine_state) == "OFFLINE",
+		and not neutral_sample.landing,
 		"edge sequence 1 can be followed by neutral sequence 2 before GameFlow polls"
 	)
 	game.call("_consume_active_ship_command_edges")
+	var delivered_lifecycle_cursor := Vector2i(
+		int(game.get("_last_lifecycle_command_stream_id")),
+		int(game.get("_last_lifecycle_command_sequence"))
+	)
 	_check(
-		str(ship.get_telemetry().engine_state) == "STARTING"
-		and starting_count[0] == 1,
+		delivered_lifecycle_cursor == Vector2i(edge_sample.stream_id, edge_sample.sequence),
 		"ordered FIFO delivery preserves and consumes the overwritten lifecycle edge once"
 	)
 	game.call("_consume_active_ship_command_edges")
 	_check(
-		starting_count[0] == 1,
+		Vector2i(
+			int(game.get("_last_lifecycle_command_stream_id")),
+			int(game.get("_last_lifecycle_command_sequence"))
+		) == delivered_lifecycle_cursor,
 		"an empty later idle drain cannot replay an already consumed lifecycle edge"
 	)
-	ship.request_engine_stop(false)
 
 	# A command already sampled by HeroShip is still pending for GameFlow. Focus
-	# loss must invalidate that side-channel before it can start the engines.
-	source.queue_action_edge(&"engine_start")
+	# loss must invalidate that side-channel before it can request landing.
+	source.queue_action_edge(&"landing_assist")
 	ship.call("_physics_process", 1.0 / 60.0)
-	_check(ship.get_last_ship_command().engine_start, "focus probe stages one pending engine edge")
+	var cursor_before_focus_loss := delivered_lifecycle_cursor
+	_check(ship.get_last_ship_command().landing, "focus probe stages one pending landing edge")
 	source.notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
 	game.call("_consume_active_ship_command_edges")
 	_check(
-		str(ship.get_telemetry().engine_state) == "OFFLINE"
-		and starting_count[0] == 1,
-		"focus-out invalidation rejects a sampled but not-yet-dispatched engine edge"
+		Vector2i(
+			int(game.get("_last_lifecycle_command_stream_id")),
+			int(game.get("_last_lifecycle_command_sequence"))
+		) == cursor_before_focus_loss,
+		"focus-out invalidation rejects a sampled but not-yet-dispatched landing edge"
 	)
 	source.notification(NOTIFICATION_APPLICATION_FOCUS_IN)
 
 	# Exercise the direct compatibility seam rather than the FIFO drain. Invalidate
 	# after capture and call the consumer before any newer command is sampled; the
-	# live source epoch alone must reject the stale start edge.
-	source.queue_action_edge(&"engine_start")
+	# live source epoch alone must reject the stale landing edge.
+	source.queue_action_edge(&"landing_assist")
 	var captured_lifecycle := source.next_command(3000)
-	var starts_before_direct_replay := int(starting_count[0])
+	var cursor_before_direct_replay := Vector2i(
+		int(game.get("_last_lifecycle_command_stream_id")),
+		int(game.get("_last_lifecycle_command_sequence"))
+	)
 	source.invalidate_pending_commands()
 	game.call("_consume_active_ship_command", captured_lifecycle)
 	_check(
-		captured_lifecycle.engine_start
-		and str(ship.get_telemetry().engine_state) == "OFFLINE"
-		and starting_count[0] == starts_before_direct_replay,
+		captured_lifecycle.landing
+		and Vector2i(
+			int(game.get("_last_lifecycle_command_stream_id")),
+			int(game.get("_last_lifecycle_command_sequence"))
+		) == cursor_before_direct_replay,
 		"source invalidation revokes a captured direct lifecycle command before any newer sample"
 	)
 
@@ -400,9 +406,8 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	var future_lifecycle := _command(
 		source_epoch_before_future + 50,
 		0,
-		{"engine_start": true}
+		{"landing": true}
 	)
-	var starts_before_future := int(starting_count[0])
 	game.call("_consume_active_ship_command", future_lifecycle)
 	var cursor_after_future := Vector2i(
 		int(game.get("_last_lifecycle_command_stream_id")),
@@ -411,9 +416,7 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	source.invalidate_pending_commands()
 	game.call("_consume_active_ship_command", future_lifecycle)
 	_check(
-		future_lifecycle.engine_start
-		and int(starting_count[0]) == starts_before_future
-		and str(ship.get_telemetry().engine_state) == "OFFLINE"
+		future_lifecycle.landing
 		and cursor_after_future == lifecycle_cursor_before_future
 		and Vector2i(
 			int(game.get("_last_lifecycle_command_stream_id")),
@@ -433,16 +436,18 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 		-1,
 		ShipCommandType.MAX_SAFE_SERIALIZED_INTEGER
 	)
-	exhaustion_source.queue_action_edge(&"engine_start")
+	exhaustion_source.queue_action_edge(&"landing_assist")
 	var terminal_lifecycle := exhaustion_source.next_command(3001)
 	var exhausted_lifecycle_neutral := exhaustion_source.next_command(3002)
 	game.call("_consume_active_ship_command", terminal_lifecycle)
 	_check(
-		terminal_lifecycle.engine_start
+		terminal_lifecycle.landing
 		and exhaustion_source.is_stream_exhausted()
 		and exhausted_lifecycle_neutral.is_neutral()
-		and str(ship.get_telemetry().engine_state) == "OFFLINE"
-		and starting_count[0] == starts_before_direct_replay,
+		and Vector2i(
+			int(game.get("_last_lifecycle_command_stream_id")),
+			int(game.get("_last_lifecycle_command_sequence"))
+		) == cursor_before_direct_replay,
 		"exhausted lifecycle source rejects its delayed terminal command and remains neutral"
 	)
 	ship.set_command_source(source)
@@ -468,22 +473,32 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 		"whole-Main detach invalidates stale interact instead of entering DISEMBARKING after re-entry"
 	)
 
-	# An older sampled edge may already be waiting when a deterministic tool asks
-	# for immediate delivery. The synthetic sample must drain behind it, never jump
-	# the cursor ahead and make the older command look stale. Start then stop makes
-	# the FIFO order observable in both signal history and final engine state.
-	source.queue_action_edge(&"engine_start")
+	# An older sampled landing edge may already be waiting when a deterministic
+	# tool asks for immediate camera delivery. The synthetic sample must drain
+	# behind it, never jump the cursor ahead and make the older command look stale.
+	source.queue_action_edge(&"landing_assist")
 	ship.call("_physics_process", 1.0 / 60.0)
-	var pending_start := ship.get_last_ship_command()
-	var synthetic_stop := InputEventAction.new()
-	synthetic_stop.action = &"engine_stop"
-	synthetic_stop.pressed = true
-	game.call("_unhandled_input", synthetic_stop)
+	var pending_landing := ship.get_last_ship_command()
+	var camera_view_before_synthetic := ship.get_camera_view()
+	var synthetic_camera := InputEventAction.new()
+	synthetic_camera.action = &"toggle_ship_camera_view"
+	synthetic_camera.pressed = true
+	game.call("_unhandled_input", synthetic_camera)
+	var cursor_after_synthetic := Vector2i(
+		int(game.get("_last_lifecycle_command_stream_id")),
+		int(game.get("_last_lifecycle_command_sequence"))
+	)
+	_check(pending_landing.landing, "synthetic delivery probe stages the older landing edge")
 	_check(
-		pending_start.engine_start
-		and str(ship.get_telemetry().engine_state) == "OFFLINE"
-		and starting_count[0] == 2,
-		"synthetic InputEventAction drains an older edge first and still delivers immediately"
+		ship.get_camera_view() != camera_view_before_synthetic,
+		"synthetic camera InputEventAction still delivers immediately"
+	)
+	_check(
+		cursor_after_synthetic == Vector2i(
+			pending_landing.stream_id,
+			pending_landing.sequence
+		),
+		"synthetic camera delivery drains the older landing edge without jumping the lifecycle cursor"
 	)
 	# Negative control: both edges were consumed before yielding. Their former
 	# FIFO copies and a later detach cannot repeat either lifecycle transition.
@@ -493,8 +508,10 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	ship.set_physics_process(false)
 	game.call("_consume_active_ship_command_edges")
 	_check(
-		starting_count[0] == 2
-		and str(ship.get_telemetry().engine_state) == "OFFLINE",
+		Vector2i(
+			int(game.get("_last_lifecycle_command_stream_id")),
+			int(game.get("_last_lifecycle_command_sequence"))
+		) == cursor_after_synthetic,
 		"whole-Main re-entry cannot replay an edge already consumed before detachment"
 	)
 
@@ -502,9 +519,13 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	# entered. Thus A -> B -> A cannot resurrect an undelivered edge still cached
 	# in A, even though A remains a valid live Node throughout the round trip.
 	ship.set_command_source(source)
-	source.queue_action_edge(&"engine_start")
+	var cursor_before_source_swap := Vector2i(
+		int(game.get("_last_lifecycle_command_stream_id")),
+		int(game.get("_last_lifecycle_command_sequence"))
+	)
+	source.queue_action_edge(&"landing_assist")
 	ship.call("_physics_process", 1.0 / 60.0)
-	_check(ship.get_last_ship_command().engine_start, "source-swap probe stages one edge in source A")
+	_check(ship.get_last_ship_command().landing, "source-swap probe stages one edge in source A")
 	var replacement_local := LocalShipInputSource.new()
 	replacement_local.name = "ReplacementLocalInputSource"
 	game.add_child(replacement_local)
@@ -512,21 +533,23 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	ship.set_command_source(source)
 	game.call("_consume_active_ship_command_edges")
 	_check(
-		str(ship.get_telemetry().engine_state) == "OFFLINE"
-		and starting_count[0] == 2,
+		Vector2i(
+			int(game.get("_last_lifecycle_command_stream_id")),
+			int(game.get("_last_lifecycle_command_sequence"))
+		) == cursor_before_source_swap,
 		"A to B to A source replacement cannot resurrect A's pending lifecycle backlog"
 	)
 
 	# Claim stream 10/sequence 7 while dispatch is disabled, then advance to a
 	# newer epoch. Replaying the exact old edge after an actual source-instance
-	# replacement must not move the lifecycle cursor backwards or start engines.
+	# replacement must not move the lifecycle cursor backwards or request landing.
 	var old_source := ReplayCommandSource.new()
 	old_source.name = "OldLifecycleSource"
 	var old_stream := maxi(
 		int(ship.get("_last_direct_command_stream_id")),
 		int(ship.get("_last_camera_command_stream_id"))
 	) + 20
-	var old_edge := _command(old_stream, 7, {"engine_start": true})
+	var old_edge := _command(old_stream, 7, {"landing": true})
 	old_source.commands = [old_edge]
 	game.add_child(old_source)
 	ship.set_command_source(old_source)
@@ -547,8 +570,7 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	ship.set_command_source(old_source)
 	game.call("_consume_active_ship_command", old_edge)
 	_check(
-		str(ship.get_telemetry().engine_state) == "OFFLINE"
-		and int(game.get("_last_lifecycle_command_stream_id")) == new_stream
+		int(game.get("_last_lifecycle_command_stream_id")) == new_stream
 		and int(game.get("_last_lifecycle_command_sequence")) == 0,
 		"an older lifecycle epoch cannot reacquire authority after a newer epoch, even across source replacement"
 	)
