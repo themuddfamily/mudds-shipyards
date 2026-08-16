@@ -74,7 +74,7 @@
       1.945
     ]
   },
-  "blend_sha256": "e7001460e6223b8f5af9369634f8596244b3c18cac0016198348c2bf8ac269a4",
+  "blend_sha256": "aa0700ece03c76cd1cb375ebdff84ad5a28f9c483400f4b4d2fbf04dba61927f",
   "blender_version": "4.0.2",
   "bone_count": 23,
   "bone_tree": {
@@ -103,18 +103,19 @@
     "upper_arm_r": "clavicle_r"
   },
   "coordinate_contract": {
-    "authored_pose_sign": "anatomical degrees, positive towards the face; the leg chain's sagittal sign is inverted into bone-local euler because a -Z-pointing bone reads world +X rotation the opposite way round from the -Y-forward source frame",
+    "authored_pose_sign": "anatomical degrees (swing, abduct, twist), swing positive towards the face for every bone; converted into bone-local euler from each bone's own rest matrix, so an up-pointing spine, a down-pointing leg chain and the out-of-plane arm chain all obey one convention",
     "imported_visual_forward_axis": "+Z",
     "knee_flexion_world_axis": "+X; the shin never rotates forward past the thigh",
     "mounted_player_forward_axis": "-Z after Player BodyPivot PI yaw offset",
+    "pelvis_translation_axes": "authored (side, lift, forward) in metres and converted through the pelvis rest matrix; local Z is world -Y, so keying lift into local Z slides the hips forward instead of raising them",
     "root_motion": "in_place_no_horizontal_or_yaw",
     "runtime": "Godot +Y up, imported semantic visual forward +Z, metres",
     "soles_ground_plane_metres": 0.0,
     "source": "Blender Z-up, -Y forward, metres"
   },
   "generator": "tools/blender/generate_pilot_motion_v2.py",
-  "generator_sha256": "8610ce4330389bece695b3b8e36eca8cd0d4468aa755eab4e1df320d6433e761",
-  "glb_sha256": "b869688643a78ba1f257c3521186d1ff13d05178af35fea25b38d994eb9eed72",
+  "generator_sha256": "5c32b977dc91570cddf8fd47e6986c3c68fe3bdfe24294ef4662549671411cc0",
+  "glb_sha256": "b2d0c05e29c5ab036ec40209c820b6d77e9ff48dd18999bad355e0be8a4e7bac",
   "hierarchy_contract": [
     "PilotArt",
     "PilotRig",

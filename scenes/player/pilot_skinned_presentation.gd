@@ -11,17 +11,31 @@ const SCHEMA_VERSION := 2
 const ASSET_PATH := "res://assets/models/pilot/pilot_motion_v2.glb"
 const SOURCE_PATH := "res://art_source/pilot/pilot_motion_v2.blend"
 const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest.json"
-## Re-frozen when the authored leg poses had their sagittal sign corrected and
-## the pinned Blender 4.0.2 generator was re-run. Reason: every clip swung the
-## leg chain rearward, giving the seated pilot 78 degrees of hip
-## hyperextension. Mesh, rig, bind bounds, bone tree, clip roster and clip
-## durations are all unchanged; only the animation curves moved.
-##   GLB            c0a59952e140bfec... -> b869688643a78ba1...
-##   .blend         02b2a1f292fbeee9... -> e7001460e6223b8f...
-##   resource graph b0ed09b2da5a0223... -> dc7167a7e66a36ad...
-const EXPECTED_ASSET_SHA256 := "b869688643a78ba1f257c3521186d1ff13d05178af35fea25b38d994eb9eed72"
-const EXPECTED_SOURCE_SHA256 := "e7001460e6223b8f5af9369634f8596244b3c18cac0016198348c2bf8ac269a4"
-const EXPECTED_SOURCE_CONTENT_SHA256 := "dc7167a7e66a36ad2b5c3b7257c439e89f0922cc1539f35a90409e8a6eef5a9b"
+## Re-frozen when the placeholder procedural pose tables were replaced with
+## authored motion and the pinned Blender 4.0.2 generator was re-run.
+##
+## Reason: correcting the leg signs fixed a defect but left the clips as pose
+## lerps between a handful of keys. Boarding folded a standing man in half on
+## the spot; the walk and run were symmetric scissors whose arms swung with the
+## same-side leg; idle's only travel was a 0.8 mm pelvis nudge, and that nudge
+## was horizontal. All nine clips are now sampled from authored timing curves.
+##
+##   GLB            b869688643a78ba1... -> b2d0c05e29c5ab03...
+##   .blend         e7001460e6223b8f... -> aa0700ece03c76cd...
+##   resource graph dc7167a7e66a36ad... -> f9f0b788a140656c...
+##
+## CHANGED: every animation curve; per-clip imported track count 17 -> 23, as
+## the cycles now key the whole spine, both clavicles, both hands and a real
+## pelvis translation instead of leaving them at rest.
+## UNCHANGED: the joined skinned mesh (7588 vertices, 14988 triangles), the
+## 23-bone tree and every bone's rest head/tail, the bind bounds
+## (1.143782 x 0.545 x 1.945 m, soles on z = 0), the skin, all eight materials,
+## the nine-clip roster and all nine clip durations. The Godot-side mesh, skin,
+## material and animation subresource IDs below are likewise unchanged, which
+## is what confirms the import produced the same resource graph shape.
+const EXPECTED_ASSET_SHA256 := "b2d0c05e29c5ab036ec40209c820b6d77e9ff48dd18999bad355e0be8a4e7bac"
+const EXPECTED_SOURCE_SHA256 := "aa0700ece03c76cd1cb375ebdff84ad5a28f9c483400f4b4d2fbf04dba61927f"
+const EXPECTED_SOURCE_CONTENT_SHA256 := "f9f0b788a140656cc428ea7423d13ff874a12cc73da26bbefb16af1b58c829b2"
 const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_s2leb"
 const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_uftr0"
 const EXPECTED_MATERIAL_RESOURCE_PATHS := [
@@ -100,16 +114,20 @@ const LOOPING_CLIPS := [&"idle", &"walk", &"run", &"airborne", &"seated_control"
 ## forward without altering the Blender resource or animation playback.
 const IMPORTED_VISUAL_FORWARD_AXIS := Vector3.BACK
 const PLAYER_CANONICAL_FORWARD_AXIS := Vector3.FORWARD
+## 22 bone rotation tracks plus one pelvis position track. The import drops
+## immutable tracks, so this is exactly the set of bones the authored clips
+## actually move: everything but `root`, which stays invariant by contract
+## because this asset never owns traversal or yaw.
 const EXPECTED_CLIP_TRACK_COUNTS := {
-	&"RESET": 17,
-	&"idle": 17,
-	&"walk": 17,
-	&"run": 17,
-	&"jump": 17,
-	&"airborne": 17,
-	&"boarding": 17,
-	&"seated_control": 17,
-	&"disembark_recovery": 17,
+	&"RESET": 23,
+	&"idle": 23,
+	&"walk": 23,
+	&"run": 23,
+	&"jump": 23,
+	&"airborne": 23,
+	&"boarding": 23,
+	&"seated_control": 23,
+	&"disembark_recovery": 23,
 }
 const FORBIDDEN_AUTHORITY_TYPES := [
 	"CollisionObject3D",
