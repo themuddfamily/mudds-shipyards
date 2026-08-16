@@ -657,6 +657,28 @@ const IVORY := Color("cfd6d3")
 const HAZARD_AMBER := Color("8f6530")
 const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 
+## All 51 world-built guide lenses are the same childless 0.16 m sphere and use
+## one of four immutable emissive recipes. Before this cache every call retained
+## a private SphereMesh and StandardMaterial3D: 102 resource identities for 51
+## identical-geometry nodes. Sharing changes only retained resource identity;
+## every MeshInstance3D, OmniLight3D and one-surface render submission remains.
+const GUIDE_LENS_RADIUS := 0.16
+const GUIDE_LENS_HEIGHT := 0.32
+const GUIDE_LENS_RADIAL_SEGMENTS := 24
+const GUIDE_LENS_RINGS := 12
+const GUIDE_LENS_EXPECTED_COUNT := 51
+const GUIDE_LENS_EXPECTED_RECIPE_COUNT := 4
+const GUIDE_LENS_BASELINE_RETAINED_RESOURCES := 102
+const GUIDE_LENS_BASELINE_SCOPE_NODES := 102
+const GUIDE_LENS_BASELINE_SUBMISSIONS := 51
+const GUIDE_LIGHT_BEHAVIOR_FINGERPRINT := "d91c20a3aa38001b9a9171b56bec150059465ed703c95b1fd8a88dd3304ee20e"
+const GUIDE_LENS_COLOR_COUNTS := {
+	"48dbe2ff": 17,
+	"ff9f43ff": 13,
+	"ff5f57ff": 20,
+	"cfe6eeff": 1,
+}
+
 ## Aim of the station's key light, and of the sky's sun glow.
 ##
 ## One constant serves both. A backdrop whose bright side does not agree with the
@@ -750,6 +772,10 @@ const SKY_DUST_SCALE := 3.4
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
+var _guide_lens_mesh: SphereMesh
+var _guide_lens_material_cache: Dictionary = {}
+var _guide_lens_nodes: Array[MeshInstance3D] = []
+var _guide_light_nodes: Array[OmniLight3D] = []
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
@@ -986,6 +1012,225 @@ func get_outbound_clearance_band() -> Dictionary:
 		"ceiling": OUTBOUND_CLEARANCE_CEILING,
 		"aim_y": LAUNCH_GATE_AIM_Y,
 	}
+
+
+## Renderer-independent retention audit for the world guide-light stock.
+##
+## "Submission" here is deliberately the structural mesh-surface submission
+## count, not a driver draw-call claim: 51 visible MeshInstance3D nodes retain
+## one surface each before and after sharing. The report proves the resource win
+## without claiming batching, frame-time, VRAM, or GPU evidence.
+func get_guide_light_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var lenses: Array[MeshInstance3D] = []
+	var lights: Array[OmniLight3D] = []
+	for lens in _guide_lens_nodes:
+		if is_instance_valid(lens):
+			lenses.append(lens)
+	for light in _guide_light_nodes:
+		if is_instance_valid(light):
+			lights.append(light)
+
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var color_counts: Dictionary = {}
+	var structural_submissions := 0
+	var authority_node_count := 0
+	var scripted_node_count := 0
+	var child_node_count := 0
+	for lens in lenses:
+		if lens.mesh != null:
+			mesh_ids[lens.mesh.get_instance_id()] = true
+			structural_submissions += lens.mesh.get_surface_count()
+		if lens.material_override != null:
+			material_ids[lens.material_override.get_instance_id()] = true
+			var material := lens.material_override as StandardMaterial3D
+			if material != null:
+				var color_key := material.albedo_color.to_html(true)
+				color_counts[color_key] = int(color_counts.get(color_key, 0)) + 1
+		if lens.get_script() != null:
+			scripted_node_count += 1
+		child_node_count += lens.get_child_count()
+		for child in lens.get_children():
+			if child.get_script() != null:
+				scripted_node_count += 1
+			if child is CollisionObject3D or child is NavigationRegion3D:
+				authority_node_count += 1
+	for light in lights:
+		if light.get_script() != null:
+			scripted_node_count += 1
+		child_node_count += light.get_child_count()
+		for child in light.get_children():
+			if child.get_script() != null:
+				scripted_node_count += 1
+			if child is CollisionObject3D or child is NavigationRegion3D:
+				authority_node_count += 1
+
+	if lenses.size() != GUIDE_LENS_EXPECTED_COUNT:
+		errors.append("guide_lens_node_count_drift")
+	if lights.size() != GUIDE_LENS_EXPECTED_COUNT:
+		errors.append("guide_light_node_count_drift")
+	if mesh_ids.size() != 1 or not is_instance_valid(_guide_lens_mesh):
+		errors.append("guide_lens_mesh_identity_not_shared")
+	if material_ids.size() != GUIDE_LENS_EXPECTED_RECIPE_COUNT \
+		or _guide_lens_material_cache.size() != GUIDE_LENS_EXPECTED_RECIPE_COUNT:
+		errors.append("guide_lens_material_identity_count_drift")
+	if color_counts != GUIDE_LENS_COLOR_COUNTS:
+		errors.append("guide_lens_color_roster_drift")
+	if not _guide_lens_mesh_matches_recipe(_guide_lens_mesh):
+		errors.append("guide_lens_mesh_recipe_drift")
+	for color_variant in _guide_lens_material_cache:
+		var color := color_variant as Color
+		var material := _guide_lens_material_cache[color_variant] as StandardMaterial3D
+		if not _guide_lens_material_matches_recipe(material, color):
+			errors.append("guide_lens_material_recipe_drift")
+			break
+
+	for light in lights:
+		var lens: MeshInstance3D = null
+		if light.get_index() > 0:
+			lens = light.get_parent().get_child(light.get_index() - 1) as MeshInstance3D
+		var expected_material := _guide_lens_material_cache.get(light.light_color) as StandardMaterial3D
+		if (
+			lens == null
+			or not is_ancestor_of(lens)
+			or not is_ancestor_of(light)
+			or not lens.position.is_equal_approx(light.position)
+			or lens.mesh != _guide_lens_mesh
+			or lens.material_override != expected_material
+		):
+			errors.append("guide_light_pair_or_resource_identity_drift")
+			break
+
+	var behavior_rows := _guide_light_behavior_rows(lights)
+	var behavior_fingerprint := JSON.stringify(behavior_rows).sha256_text()
+	if behavior_fingerprint != GUIDE_LIGHT_BEHAVIOR_FINGERPRINT:
+		errors.append("guide_light_behavior_drift")
+	if structural_submissions != GUIDE_LENS_BASELINE_SUBMISSIONS:
+		errors.append("guide_lens_submission_count_drift")
+	if authority_node_count != 0 or scripted_node_count != 0 or child_node_count != 0:
+		errors.append("guide_light_stock_gained_authority_or_lifecycle_children")
+
+	var retained_resource_count := mesh_ids.size() + material_ids.size()
+	var scope_node_count := lenses.size() + lights.size()
+	var upper_operations := get_node_or_null("UpperOperations") as Node3D
+	var upper_operations_lens_count := 0
+	if upper_operations != null:
+		for lens in lenses:
+			if upper_operations.is_ancestor_of(lens):
+				upper_operations_lens_count += 1
+	if upper_operations_lens_count != 1:
+		errors.append("upper_operations_guide_lens_roster_drift")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"shipyard_world_childless_guide_light_stock",
+		"upper_operations_lens_count": upper_operations_lens_count,
+		"lens_node_count": lenses.size(),
+		"light_node_count": lights.size(),
+		"scope_node_count": scope_node_count,
+		"baseline_scope_node_count": GUIDE_LENS_BASELINE_SCOPE_NODES,
+		"node_delta": scope_node_count - GUIDE_LENS_BASELINE_SCOPE_NODES,
+		"structural_submission_count": structural_submissions,
+		"baseline_structural_submission_count": GUIDE_LENS_BASELINE_SUBMISSIONS,
+		"submission_delta": structural_submissions - GUIDE_LENS_BASELINE_SUBMISSIONS,
+		"mesh_resource_identity_count": mesh_ids.size(),
+		"material_resource_identity_count": material_ids.size(),
+		"retained_visual_resource_identity_count": retained_resource_count,
+		"baseline_retained_visual_resource_identity_count": GUIDE_LENS_BASELINE_RETAINED_RESOURCES,
+		"retained_visual_resource_identity_delta": retained_resource_count - GUIDE_LENS_BASELINE_RETAINED_RESOURCES,
+		"color_counts": color_counts.duplicate(true),
+		"behavior_fingerprint": behavior_fingerprint,
+		"behavior_fingerprint_matches_baseline": behavior_fingerprint == GUIDE_LIGHT_BEHAVIOR_FINGERPRINT,
+		"authority_node_count": authority_node_count,
+		"scripted_node_count": scripted_node_count,
+		"child_node_count": child_node_count,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+	}
+
+
+func _guide_light_behavior_rows(lights: Array[OmniLight3D]) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for light in lights:
+		rows.append({
+			"path": _stable_guide_node_path(self, light),
+			"position": [light.position.x, light.position.y, light.position.z],
+			"color": light.light_color.to_html(true),
+			# Pulsing lights legitimately animate `light_energy`; their authored
+			# behavior is the immutable base, not the sampled animation phase.
+			"energy": float(light.get_meta("base_energy", light.light_energy)),
+			"range": light.omni_range,
+			"shadow": light.shadow_enabled,
+			"pulsing": light.has_meta("pulse_phase"),
+			"pulse_phase": float(light.get_meta("pulse_phase", -1.0)),
+			"base_energy": float(light.get_meta("base_energy", -1.0)),
+		})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.path) < str(b.path))
+	return rows
+
+
+## Godot's fallback `@Class@instance` names contain process-local counters. A
+## module that creates unrelated nodes before this world builds can therefore
+## change those names without changing this guide stock. Canonicalize only the
+## fallback segments to same-class sibling ordinals; explicit authored names
+## stay byte-exact. This mirrors the station light census policy locally without
+## making production code depend on a tool script.
+static func _stable_guide_node_path(scene_root: Node, node: Node) -> String:
+	if node == scene_root:
+		return "."
+	var segments := PackedStringArray()
+	var cursor := node
+	while cursor != null and cursor != scene_root:
+		segments.append(_stable_guide_sibling_segment(cursor))
+		cursor = cursor.get_parent()
+	if cursor != scene_root:
+		return "<outside-scene>/%s" % "/".join(segments)
+	segments.reverse()
+	return "/".join(segments)
+
+
+static func _stable_guide_sibling_segment(node: Node) -> String:
+	var runtime_name := str(node.name)
+	if not runtime_name.begins_with("@"):
+		return runtime_name
+	var parent := node.get_parent()
+	if parent == null:
+		return "%s[01]" % node.get_class()
+	var ordinal := 0
+	for sibling in parent.get_children():
+		if sibling.get_class() == node.get_class() and str(sibling.name).begins_with("@"):
+			ordinal += 1
+		if sibling == node:
+			break
+	return "%s[%02d]" % [node.get_class(), ordinal]
+
+
+func _guide_lens_mesh_matches_recipe(mesh: SphereMesh) -> bool:
+	return (
+		mesh != null
+		and is_equal_approx(mesh.radius, GUIDE_LENS_RADIUS)
+		and is_equal_approx(mesh.height, GUIDE_LENS_HEIGHT)
+		and mesh.radial_segments == GUIDE_LENS_RADIAL_SEGMENTS
+		and mesh.rings == GUIDE_LENS_RINGS
+	)
+
+
+func _guide_lens_material_matches_recipe(material: StandardMaterial3D, color: Color) -> bool:
+	return (
+		material != null
+		and material.albedo_color.is_equal_approx(color)
+		and is_zero_approx(material.metallic)
+		and is_equal_approx(material.roughness, 0.25)
+		and material.emission_enabled
+		and material.emission.is_equal_approx(color)
+		and is_equal_approx(material.emission_energy_multiplier, 1.35)
+		and material.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		and material.diffuse_mode == BaseMaterial3D.DIFFUSE_BURLEY
+		and material.specular_mode == BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	)
 
 
 ## Fixed-era-inspired habitat insertion at the starboard physical node. The
@@ -6409,7 +6654,17 @@ func _add_guide_light(
 	energy: float = 1.7,
 	range_value: float = 7.0
 ) -> void:
-	_sphere(parent, "GuideLens", light_position, 0.16, _material(color, 0.0, 0.25, color, 1.35), false)
+	# These lenses never carry collision, scripts, per-instance material mutation,
+	# or children. Retain one exact sphere and one exact material per signal color
+	# while keeping the same MeshInstance3D node and one-surface submission per
+	# light. This is resource sharing, not renderer batching.
+	var lens := MeshInstance3D.new()
+	lens.name = "GuideLens"
+	lens.position = light_position
+	lens.mesh = _shared_guide_lens_mesh()
+	lens.material_override = _shared_guide_lens_material(color)
+	parent.add_child(lens)
+	_guide_lens_nodes.append(lens)
 	var light := OmniLight3D.new()
 	light.name = "GuideLight"
 	light.position = light_position
@@ -6418,10 +6673,27 @@ func _add_guide_light(
 	light.omni_range = range_value
 	light.shadow_enabled = false
 	parent.add_child(light)
+	_guide_light_nodes.append(light)
 	if pulsing:
 		light.set_meta("pulse_phase", float(_warning_lights.size()) * 0.83)
 		light.set_meta("base_energy", energy)
 		_warning_lights.append(light)
+
+
+func _shared_guide_lens_mesh() -> SphereMesh:
+	if not is_instance_valid(_guide_lens_mesh):
+		_guide_lens_mesh = SphereMesh.new()
+		_guide_lens_mesh.radius = GUIDE_LENS_RADIUS
+		_guide_lens_mesh.height = GUIDE_LENS_HEIGHT
+		_guide_lens_mesh.radial_segments = GUIDE_LENS_RADIAL_SEGMENTS
+		_guide_lens_mesh.rings = GUIDE_LENS_RINGS
+	return _guide_lens_mesh
+
+
+func _shared_guide_lens_material(color: Color) -> StandardMaterial3D:
+	if not _guide_lens_material_cache.has(color):
+		_guide_lens_material_cache[color] = _material(color, 0.0, 0.25, color, 1.35)
+	return _guide_lens_material_cache[color] as StandardMaterial3D
 
 
 func _material(
