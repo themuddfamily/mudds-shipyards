@@ -12,6 +12,7 @@ const FLEET_ROSTER_VARIANTS_PATH := "res://docs/research/fleet_roster_variants.j
 const TORRENT_SPEC_PATH := "res://docs/TORRENT_2011_RECONSTRUCTION_SPEC.md"
 const RESEARCH_PATH := "res://RESEARCH.md"
 const ROADMAP_PATH := "res://ROADMAP.md"
+const SHIPYARD_WORLD_PATH := "res://scripts/world/shipyard_world.gd"
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
 const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
@@ -49,6 +50,14 @@ const PROHIBITED_MAPPING_WORDING := [
 const UNREGISTERED_ANCHOR_CITATIONS := [
 	"B3@06:15", "06:15 regeneration label", "04:50-05:20", "4:50–5:20", "B4@04:50",
 	"visible craft is labelled Paradox",
+]
+## These phrases all identify B3's deliberately form-neutral "short vertical
+## transition" as a ladder. They are prohibited unless a future ledger edit
+## first registers an anchor whose observation itself names a ladder.
+const UNANCHORED_B3_LADDER_WORDING := [
+	"spawn/ladder relationship is source-supported",
+	"short ladder transition",
+	"a ladder is directly ahead",
 ]
 const ANCHOR_CITATION_SCAN_PATHS := [
 	"res://RESEARCH.md",
@@ -113,6 +122,7 @@ func _run() -> void:
 	_test_ledger_contract(ledger)
 	_test_source_entries(ledger)
 	_test_b5_provenance(ledger)
+	_test_b3_vertical_transition_provenance(ledger, topology)
 	_test_schema_contract(schema)
 	_test_station_topology(topology)
 	_test_ship_matrix(ship_matrix)
@@ -224,6 +234,57 @@ func _test_b5_provenance(ledger: Dictionary) -> void:
 		var anchor := anchor_variant as Dictionary
 		frame_roster.append(int(anchor.get("frame_zero_based", -1)))
 	_check(frame_roster == [306, 322, 465, 1230], "B5 retains the decisive label, spawn, seat and tied-view frame anchors")
+
+
+func _test_b3_vertical_transition_provenance(ledger: Dictionary, topology: String) -> void:
+	var b3 := _source_by_id(ledger, "B3")
+	var b3_anchors := b3.get("anchors", []) as Array
+	var bounded_anchor_found := false
+	for anchor_variant in b3_anchors:
+		var anchor := anchor_variant as Dictionary
+		bounded_anchor_found = bounded_anchor_found or (
+			int(anchor.get("time_ms", -1)) == 4000
+			and int(anchor.get("end_time_ms", -1)) == 52000
+			and str(anchor.get("observation", "")) == "Exposed spawn/return deck, short vertical transition, branching arms, and red VIP sightline."
+		)
+	_check(
+		bounded_anchor_found
+		and (b3.get("claims_supported", []) as Array).has("station.spawn_deck_short_vertical_transition"),
+		"B3 registers exactly the bounded spawn/deck/short-vertical-transition observation"
+	)
+
+	var ladder_has_registered_anchor := _ledger_anchor_mentions(ledger, "B3", "ladder")
+	_check(not ladder_has_registered_anchor, "no registered B3 anchor identifies the transition as a ladder")
+
+	var claim_surfaces := {
+		RESEARCH_PATH: FileAccess.get_file_as_string(RESEARCH_PATH),
+		ROADMAP_PATH: FileAccess.get_file_as_string(ROADMAP_PATH),
+		TOPOLOGY_PATH: topology,
+		SHIPYARD_WORLD_PATH: FileAccess.get_file_as_string(SHIPYARD_WORLD_PATH),
+	}
+	var violations := _unanchored_b3_ladder_claims(claim_surfaces, ladder_has_registered_anchor)
+	_check(
+		violations.is_empty(),
+		"tracked B3 claim surfaces never promote the form-neutral transition into a ladder (%s)" % ", ".join(violations)
+	)
+
+	var mutated_surfaces := claim_surfaces.duplicate()
+	mutated_surfaces[SHIPYARD_WORLD_PATH] = str(mutated_surfaces[SHIPYARD_WORLD_PATH]) \
+		+ "\n# The observed spawn/ladder relationship is source-supported."
+	var mutation_violations := _unanchored_b3_ladder_claims(mutated_surfaces, ladder_has_registered_anchor)
+	_check(
+		mutation_violations.size() == 1 and str(mutation_violations[0]).contains(SHIPYARD_WORLD_PATH),
+		"structured red: reasserting the unanchored B3 spawn/ladder claim is detected"
+	)
+
+	var world_source := str(claim_surfaces[SHIPYARD_WORLD_PATH])
+	_check(
+		world_source.contains('set_meta("evidence_claim_id", "station.spawn_deck_short_vertical_transition")')
+		and world_source.contains('set_meta("implementation_form", "modern_stair_ramp")')
+		and world_source.contains('set_meta("historical_form_identified", false)')
+		and world_source.contains('set_meta("historical_ladder_supported", false)'),
+		"runtime metadata separates the registered transition observation from the modern stair/ramp form"
+	)
 
 
 func _test_schema_contract(schema: Dictionary) -> void:
@@ -783,6 +844,19 @@ func _ledger_anchor_mentions(ledger: Dictionary, source_id: String, needle: Stri
 		if str(anchor.get("observation", "")).to_lower().contains(needle.to_lower()):
 			return true
 	return false
+
+
+func _unanchored_b3_ladder_claims(claim_surfaces: Dictionary, ladder_has_registered_anchor: bool) -> PackedStringArray:
+	var violations := PackedStringArray()
+	if ladder_has_registered_anchor:
+		return violations
+	for path_variant in claim_surfaces:
+		var path := str(path_variant)
+		var lowered := str(claim_surfaces[path_variant]).to_lower()
+		for wording: String in UNANCHORED_B3_LADDER_WORDING:
+			if lowered.contains(wording):
+				violations.append("%s: %s" % [path, wording])
+	return violations
 
 
 func _has_date_event(events: Array, kind: String, status: String, require_null: bool) -> bool:

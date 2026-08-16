@@ -341,7 +341,7 @@ fixed-build attribution.
 
 | Relationship | Live implementation | Label | Evidence anchor | Status | Unknowns |
 | --- | --- | --- | --- | --- | --- |
-| A short vertical transition sits near an open junction | `JunctionAccessRamp` at Central with seven visible treads, reaching `ObservationLanding (-11.5, 3.05, 3.0)` | observed | B3 `00:04–00:52` "short vertical transition" | `original_era_observed` | form, rise, tread count, placement |
+| An exposed spawn/return deck and short vertical transition occur within one observed sequence | `JunctionAccessRamp` at Central with seven visible treads, reaching `ObservationLanding (-11.5, 3.05, 3.0)` | observed relationship; modern implementation form | B3 `00:04–00:52` "Exposed spawn/return deck, short vertical transition, branching arms, and red VIP sightline." | `original_era_observed` for the bounded observation; `modern_interpretation` for the live stair/ramp | whether the transition was a ladder, stair, ramp or other form; exact adjacency, rise, tread count and placement |
 | Projecting routes at several elevations | Aft upper floor at `4.2 m`, comb slabs at `4.2 m` and the upper slab reached at `6.75 m` | inferred | none registered; the B3 `06:13–07:10` citation is not a ledger anchor | `unknown` | how many elevations existed and how they connected |
 | Broad separated end volumes act as platforms | comb `dock-slab-01`, `dock-slab-02`, `dock-slab-03-upper` | observed | B2 `04:55–05:10` "broad slabs, and voids" | `original_era_observed` | count, scale, elevation, function |
 | Individual live platform decks | `RegistryPodDeck (-43, 0.18, 27)`, `OperationsPodFloor (43, 0.18, 27)`, `FleetDockCombConnectorDeck (6, 3.88, 68.3)` | new | none | `modern_interpretation` | every dimension and adjacency |
@@ -358,11 +358,11 @@ rising `4.2 m`, and one short ramp in the comb from `vertical-base (52, 4.35,
 66.3)` to `vertical-top (52, 6.75, 59.3)`. B3's registered anchor says only
 "short vertical transition" and does not identify a ladder.
 
-Defect recorded, not repaired here: `scripts/world/shipyard_world.gd` carries an
-inline comment asserting an "observed spawn/ladder relationship is
-source-supported". No ledger anchor registers a ladder, so that comment
-overstates the ledger and belongs to the owner of that file to correct. This
-document does not adopt the claim.
+The runtime now carries the same boundary in metadata: B3 supports the bounded
+"short vertical transition" observation, while `implementation_form` records the
+live geometry as `modern_stair_ramp`, `historical_form_identified` is false, and
+`historical_ladder_supported` is false. This metadata does not promote the
+modern ramp or its seven visible treads into source evidence.
 
 ### Regeneration relationships
 
@@ -417,7 +417,7 @@ The live pod holds no regeneration authority. It publishes the
 The strongest mismatch is macro composition, not missing decoration. The live
 station reads as a wide `T/+` hub with one dominant forward launch deck and
 three bespoke branches. B2 instead gives the clearest original-era overview as
-a repeated comb/ladder rhythm: long thin trunk, short rungs, broad separated
+a repeated comb rhythm: long thin trunk, short rungs, broad separated
 slabs or berth nodes, and large voids.
 
 The first evidence-safe architecture correction is now the bounded
