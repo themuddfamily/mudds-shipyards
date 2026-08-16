@@ -2164,6 +2164,15 @@ func _build_environment() -> void:
 	sky_material.ground_horizon_color = Color("070d13")
 	sky_material.ground_bottom_color = Color("03060a")
 	sky_material.sun_angle_max = 0.0
+	# The two curves stayed at their engine defaults (0.15 sky, 0.02 ground),
+	# which put the whole top-to-horizon blend into a narrow band and left the
+	# horizon reading as a ruled line across the frame rather than a gradient.
+	# That line is visible from the decks and reads as a distant wall. Softening
+	# the curves spreads both hemispheres, which also makes the sky-sourced
+	# ambient vary more smoothly with surface orientation instead of switching at
+	# the equator. The four authored colours are unchanged.
+	sky_material.sky_curve = 0.4
+	sky_material.ground_curve = 0.38
 	sky_material.sky_cover = load("res://assets/keth-nebula.png") as Texture2D
 	sky_material.sky_cover_modulate = Color(
 		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
@@ -2175,7 +2184,17 @@ func _build_environment() -> void:
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
-	environment.background_energy_multiplier = 0.55
+	# Raised from 0.55. Measured in isolation on this scene: this multiplier is the
+	# only knob that scales the *hemispheric* half of the ambient term, and the
+	# hemispheric half is the orientation-dependent one. At 0.55 the median pixel
+	# of a parked-berth frame sat at 14/255 and screen-space AO had almost no
+	# ambient to modulate, which is the ceiling three separate surface passes ran
+	# into. It is deliberately not raised further: at 1.6 the backdrop stops
+	# reading as vacuum and starts reading as a navy sky, and the frame flattens
+	# (measured stddev fell) because ambient lifts lit and unlit faces alike.
+	# Directional contrast is restored below by the key, the counter-fill and the
+	# deck bounce, not by this number.
+	environment.background_energy_multiplier = 0.8
 	# Ambient comes from the sky rather than a single colour. A flat colour fill
 	# lands identically on every face regardless of orientation, which is the
 	# reason a bevelled box still reads as a toy: nothing distinguishes a deck top
@@ -2191,10 +2210,20 @@ func _build_environment() -> void:
 	# the level tunable at all. The colour is desaturated from the previous
 	# `6db3bd` so the flat quarter stops tinting every face the same cyan. Levels
 	# were set by measuring frame luminance against the old flat fill.
+	#
+	# The split moved from 0.75 to 0.82 after measuring the two terms separately.
+	# `background_energy_multiplier` moves the hemispheric term and barely touched
+	# the enclosed operations room and habitat; `ambient_light_energy` moves the
+	# flat term and barely touched the open decks. They are not interchangeable.
+	# Shifting the split toward the sky makes the added ambient orientation-
+	# dependent on the exteriors, while the raised flat energy keeps the two
+	# enclosed rooms — which the sky hemisphere cannot see into — from going
+	# backwards. The flat term is now a smaller share of a larger total, which is
+	# the opposite of a global gain.
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.75
+	environment.ambient_light_sky_contribution = 0.82
 	environment.ambient_light_color = Color("54808c")
-	environment.ambient_light_energy = 2.2
+	environment.ambient_light_energy = 4.4
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_exposure = 0.94
@@ -2220,27 +2249,87 @@ func _build_environment() -> void:
 	# and the cool counter-fill from behind separates a shape's dark side from the
 	# background instead of merging them. The fill casts no shadows: it is a
 	# lighting device, not a second sun, and it must not double the shadow cost.
+	#
+	# The key is raised with the ambient rather than instead of it. Ambient lifts
+	# lit and unlit faces equally, so raising it alone compresses the frame; the
+	# key is raised in step so the ratio between a lit face and a shaded one is
+	# wider than before, not narrower.
+	#
+	# `light_angular_distance` gives the sun a finite apparent size, so shadow
+	# edges soften with distance from the caster instead of staying razor sharp at
+	# every depth. A perfectly hard edge at 40 m is one of the tells that reads as
+	# untextured primitives; this costs nothing but the existing shadow map.
+	#
+	# `directional_shadow_max_distance` came down from 180 m. The same shadow
+	# atlas now covers 130 m, so the near field where the player actually walks
+	# gets more texels and contact shadows under railings, treads and landing gear
+	# resolve instead of dissolving. Nothing at the station is 130 m from the
+	# camera and still expected to cast a legible shadow.
 	var key_light := DirectionalLight3D.new()
 	key_light.name = "SpaceKeyLight"
 	key_light.rotation_degrees = Vector3(-42.0, -28.0, 0.0)
 	key_light.light_color = Color("b8edf1")
-	key_light.light_energy = 1.35
+	key_light.light_energy = 1.75
 	key_light.light_specular = 0.6
+	key_light.light_angular_distance = 0.65
 	key_light.shadow_enabled = true
-	key_light.directional_shadow_max_distance = 180.0
+	key_light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	key_light.directional_shadow_split_1 = 0.06
+	key_light.directional_shadow_split_2 = 0.16
+	key_light.directional_shadow_split_3 = 0.42
+	key_light.directional_shadow_blend_splits = true
+	key_light.directional_shadow_max_distance = 130.0
 	add_child(key_light)
 
 	var counter_fill := DirectionalLight3D.new()
 	counter_fill.name = "SpaceCounterFill"
 	counter_fill.rotation_degrees = Vector3(-16.0, 152.0, 0.0)
 	counter_fill.light_color = Color("3d6f8c")
-	counter_fill.light_energy = 0.35
-	counter_fill.light_specular = 0.25
+	counter_fill.light_energy = 0.62
+	counter_fill.light_specular = 0.45
 	counter_fill.shadow_enabled = false
 	add_child(counter_fill)
 
+	# Deck bounce. The decks are the brightest large surfaces on the station, and
+	# in a real dock they would throw light back up onto every hull underside,
+	# catwalk soffit, landing-gear bay and equipment belly. Nothing did that here:
+	# the key comes from above, the counter-fill comes from behind and level, so
+	# every downward-facing surface in the station received only ambient. That is
+	# why a parked craft read as a flat pale cut-out — its whole lower half sat at
+	# one value with no gradient across it.
+	#
+	# This is aimed upward, casts no shadows, and carries no specular: a bounce is
+	# diffuse, and giving it a highlight would read as a second sun under the
+	# floor. Its colour is deliberately warm against the cool key and the cool
+	# counter-fill. Three lights from three directions in three hues is what lets
+	# a surface's orientation be read from its colour as well as its brightness,
+	# and it is the cheapest way to stop a monochrome cyan scene reading as one
+	# flat material.
+	var deck_bounce := DirectionalLight3D.new()
+	deck_bounce.name = "DeckBounceFill"
+	deck_bounce.rotation_degrees = Vector3(58.0, 26.0, 0.0)
+	deck_bounce.light_color = Color("b09070")
+	deck_bounce.light_energy = 0.46
+	deck_bounce.light_specular = 0.0
+	deck_bounce.shadow_enabled = false
+	deck_bounce.set_meta("diffuse_bounce_fill", true)
+	add_child(deck_bounce)
+
 	# Freestanding light masts keep the open decks readable without implying a
 	# roof. Exact placement is a modern blockout decision.
+	#
+	# The cones were measured against the decks they are supposed to serve rather
+	# than left at their authored numbers. A 39 degree cone from y = 9.0 lands a
+	# 7.3 m radius pool, so the mast at x = -35 stopped at x = -42.3 and the Arrow
+	# sitting at x = -43 was outside its own berth light entirely. Widening to 47
+	# degrees and extending the range covers the berth the mast exists to light.
+	# No light is added by this: the same six fixtures now reach the surfaces they
+	# were placed for.
+	#
+	# `spot_angle_attenuation` softens the cone edge. At the default the pool ends
+	# on a hard circular boundary across the deck plate, which reads as a painted
+	# disc rather than a luminaire, and `spot_attenuation` below 1.0 slows the
+	# distance falloff so the pool has a long tail instead of a sharp rim.
 	var deck_lights := [
 		Vector3(-11.5, 10.5, 10.0),
 		Vector3(11.5, 10.5, 10.0),
@@ -2257,10 +2346,44 @@ func _build_environment() -> void:
 		light.rotation_degrees.x = -90.0
 		light.light_color = Color("e3f1e9") if is_hero_work_light else Color("d7fffa")
 		light.light_energy = 1.35 if is_hero_work_light else 1.7
-		light.spot_range = 22.0 if is_hero_work_light else 24.0
-		light.spot_angle = 39.0
+		light.spot_range = 30.0 if is_hero_work_light else 36.0
+		light.spot_angle = 47.0
+		light.spot_angle_attenuation = 0.55
+		light.spot_attenuation = 0.75
 		light.shadow_enabled = true
 		light.set_meta("central_berth_key_light", is_hero_work_light)
+		add_child(light)
+
+	# Two outer nodes had no mast of their own. The freight approach was lit only
+	# by its module's own apron pair, which point at the apron and not at the
+	# gantry work zone station-ward of it, and the Fleet Dock comb has no light
+	# nodes at all by its own frozen contract — the Zenith parks there under
+	# nothing but the key and whatever ambient reaches it. These are the same
+	# freestanding mast idiom, placed over the two work zones the existing six
+	# never covered, and they are the reason the fix is not a global gain.
+	#
+	# The freight mast casts shadows because the gantry, the racks and a parked
+	# freighter are all inside its cone and the cast shadow is the point. The
+	# fleet-dock mast does not: the comb is an open lattice, its shadow would be a
+	# stripe pattern of no informational value, and one shadow map is enough new
+	# per-frame cost to take without being able to measure it on this box.
+	var outer_masts := [
+		["FreightApproachMastSpot", Vector3(-53.0, 11.0, 30.5), Color("d7fffa"), 1.55, 34.0, true],
+		["FleetDockMastSpot", Vector3(34.0, 10.5, 57.0), Color("cfeef0"), 1.35, 38.0, false],
+	]
+	for mast: Array in outer_masts:
+		var light := SpotLight3D.new()
+		light.name = str(mast[0])
+		light.position = mast[1] as Vector3
+		light.rotation_degrees.x = -90.0
+		light.light_color = mast[2] as Color
+		light.light_energy = float(mast[3])
+		light.spot_range = float(mast[4])
+		light.spot_angle = 47.0
+		light.spot_angle_attenuation = 0.55
+		light.spot_attenuation = 0.75
+		light.shadow_enabled = bool(mast[5])
+		light.set_meta("outer_node_work_mast", true)
 		add_child(light)
 
 	var landing_fill := OmniLight3D.new()

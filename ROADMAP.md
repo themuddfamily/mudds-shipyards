@@ -90,6 +90,29 @@ This does not change the stated visual target above; it records that the target 
 
 Presentation changes require real-time human review; automated checks cannot establish that something reads as a manufactured place.
 
+### Station lighting pass — 2026-08-16
+
+Three independent surface passes (post-processing, ship detail, chamfering) each reported the same ceiling in different words: the material and geometry work was landing on surfaces too dark to show it. Measured mean frame luminance before this pass ran 2–27 out of 255 across parked berths, the engine cluster, the operations room and the gantry, and the *median* pixel of every one of those frames sat at 14–17/255. Screen-space AO modulates ambient and there was almost no ambient to modulate; `normal_scale` at an absurd 12.0 moved under 1% of a berth frame.
+
+What the measurements showed, recorded because the two ambient terms are not interchangeable and the next person will otherwise assume they are:
+
+- `background_energy_multiplier` scales the **hemispheric** half of the sky ambient. It moves open decks and hull undersides and barely touches the enclosed operations room and habitat. Raising it alone flattens the frame — at 1.6 the measured per-frame standard deviation *fell*, and the backdrop stopped reading as vacuum.
+- `ambient_light_energy` scales the **flat colour** quarter. It moves enclosed interiors and barely touches open decks. It is uniform by construction and is the flattening term.
+- Neither substitutes for a light. The fixes that produced the largest gains were a warm shadowless bounce aimed upward (nothing previously lit any downward-facing surface in the station), and two measured facts about reach: a 39° mast cone from y = 9.0 stopped 0.7 m short of the Arrow berth it exists to light, and the freight berth's two apron work lights left a four-metre unlit seam down the exact centreline where a freighter parks.
+
+Structural contrast — the standard deviation of the non-emissive 90% of each frame, which is what "does form read" actually means — rose in every measured frame (+4% to +44%) while the fraction of near-blown pixels moved by under 2.1 points. That is the discriminator between a lighting scheme and a gain knob, and it is the number to reproduce before accepting any future change here.
+
+Remaining, in order of leverage:
+
+- **Interiors are monochrome.** The operations room and habitat common room now read as manufactured plate, but every surface in them is one cyan hue. A single-hue frame is a strong "not real" cue independent of level. The exteriors got hue separation from the warm bounce; the interiors cannot see it, and their own fixtures are all cool.
+- **The frame is still bimodal.** Emissive fixtures sit near 250/255 with heavy bloom while structure sits at 20–40. Real luminaires would spill onto what they are mounted to. Glow was measured and retuned by an earlier pass, so it is deliberately untouched here.
+- **Two backdrop artifacts got brighter along with the ambient, and both come from values `space_backdrop_test` freezes deliberately.** They are not new; the raised hemispheric term made them about 45% more legible.
+  - The procedural sky's equator is a **hard step of 8.8/255** (measured across `07_original_identity_backdrop.png`: 19.4 above, 10.6 below, over roughly ten pixels), because `sky_horizon_color` `0d1a24` and `ground_horizon_color` `070d13` are a two-to-one luminance pair with no blend between them. `sky_curve`/`ground_curve` were softened here, which smooths each hemisphere but cannot cross the equator. It reads as a ruled line, and in wide shots as a distant wall. The fix is to bring the two horizon colours together, which is a frozen identity decision.
+  - The **legacy nebula cover is faintly legible as panel seams** in the same shots, roughly 4/255 of modulation over a 15/255 field. Its 0.08 modulate is frozen for the same reason.
+- Frame cost of the three added lights and one added shadow map is **unmeasured**. This machine renders through llvmpipe; any number produced here would be meaningless.
+
+**Screen-space AO cannot be evaluated on this machine.** Rendering the production scene to the root viewport under llvmpipe/Vulkan and capturing six framings, `ssao_enabled = false` at the profile level (applied before the world builds), the shipped `HIGH` settings, and a forced 4× maximum (intensity 16, radius 8 m, power 4, `light_affect` 1.0) all produce **bit-identical** frames to four decimal places on every statistic. A desaturation applied through the same Environment reference *does* land, so the reference is live and the pass is simply not contributing. Any earlier conclusion about how much AO does or does not do — including "AO's job is modulating ambient and there is almost no ambient to modulate" — was measured through an instrument that is inert on this box and needs re-taking on real hardware. The lighting result recorded above does not depend on AO either way.
+
 ## Session handoff — 2026-08-15
 
 State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
