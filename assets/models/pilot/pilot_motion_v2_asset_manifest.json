@@ -74,7 +74,7 @@
       1.945
     ]
   },
-  "blend_sha256": "02b2a1f292fbeee92a01f33c1af0c7914b142dfdf949a9b4e2d5618c5bcd1a57",
+  "blend_sha256": "e7001460e6223b8f5af9369634f8596244b3c18cac0016198348c2bf8ac269a4",
   "blender_version": "4.0.2",
   "bone_count": 23,
   "bone_tree": {
@@ -103,7 +103,9 @@
     "upper_arm_r": "clavicle_r"
   },
   "coordinate_contract": {
+    "authored_pose_sign": "anatomical degrees, positive towards the face; the leg chain's sagittal sign is inverted into bone-local euler because a -Z-pointing bone reads world +X rotation the opposite way round from the -Y-forward source frame",
     "imported_visual_forward_axis": "+Z",
+    "knee_flexion_world_axis": "+X; the shin never rotates forward past the thigh",
     "mounted_player_forward_axis": "-Z after Player BodyPivot PI yaw offset",
     "root_motion": "in_place_no_horizontal_or_yaw",
     "runtime": "Godot +Y up, imported semantic visual forward +Z, metres",
@@ -111,8 +113,8 @@
     "source": "Blender Z-up, -Y forward, metres"
   },
   "generator": "tools/blender/generate_pilot_motion_v2.py",
-  "generator_sha256": "febd050b9705fb62b182b8b09ab499433585f0417872971c9c6f405c8020b72c",
-  "glb_sha256": "c0a59952e140bfec03042b63cbd894cc25c8d050061d4d549bc7603c8dd182ca",
+  "generator_sha256": "8610ce4330389bece695b3b8e36eca8cd0d4468aa755eab4e1df320d6433e761",
+  "glb_sha256": "b869688643a78ba1f257c3521186d1ff13d05178af35fea25b38d994eb9eed72",
   "hierarchy_contract": [
     "PilotArt",
     "PilotRig",
