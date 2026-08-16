@@ -574,6 +574,14 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 - [ ] Add a concentrated cluster of colourful planets/moons, asteroid and debris fields, abandoned structures, mining platforms, navigation beacons, races, patrols, cargo runs, convoys, and station defence.
 - [ ] Keep the shipyard the social and logistical heart; do not expand into a procedural galaxy.
 
+### Delivered so far — the Cinder Reach cluster (`scripts/world/nearby_sector_cluster.gd`)
+
+The **destination** half of the first item exists. Flying out of the launch corridor now reaches a place: a four-beacon route chain from 241 m to 603 m, a solid ringed moonlet 619 m to port, a sixteen-boulder debris drift with a 720-instance debris shell, an open 28 x 23 m dock gate on the platform's approach lane, and the derelict Cinder Reach extraction platform 706 m out — roughly nine seconds outbound at Torrent cruise, six on boost. Every position is a named constant; there is no generator and no streaming, which is how the second item is honoured rather than merely asserted. Nothing the component builds comes nearer than 200 m to the station or reaches past 900 m, so the launch corridor, the target range and the landing approach are untouched and the backdrop star shell at 1450 m stays where it was.
+
+It owns **no gameplay authority**: no rewards, no leases, no objectives, and deliberately no range targets, because the guided mission's objective count is `ShipyardWorld.get_target_count()`. Its solid bodies sit on the same World collision layer the station uses, so the existing `HeroShip` hull-impact path is the only damage route involved. Regression: `tests/nearby_sector_cluster_test.gd` (57 assertions; frozen placement contract, approach-lane and keep-clear scatter scan, outward-winding scan over the built tree, collision-layer boundary, seed determinism, detach/re-entry lifecycle). Rendered and flown evidence: `tests/nearby_sector_flight_review.gd`.
+
+**Still open on the first item:** the *activity* half — races, patrols, cargo runs, convoys and station defence — plus the `WorldLocationDefinition` / `ActivityDefinition` resources and the `ActivityDirector` seam the playbook above specifies. None of that is started, and none of it should be layered onto scenery: the cluster exposes geometry and published anchors, not objectives.
+
 ## Phase 9 — Release polish
 
 ### Design and implementation specification

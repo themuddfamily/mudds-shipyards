@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/nearby_sector_cluster.gd" id="1_cluster"]
+
+[node name="NearbySectorCluster" type="Node3D"]
+script = ExtResource("1_cluster")
+
+[node name="RouteBeacons" type="Node3D" parent="."]
+
+[node name="Landmarks" type="Node3D" parent="."]
+
+[node name="DebrisField" type="Node3D" parent="."]
+
+[node name="ExtractionPlatform" type="Node3D" parent="."]

@@ -85,9 +85,20 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	var scale_030_count := 0
 	var exact_recipe := true
 	var forbidden_ship_atlas_count := 0
+	# The nearby sector cluster is inside the world but is not station stock, and
+	# its plate size is not the station's. `uv1_scale` is a physical scale under
+	# world triplanar — 0.22 lays a plate every 4.5 m, which is right for a 2 m
+	# door frame and reads as woven gingham on Cinder Reach's 34 m gantry beams,
+	# where a rendered frame settled it. So the cluster keeps the same registered
+	# maps and the same `normal_scale`, at its own coarser scales, and this
+	# station-family census stops at the station envelope. `_test_cluster_family`
+	# below holds the excluded subtree to the recipe so nothing hides in the gap.
+	var cluster_root := world.get_node_or_null(^"NearbySectorCluster")
 	for candidate in world.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := candidate as MeshInstance3D
 		if mesh_instance.mesh == null:
+			continue
+		if cluster_root != null and cluster_root.is_ancestor_of(mesh_instance):
 			continue
 		for surface_index in mesh_instance.mesh.get_surface_count():
 			var material := mesh_instance.get_active_material(surface_index) as StandardMaterial3D
@@ -236,6 +247,50 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
+	_test_cluster_family(cluster_root)
+
+
+## The other side of the exclusion above. Cinder Reach's manufactured surfaces
+## are outside the station's frozen plate sizes on purpose, but they are not
+## outside the recipe: same three registered maps, same red-channel roughness,
+## same world triplanar, same `normal_scale`. Only the physical scale differs,
+## and it is required to be coarser than the station's largest plate rather than
+## merely different, so "not 0.22" cannot quietly become "anything".
+func _test_cluster_family(cluster_root: Node) -> void:
+	_check(cluster_root != null, "the nearby sector cluster is present in the live world")
+	if cluster_root == null:
+		return
+	var mapped := 0
+	var exact := true
+	var coarser_than_station := true
+	for candidate in cluster_root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		for surface_index in mesh_instance.mesh.get_surface_count():
+			var material := mesh_instance.get_active_material(surface_index) as StandardMaterial3D
+			if material == null or _texture_path(material.albedo_texture) != ALBEDO_PATH:
+				continue
+			mapped += 1
+			exact = (
+				exact
+				and material.normal_enabled
+				and _texture_path(material.normal_texture) == NORMAL_PATH
+				and is_equal_approx(material.normal_scale, 1.0)
+				and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
+				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
+				and material.uv1_triplanar
+				and material.uv1_world_triplanar
+				and material.texture_repeat
+			)
+			if material.uv1_scale.x >= 0.22:
+				coarser_than_station = false
+	_check(mapped >= 40, "the cluster's manufactured surfaces bind the registered panel maps (%d)" % mapped)
+	_check(exact, "every mapped cluster surface uses the same recipe and the same 1.0 relief depth")
+	_check(
+		coarser_than_station,
+		"every cluster plate is physically larger than the station's largest, as its structures are"
+	)
 
 
 func _test_four_ship_material_identity(game: GameFlow) -> void:
