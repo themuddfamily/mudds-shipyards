@@ -466,12 +466,54 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# maps and the same normal_scale and is held to the recipe by its own family
 	# test, exactly as the Cinder Reach cluster already was. The station family is
 	# unchanged at 2221 / 130 / 532 / 1559.
+	#
+	# Re-frozen 2221 -> 2436 on rebase, measured on the merged tree. The habitat
+	# rooms pass adds +215 at the habitat module's existing 0.28 scale (532 -> 747);
+	# 0.22 stays 130 and 0.30 stays 1559. No non-habitat role or scale changed.
+	#
+	# What the +215 is. The habitat's living quarters were furnished: six bunk
+	# mouths given jambs, heads and head lips, and the berths behind them given
+	# shelves, brackets, stowage nets, locker shutters and shelves; a galley run
+	# with a carcass, worktop, splashback, doors, rail posts and a bin; a mess
+	# table with trestles, top and two benches; a berth roster board; and a
+	# vestibule notice wall with its shelf and brackets. Every one of those is
+	# structure or fitted joinery, so every one of them is in the plate family at
+	# this module's frozen 0.28 m physical scale.
+	#
+	# What is deliberately *not* in it, and this is the larger half of the pass by
+	# object count: the blankets, folded linen, curtains, coveralls, boots, kit
+	# bags, mugs, trays, ration cartons, name cards, notice cards, the floor mat
+	# and the planting. Those are `linen`, `blanket`, `coverall`, `leather`,
+	# `plastic_pale`, `paper`, `rug`, `netting` and `greenery` — a soft-goods
+	# palette created for this pass and deliberately left unmapped, because a
+	# plate-and-rivet normal map at 0.28 m per repeat would print rivets across a
+	# 0.3 m mug. Same split the operations module makes between its six structural
+	# keys and its painted accents. The one new mapped material is `steel_bright`,
+	# the galley worktop, which is a 4.3 m plate at waist height under a task light
+	# and is exactly the case a flat scalar surface fails.
+	# Re-frozen 2436 -> 2551 on rebase, measured on the merged tree. The side
+	# branch garden bay moves only 0.28, 747 -> 862 (+115); 0.22 remains 130 and
+	# 0.30 remains 1559. The delta is the bay's shell and its
+	# fitted joinery — link floor, ceiling, sills, headers, mullions; the garden's
+	# four wall runs, its ceiling ring and the cupola curb; the grow racks'
+	# uprights, crowns and 18 steel trays; the planting kerbs; the benches; the
+	# potting bench carcass, worktop and splashback; and the nutrient tanks. The
+	# greenery, the grow-light strips, the plastic trays and the soil beds are not
+	# in it, for the same reason the living quarters' soft goods are not.
+	#
+	# The cupola's eight mullions and eight cap segments are not in it either, and
+	# that is worth recording because it would otherwise look like a gap: they are
+	# `structural` and `shell_light`, both mapped, but they are drawn through
+	# `MultiMeshInstance3D` rather than as individual `MeshInstance3D` nodes, and
+	# this census walks `MeshInstance3D`. The batching was done under whole-scene
+	# instance-budget pressure and it moves 16 mapped surfaces out of this count
+	# without changing a pixel.
 	_check(
-		mapped_surface_count == 2221
+		mapped_surface_count == 2551
 		and scale_022_count == 130
-		and scale_028_count == 532
+		and scale_028_count == 862
 		and scale_030_count == 1559,
-		"live station binds exactly 2221 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		"live station binds exactly 2551 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -529,7 +571,9 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 	# bind the family; sled wheels are `rubber` and hoist post bands are painted
 	# `orange`, and both stay outside it exactly as their drawn equivalents in
 	# every other module do.
-	_check(batches == 13 and mapped == 6, "instanced station structure is exactly thirteen batches, six of them mapped")
+	# Re-frozen 13 -> 23 total and 6 -> 9 mapped: the Habitat adds ten visual-only
+	# stock batches, of which the cupola posts/caps and spare trays use the family.
+	_check(batches == 23 and mapped == 9, "instanced station structure is exactly twenty-three batches, nine of them mapped")
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
 

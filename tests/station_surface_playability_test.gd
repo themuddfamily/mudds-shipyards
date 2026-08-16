@@ -44,6 +44,8 @@ const HABITAT_SURFACE_PATHS := [
 	"Structure/PressurizedHabitatCorridor/EntryVestibuleFloor",
 	"Structure/PressurizedHabitatCorridor/HabitatFloor",
 	"Structure/ObservationCommon/CommonFloor",
+	"Structure/SideBranchGarden/BranchLink/LinkFloor",
+	"Structure/SideBranchGarden/GardenShell/GardenFloor",
 ]
 
 const FREIGHT_SURFACE_PATHS := [
@@ -133,7 +135,8 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(freight, FREIGHT_SURFACE_PATHS) and every_surface_exact
 	if comb != null:
 		every_surface_exact = _surface_roster_matches(comb, COMB_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 45 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	# Re-frozen 45 -> 47: the garden adds its collision-backed link and bay floors.
+	_check(every_surface_exact, "all 47 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
@@ -410,6 +413,9 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 	# route envelope, including visual-only tread and floor-detail overlays.
 	var route_envelopes := [
 		AABB(Vector3(-60.0, -0.2, -69.0), Vector3(120.0, 1.0, 129.0)),
+		# Garden bay added beyond the old world-x=60 station envelope. Kept local
+		# rather than widening the whole-station box into unrelated dressing.
+		AABB(Vector3(62.8, -0.2, -3.5), Vector3(12.8, 1.0, 9.2)),
 		AABB(Vector3(-14.0, -0.1, 4.3), Vector3(5.0, 3.7, 6.8)),
 		AABB(Vector3(-8.0, -0.1, 49.0), Vector3(4.7, 4.7, 12.5)),
 		AABB(Vector3(-12.0, 3.9, 60.0), Vector3(67.0, 1.2, 63.0)),
@@ -497,7 +503,8 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 ##
 ## The sweep is deliberately structural rather than a roster: it rays down over
 ## the reachable envelopes and asks the renderer, not a list, whether anything is
-## drawn where the physics says a player may stand. Hull collision on the live
+## drawn where the physics says a player may stand. Both individual meshes and
+## every visible transform in a MultiMesh contribute drawn bounds. Hull collision on the live
 ## craft is out of scope here — that is a published per-ship contract audited by
 ## `tests/torrent_collision_art_alignment_test.gd` and friends — so only the
 ## World layer is swept.
@@ -513,16 +520,28 @@ func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -
 		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
 			continue
 		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
-		var ix_min := int(floor((box.position.x - 0.1) / 2.0))
-		var ix_max := int(floor((box.end.x + 0.1) / 2.0))
-		var iz_min := int(floor((box.position.z - 0.1) / 2.0))
-		var iz_max := int(floor((box.end.z + 0.1) / 2.0))
-		for ix in range(ix_min, ix_max + 1):
-			for iz in range(iz_min, iz_max + 1):
-				var key := "%d:%d" % [ix, iz]
-				if not buckets.has(key):
-					buckets[key] = []
-				(buckets[key] as Array).append(box)
+		_bucket_drawn_aabb(buckets, box)
+	for candidate in world.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		var multi := batch.multimesh
+		if multi == null or multi.mesh == null or not batch.is_visible_in_tree():
+			continue
+		var visible_count := multi.visible_instance_count
+		if visible_count < 0:
+			visible_count = multi.instance_count
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		for instance_index in visible_count:
+			# MultiMesh buffers read back as identity under headless. Habitat batches
+			# publish the same authored transform roster used to fill that buffer; use
+			# it for structural audits and the live buffer when no roster is present.
+			var instance_transform := (
+				authored_transforms[instance_index] as Transform3D
+				if authored_transforms.size() == multi.instance_count
+				else multi.get_instance_transform(instance_index)
+			)
+			var drawn_transform := batch.global_transform * instance_transform
+			var box := (drawn_transform * multi.mesh.get_aabb()).abs()
+			_bucket_drawn_aabb(buckets, box)
 
 	var space := world.get_world_3d().direct_space_state
 	var orphans := {}
@@ -681,6 +700,19 @@ func _column_is_drawn(buckets: Dictionary, x: float, z: float, surface_y: float)
 			continue
 		return true
 	return false
+
+
+func _bucket_drawn_aabb(buckets: Dictionary, box: AABB) -> void:
+	var ix_min := int(floor((box.position.x - 0.1) / 2.0))
+	var ix_max := int(floor((box.end.x + 0.1) / 2.0))
+	var iz_min := int(floor((box.position.z - 0.1) / 2.0))
+	var iz_max := int(floor((box.end.z + 0.1) / 2.0))
+	for ix in range(ix_min, ix_max + 1):
+		for iz in range(iz_min, iz_max + 1):
+			var key := "%d:%d" % [ix, iz]
+			if not buckets.has(key):
+				buckets[key] = []
+			(buckets[key] as Array).append(box)
 
 
 func _intentional_non_walkable_reason(mesh_instance: MeshInstance3D, world: ShipyardWorld) -> String:

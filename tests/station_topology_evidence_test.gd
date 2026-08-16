@@ -100,7 +100,13 @@ func _test_document_tables_parse(documented: Dictionary) -> void:
 	_check(totals.size() == 11, "the documented totals table publishes all eleven live registry quantities")
 	_check(edges.size() == 4, "the documented edge table publishes four station edges")
 	_check(routes.size() == 4, "the documented route roster table publishes four modules")
-	_check(deferred.size() == 5, "the documented deferred-landmark table publishes five landmarks")
+	# 5 -> 4. The habitat side branch left this table when its door was unlocked
+	# onto a built room; the remaining four are the Aft VIP access and the three
+	# comb dock thresholds. Cross-checked by `_compare_deferred`, which requires
+	# every `dead_ends` entry in the route roster to be described here, so the
+	# habitat's `dead_ends` cell had to empty in the same edit or this would have
+	# gone red from the other side.
+	_check(deferred.size() == 4, "the documented deferred-landmark table publishes four landmarks")
 	_check(berths.size() == 5, "the documented berth table publishes five production berths")
 
 

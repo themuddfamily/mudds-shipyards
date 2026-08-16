@@ -796,12 +796,15 @@ an authenticated ship.
    berth; Docks 02/03 remain empty and deferred. The comb's markers themselves
    add no berth, lease, regeneration, interaction, audio or gameplay authority.
 8. A Habitat Spine is integrated through the starboard lattice with an operated
-   door, corridor, six bunk alcoves, an eight-chair observation/common room,
-   glazing, consoles, service detail, and a sealed deferred branch. C1 motivates
-   the habitat/bunk/chair motifs only as later secondary material: its exact build
+   door, corridor, six furnished bunk alcoves, an eight-chair observation/common
+   room, galley and mess fit-out, glazing, consoles, service detail, and an open
+   side branch onto a hydroponic garden under a glazed cupola. C1 motivates only
+   the habitat/bunk/chair motifs as later secondary material: its exact build
    provenance is unverified, while the module name, placement, dimensions, room
-   functions, layout, furniture, connector, and mechanics are a fixed-era-inspired
-   modern interpretation rather than recovered geometry.
+   functions, layout, furniture, garden, connector, and mechanics are a
+   fixed-era-inspired modern interpretation rather than recovered geometry. No
+   source describes anything behind the former sealed branch; the garden is new
+   content and upgrades no evidence.
 9. The settled bounded operational lattice integrates exactly four fixed-rail,
    presentation-only activity roles: `Full` at Central
    (`CentralTowServiceActivity`), `Gantry` at Freight

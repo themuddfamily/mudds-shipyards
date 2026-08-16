@@ -137,7 +137,7 @@ flowchart LR
   HUB --- HS["habitat-spine @ hub-starboard-habitat"]
   HUB --- JF["jovian-freight-berth @ hub-registry-pod-freight"]
   AJ -. "open landmark, no graph edge" .-> VIP["Aft VIP access -> VipReceptionSuite (modern interpretation)"]
-  HS -. "sealed branch, no route" .-> DB["Habitat side branch"]
+  HS -. "open internal route, no graph edge" .-> DB["Habitat garden-cupola (modern interpretation)"]
   FC -. "external assignment only" .-> Z["ShipyardWorld / zenith_fleet_dock_berth"]
   FC -. "deferred, empty" .-> D23["Dock02 / Dock03"]
 ```
@@ -188,7 +188,7 @@ continuity is a walkability fact, not a recorded graph edge.
 | `overclaimed_slot_count` | 0 |
 | `authority_claim_count` | 0 |
 | `production_berth_count` | 5 |
-| `deferred_or_dead_end_route_marker_count` | 5 |
+| `deferred_or_dead_end_route_marker_count` | 4 |
 
 <!-- LIVE-GRAPH-TOTALS:END -->
 
@@ -223,7 +223,7 @@ source inspired the module and never raises its confidence.
 | --- | --- | --- | --- |
 | `aft-junction-stack` | `approach`, `lower-junction`, `operations-room`, `stair-base`, `stair-top`, `upper-floor`, `vip-landmark` | `approach` | `vip-landmark` |
 | `fleet-dock-comb` | `approach`, `dock-01-threshold`, `dock-02-threshold`, `dock-03-threshold`, `trunk-aft`, `trunk-forward`, `trunk-mid`, `vertical-base`, `vertical-top` | `approach` | `dock-01-threshold`, `dock-02-threshold`, `dock-03-threshold` |
-| `habitat-spine` | `approach`, `common-entry`, `deferred-branch`, `habitat-corridor`, `observation`, `threshold` | `approach` | `deferred-branch` |
+| `habitat-spine` | `approach`, `common-entry`, `deferred-branch`, `habitat-corridor`, `observation`, `threshold` | `approach` | — |
 | `jovian-freight-berth` | `approach`, `apron-threshold`, `boarding-staging`, `cargo-rack`, `cargo-transfer`, `service-room`, `service-threshold` | `approach` | — |
 
 <!-- LIVE-GRAPH-ROUTES:END -->
@@ -238,21 +238,33 @@ end and never joins the adjacency graph.
 | Landmark | Module ID | Route marker | World origin | Live gate |
 | --- | --- | --- | --- | --- |
 | Aft VIP access | `aft-junction-stack` | `vip-landmark` | `(-5.15, 4.35, 66.9)` | `VIPAccess` door, open, onto `VipReceptionSuite` — a `modern_interpretation` interior at confidence `none` |
-| Habitat sealed side branch | `habitat-spine` | `deferred-branch` | `(69.0, 0.15, 9.4)` | `DeferredBranchAccess` door, locked and deferred, `INTERIOR DEFERRED` |
 | Comb dock 01 threshold | `fleet-dock-comb` | `dock-01-threshold` | `(22.0, 4.35, 59.05)` | marker `assigned-dock-01`, `assigned_external`, external berth `zenith_fleet_dock_berth` |
 | Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `assigned_external`, external berth `halyard_fleet_dock_berth` |
 | Comb dock 03 threshold | `fleet-dock-comb` | `dock-03-threshold` | `(52.0, 6.75, 59.05)` | marker `deferred-dock-03`, `deferred_empty` |
 
 <!-- LIVE-GRAPH-DEFERRED:END -->
 
-Four of the five have no interior; each of those is a closed endpoint recorded
-instead of an invented room. The fifth, the Aft VIP landmark, was one of them
+Three of the four have no interior; each of those is a closed endpoint recorded
+instead of an invented room. The fourth, the Aft VIP landmark, was one of them
 until `VipReceptionSuite` was built behind it. That room is invented and is
 labelled as invented — element `new`, status `modern_interpretation`, source
 confidence `none` — and its existence upgrades no evidence: no source describes
 the inside of any VIP area, and the two VIP fragments the ledger holds remain
 unjoined. The marker stays out of the adjacency graph, because the suite is an
 interpretation interior rather than a registered station module.
+
+The habitat's side branch was previously a fifth row of this table and has been
+removed from it, because it is no longer deferred. Its `DeferredBranchAccess` door is
+unlocked and its `deferred-branch` marker now leads to a built room, the
+`garden-cupola` bay. **That is a content change, not an evidence change.** No
+source describes anything behind that door; the room is wholly invented, is
+labelled `fixed_era_inspired_modern_interpretation` like the rest of the module,
+and is recorded as invented in the module's `content_note`, its
+`modern_interpretations` list and the evidence-status table below. Removing the
+row is what keeps this table honest: a deferred-landmark table that still listed
+a door you can walk through would be the false statement.
+
+These four rows are current, and the marker rule above still holds for them.
 
 ### Machine-checked production berths
 
@@ -305,7 +317,7 @@ anchor its evidence anchor is `unknown` and its label is `new` or `inferred`.
 | A chair-lined habitat route exists | `habitat-corridor` marker `(59.15, 0.15, 15.5)` | fixed-era-inspired | C1 `02:00` "Chair-lined corridor" | `later_source_only` | length, width, chair spacing |
 | Eight-chair observation/common room | `observation` `(74.3, 0.15, 15.5)`, `common-entry` `(67.65, 0.15, 15.5)`, nine window panes | new | none for the room's function or chair count | `modern_interpretation` | whether any observed chair/window space is station or ship interior |
 | Habitat attaches to the starboard node | `hub-starboard-habitat` at `StarboardBerthNode`, root `(49, 0, 15.5)` yaw `90°` | new | none | `modern_interpretation` | every historical join |
-| Sealed side branch | `deferred-branch` `(69.0, 0.15, 9.4)`, `DeferredBranchAccess` locked and deferred | new | none | `modern_interpretation` | whether any adjacent room ever existed |
+| Side branch garden bay | `deferred-branch` `(69.0, 0.15, 4.9)`, inside the `garden-cupola` room beyond the unlocked `DeferredBranchAccess` | new | none | `modern_interpretation` | whether any adjacent room ever existed, and what it was |
 
 The module publishes `fixed_era_inspired_modern_interpretation`. Its inspiration
 is C1, which the ledger classes `later_source_only` with unverified fixed-build
@@ -378,7 +390,7 @@ The live pod holds no regeneration authority. It publishes the
 | A compact console/window room reached through a blue-operated opening | `AftJunctionStack` operations room, `operations-room` marker `(5.6, 0.15, 61.2)`, four chairs, three console bays, cyan `OperationsEntrance` door | inferred | none registered; B3 carries the `station.compact_console_window_room` claim with no anchor, and the `02:40–03:00` citation is not in the ledger | `modern_interpretation` | function, dimensions, wider adjacency |
 | Dock Operations pod | `OperationsPodFloor/Roof/Back` at `(43, ·, 27)` | new | none | `modern_interpretation` | role, shape, adjacency |
 | Freight service room | `service-room (-33.8, 0.53, 57.8)` behind `service-threshold (-37.85, 0.53, 57.8)` and the `ServiceAccess` door | new | none | `modern_interpretation` | historical freight-berth existence at all |
-| Habitat interior rooms | nine rooms including six bunk alcoves and the observation/common room | fixed-era-inspired for the presence of bunks and a chair route; new for the plan | C1 `01:50`, `02:00` | `later_source_only` / `modern_interpretation` | authoritative floor plan and adjacency |
+| Habitat interior rooms | ten rooms including six bunk alcoves, the observation/common room, and the invented `garden-cupola` bay | fixed-era-inspired for the presence of bunks and a chair route; new for the plan and garden | C1 `01:50`, `02:00` | `later_source_only` / `modern_interpretation` | authoritative floor plan and adjacency |
 | Which room performs which function | every live room label | unknown | none | `unknown` | no source assigns a function to a room |
 
 ## Evidence ledger for topology claims

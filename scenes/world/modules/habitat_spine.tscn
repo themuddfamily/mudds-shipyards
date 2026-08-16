@@ -31,7 +31,7 @@ position = Vector3(0, 0.15, 25.3)
 
 [node name="RouteDeferredBranch" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(6.1, 0.15, 20)
+position = Vector3(10.6, 0.15, 20)
 
 [node name="BunkAlcoveMarker01" type="Marker3D" parent="."]
 position = Vector3(-4.25, 0.15, 5.1)
@@ -65,11 +65,7 @@ unique_name_in_owner = true
 position = Vector3(7.48, 0, 20)
 rotation = Vector3(0, 1.570796, 0)
 motion_duration = 0.65
-interaction_label = "HABITAT SIDE BRANCH"
-locked_prompt = "NO AUTHENTICATED ROUTE"
-locked = true
-deferred_access = true
-deferred_label = "HABITAT SIDE BRANCH"
-deferred_prompt = "INTERIOR DEFERRED"
+interaction_label = "GARDEN BAY ACCESS"
+locked_prompt = "GARDEN BAY PRESSURE LOCK"
 evidence_status = &"fixed_era_inspired_modern_interpretation"
-content_note = "This branch is a deliberate closed endpoint. No source proves an adjacent room, so no unsupported interior exists behind it."
+content_note = "This door opens onto a wholly modern garden bay. No source describes anything behind it; the room is invented content, labelled as such, and is not a reconstruction."

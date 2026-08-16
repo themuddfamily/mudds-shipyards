@@ -240,6 +240,56 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"VipReceptionSuite/Structure/Threshold/Sign_MODERN_INTERPRETATION",
 	"VipReceptionSuite/Structure/ExteriorShell/OutboardMarkerLamp01",
 	"VipReceptionSuite/Structure/Lighting/LanternCoveFront",
+	# Habitat rooms pass. The living quarters went from bare shell to furnished,
+	# and furniture is where this defect class actually lives: a mug on a shelf, a
+	# pan on a rail, a coverall on a hook and a lamp housing on a wall are all
+	# things whose only support is a number in a builder. Nine pieces in this pass
+	# were floating when first written and were caught by working the arithmetic
+	# rather than by a sweep — a pendant drop that stopped 0.01 m above its shade,
+	# a stowage net whose rails cleared the wall by 0.028 m, a coat rail 0.016 m
+	# off the facade, a lamp housing 0.24 m clear of the wall and 0.04 m above the
+	# board, a hung pan 0.011 m under its hook, a telescope 0.013 m over the sill.
+	# These entries are the ones a future edit is most likely to break again: one
+	# per mounting relationship, not one per object.
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/BerthLife/MouthJambAft/Mesh",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/BerthLife/MouthHead",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/BerthLife/BerthShelf",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/BerthLife/BerthBlanket",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/BerthLife/BerthCoverall",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/BerthLife/BerthStowageNet",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove03/BerthLife/BerthFoldedLinen",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove03/BerthLife/LockerShutter",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/EntryVestibuleLife/NoticeBoardLampHousing",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/EntryVestibuleLife/ArrivalHookRail",
+	"HabitatSpine/Structure/PressurizedHabitatCorridor/EntryVestibuleLife/ArrivalShelf",
+	"HabitatSpine/Structure/ObservationCommon/CommonGalley/GalleyWorktop/Mesh",
+	"HabitatSpine/Structure/ObservationCommon/CommonGalley/GalleyUrnBody",
+	"HabitatSpine/Structure/ObservationCommon/CommonGalley/GalleyPan",
+	"HabitatSpine/Structure/ObservationCommon/CommonGalley/GalleyTaskHousing",
+	"HabitatSpine/Structure/ObservationCommon/CommonMess/MessTableTop/Mesh",
+	"HabitatSpine/Structure/ObservationCommon/CommonMess/MessPendantShade",
+	"HabitatSpine/Structure/ObservationCommon/CrewBerthRoster/RosterBoardFrame",
+	"HabitatSpine/Structure/ObservationCommon/CrewBerthRoster/RosterLampHousing",
+	"HabitatSpine/Structure/ObservationCommon/CrewBerthRoster/RosterHungCoverall",
+	"HabitatSpine/Structure/ObservationCommon/CommonSoftGoods/LedgePlanter",
+	"HabitatSpine/Structure/ObservationCommon/CommonSoftGoods/LedgeScopeBody",
+	# Side branch garden bay. Same principle as above: one entry per mounting
+	# relationship. Six of these were floating when first written — a cupola cap
+	# ring standing on a solid ceiling that had no opening in it, three copper
+	# column feeds ending in open air over the racks, a nutrient main finishing in
+	# mid-air over the planting bed, a potting tool rail 0.036 m off its wall.
+	"HabitatSpine/Structure/SideBranchGarden/BranchLink/LinkSill/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenShell/CupolaCurb",
+	"HabitatSpine/Structure/SideBranchGarden/GardenShell/CupolaCapRing",
+	"HabitatSpine/Structure/SideBranchGarden/GardenShell/GardenBench01/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenColumn/ColumnHead/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenColumn/ColumnCollar",
+	"HabitatSpine/Structure/SideBranchGarden/GardenColumn/ColumnFeed",
+	"HabitatSpine/Structure/SideBranchGarden/GardenGrowRacks/GrowRack01/RackTray/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/PottingWorktop/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/PottingToolRail",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/NutrientManifold",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/NutrientTankCap",
 ]
 const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
 

@@ -39,7 +39,6 @@ const EXPECTED_EDGES := {
 ## Deliberate dead ends that must never be promoted into connection slots.
 const EXPECTED_DEAD_END_ROUTES := {
 	&"aft-junction-stack": [&"vip-landmark"],
-	&"habitat-spine": [&"deferred-branch"],
 	&"fleet-dock-comb": [&"dock-01-threshold", &"dock-02-threshold", &"dock-03-threshold"],
 }
 
@@ -258,10 +257,10 @@ func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> v
 			dead_end_count += 1
 			if marker == null or marker.has_meta(CONNECTION_SLOT_META):
 				every_dead_end_untagged = false
-	_check(dead_end_count == 5, "all five deliberate dead-end markers are present for inspection")
+	_check(dead_end_count == 4, "all four deliberate non-slot endpoint markers are present for inspection")
 	_check(
 		every_dead_end_untagged,
-		"the VIP landmark, the deferred habitat branch and the three comb dock thresholds are never connection slots"
+		"the VIP landmark and three comb dock thresholds are never connection slots"
 	)
 
 	var slot_ids := (world.get_station_route_registry_report().get("slots", {}) as Dictionary).keys()

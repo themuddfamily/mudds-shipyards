@@ -43,7 +43,8 @@ func _run() -> void:
 	_test_placement_isolation(world, habitat)
 	await _test_shared_physical_route(world, habitat)
 	await _test_production_player_traversal(game, world, player, habitat)
-	await _test_room_support_and_closed_branch(world, habitat)
+	await _test_production_player_garden_traversal(game, player, habitat)
+	await _test_room_support_and_open_branch(world, habitat)
 	await _cleanup(game)
 	_finish()
 
@@ -91,7 +92,13 @@ func _test_placement_isolation(world: ShipyardWorld, habitat: HabitatSpine) -> v
 		habitat_footprint.local_max
 	)
 	_check(habitat_aabb.position.x >= 44.7 and habitat_aabb.end.x <= 78.3, "world footprint extends outward from the starboard node")
-	_check(habitat_aabb.position.z >= 6.49 and habitat_aabb.end.z <= 24.51, "rotated footprint remains inside the intended starboard band")
+	# Band low edge 6.49 -> -3.26. The habitat's declared `local_max.x` went 9.0 to
+	# 18.75 when the side branch was built, and the module is yawed 90 degrees, so
+	# local +X is world -Z: the envelope now reaches world z = -3.25. The high edge,
+	# both x edges and the overlap assertion below are untouched, and the module's
+	# own origin did not move. `tools/habitat_branch_clearance_probe.gd` swept the
+	# volume first and found nothing in it but this module's own door posts.
+	_check(habitat_aabb.position.z >= -3.26 and habitat_aabb.end.z <= 24.51, "rotated footprint remains inside the intended starboard band")
 
 	var aft := world.get_node("AftJunctionStack") as AftJunctionStack
 	var aft_footprint := aft.get_integration_footprint()
@@ -263,29 +270,93 @@ func _test_production_player_traversal(
 	_check(player.global_position.x < door.global_position.x, "return traversal crosses the same physical StationDoor threshold")
 
 
-func _test_room_support_and_closed_branch(world: ShipyardWorld, habitat: HabitatSpine) -> void:
+## Stages at the common-room side of the garden pressure door, then uses the real
+## GameFlow interaction candidate and PlayerController locomotion through it. The
+## teleport chooses a deterministic scenario start; no position is mutated after
+## the closed-door witness begins.
+func _test_production_player_garden_traversal(
+		game: GameFlow,
+		player: PlayerController,
+		habitat: HabitatSpine
+	) -> void:
+	var door := habitat.get_deferred_branch_access()
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(69.0, 0.18, 10.5)))
+	await physics_frame
+	await physics_frame
+	await process_frame
+	var reached_closed_threshold := await _drive_player_z(player, 8.8, true, 1.5)
+	_check(reached_closed_threshold, "real forward Input reaches the closed garden pressure door from the common room")
+	_check(player.global_position.z > door.global_position.z + 0.45, "closed garden door physically stops the production capsule")
+	_check(absf(player.global_position.x - 69.0) < 0.4, "garden approach remains centred in the branch link")
+	await process_frame
+	await process_frame
+	_check(game.station_interaction_candidate == door, "embodied proximity and facing select the garden StationDoor")
+
+	Input.action_press("interact")
+	await physics_frame
+	Input.action_release("interact")
+	var door_opened := await _wait_for_door_state(
+		door,
+		StationDoor.DoorState.OPEN,
+		door.motion_duration
+	)
+	_check(door_opened and not door.is_portal_blocked(), "real interact Input opens the garden pressure door completely")
+	var reached_garden := await _drive_player_z(player, 5.0, true, 2.0)
+	print("GARDEN_PLAYER_TRAVERSAL: position=", player.global_position, " door=", door.global_position)
+	_check(reached_garden, "real movement crosses the open branch link into the garden")
+	_check(habitat.contains_room(&"garden-cupola", player.global_position), "production player occupies the published garden room volume")
+	_check(player.global_position.y > -0.1 and player.global_position.y < 0.6, "garden traversal stays supported without a fall or recall")
+
+	var returned_to_common := await _drive_player_z(player, 9.5, false, 2.0)
+	_check(returned_to_common, "real reverse Input returns through the same open garden door")
+	_check(habitat.contains_room(&"observation-common", player.global_position), "return traversal re-enters the common-room volume")
+
+
+func _test_room_support_and_open_branch(world: ShipyardWorld, habitat: HabitatSpine) -> void:
+	# Rays down through furniture rather than stopping at the first thing it hits.
+	#
+	# This asked for a single ray from the room centre to land within 0.035 m of
+	# y = 0, which quietly assumed no published room ever has anything standing at
+	# its middle. The garden bay does: its nutrient column is the room's axis and
+	# stands exactly on the declared centre, so the first hit was the column at
+	# 2.5 m and the check called a fully decked room unsupported. What it actually
+	# wants to prove is that there is collision-backed deck under the room, so it
+	# now restarts below each hit — the same technique the orphan sweep in
+	# `station_surface_playability_test` uses — up to four levels. No tolerance was
+	# loosened: the deck still has to be found at |y| <= 0.035, and a room with no
+	# deck under it at all still fails.
 	var all_room_centres_supported := true
 	for room_id in habitat.get_room_ids():
 		var volume := habitat.get_room_volume(room_id)
 		var centre: Vector3 = (volume.world_transform as Transform3D).origin
-		var hit := await _ray(world, centre + Vector3.UP * 0.75, centre - Vector3.UP * 3.0)
-		if hit.is_empty():
-			all_room_centres_supported = false
-		elif absf(float(hit.position.y)) > 0.035:
+		var probe_from := centre + Vector3.UP * 0.75
+		var found_deck := false
+		for _level in 4:
+			var hit := await _ray(world, probe_from, centre - Vector3.UP * 3.0)
+			if hit.is_empty():
+				break
+			if absf(float(hit.position.y)) <= 0.035:
+				found_deck = true
+				break
+			probe_from = Vector3(probe_from.x, float(hit.position.y) - 0.05, probe_from.z)
+			if probe_from.y <= centre.y - 3.0:
+				break
+		if not found_deck:
 			all_room_centres_supported = false
 	_check(all_room_centres_supported, "every published integrated room volume has collision-backed floor support")
 
-	var deferred := habitat.get_deferred_branch_access()
-	_check(deferred.locked and deferred.deferred_access, "unsupported integrated branch remains explicitly locked and deferred")
-	_check(not habitat.has_room(&"deferred-branch"), "closed landmark is not promoted into an invented station room")
-	_check(deferred.is_portal_blocked(), "deferred branch remains a real physical endpoint in the shared world")
+	var garden_access := habitat.get_deferred_branch_access()
+	_check(not garden_access.locked and not garden_access.deferred_access, "the integrated side branch is an open route rather than a deferred landmark")
+	_check(habitat.has_room(&"garden-cupola"), "the integrated side branch publishes its built room")
+	_check(not habitat.has_room(&"deferred-branch"), "the route marker id is not itself registered as a room")
+	_check(garden_access.is_open() and not garden_access.is_portal_blocked(), "garden branch remains physically open after embodied traversal")
 	var branch_ray := await _ray(
 		world,
-		deferred.to_global(Vector3(0, 1.7, -1.6)),
-		deferred.to_global(Vector3(0, 1.7, 1.6))
+		garden_access.to_global(Vector3(0, 1.7, -1.6)),
+		garden_access.to_global(Vector3(0, 1.7, 1.6))
 	)
-	_check(not branch_ray.is_empty(), "shared-world physics ray is blocked at the deferred branch")
-	_check("No source proves" in str(deferred.get_meta("content_note")), "integrated endpoint retains its explicit evidence caveat")
+	_check(branch_ray.is_empty(), "shared-world physics ray clears the opened garden branch")
+	_check("No source describes" in str(garden_access.get_meta("content_note")), "integrated branch retains its explicit evidence caveat")
 
 
 ## Walks the production avatar along X with real Input until it reaches
@@ -319,6 +390,27 @@ func _drive_player_x(player: PlayerController, target_x: float, increasing: bool
 	Input.action_release("sprint_boost")
 	await physics_frame
 	return player.global_position.x >= target_x if increasing else player.global_position.x <= target_x
+
+
+func _drive_player_z(player: PlayerController, target_z: float, decreasing: bool, travel_seconds: float) -> bool:
+	var action := "move_forward" if decreasing else "move_back"
+	var frame_budget := _frame_budget(travel_seconds)
+	var frames := 0
+	Input.action_press(action)
+	Input.action_press("sprint_boost")
+	while true:
+		if decreasing and player.global_position.z <= target_z:
+			break
+		if not decreasing and player.global_position.z >= target_z:
+			break
+		if frames >= frame_budget:
+			break
+		await physics_frame
+		frames += 1
+	Input.action_release(action)
+	Input.action_release("sprint_boost")
+	await physics_frame
+	return player.global_position.z <= target_z if decreasing else player.global_position.z >= target_z
 
 
 func _ray(world: Node3D, from: Vector3, to: Vector3) -> Dictionary:

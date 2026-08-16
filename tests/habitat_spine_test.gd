@@ -43,8 +43,9 @@ func _run() -> void:
 	await _test_main_station_door(module)
 	await _test_bunk_alcoves(module)
 	await _test_common_room_glazing_and_furniture(module)
+	await _test_garden_pressure_shell(module)
 	_test_service_and_visual_detail(module)
-	await _test_deferred_branch(module)
+	await _test_garden_branch(module)
 	await _test_negative_space(module)
 	_test_collision_contract(module)
 	await _test_cleanup(module)
@@ -67,7 +68,7 @@ func _test_identity_evidence_and_audit(module: HabitatSpine) -> void:
 	_check(not bool(evidence.fixed_era_provenance_verified), "evidence API does not authenticate the later recording's exact build")
 	_check((evidence.references as PackedStringArray).size() >= 5, "evidence API exposes timestamped and documentary references")
 	_check("later secondary" in str(evidence.content_note) and "No part" in str(evidence.content_note), "content note states both source tier and non-reconstruction boundary")
-	_check("deferred" in str(evidence.content_note), "content note explains the intentionally absent branch interior")
+	_check("wholly modern" in str(evidence.content_note) and "no source describes" in str(evidence.content_note).to_lower(), "content note records the branch room as invented rather than reconstructed")
 	var interpretations := evidence.modern_interpretations as PackedStringArray
 	_check(interpretations.has("six-alcove arrangement and observation/common room function"), "exact room function and arrangement are disclosed as modern interpretation")
 	var returned_references := evidence.references as PackedStringArray
@@ -79,7 +80,7 @@ func _test_identity_evidence_and_audit(module: HabitatSpine) -> void:
 	_check((audit.errors as PackedStringArray).is_empty(), "valid audit reports no hidden structural errors")
 	_check(int(audit.bunk_count) == 6 and int(audit.chair_count) == 8, "audit exposes habitat furniture counts")
 	_check(int(audit.window_pane_count) >= 9 and int(audit.service_detail_count) >= 8, "audit exposes glazing and service-detail density")
-	_check(bool(audit.deferred_branch_closed), "audit proves the unsupported branch remains closed")
+	_check(bool(audit.side_branch_open), "audit proves the side branch door is open onto its built room")
 	(audit.evidence as Dictionary)["content_note"] = "mutation"
 	_check(str(module.get_audit_report().evidence.content_note) != "mutation", "audit dictionaries are detached from module state")
 
@@ -98,6 +99,13 @@ func _test_route_room_and_footprint_contract(module: HabitatSpine) -> void:
 		_check(module.has_route_marker(route_id), "route registry exposes %s" % route_name)
 		_check(module.get_route_marker(route_id) != null, "route resolves to a physical Marker3D: %s" % route_name)
 	_check(module.get_route_ids().size() == expected_routes.size(), "route registry has no implicit or missing entries")
+	# Re-frozen local (6.1, 0.15, 20.0) -> (10.6, 0.15, 20.0), which maps
+	# world (69.0, 0.15, 9.4) -> (69.0, 0.15, 4.9) in production. The old marker
+	# was 4.25 m outside the garden volume while claiming that room ID.
+	_check(
+		module.get_route_marker(&"deferred-branch").position.is_equal_approx(Vector3(10.6, 0.15, 20.0)),
+		"garden route marker holds its measured room-interior local transform"
+	)
 	_check(module.get_route_marker(&"unsupported-room") == null, "unknown route has no invented fallback")
 	_check(module.get_route_transform(&"observation").origin.is_equal_approx(module.get_route_marker(&"observation").global_position), "route transform composes through arbitrary module transform")
 
@@ -109,9 +117,12 @@ func _test_route_room_and_footprint_contract(module: HabitatSpine) -> void:
 	_check(float(clearance.player_capsule_reference_diameter) == 0.76, "clearance contract is tied to the real player capsule diameter")
 
 	var room_ids := module.get_room_ids()
-	_check(room_ids.size() == 9, "room registry exposes connector, corridor, common, and six alcoves only")
+	# 9 -> 10: the side branch garden bay is a real room now and is registered as
+	# `garden-cupola`, so the registry publishes connector, corridor, common,
+	# garden and six alcoves.
+	_check(room_ids.size() == 10, "room registry exposes connector, corridor, common, garden, and six alcoves only")
 	_check(module.get_bunk_room_ids().size() == 6, "six bunk room IDs are independently addressable")
-	_check(not module.has_room(&"deferred-branch"), "closed branch is not misrepresented as a built room")
+	_check(not module.has_room(&"deferred-branch"), "route-marker ID is not misrepresented as a separate built room")
 	_check(module.get_room_volume(&"unsupported-room").is_empty(), "unknown room volume has no fallback")
 	for room_id in room_ids:
 		var volume := module.get_room_volume(room_id)
@@ -253,6 +264,113 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 	_check(not module.contains_room(&"observation-common", outside_point), "space beyond broad window is outside common-room volume")
 
 
+## The cupola is drawn partly from a MultiMesh, but it is still pressure-shell
+## structure. Its one sibling body must remain an exact physical copy of all eight
+## cap instances, and the registered glass oculus must itself be a real barrier.
+func _test_garden_pressure_shell(module: HabitatSpine) -> void:
+	var caps := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenShell/CupolaCaps"
+	) as MultiMeshInstance3D
+	var cap_collision := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenShell/CupolaCapCollision"
+	) as StaticBody3D
+	_check(caps != null and caps.multimesh != null, "cupola cap visual batch resolves")
+	_check(cap_collision != null, "cupola caps own one sibling collision body")
+	if caps == null or caps.multimesh == null or cap_collision == null:
+		return
+	var visual_path := cap_collision.get_meta("multimesh_visual_path", NodePath()) as NodePath
+	_check(cap_collision.get_node_or_null(visual_path) == caps, "cap collision metadata resolves the live MultiMesh authority")
+	_check(cap_collision.collision_layer == WORLD_LAYER and cap_collision.collision_mask == 0, "cap collision uses the canonical World layer/mask")
+	var multi := caps.multimesh
+	var authored_transforms := caps.get_meta("authored_instance_transforms", []) as Array
+	var shapes := cap_collision.find_children("Collision*", "CollisionShape3D", false, false)
+	_check(multi.instance_count == 8 and authored_transforms.size() == 8 and shapes.size() == 8, "eight drawn cupola caps have eight authored transforms and physical shapes")
+	var every_cap_exact := shapes.size() == authored_transforms.size()
+	var every_cap_tangent := true
+	var visual_extent := multi.mesh.get_aabb().size
+	for instance_index in mini(shapes.size(), authored_transforms.size()):
+		var visual_transform := authored_transforms[instance_index] as Transform3D
+		var collision := cap_collision.get_node_or_null(
+			NodePath("Collision%02d" % instance_index)
+		) as CollisionShape3D
+		var box := collision.shape as BoxShape3D if collision != null else null
+		every_cap_exact = every_cap_exact \
+			and collision != null \
+			and not collision.disabled \
+			and collision.transform.is_equal_approx(visual_transform) \
+			and box != null \
+			and box.size.is_equal_approx(visual_extent)
+		var radial := Vector3(
+			visual_transform.origin.x - 14.4, 0.0, visual_transform.origin.z - 20.2
+		).normalized()
+		every_cap_tangent = every_cap_tangent and absf(visual_transform.basis.x.normalized().dot(radial)) <= 0.001
+	_check(every_cap_exact, "every cap shape exactly matches its authored batch transform and live mesh extent")
+	_check(every_cap_tangent, "all eight long-axis cupola caps are tangent rather than radial spokes")
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var live_buffer_exact := true
+		for instance_index in multi.instance_count:
+			live_buffer_exact = live_buffer_exact and multi.get_instance_transform(instance_index).is_equal_approx(
+				authored_transforms[instance_index] as Transform3D
+			)
+		_check(live_buffer_exact, "rendering device holds the same eight cap transforms as the authored roster")
+
+	var cap_hit := await _ray_local(module, Vector3(14.4, 6.4, 22.62), Vector3(14.4, 7.6, 22.62))
+	_check(not cap_hit.is_empty() and cap_hit.collider == cap_collision, "a ray through a drawn cap meets its matching pressure-shell collision")
+	var oculus := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenShell/CupolaOculus"
+	) as StaticBody3D
+	_check(oculus != null and bool(oculus.get_meta("physical_pressure_barrier", false)), "registered cupola oculus is a physical glazing body")
+	var oculus_hit := await _ray_local(module, Vector3(14.4, 6.4, 20.2), Vector3(14.4, 7.6, 20.2))
+	_check(not oculus_hit.is_empty() and oculus_hit.collider == oculus, "a ray through the oculus meets the registered glass barrier")
+
+	var every_pane_tangent := true
+	var every_kerb_tangent := true
+	for facet_index in 8:
+		var pane := module.get_node_or_null(
+			NodePath("Structure/SideBranchGarden/GardenShell/CupolaPane%02d" % (facet_index + 1))
+		) as StaticBody3D
+		var kerb := module.get_node_or_null(
+			NodePath("Structure/SideBranchGarden/GardenColumn/BedKerb%02d" % (facet_index + 1))
+		) as StaticBody3D
+		if pane == null:
+			every_pane_tangent = false
+		else:
+			var pane_radial := Vector3(pane.position.x - 14.4, 0.0, pane.position.z - 20.2).normalized()
+			every_pane_tangent = every_pane_tangent and absf(pane.basis.x.normalized().dot(pane_radial)) <= 0.001
+		if kerb == null:
+			every_kerb_tangent = false
+		else:
+			var kerb_radial := Vector3(kerb.position.x - 14.4, 0.0, kerb.position.z - 20.2).normalized()
+			every_kerb_tangent = every_kerb_tangent and absf(kerb.basis.x.normalized().dot(kerb_radial)) <= 0.001
+	_check(every_pane_tangent, "all eight long-axis cupola panes close a tangent octagonal pressure wall")
+	_check(every_kerb_tangent, "all eight planting-bed kerbs form a tangent ring without diagonal gaps")
+
+	var every_rack_faces_inward := true
+	for rack_index in 6:
+		var rack := module.get_node_or_null(
+			NodePath("Structure/SideBranchGarden/GardenGrowRacks/GrowRack%02d" % (rack_index + 1))
+		) as Node3D
+		if rack == null:
+			every_rack_faces_inward = false
+			continue
+		var outward := Vector3(rack.position.x - 14.4, 0.0, rack.position.z - 20.2).normalized()
+		every_rack_faces_inward = every_rack_faces_inward and rack.basis.x.normalized().dot(outward) >= 0.999
+	_check(every_rack_faces_inward, "all six rack label faces point inward toward the nutrient column")
+
+	var soil := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenColumn/BedSoil"
+	) as StaticBody3D
+	_check(soil != null, "the raised visible soil bed is collision-backed")
+	var soil_hit := await _ray_local(module, Vector3(15.4, 1.4, 20.2), Vector3(15.4, -0.2, 20.2))
+	_check(not soil_hit.is_empty() and soil_hit.collider == soil, "a descending player-space ray lands on the visible soil surface")
+
+	var garden_marker := module.get_route_marker(&"deferred-branch")
+	_check(
+		garden_marker != null and module.contains_room(&"garden-cupola", garden_marker.global_position),
+		"garden route marker sits inside the room it publishes"
+	)
+
+
 func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_check(module.get_service_detail_count() >= 20, "habitat contains a layered maintenance/service system")
 	var service_nodes := module.find_children("*", "Node3D", true, false).filter(
@@ -292,21 +410,37 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_check(pbr != null and pbr.clearcoat_enabled and pbr.roughness > 0.0 and pbr.metallic > 0.0, "primary shell uses layered PBR response rather than flat unlit colour")
 
 
-func _test_deferred_branch(module: HabitatSpine) -> void:
+func _test_garden_branch(module: HabitatSpine) -> void:
 	var door := module.get_deferred_branch_access()
-	_check(door != null, "closed branch exposes a reusable StationDoor landmark")
+	_check(door != null, "garden branch exposes a reusable StationDoor")
 	if door == null:
 		return
-	_check(door.locked and door.deferred_access, "unsupported branch remains both locked and explicitly deferred")
-	_check(not door.can_interact(module), "deferred branch cannot imply playable unsupported content")
-	_check(not door.interact(module), "deferred branch refuses direct component interaction")
-	_check(door.is_portal_blocked(), "deferred branch remains physically closed")
-	_check("DEFERRED" in door.get_interaction_prompt() and "HABITAT SIDE BRANCH" in door.get_interaction_prompt(), "deferred prompt identifies the intentional endpoint")
-	_check("No source proves" in str(door.get_meta("content_note")), "door metadata explains why no branch room exists")
+	# Every assertion here used to require the opposite, and the reason it was
+	# right then is the reason it is right now: the door's state has to agree with
+	# what is behind it. It was locked and explicitly deferred while nothing was
+	# there; there is a garden bay there now, so a locked door would be a published
+	# route the player cannot walk. The evidence caveat did not weaken — it moved
+	# from "no source proves an adjacent room, so none exists" to "no source
+	# describes anything here, and what is here is invented and labelled as such",
+	# which is the same claim about the sources and a different claim about the
+	# content.
+	_check(not door.locked and not door.deferred_access, "the opened branch is neither locked nor deferred")
+	_check(door.can_interact(module), "the opened branch is a usable route rather than a landmark")
+	_check("GARDEN BAY ACCESS" in door.get_interaction_prompt(), "branch prompt names the room it opens onto")
+	_check("No source describes" in str(door.get_meta("content_note")), "door metadata records the room behind it as invented")
+	_check(module.has_room(&"garden-cupola"), "the opened branch publishes a real registered room")
 	var branch_ray := await _ray_through_door(door)
-	_check(not branch_ray.is_empty(), "deferred branch blocks a real physics ray")
-	_check(not module.has_room(&"habitat-side-branch"), "deferred landmark never appears in room registry")
-	_check(module.get_route_marker(&"deferred-branch").global_position.distance_to(door.global_position) < 1.8, "route marker terminates at the closed branch landmark")
+	_check(not branch_ray.is_empty(), "initially closed garden door blocks a real physics ray")
+	_check(not module.has_room(&"habitat-side-branch"), "obsolete side-branch placeholder never appears in room registry")
+	_check(
+		module.contains_room(&"garden-cupola", module.get_route_marker(&"deferred-branch").global_position),
+		"garden marker sits beyond the pressure door inside its published room"
+	)
+	_check(door.interact(module), "garden StationDoor accepts an open interaction")
+	var garden_access_opened := await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
+	_check(garden_access_opened and not door.is_portal_blocked(), "garden StationDoor reaches a fully clear open state")
+	var open_branch_ray := await _ray_through_door(door)
+	_check(open_branch_ray.is_empty(), "open garden StationDoor exposes a clear physical threshold")
 
 
 func _test_negative_space(module: HabitatSpine) -> void:
@@ -340,7 +474,7 @@ func _test_collision_contract(module: HabitatSpine) -> void:
 	_check(every_body_canonical, "every static collider follows canonical World layer/mask contract")
 	_check(every_body_shaped, "every StaticBody owns at least one real collision shape")
 	_check(module.get_main_access().collision_layer == PhysicsLayers.INTERACTABLE, "main StationDoor remains discoverable on Interactable layer")
-	_check(module.get_deferred_branch_access().collision_layer == PhysicsLayers.INTERACTABLE, "deferred StationDoor remains discoverable on Interactable layer")
+	_check(module.get_deferred_branch_access().collision_layer == PhysicsLayers.INTERACTABLE, "garden StationDoor remains discoverable on Interactable layer")
 
 
 func _test_cleanup(module: HabitatSpine) -> void:
