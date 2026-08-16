@@ -46,7 +46,8 @@ func _test_contract(annex: FabricationAnnex) -> void:
 	_check(bool(report.valid), "the standalone station-module contract validates")
 	_check(annex.get_module_id() == &"fabrication_annex", "the module publishes its stable identity")
 	_check(bool(annex.get_meta(&"station_module", false)) and annex.is_in_group(&"station_modules"), "production discovery metadata and station_modules group identify the module root")
-	_check(annex.get_route_ids().size() == 7, "the annex publishes one connector and six internal/deferred route markers")
+	var route_ids: Array[StringName] = annex.get_route_ids()
+	_check(route_ids.size() == 7, "the annex publishes one connector and six internal/deferred route markers through the integrated-module Array API")
 
 	var expected_slots := {
 		&"fabrication_annex_inbound": Transform3D(Basis.IDENTITY, Vector3(0.0, 0.15, 0.0)),

@@ -313,8 +313,11 @@ func get_module_anchor() -> Node3D:
 	return self
 
 
-func get_route_ids() -> PackedStringArray:
-	return PackedStringArray(ROUTE_TRANSFORMS.keys())
+func get_route_ids() -> Array[StringName]:
+	var route_ids: Array[StringName] = []
+	for route_id: StringName in ROUTE_TRANSFORMS:
+		route_ids.append(route_id)
+	return route_ids
 
 
 func has_route_marker(route_id: StringName) -> bool:

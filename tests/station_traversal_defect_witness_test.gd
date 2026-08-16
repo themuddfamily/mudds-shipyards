@@ -56,7 +56,7 @@ const SLOPE_RISE_LIMIT := GRID * 1.19175
 const DROP_LIMIT := 4.0
 
 const X_MIN := -80.0
-const X_MAX := 76.0
+const X_MAX := 94.0
 const Z_MIN := -92.0
 const Z_MAX := 86.0
 
@@ -68,6 +68,9 @@ const REQUIRED_ROUTE_SURFACES := [
 	["", "ExposedDockLattice/StarboardBerthNode"],
 	["", "ExposedDockLattice/AftModuleConnector"],
 	["", "ExposedDockLattice/FleetDockCombConnector/FleetDockCombConnectorDeck"],
+	["", "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckA"],
+	["", "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckB"],
+	["", "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC"],
 	["", "OpenLaunchSpine/LaunchArmDeck"],
 	["", "UpperOperations/ObservationLanding"],
 	["", "UpperOperations/OperationsPodFloor"],
@@ -92,6 +95,13 @@ const REQUIRED_ROUTE_SURFACES := [
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/Trunk"],
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab01"],
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab03Upper"],
+	["FabricationAnnex", "GeneratedAnnex/ConnectorApron"],
+	["FabricationAnnex", "GeneratedAnnex/CentralThroughAisle"],
+	["FabricationAnnex", "GeneratedAnnex/PortWorkBay"],
+	["FabricationAnnex", "GeneratedAnnex/StarboardWorkBay"],
+	["FabricationAnnex", "GeneratedAnnex/PortSideBypass"],
+	["FabricationAnnex", "GeneratedAnnex/StarboardSideBypass"],
+	["FabricationAnnex", "GeneratedAnnex/RearCrossAisle"],
 	["VipReceptionSuite", "Structure/Threshold/ThresholdFloor"],
 	["VipReceptionSuite", "Structure/Reception/FloorPlateFront"],
 	["VipReceptionSuite", "Structure/Reception/WellPan"],
@@ -235,6 +245,7 @@ func _run() -> void:
 	_test_parked_craft_are_fully_supported_by_their_berth_decks(game, world)
 	await _test_arrow_berth_rails_no_longer_fence_the_walkway(player)
 	await _test_halyard_berth_is_one_continuous_loop(player)
+	await _test_fabrication_annex_round_trip(player)
 	await _test_boarding_prompt_is_offered_all_round_each_craft(game, player)
 	await _test_pod_decks_can_be_walked_into(player)
 	await _test_aft_stair_base_is_not_fenced_off(player)
@@ -711,6 +722,95 @@ func _test_halyard_berth_is_one_continuous_loop(player: PlayerController) -> voi
 	_check(
 		blocked.is_empty(),
 		"the production capsule walks a full circuit around the parked Halyard without jumping or leaving the deck"
+	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
+
+
+## Production traversal through the exact siting-audit dogleg. The capsule
+## starts inside Dock Operations, steers around the two cargo stacks, crosses
+## A/B/C, visits both work bays and the rear cross aisle, and walks the same
+## route back. Rotation changes at corners; position is never teleported after
+## the initial staging, and jump remains released for the entire round trip.
+func _test_fabrication_annex_round_trip(player: PlayerController) -> void:
+	var route := PackedVector3Array([
+		Vector3(43.0, 0.78, 24.8),
+		Vector3(48.1, 0.78, 24.8),
+		Vector3(48.1, 0.78, 29.1),
+		Vector3(48.1, 0.78, 28.0),
+		Vector3(68.5, 0.78, 28.0),
+		Vector3(68.5, 0.78, 38.0),
+		Vector3(72.0, 0.78, 38.0),
+		Vector3(77.0, 0.78, 38.0),
+		Vector3(83.0, 0.78, 38.0),
+		Vector3(83.0, 0.78, 45.0),
+		Vector3(83.0, 0.78, 38.0),
+		Vector3(83.0, 0.78, 31.0),
+		Vector3(83.0, 0.78, 38.0),
+		Vector3(90.0, 0.78, 38.0),
+		Vector3(83.0, 0.78, 38.0),
+		Vector3(72.0, 0.78, 38.0),
+		Vector3(68.5, 0.78, 38.0),
+		Vector3(68.5, 0.78, 28.0),
+		Vector3(48.1, 0.78, 28.0),
+		Vector3(48.1, 0.78, 29.1),
+		Vector3(48.1, 0.78, 24.8),
+		Vector3(43.0, 0.78, 24.8),
+	])
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+		Input.action_release(action)
+	player.teleport_to(Transform3D(Basis.IDENTITY, route[0]))
+	for _settle in 10:
+		await physics_frame
+	var initial := player.global_position
+	var failed_legs := PackedStringArray()
+	var results := PackedStringArray()
+	var minimum_y := initial.y
+	for route_index in range(1, route.size()):
+		var target := route[route_index]
+		var direction := target - player.global_position
+		direction.y = 0.0
+		if direction.length_squared() <= 0.0001:
+			continue
+		direction = direction.normalized()
+		var facing := player.global_transform
+		facing.basis = Basis.looking_at(direction, Vector3.UP)
+		player.global_transform = facing
+		var reached := false
+		var stuck_frames := 0
+		var previous := player.global_position
+		Input.action_press(&"move_forward")
+		for frame in 300:
+			await physics_frame
+			minimum_y = minf(minimum_y, player.global_position.y)
+			var remaining := target - player.global_position
+			remaining.y = 0.0
+			if remaining.length() <= 0.38 or remaining.dot(direction) <= 0.0:
+				reached = true
+				break
+			if player.global_position.distance_to(previous) < 0.005:
+				stuck_frames += 1
+				if stuck_frames >= 45:
+					break
+			else:
+				stuck_frames = 0
+			previous = player.global_position
+		Input.action_release(&"move_forward")
+		await physics_frame
+		results.append("%02d final=%s target=%s reached=%s stuck=%d" % [
+			route_index, player.global_position, target, reached, stuck_frames,
+		])
+		if not reached:
+			failed_legs.append("leg %d stopped at %s before %s" % [route_index, player.global_position, target])
+			break
+	print("FABRICATION_ANNEX_PLAYER_ROUND_TRIP: start=%s final=%s min_y=%.3f legs=%s" % [
+		initial, player.global_position, minimum_y, results,
+	])
+	_check(
+		failed_legs.is_empty()
+		and minimum_y >= 0.30
+		and player.global_position.distance_to(initial) <= 0.85,
+		"the real production Player walks around Dock Operations cargo, through both Annex bays and rear aisle, and back without jumping"
 	)
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
 	await physics_frame

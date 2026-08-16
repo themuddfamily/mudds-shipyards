@@ -515,12 +515,19 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# 0.30, while the bay's former black deferred tile becomes an unmapped cyan
 	# assignment cue. Only 0.30 changes, 1559 -> 1558; 0.22 stays 130 and 0.28
 	# stays 862. This is measured on the rebased production tree.
+	#
+	# Re-frozen on the production Fabrication integration, 2550 -> 2587. The live
+	# delta is +32 mapped MeshInstance surfaces from the Annex plus its exact
+	# station-owned A/B/C connector and +5 from the fifth shared-catalog service
+	# courier. Every addition lands in the existing 0.30 module scale; 0.22 and
+	# 0.28 remain unchanged. This is the measured merged tree, not standalone
+	# roster arithmetic.
 	_check(
-		mapped_surface_count == 2550
+		mapped_surface_count == 2587
 		and scale_022_count == 130
 		and scale_028_count == 862
-		and scale_030_count == 1558,
-		"live station binds exactly 2550 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1595,
+		"live station binds exactly 2587 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -580,7 +587,11 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 	# every other module do.
 	# Re-frozen 13 -> 23 total and 6 -> 9 mapped: the Habitat adds ten visual-only
 	# stock batches, of which the cupola posts/caps and spare trays use the family.
-	_check(batches == 23 and mapped == 9, "instanced station structure is exactly twenty-three batches, nine of them mapped")
+	# Re-frozen from the live merged tree at 37 total / 12 mapped. Fabrication
+	# contributes twelve low-submission batches; the remaining rebased delta was
+	# already present before this placement. Counts are intentionally live census
+	# results rather than a sum inferred from component budgets.
+	_check(batches == 37 and mapped == 12, "instanced station structure is exactly thirty-seven batches, twelve of them mapped")
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
 

@@ -18,6 +18,9 @@ const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/AftSpine",
 	"ExposedDockLattice/AftModuleConnector",
 	"ExposedDockLattice/FleetDockCombConnector/FleetDockCombConnectorDeck",
+	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckA",
+	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckB",
+	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC",
 	# HALYARD-DECK-001. Fleet Dock 02's berth apron. The comb's 12 x 12 m tooth is
 	# the middle of this pad, not the whole of it: the 28.35 m Halyard needs deck
 	# fore and aft of it, and a player needs a loop round the craft.
@@ -72,6 +75,16 @@ const COMB_SURFACE_PATHS := [
 	"GeneratedComb/WalkableSurfaces/DockSlab03Upper",
 ]
 
+const FABRICATION_SURFACE_PATHS := [
+	"GeneratedAnnex/ConnectorApron",
+	"GeneratedAnnex/CentralThroughAisle",
+	"GeneratedAnnex/PortWorkBay",
+	"GeneratedAnnex/StarboardWorkBay",
+	"GeneratedAnnex/PortSideBypass",
+	"GeneratedAnnex/StarboardSideBypass",
+	"GeneratedAnnex/RearCrossAisle",
+]
+
 var _failures: Array[String] = []
 
 
@@ -102,6 +115,7 @@ func _run() -> void:
 		return
 
 	_test_collision_backed_surface_roster(world)
+	_test_fabrication_annex_siting(world)
 	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
 	await _test_discovered_walkable_surface_support(world)
@@ -110,6 +124,8 @@ func _run() -> void:
 	await _test_spawn_adjacent_stair(world, player)
 	await _test_aft_stair_mount_and_climb(world, player)
 	await _test_fleet_comb_ramp(world, player)
+	if OS.get_cmdline_user_args().has("--capture-fabrication-integration"):
+		await _capture_fabrication_integration_frame(game, world)
 
 	_release_actions()
 	game.queue_free()
@@ -124,7 +140,8 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 	var habitat := world.get_node_or_null(^"HabitatSpine") as HabitatSpine
 	var freight := world.get_node_or_null(^"JovianFreightBerth") as JovianFreightBerth
 	var comb := world.get_node_or_null(^"FleetDockComb") as FleetDockComb
-	_check(aft != null and habitat != null and freight != null and comb != null, "all reachable station modules resolve for surface coverage")
+	var fabrication := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	_check(aft != null and habitat != null and freight != null and comb != null and fabrication != null, "all reachable station modules resolve for surface coverage")
 
 	var every_surface_exact := _surface_roster_matches(world, WORLD_SURFACE_PATHS)
 	if aft != null:
@@ -135,8 +152,9 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(freight, FREIGHT_SURFACE_PATHS) and every_surface_exact
 	if comb != null:
 		every_surface_exact = _surface_roster_matches(comb, COMB_SURFACE_PATHS) and every_surface_exact
-	# Re-frozen 45 -> 47: the garden adds its collision-backed link and bay floors.
-	_check(every_surface_exact, "all 47 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	if fabrication != null:
+		every_surface_exact = _surface_roster_matches(fabrication, FABRICATION_SURFACE_PATHS) and every_surface_exact
+	_check(every_surface_exact, "all 57 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
@@ -151,6 +169,10 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
 		if mesh_instance == null:
 			mesh_instance = body.get_node_or_null(^"RampMesh") as MeshInstance3D
+		if mesh_instance == null:
+			for candidate in body.find_children("*", "MeshInstance3D", false, false):
+				mesh_instance = candidate as MeshInstance3D
+				break
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
 		if collision == null:
 			collision = body.get_node_or_null(^"RampCollision") as CollisionShape3D
@@ -163,6 +185,222 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 			print("SURFACE_ROSTER_SIZE_DRIFT: ", owner.name, "/", raw_path, " mesh=", mesh_instance.mesh.get_aabb().size, " collision=", box.size)
 			valid = false
 	return valid
+
+
+func _test_fabrication_annex_siting(world: ShipyardWorld) -> void:
+	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	var connector := world.get_node_or_null(^"ExposedDockLattice/FabricationAnnexConnector") as Node3D
+	_check(annex != null and connector != null, "production Fabrication Annex and its station-owned connector resolve")
+	if annex == null or connector == null:
+		return
+	var expected_transform := Transform3D(
+		Basis(Vector3.UP, PI * 0.5), Vector3(72.0, 0.38, 38.0)
+	)
+	_check(annex.global_transform.is_equal_approx(expected_transform), "Fabrication Annex keeps the reviewed (72, 0.38, 38), yaw +90 placement")
+
+	var deck_specs := [
+		["ConnectorDeckA", Vector3(59.5, 0.18, 28.0), Vector3(21.0, 0.4, 3.0), &"fabrication_connector_a", 63.0],
+		["ConnectorDeckB", Vector3(68.5, 0.18, 34.5), Vector3(3.0, 0.4, 10.0), &"fabrication_connector_b", 30.0],
+		["ConnectorDeckC", Vector3(71.0, 0.18, 38.0), Vector3(2.0, 0.4, 3.0), &"fabrication_connector_c", 6.0],
+	]
+	var decks_exact := true
+	var connector_area := 0.0
+	var connector_boxes: Array[AABB] = []
+	for spec in deck_specs:
+		var body := connector.get_node_or_null(NodePath(spec[0] as String)) as StaticBody3D
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D if body != null else null
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		decks_exact = (
+			decks_exact
+			and body != null
+			and body.position.is_equal_approx(spec[1] as Vector3)
+			and shape != null
+			and shape.size.is_equal_approx(spec[2] as Vector3)
+			and bool(body.get_meta(&"walkable_surface", false))
+			and StringName(body.get_meta(&"walkable_surface_id", &"")) == StringName(spec[3])
+			and StringName(body.get_meta(&"walkable_surface_kind", &"")) == &"level"
+			and StringName(body.get_meta(&"walkable_surface_owner", &"")) == &"station_hub"
+			and is_equal_approx(float(body.get_meta(&"horizontal_area_m2", -1.0)), float(spec[4]))
+		)
+		connector_area += float(spec[4])
+		if body != null:
+			connector_boxes.append(_collision_body_box(body))
+	_check(decks_exact and is_equal_approx(connector_area, 99.0), "connector A/B/C are the exact tagged 63 + 30 + 6 = 99.0 m2 dogleg surfaces")
+
+	var rail_specs := [
+		["ConnectorRailASouth", Vector3(59.5, 1.10, 26.5), Vector3(21.0, 1.44, 0.14)],
+		["ConnectorRailANorth", Vector3(58.0, 1.10, 29.5), Vector3(18.0, 1.44, 0.14)],
+		["ConnectorRailBWest", Vector3(67.0, 1.10, 34.5), Vector3(0.14, 1.44, 10.0)],
+		["ConnectorRailBEast", Vector3(70.0, 1.10, 33.0), Vector3(0.14, 1.44, 7.0)],
+		["ConnectorRailBNorth", Vector3(68.5, 1.10, 39.5), Vector3(3.0, 1.44, 0.14)],
+		["ConnectorRailCSouth", Vector3(71.0, 1.10, 36.5), Vector3(2.0, 1.44, 0.14)],
+		["ConnectorRailCNorth", Vector3(71.0, 1.10, 39.5), Vector3(2.0, 1.44, 0.14)],
+	]
+	var rails_exact := true
+	for spec in rail_specs:
+		var body := connector.get_node_or_null(NodePath(spec[0] as String)) as StaticBody3D
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D if body != null else null
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		rails_exact = rails_exact and body != null and body.position.is_equal_approx(spec[1] as Vector3) \
+			and shape != null and shape.size.is_equal_approx(spec[2] as Vector3) \
+			and not bool(body.get_meta(&"walkable_surface", false))
+	_check(rails_exact, "all seven reviewed connector rail runs protect the outer edges while leaving both mouths open")
+
+	# Compare every physical Annex/connector box to every unrelated station body.
+	# Boundary-touch at Operations x=49 is allowed; positive three-axis volume is not.
+	var owned_bodies: Array[StaticBody3D] = []
+	for candidate in connector.find_children("*", "StaticBody3D", true, false):
+		owned_bodies.append(candidate as StaticBody3D)
+	for candidate in annex.find_children("*", "StaticBody3D", true, false):
+		owned_bodies.append(candidate as StaticBody3D)
+	var intrusions := PackedStringArray()
+	for raw_other in world.find_children("*", "StaticBody3D", true, false):
+		var other := raw_other as StaticBody3D
+		if connector.is_ancestor_of(other) or annex.is_ancestor_of(other):
+			continue
+		var other_box := _collision_body_box(other)
+		if not other_box.has_volume():
+			continue
+		for owned in owned_bodies:
+			var overlap := _aabb_overlap_depth(_collision_body_box(owned), other_box)
+			if overlap.x > 0.002 and overlap.y > 0.002 and overlap.z > 0.002:
+				intrusions.append("%s <> %s depth=%s" % [owned.get_path(), other.get_path(), overlap])
+	intrusions.sort()
+	print("FABRICATION_GEOMETRY_INTRUSIONS: ", intrusions)
+	_check(intrusions.is_empty(), "Annex and connector collision have no positive-volume intersection with unrelated station geometry")
+
+	var connector_a := connector.get_node(^"ConnectorDeckA") as StaticBody3D
+	var nearest_habitat_gap := INF
+	var nearest_habitat_path := ""
+	var connector_a_box := _collision_body_box(connector_a)
+	var habitat := world.get_node(^"HabitatSpine") as Node3D
+	for candidate in habitat.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		var mesh_box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		var gap := _horizontal_aabb_separation(connector_a_box, mesh_box)
+		if gap < nearest_habitat_gap:
+			nearest_habitat_gap = gap
+			nearest_habitat_path = str(mesh_instance.get_path())
+	print("FABRICATION_HABITAT_APERTURE_GAP: %.3f nearest=%s" % [nearest_habitat_gap, nearest_habitat_path])
+	_check(
+		is_equal_approx(nearest_habitat_gap, 3.28)
+		and nearest_habitat_path.ends_with("HabitatSpine/Structure/ObservationCommon/SideWindowFrameA/Mesh"),
+		"live Connector A geometry freezes the measured 3.280 m gap to Habitat SideWindowFrameA"
+	)
+
+	var local_footprint := annex.get_integration_footprint()
+	var annex_bounds := (annex.global_transform * AABB(
+		local_footprint.local_min as Vector3,
+		(local_footprint.local_max as Vector3) - (local_footprint.local_min as Vector3)
+	)).abs()
+	# The subsequent Observation integration owns the atomic rear-rail split and
+	# its own 2 m2 connector. This slice only proves it has not trespassed on that
+	# work: the current envelope ends at x=92.2, 0.3 m before the reviewed future
+	# origin, and the rear rail remains intact until that connector lands.
+	var observation_future_origin_x := 92.5
+	var observation_root_standoff := observation_future_origin_x - annex_bounds.end.x
+	var rear_rail_intact := false
+	for candidate in annex.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		if body.position.is_equal_approx(Vector3(0.0, 0.72, 20.0)):
+			var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+			var shape := collision.shape as BoxShape3D if collision != null else null
+			rear_rail_intact = shape != null and shape.size.is_equal_approx(Vector3(28.0, 1.44, 0.14))
+	print(
+		"FABRICATION_OBSERVATION_RESERVATION: envelope_max_x=%.6f standoff=%.6f rear_rail_intact=%s" % [
+			annex_bounds.end.x, observation_root_standoff, rear_rail_intact,
+		]
+	)
+	_check(
+		absf(annex_bounds.end.x - 92.2) <= 0.001
+		and absf(observation_root_standoff - 0.3) <= 0.001
+		and rear_rail_intact,
+		"current Annex preserves the measured future Observation rear seam without pre-opening its guardrail"
+	)
+	var north_service := annex.get_route_marker(&"annex_port_service")
+	var rear_cross := annex.get_route_marker(&"annex_rear_cross")
+	_check(
+		north_service != null
+		and north_service.global_position.is_equal_approx(Vector3(84.0, 0.53, 52.0))
+		and not north_service.has_meta(&"station_connection_slot")
+		and rear_cross != null
+		and rear_cross.global_position.is_equal_approx(Vector3(91.0, 0.53, 38.0))
+		and not rear_cross.has_meta(&"station_connection_slot"),
+		"north service gate and rear-cross markers remain exact internal-only seams for later integrations"
+	)
+
+	var smallest_berth_gap := INF
+	for berth_id in world.get_berth_ids():
+		var berth := world.get_berth_node(berth_id)
+		var half := berth.get_landing_half_extents()
+		var berth_box := (berth.get_dock_transform() * AABB(-half, half * 2.0)).abs()
+		for owned in owned_bodies:
+			smallest_berth_gap = minf(
+				smallest_berth_gap,
+				_aabb_separation(_collision_body_box(owned), berth_box)
+			)
+	print("FABRICATION_MINIMUM_BERTH_GAP: %.3f" % smallest_berth_gap)
+	_check(smallest_berth_gap >= 0.15, "every Annex/connector collision body strictly clears every authoritative berth volume")
+
+	var halyard := world.get_berth_node(&"halyard_fleet_dock_berth")
+	var capture_half := halyard.get_assist_capture_half_extents()
+	var capture_box := (halyard.get_assist_capture_transform() * AABB(-capture_half, capture_half * 2.0)).abs()
+	var capture_overlap := _aabb_overlap_depth(capture_box, connector_a_box)
+	_check(capture_overlap.x > 0.0 and capture_overlap.y > 0.0 and capture_overlap.z > 0.0, "audit records the bounded connector-A overlap with Halyard's nonphysical assist-capture volume")
+	var hull_bounds := HalyardCrewTransport.FLIGHT_COLLISION_BOUNDS
+	var staging_hull := (halyard.get_assist_staging_transform() * hull_bounds).abs()
+	var docked_hull := (halyard.get_dock_transform() * hull_bounds).abs()
+	var swept_hull := staging_hull.merge(docked_hull)
+	var swept_clear := true
+	for connector_box in connector_boxes:
+		var overlap := _aabb_overlap_depth(swept_hull, connector_box)
+		swept_clear = swept_clear and (overlap.x <= 0.0 or overlap.y <= 0.0 or overlap.z <= 0.0)
+	_check(swept_clear, "the complete swept Halyard assist-path hull clears all three connector decks despite capture-volume overlap")
+
+	var authority := annex.get_authority_contract()
+	_check(
+		int(authority.ship_berth_count) == 0
+		and int(authority.landing_or_interaction_area_count) == 0
+		and int(authority.activity_node_count) == 0,
+		"production Annex preserves zero ship, berth, interaction, combat, and activity authority"
+	)
+
+
+func _collision_body_box(body: StaticBody3D) -> AABB:
+	var result := AABB()
+	var first := true
+	for candidate in body.find_children("*", "CollisionShape3D", true, false):
+		var collision := candidate as CollisionShape3D
+		var shape := collision.shape as BoxShape3D
+		if shape == null or collision.disabled:
+			continue
+		var box := (collision.global_transform * AABB(-shape.size * 0.5, shape.size)).abs()
+		result = box if first else result.merge(box)
+		first = false
+	return result
+
+
+func _aabb_overlap_depth(first: AABB, second: AABB) -> Vector3:
+	return Vector3(
+		minf(first.end.x, second.end.x) - maxf(first.position.x, second.position.x),
+		minf(first.end.y, second.end.y) - maxf(first.position.y, second.position.y),
+		minf(first.end.z, second.end.z) - maxf(first.position.z, second.position.z)
+	)
+
+
+func _horizontal_aabb_separation(first: AABB, second: AABB) -> float:
+	var x_gap := maxf(0.0, maxf(first.position.x - second.end.x, second.position.x - first.end.x))
+	var z_gap := maxf(0.0, maxf(first.position.z - second.end.z, second.position.z - first.end.z))
+	return Vector2(x_gap, z_gap).length()
+
+
+func _aabb_separation(first: AABB, second: AABB) -> float:
+	var x_gap := maxf(0.0, maxf(first.position.x - second.end.x, second.position.x - first.end.x))
+	var y_gap := maxf(0.0, maxf(first.position.y - second.end.y, second.position.y - first.end.y))
+	var z_gap := maxf(0.0, maxf(first.position.z - second.end.z, second.position.z - first.end.z))
+	return Vector3(x_gap, y_gap, z_gap).length()
 
 
 ## The station has two chamfer rules and exactly one chamfered-box builder.
@@ -226,6 +464,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 		[world.get_node_or_null(^"HabitatSpine"), ["shell_light", "shell_light_floor", "shell_mid", "floor", "structural", "brass"], 0.28],
 		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic", "ceramic_warm", "steel_blue", "orange"], 0.30],
 		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic_floor", "deck"], 0.22],
+		[world.get_node_or_null(^"FabricationAnnex"), ["deck", "structure", "machine"], 0.30],
 	]
 	var every_binding_exact := true
 	for spec in specs:
@@ -253,7 +492,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 				and material.uv1_world_triplanar \
 				and material.texture_repeat \
 				and material.uv1_scale.is_equal_approx(Vector3.ONE * float(spec[2]))
-	_check(every_binding_exact, "Aft, Habitat, and Freight station roles use the exact neutral world-triplanar PBR recipe and frozen scales")
+	_check(every_binding_exact, "Aft, Habitat, Freight, and Fabrication station roles use the exact neutral world-triplanar PBR recipe and frozen scales")
 
 	var aft := world.get_node_or_null(^"AftJunctionStack") as AftJunctionStack
 	var habitat := world.get_node_or_null(^"HabitatSpine") as HabitatSpine
@@ -330,6 +569,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 			"ConnectionLattice/ConnectionHandoffDeck",
 			"FreightControlRoom/RoomFloor",
 		]],
+		[world.get_node_or_null(^"FabricationAnnex"), "deck", FABRICATION_SURFACE_PATHS],
 	]
 	var coplanar_phase_exact := true
 	for phase_group in phase_groups:
@@ -393,6 +633,10 @@ func _surface_material(owner: Node3D, path: NodePath) -> Material:
 	var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
 	if mesh_instance == null:
 		mesh_instance = body.get_node_or_null(^"RampMesh") as MeshInstance3D
+	if mesh_instance == null:
+		for candidate in body.find_children("*", "MeshInstance3D", false, false):
+			mesh_instance = candidate as MeshInstance3D
+			break
 	if mesh_instance == null or mesh_instance.mesh == null or mesh_instance.mesh.get_surface_count() == 0:
 		return null
 	return mesh_instance.get_active_material(0)
@@ -420,6 +664,7 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 		AABB(Vector3(-8.0, -0.1, 49.0), Vector3(4.7, 4.7, 12.5)),
 		AABB(Vector3(-12.0, 3.9, 60.0), Vector3(67.0, 1.2, 63.0)),
 		AABB(Vector3(49.5, 4.0, 57.0), Vector3(5.0, 3.2, 13.0)),
+		AABB(Vector3(48.8, -0.2, 23.6), Vector3(43.6, 1.2, 29.0)),
 	]
 	var candidates := 0
 	var supported := 0
@@ -510,7 +755,7 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 ## World layer is swept.
 func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -> void:
 	var envelopes := [
-		AABB(Vector3(-80.0, -3.0, -70.0), Vector3(160.0, 12.0, 156.0)),
+		AABB(Vector3(-80.0, -3.0, -70.0), Vector3(174.0, 12.0, 156.0)),
 	]
 	# One 2 m XZ bucket grid over every drawn mesh, so each probe column compares
 	# against a handful of candidates instead of the whole 2800-mesh world.
@@ -950,6 +1195,36 @@ func _walk_forward_until(
 func _release_actions() -> void:
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
 		Input.action_release(action)
+
+
+func _capture_fabrication_integration_frame(game: GameFlow, world: ShipyardWorld) -> void:
+	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	var connector := world.get_node_or_null(^"ExposedDockLattice/FabricationAnnexConnector") as Node3D
+	_check(annex != null and connector != null, "integrated Forward+ frame resolves the live Annex and connector")
+	if annex == null or connector == null:
+		return
+	var hud := game.get_node_or_null(^"HUD") as CanvasLayer
+	if hud != null:
+		hud.visible = false
+	var camera := Camera3D.new()
+	camera.name = "FabricationIntegrationEvidenceCamera"
+	camera.position = Vector3(112.0, 34.0, 8.0)
+	camera.look_at_from_position(camera.position, Vector3(70.0, 0.8, 38.0), Vector3.UP)
+	camera.fov = 52.0
+	camera.current = true
+	game.add_child(camera)
+	for _frame in 8:
+		await process_frame
+		await physics_frame
+	await RenderingServer.frame_post_draw
+	var image := root.get_viewport().get_texture().get_image()
+	var output_path := "/tmp/fabrication-annex-integrated-forward-plus.png"
+	var error := image.save_png(output_path)
+	_check(
+		error == OK and image.get_width() >= 1280 and image.get_height() >= 720,
+		"exactly one normal-resolution integrated Forward+ frame is captured"
+	)
+	print("FABRICATION_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
 
 
 func _check(condition: bool, description: String) -> void:

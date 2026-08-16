@@ -416,7 +416,7 @@ const STATION_DRESSING_SPECS := {
 	&"FreightRackServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/FreightRackServiceDressing"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), "length": 20.0, "profile": &"light", "orientation": &"along_mount_x"},
 }
 const STATION_NAVIGATION_SCHEMA_VERSION := 1
-const EXPECTED_STATION_SERVICE_AGENT_COUNT := 4
+const EXPECTED_STATION_SERVICE_AGENT_COUNT := 5
 const STATION_SERVICE_AGENT_MINIMUM_BERTH_GAP := 0.15
 ## Metres the bottom of a courier's published envelope must clear the highest
 ## waypoint of its own route by. The route markers sit on the connector deck, so
@@ -477,6 +477,16 @@ const STATION_SERVICE_AGENT_SPECS := {
 		"speed": 0.9,
 		"lift": 3.7,
 	},
+	&"fabrication-annex-courier": {
+		"node_name": &"FabricationAnnexServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier"),
+		"slot_id": &"fabrication_annex_inbound",
+		"from_node_id": &"station-hub:fabrication_annex_inbound",
+		"to_node_id": &"fabrication_annex:annex_inbound",
+		"seed": 11807,
+		"speed": 0.95,
+		"lift": 3.7,
+	},
 }
 const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 const STATION_SERVICE_AGENT_SCENE := preload("res://scenes/world/components/station_service_agent.tscn")
@@ -516,6 +526,12 @@ const STATION_HUB_ENDPOINT_DECLARATIONS := [
 		"expects_module": &"jovian-freight-berth",
 		"evidence_status": &"modern_interpretation",
 		"anchor_path": "ModernFleetRegistry/RegistryPodDeck",
+	},
+	{
+		"slot_id": &"fabrication_annex_inbound",
+		"expects_module": &"fabrication_annex",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC",
 	},
 ]
 const CENTRAL_BERTH_HERO_PRESENTATION_SCENE := preload(
@@ -674,6 +690,7 @@ const SKY_DUST_SCALE := 3.4
 @onready var habitat_spine: HabitatSpine = $HabitatSpine
 @onready var jovian_freight_berth: JovianFreightBerth = $JovianFreightBerth
 @onready var fleet_dock_comb: FleetDockComb = $FleetDockComb
+@onready var fabrication_annex: FabricationAnnex = $FabricationAnnex
 @onready var nearby_sector_cluster: NearbySectorCluster = $NearbySectorCluster
 
 var _materials: Dictionary = {}
@@ -1609,7 +1626,7 @@ func get_station_navigation_audit_report() -> Dictionary:
 	if not _instance_id_sets_match(registered_agent_instance_ids, live_agent_instance_ids):
 		errors.append("station service agent registry does not match the live world hierarchy")
 	if _station_service_agents.size() != EXPECTED_STATION_SERVICE_AGENT_COUNT:
-		errors.append("station must integrate exactly four declared-slot service couriers")
+		errors.append("station must integrate exactly five declared-slot service couriers")
 
 	var berth_volumes: Array[AABB] = []
 	for berth_id in get_berth_ids():
@@ -3953,6 +3970,59 @@ func _build_architecture() -> void:
 	# bridges the original spine to that module's connection plane without
 	# hiding its open-space footprint beneath a legacy service slab.
 	_box(shell, "AftModuleConnector", Vector3(0, -0.62, 43.5), Vector3(7.0, 1.2, 9.0), _materials["deck_light"])
+
+	# FABRICATION-INTEGRATION-001. The only path into the Annex is this exact
+	# collision-backed 99 m2 dogleg. It leaves Dock Operations at x=49, runs
+	# around its cargo edge, turns north, and opens through a short handoff into
+	# the Annex apron at x=72. Adjacent slabs only touch at their boundaries; no
+	# hidden overlap pads the walkable-area census.
+	var fabrication_connector := Node3D.new()
+	fabrication_connector.name = "FabricationAnnexConnector"
+	fabrication_connector.set_meta("evidence_status", &"modern_interpretation")
+	fabrication_connector.set_meta("connects_station_module", &"fabrication_annex")
+	shell.add_child(fabrication_connector)
+	var fabrication_deck_a := _box(
+		fabrication_connector, "ConnectorDeckA", Vector3(59.5, 0.18, 28.0),
+		Vector3(21.0, 0.4, 3.0), _materials["deck_light"]
+	)
+	var fabrication_deck_b := _box(
+		fabrication_connector, "ConnectorDeckB", Vector3(68.5, 0.18, 34.5),
+		Vector3(3.0, 0.4, 10.0), _materials["deck_light"]
+	)
+	var fabrication_deck_c := _box(
+		fabrication_connector, "ConnectorDeckC", Vector3(71.0, 0.18, 38.0),
+		Vector3(2.0, 0.4, 3.0), _materials["deck_light"]
+	)
+	for surface_spec in [
+		[fabrication_deck_a, &"fabrication_connector_a", 63.0],
+		[fabrication_deck_b, &"fabrication_connector_b", 30.0],
+		[fabrication_deck_c, &"fabrication_connector_c", 6.0],
+	]:
+		var body := surface_spec[0] as StaticBody3D
+		body.set_meta(&"walkable_surface", true)
+		body.set_meta(&"walkable_surface_id", surface_spec[1] as StringName)
+		body.set_meta(&"walkable_surface_kind", &"level")
+		body.set_meta(&"walkable_surface_owner", &"station_hub")
+		body.set_meta(&"horizontal_area_m2", surface_spec[2] as float)
+
+	# Seven guarded outer edges preserve the two deliberate dogleg mouths and the
+	# open C-to-Annex handoff. Rail dimensions are the reviewed siting contract.
+	for rail_spec in [
+		["ConnectorRailASouth", Vector3(59.5, 1.10, 26.5), Vector3(21.0, 1.44, 0.14)],
+		["ConnectorRailANorth", Vector3(58.0, 1.10, 29.5), Vector3(18.0, 1.44, 0.14)],
+		["ConnectorRailBWest", Vector3(67.0, 1.10, 34.5), Vector3(0.14, 1.44, 10.0)],
+		["ConnectorRailBEast", Vector3(70.0, 1.10, 33.0), Vector3(0.14, 1.44, 7.0)],
+		["ConnectorRailBNorth", Vector3(68.5, 1.10, 39.5), Vector3(3.0, 1.44, 0.14)],
+		["ConnectorRailCSouth", Vector3(71.0, 1.10, 36.5), Vector3(2.0, 1.44, 0.14)],
+		["ConnectorRailCNorth", Vector3(71.0, 1.10, 39.5), Vector3(2.0, 1.44, 0.14)],
+	]:
+		_box(
+			fabrication_connector,
+			rail_spec[0] as String,
+			rail_spec[1] as Vector3,
+			rail_spec[2] as Vector3,
+			_materials["ivory"]
+		)
 
 	# The B2-bounded comb is mounted beyond the Aft upper deck rather than across
 	# any live landing volume. This short, visibly modelled bridge is the complete

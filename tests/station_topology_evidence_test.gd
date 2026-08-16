@@ -26,7 +26,7 @@ const HUB_ENDPOINT_ID: StringName = &"station-hub"
 const ORIGIN_TOLERANCE := 0.02
 
 const MODULE_NODE_NAMES := [
-	"AftJunctionStack", "FleetDockComb", "HabitatSpine", "JovianFreightBerth",
+	"AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth",
 ]
 
 ## Evidence statuses a station module is allowed to publish. Every entry either
@@ -99,15 +99,16 @@ func _test_document_tables_parse(documented: Dictionary) -> void:
 	var deferred := documented.get("deferred", []) as Array
 	var berths := documented.get("berths", []) as Array
 	_check(totals.size() == 11, "the documented totals table publishes all eleven live registry quantities")
-	_check(edges.size() == 4, "the documented edge table publishes four station edges")
-	_check(routes.size() == 4, "the documented route roster table publishes four modules")
-	# 5 -> 4. The habitat side branch left this table when its door was unlocked
-	# onto a built room; the remaining four are the Aft VIP access and the three
-	# comb dock thresholds. Cross-checked by `_compare_deferred`, which requires
+	_check(edges.size() == 5, "the documented edge table publishes five station edges")
+	_check(routes.size() == 5, "the documented route roster table publishes five modules")
+	# 5 -> 4 -> 6. The habitat side branch left this table when its door was
+	# unlocked onto a built room; Fabrication adds two explicit internal-only
+	# service gates to the Aft VIP access and three comb dock thresholds.
+	# Cross-checked by `_compare_deferred`, which requires
 	# every `dead_ends` entry in the route roster to be described here, so the
 	# habitat's `dead_ends` cell had to empty in the same edit or this would have
 	# gone red from the other side.
-	_check(deferred.size() == 4, "the documented deferred-landmark table publishes four landmarks")
+	_check(deferred.size() == 6, "the documented deferred-landmark table publishes six landmarks")
 	_check(berths.size() == 5, "the documented berth table publishes five production berths")
 
 
@@ -201,7 +202,8 @@ func _test_structured_red_on_documentation_drift(documented: Dictionary, world: 
 	# Claim the fleet dock comb hangs off the aft junction slot. This is exactly
 	# the drift this suite exists to catch: a plausible-looking module-to-module
 	# reading that the registry never records.
-	(edges[1] as Dictionary)["module_id"] = "aft-junction-stack"
+	var fleet_edge := _row_with_value(edges, "slot_id", "hub-fleet-dock-comb")
+	fleet_edge["module_id"] = "aft-junction-stack"
 	var module_drift := _compare(mutated, world, report)
 	_check(not module_drift.is_empty(), "mis-documenting which module claims a slot turns the audit red")
 	_check(_any_contains(module_drift, "hub-fleet-dock-comb"), "the red report names the mis-documented slot")
@@ -213,7 +215,12 @@ func _test_structured_red_on_documentation_drift(documented: Dictionary, world: 
 	_check(_any_contains(totals_drift, "route_marker_count"), "the red report names the stale total")
 
 	mutated = _deep_copy_documented(documented)
-	(mutated.get("edges", [])[3] as Dictionary)["evidence_status"] = "modern_interpretation"
+	var habitat_edge := _row_with_value(
+		mutated.get("edges", []) as Array,
+		"module_id",
+		"habitat-spine"
+	)
+	habitat_edge["evidence_status"] = "modern_interpretation"
 	var status_drift := _compare(mutated, world, report)
 	_check(not status_drift.is_empty(), "flattening a module's compound evidence status in the document turns the audit red")
 	_check(_any_contains(status_drift, "habitat-spine"), "the red report names the module whose status was flattened")
@@ -714,6 +721,14 @@ func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 		if module != null:
 			result.append(module)
 	return result
+
+
+func _row_with_value(rows: Array, field: String, expected: String) -> Dictionary:
+	for row_variant in rows:
+		var row := row_variant as Dictionary
+		if str(row.get(field, "")) == expected:
+			return row
+	return {}
 
 
 func _module_by_id(world: ShipyardWorld, module_id: StringName) -> Node:
