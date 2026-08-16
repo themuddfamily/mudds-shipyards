@@ -264,6 +264,91 @@ Not blocked for Phase 7: occupancy stays inside `MovingInteriorFrame` (which alr
 
 Tests: `tests/in_flight_cabin_test.gd` (contract, containment, frame-relative transitions) and `tests/in_flight_cabin_integration_test.gd` (the whole loop through `res://scenes/main.tscn` with real input, plus whole-Main detach/re-entry mid-cabin and the destroyed-cabin recovery). Verified against a targeted suite selection — ship lifecycle, seat/board/exit, sandbox integration, interior frame, HUD and recovery — rather than the full matrix, per the phase's verification policy.
 
+## Session handoff — 2026-08-16
+
+Written at the point the session was stopped. `main` is at the commit that carries this
+section; the full matrix is **green at 120 suites / 10,428 assertions**, and
+`builds/windows/MuddsShipyards-68756b7.exe` was exported from that tree.
+
+### Shipped this session
+
+Player-reported defects, all closed: the seated pilot's legs (the knee sat 0.362 m
+**behind** the hip — 78° of hip hyperextension — on all nine clips, from leg pose tables
+authored in the legacy rig's sign convention); the Arrow walkway and its boarding marker,
+which sat **inside the craft's own wing collision** so the whole starboard flank was
+silent; the Torrent runway seam; the Zenith-area invisible barriers, which turned out to
+be at the **central** berth, the Zenith's own collision being the tightest in the fleet;
+and the Halyard's stand, which supported only **42%** of the craft.
+
+Features: the tow tractor is drivable; a pilot can shut down in space, leave the seat and
+walk a drifting ship's interior (Jovian and Halyard only — the contract defaults closed,
+so a fighter can never strand its pilot in vacuum); first/third person on foot, bound to
+`C`; a fifth craft, the Halyard crew transport; the Cinder Reach sector 706 m out; two new
+opponent archetypes with non-kill objectives; station life, dock arm, registry,
+observation, aft operations, freight berth and central berth content passes; and the VIP
+reception suite behind a door that had been sealed since the station was built.
+
+Art direction: the sky was the real culprit. `ProceduralSkyMaterial` blends a sky
+hemisphere into a **ground** hemisphere, and with no ground it drew a hard line across
+every wide shot that read as a wall behind the station — and because the sky is also the
+ambient and reflection source, a featureless sphere lit every face identically and gave
+metalness nothing to return. Replaced with a real deep-space sky, depth-ranged fog, a
+desaturated palette and a regrade.
+
+Tooling: the test matrix went **526 s → 72 s** (parallel, results proven byte-identical
+across `--jobs 1/30/64`), gained a real `--scope` flag, and startup went **20,990 ms → 31
+ms** to first presented frame with the mouse no longer captured during load.
+
+### The three findings worth carrying forward
+
+1. **`--headless` cannot render on this box.** There is no rendering device:
+   `get_texture().get_image()` returns null and `await RenderingServer.frame_post_draw`
+   **never fires**, so every capture harness *hangs at ~1% CPU* instead of failing. This
+   cost one agent ninety minutes and led several others to conclude "llvmpipe is slow".
+   Frames actually cost 3–80 ms. Rendering was never slow; it was never happening. Use
+   `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a godot --path .
+   --rendering-driver vulkan --script res://<script>.gd`, and run `--headless --import`
+   first in a fresh worktree. `tools/interior_room_probe.gd` is a working example that
+   refuses to run without a device rather than hanging.
+2. **Rendering finds what assertions cannot.** This session, *looking* caught: operator
+   chairs facing away from their own consoles, a status board built inside a bulkhead, a
+   conveyor running through a solid gateway leg, a pilot perched on top of a solid cab
+   with their hands in the air, a legend built 0.04 m inside a girder, and 39 + 16 + 13
+   floating pieces across three modules. None were visible to any test.
+3. **Adding a craft invalidates counts in unrelated suites.** The Halyard produced *five*
+   separate stale "four player craft plus the defender" censuses, found one at a time over
+   several hours. A changed-file → relevant-suite map would have caught them together.
+
+### Open, in priority order
+
+- **Two finished branches are unmerged**, deliberately parked at the owner's pause:
+  `worktree-agent-a321df413e3660237` (startup loading screen and mouse fix) and
+  `worktree-agent-af523db2c3d472ae3` (habitat rooms, bunk alcoves and the hydroponic
+  garden behind the previously sealed side branch). Both self-report green on scoped
+  suites. Both need a rebase — `main` moved a long way beneath them.
+- **`worktree-agent-abffa4e47108b345d`** was stopped mid-task on the player-reported tow
+  tractor collision defect ("if I drive into a spaceship I just clip through it… the same
+  with certain poles"). Two suspected causes, one confirmed by reading: the tractor sets
+  `collision_layer` **and** `collision_mask` to `WORLD` while craft hulls are on their own
+  layer; and `fleet_dock_comb.gd` deliberately carries **no collision on its dressing**, a
+  rule that was correct for a walking player and is wrong now one drives at 11.5 m/s.
+- **The performance budget is exceeded** on mesh instances, lights and unique materials.
+  `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md` was written earlier the same day against a
+  GTX 1060 / RTX 3060 target and the station has grown past it. Two independent censuses
+  disagreed on the current totals, so **re-measure on a merged tree before acting**. Owner
+  decision: raise the ceilings, or schedule a trim.
+- Dock 02 still reads `DEFERRED DOCK 02` in red under an assigned craft, and
+  `DockEdgeKerb02` is a 0.130 m lip stranded across the middle of the widened pad.
+- The Jovian hold's pallets sit 0.060 m above their cargo deck —
+  `CARGO_PALLET_OFFSET_Y` in `scripts/ships/jovian_light_freighter.gd`, one constant.
+- First/third person is **session-scoped** and does not survive a restart; persisting it
+  means touching settings storage beside the frozen accessibility presets.
+- A GitHub release was requested and never cut. The repo is public and three pre-releases
+  already exist.
+- **MATRIX-001**: four suites emit run-to-run-variable numeric evidence, so the per-log
+  aggregate SHA quoted as release evidence is not reproducible. None of them flakes;
+  `results-canonical.tsv` is the artifact that is stable and should replace it.
+
 ## Session handoff — 2026-08-15
 
 State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
