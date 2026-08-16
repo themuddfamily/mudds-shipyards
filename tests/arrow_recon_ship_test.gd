@@ -28,6 +28,7 @@ func _run() -> void:
 
 	_test_definition_and_evidence(arrow)
 	_test_distinct_presentation(arrow)
+	_test_visual_performance_batch(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
@@ -130,6 +131,167 @@ func _test_escape_pods_and_sensors(arrow: ArrowReconShip) -> void:
 	)
 
 
+func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
+	var report := arrow.get_arrow_visual_performance_report()
+	if not bool(report.valid):
+		print("ARROW_VISUAL_CENSUS_ERRORS: ", report.errors)
+	var local_evidence_format := (
+		"ARROW_WING_ROOT_RIB_BATCH: nodes %d->%d submissions %d->%d "
+		+ "primitive_mesh_allocations %d->%d visible_copies %d->%d"
+	)
+	print(local_evidence_format % [
+			int(report.wing_root_rib_batch.legacy.geometry_nodes),
+			int(report.wing_root_rib_batch.geometry_nodes),
+			int(report.wing_root_rib_batch.legacy.geometry_submissions),
+			int(report.wing_root_rib_batch.geometry_submissions),
+			int(report.wing_root_rib_batch.legacy.primitive_mesh_allocations),
+			int(report.wing_root_rib_batch.primitive_mesh_allocations),
+			int(report.wing_root_rib_batch.legacy.visible_geometry_copies),
+			int(report.wing_root_rib_batch.visible_geometry_copies),
+	])
+	var whole_evidence_format := (
+		"ARROW_VISUAL_CENSUS: nodes %d->%d submissions %d->%d "
+		+ "unique_mesh_allocations %d->%d visible_copies %d->%d"
+	)
+	print(whole_evidence_format % [
+			int(report.legacy.nodes), int(report.current.nodes),
+			int(report.legacy.geometry_submissions),
+			int(report.current.geometry_submissions),
+			int(report.legacy.unique_mesh_resource_allocations),
+			int(report.current.unique_mesh_resource_allocations),
+			int(report.legacy.visible_geometry_copies),
+			int(report.current.visible_geometry_copies),
+	])
+	_check(
+		bool(report.valid)
+		and report.current == report.expected
+		and report.current == {
+			"nodes": 176,
+			"mesh_instance_nodes": 157,
+			"multi_mesh_instance_nodes": 1,
+			"geometry_submissions": 158,
+			"visible_geometry_copies": 159,
+			"unique_mesh_resource_allocations": 141,
+			"auto_fallback_names": 23,
+		},
+		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->141 unique-mesh allocation census while retaining all 159 copies"
+	)
+	_check(
+		report.wing_root_rib_batch.legacy == {
+			"geometry_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"primitive_mesh_allocations": 2,
+			"multimesh_allocations": 0,
+		}
+		and int(report.wing_root_rib_batch.geometry_nodes) == 1
+		and int(report.wing_root_rib_batch.geometry_submissions) == 1
+		and int(report.wing_root_rib_batch.visible_geometry_copies) == 2
+		and int(report.wing_root_rib_batch.primitive_mesh_allocations) == 1
+		and int(report.wing_root_rib_batch.multimesh_allocations) == 1,
+		"local rib family records exact 2->1 node/submission/primitive allocation with its two visible copies unchanged"
+	)
+	var visual := arrow.get_arrow_visual_root()
+	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
+	_check(
+		batch != null and batch.multimesh != null
+		and batch.multimesh.instance_count == 2
+		and batch.multimesh.visible_instance_count == 2
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and bool(batch.get_meta("visual_detail_only", false))
+		and (batch.get_meta("authored_instance_transforms", []) as Array).size() == 2
+		and batch.get_groups().is_empty()
+		and batch.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and visual.get_node_or_null("WingRootRib") == null,
+		"the rib batch owns only visual-detail audit metadata and no script, group, child, or collision authority"
+	)
+	_check(
+		visual.get_node_or_null("FuselagePanelBand") is MeshInstance3D,
+		"the torus-smoothness evidence node remains independently addressable"
+	)
+
+	# Detached report and structured-red mutations cover the whole census,
+	# authored transform buffer, visible roster, and shared primitive allocation.
+	(report.current as Dictionary)["nodes"] = -1
+	(report.wing_root_rib_batch as Dictionary)["geometry_nodes"] = -1
+	_check(
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176,
+		"caller mutation cannot alter the detached visual performance evidence"
+	)
+	var injected := Node3D.new()
+	injected.name = "ForbiddenVisualAllocation"
+	visual.add_child(injected)
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"whole visual census drift: nodes"
+		),
+		"structured-red: an unbudgeted visual node fails the whole Arrow census"
+	)
+	visual.remove_child(injected)
+	injected.free()
+	if batch != null and batch.multimesh != null:
+		var authored_transforms := (
+			batch.get_meta("authored_instance_transforms", []) as Array
+		).duplicate()
+		var corrupted_transforms := authored_transforms.duplicate()
+		var authored_transform := corrupted_transforms[0] as Transform3D
+		corrupted_transforms[0] = Transform3D(
+			authored_transform.basis,
+			authored_transform.origin + Vector3(0.1, 0, 0)
+		)
+		batch.set_meta("authored_instance_transforms", corrupted_transforms)
+		_check(
+			not bool(arrow.get_arrow_audit_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_visual_performance_report(),
+				"wing-root rib authored transform metadata drift"
+			),
+			"structured-red: an authored rib transform mutation fails presentation audit"
+		)
+		batch.set_meta("authored_instance_transforms", authored_transforms)
+		var authored_bounds := batch.multimesh.custom_aabb
+		batch.multimesh.custom_aabb = authored_bounds.grow(0.1)
+		_check(
+			not bool(arrow.get_arrow_audit_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_visual_performance_report(),
+				"wing-root rib culling bounds drift"
+			),
+			"structured-red: a rib batch culling-bounds mutation fails presentation audit"
+		)
+		batch.multimesh.custom_aabb = authored_bounds
+		batch.multimesh.visible_instance_count = 1
+		_check(
+			not bool(arrow.get_arrow_audit_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_visual_performance_report(),
+				"wing-root rib visible-copy roster drift"
+			),
+			"structured-red: hiding one batched rib fails the visible-copy roster"
+		)
+		batch.multimesh.visible_instance_count = 2
+		var box := batch.multimesh.mesh as BoxMesh
+		if box != null:
+			var authored_size := box.size
+			box.size.x += 0.1
+			_check(
+				not bool(arrow.get_arrow_audit_report().valid)
+				and _report_has_error(
+					arrow.get_arrow_visual_performance_report(),
+					"wing-root rib primitive allocation drift"
+				),
+				"structured-red: shared rib primitive mutation fails presentation audit"
+			)
+			box.size = authored_size
+	_check(
+		bool(arrow.get_arrow_audit_report().valid),
+		"whole/local Arrow visual audits return green after every mutation is restored"
+	)
+
+
 func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 	_check(arrow.collision_layer == SHIP_LAYER, "Arrow uses canonical Ship physics layer")
 	_check(arrow.collision_mask == PhysicsLayers.SHIP_BODY_MASK, "Arrow collides with world, players, and ships")
@@ -188,6 +350,10 @@ func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 
 
 func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
+	var rib_batch := arrow.get_arrow_visual_root().get_node_or_null(
+		"WingRootRibBatch"
+	) as MultiMeshInstance3D
+	var rib_batch_identity := rib_batch.get_instance_id() if rib_batch != null else 0
 	var fired_events: Array[Dictionary] = []
 	arrow.projectile_fired.connect(func(origin: Vector3, direction: Vector3) -> void:
 		fired_events.append({"origin": origin, "direction": direction})
@@ -249,6 +415,12 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 	_check(arrow.collision_layer == SHIP_LAYER and arrow.collision_mask == PhysicsLayers.SHIP_BODY_MASK, "Arrow reuse restores canonical collision")
 	_check(arrow.get_arrow_visual_root().visible, "Arrow variant visual is restored after reuse")
 	_check(arrow.get_escape_pod_count() == 2, "both visible escape pods survive the reuse lifecycle")
+	_check(
+		rib_batch_identity != 0
+		and arrow.get_arrow_visual_root().get_node_or_null("WingRootRibBatch") == rib_batch
+		and rib_batch.get_instance_id() == rib_batch_identity,
+		"damage/reset lifecycle preserves the same rib batch and never duplicates it"
+	)
 
 
 func _test_cleanup(arrow: ArrowReconShip) -> void:
@@ -280,6 +452,13 @@ func _count_named(search_root: Node, node_name: String) -> int:
 	for child in search_root.get_children():
 		count += _count_named(child, node_name)
 	return count
+
+
+func _report_has_error(report: Dictionary, fragment: String) -> bool:
+	for error in report.get("errors", PackedStringArray()):
+		if fragment in str(error):
+			return true
+	return false
 
 
 func _collect_meshes_named(search_root: Node, node_name: String, output: Array[MeshInstance3D]) -> void:

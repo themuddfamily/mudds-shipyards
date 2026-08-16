@@ -44,6 +44,32 @@ const ENGINE_CYAN := Color("7cf5ef")
 const ARROW_NAV_RED := Color("ff6460")
 const ARROW_NAV_GREEN := Color("7cf0a3")
 
+# Phase 9 allocation freeze. These two mirrored ribs were the first repeated
+# Arrow family with identical mesh/material state and no gameplay, evidence,
+# collision, lifecycle, or stable-node identity. The five later panel bands are
+# deliberately excluded because `capture_torus_smoothness.gd` owns their first
+# node as a checked-in evidence path.
+const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
+const WING_ROOT_RIB_VISIBLE_COPIES := 2
+const LEGACY_ARROW_VISUAL_CENSUS := {
+	"nodes": 177,
+	"mesh_instance_nodes": 159,
+	"multi_mesh_instance_nodes": 0,
+	"geometry_submissions": 159,
+	"visible_geometry_copies": 159,
+	"unique_mesh_resource_allocations": 142,
+	"auto_fallback_names": 24,
+}
+const EXPECTED_ARROW_VISUAL_CENSUS := {
+	"nodes": 176,
+	"mesh_instance_nodes": 157,
+	"multi_mesh_instance_nodes": 1,
+	"geometry_submissions": 158,
+	"visible_geometry_copies": 159,
+	"unique_mesh_resource_allocations": 141,
+	"auto_fallback_names": 23,
+}
+
 var _arrow_built := false
 var _arrow_visual: Node3D
 var _arrow_materials: Dictionary = {}
@@ -52,6 +78,7 @@ var _engine_plumes: Array[MeshInstance3D] = []
 var _arrow_engine_lights: Array[OmniLight3D] = []
 var _sensor_sweep: Node3D
 var _elapsed_arrow := 0.0
+var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -137,6 +164,9 @@ func get_arrow_audit_report() -> Dictionary:
 	var right_muzzle := get_node_or_null("RightMuzzle") as Marker3D
 	if left_muzzle == null or right_muzzle == null:
 		errors.append("light weapon muzzle markers are missing")
+	var performance := get_arrow_visual_performance_report()
+	if not bool(performance.valid):
+		errors.append("Arrow visual allocation/submission census is invalid")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -149,7 +179,46 @@ func get_arrow_audit_report() -> Dictionary:
 		"weapon_class": &"light_recon_pulse",
 		"engine_count": _engine_plumes.size(),
 		"evidence": get_arrow_evidence_report(),
+		"performance": performance,
 	}
+
+
+## Detached whole-visual and local-batch evidence. Geometry submissions sum
+## mesh surfaces once per ordinary instance or batch; visible copies count every
+## ordinary mesh plus every authored MultiMesh transform.
+func get_arrow_visual_performance_report() -> Dictionary:
+	var errors := PackedStringArray()
+	if not is_instance_valid(_arrow_visual):
+		return {
+			"valid": false,
+			"errors": PackedStringArray(["Arrow visual root is missing"]),
+			"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
+			"current": {},
+			"wing_root_rib_batch": {},
+		}.duplicate(true)
+
+	var current := _collect_arrow_visual_census()
+	for key: String in EXPECTED_ARROW_VISUAL_CENSUS:
+		if int(current.get(key, -1)) != int(EXPECTED_ARROW_VISUAL_CENSUS[key]):
+			errors.append("whole visual census drift: %s" % key)
+	var batch := _inspect_wing_root_rib_batch()
+	if not bool(batch.valid):
+		errors.append_array(batch.errors as PackedStringArray)
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
+		"expected": EXPECTED_ARROW_VISUAL_CENSUS.duplicate(true),
+		"current": current,
+		"reductions": {
+			"nodes": 1,
+			"geometry_submissions": 1,
+			"unique_mesh_resource_allocations": 1,
+			"auto_fallback_names": 1,
+			"visible_geometry_copies": 0,
+		},
+		"wing_root_rib_batch": batch,
+	}.duplicate(true)
 
 
 func _build_arrow_variant(_controller: HeroShip) -> bool:
@@ -299,6 +368,7 @@ func _build_slender_airframe() -> void:
 	)
 
 	# Long swept sensor wings use curved planform lofts and inset titanium roots.
+	var wing_root_rib_transforms: Array[Transform3D] = []
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
 		var wing := _build_planform_surface(
@@ -313,7 +383,10 @@ func _build_slender_airframe() -> void:
 			_arrow_materials.ceramic
 		)
 		_arrow_visual.add_child(wing)
-		_box(_arrow_visual, "WingRootRib", Vector3(side * 1.45, 1.03, 1.0), Vector3(1.25, 0.34, 4.8), _arrow_materials.titanium, Vector3(0, side * -0.08, 0))
+		wing_root_rib_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0, side * -0.08, 0)),
+			Vector3(side * 1.45, 1.03, 1.0)
+		))
 		_curve_tube(
 			_arrow_visual,
 			"SensorLeadingEdge",
@@ -338,6 +411,14 @@ func _build_slender_airframe() -> void:
 			_arrow_materials.titanium
 		)
 		_sphere(_arrow_visual, "PortNavigationLight" if side_index == 0 else "StarboardNavigationLight", Vector3(side * 5.64, 1.04, 3.35), 0.115, _arrow_materials.nav_red if side < 0 else _arrow_materials.nav_green)
+	_multi_mesh_box(
+		_arrow_visual,
+		"WingRootRibBatch",
+		WING_ROOT_RIB_SIZE,
+		_arrow_materials.titanium,
+		wing_root_rib_transforms
+	)
+	_wing_root_rib_authored_transforms = wing_root_rib_transforms.duplicate()
 
 	# Layered dorsal shell follows the long recon fuselage rather than adding a
 	# blocky superstructure. Panel seams are slim and restrained.
@@ -626,6 +707,158 @@ func _apply_arrow_metadata() -> void:
 	set_meta("engine_profile", &"efficient_twin_recon")
 
 
+func _collect_arrow_visual_census() -> Dictionary:
+	var mesh_instances := _arrow_visual.find_children(
+		"*", "MeshInstance3D", true, false
+	)
+	var multi_mesh_instances := _arrow_visual.find_children(
+		"*", "MultiMeshInstance3D", true, false
+	)
+	var unique_mesh_resources := {}
+	for candidate in mesh_instances:
+		var instance := candidate as MeshInstance3D
+		if instance.mesh != null:
+			unique_mesh_resources[instance.mesh.get_instance_id()] = true
+	var visible_geometry_copies := mesh_instances.size()
+	var geometry_submissions := 0
+	for candidate in mesh_instances:
+		var instance := candidate as MeshInstance3D
+		if instance.mesh != null:
+			geometry_submissions += instance.mesh.get_surface_count()
+	for candidate in multi_mesh_instances:
+		var instance := candidate as MultiMeshInstance3D
+		if instance.multimesh == null:
+			continue
+		visible_geometry_copies += instance.multimesh.visible_instance_count
+		if instance.multimesh.mesh != null:
+			unique_mesh_resources[instance.multimesh.mesh.get_instance_id()] = true
+			geometry_submissions += instance.multimesh.mesh.get_surface_count()
+	var auto_fallback_names := 0
+	for candidate in _arrow_visual.find_children("*", "Node", true, false):
+		if str((candidate as Node).name).begins_with("@"):
+			auto_fallback_names += 1
+	return {
+		"nodes": _count_visual_nodes(_arrow_visual),
+		"mesh_instance_nodes": mesh_instances.size(),
+		"multi_mesh_instance_nodes": multi_mesh_instances.size(),
+		"geometry_submissions": geometry_submissions,
+		"visible_geometry_copies": visible_geometry_copies,
+		"unique_mesh_resource_allocations": unique_mesh_resources.size(),
+		"auto_fallback_names": auto_fallback_names,
+	}
+
+
+func _inspect_wing_root_rib_batch() -> Dictionary:
+	var errors := PackedStringArray()
+	var batch := _arrow_visual.get_node_or_null(
+		"WingRootRibBatch"
+	) as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		return {
+			"valid": false,
+			"errors": PackedStringArray(["wing-root rib batch is missing"]),
+		}.duplicate(true)
+	var multimesh := batch.multimesh
+	var mesh := multimesh.mesh as BoxMesh
+	if _arrow_visual.get_node_or_null("WingRootRib") != null:
+		errors.append("retired ordinary wing-root rib renderer remains")
+	if multimesh.transform_format != MultiMesh.TRANSFORM_3D:
+		errors.append("wing-root rib transform format drift")
+	if multimesh.use_colors or multimesh.use_custom_data:
+		errors.append("wing-root rib batch gained per-copy payload")
+	if multimesh.instance_count != WING_ROOT_RIB_VISIBLE_COPIES \
+		or multimesh.visible_instance_count != WING_ROOT_RIB_VISIBLE_COPIES:
+		errors.append("wing-root rib visible-copy roster drift")
+	if mesh == null or not mesh.size.is_equal_approx(WING_ROOT_RIB_SIZE):
+		errors.append("wing-root rib primitive allocation drift")
+	elif mesh.material != _arrow_materials.titanium:
+		errors.append("wing-root rib material identity drift")
+	var expected_transforms := _wing_root_rib_transforms()
+	if not _transform_arrays_match(
+		_wing_root_rib_authored_transforms, expected_transforms
+	):
+		errors.append("wing-root rib authored transform snapshot drift")
+	var metadata_transforms := batch.get_meta(
+		"authored_instance_transforms", []
+	) as Array
+	if not _transform_arrays_match(metadata_transforms, expected_transforms):
+		errors.append("wing-root rib authored transform metadata drift")
+	var expected_buffer := _multi_mesh_transform_buffer(expected_transforms)
+	# The dummy/headless renderer discards MultiMesh buffers and reads every
+	# transform as identity. A live renderer retains the deterministic payload,
+	# so validate it whenever it is available while always auditing the CPU copy.
+	if not multimesh.buffer.is_empty() and multimesh.buffer != expected_buffer:
+		errors.append("wing-root rib renderer transform buffer drift")
+	if mesh != null:
+		var expected_bounds := _transformed_mesh_bounds(
+			mesh.get_aabb(), expected_transforms
+		)
+		if not multimesh.custom_aabb.is_equal_approx(expected_bounds):
+			errors.append("wing-root rib culling bounds drift")
+	if not batch.transform.is_equal_approx(Transform3D.IDENTITY) or not batch.visible:
+		errors.append("wing-root rib batch-root presentation drift")
+	if batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+		or batch.material_override != null:
+		errors.append("wing-root rib render-state drift")
+	var metadata_keys := batch.get_meta_list()
+	if batch.get_child_count() != 0 or batch.get_script() != null \
+		or not batch.get_groups().is_empty() \
+		or metadata_keys.size() != 2 \
+		or not metadata_keys.has(&"visual_detail_only") \
+		or not metadata_keys.has(&"authored_instance_transforms") \
+		or not bool(batch.get_meta("visual_detail_only", false)):
+		errors.append("wing-root rib batch gained semantic authority")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_name": str(batch.name),
+		"geometry_nodes": 1,
+		"geometry_submissions": 1,
+		"visible_geometry_copies": multimesh.visible_instance_count,
+		"primitive_mesh_allocations": 1 if mesh != null else 0,
+		"multimesh_allocations": 1,
+		"renderer_buffer_auditable": not multimesh.buffer.is_empty(),
+		"culling_bounds": multimesh.custom_aabb,
+		"authored_transforms": _wing_root_rib_authored_transforms.duplicate(),
+		"legacy": {
+			"geometry_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"primitive_mesh_allocations": 2,
+			"multimesh_allocations": 0,
+		},
+	}.duplicate(true)
+
+
+func _count_visual_nodes(search_root: Node) -> int:
+	var count := 1
+	for child in search_root.get_children():
+		count += _count_visual_nodes(child)
+	return count
+
+
+static func _wing_root_rib_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0, side * -0.08, 0)),
+			Vector3(side * 1.45, 1.03, 1.0)
+		))
+	return transforms
+
+
+static func _transform_arrays_match(
+	actual: Array,
+	expected: Array[Transform3D]
+	) -> bool:
+	if actual.size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (actual[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return true
+
+
 func _material(color: Color, metallic: float, roughness: float, emission := Color.BLACK, energy := 0.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
@@ -648,6 +881,71 @@ func _transparent_material(color: Color, metallic: float, roughness: float) -> S
 	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	material.render_priority = 1
 	return material
+
+
+func _multi_mesh_box(
+	parent: Node3D,
+	node_name: String,
+	size: Vector3,
+	material: Material,
+	transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = material
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = transforms.size()
+	multimesh.buffer = _multi_mesh_transform_buffer(transforms)
+	multimesh.custom_aabb = _transformed_mesh_bounds(mesh.get_aabb(), transforms)
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = multimesh
+	instance.set_meta("visual_detail_only", true)
+	instance.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(instance)
+	return instance
+
+
+static func _multi_mesh_transform_buffer(
+	transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+static func _transformed_mesh_bounds(
+	mesh_bounds: AABB,
+	transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for value in transforms:
+		var piece := (value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, sections: PackedVector3Array, material: Material) -> MeshInstance3D:
