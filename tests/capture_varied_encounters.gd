@@ -5,14 +5,14 @@ extends SceneTree
 ## Two sections, deliberately separated because they answer different questions.
 ##
 ## **Section A — played.** A real guided sortie: the pilot is boarded through
-## the production path, the engines are started with the production
-## `engine_start` action, the berth is physically cleared with `move_forward`,
-## the coordinator's own interceptor engagement is opened, and the encounter is
-## then flown with nothing but `move_forward`, `move_left` and `move_right`
-## pressed through the live input map. Every frame in this section is taken from
-## the craft's own camera with the HUD left on, because the question being asked
-## is "can the player read this while flying", and a frame with the HUD stripped
-## out and a director's camera cannot answer it.
+## the production path, one accepted `hover` demand wakes propulsion without
+## moving the composed shot, the berth is physically cleared with
+## `move_forward`, the coordinator's own interceptor engagement is opened, and
+## the encounter is then flown with nothing but `move_forward`, `move_left` and
+## `move_right` pressed through the live input map. Every frame in this section
+## is taken from the craft's own camera with the HUD left on, because the
+## question being asked is "can the player read this while flying", and a frame
+## with the HUD stripped out and a director's camera cannot answer it.
 ##
 ## **Section B — readability plates.** The craft themselves, photographed from a
 ## harness camera in an empty volume with the HUD hidden, so the silhouettes,
@@ -26,6 +26,7 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+const STAGING_ONLY_ENVIRONMENT_VARIABLE := "MUDDS_CAPTURE_VARIED_STAGING_ONLY"
 const OUTPUT_DIR := "res://artifacts/varied_encounter_visuals"
 ## Open space well outside the yard. The production WorldEnvironment and key
 ## light are global, so section B is lit exactly as it is in play without a
@@ -33,7 +34,7 @@ const OUTPUT_DIR := "res://artifacts/varied_encounter_visuals"
 const ARENA_ORIGIN := Vector3(-380.0, 108.0, -470.0)
 const CAMERA_FOV := 40.0
 const PILOT_ACTIONS: Array[StringName] = [
-	&"move_forward", &"move_left", &"move_right", &"fire", &"sprint_boost",
+	&"move_forward", &"move_left", &"move_right", &"hover", &"fire", &"sprint_boost",
 ]
 
 var _failures: Array[String] = []
@@ -47,6 +48,15 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_environment(STAGING_ONLY_ENVIRONMENT_VARIABLE) == "1":
+		await _play_encounter(true)
+		if _failures.is_empty():
+			print("CAPTURE_VARIED_ENCOUNTERS_STAGING_OK")
+			quit(0)
+		else:
+			print("CAPTURE_VARIED_ENCOUNTERS_STAGING_FAILED: ", "; ".join(_failures))
+			quit(1)
+		return
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
 	await _play_encounter()
 	await _capture_readability_plates()
@@ -62,7 +72,7 @@ func _run() -> void:
 
 # ------------------------------------------------------ A. played sortie ----
 
-func _play_encounter() -> void:
+func _play_encounter(staging_only: bool = false) -> void:
 	_game = MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(_game)
 	await _settle(4)
@@ -104,18 +114,25 @@ func _play_encounter() -> void:
 		_failures.append("the pilot never reached the production start-engines phase")
 		await _teardown()
 		return
-	torrent.engine_start_time = 0.01
-	_dispatch_pilot_action(&"engine_start")
-	if not await _wait_until(func() -> bool:
-		return _game.phase == GameFlow.Phase.LAUNCH, 180):
-		_failures.append("the craft never reached the production launch phase")
+	if not await _wake_engine_with_flight_demand(torrent):
+		_failures.append("accepted hover demand did not wake propulsion in one physics tick")
 		await _teardown()
 		return
 	Input.action_press(&"move_forward")
+	if not await _wait_until(func() -> bool:
+		return _game.phase == GameFlow.Phase.LAUNCH, 180):
+		_failures.append("held forward demand never reached the production launch phase")
+		Input.action_release(&"move_forward")
+		await _teardown()
+		return
 	var departed := await _wait_until(func() -> bool:
 		return bool(_game.get("_sortie_departed_berth")), 300)
 	if not departed:
 		_failures.append("the craft never physically cleared its berth")
+		Input.action_release(&"move_forward")
+		await _teardown()
+		return
+	if staging_only:
 		Input.action_release(&"move_forward")
 		await _teardown()
 		return
@@ -454,13 +471,6 @@ func _aim_camera(focus: Vector3, direction: Vector3, distance: float) -> void:
 	)
 
 
-func _dispatch_pilot_action(action: StringName) -> void:
-	var event := InputEventAction.new()
-	event.action = action
-	event.pressed = true
-	_game._unhandled_input(event)
-
-
 func _dispatch_hud_action(hud: CanvasLayer, action: StringName) -> void:
 	var event := InputEventAction.new()
 	event.action = action
@@ -472,6 +482,22 @@ func _release_pilot_actions() -> void:
 	for action in PILOT_ACTIONS:
 		Input.action_release(action)
 	await physics_frame
+
+
+## Automatic propulsion consumes the same immutable command as flight and
+## presentation. Hover is the least invasive accepted player demand here: it
+## wakes ONLINE in one real physics tick without changing the capture position.
+func _wake_engine_with_flight_demand(ship: HeroShip) -> bool:
+	await _release_pilot_actions()
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover
+	)
+	Input.action_release(&"hover")
+	return accepted
 
 
 func _settle(frames: int) -> void:
