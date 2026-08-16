@@ -108,6 +108,23 @@ const WHEEL_RADIUS := 0.4
 const WHEEL_WIDTH := 0.25
 const WHEEL_HALF_TRACK := 1.15
 const WHEEL_AXLE_Z := 1.05
+const WHEEL_COPY_COUNT := 4
+## Component-local renderer census immediately before and after replacing only
+## the four childless wheel visuals with one MultiMesh submission.
+const BASELINE_VISUAL_CHILD_NODE_COUNT := 19
+const BASELINE_MESH_INSTANCE_COUNT := 19
+const BASELINE_MULTIMESH_INSTANCE_COUNT := 0
+const BASELINE_DRAWN_COPY_COUNT := 19
+const BASELINE_GEOMETRY_SUBMISSION_COUNT := 19
+const BASELINE_MESH_RESOURCE_ALLOCATION_COUNT := 14
+const BASELINE_MATERIAL_RESOURCE_ALLOCATION_COUNT := 5
+const VISUAL_CHILD_NODE_COUNT := 16
+const MESH_INSTANCE_COUNT := 15
+const MULTIMESH_INSTANCE_COUNT := 1
+const DRAWN_COPY_COUNT := 19
+const GEOMETRY_SUBMISSION_COUNT := 16
+const MESH_RESOURCE_ALLOCATION_COUNT := 14
+const MATERIAL_RESOURCE_ALLOCATION_COUNT := 5
 const BODY_PROBE_RADIUS := 1.9
 ## Swept-sphere radius for the driving camera's obstruction arm. Matched to the
 ## craft rig's 0.55 m scaled down for a boom less than half as long, and larger
@@ -185,6 +202,9 @@ var _camera_yaw_offset := 0.0
 var _camera_pitch := deg_to_rad(-14.0)
 var _mesh_cache: Dictionary = {}
 var _materials: Dictionary = {}
+var _wheel_transforms: Array[Transform3D] = []
+var _wheel_batch: MultiMeshInstance3D = null
+var _wheel_mesh: Mesh = null
 
 @onready var _driver_seat: Node3D = $DriverSeat
 @onready var _driver_station: TowTractorDriverStation = $DriverStation
@@ -349,6 +369,187 @@ func get_camera() -> Camera3D:
 
 func get_driver_station() -> TowTractorDriverStation:
 	return _driver_station
+
+
+## Detached component-local evidence for the one bounded wheel submission
+## batch. Every collider, control, seat, light, lifecycle node, and named
+## non-wheel semantic path remains outside this report and outside the batch.
+func get_wheel_batch_report() -> Dictionary:
+	var visual := get_node_or_null(^"Visual") as Node3D
+	var mesh_nodes: Array[Node] = []
+	var batch_nodes: Array[Node] = []
+	if visual != null:
+		mesh_nodes = visual.find_children("*", "MeshInstance3D", false, false)
+		batch_nodes = visual.find_children("*", "MultiMeshInstance3D", false, false)
+	var drawn_copies := 0
+	var submissions := 0
+	var unique_meshes := {}
+	var unique_materials := {}
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
+		unique_meshes[instance.mesh.get_instance_id()] = true
+		if instance.material_override != null:
+			unique_materials[instance.material_override.get_instance_id()] = true
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		submissions += batch.multimesh.mesh.get_surface_count()
+		unique_meshes[batch.multimesh.mesh.get_instance_id()] = true
+		if batch.material_override != null:
+			unique_materials[batch.material_override.get_instance_id()] = true
+
+	var error_codes := PackedStringArray()
+	var expected_buffer := _encode_multimesh_transforms(_wheel_transforms)
+	var buffer_matches := (
+		is_instance_valid(_wheel_batch)
+		and _wheel_batch.multimesh != null
+		and _wheel_batch.multimesh.buffer == expected_buffer
+	)
+	if not buffer_matches:
+		error_codes.append("wheel_batch_buffer_mismatch")
+	var bounds_match := false
+	if is_instance_valid(_wheel_batch) \
+			and _wheel_batch.multimesh != null \
+			and _wheel_batch.multimesh.mesh != null:
+		var expected_bounds := _transformed_mesh_bounds(
+			_wheel_batch.multimesh.mesh.get_aabb(),
+			_wheel_transforms
+		)
+		bounds_match = _wheel_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_bounds
+		)
+	if not bounds_match:
+		error_codes.append("wheel_batch_bounds_mismatch")
+	var authored_roster_matches := false
+	if is_instance_valid(_wheel_batch):
+		var authored := _wheel_batch.get_meta(
+			&"authored_instance_transforms", []
+		) as Array
+		authored_roster_matches = authored.size() == _wheel_transforms.size()
+		for index in mini(authored.size(), _wheel_transforms.size()):
+			authored_roster_matches = (
+				authored_roster_matches
+				and (authored[index] as Transform3D).is_equal_approx(
+					_wheel_transforms[index]
+				)
+			)
+	if not authored_roster_matches:
+		error_codes.append("wheel_authored_roster_mismatch")
+	var mesh_identity_matches: bool = (
+		is_instance_valid(_wheel_batch)
+		and _wheel_batch.multimesh != null
+		and _wheel_batch.multimesh.mesh != null
+		and _wheel_batch.multimesh.mesh == _wheel_mesh
+		and _wheel_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(WHEEL_RADIUS * 2.0, WHEEL_WIDTH, WHEEL_RADIUS * 2.0)
+		)
+		and _wheel_batch.multimesh.mesh.get_surface_count() == 1
+	)
+	var material_identity_matches: bool = (
+		is_instance_valid(_wheel_batch)
+		and _wheel_batch.material_override == _materials.get("tyre")
+	)
+	var resource_identity_matches: bool = (
+		mesh_identity_matches and material_identity_matches
+	)
+	if not resource_identity_matches:
+		error_codes.append("wheel_resource_identity_mismatch")
+	var family_copy_count := 0
+	if is_instance_valid(_wheel_batch) and _wheel_batch.multimesh != null:
+		family_copy_count = _wheel_batch.multimesh.instance_count
+	var family_exact := (
+		is_instance_valid(_wheel_batch)
+		and _wheel_batch.name == &"Wheel"
+		and _wheel_batch.get_child_count() == 0
+		and _wheel_batch.multimesh != null
+		and family_copy_count == WHEEL_COPY_COUNT
+		and _wheel_batch.multimesh.visible_instance_count == -1
+		and _wheel_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _wheel_batch.layers == 1
+	)
+	if not family_exact:
+		error_codes.append("wheel_family_contract_mismatch")
+	var aggregate_exact := (
+		visual != null
+		and visual.get_child_count() == VISUAL_CHILD_NODE_COUNT
+		and mesh_nodes.size() == MESH_INSTANCE_COUNT
+		and batch_nodes.size() == MULTIMESH_INSTANCE_COUNT
+		and drawn_copies == DRAWN_COPY_COUNT
+		and submissions == GEOMETRY_SUBMISSION_COUNT
+		and unique_meshes.size() == MESH_RESOURCE_ALLOCATION_COUNT
+		and unique_materials.size() == MATERIAL_RESOURCE_ALLOCATION_COUNT
+	)
+	if not aggregate_exact:
+		error_codes.append("wheel_batch_aggregate_counts_mismatch")
+
+	return {
+		"valid": error_codes.is_empty(),
+		"error_codes": error_codes,
+		"family_id": &"tow_tractor_wheels",
+		"baseline": {
+			"visual_child_nodes": BASELINE_VISUAL_CHILD_NODE_COUNT,
+			"mesh_instances": BASELINE_MESH_INSTANCE_COUNT,
+			"multimesh_instances": BASELINE_MULTIMESH_INSTANCE_COUNT,
+			"drawn_copies": BASELINE_DRAWN_COPY_COUNT,
+			"geometry_submissions": BASELINE_GEOMETRY_SUBMISSION_COUNT,
+			"mesh_resource_allocations": BASELINE_MESH_RESOURCE_ALLOCATION_COUNT,
+			"material_resource_allocations": BASELINE_MATERIAL_RESOURCE_ALLOCATION_COUNT,
+		},
+		"current": {
+			"visual_child_nodes": visual.get_child_count() if visual != null else 0,
+			"mesh_instances": mesh_nodes.size(),
+			"multimesh_instances": batch_nodes.size(),
+			"drawn_copies": drawn_copies,
+			"geometry_submissions": submissions,
+			"mesh_resource_allocations": unique_meshes.size(),
+			"material_resource_allocations": unique_materials.size(),
+		},
+		"family_baseline": {
+			"mesh_instance_nodes": WHEEL_COPY_COUNT,
+			"multimesh_nodes": 0,
+			"mesh_resources": 1,
+			"material_resources": 1,
+			"drawn_copies": WHEEL_COPY_COUNT,
+			"geometry_submissions": WHEEL_COPY_COUNT,
+			"renderer_buffer_floats": 0,
+		},
+		"family_current": {
+			"mesh_instance_nodes": 0,
+			"multimesh_nodes": 1 if is_instance_valid(_wheel_batch) else 0,
+			"mesh_resources": 1 if mesh_identity_matches else 0,
+			"material_resources": 1 \
+				if is_instance_valid(_wheel_batch) \
+				and _wheel_batch.material_override != null else 0,
+			"drawn_copies": family_copy_count,
+			"geometry_submissions": (
+				_wheel_batch.multimesh.mesh.get_surface_count()
+				if is_instance_valid(_wheel_batch) \
+				and _wheel_batch.multimesh != null \
+				and _wheel_batch.multimesh.mesh != null else 0
+			),
+			"renderer_buffer_floats": (
+				_wheel_batch.multimesh.buffer.size()
+				if is_instance_valid(_wheel_batch) \
+				and _wheel_batch.multimesh != null else 0
+			),
+		},
+		"buffer_matches_authored": buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"authored_roster_matches": authored_roster_matches,
+		"mesh_identity_matches": mesh_identity_matches,
+		"material_identity_matches": material_identity_matches,
+		"resource_identity_matches": resource_identity_matches,
+		"authored_transforms": _wheel_transforms.duplicate(),
+	}.duplicate(true)
 
 
 func set_camera_fov(field_of_view: float) -> void:
@@ -705,6 +906,21 @@ func _build_visual() -> void:
 		Vector3(0.9, 0.18, 0.36),
 		"trim"
 	)
+	var wheel_transforms: Array[Transform3D] = []
+	var wheel_basis := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0)))
+	for side in [-1.0, 1.0]:
+		for axle_side in [-1.0, 1.0]:
+			wheel_transforms.append(
+				Transform3D(
+					wheel_basis,
+					Vector3(
+						side * WHEEL_HALF_TRACK,
+						WHEEL_RADIUS,
+						axle_side * WHEEL_AXLE_Z
+					)
+				)
+			)
+	_wheel_transforms.assign(wheel_transforms)
 	for side in [-1.0, 1.0]:
 		_mesh_box(
 			visual,
@@ -720,16 +936,10 @@ func _build_visual() -> void:
 			Vector3(0.1, 0.42, 0.1),
 			"chassis"
 		)
-		for axle_side in [-1.0, 1.0]:
-			var wheel := _mesh_cylinder(
-				visual,
-				"Wheel",
-				Vector3(side * WHEEL_HALF_TRACK, WHEEL_RADIUS, axle_side * WHEEL_AXLE_Z),
-				WHEEL_RADIUS,
-				WHEEL_WIDTH,
-				"tyre"
-			)
-			wheel.rotation_degrees = Vector3(0.0, 0.0, 90.0)
+		# Substitute the batch at the first old Wheel child position so the stable
+		# Visual/Wheel semantic path and surrounding authored child order survive.
+		if side < 0.0:
+			_wheel_batch = _multimesh_wheels(visual, _wheel_transforms)
 	_mesh_box(
 		visual,
 		"BeaconMast",
@@ -784,3 +994,75 @@ func _mesh_cylinder(
 	instance.material_override = _materials[material_key]
 	parent.add_child(instance)
 	return instance
+
+
+func _multimesh_wheels(
+	parent: Node3D,
+	transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	_wheel_mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		WHEEL_RADIUS,
+		WHEEL_RADIUS,
+		WHEEL_WIDTH,
+		24,
+		_mesh_cache
+	)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _wheel_mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	# Author one deterministic 12-float record per old Wheel transform. The raw
+	# payload remains inspectable under headless where per-instance reads may not.
+	multi.buffer = _encode_multimesh_transforms(transforms)
+	multi.custom_aabb = _transformed_mesh_bounds(multi.mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "Wheel"
+	batch.multimesh = multi
+	batch.material_override = _materials["tyre"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", &"tow_tractor_wheels")
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _encode_multimesh_transforms(
+	transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(
+	mesh_bounds: AABB,
+	transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result

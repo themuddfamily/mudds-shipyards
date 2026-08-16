@@ -44,6 +44,7 @@ func _run() -> void:
 	await physics_frame
 
 	_check_construction_contract()
+	_check_wheel_batch_contract()
 	_check_authority_exclusions()
 	await _check_handling()
 	await _check_deck_edge_interlock()
@@ -104,14 +105,27 @@ func _check_construction_contract() -> void:
 	var raw_primitives := 0
 	for child in visual.get_children():
 		var instance := child as MeshInstance3D
-		if instance == null:
+		if instance != null:
+			if instance.mesh is BoxMesh or instance.mesh is CylinderMesh:
+				raw_primitives += 1
+			elif StationSurfaceKit.is_cylindrical_mesh(instance.mesh):
+				cylinder_count += 1
+			elif instance.mesh is ArrayMesh:
+				box_count += 1
 			continue
-		if instance.mesh is BoxMesh or instance.mesh is CylinderMesh:
-			raw_primitives += 1
-		elif StationSurfaceKit.is_cylindrical_mesh(instance.mesh):
-			cylinder_count += 1
-		elif instance.mesh is ArrayMesh:
-			box_count += 1
+		var batch := child as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null:
+			continue
+		var batched_mesh := batch.multimesh.mesh
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		if batched_mesh is BoxMesh or batched_mesh is CylinderMesh:
+			raw_primitives += visible_copies
+		elif StationSurfaceKit.is_cylindrical_mesh(batched_mesh):
+			cylinder_count += visible_copies
+		elif batched_mesh is ArrayMesh:
+			box_count += visible_copies
 	_check(box_count >= 5, "the tractor's boxed stock is built by the shared chamfered-box builder")
 	_check(cylinder_count >= 4, "the four wheels are built by the shared chamfered-cylinder builder")
 	_check(raw_primitives == 0, "no unbevelled engine primitive survives in the tractor")
@@ -137,6 +151,160 @@ func _check_construction_contract() -> void:
 		not bare.uv1_triplanar and not bare.normal_enabled,
 		"red witness: a plain material does not satisfy the panel-recipe assertion"
 	)
+
+
+## The four wheels are immutable, childless visual detail. This audit freezes
+## both sides of the one-family substitution: four old nodes/submissions become
+## one exact MultiMesh node/submission, while copies, transforms, mesh, material,
+## shadows, layer, semantic path, and every collision shape remain unchanged.
+func _check_wheel_batch_contract() -> void:
+	var visual := _tractor.get_node_or_null(^"Visual") as Node3D
+	var wheel := _tractor.get_node_or_null(^"Visual/Wheel") as MultiMeshInstance3D
+	_check(wheel != null, "the stable Visual/Wheel path resolves to the wheel batch")
+	if wheel == null or wheel.multimesh == null:
+		return
+	_check(wheel.get_child_count() == 0, "the batched wheel family remains childless visual detail")
+	_check(
+		wheel.get_meta(&"visual_detail_only", false)
+		and wheel.get_meta(&"visual_batch_family_id", &"") == &"tow_tractor_wheels",
+		"the wheel batch explicitly identifies its visual-only family"
+	)
+	_check(
+		wheel.transform.is_equal_approx(Transform3D.IDENTITY)
+		and wheel.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and wheel.layers == 1,
+		"batch packaging preserves local placement, shadow casting, and render layer"
+	)
+	_check(
+		StationSurfaceKit.is_cylindrical_mesh(wheel.multimesh.mesh)
+		and wheel.multimesh.mesh.get_surface_count() == 1
+		and wheel.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.8, 0.25, 0.8)),
+		"the batch retains the exact shared chamfered wheel mesh and one surface"
+	)
+	_check(
+		wheel.multimesh.instance_count == 4
+		and wheel.multimesh.visible_instance_count == -1
+		and wheel.multimesh.buffer.size() == 48,
+		"the renderer owns exactly four visible 3D transforms in a 48-float buffer"
+	)
+
+	var expected_transforms: Array[Transform3D] = []
+	var wheel_basis := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0)))
+	for side in [-1.0, 1.0]:
+		for axle_side in [-1.0, 1.0]:
+			expected_transforms.append(
+				Transform3D(wheel_basis, Vector3(side * 1.15, 0.4, axle_side * 1.05))
+			)
+	var authored := wheel.get_meta(&"authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected_transforms[index]
+		)
+	_check(authored_exact, "the authored wheel transform roster and ordering are exact")
+
+	var report := _tractor.get_wheel_batch_report()
+	_check(
+		report.get("valid", false) and (report.get("error_codes", PackedStringArray()) as PackedStringArray).is_empty(),
+		"the live wheel resource, transform, buffer, bounds, and aggregate audit is green"
+	)
+	var baseline := report.get("baseline", {}) as Dictionary
+	var current := report.get("current", {}) as Dictionary
+	_check(
+		baseline.get("visual_child_nodes") == 19
+		and current.get("visual_child_nodes") == 16
+		and baseline.get("mesh_instances") == 19
+		and current.get("mesh_instances") == 15
+		and baseline.get("multimesh_instances") == 0
+		and current.get("multimesh_instances") == 1,
+		"component-local visual nodes freeze exactly at children 19->16, MeshInstance3D 19->15, MultiMeshInstance3D 0->1"
+	)
+	_check(
+		baseline.get("drawn_copies") == 19
+		and current.get("drawn_copies") == 19
+		and baseline.get("geometry_submissions") == 19
+		and current.get("geometry_submissions") == 16
+		and baseline.get("mesh_resource_allocations") == 14
+		and current.get("mesh_resource_allocations") == 14
+		and baseline.get("material_resource_allocations") == 5
+		and current.get("material_resource_allocations") == 5,
+		"component-local copies stay 19 and resource allocations stay mesh 14/material 5 while submissions fall 19->16"
+	)
+	var family_before := report.get("family_baseline", {}) as Dictionary
+	var family_after := report.get("family_current", {}) as Dictionary
+	_check(
+		family_before.get("mesh_instance_nodes") == 4
+		and family_after.get("mesh_instance_nodes") == 0
+		and family_before.get("multimesh_nodes") == 0
+		and family_after.get("multimesh_nodes") == 1
+		and family_before.get("mesh_resources") == 1
+		and family_after.get("mesh_resources") == 1
+		and family_before.get("material_resources") == 1
+		and family_after.get("material_resources") == 1,
+		"wheel-family allocations freeze exactly at MeshInstance nodes 4->0, MultiMesh nodes 0->1, mesh/material resources 1->1"
+	)
+	_check(
+		family_before.get("drawn_copies") == 4
+		and family_after.get("drawn_copies") == 4
+		and family_before.get("geometry_submissions") == 4
+		and family_after.get("geometry_submissions") == 1
+		and family_before.get("renderer_buffer_floats") == 0
+		and family_after.get("renderer_buffer_floats") == 48,
+		"wheel-family copies stay 4 while submissions fall 4->1 and the exact renderer buffer grows 0->48 floats"
+	)
+
+	var retained_paths := [
+		^"Visual/Chassis", ^"Visual/Bonnet", ^"Visual/BonnetVent",
+		^"Visual/SeatPad", ^"Visual/SeatBack", ^"Visual/SteeringColumn",
+		^"Visual/SteeringWheel", ^"Visual/TowDeck", ^"Visual/HitchBar",
+		^"Visual/SideStep", ^"Visual/SeatRail", ^"Visual/BeaconMast",
+		^"Visual/Beacon", ^"DriverSeat", ^"DriverStation", ^"CameraRig",
+	]
+	var paths_retained := true
+	for path in retained_paths:
+		paths_retained = paths_retained and _tractor.get_node_or_null(path) != null
+	_check(paths_retained, "all named non-wheel semantic paths remain independently addressable")
+	var chassis_shape := (_tractor.get_node(^"ChassisCollision") as CollisionShape3D).shape as BoxShape3D
+	var bonnet_shape := (_tractor.get_node(^"BonnetCollision") as CollisionShape3D).shape as BoxShape3D
+	_check(
+		chassis_shape != null and chassis_shape.size.is_equal_approx(Vector3(2.3, 1.2, 3.8))
+		and bonnet_shape != null and bonnet_shape.size.is_equal_approx(Vector3(1.9, 0.66, 1.25)),
+		"the wheel packaging leaves both physical hull collision witnesses exact"
+	)
+
+	# Detached-copy witness: consumers cannot rewrite the authority roster through
+	# the report returned for tooling and HUD-free evidence.
+	var detached := report.get("authored_transforms", []) as Array
+	if not detached.is_empty():
+		detached[0] = Transform3D.IDENTITY
+	_check(
+		(_tractor.get_wheel_batch_report().get("authored_transforms", []) as Array)[0] != Transform3D.IDENTITY,
+		"the public wheel audit returns a detached authored-transform roster"
+	)
+
+	# Structured red mutations prove the audit observes renderer payload and
+	# bounds independently, then returns green when each live value is restored.
+	var saved_buffer := wheel.multimesh.buffer
+	var broken_buffer := saved_buffer.duplicate()
+	broken_buffer[3] += 0.125
+	wheel.multimesh.buffer = broken_buffer
+	var buffer_red := _tractor.get_wheel_batch_report()
+	_check(
+		not buffer_red.get("valid", true)
+		and (buffer_red.get("error_codes", PackedStringArray()) as PackedStringArray).has("wheel_batch_buffer_mismatch"),
+		"red witness: one renderer-buffer transform mutation is rejected with a structured code"
+	)
+	wheel.multimesh.buffer = saved_buffer
+	var saved_bounds := wheel.multimesh.custom_aabb
+	wheel.multimesh.custom_aabb = AABB(saved_bounds.position + Vector3(0.125, 0.0, 0.0), saved_bounds.size)
+	var bounds_red := _tractor.get_wheel_batch_report()
+	_check(
+		not bounds_red.get("valid", true)
+		and (bounds_red.get("error_codes", PackedStringArray()) as PackedStringArray).has("wheel_batch_bounds_mismatch"),
+		"red witness: one renderer-bounds mutation is rejected with a structured code"
+	)
+	wheel.multimesh.custom_aabb = saved_bounds
+	_check(_tractor.get_wheel_batch_report().get("valid", false), "restoring red mutations returns the exact live audit to green")
 
 
 ## Physics filters answer only who can touch or ray-hit the body. Craft authority
