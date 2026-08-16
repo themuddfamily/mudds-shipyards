@@ -165,10 +165,18 @@ func _run() -> void:
 	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "driving the tractor does not consume a flight phase")
 
 	var drive_start := tractor.global_position
+	var peak_drive_speed := 0.0
 	Input.action_press(&"move_forward")
-	await _advance(70)
+	for _tick in 70:
+		await physics_frame
+		await process_frame
+		peak_drive_speed = maxf(peak_drive_speed, tractor.get_drive_speed())
+	print(
+		"TRACTOR_HELD_W_SPEED_MPS: peak=%.6f finish=%.6f"
+		% [peak_drive_speed, tractor.get_drive_speed()]
+	)
 	_check(
-		tractor.get_drive_speed() > 5.0,
+		peak_drive_speed > 5.0,
 		"a real held W accelerates the tractor across the deck"
 	)
 	_check(

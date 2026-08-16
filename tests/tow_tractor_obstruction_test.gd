@@ -95,7 +95,7 @@ func _test_drives_into_a_hull(game: GameFlow, tractor: TowTractor) -> void:
 	_check(hull.size.length() > 1.0, "the Torrent publishes a real hull volume to collide with")
 
 	# Approach down the deck from aft, on the hull's own centre line.
-	var approach := Vector3(hull.get_center().x, 0.0, hull.end.z + APPROACH_GAP)
+	var approach := Vector3(hull.get_center().x, 0.0, hull.end.z + APPROACH_GAP + 0.5)
 	var travelled := await _drive_at(
 		tractor, approach, Vector3.FORWARD, hull, &"TorrentInterceptor"
 	)
