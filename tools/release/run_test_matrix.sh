@@ -642,7 +642,7 @@ run_suite_worker() {
 			diag_lines="$(grep -aEi "$DIAGNOSTIC_RE" "$log_path" | head -n 8 || true)"
 			if [[ -n "$diag_lines" ]]; then
 				printf '    diagnostics:\n'
-				printf '      %s\n' "$diag_lines"
+				printf '%s\n' "$diag_lines" | sed 's/^/      /'
 			fi
 			printf '    terminal_line: %s\n' "${terminal_line:-<empty>}"
 		fi
