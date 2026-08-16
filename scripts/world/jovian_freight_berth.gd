@@ -80,6 +80,40 @@ const CATWALK_DECK_ELEVATION := 13.06
 const CATWALK_CENTER_Z := 28.0
 const RECOMMENDED_WORLD_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(-53.0, 0.38, 28.8))
 
+## Visual-only painted apron guides. All twelve use this exact cached chamfered
+## box and orange-glow material; they own no collision, interaction, semantic
+## metadata, lifecycle, evidence, or path-based test authority.
+const DOCK_GUIDE_SIZE := Vector3(1.6, 0.105, 0.22)
+const DOCK_GUIDE_Z_POSITIONS := [13.0, 18.0, 23.0, 34.0, 39.0, 44.0]
+const DOCK_GUIDE_COPY_COUNT := 12
+
+## Standalone module census frozen around the dock-guide batching change. The
+## twelve 60-triangle copies remain exact; only renderer/node representation
+## changes. Collision and authority counts are unchanged. `all_nodes_checked`
+## follows the intentional node reduction; every semantic authority field stays
+## at its prior value (zero authority IDs/leases/spawns/activity/audio/berths,
+## one existing StationDoor interaction area, network role none).
+const DOCK_GUIDE_BATCH_CENSUS_BEFORE := {
+	"descendant_nodes": 920,
+	"mesh_instance_nodes": 439,
+	"multimesh_nodes": 0,
+	"geometry_submissions": 439,
+	"visible_geometry_copies": 439,
+	"drawn_triangles": 61252,
+	"static_bodies": 207,
+	"collision_shapes": 210,
+}
+const DOCK_GUIDE_BATCH_CENSUS_AFTER := {
+	"descendant_nodes": 909,
+	"mesh_instance_nodes": 427,
+	"multimesh_nodes": 1,
+	"geometry_submissions": 428,
+	"visible_geometry_copies": 439,
+	"drawn_triangles": 61252,
+	"static_bodies": 207,
+	"collision_shapes": 210,
+}
+
 # Full authored-module declaration. The root is the connection plane and local
 # +Z points away from the station. An integrator can place this box without
 # reverse-engineering generated meshes.
@@ -563,7 +597,27 @@ func get_component_roster() -> Dictionary:
 	roster["animated_equipment_count"] = get_animated_equipment_count()
 	roster["handling_fixture_count"] = get_handling_fixture_count()
 	roster["handling_fixture_classes"] = get_handling_fixture_classes()
+	roster["multi_mesh_instance_count"] = find_children(
+		"*", "MultiMeshInstance3D", true, false
+	).size()
 	return roster
+
+
+func get_dock_guide_batch_contract() -> Dictionary:
+	return {
+		"family_id": &"loading-apron-dock-guides",
+		"copy_count": DOCK_GUIDE_COPY_COUNT,
+		"triangles_per_copy": 60,
+		"drawn_triangles": 720,
+		"visual_only": true,
+		"collision_backed": false,
+		"interaction_authority": false,
+		"gameplay_authority": false,
+		"evidence_status": EVIDENCE_STATUS,
+		"authenticated_original_geometry": false,
+		"census_before": DOCK_GUIDE_BATCH_CENSUS_BEFORE.duplicate(true),
+		"census_after": DOCK_GUIDE_BATCH_CENSUS_AFTER.duplicate(true),
+	}
 
 
 func get_collision_contract() -> Dictionary:
@@ -829,9 +883,21 @@ func _build_loading_apron() -> void:
 	# deep enough to reach the deck they are painted on. Nothing else about the cue
 	# palette, angles, spacing or material changes.
 	_rounded_box(apron, "DockCentreline", Vector3(0, 0.0505, 29.4), Vector3(0.22, 0.101, 35.5), _materials["cyan"], false)
+	var dock_guide_transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
-		for z_position in [13.0, 18.0, 23.0, 34.0, 39.0, 44.0]:
-			_rounded_box(apron, "DockGuide", Vector3(side * 8.7, 0.0525, z_position), Vector3(1.6, 0.105, 0.22), _materials["orange_glow"], false, Vector3(0, side * 18.0, 0))
+		for z_position in DOCK_GUIDE_Z_POSITIONS:
+			dock_guide_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(0.0, deg_to_rad(side * 18.0), 0.0)),
+				Vector3(side * 8.7, 0.0525, float(z_position))
+			))
+	_multimesh_rounded_boxes(
+		apron,
+		"DockGuideBatch",
+		DOCK_GUIDE_SIZE,
+		_materials["orange_glow"],
+		dock_guide_transforms,
+		&"loading-apron-dock-guides"
+	)
 
 	# Under-deck trusses carry the apron while preserving visible negative space.
 	for z_position in [10.0, 18.5, 27.0, 35.5, 44.0, 49.0]:
@@ -1966,6 +2032,35 @@ func _transparent_material(color: Color, metallic: float, roughness: float) -> S
 	result.cull_mode = BaseMaterial3D.CULL_DISABLED
 	result.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	return result
+
+
+## One renderer submission for repeated visual-only copies of the berth's exact
+## cached chamfered box. Transforms are in `parent` space and retained as a
+## detached audit roster because headless RenderingServer readback can expose
+## identity transforms even when Forward+ draws the authored MultiMesh buffer.
+func _multimesh_rounded_boxes(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		material: Material,
+		transforms: Array[Transform3D],
+		family_id: StringName
+	) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _rounded_box_mesh(size)
+	multi.instance_count = transforms.size()
+	for transform_index in transforms.size():
+		multi.set_instance_transform(transform_index, transforms[transform_index])
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("visual_batch_family_id", family_id)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch, true)
+	return batch
 
 
 func _rounded_box(

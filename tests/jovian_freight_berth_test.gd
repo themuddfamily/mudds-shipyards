@@ -536,22 +536,48 @@ func _floating_meshes(module: JovianFreightBerth) -> PackedStringArray:
 			continue
 		drawn.append({
 			"node": mesh_instance,
+			"key": str(mesh_instance.get_instance_id()),
+			"label": str(module.get_path_to(mesh_instance)),
 			"box": (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs(),
 		})
+	# MultiMesh copies are still drawn surfaces and must not disappear from this
+	# all-geometry seating promise merely because repeated visual stock is batched.
+	# The authored transform roster is the same headless-safe authority used by
+	# the module's batch audit; renderer-buffer readback is unreliable headless.
+	for candidate in module.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null or not batch.is_visible_in_tree():
+			continue
+		var transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		for instance_index in transforms.size():
+			var instance_transform := transforms[instance_index] as Transform3D
+			drawn.append({
+				"node": batch,
+				"key": "%d:%d" % [batch.get_instance_id(), instance_index],
+				"label": "%s#%02d" % [module.get_path_to(batch), instance_index + 1],
+				"box": (
+					batch.global_transform
+					* instance_transform
+					* batch.multimesh.mesh.get_aabb()
+				).abs(),
+			})
 	var floating := PackedStringArray()
 	for entry in drawn:
-		var piece := entry["node"] as MeshInstance3D
+		var piece := entry["node"] as Node3D
 		var box := (entry["box"] as AABB).grow(SEAT_TOLERANCE)
 		var seated := false
 		for other_entry in drawn:
-			var other := other_entry["node"] as MeshInstance3D
-			if other == piece or piece.is_ancestor_of(other) or other.is_ancestor_of(piece):
+			var other := other_entry["node"] as Node3D
+			if entry.key == other_entry.key \
+				or other == piece \
+				or piece.is_ancestor_of(other) \
+				or other.is_ancestor_of(piece):
 				continue
 			if box.intersects(other_entry["box"] as AABB):
 				seated = true
 				break
 		if not seated:
-			floating.append("%s @ %s" % [module.get_path_to(piece), str(box.get_center())])
+			floating.append("%s @ %s" % [entry.label, str(box.get_center())])
 	return floating
 
 
