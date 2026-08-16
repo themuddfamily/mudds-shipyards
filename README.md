@@ -414,8 +414,19 @@ An uninterrupted native-Windows run and no-shortcut human playtest remain pendin
 This is an **early Phase 2 prototype with a settled, bounded Phase 3 operational-lattice slice and bounded Phase 4 foundations**. It is not yet the Phase 2 authenticity, quality, or acceptance target and is not the complete station, original fleet, combat game, multiplayer game, or multi-crew game. The exposed lattice, Aft Junction, Habitat, port freight branch, fixed-rail activity, positional machinery beds, outer-face dressings, lease-state berth feedback, procedural ship profiles, and pulse-weapon presentation are evidence-bounded modern interpretations rather than source-traceable recovered features; C1's exact build provenance remains unverified, and no historical layout, docking display, weapon effect, audio, or Zenith berth placement is claimed. The operational drones do not implement a navigation graph or autonomous logistics. The B5-linked Torrent and B7-observed Zenith identities are locked at high confidence within their respective versioned source chains, and both bounded partial reconstructions are implemented, but their exact recording/build provenance, detailed reconstruction and continuity with 2009 remain unresolved; Zenith also retains the A5/B7 Interceptor versus A9 Fighter conflict. Arrow and Jovian still lack model locks. Exactly five prototype craft—two bounded partial reconstructions, two provisional modern candidates, and one original modern design—do not constitute recreation of the original fleet. None is authenticated, and the Halyard's `EvidenceStatus.NEW` implementation has no evidence references and authenticates nothing. The live `ShipCommand`, shared `CombatResolver`, strict berth-lease contract, and `MovingInteriorFrame`/tangent-gravity paths are reusable local-authority foundations rather than multiplayer or networking. The single range-defence encounter and damage presentations remain an initial combat implementation rather than a complete component-damage, repair, shield, weapon-variety, or respawn system. Immediate priorities include a no-shortcut native-Windows human playtest, native-Windows performance and audibility checks, signing and release permission, completing the Torrent and Zenith evidence/reconstruction gaps, extending authored geometry and final PBR work beyond the bounded station cells, and continuing the complete station/fleet work. Phase 3 remains incomplete, and Phases 3–9 still require the full shipyard, researched original and expanded fleets, broader combat, multiplayer/multi-crew support, nearby activities, and extensive accessibility, performance, animation, authored audio, UI, networking, and release polish.
 
 Keth Shipyards and its original designs belong to their respective creator/rightsholders. Before any public release or commercial use, obtain written permission and complete a separate name, asset, and design-rights review. All code and newly produced assets in this prototype are original project work unless noted otherwise.
-Package inventory note: `tools/release/package_inventory.py` supports conventional
-format-4 PCK entry tables and rejects forbidden release paths. The current
-`builds/windows/MuddsShipyards-2021aa9.exe` uses Godot 4.7.1 `GDSC`/zstd TOC
-chunks; it is explicitly reported as unsupported and produces no manifest. This
-is not a completed Phase 9 inventory gate.
+Package inventory note: `tools/release/package_inventory.py` reads the directory
+offset used by EOF-embedded Godot format-3/4 PCKs, applies relative file-base
+offsets, verifies every payload against its directory MD5, and emits entries in
+sorted-path order. Its sorted-path manifest digest hashes the UTF-8 paths joined
+by LF bytes without a trailing LF. It rejects traversal,
+duplicate/case-colliding and forbidden release paths, encrypted/sparse/delta
+variants, overlapping or out-of-bounds
+payloads, and malformed headers or trailers. Godot 4.7.1 `GDSC` payloads are
+also bounded and validated as a single zstd frame (using system `libzstd`) with
+tokenizer version and decompressed-size checks; `GDSC` is compiled-script data,
+not the PCK table. Run the focused fixtures with
+`python3 tools/release/test_package_inventory.py -v`, then inventory an artifact
+with `python3 tools/release/package_inventory.py builds/windows/<artifact>.exe`.
+The tool intentionally fails closed on encrypted directories/files, sparse
+bundles, patch/removal/delta entries, older directory layouts, unknown GDScript
+tokenizer versions, and zstd streams without one declared bounded frame.
