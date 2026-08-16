@@ -87,18 +87,63 @@ byte-identical. A 60-frame comparison also made headless and Vulkan agree on
 the same phase sample, confirming that the other figures are renderer
 independent.
 
-† `unique_materials` is currently a sampled lower bound, not an exhaustive
-resource census. The tool sees materials bound to ordinary mesh surfaces at the
-instant it walks the tree. Activity, courier and berth components retain
-lit/dim alternatives and swap them from `_process()`, so an eight-frame
-headless sample observed 575–577 while the two Vulkan samples observed 583.
-The renderer did not create the difference: frame-count settling advances a
-different amount of wall-clock animation time. At least four additional
-`StationServiceAgent` alternatives are demonstrably retained but unbound, so
-the true retained total is at least 587 before other omitted alternatives,
-overlays and `MultiMesh` surface materials. The ceiling is exceeded under every
-interpretation. Do not re-freeze this row to a phase sample; extend the tool to
-report a deterministic retained-resource union first.
+† This row is the historical `33bd5a9` phase sample, retained so the recorded
+budget decision remains auditable. It must not be presented as an exhaustive
+resource count. The measurement defect has since been repaired in
+`tools/geometry_census.gd`; final merged content still needs a fresh census
+before this row can be re-frozen.
+
+### Material census methodology after the retained-resource repair
+
+The tool now publishes two different quantities instead of allowing one sampled
+number to stand for both:
+
+1. `bound_phase_unique_materials` is the unique `Material` resource set attached
+   at one declared frozen phase. It includes every live `GeometryInstance3D`
+   `material_override` and `material_overlay`, each ordinary `MeshInstance3D`
+   surface override and mesh-surface material, and each `MultiMesh` mesh-surface
+   material. The old `unique_materials` JSON key remains for consumers, but now
+   aliases the retained union below rather than this phase sample.
+2. `retained_reachable_unique_materials` is the identity-deduplicated union of
+   all `Material` resources reachable from the instantiated production scene.
+   Traversal covers stored engine properties and non-exported script variables,
+   recursively enters arrays and dictionaries (including activity, courier and
+   berth material catalogues), follows `Resource` dependencies such as
+   `next_pass`, explicitly visits Mesh/MultiMesh surfaces, and follows each
+   `ShaderMaterial`'s shader parameters. Retained shaders and `Texture2D`
+   dependencies are reported from the same graph. The collector holds strong
+   references to every discovered resource through reporting, so a count cannot
+   change because a temporarily unbound resource is released mid-census.
+
+Before either view is taken, the production scene settles for the configured
+number of idle frames (default eight), then one physics frame and one final idle
+frame. The production root is immediately switched to
+`PROCESS_MODE_DISABLED`; both walks are synchronous after that freeze. Each JSON
+result records the exact engine version, Git commit and dirty state, runtime and
+project rendering method, display and audio driver, visual-quality level/report,
+command line, settle counts, and freeze strategy. Both material sets also carry
+their sorted deterministic origin/class/resource-path descriptors and a SHA-256
+fingerprint over that exact list. The focused fixture in
+`tests/geometry_census_retained_material_test.gd` locks overrides, overlays,
+ordinary and MultiMesh surfaces, an unbound component catalogue, a `next_pass`
+dependency, a shader parameter texture, identity deduplication, byte accounting,
+and repeatable fingerprints.
+
+One dirty-tree validation run on Godot `4.7.1-stable (official)`, source commit
+`8dec8b113fd3cdf44fd90a3504b7f3c1abec3af0`, Forward+ / headless display /
+Dummy audio, visual-quality level 2 (High), and the default 8+1+1 settle/freeze
+strategy reported **578 bound-at-phase materials** and **842 retained/reachable
+materials**. This is tool-validation evidence, not a new merged baseline and not
+permission to change the 550-material ceiling; final merged content will be
+measured later.
+
+The retained union is deliberately a live-object-graph census, not a project
+file inventory or VRAM measurement. It excludes resources that are neither
+instantiated nor retained by the frozen production scene, renderer-internal
+caches, freed object slots (whose skipped count is emitted), and resources that
+future code could load only after another gameplay state. Texture bytes remain
+the same uncompressed `width × height × 4` upper-bound proxy for discovered
+`Texture2D` resources; they are not compressed package size or actual residency.
 
 ### Merge-time decision: trim, do not raise
 
@@ -359,6 +404,10 @@ godot --headless --audio-driver Dummy --script res://tools/geometry_census.gd
 
 # Per-ring breakdown: world-space radii, authored vs budgeted tessellation.
 godot --headless --audio-driver Dummy --script res://tools/torus_census.gd
+
+# Material-census fixture: bound/retained split and dependency traversal.
+godot --headless --audio-driver Dummy \
+  --script res://tests/geometry_census_retained_material_test.gd
 
 # Lettering and ring regression gates.
 tools/release/run_test_matrix.sh --scope sign_geometry_budget_test \

@@ -21,6 +21,209 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 const DEFAULT_SETTLE_FRAMES := 8
 
+
+## Deterministic resource-graph collector used by the production census and its
+## focused fixture. `bound_materials` is the exact frozen-phase render binding
+## sample. `retained_materials` is the larger union reachable from the live scene
+## graph, including private script dictionaries and dependencies of resources.
+## Dictionaries retain the resources themselves (not booleans), and
+## `_strong_resources` additionally makes the lifetime guarantee explicit while
+## the graph is traversed and reported.
+class MaterialResourceCensus:
+	extends RefCounted
+
+	var bound_materials: Dictionary = {}
+	var retained_materials: Dictionary = {}
+	var retained_shaders: Dictionary = {}
+	var retained_textures: Dictionary = {}
+	var bound_origins: Dictionary = {}
+	var retained_origins: Dictionary = {}
+	var skipped_freed_object_references := 0
+	var _visited_objects: Dictionary = {}
+	var _strong_resources: Array[Resource] = []
+
+
+	func note_bound(material: Material, origin: String) -> void:
+		if material == null:
+			return
+		var instance_id := material.get_instance_id()
+		bound_materials[instance_id] = material
+		if not bound_origins.has(instance_id):
+			bound_origins[instance_id] = origin
+		_note_retained_material(material, origin)
+
+
+	func collect_retained(root_node: Node) -> void:
+		# Bound collection primes the retained set so those resources stay alive,
+		# but its first-hit origins reflect the sampled phase. Rewalk from the root
+		# with fresh visitation/origin state so the retained fingerprint is derived
+		# solely from the complete reachable graph.
+		_visited_objects.clear()
+		retained_origins.clear()
+		_visit_object(root_node, "scene")
+		for id_variant in retained_materials:
+			if not retained_origins.has(id_variant):
+				retained_origins[id_variant] = str(bound_origins.get(id_variant, "<reachable-origin-unresolved>"))
+
+
+	func collect_bound(root_node: Node) -> void:
+		_walk_bound_node(root_node, "scene")
+
+
+	func bound_fingerprint() -> String:
+		return "\n".join(bound_descriptors()).sha256_text()
+
+
+	func retained_fingerprint() -> String:
+		return "\n".join(retained_descriptors()).sha256_text()
+
+
+	func bound_descriptors() -> PackedStringArray:
+		return _descriptors(bound_materials, bound_origins)
+
+
+	func retained_descriptors() -> PackedStringArray:
+		return _descriptors(retained_materials, retained_origins)
+
+
+	func texture_bytes_upper_bound() -> int:
+		var bytes := 0
+		for texture_variant in retained_textures.values():
+			var texture := texture_variant as Texture2D
+			if texture == null:
+				continue
+			var size := texture.get_size()
+			bytes += int(size.x) * int(size.y) * 4
+		return bytes
+
+
+	func _visit_variant(value: Variant, origin: String) -> void:
+		# Script arrays can legitimately retain a dead Object slot. Asking `is` of
+		# that Variant raises a script error, so reject it by Variant type first and
+		# report the omission rather than silently truncating traversal.
+		if typeof(value) == TYPE_OBJECT and not is_instance_valid(value):
+			skipped_freed_object_references += 1
+			return
+		if value is Material:
+			_note_retained_material(value as Material, origin)
+			return
+		if value is Resource:
+			_visit_object(value as Resource, origin)
+			return
+		if value is Node:
+			_visit_object(value as Node, origin)
+			return
+		if value is Array:
+			var array := value as Array
+			for index in array.size():
+				_visit_variant(array[index], "%s[%d]" % [origin, index])
+			return
+		if value is Dictionary:
+			var dictionary := value as Dictionary
+			var keys := dictionary.keys()
+			keys.sort_custom(func(a: Variant, b: Variant) -> bool: return str(a) < str(b))
+			for key_variant in keys:
+				var key_text := str(key_variant)
+				_visit_variant(key_variant, "%s.key[%s]" % [origin, key_text])
+				_visit_variant(dictionary[key_variant], "%s[%s]" % [origin, key_text])
+
+
+	func _walk_bound_node(node: Node, origin: String) -> void:
+		if node is GeometryInstance3D:
+			var geometry := node as GeometryInstance3D
+			note_bound(geometry.material_override, origin + ".material_override")
+			note_bound(geometry.material_overlay, origin + ".material_overlay")
+		if node is MultiMeshInstance3D:
+			var multimesh := (node as MultiMeshInstance3D).multimesh
+			if multimesh != null and multimesh.mesh != null:
+				for surface in multimesh.mesh.get_surface_count():
+					note_bound(multimesh.mesh.surface_get_material(surface), "%s.multimesh.surface[%d]" % [origin, surface])
+		elif node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh != null:
+				for surface in mesh_instance.mesh.get_surface_count():
+					note_bound(mesh_instance.get_surface_override_material(surface), "%s.surface_override[%d]" % [origin, surface])
+					note_bound(mesh_instance.mesh.surface_get_material(surface), "%s.mesh.surface[%d]" % [origin, surface])
+		for child in node.get_children():
+			_walk_bound_node(child, "%s/%s" % [origin, child.name])
+
+
+	func _visit_object(object: Object, origin: String) -> void:
+		if object == null:
+			return
+		var instance_id := object.get_instance_id()
+		if _visited_objects.has(instance_id):
+			return
+		_visited_objects[instance_id] = true
+
+		if object is Resource:
+			_hold_resource(object as Resource)
+		if object is Texture2D:
+			retained_textures[instance_id] = object
+		if object is Shader:
+			retained_shaders[instance_id] = object
+		if object is Mesh:
+			var mesh := object as Mesh
+			for surface in mesh.get_surface_count():
+				_visit_variant(mesh.surface_get_material(surface), "%s.surface[%d]" % [origin, surface])
+		if object is MultiMesh:
+			_visit_variant((object as MultiMesh).mesh, origin + ".mesh")
+		if object is ShaderMaterial:
+			var shader_material := object as ShaderMaterial
+			_visit_variant(shader_material.shader, origin + ".shader")
+			if shader_material.shader != null:
+				var uniforms := shader_material.shader.get_shader_uniform_list()
+				uniforms.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.get("name", "")) < str(b.get("name", "")))
+				for uniform in uniforms:
+					var uniform_name := StringName(str((uniform as Dictionary).get("name", "")))
+					if uniform_name != &"":
+						_visit_variant(shader_material.get_shader_parameter(uniform_name), "%s.shader_parameter[%s]" % [origin, uniform_name])
+
+		var properties := object.get_property_list()
+		properties.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.get("name", "")) < str(b.get("name", "")))
+		for property_variant in properties:
+			var property := property_variant as Dictionary
+			var usage := int(property.get("usage", 0))
+			# Non-exported script variables (where component catalogues live) use
+			# SCRIPT_VARIABLE without necessarily advertising STORAGE.
+			if (usage & (PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_SCRIPT_VARIABLE)) == 0:
+				continue
+			var property_name := StringName(str(property.get("name", "")))
+			if property_name == &"":
+				continue
+			_visit_variant(object.get(property_name), "%s.%s" % [origin, property_name])
+
+		if object is Node:
+			var node := object as Node
+			for child in node.get_children():
+				_visit_object(child, "%s/%s" % [origin, child.name])
+
+
+	func _note_retained_material(material: Material, origin: String) -> void:
+		var instance_id := material.get_instance_id()
+		retained_materials[instance_id] = material
+		if not retained_origins.has(instance_id) or origin < str(retained_origins[instance_id]):
+			retained_origins[instance_id] = origin
+		_visit_object(material, origin)
+
+
+	func _hold_resource(resource: Resource) -> void:
+		_strong_resources.append(resource)
+
+
+	func _descriptors(resources: Dictionary, origins: Dictionary) -> PackedStringArray:
+		var descriptors := PackedStringArray()
+		for id_variant in resources:
+			var resource := resources[id_variant] as Resource
+			var resource_path := resource.resource_path if resource != null else ""
+			descriptors.append("%s|%s|%s" % [
+				str(origins.get(id_variant, "")),
+				resource.get_class() if resource != null else "<freed>",
+				resource_path,
+			])
+		descriptors.sort()
+		return descriptors
+
 ## Buckets are derived from the scene path rather than hand-listed, so a sibling
 ## adding a new station module or sector gets its own row without editing this
 ## tool. Everything under `ShipyardWorld` is split one level deeper, because the
@@ -32,9 +235,7 @@ const FALLBACK_BUCKET := "(scene root)"
 
 var _rows: Dictionary = {}
 var _unique_meshes: Dictionary = {}
-var _unique_materials: Dictionary = {}
-var _unique_shaders: Dictionary = {}
-var _unique_textures: Dictionary = {}
+var _material_census := MaterialResourceCensus.new()
 var _mesh_triangle_cache: Dictionary = {}
 
 var _text_sign_rows: Array = []
@@ -45,6 +246,7 @@ var _total_nodes := 0
 var _total_lights := 0
 var _shadow_lights := 0
 var _particles := 0
+var _run_metadata: Dictionary = {}
 
 
 func _initialize() -> void:
@@ -69,7 +271,14 @@ func _run() -> void:
 	await physics_frame
 	await process_frame
 
+	# Freeze the instantiated scene before either material view is taken. This
+	# makes "bound" a declared phase rather than whichever `_process()` callback
+	# happens to win while the tree is being walked.
+	game.process_mode = Node.PROCESS_MODE_DISABLED
+	_run_metadata = _capture_run_metadata(settle, game)
+	_material_census.collect_bound(game)
 	_walk(game, "")
+	_material_census.collect_retained(game)
 
 	_report()
 
@@ -122,7 +331,6 @@ func _walk(node: Node, path: String) -> void:
 			_shadow_lights += 1
 	if node is GPUParticles3D or node is CPUParticles3D:
 		_particles += 1
-
 	if node is MultiMeshInstance3D:
 		var multi := (node as MultiMeshInstance3D).multimesh
 		if multi != null and multi.mesh != null:
@@ -135,7 +343,6 @@ func _walk(node: Node, path: String) -> void:
 			row["surfaces"] = int(row["surfaces"]) + multi.mesh.get_surface_count()
 			row["multimesh_instances"] = int(row["multimesh_instances"]) + count
 			_note_mesh(multi.mesh, per * count, count, effective)
-			_note_material((node as MultiMeshInstance3D).material_override)
 	elif node is MeshInstance3D:
 		var instance := node as MeshInstance3D
 		var mesh := instance.mesh
@@ -145,10 +352,6 @@ func _walk(node: Node, path: String) -> void:
 			row["instances"] = int(row["instances"]) + 1
 			row["surfaces"] = int(row["surfaces"]) + mesh.get_surface_count()
 			_note_mesh(mesh, tris, 1, effective)
-			_note_material(instance.material_override)
-			for surface in mesh.get_surface_count():
-				_note_material(instance.get_surface_override_material(surface))
-				_note_material(mesh.surface_get_material(surface))
 			if mesh is TextMesh:
 				row["text_triangles"] = int(row["text_triangles"]) + tris
 				row["text_instances"] = int(row["text_instances"]) + 1
@@ -185,29 +388,6 @@ func _note_mesh(mesh: Mesh, triangles: int, instances: int, path: String) -> voi
 	_heaviest_instances.append({"path": path, "class": mesh_class, "triangles": triangles})
 
 
-func _note_material(material: Material) -> void:
-	if material == null:
-		return
-	_unique_materials[material.get_instance_id()] = true
-	if material is ShaderMaterial:
-		var shader := (material as ShaderMaterial).shader
-		if shader != null:
-			_unique_shaders[shader.get_instance_id()] = true
-	elif material is BaseMaterial3D:
-		var base := material as BaseMaterial3D
-		for slot in [
-			BaseMaterial3D.TEXTURE_ALBEDO,
-			BaseMaterial3D.TEXTURE_NORMAL,
-			BaseMaterial3D.TEXTURE_ROUGHNESS,
-			BaseMaterial3D.TEXTURE_METALLIC,
-			BaseMaterial3D.TEXTURE_EMISSION,
-			BaseMaterial3D.TEXTURE_AMBIENT_OCCLUSION,
-		]:
-			var texture := base.get_texture(slot)
-			if texture != null:
-				_unique_textures[texture.get_instance_id()] = texture
-
-
 func _mesh_triangles(mesh: Mesh) -> int:
 	var key := mesh.get_instance_id()
 	if _mesh_triangle_cache.has(key):
@@ -234,14 +414,42 @@ func _mesh_triangles(mesh: Mesh) -> int:
 
 
 func _texture_bytes() -> int:
-	var bytes := 0
-	for id in _unique_textures:
-		var texture: Texture2D = _unique_textures[id]
-		var size := texture.get_size()
-		# Four bytes per texel is the honest uncompressed upper bound; the
-		# project imports these losslessly.
-		bytes += int(size.x) * int(size.y) * 4
-	return bytes
+	return _material_census.texture_bytes_upper_bound()
+
+
+func _capture_run_metadata(settle_frames: int, game: Node) -> Dictionary:
+	var revision_output: Array = []
+	var revision_exit := OS.execute("git", ["rev-parse", "HEAD"], revision_output, true)
+	var status_output: Array = []
+	var status_exit := OS.execute("git", ["status", "--porcelain=v1"], status_output, true)
+	var command_line := PackedStringArray(OS.get_cmdline_args())
+	var version := Engine.get_version_info()
+	var world := game.get_node_or_null("ShipyardWorld")
+	var visual_quality_level := -1
+	var visual_quality_report := {}
+	if world != null:
+		visual_quality_level = int(world.get("visual_quality_level"))
+		if world.has_method("get_visual_quality_report"):
+			visual_quality_report = world.call("get_visual_quality_report") as Dictionary
+	return {
+		"engine_version": str(version.get("string", Engine.get_version_info())),
+		"source_commit": str(revision_output[0]).strip_edges() if revision_exit == 0 and not revision_output.is_empty() else "unknown",
+		"source_tree_dirty": status_exit != 0 or (not status_output.is_empty() and not str(status_output[0]).strip_edges().is_empty()),
+		"rendering_method_project_setting": str(ProjectSettings.get_setting("rendering/renderer/rendering_method", "unknown")),
+		"rendering_method_runtime": RenderingServer.get_current_rendering_method(),
+		"display_driver": DisplayServer.get_name(),
+		"audio_driver": AudioServer.get_driver_name(),
+		"visual_quality_level": visual_quality_level,
+		"visual_quality_report": visual_quality_report,
+		"command_line": command_line,
+		"settle_strategy": {
+			"idle_frames_before_freeze": settle_frames,
+			"physics_frames_before_freeze": 1,
+			"final_idle_frames_before_freeze": 1,
+			"freeze": "production scene root process_mode set to PROCESS_MODE_DISABLED before synchronous census",
+		},
+		"frozen_phase": "after configured idle settle, one physics frame, and one final idle frame",
+	}
 
 
 func _report() -> void:
@@ -263,6 +471,21 @@ func _report() -> void:
 	print("")
 	print("=== GEOMETRY CENSUS: scenes/main.tscn ===")
 	print("(counts are renderer-independent; this box has no usable GPU timing)")
+	print("engine: %s" % str(_run_metadata.get("engine_version", "unknown")))
+	print("source: %s%s" % [
+		str(_run_metadata.get("source_commit", "unknown")),
+		" (dirty)" if bool(_run_metadata.get("source_tree_dirty", true)) else " (clean)",
+	])
+	print("profile/display: %s / %s / %s" % [
+		str(_run_metadata.get("rendering_method_runtime", "unknown")),
+		str(_run_metadata.get("display_driver", "unknown")),
+		str(_run_metadata.get("audio_driver", "unknown")),
+	])
+	print("visual quality: level %d / %s" % [
+		int(_run_metadata.get("visual_quality_level", -1)),
+		str((_run_metadata.get("visual_quality_report", {}) as Dictionary).get("quality_name", "unknown")),
+	])
+	print("settle/freeze: %s" % JSON.stringify(_run_metadata.get("settle_strategy", {})))
 	print("")
 	print("%-34s %10s %8s %8s %9s %6s" % ["bucket", "triangles", "share", "meshes", "surfaces", "lights"])
 	for bucket in buckets:
@@ -283,11 +506,17 @@ func _report() -> void:
 		0.0 if total_triangles == 0 else 100.0 * float(total_text_triangles) / float(total_triangles),
 	])
 	print("Unique meshes:           %d" % _unique_meshes.size())
-	print("Unique materials:        %d" % _unique_materials.size())
-	print("Unique shaders:          %d" % _unique_shaders.size())
-	print("Unique textures:         %d (%.2f MiB uncompressed upper bound)" % [
-		_unique_textures.size(), float(_texture_bytes()) / 1048576.0,
+	print("Bound materials (phase): %d  fingerprint %s" % [
+		_material_census.bound_materials.size(), _material_census.bound_fingerprint(),
 	])
+	print("Retained materials:      %d  fingerprint %s" % [
+		_material_census.retained_materials.size(), _material_census.retained_fingerprint(),
+	])
+	print("Unique shaders:          %d" % _material_census.retained_shaders.size())
+	print("Unique textures:         %d (%.2f MiB uncompressed upper bound)" % [
+		_material_census.retained_textures.size(), float(_texture_bytes()) / 1048576.0,
+	])
+	print("Freed object refs skipped: %d" % _material_census.skipped_freed_object_references)
 	print("Light3D nodes:           %d (%d casting shadows)" % [_total_lights, _shadow_lights])
 	print("Particle systems:        %d" % _particles)
 	print("Scene tree nodes:        %d" % _total_nodes)
@@ -337,16 +566,26 @@ func _report() -> void:
 			"text_triangles": total_text_triangles,
 			"text_instances": total_text_instances,
 			"unique_meshes": _unique_meshes.size(),
-			"unique_materials": _unique_materials.size(),
-			"unique_shaders": _unique_shaders.size(),
-			"unique_textures": _unique_textures.size(),
+			# Compatibility alias now resolves to the honest budget currency: the
+			# retained/reachable union, not the phase sample.
+			"unique_materials": _material_census.retained_materials.size(),
+			"bound_phase_unique_materials": _material_census.bound_materials.size(),
+			"retained_reachable_unique_materials": _material_census.retained_materials.size(),
+			"bound_material_fingerprint": _material_census.bound_fingerprint(),
+			"retained_material_fingerprint": _material_census.retained_fingerprint(),
+			"bound_material_descriptors": _material_census.bound_descriptors(),
+			"retained_material_descriptors": _material_census.retained_descriptors(),
+			"unique_shaders": _material_census.retained_shaders.size(),
+			"unique_textures": _material_census.retained_textures.size(),
 			"texture_bytes": _texture_bytes(),
+			"retained_traversal_skipped_freed_object_references": _material_census.skipped_freed_object_references,
 			"lights": _total_lights,
 			"shadow_lights": _shadow_lights,
 			"particle_systems": _particles,
 			"nodes": _total_nodes,
 			"buckets": _rows,
 			"signs": _text_sign_rows,
+			"run_metadata": _run_metadata,
 		}
 		var file := FileAccess.open(json_path, FileAccess.WRITE)
 		if file != null:
