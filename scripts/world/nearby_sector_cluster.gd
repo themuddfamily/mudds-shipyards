@@ -136,11 +136,16 @@ const GANTRY_FAR_Z := 77.0
 const GANTRY_CENTER_Y := 4.0
 const SPINE_SIZE := Vector3(9.0, 7.0, 44.0)
 const SPINE_CENTER_Z := -6.0
+const PROCESSING_SPINE_RIB_SIZE := Vector3(13.0, 9.5, 1.6)
+const PROCESSING_SPINE_RIB_Z_POSITIONS: Array[float] = [-24.0, -14.0, 0.0, 12.0]
+const PROCESSING_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
 
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 44,
 	"mesh_instances": 200,
-	"multimesh_instances": 1,
+	# 1 -> 2: the second batch replaces four visual-only processing-spine rib
+	# submissions with one while retaining the original debris-shell batch.
+	"multimesh_instances": 2,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -801,8 +806,7 @@ func _build_extraction_platform() -> void:
 	# Processing spine, running out toward the station so the structure points at
 	# the pilot's approach instead of presenting a blank flank.
 	_box(platform, "ProcessingSpine", Vector3(0.0, 0.0, SPINE_CENTER_Z), SPINE_SIZE, _materials["hull"], true)
-	for z_position in [-24.0, -14.0, 0.0, 12.0]:
-		_box(platform, "SpineRib", Vector3(0.0, 0.0, z_position), Vector3(13.0, 9.5, 1.6), _materials["steel"], false)
+	_build_processing_spine_ribs(platform)
 	# Burned-through bays: the abandonment read, done with material rather than a
 	# hole, so the collision envelope stays one simple solid spine.
 	for z_position in [-18.0, 6.0]:
@@ -820,6 +824,73 @@ func _build_extraction_platform() -> void:
 	_build_extraction_arms(platform)
 	_build_derelict_hardware(platform)
 	_build_platform_mast(platform)
+
+
+## Four identical visual-only ribs use the exact cached bevel mesh, steel
+## material and authored local transforms they had as separate MeshInstances.
+## They own no collision, interaction, animation, evidence or gameplay path, so
+## one MultiMesh submission preserves the visible copies and triangles while
+## removing three renderer nodes/submissions from this bounded component.
+func _build_processing_spine_ribs(platform: Node3D) -> void:
+	var transforms: Array[Transform3D] = []
+	for z_position in PROCESSING_SPINE_RIB_Z_POSITIONS:
+		transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, z_position)))
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = StationSurfaceKit.rounded_box_mesh_cached(
+		PROCESSING_SPINE_RIB_SIZE, _box_cache
+	)
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = -1
+	# Bulk-author the renderer payload so the exact 12-float transform record is
+	# auditable even when the headless backend exposes identity transform reads.
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
+	# Raw-buffer MultiMeshes do not derive a CPU AABB under headless. Publish the
+	# transformed union explicitly so renderer culling matches the four old nodes.
+	multimesh.custom_aabb = _transformed_mesh_bounds(multimesh.mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "ProcessingSpineRibs"
+	batch.multimesh = multimesh
+	batch.material_override = _materials["steel"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", PROCESSING_SPINE_RIB_FAMILY_ID)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	platform.add_child(batch)
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 ## The reason to come out here: two open frames the ship fits through with room

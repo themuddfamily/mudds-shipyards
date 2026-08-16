@@ -36,6 +36,27 @@ const EXPECTED_GATE_WIDTH := 28.0
 const EXPECTED_GATE_HEIGHT := 23.0
 const EXPECTED_GATE_NEAR_Z := 95.0
 const EXPECTED_GATE_FAR_Z := 77.0
+const EXPECTED_SPINE_RIB_AABB := AABB(
+	Vector3(-6.5, -4.75, -0.8), Vector3(13.0, 9.5, 1.6)
+)
+const EXPECTED_SPINE_RIB_BATCH_AABB := AABB(
+	Vector3(-6.5, -4.75, -24.8), Vector3(13.0, 9.5, 37.6)
+)
+const EXPECTED_SPINE_RIB_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, -24.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, -14.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, 0.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, 12.0)),
+]
+const EXPECTED_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
+const EXPECTED_LOCAL_MESH_NODES := 164
+const EXPECTED_LOCAL_MULTIMESH_NODES := 2
+const EXPECTED_LOCAL_RENDERER_NODES := 166
+const EXPECTED_LOCAL_VISIBLE_COPIES := 688
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 166
+const EXPECTED_LOCAL_TRIANGLES := 117457
+const EXPECTED_LOCAL_STATIC_BODIES := 38
+const EXPECTED_LOCAL_COLLISION_SHAPES := 38
 ## The furthest the whole cluster may sit from the station and still be somewhere
 ## a pilot chooses to go rather than commits an evening to.
 const MAXIMUM_TRAVEL_DISTANCE := 760.0
@@ -74,6 +95,7 @@ func _run() -> void:
 
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
+	_test_processing_spine_rib_batch(cluster)
 	_test_placement_envelope(cluster)
 	_test_placement_predicate_rejects_the_lane(cluster)
 	_test_winding(cluster)
@@ -171,6 +193,178 @@ func _test_identity_and_authority(world: ShipyardWorld, cluster: NearbySectorClu
 		and (reread.get("errors", []) as Array).is_empty(),
 		"mutating a returned audit copy leaves the component's own report untouched"
 	)
+
+
+# --- Bounded renderer batch --------------------------------------------------
+
+
+func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
+	var platform := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var batch := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/ProcessingSpineRibs"
+	) as MultiMeshInstance3D
+	_check(platform != null and batch != null, "the processing spine exposes one named rib batch")
+	if platform == null or batch == null or batch.multimesh == null:
+		return
+
+	var multimesh := batch.multimesh
+	_check(
+		multimesh.transform_format == MultiMesh.TRANSFORM_3D
+		and multimesh.instance_count == EXPECTED_SPINE_RIB_TRANSFORMS.size()
+		and multimesh.visible_instance_count == -1,
+		"the batch draws all four authored 3D rib copies"
+	)
+	_check(
+		multimesh.buffer == _encode_multimesh_transforms(EXPECTED_SPINE_RIB_TRANSFORMS),
+		"the 48-float renderer buffer preserves the exact four original local transforms"
+	)
+
+	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
+	var authored_roster_matches := authored_transforms.size() == EXPECTED_SPINE_RIB_TRANSFORMS.size()
+	if authored_roster_matches:
+		for transform_index in EXPECTED_SPINE_RIB_TRANSFORMS.size():
+			if not (authored_transforms[transform_index] as Transform3D).is_equal_approx(
+				EXPECTED_SPINE_RIB_TRANSFORMS[transform_index]
+			):
+				authored_roster_matches = false
+				break
+	_check(
+		bool(batch.get_meta(&"visual_detail_only", false))
+		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) == EXPECTED_SPINE_RIB_FAMILY_ID
+		and authored_roster_matches,
+		"the batch identifies only this visual-detail family and retains its detached authored roster"
+	)
+
+	var rib_mesh := multimesh.mesh
+	_check(
+		rib_mesh != null
+		and rib_mesh.get_aabb().is_equal_approx(EXPECTED_SPINE_RIB_AABB)
+		and multimesh.custom_aabb.is_equal_approx(EXPECTED_SPINE_RIB_BATCH_AABB),
+		"the individual rib and four-copy batch retain their exact local AABBs"
+	)
+	var triangles_per_copy := _mesh_triangle_count(rib_mesh)
+	_check(
+		triangles_per_copy == 108
+		and triangles_per_copy * multimesh.instance_count == 432,
+		"four visible rib copies retain 108 triangles each and 432 triangles total"
+	)
+
+	var steel_reference := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
+	) as MeshInstance3D
+	_check(
+		steel_reference != null
+		and batch.material_override == steel_reference.material_override,
+		"the batched ribs retain the platform's exact shared steel material identity"
+	)
+	var legacy_ribs := 0
+	for child in platform.get_children():
+		if not child is MeshInstance3D:
+			continue
+		var mesh_instance := child as MeshInstance3D
+		if mesh_instance.mesh != null and mesh_instance.mesh.get_aabb().is_equal_approx(
+			EXPECTED_SPINE_RIB_AABB
+		):
+			for expected_transform in EXPECTED_SPINE_RIB_TRANSFORMS:
+				if mesh_instance.transform.is_equal_approx(expected_transform):
+					legacy_ribs += 1
+	_check(
+		legacy_ribs == 0
+		and batch.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"no legacy rib renderer or collision node remains beside the one visual-only batch"
+	)
+
+	var geometry := _local_geometry_counts(cluster)
+	_check(
+		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
+		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
+		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
+		"NearbySectorCluster renderer nodes are locally frozen at 164 Mesh + 2 MultiMesh = 166"
+	)
+	_check(
+		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
+		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
+		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
+		"the local batch keeps 688 copies and 117457 triangles while submissions fall 169 -> 166"
+	)
+	_check(
+		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
+		and int(geometry["collision_shapes"]) == EXPECTED_LOCAL_COLLISION_SHAPES,
+		"the bounded trim leaves the cluster's 38 bodies and 38 collision shapes unchanged"
+	)
+
+
+func _local_geometry_counts(cluster: NearbySectorCluster) -> Dictionary:
+	var mesh_nodes := cluster.find_children("*", "MeshInstance3D", true, false)
+	var multimesh_nodes := cluster.find_children("*", "MultiMeshInstance3D", true, false)
+	var visible_copies := mesh_nodes.size()
+	var surface_submissions := 0
+	var triangles := 0
+	for candidate in mesh_nodes:
+		var mesh := (candidate as MeshInstance3D).mesh
+		if mesh == null:
+			continue
+		surface_submissions += mesh.get_surface_count()
+		triangles += _mesh_triangle_count(mesh)
+	for candidate in multimesh_nodes:
+		var multimesh := (candidate as MultiMeshInstance3D).multimesh
+		if multimesh == null or multimesh.mesh == null:
+			continue
+		var copy_count := multimesh.visible_instance_count
+		if copy_count < 0:
+			copy_count = multimesh.instance_count
+		visible_copies += copy_count
+		surface_submissions += multimesh.mesh.get_surface_count()
+		triangles += _mesh_triangle_count(multimesh.mesh) * copy_count
+	return {
+		"mesh_nodes": mesh_nodes.size(),
+		"multimesh_nodes": multimesh_nodes.size(),
+		"renderer_nodes": mesh_nodes.size() + multimesh_nodes.size(),
+		"visible_copies": visible_copies,
+		"surface_submissions": surface_submissions,
+		"triangles": triangles,
+		"static_bodies": cluster.find_children("*", "StaticBody3D", true, false).size(),
+		"collision_shapes": cluster.find_children("*", "CollisionShape3D", true, false).size(),
+	}
+
+
+func _mesh_triangle_count(mesh: Mesh) -> int:
+	if mesh == null:
+		return 0
+	var triangles := 0
+	for surface_index in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface_index)
+		if arrays.is_empty():
+			continue
+		var indices := PackedInt32Array()
+		if arrays[Mesh.ARRAY_INDEX] is PackedInt32Array:
+			indices = arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		triangles += (indices.size() if not indices.is_empty() else vertices.size()) / 3
+	return triangles
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
 
 
 # --- Placement ----------------------------------------------------------------

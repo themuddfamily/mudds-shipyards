@@ -656,6 +656,35 @@ ordinary meshes and then as the production batch. The two halves had zero pixel
 difference. The adapter was llvmpipe, so this is only a visual-equivalence check,
 not a frame-time or representative-hardware claim.
 
+### Bounded Nearby Sector processing-spine rib batching
+
+Against base `57e2f33`, one exact family changes: the four identical steel ribs
+across the Cinder Reach processing spine. Each rib was a childless,
+visual-only, non-colliding `MeshInstance3D`; none owns a route, activity,
+interaction, evidence or gameplay path. The batch keeps the same cached
+`13.0 x 9.5 x 1.6 m` bevel mesh, shared steel material, shadow setting and four
+local transforms at `z = -24, -14, 0, 12 m`.
+
+The family-local freeze is **4 -> 0 `MeshInstance3D` nodes, 0 -> 1 `MultiMesh`
+batch, 4 -> 4 visible copies, 4 -> 1 surface submissions and 432 -> 432
+triangles**. The bounded `NearbySectorCluster` result is **168 -> 164 mesh
+nodes, 1 -> 2 MultiMesh nodes and 169 -> 166 renderer nodes/submissions**;
+visible copies remain **688**, triangles remain **117,457**, and collision
+remains **38 bodies / 38 shapes**. The component's MultiMesh budget is therefore
+re-frozen **1 -> 2**: one existing debris shell plus this intentional
+submission-only rib batch.
+
+These are component-local values only. They do not re-freeze any absolute
+whole-scene triangle, node, surface, unique-resource or retained-material
+number; those remain deferred until the final merged-tree census.
+
+One matched 1280x720 Forward+ comparison used a platform-local camera at
+`(47, 25, 54)` aimed at `(0, 0, -7)`, first with the four ordinary ribs and then
+with the final raw-buffer batch. Direct inspection and the difference image
+showed no changed pixels on any rib; the only visible comparison differences
+were on unrelated slowly tumbling boulders. The adapter was llvmpipe, so this is
+a transform/culling/composition check, not representative frame-time evidence.
+
 ## The lettering fix, for the record
 
 The first thing this budget was used for. Before: 31 signs, 315,360 triangles,
