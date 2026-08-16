@@ -2073,3 +2073,34 @@ and stops at the Fleet connector mouth on `UpperFloor`, `VIPFacadeRight` and
 both below the tug's 2.30 m width. The lip was therefore a walking-player defect,
 not a vehicle contact, and the comb's no-collision-on-dressing policy remains
 unchanged behind that explicit walking-only boundary.
+
+---
+
+## VISUAL-RED-SLICE-001 — A flashing red world slice crossed the walking camera — **FIXED IN SOURCE**
+
+A playtest reported a red slice flashing unpredictably while walking, apparently
+as part of the map rather than a damage cue. The defect was the two deliberately
+nonblocking service drones in the Central `FULL` station-operations activity.
+Their thin `NavigationLens` meshes are only `0.28 × 0.12 × 0.055 m`, but they
+orbited through the production walking-camera sweep at roughly eye/camera height
+and hard-swapped from cyan to emissive red for `0.24 s` every `1.35 s`. When a
+lens crossed the near plane, clipping magnified that tiny world mesh into the
+reported screen-sized red slice.
+
+Only the Central `FULL` drone route moved: its base elevation is frozen
+`1.48 → 3.75 m`, and its published motion-envelope centre is frozen
+`1.70 → 3.97 m`, placing both drones above the walking camera lane while retaining
+clearance below the gantry. The roof `DRONE_PATROL` profile remains exactly at its
+authored `1.48/1.70 m` base/envelope values. Geometry, pulse phase and duration,
+red/cyan material identities, presentation-only collision policy, and activity
+lifecycle are unchanged.
+
+`tests/station_operations_activity_test.gd` samples the complete `FULL` drone
+orbit for 15 seconds against the production camera sweep and independently
+reconstructs the unchanged roof route. `tools/capture_full_drone_camera_clearance.gd`
+then runs the actual Forward+ presentation across the complete 1.35-second pulse.
+The inspected frame places the drones above the player lane and below the gantry;
+the exact legacy near-plane witness has a maximum red-screen fraction of
+`0.000660`. Source fix: `4b1554c`. The previously exported `68756b7` Windows
+binary predates this correction and still requires replacement before the bug can
+be called fixed in a packaged build.
