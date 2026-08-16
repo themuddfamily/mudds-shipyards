@@ -6,13 +6,13 @@ Use subagents deliberately when they materially shorten independent work. The
 goal is faster implementation with useful verification, not maximum research
 coverage.
 
-- Before substantial work, decompose the task and use **1–3 subagents at most**
+- Before substantial work, decompose the task and use **1–7 subagents at most**
   for independent implementation, evidence gathering, or review.
 - Default to one implementation agent. Add one independent reviewer for
-  high-risk changes; use a third agent only for a genuinely separate workstream
-  that can proceed concurrently.
+  high-risk changes; use additional agents only for genuinely separate
+  workstreams that can proceed concurrently.
 - Prefer breadth across the roadmap over a committee on one item: assign one
-  implementation-oriented agent to each of 1–3 independent `ROADMAP.md` points,
+  implementation-oriented agent to each of up to 7 independent `ROADMAP.md` points,
   each in its own worktree with disjoint file ownership. Run those points in
   parallel when they have no ordering dependency. Keep dependent points
   sequential, and do not spend the available agents on overlapping research of
