@@ -76,16 +76,22 @@ func _run() -> void:
 	_check(not bool(ship.call("is_canopy_open")), "canopy seals around the seated pilot")
 	_check(ship.call("get_camera").current, "ship chase camera becomes current")
 
-	ship.call("request_engine_start")
-	var engine_online_in_budget := await _wait_until(
-		func() -> bool: return str(ship.call("get_telemetry").get("engine_state", "")) == "ONLINE",
-		2.2
-	)
-	await physics_frame
+	var engine_online_in_budget := await _apply_forward_demand_for_one_tick(ship)
 	var telemetry: Dictionary = ship.call("get_telemetry")
-	_check(engine_online_in_budget, "engine startup completes inside its bounded budget")
-	_check(str(telemetry.engine_state) == "ONLINE", "engine completes deliberate startup")
-	_check(game.phase == GameFlow.Phase.LAUNCH, "online engine advances to launch")
+	_check(engine_online_in_budget, "one accepted flight-demand tick wakes the engine ONLINE")
+	_check(str(telemetry.engine_state) == "ONLINE", "automatic engine wake is visible in telemetry")
+	_check(game.phase == GameFlow.Phase.START_ENGINES, "automatic engine wake alone retains the launch-ready phase")
+	Input.action_press(&"move_forward")
+	var departed_berth := await _wait_until(
+		func() -> bool: return not bool(ship.call("get_telemetry").get("landed", true)),
+		0.5
+	)
+	Input.action_release(&"move_forward")
+	_check(departed_berth, "sustained real thrust physically clears the occupied berth")
+	_check(
+		await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.LAUNCH, 0.1),
+		"physical departure advances the guided sortie to launch"
+	)
 
 	# Put a real drone directly under the chase-camera reticle while the ship is
 	# still inside the launch phase. This catches offset-cannon parallax and also
@@ -287,8 +293,10 @@ func _run() -> void:
 	telemetry = ship.call("get_telemetry")
 	_check(bool(telemetry.landed) and ship.velocity.length() < 0.1, "docking latch prevents accidental relaunch during shutdown")
 
-	ship.call("request_engine_stop")
-	await process_frame
+	_check(
+		await _wait_for_automatic_engine_offline(ship),
+		"neutral controls shut the landed engine OFFLINE on the finite physics-idle budget"
+	)
 	game.call("_try_exit_ship")
 	# `_try_exit_ship` enters DISEMBARKING and opens the canopy synchronously, and
 	# only unseats the pilot after it awaits `canopy_motion_finished`. The seated
@@ -347,6 +355,33 @@ func _release_combat_audio_before_main_teardown(game: Node) -> void:
 		parent.remove_child(combat_audio)
 	combat_audio.free()
 	await process_frame
+
+
+func _apply_forward_demand_for_one_tick(ship: HeroShip) -> bool:
+	Input.action_press(&"move_forward")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "ONLINE"
+		and ship.get_last_ship_command().throttle > 0.0
+	)
+	Input.action_release(&"move_forward")
+	return accepted
+
+
+func _wait_for_automatic_engine_offline(ship: HeroShip) -> bool:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
+		Input.action_release(action)
+	var frame_budget := (
+		int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	for _frame in frame_budget:
+		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE":
+			return true
+		await physics_frame
+		await process_frame
+	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE"
 
 
 ## Waits for `predicate` on a finite simulation-frame budget.
