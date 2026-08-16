@@ -113,6 +113,25 @@ Remaining, in order of leverage:
 
 **Screen-space AO cannot be evaluated on this machine.** Rendering the production scene to the root viewport under llvmpipe/Vulkan and capturing six framings, `ssao_enabled = false` at the profile level (applied before the world builds), the shipped `HIGH` settings, and a forced 4× maximum (intensity 16, radius 8 m, power 4, `light_affect` 1.0) all produce **bit-identical** frames to four decimal places on every statistic. A desaturation applied through the same Environment reference *does* land, so the reference is live and the pass is simply not contributing. Any earlier conclusion about how much AO does or does not do — including "AO's job is modulating ambient and there is almost no ambient to modulate" — was measured through an instrument that is inert on this box and needs re-taking on real hardware. The lighting result recorded above does not depend on AO either way.
 
+## Unverified player recollections — leads, not evidence
+
+Recorded because they are useful for aiming work and for knowing what to look for if
+new footage ever surfaces. **None of this is registered evidence and none of it may be
+cited as support.** The ledger rules in Phase 1 still apply: a recollection is not a
+source, and nothing here changes any `name_to_model_status`.
+
+- **2026-08-16** — the player, who played the original, reports being able to shut a
+  ship down and disembark in space, and remembers one ship *"so big it could hold
+  multiple users at once, not necessarily sitting in a seat whilst flying."*
+- **2026-08-16** — on seeing the current fleet: *"The Jovian looks sort of like this big
+  ship I remember you being able to walk around whilst in flight."* The Jovian's
+  `name_to_model_status` remains `unknown` with `model_sources: []`; this says the modern
+  interpretation reads well to someone who played it, and says nothing about the original.
+
+What would turn either into evidence: registered footage showing a named craft with a
+walkable interior in flight, anchored by frame or timestamp, with the name tied to the
+craft rather than to a regeneration label. See the Arrow/Jovian evidence gate in Phase 4.
+
 ## Session handoff — 2026-08-15
 
 State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
