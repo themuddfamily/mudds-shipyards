@@ -329,7 +329,7 @@ func _check(condition: bool, message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("FABRICATION_ANNEX_TEST: %d assertions passed" % _assertions)
+		print("FABRICATION_ANNEX_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 	else:
 		print("FABRICATION_ANNEX_TEST: %d/%d assertions failed" % [_failures.size(), _assertions])

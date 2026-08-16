@@ -190,12 +190,26 @@ func _test_drives_into_a_gantry_column(
 		return
 	var solid_volume_body := bodies[0] as StaticBody3D
 	var expected_blocker := StringName(solid_volume_body.name)
-	# Approach along +X, which is the axis the tractor is parked facing. Measured
-	# off the column's near face, so the gap is a real run-up and not eaten by the
-	# vehicle's own 1.9 m half-length.
-	var approach := Vector3(drawn.position.x - APPROACH_GAP, 0.0, drawn.get_center().z)
+	# A straight diagonal across the same continuous deck supplies a full real
+	# production run-up without crossing the height seam immediately outboard of
+	# the old axial start. The exact shape query below keeps the overlap witness
+	# honest even though an axis-aligned bound around the rotated chassis is loose.
+	var approach := Vector3(
+		drawn.position.x - APPROACH_GAP,
+		0.0,
+		drawn.get_center().z - 5.0
+	)
+	var heading := Vector3(
+		drawn.get_center().x - approach.x,
+		0.0,
+		drawn.get_center().z - approach.z
+	).normalized()
+	var target_shape := BoxShape3D.new()
+	target_shape.size = drawn.size - Vector3.ONE * 0.02
+	var target_transform := Transform3D(Basis.IDENTITY, drawn.get_center())
 	var travelled := await _drive_at(
-		tractor, approach, Vector3.RIGHT, drawn, expected_blocker
+		tractor, approach, heading, drawn, expected_blocker,
+		target_shape, target_transform
 	)
 	print("TRACTOR_COLUMN_APPROACH: ", travelled)
 	print("TRACTOR_COLUMN_CONTACT_SPEED_MPS: %.6f" % float(travelled.contact_speed))
@@ -254,7 +268,8 @@ func _test_drives_into_a_gantry_column(
 		"disabling one activity hides it and disables its world-owned solids together"
 	)
 	var red := await _drive_at(
-		tractor, approach, Vector3.RIGHT, drawn, expected_blocker
+		tractor, approach, heading, drawn, expected_blocker,
+		target_shape, target_transform
 	)
 	print("TRACTOR_COLUMN_RED_WITNESS: ", red)
 	_check(
@@ -270,7 +285,8 @@ func _test_drives_into_a_gantry_column(
 		"re-enabling the activity restores the same world-owned solid body"
 	)
 	var reenabled := await _drive_at(
-		tractor, approach, Vector3.RIGHT, drawn, expected_blocker
+		tractor, approach, heading, drawn, expected_blocker,
+		target_shape, target_transform
 	)
 	print("TRACTOR_COLUMN_REENABLED: ", reenabled)
 	_check(
@@ -436,13 +452,13 @@ func _drive_at(
 	var peak_approach_speed := 0.0
 	var last_clear_speed := 0.0
 	var contact_speed := NAN
+	var contact_motion_speed := NAN
 	tractor.set_driven(true)
 	Input.action_press(&"move_forward")
 	for _tick in DRIVE_TICKS:
 		await physics_frame
 		await process_frame
 		var sampled_speed := absf(tractor.get_drive_speed())
-		peak_approach_speed = maxf(peak_approach_speed, sampled_speed)
 		var chassis := _chassis_world_aabb(tractor)
 		closest = minf(closest, _aabb_separation(chassis, target))
 		if exact_target_shape != null:
@@ -461,7 +477,8 @@ func _drive_at(
 		# to disarm the thing it is testing looks exactly like a green pass.
 		var expected_blocker_this_tick := false
 		for index in tractor.get_slide_collision_count():
-			var collider := tractor.get_slide_collision(index).get_collider() as Node
+			var slide_collision := tractor.get_slide_collision(index)
+			var collider := slide_collision.get_collider() as Node
 			if collider == null:
 				continue
 			var label := str(collider.name)
@@ -469,13 +486,28 @@ func _drive_at(
 				blockers.append(label)
 			if StringName(collider.name) == expected_blocker:
 				expected_blocker_this_tick = true
+				if not is_finite(contact_motion_speed):
+					# `TowTractor` deliberately brakes its stored drive speed after
+					# `move_and_slide()`. The collision's travel plus remainder is the
+					# actual attempted motion before that response, so it remains exact
+					# even when the first post-physics sample is one brake step lower.
+					var attempted_motion := (
+						slide_collision.get_travel() + slide_collision.get_remainder()
+					)
+					var physics_delta := tractor.get_physics_process_delta_time()
+					if physics_delta > 0.0:
+						contact_motion_speed = attempted_motion.length() / physics_delta
+		# Freeze the peak at first contact with the named target. A continued held
+		# throttle may make the stored drive speed oscillate while pinned to a wall;
+		# those later samples are not evidence of inbound impact speed.
+		if not is_finite(contact_speed):
+			peak_approach_speed = maxf(peak_approach_speed, sampled_speed)
 		if expected_blocker_this_tick:
 			if not is_finite(contact_speed):
-				# `get_drive_speed()` is sampled after `move_and_slide()` and the
-				# wall-response braking step. The immediately preceding clear sample
-				# and this first blocked sample bracket contact; the greater of them is
-				# the measured inbound speed, not a value inferred from run-up length.
-				contact_speed = maxf(last_clear_speed, sampled_speed)
+				# Preserve the pre-contact peak as a second exact observation: some
+				# slide iterations report only their local remaining motion. Neither
+				# source includes throttle accumulated after impact.
+				contact_speed = maxf(peak_approach_speed, contact_motion_speed)
 		elif not is_finite(contact_speed):
 			# Updated on every tick before the expected obstacle is first observed,
 			# including the whole clear run-up rather than only AABB-overlap ticks.
@@ -495,6 +527,7 @@ func _drive_at(
 		"blocked_by": blockers,
 		"peak_approach_speed": peak_approach_speed,
 		"last_clear_speed": last_clear_speed,
+		"contact_motion_speed": contact_motion_speed,
 		"contact_speed": contact_speed,
 	}
 
