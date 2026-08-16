@@ -15,6 +15,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_complete_profile_and_deterministic_audit()
 	_test_per_action_sampling_and_rejections()
+	_test_atomic_complete_frame()
 	_test_atomic_profile_replacement()
 	await _test_reset_detach_and_reentry()
 	_test_input_map_neutrality()
@@ -152,6 +153,79 @@ func _test_per_action_sampling_and_rejections() -> void:
 		and echo.action_snapshot.sample_count == 1
 		and is_equal_approx(float(echo.action_snapshot.elapsed_seconds), 0.25),
 		"bank sampling preserves the child transform's edge-safe echo contract"
+	)
+
+
+func _test_atomic_complete_frame() -> void:
+	var bank := Bank.new(_default_profile())
+	bank.attach(0)
+	_check(bank.audit().atomic_complete_frame, "the bank audit publishes its complete-frame transaction boundary")
+	var missing := _complete_samples()
+	missing.erase(&"interact")
+	var initial := bank.get_snapshot()
+	var missing_result := bank.process_complete_frame(missing, 0.25, 0)
+	_check(
+		not missing_result.accepted
+		and missing_result.reason == &"action_roster_mismatch"
+		and missing_result.missing_actions == [&"interact"]
+		and (missing_result.unknown_actions as Array).is_empty()
+		and bank.get_snapshot() == initial,
+		"a complete frame missing one action rejects before any sibling transform changes"
+	)
+	var injected := _complete_samples()
+	injected.erase(&"interact")
+	injected[&"ghost"] = {"raw_scalar": 1.0, "raw_pressed": true}
+	var injected_result := bank.process_complete_frame(injected, 0.25, 0)
+	_check(
+		not injected_result.accepted
+		and injected_result.missing_actions == [&"interact"]
+		and injected_result.unknown_actions == [&"ghost"]
+		and bank.get_snapshot() == initial,
+		"an injected action cannot substitute for an exact complete-frame roster member"
+	)
+	var malformed := _complete_samples()
+	malformed[&"fire"] = {"raw_scalar": "strong", "raw_pressed": true}
+	var nonfinite := _complete_samples()
+	nonfinite[&"fire"] = {"raw_scalar": NAN, "raw_pressed": true}
+	_check(
+		not bool(bank.process_complete_frame(malformed, 0.25, 0).accepted)
+		and bank.get_snapshot() == initial
+		and not bool(bank.process_complete_frame(nonfinite, 0.25, 0).accepted)
+		and bank.get_snapshot() == initial
+		and not bool(bank.process_complete_frame(_complete_samples(), INF, 0).accepted)
+		and bank.get_snapshot() == initial,
+		"malformed/nonfinite samples and delta reject the whole frame without partial mutation"
+	)
+	var sampled := bank.process_complete_frame(_complete_samples(), 0.25, 0)
+	_check(
+		sampled.accepted
+		and sampled.action_order == ACTION_ORDER
+		and sampled.actions.keys() == ACTION_ORDER
+		and sampled.action_count == 3
+		and is_equal_approx(float(sampled.actions[&"fire"].value), 0.5)
+		and sampled.actions[&"brake"].toggle_latched
+		and sampled.actions[&"interact"].sample_count == 1,
+		"a valid complete frame commits every action once and returns detached snapshots in stable order"
+	)
+	(sampled.action_order as Array)[0] = &"mutated"
+	(sampled.actions[&"fire"] as Dictionary)["value"] = 99.0
+	_check(
+		bank.get_action_order() == ACTION_ORDER
+		and not is_equal_approx(float(bank.get_snapshot().actions[&"fire"].value), 99.0),
+		"the complete transformed frame is deeply detached from the bank"
+	)
+
+	var overflow_bank := Bank.new(_default_profile())
+	overflow_bank.attach(0)
+	overflow_bank.process_action_sample(&"interact", 1.0, true, 1.0e308, 0)
+	var before_overflow := overflow_bank.get_snapshot()
+	var overflow := overflow_bank.process_complete_frame(_complete_samples(), 1.0e308, 0)
+	_check(
+		not overflow.accepted
+		and overflow.reason == &"non_finite_accumulation"
+		and overflow.failed_action == &"interact"
+		and overflow_bank.get_snapshot() == before_overflow,
+		"a late-roster child overflow is preflighted before earlier actions can commit"
 	)
 
 
@@ -369,6 +443,15 @@ func _profile(insertion_order: Array[StringName], options: Dictionary) -> InputB
 
 func _options(deadzone: float, curve: StringName, hold_mode: StringName) -> Dictionary:
 	return {"deadzone": deadzone, "curve": curve, "hold_mode": hold_mode}
+
+
+func _complete_samples() -> Dictionary:
+	# Reverse insertion proves the result uses the bank's canonical order.
+	return {
+		&"interact": {"raw_scalar": 0.0, "raw_pressed": false},
+		&"fire": {"raw_scalar": 0.6, "raw_pressed": true},
+		&"brake": {"raw_scalar": -0.75, "raw_pressed": true},
+	}
 
 
 func _check(condition: bool, description: String) -> void:
