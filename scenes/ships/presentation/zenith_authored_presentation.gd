@@ -27,6 +27,8 @@ const FAR_TRIANGLE_RANGE := Vector2i(5_000, 10_000)
 const RUNTIME_MESH_BUDGET := 30
 const RUNTIME_SURFACE_BUDGET := 30
 const CANOPY_OPEN_ANGLE_RADIANS := deg_to_rad(63.0)
+const CLOSE_NAV_PORT_PATH := ^"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_PortNavRed"
+const CLOSE_NAV_STARBOARD_PATH := ^"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_StarboardNavGreen"
 
 const MATERIAL_ROLES := [
 	"PaleCeramicHull",
@@ -97,6 +99,9 @@ var _canopy_fraction := 0.0
 var _built := false
 var _built_lod_switch_distance := 0.0
 var _built_lod_hysteresis := 0.0
+var _close_nav_source_preflight: Dictionary = {}
+var _close_nav_shared_surface_snapshot: Array[Dictionary] = []
+var _close_nav_shared_mesh: Mesh
 
 
 func _ready() -> void:
@@ -218,6 +223,51 @@ func _configure_runtime_materials() -> void:
 			mesh_instance.set_meta("gameplay_authority", false)
 			if role in [&"CanopyGlass", &"EngineEmission", &"PortNavRed", &"StarboardNavGreen", &"CockpitEmission"]:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_share_close_navigation_light_mesh()
+
+
+## The import already joins every static material family. The first remaining
+## repeated visual-only geometry is the close-LOD navigation-light pair. Its
+## render arrays are identical except UV0, and its two texture-free material
+## overrides do not consume UVs, so sharing the immutable port mesh preserves
+## both named nodes, colours, transforms, copies, and submissions exactly.
+func _share_close_navigation_light_mesh() -> void:
+	_close_nav_source_preflight.clear()
+	_close_nav_shared_surface_snapshot.clear()
+	_close_nav_shared_mesh = null
+	var port := _asset_root.get_node_or_null(CLOSE_NAV_PORT_PATH) as MeshInstance3D
+	var starboard := _asset_root.get_node_or_null(
+		CLOSE_NAV_STARBOARD_PATH
+	) as MeshInstance3D
+	if port == null or starboard == null or port.mesh == null or starboard.mesh == null:
+		return
+	var render_arrays_match := _mesh_render_arrays_match_ignoring_uv0(
+		port.mesh, starboard.mesh
+	)
+	var uv0_differs := not _mesh_uv0_matches(port.mesh, starboard.mesh)
+	var material_overrides_safe: bool = (
+		port.material_override == _runtime_materials.get(&"PortNavRed")
+		and starboard.material_override == _runtime_materials.get(&"StarboardNavGreen")
+		and port.material_override != starboard.material_override
+		and _material_is_texture_free(port.material_override)
+		and _material_is_texture_free(starboard.material_override)
+	)
+	_close_nav_source_preflight = {
+		"node_count": 2,
+		"mesh_resource_allocations": 2,
+		"geometry_submissions": (
+			port.mesh.get_surface_count() + starboard.mesh.get_surface_count()
+		),
+		"visible_copies": 2,
+		"render_arrays_match_except_uv0": render_arrays_match,
+		"uv0_differed": uv0_differs,
+		"material_overrides_texture_free": material_overrides_safe,
+	}
+	if not render_arrays_match or not uv0_differs or not material_overrides_safe:
+		return
+	starboard.mesh = port.mesh
+	_close_nav_shared_mesh = port.mesh
+	_close_nav_shared_surface_snapshot = _snapshot_mesh_surfaces(port.mesh)
 
 
 func _pbr_material(color: Color, metallic_value: float, roughness_value: float) -> StandardMaterial3D:
@@ -396,6 +446,100 @@ func get_runtime_material(material_role: StringName) -> StandardMaterial3D:
 	return _runtime_materials.get(material_role) as StandardMaterial3D
 
 
+## Detached, component-local allocation evidence for the one resource-sharing
+## family. Submissions honestly remain two because each light keeps its own
+## node and distinct red/green material override.
+func get_close_navigation_light_resource_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var port := _asset_root.get_node_or_null(CLOSE_NAV_PORT_PATH) as MeshInstance3D \
+		if _asset_root != null else null
+	var starboard := _asset_root.get_node_or_null(
+		CLOSE_NAV_STARBOARD_PATH
+	) as MeshInstance3D if _asset_root != null else null
+	var live_nodes: Array[MeshInstance3D] = []
+	for candidate in [port, starboard]:
+		if candidate != null and is_instance_valid(candidate):
+			live_nodes.append(candidate)
+	var unique_meshes := {}
+	var geometry_submissions := 0
+	var visible_copies := 0
+	for instance in live_nodes:
+		if instance.mesh != null:
+			unique_meshes[instance.mesh.get_instance_id()] = true
+			geometry_submissions += instance.mesh.get_surface_count()
+		if instance.visible:
+			visible_copies += 1
+	var preflight_valid := (
+		int(_close_nav_source_preflight.get("node_count", -1)) == 2
+		and int(_close_nav_source_preflight.get("mesh_resource_allocations", -1)) == 2
+		and int(_close_nav_source_preflight.get("geometry_submissions", -1)) == 2
+		and int(_close_nav_source_preflight.get("visible_copies", -1)) == 2
+		and bool(_close_nav_source_preflight.get("render_arrays_match_except_uv0", false))
+		and bool(_close_nav_source_preflight.get("uv0_differed", false))
+		and bool(_close_nav_source_preflight.get("material_overrides_texture_free", false))
+	)
+	if not preflight_valid:
+		errors.append("close navigation-light source preflight drift")
+	if live_nodes.size() != 2:
+		errors.append("close navigation-light node roster drift")
+	if unique_meshes.size() != 1:
+		errors.append("close navigation-light mesh sharing drift")
+	if port == null or starboard == null \
+			or port.mesh != _close_nav_shared_mesh \
+			or starboard.mesh != _close_nav_shared_mesh:
+		errors.append("close navigation-light shared resource identity drift")
+	if geometry_submissions != 2:
+		errors.append("close navigation-light submission roster drift")
+	if visible_copies != 2:
+		errors.append("close navigation-light visible-copy roster drift")
+	if port != null and starboard != null:
+		if port.material_override != _runtime_materials.get(&"PortNavRed") \
+				or starboard.material_override != _runtime_materials.get(&"StarboardNavGreen") \
+				or port.material_override == starboard.material_override \
+				or not _material_is_texture_free(port.material_override) \
+				or not _material_is_texture_free(starboard.material_override):
+			errors.append("close navigation-light per-node material drift")
+		if port.get_child_count() != 0 or starboard.get_child_count() != 0 \
+				or port.get_script() != null or starboard.get_script() != null \
+				or not port.get_groups().is_empty() or not starboard.get_groups().is_empty():
+			errors.append("close navigation-light nodes gained semantic authority")
+		if not bool(port.get_meta("presentation_only", false)) \
+				or not bool(starboard.get_meta("presentation_only", false)) \
+				or bool(port.get_meta("gameplay_authority", true)) \
+				or bool(starboard.get_meta("gameplay_authority", true)):
+			errors.append("close navigation-light visual-only boundary drift")
+	if port == null or port.mesh == null \
+			or not _mesh_matches_surface_snapshot(
+				port.mesh, _close_nav_shared_surface_snapshot
+			):
+		errors.append("close navigation-light shared mesh content drift")
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": &"close_navigation_lights",
+		"visual_only": true,
+		"renderer_values_changed": false,
+		"legacy": _close_nav_source_preflight.duplicate(true),
+		"current": {
+			"node_count": live_nodes.size(),
+			"mesh_resource_allocations": unique_meshes.size(),
+			"geometry_submissions": geometry_submissions,
+			"visible_copies": visible_copies,
+		},
+		"node_paths": PackedStringArray([
+			str(CLOSE_NAV_PORT_PATH), str(CLOSE_NAV_STARBOARD_PATH),
+		]),
+		"shared_mesh_resource_id": (
+			port.mesh.get_instance_id() if port != null and port.mesh != null else 0
+		),
+		"distinct_material_overrides": (
+			port != null and starboard != null
+			and port.material_override != starboard.material_override
+		),
+	}.duplicate(true)
+
+
 func get_asset_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var live_root := get_asset_root()
@@ -570,6 +714,12 @@ func get_asset_audit_report() -> Dictionary:
 	_append_material_errors(errors)
 	_append_geometry_array_errors(errors)
 	_append_integrity_errors(errors)
+	var navigation_light_sharing := get_close_navigation_light_resource_report()
+	if not bool(navigation_light_sharing.get("valid", false)):
+		for sharing_error in navigation_light_sharing.get(
+			"errors", PackedStringArray()
+		) as PackedStringArray:
+			errors.append("close_nav_resource_sharing:%s" % sharing_error)
 
 	var bounds_minimum := _authored_bounds.get("minimum", Vector3.INF) as Vector3
 	var bounds_maximum := _authored_bounds.get("maximum", Vector3.INF) as Vector3
@@ -630,6 +780,7 @@ func get_asset_audit_report() -> Dictionary:
 			"normal": HULL_NORMAL_PATH,
 			"roughness": HULL_ROUGHNESS_PATH,
 		},
+		"close_navigation_light_resource_sharing": navigation_light_sharing,
 		"glb_sha256": raw_glb_sha256,
 		"blend_sha256": raw_blend_sha256,
 		"raw_source_glb_hash_checked": not raw_glb_sha256.is_empty(),
@@ -851,6 +1002,83 @@ func _runtime_bounds(node: Node3D) -> Dictionary:
 					minimum = minimum.min(point)
 					maximum = maximum.max(point)
 	return {"minimum": minimum, "maximum": maximum}
+
+
+static func _mesh_render_arrays_match_ignoring_uv0(left: Mesh, right: Mesh) -> bool:
+	if left == null or right == null \
+			or left.get_surface_count() != right.get_surface_count() \
+			or not left.get_aabb().is_equal_approx(right.get_aabb()):
+		return false
+	for surface_index in left.get_surface_count():
+		if left.surface_get_primitive_type(surface_index) \
+				!= right.surface_get_primitive_type(surface_index) \
+				or left.surface_get_format(surface_index) \
+				!= right.surface_get_format(surface_index):
+			return false
+		var left_arrays := left.surface_get_arrays(surface_index)
+		var right_arrays := right.surface_get_arrays(surface_index)
+		if left_arrays.size() != right_arrays.size():
+			return false
+		for array_index in left_arrays.size():
+			if array_index == Mesh.ARRAY_TEX_UV:
+				continue
+			if left_arrays[array_index] != right_arrays[array_index]:
+				return false
+	return true
+
+
+static func _mesh_uv0_matches(left: Mesh, right: Mesh) -> bool:
+	if left == null or right == null \
+			or left.get_surface_count() != right.get_surface_count():
+		return false
+	for surface_index in left.get_surface_count():
+		var left_uvs: Variant = left.surface_get_arrays(surface_index)[Mesh.ARRAY_TEX_UV]
+		var right_uvs: Variant = right.surface_get_arrays(surface_index)[Mesh.ARRAY_TEX_UV]
+		if left_uvs != right_uvs:
+			return false
+	return true
+
+
+static func _material_is_texture_free(material: Material) -> bool:
+	if not material is StandardMaterial3D:
+		return false
+	for property_record in material.get_property_list():
+		var property_name := StringName((property_record as Dictionary).get("name", &""))
+		if material.get(property_name) is Texture2D:
+			return false
+	return true
+
+
+static func _snapshot_mesh_surfaces(mesh: Mesh) -> Array[Dictionary]:
+	var snapshot: Array[Dictionary] = []
+	if mesh == null:
+		return snapshot
+	for surface_index in mesh.get_surface_count():
+		snapshot.append({
+			"primitive": mesh.surface_get_primitive_type(surface_index),
+			"format": mesh.surface_get_format(surface_index),
+			"name": mesh.surface_get_name(surface_index),
+			"material": mesh.surface_get_material(surface_index),
+			"arrays": mesh.surface_get_arrays(surface_index).duplicate(true),
+		})
+	return snapshot
+
+
+static func _mesh_matches_surface_snapshot(
+	mesh: Mesh,
+	snapshot: Array[Dictionary]
+	) -> bool:
+	if mesh == null or mesh.get_surface_count() != snapshot.size():
+		return false
+	for surface_index in snapshot.size():
+		var expected := snapshot[surface_index]
+		if mesh.surface_get_primitive_type(surface_index) != expected.get("primitive") \
+				or mesh.surface_get_format(surface_index) != expected.get("format") \
+				or mesh.surface_get_name(surface_index) != expected.get("name") \
+				or mesh.surface_get_material(surface_index) != expected.get("material") \
+				or mesh.surface_get_arrays(surface_index) != expected.get("arrays"):
+			return false
+	return true
 
 
 func _read_json(path: String) -> Dictionary:

@@ -3270,6 +3270,79 @@ func _test_authored_asset_and_runtime_authority(zenith: ZenithInterceptor) -> vo
 	_check(presentation != null and presentation.get_parent() == visual and presentation.transform.is_equal_approx(Transform3D.IDENTITY), "authored presentation is identity-mounted under ZenithVisual")
 	var asset_root := presentation.call("get_asset_root") as Node3D
 	_check(asset_root != null and _direct_names(asset_root) == PackedStringArray(["ModernSystems", "SourceCore"]), "imported asset retains exact source/modern root split")
+	var sharing := authored.close_navigation_light_resource_sharing as Dictionary
+	print(
+		"ZENITH_CLOSE_NAV_RESOURCE_SHARING: nodes %d->%d resources %d->%d submissions %d->%d visible_copies %d->%d"
+		% [
+			int(sharing.legacy.node_count), int(sharing.current.node_count),
+			int(sharing.legacy.mesh_resource_allocations),
+			int(sharing.current.mesh_resource_allocations),
+			int(sharing.legacy.geometry_submissions),
+			int(sharing.current.geometry_submissions),
+			int(sharing.legacy.visible_copies), int(sharing.current.visible_copies),
+		]
+	)
+	_check(
+		bool(sharing.valid)
+		and bool(sharing.visual_only)
+		and not bool(sharing.renderer_values_changed)
+		and bool(sharing.legacy.render_arrays_match_except_uv0)
+		and bool(sharing.legacy.uv0_differed)
+		and bool(sharing.legacy.material_overrides_texture_free)
+		and sharing.current == {
+			"node_count": 2,
+			"mesh_resource_allocations": 1,
+			"geometry_submissions": 2,
+			"visible_copies": 2,
+		},
+		"close navigation lights freeze exact 2->2 nodes, 2->1 mesh resources, 2->2 submissions, and 2->2 visible copies"
+	)
+	var port_nav := asset_root.get_node_or_null(
+		"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_PortNavRed"
+	) as MeshInstance3D if asset_root != null else null
+	var starboard_nav := asset_root.get_node_or_null(
+		"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_StarboardNavGreen"
+	) as MeshInstance3D if asset_root != null else null
+	_check(
+		port_nav != null and starboard_nav != null
+		and port_nav != starboard_nav
+		and port_nav.mesh == starboard_nav.mesh
+		and port_nav.material_override != starboard_nav.material_override
+		and port_nav.get_meta("zenith_material_role", &"") == &"PortNavRed"
+		and starboard_nav.get_meta("zenith_material_role", &"") == &"StarboardNavGreen"
+		and port_nav.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and starboard_nav.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and port_nav.get_child_count() == 0 and starboard_nav.get_child_count() == 0
+		and port_nav.get_script() == null and starboard_nav.get_script() == null,
+		"sharing preserves both named visual-only nodes and their distinct red/green render overrides"
+	)
+	(sharing.current as Dictionary)["mesh_resource_allocations"] = 99
+	var detached_sharing := (
+		presentation.call("get_asset_audit_report") as Dictionary
+	).close_navigation_light_resource_sharing as Dictionary
+	_check(
+		int(detached_sharing.current.mesh_resource_allocations) == 1,
+		"caller mutation cannot alter detached navigation-light resource evidence"
+	)
+	if port_nav != null and starboard_nav != null and port_nav.mesh != null:
+		var shared_nav_mesh := port_nav.mesh
+		starboard_nav.mesh = shared_nav_mesh.duplicate() as Mesh
+		var red_authored := presentation.call("get_asset_audit_report") as Dictionary
+		_check(
+			not bool(red_authored.valid)
+			and _string_list_has_fragment(
+				red_authored.errors,
+				"close_nav_resource_sharing:close navigation-light mesh sharing drift"
+			)
+			and _has_red_code(zenith, "authored_asset_red"),
+			"structured-red: splitting the shared mesh fails authored and Zenith runtime audits"
+		)
+		starboard_nav.mesh = shared_nav_mesh
+		_check(
+			bool((presentation.call("get_asset_audit_report") as Dictionary).valid)
+			and bool(zenith.get_zenith_audit_report().valid),
+			"restoring the exact shared resource returns both audits to green"
+		)
 	_check((presentation.call("get_lod0_roots") as Array).size() == 2 and (presentation.call("get_lod1_roots") as Array).size() == 2, "authored wrapper publishes two close and two far roots")
 	var plume_ids := PackedInt64Array()
 	for plume in zenith.get_zenith_engine_plumes():
@@ -3283,6 +3356,12 @@ func _test_authored_asset_and_runtime_authority(zenith: ZenithInterceptor) -> vo
 	for plume in zenith.get_zenith_engine_plumes():
 		plume_ids_after.append(plume.get_instance_id())
 	_check(plume_ids_after == plume_ids, "LOD switching preserves all four plume node identities")
+	_check(
+		port_nav != null and starboard_nav != null
+		and port_nav.mesh == starboard_nav.mesh
+		and port_nav.mesh.get_instance_id() == int(detached_sharing.shared_mesh_resource_id),
+		"whole-ship LOD switching preserves the exact shared navigation-light resource"
+	)
 
 
 func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> void:
@@ -3674,6 +3753,13 @@ func _test_cleanup(zenith: ZenithInterceptor) -> void:
 func _has_red_code(zenith: ZenithInterceptor, code: String) -> bool:
 	var audit := zenith.get_zenith_audit_report()
 	return not bool(audit.valid) and (audit.error_codes as PackedStringArray).has(code)
+
+
+func _string_list_has_fragment(values: Variant, fragment: String) -> bool:
+	for value in values:
+		if fragment in str(value):
+			return true
+	return false
 
 
 func _all_plumes_visible(zenith: ZenithInterceptor, expected: bool) -> bool:
