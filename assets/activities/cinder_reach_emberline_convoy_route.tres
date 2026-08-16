@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ActivityDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/activities/activity_definition.gd" id="1_activity"]
+[ext_resource type="Resource" path="res://assets/world/locations/cinder_reach.tres" id="2_location"]
+
+[resource]
+script = ExtResource("1_activity")
+activity_id = &"cinder_reach_emberline_convoy"
+display_name = "Emberline supply tender escort"
+activity_kind = &"checkpoint_route"
+content_note = "NEW project-original convoy content: a single Emberline supply tender follows an invented approach through the modern Cinder Reach setting. The entity, route, timings, and activity premise are modern interpretation; no historical route, vehicle, reward, cargo, or combat claim is made."
+location = ExtResource("2_location")
+checkpoint_positions = PackedVector3Array(84, -68, -724, 104, -64, -770, 139, -58, -824, 178, -54, -870)
+checkpoint_radius = 4.0
