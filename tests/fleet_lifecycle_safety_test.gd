@@ -7,6 +7,18 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+## Extra simulated frames every bounded wait is granted on top of the frames its
+## nominal duration implies. A frame count, not a wall-clock grace: widening a
+## sleep would hide the clock divergence described on [method _wait_until], while
+## a frame budget removes it.
+const FRAME_BUDGET_GRACE := 30
+
+## Nominal duration of the occupied-berth deferral wait. `GameFlow` schedules a
+## destroyed craft's replenishment `4000` ms out on the monotonic clock, so this
+## only bounds the wait; it ends the moment `GameFlow` has really attempted and
+## deferred the regeneration.
+const OCCUPIED_BERTH_DEFERRAL_SECONDS := 4.25
+
 var _failures: Array[String] = []
 
 
@@ -245,6 +257,7 @@ func _test_inactive_loss_and_occupied_berth_retry() -> void:
 	var preserved_phase := game.phase
 	var preserved_player_id := player.get_instance_id()
 	var arrow_spawn := world.get_berth_transform(arrow.get_home_berth_id())
+	var arrow_id := arrow.get_instance_id()
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
 	await process_frame
 	_check(arrow.is_destroyed(), "lethal parked damage destroys the inactive Arrow")
@@ -261,6 +274,12 @@ func _test_inactive_loss_and_occupied_berth_retry() -> void:
 		"inactive destroyed craft immediately releases its stale berth lease"
 	)
 
+	var scheduled_ready_at := int(_pending_entry(game, arrow_id).get("ready_at_msec", 0))
+	_check(
+		scheduled_ready_at > 0,
+		"inactive loss registers one pending regeneration deadline on the monotonic clock"
+	)
+
 	# Claim the now-clear Arrow berth with a compatible stand-in before the four-
 	# second replenishment window expires. A safe retry keeps Arrow destroyed and
 	# collisionless instead of resetting it on top of the new occupant.
@@ -273,8 +292,29 @@ func _test_inactive_loss_and_occupied_berth_retry() -> void:
 		not temporary_token.is_empty() and arrow_berth.occupy(temporary_occupant, temporary_token),
 		"stand-in physically occupies Arrow's home berth during regeneration"
 	)
-	await create_timer(4.25).timeout
+	# `ready_at_msec` is a monotonic deadline owned by GameFlow, but a `SceneTree`
+	# timer counts Godot's smoothed engine delta, which is a different clock and
+	# was observed running ahead of the monotonic one while the engine catches up
+	# from a stall. Every assertion below this wait is *negative* — Arrow is still
+	# destroyed, the stand-in still holds the berth — so a timer that fired before
+	# the deadline had really expired reported PASS for the wrong reason: the
+	# deferral branch had simply not run yet. Waiting for the deferral itself
+	# turns a weak check into a real one. The occupied-berth branch re-arms
+	# `ready_at_msec` at `now + 2000`, so a strictly later deadline is the exact
+	# observable proof that GameFlow reached the deadline, tried the reservation,
+	# was refused by the stand-in, and rescheduled instead of resetting the hull.
+	var deferral_observed := await _wait_until(
+		func() -> bool:
+			return int(
+				_pending_entry(game, arrow_id).get("ready_at_msec", 0)
+			) > scheduled_ready_at,
+		OCCUPIED_BERTH_DEFERRAL_SECONDS
+	)
 	await physics_frame
+	_check(
+		deferral_observed and Time.get_ticks_msec() >= scheduled_ready_at,
+		"the four-second replenishment deadline really expires and GameFlow defers the retry"
+	)
 	_check(
 		arrow.is_destroyed() and arrow.collision_layer == 0,
 		"regeneration defers while the home berth is occupied"
@@ -335,6 +375,39 @@ func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 	event.action = action
 	event.pressed = true
 	game._unhandled_input(event)
+
+
+func _pending_entry(game: GameFlow, instance_id: int) -> Dictionary:
+	var pending := game.get("_regeneration_pending") as Dictionary
+	var entry_value: Variant = pending.get(instance_id, {})
+	return entry_value as Dictionary if entry_value is Dictionary else {}
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Three clocks run in this process and they diverge under parallel load: the
+## monotonic clock behind `Time.get_ticks_msec()`, Godot's smoothed engine delta
+## behind `SceneTree` timers, and the physics clock, whose steps the engine drops
+## on a busy machine rather than letting the simulation spiral. `nominal_seconds`
+## is kept as the duration the wait is *expected* to take and becomes both a
+## frame budget and a wall-clock deadline; both stay finite, so a condition that
+## genuinely never arrives still fails the suite, but a merely slow box is given
+## the same number of simulated frames as an idle one.
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _wait_for_phase(game: GameFlow, expected_phase: GameFlow.Phase, timeout: float) -> bool:
