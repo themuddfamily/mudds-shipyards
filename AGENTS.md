@@ -2,11 +2,15 @@
 
 ## Parallel-agent policy
 
-Use subagents aggressively for any task containing two or more independent
-workstreams.
+Use subagents deliberately when they materially shorten independent work. The
+goal is faster implementation with useful verification, not maximum research
+coverage.
 
-- Before substantial work, decompose the task and spawn 2–4 agents for
-  independent research, codebase exploration, testing, or review.
+- Before substantial work, decompose the task and use **1–3 subagents at most**
+  for independent implementation, evidence gathering, or review.
+- Default to one implementation agent. Add one independent reviewer for
+  high-risk changes; use a third agent only for a genuinely separate workstream
+  that can proceed concurrently.
 - Start independent agents concurrently, then continue useful coordination work
   in the main thread while they run.
 - Give each agent a concrete, bounded deliverable.
@@ -17,6 +21,14 @@ workstreams.
 - Wait for all required agents and incorporate their findings.
 - Skip delegation only when the task is genuinely sequential, trivial, or would
   cause agents to edit the same files. State the reason briefly when skipping.
+- Do not let subagents recursively spawn more agents unless the root assignment
+  explicitly authorizes that specific nested workstream.
+- Time-box research by evidence, not curiosity: stop exploring once file
+  ownership, the implementation seam, and acceptance checks are known. Do not
+  keep enumerating hypothetical edge cases after the requested contract is
+  demonstrated.
+- Prefer implementation and direct validation over multiple overlapping audits.
+  One concrete implementer plus one bounded reviewer is normally enough.
 
 ## Dynamic reasoning-effort policy
 
