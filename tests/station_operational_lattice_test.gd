@@ -539,23 +539,7 @@ func _test_presentation_only_subtrees(
 	dressings: Array[StationStructuralServiceDressing]
 ) -> void:
 	for activity in activities:
-		# Was a blanket "contains no collider, body, area, or physics mover".
-		# Reversed on 2026-08-16 by the tow-tractor obstruction pass: the vignettes
-		# a ground vehicle can reach now realise their own published
-		# `get_solid_volume_contract()` as one static body. Everything the rule was
-		# really protecting is still forbidden below — no rigid or animatable body,
-		# no character body, no monitoring area, no `AnimationPlayer` — and the one
-		# permitted body is checked by name, layer, mask and shape count against
-		# that same contract, so a second body, a body on another layer, or a shape
-		# with no declared volume behind it still fails here.
-		_check(
-			not _subtree_has_forbidden_physics(activity),
-			"%s contains no rigid body, character body, area, or animation player" % activity.name
-		)
-		_check(
-			_activity_collision_realises_its_contract(activity),
-			"%s owns exactly the solid volumes it publishes, and nothing else physical" % activity.name
-		)
+		_check(not _subtree_has_forbidden_physics(activity), "%s contains no collider, body, area, or physics mover" % activity.name)
 		_check(_count_type(activity, "Light3D") == 0 and _count_type(activity, "GPUParticles3D") == 0 and _count_type(activity, "CPUParticles3D") == 0 and _count_type(activity, "AudioStreamPlayer3D") == 0, "%s adds no lights, particles, or audio voices" % activity.name)
 	for ambience in ambience_nodes:
 		_check(not _subtree_has_forbidden_physics(ambience), "%s audio subtree cannot alter physics" % ambience.get_emitter_id())
@@ -1051,47 +1035,9 @@ func _subtree_nodes(root_node: Node) -> Array[Node]:
 
 func _subtree_has_forbidden_physics(root_node: Node) -> bool:
 	for candidate in _subtree_nodes(root_node):
-		if candidate is RigidBody3D or candidate is AnimatableBody3D or candidate is CharacterBody3D or candidate is Area3D or candidate is AnimationPlayer:
-			return true
-		# One `StaticBody3D` is permitted, and only as the declared solid-volume
-		# body of a station activity. Every other collision object still is not.
-		if candidate is CollisionObject3D and not (
-			candidate is StaticBody3D
-			and str(candidate.name) == "SolidVolumeCollision"
-			and root_node is StationOperationsActivity
-		):
-			return true
-		if candidate is CollisionPolygon3D:
+		if candidate is CollisionObject3D or candidate is CollisionShape3D or candidate is CollisionPolygon3D or candidate is RigidBody3D or candidate is AnimatableBody3D or candidate is CharacterBody3D or candidate is Area3D or candidate is AnimationPlayer:
 			return true
 	return false
-
-
-## An activity's whole physical footprint, checked against its own published
-## contract: at most one `StaticBody3D` named `SolidVolumeCollision`, on World with
-## an empty mask, carrying exactly one live shape per entry in
-## `get_solid_volume_contract()`. A profile that declares no solid volume must own
-## no body at all.
-func _activity_collision_realises_its_contract(activity: StationOperationsActivity) -> bool:
-	var declared := activity.get_solid_volume_contract().size()
-	var bodies := activity.find_children("*", "CollisionObject3D", true, false)
-	if declared == 0:
-		return bodies.is_empty()
-	if bodies.size() != 1:
-		return false
-	var body := bodies[0] as StaticBody3D
-	if body == null or str(body.name) != "SolidVolumeCollision":
-		return false
-	if body.collision_layer != PhysicsLayers.WORLD_BODY_LAYER \
-		or body.collision_mask != PhysicsLayers.WORLD_BODY_MASK:
-		return false
-	var shapes := body.find_children("*", "CollisionShape3D", true, false)
-	if shapes.size() != declared:
-		return false
-	for raw_shape in shapes:
-		var collision := raw_shape as CollisionShape3D
-		if collision.shape == null or collision.disabled:
-			return false
-	return activity.get_validation_errors().is_empty()
 
 
 func _static_dressing_types_allowed(dressing: StationStructuralServiceDressing) -> bool:

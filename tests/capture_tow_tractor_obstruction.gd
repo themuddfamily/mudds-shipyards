@@ -160,9 +160,9 @@ func _capture_column_pair(world: ShipyardWorld, tractor: TowTractor) -> void:
 		Vector3(drawn.get_center().x, 0.9, drawn.get_center().z)
 	)
 
-	var bodies := activity.find_children("SolidVolumeCollision", "StaticBody3D", true, false)
+	var bodies := world.find_children("%sSolids" % activity.name, "StaticBody3D", true, false)
 	if bodies.is_empty():
-		_check(false, "the vignette carries a solid-volume body to switch off")
+		_check(false, "the world built a solid-volume body for this vignette to switch off")
 		return
 	var solid_volume_body := bodies[0] as StaticBody3D
 	solid_volume_body.collision_layer = PhysicsLayers.NONE

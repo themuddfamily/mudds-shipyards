@@ -1849,8 +1849,29 @@ the poles. `CentralCargoTransferLine` at `(-7.0, 0, 18.0)`, beside the player
 spawn, adds two 2.9 m hoist posts, five crates and a control pedestal in the same
 state.
 
-Fixed by giving that component's static hard structure colliders built from its own
-meshes, and re-freezing its budgets in the open (see the constants' own comments).
+The first attempt at this built a `StaticBody3D` inside the component. It was
+thrown away, and the reason is worth recording: while it was being written, a
+sibling pass landed `StationOperationsActivity.get_solid_volume_contract()` and
+`ShipyardWorld._build_station_activity_collision()` — a *declaration* of which drawn
+volumes are solid, and a world-side builder that realises every declaration as a
+World-layer body with the shape copied verbatim from the drawn mesh. Same problem,
+same reasoning, better shape: the presentation component keeps `collision_nodes == 0`
+and cannot quietly grow gameplay authority, and the world owns the bodies.
+
+So the fix here is four lines of declaration rather than a second mechanism. The
+contract gained the four maintenance-gantry columns and the two service-arm pedestal
+drums; the existing builder did the rest, and no budget in the component moved,
+because the component still builds no collision node of its own. The gap was that a
+column missing from the contract fails silently — the world builds what it is told
+about and nothing complains about what it is not — so
+`tests/tow_tractor_obstruction_test.gd` now asserts both halves: that the vignette
+declares all four columns, and that the thing which physically stopped the tractor
+was that vignette's own `...Solids` body, by name.
+
+Gantry foot pads were tried as solid volumes and reverted: the lattice's
+mount-support probes began reporting the pad instead of the deck under it, and the
+freight berth's exact seam roster gained four contacts. Both audits were right — a
+solid 0.22 m plate lying on a deck is a new surface bolted onto that deck.
 
 ### The survey behind the fix
 
@@ -1883,16 +1904,17 @@ Those mount on the aft upper landing, the habitat roof and the freight approach 
 no drivable route reaches any of them, so they were left alone rather than widening
 a vehicle fix into four vignettes no vehicle has ever touched.
 
-### Latent defect found on the way — **FIXED**
+### Latent defect found on the way — **FIXED INDEPENDENTLY**
 
 `tests/station_operational_lattice_test.gd` asserted by name which deck each gantry
 mount foot rays down onto. At `(-50.28, 25.4)` that was never decidable:
 `ConnectionDeckA` and `ConnectionHandoffDeck` overlap and their top faces are
 *both* at y = 0.380000, so a downward ray returns two hits at an identical distance
 and the engine names whichever the broadphase reached first. Adding any static body
-to the space can flip it, and the gantry columns did. That one row now carries the
-exact two-element set of bodies occupying the plane; the other three feet stand
-over exactly one deck each and stay single-valued.
+to the space can flip it, and the gantry foot-pad colliders did while they existed.
+A sibling pass reached the same conclusion from the other direction and landed the
+same fix first: that row now carries both names. Recorded here because it was
+reproduced independently, from a foot-pad collider that no longer exists.
 
 ### Evidence
 

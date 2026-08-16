@@ -15,7 +15,8 @@ extends SceneTree
 ## 2. **The poles.** `StationOperationsActivity` created no collision node of any
 ##    kind, and the `FULL` vignette four metres from the tractor's parking spot
 ##    draws four 5.5 m maintenance-gantry columns. Fixed by giving that component's
-##    real collision for the solid volumes it already published.
+##    `get_solid_volume_contract()` naming its gantry columns, which the world
+##    already realises as World-layer bodies for every volume a vignette declares.
 ##
 ## Every case is run twice. The green run drives the shipped vehicle at the
 ## obstacle and requires it to end up outside; the red witness re-runs the exact
@@ -184,11 +185,30 @@ func _test_drives_into_a_gantry_column(
 		float(travelled.get("closest_approach", 999.0)) < 0.5,
 		"the tractor is stopped *by* the column rather than by something short of it"
 	)
+	_check(
+		(travelled.get("blocked_by", PackedStringArray()) as PackedStringArray).has(
+			"%sSolids" % activity.name
+		),
+		"the thing that stopped the tractor is the vignette's own declared solid volumes"
+	)
 
-	# Red witness: clear the vignette's collision the way the component shipped
-	# before this pass, and the same drive must pass straight through the column.
-	var body := activity.find_children("SolidVolumeCollision", "StaticBody3D", true, false)
-	_check(body.size() == 1, "the vignette carries exactly one declared solid-volume body")
+	# The column is solid because the vignette *declares* it as a solid volume and
+	# the world realises that declaration. Both halves have to be checked, because
+	# a column missing from the contract fails silently: the world builds the
+	# bodies it is told about and nothing complains about the one it was not.
+	var declared_columns := 0
+	for volume in activity.get_solid_volume_contract():
+		if str(volume["name"]) == "Column":
+			declared_columns += 1
+	_check(
+		declared_columns == 4,
+		"the vignette declares all four of its maintenance-gantry columns as solid volumes"
+	)
+
+	# Red witness: clear the collision the world built from that declaration, and
+	# the same drive must pass straight through a 5.5 m column.
+	var body := world.find_children("%sSolids" % activity.name, "StaticBody3D", true, false)
+	_check(body.size() == 1, "the world builds exactly one solid-volume body for this vignette")
 	if body.is_empty():
 		return
 	var solid_volume_body := body[0] as StaticBody3D
@@ -198,7 +218,7 @@ func _test_drives_into_a_gantry_column(
 	print("TRACTOR_COLUMN_RED_WITNESS: ", red)
 	_check(
 		bool(red.get("entered_target", false)),
-		"red witness: a collision-free vignette drives the tractor straight through a 5.5 m column"
+		"red witness: with those volumes cleared the tractor drives straight through a 5.5 m column"
 	)
 
 
@@ -259,6 +279,7 @@ func _drive_at(
 	var started_clear := not _chassis_world_aabb(tractor).intersects(target)
 	var closest := INF
 	var entered := false
+	var blockers := PackedStringArray()
 	tractor.set_driven(true)
 	Input.action_press(&"move_forward")
 	for _tick in DRIVE_TICKS:
@@ -268,6 +289,15 @@ func _drive_at(
 		closest = minf(closest, _aabb_separation(chassis, target))
 		if chassis.intersects(target):
 			entered = true
+		# What actually stopped it, by name. Without this a red witness that fails
+		# to disarm the thing it is testing looks exactly like a green pass.
+		for index in tractor.get_slide_collision_count():
+			var collider := tractor.get_slide_collision(index).get_collider() as Node
+			if collider == null:
+				continue
+			var label := str(collider.name)
+			if not blockers.has(label):
+				blockers.append(label)
 	Input.action_release(&"move_forward")
 	await _advance(SETTLE_TICKS)
 	tractor.set_driven(false)
@@ -280,6 +310,7 @@ func _drive_at(
 		"distance": start.distance_to(tractor.global_position),
 		"closest_approach": closest,
 		"entered_target": entered,
+		"blocked_by": blockers,
 	}
 
 
