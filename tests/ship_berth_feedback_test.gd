@@ -1,8 +1,53 @@
 extends SceneTree
 
+## Component contract for one berth-state display, including the colour-vision
+## and shape channels that make its three lease states readable.
+##
+## Why the colour floors below. The cue used to signal lease state with colour
+## alone, in cyan / amber / green. Measured through the shared
+## sRGB -> Viénot -> CIE L*a*b* -> CIEDE2000 chain in tests/fleet_colour_metrics.gd,
+## the released/occupied pair scored 27.72 in normal vision, 22.63 under
+## protanopia, 18.38 under deuteranopia and 2.77 under tritanopia. CIEDE2000 is
+## scaled so ~2.3 is the practical just-noticeable difference for two patches
+## held side by side, so the tritan number was not a marginal deficiency: an open
+## berth and an occupied one were the same colour. The audited defect is asserted
+## below as still failing this suite's own gate, so the floors are demonstrably
+## discriminating rather than decorative.
+##
+## The floors are set well above the HUD's own MINIMUM_STATE_SEPARATION of 24.0
+## for the emissive cue, because that cue is read across a hangar deck at a
+## glance rather than compared side by side, and because the emissive product is
+## clipped and tonemapped before a player sees it, which compresses authored
+## differences. Albedo and label floors sit at the HUD's 24.0: the albedo is only
+## the unlit fallback and the label carries its own text channel besides.
+##
+## Colour is never the only channel. The shape assertions freeze a second,
+## non-colour cue — a deck glyph whose silhouette encodes the state — so the
+## three states stay separable in a fully desaturated frame.
+
 const FEEDBACK_SCENE := preload("res://scenes/world/components/ship_berth_feedback.tscn")
 const BERTH_SCENE := preload("res://scenes/world/components/ship_berth.tscn")
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
+# One implementation of the perceptual maths, shared with the fleet colour audit
+# and with the design probe that chose this palette.
+const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
+
+const CUE_STATES: Array[StringName] = [&"released", &"approach", &"occupied"]
+const CUE_EMISSION_FLOOR := 38.0
+const CUE_ALBEDO_FLOOR := 24.0
+const CUE_LABEL_FLOOR := 24.0
+# The pre-fix triad, kept as a structured negative control. It must fail the same
+# gate under the same maths, in every vision model, or the floors prove nothing.
+const AUDITED_DEFECT_EMISSION := {
+	&"released": "33f0ff",
+	&"approach": "ff8c1f",
+	&"occupied": "47ffa6",
+}
+const EXPECTED_GLYPH_IDS := {
+	&"released": &"gate_open",
+	&"approach": &"approach_chevron",
+	&"occupied": &"secured_bar",
+}
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -36,7 +81,10 @@ func _run() -> void:
 	_check(feedback.get_feedback_state() == &"released", "fresh unclaimed berth renders released state")
 	_check(bool(feedback.get_audit_report().valid), "fresh component passes its complete audit")
 	var perf := feedback.get_performance_report()
-	_check(int(perf.mesh_instances) == 11 and int(perf.material_resources) == 4, "component owns exactly eleven meshes and four instance-local materials")
+	# Re-frozen 11 -> 16 meshes: the five added are the state glyph (two gate
+	# marks, two chevron arms, one secured bar), the non-colour channel frozen by
+	# _test_state_channels below. The material budget is unchanged at four.
+	_check(int(perf.mesh_instances) == 16 and int(perf.material_resources) == 4, "component owns exactly sixteen meshes and four instance-local materials")
 	_check(int(perf.collision_nodes) == 0 and int(perf.lights) == 0 and int(perf.audio_nodes) == 0 and int(perf.particle_emitters) == 0, "feedback adds no collision, light, audio, or particle authority")
 	_check(feedback.get_evidence_metadata().evidence_status == &"modern_interpretation" and not bool(feedback.get_evidence_metadata().historically_supported), "feedback remains an explicit unsupported modern interpretation")
 
@@ -53,6 +101,8 @@ func _run() -> void:
 	_check(berth.release(ship, token), "fixture releases the authoritative occupied lease")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released", "real lease release restores open state")
+
+	await _test_state_channels(berth, feedback, ship)
 
 	feedback.set_auto_advance_enabled(false)
 	feedback.seek_simulation(0.0)
@@ -266,6 +316,144 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+## Drives the live component through its three real lease states and freezes both
+## readability channels from what it actually renders, not from source constants.
+func _test_state_channels(berth: ShipBerth, feedback: ShipBerthFeedback, ship: Node3D) -> void:
+	var plate := feedback.get_node("FeedbackVisual/LeaseStatePlate") as MeshInstance3D
+	var label := feedback.get_node("FeedbackVisual/LeaseStateLabel") as Label3D
+	var emissions: Dictionary = {}
+	var albedos: Dictionary = {}
+	var label_tints: Dictionary = {}
+	var glyph_ids: Dictionary = {}
+	var glyph_meshes: Dictionary = {}
+	var glyph_footprints: Dictionary = {}
+	var token: StringName = &""
+
+	for state: StringName in CUE_STATES:
+		if state == &"approach":
+			token = berth.try_reserve(ship, TORRENT_DEFINITION)
+		elif state == &"occupied":
+			berth.occupy(ship, token)
+		await process_frame
+		_check(
+			feedback.get_feedback_state() == state,
+			"channel sampling reads the real %s lease from the authoritative berth" % state
+		)
+		var material := plate.material_override as StandardMaterial3D
+		emissions[state] = material.emission.to_html(false)
+		albedos[state] = material.albedo_color.to_html(false)
+		var tint := label.modulate
+		tint.a = 1.0
+		label_tints[state] = tint.to_html(false)
+		var snapshot := feedback.get_state_snapshot()
+		glyph_ids[state] = StringName(snapshot.get("cue_glyph", &""))
+		glyph_meshes[state] = snapshot.get("cue_glyph_mesh_names", PackedStringArray()) as PackedStringArray
+		glyph_footprints[state] = float(snapshot.get("cue_glyph_footprint", 0.0))
+	berth.release(ship, token)
+	await process_frame
+	_check(feedback.get_feedback_state() == &"released", "channel sampling returns the fixture berth to open")
+
+	# ------------------------------------------------------------- colour ----
+	for mode: String in ColourMetrics.VISION_MODELS:
+		var emission_minimum := ColourMetrics.minimum_separation(emissions, mode)
+		var albedo_minimum := ColourMetrics.minimum_separation(albedos, mode)
+		var label_minimum := ColourMetrics.minimum_separation(label_tints, mode)
+		print(
+			"BERTH_CUE_COLOUR_EVIDENCE: under %s emission_min_ciede2000=%.2f albedo_min_ciede2000=%.2f label_min_ciede2000=%.2f"
+				% [mode, emission_minimum, albedo_minimum, label_minimum]
+		)
+		_check(
+			emission_minimum >= CUE_EMISSION_FLOOR,
+			"emissive cue separation under %s holds its %.1f floor (%.2f)"
+				% [mode, CUE_EMISSION_FLOOR, emission_minimum]
+		)
+		_check(
+			albedo_minimum >= CUE_ALBEDO_FLOOR,
+			"cue albedo separation under %s holds its %.1f floor (%.2f)"
+				% [mode, CUE_ALBEDO_FLOOR, albedo_minimum]
+		)
+		_check(
+			label_minimum >= CUE_LABEL_FLOOR,
+			"state-label tint separation under %s holds its %.1f floor (%.2f)"
+				% [mode, CUE_LABEL_FLOOR, label_minimum]
+		)
+		# Structured negative control: the palette this replaced must still fail.
+		var defect_minimum := ColourMetrics.minimum_separation(AUDITED_DEFECT_EMISSION, mode)
+		_check(
+			defect_minimum < CUE_EMISSION_FLOOR,
+			"the audited cyan/amber/green cue still fails the %s gate it was replaced for (%.2f)"
+				% [mode, defect_minimum]
+		)
+	_check(
+		ColourMetrics.minimum_separation(AUDITED_DEFECT_EMISSION, "tritanopia") < 3.0,
+		"the audited defect is recorded at its measured severity: below the practical JND under tritanopia"
+	)
+	# Lightness is the one channel every dichromacy model preserves, so the triad
+	# must be a ladder in L* and not only a hue wheel.
+	var lightnesses := PackedFloat32Array()
+	for state: StringName in CUE_STATES:
+		lightnesses.append(ColourMetrics.lightness(str(emissions[state])))
+	_check(
+		lightnesses[0] - lightnesses[1] >= 12.0 and lightnesses[1] - lightnesses[2] >= 12.0,
+		"the cue triad descends a lightness ladder open > approach > secured (L* %.1f / %.1f / %.1f)"
+			% [lightnesses[0], lightnesses[1], lightnesses[2]]
+	)
+
+	# -------------------------------------------------------------- shape ----
+	var seen_glyph_ids := PackedStringArray()
+	var seen_glyph_meshes := PackedStringArray()
+	var seen_footprints := PackedFloat32Array()
+	for state: StringName in CUE_STATES:
+		var glyph_id := StringName(glyph_ids[state])
+		var meshes := glyph_meshes[state] as PackedStringArray
+		var footprint := float(glyph_footprints[state])
+		_check(
+			glyph_id == StringName(EXPECTED_GLYPH_IDS[state]),
+			"%s publishes its exact non-colour glyph identity %s" % [state, glyph_id]
+		)
+		_check(not meshes.is_empty(), "%s renders at least one glyph mesh" % state)
+		_check(footprint > 0.0, "%s glyph covers real deck area (%.3f m^2)" % [state, footprint])
+		if seen_glyph_ids.has(String(glyph_id)):
+			_check(false, "%s reuses a glyph identity another state already owns" % state)
+		seen_glyph_ids.append(String(glyph_id))
+		for mesh_name in meshes:
+			_check(
+				not seen_glyph_meshes.has(mesh_name),
+				"glyph mesh %s belongs to exactly one state" % mesh_name
+			)
+			seen_glyph_meshes.append(mesh_name)
+		for other in seen_footprints:
+			_check(
+				absf(other - footprint) >= 0.15,
+				"%s glyph ink coverage is separable from every other state (%.3f vs %.3f m^2)"
+					% [state, footprint, other]
+			)
+		seen_footprints.append(footprint)
+	_check(
+		seen_glyph_meshes.size() == 5,
+		"the three glyphs are drawn by five mutually exclusive meshes (%d)" % seen_glyph_meshes.size()
+	)
+	# The shape channel must be as fail-red as every other frozen contract: a
+	# glyph shown outside its own state is drift, not decoration.
+	_check(bool(feedback.get_audit_report().valid), "shape-channel mutation fixture starts green in the open state")
+	var secured_glyph := feedback.get_node("FeedbackVisual/GlyphSecuredBar") as MeshInstance3D
+	secured_glyph.visible = true
+	_check(
+		not bool(feedback.get_audit_report().valid),
+		"audit rejects the secured glyph rendered on an open berth"
+	)
+	secured_glyph.visible = false
+	_check(bool(feedback.get_audit_report().valid), "hiding the wrong-state glyph restores a green audit")
+	var gate_glyph := feedback.get_node("FeedbackVisual/GlyphGatePort") as MeshInstance3D
+	gate_glyph.visible = false
+	_check(
+		not bool(feedback.get_audit_report().valid),
+		"audit rejects an open berth that has stopped drawing its own gate glyph"
+	)
+	gate_glyph.visible = true
+	_check(bool(feedback.get_audit_report().valid), "restoring the open-state glyph restores a green audit")
 
 
 func _on_reentry_listener_a(state: StringName) -> void:

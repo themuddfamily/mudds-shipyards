@@ -6,6 +6,34 @@ extends Node3D
 ## The direct parent remains the sole reservation/occupancy authority. This
 ## component only renders that existing state and deliberately owns no collision,
 ## navigation, audio, timers, tweens, particles, or random behaviour.
+##
+## Colour-vision readability. Lease state used to be signalled by colour alone,
+## in cyan / amber / green. Measured with `tests/fleet_colour_metrics.gd` (the one
+## shared sRGB -> Viénot -> CIE L*a*b* -> CIEDE2000 chain), the released/occupied
+## pair scored only 27.72 in normal vision, 22.63 under protanopia, 18.38 under
+## deuteranopia and **2.77 under tritanopia** — at or below the practical
+## just-noticeable difference, so a tritanope could not tell an open berth from an
+## occupied one at all, and a deuteranope could not reliably separate approach
+## from occupied. Two things changed, both frozen by
+## `tests/ship_berth_feedback_test.gd`:
+##
+## 1. The cue triad moved onto a lightness ladder as well as a hue ladder, since
+##    lightness is the one channel every dichromacy model preserves. Pale cyan
+##    (L* 90) / orange (L* 66) / blue (L* 40) now measure at worst 41.94 across
+##    all four vision models.
+## 2. A second, non-colour channel was added: a deck glyph whose *shape* encodes
+##    the state — a broken gate for released, a chevron for approach, one solid
+##    unbroken bar for secured. It is static geometry, not motion, so it degrades
+##    gracefully under the reduced-motion accessibility preset and it survives a
+##    fully desaturated frame.
+##
+## The palette is safe by default rather than gated behind
+## `RuntimeSettings.colorblind_palette`. An accessibility option a player has to
+## discover helps fewer people than a design that works unconfigured, and gating
+## it would give this deliberately dependency-free presentation component a live
+## settings dependency it does not otherwise have. The HUD presets in
+## `scripts/ui/hud_palette.gd` remain the right mechanism for the HUD, whose
+## authored set has other constraints; nothing here reads or overrides them.
 
 signal state_changed(state: StringName)
 
@@ -15,10 +43,61 @@ const STATE_RELEASED: StringName = &"released"
 const STATE_APPROACH: StringName = &"approach"
 const STATE_OCCUPIED: StringName = &"occupied"
 const VALID_STATES := [STATE_RELEASED, STATE_APPROACH, STATE_OCCUPIED]
-const MESH_COUNT := 11
+# Re-frozen 11 -> 16: the five added meshes are the shape-coded state glyph (two
+# gate marks, two chevron arms, one secured bar), which is the non-colour channel
+# described above. Nothing else about the budget moved; the material count, the
+# five-material ceiling, and the zero-authority prohibitions are unchanged.
+const MESH_COUNT := 16
 const MATERIAL_COUNT := 4
 const RENDER_MIN_Y := 0.14
 const RENDER_MAX_Y := 0.22
+
+## Stable IDs for the shape channel, published in the state snapshot so an audit
+## can prove the non-colour cue exists and differs per state without inspecting
+## geometry.
+const GLYPH_GATE_OPEN: StringName = &"gate_open"
+const GLYPH_APPROACH_CHEVRON: StringName = &"approach_chevron"
+const GLYPH_SECURED_BAR: StringName = &"secured_bar"
+const GLYPH_NONE: StringName = &""
+
+# Authored cue palette. Re-frozen openly; old -> new, with the reason recorded in
+# the class header and the measured separations frozen in the test suite.
+#   released albedo   Color(0.08,  0.38,  0.44 ) -> #57848c
+#   released emission Color(0.20,  0.94,  1.0  ) -> #9ff0ff   (energy 1.15, unchanged)
+#   approach albedo   Color(0.40,  0.23,  0.055) -> #8c4304
+#   approach emission Color(1.0,   0.55,  0.12 ) -> #ff7a08   (energy 1.25 -> 1.30)
+#   occupied albedo   Color(0.075, 0.30,  0.22 ) -> #1a2d70
+#   occupied emission Color(0.28,  1.0,   0.65 ) -> #2f52cc   (energy 1.00 -> 1.45)
+#   inactive albedo   Color(0.055, 0.10,  0.12 ) -> #12141a
+#   inactive emission Color(0.08,  0.22,  0.25 ) -> #2a2d36   (energy 0.18, unchanged)
+# The occupied emission is the one that carries the semantic cost: "secured" used
+# to be green. Green cannot be held apart from the released cyan by anyone with a
+# tritan deficiency, and the released cue must stay the bright inviting one, so
+# secured moved to the far end of the lightness ladder instead. Its emission
+# energy rose to 1.45 so the darker authored blue still reads as a lit deck cue;
+# even after the shader clips that product the triad still measures 31.23 at
+# worst across the four vision models. The inactive boundary tone was neutralised
+# off teal so a dimmed boundary can never be misread as the released cue.
+const ALBEDO_RELEASED := Color("57848c")
+const ALBEDO_APPROACH := Color("8c4304")
+const ALBEDO_OCCUPIED := Color("1a2d70")
+const ALBEDO_INACTIVE := Color("12141a")
+const EMISSION_RELEASED := Color("9ff0ff")
+const EMISSION_APPROACH := Color("ff7a08")
+const EMISSION_OCCUPIED := Color("2f52cc")
+const EMISSION_INACTIVE := Color("2a2d36")
+const EMISSION_ENERGY_RELEASED := 1.15
+const EMISSION_ENERGY_APPROACH := 1.30
+const EMISSION_ENERGY_OCCUPIED := 1.45
+const EMISSION_ENERGY_INACTIVE := 0.18
+
+# Label tint. Re-frozen from Color(0.45,0.95,1.0)/Color(1.0,0.68,0.22)/
+# Color(0.42,1.0,0.72): the old label triad measured 1.46 under tritanopia, the
+# single worst number in the component. Every replacement stays bright because
+# the label is read against the deck through a 10 px outline.
+const LABEL_RELEASED := Color("c8f7ff")
+const LABEL_APPROACH := Color("ffa02a")
+const LABEL_OCCUPIED := Color("6f88ee")
 
 @export_range(1.5, 40.0, 0.1) var cue_half_width := 8.2
 @export_range(1.5, 50.0, 0.1) var cue_half_length := 12.5
@@ -31,6 +110,8 @@ var _meshes: Array[MeshInstance3D] = []
 var _boundary_meshes: Array[MeshInstance3D] = []
 var _guide_meshes: Array[MeshInstance3D] = []
 var _status_meshes: Array[MeshInstance3D] = []
+var _glyph_meshes: Array[MeshInstance3D] = []
+var _glyph_mesh_states: Array[StringName] = []
 var _materials: Dictionary = {}
 var _material_instance_ids: Dictionary = {}
 var _material_contracts: Dictionary = {}
@@ -169,7 +250,39 @@ func get_state_snapshot() -> Dictionary:
 		"paused": _feedback_paused,
 		"auto_advance": _auto_advance,
 		"label": _label.text if is_instance_valid(_label) else "",
+		# The non-colour channel, published so an audit can prove it exists and
+		# differs per state without reaching into the geometry itself.
+		"cue_glyph": get_state_glyph_id(_state),
+		"cue_glyph_mesh_names": _visible_glyph_mesh_names(),
+		"cue_glyph_footprint": _visible_glyph_footprint(),
 	}.duplicate(true)
+
+
+## Names of the glyph meshes rendered in the live state, sorted so the value is a
+## stable signature rather than a build-order artefact.
+func _visible_glyph_mesh_names() -> PackedStringArray:
+	var names := PackedStringArray()
+	for index in _glyph_meshes.size():
+		var glyph := _glyph_meshes[index]
+		if is_instance_valid(glyph) and _glyph_mesh_states[index] == _state:
+			names.append(String(glyph.name))
+	names.sort()
+	return names
+
+
+## Deck area the live state's glyph covers, in square metres. Ink coverage is the
+## part of the shape channel that survives distance and desaturation, so it is
+## published as evidence rather than left implicit in the mesh sizes.
+func _visible_glyph_footprint() -> float:
+	var area := 0.0
+	for index in _glyph_meshes.size():
+		var glyph := _glyph_meshes[index]
+		if not is_instance_valid(glyph) or _glyph_mesh_states[index] != _state:
+			continue
+		var box := glyph.mesh as BoxMesh
+		if box != null:
+			area += box.size.x * box.size.z
+	return area
 
 
 func get_evidence_metadata() -> Dictionary:
@@ -359,6 +472,8 @@ func _build_presentation() -> void:
 		)
 		_status_meshes.append(status)
 
+	_build_state_glyph()
+
 	_label = Label3D.new()
 	_label.name = "LeaseStateLabel"
 	_label.position = Vector3(0.0, 0.34, -minf(2.2, cue_half_length * 0.18))
@@ -366,7 +481,7 @@ func _build_presentation() -> void:
 	_label.font_size = 48
 	_label.pixel_size = 0.004
 	_label.outline_size = 10
-	_label.modulate = Color(0.45, 0.95, 1.0)
+	_label.modulate = LABEL_RELEASED
 	_label.no_depth_test = false
 	# The label faces deck-up only. A one-sided face avoids mirrored text when a
 	# camera looks back through the station lattice from below the berth.
@@ -377,12 +492,84 @@ func _build_presentation() -> void:
 	_apply_visual_state()
 
 
+## Builds the shape channel: one deck glyph per lease state, of which exactly one
+## is ever visible. Shape, not colour, carries the distinction — two separated
+## gate marks for an open berth, a chevron pointing down the approach for a
+## reserved one, and a single unbroken bar for a secured one. Ink coverage rises
+## monotonically across the three, so the states remain separable in a fully
+## desaturated frame and at a distance where the Label3D copy is unreadable.
+##
+## This is static geometry with no clock of its own, so it is unaffected by the
+## reduced-motion preset; the only animated element in the component remains the
+## approach guides, which were already a state-exclusive channel.
+func _build_state_glyph() -> void:
+	var half_span := maxf(0.55, minf(3.4, cue_half_width * 0.42))
+	# Placed across the forward mouth of the berth rather than at its centre. The
+	# first render put the glyph beside the lease plate, where a parked hull
+	# occluded most of it and the two elements read as one smudge; at the mouth it
+	# is unobstructed in every state and it is where a gate/chevron/barrier
+	# metaphor belongs. It stays well inside the boundary rectangle, so the
+	# component's render AABB — which the evidence camera frames on — is unchanged.
+	var glyph_z := -cue_half_length * 0.62
+	var bar_depth := 0.34
+
+	# Released: two lateral marks with a wide open gap between them.
+	var gate_length := half_span * 0.55
+	for side in [-1.0, 1.0]:
+		var gate := _add_box(
+			"GlyphGate%s" % ("Port" if side < 0.0 else "Starboard"),
+			Vector3(side * (half_span - gate_length * 0.5), 0.18, glyph_z),
+			Vector3(gate_length, 0.08, bar_depth),
+			_materials.cyan
+		)
+		_register_glyph(gate, STATE_RELEASED)
+
+	# Approach: a chevron whose apex points forward, down the approach axis.
+	var arm_length := half_span * 0.9
+	var arm_angle := deg_to_rad(32.0)
+	for side in [-1.0, 1.0]:
+		var arm := _add_box(
+			"GlyphChevron%s" % ("Port" if side < 0.0 else "Starboard"),
+			Vector3(side * arm_length * cos(arm_angle) * 0.5, 0.18, glyph_z),
+			Vector3(arm_length, 0.08, bar_depth),
+			_materials.amber
+		)
+		arm.rotation.y = -side * arm_angle
+		_register_glyph(arm, STATE_APPROACH)
+
+	# Occupied: one solid unbroken bar closing the same mouth the gate left open.
+	var secured := _add_box(
+		"GlyphSecuredBar",
+		Vector3(0.0, 0.18, glyph_z),
+		Vector3(half_span * 2.0, 0.08, bar_depth * 1.55),
+		_materials.secured
+	)
+	_register_glyph(secured, STATE_OCCUPIED)
+
+
+func _register_glyph(mesh: MeshInstance3D, state: StringName) -> void:
+	_glyph_meshes.append(mesh)
+	_glyph_mesh_states.append(state)
+
+
+## Stable ID of the shape shown for `state`. Published in the state snapshot so a
+## test can prove the non-colour channel exists and differs per state.
+static func get_state_glyph_id(state: StringName) -> StringName:
+	if state == STATE_APPROACH:
+		return GLYPH_APPROACH_CHEVRON
+	if state == STATE_OCCUPIED:
+		return GLYPH_SECURED_BAR
+	if state == STATE_RELEASED:
+		return GLYPH_GATE_OPEN
+	return GLYPH_NONE
+
+
 func _build_materials() -> void:
 	_materials = {
-		"dim": _make_material(Color(0.055, 0.10, 0.12), Color(0.08, 0.22, 0.25), 0.18),
-		"cyan": _make_material(Color(0.08, 0.38, 0.44), Color(0.20, 0.94, 1.0), 1.15),
-		"amber": _make_material(Color(0.40, 0.23, 0.055), Color(1.0, 0.55, 0.12), 1.25),
-		"secured": _make_material(Color(0.075, 0.30, 0.22), Color(0.28, 1.0, 0.65), 1.0),
+		"dim": _make_material(ALBEDO_INACTIVE, EMISSION_INACTIVE, EMISSION_ENERGY_INACTIVE),
+		"cyan": _make_material(ALBEDO_RELEASED, EMISSION_RELEASED, EMISSION_ENERGY_RELEASED),
+		"amber": _make_material(ALBEDO_APPROACH, EMISSION_APPROACH, EMISSION_ENERGY_APPROACH),
+		"secured": _make_material(ALBEDO_OCCUPIED, EMISSION_OCCUPIED, EMISSION_ENERGY_OCCUPIED),
 	}
 	_material_instance_ids.clear()
 	for material_id: StringName in _materials:
@@ -484,7 +671,7 @@ func _mesh_matches_contract(mesh: MeshInstance3D, contract: Dictionary) -> bool:
 			var phase := fposmod(_elapsed, 1.0)
 			var direction := -signf(expected_transform.origin.z)
 			expected_transform.origin.z += direction * phase * minf(0.85, _built_cue_half_length * 0.07)
-	var expected_visible := _state == STATE_APPROACH if _guide_meshes.has(mesh) else true
+	var expected_visible := _expected_visibility_for_mesh(mesh)
 	var expected_material := _expected_material_for_mesh(mesh)
 	return get_node_or_null(contract.get("path", NodePath())) == mesh \
 		and mesh.transform.is_equal_approx(expected_transform) \
@@ -506,9 +693,22 @@ func _mesh_matches_contract(mesh: MeshInstance3D, contract: Dictionary) -> bool:
 		)
 
 
+## Whether `mesh` is rendered in the live state. Guides are approach-exclusive,
+## and each state glyph is exclusive to the one state whose shape it draws.
+func _expected_visibility_for_mesh(mesh: MeshInstance3D) -> bool:
+	if _guide_meshes.has(mesh):
+		return _state == STATE_APPROACH
+	var glyph_index := _glyph_meshes.find(mesh)
+	if glyph_index >= 0:
+		return _glyph_mesh_states[glyph_index] == _state
+	return true
+
+
 func _expected_material_for_mesh(mesh: MeshInstance3D) -> Material:
 	if _guide_meshes.has(mesh):
 		return _materials.get("amber") as Material
+	if _glyph_meshes.has(mesh):
+		return _active_state_material()
 	if _boundary_meshes.has(mesh):
 		return (
 			_materials.get("dim") as Material
@@ -608,13 +808,13 @@ func _stable_contract_value(value: Variant) -> Variant:
 
 func _state_label_contract() -> Dictionary:
 	var text_value := "BERTH OPEN"
-	var color := Color(0.45, 0.95, 1.0)
+	var color := LABEL_RELEASED
 	if _state == STATE_APPROACH:
 		text_value = "APPROACH VECTOR"
-		color = Color(1.0, 0.68, 0.22)
+		color = LABEL_APPROACH
 	elif _state == STATE_OCCUPIED:
 		text_value = "BERTH SECURED"
-		color = Color(0.42, 1.0, 0.72)
+		color = LABEL_OCCUPIED
 	color.a = 1.0 if _state == STATE_OCCUPIED else 0.88 + 0.12 * sin(_elapsed * TAU)
 	return {"text": text_value, "modulate": color}
 
@@ -736,15 +936,15 @@ func _apply_visual_state() -> void:
 		return
 	var active_material := _materials.get("cyan") as Material
 	var label_text := "BERTH OPEN"
-	var label_color := Color(0.45, 0.95, 1.0)
+	var label_color := LABEL_RELEASED
 	if _state == STATE_APPROACH:
 		active_material = _materials.get("amber") as Material
 		label_text = "APPROACH VECTOR"
-		label_color = Color(1.0, 0.68, 0.22)
+		label_color = LABEL_APPROACH
 	elif _state == STATE_OCCUPIED:
 		active_material = _materials.get("secured") as Material
 		label_text = "BERTH SECURED"
-		label_color = Color(0.42, 1.0, 0.72)
+		label_color = LABEL_OCCUPIED
 	for mesh in _boundary_meshes:
 		if is_instance_valid(mesh):
 			mesh.material_override = active_material if _state != STATE_APPROACH else _materials.dim
@@ -755,6 +955,15 @@ func _apply_visual_state() -> void:
 	for mesh in _status_meshes:
 		if is_instance_valid(mesh):
 			mesh.material_override = active_material
+	# The shape channel. Exactly one glyph is ever rendered, and which one is
+	# decided by the state alone, so a viewer who cannot separate the three cue
+	# hues still reads three unmistakably different silhouettes.
+	for index in _glyph_meshes.size():
+		var glyph := _glyph_meshes[index]
+		if not is_instance_valid(glyph):
+			continue
+		glyph.visible = _glyph_mesh_states[index] == _state
+		glyph.material_override = active_material
 	if is_instance_valid(_label):
 		_label.text = label_text
 		_label.modulate = label_color
