@@ -1,0 +1,40 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/salvage_terrace.gd" id="1_module"]
+
+[node name="SalvageTerrace" type="Node3D"]
+script = ExtResource("1_module")
+
+[node name="ModuleAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="RouteConnector" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 0)
+
+[node name="RouteEntry" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 4)
+
+[node name="RouteLowerPad" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-12, 0.15, 7)
+
+[node name="RouteMainRampBase" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(6, 0.15, 5)
+
+[node name="RouteUpperPad" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(18, 3.75, 5)
+
+[node name="RouteInspectionRampBase" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(23, 3.75, 10)
+
+[node name="RouteInspectionPad" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(23, 5.55, 16)
+
+[node name="GeneratedRoot" type="Node3D" parent="."]
+unique_name_in_owner = true
