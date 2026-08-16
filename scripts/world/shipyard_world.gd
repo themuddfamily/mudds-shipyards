@@ -416,7 +416,7 @@ const STATION_DRESSING_SPECS := {
 	&"FreightRackServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/FreightRackServiceDressing"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), "length": 20.0, "profile": &"light", "orientation": &"along_mount_x"},
 }
 const STATION_NAVIGATION_SCHEMA_VERSION := 1
-const EXPECTED_STATION_SERVICE_AGENT_COUNT := 5
+const EXPECTED_STATION_SERVICE_AGENT_COUNT := 6
 const STATION_SERVICE_AGENT_MINIMUM_BERTH_GAP := 0.15
 ## Metres the bottom of a courier's published envelope must clear the highest
 ## waypoint of its own route by. The route markers sit on the connector deck, so
@@ -487,6 +487,16 @@ const STATION_SERVICE_AGENT_SPECS := {
 		"speed": 0.95,
 		"lift": 3.7,
 	},
+	&"observation-logistics-courier": {
+		"node_name": &"ObservationLogisticsServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier"),
+		"slot_id": &"observation-logistics-spur-origin",
+		"from_node_id": &"station-hub:observation-logistics-spur-origin",
+		"to_node_id": &"observation-logistics-spur:origin",
+		"seed": 12847,
+		"speed": 0.9,
+		"lift": 3.7,
+	},
 }
 const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 const STATION_SERVICE_AGENT_SCENE := preload("res://scenes/world/components/station_service_agent.tscn")
@@ -532,6 +542,15 @@ const STATION_HUB_ENDPOINT_DECLARATIONS := [
 		"expects_module": &"fabrication_annex",
 		"evidence_status": &"modern_interpretation",
 		"anchor_path": "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC",
+	},
+	{
+		"slot_id": &"observation-logistics-spur-origin",
+		"expects_module": &"observation-logistics-spur",
+		"evidence_status": &"modern_interpretation",
+		# The courier component requires at least one metre of declared travel. This
+		# world-owned anchor is on the real rear-aisle floor immediately behind the
+		# split rail; it never borrows endpoint authority from a module subtree.
+		"anchor_path": "ExposedDockLattice/ObservationLogisticsConnector/RouteAnchor",
 	},
 ]
 const CENTRAL_BERTH_HERO_PRESENTATION_SCENE := preload(
@@ -691,6 +710,7 @@ const SKY_DUST_SCALE := 3.4
 @onready var jovian_freight_berth: JovianFreightBerth = $JovianFreightBerth
 @onready var fleet_dock_comb: FleetDockComb = $FleetDockComb
 @onready var fabrication_annex: FabricationAnnex = $FabricationAnnex
+@onready var observation_logistics_spur: ObservationLogisticsSpur = $ObservationLogisticsSpur
 @onready var nearby_sector_cluster: NearbySectorCluster = $NearbySectorCluster
 
 var _materials: Dictionary = {}
@@ -1626,7 +1646,7 @@ func get_station_navigation_audit_report() -> Dictionary:
 	if not _instance_id_sets_match(registered_agent_instance_ids, live_agent_instance_ids):
 		errors.append("station service agent registry does not match the live world hierarchy")
 	if _station_service_agents.size() != EXPECTED_STATION_SERVICE_AGENT_COUNT:
-		errors.append("station must integrate exactly five declared-slot service couriers")
+		errors.append("station must integrate exactly six declared-slot service couriers")
 
 	var berth_volumes: Array[AABB] = []
 	for berth_id in get_berth_ids():
@@ -4021,6 +4041,46 @@ func _build_architecture() -> void:
 			rail_spec[0] as String,
 			rail_spec[1] as Vector3,
 			rail_spec[2] as Vector3,
+			_materials["ivory"]
+		)
+
+	# OBSERVATION-LOGISTICS-INTEGRATION-001. This half-metre world-owned deck is
+	# the complete handoff between Fabrication's rear boundary at x=92 and the
+	# Observation spur origin at x=92.5. The production Fabrication instance
+	# atomically replaces its full rear rail with the two returned twelve-metre
+	# segments, leaving exactly the connector's four-metre opening at z=36..40.
+	var observation_connector := Node3D.new()
+	observation_connector.name = "ObservationLogisticsConnector"
+	observation_connector.set_meta(&"evidence_status", &"modern_interpretation")
+	observation_connector.set_meta(&"connects_station_module", &"observation-logistics-spur")
+	shell.add_child(observation_connector)
+	var observation_route_anchor := Node3D.new()
+	observation_route_anchor.name = "RouteAnchor"
+	observation_route_anchor.position = Vector3(91.0, 0.53, 38.0)
+	observation_route_anchor.set_meta(&"station_hub_route_anchor", true)
+	observation_route_anchor.set_meta(&"route_support", &"fabrication_rear_aisle_to_observation_connector")
+	observation_connector.add_child(observation_route_anchor)
+	var observation_connector_deck := _box(
+		observation_connector,
+		"ConnectorDeck",
+		Vector3(92.25, 0.23, 38.0),
+		Vector3(0.5, 0.3, 4.0),
+		_materials["deck_light"]
+	)
+	observation_connector_deck.set_meta(&"walkable_surface", true)
+	observation_connector_deck.set_meta(&"walkable_surface_id", &"observation_logistics_connector")
+	observation_connector_deck.set_meta(&"walkable_surface_kind", &"level")
+	observation_connector_deck.set_meta(&"walkable_surface_owner", &"station_hub")
+	observation_connector_deck.set_meta(&"horizontal_area_m2", 2.0)
+	for rail_spec in [
+		["ConnectorRailSouth", Vector3(92.25, 1.0, 35.88)],
+		["ConnectorRailNorth", Vector3(92.25, 1.0, 40.12)],
+	]:
+		_box(
+			observation_connector,
+			rail_spec[0] as String,
+			rail_spec[1] as Vector3,
+			Vector3(0.5, 1.24, 0.16),
 			_materials["ivory"]
 		)
 

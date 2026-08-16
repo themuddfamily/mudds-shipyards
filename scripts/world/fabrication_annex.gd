@@ -40,6 +40,25 @@ const PERFORMANCE_BUDGETS := {
 	"physics_process_loops": 0,
 	"nodes": 132,
 }
+const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
+	"mesh_instances": 35,
+	"multi_mesh_instances": 12,
+	"geometry_instances": 47,
+	"visible_geometry_copies": 130,
+	"multi_mesh_drawn_copies": 95,
+	"static_bodies": 35,
+	"collision_shapes": 35,
+	"labels": 3,
+	"lights": 6,
+	"process_loops": 0,
+	"physics_process_loops": 0,
+	"nodes": 135,
+}
+
+## Production integration seam. The standalone module keeps its complete rear
+## rail; ShipyardWorld opts into an atomic four-metre opening only when the
+## collision-backed Observation connector is present at the same boundary.
+@export var observation_rear_gate_open := false
 
 var _built := false
 var _enabled := true
@@ -132,13 +151,19 @@ func _build_guardrails() -> void:
 	for x in [-14.0, 14.0]:
 		for z in [7.0, 17.0]:
 			_add_rail_run(Vector3(x, 0.72, z), Vector3(0.14, 1.44, 6.0))
-	_add_rail_run(Vector3(0.0, 0.72, 20.0), Vector3(28.0, 1.44, 0.14))
+	if observation_rear_gate_open:
+		var north_return := _add_rail_run(Vector3(-8.0, 0.72, 20.0), Vector3(12.0, 1.44, 0.14))
+		north_return.set_meta(&"fabrication_rear_rail_return_segment", &"north")
+		var south_return := _add_rail_run(Vector3(8.0, 0.72, 20.0), Vector3(12.0, 1.44, 0.14))
+		south_return.set_meta(&"fabrication_rear_rail_return_segment", &"south")
+	else:
+		_add_rail_run(Vector3(0.0, 0.72, 20.0), Vector3(28.0, 1.44, 0.14))
 	for x in [-4.0, 4.0]:
 		_add_rail_run(Vector3(x, 0.72, 2.0), Vector3(0.14, 1.44, 4.0))
 
 
-func _add_rail_run(at: Vector3, collider_size: Vector3) -> void:
-	_add_solid("GuardrailCollider", collider_size, at, &"rail")
+func _add_rail_run(at: Vector3, collider_size: Vector3) -> StaticBody3D:
+	var collider := _add_solid("GuardrailCollider", collider_size, at, &"rail")
 	var horizontal := collider_size.x > collider_size.z
 	var rail_size := Vector3(collider_size.x, 0.1, collider_size.z)
 	for y in [0.55, 1.1]:
@@ -153,6 +178,7 @@ func _add_rail_run(at: Vector3, collider_size: Vector3) -> void:
 		else:
 			position.z += offset
 		_add_mesh("RailPost", Vector3(0.12, 1.2, 0.12), Vector3(position.x, 0.6, position.z), &"rail")
+	return collider
 
 
 func _build_work_bays() -> void:
@@ -519,8 +545,41 @@ func get_authority_contract() -> Dictionary:
 	return contract
 
 
+func get_rear_observation_gate_contract() -> Dictionary:
+	var segments: Array[Dictionary] = []
+	for raw_body in StationModuleContract.collect_static_bodies(self):
+		var body := raw_body as StaticBody3D
+		var segment_id := StringName(body.get_meta(&"fabrication_rear_rail_return_segment", &""))
+		if segment_id.is_empty():
+			continue
+		var shape := _body_box_shape(body)
+		segments.append({
+			"segment_id": segment_id,
+			"body_path": get_path_to(body),
+			"local_center": body.position,
+			"world_center": body.global_position,
+			"size": shape.size if shape != null else Vector3.ZERO,
+		})
+	segments.sort_custom(
+		func(first: Dictionary, second: Dictionary) -> bool:
+			return str(first.segment_id) < str(second.segment_id)
+	)
+	return {
+		"enabled": observation_rear_gate_open,
+		"opening_local_x": Vector2(-2.0, 2.0),
+		"opening_width_m": 4.0,
+		"rear_boundary_local_z": 20.0,
+		"returned_segments": segments,
+	}
+
+
+func _active_performance_budgets() -> Dictionary:
+	return OBSERVATION_GATE_PERFORMANCE_BUDGETS if observation_rear_gate_open else PERFORMANCE_BUDGETS
+
+
 func get_performance_contract() -> Dictionary:
-	var contract := StationModuleContract.build_performance_contract(self, PERFORMANCE_BUDGETS)
+	var budgets := _active_performance_budgets()
+	var contract := StationModuleContract.build_performance_contract(self, budgets)
 	var render := get_render_submission_contract()
 	contract["multi_mesh_instances"] = render.multi_mesh_batches
 	contract["multi_mesh_drawn_copies"] = render.multi_mesh_drawn_copies
@@ -530,11 +589,11 @@ func get_performance_contract() -> Dictionary:
 	contract["nodes"] = nodes
 	contract["within_budget"] = (
 		bool(contract.within_budget)
-		and int(contract.multi_mesh_instances) <= int(PERFORMANCE_BUDGETS.multi_mesh_instances)
-		and int(contract.multi_mesh_drawn_copies) <= int(PERFORMANCE_BUDGETS.multi_mesh_drawn_copies)
-		and int(contract.geometry_instances) <= int(PERFORMANCE_BUDGETS.geometry_instances)
-		and int(contract.visible_geometry_copies) <= int(PERFORMANCE_BUDGETS.visible_geometry_copies)
-		and nodes <= int(PERFORMANCE_BUDGETS.nodes)
+		and int(contract.multi_mesh_instances) <= int(budgets.multi_mesh_instances)
+		and int(contract.multi_mesh_drawn_copies) <= int(budgets.multi_mesh_drawn_copies)
+		and int(contract.geometry_instances) <= int(budgets.geometry_instances)
+		and int(contract.visible_geometry_copies) <= int(budgets.visible_geometry_copies)
+		and nodes <= int(budgets.nodes)
 	)
 	return contract
 
@@ -583,17 +642,33 @@ func get_validation_errors() -> PackedStringArray:
 	if int(authority.ship_berth_count) != 0 or int(authority.landing_or_interaction_area_count) != 0 or int(authority.activity_node_count) != 0:
 		errors.append("forbidden gameplay authority entered the annex")
 	var performance := get_performance_contract()
+	var budgets := _active_performance_budgets()
 	if not bool(performance.within_budget):
 		errors.append("performance budget exceeded")
 	for budget_key in ["mesh_instances", "multi_mesh_instances", "multi_mesh_drawn_copies", "geometry_instances", "visible_geometry_copies", "static_bodies", "collision_shapes", "labels", "lights", "nodes"]:
-		if int(performance.get(budget_key, -1)) != int(PERFORMANCE_BUDGETS.get(budget_key, -2)):
+		if int(performance.get(budget_key, -1)) != int(budgets.get(budget_key, -2)):
 			errors.append("frozen performance count drifted: %s" % budget_key)
 	var render := get_render_submission_contract()
 	if not bool(render.forward_plus_buffers_match_authored) or int(render.authored_transform_count) != int(render.multi_mesh_drawn_copies):
 		errors.append("Forward+ MultiMesh buffers drifted from authored transforms")
 	var naming := get_deterministic_naming_contract()
-	if int(naming.node_count) != int(PERFORMANCE_BUDGETS.nodes) or int(naming.generated_name_allocation_count) != 52 or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
+	var expected_name_allocations := 53 if observation_rear_gate_open else 52
+	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
+	var rear_gate := get_rear_observation_gate_contract()
+	if observation_rear_gate_open:
+		var returned := rear_gate.returned_segments as Array
+		var exact_segments := returned.size() == 2
+		var expected_centers := {&"north": Vector3(-8.0, 0.72, 20.0), &"south": Vector3(8.0, 0.72, 20.0)}
+		for entry_variant in returned:
+			var entry := entry_variant as Dictionary
+			var segment_id := StringName(entry.segment_id)
+			exact_segments = exact_segments \
+				and expected_centers.has(segment_id) \
+				and (entry.local_center as Vector3).is_equal_approx(expected_centers[segment_id] as Vector3) \
+				and (entry.size as Vector3).is_equal_approx(Vector3(12.0, 1.44, 0.14))
+		if not exact_segments:
+			errors.append("Observation rear gate returned rail segments drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.visible_matches_enabled) or not bool(lifecycle.collision_matches_enabled):
 		errors.append("lifecycle state drifted")

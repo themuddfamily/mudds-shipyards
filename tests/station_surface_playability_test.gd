@@ -21,6 +21,7 @@ const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckA",
 	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckB",
 	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC",
+	"ExposedDockLattice/ObservationLogisticsConnector/ConnectorDeck",
 	# HALYARD-DECK-001. Fleet Dock 02's berth apron. The comb's 12 x 12 m tooth is
 	# the middle of this pad, not the whole of it: the 28.35 m Halyard needs deck
 	# fore and aft of it, and a player needs a loop round the craft.
@@ -85,6 +86,14 @@ const FABRICATION_SURFACE_PATHS := [
 	"GeneratedAnnex/RearCrossAisle",
 ]
 
+const OBSERVATION_LOGISTICS_SURFACE_PATHS := [
+	"Structure/Walkable/ExposedConnectorDeck",
+	"Structure/Walkable/PadCrossLanding",
+	"Structure/Walkable/ObservationPad",
+	"Structure/Walkable/LogisticsPad",
+	"Structure/Walkable/FarReturnBridge",
+]
+
 var _failures: Array[String] = []
 
 
@@ -116,6 +125,7 @@ func _run() -> void:
 
 	_test_collision_backed_surface_roster(world)
 	_test_fabrication_annex_siting(world)
+	_test_observation_logistics_siting(world, game.get_flyable_ships())
 	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
 	await _test_discovered_walkable_surface_support(world)
@@ -126,6 +136,8 @@ func _run() -> void:
 	await _test_fleet_comb_ramp(world, player)
 	if OS.get_cmdline_user_args().has("--capture-fabrication-integration"):
 		await _capture_fabrication_integration_frame(game, world)
+	if OS.get_cmdline_user_args().has("--capture-observation-integration"):
+		await _capture_observation_integration_frame(game, world)
 
 	_release_actions()
 	game.queue_free()
@@ -141,7 +153,8 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 	var freight := world.get_node_or_null(^"JovianFreightBerth") as JovianFreightBerth
 	var comb := world.get_node_or_null(^"FleetDockComb") as FleetDockComb
 	var fabrication := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
-	_check(aft != null and habitat != null and freight != null and comb != null and fabrication != null, "all reachable station modules resolve for surface coverage")
+	var observation := world.get_node_or_null(^"ObservationLogisticsSpur") as ObservationLogisticsSpur
+	_check(aft != null and habitat != null and freight != null and comb != null and fabrication != null and observation != null, "all reachable station modules resolve for surface coverage")
 
 	var every_surface_exact := _surface_roster_matches(world, WORLD_SURFACE_PATHS)
 	if aft != null:
@@ -154,7 +167,9 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(comb, COMB_SURFACE_PATHS) and every_surface_exact
 	if fabrication != null:
 		every_surface_exact = _surface_roster_matches(fabrication, FABRICATION_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 57 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	if observation != null:
+		every_surface_exact = _surface_roster_matches(observation, OBSERVATION_LOGISTICS_SURFACE_PATHS) and every_surface_exact
+	_check(every_surface_exact, "all 63 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
@@ -176,6 +191,10 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
 		if collision == null:
 			collision = body.get_node_or_null(^"RampCollision") as CollisionShape3D
+		if collision == null:
+			for candidate in body.find_children("*", "CollisionShape3D", false, false):
+				collision = candidate as CollisionShape3D
+				break
 		if mesh_instance == null or mesh_instance.mesh == null or collision == null or collision.shape == null or collision.disabled:
 			print("SURFACE_ROSTER_INVALID_CHILDREN: ", owner.name, "/", raw_path)
 			valid = false
@@ -256,7 +275,9 @@ func _test_fabrication_annex_siting(world: ShipyardWorld) -> void:
 	var intrusions := PackedStringArray()
 	for raw_other in world.find_children("*", "StaticBody3D", true, false):
 		var other := raw_other as StaticBody3D
-		if connector.is_ancestor_of(other) or annex.is_ancestor_of(other):
+		var observation_connector := world.get_node_or_null(^"ExposedDockLattice/ObservationLogisticsConnector") as Node3D
+		if connector.is_ancestor_of(other) or annex.is_ancestor_of(other) \
+				or (observation_connector != null and observation_connector.is_ancestor_of(other)):
 			continue
 		var other_box := _collision_body_box(other)
 		if not other_box.has_volume():
@@ -295,30 +316,45 @@ func _test_fabrication_annex_siting(world: ShipyardWorld) -> void:
 		local_footprint.local_min as Vector3,
 		(local_footprint.local_max as Vector3) - (local_footprint.local_min as Vector3)
 	)).abs()
-	# The subsequent Observation integration owns the atomic rear-rail split and
-	# its own 2 m2 connector. This slice only proves it has not trespassed on that
-	# work: the current envelope ends at x=92.2, 0.3 m before the reviewed future
-	# origin, and the rear rail remains intact until that connector lands.
-	var observation_future_origin_x := 92.5
-	var observation_root_standoff := observation_future_origin_x - annex_bounds.end.x
-	var rear_rail_intact := false
-	for candidate in annex.find_children("*", "StaticBody3D", true, false):
-		var body := candidate as StaticBody3D
-		if body.position.is_equal_approx(Vector3(0.0, 0.72, 20.0)):
-			var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
-			var shape := collision.shape as BoxShape3D if collision != null else null
-			rear_rail_intact = shape != null and shape.size.is_equal_approx(Vector3(28.0, 1.44, 0.14))
-	print(
-		"FABRICATION_OBSERVATION_RESERVATION: envelope_max_x=%.6f standoff=%.6f rear_rail_intact=%s" % [
-			annex_bounds.end.x, observation_root_standoff, rear_rail_intact,
-		]
-	)
+	var observation_root_standoff := 92.5 - annex_bounds.end.x
 	_check(
 		absf(annex_bounds.end.x - 92.2) <= 0.001
-		and absf(observation_root_standoff - 0.3) <= 0.001
-		and rear_rail_intact,
-		"current Annex preserves the measured future Observation rear seam without pre-opening its guardrail"
+		and absf(observation_root_standoff - 0.3) <= 0.001,
+		"Annex keeps its reviewed envelope and 0.3 m origin standoff at the integrated Observation seam"
 	)
+	var rear_gate := annex.get_rear_observation_gate_contract()
+	var returned_segments := rear_gate.returned_segments as Array
+	var returned_exact := bool(rear_gate.enabled) \
+		and is_equal_approx(float(rear_gate.opening_width_m), 4.0) \
+		and (rear_gate.opening_local_x as Vector2).is_equal_approx(Vector2(-2.0, 2.0)) \
+		and is_equal_approx(float(rear_gate.rear_boundary_local_z), 20.0) \
+		and returned_segments.size() == 2
+	var expected_returned_segments := {
+		&"north": {"local": Vector3(-8.0, 0.72, 20.0), "world": Vector3(92.0, 1.10, 46.0)},
+		&"south": {"local": Vector3(8.0, 0.72, 20.0), "world": Vector3(92.0, 1.10, 30.0)},
+	}
+	for segment_variant in returned_segments:
+		var segment := segment_variant as Dictionary
+		var segment_id := StringName(segment.segment_id)
+		var expected := expected_returned_segments.get(segment_id, {}) as Dictionary
+		returned_exact = returned_exact \
+			and not expected.is_empty() \
+			and (segment.local_center as Vector3).is_equal_approx(expected.local as Vector3) \
+			and (segment.world_center as Vector3).is_equal_approx(expected.world as Vector3) \
+			and (segment.size as Vector3).is_equal_approx(Vector3(12.0, 1.44, 0.14))
+	var full_rear_rail_survives := false
+	for candidate in annex.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		var box_shape := _body_box_shape(body)
+		if body.position.is_equal_approx(Vector3(0.0, 0.72, 20.0)) \
+				and box_shape != null \
+				and box_shape.size.is_equal_approx(Vector3(28.0, 1.44, 0.14)):
+			full_rear_rail_survives = true
+	print("FABRICATION_OBSERVATION_GATE: ", rear_gate)
+	_check(returned_exact and not full_rear_rail_survives, "production Annex atomically replaces its full rear rail with the two exact returned 12 m segments around the 4 m Observation gate")
+	var annex_audit := annex.get_audit_report()
+	print("FABRICATION_INTEGRATED_PERFORMANCE: ", annex.get_performance_contract())
+	_check(bool(annex_audit.valid), "Fabrication remains within its measured production budget after the atomic rear-gate split")
 	var north_service := annex.get_route_marker(&"annex_port_service")
 	var rear_cross := annex.get_route_marker(&"annex_rear_cross")
 	_check(
@@ -368,6 +404,313 @@ func _test_fabrication_annex_siting(world: ShipyardWorld) -> void:
 	)
 
 
+func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroShip]) -> void:
+	var spur := world.get_node_or_null(^"ObservationLogisticsSpur") as ObservationLogisticsSpur
+	var connector := world.get_node_or_null(^"ExposedDockLattice/ObservationLogisticsConnector") as Node3D
+	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	_check(spur != null and connector != null and annex != null, "production Observation spur, connector, and opened Fabrication seam resolve")
+	if spur == null or connector == null or annex == null:
+		return
+	var expected_transform := Transform3D(
+		Basis(Vector3.UP, PI * 0.5), Vector3(92.5, 0.38, 38.0)
+	)
+	_check(spur.global_transform.is_equal_approx(expected_transform), "Observation spur keeps the reviewed (92.5, 0.38, 38), yaw +90 placement")
+	var local_footprint := spur.get_integration_footprint()
+	var footprint := (spur.global_transform * AABB(
+		local_footprint.local_min as Vector3,
+		(local_footprint.local_max as Vector3) - (local_footprint.local_min as Vector3)
+	)).abs()
+	_check(
+		footprint.position.is_equal_approx(Vector3(92.5, 0.08, 24.6))
+		and footprint.end.is_equal_approx(Vector3(132.0, 4.78, 51.4)),
+		"Observation footprint is exactly x=92.5..132, y=0.08..4.78, z=24.6..51.4"
+	)
+
+	var deck := connector.get_node_or_null(^"ConnectorDeck") as StaticBody3D
+	var deck_shape := _body_box_shape(deck)
+	var connector_exact := deck != null \
+		and deck.position.is_equal_approx(Vector3(92.25, 0.23, 38.0)) \
+		and deck_shape != null \
+		and deck_shape.size.is_equal_approx(Vector3(0.5, 0.3, 4.0)) \
+		and bool(deck.get_meta(&"walkable_surface", false)) \
+		and StringName(deck.get_meta(&"walkable_surface_id", &"")) == &"observation_logistics_connector" \
+		and StringName(deck.get_meta(&"walkable_surface_kind", &"")) == &"level" \
+		and StringName(deck.get_meta(&"walkable_surface_owner", &"")) == &"station_hub" \
+		and is_equal_approx(float(deck.get_meta(&"horizontal_area_m2", -1.0)), 2.0)
+	for rail_spec in [
+		["ConnectorRailSouth", Vector3(92.25, 1.0, 35.88)],
+		["ConnectorRailNorth", Vector3(92.25, 1.0, 40.12)],
+	]:
+		var rail := connector.get_node_or_null(NodePath(rail_spec[0] as String)) as StaticBody3D
+		var rail_shape := _body_box_shape(rail)
+		connector_exact = connector_exact \
+			and rail != null \
+			and rail.position.is_equal_approx(rail_spec[1] as Vector3) \
+			and rail_shape != null \
+			and rail_shape.size.is_equal_approx(Vector3(0.5, 1.24, 0.16)) \
+			and not bool(rail.get_meta(&"walkable_surface", false))
+	_check(connector_exact, "Observation handoff is the exact tagged 2.0 m2 deck with two exact guarded edges")
+	var rail_laps_exact := true
+	var rear_gate := annex.get_rear_observation_gate_contract()
+	var connector_rail_by_segment := {
+		&"north": connector.get_node_or_null(^"ConnectorRailNorth") as StaticBody3D,
+		&"south": connector.get_node_or_null(^"ConnectorRailSouth") as StaticBody3D,
+	}
+	for segment_variant in rear_gate.returned_segments as Array:
+		var segment := segment_variant as Dictionary
+		var segment_id := StringName(segment.segment_id)
+		var returned_body := annex.get_node_or_null(segment.body_path as NodePath) as StaticBody3D
+		var connector_rail := connector_rail_by_segment.get(segment_id) as StaticBody3D
+		if returned_body == null or connector_rail == null:
+			rail_laps_exact = false
+			continue
+		var lap := _aabb_overlap_depth(_collision_body_box(returned_body), _collision_body_box(connector_rail))
+		rail_laps_exact = rail_laps_exact and lap.distance_to(Vector3(0.07, 1.24, 0.16)) <= 0.001
+	_check(rail_laps_exact, "both connector rails make the exact 0.07 x 1.24 x 0.16 m safety lap with the returned Fabrication rail tips")
+	var route_anchor := connector.get_node_or_null(^"RouteAnchor") as Node3D
+	var rear_cross := annex.get_node_or_null(^"GeneratedAnnex/RearCrossAisle") as StaticBody3D
+	var exposed_connector := spur.get_node_or_null(^"Structure/Walkable/ExposedConnectorDeck") as StaticBody3D
+	var support_boxes := [
+		_collision_body_box(rear_cross),
+		_collision_body_box(deck),
+		_collision_body_box(exposed_connector),
+	]
+	var route_continuous := route_anchor != null \
+		and route_anchor.global_position.is_equal_approx(Vector3(91.0, 0.53, 38.0)) \
+		and connector.is_ancestor_of(route_anchor) \
+		and not annex.is_ancestor_of(route_anchor) \
+		and not spur.is_ancestor_of(route_anchor)
+	for sample_index in 31:
+		var sample_x := 91.0 + float(sample_index) * 0.05
+		var supported := false
+		for support_box_variant in support_boxes:
+			var support_box := support_box_variant as AABB
+			if sample_x >= support_box.position.x - 0.001 \
+					and sample_x <= support_box.end.x + 0.001 \
+					and 38.0 >= support_box.position.z - 0.001 \
+					and 38.0 <= support_box.end.z + 0.001:
+				supported = true
+		route_continuous = route_continuous and supported
+	_check(route_continuous, "world-owned route anchor to connector to Spur origin is continuously backed by real walkable collision")
+
+	var slots := spur.get_connection_slots()
+	var origin := slots.get(&"origin", {}) as Dictionary
+	var route_ids := spur.get_route_ids()
+	var slot_exact := slots.size() == 1 \
+		and StringName(origin.get("slot_id", &"")) == &"observation-logistics-spur-origin" \
+		and (origin.get("world_transform", Transform3D.IDENTITY) as Transform3D).is_equal_approx(expected_transform)
+	for route_id in [&"observation-pad", &"logistics-pad"]:
+		var marker := spur.get_route_marker(route_id)
+		slot_exact = slot_exact \
+			and marker != null \
+			and bool(marker.get_meta(&"deferred_connection_route", false)) \
+			and StringName(marker.get_meta(&"connection_status", &"")) == &"internal_route_only_no_geometry" \
+			and not marker.has_meta(&"station_connection_slot")
+	_check(
+		slot_exact and route_ids.size() == 6,
+		"Observation publishes one honest origin slot while both pad markers remain deferred internal routes"
+	)
+
+	# The connector/module may touch at x=92.5, and the connector's safety rails
+	# intentionally lap the returned Fabrication rail tips. Neither is an unrelated
+	# station intrusion, so audit all other station bodies independently.
+	var owned_bodies: Array[StaticBody3D] = []
+	for candidate in connector.find_children("*", "StaticBody3D", true, false):
+		owned_bodies.append(candidate as StaticBody3D)
+	for candidate in spur.find_children("*", "StaticBody3D", true, false):
+		owned_bodies.append(candidate as StaticBody3D)
+	var intrusions := PackedStringArray()
+	for raw_other in world.find_children("*", "StaticBody3D", true, false):
+		var other := raw_other as StaticBody3D
+		if connector.is_ancestor_of(other) or spur.is_ancestor_of(other) or annex.is_ancestor_of(other):
+			continue
+		var other_box := _collision_body_box(other)
+		if not other_box.has_volume():
+			continue
+		for owned in owned_bodies:
+			var overlap := _aabb_overlap_depth(_collision_body_box(owned), other_box)
+			if overlap.x > 0.002 and overlap.y > 0.002 and overlap.z > 0.002:
+				intrusions.append("%s <> %s depth=%s" % [owned.get_path(), other.get_path(), overlap])
+	intrusions.sort()
+	print("OBSERVATION_GEOMETRY_INTRUSIONS: ", intrusions)
+	_check(intrusions.is_empty(), "Observation collision has no positive-volume intersection with unrelated station geometry")
+
+	var observation_boxes: Array[AABB] = []
+	for body in owned_bodies:
+		var body_box := _collision_body_box(body)
+		if body_box.has_volume():
+			observation_boxes.append(body_box)
+	var halyard := world.get_berth_node(&"halyard_fleet_dock_berth")
+	var halyard_ship: HalyardCrewTransport
+	for ship in ships:
+		if ship is HalyardCrewTransport:
+			halyard_ship = ship as HalyardCrewTransport
+			break
+	_check(halyard != null and halyard_ship != null, "live Halyard berth and production craft resolve for capture-braking clearance")
+	if halyard == null or halyard_ship == null:
+		return
+	var berth_half := halyard.get_landing_half_extents()
+	var berth_box := (halyard.get_dock_transform() * AABB(-berth_half, berth_half * 2.0)).abs()
+	var hull_bounds := HalyardCrewTransport.FLIGHT_COLLISION_BOUNDS
+	var staging_hull := (halyard.get_assist_staging_transform() * hull_bounds).abs()
+	var docked_hull := (halyard.get_dock_transform() * hull_bounds).abs()
+	var braking_sweep := staging_hull.merge(docked_hull)
+	var berth_clearance := INF
+	var staging_clearance := INF
+	var braking_clearance := INF
+	for body_box in observation_boxes:
+		berth_clearance = minf(berth_clearance, _aabb_separation(berth_box, body_box))
+		staging_clearance = minf(staging_clearance, _aabb_separation(staging_hull, body_box))
+		braking_clearance = minf(braking_clearance, _aabb_separation(braking_sweep, body_box))
+	print(
+		"OBSERVATION_HALYARD_CLEARANCE: berth=%.3f staging=%.3f braking_sweep=%.3f" % [
+			berth_clearance, staging_clearance, braking_clearance,
+		]
+	)
+	_check(
+		berth_clearance > 10.0 and staging_clearance > 10.0 and braking_clearance > 10.0,
+		"Observation spur and connector keep more than 10 m from Halyard berth, staging hull, and fixed staging-to-dock sweep"
+	)
+
+	# The fixed staging path above does not cover the edge of the accepted capture
+	# volume. Bound that separate live risk in its worst +X direction: the capture
+	# root may begin at the box's maximum X, any accepted attitude may point the
+	# furthest physical collision corner toward +X, and maximum accepted velocity
+	# requires v²/(2a) metres before stopping at the live ship braking rate.
+	var capture_half := halyard.get_assist_capture_half_extents()
+	var capture_box := (halyard.get_assist_capture_transform() * AABB(
+		-capture_half, capture_half * 2.0
+	)).abs()
+	var shape_radius_report := _maximum_enabled_physical_shape_corner_radius(halyard_ship)
+	var shape_corner_radius := float(shape_radius_report.radius)
+	var capture_maximum_speed := halyard.get_assist_capture_maximum_speed()
+	var configured_brake_acceleration := halyard_ship.brake_acceleration
+	# The production landing-assist brake enforces this exact 48 m/s² minimum
+	# (`HeroShip._update_landing_brake`), even on the Halyard's heavier 19 m/s²
+	# manual-flight braking tune. This is the rate that stops an accepted capture.
+	var landing_brake_acceleration := maxf(configured_brake_acceleration, 48.0)
+	var stopping_distance := capture_maximum_speed * capture_maximum_speed \
+		/ (2.0 * landing_brake_acceleration)
+	var accepted_capture_braking_max_x := capture_box.end.x + shape_corner_radius + stopping_distance
+	var connector_min_x := INF
+	for candidate in connector.find_children("*", "StaticBody3D", true, false):
+		connector_min_x = minf(connector_min_x, _collision_body_box(candidate as StaticBody3D).position.x)
+	var spur_min_x := INF
+	for candidate in spur.find_children("*", "StaticBody3D", true, false):
+		spur_min_x = minf(spur_min_x, _collision_body_box(candidate as StaticBody3D).position.x)
+	var capture_braking_connector_margin := connector_min_x - accepted_capture_braking_max_x
+	var capture_braking_spur_margin := spur_min_x - accepted_capture_braking_max_x
+	print(
+		"OBSERVATION_HALYARD_CAPTURE_BRAKING_BOUND: capture_max_x=%.6f shapes=%d corner_radius=%.6f speed=%.6f configured_brake=%.6f landing_brake=%.6f stopping=%.6f bound_max_x=%.6f connector_min_x=%.6f connector_margin=%.6f spur_min_x=%.6f spur_margin=%.6f" % [
+			capture_box.end.x, int(shape_radius_report.shape_count), shape_corner_radius,
+			capture_maximum_speed, configured_brake_acceleration,
+			landing_brake_acceleration, stopping_distance,
+			accepted_capture_braking_max_x, connector_min_x,
+			capture_braking_connector_margin, spur_min_x, capture_braking_spur_margin,
+		]
+	)
+	_check(
+		int(shape_radius_report.shape_count) == 20 \
+		and absf(capture_box.end.x - 61.0) <= 0.00001 \
+		and absf(shape_corner_radius - 15.922939) <= 0.00001 \
+		and is_equal_approx(capture_maximum_speed, 22.0) \
+		and is_equal_approx(configured_brake_acceleration, 19.0) \
+		and is_equal_approx(landing_brake_acceleration, 48.0) \
+		and absf(stopping_distance - 5.041667) <= 0.00001 \
+		and absf(accepted_capture_braking_max_x - 81.964606) <= 0.00001 \
+		and absf(connector_min_x - 92.0) <= 0.00001 \
+		and absf(capture_braking_connector_margin - 10.035394) <= 0.00001 \
+		and absf(spur_min_x - 92.5) <= 0.00001 \
+		and absf(capture_braking_spur_margin - 10.535394) <= 0.00001 \
+		and capture_braking_connector_margin > 10.0 \
+		and capture_braking_spur_margin > 10.0,
+		"worst accepted Halyard capture root, attitude, and velocity retain more than 10 m braking margin to both connector and Spur collision"
+	)
+
+	# SIT-OBS-OVERFLIGHT-001: preserve the authored +X overflight root line. Every
+	# enabled physical collision shape of every production craft is sampled at
+	# seven positions and three representative pitch/roll attitudes. This is an
+	# intentionally conservative AABB witness per shape, never one aggregate hull.
+	var overflight_boxes: Array[AABB] = observation_boxes.duplicate()
+	for candidate in annex.find_children("*", "StaticBody3D", true, false):
+		var annex_box := _collision_body_box(candidate as StaticBody3D)
+		if annex_box.has_volume():
+			overflight_boxes.append(annex_box)
+	var sampled_shape_count := 0
+	var sample_count := 0
+	var overflight_intrusions := PackedStringArray()
+	var attitude_degrees := [Vector2.ZERO, Vector2(-8.0, -5.0), Vector2(8.0, 5.0)]
+	for ship in ships:
+		var ship_shapes: Array[CollisionShape3D] = []
+		for raw_shape in ship.find_children("*", "CollisionShape3D", true, false):
+			var collision := raw_shape as CollisionShape3D
+			if collision.get_parent() == ship and not collision.disabled and collision.shape != null:
+				ship_shapes.append(collision)
+		sampled_shape_count += ship_shapes.size()
+		for x_position in [100.0, 107.0, 114.0, 121.0, 128.0, 135.0, 142.0]:
+			for attitude in attitude_degrees:
+				var basis := Basis(Vector3.UP, -PI * 0.5) \
+					* Basis(Vector3.RIGHT, deg_to_rad((attitude as Vector2).x)) \
+					* Basis(Vector3.FORWARD, deg_to_rad((attitude as Vector2).y))
+				var sample_transform := Transform3D(basis, Vector3(x_position, 22.0, 38.0))
+				for collision in ship_shapes:
+					sample_count += 1
+					var local_bounds := _shape_local_bounds(collision.shape)
+					var sample_box := _transformed_aabb(sample_transform * collision.transform, local_bounds)
+					for station_box in overflight_boxes:
+						var overlap := _aabb_overlap_depth(sample_box, station_box)
+						if overlap.x > 0.0 and overlap.y > 0.0 and overlap.z > 0.0:
+							overflight_intrusions.append(
+								"%s/%s x=%.1f attitude=%s depth=%s" % [
+									ship.name, collision.name, x_position, attitude, overlap,
+								]
+							)
+	var highest_structure_top := -INF
+	for station_box in overflight_boxes:
+		highest_structure_top = maxf(highest_structure_top, station_box.end.y)
+	var root_height_clearance := 22.0 - highest_structure_top
+	var camera_sphere_clearance := INF
+	for ship in ships:
+		camera_sphere_clearance = minf(
+			camera_sphere_clearance,
+			22.0 - ship.chase_camera_collision_radius - highest_structure_top
+		)
+	overflight_intrusions.sort()
+	print(
+		"OBSERVATION_OVERFLIGHT: craft=%d shapes=%d shape_samples=%d highest_structure=%.3f root_clearance=%.3f camera_sphere_clearance=%.3f intrusions=%s" % [
+			ships.size(), sampled_shape_count, sample_count, highest_structure_top,
+			root_height_clearance, camera_sphere_clearance, overflight_intrusions,
+		]
+	)
+	_check(
+		ships.size() == 5 \
+		and sampled_shape_count >= ships.size() \
+		and sample_count == sampled_shape_count * 21 \
+		and overflight_intrusions.is_empty(),
+		"all enabled physical collision shapes of all five production craft clear Spur, connector, and Fabrication along the sampled +X overflight line"
+	)
+	_check(
+		root_height_clearance > 16.0 and camera_sphere_clearance > 15.0,
+		"the 22 m overflight root retains more than 16 m root-height and 15 m live camera-sphere clearance"
+	)
+
+	var authority := spur.get_authority_contract()
+	_check(
+		(authority.authority_ids as PackedStringArray).is_empty() \
+		and int(authority.ship_berth_count) == 0 \
+		and int(authority.landing_or_interaction_area_count) == 0 \
+		and int(authority.audio_node_count) == 0 \
+		and int(authority.activity_node_count) == 0 \
+		and int(authority.lease_authority_count) == 0 \
+		and int(authority.spawn_authority_count) == 0 \
+		and StringName(authority.network_authority_role) == &"none",
+		"production Observation module preserves zero ship, berth, interaction, audio, activity, lease, spawn, and network authority"
+	)
+	var audit := spur.get_audit_report()
+	print("OBSERVATION_PRODUCTION_AUDIT: ", audit)
+	_check(bool(audit.valid) and is_equal_approx(float(audit.walkable_area_m2), 426.0), "production Observation audit stays valid with its exact 426 m2 standalone surface union")
+
+
 func _collision_body_box(body: StaticBody3D) -> AABB:
 	var result := AABB()
 	var first := true
@@ -380,6 +723,88 @@ func _collision_body_box(body: StaticBody3D) -> AABB:
 		result = box if first else result.merge(box)
 		first = false
 	return result
+
+
+func _body_box_shape(body: StaticBody3D) -> BoxShape3D:
+	if body == null:
+		return null
+	for candidate in body.find_children("*", "CollisionShape3D", true, false):
+		var collision := candidate as CollisionShape3D
+		if not collision.disabled and collision.shape is BoxShape3D:
+			return collision.shape as BoxShape3D
+	return null
+
+
+func _shape_local_bounds(shape: Shape3D) -> AABB:
+	if shape is BoxShape3D:
+		var size := (shape as BoxShape3D).size
+		return AABB(-size * 0.5, size)
+	if shape is SphereShape3D:
+		var radius := (shape as SphereShape3D).radius
+		return AABB(Vector3.ONE * -radius, Vector3.ONE * radius * 2.0)
+	if shape is CapsuleShape3D:
+		var capsule := shape as CapsuleShape3D
+		return AABB(
+			Vector3(-capsule.radius, -capsule.height * 0.5, -capsule.radius),
+			Vector3(capsule.radius * 2.0, capsule.height, capsule.radius * 2.0)
+		)
+	if shape is CylinderShape3D:
+		var cylinder := shape as CylinderShape3D
+		return AABB(
+			Vector3(-cylinder.radius, -cylinder.height * 0.5, -cylinder.radius),
+			Vector3(cylinder.radius * 2.0, cylinder.height, cylinder.radius * 2.0)
+		)
+	var points := PackedVector3Array()
+	if shape is ConvexPolygonShape3D:
+		points = (shape as ConvexPolygonShape3D).points
+	elif shape is ConcavePolygonShape3D:
+		points = (shape as ConcavePolygonShape3D).get_faces()
+	if points.is_empty():
+		return AABB()
+	var bounds := AABB(points[0], Vector3.ZERO)
+	for point in points:
+		bounds = bounds.expand(point)
+	return bounds
+
+
+func _maximum_enabled_physical_shape_corner_radius(ship: HeroShip) -> Dictionary:
+	# HeroShip builds this live envelope from every enabled root collision shape.
+	# Taking the furthest corner of the enclosing box is deliberately stricter
+	# than taking the largest corner on any one shape: independent shape extrema
+	# combine into one attitude-invariant sphere around the accepted ship root.
+	var collision_report := ship.get_landing_collision_report()
+	if not bool(collision_report.valid):
+		return {"shape_count": 0, "radius": INF}
+	var local_bounds := collision_report.local_bounds as AABB
+	var maximum_radius := 0.0
+	for x in [local_bounds.position.x, local_bounds.end.x]:
+		for y in [local_bounds.position.y, local_bounds.end.y]:
+			for z in [local_bounds.position.z, local_bounds.end.z]:
+				maximum_radius = maxf(maximum_radius, Vector3(x, y, z).length())
+	return {
+		"shape_count": int(collision_report.shape_count),
+		"radius": maximum_radius,
+		"local_bounds": local_bounds,
+	}
+
+
+func _transformed_aabb(transform_value: Transform3D, source: AABB) -> AABB:
+	var minimum := source.position
+	var maximum := source.end
+	var corners := PackedVector3Array([
+		Vector3(minimum.x, minimum.y, minimum.z),
+		Vector3(maximum.x, minimum.y, minimum.z),
+		Vector3(minimum.x, maximum.y, minimum.z),
+		Vector3(maximum.x, maximum.y, minimum.z),
+		Vector3(minimum.x, minimum.y, maximum.z),
+		Vector3(maximum.x, minimum.y, maximum.z),
+		Vector3(minimum.x, maximum.y, maximum.z),
+		Vector3(maximum.x, maximum.y, maximum.z),
+	])
+	var transformed := AABB(transform_value * corners[0], Vector3.ZERO)
+	for corner in corners:
+		transformed = transformed.expand(transform_value * corner)
+	return transformed
 
 
 func _aabb_overlap_depth(first: AABB, second: AABB) -> Vector3:
@@ -1225,6 +1650,37 @@ func _capture_fabrication_integration_frame(game: GameFlow, world: ShipyardWorld
 		"exactly one normal-resolution integrated Forward+ frame is captured"
 	)
 	print("FABRICATION_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
+
+
+func _capture_observation_integration_frame(game: GameFlow, world: ShipyardWorld) -> void:
+	var spur := world.get_node_or_null(^"ObservationLogisticsSpur") as ObservationLogisticsSpur
+	var connector := world.get_node_or_null(^"ExposedDockLattice/ObservationLogisticsConnector") as Node3D
+	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	_check(spur != null and connector != null and annex != null, "integrated Forward+ frame resolves Observation, its world connector, and Fabrication gate")
+	if spur == null or connector == null or annex == null:
+		return
+	var hud := game.get_node_or_null(^"HUD") as CanvasLayer
+	if hud != null:
+		hud.visible = false
+	var camera := Camera3D.new()
+	camera.name = "ObservationIntegrationEvidenceCamera"
+	camera.position = Vector3(154.0, 38.0, 7.0)
+	camera.look_at_from_position(camera.position, Vector3(111.0, 1.0, 38.0), Vector3.UP)
+	camera.fov = 55.0
+	camera.current = true
+	game.add_child(camera)
+	for _frame in 8:
+		await process_frame
+		await physics_frame
+	await RenderingServer.frame_post_draw
+	var image := root.get_viewport().get_texture().get_image()
+	var output_path := "/tmp/observation-logistics-integrated-forward-plus.png"
+	var error := image.save_png(output_path)
+	_check(
+		error == OK and image.get_width() >= 1280 and image.get_height() >= 720,
+		"exactly one normal-resolution integrated Observation Forward+ frame is captured"
+	)
+	print("OBSERVATION_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
 
 
 func _check(condition: bool, description: String) -> void:

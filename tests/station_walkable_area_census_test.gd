@@ -2,9 +2,9 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_walkable_area_census.gd")
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
-const EXPECTED_GROSS_PROJECTED_M2 := 7682.199985
-const EXPECTED_COUNTED_PROJECTED_M2 := 7428.844465
-const EXPECTED_TRUE_SURFACE_M2 := 7436.712426
+const EXPECTED_GROSS_PROJECTED_M2 := 8110.199985
+const EXPECTED_COUNTED_PROJECTED_M2 := 7856.844419
+const EXPECTED_TRUE_SURFACE_M2 := 7864.712380
 
 var _failures: Array[String] = []
 
@@ -50,18 +50,18 @@ func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
 		report.physics_support_samples, report.physics_support_samples_total,
 	])
 	_check(bool(report.valid) and (report.errors as PackedStringArray).is_empty(), "production census is structurally valid")
-	_check(int(report.surface_count) == 64 and int(report.ramp_count) == 3, "production roster contains exactly 64 surfaces and three ramps")
-	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 7682.199985 m2")
-	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 7428.844465 m2")
-	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 7436.712426 m2")
+	_check(int(report.surface_count) == 70 and int(report.ramp_count) == 3, "production roster contains exactly 70 surfaces and three ramps")
+	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8110.199985 m2")
+	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 7856.844419 m2")
+	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 7864.712380 m2")
 	_check(
 		_near(report.ramp_projected_horizontal_m2, 68.480000)
 		and _near(report.ramp_true_surface_m2, 76.347961),
 		"ramps separately report exact projected and inclined surface area"
 	)
 	_check(
-		int(report.physics_support_samples) == 320
-		and int(report.physics_support_samples_total) == 320,
+		int(report.physics_support_samples) == 350
+		and int(report.physics_support_samples_total) == 350,
 		"all five representative points on every declared surface have live World support"
 	)
 

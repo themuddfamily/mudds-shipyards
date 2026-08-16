@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/components/nearby_sector_cluster.tscn" id="8_nearby_sector"]
 [ext_resource type="PackedScene" path="res://scenes/world/modules/vip_reception_suite.tscn" id="9_vip_reception"]
 [ext_resource type="PackedScene" path="res://scenes/world/modules/fabrication_annex.tscn" id="10_fabrication_annex"]
+[ext_resource type="PackedScene" path="res://scenes/world/modules/observation_logistics_spur.tscn" id="11_observation_spur"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -105,6 +106,11 @@ rotation = Vector3(0, 1.570796, 0)
 
 [node name="FabricationAnnex" parent="." instance=ExtResource("10_fabrication_annex")]
 position = Vector3(72, 0.38, 38)
+rotation = Vector3(0, 1.570796, 0)
+observation_rear_gate_open = true
+
+[node name="ObservationLogisticsSpur" parent="." instance=ExtResource("11_observation_spur")]
+position = Vector3(92.5, 0.38, 38)
 rotation = Vector3(0, 1.570796, 0)
 
 [node name="JovianFreightBerth" parent="." instance=ExtResource("5_freight_berth")]

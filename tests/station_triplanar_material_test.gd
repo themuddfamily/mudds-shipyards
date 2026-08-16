@@ -522,12 +522,19 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# courier. Every addition lands in the existing 0.30 module scale; 0.22 and
 	# 0.28 remain unchanged. This is the measured merged tree, not standalone
 	# roster arithmetic.
+	#
+	# Re-frozen on the production Observation integration, 2587 -> 2595. The
+	# world-owned connector contributes three mapped boxes and the sixth
+	# shared-catalog courier contributes five mapped surfaces, all at 0.30. The
+	# Spur's original modern-interpretation palette remains intentionally plain,
+	# so none of its 48 ordinary meshes enters this station-family census. Its one
+	# unlit marker MultiMesh raises only the total batch roster, 37 -> 38.
 	_check(
-		mapped_surface_count == 2587
+		mapped_surface_count == 2595
 		and scale_022_count == 130
 		and scale_028_count == 862
-		and scale_030_count == 1595,
-		"live station binds exactly 2587 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1603,
+		"live station binds exactly 2595 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -591,7 +598,8 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 	# contributes twelve low-submission batches; the remaining rebased delta was
 	# already present before this placement. Counts are intentionally live census
 	# results rather than a sum inferred from component budgets.
-	_check(batches == 37 and mapped == 12, "instanced station structure is exactly thirty-seven batches, twelve of them mapped")
+	# Observation adds one deliberately unmapped repeated-marker batch.
+	_check(batches == 38 and mapped == 12, "instanced station structure is exactly thirty-eight batches, twelve of them mapped")
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
 

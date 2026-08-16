@@ -66,6 +66,13 @@ const EXPECTED_AGENT_SPECS := {
 		"to": &"fabrication_annex:annex_inbound",
 		"seed": 11807, "speed": 0.95, "lift": 3.7,
 	},
+	&"observation-logistics-courier": {
+		"node_name": &"ObservationLogisticsServiceCourier",
+		"slot_id": &"observation-logistics-spur-origin",
+		"from": &"station-hub:observation-logistics-spur-origin",
+		"to": &"observation-logistics-spur:origin",
+		"seed": 12847, "speed": 0.9, "lift": 3.7,
+	},
 }
 
 const EXPECTED_BERTH_TRANSFORMS := {
@@ -672,8 +679,8 @@ func _test_production_graph_reuses_the_route_registry(world: ShipyardWorld) -> v
 		and int(graph_report.edge_count) == int(registry_report.connection_slot_count),
 		"the production graph has exactly two nodes and one edge per declared connection slot"
 	)
-	_check(int(graph_report.edge_count) == 5 and int(graph_report.node_count) == 10, "the live station resolves to five declared edges over ten declared endpoints")
-	_check(int(graph_report.component_count) == 5, "the world hub is not collapsed, so each declared slot stays its own component")
+	_check(int(graph_report.edge_count) == 6 and int(graph_report.node_count) == 12, "the live station resolves to six declared edges over twelve declared endpoints")
+	_check(int(graph_report.component_count) == 6, "the world hub is not collapsed, so each declared slot stays its own component")
 	var slot_ids := PackedStringArray()
 	for slot_id: StringName in (registry_report.slots as Dictionary).keys():
 		slot_ids.append(String(slot_id))
@@ -706,7 +713,7 @@ func _test_production_graph_reuses_the_route_registry(world: ShipyardWorld) -> v
 
 func _test_production_courier_roster(world: ShipyardWorld) -> void:
 	var agents := world.get_station_service_agents()
-	_check(agents.size() == 5, "the production station integrates exactly five declared-slot couriers")
+	_check(agents.size() == 6, "the production station integrates exactly six declared-slot couriers")
 	var material_roster_nodes: Array[Node] = []
 	for agent in agents:
 		material_roster_nodes.append(agent)
@@ -716,14 +723,14 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 	_check(
 		bool(material_roster.valid)
 		and bool(material_roster.catalog_shared)
-		and int(material_counts.instance_count) == 5
+		and int(material_counts.instance_count) == 6
 		and int(material_counts.catalog_entries) == 6
 		and int(material_counts.retained_unique_materials) == 6,
-		"five production couriers retain one six-entry material catalog instead of 30 duplicate resources"
+		"six production couriers retain one six-entry material catalog instead of 36 duplicate resources"
 	)
 	_check(
-		int(material_counts.bound_material_references) == 35,
-		"catalog sharing preserves all seven visible material bindings on each of five couriers"
+		int(material_counts.bound_material_references) == 42,
+		"catalog sharing preserves all seven visible material bindings on each of six couriers"
 	)
 	if not agents.is_empty():
 		var catalog := agents[0].get_material_catalog_audit()
@@ -803,7 +810,7 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 		and not bool((report.authority as Dictionary).proves_physical_traversability),
 		"the navigation audit declares no berth, regeneration, or traversability authority"
 	)
-	_check((report.placements as Dictionary).size() == 5, "the audit publishes every exact courier placement instead of only aggregate counts")
+	_check((report.placements as Dictionary).size() == 6, "the audit publishes every exact courier placement instead of only aggregate counts")
 
 
 func _test_production_determinism(world: ShipyardWorld) -> void:
@@ -968,7 +975,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 	var baseline := StationNavigationGraph.new().build_from_registry_report(
 		StationRouteRegistry.new().build_registry(modules, hub_endpoints)
 	)
-	_check(bool(baseline.valid) and int(baseline.edge_count) == 5, "an independent probe reproduces the valid five-edge production graph")
+	_check(bool(baseline.valid) and int(baseline.edge_count) == 6, "an independent probe reproduces the valid six-edge production graph")
 
 	var subject := _module_by_id(world, &"aft-junction-stack")
 	var marker := subject.get_route_marker(APPROACH_ROUTE_ID) as Node3D if subject != null else null
@@ -999,7 +1006,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 		StationRouteRegistry.new().build_registry(modules, hub_endpoints)
 	)
 	_check(
-		bool(restored.valid) and int(restored.edge_count) == 5,
+		bool(restored.valid) and int(restored.edge_count) == 6,
 		"restoring the declaration returns the independent navigation graph to valid"
 	)
 	_check(bool(world.get_station_navigation_audit_report().valid), "the live production navigation audit is unaffected by the isolated probe mutation")
@@ -1077,7 +1084,7 @@ func _test_main_detach_reentry(game: GameFlow, world: ShipyardWorld) -> void:
 	after_ids.sort()
 	after_descendants.sort()
 
-	_check(agents.size() == 5, "whole-Main re-entry keeps exactly five couriers without duplicating or stranding one")
+	_check(agents.size() == 6, "whole-Main re-entry keeps exactly six couriers without duplicating or stranding one")
 	_check(after_ids == before_ids and after_descendants == before_descendants, "whole-Main re-entry preserves every courier node identity")
 	var all_live := true
 	for agent in agents:
@@ -1223,7 +1230,7 @@ func _aabb_separation(first: AABB, second: AABB) -> float:
 
 func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 	var result: Array[Node] = []
-	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth"]:
+	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur"]:
 		var module := world.get_node_or_null(NodePath(node_name))
 		if module != null:
 			result.append(module)
