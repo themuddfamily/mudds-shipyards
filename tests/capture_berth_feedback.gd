@@ -241,7 +241,7 @@ func _validate_exact_feedback_roster() -> void:
 	var actual_ids := _world.get_berth_ids()
 	_check(
 		_string_name_arrays_match(actual_ids, BERTH_ORDER),
-		"world registry is exactly central, Arrow recon, Jovian freight, and Zenith fleet-dock berths"
+		"world registry is exactly central, Arrow recon, Jovian freight, Zenith dock 01, and Halyard dock 02 berths"
 	)
 
 	var feedback_nodes := _world.get_ship_berth_feedback_nodes()

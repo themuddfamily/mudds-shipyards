@@ -80,10 +80,10 @@ func _test_whole_main_reentry(
 	var zenith := _ship_by_id(fleet, &"zenith_b7_observed")
 	var halyard := _ship_by_id(fleet, &"halyard_new_design")
 	_check(
-		torrent != null and arrow != null and jovian != null and zenith != null,
-		"whole-tree fixture retains all four exact production ship identities"
+		torrent != null and arrow != null and jovian != null and zenith != null and halyard != null,
+		"whole-tree fixture retains all five exact production ship identities"
 	)
-	if torrent == null or arrow == null or jovian == null or zenith == null:
+	if torrent == null or arrow == null or jovian == null or zenith == null or halyard == null:
 		return
 	_check(world_owner != null and opponent_ship != null, "re-entry opponent and world targets are correctly typed runtime components")
 	if world_owner == null or opponent_ship == null:
@@ -247,8 +247,9 @@ func _test_whole_main_reentry(
 			and authority.get_source_id(arrow) == 0
 			and authority.get_source_id(jovian) == 0
 			and authority.get_source_id(zenith) == 0
+			and authority.get_source_id(halyard) == 0
 			and authority.get_source_id(opponent) == 0,
-			"detach cycle %d clears all five source registrations and resolver ownership" % (cycle + 1)
+			"detach cycle %d clears all six source registrations and resolver ownership" % (cycle + 1)
 		)
 		_check(
 			not bool(detached_audio.resources_ready)
@@ -370,8 +371,9 @@ func _test_whole_main_reentry(
 
 		pulse.clear_effects()
 		var presented_before := int(pulse.get_statistics().presented)
-		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, zenith, opponent]
+		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, zenith, halyard, opponent]
 		var submission_weapons: Array[StringName] = [
+			GameFlow.COMBAT_WEAPON_ID,
 			GameFlow.COMBAT_WEAPON_ID,
 			GameFlow.COMBAT_WEAPON_ID,
 			GameFlow.COMBAT_WEAPON_ID,
@@ -395,9 +397,9 @@ func _test_whole_main_reentry(
 			)
 		_check(
 			every_submission_live
-			and int(pulse.get_statistics().presented) == presented_before + 5
-			and pulse.get_active_effect_count() == 5,
-			"re-entry cycle %d accepts live submissions from all five sources and presents each exactly once" % (cycle + 1)
+			and int(pulse.get_statistics().presented) == presented_before + 6
+			and pulse.get_active_effect_count() == 6,
+			"re-entry cycle %d accepts live submissions from all six sources and presents each exactly once" % (cycle + 1)
 		)
 
 

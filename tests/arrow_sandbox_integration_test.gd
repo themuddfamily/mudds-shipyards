@@ -42,26 +42,34 @@ func _run() -> void:
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
+	var halyard := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var original_game_id := game.get_instance_id()
 	var original_player_id := player.get_instance_id()
 	var fleet := game.get_flyable_ships()
 	_check(fleet.size() == 5, "main scene registers exactly five physical flyable craft")
-	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith), "fleet registry contains the Torrent, Arrow, Jovian, and Zenith instances")
+	_check(
+		fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian)
+		and fleet.has(zenith) and fleet.has(halyard),
+		"fleet registry contains exactly the Torrent, Arrow, Jovian, Zenith, and Halyard instances"
+	)
 	_check(game.get_node_or_null("ReserveInterceptor") == null, "retired duplicate handling article is absent")
 	_check(game.get_guided_ship() == torrent, "Torrent remains the explicit guided-activity craft")
 	_check(torrent.get_ship_id() == &"torrent_provisional", "Torrent exposes its stable production identity")
 	_check(arrow.get_ship_id() == &"arrow_provisional", "Arrow exposes its distinct stable production identity")
 	_check(jovian.get_ship_id() == &"jovian_provisional", "Jovian exposes its distinct stable production identity")
 	_check(zenith.get_ship_id() == &"zenith_b7_observed", "Zenith exposes its B7-observed stable production identity")
+	_check(halyard.get_ship_id() == &"halyard_new_design", "Halyard exposes its original-design stable production identity")
 	_check(torrent.get_home_berth_id() == &"central_berth", "Torrent owns the central guided berth")
 	_check(arrow.get_home_berth_id() == &"arrow_recon_berth", "Arrow owns the dedicated recon berth")
 	_check(jovian.get_home_berth_id() == &"jovian_freight_berth", "Jovian owns the dedicated freight berth")
 	_check(zenith.get_home_berth_id() == &"zenith_fleet_dock_berth", "Zenith owns the assigned Fleet Dock Comb berth")
+	_check(halyard.get_home_berth_id() == &"halyard_fleet_dock_berth", "Halyard owns the assigned Fleet Dock 02 berth")
 	_check(world.has_berth(torrent.get_home_berth_id()), "shared world registers the Torrent berth")
 	_check(world.has_berth(arrow.get_home_berth_id()), "shared world registers the Arrow berth")
 	_check(world.has_berth(jovian.get_home_berth_id()), "shared world registers the Jovian berth")
 	_check(world.has_berth(zenith.get_home_berth_id()), "shared world registers the Zenith berth")
+	_check(world.has_berth(halyard.get_home_berth_id()), "shared world registers the Halyard berth")
 	var arrow_berth := world.get_berth_node(arrow.get_home_berth_id())
 	_check(arrow_berth != null and arrow_berth.get_occupant() == arrow, "Arrow begins physically occupying its recon berth")
 	_check(

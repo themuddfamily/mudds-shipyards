@@ -286,8 +286,8 @@ func _test_state_is_carried_by_hardware(world: ShipyardWorld) -> void:
 		elif candidate.name.begins_with("BayPinSocket"):
 			sockets += 1
 	_check(
-		sockets == 3 and seated_pins == 1 and withdrawn_pins == 2,
-		"three bays, one pin seated in its socket for the assignment and two withdrawn into the clip"
+		sockets == 3 and seated_pins == 2 and withdrawn_pins == 1,
+		"three bays, two pins seated for the assignments and one withdrawn into the clip for dock 03"
 	)
 
 	var locker := world.get_node_or_null(^"CentralBerthServiceLine/PortFlank/ChockLocker") as Node3D

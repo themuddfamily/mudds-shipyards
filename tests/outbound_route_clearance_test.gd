@@ -21,7 +21,7 @@ extends SceneTree
 ##
 ## What is measured here, from the live production tree with the real production
 ## hulls and the real World collision layer, rather than asserted from constants:
-## the vertical clear band under the gate for each of the four craft; that the
+## the vertical clear band under the gate for each of the five craft; that the
 ## published clearance band and the launch gate aim sit inside the fleet-worst
 ## one with margin; that the whole outbound polyline — launch gate, then the four
 ## Cinder Reach route beacons, then the platform approach lane — is flyable by the
@@ -38,6 +38,7 @@ const CRAFT_PATHS := {
 	&"arrow": "ArrowReconShip",
 	&"jovian": "JovianLightFreighter",
 	&"zenith": "ZenithInterceptor",
+	&"halyard": "HalyardCrewTransport",
 }
 
 ## The range gate, frozen. These are the recorded positions of the geometry this
@@ -331,9 +332,10 @@ func _test_whole_outbound_route_is_flyable(world: ShipyardWorld, hulls: Dictiona
 		route.append(beacon)
 	route.append(cluster.get_approach_lane_point(170.0))
 
-	# The Jovian is both the deepest and the widest hull in the fleet, so a route
-	# it can fly is a route anything can fly.
-	for craft_id: StringName in [&"torrent", &"jovian"]:
+	# The Jovian is the widest and tallest hull; the Halyard is the deepest. Sweep
+	# both independent envelope extremes, plus the Torrent that reproduced the
+	# original strike, so this route claim cannot silently remain four-craft-era.
+	for craft_id: StringName in [&"torrent", &"jovian", &"halyard"]:
 		var hull: AABB = hulls[craft_id]
 		var blocked_at := _first_route_block(hull, route)
 		_check(

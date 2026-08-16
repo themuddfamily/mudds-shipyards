@@ -139,7 +139,8 @@ flowchart LR
   AJ -. "open landmark, no graph edge" .-> VIP["Aft VIP access -> VipReceptionSuite (modern interpretation)"]
   HS -. "open internal route, no graph edge" .-> DB["Habitat garden-cupola (modern interpretation)"]
   FC -. "external assignment only" .-> Z["ShipyardWorld / zenith_fleet_dock_berth"]
-  FC -. "deferred, empty" .-> D23["Dock02 / Dock03"]
+  FC -. "external assignment only" .-> H["ShipyardWorld / halyard_fleet_dock_berth"]
+  FC -. "deferred, empty" .-> D3["Dock03"]
 ```
 
 The physical circulation the player walks is a separate, weaker statement. The
@@ -163,8 +164,9 @@ flowchart LR
   AF --- AC["AftModuleConnector"]
   AC --- AJ2["Aft Junction Stack"]
   AJ2 --- FDC["FleetDockCombConnector on the world lattice"]
-  FDC --- FC2["Fleet Dock Comb / Dock01 modern external assignment; Dock02/03 empty"]
+  FDC --- FC2["Fleet Dock Comb / Dock01 + Dock02 modern external assignments; Dock03 empty"]
   FC2 -. "non-authoritative marker link" .-> Z2["ShipyardWorld / Zenith berth"]
+  FC2 -. "non-authoritative marker link" .-> H2["ShipyardWorld / Halyard berth"]
 ```
 
 The comb's connector deck is a child of the world's `ExposedDockLattice`, not of
@@ -231,7 +233,7 @@ source inspired the module and never raises its confidence.
 Every marker other than `approach` is an internal waypoint or a deliberate dead
 end and never joins the adjacency graph.
 
-### Machine-checked deferred landmarks
+### Machine-checked non-slot landmarks
 
 <!-- LIVE-GRAPH-DEFERRED:BEGIN -->
 
@@ -244,9 +246,10 @@ end and never joins the adjacency graph.
 
 <!-- LIVE-GRAPH-DEFERRED:END -->
 
-Three of the four have no interior; each of those is a closed endpoint recorded
-instead of an invented room. The fourth, the Aft VIP landmark, was one of them
-until `VipReceptionSuite` was built behind it. That room is invented and is
+All four remain outside the adjacency graph, for different explicit reasons:
+Dock 01 and Dock 02 are modern external berth links owned by `ShipyardWorld`,
+Dock 03 alone is empty/deferred, and the Aft VIP landmark opens onto
+`VipReceptionSuite`. That room is invented and is
 labelled as invented — element `new`, status `modern_interpretation`, source
 confidence `none` — and its existence upgrades no evidence: no source describes
 the inside of any VIP area, and the two VIP fragments the ledger holds remain
@@ -261,7 +264,7 @@ source describes anything behind that door; the room is wholly invented, is
 labelled `fixed_era_inspired_modern_interpretation` like the rest of the module,
 and is recorded as invented in the module's `content_note`, its
 `modern_interpretations` list and the evidence-status table below. Removing the
-row is what keeps this table honest: a deferred-landmark table that still listed
+row is what keeps this table honest: a non-slot-landmark table that still listed
 a door you can walk through would be the false statement.
 
 These four rows are current, and the marker rule above still holds for them.
@@ -296,7 +299,7 @@ Exact implementation anchors:
 | Operations | Starboard node → Dock Operations pod, `OperationsPodFloor (43, 0.18, 27)` | Compact-room motif only; role, shape, and adjacency are modern. |
 | Habitat | Habitat root `(49, 0, 15.5)`, yaw `90°`, extends east; `approach` marker at `(46, 0.15, 15.5)` claims `hub-starboard-habitat` | C1-inspired later-source interpretation, not recovered original geometry. |
 | Aft | Central → AftSpine → AftModuleConnector `(0, -0.62, 43.5)` → AftJunctionStack `(0, 0, 48)`, whose `approach` marker at `(0, 0.15, 46.3)` claims `hub-aft-junction` | Open spine/room/vertical motifs are supported; exact module graph is modern. |
-| Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)` and its Dock02 marker to the modern Halyard berth `halyard_fleet_dock_berth` at `(37, 5.28, 53.3)`; Dock03 remains empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and the Zenith assignment are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
+| Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)` and its Dock02 marker to the modern Halyard berth `halyard_fleet_dock_berth` at `(37, 5.28, 53.3)`; Dock03 remains empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and both external assignments are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
 | Production berth registry | `ShipyardWorld` owns exactly five lease-bound production berths: Central/Torrent, Arrow, Jovian, Zenith, and Halyard. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
 | Operational overlay | Activities, ambience, and facade dressing at Central/Aft/Habitat/Freight | Entirely modern presentation; no topology authority. |
 
@@ -437,8 +440,8 @@ The first evidence-safe architecture correction is now the bounded
    spawn authority.
 
 This corrects one high-confidence silhouette mismatch without establishing a
-canonical floor plan or promoting the modern Zenith-to-Dock01 assignment into
-source-authenticated topology. Further station expansion still requires new
+canonical floor plan or promoting either modern Dock01/Dock02 class assignment
+into source-authenticated topology. Further station expansion still requires new
 evidence or equally explicit modern/deferred boundaries.
 
 ## What remains ungraded or unknown

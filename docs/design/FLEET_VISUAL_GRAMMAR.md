@@ -250,7 +250,7 @@ indistinguishable. That is the specific failure this grammar exists to prevent.
 
 ## 3. Material and surface treatment
 
-### What all four share
+### What the original four vertical-slice craft share
 
 - `StandardMaterial3D`, per-pixel shading, Burley diffuse, Schlick-GGX specular.
 - A registered PBR map trio per hull family: `<craft>-hull-albedo-v1.png`,
@@ -390,7 +390,8 @@ fleet) → 0.561 m (Torrent) → 1.401 m (Arrow) → 3.010 m (Halyard) → 3.256
 
 - `PilotSeatAnchor` is a `Marker3D` parented to `CockpitInterior`, which is
   itself a child of the craft's visual root (`TorrentVisual/CockpitInterior`,
-  `ZenithVisual/CockpitInterior`, and the equivalents on Arrow and Jovian).
+  `ZenithVisual/CockpitInterior`, and the equivalents on Arrow, Jovian and
+  Halyard).
   A seat anchor on a loose marker outside the functional cockpit fails the audit.
 - **`PilotSeatAnchor` is a feet-frame marker, not a cushion height.**
   `PlayerController` treats its own root as a feet frame and carries its hips
@@ -398,7 +399,7 @@ fleet) → 0.561 m (Torrent) → 1.401 m (Arrow) → 3.010 m (Halyard) → 3.256
 - `CockpitCamera` is a `Camera3D`, also parented to `CockpitInterior`, positioned
   exactly `seat_to_cockpit_camera_rise_m` above the seat anchor in `y` and aimed
   along the craft's own nose axis (`dot > 0.999` against the craft's `-Z`).
-- **Consequence, measured on all four craft: the cockpit camera lands `+0.201 m`
+- **Consequence, measured on all five craft: the cockpit camera lands `+0.201 m`
   above the seated pilot's head bone.** That figure is printed as
   `FLEET_SEATING_EVIDENCE` by the audit; it is a *measurement*, produced by the
   frozen 1.76 m rise plus the shared pilot rig. What is enforced is the exact
@@ -421,7 +422,8 @@ seat-cushion height instead of feet-frame height. See the re-freeze note in
   `ExitPoint` further outboard, rotated to face away from the hull and placed
   beyond the craft's own collision so re-enabling the player capsule cannot wedge
   it inside the landed craft.
-  (Torrent `-3.2`, Arrow `-2.45`, Jovian `-3.4`, Zenith `-7.65` in `x`.)
+  (Torrent `-3.2`, Arrow `-2.45`, Jovian `-3.4`, Zenith `-7.65`, Halyard
+  `-4.90` in `x`.)
 - Boarding is **physical**. `GameFlow` offers no boarding prompt beyond
   `boarding_fallback_reach_m`. The audit stages the avatar past
   `minimum_staged_distance_m`, asserts no candidate exists, then walks it in with
@@ -432,7 +434,8 @@ seat-cushion height instead of feet-frame height. See the re-freeze note in
 - Entry copy is per craft and lives in the `ShipDefinition`
   (`entry_noun` / `entry_open_verb` / `entry_close_verb` / `boarding_verb`) —
   Torrent "open canopy", Arrow and Zenith "raise/seal canopy", Jovian
-  "raise/seal pilot hatch". The vocabulary is data, not a subclass constant.
+  "raise/seal pilot hatch", and Halyard "raise/seal flight deck hatch". The
+  vocabulary is data, not a subclass constant.
 
 ---
 
@@ -491,7 +494,7 @@ This is the operative section. Everything above describes; this constrains.
    all four vision models — before authoring anything, not after.
 2. **Do not spend the measured headroom.** The current minima (16.62 body,
    31.38 accent) are the *fleet's* margin, not a per-craft allowance. Adding a
-   fifth tone lowers the minimum against all four existing tones simultaneously.
+   sixth tone lowers the minimum against all five existing tones simultaneously.
 3. **Do not take a pale near-white body.** "Pale" is a source observation owned
    by exactly two craft, not a family trait. A new craft has no pale claim to
    make, and the pale region of the space is already occupied at the floor by
@@ -631,7 +634,7 @@ handling that actually ships rather than a constant declared somewhere in source
 
 ### The current margin, and why it is thin
 
-Advantage counts today (`B` over `A`), computed from the four
+Advantage counts today (`B` over `A`), computed from the five
 `assets/ships/*.tres` files with the same two axis lists:
 
 | B (row) beats A (column) on | Torrent | Arrow | Jovian | Zenith | Halyard |
@@ -656,7 +659,7 @@ almost no room left to exist without dominating something.
 2. Run `get_validation_errors()`. The schema already constrains the trade-off
    space: `boost_speed >= maximum_speed`, `brake_acceleration >= passive_drag`,
    `landing_maximum_speed <= maximum_speed`, and every field has a hard range.
-3. For each of the four existing craft, count advantages **in both directions**
+3. For each of the five existing craft, count advantages **in both directions**
    over the 13 axes. Both counts must be `> 0`. Any zero means one of the two
    craft is strictly dominated and the candidate is not shippable.
 4. Count differing axes against each existing craft. Fewer than
@@ -665,12 +668,12 @@ almost no room left to exist without dominating something.
 5. Name the candidate's signature axis — the one thing it is the sole extreme
    on — and name what it pays for it. If neither exists, the craft has no role.
 6. Check the candidate does not take a signature away from an existing craft. The
-   four signature assertions above are frozen; a new craft that out-rolls Zenith
+   five signature assertions above are frozen; a new craft that out-rolls Zenith
    or out-hulls Jovian turns them red.
 7. Only then build geometry, and add the craft to the fleet so
    `tests/fleet_role_differentiation_test.gd` measures it for real.
 
-Steps 3–6 are a table exercise on four `.tres` files and take minutes. They are
+Steps 3–6 are a table exercise on five `.tres` files and take minutes. They are
 cheap precisely because they happen before art.
 
 ---
@@ -684,7 +687,7 @@ cheap precisely because they happen before art.
   has been established, and inventing one here would be exactly the unevidenced
   assertion this document argues against.
 - **LOD triangle budgets.** Zenith's 47,274 / 5,412 authored levels are its own
-  frozen contract, not a fleet target; the other three are built differently.
+  frozen contract, not a fleet target; the other four are built differently.
 - **Damage, destruction and debris presentation.** Phase 6 scope.
 - **Berth and station-side visual language.** Owned by
   `docs/research/STATION_TOPOLOGY.md` and the station module suites. The only

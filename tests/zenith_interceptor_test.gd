@@ -34,7 +34,7 @@ const MANIFEST_PATH := "res://assets/models/zenith/zenith_authored_asset_manifes
 # value, berth transform or boarding/exit/muzzle anchor was touched.
 #
 # `tests/fleet_role_differentiation_test.gd` now asserts the resulting eye
-# offset and head-to-hull clearance for all four craft, Zenith included.
+# offset and head-to-hull clearance for all five craft, Zenith included.
 const EXPECTED_ANCHORS := {
 	&"PilotSeatAnchor": Vector3(0.0, 1.11, -0.55),
 	&"BoardingEntry": Vector3(-1.18, 1.62, -0.32),

@@ -28,6 +28,7 @@ func _run() -> void:
 	var reserve := game.get_node("ArrowReconShip") as HeroShip
 	var jovian := game.get_node("JovianLightFreighter") as HeroShip
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
+	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var hud := game.get_node("HUD") as CanvasLayer
 	var authority := game.call("get_combat_authority") as LiveCombatAuthority
@@ -46,6 +47,7 @@ func _run() -> void:
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
 	_check(authority.get_source_id(jovian) == 1103, "Jovian owns an explicit stable combat identity")
 	_check(authority.get_source_id(zenith) == 1104, "Zenith owns its protected stable combat identity")
+	_check(authority.get_source_id(halyard) == 1105, "Halyard owns its explicit stable combat identity")
 	_check(authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID, "opponent source keeps its explicit stable combat identity")
 	_check(authority.get_source_id(hero) != authority.get_source_id(reserve), "physical player craft never share a source ledger")
 	_check(
@@ -58,16 +60,18 @@ func _run() -> void:
 		authority.get_source_id(reserve): true,
 		authority.get_source_id(jovian): true,
 		authority.get_source_id(zenith): true,
+		authority.get_source_id(halyard): true,
 		authority.get_source_id(opponent): true,
 	}
 	_check(
-		production_source_ids.size() == 5,
-		"Zenith source 1104 remains unique across all four player craft and the defender"
+		production_source_ids.size() == 6,
+		"all five player craft and the defender retain six distinct combat source identities"
 	)
 	var torrent_profile := authority.get_weapon_profile(hero, &"combat_pulse_cannon")
 	var arrow_profile := authority.get_weapon_profile(reserve, &"combat_pulse_cannon")
 	var jovian_profile := authority.get_weapon_profile(jovian, &"combat_pulse_cannon")
 	var zenith_profile := authority.get_weapon_profile(zenith, &"combat_pulse_cannon")
+	var halyard_profile := authority.get_weapon_profile(halyard, &"combat_pulse_cannon")
 	_check(
 		is_equal_approx(float(torrent_profile.get("range", 0.0)), 360.0)
 		and is_equal_approx(float(torrent_profile.get("damage", 0.0)), 34.0),
@@ -91,10 +95,18 @@ func _run() -> void:
 		"Zenith retains its exact protected production combat profile"
 	)
 	_check(
+		halyard_profile.size() == 3
+		and is_equal_approx(float(halyard_profile.get("range", 0.0)), 280.0)
+		and is_equal_approx(float(halyard_profile.get("damage", 0.0)), 18.0)
+		and is_equal_approx(float(halyard_profile.get("origin_tolerance", 0.0)), 30.0),
+		"Halyard retains its exact self-defence production combat profile"
+	)
+	_check(
 		hero.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and reserve.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and jovian.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and zenith.get_node_or_null("AuthoritativeDamageable") is DamageableScript
+		and halyard.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and opponent.get_node_or_null("AuthoritativeDamageable") is DamageableScript,
 		"production craft expose typed Damageable lifecycle proxies"
 	)

@@ -21,9 +21,11 @@ reproducible without redistributing third-party media.
   including Arrow and Jovian, are currently `unknown`. Raising one requires a new
   registered ledger anchor, never an implementation or a render.
 - [`fleet_roster_variants.json`](fleet_roster_variants.json) keeps source-scoped
-  fleet rosters by variant (for example, a stable vertical-slice production
-  roster and a dated/full-name roster), with source IDs and matrix-to-runtime ship
-  mappings.
+  fleet rosters by variant: the stable frozen four-craft vertical-slice baseline,
+  a distinct current five-craft runtime roster, and the dated/full-name evidence
+  roster. The runtime-only Halyard entry carries no evidence-matrix identity;
+  source IDs and matrix-to-runtime mappings remain bounded to the four
+  source-ledger craft.
 - [`../ZENITH_B7_RECONSTRUCTION_SPEC.md`](../ZENITH_B7_RECONSTRUCTION_SPEC.md)
   deliberately versions the A5/A9 role conflict and freezes the non-media,
   frame-bounded source core now used by the bounded partial B7-observed Zenith

@@ -249,7 +249,7 @@ func _test_evidence_rows(document: String, matrix: Dictionary) -> void:
 	var rows := _table_rows(document, "GRAMMAR-EVIDENCE")
 	_check(
 		rows.size() == DOCUMENTED_SHIP_IDS.size(),
-		"the documented evidence table carries exactly the four implemented craft (%d rows)"
+		"the documented evidence table carries exactly the four source-ledger historical-name craft (%d rows)"
 			% rows.size()
 	)
 	var vocabulary: Array = ((matrix.get("policy", {}) as Dictionary)

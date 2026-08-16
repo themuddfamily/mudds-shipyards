@@ -5,6 +5,7 @@ const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres
 const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
 const ZENITH_DEFINITION := preload("res://assets/ships/zenith_b7_observed.tres")
+const HALYARD_DEFINITION := preload("res://assets/ships/halyard_new_design.tres")
 
 ## Extra simulated frames granted on top of the frames a wait's nominal duration
 ## implies. This is a frame count, never a wall-clock grace. See
@@ -104,6 +105,7 @@ func _test_declared_identity(rigs: Dictionary) -> void:
 		str(ARROW_DEFINITION.get("audio_profile_id")),
 		str(JOVIAN_DEFINITION.get("audio_profile_id")),
 		str(ZENITH_DEFINITION.get("audio_profile_id")),
+		str(HALYARD_DEFINITION.get("audio_profile_id")),
 	])
 	_check(
 		definition_profile_ids == PackedStringArray([
@@ -111,8 +113,9 @@ func _test_declared_identity(rigs: Dictionary) -> void:
 			"efficient_twin_recon",
 			"heavy_quad_freighter",
 			"standard_fighter",
+			"heavy_quad_freighter",
 		]),
-		"four live ShipDefinitions use the declared profiles and Zenith deliberately reuses standard_fighter"
+		"five live ShipDefinitions use declared profiles; Zenith reuses standard_fighter and Halyard reuses heavy_quad_freighter"
 	)
 	for profile in exact_ids:
 		_check(ShipAudioRig.is_declared_profile_id(StringName(profile)), "%s is accepted as an exact declared profile" % profile)

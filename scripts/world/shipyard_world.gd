@@ -4578,9 +4578,9 @@ func _build_central_reflection_probe(pad: Node3D) -> void:
 ##
 ## State, carried by hardware rather than paint. This is the idiom the registry
 ## pod's dispatch board and the dock arms already use: the readiness board's
-## assigned bay has its retaining pin **seated in its socket** and its tile lit;
-## the two deferred bays have their pins **withdrawn and parked in the clip**
-## under the board and their tiles dark. The chocks are **out of the locker and
+## two assigned bays have their retaining pins **seated in their sockets** and
+## their tiles lit; the one deferred bay has its pin **withdrawn and parked in
+## the clip** under the board and its tile dark. The chocks are **out of the locker and
 ## on the deck** because a craft is berthed. Reading the berth's state does not
 ## require reading a colour.
 ##
@@ -4666,11 +4666,11 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 	_box(board, "BoardMast", Vector3(0.0, _seated_centre_y(board_foot_top, 1.34), 0.0), Vector3(0.16, 1.34, 0.16), _materials["steel_blue"])
 	_box(board, "BoardPanel", Vector3(0.0, 1.42, 0.06), Vector3(1.16, 0.80, 0.11), _materials["ivory"])
 	_box(board, "BoardFace", Vector3(0.0, 1.42, 0.125), Vector3(1.00, 0.66, 0.02), _materials["navy"], false)
-	# Three bays, one tile each. Bay 0 is this berth and is assigned; bays 1 and 2
-	# are the two deferred fleet-dock bays. The pin, not the tile colour, is the
-	# state: seated in the socket for the assignment, parked in the clip for the
-	# two deferrals.
-	var bay_states := [true, false, false]
+	# Three bays, one tile each. Bay 0 is this berth and bay 1 is the assigned
+	# Halyard dock; only bay 2 remains deferred. The pin, not the tile colour, is
+	# the state: seated in the socket for an assignment, parked in the clip for
+	# the one deferral.
+	var bay_states := [true, true, false]
 	for bay_index in bay_states.size():
 		var assigned: bool = bay_states[bay_index]
 		var tile_x := -0.32 + float(bay_index) * 0.32
@@ -4684,7 +4684,7 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 		)
 		_box(board, "BayPinSocket%02d" % bay_index, Vector3(tile_x, 1.34, 0.135), Vector3(0.10, 0.10, 0.02), _materials["black"], false)
 		if assigned:
-			_cylinder(board, "BaySeatedPin", Vector3(tile_x, 1.34, 0.20), 0.028, 0.16, _materials["ivory"], false, Vector3(90.0, 0.0, 0.0))
+			_cylinder(board, "BaySeatedPin%02d" % bay_index, Vector3(tile_x, 1.34, 0.20), 0.028, 0.16, _materials["ivory"], false, Vector3(90.0, 0.0, 0.0))
 	# Hooded lamp over the board. The board is the first object on this flank a
 	# player walking down from the spawn marker meets, and an unlit board is a
 	# board nobody reads.
@@ -4692,7 +4692,7 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 	_box(board, "BoardLampLens", Vector3(0.0, 1.845, 0.20), Vector3(0.72, 0.03, 0.20), _materials["white_glow"], false)
 	_service_practical(board, "BoardLampPractical", Vector3(0.0, 1.74, 0.30), Color("dcefe9"), 1.05, 5.6)
 	_box(board, "WithdrawnPinClip", Vector3(0.30, 1.14, 0.14), Vector3(0.30, 0.05, 0.03), _materials["black"], false)
-	for parked_index in 2:
+	for parked_index in 1:
 		_cylinder(
 			board,
 			"WithdrawnPin%02d" % parked_index,
