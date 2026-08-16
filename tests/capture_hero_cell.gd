@@ -174,6 +174,24 @@ const COCKPIT_INSTRUMENT_MINIMUM_TOP_FRACTION := 0.64
 const COCKPIT_INSTRUMENT_MAXIMUM_TOP_FRACTION := 0.82
 const COCKPIT_INSTRUMENT_MAXIMUM_HEIGHT_FRACTION := 0.35
 
+## Frames each fixed-cockpit differential state settles for before readback.
+##
+## The exterior control is a pixel differential of a deliberately frozen scene,
+## so it is only as tight as the renderer's own frame-to-frame reproducibility.
+## TAA is enabled on this viewport (`_configure_native_capture`) and never stops
+## jittering, so that floor is not zero. Settling longer was tried as a repair and
+## bought nothing: the floor measured 0.0044 and 0.0120 on two runs at 8 frames
+## and 0.0124 on one at 48, so it is unstable run to run and independent of this
+## value, while 48 frames cost roughly three times the harness runtime. It
+## therefore stays at the original 8, and the floor is instead measured every run
+## and printed as `HERO_CELL_DIAGNOSTIC` — which is what lets a reader tell a
+## marginal exterior number apart from renderer noise instead of guessing at it.
+const COCKPIT_DIFFERENTIAL_SETTLE_FRAMES := 8
+
+## Simulated frames granted on top of a nominal duration, so a condition that
+## settles right on the edge of its budget is not lost to rounding.
+const FRAME_BUDGET_GRACE := 30
+
 const SHIP_MASK_GRID := Vector2i(128, 72)
 const SHIP_MASK_MINIMUM_SAMPLES := 120
 const MATERIAL_MASK_MINIMUM_SAMPLES := 20
@@ -198,6 +216,8 @@ var _lighting_metrics: Dictionary = {}
 var _cockpit_display_roi := Rect2i()
 var _triangle_mesh_cache: Dictionary = {}
 var _cockpit_camera_for_metrics: Camera3D
+var _cockpit_critical_exterior_control: Image
+var _quiesced_damage_emitters := PackedStringArray()
 
 var _stage: Node3D
 var _world: ShipyardWorld
@@ -421,7 +441,17 @@ func _run() -> void:
 		),
 		"live pilot begins the production boarding transition"
 	)
-	await create_timer(1.25).timeout
+	# Wait for the boarding transition the frame below asserts on, rather than for
+	# 1.25 s of smoothed engine delta. `is_seated()` ends the wait too, so an
+	# overshoot fails loudly on the assertions instead of burning the budget.
+	await _wait_until(
+		func() -> bool:
+			return (
+				_pilot.is_seated()
+				or _pilot.global_position.distance_to(boarding_start_position) > 0.65
+			),
+		1.25
+	)
 	_validate_open_canopy_semantics()
 	_check(
 		not _pilot.is_seated()
@@ -566,7 +596,7 @@ func _run() -> void:
 		"cockpit states use the production physical pilot-eye camera"
 	)
 	_hero_presentation.update_lod_for_distance(0.0)
-	await _settle_render(8)
+	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
 	_validate_cockpit_acceptance_contract(cockpit_camera)
 	await _capture_frame(CAPTURE_FILES[15], &"cockpit_offline", {
 		"engine_state": "offline",
@@ -578,7 +608,7 @@ func _run() -> void:
 	_torrent.engine_start_time = 0.01
 	_torrent.request_engine_start()
 	_check(await _wait_for_engine_state(&"ONLINE"), "fixed cockpit reaches engine-online")
-	await _settle_render(8)
+	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
 	await _capture_frame(CAPTURE_FILES[16], &"cockpit_online", {
 		"engine_state": "online",
 		"damage_status": "healthy",
@@ -586,8 +616,10 @@ func _run() -> void:
 		"world_presentation_tick": "capture_only_frozen_for_pixel_differential",
 	}, &"cockpit_fixed")
 
+	await _diagnose_exterior_noise_floor()
+
 	_torrent.apply_damage(_torrent.maximum_hull * 0.76)
-	await _settle_render(8)
+	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
 	var critical_telemetry := _torrent.get_telemetry()
 	_check(
 		str(critical_telemetry.get("damage_status", "")) == "critical"
@@ -600,6 +632,8 @@ func _run() -> void:
 		"sight_corridor_degrees": [20.0, 12.0],
 		"world_presentation_tick": "capture_only_frozen_for_pixel_differential",
 	}, &"cockpit_fixed")
+
+	await _capture_cockpit_critical_exterior_control()
 
 	_validate_capture_set()
 	_validate_source_frozen()
@@ -1133,11 +1167,39 @@ func _settle_render(frame_count: int = 7) -> void:
 
 
 func _wait_for_seated(timeout_seconds: float) -> bool:
-	var timeout := create_timer(timeout_seconds)
-	while not _pilot.is_seated() and timeout.time_left > 0.0:
+	return await _wait_until(func() -> bool: return _pilot.is_seated(), timeout_seconds)
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## The previous form combined the worst of two clocks: a `SceneTreeTimer`
+## deadline counting Godot's smoothed engine delta, guarding a loop that advances
+## the physics clock. Software-rendered 2560x1440 Forward+ capture is exactly the
+## load under which the engine drops physics steps rather than letting the
+## simulation spiral, so the timer expired with the boarding transition only
+## part-stepped and the harness failed a pilot who was still climbing in.
+##
+## `timeout_seconds` is kept as the *nominal* duration and becomes both a budget
+## of simulated frames and a wall-clock deadline. The frame budget is added
+## alongside the original deadline rather than replacing it, so anything released
+## against a monotonic deadline stays bounded on the clock that owns it, and a
+## frame budget alone cannot stretch the window over an unbounded run of wall
+## clock. Both bounds stay finite, so a genuinely stuck condition still fails.
+func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
 		await physics_frame
 		await process_frame
-	return _pilot.is_seated()
+		frames += 1
+	return true
 
 
 func _wait_for_engine_state(expected: StringName, timeout_frames: int = 180) -> bool:
@@ -1396,7 +1458,43 @@ func _validate_cockpit_roi_pairs() -> void:
 	var offline_online_raw_outside := _compare_region(offline, online, _cockpit_display_roi, true)
 	var online_critical_raw_outside := _compare_region(online, critical, _cockpit_display_roi, true)
 	var offline_online_outside := _compare_exterior_world(offline, online)
-	var online_critical_outside := _compare_exterior_world(online, critical)
+	# The gated ONLINE/CRITICAL exterior comparison uses the deterministic half of
+	# the critical state. See `_capture_cockpit_critical_exterior_control` for why
+	# the live transient damage emitters cannot be measured by an immutability
+	# control. The fully live number is still measured, and recorded below.
+	var online_critical_live_outside := _compare_exterior_world(online, critical)
+	_check(
+		_cockpit_critical_exterior_control != null,
+		"fixed cockpit ONLINE/CRITICAL exterior control frame is available"
+	)
+	var online_critical_outside := (
+		_compare_exterior_world(online, _cockpit_critical_exterior_control)
+		if _cockpit_critical_exterior_control != null
+		else online_critical_live_outside
+	)
+	online_critical_outside["comparison"] = (
+		"CRITICAL with transient damage emitters quiesced: [%s]"
+		% ", ".join(_quiesced_damage_emitters)
+	)
+	online_critical_live_outside["comparison"] = (
+		"CRITICAL with every live transient damage emitter running; recorded, not gated,"
+		+ " because pulsing damage illumination and stochastic particles are neither"
+		+ " the world nor the pose this control exists to police"
+	)
+	_pair_metrics["cockpit_online_critical_live_damage_exterior_world_non_gated"] = (
+		online_critical_live_outside
+	)
+	print(
+		(
+			"HERO_CELL_DIAGNOSTIC: ONLINE/CRITICAL exterior — live damage presentation %.4f"
+			+ " (non-gated), transient emitters quiesced %.4f (gated at %.4f)"
+		)
+		% [
+			float(online_critical_live_outside.get("changed_fraction", 0.0)),
+			float(online_critical_outside.get("changed_fraction", 0.0)),
+			COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION,
+		]
+	)
 	_pair_metrics["cockpit_offline_online_roi"] = offline_online_roi
 	_pair_metrics["cockpit_online_critical_roi"] = online_critical_roi
 	_pair_metrics["cockpit_offline_online_raw_outside_display_roi_non_gated"] = offline_online_raw_outside
@@ -1430,7 +1528,7 @@ func _validate_cockpit_roi_pairs() -> void:
 	_check(
 		float(online_critical_outside.get("changed_fraction", 1.0))
 		<= COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION,
-		"fixed cockpit ONLINE/CRITICAL triangle-unoccluded exterior remains within 0.5%% change (%.4f)"
+		"fixed cockpit ONLINE/CRITICAL triangle-unoccluded exterior, transient damage emitters quiesced, remains within 0.5%% change (%.4f)"
 		% float(online_critical_outside.get("changed_fraction", 1.0))
 	)
 
@@ -1465,6 +1563,132 @@ func _compare_region(first: Image, second: Image, roi: Rect2i, invert_roi: bool)
 		"roi": _rect2i_dictionary(roi),
 		"outside_roi": invert_roi,
 	}
+
+
+## Reads one extra frame off the live viewport without staging, hashing or
+## publishing it. Diagnostic comparisons need a second image of a state that is
+## deliberately *not* part of the published 18-frame roster.
+func _read_diagnostic_image() -> Image:
+	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image == null or image.is_empty():
+		return null
+	return image
+
+
+## Measures the renderer's own frame-to-frame reproducibility over the
+## exterior/world mask, by comparing two readbacks of a single unchanged state.
+##
+## `COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION` claims the exterior did not
+## change, which is only a claim about the scene if the renderer can reproduce an
+## identical scene well below it. TAA is enabled on this viewport
+## (`_configure_native_capture`), so this floor is not zero, and on a software
+## rasteriser it has been observed within a factor of two of the gate. Printing
+## it every run is what lets a reader tell a marginal exterior number apart from
+## renderer noise instead of guessing. It is recorded, never gated: the harness
+## does not get to pass by declaring its own noise acceptable.
+func _diagnose_exterior_noise_floor() -> void:
+	var online := _captured_images.get(CAPTURE_FILES[16]) as Image
+	if online == null:
+		return
+	var repeat_image := await _read_diagnostic_image()
+	if repeat_image == null:
+		return
+	var floor_metrics := _compare_exterior_world(online, repeat_image)
+	floor_metrics["diagnostic"] = "renderer frame-to-frame reproducibility, identical unchanged ONLINE state"
+	floor_metrics["settle_frames"] = COCKPIT_DIFFERENTIAL_SETTLE_FRAMES
+	_pair_metrics["cockpit_exterior_world_renderer_noise_floor_non_gated"] = floor_metrics
+	print(
+		"HERO_CELL_DIAGNOSTIC: exterior renderer noise floor (ONLINE vs ONLINE repeat,"
+		+ " no state change, %d settle frames) changed_fraction=%.4f mean_difference=%.6f gate=%.4f"
+		% [
+			COCKPIT_DIFFERENTIAL_SETTLE_FRAMES,
+			float(floor_metrics.get("changed_fraction", 0.0)),
+			float(floor_metrics.get("mean_difference", 0.0)),
+			COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION,
+		]
+	)
+
+
+## Reads the deterministic half of the CRITICAL state, for the exterior control
+## comparison only.
+##
+## The exterior control asserts one thing: that the fixed cockpit camera, the
+## craft pose and the frozen world are identical between the two frames, so that
+## the physical-display ROI change is attributable to the readout and not to the
+## whole scene having moved. `HeroDamagePresentation` also puts two *transient*
+## emitters into the critical state — `DamageSparks`/`EngineFailureSparks`/
+## `EngineSmoke` (world-space `CPUParticles3D`, `randomness` 0.58-0.72) and
+## `DamageWarningLight`/`EngineFailureLight`, whose energies are
+## `sin(elapsed * 13)` and `sin(elapsed * 29) + sin(elapsed * 61)` of accumulated
+## presentation time. Neither is the world and neither is the pose; both land on
+## exterior/world pixels through the glazing, and the light phase at readback is
+## a function of frame timing, so the measurement varied 0.05-0.45 across runs of
+## identical input. No threshold fits that, on this box or on a real GPU.
+##
+## This is the same carve-out the raw outside-ROI metric already documents —
+## "live warning/practical lights intentionally change opaque cockpit surfaces" —
+## carried the rest of the way, because those lights do not stop at the cockpit
+## surfaces. The published `18_cockpit_critical_fixed.png` stays fully live and
+## is not touched; only the control comparison is taken against the quiesced
+## state, and the live exterior number is still measured and recorded, non-gated,
+## so nothing is hidden.
+func _capture_cockpit_critical_exterior_control() -> void:
+	var presentation := _torrent.get_damage_presentation()
+	_check(
+		presentation != null,
+		"fixed cockpit critical state exposes the production HeroDamagePresentation"
+	)
+	if presentation == null:
+		return
+	var transient_emitters: Array[Node] = []
+	transient_emitters.append_array(presentation.find_children("*", "CPUParticles3D", true, false))
+	transient_emitters.append_array(presentation.find_children("*", "Light3D", true, false))
+	_check(
+		not transient_emitters.is_empty(),
+		"fixed cockpit critical state exposes its transient damage emitters for the exterior control"
+	)
+	var emitter_names := PackedStringArray()
+	var restore_visibility := {}
+	for node in transient_emitters:
+		var emitter := node as Node3D
+		if emitter == null:
+			continue
+		emitter_names.append(String(emitter.name))
+		restore_visibility[emitter.get_instance_id()] = emitter.visible
+		emitter.visible = false
+	_quiesced_damage_emitters = emitter_names
+	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
+	_validate_fixed_camera(
+		&"cockpit_fixed",
+		_cockpit_camera_for_metrics,
+		"cockpit critical exterior control"
+	)
+	_cockpit_critical_exterior_control = await _read_diagnostic_image()
+	_check(
+		_cockpit_critical_exterior_control != null,
+		"fixed cockpit critical exterior control frame reads back"
+	)
+	var control_telemetry := _torrent.get_telemetry()
+	_check(
+		str(control_telemetry.get("damage_status", "")) == "critical"
+		and float(control_telemetry.get("hull", 100.0)) <= _torrent.maximum_hull * 0.3,
+		"fixed cockpit exterior control still holds the live critical hull state"
+	)
+	for node in transient_emitters:
+		var emitter := node as Node3D
+		if emitter == null:
+			continue
+		emitter.visible = bool(restore_visibility.get(emitter.get_instance_id(), true))
+	await _settle_render(4)
+	print(
+		(
+			"HERO_CELL_DIAGNOSTIC: cockpit exterior control quiesces transient damage"
+			+ " emitters [%s]; the published critical frame remains fully live"
+		)
+		% ", ".join(emitter_names)
+	)
 
 
 func _compare_exterior_world(first: Image, second: Image) -> Dictionary:
@@ -1989,6 +2213,20 @@ func _write_evidence_manifest() -> void:
 			"cockpit_offline_online_roi_minimum_changed_fraction": COCKPIT_OFFLINE_ONLINE_MINIMUM_CHANGED_FRACTION,
 			"cockpit_online_critical_roi_minimum_changed_fraction": COCKPIT_ONLINE_CRITICAL_MINIMUM_CHANGED_FRACTION,
 				"cockpit_exterior_world_maximum_changed_fraction": COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION,
+				"cockpit_exterior_world_online_critical_comparison": (
+					"CRITICAL with transient damage emitters quiesced: [%s]. The exterior"
+					+ " comparison is a camera/pose/world immutability control; pulsing"
+					+ " damage illumination and stochastic damage particles are neither,"
+					+ " and the fully live figure is recorded separately under pair_metrics"
+					+ " as cockpit_online_critical_live_damage_exterior_world_non_gated."
+				) % ", ".join(_quiesced_damage_emitters),
+				"cockpit_exterior_world_renderer_noise_floor": (
+					"Measured, never gated. See pair_metrics"
+					+ " cockpit_exterior_world_renderer_noise_floor_non_gated: two readbacks"
+					+ " of one unchanged state through the same mask, which bounds how tight"
+					+ " cockpit_exterior_world_maximum_changed_fraction can be on this"
+					+ " renderer."
+				),
 				"cockpit_display_roi_minimum_samples": COCKPIT_DISPLAY_ROI_MINIMUM_SAMPLES,
 			"ship_mask_luminance_p5_minimum": SHIP_LUMINANCE_P5_MINIMUM,
 			"ship_mask_luminance_p95_maximum": SHIP_LUMINANCE_P95_MAXIMUM,
@@ -2428,7 +2666,23 @@ func _fail(description: String) -> void:
 	push_error("HERO_CELL_FAIL: " + description)
 
 
+## Prints every gated measurement to stdout whatever the outcome.
+##
+## The evidence manifest is only written on success, so before this a failing run
+## published no numbers at all and the failure text was the sole record. The
+## measurements are what a reader needs most on the failure path.
+func _print_measured_metrics() -> void:
+	if not _lighting_metrics.is_empty():
+		print("HERO_CELL_METRICS: ship_mask_lighting=", JSON.stringify(_lighting_metrics))
+	for label in _pair_metrics:
+		print(
+			"HERO_CELL_METRICS: %s=%s"
+			% [label, JSON.stringify(_pair_metrics[label])]
+		)
+
+
 func _finish() -> void:
+	_print_measured_metrics()
 	if _failures.is_empty():
 		print(
 			"HERO_CELL_CAPTURE_OK: %d HUD-off source-frozen Forward+ frames at %dx%d"

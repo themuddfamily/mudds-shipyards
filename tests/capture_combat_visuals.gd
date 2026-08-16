@@ -20,6 +20,10 @@ const STAGED_SOURCE_MANIFEST_PATH := TRANSACTION_DIR + "/source_manifest.sha256"
 const CAPTURE_LOG_PATH := OUTPUT_DIR + "/capture_forward_plus_2560x1440.log"
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "MUDDS_CAPTURE_COMBAT_VISUALS_PARSE_ONLY"
 
+## Simulated frames granted on top of a nominal duration, so a condition that
+## settles right on the edge of its budget is not lost to rounding.
+const FRAME_BUDGET_GRACE := 30
+
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
 const CAPTURE_FILES: Array[String] = [
 	"01_damaged_opponent_baseline.png",
@@ -301,7 +305,16 @@ func _capture_sequence() -> void:
 	if setup_snapshot.is_empty():
 		return
 	_pulse.advance_simulation(float(setup_snapshot.get("total_lifetime", 0.0)) + 0.01)
-	await create_timer(1.05).timeout
+	# Wait for the transients themselves to retire rather than for 1.05 s of
+	# smoothed engine delta. The three assertions below are the real condition.
+	await _wait_until(
+		func() -> bool: return (
+			_opponent.get_pending_damage_presentation_count() == 0
+			and _pulse.get_active_effect_count() == 0
+			and not _opponent_smoke.emitting
+		),
+		1.05
+	)
 	await _settle_render(4)
 	_check(is_equal_approx(_opponent.get_health(), SETUP_EXPECTED_HEALTH), "setup hit leaves opponent at 51 health")
 	_check(_opponent.get_pending_damage_presentation_count() == 0, "setup receipt is fully presented before baseline")
@@ -1500,6 +1513,38 @@ func _vector3_array(value: Vector3) -> Array[float]:
 func _settle_render(frame_count: int) -> void:
 	for _index in frame_count:
 		await process_frame
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Three clocks run here: the monotonic clock behind `Time.get_ticks_msec()`,
+## Godot's smoothed engine delta behind `SceneTree` timers, and the physics
+## clock, whose steps the engine drops on a busy machine rather than letting the
+## simulation spiral. Software-rendered 2560x1440 Forward+ evidence is exactly
+## that busy machine: a bare `create_timer(...)` sleep expired on the smoothed
+## delta while the presentation it was waiting for had been stepped only part of
+## the way, and the caller then asserted against a half-retired transient.
+##
+## `timeout_seconds` is kept as the *nominal* duration and becomes both a budget
+## of simulated frames and a wall-clock deadline; the frame budget is added
+## alongside the original deadline rather than replacing it, so a wait released
+## against a monotonic deadline is still bounded on the clock that owns it. Both
+## bounds stay finite, so a genuinely stuck condition still fails the capture.
+func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _dispose_game() -> void:
