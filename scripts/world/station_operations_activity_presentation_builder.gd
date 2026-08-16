@@ -592,8 +592,18 @@ func _build_crew_work_post() -> void:
 
 	_box(post, "ToolWall", Vector3(-0.9, 1.72, 1.0), Vector3(2.5, 1.46, 0.08), _materials["frame"])
 	_box(post, "ToolWallInset", Vector3(-0.9, 1.75, 0.955), Vector3(2.35, 1.25, 0.02), _materials["frame_edge"])
+	var hung_tool_transforms: Array[Transform3D] = []
 	for index in 5:
-		_box(post, "HungTool", Vector3(-1.85 + float(index) * 0.48, 1.72, 0.935), Vector3(0.09, 0.55, 0.05), _materials["graphite"])
+		hung_tool_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(-1.85 + float(index) * 0.48, 1.72, 0.935))
+		)
+	_box_batch(
+		post,
+		"HungTools",
+		Vector3(0.09, 0.55, 0.05),
+		hung_tool_transforms,
+		_materials["graphite"]
+	)
 	_box(post, "TaskLamp", Vector3(-0.9, 2.42, 0.86), Vector3(0.9, 0.1, 0.22), _materials["ceramic"])
 	_box(post, "TaskLampGlow", Vector3(-0.9, 2.355, 0.86), Vector3(0.8, 0.04, 0.16), _materials["sign_lit"])
 
@@ -826,6 +836,10 @@ func _instanced(
 	batch.material_override = material
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(batch, true)
+	# Keep the CPU-authored roster beside the renderer resource. Headless Godot
+	# has no MultiMesh buffer to read back, while Forward+ can compare this exact
+	# roster against the live rendering-server transforms.
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
 	_multimesh_batch_transforms[batch.get_instance_id()] = transforms.duplicate()
 	return batch
 

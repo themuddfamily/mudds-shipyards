@@ -111,6 +111,15 @@ static var _shared_material_catalog: Dictionary = {}
 ##
 ## The `CARGO_LINE_LONG` row was measured against its live build: 54/39, four
 ## batches drawing 22 copies.
+##
+## The crew-workpost trim pass changes only the five identical graphite tools
+## hung on its fixed tool wall. Their five authored meshes are now one batch of
+## the same cached mesh at the same five transforms and material. The family is
+## decorative stock: it is absent from `get_solid_volume_contract()`, and is not
+## a mover, lens, collider, or lifecycle/authority node. `node_count` 59 -> 55,
+## `mesh_instances` 48 -> 43, `multimesh_batches` 0 -> 1, and
+## `multimesh_instances` 0 -> 5: four fewer renderer submissions with the same
+## five visible copies.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
 		"node_count": 96,
@@ -190,14 +199,14 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CREW_WORKPOST: {
-		"node_count": 59,
-		"mesh_instances": 48,
+		"node_count": 55,
+		"mesh_instances": 43,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 0,
-		"multimesh_instances": 0,
+		"multimesh_batches": 1,
+		"multimesh_instances": 5,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE_LONG: {
@@ -226,19 +235,24 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ##   `animated_assemblies` 17 -> 21: +2 x 2, a sled and a hoist each.
 ##   `multimesh_batches` 0 -> 12 and `multimesh_instances` 0 -> 57.
 ##
-## In draw submissions that is 339 -> 461 for the whole roster: 38 for the short
+## In draw submissions that is 339 -> 416 for the whole roster: 38 for the short
 ## line where it used to be 47, and 43 for each 21.6 m run where the same
 ## geometry drawn one mesh at a time would have cost 61.
+##
+## The crew-workpost trim pass then moved the recommended roster exactly once:
+## `node_count` 531 -> 527, `mesh_instances` 404 -> 399,
+## `multimesh_batches` 12 -> 13, and `multimesh_instances` 57 -> 62. Counting
+## one renderer submission per drawn mesh or batch, the roster is 416 -> 412.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 531,
-	"mesh_instances": 404,
+	"node_count": 527,
+	"mesh_instances": 399,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"multimesh_batches": 12,
-	"multimesh_instances": 57,
+	"multimesh_batches": 13,
+	"multimesh_instances": 62,
 	"animated_assemblies": 21,
 }
 
@@ -1540,6 +1554,15 @@ func _built_multimesh_contracts_are_live() -> bool:
 		for index in recorded.size():
 			if not live[index].is_equal_approx(recorded[index] as Transform3D):
 				return false
+		# Headless has no rendering buffer, so its structural audit stops at the
+		# authored roster above. With a renderer, also prove the rendering server
+		# received every transform rather than trusting only the CPU-side record.
+		if not RenderingServer.get_video_adapter_name().is_empty():
+			for index in recorded.size():
+				if not batch.multimesh.get_instance_transform(index).is_equal_approx(
+					recorded[index] as Transform3D
+				):
+					return false
 	return true
 
 
