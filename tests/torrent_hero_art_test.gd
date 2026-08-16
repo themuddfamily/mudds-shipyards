@@ -54,6 +54,7 @@ func _run() -> void:
 	_test_airframe_and_surface_materials(torrent)
 	_test_authored_material_roles(torrent)
 	_test_propulsion_and_hardware(torrent)
+	_test_render_allocations(torrent)
 	await _test_cockpit_canopy_and_contracts(torrent)
 	await _test_variant_seams()
 	torrent.queue_free()
@@ -84,6 +85,8 @@ func _test_construction_audit(torrent: HeroShip) -> void:
 	_check(int(fallback.get("engine_assembly_count", 0)) == 2 and int(fallback.get("landing_gear_assembly_count", 0)) == 3, "fallback audit retains twin engines and tricycle gear")
 	_check(int(fallback.get("rcs_cluster_count", 0)) == 4 and int(fallback.get("service_panel_count", 0)) >= 4, "fallback audit inventories RCS clusters and service access panels")
 	_check(int(fallback.get("mapped_hull_material_count", 0)) == 2, "both fallback hull material families keep their registered maps")
+	var render_allocations := fallback.get("render_allocations", {}) as Dictionary
+	_check(bool(render_allocations.get("valid", false)) and bool(render_allocations.get("exact_counts", false)), "fallback audit includes a clean component-local render-allocation contract")
 
 
 func _test_airframe_and_surface_materials(torrent: HeroShip) -> void:
@@ -183,6 +186,145 @@ func _test_propulsion_and_hardware(torrent: HeroShip) -> void:
 	_check(docking_receiver != null and docking_receiver.find_children("CaptureJaw*", "MeshInstance3D", false, false).size() == 4, "docking receiver exposes four capture jaws")
 	_check(modern_systems != null and modern_systems.find_children("*RCSCluster", "Node3D", true, false).size() == 4, "four presentation-only RCS clusters are visible")
 	_check(modern_systems != null and modern_systems.find_children("*DorsalVentBank", "Node3D", true, false).size() == 2, "paired louvred vent banks service the aft fuselage")
+
+
+func _test_render_allocations(torrent: HeroShip) -> void:
+	var visual := torrent.get_variant_visual_root()
+	var modern := visual.get_node_or_null("LegacyFarPresentation/ModernSystems") as Node3D if visual != null else null
+	_check(modern != null, "Torrent retains its modern fallback root for local render auditing")
+	if modern == null:
+		return
+	var expected_transforms: Array[Transform3D] = []
+	var louver_basis := Basis.from_euler(Vector3(deg_to_rad(-8.0), 0.0, 0.0))
+	for louver_index in HeroShip.TORRENT_VENT_LOUVERS_PER_BANK:
+		expected_transforms.append(Transform3D(
+			louver_basis,
+			Vector3(0.0, 0.055, -0.43 + float(louver_index) * 0.17)
+		))
+	var expected_names := PackedStringArray([
+		"VentLouver00", "VentLouver01", "VentLouver02",
+		"VentLouver03", "VentLouver04", "VentLouver05",
+	])
+	var batches: Array[MultiMeshInstance3D] = []
+	var shared_mesh: Mesh = null
+	for side_name: String in ["Port", "Starboard"]:
+		var bank := modern.get_node_or_null(side_name + "DorsalVentBank") as Node3D
+		var batch := bank.get_node_or_null("VentLouvers") as MultiMeshInstance3D if bank != null else null
+		_check(bank != null and batch != null and batch.multimesh != null, "%s vent bank retains one bank-local louvre batch" % side_name)
+		if batch == null or batch.multimesh == null:
+			continue
+		batches.append(batch)
+		var multi := batch.multimesh
+		var authored := batch.get_meta("authored_instance_transforms", []) as Array
+		var transforms_match := authored.size() == expected_transforms.size()
+		for index in mini(authored.size(), expected_transforms.size()):
+			transforms_match = transforms_match and (authored[index] as Transform3D).is_equal_approx(expected_transforms[index])
+		_check(
+			multi.instance_count == HeroShip.TORRENT_VENT_LOUVERS_PER_BANK
+			and multi.visible_instance_count == HeroShip.TORRENT_VENT_LOUVERS_PER_BANK
+			and transforms_match
+			and batch.get_meta("authored_visual_names", PackedStringArray()) == expected_names,
+			"%s batch preserves all six authored louvre copies, transforms, order and visual names" % side_name
+		)
+		_check(
+			multi.mesh != null
+			and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.54, 0.045, 0.065))
+			and multi.mesh.get_surface_count() == 1
+			and multi.mesh.surface_get_material(0) == torrent.get_variant_materials().get("dark")
+			and batch.material_override == null
+			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and batch.layers == 1,
+			"%s batch preserves louvre extent, surface material identity, shadows and render layer" % side_name
+		)
+		_check(
+			batch.get_child_count() == 0
+			and batch.get_script() == null
+			and batch.get_groups().is_empty()
+			and bool(batch.get_meta("visual_detail_only", false))
+			and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+			and batch.find_children("*", "Area3D", true, false).is_empty(),
+			"%s batch remains childless, visual-only, non-colliding and without authority" % side_name
+		)
+		if shared_mesh == null:
+			shared_mesh = multi.mesh
+		else:
+			_check(multi.mesh == shared_mesh, "both bank-local batches share one immutable louvre mesh")
+	_check(
+		batches.size() == 2
+		and modern.find_children("VentLouver*", "MeshInstance3D", true, false).is_empty(),
+		"only the twelve generic louvre leaves retire; both named bank roots remain"
+	)
+
+	var report := torrent.get_torrent_render_allocation_report()
+	var component := report.get("component", {}) as Dictionary
+	var fallback := report.get("modern_fallback", {}) as Dictionary
+	_check(
+		int(component.get("descendant_nodes", -1)) == 293
+		and int(component.get("mesh_instances", -1)) == 235
+		and int(component.get("multimesh_batches", -1)) == 2,
+		"Torrent-local renderer nodes freeze at 303 -> 293, MeshInstances 247 -> 235 and batches 0 -> 2"
+	)
+	_check(
+		int(component.get("drawn_copies", -1)) == 247
+		and int(component.get("geometry_submissions", -1)) == 237
+		and int(component.get("unique_mesh_resources", -1)) == 208
+		and int(component.get("unique_material_resources", -1)) == 36,
+		"drawn copies/materials remain 247/36 while submissions fall 247 -> 237 and unique meshes 219 -> 208"
+	)
+	_check(
+		int(fallback.get("descendant_nodes", -1)) == 107
+		and int(fallback.get("mesh_instances", -1)) == 89
+		and int(fallback.get("multimesh_batches", -1)) == 2
+		and int(fallback.get("drawn_copies", -1)) == 101
+		and int(fallback.get("geometry_submissions", -1)) == 91,
+		"modern-fallback local nodes freeze at 117 -> 107 and submissions 101 -> 91 without dropping its 101 copies"
+	)
+	_check(
+		int(report.get("vent_louver_batches", -1)) == 2
+		and int(report.get("vent_louver_copies", -1)) == 12
+		and int(report.get("vent_louver_shared_mesh_resources", -1)) == 1
+		and int(report.get("renderer_buffer_floats", -1)) == 144
+		and bool(report.get("renderer_buffer_matches_authored", false))
+		and bool(report.get("bounds_match_authored", false))
+		and bool(report.get("mesh_material_matches_authored", false))
+		and bool(report.get("batch_contract_matches", false))
+		and bool(report.get("exact_counts", false)),
+		"two 72-float renderer buffers, explicit culling unions and one shared mesh match the authored louvre roster"
+	)
+
+	var detached := report.get("authored_bank_transforms", []) as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((torrent.get_torrent_render_allocation_report().authored_bank_transforms as Array)[0] as Transform3D).is_equal_approx(Transform3D.IDENTITY),
+		"render report returns a detached authored-transform roster"
+	)
+	if batches.is_empty():
+		return
+	var multi := batches[0].multimesh
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		(torrent.get_torrent_reconstruction_audit_report().errors as PackedStringArray).has(
+			"Torrent dorsal vent-louver renderer buffer drifted from its authored transforms"
+		),
+		"RED: mutating one live louvre transform is rejected by the Torrent audit"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		(torrent.get_torrent_reconstruction_audit_report().errors as PackedStringArray).has(
+			"Torrent dorsal vent-louver culling bounds drifted from its authored copies"
+		),
+		"RED: mutating one bank's explicit culling union is rejected by the Torrent audit"
+	)
+	multi.custom_aabb = original_bounds
+	_check(
+		bool(torrent.get_torrent_reconstruction_audit_report().valid),
+		"restoring the exact batch payload restores a clean Torrent reconstruction audit"
+	)
 
 
 func _test_authored_material_roles(torrent: HeroShip) -> void:

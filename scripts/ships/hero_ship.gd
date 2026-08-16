@@ -87,6 +87,25 @@ const TORRENT_GEOMETRY_STATUS: StringName = &"source_aligned_partial"
 const TORRENT_IDENTITY_LOCK: StringName = &"b5_observed_name_to_model"
 const TORRENT_RECONSTRUCTION_STATUS: StringName = &"partial"
 const TORRENT_2009_CONTINUITY: StringName = &"unproved"
+const TORRENT_VENT_LOUVERS_PER_BANK := 6
+const TORRENT_VENT_LOUVER_COPY_COUNT := 12
+# Component-local render census after replacing twelve childless louvre nodes
+# and meshes with two bank-local MultiMeshes sharing one immutable mesh. Before:
+# 303 descendants, 247 MeshInstances, 0 batches, 247 copies/submissions, 219
+# unique meshes. The close authored asset and every semantic/system root remain.
+const TORRENT_RENDER_DESCENDANT_COUNT := 293
+const TORRENT_RENDER_MESH_INSTANCE_COUNT := 235
+const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 2
+const TORRENT_RENDER_DRAWN_COPY_COUNT := 247
+const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 237
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 208
+const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 36
+const TORRENT_MODERN_DESCENDANT_COUNT := 107
+const TORRENT_MODERN_MESH_INSTANCE_COUNT := 89
+const TORRENT_MODERN_DRAWN_COPY_COUNT := 101
+const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 91
+const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 73
+const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 10
 
 @export_category("Identity")
 @export var ship_id: StringName = &"torrent_test_article_01"
@@ -237,6 +256,8 @@ var _legacy_torrent_presentation: Node3D
 var _legacy_torrent_cockpit_art: Node3D
 var _legacy_torrent_canopy_art: Node3D
 var _torrent_unknown_function_panel: MeshInstance3D
+var _torrent_vent_louver_mesh: ArrayMesh
+var _torrent_vent_louver_batches: Array[MultiMeshInstance3D] = []
 var _audio_throttle_state := -1.0
 var _audio_boost_state := false
 
@@ -2642,6 +2663,206 @@ func get_variant_materials() -> Dictionary:
 	return _materials
 
 
+## Component-local render census and a deterministic audit of the one bounded
+## batching seam. It deliberately counts both imported close art and retained
+## fallback art because both remain allocated by a live Torrent.
+func get_torrent_render_allocation_report() -> Dictionary:
+	var visual := get_variant_visual_root()
+	var modern := (
+		visual.get_node_or_null("LegacyFarPresentation/ModernSystems") as Node3D
+		if visual != null else null
+	)
+	var visual_census := _collect_torrent_render_census(visual)
+	var modern_census := _collect_torrent_render_census(modern)
+	var exact_counts := (
+		int(visual_census.get("descendant_nodes", -1)) == TORRENT_RENDER_DESCENDANT_COUNT
+		and int(visual_census.get("mesh_instances", -1)) == TORRENT_RENDER_MESH_INSTANCE_COUNT
+		and int(visual_census.get("multimesh_batches", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
+		and int(visual_census.get("drawn_copies", -1)) == TORRENT_RENDER_DRAWN_COPY_COUNT
+		and int(visual_census.get("geometry_submissions", -1)) == TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT
+		and int(visual_census.get("unique_mesh_resources", -1)) == TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT
+		and int(visual_census.get("unique_material_resources", -1)) == TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
+		and int(visual_census.get("multimesh_resources", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
+		and int(modern_census.get("descendant_nodes", -1)) == TORRENT_MODERN_DESCENDANT_COUNT
+		and int(modern_census.get("mesh_instances", -1)) == TORRENT_MODERN_MESH_INSTANCE_COUNT
+		and int(modern_census.get("multimesh_batches", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
+		and int(modern_census.get("drawn_copies", -1)) == TORRENT_MODERN_DRAWN_COPY_COUNT
+		and int(modern_census.get("geometry_submissions", -1)) == TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT
+		and int(modern_census.get("unique_mesh_resources", -1)) == TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT
+		and int(modern_census.get("unique_material_resources", -1)) == TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT
+	)
+
+	var expected_transforms := _torrent_vent_louver_transforms()
+	var expected_buffer := _torrent_encode_multimesh_transforms(expected_transforms)
+	var expected_names := PackedStringArray([
+		"VentLouver00", "VentLouver01", "VentLouver02",
+		"VentLouver03", "VentLouver04", "VentLouver05",
+	])
+	var batch_contract_matches := _torrent_vent_louver_batches.size() == 2
+	var buffer_matches := batch_contract_matches
+	var bounds_match := batch_contract_matches
+	var mesh_material_matches := batch_contract_matches
+	var renderer_buffer_floats := 0
+	for side_name: String in ["Port", "Starboard"]:
+		var batch := (
+			modern.get_node_or_null(side_name + "DorsalVentBank/VentLouvers")
+			as MultiMeshInstance3D if modern != null else null
+		)
+		if batch == null or batch.multimesh == null:
+			batch_contract_matches = false
+			buffer_matches = false
+			bounds_match = false
+			mesh_material_matches = false
+			continue
+		var multi := batch.multimesh
+		renderer_buffer_floats += multi.buffer.size()
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		batch_contract_matches = batch_contract_matches and (
+			multi.transform_format == MultiMesh.TRANSFORM_3D
+			and not multi.use_colors
+			and not multi.use_custom_data
+			and multi.instance_count == TORRENT_VENT_LOUVERS_PER_BANK
+			and multi.visible_instance_count == TORRENT_VENT_LOUVERS_PER_BANK
+			and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and batch.visible
+			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and batch.layers == 1
+			and batch.get_child_count() == 0
+			and batch.get_script() == null
+			and batch.get_groups().is_empty()
+			and bool(batch.get_meta("visual_detail_only", false))
+			and batch.get_meta("authored_visual_names", PackedStringArray()) == expected_names
+			and _torrent_transform_arrays_match(authored_transforms, expected_transforms)
+		)
+		buffer_matches = buffer_matches and multi.buffer == expected_buffer
+		bounds_match = bounds_match and (
+			_torrent_vent_louver_mesh != null
+			and multi.custom_aabb.is_equal_approx(_torrent_transformed_mesh_bounds(
+				_torrent_vent_louver_mesh.get_aabb(), expected_transforms
+			))
+		)
+		mesh_material_matches = mesh_material_matches and (
+			_torrent_vent_louver_mesh != null
+			and multi.mesh == _torrent_vent_louver_mesh
+			and batch.material_override == null
+			and _torrent_vent_louver_mesh.get_surface_count() == 1
+			and _torrent_vent_louver_mesh.surface_get_material(0) == _materials.get("dark")
+		)
+
+	var retired_louver_nodes := 0
+	if modern != null:
+		for raw_node in modern.find_children("VentLouver*", "MeshInstance3D", true, false):
+			retired_louver_nodes += 1
+	batch_contract_matches = batch_contract_matches and retired_louver_nodes == 0
+	var errors := PackedStringArray()
+	if not exact_counts:
+		errors.append("Torrent render allocations drifted from the frozen component-local roster")
+	if not batch_contract_matches:
+		errors.append("Torrent dorsal vent-louver batch contract drifted")
+	if not buffer_matches:
+		errors.append("Torrent dorsal vent-louver renderer buffer drifted from its authored transforms")
+	if not bounds_match:
+		errors.append("Torrent dorsal vent-louver culling bounds drifted from its authored copies")
+	if not mesh_material_matches:
+		errors.append("Torrent dorsal vent-louver mesh or material identity drifted")
+	return {
+		"schema_version": 1,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"component": visual_census.duplicate(true),
+		"modern_fallback": modern_census.duplicate(true),
+		"vent_louver_batches": _torrent_vent_louver_batches.size(),
+		"vent_louver_copies": TORRENT_VENT_LOUVER_COPY_COUNT,
+		"vent_louver_shared_mesh_resources": 1 if _torrent_vent_louver_mesh != null else 0,
+		"renderer_buffer_floats": renderer_buffer_floats,
+		"renderer_buffer_matches_authored": buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"mesh_material_matches_authored": mesh_material_matches,
+		"batch_contract_matches": batch_contract_matches,
+		"exact_counts": exact_counts,
+		"authored_bank_transforms": expected_transforms.duplicate(),
+		"old_family": {
+			"nodes": 12, "mesh_instances": 12, "multimesh_batches": 0,
+			"drawn_copies": 12, "geometry_submissions": 12,
+			"unique_mesh_resources": 12,
+		},
+		"new_family": {
+			"nodes": 2, "mesh_instances": 0, "multimesh_batches": 2,
+			"drawn_copies": 12, "geometry_submissions": 2,
+			"unique_mesh_resources": 1,
+		},
+	}
+
+
+func _collect_torrent_render_census(search_root: Node) -> Dictionary:
+	if search_root == null:
+		return {}
+	var mesh_nodes := search_root.find_children("*", "MeshInstance3D", true, false)
+	var batch_nodes := search_root.find_children("*", "MultiMeshInstance3D", true, false)
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var multimesh_resource_ids := {}
+	var drawn_copies := 0
+	var submissions := 0
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
+		mesh_resource_ids[instance.mesh.get_instance_id()] = true
+		_collect_torrent_active_material_ids(
+			instance.mesh, instance.material_override, material_resource_ids
+		)
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		submissions += batch.multimesh.mesh.get_surface_count()
+		mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+		multimesh_resource_ids[batch.multimesh.get_instance_id()] = true
+		_collect_torrent_active_material_ids(
+			batch.multimesh.mesh, batch.material_override, material_resource_ids
+		)
+	return {
+		"descendant_nodes": search_root.find_children("*", "Node", true, false).size(),
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"multimesh_resources": multimesh_resource_ids.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"unique_mesh_resources": mesh_resource_ids.size(),
+		"unique_material_resources": material_resource_ids.size(),
+	}
+
+
+func _collect_torrent_active_material_ids(
+		mesh: Mesh,
+		override: Material,
+		material_ids: Dictionary
+	) -> void:
+	if override != null:
+		material_ids[override.get_instance_id()] = true
+		return
+	for surface_index in mesh.get_surface_count():
+		var surface_material := mesh.surface_get_material(surface_index)
+		if surface_material != null:
+			material_ids[surface_material.get_instance_id()] = true
+
+
+func _torrent_transform_arrays_match(left: Array, right: Array[Transform3D]) -> bool:
+	if left.size() != right.size():
+		return false
+	for index in right.size():
+		if not (left[index] as Transform3D).is_equal_approx(right[index]):
+			return false
+	return true
+
+
 ## Evidence-bounded audit for the B5-observed reconstruction. The identity lock
 ## is high confidence; exact dimensions, function, finish, and 2009 continuity
 ## are intentionally kept outside the authenticated claim.
@@ -2713,6 +2934,9 @@ func get_torrent_reconstruction_audit_report() -> Dictionary:
 		errors.append("tricycle modern landing hardware is incomplete")
 	if rcs_count != 4:
 		errors.append("four modern RCS presentation clusters are required")
+	var render_allocations := get_torrent_render_allocation_report()
+	for render_error in render_allocations.get("errors", PackedStringArray()):
+		errors.append(str(render_error))
 	var canopy_seal_count := (
 		_canopy_pivot.find_children("*PressureSeal", "MeshInstance3D", true, false).size()
 		if _canopy_pivot != null and is_instance_valid(_canopy_pivot)
@@ -2784,6 +3008,7 @@ func get_torrent_reconstruction_audit_report() -> Dictionary:
 		"canopy_seal_count": canopy_seal_count,
 		"restraint_detail_count": restraint_count,
 		"mapped_hull_material_count": mapped_hull_materials,
+		"render_allocations": render_allocations.duplicate(true),
 		"collision_shapes": PackedStringArray([
 			"HullCollision", "WingCollision", "UpperSilhouetteCollision",
 			"PortAftPropulsionCollision", "StarboardAftPropulsionCollision",
@@ -2897,15 +3122,7 @@ func _build_torrent_service_detail(parent: Node3D) -> void:
 		vent_bank.position = Vector3(side * 1.17, 1.84, 2.72)
 		parent.add_child(vent_bank)
 		_box(vent_bank, "VentRecess", Vector3.ZERO, Vector3(0.68, 0.055, 1.12), _materials.thermal)
-		for louver_index in 6:
-			_box(
-				vent_bank,
-				"VentLouver%02d" % louver_index,
-				Vector3(0.0, 0.055, -0.43 + float(louver_index) * 0.17),
-				Vector3(0.54, 0.045, 0.065),
-				_materials.dark,
-				Vector3(deg_to_rad(-8.0), 0.0, 0.0)
-			)
+		_build_torrent_vent_louver_batch(vent_bank)
 
 	var docking_receiver := Node3D.new()
 	docking_receiver.name = "VentralDockingReceiver"
@@ -2924,6 +3141,90 @@ func _build_torrent_service_detail(parent: Node3D) -> void:
 			_materials.gold,
 			Vector3(0.0, -jaw_angle, 0.0)
 		)
+
+
+## The twelve louvres are repeated childless surface dressing. Their two bank
+## roots remain named semantic nodes; only the identical visual leaves share a
+## mesh and renderer allocation. Keeping one batch per bank preserves the old
+## parent-space transforms and bank-local culling while retaining every copy.
+func _build_torrent_vent_louver_batch(vent_bank: Node3D) -> void:
+	if _torrent_vent_louver_mesh == null:
+		_torrent_vent_louver_mesh = _rounded_box_mesh(
+			Vector3(0.54, 0.045, 0.065), _materials.dark
+		)
+	var transforms := _torrent_vent_louver_transforms()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _torrent_vent_louver_mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	multi.buffer = _torrent_encode_multimesh_transforms(transforms)
+	multi.custom_aabb = _torrent_transformed_mesh_bounds(
+		_torrent_vent_louver_mesh.get_aabb(), transforms
+	)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "VentLouvers"
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_visual_names", PackedStringArray([
+		"VentLouver00", "VentLouver01", "VentLouver02",
+		"VentLouver03", "VentLouver04", "VentLouver05",
+	]))
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	vent_bank.add_child(batch)
+	_torrent_vent_louver_batches.append(batch)
+
+
+func _torrent_vent_louver_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var louver_basis := Basis.from_euler(Vector3(deg_to_rad(-8.0), 0.0, 0.0))
+	for louver_index in TORRENT_VENT_LOUVERS_PER_BANK:
+		transforms.append(Transform3D(
+			louver_basis,
+			Vector3(0.0, 0.055, -0.43 + float(louver_index) * 0.17)
+		))
+	return transforms
+
+
+func _torrent_encode_multimesh_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+func _torrent_transformed_mesh_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for value in transforms:
+		var transformed := (value * mesh_bounds).abs()
+		if first:
+			result = transformed
+			first = false
+		else:
+			result = result.merge(transformed)
+	return result
 
 
 func _build_torrent_engine(parent: Node3D, side: float) -> Node3D:
