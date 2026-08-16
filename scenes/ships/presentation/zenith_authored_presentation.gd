@@ -182,9 +182,22 @@ func _configure_runtime_materials() -> void:
 		# tests/fleet_role_differentiation_test.gd.
 		&"PaleCeramicHull": _hull_material(Color("bac8d6"), 0.10, 0.43, 0.18),
 		&"PaleFacetSecondary": _hull_material(Color("97a3ad"), 0.14, 0.49, 0.10),
-		&"GraphitePanel": _pbr_material(Color(0.075, 0.095, 0.105), 0.48, 0.43),
-		&"EngineGraphite": _pbr_material(Color(0.115, 0.140, 0.150), 0.46, 0.52),
-		&"ExposedAlloy": _pbr_material(Color("384244"), 0.82, 0.24),
+		# Secondary structure. B7 establishes no colour, material, PBR response,
+		# panel seam or weathering at all, and engine internals, exhaust and
+		# service detail are named modern additions in the same spec, so the
+		# finish of these three roles is free where the macroform is not. They
+		# previously ran at roughness 0.43/0.52/0.24 with no map, and the two
+		# engine cans in the baseline fleet-overview frame read as plain black
+		# cylinders. Nothing here touches SourceCore geometry, and the pale hull
+		# roles above are left exactly as the colour pass re-established them.
+		&"GraphitePanel": _structural_material(Color(0.075, 0.095, 0.105), 0.30, 0.68, 3.0, 1.10),
+		# EngineGraphite keeps its exact frozen 0.46 metallic / 0.52 roughness.
+		# tests/zenith_authored_asset_test.gd pins both for "readable modern
+		# engine separation", and relief alone fixes what the frame actually
+		# shows — a plain black cylinder — so there is no reason to move a
+		# deliberately frozen readability value. It takes the normal map only.
+		&"EngineGraphite": _structural_material(Color(0.115, 0.140, 0.150), 0.46, 0.52, 4.0, 1.00),
+		&"ExposedAlloy": _structural_material(Color("384244"), 0.86, 0.18, 3.5, 0.90),
 		&"CanopyGlass": _canopy_material(),
 		&"EngineEmission": _emissive_material(Color("05343c"), Color("07bddc"), 3.1),
 		&"PortNavRed": _emissive_material(Color("6b0506"), Color("ff0305"), 2.6),
@@ -215,6 +228,29 @@ func _pbr_material(color: Color, metallic_value: float, roughness_value: float) 
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	material.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	return material
+
+
+## A secondary-structure material: flat scalar colour plus Zenith's registered
+## hull normal map at a machined-part frequency, projected triplanar so no UV
+## is authored and no roughness map hides the authored roughness scalar. The hull roles keep their authored UV0 mapping, which is what
+## the `hull_texture_coordinate`/`hull_triplanar` audit fields describe. No
+## albedo texture is bound, so the pale body tone and the frozen fleet colour
+## floors read the exact scalar colours above.
+func _structural_material(
+	color: Color,
+	metallic_value: float,
+	roughness_value: float,
+	texture_scale: float,
+	normal_strength: float
+) -> StandardMaterial3D:
+	var material := _pbr_material(color, metallic_value, roughness_value)
+	ShipSurfaceDetail.bind_structural_detail(
+		material,
+		load(HULL_NORMAL_PATH) as Texture2D,
+		texture_scale,
+		normal_strength
+	)
 	return material
 
 

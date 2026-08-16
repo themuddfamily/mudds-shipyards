@@ -332,13 +332,20 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 func _create_jovian_materials() -> void:
 	_jovian_materials.hull_warm = _jovian_material(HULL_WARM, 0.16, 0.3)
 	_jovian_materials.hull_cool = _jovian_material(HULL_COOL, 0.22, 0.38)
-	_jovian_materials.structure = _jovian_material(JOVIAN_STRUCTURE, 0.58, 0.36)
-	_jovian_materials.dark = _jovian_material(JOVIAN_STRUCTURE_DARK, 0.66, 0.3)
+	# Freighter secondary structure. Before this pass structure/dark/amber sat at
+	# roughness 0.36/0.30/0.35 and cargo_blue/deck at 0.47/0.52 — the whole
+	# working half of the ship inside a 0.22 band, so the painted bulkheads, the
+	# oiled load rails and the yellow cargo-aperture frame all returned the same
+	# highlight and separated only by hue. They are now painted plate, oiled
+	# steel, matte industrial paint, a painted crate and worn deck tread.
+	# Colours are unchanged.
+	_jovian_materials.structure = _jovian_material(JOVIAN_STRUCTURE, 0.34, 0.66)
+	_jovian_materials.dark = _jovian_material(JOVIAN_STRUCTURE_DARK, 0.72, 0.22)
 	_jovian_materials.teal = _jovian_material(FREIGHT_TEAL, 0.28, 0.3, FREIGHT_TEAL, 0.75)
-	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER, 0.28, 0.35)
-	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE, 0.36, 0.47)
+	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER, 0.14, 0.62)
+	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE, 0.10, 0.70)
 	_jovian_materials.cabin_cloth = _jovian_material(CABIN_CLOTH, 0.08, 0.78)
-	_jovian_materials.deck = _jovian_material(DECK_GREY, 0.56, 0.52)
+	_jovian_materials.deck = _jovian_material(DECK_GREY, 0.40, 0.74)
 	_jovian_materials.engine = _jovian_material(ENGINE_AQUA, 0.1, 0.16, ENGINE_AQUA, 3.2)
 	_jovian_materials.nav_red = _jovian_material(JOVIAN_NAV_RED, 0.08, 0.2, JOVIAN_NAV_RED, 2.4)
 	_jovian_materials.nav_green = _jovian_material(JOVIAN_NAV_GREEN, 0.08, 0.2, JOVIAN_NAV_GREEN, 2.4)
@@ -367,6 +374,23 @@ func _create_jovian_materials() -> void:
 		hull_material.clearcoat_enabled = true
 		hull_material.clearcoat = 0.42
 		hull_material.clearcoat_roughness = 0.25
+	# The cargo-aperture uprights, header, load rails and restraints were the
+	# most primitive-looking objects on the freighter: full-height flat yellow
+	# bars standing against a fully panelled hull in the baseline walk-up frame.
+	# The freighter's own registered normal map is reused on the working
+	# structure through triplanar projection at 8-20x the hull's frequency, so a
+	# bulkhead, a load rail and a deck plate each carry relief at their own
+	# scale. The 0.32 m aperture uprights need the highest frequency in the
+	# fleet precisely because they are narrow: at hull frequency less than one
+	# panel feature crosses the bar. See the honesty note on the Arrow about how
+	# small the relief contribution measures under current lighting. No albedo
+	# texture is bound anywhere here, so the hull, accent and cargo tints the
+	# fleet colour floors measure are exactly as authored.
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.structure, hull_normal, 2.0, 1.20)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.dark, hull_normal, 4.0, 0.90)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.amber, hull_normal, 5.0, 1.30)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.cargo_blue, hull_normal, 2.0, 1.20)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.deck, hull_normal, 2.2, 1.00)
 
 
 func get_variant_materials() -> Dictionary:
@@ -1103,7 +1127,6 @@ func _loft_hull(
 		tool.add_index(rear_base + ring_index)
 		tool.add_index(rear_base + next_ring)
 	tool.generate_normals()
-	tool.generate_tangents()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
@@ -1212,7 +1235,6 @@ func _ramp_wedge(
 		))
 		tool.add_vertex(point)
 	tool.generate_normals()
-	tool.generate_tangents()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.mesh = tool.commit()
