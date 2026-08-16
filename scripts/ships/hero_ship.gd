@@ -3797,12 +3797,35 @@ func _rounded_box_mesh(size: Vector3, material: Material) -> ArrayMesh:
 				var u1 := float(u_index + 1) / 3.0
 				var v0 := float(v_index) / 3.0
 				var v1 := float(v_index + 1) / 3.0
+				# Emission order *is* the front-face winding, and it has to agree
+				# with the outward normal `_add_rounded_box_vertex` already sets
+				# on every vertex. Godot's front face is the one whose vertices
+				# run clockwise seen from outside, so on a correct surface
+				# `(b - a) x (c - a)` points *opposite* the shading normal —
+				# BoxMesh, CylinderMesh and SphereMesh all measure that way.
+				#
+				# This builder is a copy of the pre-fix `StationSurfaceKit`
+				# chamfered box and carried the same defect: emitting 0-1-2 /
+				# 0-2-3 against these face axes puts the geometric normal *along*
+				# the outward normal on all six faces. Measured against the
+				# engine's own primitives, every size scored 108/108 triangles
+				# backwards where the fixed kit box scores 0/108. Every box on
+				# the Torrent, the Arrow, the Zenith and the Jovian is built here
+				# via `_box`, so all of them had their outward faces culled and
+				# drew the unlit inside of their own back faces instead — which
+				# is what "the materials look inside out" means.
+				#
+				# `StationSurfaceKit.rounded_box_mesh_with_bevel` and
+				# `JovianFreightBerth._add_quad` were fixed the same way in
+				# 806d2ff; this copy was missed because that fix never reached
+				# `HeroShip`. Vertices, normals, UVs and tangents are untouched;
+				# only the order they are emitted in is reversed.
 				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
 				_add_rounded_box_vertex(surface_tool, points[1], inner_half, bevel, Vector2(u1, v0))
-				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
 				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
-				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
 				_add_rounded_box_vertex(surface_tool, points[3], inner_half, bevel, Vector2(u0, v1))
+				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
 	return surface_tool.commit()
 
 
