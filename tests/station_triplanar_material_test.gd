@@ -382,12 +382,50 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# untouched at 532. Measured rather than summed: this branch was authored
 	# before the Halyard apron and the central berth service line landed, and
 	# neither branch's total is correct on its own.
+	# Re-frozen once more, 1767 -> 1940, by the aft operations content pass. Every
+	# piece it added sits on a structural role this module had already bound, so no
+	# role joined or left the family and no scale was introduced: 0.22 and 0.28 are
+	# untouched at 129 and 532, and the whole delta is +173 at the Aft module's own
+	# 0.30, 1106 -> 1279. Measured against the live scene and reconciled per
+	# assembly, which is the check that the number is the content and not a drift:
+	#
+	#   Watch rack bank, 67. Three `mid_grey` rack frames and three `hull_dark`
+	#   caps; two fascias plus the removed third; ten plug-in modules with two
+	#   `brass` knobs each; fourteen `panel_light` cards in the two opened cages;
+	#   three breaker bodies and three levers; the tray, its riser and four clamps;
+	#   the lockout hasp and chain.
+	#   Module status board, 27. Body, four frame members, five schematic links, six
+	#   nodes, six annunciator bodies and the five raised flags.
+	#   Traffic plot table, 23. Two pedestals, top, apron, chart cradle, disc rim,
+	#   hub, five tokens, four rim posts, two rim rails, the sweep beam and head,
+	#   the mug and its handle, and the dividers.
+	#   Coordinator desk, 11. Body, top, two drawer fronts, two pulls, lamp stalk
+	#   and head, the pen, the handset cradle and the headset hook.
+	#   Chart press, 13. Body, top, five drawer fronts, five pulls, clipboard hook.
+	#   Refreshment stand, 16. Counter, top, two doors, two pulls, urn, collar, lid,
+	#   tap and handle, four mugs, and the waste bin.
+	#   Stair-head muster locker, 16. Both carcass halves, the bay side and top, the
+	#   cap, both doors, the latch and open-door pull, the hose hub, three kit
+	#   cases, two headboard posts and the route board.
+	#
+	# Deliberately still outside the family, exactly as everywhere else: the two new
+	# `fabric` and `paper` roles (a coverall, chart rolls, notice sheets, a duty
+	# log), `graphite` seam and chart-field trim, `rubber` kicks, `copper` cable
+	# looms and the hose reel, and every lit cue — `cyan`, `gold`, `red`,
+	# `screen_dark`, `worklight`, `amber_light`, `cyan_dim` — including the plot
+	# graticule, the annunciator lenses and both legends.
+	#
+	# Re-frozen 1999 -> 2172 on merge, measured on the merged tree. The aft
+	# operations content pass adds +173 at the aft module's existing 0.30 scale
+	# (1337 -> 1510); 0.22 stays 130 and 0.28 stays 532. Measured rather than
+	# summed: that pass was authored before the Halyard apron, the central berth
+	# service line and the freight berth pass landed.
 	_check(
-		mapped_surface_count == 1999
+		mapped_surface_count == 2172
 		and scale_022_count == 130
 		and scale_028_count == 532
-		and scale_030_count == 1337,
-		"live station binds exactly 1999 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1510,
+		"live station binds exactly 2172 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
