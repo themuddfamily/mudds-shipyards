@@ -530,20 +530,27 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# so none of its 48 ordinary meshes enters this station-family census. Its one
 	# unlit marker MultiMesh raises only the total batch roster, 37 -> 38.
 	#
-	# Re-frozen on the production Salvage integration, 2595 -> 2632. The live
+	# Re-frozen 2595 -> 2583 when Fleet Dock Comb's twelve mapped trunk expansion
+	# joints moved from ordinary MeshInstances into one mapped MultiMesh. No copy
+	# or material left the family: this ordinary-surface walk loses twelve, while
+	# `_test_instanced_station_family()` below gains the replacement batch.
+	# 0.22 and 0.28 remain unchanged; 0.30 moves 1603 -> 1591.
+	#
+	# Re-frozen on the production Salvage integration, 2583 -> 2620. The live
 	# delta is +29 mapped Salvage meshes, +3 world-owned connector boxes, and +5
 	# from the seventh shared-catalog courier. All 37 use the existing 0.30 scale;
 	# the other buckets and every recipe parameter remain unchanged.
 	_check(
-		mapped_surface_count == 2632
+		mapped_surface_count == 2620
 		and scale_022_count == 130
 		and scale_028_count == 862
-		and scale_030_count == 1640,
-		"live station binds exactly 2632 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1628,
+		"live station binds exactly 2620 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
-	_test_instanced_station_family(world, cluster_root)
+	_test_recent_module_material_rosters(world)
+	_test_instanced_station_family(world, cluster_root, vip_root)
 	_test_cluster_family(cluster_root)
 
 
@@ -559,7 +566,11 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 ## drawn surfaces. They are not added to the frozen count, because a batch is one
 ## bound material rather than N surfaces and mixing the two would make that count
 ## mean two different things.
-func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void:
+func _test_instanced_station_family(
+	world: Node3D,
+	cluster_root: Node3D,
+	vip_root: Node3D
+) -> void:
 	var batches := 0
 	var mapped := 0
 	var exact := true
@@ -568,6 +579,11 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 		if not batch.is_visible_in_tree() or batch.multimesh == null:
 			continue
 		if cluster_root != null and cluster_root.is_ancestor_of(batch):
+			continue
+		# The VIP suite is outside the station-stock scale family for the same
+		# reason its ordinary surfaces are excluded above. Its banquette joint
+		# batch legitimately uses the suite's registered 0.20 lacquer scale.
+		if vip_root != null and vip_root.is_ancestor_of(batch):
 			continue
 		batches += 1
 		var material := batch.material_override as StandardMaterial3D
@@ -604,10 +620,88 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 	# already present before this placement. Counts are intentionally live census
 	# results rather than a sum inferred from component budgets.
 	# Observation adds one deliberately unmapped repeated-marker batch.
+	# The Fleet Dock Comb's trunk joints add one mapped batch, replacing twelve
+	# mapped ordinary surfaces counted above. The Jovian apron dock guides add one
+	# deliberately unmapped batch. The VIP banquette batch is excluded with the
+	# rest of that non-station-stock room rather than failing on its valid 0.20
+	# registered scale. The live pre-Salvage station roster is therefore 40/13.
 	# Salvage adds three batches: structural supports and salvage cages are mapped,
 	# while the service beacons remain deliberately emissive and plain.
-	_check(batches == 41 and mapped == 14, "instanced station structure is exactly forty-one batches, fourteen of them mapped")
+	_check(
+		batches == 43 and mapped == 15,
+		"instanced station structure is exactly forty-three batches, fifteen of them mapped"
+	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
+
+
+## Exact recent-module roster behind the global arithmetic above.
+##
+## This keeps a standalone module's ordinary surfaces, its batches, its
+## world-owned connector and its shared-catalog courier distinct. Predicting one
+## combined delta is what hid both the Fleet batching move and the stale batch
+## baseline; these live roots make each contribution independently reviewable.
+func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
+	var expected := {
+		"FabricationAnnex": [35, 27, 12, 2],
+		"ExposedDockLattice/FabricationAnnexConnector": [10, 10, 0, 0],
+		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
+		"ObservationLogisticsSpur": [48, 0, 1, 0],
+		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
+		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
+		"SalvageTerrace": [30, 29, 3, 2],
+		"ExposedDockLattice/SalvageTerraceConnector": [3, 3, 0, 0],
+		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [7, 5, 0, 0],
+	}
+	var exact := true
+	var live := {}
+	for path: String in expected:
+		var module_root := world.get_node_or_null(NodePath(path))
+		var roster := _material_family_roster(module_root)
+		live[path] = roster
+		var frozen := expected[path] as Array
+		exact = exact and (
+			int(roster.get("surfaces", -1)) == int(frozen[0])
+			and int(roster.get("mapped_surfaces", -1)) == int(frozen[1])
+			and int(roster.get("batches", -1)) == int(frozen[2])
+			and int(roster.get("mapped_batches", -1)) == int(frozen[3])
+		)
+	print("LIVE_RECENT_MODULE_MATERIAL_ROSTERS: ", live)
+	_check(
+		exact,
+		"Fabrication, Observation and Salvage retain their exact module/connector/courier material rosters"
+	)
+
+
+func _material_family_roster(module_root: Node) -> Dictionary:
+	if module_root == null:
+		return {}
+	var surfaces := 0
+	var mapped_surfaces := 0
+	for raw_node in module_root.find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		for surface_index in instance.mesh.get_surface_count():
+			surfaces += 1
+			var material := instance.get_active_material(surface_index) as StandardMaterial3D
+			if material != null and _texture_path(material.albedo_texture) == ALBEDO_PATH:
+				mapped_surfaces += 1
+	var batches := 0
+	var mapped_batches := 0
+	for raw_node in module_root.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := raw_node as MultiMeshInstance3D
+		if not batch.is_visible_in_tree() or batch.multimesh == null:
+			continue
+		batches += 1
+		var material := batch.material_override as StandardMaterial3D
+		if material != null and _texture_path(material.albedo_texture) == ALBEDO_PATH:
+			mapped_batches += 1
+	return {
+		"surfaces": surfaces,
+		"mapped_surfaces": mapped_surfaces,
+		"batches": batches,
+		"mapped_batches": mapped_batches,
+	}
 
 
 ## The other side of the exclusion above. Cinder Reach's manufactured surfaces
