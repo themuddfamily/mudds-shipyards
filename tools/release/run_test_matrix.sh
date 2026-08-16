@@ -48,7 +48,9 @@ Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR]
 Run tests/*_test.gd files under Godot --headless, one isolated process per suite,
 and write a timestamped matrix manifest. Suites run in parallel by default; the
 results TSV, the console transcript and the run manifest are emitted in sorted
-suite order regardless of completion order.
+suite order regardless of completion order. results-canonical.tsv is the
+comparison/evidence record: it contains only structured gate outcomes, never
+durations, paths, log hashes, or raw log text.
 
 Options:
   --godot PATH              Godot binary (default: \`godot\`).
@@ -571,23 +573,35 @@ run_suite_worker() {
 	fi
 
 	local reasons=()
+	# Keep human diagnostics in results.tsv, but never let an arbitrary line from
+	# a suite log enter the canonical evidence record. Several suites intentionally
+	# report measured values that can vary with scheduling; structured gate codes
+	# preserve every strict pass/fail condition without treating that prose as a
+	# reproducibility signal.
+	local failure_flags=()
 	if (( exit_code != 0 )); then
 		reasons+=("exit=$exit_code")
+		failure_flags+=("exit_nonzero")
 	fi
 	if (( sentinel_count != 1 )); then
 		reasons+=("sentinel_count=$sentinel_count (expected 1 of ${expected_ok} or ${expected_pass})")
+		failure_flags+=("sentinel_count_invalid")
 	fi
 	if [[ -n "$sentinel_found" && -n "$terminal_sentinel" && "$terminal_sentinel" != "$sentinel_found" ]]; then
 		reasons+=("sentinel_not_terminal=${terminal_line:-<missing>}")
+		failure_flags+=("sentinel_not_terminal")
 	fi
 	if [[ -n "$sentinel_found" && -z "$terminal_sentinel" ]]; then
 		reasons+=("sentinel_missing_terminal=${terminal_line:-<empty>}")
+		failure_flags+=("sentinel_missing_terminal")
 	fi
 	if [[ -z "$sentinel_found" && -z "$terminal_sentinel" ]]; then
 		reasons+=("no_sentinel_found")
+		failure_flags+=("no_sentinel_found")
 	fi
 	if (( diag_count != 0 )); then
 		reasons+=("diagnostic_count=$diag_count")
+		failure_flags+=("diagnostic_detected")
 	fi
 
 	local status reason_text
@@ -613,8 +627,9 @@ run_suite_worker() {
 		"$log_sha" \
 		"$reason_text" > "$WORK_DIR/$index.tsv"
 
-	# Completion-order-independent record used for run-to-run comparison: no
-	# durations, no absolute paths.
+	# Completion-order-independent release evidence. Its gate fields (including
+	# assertion and diagnostic counts) stay strict; its failure flags are stable
+	# codes, deliberately excluding variable numeric/prose log evidence.
 	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
 		"$relative_test_path" \
 		"$status" \
@@ -623,7 +638,7 @@ run_suite_worker() {
 		"$sentinel_count" \
 		"$pass_count" \
 		"$diag_count" \
-		"$reason_text" > "$WORK_DIR/$index.canonical"
+		"$(IFS=,; printf '%s' "${failure_flags[*]}")" > "$WORK_DIR/$index.canonical"
 
 	{
 		printf '[%s] %s: status=%s exit=%s sentinel=%s pass=%s diag=%s duration_ms=%s\n' \
@@ -693,7 +708,7 @@ godot_cache_after_sha="$(godot_cache_signature)"
 # Deterministic assembly, in sorted suite order
 # ---------------------------------------------------------------------------
 printf 'test_path\tstatus\texit_code\tsentinel\tsentinel_count\tpass_assertions\tdiagnostic_count\tduration_ms\tlog_path\tlog_sha256\treasons\n' > "$results_tsv"
-printf 'test_path\tstatus\texit_code\tsentinel\tsentinel_count\tpass_assertions\tdiagnostic_count\treasons\n' > "$results_canonical_tsv"
+printf 'test_path\tstatus\texit_code\tsentinel\tsentinel_count\tpass_assertions\tdiagnostic_count\tfailure_flags\n' > "$results_canonical_tsv"
 
 failed_suites=()
 total_pass_assertions=0
@@ -705,7 +720,7 @@ for (( index = 0; index < TOTAL_SUITES; index++ )); do
 		# never be able to silently shrink the results table.
 		printf '%s\tFAIL\t-1\t<none>\t0\t0\t0\t0\t%s\t-\tharness_error=worker produced no result record\n' \
 			"$relative_test_path" "$LOG_DIR/$(basename "$test_file" .gd).log" >> "$results_tsv"
-		printf '%s\tFAIL\t-1\t<none>\t0\t0\t0\tharness_error=worker produced no result record\n' \
+		printf '%s\tFAIL\t-1\t<none>\t0\t0\t0\tharness_error\n' \
 			"$relative_test_path" >> "$results_canonical_tsv"
 		failed_suites+=("$relative_test_path (harness_error: no result record)")
 		overall_status="FAIL"

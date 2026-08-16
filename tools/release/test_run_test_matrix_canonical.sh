@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Focused MATRIX-001 contract check. It uses a fake Godot executable so it can
+# prove the evidence invariant without opening Godot or running the full matrix.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+MATRIX="$SCRIPT_DIR/run_test_matrix.sh"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/matrix-canonical-check-XXXXXX")"
+
+cleanup() {
+	rm -rf "$WORK_DIR"
+}
+trap cleanup EXIT
+
+FAKE_GODOT="$WORK_DIR/fake-godot"
+cat > "$FAKE_GODOT" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ " ${*} " == *" --script "* ]]; then
+	for (( assertion = 1; assertion <= ${MATRIX_FAKE_ASSERTIONS:-1}; assertion++ )); do
+		printf 'PASS: measured_distance=%s assertion=%s\n' "${MATRIX_FAKE_MEASUREMENT:?}" "$assertion"
+	done
+	if [[ "${MATRIX_FAKE_DIAGNOSTIC:-0}" == "1" ]]; then
+		printf 'ERROR: synthetic diagnostic %s\n' "${MATRIX_FAKE_MEASUREMENT:?}"
+	fi
+	printf 'SMOKE_TEST_OK\n'
+fi
+EOF
+chmod +x "$FAKE_GODOT"
+
+FIRST="$WORK_DIR/results/first"
+SECOND="$WORK_DIR/results/second"
+ASSERTION_CHANGED="$WORK_DIR/results/assertion-changed"
+
+# Run IDs are supplied through the environment to leave the command-line
+# interface unchanged and exercise the same artifact layout as a real run.
+TEST_MATRIX_RUN_ID=first MATRIX_FAKE_MEASUREMENT=1.234567 \
+	"$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 1 \
+	--results-dir "$WORK_DIR/results" --scope smoke_test \
+	--manifest-scope tests/smoke_test.gd >/dev/null
+TEST_MATRIX_RUN_ID=second MATRIX_FAKE_MEASUREMENT=9.876543 \
+	"$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 1 \
+	--results-dir "$WORK_DIR/results" --scope smoke_test \
+	--manifest-scope tests/smoke_test.gd >/dev/null
+TEST_MATRIX_RUN_ID=assertion-changed MATRIX_FAKE_MEASUREMENT=9.876543 MATRIX_FAKE_ASSERTIONS=2 \
+	"$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 1 \
+	--results-dir "$WORK_DIR/results" --scope smoke_test \
+	--manifest-scope tests/smoke_test.gd >/dev/null
+
+cmp "$FIRST/results-canonical.tsv" "$SECOND/results-canonical.tsv"
+! cmp -s "$FIRST/logs/smoke_test.log" "$SECOND/logs/smoke_test.log"
+grep -Fx $'tests/smoke_test.gd\tPASS\t0\tSMOKE_TEST_OK\t1\t1\t0\t' "$FIRST/results-canonical.tsv" >/dev/null
+! cmp -s "$SECOND/results-canonical.tsv" "$ASSERTION_CHANGED/results-canonical.tsv"
+grep -Fx $'tests/smoke_test.gd\tPASS\t0\tSMOKE_TEST_OK\t1\t2\t0\t' "$ASSERTION_CHANGED/results-canonical.tsv" >/dev/null
+
+# A raw diagnostic remains a hard failure even though its numeric text is not
+# part of canonical evidence.
+if TEST_MATRIX_RUN_ID=diagnostic MATRIX_FAKE_MEASUREMENT=42 MATRIX_FAKE_DIAGNOSTIC=1 \
+	"$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 1 \
+	--results-dir "$WORK_DIR/results" --scope smoke_test \
+	--manifest-scope tests/smoke_test.gd >/dev/null 2>&1; then
+	echo "expected synthetic diagnostic to fail the matrix" >&2
+	exit 1
+fi
+grep -Fx $'tests/smoke_test.gd\tFAIL\t0\tSMOKE_TEST_OK\t1\t1\t1\tdiagnostic_detected' \
+	"$WORK_DIR/results/diagnostic/results-canonical.tsv" >/dev/null
+
+echo "matrix canonical evidence check: PASS"
