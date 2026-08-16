@@ -262,6 +262,7 @@ const STATION_NAVIGATION_GRAPH_SCRIPT := preload("res://scripts/world/station_na
 const STATION_AMBIENCE_SCENE := preload("res://scenes/audio/station_machinery_ambience.tscn")
 const STATION_DRESSING_SCENE := preload("res://scenes/world/components/station_structural_service_dressing.tscn")
 const STATION_ROUTE_REGISTRY_SCENE := preload("res://scripts/world/station_route_registry.gd")
+const TOW_TRACTOR_SCENE := preload("res://scenes/world/tow_tractor.tscn")
 
 ## The world-side half of every station connection slot. Each entry names the
 ## real lattice geometry the player crosses to reach that module, so the station
@@ -3873,20 +3874,31 @@ func _build_cargo_and_machinery() -> void:
 		for y_position in [1.1, 1.7, 2.3]:
 			_box(props, "StatusLine", Vector3(35.52, y_position, z_position), Vector3(0.04, 0.12, 1.0), _materials["cyan_glow"], false)
 
-	_box(props, "TowTractor", Vector3(7.0, 0.7, 18.0), Vector3(3.8, 1.1, 2.3), _materials["orange"])
-	_box(props, "TowCab", Vector3(7.7, 1.55, 18.0), Vector3(1.5, 0.9, 1.9), _materials["ivory"])
-	for z_side in [-1.0, 1.0]:
-		for x_position in [5.9, 8.0]:
-			_cylinder(
-				props,
-				"TowWheel",
-				Vector3(x_position, 0.45, 18.0 + z_side * 1.15),
-				0.4,
-				0.25,
-				_materials["black"],
-				false,
-				Vector3(90, 0, 0)
-			)
+	# The tow tractor is no longer three static boxes and four cylinders: it is a
+	# real drivable vehicle that owns its own geometry, collision and handling.
+	# It keeps the prop's authored parking spot and heading (long axis along +X,
+	# cab toward +X) and is deliberately parked clear of the player spawn, the
+	# hero berth and the disembark point, exactly as the prop was. It is a world
+	# prop, not fleet: it holds no berth, lease, landing or combat authority.
+	var tow_tractor := TOW_TRACTOR_SCENE.instantiate() as TowTractor
+	tow_tractor.name = "TowTractor"
+	# Parked a little above the deck so it settles onto whatever the deck's
+	# finished height actually is, instead of freezing one today.
+	#
+	# Moved inboard along the same lattice deck from the prop's (7.0, 18.0). Two
+	# measured reasons, both of which only matter once the thing moves: the prop's
+	# 2.3 m body was centred on z = 18.0 and so interpenetrated the guard rail at
+	# z = 19.0, wedging a vehicle against the rail stanchions inside its first
+	# metre of travel; and it stood hard against a lattice column, which put an
+	# unbroken black mast between the chase camera and the tractor for the whole
+	# first second of driving. This spot is the nearest one to the player spawn
+	# with a clear 4.6 x 2.4 x 4.6 volume and continuous deck for six metres in
+	# every direction, and it is 11 m from the spawn — closer to the "right where
+	# you spawn" the prop was meant to read as, and still far outside the player's
+	# 2.35 m interaction reach, so it cannot take the first prompt they see.
+	tow_tractor.position = Vector3(2.5, 0.45, 15.6)
+	tow_tractor.rotation_degrees = Vector3(0.0, -90.0, 0.0)
+	props.add_child(tow_tractor)
 
 	# Freestanding safety pylons visually protect both pad approaches.
 	for z_position in [-27.5, 8.5]:
