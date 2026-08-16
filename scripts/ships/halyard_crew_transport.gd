@@ -257,7 +257,6 @@ func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
 		_moving_interior_component.reset_frame_tracking(true)
-	_sync_halyard_engine_presentation_immediately()
 
 
 # ------------------------------------------------------------- contracts ----
@@ -1335,13 +1334,7 @@ func _apply_engine_level(engine_level: float) -> void:
 			light.light_energy = engine_level * 2.4
 
 
-func request_engine_start() -> void:
-	super.request_engine_start()
-	_sync_halyard_engine_presentation_immediately()
-
-
-func request_engine_stop(play_transition_cue: bool = true) -> void:
-	super.request_engine_stop(play_transition_cue)
+func _sync_variant_engine_presentation_immediately() -> void:
 	_sync_halyard_engine_presentation_immediately()
 
 

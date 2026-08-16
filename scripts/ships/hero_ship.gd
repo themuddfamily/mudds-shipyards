@@ -24,6 +24,10 @@ signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
 const ENGINE_OFFLINE: StringName = &"OFFLINE"
 const ENGINE_STARTING: StringName = &"STARTING"
 const ENGINE_ONLINE: StringName = &"ONLINE"
+## Player propulsion stays available briefly after the last real flight intent.
+## This is physics time, so pausing or a slow render frame never consumes it.
+const AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS := 1.5
+const AUTOMATIC_ENGINE_INTENT_EPSILON := 0.001
 const SHIP_LAYER := PhysicsLayers.SHIP
 const WORLD_LAYER := PhysicsLayers.WORLD
 const TARGET_LAYER := PhysicsLayers.TARGET
@@ -158,6 +162,7 @@ var _landing_stall_elapsed := 0.0
 var _landing_previous_distance := INF
 var _landing_last_abort_reason: StringName = &""
 var _engine_timer := 0.0
+var _automatic_engine_idle_elapsed := 0.0
 var _weapon_timer := 0.0
 var _throttle := 0.0
 var _hull := 100.0
@@ -288,6 +293,7 @@ func _physics_process(delta: float) -> void:
 		if _piloted and direct_command_accepted
 		else false
 	)
+	_update_automatic_engine_control(delta, command)
 	_update_engine(delta)
 	if _landing_active:
 		_update_landing(delta)
@@ -332,9 +338,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if (
 		event is InputEventMouseMotion
 		and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-		and _engine_state == ENGINE_ONLINE
 		and not _landing_active
-		and not _docked_latch
 	):
 		var motion := event as InputEventMouseMotion
 		_queue_look_motion(motion.relative)
@@ -365,7 +369,7 @@ func set_piloted(piloted: bool) -> void:
 ## real `_unhandled_input()` events are forwarded to the current source, so the
 ## ship never maintains a second accumulator or consumes one event twice.
 func apply_look_motion(relative: Vector2) -> void:
-	if _piloted and _engine_state == ENGINE_ONLINE and not _landing_active and not _docked_latch:
+	if _piloted and not _landing_active:
 		_queue_look_motion(relative)
 
 
@@ -663,12 +667,13 @@ func get_current_chase_camera_rotation_lag_degrees() -> float:
 	return _chase_camera_rotation_lag_degrees
 
 
-## Begins the deliberate engine-start sequence. Starting a safely docked craft
-## also releases its clamps so a reused ship can launch without a scene reload.
+## Internal lifecycle/AI compatibility seam; local player input never calls it.
+## Begins the deliberate legacy start sequence and releases a docked latch.
 func request_engine_start() -> void:
 	if _engine_state != ENGINE_OFFLINE or _hull <= 0.0 or _destroyed:
 		return
 	_docked_latch = false
+	_automatic_engine_idle_elapsed = 0.0
 	_engine_state = ENGINE_STARTING
 	_engine_timer = engine_start_time
 	_sync_engine_visuals_immediately()
@@ -677,12 +682,14 @@ func request_engine_start() -> void:
 	engine_state_changed.emit(_engine_state)
 
 
+## Internal lifecycle/AI/test compatibility seam; it is not a player control.
 ## Stops thrust immediately. Shutdown is accepted at any time for safety.
 func request_engine_stop(play_transition_cue: bool = true) -> void:
 	if _engine_state == ENGINE_OFFLINE:
 		return
 	_engine_state = ENGINE_OFFLINE
 	_engine_timer = 0.0
+	_automatic_engine_idle_elapsed = 0.0
 	_throttle = 0.0
 	_sync_engine_visuals_immediately()
 	if _ship_audio_rig != null:
@@ -813,6 +820,9 @@ func _begin_landing_assist(
 	_landing_target = dock_target
 	_landing_staging_target = staging_target
 	_landing_active = true
+	# A production landing owns propulsion until touchdown. Internal callers can
+	# enter this seam without a preceding player command, so guarantee power here.
+	_wake_engine_for_automatic_demand()
 	_docked_latch = false
 	_landed = false
 	_throttle = 0.0
@@ -1108,6 +1118,7 @@ func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	velocity = Vector3.ZERO
 	_engine_state = ENGINE_OFFLINE
 	_engine_timer = 0.0
+	_automatic_engine_idle_elapsed = 0.0
 	_weapon_timer = 0.0
 	_throttle = 0.0
 	_hull = maximum_hull
@@ -1192,6 +1203,14 @@ func get_telemetry() -> Dictionary:
 		),
 		"engine_power": _get_damage_engine_multiplier(),
 		"engine_state": _engine_state,
+		"automatic_engine_idle_remaining": (
+			maxf(
+				AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS - _automatic_engine_idle_elapsed,
+				0.0
+			)
+			if _engine_state == ENGINE_ONLINE and _piloted and not _landing_active
+			else 0.0
+		),
 		"landed": _landed,
 		"landing_active": _landing_active,
 		"landing_phase": _landing_phase,
@@ -1455,6 +1474,64 @@ func _update_engine(delta: float) -> void:
 			_ship_audio_rig.set_engine_running(true, false)
 		_sync_engine_visuals_immediately()
 		engine_state_changed.emit(_engine_state)
+
+
+## Automatic propulsion is intentionally downstream of direct-command authority:
+## a stale replay, disabled source, or non-owner sample is neutralized before it
+## can wake the craft. Presentation-only camera/UI edges are deliberately absent.
+func _update_automatic_engine_control(delta: float, command: ShipCommand) -> void:
+	if not _piloted or _destroyed or _hull <= 0.0:
+		_automatic_engine_idle_elapsed = 0.0
+		return
+	var propulsion_demand := _landing_active or _command_requires_engine(command)
+	if propulsion_demand:
+		_automatic_engine_idle_elapsed = 0.0
+		_wake_engine_for_automatic_demand()
+		return
+	if _engine_state != ENGINE_ONLINE:
+		_automatic_engine_idle_elapsed = 0.0
+		return
+	_automatic_engine_idle_elapsed += maxf(delta, 0.0)
+	if _automatic_engine_idle_elapsed >= AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS:
+		request_engine_stop()
+
+
+func _command_requires_engine(command: ShipCommand) -> bool:
+	if command == null:
+		return false
+	return (
+		absf(command.throttle) > AUTOMATIC_ENGINE_INTENT_EPSILON
+		or absf(command.yaw) > AUTOMATIC_ENGINE_INTENT_EPSILON
+		or absf(command.pitch) > AUTOMATIC_ENGINE_INTENT_EPSILON
+		or absf(command.roll) > AUTOMATIC_ENGINE_INTENT_EPSILON
+		or absf(command.look_yaw_delta) > AUTOMATIC_ENGINE_INTENT_EPSILON
+		or absf(command.look_pitch_delta) > AUTOMATIC_ENGINE_INTENT_EPSILON
+		or command.boost
+		or command.brake
+		or command.hover
+		or command.fire
+		or command.barrel_roll
+		or command.landing
+	)
+
+
+## Player demand bypasses the legacy timed-start seam so the command that wakes
+## the craft is also the command integrated by flight, weapons, and presentation.
+func _wake_engine_for_automatic_demand() -> void:
+	if _engine_state == ENGINE_ONLINE or _destroyed or _hull <= 0.0:
+		return
+	var startup_cue_needed := _engine_state == ENGINE_OFFLINE
+	_docked_latch = false
+	_engine_timer = 0.0
+	_engine_state = ENGINE_ONLINE
+	if _ship_audio_rig != null:
+		# Match legacy timed-start ordering: observers of ONLINE see continuous
+		# audio authority and visual power already committed atomically.
+		_ship_audio_rig.set_engine_running(true, false)
+		if startup_cue_needed:
+			_ship_audio_rig.play_cue(ShipAudioRig.CUE_STARTUP)
+	_sync_engine_visuals_immediately()
+	engine_state_changed.emit(_engine_state)
 
 
 func _sync_ship_audio(command: ShipCommand) -> void:
@@ -3232,6 +3309,14 @@ func _sync_engine_visuals_immediately() -> void:
 	for light in _engine_lights:
 		if is_instance_valid(light):
 			light.light_energy = engine_level * 2.6
+	_sync_variant_engine_presentation_immediately()
+
+
+## One virtual same-tick seam for fleet-specific plume/core/light rosters. Base
+## lifecycle and automatic-demand transitions call this before publishing their
+## engine-state signal, so no derived craft waits for its next presentation tick.
+func _sync_variant_engine_presentation_immediately() -> void:
+	pass
 
 
 func _sync_imported_canopy_immediately() -> void:

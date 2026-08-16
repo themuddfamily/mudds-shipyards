@@ -79,6 +79,9 @@ var fire: bool:
 var barrel_roll: bool:
 	get:
 		return _barrel_roll
+## Deprecated transport-only compatibility fields. The local player adapter no
+## longer emits them; lifecycle, AI, and tests should call HeroShip's explicit
+## internal request APIs when they need deliberate legacy transitions.
 var engine_start: bool:
 	get:
 		return _engine_start
@@ -234,7 +237,7 @@ func is_neutral() -> bool:
 ## held axes, fire, camera, and presentation state are consumed by HeroShip from
 ## the direct per-tick return value.
 func has_lifecycle_edge() -> bool:
-	return _engine_start or _engine_stop or _landing or _interact
+	return _landing or _interact
 
 
 ## GDScript's underscore storage is private only by convention. Every queue and
