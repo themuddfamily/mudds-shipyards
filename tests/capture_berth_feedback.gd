@@ -67,7 +67,10 @@ const CAPTURE_FILES := {
 }
 
 const EXPECTED_COMPONENT_COUNT := 4
-const EXPECTED_MESHES_PER_COMPONENT := 11
+# Re-frozen 11 -> 16 when the berth cue gained its shape channel: five glyph
+# meshes (two gate marks, two chevron arms, one secured bar) of which exactly one
+# state's set is ever rendered. See the header of scripts/world/ship_berth_feedback.gd.
+const EXPECTED_MESHES_PER_COMPONENT := 16
 const EXPECTED_MATERIALS_PER_COMPONENT := 4
 const MINIMUM_PNG_BYTES := 220_000
 const MINIMUM_LUMINANCE_RANGE := 0.030
@@ -383,7 +386,7 @@ func _validate_component_audits_and_budgets() -> void:
 		_check(
 			int(performance.get("mesh_instances", -1)) == EXPECTED_MESHES_PER_COMPONENT
 			and int(performance.get("mesh_budget", -1)) == EXPECTED_MESHES_PER_COMPONENT,
-			"%s owns exactly eleven budgeted presentation meshes" % berth_id
+			"%s owns exactly sixteen budgeted presentation meshes" % berth_id
 		)
 		_check(
 			int(performance.get("material_resources", -1)) == EXPECTED_MATERIALS_PER_COMPONENT
@@ -409,7 +412,7 @@ func _validate_component_audits_and_budgets() -> void:
 	_check(
 		aggregate_meshes == EXPECTED_COMPONENT_COUNT * EXPECTED_MESHES_PER_COMPONENT
 		and aggregate_meshes <= aggregate_mesh_budget,
-		"four-component roster owns exactly 44 meshes within aggregate budget"
+		"four-component roster owns exactly 64 meshes within aggregate budget"
 	)
 	_check(
 		aggregate_materials == EXPECTED_COMPONENT_COUNT * EXPECTED_MATERIALS_PER_COMPONENT
