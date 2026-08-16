@@ -117,6 +117,127 @@ func _test_contract_and_evidence() -> void:
 		and picket.get_node_or_null("LanceMuzzle") != null,
 		"the picket presentation and lance muzzle are built while dormant"
 	)
+	var visual := picket.get_node_or_null("StandoffPicketVisual") as Node3D
+	var performance := audit.presentation_performance as Dictionary
+	_check(
+		bool(performance.valid)
+		and bool(performance.headless_safe)
+		and int(performance.baseline_visual_nodes) == 33
+		and int(performance.visual_nodes) == 33
+		and int(performance.baseline_mesh_instances) == 31
+		and int(performance.mesh_instances) == 31
+		and int(performance.visible_geometry_copies) == 31
+		and int(performance.baseline_surface_submissions) == 31
+		and int(performance.surface_submissions) == 31
+		and int(performance.baseline_mesh_resources) == 27
+		and int(performance.mesh_resources) == 22
+		and int(performance.mesh_resource_delta) == -5
+		and int(performance.baseline_box_mesh_resources) == 14
+		and int(performance.box_mesh_resources) == 9
+		and int(performance.box_instances) == 14
+		and int(performance.shared_box_families) == 5
+		and int(performance.material_resources) == 8
+		and int(performance.multimesh_batches) == 0,
+		"five immutable mirrored box families reduce static mesh resources 27 -> 22 while nodes, copies and submissions stay 33/31/31"
+	)
+
+	var pair_specs: Array[Dictionary] = [
+		{
+			"port_position": Vector3(-0.64, 0.2, 1.2),
+			"starboard_position": Vector3(0.64, 0.2, 1.2),
+			"size": Vector3(0.06, 0.16, 6.6),
+			"port_rotation": Vector3.ZERO,
+			"starboard_rotation": Vector3.ZERO,
+		},
+		{
+			"port_position": Vector3(-2.3, 0.12, 2.9),
+			"starboard_position": Vector3(2.3, 0.12, 2.9),
+			"size": Vector3(3.7, 0.16, 3.1),
+			"port_rotation": Vector3(0.0, -0.46, 0.12),
+			"starboard_rotation": Vector3(0.0, 0.46, -0.12),
+		},
+		{
+			"port_position": Vector3(-1.15, 0.05, 2.3),
+			"starboard_position": Vector3(1.15, 0.05, 2.3),
+			"size": Vector3(1.9, 0.28, 0.6),
+			"port_rotation": Vector3(0.0, -0.46, 0.0),
+			"starboard_rotation": Vector3(0.0, 0.46, 0.0),
+		},
+		{
+			"port_position": Vector3(-2.9, 0.22, 3.5),
+			"starboard_position": Vector3(2.9, 0.22, 3.5),
+			"size": Vector3(2.1, 0.06, 0.24),
+			"port_rotation": Vector3(0.0, -0.46, 0.0),
+			"starboard_rotation": Vector3(0.0, 0.46, 0.0),
+		},
+		{
+			"port_position": Vector3(-3.85, 0.5, 4.0),
+			"starboard_position": Vector3(3.85, 0.5, 4.0),
+			"size": Vector3(0.18, 1.0, 1.5),
+			"port_rotation": Vector3(0.0, -0.24, 0.2),
+			"starboard_rotation": Vector3(0.0, 0.24, -0.2),
+		},
+	]
+	var exact_shared_pairs := visual != null
+	for spec: Dictionary in pair_specs:
+		var port := _mesh_at_local_position(visual, spec.port_position as Vector3)
+		var starboard := _mesh_at_local_position(visual, spec.starboard_position as Vector3)
+		var port_mesh := port.mesh as BoxMesh if port != null else null
+		var starboard_mesh := starboard.mesh as BoxMesh if starboard != null else null
+		exact_shared_pairs = (
+			exact_shared_pairs
+			and port != null and starboard != null
+			and port_mesh != null and port_mesh == starboard_mesh
+			and port_mesh.size.is_equal_approx(spec.size as Vector3)
+			and port.rotation.is_equal_approx(spec.port_rotation as Vector3)
+			and starboard.rotation.is_equal_approx(spec.starboard_rotation as Vector3)
+			and port.scale == Vector3.ONE and starboard.scale == Vector3.ONE
+			and port_mesh.material != null
+			and port.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and starboard.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		)
+	_check(
+		exact_shared_pairs,
+		"all five shared recipes retain their exact authored transforms, sizes, bound materials and shadow policy"
+	)
+
+	var spine_collision := picket.get_node_or_null("SpineCollision") as CollisionShape3D
+	var barrel_collision := picket.get_node_or_null("LanceBarrelCollision") as CollisionShape3D
+	var port_collision := picket.get_node_or_null("PortVaneCollision") as CollisionShape3D
+	var starboard_collision := picket.get_node_or_null("StarboardVaneCollision") as CollisionShape3D
+	_check(
+		_box_shape_matches(spine_collision, Vector3(0.0, 0.0, 0.4), Vector3(1.4, 1.5, 10.2), Vector3.ZERO)
+		and _box_shape_matches(barrel_collision, Vector3(0.0, -0.06, -6.2), Vector3(0.75, 0.75, 5.4), Vector3.ZERO)
+		and _box_shape_matches(port_collision, Vector3(-2.3, 0.12, 3.0), Vector3(3.6, 0.6, 3.2), Vector3(0.0, -0.46, 0.0))
+		and _box_shape_matches(starboard_collision, Vector3(2.3, 0.12, 3.0), Vector3(3.6, 0.6, 3.2), Vector3(0.0, 0.46, 0.0)),
+		"the immutable visual-resource trim leaves all four collision shapes and transforms exact"
+	)
+
+	# --- structured red A0: replacing one shared instance with an identical but
+	# separately allocated mesh must turn the exact resource contract red. ---
+	var mutation_target := (
+		visual.get_node_or_null("FlankStripeStarboard") as MeshInstance3D
+		if visual != null
+		else null
+	)
+	var retained_mesh := mutation_target.mesh if mutation_target != null else null
+	if mutation_target != null and retained_mesh != null:
+		mutation_target.mesh = retained_mesh.duplicate() as Mesh
+	var red_performance := picket.get_presentation_performance_contract()
+	_check(
+		mutation_target != null and retained_mesh != null
+		and not bool(red_performance.valid)
+		and int(red_performance.mesh_resources) == 23
+		and int(red_performance.box_mesh_resources) == 10
+		and picket.get_validation_errors().has("picket presentation resource-sharing contract drifted"),
+		"RED A0: splitting one immutable pair turns exact mesh-resource sharing red without relying on renderer buffers"
+	)
+	if mutation_target != null:
+		mutation_target.mesh = retained_mesh
+	_check(
+		bool(picket.get_presentation_performance_contract().valid),
+		"restoring the shared mesh identity returns the presentation audit green"
+	)
 
 	# --- boundary: invalid input is refused rather than clamped silently ---
 	var profiles: Dictionary = picket.get_weapon_profiles()
@@ -835,6 +956,32 @@ func _place_target(target: RangeOpponent, origin: Vector3) -> void:
 		target.activate(Transform3D(Basis.IDENTITY, origin))
 	target.global_position = origin
 	target.velocity = Vector3.ZERO
+
+
+func _mesh_at_local_position(parent: Node3D, position_value: Vector3) -> MeshInstance3D:
+	if parent == null:
+		return null
+	for candidate: Node in parent.get_children():
+		if candidate is MeshInstance3D:
+			var mesh_instance := candidate as MeshInstance3D
+			if mesh_instance.position.is_equal_approx(position_value):
+				return mesh_instance
+	return null
+
+
+func _box_shape_matches(
+		collision: CollisionShape3D,
+		position_value: Vector3,
+		size: Vector3,
+		rotation_value: Vector3,
+	) -> bool:
+	if collision == null or collision.shape is not BoxShape3D:
+		return false
+	return (
+		collision.position.is_equal_approx(position_value)
+		and collision.rotation.is_equal_approx(rotation_value)
+		and (collision.shape as BoxShape3D).size.is_equal_approx(size)
+	)
 
 
 func _advance_physics(frames: int) -> void:

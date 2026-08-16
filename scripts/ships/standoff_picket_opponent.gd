@@ -61,6 +61,21 @@ const PICKET_ENGINE := Color("9ce8ff")
 
 const MAX_PENDING_LANCE_RECEIPTS := 8
 
+# Component-local static presentation budget. The old build allocated one
+# BoxMesh for each of fourteen box nodes. Five mirrored recipes are immutable
+# and exact duplicates, so the cache reduces only retained mesh resources:
+# nodes, visible copies, surfaces/submissions, materials and transforms stay put.
+const PRESENTATION_VISUAL_NODE_COUNT := 33
+const PRESENTATION_MESH_INSTANCE_COUNT := 31
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
+const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
+const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
+const PRESENTATION_MESH_RESOURCE_COUNT := 22
+const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
+const PRESENTATION_BOX_INSTANCE_COUNT := 14
+const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
+
 const CONTENT_NOTE := (
 	"The picket silhouette, palette, lance telegraph, standoff band, minimum arming "
 	+ "range, and every balance value are an original modern interpretation. They do "
@@ -111,6 +126,7 @@ var _lance_receipt_order: Array[int] = []
 var _pulse_signals_connected := false
 var _lance_lens: MeshInstance3D
 var _lance_emitter: MeshInstance3D
+var _picket_box_mesh_cache: Dictionary = {}
 var _shots_fired := 0
 var _shots_aborted := 0
 
@@ -245,6 +261,70 @@ func get_evidence_metadata() -> Dictionary:
 	}.duplicate(true)
 
 
+## Exact, component-local static presentation census. It inspects Resource
+## identity and mesh surfaces only, so it remains deterministic under headless
+## where renderer buffers are unavailable. Particles, collision and authority
+## nodes sit outside StandoffPicketVisual and are deliberately out of this trim.
+func get_presentation_performance_contract() -> Dictionary:
+	var mesh_instances := 0
+	var box_instances := 0
+	var submissions := 0
+	var mesh_resources := {}
+	var box_mesh_resources := {}
+	var material_resources := {}
+	var visual_nodes := 0
+	if is_instance_valid(_visual_root):
+		visual_nodes = _visual_root.get_child_count()
+		for candidate: Node in _visual_root.get_children():
+			if candidate is not MeshInstance3D:
+				continue
+			var instance := candidate as MeshInstance3D
+			var mesh := instance.mesh
+			if mesh == null:
+				continue
+			mesh_instances += 1
+			mesh_resources[mesh.get_instance_id()] = true
+			if mesh is BoxMesh:
+				box_instances += 1
+				box_mesh_resources[mesh.get_instance_id()] = true
+			submissions += mesh.get_surface_count()
+			for surface_index in mesh.get_surface_count():
+				var material := mesh.surface_get_material(surface_index)
+				if material != null:
+					material_resources[material.get_instance_id()] = true
+	var valid := (
+		visual_nodes == PRESENTATION_VISUAL_NODE_COUNT
+		and mesh_instances == PRESENTATION_MESH_INSTANCE_COUNT
+		and submissions == PRESENTATION_SURFACE_SUBMISSION_COUNT
+		and mesh_resources.size() == PRESENTATION_MESH_RESOURCE_COUNT
+		and box_instances == PRESENTATION_BOX_INSTANCE_COUNT
+		and box_mesh_resources.size() == PRESENTATION_BOX_MESH_RESOURCE_COUNT
+		and _picket_box_mesh_cache.size() == PRESENTATION_BOX_MESH_RESOURCE_COUNT
+		and material_resources.size() == PRESENTATION_MATERIAL_RESOURCE_COUNT
+	)
+	return {
+		"valid": valid,
+		"headless_safe": true,
+		"scope": &"StandoffPicketVisual_static_geometry",
+		"baseline_visual_nodes": PRESENTATION_VISUAL_NODE_COUNT,
+		"visual_nodes": visual_nodes,
+		"baseline_mesh_instances": PRESENTATION_MESH_INSTANCE_COUNT,
+		"mesh_instances": mesh_instances,
+		"visible_geometry_copies": mesh_instances,
+		"baseline_surface_submissions": PRESENTATION_SURFACE_SUBMISSION_COUNT,
+		"surface_submissions": submissions,
+		"baseline_mesh_resources": BASELINE_PRESENTATION_MESH_RESOURCE_COUNT,
+		"mesh_resources": mesh_resources.size(),
+		"mesh_resource_delta": mesh_resources.size() - BASELINE_PRESENTATION_MESH_RESOURCE_COUNT,
+		"baseline_box_mesh_resources": BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT,
+		"box_mesh_resources": box_mesh_resources.size(),
+		"box_instances": box_instances,
+		"shared_box_families": PRESENTATION_SHARED_BOX_FAMILY_COUNT,
+		"material_resources": material_resources.size(),
+		"multimesh_batches": 0,
+	}.duplicate(true)
+
+
 func get_audit_report() -> Dictionary:
 	var errors := get_validation_errors()
 	return {
@@ -254,6 +334,7 @@ func get_audit_report() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"evidence": get_evidence_metadata(),
+		"presentation_performance": get_presentation_performance_contract(),
 		"weapon_profiles": get_weapon_profiles(),
 		"tactics": get_tactics_profile(),
 		"authority": {
@@ -280,6 +361,8 @@ func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if not _built:
 		errors.append("picket presentation has not been built")
+	if not bool(get_presentation_performance_contract().valid):
+		errors.append("picket presentation resource-sharing contract drifted")
 	if source_id <= 0:
 		errors.append("source_id must be a positive stable identity")
 	if faction_id.is_empty():
@@ -801,14 +884,14 @@ func _build_interceptor() -> void:
 	# A long dark spine with a single forward lance barrel. Deliberately the
 	# opposite read from the defender's broad ivory forked dart.
 	_wedge(_visual_root, "SpineNose", Vector3(0.0, 0.0, -2.6), Vector3(1.15, 0.9, 5.4), _materials.picket_hull)
-	_box(_visual_root, "SpineBody", Vector3(0.0, 0.0, 1.4), Vector3(1.25, 1.0, 6.2), _materials.picket_hull)
-	_box(_visual_root, "SpineKeel", Vector3(0.0, -0.62, 1.6), Vector3(0.8, 0.34, 5.4), _materials.picket_deep)
-	_box(_visual_root, "DorsalRail", Vector3(0.0, 0.66, 1.9), Vector3(0.42, 0.3, 4.6), _materials.picket_slate)
+	_picket_box(_visual_root, "SpineBody", Vector3(0.0, 0.0, 1.4), Vector3(1.25, 1.0, 6.2), _materials.picket_hull)
+	_picket_box(_visual_root, "SpineKeel", Vector3(0.0, -0.62, 1.6), Vector3(0.8, 0.34, 5.4), _materials.picket_deep)
+	_picket_box(_visual_root, "DorsalRail", Vector3(0.0, 0.66, 1.9), Vector3(0.42, 0.3, 4.6), _materials.picket_slate)
 	# A continuous dorsal identification stripe. This is the identity read that
 	# survives at standoff distance where hull tone alone does not.
-	_box(_visual_root, "DorsalStripe", Vector3(0.0, 0.83, 1.2), Vector3(0.2, 0.06, 7.4), _materials.picket_magenta)
-	_box(_visual_root, "FlankStripePort", Vector3(-0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
-	_box(_visual_root, "FlankStripeStarboard", Vector3(0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
+	_picket_box(_visual_root, "DorsalStripe", Vector3(0.0, 0.83, 1.2), Vector3(0.2, 0.06, 7.4), _materials.picket_magenta)
+	_picket_box(_visual_root, "FlankStripePort", Vector3(-0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
+	_picket_box(_visual_root, "FlankStripeStarboard", Vector3(0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
 	_wedge(_visual_root, "SensorCowl", Vector3(0.0, 0.68, -1.1), Vector3(0.9, 0.5, 2.4), _materials.picket_slate)
 	_sphere(_visual_root, "SensorBlister", Vector3(0.0, 0.78, -1.9), 0.26, _materials.picket_magenta)
 
@@ -830,10 +913,10 @@ func _build_interceptor() -> void:
 
 	for side in [-1.0, 1.0]:
 		# Swept radiator vanes replace the defender's forward prongs entirely.
-		_box(_visual_root, "RadiatorVane", Vector3(side * 2.3, 0.12, 2.9), Vector3(3.7, 0.16, 3.1), _materials.picket_bone, Vector3(0.0, side * 0.46, side * -0.12))
-		_box(_visual_root, "VaneSpar", Vector3(side * 1.15, 0.05, 2.3), Vector3(1.9, 0.28, 0.6), _materials.picket_slate, Vector3(0.0, side * 0.46, 0.0))
-		_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
-		_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
+		_picket_box(_visual_root, "RadiatorVane", Vector3(side * 2.3, 0.12, 2.9), Vector3(3.7, 0.16, 3.1), _materials.picket_bone, Vector3(0.0, side * 0.46, side * -0.12))
+		_picket_box(_visual_root, "VaneSpar", Vector3(side * 1.15, 0.05, 2.3), Vector3(1.9, 0.28, 0.6), _materials.picket_slate, Vector3(0.0, side * 0.46, 0.0))
+		_picket_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
+		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
 
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 0.86, -0.02, 4.3), 0.4, 1.5, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "EngineCore", Vector3(side * 0.86, -0.02, 5.02), 0.27, 0.16, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
@@ -868,6 +951,37 @@ func _build_interceptor() -> void:
 
 	_build_collision()
 	_build_damage_effects()
+
+
+## Component-owned immutable primitive cache. Size and bound surface material
+## form the complete BoxMesh recipe; transforms and names remain per-node.
+func _picket_box(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		size: Vector3,
+		material: Material,
+		rotation_value := Vector3.ZERO,
+	) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	instance.rotation = rotation_value
+	var cache_key := "box:%0.4f:%0.4f:%0.4f:%d" % [
+		size.x,
+		size.y,
+		size.z,
+		0 if material == null else material.get_instance_id(),
+	]
+	var mesh := _picket_box_mesh_cache.get(cache_key) as BoxMesh
+	if mesh == null:
+		mesh = BoxMesh.new()
+		mesh.size = size
+		mesh.material = material
+		_picket_box_mesh_cache[cache_key] = mesh
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
 
 
 func _build_collision() -> void:
