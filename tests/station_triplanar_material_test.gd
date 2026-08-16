@@ -103,7 +103,13 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 				exact_recipe
 				and material.normal_enabled
 				and _texture_path(material.normal_texture) == NORMAL_PATH
-				and is_equal_approx(material.normal_scale, 0.48)
+				# Re-frozen from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9.
+				# 0.48 left plated walls nearly featureless at eye height; 1.9 domed
+				# the plate faces into embossed plastic on bright surfaces. 1.0 is the
+				# highest sampled value with no doming in any frame. This stays an
+				# exact equality on purpose: the whole point is that every module
+				# shares one relief depth.
+				and is_equal_approx(material.normal_scale, 1.0)
 				and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
 				and material.uv1_triplanar

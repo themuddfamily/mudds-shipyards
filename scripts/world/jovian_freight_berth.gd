@@ -589,7 +589,15 @@ func _create_materials() -> void:
 			panel.albedo_texture = panel_albedo
 			panel.normal_enabled = true
 			panel.normal_texture = panel_normal
-			panel.normal_scale = 0.48
+			# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
+			# plated wall at eye height is nearly featureless: the seams and rivets are
+			# present in the map but too shallow to catch light, which is much of why
+			# plated geometry still read as untextured. At 1.9 the plate faces dome and
+			# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
+			# value at which no frame showed doming while the dark walls resolved into
+			# pressed sheet metal. Every module shares the value so a deck and the wall
+			# beside it cannot disagree.
+			panel.normal_scale = 1.0
 			panel.roughness_texture = panel_roughness
 			panel.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 			panel.uv1_triplanar = true
