@@ -11,12 +11,12 @@ coverage.
 - Default to one implementation agent. Add one independent reviewer for
   high-risk changes; use a third agent only for a genuinely separate workstream
   that can proceed concurrently.
-- Keep one roadmap objective active by default. Use parallel agents to split
-  that objective into independent implementation, evidence, or review streams;
-  do not fan out across unrelated `ROADMAP.md` points. Overlap separate roadmap
-  points only when the user explicitly requests it or the root records that they
-  are dependency-free, own disjoint files, and materially reduce wall-clock
-  time without obscuring integration.
+- Prefer breadth across the roadmap over a committee on one item: assign one
+  implementation-oriented agent to each of 1–3 independent `ROADMAP.md` points,
+  each in its own worktree with disjoint file ownership. Run those points in
+  parallel when they have no ordering dependency. Keep dependent points
+  sequential, and do not spend the available agents on overlapping research of
+  one point unless that point is explicitly high-risk and needs one reviewer.
 - Start independent agents concurrently, then continue useful coordination work
   in the main thread while they run.
 - Give each agent a concrete, bounded deliverable.
