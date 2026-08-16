@@ -351,7 +351,17 @@ func get_performance_contract() -> Dictionary:
 		"static_bodies": 120,
 		"collision_shapes": 120,
 		"labels": 4,
-		"lights": 12,
+		# Light ceiling re-frozen in the open, 12 -> 32. The module built 11 lights
+		# against that 12; it now builds 32, and the 21 additions are all fixture
+		# practicals — see `_fixture_practical`. Every one is shadowless, under
+		# 6.5 m range, steeply attenuated and distance-faded out at 16 m, and they
+		# exist because emission illuminates nothing in Forward+, so a lens, strip,
+		# status light or sign could not light the plate it is bolted to no matter
+		# what energy it carried. The ceiling is deliberately set at the exact
+		# built count rather than left with headroom, so the next addition has to
+		# be declared here too. Frame cost is unmeasured: this box renders through
+		# llvmpipe.
+		"lights": 32,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -436,7 +446,12 @@ func _create_materials() -> void:
 	_materials["rubber"] = _material(Color("101719"), 0.06, 0.86)
 	_materials["cyan"] = _material(Color("55dce2"), 0.12, 0.34, Color("3acbd3"), 1.45)
 	_materials["cyan_dim"] = _material(Color("3a7479"), 0.34, 0.42, Color("2aa6ae"), 0.35)
-	_materials["gold"] = _material(Color("d0a350"), 0.54, 0.3, Color("8f5f20"), 0.2)
+	# Emission 0.2 -> 0.62. `gold` is the module's warm cue colour and it was the
+	# one cue that never read as lit: at 0.2 the arc tiles, cabinet status strips
+	# and the junction legend sat below the tonemapper's shoulder and returned
+	# nothing but their albedo. They are now paired with warm practicals (see
+	# `_fixture_practical`), and a cue that throws light has to look like it is on.
+	_materials["gold"] = _material(Color("d0a350"), 0.54, 0.3, Color("8f5f20"), 0.62)
 	# Non-emissive structural twin of `gold`. `gold` carries a faint emission and
 	# is the module's *cue* colour: route arc tiles, cabinet status, control lamps
 	# and signage. It was also carrying the physical brass furniture — handrails,
@@ -450,8 +465,16 @@ func _create_materials() -> void:
 	_materials["red"] = _material(Color("d84d47"), 0.18, 0.4, Color("b82c2c"), 1.15)
 	_materials["screen"] = _material(Color("b9f2ef"), 0.08, 0.24, Color("68dde2"), 1.25)
 	_materials["screen_dark"] = _material(Color("16363b"), 0.22, 0.36, Color("2b9aa3"), 0.22)
-	_materials["worklight"] = _material(Color("edf8f5"), 0.02, 0.2, Color("d7ffff"), 2.5)
-	_materials["amber_light"] = _material(Color("ffdba0"), 0.02, 0.24, Color("f1a84e"), 1.8)
+	# Lens emission comes down where a practical now carries the difference. These
+	# two were the brightest surfaces in the module and the reason its histogram
+	# was bimodal: a 2.5-energy lens clips well past the AgX shoulder, blooms, and
+	# still leaves the ceiling plate it is recessed into at structure value,
+	# because emission does not illuminate anything. Energy moved out of the lens
+	# and into `OperationsPoolLight` / `ExteriorCowlSpill`; the fixture reads
+	# slightly less blown and its mount reads lit, which is the trade this pass
+	# exists to make. worklight 2.5 -> 1.65, amber_light 1.8 -> 1.2.
+	_materials["worklight"] = _material(Color("edf8f5"), 0.02, 0.2, Color("d7ffff"), 1.65)
+	_materials["amber_light"] = _material(Color("ffdba0"), 0.02, 0.24, Color("f1a84e"), 1.2)
 	_materials["glass"] = _transparent_material(Color(0.38, 0.68, 0.72, 0.18), 0.03, 0.08)
 	_materials["chair"] = _material(Color("4a5557"), 0.14, 0.7)
 	_materials["chair_pad"] = _material(Color("273236"), 0.04, 0.92)
@@ -513,10 +536,26 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 
 	# The incomplete ring makes the junction readable without becoming another
 	# monumental runway gate. Its open west quadrant points toward the stair.
+	#
+	# Two of the eight tiles carry a warm practical. Not eight: the ring is a
+	# 7.5 m ellipse of touching tiles, one light per tile would be seven redundant
+	# copies of the same pool, and two placed on opposite arcs already put a warm
+	# gradient across the whole inset. This is the module's only warm light at
+	# deck level and it is what keeps the junction floor from being the same cyan
+	# as the wall above it.
 	for angle in [-70.0, -35.0, 0.0, 35.0, 70.0, 105.0, 140.0, 175.0]:
 		var radians := deg_to_rad(angle)
 		var ring_position := Vector3(cos(radians) * 3.75, 0.11, 7.45 + sin(radians) * 1.75)
 		_box(lower, "JunctionArcTile", ring_position, Vector3(1.25, 0.08, 0.24), _materials["gold"], false, Vector3(0, -angle + 90.0, 0))
+		if is_equal_approx(angle, -35.0) or is_equal_approx(angle, 140.0):
+			_fixture_practical(
+				lower,
+				"JunctionArcSpill",
+				ring_position + Vector3(0.0, 0.24, 0.0),
+				Color("f0be7c"),
+				0.46,
+				4.2
+			)
 
 	# Sparse rails leave the approach and circulation branches genuinely open.
 	# The port rail guards only the stretch of the connection deck's west edge that
@@ -826,6 +865,31 @@ func _build_operations_room(structure: Node3D) -> void:
 		for lamp_index in 3:
 			var accent: Material = _materials["cyan"] if lamp_index < 2 else _materials["gold"]
 			_cylinder(bay, "ControlLamp", Vector3(-0.56 + float(lamp_index) * 0.56, 1.5, -0.03), 0.06, 0.04, accent, false, Vector3(90, 0, 0))
+		# One practical per bay, not one per lamp. The display, its three data
+		# bands and the three control lamps are a single luminaire from any
+		# distance a player reads this room from; three lights per bay would be
+		# three copies of one pool over a 2.2 m console. Placed just above and in
+		# front of the glass so it washes the console top, the edge rail and the
+		# operator's chair back rather than the ceiling.
+		_fixture_practical(
+			bay,
+			"ConsoleGlow",
+			Vector3(0.0, 1.74, -0.36),
+			Color("93e4ea"),
+			0.42,
+			2.6
+		)
+		# The bay's one warm lamp gets its own tiny pool. It is the only warm
+		# source on the console line and it is what stops three identical cyan
+		# consoles reading as one extruded strip.
+		_fixture_practical(
+			bay,
+			"ControlLampSpill",
+			Vector3(0.56, 1.58, -0.1),
+			Color("f2c07f"),
+			0.24,
+			1.25
+		)
 
 	# Three operator chairs plus a side-facing coordinator chair.
 	for chair_index in 4:
@@ -841,6 +905,10 @@ func _build_operations_room(structure: Node3D) -> void:
 	_build_service_wall(room)
 	_build_operations_lighting(room)
 	_text_sign(room, "AFT OPERATIONS", Vector3(7.2, 3.7, 9.31), Vector3(0, 180, 0), 0.29, _materials["cyan"])
+	# A lit sign that does not light the wall it hangs on is a sticker. This is a
+	# wide, weak wash placed a little in front of and below the legend, so the
+	# bulkhead behind it carries a gradient the sign sits inside.
+	_fixture_practical(room, "OperationsSignWash", Vector3(7.2, 3.45, 9.62), Color("7fe0e6"), 0.34, 3.0)
 
 
 func _build_operations_shell_detail(room: Node3D) -> void:
@@ -963,11 +1031,48 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 	_beam_between(envelope, "ExteriorCopperFeed", Vector3(11.18, 0.82, 10.0), Vector3(11.18, 0.82, 16.25), 0.06, _materials["copper"], false)
 	for pipe_z in [10.2, 12.2, 14.2, 16.2]:
 		_torus(envelope, "ExteriorPipeClamp", Vector3(11.18, 0.82, float(pipe_z)), 0.065, 0.1, _materials["graphite"], Vector3(90, 0, 0))
+	# Four cowled amber worklights on the operations envelope. The cowl and lens
+	# geometry was already here; what was missing is that none of them lit the
+	# plate they are bolted to, so from outside the module read as cool plating
+	# with four orange stickers on it. Each now throws a short warm pool onto its
+	# own housing and the surrounding wall, and together they are the warm half of
+	# the aft module's exterior colour temperature.
 	for lamp_position in [Vector3(0.1, 3.9, 9.45), Vector3(11.1, 3.9, 9.45), Vector3(0.1, 3.9, 16.9), Vector3(11.1, 3.9, 16.9)]:
 		_box(envelope, "ExteriorWorklightHousing", lamp_position, Vector3(0.22, 0.4, 0.52), _materials["hull_dark"], false)
 		_box(envelope, "ExteriorWorklightLens", lamp_position + Vector3(0, 0, -0.27), Vector3(0.13, 0.22, 0.035), _materials["amber_light"], false)
+		_fixture_practical(
+			envelope,
+			"ExteriorCowlSpill",
+			lamp_position + Vector3(0.0, -0.1, -0.42),
+			Color("f7bb70"),
+			0.62,
+			3.6
+		)
 
 
+## Operations-room lighting.
+##
+## This room was the clearest case of the two defects this pass exists to fix.
+## Every surface in it — plate, deck, console, cove, sign — returned one cyan
+## hue, because the only warm light anywhere in the station is a directional
+## bounce aimed up from the open decks, and an enclosed room cannot see it. And
+## its three ceiling luminaires were 2.5-energy lenses over a plate that received
+## 0.62 of cool omni, so the frame was a pair of spikes with nothing between.
+##
+## The fix is colour temperature, not level. Real rooms are lit by more than one
+## kind of lamp and that is most of what makes them read as built: the overheads
+## here stay the station's cool service white and stay dominant, so the cool
+## identity is untouched, but the room now also carries warm light from two
+## sources that belong to it — an under-console task wash at working height, and
+## the warm end of the cove. The overheads lost the emission that was blowing
+## out and gained the room brightness that emission was never providing:
+## `worklight` 2.5 -> 1.65 in the palette, `OperationsPoolLight` 0.62 -> 0.94.
+##
+## The functional cue colours are deliberately not touched. Cyan route/status,
+## amber gold and red keep their exact hues and their shape channel; the warm
+## light added here is a low, broad, sub-1.0-energy wash at knee-to-waist height,
+## which lands on floor and plinth and never on a cue face hard enough to shift
+## what it reads as.
 func _build_operations_lighting(room: Node3D) -> void:
 	var lighting := Node3D.new()
 	lighting.name = "LocalizedLighting"
@@ -976,9 +1081,23 @@ func _build_operations_lighting(room: Node3D) -> void:
 	for z_position in [11.15, 14.15, 16.15]:
 		_box(lighting, "CeilingLuminaireBody", Vector3(5.6, 4.47, float(z_position)), Vector3(3.35, 0.11, 0.48), _materials["hull_dark"], false)
 		_box(lighting, "CeilingLuminaireLens", Vector3(5.6, 4.405, float(z_position)), Vector3(2.85, 0.035, 0.24), _materials["worklight"], false)
-		_omni_light(lighting, "OperationsPoolLight", Vector3(5.6, 4.0, float(z_position)), Color("d9f6f3"), 0.62, 5.6)
+		_omni_light(lighting, "OperationsPoolLight", Vector3(5.6, 4.0, float(z_position)), Color("d9f6f3"), 0.94, 5.6)
 	for cove_x in [0.86, 10.34]:
 		_beam_between(lighting, "CeilingCoveRail", Vector3(float(cove_x), 4.3, 9.55), Vector3(float(cove_x), 4.3, 16.85), 0.055, _materials["cyan_dim"], false)
+	# The two coves are the room's own fixtures and were lighting nothing. Giving
+	# the starboard cove a warm lamp and the port cove a cool one is the cheapest
+	# honest way to get two colour temperatures across a room: the walls now
+	# gradate from warm on one side to cool on the other instead of sitting at
+	# one value, and a viewer reads that as two luminaires rather than as tint.
+	_fixture_practical(lighting, "CoveSpillWarm", Vector3(10.1, 4.05, 13.2), Color("f0c48c"), 0.5, 6.4)
+	_fixture_practical(lighting, "CoveSpillCool", Vector3(1.1, 4.05, 13.2), Color("bfeef2"), 0.42, 6.4)
+	# Under-console task light. Three consoles standing on a deck with nothing
+	# below waist height meant the plinths, kick strips and chair bases were the
+	# darkest band in the room. This is a tungsten-temperature wash at working
+	# height, which is what a real operations floor has and what gives the room a
+	# second hue where a player actually stands.
+	for task_x in [4.1, 8.7]:
+		_fixture_practical(lighting, "ConsoleTaskWash", Vector3(float(task_x), 1.05, 14.4), Color("f6c98c"), 0.44, 5.2)
 	_box(lighting, "DoorThresholdLight", Vector3(2.2, 0.065, 9.36), Vector3(2.35, 0.04, 0.09), _materials["cyan"], false)
 	_omni_light(lighting, "DoorPoolLight", Vector3(2.2, 2.6, 10.0), Color("72d9d9"), 0.35, 3.8)
 
@@ -1028,6 +1147,22 @@ func _build_service_wall(room: Node3D) -> void:
 		_cylinder(service, "ServiceConduit", Vector3(-0.55, 3.65, pipe_z), 0.09, 1.9, _materials["mid_grey"], false)
 		_torus(service, "ConduitCollar", Vector3(-0.55, 2.95, pipe_z), 0.1, 0.16, _materials["brass"], Vector3(90, 0, 0))
 	_beam_between(service, "ServiceBus", Vector3(-0.66, 4.15, -2.85), Vector3(-0.66, 4.15, 2.85), 0.065, _materials["copper"], false)
+	# Three status strips in a recessed cabinet face, none of which lit the recess
+	# they sit in — the exact "glowing decal" reading. One practical per strip,
+	# tinted to that strip's own cue colour, so the middle cabinet's warm strip and
+	# the two flanking cool ones are told apart by the light they throw as well as
+	# by the strip itself. Range is 1.4 m: this washes the cabinet recess and
+	# stops, rather than spilling across the room and diluting the cue.
+	for cabinet_index in 3:
+		var status_z := -2.05 + float(cabinet_index) * 2.05
+		_fixture_practical(
+			service,
+			"CabinetStatusSpill",
+			Vector3(-0.72, 2.38, status_z),
+			Color("f2c07f") if cabinet_index == 1 else Color("7fe0e6"),
+			0.3,
+			1.4
+		)
 
 
 func _build_vip_landmark(structure: Node3D) -> void:
@@ -1087,6 +1222,10 @@ func _build_open_structure_details(structure: Node3D) -> void:
 	# reversed. Yawed to that reader. It remains deliberately unbacked, like the
 	# rest of this open-lattice exterior dressing.
 	_text_sign(details, "AFT JUNCTION  //  MODERN INTERPRETATION", Vector3(0, 1.25, 9.82), Vector3(0, 180, 0), 0.2, _materials["gold"])
+	# Warm wash on the identity plaque, matching its gold legend. The plaque is
+	# deliberately unbacked, so this lights the envelope wall a metre behind it and
+	# the plaque reads as standing off a lit surface rather than floating.
+	_fixture_practical(details, "JunctionLegendWash", Vector3(0.0, 1.05, 10.1), Color("f0be7c"), 0.32, 2.8)
 
 
 func _style_access_landmarks() -> void:
@@ -1322,6 +1461,44 @@ func _omni_light(
 	result.set_meta("localized_practical_light", true)
 	parent.add_child(result)
 	return result
+
+
+## A luminaire's spill, as an actual light.
+##
+## Every lit fixture in this module previously read as a painted decal, and the
+## reason is mechanical rather than a matter of degree. `emission` is a purely
+## local surface term in Forward+: it changes what the emitting fragment returns
+## and nothing else. The glow pass then convolves the finished *image*, so a
+## bright lens grows a halo in screen space but still contributes zero radiance
+## to the plate it is bolted to. Raising emission therefore cannot make a sign
+## light its own backing panel — it only pushes the lens further past the
+## tonemapper's shoulder and widens the bloom, which is precisely the bimodal
+## frame this pass was asked to fix. The only mechanism in this renderer that
+## lights a mount is a Light3D, so that is what these are.
+##
+## They are deliberately small, and every property here is a restraint:
+## shadowless, sub-4 m range, steeper attenuation than the room fills, and faded
+## out at 16 m so a module seen across the lattice pays for none of them. Each
+## carries its own fixture's hue, so the spill identifies the source rather than
+## adding an anonymous lift. Where one is added the lens emission comes down by
+## roughly what the practical now carries: the change moves energy out of the
+## blown top of the histogram into the 20-40 structural band instead of adding
+## gain. Frame cost is unmeasured and unmeasurable here — this box renders
+## through llvmpipe.
+func _fixture_practical(
+		parent: Node3D,
+		node_name: String,
+		light_position: Vector3,
+		color: Color,
+		energy: float,
+		range_value: float
+	) -> OmniLight3D:
+	var light := _omni_light(parent, node_name, light_position, color, energy, range_value)
+	light.omni_attenuation = 2.1
+	light.distance_fade_begin = 16.0
+	light.distance_fade_length = 8.0
+	light.set_meta("fixture_practical", true)
+	return light
 
 
 func _torus(
