@@ -80,9 +80,36 @@ func _test_hud_contract() -> void:
 	_check(_has_label_text(hud, "INTERACT / BOARD"), "E remains the on-foot interaction and boarding control")
 	hud.set_mode("piloting")
 	await process_frame
-	_check(_has_label_text(hud, "UP / DOWN") and _has_label_text(hud, "PITCH"), "ship help names the explicit keyboard pitch controls")
-	_check(_has_label_text(hud, "Q / R") and _has_label_text(hud, "ROLL"), "ship help names Q and R roll without taking E from interaction")
-	_check(_has_label_text(hud, "GAMEPAD") and _has_label_text(hud, "STICKS FLY / TRIGGERS + FACE"), "ship help includes one concise gamepad summary")
+	var keyboard_rows := hud._help_rows_for_mode(GameHUD.MODE_PILOTING) as Array
+	_check(
+		_prompt_for_detail(keyboard_rows, "PITCH") == "Up / Down",
+		"ship help names the current Up and Down keyboard pitch bindings"
+	)
+	_check(
+		_prompt_for_detail(keyboard_rows, "ROLL") == "Q / R",
+		"ship help names Q and R roll without taking E from interaction"
+	)
+	_check(
+		_prompt_for_detail(keyboard_rows, "FORWARD / REVERSE  //  AUTO POWER") == "W / S"
+		and _prompt_for_detail(keyboard_rows, "LEAVE SEAT: AUTO-OFFLINE") == "E"
+		and not InputMap.has_action(&"engine_start")
+		and not InputMap.has_action(&"engine_stop"),
+		"ship help describes automatic engine power without reviving retired manual actions"
+	)
+
+	var gamepad_pitch := InputEventJoypadMotion.new()
+	gamepad_pitch.axis = JOY_AXIS_RIGHT_Y
+	gamepad_pitch.axis_value = -1.0
+	root.push_input(gamepad_pitch)
+	await process_frame
+	var gamepad_rows := hud._help_rows_for_mode(GameHUD.MODE_PILOTING) as Array
+	_check(
+		_prompt_for_detail(gamepad_rows, "FORWARD / REVERSE  //  AUTO POWER") == "Left Stick"
+		and _prompt_for_detail(gamepad_rows, "PITCH") == "Right Stick"
+		and _prompt_for_detail(gamepad_rows, "ROLL") == "Right Stick"
+		and _prompt_for_detail(gamepad_rows, "LEAVE SEAT: AUTO-OFFLINE") == "Left Face Button",
+		"ship help resolves the current gamepad bindings instead of a stale static summary"
+	)
 	_check(_all_controls_passthrough(gameplay_hud), "the complete gameplay HUD remains transparent to look and fire input")
 
 	hud.queue_free()
@@ -221,6 +248,13 @@ func _has_label_text(search_root: Node, text: String) -> bool:
 		if (candidate as Label).text == text:
 			return true
 	return false
+
+
+func _prompt_for_detail(rows: Array, detail: String) -> String:
+	for row: Array in rows:
+		if str(row[1]) == detail:
+			return str(row[0])
+	return ""
 
 
 func _all_controls_passthrough(control: Control) -> bool:

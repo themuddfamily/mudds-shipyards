@@ -1130,7 +1130,7 @@ func _wait_until(predicate: Callable, budget_seconds: float) -> bool:
 
 func _clean_up(game: Node) -> void:
 	_release_joypad()
-	for action in [&"interact", &"move_forward", &"fire", &"engine_start", &"engine_stop", &"landing_assist"]:
+	for action in [&"interact", &"move_forward", &"fire", &"landing_assist"]:
 		Input.action_release(action)
 	await _release_combat_audio_before_main_teardown(game)
 	game.queue_free()
