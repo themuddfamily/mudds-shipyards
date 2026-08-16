@@ -34,6 +34,21 @@ const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
 
+## Component-local renderer freeze for the twelve childless floor-hatch
+## fasteners. Their parent hatches retain service-roster authority; the brass
+## fasteners have no collider, room, route, door, seat, readiness or evidence
+## role and retain every authored copy through one MultiMesh submission.
+const HATCH_FASTENER_RADIUS := 0.03
+const HATCH_FASTENER_HEIGHT := 0.025
+const HATCH_FASTENER_COPY_COUNT := 12
+const RENDER_DESCENDANT_COUNT := 1911
+const RENDER_MESH_INSTANCE_COUNT := 1263
+const RENDER_MULTIMESH_BATCH_COUNT := 12
+const RENDER_DRAWN_COPY_COUNT := 1400
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1275
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 359
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
+
 ## Which of the six berths are currently taken, in alcove order.
 ##
 ## Read by both the alcove dressing and the common room's berth roster board, so
@@ -125,6 +140,9 @@ var _service_nodes: Array[Node3D] = []
 var _window_panes: Array[Node3D] = []
 var _built := false
 var _module_enabled := true
+var _hatch_fastener_mesh: Mesh
+var _hatch_fastener_batch: MultiMeshInstance3D
+var _hatch_fastener_transforms: Array[Transform3D] = []
 
 
 func _ready() -> void:
@@ -396,6 +414,15 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("a walkable surface is missing an enabled collision shape")
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module component counts exceed the declared quality budget")
+	var render := get_render_allocation_report()
+	if not bool(render.exact_counts):
+		errors.append("Habitat render allocations drifted from the frozen component-local roster")
+	if not bool(render.renderer_buffer_matches_authored):
+		errors.append("Habitat hatch-fastener renderer buffer drifted from its authored transforms")
+	if not bool(render.bounds_match_authored):
+		errors.append("Habitat hatch-fastener culling bounds drifted from its authored copies")
+	if not bool(render.mesh_resource_matches_authored) or not bool(render.material_resource_matches_authored):
+		errors.append("Habitat hatch-fastener mesh or material identity drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -511,6 +538,17 @@ func get_performance_contract() -> Dictionary:
 	# unchanged. Nine individual renderer nodes become one existing-path batch;
 	# no collidable, service-roster node or evidence boundary is part of it.
 	#
+	# Re-frozen again after batching the twelve identical brass floor-hatch
+	# fasteners. The three registered hatches and every collision/service path stay
+	# ordinary nodes; only their childless visual bolt stock moves:
+	#
+	#   all descendant nodes       1922 -> 1911 (-11)
+	#   MeshInstance3D nodes       1275 -> 1263 (-12)
+	#   MultiMeshInstance3D nodes    11 ->   12 (+1)
+	#   drawn visible copies        1400 -> 1400 (unchanged)
+	#   surface submissions         1286 -> 1275 (-11)
+	#   unique mesh/materials     359/31 -> 359/31 (unchanged)
+	#
 	# The mesh delta is where the living quarters went from a fit-out to a place
 	# people are in: 6 bunk mouths with jambs, heads, curtains, grab handles and
 	# name plates plus the berth dressing behind them (~152), a galley run with a
@@ -595,6 +633,87 @@ func get_performance_contract() -> Dictionary:
 	})
 	contract["schema_version"] = SCHEMA_VERSION
 	return contract
+
+
+func get_render_allocation_report() -> Dictionary:
+	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
+	var batch_nodes := find_children("*", "MultiMeshInstance3D", true, false)
+	var drawn_copies := 0
+	var submissions := 0
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var multimesh_resource_ids := {}
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
+		mesh_resource_ids[instance.mesh.get_instance_id()] = true
+		if instance.material_override != null:
+			material_resource_ids[instance.material_override.get_instance_id()] = true
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		submissions += batch.multimesh.mesh.get_surface_count()
+		mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+		multimesh_resource_ids[batch.multimesh.get_instance_id()] = true
+		if batch.material_override != null:
+			material_resource_ids[batch.material_override.get_instance_id()] = true
+
+	var expected_buffer := _encode_multimesh_transforms(_hatch_fastener_transforms)
+	var buffer_matches := (
+		is_instance_valid(_hatch_fastener_batch)
+		and _hatch_fastener_batch.multimesh != null
+		and _hatch_fastener_batch.multimesh.buffer == expected_buffer
+	)
+	var bounds_match := false
+	var mesh_matches := false
+	var material_matches := false
+	if is_instance_valid(_hatch_fastener_batch) and _hatch_fastener_batch.multimesh != null:
+		var multi := _hatch_fastener_batch.multimesh
+		if multi.mesh != null:
+			bounds_match = multi.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(multi.mesh.get_aabb(), _hatch_fastener_transforms)
+			)
+		mesh_matches = multi.mesh == _hatch_fastener_mesh
+		material_matches = _hatch_fastener_batch.material_override == _materials.get("brass")
+	var descendant_count := find_children("*", "Node", true, false).size()
+	var exact_counts := (
+		descendant_count == RENDER_DESCENDANT_COUNT
+		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
+		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and drawn_copies == RENDER_DRAWN_COPY_COUNT
+		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
+		and mesh_resource_ids.size() == RENDER_UNIQUE_MESH_RESOURCE_COUNT
+		and material_resource_ids.size() == RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
+		and multimesh_resource_ids.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and _hatch_fastener_transforms.size() == HATCH_FASTENER_COPY_COUNT
+	)
+	return {
+		"schema_version": 1,
+		"descendant_nodes": descendant_count,
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"multimesh_resources": multimesh_resource_ids.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"unique_mesh_resources": mesh_resource_ids.size(),
+		"unique_material_resources": material_resource_ids.size(),
+		"hatch_fastener_copies": _hatch_fastener_transforms.size(),
+		"renderer_buffer_floats": expected_buffer.size(),
+		"renderer_buffer_matches_authored": buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"mesh_resource_matches_authored": mesh_matches,
+		"material_resource_matches_authored": material_matches,
+		"exact_counts": exact_counts,
+		"authored_hatch_fastener_transforms": _hatch_fastener_transforms.duplicate(),
+	}
 
 
 ## Applied unconditionally. A no-op guard on the flag made drifted state
@@ -1281,12 +1400,37 @@ func _build_service_detail(structure: Node3D) -> void:
 		_materials["graphite"],
 		cabinet_louvre_transforms
 	)
+	_hatch_fastener_transforms.clear()
 	for hatch_z in [5.1, 10.15, 15.2]:
 		var hatch := _box(service, "FloorServiceHatch", Vector3(0, 0.058, float(hatch_z)), Vector3(1.35, 0.025, 0.92), _materials["graphite"], false)
 		_register_service(hatch, &"service-hatch")
 		for fastener_x in [-0.52, 0.52]:
 			for fastener_z in [-0.31, 0.31]:
-				_cylinder(service, "HatchFastener", Vector3(float(fastener_x), 0.08, float(hatch_z) + float(fastener_z)), 0.03, 0.025, _materials["brass"], false)
+				_hatch_fastener_transforms.append(
+					Transform3D(
+						Basis.IDENTITY,
+						Vector3(
+							float(fastener_x),
+							0.08,
+							float(hatch_z) + float(fastener_z)
+						)
+					)
+				)
+	_hatch_fastener_mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		HATCH_FASTENER_RADIUS,
+		HATCH_FASTENER_RADIUS,
+		HATCH_FASTENER_HEIGHT,
+		32,
+		_chamfered_cylinder_cache
+	)
+	_hatch_fastener_batch = _multimesh_visual_stock(
+		service,
+		"HatchFasteners",
+		_hatch_fastener_mesh,
+		_materials["brass"],
+		_hatch_fastener_transforms,
+		&"HatchFastener"
+	)
 
 
 func _register_service(node: Node3D, service_class: StringName) -> void:
@@ -2479,6 +2623,72 @@ func _multimesh_boxes(
 	instance.set_meta("authored_instance_transforms", transforms.duplicate())
 	parent.add_child(instance)
 	return instance
+
+
+## Batches one repeated, childless, non-colliding mesh family. Unlike the older
+## box helper above, this path bulk-authors the raw renderer buffer and its exact
+## transformed bounds so the new component-local audit can catch payload or
+## culling drift under both headless and Forward+.
+func _multimesh_visual_stock(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		material: Material,
+		transforms: Array[Transform3D],
+		authored_source_name: StringName
+	) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	multi.buffer = _encode_multimesh_transforms(transforms)
+	multi.custom_aabb = _transformed_mesh_bounds(mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_source_name", authored_source_name)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for value in transforms:
+		var transformed := (value * mesh_bounds).abs()
+		if first:
+			result = transformed
+			first = false
+		else:
+			result = result.merge(transformed)
+	return result
 
 
 ## One collision body for a solid box MultiMesh, derived from the live visual.

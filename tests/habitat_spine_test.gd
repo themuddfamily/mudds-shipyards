@@ -426,11 +426,12 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_check(service_classes.has(&"environmental-main") and service_classes.has(&"isolation-valve"), "service layer includes environmental mains and isolation valves")
 	_check(service_classes.has(&"service-cabinet") and service_classes.has(&"service-hatch"), "service layer includes cabinets and floor access hatches")
 	_test_cabinet_louvre_batch(module)
+	_test_hatch_fastener_batch(module)
 	_check(
-		module.find_children("*", "Node", true, false).size() == 1922
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1275
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 11,
-		"cabinet batching re-freezes the Habitat census at 1922 nodes, 1275 meshes and 11 MultiMeshes"
+		module.find_children("*", "Node", true, false).size() == 1911
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1263
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 12,
+		"visual batching re-freezes the Habitat census at 1911 nodes, 1263 meshes and 12 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -514,6 +515,149 @@ func _test_cabinet_louvre_batch(module: HabitatSpine) -> void:
 				authored[instance_index] as Transform3D
 			)
 		_check(renderer_exact, "Forward+ renderer buffer exactly matches the nine authored louvre transforms")
+
+
+func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
+	var service := module.get_node_or_null(
+		^"Structure/MaintenanceServiceLayer"
+	) as Node3D
+	var batch := module.get_node_or_null(
+		^"Structure/MaintenanceServiceLayer/HatchFasteners"
+	) as MultiMeshInstance3D
+	_check(
+		service != null and batch != null and batch.multimesh != null,
+		"twelve floor-hatch fasteners resolve through one visual-only MultiMesh"
+	)
+	if service == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var expected: Array[Transform3D] = []
+	for hatch_z in [5.1, 10.15, 15.2]:
+		for fastener_x in [-0.52, 0.52]:
+			for fastener_z in [-0.31, 0.31]:
+				expected.append(
+					Transform3D(
+						Basis.IDENTITY,
+						Vector3(
+							float(fastener_x),
+							0.08,
+							float(hatch_z) + float(fastener_z)
+						)
+					)
+				)
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+	_check(
+		multi.instance_count == HabitatSpine.HATCH_FASTENER_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"HatchFastener",
+		"batch preserves all twelve authored fastener transforms, ordering and source identity"
+	)
+	var brass_reference := module.find_child("CabinetHandle", true, false) as MeshInstance3D
+	_check(
+		multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.06, 0.025, 0.06))
+		and multi.mesh.get_surface_count() == 1
+		and brass_reference != null
+		and batch.material_override == brass_reference.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"batch preserves fastener extent, surface, brass material identity, shadows and render layer"
+	)
+	var old_fastener_nodes := 0
+	for raw_node in service.get_children():
+		var instance := raw_node as MeshInstance3D
+		if (
+			instance != null
+			and instance.mesh == multi.mesh
+			and instance.material_override == batch.material_override
+			and is_equal_approx(instance.position.y, 0.08)
+		):
+			old_fastener_nodes += 1
+	var registered_hatches := module.find_children("*", "Node3D", true, false).filter(
+		func(candidate: Node) -> bool:
+			return candidate.get_meta("service_class", &"") == &"service-hatch"
+	)
+	_check(
+		old_fastener_nodes == 0
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and registered_hatches.size() == 3,
+		"only childless visual bolt stock is batched while all three registered service hatches remain"
+	)
+
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.descendant_nodes) == 1911
+		and int(report.mesh_instances) == 1263
+		and int(report.multimesh_batches) == 12,
+		"renderer nodes freeze at 1922 -> 1911, MeshInstances 1275 -> 1263, batches 11 -> 12"
+	)
+	_check(
+		int(report.drawn_copies) == 1400
+		and int(report.geometry_submissions) == 1275
+		and int(report.hatch_fastener_copies) == 12,
+		"drawn copies remain 1400 while surface submissions fall 1286 -> 1275"
+	)
+	_check(
+		int(report.unique_mesh_resources) == 359
+		and int(report.unique_material_resources) == 31
+		and int(report.multimesh_resources) == 12
+		and int(report.renderer_buffer_floats) == 144,
+		"mesh/material identities remain 359/31 while one 144-float MultiMesh resource replaces twelve renderer nodes"
+	)
+	_check(
+		bool(report.renderer_buffer_matches_authored)
+		and bool(report.bounds_match_authored)
+		and bool(report.mesh_resource_matches_authored)
+		and bool(report.material_resource_matches_authored)
+		and bool(report.exact_counts),
+		"renderer payload, explicit culling union and shared resource identities match the authored roster"
+	)
+
+	var detached := report.authored_hatch_fastener_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((module.get_render_allocation_report().authored_hatch_fastener_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"render report returns a detached hatch-fastener transform roster"
+	)
+	# Earlier lifecycle exercises intentionally leave a StationDoor in a live
+	# test state. Mutation restoration must return the audit to that exact state,
+	# not assume the wider suite has left every unrelated subsystem pristine.
+	var baseline_errors := module.get_validation_errors()
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has(
+			"Habitat hatch-fastener renderer buffer drifted from its authored transforms"
+		),
+		"RED: mutating one live fastener transform is rejected by the Habitat audit"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		module.get_validation_errors().has(
+			"Habitat hatch-fastener culling bounds drifted from its authored copies"
+		),
+		"RED: mutating the explicit fastener culling union is rejected by the Habitat audit"
+	)
+	multi.custom_aabb = original_bounds
+	_check(
+		module.get_validation_errors() == baseline_errors,
+		"restoring the exact fastener payload restores the pre-mutation Habitat audit"
+	)
 
 
 func _test_garden_branch(module: HabitatSpine) -> void:
