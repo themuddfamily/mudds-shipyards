@@ -420,16 +420,96 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# (1337 -> 1510); 0.22 stays 130 and 0.28 stays 532. Measured rather than
 	# summed: that pass was authored before the Halyard apron, the central berth
 	# service line and the freight berth pass landed.
+	# Re-frozen once more, 1764 -> 1813, by the long-cargo pass. 0.22 and 0.28 are
+	# untouched at 129 and 532; the whole delta is +49 at 0.30, 1103 -> 1152. It is
+	# arithmetic and it reconciles exactly:
+	#
+	#   `CentralCargoTransferLine` (cargo_line) 30 -> 23, a loss of 7. Its five
+	#   rail ties (`graphite`) and two container ribs (`crate_alt`) became
+	#   instanced copies and so are no longer individual surfaces this walk sees.
+	#   Nothing was unmapped: the batches bind the same materials, and
+	#   `_test_instanced_station_family()` below holds them to the same recipe.
+	#   Its four sled wheels (`rubber`) and two hoist post bands (`orange`) were
+	#   never in the family and so move nothing.
+	#   `PortBranchCargoLine` and `StarboardBranchCargoLine` (cargo_line_long)
+	#   +28 each of their 39 meshes: two rail beams, four hoist posts and two
+	#   hoist rails (`frame` / `frame_edge`), two pallet decks (`graphite`), six
+	#   crates (`crate` / `crate_alt`), the control pedestal and housing, three of
+	#   the sled's five parts, three of the hoist's four, and four beacon bases.
+	#   The rail stops, the hook, the lit manifests, the readout and the beacon
+	#   lenses stay outside the family with every other painted and lit cue.
+	#
+	# No previously mapped surface was unmapped and no new scale was introduced.
+	#
+	# Re-frozen 2172 -> 2221 on merge, measured on the merged tree. The cargo line
+	# expansion adds +49, all at 0.30 (1510 -> 1559); 0.22 stays 130 and 0.28 stays
+	# 532. Measured rather than summed: that pass was authored before the aft
+	# operations content landed.
 	_check(
-		mapped_surface_count == 2172
+		mapped_surface_count == 2221
 		and scale_022_count == 130
 		and scale_028_count == 532
-		and scale_030_count == 1510,
-		"live station binds exactly 2172 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1559,
+		"live station binds exactly 2221 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
+	_test_instanced_station_family(world, cluster_root)
 	_test_cluster_family(cluster_root)
+
+
+## Instanced station structure, which the surface walk above cannot see.
+##
+## The coverage count walks `MeshInstance3D`, so a `MultiMeshInstance3D` batch
+## contributes nothing to it however many copies it draws. Without this check,
+## moving a population into a batch would look like the surfaces had left the
+## family rather than like they had been instanced — which is exactly what the
+## long-cargo pass did to the short cargo line's rail ties and container ribs.
+##
+## Batches are held to the same recipe and the same frozen physical scales as
+## drawn surfaces. They are not added to the frozen count, because a batch is one
+## bound material rather than N surfaces and mixing the two would make that count
+## mean two different things.
+func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void:
+	var batches := 0
+	var mapped := 0
+	var exact := true
+	for candidate in world.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if not batch.is_visible_in_tree() or batch.multimesh == null:
+			continue
+		if cluster_root != null and cluster_root.is_ancestor_of(batch):
+			continue
+		batches += 1
+		var material := batch.material_override as StandardMaterial3D
+		if material == null or _texture_path(material.albedo_texture) != ALBEDO_PATH:
+			continue
+		mapped += 1
+		exact = (
+			exact
+			and material.normal_enabled
+			and _texture_path(material.normal_texture) == NORMAL_PATH
+			and is_equal_approx(material.normal_scale, 1.0)
+			and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
+			and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
+			and material.uv1_triplanar
+			and material.uv1_world_triplanar
+			and material.texture_repeat
+			and (
+				material.uv1_scale.is_equal_approx(Vector3.ONE * 0.22)
+				or material.uv1_scale.is_equal_approx(Vector3.ONE * 0.28)
+				or material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+			)
+		)
+	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
+	# Thirteen: twelve across the three cargo lines plus the backdrop's
+	# `ParallaxStars`, which is unlit sky and correctly outside the plate family.
+	# Of the cargo batches the structural halves — rail ties and container ribs —
+	# bind the family; sled wheels are `rubber` and hoist post bands are painted
+	# `orange`, and both stay outside it exactly as their drawn equivalents in
+	# every other module do.
+	_check(batches == 13 and mapped == 6, "instanced station structure is exactly thirteen batches, six of them mapped")
+	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
 
 ## The other side of the exclusion above. Cinder Reach's manufactured surfaces

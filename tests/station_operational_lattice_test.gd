@@ -49,11 +49,30 @@ const ACTIVITY_SPECS := {
 	# Station-life placements added by the Phase-3 expansion. Same contract as the
 	# four original rails: exact transform, exact seed, exact published render and
 	# service envelopes, and no collision anywhere in the subtree.
+	# Re-sited by the long-cargo pass. The old placement ran the rail along world
+	# Z with its far end inside `JunctionPortalPost`; it now runs along world X
+	# across the open middle of the same deck. Same profile, same seed, same
+	# geometry — only the transform moved, and it moved because a solid gateway
+	# leg was standing in the run.
 	&"CentralCargoTransferLine": {
-		"transform": Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(-7.0, 0.0, 18.0)),
+		"transform": Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.0, 17.9)),
 		"profile": &"cargo_line", "seed": 5507,
-		"render_aabb": AABB(Vector3(-9.65, 0.0, 13.15), Vector3(5.3, 2.98, 9.7)),
-		"service_aabb": AABB(Vector3(-10.0, -0.3, 12.9), Vector3(6.0, 3.6, 10.2)),
+		"render_aabb": AABB(Vector3(-10.85, 0.0, 15.25), Vector3(9.7, 2.98, 5.3)),
+		"service_aabb": AABB(Vector3(-11.1, -0.3, 14.9), Vector3(10.2, 3.6, 6.0)),
+	},
+	# Two 21.6 m runs, one per branch arm, each spanning from an outer berth node
+	# to the central junction deck.
+	&"PortBranchCargoLine": {
+		"transform": Transform3D(Basis.IDENTITY, Vector3(-22.0, 0.0, 16.75)),
+		"profile": &"cargo_line_long", "seed": 9931,
+		"render_aabb": AABB(Vector3(-33.4, 0.0, 14.95), Vector3(22.8, 3.0, 3.6)),
+		"service_aabb": AABB(Vector3(-33.7, -0.3, 14.8), Vector3(23.4, 3.6, 3.9)),
+	},
+	&"StarboardBranchCargoLine": {
+		"transform": Transform3D(Basis.IDENTITY, Vector3(23.3, 0.0, 16.75)),
+		"profile": &"cargo_line_long", "seed": 10739,
+		"render_aabb": AABB(Vector3(11.9, 0.0, 14.95), Vector3(22.8, 3.0, 3.6)),
+		"service_aabb": AABB(Vector3(11.6, -0.3, 14.8), Vector3(23.4, 3.6, 3.9)),
 	},
 	&"AftCrewWorkPost": {
 		"transform": Transform3D(Basis.IDENTITY, Vector3(-7.0, 4.2, 65.0)),
@@ -168,7 +187,7 @@ func _test_pre_tree_lifecycle() -> void:
 	var activities := world.get_station_operations_activities()
 	var ambience_nodes := world.get_station_machinery_ambience_nodes()
 	_check(not world.is_station_activity_enabled(), "pre-tree disabled lifecycle flag survives initial construction")
-	_check(activities.size() == 8 and ambience_nodes.size() == 4, "pre-tree lifecycle still constructs the complete 8/4 operational roster")
+	_check(activities.size() == 10 and ambience_nodes.size() == 4, "pre-tree lifecycle still constructs the complete 10/4 operational roster")
 	var disabled_children := true
 	for activity in activities:
 		disabled_children = disabled_children and not activity.is_activity_enabled() and not activity.is_processing() and not bool(activity.get_activity_state().visible)
@@ -191,7 +210,7 @@ func _test_discovery_audit_and_exact_roster(
 	ambience_nodes: Array[StationMachineryAmbience],
 	dressings: Array[StationStructuralServiceDressing]
 ) -> void:
-	_check(activities.size() == 8 and ambience_nodes.size() == 4 and dressings.size() == 4, "production OperationalLattice exposes exactly 8 activities, 4 ambience emitters, and 4 dressings")
+	_check(activities.size() == 10 and ambience_nodes.size() == 4 and dressings.size() == 4, "production OperationalLattice exposes exactly 10 activities, 4 ambience emitters, and 4 dressings")
 	var activity_group: Array[Node] = []
 	for candidate in get_nodes_in_group(&"station_operations_activity"):
 		if candidate is Node and world.is_ancestor_of(candidate as Node):
@@ -242,7 +261,7 @@ func _test_discovery_audit_and_exact_roster(
 	_check(report.evidence_status == &"modern_interpretation" and bool(evidence.source_bounded), "world audit keeps the operational pass explicitly source-bounded modern interpretation")
 	_check(not bool(evidence.authenticated_original_geometry) and not bool(evidence.authenticated_original_placement) and not bool(evidence.authenticated_original_layout) and not bool(evidence.authenticated_original_audio), "world audit makes no authenticated original geometry, placement, layout, or audio claim")
 	var placements := report.placements as Dictionary
-	_check((placements.activities as Dictionary).size() == 8 and (placements.ambience as Dictionary).size() == 4 and (placements.structural_dressing as Dictionary).size() == 4, "audit publishes all exact placements instead of only aggregate counts")
+	_check((placements.activities as Dictionary).size() == 10 and (placements.ambience as Dictionary).size() == 4 and (placements.structural_dressing as Dictionary).size() == 4, "audit publishes all exact placements instead of only aggregate counts")
 	for activity_name: StringName in ACTIVITY_SPECS:
 		var placement := (placements.activities as Dictionary).get(activity_name, {}) as Dictionary
 		_check(int(placement.get("variation_seed", -1)) == int((ACTIVITY_SPECS[activity_name] as Dictionary).seed), "activity audit records deterministic seed: %s" % activity_name)
@@ -296,52 +315,71 @@ func _test_activity_mount_support(world: ShipyardWorld, activities: Array[Statio
 	var by_name := _nodes_by_name(activities)
 	var probes := {
 		&"CentralTowServiceActivity": [
-			[Vector3(4.08, 0.25, 9.7), Vector3(4.08, -0.6, 9.7), &"CentralJunction"],
-			[Vector3(9.52, 0.25, 9.7), Vector3(9.52, -0.6, 9.7), &"CentralJunction"],
-			[Vector3(4.08, 0.25, 18.3), Vector3(4.08, -0.6, 18.3), &"CentralJunction"],
-			[Vector3(9.52, 0.25, 18.3), Vector3(9.52, -0.6, 18.3), &"CentralJunction"],
+			[Vector3(4.08, 0.25, 9.7), Vector3(4.08, -0.6, 9.7), [&"CentralJunction"]],
+			[Vector3(9.52, 0.25, 9.7), Vector3(9.52, -0.6, 9.7), [&"CentralJunction"]],
+			[Vector3(4.08, 0.25, 18.3), Vector3(4.08, -0.6, 18.3), [&"CentralJunction"]],
+			[Vector3(9.52, 0.25, 18.3), Vector3(9.52, -0.6, 18.3), [&"CentralJunction"]],
 		],
 		&"AftOperationsActivity": [
-			[Vector3(5.8, 5.24, 61.2), Vector3(5.8, 4.39, 61.2), &"OperationsCeiling"],
+			[Vector3(5.8, 5.24, 61.2), Vector3(5.8, 4.39, 61.2), [&"OperationsCeiling"]],
 		],
 		&"HabitatServicePatrol": [
-			[Vector3(55.9, 5.13, 11.4), Vector3(55.9, 4.25, 11.4), &"HabitatCeiling"],
-			[Vector3(62.4, 5.13, 11.4), Vector3(62.4, 4.25, 11.4), &"HabitatCeiling"],
-			[Vector3(55.9, 5.13, 19.6), Vector3(55.9, 4.25, 19.6), &"HabitatCeiling"],
-			[Vector3(62.4, 5.13, 19.6), Vector3(62.4, 4.25, 19.6), &"HabitatCeiling"],
+			[Vector3(55.9, 5.13, 11.4), Vector3(55.9, 4.25, 11.4), [&"HabitatCeiling"]],
+			[Vector3(62.4, 5.13, 11.4), Vector3(62.4, 4.25, 11.4), [&"HabitatCeiling"]],
+			[Vector3(55.9, 5.13, 19.6), Vector3(55.9, 4.25, 19.6), [&"HabitatCeiling"]],
+			[Vector3(62.4, 5.13, 19.6), Vector3(62.4, 4.25, 19.6), [&"HabitatCeiling"]],
 		],
 		&"FreightApproachGantry": [
-			[Vector3(-55.72, 0.63, 25.4), Vector3(-55.72, -0.22, 25.4), &"ConnectionDeckA"],
-			[Vector3(-50.28, 0.63, 25.4), Vector3(-50.28, -0.22, 25.4), &"ConnectionDeckA"],
-			[Vector3(-55.72, 0.63, 34.0), Vector3(-55.72, -0.22, 34.0), &"ConnectionDeckC"],
-			[Vector3(-50.28, 0.63, 34.0), Vector3(-50.28, -0.22, 34.0), &"ConnectionDeckC"],
+			[Vector3(-55.72, 0.63, 25.4), Vector3(-55.72, -0.22, 25.4), [&"ConnectionDeckA"]],
+			# Two decks meet here and their top faces are coincident, so which one
+			# a downward ray reports is broad-phase registration order rather than
+			# anything about the station. Both are audited supports at the same
+			# plane; the height check above is what proves the foot is seated.
+			[Vector3(-50.28, 0.63, 25.4), Vector3(-50.28, -0.22, 25.4), [&"ConnectionDeckA", &"ConnectionHandoffDeck"]],
+			[Vector3(-55.72, 0.63, 34.0), Vector3(-55.72, -0.22, 34.0), [&"ConnectionDeckC"]],
+			[Vector3(-50.28, 0.63, 34.0), Vector3(-50.28, -0.22, 34.0), [&"ConnectionDeckC"]],
 		],
 		# Station-life mount feet. Each probe is a safety-beacon foot of the new
 		# placement, so what is checked is the actual outermost thing the
 		# component seats on the deck rather than a convenient interior point.
 		&"CentralCargoTransferLine": [
-			[Vector3(-9.3, 0.25, 13.45), Vector3(-9.3, -0.6, 13.45), &"CentralJunction"],
-			[Vector3(-4.7, 0.25, 13.45), Vector3(-4.7, -0.6, 13.45), &"CentralJunction"],
-			[Vector3(-9.3, 0.25, 22.55), Vector3(-9.3, -0.6, 22.55), &"CentralJunction"],
-			[Vector3(-4.7, 0.25, 22.55), Vector3(-4.7, -0.6, 22.55), &"CentralJunction"],
+			[Vector3(-10.55, 0.25, 15.6), Vector3(-10.55, -0.6, 15.6), [&"CentralJunction"]],
+			[Vector3(-1.45, 0.25, 15.6), Vector3(-1.45, -0.6, 15.6), [&"CentralJunction"]],
+			[Vector3(-10.55, 0.25, 20.2), Vector3(-10.55, -0.6, 20.2), [&"CentralJunction"]],
+			[Vector3(-1.45, 0.25, 20.2), Vector3(-1.45, -0.6, 20.2), [&"CentralJunction"]],
+		],
+		# The long runs bridge two decks each, so their four feet deliberately do
+		# not all land on the same body: the outboard pair stands on the branch
+		# arm and the inboard pair on the central junction deck.
+		&"PortBranchCargoLine": [
+			[Vector3(-33.05, 0.25, 15.3), Vector3(-33.05, -0.6, 15.3), [&"PortBranchArm"]],
+			[Vector3(-10.95, 0.25, 15.3), Vector3(-10.95, -0.6, 15.3), [&"CentralJunction"]],
+			[Vector3(-33.05, 0.25, 18.2), Vector3(-33.05, -0.6, 18.2), [&"PortBranchArm"]],
+			[Vector3(-10.95, 0.25, 18.2), Vector3(-10.95, -0.6, 18.2), [&"CentralJunction"]],
+		],
+		&"StarboardBranchCargoLine": [
+			[Vector3(12.25, 0.25, 15.3), Vector3(12.25, -0.6, 15.3), [&"CentralJunction"]],
+			[Vector3(34.35, 0.25, 15.3), Vector3(34.35, -0.6, 15.3), [&"StarboardBranchArm"]],
+			[Vector3(12.25, 0.25, 18.2), Vector3(12.25, -0.6, 18.2), [&"CentralJunction"]],
+			[Vector3(34.35, 0.25, 18.2), Vector3(34.35, -0.6, 18.2), [&"StarboardBranchArm"]],
 		],
 		&"AftCrewWorkPost": [
-			[Vector3(-9.4, 4.45, 63.4), Vector3(-9.4, 3.6, 63.4), &"UpperFloor"],
-			[Vector3(-4.6, 4.45, 63.4), Vector3(-4.6, 3.6, 63.4), &"UpperFloor"],
-			[Vector3(-9.4, 4.45, 66.6), Vector3(-9.4, 3.6, 66.6), &"UpperFloor"],
-			[Vector3(-4.6, 4.45, 66.6), Vector3(-4.6, 3.6, 66.6), &"UpperFloor"],
+			[Vector3(-9.4, 4.45, 63.4), Vector3(-9.4, 3.6, 63.4), [&"UpperFloor"]],
+			[Vector3(-4.6, 4.45, 63.4), Vector3(-4.6, 3.6, 63.4), [&"UpperFloor"]],
+			[Vector3(-9.4, 4.45, 66.6), Vector3(-9.4, 3.6, 66.6), [&"UpperFloor"]],
+			[Vector3(-4.6, 4.45, 66.6), Vector3(-4.6, 3.6, 66.6), [&"UpperFloor"]],
 		],
 		&"HabitatSkywatchPost": [
-			[Vector3(71.0, 5.33, 17.0), Vector3(71.0, 4.48, 17.0), &"CommonCeiling"],
-			[Vector3(75.0, 5.33, 17.0), Vector3(75.0, 4.48, 17.0), &"CommonCeiling"],
-			[Vector3(71.0, 5.33, 21.0), Vector3(71.0, 4.48, 21.0), &"CommonCeiling"],
-			[Vector3(75.0, 5.33, 21.0), Vector3(75.0, 4.48, 21.0), &"CommonCeiling"],
+			[Vector3(71.0, 5.33, 17.0), Vector3(71.0, 4.48, 17.0), [&"CommonCeiling"]],
+			[Vector3(75.0, 5.33, 17.0), Vector3(75.0, 4.48, 17.0), [&"CommonCeiling"]],
+			[Vector3(71.0, 5.33, 21.0), Vector3(71.0, 4.48, 21.0), [&"CommonCeiling"]],
+			[Vector3(75.0, 5.33, 21.0), Vector3(75.0, 4.48, 21.0), [&"CommonCeiling"]],
 		],
 		&"FreightApproachSignage": [
-			[Vector3(-42.2, 6.43, 27.5), Vector3(-42.2, 5.58, 27.5), &"RegistryPodRoof"],
-			[Vector3(-39.8, 6.43, 27.5), Vector3(-39.8, 5.58, 27.5), &"RegistryPodRoof"],
-			[Vector3(-42.2, 6.43, 30.5), Vector3(-42.2, 5.58, 30.5), &"RegistryPodRoof"],
-			[Vector3(-39.8, 6.43, 30.5), Vector3(-39.8, 5.58, 30.5), &"RegistryPodRoof"],
+			[Vector3(-42.2, 6.43, 27.5), Vector3(-42.2, 5.58, 27.5), [&"RegistryPodRoof"]],
+			[Vector3(-39.8, 6.43, 27.5), Vector3(-39.8, 5.58, 27.5), [&"RegistryPodRoof"]],
+			[Vector3(-42.2, 6.43, 30.5), Vector3(-42.2, 5.58, 30.5), [&"RegistryPodRoof"]],
+			[Vector3(-39.8, 6.43, 30.5), Vector3(-39.8, 5.58, 30.5), [&"RegistryPodRoof"]],
 		],
 	}
 	for activity_name: StringName in probes:
@@ -353,7 +391,17 @@ func _test_activity_mount_support(world: ShipyardWorld, activities: Array[Statio
 			var collider := hit.get("collider") as Node
 			var hit_name := StringName(collider.name) if collider != null else &""
 			hit_names.append(str(hit_name))
-			all_supported = all_supported and hit_name == probe[2]
+			# Every probe starts 0.25 m above its activity's mount plane, so the
+			# plane itself is recoverable from the probe and does not need its own
+			# table. Checking it makes this audit strictly stronger than the name
+			# comparison alone: a foot that finds the right body at the wrong
+			# height is now a failure too.
+			var expected_plane: float = (probe[0] as Vector3).y - 0.25
+			var seated: bool = (
+				not hit.is_empty()
+				and absf((hit.position as Vector3).y - expected_plane) <= 0.03
+			)
+			all_supported = all_supported and seated and (probe[2] as Array).has(hit_name)
 		_check(all_supported, "%s mount feet hit only their exact audited support bodies: %s" % [activity_name, hit_names])
 
 
@@ -911,7 +959,7 @@ func _test_detach_readd_lifecycle(game: Node, world: ShipyardWorld) -> void:
 	await physics_frame
 	var activities := world.get_station_operations_activities()
 	var ambience_nodes := world.get_station_machinery_ambience_nodes()
-	var restored := world.is_station_activity_enabled() and activities.size() == 8 and ambience_nodes.size() == 4
+	var restored := world.is_station_activity_enabled() and activities.size() == 10 and ambience_nodes.size() == 4
 	for activity in activities:
 		restored = restored and activity.is_activity_enabled() and activity.is_processing()
 	for ambience in ambience_nodes:

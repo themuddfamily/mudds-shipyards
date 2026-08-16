@@ -210,6 +210,29 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"AftJunctionStack/Structure/OperationsRoom/OperationsChair04/StowedCoverall",
 	"AftJunctionStack/Structure/UpperOpenDeck/StairHeadMuster/MusterRouteBoard",
 	"AftJunctionStack/Structure/UpperOpenDeck/StairHeadMuster/MusterHoseReel",
+	# The long-cargo pass. Every stacked or hung piece of the two 21.6 m transfer
+	# runs, plus the short line's re-sited hoist, because these are exactly the
+	# shapes that have floated before: a crate resting on the crate below it, a
+	# gantry rail resting on its posts, a hoist bridge riding that rail, and a
+	# hook hanging off the bridge. The bridge and hook are movers, so they are
+	# audited here at the clock position the world boots at and again across the
+	# whole travel by `tools/capture_cargo_lines.gd`.
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/CrateInboundTop",
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/CrateOutboundTop",
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/HoistRail",
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/HoistRail2",
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/CrateManifest",
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/AnimatedLongCargoHoist/HoistBridge",
+	"OperationalLattice/Activities/PortBranchCargoLine/PresentationRoot/LongCargoTransferLine/AnimatedLongCargoHoist/HoistHook",
+	"OperationalLattice/Activities/StarboardBranchCargoLine/PresentationRoot/LongCargoTransferLine/CrateInboundTop",
+	"OperationalLattice/Activities/StarboardBranchCargoLine/PresentationRoot/LongCargoTransferLine/CrateOutboundTop",
+	"OperationalLattice/Activities/StarboardBranchCargoLine/PresentationRoot/LongCargoTransferLine/HoistRail",
+	"OperationalLattice/Activities/StarboardBranchCargoLine/PresentationRoot/LongCargoTransferLine/HoistRail2",
+	"OperationalLattice/Activities/StarboardBranchCargoLine/PresentationRoot/LongCargoTransferLine/AnimatedLongCargoHoist/HoistBridge",
+	"OperationalLattice/Activities/StarboardBranchCargoLine/PresentationRoot/LongCargoTransferLine/AnimatedLongCargoHoist/HoistHook",
+	"OperationalLattice/Activities/CentralCargoTransferLine/PresentationRoot/CargoTransferLine/CrateUpper",
+	"OperationalLattice/Activities/CentralCargoTransferLine/PresentationRoot/CargoTransferLine/HoistBeam",
+	"OperationalLattice/Activities/CentralCargoTransferLine/PresentationRoot/CargoTransferLine/AnimatedCargoHoist/HoistHook",
 ]
 const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
 

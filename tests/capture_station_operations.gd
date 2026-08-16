@@ -47,10 +47,16 @@ const AMBIENCE_GROUP := &"station_machinery_ambience"
 
 ## Re-frozen from 4 by the station-life pass: the four original fixed-rail roles
 ## plus the cargo line, wayfinding pylon, skywatch post and crew work post.
-const EXPECTED_ACTIVITY_COUNT := 8
+##
+## Re-frozen again from 8 by the long-cargo pass, which added a 21.6 m transfer
+## run to each branch arm. The profile list below is a sorted multiset and keeps
+## `cargo_line_long` twice on purpose.
+const EXPECTED_ACTIVITY_COUNT := 10
 const EXPECTED_AMBIENCE_COUNT := 4
 const EXPECTED_ACTIVITY_PROFILES: Array[String] = [
 	"cargo_line",
+	"cargo_line_long",
+	"cargo_line_long",
 	"crew_workpost",
 	"drone_patrol",
 	"full",
