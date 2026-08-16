@@ -529,3 +529,90 @@ handlers and the handlers' decision state to its writers.
   `_on_authoritative_shot_submitted` have no idle-only writer in their gates;
   `ShipBoardingArea.is_available_for()` re-derives on every call, which is why the
   refresh above is race-free; `MovingInteriorFrame` is physics-only.
+
+## SANDBOX-002 — combat authority seam: both open items resolved as unreachable
+
+The two combat handlers left open by the SANDBOX-001 survey were reproduced
+against the running production scene rather than argued from the source. Neither
+is reachable in a wrong state. No production behaviour was changed; the coupling
+that makes them safe is now asserted by
+`tests/combat_encounter_authority_gate_test.gd`, and the reasoning is recorded at
+both handlers in `scripts/game/game_flow.gd`.
+
+### `_on_opponent_projectile_fired` — fail-open, but the emitter is the gate
+
+The handler really does read no coordinator state, exactly as reported. It is
+sound because `RangeOpponent._fire_at_target()` refuses unless `_active` is true,
+and `_active` is owned end to end by the encounter lifecycle:
+
+- `opponent.activate()` is reached from exactly one call site,
+  `_begin_interceptor_engagement()` (`game_flow.gd:1295`), four lines after it
+  sets `Phase.INTERCEPTOR_ENGAGEMENT`;
+- `Phase.INTERCEPTOR_ENGAGEMENT` has exactly two exits. Every other
+  `phase = Phase.…` assignment is guarded against reaching it: `_board_ship()`
+  needs `not _piloting` and `phase in [APPROACH_SHIP, COMPLETE]`,
+  `_try_exit_ship()` excludes the engagement outright, `_on_landing_completed()`
+  needs `RETURN_TO_YARD`/`FREE_FLIGHT`, and `Phase.FAILED` is never assigned;
+- both exits clear `_active` **synchronously, inside the same call that ends the
+  phase**: `_destroy_interceptor()` sets `_active = false` before it emits
+  `destroyed`, and `_recover_from_destroyed_ship()` calls `opponent.deactivate()`
+  before it touches anything else. `HeroShip.destroyed` is emitted inside
+  `apply_damage()`, so the pilot-loss exit runs re-entrantly inside the very
+  handler under suspicion — there is no idle turn in which a stale latch lives.
+
+Observed directly, with the defender's own physics driving the telegraph/fire
+cycle: killing the pilot leaves `is_active() == false` and `phase` at
+`APPROACH_SHIP` on return from `apply_damage()`, and killing the defender leaves
+`is_active() == false` already at the `destroyed` signal. Neither exit produced a
+further emission over 320 physics frames while the test held a perfect firing
+solution in front of the craft. Adding a `phase` gate here would be strictly
+*weaker* than the latch it duplicates: `phase` is idle-written and this handler
+runs in the physics pass, which is precisely the SANDBOX-001 hazard.
+
+Whole-`Main` detach was checked separately. While detached, no physics runs, so
+nothing is emitted. On re-entry `_restore_runtime_bindings_after_reentry()` is
+`call_deferred`, so a physics pass can precede it; a shot in that window finds no
+live registration and is rejected `unregistered_source` by the resolver. That is
+fail-closed — one lost shot, no damage.
+
+### `_on_target_destroyed` — the permanent drop is real, and unreachable
+
+The mechanism reproduces on demand: forcing `Phase.INTERCEPTOR_ENGAGEMENT` with a
+live drone and firing destroys it, `world.authorize_target_destruction()` commits
+and emits, and `destroyed_targets` stays put forever — the one-shot latch is
+spent. It never happens in production because the phases the gate rejects are
+exactly the phases in which no live drone can be damaged:
+
+- outside the guided weapon window `_on_projectile_fired()` safes the shot;
+- a non-Torrent craft is refused with `guided_range_reserved`;
+- the two live-fire phases the gate *does* reject, `INTERCEPTOR_ENGAGEMENT` and
+  `RETURN_TO_YARD`, are gated behind `destroyed_targets >= total_targets` at both
+  entries (`_update_pilot_flow()`'s launch branch and `_on_target_destroyed()`
+  itself), and `destroyed_targets` only advances by accepting one authorization
+  per drone, clamped by `mini()`. Reaching them with a drone still standing would
+  require the drop that reaching them is supposed to enable;
+- both defenders are dormant until then, so neither can spend a drone's
+  authorization by stray fire. `total_targets` is `world.get_target_count()`
+  sampled after the world's own `_ready()`, and the drone roster never grows.
+
+So the honest verdict is: reachable only if someone widens the guided weapon
+window, or adds a third producer of drone damage. That is what the new test
+watches, and both mutations were verified red.
+
+### Reconfirmed, unchanged
+
+`_on_opponent_destroyed` fails closed and its gate can never reject — `_active`
+implies `Phase.INTERCEPTOR_ENGAGEMENT`, which the new test pins by asserting the
+guided victory still lands. `_on_projectile_fired` and `_on_landing_completed`
+fail closed as described. The previously cleared handlers were re-read and remain
+clear.
+
+### Found, not fixed (owned elsewhere)
+
+`StandoffPicketOpponent` is a second live combat source that resolves its lance
+directly on the shared resolver and is never seen by GameFlow's handlers. Its
+withdrawal is keyed to the defender's `is_active()` and is evaluated in its own
+`_physics_process`, so a charge committed on the frame the defender dies can
+still land one lance during `RETURN_TO_YARD`. The craft's own comments say the
+escort is deliberately not stranded by a phase change, so this is reported rather
+than changed; it lives in `scripts/ships/`, which a sibling owns.

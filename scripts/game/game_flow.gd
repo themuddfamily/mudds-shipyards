@@ -1197,6 +1197,17 @@ func get_pending_combat_presentation_receipt_count() -> int:
 	return _pending_combat_audio_receipts.size()
 
 
+## A drop here would be permanent: `authorize_target_destruction()` is one-shot
+## and nothing re-reads the world's destroyed count. That is safe only because
+## the phases this gate rejects are exactly the phases in which no live drone can
+## be damaged. Player fire is safed outside the guided weapon window, guided range
+## contacts are reserved against non-Torrent craft, and the two live-fire phases
+## the gate does reject — `INTERCEPTOR_ENGAGEMENT` and `RETURN_TO_YARD` — cannot
+## be entered until `destroyed_targets >= total_targets`, which is reached only by
+## accepting one authorization per drone. Both defenders are likewise dormant
+## until then. Widening the weapon window, or admitting a second producer of drone
+## damage, would strand the guided sortie at an uncountable range contact;
+## `tests/combat_encounter_authority_gate_test.gd` guards both halves.
 func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:
 	if active_ship != ship or (phase != Phase.LAUNCH and phase != Phase.TARGET_PRACTICE):
 		return
@@ -1318,6 +1329,18 @@ func _on_opponent_destroyed(position: Vector3) -> void:
 	_begin_return_to_yard()
 
 
+## Deliberately holds no coordinator gate. The defender's own fire latch is the
+## gate, and it is stricter than any snapshot this handler could read: the signal
+## is raised from `RangeOpponent._fire_at_target()`, which refuses unless
+## `_active` is true, and `_active` is owned end to end by the encounter
+## lifecycle. `opponent.activate()` is reached from exactly one place,
+## `_begin_interceptor_engagement()`, immediately after it sets
+## `Phase.INTERCEPTOR_ENGAGEMENT`; and the engagement has exactly two exits,
+## both of which clear `_active` synchronously inside the same call that ends the
+## phase — `_destroy_interceptor()` for the defender, `_recover_from_destroyed_ship()`
+## for the pilot. Re-deriving `phase` here would be strictly weaker, because
+## `phase` is idle-written and this handler runs in the defender's physics pass.
+## `tests/combat_encounter_authority_gate_test.gd` locks that coupling.
 func _on_opponent_projectile_fired(origin: Vector3, direction: Vector3) -> void:
 	var ray_end := origin + direction.normalized() * ENEMY_WEAPON_RANGE
 	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
