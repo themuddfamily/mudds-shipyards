@@ -258,6 +258,22 @@ const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 105
 const SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT := 1
 const SERVICE_LINE_RENDER_DRAWN_COPY_COUNT := 109
 const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 106
+## Local renderer contract for ModernFleetRegistry's four roof-column visuals.
+##
+## The four `StaticBody3D` columns and their box colliders stay independent and
+## keep the pod's physical/path roster. Only their identical child render meshes
+## are drawn through one sibling batch, retaining the cached chamfered mesh and
+## the shared steel-blue material while removing three structural submissions.
+const MODERN_REGISTRY_COLUMN_SIZE := Vector3(0.34, 5.4, 0.34)
+const MODERN_REGISTRY_COLUMN_COPY_COUNT := 4
+const MODERN_REGISTRY_RENDER_DESCENDANT_COUNT := 62
+const MODERN_REGISTRY_RENDER_MESH_INSTANCE_COUNT := 35
+const MODERN_REGISTRY_RENDER_MULTIMESH_BATCH_COUNT := 1
+const MODERN_REGISTRY_RENDER_DRAWN_COPY_COUNT := 39
+const MODERN_REGISTRY_RENDER_SUBMISSION_COUNT := 36
+const MODERN_REGISTRY_PHYSICS_BODY_COUNT := 12
+const MODERN_REGISTRY_COLLISION_SHAPE_COUNT := 12
+const MODERN_REGISTRY_LIGHT_COUNT := 2
 ## Port berth node, widened from 12.0 m so the 12.2 m Arrow no longer overhangs
 ## the pad it is parked on. Its centre is unchanged, so berth transforms, the
 ## landing envelope and the cue strips all keep their published coordinates.
@@ -824,6 +840,9 @@ var _central_berth_hero_presentation: CentralBerthHeroPresentation
 var _central_berth_service_line: Node3D
 var _central_service_black_stock_transforms: Array[Transform3D] = []
 var _central_service_black_stock_batch: MultiMeshInstance3D
+var _modern_registry_column_transforms: Array[Transform3D] = []
+var _modern_registry_column_bodies: Array[StaticBody3D] = []
+var _modern_registry_column_batch: MultiMeshInstance3D
 var _station_operations_activities: Array[StationOperationsActivity] = []
 var _station_machinery_ambience_nodes: Array[StationMachineryAmbience] = []
 var _station_structural_service_dressings: Array[StationStructuralServiceDressing] = []
@@ -6113,15 +6132,40 @@ func _build_regeneration_gallery() -> void:
 	# section of -0.02 … 0.38) and enters the roof at the top (column crown 5.65
 	# against a roof underside of 5.625), so neither end floats, and they stand
 	# 0.4 m inside the deck's own footprint so nothing overhangs.
+	var column_transforms: Array[Transform3D] = []
+	var column_bodies: Array[StaticBody3D] = []
 	for column_x in [-48.6, -37.4]:
 		for column_z in [23.4, 30.4]:
-			_box(
-				gallery,
-				"RegistryPodColumn",
-				Vector3(column_x, 2.95, column_z),
-				Vector3(0.34, 5.4, 0.34),
-				_materials["steel_blue"]
+			var column_transform := Transform3D(
+				Basis.IDENTITY,
+				Vector3(column_x, 2.95, column_z)
 			)
+			# Keep each independently named physical column. Only the identical
+			# child render meshes are batched below; collision and path authority
+			# remain one body and one shape per authored transform.
+			var column := StaticBody3D.new()
+			column.name = "RegistryPodColumn"
+			column.transform = column_transform
+			column.collision_layer = WORLD_LAYER
+			column.collision_mask = 0
+			gallery.add_child(column)
+			var collision := CollisionShape3D.new()
+			collision.name = "Collision"
+			var shape := BoxShape3D.new()
+			shape.size = MODERN_REGISTRY_COLUMN_SIZE
+			collision.shape = shape
+			column.add_child(collision)
+			column_transforms.append(column_transform)
+			column_bodies.append(column)
+	_modern_registry_column_transforms = column_transforms.duplicate()
+	_modern_registry_column_bodies = column_bodies.duplicate()
+	_modern_registry_column_batch = _multimesh_visual_boxes(
+		gallery,
+		"RegistryPodColumnVisuals",
+		MODERN_REGISTRY_COLUMN_SIZE,
+		_materials["steel_blue"],
+		column_transforms
+	)
 
 	# REGEN-DECK-002. The pod's own identity legend hung in mid-air: measured live
 	# it occupied y = 4.928 … 5.148 at z = 22.815, which is 0.18 m in front of the
@@ -6255,6 +6299,204 @@ func _build_regeneration_deck_life(gallery: Node3D) -> void:
 	for stripe_x in [-45.6, -40.4]:
 		_box(gallery, "RegistryApproachStripe", Vector3(stripe_x, 0.385, 24.4), Vector3(0.22, 0.03, 2.6), _materials["orange"], false)
 	_box(gallery, "RegistryStandMark", Vector3(-43.0, 0.385, 23.5), Vector3(1.1, 0.03, 0.9), _materials["orange"], false)
+
+
+## Bounded renderer/collision audit for the ModernFleetRegistry pod.
+##
+## This deliberately stops at the pod root. It freezes the one batched family
+## and the authority/readability nodes that batching must not absorb, without
+## turning a module-local optimization into another whole-scene absolute count.
+func get_modern_fleet_registry_render_contract() -> Dictionary:
+	var registry := get_node_or_null(^"ModernFleetRegistry") as Node3D
+	var mesh_nodes: Array[Node] = []
+	var batch_nodes: Array[Node] = []
+	var descendant_count := 0
+	var drawn_copies := 0
+	var submissions := 0
+	var body_count := 0
+	var shape_count := 0
+	var light_count := 0
+	var area_count := 0
+	if registry != null:
+		descendant_count = registry.find_children("*", "Node", true, false).size()
+		mesh_nodes = registry.find_children("*", "MeshInstance3D", true, false)
+		batch_nodes = registry.find_children("*", "MultiMeshInstance3D", true, false)
+		body_count = registry.find_children("*", "PhysicsBody3D", true, false).size()
+		shape_count = registry.find_children("*", "CollisionShape3D", true, false).size()
+		light_count = registry.find_children("*", "Light3D", true, false).size()
+		area_count = registry.find_children("*", "Area3D", true, false).size()
+		for raw_node in mesh_nodes:
+			var instance := raw_node as MeshInstance3D
+			if instance.mesh == null:
+				continue
+			drawn_copies += 1
+			submissions += instance.mesh.get_surface_count()
+		for raw_node in batch_nodes:
+			var batch := raw_node as MultiMeshInstance3D
+			if batch.multimesh == null or batch.multimesh.mesh == null:
+				continue
+			var visible_copies := batch.multimesh.visible_instance_count
+			if visible_copies < 0:
+				visible_copies = batch.multimesh.instance_count
+			drawn_copies += visible_copies
+			submissions += batch.multimesh.mesh.get_surface_count()
+
+	var renderer_buffer_matches := false
+	var bounds_match := false
+	var metadata_matches := false
+	var mesh_identity_matches := false
+	var material_identity_matches := false
+	var batch_configuration_matches := false
+	var renderer_buffer_floats := 0
+	if is_instance_valid(_modern_registry_column_batch) \
+			and _modern_registry_column_batch.multimesh != null \
+			and _modern_registry_column_batch.multimesh.mesh != null:
+		var multi := _modern_registry_column_batch.multimesh
+		var expected_buffer := _encode_multimesh_transforms(
+			_modern_registry_column_transforms
+		)
+		var expected_bounds := _transformed_mesh_bounds(
+			multi.mesh.get_aabb(),
+			_modern_registry_column_transforms
+		)
+		renderer_buffer_floats = multi.buffer.size()
+		renderer_buffer_matches = multi.buffer == expected_buffer
+		bounds_match = multi.custom_aabb.is_equal_approx(expected_bounds)
+		mesh_identity_matches = multi.mesh == _rounded_box_mesh(MODERN_REGISTRY_COLUMN_SIZE)
+		material_identity_matches = _modern_registry_column_batch.material_override == _materials.get("steel_blue")
+		batch_configuration_matches = (
+			_modern_registry_column_batch.get_parent() == registry
+			and _modern_registry_column_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _modern_registry_column_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _modern_registry_column_batch.layers == 1
+			and _modern_registry_column_batch.material_overlay == null
+			and _modern_registry_column_batch.get_child_count() == 0
+			and _modern_registry_column_batch.get_script() == null
+			and bool(_modern_registry_column_batch.get_meta("visual_detail_only", false))
+			and multi.transform_format == MultiMesh.TRANSFORM_3D
+			and multi.instance_count == MODERN_REGISTRY_COLUMN_COPY_COUNT
+			and multi.visible_instance_count == -1
+			and multi.mesh.get_surface_count() == 1
+			and multi.mesh.get_aabb().size.is_equal_approx(MODERN_REGISTRY_COLUMN_SIZE)
+		)
+		var published := _modern_registry_column_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		metadata_matches = published.size() == _modern_registry_column_transforms.size()
+		for index in mini(published.size(), _modern_registry_column_transforms.size()):
+			metadata_matches = metadata_matches and (published[index] as Transform3D).is_equal_approx(
+				_modern_registry_column_transforms[index]
+			)
+
+	var column_collision_matches := _modern_registry_column_bodies.size() \
+		== MODERN_REGISTRY_COLUMN_COPY_COUNT
+	for index in mini(_modern_registry_column_bodies.size(), _modern_registry_column_transforms.size()):
+		var body := _modern_registry_column_bodies[index]
+		var collision: CollisionShape3D = null
+		if is_instance_valid(body):
+			collision = body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		column_collision_matches = (
+			column_collision_matches
+			and is_instance_valid(body)
+			and body.get_parent() == registry
+			and body.transform.is_equal_approx(_modern_registry_column_transforms[index])
+			and body.collision_layer == WORLD_LAYER
+			and body.collision_mask == 0
+			and body.get_script() == null
+			and body.get_child_count() == 1
+			and body.find_children("*", "MeshInstance3D", true, false).is_empty()
+			and shape != null
+			and shape.size.is_equal_approx(MODERN_REGISTRY_COLUMN_SIZE)
+		)
+	if not _modern_registry_column_bodies.is_empty():
+		column_collision_matches = column_collision_matches \
+			and _modern_registry_column_bodies[0].name == &"RegistryPodColumn"
+
+	var preserved_paths := [
+		^"RegistryPodDeck",
+		^"RegistryPodThreshold",
+		^"FleetRegistryTerminal",
+		^"RegistryScreen",
+		^"BerthIndicatorBase",
+		^"RegistryDispatchBoard",
+		^"RegistryTaskLampHousing",
+		^"RegistryToolRack",
+		^"RegistryPartsTray",
+		^"RegistryStowedManifest",
+		^"Sign_FLEET_REGISTRY__--__MODERN_INTERFACE",
+		^"Sign_SAY_SHIP_NAME",
+		^"Sign_TORRENT__JOVIAN__TITAN__VORTEX",
+		^"Sign_KATANA__PARADOX__PREDATOR__DYNAMIC",
+		^"Sign_UTOPIA__ARROW",
+		^"Sign_ACTIVE_BERTH__--__CENTRE_SPINE",
+		^"Sign_REGISTERED_BERTHS",
+	]
+	var preserved_paths_match := registry != null
+	if registry != null:
+		for path: NodePath in preserved_paths:
+			preserved_paths_match = preserved_paths_match and registry.get_node_or_null(path) != null
+		for tile_index in SHIP_BERTH_FEEDBACK_BERTH_IDS.size():
+			preserved_paths_match = preserved_paths_match and registry.get_node_or_null(
+				NodePath("RegistryBerthTile%02d" % (tile_index + 1))
+			) is MeshInstance3D
+
+	var exact_counts := (
+		descendant_count == MODERN_REGISTRY_RENDER_DESCENDANT_COUNT
+		and mesh_nodes.size() == MODERN_REGISTRY_RENDER_MESH_INSTANCE_COUNT
+		and batch_nodes.size() == MODERN_REGISTRY_RENDER_MULTIMESH_BATCH_COUNT
+		and drawn_copies == MODERN_REGISTRY_RENDER_DRAWN_COPY_COUNT
+		and submissions == MODERN_REGISTRY_RENDER_SUBMISSION_COUNT
+		and body_count == MODERN_REGISTRY_PHYSICS_BODY_COUNT
+		and shape_count == MODERN_REGISTRY_COLLISION_SHAPE_COUNT
+		and light_count == MODERN_REGISTRY_LIGHT_COUNT
+		and area_count == 0
+	)
+	var errors := PackedStringArray()
+	if not exact_counts:
+		errors.append("modern_registry_local_roster_changed")
+	if not renderer_buffer_matches:
+		errors.append("registry_column_renderer_buffer_changed")
+	if not bounds_match:
+		errors.append("registry_column_culling_bounds_changed")
+	if not metadata_matches:
+		errors.append("registry_column_authored_metadata_changed")
+	if not mesh_identity_matches or not material_identity_matches:
+		errors.append("registry_column_shared_resource_identity_changed")
+	if not batch_configuration_matches:
+		errors.append("registry_column_batch_configuration_changed")
+	if not column_collision_matches:
+		errors.append("registry_column_collision_roster_changed")
+	if not preserved_paths_match:
+		errors.append("registry_authority_or_readability_path_changed")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"descendant_nodes": descendant_count,
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"physics_bodies": body_count,
+		"collision_shapes": shape_count,
+		"lights": light_count,
+		"areas": area_count,
+		"column_visual_copies": _modern_registry_column_transforms.size(),
+		"renderer_buffer_floats": renderer_buffer_floats,
+		"renderer_buffer_matches_authored": renderer_buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"metadata_matches_authored": metadata_matches,
+		"mesh_identity_matches_cache": mesh_identity_matches,
+		"material_identity_matches_shared_palette": material_identity_matches,
+		"batch_configuration_matches": batch_configuration_matches,
+		"column_collision_matches": column_collision_matches,
+		"preserved_paths_match": preserved_paths_match,
+		"exact_counts": exact_counts,
+		"registry_parent_is_world": registry != null and registry.get_parent() == self,
+		"registry_transform_identity": registry != null and registry.transform.is_equal_approx(Transform3D.IDENTITY),
+		"process_free": registry != null and not registry.is_processing() and not registry.is_physics_processing(),
+		"authored_column_transforms": _modern_registry_column_transforms.duplicate(),
+	}.duplicate(true)
 
 
 func _build_provisional_fleet() -> void:
