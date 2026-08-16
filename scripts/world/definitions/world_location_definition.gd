@@ -1,13 +1,15 @@
 class_name WorldLocationDefinition
 extends Resource
 
-## Side-effect-free identity and navigation anchor for a named world location.
+## Side-effect-free identity, navigation anchor, and scene origin for a named
+## world location.
 ##
 ## A location definition deliberately describes a place, not what happens there.
-## It has no scene-node dependency and grants no reward, ship, berth, or mission
-## authority; consumers may use its stable anchor for presentation or activities.
+## The navigation anchor is used for distance, presentation, and activities;
+## scene roots are placed independently at the scene origin. It has no scene-node
+## dependency and grants no reward, ship, berth, or mission authority.
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 
 @export_category("Identity")
@@ -16,13 +18,23 @@ const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 @export var sector_id: StringName = &"unnamed_sector"
 @export_multiline var content_note := ""
 
-@export_category("Anchor")
+@export_category("Navigation anchor")
 @export var anchor_source_id: StringName = &"unspecified_anchor"
 @export var anchor_position := Vector3.ZERO
+
+@export_category("Scene placement")
+## Translation applied to the instantiated scene root under its coordinator.
+## This is independent of [member anchor_position] and defaults to scene/world
+## origin for scenes whose children already use station-world coordinates.
+@export var scene_origin_position: Vector3 = Vector3.ZERO
 
 
 func get_anchor_position() -> Vector3:
 	return anchor_position
+
+
+func get_scene_origin_position() -> Vector3:
+	return scene_origin_position
 
 
 func get_validation_errors() -> PackedStringArray:
@@ -37,6 +49,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("content_note must be non-empty and trimmed")
 	if not _is_finite_vector(anchor_position):
 		errors.append("anchor_position must be finite")
+	if not _is_finite_vector(scene_origin_position):
+		errors.append("scene_origin_position must be finite")
 	return errors
 
 
@@ -55,6 +69,7 @@ func audit() -> Dictionary:
 		"sector_id": sector_id,
 		"anchor_source_id": anchor_source_id,
 		"anchor_position": anchor_position,
+		"scene_origin_position": scene_origin_position,
 		"evidence_status": EVIDENCE_STATUS,
 		"gameplay_authority": false,
 		"grants_rewards": false,

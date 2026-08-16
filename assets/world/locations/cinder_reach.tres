@@ -10,3 +10,4 @@ sector_id = &"nearby_sector"
 content_note = "Cinder Reach is an original modern-remake destination anchored to the hand-authored extraction platform; it is not recovered historical content."
 anchor_source_id = &"nearby_sector_cluster_platform_anchor"
 anchor_position = Vector3(60, -70, -700)
+scene_origin_position = Vector3(0, 0, 0)

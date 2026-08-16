@@ -7,6 +7,7 @@ extends SceneTree
 
 const CoordinatorScript := preload("res://scripts/world/world_streaming_coordinator.gd")
 const REAL_WORLD_FIXTURE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
+const REAL_WORLD_DEFINITION := preload("res://assets/world/locations/cinder_reach.tres")
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -86,19 +87,24 @@ func _test_definition_snapshot_and_synchronous_results() -> void:
 	coordinator.set_loader(Callable(fake, "request_scene"))
 	var original_id: StringName = &"immutable_anchor"
 	var original_anchor := Vector3(41.0, -7.0, -303.0)
+	var original_scene_origin := Vector3(-12.0, 4.0, 19.0)
 	var caller_definition := _definition(original_id, original_anchor)
+	caller_definition.scene_origin_position = original_scene_origin
 	_check(coordinator.register_location(caller_definition), "the mutation witness registers")
 	var exposed_copy := coordinator.get_definition(original_id)
 	_check(
 		exposed_copy != caller_definition
 			and exposed_copy.location_id == original_id
-			and exposed_copy.anchor_position == original_anchor,
+			and exposed_copy.anchor_position == original_anchor
+			and exposed_copy.scene_origin_position == original_scene_origin,
 		"definition lookup returns a detached snapshot rather than registration authority"
 	)
 	caller_definition.location_id = &"caller_mutated_identity"
 	caller_definition.anchor_position = Vector3(999.0, 999.0, 999.0)
+	caller_definition.scene_origin_position = Vector3(999.0, 999.0, 999.0)
 	exposed_copy.location_id = &"lookup_mutated_identity"
 	exposed_copy.anchor_position = Vector3(-999.0, -999.0, -999.0)
+	exposed_copy.scene_origin_position = Vector3(-999.0, -999.0, -999.0)
 	var request := coordinator.request_load(original_id)
 	_check(
 		bool(request.get("accepted", false))
@@ -111,17 +117,20 @@ func _test_definition_snapshot_and_synchronous_results() -> void:
 		loader_copy != caller_definition
 			and loader_copy != exposed_copy
 			and loader_copy.location_id == original_id
-			and loader_copy.anchor_position == original_anchor,
+			and loader_copy.anchor_position == original_anchor
+			and loader_copy.scene_origin_position == original_scene_origin,
 		"the injected loader receives another detached definition copy"
 	)
 	loader_copy.anchor_position = Vector3(700.0, 800.0, 900.0)
+	loader_copy.scene_origin_position = Vector3(70.0, 80.0, 90.0)
 	var completion := fake.complete(0, _packed_node_3d())
 	var instance := coordinator.get_loaded_instance(original_id)
 	_check(
 		bool(completion.get("accepted", false))
-			and instance.transform == Transform3D(Basis.IDENTITY, original_anchor)
-			and coordinator.get_definition(original_id).anchor_position == original_anchor,
-		"caller, lookup, and loader mutation cannot alter committed placement"
+			and instance.transform == Transform3D(Basis.IDENTITY, original_scene_origin)
+			and coordinator.get_definition(original_id).anchor_position == original_anchor
+			and coordinator.get_definition(original_id).scene_origin_position == original_scene_origin,
+		"a frozen nonzero scene origin places independently of the navigation anchor"
 	)
 	coordinator.queue_free()
 	await process_frame
@@ -167,16 +176,23 @@ func _test_registration_generation_and_failure_recovery() -> void:
 	var alpha := _definition(&"alpha_relay", Vector3(14.0, -6.0, -220.0))
 	var beta := _definition(&"beta_field", Vector3(-31.0, 9.0, -410.0))
 	var invalid := WorldLocationDefinition.new()
+	var invalid_scene_origin := _definition(&"invalid_scene_origin", Vector3.ZERO)
+	invalid_scene_origin.scene_origin_position = Vector3.INF
 	_check(coordinator.register_location(alpha), "a valid location definition registers")
 	_check(coordinator.register_location(beta), "a second valid definition registers")
 	_check(not coordinator.register_location(alpha), "a duplicate definition ID is rejected")
 	_check(not coordinator.register_location(invalid), "an invalid definition is rejected")
+	_check(
+		not coordinator.register_location(invalid_scene_origin),
+		"a non-finite scene origin is rejected independently of a finite navigation anchor"
+	)
 	var alpha_snapshot := coordinator.get_definition(alpha.location_id)
 	_check(
 		alpha_snapshot != alpha
 			and alpha_snapshot.location_id == alpha.location_id
-			and alpha_snapshot.anchor_position == alpha.anchor_position,
-		"the registered definition preserves identity and anchor through a detached copy"
+			and alpha_snapshot.anchor_position == alpha.anchor_position
+			and alpha_snapshot.scene_origin_position == alpha.scene_origin_position,
+		"the registered definition preserves identity, navigation anchor, and scene origin through a detached copy"
 	)
 	_check(
 		not bool(coordinator.request_load(&"unknown_location").get("accepted", true)),
@@ -265,8 +281,9 @@ func _test_registration_generation_and_failure_recovery() -> void:
 	_check(
 		alpha_instance.get_parent() == coordinator
 			and alpha_instance.name == "WorldLocation_AlphaRelay"
-			and alpha_instance.transform == Transform3D(Basis.IDENTITY, alpha.anchor_position),
-		"the instance has deterministic coordinator parent, name, and anchor transform"
+			and not alpha.anchor_position.is_zero_approx()
+			and alpha_instance.transform == Transform3D(Basis.IDENTITY, Vector3.ZERO),
+		"a nonzero navigation anchor does not double-offset the default-zero scene origin"
 	)
 	_check(
 		alpha_instance.get_meta(&"world_location_id") == alpha.location_id
@@ -581,7 +598,7 @@ func _test_real_scene_placement_reentry_and_teardown() -> void:
 	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator
 	coordinator.name = "RealSceneStreamingCoordinator"
 	root.add_child(coordinator)
-	var definition := _definition(&"real_cinder_fixture", Vector3(120.0, -18.0, -540.0))
+	var definition := REAL_WORLD_DEFINITION as WorldLocationDefinition
 	var unexpected_unload_count := 0
 	coordinator.location_unloaded.connect(
 		func(id: StringName, _generation: int) -> void:
@@ -595,7 +612,7 @@ func _test_real_scene_placement_reentry_and_teardown() -> void:
 	var request := coordinator.request_load(definition.location_id)
 	var generation := int(request.get("generation", -1))
 	_check(
-		bool(request.get("accepted", false)) and coordinator.get_loading_ids().has("real_cinder_fixture"),
+		bool(request.get("accepted", false)) and coordinator.get_loading_ids().has("cinder_reach"),
 		"the real PackedScene path is deferred and observable as loading"
 	)
 	await process_frame
@@ -603,8 +620,10 @@ func _test_real_scene_placement_reentry_and_teardown() -> void:
 	_check(
 		instance is NearbySectorCluster
 			and instance.get_parent() == coordinator
-			and instance.transform == Transform3D(Basis.IDENTITY, definition.anchor_position),
-		"the real scene commits under the same deterministic placement policy"
+			and not definition.anchor_position.is_zero_approx()
+			and definition.scene_origin_position.is_zero_approx()
+			and instance.transform == Transform3D.IDENTITY,
+		"the Cinder scene stays at authored world origin instead of receiving its navigation anchor twice"
 	)
 	_check(
 		int(instance.get_meta(&"world_location_generation")) == generation
@@ -683,7 +702,7 @@ func _test_audit_is_deep_copy_and_authority_free() -> void:
 		second.get("definition_snapshot_policy") \
 				== &"deep_copy_on_registration_loader_dispatch_and_read"
 			and second.get("parenting_policy") == &"coordinator_child"
-			and second.get("transform_policy") == &"identity_basis_at_definition_anchor",
+			and second.get("transform_policy") == &"identity_basis_at_definition_scene_origin",
 		"audit publishes immutable-definition, scene-ownership, and transform policies"
 	)
 	coordinator.queue_free()

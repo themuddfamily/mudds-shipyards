@@ -26,6 +26,26 @@ func _run() -> void:
 func _test_resources_match_the_live_nearby_sector() -> void:
 	_check(LOCATION.is_definition_valid(), "the Cinder Reach location resource is valid")
 	_check(ROUTE.is_definition_valid(), "the checkpoint-route activity resource is valid")
+	var location_audit := LOCATION.audit()
+	_check(
+		LOCATION.get_scene_origin_position().is_zero_approx()
+			and (location_audit.get("scene_origin_position", Vector3.INF) as Vector3).is_zero_approx()
+			and location_audit.get("anchor_position") == LOCATION.get_anchor_position()
+			and int(location_audit.get("schema_version", -1)) == 2,
+		"the Cinder resource separately publishes an origin-zero scene and its navigation anchor"
+	)
+	var invalid_scene_origin := LOCATION.duplicate(true) as WorldLocationDefinition
+	invalid_scene_origin.scene_origin_position = Vector3.INF
+	var origin_errors := invalid_scene_origin.get_validation_errors()
+	var invalid_origin_audit := invalid_scene_origin.audit()
+	_check(
+		not invalid_scene_origin.is_definition_valid()
+			and origin_errors.has("scene_origin_position must be finite")
+			and not origin_errors.has("anchor_position must be finite")
+			and not bool(invalid_origin_audit.get("valid", true))
+			and invalid_origin_audit.get("scene_origin_position") == Vector3.INF,
+		"definition validation audits a non-finite scene origin separately from the navigation anchor"
+	)
 	var world := WORLD_SCENE.instantiate() as ShipyardWorld
 	_check(world != null, "the production ShipyardWorld scene instantiates for anchor verification")
 	if world == null:

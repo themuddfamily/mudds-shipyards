@@ -61,6 +61,7 @@ func _test_validation_explicit_clock_and_priority_budget() -> void:
 	var alpha := _definition(&"alpha_tie", Vector3(-10.0, 0.0, 0.0))
 	var beta := _definition(&"beta_tie", Vector3(10.0, 0.0, 0.0))
 	var nearest := _definition(&"nearest", Vector3(4.0, 0.0, 0.0))
+	nearest.scene_origin_position = Vector3(900.0, 50.0, -1200.0)
 	_check(not policy.register_location(invalid_definition, 20.0, 30.0), "non-finite definitions are rejected")
 	_check(not policy.register_location(alpha, NAN, 30.0), "non-finite radii are rejected")
 	_check(not policy.register_location(alpha, 20.0, 20.0), "a missing hysteresis band is rejected")
@@ -84,8 +85,10 @@ func _test_validation_explicit_clock_and_priority_budget() -> void:
 		"one caller physics tick obeys the two-request budget"
 	)
 	_check(
-		_request_ids(loader) == PackedStringArray(["nearest", "alpha_tie"]),
-		"priority is distance ascending, then stable ID for a tie"
+		_request_ids(loader) == PackedStringArray(["nearest", "alpha_tie"])
+			and coordinator.get_loaded_instance(&"nearest").position
+				== nearest.scene_origin_position,
+		"priority uses navigation distance while scene placement uses its independent origin"
 	)
 	var second_tick := policy.physics_tick(0.25)
 	_check(

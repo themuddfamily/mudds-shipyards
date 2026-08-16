@@ -2,8 +2,10 @@
 
 `WorldStreamingDistancePolicy` is the automatic decision layer above
 `WorldStreamingCoordinator`; it is not a second scene or generation authority.
-The policy registers a frozen anchor with two radii, reads the coordinator's
-public loaded/loading IDs, and calls its public load/unload requests.
+The policy registers a frozen navigation anchor with two radii, reads the
+coordinator's public loaded/loading IDs, and calls its public load/unload
+requests. `WorldLocationDefinition.scene_origin_position` is intentionally not
+part of distance evaluation; it controls coordinator placement only.
 
 ## Contract
 

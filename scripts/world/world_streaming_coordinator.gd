@@ -4,11 +4,12 @@ extends Node3D
 ## Generation-safe owner for explicitly requested world-location scene roots.
 ##
 ## This is a deliberately small streaming seam. A registered
-## [WorldLocationDefinition] supplies stable identity and its station-relative
-## anchor. Scene selection is either an optional [PackedScene] binding supplied
-## at registration or an injected asynchronous loader. The coordinator does not
-## decide *when* a location is near enough to load and owns no activity, reward,
-## ship, berth, save, network, or gameplay authority.
+## [WorldLocationDefinition] supplies stable identity and an explicit scene-root
+## origin. Its separate navigation anchor remains available to distance and
+## activity consumers. Scene selection is either an optional [PackedScene]
+## binding supplied at registration or an injected asynchronous loader. The
+## coordinator does not decide *when* a location is near enough to load and owns
+## no activity, reward, ship, berth, save, network, or gameplay authority.
 ##
 ## An injected loader is a Callable with this contract:
 ##
@@ -213,7 +214,7 @@ func complete_load(
 	var instance := candidate as Node3D
 	instance.name = _instance_name(location_id)
 	instance.top_level = false
-	instance.transform = Transform3D(Basis.IDENTITY, definition.get_anchor_position())
+	instance.transform = Transform3D(Basis.IDENTITY, definition.get_scene_origin_position())
 	instance.set_meta(&"world_location_id", location_id)
 	instance.set_meta(&"world_location_generation", generation)
 	# Provisional ownership must exist before `_enter_tree()`/`_ready()` run. A
@@ -349,7 +350,7 @@ func audit() -> Dictionary:
 		"owned_instance_count": _loaded.size(),
 		"definition_snapshot_policy": &"deep_copy_on_registration_loader_dispatch_and_read",
 		"parenting_policy": &"coordinator_child",
-		"transform_policy": &"identity_basis_at_definition_anchor",
+		"transform_policy": &"identity_basis_at_definition_scene_origin",
 		"automatic_distance_policy": false,
 		"gameplay_authority": false,
 		"grants_rewards": false,
