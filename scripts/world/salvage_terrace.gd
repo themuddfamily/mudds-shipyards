@@ -33,7 +33,7 @@ const MAIN_RAMP_TRUE_AREA_M2 := 52.636109
 const INSPECTION_RAMP_TRUE_AREA_M2 := 26.318054
 const RAMP_TRUE_AREA_M2 := 78.954163
 
-const FOOTPRINT_MIN := Vector3(-18.1, -1.8, -0.1)
+const FOOTPRINT_MIN := Vector3(-18.1, -1.8, -0.7)
 const FOOTPRINT_MAX := Vector3(27.3, 7.1, 18.1)
 
 const SURFACE_IDS := [
@@ -65,6 +65,9 @@ const PERFORMANCE_BUDGET := {
 	"mesh_instances": 30,
 	"multimesh_batches": 3,
 	"multimesh_instances": 20,
+	"geometry_submissions": 33,
+	"visible_geometry_copies": 50,
+	"multimesh_buffer_floats": 240,
 	"static_bodies": 26,
 	"collision_shapes": 26,
 	"labels": 1,
@@ -72,6 +75,11 @@ const PERFORMANCE_BUDGET := {
 	"nodes": 96,
 	"process_loops": 0,
 	"physics_process_loops": 0,
+}
+const MULTIMESH_INSTANCE_COUNTS := {
+	"TerraceSupportBatch": 10,
+	"SalvageCageBatch": 6,
+	"ServiceBeaconBatch": 4,
 }
 
 const CONTENT_NOTE := (
@@ -102,6 +110,8 @@ var _built := false
 var _build_generation := 0
 var _built_node_ids: Dictionary = {}
 var _built_node_transforms: Dictionary = {}
+var _built_multimesh_buffers: Dictionary = {}
+var _built_multimesh_visible_counts: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 
 
@@ -177,27 +187,62 @@ func get_integration_footprint() -> Dictionary:
 
 
 func get_standable_surface_contract() -> Array[Dictionary]:
-	return _surface_contracts.duplicate(true)
+	return _build_live_surface_contracts().duplicate(true)
 
 
 func get_walkable_area_contract() -> Dictionary:
+	var live_surfaces := _build_live_surface_contracts()
 	var by_surface := {}
-	for surface in _surface_contracts:
+	var level_area := 0.0
+	var ramp_projected_area := 0.0
+	var ramp_true_area := 0.0
+	var projected_sum := 0.0
+	var projection_rects: Array[Rect2] = []
+	var live_geometry_valid := live_surfaces.size() == SURFACE_IDS.size()
+	var projection_axis_aligned := true
+	for surface in live_surfaces:
 		by_surface[surface.surface_id] = {
 			"kind": surface.kind,
 			"horizontal_area_m2": surface.horizontal_area_m2,
 			"true_area_m2": surface.true_area_m2,
 		}
+		var horizontal_area := float(surface.horizontal_area_m2)
+		projected_sum += horizontal_area
+		if surface.kind == &"ramp":
+			ramp_projected_area += horizontal_area
+			ramp_true_area += float(surface.true_area_m2)
+		else:
+			level_area += horizontal_area
+		live_geometry_valid = live_geometry_valid and bool(surface.geometry_valid)
+		projection_axis_aligned = projection_axis_aligned and bool(surface.projection_axis_aligned)
+		projection_rects.append(surface.projection_rect as Rect2)
+	var horizontal_union := _axis_aligned_rect_union_area(projection_rects) if projection_axis_aligned else 0.0
+	var non_overlapping := (
+		live_geometry_valid
+		and projection_axis_aligned
+		and is_equal_approx(horizontal_union, projected_sum)
+	)
+	var main_ramp := by_surface.get(&"main-service-ramp", {}) as Dictionary
+	var inspection_ramp := by_surface.get(&"inspection-ramp", {}) as Dictionary
 	return {
 		"schema_version": SCHEMA_VERSION,
-		"surface_union": &"non_overlapping_shared_boundaries_only",
-		"surface_count": _surface_contracts.size(),
-		"level_area_m2": LEVEL_WALKABLE_AREA_M2,
-		"ramp_projected_area_m2": RAMP_PROJECTED_AREA_M2,
-		"horizontal_walkable_area_m2": HORIZONTAL_WALKABLE_AREA_M2,
-		"ramp_true_area_m2": RAMP_TRUE_AREA_M2,
-		"main_ramp_true_area_m2": MAIN_RAMP_TRUE_AREA_M2,
-		"inspection_ramp_true_area_m2": INSPECTION_RAMP_TRUE_AREA_M2,
+		"surface_union": (
+			&"non_overlapping_shared_boundaries_only"
+			if non_overlapping
+			else &"invalid_or_overlapping_live_projection"
+		),
+		"surface_count": live_surfaces.size(),
+		"live_geometry_derived": true,
+		"live_geometry_valid": live_geometry_valid,
+		"projection_axis_aligned": projection_axis_aligned,
+		"non_overlapping": non_overlapping,
+		"projected_surface_sum_m2": projected_sum,
+		"level_area_m2": level_area,
+		"ramp_projected_area_m2": ramp_projected_area,
+		"horizontal_walkable_area_m2": horizontal_union,
+		"ramp_true_area_m2": ramp_true_area,
+		"main_ramp_true_area_m2": float(main_ramp.get("true_area_m2", 0.0)),
+		"inspection_ramp_true_area_m2": float(inspection_ramp.get("true_area_m2", 0.0)),
 		"baseline_share_claimed": false,
 		"by_surface": by_surface.duplicate(true),
 	}
@@ -248,21 +293,36 @@ func get_performance_contract() -> Dictionary:
 	var contract := StationModuleContract.build_performance_contract(self, PERFORMANCE_BUDGET)
 	var multimeshes := find_children("*", "MultiMeshInstance3D", true, false)
 	var multimesh_instances := 0
+	var multimesh_drawn_copies := 0
+	var multimesh_buffer_floats := 0
+	var batch_instance_counts := {}
 	for raw_batch in multimeshes:
 		var batch := raw_batch as MultiMeshInstance3D
 		if batch.multimesh != null:
 			multimesh_instances += batch.multimesh.instance_count
+			multimesh_drawn_copies += (
+				batch.multimesh.instance_count
+				if batch.multimesh.visible_instance_count < 0
+				else mini(batch.multimesh.visible_instance_count, batch.multimesh.instance_count)
+			)
+			multimesh_buffer_floats += batch.multimesh.buffer.size()
+			batch_instance_counts[batch.name] = batch.multimesh.instance_count
 	contract["schema_version"] = SCHEMA_VERSION
 	contract["multimesh_batches"] = multimeshes.size()
 	contract["multimesh_instances"] = multimesh_instances
+	contract["multimesh_drawn_copies"] = multimesh_drawn_copies
+	contract["multimesh_buffer_floats"] = multimesh_buffer_floats
+	contract["batch_instance_counts"] = batch_instance_counts
+	contract["geometry_submissions"] = int(contract.mesh_instances) + multimeshes.size()
+	contract["visible_geometry_copies"] = int(contract.mesh_instances) + multimesh_drawn_copies
 	contract["nodes"] = 1 + find_children("*", "", true, false).size()
 	contract["budgets"] = PERFORMANCE_BUDGET.duplicate(true)
-	contract["within_budget"] = (
-		bool(contract.within_budget)
-		and int(contract.multimesh_batches) <= int(PERFORMANCE_BUDGET.multimesh_batches)
-		and int(contract.multimesh_instances) <= int(PERFORMANCE_BUDGET.multimesh_instances)
-		and int(contract.nodes) <= int(PERFORMANCE_BUDGET.nodes)
-	)
+	contract["buffers_match_authored"] = _multimesh_contract_is_live()
+	var exact_census := true
+	for key in PERFORMANCE_BUDGET:
+		exact_census = exact_census and int(contract.get(key, -1)) == int(PERFORMANCE_BUDGET[key])
+	contract["exact_census"] = exact_census
+	contract["within_budget"] = bool(contract.within_budget) and exact_census and bool(contract.buffers_match_authored)
 	return contract
 
 
@@ -292,7 +352,7 @@ func get_evidence_metadata() -> Dictionary:
 		"element_status": ELEMENT_STATUS,
 		"evidence_status": EVIDENCE_STATUS,
 		"source_confidence": &"none",
-		"source_bounded": true,
+		"source_bounded": false,
 		"authenticated_original_geometry": false,
 		"authenticated_original_function": false,
 		"references": PackedStringArray(),
@@ -329,18 +389,25 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("visible and collision-backed walkable surface geometry diverged")
 	var area := get_walkable_area_contract()
 	if (
-		not is_equal_approx(float(area.level_area_m2), 384.0)
+		not bool(area.live_geometry_derived)
+		or not bool(area.live_geometry_valid)
+		or not bool(area.projection_axis_aligned)
+		or not bool(area.non_overlapping)
+		or not is_equal_approx(float(area.projected_surface_sum_m2), 456.0)
+		or not is_equal_approx(float(area.level_area_m2), 384.0)
 		or not is_equal_approx(float(area.ramp_projected_area_m2), 72.0)
 		or not is_equal_approx(float(area.horizontal_walkable_area_m2), 456.0)
 		or not is_equal_approx(float(area.ramp_true_area_m2), RAMP_TRUE_AREA_M2)
 	):
-		errors.append("walkable-area union differs from the exact 456 square metre contract")
+		errors.append("live walkable-area union differs from the exact non-overlapping 456 square metre contract")
 	if PAD_IDS.size() < 2 or _surface_nodes.get(&"lower-salvage-pad") == _surface_nodes.get(&"upper-inspection-pad"):
 		errors.append("module requires spatially distinct usable terrace pads")
 	if _rail_nodes.size() < 12 or not _rails_are_live_and_physical():
 		errors.append("exposed terrace and ramp edges require live physical safety rails")
 	if not _dressing_is_batched_and_route_clear():
 		errors.append("salvage/service dressing must stay batched and outside traversal routes")
+	if not _identity_sign_is_route_clear():
+		errors.append("identity sign must remain behind the entry rail and outside every walkable projection")
 	var collision := get_collision_contract()
 	if (
 		not bool(collision.all_layers_match_lifecycle)
@@ -360,8 +427,11 @@ func get_validation_errors() -> PackedStringArray:
 		or bool(authority.owns_activity_authority)
 	):
 		errors.append("module must own zero ship, berth, combat, interaction, audio, or activity authority")
-	if not bool(get_performance_contract().within_budget):
-		errors.append("module exceeds its mesh, batch, collision, light, node, label, or loop budget")
+	var performance := get_performance_contract()
+	if not bool(performance.exact_census):
+		errors.append("exact renderer and physics performance census drifted")
+	if not bool(performance.buffers_match_authored):
+		errors.append("MultiMesh batch counts, visibility, transforms, or raw buffers drifted")
 	var lifecycle := get_lifecycle_contract()
 	if (
 		not bool(lifecycle.reversible)
@@ -419,33 +489,28 @@ func _index_routes() -> void:
 
 
 func _build_surfaces() -> void:
-	_add_level_surface(&"connection-apron", Vector3(0.0, LOWER_ELEVATION, 4.0), Vector2(12.0, 8.0), 96.0)
-	_add_level_surface(&"lower-salvage-pad", Vector3(-12.0, LOWER_ELEVATION, 8.0), Vector2(12.0, 12.0), 144.0)
+	_add_level_surface(&"connection-apron", Vector3(0.0, LOWER_ELEVATION, 4.0), Vector2(12.0, 8.0))
+	_add_level_surface(&"lower-salvage-pad", Vector3(-12.0, LOWER_ELEVATION, 8.0), Vector2(12.0, 12.0))
 	_add_ramp_surface(
 		&"main-service-ramp",
 		Vector3(6.0, LOWER_ELEVATION, 5.0),
 		Vector3(14.0, UPPER_ELEVATION, 5.0),
-		MAIN_RAMP_WIDTH,
-		48.0,
-		MAIN_RAMP_TRUE_AREA_M2
+		MAIN_RAMP_WIDTH
 	)
-	_add_level_surface(&"upper-inspection-pad", Vector3(20.0, UPPER_ELEVATION, 5.0), Vector2(12.0, 10.0), 120.0)
+	_add_level_surface(&"upper-inspection-pad", Vector3(20.0, UPPER_ELEVATION, 5.0), Vector2(12.0, 10.0))
 	_add_ramp_surface(
 		&"inspection-ramp",
 		Vector3(23.0, UPPER_ELEVATION, 10.0),
 		Vector3(23.0, INSPECTION_ELEVATION, 14.0),
-		INSPECTION_RAMP_WIDTH,
-		24.0,
-		INSPECTION_RAMP_TRUE_AREA_M2
+		INSPECTION_RAMP_WIDTH
 	)
-	_add_level_surface(&"top-inspection-pad", Vector3(23.0, INSPECTION_ELEVATION, 16.0), Vector2(6.0, 4.0), 24.0)
+	_add_level_surface(&"top-inspection-pad", Vector3(23.0, INSPECTION_ELEVATION, 16.0), Vector2(6.0, 4.0))
 
 
 func _add_level_surface(
 		surface_id: StringName,
 		top_center: Vector3,
-		plan_size: Vector2,
-		horizontal_area_m2: float
+		plan_size: Vector2
 	) -> void:
 	var size := Vector3(plan_size.x, SURFACE_THICKNESS, plan_size.y)
 	var transform := Transform3D(Basis.IDENTITY, top_center - Vector3.UP * SURFACE_THICKNESS * 0.5)
@@ -459,8 +524,6 @@ func _add_level_surface(
 		"local_transform": transform,
 		"size": size,
 		"top_elevation": top_center.y,
-		"horizontal_area_m2": horizontal_area_m2,
-		"true_area_m2": horizontal_area_m2,
 	})
 
 
@@ -468,9 +531,7 @@ func _add_ramp_surface(
 		surface_id: StringName,
 		start: Vector3,
 		finish: Vector3,
-		width: float,
-		horizontal_area_m2: float,
-		true_area_m2: float
+		width: float
 	) -> void:
 	var direction := finish - start
 	var basis := _basis_with_local_back_along(direction)
@@ -491,8 +552,6 @@ func _add_ramp_surface(
 		"start": start,
 		"finish": finish,
 		"width": width,
-		"horizontal_area_m2": horizontal_area_m2,
-		"true_area_m2": true_area_m2,
 	})
 
 
@@ -547,8 +606,8 @@ func _build_batched_supports_and_dressing() -> void:
 	var support_transforms: Array[Transform3D] = []
 	for support in [
 		Vector3(-16, -0.9, 4), Vector3(-16, -0.9, 12), Vector3(-8, -0.9, 4),
-		Vector3(-8, -0.9, 12), Vector3(16, 1.8, 2), Vector3(24, 1.8, 2),
-		Vector3(16, 1.8, 8), Vector3(24, 1.8, 8), Vector3(21, 4.5, 16),
+		Vector3(-8, -0.9, 12), Vector3(16, 2.4, 2), Vector3(24, 2.4, 2),
+		Vector3(16, 2.4, 8), Vector3(24, 2.4, 8), Vector3(21, 4.5, 16),
 		Vector3(25, 4.5, 16),
 	]:
 		support_transforms.append(Transform3D(Basis.IDENTITY, support as Vector3))
@@ -579,8 +638,8 @@ func _build_batched_supports_and_dressing() -> void:
 
 
 func _build_identity_sign() -> void:
-	var sign_back := _visual_box("IdentitySignBack", Vector3(-5.7, 2.1, 0.5), Vector3(0.25, 1.6, 3.8), _materials.frame, "vertical identity sign outside the origin gate")
-	sign_back.rotation.y = PI * 0.5
+	var sign_back := _visual_box("IdentitySignBack", Vector3(-4.0, 2.1, -0.5), Vector3(3.6, 1.6, 0.25), _materials.frame, "vertical identity sign behind the physical entry rail and outside the walkable union")
+	sign_back.set_meta("outside_walkable_union", true)
 	var label := Label3D.new()
 	label.name = "SalvageTerraceIdentity"
 	label.text = "SALVAGE\nTERRACE"
@@ -588,8 +647,7 @@ func _build_identity_sign() -> void:
 	label.outline_size = 8
 	label.modulate = Color("b9f4ee")
 	label.outline_modulate = Color("10252b")
-	label.position = Vector3(-5.82, 2.1, 0.5)
-	label.rotation.y = PI * 0.5
+	label.position = Vector3(-4.0, 2.1, -0.64)
 	label.set_meta("non_walkable_reason", "bounded vertical area identity label")
 	_build_root.add_child(label)
 
@@ -607,14 +665,36 @@ func _add_multimesh_batch(
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.instance_count = transforms.size()
 	multimesh.mesh = mesh
-	for index in transforms.size():
-		multimesh.set_instance_transform(index, transforms[index])
+	# Bulk-author the actual renderer buffer so the 12-float Transform3D payload
+	# remains directly auditable even under the headless rendering backend.
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
 	var batch := MultiMeshInstance3D.new()
 	batch.name = node_name
 	batch.multimesh = multimesh
 	batch.material_override = material
 	batch.set_meta("non_walkable_reason", reason)
 	_build_root.add_child(batch)
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
 
 
 func _box_body(
@@ -758,6 +838,138 @@ func _surface_geometry_matches_contract() -> bool:
 	return true
 
 
+func _build_live_surface_contracts() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for authored in _surface_contracts:
+		var live := authored.duplicate(true)
+		var body := _surface_nodes.get(authored.surface_id) as StaticBody3D
+		var geometry := _live_surface_geometry(body)
+		live["local_transform"] = body.transform if is_instance_valid(body) else Transform3D.IDENTITY
+		live["size"] = geometry.size
+		live["horizontal_area_m2"] = geometry.horizontal_area_m2
+		live["true_area_m2"] = geometry.true_area_m2
+		live["projection_rect"] = geometry.projection_rect
+		live["projection_axis_aligned"] = geometry.projection_axis_aligned
+		live["geometry_valid"] = geometry.valid
+		result.append(live)
+	return result
+
+
+func _live_surface_geometry(body: StaticBody3D) -> Dictionary:
+	var invalid := {
+		"valid": false,
+		"size": Vector3.ZERO,
+		"horizontal_area_m2": 0.0,
+		"true_area_m2": 0.0,
+		"projection_rect": Rect2(),
+		"projection_axis_aligned": false,
+	}
+	if not is_instance_valid(body):
+		return invalid
+	var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+	var shape := collision.shape as BoxShape3D if collision != null else null
+	if shape == null:
+		return invalid
+	var local_transform := global_transform.affine_inverse() * collision.global_transform
+	var x_edge := local_transform.basis.x * shape.size.x
+	var y_edge := local_transform.basis.y * shape.size.y
+	var z_edge := local_transform.basis.z * shape.size.z
+	var surface_cross := x_edge.cross(z_edge)
+	# The authoritative footprint is the top walking plane, not the collision
+	# box centre. Ramp bodies are offset below that plane by half their thickness.
+	var top_center := local_transform.origin + y_edge * 0.5
+	var projection_points := PackedVector2Array()
+	for x_sign: float in [-0.5, 0.5]:
+		for z_sign: float in [-0.5, 0.5]:
+			var point: Vector3 = top_center + x_edge * x_sign + z_edge * z_sign
+			projection_points.append(Vector2(point.x, point.z))
+	var bounds := _bounds_for_points(projection_points)
+	var projected_area := absf(surface_cross.y)
+	return {
+		"valid": surface_cross.length() > 0.0 and projected_area > 0.0,
+		"size": shape.size,
+		"horizontal_area_m2": projected_area,
+		"true_area_m2": surface_cross.length(),
+		"projection_rect": bounds,
+		"projection_axis_aligned": is_equal_approx(bounds.get_area(), projected_area),
+	}
+
+
+func _bounds_for_points(points: PackedVector2Array) -> Rect2:
+	if points.is_empty():
+		return Rect2()
+	var minimum := points[0]
+	var maximum := points[0]
+	for point in points:
+		minimum = minimum.min(point)
+		maximum = maximum.max(point)
+	return Rect2(minimum, maximum - minimum)
+
+
+func _axis_aligned_rect_union_area(rects: Array[Rect2]) -> float:
+	if rects.is_empty():
+		return 0.0
+	var x_edges: Array[float] = []
+	for rect in rects:
+		x_edges.append(rect.position.x)
+		x_edges.append(rect.end.x)
+	x_edges.sort()
+	var area := 0.0
+	for index in x_edges.size() - 1:
+		var x_min := x_edges[index]
+		var x_max := x_edges[index + 1]
+		if is_equal_approx(x_min, x_max):
+			continue
+		var intervals: Array[Vector2] = []
+		for rect in rects:
+			if rect.position.x < x_max and rect.end.x > x_min:
+				intervals.append(Vector2(rect.position.y, rect.end.y))
+		intervals.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+		var covered_y := 0.0
+		if not intervals.is_empty():
+			var merged_start := intervals[0].x
+			var merged_end := intervals[0].y
+			for interval_index in range(1, intervals.size()):
+				var interval := intervals[interval_index]
+				if interval.x <= merged_end:
+					merged_end = maxf(merged_end, interval.y)
+				else:
+					covered_y += merged_end - merged_start
+					merged_start = interval.x
+					merged_end = interval.y
+			covered_y += merged_end - merged_start
+		area += (x_max - x_min) * covered_y
+	return area
+
+
+func _identity_sign_is_route_clear() -> bool:
+	var sign_back := _build_root.get_node_or_null(^"IdentitySignBack") as MeshInstance3D
+	if sign_back == null or not bool(sign_back.get_meta("outside_walkable_union", false)):
+		return false
+	var sign_bounds := _mesh_projection_bounds(sign_back)
+	if sign_bounds.get_area() <= 0.0 or sign_bounds.end.y >= 0.0 or sign_bounds.end.x > -2.0:
+		return false
+	for surface in _build_live_surface_contracts():
+		var overlap := sign_bounds.intersection(surface.projection_rect as Rect2)
+		if overlap.get_area() > 0.0001:
+			return false
+	return true
+
+
+func _mesh_projection_bounds(mesh_instance: MeshInstance3D) -> Rect2:
+	if mesh_instance == null or mesh_instance.mesh == null:
+		return Rect2()
+	var aabb := mesh_instance.mesh.get_aabb()
+	var local_transform := global_transform.affine_inverse() * mesh_instance.global_transform
+	var points := PackedVector2Array()
+	for x_value in [aabb.position.x, aabb.end.x]:
+		for y_value in [aabb.position.y, aabb.end.y]:
+			for z_value in [aabb.position.z, aabb.end.z]:
+				var point := local_transform * Vector3(x_value, y_value, z_value)
+				points.append(Vector2(point.x, point.z))
+	return _bounds_for_points(points)
+
+
 func _rails_are_live_and_physical() -> bool:
 	for rail in _rail_nodes:
 		if (
@@ -790,11 +1002,18 @@ func _dressing_is_batched_and_route_clear() -> bool:
 func _capture_built_contract() -> void:
 	_built_node_ids.clear()
 	_built_node_transforms.clear()
+	_built_multimesh_buffers.clear()
+	_built_multimesh_visible_counts.clear()
 	for candidate in find_children("*", "", true, false):
 		var path := str(get_path_to(candidate))
 		_built_node_ids[path] = candidate.get_instance_id()
 		if candidate is Node3D:
 			_built_node_transforms[path] = (candidate as Node3D).transform
+		if candidate is MultiMeshInstance3D:
+			var batch := candidate as MultiMeshInstance3D
+			if batch.multimesh != null:
+				_built_multimesh_buffers[path] = batch.multimesh.buffer.duplicate()
+				_built_multimesh_visible_counts[path] = batch.multimesh.visible_instance_count
 
 
 func _built_contract_is_live() -> bool:
@@ -815,6 +1034,25 @@ func _built_contract_is_live() -> bool:
 	return true
 
 
+func _multimesh_contract_is_live() -> bool:
+	var batches := find_children("*", "MultiMeshInstance3D", true, false)
+	if batches.size() != MULTIMESH_INSTANCE_COUNTS.size():
+		return false
+	for raw_batch in batches:
+		var batch := raw_batch as MultiMeshInstance3D
+		var path := str(get_path_to(batch))
+		if (
+			batch.multimesh == null
+			or not MULTIMESH_INSTANCE_COUNTS.has(String(batch.name))
+			or batch.multimesh.instance_count != int(MULTIMESH_INSTANCE_COUNTS[String(batch.name)])
+			or not _built_multimesh_buffers.has(path)
+			or batch.multimesh.buffer != _built_multimesh_buffers[path]
+			or batch.multimesh.visible_instance_count != int(_built_multimesh_visible_counts.get(path, -2))
+		):
+			return false
+	return true
+
+
 func _apply_enabled_state() -> void:
 	if _build_root == null:
 		return
@@ -828,7 +1066,7 @@ func _apply_metadata() -> void:
 	set_meta("module_id", MODULE_ID)
 	set_meta("element_status", ELEMENT_STATUS)
 	set_meta("evidence_status", EVIDENCE_STATUS)
-	set_meta("source_bounded", true)
+	set_meta("source_bounded", false)
 	set_meta("authenticated_original_geometry", false)
 	set_meta("owns_ship_authority", false)
 	set_meta("owns_berth_authority", false)
@@ -837,4 +1075,3 @@ func _apply_metadata() -> void:
 	set_meta("horizontal_walkable_area_m2", HORIZONTAL_WALKABLE_AREA_M2)
 	set_meta("content_note", CONTENT_NOTE)
 	add_to_group(&"station_modules")
-	add_to_group(&"source_bounded_station_modules")

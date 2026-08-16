@@ -5,6 +5,7 @@ extends SceneTree
 const MODULE_SCENE := preload("res://scenes/world/modules/salvage_terrace.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const WORLD_LAYER := 1
+const CAPTURE_PATH := "/tmp/salvage-terrace-forward-plus.png"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -12,7 +13,10 @@ var _test_root: Node3D
 
 
 func _init() -> void:
-	call_deferred("_run")
+	if OS.get_cmdline_user_args().has("--capture"):
+		call_deferred("_capture_forward_plus")
+	else:
+		call_deferred("_run")
 
 
 func _run() -> void:
@@ -48,7 +52,8 @@ func _test_evidence_and_shared_contract(module: SalvageTerrace) -> void:
 	_check(
 		evidence.element_status == &"new"
 		and evidence.evidence_status == &"modern_interpretation"
-		and evidence.source_confidence == &"none",
+		and evidence.source_confidence == &"none"
+		and not bool(evidence.source_bounded),
 		"entire module is explicitly NEW modern interpretation at confidence none"
 	)
 	_check(
@@ -63,7 +68,9 @@ func _test_evidence_and_shared_contract(module: SalvageTerrace) -> void:
 	_check(
 		bool(module.get_meta("station_module", false))
 		and module.get_meta("element_status") == &"new"
-		and module.get_meta("evidence_status") == &"modern_interpretation",
+		and module.get_meta("evidence_status") == &"modern_interpretation"
+		and not bool(module.get_meta("source_bounded", true))
+		and not module.is_in_group(&"source_bounded_station_modules"),
 		"discovery metadata preserves the NEW evidence boundary"
 	)
 
@@ -99,7 +106,8 @@ func _test_origin_slot_and_routes(module: SalvageTerrace) -> void:
 		bool(footprint.connection_at_local_origin)
 		and footprint.connection_plane_local == Transform3D.IDENTITY
 		and footprint.approach_axis_local == Vector3.FORWARD
-		and (footprint.local_size as Vector3).is_equal_approx(Vector3(45.4, 8.9, 18.2)),
+		and (footprint.local_min as Vector3).is_equal_approx(Vector3(-18.1, -1.8, -0.7))
+		and (footprint.local_size as Vector3).is_equal_approx(Vector3(45.4, 8.9, 18.8)),
 		"integration footprint and local-origin approach convention are finite and exact"
 	)
 
@@ -143,6 +151,11 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 	print("SALVAGE_TERRACE_AREA: ", area)
 	_check(
 		area.surface_union == &"non_overlapping_shared_boundaries_only"
+		and bool(area.live_geometry_derived)
+		and bool(area.live_geometry_valid)
+		and bool(area.projection_axis_aligned)
+		and bool(area.non_overlapping)
+		and is_equal_approx(float(area.projected_surface_sum_m2), 456.0)
 		and is_equal_approx(float(area.level_area_m2), 384.0)
 		and is_equal_approx(float(area.ramp_projected_area_m2), 72.0)
 		and is_equal_approx(float(area.horizontal_walkable_area_m2), 456.0)
@@ -201,6 +214,23 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 		if mesh.get_parent() == module.get_node(^"GeneratedRoot"):
 			reasons_complete = reasons_complete and not str(mesh.get_meta("non_walkable_reason", "")).is_empty()
 	_check(reasons_complete, "every collision-free dressing mesh states why it is non-walkable")
+	var sign_back := module.get_node(^"GeneratedRoot/IdentitySignBack") as MeshInstance3D
+	_check(
+		sign_back != null
+		and sign_back.position.is_equal_approx(Vector3(-4.0, 2.1, -0.5))
+		and bool(sign_back.get_meta("outside_walkable_union", false))
+		and sign_back.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"collision-free identity sign is explicitly behind the entry rail and outside usable floor"
+	)
+	var support_batch := module.get_node(^"GeneratedRoot/TerraceSupportBatch") as MultiMeshInstance3D
+	var upper_supports_meet_deck := support_batch != null and support_batch.multimesh != null
+	if upper_supports_meet_deck:
+		var support_mesh := support_batch.multimesh.mesh as BoxMesh
+		var support_buffer := support_batch.multimesh.buffer
+		for support_index in range(4, 8):
+			var support_top := support_buffer[support_index * 12 + 7] + support_mesh.size.y * 0.5
+			upper_supports_meet_deck = upper_supports_meet_deck and is_equal_approx(support_top, 3.3)
+	_check(upper_supports_meet_deck, "four upper-pad support columns meet the live deck underside without a visible gap")
 	var authority := module.get_authority_contract()
 	_check(
 		int(authority.ship_berth_count) == 0
@@ -219,15 +249,32 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	var performance := module.get_performance_contract()
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
-	_check(bool(performance.within_budget), "module remains inside every published performance ceiling")
+	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.lights) == 0
+		int(performance.mesh_instances) == 30
+		and int(performance.static_bodies) == 26
+		and int(performance.collision_shapes) == 26
+		and int(performance.lights) == 0
 		and int(performance.labels) == 1
 		and int(performance.multimesh_batches) == 3
 		and int(performance.multimesh_instances) == 20
+		and int(performance.multimesh_drawn_copies) == 20
+		and int(performance.multimesh_buffer_floats) == 240
+		and int(performance.geometry_submissions) == 33
+		and int(performance.visible_geometry_copies) == 50
+		and int(performance.nodes) == 96
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"module uses zero lights/loops, one bounded identity label, and twenty batched copies"
+		"exact census freezes 33 submissions, 50 visible copies, 26 bodies/shapes, 96 nodes, one label, and zero lights/loops"
+	)
+	_check(
+		bool(performance.buffers_match_authored)
+		and (performance.batch_instance_counts as Dictionary) == {
+			&"TerraceSupportBatch": 10,
+			&"SalvageCageBatch": 6,
+			&"ServiceBeaconBatch": 4,
+		},
+		"three MultiMesh batches freeze all twenty drawn-copy transforms in 240 raw buffer floats"
 	)
 	var before := module.get_lifecycle_contract()
 	module.set_module_enabled(false)
@@ -258,10 +305,22 @@ func _test_real_player_ramp_traversal(module: SalvageTerrace) -> void:
 	player.set_camera_active(false)
 	player.set_control_enabled(true)
 	_release_actions()
-	var start_basis := Basis.looking_at(module.global_basis * Vector3.RIGHT, Vector3.UP)
-	player.teleport_to(Transform3D(start_basis, module.to_global(Vector3(5.0, 0.08, 5.0))))
+	var connector := module.get_route_marker(&"connector")
+	var ingress_basis := Basis.looking_at(module.global_basis * Vector3.BACK, Vector3.UP)
+	player.teleport_to(Transform3D(ingress_basis, connector.global_position - module.global_basis.y * 0.07))
 	for _settle in 8:
 		await physics_frame
+	var ingress_start := module.to_local(player.global_position)
+	Input.action_press(&"move_forward")
+	Input.action_press(&"sprint_boost")
+	var apron_reached := await _wait_until(
+		func() -> bool: return module.to_local(player.global_position).z >= 4.7,
+		100
+	)
+	Input.action_release(&"move_forward")
+	Input.action_release(&"sprint_boost")
+	await physics_frame
+	player.global_basis = Basis.looking_at(module.global_basis * Vector3.RIGHT, Vector3.UP)
 	Input.action_press(&"move_forward")
 	Input.action_press(&"sprint_boost")
 	var main_reached := await _wait_until(
@@ -275,8 +334,11 @@ func _test_real_player_ramp_traversal(module: SalvageTerrace) -> void:
 	await physics_frame
 	var after_main := module.to_local(player.global_position)
 	_check(
-		main_reached and after_main.x >= 15.0 and after_main.y >= 3.45 and player.is_on_floor(),
-		"real production player climbs the 6 m-wide main ramp without jump input"
+		ingress_start.x >= -0.2 and ingress_start.x <= 0.2
+		and ingress_start.z >= -0.2 and ingress_start.z <= 0.2
+		and apron_reached and main_reached
+		and after_main.x >= 15.0 and after_main.y >= 3.45 and player.is_on_floor(),
+		"real production player enters at the connector, crosses the apron, and climbs the 6 m-wide main ramp without jump input"
 	)
 
 	# Re-orient in place on the upper pad, then cross and climb the second ramp.
@@ -330,11 +392,35 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 	var surface_contract := module.get_standable_surface_contract()[0]
 	var surface := module.get_node(surface_contract.body_path as NodePath) as StaticBody3D
 	var surface_mesh := (surface.get_node(^"Mesh") as MeshInstance3D).mesh as BoxMesh
+	var surface_shape := (surface.get_node(^"Collision") as CollisionShape3D).shape as BoxShape3D
 	var original_size := surface_mesh.size
+	var original_shape_size := surface_shape.size
 	surface_mesh.size.x += 0.5
-	_check(_errors_include(module.get_validation_errors(), "surface geometry diverged"), "MUTATION: widening visible walkable geometry turns the audit red")
+	surface_shape.size.x += 0.5
+	var widened_area := module.get_walkable_area_contract()
+	_check(
+		not is_equal_approx(float(widened_area.projected_surface_sum_m2), 456.0)
+		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
+		"MUTATION: widening the live collision shape changes derived area and turns the union audit red"
+	)
 	surface_mesh.size = original_size
+	surface_shape.size = original_shape_size
 	_check(bool(module.get_audit_report().valid), "restoring surface geometry returns the audit to green")
+
+	var lower_surface := module.get_node(
+		(module.get_standable_surface_contract()[1] as Dictionary).body_path as NodePath
+	) as StaticBody3D
+	var original_lower_transform := lower_surface.transform
+	lower_surface.position.x += 4.0
+	var overlapping_area := module.get_walkable_area_contract()
+	_check(
+		not bool(overlapping_area.non_overlapping)
+		and float(overlapping_area.horizontal_walkable_area_m2) < 456.0
+		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
+		"MUTATION: overlapping one live surface transform reduces the derived union and turns audit red"
+	)
+	lower_surface.transform = original_lower_transform
+	_check(bool(module.get_audit_report().valid), "restoring the exact surface transform returns the live union to green")
 
 	var collision := surface.get_node(^"Collision") as CollisionShape3D
 	collision.disabled = true
@@ -354,6 +440,29 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 		_check(_errors_include(module.get_validation_errors(), "safety rails"), "MUTATION: making one exposed edge rail nonphysical turns the audit red")
 		rail.collision_layer = WORLD_LAYER
 		_check(bool(module.get_audit_report().valid), "restoring rail collision returns the audit to green")
+
+	var support_batch := module.get_node(^"GeneratedRoot/TerraceSupportBatch") as MultiMeshInstance3D
+	var support_multimesh := support_batch.multimesh
+	var support_buffer := support_multimesh.buffer.duplicate()
+	var support_count := support_multimesh.instance_count
+	support_multimesh.instance_count -= 1
+	_check(
+		_errors_include(module.get_validation_errors(), "exact renderer and physics performance census")
+		and _errors_include(module.get_validation_errors(), "MultiMesh batch counts"),
+		"MUTATION: dropping one drawn MultiMesh copy turns exact census and raw-buffer audits red"
+	)
+	support_multimesh.instance_count = support_count
+	support_multimesh.buffer = support_buffer
+	_check(bool(module.get_audit_report().valid), "restoring the exact MultiMesh count and transforms returns audit green")
+	var shifted_support_buffer := support_buffer.duplicate()
+	shifted_support_buffer[3] += 0.25
+	support_multimesh.buffer = shifted_support_buffer
+	_check(
+		_errors_include(module.get_validation_errors(), "MultiMesh batch counts"),
+		"MUTATION: changing one stored MultiMesh transform turns its raw-buffer audit red"
+	)
+	support_multimesh.buffer = support_buffer
+	_check(bool(module.get_audit_report().valid), "restoring the exact MultiMesh buffer returns audit green")
 
 	var intruder := Area3D.new()
 	intruder.name = "InventedAuthority"
@@ -378,6 +487,62 @@ func _test_cleanup(module: SalvageTerrace) -> void:
 	_check(module_ref.get_ref() == null, "standalone module releases without retained runtime state")
 	_test_root.queue_free()
 	await process_frame
+
+
+func _capture_forward_plus() -> void:
+	root.size = Vector2i(1280, 720)
+	var stage := Node3D.new()
+	stage.name = "SalvageTerraceForwardPlusCapture"
+	root.add_child(stage)
+	var module := MODULE_SCENE.instantiate() as SalvageTerrace
+	stage.add_child(module)
+
+	var world_environment := WorldEnvironment.new()
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("111820")
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color("6d8290")
+	environment.ambient_light_energy = 0.48
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	world_environment.environment = environment
+	stage.add_child(world_environment)
+
+	var key_light := DirectionalLight3D.new()
+	key_light.rotation_degrees = Vector3(-52.0, -34.0, 0.0)
+	key_light.light_energy = 1.25
+	key_light.shadow_enabled = true
+	stage.add_child(key_light)
+	var camera := Camera3D.new()
+	camera.position = Vector3(45.0, 27.0, -30.0)
+	camera.look_at_from_position(camera.position, Vector3(5.0, 2.0, 9.0), Vector3.UP)
+	camera.fov = 56.0
+	camera.current = true
+	stage.add_child(camera)
+
+	for _frame in 10:
+		await process_frame
+		await physics_frame
+	await RenderingServer.frame_post_draw
+	var renderer := RenderingServer.get_current_rendering_method()
+	var image := root.get_texture().get_image()
+	var save_error := image.save_png(CAPTURE_PATH) if image != null and not image.is_empty() else ERR_CANT_CREATE
+	var valid := (
+		renderer == &"forward_plus"
+		and image != null
+		and image.get_size() == Vector2i(1280, 720)
+		and save_error == OK
+	)
+	print("SALVAGE_TERRACE_FORWARD_PLUS_CAPTURE: ", {
+		"renderer": renderer,
+		"size": image.get_size() if image != null else Vector2i.ZERO,
+		"path": CAPTURE_PATH,
+		"save_error": save_error,
+	})
+	stage.queue_free()
+	await process_frame
+	quit(0 if valid else 1)
 
 
 func _ray(module: Node3D, from: Vector3, to: Vector3) -> Dictionary:
