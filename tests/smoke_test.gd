@@ -1,6 +1,51 @@
 extends SceneTree
 
+const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
+const ISOLATED_STORE_PATH := "memory://smoke-runtime-settings.json"
+
 var _failures: Array[String] = []
+
+
+class MemoryFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
+		}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		if files.has(to_path):
+			return ERR_ALREADY_EXISTS
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 
 func _init() -> void:
@@ -8,16 +53,41 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var production_store_before := _production_store_snapshot()
 	var main_scene := load("res://scenes/main.tscn") as PackedScene
 	_check(main_scene != null, "main scene loads")
 	if main_scene == null:
 		_finish()
 		return
 
-	var main := main_scene.instantiate()
+	var filesystem := MemoryFilesystem.new()
+	var store := Store.new(ISOLATED_STORE_PATH, filesystem)
+	var main := main_scene.instantiate() as GameFlow
+	_check(main != null, "main scene instantiates as production GameFlow")
+	if main == null:
+		_finish()
+		return
+	var configured := main.configure_runtime_settings_persistence(
+		store, "memory://smoke-runtime-settings-legacy.cfg"
+	)
+	_check(
+		configured,
+		"smoke fixture injects an isolated settings store before startup"
+	)
+	if not configured:
+		main.free()
+		_finish()
+		return
 	root.add_child(main)
 	await process_frame
 	await physics_frame
+	var persistence := main.get_runtime_settings_persistence_report()
+	_check(
+		bool(persistence.injected_authority)
+		and persistence.identity_scope == &"injected_main_lifetime"
+		and int(persistence.store_instance_id) == store.get_instance_id(),
+		"production Main retains the exact injected smoke settings authority"
+	)
 
 	_check(main.has_method("start_shift"), "main gameplay coordinator API exists")
 	_check(main.has_method("get_runtime_settings"), "main exposes persisted runtime settings")
@@ -177,6 +247,17 @@ func _run() -> void:
 			"pause setting requests apply immediately to flight controls"
 		)
 		hud.emit_signal("setting_change_requested", &"ship_mouse_sensitivity", original_sensitivity)
+		persistence = main.get_runtime_settings_persistence_report()
+		_check(
+			int(persistence.save_attempt_count) == 2
+			and int(persistence.save_success_count) == 2
+			and filesystem.files.has(ISOLATED_STORE_PATH),
+			"both smoke setting transactions commit only to the in-memory store"
+		)
+	_check(
+		_production_store_snapshot() == production_store_before,
+		"smoke setting transactions preserve every production user-data byte"
+	)
 
 	if main.has_method("start_shift"):
 		main.call("start_shift")
@@ -206,6 +287,21 @@ func _has_visible_label_text(search_root: Node, text_fragment: String) -> bool:
 		if label != null and text_fragment in label.text:
 			return true
 	return false
+
+
+func _production_store_snapshot() -> Dictionary:
+	var snapshot := {}
+	for path in [
+		Adapter.DEFAULT_STORE_PATH,
+		Adapter.DEFAULT_STORE_PATH + ".tmp",
+		Adapter.DEFAULT_STORE_PATH + ".bak",
+	]:
+		var exists := FileAccess.file_exists(path)
+		snapshot[path] = {
+			"exists": exists,
+			"bytes": FileAccess.get_file_as_bytes(path) if exists else PackedByteArray(),
+		}
+	return snapshot
 
 
 func _check(condition: bool, description: String) -> void:

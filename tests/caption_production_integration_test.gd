@@ -4,9 +4,56 @@ extends SceneTree
 ## presenter, request-only HUD routing, physics timing and whole-Main re-entry.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
+const ISOLATED_STORE_PATH := "memory://caption-production-integration-settings.json"
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _production_store_before: Dictionary = {}
+var _isolated_filesystem: MemoryFilesystem
+var _isolated_store: UserDataStore
+
+
+class MemoryFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
+		}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		if files.has(to_path):
+			return ERR_ALREADY_EXISTS
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 
 func _initialize() -> void:
@@ -14,11 +61,29 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	_production_store_before = _production_store_snapshot()
+	_isolated_filesystem = MemoryFilesystem.new()
+	_isolated_store = Store.new(ISOLATED_STORE_PATH, _isolated_filesystem)
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	var configured := game.configure_runtime_settings_persistence(
+		_isolated_store, "memory://caption-production-integration-legacy.cfg"
+	)
+	_check(configured, "caption integration injects isolated settings before startup")
+	if not configured:
+		game.free()
+		await _finish_fixture(null)
+		return
 	root.add_child(game)
 	await process_frame
 	await physics_frame
 	await process_frame
+	var persistence := game.get_runtime_settings_persistence_report()
+	_check(
+		bool(persistence.injected_authority)
+		and persistence.identity_scope == &"injected_main_lifetime"
+		and int(persistence.store_instance_id) == _isolated_store.get_instance_id(),
+		"caption integration retains the exact injected settings authority"
+	)
 	var hud := game.get_node_or_null(^"HUD") as GameHUD
 	_check(hud != null, "production Main resolves the real GameHUD")
 	if hud == null:
@@ -159,6 +224,17 @@ func _run() -> void:
 		and not bool(authority.berth_authority),
 		"caption integration remains presentation-only with GameFlow physics-time ownership"
 	)
+	var final_persistence := game.get_runtime_settings_persistence_report()
+	_check(
+		int(final_persistence.save_attempt_count) == 4
+		and int(final_persistence.save_success_count) == 4
+		and _isolated_filesystem.files.has(ISOLATED_STORE_PATH),
+		"all four caption setting transactions commit only to the in-memory store"
+	)
+	_check(
+		_production_store_snapshot() == _production_store_before,
+		"caption integration preserves every production user-data byte"
+	)
 
 	await _finish_fixture(game)
 
@@ -175,6 +251,21 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures.append(message)
 		push_error("FAIL: %s" % message)
+
+
+func _production_store_snapshot() -> Dictionary:
+	var snapshot := {}
+	for path in [
+		Adapter.DEFAULT_STORE_PATH,
+		Adapter.DEFAULT_STORE_PATH + ".tmp",
+		Adapter.DEFAULT_STORE_PATH + ".bak",
+	]:
+		var exists := FileAccess.file_exists(path)
+		snapshot[path] = {
+			"exists": exists,
+			"bytes": FileAccess.get_file_as_bytes(path) if exists else PackedByteArray(),
+		}
+	return snapshot
 
 
 func _finish_fixture(game: GameFlow) -> void:
