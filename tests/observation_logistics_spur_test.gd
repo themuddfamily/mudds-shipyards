@@ -34,6 +34,7 @@ func _run() -> void:
 	_test_connection_slots(module)
 	_test_surface_roster_and_area(module)
 	_test_material_retention(module)
+	_test_visual_resource_sharing(module)
 	_test_deterministic_runtime_names(module)
 	await _test_collision_support_and_safe_edges(module)
 	await _test_embodied_loop_traversal(module)
@@ -191,6 +192,88 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 	_check(not bool(module.get_audit_report().valid), "red mutation: duplicated practical recipe identity makes audit fail")
 	lens.material_override = shared_cyan
 	_check(bool(module.get_audit_report().valid), "restoring the shared practical recipe returns audit to green")
+
+
+func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
+	var performance := module.get_visual_resource_contract()
+	_check(
+		bool(performance.exact)
+		and bool(performance.headless_safe)
+		and StringName(performance.selected_family) == &"observation_lenses"
+		and int(performance.baseline_descendant_nodes) == 133
+		and int(performance.descendant_nodes) == 133
+		and int(performance.baseline_renderer_nodes) == 49
+		and int(performance.renderer_nodes) == 49
+		and int(performance.baseline_drawn_copies) == 58
+		and int(performance.drawn_copies) == 58
+		and int(performance.baseline_surface_submissions) == 49
+		and int(performance.surface_submissions) == 49,
+		"observation-lens sharing preserves 133 nodes, 49 renderer nodes, 58 drawn copies and 49 submissions"
+	)
+	_check(
+		int(performance.baseline_mesh_resources) == 49
+		and int(performance.mesh_resources) == 47
+		and int(performance.mesh_resource_delta) == -2
+		and int(performance.baseline_material_resources) == 9
+		and int(performance.material_resources) == 9
+		and int(performance.baseline_family_nodes) == 3
+		and int(performance.family_nodes) == 3
+		and int(performance.baseline_family_submissions) == 3
+		and int(performance.family_submissions) == 3
+		and int(performance.baseline_family_mesh_resources) == 3
+		and int(performance.family_mesh_resources) == 1,
+		"the first visual-only family reduces mesh resources 49 -> 47 and family resources 3 -> 1 without changing nodes, submissions or materials"
+	)
+
+	var lenses: Array[MeshInstance3D] = []
+	var exact_family := true
+	for lens_index in ObservationLogisticsSpur.OBSERVATION_LENS_COPY_COUNT:
+		var lens := module.get_node_or_null(NodePath(
+			"Structure/Dressing/ObservationLens%02d" % (lens_index + 1)
+		)) as MeshInstance3D
+		lenses.append(lens)
+		exact_family = (
+			exact_family
+			and lens != null
+			and lens.mesh is BoxMesh
+			and (lens.mesh as BoxMesh).size.is_equal_approx(
+				ObservationLogisticsSpur.OBSERVATION_LENS_SIZE
+			)
+			and lens.position.is_equal_approx(
+				ObservationLogisticsSpur.OBSERVATION_LENS_POSITIONS[lens_index]
+			)
+			and lens.scale == Vector3.ONE
+			and lens.get_child_count() == 0
+			and bool(lens.get_meta("visual_detail_only", false))
+			and lens.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		)
+	_check(
+		exact_family
+		and lenses[0].mesh == lenses[1].mesh
+		and lenses[1].mesh == lenses[2].mesh
+		and lenses[0].material_override == lenses[1].material_override
+		and lenses[1].material_override == lenses[2].material_override,
+		"all three named observation lenses retain exact transforms, extent, material, shadow policy and visual-only identity"
+	)
+
+	var shared_mesh := lenses[2].mesh
+	lenses[2].mesh = shared_mesh.duplicate() as Mesh
+	var red := module.get_visual_resource_contract()
+	_check(
+		not bool(red.exact)
+		and int(red.mesh_resources) == 48
+		and int(red.family_mesh_resources) == 2
+		and module.get_validation_errors().has(
+			"observation lens visual-resource sharing drifted"
+		),
+		"red mutation: splitting one observation lens resource turns the component-local allocation contract red"
+	)
+	lenses[2].mesh = shared_mesh
+	_check(
+		bool(module.get_visual_resource_contract().exact)
+		and bool(module.get_audit_report().valid),
+		"restoring the shared observation-lens mesh returns the complete module audit green"
+	)
 
 
 func _test_collision_support_and_safe_edges(module: ObservationLogisticsSpur) -> void:
@@ -424,4 +507,4 @@ func _count_assertions() -> int:
 	# Kept explicit in output by counting anchored call sites from this suite is not
 	# available at runtime; successful and failed assertions together equal this
 	# frozen suite total.
-	return 56
+	return 66

@@ -111,6 +111,32 @@ const INDEXED_RUNTIME_CHILD_PATHS := [
 	"Structure/Dressing/LightLens06",
 ]
 
+## First visual-only repeated family after the structural/collision roster. The
+## three observation lenses are childless boxes with one exact size/material
+## recipe. They keep their authored nodes and renderer submissions, but share
+## the immutable mesh resource instead of retaining three identical BoxMeshes.
+const OBSERVATION_LENS_SIZE := Vector3(0.035, 0.26, 0.92)
+const OBSERVATION_LENS_POSITIONS := [
+	Vector3(-11.05, 0.76, 28.6),
+	Vector3(-11.05, 0.76, 31.4),
+	Vector3(-11.05, 0.76, 34.2),
+]
+const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
+const VISUAL_DESCENDANT_NODE_COUNT := 133
+const BASELINE_RENDERER_NODE_COUNT := 49
+const RENDERER_NODE_COUNT := 49
+const BASELINE_DRAWN_COPY_COUNT := 58
+const DRAWN_COPY_COUNT := 58
+const BASELINE_SURFACE_SUBMISSION_COUNT := 49
+const SURFACE_SUBMISSION_COUNT := 49
+const BASELINE_MESH_RESOURCE_COUNT := 49
+const MESH_RESOURCE_COUNT := 47
+const BASELINE_MATERIAL_RESOURCE_COUNT := 9
+const MATERIAL_RESOURCE_COUNT := 9
+const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
+const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
+const OBSERVATION_LENS_COPY_COUNT := 3
+
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
 	+ "spur, these functions, this exposed 24 m approach, two-pad plan, alternate return "
@@ -127,6 +153,7 @@ const CONTENT_NOTE := (
 @onready var _far_return: Marker3D = %FarReturn
 
 var _materials: Dictionary = {}
+var _observation_lens_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
 var _built := false
@@ -273,7 +300,101 @@ func get_performance_contract() -> Dictionary:
 		"physics_process_loops": 0,
 	})
 	contract["schema_version"] = SCHEMA_VERSION
+	contract["visual_resources"] = get_visual_resource_contract()
 	return contract
+
+
+## Headless-safe component-local allocation census. Resource identity is the
+## only optimized dimension: authored nodes, copies, submissions, materials,
+## transforms, collision and lifecycle behavior remain unchanged.
+func get_visual_resource_contract() -> Dictionary:
+	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
+	var batch_nodes := find_children("*", "MultiMeshInstance3D", true, false)
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var drawn_copies := 0
+	var surface_submissions := 0
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		surface_submissions += instance.mesh.get_surface_count()
+		mesh_resource_ids[instance.mesh.get_instance_id()] = true
+		if instance.material_override != null:
+			material_resource_ids[instance.material_override.get_instance_id()] = true
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		surface_submissions += batch.multimesh.mesh.get_surface_count()
+		mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+		if batch.material_override != null:
+			material_resource_ids[batch.material_override.get_instance_id()] = true
+
+	var lens_mesh_resource_ids := {}
+	var lens_identities_exact := is_instance_valid(_observation_lens_mesh)
+	for lens_index in OBSERVATION_LENS_COPY_COUNT:
+		var lens := get_node_or_null(NodePath(
+			"Structure/Dressing/ObservationLens%02d" % (lens_index + 1)
+		)) as MeshInstance3D
+		if lens == null or lens.mesh == null:
+			lens_identities_exact = false
+			continue
+		lens_mesh_resource_ids[lens.mesh.get_instance_id()] = true
+		lens_identities_exact = (
+			lens_identities_exact
+			and lens.mesh == _observation_lens_mesh
+			and (lens.mesh as BoxMesh).size.is_equal_approx(OBSERVATION_LENS_SIZE)
+			and lens.position.is_equal_approx(OBSERVATION_LENS_POSITIONS[lens_index])
+			and lens.material_override == _materials.get("cyan")
+			and lens.get_child_count() == 0
+			and bool(lens.get_meta("visual_detail_only", false))
+		)
+
+	var descendant_nodes := find_children("*", "Node", true, false).size()
+	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
+	var exact := (
+		descendant_nodes == VISUAL_DESCENDANT_NODE_COUNT
+		and renderer_nodes == RENDERER_NODE_COUNT
+		and drawn_copies == DRAWN_COPY_COUNT
+		and surface_submissions == SURFACE_SUBMISSION_COUNT
+		and mesh_resource_ids.size() == MESH_RESOURCE_COUNT
+		and material_resource_ids.size() == MATERIAL_RESOURCE_COUNT
+		and lens_mesh_resource_ids.size() == OBSERVATION_LENS_MESH_RESOURCE_COUNT
+		and lens_identities_exact
+	)
+	return {
+		"exact": exact,
+		"headless_safe": true,
+		"scope": &"ObservationLogisticsSpur_static_visuals",
+		"selected_family": &"observation_lenses",
+		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
+		"descendant_nodes": descendant_nodes,
+		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
+		"renderer_nodes": renderer_nodes,
+		"baseline_drawn_copies": BASELINE_DRAWN_COPY_COUNT,
+		"drawn_copies": drawn_copies,
+		"baseline_surface_submissions": BASELINE_SURFACE_SUBMISSION_COUNT,
+		"surface_submissions": surface_submissions,
+		"baseline_mesh_resources": BASELINE_MESH_RESOURCE_COUNT,
+		"mesh_resources": mesh_resource_ids.size(),
+		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
+		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
+		"material_resources": material_resource_ids.size(),
+		"baseline_family_nodes": OBSERVATION_LENS_COPY_COUNT,
+		"family_nodes": OBSERVATION_LENS_COPY_COUNT,
+		"baseline_family_submissions": OBSERVATION_LENS_COPY_COUNT,
+		"family_submissions": OBSERVATION_LENS_COPY_COUNT,
+		"baseline_family_mesh_resources": BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": lens_mesh_resource_ids.size(),
+		"family_copies": OBSERVATION_LENS_COPY_COUNT,
+		"family_identities_exact": lens_identities_exact,
+	}.duplicate(true)
 
 
 func get_material_retention_contract() -> Dictionary:
@@ -391,6 +512,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("collision contract does not match lifecycle")
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its frozen performance budgets")
+	if not bool(get_visual_resource_contract().exact):
+		errors.append("observation lens visual-resource sharing drifted")
 	var materials := get_material_retention_contract()
 	if int(materials.catalog_entry_count) != 9 \
 			or int(materials.retained_unique_materials) != 9 \
@@ -534,10 +657,12 @@ func _safety_rail(parent: Node3D, node_name: String, position: Vector3, size: Ve
 func _build_dressing(parent: Node3D) -> void:
 	# Observation pad: three low, outboard instruments and one backed bench. The
 	# centre and inner edge stay clear for the alternate-return circulation.
+	_observation_lens_mesh = BoxMesh.new()
+	_observation_lens_mesh.size = OBSERVATION_LENS_SIZE
 	for console_index in 3:
 		var console_z := 28.6 + float(console_index) * 2.8
 		_box(parent, "ObservationConsole%02d" % (console_index + 1), Vector3(-11.45, 0.48, console_z), Vector3(0.72, 0.96, 1.35), _materials["shell"], true)
-		_box(parent, "ObservationLens%02d" % (console_index + 1), Vector3(-11.05, 0.76, console_z), Vector3(0.035, 0.26, 0.92), _materials["cyan"], false)
+		_box(parent, "ObservationLens%02d" % (console_index + 1), Vector3(-11.05, 0.76, console_z), OBSERVATION_LENS_SIZE, _materials["cyan"], false, _observation_lens_mesh)
 	_box(parent, "ObservationBench", Vector3(-5.0, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	for stack_index in 3:
@@ -634,10 +759,13 @@ func _box(
 		position: Vector3,
 		size: Vector3,
 		material: Material,
-		collidable: bool
+		collidable: bool,
+		shared_mesh: BoxMesh = null
 	) -> Node3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = BoxMesh.new()
+		mesh.size = size
 	if collidable:
 		var body := StaticBody3D.new()
 		body.name = node_name
