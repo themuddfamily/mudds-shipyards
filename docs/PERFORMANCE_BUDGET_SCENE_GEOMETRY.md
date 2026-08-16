@@ -64,7 +64,7 @@ Measured with `godot --headless --audio-driver Dummy --script res://tools/geomet
 
 | Metric | Measured 2026-08-16 | Budget | Headroom |
 | --- | ---: | ---: | ---: |
-| Scene triangles | 1,410,035 | **1,800,000** | 28% |
+| Scene triangles | 1,333,590 † | **1,800,000** | 26% |
 | Mesh instances | 3,605 | **4,200** | 17% |
 | Surfaces (draw-call upper bound) | 3,612 | **4,300** | 19% |
 | Unique meshes | 1,790 | **2,200** | 23% |
@@ -77,6 +77,21 @@ Measured with `godot --headless --audio-driver Dummy --script res://tools/geomet
 | Scene-tree nodes | 5,752 | **7,000** | 22% |
 | `TextMesh` lettering, total | 60,829 (4.3% of scene) | **80,000 and ≤ 5%** | 32% |
 | `TextMesh` lettering, worst sign | 4,239 | **6,000** | 42% |
+
+† **This figure is arithmetic, not a census run, and it is the one number in this
+table that has not been measured end to end.** The ring budget below landed
+after the last full census. Its inputs *are* measured: `tools/torus_census.gd`
+read every one of the 129 live `TorusMesh` instances out of the built scene, and
+the scene total it was subtracted from — 1,418,938 — is a census run of the same
+day. What was not re-run is the census itself after the final tessellation floor
+was raised, because the session ended first. The next census run should replace
+this number and this footnote with a measured value; if the two disagree,
+**believe the census.**
+
+The 1,418,938 baseline is also worth recording because it does not match the
+1,410,035 written here on 2026-08-16 for the same commit-range. The 8,903
+difference is other work landing in parallel, not a measurement error, and it is
+left visible rather than reconciled away.
 
 The headroom column is an **allowance to spend**, not slack. The roadmap still
 owes enemy craft, a walkable freighter interior, station-wide modelling and a
@@ -113,7 +128,7 @@ By kind, which is the more useful cut:
 | --- | ---: | ---: | ---: | ---: |
 | `ArrayMesh` | 894,198 | 63.4% | 3,511 | 254 |
 | `SphereMesh` | 236,856 | 16.8% | 2,802 | 84 |
-| `TorusMesh` | 213,664 | 15.2% | 129 | 1,656 |
+| `TorusMesh` | 128,316 † | 9.6% | 129 | 995 |
 | `TextMesh` | 60,829 | 4.3% | 31 | 1,962 |
 | `BoxMesh` | 2,556 | 0.2% | 213 | 12 |
 | everything else | 1,908 | 0.1% | 25 | 76 |
@@ -132,19 +147,10 @@ triangles each. That is geometry doing its job and it is not a target.
 These came out of the census and are **not done**. They are recorded here so the
 next pass starts from a number.
 
-1. **`TorusMesh`: 213,664 triangles across 129 rings and collars — 15.2% of the
-   scene, 1,656 triangles each.** This is now the worst value-per-triangle in the
-   project by a wide margin, exactly where lettering was before this pass. The
-   builders use `rings = 64, ring_segments = 16` (2,048 triangles) and
-   `rings = 48, ring_segments = 16` (1,536) on objects like mast collars a
-   half-metre across. A collar that size does not need 64 segments around its
-   sweep; 24 x 8 is 384 triangles and, at the sizes involved, very likely
-   indistinguishable. Estimated saving on the order of 150,000 triangles, about
-   10% of the scene. **Requires the same before/after render check the signs got
-   — the beacon signal rings in Cinder Reach are large and read as circles, so
-   this cannot be applied blind as a single global number.** The builders live in
-   `shipyard_world.gd`, `aft_junction_stack.gd`, `habitat_spine.gd`,
-   `jovian_freight_berth.gd` and `nearby_sector_cluster.gd`.
+1. **`TorusMesh`: done, and for less than the estimate. See "The ring fix" below.**
+   213,664 → 128,316, a saving of 85,348 rather than the ~150,000 estimated here.
+   The gap is the estimate's fault, not the pass's: it assumed `24 x 8` would be
+   indistinguishable on a small collar, and rendered, it is not.
 2. **`ShipyardWorld/SpaceBackdrop/ParallaxStars`: 124,800 triangles.** Large, but
    it is a single `MultiMeshInstance3D` of `radial_segments = 6, rings = 3`
    spheres — one draw call, already deliberately cheap per star, and the census
@@ -155,6 +161,60 @@ next pass starts from a number.
 4. **Per-frame draw calls, GPU time, VRAM and frame-time percentiles are still
    unmeasured** and cannot be measured from this environment. Phase 9 item 7's
    benchmark runner is what closes that, on real Windows hardware.
+
+## The ring fix, for the record
+
+The second thing this budget was used for, and the first time it said **no**.
+
+Before: 129 `TorusMesh` rings and collars, 213,664 triangles, **15.2% of the
+scene**, 1,656 each. Nine builders — five station modules and four ship visuals —
+had each fixed its own tessellation (`rings` 40-64, `ring_segments` 12-18) and
+applied it to everything from a 148-metre moonlet ring to a 10-centimetre pipe
+clamp. After: 128,316 triangles, 995 each, a saving of **85,348 triangles, 6.0%
+of the whole scene**.
+
+Owned by `scripts/world/torus_geometry_budget.gd`, swept once from
+`game_flow.gd` because the rings are spread across `ShipyardWorld` *and* the four
+ship scenes that are siblings of it. It changes `rings` and `ring_segments` only,
+never upward, so it cannot move, resize, recolour or re-material anything.
+
+**The estimate above was wrong and the reason matters.** It guessed ~150,000
+triangles on the assumption that `24 x 8` is indistinguishable on a small collar.
+It is not. The rule was first written as a pure angular-error budget — allow the
+sagitta of the segmented circle to subtend at most two pixels at the distance the
+ring is realistically seen from — and that rule took the 10 cm exterior pipe
+clamps down to `18 x 9`. Built into the live world and photographed at walk-up
+range, `18 x 9` is a **visibly polygonal ring**: straight runs and hard corners
+around the top and lower-left of the silhouette. That is exactly the tell this
+project is spending its effort escaping, so the reduction was refused and the
+floor raised until it wasn't visible.
+
+The floor was chosen by sweeping that clamp through `48x16`, `32x12`, `24x12`,
+`20x10` and `18x9` in the live world and looking at each at 3x magnification:
+`32x12` is smooth, `24x12` shows a faint flattening at the top, `20x10` has clear
+corners, `18x9` is plainly a polygon. **`32 x 12` is the floor**, and it costs
+about 11,000 triangles that `24 x 12` would have saved. The general lesson, which
+the arithmetic missed: a silhouette *polygon* is detectable well below the point
+where its deviation from a circle is two pixels, because the eye reads
+straightness and corners rather than absolute error.
+
+**Twenty of the 129 rings are left exactly as authored, and that is the point of
+the pass.** The tolerance is calibrated so the budget's own answer for a large
+ring is 40 — the value `nearby_sector_cluster.gd` already uses on the biggest
+circles in the game. Everything a player reads *as a circle* was already at 40 or
+finer than the rule asks for, so all of it is untouched to the segment: the
+**Cinder Reach beacon signal and trim rings** (the named risk), the 148 m and
+132 m moonlet rings, the six Reach moonlet crater rims, the Cinder Reach drum
+collars, the derelict habitat can's torn rim, and the Jovian outer dock ring. The
+saving comes entirely from rings authored at 48 and 64 — collars, sockets,
+bearings, gimbals and clamps, none of which are circles anybody looks at.
+
+Checked by looking, not asserted: `tests/capture_torus_smoothness.gd` builds both
+tessellations out of one frozen scene and photographs fourteen rings at two
+framings each. What was rendered and judged clean is recorded in the session
+report; the half-metre dock mast collar at 0.6 m and the 9 m landing pad rings at
+both walk-up and whole-ring framing are the two that mattered most, and both are
+indistinguishable at 1:1.
 
 ## The lettering fix, for the record
 
@@ -200,12 +260,30 @@ legend complaint getting quieter, not louder.
 # Whole-scene census. Add KETH_CENSUS_JSON=path to diff two runs.
 godot --headless --audio-driver Dummy --script res://tools/geometry_census.gd
 
-# Lettering regression gate.
-tools/release/run_test_matrix.sh --scope sign_geometry_budget_test
+# Per-ring breakdown: world-space radii, authored vs budgeted tessellation.
+godot --headless --audio-driver Dummy --script res://tools/torus_census.gd
+
+# Lettering and ring regression gates.
+tools/release/run_test_matrix.sh --scope sign_geometry_budget_test \
+  --scope torus_geometry_budget_test
 
 # Look at the signs. Needs a display; xvfb is fine, --headless is not
 # (headless has no rasteriser and writes blank frames).
 KETH_SIGN_CAPTURE_TAG=after xvfb-run -a -s '-screen 0 1920x1080x24' \
   godot --path . --resolution 1920x1080 --rendering-method forward_plus \
   --audio-driver Dummy --script res://tests/capture_sign_legibility.gd
+
+# Look at the rings. Writes a matched authored/budgeted pair per shot out of one
+# frozen scene, plus a 4x magnification of each silhouette.
+xvfb-run -a -s '-screen 0 1920x1080x24' godot --path . --resolution 1920x1080 \
+  --rendering-method forward_plus --audio-driver Dummy \
+  --script res://tests/capture_torus_smoothness.gd
+
+# Choose a floor by looking, rather than by arithmetic: photograph one ring at
+# explicit tessellations.
+KETH_TORUS_CAPTURE_ONLY=exterior_pipe_clamp \
+KETH_TORUS_CAPTURE_SWEEP=48x16,32x12,24x12,20x10,18x9 \
+xvfb-run -a -s '-screen 0 1920x1080x24' godot --path . --resolution 1920x1080 \
+  --rendering-method forward_plus --audio-driver Dummy \
+  --script res://tests/capture_torus_smoothness.gd
 ```
