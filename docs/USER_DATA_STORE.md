@@ -1,0 +1,58 @@
+# Atomic user-data store foundation
+
+`scripts/persistence/user_data_store.gd` is the Phase 9 persistence boundary for
+future user data. It is deliberately not wired into `RuntimeSettings`,
+`GameFlow`, HUD, save slots, networking, cloud sync, or migration policy yet.
+
+The compact JSON envelope is schema version 1 and has exactly four fields:
+`schema_version`, positive `generation`, `commit`, and `payload`. Commit metadata
+has exactly `id`, `parent_generation`, `parent_id`, and the SHA-256 of canonical
+payload JSON. Callers supply the stable commit ID; timestamps are excluded so
+equivalent input is deterministic. Payload dictionaries may define application
+keys, but values are restricted to JSON primitives, arrays, and dictionaries
+with nonempty string keys.
+
+Loads select the validated primary first and then the validated `.bak` sibling.
+A `.tmp` sibling is never load authority. Missing primary and backup produces an
+empty generation-zero store; existing but invalid documents produce a closed
+failure without changing the last loaded snapshot. Unsupported newer schemas,
+unknown envelope/commit fields, malformed types, non-finite numbers, hash
+mismatches, invalid UTF-8, corrupt/truncated JSON, and exceeded limits are not
+partially interpreted.
+
+If the primary, backup, or temporary artifact declares a newer schema, the
+entire operation refuses and preserves every byte; an older build never falls
+back past or deletes possible newer data. When only the primary is corrupt and
+the backup validates, load exposes that backup as a detached recovery snapshot.
+A later generation-checked `commit()` is the explicit repair action: it replaces
+the corrupt primary while retaining the verified backup.
+
+Commits require the exact loaded generation and a new printable-ASCII commit ID.
+The store canonicalizes and validates a detached payload, writes a same-directory
+`.tmp`, calls `FileAccess.flush()`, reads and validates it, rotates the validated
+primary to the retained `.bak`, and renames the verified temporary file into the
+primary path. Failed publication restores the backup when possible. Load never
+overwrites an invalid primary; only an explicit generation-checked commit after
+a valid backup load performs that repair.
+Ordinary failed commits best-effort remove their staged `.tmp` and report the
+rollback outcome. A stale `.tmp` left by process interruption is ignored by
+load and removed before the next commit, but is never promoted on its own.
+
+Bounds are intentionally conservative: 1 MiB encoded document, depth 12, 4,096
+total payload entries/keys, 256 UTF-8 bytes per key, 16 KiB per string, printable
+commit IDs up to 128 bytes, generations through 2,147,483,647, and integers in
+the interoperable JSON range ±(2^53−1).
+
+Godot's JSON parser exposes JSON numbers as floating-point variants. Envelope
+generations are therefore accepted only when finite and mathematically integral,
+then normalized to integers by the API. Payload numbers retain JSON number
+semantics; a later typed settings/save adapter is responsible for reconstructing
+domain integers after its own validation.
+
+Crash-consistency limit: Godot 4.7 exposes `FileAccess.flush()` to GDScript but
+not a file `fsync`/`FlushFileBuffers` or parent-directory sync primitive. The
+same-directory rename and retained validated backup make interrupted operations
+recoverable through the next load, but this layer cannot promise persistence
+through every kernel/filesystem/power-loss ordering. It also does not provide
+cross-process locking, encryption, authentication, compression, migrations, or
+multi-file transactions.
