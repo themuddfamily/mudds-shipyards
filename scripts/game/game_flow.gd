@@ -16,18 +16,21 @@ enum Phase {
 	INTRO,
 	APPROACH_SHIP,
 	BOARDING,
+	## Stable phase ID for a seated pilot awaiting physical departure. Propulsion
+	## is demand-driven; there is no separate player engine-start step.
 	START_ENGINES,
 	LAUNCH,
 	TARGET_PRACTICE,
 	INTERCEPTOR_ENGAGEMENT,
 	RETURN_TO_YARD,
+	## Stable phase ID for a landed return awaiting automatic idle shutdown/exit.
 	SHUT_DOWN,
 	DISEMBARKING,
 	COMPLETE,
 	FAILED,
 	FREE_FLIGHT,
 	RECOVERING,
-	## The pilot has shut down away from a berth and left the seat, and is on
+	## The craft has idled offline away from a berth; its pilot left the seat and is on
 	## foot inside the same craft while it drifts. Appended so every existing
 	## ordinal is unchanged. `modern_interpretation`.
 	IN_FLIGHT_CABIN,
@@ -927,20 +930,17 @@ func _update_pilot_flow() -> void:
 		_mark_sortie_departed()
 
 	if phase == Phase.START_ENGINES:
-		if engine_state == "OFFLINE":
-			hud.set_interaction("[ Y / D-PAD UP ]  START ENGINES")
-		else:
-			hud.set_interaction("", false)
-		if engine_state == "ONLINE":
+		hud.set_interaction("[ W/S / LEFT STICK ]  APPLY THRUST")
+		if not landed:
 			if _sandbox_sortie or _guided_activity_complete or active_ship != ship:
 				phase = Phase.FREE_FLIGHT
 				hud.set_objective("Free flight — explore, fight, or return to a compatible registered berth", "SANDBOX SORTIE")
-				hud.toast("Engines online", "Apply thrust to release the berth clamps")
+				hud.toast("Sortie underway", "Automatic propulsion is responding to flight demand")
 				_start_default_free_flight_activity()
 			else:
 				phase = Phase.LAUNCH
 				hud.set_objective("Launch through the illuminated bay aperture")
-				hud.toast("Engines online", "Flight surfaces and inertial dampers ready")
+				hud.toast("Departure confirmed", "Flight surfaces and inertial dampers responding")
 	elif phase == Phase.LAUNCH:
 		if not _launch_registered and (active_ship.global_position.z < -66.0 or distance_from_pad > 70.0):
 			_launch_registered = true
@@ -1004,8 +1004,8 @@ func _update_pilot_flow() -> void:
 			# completed return would allow a false guided completion.
 			_on_landing_completed(active_ship)
 	elif phase == Phase.SHUT_DOWN:
-		if engine_state == "ONLINE":
-			hud.set_interaction("[ X / D-PAD DOWN ]  STOP ENGINES")
+		if engine_state != "OFFLINE":
+			hud.set_interaction("HOLD FLIGHT CONTROLS NEUTRAL  //  AUTO SHUTDOWN")
 		elif landed:
 			hud.set_interaction("[ E ]  EXIT SPACECRAFT")
 	elif phase == Phase.INTERCEPTOR_ENGAGEMENT:
@@ -1081,26 +1081,7 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 	_last_lifecycle_command_sequence = command.sequence
 	if phase == Phase.INTRO or get_tree().paused or _transition_busy:
 		return
-	if command.engine_start and phase in [
-		Phase.START_ENGINES,
-		Phase.LAUNCH,
-		Phase.TARGET_PRACTICE,
-		Phase.INTERCEPTOR_ENGAGEMENT,
-		Phase.RETURN_TO_YARD,
-		Phase.FREE_FLIGHT,
-	]:
-		active_ship.request_engine_start()
-	elif command.engine_stop and phase in [
-		Phase.START_ENGINES,
-		Phase.LAUNCH,
-		Phase.TARGET_PRACTICE,
-		Phase.INTERCEPTOR_ENGAGEMENT,
-		Phase.RETURN_TO_YARD,
-		Phase.FREE_FLIGHT,
-		Phase.SHUT_DOWN,
-	]:
-		active_ship.request_engine_stop()
-	elif command.landing and phase in [
+	if command.landing and phase in [
 		Phase.RETURN_TO_YARD,
 		Phase.FREE_FLIGHT,
 	]:
@@ -1225,7 +1206,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
 	if from_cabin:
-		hud.set_objective("Take the pilot seat and restart %s" % active_ship.get_display_name())
+		hud.set_objective("Take the pilot seat and resume %s" % active_ship.get_display_name())
 	else:
 		hud.set_objective("%s the %s and take the physical pilot seat" % [open_verb.capitalize(), entry_noun])
 		hud.toast("%s releasing" % entry_noun.capitalize(), "Physical entry route and cockpit are clear")
@@ -1248,7 +1229,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	):
 		_transition_busy = false
 		if from_cabin:
-			# The craft is still shut down under way; put the player back in its
+			# The craft is still idled offline under way; put the player back in its
 			# cabin rather than stranding a failed boarding in a berth phase.
 			phase = Phase.IN_FLIGHT_CABIN
 			_cabin_ship = candidate
@@ -1275,10 +1256,10 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	active_ship.get_camera().current = true
 	phase = Phase.START_ENGINES
 	hud.set_mode("piloting")
-	hud.set_objective("Start %s from its physical pilot seat" % active_ship.get_display_name())
-	hud.set_interaction("[ Y / D-PAD UP ]  START ENGINES")
+	hud.set_objective("Apply thrust to launch %s from its physical pilot seat" % active_ship.get_display_name())
+	hud.set_interaction("[ W/S / LEFT STICK ]  APPLY THRUST")
 	if from_cabin:
-		hud.toast("Back in the seat", "Restart the engines to resume the sortie", 2.4)
+		hud.toast("Back in the seat", "Apply a flight control to resume the sortie", 2.4)
 	else:
 		hud.toast("Pilot secured", "%s secured — cockpit link established" % entry_noun.capitalize())
 	audio.set_on_foot(false)
@@ -1308,10 +1289,10 @@ func _try_exit_ship() -> void:
 	var entry_noun := str(entry.get("noun", "canopy"))
 	var open_verb := str(entry.get("open_verb", "open"))
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
-		hud.toast("Exit locked", "Stop the engines first")
+		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
 		return
 	if not bool(telemetry.get("landed", false)):
-		# Shut down away from a berth. Whether the seat may be left at all is the
+		# Idled offline away from a berth. Whether the seat may be left at all is the
 		# craft's own contract, because only a craft with a bounded walkable cabin
 		# has somewhere for its pilot to stand.
 		_leave_seat_into_cabin()
@@ -1462,7 +1443,7 @@ func _leave_seat_into_cabin() -> void:
 	hud.set_mode("cabin", transition_ship.get_display_name())
 	hud.toast(
 		"Out of the seat",
-		"%s is shut down and drifting — the cabin is yours" % transition_ship.get_display_name(),
+		"%s is idled offline and drifting — the cabin is yours" % transition_ship.get_display_name(),
 		2.6
 	)
 	audio.set_on_foot(true)
@@ -1551,9 +1532,9 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 		return
 	# Range drones belong to the pending guided Torrent sortie. Before that guide
 	# completes, non-Torrent craft remain presentation-only and Torrent weapons are
-	# safed outside its launch/range/live-contact phases. This includes the narrow
-	# startup frame where the engine is ONLINE before GameFlow advances the phase;
-	# allowing damage there could permanently remove an uncredited range target.
+	# safed outside its launch/range/live-contact phases. Demand can power a weapon
+	# while still berthed, but allowing damage before physical departure could
+	# permanently remove an uncredited range target.
 	var guided_weapon_authorized := (
 		firing_ship == ship
 		and phase in [
@@ -1835,14 +1816,14 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	if not _ensure_landed_berth_occupancy(active_ship):
 		_release_ship_berth(active_ship)
 		hud.set_interaction("", false)
-		hud.set_objective("Docking claim interrupted — stop and restart engines to clear the pad")
+		hud.set_objective("Docking claim interrupted — keep the pad clear and retry the approach")
 		hud.toast("Docking coordination fault", "The berth lease could not be secured; do not exit", 3.5)
 		return
 	_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
 	phase = Phase.SHUT_DOWN
-	hud.set_objective("Stop the engines, then exit %s" % active_ship.get_display_name())
-	hud.toast("Landing complete", "Docking clamps engaged")
+	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
+	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
@@ -2913,6 +2894,7 @@ func _initialize_runtime_settings() -> void:
 func _apply_all_runtime_settings() -> void:
 	if runtime_settings == null:
 		return
+	runtime_settings.apply_input_bindings()
 	for fleet_ship in ships:
 		fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
 		fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
