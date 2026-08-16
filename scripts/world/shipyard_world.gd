@@ -723,6 +723,24 @@ const LANDING_PAD_DECK_CONNECTOR_POSITIONS := [
 	Vector3(8.62, 0.13, -13.8),
 ]
 
+## Each of the four independently moving/destroyed range targets retains its
+## named childless Core node and one-surface submission. Only the identical
+## SphereMesh resource behind those copies is shared; target authority and
+## lifecycle remain on the four StaticBody3D parents.
+const EXTERIOR_TARGET_CORE_RADIUS := 1.4
+const EXTERIOR_TARGET_CORE_HEIGHT := 2.8
+const EXTERIOR_TARGET_CORE_RADIAL_SEGMENTS := 24
+const EXTERIOR_TARGET_CORE_RINGS := 12
+const EXTERIOR_TARGET_CORE_BASELINE_NODES := 4
+const EXTERIOR_TARGET_CORE_BASELINE_SUBMISSIONS := 4
+const EXTERIOR_TARGET_CORE_BASELINE_MESH_RESOURCES := 4
+const EXTERIOR_TARGET_CORE_PATHS := [
+	NodePath("ExteriorTargetRange/TargetDrone01/DroneVisual/Core"),
+	NodePath("ExteriorTargetRange/TargetDrone02/DroneVisual/Core"),
+	NodePath("ExteriorTargetRange/TargetDrone03/DroneVisual/Core"),
+	NodePath("ExteriorTargetRange/TargetDrone04/DroneVisual/Core"),
+]
+
 ## Aim of the station's key light, and of the sky's sun glow.
 ##
 ## One constant serves both. A backdrop whose bright side does not agree with the
@@ -821,6 +839,7 @@ var _guide_lens_material_cache: Dictionary = {}
 var _guide_lens_nodes: Array[MeshInstance3D] = []
 var _guide_light_nodes: Array[OmniLight3D] = []
 var _landing_pad_deck_connector_mesh: TorusMesh
+var _exterior_target_core_mesh: SphereMesh
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
@@ -1361,6 +1380,187 @@ func get_landing_pad_deck_connector_allocation_audit() -> Dictionary:
 		"vram_claimed": false,
 		"whole_scene_budget_claimed": false,
 	}.duplicate(true)
+
+
+## Renderer-independent allocation audit for the four ExteriorTargetRange cores.
+##
+## "Submission" is a structural mesh-surface count, not a driver draw-call
+## claim. The four named childless MeshInstance3D nodes retain one surface each;
+## this report proves only that their exact SphereMesh allocation is shared.
+func get_exterior_target_core_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var core_nodes: Array[MeshInstance3D] = []
+	var behavior_rows: Array[Dictionary] = []
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var structural_submissions := 0
+	var authority_node_count := 0
+	var scripted_node_count := 0
+	var child_node_count := 0
+	var metadata_entry_count := 0
+	var processing_node_count := 0
+	var exterior := get_node_or_null(^"ExteriorTargetRange") as Node3D
+	var discovered_core_count := 0
+	if exterior != null:
+		discovered_core_count = exterior.find_children(
+			"Core", "MeshInstance3D", true, false
+		).size()
+
+	for core_path: NodePath in EXTERIOR_TARGET_CORE_PATHS:
+		var core := get_node_or_null(core_path) as MeshInstance3D
+		if core == null:
+			errors.append("target_core_missing:%s" % String(core_path))
+			continue
+		core_nodes.append(core)
+		if core.mesh != null:
+			mesh_ids[core.mesh.get_instance_id()] = true
+			structural_submissions += core.mesh.get_surface_count()
+		if core.material_override != null:
+			material_ids[core.material_override.get_instance_id()] = true
+		if core.mesh != _exterior_target_core_mesh:
+			errors.append("target_core_mesh_identity_not_shared")
+		if core.material_override != _materials.get("orange_glow"):
+			errors.append("target_core_material_identity_drift")
+		if (
+			not core.position.is_equal_approx(Vector3.ZERO)
+			or not core.rotation.is_equal_approx(Vector3.ZERO)
+			or not core.scale.is_equal_approx(Vector3.ONE)
+			or not core.visible
+			or core.layers != 1
+			or core.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		):
+			errors.append("target_core_visual_transform_or_visibility_drift")
+		if core.get_script() != null:
+			scripted_node_count += 1
+		metadata_entry_count += core.get_meta_list().size()
+		if core.is_processing() or core.is_physics_processing():
+			processing_node_count += 1
+		child_node_count += core.get_child_count()
+		for child in core.find_children("*", "Node", true, false):
+			if child.get_script() != null:
+				scripted_node_count += 1
+			if (
+				child is CollisionObject3D
+				or child is CollisionShape3D
+				or child is NavigationRegion3D
+				or child is Light3D
+				or child is AudioStreamPlayer
+				or child is AudioStreamPlayer3D
+				or child is Camera3D
+			):
+				authority_node_count += 1
+		behavior_rows.append({
+			"path": String(core_path),
+			"position": [core.position.x, core.position.y, core.position.z],
+			"rotation_degrees": [
+				core.rotation_degrees.x,
+				core.rotation_degrees.y,
+				core.rotation_degrees.z,
+			],
+			"scale": [core.scale.x, core.scale.y, core.scale.z],
+			"visible": core.visible,
+			"layers": core.layers,
+			"cast_shadow": core.cast_shadow,
+			"material": "orange_glow",
+		})
+
+	var mesh := _exterior_target_core_mesh
+	if (
+		mesh == null
+		or not is_equal_approx(mesh.radius, EXTERIOR_TARGET_CORE_RADIUS)
+		or not is_equal_approx(mesh.height, EXTERIOR_TARGET_CORE_HEIGHT)
+		or mesh.radial_segments != EXTERIOR_TARGET_CORE_RADIAL_SEGMENTS
+		or mesh.rings != EXTERIOR_TARGET_CORE_RINGS
+		or mesh.get_surface_count() != 1
+	):
+		errors.append("target_core_mesh_recipe_drift")
+	var material := _materials.get("orange_glow") as StandardMaterial3D
+	if not _exterior_target_core_material_matches_recipe(material):
+		errors.append("target_core_material_recipe_drift")
+	if core_nodes.size() != EXTERIOR_TARGET_CORE_BASELINE_NODES:
+		errors.append("target_core_node_count_drift")
+	if discovered_core_count != EXTERIOR_TARGET_CORE_BASELINE_NODES:
+		errors.append("target_core_local_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("target_core_mesh_identity_count_drift")
+	if material_ids.size() != 1:
+		errors.append("target_core_material_identity_count_drift")
+	if structural_submissions != EXTERIOR_TARGET_CORE_BASELINE_SUBMISSIONS:
+		errors.append("target_core_submission_count_drift")
+	if (
+		authority_node_count != 0
+		or scripted_node_count != 0
+		or child_node_count != 0
+		or metadata_entry_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("target_core_stock_gained_authority_or_lifecycle_children")
+
+	var retained_resource_count := mesh_ids.size() + material_ids.size()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"exterior_target_range_childless_target_cores",
+		"node_count": core_nodes.size(),
+		"discovered_core_count": discovered_core_count,
+		"baseline_node_count": EXTERIOR_TARGET_CORE_BASELINE_NODES,
+		"node_delta": core_nodes.size() - EXTERIOR_TARGET_CORE_BASELINE_NODES,
+		"drawn_copy_count": core_nodes.size(),
+		"structural_submission_count": structural_submissions,
+		"baseline_structural_submission_count": EXTERIOR_TARGET_CORE_BASELINE_SUBMISSIONS,
+		"submission_delta": structural_submissions - EXTERIOR_TARGET_CORE_BASELINE_SUBMISSIONS,
+		"mesh_resource_identity_count": mesh_ids.size(),
+		"baseline_mesh_resource_identity_count": EXTERIOR_TARGET_CORE_BASELINE_MESH_RESOURCES,
+		"mesh_resource_identity_delta": mesh_ids.size() - EXTERIOR_TARGET_CORE_BASELINE_MESH_RESOURCES,
+		"material_resource_identity_count": material_ids.size(),
+		"baseline_material_resource_identity_count": 1,
+		"material_resource_identity_delta": material_ids.size() - 1,
+		"retained_visual_resource_identity_count": retained_resource_count,
+		"baseline_retained_visual_resource_identity_count": EXTERIOR_TARGET_CORE_BASELINE_MESH_RESOURCES + 1,
+		"retained_visual_resource_identity_delta": retained_resource_count - (EXTERIOR_TARGET_CORE_BASELINE_MESH_RESOURCES + 1),
+		"mesh_recipe": {
+			"radius": mesh.radius if mesh != null else -1.0,
+			"height": mesh.height if mesh != null else -1.0,
+			"radial_segments": mesh.radial_segments if mesh != null else -1,
+			"rings": mesh.rings if mesh != null else -1,
+			"surface_count": mesh.get_surface_count() if mesh != null else 0,
+		},
+		"behavior_rows": behavior_rows,
+		"authority_node_count": authority_node_count,
+		"scripted_node_count": scripted_node_count,
+		"child_node_count": child_node_count,
+		"metadata_entry_count": metadata_entry_count,
+		"processing_node_count": processing_node_count,
+		"authority_exclusions": {
+			"owns_target_registration": false,
+			"owns_collision": false,
+			"owns_combat_or_damage": false,
+			"owns_movement": false,
+			"owns_lifecycle": false,
+			"owns_launch_clearance_or_cues": false,
+			"owns_evidence": false,
+		},
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"whole_scene_budget_claimed": false,
+	}.duplicate(true)
+
+
+func _exterior_target_core_material_matches_recipe(material: StandardMaterial3D) -> bool:
+	return (
+		material != null
+		and material.albedo_color.is_equal_approx(KETH_ORANGE)
+		and is_equal_approx(material.metallic, 0.04)
+		and is_equal_approx(material.roughness, 0.34)
+		and material.emission_enabled
+		and material.emission.is_equal_approx(KETH_ORANGE)
+		and is_equal_approx(material.emission_energy_multiplier, 1.8)
+		and material.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		and material.diffuse_mode == BaseMaterial3D.DIFFUSE_BURLEY
+		and material.specular_mode == BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	)
 
 
 func _guide_light_behavior_rows(lights: Array[OmniLight3D]) -> Array[Dictionary]:
@@ -6990,7 +7190,7 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 	var visual := Node3D.new()
 	visual.name = "DroneVisual"
 	target.add_child(visual)
-	_sphere(visual, "Core", Vector3.ZERO, 1.4, _materials["orange_glow"], false)
+	_add_exterior_target_core(visual)
 	_torus(visual, "OuterRing", Vector3.ZERO, 2.25, 2.55, _materials["ivory"], Vector3(90, 0, 0))
 	_torus(visual, "InnerRing", Vector3.ZERO, 1.75, 1.93, _materials["cyan_glow"], Vector3(0, 0, 90))
 	for angle in [0.0, 90.0, 180.0, 270.0]:
@@ -6999,6 +7199,24 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 		_box(visual, "TargetArm", arm_position, Vector3(1.65, 0.36, 0.42), _materials["steel_blue"], false, Vector3(0, 0, angle))
 		_sphere(visual, "TargetLamp", arm_position * 1.22, 0.22, _materials["red_glow"], false)
 	_targets.append(target)
+
+
+func _add_exterior_target_core(visual: Node3D) -> void:
+	var core := MeshInstance3D.new()
+	core.name = "Core"
+	core.mesh = _shared_exterior_target_core_mesh()
+	core.material_override = _materials["orange_glow"]
+	visual.add_child(core)
+
+
+func _shared_exterior_target_core_mesh() -> SphereMesh:
+	if not is_instance_valid(_exterior_target_core_mesh):
+		_exterior_target_core_mesh = SphereMesh.new()
+		_exterior_target_core_mesh.radius = EXTERIOR_TARGET_CORE_RADIUS
+		_exterior_target_core_mesh.height = EXTERIOR_TARGET_CORE_HEIGHT
+		_exterior_target_core_mesh.radial_segments = EXTERIOR_TARGET_CORE_RADIAL_SEGMENTS
+		_exterior_target_core_mesh.rings = EXTERIOR_TARGET_CORE_RINGS
+	return _exterior_target_core_mesh
 
 
 func _destroy_target(

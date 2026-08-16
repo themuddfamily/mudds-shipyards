@@ -119,6 +119,8 @@ func _run() -> void:
 	_test_whole_outbound_route_is_flyable(world, hulls)
 	_test_header_beam_carries_a_clearance_cue(world)
 	_test_the_cue_adds_no_collision(world, hulls)
+	_test_target_core_allocation(world)
+	await _test_target_core_detach_reentry(world)
 
 	game.queue_free()
 	await process_frame
@@ -477,6 +479,219 @@ func _test_the_cue_adds_no_collision(world: ShipyardWorld, hulls: Dictionary) ->
 		float(band["under_hi"]) >= float(world.get_outbound_clearance_band()["ceiling"]),
 		"adding the cue did not lower the aperture a Torrent can fly (%.2f)" % band["under_hi"]
 	)
+
+
+# ----------------------------------------------------- core allocation ----
+
+func _test_target_core_allocation(world: ShipyardWorld) -> void:
+	_check(
+		world.has_method("get_exterior_target_core_allocation_audit"),
+		"world exposes the bounded ExteriorTargetRange core allocation audit"
+	)
+	var audit := world.get_exterior_target_core_allocation_audit()
+	_check(
+		bool(audit.get("valid", false)),
+		"target-core allocation audit starts green: %s" % [audit.get("errors", [])]
+	)
+	_check(
+		int(audit.get("node_count", 0)) == 4
+		and int(audit.get("discovered_core_count", 0)) == 4
+		and int(audit.get("baseline_node_count", 0)) == 4
+		and int(audit.get("node_delta", 99)) == 0
+		and int(audit.get("drawn_copy_count", 0)) == 4,
+		"all four named target-core nodes and visible copies remain"
+	)
+	_check(
+		int(audit.get("structural_submission_count", 0)) == 4
+		and int(audit.get("baseline_structural_submission_count", 0)) == 4
+		and int(audit.get("submission_delta", 99)) == 0,
+		"four one-surface structural submissions remain; the trim is not batching"
+	)
+	_check(
+		int(audit.get("mesh_resource_identity_count", 0)) == 1
+		and int(audit.get("baseline_mesh_resource_identity_count", 0)) == 4
+		and int(audit.get("mesh_resource_identity_delta", 0)) == -3
+		and int(audit.get("material_resource_identity_count", 0)) == 1
+		and int(audit.get("material_resource_identity_delta", 99)) == 0
+		and int(audit.get("retained_visual_resource_identity_count", 0)) == 2
+		and int(audit.get("baseline_retained_visual_resource_identity_count", 0)) == 5
+		and int(audit.get("retained_visual_resource_identity_delta", 0)) == -3,
+		"only the core meshes change allocation: four meshes plus one material become one plus one (5 -> 2)"
+	)
+	var recipe := audit.get("mesh_recipe", {}) as Dictionary
+	_check(
+		is_equal_approx(float(recipe.get("radius", -1.0)), 1.4)
+		and is_equal_approx(float(recipe.get("height", -1.0)), 2.8)
+		and int(recipe.get("radial_segments", 0)) == 24
+		and int(recipe.get("rings", 0)) == 12
+		and int(recipe.get("surface_count", 0)) == 1,
+		"shared target-core mesh retains the exact former SphereMesh recipe"
+	)
+	var exclusions := audit.get("authority_exclusions", {}) as Dictionary
+	_check(
+		int(audit.get("authority_node_count", -1)) == 0
+		and int(audit.get("scripted_node_count", -1)) == 0
+		and int(audit.get("child_node_count", -1)) == 0
+		and int(audit.get("metadata_entry_count", -1)) == 0
+		and int(audit.get("processing_node_count", -1)) == 0
+		and exclusions == {
+			"owns_target_registration": false,
+			"owns_collision": false,
+			"owns_combat_or_damage": false,
+			"owns_movement": false,
+			"owns_lifecycle": false,
+			"owns_launch_clearance_or_cues": false,
+			"owns_evidence": false,
+		}
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("gpu_draw_call_claimed", true))
+		and not bool(audit.get("vram_claimed", true))
+		and not bool(audit.get("whole_scene_budget_claimed", true)),
+		"core stock remains childless presentation with the exact authority and performance exclusions"
+	)
+
+	var cores := _target_cores(world)
+	var shared_mesh := cores[0].mesh as SphereMesh if cores.size() == 4 else null
+	var resource_and_path_contract := shared_mesh != null
+	for index in cores.size():
+		var core := cores[index]
+		var visual := core.get_parent() as Node3D
+		var target := visual.get_parent() as StaticBody3D if visual != null else null
+		resource_and_path_contract = (
+			resource_and_path_contract
+			and core.mesh == shared_mesh
+			and core.position.is_equal_approx(Vector3.ZERO)
+			and visual != null and visual.name == &"DroneVisual"
+			and target != null
+			and target.name == StringName("TargetDrone%02d" % (index + 1))
+			and target.get_meta("target_id", &"") == StringName("DRONE-%02d" % (index + 1))
+			and bool(target.get_meta("is_shipyard_target", false))
+			and target.is_in_group("shipyard_targets")
+			and _target_collision_shape_count(target) == 1
+		)
+	_check(
+		resource_and_path_contract,
+		"sharing retains every target path, target identity, group, collider, and independent StaticBody3D parent"
+	)
+
+	var rows := audit.get("behavior_rows", []) as Array
+	(rows[0] as Dictionary)["material"] = "caller mutation"
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("caller mutation")
+	var detached := world.get_exterior_target_core_allocation_audit()
+	_check(
+		bool(detached.get("valid", false))
+		and str(((detached.get("behavior_rows", []) as Array)[0] as Dictionary).get("material", "")) == "orange_glow"
+		and not (detached.get("errors", PackedStringArray()) as PackedStringArray).has("caller mutation"),
+		"target-core allocation snapshots are deeply detached"
+	)
+
+	if shared_mesh == null:
+		return
+	var original_radius := shared_mesh.radius
+	shared_mesh.radius = 1.5
+	var recipe_mutation := world.get_exterior_target_core_allocation_audit()
+	var mutation_reached_all := true
+	for core in cores:
+		mutation_reached_all = mutation_reached_all \
+			and is_equal_approx((core.mesh as SphereMesh).radius, 1.5)
+	_check(
+		not bool(recipe_mutation.get("valid", true))
+		and (recipe_mutation.get("errors", PackedStringArray()) as PackedStringArray).has("target_core_mesh_recipe_drift")
+		and mutation_reached_all,
+		"shared core-mesh mutation reaches all four copies and turns the audit red"
+	)
+	shared_mesh.radius = original_radius
+
+	var original_second_mesh := cores[1].mesh
+	cores[1].mesh = shared_mesh.duplicate() as SphereMesh
+	var identity_mutation := world.get_exterior_target_core_allocation_audit()
+	_check(
+		not bool(identity_mutation.get("valid", true))
+		and (identity_mutation.get("errors", PackedStringArray()) as PackedStringArray).has("target_core_mesh_identity_not_shared"),
+		"an exact-looking private core mesh turns the identity audit red"
+	)
+	cores[1].mesh = original_second_mesh
+
+	var rogue_authority := Area3D.new()
+	cores[0].add_child(rogue_authority)
+	var authority_mutation := world.get_exterior_target_core_allocation_audit()
+	_check(
+		not bool(authority_mutation.get("valid", true))
+		and (authority_mutation.get("errors", PackedStringArray()) as PackedStringArray).has("target_core_stock_gained_authority_or_lifecycle_children"),
+		"authority added beneath target-core presentation turns the audit red"
+	)
+	cores[0].remove_child(rogue_authority)
+	rogue_authority.free()
+	_check(
+		bool(world.get_exterior_target_core_allocation_audit().get("valid", false)),
+		"restoring core recipe, identity, and authority returns the audit green"
+	)
+
+
+func _test_target_core_detach_reentry(world: ShipyardWorld) -> void:
+	var exterior := world.get_node_or_null(^"ExteriorTargetRange") as Node3D
+	if exterior == null:
+		_check(false, "ExteriorTargetRange exists for detach/re-entry coverage")
+		return
+	var original_index := exterior.get_index()
+	var original_core_ids: Array[int] = []
+	var original_collision_ids: Array[int] = []
+	for core in _target_cores(world):
+		original_core_ids.append(core.get_instance_id())
+		var target := core.get_parent().get_parent() as StaticBody3D
+		for child in target.get_children():
+			if child is CollisionShape3D:
+				original_collision_ids.append(child.get_instance_id())
+
+	world.remove_child(exterior)
+	await process_frame
+	_check(
+		world.get_node_or_null(^"ExteriorTargetRange") == null
+		and is_instance_valid(exterior)
+		and not exterior.is_inside_tree()
+		and world.get_target_count() == 4,
+		"detaching presentation preserves the four authoritative target records without rebuilding"
+	)
+	world.add_child(exterior)
+	world.move_child(exterior, original_index)
+	await process_frame
+	await physics_frame
+
+	var reentered_core_ids: Array[int] = []
+	var reentered_collision_ids: Array[int] = []
+	for core in _target_cores(world):
+		reentered_core_ids.append(core.get_instance_id())
+		var target := core.get_parent().get_parent() as StaticBody3D
+		for child in target.get_children():
+			if child is CollisionShape3D:
+				reentered_collision_ids.append(child.get_instance_id())
+	_check(
+		reentered_core_ids == original_core_ids
+		and reentered_collision_ids == original_collision_ids
+		and bool(world.get_exterior_target_core_allocation_audit().get("valid", false)),
+		"ExteriorTargetRange re-entry retains core paths/resources and every target collider identity"
+	)
+
+
+func _target_cores(world: ShipyardWorld) -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	for index in 4:
+		var path := NodePath(
+			"ExteriorTargetRange/TargetDrone%02d/DroneVisual/Core" % (index + 1)
+		)
+		var core := world.get_node_or_null(path) as MeshInstance3D
+		if core != null:
+			result.append(core)
+	return result
+
+
+func _target_collision_shape_count(target: StaticBody3D) -> int:
+	var result := 0
+	for child in target.get_children():
+		if child is CollisionShape3D:
+			result += 1
+	return result
 
 
 # ------------------------------------------------------------ measuring ----
