@@ -59,6 +59,7 @@ func _run() -> void:
 		return
 
 	_test_report_and_roster(world)
+	_test_black_bin_stock_batch(world)
 	_test_solid_pieces_match_their_drawn_mesh(world)
 	_test_pieces_are_seated_on_drawn_geometry(world)
 	_test_lanes_stay_clear(world)
@@ -113,6 +114,156 @@ func _test_report_and_roster(world: ShipyardWorld) -> void:
 	)
 	var pad_bodies := pad.find_children("*", "PhysicsBody3D", true, false).size() if pad != null else -1
 	_check(pad_bodies == 0, "no collision leaked into the berth's presentation-only dressing roster")
+
+
+func _test_black_bin_stock_batch(world: ShipyardWorld) -> void:
+	var line := world.get_node_or_null(^"CentralBerthServiceLine") as Node3D
+	var rack := world.get_node_or_null(
+		^"CentralBerthServiceLine/PortFlank/PartsBinRack"
+	) as Node3D
+	var batch := world.get_node_or_null(
+		^"CentralBerthServiceLine/PortFlank/PartsBinRack/BlackBinStock"
+	) as MultiMeshInstance3D
+	_check(line != null and rack != null and batch != null, "black bin stock resolves as one rack-local MultiMesh batch")
+	if line == null or rack == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var expected: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(-0.46, 0.905, 0.0)),
+		Transform3D(Basis.IDENTITY, Vector3(0.46, 0.905, 0.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-0.46, 1.425, 0.0)),
+		Transform3D(Basis.IDENTITY, Vector3(0.46, 1.425, 0.0)),
+	]
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		multi.instance_count == ShipyardWorld.SERVICE_LINE_BLACK_BIN_STOCK_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact,
+		"one batch retains all four old black stock transforms and their shelf-major ordering"
+	)
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var renderer_exact := true
+		for index in expected.size():
+			renderer_exact = renderer_exact and multi.get_instance_transform(index).is_equal_approx(expected[index])
+		_check(renderer_exact, "Forward+ renderer transforms retain all four authored copies exactly")
+
+	var former_nodes_absent := true
+	for former_name in [&"BinStock0000", &"BinStock0002", &"BinStock0100", &"BinStock0102"]:
+		former_nodes_absent = former_nodes_absent and rack.get_node_or_null(NodePath(former_name)) == null
+	_check(
+		former_nodes_absent
+		and rack.get_node_or_null(^"BinStock0001") is MeshInstance3D
+		and rack.get_node_or_null(^"BinStock0101") is MeshInstance3D,
+		"only anonymous black fill is batched; both named ivory stock nodes remain independent"
+	)
+	var rack_foot_mesh := rack.get_node_or_null(^"RackFoot/Mesh") as MeshInstance3D
+	_check(
+		multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.30, 0.09, 0.44))
+		and multi.mesh.get_surface_count() == 1
+		and rack_foot_mesh != null
+		and batch.material_override == rack_foot_mesh.material_override,
+		"the batch preserves rounded-box extent, surface count, and black material identity"
+	)
+	_check(
+		batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"the childless visual-only batch preserves parent-space transforms, shadows, and layer"
+	)
+	var expected_bounds := _transformed_bounds(multi.mesh.get_aabb(), expected)
+	_check(
+		multi.custom_aabb.is_equal_approx(expected_bounds)
+		and multi.buffer.size() == expected.size() * 12,
+		"renderer payload carries 12 floats per copy and the exact four-copy culling union"
+	)
+	var stocks_remain_seated := true
+	var supporting_bin_names := [&"PartsBin0000", &"PartsBin0002", &"PartsBin0100", &"PartsBin0102"]
+	for index in expected.size():
+		var supporting_bin := rack.get_node_or_null(NodePath(supporting_bin_names[index])) as StaticBody3D
+		var supporting_mesh := (
+			supporting_bin.get_node_or_null(^"Mesh") as MeshInstance3D
+			if supporting_bin != null else null
+		)
+		stocks_remain_seated = stocks_remain_seated \
+			and supporting_bin != null \
+			and supporting_mesh != null \
+			and (expected[index] * multi.mesh.get_aabb()).grow(0.001).intersects(
+				supporting_bin.transform * supporting_mesh.mesh.get_aabb()
+			)
+	_check(stocks_remain_seated, "every batched stock copy remains seated in its original colliding parts bin")
+
+	var render := world.get_central_berth_service_line_render_contract()
+	_check(
+		int(render.get("descendant_nodes", -1)) == 247
+		and int(render.get("mesh_instances", -1)) == 105
+		and int(render.get("multimesh_batches", -1)) == 1,
+		"renderer nodes freeze at 250 -> 247, MeshInstances 109 -> 105, batches 0 -> 1"
+	)
+	_check(
+		int(render.get("drawn_copies", -1)) == 109
+		and int(render.get("geometry_submissions", -1)) == 106
+		and bool(render.get("exact_counts", false)),
+		"all 109 copies remain drawn while geometry submissions fall 109 -> 106"
+	)
+	_check(
+		int(render.get("physics_bodies", -1)) == 62
+		and int(render.get("collision_shapes", -1)) == 62
+		and int(render.get("lights", -1)) == 7
+		and int(render.get("areas", -1)) == 0
+		and int(render.get("ship_berths", -1)) == 0,
+		"batching leaves 62 bodies, 62 shapes, seven lights, and no local area/berth authority"
+	)
+	var central_berth := world.get_berth_node(&"central_berth")
+	_check(
+		central_berth != null
+		and not line.is_ancestor_of(central_berth)
+		and bool(render.get("line_parent_is_world", false))
+		and bool(render.get("line_transform_identity", false))
+		and bool(render.get("process_free", false)),
+		"central berth authority and service-line mount/lifecycle remain separate and unchanged"
+	)
+
+	# The public contract is detached, and both renderer mutations are observed by
+	# the production report rather than merely by this test's local arithmetic.
+	var published := render.get("authored_black_stock_transforms", []) as Array
+	published[0] = Transform3D.IDENTITY
+	var second := world.get_central_berth_service_line_render_contract()
+	var second_authored := second.get("authored_black_stock_transforms", []) as Array
+	_check(
+		second_authored.size() == 4
+		and not (second_authored[0] as Transform3D).is_equal_approx(Transform3D.IDENTITY),
+		"the authored batch roster is deep-detached from callers"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var moved_buffer := original_buffer.duplicate()
+	moved_buffer[3] += 0.1
+	multi.buffer = moved_buffer
+	var moved_report := world.get_central_berth_service_line_report()
+	_check(
+		not bool(moved_report.get("valid", true))
+		and not bool((moved_report.get("render_batches", {}) as Dictionary).get("renderer_buffer_matches_authored", true)),
+		"moving a renderer-buffer copy turns the production audit red"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = AABB(Vector3.ZERO, Vector3.ONE * 0.001)
+	var culled_report := world.get_central_berth_service_line_report()
+	_check(
+		not bool(culled_report.get("valid", true))
+		and not bool((culled_report.get("render_batches", {}) as Dictionary).get("bounds_match_authored", true)),
+		"shrinking the explicit culling union turns the production audit red"
+	)
+	multi.custom_aabb = original_bounds
+	_check(
+		bool(world.get_central_berth_service_line_report().get("valid", false)),
+		"restoring renderer payload and bounds returns the audit to green"
+	)
 
 
 func _test_solid_pieces_match_their_drawn_mesh(world: ShipyardWorld) -> void:
@@ -346,6 +497,19 @@ func _check(condition: bool, description: String) -> void:
 	else:
 		_failures.append(description)
 		push_error("FAIL: " + description)
+
+
+func _transformed_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 func _finish() -> void:

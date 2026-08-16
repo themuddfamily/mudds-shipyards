@@ -245,6 +245,19 @@ const MAST_FOOT_PRACTICAL_COLOR := Color("bfeaf0")
 ## four dock mast feet, plus the readiness board hood, the parts-rack strip and
 ## the work stand's clamp lamp.
 const SERVICE_LINE_PRACTICAL_COUNT := 7
+## Renderer roster for the four anonymous black stock blocks in the parts rack.
+##
+## These are visual shelf fill only: the six independently named, colliding
+## `PartsBin` bodies retain the rack's physical and state-readable roster, while
+## the two ivory stock blocks retain their ordinary node paths. Batching only
+## this black family removes three submissions without moving or merging any
+## berth, route, evidence, lifecycle, collision or fixture authority.
+const SERVICE_LINE_BLACK_BIN_STOCK_COPY_COUNT := 4
+const SERVICE_LINE_RENDER_DESCENDANT_COUNT := 247
+const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 105
+const SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT := 1
+const SERVICE_LINE_RENDER_DRAWN_COPY_COUNT := 109
+const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 106
 ## Port berth node, widened from 12.0 m so the 12.2 m Arrow no longer overhangs
 ## the pad it is parked on. Its centre is unchanged, so berth transforms, the
 ## landing envelope and the cue strips all keep their published coordinates.
@@ -758,6 +771,8 @@ var _berth_feedback_nodes: Dictionary = {}
 var _central_berth_root: Node3D
 var _central_berth_hero_presentation: CentralBerthHeroPresentation
 var _central_berth_service_line: Node3D
+var _central_service_black_stock_transforms: Array[Transform3D] = []
+var _central_service_black_stock_batch: MultiMeshInstance3D
 var _station_operations_activities: Array[StationOperationsActivity] = []
 var _station_machinery_ambience_nodes: Array[StationMachineryAmbience] = []
 var _station_structural_service_dressings: Array[StationStructuralServiceDressing] = []
@@ -4952,6 +4967,7 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 		var shelf_top := rack_foot_top + 0.50 + float(shelf_index) * 0.52
 		shelf_tops.append(shelf_top)
 		_box(rack, "RackShelf%02d" % shelf_index, Vector3(0.0, shelf_top - 0.035, 0.0), Vector3(1.44, 0.07, 0.72), _materials["ivory"])
+	var black_stock_transforms: Array[Transform3D] = []
 	for shelf_index in shelf_tops.size():
 		for bin_index in 3:
 			var bin_material: Material = _materials["orange"] if (shelf_index + bin_index) % 2 == 0 else _materials["blue"]
@@ -4963,14 +4979,29 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 				Vector3(0.42, 0.28, 0.58),
 				bin_material
 			)
-			_box(
-				rack,
-				"BinStock%02d%02d" % [shelf_index, bin_index],
-				Vector3(bin_x, shelf_tops[shelf_index] + 0.20, 0.0),
-				Vector3(0.30, 0.09, 0.44),
-				_materials["ivory"] if bin_index == 1 else _materials["black"],
-				false
+			var stock_transform := Transform3D(
+				Basis.IDENTITY,
+				Vector3(bin_x, shelf_tops[shelf_index] + 0.20, 0.0)
 			)
+			if bin_index == 1:
+				_box(
+					rack,
+					"BinStock%02d%02d" % [shelf_index, bin_index],
+					stock_transform.origin,
+					Vector3(0.30, 0.09, 0.44),
+					_materials["ivory"],
+					false
+				)
+			else:
+				black_stock_transforms.append(stock_transform)
+	_central_service_black_stock_transforms = black_stock_transforms.duplicate()
+	_central_service_black_stock_batch = _multimesh_visual_boxes(
+		rack,
+		"BlackBinStock",
+		Vector3(0.30, 0.09, 0.44),
+		_materials["black"],
+		black_stock_transforms
+	)
 	# Strip light under the upper shelf, so the lower bins are picked out and the
 	# rack's own uprights carry a highlight rather than reading as a dark frame.
 	var rack_strip_y := shelf_tops[1] - 0.10
@@ -5090,6 +5121,104 @@ func _build_dock_mast_foot_hardware(line: Node3D) -> void:
 		)
 
 
+## Deep-detached renderer audit for the service line's one visual-only batch.
+func get_central_berth_service_line_render_contract() -> Dictionary:
+	var line := _central_berth_service_line
+	if line == null or not is_instance_valid(line):
+		line = get_node_or_null("CentralBerthServiceLine") as Node3D
+	var descendant_count := 0
+	var mesh_nodes: Array[Node] = []
+	var batch_nodes: Array[Node] = []
+	var drawn_copies := 0
+	var submissions := 0
+	var body_count := 0
+	var shape_count := 0
+	var light_count := 0
+	var area_count := 0
+	var ship_berth_count := 0
+	if line != null:
+		descendant_count = line.find_children("*", "Node", true, false).size()
+		mesh_nodes = line.find_children("*", "MeshInstance3D", true, false)
+		batch_nodes = line.find_children("*", "MultiMeshInstance3D", true, false)
+		body_count = line.find_children("*", "PhysicsBody3D", true, false).size()
+		shape_count = line.find_children("*", "CollisionShape3D", true, false).size()
+		light_count = line.find_children("*", "Light3D", true, false).size()
+		area_count = line.find_children("*", "Area3D", true, false).size()
+		ship_berth_count = line.find_children("*", "ShipBerth", true, false).size()
+		for raw_node in mesh_nodes:
+			var instance := raw_node as MeshInstance3D
+			if instance.mesh == null:
+				continue
+			drawn_copies += 1
+			submissions += instance.mesh.get_surface_count()
+		for raw_node in batch_nodes:
+			var batch := raw_node as MultiMeshInstance3D
+			if batch.multimesh == null or batch.multimesh.mesh == null:
+				continue
+			var visible_copies := batch.multimesh.visible_instance_count
+			if visible_copies < 0:
+				visible_copies = batch.multimesh.instance_count
+			drawn_copies += visible_copies
+			submissions += batch.multimesh.mesh.get_surface_count()
+
+	var buffer_matches := false
+	var bounds_match := false
+	var metadata_matches := false
+	var buffer_floats := 0
+	if is_instance_valid(_central_service_black_stock_batch) \
+			and _central_service_black_stock_batch.multimesh != null \
+			and _central_service_black_stock_batch.multimesh.mesh != null:
+		var multi := _central_service_black_stock_batch.multimesh
+		var expected_buffer := _encode_multimesh_transforms(
+			_central_service_black_stock_transforms
+		)
+		var expected_bounds := _transformed_mesh_bounds(
+			multi.mesh.get_aabb(),
+			_central_service_black_stock_transforms
+		)
+		buffer_floats = multi.buffer.size()
+		buffer_matches = multi.buffer == expected_buffer
+		bounds_match = multi.custom_aabb.is_equal_approx(expected_bounds)
+		var published := _central_service_black_stock_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		metadata_matches = published.size() == _central_service_black_stock_transforms.size()
+		for index in mini(published.size(), _central_service_black_stock_transforms.size()):
+			metadata_matches = metadata_matches and (published[index] as Transform3D).is_equal_approx(
+				_central_service_black_stock_transforms[index]
+			)
+
+	var exact_counts := (
+		descendant_count == SERVICE_LINE_RENDER_DESCENDANT_COUNT
+		and mesh_nodes.size() == SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT
+		and batch_nodes.size() == SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT
+		and drawn_copies == SERVICE_LINE_RENDER_DRAWN_COPY_COUNT
+		and submissions == SERVICE_LINE_RENDER_SUBMISSION_COUNT
+	)
+	return {
+		"descendant_nodes": descendant_count,
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"physics_bodies": body_count,
+		"collision_shapes": shape_count,
+		"lights": light_count,
+		"areas": area_count,
+		"ship_berths": ship_berth_count,
+		"black_bin_stock_copies": _central_service_black_stock_transforms.size(),
+		"renderer_buffer_floats": buffer_floats,
+		"renderer_buffer_matches_authored": buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"metadata_matches_authored": metadata_matches,
+		"exact_counts": exact_counts,
+		"line_parent_is_world": line != null and line.get_parent() == self,
+		"line_transform_identity": line != null and line.transform.is_equal_approx(Transform3D.IDENTITY),
+		"process_free": line != null and not line.is_processing() and not line.is_physics_processing(),
+		"authored_black_stock_transforms": _central_service_black_stock_transforms.duplicate(),
+	}.duplicate(true)
+
+
 ## Deep-detached audit for the port-flank ground support line and the mast feet.
 ##
 ## The roster is exact rather than a floor: this line exists to be a fixed,
@@ -5166,6 +5295,17 @@ func get_central_berth_service_line_report() -> Dictionary:
 			"service line practical count is %d, expected %d"
 			% [practical_count, SERVICE_LINE_PRACTICAL_COUNT]
 		)
+	var render_contract := get_central_berth_service_line_render_contract()
+	if not bool(render_contract.get("exact_counts", false)):
+		errors.append("service line render roster changed")
+	if int(render_contract.get("black_bin_stock_copies", 0)) != SERVICE_LINE_BLACK_BIN_STOCK_COPY_COUNT:
+		errors.append("black bin-stock copy roster changed")
+	if not bool(render_contract.get("renderer_buffer_matches_authored", false)):
+		errors.append("black bin-stock renderer buffer changed")
+	if not bool(render_contract.get("bounds_match_authored", false)):
+		errors.append("black bin-stock culling bounds changed")
+	if not bool(render_contract.get("metadata_matches_authored", false)):
+		errors.append("black bin-stock authored roster metadata changed")
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -5181,6 +5321,7 @@ func get_central_berth_service_line_report() -> Dictionary:
 		"authored_deck_top": AUTHORED_CENTRAL_BERTH_DECK_TOP,
 		"port_flank_minimum_x": minimum_x,
 		"port_flank_maximum_x": maximum_x,
+		"render_batches": render_contract,
 	}.duplicate(true)
 
 
@@ -6382,6 +6523,70 @@ func _box(
 		mesh_instance.mesh = box_mesh
 		mesh_instance.material_override = material
 	return container
+
+
+## One audited batch for repeated, anonymous visual stock. Semantic and solid
+## pieces continue through `_box`; this helper must never receive their roster.
+func _multimesh_visual_boxes(
+	parent: Node3D,
+	node_name: String,
+	size: Vector3,
+	material: Material,
+	transforms: Array[Transform3D]
+) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _rounded_box_mesh(size)
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	multi.buffer = _encode_multimesh_transforms(transforms)
+	# Raw-buffer authorship is deterministic, but headless Godot does not rebuild
+	# a CPU AABB from it. Publish the exact transformed union for renderer culling.
+	multi.custom_aabb = _transformed_mesh_bounds(multi.mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 ## One rendered, colliding threshold ramp between two decks at different heights.

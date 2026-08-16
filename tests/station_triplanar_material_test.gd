@@ -540,12 +540,18 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# delta is +29 mapped Salvage meshes, +3 world-owned connector boxes, and +5
 	# from the seventh shared-catalog courier. All 37 use the existing 0.30 scale;
 	# the other buckets and every recipe parameter remain unchanged.
+	#
+	# Re-frozen 2620 -> 2616 when the Central service line's four anonymous black
+	# bin-stock blocks moved from ordinary MeshInstances into one mapped
+	# MultiMesh. No material or drawn copy left the family: this ordinary-surface
+	# walk loses four at 0.30 while `_test_instanced_station_family()` gains their
+	# replacement batch. The rack-local roster below freezes both sides directly.
 	_check(
-		mapped_surface_count == 2620
+		mapped_surface_count == 2616
 		and scale_022_count == 130
 		and scale_028_count == 862
-		and scale_030_count == 1628,
-		"live station binds exactly 2620 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1624,
+		"live station binds exactly 2616 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -627,9 +633,12 @@ func _test_instanced_station_family(
 	# registered scale. The live pre-Salvage station roster is therefore 40/13.
 	# Salvage adds three batches: structural supports and salvage cages are mapped,
 	# while the service beacons remain deliberately emissive and plain.
+	# The Central service line then adds one mapped black-bin-stock batch, moving
+	# four existing copies out of the ordinary-surface walk without changing their
+	# station-family material identity.
 	_check(
-		batches == 43 and mapped == 15,
-		"instanced station structure is exactly forty-three batches, fifteen of them mapped"
+		batches == 44 and mapped == 16,
+		"instanced station structure is exactly forty-four batches, sixteen of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -642,6 +651,7 @@ func _test_instanced_station_family(
 ## baseline; these live roots make each contribution independently reviewable.
 func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 	var expected := {
+		"CentralBerthServiceLine/PortFlank/PartsBinRack": [15, 14, 1, 1],
 		"FabricationAnnex": [35, 27, 12, 2],
 		"ExposedDockLattice/FabricationAnnexConnector": [10, 10, 0, 0],
 		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
@@ -668,7 +678,7 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 	print("LIVE_RECENT_MODULE_MATERIAL_ROSTERS: ", live)
 	_check(
 		exact,
-		"Fabrication, Observation and Salvage retain their exact module/connector/courier material rosters"
+		"Central service, Fabrication, Observation and Salvage retain their exact local material rosters"
 	)
 
 
