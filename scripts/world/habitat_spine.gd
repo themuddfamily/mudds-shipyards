@@ -499,6 +499,18 @@ func get_performance_contract() -> Dictionary:
 	# each add one matching body/shape; the eight batched cap visuals add one sibling
 	# body with eight exact shapes. Meshes remain 1,284 and lights remain 35.
 	#
+	# Re-frozen after batching the nine identical, visual-only cabinet louvres:
+	#
+	#   all descendant nodes       1930 -> 1922 (-8)
+	#   MeshInstance3D nodes       1284 -> 1275 (-9)
+	#   MultiMeshInstance3D nodes    10 ->   11 (+1)
+	#   static bodies               250 ->  250 (unchanged)
+	#   collision shapes            263 ->  263 (unchanged)
+	#
+	# The authored louvre roster, material, box extent and all nine transforms are
+	# unchanged. Nine individual renderer nodes become one existing-path batch;
+	# no collidable, service-roster node or evidence boundary is part of it.
+	#
 	# The mesh delta is where the living quarters went from a fit-out to a place
 	# people are in: 6 bunk mouths with jambs, heads, curtains, grab handles and
 	# name plates plus the berth dressing behind them (~152), a galley run with a
@@ -1211,6 +1223,7 @@ func _build_service_detail(structure: Node3D) -> void:
 			_register_service(collar, &"pipe-collar")
 			var valve := _torus(service, "IsolationValve", Vector3(pipe_x - float(side) * 0.18, 3.25, float(valve_z)), 0.15, 0.23, _materials["red"], Vector3(0, 90, 0))
 			_register_service(valve, &"isolation-valve")
+	var cabinet_louvre_transforms: Array[Transform3D] = []
 	for cabinet_index in 3:
 		var cabinet_z := 4.35 + float(cabinet_index) * 5.05
 		var cabinet := _box(service, "ServiceCabinet%02d" % (cabinet_index + 1), Vector3(-5.78, 2.05, cabinet_z), Vector3(0.48, 2.25, 1.35), _materials["shell_light"], false)
@@ -1228,7 +1241,12 @@ func _build_service_detail(structure: Node3D) -> void:
 		_box(service, "CabinetInset", Vector3(-5.52, 2.05, cabinet_z), Vector3(0.035, 1.76, 0.98), _materials["structural"], false)
 		_box(service, "CabinetDoorSeam", Vector3(-5.5, 2.05, cabinet_z), Vector3(0.025, 1.72, 0.03), _materials["graphite"], false)
 		for louvre_index in 3:
-			_box(service, "CabinetLouvre", Vector3(-5.5, 1.42 + float(louvre_index) * 0.16, cabinet_z), Vector3(0.03, 0.05, 0.62), _materials["graphite"], false)
+			cabinet_louvre_transforms.append(
+				Transform3D(
+					Basis.IDENTITY,
+					Vector3(-5.5, 1.42 + float(louvre_index) * 0.16, cabinet_z)
+				)
+			)
 		_box(service, "CabinetHandle", Vector3(-5.48, 2.05, cabinet_z + 0.34), Vector3(0.05, 0.30, 0.05), _materials["brass"], false)
 		var status_lit := cabinet_index != 1
 		_box(service, "CabinetStatus", Vector3(-5.5, 2.55, cabinet_z), Vector3(0.03, 0.16, 0.55), _materials["teal"] if status_lit else _materials["amber"], false)
@@ -1246,6 +1264,13 @@ func _build_service_detail(structure: Node3D) -> void:
 			0.26,
 			2.4
 		)
+	_multimesh_boxes(
+		service,
+		"CabinetLouvres",
+		Vector3(0.03, 0.05, 0.62),
+		_materials["graphite"],
+		cabinet_louvre_transforms
+	)
 	for hatch_z in [5.1, 10.15, 15.2]:
 		var hatch := _box(service, "FloorServiceHatch", Vector3(0, 0.058, float(hatch_z)), Vector3(1.35, 0.025, 0.92), _materials["graphite"], false)
 		_register_service(hatch, &"service-hatch")
