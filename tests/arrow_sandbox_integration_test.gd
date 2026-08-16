@@ -17,6 +17,12 @@ const FRAME_BUDGET_GRACE := 30
 ## already waited for. The phase itself is assigned in `_process`, so it needs
 ## idle frames rather than simulated seconds, and the grace supplies those.
 const PHASE_SETTLE_SECONDS := 0.1
+const FLIGHT_CONTROL_ACTIONS := [
+	&"move_forward", &"move_back", &"move_left", &"move_right",
+	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+	&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+	&"landing_assist",
+]
 
 var _failures: Array[String] = []
 
@@ -125,36 +131,17 @@ func _run() -> void:
 	_check(player.is_seated() and arrow.is_piloted(), "the same visible player occupies Arrow's physical seat")
 	_check(game.phase == GameFlow.Phase.START_ENGINES, "Arrow boarding reaches its engine-start phase")
 	_check(arrow.get_camera().current and not player.get_camera().current, "boarding transfers the live camera to Arrow")
-	game.set("_transition_busy", true)
-	_dispatch_pilot_action(game, &"engine_start")
-	await physics_frame
-	_check(
-		str(arrow.get_telemetry().get("engine_state", &"")) == "OFFLINE"
-		and game.phase == GameFlow.Phase.START_ENGINES,
-		"engine-start input is ignored during an atomic transition handoff"
-	)
-	game.set("_transition_busy", false)
 
-	# Start via GameFlow's actual piloting action path. Arrow is intentionally a
+	# Accepted flight demand owns automatic propulsion. Arrow is intentionally a
 	# free sortie, while the pending Torrent guide and its defender remain dormant.
-	arrow.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
-	# `engine_start_time` is spent by the ship's own simulation, not by idle time.
-	var arrow_engine_online := await _wait_until(
-		func() -> bool: return str(arrow.get_telemetry().get("engine_state", &"")) == "ONLINE",
-		0.12
-	)
-	_check(arrow_engine_online, "Arrow engine spin-up completes inside its frame budget")
-	var arrow_free_flight := await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, PHASE_SETTLE_SECONDS)
-	_check(arrow_free_flight, "the free-flight phase follows Arrow startup inside its frame budget")
-	_check(str(arrow.get_telemetry().get("engine_state", &"")) == "ONLINE", "Arrow starts from the physical pilot seat")
-	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "Arrow-first startup enters unrestricted free flight")
-	_check(not game.is_guided_activity_complete(), "Arrow-first free flight does not complete the Torrent guide")
+	await _wake_engine_with_flight_demand(arrow, "Arrow hover demand wakes propulsion in the accepted physics tick")
+	_check(game.phase == GameFlow.Phase.START_ENGINES, "power alone keeps Arrow in the launch-ready phase until physical departure")
+	_check(not game.is_guided_activity_complete(), "Arrow automatic power does not complete the Torrent guide")
 	_check(not bool(opponent.call("is_active")), "guided range defender stays dormant during the Arrow sortie")
 	_check(
 		arrow_berth.get_occupant() == arrow
 		and arrow_berth.get_reservation_owner() == arrow,
-		"engine startup alone preserves Arrow's occupied berth authority"
+		"automatic power alone preserves Arrow's occupied berth authority"
 	)
 
 	# Fire through the ship-owned command source. GameFlow should still produce a
@@ -194,6 +181,8 @@ func _run() -> void:
 	_check(not bool(departed_telemetry.get("landed", true)), "real forward thrust clears Arrow's landed state")
 	_check(arrow.global_position.distance_to(launch_position) > 0.05, "Arrow physically departs its recon berth")
 	_check(arrow.velocity.normalized().dot(launch_forward) > 0.9, "Arrow thrust travels along the craft's visible forward axis")
+	var arrow_free_flight := await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, PHASE_SETTLE_SECONDS)
+	_check(arrow_free_flight, "physical Arrow departure enters unrestricted free flight")
 	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "departure remains in free flight instead of auto-shutdown")
 	_check(
 		arrow_berth.get_occupant() == null
@@ -266,16 +255,7 @@ func _run() -> void:
 		"completed Arrow landing physically occupies its exact recon lease"
 	)
 
-	_dispatch_pilot_action(game, &"engine_stop")
-	await physics_frame
-	_check(str(arrow.get_telemetry().get("engine_state", &"")) == "OFFLINE", "Arrow shuts down before disembarking")
-	_dispatch_pilot_action(game, &"engine_start")
-	await physics_frame
-	_check(
-		str(arrow.get_telemetry().get("engine_state", &"")) == "OFFLINE"
-		and game.phase == GameFlow.Phase.SHUT_DOWN,
-		"engine-start input is ignored after landing reaches SHUT_DOWN"
-	)
+	await _idle_engine_offline_exact(arrow, "Arrow idles OFFLINE on the discrete physics step crossing 1.5 neutral seconds")
 	_dispatch_pilot_action(game, &"interact")
 	# Disembarking is the same awaited canopy/avatar chain as boarding.
 	var arrow_exited := await _wait_for_phase(game, GameFlow.Phase.APPROACH_SHIP, 0.24)
@@ -302,10 +282,13 @@ func _run() -> void:
 	await _press_live_action(&"interact", 1)
 	var arrow_reboarded := await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.24)
 	_check(arrow_reboarded, "the second Arrow boarding completes its transition inside its frame budget")
-	arrow.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
+	await _wake_engine_with_flight_demand(arrow, "accepted demand wakes the reboarded Arrow in one physics tick")
+	Input.action_press(&"move_forward")
+	for _second_departure_tick in 18:
+		await physics_frame
+	Input.action_release(&"move_forward")
 	var second_sortie_active := await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.12)
-	_check(second_sortie_active, "the second Arrow sortie reaches free flight inside its frame budget")
+	_check(second_sortie_active, "the second Arrow departure reaches free flight inside its frame budget")
 	_check(game.phase == GameFlow.Phase.FREE_FLIGHT and game.get_active_ship() == arrow, "second pre-guide Arrow sortie becomes active")
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
 	# Destruction recovery re-poses the avatar through `force_recovery_to_on_foot`.
@@ -330,7 +313,7 @@ func _run() -> void:
 	_check(torrent.is_boardable(), "Torrent remains physically available after pre-guide Arrow destruction")
 	_check(not bool(opponent.call("is_active")), "range defender remains dormant after Arrow recovery")
 
-	# Physically cross the yard to Torrent. Its startup must still enter LAUNCH,
+	# Physically cross the yard to Torrent. Its departure must still enter LAUNCH,
 	# demonstrating that an earlier Arrow sortie neither substitutes for nor
 	# corrupts the authored vertical-slice progression.
 	player.teleport_to(Transform3D(Basis.IDENTITY, torrent.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
@@ -348,11 +331,14 @@ func _run() -> void:
 	var torrent_boarded := await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.24)
 	_check(torrent_boarded, "Torrent boarding completes its transition inside its frame budget")
 	_check(game.get_active_ship() == torrent and player.is_seated(), "physical interaction transfers the same pilot into Torrent")
-	torrent.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
+	await _wake_engine_with_flight_demand(torrent, "accepted demand wakes Torrent in one physics tick")
+	Input.action_press(&"move_forward")
+	for _torrent_departure_tick in 18:
+		await physics_frame
+	Input.action_release(&"move_forward")
 	var torrent_launched := await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 0.12)
-	_check(torrent_launched, "Torrent startup reaches the guided launch phase inside its frame budget")
-	_check(game.phase == GameFlow.Phase.LAUNCH, "Torrent startup still enters the guided launch phase")
+	_check(torrent_launched, "Torrent departure reaches the guided launch phase inside its frame budget")
+	_check(game.phase == GameFlow.Phase.LAUNCH, "Torrent physical launch still enters the guided launch phase")
 	_check(not game.is_guided_activity_complete(), "entering Torrent launch does not prematurely complete the guide")
 	_check(game.destroyed_targets == 0 and world.get_destroyed_target_count() == destroyed_before, "all reserved target progress is intact for Torrent")
 
@@ -378,7 +364,7 @@ func _frame_budget(seconds: float) -> int:
 ## Waits for `predicate` on the simulation clock instead of the wall clock.
 ##
 ## Every condition this suite waits on — canopy motion, the boarding interpolation,
-## engine spin-up, landing assist, destruction recovery — is advanced by the engine
+## automatic propulsion, landing assist, destruction recovery — is advanced by the engine
 ## loops, while a `SceneTree` timer counts Godot's smoothed idle delta. The two are
 ## different clocks and they diverge in both directions under parallel load: the
 ## engine drops physics steps rather than letting the simulation spiral, and the
@@ -422,6 +408,54 @@ func _press_live_action(action: StringName, physics_ticks: int) -> void:
 	await physics_frame
 
 
+func _wake_engine_with_flight_demand(ship: HeroShip, description: String) -> void:
+	_release_all_flight_controls(ship)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover,
+		description
+	)
+	Input.action_release(&"hover")
+
+
+func _idle_engine_offline_exact(ship: HeroShip, description: String) -> void:
+	# An accepted demand tick resets the production idle accumulator to exactly
+	# zero; the following neutral frames therefore measure the published boundary.
+	await _wake_engine_with_flight_demand(ship, "landed Arrow demand resets the automatic idle deadline")
+	_release_all_flight_controls(ship)
+	var idle_ticks := int(round(
+		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
+		* float(Engine.physics_ticks_per_second)
+	))
+	for _tick in idle_ticks - 1:
+		await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE,
+		"Arrow remains ONLINE one physics tick before the 1.5-second deadline"
+	)
+	# The engine accumulator is floating point: 90 nominal 60 Hz deltas can land
+	# infinitesimally below 1.5. One bounded threshold-crossing step is permitted.
+	await physics_frame
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE,
+		description
+	)
+
+
+func _release_all_flight_controls(ship: HeroShip) -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
+	var source := ship.get_command_source() as LocalShipInputSource
+	if source != null:
+		source.clear_pending_look_motion()
+
+
 func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 	var event := InputEventAction.new()
 	event.action = action
@@ -430,7 +464,8 @@ func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 
 
 func _clean_up(game: Node) -> void:
-	for action in [&"interact", &"move_forward", &"fire", &"engine_start", &"engine_stop", &"landing_assist"]:
+	Input.action_release(&"interact")
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
 		Input.action_release(action)
 	await _release_combat_audio_before_main_teardown(game)
 	game.queue_free()

@@ -14,6 +14,12 @@ const FRAME_BUDGET_GRACE := 30
 ## of. The consequence lands in `_process`, so it needs idle frames rather than
 ## simulated seconds, and the grace supplies those.
 const SETTLE_SECONDS := 0.1
+const FLIGHT_CONTROL_ACTIONS := [
+	&"move_forward", &"move_back", &"move_left", &"move_right",
+	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+	&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+	&"landing_assist",
+]
 
 var _failures: Array[String] = []
 
@@ -138,15 +144,12 @@ func _run() -> void:
 	_check(player.is_seated(), "the visible player occupies the Arrow's live seat")
 	_check(not primary.is_piloted(), "boarding one craft leaves the other parked and inactive")
 
-	arrow.engine_start_time = 0.03
-	arrow.request_engine_start()
-	# `engine_start_time` is spent by the ship's own simulation, not by idle time.
-	var arrow_engine_online := await _wait_until(
-		func() -> bool: return str(arrow.get_telemetry().engine_state) == "ONLINE",
-		0.12
-	)
-	_check(arrow_engine_online, "Arrow engine spin-up completes inside its frame budget")
-	_check(str(arrow.get_telemetry().engine_state) == "ONLINE", "Arrow completes its own engine startup")
+	await _wake_engine_with_flight_demand(arrow, "Arrow demand wakes propulsion in the accepted physics tick")
+	Input.action_press(&"move_forward")
+	for _arrow_departure_tick in 18:
+		await physics_frame
+	Input.action_release(&"move_forward")
+	_check(await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.12), "physical Arrow departure enters free flight")
 
 	# Landing remains a basic capability rather than a reward gated behind target
 	# practice. The Arrow begins over its home pad, so this is a short real
@@ -164,7 +167,7 @@ func _run() -> void:
 	_check(arrow_landed, "Arrow landing assist completes inside its simulated-frame budget")
 	_check(bool(arrow.get_telemetry().landed), "Arrow landing assist works in the completed sandbox")
 	_check(arrow.global_basis.is_equal_approx(arrow_transform.basis), "landing aligns to the recon berth's full basis")
-	arrow.request_engine_stop()
+	await _idle_engine_offline_exact(arrow, "Arrow idles OFFLINE on the discrete physics step crossing 1.5 neutral seconds")
 	game.call("_try_exit_ship")
 	# Disembarking is the same awaited canopy/avatar chain as boarding.
 	var arrow_exited := await _wait_for_phase(game, GameFlow.Phase.COMPLETE, 0.35)
@@ -206,17 +209,16 @@ func _run() -> void:
 	var primary_boarded := await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.4)
 	_check(primary_boarded, "the ship switch completes its boarding transition inside its frame budget")
 	_check(game.get_active_ship() == primary and player.is_seated(), "the player switches ships without a reload or menu")
-	primary.engine_start_time = 0.03
-	primary.request_engine_start()
-	var primary_free_flight := await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.12)
-	_check(primary_free_flight, "the switched craft reaches free flight inside its frame budget")
-	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "subsequent boarding enters unrestricted free flight")
+	await _wake_engine_with_flight_demand(primary, "accepted demand wakes the switched craft in one physics tick")
 	Input.action_press("move_forward")
-	await physics_frame
-	await physics_frame
+	for _primary_departure_tick in 18:
+		await physics_frame
 	Input.action_release("move_forward")
 	for _settle in 4:
 		await physics_frame
+	var primary_free_flight := await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.12)
+	_check(primary_free_flight, "the switched craft's physical departure reaches free flight")
+	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "subsequent boarding enters unrestricted free flight")
 
 	# A low-speed contact remains harmless, while a deliberate high-speed impact
 	# causes physical hull damage and invokes the reusable destruction lifecycle.
@@ -295,6 +297,51 @@ func _run() -> void:
 	_finish()
 
 
+func _wake_engine_with_flight_demand(ship: HeroShip, description: String) -> void:
+	_release_all_flight_controls(ship)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover,
+		description
+	)
+	Input.action_release(&"hover")
+
+
+func _idle_engine_offline_exact(ship: HeroShip, description: String) -> void:
+	await _wake_engine_with_flight_demand(ship, "landed Arrow demand resets the automatic idle deadline")
+	_release_all_flight_controls(ship)
+	var idle_ticks := int(round(
+		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
+		* float(Engine.physics_ticks_per_second)
+	))
+	for _tick in idle_ticks - 1:
+		await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE,
+		"Arrow remains ONLINE one physics tick before the 1.5-second deadline"
+	)
+	# Allow the one discrete step that crosses a floating-point sum just below 1.5.
+	await physics_frame
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE,
+		description
+	)
+
+
+func _release_all_flight_controls(ship: HeroShip) -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
+	var source := ship.get_command_source() as LocalShipInputSource
+	if source != null:
+		source.clear_pending_look_motion()
+
+
 ## Waits for `predicate` on the simulation clock rather than the wall clock.
 ##
 ## Three clocks run in this process and they diverge under parallel load: the
@@ -302,7 +349,7 @@ func _run() -> void:
 ## behind `SceneTree` timers, and the physics clock, whose steps the engine drops
 ## on a busy machine rather than letting the simulation spiral. Every condition
 ## this suite waits on belongs to one of the first or third — berth regeneration
-## is a monotonic 4 s deadline owned by `GameFlow`, while boarding, engine spin-up,
+## is a monotonic 4 s deadline owned by `GameFlow`, while boarding, propulsion demand,
 ## landing assist and crash recovery are advanced by the engine loops — and a
 ## `SceneTree` timer measures neither. It was observed firing both early and late
 ## relative to what it was standing in for, so lengthening one would not help.
