@@ -375,7 +375,7 @@ static func measure_scene(scene_root: Node, samples: Array[Dictionary]) -> Dicti
 	var maximum_shadows := 0
 	for row in point_rows:
 		maximum_shadows = maxi(maximum_shadows, int(row.shadow_caster_count))
-	var measurement_fingerprint := _measurement_fingerprint(point_rows, scene_counts)
+	var measurement_fingerprint := build_measurement_fingerprint(point_rows, scene_counts)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"method": {
@@ -394,6 +394,30 @@ static func measure_scene(scene_root: Node, samples: Array[Dictionary]) -> Dicti
 		"top_worst_points": top_worst,
 		"points": point_rows,
 	}.duplicate(true)
+
+
+## Stable read-only roster used by the focused production refreeze to identify
+## which authored subtrees contributed a scene-total delta. It is deliberately
+## separate from the measurement payload so adding audit evidence cannot change
+## the v2 deterministic JSON contract or its per-point fingerprint.
+static func build_scene_light_roster(scene_root: Node) -> Array[Dictionary]:
+	var roster: Array[Dictionary] = []
+	var lights: Array[Light3D] = []
+	if scene_root is Light3D:
+		lights.append(scene_root as Light3D)
+	for candidate in scene_root.find_children("*", "Light3D", true, false):
+		lights.append(candidate as Light3D)
+	lights.sort_custom(func(a: Light3D, b: Light3D) -> bool:
+		return _stable_node_path(scene_root, a) < _stable_node_path(scene_root, b)
+	)
+	for light in lights:
+		roster.append({
+			"path": _stable_node_path(scene_root, light),
+			"type": _light_type(light),
+			"enabled": _light_is_enabled(light),
+			"shadow_enabled": light.shadow_enabled,
+		})
+	return roster.duplicate(true)
 
 
 static func deterministic_json(report: Dictionary) -> String:
@@ -585,7 +609,13 @@ static func _sample_roster_fingerprint(samples: Array[Dictionary]) -> String:
 	return "\n".join(descriptors).sha256_text()
 
 
-static func _measurement_fingerprint(point_rows: Array[Dictionary], scene_counts: Dictionary) -> String:
+## Public so the focused rebase witness can substitute the previous scene-total
+## row and prove that a content expansion changed totals without changing any
+## frozen point or contributor row.
+static func build_measurement_fingerprint(
+		point_rows: Array[Dictionary],
+		scene_counts: Dictionary
+	) -> String:
 	var descriptors := PackedStringArray([
 		"scene|total=%d|enabled=%d|shadows=%d|enabled_shadows=%d" % [
 			int(scene_counts.total),

@@ -4,6 +4,23 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_light_overlap_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const PRE_OBSERVATION_MEASUREMENT_FINGERPRINT := "d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a"
+const FABRICATION_LIGHT_PATHS := [
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight01",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight02",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight03",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight04",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight05",
+]
+const OBSERVATION_LIGHT_PATHS := [
+	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical01",
+	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical02",
+	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical03",
+	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical04",
+	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical05",
+	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical06",
+]
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -232,19 +249,20 @@ func _test_production_main_roster_and_measurement() -> void:
 	var scene_lights := report.scene_lights as Dictionary
 	var by_type := scene_lights.by_type as Dictionary
 	_check(
-		int(scene_lights.total) == 315
-		and int(scene_lights.enabled) == 263
+		int(scene_lights.total) == 321
+		and int(scene_lights.enabled) == 269
 		and int(scene_lights.disabled) == 52
 		and int(scene_lights.shadow_casting_total) == 19
 		and int(scene_lights.enabled_shadow_casting) == 19
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 300
-		and int((by_type.omni as Dictionary).enabled) == 248
+		and int((by_type.omni as Dictionary).total) == 306
+		and int((by_type.omni as Dictionary).enabled) == 254
 		and int((by_type.spot as Dictionary).total) == 12
 		and int((by_type.spot as Dictionary).enabled) == 12,
-		"production freeze retains 315 total / 263 enabled lights and exact type/shadow splits"
+		"production freeze retains 321 total / 269 enabled lights and exact type/shadow splits"
 	)
+	_test_expansion_light_provenance(game, report)
 	var expected_worst := [
 		[&"operate-aft-service-arm", 15, 1],
 		[&"walk-habitat-common", 11, 1],
@@ -268,7 +286,7 @@ func _test_production_main_roster_and_measurement() -> void:
 	)
 	_check(
 		str(report.sample_roster_fingerprint) == "7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca"
-		and str(report.measurement_fingerprint) == "d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a",
+		and str(report.measurement_fingerprint) == "44683d8e44554f813d31ac83b385185865069b01afaffd0c3b54e551153455ba",
 		"production roster and complete per-point contributor measurement have frozen fingerprints"
 	)
 	_check(
@@ -280,6 +298,85 @@ func _test_production_main_roster_and_measurement() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+
+
+func _test_expansion_light_provenance(game: Node, report: Dictionary) -> void:
+	var light_roster := CENSUS.build_scene_light_roster(game)
+	var fabrication := _light_records_under(light_roster, "ShipyardWorld/FabricationAnnex/")
+	var observation := _light_records_under(light_roster, "ShipyardWorld/ObservationLogisticsSpur/")
+	var salvage := _light_records_under(light_roster, "ShipyardWorld/SalvageTerrace/")
+	_check(
+		_light_paths(fabrication) == FABRICATION_LIGHT_PATHS
+		and _all_enabled_shadowless_omni(fabrication),
+		"the prior baseline's six Fabrication practicals remain exact enabled shadowless omnis"
+	)
+	_check(
+		_light_paths(observation) == OBSERVATION_LIGHT_PATHS
+		and _all_enabled_shadowless_omni(observation),
+		"the 315 -> 321 delta is exactly Observation's six intended enabled shadowless practicals"
+	)
+	_check(
+		salvage.is_empty(),
+		"Salvage Terrace contributes no dynamic lights, matching its zero-light module contract"
+	)
+
+	var expansion_reaches_sample := false
+	for point in report.points as Array[Dictionary]:
+		for path in point.contributing_node_paths as PackedStringArray:
+			if (
+				path.begins_with("ShipyardWorld/FabricationAnnex/")
+				or path.begins_with("ShipyardWorld/ObservationLogisticsSpur/")
+				or path.begins_with("ShipyardWorld/SalvageTerrace/")
+			):
+				expansion_reaches_sample = true
+	_check(
+		not expansion_reaches_sample,
+		"Fabrication, Observation and Salvage add no contributor to any of the 22 frozen samples"
+	)
+
+	# Replacing only the scene totals with the previous 315/263 split must recover
+	# the previous complete fingerprint. This makes the assertion sensitive to any
+	# point count, contributor, range, fade, cone or shadow-row drift while proving
+	# the six new lights changed totals only.
+	var previous_counts := (report.scene_lights as Dictionary).duplicate(true)
+	previous_counts.total = 315
+	previous_counts.enabled = 263
+	previous_counts.disabled = 52
+	var previous_by_type := previous_counts.by_type as Dictionary
+	(previous_by_type.omni as Dictionary).total = 300
+	(previous_by_type.omni as Dictionary).enabled = 248
+	_check(
+		CENSUS.build_measurement_fingerprint(
+			report.points as Array[Dictionary], previous_counts
+		) == PRE_OBSERVATION_MEASUREMENT_FINGERPRINT,
+		"substituting only the old scene totals recovers the old full fingerprint, proving every overlap row unchanged"
+	)
+
+
+func _light_records_under(roster: Array[Dictionary], prefix: String) -> Array[Dictionary]:
+	var matches: Array[Dictionary] = []
+	for record in roster:
+		if str(record.path).begins_with(prefix):
+			matches.append(record)
+	return matches
+
+
+func _light_paths(records: Array[Dictionary]) -> Array[String]:
+	var paths: Array[String] = []
+	for record in records:
+		paths.append(str(record.path))
+	return paths
+
+
+func _all_enabled_shadowless_omni(records: Array[Dictionary]) -> bool:
+	for record in records:
+		if (
+			str(record.type) != "omni"
+			or not bool(record.enabled)
+			or bool(record.shadow_enabled)
+		):
+			return false
+	return not records.is_empty()
 
 
 func _fixture_sample(point_id: StringName, position: Vector3) -> Dictionary:

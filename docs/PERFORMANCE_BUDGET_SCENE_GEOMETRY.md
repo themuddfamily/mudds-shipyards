@@ -196,23 +196,24 @@ KETH_LIGHT_CENSUS_JSON=/tmp/station-light-overlap-census.json \
   --script res://tools/station_light_overlap_census.gd
 ```
 
-The production `Main` measured here is rebase base `bf44804`, including the
-integrated Fabrication Annex; this slice itself adds only the census, its
-focused test and this record. The roster fingerprint is
+The production `Main` measured here is merge base `89fcf2a`, including the
+integrated Fabrication Annex, Observation Logistics Spur and Salvage Terrace;
+this refreeze changes only the census contract, its focused test and this
+record. The roster fingerprint is
 `7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca`.
 The complete scene/per-point/contributor-evidence fingerprint is
-`d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a`.
+`44683d8e44554f813d31ac83b385185865069b01afaffd0c3b54e551153455ba`.
 Two independent processes produced byte-identical JSON with SHA-256
-`1c0845e8e06d6ead50434c18e0c0148d21a20e8e22d3894092a477e1cf4ec59e`.
+`6a7de04106b3eba28f41d1d18f368852c8295678c8d2d6fd002b5321c3922c17`.
 Pulsing lights report the stable positive-energy predicate used for inclusion,
 not their clock-dependent instantaneous amplitude.
 
 | Scene light roster | Total | Enabled at frozen phase | Shadow casting |
 | --- | ---: | ---: | ---: |
 | `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| `OmniLight3D` | 300 | 248 | reported in combined row |
+| `OmniLight3D` | 306 | 254 | reported in combined row |
 | `SpotLight3D` | 12 | 12 | reported in combined row |
-| **All `Light3D`** | **315** | **263** | **19 total / 19 enabled** |
+| **All `Light3D`** | **321** | **269** | **19 total / 19 enabled** |
 
 The maximum geometric overlap is **15 enabled lights** at
 `operate-aft-service-arm`; only one of those casts shadows. The largest shadow
@@ -222,11 +223,21 @@ sampled local contributor that already passed its smaller illumination range
 also lies inside its light fade endpoint, and every sampled shadow contributor
 also lies within its exact `distance_fade_shadow` cutoff. It does change the
 method and evidence—the census can now reject a long-range light or shadow
-culled at the camera point, and the focused fixture proves that path. The six
-Fabrication Annex lights increase the whole-scene total after its production
-integration but do not reach any frozen sample, so the per-point rows remain
-unchanged. The five worst points, sorted by total overlap then shadow overlap
-then stable id, are:
+culled at the camera point, and the focused fixture proves that path.
+
+The prior 315-total baseline already included Fabrication Annex's six enabled,
+shadowless practical omnis. Observation Logistics Spur adds exactly six more
+enabled, shadowless omnis at stable paths `Practical01` through `Practical06`;
+those are the complete **315 -> 321 total / 263 -> 269 enabled** delta. Salvage
+Terrace itself contributes zero dynamic lights, matching its module audit. None
+of the Fabrication, Observation or Salvage paths reaches any frozen sample, the
+disabled count remains 52, and both shadow totals remain 19. As a stronger row
+witness, substituting only the old 315/263 and 300/248-omni totals into the live
+measurement recovers the former complete fingerprint
+`d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a`;
+therefore every per-point contributor row is byte-equivalent and only the scene
+roster changed. The five worst points, sorted by total overlap then shadow
+overlap then stable id, remain:
 
 | Point | Kind | Enabled influence | Shadow casters |
 | --- | --- | ---: | ---: |
