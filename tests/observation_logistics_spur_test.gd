@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_identity_evidence_and_contract(module)
 	_test_connection_slots(module)
 	_test_surface_roster_and_area(module)
+	_test_deterministic_runtime_names(module)
 	await _test_collision_support_and_safe_edges(module)
 	await _test_embodied_loop_traversal(module)
 	_test_zero_authority_and_red_mutations(module)
@@ -74,17 +75,9 @@ func _test_connection_slots(module: ObservationLogisticsSpur) -> void:
 			"slot_id": &"observation-logistics-spur-origin",
 			"transform": Transform3D(Basis.IDENTITY, Vector3.ZERO),
 		},
-		&"observation-pad": {
-			"slot_id": &"observation-logistics-spur-observation-pad",
-			"transform": Transform3D(Basis.IDENTITY, Vector3(-8.0, 0.0, 32.0)),
-		},
-		&"logistics-pad": {
-			"slot_id": &"observation-logistics-spur-logistics-pad",
-			"transform": Transform3D(Basis.IDENTITY, Vector3(8.0, 0.0, 32.0)),
-		},
 	}
 	var slots := module.get_connection_slots()
-	_check(slots.size() == 3, "module publishes exactly three deliberate local connection slots")
+	_check(slots.size() == 1, "module publishes only the origin's physically realised connection slot")
 	var every_slot_exact := true
 	for route_id: StringName in expected.keys():
 		var expected_slot := expected[route_id] as Dictionary
@@ -97,8 +90,18 @@ func _test_connection_slots(module: ObservationLogisticsSpur) -> void:
 			and (slot.get("local_transform", Transform3D()) as Transform3D).is_equal_approx(expected_slot.transform as Transform3D) \
 			and (slot.get("world_transform", Transform3D()) as Transform3D).is_equal_approx(module.global_transform * (expected_slot.transform as Transform3D)) \
 			and StationModuleContract.new().read_connection_slot_id(marker) == StringName(expected_slot.slot_id)
-	_check(every_slot_exact, "all connection slot ids and local/world transforms are exact")
+	_check(every_slot_exact, "origin connection slot id and local/world transforms are exact")
 	_check(module.get_route_ids().size() == 6 and module.has_route_marker(&"far-return"), "six-waypoint route includes the far alternate-return marker")
+	var deferred_exact := true
+	for route_id: StringName in [&"observation-pad", &"logistics-pad"]:
+		var marker := module.get_route_marker(route_id)
+		deferred_exact = deferred_exact \
+			and marker != null \
+			and bool(marker.get_meta("deferred_connection_route", false)) \
+			and StringName(marker.get_meta("connection_status", &"")) == &"internal_route_only_no_geometry" \
+			and StationModuleContract.new().read_connection_slot_id(marker) == &"" \
+			and not slots.has(route_id)
+	_check(deferred_exact, "observation and logistics pad markers remain explicit deferred internal routes without registry slots")
 	(slots[&"origin"] as Dictionary)["local_transform"] = Transform3D.IDENTITY.translated(Vector3.ONE)
 	_check((module.get_connection_slots()[&"origin"].local_transform as Transform3D).is_equal_approx(Transform3D.IDENTITY), "connection slot report is deeply detached")
 
@@ -148,6 +151,23 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	_check(int(performance.lights) == 6 and int(performance.labels) == 1 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, one identity sign and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
 	_check(marker_batch != null and marker_batch.multimesh.instance_count == 10, "ten repeated connector markers use one visual-only MultiMesh submission")
+
+
+func _test_deterministic_runtime_names(module: ObservationLogisticsSpur) -> void:
+	var exact_indexed_roster := true
+	for child_path in ObservationLogisticsSpur.INDEXED_RUNTIME_CHILD_PATHS:
+		exact_indexed_roster = exact_indexed_roster and module.get_node_or_null(NodePath(child_path)) != null
+	_check(
+		exact_indexed_roster and ObservationLogisticsSpur.INDEXED_RUNTIME_CHILD_PATHS.size() == 35,
+		"all 35 repeated rail, dressing and practical children retain exact indexed runtime paths"
+	)
+	var auto_named := module.find_children("@*", "", true, false)
+	_check(auto_named.is_empty(), "authored module hierarchy contains no auto-generated runtime child names")
+	var console := module.get_node(^"Structure/Dressing/ObservationConsole01")
+	console.name = "ObservationConsoleDrift"
+	_check(not bool(module.get_audit_report().valid), "red mutation: renamed indexed dressing child makes audit fail")
+	console.name = "ObservationConsole01"
+	_check(bool(module.get_audit_report().valid), "restoring the exact indexed runtime path returns audit to green")
 
 
 func _test_collision_support_and_safe_edges(module: ObservationLogisticsSpur) -> void:

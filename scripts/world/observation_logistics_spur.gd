@@ -16,8 +16,7 @@ const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 const ORIGIN_SLOT: StringName = &"observation-logistics-spur-origin"
-const OBSERVATION_SLOT: StringName = &"observation-logistics-spur-observation-pad"
-const LOGISTICS_SLOT: StringName = &"observation-logistics-spur-logistics-pad"
+const DEFERRED_CONNECTION_ROUTE_IDS := [&"observation-pad", &"logistics-pad"]
 
 const FOOTPRINT_MIN := Vector3(-13.4, -0.3, 0.0)
 const FOOTPRINT_MAX := Vector3(13.4, 4.4, 39.5)
@@ -69,15 +68,48 @@ const CONNECTION_SLOT_SPECS := {
 		"slot_id": ORIGIN_SLOT,
 		"local_transform": Transform3D(Basis.IDENTITY, Vector3.ZERO),
 	},
-	&"observation-pad": {
-		"slot_id": OBSERVATION_SLOT,
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(-8.0, 0.0, 32.0)),
-	},
-	&"logistics-pad": {
-		"slot_id": LOGISTICS_SLOT,
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(8.0, 0.0, 32.0)),
-	},
 }
+
+## Repeated authored families must keep readable, stable runtime paths. Godot's
+## default duplicate-name fallback uses transient `@Type@id` names, so every
+## repeated copy is indexed at authoring time and frozen here for audit.
+const INDEXED_RUNTIME_CHILD_PATHS := [
+	"Structure/SafetyRails/ConnectorRail01",
+	"Structure/SafetyRails/ConnectorRail02",
+	"Structure/SafetyRails/PadOuterRail01",
+	"Structure/SafetyRails/PadInnerRail01",
+	"Structure/SafetyRails/PadFarRail01",
+	"Structure/SafetyRails/PadOuterRail02",
+	"Structure/SafetyRails/PadInnerRail02",
+	"Structure/SafetyRails/PadFarRail02",
+	"Structure/Dressing/ObservationConsole01",
+	"Structure/Dressing/ObservationLens01",
+	"Structure/Dressing/ObservationConsole02",
+	"Structure/Dressing/ObservationLens02",
+	"Structure/Dressing/ObservationConsole03",
+	"Structure/Dressing/ObservationLens03",
+	"Structure/Dressing/LogisticsPallet01",
+	"Structure/Dressing/LogisticsCase01",
+	"Structure/Dressing/LogisticsCase02",
+	"Structure/Dressing/LogisticsPallet02",
+	"Structure/Dressing/LogisticsCase03",
+	"Structure/Dressing/LogisticsCase04",
+	"Structure/Dressing/LogisticsPallet03",
+	"Structure/Dressing/LogisticsCase05",
+	"Structure/Dressing/LogisticsCase06",
+	"Structure/Dressing/LightMast01",
+	"Structure/Dressing/LightLens01",
+	"Structure/Dressing/LightMast02",
+	"Structure/Dressing/LightLens02",
+	"Structure/Dressing/LightMast03",
+	"Structure/Dressing/LightLens03",
+	"Structure/Dressing/LightMast04",
+	"Structure/Dressing/LightLens04",
+	"Structure/Dressing/LightMast05",
+	"Structure/Dressing/LightLens05",
+	"Structure/Dressing/LightMast06",
+	"Structure/Dressing/LightLens06",
+]
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -294,8 +326,15 @@ func get_validation_errors() -> PackedStringArray:
 		var spec := CONNECTION_SLOT_SPECS[route_id] as Dictionary
 		if marker == null \
 				or not marker.transform.is_equal_approx(spec.local_transform as Transform3D) \
-				or StationModuleContract.new().read_connection_slot_id(marker) != StringName(spec.slot_id):
+			or StationModuleContract.new().read_connection_slot_id(marker) != StringName(spec.slot_id):
 			errors.append("connection slot transform or identity drifted: %s" % route_id)
+	for route_id: StringName in DEFERRED_CONNECTION_ROUTE_IDS:
+		var marker := get_route_marker(route_id)
+		if marker == null \
+				or not bool(marker.get_meta("deferred_connection_route", false)) \
+				or StringName(marker.get_meta("connection_status", &"")) != &"internal_route_only_no_geometry" \
+				or StationModuleContract.new().read_connection_slot_id(marker) != &"":
+			errors.append("deferred internal route incorrectly claims a connection slot: %s" % route_id)
 	var authority := get_authority_contract()
 	if not (authority.authority_ids as PackedStringArray).is_empty() \
 			or int(authority.ship_berth_count) != 0 \
@@ -313,6 +352,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("collision contract does not match lifecycle")
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its frozen performance budgets")
+	for child_path in INDEXED_RUNTIME_CHILD_PATHS:
+		if get_node_or_null(NodePath(child_path)) == null:
+			errors.append("indexed runtime child path drifted: %s" % child_path)
+	for candidate in find_children("*", "", true, false):
+		if str(candidate.name).begins_with("@"):
+			errors.append("runtime child has an auto-generated name: %s" % candidate.get_path())
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 			or not bool(lifecycle.visible_matches_enabled) \
@@ -370,6 +415,10 @@ func _index_routes() -> void:
 		var marker := get_route_marker(route_id)
 		var spec := CONNECTION_SLOT_SPECS[route_id] as Dictionary
 		marker.set_meta(StationModuleContract.CONNECTION_SLOT_META, StringName(spec.slot_id))
+	for route_id: StringName in DEFERRED_CONNECTION_ROUTE_IDS:
+		var marker := get_route_marker(route_id)
+		marker.set_meta("deferred_connection_route", true)
+		marker.set_meta("connection_status", &"internal_route_only_no_geometry")
 
 
 func _build_module() -> void:
@@ -410,20 +459,20 @@ func _build_module() -> void:
 func _build_safety_rails(parent: Node3D) -> void:
 	# Connector sides and the exposed cross-landing perimeter. Gaps coincide only
 	# with a touching walkable rectangle, never with open void.
-	for side in [-1.0, 1.0]:
-		_safety_rail(parent, "ConnectorRail", Vector3(float(side) * 2.12, 0.62, 11.0), Vector3(0.16, 1.24, 21.8))
+	for side_index in 2:
+		var side := -1.0 + float(side_index) * 2.0
+		_safety_rail(parent, "ConnectorRail%02d" % (side_index + 1), Vector3(side * 2.12, 0.62, 11.0), Vector3(0.16, 1.24, 21.8))
 	_safety_rail(parent, "CrossSouthWest", Vector3(-6.1, 0.62, 21.88), Vector3(7.8, 1.24, 0.16))
 	_safety_rail(parent, "CrossSouthEast", Vector3(6.1, 0.62, 21.88), Vector3(7.8, 1.24, 0.16))
 	_safety_rail(parent, "CrossNorthVoid", Vector3(0.0, 0.62, 26.12), Vector3(5.7, 1.24, 0.16))
 	_safety_rail(parent, "CrossWest", Vector3(-10.12, 0.62, 24.0), Vector3(0.16, 1.24, 4.0))
 	_safety_rail(parent, "CrossEast", Vector3(10.12, 0.62, 24.0), Vector3(0.16, 1.24, 4.0))
 	# Pad outside edges and inner edges up to the far bridge opening.
-	for side in [-1.0, 1.0]:
-		var outer_x := float(side) * 13.12
-		var inner_x := float(side) * 2.88
-		_safety_rail(parent, "PadOuterRail", Vector3(outer_x, 0.62, 32.0), Vector3(0.16, 1.24, 12.0))
-		_safety_rail(parent, "PadInnerRail", Vector3(inner_x, 0.62, 31.1), Vector3(0.16, 1.24, 10.2))
-		_safety_rail(parent, "PadFarRail", Vector3(float(side) * 8.5, 0.62, 38.12), Vector3(9.0, 1.24, 0.16))
+	for side_index in 2:
+		var side := -1.0 + float(side_index) * 2.0
+		_safety_rail(parent, "PadOuterRail%02d" % (side_index + 1), Vector3(side * 13.12, 0.62, 32.0), Vector3(0.16, 1.24, 12.0))
+		_safety_rail(parent, "PadInnerRail%02d" % (side_index + 1), Vector3(side * 2.88, 0.62, 31.1), Vector3(0.16, 1.24, 10.2))
+		_safety_rail(parent, "PadFarRail%02d" % (side_index + 1), Vector3(side * 8.5, 0.62, 38.12), Vector3(9.0, 1.24, 0.16))
 	# The far bridge itself has north/south rails and turns the two pad routes into
 	# a loop instead of two dead ends.
 	_safety_rail(parent, "FarBridgeSouthRail", Vector3(0.0, 0.62, 36.38), Vector3(5.7, 1.24, 0.16))
@@ -441,15 +490,16 @@ func _build_dressing(parent: Node3D) -> void:
 	# centre and inner edge stay clear for the alternate-return circulation.
 	for console_index in 3:
 		var console_z := 28.6 + float(console_index) * 2.8
-		_box(parent, "ObservationConsole", Vector3(-11.45, 0.48, console_z), Vector3(0.72, 0.96, 1.35), _materials["shell"], true)
-		_box(parent, "ObservationLens", Vector3(-11.05, 0.76, console_z), Vector3(0.035, 0.26, 0.92), _materials["cyan"], false)
+		_box(parent, "ObservationConsole%02d" % (console_index + 1), Vector3(-11.45, 0.48, console_z), Vector3(0.72, 0.96, 1.35), _materials["shell"], true)
+		_box(parent, "ObservationLens%02d" % (console_index + 1), Vector3(-11.05, 0.76, console_z), Vector3(0.035, 0.26, 0.92), _materials["cyan"], false)
 	_box(parent, "ObservationBench", Vector3(-5.0, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	for stack_index in 3:
 		var stack_z := 28.8 + float(stack_index) * 2.75
-		_box(parent, "LogisticsPallet", Vector3(11.15, 0.12, stack_z), Vector3(2.4, 0.24, 1.55), _materials["rail"], true)
+		_box(parent, "LogisticsPallet%02d" % (stack_index + 1), Vector3(11.15, 0.12, stack_z), Vector3(2.4, 0.24, 1.55), _materials["rail"], true)
 		for tier_index in 2:
-			_box(parent, "LogisticsCase", Vector3(11.15, 0.48 + float(tier_index) * 0.58, stack_z), Vector3(2.1, 0.52, 1.28), _materials["cargo"], true)
+			var case_index := stack_index * 2 + tier_index + 1
+			_box(parent, "LogisticsCase%02d" % case_index, Vector3(11.15, 0.48 + float(tier_index) * 0.58, stack_z), Vector3(2.1, 0.52, 1.28), _materials["cargo"], true)
 	# Sparse connector rhythm provides scale without narrowing its 4 m lane.
 	var connector_marker_transforms: Array[Transform3D] = []
 	for bay_index in 5:
@@ -477,8 +527,8 @@ func _build_lighting(parent: Node3D) -> void:
 		var fixture := fixtures[fixture_index] as Array
 		var fixture_position := fixture[0] as Vector3
 		var fixture_color := fixture[1] as Color
-		_box(parent, "LightMast", fixture_position + Vector3(0, -1.4, 0), Vector3(0.16, 2.8, 0.16), _materials["rail"], false)
-		_box(parent, "LightLens", fixture_position, Vector3(0.42, 0.18, 0.42), _emissive_material(fixture_color), false)
+		_box(parent, "LightMast%02d" % (fixture_index + 1), fixture_position + Vector3(0, -1.4, 0), Vector3(0.16, 2.8, 0.16), _materials["rail"], false)
+		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, Vector3(0.42, 0.18, 0.42), _emissive_material(fixture_color), false)
 		var light := OmniLight3D.new()
 		light.name = "Practical%02d" % (fixture_index + 1)
 		light.position = fixture_position + Vector3(0, -0.16, 0)
