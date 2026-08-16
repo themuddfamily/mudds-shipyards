@@ -171,12 +171,38 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# legend, route cue and beacon lens deliberately stay outside the family in
 	# every module, so signage and lit cues keep their flat readable identity. No
 	# previously mapped surface was removed and no new scale was introduced.
+	#
+	# Re-frozen again from 1154/115/285/754 by the structural-and-painted closing
+	# pass, measured per key against the live scene:
+	#
+	#   `HabitatSpine.structural` +233 at 0.28. The module's primary structural
+	#   grey: pressure ribs, service rails, bunk plinths, window mullions, chair
+	#   pedestals. At eye height in a bunk bay it read as wet black plastic beside
+	#   a plated wall, and it is by far the largest single population here.
+	#   `AftJunctionStack.brass` +51 at 0.30 and `HabitatSpine.brass` +14 at 0.28.
+	#   New non-emissive structural twins of the `gold` / `amber` cue colours. The
+	#   cue colours keep every route arc tile, control lamp, cabinet status and
+	#   sign; the twins take only the physical brass furniture — handrails,
+	#   collars, column feet, fasteners — which were flat yellow sticks bolted to
+	#   plated posts at arm's reach.
+	#   `JovianFreightBerth.orange` +43 at 0.30. Painted handling steel: crane
+	#   rails and feet, rack beams, apron and lattice diagonals, rail posts. It was
+	#   the loudest untextured population left in the station.
+	#
+	# Net +341, 1154 -> 1495. 0.22 is untouched at 115; 0.28 goes 285 -> 532 and
+	# 0.30 goes 754 -> 848. No previously mapped surface was removed and no new
+	# scale was introduced. Deliberately still outside the family everywhere:
+	# every emissive cue (`cyan`, `red`, `teal`, `amber`, `gold`, `*_glow`,
+	# `worklight`), the `orange_glow` hazard and lane striping, transparent
+	# `glass`, `rubber`, seating fabric, screens, the dark `graphite` seam and
+	# reveal trim whose whole job is to read as a clean unbroken line, and the
+	# `copper` pipe runs, which are drawn tube stock rather than panel.
 	_check(
-		mapped_surface_count == 1154
+		mapped_surface_count == 1495
 		and scale_022_count == 115
-		and scale_028_count == 285
-		and scale_030_count == 754,
-		"live station binds exactly 1154 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_028_count == 532
+		and scale_030_count == 848,
+		"live station binds exactly 1495 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

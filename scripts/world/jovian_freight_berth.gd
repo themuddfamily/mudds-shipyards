@@ -20,6 +20,12 @@ const SHIP_CLASS_NAME := "Jovian-class Light Freighter"
 const EVIDENCE_STATUS: StringName = &"creator_roster_supported_modern_interpretation"
 const WORLD_LAYER := PhysicsLayers.WORLD
 
+## Physical size of one station panel plate in this module, in metres of world
+## space per texture repeat. Frozen. Walked-on deck and room floors use the
+## tighter plate so foot-scale surfaces keep a readable tread size.
+const PANEL_SURFACE_SCALE := 0.30
+const WALKED_PANEL_SURFACE_SCALE := 0.22
+
 const DECK_ELEVATION := 0.0
 const CONNECTION_CLEAR_WIDTH := 5.8
 const SERVICE_DOOR_CLEAR_WIDTH := 3.1
@@ -565,13 +571,24 @@ func _index_semantics() -> void:
 func _create_materials() -> void:
 	_materials["ceramic"] = _material(Color("d6dedb"), 0.32, 0.34)
 	_materials["ceramic_warm"] = _material(Color("b8c2be"), 0.3, 0.39)
-	_materials["ceramic_floor"] = _material(Color("b8c2be"), 0.3, 0.39)
+	# Floor-role twin of `ceramic_warm`. Both halves carry the same panel maps, so
+	# a walked-on room floor and the wall it meets can no longer differ by hue
+	# alone; the coated, trafficked half is rougher and less metallic.
+	_materials["ceramic_floor"] = _material(Color("b8c2be"), 0.22, 0.54)
 	_materials["steel_blue"] = _material(Color("315868"), 0.68, 0.28)
 	_materials["deep_blue"] = _material(Color("102d3b"), 0.52, 0.43)
 	_materials["graphite"] = _material(Color("172329"), 0.55, 0.48)
 	_materials["deck"] = _material(Color("29434d"), 0.62, 0.47)
 	_materials["deck_grip"] = _material(Color("1b2c32"), 0.36, 0.73)
-	_materials["orange"] = _material(Color("e79338"), 0.38, 0.35)
+	# Painted handling steel: crane rails and feet, rack beams, apron and lattice
+	# diagonals, rail posts, the utility trunk, the spreader bar. Rendered at eye
+	# height beside the cargo rack this was the single loudest untextured
+	# population left in the station — flat plastic slabs bolted between plated
+	# `steel_blue` posts and plated cargo units. It joins the panel family, and its
+	# response moves away from `steel_blue`'s polished bare structure: rolled steel
+	# under a thick coat of paint is matte, not glossy, so the two now differ in
+	# material and not only in hue.
+	_materials["orange"] = _material(Color("e79338"), 0.24, 0.54)
 	_materials["orange_glow"] = _material(Color("ffae48"), 0.12, 0.28, Color("f58a24"), 2.1)
 	_materials["cyan"] = _material(Color("5ce5e4"), 0.16, 0.25, Color("32cbd2"), 1.8)
 	_materials["cyan_dim"] = _material(Color("347d83"), 0.36, 0.38, Color("2599a1"), 0.38)
@@ -580,34 +597,29 @@ func _create_materials() -> void:
 	_materials["glass"] = _transparent_material(Color(0.2, 0.72, 0.78, 0.22), 0.16, 0.12)
 	_materials["screen"] = _material(Color("8debe6"), 0.05, 0.22, Color("49cbd2"), 1.35)
 
-	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
-	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
-	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
-	if panel_albedo != null and panel_normal != null and panel_roughness != null:
-		for key in ["ceramic", "ceramic_warm", "ceramic_floor", "steel_blue", "deck"]:
-			var panel := _materials[key] as StandardMaterial3D
-			panel.albedo_texture = panel_albedo
-			panel.normal_enabled = true
-			panel.normal_texture = panel_normal
-			# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
-			# plated wall at eye height is nearly featureless: the seams and rivets are
-			# present in the map but too shallow to catch light, which is much of why
-			# plated geometry still read as untextured. At 1.9 the plate faces dome and
-			# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
-			# value at which no frame showed doming while the dark walls resolved into
-			# pressed sheet metal. Every module shares the value so a deck and the wall
-			# beside it cannot disagree.
-			panel.normal_scale = 1.0
-			panel.roughness_texture = panel_roughness
-			panel.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-			panel.uv1_triplanar = true
-			panel.uv1_world_triplanar = true
-			panel.uv1_triplanar_sharpness = 4.0
-			panel.uv1_scale = Vector3.ONE * (0.22 if key in ["deck", "ceramic_floor"] else 0.3)
-			panel.texture_repeat = true
-			panel.clearcoat_enabled = true
-			panel.clearcoat = 0.28
-			panel.clearcoat_roughness = 0.38
+	# One call per key into the published kit recipe rather than an inline copy of
+	# it, so this module cannot drift from the shared `normal_scale = 1.0` that
+	# keeps one relief depth across every module seam. The walked-on surfaces stay
+	# at the berth's tighter 0.22 m plate; everything else stays at 0.30 m.
+	for key in [
+		"ceramic",
+		"ceramic_warm",
+		"ceramic_floor",
+		"steel_blue",
+		"deck",
+		# Painted handling steel. Structure, not hazard marking: the striped route
+		# and lane cues are `orange_glow` and stay outside the family.
+		"orange",
+	]:
+		var panel := _materials[key] as StandardMaterial3D
+		StationSurfaceKit.apply_panel_triplanar(
+			panel,
+			WALKED_PANEL_SURFACE_SCALE if key in ["deck", "ceramic_floor"] else PANEL_SURFACE_SCALE
+		)
+		# The berth's own sealed-marine-paint layer over the shared recipe.
+		panel.clearcoat_enabled = true
+		panel.clearcoat = 0.28
+		panel.clearcoat_roughness = 0.38
 
 
 func _build_connection_lattice() -> void:
@@ -981,12 +993,27 @@ func _rounded_box(
 	return container
 
 
+## Deliberately NOT folded into `StationSurfaceKit`, unlike the five other
+## station builders that now share the kit's chamfered-box body.
+##
+## This is a different algorithm, not a copy of the same one: it emits an inset
+## face quad plus four skirt quads with averaged corner normals and calls
+## `SurfaceTool.index()`, where the kit emits a nine-quad grid with per-corner
+## normals and no index pass. The two produce different vertex counts, different
+## normals and different topology for the same box, so moving this module onto
+## the kit would rewrite every chamfered surface in the berth rather than
+## deduplicate identical code. Its bevel rule differs too — clamped to
+## 0.008..0.22 m rather than 0.003..0.20 m — and the kit rule would move 21 of
+## this module's 44 distinct box sizes by up to 0.04 m. Rewriting this builder is
+## a geometry change with its own evidence, not a consolidation.
 func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 	var cache_key := "%0.3f:%0.3f:%0.3f" % [size.x, size.y, size.z]
 	if _rounded_box_cache.has(cache_key):
 		return _rounded_box_cache[cache_key] as ArrayMesh
 	var half := size * 0.5
-	var bevel := clampf(minf(size.x, minf(size.y, size.z)) * 0.22, 0.008, 0.22)
+	# Same published rule as the other modules, at this berth's own caps. Exactly
+	# equivalent to the clampf() this replaced.
+	var bevel := StationSurfaceKit.proportional_bevel_for_size(size, 0.22, 0.008)
 	var inner := Vector3(maxf(0.0, half.x - bevel), maxf(0.0, half.y - bevel), maxf(0.0, half.z - bevel))
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
