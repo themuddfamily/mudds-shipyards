@@ -331,6 +331,7 @@ const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 @onready var habitat_spine: HabitatSpine = $HabitatSpine
 @onready var jovian_freight_berth: JovianFreightBerth = $JovianFreightBerth
 @onready var fleet_dock_comb: FleetDockComb = $FleetDockComb
+@onready var nearby_sector_cluster: NearbySectorCluster = $NearbySectorCluster
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
@@ -443,6 +444,22 @@ func get_habitat_spine() -> HabitatSpine:
 
 func get_jovian_freight_berth() -> JovianFreightBerth:
 	return jovian_freight_berth
+
+
+## The hand-authored destination cluster outside the station envelope: the route
+## beacon chain, the ringed moonlet, the Cinder Reach debris field and the
+## derelict extraction platform. It is mounted at the world origin with an
+## identity transform, so its published coordinates read directly against the
+## launch gate and the target range. It owns no gameplay authority and adds no
+## range targets, so `get_target_count()` and the guided mission are unaffected.
+func get_nearby_sector_cluster() -> NearbySectorCluster:
+	return nearby_sector_cluster
+
+
+func get_nearby_sector_cluster_audit_report() -> Dictionary:
+	if not is_instance_valid(nearby_sector_cluster):
+		return {"valid": false, "errors": ["nearby sector cluster is missing from the world"]}
+	return nearby_sector_cluster.get_cluster_audit_report()
 
 
 ## Source-bounded B2 comb/slab macro correction. Dock 01 records one modern,
@@ -2021,6 +2038,10 @@ func _apply_operational_dressing_quality() -> void:
 	for dressing in _station_structural_service_dressings:
 		if is_instance_valid(dressing):
 			dressing.set_quality_level(visual_quality_level)
+	# The cluster's fine debris shell follows the same profile the station
+	# dressing does. Its structures, boulders and collision never vary.
+	if is_instance_valid(nearby_sector_cluster):
+		nearby_sector_cluster.set_detail_quality(visual_quality_level)
 
 
 ## Resolves a hitscan projectile against station collision and target drones.

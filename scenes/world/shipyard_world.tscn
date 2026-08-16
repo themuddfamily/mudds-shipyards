@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/modules/jovian_freight_berth.tscn" id="5_freight_berth"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth_feedback.tscn" id="6_berth_feedback"]
 [ext_resource type="PackedScene" path="res://scenes/world/modules/fleet_dock_comb.tscn" id="7_fleet_dock_comb"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/nearby_sector_cluster.tscn" id="8_nearby_sector"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -103,3 +104,5 @@ assist_maximum_tilt_degrees = 75.0
 position = Vector3(0, -1.18, 0)
 cue_half_width = 11.6
 cue_half_length = 16.5
+
+[node name="NearbySectorCluster" parent="." instance=ExtResource("8_nearby_sector")]
