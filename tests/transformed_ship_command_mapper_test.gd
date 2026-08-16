@@ -130,6 +130,55 @@ func _test_edge_and_toggle_semantics() -> void:
 	var toggled_off := _sample_and_map(fixture, 0, 3)
 	_check(not (toggled_off.command as ShipCommand).boost, "the next physical press switches transformed toggle intent off")
 
+	var edge_modes := {}
+	for action: StringName in [
+		&"barrel_roll", &"landing_assist", &"interact",
+		&"toggle_ship_camera_view", &"camera_distance_in", &"camera_distance_out",
+	]:
+		edge_modes[action] = Profile.TOGGLE
+	var edge_fixture := _fixture(edge_modes)
+	var edge_provider := edge_fixture.provider as FakeProvider
+	for action: StringName in [
+		&"barrel_roll", &"landing_assist", &"interact",
+		&"toggle_ship_camera_view", &"camera_distance_in",
+	]:
+		edge_provider.set_action(action, 1.0)
+	var first_edges := _sample_and_map(edge_fixture, 0, 4).command as ShipCommand
+	for action: StringName in [
+		&"barrel_roll", &"landing_assist", &"interact",
+		&"toggle_ship_camera_view", &"camera_distance_in",
+	]:
+		edge_provider.set_action(action, 0.0, false)
+	_sample_and_map(edge_fixture, 0, 5)
+	for action: StringName in [
+		&"barrel_roll", &"landing_assist", &"interact",
+		&"toggle_ship_camera_view", &"camera_distance_in",
+	]:
+		edge_provider.set_action(action, 1.0)
+	var second_edges := _sample_and_map(edge_fixture, 0, 6).command as ShipCommand
+	_check(
+		first_edges.barrel_roll and second_edges.barrel_roll
+		and first_edges.landing and second_edges.landing
+		and first_edges.interact and second_edges.interact
+		and first_edges.camera_toggle and second_edges.camera_toggle
+		and first_edges.camera_distance_delta == -1.0
+		and second_edges.camera_distance_delta == -1.0,
+		"toggle options cannot suppress every other physical barrel, lifecycle, camera-toggle, or distance-in edge",
+	)
+
+	var out_fixture := _fixture(edge_modes)
+	var out_provider := out_fixture.provider as FakeProvider
+	out_provider.set_action(&"camera_distance_out", 1.0)
+	var first_out := _sample_and_map(out_fixture, 0, 7).command as ShipCommand
+	out_provider.set_action(&"camera_distance_out", 0.0, false)
+	_sample_and_map(out_fixture, 0, 8)
+	out_provider.set_action(&"camera_distance_out", 1.0)
+	var second_out := _sample_and_map(out_fixture, 0, 9).command as ShipCommand
+	_check(
+		first_out.camera_distance_delta == 1.0 and second_out.camera_distance_delta == 1.0,
+		"toggle options cannot suppress every other physical distance-out edge",
+	)
+
 
 func _test_fail_closed_validation() -> void:
 	var fixture := _fixture()

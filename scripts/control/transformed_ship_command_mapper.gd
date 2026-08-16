@@ -342,7 +342,10 @@ func _held(actions: Dictionary, action_id: StringName) -> bool:
 
 
 func _edge(actions: Dictionary, action_id: StringName) -> float:
-	return 1.0 if bool((actions[action_id] as Dictionary).just_pressed) else 0.0
+	# Edge commands preserve LocalShipInputSource's physical rising-edge contract.
+	# A valid toggle option may change a held action's logical latch, but must not
+	# make landing/camera/etc. fire only on every other physical press.
+	return 1.0 if bool((actions[action_id] as Dictionary).physical_just_pressed) else 0.0
 
 
 func _transform_scalar(raw_scalar: float, deadzone: float, curve: StringName) -> float:

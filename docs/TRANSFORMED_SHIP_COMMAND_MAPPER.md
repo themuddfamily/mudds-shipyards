@@ -13,7 +13,7 @@ The mapper requires these 18 actions in the complete sampler frame:
   `move_left`/`move_right` → yaw, `pitch_down`/`pitch_up` → pitch, and
   `roll_left`/`roll_right` → roll;
 - logical held intent: `sprint_boost`, `brake`, `hover`, and `fire`;
-- logical just-pressed intent: `barrel_roll`, `landing_assist`, `interact`, and
+- physical just-pressed intent: `barrel_roll`, `landing_assist`, `interact`, and
   `toggle_ship_camera_view`;
 - signed one-step camera distance: `camera_distance_in` and
   `camera_distance_out`.
@@ -23,9 +23,11 @@ The complete runtime profile may also contain non-ship actions such as `jump`,
 snapshots are validated with the rest of the frame but do not enter
 `ShipCommand`.
 
-The logical `value`, `pressed`, and `just_pressed` fields are used, so the
-existing transform remains the sole owner of deadzone, curve, hold, and toggle
-semantics. Opposing axes subtract and clamp to the signed unit range. Opposing
+Axes use logical `value` and held commands use logical `pressed`, so the existing
+transform remains the sole owner of their deadzone, curve, hold, and toggle
+semantics. One-shot commands use `physical_just_pressed`: choosing toggle for an
+edge action cannot silently make it fire on only every other physical press.
+Opposing axes subtract and clamp to the signed unit range. Opposing
 camera-distance edges cancel in the same frame.
 
 ## Validation and failure behavior
