@@ -2,6 +2,13 @@ extends SceneTree
 
 const ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 
+## Frozen directly from the production player scene: 1.42 m pivot, the default
+## 5.2 m boom at 10 degrees, 0.16 m SpringArm sphere, 0.28 m margin and 0.08 m
+## camera near plane. This is the walking-camera lane the old FULL orbit entered.
+const WALKING_CAMERA_SWEEP_TOP_Y := 1.42 + sin(deg_to_rad(10.0)) * 5.2 + 0.16 + 0.28 + 0.08
+const DRONE_LOWEST_VISUAL_OFFSET_Y := -0.61
+const LEGACY_FULL_DRONE_BASE_ELEVATION := 1.48
+
 var _failures: Array[String] = []
 
 
@@ -46,6 +53,7 @@ func _run() -> void:
 	)
 	_check((integration.local_size as Vector3).is_equal_approx(Vector3(11.3, 7.25, 9.0)), "integration footprint is complete and finite")
 	_check(_meshes_stay_inside_declared_envelope(activity), "FULL profile render and motion remain inside its published envelope")
+	await _test_full_drone_camera_clearance(activity)
 
 	var performance := activity.get_performance_audit()
 	var counts := performance.counts as Dictionary
@@ -496,6 +504,93 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+## Regression witness for the Central FULL placement. Before the fix this exact
+## check fails: the first drone bottoms at 0.69 m, well inside the production
+## player's default walking-camera sweep. The roof patrol is a separate mounting
+## contract, so it must remain byte-for-formula identical while FULL moves up.
+func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
+	var was_paused := full.is_activity_paused()
+	full.set_activity_paused(true)
+	var roof_patrol := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+	roof_patrol.activity_profile = StationOperationsActivity.ActivityProfile.DRONE_PATROL
+	roof_patrol.variation_seed = full.variation_seed
+	roof_patrol.starts_paused = true
+	root.add_child(roof_patrol)
+	await process_frame
+
+	var full_clear := true
+	var roof_route_unchanged := true
+	var seed_phase := fmod(float(full.variation_seed), 997.0) / 997.0 * TAU
+	for step in 1201:
+		var seconds := float(step) * 0.0125
+		full.set_activity_time(seconds)
+		roof_patrol.set_activity_time(seconds)
+		var full_drones := full.get_activity_state().drones as Array
+		var roof_drones := roof_patrol.get_activity_state().drones as Array
+		for index in roof_drones.size():
+			var full_position := (full_drones[index] as Dictionary).position as Vector3
+			full_clear = (
+				full_clear
+				and full_position.y + DRONE_LOWEST_VISUAL_OFFSET_Y
+				> WALKING_CAMERA_SWEEP_TOP_Y
+			)
+			var phase := seconds * (0.24 + index * 0.035) + seed_phase + float(index) * PI
+			var expected_roof_position := Vector3(
+				cos(phase) * (3.55 - index * 0.28),
+				LEGACY_FULL_DRONE_BASE_ELEVATION + float(index) * 0.44 + sin(phase * 2.0) * 0.18,
+				sin(phase) * (2.85 - index * 0.22)
+			)
+			roof_route_unchanged = (
+				roof_route_unchanged
+				and ((roof_drones[index] as Dictionary).position as Vector3).is_equal_approx(
+					expected_roof_position
+				)
+			)
+
+	_check(
+		LEGACY_FULL_DRONE_BASE_ELEVATION - 0.18 + DRONE_LOWEST_VISUAL_OFFSET_Y
+		<= WALKING_CAMERA_SWEEP_TOP_Y,
+		"legacy FULL orbit is a deterministic witness inside the real walking-camera sweep"
+	)
+	_check(full_clear, "FULL drones and their cargo pods remain above the real walking-camera sweep")
+	_check(roof_route_unchanged, "roof-patrol placement and timing retain the original mount-relative route")
+
+	var full_envelope := full.get_integration_contract().drone_motion_envelope as Dictionary
+	var roof_envelope := roof_patrol.get_integration_contract().drone_motion_envelope as Dictionary
+	_check(
+		(full_envelope.local_center as Vector3).is_equal_approx(Vector3(0.0, 3.97, 0.0))
+		and (roof_envelope.local_center as Vector3).is_equal_approx(Vector3(0.0, 1.7, 0.0))
+		and (full_envelope.half_extents as Vector3).is_equal_approx(
+			roof_envelope.half_extents as Vector3
+		),
+		"published FULL drone envelope moves 1.70 -> 3.97 m without resizing the roof route"
+	)
+
+	var pulse_materials_unchanged := true
+	var full_lens := full.get_node(
+		^"PresentationRoot/AnimatedServiceDrone01/NavigationLens"
+	) as MeshInstance3D
+	var roof_lens := roof_patrol.get_node(
+		^"PresentationRoot/AnimatedServiceDrone01/NavigationLens"
+	) as MeshInstance3D
+	for step in 55:
+		var seconds := float(step) * 0.025
+		full.set_activity_time(seconds)
+		roof_patrol.set_activity_time(seconds)
+		pulse_materials_unchanged = (
+			pulse_materials_unchanged
+			and full_lens.material_override == roof_lens.material_override
+		)
+	_check(
+		pulse_materials_unchanged,
+		"FULL reroute preserves the roof patrol's exact 1.35 s pulse timing and shared material identity"
+	)
+
+	roof_patrol.queue_free()
+	await process_frame
+	full.set_activity_time(0.0)
+	full.set_activity_paused(was_paused)
 
 
 ## The four station-life profiles as a behaviour group: the movers must be pure
