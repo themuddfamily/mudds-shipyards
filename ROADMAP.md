@@ -111,6 +111,39 @@ Remaining, in order of leverage:
   - The **legacy nebula cover is faintly legible as panel seams** in the same shots, roughly 4/255 of modulation over a 15/255 field. Its 0.08 modulate is frozen for the same reason.
 - Frame cost of the three added lights and one added shadow map is **unmeasured**. This machine renders through llvmpipe; any number produced here would be meaningless.
 
+### Fixture practicals and interior colour temperature — 2026-08-16
+
+Closes the two items left open above: fixtures that did not light their mounts, and monochrome interiors.
+
+**The bimodal frame was a mechanism problem, not a tuning problem.** `emission` is a purely local surface term in Forward+ — it changes what the emitting fragment returns and nothing else — and the glow pass is a screen-space convolution of the finished *image*. Neither delivers any radiance to the plate a fixture is bolted to. So no amount of emission can make a sign light its own backing panel; raising it only pushes the lens past the tonemapper's shoulder and widens the bloom, which *is* the bimodality. The only mechanism in this renderer that lights a mount is a `Light3D`. Anyone reaching for emission energy to fix a "glowing decal" is reaching for the wrong control.
+
+Thirty-nine small fixture practicals were added under one shared idiom in four modules (`aft_junction_stack`, `habitat_spine`, `jovian_freight_berth`, `fleet_dock_comb`): shadowless, sub-7 m range, steep attenuation, distance-faded, each carrying **its own fixture's hue** so the spill identifies the source. Where one was added the lens emission came down by roughly what the practical now carries, so energy moved out of the blown top of the histogram into the structural band rather than being added as gain.
+
+**The distance fade is the trap, and it is worth recording because it silently voids the whole pass.** Set at 16 m begin / 8 m length, every practical was off in nine of eleven measured frames while the emission reduction that paid for them had still landed; structural sigma measured **−0.9% to +0.1%** across the exteriors — cost delivered, benefit not. The station is a 10–50 m structure normally read from 30–120 m, so a fade ending at 24 m ends *inside the subject*. At 60 m / 25 m the practicals are present at every distance the station is actually looked at, and the 140 m-plus lattice overview still measures bit-stable.
+
+Measured, structural sigma being the std-dev of the non-emissive lower 90% of the frame:
+
+| frame | mean | structural σ | hue spread (rad) | near-blown % |
+| --- | --- | --- | --- | --- |
+| `operations_room` | 35.05 → **45.73** | 18.28 → **22.33** (+22.2%) | 0.140 → **0.507** | 0.27 → 0.16 |
+| `habitat_common_room` | 48.21 → 50.74 | 19.51 → **20.87** (+7.0%) | 0.422 → **0.507** | 0.00 → 0.00 |
+| `aft_junction` | 48.05 → 48.22 | 38.65 → 38.83 (+0.5%) | 0.469 → 0.493 | 0.00 |
+| `habitat_exterior` | 28.19 → 28.61 | 15.11 → 14.90 (−1.4%) | 0.197 → 0.202 | 0.00 |
+| `station`, `03`, `05`, `jovian_*` | ±0.1% | ±0.1% | +0.1–1.7% | 0.00 |
+| `01`, `02`, `04`, `06`, `07` | unchanged to 2 d.p. | | | |
+
+Read honestly. This is a *local* pass and it measures where a person stands. The wide-lattice frames are flat because a sub-7 m pool is sub-pixel at 80–120 m; `01`/`02` cannot move at all because neither frame contains any of the four modules touched. `habitat_exterior` is the one frame showing the pattern this project watches for — mean up 1.5% while sigma falls 1.4% — and the cause is known: warm light now reaches the common room, which sits behind the station's only large glazed wall, so a big low-variance area got brighter. Kept, because the same light is what makes the habitat read as inhabited from outside, but it is a real cost.
+
+**Interior hue.** Interiors were one cyan because the station's only warm light is a directional bounce aimed up from the open decks, which an enclosed room cannot see, and because their own fixtures were all cool. Two corrections, neither touching the cool identity or the cue palette. First, fixtures now cast the colour they look like: the habitat's cove and ceiling lenses are an authored `#ffe6bd` but their pools were cool near-whites, which is a specific "not real" cue — the room looked tinted rather than lit. That cost no lights. Second, rooms carry two colour temperatures as real rooms do: cool overheads stay dominant, and warm light arrives at working height from sources that belong to the room (under-console task wash, cove lamp, arc tiles, bunk reading lamps, a freight-control desk lamp). Every added warm light is a low broad wash below cue height; the cyan/amber/green cue hues and the colourblind-safe shape channel in `ship_berth_feedback.gd` are untouched.
+
+Light counts re-frozen in the open, exact equalities kept exact. **World rig unchanged** at directional 3 / spot 8 / omni 1 / total 12 with 8 shadow casters — nothing was added at world level. `FleetDockComb` `LIGHT_BUDGET` 0 → 4 (it was the only module with no light at all; its loop budgets stay at zero) with `fleet_dock_comb_test` moved from `== 0` to `== 4` plus a new property assertion that every comb light is shadowless, range-bounded and distance-faded. Module ceilings: aft junction 12 → 32 (built 11 → 32), habitat 12 → 15 (built 6 → 15), freight 24 → 26 (built 21 → 26), each set at the exact built count rather than left with headroom.
+
+Two regressions were caught by measurement inside this pass and are recorded rather than quietly fixed, because both are easy to repeat. Raising `_guide_light` attenuation to 1.55 in the freight module steepened the falloff on all eighteen existing apron guide lights at once and cost `05_jovian_freight_operations` 0.25 of structural sigma — a real loss on that module's best-lit feature, for no benefit. And siting `TableDisplayGlow` 0.19 m above the panel it lights put a blown specular hotspot on the deck and took the habitat common room's near-blown fraction from 0.00 to 0.43 points, i.e. it *created* the defect the pass exists to remove. A practical placed too close to its own fixture is a new blowout, not a fix.
+
+Frame cost is **unmeasured and unmeasurable here**: this box renders through llvmpipe, and any number produced on it would be meaningless.
+
+**Still open.** The central pad and launch approach are world-level and were left alone, so their cues are unchanged — they were already the best-served area (eight recessed berth fixtures and guide lights all carry practicals). `ship_berth_feedback.gd` still asserts `lights == 0`; its state cue is the one berth cue with no light of its own, and reversing that property belongs with whoever owns the accessibility cue work rather than with this pass.
+
 **Screen-space AO cannot be evaluated on this machine.** Rendering the production scene to the root viewport under llvmpipe/Vulkan and capturing six framings, `ssao_enabled = false` at the profile level (applied before the world builds), the shipped `HIGH` settings, and a forced 4× maximum (intensity 16, radius 8 m, power 4, `light_affect` 1.0) all produce **bit-identical** frames to four decimal places on every statistic. A desaturation applied through the same Environment reference *does* land, so the reference is live and the pass is simply not contributing. Any earlier conclusion about how much AO does or does not do — including "AO's job is modulating ambient and there is almost no ambient to modulate" — was measured through an instrument that is inert on this box and needs re-taking on real hardware. The lighting result recorded above does not depend on AO either way.
 
 ## Unverified player recollections — leads, not evidence
