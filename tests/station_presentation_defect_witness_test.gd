@@ -82,9 +82,41 @@ const SEATED_DECORATION_TOLERANCE := 0.03
 ##   Jovian freight: all eight cargo crates hovered, 0.045-0.055 m above the rack
 ##   shelf for the lower four and 0.040-0.070 m above their own lower crate for
 ##   the upper four.
+##
+## Widened by the 2026-08-16 interior-relationship pass, from ten entries to
+## nineteen. Every addition is a piece that pass either added or repaired, and
+## three of them are the repairs themselves, recorded here so the defect cannot
+## come back:
+##
+##   REGEN-DECK-002. Both station pod identity legends hung in mid-air. Measured
+##   live, `FLEET REGISTRY // MODERN INTERFACE` occupied y = 4.928 … 5.148 at
+##   z = 22.815 — 0.18 m in front of the registry roof's leading edge and 0.48 m
+##   below it — and `DOCK OPERATIONS` hung the same way off its mirror pod.
+##   MAP-004 turned both the right way round; nothing ever mounted them. Each pod
+##   now carries a fascia hung off its own roof edge, sized to meet the glyphs
+##   exactly where they already stand, so both legend transforms are unchanged and
+##   their MAP-004 approach-facing entries above still hold.
+##   OPS-GLAZING-001. Every Dock Operations window pane stood in the 0.245 m gap
+##   between the mullions it is supposed to be glazed into, and the fourth pane
+##   reached x = 51.825 against a pod that ends at x = 49 — 2.83 m of a 4.7 m
+##   sheet of glass standing in open space past the corner of the building.
+##
+## The comb's own equivalents are asserted structurally rather than by path in
+## `tests/fleet_dock_comb_test.gd`, which sweeps every generated surface-detail
+## mesh in the module; that sweep is what found COMB-DECK-CUE-001.
 const SEATED_ON_GEOMETRY_PATHS := [
 	"FleetDockComb/GeneratedComb/VisualUnderframe/TrunkChordPort",
 	"FleetDockComb/GeneratedComb/VisualUnderframe/TrunkChordStarboard",
+	"ModernFleetRegistry/Sign_FLEET_REGISTRY__--__MODERN_INTERFACE",
+	"ModernFleetRegistry/RegistryDispatchBoard",
+	"ModernFleetRegistry/RegistryTaskLampHousing",
+	"ModernFleetRegistry/RegistryToolRack",
+	"ModernFleetRegistry/RegistryPartsTray",
+	"ModernFleetRegistry/RegistryStowedManifest",
+	"UpperOperations/Sign_DOCK_OPERATIONS",
+	"UpperOperations/OperationsWindow",
+	"UpperOperations/LandingConsoleReadout",
+	"UpperOperations/LandingViewerHead",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit01/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit02/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit03/Mesh",
@@ -215,7 +247,7 @@ func _test_structural_pieces_rest_on_drawn_geometry(world: ShipyardWorld) -> voi
 	print("FLOATING_STRUCTURAL_PIECES: ", floating)
 	_check(
 		floating.is_empty(),
-		"every under-deck chord and stacked cargo crate bears on drawn geometry instead of hanging in space"
+		"every under-deck chord, stacked crate, pod legend, glazing pane and interior fitting bears on drawn geometry instead of hanging in space"
 	)
 
 

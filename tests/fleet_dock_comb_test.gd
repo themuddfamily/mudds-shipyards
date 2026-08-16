@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_footprint_routes_and_authority(module)
 	await _test_collision_backed_comb_and_voids(module)
 	_test_performance_contract(module)
+	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
 	await _test_cleanup(module)
 	_finish()
@@ -171,7 +172,18 @@ func _test_chamfered_meshes_do_not_move_collision(module: FleetDockComb) -> void
 	)
 
 
-## Re-frozen in the open: light count 0 -> 4, everything else unchanged.
+## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else
+## unchanged. Both equalities stayed exact; neither was widened into a range.
+##
+## The 4 -> 7 step belongs to the dock-arm service pass, and it is the same
+## mechanism as the 0 -> 4 step below: each arm's new mast status lens is an
+## emissive mesh, emission illuminates nothing in Forward+, so without a
+## practical the lens is one more glowing decal on unlit plate. The three
+## additions are one amber spill per mast head. The mesh-instance ceiling moved
+## with them (64 -> 107 against a built 58 -> 100) and is asserted through
+## `within_budget`; the collision, label, marker and loop figures below are
+## untouched and still exact, which is the claim that matters — the pass added no
+## body, no shape, no label and no process loop.
 ##
 ## The comb was the only station module carrying no light at all, so its status
 ## stripes, corner beacons, rung edge cues and trunk route lights rendered as
@@ -186,7 +198,7 @@ func _test_performance_contract(module: FleetDockComb) -> void:
 	var performance := module.get_performance_contract()
 	_check(bool(performance.within_budget), "module stays within every fixed geometry and processing budget")
 	_check(int(performance.static_bodies) == 7 and int(performance.collision_shapes) == 7, "performance report agrees with the exact collision roster")
-	_check(int(performance.labels) == 3 and int(performance.lights) == 4, "presentation contains exactly three labels and four practical light nodes")
+	_check(int(performance.labels) == 3 and int(performance.lights) == 7, "presentation contains exactly three labels and seven practical light nodes")
 	_check(int(performance.process_loops) == 0, "static module allocates no frame or physics process loop")
 	var practicals_are_restrained := true
 	var lights := module.find_children("*", "Light3D", true, false)
@@ -199,8 +211,123 @@ func _test_performance_contract(module: FleetDockComb) -> void:
 			and light.omni_range <= 8.0 \
 			and bool(light.get_meta("fixture_practical", false))
 	_check(
-		lights.size() == 4 and practicals_are_restrained,
+		lights.size() == 7 and practicals_are_restrained,
 		"every comb light is a shadowless, range-bounded, distance-faded fixture practical"
+	)
+
+
+## The dock-arm service pass, asserted on its three design rules rather than on
+## a mesh count.
+##
+## 1. Every generated surface-detail mesh — the new service hardware *and* the
+##    deck cues that were already there — shares volume with some other mesh in
+##    the module. This is the "random objects floating in the air" class stated as
+##    an assertion, and it is worth having here rather than only in the
+##    world-level witness roster for two reasons: the module is instantiated in
+##    isolation, so there is no other geometry for a floater to accidentally
+##    touch; and the world-level roster is a curated list of paths, which cannot
+##    see a new floater nobody thought to add to it. It is deliberately widened
+##    past the new hardware because widening it is what found COMB-DECK-CUE-001 —
+##    three trunk route lights hovering 0.020 m and four rung edge cues 0.025 m
+##    over decks they are supposed to be inlaid into, live since the cues were
+##    authored and invisible to every check in the project.
+## 2. Nothing tall stands on a walking plate. The module carries no collision on
+##    dressing, so a waist-height object on a slab would be a solid-looking thing
+##    a player walks through. Anything rising more than 0.25 m above its slab must
+##    therefore be outboard of the slab's own x extent, over the void.
+## 3. The service group stays presentation. No body, no shape, no area.
+##
+## Rule 2 is the structured-red target: move any mast inboard onto the plate and
+## this turns red while every count above stays green.
+func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
+	var roster := module.get_component_roster()
+	_check(
+		int(roster.dock_service_mast_count) == 3
+		and int(roster.dock_mooring_cleat_count) == 6
+		and int(roster.deployed_service_boom_count) == 1,
+		"every arm carries a service mast and two mooring cleats, and only the assigned arm is run out"
+	)
+
+	var service := module.find_child("DockArmService", true, false) as Node3D
+	_check(service != null, "generated dock-service group resolves under the surface detail root")
+	if service == null:
+		return
+	_check(
+		service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and service.find_children("*", "Area3D", true, false).is_empty(),
+		"dock-arm service hardware introduces no collision body, shape or area"
+	)
+
+	var module_boxes: Array[AABB] = []
+	var module_meshes: Array[MeshInstance3D] = []
+	for raw in module.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := raw as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		module_meshes.append(mesh_instance)
+		module_boxes.append((mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs())
+
+	var detail := service.get_parent() as Node3D
+	_check(detail != null and detail.name == &"SurfaceDetail", "service group hangs under the generated surface-detail root")
+	if detail == null:
+		return
+
+	var floating := PackedStringArray()
+	var standing_on_a_plate := PackedStringArray()
+	# Local x extent of every walkable plate in the module: the trunk reaches
+	# x = 2.4, the rungs x = 9.0, the slabs x = 21.0.
+	var outboard_of_every_plate := 21.0
+	for raw in detail.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := raw as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		# Rule 2 is scoped to the service group, whose node names are all authored
+		# and unique. The older repeated cues are renamed by the engine to
+		# `@MeshInstance3D@N`, and a generated name can contain "03" by accident,
+		# which would score a slab-03 beacon against the lower deck and flag it.
+		var in_service_group := service.is_ancestor_of(mesh_instance)
+		var local_box := AABB()
+		var first_corner := true
+		for x_ratio in [0.0, 1.0]:
+			for y_ratio in [0.0, 1.0]:
+				for z_ratio in [0.0, 1.0]:
+					var mesh_aabb := mesh_instance.mesh.get_aabb()
+					var corner := mesh_aabb.position + mesh_aabb.size * Vector3(x_ratio, y_ratio, z_ratio)
+					var local_point := module.global_transform.affine_inverse() \
+						* (mesh_instance.global_transform * corner)
+					if first_corner:
+						local_box = AABB(local_point, Vector3.ZERO)
+						first_corner = false
+					else:
+						local_box = local_box.expand(local_point)
+		# The part's own arm decides its reference plate: arms 01 and 02 walk at
+		# y = 0 and arm 03 at y = 2.4. Reading it from the name rather than from
+		# the geometry matters, because arm 03's bracket is *buried inside* its
+		# slab section and a "nearest plate below" rule would score it against the
+		# lower deck 2.4 m away and flag it.
+		var plate_top := 2.4 if str(mesh_instance.name).contains("03") else 0.0
+		if in_service_group and local_box.end.y - plate_top > 0.25 and local_box.position.x < outboard_of_every_plate:
+			standing_on_a_plate.append("%s @ %s" % [str(mesh_instance.name), str(local_box)])
+
+		var world_box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		var grown := world_box.grow(0.001)
+		var touched := false
+		for index in module_boxes.size():
+			if module_meshes[index] == mesh_instance:
+				continue
+			if grown.intersects(module_boxes[index]):
+				touched = true
+				break
+		if not touched:
+			floating.append("%s @ %s" % [str(mesh_instance.name), str(world_box)])
+	floating.sort()
+	standing_on_a_plate.sort()
+	print("COMB_SERVICE_FLOATING: ", floating)
+	print("COMB_SERVICE_ON_PLATE: ", standing_on_a_plate)
+	_check(floating.is_empty(), "every generated comb surface-detail mesh shares volume with the geometry it is mounted to")
+	_check(
+		standing_on_a_plate.is_empty(),
+		"nothing over 0.25 m tall stands on a walkable plate the module does not collide"
 	)
 
 

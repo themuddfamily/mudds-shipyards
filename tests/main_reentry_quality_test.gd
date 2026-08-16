@@ -78,6 +78,7 @@ func _test_whole_main_reentry(
 	var arrow := _ship_by_id(fleet, &"arrow_provisional")
 	var jovian := _ship_by_id(fleet, &"jovian_provisional")
 	var zenith := _ship_by_id(fleet, &"zenith_b7_observed")
+	var halyard := _ship_by_id(fleet, &"halyard_new_design")
 	_check(
 		torrent != null and arrow != null and jovian != null and zenith != null,
 		"whole-tree fixture retains all four exact production ship identities"
@@ -284,15 +285,22 @@ func _test_whole_main_reentry(
 		var unique_resource_ids := {}
 		for instance_id in restored_resource_ids.values():
 			unique_resource_ids[int(instance_id)] = true
+		# Re-frozen 5 -> 6 when the Halyard crew transport landed as the fleet's
+		# fifth armed craft (COMBAT_SOURCE_ID 1105, continuing the 1101-1104 run).
+		# The Halyard pass updated fleet.size() in this file but missed this
+		# assertion, so the census is now five player craft plus the defender.
+		# Intent unchanged: re-entry must restore EXACTLY the registered set, and
+		# the Halyard is enumerated by id rather than absorbed into a count.
 		_check(
-			resolver.get_registered_source_count() == 5
-			and int(authority.get("_registrations_by_instance").size()) == 5
+			resolver.get_registered_source_count() == 6
+			and int(authority.get("_registrations_by_instance").size()) == 6
 			and authority.get_source_id(torrent) == 1101
 			and authority.get_source_id(arrow) == 1102
 			and authority.get_source_id(jovian) == 1103
 			and authority.get_source_id(zenith) == 1104
+			and authority.get_source_id(halyard) == 1105
 			and authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID,
-			"re-entry cycle %d restores the exact five combat authority/resolver sources" % (cycle + 1)
+			"re-entry cycle %d restores the exact six combat authority/resolver sources" % (cycle + 1)
 		)
 		_check(
 			bool(restored_audio.resources_ready)

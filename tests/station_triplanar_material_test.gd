@@ -259,12 +259,39 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# the plate family, which lands at BOTH mapped scales, not just 0.30 --
 	# 0.22 goes 115 -> 129 (+14) and 0.30 goes 980 -> 1042 (+62). 0.28 is untouched
 	# at 532. No previously mapped surface was removed and no new scale introduced.
+	#
+	# Re-frozen once more, 1703 -> 1764, by the interior-relationship pass, which
+	# dressed the comb's three dock arms, the regeneration/registry pod and the
+	# central observation platform. Every piece it added was built on an already
+	# registered structural role, so no role joined or left the family, no new
+	# scale was introduced, and 0.22 and 0.28 are untouched at 129 and 532: the
+	# whole delta is +61 at 0.30, 1042 -> 1103. It is arithmetic rather than a
+	# measurement, and it reconciles exactly:
+	#
+	#   Fleet Dock Comb, +39. Per arm, ten mapped parts — bracket and toe kerb
+	#   (`frame`), service pod, umbilical head and two cleat bollards
+	#   (`underframe`), mast and cap (`deck_light`), two cleat pads (`grip`) —
+	#   plus one boom (`underframe`) each, so 33; then the assigned arm's dropped
+	#   umbilical hose, the two trunk conduits and the three rung branch conduits,
+	#   all `underframe`, +6. The three mast status lenses stay outside the family
+	#   with every other cue, exactly as the slab stripes and corner beacons do.
+	#   Registry pod, +16: four roof columns, two terminal risers, the task-lamp
+	#   housing and the parts tray (`steel_blue`), the roof fascia, dispatch board,
+	#   tool rack and observation console (`navy`), the crew bench (`deck_light`),
+	#   the stowed manifest (`ivory`), and three floor marks (`orange`). The four
+	#   berth tiles are `cyan_glow` and stay out.
+	#   Dock Operations pod, +1: its matching roof fascia (`steel_blue`). The
+	#   glazing went four panes to three and every pane is transparent `glass`,
+	#   which was never in the family, so that repair moves this count by nothing.
+	#   Observation landing, +5: deck inset (`deck`), console and viewer head
+	#   (`navy`), viewer post (`steel_blue`), equipment locker (`deck_light`). Its
+	#   lit readout and legend stay out with the other emissives.
 	_check(
-		mapped_surface_count == 1703
+		mapped_surface_count == 1764
 		and scale_022_count == 129
 		and scale_028_count == 532
-		and scale_030_count == 1042,
-		"live station binds exactly 1703 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1103,
+		"live station binds exactly 1764 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

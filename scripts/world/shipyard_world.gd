@@ -4039,6 +4039,7 @@ func _build_catwalks_and_control_room() -> void:
 		_box(upper, "JunctionStairRail", Vector3(-11.5 + side * 1.85, 2.2, 7.2), Vector3(0.15, 0.15, 5.2), _materials["orange"], true, Vector3(38, 0, 0))
 		_box(upper, "LandingRail", Vector3(-11.5 + side * 2.15, 4.0, 3.0), Vector3(0.16, 1.65, 4.4), _materials["ivory"])
 	_box(upper, "LandingEndRail", Vector3(-11.5, 4.0, 0.85), Vector3(4.4, 1.65, 0.16), _materials["ivory"])
+	_build_observation_landing_post(upper)
 
 	# A compact modern operations pod is attached to, rather than enclosing, the
 	# starboard node. Its purpose and adjacency are not recovered original facts.
@@ -4059,7 +4060,42 @@ func _build_catwalks_and_control_room() -> void:
 	_box(upper, "OperationsPodBack", Vector3(43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["steel_blue"])
 	for x_position in [37.5, 41.2, 44.8, 48.5]:
 		_box(upper, "OperationsWindowMullion", Vector3(x_position, 3.0, 22.95), Vector3(0.26, 5.4, 0.32), _materials["steel_blue"])
-		_box(upper, "OperationsWindow", Vector3(x_position + 1.75, 3.0, 22.8), Vector3(3.15, 4.7, 0.08), _materials["glass"], false)
+	# OPS-GLAZING-001, found by measuring every mesh in this pod against every
+	# other mesh in the station rather than by reading the code.
+	#
+	# The glazing was authored inside the mullion loop as one 3.15 m pane per
+	# mullion, offset +1.75 m in x. Two consequences, both live until now and both
+	# in the class the 2026-08-15 report named:
+	#
+	#   Every pane floated. A pane spanned `x_position + 0.175 … + 3.325` while its
+	#   own mullion occupies `x_position ± 0.13` and the next one starts at
+	#   `+ 3.57`, so all four panes stood in a 0.245 m gap between the frames they
+	#   are supposed to be glazed into and touched no geometry anywhere.
+	#   The fourth pane hung off the end of the building. The pod floor is
+	#   `x 37 … 49`; that pane reached `x = 51.825`, so 2.83 m of a 4.7 m tall
+	#   sheet of glass stood in open space past the corner of the pod.
+	#
+	# The four mullions stay exactly where they were — they carry this roof, which
+	# is why this pod never had the cantilever its mirror image did. The glazing is
+	# now three panes, one per real bay, each 0.2 m wider than its bay so it beds
+	# into the frame on both sides. The two 0.5 m stubs between the outer mullions
+	# and the pod corners stay open, matching the registry pod's open frontage.
+	for bay in [[39.35, 3.9], [43.0, 3.8], [46.65, 3.9]]:
+		_box(
+			upper,
+			"OperationsWindow",
+			Vector3(float(bay[0]), 3.0, 22.8),
+			Vector3(float(bay[1]), 4.7, 0.08),
+			_materials["glass"],
+			false
+		)
+	# REGEN-DECK-002's mirror image, and measured the same way: the DOCK OPERATIONS
+	# legend occupied y = 5.003 … 5.268 at z = 22.674, touching nothing. Same
+	# fascia, sized to meet these glyphs where they already stand (fascia face
+	# z = 22.68 against a glyph rear of 22.686) and hung off this roof's leading
+	# edge. The legend's position, rotation, scale and material are untouched, so
+	# its recorded MAP-004 approach-facing expectation still holds.
+	_box(upper, "OperationsPodFascia", Vector3(43.0, 5.35, 22.90), Vector3(12.0, 1.0, 0.44), _materials["steel_blue"])
 	# MAP-004. `TextMesh` renders its readable face toward local +Z, so a legend
 	# authored with `Vector3.ZERO` on a structure's -Z frontage reads as mirror
 	# writing to the only person who can see it. The pod is approached from the
@@ -4074,6 +4110,53 @@ func _build_catwalks_and_control_room() -> void:
 		0.48,
 		_materials["cyan_glow"]
 	)
+
+
+## Why anyone climbs the ramp.
+##
+## `ObservationLanding` is the one live platform the topology grading ties to a
+## registered anchor — B3's "short vertical transition" near an open junction —
+## and everything above the first tread is `modern_interpretation`: the landing's
+## own dimensions, its rails, and the fact that it is called "observation" at all.
+## It was a 4.6 x 4.4 m plate with three rails and nothing on it, so the seven
+## treads led to an empty box directly in front of the spawn deck, which is the
+## worst possible first read of the station.
+##
+## It is now a traffic observation post: a console with a lit readout facing the
+## reader who arrives up the ramp, a fixed viewer on a post pointed out over the
+## junction, a stowed equipment locker against the starboard rail, a grip inset
+## over the walking plate, and a task light. That is a reason for the platform to
+## exist which claims nothing historical — B3's anchor observes a transition, not
+## a function, and this pass does not upgrade it.
+##
+## Two rules held throughout. **Anything a player would be stopped by is
+## collidable**: the console and the locker are `StaticBody3D` on the World layer
+## like every other solid thing in this file, so nothing here is a solid-looking
+## object you walk through, and both are drawn where they collide. **Nothing
+## floats**: the console and the viewer post stand on the landing's 3.325 m top
+## plane, the readout is inset into the console's own 4.225 m top, the locker
+## meets the starboard rail, and the sign's glyph face is on the console front
+## rather than proud of it in air.
+func _build_observation_landing_post(upper: Node3D) -> void:
+	# Grip plate over the walking surface. It sits on the collidable landing, so
+	# the discovery sweep keeps proving there is floor beneath it.
+	_box(upper, "LandingDeckInset", Vector3(-11.5, 3.335, 3.0), Vector3(3.9, 0.03, 3.7), _materials["deck"], false)
+
+	# The console faces the ramp: a reader arriving from higher z looks in -Z, so
+	# the legend's readable +Z face needs no yaw at all. This is the same MAP-004
+	# rule the pod legends in this file follow, applied from the other side —
+	# copying their 180-degree yaw here would mirror it.
+	_box(upper, "LandingObservationConsole", Vector3(-11.5, 3.775, 1.3), Vector3(2.2, 0.9, 0.62), _materials["navy"])
+	_box(upper, "LandingConsoleReadout", Vector3(-11.5, 4.24, 1.3), Vector3(1.9, 0.06, 0.44), _materials["cyan_glow"], false)
+	_text_sign(upper, "TRAFFIC OBSERVATION", Vector3(-11.5, 3.95, 1.612), Vector3.ZERO, 0.16, _materials["white_glow"])
+
+	# Fixed viewer, pointed out over the open junction rather than at the wall.
+	_cylinder(upper, "LandingViewerPost", Vector3(-12.75, 3.85, 2.4), 0.13, 1.05, _materials["steel_blue"], false)
+	_box(upper, "LandingViewerHead", Vector3(-12.75, 4.42, 2.55), Vector3(0.46, 0.3, 0.78), _materials["navy"], false, Vector3(-18.0, 0.0, 0.0))
+	_add_guide_light(upper, Vector3(-12.75, 4.45, 2.4), KETH_CYAN, false, 1.2, 5.5)
+
+	# Stowed kit against the starboard rail, which it physically meets.
+	_box(upper, "LandingEquipmentLocker", Vector3(-9.75, 3.825, 1.35), Vector3(0.8, 1.0, 0.6), _materials["deck_light"])
 
 
 func _build_regeneration_gallery() -> void:
@@ -4111,6 +4194,36 @@ func _build_regeneration_gallery() -> void:
 	)
 	_box(gallery, "RegistryPodBack", Vector3(-43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["ivory"])
 	_box(gallery, "RegistryPodRoof", Vector3(-43.0, 5.9, 27.0), Vector3(12.0, 0.55, 8.0), _materials["steel_blue"])
+
+	# REGEN-DECK-001, measured rather than assumed. This roof is a 12 x 8 m slab
+	# whose only support anywhere in the module was the back wall at z = 30.55, so
+	# it cantilevered 7.5 m over the deck on nothing at all. Its mirror image, the
+	# Dock Operations pod, is carried by its four window mullions and always was;
+	# only this pod was unsupported. Four corner columns restore the parity. Each
+	# is buried in the deck slab at the bottom (column base y = 0.25 against a deck
+	# section of -0.02 … 0.38) and enters the roof at the top (column crown 5.65
+	# against a roof underside of 5.625), so neither end floats, and they stand
+	# 0.4 m inside the deck's own footprint so nothing overhangs.
+	for column_x in [-48.6, -37.4]:
+		for column_z in [23.4, 30.4]:
+			_box(
+				gallery,
+				"RegistryPodColumn",
+				Vector3(column_x, 2.95, column_z),
+				Vector3(0.34, 5.4, 0.34),
+				_materials["steel_blue"]
+			)
+
+	# REGEN-DECK-002. The pod's own identity legend hung in mid-air: measured live
+	# it occupied y = 4.928 … 5.148 at z = 22.815, which is 0.18 m in front of the
+	# roof's leading edge and 0.48 m below it, touching no geometry in the station.
+	# MAP-004 turned it the right way round; nothing ever mounted it. This fascia
+	# is the panel it is lettered onto — hung off the roof's front edge (fascia top
+	# 5.85 against a roof underside of 5.625) with its face at z = 22.82, exactly
+	# where the existing glyphs already stand. The legend's position, rotation,
+	# scale, wording and material are deliberately untouched, so `MAP-004`'s
+	# recorded approach-facing expectation still holds unchanged.
+	_box(gallery, "RegistryPodFascia", Vector3(-43.0, 5.35, 23.03), Vector3(12.0, 1.0, 0.42), _materials["navy"])
 	# MAP-004, same cause as the Dock Operations legend above.
 	_text_sign(
 		gallery,
@@ -4157,6 +4270,82 @@ func _build_regeneration_gallery() -> void:
 	# now a blade sign on the mast head, 0.018 m proud of the needle's -Z face and
 	# yawed to the reader. Height and copy are unchanged.
 	_text_sign(gallery, "ACTIVE BERTH  //  CENTRE SPINE", Vector3(-38.5, 3.35, 27.5), Vector3(0.0, 180.0, 0.0), 0.2, _materials["white_glow"])
+
+	_build_regeneration_deck_life(gallery)
+
+
+## What the regeneration deck is besides a terminal.
+##
+## `docs/research/STATION_TOPOLOGY.md` grades this pod `new` / `modern_interpretation`
+## across the board: B2's registered anchor observes that an enclosed
+## regeneration/control space existed, and nothing joins that observation to this
+## pod, so nothing here is a reconstruction and nothing here may become one. What
+## it *can* be is a place. Before this pass the deck held one terminal, one
+## indicator mast and 96 m² of empty plate under an unsupported roof; a player
+## walked in, read four legends off a screen and had no reason to look anywhere
+## else, which is precisely the "reads as a box" complaint.
+##
+## The additions are all crew-side rather than authority-side, which is the line
+## that matters: the pod holds no regeneration, lease, berth or spawn authority
+## and this pass adds none. A dispatch board that mirrors the four registered
+## berth slots is a *readout*, the bench and tool rack are furniture, the two
+## risers are the terminal's own service run to the roof, and the floor marks are
+## paint. Nothing here can reserve, regenerate or move a craft.
+##
+## Seating was measured, not assumed — every piece below either sits on the
+## 0.38 m deck top, hangs off the 5.625 m roof underside, or shares volume with
+## the 30.55 m back-wall face it is bolted to.
+func _build_regeneration_deck_life(gallery: Node3D) -> void:
+	# Berth dispatch board on the back wall, and one lit tile per registered
+	# berth. Four tiles because the registry is four berths — the count is read
+	# off `SHIP_BERTH_FEEDBACK_BERTH_IDS`, so a board that stops matching the
+	# registry is a code change rather than a silent drift.
+	_box(gallery, "RegistryDispatchBoard", Vector3(-43.0, 3.3, 30.48), Vector3(5.6, 1.7, 0.14), _materials["navy"], false)
+	var tile_span := 4.2
+	for tile_index in SHIP_BERTH_FEEDBACK_BERTH_IDS.size():
+		var tile_ratio := (float(tile_index) + 0.5) / float(SHIP_BERTH_FEEDBACK_BERTH_IDS.size())
+		_box(
+			gallery,
+			"RegistryBerthTile%02d" % (tile_index + 1),
+			Vector3(-43.0 - tile_span * 0.5 + tile_span * tile_ratio, 3.5, 30.40),
+			Vector3(0.86, 0.52, 0.08),
+			_materials["cyan_glow"],
+			false
+		)
+	# The reader stands on the deck at lower z and looks toward the back wall, so
+	# this legend faces them with the same 180-degree yaw MAP-004 established for
+	# every other approach-side legend in this file. Its glyph face sits at
+	# z = 30.405 against a board face of z = 30.41, so it is lettering on a panel
+	# rather than another sign hanging in air.
+	_text_sign(gallery, "REGISTERED BERTHS", Vector3(-43.0, 4.05, 30.408), Vector3(0.0, 180.0, 0.0), 0.2, _materials["white_glow"])
+
+	# The terminal's service run. Two risers from the terminal head into the roof
+	# slab: bottom at y = 2.70 inside a terminal whose top is 2.80, top at y = 5.70
+	# inside a roof whose underside is 5.625.
+	for riser_x in [-45.0, -41.0]:
+		_cylinder(gallery, "RegistryTerminalRiser", Vector3(riser_x, 4.2, 25.2), 0.11, 3.0, _materials["steel_blue"], false)
+	# Overhead task light over the terminal, and the practical that makes it one.
+	# An emissive housing lights nothing in Forward+ — the same mechanism the
+	# station's fixture-practical pass recorded — so the housing carries a real
+	# `OmniLight3D` under it rather than more emission energy.
+	_box(gallery, "RegistryTaskLampHousing", Vector3(-43.0, 5.55, 24.9), Vector3(3.4, 0.2, 0.6), _materials["steel_blue"], false)
+	_add_guide_light(gallery, Vector3(-43.0, 5.36, 24.9), Color("cfe6ee"), false, 1.5, 7.0)
+
+	# Crew side of the room, against the back wall so it cannot be walked into
+	# from behind. The bench is collidable because a bench a player walks through
+	# is the same defect as a floating one seen from the other side; it stands on
+	# the deck top at y = 0.38 and its far face meets the wall at z = 30.55.
+	_box(gallery, "RegistryServiceBench", Vector3(-47.4, 0.805, 30.1), Vector3(2.4, 0.85, 0.9), _materials["deck_light"])
+	_box(gallery, "RegistryToolRack", Vector3(-47.4, 2.15, 30.49), Vector3(1.8, 1.0, 0.12), _materials["navy"], false)
+	_box(gallery, "RegistryPartsTray", Vector3(-47.9, 1.29, 30.1), Vector3(0.9, 0.12, 0.5), _materials["steel_blue"], false)
+	_box(gallery, "RegistryStowedManifest", Vector3(-46.6, 1.255, 30.0), Vector3(0.32, 0.05, 0.24), _materials["ivory"], false)
+
+	# Paint. Two approach stripes from the threshold to the terminal and one stand
+	# mark in front of the screen, all lying on the collidable deck so the
+	# discovery sweep can keep proving there is floor under them.
+	for stripe_x in [-45.6, -40.4]:
+		_box(gallery, "RegistryApproachStripe", Vector3(stripe_x, 0.385, 24.4), Vector3(0.22, 0.03, 2.6), _materials["orange"], false)
+	_box(gallery, "RegistryStandMark", Vector3(-43.0, 0.385, 23.5), Vector3(1.1, 0.03, 0.9), _materials["orange"], false)
 
 
 func _build_provisional_fleet() -> void:
