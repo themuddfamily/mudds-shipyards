@@ -111,6 +111,19 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"cue_half_length": 4.8,
 	},
 }
+## PORT-DECK-001 / RUNWAY-SEAM-001 measured geometry constants.
+##
+## `AUTHORED_CENTRAL_BERTH_EDGE_Z` is the +Z extent of the authored central-berth
+## shell (`edge_fascia__EdgeIvory` reaches z = 7.75; its deck panels reach 7.55).
+## Every generic lattice deck stops at or beyond this plane so no station surface
+## shares a volume with the authored runway plate.
+const AUTHORED_CENTRAL_BERTH_EDGE_Z := 7.75
+## Port berth node, widened from 12.0 m so the 12.2 m Arrow no longer overhangs
+## the pad it is parked on. Its centre is unchanged, so berth transforms, the
+## landing envelope and the cue strips all keep their published coordinates.
+const PORT_BERTH_NODE_OUTER_X := -43.0
+const PORT_BERTH_NODE_HALF_WIDTH := 8.4
+
 const CENTRAL_HERO_SCHEMA_VERSION := 2
 const OPERATIONAL_LATTICE_SCHEMA_VERSION := 1
 const SPACE_BACKDROP_SCHEMA_VERSION := 1
@@ -2857,12 +2870,34 @@ func _build_architecture() -> void:
 	# arms, compact solid nodes, and substantial void—not these exact dimensions.
 	# Each visible deck module carries its own collision; there is deliberately no
 	# hidden full-footprint slab bridging the gaps.
-	_box(shell, "CentralJunction", Vector3(0, -0.62, 14.0), Vector3(25.0, 1.2, 18.0), _materials["deck"])
+	# The walkway now stops at the authored central-berth shell's own outer edge
+	# (z = AUTHORED_CENTRAL_BERTH_EDGE_Z) instead of running 2.75 m underneath it.
+	# The authored plate's deck panels bottom out at y = -0.005 and its recessed
+	# service channels reach y = -0.110, while this walkway's top face is at
+	# y = -0.020: over the old x = -12.5 … 12.5, z = 5.0 … 7.55 band the walkway
+	# surface passed *through* the runway plate, and the grey deck read through the
+	# runway's channels as a shimmering seam. Separating the two surfaces is the
+	# fix; no material, depth-write or render-priority value is touched.
+	_box(
+		shell,
+		"CentralJunction",
+		Vector3(0, -0.62, (AUTHORED_CENTRAL_BERTH_EDGE_Z + 23.0) * 0.5),
+		Vector3(25.0, 1.2, 23.0 - AUTHORED_CENTRAL_BERTH_EDGE_Z),
+		_materials["deck"]
+	)
+	# The walkable floor must not move when the render slab does, so the hidden
+	# hero-berth collision body takes over the 2.75 m the walkway gave up. Its top
+	# face is the same y = -0.020 plane, so the physical surface is unchanged.
+	# The width drops from 27.0 m to the authored shell's own 25.5 m. The extra
+	# 0.75 m per side was collision the shell never rendered: a 0.75 x 32.75 m
+	# invisible ledge down each flank of the central berth that a player could
+	# stand on over open space. Nothing rendered moves — the render slab below is
+	# hidden either way.
 	var hero_berth_body := _box(
 		shell,
 		"HeroBerthNode",
-		Vector3(0, -0.62, -10.0),
-		Vector3(27.0, 1.2, 30.0),
+		Vector3(0, -0.62, (-25.0 + AUTHORED_CENTRAL_BERTH_EDGE_Z) * 0.5),
+		Vector3(25.5, 1.2, AUTHORED_CENTRAL_BERTH_EDGE_Z + 25.0),
 		_materials["deck"]
 	)
 	# The physical floor remains authoritative, but its old generic render slab
@@ -2871,10 +2906,46 @@ func _build_architecture() -> void:
 	if legacy_hero_mesh != null:
 		legacy_hero_mesh.visible = false
 		legacy_hero_mesh.set_meta("hidden_by_authored_central_berth", true)
-	_box(shell, "JunctionLink", Vector3(0, -0.62, 1.5), Vector3(13.0, 1.2, 9.0), _materials["deck_light"])
-	_box(shell, "PortBranchArm", Vector3(-25.0, -0.62, 15.5), Vector3(25.0, 1.2, 7.0), _materials["deck_light"])
-	_box(shell, "PortBerthNode", Vector3(-43.0, -0.62, 15.5), Vector3(12.0, 1.2, 17.0), _materials["deck"])
-	_box(shell, "StarboardBranchArm", Vector3(25.0, -0.62, 15.5), Vector3(25.0, 1.2, 7.0), _materials["deck_light"])
+	# `JunctionLink` lies wholly inside the authored shell's footprint
+	# (x = -6.5 … 6.5, z = -3.0 … 6.0 against the shell's -12.75 … 12.75 by
+	# -27.75 … 7.75), so its render slab was the second surface the runway plate
+	# was cutting through — 143 m² of it. It keeps its collision and takes the
+	# same treatment the hero berth node already had.
+	var junction_link_body := _box(
+		shell,
+		"JunctionLink",
+		Vector3(0, -0.62, 1.5),
+		Vector3(13.0, 1.2, 9.0),
+		_materials["deck_light"]
+	)
+	var legacy_link_mesh := junction_link_body.get_node_or_null(^"Mesh") as MeshInstance3D
+	if legacy_link_mesh != null:
+		legacy_link_mesh.visible = false
+		legacy_link_mesh.set_meta("hidden_by_authored_central_berth", true)
+	# Branch arms butt against their berth nodes instead of overlapping them by
+	# 0.5 m. The old overlap put two differently-materialled decks on one exact
+	# y = -0.020 plane over 3.5 m² per side.
+	_box(
+		shell,
+		"PortBranchArm",
+		Vector3((PORT_BERTH_NODE_OUTER_X + PORT_BERTH_NODE_HALF_WIDTH - 12.5) * 0.5, -0.62, 15.5),
+		Vector3(-12.5 - (PORT_BERTH_NODE_OUTER_X + PORT_BERTH_NODE_HALF_WIDTH), 1.2, 7.0),
+		_materials["deck_light"]
+	)
+	# PORT-DECK-001. The parked Arrow is 12.2 m long on a deck that was 12.0 m
+	# across, so its nose hung 0.450 m past the edge with two of four footprint
+	# corners unsupported, and the berth cue strips lay entirely off the structure
+	# they mark. 16.8 m is the measured Zenith-parity floor and leaves the craft
+	# 1.95 m of apron at the nose and 2.65 m at the tail, so a player can walk a
+	# full circuit around it.
+	_box(
+		shell,
+		"PortBerthNode",
+		Vector3(PORT_BERTH_NODE_OUTER_X, -0.62, 15.5),
+		Vector3(PORT_BERTH_NODE_HALF_WIDTH * 2.0, 1.2, 17.0),
+		_materials["deck"]
+	)
+	_box(shell, "StarboardBranchArm", Vector3(24.75, -0.62, 15.5), Vector3(24.5, 1.2, 7.0), _materials["deck_light"])
 	_box(shell, "StarboardBerthNode", Vector3(43.0, -0.62, 15.5), Vector3(12.0, 1.2, 17.0), _materials["deck"])
 	_box(shell, "AftSpine", Vector3(0, -0.62, 31.0), Vector3(8.0, 1.2, 16.0), _materials["deck_light"])
 	# The first authored station module begins at Z=48. This narrow landing
@@ -2923,11 +2994,32 @@ func _build_architecture() -> void:
 
 	# Low rails protect the walkable branch arms. The active berth and launch
 	# spine remain unobstructed for the hero ship's wide collision envelope.
-	for side in [-1.0, 1.0]:
+	#
+	# PORT-DECK-001. The rails used to run 5 m *past* the arm and across the berth
+	# node itself (x = -42.5 … -11.5 against an arm of -37.5 … -12.5). On the port
+	# node that fenced the 7 m approach corridor shut: the parked Arrow's wing
+	# (x = -44.2 … -39.3) blocks the west end of the corridor and the hull blocks
+	# its middle, so the only way onto the walkway beside the craft was over a
+	# 1.24 m rail. Each rail now ends exactly where its arm ends, leaving the berth
+	# node open on both sides. The post roster stays at five per rail.
+	var branch_rail_spans := [
+		[PORT_BERTH_NODE_OUTER_X + PORT_BERTH_NODE_HALF_WIDTH, -12.5],
+		[12.5, 37.0],
+	]
+	for span in branch_rail_spans:
+		var inner_x := float(span[0])
+		var outer_x := float(span[1])
+		var rail_centre := (inner_x + outer_x) * 0.5
+		var rail_length := absf(outer_x - inner_x)
 		for z_edge in [12.0, 19.0]:
-			_box(shell, "BranchRail", Vector3(side * 27.0, 1.15, z_edge), Vector3(31.0, 0.18, 0.18), _materials["ivory"])
-			for x_position in [13.0, 21.0, 29.0, 37.0, 49.0]:
-				_box(shell, "BranchRailPost", Vector3(side * x_position, 0.55, z_edge), Vector3(0.18, 1.3, 0.18), _materials["orange"])
+			_box(shell, "BranchRail", Vector3(rail_centre, 1.15, z_edge), Vector3(rail_length, 0.18, 0.18), _materials["ivory"])
+			for post_index in 5:
+				var post_x := lerpf(
+					minf(inner_x, outer_x) + 0.2,
+					maxf(inner_x, outer_x) - 0.2,
+					float(post_index) / 4.0
+				)
+				_box(shell, "BranchRailPost", Vector3(post_x, 0.55, z_edge), Vector3(0.18, 1.3, 0.18), _materials["orange"])
 	for side in [-1.0, 1.0]:
 		_box(shell, "AftSpineRail", Vector3(side * 4.0, 1.15, 31.0), Vector3(0.18, 0.18, 17.0), _materials["ivory"])
 		for z_position in [24.0, 30.0, 36.0]:
@@ -3365,23 +3457,37 @@ func _build_launch_corridor() -> void:
 	# The authored berth skin reaches the launch-arm threshold. Fill the prior
 	# 3 m support gap with collision only, keeping the visible Blender shell and
 	# the existing HeroBerthNode/LaunchArmDeck bodies otherwise unchanged.
+	# Its top plane is the authored shell's y = 0.095, not the launch arm's y = 0.0,
+	# so it must stay wholly under the shell. It used to reach z = -28.0 while the
+	# shell stops at z = -27.75, leaving a 25.5 x 0.25 m strip of invisible ledge
+	# standing 0.095 m proud of the arm. The launch arm deck below now reaches
+	# z = -27.75 to meet the shell, and this block starts where the shell does.
 	var transition := StaticBody3D.new()
 	transition.name = "CentralBerthLaunchTransitionCollision"
-	transition.position = Vector3(0.0, -0.5625, -26.5)
+	transition.position = Vector3(0.0, -0.5625, -26.375)
 	transition.collision_layer = WORLD_LAYER
 	transition.collision_mask = 0
 	transition.set_meta("authored_surface_support", true)
 	var transition_shape := CollisionShape3D.new()
 	transition_shape.name = "Collision"
 	var transition_box := BoxShape3D.new()
-	transition_box.size = Vector3(25.5, 1.315, 3.0)
+	transition_box.size = Vector3(25.5, 1.315, 2.75)
 	transition_shape.shape = transition_box
 	transition.add_child(transition_shape)
 	launch.add_child(transition)
 
 	# A narrow exposed flight arm replaces the previous enclosed runway. Width is
 	# a modern safety allowance for the hero ship, not an inferred measurement.
-	_box(launch, "LaunchArmDeck", Vector3(0, -0.36, -48.0), Vector3(21.5, 0.72, 40.0), _materials["navy"])
+	# Extended 0.25 m aft so its rendered edge meets the authored central-berth
+	# shell at z = -27.75 instead of stopping short of it under a bare collision
+	# block. Its forward end, width and top plane are unchanged.
+	_box(
+		launch,
+		"LaunchArmDeck",
+		Vector3(0, -0.36, (-68.0 - 27.75) * 0.5),
+		Vector3(21.5, 0.72, 68.0 - 27.75),
+		_materials["navy"]
+	)
 	_box(launch, "LaunchArmCentre", Vector3(0, 0.035, -48.0), Vector3(0.2, 0.05, 37.0), _materials["orange_glow"], false)
 	for x_position in [-10.35, 10.35]:
 		_box(launch, "LaunchEdgeTrim", Vector3(x_position, 0.08, -48.0), Vector3(0.26, 0.12, 39.0), _materials["cyan_glow"], false)
@@ -3537,6 +3643,18 @@ func _build_regeneration_gallery() -> void:
 	gallery.name = "ModernFleetRegistry"
 	add_child(gallery)
 
+	# PORT-DECK-001 knock-on, answered on measurement rather than carried.
+	#
+	# `ARROW_BERTH_CUE_DECK_DECISION.md` asked whether this pod deck widens with
+	# the berth node or whether the node tapers around it. Widened to the node's
+	# new 16.8 m it reaches x = -51.4, which puts it underneath the Jovian freight
+	# branch's connection lattice: measured live, that adds `ConnectionDeckA`,
+	# `ConnectionDeckB` and `LatticePost5` to the freight module's legacy-overlap
+	# set, all three sharing this deck's exact y = 0.380 top plane, where
+	# `tests/jovian_freight_berth_transform_test.gd` deliberately admits exactly
+	# one declared handoff leaf. Three new coplanar decks on a walked route is a
+	# worse defect than the 2.4 m re-entrant ledge it would remove, so the pod
+	# keeps its 12.0 m width and the node tapers around it.
 	_box(gallery, "RegistryPodDeck", Vector3(-43.0, 0.18, 27.0), Vector3(12.0, 0.4, 8.0), _materials["deck_light"])
 	# Same 0.40 m slab seam as the operations pod, and the one that also sealed the
 	# entire freight branch: the freight connection lattice hands off to this deck,

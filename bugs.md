@@ -12,6 +12,224 @@ Previously identified candidates were reproduced and addressed in the current br
   and `scripts/world/shipyard_world.gd`: whole-Main teardown now clears owner-side
   deferred presentation queues to prevent stale replay after re-entry.
 
+## Open candidates — 2026-08-16 human playtest intake — **ALL FOUR CLOSED**
+
+Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, verbatim, four
+reports across two messages:
+
+1. *"The Arrow-class recon ship candidate — I LOVE this but the walkway to enter
+   isn't wide enough to get around to the side — you can get in this one by
+   jumping over the rails but can you expand the walkway a bit?"*
+2. *"The Torrent-class interceptor — the runway here is PERFECT but it's slightly
+   overlapping the walkway mentioned above and it causes a slight texture glitch
+   — is it possible to fix this? Not a major issue."*
+3. *"The Zenith ship looks good but there's a strange floating block + there's an
+   invisible barrier around it that you can sort of climb on."*
+4. *"The Arrow-class recon ship candidate — you only seem to be able to enter it
+   when you are standing inside of the engine on the walkway."* — refined by the
+   reporter to *"I mean the option to enter never appears when you're standing to
+   the side of the ship"*.
+
+Configuration for every measurement below: Linux (WSL2 6.18.33.2), Godot
+4.7.1.stable.official.a13da4feb, `--headless` with `--audio-driver Dummy` for
+physics and geometry probes, `xvfb-run -a -s "-screen 0 1920x1080x24" ...
+--display-driver x11 --rendering-driver vulkan` for frames. Failure frequency
+10/10 deterministic for every item.
+
+---
+
+### PORT-DECK-001 — the Arrow's berth deck is smaller than the craft parked on it, and its rails fence the only approach
+
+- Status: `CLOSED` (fixed 2026-08-16). Severity **P1** — an unintended jump to
+  reach a craft.
+- Two independent defects at one site, both measured:
+  - **Structure.** `PortBerthNode` was `Vector3(12.0, 1.2, 17.0)`, spanning
+    `x = -49.000 … -37.000`. `ArrowHullCollision` is 12.2 m long, spanning
+    `x = -49.450 … -37.250`, so the nose projected **0.450 m** and the tail
+    **0.250 m** past the deck, with **2 of 4** footprint corners over open space.
+    The four berth cue strips at `x = -50.100` and `-35.900` lay **entirely off**
+    the deck they mark, nearest edge 0.940 m clear of any structure.
+  - **Reachability.** `BranchRail` ran `x = -42.5 … -11.5` at both `z = 12.0` and
+    `z = 19.0` — five metres past the 7 m branch arm it guards and straight across
+    the berth node — at `y = 1.06 … 1.24`. The parked Arrow's sensor wing
+    (`x = -44.200 … -39.300`, `y = 1.790 … 2.270`) blocks a standing capsule at the
+    only gap in that rail, and its hull (`z = 13.950 … 17.050`) blocks the
+    corridor's middle. The 7 m approach corridor was therefore sealed on both
+    sides and the walkway beside the craft could only be entered over a rail —
+    exactly the reported jump.
+- Fix (`scripts/world/shipyard_world.gd`):
+  - `PortBerthNode` `12.0 → 16.8` m about the unchanged centre `x = -43.0`, so the
+    deck spans `x = -51.400 … -34.600`. The craft now has 1.950 m of apron at the
+    nose and 2.650 m at the tail and a player can walk a full circuit around it.
+    The cue strips land 1.300 m inside each edge, so `pad ⊃ cue ⊃ parked craft`
+    holds for the first time — **no cue constant was re-authored** and the
+    berth-feedback contract did not move.
+  - `BranchRail` / `BranchRailPost` now span only their own arm (port
+    `-34.6 … -12.5`, starboard `12.5 … 37.0`), five posts per rail as before.
+  - Both branch arms butt their berth node instead of overlapping it by 0.5 m,
+    which also removed 3.5 m² per side of exactly-coplanar deck.
+  - `RegistryPodDeck` / `RegistryPodThreshold` deliberately **do not** widen; see
+    `docs/design/ARROW_BERTH_CUE_DECK_DECISION.md` for the measurement that
+    answered that question (widening them puts the pod deck under the freight
+    connection lattice and creates three new coplanar decks on a walked route).
+- Regressions (`tests/station_traversal_defect_witness_test.gd`):
+  `_test_arrow_berth_can_be_walked_around` (one standable cell on each face of the
+  craft must be in the no-jump flood from the production spawn),
+  `_test_arrow_berth_rails_no_longer_fence_the_walkway` (production controller,
+  bounded, no jump, from the branch-arm handoff to both flanks: measured
+  `z = 15.5 → 8.129` and `15.5 → 22.871`, 7.37 m each, never leaving the deck),
+  `_test_parked_craft_are_fully_supported_by_their_berth_decks` (all four
+  footprint corners of all four craft: `unsupported_corners=0` for each).
+
+---
+
+### PORT-BOARDING-001 — the Arrow's boarding volume is centred underneath its own wing
+
+- Status: `CLOSED` (fixed 2026-08-16). Severity **P1** — interaction cannot be
+  acquired from its intended approach.
+- The fleet-wide boarding volume is one 4.5 m `SphereShape3D` on the craft's own
+  boarding marker. The Arrow's marker is at ship-local `(-2.45, -0.02, 0.15)`,
+  which in world terms is `(-42.85, 1.13, 17.95)` — **inside its own
+  `ArrowWingCollision` footprint**. No standing capsule can occupy the centre of
+  that sphere, so the prompt only appeared where the sphere happened to poke out
+  past the wing.
+- Measured on the live berth deck, 0.5 m grid, production `PlayerController`
+  teleported to each standable cell and `GameFlow._refresh_interaction_targets()`
+  called: of the cells a capsule can stand on, the **entire starboard flank from
+  `z = 7.0` to `z = 10.5` offered no prompt**, and the nearest cells that did
+  offer one on the natural approach were `x = -36.5 … -36.0, z = 15.5 … 17.0` —
+  inside the port `EfficientEngineHousing` (`x = -39.500 … -36.400`,
+  `y = 1.510 … 2.670`), which has no collision. That is the reported "only when
+  you are standing inside of the engine".
+- Fix (`scripts/ships/arrow_recon_ship.gd`, `_add_flank_approach_range`): the
+  inherited sphere is left **exactly** as published — it is a fleet-wide contract
+  and `tests/boarding_accessibility_test.gd` pins its 4.5 m radius on all four
+  craft — and a second, craft-shaped `ArrowApproachRange` box is added beside it,
+  centred on the hull with half extents `6.9 × 1.4 × 7.6` m. With the production
+  player's own 2.35 m interaction sphere that reaches 9.25 / 9.95 m, covering
+  every standable metre of the 16.8 × 17.0 m berth deck (half extents 8.4 / 8.5)
+  on both flanks and around nose and tail. It stops 2.55 m short of a point 7.0 m
+  off the boarding marker along the lateral axis, so the bare-sphere 7.0 m
+  fallback boundary `boarding_accessibility_test` pins is still exercised, not
+  widened; that suite is unchanged and green.
+- Regression (`tests/station_traversal_defect_witness_test.gd`
+  `_test_boarding_prompt_is_offered_all_round_each_craft`): a ring of 3 / 5 / 7 m
+  at 16 bearings around every parked craft, filtered to standable points, each
+  driven through GameFlow's own `_refresh_interaction_targets()` seam. **Arrow:
+  19 of 19 standable ring points prompt** (43 of 105 sampled points were silent
+  before this pass).
+- **Recorded, not fixed — the other three craft.** Measured by the same ring:
+  `TorrentInterceptor` 15 of 27, `ZenithInterceptor` 6 of 13,
+  `JovianLightFreighter` 0 standable points at these radii (it is 18.9 × 27.4 m,
+  so the ring falls inside its own hull and ramp). The Torrent's and Zenith's
+  silent points are all in the starboard/aft quadrants, away from their port-side
+  boarding markers, and that one-sidedness is **deliberate**:
+  `boarding_accessibility_test._test_torrent_opposite_side_rejection` asserts in
+  as many words that the Torrent "cannot be boarded through the hull from its
+  wrong/opposite side". Their coverage is printed by the regression on every run
+  but only the Arrow is asserted all-round, because only the Arrow has a marker
+  a player cannot reach. If the owner wants a walk-all-round rule for the fleet,
+  that is a design decision about the Torrent's published contract, not a bug fix.
+
+---
+
+### RUNWAY-SEAM-001 — the authored Torrent runway and the walkway share a volume
+
+- Status: `CLOSED` (fixed 2026-08-16). Severity **P2** (reporter: "Not a major
+  issue").
+- The authored central-berth shell — what the reporter calls the runway — renders
+  its deck panels between `y = -0.005` and `y = 0.095` and recesses its service
+  channels down to `y = -0.110`, over `x = -12.750 … 12.750` by
+  `z = -27.750 … 7.750`. Three generic lattice decks had their top face on the
+  `y = -0.020` plane *inside* that band and inside that footprint:
+  - `CentralJunction` (`z = 5.0 … 23.0`) — 25.0 × 2.55 m of overlap, and the
+    walkway the player walks in on from spawn;
+  - `JunctionLink` (`x = -6.5 … 6.5`, `z = -3.0 … 6.0`) — 13.0 × 9.0 m, wholly
+    enclosed by the shell;
+  - `HeroBerthNode`, whose render slab was already hidden for this exact reason.
+  Where the shell's channels are recessed the grey deck stood **0.090 m proud of
+  the channel floor** and read through it. That is the "slight texture glitch".
+- Fix (`scripts/world/shipyard_world.gd`), geometric only — **no depth-write, no
+  render priority and no material value was touched**:
+  - `CentralJunction` now starts at the shell's own edge, `z = 7.75`
+    (`AUTHORED_CENTRAL_BERTH_EDGE_Z`), instead of running 2.75 m underneath it.
+  - `JunctionLink` keeps its collision and its render slab is hidden with the same
+    `hidden_by_authored_central_berth` marker the hero berth node already carried.
+  - `HeroBerthNode` takes over the floor the walkway gave up
+    (`z = -25.0 … 7.75`), same `y = -0.020` top plane, so the physical surface a
+    player stands on is unchanged.
+- Regression (`tests/station_surface_playability_test.gd`
+  `_test_lattice_decks_do_not_share_the_authored_runway_volume`): re-measures the
+  shell's own surface band from the live import (asserted at exactly
+  `-0.110 … 0.095`) and requires that nothing else the station draws has a surface
+  inside it where their footprints overlap. `RUNWAY_SHELL_VOLUME_INTRUDERS` was
+  three decks; it is now `[]`.
+
+---
+
+### ZENITH-SITE-001 — floating geometry, and standable collision with nothing drawn
+
+- Status: `CLOSED for what was measurable` (fixed 2026-08-16). Severity **P2**
+  for the floating half, **P1** for the invisible-barrier half.
+- Both halves were swept for structurally rather than fixed by eye, per the
+  intake's own instruction.
+- **Invisible barrier.** A 0.25 m grid sweep of the whole reachable station,
+  raying down on the World layer and asking the renderer whether anything is drawn
+  at each standable surface, found exactly **two** colliders a player can stand on
+  with nothing rendered there, both at the central berth and both from a generic
+  collision box outliving the authored shell that replaced its render slab:
+  - `ExposedDockLattice/HeroBerthNode` was 27.0 m wide under a 25.5 m shell,
+    leaving a **0.75 × 32.75 m invisible ledge down each flank** (591 probe hits).
+  - `OpenLaunchSpine/CentralBerthLaunchTransitionCollision` reached `z = -28.000`
+    with a top plane 0.095 m proud of the launch arm while the shell it belongs to
+    stops at `z = -27.750`: a **25.5 × 0.25 m invisible lip** across the runway
+    (16 probe hits).
+  Fixed by narrowing `HeroBerthNode` to the shell's own 25.5 m, starting the
+  transition block at `z = -27.75`, and extending `LaunchArmDeck` 0.25 m aft so
+  its rendered edge meets the shell. The sweep now reports **31222 standable
+  probes, 31222 drawn, 0 orphans**. No station collider around the Zenith itself
+  was ever in that set; the Zenith's own hull collision was also measured
+  triangle-by-triangle against its drawn hull and is the **tightest in the fleet**
+  (27 of 1403 sampled columns stand more than 0.10 m above the drawn surface,
+  against the Torrent's 823 of 951 — and the Torrent's boxes are a published,
+  audited contract in `tests/torrent_collision_art_alignment_test.gd`).
+- **Floating geometry.** An isolated-island sweep (every drawn mesh with no other
+  drawn mesh within 0.06 m in any direction) found, at the Fleet Dock comb the
+  Zenith is docked to: both 47 m `TrunkChord` under-deck beams hanging **0.090 m**
+  below the deck they are bolted to — the port one intersecting nothing at all in
+  the module — and the three `RungUnderChord` beams hanging 0.040 m. The same
+  sweep found all eight `JovianFreightBerth` cargo crates hovering, 0.045–0.055 m
+  above the rack shelf for the lower four and 0.040–0.070 m above their own lower
+  crate for the upper four. All thirteen now bear on the surface below them with a
+  0.010–0.060 m seat; only `y` coordinates moved.
+- Regression (`tests/station_presentation_defect_witness_test.gd`
+  `_test_structural_pieces_rest_on_drawn_geometry`): the existing `_drop_below`
+  helper cannot answer this class, because it rays against World *collision* and
+  every piece here hangs off structure that has none, so in open space the ray
+  falls forever. The new check measures against **drawn geometry** instead.
+  Plus `_test_no_station_collision_without_visible_geometry` above, which is the
+  permanent guard for the invisible-barrier half and is the exact inverse of the
+  visible-surface-needs-collision check that already existed.
+- **Recorded, not fixed — the berth cue plates.** The one piece of geometry beside
+  the Zenith that still hangs in the air is its own berth cue: the four
+  `ZenithFleetDockBerth/BerthFeedback/FeedbackVisual` boundary strips plus
+  `GlyphSecuredBar`, `LeaseStatePlate` and the two status plates all have their
+  underside at `y = 4.380` over a dock slab whose top is `y = 4.200` and whose
+  inset is `y = 4.240` — a **0.180 m hover**, touching nothing. Measured across
+  the fleet the hover is 0.235 m at the central berth, 0.210 m at the Jovian and
+  0.380 m at the Arrow; the difference at the Zenith is that the other three
+  berths have a raised ring at roughly cue height for the cue to read against and
+  the Zenith has none, so there the plates read as loose blocks. The cause is
+  `ShipBerthFeedback.RENDER_MIN_Y = 0.14` plus the per-berth `local_transform` in
+  `SHIP_BERTH_FEEDBACK_SPECS`, a frozen cross-berth contract duplicated in
+  `tests/ship_berth_feedback_world_test.gd` and framed by
+  `tests/capture_berth_feedback.gd`. This pass deliberately did not move it: the
+  task scope protects berth transforms and the capture harness was out of bounds
+  for edits. **Recommended next pass:** seat all four berth cues on the deck they
+  mark, re-freezing `local_transform` per berth in the open.
+
+---
+
 ## Open candidates — 2026-08-15 human playtest intake
 
 Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-15, verbatim report:

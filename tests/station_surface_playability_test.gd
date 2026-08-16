@@ -97,6 +97,8 @@ func _run() -> void:
 	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
 	await _test_discovered_walkable_surface_support(world)
+	_test_no_station_collision_without_visible_geometry(world)
+	_test_lattice_decks_do_not_share_the_authored_runway_volume(world)
 	await _test_spawn_adjacent_stair(world, player)
 	await _test_aft_stair_mount_and_climb(world, player)
 	await _test_fleet_comb_ramp(world, player)
@@ -468,6 +470,211 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 	_check(unsupported_paths.is_empty(), "every discovered broad/thin upward route mesh has immediate World collision support below")
 	_check(unreasoned_visual_paths.is_empty(), "every intentionally non-authoritative station visual carries an explicit non-walkable reason")
 	_check(explicitly_tagged_decorations > 0, "discovery explicitly excludes tagged nonblocking presentation with a stable reason")
+
+
+## The inverse of `_test_discovered_walkable_surface_support`, and the case
+## nothing checked: **World collision with no visible geometry**.
+##
+## That test proves every visible route floor has collision under it. It cannot
+## see the opposite defect — a solid, standable surface the renderer never draws.
+## A player walking into one is standing on nothing, or is stopped by nothing;
+## the 2026-08-16 report called it "an invisible barrier ... that you can sort of
+## climb on". Two were live when this check was written, both at the central
+## berth and both from a generic collision box outliving the authored shell that
+## replaced its render slab:
+##
+##   `ExposedDockLattice/HeroBerthNode` was 27.0 m wide under a 25.5 m authored
+##   shell, leaving a 0.75 x 32.75 m invisible ledge down each flank.
+##   `OpenLaunchSpine/CentralBerthLaunchTransitionCollision` reached z = -28.0
+##   with a top plane 0.095 m proud of the launch arm, while the shell it belongs
+##   to stops at z = -27.75: a 25.5 x 0.25 m invisible lip across the runway.
+##
+## The sweep is deliberately structural rather than a roster: it rays down over
+## the reachable envelopes and asks the renderer, not a list, whether anything is
+## drawn where the physics says a player may stand. Hull collision on the live
+## craft is out of scope here — that is a published per-ship contract audited by
+## `tests/torrent_collision_art_alignment_test.gd` and friends — so only the
+## World layer is swept.
+func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -> void:
+	var envelopes := [
+		AABB(Vector3(-80.0, -3.0, -70.0), Vector3(160.0, 12.0, 156.0)),
+	]
+	# One 2 m XZ bucket grid over every drawn mesh, so each probe column compares
+	# against a handful of candidates instead of the whole 2800-mesh world.
+	var buckets := {}
+	for candidate in world.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		var ix_min := int(floor((box.position.x - 0.1) / 2.0))
+		var ix_max := int(floor((box.end.x + 0.1) / 2.0))
+		var iz_min := int(floor((box.position.z - 0.1) / 2.0))
+		var iz_max := int(floor((box.end.z + 0.1) / 2.0))
+		for ix in range(ix_min, ix_max + 1):
+			for iz in range(iz_min, iz_max + 1):
+				var key := "%d:%d" % [ix, iz]
+				if not buckets.has(key):
+					buckets[key] = []
+				(buckets[key] as Array).append(box)
+
+	var space := world.get_world_3d().direct_space_state
+	var orphans := {}
+	var probes := 0
+	var supported := 0
+	for envelope: AABB in envelopes:
+		var x := envelope.position.x
+		while x <= envelope.end.x:
+			var z := envelope.position.z
+			while z <= envelope.end.z:
+				var cursor := envelope.end.y
+				for _level in 5:
+					var ray := PhysicsRayQueryParameters3D.create(
+						Vector3(x, cursor, z), Vector3(x, envelope.position.y, z), WORLD_LAYER
+					)
+					ray.collide_with_areas = false
+					var hit := space.intersect_ray(ray)
+					if hit.is_empty():
+						break
+					var point := hit.position as Vector3
+					if (hit.normal as Vector3).dot(Vector3.UP) >= 0.6:
+						probes += 1
+						if _column_is_drawn(buckets, x, z, point.y):
+							supported += 1
+						else:
+							var collider := hit.collider as Node
+							var key := str(collider.get_path()) if collider != null else "<null>"
+							if not orphans.has(key):
+								orphans[key] = 0
+							orphans[key] = int(orphans[key]) + 1
+					cursor = point.y - 0.05
+					if cursor <= envelope.position.y:
+						break
+				z += 0.5
+			x += 0.5
+	var orphan_names := PackedStringArray()
+	for key: String in orphans:
+		orphan_names.append("%s x%d" % [key, int(orphans[key])])
+	orphan_names.sort()
+	print(
+		"STATION_COLLISION_WITHOUT_VISIBLE_GEOMETRY: standable_probes=", probes,
+		" drawn=", supported,
+		" orphans=", orphan_names
+	)
+	_check(probes >= 20000, "the inverse sweep reaches the whole reachable station footprint")
+	_check(
+		orphan_names.is_empty(),
+		"every standable World collision surface in the station has visible geometry drawn at it"
+	)
+
+
+## RUNWAY-SEAM-001. The 2026-08-16 report: "the runway here is PERFECT but it's
+## slightly overlapping the walkway ... it causes a slight texture glitch".
+##
+## Measured on the live scene: the authored central-berth shell — the runway —
+## renders its deck panels between y = -0.005 and y = 0.095 and recesses its
+## service channels down to y = -0.110, over x = -12.75 … 12.75 by
+## z = -27.75 … 7.75. Three generic lattice decks had their top face on the
+## y = -0.020 plane *inside* that band and inside that footprint:
+## `CentralJunction` (25.0 x 2.55 m of it), `JunctionLink` (13.0 x 9.0 m, wholly
+## enclosed) and the already-hidden `HeroBerthNode`. Where the shell's channels
+## are recessed the grey deck stood 0.090 m proud of the channel floor and read
+## through it.
+##
+## The fix was geometric — the walkway now stops at the shell's own edge, the
+## link's render slab is hidden the way the hero berth node's already was, and
+## the collision that carries the floor moved with them. Nothing about depth
+## write, render priority or material was touched, so this check is written
+## against geometry only: nothing the station draws may have a surface inside the
+## shell's rendered band where their footprints overlap.
+func _test_lattice_decks_do_not_share_the_authored_runway_volume(world: ShipyardWorld) -> void:
+	var shell := world.get_node_or_null(
+		^"LandingPad/CentralBerthHeroPresentation/CentralBerthHeroImport/CentralBerthHeroArt"
+	) as Node3D
+	if shell == null:
+		_check(false, "the authored central-berth shell resolves for the runway-seam check")
+		return
+	var shell_meshes: Array[MeshInstance3D] = []
+	var footprint := AABB()
+	var first := true
+	for candidate in shell.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		shell_meshes.append(mesh_instance)
+		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		if first:
+			footprint = box
+			first = false
+		else:
+			footprint = footprint.merge(box)
+	# The shell's own walking-surface band, re-measured from the live import so a
+	# re-export that moves it fails here instead of silently re-opening the seam.
+	# It is exactly the deck plate and the channels recessed into it; the outer
+	# edge fascia and the deep primary/secondary structure are the shell's skirt
+	# and keel and belong below the walkway, not in this band.
+	var band_low := INF
+	var band_high := -INF
+	var band_sources := 0
+	for mesh_instance in shell_meshes:
+		if mesh_instance.name not in ["deck_panels__DeckComposite", "service_channels__ServiceGraphite"]:
+			continue
+		band_sources += 1
+		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		band_low = minf(band_low, box.position.y)
+		band_high = maxf(band_high, box.end.y)
+	_check(band_sources == 2, "the authored runway shell still publishes its deck plate and recessed service channels")
+	if band_sources != 2:
+		return
+	print("AUTHORED_RUNWAY_SHELL: footprint=", footprint, " surface_band=", band_low, " .. ", band_high)
+	_check(
+		is_equal_approx(band_low, -0.11) and is_equal_approx(band_high, 0.095),
+		"the authored runway shell still renders its surfaces across the frozen -0.110 .. 0.095 band"
+	)
+
+	var intruders := PackedStringArray()
+	for candidate in world.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		if shell.is_ancestor_of(mesh_instance):
+			continue
+		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		var overlap_x: float = minf(box.end.x, footprint.end.x) - maxf(box.position.x, footprint.position.x)
+		var overlap_z: float = minf(box.end.z, footprint.end.z) - maxf(box.position.z, footprint.position.z)
+		if overlap_x <= 0.0 or overlap_z <= 0.0 or overlap_x * overlap_z < 0.25:
+			continue
+		# A piece resting on the shell (pad rings, chevrons, clamps, berth cue) is
+		# above the band; a keel or under-brace is below it. Only a surface *inside*
+		# the band shares the shell's volume.
+		if box.end.y <= band_low + 0.001 or box.end.y >= band_high - 0.002:
+			continue
+		intruders.append("%s top=%.4f overlap=%.2f m2" % [
+			str(mesh_instance.get_path()).replace("/root/Main/ShipyardWorld/", ""),
+			box.end.y,
+			overlap_x * overlap_z
+		])
+	intruders.sort()
+	print("RUNWAY_SHELL_VOLUME_INTRUDERS: ", intruders)
+	_check(
+		intruders.is_empty(),
+		"no station surface renders inside the authored runway shell's own surface band where they overlap"
+	)
+
+
+func _column_is_drawn(buckets: Dictionary, x: float, z: float, surface_y: float) -> bool:
+	var key := "%d:%d" % [int(floor(x / 2.0)), int(floor(z / 2.0))]
+	if not buckets.has(key):
+		return false
+	for box: AABB in buckets[key] as Array:
+		if x < box.position.x - 0.06 or x > box.end.x + 0.06:
+			continue
+		if z < box.position.z - 0.06 or z > box.end.z + 0.06:
+			continue
+		if surface_y < box.position.y - 0.25 or surface_y > box.end.y + 0.25:
+			continue
+		return true
+	return false
 
 
 func _intentional_non_walkable_reason(mesh_instance: MeshInstance3D, world: ShipyardWorld) -> String:

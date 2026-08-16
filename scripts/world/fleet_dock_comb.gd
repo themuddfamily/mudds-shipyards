@@ -723,10 +723,18 @@ func _build_understructure() -> void:
 	underframe.set_meta("visual_detail_only", true)
 	_build_root.add_child(underframe)
 
-	_beam_between(underframe, "TrunkChordPort", Vector3(-2.05, -0.85, 0.5), Vector3(-2.05, -0.85, 47.5), 0.16, _materials["underframe"])
-	_beam_between(underframe, "TrunkChordStarboard", Vector3(2.05, -0.85, 0.5), Vector3(2.05, -0.85, 47.5), 0.16, _materials["underframe"])
+	# COMB-UNDERFRAME-001. Every walkable surface here has its underside at
+	# y = -0.60. The two 47 m trunk chords were centred on y = -0.85 with a 0.16 m
+	# radius, so their crowns reached y = -0.69 and both beams hung 0.090 m clear
+	# of the deck they are bolted to; the port one touched nothing at all in the
+	# whole module. The three rung chords hung 0.040 m clear the same way. Each
+	# beam is now centred so its crown enters the deck by 0.060 m (crown y = -0.540
+	# against a deck underside of y = -0.600), which is the only change: radius,
+	# endpoints in x/z and length are untouched.
+	_beam_between(underframe, "TrunkChordPort", Vector3(-2.05, -0.70, 0.5), Vector3(-2.05, -0.70, 47.5), 0.16, _materials["underframe"])
+	_beam_between(underframe, "TrunkChordStarboard", Vector3(2.05, -0.70, 0.5), Vector3(2.05, -0.70, 47.5), 0.16, _materials["underframe"])
 	for rung_z in [10.0, 25.0, 40.0]:
-		_beam_between(underframe, "RungUnderChord", Vector3(2.0, -0.82, float(rung_z)), Vector3(20.4, (-0.82 if rung_z < 40.0 else 1.58), float(rung_z)), 0.18, _materials["frame"])
+		_beam_between(underframe, "RungUnderChord", Vector3(2.0, -0.72, float(rung_z)), Vector3(20.4, (-0.72 if rung_z < 40.0 else 1.68), float(rung_z)), 0.18, _materials["frame"])
 	for slab_spec in [[8.5, -1.75], [25.0, -1.75], [40.0, 0.65]]:
 		var slab_z := float(slab_spec[0])
 		var support_y := float(slab_spec[1])
