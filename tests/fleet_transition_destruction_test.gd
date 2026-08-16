@@ -131,7 +131,7 @@ func _test_loss_during_disembarking_and_reuse() -> void:
 
 	_check(await _wait_until(func() -> bool: return not craft.is_destroyed(), 5.2), "destroyed transition craft regenerates within the production bound")
 	var berth := world.get_berth_node(craft.get_home_berth_id())
-	_check(craft.get_instance_id() == original_instance_id and game.get_flyable_ships().size() == 4, "transition recovery reuses the same craft and preserves the four-ship fleet")
+	_check(craft.get_instance_id() == original_instance_id and game.get_flyable_ships().size() == 5, "transition recovery reuses the same craft and preserves the five-ship fleet")
 	_check(
 		berth != null
 		and berth.get_occupant() == craft

@@ -1,0 +1,1189 @@
+extends SceneTree
+
+## Regression for the Halyard Crew Transport, the fleet's fifth flyable craft.
+##
+## `modern_interpretation`. The Halyard is an original design; nothing in this
+## suite asserts, implies, or depends on any historical craft, and nothing here
+## may be cited as evidence about the original game.
+##
+## The suite exists to catch the specific ways this craft can rot, and every
+## group below has at least one structured-red control that proves the
+## measurement bites rather than merely running:
+##
+##   A. identity and evidence — a new design that never acquires a historical
+##      claim, and never takes a reserved ledger name.
+##      Red: a reserved name, and an attached evidence reference, both rejected.
+##   B. lateral role — the frozen signature, and the guarantee that adding this
+##      craft took no signature away from the four that were already here.
+##      Red: a mutated profile that dominates the freighter is detected.
+##   C. readable colour — the exact authored body tone and accent, re-measured
+##      against all four existing craft under all four vision models, including
+##      the assertion that this craft spends none of the fleet's headroom.
+##      Red: the pre-readability-pass fleet ivory fails the floor.
+##   D. winding — every mesh the craft builds, scored against the engine's own
+##      primitives. This is the group with a live cause: `HeroShip._box` routes
+##      through a private chamfered-box builder whose emission order is measured
+##      100% backwards against that same calibration, so the craft overrides
+##      `_box` onto `StationSurfaceKit`. Red: a reversed copy of one of this
+##      craft's own meshes is detected as fully backwards.
+##   E. physical cockpit and boarding — the frozen fleet seat/eye convention on a
+##      two-station flight deck. Red: a shifted seat anchor breaks the rise.
+##   F. walkable interior and the in-flight cabin contract — a continuous deck
+##      from the airstair to the pilot seat, and a cabin offer derived from the
+##      live coordinator rather than asserted. Red: unbind the coordinator, and
+##      destroy the craft; both must withdraw the offer.
+##   G. surfacing — the registered world-triplanar panel recipe is actually
+##      bound, and the hull skin is not left at station relief. Red: a stripped
+##      material is detected.
+##   H. berth — the craft's complete collision envelope fits the strict landing
+##      volume of the berth it is assigned to. Red: an inflated envelope does
+##      not fit.
+##
+## Every wait is a bounded frame count on the fixed physics step. Nothing here
+## reads a wall clock.
+
+const MAIN_SCENE := preload("res://scenes/main.tscn")
+const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
+const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
+
+const HALYARD_ID: StringName = &"halyard_new_design"
+const HALYARD_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
+
+## Every name the source ledger reserves. A modern design that takes one of
+## these manufactures a name-to-model claim nobody found; see
+## `docs/design/FLEET_VISUAL_GRAMMAR.md` §7.12.
+const RESERVED_LEDGER_NAMES := [
+	"torrent", "arrow", "jovian", "zenith", "titan", "vortex", "paradox",
+	"katana", "predator", "dynamic", "utopia", "salyut", "altair", "corona",
+]
+
+## The Halyard's frozen handling profile. Restated here, away from the resource,
+## so a silent edit to `assets/ships/halyard_new_design.tres` turns this red
+## rather than quietly re-balancing the fleet.
+const EXPECTED_PROFILE := {
+	"maximum_speed": 108.0,
+	"thrust_acceleration": 11.0,
+	"brake_acceleration": 19.0,
+	"passive_drag": 1.6,
+	"throttle_response": 4.2,
+	"boost_speed": 116.0,
+	"boost_multiplier": 1.08,
+	"yaw_speed_degrees": 31.0,
+	"roll_speed_degrees": 38.0,
+	"flight_assist_strength": 3.1,
+	"visual_bank_degrees": 5.0,
+	"maximum_mouse_turn_degrees": 8.0,
+	"engine_start_time": 4.6,
+	"weapon_cooldown": 0.95,
+	"maximum_hull": 190.0,
+	"landing_maximum_speed": 9.0,
+}
+
+const HIGHER_IS_BETTER := [
+	"maximum_speed", "thrust_acceleration", "brake_acceleration", "boost_speed",
+	"boost_multiplier", "yaw_speed_degrees", "roll_speed_degrees",
+	"throttle_response", "maximum_hull", "landing_maximum_speed",
+]
+const LOWER_IS_BETTER := ["passive_drag", "engine_start_time", "weapon_cooldown"]
+
+## The Halyard's signature: the one axis it is the sole extreme on in the
+## "better" direction, and everything it pays for it with.
+const SOLE_HIGHEST := ["maximum_speed"]
+const SOLE_LOWEST := [
+	"thrust_acceleration", "brake_acceleration", "throttle_response",
+	"boost_multiplier", "yaw_speed_degrees", "roll_speed_degrees",
+	"landing_maximum_speed",
+]
+const SOLE_WORST_LOWER_IS_BETTER := ["engine_start_time", "weapon_cooldown"]
+
+## The four signatures that were already frozen before this craft existed. A
+## fifth craft that out-hulls the freighter or out-rolls Zenith turns
+## `tests/fleet_role_differentiation_test.gd` red; this suite checks the same
+## boundary from the new craft's own side so the failure is attributed here.
+const PRESERVED_SIGNATURES := [
+	{"ship": &"jovian_provisional", "axis": "maximum_hull", "highest": true},
+	{"ship": &"jovian_provisional", "axis": "maximum_speed", "highest": false},
+	{"ship": &"zenith_b7_observed", "axis": "yaw_speed_degrees", "highest": true},
+	{"ship": &"zenith_b7_observed", "axis": "roll_speed_degrees", "highest": true},
+	{"ship": &"zenith_b7_observed", "axis": "maximum_hull", "highest": false},
+	{"ship": &"arrow_provisional", "axis": "boost_speed", "highest": true},
+	{"ship": &"torrent_provisional", "axis": "boost_multiplier", "highest": true},
+	{"ship": &"torrent_provisional", "axis": "weapon_cooldown", "highest": false},
+	{"ship": &"torrent_provisional", "axis": "landing_maximum_speed", "highest": true},
+]
+
+const EXPECTED_BODY_TONE := "6e7a3e"
+const EXPECTED_ACCENT := "341024"
+const EXISTING_BODY_TONES := {
+	&"torrent_provisional": "e8e2cf",
+	&"arrow_provisional": "7891ab",
+	&"jovian_provisional": "e0ab74",
+	&"zenith_b7_observed": "bac8d6",
+}
+const EXISTING_ACCENTS := {
+	&"torrent_provisional": "f0b94d",
+	&"arrow_provisional": "45dee6",
+	&"jovian_provisional": "b32620",
+	&"zenith_b7_observed": "2f5fbe",
+}
+const BODY_TONE_FLOOR := 12.0
+const ACCENT_FLOOR := 25.0
+const TORRENT_ACCENT_FLOOR := 30.0
+const BODY_TONE_MINIMUM_SHARE := 0.10
+## The fleet's measured minima before this craft existed, printed as
+## `FLEET_COLOUR_EVIDENCE` by `tests/fleet_role_differentiation_test.gd`. The
+## Halyard must sit *outside* both, so that adding it leaves the fleet minimum
+## exactly where it was. This is the "do not spend the headroom" rule from
+## `docs/design/FLEET_VISUAL_GRAMMAR.md` §7.2, enforced rather than hoped for.
+const FLEET_BODY_MINIMUM_BEFORE := 16.62
+const FLEET_ACCENT_MINIMUM_BEFORE := 31.38
+
+## Calibration primitives for the winding scorer. The expected sign of
+## `dot((b - a) x (c - a), shading_normal)` is derived from the engine's own
+## meshes at runtime rather than hard-coded, exactly as
+## `tests/station_surface_winding_test.gd` does.
+const CALIBRATION_PRIMITIVES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
+
+const SEAT_TO_COCKPIT_CAMERA_RISE := 1.76
+const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
+## The camera lands this far above the seated pilot's head bone on every craft in
+## the fleet; it is a consequence of the 1.76 m rise plus the shared pilot rig,
+## and is used here only to estimate head height without instantiating a player.
+const CAMERA_ABOVE_HEAD_BONE := 0.201
+
+const WALKABLE_DECK_COLLIDERS := [
+	"CockpitDeckCollision",
+	"CabinDeckCollision",
+	"AftBayDeckCollision",
+]
+const DECK_JOIN_TOLERANCE := 0.001
+const MINIMUM_CREW_SEATS := 6
+const FLIGHT_DECK_STATIONS := 2
+const MINIMUM_INTERIOR_VOLUME := 300.0
+const MINIMUM_WALKABLE_DIMENSION := 2.2
+## The small-craft envelope ceiling the fleet audit freezes. A craft that
+## publishes an interior has to exceed it on at least one horizontal axis.
+const SMALL_CRAFT_ENVELOPE_MAXIMUM := 15.0
+
+const HULL_MATERIAL_KEYS := ["hull_olive", "hull_shade"]
+const STATION_PANEL_NORMAL_SCALE := 1.0
+const SHIP_NORMAL_SCALE_BAND := Vector2(0.10, 0.68)
+const PANEL_TRIPLANAR_SHARPNESS := 4.0
+
+var _failures: Array[String] = []
+var _assertion_count := 0
+var _evidence: Array[String] = []
+var _test_root: Node3D
+var _winding_sign := 0.0
+
+
+func _init() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var original_root_child_count := root.get_child_count()
+	_test_root = Node3D.new()
+	_test_root.name = "HalyardTestRoot"
+	root.add_child(_test_root)
+
+	_calibrate_winding()
+
+	var craft := HALYARD_SCENE.instantiate() as HeroShip
+	_test_root.add_child(craft)
+	await process_frame
+	await physics_frame
+	await physics_frame
+
+	_test_identity_and_evidence(craft)
+	_test_lateral_role(craft)
+	_test_readable_colour(craft)
+	_test_winding(craft)
+	_test_cockpit_and_boarding(craft)
+	_test_interior(craft)
+	await _test_in_flight_cabin(craft)
+	_test_surfacing(craft)
+
+	craft.queue_free()
+	await process_frame
+	await physics_frame
+
+	await _test_berth_and_production_roster()
+
+	_test_root.queue_free()
+	_test_root = null
+	await process_frame
+	await physics_frame
+	await process_frame
+	_check(
+		root.get_child_count() == original_root_child_count,
+		"the transport fixture cleans up without leaving scene nodes behind"
+	)
+	for line in _evidence:
+		print(line)
+	_finish()
+
+
+# ---------------------------------------------------------------- group A ----
+
+
+func _test_identity_and_evidence(craft: HeroShip) -> void:
+	_check(craft.get_ship_id() == HALYARD_ID, "the transport carries its own stable ship identity")
+	_check(craft.get_role() == "Crew transport", "the transport declares the crew-transport role")
+	_check(
+		craft.get_home_berth_id() == HALYARD_BERTH_ID,
+		"the transport names its own home berth rather than borrowing one"
+	)
+	var definition := craft.get_ship_definition()
+	_check(definition != null, "the transport carries a ShipDefinition")
+	if definition == null:
+		return
+	_check(
+		definition.is_definition_valid(),
+		"the transport definition validates: %s" % str(definition.get_validation_errors())
+	)
+	_check(
+		definition.get_evidence_status_id() == &"new",
+		"the transport is registered as a new original design, not a historical claim"
+	)
+	_check(
+		not definition.is_historical_claim() and not definition.is_authenticated(),
+		"the transport makes no historical or authenticated claim"
+	)
+	var audit := definition.get_audit_report()
+	_check(
+		(audit.get("evidence_references", PackedStringArray()) as PackedStringArray).is_empty(),
+		"the transport attaches no evidence reference; inspiration is not authentication"
+	)
+
+	# The name is the part this project has got wrong before. A modern design
+	# must not wear a reserved ledger name in its id, class name, or display name.
+	var script_path := str((craft.get_script() as Script).resource_path)
+	var identity_text: String = (
+		String(craft.get_ship_id())
+		+ " " + craft.get_display_name()
+		+ " " + craft.get_role()
+		+ " " + script_path
+	).to_lower()
+	var collisions := PackedStringArray()
+	for reserved: String in RESERVED_LEDGER_NAMES:
+		if identity_text.contains(reserved):
+			collisions.append(reserved)
+	_check(
+		collisions.is_empty(),
+		"the transport's identity takes no reserved ledger name (%s)" % str(collisions)
+	)
+	# RED: the same check applied to a name that *is* reserved must fire, so the
+	# clean result above is a measurement rather than an empty loop.
+	var reserved_probe := "salyut class transport".to_lower()
+	var reserved_hits := 0
+	for reserved: String in RESERVED_LEDGER_NAMES:
+		if reserved_probe.contains(reserved):
+			reserved_hits += 1
+	_check(reserved_hits == 1, "RED: the reserved-name check does fire on a reserved name")
+
+	var evidence := craft.call("get_halyard_evidence_report") as Dictionary
+	_check(
+		str(evidence.get("evidence_status", "")) == "modern_interpretation"
+		and not bool(evidence.get("historical_claim", true))
+		and not bool(evidence.get("authenticated_geometry", true)),
+		"the transport's own evidence report claims nothing historical"
+	)
+	var craft_audit := craft.call("get_halyard_audit_report") as Dictionary
+	_check(
+		bool(craft_audit.get("valid", false)),
+		"the transport's build audit is clean: %s" % str(craft_audit.get("errors", []))
+	)
+
+
+# ---------------------------------------------------------------- group B ----
+
+
+func _test_lateral_role(craft: HeroShip) -> void:
+	var definition := craft.get_ship_definition()
+	if definition == null:
+		return
+	var profile := definition.get_flight_profile().duplicate()
+	profile.merge(definition.get_systems_profile())
+	for axis: String in EXPECTED_PROFILE:
+		_check(
+			is_equal_approx(float(profile.get(axis, INF)), float(EXPECTED_PROFILE[axis])),
+			"the transport holds its frozen %s of %s (%s)"
+				% [axis, str(EXPECTED_PROFILE[axis]), str(profile.get(axis, "missing"))]
+		)
+
+	var fleet := _load_existing_profiles()
+	_check(fleet.size() == 4, "the four pre-existing craft definitions load for comparison")
+	if fleet.size() != 4:
+		return
+
+	# Distinctness: at least 14 of 16 axes differ against every existing craft.
+	var minimum_differing := 99
+	for other_id: StringName in fleet:
+		var differing := 0
+		for axis: String in profile:
+			if not is_equal_approx(float(profile[axis]), float((fleet[other_id] as Dictionary)[axis])):
+				differing += 1
+		minimum_differing = mini(minimum_differing, differing)
+		_check(
+			differing >= 14,
+			"the transport differs from %s on at least 14 of 16 handling axes (%d)"
+				% [other_id, differing]
+		)
+	_evidence.append(
+		"HALYARD_ROLE_EVIDENCE: minimum_differing_handling_axes=%d of 16" % minimum_differing
+	)
+
+	# Lateral, both directions, against every existing craft.
+	var minimum_advantage_over_others := 99
+	var minimum_advantage_of_others := 99
+	for other_id: StringName in fleet:
+		var other: Dictionary = fleet[other_id]
+		var mine := _count_advantages(other, profile)
+		var theirs := _count_advantages(profile, other)
+		minimum_advantage_over_others = mini(minimum_advantage_over_others, mine)
+		minimum_advantage_of_others = mini(minimum_advantage_of_others, theirs)
+		_check(mine > 0, "the transport is not dominated by %s (%d lateral advantages)" % [other_id, mine])
+		_check(theirs > 0, "the transport does not dominate %s (%d lateral advantages)" % [other_id, theirs])
+	_evidence.append(
+		"HALYARD_ROLE_EVIDENCE: minimum_advantage_out=%d minimum_advantage_in=%d"
+			% [minimum_advantage_over_others, minimum_advantage_of_others]
+	)
+
+	# Signature: sole extreme on its own axes.
+	for axis: String in SOLE_HIGHEST:
+		_check(
+			_is_sole_extreme(profile, fleet, axis, true),
+			"the transport alone owns the fleet's highest %s" % axis
+		)
+	for axis: String in SOLE_LOWEST + SOLE_WORST_LOWER_IS_BETTER:
+		var want_maximum := SOLE_WORST_LOWER_IS_BETTER.has(axis)
+		_check(
+			_is_sole_extreme(profile, fleet, axis, want_maximum),
+			"the transport alone owns the fleet's %s %s"
+				% ["longest" if want_maximum else "lowest", axis]
+		)
+
+	# It must not have taken a signature away from any craft that already had one.
+	for entry: Dictionary in PRESERVED_SIGNATURES:
+		var ship_id: StringName = entry["ship"]
+		var axis: String = entry["axis"]
+		var highest: bool = entry["highest"]
+		var owner_value := float((fleet[ship_id] as Dictionary)[axis])
+		var mine_value := float(profile[axis])
+		var preserved := owner_value > mine_value if highest else owner_value < mine_value
+		_check(
+			preserved,
+			"the transport leaves %s's %s %s signature intact (%s vs %s)"
+				% [ship_id, "highest" if highest else "lowest", axis, str(owner_value), str(mine_value)]
+		)
+
+	# RED: a transport that simply out-hulled the freighter would dominate it on
+	# every axis the freighter owns. The check must notice.
+	var dominating := profile.duplicate()
+	for axis: String in HIGHER_IS_BETTER:
+		dominating[axis] = maxf(float(profile[axis]), float((fleet[&"jovian_provisional"] as Dictionary)[axis]) + 1.0)
+	for axis: String in LOWER_IS_BETTER:
+		dominating[axis] = minf(float(profile[axis]), float((fleet[&"jovian_provisional"] as Dictionary)[axis]) - 0.01)
+	_check(
+		_count_advantages(dominating, fleet[&"jovian_provisional"]) == 0,
+		"RED: a mutated transport that dominates the freighter is detected as dominating"
+	)
+
+
+func _load_existing_profiles() -> Dictionary:
+	var result := {}
+	for ship_id: StringName in EXISTING_BODY_TONES:
+		var definition := load("res://assets/ships/%s.tres" % ship_id) as ShipDefinition
+		if definition == null:
+			continue
+		var merged := definition.get_flight_profile().duplicate()
+		merged.merge(definition.get_systems_profile())
+		result[ship_id] = merged
+	return result
+
+
+func _count_advantages(first: Dictionary, second: Dictionary) -> int:
+	var advantages := 0
+	for key: String in HIGHER_IS_BETTER:
+		if float(second[key]) > float(first[key]):
+			advantages += 1
+	for key: String in LOWER_IS_BETTER:
+		if float(second[key]) < float(first[key]):
+			advantages += 1
+	return advantages
+
+
+func _is_sole_extreme(
+		subject: Dictionary,
+		others: Dictionary,
+		axis: String,
+		want_maximum: bool
+	) -> bool:
+	var value := float(subject[axis])
+	for other_id: StringName in others:
+		var other_value := float((others[other_id] as Dictionary)[axis])
+		if want_maximum and other_value >= value:
+			return false
+		if not want_maximum and other_value <= value:
+			return false
+	return true
+
+
+# ---------------------------------------------------------------- group C ----
+
+
+func _test_readable_colour(craft: HeroShip) -> void:
+	var accent := craft.identification_accent.to_html(false)
+	_check(accent == EXPECTED_ACCENT, "the transport renders its exact authored accent #%s" % accent)
+	var body_tone := _body_tone_albedo(craft)
+	_check(
+		body_tone == EXPECTED_BODY_TONE,
+		"the transport presents its exact rendered body tone #%s" % body_tone
+	)
+	if body_tone.is_empty():
+		return
+
+	var body_worst := INF
+	var accent_worst := INF
+	var torrent_accent_worst := INF
+	for mode: String in ColourMetrics.VISION_MODELS:
+		for ship_id: StringName in EXISTING_BODY_TONES:
+			body_worst = minf(
+				body_worst,
+				ColourMetrics.separation(body_tone, str(EXISTING_BODY_TONES[ship_id]), mode)
+			)
+			var accent_separation := ColourMetrics.separation(accent, str(EXISTING_ACCENTS[ship_id]), mode)
+			accent_worst = minf(accent_worst, accent_separation)
+			if ship_id == &"torrent_provisional":
+				torrent_accent_worst = minf(torrent_accent_worst, accent_separation)
+	_evidence.append(
+		"HALYARD_COLOUR_EVIDENCE: body_worst_ciede2000=%.2f accent_worst_ciede2000=%.2f torrent_accent_worst=%.2f"
+			% [body_worst, accent_worst, torrent_accent_worst]
+	)
+	_check(
+		body_worst >= BODY_TONE_FLOOR,
+		"the transport body tone clears the frozen %.1f body floor (%.2f)" % [BODY_TONE_FLOOR, body_worst]
+	)
+	_check(
+		accent_worst >= ACCENT_FLOOR,
+		"the transport accent clears the frozen %.1f accent floor (%.2f)" % [ACCENT_FLOOR, accent_worst]
+	)
+	_check(
+		torrent_accent_worst >= TORRENT_ACCENT_FLOOR,
+		"the transport accent clears the stricter %.1f Torrent floor (%.2f)"
+			% [TORRENT_ACCENT_FLOOR, torrent_accent_worst]
+	)
+	# The headroom rule. Both values must sit outside the fleet's own pre-existing
+	# minima, so this craft cannot be the reason a later readability audit reports
+	# a smaller margin than it used to.
+	_check(
+		body_worst >= FLEET_BODY_MINIMUM_BEFORE,
+		"the transport spends none of the fleet's body-tone headroom (%.2f >= %.2f)"
+			% [body_worst, FLEET_BODY_MINIMUM_BEFORE]
+	)
+	_check(
+		accent_worst >= FLEET_ACCENT_MINIMUM_BEFORE,
+		"the transport spends none of the fleet's accent headroom (%.2f >= %.2f)"
+			% [accent_worst, FLEET_ACCENT_MINIMUM_BEFORE]
+	)
+
+	# RED: the pre-readability-pass fleet ivory is the exact tone the audit
+	# recorded as broken. Measuring it here proves the floor is a real gate.
+	var ivory_worst := INF
+	for mode: String in ColourMetrics.VISION_MODELS:
+		for ship_id: StringName in EXISTING_BODY_TONES:
+			ivory_worst = minf(
+				ivory_worst,
+				ColourMetrics.separation("e7e4d6", str(EXISTING_BODY_TONES[ship_id]), mode)
+			)
+	_check(
+		ivory_worst < BODY_TONE_FLOOR,
+		"RED: the old shared fleet ivory fails the body floor this craft passes (%.2f)" % ivory_worst
+	)
+
+
+func _body_tone_albedo(craft: HeroShip) -> String:
+	var weights := {}
+	var total := 0.0
+	for node in craft.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if not mesh_instance.is_visible_in_tree() or mesh_instance.mesh == null:
+			continue
+		var material := mesh_instance.material_override as StandardMaterial3D
+		if material == null:
+			material = mesh_instance.mesh.surface_get_material(0) as StandardMaterial3D
+		if material == null:
+			continue
+		if material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED \
+			or material.albedo_color.a < 0.95:
+			continue
+		var size := mesh_instance.get_aabb().size * mesh_instance.global_transform.basis.get_scale()
+		var area := 2.0 * (size.x * size.y + size.y * size.z + size.x * size.z)
+		if area <= 0.0:
+			continue
+		var hex := material.albedo_color.to_html(false)
+		weights[hex] = float(weights.get(hex, 0.0)) + area
+		total += area
+	var keys: Array = weights.keys()
+	keys.sort()
+	var best := ""
+	var best_lightness := -1.0
+	for hex: String in keys:
+		if float(weights[hex]) / maxf(total, 0.0001) < BODY_TONE_MINIMUM_SHARE:
+			continue
+		var lightness := ColourMetrics.lightness(hex)
+		if lightness > best_lightness:
+			best_lightness = lightness
+			best = hex
+	return best
+
+
+# ---------------------------------------------------------------- group D ----
+
+
+## Derives the expected sign of `dot((b - a) x (c - a), shading_normal)` from the
+## engine's own primitives, so the scorer measures Godot's real front-face
+## convention rather than an assumption about it.
+func _calibrate_winding() -> void:
+	var signs := PackedFloat32Array()
+	for primitive_name: String in CALIBRATION_PRIMITIVES:
+		var mesh := ClassDB.instantiate(primitive_name) as Mesh
+		if mesh == null:
+			continue
+		var score := _score_mesh(mesh, 1.0)
+		# `agree` counts triangles whose CCW normal points *with* the shading
+		# normal. Every engine primitive scores zero, so the convention is -1.
+		signs.append(1.0 if int(score["agree"]) * 2 > int(score["total"]) else -1.0)
+	_check(signs.size() == CALIBRATION_PRIMITIVES.size(), "every calibration primitive is measurable")
+	var agreed := true
+	for value in signs:
+		if not is_equal_approx(value, signs[0]):
+			agreed = false
+	_check(agreed, "the engine's own primitives agree on one front-face winding convention")
+	_winding_sign = signs[0] if signs.size() > 0 else -1.0
+	_evidence.append("HALYARD_WINDING_EVIDENCE: engine_convention_sign=%d" % int(_winding_sign))
+
+
+func _score_mesh(mesh: Mesh, expected_sign: float) -> Dictionary:
+	var agree := 0
+	var total := 0
+	for surface_index in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface_index)
+		if arrays.size() <= Mesh.ARRAY_NORMAL:
+			continue
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var raw_normals: Variant = arrays[Mesh.ARRAY_NORMAL]
+		if not (raw_normals is PackedVector3Array):
+			continue
+		var normals: PackedVector3Array = raw_normals
+		var raw_indices: Variant = arrays[Mesh.ARRAY_INDEX]
+		var indices := PackedInt32Array()
+		if raw_indices is PackedInt32Array and not (raw_indices as PackedInt32Array).is_empty():
+			indices = raw_indices
+		else:
+			for index in vertices.size():
+				indices.append(index)
+		var triangle := 0
+		while triangle + 2 < indices.size():
+			var a := vertices[indices[triangle]]
+			var b := vertices[indices[triangle + 1]]
+			var c := vertices[indices[triangle + 2]]
+			var shading := (
+				normals[indices[triangle]]
+				+ normals[indices[triangle + 1]]
+				+ normals[indices[triangle + 2]]
+			).normalized()
+			var geometric := (b - a).cross(c - a)
+			if geometric.length_squared() > 0.0000001:
+				total += 1
+				if geometric.normalized().dot(shading) * expected_sign > 0.0:
+					agree += 1
+			triangle += 3
+	return {"agree": agree, "total": total}
+
+
+func _test_winding(craft: HeroShip) -> void:
+	var total := 0
+	var correct := 0
+	var offenders := PackedStringArray()
+	var sample_mesh: Mesh = null
+	for node in craft.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		if sample_mesh == null:
+			sample_mesh = mesh_instance.mesh
+		var score := _score_mesh(mesh_instance.mesh, _winding_sign)
+		total += int(score["total"])
+		correct += int(score["agree"])
+		if int(score["agree"]) < int(score["total"]) and offenders.size() < 8:
+			offenders.append("%s %d/%d" % [mesh_instance.name, int(score["agree"]), int(score["total"])])
+	_check(total > 2000, "the transport presents a substantial mesh to score (%d triangles)" % total)
+	# Emission order *is* the winding. Every triangle on this craft must agree
+	# with the outward normal its own vertices carry.
+	_check(
+		total > 0 and correct == total,
+		"every triangle the transport builds is wound outward (%d of %d; %s)"
+			% [correct, total, str(offenders)]
+	)
+	_evidence.append("HALYARD_WINDING_EVIDENCE: outward_triangles=%d of %d" % [correct, total])
+
+	# RED: reverse one of this craft's own meshes and the same scorer must call
+	# it fully backwards. Without this the assertion above could pass by
+	# measuring nothing.
+	_check(sample_mesh != null, "a transport mesh is available for the reversal control")
+	if sample_mesh == null:
+		return
+	var reversed := _reversed_copy(sample_mesh)
+	var reversed_score := _score_mesh(reversed, _winding_sign)
+	_check(
+		int(reversed_score["total"]) > 0 and int(reversed_score["agree"]) == 0,
+		"RED: a reversed copy of a transport mesh scores zero outward triangles (%d of %d)"
+			% [int(reversed_score["agree"]), int(reversed_score["total"])]
+	)
+
+
+func _reversed_copy(mesh: Mesh) -> ArrayMesh:
+	var result := ArrayMesh.new()
+	for surface_index in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var raw_normals: Variant = arrays[Mesh.ARRAY_NORMAL]
+		if not (raw_normals is PackedVector3Array):
+			continue
+		var normals: PackedVector3Array = raw_normals
+		var raw_indices: Variant = arrays[Mesh.ARRAY_INDEX]
+		var indices := PackedInt32Array()
+		if raw_indices is PackedInt32Array and not (raw_indices as PackedInt32Array).is_empty():
+			indices = raw_indices
+		else:
+			for index in vertices.size():
+				indices.append(index)
+		var flipped := PackedInt32Array()
+		var triangle := 0
+		while triangle + 2 < indices.size():
+			flipped.append(indices[triangle])
+			flipped.append(indices[triangle + 2])
+			flipped.append(indices[triangle + 1])
+			triangle += 3
+		var surface_arrays := []
+		surface_arrays.resize(Mesh.ARRAY_MAX)
+		surface_arrays[Mesh.ARRAY_VERTEX] = vertices
+		surface_arrays[Mesh.ARRAY_NORMAL] = normals
+		surface_arrays[Mesh.ARRAY_INDEX] = flipped
+		result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface_arrays)
+	return result
+
+
+# ---------------------------------------------------------------- group E ----
+
+
+func _test_cockpit_and_boarding(craft: HeroShip) -> void:
+	var seat := craft.get_pilot_seat_anchor()
+	_check(seat != null and craft.is_ancestor_of(seat), "the pilot seat rides the transport hierarchy")
+	var camera := _find_cockpit_camera(craft)
+	_check(camera != null, "the transport exposes a cockpit camera")
+	if seat == null or camera == null:
+		return
+	_check(
+		str(seat.get_parent().name) == "CockpitInterior",
+		"the pilot seat sits inside the functional cockpit, not on a loose marker"
+	)
+	_check(
+		str(camera.get_parent().name) == "CockpitInterior",
+		"the cockpit camera is mounted inside the cockpit rather than floating on the hull"
+	)
+	_check(
+		(-camera.global_basis.z.normalized()).dot(-craft.global_basis.z.normalized()) > 0.999,
+		"the cockpit camera looks along the transport's own nose axis"
+	)
+	var seat_local := craft.to_local(seat.global_position)
+	var camera_local := craft.to_local(camera.global_position)
+	var rise := camera_local.y - seat_local.y
+	_check(
+		is_equal_approx(rise, SEAT_TO_COCKPIT_CAMERA_RISE),
+		"the transport keeps the frozen %.2f m feet-frame-to-eye-point rise (%.4f)"
+			% [SEAT_TO_COCKPIT_CAMERA_RISE, rise]
+	)
+	# RED: the exact defect this convention exists to prevent — a seat anchor
+	# authored at cushion height instead of feet-frame height.
+	var cushion_height_anchor := seat_local.y + 0.72
+	_check(
+		not is_equal_approx(camera_local.y - cushion_height_anchor, SEAT_TO_COCKPIT_CAMERA_RISE),
+		"RED: a cushion-height seat anchor would break the frozen rise"
+	)
+
+	var hull_top := _visible_hull_top(craft)
+	var head_y := camera_local.y - CAMERA_ABOVE_HEAD_BONE
+	var clearance := hull_top - head_y
+	_evidence.append(
+		"HALYARD_SEATING_EVIDENCE: seat_local_y=%.3f camera_local_y=%.3f hull_top=%.3f head_hull_clearance=%.3f"
+			% [seat_local.y, camera_local.y, hull_top, clearance]
+	)
+	_check(
+		clearance >= HEAD_HULL_CLEARANCE_MINIMUM,
+		"the seated pilot's head stays at least %.2f m inside the transport's own hull (%.3f)"
+			% [HEAD_HULL_CLEARANCE_MINIMUM, clearance]
+	)
+
+	# The second crew station is a real object on the real deck.
+	var station_anchor := craft.call("get_co_pilot_station_anchor") as Marker3D
+	_check(station_anchor != null, "the flight deck carries a second physical crew station")
+	if station_anchor != null:
+		var station_local := craft.to_local(station_anchor.global_position)
+		_check(
+			absf(station_local.y - seat_local.y) < 0.25,
+			"both flight-deck stations sit on one deck plane (%.3f vs %.3f)"
+				% [station_local.y, seat_local.y]
+		)
+		_check(
+			signf(station_local.x) != signf(seat_local.x) and absf(station_local.x - seat_local.x) > 0.8,
+			"the two flight-deck stations are side by side, not stacked on one seat"
+		)
+
+	# Boarding convention: port side, and an exit clear of the craft's own hull.
+	var boarding_local := craft.to_local(craft.get_boarding_position())
+	_check(boarding_local.x < 0.0, "the transport boards from the port side, as the fleet does")
+	var exit_marker := craft.get_node_or_null("ExitPoint") as Marker3D
+	_check(exit_marker != null, "the transport publishes an exit point")
+	if exit_marker != null:
+		var envelope := _collision_envelope(craft)
+		_check(
+			exit_marker.position.x < envelope.position.x,
+			"the exit point is outboard of the transport's own collision (%.2f vs %.2f)"
+				% [exit_marker.position.x, envelope.position.x]
+		)
+
+
+func _find_cockpit_camera(craft: HeroShip) -> Camera3D:
+	for node in craft.find_children("CockpitCamera", "Camera3D", true, false):
+		return node as Camera3D
+	return null
+
+
+func _visible_hull_top(craft: HeroShip) -> float:
+	var top := -INF
+	for node in craft.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if not mesh_instance.is_visible_in_tree() or mesh_instance.mesh == null:
+			continue
+		var to_craft := craft.global_transform.affine_inverse() * mesh_instance.global_transform
+		var box: AABB = to_craft * mesh_instance.get_aabb()
+		top = maxf(top, box.position.y + box.size.y)
+	return top
+
+
+func _collision_envelope(craft: HeroShip) -> AABB:
+	var result := AABB()
+	var first := true
+	for child in craft.get_children():
+		var collision := child as CollisionShape3D
+		if collision == null or collision.disabled or collision.shape == null:
+			continue
+		var box: AABB = collision.transform * collision.shape.get_debug_mesh().get_aabb()
+		if first:
+			result = box
+			first = false
+		else:
+			result = result.merge(box)
+	return result
+
+
+# ---------------------------------------------------------------- group F ----
+
+
+func _test_interior(craft: HeroShip) -> void:
+	_check(
+		craft.has_method("get_walkable_interior_report"),
+		"the transport publishes a walkable interior report"
+	)
+	var report := craft.call("get_walkable_interior_report") as Dictionary
+	_check(
+		(report.get("root", null) as Node3D) != null and not bool(report.get("detached_interior", true)),
+		"the transport interior is a connected part of the ship frame, not a detached set"
+	)
+	_check(
+		(report.get("root", null) as Node3D) != null
+		and (report.get("root") as Node3D).get_parent() == craft,
+		"the interior root is a direct child of the physical ship, so it shares one rigid transform"
+	)
+	_check(
+		int(report.get("passenger_seat_count", 0)) >= MINIMUM_CREW_SEATS,
+		"the transport carries the crew complement its role implies (%d seats)"
+			% int(report.get("passenger_seat_count", 0))
+	)
+	_check(
+		int(report.get("flight_deck_station_count", 0)) == FLIGHT_DECK_STATIONS,
+		"the transport declares its two-station flight deck"
+	)
+	_check(
+		(report.get("access_marker", null) as Node3D) != null
+		and (report.get("deck_marker", null) as Node3D) != null,
+		"the transport publishes both its exterior access and interior deck markers"
+	)
+	var bounds := craft.call("get_interior_bounds") as AABB
+	var volume := bounds.size.x * bounds.size.y * bounds.size.z
+	_check(
+		volume >= MINIMUM_INTERIOR_VOLUME
+		and bounds.size.x >= MINIMUM_WALKABLE_DIMENSION
+		and bounds.size.y >= MINIMUM_WALKABLE_DIMENSION,
+		"the interior is a walkable volume rather than a token cavity (%s, %.0f m3)"
+			% [str(bounds.size), volume]
+	)
+
+	# Scale and claim have to agree in both directions: a craft that publishes an
+	# interior must actually be bigger than the small-craft band.
+	var envelope := _collision_envelope(craft)
+	_check(
+		maxf(envelope.size.x, envelope.size.z) > SMALL_CRAFT_ENVELOPE_MAXIMUM,
+		"the interior-bearing transport exceeds the small-craft envelope %s" % str(envelope.size)
+	)
+	var tags := craft.get_ship_definition().get_compatibility_tags()
+	_check(
+		tags.has("medium_craft") and tags.has("crew_transport") and tags.has("multi_crew"),
+		"the transport declares medium-craft, crew-transport and multi-crew compatibility"
+	)
+	_check(
+		not tags.has("small_craft")
+		and not tags.has("freight")
+		and not tags.has("cargo")
+		and not tags.has("light_freighter"),
+		"the transport claims no cargo authority it does not have"
+	)
+	_evidence.append(
+		"HALYARD_SCALE_EVIDENCE: collision_envelope=%s interior_bounds=%s"
+			% [str(envelope.size), str(bounds.size)]
+	)
+
+	# The walk from the airstair to the pilot seat is one continuous deck. The
+	# three plates must join in z without a gap the crew could fall through.
+	var footprints: Array[AABB] = []
+	for collider_name: String in WALKABLE_DECK_COLLIDERS:
+		var collider := craft.get_node_or_null(collider_name) as CollisionShape3D
+		_check(collider != null, "%s exists as a physical deck plate" % collider_name)
+		if collider == null:
+			continue
+		var box := collider.shape as BoxShape3D
+		_check(box != null, "%s is a box deck plate" % collider_name)
+		if box == null:
+			continue
+		var half := box.size * 0.5
+		footprints.append(AABB(collider.position - half, box.size))
+	_check(footprints.size() == WALKABLE_DECK_COLLIDERS.size(), "every declared deck plate resolves")
+	if footprints.size() == WALKABLE_DECK_COLLIDERS.size():
+		footprints.sort_custom(func(a: AABB, b: AABB) -> bool: return a.position.z < b.position.z)
+		var worst_gap := -INF
+		for index in footprints.size() - 1:
+			var gap: float = footprints[index + 1].position.z - (footprints[index].position.z + footprints[index].size.z)
+			worst_gap = maxf(worst_gap, gap)
+		# Abutting plates meet at exactly 0.0 m in design and at a few times
+		# machine epsilon in float, so the gate is a millimetre rather than a
+		# strict zero. The mutation below is 600 times larger than that.
+		_check(
+			worst_gap <= DECK_JOIN_TOLERANCE,
+			"the three deck plates join without a gap the crew could fall through (worst %.6f m)"
+				% worst_gap
+		)
+		# RED: shift one plate aft and the same check must find the hole.
+		var shifted := footprints.duplicate()
+		shifted[1] = AABB(footprints[1].position + Vector3(0.0, 0.0, 0.6), footprints[1].size)
+		var mutated_gap := -INF
+		for index in shifted.size() - 1:
+			var gap: float = shifted[index + 1].position.z - (shifted[index].position.z + shifted[index].size.z)
+			mutated_gap = maxf(mutated_gap, gap)
+		_check(
+			mutated_gap > DECK_JOIN_TOLERANCE,
+			"RED: a shifted deck plate is detected as a gap (%.3f m)" % mutated_gap
+		)
+
+
+func _test_in_flight_cabin(craft: HeroShip) -> void:
+	_check(
+		craft.supports_in_flight_cabin_access(),
+		"the crew transport offers in-flight cabin access; that is the point of the class"
+	)
+	var cabin := craft.get_in_flight_cabin_report()
+	_check(
+		StringName(str(cabin.get("status", ""))) == &"walkable_cabin",
+		"the transport reports a walkable cabin rather than a bare boolean"
+	)
+	var coordinator := craft.call("get_moving_interior_component") as MovingInteriorFrame
+	_check(
+		cabin.get("frame") == coordinator and coordinator != null,
+		"the cabin contract hands back the craft's own occupancy coordinator"
+	)
+	var bounds := cabin.get("local_bounds", AABB()) as AABB
+	var stand := cabin.get("stand_transform", Transform3D.IDENTITY) as Transform3D
+	var stand_local := craft.global_transform.affine_inverse() * stand.origin
+	_check(
+		bounds.has_point(stand_local),
+		"the standing pose the pilot arrives at is inside the confinement envelope %s" % str(stand_local)
+	)
+	# The envelope has to cover every deck plate a crew member can stand on, or
+	# containment fights the floor instead of the hull opening.
+	for collider_name: String in WALKABLE_DECK_COLLIDERS:
+		var collider := craft.get_node_or_null(collider_name) as CollisionShape3D
+		if collider == null:
+			continue
+		var box := collider.shape as BoxShape3D
+		if box == null:
+			continue
+		var half := box.size * 0.5
+		var top := collider.position + Vector3(0.0, half.y, 0.0)
+		var footprint := AABB(
+			Vector3(top.x - half.x, top.y, top.z - half.z),
+			Vector3(half.x * 2.0, 0.0, half.z * 2.0)
+		)
+		_check(
+			bounds.encloses(footprint),
+			"the confinement envelope encloses the whole %s walking surface" % collider_name
+		)
+	# The flight deck is walkable, so it must be enclosed by real geometry rather
+	# than by the containment guard alone.
+	_check(
+		craft.get_node_or_null("CockpitForwardWallCollision") is CollisionShape3D,
+		"the flight deck has a physical forward wall a crew member cannot walk off"
+	)
+	var sidewalls := 0
+	for child in craft.get_children():
+		if child is CollisionShape3D and str(child.name).ends_with("CockpitSidewallCollision"):
+			sidewalls += 1
+	_check(sidewalls == 2, "the flight deck has physical port and starboard walls")
+
+	# RED: the offer is derived from the live coordinator, not asserted.
+	var occupant_volume := coordinator.get_occupant_volume()
+	coordinator.set_moving_frame(null)
+	await process_frame
+	_check(
+		not craft.supports_in_flight_cabin_access(),
+		"RED: a transport whose occupancy coordinator is unbound withdraws the cabin offer"
+	)
+	coordinator.configure(craft, craft.call("get_interior_bounds"), occupant_volume)
+	await process_frame
+	await physics_frame
+	_check(
+		craft.supports_in_flight_cabin_access(),
+		"restoring the coordinator restores the cabin offer"
+	)
+
+	# RED: a destroyed cabin is not a cabin.
+	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
+	await process_frame
+	await physics_frame
+	_check(
+		craft.is_destroyed() and not craft.supports_in_flight_cabin_access(),
+		"RED: a destroyed transport refuses to release a pilot into its wreck"
+	)
+
+
+# ---------------------------------------------------------------- group G ----
+
+
+func _test_surfacing(craft: HeroShip) -> void:
+	var materials := craft.get_variant_materials()
+	var raw_primitives := PackedStringArray()
+	var untextured := PackedStringArray()
+	for node in craft.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		# A raw engine primitive at player eye height reads as an untextured box.
+		if mesh_instance.mesh is BoxMesh and raw_primitives.size() < 8:
+			raw_primitives.append(str(mesh_instance.name))
+	_check(
+		raw_primitives.is_empty(),
+		"the transport builds no raw BoxMesh primitives (%s)" % str(raw_primitives)
+	)
+
+	for key: String in HULL_MATERIAL_KEYS:
+		var material := materials.get(key) as StandardMaterial3D
+		_check(material != null, "the transport publishes its %s hull material" % key)
+		if material == null:
+			continue
+		_check(
+			material.albedo_texture != null
+			and material.normal_texture != null
+			and material.roughness_texture != null,
+			"%s binds the registered panel albedo/normal/roughness trio" % key
+		)
+		_check(
+			material.uv1_triplanar and material.uv1_world_triplanar
+			and is_equal_approx(material.uv1_triplanar_sharpness, PANEL_TRIPLANAR_SHARPNESS),
+			"%s uses the registered world-triplanar projection" % key
+		)
+		_check(
+			material.normal_scale >= SHIP_NORMAL_SCALE_BAND.x
+			and material.normal_scale <= SHIP_NORMAL_SCALE_BAND.y,
+			"%s keeps hull relief inside the fleet's %.2f-%.2f band rather than at station relief (%.3f)"
+				% [key, SHIP_NORMAL_SCALE_BAND.x, SHIP_NORMAL_SCALE_BAND.y, material.normal_scale]
+		)
+		_check(material.clearcoat_enabled, "%s carries the fleet's painted-alloy clearcoat" % key)
+		if untextured.size() < 4 and material.albedo_texture == null:
+			untextured.append(key)
+
+	# Walked and structural surfaces keep the registered station relief, which is
+	# exactly where that family belongs.
+	for key: String in ["deck", "structure", "trim"]:
+		var material := materials.get(key) as StandardMaterial3D
+		_check(material != null, "the transport publishes its %s surface material" % key)
+		if material == null:
+			continue
+		_check(
+			material.normal_texture != null and material.uv1_world_triplanar
+			and is_equal_approx(material.normal_scale, STATION_PANEL_NORMAL_SCALE),
+			"%s keeps the registered panel recipe at normal_scale %.1f" % [key, STATION_PANEL_NORMAL_SCALE]
+		)
+
+	# RED: a stripped material must be detected by the same predicate.
+	var stripped := StandardMaterial3D.new()
+	_check(
+		stripped.albedo_texture == null and not stripped.uv1_world_triplanar,
+		"RED: an unsurfaced material is detected as carrying no panel recipe"
+	)
+
+
+# ---------------------------------------------------------------- group H ----
+
+
+func _test_berth_and_production_roster() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_check(game != null, "production Main instantiates with the transport in the fleet")
+	if game == null:
+		return
+	root.add_child(game)
+	await process_frame
+	for _settle in 6:
+		await physics_frame
+		await process_frame
+
+	var fleet: Array[HeroShip] = game.get_flyable_ships()
+	var transport: HeroShip = null
+	for candidate in fleet:
+		if candidate.get_ship_id() == HALYARD_ID:
+			transport = candidate
+	_check(
+		transport != null,
+		"the transport is accepted into the production flyable roster (%d craft)" % fleet.size()
+	)
+	_check(fleet.size() == 5, "the production roster is the expanded five-craft fleet")
+	if transport == null:
+		await _clean_up(game)
+		return
+
+	var world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
+	_check(world != null and world.has_berth(HALYARD_BERTH_ID), "the world owns the transport's berth")
+	if world == null or not world.has_berth(HALYARD_BERTH_ID):
+		await _clean_up(game)
+		return
+	var berth := world.get_berth_node(HALYARD_BERTH_ID)
+	_check(berth != null, "the transport berth resolves to a live ShipBerth")
+	if berth == null:
+		await _clean_up(game)
+		return
+	_check(
+		berth.is_compatible_with(transport.get_ship_definition()),
+		"the berth accepts the transport's declared compatibility tags"
+	)
+
+	# The strict dock fit: the complete oriented collision envelope has to sit
+	# inside the berth's landing volume, not just the ship's origin.
+	var collision_report := transport.get_landing_collision_report()
+	_check(bool(collision_report.get("valid", false)), "the transport publishes a valid landing envelope")
+	var local_bounds := collision_report.get("local_bounds", AABB()) as AABB
+	_check(
+		berth.contains_oriented_bounds(world.get_berth_transform(HALYARD_BERTH_ID), local_bounds),
+		"the transport's whole hull fits its berth's strict landing volume %s" % str(local_bounds.size)
+	)
+	_evidence.append(
+		"HALYARD_BERTH_EVIDENCE: landing_bounds=%s berth_half_extents=%s"
+			% [str(local_bounds.size), str(berth.get_landing_half_extents())]
+	)
+	# RED: inflate the envelope and the same fit must refuse it.
+	var inflated := local_bounds.grow(8.0)
+	_check(
+		not berth.contains_oriented_bounds(world.get_berth_transform(HALYARD_BERTH_ID), inflated),
+		"RED: an oversized hull is refused by the same strict dock fit"
+	)
+
+	# It parked where it was told to, and it is not overlapping its neighbour.
+	var berth_origin := world.get_berth_transform(HALYARD_BERTH_ID).origin
+	_check(
+		transport.global_position.distance_to(berth_origin) < 0.05,
+		"the transport is physically parked on its own berth (%.3f m)"
+			% transport.global_position.distance_to(berth_origin)
+	)
+	var zenith_origin := world.get_berth_transform(&"zenith_fleet_dock_berth").origin
+	_check(
+		absf(berth_origin.x - zenith_origin.x) > 12.0,
+		"the transport berth stays clear of the neighbouring fleet dock (%.2f m apart)"
+			% absf(berth_origin.x - zenith_origin.x)
+	)
+
+	# The comb's bookkeeping moved with the craft rather than after it.
+	var comb_audit := world.get_fleet_dock_comb_integration_audit_report()
+	_check(
+		int(comb_audit.get("external_assignment_count", 0)) == 2
+		and int(comb_audit.get("deferred_empty_dock_count", 0)) == 1,
+		"the fleet dock comb reports two assigned docks and one still genuinely empty"
+	)
+	_check(
+		bool(comb_audit.get("valid", false)),
+		"the fleet dock integration audit stays clean: %s" % str(comb_audit.get("errors", []))
+	)
+
+	await _clean_up(game)
+
+
+func _clean_up(game: Node) -> void:
+	await _release_combat_audio_before_main_teardown(game)
+	game.queue_free()
+	await process_frame
+	await physics_frame
+	await process_frame
+
+
+func _release_combat_audio_before_main_teardown(game: Node) -> void:
+	var combat_audio := game.get_node_or_null("CombatAudioPresentation") as CombatAudioPresentation
+	if combat_audio == null:
+		return
+	for candidate in combat_audio.find_children("*", "AudioStreamPlayer3D", true, false):
+		var audio_player := candidate as AudioStreamPlayer3D
+		audio_player.stop()
+		audio_player.stream_paused = false
+		audio_player.stream = null
+	await process_frame
+	var mixer_release_seconds := maxf(
+		0.05,
+		AudioServer.get_time_to_next_mix() + AudioServer.get_output_latency()
+	)
+	await create_timer(mixer_release_seconds).timeout
+	var parent := combat_audio.get_parent()
+	if parent != null:
+		parent.remove_child(combat_audio)
+	combat_audio.free()
+	await process_frame
+
+
+# --------------------------------------------------------------- harness ----
+
+
+func _check(condition: bool, description: String) -> void:
+	_assertion_count += 1
+	if condition:
+		print("PASS: ", description)
+	else:
+		_failures.append(description)
+		push_error("FAIL: " + description)
+
+
+func _finish() -> void:
+	if _failures.is_empty():
+		print("HALYARD_CREW_TRANSPORT_TEST_OK: %d assertions" % _assertion_count)
+		quit(0)
+	else:
+		print(
+			"HALYARD_CREW_TRANSPORT_TEST_FAILED: %d/%d assertions failed: %s"
+				% [_failures.size(), _assertion_count, "; ".join(_failures)]
+		)
+		quit(1)

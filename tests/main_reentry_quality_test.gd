@@ -38,7 +38,7 @@ func _run() -> void:
 		and resolver != null
 		and pulse != null
 		and opponent != null
-		and fleet.size() == 4,
+		and fleet.size() == 5,
 		"production re-entry fixture exposes the world, audio, pulse, authority, resolver, opponent, and exact fleet"
 	)
 	if (
@@ -48,7 +48,7 @@ func _run() -> void:
 		or resolver == null
 		or pulse == null
 		or opponent == null
-		or fleet.size() != 4
+		or fleet.size() != 5
 	):
 		await _clean_up(game)
 		_finish()
@@ -440,7 +440,7 @@ func _test_safed_fire_contract(
 	_check(
 		all_safed_truthful
 		and is_equal_approx(float(opponent.call("get_health")), opponent_health_before),
-		"all four craft report safed fire as unresolved and show only an exact 0.2 m muzzle pulse before world geometry"
+		"all five craft report safed fire as unresolved and show only an exact 0.2 m muzzle pulse before world geometry"
 	)
 	game.active_ship = game.get_guided_ship()
 	blocker.queue_free()

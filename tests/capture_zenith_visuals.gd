@@ -252,8 +252,8 @@ func _resolve_and_validate_production_contracts() -> bool:
 
 	var world_audit := _world.get_fleet_dock_comb_integration_audit_report()
 	_check(bool(world_audit.get("valid", false)), "world Fleet Dock integration audit is green")
-	_check(int(world_audit.get("external_assignment_count", 0)) == 1, "Fleet Dock exposes exactly one external assignment")
-	_check(int(world_audit.get("deferred_empty_dock_count", 0)) == 2, "Fleet Dock retains exactly two deferred empty docks")
+	_check(int(world_audit.get("external_assignment_count", 0)) == 2, "Fleet Dock exposes exactly two external assignments")
+	_check(int(world_audit.get("deferred_empty_dock_count", 0)) == 1, "Fleet Dock retains exactly one deferred empty dock")
 	_check(not bool(world_audit.get("historical_class_to_berth_mapping", true)), "Fleet Dock assignment remains explicitly modern")
 	_check(StringName(world_audit.get("zenith_ship_id", &"")) == &"zenith_b7_observed", "Fleet Dock assignment names exact Zenith ID")
 	_check(StringName(world_audit.get("zenith_berth_id", &"")) == &"zenith_fleet_dock_berth", "Fleet Dock assignment names exact berth ID")

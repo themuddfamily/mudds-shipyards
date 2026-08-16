@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/zenith_interceptor.tscn" id="15_zenith"]
 [ext_resource type="PackedScene" path="res://scenes/ships/standoff_picket_opponent.tscn" id="16_picket"]
 [ext_resource type="PackedScene" path="res://scenes/audio/station_music_bed.tscn" id="17_music_bed"]
+[ext_resource type="PackedScene" path="res://scenes/ships/halyard_crew_transport.tscn" id="18_halyard"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -33,6 +34,8 @@ ship_definition = ExtResource("8_torrent_definition")
 [node name="JovianLightFreighter" parent="." instance=ExtResource("12_jovian")]
 
 [node name="ZenithInterceptor" parent="." instance=ExtResource("15_zenith")]
+
+[node name="HalyardCrewTransport" parent="." instance=ExtResource("18_halyard")]
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 

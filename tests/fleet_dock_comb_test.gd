@@ -49,7 +49,7 @@ func _test_evidence_roster_and_audit(module: FleetDockComb) -> void:
 	_check(int(roster.walkable_surface_count) == 7, "roster exposes exactly seven collision-backed walkable surfaces")
 	_check(int(roster.rung_count) == 3 and int(roster.dock_slab_count) == 3, "roster contains exactly three rungs and three broad end slabs")
 	_check(int(roster.vertical_transition_count) == 1, "roster contains exactly one short vertical transition")
-	_check(int(roster.assigned_dock_count) == 1 and int(roster.deferred_dock_count) == 2, "roster separates one external assignment from two deferred empty docks")
+	_check(int(roster.assigned_dock_count) == 2 and int(roster.deferred_dock_count) == 1, "roster separates two external assignments from one deferred empty dock")
 	_check(roster.surface_ids == roster.expected_surface_ids, "actual surface identities exactly match the public roster")
 	var audit := module.get_audit_report()
 	_check(int(audit.schema_version) == 2 and bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "fresh module passes its complete v2 assignment-aware public audit")
@@ -74,7 +74,7 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 		_check(module.has_route_marker(route_id) and module.get_route_marker(route_id) != null, "route marker resolves: %s" % route_id)
 
 	var docks := module.get_deferred_dock_roster()
-	_check(docks.size() == 2, "dock 02 and dock 03 remain deferred without creating berth specifications")
+	_check(docks.size() == 1, "dock 03 remains deferred without creating berth specifications")
 	var every_dock_deferred := true
 	for dock in docks:
 		every_dock_deferred = every_dock_deferred \
@@ -83,16 +83,27 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 			and not bool(dock.owns_berth_authority) \
 			and not bool(dock.landing_volume_present) \
 			and not bool(dock.boarding_area_present)
-	_check(every_dock_deferred, "both deferred docks remain empty, unassigned, and non-authoritative")
+	_check(every_dock_deferred, "the remaining deferred dock stays empty, unassigned, and non-authoritative")
 	var assigned := module.get_assigned_dock_roster()
+	var assigned_dock_01 := _find_assigned_dock(assigned, &"assigned-dock-01")
+	# Dock 02 keeps its original `deferred-dock-02` marker id after promotion.
+	var assigned_dock_02 := _find_assigned_dock(assigned, &"deferred-dock-02")
 	_check(
-		assigned.size() == 1
-		and assigned[0].dock_id == &"assigned-dock-01"
-		and assigned[0].ship_assignment == &"zenith_b7_observed"
-		and assigned[0].berth_id == &"zenith_fleet_dock_berth"
-		and not bool(assigned[0].owns_berth_authority)
-		and not bool(assigned[0].historical_class_to_berth_mapping),
+		assigned.size() == 2
+		and not assigned_dock_01.is_empty()
+		and assigned_dock_01.ship_assignment == &"zenith_b7_observed"
+		and assigned_dock_01.berth_id == &"zenith_fleet_dock_berth"
+		and not bool(assigned_dock_01.owns_berth_authority)
+		and not bool(assigned_dock_01.historical_class_to_berth_mapping),
 		"dock 01 exposes one modern external Zenith assignment without owning authority"
+	)
+	_check(
+		not assigned_dock_02.is_empty()
+		and assigned_dock_02.ship_assignment == &"halyard_new_design"
+		and assigned_dock_02.berth_id == &"halyard_fleet_dock_berth"
+		and not bool(assigned_dock_02.owns_berth_authority)
+		and not bool(assigned_dock_02.historical_class_to_berth_mapping),
+		"dock 02 exposes one modern external Halyard assignment without owning authority"
 	)
 	_check(module.get_dock_roster().size() == 3, "combined roster preserves all three physical dock landmarks")
 	var authority := module.get_authority_contract()
@@ -232,6 +243,15 @@ func _test_cleanup(module: FleetDockComb) -> void:
 	_check(module_reference.get_ref() == null and surface_reference.get_ref() == null, "module and generated surfaces release cleanly without retained lifecycle state")
 	_test_root.queue_free()
 	await process_frame
+
+
+## More than one dock is assigned now, so rows are selected by their stable dock
+## id instead of by roster position.
+func _find_assigned_dock(assigned: Array[Dictionary], dock_id: StringName) -> Dictionary:
+	for entry in assigned:
+		if entry.get("dock_id", &"") == dock_id:
+			return entry
+	return {}
 
 
 func _ray_local(module: FleetDockComb, local_from: Vector3, local_to: Vector3) -> Dictionary:

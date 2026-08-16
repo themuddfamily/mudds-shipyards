@@ -1,11 +1,16 @@
 # Fleet Visual Grammar
 
-Status: **design reference derived from the four implemented craft.** This
+Status: **design reference derived from the implemented craft.** This
 document describes the shared language a *new* craft must speak to look like it
 belongs to this fleet. It is written from what
-`torrent_provisional`, `arrow_provisional`, `jovian_provisional` and
-`zenith_b7_observed` actually do in the production `res://scenes/main.tscn`, not
-from intention.
+`torrent_provisional`, `arrow_provisional`, `jovian_provisional`,
+`zenith_b7_observed` and `halyard_new_design` actually do in the production
+`res://scenes/main.tscn`, not from intention.
+
+The first four are the original vertical slice. The fifth, the Halyard Crew
+Transport, is the first craft designed *against* this document rather than
+described by it; where it had to bend a rule, the rule and the reason are named
+in place rather than quietly dropped.
 
 Writing it satisfies the Phase 5 precondition
 ("only after the original fleet's shared visual grammar is documented"). It adds
@@ -23,7 +28,7 @@ the code, so the claims here are graded and, where possible, machine-checked.
 | --- | --- |
 | **Measured** | Produced by running code. The measuring code is named. If the code changes, the value changes with it. |
 | **Frozen** | A constant that a test asserts against the live production scene. Named with its constant and file. Changing the implementation without changing the constant turns a suite red. |
-| **Asserted** | A reading of the four implementations that no test enforces. Named with the file and line it was read from. Treat these as descriptive, not binding. |
+| **Asserted** | A reading of the implementations that no test enforces. Named with the file and line it was read from. Treat these as descriptive, not binding. |
 
 Four tables in this document — marked `GRAMMAR-PALETTE`,
 `GRAMMAR-AUDIT-CONSTANTS`, `GRAMMAR-SURFACE` and `GRAMMAR-EVIDENCE` — are parsed
@@ -49,7 +54,7 @@ design-time probe measure with one implementation.
 
 ## 1. Silhouette and proportion language
 
-### What all four share
+### What every craft shares
 
 1. **Bilateral symmetry about a single longitudinal axis, forward is `-Z`.**
    Every muzzle, engine plume, navigation light, damage anchor and escape pod is
@@ -60,20 +65,20 @@ design-time probe measure with one implementation.
    port; see §5.
 2. **One dominant mass with subordinate lateral planes.** Each craft reads as a
    central body that the wing/side surfaces broaden, never as a wing that carries
-   a pod. The four differ in *which* mass dominates, not in whether one does.
+   a pod. They differ in *which* mass dominates, not in whether one does.
 3. **Planar, faceted, low-part-count construction.** Large clean planes with
    stepped subdivisions and small bevels. The Torrent spec states this as a
    requirement — "Do not smooth those stations into an organic teardrop. Modern
    bevels should be small enough that the large planar facets and stepped
    construction remain the first read"
    ([`docs/TORRENT_2011_RECONSTRUCTION_SPEC.md`](../TORRENT_2011_RECONSTRUCTION_SPEC.md))
-   — and the other three follow it.
+   — and every other craft follows it.
 4. **A low overall stance.** Every craft is wider or longer than it is tall by a
    wide margin; nothing in the fleet is a vertical form.
 5. **No two craft share a planform ratio.** The family read comes from
    construction language, not from repeated proportions.
 
-### How the four separate (Asserted — read from the named collision constants)
+### How they separate (Asserted — read from the named collision constants)
 
 Collision envelopes are gameplay normalization, not silhouette measurements, but
 they are the only fleet-wide numbers authored in one comparable unit, so they are
@@ -84,7 +89,8 @@ the practical proxy for "how big and what shape".
 | Torrent | Compact longitudinal wedge; tall raised central/aft mass dominant; two-tier swept side planes subordinate; two tall aft rails; paired round housings beside the aft body | `scripts/ships/hero_ship.gd:3050-3056` (`WingCollision` 7.2 × 1.5 × 6.3, `HullCollision` 4.6 × 2.35 × 9.0) | 7.2 × 9.0 |
 | Arrow | Slender length-dominant fuselage; a 32-section elliptical loft with a thin wide wing plane and two semantically identified escape pods | `scripts/ships/arrow_recon_ship.gd:477-478` (hull 3.1 × 1.65 × 12.2, wing 11.1 × 0.48 × 4.9) | 11.1 × 12.2 |
 | Zenith | Width-dominant full delta/arrowhead; broad swept side planes with a raised faceted central body continuing into a dorsal spine, long strakes, repeated stepped subdivisions | `scripts/ships/zenith_interceptor.gd:36-38` (`EXPECTED_LANDING_COLLISION_BOUNDS` size 14.42 × 4.2755 × 10.45) | 14.42 × 10.45 |
-| Jovian | Large slab/box freighter hull wrapped around a walkable interior; the only craft whose exterior is dimensioned by its interior | `scripts/ships/jovian_light_freighter.gd:21-23` (`FLIGHT_COLLISION_BOUNDS` size 18.55 × 6.2 × 26.2, `INTERIOR_BOUNDS` 11.44 × 4.6 × 17.25) | 18.55 × 26.2 |
+| Jovian | Large slab/box freighter hull wrapped around a walkable interior; its exterior is dimensioned by its cargo hold | `scripts/ships/jovian_light_freighter.gd:21-23` (`FLIGHT_COLLISION_BOUNDS` size 18.55 × 6.2 × 26.2, `INTERIOR_BOUNDS` 11.44 × 4.6 × 17.25) | 18.55 × 26.2 |
+| Halyard | Long narrow faceted octagonal pressure tube — the only craft whose dominant mass is a tube rather than a plate, wedge, delta or slab — with a proud octagonal bow docking collar, a lit band of ten cabin windows a side, a dorsal service spine, and a transverse tail yoke carrying four engines in one row | `scripts/ships/halyard_crew_transport.gd` (`FLIGHT_COLLISION_BOUNDS`, `INTERIOR_BOUNDS` 5.2 × 3.6 × 22.7) | 9.6 × 28.3 |
 
 The two evidence-bounded craft are the only ones whose proportions have a
 written band. Torrent's is a target table with confidence grades
@@ -106,16 +112,17 @@ rules. This is the single most load-bearing distinction in the grammar.
 Every craft uses the same engine and navigation language, so these read as
 "fleet", not as "which craft":
 
-| Element | Torrent | Arrow | Jovian | Zenith |
-| --- | --- | --- | --- | --- |
-| Engine emission | `64efff` | `7cf5ef` | `70eee7` | `07bddc` |
-| Port nav | `ff5c55` | `ff6460` | `ff635d` | `ff0305` |
-| Starboard nav | `78ee9b` | `7cf0a3` | `70e995` | `04f230` |
+| Element | Torrent | Arrow | Jovian | Zenith | Halyard |
+| --- | --- | --- | --- | --- | --- |
+| Engine emission | `64efff` | `7cf5ef` | `70eee7` | `07bddc` | `68f0ef` |
+| Port nav | `ff5c55` | `ff6460` | `ff635d` | `ff0305` | `ff5f58` |
+| Starboard nav | `78ee9b` | `7cf0a3` | `70e995` | `04f230` | `74ec97` |
 
 (Asserted, read from `scripts/ships/hero_ship.gd:75-79`,
 `scripts/ships/arrow_recon_ship.gd:41-45`,
 `scripts/ships/jovian_light_freighter.gd:51-53`,
-`scenes/ships/presentation/zenith_authored_presentation.gd:189-192`.)
+`scenes/ships/presentation/zenith_authored_presentation.gd:189-192`,
+`scripts/ships/halyard_crew_transport.gd`.)
 
 Cyan-family engine glow, red to port, green to starboard. A new craft keeps this
 identical. Differentiating a craft through its engine colour breaks the family
@@ -141,6 +148,8 @@ displays).
 | `accent_arrow` | `45dee6` | `EXPECTED_ACCENTS` |
 | `accent_jovian` | `b32620` | `EXPECTED_ACCENTS` |
 | `accent_zenith` | `2f5fbe` | `EXPECTED_ACCENTS` |
+| `body_tone_halyard` | `6e7a3e` | `EXPECTED_BODY_TONE` |
+| `accent_halyard` | `341024` | `EXPECTED_ACCENTS` |
 
 <!-- GRAMMAR-PALETTE:END -->
 
@@ -172,10 +181,14 @@ dichromat simulation → CIE L\*a\*b\* → CIEDE2000 — by
 | `lower_is_better_axis_count` | 3 | `LOWER_IS_BETTER` |
 | `handling_axis_count` | 16 | `ShipDefinition.get_flight_profile()` + `get_systems_profile()` |
 | `minimum_differing_handling_axes` | 14 | `differing >= 14` in `_test_role_differentiation` |
-| `small_craft_envelope_maximum_m` | 15.0 | `_test_interior_provision` fighter envelope gate |
-| `interior_craft_envelope_minimum_x_m` | 15.0 | `_test_interior_provision` freighter envelope gate |
-| `interior_craft_envelope_minimum_z_m` | 25.0 | `_test_interior_provision` freighter envelope gate |
-| `freighter_passenger_seat_minimum` | 4 | `_test_interior_provision` seat-count gate |
+| `small_craft_envelope_maximum_m` | 15.0 | `SMALL_CRAFT_ENVELOPE_MAXIMUM` |
+| `interior_minimum_volume_m3` | 300.0 | `INTERIOR_MINIMUM_VOLUME` |
+| `freighter_envelope_minimum_x_m` | 15.0 | `INTERIOR_CRAFT` freighter envelope gate |
+| `freighter_envelope_minimum_z_m` | 25.0 | `INTERIOR_CRAFT` freighter envelope gate |
+| `freighter_passenger_seat_minimum` | 4 | `INTERIOR_CRAFT` freighter seat-count gate |
+| `crew_transport_envelope_minimum_x_m` | 8.0 | `INTERIOR_CRAFT` transport envelope gate |
+| `crew_transport_envelope_minimum_z_m` | 25.0 | `INTERIOR_CRAFT` transport envelope gate |
+| `crew_transport_seat_minimum` | 6 | `INTERIOR_CRAFT` transport seat-count gate |
 
 <!-- GRAMMAR-AUDIT-CONSTANTS:END -->
 
@@ -200,8 +213,19 @@ here so it cannot drift.
 | tritanopia | 17.45 | 34.19 |
 
 Do not treat that headroom as budget. The minimum over a set is monotonically
-non-increasing as craft are added: a fifth craft can only lower it, and it lowers
-it against **all four** existing tones at once.
+non-increasing as craft are added: a new craft can only lower it, and it lowers
+it against **every** existing tone at once.
+
+**Measured consequence, recorded because it binds the next craft.** The Halyard
+was required to clear those minima outright rather than the frozen floors, and it
+does — body `6e7a3e` at 19.06 and accent `341024` at 31.60 — so the table above is
+unchanged by its arrival. Producing that accent used the last of the space: a
+full sweep of the sRGB cube against the four existing accents under all four
+vision models found that **every** colour clearing both accent floors is either a
+near-neutral grey at ~25.1 or a dark violet below L\* 27. There is no bright
+chromatic accent left. A sixth craft either takes a value that lowers the fleet
+minimum, or the accent role has to be re-thought — a second cue (a shape, a
+marking, a light pattern) rather than a sixth hue.
 
 **The pale boundary.** `PALE_BODY_CRAFT` freezes Torrent and Zenith at
 `L* >= 78.0`. This is an *evidence* constraint, not a taste one: B5/B6 record a
@@ -263,6 +287,7 @@ standardised on `1.0`. A ship hull authored at `1.0` reads as station plating.
 | `normal_scale_torrent_macroform_atlas` | 0.2 | `scenes/ships/presentation/torrent_authored_macroform.tscn` |
 | `normal_scale_arrow` | 0.62 | `scripts/ships/arrow_recon_ship.gd` |
 | `normal_scale_jovian` | 0.68 | `scripts/ships/jovian_light_freighter.gd` |
+| `normal_scale_halyard` | 0.46 | `scripts/ships/halyard_crew_transport.gd` |
 | `normal_scale_zenith_hull` | 0.18 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
 | `normal_scale_zenith_secondary` | 0.10 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
 | `normal_scale_station_panel` | 1.0 | `scripts/world/shipyard_world.gd` |
@@ -270,6 +295,7 @@ standardised on `1.0`. A ship hull authored at `1.0` reads as station plating.
 | `clearcoat_torrent_authored_hero` | 0.34 | `scenes/ships/presentation/torrent_hero_presentation.gd` |
 | `clearcoat_arrow` | 0.48 | `scripts/ships/arrow_recon_ship.gd` |
 | `clearcoat_jovian` | 0.42 | `scripts/ships/jovian_light_freighter.gd` |
+| `clearcoat_halyard` | 0.30 | `scripts/ships/halyard_crew_transport.gd` |
 | `clearcoat_zenith` | 0.25 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
 
 <!-- GRAMMAR-SURFACE:END -->
@@ -328,15 +354,22 @@ handling and silhouette, not by size band.
 
 ### Medium craft with an interior
 
-- Tags include `medium_craft` and the role tag (`light_freighter`).
-- Collision envelope above `interior_craft_envelope_minimum_x_m` in `x` and
-  `interior_craft_envelope_minimum_z_m` in `z` — the interior-bearing craft must
-  be the physically largest hull.
+- Tags include `medium_craft` and the craft's own role tag (`light_freighter`,
+  `crew_transport`).
+- Collision envelope above `small_craft_envelope_maximum_m` on **at least one**
+  horizontal axis, plus that craft's own frozen per-axis floors in
+  `INTERIOR_CRAFT`. The Jovian clears the band on both axes (a slab); the Halyard
+  clears it on length alone (a tube). What is enforced is that a craft with an
+  interior is not small, and that a craft that is not small has an interior —
+  both directions, over every craft in the fleet.
 - Publishes a walkable interior report whose root is **connected to the ship
-  frame** (`detached_interior` false), with at least
-  `freighter_passenger_seat_minimum` passenger seats, an exterior access marker,
-  an interior deck marker, and interior bounds that are a walkable volume rather
-  than a token cavity.
+  frame** (`detached_interior` false), with at least that craft's own frozen seat
+  minimum, an exterior access marker, an interior deck marker, and interior
+  bounds of at least `interior_minimum_volume_m3` that are a walkable volume
+  rather than a token cavity.
+- Implements the `in_flight_cabin` contract
+  (`HeroShip.get_in_flight_cabin_report()`), because a craft with a connected,
+  bounded, physically walkable cabin has somewhere for its pilot to stand.
 - Uses `MovingInteriorFrame` so passenger collision stays stable through flight.
 
 ### The rule this expresses
@@ -346,7 +379,8 @@ agree with both.** A craft may not be small and claim cargo authority, and may
 not be large and publish no interior — a large empty hull is a scale claim the
 gameplay does not honour. The cockpit-to-hull relationship scales with it:
 measured head-to-hull clearance runs 0.531 m (Zenith, the tightest cockpit in the
-fleet) → 0.561 m (Torrent) → 1.401 m (Arrow) → 3.256 m (Jovian).
+fleet) → 0.561 m (Torrent) → 1.401 m (Arrow) → 3.010 m (Halyard) → 3.256 m
+(Jovian).
 
 ---
 
@@ -569,8 +603,8 @@ The three excluded axes — `flight_assist_strength`, `visual_bank_degrees`,
 excluded on purpose.
 
 **The rule:** for every *ordered* pair `(A, B)` of distinct craft, `B` must beat
-`A` on at least one of the 13 trade-off axes. With four craft that is 12 ordered
-pairs, all 12 of which the audit asserts. Equivalently: no craft's handling
+`A` on at least one of the 13 trade-off axes. With five craft that is 20 ordered
+pairs, all 20 of which the audit asserts. Equivalently: no craft's handling
 vector weakly dominates another's across all 13 axes.
 
 Two further conditions stop the rule being satisfied trivially:
@@ -583,7 +617,9 @@ Two further conditions stop the rule being satisfied trivially:
   the highest yaw and roll while owning the lowest hull; Arrow alone owns the
   highest boost speed, paying for it in launch acceleration and weapon cadence;
   Torrent alone owns the strongest boost multiplier, the fastest cadence and the
-  most forgiving landing gate.
+  most forgiving landing gate; Halyard alone owns the highest sustained top speed
+  while owning the worst acceleration, braking, throttle response, boost
+  multiplier, turn rates and landing gate, and the longest spool and cadence.
 
 ### How it is measured
 
@@ -598,18 +634,21 @@ handling that actually ships rather than a constant declared somewhere in source
 Advantage counts today (`B` over `A`), computed from the four
 `assets/ships/*.tres` files with the same two axis lists:
 
-| B (row) beats A (column) on | Torrent | Arrow | Jovian | Zenith |
-| --- | ---: | ---: | ---: | ---: |
-| **Torrent** | — | 8 | 11 | 5 |
-| **Arrow** | 5 | — | 11 | 3 |
-| **Jovian** | 2 | 2 | — | 2 |
-| **Zenith** | 8 | 8 | 11 | — |
+| B (row) beats A (column) on | Torrent | Arrow | Jovian | Zenith | Halyard |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Torrent** | — | 8 | 11 | 5 | 10 |
+| **Arrow** | 5 | — | 11 | 3 | 10 |
+| **Jovian** | 2 | 2 | — | 2 | 11 |
+| **Zenith** | 8 | 8 | 11 | — | 10 |
+| **Halyard** | 3 | 3 | 2 | 3 | — |
 
-The minimum is **2**, and it is the freighter's, three times over. Jovian's
-entire lateral case against every fighter is `maximum_hull` and `passive_drag`
-and nothing else. The audit asserts only `> 0`, so this is a measured margin, not
-a frozen floor — but it is the real constraint on a fifth craft. "A freighter,
-but slightly faster" has almost no room to exist without making Jovian dominated.
+The minimum is **2**: the freighter's, three times over, and now the transport's
+against the freighter. Jovian's entire lateral case against every fighter is
+`maximum_hull` and `passive_drag` and nothing else; the transport's case against
+the freighter is `maximum_speed` and `boost_speed` and nothing else. The audit
+asserts only `> 0`, so this is a measured margin, not a frozen floor — but it is
+the real constraint on a sixth craft. "A freighter, but slightly faster" has
+almost no room left to exist without dominating something.
 
 ### How a designer checks a candidate before building
 

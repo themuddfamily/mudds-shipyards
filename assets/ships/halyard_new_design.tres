@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"halyard_new_design"
+display_name = "Halyard Crew Transport"
+role_name = "Crew transport"
+evidence_status = 2
+evidence_references = PackedStringArray()
+evidence_notes = "Original modern design. The Halyard is not a remake of any historical Keth ship, is not named after any name in the source ledger, and appears in no registered source. Nothing about it — name, silhouette, dimensions, colours, cabin, crew stations, systems, handling or berth — is a claim about the original game. It exists to fill a role the implemented fleet did not have: a long-legged pressurised crew carrier whose pilot can leave the seat and walk the hull under way. EvidenceStatus.NEW is deliberate; no evidence reference is attached, because there is no evidence to attach and inspiration is not authentication."
+compatibility_tags = PackedStringArray("medium_craft", "crew_transport", "multi_crew")
+maximum_speed = 108.0
+thrust_acceleration = 11.0
+brake_acceleration = 19.0
+passive_drag = 1.6
+throttle_response = 4.2
+boost_speed = 116.0
+boost_multiplier = 1.08
+yaw_speed_degrees = 31.0
+roll_speed_degrees = 38.0
+flight_assist_strength = 3.1
+visual_bank_degrees = 5.0
+maximum_mouse_turn_degrees = 8.0
+engine_start_time = 4.6
+weapon_cooldown = 0.95
+maximum_hull = 190.0
+landing_maximum_speed = 9.0
+entry_noun = "flight deck hatch"
+entry_open_verb = "raise"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"heavy_quad_freighter"

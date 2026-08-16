@@ -41,7 +41,7 @@ func _run() -> void:
 	var pulse := game.get_node_or_null("PulseWeaponPresentation") as PulseWeaponPresentation
 	var pulse_instances := _find_pulse_presentations(game)
 	var grouped_pools := get_nodes_in_group(&"pulse_weapon_presentation")
-	_check(fleet.size() == 4, "quality integration owns the exact four-craft production fleet")
+	_check(fleet.size() == 5, "quality integration owns the exact five-craft production fleet")
 	_check(
 		pulse != null
 		and pulse.get_parent() == game
@@ -65,6 +65,7 @@ func _run() -> void:
 		&"arrow_provisional": &"efficient_twin_recon",
 		&"jovian_provisional": &"heavy_quad_freighter",
 		&"zenith_b7_observed": &"standard_fighter",
+		&"halyard_new_design": &"heavy_quad_freighter",
 	}
 	var observed_profiles := {}
 	var fleet_by_id := {}
@@ -98,16 +99,16 @@ func _run() -> void:
 	var discovered_rigs := _find_ship_audio_rigs(game)
 	var grouped_rigs := get_nodes_in_group(&"ship_audio_rig")
 	_check(
-		discovered_rigs.size() == 4
-		and grouped_rigs.size() == 4
-		and fleet_rigs.size() == 4
+		discovered_rigs.size() == 5
+		and grouped_rigs.size() == 5
+		and fleet_rigs.size() == 5
 		and _same_instances(discovered_rigs, fleet_rigs)
 		and _same_instances(grouped_rigs, fleet_rigs),
-		"production exposes exactly the four per-ship ShipAudioRig instances"
+		"production exposes exactly the five per-ship ShipAudioRig instances"
 	)
 	_check(
 		observed_profiles == expected_profiles and fleet_by_id.size() == expected_profiles.size(),
-		"fleet IDs map one-to-one onto four assignments while Zenith deliberately reuses standard_fighter"
+		"fleet IDs map one-to-one onto five assignments while Zenith and Halyard deliberately reuse existing profiles"
 	)
 
 	var torrent := fleet_by_id.get(&"torrent_provisional") as HeroShip

@@ -22,7 +22,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
-	_check(game != null, "four-craft production scene instantiates")
+	_check(game != null, "five-craft production scene instantiates")
 	if game == null:
 		_finish()
 		return
@@ -37,12 +37,13 @@ func _run() -> void:
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
+	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var combat_authority := game.get_combat_authority()
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 
-	_check(fleet.size() == 4, "main scene registers exactly four flyable craft")
-	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith), "fleet registry contains the four production hulls")
+	_check(fleet.size() == 5, "main scene registers exactly five flyable craft")
+	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith) and fleet.has(halyard), "fleet registry contains the five production hulls")
 	_check(game.get_guided_ship() == torrent, "Torrent remains the explicit guided-activity craft")
 
 	var ship_ids: Dictionary = {}
@@ -54,9 +55,9 @@ func _run() -> void:
 		var source_id := int(combat_authority.get_source_id(craft))
 		if source_id > 0:
 			source_ids[source_id] = true
-	_check(ship_ids.size() == 4, "all four registered flyables have unique stable ship IDs")
-	_check(berth_ids.size() == 4, "all four registered flyables have unique home-berth IDs")
-	_check(source_ids.size() == 4, "all four registered flyables have unique nonzero combat source IDs")
+	_check(ship_ids.size() == 5, "all five registered flyables have unique stable ship IDs")
+	_check(berth_ids.size() == 5, "all five registered flyables have unique home-berth IDs")
+	_check(source_ids.size() == 5, "all five registered flyables have unique nonzero combat source IDs")
 	_check(int(combat_authority.get_source_id(jovian)) == 1103, "Jovian owns stable production combat source 1103")
 	_check(int(combat_authority.get_source_id(zenith)) == 1104, "Zenith owns stable production combat source 1104")
 
@@ -398,12 +399,12 @@ func _run() -> void:
 		"recovered Jovian is reusable at the exact reoccupied freight transform"
 	)
 	_check(
-		game.get_flyable_ships().size() == 4
+		game.get_flyable_ships().size() == 5
 		and not game.is_guided_activity_complete()
 		and game.destroyed_targets == 0
 		and world.get_target_count() == target_count_before
 		and _targets_match_health(targets, target_health_before),
-		"recovery leaves exactly four flyables and all Torrent guide state intact"
+		"recovery leaves exactly five flyables and all Torrent guide state intact"
 	)
 
 	await _clean_up(game)

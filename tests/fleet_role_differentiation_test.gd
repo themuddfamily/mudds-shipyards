@@ -56,6 +56,28 @@ extends SceneTree
 ## swallowed input edge left an unbounded `await player.disembarking_completed`
 ## with no signal to receive. See FRAME_BUDGET_GRACE and _tap_button_until.
 ##
+## Expanded to five craft. The Halyard Crew Transport joined the fleet and the
+## suite was generalised rather than duplicated. Two assertions changed shape and
+## both are recorded here because they read as weakenings and are not:
+##
+## `_test_interior_provision` used to say "the only craft with an interior is the
+## only craft declared medium/light-freighter class" and "the interior-bearing
+## craft is the physically largest hull". Both were true *descriptions* of a
+## four-craft fleet rather than rules, and both stop being true the moment a
+## second interior-bearing craft exists. The rule they were standing in for is
+## the one docs/design/FLEET_VISUAL_GRAMMAR.md §4 states: interior provision is a
+## consequence of envelope, and the declared tags must agree with both. That rule
+## is now checked in both directions over *every* craft in the fleet — an
+## interior-bearing craft must exceed the small-craft envelope and publish a real
+## interior at its own frozen scale, and any craft without one must stay inside
+## the small-craft envelope — which is strictly more coverage than one named
+## craft received before. Every number the Jovian was previously held to is
+## carried forward unchanged in INTERIOR_CRAFT.
+##
+## The colour and handling floors are untouched, and the new craft was required
+## to clear the fleet's *measured minima* rather than the frozen floors, so the
+## separation reported by this suite does not fall because it was added.
+##
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
@@ -96,6 +118,11 @@ const APPROACH_OFFSETS := {
 	# Fleet Dock 01 is an elevated 12 x 15 m slab; a longer aft stage walks off
 	# its edge, so Zenith is staged diagonally at 8.06 m instead.
 	&"zenith_b7_observed": Vector3(-4.0, 0.0, 7.0),
+	# Fleet Dock 02 is a 12 x 12 m slab and the Halyard is 26.9 m long, so its
+	# bow and tail overhang the deck and only the strip alongside the midships
+	# hull is walkable. The approach is therefore staged 9.6 m straight aft along
+	# that strip; any lateral component walks off the slab edge.
+	&"halyard_new_design": Vector3(0.0, 0.0, 9.6),
 }
 const MINIMUM_STAGED_DISTANCE := 7.05
 const MINIMUM_WALK_METRES := 1.2
@@ -146,6 +173,14 @@ const EXPECTED_ACCENTS := {
 	&"arrow_provisional": "45dee6",
 	&"jovian_provisional": "b32620",
 	&"zenith_b7_observed": "2f5fbe",
+	# The Halyard's deep aubergine. It is dark because the chromatic accent space
+	# is exhausted: a full sRGB sweep against the four accents above, under all
+	# four vision models, found that every colour clearing both floors is either a
+	# near-neutral grey barely over the 25.0 line or a dark violet. This value is
+	# the lightest that clears today's fleet minimum of 31.38 outright, so adding
+	# it costs the fleet no accent headroom at all. See the palette note in
+	# scripts/ships/halyard_crew_transport.gd.
+	&"halyard_new_design": "341024",
 }
 
 # Each craft's body tone: the brightest rendered opaque albedo holding at least
@@ -160,6 +195,12 @@ const EXPECTED_BODY_TONE := {
 	# B7 observes a pale exterior as a relative value only, so Zenith keeps a
 	# pale light-grey read while moving off the shared warm ivory.
 	&"zenith_b7_observed": "bac8d6",
+	# Utility olive. Green is the one hue region the fleet did not occupy, and at
+	# L* 49.0 it still reads against near-black space. Measured 19.06 against its
+	# nearest neighbour (Jovian under protanopia), which is above the fleet's own
+	# 16.62 body-tone minimum, so this craft is not the reason any later audit
+	# reports a narrower margin than it used to.
+	&"halyard_new_design": "6e7a3e",
 }
 const BODY_TONE_MINIMUM_SHARE := 0.10
 
@@ -179,7 +220,7 @@ const VISION_MODELS := ColourMetrics.VISION_MODELS
 # this list once its seat/camera anchors were re-frozen; see the suite header.
 const PLAUSIBLE_EYE_POINT_CRAFT := [
 	&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
-	&"zenith_b7_observed",
+	&"zenith_b7_observed", &"halyard_new_design",
 ]
 const EYE_ABOVE_HEAD_BONE_MINIMUM := 0.15
 const EYE_ABOVE_HEAD_BONE_MAXIMUM := 0.35
@@ -193,7 +234,40 @@ const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
 # craft. Frozen exactly, not as a band: it is the convention Zenith broke.
 const SEAT_TO_COCKPIT_CAMERA_RISE := 1.76
 
+const FLEET_SIZE := 5
 const FIGHTER_IDS := [&"torrent_provisional", &"arrow_provisional", &"zenith_b7_observed"]
+## Craft that publish a connected walkable interior, with the per-craft floors
+## their own hulls have to keep. The suite used to assert that exactly one craft
+## had an interior and that it was the physically largest hull; both were true
+## statements about a four-craft fleet, not rules. The rule underneath them is
+## the one §4 of docs/design/FLEET_VISUAL_GRAMMAR.md actually states — interior
+## provision is a consequence of envelope, and the declared tags must agree with
+## both — and it is now checked in both directions over every craft rather than
+## on one named craft. Nothing about the Jovian's own floors was relaxed: its
+## exact x > 15 / z > 25 envelope and 4-seat complement are still frozen below.
+const INTERIOR_CRAFT := {
+	&"jovian_provisional": {
+		"role_tag": "light_freighter",
+		"minimum_envelope_x": 15.0,
+		"minimum_envelope_z": 25.0,
+		"minimum_interior_size": Vector3(11.0, 4.0, 17.0),
+		"minimum_seats": 4,
+	},
+	&"halyard_new_design": {
+		"role_tag": "crew_transport",
+		# A long narrow pressure tube rather than a slab: it clears the
+		# small-craft band on length, not on span.
+		"minimum_envelope_x": 8.0,
+		"minimum_envelope_z": 25.0,
+		"minimum_interior_size": Vector3(5.0, 3.0, 20.0),
+		"minimum_seats": 6,
+	},
+}
+## Any craft with an interior must exceed the small-craft envelope on at least
+## one horizontal axis, and any craft that does must publish an interior.
+const SMALL_CRAFT_ENVELOPE_MAXIMUM := 15.0
+## A walkable volume rather than a token cavity, whatever its shape.
+const INTERIOR_MINIMUM_VOLUME := 300.0
 const INTERIOR_NODE_NAMES := [
 	"WalkableInterior", "CargoBay", "PassengerCabin", "InteriorOccupantVolume",
 ]
@@ -223,8 +297,11 @@ func _run() -> void:
 
 	var player := game.get_node_or_null("Player") as PlayerController
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
-	_check(player != null and fleet.size() == 4, "the audit resolves the live player and all four flyables")
-	if player == null or fleet.size() != 4:
+	_check(
+		player != null and fleet.size() == FLEET_SIZE,
+		"the audit resolves the live player and all %d flyables" % FLEET_SIZE
+	)
+	if player == null or fleet.size() != FLEET_SIZE:
 		await _clean_up(game)
 		_finish()
 		return
@@ -232,7 +309,10 @@ func _run() -> void:
 	var by_id := {}
 	for craft in fleet:
 		by_id[craft.get_ship_id()] = craft
-	_check(by_id.size() == 4, "the four flyables carry four distinct stable ship identities")
+	_check(
+		by_id.size() == FLEET_SIZE,
+		"the %d flyables carry %d distinct stable ship identities" % [FLEET_SIZE, FLEET_SIZE]
+	)
 
 	_test_role_differentiation(by_id)
 	_test_readable_colours(by_id)
@@ -262,7 +342,10 @@ func _test_role_differentiation(by_id: Dictionary) -> void:
 		profiles[ship_id] = merged
 		if not roles.has(definition.get_role()):
 			roles.append(definition.get_role())
-	_check(roles.size() == 4, "the four craft declare four distinct role names")
+	_check(
+		roles.size() == FLEET_SIZE,
+		"the %d craft declare %d distinct role names" % [FLEET_SIZE, FLEET_SIZE]
+	)
 
 	var ids: Array = by_id.keys()
 	ids.sort()
@@ -329,6 +412,19 @@ func _test_role_differentiation(by_id: Dictionary) -> void:
 		and _is_sole_extreme(profiles, &"torrent_provisional", "landing_maximum_speed", true),
 		"Torrent alone owns the strongest boost multiplier, fastest cadence, and most forgiving landing gate"
 	)
+	# The crew transport is the fleet's long-haul cruiser: fastest sustained top
+	# speed, and the price is paid on every axis that gets it there or stops it.
+	# Its boost is the weakest in the fleet, so a fighter still out-sprints it.
+	_check(
+		_is_sole_extreme(profiles, &"halyard_new_design", "maximum_speed", true)
+		and _is_sole_extreme(profiles, &"halyard_new_design", "thrust_acceleration", false)
+		and _is_sole_extreme(profiles, &"halyard_new_design", "brake_acceleration", false)
+		and _is_sole_extreme(profiles, &"halyard_new_design", "boost_multiplier", false)
+		and _is_sole_extreme(profiles, &"halyard_new_design", "landing_maximum_speed", false)
+		and _is_sole_extreme(profiles, &"halyard_new_design", "engine_start_time", true)
+		and _is_sole_extreme(profiles, &"halyard_new_design", "weapon_cooldown", true),
+		"the crew transport alone owns the highest top speed while owning the worst acceleration, braking, boost, landing gate, spool and cadence"
+	)
 
 
 func _count_advantages(first: Dictionary, second: Dictionary) -> int:
@@ -378,8 +474,14 @@ func _test_readable_colours(by_id: Dictionary) -> void:
 			body_tone == EXPECTED_BODY_TONE[ship_id],
 			"%s presents its exact rendered body tone #%s" % [ship_id, body_tone]
 		)
-	_check(_distinct_value_count(accents) == 4, "all four craft carry distinct identification accents")
-	_check(_distinct_value_count(hulls) == 4, "all four craft carry distinct body tones")
+	_check(
+		_distinct_value_count(accents) == FLEET_SIZE,
+		"all %d craft carry distinct identification accents" % FLEET_SIZE
+	)
+	_check(
+		_distinct_value_count(hulls) == FLEET_SIZE,
+		"all %d craft carry distinct body tones" % FLEET_SIZE
+	)
 
 	# The two craft carrying a source-observed pale claim must still read pale.
 	# This is the boundary that caps how far the palette may be pulled apart, so
@@ -746,41 +848,82 @@ func _find_bone(skeleton: Skeleton3D, bone_name: String) -> int:
 # ------------------------------------------------------------ interiors ----
 
 func _test_interior_provision(by_id: Dictionary) -> void:
-	var jovian := by_id[&"jovian_provisional"] as HeroShip
-	_check(
-		jovian.has_method("get_walkable_interior_report"),
-		"the declared light freighter is the craft that publishes a walkable interior"
-	)
-	var report: Dictionary = jovian.call("get_walkable_interior_report")
-	_check(
-		(report.get("root", null) as Node3D) != null and not bool(report.get("detached_interior", true)),
-		"the freighter interior is a connected part of the ship frame, not a detached set"
-	)
-	_check(
-		int(report.get("passenger_seat_count", 0)) >= 4,
-		"the freighter interior carries a passenger complement its role implies (%d seats)"
-			% int(report.get("passenger_seat_count", 0))
-	)
-	_check(
-		(report.get("access_marker", null) as Node3D) != null
-		and (report.get("deck_marker", null) as Node3D) != null,
-		"the freighter interior publishes both its exterior access and interior deck markers"
-	)
-	var bounds: AABB = jovian.call("get_interior_bounds")
-	_check(
-		bounds.size.x > 11.0 and bounds.size.y > 4.0 and bounds.size.z > 17.0,
-		"the freighter interior is a walkable volume rather than a token cavity %s" % str(bounds.size)
-	)
-	var jovian_tags := jovian.get_ship_definition().get_compatibility_tags()
-	_check(
-		jovian_tags.has("medium_craft") and jovian_tags.has("light_freighter"),
-		"the only craft with an interior is the only craft declared medium/light-freighter class"
-	)
-	var jovian_envelope := _collision_envelope(jovian)
-	_check(
-		jovian_envelope.size.x > 15.0 and jovian_envelope.size.z > 25.0,
-		"the interior-bearing craft is the physically largest hull %s" % str(jovian_envelope.size)
-	)
+	# Direction 1: every craft declared as interior-bearing publishes a real,
+	# connected, walkable interior at its own frozen scale.
+	for ship_id: StringName in INTERIOR_CRAFT:
+		var spec: Dictionary = INTERIOR_CRAFT[ship_id]
+		var craft := by_id.get(ship_id) as HeroShip
+		_check(craft != null, "%s is present in the production fleet" % ship_id)
+		if craft == null:
+			continue
+		_check(
+			craft.has_method("get_walkable_interior_report"),
+			"%s publishes a walkable interior report" % ship_id
+		)
+		var report: Dictionary = craft.call("get_walkable_interior_report")
+		_check(
+			(report.get("root", null) as Node3D) != null
+			and not bool(report.get("detached_interior", true)),
+			"%s interior is a connected part of the ship frame, not a detached set" % ship_id
+		)
+		_check(
+			int(report.get("passenger_seat_count", 0)) >= int(spec["minimum_seats"]),
+			"%s interior carries the complement its role implies (%d of %d seats)"
+				% [ship_id, int(report.get("passenger_seat_count", 0)), int(spec["minimum_seats"])]
+		)
+		_check(
+			(report.get("access_marker", null) as Node3D) != null
+			and (report.get("deck_marker", null) as Node3D) != null,
+			"%s interior publishes both its exterior access and interior deck markers" % ship_id
+		)
+		var bounds: AABB = craft.call("get_interior_bounds")
+		var minimum_size: Vector3 = spec["minimum_interior_size"]
+		var volume := bounds.size.x * bounds.size.y * bounds.size.z
+		_check(
+			bounds.size.x > minimum_size.x
+			and bounds.size.y > minimum_size.y
+			and bounds.size.z > minimum_size.z
+			and volume >= INTERIOR_MINIMUM_VOLUME,
+			"%s interior is a walkable volume rather than a token cavity %s (%.0f m3)"
+				% [ship_id, str(bounds.size), volume]
+		)
+		var tags := craft.get_ship_definition().get_compatibility_tags()
+		_check(
+			tags.has("medium_craft") and tags.has(str(spec["role_tag"])) and not tags.has("small_craft"),
+			"%s declares the medium-craft and %s class its interior implies"
+				% [ship_id, str(spec["role_tag"])]
+		)
+		var envelope := _collision_envelope(craft)
+		_check(
+			envelope.size.x > float(spec["minimum_envelope_x"])
+			and envelope.size.z > float(spec["minimum_envelope_z"]),
+			"%s keeps the hull scale its interior claims %s" % [ship_id, str(envelope.size)]
+		)
+		# The rule underneath the per-craft floors: a craft may not be small and
+		# carry an interior.
+		_check(
+			maxf(envelope.size.x, envelope.size.z) > SMALL_CRAFT_ENVELOPE_MAXIMUM,
+			"%s exceeds the small-craft envelope on at least one horizontal axis %s"
+				% [ship_id, str(envelope.size)]
+		)
+		_check(
+			craft.supports_in_flight_cabin_access(),
+			"%s offers the in-flight cabin its connected interior makes possible" % ship_id
+		)
+
+	# Direction 2: and no craft may be large and publish no interior. Every craft
+	# outside the interior roster has to stay inside the small-craft band, which
+	# is what stops a large empty hull being shipped as a scale claim the
+	# gameplay does not honour.
+	for ship_id: StringName in by_id:
+		if INTERIOR_CRAFT.has(ship_id):
+			continue
+		var envelope := _collision_envelope(by_id[ship_id] as HeroShip)
+		_check(
+			maxf(envelope.size.x, envelope.size.z) <= SMALL_CRAFT_ENVELOPE_MAXIMUM,
+			"%s publishes no interior, so it stays inside the small-craft envelope %s"
+				% [ship_id, str(envelope.size)]
+		)
 
 	for ship_id: StringName in FIGHTER_IDS:
 		var fighter := by_id[ship_id] as HeroShip

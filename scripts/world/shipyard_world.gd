@@ -16,6 +16,7 @@ const CENTRAL_BERTH_ID: StringName = &"central_berth"
 const ARROW_RECON_BERTH_ID: StringName = &"arrow_recon_berth"
 const JOVIAN_FREIGHT_BERTH_ID: StringName = &"jovian_freight_berth"
 const ZENITH_FLEET_DOCK_BERTH_ID: StringName = &"zenith_fleet_dock_berth"
+const HALYARD_FLEET_DOCK_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
 const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
 const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
@@ -23,6 +24,7 @@ const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
 	ARROW_RECON_BERTH_ID,
 	JOVIAN_FREIGHT_BERTH_ID,
 	ZENITH_FLEET_DOCK_BERTH_ID,
+	HALYARD_FLEET_DOCK_BERTH_ID,
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -153,6 +155,33 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.17, 0.0)),
 		"cue_half_width": 5.0,
 		"cue_half_length": 4.8,
+	},
+	# Fleet Dock 02. The comb already built this slab and its marker and left it
+	# deliberately empty; promoting it to a live berth adds no station geometry,
+	# and it follows Dock 01's pattern exactly — the marker keeps no berth
+	# authority and the berth is owned directly by the world, 0.93 m above it.
+	# The Halyard's four feet sit inside the 12 m slab while its bow collar and
+	# tail yoke overhang, so the strict landing volume is longer than the slab.
+	HALYARD_FLEET_DOCK_BERTH_ID: {
+		"berth_path": NodePath("HalyardFleetDockBerth"),
+		"berth_local_transform": Transform3D(
+			Basis.IDENTITY,
+			Vector3(37.0, 5.28, 53.3)
+		),
+		"dock_transform": Transform3D.IDENTITY,
+		"landing_half_extents": Vector3(7.0, 6.5, 16.5),
+		"assist_capture_center": Vector3(0.0, 11.0, -24.0),
+		"assist_capture_half_extents": Vector3(24.0, 16.0, 44.0),
+		"assist_capture_maximum_speed": 22.0,
+		"assist_maximum_tilt_degrees": 75.0,
+		# Class-specific, like Dock 01. ShipBerth uses any-tag matching, so
+		# advertising `medium_craft` here would also admit the Jovian, whose
+		# 18.55 m span does not fit between this dock and its neighbours.
+		"compatibility_tags": ["crew_transport"],
+		"feedback_path": NodePath("HalyardFleetDockBerth/BerthFeedback"),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
+		"cue_half_width": 5.4,
+		"cue_half_length": 6.2,
 	},
 }
 ## PORT-DECK-001 / RUNWAY-SEAM-001 measured geometry constants.
@@ -710,20 +739,40 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 			errors.append("fleet dock comb integration transform drifted")
 		if not fleet_dock_comb.find_children("*", "ShipBerth", true, false).is_empty():
 			errors.append("fleet dock comb landmark module gained live berth authority")
-		if assigned_docks.size() != 1:
-			errors.append("fleet dock comb must expose exactly one external dock assignment")
+		# Dock 01 carries the Zenith; dock 02 carries the Halyard Crew Transport,
+		# an original modern design. Neither assignment gives the comb any berth
+		# authority, and neither is a historical class-to-berth mapping.
+		if assigned_docks.size() != 2:
+			errors.append("fleet dock comb must expose exactly two external dock assignments")
 		else:
-			var assignment := assigned_docks[0]
-			if assignment.get("dock_id", &"") != &"assigned-dock-01" \
-				or assignment.get("ship_assignment", &"") != &"zenith_b7_observed" \
-				or assignment.get("berth_id", &"") != ZENITH_FLEET_DOCK_BERTH_ID \
-				or bool(assignment.get("owns_berth_authority", true)) \
-				or bool(assignment.get("historical_class_to_berth_mapping", true)):
-				errors.append("fleet dock 01 Zenith assignment contract drifted")
-			assigned_marker_transform = assignment.get("marker_transform", Transform3D.IDENTITY) as Transform3D
-			expected_berth_origin = assigned_marker_transform.origin + Vector3.UP * 0.93
-		if deferred_docks.size() != 2:
-			errors.append("fleet dock comb must retain exactly two deferred empty docks")
+			var expected_assignments := {
+				&"assigned-dock-01": {
+					"ship": &"zenith_b7_observed",
+					"berth": ZENITH_FLEET_DOCK_BERTH_ID,
+				},
+				&"deferred-dock-02": {
+					"ship": &"halyard_new_design",
+					"berth": HALYARD_FLEET_DOCK_BERTH_ID,
+				},
+			}
+			for assignment in assigned_docks:
+				var dock_id: StringName = assignment.get("dock_id", &"")
+				if not expected_assignments.has(dock_id):
+					errors.append("fleet dock comb published an unexpected dock assignment %s" % dock_id)
+					continue
+				var expected: Dictionary = expected_assignments[dock_id]
+				if assignment.get("ship_assignment", &"") != expected["ship"] \
+					or assignment.get("berth_id", &"") != expected["berth"] \
+					or bool(assignment.get("owns_berth_authority", true)) \
+					or bool(assignment.get("historical_class_to_berth_mapping", true)):
+					errors.append("fleet dock %s assignment contract drifted" % dock_id)
+				if dock_id == &"assigned-dock-01":
+					assigned_marker_transform = assignment.get(
+						"marker_transform", Transform3D.IDENTITY
+					) as Transform3D
+					expected_berth_origin = assigned_marker_transform.origin + Vector3.UP * 0.93
+		if deferred_docks.size() != 1:
+			errors.append("fleet dock comb must retain exactly one deferred empty dock")
 		else:
 			for dock in deferred_docks:
 				if dock.get("status", &"") != &"deferred_empty" \

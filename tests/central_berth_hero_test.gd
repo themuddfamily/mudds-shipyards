@@ -135,12 +135,13 @@ func _test_audit_and_evidence(world: ShipyardWorld) -> void:
 func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
 	var berth_ids := world.get_berth_ids()
 	_check(
-		berth_ids.size() == 4
+		berth_ids.size() == 5
 		and berth_ids.has(&"arrow_recon_berth")
 		and berth_ids.has(&"central_berth")
 		and berth_ids.has(&"jovian_freight_berth")
-		and berth_ids.has(&"zenith_fleet_dock_berth"),
-		"exactly the four production berth IDs remain registered"
+		and berth_ids.has(&"zenith_fleet_dock_berth")
+		and berth_ids.has(&"halyard_fleet_dock_berth"),
+		"exactly the five production berth IDs remain registered"
 	)
 	var central_transform := world.get_berth_transform(&"central_berth")
 	var arrow_transform := world.get_berth_transform(&"arrow_recon_berth")

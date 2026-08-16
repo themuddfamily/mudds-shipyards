@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Adversarial production-world contract for the four authored berth-feedback
+## Adversarial production-world contract for the five authored berth-feedback
 ## components. Every destructive probe restores the same cached production
 ## instances and proves that the audit returns to green.
 
@@ -12,6 +12,7 @@ const EXPECTED_BERTH_IDS: Array[StringName] = [
 	&"arrow_recon_berth",
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
+	&"halyard_fleet_dock_berth",
 ]
 const EXPECTED_MATERIAL_IDS: Array[StringName] = [&"dim", &"cyan", &"amber", &"secured"]
 const PRODUCTION_SPECS := {
@@ -75,6 +76,21 @@ const PRODUCTION_SPECS := {
 		"cue_half_width": 5.0,
 		"cue_half_length": 4.8,
 	},
+	&"halyard_fleet_dock_berth": {
+		"berth_path": NodePath("HalyardFleetDockBerth"),
+		"berth_local_transform": Transform3D(Basis.IDENTITY, Vector3(37.0, 5.28, 53.3)),
+		"dock_transform": Transform3D.IDENTITY,
+		"landing_half_extents": Vector3(7.0, 6.5, 16.5),
+		"assist_capture_center": Vector3(0.0, 11.0, -24.0),
+		"assist_capture_half_extents": Vector3(24.0, 16.0, 44.0),
+		"assist_capture_maximum_speed": 22.0,
+		"assist_maximum_tilt_degrees": 75.0,
+		"compatibility_tags": ["crew_transport"],
+		"feedback_path": NodePath("HalyardFleetDockBerth/BerthFeedback"),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
+		"cue_half_width": 5.4,
+		"cue_half_length": 6.2,
+	},
 }
 
 var _assertions := 0
@@ -115,10 +131,10 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 	_check(_report_is_green(report), "pristine production berth-feedback audit is green without suppressed errors")
 	_check(
 		int(report.get("schema_version", 0)) == 2
-		and int(report.get("component_count", 0)) == 4
-		and int(report.get("live_berth_count", 0)) == 4
-		and int(report.get("live_feedback_count", 0)) == 4,
-		"audit reports the exact four-berth and four-feedback production roster"
+		and int(report.get("component_count", 0)) == 5
+		and int(report.get("live_berth_count", 0)) == 5
+		and int(report.get("live_feedback_count", 0)) == 5,
+		"audit reports the exact five-berth and five-feedback production roster"
 	)
 	_check(
 		_string_name_arrays_equal(report.get("expected_berth_ids", []) as Array, EXPECTED_BERTH_IDS),
@@ -132,11 +148,11 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 	)
 
 	var accessor := world.get_ship_berth_feedback_nodes()
-	_check(accessor.size() == 4, "public feedback accessor returns exactly four production components")
+	_check(accessor.size() == 5, "public feedback accessor returns exactly five production components")
 	var accessor_snapshot := accessor.duplicate()
 	accessor.clear()
 	_check(
-		world.get_ship_berth_feedback_nodes().size() == 4,
+		world.get_ship_berth_feedback_nodes().size() == 5,
 		"public feedback accessor returns a detached roster that cannot mutate world state"
 	)
 
@@ -215,9 +231,9 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 			and is_equal_approx(float(placement.get("cue_half_length", -1.0)), float(spec.get("cue_half_length"))),
 			"%s audit placement publishes the exact immutable authored contract" % berth_id
 		)
-	_check(all_material_instance_ids.size() == 16, "all four feedback instances own sixteen globally unique material ObjectIDs")
-	_check(_count_descendants(world, "ShipBerth") == 4, "production world contains no extra ShipBerth descendant")
-	_check(_count_descendants(world, "ShipBerthFeedback") == 4, "production world contains no extra ShipBerthFeedback descendant")
+	_check(all_material_instance_ids.size() == 20, "all five feedback instances own twenty globally unique material ObjectIDs")
+	_check(_count_descendants(world, "ShipBerth") == 5, "production world contains no extra ShipBerth descendant")
+	_check(_count_descendants(world, "ShipBerthFeedback") == 5, "production world contains no extra ShipBerthFeedback descendant")
 
 
 func _test_pre_tree_authored_drift() -> void:
@@ -249,20 +265,20 @@ func _test_pre_tree_authored_drift() -> void:
 
 func _test_rogue_descendants(world: ShipyardWorld) -> void:
 	var rogue_berth := BERTH_SCENE.instantiate() as ShipBerth
-	rogue_berth.name = "RogueFifthBerth"
-	rogue_berth.berth_id = &"rogue_fifth_berth"
+	rogue_berth.name = "RogueSixthBerth"
+	rogue_berth.berth_id = &"rogue_sixth_berth"
 	world.add_child(rogue_berth)
 	await process_frame
 	var rogue_berth_report := world.get_ship_berth_feedback_audit_report()
 	_check(
 		not bool(rogue_berth_report.get("valid", true))
-		and int(rogue_berth_report.get("live_berth_count", 0)) == 5
+		and int(rogue_berth_report.get("live_berth_count", 0)) == 6
 		and _errors_have(rogue_berth_report, "ship_berth_descendants_do_not_match_production_contract"),
-		"audit rejects a valid rogue fifth ShipBerth even though the startup registry is unchanged"
+		"audit rejects a valid rogue sixth ShipBerth even though the startup registry is unchanged"
 	)
 	rogue_berth.queue_free()
 	await process_frame
-	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "removing the rogue fifth ShipBerth restores green")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "removing the rogue sixth ShipBerth restores green")
 
 	var central_berth := world.get_node("CentralBerth") as ShipBerth
 	var rogue_feedback := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
@@ -272,7 +288,7 @@ func _test_rogue_descendants(world: ShipyardWorld) -> void:
 	var rogue_feedback_report := world.get_ship_berth_feedback_audit_report()
 	_check(
 		not bool(rogue_feedback_report.get("valid", true))
-		and int(rogue_feedback_report.get("live_feedback_count", 0)) == 5
+		and int(rogue_feedback_report.get("live_feedback_count", 0)) == 6
 		and _errors_have(rogue_feedback_report, "feedback_descendants_do_not_match_production_contract"),
 		"audit rejects an extra valid ShipBerthFeedback descendant outside the authored roster"
 	)

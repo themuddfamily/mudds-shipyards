@@ -30,7 +30,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
-	_check(game != null, "four-craft production Main instantiates")
+	_check(game != null, "five-craft production Main instantiates")
 	if game == null:
 		_finish()
 		return
@@ -45,20 +45,21 @@ func _run() -> void:
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
 	var zenith := game.get_node("ZenithInterceptor") as ZenithInterceptor
+	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var authority := game.get_combat_authority()
 	var fleet := game.get_flyable_ships()
 	_check(
 		player != null and world != null and torrent != null and arrow != null
-		and jovian != null and zenith != null and opponent != null and authority != null,
-		"production player, world, four hulls, defender and combat authority resolve"
+		and jovian != null and zenith != null and halyard != null and opponent != null and authority != null,
+		"production player, world, five hulls, defender and combat authority resolve"
 	)
 	if player == null or world == null or zenith == null or authority == null:
 		await _clean_up(game)
 		_finish()
 		return
 
-	_test_fleet_definition_and_combat(game, fleet, torrent, arrow, jovian, zenith, authority)
+	_test_fleet_definition_and_combat(game, fleet, torrent, arrow, jovian, zenith, halyard, authority)
 	var berth := world.get_berth_node(ZENITH_BERTH_ID)
 	var feedback := (
 		berth.get_node_or_null("BerthFeedback") as ShipBerthFeedback
@@ -83,13 +84,14 @@ func _test_fleet_definition_and_combat(
 	arrow: ArrowReconShip,
 	jovian: JovianLightFreighter,
 	zenith: ZenithInterceptor,
+	halyard: HeroShip,
 	authority: Node
 	) -> void:
 	_check(
-		fleet.size() == 4
+		fleet.size() == 5
 		and fleet.has(torrent) and fleet.has(arrow)
-		and fleet.has(jovian) and fleet.has(zenith),
-		"Main registers exactly the four physical production flyables"
+		and fleet.has(jovian) and fleet.has(zenith) and fleet.has(halyard),
+		"Main registers exactly the five physical production flyables"
 	)
 	var ship_ids: Dictionary = {}
 	var berth_ids: Dictionary = {}
@@ -101,8 +103,8 @@ func _test_fleet_definition_and_combat(
 		if source_id > 0:
 			source_ids[source_id] = true
 	_check(
-		ship_ids.size() == 4 and berth_ids.size() == 4 and source_ids.size() == 4,
-		"the four-craft registry has unique ship, home-berth and combat-source identities"
+		ship_ids.size() == 5 and berth_ids.size() == 5 and source_ids.size() == 5,
+		"the five-craft registry has unique ship, home-berth and combat-source identities"
 	)
 	_check(
 		game.get_guided_ship() == torrent
@@ -164,25 +166,22 @@ func _test_comb_assignment_and_initial_lease(
 	_check(
 		bool(integration.get("valid", false))
 		and int(integration.get("schema_version", 0)) == 2
-		and int(integration.get("external_assignment_count", 0)) == 1
-		and int(integration.get("deferred_empty_dock_count", 0)) == 2,
-		"Fleet Dock integration audit keeps one external assignment and two deferred docks"
+		and int(integration.get("external_assignment_count", 0)) == 2
+		and int(integration.get("deferred_empty_dock_count", 0)) == 1,
+		"Fleet Dock integration audit keeps two external assignments and one deferred dock"
 	)
+	var dock_01 := _find_assigned_dock(assigned, &"assigned-dock-01")
 	_check(
-		assigned.size() == 1
-		and assigned[0].get("dock_id", &"") == &"assigned-dock-01"
-		and assigned[0].get("ship_assignment", &"") == ZENITH_SHIP_ID
-		and assigned[0].get("berth_id", &"") == ZENITH_BERTH_ID
-		and not bool(assigned[0].get("owns_berth_authority", true))
-		and not bool(assigned[0].get("historical_class_to_berth_mapping", true))
+		assigned.size() == 2
+		and not dock_01.is_empty()
+		and dock_01.get("ship_assignment", &"") == ZENITH_SHIP_ID
+		and dock_01.get("berth_id", &"") == ZENITH_BERTH_ID
+		and not bool(dock_01.get("owns_berth_authority", true))
+		and not bool(dock_01.get("historical_class_to_berth_mapping", true))
 		and not bool(integration.get("historical_class_to_berth_mapping", true)),
 		"dock 01 records a modern non-authoritative assignment with no historical class-to-berth claim"
 	)
-	var marker_transform := (
-		assigned[0].get("marker_transform", Transform3D.IDENTITY) as Transform3D
-		if assigned.size() == 1
-		else Transform3D.IDENTITY
-	)
+	var marker_transform := dock_01.get("marker_transform", Transform3D.IDENTITY) as Transform3D
 	_check(
 		berth != null and berth.get_parent() == world
 		and berth.global_transform.is_equal_approx(EXPECTED_DOCK_TRANSFORM)
@@ -591,14 +590,24 @@ func _test_physical_sortie(
 		"whole-Main detach/re-entry preserves world, player, Zenith, berth, feedback and authored-art identities"
 	)
 	_check(
-		game.get_flyable_ships().size() == 4
+		game.get_flyable_ships().size() == 5
 		and int(authority.call("get_source_id", zenith)) == 1104
 		and (zenith.get_zenith_runtime_identity_report().current as Dictionary) == identity_before
 		and bool(zenith.get_zenith_runtime_identity_report().stable)
 		and bool(zenith.get_zenith_audit_report().get("valid", false))
 		and bool(world.get_fleet_dock_comb_integration_audit_report().get("valid", false)),
-		"re-entry retains the four-craft registry, source 1104 and all Zenith/Fleet Dock audits without rebuilding"
+		"re-entry retains the five-craft registry, source 1104 and all Zenith/Fleet Dock audits without rebuilding"
 	)
+
+
+## The comb now assigns more than one dock, so rows are selected by their stable
+## dock id instead of by roster position.
+func _find_assigned_dock(assigned: Array, dock_id: StringName) -> Dictionary:
+	for row: Variant in assigned:
+		var entry := row as Dictionary
+		if entry.get("dock_id", &"") == dock_id:
+			return entry
+	return {}
 
 
 func _get_live_range_targets(world: Node) -> Array[StaticBody3D]:
