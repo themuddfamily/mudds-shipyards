@@ -34,6 +34,34 @@ const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
 
+## Which of the six berths are currently taken, in alcove order.
+##
+## Read by both the alcove dressing and the common room's berth roster board, so
+## a berth cannot say "taken" on the board and stand stripped in the corridor.
+## Four of six is a deliberate number: a full habitat has nothing to say, and an
+## empty one is the state the module was already in.
+##
+## This is a *hardware* state in the sense `fleet_dock_comb.gd` means it. A taken
+## berth has its curtain half drawn, a blanket on the mattress, boots and a kit
+## bag on the deck, a coverall on the hook, a closed locker and a name card in
+## its slot. A free berth has the curtain bunched clear, folded linen where the
+## blanket was, a bare hook, the locker shutter rolled up on empty shelves and an
+## empty card slot. Only the mouth plate and the board tile change colour; every
+## other difference is a different object in a different place, which is what
+## makes the state legible from the corridor rather than needing a legend.
+const BUNK_BERTH_OCCUPANCY := [true, true, false, true, false, true]
+
+## Local z of the inner faces of the two alcove partitions that bound each row.
+##
+## Derived from the `boundary_z` list in `_build_habitat_corridor`
+## (`2.35, 7.3, 7.9, 12.3, 12.9, 17.95`) minus the partitions' 0.12 m half
+## thickness, expressed relative to each row's bunk centre (`5.1, 10.1, 15.1`).
+## The mouth jambs are sized from these so both ends bury into real plate instead
+## of stopping in air; the rows are not symmetric, so one shared number would
+## have left a 0.55 m gap at the end of rows 1 and 3.
+const BUNK_MOUTH_AFT_FACE := [-2.63, -2.08, -2.08]
+const BUNK_MOUTH_FORWARD_FACE := [2.08, 2.08, 2.73]
+
 const CONNECTOR_CENTER := Vector3(0.0, 1.85, -1.7)
 const CONNECTOR_HALF_EXTENTS := Vector3(2.55, 1.95, 2.3)
 const CORRIDOR_CENTER := Vector3(0.0, 2.25, 10.15)
@@ -409,10 +437,36 @@ func get_performance_contract() -> Dictionary:
 	# The spine carries the living quarters, so its 663 glazing, bunk, chair, and
 	# service primitives need the loosest mesh ceiling of the four; it was
 	# previously set to 260, a figure no build ever met.
+	#
+	# Re-frozen in the open for the habitat rooms pass, measured on the built
+	# module rather than estimated:
+	#
+	#   mesh_instances    740 -> 1100 (built 670 -> 1074, +404)
+	#   static_bodies     180 ->  165 (built 125 ->  149, +24)
+	#   collision_shapes  220 ->  175 (built 131 ->  155, +24)
+	#
+	# The mesh delta is where the living quarters went from a fit-out to a place
+	# people are in: 6 bunk mouths with jambs, heads, curtains, grab handles and
+	# name plates plus the berth dressing behind them (~152), a galley run with a
+	# worktop, sink, urn, dispenser, stores and a hanging rail (~72), a mess table
+	# with benches and what was left on it (~35), the berth roster board (~28), the
+	# window ledge, floor mat and table display content (~46), and the vestibule
+	# notice wall (~30). Every one of those is a small object; the module's
+	# structural mesh count did not move.
+	#
+	# The two collision ceilings come *down* even though the built counts went up,
+	# because 740/180/220 had never been measured against a build and the two body
+	# ceilings had 44% and 68% of unexplained slack in them. Almost none of this
+	# pass is collidable: a mug, a name card, a hung coverall and a folded blanket
+	# are not things a player can walk into, and giving each one a StaticBody3D
+	# would have spent the collision budget on objects nobody can touch. What did
+	# get collision is what a player would otherwise walk through — the 12 mouth
+	# jambs, the galley carcass, worktop and bin, the mess trestles, table top and
+	# two benches, and the four kit bags on the deck.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 740,
-		"static_bodies": 180,
-		"collision_shapes": 220,
+		"mesh_instances": 1100,
+		"static_bodies": 165,
+		"collision_shapes": 175,
 		"labels": 25,
 		# Light ceiling re-frozen in the open, 12 -> 15 -> 21. The module built 6
 		# lights against that 12; the fixture pass took it to 15 — one warm
@@ -432,7 +486,31 @@ func get_performance_contract() -> Dictionary:
 		#
 		# The ceiling is set at the exact built count rather than left with
 		# headroom. Frame cost is unmeasured: this box renders through llvmpipe.
-		"lights": 21,
+		#
+		# 21 -> 28, and the delta is +7 for the rooms, all of them a fixture that
+		# has a housing and a lens drawn at it:
+		#   +1 GalleyTaskLight   — the galley worktop, 3.7 m below the ceiling row
+		#                          and the only working surface in the habitat.
+		#   +1 MessPendantLight  — a pendant on a real 2.04 m drop over the mess
+		#                          table, in the room's starboard forward quadrant,
+		#                          which both ceiling rows sit on the centreline of
+		#                          and reach only with their tails.
+		#   +1 RosterBoardLamp   — the berth roster board, same treatment the two
+		#                          existing room legends already get.
+		#   +1 NoticeBoardLamp   — the vestibule notice wall, likewise.
+		#   +3 CabinetStatusWash — one per service cabinet. Found by standing in a
+		#                          bunk and looking outboard: the three cabinets sit
+		#                          on the port wall 5.5 m off the centreline and the
+		#                          corridor pool lights reach 5.4 m from x = 0, so
+		#                          the outboard wall of all three port alcoves was
+		#                          outside every light in the module. Their emissive
+		#                          status lens was lighting nothing, which is the
+		#                          exact case the helper below was written for.
+		# Still exact, still shadowless, still distance-faded, and all seven are
+		# `_fixture_practical` so they carry their own fixture's hue and fall off
+		# steeply. None of them raises the room's overall level; each one lights an
+		# object that previously had a lit-looking fixture above it casting nothing.
+		"lights": 28,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -539,7 +617,33 @@ func _create_materials() -> void:
 	_materials["red"] = _material(Color("d84d47"), 0.2, 0.39, Color("a9252c"), 1.25)
 	_materials["copper"] = _material(Color("9b6848"), 0.76, 0.28)
 	_materials["fabric"] = _material(Color("2f5960"), 0.03, 0.91)
-	_materials["fabric_dark"] = _material(Color("21363c"), 0.02, 0.95)
+	# Albedo #21363c -> #2c5158, roughness 0.95 -> 0.86.
+	#
+	# The interior lighting pass fixed this room's illumination and then recorded
+	# that the remaining darkness on the observation chairs' backrests "is now a
+	# material choice rather than a lighting hole — if it still reads badly the fix
+	# is the albedo, not another lamp." Rendered from inside the room it still read
+	# badly, and the render says exactly why: in the same frame, under the same two
+	# lamps, a `fabric` seat cushion reads as pale blue-grey while the `fabric_dark`
+	# backrest directly above it reads as flat black — not dark, black, with no
+	# form in it at all. That is not a tonal step between two upholstery parts of
+	# one chair, it is a hole where the chair back should be, and it is the single
+	# loudest thing in the habitat's only glazed room.
+	#
+	# The arithmetic behind it: #21363c is linear (0.014, 0.037, 0.045) against
+	# `fabric`'s (0.028, 0.102, 0.127), so the back was reflecting roughly a third
+	# of what the seat did while facing away from both overhead rows. #2c5158 is
+	# linear (0.025, 0.084, 0.101), about 80% of the seat — dark enough to stay
+	# the chair's shadowed member and read as a different piece of trim, bright
+	# enough to hold a gradient across its width so the backrest has a shape. The
+	# roughness comes with it: 0.95 was a chalk response that killed the last of
+	# the specular term on a vertical face, and 0.86 matches the `fabric` family it
+	# is supposed to belong to.
+	#
+	# Not a lighting change: no lamp moved, no energy changed. `fabric_dark` is
+	# also the bunk pillows and the chair arm pads, which rendered as the same
+	# black slabs, so all three are fixed by the one albedo.
+	_materials["fabric_dark"] = _material(Color("2c5158"), 0.02, 0.86)
 	# Emission 1.35 -> 1.05. Measured off `habitat_common_room.png`: the common
 	# table display rendered as a solid 255 white rectangle on a table that
 	# received nothing from it — the single clearest instance of the bimodal frame
@@ -553,6 +657,7 @@ func _create_materials() -> void:
 	# turns a bloomed strip into a luminaire.
 	_materials["warm_light"] = _material(Color("f4ede0"), 0.02, 0.2, Color("ffe6bd"), 1.7)
 	_materials["glass"] = _transparent_material(Color(0.33, 0.67, 0.73, 0.2), 0.06, 0.12)
+	_create_habitat_life_materials()
 	# One call per key into the published kit recipe rather than an inline copy of
 	# it, so this module cannot drift from the shared `normal_scale = 1.0` that
 	# keeps one relief depth across every module seam.
@@ -563,8 +668,47 @@ func _create_materials() -> void:
 		"floor",
 		"structural",
 		"brass",
+		"steel_bright",
 	]:
 		StationSurfaceKit.apply_panel_triplanar(_materials[key] as StandardMaterial3D, PANEL_SURFACE_SCALE)
+
+
+## The soft-goods and small-object palette the living quarters need.
+##
+## Deliberately split from `_create_materials`, and deliberately *not* panel
+## mapped except for `steel_bright`. The station panel family is the right
+## surface for pressed shell, decks, ribs, carcasses and worktops — it is the
+## wrong surface for a blanket, a boot or a paper card, where a plate-and-rivet
+## normal map at 0.28 m per repeat would print rivets across a 0.3 m object. This
+## is the same split `station_operations_activity.gd` makes when it maps its six
+## structural keys and leaves its painted accents and lenses unmapped.
+##
+## The colours are the other half of the point. Before this pass every surface a
+## crew member touched in this module was one of six greys or one of two teals,
+## which is why the rooms read as equipment bays rather than as quarters. Linen,
+## blanket russet, coverall green, leather, planting green and the rug's warm
+## brown are the only saturated non-signal colours in the habitat, and they are
+## all on things people own rather than on things the station owns.
+func _create_habitat_life_materials() -> void:
+	_materials["linen"] = _material(Color("d8cfc0"), 0.02, 0.90)
+	_materials["blanket"] = _material(Color("9c5f3e"), 0.02, 0.88)
+	_materials["coverall"] = _material(Color("3f6f5c"), 0.03, 0.86)
+	_materials["leather"] = _material(Color("4a3a30"), 0.06, 0.72)
+	_materials["plastic_pale"] = _material(Color("d3dbd8"), 0.05, 0.52)
+	_materials["greenery"] = _material(Color("4f9350"), 0.0, 0.76)
+	_materials["paper"] = _material(Color("e4e0d4"), 0.0, 0.92)
+	_materials["rug"] = _material(Color("6e4a38"), 0.02, 0.93)
+	# #1b2a2e -> #63706e. The first value was chosen as "dark webbing" and rendered
+	# inside a bunk as a 1.18 x 0.44 m black rectangle on a lit wall — the same
+	# untextured-void failure as the service cabinet inset, at the same eye height,
+	# two objects apart. Webbing seen against a plated wall is a light thing with
+	# holes in it, not a dark thing.
+	_materials["netting"] = _material(Color("63706e"), 0.05, 0.90)
+	# Mapped with the rest of the structure: a galley worktop is a 4 m plate at
+	# waist height directly under a task light, which is precisely the case the
+	# rendered reviews caught twice — a large flat scalar surface close to the eye
+	# reads as an untextured primitive no matter how good its metallic response is.
+	_materials["steel_bright"] = _material(Color("a8b3b5"), 0.70, 0.26)
 
 
 func _build_structure() -> void:
@@ -576,6 +720,7 @@ func _build_structure() -> void:
 	_build_observation_common(structure)
 	_build_service_detail(structure)
 	_build_deferred_branch(structure)
+	_build_habitat_life(structure)
 
 
 func _build_connector(structure: Node3D) -> void:
@@ -726,7 +871,10 @@ func _build_bunk_alcove(parent: Node3D, index: int, center: Vector3) -> void:
 			_materials["structural"]
 		)
 	_box(bunk, "PersonalLocker", Vector3(-float(side) * 1.25, 1.05, -1.25), Vector3(0.72, 2.1, 0.72), _materials["shell_light"], true)
-	_box(bunk, "LockerInset", Vector3(-float(side) * 1.25 + float(side) * 0.38, 1.05, -1.25), Vector3(0.035, 1.72, 0.48), _materials["graphite"], false)
+	# `graphite` -> `structural`, same finding and same reason as `CabinetInset`:
+	# a 1.72 x 0.48 m panel of #172226 at arm's length inside a bunk reads as a
+	# void, not as a recessed door face.
+	_box(bunk, "LockerInset", Vector3(-float(side) * 1.25 + float(side) * 0.38, 1.05, -1.25), Vector3(0.035, 1.72, 0.48), _materials["structural"], false)
 
 
 func _build_observation_common(structure: Node3D) -> void:
@@ -881,7 +1029,23 @@ func _build_observation_common(structure: Node3D) -> void:
 	# fraction up 0.43 points, which is the same defect this pass exists to remove.
 	# Higher and weaker lights the table and stops there.
 	_fixture_practical(common, "TableDisplayGlow", Vector3(0.0, 2.15, 21.45), Color("8fe6ea"), 0.26, 3.0)
-	_text_sign(common, "OBSERVATION COMMON  //  MODERN INTERPRETATION", Vector3(-3.8, 3.95, 18.16), Vector3(0, 180, 0), 0.2, _materials["teal"])
+	# MAP-004 family, second instance in this module. Yaw 180 -> 0.
+	#
+	# The connector legend was fixed by yawing it 180 so it faces the approach, and
+	# the note left behind said "`OBSERVATION COMMON` in the same module already
+	# yaws 180 for its reader." It does yaw 180, but its reader stands on the other
+	# side of it, so the same number is the wrong one here.
+	#
+	# The two numbers that decide it: `TextMesh` renders its readable face toward
+	# local +Z, and this legend hangs at z = 18.16 on the room side of
+	# `CommonFrontLeft`, whose rear face is z = 18.11. Everyone who can see it is
+	# at z > 18.16 looking back toward -z, so the glyph face has to point +z, which
+	# is yaw 0. At yaw 180 it pointed -z, into the 0.05 m gap between itself and a
+	# solid 5.0 m partition that no player can get behind — the room's own name
+	# plate was legible from nowhere in the room. The connector legend keeps its
+	# 180 because its reader really does walk in from -z; these are opposite cases
+	# that happened to be given the same rotation.
+	_text_sign(common, "OBSERVATION COMMON  //  MODERN INTERPRETATION", Vector3(-3.8, 3.95, 18.16), Vector3.ZERO, 0.2, _materials["teal"])
 	# Wash behind the room legend, so the bulkhead it hangs on carries the sign's
 	# own colour rather than the sign floating on flat plate.
 	_fixture_practical(common, "CommonSignWash", Vector3(-3.8, 3.7, 18.5), Color("7fd8dc"), 0.3, 2.6)
@@ -947,8 +1111,37 @@ func _build_service_detail(structure: Node3D) -> void:
 		var cabinet_z := 4.35 + float(cabinet_index) * 5.05
 		var cabinet := _box(service, "ServiceCabinet%02d" % (cabinet_index + 1), Vector3(-5.78, 2.05, cabinet_z), Vector3(0.48, 2.25, 1.35), _materials["shell_light"], false)
 		_register_service(cabinet, &"service-cabinet")
-		_box(service, "CabinetInset", Vector3(-5.52, 2.05, cabinet_z), Vector3(0.035, 1.76, 0.98), _materials["graphite"], false)
-		_box(service, "CabinetStatus", Vector3(-5.5, 2.55, cabinet_z), Vector3(0.03, 0.16, 0.55), _materials["teal"] if cabinet_index != 1 else _materials["amber"], false)
+		# `graphite` -> `structural`, plus a door seam, three louvres and a handle.
+		#
+		# Found by standing in a bunk alcove and looking at the wall. These three
+		# cabinets are on the port outer wall *inside* alcoves 1, 2 and 3, and at
+		# 1.76 x 0.98 m of #172226 the inset was not reading as a recessed door, it
+		# was reading as a hole punched in the wall of somebody's bedroom — the
+		# largest black shape in the habitat and the first thing the eye went to
+		# from the bunk. `structural` is the module's painted-steel grey and it
+		# carries the panel family, so the recess now reads as a door set back in
+		# its frame, which is what it always was.
+		_box(service, "CabinetInset", Vector3(-5.52, 2.05, cabinet_z), Vector3(0.035, 1.76, 0.98), _materials["structural"], false)
+		_box(service, "CabinetDoorSeam", Vector3(-5.5, 2.05, cabinet_z), Vector3(0.025, 1.72, 0.03), _materials["graphite"], false)
+		for louvre_index in 3:
+			_box(service, "CabinetLouvre", Vector3(-5.5, 1.42 + float(louvre_index) * 0.16, cabinet_z), Vector3(0.03, 0.05, 0.62), _materials["graphite"], false)
+		_box(service, "CabinetHandle", Vector3(-5.48, 2.05, cabinet_z + 0.34), Vector3(0.05, 0.30, 0.05), _materials["brass"], false)
+		var status_lit := cabinet_index != 1
+		_box(service, "CabinetStatus", Vector3(-5.5, 2.55, cabinet_z), Vector3(0.03, 0.16, 0.55), _materials["teal"] if status_lit else _materials["amber"], false)
+		# The status lens was emissive and lit nothing, which is the case this
+		# module's own `_fixture_practical` note exists for. These three cabinets
+		# stand on the port outer wall 5.5 m off the centreline, and the corridor's
+		# pool lights have a 5.4 m range from x = 0, so the entire outboard wall of
+		# the three port alcoves was outside every light in the module — a literal
+		# zero. That is why the inset read black whatever albedo it was given.
+		_fixture_practical(
+			service,
+			"CabinetStatusWash",
+			Vector3(-5.18, 2.35, cabinet_z),
+			Color("7fd8dc") if status_lit else Color("f3c076"),
+			0.26,
+			2.4
+		)
 	for hatch_z in [5.1, 10.15, 15.2]:
 		var hatch := _box(service, "FloorServiceHatch", Vector3(0, 0.058, float(hatch_z)), Vector3(1.35, 0.025, 0.92), _materials["graphite"], false)
 		_register_service(hatch, &"service-hatch")
@@ -974,6 +1167,560 @@ func _build_deferred_branch(structure: Node3D) -> void:
 	_box(branch, "DeferredBackstop", Vector3(7.78, 2.3, 20.0), Vector3(0.32, 3.55, 3.35), _materials["graphite"])
 	_beam_between(branch, "DeferredCrown", Vector3(7.72, 4.45, 18.2), Vector3(7.72, 4.45, 21.8), 0.12, _materials["red"], false)
 	_text_sign(branch, "BRANCH DEFERRED  //  NO AUTHENTICATED INTERIOR", Vector3(7.2, 3.75, 22.0), Vector3(0, -90, 0), 0.18, _materials["red"])
+
+
+## Everything in the habitat that belongs to a person rather than to the station.
+##
+## This module was the thinnest part of a station that has a crew workpost with a
+## nodding weld jig, a dispatch board with one lit tile per registered berth, and
+## dock arms whose assigned-versus-deferred state is carried by where the boom is
+## stowed. Rendered at eye height, the habitat had six bunk alcoves that were a
+## plinth, a slab and a black panel; a 13.8 x 9.45 m common room furnished with
+## eight identical chairs in a row, one table, and nothing else on 130 m^2 of
+## deck; and a corridor whose whole content was floor markings. It read as a
+## fit-out that had been delivered but not moved into.
+##
+## Three groups, one per room, built after the shell so they can measure it:
+## the alcove mouths and their berth dressing, the common room's galley, mess and
+## berth roster, and the vestibule's notice wall. Split into their own builders
+## rather than grown into the shell functions so the structure of the module and
+## the life in it stay separately readable and separately deletable.
+func _build_habitat_life(structure: Node3D) -> void:
+	var corridor := structure.get_node_or_null("PressurizedHabitatCorridor") as Node3D
+	var common := structure.get_node_or_null("ObservationCommon") as Node3D
+	if corridor == null or common == null:
+		return
+	for index in _bunk_nodes.size():
+		_build_bunk_berth_life(_bunk_nodes[index], index)
+	_build_entry_vestibule_life(corridor)
+	_build_common_galley(common)
+	_build_common_mess(common)
+	_build_common_berth_roster(common)
+	_build_common_soft_goods(common)
+
+
+## One bunk alcove, dressed as somebody's berth.
+##
+## Two problems, and the first one is architectural. An alcove opens onto the
+## lane across its whole 4.16 m width, so from the corridor a bunk was a hole in
+## a wall with furniture at the back of it, and the corridor was a row of holes.
+## Real quarters have a doorway. The jambs below bring the visual aperture to
+## 2.0 m, which is what gives the mouth a head, two cheeks, somewhere to hang a
+## curtain, somewhere to bolt a grab handle, and somewhere to put the berth's
+## name — none of which had any surface to attach to before.
+##
+## Seating. The jambs stand on the deck at y = 0 and are sized in z from
+## `BUNK_MOUTH_AFT_FACE` / `BUNK_MOUTH_FORWARD_FACE` so each buries 0.04 m into
+## the alcove partition beside it. The head spans between the two jambs and sits
+## inside them. The curtain rail's ends bury 0.03 m into the jambs, the curtain
+## hangs from the rail, the shelf reaches the outer wall's 5.96 m inner face, its
+## brackets bury into both the wall and the shelf, the coverall's rail is carried
+## on two wall brackets and the coverall's shoulders reach the rail. The blanket's
+## underside is the mattress top at 0.81 exactly; boots and kit bag stand on the
+## deck.
+##
+## The jambs are at local x = -side * 1.60 with a 0.30 m section, so their
+## innermost face is 2.65 m off the module centreline and the published 4.6 m
+## corridor clear width is untouched. Nothing in here enters the lane.
+func _build_bunk_berth_life(bunk: Node3D, index: int) -> void:
+	var side := 1.0 if index >= 3 else -1.0
+	# Inboard, i.e. toward the lane. The alcoves face each other across it, so
+	# every offset below is signed off this rather than off `side`.
+	var inboard := -side
+	var outer_x := side * 1.02
+	var wall_x := side * 1.71
+	var row := index % 3
+	var aft_face := float(BUNK_MOUTH_AFT_FACE[row])
+	var forward_face := float(BUNK_MOUTH_FORWARD_FACE[row])
+	var occupied := bool(BUNK_BERTH_OCCUPANCY[index])
+
+	var berth := Node3D.new()
+	berth.name = "BerthLife"
+	berth.set_meta("station_bunk_dressing", true)
+	berth.set_meta("berth_occupied", occupied)
+	berth.set_meta("evidence_status", EVIDENCE_STATUS)
+	bunk.add_child(berth)
+
+	# --- mouth surround -------------------------------------------------------
+	var jamb_x := inboard * 1.60
+	var aft_jamb_end := aft_face - 0.04
+	var forward_jamb_end := forward_face + 0.04
+	_box(
+		berth,
+		"MouthJambAft",
+		Vector3(jamb_x, 2.25, (aft_jamb_end - 1.0) * 0.5),
+		Vector3(0.30, 4.5, absf(-1.0 - aft_jamb_end)),
+		_materials["shell_mid"]
+	)
+	_box(
+		berth,
+		"MouthJambForward",
+		Vector3(jamb_x, 2.25, (forward_jamb_end + 1.0) * 0.5),
+		Vector3(0.30, 4.5, absf(forward_jamb_end - 1.0)),
+		_materials["shell_mid"]
+	)
+	_box(
+		berth,
+		"MouthHead",
+		Vector3(jamb_x, 2.62, (aft_face + forward_face) * 0.5),
+		Vector3(0.30, 0.64, forward_face - aft_face + 0.08),
+		_materials["shell_light"],
+		false
+	)
+	_box(berth, "MouthHeadLip", Vector3(inboard * 1.76, 2.30, (aft_face + forward_face) * 0.5), Vector3(0.05, 0.09, forward_face - aft_face), _materials["brass"], false)
+
+	# --- curtain --------------------------------------------------------------
+	var curtain_x := inboard * 1.50
+	_beam_between(berth, "CurtainRail", Vector3(curtain_x, 2.22, -1.03), Vector3(curtain_x, 2.22, 1.03), 0.035, _materials["brass"], false)
+	# `linen`, and 0.62 m rather than the 1.00 m this was first built at. Rendered
+	# from the lane, a 1.00 m `fabric` panel was the largest single surface in the
+	# alcove and the darkest thing in the corridor: it filled most of the aperture
+	# the jambs had just been added to create, and it turned six berths back into
+	# six dark rectangles. Warm off-white at 0.62 m does the opposite of both — it
+	# is the brightest thing at eye height in a blue-grey corridor, and the berth
+	# behind it stays visible, which is the point of dressing it.
+	if occupied:
+		_box(berth, "BerthCurtain", Vector3(curtain_x, 1.21, 0.69), Vector3(0.07, 2.02, 0.62), _materials["linen"], false)
+		_cylinder(berth, "CurtainLeadEdge", Vector3(curtain_x, 1.21, 0.40), 0.05, 2.02, _materials["linen"], false)
+	else:
+		_box(berth, "BerthCurtain", Vector3(curtain_x, 1.21, 0.86), Vector3(0.22, 2.02, 0.30), _materials["linen"], false)
+
+	# --- mouth furniture ------------------------------------------------------
+	var face_x := inboard * 1.75
+	_beam_between(berth, "MouthGrabHandle", Vector3(inboard * 1.80, 0.80, 1.35), Vector3(inboard * 1.80, 1.70, 1.35), 0.028, _materials["brass"], false)
+	for stud_y in [0.86, 1.64]:
+		_beam_between(berth, "GrabHandleStud", Vector3(face_x, float(stud_y), 1.35), Vector3(inboard * 1.80, float(stud_y), 1.35), 0.022, _materials["brass"], false)
+	_box(berth, "BerthPlateBacking", Vector3(inboard * 1.768, 1.98, 1.35), Vector3(0.045, 0.30, 0.50), _materials["graphite"], false)
+	_box(
+		berth,
+		"BerthPlateTile",
+		Vector3(inboard * 1.788, 2.06, 1.35),
+		Vector3(0.02, 0.11, 0.42),
+		_materials["teal"] if occupied else _materials["teal_dim"],
+		false
+	)
+	if occupied:
+		_box(berth, "BerthNameCard", Vector3(inboard * 1.792, 1.90, 1.35), Vector3(0.014, 0.13, 0.40), _materials["paper"], false)
+
+	# --- shelf over the bunk --------------------------------------------------
+	# 0.60 m deep rather than the 0.72 the alcove would take, so the shelf stays
+	# under the 0.65 m minor-axis threshold the walkable-surface discovery sweep
+	# uses to find broad flat upward faces. A 1.3 m high shelf inside a bunk is
+	# not a floor and should not be presented to that sweep as a candidate.
+	_box(berth, "BerthShelf", Vector3(side * 1.41, 1.30, 0.10), Vector3(0.60, 0.055, 1.55), _materials["shell_light"], false)
+	for bracket_z in [-0.55, 0.55]:
+		_beam_between(berth, "BerthShelfBracket", Vector3(side * 1.68, 1.04, float(bracket_z)), Vector3(side * 1.16, 1.27, float(bracket_z)), 0.025, _materials["structural"], false)
+	if occupied:
+		_cylinder(berth, "BerthMug", Vector3(side * 1.35, 1.380, 0.55), 0.045, 0.105, _materials["plastic_pale"], false)
+		_box(berth, "BerthReader", Vector3(side * 1.32, 1.339, 0.10), Vector3(0.30, 0.022, 0.21), _materials["graphite"], false)
+		_box(berth, "BerthReaderScreen", Vector3(side * 1.32, 1.3512, 0.10), Vector3(0.25, 0.006, 0.17), _materials["teal_dim"], false)
+		_box(berth, "BerthPhoto", Vector3(side * 1.52, 1.406, -0.36), Vector3(0.016, 0.157, 0.118), _materials["paper"], false, Vector3(0, 0, 0))
+		_box(berth, "BerthPhotoFrame", Vector3(side * 1.535, 1.406, -0.36), Vector3(0.014, 0.175, 0.136), _materials["brass"], false)
+	else:
+		_box(berth, "BerthEmptyTray", Vector3(side * 1.38, 1.3555, 0.10), Vector3(0.44, 0.056, 0.30), _materials["plastic_pale"], false)
+
+	# --- stowage net ----------------------------------------------------------
+	for net_rail_y in [1.60, 2.06]:
+		_beam_between(berth, "BerthNetRail", Vector3(side * 1.64, float(net_rail_y), -0.60), Vector3(side * 1.64, float(net_rail_y), 0.60), 0.022, _materials["structural"], false)
+	# The panel is what reaches the 1.71 wall face, and the two rails sit inside
+	# its span. At the 0.11 m width this was first given, the rails cleared the
+	# wall by 0.028 m and the whole assembly hung on nothing.
+	_box(berth, "BerthStowageNet", Vector3(side * 1.635, 1.83, 0.0), Vector3(0.15, 0.44, 1.18), _materials["netting"], false)
+	# Cross straps, so the panel reads as webbing rather than as a filled board.
+	for strap_z in [-0.42, 0.0, 0.42]:
+		_beam_between(berth, "BerthNetStrap", Vector3(side * 1.555, 1.60, float(strap_z)), Vector3(side * 1.555, 2.06, float(strap_z)), 0.018, _materials["structural"], false)
+	if occupied:
+		_box(berth, "BerthNetBundle", Vector3(side * 1.62, 1.80, 0.30), Vector3(0.13, 0.28, 0.34), _materials["linen"], false)
+		_box(berth, "BerthNetBundleB", Vector3(side * 1.63, 1.74, -0.24), Vector3(0.11, 0.22, 0.30), _materials["coverall"], false)
+
+	# --- bedding --------------------------------------------------------------
+	if occupied:
+		# Underside 0.810, which is the `Mattress` top exactly (0.72 + 0.18/2).
+		_box(berth, "BerthBlanket", Vector3(outer_x - side * 0.04, 0.880, -0.62), Vector3(1.36, 0.14, 1.15), _materials["blanket"], false)
+		_box(berth, "BerthBlanketFold", Vector3(outer_x - side * 0.04, 0.955, -0.06), Vector3(1.32, 0.11, 0.30), _materials["blanket"], false)
+	else:
+		_box(berth, "BerthFoldedLinen", Vector3(outer_x, 0.875, 0.10), Vector3(0.78, 0.13, 0.52), _materials["linen"], false)
+		_box(berth, "BerthFoldedLinenB", Vector3(outer_x, 0.985, 0.10), Vector3(0.70, 0.09, 0.46), _materials["linen"], false)
+
+	# --- coverall hook --------------------------------------------------------
+	var hook_rail_z := -1.20
+	for bracket_z in [-1.50, -0.90]:
+		_beam_between(berth, "CoverallBracket", Vector3(wall_x, 2.10, float(bracket_z)), Vector3(side * 1.62, 2.10, float(bracket_z)), 0.024, _materials["structural"], false)
+	_beam_between(berth, "CoverallRail", Vector3(side * 1.62, 2.10, -1.55), Vector3(side * 1.62, 2.10, -0.85), 0.026, _materials["brass"], false)
+	if occupied:
+		_beam_between(berth, "CoverallHanger", Vector3(side * 1.62, 2.09, hook_rail_z - 0.22), Vector3(side * 1.62, 2.09, hook_rail_z + 0.22), 0.018, _materials["brass"], false)
+		# Shoulders at 2.095 against a rail whose underside is 2.074, so the
+		# garment hangs off the rail instead of hovering under it.
+		_box(berth, "BerthCoverall", Vector3(side * 1.55, 1.57, hook_rail_z), Vector3(0.20, 1.05, 0.46), _materials["coverall"], false)
+	else:
+		for hook_z in [-1.42, -0.98]:
+			_beam_between(berth, "BareHook", Vector3(side * 1.62, 2.10, float(hook_z)), Vector3(side * 1.62, 1.92, float(hook_z)), 0.016, _materials["brass"], false)
+
+	# --- personal locker state ------------------------------------------------
+	# A roller shutter rather than a swinging door. A hinged 0.70 m leaf on the
+	# lane-facing face of this locker sweeps to x = 1.96 local at 30 degrees,
+	# which is 2.29 m off the centreline — right on the published lane edge — so
+	# the open state would have been built out of a fault. A shutter stows
+	# upward into the head of the locker and takes no floor at all.
+	var locker_x := inboard * 1.25
+	if occupied:
+		_box(berth, "LockerShutter", Vector3(inboard * 1.635, 1.02, -1.25), Vector3(0.05, 1.86, 0.66), _materials["shell_light"], false)
+		_box(berth, "LockerShutterPull", Vector3(inboard * 1.668, 1.10, -1.05), Vector3(0.05, 0.09, 0.22), _materials["brass"], false)
+		_box(berth, "LockerNameCard", Vector3(inboard * 1.655, 1.72, -1.25), Vector3(0.014, 0.11, 0.34), _materials["paper"], false)
+	else:
+		_box(berth, "LockerShutter", Vector3(inboard * 1.635, 1.86, -1.25), Vector3(0.05, 0.20, 0.66), _materials["shell_light"], false)
+		_box(berth, "LockerVoid", Vector3(inboard * 1.585, 0.96, -1.25), Vector3(0.04, 1.66, 0.60), _materials["graphite"], false)
+		for shelf_y in [0.72, 1.35]:
+			_box(berth, "LockerShelf", Vector3(locker_x, float(shelf_y), -1.25), Vector3(0.60, 0.035, 0.60), _materials["shell_light"], false)
+
+	# --- deck ------------------------------------------------------------------
+	if occupied:
+		for boot_z in [-0.16, 0.16]:
+			_box(berth, "BerthBoot", Vector3(inboard * 0.42, 0.0775, float(boot_z)), Vector3(0.14, 0.155, 0.32), _materials["leather"], false, Vector3(0, inboard * 7.0, 0))
+		_box(berth, "BerthKitBag", Vector3(inboard * 0.62, 0.23, -1.05), Vector3(0.44, 0.46, 0.88), _materials["leather"])
+		_beam_between(berth, "BerthKitStrap", Vector3(inboard * 0.62, 0.47, -1.42), Vector3(inboard * 0.62, 0.47, -0.68), 0.026, _materials["coverall"], false)
+	else:
+		for crate_index in 2:
+			_box(
+				berth,
+				"BerthStowedCrate",
+				Vector3(inboard * 0.52, 0.135 + float(crate_index) * 0.27, -1.10),
+				Vector3(0.46, 0.27, 0.62),
+				_materials["shell_mid"],
+				false
+			)
+
+
+## The vestibule inside the pressure door, treated as the place people arrive.
+##
+## Kept small on purpose, and the reason is worth recording because it looks like
+## an omission: this corridor has almost no wall. The six alcoves occupy the
+## entire length of both sides between z = 2.35 and z = 17.95, so the only
+## surfaces a player in the lane can see are the deck, the ceiling, the alcove
+## mouths and the 0.24 m partition end faces — and the mouths are where this
+## pass put its work. The 1.6 m vestibule between the door and the first
+## partition is the one stretch of real corridor wall in the module, and the
+## entry facade at z = 0.96 is what the notice wall bolts to.
+func _build_entry_vestibule_life(corridor: Node3D) -> void:
+	var vestibule := Node3D.new()
+	vestibule.name = "EntryVestibuleLife"
+	vestibule.set_meta("station_room_dressing", true)
+	vestibule.set_meta("evidence_status", EVIDENCE_STATUS)
+	corridor.add_child(vestibule)
+
+	# Bolted to the inner face of `EntryFacadeLeft`, which ends at z = 0.96; the
+	# board's back face is 0.955 so it shares volume with the facade plate.
+	_box(vestibule, "NoticeBoardFrame", Vector3(-2.46, 1.86, 1.015), Vector3(0.62, 1.24, 0.11), _materials["brass"], false)
+	_box(vestibule, "NoticeBoardFace", Vector3(-2.46, 1.86, 1.055), Vector3(0.55, 1.14, 0.05), _materials["graphite"], false)
+	var notice_layout := [
+		[0.16, 2.24, 0.20, 0.26],
+		[-0.14, 2.20, 0.24, 0.30],
+		[0.13, 1.84, 0.26, 0.22],
+		[-0.16, 1.78, 0.22, 0.28],
+		[0.02, 1.42, 0.30, 0.20],
+	]
+	for card_index in notice_layout.size():
+		var card: Array = notice_layout[card_index]
+		_box(
+			vestibule,
+			"NoticeCard%02d" % (card_index + 1),
+			Vector3(-2.46 + float(card[0]), float(card[1]), 1.083),
+			Vector3(float(card[2]), float(card[3]), 0.014),
+			_materials["paper"],
+			false,
+			Vector3(0, 0, float(card_index - 2) * 2.5)
+		)
+	_fixture_practical(vestibule, "NoticeBoardLamp", Vector3(-2.46, 2.62, 1.30), Color("f3c076"), 0.30, 2.6)
+	# Housing z 1.10 -> 1.00 with a 0.24 m section, so its back face is 0.88 and it
+	# shares volume with the entry facade it is bolted to. At 1.10 it cleared the
+	# facade by 0.03 m and sat 0.075 m above the board, carried by neither.
+	_box(vestibule, "NoticeBoardLampHousing", Vector3(-2.46, 2.60, 1.00), Vector3(0.44, 0.09, 0.24), _materials["graphite"], false)
+	_box(vestibule, "NoticeBoardLampLens", Vector3(-2.46, 2.545, 1.10), Vector3(0.34, 0.03, 0.15), _materials["warm_light"], false)
+
+	# The arrival shelf on the opposite facade: caps, gloves and a clipped manifest
+	# where a crew coming off shift would drop them.
+	_box(vestibule, "ArrivalShelf", Vector3(2.46, 1.06, 1.16), Vector3(0.60, 0.055, 0.40), _materials["shell_light"], false)
+	for bracket_x in [2.26, 2.66]:
+		_beam_between(vestibule, "ArrivalShelfBracket", Vector3(float(bracket_x), 0.82, 0.99), Vector3(float(bracket_x), 1.04, 1.30), 0.022, _materials["structural"], false)
+	_box(vestibule, "ArrivalCap", Vector3(2.36, 1.135, 1.16), Vector3(0.22, 0.10, 0.26), _materials["coverall"], false)
+	_box(vestibule, "ArrivalGloves", Vector3(2.60, 1.122, 1.16), Vector3(0.19, 0.075, 0.24), _materials["leather"], false)
+	# z 1.00 -> 0.98: at 1.00 the rail's 0.024 m radius stopped 0.016 m short of the
+	# facade face at 0.96 and the coat rail floated off the wall.
+	_beam_between(vestibule, "ArrivalHookRail", Vector3(2.16, 1.72, 0.98), Vector3(2.76, 1.72, 0.98), 0.024, _materials["brass"], false)
+	for hook_x in [2.28, 2.64]:
+		_beam_between(vestibule, "ArrivalHook", Vector3(float(hook_x), 1.72, 0.98), Vector3(float(hook_x), 1.56, 1.06), 0.016, _materials["brass"], false)
+	_box(vestibule, "ArrivalJacket", Vector3(2.28, 1.22, 1.10), Vector3(0.19, 0.72, 0.42), _materials["coverall"], false)
+
+
+## The common room's galley, along the port wall of its forward half.
+##
+## The room had 130 m^2 of deck and one round table on it, and the rendered
+## framings put an entirely empty 4 m wall and an entirely empty quadrant in the
+## middle of the frame. A galley is the right thing there because it is what a
+## crew room is actually organised around, and because the port wall's window
+## sill is 0.96 m high — a worktop at 0.92 backs straight onto it, so the run
+## needs no wall of its own and the crew working at it are silhouetted against
+## the glazing.
+##
+## Seating: the carcass stands on the deck at y = 0 and butts the 18.11 m rear
+## face of `CommonFrontLeft`; the worktop's underside is the carcass top at 0.86;
+## everything on the run has its underside at the worktop's 0.92; the hanging rail
+## is carried on two posts standing on that worktop and the pans reach up to it.
+## The carcass back is at x = -7.28 against the sill's -7.29 inner face.
+func _build_common_galley(common: Node3D) -> void:
+	var galley := Node3D.new()
+	galley.name = "CommonGalley"
+	galley.set_meta("station_room_dressing", true)
+	galley.set_meta("evidence_status", EVIDENCE_STATUS)
+	common.add_child(galley)
+
+	var run_center_z := 20.255
+	var run_length := 4.29
+	_box(galley, "GalleyCarcass", Vector3(-6.94, 0.43, run_center_z), Vector3(0.68, 0.86, run_length), _materials["shell_mid"])
+	_box(galley, "GalleyToeRecess", Vector3(-6.66, 0.06, run_center_z), Vector3(0.12, 0.12, run_length), _materials["graphite"], false)
+	_box(galley, "GalleyWorktop", Vector3(-6.92, 0.89, run_center_z), Vector3(0.74, 0.06, run_length + 0.04), _materials["steel_bright"])
+	_box(galley, "GalleySplashback", Vector3(-7.255, 1.09, run_center_z), Vector3(0.06, 0.34, run_length + 0.04), _materials["steel_bright"], false)
+	for door_index in 4:
+		var door_z := 18.62 + float(door_index) * 1.06
+		_box(galley, "GalleyDoor%02d" % (door_index + 1), Vector3(-6.582, 0.47, door_z), Vector3(0.045, 0.70, 0.96), _materials["shell_light"], false)
+		_box(galley, "GalleyDoorPull", Vector3(-6.556, 0.72, door_z), Vector3(0.045, 0.045, 0.34), _materials["brass"], false)
+
+	# Sink, drawn as an inset rim on the worktop rather than a hole through it, so
+	# the collidable top stays one unbroken box.
+	_box(galley, "GalleySinkRim", Vector3(-6.94, 0.945, 19.30), Vector3(0.56, 0.05, 0.64), _materials["steel_bright"], false)
+	_box(galley, "GalleySinkWell", Vector3(-6.94, 0.938, 19.30), Vector3(0.47, 0.036, 0.55), _materials["graphite"], false)
+	_beam_between(galley, "GalleyTapRiser", Vector3(-7.20, 0.92, 19.30), Vector3(-7.20, 1.32, 19.30), 0.028, _materials["steel_bright"], false)
+	_beam_between(galley, "GalleyTapSpout", Vector3(-7.20, 1.30, 19.30), Vector3(-6.99, 1.23, 19.30), 0.024, _materials["steel_bright"], false)
+	_beam_between(galley, "GalleyTapLever", Vector3(-7.22, 1.34, 19.30), Vector3(-7.22, 1.34, 19.13), 0.02, _materials["brass"], false)
+
+	# Hot water urn.
+	_cylinder(galley, "GalleyUrnBody", Vector3(-6.90, 1.21, 20.94), 0.17, 0.58, _materials["steel_bright"], false)
+	_cylinder(galley, "GalleyUrnCap", Vector3(-6.90, 1.525, 20.94), 0.13, 0.07, _materials["graphite"], false)
+	_beam_between(galley, "GalleyUrnTap", Vector3(-6.74, 1.06, 20.94), Vector3(-6.62, 1.02, 20.94), 0.022, _materials["brass"], false)
+	_box(galley, "GalleyUrnStatus", Vector3(-6.74, 1.32, 20.94), Vector3(0.03, 0.07, 0.16), _materials["amber"], false)
+
+	# Beverage dispenser.
+	_box(galley, "GalleyDispenser", Vector3(-6.96, 1.23, 21.74), Vector3(0.46, 0.62, 0.54), _materials["graphite"], false)
+	for tap_z in [21.60, 21.88]:
+		_beam_between(galley, "GalleyDispenserTap", Vector3(-6.74, 1.10, float(tap_z)), Vector3(-6.66, 1.02, float(tap_z)), 0.02, _materials["brass"], false)
+		_box(galley, "GalleyDispenserLens", Vector3(-6.735, 1.40, float(tap_z)), Vector3(0.03, 0.10, 0.16), _materials["teal"], false)
+
+	# Mugs, trays and stores.
+	for stack_index in 2:
+		var stack_z := 21.16 + float(stack_index) * 0.19
+		for mug_index in 3:
+			_cylinder(galley, "GalleyMug", Vector3(-6.76, 0.972 + float(mug_index) * 0.104, stack_z), 0.05, 0.104, _materials["plastic_pale"], false)
+	_box(galley, "GalleyTray", Vector3(-6.86, 0.9425, 18.55), Vector3(0.44, 0.045, 0.62), _materials["plastic_pale"], false)
+	_box(galley, "GalleyBoard", Vector3(-6.88, 0.9425, 22.05), Vector3(0.40, 0.045, 0.56), _materials["blanket"], false)
+	for carton_index in 3:
+		_box(
+			galley,
+			"GalleyRationCarton%02d" % (carton_index + 1),
+			Vector3(-6.94 + float(carton_index % 2) * 0.16, 1.02, 18.34 + float(carton_index) * 0.31),
+			Vector3(0.26, 0.20, 0.28),
+			_materials["copper"] if carton_index == 1 else _materials["plastic_pale"],
+			false
+		)
+
+	# Hanging rail on two posts standing on the worktop.
+	for post_z in [18.92, 21.92]:
+		_cylinder(galley, "GalleyRailPost", Vector3(-7.20, 1.23, float(post_z)), 0.026, 0.62, _materials["structural"], false)
+	_beam_between(galley, "GalleyHangRail", Vector3(-7.20, 1.53, 18.92), Vector3(-7.20, 1.53, 21.92), 0.022, _materials["brass"], false)
+	for pan_index in 3:
+		var pan_z := 19.45 + float(pan_index) * 0.62
+		_beam_between(galley, "GalleyPanHook", Vector3(-7.20, 1.53, pan_z), Vector3(-7.13, 1.44, pan_z), 0.014, _materials["brass"], false)
+		# y 1.30 -> 1.34: the smallest pan is 0.115 m in radius, so at 1.30 its rim
+		# topped out 0.011 m below the hook it was supposed to be hanging from.
+		_cylinder(galley, "GalleyPan", Vector3(-7.13, 1.34, pan_z), 0.115 + float(pan_index) * 0.018, 0.13, _materials["steel_bright"], false, Vector3(90, 0, 0))
+
+	# Task light. The worktop is the one working surface in the habitat and it sits
+	# 3.7 m below the ceiling row, so it gets its own fixture rather than being lit
+	# from across the room; the housing hangs off the rail posts, not off nothing.
+	_box(galley, "GalleyTaskHousing", Vector3(-7.19, 1.58, 20.42), Vector3(0.13, 0.10, 2.95), _materials["graphite"], false)
+	_box(galley, "GalleyTaskLens", Vector3(-7.15, 1.545, 20.42), Vector3(0.09, 0.03, 2.60), _materials["warm_light"], false)
+	_fixture_practical(galley, "GalleyTaskLight", Vector3(-6.92, 1.46, 20.42), Color("ffd9a4"), 0.40, 3.4)
+
+	_box(galley, "GalleyBin", Vector3(-6.26, 0.34, 22.86), Vector3(0.44, 0.68, 0.44), _materials["graphite"])
+	_box(galley, "GalleyBinLid", Vector3(-6.26, 0.70, 22.86), Vector3(0.46, 0.04, 0.46), _materials["structural"], false)
+	_beam_between(galley, "GalleyBinPedal", Vector3(-6.46, 0.09, 22.86), Vector3(-6.06, 0.09, 22.86), 0.022, _materials["brass"], false)
+
+
+## The mess table, in the starboard half of the room's forward quadrant.
+##
+## Placed at z = 23.3 rather than further forward because the starboard wall from
+## z = 18.33 to 21.67 is the deferred branch bay, and nothing in this pass gets
+## to crowd a deliberately closed landmark. Everything here stands on the deck:
+## two trestles at y = 0 carrying a top whose underside is their 0.72 head, two
+## benches on their own four legs, and the objects left on the table with their
+## undersides on its 0.79 surface.
+func _build_common_mess(common: Node3D) -> void:
+	var mess := Node3D.new()
+	mess.name = "CommonMess"
+	mess.set_meta("station_room_dressing", true)
+	mess.set_meta("evidence_status", EVIDENCE_STATUS)
+	common.add_child(mess)
+
+	var table_x := 5.55
+	var table_z := 23.30
+	for trestle_z in [22.45, 24.15]:
+		_box(mess, "MessTrestle", Vector3(table_x, 0.36, float(trestle_z)), Vector3(0.74, 0.72, 0.13), _materials["structural"])
+		_box(mess, "MessTrestleFoot", Vector3(table_x, 0.035, float(trestle_z)), Vector3(0.92, 0.07, 0.20), _materials["graphite"], false)
+	_beam_between(mess, "MessTrestleTie", Vector3(table_x, 0.58, 22.45), Vector3(table_x, 0.58, 24.15), 0.042, _materials["structural"], false)
+	_box(mess, "MessTableTop", Vector3(table_x, 0.755, table_z), Vector3(1.12, 0.07, 2.32), _materials["shell_light"])
+	_box(mess, "MessTableEdge", Vector3(table_x, 0.755, table_z), Vector3(1.18, 0.045, 2.38), _materials["copper"], false)
+
+	for bench_side in [-1.0, 1.0]:
+		var bench_x := table_x + float(bench_side) * 0.83
+		_box(mess, "MessBench", Vector3(bench_x, 0.435, table_z), Vector3(0.44, 0.09, 2.12), _materials["shell_light"])
+		for leg_z in [22.52, 24.08]:
+			_box(mess, "MessBenchLeg", Vector3(bench_x, 0.195, float(leg_z)), Vector3(0.38, 0.39, 0.10), _materials["structural"], false)
+
+	# Left on the table.
+	_box(mess, "MessTray", Vector3(table_x - 0.10, 0.812, 22.76), Vector3(0.46, 0.045, 0.62), _materials["plastic_pale"], false)
+	_cylinder(mess, "MessBowl", Vector3(table_x - 0.18, 0.879, 22.76), 0.13, 0.09, _materials["plastic_pale"], false)
+	for mug_offset in [Vector2(-0.19, 0.26), Vector2(0.08, 0.44), Vector2(0.24, 0.12)]:
+		_cylinder(mess, "MessMug", Vector3(table_x + mug_offset.x, 0.8425, table_z + mug_offset.y), 0.048, 0.105, _materials["plastic_pale"], false)
+	_cylinder(mess, "MessThermos", Vector3(table_x + 0.30, 0.930, 22.92), 0.062, 0.28, _materials["steel_bright"], false)
+	_box(mess, "MessCloth", Vector3(table_x - 0.25, 0.8075, 24.05), Vector3(0.30, 0.035, 0.24), _materials["linen"], false)
+	_box(mess, "MessCardDeck", Vector3(table_x + 0.17, 0.800, 24.12), Vector3(0.10, 0.025, 0.14), _materials["paper"], false, Vector3(0, 14, 0))
+
+	# Left around it.
+	_box(mess, "MessJacket", Vector3(table_x - 0.83, 0.60, 22.52), Vector3(0.26, 0.44, 0.36), _materials["coverall"], false)
+	for boot_z in [23.02, 23.36]:
+		_box(mess, "MessBoot", Vector3(table_x + 0.83, 0.0775, float(boot_z)), Vector3(0.14, 0.155, 0.32), _materials["leather"], false, Vector3(0, -9, 0))
+
+	# A pendant over the table, hung on a real drop from the 4.62 m ceiling
+	# underside. The room's ceiling rows are at z = 20.5 and 24.3 and both are on
+	# the centreline, so this corner was lit only by their tails.
+	# Drop ends at 2.40, inside the shade, not at 2.58 where it stopped 0.01 m above
+	# it. Top end is the 4.62 m ceiling underside.
+	_beam_between(mess, "MessPendantDrop", Vector3(table_x, 4.62, table_z), Vector3(table_x, 2.40, table_z), 0.026, _materials["structural"], false)
+	_cylinder(mess, "MessPendantShade", Vector3(table_x, 2.44, table_z), 0.34, 0.26, _materials["copper"], false)
+	_box(mess, "MessPendantLens", Vector3(table_x, 2.32, table_z), Vector3(0.44, 0.03, 0.44), _materials["warm_light"], false)
+	_fixture_practical(mess, "MessPendantLight", Vector3(table_x, 2.20, table_z), Color("ffd2a0"), 0.42, 3.8)
+
+
+## The berth roster board, on the rear face of `CommonFrontRight`.
+##
+## The same idea as the registry's dispatch board — one tile per registered
+## thing, driven off the same list the real thing is built from — applied to the
+## only registry this module has, which is who is in which bunk. The tile count
+## is `BUNK_ALCOVE_COUNT` and the state is `BUNK_BERTH_OCCUPANCY`, so a board that
+## disagrees with the corridor is a code change rather than silent drift.
+##
+## State is hardware first: a taken berth's tile stands proud of the board with a
+## name card slotted into it and a coverall on the peg below; a free berth's tile
+## is recessed into the board with the slot empty and the peg bare. The lit/unlit
+## lens is the confirmation, not the message.
+func _build_common_berth_roster(common: Node3D) -> void:
+	var roster := Node3D.new()
+	roster.name = "CrewBerthRoster"
+	roster.set_meta("station_room_dressing", true)
+	roster.set_meta("evidence_status", EVIDENCE_STATUS)
+	common.add_child(roster)
+
+	var board_x := 5.10
+	_box(roster, "RosterBoardFrame", Vector3(board_x, 1.98, 18.145), Vector3(2.78, 1.46, 0.08), _materials["brass"], false)
+	_box(roster, "RosterBoardFace", Vector3(board_x, 1.98, 18.190), Vector3(2.62, 1.32, 0.05), _materials["graphite"], false)
+	for tile_index in BUNK_ALCOVE_COUNT:
+		var occupied := bool(BUNK_BERTH_OCCUPANCY[tile_index])
+		var tile_x := board_x + (float(tile_index) - 2.5) * 0.42
+		_box(
+			roster,
+			"RosterTile%02d" % (tile_index + 1),
+			Vector3(tile_x, 2.20, 18.222 if occupied else 18.186),
+			Vector3(0.34, 0.24, 0.040 if occupied else 0.030),
+			_materials["teal"] if occupied else _materials["graphite"],
+			false
+		)
+		if occupied:
+			_box(roster, "RosterNameCard%02d" % (tile_index + 1), Vector3(tile_x, 1.90, 18.226), Vector3(0.30, 0.20, 0.016), _materials["paper"], false)
+		else:
+			_box(roster, "RosterEmptySlot%02d" % (tile_index + 1), Vector3(tile_x, 1.90, 18.186), Vector3(0.30, 0.20, 0.028), _materials["graphite"], false)
+	_beam_between(roster, "RosterPegRail", Vector3(board_x - 1.24, 1.50, 18.20), Vector3(board_x + 1.24, 1.50, 18.20), 0.024, _materials["brass"], false)
+	for peg_index in BUNK_ALCOVE_COUNT:
+		var peg_x := board_x + (float(peg_index) - 2.5) * 0.42
+		_beam_between(roster, "RosterPeg", Vector3(peg_x, 1.50, 18.20), Vector3(peg_x, 1.44, 18.34), 0.016, _materials["brass"], false)
+	_box(roster, "RosterHungCoverall", Vector3(board_x - 1.05, 1.02, 18.34), Vector3(0.44, 0.86, 0.18), _materials["coverall"], false)
+	_box(roster, "RosterHungCap", Vector3(board_x + 0.21, 1.40, 18.34), Vector3(0.24, 0.11, 0.26), _materials["coverall"], false)
+	# Reader stands in the room at z > 18.2 looking back toward -z, so the glyph
+	# face has to point +z: yaw 0, the same correction made to the room legend.
+	_text_sign(roster, "BERTH ROSTER", Vector3(board_x, 2.56, 18.212), Vector3.ZERO, 0.15, _materials["amber"])
+	_fixture_practical(roster, "RosterBoardLamp", Vector3(board_x, 2.74, 18.66), Color("f3c076"), 0.30, 2.8)
+	# Housing z 18.42 -> 18.22, so it overlaps the 18.11 m partition face it is
+	# bolted to. At 18.42 it shared volume with nothing at all: 0.24 m clear of the
+	# wall and 0.04 m above the top of the board.
+	_box(roster, "RosterLampHousing", Vector3(board_x, 2.80, 18.22), Vector3(1.30, 0.10, 0.26), _materials["graphite"], false)
+	_box(roster, "RosterLampLens", Vector3(board_x, 2.74, 18.26), Vector3(1.05, 0.03, 0.17), _materials["warm_light"], false)
+
+
+## The last of it: what the room's seating group and its glazing wall carry.
+##
+## The mat is the only large warm surface in the module and it exists because the
+## deck is 13.8 x 9.45 m of the same plate as every other deck on the station,
+## and because a seating group with nothing under it reads as chairs parked on a
+## floor rather than as a place to sit. It lies on the collidable `CommonFloor`,
+## so the walkable-surface sweep finds World collision 0.06 m under it.
+##
+## The window ledge items are on the 0.96 m top of `RearWindowSill`. That ledge
+## is the one horizontal surface in the habitat with the view behind it, and it
+## was bare.
+func _build_common_soft_goods(common: Node3D) -> void:
+	var goods := Node3D.new()
+	goods.name = "CommonSoftGoods"
+	goods.set_meta("station_room_dressing", true)
+	goods.set_meta("evidence_status", EVIDENCE_STATUS)
+	common.add_child(goods)
+
+	_box(goods, "CommonFloorMat", Vector3(0.0, 0.058, 22.60), Vector3(4.60, 0.026, 4.20), _materials["rug"], false)
+	_box(goods, "CommonFloorMatBorder", Vector3(0.0, 0.054, 22.60), Vector3(4.90, 0.020, 4.50), _materials["copper"], false)
+
+	# The table display was a lit white rectangle with nothing drawn on it. Three
+	# panels and a border cost four meshes and stop it reading as a blown highlight
+	# lying on a table.
+	_box(goods, "TableDisplayBezel", Vector3(0.0, 1.352, 21.45), Vector3(1.36, 0.030, 0.72), _materials["structural"], false)
+	for panel_index in 2:
+		_box(
+			goods,
+			"TableDisplayPanel%02d" % (panel_index + 1),
+			Vector3(-0.42 + float(panel_index) * 0.84, 1.3775, 21.45),
+			Vector3(0.34, 0.007, 0.44),
+			_materials["teal_dim"],
+			false
+		)
+	_box(goods, "TableDisplayCursor", Vector3(0.0, 1.3775, 21.32), Vector3(0.52, 0.007, 0.06), _materials["teal"], false)
+
+	# Window ledge. Underside 0.96, which is the sill top exactly.
+	for planter_x in [-6.20, 6.20]:
+		_box(goods, "LedgePlanter", Vector3(float(planter_x), 1.07, 28.48), Vector3(0.46, 0.22, 0.38), _materials["copper"], false)
+		_box(goods, "LedgePlanterSoil", Vector3(float(planter_x), 1.165, 28.48), Vector3(0.40, 0.04, 0.32), _materials["graphite"], false)
+		for frond_index in 5:
+			var frond_lean := (float(frond_index) - 2.0) * 11.0
+			_box(
+				goods,
+				"LedgeFrond",
+				Vector3(
+					float(planter_x) + (float(frond_index) - 2.0) * 0.075,
+					1.30 + absf(float(frond_index) - 2.0) * -0.035,
+					28.48 + (float(frond_index) - 2.0) * 0.045
+				),
+				Vector3(0.055, 0.34, 0.13),
+				_materials["greenery"],
+				false,
+				Vector3(frond_lean * 0.5, float(frond_index) * 31.0, frond_lean)
+			)
+	for mug_z in [28.44, 28.54]:
+		_cylinder(goods, "LedgeMug", Vector3(-3.95 + (float(mug_z) - 28.44) * 3.0, 1.0125, float(mug_z)), 0.048, 0.105, _materials["plastic_pale"], false)
+	_box(goods, "LedgeReader", Vector3(2.60, 0.9725, 28.48), Vector3(0.32, 0.025, 0.24), _materials["graphite"], false)
+	_box(goods, "LedgeReaderScreen", Vector3(2.60, 0.987, 28.48), Vector3(0.27, 0.006, 0.19), _materials["teal_dim"], false)
+	# Centre 1.015, not 1.028: laid on its side this cylinder is 0.11 m tall, so at
+	# 1.028 its underside was 0.013 m above the 0.96 m sill top.
+	_cylinder(goods, "LedgeScopeBody", Vector3(0.95, 1.015, 28.48), 0.055, 0.136, _materials["steel_bright"], false, Vector3(90, 0, 0))
+	_cylinder(goods, "LedgeScopeEye", Vector3(0.95, 1.015, 28.56), 0.035, 0.06, _materials["graphite"], false, Vector3(90, 0, 0))
+
+	# A blanket left over the end of the observation line, which is the cheapest
+	# possible statement that people sit here.
+	_box(goods, "ObservationThrow", Vector3(5.0, 1.14, 25.20), Vector3(0.86, 0.62, 0.30), _materials["blanket"], false, Vector3(-6, 0, 0))
 
 
 func _style_access_landmarks() -> void:

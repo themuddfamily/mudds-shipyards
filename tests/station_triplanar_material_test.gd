@@ -466,12 +466,37 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# maps and the same normal_scale and is held to the recipe by its own family
 	# test, exactly as the Cinder Reach cluster already was. The station family is
 	# unchanged at 2221 / 130 / 532 / 1559.
+	#
+	# Re-frozen 2221 -> 2436 on rebase, measured on the merged tree. The habitat
+	# rooms pass adds +215 at the habitat module's existing 0.28 scale (532 -> 747);
+	# 0.22 stays 130 and 0.30 stays 1559. No non-habitat role or scale changed.
+	#
+	# What the +215 is. The habitat's living quarters were furnished: six bunk
+	# mouths given jambs, heads and head lips, and the berths behind them given
+	# shelves, brackets, stowage nets, locker shutters and shelves; a galley run
+	# with a carcass, worktop, splashback, doors, rail posts and a bin; a mess
+	# table with trestles, top and two benches; a berth roster board; and a
+	# vestibule notice wall with its shelf and brackets. Every one of those is
+	# structure or fitted joinery, so every one of them is in the plate family at
+	# this module's frozen 0.28 m physical scale.
+	#
+	# What is deliberately *not* in it, and this is the larger half of the pass by
+	# object count: the blankets, folded linen, curtains, coveralls, boots, kit
+	# bags, mugs, trays, ration cartons, name cards, notice cards, the floor mat
+	# and the planting. Those are `linen`, `blanket`, `coverall`, `leather`,
+	# `plastic_pale`, `paper`, `rug`, `netting` and `greenery` — a soft-goods
+	# palette created for this pass and deliberately left unmapped, because a
+	# plate-and-rivet normal map at 0.28 m per repeat would print rivets across a
+	# 0.3 m mug. Same split the operations module makes between its six structural
+	# keys and its painted accents. The one new mapped material is `steel_bright`,
+	# the galley worktop, which is a 4.3 m plate at waist height under a task light
+	# and is exactly the case a flat scalar surface fails.
 	_check(
-		mapped_surface_count == 2221
+		mapped_surface_count == 2436
 		and scale_022_count == 130
-		and scale_028_count == 532
+		and scale_028_count == 747
 		and scale_030_count == 1559,
-		"live station binds exactly 2221 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		"live station binds exactly 2436 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
