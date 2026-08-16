@@ -87,9 +87,12 @@ const PRODUCTION_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["crew_transport"],
 		"feedback_path": NodePath("HalyardFleetDockBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
-		"cue_half_width": 5.4,
-		"cue_half_length": 6.2,
+		# HALYARD-DECK-001. Re-frozen -1.04 -> -1.21 and the cue re-cut 5.4 x 6.2
+		# -> 4.7 x 11.3 when Fleet Dock 02's apron was widened to hold the craft
+		# standing on it. The old rectangle hung off both ends of its own slab.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.21, 0.0)),
+		"cue_half_width": 4.7,
+		"cue_half_length": 11.3,
 	},
 }
 

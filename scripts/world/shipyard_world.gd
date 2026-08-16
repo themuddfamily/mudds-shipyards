@@ -157,11 +157,19 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"cue_half_length": 4.8,
 	},
 	# Fleet Dock 02. The comb already built this slab and its marker and left it
-	# deliberately empty; promoting it to a live berth adds no station geometry,
-	# and it follows Dock 01's pattern exactly — the marker keeps no berth
-	# authority and the berth is owned directly by the world, 0.93 m above it.
-	# The Halyard's four feet sit inside the 12 m slab while its bow collar and
-	# tail yoke overhang, so the strict landing volume is longer than the slab.
+	# deliberately empty; promoting it to a live berth follows Dock 01's pattern
+	# exactly — the marker keeps no berth authority and the berth is owned
+	# directly by the world, 0.93 m above it.
+	#
+	# HALYARD-DECK-001. The line that used to stand here — "the Halyard's four
+	# feet sit inside the 12 m slab while its bow collar and tail yoke overhang,
+	# so the strict landing volume is longer than the slab" — recorded the defect
+	# as if it were a design. It is not. The craft is 28.35 m long on a 12.0 m
+	# slab: 7.85 m of nose and 8.50 m of tail stood over open space, only 42% of
+	# the footprint was on structure, and two of four footprint corners had
+	# nothing under them at all. The apron below (`HALYARD_APRON_*`, built in
+	# `_build_architecture`) is the world's answer; the comb keeps its own
+	# three-tooth rhythm, its own footprint and its own dressing rule untouched.
 	HALYARD_FLEET_DOCK_BERTH_ID: {
 		"berth_path": NodePath("HalyardFleetDockBerth"),
 		"berth_local_transform": Transform3D(
@@ -179,9 +187,24 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		# 18.55 m span does not fit between this dock and its neighbours.
 		"compatibility_tags": ["crew_transport"],
 		"feedback_path": NodePath("HalyardFleetDockBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
-		"cue_half_width": 5.4,
-		"cue_half_length": 6.2,
+		# Re-frozen -1.04 -> -1.21. See BERTH_CUE_SEAT_HEIGHT. This berth was the
+		# one Dock 01's re-freeze missed: the Zenith beside it went -1.04 -> -1.17
+		# to seat on the comb's 0.040 m grip inset, and this cue kept the old value
+		# over the identical y = 4.2 deck, so its plates floated 0.215 m. Seated on
+		# bare deck rather than on the inset, because the widened pad puts all four
+		# boundary strips outside the inset's 10.4 m square: 4.2 + 0.010 = 4.210 is
+		# the plate underside, so the offset is 4.210 - 0.14 - 5.28 = -1.21.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.21, 0.0)),
+		# Re-cut for the widened pad. The old 5.4 x 6.2 rectangle was not merely
+		# small, it was hanging off both ends of the slab it marked: its forward
+		# strips spanned z = 47.20 … 47.36 against a deck edge at 47.3 and its aft
+		# strips 59.24 … 59.40 against an edge at 59.3, which is why only 21 of 45
+		# cue samples had anything drawn beneath them. The new rectangle sits at
+		# least 1.30 m inside every edge of the pad it marks, as the Arrow's does:
+		# 4.7 against a half-width of 6.0, and 11.3 against the 12.6 m from the
+		# berth origin aft to the comb trunk (the forward apron is deeper still).
+		"cue_half_width": 4.7,
+		"cue_half_length": 11.3,
 	},
 }
 ## PORT-DECK-001 / RUNWAY-SEAM-001 measured geometry constants.
@@ -196,6 +219,57 @@ const AUTHORED_CENTRAL_BERTH_EDGE_Z := 7.75
 ## landing envelope and the cue strips all keep their published coordinates.
 const PORT_BERTH_NODE_OUTER_X := -43.0
 const PORT_BERTH_NODE_HALF_WIDTH := 8.4
+
+## HALYARD-DECK-001 measured geometry. All of it is world space, because the
+## surfaces it has to meet belong to three different owners.
+##
+## Fleet Dock 02's slab is `FleetDockComb`'s `DockSlab02`, a 12 x 12 m tooth
+## whose top plane is y = 4.2 and which spans x = 31.0 … 43.0, z = 47.3 … 59.3.
+## The parked Halyard's collision footprint is 9.6 x 28.35 m at x = 32.2 … 41.8,
+## z = 39.45 … 67.8. Laterally that is fine — the cabin is only 5.44 m wide, so
+## each flank already has a 3.28 m lane. Along the craft it is not: 16.35 m of a
+## 28.35 m transport stood over open space.
+##
+## The apron is built here rather than in the comb for three reasons, all of them
+## structural rather than stylistic. The craft is longer than the comb module is
+## wide (its tail is over the trunk and its nose is 7.85 m outside the module's
+## declared `FOOTPRINT_MAX`), so a slab that supported it would have to break the
+## published integration envelope. Stretching one tooth to 34 m would also destroy
+## the repeated three-tooth rhythm that is this module's actual evidence claim
+## (OE-B2-COMB). And the comb owns no berth authority at all by design, while this
+## world already owns `halyard_fleet_dock_berth`: a berth apron is berth
+## infrastructure. `FleetDockCombConnector` is the existing precedent for the
+## world building walkable structure that meets the comb's plane.
+##
+## Every piece butts its neighbour exactly and none overlaps one, so no two decks
+## share the y = 4.2 plane — the coplanar-deck defect the Arrow pass recorded.
+const HALYARD_APRON_DECK_TOP := 4.2
+const HALYARD_APRON_DECK_THICKNESS := 0.6
+## The pad's lateral extent is DockSlab02's, unchanged. Widening it would eat the
+## 3 m voids at x = 28 … 31 and 43 … 46 that `FleetDockComb` publishes as genuine
+## negative space (samples at x = 29.5 and 44.5), and it does not need widening:
+## the craft's walls stand at x = 34.28 and 39.72.
+const HALYARD_APRON_MIN_X := 31.0
+const HALYARD_APRON_MAX_X := 43.0
+## `FleetDockComb.DockSlab02`'s own z extent, restated in world space. The module
+## sits at (12.0, 4.2, 68.3) rotated a quarter turn about +Y, so its local +X runs
+## along world -Z: the slab's local x = 9.0 … 21.0 is world z = 47.3 … 59.3. The
+## apron meets these two planes exactly and crosses neither.
+const FLEET_DOCK_SLAB_02_MIN_Z := 47.3
+const FLEET_DOCK_SLAB_02_MAX_Z := 59.3
+## Forward apron, from the pad's own forward edge out past the bow. 36.3 leaves
+## 3.15 m of clear deck ahead of the bow collar at z = 39.45, which is the Arrow's
+## 1.95 m nose apron scaled to a craft two and a half times as long.
+const HALYARD_APRON_NOSE_MIN_Z := 36.3
+## Aft apron, from the pad's aft edge to the comb trunk's near face. The craft's
+## tail already reaches z = 67.8 and lands on the trunk; this closes the 6.6 m
+## gap between the two, which until now was crossed only by the 3.6 m `Rung02`.
+## Closing it is what turns two dead ends into one loop.
+const HALYARD_APRON_TAIL_MAX_Z := 65.9
+## `FleetDockComb`'s `Rung02` occupies x = 35.2 … 38.8 of that gap already. The
+## aft apron is therefore two wings that butt it, not one slab over it.
+const HALYARD_APRON_RUNG_MIN_X := 35.2
+const HALYARD_APRON_RUNG_MAX_X := 38.8
 
 const CENTRAL_HERO_SCHEMA_VERSION := 2
 const OPERATIONAL_LATTICE_SCHEMA_VERSION := 1
@@ -3425,6 +3499,8 @@ func _build_architecture() -> void:
 		_materials["ivory"]
 	)
 
+	_build_halyard_berth_apron(shell)
+
 	# Deep under-deck beams make the separated modules read as one supported
 	# station lattice while leaving space visible between every branch.
 	for z_position in [-22.5, -10.0, 2.0, 10.0, 18.0, 31.0, 44.0]:
@@ -3511,6 +3587,118 @@ func _build_architecture() -> void:
 		0.27,
 		_materials["orange_glow"]
 	)
+
+
+## HALYARD-DECK-001. The walkable apron that makes Fleet Dock 02 big enough for
+## the craft standing on it. See the `HALYARD_APRON_*` constants for the measured
+## geometry and for why this is the world's structure rather than the comb's.
+##
+## Three decks, all flush at y = 4.2 with `DockSlab02`, `Rung02` and the comb
+## trunk, none of them overlapping any of those:
+##
+##   `HalyardApronNose`         x 31.0 … 43.0, z 36.3 … 47.3   (12.0 x 11.0)
+##   `HalyardApronTailPort`     x 31.0 … 35.2, z 59.3 … 65.9   ( 4.2 x  6.6)
+##   `HalyardApronTailStarboard`x 38.8 … 43.0, z 59.3 … 65.9   ( 4.2 x  6.6)
+##
+## Together with the comb's own pieces that gives one unbroken 12 m wide deck
+## from z = 36.3 to the far side of the trunk at 70.7 — 34.4 m under a 28.35 m
+## craft, with 3.15 m of apron off the bow and 2.9 m off the tail, and a lane
+## down each flank that is 3.28 m wide beside the cabin walls. Every one of the
+## craft's four footprint corners now has structure under it.
+##
+## No rail is added. The Arrow's berth had to have one taken away — its
+## `BranchRail` fenced the only corridor shut — and a rail around this pad would
+## fence exactly the loop the report is asking for.
+##
+## Each deck is a `_box`, so it renders and collides from the same measurements:
+## the station sweep for standable collision with nothing drawn at it would catch
+## an invisible ledge here, and `FleetDockComb`'s "no collision on dressing" rule
+## is untouched because none of this is in that module.
+func _build_halyard_berth_apron(shell: Node3D) -> void:
+	var apron := Node3D.new()
+	apron.name = "HalyardBerthApron"
+	apron.set_meta("evidence_status", &"modern_interpretation")
+	apron.set_meta("serves_berth", HALYARD_FLEET_DOCK_BERTH_ID)
+	shell.add_child(apron)
+
+	var deck_centre_y := HALYARD_APRON_DECK_TOP - HALYARD_APRON_DECK_THICKNESS * 0.5
+	var pad_centre_x := (HALYARD_APRON_MIN_X + HALYARD_APRON_MAX_X) * 0.5
+	var pad_width := HALYARD_APRON_MAX_X - HALYARD_APRON_MIN_X
+	var nose_depth := FLEET_DOCK_SLAB_02_MIN_Z - HALYARD_APRON_NOSE_MIN_Z
+	_box(
+		apron,
+		"HalyardApronNose",
+		Vector3(pad_centre_x, deck_centre_y, HALYARD_APRON_NOSE_MIN_Z + nose_depth * 0.5),
+		Vector3(pad_width, HALYARD_APRON_DECK_THICKNESS, nose_depth),
+		_materials["deck"]
+	)
+
+	var tail_depth := HALYARD_APRON_TAIL_MAX_Z - FLEET_DOCK_SLAB_02_MAX_Z
+	var tail_centre_z := FLEET_DOCK_SLAB_02_MAX_Z + tail_depth * 0.5
+	var tail_wings := [
+		["HalyardApronTailPort", HALYARD_APRON_MIN_X, HALYARD_APRON_RUNG_MIN_X],
+		["HalyardApronTailStarboard", HALYARD_APRON_RUNG_MAX_X, HALYARD_APRON_MAX_X],
+	]
+	for wing in tail_wings:
+		var wing_min_x := float(wing[1])
+		var wing_max_x := float(wing[2])
+		_box(
+			apron,
+			str(wing[0]),
+			Vector3((wing_min_x + wing_max_x) * 0.5, deck_centre_y, tail_centre_z),
+			Vector3(wing_max_x - wing_min_x, HALYARD_APRON_DECK_THICKNESS, tail_depth),
+			_materials["deck"]
+		)
+
+	# Understructure, so the apron reads as carried rather than as plate hanging
+	# in space. Sections and seats are `FleetDockComb`'s own `SlabSupport` values
+	# (0.55 m square, 2.5 m tall, standing y = 1.20 … 3.70 so the head enters the
+	# 3.60 m deck underside by 0.10 m), because this deck is continuous with that
+	# module's and a different underframe two metres away would look like two
+	# stations. The chords take the same module's COMB-UNDERFRAME-001 rule — crown
+	# 0.06 m inside the plate it is bolted to — which is the measured rule written
+	# after every beam over there was found hanging clear of its own deck. Colours
+	# are this world's: keel steel-blue, strut orange, as `BranchKeel` and
+	# `BranchCrossBrace` already are. All of it visual only; an underframe a player
+	# can stand on is the invisible-ledge defect in a different costume.
+	var chord_centre_y := HALYARD_APRON_DECK_TOP - HALYARD_APRON_DECK_THICKNESS - 0.70 + 0.06
+	for chord_x in [pad_centre_x - 3.6, pad_centre_x + 3.6]:
+		_box(
+			apron,
+			"HalyardApronChord",
+			Vector3(float(chord_x), chord_centre_y, HALYARD_APRON_NOSE_MIN_Z + nose_depth * 0.5),
+			Vector3(0.55, 1.4, nose_depth - 0.4),
+			_materials["steel_blue"],
+			false
+		)
+	for chord_x in [(HALYARD_APRON_MIN_X + HALYARD_APRON_RUNG_MIN_X) * 0.5,
+			(HALYARD_APRON_RUNG_MAX_X + HALYARD_APRON_MAX_X) * 0.5]:
+		_box(
+			apron,
+			"HalyardApronChord",
+			Vector3(float(chord_x), chord_centre_y, tail_centre_z),
+			Vector3(0.55, 1.4, tail_depth - 0.4),
+			_materials["steel_blue"],
+			false
+		)
+	var strut_centre_y := HALYARD_APRON_DECK_TOP - HALYARD_APRON_DECK_THICKNESS + 0.10 - 1.25
+	var strut_specs := [
+		[pad_centre_x - 3.6, HALYARD_APRON_NOSE_MIN_Z + 2.6],
+		[pad_centre_x + 3.6, HALYARD_APRON_NOSE_MIN_Z + 2.6],
+		[pad_centre_x - 3.6, FLEET_DOCK_SLAB_02_MIN_Z - 2.6],
+		[pad_centre_x + 3.6, FLEET_DOCK_SLAB_02_MIN_Z - 2.6],
+		[(HALYARD_APRON_MIN_X + HALYARD_APRON_RUNG_MIN_X) * 0.5, tail_centre_z],
+		[(HALYARD_APRON_RUNG_MAX_X + HALYARD_APRON_MAX_X) * 0.5, tail_centre_z],
+	]
+	for strut in strut_specs:
+		_box(
+			apron,
+			"HalyardApronStrut",
+			Vector3(float(strut[0]), strut_centre_y, float(strut[1])),
+			Vector3(0.55, 2.5, 0.55),
+			_materials["orange"],
+			false
+		)
 
 
 func _build_landing_pad() -> void:

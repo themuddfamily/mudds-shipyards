@@ -93,9 +93,9 @@ assist_capture_maximum_speed = 22.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="HalyardFleetDockBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, -1.04, 0)
-cue_half_width = 5.4
-cue_half_length = 6.2
+position = Vector3(0, -1.21, 0)
+cue_half_width = 4.7
+cue_half_length = 11.3
 
 [node name="HabitatSpine" parent="." instance=ExtResource("4_habitat_spine")]
 position = Vector3(49, 0, 15.5)

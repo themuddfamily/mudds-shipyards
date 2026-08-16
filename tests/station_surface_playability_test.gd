@@ -18,6 +18,12 @@ const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/AftSpine",
 	"ExposedDockLattice/AftModuleConnector",
 	"ExposedDockLattice/FleetDockCombConnector/FleetDockCombConnectorDeck",
+	# HALYARD-DECK-001. Fleet Dock 02's berth apron. The comb's 12 x 12 m tooth is
+	# the middle of this pad, not the whole of it: the 28.35 m Halyard needs deck
+	# fore and aft of it, and a player needs a loop round the craft.
+	"ExposedDockLattice/HalyardBerthApron/HalyardApronNose",
+	"ExposedDockLattice/HalyardBerthApron/HalyardApronTailPort",
+	"ExposedDockLattice/HalyardBerthApron/HalyardApronTailStarboard",
 	"OpenLaunchSpine/LaunchArmDeck",
 	"UpperOperations/ObservationLanding",
 	"UpperOperations/OperationsPodFloor",
@@ -127,7 +133,7 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(freight, FREIGHT_SURFACE_PATHS) and every_surface_exact
 	if comb != null:
 		every_surface_exact = _surface_roster_matches(comb, COMB_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 42 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	_check(every_surface_exact, "all 45 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
