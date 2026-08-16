@@ -894,10 +894,11 @@ func _cylinder(parent: Node3D, node_name: String, position_value: Vector3, radiu
 	instance.rotation_degrees = rotation_degrees_value
 	# Chamfered rims at the opponent's frozen 28 radial segments. Inherited by
 	# `StandoffPicketOpponent`. Outer radius and overall height are unchanged and
-	# the encounter's collision bodies are authored separately.
+	# the encounter's collision bodies are authored separately. Wall subdivision:
+	# see `ShipSurfaceDetail.CYLINDER_WALL_RINGS`.
 	instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
 		radius, radius, height, 28, _chamfered_cylinder_cache,
-		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, true, true, material
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, material
 	)
 	parent.add_child(instance)
 	return instance
