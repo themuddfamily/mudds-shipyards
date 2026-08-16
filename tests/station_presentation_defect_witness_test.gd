@@ -52,6 +52,18 @@ const APPROACH_FACING_SIGNS := [
 		"HabitatSpine/Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED",
 		Vector3(-1.0, 0.0, 0.0),
 	],
+	# Aft operations content pass. The status board hangs on the room's south
+	# bulkhead and is read from inside the room, so its reader stands at +Z; the
+	# stair-head muster legend is read by someone who has just finished the climb
+	# and is standing south of the locker, so its reader stands at -Z.
+	[
+		"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ModuleStatusBoard/Sign_AFT_MODULE_STATUS",
+		Vector3(0.0, 0.0, 1.0),
+	],
+	[
+		"AftJunctionStack/Structure/UpperOpenDeck/StairHeadMuster/Sign_MUSTER_POINT",
+		Vector3(0.0, 0.0, -1.0),
+	],
 ]
 
 ## MAP-005. Decorative pieces that must rest on the surface they are placed against.
@@ -64,6 +76,20 @@ const SEATED_DECORATION_PATHS := [
 	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon02/Base",
 	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon03/Base",
 	"OperationalLattice/Activities/HabitatServicePatrol/PresentationRoot/SafetyBeacon04/Base",
+	# Every floor-standing piece the aft operations content pass added. These are
+	# the ones that must rest on *collision* rather than merely against drawn
+	# geometry, because each one is a solid a player walks into and each one stands
+	# on a deck that has a collider under it. The path is the body's `Mesh` child;
+	# `_drop_below` excludes the piece's own body, so the ray it fires is against
+	# the deck beneath and nothing else.
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/WatchRackBank/WatchRackFrame00/Mesh",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/WatchRackBank/WatchRackFrame01/Mesh",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/WatchRackBank/WatchRackFrame02/Mesh",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/TrafficPlotTable/PlotTableBase/Mesh",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/CoordinatorDesk/CoordinatorDeskBody/Mesh",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ChartPress/ChartPressBody/Mesh",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/RefreshmentStand/RefreshmentCounter/Mesh",
+	"AftJunctionStack/Structure/UpperOpenDeck/StairHeadMuster/MusterLockerBody/Mesh",
 ]
 const SEATED_DECORATION_TOLERANCE := 0.03
 
@@ -157,6 +183,33 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"CentralBerthServiceLine/DockMastFoot01/MastBaseFlange",
 	"CentralBerthServiceLine/DockMastFoot02/MastBaseFlange",
 	"CentralBerthServiceLine/DockMastFoot03/MastBaseFlange",
+	# Aft operations content pass: the pieces that are mounted on, hung off or
+	# stacked on something rather than standing on a deck. Together with the
+	# collision-backed roster above this is the whole of what that pass placed —
+	# every mug, tag, roll, sheet and headset in the room is required here to share
+	# volume with the surface it was put down on. Two were caught by this check
+	# during authoring: the lockout tag hung 0.005 m clear of its own chain and the
+	# notice sheets stood 0.002 m off the board they are pinned to.
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/WatchRackBank/RackLockoutTag",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/WatchRackBank/RackRemovedFascia",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ModuleStatusBoard/StatusBoardBody",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ModuleStatusBoard/StatusBoardField",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/TrafficPlotTable/PlotSweepArm/SweepHead",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/TrafficPlotTable/PlotDutyMug",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/TrafficPlotTable/PlotLogbookPages",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/TrafficPlotTable/PlotToken00",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/CoordinatorDesk/CoordinatorLampHead",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/CoordinatorDesk/DeskHeadsetBand",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/CoordinatorDesk/DutyLogLeaf",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ChartPress/NoticeSheet00",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ChartPress/Clipboard",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/ChartPress/ChartPressRoll03",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/RefreshmentStand/WaterUrn",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/RefreshmentStand/StowedMug00",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsContent/CrewTraces/ConsoleHeadsetBand",
+	"AftJunctionStack/Structure/OperationsRoom/OperationsChair04/StowedCoverall",
+	"AftJunctionStack/Structure/UpperOpenDeck/StairHeadMuster/MusterRouteBoard",
+	"AftJunctionStack/Structure/UpperOpenDeck/StairHeadMuster/MusterHoseReel",
 ]
 const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
 
@@ -245,7 +298,7 @@ func _test_seated_decorations_rest_on_their_surface(world: ShipyardWorld) -> voi
 	print("FLOATING_SEATED_DECORATIONS: ", floating)
 	_check(
 		floating.is_empty(),
-		"every roof-mounted safety beacon rests on the surface it is placed against"
+		"every roof-mounted safety beacon and floor-standing interior fitting rests on the surface it is placed against"
 	)
 
 
