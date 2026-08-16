@@ -5,6 +5,7 @@ const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_autho
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
+const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.gd")
 
 enum Phase {
 	INTRO,
@@ -216,12 +217,7 @@ var _last_lifecycle_command_sequence := -1
 ## Startup that a boot loader drives. Off by default and never latched by a
 ## detach, so a directly instantiated Main - every test, and every re-entry -
 ## builds synchronously in `_ready()` exactly as before.
-var _staged_startup := false
-var _staged_children: Array[Node] = []
-var _staged_child_owners: Dictionary = {}
-var _staged_done := 0.0
-var _staged_total := 1.0
-var _staged_sink := Callable()
+var _startup_stager: MainStartupStagerType
 
 
 func _enter_tree() -> void:
@@ -269,7 +265,7 @@ func _ready() -> void:
 	if _initialized:
 		_restore_runtime_bindings_after_reentry()
 		return
-	if _staged_startup:
+	if _startup_stager != null and _startup_stager.is_prepared():
 		# A boot loader holds the authored children and will call
 		# `run_staged_startup()` once they are all back in the tree.
 		return
@@ -300,27 +296,16 @@ func _resolve_scene_bindings() -> void:
 ## has run and nothing is torn down here. Returns false - changing nothing - if
 ## the caller is too late, so the synchronous path stays the safe default.
 func prepare_staged_startup() -> bool:
-	if is_inside_tree() or _initialized or _staged_startup:
-		return false
-	_staged_startup = true
-	for child in get_children():
-		_staged_child_owners[child] = child.owner
-		# Cleared only for the detached interval. Godot warns about a node whose
-		# owner is not one of its ancestors, and the owner is restored the moment
-		# the child is back under Main.
-		child.owner = null
-		remove_child(child)
-		_staged_children.append(child)
-		if child.has_method(&"prepare_staged_construction"):
-			child.call(&"prepare_staged_construction")
-	return true
+	return _get_startup_stager().prepare(_initialized)
 
 
 ## Longest a run of cheap children may hold the main loop before it yields. Six
 ## of the authored children cost a couple of milliseconds each, and a yield
 ## draws a whole frame, so they are batched; the heavy ones exceed the budget on
 ## their own and yield immediately after.
-const STAGED_STARTUP_FRAME_BUDGET_USEC := 24_000
+const STAGED_STARTUP_FRAME_BUDGET_USEC := (
+	MainStartupStagerType.STAGED_STARTUP_FRAME_BUDGET_USEC
+)
 
 
 ## Re-adds the authored children a frame at a time, letting any of them that owns
@@ -329,58 +314,19 @@ const STAGED_STARTUP_FRAME_BUDGET_USEC := 24_000
 ## `on_stage` is called as `on_stage.call(label: String, ratio: float)` where
 ## `ratio` is the fraction of real stages that have finished.
 func run_staged_startup(on_stage: Callable = Callable()) -> void:
-	if not _staged_startup or _initialized:
+	if _startup_stager == null:
 		return
-	var tree := get_tree()
-	var pending := _staged_children.duplicate()
-	# One unit per child, plus one for each staged builder stage a child declares,
-	# plus one for the gameplay startup tail. Counting real work is what keeps the
-	# bar from completing in a single jump.
-	_staged_total = float(pending.size() + 1)
-	for child in pending:
-		if child.has_method(&"get_staged_construction_stage_count"):
-			_staged_total += float(child.call(&"get_staged_construction_stage_count"))
-	_staged_done = 0.0
-	_staged_sink = on_stage
-	var budget_started := Time.get_ticks_usec()
-	for child in pending:
-		add_child(child)
-		if _staged_child_owners.has(child):
-			child.owner = _staged_child_owners[child] as Node
-		_advance_staged_stage(_staged_stage_label(child))
-		if Time.get_ticks_usec() - budget_started >= STAGED_STARTUP_FRAME_BUDGET_USEC:
-			await tree.process_frame
-			budget_started = Time.get_ticks_usec()
-		if child.has_method(&"run_staged_construction"):
-			# A bound method, not a lambda: GDScript lambdas capture locals by
-			# value, so a counter incremented inside one never advances.
-			await child.call(&"run_staged_construction", _advance_staged_stage)
-			budget_started = Time.get_ticks_usec()
-	_staged_children.clear()
-	_staged_child_owners.clear()
-	_staged_startup = false
-	_resolve_scene_bindings()
-	_staged_done = _staged_total
-	_advance_staged_stage("Bringing systems online")
-	_staged_sink = Callable()
-	_start_up()
+	await _startup_stager.run(_initialized, on_stage)
 
 
-## Counts one finished stage and reports the new fraction to the loader.
-func _advance_staged_stage(label: String) -> void:
-	_staged_done = minf(_staged_done + 1.0, _staged_total)
-	if _staged_sink.is_valid():
-		_staged_sink.call(label, clampf(_staged_done / maxf(_staged_total, 1.0), 0.0, 1.0))
-
-
-func _staged_stage_label(child: Node) -> String:
-	if child is HeroShip or child is RangeOpponent:
-		return "Preparing %s" % String(child.name).capitalize()
-	if child.name == &"ShipyardWorld":
-		return "Raising the shipyard"
-	if child.name == &"Player":
-		return "Waking the pilot"
-	return "Preparing %s" % String(child.name).capitalize()
+func _get_startup_stager() -> MainStartupStagerType:
+	if _startup_stager == null:
+		_startup_stager = MainStartupStagerType.new(
+			self,
+			Callable(self, &"_resolve_scene_bindings"),
+			Callable(self, &"_start_up")
+		)
+	return _startup_stager
 
 
 ## The one-time gameplay startup. Identical on both construction paths; the only
