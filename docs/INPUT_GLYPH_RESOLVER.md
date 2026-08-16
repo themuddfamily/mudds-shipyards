@@ -69,7 +69,17 @@ fingerprint is a presentation audit aid, not a profile identity or save format.
 
 ## Integration limits
 
-This slice intentionally provides no images, font glyphs, HUD wiring, remapping
-UI, automatic device discovery, or localization catalogue. A later UI consumer
-may map semantic tokens to available artwork and should always retain `text` as
-the accessible fallback.
+The runtime HUD consumes resolver text for its help card and binding editor. Its
+raw `_input` observer does not consume events, so Control-handled focus
+navigation is still visible to presentation: accepted keyboard and mouse button
+activity selects desktop prompts, while controller activity selects the generic
+gamepad family because no vendor metadata is available at that seam.
+Bound joy-axis activity must exceed the owning action's profile deadzone;
+releases, key echo, deadzone noise, and unbound directions are presentation
+inert. Profile replacement and reset refresh visible prompts without changing
+the resolver's device preference or the remapping service's authority.
+
+The resolver itself still provides no images, font glyphs, remapping UI,
+automatic device discovery, or localization catalogue. A UI consumer may map
+semantic tokens to available artwork and should always retain `text` as the
+accessible fallback.

@@ -96,6 +96,7 @@ func _run() -> void:
 	_check((value_labels[&"ship_mouse_sensitivity"] as Label).text == "200%", "sensitivity is presented as a friendly relative percentage")
 	_check((value_labels[&"camera_fov"] as Label).text == "88°", "field of view is presented in degrees")
 	_check((value_labels[&"master_volume"] as Label).text == "55%", "volume is presented as a friendly percentage")
+	_test_input_prompt_family_switching(hud)
 
 	(controls[&"camera_fov"] as HSlider).value = 91.0
 	_check(_change_events.size() == 1, "a player slider edit emits exactly one live change request")
@@ -226,6 +227,25 @@ func _test_input_binding_editor(hud: GameHUD, settings_owner: RuntimeSettings) -
 		and scroll.get_global_rect().intersects(last_binding_button.get_global_rect()),
 		"the final binding row remains controller-reachable through focus scrolling at 1280 by 720"
 	)
+	var focus_before_navigation := root.gui_get_focus_owner()
+	var controller_focus := InputEventJoypadButton.new()
+	controller_focus.button_index = JOY_BUTTON_DPAD_RIGHT
+	controller_focus.pressed = true
+	root.push_input(controller_focus)
+	await process_frame
+	var focus_after_navigation := root.gui_get_focus_owner()
+	_check(
+		focus_before_navigation == last_binding_button
+		and focus_after_navigation != null
+		and focus_after_navigation != focus_before_navigation
+		and hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_GAMEPAD_GENERIC,
+		"a handled UI gamepad-navigation event reaches raw observation, switches prompts, and advances controller focus"
+	)
+	var restore_keyboard := InputEventKey.new()
+	restore_keyboard.physical_keycode = KEY_F
+	restore_keyboard.pressed = true
+	root.push_input(restore_keyboard)
 	_check(
 		GameFlow.RUNTIME_SETTING_KEYS.has(&"input_binding_profile"),
 		"GameFlow accepts the validated input profile emitted by the real HUD"
@@ -409,12 +429,95 @@ func _test_recreated_hud_uses_project_defaults(settings_owner: RuntimeSettings) 
 		),
 		"Reset All on the recreated HUD restores the original project profile, not the live custom map"
 	)
+	_check(
+		second_hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_KEYBOARD,
+		"a recreated HUD starts from deterministic keyboard prompts and resets do not inherit stale device state"
+	)
 
 	second_hud.setting_change_requested.disconnect(reentered_flow._on_setting_change_requested)
 	settings_owner.setting_changed.disconnect(reentered_flow._on_runtime_setting_changed)
 	reentered_flow.free()
 	second_hud.queue_free()
 	await process_frame
+
+
+func _test_input_prompt_family_switching(hud: GameHUD) -> void:
+	var buttons := hud.get("_binding_buttons") as Dictionary
+	var fire := buttons[&"fire"] as Button
+	_check(
+		hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_KEYBOARD
+		and fire.text == "F",
+		"HUD begins with the resolver's deterministic physical-keyboard binding text"
+	)
+
+	var release := InputEventJoypadButton.new()
+	release.button_index = JOY_BUTTON_DPAD_RIGHT
+	release.pressed = false
+	root.push_input(release)
+	var echo := InputEventKey.new()
+	echo.physical_keycode = KEY_G
+	echo.pressed = true
+	echo.echo = true
+	root.push_input(echo)
+	var noise := InputEventJoypadMotion.new()
+	noise.axis = JOY_AXIS_LEFT_X
+	noise.axis_value = 0.18
+	root.push_input(noise)
+	var unbound_axis := InputEventJoypadMotion.new()
+	unbound_axis.axis = JOY_AXIS_TRIGGER_LEFT
+	unbound_axis.axis_value = -1.0
+	root.push_input(unbound_axis)
+	_check(
+		hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_KEYBOARD
+		and fire.text == "F",
+		"released buttons, key echo, at-deadzone motion, and unbound axes cannot switch prompt family"
+	)
+
+	var controller := InputEventJoypadButton.new()
+	controller.button_index = JOY_BUTTON_DPAD_RIGHT
+	controller.pressed = true
+	root.push_input(controller)
+	var controller_rows := hud._help_rows_for_mode(GameHUD.MODE_ON_FOOT) as Array
+	_check(
+		hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_GAMEPAD_GENERIC
+		and fire.text == "Right Trigger"
+		and _prompt_for_detail(controller_rows, "INTERACT / BOARD") == "Left Face Button"
+		and _prompt_for_detail(controller_rows, "CONTROLS") == "Back",
+		"accepted controller activity selects generic accessible gamepad text in settings and help prompts"
+	)
+
+	var mouse := InputEventMouseButton.new()
+	mouse.button_index = MOUSE_BUTTON_LEFT
+	mouse.pressed = true
+	root.push_input(mouse)
+	_check(
+		hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_MOUSE
+		and fire.text == "Left Mouse",
+		"accepted mouse activity selects the desktop mouse binding when one exists"
+	)
+	var keyboard := InputEventKey.new()
+	keyboard.physical_keycode = KEY_F
+	keyboard.pressed = true
+	root.push_input(keyboard)
+	_check(
+		hud.get_input_binding_report().preferred_device_family
+		== InputGlyphResolver.FAMILY_KEYBOARD
+		and fire.text == "F"
+		and _prompt_for_detail(hud._help_rows_for_mode(GameHUD.MODE_ON_FOOT), "INTERACT / BOARD") == "E",
+		"accepted keyboard activity restores physical-key desktop text throughout the HUD"
+	)
+
+
+func _prompt_for_detail(rows: Array, detail: String) -> String:
+	for row: Array in rows:
+		if str(row[1]) == detail:
+			return str(row[0])
+	return ""
 
 
 func _test_product_branding(hud: GameHUD) -> void:

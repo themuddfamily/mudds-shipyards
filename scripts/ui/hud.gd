@@ -5,6 +5,7 @@ const FlightPathCueType := preload("res://scripts/ui/flight_path_cue.gd")
 const PaletteType := preload("res://scripts/ui/hud_palette.gd")
 const InputBindingProfileType := preload("res://scripts/settings/input_binding_profile.gd")
 const InputRebindServiceType := preload("res://scripts/settings/input_rebind_service.gd")
+const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
 
 signal start_requested
 signal restart_requested
@@ -155,6 +156,7 @@ var _updating_settings := false
 var _input_rebind_service: InputRebindService
 var _input_binding_profile: InputBindingProfile
 var _input_binding_defaults: InputBindingProfile
+var _input_glyph_resolver: InputGlyphResolver
 var _binding_rows: Dictionary = {}
 var _binding_buttons: Dictionary = {}
 var _binding_reset_buttons: Dictionary = {}
@@ -247,7 +249,9 @@ func _ready() -> void:
 	_input_rebind_service = InputRebindServiceType.new()
 	_input_binding_defaults = _input_rebind_service.get_defaults()
 	_input_binding_profile = _input_binding_defaults.duplicate_profile()
+	_input_glyph_resolver = InputGlyphResolverType.new()
 	_build_interface()
+	set_process_input(true)
 	set_process_unhandled_input(true)
 	set_process(true)
 	var viewport := get_viewport()
@@ -261,6 +265,10 @@ func _process(delta: float) -> void:
 	_caption_hold = maxf(_caption_hold - delta, 0.0)
 	if _caption_hold <= 0.0:
 		_clear_captions()
+
+
+func _input(event: InputEvent) -> void:
+	_observe_prompt_device(event)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -359,40 +367,98 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 	match mode:
 		MODE_PILOTING:
 			return [
-				["W / S", "FORWARD / REVERSE  //  AUTO POWER"],
-				["MOUSE", "STEER"], ["UP / DOWN", "PITCH"], ["A / D", "YAW"],
-				["Q / R", "ROLL"], ["F / LMB", "FIRE"],
-				["SHIFT / CTRL/RMB", "BOOST / BRAKE"], ["V / WHEEL", "VIEW / DISTANCE"],
-				["H / G", "HOVER / BARREL ROLL"], ["L", "LANDING ASSIST"],
-				["E", "LEAVE SEAT: AUTO-OFFLINE"],
-				["F1 / BACK", "CONTROLS"],
-				["GAMEPAD", "STICKS FLY / TRIGGERS + FACE"]
+				[_action_prompts([&"move_forward", &"move_back"]), "FORWARD / REVERSE  //  AUTO POWER"],
+				[_look_prompt(), "STEER"],
+				[_action_prompts([&"pitch_up", &"pitch_down"]), "PITCH"],
+				[_action_prompts([&"move_left", &"move_right"]), "YAW"],
+				[_action_prompts([&"roll_left", &"roll_right"]), "ROLL"],
+				[_action_prompts([&"fire"]), "FIRE"],
+				[_action_prompts([&"sprint_boost", &"brake"]), "BOOST / BRAKE"],
+				[_view_distance_prompts(), "VIEW / DISTANCE"],
+				[_action_prompts([&"hover", &"barrel_roll"]), "HOVER / BARREL ROLL"],
+				[_action_prompts([&"landing_assist"]), "LANDING ASSIST"],
+				[_action_prompts([&"interact"]), "LEAVE SEAT: AUTO-OFFLINE"],
+				[_action_prompts([&"toggle_controls_overlay"]), "CONTROLS"],
 			]
 		MODE_DRIVING:
 			# The tractor brakes on `brake` *or* `jump`, steers on A/D, and hands
 			# the seat back on `interact` only once it has come to a stop.
 			return [
-				["W / S", "DRIVE / REVERSE"], ["A / D", "STEER"],
-				["SPACE / CTRL", "BRAKE"], ["MOUSE", "LOOK"],
-				["E", "HOP OUT: STOPPED"],
-				["F1 / BACK", "CONTROLS"]
+				[_action_prompts([&"move_forward", &"move_back"]), "DRIVE / REVERSE"],
+				[_action_prompts([&"move_left", &"move_right"]), "STEER"],
+				[_action_prompts([&"jump", &"brake"]), "BRAKE"],
+				[_look_prompt(), "LOOK"],
+				[_action_prompts([&"interact"]), "HOP OUT: STOPPED"],
+				[_action_prompts([&"toggle_controls_overlay"]), "CONTROLS"],
 			]
 		MODE_ABOARD:
 			# Inside a craft under way there is nothing to board and nowhere to
 			# walk off to; the only thing `E` does here is sit back down.
 			return [
-				["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
-				["SPACE", "JUMP"], ["E", "TAKE THE PILOT SEAT"],
-				["C / DPAD-R", "1ST / 3RD PERSON"],
-				["F1 / BACK", "CONTROLS"]
+				[_action_prompts([&"move_forward", &"move_back", &"move_left", &"move_right"]), "MOVE"],
+				[_look_prompt(), "LOOK"],
+				[_action_prompts([&"sprint_boost"]), "SPRINT"],
+				[_action_prompts([&"jump"]), "JUMP"],
+				[_action_prompts([&"interact"]), "TAKE THE PILOT SEAT"],
+				[_action_prompts([&"toggle_first_person"]), "1ST / 3RD PERSON"],
+				[_action_prompts([&"toggle_controls_overlay"]), "CONTROLS"],
 			]
 		_:
 			return [
-				["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
-				["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
-				["C / DPAD-R", "1ST / 3RD PERSON"],
-				["F1 / BACK", "CONTROLS"]
+				[_action_prompts([&"move_forward", &"move_back", &"move_left", &"move_right"]), "MOVE"],
+				[_look_prompt(), "LOOK"],
+				[_action_prompts([&"sprint_boost"]), "SPRINT"],
+				[_action_prompts([&"jump"]), "JUMP"],
+				[_action_prompts([&"interact"]), "INTERACT / BOARD"],
+				[_action_prompts([&"toggle_first_person"]), "1ST / 3RD PERSON"],
+				[_action_prompts([&"toggle_controls_overlay"]), "CONTROLS"],
 			]
+
+
+func _action_prompts(actions: Array[StringName]) -> String:
+	var parts := PackedStringArray()
+	var shared_stick := ""
+	for action in actions:
+		var resolved := _input_glyph_resolver.resolve_action(_input_binding_profile, action)
+		if bool(resolved.get("valid", false)):
+			var text := str(resolved.get("text", "Unbound Input"))
+			if text not in parts:
+				parts.append(text)
+			var token := str(resolved.get("glyph_token", ""))
+			var stick := ""
+			if token.contains(".left_stick."):
+				stick = "Left Stick"
+			elif token.contains(".right_stick."):
+				stick = "Right Stick"
+			if shared_stick.is_empty():
+				shared_stick = stick
+			elif shared_stick != stick:
+				shared_stick = "mixed"
+	if not parts.is_empty() and not shared_stick.is_empty() and shared_stick != "mixed":
+		return shared_stick
+	return "Unbound Input" if parts.is_empty() else " / ".join(parts)
+
+
+func _look_prompt() -> String:
+	return (
+		"Right Stick"
+		if InputGlyphResolverType.GAMEPAD_FAMILIES.has(
+			_input_glyph_resolver.get_preferred_device_family()
+		)
+		else "Mouse"
+	)
+
+
+func _view_distance_prompts() -> String:
+	var view := _action_prompts([&"toggle_ship_camera_view"])
+	var distance := (
+		_action_prompts([&"camera_distance_out"])
+		if InputGlyphResolverType.GAMEPAD_FAMILIES.has(
+			_input_glyph_resolver.get_preferred_device_family()
+		)
+		else "Mouse Wheel"
+	)
+	return "%s / %s" % [view, distance]
 
 
 ## The embodiment the HUD is currently presenting. Exposed so a regression can
@@ -648,7 +714,7 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			and _input_rebind_service.is_profile_compatible_with_defaults(parsed_profile)
 		):
 			_input_binding_profile = parsed_profile.duplicate_profile()
-			_refresh_all_binding_rows()
+			_refresh_input_prompts()
 	for raw_key: Variant in snapshot:
 		var key := StringName(str(raw_key))
 		if not _settings_controls.has(key):
@@ -683,7 +749,7 @@ func set_input_binding_defaults(defaults: InputBindingProfile) -> bool:
 		or not _input_rebind_service.is_profile_compatible_with_defaults(_input_binding_profile)
 	):
 		_input_binding_profile = _input_binding_defaults.duplicate_profile()
-	_refresh_all_binding_rows()
+	_refresh_input_prompts()
 	return true
 
 
@@ -1855,12 +1921,64 @@ func _commit_input_binding_profile(profile: InputBindingProfile, status: String)
 		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
 		return
 	_input_binding_profile = profile.duplicate_profile()
-	_refresh_all_binding_rows()
+	_refresh_input_prompts()
 	set_settings_status(status, true)
 	setting_change_requested.emit(
 		&"input_binding_profile",
 		_input_binding_profile.duplicate_profile()
 	)
+
+
+## Observes presentation preference only. This deliberately does not mark the
+## event handled: gameplay and menu focus retain their existing input authority.
+## A joy axis must match a stored direction and cross that action's own deadzone
+## before it can replace keyboard/mouse prompts.
+func _observe_prompt_device(event: InputEvent) -> void:
+	if _input_glyph_resolver == null or _input_binding_profile == null:
+		return
+	var previous := _input_glyph_resolver.get_preferred_device_family()
+	var observed := false
+	if event is InputEventJoypadMotion:
+		var motion := event as InputEventJoypadMotion
+		var deadzone := _matching_axis_deadzone(motion)
+		if deadzone < 0.0:
+			return
+		if absf(motion.axis_value) <= deadzone or is_equal_approx(absf(motion.axis_value), deadzone):
+			return
+		observed = _input_glyph_resolver.observe_input_event(event, deadzone)
+	else:
+		observed = _input_glyph_resolver.observe_input_event(event)
+	if (
+		observed
+		and previous != _input_glyph_resolver.get_preferred_device_family()
+	):
+		_refresh_input_prompts()
+
+
+func _matching_axis_deadzone(event: InputEventJoypadMotion) -> float:
+	if is_zero_approx(event.axis_value):
+		return -1.0
+	var matched_deadzone := 1.0
+	var matched := false
+	for action: StringName in _input_binding_profile.bindings:
+		for binding: Dictionary in _input_binding_profile.get_bindings(action):
+			if (
+				StringName(binding.get("type", &"")) == &"joy_motion"
+				and int(binding.get("axis", -1)) == event.axis
+				and signf(float(binding.get("axis_value", 0.0))) == signf(event.axis_value)
+			):
+				matched = true
+				matched_deadzone = minf(
+					matched_deadzone,
+					float(_input_binding_profile.get_action_options(action).get("deadzone", 0.18))
+				)
+	return clampf(matched_deadzone, 0.0, 1.0) if matched else -1.0
+
+
+func _refresh_input_prompts() -> void:
+	_refresh_all_binding_rows()
+	if is_instance_valid(_help_panel):
+		_set_help_text(_help_rows_for_mode(_state_mode))
 
 
 func _refresh_all_binding_rows() -> void:
@@ -1876,35 +1994,20 @@ func _refresh_all_binding_rows() -> void:
 
 
 func _action_bindings_text(action: StringName) -> String:
-	var parts := PackedStringArray()
-	for binding: Dictionary in _input_binding_profile.get_bindings(action):
-		parts.append(_binding_text(binding))
-	return "UNBOUND  //  SELECT TO ADD" if parts.is_empty() else "  /  ".join(parts)
+	var resolved := _input_glyph_resolver.resolve_action(_input_binding_profile, action)
+	return (
+		str(resolved.get("text", "Unbound Input"))
+		if bool(resolved.get("valid", false))
+		else "UNBOUND  //  SELECT TO ADD"
+	)
 
 
 func _binding_text(binding: Dictionary) -> String:
-	match StringName(binding.get("type", &"")):
-		&"key":
-			var key_name := OS.get_keycode_string(int(binding.get("physical_keycode", 0)))
-			return key_name if not key_name.is_empty() else "Key %d" % int(binding.get("physical_keycode", 0))
-		&"mouse_button":
-			match int(binding.get("button_index", 0)):
-				MOUSE_BUTTON_LEFT: return "Mouse Left"
-				MOUSE_BUTTON_RIGHT: return "Mouse Right"
-				MOUSE_BUTTON_MIDDLE: return "Mouse Middle"
-				MOUSE_BUTTON_WHEEL_UP: return "Wheel Up"
-				MOUSE_BUTTON_WHEEL_DOWN: return "Wheel Down"
-			return "Mouse %d" % int(binding.get("button_index", 0))
-		&"joy_button":
-			var button_index := int(binding.get("button_index", -1))
-			return "Pad Button %d" % button_index
-		&"joy_motion":
-			var axis := int(binding.get("axis", -1))
-			return "Pad Axis %d %s" % [
-				axis,
-				"+" if float(binding.get("axis_value", 0.0)) > 0.0 else "-",
-			]
-	return "Unknown"
+	var resolved := _input_glyph_resolver.resolve_binding(
+		binding,
+		_input_glyph_resolver.get_preferred_device_family()
+	)
+	return str(resolved.get("text", "Unbound Input"))
 
 
 func _input_action_label(action: StringName) -> String:
@@ -1933,6 +2036,7 @@ func get_input_binding_report() -> Dictionary:
 		"bindings": bindings,
 		"capturing_action": _binding_capture_action,
 		"has_pending_conflict": not _pending_binding_conflict.is_empty(),
+		"preferred_device_family": _input_glyph_resolver.get_preferred_device_family(),
 	}
 
 
@@ -2078,14 +2182,23 @@ func _set_help_text(rows: Array) -> void:
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 7)
 	margin.add_child(stack)
-	var heading := _label("CONTROLS  //  F1 / BACK", 11, CAUTION)
+	var heading := _label(
+		"CONTROLS  //  %s" % _action_prompts([&"toggle_controls_overlay"]),
+		11,
+		CAUTION
+	)
 	stack.add_child(heading)
 	for row: Array in rows:
 		var line := HBoxContainer.new()
 		var key := _label(str(row[0]), 11, NOMINAL_SOFT)
 		key.custom_minimum_size.x = 92.0
+		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		key.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.add_child(key)
-		line.add_child(_label(str(row[1]), 10, MUTED))
+		var detail := _label(str(row[1]), 10, MUTED)
+		detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.add_child(detail)
 		stack.add_child(line)
 	_set_mouse_passthrough(_help_panel)
 
