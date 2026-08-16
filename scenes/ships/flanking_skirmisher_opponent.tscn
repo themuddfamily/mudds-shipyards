@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/flanking_skirmisher_opponent.gd" id="1_skirmisher"]
+
+[node name="WingSkirmisher" type="CharacterBody3D"]
+collision_layer = 0
+collision_mask = 0
+motion_mode = 1
+floor_stop_on_slope = false
+script = ExtResource("1_skirmisher")
+maximum_health = 38.0
+cruise_speed = 46.0
+chase_speed = 74.0
+acceleration = 42.0
+turn_speed_degrees = 132.0
+preferred_range = 40.0
+retreat_range = 18.0
+engagement_range = 120.0
+telegraph_time = 0.28
+weapon_cooldown = 0.85
+source_id = 2103
+weapon_range = 150.0
+weapon_damage = 6.0
+anchor_station_range = 40.0
+flank_station_range = 34.0
