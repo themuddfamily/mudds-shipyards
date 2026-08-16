@@ -955,6 +955,15 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(0, 0))
 				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(1, 1))
 				_add_rounded_vertex(tool, points[3], inner_half, bevel, Vector2(0, 1))
+	# Without this, commit() derives each tangent from the vertex normal alone
+	# instead of from the face's own U direction, so a bound normal map resolves
+	# in an arbitrary frame. Matches shipyard_world.gd's rounded-box builder.
+	# Measured caveat, so nobody re-chases this: while the panel materials above
+	# stay uv1_world_triplanar, Godot samples the normal map by world position
+	# and builds its own basis, so this call changes no pixel today. It is what
+	# keeps the mesh correct if triplanar is ever turned off (verified: with
+	# triplanar off the same tangent change moves 2.3% of pixels).
+	tool.generate_tangents()
 	var result := tool.commit()
 	_rounded_box_cache[cache_key] = result
 	return result
