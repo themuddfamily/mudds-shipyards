@@ -588,18 +588,16 @@ func _wait_for_engine_state(ship: HeroShip, expected: String, timeout: float) ->
 	)
 
 
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
+## Waits for `predicate` on a finite simulation-frame budget.
 ##
 ## Every condition this suite waits on — phase transitions, landing, engine
 ## spin-down, the physical exit handoff — is produced by `GameFlow`, `HeroShip`
 ## or `PlayerController` from a frame callback. Under load Godot drops physics
 ## steps rather than letting the simulation spiral while the wall clock keeps
-## running, so a `Time.get_ticks_msec()`-only deadline ends the wait after far
-## fewer simulated steps than the manoeuvre needs and scores a perfectly healthy
-## sortie as a failure. `timeout` is kept as the *nominal* duration and becomes
-## both a frame budget and a wall-clock deadline; both stay finite, so a
-## genuinely stuck sortie still fails the suite. `physics_frame` is awaited
+## running, so a wall-clock deadline ends the wait after far fewer simulated
+## steps than the manoeuvre needs and scores a perfectly healthy sortie as a
+## failure. `timeout` is kept as the nominal simulated duration and becomes a
+## finite frame budget, so a genuinely stuck sortie still fails. `physics_frame` is awaited
 ## alongside `process_frame` because the motion these phases depend on is
 ## integrated in `_physics_process`.
 func _wait_until(predicate: Callable, timeout: float) -> bool:
@@ -607,15 +605,12 @@ func _wait_until(predicate: Callable, timeout: float) -> bool:
 		int(ceil(maxf(timeout, 0.0) * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline_msec := Time.get_ticks_msec() + int(ceil(maxf(timeout, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline_msec:
-			return false
+	for _frame in frame_budget:
+		if bool(predicate.call()):
+			return true
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return bool(predicate.call())
 
 
 ## Spends the stale-continuation window in simulated frames, closing early once
@@ -642,13 +637,10 @@ func _settle_stale_continuations(ship: HeroShip, hud: GameHUD) -> Dictionary:
 		int(ceil(STALE_CONTINUATION_SETTLE_SECONDS * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline_msec := (
-		Time.get_ticks_msec() + int(ceil(STALE_CONTINUATION_SETTLE_SECONDS * 1000.0))
-	)
 	var frames := 0
 	var frames_while_destroyed := 0
 	var toast_serial := int(hud.get("_toast_serial"))
-	while frames < frame_budget or Time.get_ticks_msec() < deadline_msec:
+	while frames < frame_budget:
 		if not ship.is_destroyed():
 			break
 		# Sampled only on frames where the craft is still destroyed, so the serial

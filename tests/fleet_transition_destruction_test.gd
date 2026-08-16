@@ -14,8 +14,7 @@ const PROBE_SETTLE_SECONDS := 0.12
 
 ## Nominal simulated seconds every stale canopy/boarding/disembark continuation
 ## queued before a destruction is given to run. The assertion after it is a
-## negative one, so this settle deliberately spends both its frame budget and its
-## wall-clock deadline in full rather than returning at the first to expire.
+## negative one, so this settle deliberately spends its frame budget in full.
 const STALE_CONTINUATION_SETTLE_SECONDS := 1.1
 
 var _failures: Array[String] = []
@@ -198,32 +197,27 @@ func _wait_for_phase(game: GameFlow, expected: GameFlow.Phase, timeout: float) -
 	return await _wait_until(func() -> bool: return game.phase == expected, timeout)
 
 
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
+## Waits for `predicate` on a finite simulation-frame budget.
 ##
 ## Canopy, boarding and disembarking motion, the destruction recovery that
 ## interrupts them, and the regeneration that follows are all advanced by
 ## `GameFlow` from its frame callbacks, while regeneration is released against a
 ## monotonic deadline. Under load Godot drops physics steps rather than letting
 ## the simulation spiral while the wall clock keeps running, so a
-## `Time.get_ticks_msec()`-only deadline abandons a transition that is still
-## progressing perfectly well. `timeout` is kept as the *nominal* duration and
-## becomes both a frame budget and a wall-clock deadline; both stay finite, so a
-## genuinely stuck transition still fails the suite.
+## wall-clock deadline abandons a transition that is still progressing perfectly
+## well. `timeout` is kept as the nominal simulated duration and becomes a finite
+## frame budget, so a genuinely stuck transition still fails the suite.
 func _wait_until(predicate: Callable, timeout: float) -> bool:
 	var frame_budget := (
 		int(ceil(maxf(timeout, 0.0) * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline_msec := Time.get_ticks_msec() + int(ceil(maxf(timeout, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline_msec:
-			return false
+	for _frame in frame_budget:
+		if bool(predicate.call()):
+			return true
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return bool(predicate.call())
 
 
 ## Waits for the on-foot recovery the destruction is expected to produce, and
@@ -248,9 +242,8 @@ func _wait_for_on_foot_recovery(fixture: Dictionary, seconds: float) -> bool:
 
 ## Spends `duration` of *both* simulated frames and wall clock without waiting on
 ## any condition, for the negative assertions that need every stale continuation
-## to have had its chance to run. A `SceneTree` timer measures neither clock: it
-## counts Godot's smoothed engine delta, which was observed running both ahead of
-## and behind the monotonic clock on a busy box.
+## to have had its chance to run. A `SceneTree` timer measures smoothed engine
+## delta rather than the simulation steps that resume those continuations.
 func _wait_seconds(duration: float) -> void:
 	await _wait_until(func() -> bool: return false, duration)
 

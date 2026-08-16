@@ -476,37 +476,23 @@ func _wait_for_ship_recovery(ship: HeroShip, timeout_seconds: float) -> bool:
 	)
 
 
-## Waits for `predicate` on both the simulation clock and the monotonic clock,
-## giving up only once both budgets are spent.
+## Waits for `predicate` on a finite simulation-frame budget.
 ##
-## Godot runs three clocks here: the monotonic clock behind
-## `Time.get_ticks_msec()`, the smoothed engine delta behind `SceneTree` timers,
-## and the physics clock, whose steps the engine drops on a busy machine rather
-## than letting the simulation spiral. Everything this suite waits on belongs to
-## the first or third — phase transitions, engine spin-up and hull regeneration
-## are advanced by the engine loops or released against a monotonic deadline —
-## and a wall-clock-only deadline abandons a condition that is still progressing
-## perfectly well, which is a false failure rather than a defect.
-##
-## `timeout_seconds` is kept as the *nominal* duration and becomes both a budget
-## of simulated frames and a wall-clock deadline. Both bounds stay finite, so a
-## genuinely stuck condition still fails the suite. Both loops are advanced each
-## iteration because some conditions settle in `_physics_process` and others in
-## `_process`.
+## `timeout_seconds` is kept as the nominal simulated duration and converted to
+## frames. Both loops advance because some conditions settle in
+## `_physics_process` and others in `_process`; a stuck condition still fails
+## once the finite frame budget is exhausted.
 func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 	var frame_budget := (
 		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
 		+ FRAME_BUDGET_GRACE
 	)
-	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
-	var frames := 0
-	while not bool(predicate.call()):
-		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
-			return false
+	for _frame in frame_budget:
+		if bool(predicate.call()):
+			return true
 		await physics_frame
 		await process_frame
-		frames += 1
-	return true
+	return bool(predicate.call())
 
 
 func _clean_up(game: Node) -> void:
