@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
 	_test_handling_infrastructure(module)
+	_test_recessed_lashing_ring_profile(module)
 	_test_nothing_drawn_floats(module)
 	await _test_handling_fixtures_are_solid(module)
 	_test_collision_contract(module)
@@ -465,6 +466,184 @@ func _test_handling_infrastructure(module: JovianFreightBerth) -> void:
 		not module.get_typed_audit_report().handling_fixture_classes.has("mutation"),
 		"typed handling roster is detached"
 	)
+
+
+func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
+	var rings: Array[MeshInstance3D] = []
+	for candidate in module.find_children("*", "MeshInstance3D", true, false):
+		var instance := candidate as MeshInstance3D
+		if StringName(instance.get_meta(
+			JovianFreightBerth.LASHING_RING_FAMILY_META, &""
+		)) == JovianFreightBerth.LASHING_RING_FAMILY_ID:
+			rings.append(instance)
+	_check(
+		rings.size() == JovianFreightBerth.LASHING_RING_COPY_COUNT,
+		"the explicit family tag selects exactly eight recessed freight lashing rings"
+	)
+	var expected: Dictionary = {}
+	var expected_names := PackedStringArray()
+	var expected_paths := PackedStringArray()
+	for side in [-1.0, 1.0]:
+		var side_tag := "Port" if side < 0.0 else "Starboard"
+		for index in 4:
+			var ring_name := "LashingRing%s%02d" % [side_tag, index + 1]
+			var ring_path := "HandlingZones/%s" % ring_name
+			expected_names.append(ring_name)
+			expected_paths.append(ring_path)
+			expected[ring_name] = {
+				"path": ring_path,
+				"transform": Transform3D(
+					Basis.IDENTITY,
+					Vector3(side * 10.6, 0.075, 16.0 + float(index) * 8.0)
+				),
+			}
+	expected_names.sort()
+	expected_paths.sort()
+	var observed_names := PackedStringArray()
+	var observed_paths := PackedStringArray()
+	var snapshots: Dictionary = {}
+	var resource_ids: Dictionary = {}
+	var baseline_triangles := 0
+	for ring in rings:
+		observed_names.append(str(ring.name))
+		observed_paths.append(str(module.get_path_to(ring)))
+		var mesh := ring.mesh as TorusMesh
+		if mesh == null:
+			continue
+		var baseline := mesh.duplicate() as TorusMesh
+		TorusGeometryBudget.apply(baseline, 1.0)
+		baseline_triangles += TorusGeometryBudget.triangles_of(baseline)
+		resource_ids[mesh.get_instance_id()] = true
+		snapshots[ring.get_instance_id()] = {
+			"transform": ring.transform,
+			"material": ring.material_override,
+			"aabb": mesh.get_aabb(),
+			"mesh_id": mesh.get_instance_id(),
+		}
+	var renderer_before := _renderer_census(module)
+	var collision_before := module.get_collision_contract()
+	var authority_before := module.get_authority_contract()
+	var report := TorusGeometryBudget.normalise_tree(module)
+	var exact := rings.size() == 8 and resource_ids.size() == 8
+	var profile_triangles := 0
+	var expected_aabb := AABB(Vector3(-0.24, -0.04, -0.24), Vector3(0.48, 0.08, 0.48))
+	var cardinal_extrema: Array[Vector3] = [
+		Vector3(0.24, 0.0, 0.0), Vector3(-0.24, 0.0, 0.0),
+		Vector3(0.0, 0.0, 0.24), Vector3(0.0, 0.0, -0.24),
+		Vector3(0.16, 0.0, 0.0), Vector3(-0.16, 0.0, 0.0),
+		Vector3(0.0, 0.0, 0.16), Vector3(0.0, 0.0, -0.16),
+		Vector3(0.20, 0.04, 0.0), Vector3(0.20, -0.04, 0.0),
+		Vector3(-0.20, 0.04, 0.0), Vector3(-0.20, -0.04, 0.0),
+		Vector3(0.0, 0.04, 0.20), Vector3(0.0, -0.04, 0.20),
+		Vector3(0.0, 0.04, -0.20), Vector3(0.0, -0.04, -0.20),
+	]
+	var cardinal_extrema_exact := cardinal_extrema.size() == 16
+	for ring in rings:
+		var mesh := ring.mesh as TorusMesh
+		var snapshot := snapshots.get(ring.get_instance_id(), {}) as Dictionary
+		var ring_name := str(ring.name)
+		var expected_entry := expected.get(ring_name, {}) as Dictionary
+		exact = exact \
+			and mesh != null \
+			and not expected_entry.is_empty() \
+			and str(module.get_path_to(ring)) == str(expected_entry.get("path", "")) \
+			and ring.transform.is_equal_approx(
+				expected_entry.get("transform", Transform3D.IDENTITY) as Transform3D
+			) \
+			and ring.transform.is_equal_approx(snapshot.get("transform", Transform3D.IDENTITY)) \
+			and ring.material_override == snapshot.get("material") \
+			and mesh.get_instance_id() == int(snapshot.get("mesh_id", 0)) \
+			and mesh.get_aabb().is_equal_approx(snapshot.get("aabb", AABB())) \
+			and mesh.get_aabb().is_equal_approx(expected_aabb) \
+			and is_equal_approx(mesh.inner_radius, 0.16) \
+			and is_equal_approx(mesh.outer_radius, 0.24) \
+			and mesh.rings == 32 \
+			and mesh.ring_segments \
+				== TorusGeometryBudget.FREIGHT_RECESSED_LASHING_RING_SEGMENTS \
+			and mesh.get_surface_count() == 1 \
+			and ring.get_child_count() == 0 \
+			and StringName(ring.get_meta(TorusGeometryBudget.PROFILE_META, &"")) \
+				== TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING
+		if mesh != null:
+			profile_triangles += TorusGeometryBudget.triangles_of(mesh)
+			for extremum in cardinal_extrema:
+				cardinal_extrema_exact = cardinal_extrema_exact \
+					and _mesh_contains_vertex(mesh, extremum)
+	observed_names.sort()
+	observed_paths.sort()
+	_check(
+		exact
+		and observed_names == expected_names
+		and observed_paths == expected_paths
+		and baseline_triangles == 6144
+		and profile_triangles == 4096,
+		"profile keeps the exact eight-path/name bijection, transforms, materials, resources, surfaces, radii and AABBs while cutting only 6144 -> 4096 tube triangles"
+	)
+	_check(
+		cardinal_extrema_exact,
+		"every profiled ring retains all 16 inner, outer and tube cardinal extrema"
+	)
+	var profile_report := (report.get("profiles", {}) as Dictionary).get(
+		TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING, {}
+	) as Dictionary
+	_check(
+		int(profile_report.get("resources", 0)) == 8
+		and int(profile_report.get("instances", 0)) == 8
+		and int(profile_report.get("surfaces", 0)) == 8
+		and int(profile_report.get("triangles_baseline", 0)) == 6144
+		and int(profile_report.get("triangles_after", 0)) == 4096,
+		"profile report derives the exact eight-resource/eight-instance/eight-surface family delta"
+	)
+	_check(
+		renderer_before == {
+			"descendant_nodes": 909,
+			"mesh_instance_nodes": 427,
+			"multimesh_nodes": 1,
+			"surfaces": 428,
+			"visible_copies": 439,
+		}
+		and _renderer_census(module) == renderer_before,
+		"module renderer census stays exact at 909 descendants, 428 renderer nodes/surfaces, and 439 visible copies"
+	)
+	_check(
+		module.get_collision_contract() == collision_before
+		and module.get_authority_contract() == authority_before,
+		"tube tessellation cannot change collision, interaction, lifecycle, or authority"
+	)
+
+
+func _mesh_contains_vertex(mesh: Mesh, expected: Vector3) -> bool:
+	for surface_index in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface_index)
+		for vertex in arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+			if vertex.is_equal_approx(expected):
+				return true
+	return false
+
+
+func _renderer_census(module: Node) -> Dictionary:
+	var meshes := module.find_children("*", "MeshInstance3D", true, false)
+	var batches := module.find_children("*", "MultiMeshInstance3D", true, false)
+	var surfaces := 0
+	var visible_copies := meshes.size()
+	for candidate in meshes:
+		var mesh := (candidate as MeshInstance3D).mesh
+		if mesh != null:
+			surfaces += mesh.get_surface_count()
+	for candidate in batches:
+		var multi := (candidate as MultiMeshInstance3D).multimesh
+		if multi == null or multi.mesh == null:
+			continue
+		surfaces += multi.mesh.get_surface_count()
+		var copies := multi.visible_instance_count
+		visible_copies += multi.instance_count if copies < 0 else copies
+	return {
+		"descendant_nodes": module.find_children("*", "", true, false).size(),
+		"mesh_instance_nodes": meshes.size(),
+		"multimesh_nodes": batches.size(),
+		"surfaces": surfaces,
+		"visible_copies": visible_copies,
+	}
 
 
 ## The berth-wide "nothing floats" sweep.

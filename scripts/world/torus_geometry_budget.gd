@@ -162,6 +162,7 @@ const MINIMUM_SAVING_FRACTION := 0.10
 const PROFILE_META := "torus_geometry_budget_profile"
 const PROFILE_OCCLUDED_CHAIR_BEARING: StringName = &"occluded_chair_bearing"
 const PROFILE_AFT_INTERFACE_COLLAR: StringName = &"aft_interface_collar"
+const PROFILE_FREIGHT_RECESSED_LASHING_RING: StringName = &"freight_recessed_lashing_ring"
 
 ## The eight observation-common chair bearings sit inside the pedestal/seat
 ## overlap. Their 32-edge major silhouette remains at the globally reviewed
@@ -178,6 +179,14 @@ const OCCLUDED_CHAIR_BEARING_RING_SEGMENTS := 8
 ## preserves their outer extrema while removing an invisible roundness premium
 ## from these inset interfaces. Freestanding and large rings never opt in.
 const AFT_INTERFACE_COLLAR_RING_SEGMENTS := 8
+
+## Eight visual-only Jovian Freight Berth lashing rings are partly inset into
+## their graphite deck plates. Their circular sweep remains at the globally
+## reviewed 32-ring floor. Only the four-centimetre tube cross-section drops
+## from twelve to eight cardinal-aligned segments, which preserves the exact
+## inner/outer extrema and AABB. The builder tags this exact family explicitly;
+## no name or path inference opts a torus into the exception.
+const FREIGHT_RECESSED_LASHING_RING_SEGMENTS := 8
 
 
 ## Smallest segment count whose sagitta on a circle of `radius` stays within
@@ -242,7 +251,8 @@ static func apply(mesh: TorusMesh, world_scale := 1.0) -> TorusMesh:
 	return apply_profile(mesh, world_scale, &"")
 
 
-## Applies the general plan, with one deliberately narrow presentation profile.
+## Applies the general plan, with one deliberately narrow presentation profile
+## selected explicitly by the builder.
 ## The profile changes no radius or transform and may never raise tessellation.
 static func apply_profile(
 		mesh: TorusMesh,
@@ -261,6 +271,8 @@ static func apply_profile(
 		segments = mini(segments, OCCLUDED_CHAIR_BEARING_RING_SEGMENTS)
 	elif profile == PROFILE_AFT_INTERFACE_COLLAR:
 		segments = mini(segments, AFT_INTERFACE_COLLAR_RING_SEGMENTS)
+	elif profile == PROFILE_FREIGHT_RECESSED_LASHING_RING:
+		segments = mini(segments, FREIGHT_RECESSED_LASHING_RING_SEGMENTS)
 	var before := mesh.rings * mesh.ring_segments
 	if before - rings * segments < int(ceil(MINIMUM_SAVING_FRACTION * float(before))):
 		return mesh

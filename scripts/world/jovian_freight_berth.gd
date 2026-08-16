@@ -87,6 +87,14 @@ const DOCK_GUIDE_SIZE := Vector3(1.6, 0.105, 0.22)
 const DOCK_GUIDE_Z_POSITIONS := [13.0, 18.0, 23.0, 34.0, 39.0, 44.0]
 const DOCK_GUIDE_COPY_COUNT := 12
 
+## Explicit selector for the eight recessed visual-only lashing rings. The
+## torus budget reads its own profile metadata; this second family tag makes the
+## exact roster independently auditable without inferring membership from node
+## names or paths.
+const LASHING_RING_FAMILY_META := "jovian_freight_torus_family"
+const LASHING_RING_FAMILY_ID: StringName = &"recessed_lashing_ring"
+const LASHING_RING_COPY_COUNT := 8
+
 ## Standalone module census frozen around the dock-guide batching change. The
 ## twelve 60-triangle copies remain exact; only renderer/node representation
 ## changes. Collision and authority counts are unchanged. `all_nodes_checked`
@@ -1241,7 +1249,7 @@ func _build_handling_zones() -> void:
 				_materials["graphite"],
 				false
 			)
-			_torus(
+			var lashing_ring := _torus(
 				zones,
 				"LashingRing%s%02d" % [side_tag, index + 1],
 				Vector3(side * 10.6, 0.075, z_position),
@@ -1250,6 +1258,11 @@ func _build_handling_zones() -> void:
 				_materials["ceramic"],
 				Vector3.ZERO
 			)
+			lashing_ring.set_meta(
+				TorusGeometryBudget.PROFILE_META,
+				TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING
+			)
+			lashing_ring.set_meta(LASHING_RING_FAMILY_META, LASHING_RING_FAMILY_ID)
 
 	_build_staging_bay(zones, "Port", STAGING_BAY_PORT_CENTER)
 	_build_staging_bay(zones, "Starboard", STAGING_BAY_STARBOARD_CENTER)

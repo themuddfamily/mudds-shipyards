@@ -30,6 +30,8 @@ extends SceneTree
 ##                                        instead of the authored/budgeted pair.
 ##                                        This is how a floor gets chosen by
 ##                                        looking rather than by arithmetic.
+##   KETH_TORUS_CAPTURE_VIEW=whole|near   restrict each pass to one matched
+##                                        camera framing (default: both).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -85,6 +87,11 @@ const SUBJECTS: Array = [
 		"key": "freight_dock_ring",
 		"node": "ShipyardWorld/JovianFreightBerth/LoadingApron/OuterDockRing",
 		"note": "the largest berth ring in the station",
+	},
+	{
+		"key": "freight_lashing_ring",
+		"node": "ShipyardWorld/JovianFreightBerth/HandlingZones/LashingRingPort01",
+		"note": "explicitly tagged recessed deck fitting; 32-edge sweep remains exact",
 	},
 	{
 		"key": "range_beacon_ring",
@@ -259,21 +266,24 @@ func _shoot(camera: Camera3D, entry: Dictionary, pass_name: String) -> void:
 	# A point on the ring itself: the focus for the magnified crop.
 	var rim := centre + radial * major_radius
 
-	var whole_distance := maxf(1.0, WHOLE_FRAMING_RATIO * major_radius)
-	# Slightly off-axis rather than dead-on, so the ring reads as a ring against
-	# whatever is behind it instead of as a flat annulus on the module it sits on.
-	var whole_direction := (axis * 0.88 + radial * 0.47).normalized()
-	_aim(camera, centre + whole_direction * whole_distance, centre)
-	await _write(camera, "%s_whole_%s" % [key, pass_name], rim)
+	var requested_view := OS.get_environment("KETH_TORUS_CAPTURE_VIEW")
+	if requested_view.is_empty() or requested_view == "whole":
+		var whole_distance := maxf(1.0, WHOLE_FRAMING_RATIO * major_radius)
+		# Slightly off-axis rather than dead-on, so the ring reads as a ring against
+		# whatever is behind it instead of as a flat annulus on the module it sits on.
+		var whole_direction := (axis * 0.88 + radial * 0.47).normalized()
+		_aim(camera, centre + whole_direction * whole_distance, centre)
+		await _write(camera, "%s_whole_%s" % [key, pass_name], rim)
 
 	# Walk-up: stand off the outer face of the tube, looking along the sweep so
 	# the ring curves away across the frame.
-	var near_direction := (axis * 0.45 + radial * 0.89).normalized()
-	var near_eye := rim + near_direction * (tube_radius + NEAR_SURFACE_METRES)
-	var tangent := axis.cross(radial).normalized()
-	var look_at_point := rim + tangent * maxf(major_radius * 0.35, tube_radius * 3.0)
-	_aim(camera, near_eye, look_at_point)
-	await _write(camera, "%s_near_%s" % [key, pass_name], rim)
+	if requested_view.is_empty() or requested_view == "near":
+		var near_direction := (axis * 0.45 + radial * 0.89).normalized()
+		var near_eye := rim + near_direction * (tube_radius + NEAR_SURFACE_METRES)
+		var tangent := axis.cross(radial).normalized()
+		var look_at_point := rim + tangent * maxf(major_radius * 0.35, tube_radius * 3.0)
+		_aim(camera, near_eye, look_at_point)
+		await _write(camera, "%s_near_%s" % [key, pass_name], rim)
 
 
 func _aim(camera: Camera3D, eye: Vector3, target: Vector3) -> void:

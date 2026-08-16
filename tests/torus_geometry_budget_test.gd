@@ -122,6 +122,7 @@ func _check_world_rings() -> void:
 	var faceted_large: Array[String] = []
 	var chair_bearing_profiles := 0
 	var aft_interface_profiles := 0
+	var freight_lashing_profiles := 0
 	for instance in rings:
 		var mesh := instance.mesh as TorusMesh
 		total += TorusGeometryBudget.triangles_of(mesh)
@@ -154,6 +155,16 @@ func _check_world_rings() -> void:
 				or mesh.ring_segments != TorusGeometryBudget.AFT_INTERFACE_COLLAR_RING_SEGMENTS
 			):
 				below_floor.append("%s aft profile drifted to %dx%d" % [instance.name, mesh.rings, mesh.ring_segments])
+		elif profile == TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING:
+			freight_lashing_profiles += 1
+			if (
+				mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
+				or mesh.ring_segments
+					!= TorusGeometryBudget.FREIGHT_RECESSED_LASHING_RING_SEGMENTS
+			):
+				below_floor.append("%s freight profile drifted to %dx%d" % [
+					instance.name, mesh.rings, mesh.ring_segments,
+				])
 		elif (
 			mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
 			or mesh.ring_segments < mini(TorusGeometryBudget.MIN_RING_SEGMENTS, authored.y)
@@ -225,6 +236,25 @@ func _check_world_rings() -> void:
 		and int(aft_report.get("triangles_after", 0)) == 13312
 		and int(aft_report.get("surfaces", 0)) == 26,
 		"Aft interface collars freeze at 19968 -> 13312 triangles with 26 surfaces unchanged"
+	)
+	var freight_report := profiles.get(
+		TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING, {}
+	) as Dictionary
+	_check(
+		freight_lashing_profiles == 8
+		and int(freight_report.get("resources", 0)) == 8
+		and int(freight_report.get("instances", 0)) == 8,
+		"the bounded freight lashing family remains eight independent visual rings/resources"
+	)
+	_check(
+		int(freight_report.get("triangles_baseline", 0)) == 6144
+		and int(freight_report.get("triangles_after", 0)) == 4096
+		and int(freight_report.get("surfaces", 0)) == 8,
+		"freight lashing rings freeze at 6144 -> 4096 triangles while eight instances/surfaces stay exact"
+	)
+	_check(
+		total == 135840 and rings.size() == 154,
+		"the production world-subtree torus census freezes 137888 -> 135840 triangles across 154 unchanged visible copies"
 	)
 
 	world.queue_free()

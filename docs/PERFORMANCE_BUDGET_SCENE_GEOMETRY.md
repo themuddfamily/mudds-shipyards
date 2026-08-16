@@ -585,6 +585,48 @@ the chair, console and service interfaces retain the same apparent outlines and
 shading. The adapter was llvmpipe, so this is only a composition/silhouette
 inspection, never representative frame-time evidence.
 
+### Bounded freight lashing-ring profile
+
+Against base `abb785b`, the next narrow profile selects the eight recessed
+lashing rings in `JovianFreightBerth/HandlingZones`. They are childless,
+visual-only TorusMesh fittings partly inset into unchanged graphite deck plates;
+the apron floor and its existing static bodies remain collision authority. The
+builder applies both `freight_recessed_lashing_ring` and the independent
+`recessed_lashing_ring` family tag directly to those eight instances. Neither
+the budget nor its tests infer membership from a broad name or path match.
+
+The current general budget produced `32x12` for each 0.24 m outer-radius ring.
+The bounded profile retains all 32 major-sweep edges and changes only the 0.04 m
+tube section to eight cardinal-aligned edges. Exact tests retain the complete
+eight-path/name bijection under `HandlingZones`, transforms, materials and
+independent mesh resources. They also freeze the 0.16/0.24 m radii, exact AABB,
+all 16 inner/outer/tube cardinal extrema, one surface per instance, and child
+rosters. The family moves **8 resources / 8 instances / 8 surfaces / 6,144
+triangles -> 8 / 8 / 8 / 4,096**, saving **2,048 triangles (33.3%)**.
+
+The bounded measurements that remain valid are the freight bucket's **57,018 ->
+54,970 triangles** and the complete-scene `TorusMesh` family result of **165,044
+-> 162,996 triangles across the same 180 copies**. The standalone freight module
+also stays at 909 descendants, 427 MeshInstance3D nodes plus one MultiMesh,
+428 surfaces, 439 visible geometry copies, 207 static bodies and 210 collision
+shapes; its interaction/lifecycle/authority contract is unchanged.
+
+Absolute whole-scene triangles, renderer nodes, surfaces, unique meshes,
+retained materials and scene nodes are deliberately **not re-frozen here**.
+Salvage Terrace landed after this profile's original census, and the pending
+Central and Upper performance branches will change those totals again. Run one
+final current-tree census after those merges, then update the main budget table;
+the bounded 2,048-triangle family delta above does not depend on those totals.
+
+One matched 1920x1080 Forward+ comparison rendered the same frozen production
+scene and camera first at `32x12`, then at `32x8`. Both the normal frame and its
+4x nearest-neighbour silhouette crop retain a smooth circular major sweep; the
+target mask has the same `(0, 0)..(1703, 675)` crop bounds in both passes. Only
+the tube's specular shading changes. Production TAA/temporal lighting makes the
+broader frames non-byte-stable, so this is inspected visual/silhouette evidence,
+not a zero-pixel or performance claim. The renderer was Forward+ through
+llvmpipe; representative hardware timing remains open.
+
 ### Bounded VIP banquette-joint batching
 
 A submission-only pass against base `a6951659` batches the fourteen identical
