@@ -145,6 +145,161 @@ future code could load only after another gameplay state. Texture bytes remain
 the same uncompressed `width × height × 4` upper-bound proxy for discovered
 `Texture2D` resources; they are not compressed package size or actual residency.
 
+### Deterministic station light-overlap measurement
+
+`tools/station_light_overlap_census.gd` closes the route-overlap measurement
+called for below without deleting, changing or second-guessing any fixture. It
+instantiates the production `Main`, settles for eight idle frames, one physics
+frame and one final idle frame, then disables processing on `Main` before taking
+the synchronous sample. The frozen roster is 22 named embodied points: six
+walking, five boarding, four operations and seven flight-route samples. The
+node-backed samples freeze both their exact production paths and world
+positions. Five flight points are resolved directly from the published Cinder
+Reach checkpoint resource rather than copying an unverified parallel route.
+Walking and operations floor markers use a documented 1 m torso offset; ship
+and flight markers are already body-centre positions.
+
+Each sample is treated as the camera position for this geometric proxy. For
+each point, a light counts only when it is inside the tree, visible through its
+ancestors, has positive `light_energy`, shares the sample's visual layer, and
+can geometrically reach the point under the live light settings:
+
+- `DirectionalLight3D` has global reach; Godot does not apply the local-light
+  distance-fade fields to this type.
+- `OmniLight3D` requires distance no greater than `omni_range` and, when
+  `distance_fade_enabled`, no greater than
+  `distance_fade_begin + distance_fade_length`.
+- `SpotLight3D` requires both `spot_range` and the actual `spot_angle` around
+  the light's world-space `-Z` axis, plus the same enabled distance-fade
+  endpoint.
+
+Shadow-enabled contributors are counted and listed separately, but an
+Omni/Spot shadow counts only through
+`distance_fade_shadow` when distance fade is enabled; that property is the
+camera-distance cutoff itself, not the start of another length-based fade.
+The JSON contributor record freezes the actual enabled flag, camera distance,
+begin, length, light endpoint, shadow endpoint, separate light
+and shadow inclusion decisions, and human-readable reasons. Runtime fallback
+names such as `@OmniLight3D@298` are converted to stable class-and-sibling
+ordinals such as `OmniLight3D[01]`; this preserves identity without leaking
+process-specific instance IDs into the sorted paths or JSON fingerprint. The
+focused fixture turns range, cone direction, shadow state, visibility, energy,
+cull mask, fade enablement, fade begin, fade length and the shadow-fade boundary
+into mutation-sensitive checks. Exact-endpoint and just-beyond-endpoint
+witnesses freeze the inclusive renderer cutoff.
+
+Run it with:
+
+```sh
+KETH_LIGHT_CENSUS_JSON=/tmp/station-light-overlap-census.json \
+  godot --headless --audio-driver Dummy --path . \
+  --script res://tools/station_light_overlap_census.gd
+```
+
+The production `Main` measured here is rebase base `bf44804`, including the
+integrated Fabrication Annex; this slice itself adds only the census, its
+focused test and this record. The roster fingerprint is
+`7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca`.
+The complete scene/per-point/contributor-evidence fingerprint is
+`d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a`.
+Two independent processes produced byte-identical JSON with SHA-256
+`1c0845e8e06d6ead50434c18e0c0148d21a20e8e22d3894092a477e1cf4ec59e`.
+Pulsing lights report the stable positive-energy predicate used for inclusion,
+not their clock-dependent instantaneous amplitude.
+
+| Scene light roster | Total | Enabled at frozen phase | Shadow casting |
+| --- | ---: | ---: | ---: |
+| `DirectionalLight3D` | 3 | 3 | reported in combined row |
+| `OmniLight3D` | 300 | 248 | reported in combined row |
+| `SpotLight3D` | 12 | 12 | reported in combined row |
+| **All `Light3D`** | **315** | **263** | **19 total / 19 enabled** |
+
+The maximum geometric overlap is **15 enabled lights** at
+`operate-aft-service-arm`; only one of those casts shadows. The largest shadow
+overlap is **3** at `board-halyard-berth`, where seven lights can influence the
+sample. Applying the live fade endpoints did not change any scalar row: every
+sampled local contributor that already passed its smaller illumination range
+also lies inside its light fade endpoint, and every sampled shadow contributor
+also lies within its exact `distance_fade_shadow` cutoff. It does change the
+method and evidence—the census can now reject a long-range light or shadow
+culled at the camera point, and the focused fixture proves that path. The six
+Fabrication Annex lights increase the whole-scene total after its production
+integration but do not reach any frozen sample, so the per-point rows remain
+unchanged. The five worst points, sorted by total overlap then shadow overlap
+then stable id, are:
+
+| Point | Kind | Enabled influence | Shadow casters |
+| --- | --- | ---: | ---: |
+| `operate-aft-service-arm` | operations | **15** | 1 |
+| `walk-habitat-common` | walking | **11** | 1 |
+| `walk-aft-lower-junction` | walking | **10** | 1 |
+| `board-halyard-berth` | boarding | **7** | **3** |
+| `walk-vip-reception` | walking | **7** | 1 |
+
+Their contributing paths are emitted in full in deterministic JSON. In compact
+path-prefix form, the same exact rosters are:
+
+- `operate-aft-service-arm`: `ShipyardWorld/{DeckBounceFill,SpaceCounterFill,SpaceKeyLight}`
+  plus `ShipyardWorld/AftJunctionStack/Structure/OperationsRoom/LocalizedLighting/`
+  `{CoveSpillCool,CoveSpillWarm,OperationsPoolLight,OmniLight3D[01]` through
+  `OmniLight3D[09]}`.
+- `walk-habitat-common`: the same three world directional paths, plus
+  `ShipyardWorld/HabitatSpine/Structure/ObservationCommon/`
+  `{CommonPoolLight,TableDisplayGlow,OmniLight3D[01]` through
+  `OmniLight3D[05]}` and
+  `ShipyardWorld/HabitatSpine/Structure/PressurizedHabitatCorridor/OmniLight3D[02]`.
+- `walk-aft-lower-junction`: the three directionals, plus
+  `ShipyardWorld/AftJunctionStack/Structure/LowerOpenDeck/`
+  `{JunctionArcSpill,OmniLight3D[01]}`,
+  `ShipyardWorld/AftJunctionStack/Structure/OperationsRoom/LocalizedLighting/`
+  `{CoveSpillCool,DoorPoolLight,OmniLight3D[01],OperationsPoolLight}`, and
+  `ShipyardWorld/AftJunctionStack/Structure/OperationsRoom/VisualPressureEnvelope/ExteriorCowlSpill`.
+- `board-halyard-berth`: the three directionals, plus
+  `HalyardCrewTransport/WalkableInterior/CrewCabin/`
+  `{OmniLight3D[01],OmniLight3D[02]}`,
+  `ShipyardWorld/FleetDockComb/GeneratedComb/SurfaceDetail/SlabBeaconSpill02`,
+  and `ShipyardWorld/FleetDockMastSpot`.
+- `walk-vip-reception`: the three directionals, plus
+  `ShipyardWorld/VipReceptionSuite/Structure/Fitout/LightColumnSpillPort` and
+  `ShipyardWorld/VipReceptionSuite/Structure/Lighting/`
+  `{LanternCoveSpillFront,LanternCoveSpillPort,LanternCoveSpillStarboard}`.
+
+For completeness, every frozen point's two scalar results are:
+
+| Point | Enabled influence | Shadow casters |
+| --- | ---: | ---: |
+| `board-arrow-berth` | 4 | 2 |
+| `board-central-berth` | 4 | 1 |
+| `board-freight-staging` | 4 | 2 |
+| `board-halyard-berth` | 7 | 3 |
+| `board-zenith-berth` | 4 | 1 |
+| `flight-cinder-checkpoint-01` | 5 | 1 |
+| `flight-cinder-checkpoint-02` | 5 | 1 |
+| `flight-cinder-checkpoint-03` | 5 | 1 |
+| `flight-cinder-checkpoint-04` | 5 | 1 |
+| `flight-cinder-checkpoint-05` | 3 | 1 |
+| `flight-launch-gate` | 3 | 1 |
+| `flight-ship-spawn` | 4 | 1 |
+| `operate-aft-service-arm` | 15 | 1 |
+| `operate-central-tow` | 5 | 2 |
+| `operate-freight-gantry` | 4 | 2 |
+| `operate-habitat-patrol` | 4 | 1 |
+| `walk-aft-lower-junction` | 10 | 1 |
+| `walk-aft-upper-floor` | 5 | 1 |
+| `walk-habitat-common` | 11 | 1 |
+| `walk-habitat-corridor` | 4 | 1 |
+| `walk-player-spawn` | 6 | 2 |
+| `walk-vip-reception` | 7 | 1 |
+
+These numbers are a **geometric camera-point influence proxy**, not a
+performance result.
+They do not account for walls or other occluders, camera/frustum visibility,
+pixels shaded, shadow-map update policy, renderer clustering, draw cost, GPU
+time, CPU time or frame time. In particular, this is not an llvmpipe benchmark
+and cannot justify a Windows hardware claim or a light-budget increase. It is a
+deterministic map of where the authored light volumes overlap, suitable for
+choosing later hardware measurements or fixture-consolidation candidates.
+
 ### Merge-time decision: trim, do not raise
 
 The frozen ceilings stay unchanged. The minimum and target hardware have not
