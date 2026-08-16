@@ -39,6 +39,15 @@ const DEFERRED_DOCK_COUNT := 1
 const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
+## Exact post-batch renderer census. The twelve visual-only trunk expansion
+## strips still draw at their authored transforms, but one MultiMesh owns their
+## submission instead of twelve childless MeshInstance3D nodes.
+const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
+const RENDER_DESCENDANT_COUNT := 132
+const RENDER_MESH_INSTANCE_COUNT := 88
+const RENDER_MULTIMESH_BATCH_COUNT := 1
+const RENDER_DRAWN_COPY_COUNT := 100
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 89
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -82,9 +91,13 @@ const FOOTPRINT_MAX := Vector3(21.0, 5.0, 48.0)
 # Not re-frozen by the 2026-08-16 dock-02 promotion pass, and that is a measured
 # statement rather than an omission: that pass removed one mesh (`DockEdgeKerb02`,
 # whose edge the Halyard apron built over) and added one (`DockUmbilicalHose02`,
-# because arm 02's boom now runs out like arm 01's), so the module still builds
-# exactly 100 visible meshes against this same 107 ceiling. Collision bodies,
-# shapes, labels, lights and both loop counts are all untouched too.
+# because arm 02's boom now runs out like arm 01's), so the module still drew
+# exactly 100 visible copies against this same 107 MeshInstance ceiling.
+# Batching the twelve trunk joint strips later reduced the live MeshInstance
+# count to 88 plus one MultiMesh without changing those 100 drawn copies. The
+# historical ceiling remains policy; the exact renderer contract below freezes
+# the new topology. Collision bodies, shapes, labels, lights and both loop counts
+# are all untouched too.
 const MESH_INSTANCE_BUDGET := 107
 const STATIC_BODY_BUDGET := COLLISION_BODY_COUNT
 const COLLISION_SHAPE_BUDGET := COLLISION_SHAPE_COUNT
@@ -199,6 +212,8 @@ var _build_generation := 0
 ## pay for their extra edge geometry once.
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
+var _trunk_expansion_joint_transforms: Array[Transform3D] = []
+var _trunk_expansion_joint_batch: MultiMeshInstance3D = null
 
 
 func _ready() -> void:
@@ -414,6 +429,7 @@ func get_component_roster() -> Dictionary:
 		"deferred_dock_ids": PackedStringArray(get_deferred_dock_ids()),
 		"deferred_dock_count": get_deferred_dock_ids().size(),
 		"route_ids": PackedStringArray(get_route_ids()),
+		"render_batches": get_render_batch_contract(),
 	}
 
 
@@ -450,6 +466,73 @@ func get_performance_contract() -> Dictionary:
 	})
 	contract["schema_version"] = SCHEMA_VERSION
 	return contract
+
+
+func get_render_batch_contract() -> Dictionary:
+	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
+	var batch_nodes := find_children("*", "MultiMeshInstance3D", true, false)
+	var drawn_copies := 0
+	var submissions := 0
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		submissions += batch.multimesh.mesh.get_surface_count()
+
+	var expected_buffer := _encode_multimesh_transforms(_trunk_expansion_joint_transforms)
+	var renderer_buffer_matches := (
+		is_instance_valid(_trunk_expansion_joint_batch)
+		and _trunk_expansion_joint_batch.multimesh != null
+		and _trunk_expansion_joint_batch.multimesh.buffer == expected_buffer
+	)
+	var bounds_match := false
+	if is_instance_valid(_trunk_expansion_joint_batch) and _trunk_expansion_joint_batch.multimesh != null:
+		var expected_bounds := _transformed_mesh_bounds(
+			_trunk_expansion_joint_batch.multimesh.mesh.get_aabb(),
+			_trunk_expansion_joint_transforms
+		)
+		bounds_match = _trunk_expansion_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+	var descendant_count := find_children("*", "Node", true, false).size()
+	var exact_counts := (
+		descendant_count == RENDER_DESCENDANT_COUNT
+		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
+		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and drawn_copies == RENDER_DRAWN_COPY_COUNT
+		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
+		and _trunk_expansion_joint_transforms.size() == TRUNK_EXPANSION_JOINT_COPY_COUNT
+	)
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"descendant_nodes": descendant_count,
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"trunk_expansion_joint_copies": _trunk_expansion_joint_transforms.size(),
+		"renderer_buffer_floats": (
+			_trunk_expansion_joint_batch.multimesh.buffer.size()
+			if is_instance_valid(_trunk_expansion_joint_batch) and _trunk_expansion_joint_batch.multimesh != null
+			else 0
+		),
+		"renderer_buffer_matches_authored": renderer_buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"exact_counts": exact_counts,
+		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
+		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
+		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
+		"route_markers": get_route_ids().size(),
+		"dock_landmarks": get_dock_roster().size(),
+	}
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -583,6 +666,13 @@ func get_validation_errors() -> PackedStringArray:
 				errors.append("dock %s external assignment drifted or gained a historical claim" % dock_id)
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its fixed geometry or processing budget")
+	var rendering := get_render_batch_contract()
+	if not bool(rendering.exact_counts):
+		errors.append("comb renderer node, batch, copy, or submission counts drifted")
+	if not bool(rendering.renderer_buffer_matches_authored):
+		errors.append("comb trunk-joint renderer buffer drifted from its authored roster")
+	if not bool(rendering.bounds_match_authored):
+		errors.append("comb trunk-joint batch bounds drifted from its authored copies")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -605,6 +695,7 @@ func get_audit_report() -> Dictionary:
 		"collision": get_collision_contract(),
 		"authority": get_authority_contract(),
 		"performance": get_performance_contract(),
+		"render_batches": get_render_batch_contract(),
 		"lifecycle": get_lifecycle_contract(),
 		"assigned_docks": get_assigned_dock_roster(),
 		"deferred_docks": get_deferred_dock_roster(),
@@ -772,8 +863,19 @@ func _build_surface_detail() -> void:
 	detail.set_meta("visual_detail_only", true)
 	_build_root.add_child(detail)
 
+	var joint_transforms: Array[Transform3D] = []
 	for z_position in [2.0, 6.0, 10.0, 14.0, 18.0, 22.0, 26.0, 30.0, 34.0, 38.0, 42.0, 46.0]:
-		_visual_box(detail, "TrunkExpansionJoint", Vector3(0, 0.018, float(z_position)), Vector3(4.25, 0.035, 0.06), _materials["grip"])
+		joint_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(0, 0.018, float(z_position)))
+		)
+	_trunk_expansion_joint_transforms.assign(joint_transforms)
+	_trunk_expansion_joint_batch = _multimesh_boxes(
+		detail,
+		"TrunkExpansionJoints",
+		Vector3(4.25, 0.035, 0.06),
+		_materials["grip"],
+		_trunk_expansion_joint_transforms
+	)
 	for z_position in [5.0, 20.0, 35.0]:
 		# COMB-DECK-CUE-001, found by measuring rather than by reading. Every trunk
 		# route light was authored at y = 0.045 with a 0.05 m section, so it spanned
@@ -1261,6 +1363,71 @@ func _visual_box(parent: Node3D, node_name: String, local_position: Vector3, siz
 	result.material_override = material
 	result.set_meta("visual_detail_only", true)
 	parent.add_child(result)
+	return result
+
+
+## Batches only repeated, childless, non-colliding surface detail. Transforms
+## are authored in `parent` space; route, dock, surface and service nodes stay
+## ordinary named nodes with their existing authority and lifecycle contracts.
+func _multimesh_boxes(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _rounded_box_mesh(size)
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	multi.buffer = _encode_multimesh_transforms(transforms)
+	# Raw-buffer authored transforms do not rebuild the CPU AABB under headless,
+	# so provide the exact transformed-mesh union explicitly for renderer culling.
+	multi.custom_aabb = _transformed_mesh_bounds(multi.mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
 	return result
 
 

@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_evidence_roster_and_audit(module)
 	_test_footprint_routes_and_authority(module)
 	await _test_collision_backed_comb_and_voids(module)
+	_test_trunk_expansion_joint_batch(module)
 	_test_performance_contract(module)
 	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
@@ -178,6 +179,141 @@ func _test_chamfered_meshes_do_not_move_collision(module: FleetDockComb) -> void
 	)
 
 
+func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
+	var detail := module.get_node_or_null(^"GeneratedComb/SurfaceDetail") as Node3D
+	var batch := module.get_node_or_null(
+		^"GeneratedComb/SurfaceDetail/TrunkExpansionJoints"
+	) as MultiMeshInstance3D
+	_check(
+		detail != null and batch != null and batch.multimesh != null,
+		"twelve trunk expansion strips resolve as one SurfaceDetail MultiMesh"
+	)
+	if detail == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var expected: Array[Transform3D] = []
+	for z_position in [2.0, 6.0, 10.0, 14.0, 18.0, 22.0, 26.0, 30.0, 34.0, 38.0, 42.0, 46.0]:
+		expected.append(
+			Transform3D(Basis.IDENTITY, Vector3(0, 0.018, float(z_position)))
+		)
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		multi.instance_count == FleetDockComb.TRUNK_EXPANSION_JOINT_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact,
+		"batch preserves all twelve authored transforms and ordering"
+	)
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var renderer_exact := multi.instance_count == expected.size()
+		for index in expected.size():
+			renderer_exact = renderer_exact and multi.get_instance_transform(index).is_equal_approx(expected[index])
+		_check(renderer_exact, "Forward+ renderer transforms preserve all twelve joint strips")
+
+	var old_candidate_nodes := 0
+	for raw_node in detail.get_children():
+		var instance := raw_node as MeshInstance3D
+		if (
+			instance != null
+			and instance.mesh != null
+			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(4.25, 0.035, 0.06))
+		):
+			old_candidate_nodes += 1
+	var grip_reference := detail.get_node_or_null(^"SlabInset01") as MeshInstance3D
+	_check(
+		old_candidate_nodes == 0
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty(),
+		"the batched family remains childless, visual-only and non-colliding"
+	)
+	_check(
+		multi.mesh.get_aabb().size.is_equal_approx(Vector3(4.25, 0.035, 0.06))
+		and multi.mesh.get_surface_count() == 1
+		and grip_reference != null
+		and batch.material_override == grip_reference.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"batch preserves mesh extent, surface, grip material, shadows and render layer"
+	)
+
+	var trunk := module.get_node(^"GeneratedComb/WalkableSurfaces/Trunk") as StaticBody3D
+	var trunk_mesh := trunk.get_node(^"Mesh") as MeshInstance3D
+	var trunk_box := (trunk.transform * trunk_mesh.mesh.get_aabb()).abs()
+	var every_strip_mounted := true
+	for transform_value in expected:
+		var strip_box := (transform_value * multi.mesh.get_aabb()).abs()
+		every_strip_mounted = every_strip_mounted and strip_box.grow(0.001).intersects(trunk_box)
+	_check(every_strip_mounted, "every batched expansion strip remains mounted into the trunk deck")
+
+	var render := module.get_render_batch_contract()
+	_check(
+		int(render.descendant_nodes) == 132
+		and int(render.mesh_instances) == 88
+		and int(render.multimesh_batches) == 1,
+		"renderer nodes freeze at 143 -> 132, MeshInstances 100 -> 88, batches 0 -> 1"
+	)
+	_check(
+		int(render.drawn_copies) == 100
+		and int(render.geometry_submissions) == 89
+		and int(render.trunk_expansion_joint_copies) == 12,
+		"drawn copies remain 100 while surface submissions fall 100 -> 89"
+	)
+	_check(
+		int(render.renderer_buffer_floats) == 144
+		and bool(render.renderer_buffer_matches_authored)
+		and bool(render.bounds_match_authored)
+		and bool(render.exact_counts),
+		"renderer transform buffer freezes at 0 -> 144 floats with the exact authored culling union"
+	)
+	var collision := module.get_collision_contract()
+	var authority := module.get_authority_contract()
+	_check(
+		int(render.static_bodies) == 7
+		and int(render.collision_shapes) == 7
+		and int(render.route_markers) == 9
+		and int(render.dock_landmarks) == 3
+		and int(collision.body_count) == 7
+		and int(collision.shape_count) == 7,
+		"batching leaves bodies, shapes, route markers and dock landmarks exact"
+	)
+	_check(
+		int(authority.ship_berth_count) == 0
+		and int(authority.landing_or_interaction_area_count) == 0
+		and module.get_assigned_dock_roster().size() == 2
+		and module.get_deferred_dock_roster().size() == 1,
+		"batching leaves berth and interaction authority absent and the dock roster unchanged"
+	)
+
+	var detached := render.authored_joint_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((module.get_render_batch_contract().authored_joint_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"render contract returns a detached authored-transform roster"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has("comb trunk-joint renderer buffer drifted from its authored roster"),
+		"mutating one live renderer transform is rejected by the module audit"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		module.get_validation_errors().has("comb trunk-joint batch bounds drifted from its authored copies"),
+		"mutating the explicit culling bounds is rejected by the module audit"
+	)
+	multi.custom_aabb = original_bounds
+	_check(module.get_validation_errors().is_empty(), "restoring the exact batch payload restores a clean module audit")
+
+
 ## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else
 ## unchanged. Both equalities stayed exact; neither was widened into a range.
 ##
@@ -225,11 +361,12 @@ func _test_performance_contract(module: FleetDockComb) -> void:
 ## The dock-arm service pass, asserted on its three design rules rather than on
 ## a mesh count.
 ##
-## 1. Every generated surface-detail mesh — the new service hardware *and* the
-##    deck cues that were already there — shares volume with some other mesh in
-##    the module. This is the "random objects floating in the air" class stated as
-##    an assertion, and it is worth having here rather than only in the
-##    world-level witness roster for two reasons: the module is instantiated in
+## 1. Every generated individual surface-detail MeshInstance — the new service
+##    hardware *and* the deck cues that were already there — shares volume with
+##    some other mesh in the module. The batched trunk joints are checked against
+##    the trunk explicitly above. This is the "random objects floating in the
+##    air" class stated as an assertion, and it is worth having here rather than
+##    only in the world-level witness roster for two reasons: the module is instantiated in
 ##    isolation, so there is no other geometry for a floater to accidentally
 ##    touch; and the world-level roster is a curated list of paths, which cannot
 ##    see a new floater nobody thought to add to it. It is deliberately widened
