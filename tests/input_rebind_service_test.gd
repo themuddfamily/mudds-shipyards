@@ -108,6 +108,19 @@ func _test_defaults_reset_and_input_map_adapter() -> void:
 	_check(after.get_bindings(action).size() == 2, "explicit apply writes all device bindings")
 	_check(RebindService.event_to_binding(InputMap.action_get_events(action)[0]).type == &"key", "adapter recreates keyboard input events")
 	_check(not service.apply_profile(null), "null profiles cannot reach InputMap")
+	var before_invalid_apply := service.capture_input_map(PackedStringArray([action])).to_dictionary()
+	var invalid := remapped.duplicate_profile()
+	invalid.bindings[action] = [_key(KEY_H), {
+		"device": Profile.DEVICE_GAMEPAD,
+		"type": &"joy_motion",
+		"axis": JOY_AXIS_LEFT_X,
+		"axis_value": 0.5,
+	}]
+	_check(not service.apply_profile(invalid), "invalid profiles are rejected before an apply plan is committed")
+	_check(
+		service.capture_input_map(PackedStringArray([action])).to_dictionary() == before_invalid_apply,
+		"a rejected profile cannot partially mutate an existing InputMap action"
+	)
 	InputMap.erase_action(action)
 
 

@@ -5,9 +5,10 @@ extends Resource
 ##
 ## Constructing, loading, changing, or resetting this resource never changes
 ## AudioServer, DisplayServer, InputMap, or ProjectSettings. Runtime systems opt
-## into the two global side effects through [method apply_audio_settings] and
-## [method apply_window_mode]. Other values are intended to be consumed by the
-## player, ship, camera, and visual-quality controllers.
+## into global side effects through [method apply_audio_settings],
+## [method apply_window_mode], and [method apply_input_bindings]. Other values
+## are intended to be consumed by the player, ship, camera, and visual-quality
+## controllers.
 
 signal setting_changed(setting: StringName, value: Variant)
 signal settings_changed(settings: PackedStringArray)
@@ -44,7 +45,7 @@ enum ColorblindPalette {
 ## [constant MINIMUM_SUPPORTED_SCHEMA_VERSION]..[constant SCHEMA_VERSION] load
 ## and are upgraded in memory; keys a older writer never stored fall back to
 ## their authored defaults. Anything outside that range still fails closed.
-const SCHEMA_VERSION := 3
+const SCHEMA_VERSION := 4
 const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -85,6 +86,7 @@ const DEFAULT_CAPTIONS_ENABLED := false
 
 const _SECTION_META := "meta"
 const _SECTION_CONTROLS := "controls"
+const _SECTION_INPUT_BINDINGS := "input_bindings"
 const _SECTION_CAMERA := "camera"
 const _SECTION_AUDIO := "audio"
 const _SECTION_GRAPHICS := "graphics"
@@ -309,14 +311,35 @@ var captions_enabled := DEFAULT_CAPTIONS_ENABLED:
 		captions_enabled = value
 		_queue_change(&"captions_enabled", value)
 
+## Detached on read and validated on write. Callers cannot mutate the canonical
+## profile through an aliased Resource; use [method set_input_binding_profile]
+## and then explicitly call [method apply_input_bindings].
+var input_binding_profile: InputBindingProfile:
+	get:
+		return get_input_binding_profile()
+	set(value):
+		set_input_binding_profile(value)
+
 var _batch_depth := 0
 var _pending_changes: Array[StringName] = []
 var _dispatching_changes := false
 var _dispatch_remaining: Array[StringName] = []
+var _input_rebind_service: InputRebindService
+var _input_binding_profile: InputBindingProfile
+
+static var _captured_project_input_defaults: InputBindingProfile
 
 
 func _init(path: String = DEFAULT_CONFIG_PATH) -> void:
 	config_path = path
+	# The first RuntimeSettings owner starts before stored settings are applied and
+	# captures the authored project map. Reusing that detached process snapshot is
+	# essential: a fresh RuntimeSettings created after a remap must still reset to
+	# project defaults, not mistake the currently applied map for authored data.
+	if _captured_project_input_defaults == null:
+		_captured_project_input_defaults = InputRebindService.new().get_defaults()
+	_input_rebind_service = InputRebindService.new(_captured_project_input_defaults)
+	_input_binding_profile = _input_rebind_service.get_defaults()
 
 
 ## Returns a detached value snapshot suitable for menus and integration code.
@@ -340,6 +363,7 @@ func to_dictionary() -> Dictionary:
 		"colorblind_palette": colorblind_palette,
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
+		"input_binding_profile": _input_binding_profile.to_dictionary(),
 	}
 
 
@@ -364,6 +388,7 @@ func reset_to_defaults() -> void:
 	colorblind_palette = DEFAULT_COLORBLIND_PALETTE
 	reduced_motion = DEFAULT_REDUCED_MOTION
 	captions_enabled = DEFAULT_CAPTIONS_ENABLED
+	input_binding_profile = _input_rebind_service.reset_to_defaults()
 	_end_batch()
 
 
@@ -406,6 +431,11 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_CONTROLS, "invert_ship_y", invert_ship_y)
 	config.set_value(_SECTION_CONTROLS, "invert_on_foot_y", invert_on_foot_y)
 	config.set_value(_SECTION_CONTROLS, "preset", String(_control_preset_id(control_preset)))
+	config.set_value(
+		_SECTION_INPUT_BINDINGS,
+		"profile",
+		_input_binding_profile.to_dictionary()
+	)
 	config.set_value(_SECTION_CAMERA, "fov", camera_fov)
 	config.set_value(_SECTION_AUDIO, "master", master_volume)
 	config.set_value(_SECTION_AUDIO, "ambience", ambience_volume)
@@ -469,6 +499,8 @@ func save_to_file(path_override: String = "") -> Error:
 ## Loads a validated snapshot. A missing or unparsable file and an unsupported
 ## schema leave the current resource untouched. Missing or wrongly typed values
 ## in a valid file fall back to authored defaults; numeric values are clamped.
+## A malformed, incomplete, or newly conflicting input profile likewise falls
+## back as one unit to the captured project bindings and is never applied here.
 func load_from_file(path_override: String = "") -> Error:
 	var target_path := _resolve_path(path_override)
 	var recovery_error := _recover_interrupted_save(target_path)
@@ -504,6 +536,7 @@ func load_from_file(path_override: String = "") -> Error:
 	var loaded_ui_scale := _read_number(
 		config, _SECTION_ACCESSIBILITY, "ui_scale", DEFAULT_UI_SCALE
 	)
+	var loaded_input_profile := _read_input_binding_profile(config)
 
 	_begin_batch()
 	ship_mouse_sensitivity = loaded_ship_sensitivity
@@ -540,13 +573,13 @@ func load_from_file(path_override: String = "") -> Error:
 	captions_enabled = _read_bool(
 		config, _SECTION_ACCESSIBILITY, "captions", DEFAULT_CAPTIONS_ENABLED
 	)
+	input_binding_profile = loaded_input_profile
 	_end_batch()
 	return OK
 
 
-## Returns a detached, display-ready descriptor. This intentionally describes
-## presets without mutating InputMap; actual remapping belongs to a later input
-## settings integration.
+## Returns a detached, display-ready descriptor. Preset labels remain separate
+## from the versioned binding profile and never mutate InputMap implicitly.
 func get_control_preset_descriptor(preset: int = -1) -> Dictionary:
 	var requested := control_preset if preset == -1 else preset
 	if not _CONTROL_PRESET_DESCRIPTORS.has(requested):
@@ -564,6 +597,40 @@ func get_window_mode_id() -> StringName:
 
 func get_control_preset_id() -> StringName:
 	return _control_preset_id(control_preset)
+
+
+## Returns a deep copy suitable for menu editing. Assigning the returned
+## Resource directly never changes the canonical settings snapshot.
+func get_input_binding_profile() -> InputBindingProfile:
+	return _input_binding_profile.duplicate_profile()
+
+
+## Replaces the complete profile only when it is schema-valid, covers the
+## captured project action inventory, and introduces no non-authored conflict.
+## Invalid input leaves the prior profile untouched.
+func set_input_binding_profile(profile: InputBindingProfile) -> bool:
+	if not _input_rebind_service.is_profile_compatible_with_defaults(profile):
+		return false
+	var detached := profile.duplicate_profile()
+	if detached.to_dictionary() == _input_binding_profile.to_dictionary():
+		return true
+	_input_binding_profile = detached
+	_queue_change(&"input_binding_profile", detached)
+	return true
+
+
+## Explicitly applies the validated snapshot to InputMap. Loading, setting,
+## saving, and resetting remain side-effect free; startup and Main re-entry own
+## the call site just as they already do for audio and window state.
+func apply_input_bindings() -> Dictionary:
+	var action_count := _input_binding_profile.bindings.size()
+	var applied := _input_rebind_service.apply_profile(_input_binding_profile)
+	return {
+		"applied": applied,
+		"complete": applied,
+		"action_count": action_count if applied else 0,
+		"profile_schema_version": _input_binding_profile.schema_version,
+	}
 
 
 ## Stable textual ID of the active colour-vision preset. This is the only seam
@@ -778,6 +845,18 @@ static func _validated_control_preset(value: int) -> int:
 
 static func _validated_colorblind_palette(value: int) -> int:
 	return value if _COLORBLIND_PALETTE_IDS.has(value) else DEFAULT_COLORBLIND_PALETTE
+
+
+func _read_input_binding_profile(config: ConfigFile) -> InputBindingProfile:
+	var defaults := _input_rebind_service.get_defaults()
+	if not config.has_section_key(_SECTION_INPUT_BINDINGS, "profile"):
+		return defaults
+	var parsed := InputBindingProfile.from_dictionary(
+		config.get_value(_SECTION_INPUT_BINDINGS, "profile", null)
+	)
+	if not _input_rebind_service.is_profile_compatible_with_defaults(parsed):
+		return defaults
+	return parsed
 
 
 static func _read_number(config: ConfigFile, section: String, key: String, default_value: float) -> float:
