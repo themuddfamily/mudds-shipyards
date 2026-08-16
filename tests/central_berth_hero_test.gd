@@ -180,7 +180,17 @@ func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
 
 	var hero_body := world.get_node_or_null("ExposedDockLattice/HeroBerthNode") as StaticBody3D
 	var launch_body := world.get_node_or_null("OpenLaunchSpine/LaunchArmDeck") as StaticBody3D
-	_check(_box_body_matches(hero_body, Vector3(0.0, -0.62, -10.0), Vector3(27.0, 1.2, 30.0)), "HeroBerthNode collider and transform remain unchanged")
+	# RUNWAY-SEAM-001. Re-frozen from centre (0.0, -0.62, -10.0) size
+	# (27.0, 1.2, 30.0) to centre (0.0, -0.62, -8.625) size (25.5, 1.2, 32.75).
+	# Two separate corrections, both measured against the authored shell this body
+	# already renders nothing of:
+	#   z: +2.75 m, taking over the strip of floor the walkway gave up when it was
+	#      pulled back to the shell's own z = 7.75 edge instead of running 2.75 m
+	#      underneath it. The top plane, y = -0.020, is unchanged, so the physical
+	#      surface a player stands on across the seam is unchanged.
+	#   x: 27.0 -> 25.5 m, the shell's own width. The extra 0.75 m per side was a
+	#      standable ledge the renderer never drew.
+	_check(_box_body_matches(hero_body, Vector3(0.0, -0.62, -8.625), Vector3(25.5, 1.2, 32.75)), "HeroBerthNode collider and transform remain unchanged")
 	var hidden_legacy_mesh := hero_body.get_node_or_null("Mesh") as MeshInstance3D if hero_body != null else null
 	_check(
 		hidden_legacy_mesh != null
@@ -188,10 +198,19 @@ func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
 		and bool(hidden_legacy_mesh.get_meta("hidden_by_authored_central_berth", false)),
 		"legacy physical berth slab retains collision but no longer double-renders"
 	)
-	_check(_box_body_matches(launch_body, Vector3(0.0, -0.36, -48.0), Vector3(21.5, 0.72, 40.0)), "LaunchArmDeck collider and transform remain unchanged")
+	# Re-frozen from centre (0.0, -0.36, -48.0) size (21.5, 0.72, 40.0) to centre
+	# (0.0, -0.36, -47.875) size (21.5, 0.72, 40.25): the arm's rendered aft edge
+	# now reaches the authored shell at z = -27.75 instead of stopping at -28.0 and
+	# leaving the transition block's 0.095 m top plane exposed with nothing drawn
+	# on it. Width, top plane and the forward end at z = -68.0 are unchanged.
+	_check(_box_body_matches(launch_body, Vector3(0.0, -0.36, -47.875), Vector3(21.5, 0.72, 40.25)), "LaunchArmDeck collider and transform remain unchanged")
 	var transition := world.get_node_or_null("OpenLaunchSpine/CentralBerthLaunchTransitionCollision") as StaticBody3D
+	# Re-frozen from centre (0.0, -0.5625, -26.5) size (25.5, 1.315, 3.0) to centre
+	# (0.0, -0.5625, -26.375) size (25.5, 1.315, 2.75). It carries the shell's
+	# y = 0.095 top plane, so it now starts where the shell starts; the 0.25 m it
+	# gave up is carried by the launch arm deck above.
 	_check(
-		_box_body_matches(transition, Vector3(0.0, -0.5625, -26.5), Vector3(25.5, 1.315, 3.0))
+		_box_body_matches(transition, Vector3(0.0, -0.5625, -26.375), Vector3(25.5, 1.315, 2.75))
 		and transition.get_node_or_null("Mesh") == null
 		and bool(transition.get_meta("authored_surface_support", false)),
 		"collision-only transition supports the authored berth-to-launch seam"

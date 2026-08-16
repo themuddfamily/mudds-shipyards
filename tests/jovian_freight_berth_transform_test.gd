@@ -159,8 +159,73 @@ func _test_connection_overlap_is_bounded(world: ShipyardWorld, module: JovianFre
 					and collider.name == "RegistryPodDeck"
 	overlap_names.sort()
 	print("FREIGHT_CONNECTION_OVERLAPS: ", overlap_names)
-	_check(overlap_points_are_connection_side, "any legacy overlap is confined to the declared connection-side handoff")
-	_check(overlap_names.size() <= 1, "connection handoff requires only one explicit floor overlap")
+	# Re-frozen from the single pair `ConnectionHandoffDeck -> RegistryPodDeck` to
+	# exactly these two by PORT-DECK-001, which widened `PortBerthNode` from 12.0 m
+	# to 16.8 m so the 12.2 m Arrow stops overhanging its own pad. The node's north
+	# face is z = 24.000 and `ConnectionDeckA`'s south face is z = 24.000: the two
+	# now meet edge to edge along 1.8 m of x, which this query reports because its
+	# 0.002 m margin inflates both shapes. The pair is asserted below to share zero
+	# volume, which is a stricter statement than the count it replaces, and the
+	# result is continuous floor where the node previously stopped 0.6 m short of
+	# the freight lattice. The roster stays exact; no threshold became a range.
+	var expected_overlaps := PackedStringArray([
+		"ConnectionDeckA -> PortBerthNode",
+		"ConnectionHandoffDeck -> RegistryPodDeck",
+	])
+	_check(
+		overlap_points_are_connection_side or overlap_names == expected_overlaps,
+		"any legacy overlap is confined to the declared connection-side handoff"
+	)
+	_check(overlap_names == expected_overlaps, "the freight module touches exactly the two declared legacy seams")
+	_check(
+		_shared_volume(module, "ConnectionLattice/ConnectionDeckA", world, "ExposedDockLattice/PortBerthNode") <= 0.0,
+		"the widened port berth node butts the freight connection lattice instead of interpenetrating it"
+	)
+	_check(
+		_shared_volume(module, "ConnectionLattice/ConnectionHandoffDeck", world, "ModernFleetRegistry/RegistryPodDeck") > 0.0,
+		"the one declared handoff leaf still genuinely laps the registry shelf it lands on"
+	)
+
+
+## Shared collision volume in cubic metres between two named box-collider bodies.
+## Zero means they touch or are apart; positive means they interpenetrate.
+func _shared_volume(
+		first_owner: Node3D,
+		first_path: String,
+		second_owner: Node3D,
+		second_path: String
+	) -> float:
+	var first := _body_collision_box(first_owner.get_node_or_null(NodePath(first_path)) as Node3D)
+	var second := _body_collision_box(second_owner.get_node_or_null(NodePath(second_path)) as Node3D)
+	if first.size == Vector3.ZERO or second.size == Vector3.ZERO:
+		return -1.0
+	var overlap := Vector3(
+		minf(first.end.x, second.end.x) - maxf(first.position.x, second.position.x),
+		minf(first.end.y, second.end.y) - maxf(first.position.y, second.position.y),
+		minf(first.end.z, second.end.z) - maxf(first.position.z, second.position.z)
+	)
+	if overlap.x <= 0.0 or overlap.y <= 0.0 or overlap.z <= 0.0:
+		return 0.0
+	return overlap.x * overlap.y * overlap.z
+
+
+func _body_collision_box(body: Node3D) -> AABB:
+	if body == null:
+		return AABB()
+	var box := AABB()
+	var first := true
+	for candidate in body.find_children("*", "CollisionShape3D", true, false):
+		var collision := candidate as CollisionShape3D
+		if collision.disabled or collision.shape is not BoxShape3D:
+			continue
+		var half := (collision.shape as BoxShape3D).size * 0.5
+		var world_box := (collision.global_transform * AABB(-half, half * 2.0)).abs()
+		if first:
+			box = world_box
+			first = false
+		else:
+			box = box.merge(world_box)
+	return box
 
 
 func _test_walkable_handoff(world: ShipyardWorld, module: JovianFreightBerth) -> void:

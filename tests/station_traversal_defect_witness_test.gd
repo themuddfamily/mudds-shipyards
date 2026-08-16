@@ -101,6 +101,32 @@ const POD_WALK_INS := [
 	["JovianFreightBerth/ConnectionLattice/ConnectionHandoffDeck", Vector3(-47.0, 0.18, 21.0), 26.0,
 		"out along the freight branch connection lattice"],
 ]
+## PORT-DECK-001. The 2026-08-16 report: "the walkway to enter isn't wide enough
+## to get around to the side — you can get in this one by jumping over the rails".
+##
+## The port berth node is 17 m deep and the parked Arrow's wing spans z = 9.95 …
+## 21.05 of it, so the walkable lane beside the craft is the ~2.5 m strip at each
+## end plus the aprons off its nose and tail. Reaching any of them used to mean
+## crossing a 1.24 m `BranchRail`: the rails ran 5 m past the branch arm and
+## across the node, and the only gap in them was underneath the wing.
+##
+## These four points are one standable cell on each face of the parked craft. All
+## four must be in the no-jump flood from the production spawn marker.
+const ARROW_BERTH_WALKAROUND_POINTS := [
+	[Vector3(-47.0, -0.02, 8.5), "starboard flank, outboard of the sensor wing"],
+	[Vector3(-47.0, -0.02, 20.5), "port flank, outboard of the sensor wing"],
+	[Vector3(-50.5, -0.02, 15.5), "nose apron, on the 16.8 m deck the 12.2 m craft used to overhang"],
+	[Vector3(-36.0, -0.02, 15.5), "tail apron, where the branch arm hands off to the node"],
+]
+
+## PORT-BOARDING-001. The same report, refined: "the option to enter never
+## appears when you're standing to the side of the ship". A single staged
+## approach vector cannot see that — `tests/fleet_role_differentiation_test.gd`
+## walks one and passes — so this samples a ring around each parked craft instead
+## and requires the prompt from every standable point on it.
+const BOARDING_RING_RADII := [3.0, 5.0, 7.0]
+const BOARDING_RING_SAMPLES := 16
+
 ## Top of every raised pod deck the walk-ins have to finish standing on.
 const POD_DECK_TOP := 0.38
 ## Top of the lattice berth nodes the walk-ins start from.
@@ -170,6 +196,10 @@ func _run() -> void:
 	_test_required_route_surfaces_reachable(world, reachable)
 	_test_freight_branch_has_a_walkable_approach(world)
 	_test_every_flyable_ship_is_boardable_on_foot(game, world, reachable)
+	_test_arrow_berth_can_be_walked_around(reachable)
+	_test_parked_craft_are_fully_supported_by_their_berth_decks(game, world)
+	await _test_arrow_berth_rails_no_longer_fence_the_walkway(player)
+	await _test_boarding_prompt_is_offered_all_round_each_craft(game, player)
 	await _test_pod_decks_can_be_walked_into(player)
 	await _test_aft_stair_base_is_not_fenced_off(player)
 
@@ -450,6 +480,229 @@ func _test_every_flyable_ship_is_boardable_on_foot(
 		stranded.is_empty(),
 		"every flyable craft can be approached on foot from spawn without a jump"
 	)
+
+
+## PORT-DECK-001 reachability. Every face of the parked Arrow must be walkable to
+## from the production spawn without a jump, not just the rail corridor the
+## branch arm delivers you into.
+func _test_arrow_berth_can_be_walked_around(reachable: Dictionary) -> void:
+	var stranded := PackedStringArray()
+	for entry in ARROW_BERTH_WALKAROUND_POINTS:
+		if not _has_reachable_node_near(entry[0] as Vector3, 0.6, reachable):
+			stranded.append("%s (%s)" % [str(entry[0]), entry[1]])
+	print("UNREACHABLE_ARROW_BERTH_FACES: ", stranded)
+	_check(
+		stranded.is_empty(),
+		"the walkway beside the parked Arrow is reachable on every face without jumping a rail"
+	)
+
+
+## PORT-DECK-001 structure. The recorded defect was that the 12.2 m craft is
+## parked on a 12.0 m pad, so its nose projected 0.450 m past the deck edge with
+## two of four footprint corners over open space. Probe the four corners of every
+## parked craft's own collision footprint and require structure under each.
+func _test_parked_craft_are_fully_supported_by_their_berth_decks(
+		game: GameFlow,
+		world: ShipyardWorld
+	) -> void:
+	var unsupported := PackedStringArray()
+	var report := PackedStringArray()
+	for entry in game.call("get_flyable_ships"):
+		var ship := entry as HeroShip
+		if ship == null:
+			continue
+		var box := AABB()
+		var first := true
+		for candidate in ship.find_children("*", "CollisionShape3D", true, false):
+			var shape := candidate as CollisionShape3D
+			if shape.disabled or shape.shape is not BoxShape3D:
+				continue
+			if shape.get_parent() is Area3D:
+				continue
+			var half := (shape.shape as BoxShape3D).size * 0.5
+			var world_box := (shape.global_transform * AABB(-half, half * 2.0)).abs()
+			if first:
+				box = world_box
+				first = false
+			else:
+				box = box.merge(world_box)
+		if first:
+			continue
+		var missing := 0
+		for corner in [
+			Vector3(box.position.x, 0.0, box.position.z),
+			Vector3(box.end.x, 0.0, box.position.z),
+			Vector3(box.position.x, 0.0, box.end.z),
+			Vector3(box.end.x, 0.0, box.end.z),
+		]:
+			var ray := PhysicsRayQueryParameters3D.create(
+				Vector3(corner.x, box.position.y, corner.z),
+				Vector3(corner.x, box.position.y - 12.0, corner.z),
+				WORLD_LAYER
+			)
+			ray.collide_with_areas = false
+			ray.exclude = _door_blockers
+			if _space.intersect_ray(ray).is_empty():
+				missing += 1
+		report.append("%s footprint=%s unsupported_corners=%d" % [ship.name, str(box.size), missing])
+		if missing > 0:
+			unsupported.append("%s (%d of 4 corners)" % [ship.name, missing])
+	print("PARKED_CRAFT_FOOTPRINT_SUPPORT: ", report)
+	_check(
+		unsupported.is_empty(),
+		"every parked craft's collision footprint stands wholly on the berth deck beneath it"
+	)
+
+
+## PORT-DECK-001, run through the production controller rather than the walk
+## graph: stand where the branch arm hands off to the berth node, face the
+## starboard flank, hold `move_forward`, and require the capsule to arrive there.
+## Then do the same toward the port flank. No jump is pressed and no transform is
+## set during either walk.
+##
+## Reproduces the report exactly. `BranchRail` used to span x = -42.5 … -11.5 at
+## both z = 12.0 and z = 19.0, five metres past the 7 m arm it guards and straight
+## across the berth node, at 1.06 … 1.24 m high. From x = -36.0 both legs below
+## stopped dead against it, and the only gap in it — around x = -42.5 — is under
+## the Arrow's own sensor wing, which blocks a standing capsule. The rails now end
+## with their arm.
+func _test_arrow_berth_rails_no_longer_fence_the_walkway(player: PlayerController) -> void:
+	var start := Vector3(-36.0, 0.18, 15.5)
+	# The walk is bounded at 80 physics frames on purpose. Both legs only have to
+	# cross the old rail line — z = 12.0 going starboard, z = 19.0 going port — and
+	# an unbounded hold would carry the capsule off the far edge of the deck and
+	# into GameFlow's fall recovery, which teleports it back to spawn and would
+	# make this assertion measure the respawn instead of the route.
+	var legs := [
+		[Vector3.FORWARD, "starboard flank", 11.5, -1.0],
+		[Vector3.BACK, "port flank", 19.5, 1.0],
+	]
+	var fenced := PackedStringArray()
+	var results := PackedStringArray()
+	for leg in legs:
+		var result := await _walk_forward(player, start, leg[0] as Vector3, 80)
+		var final_position := result.final as Vector3
+		results.append("%s final=%s travelled=%.2f stuck=%d" % [
+			leg[1], str(final_position), float(result.travelled), int(result.stuck_frames)
+		])
+		var reached := final_position.z <= float(leg[2]) if float(leg[3]) < 0.0 else final_position.z >= float(leg[2])
+		if not reached:
+			fenced.append("%s stopped at z=%.3f (needed %s %.1f)" % [
+				leg[1], final_position.z, "<=" if float(leg[3]) < 0.0 else ">=", float(leg[2])
+			])
+		if absf(final_position.y - LATTICE_DECK_TOP) > POD_WALK_TOLERANCE:
+			fenced.append("%s left the berth deck (y=%.3f)" % [leg[1], final_position.y])
+	print("ARROW_BERTH_FLANK_WALKS: ", results)
+	_check(
+		fenced.is_empty(),
+		"continuous move_forward from the branch-arm handoff reaches both flanks of the Arrow without jumping a rail"
+	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
+
+
+## PORT-BOARDING-001. Ring sample, not a single staged vector.
+##
+## For each parked craft, walk a ring of candidate standing points around it at
+## 3 / 5 / 7 m, keep the ones the production capsule can actually stand on, put
+## the real player there and ask GameFlow through its own
+## `_refresh_interaction_targets()` seam whether the boarding prompt is offered.
+## Every standable ring point must offer it. The Arrow failed 43 of its 105
+## standable ring points before this pass, including the whole starboard flank.
+func _test_boarding_prompt_is_offered_all_round_each_craft(
+		game: GameFlow,
+		player: PlayerController
+	) -> void:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = CAPSULE_RADIUS
+	capsule.height = CAPSULE_HEIGHT
+	var summary := PackedStringArray()
+	var silent := PackedStringArray()
+	var arrow_standable := 0
+	var arrow_prompted := 0
+	for entry in game.call("get_flyable_ships"):
+		var ship := entry as HeroShip
+		if ship == null:
+			continue
+		var centre := ship.global_position
+		var standable := 0
+		var prompted := 0
+		var missed := PackedStringArray()
+		for radius: float in BOARDING_RING_RADII:
+			for sample in BOARDING_RING_SAMPLES:
+				var angle := TAU * float(sample) / float(BOARDING_RING_SAMPLES)
+				var ground_x := centre.x + cos(angle) * radius
+				var ground_z := centre.z + sin(angle) * radius
+				var down := PhysicsRayQueryParameters3D.create(
+					Vector3(ground_x, centre.y + 8.0, ground_z),
+					Vector3(ground_x, centre.y - 8.0, ground_z),
+					WORLD_LAYER
+				)
+				down.collide_with_areas = false
+				down.exclude = _door_blockers
+				var ground := _space.intersect_ray(down)
+				if ground.is_empty():
+					continue
+				var floor_y := (ground.position as Vector3).y
+				var stand := Vector3(ground_x, floor_y + CAPSULE_HEIGHT * 0.5 + 0.02, ground_z)
+				var query := PhysicsShapeQueryParameters3D.new()
+				query.shape = capsule
+				query.transform = Transform3D(Basis.IDENTITY, stand)
+				query.collision_mask = WORLD_LAYER | PhysicsLayers.SHIP
+				query.collide_with_areas = false
+				query.margin = 0.0
+				query.exclude = _door_blockers
+				if not _space.intersect_shape(query, 1).is_empty():
+					continue
+				standable += 1
+				var facing := (centre - Vector3(ground_x, floor_y, ground_z)).slide(Vector3.UP)
+				if facing.length() < 0.01:
+					facing = Vector3.FORWARD
+				player.teleport_to(Transform3D(
+					Basis.looking_at(facing.normalized(), Vector3.UP),
+					Vector3(ground_x, floor_y + 0.05, ground_z)
+				))
+				await physics_frame
+				await physics_frame
+				game.call("_refresh_interaction_targets")
+				if game.boarding_candidate == ship:
+					prompted += 1
+				else:
+					missed.append("r=%.0f a=%.0f at %s" % [radius, rad_to_deg(angle), str(Vector3(ground_x, floor_y, ground_z))])
+		summary.append("%s standable=%d prompted=%d" % [ship.name, standable, prompted])
+		if standable > 0 and prompted < standable:
+			silent.append("%s: %d of %d standable ring points offer no prompt %s" % [
+				ship.name, standable - prompted, standable, str(missed)
+			])
+		if ship.name == "ArrowReconShip":
+			arrow_standable = standable
+			arrow_prompted = prompted
+		if standable > 0:
+			_check(
+				prompted > 0,
+				"%s stays boardable from at least one standable point around it" % ship.name
+			)
+	print("BOARDING_PROMPT_RING: ", summary)
+	print("BOARDING_PROMPT_RING_SILENT: ", silent)
+	# The Arrow is asserted all-round on purpose, and it is the only craft that is.
+	# Its boarding marker sits at ship-local (-2.45, -0.02, 0.15), which is
+	# *underneath its own sensor wing*, so no standing capsule can ever occupy the
+	# centre of its inherited 4.5 m sphere; a sided volume is unusable for this
+	# craft and its berth is a 16.8 x 17.0 m walk-around deck. The Torrent and the
+	# Zenith keep a port-quadrant-only reach by design — `boarding_accessibility_test`
+	# asserts in as many words that the Torrent "cannot be boarded through the hull
+	# from its wrong/opposite side" — so their measured coverage is printed above
+	# rather than asserted, and this suite only requires that they stay boardable.
+	_check(
+		arrow_standable >= 16,
+		"the Arrow's berth deck offers a real ring of standing points around the parked craft"
+	)
+	_check(
+		arrow_standable > 0 and arrow_prompted == arrow_standable,
+		"the Arrow offers its boarding prompt from every standable point on a ring around it"
+	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
 
 
 func _test_aft_stair_base_is_not_fenced_off(player: PlayerController) -> void:

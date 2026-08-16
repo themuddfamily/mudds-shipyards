@@ -67,6 +67,35 @@ const SEATED_DECORATION_PATHS := [
 ]
 const SEATED_DECORATION_TOLERANCE := 0.03
 
+## The 2026-08-16 report: "there's a strange floating block". `_drop_below` above
+## cannot answer this class, because it rays against World *collision* and every
+## piece here hangs off structure that has none — under-deck chords, stacked
+## crates. In open space that ray simply falls forever.
+##
+## So this roster is measured against **drawn geometry** instead: each piece must
+## share volume with, or sit within `SEATED_ON_GEOMETRY_TOLERANCE` of, some other
+## visible mesh. Measured live before the fix, with the gap each one hung at:
+##
+##   Fleet Dock Comb underframe: both 47 m trunk chords hung 0.090 m below the
+##   deck they are bolted to, and the port one intersected nothing in the whole
+##   module; the three rung chords hung 0.040 m.
+##   Jovian freight: all eight cargo crates hovered, 0.045-0.055 m above the rack
+##   shelf for the lower four and 0.040-0.070 m above their own lower crate for
+##   the upper four.
+const SEATED_ON_GEOMETRY_PATHS := [
+	"FleetDockComb/GeneratedComb/VisualUnderframe/TrunkChordPort",
+	"FleetDockComb/GeneratedComb/VisualUnderframe/TrunkChordStarboard",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit01/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit02/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit03/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit04/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit05/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit06/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit07/Mesh",
+	"JovianFreightBerth/CargoInfrastructure/CargoUnit08/Mesh",
+]
+const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
+
 var _failures: Array[String] = []
 var _space: PhysicsDirectSpaceState3D
 
@@ -108,6 +137,7 @@ func _run() -> void:
 
 	_test_approach_facing_signs(world)
 	_test_seated_decorations_rest_on_their_surface(world)
+	_test_structural_pieces_rest_on_drawn_geometry(world)
 	_test_orphan_dock_guide_lens(world)
 
 	game.queue_free()
@@ -151,6 +181,40 @@ func _test_seated_decorations_rest_on_their_surface(world: ShipyardWorld) -> voi
 	_check(
 		floating.is_empty(),
 		"every roof-mounted safety beacon rests on the surface it is placed against"
+	)
+
+
+func _test_structural_pieces_rest_on_drawn_geometry(world: ShipyardWorld) -> void:
+	var drawn: Array[Dictionary] = []
+	for candidate in world.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		drawn.append({
+			"node": mesh_instance,
+			"box": (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs(),
+		})
+	var floating := PackedStringArray()
+	for path in SEATED_ON_GEOMETRY_PATHS:
+		var piece := world.get_node_or_null(NodePath(path)) as MeshInstance3D
+		if piece == null or piece.mesh == null:
+			floating.append("%s <missing>" % path)
+			continue
+		var box := (piece.global_transform * piece.mesh.get_aabb()).abs().grow(SEATED_ON_GEOMETRY_TOLERANCE)
+		var seated := false
+		for entry in drawn:
+			var other := entry["node"] as MeshInstance3D
+			if other == piece or piece.is_ancestor_of(other) or other.is_ancestor_of(piece):
+				continue
+			if box.intersects(entry["box"] as AABB):
+				seated = true
+				break
+		if not seated:
+			floating.append("%s at %s" % [path, str(box.get_center())])
+	print("FLOATING_STRUCTURAL_PIECES: ", floating)
+	_check(
+		floating.is_empty(),
+		"every under-deck chord and stacked cargo crate bears on drawn geometry instead of hanging in space"
 	)
 
 

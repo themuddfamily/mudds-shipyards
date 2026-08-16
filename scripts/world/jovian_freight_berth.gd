@@ -774,15 +774,23 @@ func _build_cargo_infrastructure() -> void:
 		_rounded_box(cargo_root, "RackBeam", Vector3(-21.2, 0.8, z_position), Vector3(0.45, 0.32, 6.5), _materials["orange"], true)
 		_rounded_box(cargo_root, "RackBeam", Vector3(-21.2, 2.25, z_position), Vector3(0.45, 0.32, 6.5), _materials["orange"], true)
 
+	# COMB-UNDERFRAME-001 family, found by the same "visible mesh with nothing
+	# beneath it" sweep. All eight crates hovered: each lower crate floated
+	# 0.045-0.055 m above the `CargoRackShelf` it stands on, and each upper crate
+	# floated 0.040-0.070 m above the crate it is stacked on, touching nothing at
+	# all in the 0.06 m sense. Every crate now rests with a 0.010 m bearing into
+	# the surface below it. Only the y coordinate moved; x, z, every size and every
+	# material are unchanged, so the eight tagged units, their bands and the
+	# published cargo-unit count are untouched.
 	var cargo_layout := [
-		[Vector3(-18.2, 0.72, 17.2), Vector3(4.0, 1.35, 3.0), "ceramic"],
-		[Vector3(-18.5, 2.02, 17.2), Vector3(3.2, 1.15, 2.6), "orange"],
-		[Vector3(-18.1, 0.65, 24.1), Vector3(3.7, 1.2, 2.8), "steel_blue"],
-		[Vector3(-18.6, 1.78, 24.1), Vector3(2.8, 0.95, 2.4), "ceramic_warm"],
-		[Vector3(-18.3, 0.78, 31.4), Vector3(4.1, 1.45, 3.1), "orange"],
-		[Vector3(-18.2, 2.1, 31.4), Vector3(3.1, 1.05, 2.55), "ceramic"],
-		[Vector3(-18.5, 0.68, 39.0), Vector3(3.5, 1.25, 2.9), "steel_blue"],
-		[Vector3(-18.4, 1.82, 39.0), Vector3(2.9, 0.95, 2.35), "ceramic_warm"],
+		[Vector3(-18.2, 0.665, 17.2), Vector3(4.0, 1.35, 3.0), "ceramic"],
+		[Vector3(-18.5, 1.905, 17.2), Vector3(3.2, 1.15, 2.6), "orange"],
+		[Vector3(-18.1, 0.59, 24.1), Vector3(3.7, 1.2, 2.8), "steel_blue"],
+		[Vector3(-18.6, 1.655, 24.1), Vector3(2.8, 0.95, 2.4), "ceramic_warm"],
+		[Vector3(-18.3, 0.715, 31.4), Vector3(4.1, 1.45, 3.1), "orange"],
+		[Vector3(-18.2, 1.955, 31.4), Vector3(3.1, 1.05, 2.55), "ceramic"],
+		[Vector3(-18.5, 0.615, 39.0), Vector3(3.5, 1.25, 2.9), "steel_blue"],
+		[Vector3(-18.4, 1.705, 39.0), Vector3(2.9, 0.95, 2.35), "ceramic_warm"],
 	]
 	for index in cargo_layout.size():
 		var entry: Array = cargo_layout[index]

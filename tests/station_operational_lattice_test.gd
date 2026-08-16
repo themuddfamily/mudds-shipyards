@@ -467,7 +467,14 @@ func _test_open_launch_spine(world: ShipyardWorld) -> void:
 	_check(crossing_clear and headroom_clear, "launch spine retains full 19 m cross-width clearance and ten-metre open headroom")
 	var launch_body := world.find_child("LaunchArmDeck", true, false) as StaticBody3D
 	var launch_aabb := _static_body_world_aabb(launch_body)
-	_check(_aabb_approx(launch_aabb, AABB(Vector3(-10.75, -0.72, -68), Vector3(21.5, 0.72, 40))), "LaunchArmDeck physical footprint remains exactly unchanged")
+	# RUNWAY-SEAM-001. Re-frozen from AABB(-10.75, -0.72, -68) size (21.5, 0.72, 40)
+	# to size (21.5, 0.72, 40.25): the arm's aft edge moves from z = -28.00 to
+	# z = -27.75 so it meets the authored central-berth shell's own edge instead of
+	# stopping short of it and leaving the collision-only transition block's
+	# 0.095 m top plane standing there with nothing drawn on it. Width, top plane
+	# and the forward end at z = -68.0 are all unchanged, so the protected launch
+	# volume asserted immediately below is unchanged.
+	_check(_aabb_approx(launch_aabb, AABB(Vector3(-10.75, -0.72, -68), Vector3(21.5, 0.72, 40.25))), "LaunchArmDeck physical footprint remains exactly unchanged")
 	var protected_launch := AABB(Vector3(-10.75, 0, -68), Vector3(21.5, 12, 40))
 	var operations_clear := true
 	for activity in world.get_station_operations_activities():

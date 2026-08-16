@@ -522,6 +522,44 @@ func _replace_collision_and_markers() -> void:
 	var boarding_area := get_node_or_null("ShipBoardingArea") as Area3D
 	if boarding_area != null:
 		boarding_area.position = Vector3(-2.45, 0.48, 0.15)
+		_add_flank_approach_range(boarding_area)
+
+
+## PORT-BOARDING-001. The fleet-wide boarding volume is a single 4.5 m sphere on
+## the ship's own boarding marker. On this craft that marker sits at local
+## (-2.45, -0.02, 0.15) — *underneath the sensor wing*, whose collision spans
+## local x = -5.55 … 5.55 by z = -1.2 … 3.7 at y = 0.64 … 1.12. A standing capsule
+## cannot occupy the sphere's centre at all, so the prompt only appeared where the
+## sphere happened to poke out past the wing: measured on the live berth deck, of
+## the 0.5 m grid cells a player can actually stand on, the whole starboard flank
+## from z = 7.0 to z = 10.5 offered no prompt, and the nearest cell that did was
+## inside the port engine housing. That is the reported "only when you are
+## standing inside of the engine".
+##
+## The sphere is deliberately left exactly as inherited — it is a published
+## fleet-wide contract — and a craft-shaped approach volume is added beside it.
+## It is sized to the craft plus a walk-up margin, not to the deck: half extents
+## 6.9 m laterally and 7.6 m along the hull against a hull of 5.55 / 6.10. With
+## the production player's own 2.35 m interaction sphere that reaches 9.25 / 9.95,
+## which covers every standable metre of the 16.8 x 17.0 m berth deck (half
+## extents 8.4 / 8.5) on both flanks and around nose and tail. It stops 2.55 m
+## short of a point 7.0 m off the boarding marker along the lateral axis, so the
+## bare-sphere 7.0 m fallback boundary that
+## `tests/boarding_accessibility_test.gd` pins is still exercised, not widened.
+func _add_flank_approach_range(boarding_area: Area3D) -> void:
+	var existing := boarding_area.get_node_or_null("ArrowApproachRange")
+	if existing != null:
+		boarding_area.remove_child(existing)
+		existing.queue_free()
+	var approach := CollisionShape3D.new()
+	approach.name = "ArrowApproachRange"
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(13.8, 2.8, 15.2)
+	approach.shape = shape
+	# Centred on the hull rather than on the boarding marker, expressed relative to
+	# the area's own offset so the marker keeps publishing the same world position.
+	approach.position = -boarding_area.position
+	boarding_area.add_child(approach)
 
 
 func _add_box_collision(node_name: String, collision_position: Vector3, size: Vector3) -> void:
