@@ -63,6 +63,7 @@ func _run() -> void:
 
 	_test_contract(suite)
 	_test_banquette_joint_batch(suite)
+	_test_roof_cassette_batch(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
 	_test_nothing_floats(world, suite)
@@ -173,23 +174,28 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 
 	var render := suite.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 469
-		and int(render.mesh_instances) == 264
-		and int(render.multimesh_batches) == 1,
-		"renderer nodes freeze at 482 -> 469, MeshInstances 278 -> 264, batches 0 -> 1"
+		int(render.baseline_descendant_nodes) == 469
+		and int(render.descendant_nodes) == 465
+		and int(render.baseline_mesh_instances) == 264
+		and int(render.mesh_instances) == 259
+		and int(render.baseline_multimesh_batches) == 1
+		and int(render.multimesh_batches) == 2,
+		"the second bounded slice freezes descendants 469 -> 465, MeshInstances 264 -> 259, and batches 1 -> 2"
 	)
 	_check(
-		int(render.drawn_copies) == 278
-		and int(render.geometry_submissions) == 265
+		int(render.baseline_drawn_copies) == 278
+		and int(render.drawn_copies) == 278
+		and int(render.baseline_geometry_submissions) == 265
+		and int(render.geometry_submissions) == 261
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while submissions fall 278 -> 265"
+		"drawn copies remain 278 while the new family lowers submissions 265 -> 261"
 	)
 	_check(
-		int(render.renderer_buffer_floats) == 168
-		and bool(render.renderer_buffer_matches_authored)
-		and bool(render.bounds_match_authored)
+		int(render.banquette_renderer_buffer_floats) == 168
+		and bool(render.banquette_renderer_buffer_matches_authored)
+		and bool(render.banquette_bounds_match_authored)
 		and bool(render.exact_counts),
-		"renderer transform buffer freezes at 0 -> 168 floats and its aggregate AABB matches the authored roster"
+		"the existing banquette buffer remains 168 exact floats with its authored aggregate AABB"
 	)
 
 	var detached := render.authored_joint_transforms as Array
@@ -211,6 +217,131 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the exact buffer restores a clean module audit")
+
+
+func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
+	var exterior := suite.get_node_or_null(^"Structure/ExteriorShell") as Node3D
+	var batch := suite.get_node_or_null(
+		^"Structure/ExteriorShell/RoofCassettes"
+	) as MultiMeshInstance3D
+	_check(
+		exterior != null and batch != null and batch.multimesh != null,
+		"five exterior roof cassettes resolve as one ExteriorShell-level MultiMesh batch"
+	)
+	if exterior == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var expected: Array[Transform3D] = []
+	for cassette_index in VipReceptionSuite.ROOF_CASSETTE_COPY_COUNT:
+		expected.append(
+			Transform3D(
+				Basis.IDENTITY,
+				Vector3(-1.3, 5.46, 4.0 + float(cassette_index) * 2.2)
+			)
+		)
+	_check(
+		exterior.find_children("RoofCassette*", "MeshInstance3D", true, false).is_empty()
+		and multi.instance_count == 5
+		and multi.visible_instance_count == -1
+		and authored.size() == 5,
+		"the batch retains five visible copies without duplicate ordinary roof-cassette nodes"
+	)
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = (
+			authored_exact
+			and (authored[index] as Transform3D).is_equal_approx(expected[index])
+		)
+	_check(authored_exact, "the roof batch preserves all five old transforms in stable order")
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var renderer_exact := multi.instance_count == expected.size()
+		for index in expected.size():
+			renderer_exact = (
+				renderer_exact
+				and multi.get_instance_transform(index).is_equal_approx(expected[index])
+			)
+		_check(renderer_exact, "Forward+ receives the exact five authored roof transforms")
+
+	var comparison := exterior.get_node_or_null(^"PortShellRib01") as MeshInstance3D
+	_check(
+		multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(11.6, 0.12, 1.7))
+		and multi.mesh.get_surface_count() == 1
+		and comparison != null
+		and batch.material_override == comparison.material_override
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"the roof batch preserves exact mesh extent, pearl material, parent space, shadows and render layer"
+	)
+
+	var semantic_paths := [
+		^"Structure/Reception/WellPan",
+		^"Structure/Fitout/Banquette01",
+		^"Structure/Fitout/Banquette07",
+		^"Structure/Fitout/Armchair01",
+		^"Structure/Fitout/Armchair04",
+		^"Structure/Fitout/ServeryStool01",
+		^"Structure/Fitout/ServeryStool03",
+		^"Structure/Fitout/ServeryBody",
+		^"Structure/Fitout/HostDesk",
+		^"Structure/Fitout/OutboardWindowBench",
+		^"Structure/Fitout/LightColumnPort",
+		^"Structure/Fitout/LightColumnStarboard",
+	]
+	var semantics_intact := true
+	for path: NodePath in semantic_paths:
+		semantics_intact = semantics_intact and suite.get_node_or_null(path) != null
+	_check(
+		semantics_intact,
+		"WellPan and every named furniture family remain at their established semantic paths"
+	)
+
+	var render := suite.get_render_batch_contract()
+	_check(
+		int(render.roof_cassette_baseline_mesh_instances) == 5
+		and int(render.roof_cassette_mesh_instances) == 0
+		and int(render.roof_cassette_baseline_multimesh_resources) == 0
+		and int(render.roof_cassette_multimesh_resources) == 1
+		and int(render.roof_cassette_baseline_mesh_resources) == 1
+		and int(render.roof_cassette_mesh_resources) == 1
+		and int(render.roof_cassette_material_resources) == 1
+		and int(render.roof_cassette_baseline_submissions) == 5
+		and int(render.roof_cassette_submissions) == 1,
+		"family-local resources freeze at one mesh/one material while nodes 5 -> 1 and submissions 5 -> 1"
+	)
+	_check(
+		int(render.roof_cassette_copies) == 5
+		and int(render.roof_cassette_renderer_buffer_floats) == 60
+		and int(render.renderer_buffer_floats) == 228
+		and bool(render.roof_cassette_renderer_buffer_matches_authored)
+		and bool(render.roof_cassette_bounds_match_authored)
+		and bool(render.renderer_buffer_matches_authored)
+		and bool(render.bounds_match_authored),
+		"the five copies add an exact 60-float buffer and authored aggregate culling AABB"
+	)
+
+	var detached := render.authored_roof_cassette_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((suite.get_render_batch_contract().authored_roof_cassette_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"the roof transform roster is detached from retained renderer authority"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		suite.get_validation_errors().has(
+			"VIP roof-cassette renderer buffer drifted from its authored roster"
+		),
+		"mutating one live roof transform turns the exact component audit red"
+	)
+	multi.buffer = original_buffer
+	_check(suite.get_validation_errors().is_empty(), "restoring the roof buffer restores a clean module audit")
 
 
 func _test_evidence_label(suite: VipReceptionSuite) -> void:

@@ -111,14 +111,20 @@ const SEAT_COUNT := 15
 const GLAZING_PANE_COUNT := 11
 
 ## Exact post-batch presentation census. Fourteen childless lacquer joint blocks
-## still draw, but one MultiMesh owns their submission instead of fourteen
-## individual MeshInstance3D nodes.
+## and five childless exterior roof cassettes still draw, but two MultiMeshes own
+## their submissions instead of nineteen individual MeshInstance3D nodes.
 const BANQUETTE_JOINT_COPY_COUNT := 14
-const RENDER_DESCENDANT_COUNT := 469
-const RENDER_MESH_INSTANCE_COUNT := 264
-const RENDER_MULTIMESH_BATCH_COUNT := 1
+const ROOF_CASSETTE_COPY_COUNT := 5
+const BASELINE_RENDER_DESCENDANT_COUNT := 469
+const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
+const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
+const BASELINE_RENDER_DRAWN_COPY_COUNT := 278
+const BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT := 265
+const RENDER_DESCENDANT_COUNT := 465
+const RENDER_MESH_INSTANCE_COUNT := 259
+const RENDER_MULTIMESH_BATCH_COUNT := 2
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 265
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 261
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -154,6 +160,8 @@ var _support_members: Array[Node3D] = []
 var _practical_lights: Array[OmniLight3D] = []
 var _banquette_joint_transforms: Array[Transform3D] = []
 var _banquette_joint_batch: MultiMeshInstance3D = null
+var _roof_cassette_transforms: Array[Transform3D] = []
+var _roof_cassette_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -360,10 +368,14 @@ func get_validation_errors() -> PackedStringArray:
 	var rendering := get_render_batch_contract()
 	if not bool(rendering.exact_counts):
 		errors.append("VIP renderer node, batch, copy, or submission counts drifted")
-	if not bool(rendering.renderer_buffer_matches_authored):
+	if not bool(rendering.banquette_renderer_buffer_matches_authored):
 		errors.append("VIP banquette-joint renderer buffer drifted from its authored roster")
-	if not bool(rendering.bounds_match_authored):
+	if not bool(rendering.banquette_bounds_match_authored):
 		errors.append("VIP banquette-joint batch bounds drifted from its authored copies")
+	if not bool(rendering.roof_cassette_renderer_buffer_matches_authored):
+		errors.append("VIP roof-cassette renderer buffer drifted from its authored roster")
+	if not bool(rendering.roof_cassette_bounds_match_authored):
+		errors.append("VIP roof-cassette batch bounds drifted from its authored copies")
 	return errors
 
 
@@ -449,13 +461,13 @@ func get_render_batch_contract() -> Dictionary:
 		drawn_copies += visible_copies
 		submissions += batch.multimesh.mesh.get_surface_count()
 
-	var expected_buffer := _encode_multimesh_transforms(_banquette_joint_transforms)
-	var renderer_buffer_matches := (
+	var expected_joint_buffer := _encode_multimesh_transforms(_banquette_joint_transforms)
+	var joint_renderer_buffer_matches := (
 		is_instance_valid(_banquette_joint_batch)
 		and _banquette_joint_batch.multimesh != null
-		and _banquette_joint_batch.multimesh.buffer == expected_buffer
+		and _banquette_joint_batch.multimesh.buffer == expected_joint_buffer
 	)
-	var bounds_match := false
+	var joint_bounds_match := false
 	if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null:
 		var expected_bounds := _transformed_mesh_bounds(
 			_banquette_joint_batch.multimesh.mesh.get_aabb(),
@@ -464,7 +476,22 @@ func get_render_batch_contract() -> Dictionary:
 		# The transforms are uploaded as a raw renderer buffer, so Godot does not
 		# rebuild MultiMesh.get_aabb() on the CPU in headless validation. The
 		# explicit custom AABB is the culling contract used by the renderer.
-		bounds_match = _banquette_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+		joint_bounds_match = _banquette_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+	var expected_roof_buffer := _encode_multimesh_transforms(_roof_cassette_transforms)
+	var roof_renderer_buffer_matches := (
+		is_instance_valid(_roof_cassette_batch)
+		and _roof_cassette_batch.multimesh != null
+		and _roof_cassette_batch.multimesh.buffer == expected_roof_buffer
+	)
+	var roof_bounds_match := false
+	if is_instance_valid(_roof_cassette_batch) and _roof_cassette_batch.multimesh != null:
+		var expected_roof_bounds := _transformed_mesh_bounds(
+			_roof_cassette_batch.multimesh.mesh.get_aabb(),
+			_roof_cassette_transforms
+		)
+		roof_bounds_match = _roof_cassette_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_roof_bounds
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -475,21 +502,73 @@ func get_render_batch_contract() -> Dictionary:
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
+		"baseline_descendant_nodes": BASELINE_RENDER_DESCENDANT_COUNT,
 		"descendant_nodes": descendant_count,
+		"baseline_mesh_instances": BASELINE_RENDER_MESH_INSTANCE_COUNT,
 		"mesh_instances": mesh_nodes.size(),
+		"baseline_multimesh_batches": BASELINE_RENDER_MULTIMESH_BATCH_COUNT,
 		"multimesh_batches": batch_nodes.size(),
+		"baseline_drawn_copies": BASELINE_RENDER_DRAWN_COPY_COUNT,
 		"drawn_copies": drawn_copies,
+		"baseline_geometry_submissions": BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"geometry_submissions": submissions,
 		"banquette_joint_copies": _banquette_joint_transforms.size(),
-		"renderer_buffer_floats": (
+		"roof_cassette_copies": _roof_cassette_transforms.size(),
+		"banquette_renderer_buffer_floats": (
 			_banquette_joint_batch.multimesh.buffer.size()
 			if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
 			else 0
 		),
-		"renderer_buffer_matches_authored": renderer_buffer_matches,
-		"bounds_match_authored": bounds_match,
+		"roof_cassette_renderer_buffer_floats": (
+			_roof_cassette_batch.multimesh.buffer.size()
+			if is_instance_valid(_roof_cassette_batch) and _roof_cassette_batch.multimesh != null
+			else 0
+		),
+		"renderer_buffer_floats": (
+			(_banquette_joint_batch.multimesh.buffer.size()
+				if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
+				else 0)
+			+ (_roof_cassette_batch.multimesh.buffer.size()
+				if is_instance_valid(_roof_cassette_batch) and _roof_cassette_batch.multimesh != null
+				else 0)
+		),
+		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
+		"banquette_bounds_match_authored": joint_bounds_match,
+		"roof_cassette_renderer_buffer_matches_authored": roof_renderer_buffer_matches,
+		"roof_cassette_bounds_match_authored": roof_bounds_match,
+		"renderer_buffer_matches_authored": (
+			joint_renderer_buffer_matches and roof_renderer_buffer_matches
+		),
+		"bounds_match_authored": joint_bounds_match and roof_bounds_match,
+		"roof_cassette_baseline_mesh_instances": ROOF_CASSETTE_COPY_COUNT,
+		"roof_cassette_mesh_instances": 0,
+		"roof_cassette_baseline_multimesh_resources": 0,
+		"roof_cassette_multimesh_resources": 1 if is_instance_valid(_roof_cassette_batch) else 0,
+		"roof_cassette_baseline_mesh_resources": 1,
+		"roof_cassette_mesh_resources": (
+			1
+			if is_instance_valid(_roof_cassette_batch)
+			and _roof_cassette_batch.multimesh != null
+			and _roof_cassette_batch.multimesh.mesh != null
+			else 0
+		),
+		"roof_cassette_material_resources": (
+			1
+			if is_instance_valid(_roof_cassette_batch)
+			and _roof_cassette_batch.material_override != null
+			else 0
+		),
+		"roof_cassette_baseline_submissions": ROOF_CASSETTE_COPY_COUNT,
+		"roof_cassette_submissions": (
+			_roof_cassette_batch.multimesh.mesh.get_surface_count()
+			if is_instance_valid(_roof_cassette_batch)
+			and _roof_cassette_batch.multimesh != null
+			and _roof_cassette_batch.multimesh.mesh != null
+			else 0
+		),
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _banquette_joint_transforms.duplicate(),
+		"authored_roof_cassette_transforms": _roof_cassette_transforms.duplicate(),
 	}
 
 
@@ -1121,9 +1200,20 @@ func _build_exterior_dressing(structure: Node3D) -> void:
 	exterior.name = "ExteriorShell"
 	structure.add_child(exterior)
 
-	for cassette_index in 5:
+	var roof_cassette_transforms: Array[Transform3D] = []
+	for cassette_index in ROOF_CASSETTE_COPY_COUNT:
 		var cassette_z := 4.0 + float(cassette_index) * 2.2
-		_box(exterior, "RoofCassette%02d" % (cassette_index + 1), Vector3(-1.3, 5.46, cassette_z), Vector3(11.6, 0.12, 1.7), _materials["pearl_deep"], false)
+		roof_cassette_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(-1.3, 5.46, cassette_z))
+		)
+	_roof_cassette_transforms.assign(roof_cassette_transforms)
+	_roof_cassette_batch = _multimesh_boxes(
+		exterior,
+		"RoofCassettes",
+		Vector3(11.6, 0.12, 1.7),
+		_materials["pearl_deep"],
+		_roof_cassette_transforms
+	)
 	_beam_between(exterior, "RoofServiceSpine", Vector3(-6.4, 5.58, 3.4), Vector3(-6.4, 5.58, 13.8), 0.11, _materials["graphite"], false)
 	for rib_index in 4:
 		var rib_z := 4.6 + float(rib_index) * 2.8
