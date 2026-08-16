@@ -50,7 +50,7 @@ const EXPECTED_AGENT_SPECS := {
 		"slot_id": &"hub-registry-pod-freight",
 		"from": &"station-hub:hub-registry-pod-freight",
 		"to": &"jovian-freight-berth:approach",
-		"seed": 8821, "speed": 1.5, "lift": 3.6,
+		"seed": 8821, "speed": 1.5, "lift": 9.1,
 	},
 	&"habitat-spine-courier": {
 		"node_name": &"HabitatSpineServiceCourier",
