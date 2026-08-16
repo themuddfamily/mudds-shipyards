@@ -248,12 +248,25 @@ static func rounded_box_mesh_with_bevel(
 					u1 = float(u_index + 1) / 3.0
 					v0 = float(v_index) / 3.0
 					v1 = float(v_index + 1) / 3.0
+				# Emission order *is* the front-face winding, and it has to agree
+				# with the outward normal every vertex already carries. Godot's
+				# front face is the one whose vertices run clockwise seen from
+				# outside, so on a correct surface `(b - a) x (c - a)` points
+				# opposite the shading normal — every engine primitive measures
+				# that way (BoxMesh, CylinderMesh and SphereMesh all score 0%
+				# agreement). Emitting 0-1-2 / 0-2-3 here produced the reverse on
+				# all six faces, so every box this kit built had its outward faces
+				# culled and showed the unlit inside of its own back faces.
+				# Rendered in isolation beside `BoxMesh` under a single key light,
+				# the kit box was a black shell where the engine box was a normally
+				# shaded cube. Vertices, normals, UVs and tangents are untouched;
+				# only the order they are emitted in is reversed.
 				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
 				_add_rounded_vertex(tool, points[1], inner_half, bevel, Vector2(u1, v0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
 				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(u0, v0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
 				_add_rounded_vertex(tool, points[3], inner_half, bevel, Vector2(u0, v1))
+				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
 	# Without this the committed surface still carries a tangent array, but every
 	# tangent is the SurfaceTool default rather than the face's own U direction,
 	# so a normal map is resolved in an arbitrary frame. The station panel family
