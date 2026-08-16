@@ -82,6 +82,26 @@ const MULTIMESH_INSTANCE_COUNTS := {
 	"ServiceBeaconBatch": 4,
 }
 
+## First unbatched repeated family after the three authored dressing batches.
+## These four physical rails keep separate bodies, collision shapes, renderer
+## nodes, stable paths, and submissions; only their identical visual BoxMesh is
+## shared. Batching would erase the semantic rail paths and couple presentation
+## to the independently audited collision roster.
+const SHORT_SIDE_RAIL_VISUAL_SIZE := Vector3(0.16, 1.3, 2.0)
+const SHORT_SIDE_RAIL_NAMES := [
+	"EntryPortForward",
+	"EntryStarboardForward",
+	"UpperInboardForward",
+	"UpperInboardAft",
+]
+const SHORT_SIDE_RAIL_ORIGINS := [
+	Vector3(-6.0, 0.65, 1.0),
+	Vector3(6.0, 0.65, 1.0),
+	Vector3(14.0, 4.25, 1.0),
+	Vector3(14.0, 4.25, 9.0),
+]
+const SHORT_SIDE_RAIL_VISUAL_COUNT := 4
+
 const CONTENT_NOTE := (
 	"Salvage Terrace is a NEW modern interpretation. No source authenticates its "
 	+ "terraces, ramps, salvage racks, inspection gantry, dimensions, colours, "
@@ -113,6 +133,7 @@ var _built_node_transforms: Dictionary = {}
 var _built_multimesh_buffers: Dictionary = {}
 var _built_multimesh_visible_counts: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
+var _short_side_rail_visual_mesh: BoxMesh
 
 
 func _ready() -> void:
@@ -318,12 +339,191 @@ func get_performance_contract() -> Dictionary:
 	contract["nodes"] = 1 + find_children("*", "", true, false).size()
 	contract["budgets"] = PERFORMANCE_BUDGET.duplicate(true)
 	contract["buffers_match_authored"] = _multimesh_contract_is_live()
+	var rail_visual_sharing := get_short_side_rail_visual_allocation_audit()
+	contract["short_side_rail_visual_sharing"] = rail_visual_sharing
+	contract["resource_sharing_matches_authored"] = bool(rail_visual_sharing.valid)
 	var exact_census := true
 	for key in PERFORMANCE_BUDGET:
 		exact_census = exact_census and int(contract.get(key, -1)) == int(PERFORMANCE_BUDGET[key])
 	contract["exact_census"] = exact_census
-	contract["within_budget"] = bool(contract.within_budget) and exact_census and bool(contract.buffers_match_authored)
+	contract["within_budget"] = (
+		bool(contract.within_budget)
+		and exact_census
+		and bool(contract.buffers_match_authored)
+		and bool(contract.resource_sharing_matches_authored)
+	)
 	return contract
+
+
+## Renderer-independent, component-local allocation evidence for four exact
+## short side-rail visuals. A structural submission is one mesh surface, not a
+## driver draw-call claim. The report intentionally makes no whole-scene,
+## frame-time, GPU, VRAM, or pixel-equivalence claim.
+func get_short_side_rail_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	var material_ids := {}
+	var collision_shape_ids := {}
+	var behavior_rows: Array[Dictionary] = []
+	var visual_node_count := 0
+	var visible_copy_count := 0
+	var structural_submissions := 0
+	var physical_rail_body_count := 0
+	var collision_shape_count := 0
+	var scripted_node_count := 0
+	var foreign_authority_node_count := 0
+	var processing_node_count := 0
+
+	for index in SHORT_SIDE_RAIL_NAMES.size():
+		var rail_name := String(SHORT_SIDE_RAIL_NAMES[index])
+		var rail_path := NodePath("GeneratedRoot/%s" % rail_name)
+		var rail := get_node_or_null(rail_path) as StaticBody3D
+		if rail == null:
+			errors.append("short_side_rail_visual_missing:%s" % rail_name)
+			continue
+		physical_rail_body_count += 1
+		var visual := rail.get_node_or_null(^"Mesh") as MeshInstance3D
+		var collision := rail.get_node_or_null(^"Collision") as CollisionShape3D
+		if visual == null:
+			errors.append("short_side_rail_visual_missing:%s/Mesh" % rail_name)
+		else:
+			visual_node_count += 1
+			visible_copy_count += 1 if visual.visible else 0
+			if visual.mesh != null:
+				mesh_ids[visual.mesh.get_instance_id()] = true
+				structural_submissions += visual.mesh.get_surface_count()
+			if visual.material_override != null:
+				material_ids[visual.material_override.get_instance_id()] = true
+			if visual.mesh != _short_side_rail_visual_mesh:
+				errors.append("short_side_rail_visual_mesh_identity_not_shared")
+			if (
+				visual.material_override != _materials.get("rail")
+				or not visual.transform.is_equal_approx(Transform3D.IDENTITY)
+				or visual.layers != 1
+				or visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				or str(visual.get_meta("non_walkable_reason", ""))
+					!= "physical safety rail, not a route surface"
+			):
+				errors.append("short_side_rail_visual_render_state_drift")
+		if collision == null or not (collision.shape is BoxShape3D):
+			errors.append("short_side_rail_physics_contract_drift")
+		else:
+			collision_shape_count += 1
+			collision_shape_ids[collision.shape.get_instance_id()] = true
+			if not (collision.shape as BoxShape3D).size.is_equal_approx(
+				SHORT_SIDE_RAIL_VISUAL_SIZE
+			):
+				errors.append("short_side_rail_physics_contract_drift")
+		if (
+			not bool(rail.get_meta("safety_rail", false))
+			or not rail.transform.is_equal_approx(
+				Transform3D(Basis.IDENTITY, SHORT_SIDE_RAIL_ORIGINS[index] as Vector3)
+			)
+			or rail.collision_mask != 0
+			or rail.get_child_count() != 2
+		):
+			errors.append("short_side_rail_physics_contract_drift")
+		for candidate in [rail, visual, collision]:
+			if candidate == null:
+				continue
+			var node := candidate as Node
+			if node.get_script() != null:
+				scripted_node_count += 1
+			if node.is_processing() or node.is_physics_processing():
+				processing_node_count += 1
+			for child in node.get_children():
+				if (
+					child is Area3D
+					or child is NavigationRegion3D
+					or child is Light3D
+					or child is AudioStreamPlayer
+					or child is AudioStreamPlayer3D
+					or child is Camera3D
+				):
+					foreign_authority_node_count += 1
+		behavior_rows.append({
+			"path": String(rail_path),
+			"origin": [rail.position.x, rail.position.y, rail.position.z],
+			"visual_path": String(rail_path) + "/Mesh",
+			"collision_path": String(rail_path) + "/Collision",
+		})
+
+	var shared_mesh := _short_side_rail_visual_mesh
+	if (
+		shared_mesh == null
+		or not shared_mesh.size.is_equal_approx(SHORT_SIDE_RAIL_VISUAL_SIZE)
+		or shared_mesh.get_surface_count() != 1
+	):
+		errors.append("short_side_rail_visual_mesh_recipe_drift")
+	if visual_node_count != SHORT_SIDE_RAIL_VISUAL_COUNT:
+		errors.append("short_side_rail_visual_node_count_drift")
+	if visible_copy_count != SHORT_SIDE_RAIL_VISUAL_COUNT:
+		errors.append("short_side_rail_visual_copy_count_drift")
+	if structural_submissions != SHORT_SIDE_RAIL_VISUAL_COUNT:
+		errors.append("short_side_rail_visual_submission_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("short_side_rail_visual_mesh_identity_count_drift")
+	if material_ids.size() != 1:
+		errors.append("short_side_rail_visual_material_identity_count_drift")
+	if (
+		physical_rail_body_count != SHORT_SIDE_RAIL_VISUAL_COUNT
+		or collision_shape_count != SHORT_SIDE_RAIL_VISUAL_COUNT
+		or collision_shape_ids.size() != SHORT_SIDE_RAIL_VISUAL_COUNT
+	):
+		errors.append("short_side_rail_physics_contract_drift")
+	if scripted_node_count != 0 or foreign_authority_node_count != 0 or processing_node_count != 0:
+		errors.append("short_side_rail_visual_path_gained_authority_or_lifecycle")
+
+	var legacy := {
+		"visual_nodes": 4,
+		"visible_geometry_copies": 4,
+		"structural_submissions": 4,
+		"mesh_resource_allocations": 4,
+		"material_resource_allocations": 1,
+		"physical_rail_bodies": 4,
+		"collision_shapes": 4,
+		"collision_resource_allocations": 4,
+	}
+	var current := {
+		"visual_nodes": visual_node_count,
+		"visible_geometry_copies": visible_copy_count,
+		"structural_submissions": structural_submissions,
+		"mesh_resource_allocations": mesh_ids.size(),
+		"material_resource_allocations": material_ids.size(),
+		"physical_rail_bodies": physical_rail_body_count,
+		"collision_shapes": collision_shape_count,
+		"collision_resource_allocations": collision_shape_ids.size(),
+	}
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"salvage_terrace_short_side_rail_visuals",
+		"legacy": legacy,
+		"current": current,
+		"reductions": {
+			"visual_nodes": 0,
+			"visible_geometry_copies": 0,
+			"structural_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"physical_rail_bodies": 0,
+			"collision_shapes": 0,
+		},
+		"mesh_recipe": {
+			"size": shared_mesh.size if shared_mesh != null else Vector3.ZERO,
+			"surface_count": shared_mesh.get_surface_count() if shared_mesh != null else 0,
+		},
+		"behavior_rows": behavior_rows,
+		"scripted_node_count": scripted_node_count,
+		"foreign_authority_node_count": foreign_authority_node_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"whole_scene_budget_claimed": false,
+		"pixel_equivalence_claimed": false,
+	}.duplicate(true)
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -432,6 +632,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("exact renderer and physics performance census drifted")
 	if not bool(performance.buffers_match_authored):
 		errors.append("MultiMesh batch counts, visibility, transforms, or raw buffers drifted")
+	if not bool(performance.resource_sharing_matches_authored):
+		errors.append("shared short-side rail visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if (
 		not bool(lifecycle.reversible)
@@ -565,6 +767,9 @@ func _tag_walkable_surface(body: StaticBody3D, surface_id: StringName, kind: Str
 func _build_safety_rails() -> void:
 	# Every exposed edge is a continuous physical barrier. Gates exist only where
 	# another declared walkable surface meets it, plus the 4 m local-origin entry.
+	_short_side_rail_visual_mesh = BoxMesh.new()
+	_short_side_rail_visual_mesh.resource_name = "SalvageTerraceShortSideRailVisualMesh"
+	_short_side_rail_visual_mesh.size = SHORT_SIDE_RAIL_VISUAL_SIZE
 	_add_rail("EntryFrontPort", Transform3D(Basis.IDENTITY, Vector3(-4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryFrontStarboard", Transform3D(Basis.IDENTITY, Vector3(4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryPortForward", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 1.0)), Vector3(0.16, 1.3, 2.0))
@@ -588,7 +793,12 @@ func _build_safety_rails() -> void:
 
 
 func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void:
-	var rail := _box_body(_build_root, node_name, transform, size, _materials.rail)
+	var visual_mesh: BoxMesh = null
+	if node_name in SHORT_SIDE_RAIL_NAMES:
+		visual_mesh = _short_side_rail_visual_mesh
+	var rail := _box_body(
+		_build_root, node_name, transform, size, _materials.rail, visual_mesh
+	)
 	rail.set_meta("safety_rail", true)
 	var mesh := rail.get_node(^"Mesh") as MeshInstance3D
 	mesh.set_meta("non_walkable_reason", "physical safety rail, not a route surface")
@@ -702,7 +912,8 @@ func _box_body(
 		node_name: String,
 		transform: Transform3D,
 		size: Vector3,
-		material: Material
+		material: Material,
+		shared_visual_mesh: BoxMesh = null
 	) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = node_name
@@ -712,8 +923,10 @@ func _box_body(
 	parent.add_child(body)
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "Mesh"
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh := shared_visual_mesh
+	if mesh == null:
+		mesh = BoxMesh.new()
+		mesh.size = size
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	body.add_child(mesh_instance)

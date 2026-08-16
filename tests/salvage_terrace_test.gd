@@ -37,6 +37,7 @@ func _run() -> void:
 	_test_origin_slot_and_routes(module)
 	await _test_exact_surface_union(module)
 	_test_rails_dressing_and_authority(module)
+	_test_short_side_rail_visual_sharing(module)
 	_test_performance_and_lifecycle(module)
 	await _test_real_player_ramp_traversal(module)
 	await _test_mutations_turn_audit_red(module)
@@ -246,6 +247,141 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 	)
 
 
+func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
+	var report := module.get_short_side_rail_visual_allocation_audit()
+	print(
+		"SALVAGE_TERRACE_SHORT_SIDE_RAIL_VISUALS: "
+		+ "nodes %d->%d submissions %d->%d mesh_resources %d->%d copies %d->%d" % [
+			int(report.legacy.visual_nodes), int(report.current.visual_nodes),
+			int(report.legacy.structural_submissions),
+			int(report.current.structural_submissions),
+			int(report.legacy.mesh_resource_allocations),
+			int(report.current.mesh_resource_allocations),
+			int(report.legacy.visible_geometry_copies),
+			int(report.current.visible_geometry_copies),
+		]
+	)
+	_check(
+		bool(report.valid)
+		and report.legacy == {
+			"visual_nodes": 4,
+			"visible_geometry_copies": 4,
+			"structural_submissions": 4,
+			"mesh_resource_allocations": 4,
+			"material_resource_allocations": 1,
+			"physical_rail_bodies": 4,
+			"collision_shapes": 4,
+			"collision_resource_allocations": 4,
+		}
+		and report.current == {
+			"visual_nodes": 4,
+			"visible_geometry_copies": 4,
+			"structural_submissions": 4,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+			"physical_rail_bodies": 4,
+			"collision_shapes": 4,
+			"collision_resource_allocations": 4,
+		},
+		"short-side rail visuals freeze exact nodes 4->4, submissions 4->4, mesh allocations 4->1, and visible copies 4->4"
+	)
+	_check(
+		report.reductions.mesh_resource_allocations == 3
+		and report.reductions.physical_rail_bodies == 0
+		and report.reductions.collision_shapes == 0
+		and not bool(report.batched)
+		and not bool(report.frame_time_claimed)
+		and not bool(report.gpu_draw_call_claimed)
+		and not bool(report.vram_claimed)
+		and not bool(report.whole_scene_budget_claimed)
+		and not bool(report.pixel_equivalence_claimed),
+		"allocation evidence is component-local and makes no batching, timing, GPU, VRAM, whole-scene, or pixel claim"
+	)
+
+	var meshes: Array[MeshInstance3D] = []
+	var bodies: Array[StaticBody3D] = []
+	var collision_resource_ids := {}
+	for rail_name in [
+		"EntryPortForward", "EntryStarboardForward",
+		"UpperInboardForward", "UpperInboardAft",
+	]:
+		var body := module.get_node(NodePath("GeneratedRoot/%s" % rail_name)) as StaticBody3D
+		var mesh := body.get_node(^"Mesh") as MeshInstance3D
+		var collision := body.get_node(^"Collision") as CollisionShape3D
+		bodies.append(body)
+		meshes.append(mesh)
+		collision_resource_ids[collision.shape.get_instance_id()] = true
+	var shared_mesh := meshes[0].mesh as BoxMesh
+	var exact_paths_and_resources := shared_mesh != null
+	for index in meshes.size():
+		exact_paths_and_resources = (
+			exact_paths_and_resources
+			and meshes[index].mesh == shared_mesh
+			and meshes[index].material_override == meshes[0].material_override
+			and bodies[index].get_child_count() == 2
+			and bool(bodies[index].get_meta("safety_rail", false))
+		)
+	_check(
+		exact_paths_and_resources
+		and collision_resource_ids.size() == 4
+		and shared_mesh.size.is_equal_approx(Vector3(0.16, 1.3, 2.0)),
+		"four stable physical rail paths retain four private colliders while sharing one exact visual BoxMesh"
+	)
+	_check(
+		int(report.scripted_node_count) == 0
+		and int(report.foreign_authority_node_count) == 0
+		and int(report.processing_node_count) == 0,
+		"shared visual paths add no script, processing loop, or foreign gameplay authority"
+	)
+
+	(report.current as Dictionary)["mesh_resource_allocations"] = -1
+	(report.behavior_rows as Array).clear()
+	var detached := module.get_short_side_rail_visual_allocation_audit()
+	_check(
+		int(detached.current.mesh_resource_allocations) == 1
+		and (detached.behavior_rows as Array).size() == 4,
+		"component-local allocation evidence is deeply detached from caller mutation"
+	)
+
+	var original_size := shared_mesh.size
+	shared_mesh.size.x += 0.01
+	var recipe_mutation := module.get_short_side_rail_visual_allocation_audit()
+	var mutation_reached_every_copy := true
+	for mesh in meshes:
+		mutation_reached_every_copy = mutation_reached_every_copy \
+			and is_equal_approx((mesh.mesh as BoxMesh).size.x, original_size.x + 0.01)
+	_check(
+		not bool(recipe_mutation.valid)
+		and (recipe_mutation.errors as PackedStringArray).has(
+			"short_side_rail_visual_mesh_recipe_drift"
+		)
+		and mutation_reached_every_copy
+		and _errors_include(
+			module.get_validation_errors(),
+			"shared short-side rail visual allocation contract"
+		),
+		"MUTATION: changing the shared visual recipe reaches all four copies and turns the module audit red"
+	)
+	shared_mesh.size = original_size
+
+	var original_second_mesh := meshes[1].mesh
+	meshes[1].mesh = shared_mesh.duplicate()
+	var identity_mutation := module.get_short_side_rail_visual_allocation_audit()
+	_check(
+		not bool(identity_mutation.valid)
+		and (identity_mutation.errors as PackedStringArray).has(
+			"short_side_rail_visual_mesh_identity_not_shared"
+		)
+		and int(identity_mutation.current.mesh_resource_allocations) == 2,
+		"MUTATION: an exact-looking private rail mesh turns shared identity evidence red"
+	)
+	meshes[1].mesh = original_second_mesh
+	_check(
+		bool(module.get_audit_report().valid),
+		"restoring the shared rail mesh recipe and identity returns the full module audit green"
+	)
+
+
 func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	var performance := module.get_performance_contract()
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
@@ -293,8 +429,9 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		module.is_module_enabled()
 		and restored.surface_instance_ids == before.surface_instance_ids
 		and int(restored.build_generation) == 1
+		and bool(module.get_short_side_rail_visual_allocation_audit().valid)
 		and bool(module.get_audit_report().valid),
-		"re-enable restores identical nodes, World collision, and a green audit"
+		"re-enable restores identical nodes, shared rail resources, World collision, and a green audit"
 	)
 
 
