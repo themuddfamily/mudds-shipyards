@@ -58,7 +58,11 @@ func _test_identity_evidence_and_audit(module: AftJunctionStack) -> void:
 	_check(int(evidence.schema_version) == AftJunctionStack.SCHEMA_VERSION, "evidence report has a stable schema")
 	_check(str(evidence.evidence_status) == "modern_interpretation", "evidence API labels exact layout as modern interpretation")
 	_check((evidence.references as PackedStringArray).size() >= 4, "evidence API exposes source/timestamp references")
-	_check("VIP" in str(evidence.content_note) and "no unsupported VIP interior" in str(evidence.content_note), "evidence note limits the VIP claim")
+	_check(
+		"VIP" in str(evidence.content_note) and "no authenticated interior" in str(evidence.content_note) \
+			and "confidence none" in str(evidence.content_note),
+		"evidence note limits the VIP claim to a landmark and grades what stands behind it"
+	)
 	var returned_references := evidence.references as PackedStringArray
 	returned_references.append("mutation")
 	_check(not (module.get_evidence_metadata().references as PackedStringArray).has("mutation"), "evidence arrays are detached from module state")
@@ -209,15 +213,24 @@ func _test_vip_landmark(module: AftJunctionStack) -> void:
 	_check(vip != null, "VIP landmark exposes a StationDoor component")
 	if vip == null:
 		return
-	_check(vip.locked and vip.deferred_access, "VIP landmark is both locked and deferred")
-	_check(not vip.can_interact(module), "deferred VIP landmark cannot imply a playable unsupported room")
-	_check(not vip.interact(module), "VIP interaction is explicitly refused")
+	# Reversed with the interior. This block used to require the landmark to stay
+	# shut, which was right while nothing stood behind it. `VipReceptionSuite` now
+	# does, so the assertions move to what actually protects the evidence
+	# boundary: the door opens, and both the door and the module keep saying in
+	# their own metadata that what it opens onto is invented.
+	_check(not vip.locked and not vip.deferred_access, "VIP landmark opens onto its built interpretation interior")
+	_check(vip.can_interact(module), "the opened VIP landmark is a real interactable door")
 	var prompt := vip.get_interaction_prompt()
-	_check("DEFERRED" in prompt and "VIP ACCESS" in prompt, "VIP prompt names the red landmark and its deferred state")
-	_check(str(vip.get_meta("access_label")) == "VIP ACCESS", "VIP component metadata exposes its stable label")
-	_check(bool(vip.get_meta("deferred_access")), "VIP component metadata preserves deferred status")
-	_check("No unsupported VIP room" in str(vip.get_meta("content_note")), "VIP component carries the no-interior evidence boundary")
-	_check(module.get_vip_access_marker().global_position.distance_to(vip.global_position + Vector3.UP * 0.15) < 1.3, "VIP route marker terminates at the deferred landmark")
+	_check("VIP RECEPTION" in prompt, "VIP prompt names the reception the door now leads to")
+	_check("DEFERRED" not in prompt, "an opened landmark no longer advertises deferred content")
+	_check(str(vip.get_meta("access_label")) == "VIP RECEPTION", "VIP component metadata exposes its stable label")
+	_check(not bool(vip.get_meta("deferred_access")), "VIP component metadata records that the landmark is no longer deferred")
+	_check(
+		"invented modern design" in str(vip.get_meta("content_note")) \
+			and "confidence none" in str(vip.get_meta("content_note")),
+		"VIP component carries the evidence boundary for the room behind it"
+	)
+	_check(module.get_vip_access_marker().global_position.distance_to(vip.global_position + Vector3.UP * 0.15) < 1.3, "VIP route marker terminates at the landmark")
 
 	var panel := vip.get_node_or_null("SlidingPanel/PanelMesh") as MeshInstance3D
 	var panel_material := panel.material_override as StandardMaterial3D if panel != null else null

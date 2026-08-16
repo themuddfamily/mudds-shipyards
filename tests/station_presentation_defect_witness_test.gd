@@ -43,7 +43,7 @@ const APPROACH_FACING_SIGNS := [
 	# Same cause, same fix; all five were rendered and read backwards first.
 	["ExposedDockLattice/Sign_MUDDS__--__REGENERATION_DECK", Vector3(0.0, 0.0, -1.0)],
 	["ExposedDockLattice/Sign_CENTRAL_JUNCTION__--__FLEET_DOCKS", Vector3(0.0, 0.0, -1.0)],
-	["AftJunctionStack/Structure/VIPLandmark/Sign_VIP_ACCESS__--__DEFERRED", Vector3(0.0, 0.0, -1.0)],
+	["AftJunctionStack/Structure/VIPLandmark/Sign_VIP_RECEPTION__--__MODERN_INTERPRETATION", Vector3(0.0, 0.0, -1.0)],
 	[
 		"AftJunctionStack/Structure/OpenStructureDetails/Sign_AFT_JUNCTION__--__MODERN_INTERPRETATION",
 		Vector3(0.0, 0.0, -1.0),
@@ -233,6 +233,13 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"OperationalLattice/Activities/CentralCargoTransferLine/PresentationRoot/CargoTransferLine/CrateUpper",
 	"OperationalLattice/Activities/CentralCargoTransferLine/PresentationRoot/CargoTransferLine/HoistBeam",
 	"OperationalLattice/Activities/CentralCargoTransferLine/PresentationRoot/CargoTransferLine/AnimatedCargoHoist/HoistHook",
+	# The VIP reception's own free-standing pieces. Its suite sweeps every mesh in
+	# the module, but the three that most resemble the recorded defects — a legend
+	# on a panel, a lamp on a fascia, a cove strip in a reveal — are named here as
+	# well so they are covered by the station-wide roster a later pass will read.
+	"VipReceptionSuite/Structure/Threshold/Sign_MODERN_INTERPRETATION",
+	"VipReceptionSuite/Structure/ExteriorShell/OutboardMarkerLamp01",
+	"VipReceptionSuite/Structure/Lighting/LanternCoveFront",
 ]
 const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
 

@@ -38,7 +38,9 @@ extends SceneTree
 ##
 ## Station doors are treated as openable (their portal blockers are excluded from
 ## every query) so a closed reusable door is never miscounted as a defect. Only
-## the two deferred landmark doors stay solid.
+## a deferred landmark door stays solid, and there is one of those left: the Aft
+## VIP door was opened when `VipReceptionSuite` was built behind it, so its
+## portal now joins the flood and the reception floor is a reachable surface.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
@@ -84,6 +86,9 @@ const REQUIRED_ROUTE_SURFACES := [
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/Trunk"],
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab01"],
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab03Upper"],
+	["VipReceptionSuite", "Structure/Threshold/ThresholdFloor"],
+	["VipReceptionSuite", "Structure/Reception/FloorPlateFront"],
+	["VipReceptionSuite", "Structure/Reception/WellPan"],
 ]
 
 ## MAP-002's own recorded reproductions. Each entry is a lattice-deck standing

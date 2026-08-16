@@ -89,7 +89,18 @@ func _run() -> void:
 	await physics_frame
 	_check(entered_in_budget, "the walk through the portal completes inside its bounded simulated-frame budget")
 	_check(module.contains_operations_room(player.global_position), "the production player walks through the door into the enterable operations room")
-	_check(module.get_vip_access().deferred_access, "the red VIP landmark remains explicit deferred content rather than an invented room")
+	# The landmark is no longer deferred — it opens onto `VipReceptionSuite` — so
+	# what is asserted here is the thing that still has to be true: the room behind
+	# it is published as an invention, at confidence none, by the module that owns
+	# it rather than by the module that owns the door.
+	_check(not module.get_vip_access().deferred_access, "the red VIP landmark now opens onto its published interpretation interior")
+	var suite := world.get_node_or_null(^"VipReceptionSuite")
+	_check(suite != null, "the interpretation interior behind the landmark is live in the production world")
+	if suite != null:
+		var suite_evidence: Dictionary = suite.call("get_evidence_metadata")
+		_check(str(suite_evidence.get("evidence_status", "")) == "modern_interpretation", "the VIP interior publishes modern_interpretation")
+		_check(str(suite_evidence.get("source_confidence", "")) == "none", "the VIP interior publishes confidence none")
+		_check(not bool(suite_evidence.get("reproduces_observed_interior", true)), "the VIP interior claims to reproduce nothing")
 
 	Input.action_release("move_forward")
 	Input.action_release("sprint_boost")
