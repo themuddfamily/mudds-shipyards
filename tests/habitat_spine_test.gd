@@ -246,6 +246,47 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 		all_chairs_tagged = all_chairs_tagged and bool(chair.get_meta("station_chair", false))
 		all_chairs_tagged = all_chairs_tagged and chair.get_node_or_null("Seat") is StaticBody3D
 	_check(all_chairs_tagged, "every common chair is tagged and collision-backed")
+	var bearing_material: Material = null
+	var bearings_exact := true
+	var bearing_triangles_before := 0
+	var bearing_triangles_after := 0
+	for chair in chairs:
+		var bearing := chair.get_node_or_null("Bearing") as MeshInstance3D
+		var mesh := bearing.mesh as TorusMesh if bearing != null else null
+		if bearing == null or mesh == null:
+			bearings_exact = false
+			continue
+		var before_aabb := mesh.get_aabb()
+		bearing_triangles_before += 32 * 13 * 2
+		TorusGeometryBudget.apply_profile(
+			mesh,
+			1.0,
+			StringName(bearing.get_meta(TorusGeometryBudget.PROFILE_META, &""))
+		)
+		bearing_triangles_after += TorusGeometryBudget.triangles_of(mesh)
+		if bearing_material == null:
+			bearing_material = bearing.material_override
+		bearings_exact = bearings_exact \
+			and bearing.position.is_equal_approx(Vector3(0.0, 0.72, 0.0)) \
+			and bearing.rotation.is_zero_approx() \
+			and bearing.material_override == bearing_material \
+			and bearing.get_child_count() == 0 \
+			and StringName(bearing.get_meta(TorusGeometryBudget.PROFILE_META, &"")) \
+			== TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING \
+			and is_equal_approx(mesh.inner_radius, 0.16) \
+			and is_equal_approx(mesh.outer_radius, 0.24) \
+			and mesh.rings == 32 \
+			and mesh.ring_segments == 8 \
+			and mesh.get_surface_count() == 1 \
+			and mesh.get_aabb().is_equal_approx(before_aabb)
+	_check(
+		bearings_exact,
+		"all eight visual-only bearings retain transforms, copper material, radii, bounds, and one surface"
+	)
+	_check(
+		bearing_triangles_before == 6656 and bearing_triangles_after == 4096,
+		"chair-bearing family freezes at 6656 -> 4096 triangles across eight unchanged instances"
+	)
 
 	_check(module.get_window_pane_count() >= 9, "common area exposes broad multi-pane glazing")
 	var glazing := module.find_children("*", "StaticBody3D", true, false).filter(

@@ -1196,7 +1196,17 @@ func _build_common_chair(parent: Node3D, index: int, chair_position: Vector3, ya
 	_chair_nodes.append(chair)
 	_cylinder(chair, "Pedestal", Vector3(0, 0.42, 0), 0.16, 0.84, _materials["structural"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.46, 0.14, _materials["graphite"], true)
-	_torus(chair, "Bearing", Vector3(0, 0.72, 0), 0.16, 0.24, _materials["copper"])
+	var bearing := _torus(
+		chair, "Bearing", Vector3(0, 0.72, 0), 0.16, 0.24, _materials["copper"]
+	)
+	# Eight identical visual-only bearings sit inside the pedestal/seat overlap.
+	# Their circular sweep keeps the global floor; the torus budget alone owns the
+	# cheaper occluded tube cross-section. Collision and chair identity live on the
+	# unchanged pedestal, foot, seat, and chair root rather than this trim mesh.
+	bearing.set_meta(
+		TorusGeometryBudget.PROFILE_META,
+		TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING
+	)
 	_box(chair, "Seat", Vector3(0, 0.84, 0), Vector3(0.94, 0.2, 0.9), _materials["fabric"], true)
 	_box(chair, "Back", Vector3(0, 1.43, -0.38), Vector3(0.92, 1.28, 0.2), _materials["fabric_dark"], true, Vector3(-6, 0, 0))
 	for side in [-1.0, 1.0]:

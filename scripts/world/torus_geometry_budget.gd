@@ -155,6 +155,21 @@ const MIN_RING_SEGMENTS := 12
 ## authored value stands.
 const MINIMUM_SAVING_FRACTION := 0.10
 
+## Optional per-instance profile selected by builders for a bounded visual-only
+## family. Profiles are never inferred from names or paths: a builder must opt a
+## ring in explicitly, keeping the global rendered floor authoritative for every
+## unmarked torus.
+const PROFILE_META := "torus_geometry_budget_profile"
+const PROFILE_OCCLUDED_CHAIR_BEARING: StringName = &"occluded_chair_bearing"
+
+## The eight observation-common chair bearings sit inside the pedestal/seat
+## overlap. Their 32-edge major silhouette remains at the globally reviewed
+## floor; only the occluded tube cross-section drops from 13 segments to 8.
+## Eight is aligned to the cardinal axes, so outer radius and visible thickness
+## retain exact extrema. This family was approved from its same-camera Forward+
+## comparison, not generalized to exposed collars.
+const OCCLUDED_CHAIR_BEARING_RING_SEGMENTS := 8
+
 
 ## Smallest segment count whose sagitta on a circle of `radius` stays within
 ## `allowed_error`, both in metres.
@@ -215,6 +230,16 @@ const AUTHORED_META := "torus_budget_authored_tessellation"
 ## Never increases either count: where the rule asks for more than the builder
 ## authored, the authored value stands. Returns the mesh so callers can chain.
 static func apply(mesh: TorusMesh, world_scale := 1.0) -> TorusMesh:
+	return apply_profile(mesh, world_scale, &"")
+
+
+## Applies the general plan, with one deliberately narrow presentation profile.
+## The profile changes no radius or transform and may never raise tessellation.
+static func apply_profile(
+		mesh: TorusMesh,
+		world_scale: float,
+		profile: StringName
+	) -> TorusMesh:
 	if mesh == null:
 		return mesh
 	if not mesh.has_meta(AUTHORED_META):
@@ -223,6 +248,8 @@ static func apply(mesh: TorusMesh, world_scale := 1.0) -> TorusMesh:
 	var chosen := plan(mesh.outer_radius * scale_factor, mesh.inner_radius * scale_factor)
 	var rings := mini(mesh.rings, int(chosen["rings"]))
 	var segments := mini(mesh.ring_segments, int(chosen["ring_segments"]))
+	if profile == PROFILE_OCCLUDED_CHAIR_BEARING:
+		segments = mini(segments, OCCLUDED_CHAIR_BEARING_RING_SEGMENTS)
 	var before := mesh.rings * mesh.ring_segments
 	if before - rings * segments < int(ceil(MINIMUM_SAVING_FRACTION * float(before))):
 		return mesh
@@ -265,14 +292,50 @@ static func restore_authored(node: Node) -> int:
 static func normalise_tree(node: Node) -> Dictionary:
 	var found: Dictionary = {}
 	_collect(node, found)
-	var report := {"tori": 0, "triangles_before": 0, "triangles_after": 0}
+	var report := {
+		"tori": 0,
+		"triangles_before": 0,
+		"triangles_baseline": 0,
+		"triangles_after": 0,
+		"profiles": {},
+	}
 	for key in found:
 		var entry: Dictionary = found[key]
 		var mesh: TorusMesh = entry["mesh"]
-		report["tori"] = int(report["tori"]) + int(entry["instances"])
-		report["triangles_before"] = int(report["triangles_before"]) + triangles_of(mesh) * int(entry["instances"])
-		apply(mesh, float(entry["scale"]))
-		report["triangles_after"] = int(report["triangles_after"]) + triangles_of(mesh) * int(entry["instances"])
+		var instances := int(entry["instances"])
+		var profile := StringName(entry["profile"])
+		var before := triangles_of(mesh) * instances
+		var baseline_mesh := mesh.duplicate() as TorusMesh
+		if mesh.has_meta(AUTHORED_META):
+			var authored: Vector2i = mesh.get_meta(AUTHORED_META)
+			baseline_mesh.rings = authored.x
+			baseline_mesh.ring_segments = authored.y
+		apply(baseline_mesh, float(entry["scale"]))
+		var baseline := triangles_of(baseline_mesh) * instances
+		report["tori"] = int(report["tori"]) + instances
+		report["triangles_before"] = int(report["triangles_before"]) + before
+		report["triangles_baseline"] = int(report["triangles_baseline"]) + baseline
+		apply_profile(mesh, float(entry["scale"]), profile)
+		var after := triangles_of(mesh) * instances
+		report["triangles_after"] = int(report["triangles_after"]) + after
+		if not profile.is_empty():
+			var profiles := report["profiles"] as Dictionary
+			if not profiles.has(profile):
+				profiles[profile] = {
+					"resources": 0,
+					"instances": 0,
+					"surfaces": 0,
+					"triangles_before": 0,
+					"triangles_baseline": 0,
+					"triangles_after": 0,
+				}
+			var profile_report := profiles[profile] as Dictionary
+			profile_report["resources"] = int(profile_report["resources"]) + 1
+			profile_report["instances"] = int(profile_report["instances"]) + instances
+			profile_report["surfaces"] = int(profile_report["surfaces"]) + int(entry["surfaces"])
+			profile_report["triangles_before"] = int(profile_report["triangles_before"]) + before
+			profile_report["triangles_baseline"] = int(profile_report["triangles_baseline"]) + baseline
+			profile_report["triangles_after"] = int(profile_report["triangles_after"]) + after
 	return report
 
 
@@ -287,9 +350,18 @@ static func _collect(node: Node, found: Dictionary) -> void:
 			if found.has(key):
 				var entry: Dictionary = found[key]
 				entry["instances"] = int(entry["instances"]) + 1
+				entry["surfaces"] = int(entry["surfaces"]) + mesh.get_surface_count()
 				entry["scale"] = maxf(float(entry["scale"]), world_scale)
+				if StringName(entry["profile"]) != StringName(instance.get_meta(PROFILE_META, &"")):
+					entry["profile"] = &""
 			else:
-				found[key] = {"mesh": mesh, "scale": world_scale, "instances": 1}
+				found[key] = {
+					"mesh": mesh,
+					"scale": world_scale,
+					"instances": 1,
+					"surfaces": mesh.get_surface_count(),
+					"profile": StringName(instance.get_meta(PROFILE_META, &"")),
+				}
 	for child in node.get_children():
 		_collect(child, found)
 

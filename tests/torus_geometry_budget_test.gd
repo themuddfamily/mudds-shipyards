@@ -120,9 +120,11 @@ func _check_world_rings() -> void:
 	var below_floor: Array[String] = []
 	var increased: Array[String] = []
 	var faceted_large: Array[String] = []
+	var chair_bearing_profiles := 0
 	for instance in rings:
 		var mesh := instance.mesh as TorusMesh
 		total += TorusGeometryBudget.triangles_of(mesh)
+		var profile := StringName(instance.get_meta(TorusGeometryBudget.PROFILE_META, &""))
 
 		var authored := Vector2i(mesh.rings, mesh.ring_segments)
 		if mesh.has_meta(TorusGeometryBudget.AUTHORED_META):
@@ -137,7 +139,14 @@ func _check_world_rings() -> void:
 
 		# ...and never coarser than the rendered floor, unless the builder itself
 		# authored below it, in which case the budget simply left it alone.
-		if (
+		if profile == TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING:
+			chair_bearing_profiles += 1
+			if (
+				mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
+				or mesh.ring_segments != TorusGeometryBudget.OCCLUDED_CHAIR_BEARING_RING_SEGMENTS
+			):
+				below_floor.append("%s profile drifted to %dx%d" % [instance.name, mesh.rings, mesh.ring_segments])
+		elif (
 			mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
 			or mesh.ring_segments < mini(TorusGeometryBudget.MIN_RING_SEGMENTS, authored.y)
 		):
@@ -177,6 +186,22 @@ func _check_world_rings() -> void:
 		"the sweep reports a reduction rather than a growth (%d -> %d)" % [
 			int(report["triangles_before"]), int(report["triangles_after"]),
 		]
+	)
+	var profiles := report.get("profiles", {}) as Dictionary
+	var chair_report := profiles.get(
+		TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING, {}
+	) as Dictionary
+	_check(
+		chair_bearing_profiles == 8
+		and int(chair_report.get("resources", 0)) == 8
+		and int(chair_report.get("instances", 0)) == 8,
+		"the bounded observation-chair family remains eight independent visual rings/resources"
+	)
+	_check(
+		int(chair_report.get("triangles_baseline", 0)) == 6656
+		and int(chair_report.get("triangles_after", 0)) == 4096
+		and int(chair_report.get("surfaces", 0)) == 8,
+		"chair bearings freeze at 6656 -> 4096 triangles while eight instances/surfaces stay exact"
 	)
 
 	world.queue_free()

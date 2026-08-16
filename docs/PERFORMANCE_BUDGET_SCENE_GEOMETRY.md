@@ -513,6 +513,36 @@ report; the half-metre dock mast collar at 0.6 m and the 9 m landing pad rings a
 both walk-up and whole-ring framing are the two that mattered most, and both are
 indistinguishable at 1:1.
 
+### Bounded observation-chair bearing profile
+
+A later measured pass against base `9084011` found one family where the general
+floor was paying for geometry that cannot contribute a silhouette: the eight
+visual-only copper bearings inside the observation-common chair pedestal/seat
+overlap. The family now opts in explicitly with
+`torus_geometry_budget_profile = occluded_chair_bearing`; names and paths do not
+select the exception. Its major sweep remains at the globally reviewed 32-ring
+floor. Only the occluded tube cross-section changes from 13 to eight segments,
+aligned to the cardinal axes so the authored inner/outer-radius extrema and AABB
+remain exact.
+
+The comparison is the previously budgeted production result, not the larger
+builder request: **8 instances / 8 surfaces / 6,656 triangles (`32x13`) -> 8 / 8
+/ 4,096 (`32x8`)**, saving **2,560 triangles (38.5%)** with no node, resource,
+surface, transform, material, radius, collision or authority change. The whole
+production census moved **1,808,482 -> 1,805,922 triangles** while mesh renderer
+nodes stayed 5,830, surfaces 5,837, unique meshes 2,795 and scene nodes 9,394.
+Residual `TorusMesh` cost is **171,700 triangles across 180 visible copies**
+(9.5% of the scene), down from 174,260.
+
+One matched 1400x900 Forward+ comparison frame used the existing
+observation-common camera at `(0, 2.5, 18.7)`, looking at `(0, 1.65, 27.5)`, and
+rendered the same frozen scene first at `32x13` and then at `32x8`. The bearings
+remain visually occluded and the two halves show no apparent change. The adapter
+was llvmpipe, so this is a composition/silhouette check only, never a frame-time
+or representative-hardware claim. The focused gates freeze the exact family
+roster and counts and reject applying this lower tube floor to any unmarked
+torus.
+
 ## The lettering fix, for the record
 
 The first thing this budget was used for. Before: 31 signs, 315,360 triangles,
