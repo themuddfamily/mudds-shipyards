@@ -26,6 +26,9 @@ extends SceneTree
 ##      100% backwards against that same calibration, so the craft overrides
 ##      `_box` onto `StationSurfaceKit`. Red: a reversed copy of one of this
 ##      craft's own meshes is detected as fully backwards.
+##   D2. render allocations — the seven childless dorsal ribs retain their exact
+##      copies, mesh, material and culling union through one renderer batch.
+##      Red: a mutated renderer buffer and a mutated culling box are rejected.
 ##   E. physical cockpit and boarding — the frozen fleet seat/eye convention on a
 ##      two-station flight deck. Red: a shifted seat anchor breaks the rise.
 ##   F. walkable interior and the in-flight cabin contract — a continuous deck
@@ -199,6 +202,7 @@ func _run() -> void:
 	_test_lateral_role(craft)
 	_test_readable_colour(craft)
 	_test_winding(craft)
+	_test_render_allocations(craft)
 	_test_cockpit_and_boarding(craft)
 	_test_interior(craft)
 	await _test_in_flight_cabin(craft)
@@ -619,6 +623,18 @@ func _test_winding(craft: HeroShip) -> void:
 		correct += int(score["agree"])
 		if int(score["agree"]) < int(score["total"]) and offenders.size() < 8:
 			offenders.append("%s %d/%d" % [mesh_instance.name, int(score["agree"]), int(score["total"])])
+	for node in craft.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		var score := _score_mesh(batch.multimesh.mesh, _winding_sign)
+		total += int(score["total"]) * visible_copies
+		correct += int(score["agree"]) * visible_copies
+		if int(score["agree"]) < int(score["total"]) and offenders.size() < 8:
+			offenders.append("%s %d/%d x%d" % [batch.name, int(score["agree"]), int(score["total"]), visible_copies])
 	_check(total > 2000, "the transport presents a substantial mesh to score (%d triangles)" % total)
 	# Emission order *is* the winding. Every triangle on this craft must agree
 	# with the outward normal its own vertices carry.
@@ -674,6 +690,118 @@ func _reversed_copy(mesh: Mesh) -> ArrayMesh:
 		surface_arrays[Mesh.ARRAY_INDEX] = flipped
 		result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface_arrays)
 	return result
+
+
+func _test_render_allocations(craft: HeroShip) -> void:
+	var visual := craft.call("get_halyard_visual_root") as Node3D
+	var batch := visual.get_node_or_null(^"SpineRibs") as MultiMeshInstance3D if visual != null else null
+	_check(
+		batch != null and batch.multimesh != null,
+		"seven dorsal service ribs resolve as one visual-only MultiMesh"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var expected: Array[Transform3D] = []
+	for rib_index in HalyardCrewTransport.SPINE_RIB_COPY_COUNT:
+		var rib_z := HalyardCrewTransport.TUBE_FORWARD_Z + 1.80 + float(rib_index) * 2.55
+		expected.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 4.10, rib_z)))
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	var authored_names := batch.get_meta("authored_visual_names", PackedStringArray()) as PackedStringArray
+	_check(
+		multi.instance_count == HalyardCrewTransport.SPINE_RIB_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact
+		and authored_names == PackedStringArray([
+			"SpineRib00", "SpineRib01", "SpineRib02", "SpineRib03",
+			"SpineRib04", "SpineRib05", "SpineRib06",
+		]),
+		"batch preserves all seven authored rib transforms, ordering and visual names"
+	)
+	_check(
+		multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(HalyardCrewTransport.SPINE_RIB_SIZE)
+		and multi.mesh.get_surface_count() == 1
+		and batch.material_override == craft.get_variant_materials().get("hull_shade")
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"batch preserves rib extent, surface, material identity, shadows and render layer"
+	)
+	var old_rib_nodes := 0
+	for raw_node in visual.get_children():
+		if raw_node is MeshInstance3D and str(raw_node.name).begins_with("SpineRib"):
+			old_rib_nodes += 1
+	_check(
+		old_rib_nodes == 0
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"the selected family remains childless, visual-only and non-colliding"
+	)
+
+	var report := craft.call("get_halyard_render_allocation_report") as Dictionary
+	_check(
+		int(report.descendant_nodes) == 161
+		and int(report.mesh_instances) == 155
+		and int(report.multimesh_batches) == 1,
+		"renderer nodes freeze at 167 -> 161, MeshInstances 162 -> 155, batches 0 -> 1"
+	)
+	_check(
+		int(report.drawn_copies) == 162
+		and int(report.geometry_submissions) == 156
+		and int(report.spine_rib_copies) == 7,
+		"drawn copies remain 162 while surface submissions fall 162 -> 156"
+	)
+	_check(
+		int(report.unique_mesh_resources) == 61
+		and int(report.unique_material_resources) == 14
+		and int(report.multimesh_resources) == 1
+		and int(report.renderer_buffer_floats) == 84,
+		"mesh/material allocations remain 61/14 while one 84-float MultiMesh resource replaces seven renderer nodes"
+	)
+	_check(
+		bool(report.renderer_buffer_matches_authored)
+		and bool(report.bounds_match_authored)
+		and bool(report.mesh_resource_matches_authored)
+		and bool(report.material_resource_matches_authored)
+		and bool(report.exact_counts),
+		"renderer payload, explicit culling union and shared resource identities match the authored roster"
+	)
+
+	var detached := report.authored_spine_rib_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((craft.call("get_halyard_render_allocation_report").authored_spine_rib_transforms as Array)[0] as Transform3D).is_equal_approx(Transform3D.IDENTITY),
+		"render report returns a detached authored-transform roster"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		(craft.call("get_halyard_audit_report").errors as PackedStringArray).has(
+			"Halyard dorsal spine renderer buffer drifted from its authored transforms"
+		),
+		"RED: mutating one live rib transform is rejected by the Halyard audit"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		(craft.call("get_halyard_audit_report").errors as PackedStringArray).has(
+			"Halyard dorsal spine culling bounds drifted from its authored copies"
+		),
+		"RED: mutating the explicit rib culling union is rejected by the Halyard audit"
+	)
+	multi.custom_aabb = original_bounds
+	_check(
+		bool(craft.call("get_halyard_audit_report").valid),
+		"restoring the exact batch payload restores a clean Halyard audit"
+	)
 
 
 # ---------------------------------------------------------------- group E ----

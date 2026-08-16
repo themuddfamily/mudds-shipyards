@@ -193,6 +193,21 @@ const CABIN_WINDOW_COUNT := 10
 const CABIN_WINDOW_FIRST_Z := -8.30
 const CABIN_WINDOW_PITCH := 1.55
 
+## Component-local render allocation freeze. The seven dorsal ribs are repeated,
+## childless exterior trim: no collider, route, seat, boarding, propulsion,
+## damage, weapon, audio, lifecycle or evidence contract names one of them. They
+## retain one authored copy at each original transform, but share one renderer
+## submission through a ship-local MultiMesh.
+const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
+const SPINE_RIB_COPY_COUNT := 7
+const RENDER_DESCENDANT_COUNT := 161
+const RENDER_MESH_INSTANCE_COUNT := 155
+const RENDER_MULTIMESH_BATCH_COUNT := 1
+const RENDER_DRAWN_COPY_COUNT := 162
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 156
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 61
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
+
 var _halyard_built := false
 var _halyard_visual: Node3D
 var _halyard_materials: Dictionary = {}
@@ -213,6 +228,9 @@ var _engine_plumes: Array[MeshInstance3D] = []
 var _engine_cores: Array[MeshInstance3D] = []
 var _halyard_engine_lights: Array[OmniLight3D] = []
 var _elapsed_halyard := 0.0
+var _spine_rib_mesh: Mesh
+var _spine_rib_batch: MultiMeshInstance3D
+var _spine_rib_transforms: Array[Transform3D] = []
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -430,6 +448,87 @@ func get_halyard_evidence_report() -> Dictionary:
 	}
 
 
+func get_halyard_render_allocation_report() -> Dictionary:
+	var mesh_nodes := _halyard_visual.find_children("*", "MeshInstance3D", true, false) if _halyard_visual != null else []
+	var batch_nodes := _halyard_visual.find_children("*", "MultiMeshInstance3D", true, false) if _halyard_visual != null else []
+	var descendant_count := _halyard_visual.find_children("*", "Node", true, false).size() if _halyard_visual != null else 0
+	var drawn_copies := 0
+	var submissions := 0
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var multimesh_resource_ids := {}
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
+		mesh_resource_ids[instance.mesh.get_instance_id()] = true
+		if instance.material_override != null:
+			material_resource_ids[instance.material_override.get_instance_id()] = true
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		submissions += batch.multimesh.mesh.get_surface_count()
+		mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+		multimesh_resource_ids[batch.multimesh.get_instance_id()] = true
+		if batch.material_override != null:
+			material_resource_ids[batch.material_override.get_instance_id()] = true
+
+	var expected_buffer := _encode_multimesh_transforms(_spine_rib_transforms)
+	var buffer_matches := (
+		is_instance_valid(_spine_rib_batch)
+		and _spine_rib_batch.multimesh != null
+		and _spine_rib_batch.multimesh.buffer == expected_buffer
+	)
+	var bounds_match := false
+	var material_matches := false
+	var mesh_matches := false
+	if is_instance_valid(_spine_rib_batch) and _spine_rib_batch.multimesh != null:
+		var multi := _spine_rib_batch.multimesh
+		if multi.mesh != null:
+			bounds_match = multi.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(multi.mesh.get_aabb(), _spine_rib_transforms)
+			)
+		mesh_matches = multi.mesh == _spine_rib_mesh
+		material_matches = _spine_rib_batch.material_override == _halyard_materials.get("hull_shade")
+	var exact_counts := (
+		descendant_count == RENDER_DESCENDANT_COUNT
+		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
+		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and drawn_copies == RENDER_DRAWN_COPY_COUNT
+		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
+		and mesh_resource_ids.size() == RENDER_UNIQUE_MESH_RESOURCE_COUNT
+		and material_resource_ids.size() == RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
+		and multimesh_resource_ids.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and _spine_rib_transforms.size() == SPINE_RIB_COPY_COUNT
+	)
+	return {
+		"schema_version": 1,
+		"descendant_nodes": descendant_count,
+		"mesh_instances": mesh_nodes.size(),
+		"multimesh_batches": batch_nodes.size(),
+		"multimesh_resources": multimesh_resource_ids.size(),
+		"drawn_copies": drawn_copies,
+		"geometry_submissions": submissions,
+		"unique_mesh_resources": mesh_resource_ids.size(),
+		"unique_material_resources": material_resource_ids.size(),
+		"spine_rib_copies": _spine_rib_transforms.size(),
+		"renderer_buffer_floats": expected_buffer.size(),
+		"renderer_buffer_matches_authored": buffer_matches,
+		"bounds_match_authored": bounds_match,
+		"mesh_resource_matches_authored": mesh_matches,
+		"material_resource_matches_authored": material_matches,
+		"exact_counts": exact_counts,
+		"authored_spine_rib_transforms": _spine_rib_transforms.duplicate(),
+	}
+
+
 func get_halyard_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var definition := get_ship_definition()
@@ -457,6 +556,15 @@ func get_halyard_audit_report() -> Dictionary:
 		errors.append("crew cabin requires at least six seat anchors")
 	if _engine_plumes.size() != 4:
 		errors.append("tail yoke requires exactly four engine plumes")
+	var render := get_halyard_render_allocation_report()
+	if not bool(render.exact_counts):
+		errors.append("Halyard render allocations drifted from the frozen component-local roster")
+	if not bool(render.renderer_buffer_matches_authored):
+		errors.append("Halyard dorsal spine renderer buffer drifted from its authored transforms")
+	if not bool(render.bounds_match_authored):
+		errors.append("Halyard dorsal spine culling bounds drifted from its authored copies")
+	if not bool(render.mesh_resource_matches_authored) or not bool(render.material_resource_matches_authored):
+		errors.append("Halyard dorsal spine mesh or material identity drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -709,9 +817,22 @@ func _build_pressure_hull() -> void:
 	# Dorsal service spine with periodic ribs: a long low conduit that gives the
 	# crown a readable direction from above and from the chase camera.
 	_box(_halyard_visual, "DorsalServiceSpine", Vector3(0.0, 4.20, centre_z), Vector3(0.55, 0.34, length - 2.40), _halyard_materials.structure)
-	for rib_index in 7:
+	_spine_rib_transforms.clear()
+	for rib_index in SPINE_RIB_COPY_COUNT:
 		var rib_z := TUBE_FORWARD_Z + 1.80 + float(rib_index) * 2.55
-		_box(_halyard_visual, "SpineRib%02d" % rib_index, Vector3(0.0, 4.10, rib_z), Vector3(1.90, 0.22, 0.28), _halyard_materials.hull_shade)
+		_spine_rib_transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 4.10, rib_z)))
+	_spine_rib_mesh = StationSurfaceKit.rounded_box_mesh_cached(SPINE_RIB_SIZE, _box_mesh_cache)
+	_spine_rib_batch = _multimesh_visual_stock(
+		_halyard_visual,
+		"SpineRibs",
+		_spine_rib_mesh,
+		_halyard_materials.hull_shade,
+		_spine_rib_transforms,
+		PackedStringArray([
+			"SpineRib00", "SpineRib01", "SpineRib02", "SpineRib03",
+			"SpineRib04", "SpineRib05", "SpineRib06",
+		])
+	)
 
 
 ## The at-distance signature: an octagonal bow docking collar standing proud of
@@ -1410,3 +1531,69 @@ func _box(
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+## One renderer allocation for repeated, childless, non-colliding visual stock.
+## The authored transforms remain in parent space and the explicit union keeps
+## Forward+ culling equivalent even when raw buffer assignment does not rebuild
+## the CPU-side bounds under headless.
+func _multimesh_visual_stock(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		material: Material,
+		transforms: Array[Transform3D],
+		authored_names: PackedStringArray
+	) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	multi.buffer = _encode_multimesh_transforms(transforms)
+	multi.custom_aabb = _transformed_mesh_bounds(mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_visual_names", authored_names.duplicate())
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for value in transforms:
+		var transformed := (value * mesh_bounds).abs()
+		if first:
+			result = transformed
+			first = false
+		else:
+			result = result.merge(transformed)
+	return result
