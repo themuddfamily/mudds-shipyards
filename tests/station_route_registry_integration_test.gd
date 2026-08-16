@@ -6,9 +6,10 @@ extends SceneTree
 ## marker with `station_connection_slot`, `ShipyardWorld` publishes the matching
 ## hub endpoint over real lattice geometry, and a slot claimed by exactly two
 ## endpoints is an edge. This suite drives the real `res://scenes/main.tscn` and
-## proves the production station is one connected structure rather than five
-## isolated islands, that the registry assigns no gameplay authority, and that
-## the audit still turns red when a module stops declaring its slot.
+## proves every module is explicitly paired with one station-side endpoint
+## rather than existing as undeclared isolated content, that the registry assigns
+## no gameplay authority, and that the audit still turns red when a module stops
+## declaring its slot. Physical continuity is owned by the traversal suites.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
