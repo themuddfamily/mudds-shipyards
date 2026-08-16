@@ -377,6 +377,80 @@ func _test_lighting_and_probe(world: ShipyardWorld) -> void:
 		and _nodes_with_meta(pad, "navigation_role", &"launch_vector_chevron", "MeshInstance3D").size() == 12,
 		"centreline, rings, and launch-vector navigation cues are preserved"
 	)
+	_test_world_lighting_rig(world)
+
+
+## Freezes the world-level lighting rig.
+##
+## Every light budget in this project was module-scoped, so the rig hung
+## directly off ShipyardWorld and nothing counted it. That gap is closed here
+## rather than left open: an unbudgeted rig is exactly where per-frame cost
+## accumulates unnoticed.
+##
+## Re-frozen in the open. Directional 2 -> 3, spot 6 -> 8, omni 1 -> 1, total
+## 9 -> 12; shadow casters 7 -> 8. The three additions and their reasons:
+##
+## - `DeckBounceFill`, a shadowless upward directional. Every downward-facing
+##   surface on the station previously received ambient and nothing else,
+##   because the key comes from above and the counter-fill comes from behind and
+##   level. Parked hull undersides, catwalk soffits and gear bays sat at one
+##   value with no gradient across them.
+## - `FreightApproachMastSpot`, shadowed, over the approach gantry work zone.
+## - `FleetDockMastSpot`, shadowless, over the Zenith berth. The Fleet Dock comb
+##   has no light nodes at all by its own frozen contract, so that berth had no
+##   local light of any kind.
+##
+## Only the freight mast adds a shadow map. Frame cost was not measured: this
+## machine renders through llvmpipe and any number produced here would be
+## meaningless.
+func _test_world_lighting_rig(world: ShipyardWorld) -> void:
+	var directional := 0
+	var spot := 0
+	var omni := 0
+	var shadow_casters := 0
+	var rig_masts: Array[SpotLight3D] = []
+	for child in world.get_children():
+		if child is DirectionalLight3D:
+			directional += 1
+		elif child is SpotLight3D:
+			spot += 1
+			rig_masts.append(child as SpotLight3D)
+		elif child is OmniLight3D:
+			omni += 1
+		else:
+			continue
+		if (child as Light3D).shadow_enabled:
+			shadow_casters += 1
+	_check(
+		directional == 3 and spot == 8 and omni == 1 and shadow_casters == 8,
+		"world lighting rig is exactly three directional, eight spot and one omni light with eight shadow casters"
+	)
+
+	var bounce := world.get_node_or_null("DeckBounceFill") as DirectionalLight3D
+	_check(
+		bounce != null
+		and bool(bounce.get_meta("diffuse_bounce_fill", false))
+		and not bounce.shadow_enabled
+		and is_zero_approx(bounce.light_specular)
+		and (-bounce.global_transform.basis.z).y > 0.5,
+		"deck bounce points upward, casts no shadow and contributes no specular"
+	)
+
+	# The reason the masts were widened, stated as a property rather than as the
+	# number that satisfies it today. A 39 degree cone from y = 9.0 laid a 7.3 m
+	# pool, so the mast nearest the Arrow berth stopped short of the berth and the
+	# parked craft sat outside its own light. Every deck mast must lay a pool at
+	# least 9.5 m across the deck plane, and its range must reach the far edge of
+	# that pool rather than clipping it short.
+	var masts_reach := not rig_masts.is_empty()
+	for mast in rig_masts:
+		var height := mast.global_position.y
+		var pool_radius := height * tan(deg_to_rad(mast.spot_angle))
+		masts_reach = masts_reach \
+			and height > 0.0 \
+			and pool_radius >= 9.5 \
+			and mast.spot_range >= sqrt(height * height + pool_radius * pool_radius)
+	_check(masts_reach, "every deck mast lays at least a 9.5 m deck pool and its range reaches that pool's edge")
 
 
 func _test_floor_routes_and_launch_volume(world: ShipyardWorld, torrent: HeroShip) -> void:

@@ -861,8 +861,17 @@ func _build_lighting_and_signage() -> void:
 		work_light.rotation_degrees.x = -90.0
 		work_light.light_color = Color("d8fffa")
 		work_light.light_energy = 2.25
-		work_light.spot_range = 23.0
-		work_light.spot_angle = 38.0
+		# Widened from 38 degrees / 23 m after measuring where the pair actually
+		# landed. A 38 degree cone from y = 12.2 puts a 9.5 m radius pool under
+		# each mast, so the two pools stopped at local x = -2.0 and +2.0 and left
+		# a four-metre unlit seam straight down the berth centreline — exactly
+		# where a freighter parks. The parked craft sat in the gap between its own
+		# two work lights and its lower hull went black. At 47 degrees the pools
+		# overlap across the centreline. Still two lights, still both shadowed.
+		work_light.spot_range = 30.0
+		work_light.spot_angle = 47.0
+		work_light.spot_angle_attenuation = 0.55
+		work_light.spot_attenuation = 0.75
 		work_light.shadow_enabled = true
 		presentation.add_child(work_light, true)
 
