@@ -11,6 +11,12 @@ const EXPECTED_JOVIAN_DOCK_ORIGIN := Vector3(-53.0, 1.63, 57.3)
 ## duration implies. This is a frame count, never a wall-clock grace. See
 ## [method _wait_until] for why every wait in this suite is budgeted in frames.
 const FRAME_BUDGET_GRACE := 30
+const FLIGHT_CONTROL_ACTIONS := [
+	&"move_forward", &"move_back", &"move_left", &"move_right",
+	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+	&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+	&"landing_assist",
+]
 
 var _failures: Array[String] = []
 var _assertion_count := 0
@@ -261,7 +267,7 @@ func _run() -> void:
 	_check(jovian.global_transform.is_equal_approx(jovian_berth_transform), "moving-interior probe restores the exact occupied freight transform")
 	_check(game.boarding_candidate == jovian, "physical proximity selects Jovian at its distinct pilot hatch")
 
-	# Board with the actual E action, then route Y/F/W/L/X/E through the live
+	# Board with the actual E action, then route flight demand/F/W/L/E through the live
 	# production input paths. This is a free sortie and must leave Torrent state
 	# and contacts untouched.
 	await _press_live_action(&"interact", 1)
@@ -272,15 +278,13 @@ func _run() -> void:
 	)
 	_check(not game.is_guided_activity_complete() and not bool(opponent.call("is_active")), "Jovian-first boarding preserves the pending, dormant Torrent guide")
 
-	jovian.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(jovian, "ONLINE", 0.4), "Jovian starts through the live pilot action path")
-	_check(await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.4), "Jovian-first startup enters an unrestricted pre-guide sortie")
+	await _wake_engine_with_flight_demand(jovian, "Jovian demand wakes propulsion in the accepted physics tick")
+	_check(game.phase == GameFlow.Phase.START_ENGINES, "power alone keeps Jovian launch-ready until physical departure")
 	var jovian_berth := world.get_berth_node(jovian.get_home_berth_id())
 	_check(
 		jovian_berth.get_occupant() == jovian
 		and jovian_berth.get_reservation_owner() == jovian,
-		"engine startup alone retains Jovian's occupied freight lease"
+		"automatic power alone retains Jovian's occupied freight lease"
 	)
 
 	jovian.weapon_cooldown = 0.02
@@ -318,6 +322,7 @@ func _run() -> void:
 		and departure_offset.normalized().dot(departure_forward) > 0.85,
 		"Jovian physically departs along its yaw-180 visible forward axis"
 	)
+	_check(await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.4), "Jovian physical departure enters an unrestricted pre-guide sortie")
 	_check(
 		jovian_berth.get_occupant() == null
 		and jovian_berth.get_reservation_owner() == null,
@@ -344,8 +349,7 @@ func _run() -> void:
 		"completed return reoccupies Jovian's authoritative lease"
 	)
 
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(jovian, "OFFLINE", 0.3), "live X action shuts Jovian down at the occupied berth")
+	await _idle_engine_offline_exact(jovian, "Jovian idles OFFLINE on the discrete physics step crossing 1.5 neutral seconds")
 	_dispatch_pilot_action(game, &"interact")
 	_check(await _wait_for_phase(game, GameFlow.Phase.APPROACH_SHIP, 0.8), "live E action completes Jovian disembarkation")
 	_check(
@@ -439,6 +443,51 @@ func _press_live_action(action: StringName, physics_ticks: int) -> void:
 	await physics_frame
 
 
+func _wake_engine_with_flight_demand(ship: HeroShip, description: String) -> void:
+	_release_all_flight_controls(ship)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover,
+		description
+	)
+	Input.action_release(&"hover")
+
+
+func _idle_engine_offline_exact(ship: HeroShip, description: String) -> void:
+	await _wake_engine_with_flight_demand(ship, "landed Jovian demand resets the automatic idle deadline")
+	_release_all_flight_controls(ship)
+	var idle_ticks := int(round(
+		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
+		* float(Engine.physics_ticks_per_second)
+	))
+	for _tick in idle_ticks - 1:
+		await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE,
+		"Jovian remains ONLINE one physics tick before the 1.5-second deadline"
+	)
+	# Allow the one discrete step that crosses a floating-point sum just below 1.5.
+	await physics_frame
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE,
+		description
+	)
+
+
+func _release_all_flight_controls(ship: HeroShip) -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
+	var source := ship.get_command_source() as LocalShipInputSource
+	if source != null:
+		source.clear_pending_look_motion()
+
+
 func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 	var event := InputEventAction.new()
 	event.action = action
@@ -449,14 +498,6 @@ func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 func _wait_for_phase(game: GameFlow, expected_phase: int, timeout_seconds: float) -> bool:
 	return await _wait_until(
 		func() -> bool: return game.phase == expected_phase,
-		timeout_seconds
-	)
-
-
-func _wait_for_engine_state(ship: HeroShip, expected_state: String, timeout_seconds: float) -> bool:
-	return await _wait_until(
-		func() -> bool:
-			return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state,
 		timeout_seconds
 	)
 
@@ -496,10 +537,8 @@ func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 
 
 func _clean_up(game: Node) -> void:
-	for action in [
-		&"interact", &"move_forward", &"move_back", &"move_left", &"move_right",
-		&"fire", &"engine_start", &"engine_stop", &"landing_assist", &"sprint_boost",
-	]:
+	Input.action_release(&"interact")
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
 		Input.action_release(action)
 	game.queue_free()
 	await process_frame
