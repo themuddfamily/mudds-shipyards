@@ -21,6 +21,11 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 ## space per texture repeat. Frozen.
 const PANEL_SURFACE_SCALE := 0.28
 
+## Distance fade applied to every fixture practical in this module. Measured, not
+## chosen — see `_fixture_practical`.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+
 const FLOOR_ELEVATION := 0.0
 const CONNECTOR_CLEAR_WIDTH := 4.45
 const DOOR_CLEAR_WIDTH := 3.1
@@ -524,7 +529,12 @@ func _create_materials() -> void:
 	_materials["copper"] = _material(Color("9b6848"), 0.76, 0.28)
 	_materials["fabric"] = _material(Color("2f5960"), 0.03, 0.91)
 	_materials["fabric_dark"] = _material(Color("21363c"), 0.02, 0.95)
-	_materials["screen"] = _material(Color("b4efec"), 0.08, 0.24, Color("51cdd2"), 1.35)
+	# Emission 1.35 -> 1.05. Measured off `habitat_common_room.png`: the common
+	# table display rendered as a solid 255 white rectangle on a table that
+	# received nothing from it — the single clearest instance of the bimodal frame
+	# in the project. Its practical (`TableDisplayGlow`) now carries the table, so
+	# the panel itself no longer has to be clipped white to read as on.
+	_materials["screen"] = _material(Color("b4efec"), 0.08, 0.24, Color("51cdd2"), 1.05)
 	# Emission 2.3 -> 1.7. This lens was the brightest thing in the habitat and it
 	# was lighting nothing: at 2.3 it clips past the AgX shoulder, blooms, and the
 	# ceiling plate it is recessed into still sat at structure value. The energy
@@ -775,10 +785,14 @@ func _build_observation_common(structure: Node3D) -> void:
 		_box(common, "CeilingLightLens", Vector3(float(light_x), 4.5, 23.0), Vector3(2.35, 0.035, 0.25), _materials["warm_light"], false)
 		_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, 23.2), Color("ffe0b4"), 0.76, 5.6)
 	# The table display was a lit rectangle lying on an unlit table. Its practical
-	# is cool and short-ranged: it is the room's cool counterpoint against the warm
-	# overheads, and it puts an upward gradient on the chair backs and the copper
-	# table edge so the seating group reads as a group.
-	_fixture_practical(common, "TableDisplayGlow", Vector3(0.0, 1.55, 21.45), Color("8fe6ea"), 0.34, 2.4)
+	# is cool: it is the room's cool counterpoint against the warm overheads, and
+	# it puts a gradient on the chair backs and the copper table edge so the
+	# seating group reads as a group. Sited 0.8 m above the panel rather than the
+	# 0.19 m it was first given — that close, a 0.34 omni made a blown specular
+	# hotspot on the deck past the table edge and put the frame's near-blown
+	# fraction up 0.43 points, which is the same defect this pass exists to remove.
+	# Higher and weaker lights the table and stops there.
+	_fixture_practical(common, "TableDisplayGlow", Vector3(0.0, 2.15, 21.45), Color("8fe6ea"), 0.26, 3.0)
 	_text_sign(common, "OBSERVATION COMMON  //  MODERN INTERPRETATION", Vector3(-3.8, 3.95, 18.16), Vector3(0, 180, 0), 0.2, _materials["teal"])
 	# Wash behind the room legend, so the bulkhead it hangs on carries the sign's
 	# own colour rather than the sign floating on flat plate.
@@ -1145,8 +1159,11 @@ func _omni_light(
 ## helper in `aft_junction_stack.gd`: `emission` is a local surface term and glow
 ## is a screen-space convolution of the finished image, so no amount of emission
 ## makes a fixture light the plate it is bolted to. Only a Light3D does. These
-## are small, shadowless, steeply attenuated and faded out at 16 m, and each
-## carries its own fixture's hue so the spill identifies the source.
+## are small, shadowless and steeply attenuated, and each carries its own
+## fixture's hue so the spill identifies the source. The fade distance is
+## measured — at the 16 m/8 m it was first given, every one of these was off in
+## every framing except the two room interiors and the pass measured as a net
+## loss on structural sigma.
 func _fixture_practical(
 		parent: Node3D,
 		node_name: String,
@@ -1157,8 +1174,8 @@ func _fixture_practical(
 	) -> OmniLight3D:
 	var light := _omni_light(parent, node_name, light_position, color, energy, range_value)
 	light.omni_attenuation = 2.1
-	light.distance_fade_begin = 16.0
-	light.distance_fade_length = 8.0
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	return light
 

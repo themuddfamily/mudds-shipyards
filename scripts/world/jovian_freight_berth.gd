@@ -26,6 +26,12 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const PANEL_SURFACE_SCALE := 0.30
 const WALKED_PANEL_SURFACE_SCALE := 0.22
 
+## Distance fade applied to every light this module builds. Measured, not chosen:
+## a fade ending inside the module switched the whole practical pass off in every
+## rendered framing of it.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+
 const DECK_ELEVATION := 0.0
 const CONNECTION_CLEAR_WIDTH := 5.8
 const SERVICE_DOOR_CLEAR_WIDTH := 3.1
@@ -907,8 +913,8 @@ func _build_lighting_and_signage() -> void:
 	control_desk_lamp.omni_attenuation = 2.0
 	control_desk_lamp.shadow_enabled = false
 	control_desk_lamp.distance_fade_enabled = true
-	control_desk_lamp.distance_fade_begin = 30.0
-	control_desk_lamp.distance_fade_length = 12.0
+	control_desk_lamp.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	control_desk_lamp.distance_fade_length = PRACTICAL_FADE_LENGTH
 	control_desk_lamp.set_meta("fixture_practical", true)
 	presentation.add_child(control_desk_lamp)
 
@@ -1211,10 +1217,15 @@ func _guide_light(parent: Node3D, position_value: Vector3, color: Color, energy:
 	light.light_energy = energy
 	light.omni_range = range_value
 	light.shadow_enabled = false
-	light.omni_attenuation = 1.55
+	# Distance fade only. An attenuation curve was tried here and reverted: raising
+	# it to 1.55 steepened the falloff on all eighteen existing apron guide lights
+	# at once and measured as a real loss — `05_jovian_freight_operations` lost
+	# 0.25 of structural sigma, which is most of what this module gained elsewhere.
+	# The pools these lay on the apron are the module's best-lit feature and their
+	# authored falloff stays exactly as it was.
 	light.distance_fade_enabled = true
-	light.distance_fade_begin = 46.0
-	light.distance_fade_length = 16.0
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	parent.add_child(light, true)
 
 
@@ -1226,7 +1237,9 @@ func _guide_light(parent: Node3D, position_value: Vector3, color: Color, energy:
 ## small omnis give each legend a wash on the plate behind it, tinted to the
 ## legend's own colour, so a lit sign reads as a lit sign rather than as decal
 ## text floating in front of dark steel. Shadowless, steeply attenuated, and
-## faded out at 22 m so the apron seen from the lattice pays for none of them.
+## faded out past the station so the whole-lattice overview pays for none of
+## them. The fade distance is measured, not chosen: at the 22 m it was first
+## given, these were off in every rendered framing of this module.
 func _sign_practical(
 		parent: Node3D,
 		node_name: String,
@@ -1244,8 +1257,8 @@ func _sign_practical(
 	light.omni_attenuation = 2.1
 	light.shadow_enabled = false
 	light.distance_fade_enabled = true
-	light.distance_fade_begin = 22.0
-	light.distance_fade_length = 10.0
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	parent.add_child(light, true)
 	return light

@@ -17,6 +17,14 @@ const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const HUB_CONNECTION_SLOT: StringName = &"hub-aft-junction"
 const WORLD_LAYER := PhysicsLayers.WORLD
 
+## Distance fade applied to every fixture practical in this module. Measured
+## rather than chosen — see `_fixture_practical`. A fade that ended at 24 m ended
+## inside the subject and switched the whole pass off in every framing but the
+## two interiors; this ends at 85 m, past the station, and still spares the
+## 140 m-plus lattice overview.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+
 const LOWER_FLOOR_ELEVATION := 0.0
 const UPPER_FLOOR_ELEVATION := 4.2
 const STAIR_STEP_COUNT := 15
@@ -463,7 +471,11 @@ func _create_materials() -> void:
 	_materials["brass"] = _material(Color("d0a350"), 0.46, 0.44)
 	_materials["copper"] = _material(Color("9d6844"), 0.78, 0.26)
 	_materials["red"] = _material(Color("d84d47"), 0.18, 0.4, Color("b82c2c"), 1.15)
-	_materials["screen"] = _material(Color("b9f2ef"), 0.08, 0.24, Color("68dde2"), 1.25)
+	# Emission 1.25 -> 1.0, for the same reason as the habitat's twin: the console
+	# displays clipped white while the console body under them stayed at structure
+	# value. `ConsoleGlow` now lights the console, so the panel does not have to be
+	# blown to read as a live display.
+	_materials["screen"] = _material(Color("b9f2ef"), 0.08, 0.24, Color("68dde2"), 1.0)
 	_materials["screen_dark"] = _material(Color("16363b"), 0.22, 0.36, Color("2b9aa3"), 0.22)
 	# Lens emission comes down where a practical now carries the difference. These
 	# two were the brightest surfaces in the module and the reason its histogram
@@ -1477,14 +1489,24 @@ func _omni_light(
 ## lights a mount is a Light3D, so that is what these are.
 ##
 ## They are deliberately small, and every property here is a restraint:
-## shadowless, sub-4 m range, steeper attenuation than the room fills, and faded
-## out at 16 m so a module seen across the lattice pays for none of them. Each
-## carries its own fixture's hue, so the spill identifies the source rather than
-## adding an anonymous lift. Where one is added the lens emission comes down by
-## roughly what the practical now carries: the change moves energy out of the
-## blown top of the histogram into the 20-40 structural band instead of adding
-## gain. Frame cost is unmeasured and unmeasurable here — this box renders
-## through llvmpipe.
+## shadowless, sub-7 m range, steeper attenuation than the room fills, and faded
+## out by 85 m so the whole-lattice overview pays for none of them. Each carries
+## its own fixture's hue, so the spill identifies the source rather than adding
+## an anonymous lift. Where one is added the lens emission comes down by roughly
+## what the practical now carries: the change moves energy out of the blown top
+## of the histogram into the 20-40 structural band instead of adding gain. Frame
+## cost is unmeasured and unmeasurable here — this box renders through llvmpipe.
+##
+## The fade distance is measured, not chosen. It was first set at 16 m begin /
+## 8 m length, and every one of these lights was then off in every rendered
+## framing except the two interiors: measured across the six station-operations
+## frames and `aft_junction`/`station`/`fleet_overview`, structural sigma moved
+## by -0.9% to +0.1% — the emission that came out of the lenses was real and the
+## spill that was supposed to replace it never arrived. The station is a 10-50 m
+## structure normally read from 30-70 m, so a fade that ends at 24 m ends inside
+## the subject. 60 m begin / 25 m length keeps the practicals present at every
+## distance the station is actually looked at and still switches them off for the
+## 140 m-plus lattice overview.
 func _fixture_practical(
 		parent: Node3D,
 		node_name: String,
@@ -1495,8 +1517,8 @@ func _fixture_practical(
 	) -> OmniLight3D:
 	var light := _omni_light(parent, node_name, light_position, color, energy, range_value)
 	light.omni_attenuation = 2.1
-	light.distance_fade_begin = 16.0
-	light.distance_fade_length = 8.0
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	return light
 

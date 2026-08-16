@@ -57,6 +57,11 @@ const LABEL_BUDGET := DOCK_MARKER_COUNT
 # llvmpipe and any number produced here would be meaningless.
 const LIGHT_BUDGET := 4
 
+## Distance fade applied to every comb practical. Measured, not chosen — see
+## `_dock_practical`.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+
 const SURFACE_IDS := [
 	"trunk",
 	"rung-01",
@@ -876,8 +881,8 @@ func _dock_practical(
 	light.omni_attenuation = 2.0
 	light.shadow_enabled = false
 	light.distance_fade_enabled = true
-	light.distance_fade_begin = 26.0
-	light.distance_fade_length = 12.0
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	light.set_meta("visual_detail_only", true)
 	parent.add_child(light)
