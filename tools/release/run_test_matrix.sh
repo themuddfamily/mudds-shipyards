@@ -540,6 +540,12 @@ run_suite_worker() {
 	local expected_ok="${base_upper}_OK"
 	local expected_pass="${base_upper}_PASS"
 	local sentinel_found=""
+	# Every suite receives a private Godot `user://` root. Production startup now
+	# performs real atomic settings/recovery writes; without this boundary,
+	# parallel suites would race over the developer's actual user data and each
+	# other's STARTING/STABLE markers.
+	local suite_user_data_dir="$WORK_DIR/user-data/$base_name"
+	mkdir -p "$suite_user_data_dir"
 
 	local start_ms end_ms duration_ms exit_code
 	start_ms="$(now_ms)"
@@ -551,10 +557,12 @@ run_suite_worker() {
 	fi
 
 	if (( HAVE_TIMEOUT_BIN == 1 )); then
-		timeout "${TIMEOUT_SECONDS}s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
+		env XDG_DATA_HOME="$suite_user_data_dir" \
+			timeout "${TIMEOUT_SECONDS}s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	else
-		"${GODOT_ARGS[@]}" > "$log_path" 2>&1
+		env XDG_DATA_HOME="$suite_user_data_dir" \
+			"${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	fi
 	set -e
@@ -827,6 +835,7 @@ import_gate_ran=${import_gate_ran}
 import_gate_exit=${import_gate_exit}
 import_gate_duration_ms=${import_gate_duration_ms}
 import_gate_restored_files=${import_gate_restored_files}
+suite_user_data_isolated=true
 godot_cache_before_sha=${godot_cache_before_sha}
 godot_cache_after_sha=${godot_cache_after_sha}
 godot_cache_stable=${godot_cache_stable}
