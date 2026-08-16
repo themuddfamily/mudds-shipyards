@@ -104,6 +104,28 @@ const SEATED_DECORATION_TOLERANCE := 0.03
 ## The comb's own equivalents are asserted structurally rather than by path in
 ## `tests/fleet_dock_comb_test.gd`, which sweeps every generated surface-detail
 ## mesh in the module; that sweep is what found COMB-DECK-CUE-001.
+##
+## Widened again by the central-berth finishing pass, nineteen entries to
+## twenty-nine, for the hero berth's port-flank ground support line and the four
+## dock mast feet. These are entered pre-emptively rather than as repairs: the
+## pass added the first freestanding objects that stand on the *authored* berth
+## deck, and that deck is the one surface on the station where the obvious
+## seating method is wrong. Its drawn top face is y = 0.095 while the
+## `HeroBerthNode` collision box under it ends at y = -0.02, so a piece seated by
+## raycast against the World layer — which is what `_drop_below` and the roster
+## above it do — lands 0.115 m low and hangs there. That is exactly the error
+## that put the central berth cue 0.235 m over its own deck. Every piece listed
+## below is instead seated arithmetically against
+## `ShipyardWorld.AUTHORED_CENTRAL_BERTH_DECK_TOP` (or `LATTICE_DECK_TOP` for the
+## two masts standing on `CentralJunction`), with the station's shared 0.010 m
+## bearing into the surface, and is checked here against drawn geometry.
+##
+## One entry per assembly is listed, at its ground contact, plus the work stand's
+## platform because it is the only piece in the line that stands on its own legs
+## rather than on the deck. Sub-pieces stacked on those — bins on shelves, the
+## hard hat on the platform, cleat horns on cleat stems — share volume with the
+## piece under them by construction, and the whole line is additionally swept
+## structurally by `tests/central_berth_service_line_test.gd`.
 const SEATED_ON_GEOMETRY_PATHS := [
 	"FleetDockComb/GeneratedComb/VisualUnderframe/TrunkChordPort",
 	"FleetDockComb/GeneratedComb/VisualUnderframe/TrunkChordStarboard",
@@ -125,6 +147,16 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit06/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit07/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit08/Mesh",
+	"CentralBerthServiceLine/PortFlank/BerthReadinessBoard/BoardFoot/Mesh",
+	"CentralBerthServiceLine/PortFlank/CableDrumStand/DrumPlinth/Mesh",
+	"CentralBerthServiceLine/PortFlank/PartsBinRack/RackFoot/Mesh",
+	"CentralBerthServiceLine/PortFlank/ChockLocker/LockerBody/Mesh",
+	"CentralBerthServiceLine/PortFlank/AccessWorkStand/StandStepLower/Mesh",
+	"CentralBerthServiceLine/PortFlank/AccessWorkStand/StandPlatform/Mesh",
+	"CentralBerthServiceLine/DockMastFoot00/MastBaseFlange",
+	"CentralBerthServiceLine/DockMastFoot01/MastBaseFlange",
+	"CentralBerthServiceLine/DockMastFoot02/MastBaseFlange",
+	"CentralBerthServiceLine/DockMastFoot03/MastBaseFlange",
 ]
 const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
 

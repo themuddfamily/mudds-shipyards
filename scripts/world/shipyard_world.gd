@@ -214,6 +214,37 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 ## Every generic lattice deck stops at or beyond this plane so no station surface
 ## shares a volume with the authored runway plate.
 const AUTHORED_CENTRAL_BERTH_EDGE_Z := 7.75
+## Drawn top faces the hero cell's ground-support line is seated against.
+##
+## These are two different planes and confusing them is how the berth cues came
+## to hover. `AUTHORED_CENTRAL_BERTH_DECK_TOP` is the top face of the authored
+## Blender shell, which is what the eye reads as the floor inside the berth and
+## what `CentralBerthHeroPresentation.EXPECTED_MAXIMUM.y` publishes.
+## `LATTICE_DECK_TOP` is the top of the generic procedural lattice decks
+## (`CentralJunction`, branch arms, aft spine: centre -0.62, 1.2 m thick), which
+## is also where their collision boxes end. The shell stands 0.115 m proud of the
+## `HeroBerthNode` collision beneath it, so anything seated by raycast against
+## the World layer inside the berth lands 0.115 m low.
+const AUTHORED_CENTRAL_BERTH_DECK_TOP := 0.095
+const LATTICE_DECK_TOP := -0.02
+## Bearing a seated ground-support piece takes into the surface under it.
+##
+## Not zero: coincident faces z-fight. This is the same 0.010 m the freight
+## berth's eight cargo units and the thirteen structural pieces re-seated by the
+## 2026-08-16 sweep took, so the whole station now uses one figure.
+const SERVICE_LINE_SEAT_BEARING := 0.010
+## Hue of the dock-mast foot practicals.
+##
+## The established idiom is that a practical carries the hue of the lens it sits
+## beside, so the spill identifies its source. Each mast already carries a
+## `KETH_CYAN` guide lamp on its cap; this is that cyan pulled most of the way to
+## white, because a foot lamp lighting bare structure at 1 m reads as a working
+## floodlight rather than as a signal.
+const MAST_FOOT_PRACTICAL_COLOR := Color("bfeaf0")
+## Fixture practicals in the hero cell's ground-support line: one at each of the
+## four dock mast feet, plus the readiness board hood, the parts-rack strip and
+## the work stand's clamp lamp.
+const SERVICE_LINE_PRACTICAL_COUNT := 7
 ## Port berth node, widened from 12.0 m so the 12.2 m Arrow no longer overhangs
 ## the pad it is parked on. Its centre is unchanged, so berth transforms, the
 ## landing envelope and the cue strips all keep their published coordinates.
@@ -621,6 +652,7 @@ var _berth_nodes: Dictionary = {}
 var _berth_feedback_nodes: Dictionary = {}
 var _central_berth_root: Node3D
 var _central_berth_hero_presentation: CentralBerthHeroPresentation
+var _central_berth_service_line: Node3D
 var _station_operations_activities: Array[StationOperationsActivity] = []
 var _station_machinery_ambience_nodes: Array[StationMachineryAmbience] = []
 var _station_structural_service_dressings: Array[StationStructuralServiceDressing] = []
@@ -665,6 +697,7 @@ func _ready() -> void:
 	_build_architecture()
 	_build_landing_pad()
 	_build_launch_corridor()
+	_build_central_berth_service_line()
 	_build_catwalks_and_control_room()
 	_build_regeneration_gallery()
 	_build_provisional_fleet()
@@ -4047,6 +4080,461 @@ func _build_central_reflection_probe(pad: Node3D) -> void:
 	probe.set_meta("bounded_hero_cell_probe", true)
 	pad.add_child(probe)
 	_tag_central_feature(probe, &"reflection_probe")
+
+
+## Ground-support hardware on the central berth's port flank, and foot hardware
+## at the four dock masts.
+##
+## Why this exists, and why it is not under `LandingPad`. The starboard flank of
+## the hero berth already carries the *utility* half of a working berth — power,
+## data and fuel umbilicals, a service cabinet, a control pedestal. The port
+## flank carried nothing at all: a 34 m by 3 m strip of bare deck that the player
+## walks down on the way to the Torrent and drives the tow tractor along, with
+## four flush deck lights in it and no object taller than 18 mm between the pad
+## border and the shell edge. A berth with utilities on one side and an empty
+## apron on the other does not read as a place anyone works.
+##
+## `LandingPad`'s whole dressing roster is contractually presentation-only and
+## collision-free (`get_central_berth_audit_report()["presentation_collision_free"]`),
+## which is correct for paint, flush fixtures, retracted clamps and parked hoses.
+## Ground support equipment is the opposite kind of object: a parts rack or a
+## maintenance stand that a tow tractor passes through at 11.5 m/s is exactly the
+## defect class this pass exists to avoid. So this line is a sibling of
+## `LandingPad`, not a child of it, and everything in it that reads as solid is
+## built through `_box`/`_cylinder` with `collidable = true`, which produces the
+## chamfered mesh and the `BoxShape3D`/`CylinderShape3D` from the same `size`.
+## The berth's own collision-free contract is therefore unchanged.
+##
+## Seating. The drawn walking surface here is the authored Blender shell, whose
+## top face is `y = 0.095`, **not** the `y = -0.02` top of the `HeroBerthNode`
+## collision box beneath it — the same 0.115 m discrepancy that made the berth
+## cues read as floating. Every piece below is seated with a 0.010 m bearing into
+## the surface it stands on (`SERVICE_LINE_SEAT_BEARING`), the figure the freight
+## berth's cargo units already use, so nothing hovers and no two faces are
+## coincident. Sub-pieces stack on the drawn top face of the piece under them.
+##
+## Lane discipline, measured against the contracts that already exist here:
+##   * `protected_small_craft_half_width` is 6.5 m and the Torrent hull is 7.20 m
+##     wide, so the launch sweep in `central_berth_hero_test` stages hull shapes
+##     out to x = ±3.6. Nothing here comes inboard of x = -9.6.
+##   * The published port exit route runs through `(-7.6, 0.2, -9.25)` with a
+##     0.42 m capsule. The nearest piece to it is a deployed chock at x = -9.75,
+##     leaving 2.15 m, and the walking lane between this line and the pad border
+##     at x = -12.2 stays open at 2.7 m — wider than the tractor.
+##   * The four recessed deck fixtures sit at x = -11.5, z = 1/-7/-15/-23. Every
+##     assembly z is chosen to clear their 0.34 m wells.
+##
+## State, carried by hardware rather than paint. This is the idiom the registry
+## pod's dispatch board and the dock arms already use: the readiness board's
+## assigned bay has its retaining pin **seated in its socket** and its tile lit;
+## the two deferred bays have their pins **withdrawn and parked in the clip**
+## under the board and their tiles dark. The chocks are **out of the locker and
+## on the deck** because a craft is berthed. Reading the berth's state does not
+## require reading a colour.
+##
+## Every placement here is `modern_interpretation`: this is what a berth of this
+## size needs to be worked, not recovered original station equipment.
+func _build_central_berth_service_line() -> void:
+	var line := Node3D.new()
+	line.name = "CentralBerthServiceLine"
+	line.set_meta("station_service_line", true)
+	line.set_meta("berth_id", CENTRAL_BERTH_ID)
+	line.set_meta("geometry_status", &"modern_interpretation")
+	line.set_meta("interpretation_confidence", &"low")
+	line.set_meta("authenticated_original_geometry", false)
+	add_child(line)
+	_central_berth_service_line = line
+	_build_port_flank_ground_support(line)
+	_build_dock_mast_foot_hardware(line)
+
+
+## One ground-support assembly root, seated and tagged.
+func _service_assembly(parent: Node3D, node_name: String, origin: Vector3, role: StringName) -> Node3D:
+	var assembly := Node3D.new()
+	assembly.name = node_name
+	assembly.position = origin
+	assembly.set_meta("berth_service_role", role)
+	assembly.set_meta("geometry_status", &"modern_interpretation")
+	assembly.set_meta("interpretation_confidence", &"low")
+	assembly.set_meta("authenticated_original_geometry", false)
+	parent.add_child(assembly)
+	return assembly
+
+
+## Centre height for a box of `height` standing on the drawn face `support_top`.
+func _seated_centre_y(support_top: float, height: float) -> float:
+	return support_top - SERVICE_LINE_SEAT_BEARING + height * 0.5
+
+
+## One fixture practical, in the idiom the four authored modules already share.
+##
+## Shadowless, sub-7 m, steeply attenuated, distance-faded, and always placed
+## just outside a lens that is actually drawn, so the spill reads as coming from
+## a fixture the player can see. This is the only mechanism in Forward+ that puts
+## light on the plate a fixture is bolted to: `emission` is a purely local
+## surface term and the glow pass is a screen-space convolution of the finished
+## image, so neither delivers any radiance to a mount. Raising emission to
+## compensate only widens the bloom, which is the bimodal-frame defect.
+func _service_practical(
+	parent: Node3D,
+	node_name: String,
+	light_position: Vector3,
+	color: Color,
+	energy: float,
+	range_value: float
+) -> OmniLight3D:
+	var practical := OmniLight3D.new()
+	practical.name = node_name
+	practical.position = light_position
+	practical.light_color = color
+	practical.light_energy = energy
+	practical.omni_range = range_value
+	practical.omni_attenuation = 1.6
+	practical.shadow_enabled = false
+	practical.distance_fade_enabled = true
+	practical.distance_fade_begin = 26.0
+	practical.distance_fade_length = 12.0
+	parent.add_child(practical)
+	return practical
+
+
+func _build_port_flank_ground_support(line: Node3D) -> void:
+	var flank := Node3D.new()
+	flank.name = "PortFlank"
+	line.add_child(flank)
+	var deck := AUTHORED_CENTRAL_BERTH_DECK_TOP
+
+	# --- Berth readiness board -------------------------------------------------
+	# Yawed 35 deg so its face is square to the walk down from the spawn marker
+	# at (-8.5, 11) rather than to the world axes.
+	var board := _service_assembly(flank, "BerthReadinessBoard", Vector3(-10.6, 0.0, 3.6), &"readiness_board")
+	board.rotation_degrees = Vector3(0.0, 35.0, 0.0)
+	_box(board, "BoardFoot", Vector3(0.0, _seated_centre_y(deck, 0.12), 0.0), Vector3(0.78, 0.12, 0.66), _materials["black"])
+	var board_foot_top := deck - SERVICE_LINE_SEAT_BEARING + 0.12
+	_box(board, "BoardMast", Vector3(0.0, _seated_centre_y(board_foot_top, 1.34), 0.0), Vector3(0.16, 1.34, 0.16), _materials["steel_blue"])
+	_box(board, "BoardPanel", Vector3(0.0, 1.42, 0.06), Vector3(1.16, 0.80, 0.11), _materials["ivory"])
+	_box(board, "BoardFace", Vector3(0.0, 1.42, 0.125), Vector3(1.00, 0.66, 0.02), _materials["navy"], false)
+	# Three bays, one tile each. Bay 0 is this berth and is assigned; bays 1 and 2
+	# are the two deferred fleet-dock bays. The pin, not the tile colour, is the
+	# state: seated in the socket for the assignment, parked in the clip for the
+	# two deferrals.
+	var bay_states := [true, false, false]
+	for bay_index in bay_states.size():
+		var assigned: bool = bay_states[bay_index]
+		var tile_x := -0.32 + float(bay_index) * 0.32
+		_box(
+			board,
+			"BayTile%02d" % bay_index,
+			Vector3(tile_x, 1.60, 0.14),
+			Vector3(0.24, 0.16, 0.02),
+			_materials["berth_cyan_glow"] if assigned else _materials["black"],
+			false
+		)
+		_box(board, "BayPinSocket%02d" % bay_index, Vector3(tile_x, 1.34, 0.135), Vector3(0.10, 0.10, 0.02), _materials["black"], false)
+		if assigned:
+			_cylinder(board, "BaySeatedPin", Vector3(tile_x, 1.34, 0.20), 0.028, 0.16, _materials["ivory"], false, Vector3(90.0, 0.0, 0.0))
+	# Hooded lamp over the board. The board is the first object on this flank a
+	# player walking down from the spawn marker meets, and an unlit board is a
+	# board nobody reads.
+	_box(board, "BoardLampHood", Vector3(0.0, 1.90, 0.16), Vector3(0.86, 0.09, 0.30), _materials["black"])
+	_box(board, "BoardLampLens", Vector3(0.0, 1.845, 0.20), Vector3(0.72, 0.03, 0.20), _materials["white_glow"], false)
+	_service_practical(board, "BoardLampPractical", Vector3(0.0, 1.74, 0.30), Color("dcefe9"), 1.05, 5.6)
+	_box(board, "WithdrawnPinClip", Vector3(0.30, 1.14, 0.14), Vector3(0.30, 0.05, 0.03), _materials["black"], false)
+	for parked_index in 2:
+		_cylinder(
+			board,
+			"WithdrawnPin%02d" % parked_index,
+			Vector3(0.22 + float(parked_index) * 0.14, 1.14, 0.155),
+			0.028,
+			0.16,
+			_materials["orange"],
+			false,
+			Vector3(0.0, 0.0, 90.0)
+		)
+
+	# --- Cable drum and its deck coupling --------------------------------------
+	var drum := _service_assembly(flank, "CableDrumStand", Vector3(-10.6, 0.0, -1.6), &"cable_drum")
+	_box(drum, "DrumPlinth", Vector3(0.0, _seated_centre_y(deck, 0.22), 0.0), Vector3(1.34, 0.22, 1.08), _materials["black"])
+	var drum_plinth_top := deck - SERVICE_LINE_SEAT_BEARING + 0.22
+	for side in [-1.0, 1.0]:
+		_box(
+			drum,
+			"DrumCheek%s" % ("Port" if side < 0.0 else "Starboard"),
+			Vector3(side * 0.54, _seated_centre_y(drum_plinth_top, 0.92), 0.0),
+			Vector3(0.11, 0.92, 0.74),
+			_materials["steel_blue"]
+		)
+	var drum_axis_y := drum_plinth_top + 0.56
+	_cylinder(drum, "DrumBarrel", Vector3(0.0, drum_axis_y, 0.0), 0.30, 0.94, _materials["orange"], true, Vector3(0.0, 0.0, 90.0))
+	for coil_offset in [-0.24, 0.0, 0.24]:
+		_torus(drum, "StowedCableCoil%s" % str(coil_offset).replace("-", "M").replace(".", "_"), Vector3(coil_offset, drum_axis_y, 0.0), 0.305, 0.36, _materials["black"], Vector3(0.0, 0.0, 90.0))
+	# Hub, arm and grip, each overlapping the piece it is attached to. Built as
+	# three touching parts rather than a stub and a floating bar: the focused
+	# suite's drawn-geometry sweep found the first attempt's grip hanging 0.155 m
+	# clear of the crank, which is exactly the reported defect class.
+	_cylinder(drum, "DrumCrankHub", Vector3(0.60, drum_axis_y, 0.0), 0.05, 0.16, _materials["ivory"], false, Vector3(0.0, 0.0, 90.0))
+	_box(drum, "DrumCrankArm", Vector3(0.67, drum_axis_y - 0.11, 0.0), Vector3(0.05, 0.28, 0.05), _materials["ivory"], false)
+	_cylinder(drum, "DrumCrankGrip", Vector3(0.74, drum_axis_y - 0.22, 0.0), 0.035, 0.16, _materials["ivory"], false, Vector3(0.0, 0.0, 90.0))
+	# The working end runs off the drum and down to a flush deck coupling, the
+	# same "parked, and you can see where it plugs in" read the starboard
+	# umbilicals already have.
+	var lead_points := PackedVector3Array([
+		Vector3(0.0, drum_axis_y - 0.30, 0.36),
+		Vector3(0.10, drum_plinth_top * 0.5, 0.72),
+		Vector3(0.42, deck + 0.05, 1.02),
+		Vector3(0.96, deck + 0.04, 1.18),
+	])
+	for segment_index in lead_points.size() - 1:
+		_beam_between(drum, "DrumLeadSegment%02d" % segment_index, lead_points[segment_index], lead_points[segment_index + 1], 0.05, _materials["black"], false)
+	_torus(drum, "DrumDeckCoupling", Vector3(0.96, deck + 0.02, 1.18), 0.14, 0.22, _materials["steel_blue"])
+
+	# --- Parts bin rack --------------------------------------------------------
+	var rack := _service_assembly(flank, "PartsBinRack", Vector3(-10.6, 0.0, -6.2), &"parts_bin_rack")
+	_box(rack, "RackFoot", Vector3(0.0, _seated_centre_y(deck, 0.12), 0.0), Vector3(1.48, 0.12, 0.82), _materials["black"])
+	var rack_foot_top := deck - SERVICE_LINE_SEAT_BEARING + 0.12
+	for side in [-1.0, 1.0]:
+		_box(
+			rack,
+			"RackUpright%s" % ("Port" if side < 0.0 else "Starboard"),
+			Vector3(side * 0.68, _seated_centre_y(rack_foot_top, 1.26), 0.0),
+			Vector3(0.10, 1.26, 0.74),
+			_materials["steel_blue"]
+		)
+	var shelf_tops := PackedFloat32Array()
+	for shelf_index in 2:
+		var shelf_top := rack_foot_top + 0.50 + float(shelf_index) * 0.52
+		shelf_tops.append(shelf_top)
+		_box(rack, "RackShelf%02d" % shelf_index, Vector3(0.0, shelf_top - 0.035, 0.0), Vector3(1.44, 0.07, 0.72), _materials["ivory"])
+	for shelf_index in shelf_tops.size():
+		for bin_index in 3:
+			var bin_material: Material = _materials["orange"] if (shelf_index + bin_index) % 2 == 0 else _materials["blue"]
+			var bin_x := -0.46 + float(bin_index) * 0.46
+			_box(
+				rack,
+				"PartsBin%02d%02d" % [shelf_index, bin_index],
+				Vector3(bin_x, _seated_centre_y(shelf_tops[shelf_index], 0.28), 0.0),
+				Vector3(0.42, 0.28, 0.58),
+				bin_material
+			)
+			_box(
+				rack,
+				"BinStock%02d%02d" % [shelf_index, bin_index],
+				Vector3(bin_x, shelf_tops[shelf_index] + 0.20, 0.0),
+				Vector3(0.30, 0.09, 0.44),
+				_materials["ivory"] if bin_index == 1 else _materials["black"],
+				false
+			)
+	# Strip light under the upper shelf, so the lower bins are picked out and the
+	# rack's own uprights carry a highlight rather than reading as a dark frame.
+	var rack_strip_y := shelf_tops[1] - 0.10
+	_box(rack, "RackStripHousing", Vector3(0.0, rack_strip_y, -0.16), Vector3(1.30, 0.07, 0.14), _materials["black"], false)
+	_box(rack, "RackStripLens", Vector3(0.0, rack_strip_y - 0.045, -0.16), Vector3(1.18, 0.02, 0.10), _materials["white_glow"], false)
+	_service_practical(rack, "RackStripPractical", Vector3(0.0, rack_strip_y - 0.16, 0.08), Color("e4ece6"), 0.85, 4.8)
+
+	# --- Chock and strop locker, with the chocks deployed ----------------------
+	var locker := _service_assembly(flank, "ChockLocker", Vector3(-10.6, 0.0, -11.2), &"chock_locker")
+	_box(locker, "LockerBody", Vector3(0.0, _seated_centre_y(deck, 0.72), 0.0), Vector3(0.80, 0.72, 1.62), _materials["deck_light"])
+	var locker_top := deck - SERVICE_LINE_SEAT_BEARING + 0.72
+	_box(locker, "LockerLid", Vector3(0.0, _seated_centre_y(locker_top, 0.10), 0.0), Vector3(0.88, 0.10, 1.70), _materials["black"])
+	_box(locker, "LockerDoor", Vector3(0.41, 0.44, 0.0), Vector3(0.02, 0.50, 1.34), _materials["navy"], false)
+	_cylinder(locker, "LockerHandle", Vector3(0.44, 0.44, 0.0), 0.032, 0.46, _materials["ivory"], false, Vector3(90.0, 0.0, 0.0))
+	# Out of the locker and on the deck: a craft is berthed.
+	for chock_index in 2:
+		var chock_z := -0.56 + float(chock_index) * 1.12
+		_box(locker, "DeployedChockBody%02d" % chock_index, Vector3(0.85, _seated_centre_y(deck, 0.15), chock_z), Vector3(0.46, 0.15, 0.32), _materials["orange"])
+		_box(locker, "DeployedChockRamp%02d" % chock_index, Vector3(0.94, _seated_centre_y(deck + 0.14, 0.13), chock_z), Vector3(0.26, 0.13, 0.32), _materials["orange"])
+
+	# --- Rolling access work stand ---------------------------------------------
+	# Risers are 0.29 m, under the 0.298 m step the station traversal graph
+	# accepts, so the platform is genuinely climbable rather than a solid block
+	# the player can only walk around.
+	var stand := _service_assembly(flank, "AccessWorkStand", Vector3(-10.5, 0.0, -17.4), &"access_work_stand")
+	var platform_top := deck + 0.87
+	for leg_x in [-0.78, 0.78]:
+		for leg_z in [-0.98, 0.98]:
+			_box(
+				stand,
+				"StandLeg%s%s" % ["Port" if leg_x < 0.0 else "Starboard", "Aft" if leg_z < 0.0 else "Forward"],
+				Vector3(leg_x, _seated_centre_y(deck, 0.685), leg_z),
+				Vector3(0.16, 0.685, 0.16),
+				_materials["steel_blue"]
+			)
+	_box(stand, "StandPlatform", Vector3(0.0, platform_top - 0.05, 0.0), Vector3(1.80, 0.10, 2.20), _materials["deck_light"])
+	_box(stand, "StandStepLower", Vector3(0.0, _seated_centre_y(deck, 0.205), 1.44), Vector3(1.00, 0.205, 0.34), _materials["deck_light"])
+	_box(stand, "StandStepUpper", Vector3(0.0, _seated_centre_y(deck, 0.495), 1.10), Vector3(1.00, 0.495, 0.34), _materials["deck_light"])
+	# Rail on the outboard side only, so crew on the platform face the hull.
+	for rail_z in [-0.92, 0.0, 0.92]:
+		_box(stand, "StandRailPost%s" % str(rail_z).replace("-", "M").replace(".", "_"), Vector3(-0.82, _seated_centre_y(platform_top, 0.98), rail_z), Vector3(0.09, 0.98, 0.09), _materials["orange"])
+	_box(stand, "StandRail", Vector3(-0.82, platform_top + 0.92, 0.0), Vector3(0.10, 0.10, 2.16), _materials["orange"])
+	_box(stand, "StandToolbox", Vector3(0.10, _seated_centre_y(platform_top, 0.22), 0.34), Vector3(0.46, 0.22, 0.32), _materials["red"])
+	# A hard hat left on the platform, the same "someone was here" note the crew
+	# work post already carries.
+	_sphere(stand, "StowedHardHat", Vector3(0.46, platform_top + 0.03, -0.62), 0.15, _materials["orange"], false)
+	# Clamp-on work lamp on the rail, on its stub arm, aimed inboard at the hull
+	# side of the platform. This is the lamp that makes the far end of the flank
+	# read as a place being worked rather than as unlit deck.
+	_box(stand, "WorkLampArm", Vector3(-0.66, platform_top + 0.94, -0.92), Vector3(0.34, 0.07, 0.07), _materials["steel_blue"], false)
+	_box(stand, "WorkLampHood", Vector3(-0.44, platform_top + 0.90, -0.92), Vector3(0.26, 0.20, 0.26), _materials["black"])
+	_box(stand, "WorkLampLens", Vector3(-0.44, platform_top + 0.80, -0.92), Vector3(0.19, 0.03, 0.19), _materials["white_glow"], false)
+	_service_practical(stand, "WorkLampPractical", Vector3(-0.30, platform_top + 0.62, -0.92), Color("f1e6cf"), 1.35, 6.8)
+
+
+## Foot hardware and a practical at each of the four freestanding dock masts.
+##
+## The masts are the tallest thing in the hero cell and one of them stands 2.3 m
+## from the player spawn, filling the left third of the first frame of every
+## session. Before this each was a bare 10.4 m column with a lamp on its cap and
+## nothing at its base: the cap lamp is 9.5 m up, so from eye height the mast is
+## an unlit silhouette with no indication of what it is for or what it is bolted
+## to. Emission cannot fix that — it is a purely local surface term and lights
+## nothing it is mounted to — so each mast gets a real `OmniLight3D`, shadowless,
+## sub-7 m, distance-faded, carrying the hue of the lens beside it, in the same
+## idiom as the thirty-nine fixture practicals in the four authored modules.
+##
+## The mast at `z = 14` and the mast at `z = 10` stand on the lattice decks,
+## whose drawn top is `y = -0.02`; the two at `z = -23` stand on the authored
+## shell at `y = 0.095`. Each foot is seated against its own deck.
+func _build_dock_mast_foot_hardware(line: Node3D) -> void:
+	var mast_positions := [
+		Vector3(-11.0, 0.0, 14.0),
+		Vector3(11.0, 0.0, 10.0),
+		Vector3(-11.0, 0.0, -23.0),
+		Vector3(11.0, 0.0, -23.0),
+	]
+	for mast_index in mast_positions.size():
+		var mast_position: Vector3 = mast_positions[mast_index]
+		var deck := (
+			AUTHORED_CENTRAL_BERTH_DECK_TOP
+			if mast_position.z <= AUTHORED_CENTRAL_BERTH_EDGE_Z
+			else LATTICE_DECK_TOP
+		)
+		var foot := _service_assembly(
+			line,
+			"DockMastFoot%02d" % mast_index,
+			Vector3(mast_position.x, 0.0, mast_position.z),
+			&"mast_foot"
+		)
+		# Flush base plate: 0.09 m proud of the deck and deliberately not a
+		# collider, because a 0.4 m wide lip around a mast the player walks past
+		# at spawn is precisely the snagging defect this area already fixed twice.
+		var flange := _cylinder(foot, "MastBaseFlange", Vector3(0.0, _seated_centre_y(deck, 0.09), 0.0), 0.86, 0.09, _materials["black"], false)
+		flange.set_meta("flush_deck_detail", true)
+		for cleat_index in 2:
+			var cleat_z := -0.74 + float(cleat_index) * 1.48
+			_box(foot, "MooringCleatStem%02d" % cleat_index, Vector3(0.0, _seated_centre_y(deck, 0.20), cleat_z), Vector3(0.14, 0.20, 0.14), _materials["ivory"])
+			_box(foot, "MooringCleatHorn%02d" % cleat_index, Vector3(0.0, deck + 0.24, cleat_z), Vector3(0.56, 0.11, 0.15), _materials["ivory"])
+		_box(foot, "MastFootJunctionBox", Vector3(0.68, _seated_centre_y(deck, 0.56), 0.0), Vector3(0.36, 0.56, 0.48), _materials["steel_blue"])
+		var junction_top := deck - SERVICE_LINE_SEAT_BEARING + 0.56
+		_box(foot, "MastFootStateTile", Vector3(0.87, deck + 0.38, 0.0), Vector3(0.02, 0.12, 0.30), _materials["berth_cyan_glow"], false)
+		_box(foot, "MastFootLampHood", Vector3(0.68, _seated_centre_y(junction_top, 0.10), 0.0), Vector3(0.40, 0.10, 0.52), _materials["black"])
+		_box(foot, "MastFootLens", Vector3(0.68, junction_top + 0.055, 0.0), Vector3(0.28, 0.03, 0.38), _materials["berth_cyan_glow"], false)
+		# Lifted clear of the hood rather than sat on it: at 0.16 m the practical
+		# put a blown ellipse of deck directly under itself in the spawn frame,
+		# which is the same near-white patch the lighting pass was measuring
+		# against. At 0.42 m with the shared 1.6 attenuation the same energy is
+		# spread across the mast plate and the flange instead.
+		_service_practical(
+			foot,
+			"MastFootPractical",
+			Vector3(0.68, junction_top + 0.42, 0.0),
+			MAST_FOOT_PRACTICAL_COLOR,
+			0.95,
+			6.4
+		)
+
+
+## Deep-detached audit for the port-flank ground support line and the mast feet.
+##
+## The roster is exact rather than a floor: this line exists to be a fixed,
+## reviewable set of objects on a surface the player sees every session, and a
+## range would let a piece silently disappear. `solid_body_count` is published
+## because "looks solid, is solid" is the property that matters here — a tow
+## tractor crosses this flank at 11.5 m/s.
+func get_central_berth_service_line_report() -> Dictionary:
+	var line := _central_berth_service_line
+	if line == null or not is_instance_valid(line):
+		line = get_node_or_null("CentralBerthServiceLine") as Node3D
+	var errors: PackedStringArray = []
+	var expected_roles := {
+		&"readiness_board": 1,
+		&"cable_drum": 1,
+		&"parts_bin_rack": 1,
+		&"chock_locker": 1,
+		&"access_work_stand": 1,
+		&"mast_foot": 4,
+	}
+	var role_counts := {}
+	var solid_body_count := 0
+	var practical_count := 0
+	var minimum_x := INF
+	var maximum_x := -INF
+	if line == null:
+		errors.append("CentralBerthServiceLine root is unavailable")
+	else:
+		if line.get_parent() != self or not line.transform.is_equal_approx(Transform3D.IDENTITY):
+			errors.append("service line mount changed")
+		if _central_berth_root != null and _central_berth_root.is_ancestor_of(line):
+			errors.append("service line moved inside the collision-free LandingPad roster")
+		for candidate in line.find_children("*", "", true, false):
+			var role := StringName(candidate.get_meta("berth_service_role", &""))
+			if not role.is_empty():
+				role_counts[role] = int(role_counts.get(role, 0)) + 1
+			if candidate is StaticBody3D:
+				solid_body_count += 1
+				var body := candidate as StaticBody3D
+				if body.collision_layer != WORLD_LAYER or body.collision_mask != 0:
+					errors.append("service body physics layers changed: %s" % body.name)
+				if body.find_children("*", "CollisionShape3D", true, false).size() != 1 \
+						or body.find_children("*", "MeshInstance3D", true, false).size() != 1:
+					errors.append("service body is not one drawn mesh with one matched shape: %s" % body.name)
+			if candidate is OmniLight3D:
+				practical_count += 1
+				var practical := candidate as OmniLight3D
+				if practical.shadow_enabled or practical.omni_range > 7.0 or not practical.distance_fade_enabled:
+					errors.append("mast foot practical left the fixture-practical idiom")
+		# Deliberately the port flank only. The mast feet are a separate roster and
+		# two of the four masts stand at x = +11, so sweeping the whole line would
+		# report a starboard extent under a port-flank name.
+		var flank := line.get_node_or_null(^"PortFlank") as Node3D
+		if flank == null:
+			errors.append("PortFlank ground support root is unavailable")
+		else:
+			for mesh_candidate in flank.find_children("*", "MeshInstance3D", true, false):
+				var mesh_instance := mesh_candidate as MeshInstance3D
+				if mesh_instance.mesh == null:
+					continue
+				var aabb := mesh_instance.global_transform * mesh_instance.mesh.get_aabb()
+				minimum_x = minf(minimum_x, aabb.position.x)
+				maximum_x = maxf(maximum_x, aabb.end.x)
+	for role: StringName in expected_roles:
+		if int(role_counts.get(role, 0)) != int(expected_roles[role]):
+			errors.append(
+				"%s assembly count is %d, expected %d"
+				% [role, int(role_counts.get(role, 0)), int(expected_roles[role])]
+			)
+	# Four mast feet, plus the readiness board hood, the parts-rack strip and the
+	# work stand's clamp lamp. Every one is mounted just outside a drawn lens.
+	if practical_count != SERVICE_LINE_PRACTICAL_COUNT:
+		errors.append(
+			"service line practical count is %d, expected %d"
+			% [practical_count, SERVICE_LINE_PRACTICAL_COUNT]
+		)
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"berth_id": CENTRAL_BERTH_ID,
+		"geometry_status": &"modern_interpretation",
+		"interpretation_confidence": &"low",
+		"authenticated_original_geometry": false,
+		"assembly_counts": role_counts.duplicate(true),
+		"expected_assembly_counts": expected_roles.duplicate(true),
+		"solid_body_count": solid_body_count,
+		"practical_count": practical_count,
+		"seat_bearing": SERVICE_LINE_SEAT_BEARING,
+		"authored_deck_top": AUTHORED_CENTRAL_BERTH_DECK_TOP,
+		"port_flank_minimum_x": minimum_x,
+		"port_flank_maximum_x": maximum_x,
+	}.duplicate(true)
 
 
 ## Bounded specular environment over the three module cells the hero probe never
