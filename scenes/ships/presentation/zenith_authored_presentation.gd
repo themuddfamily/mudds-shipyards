@@ -190,14 +190,14 @@ func _configure_runtime_materials() -> void:
 		# engine cans in the baseline fleet-overview frame read as plain black
 		# cylinders. Nothing here touches SourceCore geometry, and the pale hull
 		# roles above are left exactly as the colour pass re-established them.
-		&"GraphitePanel": _structural_material(Color(0.075, 0.095, 0.105), 0.30, 0.68, 1.0, 0.70),
+		&"GraphitePanel": _structural_material(Color(0.075, 0.095, 0.105), 0.30, 0.68, 3.0, 1.10),
 		# EngineGraphite keeps its exact frozen 0.46 metallic / 0.52 roughness.
 		# tests/zenith_authored_asset_test.gd pins both for "readable modern
 		# engine separation", and relief alone fixes what the frame actually
 		# shows — a plain black cylinder — so there is no reason to move a
 		# deliberately frozen readability value. It takes the normal map only.
-		&"EngineGraphite": _structural_material(Color(0.115, 0.140, 0.150), 0.46, 0.52, 1.15, 0.60),
-		&"ExposedAlloy": _structural_material(Color("384244"), 0.86, 0.18, 1.2, 0.50),
+		&"EngineGraphite": _structural_material(Color(0.115, 0.140, 0.150), 0.46, 0.52, 4.0, 1.00),
+		&"ExposedAlloy": _structural_material(Color("384244"), 0.86, 0.18, 3.5, 0.90),
 		&"CanopyGlass": _canopy_material(),
 		&"EngineEmission": _emissive_material(Color("05343c"), Color("07bddc"), 3.1),
 		&"PortNavRed": _emissive_material(Color("6b0506"), Color("ff0305"), 2.6),

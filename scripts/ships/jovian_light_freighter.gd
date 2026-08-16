@@ -378,16 +378,19 @@ func _create_jovian_materials() -> void:
 	# most primitive-looking objects on the freighter: full-height flat yellow
 	# bars standing against a fully panelled hull in the baseline walk-up frame.
 	# The freighter's own registered normal map is reused on the working
-	# structure through triplanar projection at roughly 3-6x the hull's
-	# frequency, so a bulkhead, a load rail and a deck plate each carry surface
-	# relief at their own scale. No albedo texture is bound anywhere here, so
-	# the hull, accent and cargo tints the fleet colour floors measure are
-	# exactly as authored.
-	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.structure, hull_normal, 0.8, 0.70)
-	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.dark, hull_normal, 1.1, 0.55)
-	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.amber, hull_normal, 1.0, 0.80)
-	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.cargo_blue, hull_normal, 0.9, 0.90)
-	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.deck, hull_normal, 1.4, 0.85)
+	# structure through triplanar projection at 8-20x the hull's frequency, so a
+	# bulkhead, a load rail and a deck plate each carry relief at their own
+	# scale. The 0.32 m aperture uprights need the highest frequency in the
+	# fleet precisely because they are narrow: at hull frequency less than one
+	# panel feature crosses the bar. See the honesty note on the Arrow about how
+	# small the relief contribution measures under current lighting. No albedo
+	# texture is bound anywhere here, so the hull, accent and cargo tints the
+	# fleet colour floors measure are exactly as authored.
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.structure, hull_normal, 2.0, 1.20)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.dark, hull_normal, 4.0, 0.90)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.amber, hull_normal, 5.0, 1.30)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.cargo_blue, hull_normal, 2.0, 1.20)
+	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.deck, hull_normal, 2.2, 1.00)
 
 
 func get_variant_materials() -> Dictionary:
@@ -1124,7 +1127,6 @@ func _loft_hull(
 		tool.add_index(rear_base + ring_index)
 		tool.add_index(rear_base + next_ring)
 	tool.generate_normals()
-	tool.generate_tangents()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
@@ -1233,7 +1235,6 @@ func _ramp_wedge(
 		))
 		tool.add_vertex(point)
 	tool.generate_normals()
-	tool.generate_tangents()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.mesh = tool.commit()

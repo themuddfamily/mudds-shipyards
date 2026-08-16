@@ -244,18 +244,24 @@ func _create_arrow_materials() -> void:
 	# `TITANIUM` with no map of any kind: the aft crop of the baseline capture
 	# shows the engine housing as a single uniform grey cylinder. The registered
 	# Arrow normal map that already dresses the hull is reused here through
-	# triplanar projection at 2.6x the hull's frequency, so the parts read as
-	# machined hardware rather than as scaled-down hull plate. No albedo texture
+	# triplanar projection at 5-10x the hull's frequency: the hull tiles about
+	# once every three metres, and a 0.3 m strut or a 0.4 m collar at that rate
+	# receives a fraction of one feature and cannot show relief at all.
+	# Measured honestly, this relief is a small contribution under the current
+	# station lighting — a rendered A/B at an absurd normal_scale of 12.0 moved
+	# under 1% of a berth frame — so the widened metallic/roughness response
+	# above is what carries this pass. The relief is kept because it costs
+	# nothing and will pay off if the lighting gains contrast. No albedo texture
 	# is bound, so the fleet colour floors see exactly the tints above.
-	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.titanium, hull_normal, 0.9, 0.55)
+	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.titanium, hull_normal, 3.5, 1.20)
 	# Struts, keel, mast stem and pod collars are painted composite, not bare
 	# metal, so they take the matte end of the craft's roughness range while
 	# titanium takes the glossy end.
-	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.graphite, hull_normal, 1.15, 0.75)
+	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.graphite, hull_normal, 3.0, 1.10)
 	# The escape pods were the single most primitive-looking object on the
 	# craft: a saturated flat orange blob beside a textured fuselage. A coarser
 	# projection than the hardware gives them shell seams at pod scale.
-	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.pod, hull_normal, 0.65, 0.85)
+	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.pod, hull_normal, 1.6, 1.30)
 
 
 func get_variant_materials() -> Dictionary:

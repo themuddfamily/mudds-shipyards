@@ -401,10 +401,22 @@ boundaries; the non-tileable Torrent hero atlas instead uses clamped borders.
   for the Torrent hero presentation and for Zenith, `arrow-hull-normal-v1.png`
   for the Arrow, `jovian-hull-normal-v1.png` for the Jovian — is bound a second
   time to that craft's structural materials through triplanar projection at
-  roughly 3-6x the frequency its hull uses. No albedo texture and no roughness
+  5-20x the frequency its hull uses. The frequency is the point: a hull map
+  tiling once every three metres puts less than one panel feature across a
+  0.3 m strut, which is why the untextured population read as flat in the
+  first place. No albedo texture and no roughness
   texture is bound to any structural material, so every craft's authored scalar
   colour still reaches the renderer unmultiplied and each material's `roughness`
   property is the roughness the player sees.
+- Measured effect, stated plainly rather than claimed: the widened
+  metallic/roughness response is what this pass actually delivers on screen.
+  A rendered before/after of the Jovian berth walk-up moved 11.0% of pixels by
+  more than four levels; an isolated A/B of the relief alone, pushed to an
+  absurd `normal_scale` of 12.0, moved under 1% of a berth frame. The
+  registered normal maps encode shallow relief and the current station
+  lighting is close to flat, so the relief is a real but small contribution
+  today. It is retained because it costs no bytes and improves with lighting
+  contrast, not because it is carrying the result.
 - Project status: modern project-original presentation work. These maps remain
   the same interim procedural derivatives described in the section above,
   reused at a second projection scale. This pass is **not** authored surface

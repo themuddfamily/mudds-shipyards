@@ -124,13 +124,13 @@ func _configure_runtime_materials() -> void:
 		# roughness 0.28/0.22/0.66/0.43/0.64 with no map at all, and the
 		# baseline touchdown frame shows every one of them as a flat slab
 		# beside a panelled hull.
-		&"GraphiteMachinery": _structural_material(Color("10191c"), 0.36, 0.62, 1.1, 0.65),
-		&"ExposedAlloy": _structural_material(Color("434b4d"), 0.84, 0.18, 1.25, 0.50),
+		&"GraphiteMachinery": _structural_material(Color("10191c"), 0.36, 0.62, 3.0, 1.10),
+		&"ExposedAlloy": _structural_material(Color("434b4d"), 0.84, 0.18, 3.5, 0.90),
 		&"CyanStatus": _emissive_material(Color("0aa3b3"), Color("0cc6dc"), 2.2),
 		&"AmberPanel": _amber_panel_material(),
-		&"CrimsonSeat": _structural_material(Color("8b1622"), 0.04, 0.78, 2.0, 0.60),
-		&"CrimsonLivery": _structural_material(Color("8f1723"), 0.06, 0.34, 1.0, 0.35),
-		&"ThermalCeramic": _structural_material(Color("171b1a"), 0.12, 0.86, 0.9, 0.80),
+		&"CrimsonSeat": _structural_material(Color("8b1622"), 0.04, 0.78, 6.0, 0.90),
+		&"CrimsonLivery": _structural_material(Color("8f1723"), 0.06, 0.34, 3.0, 0.70),
+		&"ThermalCeramic": _structural_material(Color("171b1a"), 0.12, 0.86, 2.4, 1.20),
 		&"NeutralCanopyGlass": _canopy_material(),
 	}
 	if _asset_root == null:
