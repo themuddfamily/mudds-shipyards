@@ -47,7 +47,17 @@ const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 const FOOTPRINT_MIN := Vector3(-2.6, -2.5, 0.0)
 const FOOTPRINT_MAX := Vector3(21.0, 5.0, 48.0)
 
-const MESH_INSTANCE_BUDGET := 64
+# Re-frozen in the open, 64 -> 107, by the dock-arm service pass. Measured, not
+# guessed: the module built 58 visible meshes before it and builds 100 after, so
+# the ceiling keeps roughly the same headroom over the built figure that the old
+# one did (6 -> 7). The 42 additions are the per-arm service hardware — bracket,
+# service pod, mast, umbilical head, cap, status lens, boom, toe kerb, two mooring
+# cleat pads and two bollards on each of the three arms, one dropped umbilical
+# hose on the assigned arm — plus the two trunk conduits and three rung branch
+# conduits that tie the arms back to the trunk. No collision body, shape, label,
+# route marker, dock marker, walkable surface or published envelope moves: the
+# collision and label budgets below are untouched and still exact.
+const MESH_INSTANCE_BUDGET := 107
 const STATIC_BODY_BUDGET := COLLISION_BODY_COUNT
 const COLLISION_SHAPE_BUDGET := COLLISION_SHAPE_COUNT
 const LABEL_BUDGET := DOCK_MARKER_COUNT
@@ -62,7 +72,15 @@ const LABEL_BUDGET := DOCK_MARKER_COUNT
 # no frame cost" half of this module's policy is unchanged, and the two loop
 # budgets stay at zero. Frame cost is unmeasured: this box renders through
 # llvmpipe and any number produced here would be meaningless.
-const LIGHT_BUDGET := 4
+#
+# Re-frozen again in the open, 4 -> 7, by the dock-arm service pass, for exactly
+# the same mechanism and with exactly the same idiom: each arm's new mast status
+# lens is emissive, emission lights nothing in Forward+, and without a practical
+# it is one more glowing decal on unlit plate. The three additions are one amber
+# spill per mast head, shadowless, `omni_range` 5.4 m, faded out at the same
+# 60/25 m as every other comb practical. Both loop budgets stay at zero and frame
+# cost stays unmeasured for the reason recorded above.
+const LIGHT_BUDGET := 7
 
 ## Distance fade applied to every comb practical. Measured, not chosen — see
 ## `_dock_practical`.
@@ -105,7 +123,12 @@ const CONTENT_NOTE := (
 	+ "interpretation. Dock 01 is a modern externally-owned assignment for the "
 	+ "B7-observed Zenith partial reconstruction; docks 02/03 remain empty and "
 	+ "deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
-	+ "spawn authority inside this module."
+	+ "spawn authority inside this module. The per-arm service hardware — mast, "
+	+ "umbilical head, boom, service pod, mooring cleats, toe kerb and the trunk/rung conduit "
+	+ "run — is modern interpretation with no source at all: no anchor in any "
+	+ "source describes how the original station moored, fed or serviced a docked "
+	+ "craft, and the deployed/stowed distinction between the assigned and the two "
+	+ "deferred arms is a presentation convention, not a recovered operating state."
 )
 
 @onready var _module_anchor: Marker3D = %ModuleAnchor
@@ -337,6 +360,12 @@ func get_component_roster() -> Dictionary:
 		"rung_count": RUNG_COUNT,
 		"dock_slab_ids": PackedStringArray(DOCK_SLAB_IDS),
 		"dock_slab_count": DOCK_SLAB_COUNT,
+		# Published so the dock-arm service pass is auditable as a roster rather
+		# than only as a mesh count: every arm carries one mast and two mooring
+		# cleats, and exactly one arm — the assigned one — has its boom deployed.
+		"dock_service_mast_count": _count_service_nodes("DockServiceMast"),
+		"dock_mooring_cleat_count": _count_service_nodes("DockMooringCleatBollard"),
+		"deployed_service_boom_count": _count_service_nodes("DockUmbilicalHose"),
 		"vertical_transition_count": 1,
 		"dock_marker_count": _dock_markers.size(),
 		"assigned_dock_ids": PackedStringArray(get_assigned_dock_ids()),
@@ -705,7 +734,16 @@ func _build_surface_detail() -> void:
 	for z_position in [2.0, 6.0, 10.0, 14.0, 18.0, 22.0, 26.0, 30.0, 34.0, 38.0, 42.0, 46.0]:
 		_visual_box(detail, "TrunkExpansionJoint", Vector3(0, 0.018, float(z_position)), Vector3(4.25, 0.035, 0.06), _materials["grip"])
 	for z_position in [5.0, 20.0, 35.0]:
-		_visual_box(detail, "TrunkRouteLight", Vector3(0, 0.045, float(z_position)), Vector3(0.22, 0.05, 1.25), _materials["cyan"])
+		# COMB-DECK-CUE-001, found by measuring rather than by reading. Every trunk
+		# route light was authored at y = 0.045 with a 0.05 m section, so it spanned
+		# y = 0.020 … 0.070 over a trunk whose walking surface is exactly y = 0.
+		# All three hovered 0.020 m above the plate they are supposed to be inlaid
+		# into and touched no geometry anywhere in the module — the same class as
+		# the 0.040-0.090 m underframe and crate defects fixed on 2026-08-16, just
+		# small enough to have been missed. Centre moved 0.045 -> 0.020 so the cue
+		# enters the deck by 0.005 m. Length, width, section, spacing, colour and
+		# the practical above it are untouched.
+		_visual_box(detail, "TrunkRouteLight", Vector3(0, 0.020, float(z_position)), Vector3(0.22, 0.05, 1.25), _materials["cyan"])
 	# One of the three trunk route lights actually lights the trunk. Three would
 	# be three copies of the same 4 m pool down a 2 m wide walkway; the middle one
 	# alone puts a gradient along the trunk that reads as a lit route rather than
@@ -749,9 +787,284 @@ func _build_surface_detail() -> void:
 
 	# Narrow edge cues belong only to the true walkable rungs. They never bridge
 	# either of the large gaps between slabs.
+	#
+	# COMB-DECK-CUE-001, same measurement and same fix as the trunk route lights:
+	# authored at y = 0.055 with a 0.06 m section, all four spanned y = 0.025 …
+	# 0.085 over a rung deck whose top is y = 0, so every one of them hovered
+	# 0.025 m clear and touched nothing. Centre moved 0.055 -> 0.025.
 	for rung_z in [10.0, 25.0]:
 		for side in [-1.0, 1.0]:
-			_visual_box(detail, "RungEdgeCue", Vector3(5.5, 0.055, float(rung_z) + float(side) * 1.62), Vector3(6.7, 0.06, 0.1), _materials["amber"])
+			_visual_box(detail, "RungEdgeCue", Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62), Vector3(6.7, 0.06, 0.1), _materials["amber"])
+
+	_build_dock_arm_service(detail)
+
+
+## Dock-arm service hardware: what each arm is *for*.
+##
+## Before this, an arm was a 12 m plate with a painted cross, four corner beacons
+## and a floor label. Nothing on it said a ship is fed, held down or serviced
+## there, so the three arms differed from each other only by the colour of a
+## stripe, and the two deferred ones read as unfinished plate rather than as
+## commissioned berths waiting for a hull. Each arm now carries a mast with an
+## umbilical head, a service boom, two mooring cleats and a toe kerb along the
+## drop edge, and the assigned/deferred distinction is carried by the *state* of
+## that hardware rather than by paint alone: dock 01's boom is run out along the
+## berth flank with its umbilical hose dropped to the deck bracket, docks 02 and
+## 03 have theirs stowed vertically against the mast with the head blanked. That
+## is a relationship a player can read at a glance and one this module can
+## honestly claim, because a dock's own servicing state is not a historical
+## assertion about the original station.
+##
+## Three placement rules, all measured against the live scene rather than
+## assumed, and all of them load-bearing:
+##
+## 1. **Nothing substantial stands on the walking plate.** The module carries no
+##    collision on dressing and its collision roster is frozen at one body per
+##    walkable surface, so any waist-height object on the deck would be a solid-
+##    looking thing a player walks straight through. Everything tall here stands
+##    *outboard* of the slab edge over the void, where no player can reach it and
+##    no walkable surface is implied; everything that does touch the plate is a
+##    0.19 m cleat or a 0.14 m toe kerb, in the same class as the 0.12 m corner
+##    beacons already there.
+## 2. **Nothing enters the parked hull.** The live Zenith's world AABB is
+##    `x 14.80…29.20, y 4.23…8.48, z 47.95…58.40`, which is module-local
+##    `x 9.90…20.35, y 0.03…4.28, z 2.80…17.20` — the ship covers nearly the whole
+##    of dock 01's plate. So the cleats sit on the inboard strip at local
+##    `x = 9.5` (0.40 m clear of the hull) and the kerb on the outboard strip at
+##    `x = 20.86` (0.37 m clear), and the same layout is used on all three arms so
+##    the three are not three different designs. The mast stands at `x = 21.9`,
+##    1.29 m outboard of the parked hull.
+## 3. **Nothing floats.** Every piece below either shares volume with the slab it
+##    is bolted to or with the piece it hangs off; the bracket is buried 1.4 m
+##    into the slab's own 0.6 m section, the mast foot sits inside the bracket,
+##    and the hose ends inside the boom at the top and inside the bracket at the
+##    bottom.
+func _build_dock_arm_service(detail: Node3D) -> void:
+	var service := Node3D.new()
+	service.name = "DockArmService"
+	service.set_meta("visual_detail_only", true)
+	detail.add_child(service)
+
+	for index in DOCK_SLAB_IDS.size():
+		var elevation := 0.0 if index < 2 else UPPER_DECK_ELEVATION
+		var slab_z := [8.5, 25.0, 40.0][index] as float
+		var assigned := index == 0
+		var status_material: Material = _materials["cyan"] if assigned else _materials["deferred"]
+		var suffix := "%02d" % (index + 1)
+
+		# Bolted through the slab's own section: 1.4 m of this bracket is inside
+		# the plate (x 19.6…21.0) and 1.2 m cantilevers past it, which is what the
+		# mast stands on.
+		_service_box(
+			service,
+			"DockServiceBracket" + suffix,
+			Vector3(20.9, elevation - 0.30, slab_z),
+			Vector3(2.6, 0.34, 0.90),
+			_materials["frame"],
+			"cantilevered service bracket outboard of a walkable dock slab"
+		)
+		# Pale plate rather than the dark structural grey, decided by looking. In
+		# the first rendered pass the mast was `frame` (`304248`), and against a
+		# near-black sky it vanished: down the length of an arm at 15 m it read as
+		# nothing at all, and only the outboard three-quarter view found it. The
+		# mast is the element that says "this is a berth" from across the lattice,
+		# so it takes the same `deck_light` plate the decks are made of and
+		# silhouettes against space. The bracket, head and boom stay dark, which is
+		# what gives the assembly its light/dark separation instead of one grey mass.
+		var mast := MeshInstance3D.new()
+		mast.name = "DockServiceMast" + suffix
+		mast.position = Vector3(21.9, elevation + 1.80, slab_z)
+		mast.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.26, 0.26, 4.20, 16, _chamfered_cylinder_cache
+		)
+		mast.material_override = _materials["deck_light"]
+		mast.set_meta("visual_detail_only", true)
+		mast.set_meta("non_authoritative_visual", true)
+		mast.set_meta("non_walkable_reason", "dock service mast standing outboard of the slab over open void")
+		service.add_child(mast)
+
+		_service_box(
+			service,
+			"DockUmbilicalHead" + suffix,
+			Vector3(21.9, elevation + 2.35, slab_z),
+			Vector3(0.62, 0.86, 0.72),
+			_materials["underframe"],
+			"umbilical head carried on a dock service mast"
+		)
+		_service_box(
+			service,
+			"DockMastCap" + suffix,
+			Vector3(21.9, elevation + 3.98, slab_z),
+			Vector3(0.86, 0.22, 0.86),
+			_materials["deck_light"],
+			"mast head cap over open void outboard of the slab"
+		)
+		# Mass under the mast foot. Without it the arm's outboard edge is a plate
+		# with a stick on it; the pod is what makes the mast read as the top of a
+		# service riser rather than as a pole. It hangs off the bracket below the
+		# deck line — pod crown y = elevation - 0.45 against a bracket underside of
+		# elevation - 0.47 — so it cannot imply a walkable surface.
+		_service_box(
+			service,
+			"DockServicePod" + suffix,
+			Vector3(21.9, elevation - 0.90, slab_z),
+			Vector3(1.05, 0.90, 1.70),
+			_materials["underframe"],
+			"service pod slung beneath the slab edge over open void"
+		)
+		# The status lens, and the only place on this hardware where the assigned
+		# and deferred colours differ. Its practical below is amber on all three
+		# masts for the reason already recorded for the slab beacons: tinting a
+		# whole berth with the deferred red reads as an alarm rather than as a dock
+		# awaiting service. Status lives on the lens, working light stays neutral.
+		_service_box(
+			service,
+			"DockMastLamp" + suffix,
+			Vector3(21.9, elevation + 3.80, slab_z),
+			Vector3(0.34, 0.10, 0.34),
+			status_material,
+			"mast status lens over open void outboard of the slab"
+		)
+		if assigned:
+			# Run out along the berth flank, deliberately *not* swung over the pad:
+			# the pad is the parked hull's airspace and a boom crossing it would
+			# read as a boom through a ship.
+			_service_box(
+				service,
+				"DockServiceBoom" + suffix,
+				Vector3(21.9, elevation + 2.62, slab_z + 1.30),
+				Vector3(0.30, 0.26, 3.10),
+				_materials["underframe"],
+				"deployed service boom over open void outboard of the slab"
+			)
+			var hose := _beam_between(
+				service,
+				"DockUmbilicalHose" + suffix,
+				Vector3(21.9, elevation + 2.52, slab_z + 2.60),
+				Vector3(21.55, elevation - 0.22, slab_z + 0.30),
+				0.075,
+				_materials["underframe"]
+			)
+			hose.set_meta("non_authoritative_visual", true)
+			hose.set_meta("non_walkable_reason", "dropped umbilical hose over open void outboard of the slab")
+		else:
+			_service_box(
+				service,
+				"DockServiceBoom" + suffix,
+				Vector3(21.52, elevation + 2.30, slab_z),
+				Vector3(0.34, 2.60, 0.34),
+				_materials["underframe"],
+				"stowed service boom over open void outboard of the slab"
+			)
+
+		# Toe kerb along the drop edge. It is 0.14 m — a kerb, not a rail. A rail
+		# here would need collision to be honest, and collision is exactly what
+		# this module's frozen one-body-per-surface roster forbids; a 0.14 m kerb
+		# marks the edge without pretending to stop anyone.
+		_service_box(
+			service,
+			"DockEdgeKerb" + suffix,
+			Vector3(20.86, elevation + 0.06, slab_z),
+			Vector3(0.28, 0.14, 10.4),
+			_materials["frame"],
+			""
+		)
+		for side: float in [-1.0, 1.0]:
+			var cleat_z := slab_z + side * 4.4
+			_service_box(
+				service,
+				"DockMooringCleatPad%s_%s" % [suffix, "A" if side < 0.0 else "B"],
+				Vector3(9.5, elevation + 0.02, cleat_z),
+				Vector3(0.66, 0.05, 0.66),
+				_materials["grip"],
+				""
+			)
+			var bollard := MeshInstance3D.new()
+			bollard.name = "DockMooringCleatBollard%s_%s" % [suffix, "A" if side < 0.0 else "B"]
+			bollard.position = Vector3(9.5, elevation + 0.10, cleat_z)
+			bollard.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+				0.20, 0.20, 0.17, 16, _chamfered_cylinder_cache
+			)
+			bollard.material_override = _materials["underframe"]
+			bollard.set_meta("visual_detail_only", true)
+			service.add_child(bollard)
+
+		# The lens is emissive and emission lights nothing in Forward+, which is
+		# the whole reason this module already carries four practicals. Same
+		# treatment, same shadowless range-bounded idiom, same distance fade.
+		_dock_practical(
+			service,
+			"DockMastSpill" + suffix,
+			Vector3(21.9, elevation + 3.30, slab_z),
+			Color("f6b568"),
+			0.5,
+			5.4
+		)
+
+	# The service run that ties the arms back to the trunk. Two conduits down the
+	# trunk between the existing chords, one branch under each rung out to the
+	# slab it serves. Every one of them is seated the way COMB-UNDERFRAME-001
+	# taught: crowns enter the deck section they are bolted to rather than hanging
+	# below it, which is why they are at y = -0.66 with a 0.09 m radius against a
+	# deck underside of y = -0.60.
+	for conduit_spec in [["Port", -1.15], ["Starboard", 1.15]]:
+		_beam_between(
+			service,
+			"TrunkServiceConduit" + str(conduit_spec[0]),
+			Vector3(float(conduit_spec[1]), -0.66, 1.0),
+			Vector3(float(conduit_spec[1]), -0.66, 47.0),
+			0.09,
+			_materials["underframe"]
+		)
+	for branch_index in 3:
+		var branch_z := [10.0, 25.0, 40.0][branch_index] as float + 1.15
+		var branch_end_y := (-0.66 if branch_index < 2 else UPPER_DECK_ELEVATION - 0.66)
+		_beam_between(
+			service,
+			"RungServiceConduit%02d" % (branch_index + 1),
+			Vector3(2.0, -0.66, branch_z),
+			Vector3(20.4, branch_end_y, branch_z),
+			0.085,
+			_materials["underframe"]
+		)
+
+
+## Live count of generated dock-service parts whose name starts with `prefix`.
+## Counted off the built tree rather than from a constant so a roster entry can
+## never keep claiming hardware a lifecycle change has removed.
+func _count_service_nodes(prefix: String) -> int:
+	if _build_root == null:
+		return 0
+	var service := _build_root.get_node_or_null(^"SurfaceDetail/DockArmService") as Node3D
+	if service == null:
+		return 0
+	var total := 0
+	for child in service.get_children():
+		if str(child.name).begins_with(prefix):
+			total += 1
+	return total
+
+
+## A dock-service visual with an explicit non-walkable reason attached.
+##
+## `reason` may be empty for a piece that lies flat on a slab the module already
+## collides: those are deliberately left visible to
+## `station_surface_playability_test.gd`'s discovery sweep so it can keep
+## checking that there really is collision under them. Only pieces standing over
+## the void carry the exclusion, and they carry it with the reason spelled out.
+func _service_box(
+		parent: Node3D,
+		node_name: String,
+		local_position: Vector3,
+		size: Vector3,
+		material: Material,
+		reason: String
+	) -> MeshInstance3D:
+	var result := _visual_box(parent, node_name, local_position, size, material)
+	if not reason.is_empty():
+		result.set_meta("non_authoritative_visual", true)
+		result.set_meta("non_walkable_reason", reason)
+	return result
 
 
 func _build_understructure() -> void:
