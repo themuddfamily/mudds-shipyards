@@ -1315,7 +1315,14 @@ func apply_damage(
 		return
 	var safe_normal := world_hit_normal.normalized()
 	if safe_normal.length_squared() <= 0.001 or not safe_normal.is_finite():
-		safe_normal = (world_hit_position - global_position).normalized()
+		# A position-less damage call leaves `world_hit_position` at its
+		# `Vector3.INF` default. Normalising that produces a non-finite vector
+		# and an engine diagnostic on every such call; the result was already
+		# discarded downstream by the `is_finite()` guards below, so the
+		# derivation is simply skipped rather than performed and thrown away.
+		safe_normal = Vector3.ZERO
+		if world_hit_position.is_finite():
+			safe_normal = (world_hit_position - global_position).normalized()
 	if (
 		_damage_presentation != null
 		and world_hit_position.is_finite()

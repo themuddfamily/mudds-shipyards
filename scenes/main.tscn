@@ -18,6 +18,10 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/standoff_picket_opponent.tscn" id="16_picket"]
 [ext_resource type="PackedScene" path="res://scenes/audio/station_music_bed.tscn" id="17_music_bed"]
 [ext_resource type="PackedScene" path="res://scenes/ships/halyard_crew_transport.tscn" id="18_halyard"]
+[ext_resource type="PackedScene" path="res://scenes/ships/flanking_skirmisher_opponent.tscn" id="18_skirmisher"]
+[ext_resource type="PackedScene" path="res://scenes/ships/courier_runner_opponent.tscn" id="19_courier"]
+[ext_resource type="Script" path="res://scripts/combat/encounter_scenario_director.gd" id="20_scenarios"]
+[ext_resource type="Script" path="res://scripts/combat/wing_coordinator.gd" id="21_wing"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -40,6 +44,20 @@ ship_definition = ExtResource("8_torrent_definition")
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 
 [node name="StandoffPicket" parent="." instance=ExtResource("16_picket")]
+
+[node name="WingSkirmisherLead" parent="." instance=ExtResource("18_skirmisher")]
+source_id = 2103
+
+[node name="WingSkirmisherWing" parent="." instance=ExtResource("18_skirmisher")]
+source_id = 2104
+
+[node name="CourierRunner" parent="." instance=ExtResource("19_courier")]
+
+[node name="EncounterScenarios" type="Node" parent="."]
+script = ExtResource("20_scenarios")
+
+[node name="WingCoordinator" type="Node" parent="EncounterScenarios"]
+script = ExtResource("21_wing")
 
 [node name="CombatAuthority" type="Node3D" parent="."]
 script = ExtResource("10_combat_authority")

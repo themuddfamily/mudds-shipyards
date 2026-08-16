@@ -38,7 +38,10 @@ func _run() -> void:
 		_finish()
 		return
 	resolver.shot_resolved.connect(_on_shot_resolved)
-	_check(resolver.get_registered_source_count() == 5, "all four player craft and the defender have registered authority identities")
+	# Re-frozen 5 -> 6 when the Halyard crew transport joined the fleet as a
+	# fifth player craft. It is armed, so it registers an authority identity
+	# like the other four; the census is five player craft plus the defender.
+	_check(resolver.get_registered_source_count() == 6, "all five player craft and the defender have registered authority identities")
 	_check(authority.get_source_id(hero) == 1101, "Torrent keeps its explicit stable combat identity")
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
 	_check(authority.get_source_id(jovian) == 1103, "Jovian owns an explicit stable combat identity")

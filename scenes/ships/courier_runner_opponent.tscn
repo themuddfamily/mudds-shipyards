@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/courier_runner_opponent.gd" id="1_courier"]
+
+[node name="ContractCourier" type="CharacterBody3D"]
+collision_layer = 0
+collision_mask = 0
+motion_mode = 1
+floor_stop_on_slope = false
+script = ExtResource("1_courier")
+maximum_health = 78.0
+cruise_speed = 52.0
+chase_speed = 96.0
+acceleration = 26.0
+turn_speed_degrees = 34.0
+preferred_range = 72.0
+retreat_range = 42.0
+engagement_range = 90.0
+telegraph_time = 0.45
+weapon_cooldown = 2.4
+source_id = 2105
+weapon_range = 110.0
+weapon_damage = 8.0
+escape_distance = 1400.0
+evade_trigger_range = 120.0
