@@ -43,6 +43,8 @@ const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const ZENITH_SCENE := preload("res://scenes/ships/zenith_interceptor.tscn")
+const RANGE_OPPONENT_SCENE := preload("res://scenes/ships/range_opponent.tscn")
+const STANDOFF_PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 
 # Structural material keys per craft. These are the parts a player reported as
 # "strange looking objects": the flat-shaded population beside a textured hull.
@@ -64,6 +66,39 @@ const ZENITH_HULL_ROLES := [&"PaleCeramicHull", &"PaleFacetSecondary"]
 # surface. Measured after the pass: Arrow 0.44, Zenith 0.50, Jovian 0.52,
 # Torrent 0.68. Frozen below all four so this can only be improved.
 const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
+
+## Live chamfered-cylinder population per craft: `[surfaces, triangles]`.
+##
+## Frozen in the open, old -> new, after dropping the four lateral wall rings
+## every craft inherited from `CylinderMesh.rings`:
+##
+##   Torrent          51 surfaces  25,600 -> 12,544 tris
+##   Arrow            39 surfaces  22,464 -> 11,232 tris
+##   Jovian           85 surfaces  43,520 -> 21,760 tris
+##   RangeOpponent    12 surfaces   5,376 ->  2,688 tris
+##   StandoffPicket   12 surfaces   5,376 ->  2,688 tris
+##   Zenith            0 surfaces       0 ->      0 tris  (authored .glb)
+##
+## Whole-craft totals moved by exactly the same amounts: Torrent 152,556 ->
+## 139,500, Arrow 77,244 -> 66,012, Jovian 98,268 -> 76,508, RangeOpponent
+## 6,796 -> 4,108, StandoffPicket 7,432 -> 4,744, Zenith 52,686 unchanged. In
+## the live `scenes/main.tscn` the fleet's share of the change is 199 surfaces
+## and 1,374,466 -> 1,323,042 triangles, i.e. -51,424 (-3.74%).
+##
+## This freezes the population this pass touched rather than each craft's whole
+## triangle budget, so an unrelated ship edit is not forced through this suite;
+## a wall-subdivision regression still lands on it exactly.
+const CHAMFERED_CYLINDER_POPULATION := {
+	"Torrent": [51, 12_544],
+	"Arrow": [39, 11_232],
+	"Jovian": [85, 21_760],
+	"RangeOpponent": [12, 2_688],
+	"StandoffPicket": [12, 2_688],
+	"Zenith": [0, 0],
+}
+
+## Radial-segment counts the fleet's `_cylinder`/`_frustum` builders pass.
+const LIVE_RADIAL_SEGMENTS := [28, 32, 36]
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -87,6 +122,8 @@ func _run() -> void:
 	await _audit_torrent()
 	await _audit_zenith()
 	_audit_helper_contract()
+	_audit_cylinder_wall_is_free_to_flatten()
+	await _audit_cylinder_wall_population()
 
 	_test_root.queue_free()
 	await process_frame
@@ -317,6 +354,140 @@ func _audit_helper_contract() -> void:
 		not ShipSurfaceDetail.has_structural_detail(mutated),
 		"binding a roughness map over an honest roughness scalar turns the treatment audit red"
 	)
+
+
+## The fleet builds its cylinders and frustums with no lateral wall
+## subdivision. This proves that is an edge-free reduction rather than a quality
+## trade, by checking the property the reduction rests on directly: a wall quad
+## is planar, so the four rings Godot's primitive defaults to add vertices that
+## are already on the surface the two-triangle version interpolates.
+##
+## Checked at every radial-segment count the live builders pass, on a straight
+## cylinder and on a taper in both directions, because the taper is the case
+## where "the rings do nothing" is least obvious.
+func _audit_cylinder_wall_is_free_to_flatten() -> void:
+	_check(
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS == 0,
+		"the fleet builds cylinder and frustum walls with no lateral subdivision"
+	)
+	var profiles := [
+		[0.42, 0.42, 1.60], [0.84, 0.84, 0.30], [0.025, 0.025, 0.90],
+		[0.30, 0.62, 1.10], [0.62, 0.30, 1.10],
+	]
+	var dense_rings := StationSurfaceKit.CYLINDER_DEFAULT_RINGS
+	for segments: int in LIVE_RADIAL_SEGMENTS:
+		for profile: Array in profiles:
+			var top: float = profile[0]
+			var bottom: float = profile[1]
+			var height: float = profile[2]
+			var flat := StationSurfaceKit.chamfered_cylinder_mesh(
+				top, bottom, height, segments, ShipSurfaceDetail.CYLINDER_WALL_RINGS
+			)
+			var dense := StationSurfaceKit.chamfered_cylinder_mesh(
+				top, bottom, height, segments, dense_rings
+			)
+			var label := "%0.3f/%0.3f x %0.3f at %d segments" % [top, bottom, height, segments]
+			# 1. The bounding box is the silhouette's outer bound. If subdivision
+			#    were resolving anything, removing it would pull this in.
+			var flat_box := flat.get_aabb()
+			var dense_box := dense.get_aabb()
+			_check(
+				flat_box.position.is_equal_approx(dense_box.position)
+				and flat_box.size.is_equal_approx(dense_box.size),
+				"wall subdivision does not move the AABB of %s" % label
+			)
+			# 2. Every vertex the dense build adds lies exactly on the profile
+			#    line the flat build spans, so no ring is inside or outside the
+			#    silhouette. This is the whole claim, stated as a measurement.
+			var half_height := height * 0.5
+			var worst_offset := 0.0
+			var dense_arrays := dense.surface_get_arrays(0)
+			var dense_vertices: PackedVector3Array = dense_arrays[Mesh.ARRAY_VERTEX]
+			for vertex in dense_vertices:
+				var expected := StationSurfaceKit._radius_at(top, bottom, half_height, vertex.y)
+				var actual := Vector2(vertex.x, vertex.z).length()
+				# Cap and chamfer vertices sit inside the profile by design; only
+				# the wall is under audit here.
+				if actual <= expected - 0.0001:
+					continue
+				worst_offset = maxf(worst_offset, absf(actual - expected))
+			_check(
+				worst_offset <= 0.0001,
+				"no subdivided wall vertex leaves the profile line on %s (worst %.7f m)"
+					% [label, worst_offset]
+			)
+			# 3. The normal set is identical, so nothing shades differently. A
+			#    wall's profile is one straight segment, so every sub-band is
+			#    handed the same normal the single band gets.
+			_check(
+				_distinct_normals(flat) == _distinct_normals(dense),
+				"wall subdivision adds no distinct normal to %s" % label
+			)
+			# 4. And the saving is exactly the four rings' worth of wall quads.
+			_check(
+				_mesh_triangles(dense) - _mesh_triangles(flat) == dense_rings * 2 * segments,
+				"flattening %s saves exactly %d triangles" % [label, dense_rings * 2 * segments]
+			)
+
+
+## Exact live population freeze. See `CHAMFERED_CYLINDER_POPULATION`.
+func _audit_cylinder_wall_population() -> void:
+	var scenes := {
+		"Torrent": TORRENT_SCENE, "Arrow": ARROW_SCENE, "Jovian": JOVIAN_SCENE,
+		"Zenith": ZENITH_SCENE, "RangeOpponent": RANGE_OPPONENT_SCENE,
+		"StandoffPicket": STANDOFF_PICKET_SCENE,
+	}
+	for label: String in scenes:
+		var craft: Node = (scenes[label] as PackedScene).instantiate()
+		_test_root.add_child(craft)
+		await process_frame
+		await physics_frame
+		var surfaces := 0
+		var triangles := 0
+		for candidate in craft.find_children("*", "MeshInstance3D", true, false):
+			var mesh := (candidate as MeshInstance3D).mesh
+			if mesh == null or not (mesh is ArrayMesh):
+				continue
+			if mesh.resource_name != StationSurfaceKit.CHAMFERED_CYLINDER_RESOURCE_NAME:
+				continue
+			surfaces += mesh.get_surface_count()
+			triangles += _mesh_triangles(mesh)
+		var frozen: Array = CHAMFERED_CYLINDER_POPULATION[label]
+		_evidence.append(
+			"%s chamfered cylinders: %d surfaces, %d triangles" % [label, surfaces, triangles]
+		)
+		_check(
+			surfaces == int(frozen[0]) and triangles == int(frozen[1]),
+			"%s renders exactly %d chamfered-cylinder surfaces at %d triangles (got %d/%d)"
+				% [label, int(frozen[0]), int(frozen[1]), surfaces, triangles]
+		)
+		craft.queue_free()
+		await process_frame
+
+
+func _distinct_normals(mesh: ArrayMesh) -> Array:
+	var seen := {}
+	var normals: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
+	for normal in normals:
+		seen["%0.5f,%0.5f,%0.5f" % [normal.x, normal.y, normal.z]] = true
+	var keys := seen.keys()
+	keys.sort()
+	return keys
+
+
+func _mesh_triangles(mesh: Mesh) -> int:
+	var total := 0
+	for surface in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface)
+		if arrays.is_empty():
+			continue
+		var indices = arrays[Mesh.ARRAY_INDEX]
+		if indices != null and indices.size() > 0:
+			total += indices.size() / 3
+		else:
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			total += vertices.size() / 3
+	return total
 
 
 func _check(condition: bool, description: String) -> void:

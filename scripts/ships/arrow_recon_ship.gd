@@ -740,10 +740,11 @@ func _cylinder(parent: Node3D, node_name: String, position: Vector3, radius: flo
 	# that close on a centre point with averaged normals, and its engine collars
 	# are tori, so neither ever had a 90° rim. What passes through here is the
 	# mast pedestal and stem, the array crossbar, the gear struts, the conduit
-	# tube segments and the emissive plume.
+	# tube segments and the emissive plume. Wall subdivision: see
+	# `ShipSurfaceDetail.CYLINDER_WALL_RINGS`.
 	instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
 		radius, radius, height, 36, _chamfered_cylinder_cache,
-		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, true, true, material
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, material
 	)
 	parent.add_child(instance)
 	return instance

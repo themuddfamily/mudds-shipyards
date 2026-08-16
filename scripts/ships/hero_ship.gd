@@ -3796,9 +3796,13 @@ func _cylinder(parent: Node3D, node_name: String, position: Vector3, radius: flo
 	# HeroShip subclass, so this is also what puts a highlight on the Jovian's
 	# four engine housings, collars and cores. Outer radius and overall height
 	# are unchanged; no collision shape reads this mesh.
+	#
+	# The wall carries no lateral subdivision: see
+	# `ShipSurfaceDetail.CYLINDER_WALL_RINGS` for why the four rings Godot's
+	# primitive defaults to resolve nothing on a planar wall quad.
 	mesh_instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
 		radius, radius, height, 32, _chamfered_cylinder_cache,
-		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, true, true, material
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, material
 	)
 	parent.add_child(mesh_instance)
 	return mesh_instance
@@ -3824,7 +3828,7 @@ func _frustum(
 	# sole carrier of the radial extent and moving it would move the silhouette.
 	mesh_instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
 		top_radius, bottom_radius, height, 32, _chamfered_cylinder_cache,
-		StationSurfaceKit.CYLINDER_DEFAULT_RINGS, cap_top, cap_bottom, material
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, cap_top, cap_bottom, material
 	)
 	parent.add_child(mesh_instance)
 	return mesh_instance
