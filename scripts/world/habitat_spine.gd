@@ -69,9 +69,21 @@ const CORRIDOR_HALF_EXTENTS := Vector3(2.3, 2.3, 7.55)
 const COMMON_CENTER := Vector3(0.0, 2.35, 23.2)
 const COMMON_HALF_EXTENTS := Vector3(7.25, 2.4, 5.15)
 const BUNK_ROOM_HALF_EXTENTS := Vector3(1.72, 2.3, 1.82)
+const GARDEN_CENTER := Vector3(14.4, 2.5, 20.2)
+const GARDEN_HALF_EXTENTS := Vector3(4.05, 2.5, 5.7)
 
 const FOOTPRINT_MIN := Vector3(-9.0, -1.6, -4.25)
-const FOOTPRINT_MAX := Vector3(9.0, 6.8, 29.25)
+# `local_max.x` 9.0 -> 18.75 and `local_max.y` 6.8 -> 7.3 for the side branch.
+#
+# The module's declared envelope is a published contract that
+# `habitat_integration_test.gd` checks for overlap against the other modules, so
+# it moves in the open and only after measuring.
+# `tools/habitat_branch_clearance_probe.gd` swept world x 58..84, y -4..12,
+# z -9..8 against every drawn mesh in the live scene and found exactly two: this
+# module's own deferred door posts. The station does not move and no other
+# module's footprint is touched; the habitat grows a garden bay outward from its
+# own starboard flank into vacuum that was already empty.
+const FOOTPRINT_MAX := Vector3(18.75, 7.3, 29.25)
 
 const EVIDENCE_REFERENCES := [
 	"RESEARCH.md:C1@01:20-02:30 / later secondary habitat entry, bunks, chair-lined corridor, and consoles",
@@ -86,8 +98,10 @@ const CONTENT_NOTE := (
 	+ "but the recording's exact build provenance and adjacency are not proven. The "
 	+ "Habitat Spine name, dimensions, six-alcove plan, observation/common function, "
 	+ "furniture arrangement, service systems, doors, and connector are modern design. "
-	+ "No part of this module is represented as recovered original geometry. The sealed "
-	+ "side branch is explicitly deferred instead of inventing an unsupported room."
+	+ "No part of this module is represented as recovered original geometry. The side "
+	+ "branch garden bay behind the starboard door is wholly modern: no source describes "
+	+ "anything beyond that door, and it is offered as invented content rather than as a "
+	+ "reconstruction of anything."
 )
 
 @onready var _module_anchor: Marker3D = %ModuleAnchor
@@ -188,6 +202,7 @@ func get_room_ids() -> Array[StringName]:
 		&"connector",
 		&"habitat-corridor",
 		&"observation-common",
+		&"garden-cupola",
 	]
 	result.append_array(get_bunk_room_ids())
 	result.sort()
@@ -222,6 +237,10 @@ func get_room_volume(room_id: StringName) -> Dictionary:
 			local_center = COMMON_CENTER
 			half_extents = COMMON_HALF_EXTENTS
 			room_class = &"observation-common"
+		&"garden-cupola":
+			local_center = GARDEN_CENTER
+			half_extents = GARDEN_HALF_EXTENTS
+			room_class = &"garden-cupola"
 		_:
 			var bunk_index := get_bunk_room_ids().find(room_id)
 			if bunk_index >= 0:
@@ -319,7 +338,7 @@ func get_evidence_metadata() -> Dictionary:
 			"Habitat Spine name, dimensions, and exact adjacency",
 			"six-alcove arrangement and observation/common room function",
 			"service systems, furniture layout, pressure shell, connector, and door mechanics",
-			"the existence and location of the sealed deferred branch",
+			"the existence, location and entire contents of the side branch garden bay",
 			"the project-original station panel material family mapped across floors, walls, and walking lanes",
 		]),
 		"explicit_unknowns": PackedStringArray([
@@ -338,9 +357,17 @@ func get_validation_errors() -> PackedStringArray:
 	if _main_access == null:
 		errors.append("main reusable StationDoor is missing")
 	if _deferred_branch_access == null:
-		errors.append("deferred branch StationDoor is missing")
-	elif not _deferred_branch_access.locked or not _deferred_branch_access.deferred_access:
-		errors.append("unsupported side branch must remain locked and explicitly deferred")
+		errors.append("side branch StationDoor is missing")
+	elif _deferred_branch_access.locked or _deferred_branch_access.deferred_access:
+		# Inverted deliberately. This door was locked and explicitly deferred while
+		# there was nothing behind it, and the check said so. There is a room behind
+		# it now, so a door that reverted to locked/deferred would be a route the
+		# module publishes and the player cannot walk — the same defect in the other
+		# direction. The evidence position did not move: the room is
+		# `modern_interpretation` and no source is claimed for it.
+		errors.append("the side branch now has a built room, so its door must not be locked or deferred")
+	if not has_room(&"garden-cupola"):
+		errors.append("side branch room is missing from the room registry")
 	if _route_markers.size() != 6:
 		errors.append("connector-to-observation route registry is incomplete")
 	if _bunk_markers.size() != BUNK_ALCOVE_COUNT or _bunk_nodes.size() != BUNK_ALCOVE_COUNT:
@@ -395,9 +422,9 @@ func audit() -> Dictionary:
 		"chair_count": get_chair_count(),
 		"window_pane_count": get_window_pane_count(),
 		"service_detail_count": get_service_detail_count(),
-		"deferred_branch_closed": _deferred_branch_access != null \
-			and _deferred_branch_access.locked \
-			and _deferred_branch_access.deferred_access,
+		"side_branch_open": _deferred_branch_access != null \
+			and not _deferred_branch_access.locked \
+			and not _deferred_branch_access.deferred_access,
 		"footprint": get_integration_footprint(),
 	}
 
@@ -445,6 +472,27 @@ func get_performance_contract() -> Dictionary:
 	#   static_bodies     180 ->  165 (built 125 ->  149, +24)
 	#   collision_shapes  220 ->  175 (built 131 ->  155, +24)
 	#
+	# Re-frozen again for the side branch, which is a fourth room rather than more
+	# dressing in the existing three:
+	#
+	#   mesh_instances   1100 -> 1350 (built 1074 -> 1284, +210)
+	#   static_bodies     165 ->  260 (built  149 ->  247, +98)
+	#   collision_shapes  175 ->  270 (built  155 ->  253, +98)
+	#
+	# The mesh delta is +210 rather than the +350 the room first cost, because the
+	# whole-scene census reached its instance ceiling while this was being built and
+	# 116 pieces of repeated visual-only stock were batched into `MultiMeshInstance3D`
+	# — see `_multimesh_boxes`. Nothing was removed from the room; the same geometry
+	# is drawn in fewer instances.
+	#
+	# The collision ceilings go back up because a garden bay is unusually solid for
+	# its size: a link passage and an 8.6 x 12 m floor, four walled runs with their
+	# glazing, eight glazed cupola facets that are a pressure barrier like every
+	# other pane in this module, a nutrient column, an eight-segment planting kerb,
+	# six grow racks with two uprights and three trays each, three benches, a
+	# potting bench and three nutrient tanks. Everything a player can walk into in
+	# that room is solid, which is the whole reason the number moved.
+	#
 	# The mesh delta is where the living quarters went from a fit-out to a place
 	# people are in: 6 bunk mouths with jambs, heads, curtains, grab handles and
 	# name plates plus the berth dressing behind them (~152), a galley run with a
@@ -464,9 +512,9 @@ func get_performance_contract() -> Dictionary:
 	# jambs, the galley carcass, worktop and bin, the mess trestles, table top and
 	# two benches, and the four kit bags on the deck.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 1100,
-		"static_bodies": 165,
-		"collision_shapes": 175,
+		"mesh_instances": 1350,
+		"static_bodies": 260,
+		"collision_shapes": 270,
 		"labels": 25,
 		# Light ceiling re-frozen in the open, 12 -> 15 -> 21. The module built 6
 		# lights against that 12; the fixture pass took it to 15 — one warm
@@ -487,7 +535,20 @@ func get_performance_contract() -> Dictionary:
 		# The ceiling is set at the exact built count rather than left with
 		# headroom. Frame cost is unmeasured: this box renders through llvmpipe.
 		#
-		# 21 -> 28, and the delta is +7 for the rooms, all of them a fixture that
+		# 21 -> 28 -> 35. The first delta is +7 for the rooms, the second +7 for the
+		# side branch garden: 1 cupola lantern on the drum axis, 3 magenta grow
+		# lamps between the six racks (not six — adjacent racks are 3.05 m apart on a
+		# 3.05 m radius and one lamp between two of them lights both, which is the
+		# call `aft_junction_stack` already made for its eight-tile arc), 1 spill off
+		# the nutrient column's own glow tube, 1 potting-bench task light, and 1 cove
+		# in the link passage.
+		#
+		# The garden was first built with 10 and cut to 7 while the whole-scene light
+		# census was at 100% of its ceiling: three cupola downlights became one
+		# lantern on the drum axis, which is within 2.70 m of all three housings, and
+		# the link's sign wash came out. Three lights recovered, no room left dark.
+		#
+		# The +7 for the rooms, all of them a fixture that
 		# has a housing and a lens drawn at it:
 		#   +1 GalleyTaskLight   — the galley worktop, 3.7 m below the ceiling row
 		#                          and the only working surface in the habitat.
@@ -510,7 +571,7 @@ func get_performance_contract() -> Dictionary:
 		# `_fixture_practical` so they carry their own fixture's hue and fall off
 		# steeply. None of them raises the room's overall level; each one lights an
 		# object that previously had a lit-looking fixture above it casting nothing.
-		"lights": 28,
+		"lights": 35,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -569,13 +630,19 @@ func _index_semantics() -> void:
 		marker.set_meta("room_id", StringName("bunk-alcove-%02d" % (index + 1)))
 		_bunk_markers.append(marker)
 	# The outward approach face is the only station connection slot. `threshold`
-	# sits inside the pressure door and the sealed deferred branch is a
-	# deliberate closed endpoint, so neither may join the adjacency graph.
+	# sits inside the pressure door and `deferred-branch` is an internal room
+	# threshold, so neither may join the station adjacency graph — the graph
+	# records module-to-hub attachment, not rooms within a module.
 	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	_route_corridor.set_meta("station_room_marker", true)
 	_route_corridor.set_meta("room_id", &"habitat-corridor")
 	_route_observation.set_meta("station_room_marker", true)
 	_route_observation.set_meta("room_id", &"observation-common")
+	# The marker id stays `deferred-branch` because it is a published route id in
+	# the topology tables and renaming it would churn every one of them for no
+	# gain; what changed is what it points at, which is now a real room.
+	_route_deferred_branch.set_meta("station_room_marker", true)
+	_route_deferred_branch.set_meta("room_id", &"garden-cupola")
 
 
 func _get_bunk_local_center(index: int) -> Vector3:
@@ -695,9 +762,20 @@ func _create_habitat_life_materials() -> void:
 	_materials["coverall"] = _material(Color("3f6f5c"), 0.03, 0.86)
 	_materials["leather"] = _material(Color("4a3a30"), 0.06, 0.72)
 	_materials["plastic_pale"] = _material(Color("d3dbd8"), 0.05, 0.52)
-	_materials["greenery"] = _material(Color("4f9350"), 0.0, 0.76)
-	_materials["paper"] = _material(Color("e4e0d4"), 0.0, 0.92)
-	_materials["rug"] = _material(Color("6e4a38"), 0.02, 0.93)
+	# Two tones and no clearcoat. At #4f9350 / roughness 0.76 under the module's
+	# shared 0.2 clearcoat, a canopy rendered as moulded green plastic — the one
+	# material in the build where the standard machined-surface response is exactly
+	# wrong. Leaves are matte, they are not all one colour, and they do not have a
+	# gloss layer over them.
+	_materials["greenery"] = _material(Color("58913f"), 0.0, 0.94)
+	_materials["greenery_deep"] = _material(Color("3d6f3a"), 0.0, 0.96)
+	for leaf_key in ["greenery", "greenery_deep"]:
+		(_materials[leaf_key] as StandardMaterial3D).clearcoat_enabled = false
+	# `paper` and `rug` were separate keys and are gone under whole-scene material
+	# pressure. `paper` was #e4e0d4 against `linen`'s #d8cfc0 — two off-whites a
+	# rendered frame cannot tell apart — and the floor mat now takes `blanket`
+	# rather than a second, near-identical brown. Two fewer unique materials for no
+	# visible change; the scene census has six left across the whole build.
 	# #1b2a2e -> #63706e. The first value was chosen as "dark webbing" and rendered
 	# inside a bunk as a 1.18 x 0.44 m black rectangle on a lit wall — the same
 	# untextured-void failure as the service cabinet inset, at the same eye height,
@@ -709,6 +787,15 @@ func _create_habitat_life_materials() -> void:
 	# rendered reviews caught twice — a large flat scalar surface close to the eye
 	# reads as an untextured primitive no matter how good its metallic response is.
 	_materials["steel_bright"] = _material(Color("a8b3b5"), 0.70, 0.26)
+	# The garden's horticultural lamps. Magenta because that is what a real
+	# red+blue LED grow array looks like, and because it is the only colour on the
+	# station that is neither a warm practical nor a cyan status cue — which is
+	# exactly the point of a room meant to read as somewhere else.
+	# Emission 1.5 -> 0.95. At 1.5 the strips clipped to flat white through their
+	# middles and the magenta only survived at their edges, so the room's signature
+	# colour was being destroyed by the object that produces it. The three grow
+	# practicals carry the actual light; the lens only has to read as on.
+	_materials["grow_light"] = _material(Color("ffb3d8"), 0.02, 0.22, Color("ff5fae"), 0.95)
 
 
 func _build_structure() -> void:
@@ -719,7 +806,7 @@ func _build_structure() -> void:
 	_build_habitat_corridor(structure)
 	_build_observation_common(structure)
 	_build_service_detail(structure)
-	_build_deferred_branch(structure)
+	_build_side_branch(structure)
 	_build_habitat_life(structure)
 
 
@@ -905,7 +992,7 @@ func _build_observation_common(structure: Node3D) -> void:
 	# Side glazing continues the exterior sightline. The east-front bay remains
 	# solid for the explicitly deferred StationDoor landmark.
 	_build_side_window_wall(common, -1.0, [19.7, 23.25, 26.75])
-	_build_side_window_wall(common, 1.0, [23.25, 26.75])
+	_build_side_window_wall(common, 1.0, [23.25, 26.75], [[18.16, 0.52], [25.04, 6.52]])
 	_box(common, "DeferredFacadeHeader", Vector3(7.5, 4.45, 20.0), Vector3(0.42, 0.72, 3.65), _materials["shell_mid"])
 
 	# Six chairs make a calm, readable observation line. Two transverse chairs
@@ -1051,9 +1138,20 @@ func _build_observation_common(structure: Node3D) -> void:
 	_fixture_practical(common, "CommonSignWash", Vector3(-3.8, 3.7, 18.5), Color("7fd8dc"), 0.3, 2.6)
 
 
-func _build_side_window_wall(parent: Node3D, side: float, pane_centers: Array) -> void:
+## `sill_spans` is `[[centre_z, length], ...]`; empty means one full-length run.
+##
+## The starboard wall needs two runs rather than one. Its sill was a single
+## 10.1 m box from z = 18.2 to 28.3, which crossed the side-branch doorway at
+## z = 18.33..21.68 with 0.96 m of solid plate. Nobody had noticed, because the
+## door was sealed and there was nothing behind it — but the moment the branch
+## opens, that sill is a kerb across the threshold. The header stays continuous:
+## it sits at y = 4.01..4.85, well clear of the 3.45 m door.
+func _build_side_window_wall(parent: Node3D, side: float, pane_centers: Array, sill_spans: Array = []) -> void:
 	var wall_x := side * 7.5
-	_box(parent, "SideWindowSill", Vector3(wall_x, 0.48, 23.25), Vector3(0.42, 0.96, 10.1), _materials["shell_mid"])
+	var runs := sill_spans if not sill_spans.is_empty() else [[23.25, 10.1]]
+	for run_variant in runs:
+		var run: Array = run_variant
+		_box(parent, "SideWindowSill", Vector3(wall_x, 0.48, float(run[0])), Vector3(0.42, 0.96, float(run[1])), _materials["shell_mid"])
 	_box(parent, "SideWindowHeader", Vector3(wall_x, 4.43, 23.25), Vector3(0.42, 0.84, 10.1), _materials["shell_mid"])
 	for pane_z_variant in pane_centers:
 		var pane_z := float(pane_z_variant)
@@ -1156,17 +1254,454 @@ func _register_service(node: Node3D, service_class: StringName) -> void:
 	_service_nodes.append(node)
 
 
-func _build_deferred_branch(structure: Node3D) -> void:
+## The side branch, and what is now behind it.
+##
+## This door was a deliberate closed endpoint: a locked, explicitly deferred
+## StationDoor with a 0.32 m graphite backstop behind it, so that "no source
+## proves an adjacent room" was true in geometry and not only in a label. That
+## was the right call while the module had nothing to put there.
+##
+## It is now a garden bay, and the evidence position is unchanged by that. Every
+## room in this module is modern design — the six-alcove plan, the observation
+## common function, the furniture, the doors, the connector — and this one is
+## exactly as modern as the rest and is labelled the same way. What must not
+## change, and does not, is the record: no source describes anything behind this
+## door, the original habitat's contents are unknown, and nothing here is
+## represented as recovered geometry. A locked door and an invented room are
+## equally honest as long as the ledger says which is which; a room that claimed
+## provenance would not be.
+##
+## What it is. A hydroponic garden under a glazed cupola: a nutrient column on
+## the axis, a raised planting bed around its foot, six grow racks in a ring
+## under magenta lamps, a potting bench, a nutrient tank cluster, and a bench ring
+## under the perimeter glazing. Greenery is the strongest single statement a
+## station interior can make that people live in it, and this module is the one
+## place on the station where that is the subject. It is also the only saturated
+## colour and the only organic silhouette anywhere in the build.
+func _build_side_branch(structure: Node3D) -> void:
 	var branch := Node3D.new()
-	branch.name = "DeferredBranchLandmark"
-	branch.set_meta("station_deferred_branch", true)
-	branch.set_meta("content_status", &"closed_no_interior")
+	branch.name = "SideBranchGarden"
+	branch.set_meta("station_room", true)
+	branch.set_meta("room_id", &"garden-cupola")
+	branch.set_meta("content_status", &"modern_interpretation_no_source")
+	branch.set_meta("evidence_status", EVIDENCE_STATUS)
 	structure.add_child(branch)
-	# A shallow physical backstop makes the absence of unsupported content true
-	# in geometry, not just in a label. No floor or room exists beyond it.
-	_box(branch, "DeferredBackstop", Vector3(7.78, 2.3, 20.0), Vector3(0.32, 3.55, 3.35), _materials["graphite"])
-	_beam_between(branch, "DeferredCrown", Vector3(7.72, 4.45, 18.2), Vector3(7.72, 4.45, 21.8), 0.12, _materials["red"], false)
-	_text_sign(branch, "BRANCH DEFERRED  //  NO AUTHENTICATED INTERIOR", Vector3(7.2, 3.75, 22.0), Vector3(0, -90, 0), 0.18, _materials["red"])
+	_build_branch_link(branch)
+	_build_garden_shell(branch)
+	_build_garden_column(branch)
+	_build_garden_racks(branch)
+	_build_garden_service(branch)
+
+
+## The 3.3 m link between the common room's starboard door and the garden.
+##
+## The floor starts at x = 7.3 rather than at the door, because `CommonFloor`
+## ends at 7.5 and a link starting at 7.7 would have left a 0.2 m hole in the
+## deck at the threshold. It overlaps instead.
+func _build_branch_link(branch: Node3D) -> void:
+	var link := Node3D.new()
+	link.name = "BranchLink"
+	link.set_meta("clear_width", DOOR_CLEAR_WIDTH)
+	branch.add_child(link)
+
+	_box(link, "LinkFloor", Vector3(8.95, -0.25, 20.0), Vector3(3.30, 0.5, 3.20), _materials["shell_light_floor"])
+	_box(link, "LinkFloorInset", Vector3(8.98, 0.025, 20.0), Vector3(3.10, 0.045, 2.70), _materials["floor"], false)
+	for edge_z in [-1.36, 1.36]:
+		_box(link, "LinkLaneEdge", Vector3(8.98, 0.052, 20.0 + float(edge_z)), Vector3(3.10, 0.035, 0.08), _materials["teal_dim"], false)
+	_box(link, "LinkCeiling", Vector3(8.95, 4.05, 20.0), Vector3(3.30, 0.42, 3.20), _materials["shell_mid"])
+	for wall_z in [18.55, 21.45]:
+		var outward := 1.0 if wall_z > 20.0 else -1.0
+		_box(link, "LinkSill", Vector3(8.98, 0.48, float(wall_z)), Vector3(3.10, 0.96, 0.36), _materials["shell_mid"])
+		_box(link, "LinkHeader", Vector3(8.98, 3.62, float(wall_z)), Vector3(3.10, 0.44, 0.36), _materials["shell_mid"])
+		# Pane 0.96..3.40 and mullions 0.95..3.41, so the glazing meets the sill top
+		# at 0.96 and the header underside at 3.40 instead of stopping 0.04 m short
+		# of the header the way it was first sized.
+		_register_window(_box(link, "LinkPane", Vector3(8.98, 2.18, float(wall_z)), Vector3(2.90, 2.44, 0.12), _materials["glass"]))
+		for mullion_x in [7.85, 10.05]:
+			_box(link, "LinkMullion", Vector3(float(mullion_x), 2.18, float(wall_z)), Vector3(0.20, 2.46, 0.38), _materials["structural"])
+		var rail_z := float(wall_z) - outward * 0.14
+		_beam_between(link, "LinkGuardRail", Vector3(7.60, 1.06, rail_z), Vector3(10.30, 1.06, rail_z), 0.05, _materials["brass"], false)
+	_box(link, "LinkCoveLens", Vector3(8.95, 3.88, 20.0), Vector3(2.40, 0.045, 0.16), _materials["warm_light"], false)
+	_fixture_practical(link, "LinkLight", Vector3(8.95, 3.55, 20.0), Color("ffdfb0"), 0.44, 4.2)
+	# Reader walks out of the common room in the +x direction, so the glyph face
+	# has to point -x: yaw -90 puts the sign's local +Z on module -X.
+	_text_sign(link, "GARDEN BAY  //  MODERN INTERPRETATION", Vector3(10.28, 3.12, 18.42), Vector3(0, -90, 0), 0.17, _materials["teal"])
+
+
+## Floor, walls and the glazed cupola drum over the middle of the bay.
+func _build_garden_shell(branch: Node3D) -> void:
+	var shell := Node3D.new()
+	shell.name = "GardenShell"
+	branch.add_child(shell)
+
+	_box(shell, "GardenFloor", Vector3(14.4, -0.25, 20.2), Vector3(8.60, 0.5, 12.00), _materials["shell_light_floor"])
+	_box(shell, "GardenFloorInset", Vector3(14.4, 0.025, 20.2), Vector3(7.90, 0.045, 11.20), _materials["floor"], false)
+	_torus(shell, "GardenDeckRing", Vector3(14.4, 0.056, 20.2), 3.02, 3.16, _materials["teal_dim"])
+	_torus(shell, "GardenDeckRingInner", Vector3(14.4, 0.056, 20.2), 1.86, 1.96, _materials["teal_dim"])
+
+	# Perimeter: solid sill, glazing, header. The inner wall is solid apart from
+	# the link opening, because it backs onto the common room's starboard sill.
+	var wall_runs := [
+		# [sill centre, sill size, pane centre, pane size]
+		[Vector3(18.49, 0.5, 20.2), Vector3(0.42, 1.00, 12.00), Vector3(18.49, 2.55, 20.2), Vector3(0.14, 3.10, 11.10)],
+		[Vector3(14.4, 0.5, 26.01), Vector3(8.60, 1.00, 0.42), Vector3(14.4, 2.55, 26.01), Vector3(7.70, 3.10, 0.14)],
+		[Vector3(14.4, 0.5, 14.39), Vector3(8.60, 1.00, 0.42), Vector3(14.4, 2.55, 14.39), Vector3(7.70, 3.10, 0.14)],
+	]
+	for run_index in wall_runs.size():
+		var run: Array = wall_runs[run_index]
+		var sill_center := run[0] as Vector3
+		var sill_size := run[1] as Vector3
+		_box(shell, "GardenSill%02d" % (run_index + 1), sill_center, sill_size, _materials["shell_mid"])
+		_box(
+			shell,
+			"GardenHeader%02d" % (run_index + 1),
+			Vector3(sill_center.x, 4.40, sill_center.z),
+			Vector3(sill_size.x, 0.80, sill_size.z),
+			_materials["shell_mid"]
+		)
+		_register_window(_box(shell, "GardenPane%02d" % (run_index + 1), run[2] as Vector3, run[3] as Vector3, _materials["glass"]))
+	# The inner wall backs onto the common room and is plate rather than glass, and
+	# the link cuts a real hole through it. Sill *and* plate are both built as two
+	# returns: a single 12 m sill would have laid a 1.0 m kerb straight across the
+	# doorway, which is the identical defect the starboard sill in the common room
+	# had and the reason that one is two runs now as well. The header stays one
+	# piece because it sits at y = 4.00..4.80, clear above the link's 3.84 m soffit.
+	_box(shell, "GardenHeader04", Vector3(10.31, 4.40, 20.2), Vector3(0.42, 0.80, 12.00), _materials["shell_mid"])
+	for inner_run in [[16.275, 4.19], [23.925, 4.59]]:
+		var inner: Array = inner_run
+		_box(shell, "GardenSill04", Vector3(10.31, 0.5, float(inner[0])), Vector3(0.42, 1.00, float(inner[1])), _materials["shell_mid"])
+		_box(shell, "GardenInnerWall", Vector3(10.31, 2.55, float(inner[0])), Vector3(0.42, 3.10, float(inner[1])), _materials["shell_mid"])
+	for mullion_z in [16.00, 20.20, 24.40]:
+		_box(shell, "GardenMullionOuter", Vector3(18.49, 2.55, float(mullion_z)), Vector3(0.48, 3.20, 0.24), _materials["structural"])
+	for mullion_x in [12.20, 14.40, 16.60]:
+		for wall_z in [26.01, 14.39]:
+			_box(shell, "GardenMullionEnd", Vector3(float(mullion_x), 2.55, float(wall_z)), Vector3(0.24, 3.20, 0.48), _materials["structural"])
+	# The ceiling is a ring, not a lid.
+	#
+	# Built first as one 8.6 x 12 m slab, which meant the cupola stood on a solid
+	# soffit: from inside the bay you saw a flat plate, the drum lit nothing, and
+	# the oculus opened onto the back of the ceiling. Rendered, the entire reason
+	# for the room's roof was invisible. Four runs leave a 5.8 x 6.0 m opening under
+	# the drum, and the 2.94..3.34 m curb torus overlaps the two side runs at
+	# x = 11.5 and 17.3 so the opening is framed rather than hanging.
+	for ceiling_z in [15.65, 24.75]:
+		_box(shell, "GardenCeiling", Vector3(14.4, 5.02, float(ceiling_z)), Vector3(8.60, 0.44, 3.10), _materials["shell_mid"])
+	for ceiling_x in [10.80, 18.00]:
+		_box(shell, "GardenCeiling", Vector3(float(ceiling_x), 5.02, 20.2), Vector3(1.40, 0.44, 5.80), _materials["shell_mid"])
+
+	# The cupola. An octagonal glazed drum standing on the ceiling plate, capped
+	# by a ring of eight sloped segments around a glass oculus. Its floor opening
+	# is the reason the ceiling reads as a soffit rather than a lid.
+	_torus(shell, "CupolaCurb", Vector3(14.4, 4.86, 20.2), 2.94, 3.34, _materials["structural"])
+	var cupola_post_transforms: Array[Transform3D] = []
+	var cupola_cap_transforms: Array[Transform3D] = []
+	for facet_index in 8:
+		var facet_angle := deg_to_rad(float(facet_index) * 45.0)
+		var facet_yaw := -float(facet_index) * 45.0
+		var facet_position := Vector3(14.4 + sin(facet_angle) * 3.16, 5.98, 20.2 + cos(facet_angle) * 3.16)
+		_register_window(
+			_box(shell, "CupolaPane%02d" % (facet_index + 1), facet_position, Vector3(2.46, 1.76, 0.12), _materials["glass"], true, Vector3(0, facet_yaw, 0))
+		)
+		# Mullions and cap segments are batched: 16 identical boxes at 16 known
+		# transforms, no collision on either. The panes between them stay individual
+		# bodies because they are a pressure barrier like every other pane here.
+		var post_angle := deg_to_rad(float(facet_index) * 45.0 + 22.5)
+		cupola_post_transforms.append(
+			Transform3D(
+				Basis.from_euler(Vector3(0, deg_to_rad(-float(facet_index) * 45.0 - 22.5), 0)),
+				Vector3(14.4 + sin(post_angle) * 3.16, 5.98, 20.2 + cos(post_angle) * 3.16)
+			)
+		)
+		cupola_cap_transforms.append(
+			Transform3D(
+				Basis.from_euler(Vector3(0, deg_to_rad(facet_yaw), 0)),
+				Vector3(14.4 + sin(facet_angle) * 2.42, 6.98, 20.2 + cos(facet_angle) * 2.42)
+			)
+		)
+	_multimesh_boxes(shell, "CupolaPosts", Vector3(0.26, 1.94, 0.26), _materials["structural"], cupola_post_transforms)
+	_multimesh_boxes(shell, "CupolaCaps", Vector3(2.30, 0.24, 1.28), _materials["shell_light"], cupola_cap_transforms)
+	_torus(shell, "CupolaCapRing", Vector3(14.4, 6.92, 20.2), 3.02, 3.30, _materials["copper"])
+	_register_window(_cylinder(shell, "CupolaOculus", Vector3(14.4, 7.02, 20.2), 1.94, 0.10, _materials["glass"], false))
+	# Three lens housings on the drum curb, one light between them.
+	#
+	# Built first as three lamps, one per housing, and cut to a single lantern at
+	# the crown under whole-scene light-budget pressure. The three housings stand on
+	# a 2.70 m radius, so a lamp on the axis at the same height is within 2.70 m of
+	# every one of them and the pools they would have cast overlap almost
+	# completely — the room reads the same and the census is two lights lighter.
+	# Same call `aft_junction_stack` makes for its eight-tile arc.
+	for downlight_angle in [30.0, 150.0, 270.0]:
+		var down_radians := deg_to_rad(float(downlight_angle))
+		var down_x := 14.4 + sin(down_radians) * 2.70
+		var down_z := 20.2 + cos(down_radians) * 2.70
+		_box(shell, "CupolaDownlightBody", Vector3(down_x, 4.98, down_z), Vector3(0.40, 0.14, 0.40), _materials["graphite"], false)
+		_box(shell, "CupolaDownlightLens", Vector3(down_x, 4.88, down_z), Vector3(0.30, 0.035, 0.30), _materials["warm_light"], false)
+	_fixture_practical(shell, "CupolaDownlight", Vector3(14.4, 4.70, 20.2), Color("ffe0b4"), 0.72, 7.2)
+
+	# Bench ring under the glazing. Three runs, each on its own four legs.
+	var bench_runs := [
+		[Vector3(17.92, 0.45, 18.30), Vector3(0.56, 0.10, 3.00), true],
+		[Vector3(17.92, 0.45, 22.10), Vector3(0.56, 0.10, 3.00), true],
+		[Vector3(14.40, 0.45, 14.92), Vector3(3.20, 0.10, 0.56), false],
+	]
+	for bench_index in bench_runs.size():
+		var bench: Array = bench_runs[bench_index]
+		var bench_center := bench[0] as Vector3
+		var bench_size := bench[1] as Vector3
+		var along_z := bool(bench[2])
+		_box(shell, "GardenBench%02d" % (bench_index + 1), bench_center, bench_size, _materials["shell_light"])
+		for leg_sign in [-1.0, 1.0]:
+			var leg_offset := (bench_size.z if along_z else bench_size.x) * 0.5 - 0.26
+			var leg_position := bench_center + (
+				Vector3(0, 0, float(leg_sign) * leg_offset) if along_z else Vector3(float(leg_sign) * leg_offset, 0, 0)
+			)
+			leg_position.y = 0.20
+			_box(
+				shell,
+				"GardenBenchLeg",
+				leg_position,
+				Vector3(0.42, 0.40, 0.14) if along_z else Vector3(0.14, 0.40, 0.42),
+				_materials["structural"],
+				false
+			)
+		_box(
+			shell,
+			"GardenBenchPad",
+			bench_center + Vector3(0, 0.09, 0),
+			Vector3(bench_size.x - 0.10, 0.08, bench_size.z - 0.10),
+			_materials["fabric"],
+			false
+		)
+
+
+## The nutrient column on the room's axis and the planting bed around its foot.
+func _build_garden_column(branch: Node3D) -> void:
+	var column := Node3D.new()
+	column.name = "GardenColumn"
+	branch.add_child(column)
+
+	_cylinder(column, "ColumnBase", Vector3(14.4, 0.14, 20.2), 0.86, 0.28, _materials["structural"], true)
+	# Core 0.28 -> 0.17 and glow 0.20 -> 0.27. The glow tube was built *inside* the
+	# opaque core, so the nutrient column rendered as a black post with a glass
+	# sleeve around it and the room's one vertical light source was hidden inside
+	# its own structure.
+	_cylinder(column, "ColumnCore", Vector3(14.4, 2.60, 20.2), 0.17, 4.64, _materials["structural"], true)
+	_cylinder(column, "ColumnGlow", Vector3(14.4, 2.60, 20.2), 0.34, 4.40, _materials["teal"], false)
+	_cylinder(column, "ColumnSleeve", Vector3(14.4, 2.60, 20.2), 0.46, 4.64, _materials["glass"], false)
+	for collar_y in [1.20, 2.90, 4.50]:
+		_torus(column, "ColumnCollar", Vector3(14.4, float(collar_y), 20.2), 0.46, 0.62, _materials["copper"])
+	_cylinder(column, "ColumnHead", Vector3(14.4, 5.07, 20.2), 0.72, 0.30, _materials["structural"], true)
+	_torus(column, "ColumnHeadRing", Vector3(14.4, 5.16, 20.2), 0.72, 0.90, _materials["copper"])
+	for feed_angle in [45.0, 165.0, 285.0]:
+		var feed_radians := deg_to_rad(float(feed_angle))
+		# Runs to the cupola curb at 4.86, not out to radius 2.90 at y = 3.42 where
+		# it was first drawn, which left three copper feed lines with their outboard
+		# ends terminating in open air 1.1 m above the racks.
+		_beam_between(
+			column,
+			"ColumnFeed",
+			Vector3(14.4 + sin(feed_radians) * 0.44, 4.90, 20.2 + cos(feed_radians) * 0.44),
+			Vector3(14.4 + sin(feed_radians) * 3.02, 4.86, 20.2 + cos(feed_radians) * 3.02),
+			0.055,
+			_materials["copper"],
+			false
+		)
+	_fixture_practical(column, "ColumnGlowSpill", Vector3(14.4, 2.60, 20.2), Color("8fe6ea"), 0.40, 4.6)
+
+	# Raised planting bed: eight kerb segments on the deck, soil inside, planting
+	# whose undersides are the 0.40 m soil surface.
+	for kerb_index in 8:
+		var kerb_angle := deg_to_rad(float(kerb_index) * 45.0)
+		_box(
+			column,
+			"BedKerb%02d" % (kerb_index + 1),
+			Vector3(14.4 + sin(kerb_angle) * 1.52, 0.23, 20.2 + cos(kerb_angle) * 1.52),
+			Vector3(1.28, 0.46, 0.30),
+			_materials["structural"],
+			true,
+			Vector3(0, -float(kerb_index) * 45.0, 0)
+		)
+	_cylinder(column, "BedSoil", Vector3(14.4, 0.20, 20.2), 1.52, 0.40, _materials["graphite"], false)
+	var bed_planting := [
+		[0.0, 1.18, 0.46, 0.62], [42.0, 0.94, 0.34, 0.44], [88.0, 1.22, 0.52, 0.70],
+		[131.0, 0.86, 0.30, 0.38], [176.0, 1.16, 0.44, 0.58], [219.0, 1.00, 0.36, 0.48],
+		[262.0, 1.24, 0.50, 0.66], [305.0, 0.90, 0.32, 0.42], [24.0, 0.62, 0.28, 0.34],
+		[152.0, 0.58, 0.26, 0.32], [284.0, 0.66, 0.30, 0.36],
+	]
+	var planting_transforms: Array[Transform3D] = []
+	for planting_index in bed_planting.size():
+		var plant: Array = bed_planting[planting_index]
+		var plant_angle := deg_to_rad(float(plant[0]))
+		var plant_radius := float(plant[1])
+		var plant_width := float(plant[2])
+		var plant_height := float(plant[3])
+		planting_transforms.append(
+			Transform3D(
+				Basis.from_euler(
+					Vector3(
+						deg_to_rad(float(planting_index % 3) * 5.0 - 5.0),
+						deg_to_rad(float(planting_index) * 37.0),
+						deg_to_rad(float(planting_index % 4) * 4.0 - 6.0)
+					)
+				).scaled(Vector3(plant_width / 0.5, plant_height / 0.5, plant_width * 0.88 / 0.5)),
+				Vector3(
+					14.4 + sin(plant_angle) * plant_radius,
+					0.40 + plant_height * 0.5 - 0.04,
+					20.2 + cos(plant_angle) * plant_radius
+				)
+			)
+		)
+	_multimesh_boxes(column, "BedPlanting", Vector3(0.5, 0.5, 0.5), _materials["greenery_deep"], planting_transforms)
+	for stalk_index in 4:
+		var stalk_angle := deg_to_rad(float(stalk_index) * 90.0 + 18.0)
+		_beam_between(
+			column,
+			"BedStalk",
+			Vector3(14.4 + sin(stalk_angle) * 1.30, 0.34, 20.2 + cos(stalk_angle) * 1.30),
+			Vector3(14.4 + sin(stalk_angle) * 1.44, 1.62, 20.2 + cos(stalk_angle) * 1.44),
+			0.035,
+			_materials["greenery"],
+			false
+		)
+
+
+## Six hydroponic grow racks in a ring, facing the column.
+##
+## Three practicals for six racks, not six. Adjacent racks stand 3.05 m apart on
+## a 3.05 m radius, so a lamp between two of them lights both; six would have been
+## three redundant copies of the same pool, which is the call `aft_junction_stack`
+## already made for its eight-tile arc.
+func _build_garden_racks(branch: Node3D) -> void:
+	var racks := Node3D.new()
+	racks.name = "GardenGrowRacks"
+	branch.add_child(racks)
+
+	# 54 canopies and 12 grow strips are the single largest block of repeated
+	# visual-only stock in the module, so they are batched rather than authored one
+	# node at a time. Transforms are composed with each rack's own transform because
+	# the batch lives on the ring parent, not inside a rack.
+	var canopy_light_transforms: Array[Transform3D] = []
+	var canopy_deep_transforms: Array[Transform3D] = []
+	var grow_strip_transforms: Array[Transform3D] = []
+	for rack_index in 6:
+		var rack_angle := float(rack_index) * 60.0 + 30.0
+		var rack_radians := deg_to_rad(rack_angle)
+		var rack := Node3D.new()
+		rack.name = "GrowRack%02d" % (rack_index + 1)
+		rack.position = Vector3(14.4 + sin(rack_radians) * 3.05, 0.0, 20.2 + cos(rack_radians) * 3.05)
+		rack.rotation_degrees.y = -rack_angle
+		rack.set_meta("station_grow_rack", true)
+		racks.add_child(rack)
+
+		for upright_z in [-0.86, 0.86]:
+			_box(rack, "RackUpright", Vector3(0, 1.18, float(upright_z)), Vector3(0.11, 2.36, 0.11), _materials["structural"])
+		_box(rack, "RackFoot", Vector3(0, 0.035, 0), Vector3(0.36, 0.07, 1.94), _materials["graphite"], false)
+		_box(rack, "RackCrown", Vector3(0, 2.30, 0), Vector3(0.13, 0.12, 1.86), _materials["structural"], false)
+		for tier_index in 3:
+			var tray_y := 0.62 + float(tier_index) * 0.74
+			_box(rack, "RackTray", Vector3(0, tray_y, 0), Vector3(0.62, 0.05, 1.82), _materials["steel_bright"])
+			_box(rack, "RackTraySoil", Vector3(0, tray_y + 0.055, 0), Vector3(0.54, 0.06, 1.70), _materials["graphite"], false)
+			for canopy_index in 3:
+				var canopy_transform := rack.transform * Transform3D(
+					Basis.from_euler(
+						Vector3(0, deg_to_rad(float(tier_index * 3 + canopy_index) * 29.0), deg_to_rad(float(canopy_index) * 6.0 - 6.0))
+					),
+					Vector3(0, tray_y + 0.085 + 0.09, -0.56 + float(canopy_index) * 0.56)
+				)
+				if (tier_index + canopy_index) % 2 == 0:
+					canopy_light_transforms.append(canopy_transform)
+				else:
+					canopy_deep_transforms.append(canopy_transform)
+			if tier_index == 0:
+				continue
+			# Strip on the underside of the tray above the tier below it.
+			grow_strip_transforms.append(rack.transform * Transform3D(Basis.IDENTITY, Vector3(0, tray_y - 0.0425, 0)))
+		# x -0.075 -> -0.058. Found by looking at a render of the working end of the
+		# bay: at -0.075 the label's inboard face was 0.005 m clear of the 0.055 m
+		# upright it is screwed to, and a lit cyan card hanging 5 mm off a black post
+		# reads at eye height as exactly what the standing complaint is about.
+		_box(rack, "RackLabel", Vector3(-0.058, 1.72, 0.78), Vector3(0.03, 0.13, 0.36), _materials["teal"], false)
+		_beam_between(rack, "RackFeedLine", Vector3(0.24, 2.28, 0.0), Vector3(0.24, 0.62, 0.0), 0.028, _materials["copper"], false)
+
+	_multimesh_boxes(racks, "RackCanopies", Vector3(0.50, 0.22, 0.50), _materials["greenery"], canopy_light_transforms)
+	_multimesh_boxes(racks, "RackCanopiesDeep", Vector3(0.50, 0.22, 0.50), _materials["greenery_deep"], canopy_deep_transforms)
+	_multimesh_boxes(racks, "RackGrowStrips", Vector3(0.44, 0.035, 1.70), _materials["grow_light"], grow_strip_transforms)
+	for lamp_index in 3:
+		var lamp_radians := deg_to_rad(float(lamp_index) * 120.0 + 60.0)
+		_fixture_practical(
+			racks,
+			"GrowLampSpill",
+			Vector3(14.4 + sin(lamp_radians) * 2.55, 1.72, 20.2 + cos(lamp_radians) * 2.55),
+			Color("ff86c4"),
+			0.44,
+			4.0
+		)
+
+
+## The working half of the bay: a potting bench and a nutrient tank cluster.
+func _build_garden_service(branch: Node3D) -> void:
+	var service := Node3D.new()
+	service.name = "GardenService"
+	branch.add_child(service)
+
+	# Potting bench against the aft wall, whose inner face is z = 14.60.
+	var bench_z := 14.94
+	_box(service, "PottingCarcass", Vector3(12.30, 0.43, bench_z), Vector3(2.60, 0.86, 0.64), _materials["shell_mid"])
+	_box(service, "PottingWorktop", Vector3(12.30, 0.89, bench_z), Vector3(2.66, 0.06, 0.70), _materials["steel_bright"])
+	_box(service, "PottingSplash", Vector3(12.30, 1.06, 14.63), Vector3(2.66, 0.32, 0.06), _materials["steel_bright"], false)
+	for door_index in 3:
+		_box(service, "PottingDoor", Vector3(11.44 + float(door_index) * 0.86, 0.47, bench_z + 0.33), Vector3(0.80, 0.70, 0.045), _materials["shell_light"], false)
+		_box(service, "PottingPull", Vector3(11.44 + float(door_index) * 0.86, 0.72, bench_z + 0.356), Vector3(0.30, 0.045, 0.045), _materials["brass"], false)
+	for tray_index in 3:
+		_box(service, "PottingTray", Vector3(11.42 + float(tray_index) * 0.72, 0.9425, bench_z + 0.02), Vector3(0.58, 0.045, 0.44), _materials["plastic_pale"], false)
+		_box(service, "PottingSeedling", Vector3(11.42 + float(tray_index) * 0.72, 1.02, bench_z + 0.02), Vector3(0.48, 0.11, 0.36), _materials["greenery"], false)
+	_box(service, "PottingSoilSack", Vector3(13.44, 1.06, bench_z - 0.04), Vector3(0.46, 0.28, 0.40), _materials["leather"], false, Vector3(0, 11, 0))
+	# z 14.66 -> 14.62: at 14.66 the rail's 0.024 m radius left it 0.036 m clear of
+	# the 14.60 m wall face and the whole tool rack hung on nothing.
+	_beam_between(service, "PottingToolRail", Vector3(11.20, 1.44, 14.62), Vector3(13.40, 1.44, 14.62), 0.024, _materials["brass"], false)
+	var tool_transforms: Array[Transform3D] = []
+	for tool_index in 4:
+		var tool_x := 11.40 + float(tool_index) * 0.52
+		_beam_between(service, "PottingToolHook", Vector3(tool_x, 1.44, 14.62), Vector3(tool_x, 1.34, 14.74), 0.014, _materials["brass"], false)
+		tool_transforms.append(Transform3D(Basis.IDENTITY, Vector3(tool_x, 1.16, 14.74)))
+	_multimesh_boxes(service, "PottingTools", Vector3(0.09, 0.40, 0.05), _materials["structural"], tool_transforms)
+	_box(service, "PottingTaskHousing", Vector3(12.30, 1.62, 14.68), Vector3(2.10, 0.10, 0.16), _materials["graphite"], false)
+	_box(service, "PottingTaskLens", Vector3(12.30, 1.565, 14.72), Vector3(1.80, 0.03, 0.10), _materials["warm_light"], false)
+	_fixture_practical(service, "PottingTaskLight", Vector3(12.30, 1.46, 14.98), Color("ffd9a4"), 0.40, 3.2)
+	_box(service, "PottingBin", Vector3(14.10, 0.34, 14.96), Vector3(0.46, 0.68, 0.46), _materials["graphite"])
+	_box(service, "PottingBinLid", Vector3(14.10, 0.70, 14.96), Vector3(0.48, 0.04, 0.48), _materials["structural"], false)
+
+	# Nutrient tanks against the forward wall, whose inner face is z = 25.80.
+	for tank_index in 3:
+		var tank_x := 12.30 + float(tank_index) * 1.00
+		_cylinder(service, "NutrientTank", Vector3(tank_x, 0.82, 25.34), 0.40, 1.64, _materials["steel_bright"], true)
+		_cylinder(service, "NutrientTankCap", Vector3(tank_x, 1.70, 25.34), 0.30, 0.14, _materials["graphite"], false)
+		_torus(service, "NutrientTankBand", Vector3(tank_x, 1.16, 25.34), 0.40, 0.47, _materials["copper"])
+		_box(service, "NutrientTankGauge", Vector3(tank_x - 0.02, 1.06, 24.99), Vector3(0.16, 0.42, 0.05), _materials["teal"], false)
+		_beam_between(service, "NutrientRiser", Vector3(tank_x, 1.62, 25.34), Vector3(tank_x, 2.52, 25.34), 0.05, _materials["copper"], false)
+	_beam_between(service, "NutrientManifold", Vector3(12.10, 2.52, 25.34), Vector3(14.50, 2.52, 25.34), 0.07, _materials["copper"], false)
+	# Runs into the column sleeve at 20.55 rather than stopping at 21.20, where its
+	# inboard end was a copper pipe finishing in mid-air over the planting bed.
+	_beam_between(service, "NutrientMain", Vector3(14.40, 2.52, 25.34), Vector3(14.40, 2.52, 20.55), 0.07, _materials["copper"], false)
+	for valve_x in [12.30, 13.30, 14.30]:
+		_torus(service, "NutrientValve", Vector3(float(valve_x), 2.30, 25.34), 0.13, 0.20, _materials["red"], Vector3(0, 90, 0))
+	_box(service, "NutrientPanel", Vector3(15.60, 1.70, 25.76), Vector3(0.90, 1.10, 0.10), _materials["graphite"], false)
+	for readout_index in 3:
+		_box(
+			service,
+			"NutrientReadout",
+			Vector3(15.60, 1.34 + float(readout_index) * 0.34, 25.70),
+			Vector3(0.66, 0.20, 0.035),
+			_materials["screen"] if readout_index == 1 else _materials["teal_dim"],
+			false
+		)
+	# Two watering cans and a stack of spare trays, left where they were used.
+	_cylinder(service, "GardenCan", Vector3(16.40, 0.18, 15.10), 0.17, 0.36, _materials["plastic_pale"], false)
+	_beam_between(service, "GardenCanSpout", Vector3(16.40, 0.30, 15.10), Vector3(16.70, 0.16, 15.28), 0.035, _materials["plastic_pale"], false)
+	var spare_transforms: Array[Transform3D] = []
+	for spare_index in 4:
+		spare_transforms.append(Transform3D(Basis.IDENTITY, Vector3(16.90, 0.03 + float(spare_index) * 0.055, 24.90)))
+	_multimesh_boxes(service, "GardenSpareTrays", Vector3(0.58, 0.055, 0.44), _materials["plastic_pale"], spare_transforms)
 
 
 ## Everything in the habitat that belongs to a person rather than to the station.
@@ -1300,7 +1835,7 @@ func _build_bunk_berth_life(bunk: Node3D, index: int) -> void:
 		false
 	)
 	if occupied:
-		_box(berth, "BerthNameCard", Vector3(inboard * 1.792, 1.90, 1.35), Vector3(0.014, 0.13, 0.40), _materials["paper"], false)
+		_box(berth, "BerthNameCard", Vector3(inboard * 1.792, 1.90, 1.35), Vector3(0.014, 0.13, 0.40), _materials["linen"], false)
 
 	# --- shelf over the bunk --------------------------------------------------
 	# 0.60 m deep rather than the 0.72 the alcove would take, so the shelf stays
@@ -1314,7 +1849,7 @@ func _build_bunk_berth_life(bunk: Node3D, index: int) -> void:
 		_cylinder(berth, "BerthMug", Vector3(side * 1.35, 1.380, 0.55), 0.045, 0.105, _materials["plastic_pale"], false)
 		_box(berth, "BerthReader", Vector3(side * 1.32, 1.339, 0.10), Vector3(0.30, 0.022, 0.21), _materials["graphite"], false)
 		_box(berth, "BerthReaderScreen", Vector3(side * 1.32, 1.3512, 0.10), Vector3(0.25, 0.006, 0.17), _materials["teal_dim"], false)
-		_box(berth, "BerthPhoto", Vector3(side * 1.52, 1.406, -0.36), Vector3(0.016, 0.157, 0.118), _materials["paper"], false, Vector3(0, 0, 0))
+		_box(berth, "BerthPhoto", Vector3(side * 1.52, 1.406, -0.36), Vector3(0.016, 0.157, 0.118), _materials["linen"], false, Vector3(0, 0, 0))
 		_box(berth, "BerthPhotoFrame", Vector3(side * 1.535, 1.406, -0.36), Vector3(0.014, 0.175, 0.136), _materials["brass"], false)
 	else:
 		_box(berth, "BerthEmptyTray", Vector3(side * 1.38, 1.3555, 0.10), Vector3(0.44, 0.056, 0.30), _materials["plastic_pale"], false)
@@ -1366,7 +1901,7 @@ func _build_bunk_berth_life(bunk: Node3D, index: int) -> void:
 	if occupied:
 		_box(berth, "LockerShutter", Vector3(inboard * 1.635, 1.02, -1.25), Vector3(0.05, 1.86, 0.66), _materials["shell_light"], false)
 		_box(berth, "LockerShutterPull", Vector3(inboard * 1.668, 1.10, -1.05), Vector3(0.05, 0.09, 0.22), _materials["brass"], false)
-		_box(berth, "LockerNameCard", Vector3(inboard * 1.655, 1.72, -1.25), Vector3(0.014, 0.11, 0.34), _materials["paper"], false)
+		_box(berth, "LockerNameCard", Vector3(inboard * 1.655, 1.72, -1.25), Vector3(0.014, 0.11, 0.34), _materials["linen"], false)
 	else:
 		_box(berth, "LockerShutter", Vector3(inboard * 1.635, 1.86, -1.25), Vector3(0.05, 0.20, 0.66), _materials["shell_light"], false)
 		_box(berth, "LockerVoid", Vector3(inboard * 1.585, 0.96, -1.25), Vector3(0.04, 1.66, 0.60), _materials["graphite"], false)
@@ -1419,17 +1954,17 @@ func _build_entry_vestibule_life(corridor: Node3D) -> void:
 		[-0.16, 1.78, 0.22, 0.28],
 		[0.02, 1.42, 0.30, 0.20],
 	]
+	var notice_transforms: Array[Transform3D] = []
 	for card_index in notice_layout.size():
 		var card: Array = notice_layout[card_index]
-		_box(
-			vestibule,
-			"NoticeCard%02d" % (card_index + 1),
-			Vector3(-2.46 + float(card[0]), float(card[1]), 1.083),
-			Vector3(float(card[2]), float(card[3]), 0.014),
-			_materials["paper"],
-			false,
-			Vector3(0, 0, float(card_index - 2) * 2.5)
+		notice_transforms.append(
+			Transform3D(
+				Basis.from_euler(Vector3(0, 0, deg_to_rad(float(card_index - 2) * 2.5)))
+					.scaled(Vector3(float(card[2]) / 0.26, float(card[3]) / 0.26, 1.0)),
+				Vector3(-2.46 + float(card[0]), float(card[1]), 1.083)
+			)
 		)
+	_multimesh_boxes(vestibule, "NoticeCards", Vector3(0.26, 0.26, 0.014), _materials["linen"], notice_transforms)
 	_fixture_practical(vestibule, "NoticeBoardLamp", Vector3(-2.46, 2.62, 1.30), Color("f3c076"), 0.30, 2.6)
 	# Housing z 1.10 -> 1.00 with a 0.24 m section, so its back face is 0.88 and it
 	# shares volume with the entry facade it is bolted to. At 1.10 it cleared the
@@ -1582,7 +2117,7 @@ func _build_common_mess(common: Node3D) -> void:
 		_cylinder(mess, "MessMug", Vector3(table_x + mug_offset.x, 0.8425, table_z + mug_offset.y), 0.048, 0.105, _materials["plastic_pale"], false)
 	_cylinder(mess, "MessThermos", Vector3(table_x + 0.30, 0.930, 22.92), 0.062, 0.28, _materials["steel_bright"], false)
 	_box(mess, "MessCloth", Vector3(table_x - 0.25, 0.8075, 24.05), Vector3(0.30, 0.035, 0.24), _materials["linen"], false)
-	_box(mess, "MessCardDeck", Vector3(table_x + 0.17, 0.800, 24.12), Vector3(0.10, 0.025, 0.14), _materials["paper"], false, Vector3(0, 14, 0))
+	_box(mess, "MessCardDeck", Vector3(table_x + 0.17, 0.800, 24.12), Vector3(0.10, 0.025, 0.14), _materials["linen"], false, Vector3(0, 14, 0))
 
 	# Left around it.
 	_box(mess, "MessJacket", Vector3(table_x - 0.83, 0.60, 22.52), Vector3(0.26, 0.44, 0.36), _materials["coverall"], false)
@@ -1634,7 +2169,7 @@ func _build_common_berth_roster(common: Node3D) -> void:
 			false
 		)
 		if occupied:
-			_box(roster, "RosterNameCard%02d" % (tile_index + 1), Vector3(tile_x, 1.90, 18.226), Vector3(0.30, 0.20, 0.016), _materials["paper"], false)
+			_box(roster, "RosterNameCard%02d" % (tile_index + 1), Vector3(tile_x, 1.90, 18.226), Vector3(0.30, 0.20, 0.016), _materials["linen"], false)
 		else:
 			_box(roster, "RosterEmptySlot%02d" % (tile_index + 1), Vector3(tile_x, 1.90, 18.186), Vector3(0.30, 0.20, 0.028), _materials["graphite"], false)
 	_beam_between(roster, "RosterPegRail", Vector3(board_x - 1.24, 1.50, 18.20), Vector3(board_x + 1.24, 1.50, 18.20), 0.024, _materials["brass"], false)
@@ -1672,7 +2207,7 @@ func _build_common_soft_goods(common: Node3D) -> void:
 	goods.set_meta("evidence_status", EVIDENCE_STATUS)
 	common.add_child(goods)
 
-	_box(goods, "CommonFloorMat", Vector3(0.0, 0.058, 22.60), Vector3(4.60, 0.026, 4.20), _materials["rug"], false)
+	_box(goods, "CommonFloorMat", Vector3(0.0, 0.058, 22.60), Vector3(4.60, 0.026, 4.20), _materials["blanket"], false)
 	_box(goods, "CommonFloorMatBorder", Vector3(0.0, 0.054, 22.60), Vector3(4.90, 0.020, 4.50), _materials["copper"], false)
 
 	# The table display was a lit white rectangle with nothing drawn on it. Three
@@ -1691,24 +2226,25 @@ func _build_common_soft_goods(common: Node3D) -> void:
 	_box(goods, "TableDisplayCursor", Vector3(0.0, 1.3775, 21.32), Vector3(0.52, 0.007, 0.06), _materials["teal"], false)
 
 	# Window ledge. Underside 0.96, which is the sill top exactly.
+	var frond_transforms: Array[Transform3D] = []
 	for planter_x in [-6.20, 6.20]:
 		_box(goods, "LedgePlanter", Vector3(float(planter_x), 1.07, 28.48), Vector3(0.46, 0.22, 0.38), _materials["copper"], false)
 		_box(goods, "LedgePlanterSoil", Vector3(float(planter_x), 1.165, 28.48), Vector3(0.40, 0.04, 0.32), _materials["graphite"], false)
 		for frond_index in 5:
 			var frond_lean := (float(frond_index) - 2.0) * 11.0
-			_box(
-				goods,
-				"LedgeFrond",
-				Vector3(
-					float(planter_x) + (float(frond_index) - 2.0) * 0.075,
-					1.30 + absf(float(frond_index) - 2.0) * -0.035,
-					28.48 + (float(frond_index) - 2.0) * 0.045
-				),
-				Vector3(0.055, 0.34, 0.13),
-				_materials["greenery"],
-				false,
-				Vector3(frond_lean * 0.5, float(frond_index) * 31.0, frond_lean)
+			frond_transforms.append(
+				Transform3D(
+					Basis.from_euler(
+						Vector3(deg_to_rad(frond_lean * 0.5), deg_to_rad(float(frond_index) * 31.0), deg_to_rad(frond_lean))
+					),
+					Vector3(
+						float(planter_x) + (float(frond_index) - 2.0) * 0.075,
+						1.30 + absf(float(frond_index) - 2.0) * -0.035,
+						28.48 + (float(frond_index) - 2.0) * 0.045
+					)
+				)
 			)
+	_multimesh_boxes(goods, "LedgeFronds", Vector3(0.055, 0.34, 0.13), _materials["greenery"], frond_transforms)
 	for mug_z in [28.44, 28.54]:
 		_cylinder(goods, "LedgeMug", Vector3(-3.95 + (float(mug_z) - 28.44) * 3.0, 1.0125, float(mug_z)), 0.048, 0.105, _materials["plastic_pale"], false)
 	_box(goods, "LedgeReader", Vector3(2.60, 0.9725, 28.48), Vector3(0.32, 0.025, 0.24), _materials["graphite"], false)
@@ -1727,7 +2263,9 @@ func _style_access_landmarks() -> void:
 	if _main_access != null:
 		_apply_door_material(_main_access, _materials["teal"], _materials["teal"])
 	if _deferred_branch_access != null:
-		_apply_door_material(_deferred_branch_access, _materials["red"], _materials["red"])
+		# Was red for a locked, deferred landmark. The branch is open, so it takes
+		# the module's usable-route cyan like the main access does.
+		_apply_door_material(_deferred_branch_access, _materials["teal"], _materials["teal"])
 
 
 func _apply_door_material(door: StationDoor, panel_material: Material, indicator_material: Material) -> void:
@@ -1841,6 +2379,50 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 		_rounded_box_cache,
 		StationSurfaceKit.BevelUV.UNIT_PER_QUAD
 	)
+
+
+## One draw call for repeated identical stock.
+##
+## Added under whole-scene budget pressure: the live scene census is at its mesh
+## instance ceiling, and this module's living quarters and garden bay are full of
+## items that are literally the same box drawn many times — 54 canopies on six
+## grow racks, 12 grow strips, 11 planting clumps, 10 fronds, 16 cupola facets
+## and caps, 5 notice cards, 4 hand tools, 4 spare trays. Batching those into
+## `MultiMeshInstance3D` is pixel-identical and takes 106 mesh instances out.
+##
+## Two rules, both load-bearing:
+##
+## 1. **Never batch anything that carries collision.** The inverse sweep in
+##    `station_surface_playability_test` indexes `MeshInstance3D`, so a batched
+##    piece with a collider reads to it as standable collision with nothing drawn
+##    at it — an orphan. Everything below is visual-only by construction.
+## 2. **Never batch anything in a seated roster.** The presentation witness
+##    resolves node paths, and a batched piece has no node of its own to name. The
+##    rack trays, jambs, worktops and benches the roster does name all stay as
+##    individual bodies.
+##
+## Transforms are given in `parent` space, so callers that batch across child
+## nodes must compose the child transform themselves.
+func _multimesh_boxes(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _rounded_box_mesh(size)
+	multi.instance_count = transforms.size()
+	for transform_index in transforms.size():
+		multi.set_instance_transform(transform_index, transforms[transform_index])
+	instance.multimesh = multi
+	instance.material_override = material
+	instance.set_meta("visual_detail_only", true)
+	parent.add_child(instance)
+	return instance
 
 
 func _cylinder(

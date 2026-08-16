@@ -491,12 +491,29 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# keys and its painted accents. The one new mapped material is `steel_bright`,
 	# the galley worktop, which is a 4.3 m plate at waist height under a task light
 	# and is exactly the case a flat scalar surface fails.
+	# Re-frozen 2436 -> 2551 on rebase, measured on the merged tree. The side
+	# branch garden bay moves only 0.28, 747 -> 862 (+115); 0.22 remains 130 and
+	# 0.30 remains 1559. The delta is the bay's shell and its
+	# fitted joinery — link floor, ceiling, sills, headers, mullions; the garden's
+	# four wall runs, its ceiling ring and the cupola curb; the grow racks'
+	# uprights, crowns and 18 steel trays; the planting kerbs; the benches; the
+	# potting bench carcass, worktop and splashback; and the nutrient tanks. The
+	# greenery, the grow-light strips, the plastic trays and the soil beds are not
+	# in it, for the same reason the living quarters' soft goods are not.
+	#
+	# The cupola's eight mullions and eight cap segments are not in it either, and
+	# that is worth recording because it would otherwise look like a gap: they are
+	# `structural` and `shell_light`, both mapped, but they are drawn through
+	# `MultiMeshInstance3D` rather than as individual `MeshInstance3D` nodes, and
+	# this census walks `MeshInstance3D`. The batching was done under whole-scene
+	# instance-budget pressure and it moves 16 mapped surfaces out of this count
+	# without changing a pixel.
 	_check(
-		mapped_surface_count == 2436
+		mapped_surface_count == 2551
 		and scale_022_count == 130
-		and scale_028_count == 747
+		and scale_028_count == 862
 		and scale_030_count == 1559,
-		"live station binds exactly 2436 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		"live station binds exactly 2551 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

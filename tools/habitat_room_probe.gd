@@ -96,6 +96,16 @@ func _run() -> void:
 	await _shot(output_dir, "h9_mess_and_roster.png", habitat.to_global(Vector3(2.2, 1.62, 26.3)), habitat.to_global(Vector3(5.7, 1.20, 20.6)), 66.0)
 	# The room's front wall, which carries both legends, from where they are read.
 	await _shot(output_dir, "h10_room_legends.png", habitat.to_global(Vector3(0.4, 2.30, 23.4)), habitat.to_global(Vector3(-1.6, 3.20, 18.3)), 66.0)
+	# The side branch door from inside the common room, now that it opens.
+	await _shot(output_dir, "h11_branch_door.png", habitat.to_global(Vector3(3.4, 1.68, 21.6)), habitat.to_global(Vector3(8.6, 1.45, 19.6)), 64.0)
+	# Walking out of the link into the garden bay.
+	await _shot(output_dir, "h12_garden_entry.png", habitat.to_global(Vector3(9.6, 1.68, 20.0)), habitat.to_global(Vector3(16.8, 2.30, 21.9)), 70.0)
+	# Standing under the cupola looking up past the column at the oculus.
+	await _shot(output_dir, "h13_garden_cupola.png", habitat.to_global(Vector3(14.4, 1.62, 24.3)), habitat.to_global(Vector3(14.4, 6.30, 20.6)), 74.0)
+	# The grow rack ring and the planting bed, from the bench side.
+	await _shot(output_dir, "h14_garden_racks.png", habitat.to_global(Vector3(17.6, 1.62, 17.4)), habitat.to_global(Vector3(12.6, 1.10, 21.6)), 68.0)
+	# The working end: potting bench, tools, seedlings.
+	await _shot(output_dir, "h15_garden_service.png", habitat.to_global(Vector3(14.4, 1.62, 17.7)), habitat.to_global(Vector3(12.1, 1.05, 14.8)), 68.0)
 
 	game.queue_free()
 	await process_frame

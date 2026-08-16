@@ -44,6 +44,8 @@ const HABITAT_SURFACE_PATHS := [
 	"Structure/PressurizedHabitatCorridor/EntryVestibuleFloor",
 	"Structure/PressurizedHabitatCorridor/HabitatFloor",
 	"Structure/ObservationCommon/CommonFloor",
+	"Structure/SideBranchGarden/BranchLink/LinkFloor",
+	"Structure/SideBranchGarden/GardenShell/GardenFloor",
 ]
 
 const FREIGHT_SURFACE_PATHS := [
@@ -133,7 +135,8 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(freight, FREIGHT_SURFACE_PATHS) and every_surface_exact
 	if comb != null:
 		every_surface_exact = _surface_roster_matches(comb, COMB_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 45 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	# Re-frozen 45 -> 47: the garden adds its collision-backed link and bay floors.
+	_check(every_surface_exact, "all 47 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:

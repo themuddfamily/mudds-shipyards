@@ -78,6 +78,12 @@ const REQUIRED_ROUTE_SURFACES := [
 	["AftJunctionStack", "Structure/OperationsRoom/OperationsFloor"],
 	["HabitatSpine", "Structure/PressurizedHabitatCorridor/HabitatFloor"],
 	["HabitatSpine", "Structure/ObservationCommon/CommonFloor"],
+	# The side branch. Its door was locked and explicitly deferred, so there was
+	# nothing to require; it opens onto a built garden bay now, and the strongest
+	# statement available that the room is real is that the production flood fill
+	# reaches its deck from the player spawn through every door on the way.
+	["HabitatSpine", "Structure/SideBranchGarden/BranchLink/LinkFloor"],
+	["HabitatSpine", "Structure/SideBranchGarden/GardenShell/GardenFloor"],
 	["JovianFreightBerth", "ConnectionLattice/ConnectionHandoffDeck"],
 	["JovianFreightBerth", "ConnectionLattice/ConnectionDeckA"],
 	["JovianFreightBerth", "LoadingApron/ApronDeck01"],

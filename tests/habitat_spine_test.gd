@@ -67,7 +67,7 @@ func _test_identity_evidence_and_audit(module: HabitatSpine) -> void:
 	_check(not bool(evidence.fixed_era_provenance_verified), "evidence API does not authenticate the later recording's exact build")
 	_check((evidence.references as PackedStringArray).size() >= 5, "evidence API exposes timestamped and documentary references")
 	_check("later secondary" in str(evidence.content_note) and "No part" in str(evidence.content_note), "content note states both source tier and non-reconstruction boundary")
-	_check("deferred" in str(evidence.content_note), "content note explains the intentionally absent branch interior")
+	_check("wholly modern" in str(evidence.content_note) and "no source describes" in str(evidence.content_note).to_lower(), "content note records the branch room as invented rather than reconstructed")
 	var interpretations := evidence.modern_interpretations as PackedStringArray
 	_check(interpretations.has("six-alcove arrangement and observation/common room function"), "exact room function and arrangement are disclosed as modern interpretation")
 	var returned_references := evidence.references as PackedStringArray
@@ -79,7 +79,7 @@ func _test_identity_evidence_and_audit(module: HabitatSpine) -> void:
 	_check((audit.errors as PackedStringArray).is_empty(), "valid audit reports no hidden structural errors")
 	_check(int(audit.bunk_count) == 6 and int(audit.chair_count) == 8, "audit exposes habitat furniture counts")
 	_check(int(audit.window_pane_count) >= 9 and int(audit.service_detail_count) >= 8, "audit exposes glazing and service-detail density")
-	_check(bool(audit.deferred_branch_closed), "audit proves the unsupported branch remains closed")
+	_check(bool(audit.side_branch_open), "audit proves the side branch door is open onto its built room")
 	(audit.evidence as Dictionary)["content_note"] = "mutation"
 	_check(str(module.get_audit_report().evidence.content_note) != "mutation", "audit dictionaries are detached from module state")
 
@@ -109,7 +109,10 @@ func _test_route_room_and_footprint_contract(module: HabitatSpine) -> void:
 	_check(float(clearance.player_capsule_reference_diameter) == 0.76, "clearance contract is tied to the real player capsule diameter")
 
 	var room_ids := module.get_room_ids()
-	_check(room_ids.size() == 9, "room registry exposes connector, corridor, common, and six alcoves only")
+	# 9 -> 10: the side branch garden bay is a real room now and is registered as
+	# `garden-cupola`, so the registry publishes connector, corridor, common,
+	# garden and six alcoves.
+	_check(room_ids.size() == 10, "room registry exposes connector, corridor, common, garden, and six alcoves only")
 	_check(module.get_bunk_room_ids().size() == 6, "six bunk room IDs are independently addressable")
 	_check(not module.has_room(&"deferred-branch"), "closed branch is not misrepresented as a built room")
 	_check(module.get_room_volume(&"unsupported-room").is_empty(), "unknown room volume has no fallback")
@@ -297,16 +300,24 @@ func _test_deferred_branch(module: HabitatSpine) -> void:
 	_check(door != null, "closed branch exposes a reusable StationDoor landmark")
 	if door == null:
 		return
-	_check(door.locked and door.deferred_access, "unsupported branch remains both locked and explicitly deferred")
-	_check(not door.can_interact(module), "deferred branch cannot imply playable unsupported content")
-	_check(not door.interact(module), "deferred branch refuses direct component interaction")
-	_check(door.is_portal_blocked(), "deferred branch remains physically closed")
-	_check("DEFERRED" in door.get_interaction_prompt() and "HABITAT SIDE BRANCH" in door.get_interaction_prompt(), "deferred prompt identifies the intentional endpoint")
-	_check("No source proves" in str(door.get_meta("content_note")), "door metadata explains why no branch room exists")
+	# Every assertion here used to require the opposite, and the reason it was
+	# right then is the reason it is right now: the door's state has to agree with
+	# what is behind it. It was locked and explicitly deferred while nothing was
+	# there; there is a garden bay there now, so a locked door would be a published
+	# route the player cannot walk. The evidence caveat did not weaken — it moved
+	# from "no source proves an adjacent room, so none exists" to "no source
+	# describes anything here, and what is here is invented and labelled as such",
+	# which is the same claim about the sources and a different claim about the
+	# content.
+	_check(not door.locked and not door.deferred_access, "the opened branch is neither locked nor deferred")
+	_check(door.can_interact(module), "the opened branch is a usable route rather than a landmark")
+	_check("GARDEN BAY ACCESS" in door.get_interaction_prompt(), "branch prompt names the room it opens onto")
+	_check("No source describes" in str(door.get_meta("content_note")), "door metadata records the room behind it as invented")
+	_check(module.has_room(&"garden-cupola"), "the opened branch publishes a real registered room")
 	var branch_ray := await _ray_through_door(door)
 	_check(not branch_ray.is_empty(), "deferred branch blocks a real physics ray")
 	_check(not module.has_room(&"habitat-side-branch"), "deferred landmark never appears in room registry")
-	_check(module.get_route_marker(&"deferred-branch").global_position.distance_to(door.global_position) < 1.8, "route marker terminates at the closed branch landmark")
+	_check(module.get_route_marker(&"deferred-branch").global_position.distance_to(door.global_position) < 1.8, "route marker sits at the branch threshold")
 
 
 func _test_negative_space(module: HabitatSpine) -> void:

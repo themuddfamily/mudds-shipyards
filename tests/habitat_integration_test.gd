@@ -91,7 +91,13 @@ func _test_placement_isolation(world: ShipyardWorld, habitat: HabitatSpine) -> v
 		habitat_footprint.local_max
 	)
 	_check(habitat_aabb.position.x >= 44.7 and habitat_aabb.end.x <= 78.3, "world footprint extends outward from the starboard node")
-	_check(habitat_aabb.position.z >= 6.49 and habitat_aabb.end.z <= 24.51, "rotated footprint remains inside the intended starboard band")
+	# Band low edge 6.49 -> -3.26. The habitat's declared `local_max.x` went 9.0 to
+	# 18.75 when the side branch was built, and the module is yawed 90 degrees, so
+	# local +X is world -Z: the envelope now reaches world z = -3.25. The high edge,
+	# both x edges and the overlap assertion below are untouched, and the module's
+	# own origin did not move. `tools/habitat_branch_clearance_probe.gd` swept the
+	# volume first and found nothing in it but this module's own door posts.
+	_check(habitat_aabb.position.z >= -3.26 and habitat_aabb.end.z <= 24.51, "rotated footprint remains inside the intended starboard band")
 
 	var aft := world.get_node("AftJunctionStack") as AftJunctionStack
 	var aft_footprint := aft.get_integration_footprint()
@@ -264,20 +270,42 @@ func _test_production_player_traversal(
 
 
 func _test_room_support_and_closed_branch(world: ShipyardWorld, habitat: HabitatSpine) -> void:
+	# Rays down through furniture rather than stopping at the first thing it hits.
+	#
+	# This asked for a single ray from the room centre to land within 0.035 m of
+	# y = 0, which quietly assumed no published room ever has anything standing at
+	# its middle. The garden bay does: its nutrient column is the room's axis and
+	# stands exactly on the declared centre, so the first hit was the column at
+	# 2.5 m and the check called a fully decked room unsupported. What it actually
+	# wants to prove is that there is collision-backed deck under the room, so it
+	# now restarts below each hit — the same technique the orphan sweep in
+	# `station_surface_playability_test` uses — up to four levels. No tolerance was
+	# loosened: the deck still has to be found at |y| <= 0.035, and a room with no
+	# deck under it at all still fails.
 	var all_room_centres_supported := true
 	for room_id in habitat.get_room_ids():
 		var volume := habitat.get_room_volume(room_id)
 		var centre: Vector3 = (volume.world_transform as Transform3D).origin
-		var hit := await _ray(world, centre + Vector3.UP * 0.75, centre - Vector3.UP * 3.0)
-		if hit.is_empty():
-			all_room_centres_supported = false
-		elif absf(float(hit.position.y)) > 0.035:
+		var probe_from := centre + Vector3.UP * 0.75
+		var found_deck := false
+		for _level in 4:
+			var hit := await _ray(world, probe_from, centre - Vector3.UP * 3.0)
+			if hit.is_empty():
+				break
+			if absf(float(hit.position.y)) <= 0.035:
+				found_deck = true
+				break
+			probe_from = Vector3(probe_from.x, float(hit.position.y) - 0.05, probe_from.z)
+			if probe_from.y <= centre.y - 3.0:
+				break
+		if not found_deck:
 			all_room_centres_supported = false
 	_check(all_room_centres_supported, "every published integrated room volume has collision-backed floor support")
 
 	var deferred := habitat.get_deferred_branch_access()
-	_check(deferred.locked and deferred.deferred_access, "unsupported integrated branch remains explicitly locked and deferred")
-	_check(not habitat.has_room(&"deferred-branch"), "closed landmark is not promoted into an invented station room")
+	_check(not deferred.locked and not deferred.deferred_access, "the integrated side branch is an open route rather than a deferred landmark")
+	_check(habitat.has_room(&"garden-cupola"), "the integrated side branch publishes its built room")
+	_check(not habitat.has_room(&"deferred-branch"), "the route marker id is not itself registered as a room")
 	_check(deferred.is_portal_blocked(), "deferred branch remains a real physical endpoint in the shared world")
 	var branch_ray := await _ray(
 		world,
@@ -285,7 +313,7 @@ func _test_room_support_and_closed_branch(world: ShipyardWorld, habitat: Habitat
 		deferred.to_global(Vector3(0, 1.7, 1.6))
 	)
 	_check(not branch_ray.is_empty(), "shared-world physics ray is blocked at the deferred branch")
-	_check("No source proves" in str(deferred.get_meta("content_note")), "integrated endpoint retains its explicit evidence caveat")
+	_check("No source describes" in str(deferred.get_meta("content_note")), "integrated branch retains its explicit evidence caveat")
 
 
 ## Walks the production avatar along X with real Input until it reaches

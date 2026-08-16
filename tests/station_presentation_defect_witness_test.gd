@@ -273,6 +273,23 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"HabitatSpine/Structure/ObservationCommon/CrewBerthRoster/RosterHungCoverall",
 	"HabitatSpine/Structure/ObservationCommon/CommonSoftGoods/LedgePlanter",
 	"HabitatSpine/Structure/ObservationCommon/CommonSoftGoods/LedgeScopeBody",
+	# Side branch garden bay. Same principle as above: one entry per mounting
+	# relationship. Six of these were floating when first written — a cupola cap
+	# ring standing on a solid ceiling that had no opening in it, three copper
+	# column feeds ending in open air over the racks, a nutrient main finishing in
+	# mid-air over the planting bed, a potting tool rail 0.036 m off its wall.
+	"HabitatSpine/Structure/SideBranchGarden/BranchLink/LinkSill/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenShell/CupolaCurb",
+	"HabitatSpine/Structure/SideBranchGarden/GardenShell/CupolaCapRing",
+	"HabitatSpine/Structure/SideBranchGarden/GardenShell/GardenBench01/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenColumn/ColumnHead/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenColumn/ColumnCollar",
+	"HabitatSpine/Structure/SideBranchGarden/GardenColumn/ColumnFeed",
+	"HabitatSpine/Structure/SideBranchGarden/GardenGrowRacks/GrowRack01/RackTray/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/PottingWorktop/Mesh",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/PottingToolRail",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/NutrientManifold",
+	"HabitatSpine/Structure/SideBranchGarden/GardenService/NutrientTankCap",
 ]
 const SEATED_ON_GEOMETRY_TOLERANCE := 0.001
 
