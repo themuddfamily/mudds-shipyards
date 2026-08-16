@@ -67,6 +67,15 @@ const SERVICE_ZONE_HALF_EXTENTS := Vector3(5.9, 3.8, 5.0)
 const GANTRY_TRAVEL := 3.15
 const GANTRY_ELEVATION := 5.78
 const DRONE_COUNT := 2
+## FULL is mounted in Central's walkable service court. Its original 1.48 m
+## orbit put the cargo pod and pulsing navigation lens through the authored
+## walking-camera sweep, so a lens could fill the near plane as a red slice.
+## Re-frozen 1.48 -> 3.75 m: the lowest point of the whole drone now clears the
+## production camera's 2.843 m default boom/sphere/margin/near sweep. The
+## dedicated roof-patrol profile deliberately retains its authored 1.48 m
+## mount-relative route; its world mount already supplies the roof elevation.
+const FULL_DRONE_BASE_ELEVATION := 3.75
+const ROOF_PATROL_DRONE_BASE_ELEVATION := 1.48
 const BEACON_COUNT := 4
 ## Half the safety beacon `Base` pedestal height (0.18 m), so the pedestal's
 ## underside rests on this component's mounting plane instead of hovering. See
@@ -1749,7 +1758,7 @@ func _activity_pose_matches_clock() -> bool:
 			var phase := _elapsed * (0.24 + index * 0.035) + seed_phase + float(index) * PI
 			if not _node_matches_expected_pose(
 				_drone_roots[index],
-				Vector3(cos(phase) * (3.55 - index * 0.28), 1.48 + float(index) * 0.44 + sin(phase * 2.0) * 0.18, sin(phase) * (2.85 - index * 0.22)),
+				Vector3(cos(phase) * (3.55 - index * 0.28), _get_drone_base_elevation() + float(index) * 0.44 + sin(phase * 2.0) * 0.18, sin(phase) * (2.85 - index * 0.22)),
 				Vector3(0.04 * sin(phase * 1.7), -phase + PI * 0.5, 0.08 * cos(phase))
 			):
 				return false
@@ -1987,11 +1996,19 @@ func _get_drone_motion_envelope() -> Dictionary:
 		}
 	return {
 		"present": true,
-		"local_center": Vector3(0.0, 1.7, 0.0),
+		"local_center": Vector3(0.0, _get_drone_base_elevation() + 0.22, 0.0),
 		"half_extents": Vector3(4.45, 0.72, 3.35),
 		"route_type": &"deterministic_elliptical_patrol",
 		"collision_policy": &"presentation_only_nonblocking",
 	}
+
+
+func _get_drone_base_elevation() -> float:
+	return (
+		FULL_DRONE_BASE_ELEVATION
+		if _built_profile == ActivityProfile.FULL
+		else ROOF_PATROL_DRONE_BASE_ELEVATION
+	)
 
 
 func _refresh_lifecycle() -> void:
@@ -2027,7 +2044,7 @@ func _update_activity_transforms() -> void:
 		var radius_z := 2.85 - index * 0.22
 		drone.position = Vector3(
 			cos(phase) * radius_x,
-			1.48 + float(index) * 0.44 + sin(phase * 2.0) * 0.18,
+			_get_drone_base_elevation() + float(index) * 0.44 + sin(phase * 2.0) * 0.18,
 			sin(phase) * radius_z
 		)
 		drone.rotation = Vector3(0.04 * sin(phase * 1.7), -phase + PI * 0.5, 0.08 * cos(phase))
