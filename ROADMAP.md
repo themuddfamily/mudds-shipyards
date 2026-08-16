@@ -146,6 +146,61 @@ Frame cost is **unmeasured and unmeasurable here**: this box renders through llv
 
 **Screen-space AO cannot be evaluated on this machine.** Rendering the production scene to the root viewport under llvmpipe/Vulkan and capturing six framings, `ssao_enabled = false` at the profile level (applied before the world builds), the shipped `HIGH` settings, and a forced 4× maximum (intensity 16, radius 8 m, power 4, `light_affect` 1.0) all produce **bit-identical** frames to four decimal places on every statistic. A desaturation applied through the same Environment reference *does* land, so the reference is live and the pass is simply not contributing. Any earlier conclusion about how much AO does or does not do — including "AO's job is modulating ambient and there is almost no ambient to modulate" — was measured through an instrument that is inert on this box and needs re-taking on real hardware. The lighting result recorded above does not depend on AO either way.
 
+### Interior legibility after the regrade — 2026-08-16
+
+Pays the two costs the global look pass named and could not pay itself: the habitat common room going dark with its chairs near silhouette once the flat cyan fill came out, and the operations room barely moving because it is built and lit entirely from its own module's materials and fixtures.
+
+**Read this first, because it invalidates an instrument.** `--headless` on this box has **no rendering device at all**. `RenderingServer.get_video_adapter_name()` returns empty, `Viewport.get_texture().get_image()` returns null with `Parameter "t" is null`, and — the part that wastes hours — `await RenderingServer.frame_post_draw` **never fires**, so it does not error, it hangs forever at ~1% CPU while looking exactly like a slow render. Every capture harness in this repo awaits that signal, so `capture_art_direction`, `capture_station_operations` and anything modelled on them **cannot produce a frame here and will hang instead of failing**. The fix is one line of invocation: drop `--headless` and run under Xvfb against lavapipe, which is installed.
+
+```
+VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json \
+  xvfb-run -a godot --path . --script res://tools/interior_room_probe.gd \
+  --rendering-driver vulkan --audio-driver Dummy
+```
+
+That reports `adapter=[llvmpipe (LLVM 20.1.2, 256 bits)]` and renders four 1280×720 interior framings in **about two and a half minutes**, instantiation included. Rendering was never slow; it was never happening. `tools/interior_room_probe.gd` is committed with this pass and refuses to run without a rendering device rather than hanging. A fresh worktree also has no `.godot`, and until `godot --headless --import` is run every script load fails with `Could not resolve script` parse errors and then idles the same way.
+
+**The defect is `omni_range`, and it is arithmetic rather than taste.** Godot 4's omni falloff is a *windowed* inverse power:
+
+```
+attenuation = (1 - (d/range)^4)^2 * d^(-omni_attenuation)
+```
+
+The window term is ~1.0 at the lamp and collapses to a hard zero at `range`. Both interiors had ceiling luminaires ~4.1 m above their decks with `omni_range = 5.6`, so the floor directly beneath a lamp already sat at `d/range = 0.73`, where the window has removed ~45% of what the distance term left — and every wall, corner, chair back and face is *further away than that*. The operations deck received 0.069 from a 0.94-energy lamp. The common room is 10.6 m deep and was lit by one row across its middle, so its rear sill and front partition were both 6.2 m from the nearest lamp: **outside the lights entirely, a literal zero.** Those chairs were never lit by the room's own fixtures. They were lit by the fill, which is exactly why removing the fill dropped them to silhouette.
+
+**Range, not energy, is the control.** Energy scales the bright disc on the ceiling and the dark deck by the same factor, so it reaches the blown end first — the gain knob this project has already rejected once. Widening the range changes *nothing* in the near field (at 0.5 m the window reads 1.00 either way) and restores only the clipped tail. `OperationsPoolLight` 5.6 → 9.0 at energy 0.94 → 0.82; `CommonPoolLight` 5.6 → 9.0 at 0.76 → 0.66; `ConsoleGlow` 2.6 → 3.4 at unchanged energy, which leaves the console panel exactly as lit and takes a seated operator's face 0.067 → 0.093; `DoorPoolLight` 3.8 → 5.6 at unchanged energy.
+
+**One row of lamps cannot light a room in two dimensions.** Operations is 10.4 m wide with a single centreline row of three, so neither side third had an overhead, and each of its two 7.3 m ceiling coves was represented by one point lamp at the cove's midpoint — so both ends of both side walls, where the room goes to black first, lay outside the lamp. Overheads become two rows of three at x = 3.2 and x = 8.0; each cove gets three lamps down its length; the coordinator chair, the one seat in either room with no fixture within range of it in any direction, gets the same task wash the other two working positions had. Common-room overheads become two rows of three at z = 20.5 and z = 24.3.
+
+**The rear row's z is the most load-bearing number in this pass, and it was wrong on the first attempt.** At z = 25.6 it sat *behind* the observation chairs, whose backrests are at z = 25.07 and lean 6° back. From the doorway — the committed harness's framing, and the one the complaint was made about — the camera sees the −z face of those backrests, and against a lamp behind them `n · l = −0.185`. Negative: that face received nothing, and **no amount of range or energy could have fixed it, because the geometry was wrong rather than the level.** Rendered, the chairs were still flat cut-outs even though every statistic had improved. Moved to z = 24.3 the same lamp gives `n · l = +0.402` and the backrests, arm tops and seat edges all read. That failure is the reason this pass renders instead of trusting the numbers: mean, structural σ and lit σ were all up while the specific thing being fixed was untouched.
+
+**More lights is the opposite of more fill.** A fill adds one term to every surface however it faces and wherever it sits — what the global pass correctly removed. Discrete pools with falloff between them put a gradient across a deck and let a viewer see where the light comes from. Per-fixture energy comes down wherever the count went up, in both rooms.
+
+**Emissive area is held flat while fixture count doubles**, because lens emission sets the blown top of both histograms and twice the lenses would have bought the added structure with a wider bloom. Lenses are made smaller instead: operations 2.85 × 0.24 → 1.85 × 0.20, habitat 2.35 × 0.25 → 1.55 × 0.20. **No emission value is changed anywhere.** In the habitat that is not optional — `warm_light` is shared with the corridor cove strips, so reducing it would have dimmed a corridor that was fine.
+
+**The rear glazing is now a fixture.** Four 3.4 m panes onto space read as flat panels because the sill, header and mullions in front of them were the least-lit structure in the module, and a window reads as a hole when its surround is lit and the hole is not. The sill gets a shallow cool `teal_dim` cove and three lamps carrying that strip's hue, sited 0.65 m inboard of the glass and below its lower edge so the panes see them at a grazing angle. Neither overhead row is placed near the glass: a ceiling lamp within about a metre of a window lays a sheet across the pane and turns the opening back into a panel.
+
+**Colour temperature is unchanged in kind and the rooms stay deliberately opposite.** Operations keeps cool overheads dominant with warm arriving at working height from its own sources. The habitat keeps its inversion — warm overheads, because a crew lounge is warm and because warm light through the station's only glazed wall is what makes it look inhabited from outside — with the cool counterpoint from the table display and now the glazing. Every added lamp carries its own fixture's hue. Built hues: aft 20 warm / 20 cool, habitat 16 warm / 5 cool. No cue colour, palette entry, emission value, material, sky, fog or grade was touched.
+
+Measured at 1280×720 through the production `HIGH` profile (AgX, exposure 1.24, white 6.6, contrast 1.52). `structure` is the std-dev of the non-emissive lower 90%; `lit σ` is the 65th–98th percentile band.
+
+| frame | mean | structure σ | lit σ | p50 |
+| --- | --- | --- | --- | --- |
+| `08_operations_room` | 0.1277 → **0.1945** (+52.3%) | 0.0814 → **0.1142** (+40.2%) | 0.1096 → 0.1110 (+1.3%) | 0.0841 → **0.1480** |
+| `08b_operations_reverse` | 0.1513 → **0.2038** (+34.6%) | 0.1051 → **0.1510** (+43.7%) | 0.1979 → 0.1769 (−10.6%) | 0.0875 → **0.1564** |
+| `09_habitat_common_room` | 0.1450 → **0.1960** (+35.2%) | 0.0830 → **0.1076** (+29.6%) | 0.1344 → **0.1618** (+20.4%) | 0.0862 → **0.1314** |
+| `09b_habitat_common_reverse` | 0.0950 → **0.1320** (+39.0%) | 0.0608 → **0.0811** (+33.3%) | 0.0593 → **0.0748** (+26.1%) | 0.0632 → **0.1082** |
+
+Mean **and** structural σ rise together on all four framings, which is the pattern this project wants and the opposite of the one it has rejected. The median roughly doubles everywhere — that is the clipped tail coming back as mid-tones, which is precisely what a range change should do and what a gain change would not.
+
+**One statistic goes the wrong way and is kept.** `08b_operations_reverse` loses 10.6% of lit σ while its structural σ gains 43.7%. The cause is understood: that band is the 65th–98th percentile, which in the old frame was dominated by three blown console tops standing against black walls. The walls are now lit plate, so the band's population changed from "a few bright things against nothing" to "a lit room", and its spread narrowed. That is the bimodality being removed, not contrast being lost, and the guard statistic the brief names — structural σ — is up on the same frame. Recorded rather than hidden because a single number moving down is exactly the thing worth arguing about.
+
+**Verified.** Eight framings rendered and reviewed by eye (four before, four after, plus a discarded intermediate). Thirteen suites pass: `aft_junction_stack_test`, `habitat_spine_test`, `habitat_integration_test`, `station_expansion_test`, `station_operational_lattice_test`, `station_presentation_defect_witness_test`, `station_triplanar_material_test`, `station_surface_playability_test`, `station_topology_evidence_test`, `station_navigation_graph_test`, `station_route_registry_integration_test`, `station_traversal_defect_witness_test`, `jovian_freight_berth_transform_test`. The full matrix was not run.
+
+Counts re-frozen in the open, exact equalities kept exact. `AftJunctionStack` `lights` **32 → 40** (+3 overheads, +4 cove lamps, +1 task wash); `HabitatSpine` `lights` **15 → 21** (+3 overheads, +3 sill lamps). Both set at the exact built count with no headroom, confirmed by census. Meshes stay inside their ceilings (aft 531/600, habitat 658/740). `station_triplanar_material_test` re-frozen **1703 → 1706** with 0.30 going **1042 → 1045**; the whole delta is the three new `hull_dark` `CeilingLuminaireBody` boxes, 0.22 and 0.28 untouched at 129 and 532, no mapped surface removed and no new scale introduced. The world rig is untouched.
+
+**Still open.** The observation chairs' backrests are `fabric_dark` at `#21363c` and roughness 0.95, so even correctly lit they sit near the bottom of the frame — the remaining darkness there is now a material choice rather than a lighting hole, and if it still reads badly the fix is the albedo, not another lamp. The operations room's window panes read slightly flatter than the habitat's because the room behind the camera is brighter and the glass returns it; nothing was done about that here. Frame cost remains **unmeasured** — llvmpipe.
+
 ### Pilot seated pose — sagittal sign defect, fixed 2026-08-16
 
 The player reported, of every craft: *"the animation turns my legs the wrong way, it looks like my legs break to get in!"* Measured on the live skeleton, the seated pilot's knee sat **0.362 m behind** his hip — 78° of hip hyperextension with the shin folding forward — and the same sign error was present in all nine authored clips.
