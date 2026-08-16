@@ -19,6 +19,7 @@ const STAGED_EVIDENCE_MANIFEST_PATH := TRANSACTION_DIR + "/evidence_manifest.jso
 const STAGED_SOURCE_MANIFEST_PATH := TRANSACTION_DIR + "/source_manifest.sha256"
 const CAPTURE_LOG_PATH := OUTPUT_DIR + "/capture_forward_plus_2560x1440.log"
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "MUDDS_CAPTURE_ZENITH_VISUALS_PARSE_ONLY"
+const STAGING_ONLY_ENVIRONMENT_VARIABLE := "MUDDS_CAPTURE_ZENITH_VISUALS_STAGING_ONLY"
 
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
 const CAPTURE_FILES: Array[String] = [
@@ -113,6 +114,10 @@ const MAXIMUM_BRIGHT_CLIP_FRACTION := 0.24
 const MINIMUM_SHIP_SCREEN_FRACTION := 0.055
 const MINIMUM_CANOPY_CHANGED_FRACTION := 0.002
 const PIXEL_CHANGE_THRESHOLD := 0.045
+const FLIGHT_CONTROL_ACTIONS: Array[StringName] = [
+	&"move_forward", &"move_back", &"move_left", &"move_right", &"hover",
+	&"fire", &"sprint_boost", &"jump", &"roll_right",
+]
 
 var _failures: Array[String] = []
 var _game: GameFlow
@@ -141,6 +146,9 @@ func _run() -> void:
 	if OS.get_environment(PARSE_ONLY_ENVIRONMENT_VARIABLE) == "1":
 		print("MUDDS_CAPTURE_ZENITH_VISUALS_PARSE_OK")
 		quit(0)
+		return
+	if OS.get_environment(STAGING_ONLY_ENVIRONMENT_VARIABLE) == "1":
+		await _run_automatic_propulsion_witness()
 		return
 
 	_reset_capture_transaction()
@@ -435,14 +443,42 @@ func _capture_sequence() -> void:
 	})
 
 
+func _run_automatic_propulsion_witness() -> void:
+	_zenith = preload("res://scenes/ships/zenith_interceptor.tscn").instantiate() as ZenithInterceptor
+	_check(_zenith != null, "production Zenith instantiates for automatic propulsion staging")
+	if _zenith == null:
+		_finish()
+		return
+	root.add_child(_zenith)
+	_camera = Camera3D.new()
+	root.add_child(_camera)
+	await _bring_engines_online()
+	_check(
+		await _handoff_hover_to_forward_roll(),
+		"held forward and roll demand takes over from hover without a neutral tick"
+	)
+	_release_flight_controls()
+	_zenith.set_piloted(false)
+	_zenith.queue_free()
+	_camera.queue_free()
+	await process_frame
+	if _failures.is_empty():
+		print("ZENITH_AUTOMATIC_PROPULSION_STAGING_OK")
+	quit(0 if _failures.is_empty() else 1)
+
+
 func _bring_engines_online() -> void:
+	_release_flight_controls()
 	_zenith.set_piloted(true)
-	_zenith.request_engine_start()
-	for _index in 240:
-		if str(_zenith.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE":
-			break
-		await physics_frame
-	_check(str(_zenith.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE", "production engine lifecycle reaches ONLINE")
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(_zenith.get_telemetry().get("engine_state", &""))
+		== HeroShip.ENGINE_ONLINE
+		and _zenith.get_last_ship_command().hover,
+		"accepted hover demand wakes production propulsion ONLINE in one physics tick"
+	)
 	_camera.current = true
 	_check(_visible_plume_count() == 4, "all two close and two far authored plume identities are online")
 
@@ -452,13 +488,10 @@ func _stage_short_flight_combat() -> void:
 	_zenith.global_transform = Transform3D(combat_basis, COMBAT_ORIGIN)
 	_zenith.velocity = Vector3.ZERO
 	_camera.current = true
-	Input.action_press("move_forward")
-	Input.action_press("roll_right")
-	for _index in 10:
-		await physics_frame
-	Input.action_release("move_forward")
-	Input.action_release("roll_right")
-	_check(_zenith.velocity.length() > 0.5, "short frame follows real production thrust input")
+	_check(
+		await _handoff_hover_to_forward_roll(),
+		"short frame follows real production thrust input"
+	)
 	var opponent_position := _zenith.to_global(Vector3(-18.0, 5.5, -38.0))
 	var opponent_direction := (_zenith.global_position - opponent_position).normalized()
 	_opponent.activate(Transform3D(Basis.looking_at(opponent_direction, Vector3.UP), opponent_position))
@@ -468,6 +501,25 @@ func _stage_short_flight_combat() -> void:
 	_camera.current = true
 	await _settle_render(4)
 	_check(_opponent.is_active(), "production opponent is active in staged combat tableau")
+
+
+func _handoff_hover_to_forward_roll() -> bool:
+	Input.action_press(&"move_forward")
+	Input.action_press(&"roll_right")
+	Input.action_release(&"hover")
+	for _index in 10:
+		await physics_frame
+	var command := _zenith.get_last_ship_command()
+	var accepted := (
+		StringName(_zenith.get_telemetry().get("engine_state", &""))
+		== HeroShip.ENGINE_ONLINE
+		and command.throttle > 0.0
+		and command.roll > 0.0
+		and _zenith.velocity.length() > 0.5
+	)
+	Input.action_release(&"move_forward")
+	Input.action_release(&"roll_right")
+	return accepted
 
 
 func _set_camera_local(
@@ -1073,12 +1125,16 @@ func _settle_render(frame_count: int) -> void:
 
 
 func _dispose_game() -> void:
-	Input.action_release("move_forward")
-	Input.action_release("roll_right")
+	_release_flight_controls()
 	if is_instance_valid(_game):
 		_game.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _release_flight_controls() -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
 
 
 func _check(condition: bool, description: String) -> void:

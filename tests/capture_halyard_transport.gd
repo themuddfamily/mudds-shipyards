@@ -18,6 +18,10 @@ extends SceneTree
 const OUTPUT_DIR := "res://artifacts"
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const FLIGHT_CONTROL_ACTIONS: Array[StringName] = [
+	&"move_forward", &"move_back", &"move_left", &"move_right", &"hover",
+	&"fire", &"sprint_boost", &"jump",
+]
 
 var _failures: Array[String] = []
 var _captured := 0
@@ -62,8 +66,12 @@ func _capture_staged_craft() -> void:
 	await physics_frame
 	await physics_frame
 	craft.global_position = Vector3.ZERO
-	# Engines running, so the four tail plumes and their lights are in frame.
-	craft.request_engine_start()
+	# Accepted production hover demand keeps all four tail plumes and their lights
+	# live without translating or banking the fixed review composition.
+	_check(
+		await _wake_engine_with_hover(craft),
+		"accepted hover demand wakes the staged transport ONLINE in one physics tick"
+	)
 	await _frames(6)
 
 	_camera = Camera3D.new()
@@ -151,6 +159,8 @@ func _capture_staged_craft() -> void:
 	await _frames(6)
 	await _capture("halyard_aft_systems_bay.png")
 
+	_release_flight_controls()
+	craft.set_piloted(false)
 	await _dispose(world)
 
 
@@ -304,6 +314,24 @@ func _capture(file_name: String) -> void:
 func _frames(count: int) -> void:
 	for _index in count:
 		await process_frame
+
+
+func _wake_engine_with_hover(craft: HeroShip) -> bool:
+	_release_flight_controls()
+	craft.set_piloted(true)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	return (
+		StringName(craft.get_telemetry().get("engine_state", &""))
+		== HeroShip.ENGINE_ONLINE
+		and craft.get_last_ship_command().hover
+	)
+
+
+func _release_flight_controls() -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
 
 
 func _dispose(node: Node) -> void:

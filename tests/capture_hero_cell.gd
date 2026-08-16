@@ -7,14 +7,17 @@ extends SceneTree
 ## adds a HUD, reticle, toast, or CanvasLayer and never replaces production art.
 ##
 ## Set KETH_CAPTURE_HERO_CELL_PARSE_ONLY=1 to validate the script without
-## opening a renderer or touching artifacts/hero_cell. The production capture is
-## intentionally run only after the art/source freeze has been declared stable.
+## opening a renderer or touching artifacts/hero_cell. Set
+## KETH_CAPTURE_HERO_CELL_STAGING_ONLY=1 to execute only the real automatic
+## propulsion wake and 1.5-second neutral shutdown route. The production capture
+## is intentionally run only after the art/source freeze has been declared stable.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const PILOT_SCENE := preload("res://scenes/player/player.tscn")
 
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_HERO_CELL_PARSE_ONLY"
+const STAGING_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_HERO_CELL_STAGING_ONLY"
 const OUTPUT_DIR := "res://artifacts/hero_cell"
 const EVIDENCE_MANIFEST_PATH := OUTPUT_DIR + "/evidence_manifest.json"
 const SOURCE_MANIFEST_PATH := OUTPUT_DIR + "/source_manifest.sha256"
@@ -191,6 +194,11 @@ const COCKPIT_DIFFERENTIAL_SETTLE_FRAMES := 8
 ## Simulated frames granted on top of a nominal duration, so a condition that
 ## settles right on the edge of its budget is not lost to rounding.
 const FRAME_BUDGET_GRACE := 30
+const AUTOMATIC_ENGINE_IDLE_SHUTDOWN_GRACE_FRAMES := 3
+const FLIGHT_CONTROL_ACTIONS: Array[StringName] = [
+	&"move_forward", &"move_back", &"move_left", &"move_right", &"hover",
+	&"fire", &"sprint_boost", &"jump",
+]
 
 const SHIP_MASK_GRID := Vector2i(128, 72)
 const SHIP_MASK_MINIMUM_SAMPLES := 120
@@ -241,6 +249,9 @@ func _run() -> void:
 	if OS.get_environment(PARSE_ONLY_ENVIRONMENT_VARIABLE) == "1":
 		print("HERO_CELL_CAPTURE_PARSE_OK: 18-frame v5 acceptance inventory")
 		quit(0)
+		return
+	if OS.get_environment(STAGING_ONLY_ENVIRONMENT_VARIABLE) == "1":
+		await _run_automatic_propulsion_witness()
 		return
 
 	_configure_native_capture()
@@ -533,9 +544,10 @@ func _run() -> void:
 		"source_depth_layers_per_side": 5,
 	}, &"aft_fixed")
 
-	_torrent.engine_start_time = 0.01
-	_torrent.request_engine_start()
-	_check(await _wait_for_engine_state(&"ONLINE"), "Torrent reaches engine-online for powered evidence")
+	_check(
+		await _wake_engine_with_hover(_evidence_camera),
+		"accepted hover demand wakes Torrent ONLINE in one physics tick"
+	)
 	await _settle_render(8)
 	await _capture_frame(CAPTURE_FILES[11], &"aft_engines_online", {
 		"engine_state": "online",
@@ -566,8 +578,10 @@ func _run() -> void:
 	})
 
 	# 15 — Close UV/PBR material crop under capture-only neutral key/fill/rim.
-	_torrent.request_engine_stop(false)
-	_check(await _wait_for_engine_state(&"OFFLINE"), "neutral material crop is engine-offline")
+	_check(
+		await _idle_engine_offline(),
+		"neutral material crop reaches OFFLINE on the exact production 1.5-second physics clock"
+	)
 	_hero_presentation.update_lod_for_distance(0.0)
 	await process_frame
 	_validate_active_lod(0, 0.0)
@@ -612,9 +626,10 @@ func _run() -> void:
 		"world_presentation_tick": "capture_only_frozen_for_pixel_differential",
 	}, &"cockpit_fixed")
 
-	_torrent.engine_start_time = 0.01
-	_torrent.request_engine_start()
-	_check(await _wait_for_engine_state(&"ONLINE"), "fixed cockpit reaches engine-online")
+	_check(
+		await _wake_engine_with_hover(cockpit_camera),
+		"accepted cockpit hover demand wakes Torrent ONLINE in one physics tick"
+	)
 	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
 	await _capture_frame(CAPTURE_FILES[16], &"cockpit_online", {
 		"engine_state": "online",
@@ -655,6 +670,7 @@ func _run() -> void:
 	if _failures.is_empty():
 		_publish_capture_transaction()
 
+	_release_flight_controls()
 	_torrent.set_piloted(false)
 	_stage.queue_free()
 	await process_frame
@@ -1224,13 +1240,76 @@ func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 	return true
 
 
-func _wait_for_engine_state(expected: StringName, timeout_frames: int = 180) -> bool:
-	for _frame_index in timeout_frames:
-		if StringName(_torrent.get_telemetry().get("engine_state", &"")) == expected:
+func _run_automatic_propulsion_witness() -> void:
+	_torrent = TORRENT_SCENE.instantiate() as HeroShip
+	_check(_torrent != null, "production Torrent instantiates for automatic propulsion staging")
+	if _torrent == null:
+		quit(1)
+		return
+	root.add_child(_torrent)
+	_evidence_camera = Camera3D.new()
+	root.add_child(_evidence_camera)
+	_check(
+		await _wake_engine_with_hover(_evidence_camera),
+		"accepted hover demand wakes Torrent ONLINE in one physics tick"
+	)
+	_check(
+		await _idle_engine_offline(),
+		"neutral demand reaches OFFLINE on the exact production 1.5-second physics clock"
+	)
+	_release_flight_controls()
+	_torrent.set_piloted(false)
+	_torrent.queue_free()
+	_evidence_camera.queue_free()
+	await process_frame
+	if _failures.is_empty():
+		print("HERO_CELL_AUTOMATIC_PROPULSION_STAGING_OK")
+	quit(0 if _failures.is_empty() else 1)
+
+
+func _wake_engine_with_hover(active_camera: Camera3D) -> bool:
+	_release_flight_controls()
+	_torrent.set_piloted(true)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		StringName(_torrent.get_telemetry().get("engine_state", &""))
+		== HeroShip.ENGINE_ONLINE
+		and _torrent.get_last_ship_command().hover
+	)
+	if is_instance_valid(active_camera):
+		active_camera.current = true
+	return accepted
+
+
+func _idle_engine_offline() -> bool:
+	_release_flight_controls()
+	# HeroShip's own physics idle clock commits the stop. This loop only provides
+	# a finite observation budget; it owns no second timer and cannot stop the
+	# engine directly.
+	var frame_budget := (
+		int(ceil(
+			HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
+			* float(Engine.physics_ticks_per_second)
+		))
+		+ AUTOMATIC_ENGINE_IDLE_SHUTDOWN_GRACE_FRAMES
+	)
+	for _frame_index in frame_budget:
+		if (
+			StringName(_torrent.get_telemetry().get("engine_state", &""))
+			== HeroShip.ENGINE_OFFLINE
+		):
+			_evidence_camera.current = true
 			return true
 		await physics_frame
-		await process_frame
-	return StringName(_torrent.get_telemetry().get("engine_state", &"")) == expected
+	_evidence_camera.current = true
+	return false
+
+
+func _release_flight_controls() -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
 
 
 func _capture_frame(
