@@ -72,6 +72,7 @@ const REQUIRED_ROUTE_SURFACES := [
 	["", "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckB"],
 	["", "ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC"],
 	["", "ExposedDockLattice/ObservationLogisticsConnector/ConnectorDeck"],
+	["", "ExposedDockLattice/SalvageTerraceConnector/ConnectorDeck"],
 	["", "OpenLaunchSpine/LaunchArmDeck"],
 	["", "UpperOperations/ObservationLanding"],
 	["", "UpperOperations/OperationsPodFloor"],
@@ -108,6 +109,12 @@ const REQUIRED_ROUTE_SURFACES := [
 	["ObservationLogisticsSpur", "Structure/Walkable/ObservationPad"],
 	["ObservationLogisticsSpur", "Structure/Walkable/LogisticsPad"],
 	["ObservationLogisticsSpur", "Structure/Walkable/FarReturnBridge"],
+	["SalvageTerrace", "GeneratedRoot/ConnectionApron"],
+	["SalvageTerrace", "GeneratedRoot/LowerSalvagePad"],
+	["SalvageTerrace", "GeneratedRoot/MainServiceRamp"],
+	["SalvageTerrace", "GeneratedRoot/UpperInspectionPad"],
+	["SalvageTerrace", "GeneratedRoot/InspectionRamp"],
+	["SalvageTerrace", "GeneratedRoot/TopInspectionPad"],
 	["VipReceptionSuite", "Structure/Threshold/ThresholdFloor"],
 	["VipReceptionSuite", "Structure/Reception/FloorPlateFront"],
 	["VipReceptionSuite", "Structure/Reception/WellPan"],
@@ -253,6 +260,7 @@ func _run() -> void:
 	await _test_halyard_berth_is_one_continuous_loop(player)
 	await _test_fabrication_annex_round_trip(player)
 	await _test_observation_logistics_round_trip(player)
+	await _test_salvage_terrace_round_trip(player)
 	await _test_boarding_prompt_is_offered_all_round_each_craft(game, player)
 	await _test_pod_decks_can_be_walked_into(player)
 	await _test_aft_stair_base_is_not_fenced_off(player)
@@ -901,6 +909,102 @@ func _test_observation_logistics_round_trip(player: PlayerController) -> void:
 		and minimum_y >= 0.30 \
 		and player.global_position.distance_to(initial) <= 0.85,
 		"the real production Player walks from Fabrication through both Observation pads, around the far bridge, and back without jumping"
+	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
+
+
+## Production Player traversal from Fabrication's port work bay through its real
+## north-service gate, the 3.9312 m2 connector, the spatially separate lower
+## salvage pad, both broad ramps, and the top inspection pad, then back along the
+## same physical route. There is one staging teleport and no jump input.
+func _test_salvage_terrace_round_trip(player: PlayerController) -> void:
+	var route := PackedVector3Array([
+		Vector3(83.0, 0.78, 45.0),
+		Vector3(83.0, 0.78, 50.5),
+		Vector3(84.0, 0.78, 51.8),
+		Vector3(84.0, 0.78, 52.455),
+		Vector3(84.0, 0.78, 56.91),
+		Vector3(78.3, 0.78, 59.91),
+		Vector3(72.0, 0.78, 59.91),
+		Vector3(78.3, 0.78, 59.91),
+		Vector3(84.0, 0.78, 57.91),
+		Vector3(89.6, 0.78, 57.91),
+		Vector3(98.4, 4.38, 57.91),
+		Vector3(102.0, 4.38, 57.91),
+		Vector3(107.0, 4.38, 61.9),
+		Vector3(107.0, 4.38, 63.1),
+		Vector3(107.0, 6.18, 67.1),
+		Vector3(107.0, 6.18, 68.91),
+		Vector3(107.0, 6.18, 67.1),
+		Vector3(107.0, 4.38, 63.1),
+		Vector3(107.0, 4.38, 61.9),
+		Vector3(102.0, 4.38, 57.91),
+		Vector3(98.4, 4.38, 57.91),
+		Vector3(89.6, 0.78, 57.91),
+		Vector3(84.0, 0.78, 56.91),
+		Vector3(84.0, 0.78, 52.455),
+		Vector3(84.0, 0.78, 51.8),
+		Vector3(83.0, 0.78, 50.5),
+		Vector3(83.0, 0.78, 45.0),
+	])
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+		Input.action_release(action)
+	player.teleport_to(Transform3D(Basis.IDENTITY, route[0]))
+	for _settle in 10:
+		await physics_frame
+	var initial := player.global_position
+	var failed_legs := PackedStringArray()
+	var results := PackedStringArray()
+	var minimum_y := initial.y
+	var maximum_y := initial.y
+	for route_index in range(1, route.size()):
+		var target := route[route_index]
+		var direction := target - player.global_position
+		direction.y = 0.0
+		if direction.length_squared() <= 0.0001:
+			continue
+		direction = direction.normalized()
+		var facing := player.global_transform
+		facing.basis = Basis.looking_at(direction, Vector3.UP)
+		player.global_transform = facing
+		var reached := false
+		var stuck_frames := 0
+		var previous := player.global_position
+		Input.action_press(&"move_forward")
+		for _frame in 480:
+			await physics_frame
+			minimum_y = minf(minimum_y, player.global_position.y)
+			maximum_y = maxf(maximum_y, player.global_position.y)
+			var remaining := target - player.global_position
+			remaining.y = 0.0
+			if remaining.length() <= 0.38 or remaining.dot(direction) <= 0.0:
+				reached = true
+				break
+			if player.global_position.distance_to(previous) < 0.005:
+				stuck_frames += 1
+				if stuck_frames >= 45:
+					break
+			else:
+				stuck_frames = 0
+			previous = player.global_position
+		Input.action_release(&"move_forward")
+		await physics_frame
+		results.append("%02d final=%s target=%s reached=%s stuck=%d" % [
+			route_index, player.global_position, target, reached, stuck_frames,
+		])
+		if not reached:
+			failed_legs.append("leg %d stopped at %s before %s" % [route_index, player.global_position, target])
+			break
+	print("SALVAGE_TERRACE_PLAYER_ROUND_TRIP: start=%s final=%s min_y=%.3f max_y=%.3f legs=%s" % [
+		initial, player.global_position, minimum_y, maximum_y, results,
+	])
+	_check(
+		failed_legs.is_empty() \
+		and minimum_y >= 0.30 \
+		and maximum_y >= 5.75 \
+		and player.global_position.distance_to(initial) <= 0.85,
+		"the real production Player walks Fabrication to the lower Salvage pad, climbs both ramps to the top, and returns without jumping"
 	)
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
 	await physics_frame

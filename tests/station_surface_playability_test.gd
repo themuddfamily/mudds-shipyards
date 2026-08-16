@@ -22,6 +22,7 @@ const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckB",
 	"ExposedDockLattice/FabricationAnnexConnector/ConnectorDeckC",
 	"ExposedDockLattice/ObservationLogisticsConnector/ConnectorDeck",
+	"ExposedDockLattice/SalvageTerraceConnector/ConnectorDeck",
 	# HALYARD-DECK-001. Fleet Dock 02's berth apron. The comb's 12 x 12 m tooth is
 	# the middle of this pad, not the whole of it: the 28.35 m Halyard needs deck
 	# fore and aft of it, and a player needs a loop round the craft.
@@ -94,6 +95,15 @@ const OBSERVATION_LOGISTICS_SURFACE_PATHS := [
 	"Structure/Walkable/FarReturnBridge",
 ]
 
+const SALVAGE_TERRACE_SURFACE_PATHS := [
+	"GeneratedRoot/ConnectionApron",
+	"GeneratedRoot/LowerSalvagePad",
+	"GeneratedRoot/MainServiceRamp",
+	"GeneratedRoot/UpperInspectionPad",
+	"GeneratedRoot/InspectionRamp",
+	"GeneratedRoot/TopInspectionPad",
+]
+
 var _failures: Array[String] = []
 
 
@@ -126,6 +136,7 @@ func _run() -> void:
 	_test_collision_backed_surface_roster(world)
 	_test_fabrication_annex_siting(world)
 	_test_observation_logistics_siting(world, game.get_flyable_ships())
+	await _test_salvage_terrace_siting(world, game.get_flyable_ships())
 	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
 	await _test_discovered_walkable_surface_support(world)
@@ -138,6 +149,8 @@ func _run() -> void:
 		await _capture_fabrication_integration_frame(game, world)
 	if OS.get_cmdline_user_args().has("--capture-observation-integration"):
 		await _capture_observation_integration_frame(game, world)
+	if OS.get_cmdline_user_args().has("--capture-salvage-integration"):
+		await _capture_salvage_integration_frame(game, world)
 
 	_release_actions()
 	game.queue_free()
@@ -154,7 +167,8 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 	var comb := world.get_node_or_null(^"FleetDockComb") as FleetDockComb
 	var fabrication := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
 	var observation := world.get_node_or_null(^"ObservationLogisticsSpur") as ObservationLogisticsSpur
-	_check(aft != null and habitat != null and freight != null and comb != null and fabrication != null and observation != null, "all reachable station modules resolve for surface coverage")
+	var salvage := world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
+	_check(aft != null and habitat != null and freight != null and comb != null and fabrication != null and observation != null and salvage != null, "all reachable station modules resolve for surface coverage")
 
 	var every_surface_exact := _surface_roster_matches(world, WORLD_SURFACE_PATHS)
 	if aft != null:
@@ -169,7 +183,9 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(fabrication, FABRICATION_SURFACE_PATHS) and every_surface_exact
 	if observation != null:
 		every_surface_exact = _surface_roster_matches(observation, OBSERVATION_LOGISTICS_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 63 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	if salvage != null:
+		every_surface_exact = _surface_roster_matches(salvage, SALVAGE_TERRACE_SURFACE_PATHS) and every_surface_exact
+	_check(every_surface_exact, "all 70 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
@@ -364,7 +380,7 @@ func _test_fabrication_annex_siting(world: ShipyardWorld) -> void:
 		and rear_cross != null
 		and rear_cross.global_position.is_equal_approx(Vector3(91.0, 0.53, 38.0))
 		and not rear_cross.has_meta(&"station_connection_slot"),
-		"north service gate and rear-cross markers remain exact internal-only seams for later integrations"
+		"north service gate remains the exact built Salvage handoff while rear-cross remains an internal-only Observation seam"
 	)
 
 	var smallest_berth_gap := INF
@@ -709,6 +725,268 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 	var audit := spur.get_audit_report()
 	print("OBSERVATION_PRODUCTION_AUDIT: ", audit)
 	_check(bool(audit.valid) and is_equal_approx(float(audit.walkable_area_m2), 426.0), "production Observation audit stays valid with its exact 426 m2 standalone surface union")
+
+
+func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) -> void:
+	var salvage := world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
+	var connector := world.get_node_or_null(^"ExposedDockLattice/SalvageTerraceConnector") as Node3D
+	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	_check(salvage != null and connector != null and annex != null, "production Salvage Terrace, connector, and Fabrication service seam resolve")
+	if salvage == null or connector == null or annex == null:
+		return
+	var expected_transform := Transform3D(Basis.IDENTITY, Vector3(84.0, 0.38, 52.91))
+	_check(salvage.global_transform.is_equal_approx(expected_transform), "Salvage Terrace keeps the reviewed identity-yaw placement at (84, 0.38, 52.91)")
+	var local_footprint := salvage.get_integration_footprint()
+	var footprint := (salvage.global_transform * AABB(
+		local_footprint.local_min as Vector3,
+		(local_footprint.local_max as Vector3) - (local_footprint.local_min as Vector3)
+	)).abs()
+	_check(
+		footprint.position.is_equal_approx(Vector3(65.9, -1.42, 52.21))
+		and footprint.end.is_equal_approx(Vector3(111.3, 7.48, 71.01)),
+		"Salvage footprint is exactly x=65.9..111.3, y=-1.42..7.48, z=52.21..71.01"
+	)
+
+	var deck := connector.get_node_or_null(^"ConnectorDeck") as StaticBody3D
+	var deck_shape := _body_box_shape(deck)
+	var connector_exact := deck != null \
+		and deck.position.is_equal_approx(Vector3(84.0, 0.18, 52.455)) \
+		and deck_shape != null \
+		and deck_shape.size.is_equal_approx(Vector3(4.32, 0.40, 0.91)) \
+		and bool(deck.get_meta(&"walkable_surface", false)) \
+		and StringName(deck.get_meta(&"walkable_surface_id", &"")) == &"salvage_terrace_connector" \
+		and StringName(deck.get_meta(&"walkable_surface_kind", &"")) == &"level" \
+		and StringName(deck.get_meta(&"walkable_surface_owner", &"")) == &"station_hub" \
+		and is_equal_approx(float(deck.get_meta(&"horizontal_area_m2", -1.0)), 3.9312)
+	for rail_spec in [
+		["ConnectorRailWest", Vector3(81.92, 1.03, 52.45)],
+		["ConnectorRailEast", Vector3(86.08, 1.03, 52.45)],
+	]:
+		var rail := connector.get_node_or_null(NodePath(rail_spec[0] as String)) as StaticBody3D
+		var rail_shape := _body_box_shape(rail)
+		connector_exact = connector_exact \
+			and rail != null \
+			and rail.position.is_equal_approx(rail_spec[1] as Vector3) \
+			and rail_shape != null \
+			and rail_shape.size.is_equal_approx(Vector3(0.16, 1.30, 0.76)) \
+			and not bool(rail.get_meta(&"walkable_surface", false))
+	_check(
+		connector_exact,
+		"Salvage handoff is the exact tagged 3.9312 m2 deck with two exact rails and 4.0 m clear width"
+	)
+
+	# The graph endpoint remains world-owned, while the only promoted Fabrication
+	# route is its actual north service marker at the physical seam. The anchor is
+	# 0.09 m inside the Fabrication deck solely to preserve the courier component's
+	# honest one-metre minimum route without inventing another waypoint.
+	var route_anchor := connector.get_node_or_null(^"RouteAnchor") as Node3D
+	var service_marker := annex.get_route_marker(&"annex_port_service")
+	var module_connector := salvage.get_route_marker(&"connector")
+	var fabrication_floor := annex.get_node_or_null(^"GeneratedAnnex/PortSideBypass") as StaticBody3D
+	var salvage_apron := salvage.get_node_or_null(^"GeneratedRoot/ConnectionApron") as StaticBody3D
+	var support_boxes := [
+		_collision_body_box(fabrication_floor),
+		_collision_body_box(deck),
+		_collision_body_box(salvage_apron),
+	]
+	var route_continuous := route_anchor != null \
+		and service_marker != null \
+		and module_connector != null \
+		and route_anchor.global_position.is_equal_approx(Vector3(84.0, 0.53, 51.91)) \
+		and service_marker.global_position.is_equal_approx(Vector3(84.0, 0.53, 52.0)) \
+		and module_connector.global_position.is_equal_approx(Vector3(84.0, 0.53, 52.91)) \
+		and is_equal_approx(route_anchor.global_position.distance_to(module_connector.global_position), 1.0) \
+		and connector.is_ancestor_of(route_anchor) \
+		and not annex.is_ancestor_of(route_anchor) \
+		and not salvage.is_ancestor_of(route_anchor) \
+		and not service_marker.has_meta(&"station_connection_slot")
+	for sample_index in 21:
+		var sample_z := 51.91 + float(sample_index) * 0.05
+		var supported := false
+		for support_box_variant in support_boxes:
+			var support_box := support_box_variant as AABB
+			if 84.0 >= support_box.position.x - 0.001 \
+					and 84.0 <= support_box.end.x + 0.001 \
+					and sample_z >= support_box.position.z - 0.001 \
+					and sample_z <= support_box.end.z + 0.001:
+				supported = true
+		route_continuous = route_continuous and supported
+	_check(
+		route_continuous,
+		"Fabrication north-service marker through the world anchor, connector, and Salvage origin is continuously collision-backed"
+	)
+	var connection_slots: Array = salvage.get_connection_slot_contract()
+	var slot_exact := connection_slots.size() == 1 \
+		and StringName((connection_slots[0] as Dictionary).get("slot_id", &"")) == &"hub-salvage-terrace" \
+		and StringName((connection_slots[0] as Dictionary).get("route_id", &"")) == &"connector"
+	for route_id in salvage.get_route_ids():
+		var marker := salvage.get_route_marker(route_id)
+		slot_exact = slot_exact and marker != null \
+			and (marker.has_meta(&"station_connection_slot") == (route_id == &"connector"))
+	_check(slot_exact, "Salvage publishes only its honest local-origin connector slot; all six internal routes remain non-slots")
+
+	var owned_bodies: Array[StaticBody3D] = []
+	for candidate in connector.find_children("*", "StaticBody3D", true, false):
+		owned_bodies.append(candidate as StaticBody3D)
+	for candidate in salvage.find_children("*", "StaticBody3D", true, false):
+		owned_bodies.append(candidate as StaticBody3D)
+	var intrusions := PackedStringArray()
+	for raw_other in world.find_children("*", "StaticBody3D", true, false):
+		var other := raw_other as StaticBody3D
+		if connector.is_ancestor_of(other) or salvage.is_ancestor_of(other):
+			continue
+		var other_box := _collision_body_box(other)
+		if not other_box.has_volume():
+			continue
+		for owned in owned_bodies:
+			var overlap := _aabb_overlap_depth(_collision_body_box(owned), other_box)
+			if overlap.x > 0.002 and overlap.y > 0.002 and overlap.z > 0.002:
+				intrusions.append("%s <> %s depth=%s" % [owned.get_path(), other.get_path(), overlap])
+	intrusions.sort()
+	print("SALVAGE_GEOMETRY_INTRUSIONS: ", intrusions)
+	_check(intrusions.is_empty(), "Salvage and connector collision have no positive-volume intersection with unrelated station geometry")
+	var handoff_overlap := _aabb_overlap_depth(_collision_body_box(deck), _collision_body_box(salvage_apron))
+	_check(
+		handoff_overlap.x > 3.99 and handoff_overlap.y > 0.0 and absf(handoff_overlap.z) <= 0.001,
+		"connector and Salvage apron share only their exact four-metre boundary plane"
+	)
+
+	var owned_boxes: Array[AABB] = []
+	for body in owned_bodies:
+		var box := _collision_body_box(body)
+		if box.has_volume():
+			owned_boxes.append(box)
+	var smallest_berth_gap := INF
+	for berth_id in world.get_berth_ids():
+		var berth := world.get_berth_node(berth_id)
+		var half := berth.get_landing_half_extents()
+		var berth_box := (berth.get_dock_transform() * AABB(-half, half * 2.0)).abs()
+		for owned_box in owned_boxes:
+			smallest_berth_gap = minf(smallest_berth_gap, _aabb_separation(berth_box, owned_box))
+
+	# Use every enabled physical root shape, rather than a nominal craft AABB, for
+	# both the parked fleet and 21 actual Halyard assist-path attitudes.
+	var craft_shape_count := 0
+	var craft_intrusions := PackedStringArray()
+	var smallest_craft_gap := INF
+	var halyard_ship: HalyardCrewTransport
+	for ship in ships:
+		if ship is HalyardCrewTransport:
+			halyard_ship = ship as HalyardCrewTransport
+		for raw_shape in ship.find_children("*", "CollisionShape3D", true, false):
+			var collision := raw_shape as CollisionShape3D
+			if collision.get_parent() != ship or collision.disabled or collision.shape == null:
+				continue
+			craft_shape_count += 1
+			var craft_box := _transformed_aabb(collision.global_transform, _shape_local_bounds(collision.shape))
+			for owned_box in owned_boxes:
+				var overlap := _aabb_overlap_depth(craft_box, owned_box)
+				if overlap.x > 0.0 and overlap.y > 0.0 and overlap.z > 0.0:
+					craft_intrusions.append("%s/%s depth=%s" % [ship.name, collision.name, overlap])
+				else:
+					smallest_craft_gap = minf(smallest_craft_gap, _aabb_separation(craft_box, owned_box))
+	var assist_shape_count := 0
+	var assist_sample_count := 0
+	var assist_intrusions := PackedStringArray()
+	var smallest_assist_gap := INF
+	var halyard := world.get_berth_node(&"halyard_fleet_dock_berth")
+	if halyard != null and halyard_ship != null:
+		var staging := halyard.get_assist_staging_transform()
+		var docked := halyard.get_dock_transform()
+		var halyard_shapes: Array[CollisionShape3D] = []
+		for raw_shape in halyard_ship.find_children("*", "CollisionShape3D", true, false):
+			var collision := raw_shape as CollisionShape3D
+			if collision.get_parent() == halyard_ship and not collision.disabled and collision.shape != null:
+				halyard_shapes.append(collision)
+		assist_shape_count = halyard_shapes.size()
+		for sample_index in 21:
+			var sample_root := staging.interpolate_with(docked, float(sample_index) / 20.0)
+			for collision in halyard_shapes:
+				assist_sample_count += 1
+				var sample_box := _transformed_aabb(
+					sample_root * collision.transform, _shape_local_bounds(collision.shape)
+				)
+				for owned_box in owned_boxes:
+					var overlap := _aabb_overlap_depth(sample_box, owned_box)
+					if overlap.x > 0.0 and overlap.y > 0.0 and overlap.z > 0.0:
+						assist_intrusions.append("%s sample=%d depth=%s" % [collision.name, sample_index, overlap])
+					else:
+						smallest_assist_gap = minf(smallest_assist_gap, _aabb_separation(sample_box, owned_box))
+	var capture_overlap_count := 0
+	var smallest_capture_gap := INF
+	if halyard != null:
+		var capture_half := halyard.get_assist_capture_half_extents()
+		var capture_box := (halyard.get_assist_capture_transform() * AABB(-capture_half, capture_half * 2.0)).abs()
+		for owned_box in owned_boxes:
+			var overlap := _aabb_overlap_depth(capture_box, owned_box)
+			if overlap.x > 0.0 and overlap.y > 0.0 and overlap.z > 0.0:
+				capture_overlap_count += 1
+			else:
+				smallest_capture_gap = minf(smallest_capture_gap, _aabb_separation(capture_box, owned_box))
+	print(
+		"SALVAGE_CLEARANCES: berth=%.6f craft=%.6f craft_shapes=%d assist=%.6f assist_shapes=%d assist_samples=%d capture=%.6f capture_overlaps=%d" % [
+			smallest_berth_gap, smallest_craft_gap, craft_shape_count,
+			smallest_assist_gap, assist_shape_count, assist_sample_count,
+			smallest_capture_gap, capture_overlap_count,
+		]
+	)
+	_check(
+		ships.size() == 5 and craft_shape_count == 82 and craft_intrusions.is_empty(),
+		"all 82 enabled physical shapes across all five parked production craft clear Salvage and its connector"
+	)
+	_check(
+		absf(smallest_berth_gap - 21.919998) <= 0.00001,
+		"Salvage and connector keep the exact measured 21.919998 m minimum from authoritative berth volumes"
+	)
+	_check(
+		assist_shape_count == 20 and assist_sample_count == 420 \
+		and assist_intrusions.is_empty() \
+		and absf(smallest_assist_gap - 24.550051) <= 0.00001 \
+		and absf(smallest_craft_gap - 24.550051) <= 0.00001,
+		"all 20 Halyard shapes clear Salvage throughout 21 samples of the real staging-to-dock assist path by more than 10 m"
+	)
+	_check(
+		capture_overlap_count == 0 and absf(smallest_capture_gap - 4.919998) <= 0.00001,
+		"even Halyard's broad assist-capture volume retains the exact measured 4.919998 m gap to Salvage"
+	)
+
+	var audit := salvage.get_audit_report()
+	var area := audit.get("walkable_area", {}) as Dictionary
+	var authority := audit.get("authority", {}) as Dictionary
+	var performance := audit.get("performance", {}) as Dictionary
+	print("SALVAGE_PRODUCTION_AUDIT: ", audit)
+	_check(
+		bool(audit.valid) \
+		and is_equal_approx(float(area.horizontal_walkable_area_m2), 456.0) \
+		and is_equal_approx(float(area.ramp_projected_area_m2), 72.0) \
+		and absf(float(area.ramp_true_area_m2) - 78.954163) <= 0.00001 \
+		and bool(performance.exact_census) \
+		and bool(performance.within_budget),
+		"production Salvage audit preserves its exact 456 m2 projected / 462.954163 m2 true standalone surface contract and budgets"
+	)
+	_check(
+		(authority.authority_ids as PackedStringArray).is_empty() \
+		and int(authority.ship_berth_count) == 0 \
+		and int(authority.landing_or_interaction_area_count) == 0 \
+		and int(authority.audio_node_count) == 0 \
+		and int(authority.activity_node_count) == 0 \
+		and int(authority.ship_authority_count) == 0 \
+		and int(authority.berth_authority_count) == 0 \
+		and int(authority.combat_authority_count) == 0 \
+		and int(authority.interaction_authority_count) == 0 \
+		and int(authority.station_activity_authority_count) == 0,
+		"production Salvage module owns zero ship, berth, combat, interaction, audio, or activity authority"
+	)
+	var mutation := Area3D.new()
+	mutation.name = "AuthorityMutationProbe"
+	salvage.add_child(mutation)
+	_check(
+		not bool(salvage.get_audit_report().valid),
+		"MUTATION: injecting an interaction-area authority into Salvage turns its production audit red"
+	)
+	salvage.remove_child(mutation)
+	mutation.free()
+	_check(bool(salvage.get_audit_report().valid), "removing the authority mutation returns the production Salvage audit to green")
 
 
 func _collision_body_box(body: StaticBody3D) -> AABB:
@@ -1681,6 +1959,37 @@ func _capture_observation_integration_frame(game: GameFlow, world: ShipyardWorld
 		"exactly one normal-resolution integrated Observation Forward+ frame is captured"
 	)
 	print("OBSERVATION_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
+
+
+func _capture_salvage_integration_frame(game: GameFlow, world: ShipyardWorld) -> void:
+	var salvage := world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
+	var connector := world.get_node_or_null(^"ExposedDockLattice/SalvageTerraceConnector") as Node3D
+	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	_check(salvage != null and connector != null and annex != null, "integrated Forward+ frame resolves Salvage, its world connector, and Fabrication seam")
+	if salvage == null or connector == null or annex == null:
+		return
+	var hud := game.get_node_or_null(^"HUD") as CanvasLayer
+	if hud != null:
+		hud.visible = false
+	var camera := Camera3D.new()
+	camera.name = "SalvageIntegrationEvidenceCamera"
+	camera.position = Vector3(126.0, 32.0, 94.0)
+	camera.look_at_from_position(camera.position, Vector3(88.0, 2.4, 58.0), Vector3.UP)
+	camera.fov = 56.0
+	camera.current = true
+	game.add_child(camera)
+	for _frame in 8:
+		await process_frame
+		await physics_frame
+	await RenderingServer.frame_post_draw
+	var image := root.get_viewport().get_texture().get_image()
+	var output_path := "/tmp/salvage-terrace-integrated-forward-plus.png"
+	var error := image.save_png(output_path)
+	_check(
+		error == OK and image.get_width() >= 1280 and image.get_height() >= 720,
+		"exactly one normal-resolution integrated Salvage Forward+ frame is captured"
+	)
+	print("SALVAGE_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
 
 
 func _check(condition: bool, description: String) -> void:

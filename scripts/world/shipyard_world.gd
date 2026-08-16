@@ -416,7 +416,7 @@ const STATION_DRESSING_SPECS := {
 	&"FreightRackServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/FreightRackServiceDressing"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), "length": 20.0, "profile": &"light", "orientation": &"along_mount_x"},
 }
 const STATION_NAVIGATION_SCHEMA_VERSION := 1
-const EXPECTED_STATION_SERVICE_AGENT_COUNT := 6
+const EXPECTED_STATION_SERVICE_AGENT_COUNT := 7
 const STATION_SERVICE_AGENT_MINIMUM_BERTH_GAP := 0.15
 ## Metres the bottom of a courier's published envelope must clear the highest
 ## waypoint of its own route by. The route markers sit on the connector deck, so
@@ -497,6 +497,16 @@ const STATION_SERVICE_AGENT_SPECS := {
 		"speed": 0.9,
 		"lift": 3.7,
 	},
+	&"salvage-terrace-courier": {
+		"node_name": &"SalvageTerraceServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier"),
+		"slot_id": &"hub-salvage-terrace",
+		"from_node_id": &"station-hub:hub-salvage-terrace",
+		"to_node_id": &"salvage-terrace:connector",
+		"seed": 13861,
+		"speed": 0.85,
+		"lift": 3.7,
+	},
 }
 const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 const STATION_SERVICE_AGENT_SCENE := preload("res://scenes/world/components/station_service_agent.tscn")
@@ -551,6 +561,16 @@ const STATION_HUB_ENDPOINT_DECLARATIONS := [
 		# world-owned anchor is on the real rear-aisle floor immediately behind the
 		# split rail; it never borrows endpoint authority from a module subtree.
 		"anchor_path": "ExposedDockLattice/ObservationLogisticsConnector/RouteAnchor",
+	},
+	{
+		"slot_id": &"hub-salvage-terrace",
+		"expects_module": &"salvage-terrace",
+		"evidence_status": &"modern_interpretation",
+		# This world-owned point is 0.09 m inside Fabrication's real north
+		# service floor. It keeps the declared courier route at the component's
+		# honest 1.0 m minimum while the live service marker at z=52 remains on
+		# the exact seam between that floor and the connector.
+		"anchor_path": "ExposedDockLattice/SalvageTerraceConnector/RouteAnchor",
 	},
 ]
 const CENTRAL_BERTH_HERO_PRESENTATION_SCENE := preload(
@@ -711,6 +731,7 @@ const SKY_DUST_SCALE := 3.4
 @onready var fleet_dock_comb: FleetDockComb = $FleetDockComb
 @onready var fabrication_annex: FabricationAnnex = $FabricationAnnex
 @onready var observation_logistics_spur: ObservationLogisticsSpur = $ObservationLogisticsSpur
+@onready var salvage_terrace: SalvageTerrace = $SalvageTerrace
 @onready var nearby_sector_cluster: NearbySectorCluster = $NearbySectorCluster
 
 var _materials: Dictionary = {}
@@ -1646,7 +1667,7 @@ func get_station_navigation_audit_report() -> Dictionary:
 	if not _instance_id_sets_match(registered_agent_instance_ids, live_agent_instance_ids):
 		errors.append("station service agent registry does not match the live world hierarchy")
 	if _station_service_agents.size() != EXPECTED_STATION_SERVICE_AGENT_COUNT:
-		errors.append("station must integrate exactly six declared-slot service couriers")
+		errors.append("station must integrate exactly seven declared-slot service couriers")
 
 	var berth_volumes: Array[AABB] = []
 	for berth_id in get_berth_ids():
@@ -4081,6 +4102,48 @@ func _build_architecture() -> void:
 			rail_spec[0] as String,
 			rail_spec[1] as Vector3,
 			Vector3(0.5, 1.24, 0.16),
+			_materials["ivory"]
+		)
+
+	# SALVAGE-TERRACE-INTEGRATION-001. Fabrication's deliberately open north
+	# service gate ends at z=52. This exact 3.9312 m2 world-owned deck crosses the
+	# 0.91 m gap to Salvage Terrace's four-metre origin opening. The route anchor
+	# begins on the live Fabrication port-side bypass, rather than borrowing a
+	# marker or endpoint from either module subtree.
+	var salvage_connector := Node3D.new()
+	salvage_connector.name = "SalvageTerraceConnector"
+	salvage_connector.set_meta(&"evidence_status", &"modern_interpretation")
+	salvage_connector.set_meta(&"connects_station_module", &"salvage-terrace")
+	shell.add_child(salvage_connector)
+	var salvage_route_anchor := Node3D.new()
+	salvage_route_anchor.name = "RouteAnchor"
+	salvage_route_anchor.position = Vector3(84.0, 0.53, 51.91)
+	salvage_route_anchor.set_meta(&"station_hub_route_anchor", true)
+	salvage_route_anchor.set_meta(
+		&"route_support", &"fabrication_port_service_to_salvage_connector"
+	)
+	salvage_connector.add_child(salvage_route_anchor)
+	var salvage_connector_deck := _box(
+		salvage_connector,
+		"ConnectorDeck",
+		Vector3(84.0, 0.18, 52.455),
+		Vector3(4.32, 0.40, 0.91),
+		_materials["deck_light"]
+	)
+	salvage_connector_deck.set_meta(&"walkable_surface", true)
+	salvage_connector_deck.set_meta(&"walkable_surface_id", &"salvage_terrace_connector")
+	salvage_connector_deck.set_meta(&"walkable_surface_kind", &"level")
+	salvage_connector_deck.set_meta(&"walkable_surface_owner", &"station_hub")
+	salvage_connector_deck.set_meta(&"horizontal_area_m2", 3.9312)
+	for rail_spec in [
+		["ConnectorRailWest", Vector3(81.92, 1.03, 52.45)],
+		["ConnectorRailEast", Vector3(86.08, 1.03, 52.45)],
+	]:
+		_box(
+			salvage_connector,
+			rail_spec[0] as String,
+			rail_spec[1] as Vector3,
+			Vector3(0.16, 1.30, 0.76),
 			_materials["ivory"]
 		)
 

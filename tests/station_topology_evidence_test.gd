@@ -28,6 +28,7 @@ const ORIGIN_TOLERANCE := 0.02
 const MODULE_NODE_NAMES := [
 	"AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth",
 	"ObservationLogisticsSpur",
+	"SalvageTerrace",
 ]
 
 ## Evidence statuses a station module is allowed to publish. Every entry either
@@ -100,17 +101,18 @@ func _test_document_tables_parse(documented: Dictionary) -> void:
 	var deferred := documented.get("deferred", []) as Array
 	var berths := documented.get("berths", []) as Array
 	_check(totals.size() == 11, "the documented totals table publishes all eleven live registry quantities")
-	_check(edges.size() == 6, "the documented edge table publishes six station edges")
-	_check(routes.size() == 6, "the documented route roster table publishes six modules")
-	# 5 -> 4 -> 6 -> 8. The habitat side branch left this table when its door was
+	_check(edges.size() == 7, "the documented edge table publishes seven station edges")
+	_check(routes.size() == 7, "the documented route roster table publishes seven modules")
+	# 5 -> 4 -> 6 -> 8 -> 7. The habitat side branch left this table when its door was
 	# unlocked onto a built room; Fabrication adds two explicit internal-only
 	# service gates to the Aft VIP access and three comb dock thresholds, and
-	# Observation adds its two deferred internal pad routes.
+	# Observation adds its two deferred internal pad routes; Salvage then builds
+	# Fabrication's north service handoff, removing that marker from this table.
 	# Cross-checked by `_compare_deferred`, which requires
 	# every `dead_ends` entry in the route roster to be described here, so the
 	# habitat's `dead_ends` cell had to empty in the same edit or this would have
 	# gone red from the other side.
-	_check(deferred.size() == 8, "the documented deferred-landmark table publishes eight landmarks")
+	_check(deferred.size() == 7, "the documented deferred-landmark table publishes seven landmarks")
 	_check(berths.size() == 5, "the documented berth table publishes five production berths")
 
 

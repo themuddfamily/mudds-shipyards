@@ -2,9 +2,12 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_walkable_area_census.gd")
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
-const EXPECTED_GROSS_PROJECTED_M2 := 8110.199985
-const EXPECTED_COUNTED_PROJECTED_M2 := 7856.844419
-const EXPECTED_TRUE_SURFACE_M2 := 7864.712380
+const EXPECTED_GROSS_PROJECTED_M2 := 8570.131183
+const EXPECTED_COUNTED_PROJECTED_M2 := 8316.775617
+const EXPECTED_TRUE_SURFACE_M2 := 8331.597742
+const ORIGINAL_STATION_BASELINE_M2 := 6849.844560
+const EXPECTED_EXPANSION_M2 := 1466.931057
+const EXPECTED_EXPANSION_PERCENT := 21.415537888
 
 var _failures: Array[String] = []
 
@@ -44,24 +47,34 @@ func _run() -> void:
 
 
 func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
-	print("STATION_WALKABLE_AREA_CENSUS: surfaces=%d ramps=%d gross=%.6f union=%.6f true=%.6f support=%d/%d" % [
+	print("STATION_WALKABLE_AREA_CENSUS: surfaces=%d ramps=%d gross=%.6f union=%.6f true=%.6f ramp_projected=%.9f ramp_true=%.9f support=%d/%d" % [
 		report.surface_count, report.ramp_count, report.gross_projected_horizontal_m2,
 		report.total_projected_horizontal_m2, report.total_true_surface_m2,
+		report.ramp_projected_horizontal_m2, report.ramp_true_surface_m2,
 		report.physics_support_samples, report.physics_support_samples_total,
 	])
 	_check(bool(report.valid) and (report.errors as PackedStringArray).is_empty(), "production census is structurally valid")
-	_check(int(report.surface_count) == 70 and int(report.ramp_count) == 3, "production roster contains exactly 70 surfaces and three ramps")
-	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8110.199985 m2")
-	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 7856.844419 m2")
-	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 7864.712380 m2")
+	_check(int(report.surface_count) == 77 and int(report.ramp_count) == 5, "production roster contains exactly 77 surfaces and five ramps")
+	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8570.131183 m2")
+	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 8316.775617 m2")
+	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 8331.597742 m2")
+	var expansion_m2 := float(report.total_projected_horizontal_m2) - ORIGINAL_STATION_BASELINE_M2
+	var expansion_percent := expansion_m2 / ORIGINAL_STATION_BASELINE_M2 * 100.0
 	_check(
-		_near(report.ramp_projected_horizontal_m2, 68.480000)
-		and _near(report.ramp_true_surface_m2, 76.347961),
+		_near(expansion_m2, EXPECTED_EXPANSION_M2)
+		and absf(expansion_percent - EXPECTED_EXPANSION_PERCENT) <= 0.0000005
+		and expansion_percent >= 18.0
+		and expansion_percent <= 22.0,
+		"live merged union adds exactly 1466.931057 m2 / 21.415537888 percent against the original 6849.844560 m2 baseline"
+	)
+	_check(
+		_near(report.ramp_projected_horizontal_m2, 140.479998)
+		and _near(report.ramp_true_surface_m2, 155.302123),
 		"ramps separately report exact projected and inclined surface area"
 	)
 	_check(
-		int(report.physics_support_samples) == 350
-		and int(report.physics_support_samples_total) == 350,
+		int(report.physics_support_samples) == 385
+		and int(report.physics_support_samples_total) == 385,
 		"all five representative points on every declared surface have live World support"
 	)
 

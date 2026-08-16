@@ -138,6 +138,7 @@ flowchart LR
   HUB --- JF["jovian-freight-berth @ hub-registry-pod-freight"]
   HUB --- FA["fabrication_annex @ fabrication_annex_inbound"]
   HUB --- OL["observation-logistics-spur @ observation-logistics-spur-origin"]
+  HUB --- ST["salvage-terrace @ hub-salvage-terrace"]
   AJ -. "open landmark, no graph edge" .-> VIP["Aft VIP access -> VipReceptionSuite (modern interpretation)"]
   HS -. "open internal route, no graph edge" .-> DB["Habitat garden-cupola (modern interpretation)"]
   FC -. "external assignment only" .-> Z["ShipyardWorld / zenith_fleet_dock_berth"]
@@ -166,6 +167,8 @@ flowchart LR
   FA3 --- FA["Fabrication Annex / 480.0 m²"]
   FA --- OLC["Observation connector / 2.0 m²"]
   OLC --- OLS["Observation Logistics Spur / 426.0 m²"]
+  FA --- STC["Salvage connector / 3.9312 m²"]
+  STC --- ST["Salvage Terrace / 456.0 m²"]
   C --- AF["AftSpine"]
   AF --- AC["AftModuleConnector"]
   AC --- AJ2["Aft Junction Stack"]
@@ -186,17 +189,17 @@ continuity is a walkability fact, not a recorded graph edge.
 
 | Quantity | Value |
 | --- | --- |
-| `module_count` | 6 |
-| `hub_endpoint_count` | 6 |
-| `connection_slot_count` | 6 |
-| `edge_count` | 6 |
-| `route_marker_count` | 42 |
-| `resolved_route_marker_count` | 42 |
+| `module_count` | 7 |
+| `hub_endpoint_count` | 7 |
+| `connection_slot_count` | 7 |
+| `edge_count` | 7 |
+| `route_marker_count` | 49 |
+| `resolved_route_marker_count` | 49 |
 | `dangling_slot_count` | 0 |
 | `overclaimed_slot_count` | 0 |
 | `authority_claim_count` | 0 |
 | `production_berth_count` | 5 |
-| `deferred_or_dead_end_route_marker_count` | 8 |
+| `deferred_or_dead_end_route_marker_count` | 7 |
 
 <!-- LIVE-GRAPH-TOTALS:END -->
 
@@ -213,6 +216,7 @@ module. The hub anchor path is relative to the `ShipyardWorld` node.
 | `hub-aft-junction` | `ExposedDockLattice/AftModuleConnector` | `aft-junction-stack` | `approach` | `modern_interpretation` |
 | `hub-fleet-dock-comb` | `ExposedDockLattice/FleetDockCombConnector/FleetDockCombConnectorDeck` | `fleet-dock-comb` | `approach` | `modern_interpretation` |
 | `hub-registry-pod-freight` | `ModernFleetRegistry/RegistryPodDeck` | `jovian-freight-berth` | `approach` | `creator_roster_supported_modern_interpretation` |
+| `hub-salvage-terrace` | `ExposedDockLattice/SalvageTerraceConnector/RouteAnchor` | `salvage-terrace` | `connector` | `modern_interpretation` |
 | `hub-starboard-habitat` | `ExposedDockLattice/StarboardBerthNode` | `habitat-spine` | `approach` | `fixed_era_inspired_modern_interpretation` |
 | `observation-logistics-spur-origin` | `ExposedDockLattice/ObservationLogisticsConnector/RouteAnchor` | `observation-logistics-spur` | `origin` | `modern_interpretation` |
 
@@ -232,16 +236,17 @@ source inspired the module and never raises its confidence.
 | Module ID | Route markers | Connection slot marker | Deferred or dead-end markers |
 | --- | --- | --- | --- |
 | `aft-junction-stack` | `approach`, `lower-junction`, `operations-room`, `stair-base`, `stair-top`, `upper-floor`, `vip-landmark` | `approach` | `vip-landmark` |
-| `fabrication_annex` | `annex_central`, `annex_inbound`, `annex_port_bay`, `annex_port_service`, `annex_rear_cross`, `annex_starboard_bay`, `annex_starboard_service` | `annex_inbound` | `annex_port_service`, `annex_starboard_service` |
+| `fabrication_annex` | `annex_central`, `annex_inbound`, `annex_port_bay`, `annex_port_service`, `annex_rear_cross`, `annex_starboard_bay`, `annex_starboard_service` | `annex_inbound` | `annex_starboard_service` |
 | `fleet-dock-comb` | `approach`, `dock-01-threshold`, `dock-02-threshold`, `dock-03-threshold`, `trunk-aft`, `trunk-forward`, `trunk-mid`, `vertical-base`, `vertical-top` | `approach` | `dock-01-threshold`, `dock-02-threshold`, `dock-03-threshold` |
 | `habitat-spine` | `approach`, `common-entry`, `deferred-branch`, `habitat-corridor`, `observation`, `threshold` | `approach` | — |
 | `jovian-freight-berth` | `approach`, `apron-threshold`, `boarding-staging`, `cargo-rack`, `cargo-transfer`, `service-room`, `service-threshold` | `approach` | — |
 | `observation-logistics-spur` | `connector-midpoint`, `cross-landing`, `far-return`, `logistics-pad`, `observation-pad`, `origin` | `origin` | `logistics-pad`, `observation-pad` |
+| `salvage-terrace` | `connector`, `entry`, `inspection-pad`, `inspection-ramp-base`, `lower-pad`, `main-ramp-base`, `upper-pad` | `connector` | — |
 
 <!-- LIVE-GRAPH-ROUTES:END -->
 
 Every marker other than the four legacy `approach` markers, Fabrication's
-`annex_inbound`, and Observation's `origin` is an internal waypoint or a
+`annex_inbound`, Observation's `origin`, and Salvage's `connector` is an internal waypoint or a
 deliberate dead end and never joins the adjacency graph.
 
 ### Machine-checked non-slot landmarks
@@ -254,14 +259,13 @@ deliberate dead end and never joins the adjacency graph.
 | Comb dock 01 threshold | `fleet-dock-comb` | `dock-01-threshold` | `(22.0, 4.35, 59.05)` | marker `assigned-dock-01`, `assigned_external`, external berth `zenith_fleet_dock_berth` |
 | Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `assigned_external`, external berth `halyard_fleet_dock_berth` |
 | Comb dock 03 threshold | `fleet-dock-comb` | `dock-03-threshold` | `(52.0, 6.75, 59.05)` | marker `deferred-dock-03`, `deferred_empty` |
-| Fabrication north service gate | `fabrication_annex` | `annex_port_service` | `(84.0, 0.53, 52.0)` | open internal route; reserved for a later atomic connector integration |
 | Fabrication south service gate | `fabrication_annex` | `annex_starboard_service` | `(84.0, 0.53, 24.0)` | open internal route; no station slot declared |
 | Observation pad | `observation-logistics-spur` | `observation-pad` | `(124.5, 0.38, 46.0)` | deferred internal route; no station slot declared |
 | Logistics pad | `observation-logistics-spur` | `logistics-pad` | `(124.5, 0.38, 30.0)` | deferred internal route; no station slot declared |
 
 <!-- LIVE-GRAPH-DEFERRED:END -->
 
-All eight remain outside the adjacency graph, for different explicit reasons:
+All seven remain outside the adjacency graph, for different explicit reasons:
 Dock 01 and Dock 02 are modern external berth links owned by `ShipyardWorld`,
 Dock 03 alone is empty/deferred, and the Aft VIP landmark opens onto
 `VipReceptionSuite`. That room is invented and is
@@ -270,8 +274,11 @@ confidence `none` — and its existence upgrades no evidence: no source describe
 the inside of any VIP area, and the two VIP fragments the ledger holds remain
 unjoined. The marker stays out of the adjacency graph, because the suite is an
 interpretation interior rather than a registered station module.
-Fabrication's two service gates and Observation's two pad markers are
-internal-only: none publishes `station_connection_slot`. The pad markers retain
+Fabrication's south service gate and Observation's two pad markers are
+internal-only: none publishes `station_connection_slot`. Fabrication's north
+service marker is no longer in this table because it now reaches the built
+world-owned Salvage connector; it remains an internal marker rather than a
+second module slot. The pad markers retain
 their explicit `internal_route_only_no_geometry` status for future atomic work.
 
 The habitat's side branch was previously a fifth row of this table and has been
@@ -285,7 +292,7 @@ and is recorded as invented in the module's `content_note`, its
 row is what keeps this table honest: a non-slot-landmark table that still listed
 a door you can walk through would be the false statement.
 
-These eight rows are current, and the marker rule above still holds for them.
+These seven rows are current, and the marker rule above still holds for them.
 
 ### Machine-checked production berths
 
@@ -318,6 +325,7 @@ Exact implementation anchors:
 | Habitat | Habitat root `(49, 0, 15.5)`, yaw `90°`, extends east; `approach` marker at `(46, 0.15, 15.5)` claims `hub-starboard-habitat` | C1-inspired later-source interpretation, not recovered original geometry. |
 | Fabrication Annex | Dock Operations floor boundary at `x=49` → exact world-owned A/B/C dogleg (`63 + 30 + 6 = 99.0 m²`) → Annex root `(72, 0.38, 38)`, yaw `90°`; Connector C publishes `fabrication_annex_inbound`, claimed by `annex_inbound (72, 0.53, 38)` | Wholly NEW `modern_interpretation`; no source authenticates fabrication space, equipment, placement, connector, or adjacency. The Annex owns no ship, berth, landing, combat, interaction, reward, or activity authority. |
 | Observation Logistics Spur | The world-owned `ObservationLogisticsConnector/RouteAnchor (91, 0.53, 38)` begins on the Fabrication rear aisle, crosses the exact 2.0 m² connector, and publishes `observation-logistics-spur-origin`; Spur root `(92.5, 0.38, 38)`, yaw `90°`, claims it through `origin` and extends to `x=132` | Wholly NEW `modern_interpretation`; no source authenticates the observation/logistics functions, two-pad loop, placement, connector, or adjacency. The route anchor is owned by `ShipyardWorld`, not borrowed from the Fabrication subtree, and the Spur owns zero gameplay authority. |
+| Salvage Terrace | The world-owned `SalvageTerraceConnector/RouteAnchor (84, 0.53, 51.91)` begins 0.09 m inside Fabrication's live north-service floor, passes its exact internal marker `(84, 0.53, 52)`, crosses 3.9312 m² of connector, and publishes `hub-salvage-terrace`; Terrace root `(84, 0.38, 52.91)`, identity yaw, claims it through `connector` | Wholly NEW `modern_interpretation`; no source authenticates salvage space, function, placement, connector, or adjacency. The route anchor and connector are world-owned, the Fabrication marker stays internal, and the Terrace owns zero gameplay authority. |
 | Aft | Central → AftSpine → AftModuleConnector `(0, -0.62, 43.5)` → AftJunctionStack `(0, 0, 48)`, whose `approach` marker at `(0, 0.15, 46.3)` claims `hub-aft-junction` | Open spine/room/vertical motifs are supported; exact module graph is modern. |
 | Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)` and its Dock02 marker to the modern Halyard berth `halyard_fleet_dock_berth` at `(37, 5.28, 53.3)`; Dock03 remains empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and both external assignments are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
 | Production berth registry | `ShipyardWorld` owns exactly five lease-bound production berths: Central/Torrent, Arrow, Jovian, Zenith, and Halyard. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
@@ -337,17 +345,21 @@ standalone module budget:
   cargo stacks, across A/B/C, through the port and starboard work bays and rear
   cross aisle, and back. The test presses only `move_forward`; it never jumps or
   teleports between route legs.
-- The walkable-area census is frozen at 70 surfaces / three ramps:
-  8110.199985 m² gross declared, 7856.844419 m² coplanar union, and
-  7864.712380 m² true surface. Fabrication contributes its exact standalone
+- The walkable-area census is frozen at 77 surfaces / five ramps:
+  8570.131183 m² gross declared, 8316.775617 m² coplanar union, and
+  8331.597742 m² true surface. Fabrication contributes its exact standalone
   480 m² plus the connector's exact 99 m²; Observation contributes its exact
-  426 m² plus the connector's exact 2 m². Ramp totals remain
-  68.480000 m² projected / 76.347961 m² true.
-- The live station material census is 2595 mapped MeshInstance surfaces at
-  `0.22/0.28/0.30 = 130/862/1603`, plus 38 MultiMesh batches, 12 mapped.
-  Navigation is six edges over twelve endpoints and six presentation couriers;
+  426 m² plus the connector's exact 2 m²; Salvage contributes its exact 456 m²
+  plus the connector's exact 3.9312 m². Live-derived ramp totals are
+  140.479998 m² projected / 155.302123 m² true. Against the original
+  6849.844560 m² station baseline,
+  the live union adds 1466.931057 m² / 21.415537888%, within the frozen 18–22%
+  expansion band with 40.034746 m² remaining to the upper bound.
+- The live station material census is 2632 mapped MeshInstance surfaces at
+  `0.22/0.28/0.30 = 130/862/1640`, plus 41 MultiMesh batches, 14 mapped.
+  Navigation is seven edges over fourteen endpoints and seven presentation couriers;
   those couriers share one six-entry immutable catalog (six retained unique
-  materials, 42 visible bindings) while each status lens remains dynamic.
+  materials, 49 visible bindings) while each status lens remains dynamic.
 - No Annex or connector collision has positive-volume intersection with other
   station geometry. The closest Habitat geometry is the actual
   `ObservationCommon/SideWindowFrameA` mesh, measured at 3.280 m. The earlier
@@ -358,7 +370,9 @@ standalone module budget:
   only the Halyard's nonphysical acquisition volume, by a bounded
   `12.0 × 0.10 × 3.0 m` AABB. A complete staging-to-dock sweep of the Halyard's
   flight collision bounds clears A, B, and C.
-- The north service marker remains internal at `(84, 0.53, 52)`. Observation's
+- The north service marker remains internal at `(84, 0.53, 52)` but now leads
+  through the built world-owned Salvage connector; it is not misrepresented as
+  a second module slot. Observation's
   atomic integration replaces the former full rear rail with exact north/south
   12 m runs around the `z=36…40` opening. The rear-cross route remains an
   internal Fabrication marker; the station hub endpoint is instead the stable
@@ -404,6 +418,41 @@ standalone module budget:
   clearance after the live 0.55 m camera obstruction sphere.
 - The Spur owns no ship, berth, landing/interaction, audio, activity, lease,
   spawn, combat, reward, or network authority.
+
+### Salvage Terrace production integration audit
+
+- The Terrace root is identity yaw at `(84, 0.38, 52.91)`, with exact world
+  footprint `x=65.9…111.3, y=-1.42…7.48, z=52.21…71.01`. Its six uniquely
+  tagged, non-overlapping surfaces contribute 456.0 m² horizontally: 384.0 m²
+  level and 72.0 m² projected ramp area. The two ramps contribute 78.954163 m²
+  true area, for 462.954163 m² total true module surface.
+- The world connector deck is centred `(84, 0.18, 52.455)`, size
+  `(4.32, 0.40, 0.91)`, exactly 3.9312 m². Its rails are centred at
+  `(81.92, 1.03, 52.45)` and `(86.08, 1.03, 52.45)`, each
+  `(0.16, 1.30, 0.76)`, preserving exactly 4.0 m clear width. Connector and
+  Terrace apron share only their boundary plane; no Salvage/connector collider
+  has positive-volume intersection with unrelated station geometry.
+- The world-owned hub anchor at `(84, 0.53, 51.91)` lies 0.09 m inside the live
+  Fabrication port-side floor. This makes the declared courier edge exactly
+  1.0 m—the reusable component minimum—while the real Fabrication north-service
+  marker remains at the physical seam `(84, 0.53, 52)`. The complete line to
+  the Terrace `connector` at `(84, 0.53, 52.91)` is sampled every 0.05 m and is
+  continuously backed by Fabrication, connector, or apron collision.
+- The production Player starts in Fabrication, crosses that handoff, visits the
+  spatially separate lower pad, climbs both broad ramps to the top inspection
+  pad, and returns using real movement input without jump or between-leg
+  teleport. The station flood also reaches all six Terrace surfaces.
+- The nearest authoritative berth-volume separation is 21.919998 m. All 82
+  enabled physical shapes across all five parked production craft clear the
+  module/connector; the closest is 24.550051 m. All 20 Halyard shapes clear all
+  21 samples of the live staging-to-dock assist path, 420 per-shape witnesses,
+  with the same 24.550051 m minimum. The broad Halyard assist-capture volume
+  also remains separate, with an exact minimum gap of 4.919998 m.
+- Salvage retains its standalone renderer/physics budget: 30 ordinary meshes,
+  three MultiMesh batches / 20 copies, 33 submissions, 50 visible copies, 26
+  bodies/shapes, 96 nodes, one label, zero lights, and zero process loops. The
+  Terrace owns no ship, berth, combat, interaction, audio, activity, lease,
+  spawn, reward, or network authority; an injected Area3D turns its audit red.
 
 ## Per-relationship confidence grading
 

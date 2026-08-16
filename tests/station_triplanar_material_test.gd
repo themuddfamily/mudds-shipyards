@@ -529,12 +529,17 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# Spur's original modern-interpretation palette remains intentionally plain,
 	# so none of its 48 ordinary meshes enters this station-family census. Its one
 	# unlit marker MultiMesh raises only the total batch roster, 37 -> 38.
+	#
+	# Re-frozen on the production Salvage integration, 2595 -> 2632. The live
+	# delta is +29 mapped Salvage meshes, +3 world-owned connector boxes, and +5
+	# from the seventh shared-catalog courier. All 37 use the existing 0.30 scale;
+	# the other buckets and every recipe parameter remain unchanged.
 	_check(
-		mapped_surface_count == 2595
+		mapped_surface_count == 2632
 		and scale_022_count == 130
 		and scale_028_count == 862
-		and scale_030_count == 1603,
-		"live station binds exactly 2595 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1640,
+		"live station binds exactly 2632 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -599,7 +604,9 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 	# already present before this placement. Counts are intentionally live census
 	# results rather than a sum inferred from component budgets.
 	# Observation adds one deliberately unmapped repeated-marker batch.
-	_check(batches == 38 and mapped == 12, "instanced station structure is exactly thirty-eight batches, twelve of them mapped")
+	# Salvage adds three batches: structural supports and salvage cages are mapped,
+	# while the service beacons remain deliberately emissive and plain.
+	_check(batches == 41 and mapped == 14, "instanced station structure is exactly forty-one batches, fourteen of them mapped")
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
 
