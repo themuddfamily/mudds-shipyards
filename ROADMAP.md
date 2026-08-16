@@ -177,6 +177,34 @@ What would turn either into evidence: registered footage showing a named craft w
 walkable interior in flight, anchored by frame or timestamp, with the name tied to the
 craft rather than to a regeneration label. See the Arrow/Jovian evidence gate in Phase 4.
 
+## In-flight cabin access — 2026-08-16
+
+**Motivated by an unverified player recollection, and nothing stronger.** A player who played the original Keth's Shipyards said they were sure you could shut the engine down and get out of a ship in space, and remembered one craft big enough to hold several people who were not all sitting in seats. That recollection is **not registered evidence**: it has no ledger anchor, it is not in `docs/research/`, and nothing in this feature may be cited as recovering it. `docs/research/ship_evidence_matrix.json` still records the Jovian with `name_to_model_status: unknown` and no model sources, and a later remark that our Jovian resembles a ship the player remembers is a sign the modern interpretation reads well — not a mapping. Everything below is `modern_interpretation` design.
+
+What shipped: a pilot who shuts down away from a berth can leave the seat and walk the craft's own interior while it drifts, then take the seat back with one key press. The loop is exit → walk the hold → re-board → fly home, all through the existing seams — `GameFlow` owns the phase (`Phase.IN_FLIGHT_CABIN`), the craft's `MovingInteriorFrame` owns occupancy, `ShipBerth` is untouched, and the boarding-area reservation is held for the whole walk so re-boarding costs nothing.
+
+Decisions worth keeping, because each closes a way to soft-lock a player:
+
+- **Only a craft that publishes a walkable cabin may release its pilot.** `HeroShip.get_in_flight_cabin_report()` defaults to closed; only `JovianLightFreighter` overrides it. The Torrent, Arrow and Zenith refuse, because "leave the seat" on a fighter means "stand in open space". Stepping onto a **hull exterior** in open space is deliberately **not** built — it needs an EVA envelope, a tether or magnetic footing, and a reason to be out there, none of which this pass has.
+- **The pilot is confined to a published ship-local envelope**, `JovianLightFreighter.CABIN_MOVEMENT_BOUNDS`, enforced by `PlayerController.set_cabin_containment()` after the slide: at the envelope they are clamped, well outside it they are recalled bodily to the craft's cabin standing marker. It is evaluated against the live hull, so it holds even if occupancy is lost. `_recover_from_destroyed_ship()` remains the outer net if the cabin itself is destroyed.
+- **The flight deck got real port, starboard and forward walls.** It had a floor and no sides, which was invisible while the only way onto it was the seat transition and load-bearing the moment a crew member could walk on it.
+- **Seat transitions can now be bound to a live craft** (`begin_boarding`/`begin_disembark` take a reference frame). A world-space exit pose is left behind by exactly the distance a moving hull covers; `tests/in_flight_cabin_test.gd` proves that as a structured red.
+- **A registered occupant is removed from the hull's own collision mask** while aboard, so a crew member standing on a deck is not an obstacle to the deck. Counted, not latched, so more than one occupant already works.
+
+Three things only the render showed, all fixed here:
+
+- The on-foot readout could say exactly one thing — `ON FOOT // REGENERATION DECK` — because on foot used to mean exactly one place. It now names where the pilot actually is (`GameHUD.set_mode()` takes an optional location).
+- The piloting controls overlay still read `E — EXIT: LANDED + OFFLINE`. Now `LEAVE SEAT: OFFLINE`.
+- **Secured freight in the hold has no collision, and still has none — deliberately.** Nobody could tell while the hold was scenery the camera flew past; walking it, the chase boom is pushed *inside* a container (`artifacts/cabin_04_walking_the_hold.png` is that shot). Making the six cargo units solid is the right fix, was written, was measured, and was **reverted**: `tests/fleet_role_differentiation_test.gd` stages its Jovian approach at ship-local `z ≈ +3.85` — *inside* the hold — and walks a straight unpathfound line to the pilot hatch through exactly where the port crates stand, so solid freight jams that suite at its full 510-frame budget. The suite is owned elsewhere and its staged-inside-the-hull approach is the thing that needs deciding, not the crates. **Needs an owner:** either restage that approach outside the hull, or accept ghost freight.
+
+Rendered evidence: `artifacts/cabin_01…08_*.png` (produced by `tests/in_flight_cabin_render.gd`, a looking tool deliberately not named `*_test.gd` so it never joins the matrix).
+
+**Left alone, pre-existing:** the Jovian's engine cores are emissive geometry rather than driven presentation, so the nozzles still glow with `ENGINE // OFFLINE`. Visible whenever a shut-down Jovian is viewed in chase, not something this feature introduced.
+
+Not blocked for Phase 7: occupancy stays inside `MovingInteriorFrame` (which already has authority modes), the cabin phase names a craft rather than a single player, and nothing added here assumes exactly one occupant. Passenger *seats* and crew roles remain unbuilt.
+
+Tests: `tests/in_flight_cabin_test.gd` (contract, containment, frame-relative transitions) and `tests/in_flight_cabin_integration_test.gd` (the whole loop through `res://scenes/main.tscn` with real input, plus whole-Main detach/re-entry mid-cabin and the destroyed-cabin recovery). Verified against a targeted suite selection — ship lifecycle, seat/board/exit, sandbox integration, interior frame, HUD and recovery — rather than the full matrix, per the phase's verification policy.
+
 ## Session handoff — 2026-08-15
 
 State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
@@ -522,7 +550,7 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 7. Require a 30-minute two-client soak with zero authority divergence, duplicate entities/seats, unbounded queue growth, or leaks; record tick/bandwidth budgets and complete a native-Windows two-client playtest before increasing player count or implementing gunner/engineer roles.
 
 - [ ] Add authoritative networked movement, moving-interior occupancy, boarding, ship ownership, projectiles, landing, damage, and respawn; current local authority seams and authority-gated tests do not constitute multiplayer.
-- [ ] Keep fighters immediately accessible while adding optional pilot/gunner/passenger/engineer roles to larger vessels; the current Jovian passenger space has no multi-crew roles or gameplay.
+- [ ] Keep fighters immediately accessible while adding optional pilot/gunner/passenger/engineer roles to larger vessels; the current Jovian passenger space has no multi-crew roles or gameplay. Single-player in-flight cabin access already exists (see "In-flight cabin access — 2026-08-16"); occupancy is owned by `MovingInteriorFrame` and counted rather than latched, so the remaining work is seats and roles, not a second occupancy system.
 - [ ] Test moving-interior stability under latency before broadening player counts.
 
 ## Phase 8 — Nearby world and activities
