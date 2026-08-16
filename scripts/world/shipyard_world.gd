@@ -673,6 +673,9 @@ var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
 var _crane_hook: Node3D
 var _built := false
+## Set only by a boot loader, through `prepare_staged_construction()`, before
+## this world enters the tree. Cleared again the moment the staged build starts.
+var _staged_construction := false
 var _elapsed := 0.0
 var _destroyed_target_count := 0
 const MAX_PENDING_TARGET_PRESENTATIONS := 16
@@ -722,41 +725,117 @@ func _ready() -> void:
 		_apply_operational_dressing_quality()
 		set_station_activity_enabled(_station_activity_enabled)
 		return
+	if _staged_construction:
+		# A boot loader owns the build and will drive `run_staged_construction()`.
+		return
 	_built = true
-	_initialize_berths()
-	_build_operational_lattice_components()
-	_create_materials()
-	_build_environment()
-	_build_architecture()
-	_build_landing_pad()
-	_build_launch_corridor()
-	_build_central_berth_service_line()
-	_build_catwalks_and_control_room()
-	_build_regeneration_gallery()
-	_build_provisional_fleet()
-	_build_industrial_details()
-	_build_cargo_and_machinery()
-	_build_exterior_range()
-	_build_space_backdrop()
-	# After the backdrop, so the update-once bake sees the finished sky.
-	_build_module_reflection_probes()
-	# The hub endpoints resolve against lattice geometry built above, so the
-	# registry can only be assembled once the environment exists. Service couriers
-	# consume routes resolved from that registry, so they are created afterwards
-	# and indexed together with the rest of the lattice.
-	_initialize_station_route_registry()
-	_build_station_service_agents()
-	# Deliberately last of the geometry passes. Where two station decks meet, two
-	# coincident World colliders can both answer a downward ray, and which one
-	# wins is broad-phase registration order rather than anything meaningful.
-	# Registering these bodies after every deck exists leaves that order — and so
-	# every existing mount-foot support audit — exactly as it was.
-	_build_station_activity_collision()
-	_index_operational_lattice_components()
-	_connect_operational_lattice_audio()
-	_apply_operational_dressing_quality()
+	_run_build_stages()
+
+
+## The one-time procedural build, in order, as `[method, progress label]`.
+##
+## This is the same sequence `_ready` always ran, lifted into data so a boot
+## loader can walk it one stage per frame instead of paying for all of it inside
+## one main-loop iteration. The ordering is load-bearing:
+##
+## * `_build_module_reflection_probes` follows `_build_space_backdrop` so the
+##   update-once bake sees the finished sky.
+## * The hub endpoints resolve against lattice geometry built above, so
+##   `_initialize_station_route_registry` can only run once the environment
+##   exists. Service couriers consume routes resolved from that registry, so
+##   `_build_station_service_agents` follows it and is indexed with the rest of
+##   the lattice.
+## * `_build_station_activity_collision` remains the last geometry pass. Where
+##   two station decks meet, broad-phase registration order decides which of two
+##   coincident World colliders answers a downward ray, so moving this earlier
+##   would perturb existing mount-foot support audits.
+## * `_apply_sign_geometry_budget` runs last, once every module owns its signs.
+const BUILD_STAGES: Array[Array] = [
+	[&"_initialize_berths", "Surveying berths"],
+	[&"_build_operational_lattice_components", "Staffing the operations lattice"],
+	[&"_create_materials", "Mixing station materials"],
+	[&"_build_environment", "Lighting the yard"],
+	[&"_build_architecture", "Raising the structure"],
+	[&"_build_landing_pad", "Laying the central berth"],
+	[&"_build_launch_corridor", "Opening the launch corridor"],
+	[&"_build_central_berth_service_line", "Running the berth service line"],
+	[&"_build_catwalks_and_control_room", "Hanging catwalks"],
+	[&"_build_regeneration_gallery", "Fitting the regeneration gallery"],
+	[&"_build_provisional_fleet", "Parking the provisional fleet"],
+	[&"_build_industrial_details", "Dressing the industrial deck"],
+	[&"_build_cargo_and_machinery", "Loading cargo and machinery"],
+	[&"_build_exterior_range", "Setting the exterior range"],
+	[&"_build_space_backdrop", "Hanging the sky"],
+	[&"_build_module_reflection_probes", "Baking reflections"],
+	[&"_initialize_station_route_registry", "Routing the station"],
+	[&"_build_station_service_agents", "Dispatching service couriers"],
+	[&"_build_station_activity_collision", "Securing station machinery"],
+	[&"_index_operational_lattice_components", "Indexing station systems"],
+	[&"_connect_operational_lattice_audio", "Wiring station audio"],
+	[&"_apply_operational_dressing_quality", "Applying visual quality"],
+	[&"_restore_station_activity_state", "Starting station life"],
+	[&"_apply_sign_geometry_budget", "Setting the signage"],
+]
+
+
+func _run_build_stages() -> void:
+	for stage: Array in BUILD_STAGES:
+		call(stage[0] as StringName)
+
+
+## Re-states the authored activity flag through the setter, which is what
+## actually starts the station's moving parts. A stage entry rather than a tail
+## call so both build paths run the identical ordered sequence.
+func _restore_station_activity_state() -> void:
 	set_station_activity_enabled(_station_activity_enabled)
-	_apply_sign_geometry_budget()
+
+
+## Opt-in staged construction, requested by a boot loader before this world
+## enters the tree. Returns without doing anything if the world is already in the
+## tree or already built, so the synchronous `_ready` build stays the default for
+## every direct instantiation - which is every test suite - and for the
+## detach/re-entry path, where `_built` is already true.
+func prepare_staged_construction() -> void:
+	if _built or is_inside_tree():
+		return
+	_staged_construction = true
+
+
+## How many stages [method run_staged_construction] will report, so a loader can
+## size its progress bar against real work rather than a guess.
+func get_staged_construction_stage_count() -> int:
+	return BUILD_STAGES.size()
+
+
+## Longest the staged build will hold the main loop before yielding. Several of
+## these stages cost well under a millisecond, and a yield is not free - the
+## engine draws a whole frame of a half-built yard nobody can see - so cheap
+## stages are batched up to this budget and expensive ones yield immediately
+## after. 24 ms keeps the window repainting at better than 40 Hz throughout.
+const STAGED_BUILD_FRAME_BUDGET_USEC := 24_000
+
+
+## Walks [constant BUILD_STAGES], calling `on_stage.call(label: String)` after
+## each and yielding to the main loop whenever the frame budget is spent. The
+## sequence is identical to the synchronous build; the only difference is that
+## the main loop gets to draw and pump input in between.
+func run_staged_construction(on_stage: Callable = Callable()) -> void:
+	if _built or not _staged_construction:
+		return
+	_staged_construction = false
+	_built = true
+	var tree := get_tree()
+	var budget_started := Time.get_ticks_usec()
+	for stage: Array in BUILD_STAGES:
+		call(stage[0] as StringName)
+		if on_stage.is_valid():
+			on_stage.call(stage[1] as String)
+		if tree == null:
+			continue
+		if Time.get_ticks_usec() - budget_started < STAGED_BUILD_FRAME_BUDGET_USEC:
+			continue
+		await tree.process_frame
+		budget_started = Time.get_ticks_usec()
 
 
 ## Brings every sign in the world under one geometry budget.

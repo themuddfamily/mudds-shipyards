@@ -1615,3 +1615,190 @@ sentinels, assertion and diagnostic counts, no durations, no absolute paths — 
    and was deliberately not touched here.
 2. Otherwise, replace the per-suite-log-hash aggregate in the release evidence with
    the canonical results hash, and say so where the aggregate is quoted.
+
+## BOOT-001 / BOOT-002 — the packaged build opened on a frozen window that had already taken the mouse — **FIXED**
+
+Reporter: project owner (`loginpeople123@gmail.com`), 2026-08-16, from a live
+playtest of the packaged Windows build, verbatim:
+
+> *"how we load the game when you first start the .exe - at the moment it freezes
+> for up to 10 seconds and then suddenly everything is loaded - can we have a
+> loading screen to make this more smooth/responsive - ALSO during the time its
+> frozen it seems to lock my mouse to inside of the window"*
+
+Two defects at one moment: **BOOT-001**, no presentation and no main-loop
+iteration at all until the whole game had been built; **BOOT-002**, the cursor
+captured during that freeze, before the player could interact with anything.
+
+Configuration for every measurement: Linux (WSL2 6.18.33.2), Godot
+4.7.1.stable.official.a13da4feb, 32 cores. CPU-side figures under `--headless`
+with `--audio-driver Dummy`; presented-frame figures under
+`VK_ICD_FILENAMES=.../lvp_icd.json xvfb-run -a -s "-screen 0 1280x720x24" godot
+--rendering-driver vulkan`, i.e. the llvmpipe software rasteriser. Harness:
+`tools/startup_timing_probe.gd`, `-- legacy` for the previous behaviour and
+`-- staged` for the new boot scene. The box was under concurrent load from other
+agents, so absolute times drift between runs; the ratios did not.
+
+### Where the time actually went
+
+`run/main_scene` was `res://scenes/main.tscn`, so the engine had to finish loading
+that scene's whole resource graph and run every `_ready()` in the Main subtree
+before it could present anything. Measured per subsystem on a quiet box:
+
+| Phase | ms | Notes |
+| --- | ---: | --- |
+| `load("res://scenes/main.tscn")` | **1493** | Resource loading. 45% of a cold boot, and the one part that is not scene-tree work. |
+| `ShipyardWorld` entering the tree | 899 | 305 ms authored modules (`AftJunctionStack` 111, `HabitatSpine` 84, `NearbySectorCluster` 63, `JovianFreightBerth` 15, `FleetDockComb` 11, six berths ~26) + 596 ms procedural builders. |
+| Five hero craft | 743 | Torrent 247, Jovian 160, Arrow 133, Zenith 118, Halyard 84. |
+| `Player` | 103 | |
+| `AudioDirector`, `HUD`, everything else | 78 | |
+| **Total construction** | **1823** | |
+
+Inside the world's 596 ms of builders, the distribution is *not* one dominant
+builder: `_build_operational_lattice_components` 286 ms, `_build_landing_pad` 104,
+`_apply_sign_geometry_budget` 60, `_build_environment` 27, `_build_regeneration_gallery` 26,
+`_initialize_station_route_registry` 19, `_build_architecture` 17, and fourteen more
+under 15 ms each. So no single builder is 60% of it, and there is no one hot spot
+to fix — the fix has to be structural.
+
+**The Cinder Reach deferral was measured and rejected.** `NearbySectorCluster` — the
+moonlet, the 520-instance debris `MultiMesh`, the derelict platform — costs
+**62.7 ms**, which is **3.4%** of construction and **1.9%** of a cold boot. It is
+also a child of `scenes/world/shipyard_world.tscn`, so deferring it would mean
+detaching that scene's authored children and re-resolving the world's `@onready`
+markers, in the file two siblings are actively editing. The wait it removes does
+not pay for that; it is left alone.
+
+### BOOT-001 — before and after
+
+Both columns are the same probe, same box, same session pairing.
+
+| | before (`legacy`) | after (`staged`) |
+| --- | ---: | ---: |
+| **CPU only (`--headless`), best of three** | | |
+| time to first main-loop iteration | 4389 ms | **11 ms** |
+| time to interactive (title screen live) | 4389 ms | 6055 ms |
+| worst uninterrupted main-loop iteration | **4389 ms** | **587 ms** |
+| main-loop iterations before interactive | 1 | 278 |
+| iterations over 250 ms | 1 | 6 |
+| **With presentation (llvmpipe)** | | |
+| time to first *presented* frame | 20 990 ms | **31–98 ms** |
+| worst uninterrupted main-loop iteration | 15 501 ms | 7971–9828 ms |
+| frames presented before interactive | 1 | 153–227 |
+
+The CPU column is the one that transfers to the player's machine, because
+construction is CPU-bound. The freeze went from a single unbroken 4.4 s iteration
+to a worst case of 0.59 s with 278 drawn, input-pumping iterations in between.
+
+**It is not free, and the table says so.** Total time to interactive went from
+4389 ms to 6055 ms, about 38% longer. That is the cost of the 278 extra engine
+iterations: every one of them runs a full idle and physics pass over everything
+built so far, work the old single-iteration build never did at all. The trade is
+1.7 s of total load against a window that is alive for all of it instead of none
+of it, and against a worst stall 7.5x shorter. For the defect as reported — "it
+freezes … and then suddenly everything is loaded" — that is the right way round,
+but it is a trade and not a free win.
+
+Every absolute figure here drifted between runs, because the box was under
+concurrent load from other agents; the columns are best-of-three and the shape
+was stable across all of them.
+
+The llvmpipe column carries a caveat of its own. On a software rasteriser the
+renderer's one-time pipeline compilation dominates everything: each newly visible
+craft costs seconds the first time it is drawn. The legacy path paid all of that
+inside one 15.5 s iteration; the staged path pays it as a handful of large ones
+(worst 9.8 s) with the loading screen repainting between them. On GPU hardware
+that compilation is milliseconds, which is why the CPU column is the transferable
+evidence and this one is not.
+
+Suppressing 3D behind the opaque loading screen (`Viewport.disable_3d`) was built
+and measured: it makes construction reach a live title screen in 7.1 s instead of
+32.5 s under llvmpipe, but it does so by collecting every deferred pipeline
+compile and reflection-probe bake into the single frame that switches 3D back on —
+one monolithic stall, which is the defect. It was removed.
+
+### BOOT-002 — what captured the cursor
+
+`PlayerController._ready()` ended with:
+
+```gdscript
+if _control_enabled and _camera_active and DisplayServer.get_name() != "headless":
+    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+```
+
+`_control_enabled` and `_camera_active` are both authored `true`, so this fired
+unconditionally on the boot path. Godot readies children depth-first, so it ran
+after `ShipyardWorld` had built (~0.9 s in) and *before* the five hero craft
+(~0.75 s) and the HUD, whose `show_intro()` is what finally set the mode back to
+`MOUSE_MODE_VISIBLE`. The cursor was therefore confined to a window that had not
+drawn a frame and would not draw one for another second of construction — and on
+the reporter's hardware, for most of ten.
+
+Nothing needed that capture. `GameFlow` starts the player with
+`set_control_enabled(false)` and `set_camera_active(false)`, and every path that
+actually begins play already captures: `set_control_enabled(true)` and
+`set_camera_active(true)`, both called by `GameFlow.start_shift()`, and the HUD's
+own `_begin()`. The `_ready()` capture was removed, and three explicit releases
+were added: the boot scene releases on entry (which is also the backstop for
+`_restart_shift()`'s `reload_current_scene()`), `GameFlow._exit_tree()` releases
+whenever the subtree leaves the tree, and the loader asserts every frame that
+nothing has taken the cursor while the loading screen owns the window.
+
+Measured after the fix: `mouse_free_during_load: true` on every run, and
+`tests/startup_loading_screen_test.gd` asserts it, asserts the cursor is not
+captured when the title screen appears, and asserts that detaching Main releases
+it.
+
+### What changed
+
+- `scenes/boot.tscn` + `scripts/game/startup_loader.gd` — new `run/main_scene`.
+  Presents the loading screen within two frames, pulls `scenes/main.tscn` in with
+  `ResourceLoader.load_threaded_request()` (real percentage from
+  `load_threaded_get_status()`), then drives staged construction.
+- `scripts/ui/loading_screen.gd` — built from primitives that need no imported
+  resource so it can paint before anything expensive starts; the 2 MB nebula
+  backdrop is attached only after the text is already on screen. Honours the
+  stored accessibility presets rather than bypassing them: colourblind palette,
+  `ui_scale`, `reduced_motion`, and the window mode.
+- `scripts/game/game_flow.gd` — `prepare_staged_startup()` / `run_staged_startup()`.
+  Bindings moved from `@onready` to `_resolve_scene_bindings()`, which both paths
+  call at the moment their subtree is complete.
+- `scripts/world/shipyard_world.gd` — the `_ready()` builder sequence lifted into
+  `BUILD_STAGES` so it can be walked one stage at a time. Both paths run the
+  identical ordered sequence.
+- Both staged walkers yield on a 24 ms time budget rather than per item, so cheap
+  stages batch instead of each costing a drawn frame.
+
+Staged construction is opt-in and only the boot scene opts in. Anything that
+instantiates `scenes/main.tscn` directly — every suite, and every detach/re-add —
+gets the original synchronous `_ready()`. `tests/startup_loading_screen_test.gd`
+pins both halves: that a loader-built Main survives a whole-subtree detach and
+re-add with its world contents and lattice bindings intact, and that a directly
+instantiated world is fully built the moment it enters the tree.
+
+### Known cost — 6 `RefCounted` leaked at process exit by the threaded loader — **ACCEPTED_RISK**
+
+Booting the project through `scenes/boot.tscn` and running to exit reports
+`WARNING: 6 ObjectDB instances were leaked at exit`. Booting straight into
+`scenes/main.tscn` reports none. Bisected to the engine, not to this change:
+
+| case | leaked |
+| --- | ---: |
+| `LoadingScreen` alone, built, shown, dismissed | 0 |
+| `RuntimeSettings.new().load_from_file()` | 0 |
+| Main instantiated and freed, synchronous `_ready()` | 0 |
+| Main instantiated and freed, staged construction | 0 |
+| `load_threaded_request`/`_get` of `scenes/main.tscn`, **nothing else in the scene** | **6** |
+| the same, but of the near-empty `scenes/boot.tscn` | 0 |
+
+So it is `ResourceLoader`'s threaded dependency path, it scales with what the
+requested scene pulls in, and it reproduces with no project code in the scene at
+all. `load_threaded_get()` is called on every path, including the failure paths.
+`use_sub_threads = true` makes it **28** rather than 6, which is why the request
+is made with `false`.
+
+Accepted. It is a `WARNING` at process teardown, it is 6 objects, nothing
+observes it at runtime, and no suite trips on it — the matrix never runs the boot
+scene as `main_scene`. The alternative is the blocking `load()` fallback that is
+already in the code for a refused loader thread, which reproduces zero leaks and
+costs 1493 ms of frozen main thread. That is the wrong trade for this defect.

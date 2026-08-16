@@ -317,8 +317,16 @@ func _ready() -> void:
 	_pitch = clampf(_camera_pitch.rotation.x, pitch_limits.x, pitch_limits.y)
 	_camera_pitch.rotation.x = _pitch
 	_camera.current = _camera_active
-	if _control_enabled and _camera_active and DisplayServer.get_name() != "headless":
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# `_ready()` deliberately does not capture the cursor.
+	#
+	# It used to, off the authored defaults of `_control_enabled` and
+	# `_camera_active`, which made the very first thing a launched build did be
+	# confining the mouse to a window that was still several seconds away from
+	# drawing anything, let alone accepting input. Capture belongs to the moment
+	# the player can actually steer, and there are already three places that own
+	# it: `set_control_enabled()`, `set_camera_active()` - both of which
+	# `GameFlow.start_shift()` calls when the shift begins - and the HUD's own
+	# "BEGIN SHIFT" handler. Nothing on the boot path calls any of them.
 
 
 func _physics_process(delta: float) -> void:
