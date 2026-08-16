@@ -111,6 +111,7 @@ var _build_generation := 0
 ## the twelve identical trunk expansion joints and the repeated dock furniture
 ## pay for their extra edge geometry once.
 var _rounded_box_cache: Dictionary = {}
+var _chamfered_cylinder_cache: Dictionary = {}
 
 
 func _ready() -> void:
@@ -807,12 +808,11 @@ func _beam_between(parent: Node3D, node_name: String, from: Vector3, to: Vector3
 	result.name = node_name
 	result.position = (from + to) * 0.5
 	result.quaternion = Quaternion(Vector3.UP, direction.normalized())
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = direction.length()
-	mesh.radial_segments = 16
-	result.mesh = mesh
+	# Chamfered rims at the comb's frozen 16 radial segments; outer radius and
+	# beam length are unchanged, so the beam still spans exactly `from`..`to`.
+	result.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, direction.length(), 16, _chamfered_cylinder_cache
+	)
 	result.material_override = material
 	result.set_meta("visual_detail_only", true)
 	parent.add_child(result)

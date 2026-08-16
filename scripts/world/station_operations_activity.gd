@@ -139,6 +139,7 @@ var _built_material_contracts: Dictionary = {}
 ## `ArrayMesh`, so the extra edge geometry costs vertices once per distinct size
 ## rather than once per placement.
 var _rounded_box_cache: Dictionary = {}
+var _chamfered_cylinder_cache: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -1532,13 +1533,12 @@ func _cylinder(
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
 	mesh_instance.rotation_degrees = rotation_degrees_value
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius * 0.88
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 12
-	mesh.rings = 1
-	mesh_instance.mesh = mesh
+	# Tapered stock: the wide bottom rim carries this mesh's radial extent alone,
+	# so the kit chamfers only the narrow top rim and the silhouette does not
+	# move. Outer radius and overall height are unchanged.
+	mesh_instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius * 0.88, radius, height, 12, _chamfered_cylinder_cache, 1
+	)
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(mesh_instance, true)

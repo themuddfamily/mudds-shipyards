@@ -1,8 +1,8 @@
 class_name StationSurfaceKit
 extends RefCounted
 
-## Shared station surface treatment: the one chamfered-box builder and the one
-## registered panel-material recipe the whole station uses.
+## Shared station surface treatment: the chamfered-box and chamfered-cylinder
+## builders, and the one registered panel-material recipe the whole station uses.
 ##
 ## Two properties separate a manufactured station part from a shaded primitive:
 ## a chamfer that catches a highlight along every edge, and a metric surface
@@ -13,6 +13,17 @@ extends RefCounted
 ## copies are now gone and everything calls in here instead. What stayed
 ## per-caller is the small part that was genuinely different: the bevel *rule*
 ## (see `proportional_bevel_for_size`) and the face UV convention (`BevelUV`).
+##
+## `chamfered_cylinder_mesh` closes the same gap on round stock. Boxes have been
+## chamfered here for a while; cylinders and frustums were still raw
+## `CylinderMesh`, so 1,237 live parts — engine cans, mast caps, conduit ends,
+## column feet, chair pedestals, gantry legs — carried a zero-width 90° edge with
+## no pixels to hold a highlight. (Tori were never in scope: a torus is smooth
+## everywhere and has no rim. Nor was the Arrow's engine housing, which is a
+## `_loft_hull` closing on a centre point, not a capped cylinder.)
+## The rim rule is its own (`RIM_CHAMFER_PROPORTION`) because a cylinder chamfer
+## consumes cap radius rather than a whole section, and the box rule's minimum
+## bevel would eat the thin stock.
 ##
 ## The kit is deliberately stateless. Callers own their mesh cache so the meshes
 ## are freed with the node that built them and never outlive the scene tree.
@@ -37,6 +48,69 @@ const BEVEL_PROPORTION := 0.22
 const MINIMUM_BEVEL := 0.012
 const MAXIMUM_BEVEL := 0.18
 const BEVEL_SAFETY_LIMIT := 0.45
+
+## Rim chamfer rule for cylinders and frustums.
+##
+## A cylinder's cap rim is the same zero-width 90° edge the box bevel exists to
+## remove, and it has the same consequence: no pixels, so no specular line, so
+## the part reads as a shaded primitive rather than a turned one. The rule here
+## is deliberately *not* `bevel_for_size`, for a measured reason. That rule's
+## 0.012 m floor is safe on a box because a box's shortest side is the whole
+## section; on a cylinder the chamfer eats the **cap radius**, and the live
+## population contains 0.025 m conduits and 0.030 m rails. A 0.012 m floor takes
+## 48% of a 0.025 m cap and turns a pipe end into a cone. So there is no floor at
+## all: the chamfer is purely proportional downward, which lets it vanish
+## gracefully on stock too thin to carry it.
+##
+## `governing` is the smaller of the *narrow* rim radius and the half-height —
+## the two dimensions a rim chamfer actually consumes. Because
+## `RIM_CHAMFER_PROPORTION` is well under 1.0, taking 0.22 of that minimum is
+## itself the clamp against both: the cap can never lose more than 22% of its
+## radius and the lateral wall can never lose more than 22% of its half-height.
+## No separate safety constant is needed and none is published, because an
+## unused clamp is a claim nobody can check.
+##
+## `RIM_MAXIMUM_CHAMFER` is the only absolute term. Without it a 1.1 m beacon
+## mast earns a 0.242 m chamfer and a 0.84 m engine can earns 0.185 m, which
+## stops being an edge treatment and starts being a taper — the silhouette read
+## changes, which is exactly what this pass must not do. 0.045 m is the largest
+## width that stays under 5% of the largest live radius (1.42 m), and it is still
+## far above the resolution floor: face-on in a 2560-wide 62° frame it spans
+## about 47 px at 2 m and 16 px at 6 m, and it only has to survive the grazing
+## angles a rim is actually seen at.
+##
+## Where each term binds, over the live population: the proportion governs the
+## thin stock (0.025 m conduit -> 0.0028 m, 0.03 m rail -> 0.0066 m), the
+## half-height term governs discs (1.42 m x 0.16 m table top -> 0.0176 m), and
+## the maximum governs everything large (0.46 m lattice column, 0.62 m signal
+## mast, 0.84 m engine can and 1.1 m beacon mast all land on 0.045 m).
+const RIM_CHAMFER_PROPORTION := 0.22
+const RIM_MAXIMUM_CHAMFER := 0.045
+
+## `CylinderMesh.rings` default, mirrored so this builder is a drop-in for the
+## primitive it replaces and the triangle delta is attributable to the chamfer
+## alone. Worth knowing, and deliberately not acted on here: on a *straight*
+## cylinder these four extra lateral rings subdivide a flat, per-pixel-lit
+## surface. An interim build of this same change that passed `rings = 0` measured
+## 1,120,546 live triangles against this build's 1,374,466 — 253,920 fewer, far
+## more than the chamfer costs. That is a separate change owing its own rendered
+## evidence, not something to smuggle in under an art pass.
+const CYLINDER_DEFAULT_RINGS := 4
+
+## Stamped on every mesh this builder returns. `CylinderMesh` was itself the
+## marker that a surface is a turned round form — two suites read it that way,
+## including the Torrent spec's required "paired round forms" check — and
+## replacing the primitive with an `ArrayMesh` would silently erase that signal.
+## The name restores it without adding a metadata pass to ten call sites.
+const CHAMFERED_CYLINDER_RESOURCE_NAME := "chamfered_cylinder"
+
+
+## True when this mesh is a turned round form: Godot's own cylinder primitive, or
+## one of this kit's chamfered replacements for it.
+static func is_cylindrical_mesh(mesh: Mesh) -> bool:
+	if mesh is CylinderMesh:
+		return true
+	return mesh is ArrayMesh and mesh.resource_name == CHAMFERED_CYLINDER_RESOURCE_NAME
 
 ## Floor of the older proportional-only rule the four station modules and the
 ## hub still use. It exists only to keep a sub-centimetre sliver from collapsing
@@ -193,6 +267,232 @@ static func rounded_box_mesh_with_bevel(
 	# change moves 2.3% of pixels).
 	tool.generate_tangents()
 	return tool.commit()
+
+
+## Physical rim chamfer for a cylinder or frustum of these dimensions, in metres.
+## See `RIM_CHAMFER_PROPORTION` for why this rule has no minimum floor.
+static func rim_chamfer_for_cylinder(
+		top_radius: float,
+		bottom_radius: float,
+		height: float
+	) -> float:
+	var narrow := minf(absf(top_radius), absf(bottom_radius))
+	var half_height := absf(height) * 0.5
+	if narrow <= 0.0 or half_height <= 0.0:
+		return 0.0
+	var governing := minf(narrow, half_height)
+	return minf(governing * RIM_CHAMFER_PROPORTION, RIM_MAXIMUM_CHAMFER)
+
+
+## Caller-owned cache keyed on the exact dimensions, matching
+## `rounded_box_mesh_cached`. Repeated identical stock — and this project builds
+## a great deal of it, 454 cylinders in the Habitat module alone — pays for the
+## extra rings once.
+##
+## `material` is part of the key rather than something the caller applies
+## afterwards, because a cached mesh is shared by reference: a caller that binds
+## per-surface materials (the ships do, and their tests read
+## `mesh.surface_get_material(0)`) would otherwise have the last material win on
+## every earlier instance. Callers that use `material_override` pass null and
+## share one mesh across every colour.
+static func chamfered_cylinder_mesh_cached(
+		top_radius: float,
+		bottom_radius: float,
+		height: float,
+		radial_segments: int,
+		cache: Dictionary,
+		rings: int = CYLINDER_DEFAULT_RINGS,
+		cap_top: bool = true,
+		cap_bottom: bool = true,
+		material: Material = null
+	) -> ArrayMesh:
+	var chamfer := rim_chamfer_for_cylinder(top_radius, bottom_radius, height)
+	var cache_key := "cyl:%0.4f:%0.4f:%0.4f:%d:%d:%d:%d:%0.4f:%d" % [
+		top_radius, bottom_radius, height, radial_segments, rings,
+		1 if cap_top else 0, 1 if cap_bottom else 0, chamfer,
+		0 if material == null else material.get_instance_id(),
+	]
+	if cache.has(cache_key):
+		return cache[cache_key] as ArrayMesh
+	var mesh := chamfered_cylinder_mesh(
+		top_radius, bottom_radius, height, radial_segments, rings, cap_top, cap_bottom, chamfer
+	)
+	if material != null and mesh.get_surface_count() > 0:
+		mesh.surface_set_material(0, material)
+	cache[cache_key] = mesh
+	return mesh
+
+
+## A cylinder or frustum whose capped rims are chamfered, standing in for
+## `CylinderMesh` with the same `top_radius` / `bottom_radius` / `height` /
+## `radial_segments` / `rings` / `cap_top` / `cap_bottom`.
+##
+## **AABB is preserved exactly, and that is what decides which rims move.** The
+## radial extent of the whole mesh is `max(top_radius, bottom_radius)`. On a
+## straight cylinder that radius is carried by the entire lateral wall, so both
+## rims can be chamfered and the bounding box is untouched. On a *tapered*
+## section the widest radius exists only on the wide rim's own circle: chamfering
+## that rim would pull the silhouette in, so this builder leaves the wide rim
+## sharp and treats only the narrow one. The station's tapered stock — the
+## operations activity's 0.88 taper, the Freight berth's 0.94 — stands on its
+## wide end against a deck where the rim is buried anyway, and it is the top rim
+## that is at eye height. Nothing here moves a footprint, a published envelope,
+## or a collision shape; collision shapes are built by the callers from the same
+## `radius` / `height` arguments and never see this mesh.
+static func chamfered_cylinder_mesh(
+		top_radius: float,
+		bottom_radius: float,
+		height: float,
+		radial_segments: int,
+		rings: int = CYLINDER_DEFAULT_RINGS,
+		cap_top: bool = true,
+		cap_bottom: bool = true,
+		chamfer: float = -1.0
+	) -> ArrayMesh:
+	var segments := maxi(3, radial_segments)
+	var half_height := height * 0.5
+	var width := chamfer
+	if width < 0.0:
+		width = rim_chamfer_for_cylinder(top_radius, bottom_radius, height)
+	var widest := maxf(top_radius, bottom_radius)
+	# The AABB rule above, stated as code: a rim is only chamfered when it is
+	# capped, when the chamfer is real, and when it is not the sole carrier of
+	# the mesh's radial extent.
+	var chamfer_top := cap_top and width > 0.0 and (top_radius < widest or is_equal_approx(top_radius, bottom_radius))
+	var chamfer_bottom := cap_bottom and width > 0.0 and (bottom_radius < widest or is_equal_approx(top_radius, bottom_radius))
+	var top_y := half_height - (width if chamfer_top else 0.0)
+	var bottom_y := -half_height + (width if chamfer_bottom else 0.0)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ring_count := maxi(0, rings) + 1
+	# Lateral wall, smooth around the ring exactly as CylinderMesh shades it.
+	for step in ring_count:
+		var y0 := lerpf(bottom_y, top_y, float(step) / float(ring_count))
+		var y1 := lerpf(bottom_y, top_y, float(step + 1) / float(ring_count))
+		var v0 := (y0 + half_height) / maxf(height, 0.0000001)
+		var v1 := (y1 + half_height) / maxf(height, 0.0000001)
+		_add_cylinder_band(
+			tool, segments, _radius_at(top_radius, bottom_radius, half_height, y0),
+			y0, _radius_at(top_radius, bottom_radius, half_height, y1), y1, v0, v1
+		)
+	# The chamfer bands take their own slice of the same 0..1 axial UV range as the
+	# wall. Giving them a degenerate v span would leave `generate_tangents()` with
+	# no UV derivative to work from on exactly the triangles this pass exists for.
+	var safe_height := maxf(absf(height), 0.0000001)
+	if chamfer_top:
+		_add_cylinder_band(
+			tool, segments, _radius_at(top_radius, bottom_radius, half_height, top_y), top_y,
+			maxf(0.0, top_radius - width), half_height,
+			(top_y + half_height) / safe_height, 1.0
+		)
+	if chamfer_bottom:
+		_add_cylinder_band(
+			tool, segments, maxf(0.0, bottom_radius - width), -half_height,
+			_radius_at(top_radius, bottom_radius, half_height, bottom_y), bottom_y,
+			0.0, (bottom_y + half_height) / safe_height
+		)
+	if cap_top:
+		_add_cylinder_cap(tool, segments, maxf(0.0, top_radius - (width if chamfer_top else 0.0)), half_height, true)
+	if cap_bottom:
+		_add_cylinder_cap(tool, segments, maxf(0.0, bottom_radius - (width if chamfer_bottom else 0.0)), -half_height, false)
+	tool.generate_tangents()
+	var mesh := tool.commit()
+	mesh.resource_name = CHAMFERED_CYLINDER_RESOURCE_NAME
+	return mesh
+
+
+## Lateral radius of the untapered profile at height `y`.
+static func _radius_at(top_radius: float, bottom_radius: float, half_height: float, y: float) -> float:
+	if half_height <= 0.0:
+		return top_radius
+	return lerpf(bottom_radius, top_radius, clampf((y + half_height) / (half_height * 2.0), 0.0, 1.0))
+
+
+## One quad band between two coaxial circles.
+##
+## Every band carries its own flat-in-profile normal, so consecutive bands do not
+## share a normal at the ring they meet on. That is deliberate: the crease at
+## each end of the chamfer is what makes the highlight a line instead of a
+## smeared gradient, and it is also how `CylinderMesh` separates its cap from its
+## wall.
+static func _add_cylinder_band(
+		tool: SurfaceTool,
+		segments: int,
+		lower_radius: float,
+		lower_y: float,
+		upper_radius: float,
+		upper_y: float,
+		lower_v: float,
+		upper_v: float
+	) -> void:
+	if is_equal_approx(lower_radius, upper_radius) and is_equal_approx(lower_y, upper_y):
+		return
+	# Profile tangent in (radius, y); its perpendicular pointing outward is the
+	# band's normal, so a 45° chamfer gets a 45° normal and a wall gets a radial
+	# one. This is the whole mechanism: without this band there is no direction
+	# between "wall" and "cap" for a highlight to sit on.
+	var run := upper_radius - lower_radius
+	var rise := upper_y - lower_y
+	var normal_radial := rise
+	var normal_y := -run
+	var normal_length := sqrt(normal_radial * normal_radial + normal_y * normal_y)
+	if normal_length <= 0.0000001:
+		return
+	normal_radial /= normal_length
+	normal_y /= normal_length
+	for step in segments:
+		var a := TAU * float(step) / float(segments)
+		var b := TAU * float(step + 1) / float(segments)
+		var ua := float(step) / float(segments)
+		var ub := float(step + 1) / float(segments)
+		var directions := [Vector2(cos(a), sin(a)), Vector2(cos(b), sin(b))]
+		var normals: Array[Vector3] = []
+		for direction: Vector2 in directions:
+			normals.append(Vector3(direction.x * normal_radial, normal_y, direction.y * normal_radial).normalized())
+		var lower_a := Vector3(directions[0].x * lower_radius, lower_y, directions[0].y * lower_radius)
+		var lower_b := Vector3(directions[1].x * lower_radius, lower_y, directions[1].y * lower_radius)
+		var upper_a := Vector3(directions[0].x * upper_radius, upper_y, directions[0].y * upper_radius)
+		var upper_b := Vector3(directions[1].x * upper_radius, upper_y, directions[1].y * upper_radius)
+		_emit_cylinder_vertex(tool, normals[0], Vector2(ua, lower_v), lower_a)
+		_emit_cylinder_vertex(tool, normals[1], Vector2(ub, lower_v), lower_b)
+		_emit_cylinder_vertex(tool, normals[1], Vector2(ub, upper_v), upper_b)
+		_emit_cylinder_vertex(tool, normals[0], Vector2(ua, lower_v), lower_a)
+		_emit_cylinder_vertex(tool, normals[1], Vector2(ub, upper_v), upper_b)
+		_emit_cylinder_vertex(tool, normals[0], Vector2(ua, upper_v), upper_a)
+
+
+## Flat end disc, wound so its face points away from the body.
+static func _add_cylinder_cap(
+		tool: SurfaceTool,
+		segments: int,
+		radius: float,
+		y: float,
+		upward: bool
+	) -> void:
+	if radius <= 0.0:
+		return
+	var normal := Vector3.UP if upward else Vector3.DOWN
+	for step in segments:
+		var a := TAU * float(step) / float(segments)
+		var b := TAU * float(step + 1) / float(segments)
+		var edge_a := Vector3(cos(a) * radius, y, sin(a) * radius)
+		var edge_b := Vector3(cos(b) * radius, y, sin(b) * radius)
+		var uv_a := Vector2(cos(a) * 0.5 + 0.5, sin(a) * 0.5 + 0.5)
+		var uv_b := Vector2(cos(b) * 0.5 + 0.5, sin(b) * 0.5 + 0.5)
+		if upward:
+			_emit_cylinder_vertex(tool, normal, Vector2(0.5, 0.5), Vector3(0.0, y, 0.0))
+			_emit_cylinder_vertex(tool, normal, uv_a, edge_a)
+			_emit_cylinder_vertex(tool, normal, uv_b, edge_b)
+		else:
+			_emit_cylinder_vertex(tool, normal, Vector2(0.5, 0.5), Vector3(0.0, y, 0.0))
+			_emit_cylinder_vertex(tool, normal, uv_b, edge_b)
+			_emit_cylinder_vertex(tool, normal, uv_a, edge_a)
+
+
+static func _emit_cylinder_vertex(tool: SurfaceTool, normal: Vector3, uv: Vector2, point: Vector3) -> void:
+	tool.set_normal(normal)
+	tool.set_uv(uv)
+	tool.add_vertex(point)
 
 
 ## Binds the registered station panel family: world-space triplanar albedo,

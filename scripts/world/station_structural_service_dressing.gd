@@ -85,6 +85,7 @@ const CONTENT_NOTE := (
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
+var _chamfered_cylinder_cache: Dictionary = {}
 var _task_light: OmniLight3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
@@ -1304,16 +1305,21 @@ func _cylinder(
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
 	mesh_instance.rotation_degrees = rotation_degrees_value
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = height
 	# Eight segments is a visible octagon on a 0.07 m manifold coupler or a
 	# 0.042 m cross brace at the ranges these are seen from. Sixteen still has its
 	# cardinal vertices, so the mesh AABB — and therefore the published footprint
-	# check — is bit-identical to the eight-segment ring it replaces.
-	mesh.radial_segments = 16
-	mesh.rings = 1
+	# check — is bit-identical to the eight-segment ring it replaced.
+	#
+	# The rims are now chamfered too. This is the thinnest stock in the station —
+	# 0.025 m conduit — and it is exactly why the kit's rim rule has no minimum
+	# bevel: at 0.22 proportional these caps give up 0.0055 m and stay caps,
+	# where the box family's 0.012 m floor would have taken half the radius.
+	# The chamfer consumes cap radius and lateral height only; the outer radius
+	# and the overall height are untouched, so the published footprint still
+	# matches.
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, height, 16, _chamfered_cylinder_cache, 1
+	)
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = (

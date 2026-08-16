@@ -69,6 +69,7 @@ const CONTENT_NOTE := (
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
+var _chamfered_cylinder_cache: Dictionary = {}
 var _route_markers: Dictionary = {}
 var _bunk_markers: Array[Marker3D] = []
 var _bunk_nodes: Array[Node3D] = []
@@ -961,11 +962,12 @@ func _cylinder(
 	container.position = cylinder_position
 	container.rotation_degrees = rotation_degrees_value
 	parent.add_child(container)
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 32
+	# Chamfered rims at the module's frozen 32 radial segments. Outer radius and
+	# overall height are unchanged, so no footprint moves and the collision
+	# cylinder below is built from the same untouched arguments.
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, height, 32, _chamfered_cylinder_cache
+	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.name = "Mesh"
