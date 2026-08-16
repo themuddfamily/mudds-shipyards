@@ -26,7 +26,7 @@ const PRODUCTION_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["small_craft"],
 		"feedback_path": NodePath("CentralBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -0.96, 0.0)),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.185, 0.0)),
 		"cue_half_width": 8.2,
 		"cue_half_length": 12.5,
 	},
@@ -41,7 +41,7 @@ const PRODUCTION_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["recon"],
 		"feedback_path": NodePath("ArrowReconBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -0.93, 0.0)),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.30, 0.0)),
 		"cue_half_width": 6.3,
 		"cue_half_length": 7.2,
 	},
@@ -56,7 +56,7 @@ const PRODUCTION_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["medium_craft", "freighter", "cargo", "walkable_interior", "light_freighter", "freight"],
 		"feedback_path": NodePath("JovianFreightShipBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.18, 0.0)),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.38, 0.0)),
 		"cue_half_width": 11.6,
 		"cue_half_length": 16.5,
 	},
@@ -71,7 +71,7 @@ const PRODUCTION_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["zenith_b7"],
 		"feedback_path": NodePath("ZenithFleetDockBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.17, 0.0)),
 		"cue_half_width": 5.0,
 		"cue_half_length": 4.8,
 	},
@@ -297,7 +297,7 @@ func _test_exact_instance_replacements(world: ShipyardWorld) -> void:
 	replacement_berth.assist_maximum_tilt_degrees = original_berth.assist_maximum_tilt_degrees
 	var replacement_feedback := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
 	replacement_feedback.name = "BerthFeedback"
-	replacement_feedback.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, -0.96, 0.0))
+	replacement_feedback.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, -1.185, 0.0))
 	replacement_feedback.cue_half_width = 8.2
 	replacement_feedback.cue_half_length = 12.5
 	replacement_berth.add_child(replacement_feedback)
@@ -321,7 +321,7 @@ func _test_exact_instance_replacements(world: ShipyardWorld) -> void:
 	arrow_berth.remove_child(original_feedback)
 	var exact_feedback_replacement := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
 	exact_feedback_replacement.name = "BerthFeedback"
-	exact_feedback_replacement.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, -0.93, 0.0))
+	exact_feedback_replacement.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, -1.30, 0.0))
 	exact_feedback_replacement.cue_half_width = 6.3
 	exact_feedback_replacement.cue_half_length = 7.2
 	arrow_berth.add_child(exact_feedback_replacement)

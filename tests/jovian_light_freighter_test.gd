@@ -31,6 +31,7 @@ func _run() -> void:
 	await _test_scale_handling_and_presentation(jovian)
 	_test_connected_interior_contract(jovian)
 	_test_collision_access_and_cameras(jovian)
+	_test_secured_freight_is_solid(jovian)
 	await _test_physical_player_traversal(jovian)
 	await _test_engine_weapon_damage_and_reuse(jovian)
 	await _test_cleanup(jovian)
@@ -182,6 +183,126 @@ func _test_collision_access_and_cameras(jovian: JovianLightFreighter) -> void:
 	_check(jovian.get_camera().name == "CockpitCamera" and jovian.get_camera().get_parent().name == "CockpitInterior", "cockpit view remains inside physical flight deck")
 	jovian.set_cockpit_view(false)
 	jovian.set_piloted(false)
+
+
+## The hold's secured freight is solid.
+##
+## It was presentation-only for as long as the cargo bay was scenery a chase
+## camera flew past. Once a crew member could leave the seat and walk it, a crate
+## you walk through — and a chase boom pushed inside a container, which is what
+## `artifacts/cabin_04_walking_the_hold.png` shows — became the same
+## "solid-looking volume with no collision" defect the station sweep closed
+## everywhere else.
+##
+## Measured both ways on purpose. Freight that is solid but has swallowed the
+## aisle is a worse defect than freight you can walk through, because it strands a
+## crew member in a pressurised hull: the same probe that requires the crates to
+## stop a capsule requires the central lane and the ramp-to-cabin diagonal to
+## stay open. `_test_physical_player_traversal` below then walks that lane for
+## real.
+const CARGO_AISLE_PROBE_POINTS: Array[Vector3] = [
+	Vector3(0.0, 1.4, -1.5),
+	Vector3(0.0, 1.4, 1.0),
+	Vector3(0.0, 1.4, 3.2),
+	Vector3(0.0, 1.4, 5.5),
+	Vector3(0.0, 1.4, 8.0),
+	# The ramp aperture and the diagonal from it to the forward passage.
+	Vector3(-4.6, 1.4, 3.2),
+	Vector3(-2.6, 1.4, 3.2),
+	Vector3(-1.4, 1.4, 0.0),
+]
+
+
+func _test_secured_freight_is_solid(jovian: JovianLightFreighter) -> void:
+	var space := jovian.get_world_3d().direct_space_state
+	var drawn_units: Array[MeshInstance3D] = []
+	for candidate in jovian.find_children("CargoContainer*", "MeshInstance3D", true, false):
+		drawn_units.append(candidate as MeshInstance3D)
+	for candidate in jovian.find_children("CargoPallet*", "MeshInstance3D", true, false):
+		drawn_units.append(candidate as MeshInstance3D)
+	_check(
+		drawn_units.size() == JovianLightFreighter.CARGO_UNIT_ANCHORS.size() * 2,
+		"the hold draws a pallet and a container at each of its %d tie-down stations (%d meshes)"
+			% [JovianLightFreighter.CARGO_UNIT_ANCHORS.size(), drawn_units.size()]
+	)
+
+	# Every drawn crate volume must stop a probe placed inside it. The probe is a
+	# box at half the drawn unit's own size, centred on the drawn mesh: half-size
+	# so a 0.22 m pallet is tested without the probe reaching down through it into
+	# the cargo deck 0.28 m below, which is what a fixed-size capsule does and is
+	# why the first version of the structured red below could not go red.
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.SHIP_BODY_LAYER
+	var permeable := PackedStringArray()
+	for unit in drawn_units:
+		var bounds := (unit.global_transform * unit.get_aabb()).abs()
+		query.shape = _inner_probe(bounds)
+		query.transform = Transform3D(Basis.IDENTITY, bounds.get_center())
+		var hit := false
+		for result in space.intersect_shape(query, 4):
+			if (result["collider"] as Node) == jovian:
+				hit = true
+		if not hit:
+			permeable.append("%s at %s" % [unit.name, str(bounds.get_center())])
+	print("PERMEABLE_FREIGHT: ", permeable)
+	_check(
+		permeable.is_empty(),
+		"every drawn cargo unit in the hold is solid to the ship's own collision"
+	)
+
+	var blocked_aisle := PackedStringArray()
+	# The production avatar's own capsule, standing on the cargo deck.
+	var aisle_capsule := CapsuleShape3D.new()
+	aisle_capsule.radius = 0.38
+	aisle_capsule.height = 1.8
+	query.shape = aisle_capsule
+	for point in CARGO_AISLE_PROBE_POINTS:
+		query.transform = Transform3D(Basis.IDENTITY, jovian.to_global(point))
+		for result in space.intersect_shape(query, 4):
+			if (result["collider"] as Node) == jovian:
+				blocked_aisle.append(str(point))
+				break
+	print("BLOCKED_CARGO_AISLE: ", blocked_aisle)
+	_check(
+		blocked_aisle.is_empty(),
+		"making the freight solid left the central lane and the ramp-to-cabin diagonal open"
+	)
+
+	# Structured red: drop the colliders and the permeability check must fire.
+	var disabled: Array[CollisionShape3D] = []
+	for child in jovian.get_children():
+		var shape := child as CollisionShape3D
+		if shape == null or not shape.name.begins_with("Cargo"):
+			continue
+		if not (shape.name.contains("Pallet") or shape.name.contains("Container")):
+			continue
+		shape.disabled = true
+		disabled.append(shape)
+	_check(disabled.size() == drawn_units.size(), "each drawn cargo unit has its own named collider")
+	var still_solid := 0
+	for unit in drawn_units:
+		var bounds := (unit.global_transform * unit.get_aabb()).abs()
+		query.shape = _inner_probe(bounds)
+		query.transform = Transform3D(Basis.IDENTITY, bounds.get_center())
+		for result in space.intersect_shape(query, 4):
+			if (result["collider"] as Node) == jovian:
+				still_solid += 1
+				break
+	_check(
+		still_solid == 0,
+		"disabling the freight colliders returns the hold to walk-through crates (%d still solid)"
+			% still_solid
+	)
+	for shape in disabled:
+		shape.disabled = false
+
+
+## A box at half the given volume's size, centred in it: entirely inside the
+## drawn unit, so a hit can only come from that unit's own collider.
+func _inner_probe(bounds: AABB) -> BoxShape3D:
+	var shape := BoxShape3D.new()
+	shape.size = bounds.size * 0.5
+	return shape
 
 
 func _test_physical_player_traversal(jovian: JovianLightFreighter) -> void:

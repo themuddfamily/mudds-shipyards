@@ -35,6 +35,28 @@ const CABIN_MOVEMENT_BOUNDS := AABB(Vector3(-5.75, 0.30, -10.4), Vector3(11.5, 4
 ## deck plate. Facing aft, into the cabin the pilot has just been given.
 const CABIN_STAND_LOCAL_ORIGIN := Vector3(0.0, 0.52, -7.35)
 const CABIN_STAND_LOCAL_YAW := PI
+## Secured freight in the hold: four tie-down stations, each carrying a pallet
+## with a container strapped to it.
+##
+## Published as one roster because the drawn crate and the collider that stops a
+## crew member walking through it are built from it in two different places, and
+## the whole point of making the freight solid is that those two cannot disagree.
+## Every value is ship-local; `WalkableInterior` and `CargoBay` are both identity
+## children of the physical ship, so cargo-bay local coordinates are ship-local.
+const CARGO_UNIT_ANCHORS: Array[Vector3] = [
+	Vector3(-3.75, 0.64, 0.25),
+	Vector3(3.75, 0.64, 0.25),
+	Vector3(-3.75, 0.64, 5.55),
+	Vector3(3.75, 0.64, 5.55),
+]
+const CARGO_PALLET_OFFSET_Y := 0.12
+const CARGO_PALLET_SIZE := Vector3(2.25, 0.22, 2.5)
+const CARGO_CONTAINER_OFFSET_Y := 0.9
+const CARGO_CONTAINER_SIZE := Vector3(1.95, 1.3, 2.15)
+const CARGO_RESTRAINT_OFFSET_Y := 1.62
+const CARGO_RESTRAINT_BAND_Z: Array[float] = [-0.64, 0.64]
+const CARGO_RESTRAINT_SIZE := Vector3(2.02, 0.08, 0.1)
+
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
 const PROVISIONAL_NOTE := (
@@ -726,6 +748,14 @@ func _build_connected_interior() -> void:
 	_build_interior_route_and_markers()
 
 
+## Stable per-station suffix shared by a cargo unit's drawn meshes and its
+## colliders, so `CargoContainerPort00` and `CargoContainerCollisionPort00` name
+## the same crate.
+static func cargo_unit_suffix(index: int) -> String:
+	var anchor := CARGO_UNIT_ANCHORS[index]
+	return "%s%02d" % ["Port" if anchor.x < 0.0 else "Starboard", index / 2]
+
+
 func _build_cargo_bay() -> void:
 	_cargo_bay = Node3D.new()
 	_cargo_bay.name = "CargoBay"
@@ -762,22 +792,35 @@ func _build_cargo_bay() -> void:
 			0.085,
 			_jovian_materials.hull_cool
 		)
-	# Four stable tie-down hardpoints and six visibly secured cargo units. The
-	# central lane and door-to-cabin diagonal remain at least 2 m wide.
-	for row in 2:
-		for side_index in 2:
-			var side := -1.0 if side_index == 0 else 1.0
-			var position := Vector3(side * 3.75, 0.64, 0.25 + float(row) * 5.3)
-			var hardpoint := Marker3D.new()
-			hardpoint.name = ("Port" if side < 0.0 else "Starboard") + "CargoHardpoint%02d" % row
-			hardpoint.position = position
-			hardpoint.set_meta("hardpoint_id", StringName("cargo_%s_%02d" % ["port" if side < 0.0 else "starboard", row]))
-			_cargo_bay.add_child(hardpoint)
-			_cargo_hardpoints.append(hardpoint)
-			_box(_cargo_bay, "CargoPallet", position + Vector3(0.0, 0.12, 0.0), Vector3(2.25, 0.22, 2.5), _jovian_materials.structure)
-			_box(_cargo_bay, "CargoContainer", position + Vector3(0.0, 0.9, 0.0), Vector3(1.95, 1.3, 2.15), _jovian_materials.cargo_blue)
-			for band_z in [-0.64, 0.64]:
-				_box(_cargo_bay, "CargoRestraint", position + Vector3(0.0, 1.62, band_z), Vector3(2.02, 0.08, 0.1), _jovian_materials.amber)
+	# Four stable tie-down hardpoints and their secured cargo units. The central
+	# lane and door-to-cabin diagonal remain at least 2 m wide. Positions come from
+	# `CARGO_UNIT_ANCHORS`, which `_build_collision` also builds the freight's
+	# colliders from, so the drawn crate and the solid crate cannot drift apart.
+	for index in CARGO_UNIT_ANCHORS.size():
+		var position := CARGO_UNIT_ANCHORS[index]
+		var side := signf(position.x)
+		var row := index / 2
+		var suffix := cargo_unit_suffix(index)
+		var hardpoint := Marker3D.new()
+		hardpoint.name = ("Port" if side < 0.0 else "Starboard") + "CargoHardpoint%02d" % row
+		hardpoint.position = position
+		hardpoint.set_meta("hardpoint_id", StringName("cargo_%s_%02d" % ["port" if side < 0.0 else "starboard", row]))
+		_cargo_bay.add_child(hardpoint)
+		_cargo_hardpoints.append(hardpoint)
+		# Named per station rather than four times over. Godot renames same-named
+		# siblings to generated identifiers, which is how four crates could only
+		# ever be found as two by name — and an audit that can only see half a
+		# roster is how they stayed permeable this long.
+		_box(_cargo_bay, "CargoPallet" + suffix, position + Vector3(0.0, CARGO_PALLET_OFFSET_Y, 0.0), CARGO_PALLET_SIZE, _jovian_materials.structure)
+		_box(_cargo_bay, "CargoContainer" + suffix, position + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0), CARGO_CONTAINER_SIZE, _jovian_materials.cargo_blue)
+		for band_index in CARGO_RESTRAINT_BAND_Z.size():
+			_box(
+				_cargo_bay,
+				"CargoRestraint%s%02d" % [suffix, band_index],
+				position + Vector3(0.0, CARGO_RESTRAINT_OFFSET_Y, CARGO_RESTRAINT_BAND_Z[band_index]),
+				CARGO_RESTRAINT_SIZE,
+				_jovian_materials.amber
+			)
 	# Rear corner lockers add believable stowage without obstructing egress.
 	for side in [-1.0, 1.0]:
 		_box(_cargo_bay, "ServiceLocker", Vector3(side * 4.75, 1.52, 8.25), Vector3(1.25, 1.9, 1.15), _jovian_materials.hull_cool)
@@ -967,13 +1010,37 @@ func _replace_collision_and_markers() -> void:
 			Vector3(0.22, 2.6, 3.4)
 		)
 	_add_box_collision("CockpitForwardWallCollision", Vector3(0.0, 1.75, -10.46), Vector3(3.55, 2.6, 0.22))
-	# Secured freight is deliberately still presentation-only. Making the six
-	# cargo units solid is the right answer for a hold people walk — it is what
-	# stops the chase boom being pushed inside a container — but it is not this
-	# change's to make: `tests/fleet_role_differentiation_test.gd` stages its
-	# Jovian approach *inside* the hold and walks a straight line through where
-	# the port crates stand, so solid freight jams that suite's approach. Recorded
-	# in ROADMAP.md for whoever owns that suite.
+	# Secured freight is solid. It was presentation-only for as long as the hold
+	# was scenery a chase camera flew past; once a crew member could leave the seat
+	# and walk it, a crate you walk through — and a chase boom pushed inside a
+	# container, which is what `artifacts/cabin_04_walking_the_hold.png` shows — is
+	# the same "solid-looking thing with no collision" defect the station sweep
+	# closed everywhere else.
+	#
+	# This was written and reverted once, because it jammed
+	# `tests/fleet_role_differentiation_test.gd`, which staged its Jovian approach
+	# inside the hull and walked a straight line through the port crates. That
+	# suite's approach has been restaged onto the berth apron outside the hull,
+	# where its subject — role differentiation and boarding through the exterior
+	# pilot hatch — actually lives. The two halves went in together.
+	#
+	# Built from `CARGO_UNIT_ANCHORS`, the same roster `_build_cargo_bay` draws
+	# from, so the collider and the crate cannot drift apart. Sizes are the drawn
+	# sizes exactly; the restraint bands are inside the container's own volume and
+	# need nothing of their own.
+	for index in CARGO_UNIT_ANCHORS.size():
+		var anchor := CARGO_UNIT_ANCHORS[index]
+		var suffix := cargo_unit_suffix(index)
+		_add_box_collision(
+			"CargoPalletCollision" + suffix,
+			anchor + Vector3(0.0, CARGO_PALLET_OFFSET_Y, 0.0),
+			CARGO_PALLET_SIZE
+		)
+		_add_box_collision(
+			"CargoContainerCollision" + suffix,
+			anchor + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0),
+			CARGO_CONTAINER_SIZE
+		)
 	# The ramp is a real sloped ship-owned collider, aligned with its visual.
 	_add_ramp_wedge_collision(
 		"PortCargoRampCollision",

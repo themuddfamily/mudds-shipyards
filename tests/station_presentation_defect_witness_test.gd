@@ -138,6 +138,7 @@ func _run() -> void:
 	_test_approach_facing_signs(world)
 	_test_seated_decorations_rest_on_their_surface(world)
 	_test_structural_pieces_rest_on_drawn_geometry(world)
+	_test_berth_cues_are_seated_on_the_deck_they_mark(world)
 	_test_orphan_dock_guide_lens(world)
 
 	game.queue_free()
@@ -216,6 +217,190 @@ func _test_structural_pieces_rest_on_drawn_geometry(world: ShipyardWorld) -> voi
 		floating.is_empty(),
 		"every under-deck chord and stacked cargo crate bears on drawn geometry instead of hanging in space"
 	)
+
+
+## The fourth report in the same category, recorded under ZENITH-SITE-001 as
+## "the berth cue plates" and left for an owner: all four berth cues hovered over
+## the deck they mark — Zenith 0.140, Jovian 0.210, central 0.235, Arrow 0.380.
+##
+## Neither existing helper in this file can measure it, which is why it was
+## recorded rather than swept:
+##
+##   `_drop_below` rays World *collision*, and the central berth's drawn deck is
+##   an authored Blender shell 0.115 m above the collision box under it. It
+##   reports 0.350 there, not 0.235.
+##   `_test_structural_pieces_rest_on_drawn_geometry` intersects bounding boxes,
+##   and three of the four berths carry a pad or dock ring built as a **torus**,
+##   whose bounding box covers its own hole. Every cue plate "intersects" a ring
+##   it is nowhere near, so all four berths pass at any hover.
+##
+## This measures each plate against drawn **triangles** directly beneath its own
+## footprint. It is the only method here that answers the question, and the
+## reason both cheaper ones are kept is that they are correct for their own
+## rosters — a beacon on a collision deck, a chord bolted under a solid beam.
+##
+## Deck dressing that stands proud of the deck — pad rings, grip strips, deck
+## centrelines — is deliberately not counted as support: a plate resting on a
+## 0.15 m rib it crosses at four percent of its area is still hovering over the
+## other ninety-six. After the fix those ribs cross *over* the cue instead, which
+## is what a painted deck marking running past a raised rib looks like.
+##
+## The tolerance is the largest gap a *seated* cue can still measure, and it is
+## derived rather than chosen: the 0.010 m contact bias
+## (`ShipyardWorld.BERTH_CUE_SEAT_HEIGHT`, which exists because coincident faces
+## z-fight) plus the deepest authored deck relief any cue plate has to bridge.
+## That is the Fleet Dock's 0.040 m grip inset: the inset spans x 15.3 .. 25.7
+## and the Zenith cue spans 17.0 .. 27.0, so the two starboard boundary strips
+## bear on the inset and overhang its edge, measuring 0.051 against the bare slab
+## 0.040 below it. A deck with a step in it is not a floating cue. 0.060 leaves
+## float slack on top of that and still fails all four recorded hovers — 0.140,
+## 0.210, 0.235 and 0.380 — by between two and six times.
+const BERTH_CUE_SEAT_TOLERANCE := 0.06
+## The structured red. Lifting a seated cue by this much must turn the check red,
+## and it is deliberately smaller than the smallest hover actually reported
+## (0.140 at the Zenith), so the guard is proven to bite before the defect is
+## as bad as the one that was reported.
+const BERTH_CUE_RED_MUTATION := 0.1
+## Plates sampled per berth. The four boundary strips are the outermost pieces
+## and the ones the Zenith report was written about; the lease plate is the
+## innermost. Between them they span the whole cue rectangle.
+const BERTH_CUE_SAMPLED_PLATES := [
+	"Boundary_Port_Forward",
+	"Boundary_Port_Aft",
+	"Boundary_Starboard_Forward",
+	"Boundary_Starboard_Aft",
+	"LeaseStatePlate",
+]
+## A sample is only counted when something is drawn under it at all. Part of the
+## central berth's cue rectangle overhangs open channels in the authored shell,
+## where nothing is drawn below and no seat exists to measure; that predates this
+## and is unchanged by it.
+const BERTH_CUE_MINIMUM_SUPPORTED_FRACTION := 0.9
+
+
+func _test_berth_cues_are_seated_on_the_deck_they_mark(world: ShipyardWorld) -> void:
+	var hovering := _measure_hovering_berth_cues(world, true)
+	_check(
+		hovering.is_empty(),
+		"every berth cue plate is seated on the drawn deck it marks, not hovering over it"
+	)
+
+	# Structured red. Lift the Zenith cue — the berth the defect was reported at,
+	# and the one with no ring at cue height for a hovering plate to read against —
+	# and require the same measurement to fail, then restore it.
+	var zenith := world.get_node_or_null(^"ZenithFleetDockBerth/BerthFeedback") as ShipBerthFeedback
+	if zenith == null:
+		_check(false, "the Zenith berth cue resolves for the structured-red mutation")
+		return
+	var seated_transform := zenith.transform
+	zenith.position.y += BERTH_CUE_RED_MUTATION
+	var mutated := _measure_hovering_berth_cues(world, false)
+	_check(
+		not mutated.is_empty(),
+		"lifting a seated berth cue %.2f m turns the seating audit red (%s)"
+			% [BERTH_CUE_RED_MUTATION, ", ".join(mutated)]
+	)
+	zenith.transform = seated_transform
+	_check(
+		_measure_hovering_berth_cues(world, false).is_empty(),
+		"restoring the production cue transform returns the seating audit to green"
+	)
+
+
+func _measure_hovering_berth_cues(world: ShipyardWorld, verbose: bool) -> PackedStringArray:
+	var hovering := PackedStringArray()
+	var measured := PackedStringArray()
+	for berth_id in world.get_berth_ids():
+		var spec: Dictionary = ShipyardWorld.SHIP_BERTH_FEEDBACK_SPECS.get(berth_id, {})
+		var feedback := world.get_node_or_null(
+			spec.get("feedback_path", NodePath()) as NodePath
+		) as ShipBerthFeedback
+		var visual: Node3D = null
+		if feedback != null:
+			visual = feedback.get_node_or_null(^"FeedbackVisual") as Node3D
+		if visual == null:
+			hovering.append("%s <no cue>" % berth_id)
+			continue
+		var worst := -1.0
+		var worst_plate := ""
+		var supported := 0
+		var sampled := 0
+		for plate_name: String in BERTH_CUE_SAMPLED_PLATES:
+			var plate := visual.get_node_or_null(NodePath(plate_name)) as MeshInstance3D
+			if plate == null or plate.mesh == null:
+				hovering.append("%s/%s <missing>" % [berth_id, plate_name])
+				continue
+			var box := (plate.global_transform * plate.mesh.get_aabb()).abs()
+			var triangles := _drawn_triangles_under(world, visual, box)
+			for ix in 3:
+				for iz in 3:
+					var from := Vector3(
+						lerpf(box.position.x + 0.01, box.end.x - 0.01, float(ix) * 0.5),
+						box.position.y + 0.001,
+						lerpf(box.position.z + 0.01, box.end.z - 0.01, float(iz) * 0.5)
+					)
+					sampled += 1
+					var surface: Variant = _highest_triangle_below(from, triangles)
+					if surface == null:
+						continue
+					supported += 1
+					var gap := from.y - float(surface)
+					if gap > worst:
+						worst = gap
+						worst_plate = plate_name
+		measured.append("%s worst=%.3f (%s) supported=%d/%d" % [berth_id, worst, worst_plate, supported, sampled])
+		if sampled == 0 or float(supported) / float(sampled) < BERTH_CUE_MINIMUM_SUPPORTED_FRACTION:
+			hovering.append("%s only %d of %d cue samples have drawn deck under them" % [berth_id, supported, sampled])
+		if worst > BERTH_CUE_SEAT_TOLERANCE:
+			hovering.append("%s cue hovers %.3f m over its deck at %s" % [berth_id, worst, worst_plate])
+	if verbose:
+		print("BERTH_CUE_SEATING: ", measured)
+		print("FLOATING_BERTH_CUES: ", hovering)
+	return hovering
+
+
+## Drawn triangles that could support a plate whose world bounds are `box`: only
+## meshes that overlap it in X/Z and reach no higher than its underside, and never
+## the cue's own geometry.
+func _drawn_triangles_under(world: ShipyardWorld, cue_root: Node3D, box: AABB) -> Array:
+	var triangles: Array = []
+	for candidate in world.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+			continue
+		if cue_root.is_ancestor_of(mesh_instance) or mesh_instance == cue_root:
+			continue
+		var other := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		if other.position.y > box.position.y + 0.001:
+			continue
+		if other.end.x < box.position.x or other.position.x > box.end.x:
+			continue
+		if other.end.z < box.position.z or other.position.z > box.end.z:
+			continue
+		var faces := mesh_instance.mesh.get_faces()
+		var transform := mesh_instance.global_transform
+		for index in range(0, faces.size(), 3):
+			var a := transform * faces[index]
+			var b := transform * faces[index + 1]
+			var c := transform * faces[index + 2]
+			if minf(a.y, minf(b.y, c.y)) > box.position.y + 0.001:
+				continue
+			triangles.append([a, b, c])
+	return triangles
+
+
+func _highest_triangle_below(from: Vector3, triangles: Array) -> Variant:
+	var best: Variant = null
+	for triangle in triangles:
+		var hit = Geometry3D.ray_intersects_triangle(
+			from, Vector3.DOWN, triangle[0], triangle[1], triangle[2]
+		)
+		if hit == null:
+			continue
+		var y := float((hit as Vector3).y)
+		if best == null or y > float(best):
+			best = y
+	return best
 
 
 func _test_orphan_dock_guide_lens(world: ShipyardWorld) -> void:

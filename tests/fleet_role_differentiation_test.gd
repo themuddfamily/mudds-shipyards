@@ -69,7 +69,30 @@ const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
 const APPROACH_OFFSETS := {
 	&"torrent_provisional": Vector3(0.0, 0.0, 12.0),
 	&"arrow_provisional": Vector3(0.0, 0.0, 12.0),
-	&"jovian_provisional": Vector3(0.0, 0.0, 12.0),
+	# Restaged from a straight 12 m aft stage, which put the avatar at ship-local
+	# (-3.4, -0.47, 3.85) — *inside the cargo hold*, standing on the ship's own
+	# cargo deck under its roof, and walked it in a straight unpathfound line
+	# through where the port crates stand.
+	#
+	# That only worked because the freight had no collision, and the freight has
+	# collision now: secured cargo you can walk through is the same defect class as
+	# every other solid-looking-but-empty volume the station sweep closed, and a
+	# crew member can walk this hold since in-flight cabin access landed. Making
+	# the crates solid jams the old approach against `CargoContainerCollisionPort00`
+	# 2.0 m out, which is exactly what an earlier pass measured before reverting the
+	# crates and recording this for an owner.
+	#
+	# The suite's subject is role differentiation and boarding through the
+	# *exterior* pilot hatch, so the approach belongs on the apron the player
+	# actually walks, not inside the hull. This lands at ship-local
+	# (-12.0, -0.47, -16.15) — 1.4 m outboard of the port hull line and clear of
+	# the bow, on `ApronDeck04`, 11.75 m from the hatch, with a straight capsule
+	# sweep to it that touches nothing. Measured against the live world: of 1681
+	# sampled apron points 7.5-15.0 m from the hatch, 286 are standable and 82 have
+	# a clear straight walk; this is one of them, chosen for staying near the 12 m
+	# the two fighters use so the suite's own distance and walk assertions keep
+	# their existing margins.
+	&"jovian_provisional": Vector3(-8.6, 0.0, -8.0),
 	# Fleet Dock 01 is an elevated 12 x 15 m slab; a longer aft stage walks off
 	# its edge, so Zenith is staged diagonally at 8.06 m instead.
 	&"zenith_b7_observed": Vector3(-4.0, 0.0, 7.0),

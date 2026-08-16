@@ -27,7 +27,7 @@ position = Vector3(0, 0.12, -10)
 
 [node name="LaunchGate" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(0, 8, -64)
+position = Vector3(0, 2.5, -64)
 
 [node name="CentralBerth" parent="." instance=ExtResource("2_berth")]
 position = Vector3(0, 1.15, -10)
@@ -40,7 +40,7 @@ assist_capture_maximum_speed = 35.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="CentralBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, -0.96, 0)
+position = Vector3(0, -1.185, 0)
 cue_half_width = 8.2
 cue_half_length = 12.5
 
@@ -56,7 +56,7 @@ assist_capture_maximum_speed = 32.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="ArrowReconBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, -0.93, 0)
+position = Vector3(0, -1.3, 0)
 cue_half_width = 6.3
 cue_half_length = 7.2
 
@@ -78,7 +78,7 @@ assist_capture_maximum_speed = 34.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="ZenithFleetDockBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, -1.04, 0)
+position = Vector3(0, -1.17, 0)
 cue_half_width = 5.0
 cue_half_length = 4.8
 
@@ -101,7 +101,7 @@ assist_capture_maximum_speed = 24.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="JovianFreightShipBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, -1.18, 0)
+position = Vector3(0, -1.38, 0)
 cue_half_width = 11.6
 cue_half_length = 16.5
 

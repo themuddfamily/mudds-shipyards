@@ -202,11 +202,26 @@ func _run() -> void:
 
 	# --- Outbound -------------------------------------------------------------
 	var outbound_start := _flight_frames
-	# Deliberately below the launch gate's altitude. The target range's own header
-	# beam spans x +/-31.5 at y = 9, z = -120, and the first version of this route
-	# flew straight into it at 46 m/s. The pilot's real line out is the same one:
-	# drop under the range gantry, then follow the beacon chain down and starboard.
-	await _fly(ship, provider, Vector3(8.0, 3.0, -96.0), 12.0, 16.0)
+	# The target range's own header beam spans x +/-31.5 at y = 8.5 .. 9.5,
+	# z = -120, and the first version of this route flew straight into it at
+	# 46 m/s. This waypoint no longer carries a hand-chosen altitude: it takes the
+	# station's published outbound clearance band, which is measured from the
+	# production hulls and is the same number the launch gate marker and
+	# `tests/outbound_route_clearance_test.gd` use. The pilot's real line out is
+	# the same one - under the range gantry, then down and starboard along the
+	# beacon chain.
+	var clearance: Dictionary = world.get_outbound_clearance_band()
+	var outbound_y := float(clearance["aim_y"])
+	print(
+		"OUTBOUND_CLEARANCE_BAND: floor=%.2f ceiling=%.2f aim=%.2f  launch_gate=%s"
+		% [
+			float(clearance["floor"]),
+			float(clearance["ceiling"]),
+			outbound_y,
+			str(world.get_launch_gate_transform().origin),
+		]
+	)
+	await _fly(ship, provider, Vector3(8.0, outbound_y, -96.0), 12.0, 16.0)
 	await _capture("01_departure.png")
 
 	# Staged, and it has to happen *here*: crossing the launch threshold on the leg
@@ -298,10 +313,11 @@ func _run() -> void:
 	var home_start := _flight_frames
 	await _fly(ship, provider, beacons[2] + Vector3(0.0, 10.0, 30.0), 18.0, 26.0)
 	await _capture("12_homebound_beacons.png")
-	# Home the same way the pilot left: under the range gantry, not over it.
-	await _fly(ship, provider, Vector3(14.0, 1.5, -150.0), 18.0, 26.0)
+	# Home the same way the pilot left: under the range gantry, not over it, on the
+	# same published clearance band.
+	await _fly(ship, provider, Vector3(14.0, outbound_y - 1.0, -150.0), 18.0, 26.0)
 	await _capture("13_range_reentry.png")
-	await _fly(ship, provider, Vector3(4.0, 3.0, -84.0), 14.0, 16.0)
+	await _fly(ship, provider, Vector3(4.0, outbound_y, -84.0), 14.0, 16.0)
 	await _brake(ship, provider, 8.0)
 	await _capture("14_station_in_sight.png")
 	var home_seconds := float(_flight_frames - home_start) / float(Engine.physics_ticks_per_second)
