@@ -993,6 +993,13 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 	for face in faces:
 		_add_bevelled_face(surface, face[0], face[1], face[2], inner, half)
 	surface.index()
+	# No generate_tangents() here, unlike aft_junction_stack/habitat_spine: this
+	# builder's _add_quad never calls set_uv, so the surface carries no UV channel
+	# and generate_tangents() would only log "UVs are required to generate
+	# tangents." Giving this builder real per-face UVs is the prerequisite, and it
+	# buys nothing while the panel material above stays uv1_world_triplanar —
+	# measured, that path samples the normal map by world position and ignores the
+	# mesh tangent entirely. Add UVs first if triplanar is ever turned off.
 	var result := surface.commit()
 	_rounded_box_cache[cache_key] = result
 	return result
