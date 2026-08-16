@@ -8,6 +8,10 @@ const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
 const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.gd")
 const CaptionPresentationEventType := preload("res://scripts/ui/caption_presentation_event.gd")
 const CaptionPresentationServiceType := preload("res://scripts/ui/caption_presentation_service.gd")
+const RuntimeSettingsStoreAdapterType := preload(
+	"res://scripts/settings/runtime_settings_store_adapter.gd"
+)
+const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -22,6 +26,14 @@ const CAPTION_CATEGORY_BY_ID := {
 	&"system": CaptionPresentationEvent.Category.SYSTEM,
 	&"ambient": CaptionPresentationEvent.Category.AMBIENT,
 }
+const RUNTIME_SETTINGS_COMMIT_PREFIX := "runtime-settings-"
+const RUNTIME_SETTINGS_COMMIT_DIGITS := 10
+
+## Production Main can be destroyed and rebuilt by the shift-restart loader
+## without ending the OS process. Keep the atomic composition root here so that
+## path still owns one settings/store/adapter identity and one startup load.
+## Injected test stores never enter this process state.
+static var _production_runtime_settings_state: Dictionary = {}
 
 enum Phase {
 	INTRO,
@@ -196,6 +208,27 @@ var _transition_busy := false
 var _transition_generation := 0
 var _opponent_spawned := false
 var runtime_settings: RuntimeSettings
+## Process-lifetime persistence composition for the one production settings
+## owner. These RefCounted identities survive whole-Main detach/re-entry and are
+## never recreated after the one startup load.
+var _runtime_settings_user_data_store: UserDataStore
+var _runtime_settings_store_adapter: RuntimeSettingsStoreAdapter
+var _runtime_settings_legacy_path := RuntimeSettings.DEFAULT_CONFIG_PATH
+var _runtime_settings_load_attempted := false
+var _runtime_settings_load_status: Dictionary = {}
+var _runtime_settings_last_save_status: Dictionary = {}
+var _runtime_settings_load_attempt_count := 0
+var _runtime_settings_save_attempt_count := 0
+var _runtime_settings_save_success_count := 0
+var _runtime_settings_transaction_count := 0
+var _runtime_settings_commit_serial := 0
+var _runtime_settings_last_commit_id := ""
+var _runtime_settings_unsaved_changes := false
+var _runtime_settings_transaction_active := false
+var _runtime_settings_reentrant_rejection_count := 0
+var _runtime_settings_apply_count := 0
+var _runtime_settings_first_apply_followed_load := false
+var _runtime_settings_persistence_injected := false
 ## Authored chase-boom lag per ship, captured before reduced motion ever damps
 ## it, so turning the preset back off restores the exact authored feel.
 var _authored_chase_camera_lag: Dictionary = {}
@@ -531,6 +564,10 @@ func _start_up() -> void:
 	_initialize_cinder_race_session()
 	_initialize_caption_presentation()
 	_initialize_live_combat()
+	# The atomic load above is complete before the first global, player, ship or
+	# HUD settings consumer sees a snapshot. In particular, the complete binding
+	# profile reaches InputMap before gameplay signals can sample it.
+	_apply_all_runtime_settings()
 	_connect_runtime_signals()
 	opponent.set_target(active_ship)
 	opponent.deactivate()
@@ -539,7 +576,6 @@ func _start_up() -> void:
 	hud.set_mode("on-foot")
 	hud.set_interaction("", false)
 	hud.set_enemy_status("", 0.0, 1.0, false)
-	_apply_all_runtime_settings()
 	_update_music_bed_state()
 	_apply_torus_geometry_budget()
 	_sync_activity_hud()
@@ -2954,6 +2990,73 @@ func get_runtime_settings() -> RuntimeSettings:
 	return runtime_settings
 
 
+## Installs an injected atomic store before startup. Production never calls this
+## and therefore uses RuntimeSettingsStoreAdapter.DEFAULT_STORE_PATH; focused
+## tests use it to keep every byte in an in-memory filesystem. Once settings
+## construction or loading has begun, changing persistence authority is refused.
+func configure_runtime_settings_persistence(
+	store: UserDataStore,
+	legacy_path: String = ""
+	) -> bool:
+	if (
+		store == null
+		or runtime_settings != null
+		or _runtime_settings_store_adapter != null
+		or _runtime_settings_load_attempted
+		or _initialized
+	):
+		return false
+	_runtime_settings_persistence_injected = true
+	_runtime_settings_user_data_store = store
+	if not legacy_path.strip_edges().is_empty():
+		_runtime_settings_legacy_path = legacy_path
+	return true
+
+
+## Detached persistence diagnostics. Nested adapter/store dictionaries are deep
+## copies; callers receive no live settings, adapter, store or filesystem object.
+func get_runtime_settings_persistence_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"store_count": 1 if _runtime_settings_user_data_store != null else 0,
+		"adapter_count": 1 if _runtime_settings_store_adapter != null else 0,
+		"store_instance_id": (
+			_runtime_settings_user_data_store.get_instance_id()
+			if _runtime_settings_user_data_store != null else 0
+		),
+		"adapter_instance_id": (
+			_runtime_settings_store_adapter.get_instance_id()
+			if _runtime_settings_store_adapter != null else 0
+		),
+		"identity_scope": (
+			&"injected_main_lifetime"
+			if _runtime_settings_persistence_injected
+			else &"process_lifetime"
+		),
+		"injected_authority": _runtime_settings_persistence_injected,
+		"load_attempted": _runtime_settings_load_attempted,
+		"load_attempt_count": _runtime_settings_load_attempt_count,
+		"load_status": _runtime_settings_load_status.duplicate(true),
+		"save_attempt_count": _runtime_settings_save_attempt_count,
+		"save_success_count": _runtime_settings_save_success_count,
+		"last_save_status": _runtime_settings_last_save_status.duplicate(true),
+		"accepted_transaction_count": _runtime_settings_transaction_count,
+		"commit_serial": _runtime_settings_commit_serial,
+		"last_commit_id": _runtime_settings_last_commit_id,
+		"unsaved_changes": _runtime_settings_unsaved_changes,
+		"transaction_active": _runtime_settings_transaction_active,
+		"reentrant_rejection_count": _runtime_settings_reentrant_rejection_count,
+		"apply_count": _runtime_settings_apply_count,
+		"first_apply_followed_load": _runtime_settings_first_apply_followed_load,
+		"load_before_first_apply": _runtime_settings_first_apply_followed_load,
+		"commit_clock": &"bounded_monotonic_counter",
+		"wall_clock_used": false,
+		"automatic_repair_policy": false,
+		"delete_policy": false,
+		"os_crash_hook": false,
+	}.duplicate(true)
+
+
 ## The only public caption payload: the service's detached, validated consumer
 ## snapshot. Neither the service nor typed event objects escape GameFlow.
 func get_caption_presentation_snapshot() -> Dictionary:
@@ -3077,16 +3180,141 @@ func get_last_opponent_shot_result() -> Dictionary:
 
 
 func _initialize_runtime_settings() -> void:
-	runtime_settings = RuntimeSettings.new()
-	var load_error := runtime_settings.load_from_file()
-	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
-		push_warning("Runtime settings could not be loaded: %s" % error_string(load_error))
-	_connect_signal_once(runtime_settings, &"setting_changed", _on_runtime_setting_changed)
+	if (
+		not _runtime_settings_persistence_injected
+		and not _production_runtime_settings_state.is_empty()
+	):
+		_adopt_production_runtime_settings_state()
+		return
+	if runtime_settings == null:
+		runtime_settings = RuntimeSettings.new(_runtime_settings_legacy_path)
+	if _runtime_settings_user_data_store == null:
+		_runtime_settings_user_data_store = UserDataStoreType.new(
+			RuntimeSettingsStoreAdapterType.DEFAULT_STORE_PATH
+		)
+	if _runtime_settings_store_adapter == null:
+		_runtime_settings_store_adapter = RuntimeSettingsStoreAdapterType.new(
+			runtime_settings,
+			_runtime_settings_user_data_store,
+			_runtime_settings_legacy_path
+		)
+	if _runtime_settings_load_attempted:
+		return
+	_runtime_settings_load_attempted = true
+	_runtime_settings_load_attempt_count += 1
+	_runtime_settings_load_status = _runtime_settings_store_adapter.load().duplicate(true)
+	_runtime_settings_commit_serial = maxi(
+		_runtime_settings_commit_serial,
+		int(_runtime_settings_load_status.get("generation", 0))
+	)
+	var loaded_commit_id := str(
+		(_runtime_settings_load_status.get("store_status", {}) as Dictionary)
+			.get("commit", {})
+			.get("id", "")
+	)
+	_runtime_settings_commit_serial = maxi(
+		_runtime_settings_commit_serial,
+		_parse_runtime_settings_commit_serial(loaded_commit_id)
+	)
+	if not bool(_runtime_settings_load_status.get("accepted", false)):
+		push_warning(
+			"Atomic runtime settings load retained authored defaults: %s / %s"
+			% [
+				str(_runtime_settings_load_status.get("reason", &"unknown")),
+				str(_runtime_settings_load_status.get("store_reason", &"unknown")),
+			]
+		)
+	_sync_production_runtime_settings_state()
+
+
+func _adopt_production_runtime_settings_state() -> void:
+	runtime_settings = _production_runtime_settings_state.get("settings") as RuntimeSettings
+	_runtime_settings_user_data_store = (
+		_production_runtime_settings_state.get("store") as UserDataStore
+	)
+	_runtime_settings_store_adapter = (
+		_production_runtime_settings_state.get("adapter") as RuntimeSettingsStoreAdapter
+	)
+	_runtime_settings_legacy_path = str(
+		_production_runtime_settings_state.get(
+			"legacy_path", RuntimeSettings.DEFAULT_CONFIG_PATH
+		)
+	)
+	_runtime_settings_load_attempted = bool(
+		_production_runtime_settings_state.get("load_attempted", false)
+	)
+	_runtime_settings_load_attempt_count = int(
+		_production_runtime_settings_state.get("load_attempt_count", 0)
+	)
+	_runtime_settings_load_status = (
+		_production_runtime_settings_state.get("load_status", {}) as Dictionary
+	).duplicate(true)
+	_runtime_settings_last_save_status = (
+		_production_runtime_settings_state.get("last_save_status", {}) as Dictionary
+	).duplicate(true)
+	_runtime_settings_save_attempt_count = int(
+		_production_runtime_settings_state.get("save_attempt_count", 0)
+	)
+	_runtime_settings_save_success_count = int(
+		_production_runtime_settings_state.get("save_success_count", 0)
+	)
+	_runtime_settings_transaction_count = int(
+		_production_runtime_settings_state.get("transaction_count", 0)
+	)
+	_runtime_settings_commit_serial = int(
+		_production_runtime_settings_state.get("commit_serial", 0)
+	)
+	_runtime_settings_last_commit_id = str(
+		_production_runtime_settings_state.get("last_commit_id", "")
+	)
+	_runtime_settings_unsaved_changes = bool(
+		_production_runtime_settings_state.get("unsaved_changes", false)
+	)
+	_runtime_settings_reentrant_rejection_count = int(
+		_production_runtime_settings_state.get("reentrant_rejection_count", 0)
+	)
+	_runtime_settings_apply_count = int(
+		_production_runtime_settings_state.get("apply_count", 0)
+	)
+	_runtime_settings_first_apply_followed_load = bool(
+		_production_runtime_settings_state.get("first_apply_followed_load", false)
+	)
+
+
+func _sync_production_runtime_settings_state() -> void:
+	if _runtime_settings_persistence_injected:
+		return
+	_production_runtime_settings_state = {
+		"settings": runtime_settings,
+		"store": _runtime_settings_user_data_store,
+		"adapter": _runtime_settings_store_adapter,
+		"legacy_path": _runtime_settings_legacy_path,
+		"load_attempted": _runtime_settings_load_attempted,
+		"load_attempt_count": _runtime_settings_load_attempt_count,
+		"load_status": _runtime_settings_load_status.duplicate(true),
+		"last_save_status": _runtime_settings_last_save_status.duplicate(true),
+		"save_attempt_count": _runtime_settings_save_attempt_count,
+		"save_success_count": _runtime_settings_save_success_count,
+		"transaction_count": _runtime_settings_transaction_count,
+		"commit_serial": _runtime_settings_commit_serial,
+		"last_commit_id": _runtime_settings_last_commit_id,
+		"unsaved_changes": _runtime_settings_unsaved_changes,
+		"reentrant_rejection_count": _runtime_settings_reentrant_rejection_count,
+		"apply_count": _runtime_settings_apply_count,
+		"first_apply_followed_load": _runtime_settings_first_apply_followed_load,
+	}
 
 
 func _apply_all_runtime_settings() -> void:
 	if runtime_settings == null:
 		return
+	_runtime_settings_apply_count += 1
+	if _runtime_settings_apply_count == 1:
+		_runtime_settings_first_apply_followed_load = (
+			_runtime_settings_load_attempted
+			and _runtime_settings_load_attempt_count == 1
+			and not _runtime_settings_load_status.is_empty()
+		)
 	runtime_settings.apply_input_bindings()
 	for fleet_ship in ships:
 		fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
@@ -3106,6 +3334,7 @@ func _apply_all_runtime_settings() -> void:
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	_apply_accessibility_settings()
 	_sync_runtime_settings_hud()
+	_sync_production_runtime_settings_state()
 
 
 func _sync_runtime_settings_hud() -> void:
@@ -3168,7 +3397,21 @@ func _on_combat_audio_cue_started(
 func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
 	if runtime_settings == null or not RUNTIME_SETTING_KEYS.has(setting):
 		return
+	if _runtime_settings_transaction_active:
+		_runtime_settings_reentrant_rejection_count += 1
+		_sync_production_runtime_settings_state()
+		return
+	_runtime_settings_transaction_active = true
+	var before := runtime_settings.to_dictionary()
 	runtime_settings.set(setting, value)
+	var changed := runtime_settings.to_dictionary() != before
+	if changed:
+		_runtime_settings_transaction_count += 1
+		_runtime_settings_unsaved_changes = true
+		var status := _persist_runtime_settings()
+		_present_runtime_settings_save_status(status, &"change")
+	_runtime_settings_transaction_active = false
+	_sync_production_runtime_settings_state()
 
 
 func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
@@ -3208,33 +3451,116 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 
 
 func _on_settings_save_requested() -> void:
-	if runtime_settings == null:
+	if runtime_settings == null or _runtime_settings_store_adapter == null:
 		return
-	var save_error := runtime_settings.save_to_file()
-	if save_error == OK:
-		if hud.has_method("set_settings_status"):
-			hud.set_settings_status("SETTINGS SAVED", true)
-		hud.toast("Settings saved", "Flight and presentation preferences stored", 1.5)
-	else:
-		if hud.has_method("set_settings_status"):
-			hud.set_settings_status("SAVE FAILED  //  %s" % error_string(save_error), false)
-		hud.toast("Settings not saved", error_string(save_error), 2.4)
+	if _runtime_settings_transaction_active:
+		_runtime_settings_reentrant_rejection_count += 1
+		_sync_production_runtime_settings_state()
+		return
+	_runtime_settings_transaction_active = true
+	_runtime_settings_transaction_count += 1
+	var status := _persist_runtime_settings()
+	_present_runtime_settings_save_status(status, &"explicit_save")
+	_runtime_settings_transaction_active = false
+	_sync_production_runtime_settings_state()
 
 
 func _on_settings_reset_requested() -> void:
-	if runtime_settings == null:
+	if runtime_settings == null or _runtime_settings_store_adapter == null:
 		return
+	if _runtime_settings_transaction_active:
+		_runtime_settings_reentrant_rejection_count += 1
+		_sync_production_runtime_settings_state()
+		return
+	_runtime_settings_transaction_active = true
 	runtime_settings.reset_to_defaults()
 	_apply_all_runtime_settings()
-	var save_error := runtime_settings.save_to_file()
-	if save_error == OK:
+	_runtime_settings_transaction_count += 1
+	_runtime_settings_unsaved_changes = true
+	var status := _persist_runtime_settings()
+	_present_runtime_settings_save_status(status, &"reset")
+	_runtime_settings_transaction_active = false
+	_sync_production_runtime_settings_state()
+
+
+func _persist_runtime_settings() -> Dictionary:
+	if _runtime_settings_store_adapter == null:
+		var unavailable := {
+			"accepted": false,
+			"reason": &"adapter_unavailable",
+			"store_reason": &"not_attempted",
+			"generation": 0,
+			"commit_id": "",
+		}
+		_runtime_settings_last_save_status = unavailable.duplicate(true)
+		_sync_production_runtime_settings_state()
+		return unavailable
+	var next_serial := maxi(
+		_runtime_settings_commit_serial + 1,
+		_runtime_settings_user_data_store.get_generation() + 1
+	)
+	if next_serial > UserDataStoreType.MAX_GENERATION:
+		var exhausted := {
+			"accepted": false,
+			"reason": &"commit_id_exhausted",
+			"store_reason": &"not_attempted",
+			"generation": _runtime_settings_user_data_store.get_generation(),
+			"commit_id": "",
+		}
+		_runtime_settings_last_save_status = exhausted.duplicate(true)
+		_sync_production_runtime_settings_state()
+		return exhausted
+	var commit_id := "%s%010d" % [RUNTIME_SETTINGS_COMMIT_PREFIX, next_serial]
+	_runtime_settings_save_attempt_count += 1
+	var status := _runtime_settings_store_adapter.save(commit_id).duplicate(true)
+	status["commit_id"] = commit_id
+	_runtime_settings_last_save_status = status.duplicate(true)
+	if bool(status.get("accepted", false)):
+		_runtime_settings_commit_serial = next_serial
+		_runtime_settings_last_commit_id = commit_id
+		_runtime_settings_save_success_count += 1
+		_runtime_settings_unsaved_changes = false
+	_sync_production_runtime_settings_state()
+	return status
+
+
+func _present_runtime_settings_save_status(status: Dictionary, transaction: StringName) -> void:
+	if not is_instance_valid(hud):
+		return
+	var accepted := bool(status.get("accepted", false))
+	var reason := str(status.get("reason", &"unknown"))
+	if accepted:
 		if hud.has_method("set_settings_status"):
-			hud.set_settings_status("DEFAULTS RESTORED + SAVED", true)
-		hud.toast("Defaults restored", "Modern flight settings reapplied", 1.5)
-	else:
-		if hud.has_method("set_settings_status"):
-			hud.set_settings_status("DEFAULTS ACTIVE  //  SAVE FAILED", false)
+			hud.set_settings_status(
+				"DEFAULTS RESTORED + SAVED" if transaction == &"reset" else "SETTINGS SAVED",
+				true
+			)
+		if transaction == &"reset":
+			hud.toast("Defaults restored", "Modern flight settings reapplied", 1.5)
+		elif transaction == &"explicit_save":
+			hud.toast("Settings saved", "Flight and presentation preferences stored", 1.5)
+		return
+	if hud.has_method("set_settings_status"):
+		hud.set_settings_status(
+			"DEFAULTS ACTIVE  //  SAVE FAILED"
+			if transaction == &"reset"
+			else "UNSAVED  //  %s" % reason.to_upper(),
+			false
+		)
+	if transaction == &"reset":
 		hud.toast("Defaults restored", "Changes apply now but could not be stored", 2.4)
+	else:
+		hud.toast("Settings not saved", reason.replace("_", " "), 2.4)
+
+
+func _parse_runtime_settings_commit_serial(commit_id: String) -> int:
+	if not commit_id.begins_with(RUNTIME_SETTINGS_COMMIT_PREFIX):
+		return 0
+	var suffix := commit_id.trim_prefix(RUNTIME_SETTINGS_COMMIT_PREFIX)
+	if suffix.length() != RUNTIME_SETTINGS_COMMIT_DIGITS or not suffix.is_valid_int():
+		return 0
+	var serial := suffix.to_int()
+	return serial if serial >= 0 and serial <= UserDataStoreType.MAX_GENERATION else 0
 
 
 func _present_pulse_shot(

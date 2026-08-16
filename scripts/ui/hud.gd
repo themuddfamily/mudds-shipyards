@@ -204,6 +204,13 @@ var _toast_panel: PanelContainer
 var _toast_title: Label
 var _toast_detail: Label
 var _help_panel: PanelContainer
+var _help_margin: MarginContainer
+var _help_stack: VBoxContainer
+var _help_heading: Label
+## Stable row controls reused when mode, device family, or binding text changes.
+## Re-entry reapplies an unchanged snapshot, so rebuilding these nodes there
+## would violate whole-Main identity even though the displayed copy is the same.
+var _help_row_controls: Array[Dictionary] = []
 var _reticle: Control
 var _flight_cue_layer: FlightPathCue
 var _toast_serial := 0
@@ -2304,31 +2311,51 @@ func _show_pause_main() -> void:
 
 
 func _set_help_text(rows: Array) -> void:
-	for child in _help_panel.get_children():
-		child.queue_free()
-	var margin := _margin(16, 14, 16, 14)
-	_help_panel.add_child(margin)
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 7)
-	margin.add_child(stack)
-	var heading := _label(
-		"CONTROLS  //  %s" % _action_prompts([&"toggle_controls_overlay"]),
-		11,
-		CAUTION
+	if not is_instance_valid(_help_margin):
+		_help_margin = _margin(16, 14, 16, 14)
+		_help_margin.name = "HelpMargin"
+		_help_panel.add_child(_help_margin)
+		_help_stack = VBoxContainer.new()
+		_help_stack.name = "HelpRows"
+		_help_stack.add_theme_constant_override("separation", 7)
+		_help_margin.add_child(_help_stack)
+		_help_heading = _label("", 11, CAUTION)
+		_help_heading.name = "HelpHeading"
+		_help_stack.add_child(_help_heading)
+	_help_heading.text = (
+		"CONTROLS  //  %s" % _action_prompts([&"toggle_controls_overlay"])
 	)
-	stack.add_child(heading)
-	for row: Array in rows:
+	while _help_row_controls.size() < rows.size():
+		var index := _help_row_controls.size()
 		var line := HBoxContainer.new()
-		var key := _label(str(row[0]), 11, NOMINAL_SOFT)
+		line.name = "HelpRow%02d" % (index + 1)
+		var key := _label("", 11, NOMINAL_SOFT)
+		key.name = "Binding"
 		key.custom_minimum_size.x = 92.0
 		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		key.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.add_child(key)
-		var detail := _label(str(row[1]), 10, MUTED)
+		var detail := _label("", 10, MUTED)
+		detail.name = "Action"
 		detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.add_child(detail)
-		stack.add_child(line)
+		_help_stack.add_child(line)
+		_help_row_controls.append({
+			"line": line,
+			"key": key,
+			"detail": detail,
+		})
+	for index in _help_row_controls.size():
+		var controls := _help_row_controls[index] as Dictionary
+		var line := controls.line as HBoxContainer
+		var visible := index < rows.size()
+		line.visible = visible
+		if not visible:
+			continue
+		var row := rows[index] as Array
+		(controls.key as Label).text = str(row[0])
+		(controls.detail as Label).text = str(row[1])
 	_set_mouse_passthrough(_help_panel)
 
 
