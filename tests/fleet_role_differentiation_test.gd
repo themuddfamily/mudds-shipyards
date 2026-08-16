@@ -90,7 +90,15 @@ const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
 # PlayerController; the suite proves no candidate exists before the walk.
 const APPROACH_OFFSETS := {
 	&"torrent_provisional": Vector3(0.0, 0.0, 12.0),
-	&"arrow_provisional": Vector3(0.0, 0.0, 12.0),
+	# PORT-LANE. Restaged from a straight 12 m stage, which walked the centre of
+	# the port branch arm — 7.0 m wide, z 12.0-19.0, and the sole route to this
+	# berth — straight into PortBranchCargoLine's gantry posts once the cargo pass
+	# gave its solid parts real collision. A capsule sweep of the whole arm found
+	# z 12.5-14.5 unobstructed across every x from -34 to -11, so the route exists
+	# and a player walks round the line; only the straight-line stage did not.
+	# The lateral 4.0 m puts the stage in that clear lane. The line, its collision
+	# and its placement are all unchanged — this is the approach a player takes.
+	&"arrow_provisional": Vector3(4.0, 0.0, 12.0),
 	# Restaged from a straight 12 m aft stage, which put the avatar at ship-local
 	# (-3.4, -0.47, 3.85) — *inside the cargo hold*, standing on the ship's own
 	# cargo deck under its roof, and walked it in a straight unpathfound line

@@ -93,10 +93,23 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# maps and the same `normal_scale`, at its own coarser scales, and this
 	# station-family census stops at the station envelope. `_test_cluster_family`
 	# below holds the excluded subtree to the recipe so nothing hides in the gap.
+	# Same reasoning for the VIP reception suite, and it is the whole point of that
+	# room: it is deliberately NOT station stock. Its registered table runs 0.12
+	# pearl through 0.40 bronze — roughly metre-wide plate on the shell where the
+	# working modules put one every half metre — and both directions of that were
+	# rendered before the values were frozen (0.22 everywhere photographed as a
+	# riveted tile grid, 1.05 as bathroom mosaic). Folding those scales into the
+	# station family would either fail this census or force the room back onto the
+	# working grain and undo the only thing that separates it. It keeps the same
+	# registered maps and normal_scale; `_test_vip_suite_family` holds it to the
+	# recipe so nothing hides in the gap.
+	var vip_root := world.get_node_or_null(^"VipReceptionSuite")
 	var cluster_root := world.get_node_or_null(^"NearbySectorCluster")
 	for candidate in world.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := candidate as MeshInstance3D
 		if mesh_instance.mesh == null:
+			continue
+		if vip_root != null and vip_root.is_ancestor_of(mesh_instance):
 			continue
 		if cluster_root != null and cluster_root.is_ancestor_of(mesh_instance):
 			continue
@@ -445,6 +458,14 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# expansion adds +49, all at 0.30 (1510 -> 1559); 0.22 stays 130 and 0.28 stays
 	# 532. Measured rather than summed: that pass was authored before the aft
 	# operations content landed.
+	#
+	# NOT re-frozen when the VIP reception suite landed, and that is the result
+	# rather than an oversight: its 63 mapped surfaces leave this census entirely,
+	# because that room is deliberately not station stock and carries its own
+	# registered scale table (0.12 pearl through 0.40 bronze). It keeps the same
+	# maps and the same normal_scale and is held to the recipe by its own family
+	# test, exactly as the Cinder Reach cluster already was. The station family is
+	# unchanged at 2221 / 130 / 532 / 1559.
 	_check(
 		mapped_surface_count == 2221
 		and scale_022_count == 130
