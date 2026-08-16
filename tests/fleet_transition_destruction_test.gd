@@ -254,8 +254,6 @@ func _free_fixture(game: GameFlow) -> void:
 	await process_frame
 	await process_frame
 	Input.action_release(&"interact")
-	Input.action_release(&"engine_start")
-	Input.action_release(&"engine_stop")
 
 
 func _check(condition: bool, description: String) -> void:
