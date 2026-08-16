@@ -21,6 +21,10 @@ enum Phase {
 	FAILED,
 	FREE_FLIGHT,
 	RECOVERING,
+	## The pilot has shut down away from a berth and left the seat, and is on
+	## foot inside the same craft while it drifts. Appended so every existing
+	## ordinal is unchanged. `modern_interpretation`.
+	IN_FLIGHT_CABIN,
 }
 
 const ENEMY_SPAWN := Vector3(24.0, 12.0, -148.0)
@@ -177,6 +181,10 @@ var _last_opponent_shot_result: Dictionary = {}
 ## the same endpoint/ship pose as the delayed impact or destruction art.
 var _pending_combat_audio_receipts: Dictionary = {}
 var _initialized := false
+## The craft whose cabin the player is currently walking under way, or null.
+## Occupancy itself stays owned by that craft's `MovingInteriorFrame`; this is
+## only the coordinator's record of which craft the current phase belongs to.
+var _cabin_ship: HeroShip
 var _last_lifecycle_command_ship_instance_id := 0
 var _last_lifecycle_command_stream_id := -1
 var _last_lifecycle_command_sequence := -1
@@ -243,7 +251,15 @@ func _process(delta: float) -> void:
 		_update_pilot_flow()
 	else:
 		_update_on_foot_flow()
-		if player.global_position.y < -24.0 and not _transition_busy:
+		# The below-deck recall is a station-floor backstop expressed in world
+		# space. A crew member aboard a craft under way is legitimately anywhere,
+		# including well below the yard; their backstop is cabin containment.
+		if (
+			player.global_position.y < -24.0
+			and not _transition_busy
+			and phase != Phase.IN_FLIGHT_CABIN
+			and not player.is_cabin_containment_active()
+		):
 			player.teleport_to(world.get_player_spawn())
 			hud.toast("Regeneration safety recall", "Returned to the central junction", 2.0)
 
@@ -281,6 +297,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# only re-states the observed session state so a re-entered tree cannot resume
 	# under a stale one.
 	_update_music_bed_state()
+	_restore_cabin_occupancy_after_reentry()
 
 
 func _connect_runtime_signals() -> void:
@@ -508,7 +525,12 @@ func _update_on_foot_flow() -> void:
 	if phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.FAILED, Phase.RECOVERING]:
 		hud.set_interaction("", false)
 		return
-	if is_instance_valid(station_interaction_candidate):
+	if phase == Phase.IN_FLIGHT_CABIN:
+		if _near_ship and boarding_candidate == _cabin_ship:
+			hud.set_interaction("[ E ]  TAKE THE PILOT SEAT")
+		else:
+			hud.set_interaction("WALK FORWARD TO THE COCKPIT", true)
+	elif is_instance_valid(station_interaction_candidate):
 		hud.set_interaction(str(station_interaction_candidate.call("get_interaction_prompt")))
 	elif _near_ship:
 		hud.set_interaction("[ E ]  BOARD %s" % boarding_candidate.get_display_name().to_upper())
@@ -564,6 +586,14 @@ func _update_pilot_flow() -> void:
 				hud.set_interaction("Clear the berth before requesting a return approach")
 		elif _sortie_departed_berth and bool(landing_report.get("assist_capture_accepted", false)):
 			hud.set_interaction("[ L / D-PAD LEFT ]  ENGAGE LANDING ASSIST")
+		elif (
+			not landed
+			and engine_state == "OFFLINE"
+			and active_ship.supports_in_flight_cabin_access()
+		):
+			# Only craft that publish a walkable cabin ever advertise this, so the
+			# prompt never offers a pilot a step into open space.
+			hud.set_interaction("[ E ]  LEAVE THE PILOT SEAT")
 		elif (
 			_sortie_departed_berth
 			and not landing_berth.is_empty()
@@ -748,7 +778,12 @@ func _on_interact_requested() -> void:
 		if accepted:
 			audio.play_ui_confirm()
 		return
-	if phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE] or not _near_ship:
+	if phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE, Phase.IN_FLIGHT_CABIN] or not _near_ship:
+		return
+	# One press retakes the seat. The craft whose cabin this is has held the
+	# player's own boarding reservation throughout, so nothing else can be
+	# selected here and there is no walk-away-and-back-again cost.
+	if phase == Phase.IN_FLIGHT_CABIN and boarding_candidate != _cabin_ship:
 		return
 	_board_ship(boarding_candidate)
 
@@ -783,6 +818,12 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	var candidate_area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if candidate_area != null and not candidate_area.try_reserve(player):
 		return
+	# Retaking the seat of the craft whose cabin the player is already walking is
+	# an interior movement, not an approach across an apron: there is no hull to
+	# climb, no canopy to cycle, and the craft may still be drifting.
+	var from_cabin := phase == Phase.IN_FLIGHT_CABIN and candidate == _cabin_ship
+	if from_cabin:
+		_release_cabin_occupancy()
 	active_ship = candidate
 	_reset_lifecycle_command_cursor()
 	_boarding_area = candidate_area
@@ -806,32 +847,51 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	phase = Phase.BOARDING
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
-	hud.set_objective("%s the %s and take the physical pilot seat" % [open_verb.capitalize(), entry_noun])
-	hud.toast("%s releasing" % entry_noun.capitalize(), "Physical entry route and cockpit are clear")
-	audio.play_canopy(true)
-	active_ship.set_canopy_open(true, canopy_motion_time)
-	await active_ship.canopy_motion_finished
-	if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
-		return
+	if from_cabin:
+		hud.set_objective("Take the pilot seat and restart %s" % active_ship.get_display_name())
+	else:
+		hud.set_objective("%s the %s and take the physical pilot seat" % [open_verb.capitalize(), entry_noun])
+		hud.toast("%s releasing" % entry_noun.capitalize(), "Physical entry route and cockpit are clear")
+		audio.play_canopy(true)
+		active_ship.set_canopy_open(true, canopy_motion_time)
+		await active_ship.canopy_motion_finished
+		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
+			return
 	if not player.begin_boarding(
-		active_ship.get_boarding_entry_transform(),
+		(
+			active_ship.get_in_flight_cabin_report().get(
+				"stand_transform", active_ship.get_boarding_entry_transform()
+			) as Transform3D
+			if from_cabin
+			else active_ship.get_boarding_entry_transform()
+		),
 		active_ship.get_pilot_seat_anchor(),
-		boarding_motion_time
+		boarding_motion_time,
+		active_ship if from_cabin else null
 	):
+		_transition_busy = false
+		if from_cabin:
+			# The craft is still shut down under way; put the player back in its
+			# cabin rather than stranding a failed boarding in a berth phase.
+			phase = Phase.IN_FLIGHT_CABIN
+			_cabin_ship = candidate
+			_bind_cabin_occupancy(candidate)
+			player.set_control_enabled(true)
+			return
 		if _boarding_area != null:
 			_boarding_area.release_reservation(player)
-		_transition_busy = false
 		phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
 		player.set_control_enabled(true)
 		return
 	await player.boarding_completed
 	if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
 		return
-	audio.play_canopy(false)
-	active_ship.set_canopy_open(false, canopy_motion_time)
-	await active_ship.canopy_motion_finished
-	if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
-		return
+	if not from_cabin:
+		audio.play_canopy(false)
+		active_ship.set_canopy_open(false, canopy_motion_time)
+		await active_ship.canopy_motion_finished
+		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
+			return
 	_piloting = true
 	player.set_camera_active(false)
 	active_ship.set_piloted(true)
@@ -840,7 +900,10 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	hud.set_mode("piloting")
 	hud.set_objective("Start %s from its physical pilot seat" % active_ship.get_display_name())
 	hud.set_interaction("[ Y / D-PAD UP ]  START ENGINES")
-	hud.toast("Pilot secured", "%s secured — cockpit link established" % entry_noun.capitalize())
+	if from_cabin:
+		hud.toast("Back in the seat", "Restart the engines to resume the sortie", 2.4)
+	else:
+		hud.toast("Pilot secured", "%s secured — cockpit link established" % entry_noun.capitalize())
 	audio.set_on_foot(false)
 	audio.play_ui_confirm()
 	_transition_busy = false
@@ -867,11 +930,14 @@ func _try_exit_ship() -> void:
 	var entry := _get_ship_entry_descriptor(active_ship)
 	var entry_noun := str(entry.get("noun", "canopy"))
 	var open_verb := str(entry.get("open_verb", "open"))
-	if not bool(telemetry.get("landed", false)):
-		hud.toast("Exit locked", "Land the spacecraft before opening the %s" % entry_noun)
-		return
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
 		hud.toast("Exit locked", "Stop the engines first")
+		return
+	if not bool(telemetry.get("landed", false)):
+		# Shut down away from a berth. Whether the seat may be left at all is the
+		# craft's own contract, because only a craft with a bounded walkable cabin
+		# has somewhere for its pilot to stand.
+		_leave_seat_into_cabin()
 		return
 	if not _ensure_landed_berth_occupancy(active_ship):
 		hud.toast("Exit locked", "The physical berth must be secured before leaving the seat")
@@ -936,6 +1002,158 @@ func _try_exit_ship() -> void:
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	_transition_busy = false
+
+
+## Leaves the pilot seat of a shut-down craft that is not at a berth, putting the
+## player on foot inside that same craft.
+##
+## `modern_interpretation`. Nothing here is a claim about any historical craft.
+##
+## The pilot cannot be stranded, and that is arranged three ways rather than one:
+##
+##  1. The offer only exists at all for a craft whose own
+##     `get_in_flight_cabin_report()` publishes a bounded, physically walkable
+##     cabin. Every fighter in the fleet declines, so "leave the seat in space"
+##     never resolves to "stand in space".
+##  2. The arrival pose is a real ship-local marker inside that cabin, and the
+##     player is confined to the published envelope by
+##     `PlayerController.set_cabin_containment()`. That envelope encloses the
+##     craft's own walkable deck colliders and nothing beyond the hull, so the
+##     only way out of a flying craft is back through the pilot seat.
+##  3. Containment is enforced against the live craft transform, so it holds even
+##     if occupancy is somehow lost: a body left behind by a moving hull is
+##     hard-recalled to the standing pose rather than left in the dark.
+##
+## `_recover_from_destroyed_ship()` remains the outer safety net for the case
+## the cabin itself is destroyed, and now runs for this phase too.
+func _leave_seat_into_cabin() -> void:
+	var cabin := active_ship.get_in_flight_cabin_report()
+	var frame := cabin.get("frame") as MovingInteriorFrame
+	if not bool(cabin.get("supported", false)) or not is_instance_valid(frame):
+		hud.toast(
+			"Exit locked",
+			"%s has no pressurised cabin — land before leaving the seat"
+				% active_ship.get_display_name()
+		)
+		return
+	var stand_transform := cabin.get("stand_transform", Transform3D.IDENTITY) as Transform3D
+	var cabin_bounds := cabin.get("local_bounds", AABB()) as AABB
+	if not stand_transform.origin.is_finite() or cabin_bounds.size.is_zero_approx():
+		hud.toast("Exit locked", "The cabin standing route is unavailable")
+		return
+
+	_transition_busy = true
+	var transition_ship := active_ship
+	var restore_phase := phase
+	var transition_generation := _begin_transition_generation()
+	phase = Phase.IN_FLIGHT_CABIN
+	hud.set_interaction("", false)
+	hud.set_objective(
+		"Cabin access — walk %s, then return to the pilot seat" % transition_ship.get_display_name(),
+		"UNDER WAY"
+	)
+	transition_ship.set_piloted(false)
+	if transition_ship.get_camera() != null:
+		transition_ship.get_camera().current = false
+	player.set_camera_active(true)
+	# The exit pose belongs to the craft, not to the world. A drifting hull would
+	# otherwise leave the avatar interpolating towards a point it has left.
+	if not player.begin_disembark(stand_transform, disembarking_motion_time, transition_ship):
+		transition_ship.set_piloted(true)
+		if transition_ship.get_camera() != null:
+			transition_ship.get_camera().current = true
+		player.set_camera_active(false)
+		_transition_busy = false
+		phase = restore_phase
+		return
+	await player.disembarking_completed
+	if not _is_transition_current(transition_generation, transition_ship, Phase.IN_FLIGHT_CABIN):
+		return
+	_piloting = false
+	_landing_request_active = false
+	_cabin_ship = transition_ship
+	_bind_cabin_occupancy(transition_ship)
+	# Deliberately no `_reboard_blocked_ship`. That suppression exists so a pilot
+	# who climbs down onto an apron does not instantly climb back in on the same
+	# held key, and it clears by walking away from the craft — which is the wrong
+	# shape entirely for a pilot who is standing *inside* it and whose whole
+	# purpose here is to sit back down. The seat also stays reserved to this
+	# player for the whole walk, so nothing else can claim it meanwhile and
+	# re-boarding costs exactly one key press.
+	player.set_control_enabled(true)
+	# On foot, but not on the station: name the craft the pilot is standing in.
+	hud.set_mode("on-foot", "%s CABIN" % transition_ship.get_display_name())
+	hud.toast(
+		"Out of the seat",
+		"%s is shut down and drifting — the cabin is yours" % transition_ship.get_display_name(),
+		2.6
+	)
+	audio.set_on_foot(true)
+	audio.play_ui_confirm()
+	_transition_busy = false
+
+
+## Single writer of the cabin occupancy + containment pair. Occupancy is the
+## frame's to own, so this asks it rather than tracking a parallel record.
+##
+## The craft's report is re-read here rather than passed in. Every caller reaches
+## this across at least one `await`, and the report's poses are world-space on a
+## craft that is still moving: a value captured before the transition names a
+## place the hull has already left, which would silently offset the recall pose
+## by however far it travelled.
+func _bind_cabin_occupancy(cabin_ship: HeroShip) -> void:
+	if not is_instance_valid(cabin_ship):
+		return
+	var cabin := cabin_ship.get_in_flight_cabin_report()
+	var frame := cabin.get("frame") as MovingInteriorFrame
+	var cabin_bounds := cabin.get("local_bounds", AABB()) as AABB
+	var stand_transform := cabin.get("stand_transform", Transform3D.IDENTITY) as Transform3D
+	if not is_instance_valid(frame):
+		return
+	# The cockpit deck legitimately reaches past the pressurised occupancy volume,
+	# so this registration is explicit rather than bounds-filtered. Containment,
+	# not the occupancy volume, is what keeps the occupant inside the hull.
+	frame.register_occupant(player, {
+		"require_inside_bounds": false,
+		"registration_source": &"in_flight_cabin",
+	})
+	player.set_cabin_containment(cabin_ship, cabin_bounds, stand_transform)
+
+
+## Reverses `_bind_cabin_occupancy()`. `inherit_velocity` is false for every
+## reason this is called: the player is either taking the seat of the same craft
+## or being recovered to the deck, and in neither case should the hull's motion
+## be imparted to the avatar.
+func _release_cabin_occupancy() -> void:
+	player.clear_cabin_containment()
+	if is_instance_valid(_cabin_ship):
+		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+		if is_instance_valid(frame) and frame.is_occupant_registered(player):
+			frame.unregister_occupant(player, false, &"in_flight_cabin_ended")
+	_cabin_ship = null
+
+
+## Re-establishes cabin occupancy after a whole-Main detach. `MovingInteriorFrame`
+## deliberately drops its occupants when it leaves the tree, and Godot does not
+## call `_ready()` again on re-entry, so an explicit registration made before the
+## detach has to be restated here rather than assumed to have survived.
+func _restore_cabin_occupancy_after_reentry() -> void:
+	if phase != Phase.IN_FLIGHT_CABIN or not is_instance_valid(_cabin_ship):
+		return
+	_bind_cabin_occupancy(_cabin_ship)
+
+
+## Inspectable state for the in-flight cabin feature.
+func get_in_flight_cabin_status() -> Dictionary:
+	var frame: MovingInteriorFrame = null
+	if is_instance_valid(_cabin_ship):
+		frame = _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	return {
+		"active": phase == Phase.IN_FLIGHT_CABIN,
+		"ship": _cabin_ship,
+		"carried": is_instance_valid(frame) and frame.is_occupant_registered(player),
+		"containment": player.get_cabin_containment_report(),
+	}
 
 
 func _on_engine_state_changed(state: Variant, source_ship: HeroShip = null) -> void:
@@ -1834,7 +2052,7 @@ func _on_ship_destroyed(
 	_release_ship_berth(source_ship)
 	var active_transition_loss := (
 		source_ship == active_ship
-		and phase in [Phase.BOARDING, Phase.DISEMBARKING]
+		and phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.IN_FLIGHT_CABIN]
 	)
 	if source_ship == active_ship and (_piloting or active_transition_loss):
 		if not _recovering:
@@ -1850,6 +2068,10 @@ func _on_ship_destroyed(
 
 func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_recovering = true
+	# Losing the cabin is exactly the case the outer safety net exists for. Drop
+	# containment and occupancy before the avatar is teleported back to the deck,
+	# so nothing keeps trying to hold it against a hull that no longer exists.
+	_release_cabin_occupancy()
 	_landing_request_active = false
 	_active_landing_berth_id = &""
 	_transition_busy = true

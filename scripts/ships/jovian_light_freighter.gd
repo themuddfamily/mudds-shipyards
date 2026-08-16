@@ -19,6 +19,22 @@ const NAME_TO_MODEL_STATUS: StringName = &"unknown"
 const COMBAT_SOURCE_ID := 1103
 const INTERIOR_SCHEMA_VERSION := 1
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
+## Ship-local envelope a crew member may occupy while the freighter is under way.
+##
+## `modern_interpretation`. This is deliberately *not* `INTERIOR_BOUNDS`: the
+## pressurised occupancy volume stops at the forward cabin bulkhead, while the
+## physical cockpit deck runs on to z = -10.375, and a pilot who has just left
+## the seat is standing on that deck. The box is the tight bounding box of the
+## craft's walkable deck collision footprints — `tests/in_flight_cabin_test.gd`
+## samples those colliders and asserts every one is enclosed — so nothing outside
+## it is hull interior. Real walls do the room-by-room work; this is the outer
+## anti-stranding envelope, and `PlayerController` confines the occupant to it,
+## so the only way out of a flying Jovian is the pilot seat.
+const CABIN_MOVEMENT_BOUNDS := AABB(Vector3(-5.75, 0.30, -10.4), Vector3(11.5, 4.5, 19.65))
+## Standing pose just aft of the cockpit portal, on the shared passenger/cockpit
+## deck plate. Facing aft, into the cabin the pilot has just been given.
+const CABIN_STAND_LOCAL_ORIGIN := Vector3(0.0, 0.52, -7.35)
+const CABIN_STAND_LOCAL_YAW := PI
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
 const PROVISIONAL_NOTE := (
@@ -63,6 +79,8 @@ var _occupant_volume: Area3D
 var _interior_access_marker: Marker3D
 var _interior_deck_marker: Marker3D
 var _interior_exit_marker: Marker3D
+var _cabin_stand_marker: Marker3D
+var _interior_occupant_count := 0
 var _cargo_hardpoints: Array[Marker3D] = []
 var _passenger_seat_anchors: Array[Marker3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
@@ -176,6 +194,44 @@ func get_interior_bounds() -> AABB:
 	return INTERIOR_BOUNDS
 
 
+## World-space standing pose a pilot arrives at when leaving the seat under way.
+func get_cabin_stand_transform() -> Transform3D:
+	if _cabin_stand_marker == null:
+		return global_transform.translated_local(CABIN_STAND_LOCAL_ORIGIN)
+	return Transform3D(
+		_cabin_stand_marker.global_basis.orthonormalized(),
+		_cabin_stand_marker.global_position
+	)
+
+
+## `modern_interpretation`. The freighter is the one craft in the fleet with a
+## connected, bounded, physically walkable cabin, so it is the one craft whose
+## pilot may stand up while it is away from a berth. A destroyed or
+## un-instantiated interior withdraws the offer rather than opening a hatch onto
+## nothing.
+func get_in_flight_cabin_report() -> Dictionary:
+	var ready := (
+		not is_destroyed()
+		and is_instance_valid(_walkable_interior)
+		and is_instance_valid(_moving_interior_component)
+		and _moving_interior_component.get_moving_frame() == self
+	)
+	return {
+		"supported": ready,
+		"status": &"walkable_cabin" if ready else &"interior_unavailable",
+		"frame": _moving_interior_component,
+		"stand_transform": get_cabin_stand_transform(),
+		"local_bounds": CABIN_MOVEMENT_BOUNDS,
+	}
+
+
+## Number of occupants the interior coordinator is currently carrying. Exposed
+## for tests and for the multi-occupant work that comes later; the hull's own
+## collision response reads it rather than assuming a single crew member.
+func get_interior_occupant_count() -> int:
+	return _interior_occupant_count
+
+
 ## Typed clearance contract for a berth or landing planner. These are bounds of
 ## this provisional implementation, not evidence about the historical Jovian.
 func get_berth_clearance_report() -> Dictionary:
@@ -261,6 +317,10 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("connected cargo and passenger interior hierarchy is incomplete")
 	if _interior_access_marker == null or _interior_deck_marker == null or _interior_exit_marker == null:
 		errors.append("interior route markers are incomplete")
+	if _cabin_stand_marker == null:
+		errors.append("in-flight cabin standing marker is missing")
+	elif not CABIN_MOVEMENT_BOUNDS.has_point(CABIN_STAND_LOCAL_ORIGIN):
+		errors.append("in-flight cabin standing pose falls outside the confined cabin envelope")
 	if _moving_interior_component == null or _moving_interior_component.get_moving_frame() != self:
 		errors.append("typed moving-interior component is not configured against the ship frame")
 	if _cargo_hardpoints.size() < 4:
@@ -803,6 +863,15 @@ func _build_interior_route_and_markers() -> void:
 	_interior_exit_marker.position = Vector3(-10.7, -1.08, 3.2)
 	_interior_exit_marker.rotation.y = PI * 0.5
 	_walkable_interior.add_child(_interior_exit_marker)
+	# Standing pose used when the pilot leaves the seat away from a berth. It is
+	# a real ship-local marker rather than a computed offset so the cabin route,
+	# the containment recall, and the re-boarding prompt all name one place.
+	_cabin_stand_marker = Marker3D.new()
+	_cabin_stand_marker.name = "CabinStandMarker"
+	_cabin_stand_marker.position = CABIN_STAND_LOCAL_ORIGIN
+	_cabin_stand_marker.rotation.y = CABIN_STAND_LOCAL_YAW
+	_cabin_stand_marker.set_meta("space_id", &"cabin_stand")
+	_walkable_interior.add_child(_cabin_stand_marker)
 
 	# Direct CharacterBody collision shapes below make the interior physically
 	# walkable; this volume drives production MovingInteriorFrame occupancy while
@@ -888,6 +957,23 @@ func _replace_collision_and_markers() -> void:
 	for side in [-1.0, 1.0]:
 		_add_box_collision("ForwardBulkheadWingCollision", Vector3(side * 3.55, 2.5, -2.88), Vector3(4.2, 3.9, 0.22))
 		_add_box_collision("PassengerSidewallCollision", Vector3(side * 3.36, 2.15, -5.25), Vector3(0.22, 3.4, 4.65))
+		# The flight deck had a floor but no sides. That was invisible while the
+		# only way onto it was the seat transition; it is load-bearing now that a
+		# crew member can walk on to it, because an unenclosed deck edge is a way
+		# out of a pressurised hull.
+		_add_box_collision(
+			("Port" if side < 0.0 else "Starboard") + "CockpitSidewallCollision",
+			Vector3(side * 1.66, 1.75, -8.75),
+			Vector3(0.22, 2.6, 3.4)
+		)
+	_add_box_collision("CockpitForwardWallCollision", Vector3(0.0, 1.75, -10.46), Vector3(3.55, 2.6, 0.22))
+	# Secured freight is deliberately still presentation-only. Making the six
+	# cargo units solid is the right answer for a hold people walk — it is what
+	# stops the chase boom being pushed inside a container — but it is not this
+	# change's to make: `tests/fleet_role_differentiation_test.gd` stages its
+	# Jovian approach *inside* the hold and walks a straight line through where
+	# the port crates stand, so solid freight jams that suite's approach. Recorded
+	# in ROADMAP.md for whoever owns that suite.
 	# The ramp is a real sloped ship-owned collider, aligned with its visual.
 	_add_ramp_wedge_collision(
 		"PortCargoRampCollision",
@@ -980,7 +1066,44 @@ func _bind_optional_interior_frame() -> void:
 	# PlayerController consumes MovingInteriorFrame.get_frame_gravity directly,
 	# so the component's default registration options avoid double correction.
 	_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
+	# Occupancy stays owned by the coordinator. The hull only observes it, so a
+	# crew member standing on this ship's own deck stops being an obstacle to
+	# this ship's own `move_and_slide()` while it is under way. Counting rather
+	# than latching keeps the behaviour correct for more than one occupant.
+	if not _moving_interior_component.occupant_registered.is_connected(_on_interior_occupant_registered):
+		_moving_interior_component.occupant_registered.connect(_on_interior_occupant_registered)
+	if not _moving_interior_component.occupant_unregistered.is_connected(_on_interior_occupant_unregistered):
+		_moving_interior_component.occupant_unregistered.connect(_on_interior_occupant_unregistered)
+	_sync_interior_occupant_collision()
 	_moving_interior_component.call_deferred("_register_existing_overlaps")
+
+
+func _on_interior_occupant_registered(_occupant: Node3D) -> void:
+	_sync_interior_occupant_collision()
+
+
+func _on_interior_occupant_unregistered(
+		_occupant: Node3D,
+		_exit_velocity: Vector3,
+		_reason: StringName
+	) -> void:
+	_sync_interior_occupant_collision()
+
+
+func _sync_interior_occupant_collision() -> void:
+	_interior_occupant_count = (
+		_moving_interior_component.get_occupant_count()
+		if _moving_interior_component != null
+		else 0
+	)
+	if is_destroyed():
+		# A destroyed hull owns layer 0 / mask 0. Never re-arm it from here.
+		return
+	collision_mask = (
+		PhysicsLayers.SHIP_BODY_MASK & ~PhysicsLayers.PLAYER
+		if _interior_occupant_count > 0
+		else PhysicsLayers.SHIP_BODY_MASK
+	)
 
 
 func _set_interior_operational(enabled: bool) -> void:
@@ -993,6 +1116,7 @@ func _set_interior_operational(enabled: bool) -> void:
 				(child as CollisionShape3D).set_deferred(&"disabled", not enabled)
 	if not enabled and _moving_interior_component != null:
 		_moving_interior_component.clear_occupants(true, &"ship_destroyed")
+	_sync_interior_occupant_collision()
 
 
 func _update_jovian_presentation(delta: float) -> void:

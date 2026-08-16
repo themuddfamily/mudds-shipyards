@@ -1057,6 +1057,37 @@ func is_boardable() -> bool:
 	return not _destroyed and not _piloted and _engine_state == ENGINE_OFFLINE
 
 
+## Typed contract for leaving the pilot seat while the craft is away from a
+## berth, and for walking its pressurised cabin under way.
+##
+## This is `modern_interpretation` design, not a recovered original behaviour and
+## not a claim about any historical craft. The default is deliberately closed:
+## a craft with no physically walkable, bounded cabin has nowhere to stand once
+## the seat is vacated, so it refuses rather than putting a pilot in open space.
+## Overriders return:
+##
+## - `supported`: the pilot may leave the seat while the craft is in space.
+## - `frame`: the [MovingInteriorFrame] that will carry the occupant.
+## - `stand_transform`: world-space standing pose the pilot arrives at, and the
+##   pose the containment guard recalls them to.
+## - `local_bounds`: ship-local volume the occupant is confined to. This is the
+##   anti-stranding envelope, so it must enclose every place the pilot is
+##   allowed to be, and nothing outside the hull.
+func get_in_flight_cabin_report() -> Dictionary:
+	return {
+		"supported": false,
+		"status": &"no_walkable_cabin",
+		"frame": null,
+		"stand_transform": Transform3D.IDENTITY,
+		"local_bounds": AABB(),
+	}
+
+
+## Convenience gate over [method get_in_flight_cabin_report].
+func supports_in_flight_cabin_access() -> bool:
+	return bool(get_in_flight_cabin_report().get("supported", false))
+
+
 func is_destroyed() -> bool:
 	return _destroyed
 

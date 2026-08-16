@@ -118,7 +118,7 @@ In any current prototype craft:
 | `F` or left mouse | Fire (`F` is creator-listed; mouse fire is new) |
 | `G` | Barrel roll (fixed-era binding) |
 | `L` | Landing assist (modern prototype binding) |
-| `E` | Exit while safely landed with engines offline |
+| `E` | Leave the pilot seat with engines offline: at a berth you step out onto the deck; away from one you step into the craft's own cabin, if it has a walkable one (the Jovian does; the fighters refuse). Press `E` again at the cockpit to sit back down. |
 | `Esc` | Pause; open **Settings** from the pause panel |
 | `F1` | Toggle controls |
 

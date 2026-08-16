@@ -49,6 +49,13 @@ const STEP_UP_MIN_CLEARANCE := 0.02
 ## actually getting it anywhere.
 const STEP_UP_MIN_ADVANCE := 0.01
 
+## Cabin containment tuning. The inset keeps the clamped body a hand's width
+## inside the envelope so the very next tick does not immediately re-violate it,
+## and the recall distance is the point past which a nudge is not credible any
+## more and the occupant is returned bodily to the standing pose.
+const CABIN_CONTAINMENT_INSET := 0.12
+const CABIN_HARD_RECALL_DISTANCE := 1.5
+
 const MOTION_RESET := &"RESET"
 const MOTION_IDLE := &"idle"
 const MOTION_WALK := &"walk"
@@ -153,8 +160,24 @@ var _seat_anchor: Node3D
 var _transition_start := Transform3D.IDENTITY
 var _transition_entry := Transform3D.IDENTITY
 var _transition_target := Transform3D.IDENTITY
+## Optional live frame the current seat transition is expressed in. World-space
+## endpoints are correct only while the craft holds still; a transition begun or
+## ended under way must be replayed against the craft that owns it, or the body
+## interpolates towards a place the craft has already left.
+var _transition_frame: Node3D
+var _transition_start_local := Transform3D.IDENTITY
+var _transition_entry_local := Transform3D.IDENTITY
+var _transition_target_local := Transform3D.IDENTITY
 var _transition_elapsed := 0.0
 var _transition_duration := 0.0
+## Live cabin containment. While set, this body may not leave `_cabin_bounds`
+## expressed in `_cabin_frame` local space, which is what makes leaving the
+## pilot seat in open space a recoverable act rather than a soft-lock.
+var _cabin_frame: Node3D
+var _cabin_bounds := AABB()
+var _cabin_recall_local := Transform3D.IDENTITY
+var _cabin_clamp_count := 0
+var _cabin_recall_count := 0
 var _standing_collision_layer := 0
 var _standing_collision_mask := 0
 var _standing_interaction_mask := 0
@@ -243,6 +266,7 @@ func _physics_process(delta: float) -> void:
 	var pre_move_velocity := velocity
 	move_and_slide()
 	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
+	_resolve_cabin_containment()
 	_update_facing(desired_direction, delta)
 	_update_authored_locomotion(is_sprinting)
 	_advance_motion_animation(delta)
@@ -330,10 +354,16 @@ func teleport_to(target: Transform3D) -> void:
 ## Moves the visible character through a ship's entry point and into its pilot
 ## seat. The seat anchor is a live world-space Player-root frame (local forward
 ## is -Z), allowing the same character model to remain aboard a moving craft.
+##
+## `reference_frame` binds the whole transition to a live craft. Supply it
+## whenever the craft can move during the transition — the endpoints are then
+## rebased every tick, and the traversal arc is lifted along the craft's up
+## rather than the world's.
 func begin_boarding(
 		entry_transform: Transform3D,
 		seat_anchor: Node3D,
-		duration: float = 1.1
+		duration: float = 1.1,
+		reference_frame: Node3D = null
 	) -> bool:
 	if _embodiment_state != EmbodimentState.ON_FOOT or not is_instance_valid(seat_anchor):
 		return false
@@ -348,8 +378,11 @@ func begin_boarding(
 	_set_embodied_collision_enabled(false)
 	_seat_anchor = seat_anchor
 	_process_after_seat_hierarchy(seat_anchor)
+	_bind_transition_frame(reference_frame)
 	_transition_start = _clean_transform(global_transform)
 	_transition_entry = _clean_transform(entry_transform)
+	_transition_start_local = _to_transition_local(_transition_start)
+	_transition_entry_local = _to_transition_local(_transition_entry)
 	_transition_elapsed = 0.0
 	_transition_duration = maxf(0.0, duration)
 	_embodiment_state = EmbodimentState.BOARDING
@@ -367,18 +400,29 @@ func begin_boarding(
 	return true
 
 
-## Moves the visible character from the pilot seat to a safe world-space exit.
+## Moves the visible character from the pilot seat to a safe exit pose.
 ## Collision is restored before disembarking_completed is emitted; locomotion
 ## remains disabled so the gameplay coordinator can decide when controls resume.
-func begin_disembark(exit_transform: Transform3D, duration: float = 0.9) -> bool:
+##
+## Pass `reference_frame` when the exit pose belongs to a craft that may be
+## moving — the exit is then held on that craft for the whole transition instead
+## of being a world point the craft flies away from.
+func begin_disembark(
+		exit_transform: Transform3D,
+		duration: float = 0.9,
+		reference_frame: Node3D = null
+	) -> bool:
 	if _embodiment_state != EmbodimentState.SEATED:
 		return false
 
 	_control_enabled = false
 	velocity = Vector3.ZERO
 	_reset_body_facing()
+	_bind_transition_frame(reference_frame)
 	_transition_start = _clean_transform(global_transform)
 	_transition_target = _clean_transform(exit_transform)
+	_transition_start_local = _to_transition_local(_transition_start)
+	_transition_target_local = _to_transition_local(_transition_target)
 	_transition_elapsed = 0.0
 	_transition_duration = maxf(0.0, duration)
 	_embodiment_state = EmbodimentState.DISEMBARKING
@@ -405,6 +449,10 @@ func begin_disembark(exit_transform: Transform3D, duration: float = 0.9) -> bool
 func force_recovery_to_on_foot(target: Transform3D) -> void:
 	var interrupted_state := _embodiment_state
 	_control_enabled = false
+	# Destructive recovery is world-space by definition: the craft that owned the
+	# frame and the cabin envelope is the thing that was just lost.
+	clear_cabin_containment()
+	_transition_frame = null
 	_transition_start = _clean_transform(target)
 	_transition_entry = _transition_start
 	_transition_target = _transition_start
@@ -794,14 +842,15 @@ func _update_boarding(delta: float) -> void:
 	_transition_elapsed = minf(_transition_elapsed + delta, _transition_duration)
 	var progress := clampf(_transition_elapsed / _transition_duration, 0.0, 1.0)
 
+	var traversal_up := _get_transition_up_direction()
 	if progress <= BOARDING_ENTRY_FRACTION:
 		var entry_progress := _smoothstep(progress / BOARDING_ENTRY_FRACTION)
 		global_transform = _interpolate_transform(
-			_transition_start,
-			_transition_entry,
+			_resolve_transition_transform(_transition_start, _transition_start_local),
+			_resolve_transition_transform(_transition_entry, _transition_entry_local),
 			entry_progress
 		)
-		global_position += Vector3.UP * _transition_step_height(
+		global_position += traversal_up * _transition_step_height(
 			entry_progress,
 			BOARDING_STEP_HEIGHT
 		)
@@ -810,11 +859,11 @@ func _update_boarding(delta: float) -> void:
 			(progress - BOARDING_ENTRY_FRACTION) / (1.0 - BOARDING_ENTRY_FRACTION)
 		)
 		global_transform = _interpolate_transform(
-			_transition_entry,
+			_resolve_transition_transform(_transition_entry, _transition_entry_local),
 			_get_live_seat_transform(),
 			seat_progress
 		)
-		global_position += Vector3.UP * _transition_step_height(
+		global_position += traversal_up * _transition_step_height(
 			seat_progress,
 			BOARDING_STEP_HEIGHT
 		)
@@ -826,6 +875,7 @@ func _update_boarding(delta: float) -> void:
 func _complete_boarding() -> void:
 	if is_instance_valid(_seat_anchor):
 		global_transform = _get_live_seat_transform()
+	_transition_frame = null
 	velocity = Vector3.ZERO
 	_reset_body_facing()
 	_embodiment_state = EmbodimentState.SEATED
@@ -847,11 +897,11 @@ func _update_disembarking(delta: float) -> void:
 	var progress := clampf(_transition_elapsed / _transition_duration, 0.0, 1.0)
 	var eased_progress := _smoothstep(progress)
 	global_transform = _interpolate_transform(
-		_transition_start,
-		_transition_target,
+		_resolve_transition_transform(_transition_start, _transition_start_local),
+		_resolve_transition_transform(_transition_target, _transition_target_local),
 		eased_progress
 	)
-	global_position += Vector3.UP * _transition_step_height(
+	global_position += _get_transition_up_direction() * _transition_step_height(
 		eased_progress,
 		DISEMBARK_STEP_HEIGHT
 	)
@@ -861,7 +911,11 @@ func _update_disembarking(delta: float) -> void:
 
 
 func _complete_disembark() -> void:
-	global_transform = _transition_target
+	global_transform = _resolve_transition_transform(
+		_transition_target,
+		_transition_target_local
+	)
+	_transition_frame = null
 	velocity = Vector3.ZERO
 	_seat_anchor = null
 	process_physics_priority = _standing_physics_priority
@@ -922,6 +976,142 @@ func _apply_body_facing_rotation() -> void:
 	if not is_finite(_target_body_yaw):
 		_target_body_yaw = 0.0
 	_body_pivot.rotation = Vector3(0.0, _get_body_pivot_target_yaw(), 0.0)
+
+
+func _bind_transition_frame(reference_frame: Node3D) -> void:
+	_transition_frame = reference_frame if is_instance_valid(reference_frame) else null
+
+
+func _to_transition_local(world_transform: Transform3D) -> Transform3D:
+	if not is_instance_valid(_transition_frame):
+		return world_transform
+	return _clean_transform(_transition_frame.global_transform).affine_inverse() * world_transform
+
+
+## Replays a captured endpoint against the live craft it was captured on. With
+## no bound frame this is the historical world-space behaviour, unchanged.
+func _resolve_transition_transform(
+		world_transform: Transform3D,
+		local_transform: Transform3D
+	) -> Transform3D:
+	if not is_instance_valid(_transition_frame):
+		return world_transform
+	return _clean_transform(
+		_clean_transform(_transition_frame.global_transform) * local_transform
+	)
+
+
+func _get_transition_up_direction() -> Vector3:
+	if not is_instance_valid(_transition_frame):
+		return Vector3.UP
+	var frame_up := _transition_frame.global_basis.y.normalized()
+	return frame_up if frame_up.is_finite() and not frame_up.is_zero_approx() else Vector3.UP
+
+
+## Confines this body to `local_bounds` expressed in `frame`'s local space.
+##
+## This is the whole anti-stranding mechanism for leaving a pilot seat away from
+## a berth, and it is deliberately a hard physical constraint rather than a
+## warning: an occupant who reaches the envelope is stopped at it, and one who
+## somehow ends up well outside it — a fall through the deck, a teleport, an
+## impulse — is returned bodily to `recall_transform`. The recall pose is stored
+## in frame-local space so it stays valid however far the craft has travelled.
+func set_cabin_containment(
+		frame: Node3D,
+		local_bounds: AABB,
+		recall_transform: Transform3D
+	) -> bool:
+	if not is_instance_valid(frame):
+		return false
+	var canonical := local_bounds.abs()
+	if canonical.size.x <= 0.0 or canonical.size.y <= 0.0 or canonical.size.z <= 0.0:
+		return false
+	_cabin_frame = frame
+	_cabin_bounds = canonical
+	_cabin_recall_local = _clean_transform(frame.global_transform).affine_inverse() \
+		* _clean_transform(recall_transform)
+	_cabin_clamp_count = 0
+	_cabin_recall_count = 0
+	return true
+
+
+func clear_cabin_containment() -> void:
+	_cabin_frame = null
+	_cabin_bounds = AABB()
+	_cabin_recall_local = Transform3D.IDENTITY
+
+
+func is_cabin_containment_active() -> bool:
+	return is_instance_valid(_cabin_frame)
+
+
+## Inspectable containment state. `contained` is the invariant a stranding test
+## asserts: while containment is active the body is inside the envelope.
+func get_cabin_containment_report() -> Dictionary:
+	var active := is_instance_valid(_cabin_frame)
+	var local_position := Vector3.INF
+	if active:
+		local_position = _clean_transform(
+			_cabin_frame.global_transform
+		).affine_inverse() * global_position
+	return {
+		"active": active,
+		"frame": _cabin_frame,
+		"local_bounds": _cabin_bounds,
+		"local_position": local_position,
+		"contained": active and _cabin_bounds.has_point(local_position),
+		"clamp_count": _cabin_clamp_count,
+		"recall_count": _cabin_recall_count,
+	}
+
+
+## Runs immediately after the slide, so the slide remains the only mover and
+## this only ever corrects a result that already left the cabin.
+func _resolve_cabin_containment() -> void:
+	if not is_instance_valid(_cabin_frame):
+		if _cabin_frame != null:
+			clear_cabin_containment()
+		return
+	if _embodiment_state != EmbodimentState.ON_FOOT:
+		return
+	var frame_transform := _clean_transform(_cabin_frame.global_transform)
+	var local_position := frame_transform.affine_inverse() * global_position
+	if not local_position.is_finite():
+		_recall_into_cabin(frame_transform)
+		return
+	if _cabin_bounds.has_point(local_position):
+		return
+
+	var minimum := _cabin_bounds.position + Vector3.ONE * CABIN_CONTAINMENT_INSET
+	var maximum := _cabin_bounds.position + _cabin_bounds.size - Vector3.ONE * CABIN_CONTAINMENT_INSET
+	var clamped := Vector3(
+		clampf(local_position.x, minf(minimum.x, maximum.x), maxf(minimum.x, maximum.x)),
+		clampf(local_position.y, minf(minimum.y, maximum.y), maxf(minimum.y, maximum.y)),
+		clampf(local_position.z, minf(minimum.z, maximum.z), maxf(minimum.z, maximum.z))
+	)
+	var correction := clamped - local_position
+	# Below the deck plane is a failure of the floor, not a nudge at a doorway:
+	# clamping there would place the capsule inside the deck collider.
+	var fell_through := local_position.y < _cabin_bounds.position.y
+	if fell_through or correction.length() > CABIN_HARD_RECALL_DISTANCE:
+		_recall_into_cabin(frame_transform)
+		return
+
+	global_position = frame_transform * clamped
+	var world_correction := (frame_transform.basis * correction)
+	if not world_correction.is_zero_approx():
+		var inward := world_correction.normalized()
+		var outward_speed := -velocity.dot(inward)
+		if outward_speed > 0.0:
+			velocity += inward * outward_speed
+	_cabin_clamp_count += 1
+
+
+func _recall_into_cabin(frame_transform: Transform3D) -> void:
+	global_position = (frame_transform * _cabin_recall_local).origin
+	velocity = Vector3.ZERO
+	reset_physics_interpolation()
+	_cabin_recall_count += 1
 
 
 func _clean_transform(value: Transform3D) -> Transform3D:

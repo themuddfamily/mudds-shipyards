@@ -210,10 +210,17 @@ func show_intro() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-func set_mode(mode: String) -> void:
+## `on_foot_location` names where the player is standing. It defaults to the
+## station because that used to be the only place on-foot could mean; a crew
+## member walking a craft's cabin under way is on foot somewhere else entirely,
+## and the readout must not tell them they are on the regeneration deck.
+func set_mode(mode: String, on_foot_location: String = "REGENERATION DECK") -> void:
 	var piloting := mode.to_lower().contains("pilot")
 	_state_piloting = piloting
-	_mode_label.text = "PILOTING  //  %s" % _active_ship_name if piloting else "ON FOOT  //  REGENERATION DECK"
+	var location := on_foot_location.strip_edges().to_upper()
+	if location.is_empty():
+		location = "REGENERATION DECK"
+	_mode_label.text = "PILOTING  //  %s" % _active_ship_name if piloting else "ON FOOT  //  %s" % location
 	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
 	_telemetry_panel.visible = piloting
 	_reticle.visible = piloting
@@ -226,7 +233,7 @@ func set_mode(mode: String) -> void:
 			["Q / R", "ROLL"], ["F / LMB", "FIRE"],
 			["SHIFT / CTRL/RMB", "BOOST / BRAKE"], ["V / WHEEL", "VIEW / DISTANCE"],
 			["H / G", "HOVER / BARREL ROLL"], ["L", "LANDING ASSIST"],
-			["X", "STOP ENGINES"], ["E", "EXIT: LANDED + OFFLINE"],
+			["X", "STOP ENGINES"], ["E", "LEAVE SEAT: OFFLINE"],
 			["F1 / BACK", "CONTROLS"],
 			["GAMEPAD", "STICKS FLY / TRIGGERS + FACE"]
 		])
