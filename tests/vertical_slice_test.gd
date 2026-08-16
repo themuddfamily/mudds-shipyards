@@ -1,5 +1,16 @@
 extends SceneTree
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until] for why every wait in this slice is budgeted in frames.
+const FRAME_BUDGET_GRACE := 30
+
+## Nominal simulated seconds the cannon needs to clear its 0.22 s cooldown
+## between the two aimed shots. This bounds the wait; it is never spent in full,
+## because the gap is ended by the cannon actually coming ready. See the shot
+## loop for why an over-long gap is as wrong as a too-short one.
+const SHOT_COOLDOWN_SECONDS := 0.24
+
 var _failures: Array[String] = []
 
 
@@ -50,8 +61,12 @@ func _run() -> void:
 	await process_frame
 	_check(game.phase == GameFlow.Phase.BOARDING, "real interaction input starts a visible boarding phase")
 	_check(player.visible and not player.call("is_control_enabled"), "the actual player remains visible during control handoff")
-	await create_timer(0.65).timeout
+	var seated_in_budget := await _wait_until(
+		func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES,
+		0.65
+	)
 	await physics_frame
+	_check(seated_in_budget, "physical seating and canopy closure complete inside their bounded budget")
 	_check(game.phase == GameFlow.Phase.START_ENGINES, "physical seating and canopy closure enter cockpit startup")
 	_check(player.visible and player.call("is_seated"), "the actual player sits visibly in the pilot seat")
 	_check(
@@ -62,9 +77,13 @@ func _run() -> void:
 	_check(ship.call("get_camera").current, "ship chase camera becomes current")
 
 	ship.call("request_engine_start")
-	await create_timer(2.2).timeout
+	var engine_online_in_budget := await _wait_until(
+		func() -> bool: return str(ship.call("get_telemetry").get("engine_state", "")) == "ONLINE",
+		2.2
+	)
 	await physics_frame
 	var telemetry: Dictionary = ship.call("get_telemetry")
+	_check(engine_online_in_budget, "engine startup completes inside its bounded budget")
 	_check(str(telemetry.engine_state) == "ONLINE", "engine completes deliberate startup")
 	_check(game.phase == GameFlow.Phase.LAUNCH, "online engine advances to launch")
 
@@ -224,7 +243,19 @@ func _run() -> void:
 		await physics_frame
 		await physics_frame
 		Input.action_release("fire")
-		await create_timer(0.24).timeout
+		# The cannon counts its cooldown down in `_physics_process`, so wait for the
+		# cannon itself to come ready. The gap must be the real one and no longer:
+		# the ship is still flying while the target is stationary, so every extra
+		# simulated frame between shots carries the reticle further off the drone.
+		# A nominal sleep was wrong in both directions here — too few simulated
+		# frames and the second shot is refused on cooldown, too many and it misses.
+		_check(
+			await _wait_until(
+				func() -> bool: return float(ship.get("_weapon_timer")) <= 0.0,
+				SHOT_COOLDOWN_SECONDS
+			),
+			"pulse cannon clears its cooldown inside its bounded budget"
+		)
 	_check(float(opponent.call("get_health")) < enemy_start_health, "real reticle fire damages the opposing spacecraft")
 	var enemy_smoke := opponent.find_child("EngineSmoke", true, false) as CPUParticles3D
 	_check(enemy_smoke != null and enemy_smoke.emitting, "critical enemy damage produces persistent engine smoke")
@@ -241,9 +272,13 @@ func _run() -> void:
 	ship.velocity = Vector3.ZERO
 	game.call("_try_request_landing")
 	_check(ship.call("is_landing_active"), "landing assist accepts a slow craft over the physical berth")
-	await create_timer(2.0).timeout
+	var landed_in_budget := await _wait_until(
+		func() -> bool: return bool(ship.call("get_telemetry").get("landed", false)),
+		2.0
+	)
 	await physics_frame
 	telemetry = ship.call("get_telemetry")
+	_check(landed_in_budget, "landing assist completes inside its bounded budget")
 	_check(bool(telemetry.landed), "landing assist returns ship to physical pad")
 	_check(game.phase == GameFlow.Phase.SHUT_DOWN, "landing advances to shutdown")
 	Input.action_press("move_forward")
@@ -255,11 +290,23 @@ func _run() -> void:
 	ship.call("request_engine_stop")
 	await process_frame
 	game.call("_try_exit_ship")
-	await process_frame
+	# `_try_exit_ship` enters DISEMBARKING and opens the canopy synchronously, and
+	# only unseats the pilot after it awaits `canopy_motion_finished`. The seated
+	# pilot therefore exists at exactly this instant, and observing it here is the
+	# precise measurement. Observing it one `process_frame` later was a race on the
+	# wrong clock: under load a single frame carries enough delta to run out both
+	# the 0.08 s canopy and the 0.15 s disembark motion, so the probe arrived after
+	# the pilot had legitimately left the seat and scored a healthy slice as a
+	# failure.
 	_check(game.phase == GameFlow.Phase.DISEMBARKING, "shutdown opens the canopy and begins physical disembarking")
 	_check(player.visible and player.call("is_seated"), "pilot remains visible in the seat while the canopy opens")
-	await create_timer(0.55).timeout
+	await process_frame
+	var exit_in_budget := await _wait_until(
+		func() -> bool: return game.phase == GameFlow.Phase.COMPLETE,
+		0.55
+	)
 	await physics_frame
+	_check(exit_in_budget, "physical disembark completes inside its bounded budget")
 	_check(game.phase == GameFlow.Phase.COMPLETE, "shutdown permits same-world physical ship exit")
 	_check(player.visible and player.call("is_control_enabled"), "player resumes on-foot exploration beside ship")
 	_check(not player.call("is_seated"), "disembarking restores the actual player to on-foot embodiment")
@@ -300,6 +347,41 @@ func _release_combat_audio_before_main_teardown(game: Node) -> void:
 		parent.remove_child(combat_audio)
 	combat_audio.free()
 	await process_frame
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Godot runs three clocks in this slice: the monotonic clock behind
+## `Time.get_ticks_msec()`, the smoothed engine delta behind `SceneTree` timers,
+## and the physics clock, whose steps the engine drops on a busy machine rather
+## than letting the simulation spiral. Every condition this slice used to sleep
+## for — canopy closure and seating, engine spin-up, landing, the physical exit
+## — is advanced by a frame callback, and a `SceneTree` timer measures neither
+## the clock that advances them nor the monotonic one. It was observed firing
+## both early and late relative to what it stood in for, so lengthening a sleep
+## would not have helped.
+##
+## `nominal_seconds` is kept as the duration the wait is *expected* to take and
+## becomes both a frame budget and a wall-clock deadline. Both stay finite, so a
+## genuinely stuck slice still fails, but neither a starved physics loop nor a
+## drifting engine delta can end a wait early. Both loops are advanced each
+## iteration because some conditions settle in `_physics_process` and others in
+## `_process`.
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _check(condition: bool, description: String) -> void:

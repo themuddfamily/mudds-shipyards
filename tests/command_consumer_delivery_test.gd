@@ -9,6 +9,11 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const HERO_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const ShipCommandType := preload("res://scripts/control/ship_command.gd")
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until] for why every wait in this suite is budgeted in frames.
+const FRAME_BUDGET_GRACE := 30
+
 var _failures := PackedStringArray()
 var _assertions := 0
 
@@ -560,14 +565,31 @@ func _command(stream_id: int, sequence: int, values: Dictionary = {}) -> ShipCom
 	return ShipCommandType.from_dictionary(data)
 
 
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Commands are drained and applied by `HeroShip` in `_physics_process`, so every
+## condition this suite waits on advances only when a physics step actually runs.
+## Under load Godot drops physics steps rather than letting the simulation
+## spiral while the wall clock keeps running, so a `Time.get_ticks_msec()`-only
+## deadline abandons a queue that is still being drained perfectly well — a false
+## failure rather than a defect. `timeout_seconds` is kept as the *nominal*
+## duration and becomes both a frame budget and a wall-clock deadline; both stay
+## finite, so a consumer that genuinely never delivers still fails the suite.
 func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if bool(predicate.call()):
-			return true
+	var frame_budget := (
+		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
 		await physics_frame
 		await process_frame
-	return bool(predicate.call())
+		frames += 1
+	return true
 
 
 func _clean_up(node: Node) -> void:

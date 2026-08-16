@@ -4,6 +4,11 @@ const DOOR_SCENE := preload("res://scenes/world/components/station_door.tscn")
 const WORLD_LAYER := 1
 const INTERACTION_LAYER := 1 << 3
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_for_state].
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 var _test_root: Node3D
 
@@ -70,7 +75,8 @@ func _run() -> void:
 	var opening_hit := await _ray_through_portal(door)
 	_check(not opening_hit.is_empty(), "real ray remains blocked while opening")
 
-	await _wait_for_state(door, StationDoor.DoorState.OPEN, 1.0)
+	var opened := await _wait_for_state(door, StationDoor.DoorState.OPEN, 1.0)
+	_check(opened, "opening completes inside its bounded simulated-frame budget")
 	_check(door.get_state() == StationDoor.DoorState.OPEN, "opening completes in OPEN")
 	_check(door.get_state_name() == &"OPEN", "open state has a stable public name")
 	_check(not door.is_portal_blocked(), "portal clears only in OPEN")
@@ -96,13 +102,15 @@ func _run() -> void:
 	_check(door.is_portal_blocked(), "reversed opening remains blocked until fully open")
 	await physics_frame
 	_check(partial_panel.position.x > before_reversal.x, "reversed panel continues toward open without restarting")
-	await _wait_for_state(door, StationDoor.DoorState.OPEN, 1.0)
+	var reversal_opened := await _wait_for_state(door, StationDoor.DoorState.OPEN, 1.0)
+	_check(reversal_opened, "reversed motion completes inside its bounded simulated-frame budget")
 	_check(door.get_state() == StationDoor.DoorState.OPEN, "reversed motion completes open")
 	_check(completed_states == [StationDoor.DoorState.OPEN, StationDoor.DoorState.OPEN], "each completed opening emits exactly once")
 
 	# Close fully before access-policy tests.
 	_check(door.interact(actor), "door can close after reversal")
-	await _wait_for_state(door, StationDoor.DoorState.CLOSED, 1.0)
+	var closed := await _wait_for_state(door, StationDoor.DoorState.CLOSED, 1.0)
+	_check(closed, "closing completes inside its bounded simulated-frame budget")
 	_check(door.get_state() == StationDoor.DoorState.CLOSED, "closing completes in CLOSED")
 	_check(door.is_portal_blocked(), "fully closed portal remains blocked")
 	_check(completed_states.back() == StationDoor.DoorState.CLOSED, "closing emits its completion state")
@@ -164,13 +172,32 @@ func _ray_through_portal(door: StationDoor) -> Dictionary:
 	return door.get_world_3d().direct_space_state.intersect_ray(query)
 
 
-func _wait_for_state(door: StationDoor, expected_state: int, timeout_seconds: float) -> void:
-	var started_at := Time.get_ticks_msec()
+## Waits for a door to reach `expected_state` on the physics clock, which is the
+## clock `StationDoor` actually advances its panel on.
+##
+## `travel_seconds` is a nominal amount of *simulated* travel and is budgeted in
+## physics frames, not wall-clock seconds. A `Time.get_ticks_msec()` deadline
+## measures the monotonic clock, and under load Godot drops physics steps rather
+## than letting the simulation spiral, so the wall clock reached the deadline
+## while the panel had been stepped only part of the way. The wait then returned
+## silently and the assertion on the next line probed a door that was still
+## mid-travel — a false failure, not a defect. Counting frames gives the panel
+## the same amount of simulation however busy the box is, and still fails a
+## genuinely stuck door because the budget remains finite.
+##
+## Returns whether the state was actually reached so callers can assert on it
+## rather than assume it.
+func _wait_for_state(door: StationDoor, expected_state: int, travel_seconds: float) -> bool:
+	var required := int(ceil(maxf(travel_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+	var frame_budget := maxi(required, 1) + FRAME_BUDGET_GRACE
+	var frames := 0
 	while is_instance_valid(door) and door.get_state() != expected_state:
-		if float(Time.get_ticks_msec() - started_at) / 1000.0 > timeout_seconds:
-			return
+		if frames >= frame_budget:
+			break
 		await physics_frame
+		frames += 1
 	await process_frame
+	return is_instance_valid(door) and door.get_state() == expected_state
 
 
 func _check(condition: bool, description: String) -> void:

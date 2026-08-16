@@ -7,6 +7,11 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const EXPECTED_JOVIAN_DOCK_ORIGIN := Vector3(-53.0, 1.63, 57.3)
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until] for why every wait in this suite is budgeted in frames.
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 var _assertion_count := 0
 
@@ -441,31 +446,66 @@ func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 
 
 func _wait_for_phase(game: GameFlow, expected_phase: int, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if game.phase == expected_phase:
-			return true
-		await process_frame
-		await physics_frame
-	return game.phase == expected_phase
+	return await _wait_until(
+		func() -> bool: return game.phase == expected_phase,
+		timeout_seconds
+	)
 
 
 func _wait_for_engine_state(ship: HeroShip, expected_state: String, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state:
-			return true
-		await physics_frame
-	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state
+	return await _wait_until(
+		func() -> bool:
+			return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state,
+		timeout_seconds
+	)
 
 
+## Waits for `ship` to come back as a boardable hull after destruction.
+##
+## The previous form slept on `create_timer(0.05)` inside a wall-clock deadline,
+## which is the worst of both clocks: regeneration is released against a
+## monotonic deadline owned by `GameFlow`, the re-arm of the hull is applied from
+## a frame callback, and a `SceneTree` timer counts Godot's smoothed engine delta
+## — a third clock that was observed running both ahead of and behind the
+## monotonic one. [method _wait_until] waits on the condition itself instead.
 func _wait_for_ship_recovery(ship: HeroShip, timeout_seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if not ship.is_destroyed() and ship.is_boardable():
-			return true
-		await create_timer(0.05).timeout
-	return not ship.is_destroyed() and ship.is_boardable()
+	return await _wait_until(
+		func() -> bool: return not ship.is_destroyed() and ship.is_boardable(),
+		timeout_seconds
+	)
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## Godot runs three clocks here: the monotonic clock behind
+## `Time.get_ticks_msec()`, the smoothed engine delta behind `SceneTree` timers,
+## and the physics clock, whose steps the engine drops on a busy machine rather
+## than letting the simulation spiral. Everything this suite waits on belongs to
+## the first or third — phase transitions, engine spin-up and hull regeneration
+## are advanced by the engine loops or released against a monotonic deadline —
+## and a wall-clock-only deadline abandons a condition that is still progressing
+## perfectly well, which is a false failure rather than a defect.
+##
+## `timeout_seconds` is kept as the *nominal* duration and becomes both a budget
+## of simulated frames and a wall-clock deadline. Both bounds stay finite, so a
+## genuinely stuck condition still fails the suite. Both loops are advanced each
+## iteration because some conditions settle in `_physics_process` and others in
+## `_process`.
+func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(timeout_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(timeout_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _clean_up(game: Node) -> void:

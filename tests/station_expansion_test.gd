@@ -2,6 +2,11 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+## Extra simulated physics frames granted on top of the frames a wait's nominal
+## duration implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until].
+const FRAME_BUDGET_GRACE := 30
+
 var _failures: Array[String] = []
 
 
@@ -45,11 +50,17 @@ func _run() -> void:
 	await physics_frame
 	Input.action_press("move_forward")
 	Input.action_press("sprint_boost")
-	await create_timer(1.75).timeout
+	var climbed_in_budget := await _wait_until(
+		func() -> bool:
+			var probe := module.to_local(player.global_position)
+			return probe.y > 3.75 and probe.z > 12.0,
+		1.75
+	)
 	Input.action_release("sprint_boost")
 	Input.action_release("move_forward")
 	await physics_frame
 	var stair_local := module.to_local(player.global_position)
+	_check(climbed_in_budget, "the stair climb completes inside its bounded simulated-frame budget")
 	_check(stair_local.y > 3.75 and stair_local.z > 12.0, "real on-foot movement climbs from the lower deck to the upper level")
 
 	# Use the same proximity/facing interaction path as ship boarding, then walk
@@ -63,12 +74,20 @@ func _run() -> void:
 	await process_frame
 	_check(game.station_interaction_candidate == operations_door, "the integrated operations door is discovered by embodied proximity and facing")
 	game.call("_on_interact_requested")
-	await create_timer(0.7).timeout
+	var door_opened_in_budget := await _wait_until(
+		func() -> bool: return operations_door.is_open() and not operations_door.is_portal_blocked(),
+		0.7
+	)
+	_check(door_opened_in_budget, "operations access clears its portal inside the bounded panel-travel budget")
 	_check(operations_door.is_open() and not operations_door.is_portal_blocked(), "operations access opens a genuinely clear physical portal")
 	Input.action_press("move_forward")
-	await create_timer(0.8).timeout
+	var entered_in_budget := await _wait_until(
+		func() -> bool: return module.contains_operations_room(player.global_position),
+		0.8
+	)
 	Input.action_release("move_forward")
 	await physics_frame
+	_check(entered_in_budget, "the walk through the portal completes inside its bounded simulated-frame budget")
 	_check(module.contains_operations_room(player.global_position), "the production player walks through the door into the enterable operations room")
 	_check(module.get_vip_access().deferred_access, "the red VIP landmark remains explicit deferred content rather than an invented room")
 
@@ -86,6 +105,36 @@ func _ray(world: Node3D, from: Vector3, to: Vector3) -> Dictionary:
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	return world.get_world_3d().direct_space_state.intersect_ray(query)
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## The stair climb, the door panel travel and the walk through the portal are all
+## integrated in `_physics_process`. A `SceneTree` timer counts Godot's smoothed
+## engine delta, which is neither that clock nor the monotonic one; under load
+## Godot drops physics steps rather than letting the simulation spiral, so a
+## sleep ended while the avatar still had metres to walk in simulated time and
+## the assertion on the next line probed a traversal that was still in progress
+## — a false failure, not a defect.
+##
+## `nominal_seconds` is kept as the duration the wait is *expected* to take and
+## becomes both a frame budget and a wall-clock deadline. Both stay finite, so a
+## genuinely blocked route still fails the suite.
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _check(condition: bool, description: String) -> void:

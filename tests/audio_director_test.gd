@@ -1,5 +1,13 @@
 extends SceneTree
 
+## Extra simulated frames granted on top of the frames a wait's nominal duration
+## implies. This is a frame count, never a wall-clock grace. See
+## [method _wait_until].
+const FRAME_BUDGET_GRACE := 30
+
+## Nominal simulated seconds every legacy delayed sequence tail is given to fire.
+const SEQUENCE_TAIL_SECONDS := 0.45
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -148,11 +156,21 @@ func _test_request_churn(director: AudioDirector) -> void:
 			director.play_footstep(
 				float(footstep_bin) / float(AudioDirector.FOOTSTEP_STREAM_IDS.size() - 1)
 			)
-	# Leave enough time for every legacy delayed tail to have resumed. This
-	# catches synthesis hidden after an await, not only allocation in the first
-	# half of a public sequence method.
-	await create_timer(0.45).timeout
+	# Every legacy delayed tail must have resumed before the report below is
+	# taken; this catches synthesis hidden after an await, not only allocation in
+	# the first half of a public sequence method. The tails are `Timer` nodes on
+	# `TIMER_PROCESS_IDLE`, so wait for the tails themselves to be stopped rather
+	# than sleeping on a `SceneTree` timer and hoping the two clocks agree.
+	var tails_resumed := await _wait_until(
+		func() -> bool:
+			for candidate in director.find_children("*", "Timer", true, false):
+				if not (candidate as Timer).is_stopped():
+					return false
+			return true,
+		SEQUENCE_TAIL_SECONDS
+	)
 	await process_frame
+	_check(tails_resumed, "every delayed sequence tail resumes inside its bounded budget")
 
 	var after_synthesis := director.get_synthesis_report()
 	_check(
@@ -352,6 +370,34 @@ func _instance_ids_by_name(nodes: Array[Node]) -> Dictionary:
 	for node in nodes:
 		result[StringName(node.name)] = node.get_instance_id()
 	return result
+
+
+## Waits for `predicate` on both the simulation clock and the monotonic clock,
+## giving up only once both budgets are spent.
+##
+## The sequence tails this suite waits on are `Timer` nodes configured for
+## `TIMER_PROCESS_IDLE`, so they advance only when idle frames actually run. A
+## `SceneTree` timer counts Godot's smoothed engine delta, which is a different
+## clock again and was observed running both ahead of and behind the monotonic
+## one on a busy box, so a sleep could return with a tail still pending and the
+## churn report taken too early. `nominal_seconds` is kept as the duration the
+## wait is *expected* to take and becomes both a frame budget and a wall-clock
+## deadline; both stay finite, so a tail that genuinely never fires still fails
+## the suite.
+func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
+	var frame_budget := (
+		int(ceil(maxf(nominal_seconds, 0.0) * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	var deadline := Time.get_ticks_msec() + int(ceil(maxf(nominal_seconds, 0.0) * 1000.0))
+	var frames := 0
+	while not bool(predicate.call()):
+		if frames >= frame_budget and Time.get_ticks_msec() >= deadline:
+			return false
+		await physics_frame
+		await process_frame
+		frames += 1
+	return true
 
 
 func _check(condition: bool, description: String) -> void:
