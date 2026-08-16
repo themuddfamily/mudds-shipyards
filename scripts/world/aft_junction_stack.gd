@@ -33,6 +33,11 @@ const STAIR_HEAD_CLEARANCE := 2.7
 const STAIR_BASE_LANDING_CENTRE := Vector3(-4.6, -0.32, 3.25)
 const STAIR_BASE_LANDING_SIZE := Vector3(4.4, 0.64, 3.5)
 
+## Physical size of one station panel plate in this module, in metres of world
+## space per texture repeat. Frozen; the Fleet Dock comb and the hub match it so
+## no plate changes size across a connector seam.
+const PANEL_SURFACE_SCALE := 0.30
+
 const OPERATIONS_ROOM_CENTER := Vector3(5.6, 2.4, 13.2)
 # Include the floor-contact tolerance of a CharacterBody root. The previous
 # 2.35 m half-height began at local Y=0.05 and incorrectly rejected an avatar
@@ -411,23 +416,35 @@ func _create_materials() -> void:
 	# Layered PBR values and a project-original lighting-neutral station panel set
 	# keep broad pressure surfaces from reading as uniformly shaded primitives.
 	_materials["off_white"] = _material(Color("cbd0ce"), 0.38, 0.34)
-	_materials["off_white_floor"] = _material(Color("cbd0ce"), 0.38, 0.34)
 	_materials["panel_light"] = _material(Color("aeb8b8"), 0.42, 0.29)
 	_materials["warm_grey"] = _material(Color("818b8b"), 0.46, 0.39)
-	_materials["warm_grey_floor"] = _material(Color("818b8b"), 0.46, 0.39)
 	_materials["mid_grey"] = _material(Color("526166"), 0.58, 0.31)
-	# Floor-role twins of the structural greys. The continuous stair ramp and the
-	# operations-room pressure plates are walked-on station surfaces, so they join
-	# the station panel family while the identically coloured structural beams,
-	# frames and vents stay untextured.
-	_materials["mid_grey_floor"] = _material(Color("526166"), 0.58, 0.31)
 	_materials["hull_dark"] = _material(Color("29363a"), 0.62, 0.28)
-	_materials["hull_dark_floor"] = _material(Color("29363a"), 0.62, 0.28)
+	# Floor-role twins of the structural greys. Both halves of each pair now carry
+	# the same panel maps, so hue and relief no longer tell a deck from the wall
+	# above it; only the material response can. A walked-on deck is a coated,
+	# scuffed, trafficked surface, so each floor twin is deliberately less metallic
+	# and markedly rougher than the structural member it meets at the skirting.
+	# Before this the twins were byte-identical in every PBR value, which is why
+	# two surfaces differing only in hue read as painted plastic.
+	_materials["off_white_floor"] = _material(Color("cbd0ce"), 0.26, 0.52)
+	_materials["warm_grey_floor"] = _material(Color("818b8b"), 0.30, 0.55)
+	_materials["mid_grey_floor"] = _material(Color("526166"), 0.38, 0.50)
+	_materials["hull_dark_floor"] = _material(Color("29363a"), 0.40, 0.46)
 	_materials["graphite"] = _material(Color("141d21"), 0.48, 0.47)
 	_materials["rubber"] = _material(Color("101719"), 0.06, 0.86)
 	_materials["cyan"] = _material(Color("55dce2"), 0.12, 0.34, Color("3acbd3"), 1.45)
 	_materials["cyan_dim"] = _material(Color("3a7479"), 0.34, 0.42, Color("2aa6ae"), 0.35)
 	_materials["gold"] = _material(Color("d0a350"), 0.54, 0.3, Color("8f5f20"), 0.2)
+	# Non-emissive structural twin of `gold`. `gold` carries a faint emission and
+	# is the module's *cue* colour: route arc tiles, cabinet status, control lamps
+	# and signage. It was also carrying the physical brass furniture — handrails,
+	# collars, column feet, fasteners — and those were the only unmapped parts left
+	# in a plated frame, so a 0.07 m handrail read as a flat yellow stick bolted to
+	# a plated post. `brass` takes the furniture into the panel family and leaves
+	# every cue on `gold`, unchanged. Rougher and less metallic than `gold` too:
+	# handled brass is worn satin, not the lacquered accent of a lit legend.
+	_materials["brass"] = _material(Color("d0a350"), 0.46, 0.44)
 	_materials["copper"] = _material(Color("9d6844"), 0.78, 0.26)
 	_materials["red"] = _material(Color("d84d47"), 0.18, 0.4, Color("b82c2c"), 1.15)
 	_materials["screen"] = _material(Color("b9f2ef"), 0.08, 0.24, Color("68dde2"), 1.25)
@@ -437,44 +454,32 @@ func _create_materials() -> void:
 	_materials["glass"] = _transparent_material(Color(0.38, 0.68, 0.72, 0.18), 0.03, 0.08)
 	_materials["chair"] = _material(Color("4a5557"), 0.14, 0.7)
 	_materials["chair_pad"] = _material(Color("273236"), 0.04, 0.92)
-	var pressure_panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
-	var pressure_panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
-	var pressure_panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
-	if pressure_panel_albedo != null and pressure_panel_normal != null and pressure_panel_roughness != null:
-		for key in [
-			"off_white",
-			"off_white_floor",
-			"panel_light",
-			"warm_grey",
-			"warm_grey_floor",
-			"mid_grey_floor",
-			"hull_dark_floor",
-			# `mid_grey` and `hull_dark` are the same colours as their `_floor`
-			# twins and were the module's last flat scalar structural greys, so a
-			# wall read as plastic while the plated floor met it at the skirting.
-			"mid_grey",
-			"hull_dark",
-		]:
-			var panel_material := _materials[key] as StandardMaterial3D
-			panel_material.albedo_texture = pressure_panel_albedo
-			panel_material.normal_enabled = true
-			panel_material.normal_texture = pressure_panel_normal
-			# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
-			# plated wall at eye height is nearly featureless: the seams and rivets are
-			# present in the map but too shallow to catch light, which is much of why
-			# plated geometry still read as untextured. At 1.9 the plate faces dome and
-			# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
-			# value at which no frame showed doming while the dark walls resolved into
-			# pressed sheet metal. Every module shares the value so a deck and the wall
-			# beside it cannot disagree.
-			panel_material.normal_scale = 1.0
-			panel_material.roughness_texture = pressure_panel_roughness
-			panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-			panel_material.uv1_triplanar = true
-			panel_material.uv1_world_triplanar = true
-			panel_material.uv1_triplanar_sharpness = 4.0
-			panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
-			panel_material.texture_repeat = true
+	# One call per key into the published kit recipe, rather than a fourth inline
+	# copy of it. The recipe includes `normal_scale = 1.0`, re-frozen from 0.48 by
+	# a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9: at 0.48 a plated wall at eye
+	# height is nearly featureless, at 1.9 the plate faces dome into embossed
+	# plastic. Every module shares the constant so a deck and the wall beside it
+	# cannot disagree — which is exactly what an inline copy per module was free to
+	# get wrong.
+	for key in [
+		"off_white",
+		"off_white_floor",
+		"panel_light",
+		"warm_grey",
+		"warm_grey_floor",
+		"mid_grey_floor",
+		"hull_dark_floor",
+		# `mid_grey` and `hull_dark` are the same colours as their `_floor`
+		# twins and were the module's last flat scalar structural greys, so a
+		# wall read as plastic while the plated floor met it at the skirting.
+		"mid_grey",
+		"hull_dark",
+		# Brass furniture. The handrails and collars are the parts a player stands
+		# closest to; leaving them scalar put a flat yellow stick on top of a
+		# plated post at arm's reach.
+		"brass",
+	]:
+		StationSurfaceKit.apply_panel_triplanar(_materials[key] as StandardMaterial3D, PANEL_SURFACE_SCALE)
 
 
 func _build_structure() -> void:
@@ -549,7 +554,7 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 		var edge_x := float(side) * 3.5
 		_beam_between(lower, "ApproachEdgeTube", Vector3(edge_x, -0.38, 0.1), Vector3(edge_x, -0.38, 5.0), 0.105, _materials["mid_grey"], false)
 		for z_position in [0.65, 2.5, 4.35]:
-			_cylinder(lower, "ApproachEdgeCollar", Vector3(edge_x, -0.38, z_position), 0.115, 0.16, _materials["gold"], false, Vector3(90, 0, 0))
+			_cylinder(lower, "ApproachEdgeCollar", Vector3(edge_x, -0.38, z_position), 0.115, 0.16, _materials["brass"], false, Vector3(90, 0, 0))
 		var junction_edge_x := float(side) * 5.5
 		_beam_between(lower, "JunctionEdgeTube", Vector3(junction_edge_x, -0.42, 5.0), Vector3(junction_edge_x, -0.42, 10.0), 0.13, _materials["hull_dark"], false)
 		_beam_between(lower, "LowerLongitudinalTruss", Vector3(float(side) * 3.9, -0.86, 5.15), Vector3(float(side) * 4.9, -0.86, 9.85), 0.11, _materials["mid_grey"], false)
@@ -583,7 +588,7 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 					Vector3(float(side) * 2.65 + corner_x, 0.09, 7.4 + corner_z),
 					0.035,
 					0.025,
-					_materials["gold"],
+					_materials["brass"],
 					false
 				)
 	for light_z in [1.0, 4.25, 8.9]:
@@ -684,7 +689,7 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 			Vector3(rail_x, rail_start.y + 1.38, rail_start.z),
 			Vector3(rail_x, finish.y + 1.38, finish.z),
 			0.075,
-			_materials["gold"],
+			_materials["brass"],
 			true
 		)
 		_beam_between(
@@ -772,7 +777,7 @@ func _build_operations_room(structure: Node3D) -> void:
 		Vector3(10.8, 2.4, 17.24),
 	]:
 		_cylinder(room, "RoundedPodCorner", corner, 0.24, 4.8, _materials["mid_grey"], false)
-		_torus(room, "PodCornerCollar", corner + Vector3.UP * 2.05, 0.25, 0.34, _materials["gold"], Vector3(90, 0, 0))
+		_torus(room, "PodCornerCollar", corner + Vector3.UP * 2.05, 0.25, 0.34, _materials["brass"], Vector3(90, 0, 0))
 	_beam_between(room, "WindowRoofRail", Vector3(0.7, 5.08, 17.15), Vector3(10.5, 5.08, 17.15), 0.11, _materials["off_white"], false)
 
 	# A wide north-facing window dominates the room. Transparent panes remain
@@ -1016,11 +1021,11 @@ func _build_service_wall(room: Node3D) -> void:
 		_box(service, "CabinetStatus", Vector3(-0.49, 2.38, z_position), Vector3(0.04, 0.18, 0.8), _materials["cyan"] if cabinet_index != 1 else _materials["gold"], false)
 		for fastener_y in [0.67, 2.77]:
 			for fastener_z in [-0.53, 0.53]:
-				_cylinder(service, "CabinetFastener", Vector3(-0.535, float(fastener_y), z_position + float(fastener_z)), 0.035, 0.028, _materials["gold"], false, Vector3(0, 0, 90))
+				_cylinder(service, "CabinetFastener", Vector3(-0.535, float(fastener_y), z_position + float(fastener_z)), 0.035, 0.028, _materials["brass"], false, Vector3(0, 0, 90))
 	for pipe_index in 3:
 		var pipe_z := -2.05 + float(pipe_index) * 2.05
 		_cylinder(service, "ServiceConduit", Vector3(-0.55, 3.65, pipe_z), 0.09, 1.9, _materials["mid_grey"], false)
-		_torus(service, "ConduitCollar", Vector3(-0.55, 2.95, pipe_z), 0.1, 0.16, _materials["gold"], Vector3(90, 0, 0))
+		_torus(service, "ConduitCollar", Vector3(-0.55, 2.95, pipe_z), 0.1, 0.16, _materials["brass"], Vector3(90, 0, 0))
 	_beam_between(service, "ServiceBus", Vector3(-0.66, 4.15, -2.85), Vector3(-0.66, 4.15, 2.85), 0.065, _materials["copper"], false)
 
 
@@ -1037,8 +1042,8 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var frame_x := -5.15 + float(side) * 3.85
 		_cylinder(vip, "VIPFacadeColumn", Vector3(frame_x, 6.25, 20.02), 0.18, 4.15, _materials["hull_dark"], false)
-		_torus(vip, "VIPFacadeColumnFoot", Vector3(frame_x, 4.43, 20.02), 0.19, 0.28, _materials["gold"])
-		_torus(vip, "VIPFacadeColumnCrown", Vector3(frame_x, 8.07, 20.02), 0.19, 0.28, _materials["gold"])
+		_torus(vip, "VIPFacadeColumnFoot", Vector3(frame_x, 4.43, 20.02), 0.19, 0.28, _materials["brass"])
+		_torus(vip, "VIPFacadeColumnCrown", Vector3(frame_x, 8.07, 20.02), 0.19, 0.28, _materials["brass"])
 	_arch_across_x(vip, "VIPFacadeArch", 20.04, -9.0, -1.3, 8.05, 8.72, 0.12, _materials["hull_dark"])
 	_box(vip, "VIPRedCrown", Vector3(-5.15, 8.15, 20.03), Vector3(6.2, 0.18, 0.12), _materials["red"], false)
 	for side in [-1.0, 1.0]:
@@ -1065,13 +1070,13 @@ func _build_open_structure_details(structure: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var x_position: float = float(side) * 4.75
 		_cylinder(details, "JunctionSupport", Vector3(x_position, -0.95, 7.4), 0.24, 1.9, _materials["mid_grey"], true)
-		_torus(details, "SupportCollar", Vector3(x_position, -0.15, 7.4), 0.26, 0.39, _materials["gold"], Vector3(90, 0, 0))
+		_torus(details, "SupportCollar", Vector3(x_position, -0.15, 7.4), 0.26, 0.39, _materials["brass"], Vector3(90, 0, 0))
 	_beam_between(details, "LowerCrossBrace", Vector3(-4.7, -1.2, 6.1), Vector3(4.7, -1.2, 8.7), 0.16, _materials["mid_grey"], false)
 	_beam_between(details, "LowerCrossBraceReturn", Vector3(4.7, -1.2, 6.1), Vector3(-4.7, -1.2, 8.7), 0.16, _materials["mid_grey"], false)
 	for side in [-1.0, 1.0]:
 		var support_x := float(side) * 4.75
 		_beam_between(details, "SupportOutrigger", Vector3(support_x, -1.15, 7.4), Vector3(support_x + float(side) * 2.0, -1.75, 7.4), 0.13, _materials["hull_dark"], false)
-		_cylinder(details, "OutriggerEndCap", Vector3(support_x + float(side) * 2.0, -1.75, 7.4), 0.26, 0.24, _materials["gold"], false, Vector3(0, 0, 90))
+		_cylinder(details, "OutriggerEndCap", Vector3(support_x + float(side) * 2.0, -1.75, 7.4), 0.26, 0.24, _materials["brass"], false, Vector3(0, 0, 90))
 		for z_position in [5.55, 9.25]:
 			_omni_light(details, "ExteriorMarkerLight", Vector3(support_x, -0.05, float(z_position)), Color("66d7dc"), 0.28, 2.4)
 	# MAP-004 family. `bugs.md` filed this under "floor decals rendered mirrored";
@@ -1186,82 +1191,21 @@ func _box(
 	return container
 
 
+## Box with softly chamfered edges, at this module's frozen bevel rule.
+##
+## The rule stays `clamp(shortest_side * 0.22, 0.003, 0.18)` and is *not* the
+## kit's own `bevel_for_size`. Measured over every live chamfered box in this
+## module, adopting the kit rule would move 23 of 65 distinct sizes by up
+## to 0.0058 m, so the shared code is the builder, not the rule. The outer extent
+## along each axis is preserved exactly, so `get_aabb()` still returns the
+## requested size and no footprint, collider or published envelope moves.
 func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
-	var cache_key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
-	if _rounded_box_cache.has(cache_key):
-		return _rounded_box_cache[cache_key] as ArrayMesh
-	var half := size * 0.5
-	var bevel := minf(0.18, minf(size.x, minf(size.y, size.z)) * 0.22)
-	bevel = maxf(bevel, 0.003)
-	var inner_half := Vector3(
-		maxf(0.0, half.x - bevel),
-		maxf(0.0, half.y - bevel),
-		maxf(0.0, half.z - bevel)
+	return StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+		size,
+		StationSurfaceKit.proportional_bevel_for_size(size, 0.18),
+		_rounded_box_cache,
+		StationSurfaceKit.BevelUV.UNIT_PER_QUAD
 	)
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var faces: Array[Array] = [
-		[Vector3.RIGHT, Vector3.UP, Vector3.BACK],
-		[Vector3.LEFT, Vector3.BACK, Vector3.UP],
-		[Vector3.UP, Vector3.BACK, Vector3.RIGHT],
-		[Vector3.DOWN, Vector3.RIGHT, Vector3.BACK],
-		[Vector3.BACK, Vector3.RIGHT, Vector3.UP],
-		[Vector3.FORWARD, Vector3.UP, Vector3.RIGHT],
-	]
-	for face: Array in faces:
-		var normal_axis: Vector3 = face[0]
-		var u_axis: Vector3 = face[1]
-		var v_axis: Vector3 = face[2]
-		var face_center := Vector3(
-			normal_axis.x * half.x,
-			normal_axis.y * half.y,
-			normal_axis.z * half.z
-		)
-		var u_extent := absf(u_axis.x) * half.x + absf(u_axis.y) * half.y + absf(u_axis.z) * half.z
-		var v_extent := absf(v_axis.x) * half.x + absf(v_axis.y) * half.y + absf(v_axis.z) * half.z
-		var u_inner := maxf(0.0, u_extent - bevel)
-		var v_inner := maxf(0.0, v_extent - bevel)
-		var u_values := PackedFloat32Array([-u_extent, -u_inner, u_inner, u_extent])
-		var v_values := PackedFloat32Array([-v_extent, -v_inner, v_inner, v_extent])
-		for u_index in u_values.size() - 1:
-			for v_index in v_values.size() - 1:
-				var points := [
-					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index],
-					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index],
-					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index + 1],
-					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index + 1],
-				]
-				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(0, 0))
-				_add_rounded_vertex(tool, points[1], inner_half, bevel, Vector2(1, 0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(1, 1))
-				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(0, 0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(1, 1))
-				_add_rounded_vertex(tool, points[3], inner_half, bevel, Vector2(0, 1))
-	# Without this, commit() derives each tangent from the vertex normal alone
-	# instead of from the face's own U direction, so a bound normal map resolves
-	# in an arbitrary frame. Matches shipyard_world.gd's rounded-box builder.
-	# Measured caveat, so nobody re-chases this: while the panel materials above
-	# stay uv1_world_triplanar, Godot samples the normal map by world position
-	# and builds its own basis, so this call changes no pixel today. It is what
-	# keeps the mesh correct if triplanar is ever turned off (verified: with
-	# triplanar off the same tangent change moves 2.3% of pixels).
-	tool.generate_tangents()
-	var result := tool.commit()
-	_rounded_box_cache[cache_key] = result
-	return result
-
-
-func _add_rounded_vertex(tool: SurfaceTool, point: Vector3, inner_half: Vector3, bevel: float, uv: Vector2) -> void:
-	var closest := Vector3(
-		clampf(point.x, -inner_half.x, inner_half.x),
-		clampf(point.y, -inner_half.y, inner_half.y),
-		clampf(point.z, -inner_half.z, inner_half.z)
-	)
-	var offset := point - closest
-	var normal := offset.normalized() if offset.length_squared() > 0.000001 else Vector3.UP
-	tool.set_normal(normal)
-	tool.set_uv(uv)
-	tool.add_vertex(closest + normal * bevel)
 
 
 func _cylinder(
@@ -1429,7 +1373,7 @@ func _stair_rail_start_progress(rail_x: float, start: Vector3, finish: Vector3) 
 func _add_rail(parent: Node3D, from: Vector3, to: Vector3, rail_name: String) -> void:
 	for endpoint in [from, to]:
 		_cylinder(parent, rail_name + "Post", endpoint + Vector3.UP * 0.68, 0.055, 1.36, _materials["warm_grey"], true)
-	_beam_between(parent, rail_name, from + Vector3.UP * 1.34, to + Vector3.UP * 1.34, 0.07, _materials["gold"], true)
+	_beam_between(parent, rail_name, from + Vector3.UP * 1.34, to + Vector3.UP * 1.34, 0.07, _materials["brass"], true)
 
 
 func _text_sign(

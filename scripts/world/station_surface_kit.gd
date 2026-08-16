@@ -1,15 +1,18 @@
 class_name StationSurfaceKit
 extends RefCounted
 
-## Shared station surface treatment for components that are not station modules.
+## Shared station surface treatment: the one chamfered-box builder and the one
+## registered panel-material recipe the whole station uses.
 ##
 ## Two properties separate a manufactured station part from a shaded primitive:
 ## a chamfer that catches a highlight along every edge, and a metric surface
-## grain that stays the same physical size however the part is scaled. The four
-## station modules already carry both; this kit publishes the same rule and the
-## same registered material family so components mounted onto those modules —
-## the pressure door and the structural service dressing — converge on the one
-## look instead of growing a parallel one.
+## grain that stays the same physical size however the part is scaled. This kit
+## owns both. It began as the treatment for components mounted onto the station
+## modules — the pressure door and the structural service dressing — and the
+## modules and the hub each carried a private copy of the same builder; those
+## copies are now gone and everything calls in here instead. What stayed
+## per-caller is the small part that was genuinely different: the bevel *rule*
+## (see `proportional_bevel_for_size`) and the face UV convention (`BevelUV`).
 ##
 ## The kit is deliberately stateless. Callers own their mesh cache so the meshes
 ## are freed with the node that built them and never outlive the scene tree.
@@ -35,6 +38,28 @@ const MINIMUM_BEVEL := 0.012
 const MAXIMUM_BEVEL := 0.18
 const BEVEL_SAFETY_LIMIT := 0.45
 
+## Floor of the older proportional-only rule the four station modules and the
+## hub still use. It exists only to keep a sub-centimetre sliver from collapsing
+## to a zero-width chamfer; it is not the perceptual floor `MINIMUM_BEVEL` is.
+const MODULE_MINIMUM_BEVEL := 0.003
+
+## Face UV convention for the chamfered box.
+##
+## Both conventions describe the same nine sub-quads per face and produce the
+## same positions and normals; they differ only in the UV channel, and therefore
+## in the tangent frame `generate_tangents()` derives from it. They are kept
+## apart rather than unified because the frozen module geometry differs by that
+## channel: unifying would rewrite every affected surface's tangent array for no
+## visible gain while the panel family stays `uv1_world_triplanar`.
+##
+## `UNIT_PER_QUAD` gives every sub-quad the full 0..1 square. `FACE_GRID` tiles
+## the nine sub-quads across one 0..1 face atlas, which is what a non-triplanar
+## UV1 material on a hub primitive expects.
+enum BevelUV {
+	UNIT_PER_QUAD,
+	FACE_GRID,
+}
+
 
 ## Physical chamfer width for a box of this size, in metres.
 static func bevel_for_size(size: Vector3) -> float:
@@ -45,13 +70,43 @@ static func bevel_for_size(size: Vector3) -> float:
 	return minf(proportional, minf(MAXIMUM_BEVEL, shortest * BEVEL_SAFETY_LIMIT))
 
 
+## The proportional-only chamfer rule the station modules and the hub froze
+## before this kit existed: `clamp(shortest_side * 0.22, minimum, maximum)`.
+##
+## Each caller keeps its own `maximum_bevel` because the caps are not
+## interchangeable — 0.18 m in the Aft and Habitat modules, 0.20 m in the hub,
+## the Fleet Dock comb and the operations activity, 0.22 m in the Freight berth.
+## They are published here so the rule itself is written once even though its
+## constants stay per-module. Deliberately *not* folded into `bevel_for_size`:
+## that rule's 0.012 m floor and `shortest * 0.45` safety limit would move 108 of
+## the 277 live chamfered box sizes, by up to 0.04 m, including the 0.03 m route
+## stripes the proportional rule exists to keep flat.
+static func proportional_bevel_for_size(
+		size: Vector3,
+		maximum_bevel: float,
+		minimum_bevel: float = MODULE_MINIMUM_BEVEL
+	) -> float:
+	var shortest := minf(size.x, minf(size.y, size.z))
+	return clampf(shortest * BEVEL_PROPORTION, minimum_bevel, maximum_bevel)
+
+
 ## Caller-owned cache keyed on the exact size, so repeated members in one
 ## component share a single mesh without leaking across components.
 static func rounded_box_mesh_cached(size: Vector3, cache: Dictionary) -> ArrayMesh:
+	return rounded_box_mesh_with_bevel_cached(size, bevel_for_size(size), cache)
+
+
+## As `rounded_box_mesh_cached`, for a caller that owns its own bevel rule.
+static func rounded_box_mesh_with_bevel_cached(
+		size: Vector3,
+		bevel: float,
+		cache: Dictionary,
+		uv_mode: BevelUV = BevelUV.UNIT_PER_QUAD
+	) -> ArrayMesh:
 	var cache_key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
 	if cache.has(cache_key):
 		return cache[cache_key] as ArrayMesh
-	var mesh := rounded_box_mesh(size)
+	var mesh := rounded_box_mesh_with_bevel(size, bevel, uv_mode)
 	cache[cache_key] = mesh
 	return mesh
 
@@ -60,8 +115,18 @@ static func rounded_box_mesh_cached(size: Vector3, cache: Dictionary) -> ArrayMe
 ## to `BoxMesh.size`. Preserving the AABB exactly is what lets a bevel be a pure
 ## edge treatment: no footprint, collision shape, or published envelope moves.
 static func rounded_box_mesh(size: Vector3) -> ArrayMesh:
+	return rounded_box_mesh_with_bevel(size, bevel_for_size(size))
+
+
+## The chamfered-box builder itself, with the chamfer width supplied rather than
+## derived. Every station builder shares this body; only the bevel rule and the
+## UV convention were ever genuinely different between them.
+static func rounded_box_mesh_with_bevel(
+		size: Vector3,
+		bevel: float,
+		uv_mode: BevelUV = BevelUV.UNIT_PER_QUAD
+	) -> ArrayMesh:
 	var half := size * 0.5
-	var bevel := bevel_for_size(size)
 	var inner_half := Vector3(
 		maxf(0.0, half.x - bevel),
 		maxf(0.0, half.y - bevel),
@@ -100,16 +165,32 @@ static func rounded_box_mesh(size: Vector3) -> ArrayMesh:
 					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index + 1],
 					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index + 1],
 				]
-				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(0, 0))
-				_add_rounded_vertex(tool, points[1], inner_half, bevel, Vector2(1, 0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(1, 1))
-				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(0, 0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(1, 1))
-				_add_rounded_vertex(tool, points[3], inner_half, bevel, Vector2(0, 1))
+				var u0 := 0.0
+				var u1 := 1.0
+				var v0 := 0.0
+				var v1 := 1.0
+				if uv_mode == BevelUV.FACE_GRID:
+					u0 = float(u_index) / 3.0
+					u1 = float(u_index + 1) / 3.0
+					v0 = float(v_index) / 3.0
+					v1 = float(v_index + 1) / 3.0
+				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_vertex(tool, points[1], inner_half, bevel, Vector2(u1, v0))
+				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(u0, v0))
+				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_add_rounded_vertex(tool, points[3], inner_half, bevel, Vector2(u0, v1))
 	# Without this the committed surface still carries a tangent array, but every
 	# tangent is the SurfaceTool default rather than the face's own U direction,
 	# so a normal map is resolved in an arbitrary frame. The station panel family
 	# is normal-mapped, so the frame has to be real.
+	#
+	# Measured caveat, carried over from the module builders this replaced, so
+	# nobody re-chases it: while the panel materials stay uv1_world_triplanar,
+	# Godot samples the normal map by world position and builds its own basis, so
+	# this call changes no pixel today. It is what keeps the mesh correct if
+	# triplanar is ever turned off (verified: with triplanar off the same tangent
+	# change moves 2.3% of pixels).
 	tool.generate_tangents()
 	return tool.commit()
 

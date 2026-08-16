@@ -1502,93 +1502,21 @@ func _box(
 	return mesh_instance
 
 
-## Box with softly chamfered edges, sharing the station's existing bevel rule.
+## Box with softly chamfered edges, at this module's frozen bevel rule.
 ##
-## The bevel is `min(0.2 m, shortest_side * 0.22)`, the same proportional rule
-## `ShipyardWorld` uses, so a 0.3 m rail gets a 0.066 m chamfer while a 5.4 m
-## column is capped at 0.2 m. A fixed bevel would swallow the thin parts of this
-## equipment. The outer extent along each axis is preserved exactly: face
-## vertices are pushed back out to `half` after being clamped to `inner_half`,
-## so `get_aabb()` still returns the requested size and no published envelope,
-## footprint or collider derived from it moves.
+## The rule stays `clamp(shortest_side * 0.22, 0.003, 0.2)` and is *not* the
+## kit's own `bevel_for_size`. Measured over every live chamfered box in this
+## module, adopting the kit rule would move 3 of 22 distinct sizes by up
+## to 0.0043 m, so the shared code is the builder, not the rule. The outer extent
+## along each axis is preserved exactly, so `get_aabb()` still returns the
+## requested size and no footprint, collider or published envelope moves.
 func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
-	var cache_key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
-	if _rounded_box_cache.has(cache_key):
-		return _rounded_box_cache[cache_key] as ArrayMesh
-	var half := size * 0.5
-	var bevel := minf(0.2, minf(size.x, minf(size.y, size.z)) * 0.22)
-	bevel = maxf(bevel, 0.003)
-	var inner_half := Vector3(
-		maxf(0.0, half.x - bevel),
-		maxf(0.0, half.y - bevel),
-		maxf(0.0, half.z - bevel)
+	return StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+		size,
+		StationSurfaceKit.proportional_bevel_for_size(size, 0.2),
+		_rounded_box_cache,
+		StationSurfaceKit.BevelUV.FACE_GRID
 	)
-	var surface_tool := SurfaceTool.new()
-	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var faces: Array[Array] = [
-		[Vector3.RIGHT, Vector3.UP, Vector3.BACK],
-		[Vector3.LEFT, Vector3.BACK, Vector3.UP],
-		[Vector3.UP, Vector3.BACK, Vector3.RIGHT],
-		[Vector3.DOWN, Vector3.RIGHT, Vector3.BACK],
-		[Vector3.BACK, Vector3.RIGHT, Vector3.UP],
-		[Vector3.FORWARD, Vector3.UP, Vector3.RIGHT],
-	]
-	for face: Array in faces:
-		var normal_axis: Vector3 = face[0]
-		var u_axis: Vector3 = face[1]
-		var v_axis: Vector3 = face[2]
-		var face_center := Vector3(
-			normal_axis.x * half.x,
-			normal_axis.y * half.y,
-			normal_axis.z * half.z
-		)
-		var u_extent := absf(u_axis.x) * half.x + absf(u_axis.y) * half.y + absf(u_axis.z) * half.z
-		var v_extent := absf(v_axis.x) * half.x + absf(v_axis.y) * half.y + absf(v_axis.z) * half.z
-		var u_inner := maxf(0.0, u_extent - bevel)
-		var v_inner := maxf(0.0, v_extent - bevel)
-		var u_values := PackedFloat32Array([-u_extent, -u_inner, u_inner, u_extent])
-		var v_values := PackedFloat32Array([-v_extent, -v_inner, v_inner, v_extent])
-		for u_index in u_values.size() - 1:
-			for v_index in v_values.size() - 1:
-				var points := [
-					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index],
-					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index],
-					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index + 1],
-					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index + 1],
-				]
-				var u0 := float(u_index) / 3.0
-				var u1 := float(u_index + 1) / 3.0
-				var v0 := float(v_index) / 3.0
-				var v1 := float(v_index + 1) / 3.0
-				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
-				_add_rounded_box_vertex(surface_tool, points[1], inner_half, bevel, Vector2(u1, v0))
-				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
-				_add_rounded_box_vertex(surface_tool, points[0], inner_half, bevel, Vector2(u0, v0))
-				_add_rounded_box_vertex(surface_tool, points[2], inner_half, bevel, Vector2(u1, v1))
-				_add_rounded_box_vertex(surface_tool, points[3], inner_half, bevel, Vector2(u0, v1))
-	surface_tool.generate_tangents()
-	var rounded_mesh := surface_tool.commit()
-	_rounded_box_cache[cache_key] = rounded_mesh
-	return rounded_mesh
-
-
-func _add_rounded_box_vertex(
-		surface_tool: SurfaceTool,
-		point: Vector3,
-		inner_half: Vector3,
-		bevel: float,
-		uv: Vector2
-	) -> void:
-	var closest := Vector3(
-		clampf(point.x, -inner_half.x, inner_half.x),
-		clampf(point.y, -inner_half.y, inner_half.y),
-		clampf(point.z, -inner_half.z, inner_half.z)
-	)
-	var offset := point - closest
-	var normal := offset.normalized() if offset.length_squared() > 0.000001 else Vector3.UP
-	surface_tool.set_normal(normal)
-	surface_tool.set_uv(uv)
-	surface_tool.add_vertex(closest + normal * bevel)
 
 
 func _cylinder(

@@ -94,6 +94,7 @@ func _run() -> void:
 		return
 
 	_test_collision_backed_surface_roster(world)
+	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
 	await _test_discovered_walkable_surface_support(world)
 	await _test_spawn_adjacent_stair(world, player)
@@ -153,11 +154,66 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 	return valid
 
 
+## The station has two chamfer rules and exactly one chamfered-box builder.
+##
+## `StationSurfaceKit` publishes both rules. The component rule
+## (`bevel_for_size`) has a 0.012 m perceptual floor and a `shortest * 0.45`
+## safety limit; the module rule (`proportional_bevel_for_size`) is purely
+## proportional between a 0.003 m collapse guard and a per-caller cap. They are
+## not interchangeable and the difference is load-bearing: adopting the component
+## rule for the modules would move 108 of the 277 live chamfered box sizes by up
+## to 0.04 m, and on a 0.03 m route stripe it would take a 0.012 m chamfer off
+## each side of a 0.03 m section. These anchors are exact on purpose, so a later
+## "simplification" onto the single kit rule fails here instead of silently
+## reshaping geometry.
+func _test_shared_bevel_rules(_world: ShipyardWorld) -> void:
+	var proportional_exact := (
+		# Above 0.0545 m of shortest side the two rules already agree, which is why
+		# they could share a builder at all.
+		is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(0.18, 1.0, 1.0), 0.2), 0.0396)
+		and is_equal_approx(StationSurfaceKit.bevel_for_size(Vector3(0.18, 1.0, 1.0)), 0.0396)
+		# The 0.03 m comb/route stripe: proportional keeps it flat, the component
+		# floor would not.
+		and is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(0.03, 0.16, 0.55), 0.2), 0.0066)
+		and is_equal_approx(StationSurfaceKit.bevel_for_size(Vector3(0.03, 0.16, 0.55)), 0.012)
+		# The caps, which are the other reason the modules keep their own rule.
+		and is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(1.2, 12.0, 17.0), 0.2), 0.2)
+		and is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(1.2, 12.0, 17.0), 0.18), 0.18)
+		and is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(1.2, 12.0, 17.0), 0.22, 0.008), 0.22)
+		and is_equal_approx(StationSurfaceKit.bevel_for_size(Vector3(1.2, 12.0, 17.0)), 0.18)
+		# The collapse guards.
+		and is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(0.005, 1.0, 1.0), 0.2), 0.003)
+		and is_equal_approx(StationSurfaceKit.proportional_bevel_for_size(Vector3(0.005, 1.0, 1.0), 0.22, 0.008), 0.008)
+	)
+	_check(proportional_exact, "both published station bevel rules hold their exact frozen values")
+
+	# A chamfer is an edge treatment only: whatever the rule, the mesh must still
+	# report the requested outer extents, or a walkable surface or published
+	# envelope derived from the size would move.
+	var extents_preserved := true
+	for size in [Vector3(0.03, 0.16, 0.55), Vector3(1.2, 12.0, 17.0), Vector3(0.18, 1.0, 1.0)]:
+		for bevel in [
+			StationSurfaceKit.bevel_for_size(size as Vector3),
+			StationSurfaceKit.proportional_bevel_for_size(size as Vector3, 0.2),
+		]:
+			for uv_mode in [StationSurfaceKit.BevelUV.UNIT_PER_QUAD, StationSurfaceKit.BevelUV.FACE_GRID]:
+				var mesh := StationSurfaceKit.rounded_box_mesh_with_bevel(size as Vector3, bevel as float, uv_mode)
+				extents_preserved = extents_preserved \
+					and mesh != null \
+					and mesh.get_aabb().size.is_equal_approx(size as Vector3)
+	_check(extents_preserved, "the shared chamfered-box builder preserves the requested AABB at every rule and UV mode")
+
+
 func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 	var specs := [
-		[world.get_node_or_null(^"AftJunctionStack"), ["off_white", "off_white_floor", "panel_light", "warm_grey", "warm_grey_floor", "mid_grey_floor", "hull_dark_floor"], 0.30],
-		[world.get_node_or_null(^"HabitatSpine"), ["shell_light", "shell_light_floor", "shell_mid", "floor"], 0.28],
-		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic", "ceramic_warm", "steel_blue"], 0.30],
+		# Complete per-module roster of keys bound into the station panel family.
+		# `mid_grey`/`hull_dark` joined when the wall/floor mismatch was closed;
+		# `brass`, `structural` and `orange` joined with the structural-and-painted
+		# closing pass. Keeping this list complete is what stops a module binding a
+		# key with a drifted recipe and only the aggregate count noticing.
+		[world.get_node_or_null(^"AftJunctionStack"), ["off_white", "off_white_floor", "panel_light", "warm_grey", "warm_grey_floor", "mid_grey", "mid_grey_floor", "hull_dark", "hull_dark_floor", "brass"], 0.30],
+		[world.get_node_or_null(^"HabitatSpine"), ["shell_light", "shell_light_floor", "shell_mid", "floor", "structural", "brass"], 0.28],
+		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic", "ceramic_warm", "steel_blue", "orange"], 0.30],
 		[world.get_node_or_null(^"JovianFreightBerth"), ["ceramic_floor", "deck"], 0.22],
 	]
 	var every_binding_exact := true
