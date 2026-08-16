@@ -463,7 +463,9 @@ const STATION_SERVICE_AGENT_SPECS := {
 		"to_node_id": &"jovian-freight-berth:approach",
 		"seed": 8821,
 		"speed": 1.5,
-		"lift": 3.6,
+		# Preserves player headroom above FreightApproachGantry at the courier's
+		# lowest sway, while leaving the route and vehicle handoff fixed.
+		"lift": 9.1,
 	},
 	&"habitat-spine-courier": {
 		"node_name": &"HabitatSpineServiceCourier",

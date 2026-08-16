@@ -43,7 +43,10 @@ const MAXIMUM_ROUTE_LENGTH := 48.0
 const MINIMUM_TRAVERSAL_SPEED := 0.25
 const MAXIMUM_TRAVERSAL_SPEED := 4.0
 const MINIMUM_HOVER_LIFT := 2.6
-const MAXIMUM_HOVER_LIFT := 4.0
+# The freight branch crosses a real maintenance gantry. At 9.10 m its lowest
+# swept body point preserves player headroom above that structure, so the
+# bounded service band must admit that one overhead route.
+const MAXIMUM_HOVER_LIFT := 9.1
 const MAXIMUM_LATERAL_SWAY := 0.5
 const MAXIMUM_VERTICAL_SWAY := 0.45
 
