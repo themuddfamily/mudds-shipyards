@@ -59,6 +59,13 @@ extends SceneTree
 ## the race and the original single assertion passed on unfixed code. Both defect
 ## assertions are red 3/3 with the fix reverted and green with it in place.
 
+const FLIGHT_CONTROL_ACTIONS := [
+	&"move_forward", &"move_back", &"move_left", &"move_right",
+	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+	&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+	&"landing_assist",
+]
+
 var _failures: Array[String] = []
 
 
@@ -101,16 +108,12 @@ func _run() -> void:
 		"the witness boards the Arrow"
 	)
 
-	# Land and shut down so the exit path is legitimately available.
-	arrow.engine_start_time = 0.03
-	arrow.request_engine_start()
+	# Fly, land, and idle offline so the exit path is legitimately available.
 	_check(
-		await _wait_until(
-			func() -> bool: return str(arrow.get_telemetry().engine_state) == "ONLINE",
-			0.12
-		),
-		"the witness starts the Arrow"
+		await _wake_engine_with_flight_demand(arrow),
+		"accepted flight demand wakes the witness Arrow in the same physics tick"
 	)
+	await _depart_under_real_thrust(game, arrow)
 	arrow.global_transform = arrow_transform.translated_local(Vector3(0.0, 3.0, 0.0))
 	arrow.velocity = Vector3.ZERO
 	game.call("_try_request_landing")
@@ -118,7 +121,10 @@ func _run() -> void:
 		await _wait_until(func() -> bool: return bool(arrow.get_telemetry().landed), 2.1),
 		"the witness lands the Arrow at its home berth"
 	)
-	arrow.request_engine_stop()
+	_check(
+		await _idle_engine_offline(arrow),
+		"neutral controls cross the exact 1.5-second physics deadline before the witness exits"
+	)
 
 	# Exit, and advance only the physics clock afterwards. This reproduces the real
 	# ordering: `interact_requested` is emitted from `PlayerController`'s physics
@@ -165,6 +171,7 @@ func _run() -> void:
 	await _run_real_input_leg(game, player, arrow, arrow_transform)
 
 	Input.action_release("interact")
+	_release_all_flight_controls(arrow)
 	game.queue_free()
 	await process_frame
 	await process_frame
@@ -205,14 +212,11 @@ func _run_real_input_leg(
 		await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 0.6),
 		"a real interact press boards the Arrow for the second sortie"
 	)
-	arrow.request_engine_start()
 	_check(
-		await _wait_until(
-			func() -> bool: return str(arrow.get_telemetry().engine_state) == "ONLINE",
-			0.2
-		),
-		"the witness starts the Arrow for the second sortie"
+		await _wake_engine_with_flight_demand(arrow),
+		"accepted flight demand wakes the Arrow for the second sortie"
 	)
+	await _depart_under_real_thrust(game, arrow)
 	arrow.global_transform = arrow_transform.translated_local(Vector3(0.0, 3.0, 0.0))
 	arrow.velocity = Vector3.ZERO
 	game.call("_try_request_landing")
@@ -220,13 +224,9 @@ func _run_real_input_leg(
 		await _wait_until(func() -> bool: return bool(arrow.get_telemetry().landed), 2.1),
 		"the witness lands the Arrow again at its home berth"
 	)
-	arrow.request_engine_stop()
 	_check(
-		await _wait_until(
-			func() -> bool: return str(arrow.get_telemetry().engine_state) == "OFFLINE",
-			0.6
-		),
-		"the witness shuts the Arrow down for the second exit"
+		await _idle_engine_offline(arrow),
+		"neutral controls idle the Arrow OFFLINE before the second exit"
 	)
 	_check(
 		game.boarding_candidate == arrow and bool(game.get("_near_ship")),
@@ -305,6 +305,67 @@ func _run_real_input_leg(
 		not reboarded,
 		"mashing the real interact action after a real exit never re-boards the suppressed Arrow"
 	)
+
+
+func _wake_engine_with_flight_demand(ship: HeroShip) -> bool:
+	_release_all_flight_controls(ship)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and ship.get_last_ship_command().hover
+	)
+	Input.action_release(&"hover")
+	return accepted
+
+
+func _depart_under_real_thrust(game: GameFlow, ship: HeroShip) -> void:
+	Input.action_press(&"move_forward")
+	for _departure_tick in 18:
+		await physics_frame
+		await process_frame
+	Input.action_release(&"move_forward")
+	_check(
+		await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.FREE_FLIGHT, 0.2)
+		and not bool(ship.get_telemetry().get("landed", true)),
+		"real thrust physically departs the witness Arrow before landing"
+	)
+
+
+func _idle_engine_offline(ship: HeroShip) -> bool:
+	# Reset the idle accumulator with one accepted demand tick. The final bounded
+	# step crosses a floating-point sum that can land infinitesimally below 1.5.
+	if not await _wake_engine_with_flight_demand(ship):
+		return false
+	_release_all_flight_controls(ship)
+	var idle_ticks := int(round(
+		HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS
+		* float(Engine.physics_ticks_per_second)
+	))
+	for _frame in idle_ticks - 1:
+		await physics_frame
+	await process_frame
+	var online_before_deadline := (
+		StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+	)
+	await physics_frame
+	await process_frame
+	if StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE:
+		await physics_frame
+		await process_frame
+	return (
+		online_before_deadline
+		and StringName(ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE
+	)
+
+
+func _release_all_flight_controls(ship: HeroShip) -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
+	var source := ship.get_command_source() as LocalShipInputSource
+	if source != null:
+		source.clear_pending_look_motion()
 
 
 func _wait_until(predicate: Callable, nominal_seconds: float) -> bool:
