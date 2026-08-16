@@ -259,7 +259,31 @@ func _ready() -> void:
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	_apply_all_runtime_settings()
 	_update_music_bed_state()
+	_apply_torus_geometry_budget()
 	_initialized = true
+
+
+## Brings every ring and collar in the scene under one geometry budget.
+##
+## Nine builders across the station modules and the ship visuals author
+## `TorusMesh` rings, and each had independently fixed its own tessellation and
+## applied it to everything from a 148-metre moonlet ring to a 10-centimetre pipe
+## collar. The whole-scene census put that at 213,664 triangles, 15.2% of the
+## scene. `TorusGeometryBudget` solves tessellation from each ring's measured
+## world-space radii instead, so a beacon signal ring the player reads as a
+## circle keeps its smoothness while a mast collar drops.
+##
+## This runs here rather than inside a module because the tori are spread across
+## `ShipyardWorld` *and* the four ship scenes, which are siblings of it. Godot
+## readies children before parents, so by the time `Main` is ready the world and
+## every ship have finished building and their global transforms — which the
+## budget reads to get world-space size — are final.
+##
+## It changes `rings` and `ring_segments` only, and never upward, so it cannot
+## move, resize, recolour or re-material anything, and cannot make the scene more
+## expensive than the builders already made it.
+func _apply_torus_geometry_budget() -> void:
+	TorusGeometryBudget.normalise_tree(self)
 
 
 func _process(delta: float) -> void:
