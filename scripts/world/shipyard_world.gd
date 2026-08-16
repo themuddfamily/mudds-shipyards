@@ -340,6 +340,10 @@ const SPACE_BACKDROP_STAR_COUNT := 2600
 const SPACE_BACKDROP_STAR_RADIUS_MIN := 1450.0
 const SPACE_BACKDROP_STAR_RADIUS_MAX := 1650.0
 const SPACE_BACKDROP_NEBULA_COVER_STRENGTH := 0.08
+const SPACE_BACKDROP_BODY_MESH_RADIUS := 1.0
+const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 24
+const SPACE_BACKDROP_BODY_MESH_RINGS := 12
+const SPACE_BACKDROP_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
 const SPACE_BACKDROP_BODY_SPECS := {
 	&"CelestialGreenBody": {
 		"position": Vector3(-310.0, 100.0, -890.0),
@@ -3536,6 +3540,10 @@ func get_space_backdrop_audit_report() -> Dictionary:
 	var environment_node := get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
 	var environment := environment_node.environment if environment_node != null else null
 	var sky_material: ShaderMaterial = null
+	var mesh_resource_ids: Dictionary = {}
+	var material_resource_ids: Dictionary = {}
+	var surface_submission_count := 0
+	var visible_copy_count := 0
 	if environment != null and environment.sky != null:
 		sky_material = environment.sky.sky_material as ShaderMaterial
 	if backdrop == null:
@@ -3607,6 +3615,15 @@ func get_space_backdrop_audit_report() -> Dictionary:
 	elif stars.multimesh.mesh is SphereMesh:
 		var star_sphere := stars.multimesh.mesh as SphereMesh
 		var star_material := star_sphere.material as StandardMaterial3D
+		mesh_resource_ids[star_sphere.get_instance_id()] = true
+		if star_material != null:
+			material_resource_ids[star_material.get_instance_id()] = true
+		surface_submission_count += star_sphere.get_surface_count()
+		visible_copy_count += (
+			stars.multimesh.instance_count
+			if stars.multimesh.visible_instance_count < 0
+			else stars.multimesh.visible_instance_count
+		)
 		if (
 			not is_equal_approx(star_sphere.radius, 0.9)
 			or not is_equal_approx(star_sphere.height, 1.8)
@@ -3634,10 +3651,18 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			continue
 		var sphere := body.mesh as SphereMesh
 		var material := body.material_override as StandardMaterial3D
+		mesh_resource_ids[sphere.get_instance_id()] = true
+		if material != null:
+			material_resource_ids[material.get_instance_id()] = true
+		surface_submission_count += sphere.get_surface_count()
+		visible_copy_count += 1
 		if (
 			not body.position.is_equal_approx(spec.position as Vector3)
-			or not is_equal_approx(sphere.radius, float(spec.radius))
-			or not is_equal_approx(sphere.height, float(spec.radius) * 2.0)
+			or not body.scale.is_equal_approx(Vector3.ONE * float(spec.radius))
+			or not is_equal_approx(sphere.radius, SPACE_BACKDROP_BODY_MESH_RADIUS)
+			or not is_equal_approx(sphere.height, SPACE_BACKDROP_BODY_MESH_RADIUS * 2.0)
+			or sphere.radial_segments != SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS
+			or sphere.rings != SPACE_BACKDROP_BODY_MESH_RINGS
 			or material == null
 			or not material.albedo_color.is_equal_approx(spec.color as Color)
 			or not material.emission_enabled
@@ -3650,6 +3675,7 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			or not is_equal_approx(material.emission_energy_multiplier, 0.1)
 			or not is_equal_approx(material.roughness, 1.0)
 			or body.get_meta(&"palette_role", &"") != spec.palette_role
+			or body.get_meta(&"visual_resource_family_id", &"") != SPACE_BACKDROP_BODY_MESH_FAMILY_ID
 			or body.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			or body.gi_mode != GeometryInstance3D.GI_MODE_DISABLED
 		):
@@ -3679,6 +3705,12 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		errors.append("space backdrop gained gameplay or active presentation authority")
 	if renderable_count != SPACE_BACKDROP_BODY_SPECS.size() + 1:
 		errors.append("space backdrop renderable roster drifted")
+	if mesh_resource_ids.size() != 2:
+		errors.append("space backdrop immutable mesh sharing drifted")
+	if material_resource_ids.size() != 5:
+		errors.append("space backdrop distinct material roster drifted")
+	if surface_submission_count != 5 or visible_copy_count != 2604:
+		errors.append("space backdrop bounded renderer counts drifted")
 
 	return {
 		"schema_version": SPACE_BACKDROP_SCHEMA_VERSION,
@@ -3701,6 +3733,14 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		"runtime_draw_upper_bound": SPACE_BACKDROP_BODY_SPECS.size() + 1,
 		# 2,600 instances * 48 star triangles + 4 bodies * 624 triangles.
 		"runtime_triangle_upper_bound": 127_296,
+		"performance": {
+			"mesh_resource_count": mesh_resource_ids.size(),
+			"material_resource_count": material_resource_ids.size(),
+			"renderer_node_count": renderable_count,
+			"surface_submission_count": surface_submission_count,
+			"visible_copy_count": visible_copy_count,
+			"triangle_count": 127_296,
+		},
 		"target_count": get_target_count(),
 		# Deliberately enumerated rather than derived from get_berth_ids(): the
 		# suite compares this list, the live registry and its own expectation
@@ -6883,6 +6923,14 @@ func _build_space_backdrop() -> void:
 	stars.multimesh = multimesh
 	backdrop.add_child(stars)
 
+	# The four bodies retain distinct nodes and materials, but their immutable
+	# 24x12 unit-sphere topology is one shared resource. Uniform node scale carries
+	# each authored radius without changing a world vertex, normal or silhouette.
+	var body_mesh := SphereMesh.new()
+	body_mesh.radius = SPACE_BACKDROP_BODY_MESH_RADIUS
+	body_mesh.height = SPACE_BACKDROP_BODY_MESH_RADIUS * 2.0
+	body_mesh.radial_segments = SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS
+	body_mesh.rings = SPACE_BACKDROP_BODY_MESH_RINGS
 	for body_name: StringName in SPACE_BACKDROP_BODY_SPECS:
 		var spec := SPACE_BACKDROP_BODY_SPECS[body_name] as Dictionary
 		var body_color := spec.color as Color
@@ -6905,17 +6953,17 @@ func _build_space_backdrop() -> void:
 		# fixing. Aerial perspective is doing the right thing to them - a body a
 		# kilometre out should read muted and far, and the haze is the only thing
 		# on hand that says so about an untextured sphere.
-		var body := _sphere(
-			backdrop,
-			String(body_name),
-			spec.position as Vector3,
-			float(spec.radius),
-			body_material,
-			false
-		) as MeshInstance3D
+		var body := MeshInstance3D.new()
+		body.name = String(body_name)
+		body.position = spec.position as Vector3
+		body.scale = Vector3.ONE * float(spec.radius)
+		body.mesh = body_mesh
+		body.material_override = body_material
 		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		body.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		body.set_meta(&"palette_role", spec.palette_role)
+		body.set_meta(&"visual_resource_family_id", SPACE_BACKDROP_BODY_MESH_FAMILY_ID)
+		backdrop.add_child(body)
 
 
 func _create_target(parent: Node3D, index: int, target_position: Vector3) -> void:

@@ -13,6 +13,16 @@ const EXPECTED_STAR_COUNT := 2600
 const EXPECTED_STAR_RADIUS_MIN := 1450.0
 const EXPECTED_STAR_RADIUS_MAX := 1650.0
 const EXPECTED_NEBULA_COVER_STRENGTH := 0.08
+const EXPECTED_BODY_MESH_RADIUS := 1.0
+const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 24
+const EXPECTED_BODY_MESH_RINGS := 12
+const EXPECTED_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
+const EXPECTED_LOCAL_MESH_RESOURCES := 2
+const EXPECTED_LOCAL_MATERIAL_RESOURCES := 5
+const EXPECTED_LOCAL_RENDERER_NODES := 5
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 5
+const EXPECTED_LOCAL_VISIBLE_COPIES := 2604
+const EXPECTED_LOCAL_TRIANGLES := 127_296
 const EXPECTED_BERTH_IDS: Array[String] = [
 	"central_berth",
 	"arrow_recon_berth",
@@ -71,6 +81,7 @@ func _run() -> void:
 	_test_near_black_sky(world)
 	_test_deterministic_star_shell(world, comparison_world)
 	_test_exact_body_roster(world)
+	_test_bounded_resource_sharing(world)
 	_test_presentation_only_boundary(world)
 	_test_authority_invariants(world)
 	_test_deep_copy_safety(world)
@@ -135,6 +146,16 @@ func _test_pristine_audit(world: ShipyardWorld) -> void:
 		int(report.get("body_count", -1)) == EXPECTED_BODY_SPECS.size()
 		and (report.get("body_specs", {}) as Dictionary).size() == EXPECTED_BODY_SPECS.size(),
 		"audit freezes exactly four celestial bodies"
+	)
+	var performance := report.get("performance", {}) as Dictionary
+	_check(
+		int(performance.get("mesh_resource_count", -1)) == EXPECTED_LOCAL_MESH_RESOURCES
+		and int(performance.get("material_resource_count", -1)) == EXPECTED_LOCAL_MATERIAL_RESOURCES
+		and int(performance.get("renderer_node_count", -1)) == EXPECTED_LOCAL_RENDERER_NODES
+		and int(performance.get("surface_submission_count", -1)) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
+		and int(performance.get("visible_copy_count", -1)) == EXPECTED_LOCAL_VISIBLE_COPIES
+		and int(performance.get("triangle_count", -1)) == EXPECTED_LOCAL_TRIANGLES,
+		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 127296-triangle result"
 	)
 	_check(
 		bool(report.get("near_black_sky", false))
@@ -349,19 +370,45 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 	_check(actual_names == expected_names, "backdrop direct-child names match the exact frozen renderable roster")
 
 	var report_specs := world.get_space_backdrop_audit_report().get("body_specs", {}) as Dictionary
+	var body_mesh_ids: Dictionary = {}
 	for body_name: StringName in EXPECTED_BODY_SPECS:
 		var expected := EXPECTED_BODY_SPECS[body_name] as Dictionary
 		var reported := report_specs.get(body_name, {}) as Dictionary
 		var body := backdrop.get_node_or_null(NodePath(String(body_name))) as MeshInstance3D
 		var sphere := body.mesh as SphereMesh if body != null else null
 		var material := body.material_override as StandardMaterial3D if body != null else null
+		var expected_radius := float(expected.radius)
+		# Rebuild the exact pre-sharing resource, rather than comparing against an
+		# ideal sphere: Godot's 24 sampled longitudes do not put every X/Z cardinal
+		# at the nominal radius, so the old mesh's AABB was slightly inset there.
+		var legacy_sphere := SphereMesh.new()
+		legacy_sphere.radius = expected_radius
+		legacy_sphere.height = expected_radius * 2.0
+		legacy_sphere.radial_segments = EXPECTED_BODY_MESH_RADIAL_SEGMENTS
+		legacy_sphere.rings = EXPECTED_BODY_MESH_RINGS
+		var expected_bounds := (
+			Transform3D(Basis.IDENTITY, expected.position as Vector3) * legacy_sphere.get_aabb()
+		).abs()
+		var actual_bounds := (body.transform * sphere.get_aabb()).abs() if sphere != null else AABB()
+		if sphere != null:
+			body_mesh_ids[sphere.get_instance_id()] = true
 		_check(
 			body != null and sphere != null and material != null
 			and body.position.is_equal_approx(expected.position as Vector3)
-			and is_equal_approx(sphere.radius, float(expected.radius))
-			and is_equal_approx(sphere.height, float(expected.radius) * 2.0)
+			and body.scale.is_equal_approx(Vector3.ONE * float(expected.radius))
+			and is_equal_approx(sphere.radius, EXPECTED_BODY_MESH_RADIUS)
+			and is_equal_approx(sphere.height, EXPECTED_BODY_MESH_RADIUS * 2.0)
+			and sphere.radial_segments == EXPECTED_BODY_MESH_RADIAL_SEGMENTS
+			and sphere.rings == EXPECTED_BODY_MESH_RINGS
+			and _shared_sphere_matches_legacy_vertices(sphere, legacy_sphere, expected_radius)
+			and actual_bounds.is_equal_approx(expected_bounds)
 			and StringName(body.get_meta(&"palette_role", &"")) == expected.palette_role,
-			"%s is the exact audited SphereMesh placement, radius, and palette role" % body_name
+			"%s keeps its exact placement, effective radius, topology, bounds %s, and palette role"
+			% [body_name, actual_bounds]
+		)
+		_check(
+			StringName(body.get_meta(&"visual_resource_family_id", &"")) == EXPECTED_BODY_MESH_FAMILY_ID,
+			"%s explicitly belongs to the celestial-body mesh-sharing family" % body_name
 		)
 		_check(
 			material != null
@@ -391,6 +438,109 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 			and (reported.get("color", Color.TRANSPARENT) as Color).is_equal_approx(expected.color as Color),
 			"%s audit body spec exactly matches its live presentation" % body_name
 		)
+	_check(
+		body_mesh_ids.size() == 1,
+		"all four semantic body paths share one immutable unit-sphere resource"
+	)
+
+
+func _test_bounded_resource_sharing(world: ShipyardWorld) -> void:
+	var backdrop := world.get_node_or_null(^"SpaceBackdrop") as Node3D
+	_check(backdrop != null, "bounded backdrop performance census has its production root")
+	if backdrop == null:
+		return
+	var mesh_resource_ids: Dictionary = {}
+	var material_resource_ids: Dictionary = {}
+	var renderer_nodes := 0
+	var surface_submissions := 0
+	var visible_copies := 0
+	var triangles := 0
+	for child in backdrop.get_children():
+		if child is MultiMeshInstance3D:
+			var batch := child as MultiMeshInstance3D
+			var multimesh := batch.multimesh
+			if multimesh == null or multimesh.mesh == null:
+				continue
+			renderer_nodes += 1
+			mesh_resource_ids[multimesh.mesh.get_instance_id()] = true
+			var material := multimesh.mesh.surface_get_material(0)
+			if material != null:
+				material_resource_ids[material.get_instance_id()] = true
+			var copy_count := multimesh.visible_instance_count
+			if copy_count < 0:
+				copy_count = multimesh.instance_count
+			surface_submissions += multimesh.mesh.get_surface_count()
+			visible_copies += copy_count
+			triangles += _mesh_triangle_count(multimesh.mesh) * copy_count
+		elif child is MeshInstance3D:
+			var instance := child as MeshInstance3D
+			if instance.mesh == null:
+				continue
+			renderer_nodes += 1
+			mesh_resource_ids[instance.mesh.get_instance_id()] = true
+			if instance.material_override != null:
+				material_resource_ids[instance.material_override.get_instance_id()] = true
+			surface_submissions += instance.mesh.get_surface_count()
+			visible_copies += 1
+			triangles += _mesh_triangle_count(instance.mesh)
+	_check(
+		mesh_resource_ids.size() == EXPECTED_LOCAL_MESH_RESOURCES
+		and material_resource_ids.size() == EXPECTED_LOCAL_MATERIAL_RESOURCES,
+		"local immutable resources are frozen at five -> two meshes and five -> five materials"
+	)
+	_check(
+		renderer_nodes == EXPECTED_LOCAL_RENDERER_NODES
+		and surface_submissions == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
+		and visible_copies == EXPECTED_LOCAL_VISIBLE_COPIES
+		and triangles == EXPECTED_LOCAL_TRIANGLES,
+		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 127296 triangles"
+	)
+
+
+func _mesh_triangle_count(mesh: Mesh) -> int:
+	var triangles := 0
+	for surface_index in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface_index)
+		if arrays.is_empty():
+			continue
+		var indices := PackedInt32Array()
+		if arrays[Mesh.ARRAY_INDEX] is PackedInt32Array:
+			indices = arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		triangles += (indices.size() if not indices.is_empty() else vertices.size()) / 3
+	return triangles
+
+
+func _shared_sphere_matches_legacy_vertices(
+		shared_sphere: SphereMesh,
+		legacy_sphere: SphereMesh,
+		radius: float
+	) -> bool:
+	if shared_sphere == null or legacy_sphere == null:
+		return false
+	if shared_sphere.get_surface_count() != legacy_sphere.get_surface_count():
+		return false
+	for surface_index in shared_sphere.get_surface_count():
+		var shared_arrays := shared_sphere.surface_get_arrays(surface_index)
+		var legacy_arrays := legacy_sphere.surface_get_arrays(surface_index)
+		var shared_vertices := shared_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var legacy_vertices := legacy_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var shared_normals := shared_arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array
+		var legacy_normals := legacy_arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array
+		if (
+			shared_vertices.size() != legacy_vertices.size()
+			or shared_normals.size() != legacy_normals.size()
+		):
+			return false
+		for vertex_index in shared_vertices.size():
+			if (
+				not (shared_vertices[vertex_index] * radius).is_equal_approx(
+					legacy_vertices[vertex_index]
+				)
+				or not shared_normals[vertex_index].is_equal_approx(legacy_normals[vertex_index])
+			):
+				return false
+	return true
 
 
 func _test_presentation_only_boundary(world: ShipyardWorld) -> void:

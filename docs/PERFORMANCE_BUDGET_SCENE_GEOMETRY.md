@@ -685,6 +685,30 @@ showed no changed pixels on any rib; the only visible comparison differences
 were on unrelated slowly tumbling boulders. The adapter was llvmpipe, so this is
 a transform/culling/composition check, not representative frame-time evidence.
 
+### Bounded Space Backdrop celestial-body mesh sharing
+
+Against base `903e478`, the four named coloured celestial bodies keep their
+individual `MeshInstance3D` paths, positions, effective radii, palette roles and
+distinct materials, but share one immutable 24x12 unit-sphere mesh. Each node's
+uniform scale carries its existing 105/120/135/165 m radius. This is the same
+topology and world-space geometry the four radius-specific sphere resources
+produced; the star shell, deterministic seed/roster, sky shader and key-light
+orientation are untouched.
+
+The body family moves **4 -> 1 unique mesh resources**. The bounded whole
+`SpaceBackdrop` result is **5 -> 2 unique meshes, 5 -> 5 materials, 5 -> 5
+renderer nodes/surface submissions, 2,604 -> 2,604 visible copies and 127,296 ->
+127,296 triangles**. The four bodies remain 2,496 of those triangles and the
+already-batched star shell remains 124,800; this pass does not mistake the
+single star submission's instanced triangle count for a draw-call problem.
+
+No Forward+ comparison is required for this immutable-resource substitution:
+the focused production test freezes the shared mesh identity, unchanged 24x12
+topology, each exact uniform scale and effective AABB, material roster, semantic
+paths and component-local counts. No vertex tessellation, shading input or
+world-space bound changes. These bounded values do not re-freeze any absolute
+whole-scene count; that remains deferred to the final merged-tree census.
+
 ## The lettering fix, for the record
 
 The first thing this budget was used for. Before: 31 signs, 315,360 triangles,
