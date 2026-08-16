@@ -295,12 +295,54 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# sill cove lens, none of which appear here, because the habitat's `graphite`
 	# and every lens material (`worklight`, `warm_light`, `teal_dim`) are lit or
 	# painted cues and stay outside the family exactly as they did before.
+	# Re-frozen once more, 1767 -> 1863, by the central-berth finishing pass, which
+	# furnished the hero berth's empty port flank with ground support equipment and
+	# put foot hardware under the four dock masts. Like the interior-relationship
+	# pass above, every piece is built on an already registered hub role, so no
+	# role joined or left the family, no new physical scale was introduced, and
+	# 0.22 and 0.28 are untouched at 129 and 532. The whole delta is +96 at 0.30,
+	# 1106 -> 1202, and it reconciles piece by piece:
+	#
+	#   Berth readiness board, +14: foot, three pin sockets, the two dark bay
+	#   tiles, the withdrawn-pin clip and the lamp hood (`black`); the board mast
+	#   (`steel_blue`); the panel and the seated retaining pin (`ivory`); the board
+	#   face (`navy`); the two withdrawn pins (`orange`). The lit bay tile is
+	#   `berth_cyan_glow` and the hood lens is `white_glow`, so both stay outside
+	#   the family with every other cue and lens.
+	#   Cable drum stand, +14: plinth, three stowed coils and three lead segments
+	#   (`black`); two cheeks and the deck coupling (`steel_blue`); the barrel
+	#   (`orange`); crank hub, crank arm and crank grip (`ivory`).
+	#   Parts bin rack, +18: foot and strip housing (`black`); two uprights
+	#   (`steel_blue`); two shelves and two of the six stock blocks (`ivory`, with
+	#   the other four `black`); six bins (`orange`/`blue`). Its strip lens is
+	#   `white_glow` and stays out.
+	#   Chock locker, +8: body (`deck_light`); lid (`black`); door (`navy`);
+	#   handle (`ivory`); two chock bodies and two chock ramps (`orange`).
+	#   Access work stand, +14: four legs and the lamp arm (`steel_blue`);
+	#   platform and two steps (`deck_light`); three rail posts, the rail and the
+	#   stowed hard hat (`orange`); the lamp hood (`black`). The toolbox is `red`
+	#   alert paint, which has never been in the family, and the lamp lens is
+	#   `white_glow`, so neither appears here.
+	#   Dock mast feet, +28: seven mapped parts each at four masts — base flange
+	#   and lamp hood (`black`), two cleat stems and two cleat horns (`ivory`),
+	#   junction box (`steel_blue`). Each foot's state tile and lens are
+	#   `berth_cyan_glow` and stay out, exactly as the comb's mast status lenses do.
+	#
+	# The assertion text is corrected to the frozen number at the same time; it had
+	# been left reading 1764 through the two re-freezes above.
+	#
+	# Re-frozen 1863 -> 1876 on merge, measured on the merged tree rather than
+	# predicted. The central-berth service line was authored against a base that
+	# did not yet carry the Halyard's widened Dock 02 apron; both passes add
+	# plated structure at 0.30, so neither branch's total is right on its own and
+	# they do not simply sum from either side. 0.22 stays 129 and 0.28 stays 532 -
+	# every added surface is plate stock at 0.30, which goes 1202 -> 1215.
 	_check(
-		mapped_surface_count == 1767
+		mapped_surface_count == 1876
 		and scale_022_count == 129
 		and scale_028_count == 532
-		and scale_030_count == 1106,
-		"live station binds exactly 1764 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1215,
+		"live station binds exactly 1876 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
