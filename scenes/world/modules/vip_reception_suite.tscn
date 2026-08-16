@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/vip_reception_suite.gd" id="1_suite"]
+
+[node name="VipReceptionSuite" type="Node3D"]
+script = ExtResource("1_suite")
+
+[node name="ThresholdAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.15, 1.5)
+
+[node name="ReceptionAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-1.3, 0.15, 4.6)
+
+[node name="ViewAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-1.3, 0.15, 12.6)

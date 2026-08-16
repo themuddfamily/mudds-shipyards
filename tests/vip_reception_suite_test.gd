@@ -1,0 +1,351 @@
+extends SceneTree
+
+## Regression for the VIP reception suite: the interpretation interior behind the
+## Aft Junction's red landmark.
+##
+## Two things are being guarded, and the second matters more than the first.
+##
+## 1. The room is physically sound. Every mesh in it shares volume with another
+##    drawn mesh, so nothing hovers; every collider has drawn geometry at exactly
+##    its size, so nothing solid-looking is empty and nothing walkable is
+##    invisible; the sunken well can be entered and left inside the production
+##    capsule's no-jump step; and none of it penetrates the neighbouring module.
+##
+## 2. The room stays labelled. It is invented — element `new`, status
+##    `modern_interpretation`, source confidence `none` — and the assertions below
+##    fail if it ever starts publishing registered anchors, claims to reproduce an
+##    observed interior, joins the station adjacency graph as a fifth module, or
+##    drops the plinth legend that tells a player standing in it that no source
+##    describes it.
+
+const MAIN_SCENE := preload("res://scenes/main.tscn")
+const WORLD_LAYER := PhysicsLayers.WORLD
+
+## Tolerance for the "shares volume with drawn geometry" sweep. 2 mm: the two
+## signs sit 0.5 mm proud of the panel they are lettered onto so their glyphs are
+## in front of it rather than coplanar with it, and everything else in the module
+## laps its support outright.
+const SEATED_TOLERANCE := 0.002
+
+## The production controller's no-jump step, as measured by
+## `station_traversal_defect_witness_test.gd`. The well's risers must clear it.
+const NO_JUMP_STEP_LIMIT := 0.32
+
+var _assertions := 0
+var _failures: Array[String] = []
+
+
+func _init() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	game.start_shift()
+	for _settle in 6:
+		await physics_frame
+
+	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+	_check(world != null, "production world is live")
+	if world == null:
+		_finish()
+		return
+	var suite := world.get_node_or_null(^"VipReceptionSuite") as VipReceptionSuite
+	_check(suite != null, "the VIP reception suite is instantiated in the production world")
+	if suite == null:
+		game.queue_free()
+		await process_frame
+		_finish()
+		return
+
+	_test_contract(suite)
+	_test_evidence_label(suite)
+	_test_is_not_a_fifth_station_module(world, suite)
+	_test_nothing_floats(world, suite)
+	_test_colliders_have_drawn_geometry(suite)
+	_test_well_is_enterable_without_a_jump(suite)
+	_test_does_not_penetrate_the_aft_module(world, suite)
+	await _test_landmark_opens_onto_the_room(world, suite)
+	_test_lifecycle(suite)
+
+	game.queue_free()
+	await process_frame
+	_finish()
+
+
+func _test_contract(suite: VipReceptionSuite) -> void:
+	var audit := suite.get_audit_report()
+	for error in (audit.errors as PackedStringArray):
+		print("VIP_SUITE_VALIDATION: ", error)
+	_check(bool(audit.valid), "the suite validates clean")
+	_check(int(audit.seat_count) == VipReceptionSuite.SEAT_COUNT, "the seating roster is complete")
+	_check(int(audit.glazing_pane_count) >= VipReceptionSuite.GLAZING_PANE_COUNT, "the glazing roster is complete")
+	_check(int(audit.practical_light_count) >= 12, "the interior is lit by real practicals rather than by emission alone")
+
+	var clearance := suite.get_clearance_profile()
+	_check(float(clearance.threshold_clear_width) >= 4.0, "the threshold is generously player-clear")
+	_check(float(clearance.reception_head_clearance) > float(clearance.threshold_head_clearance), "the room opens up above the threshold it is entered from")
+	_check(float(clearance.lantern_head_clearance) > float(clearance.reception_head_clearance), "the lantern lifts the ceiling again over the seating")
+
+	_check(suite.get_room_ids().size() == 2, "the suite publishes exactly its threshold and its reception room")
+	for room_id in suite.get_room_ids():
+		var volume := suite.get_room_volume(room_id)
+		_check(not volume.is_empty(), "room %s publishes an occupancy volume" % room_id)
+		_check(str(volume.get("evidence_status", "")) == "modern_interpretation", "room %s carries the module's evidence status" % room_id)
+		_check(suite.contains_room(room_id, suite.to_global(volume.local_center as Vector3)), "room %s contains its own centre" % room_id)
+	_check(suite.get_room_volume(&"vip-observation-deck").is_empty(), "an unknown room has no invented fallback volume")
+
+	var roster := suite.get_support_roster()
+	_check(roster.size() >= 8, "the cantilever publishes its load path member by member")
+	var every_member_named := true
+	for entry in roster:
+		if str(entry.get("carries", "")) == "unknown" or str(entry.get("laps", "")) == "unknown":
+			every_member_named = false
+	_check(every_member_named, "every published support member names what it carries and what it laps")
+
+
+func _test_evidence_label(suite: VipReceptionSuite) -> void:
+	var evidence := suite.get_evidence_metadata()
+	_check(str(evidence.evidence_status) == "modern_interpretation", "the interior publishes modern_interpretation")
+	_check(str(evidence.interpretation_label) == "new", "the interior publishes the topology document's `new` element label")
+	_check(str(evidence.source_confidence) == "none", "source confidence is none, not low: no anchor describes any VIP interior")
+	_check(not bool(evidence.source_bounded), "the interior does not claim to be source-bounded")
+	_check(not bool(evidence.authenticated_original_geometry), "the interior claims no authenticated original geometry")
+	_check(not bool(evidence.reproduces_observed_interior), "the interior claims to reproduce nothing")
+	_check(
+		(evidence.registered_evidence_anchors as PackedStringArray).is_empty(),
+		"the interior cites no registered anchor, because there is none to cite"
+	)
+	_check(
+		(evidence.unjoined_source_fragments as PackedStringArray).size() >= 2,
+		"the two unjoined VIP fragments are recorded as context rather than as references"
+	)
+	_check(
+		(evidence.modern_interpretations as PackedStringArray).size() >= 4
+			and "the existence of any VIP interior behind the landmark" in Array(evidence.modern_interpretations),
+		"the existence of the room is itself listed as the first modern interpretation"
+	)
+	var note := str(evidence.content_note)
+	_check("No source describes the inside of any VIP room" in note, "the content note states the boundary in plain words")
+
+	# The legend a player actually reads, at the threshold, before the view.
+	var plinth_legend := suite.find_child("Sign_MODERN_INTERPRETATION", true, false) as MeshInstance3D
+	var plinth_reason := suite.find_child("Sign_NO_SOURCE_DESCRIBES_THIS_ROOM", true, false) as MeshInstance3D
+	_check(plinth_legend != null and plinth_reason != null, "the threshold plinth carries the interpretation legend in the room itself")
+
+
+func _test_is_not_a_fifth_station_module(world: ShipyardWorld, suite: VipReceptionSuite) -> void:
+	_check(not suite.is_in_group("station_modules"), "the interpretation interior is not registered as a station module")
+	_check(suite.is_in_group("station_interpretation_interiors"), "the interior is discoverable as what it is")
+	var report := world.get_station_route_registry_report()
+	_check(int(report.get("module_count", -1)) == 4, "the station still registers exactly four modules")
+	var adjacency := report.get("adjacency", {}) as Dictionary
+	_check((adjacency.get("edges", []) as Array).size() == 4, "the suite adds no adjacency edge")
+	var route_ids := PackedStringArray()
+	if suite.has_method("get_route_ids"):
+		route_ids = PackedStringArray(suite.call("get_route_ids"))
+	_check(route_ids.is_empty(), "the suite declares no route markers and therefore no connection slot")
+
+
+## MAP-005 and the 2026-08-16 "strange floating block" report, applied to every
+## piece of this module rather than to a hand-written roster of it. Measured
+## against drawn geometry, not against collision: half of the load path is
+## non-collidable structure hanging under an open deck, and a ray in open space
+## simply falls forever.
+func _test_nothing_floats(world: ShipyardWorld, suite: VipReceptionSuite) -> void:
+	var own: Array[Dictionary] = []
+	for candidate in suite.find_children("*", "MeshInstance3D", true, false):
+		var instance := candidate as MeshInstance3D
+		if instance.mesh == null or not instance.is_visible_in_tree():
+			continue
+		own.append({"node": instance, "box": (instance.global_transform * instance.mesh.get_aabb()).abs()})
+	_check(own.size() > 200, "the sweep sees the whole built module")
+
+	# The pieces that lap the Aft Junction — the collar, the keels and the back
+	# stays — are seated on *its* geometry, so the neighbour is part of the sweep.
+	var neighbour: Array[AABB] = []
+	var aft := world.get_node_or_null(^"AftJunctionStack") as AftJunctionStack
+	if aft != null:
+		for candidate in aft.find_children("*", "MeshInstance3D", true, false):
+			var instance := candidate as MeshInstance3D
+			if instance.mesh == null or not instance.is_visible_in_tree():
+				continue
+			neighbour.append((instance.global_transform * instance.mesh.get_aabb()).abs())
+	_check(not neighbour.is_empty(), "the neighbouring module's geometry is available to the sweep")
+
+	var floating := PackedStringArray()
+	for entry in own:
+		var instance := entry["node"] as MeshInstance3D
+		var box := (entry["box"] as AABB).grow(SEATED_TOLERANCE)
+		var seated := false
+		for other in own:
+			var other_node := other["node"] as MeshInstance3D
+			if other_node == instance or instance.is_ancestor_of(other_node) or other_node.is_ancestor_of(instance):
+				continue
+			if box.intersects(other["box"] as AABB):
+				seated = true
+				break
+		if not seated:
+			for neighbour_box in neighbour:
+				if box.intersects(neighbour_box):
+					seated = true
+					break
+		if not seated:
+			floating.append("%s at %s" % [instance.name, str(box.get_center())])
+	print("VIP_SUITE_FLOATING: ", floating)
+	_check(floating.is_empty(), "nothing in the VIP suite hangs in space (%d floating)" % floating.size())
+
+
+func _test_colliders_have_drawn_geometry(suite: VipReceptionSuite) -> void:
+	var contract := suite.get_collision_contract()
+	_check(bool(contract.all_layers_match_lifecycle), "every body carries the world layer")
+	_check(bool(contract.all_masks_zero), "static station structure queries nothing")
+	_check(bool(contract.all_shapes_present_and_enabled), "every body has an enabled shape")
+
+	var orphans := PackedStringArray()
+	var mismatched := PackedStringArray()
+	for candidate in suite.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
+		if mesh_instance == null or mesh_instance.mesh == null:
+			orphans.append(str(body.name))
+			continue
+		var shape := body.get_node_or_null(^"Collision") as CollisionShape3D
+		if shape == null or shape.shape == null:
+			orphans.append(str(body.name))
+			continue
+		var drawn: Vector3 = mesh_instance.mesh.get_aabb().size
+		var solid := Vector3.ZERO
+		if shape.shape is BoxShape3D:
+			solid = (shape.shape as BoxShape3D).size
+		elif shape.shape is CylinderShape3D:
+			var cylinder := shape.shape as CylinderShape3D
+			solid = Vector3(cylinder.radius * 2.0, cylinder.height, cylinder.radius * 2.0)
+		if not drawn.is_equal_approx(solid):
+			mismatched.append("%s drawn=%s solid=%s" % [body.name, str(drawn), str(solid)])
+	print("VIP_SUITE_ORPHAN_COLLIDERS: ", orphans)
+	print("VIP_SUITE_SIZE_DRIFT: ", mismatched)
+	_check(orphans.is_empty(), "every collider in the suite has drawn geometry at it")
+	_check(mismatched.is_empty(), "every collider is exactly the size of the thing a player sees")
+
+
+func _test_well_is_enterable_without_a_jump(suite: VipReceptionSuite) -> void:
+	var clearance := suite.get_clearance_profile()
+	_check(float(clearance.well_step_rise) <= NO_JUMP_STEP_LIMIT, "each well riser is inside the production no-jump step")
+	_check(
+		is_equal_approx(float(clearance.well_drop), float(clearance.well_step_rise) * 2.0),
+		"the two published risers account for the whole published drop"
+	)
+	var tread := suite.find_child("WellStepEntry", true, false) as StaticBody3D
+	var pan := suite.find_child("WellPan", true, false) as StaticBody3D
+	_check(tread != null and pan != null, "the well has a physical entry step and a physical floor")
+	if tread == null or pan == null:
+		return
+	var tread_top := tread.position.y + ((tread.get_node(^"Collision") as CollisionShape3D).shape as BoxShape3D).size.y * 0.5
+	var pan_top := pan.position.y + ((pan.get_node(^"Collision") as CollisionShape3D).shape as BoxShape3D).size.y * 0.5
+	_check(absf(tread_top - pan_top) <= NO_JUMP_STEP_LIMIT, "the step-to-well-floor riser is walkable")
+	_check(absf(VipReceptionSuite.FLOOR_ELEVATION - tread_top) <= NO_JUMP_STEP_LIMIT, "the floor-to-step riser is walkable")
+
+
+func _test_does_not_penetrate_the_aft_module(world: ShipyardWorld, suite: VipReceptionSuite) -> void:
+	var aft := world.get_node_or_null(^"AftJunctionStack") as AftJunctionStack
+	if aft == null:
+		return
+	var offenders := PackedStringArray()
+	for candidate in suite.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		var body_box := _body_world_box(body)
+		if not body_box.has_volume():
+			continue
+		for neighbour_candidate in aft.find_children("*", "StaticBody3D", true, false):
+			var neighbour_body := neighbour_candidate as StaticBody3D
+			var neighbour_box := _body_world_box(neighbour_body)
+			if not neighbour_box.has_volume():
+				continue
+			if body_box.grow(-0.02).intersects(neighbour_box.grow(-0.02)):
+				offenders.append("%s <-> AftJunctionStack/%s" % [body.name, neighbour_body.name])
+	print("VIP_SUITE_NEIGHBOUR_PENETRATION: ", offenders)
+	_check(offenders.is_empty(), "the suite's solid shell does not penetrate the module it hangs off")
+
+
+func _test_landmark_opens_onto_the_room(world: ShipyardWorld, suite: VipReceptionSuite) -> void:
+	var door := world.get_node_or_null(^"AftJunctionStack/VIPAccess") as StationDoor
+	_check(door != null, "the red landmark door is live")
+	if door == null:
+		return
+	_check(not door.locked and not door.deferred_access, "the landmark is openable")
+	_check(door.is_portal_blocked(), "the landmark is physically closed until someone opens it")
+	_check(door.interact(suite), "the landmark accepts a real interaction")
+	var opened := false
+	for _frame in 90:
+		await physics_frame
+		if door.is_open() and not door.is_portal_blocked():
+			opened = true
+			break
+	_check(opened, "the landmark clears its portal inside its panel-travel budget")
+
+	var space := suite.get_world_3d().direct_space_state
+	var threshold := suite.to_global(Vector3(0.0, 1.2, 1.5))
+	var deck := suite.to_global(Vector3(0.0, 1.2, -2.4))
+	var through := space.intersect_ray(PhysicsRayQueryParameters3D.create(deck, threshold, WORLD_LAYER))
+	_check(through.is_empty(), "an open landmark leaves a genuinely clear physical route into the threshold")
+	var under := space.intersect_ray(
+		PhysicsRayQueryParameters3D.create(threshold, threshold - Vector3.UP * 3.0, WORLD_LAYER)
+	)
+	_check(not under.is_empty(), "there is collision-backed floor immediately inside the doorway")
+	var reception_floor := suite.to_global(Vector3(-1.3, 1.2, 4.6))
+	var reception_under := space.intersect_ray(
+		PhysicsRayQueryParameters3D.create(reception_floor, reception_floor - Vector3.UP * 3.0, WORLD_LAYER)
+	)
+	_check(not reception_under.is_empty(), "the reception floor is collision-backed where a player first stands in it")
+
+
+func _test_lifecycle(suite: VipReceptionSuite) -> void:
+	suite.set_module_enabled(false)
+	var disabled := suite.get_lifecycle_contract()
+	_check(bool(disabled.visible_matches_enabled) and bool(disabled.collision_matches_enabled), "disabling clears visibility and collision together")
+	suite.set_module_enabled(true)
+	var enabled := suite.get_lifecycle_contract()
+	_check(bool(enabled.reversible), "the lifecycle is reversible")
+	_check(bool(enabled.visible_matches_enabled) and bool(enabled.collision_matches_enabled), "re-enabling restores the room exactly")
+	_check(suite.is_module_enabled(), "the flag and the node state agree")
+
+
+func _body_world_box(body: StaticBody3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for candidate in body.find_children("*", "CollisionShape3D", true, false):
+		var shape := candidate as CollisionShape3D
+		if shape.shape == null:
+			continue
+		var size: Vector3 = shape.shape.get_debug_mesh().get_aabb().size
+		var piece := AABB(shape.global_position - size * 0.5, size)
+		if first:
+			box = piece
+			first = false
+		else:
+			box = box.merge(piece)
+	return box
+
+
+func _check(condition: bool, message: String) -> void:
+	_assertions += 1
+	if condition:
+		print("PASS: ", message)
+	else:
+		_failures.append(message)
+		push_error("FAIL: %s" % message)
+		print("FAIL: ", message)
+
+
+func _finish() -> void:
+	print("VIP_RECEPTION_SUITE_TEST_ASSERTIONS: ", _assertions)
+	if _failures.is_empty():
+		print("VIP_RECEPTION_SUITE_TEST_OK")
+		quit(0)
+	else:
+		print("VIP_RECEPTION_SUITE_TEST_FAILED: ", "; ".join(_failures))
+		quit(1)

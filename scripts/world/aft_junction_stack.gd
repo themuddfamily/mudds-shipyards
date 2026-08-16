@@ -69,7 +69,9 @@ const CONTENT_NOTE := (
 	+ "coloured access landmarks are bounded by surviving observations. The Aft "
 	+ "Junction Stack name, exact geometry, measurements, furniture arrangement, "
 	+ "service wall, door motion, and adjacency are original modern design. The red "
-	+ "VIP door is only a deferred landmark; no unsupported VIP interior is built."
+	+ "VIP door is a landmark with no authenticated interior: what stands behind it "
+	+ "is `VipReceptionSuite`, an invented modern interpretation at confidence none, "
+	+ "and this module claims no original VIP room, adjacency or era."
 )
 
 @onready var _module_anchor: Marker3D = %ModuleAnchor
@@ -280,8 +282,14 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("operations entrance StationDoor is missing")
 	if _vip_access == null:
 		errors.append("VIP access StationDoor is missing")
-	elif not _vip_access.deferred_access or not _vip_access.locked:
-		errors.append("VIP access must remain locked and explicitly deferred")
+	elif _vip_access.deferred_access or _vip_access.locked:
+		# Reversed on the day the interior was built. The landmark used to be
+		# required to stay shut because there was nothing behind it; it is now
+		# required to stay openable, because a door that refuses to open in front
+		# of a room the player can see through the glazing is a worse lie than an
+		# empty facade ever was. The evidence boundary moved from the door to the
+		# room, where `VipReceptionSuite` publishes it.
+		errors.append("VIP access opens onto a built interior and must not be locked or deferred")
 	if _route_markers.size() < 7:
 		errors.append("the complete lower, stair, room, upper, and VIP route is not exposed")
 	if _chair_nodes.size() != 4:
@@ -331,6 +339,9 @@ func audit() -> Dictionary:
 		"console_bay_count": get_console_bay_count(),
 		"open_to_space_ratio": get_open_to_space_ratio(),
 		"vip_deferred": _vip_access != null and _vip_access.deferred_access,
+		"vip_leads_to_interpretation_interior": _vip_access != null \
+			and not _vip_access.locked \
+			and not _vip_access.deferred_access,
 		"footprint": get_integration_footprint(),
 	}
 
@@ -531,8 +542,9 @@ func _index_routes() -> void:
 		marker.set_meta("station_route_marker", true)
 		marker.set_meta("route_id", route_id)
 	# Only the outward approach face is a station connection slot. Every other
-	# marker is an internal waypoint, and the VIP landmark is a deliberate dead
-	# end, so none of them may join the station adjacency graph.
+	# marker is an internal waypoint, and the VIP landmark stays out of the graph
+	# even now that it opens: `VipReceptionSuite` is an interpretation interior,
+	# not a registered station module, so it declares no slot and adds no edge.
 	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	_operations_room_anchor.set_meta("station_room_marker", true)
 	_operations_room_anchor.set_meta("room_id", &"aft-operations")
@@ -2188,11 +2200,17 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	vip.name = "VIPLandmark"
 	structure.add_child(vip)
 	# The facade is split around the real door so its red panel remains visible.
-	# A shallow backing plate prevents this landmark from implying a VIP room.
+	#
+	# `VIPShallowBackstop` used to close the opening 0.14 m behind the leaf: a
+	# solid plate that made "no unsupported VIP interior" true in geometry rather
+	# than only in a label. It is deliberately gone. The doorway now opens into
+	# `VipReceptionSuite`, whose threshold shell laps this facade, and the evidence
+	# statement it used to carry has moved to that module's own metadata and to the
+	# legend on the plinth two metres beyond this frame — which says the same thing
+	# to a player standing in the room rather than to a reader of this file.
 	_box(vip, "VIPFacadeLeft", Vector3(-8.9, 6.25, 20.38), Vector3(2.8, 4.1, 0.52), _materials["warm_grey"])
 	_box(vip, "VIPFacadeRight", Vector3(-1.45, 6.25, 20.38), Vector3(2.5, 4.1, 0.52), _materials["warm_grey"])
 	_box(vip, "VIPFacadeHeader", Vector3(-5.15, 8.12, 20.38), Vector3(10.3, 0.76, 0.52), _materials["warm_grey"])
-	_box(vip, "VIPShallowBackstop", Vector3(-5.15, 6.25, 20.52), Vector3(4.4, 3.45, 0.26), _materials["graphite"])
 	for side in [-1.0, 1.0]:
 		var frame_x := -5.15 + float(side) * 3.85
 		_cylinder(vip, "VIPFacadeColumn", Vector3(frame_x, 6.25, 20.02), 0.18, 4.15, _materials["hull_dark"], false)
@@ -2214,7 +2232,11 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	# camera positions from 1.06 m to 6.0 m photographed blank frame header. It is
 	# now yawed to the reader and pulled to z = 19.64 (world 67.64), 0.08 m proud
 	# of the frame's front face, where it reads as the header's legend.
-	_text_sign(vip, "VIP ACCESS  //  DEFERRED", Vector3(-5.15, 7.75, 19.64), Vector3(0, 180, 0), 0.31, _materials["red"])
+	#
+	# Retitled with the interior. `DEFERRED` was the honest word while the doorway
+	# was a plate; it is a false one now that a player can walk through it, and the
+	# legend that replaces it says exactly what is on the other side.
+	_text_sign(vip, "VIP RECEPTION  //  MODERN INTERPRETATION", Vector3(-5.15, 7.75, 19.64), Vector3(0, 180, 0), 0.22, _materials["red"])
 
 
 func _build_open_structure_details(structure: Node3D) -> void:

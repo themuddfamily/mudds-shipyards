@@ -419,9 +419,11 @@ func _compare_deferred(documented: Dictionary, world: ShipyardWorld, divergences
 		_compare_deferred_gate(row, world, divergences)
 
 
-## The document names the live gate that keeps each landmark closed. A landmark
-## that quietly became openable, or a dock that changed assignment status, is a
-## topology change and must be reported.
+## The document names the live gate on each landmark, and the comparison runs in
+## both directions. A landmark that quietly became openable is a topology change;
+## so is one that quietly closed. The document therefore has to state which it is,
+## and `open` is the word it states it with — that is what makes the Aft VIP row
+## checkable now that `VipReceptionSuite` stands behind it.
 func _compare_deferred_gate(row: Dictionary, world: ShipyardWorld, divergences: PackedStringArray) -> void:
 	var gate := str(row.get("gate", ""))
 	var route_id := str(row.get("route_id", ""))
@@ -432,7 +434,11 @@ func _compare_deferred_gate(row: Dictionary, world: ShipyardWorld, divergences: 
 		if door == null:
 			divergences.append("deferred landmark %s names door %s, which does not exist" % [route_id, door_path])
 			continue
-		if not door.locked or not door.deferred_access:
+		var documented_open := gate.contains("door, open")
+		if documented_open:
+			if door.locked or door.deferred_access:
+				divergences.append("landmark door %s is documented open but is locked or deferred" % door_path)
+		elif not door.locked or not door.deferred_access:
 			divergences.append("deferred landmark door %s is no longer locked and deferred" % door_path)
 
 	var comb := world.get_fleet_dock_comb()

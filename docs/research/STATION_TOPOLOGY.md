@@ -136,7 +136,7 @@ flowchart LR
   HUB --- FC["fleet-dock-comb @ hub-fleet-dock-comb"]
   HUB --- HS["habitat-spine @ hub-starboard-habitat"]
   HUB --- JF["jovian-freight-berth @ hub-registry-pod-freight"]
-  AJ -. "deferred landmark, no route" .-> VIP["Aft VIP access"]
+  AJ -. "open landmark, no graph edge" .-> VIP["Aft VIP access -> VipReceptionSuite (modern interpretation)"]
   HS -. "sealed branch, no route" .-> DB["Habitat side branch"]
   FC -. "external assignment only" .-> Z["ShipyardWorld / zenith_fleet_dock_berth"]
   FC -. "deferred, empty" .-> D23["Dock02 / Dock03"]
@@ -237,7 +237,7 @@ end and never joins the adjacency graph.
 
 | Landmark | Module ID | Route marker | World origin | Live gate |
 | --- | --- | --- | --- | --- |
-| Aft VIP access | `aft-junction-stack` | `vip-landmark` | `(-5.15, 4.35, 66.9)` | `VIPAccess` door, locked and deferred, `INTERIOR NOT YET AUTHENTICATED` |
+| Aft VIP access | `aft-junction-stack` | `vip-landmark` | `(-5.15, 4.35, 66.9)` | `VIPAccess` door, open, onto `VipReceptionSuite` — a `modern_interpretation` interior at confidence `none` |
 | Habitat sealed side branch | `habitat-spine` | `deferred-branch` | `(69.0, 0.15, 9.4)` | `DeferredBranchAccess` door, locked and deferred, `INTERIOR DEFERRED` |
 | Comb dock 01 threshold | `fleet-dock-comb` | `dock-01-threshold` | `(22.0, 4.35, 59.05)` | marker `assigned-dock-01`, `assigned_external`, external berth `zenith_fleet_dock_berth` |
 | Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `assigned_external`, external berth `halyard_fleet_dock_berth` |
@@ -245,8 +245,14 @@ end and never joins the adjacency graph.
 
 <!-- LIVE-GRAPH-DEFERRED:END -->
 
-No deferred landmark has an interior. Each is a closed endpoint recorded instead
-of an invented room.
+Four of the five have no interior; each of those is a closed endpoint recorded
+instead of an invented room. The fifth, the Aft VIP landmark, was one of them
+until `VipReceptionSuite` was built behind it. That room is invented and is
+labelled as invented — element `new`, status `modern_interpretation`, source
+confidence `none` — and its existence upgrades no evidence: no source describes
+the inside of any VIP area, and the two VIP fragments the ledger holds remain
+unjoined. The marker stays out of the adjacency graph, because the suite is an
+interpretation interior rather than a registered station module.
 
 ### Machine-checked production berths
 
@@ -312,7 +318,8 @@ fixed-build attribution.
 | --- | --- | --- | --- | --- | --- |
 | A red VIP landmark is visible from the spawn deck | — (sightline only; nothing is built to reproduce it) | observed | B3 `00:04–00:52` "…and red VIP sightline" | `original_era_observed` | distance, elevation, whether any route reached it |
 | A red VIP area with an interior | — (deliberately not built) | fixed-era-inspired | C1 `03:20` "Red VIP area" | `later_source_only` | contents, plan, provenance, era |
-| Live deferred VIP door and landmark | `AftJunctionStack/VIPAccess` plus `vip-landmark` `(-5.15, 4.35, 66.9)` | new | none | `modern_interpretation` | placement, elevation, adjacency to the operations room |
+| Live VIP door and landmark | `AftJunctionStack/VIPAccess` plus `vip-landmark` `(-5.15, 4.35, 66.9)` | new | none | `modern_interpretation` | placement, elevation, adjacency to the operations room |
+| Live VIP interior behind that door | `VipReceptionSuite` (threshold, reception lounge, outboard glazing), cantilevered off the aft upper deck | new | none | `modern_interpretation` at confidence `none` | everything: whether any original interior existed, its plan, contents, materials, lighting, scale and era |
 | Any traversable route from a spawn deck to a VIP interior | none exists | unknown | none | `unknown` | B3 gives a sightline, C1 gives an area; no source joins them |
 
 ### Platform and elevation relationships
@@ -440,7 +447,9 @@ The confidence grading is **partial**, not complete. Explicitly still open:
 5. Room functions, the six-alcove count, the eight-chair count, the three-tooth
    count, and every class-to-berth assignment are `new` with no source.
 6. Whether B3's VIP sightline and C1's VIP area are the same place is unknown,
-   and the live deferred VIP door asserts nothing about either.
+   and neither the live VIP door nor the `VipReceptionSuite` interior behind it
+   asserts anything about either. The interior is authored fiction at confidence
+   `none`; building it answered no question this list records.
 7. The live mirrored port/starboard branch pair is unsupported symmetry; A8
    shows an asymmetric lattice, so this is not an A8 continuity claim.
 8. The two compound module evidence statuses sit outside the five-value
