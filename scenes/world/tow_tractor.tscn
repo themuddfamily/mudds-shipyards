@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scripts/vehicles/tow_tractor_driver_station.gd" id="2_driver_station"]
 
 [sub_resource type="BoxShape3D" id="BoxShape_chassis"]
-size = Vector3(2.3, 1.5, 3.8)
+size = Vector3(2.3, 1.2, 3.8)
 
 [sub_resource type="BoxShape3D" id="BoxShape_bonnet"]
 size = Vector3(1.9, 0.66, 1.25)
@@ -18,7 +18,7 @@ collision_mask = 1
 script = ExtResource("1_tractor")
 
 [node name="ChassisCollision" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
 shape = SubResource("BoxShape_chassis")
 
 [node name="BonnetCollision" type="CollisionShape3D" parent="."]
