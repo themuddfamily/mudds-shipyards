@@ -121,6 +121,7 @@ func _check_world_rings() -> void:
 	var increased: Array[String] = []
 	var faceted_large: Array[String] = []
 	var chair_bearing_profiles := 0
+	var aft_interface_profiles := 0
 	for instance in rings:
 		var mesh := instance.mesh as TorusMesh
 		total += TorusGeometryBudget.triangles_of(mesh)
@@ -146,6 +147,13 @@ func _check_world_rings() -> void:
 				or mesh.ring_segments != TorusGeometryBudget.OCCLUDED_CHAIR_BEARING_RING_SEGMENTS
 			):
 				below_floor.append("%s profile drifted to %dx%d" % [instance.name, mesh.rings, mesh.ring_segments])
+		elif profile == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
+			aft_interface_profiles += 1
+			if (
+				mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
+				or mesh.ring_segments != TorusGeometryBudget.AFT_INTERFACE_COLLAR_RING_SEGMENTS
+			):
+				below_floor.append("%s aft profile drifted to %dx%d" % [instance.name, mesh.rings, mesh.ring_segments])
 		elif (
 			mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
 			or mesh.ring_segments < mini(TorusGeometryBudget.MIN_RING_SEGMENTS, authored.y)
@@ -202,6 +210,21 @@ func _check_world_rings() -> void:
 		and int(chair_report.get("triangles_after", 0)) == 4096
 		and int(chair_report.get("surfaces", 0)) == 8,
 		"chair bearings freeze at 6656 -> 4096 triangles while eight instances/surfaces stay exact"
+	)
+	var aft_report := profiles.get(
+		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
+	) as Dictionary
+	_check(
+		aft_interface_profiles == 26
+		and int(aft_report.get("resources", 0)) == 26
+		and int(aft_report.get("instances", 0)) == 26,
+		"the bounded Aft interface family remains 26 independent visual collars/resources"
+	)
+	_check(
+		int(aft_report.get("triangles_baseline", 0)) == 19968
+		and int(aft_report.get("triangles_after", 0)) == 13312
+		and int(aft_report.get("surfaces", 0)) == 26,
+		"Aft interface collars freeze at 19968 -> 13312 triangles with 26 surfaces unchanged"
 	)
 
 	world.queue_free()

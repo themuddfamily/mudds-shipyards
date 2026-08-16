@@ -24,6 +24,7 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 ## 140 m-plus lattice overview.
 const PRACTICAL_FADE_BEGIN := 60.0
 const PRACTICAL_FADE_LENGTH := 25.0
+const INTERFACE_COLLAR_KIND_META := "aft_interface_collar_kind"
 
 const LOWER_FLOOR_ELEVATION := 0.0
 const UPPER_FLOOR_ELEVATION := 4.2
@@ -1003,7 +1004,7 @@ func _build_operations_room(structure: Node3D) -> void:
 		_box(bay, "PlinthInset", Vector3(0, 0.7, -0.47), Vector3(1.72, 0.48, 0.08), _materials["hull_dark"], false)
 		for support_x in [-0.86, 0.86]:
 			_cylinder(bay, "ConsoleShockMount", Vector3(float(support_x), 0.23, 0.34), 0.085, 0.38, _materials["copper"], false)
-			_torus(bay, "ConsoleShockCollar", Vector3(float(support_x), 0.08, 0.34), 0.09, 0.13, _materials["rubber"], Vector3(90, 0, 0))
+			_interface_collar(bay, "ConsoleShockCollar", Vector3(float(support_x), 0.08, 0.34), 0.09, 0.13, _materials["rubber"], Vector3(90, 0, 0))
 		_box(bay, "AngledConsole", Vector3(0, 1.26, -0.1), Vector3(2.18, 0.28, 1.0), _materials["graphite"], true, Vector3(-12, 0, 0))
 		_box(bay, "ConsoleEdgeRail", Vector3(0, 1.43, -0.56), Vector3(2.18, 0.09, 0.09), _materials["panel_light"], false, Vector3(-12, 0, 0))
 		_box(bay, "PrimaryDisplay", Vector3(0, 1.43, -0.18), Vector3(1.55, 0.035, 0.56), _materials["screen"], false, Vector3(-12, 0, 0))
@@ -1124,7 +1125,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 		)
 	_beam_between(envelope, "RoofServiceSpine", Vector3(5.6, 5.62, 9.25), Vector3(5.6, 5.62, 17.22), 0.15, _materials["hull_dark"], false)
 	for spine_z in [9.55, 11.4, 13.25, 15.1, 16.95]:
-		_torus(envelope, "SpineClamp", Vector3(5.6, 5.62, float(spine_z)), 0.16, 0.225, _materials["copper"], Vector3(90, 0, 0))
+		_interface_collar(envelope, "SpineClamp", Vector3(5.6, 5.62, float(spine_z)), 0.16, 0.225, _materials["copper"], Vector3(90, 0, 0))
 
 	# Low-profile environmental hardware gives the roof a credible service layer
 	# without implying a source-authenticated room function.
@@ -1210,7 +1211,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 	# A restrained exterior utility run adds scale and material contrast.
 	_beam_between(envelope, "ExteriorCopperFeed", Vector3(11.18, 0.82, 10.0), Vector3(11.18, 0.82, 16.25), 0.06, _materials["copper"], false)
 	for pipe_z in [10.2, 12.2, 14.2, 16.2]:
-		_torus(envelope, "ExteriorPipeClamp", Vector3(11.18, 0.82, float(pipe_z)), 0.065, 0.1, _materials["graphite"], Vector3(90, 0, 0))
+		_interface_collar(envelope, "ExteriorPipeClamp", Vector3(11.18, 0.82, float(pipe_z)), 0.065, 0.1, _materials["graphite"], Vector3(90, 0, 0))
 	# Four cowled amber worklights on the operations envelope. The cowl and lens
 	# geometry was already here; what was missing is that none of them lit the
 	# plate they are bolted to, so from outside the module read as cool plating
@@ -1443,7 +1444,7 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 	_beam_between(bank, "RackCableTray", Vector3(4.05, 2.44, 9.58), Vector3(10.15, 2.44, 9.58), 0.085, _materials["hull_dark"], false)
 	_beam_between(bank, "RackCableTrayRiser", Vector3(10.15, 2.44, 9.58), Vector3(10.15, 2.44, 10.35), 0.075, _materials["hull_dark"], false)
 	for clamp_x in [4.35, 6.05, 7.75, 9.45]:
-		_torus(bank, "RackCableTrayClamp", Vector3(float(clamp_x), 2.44, 9.58), 0.09, 0.135, _materials["brass"], Vector3(0, 0, 90))
+		_interface_collar(bank, "RackCableTrayClamp", Vector3(float(clamp_x), 2.44, 9.58), 0.09, 0.135, _materials["brass"], Vector3(0, 0, 90))
 
 	for rack_index in 3:
 		var rack_x := 5.15 + float(rack_index) * 1.75
@@ -2136,7 +2137,7 @@ func _build_chair(parent: Node3D, chair_index: int, chair_position: Vector3, yaw
 	_chair_nodes.append(chair)
 	_cylinder(chair, "Pedestal", Vector3(0, 0.38, 0), 0.18, 0.76, _materials["mid_grey"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.52, 0.12, _materials["graphite"], true)
-	_torus(chair, "PedestalBearing", Vector3(0, 0.68, 0), 0.18, 0.25, _materials["copper"])
+	_interface_collar(chair, "PedestalBearing", Vector3(0, 0.68, 0), 0.18, 0.25, _materials["copper"])
 	_box(chair, "SeatShell", Vector3(0, 0.8, 0), Vector3(1.03, 0.19, 0.98), _materials["chair"], true)
 	_box(chair, "SeatCushion", Vector3(0, 0.93, -0.06), Vector3(0.83, 0.12, 0.74), _materials["chair_pad"], false, Vector3(-3, 0, 0))
 	_box(chair, "BackFrame", Vector3(0, 1.48, 0.43), Vector3(1.0, 1.32, 0.18), _materials["chair"], true, Vector3(-7, 0, 0))
@@ -2175,7 +2176,7 @@ func _build_service_wall(room: Node3D) -> void:
 	for pipe_index in 3:
 		var pipe_z := -2.05 + float(pipe_index) * 2.05
 		_cylinder(service, "ServiceConduit", Vector3(-0.55, 3.65, pipe_z), 0.09, 1.9, _materials["mid_grey"], false)
-		_torus(service, "ConduitCollar", Vector3(-0.55, 2.95, pipe_z), 0.1, 0.16, _materials["brass"], Vector3(90, 0, 0))
+		_interface_collar(service, "ConduitCollar", Vector3(-0.55, 2.95, pipe_z), 0.1, 0.16, _materials["brass"], Vector3(90, 0, 0))
 	_beam_between(service, "ServiceBus", Vector3(-0.66, 4.15, -2.85), Vector3(-0.66, 4.15, 2.85), 0.065, _materials["copper"], false)
 	# Three status strips in a recessed cabinet face, none of which lit the recess
 	# they sit in — the exact "glowing decal" reading. One practical per strip,
@@ -2549,6 +2550,35 @@ func _fixture_practical(
 	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	return light
+
+
+## Marks only the small, visual-only collars wrapped around an existing solid
+## support or service run. The wrapped mesh/body remains the collision and
+## semantic authority; this TorusMesh is presentation trim with no children.
+func _interface_collar(
+		parent: Node3D,
+		node_name: String,
+		torus_position: Vector3,
+		inner_radius: float,
+		outer_radius: float,
+		material: Material,
+		rotation_degrees_value: Vector3 = Vector3.ZERO
+	) -> MeshInstance3D:
+	var instance := _torus(
+		parent,
+		node_name,
+		torus_position,
+		inner_radius,
+		outer_radius,
+		material,
+		rotation_degrees_value
+	)
+	instance.set_meta(
+		TorusGeometryBudget.PROFILE_META,
+		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+	)
+	instance.set_meta(INTERFACE_COLLAR_KIND_META, StringName(node_name))
+	return instance
 
 
 func _torus(

@@ -531,8 +531,8 @@ builder request: **8 instances / 8 surfaces / 6,656 triangles (`32x13`) -> 8 / 8
 surface, transform, material, radius, collision or authority change. The whole
 production census moved **1,808,482 -> 1,805,922 triangles** while mesh renderer
 nodes stayed 5,830, surfaces 5,837, unique meshes 2,795 and scene nodes 9,394.
-Residual `TorusMesh` cost is **171,700 triangles across 180 visible copies**
-(9.5% of the scene), down from 174,260.
+Residual `TorusMesh` cost at that point was **171,700 triangles across 180
+visible copies** (9.5% of the scene), down from 174,260.
 
 One matched 1400x900 Forward+ comparison frame used the existing
 observation-common camera at `(0, 2.5, 18.7)`, looking at `(0, 1.65, 27.5)`, and
@@ -542,6 +542,37 @@ was llvmpipe, so this is a composition/silhouette check only, never a frame-time
 or representative-hardware claim. The focused gates freeze the exact family
 roster and counts and reject applying this lower tube floor to any unmarked
 torus.
+
+### Bounded Aft interface-collar profile
+
+The next pass selects 26 small Aft Junction collars that wrap an already-drawn
+solid support or service run: six console shock mounts, five roof-service spine
+clamps, four exterior utility-pipe clamps, four cable-tray clamps, four chair
+pedestal bearings and three service-wall conduit collars. Each is a childless,
+visual-only `MeshInstance3D`; the wrapped pedestal, console, pipe, tray or
+conduit remains the collision and semantic authority. An explicit
+`aft_interface_collar` profile and an audited subtype tag select this exact
+roster. No path/name inference or station placement code is involved.
+
+Every member previously reached the general budget at `32x12`. The profile
+retains all 32 major segments and changes only the tube cross-section to eight
+cardinal-aligned segments. Therefore no global floor, radius, transform, outer
+extremum or exposed major-ring sweep changes. The measured family result is
+**26 resources / 26 instances / 26 surfaces / 19,968 triangles -> 26 / 26 / 26
+/ 13,312**, saving **6,656 triangles (33.3%)**.
+
+Against base `39acaed`, the production census moves **1,805,922 -> 1,799,266
+triangles**, putting the scene 734 triangles below the 1.8-million ceiling.
+`TorusMesh` residual cost is **165,044 triangles across 180 visible copies**
+(9.2% of the scene), down from 171,700. Mesh renderer nodes stay 5,830, surfaces
+5,837, unique meshes 2,795, unique materials 677 and scene nodes 9,394.
+
+One matched 1400x900 Forward+ frame used the production operations-room camera
+at local `(5.6, 2.35, 10.15)`, looking at `(5.6, 1.35, 15.4)`, with the same
+frozen scene rendered first at `32x12` and then at `32x8`. At gameplay distance
+the chair, console and service interfaces retain the same apparent outlines and
+shading. The adapter was llvmpipe, so this is only a composition/silhouette
+inspection, never representative frame-time evidence.
 
 ## The lettering fix, for the record
 

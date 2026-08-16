@@ -40,6 +40,7 @@ func _run() -> void:
 	await _test_stair_circulation(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
+	_test_interface_collar_profile(module)
 	_test_vip_landmark(module)
 	await _test_negative_space(module)
 	_test_collision_matrix(module)
@@ -206,6 +207,78 @@ func _test_operations_contents(module: AftJunctionStack) -> void:
 	_check(furniture_tagged, "operations furniture exposes stable semantic metadata")
 	var service_wall := module.get_service_wall()
 	_check(service_wall != null and bool(service_wall.get_meta("station_service_wall", false)), "service wall is present and semantically tagged")
+
+
+func _test_interface_collar_profile(module: AftJunctionStack) -> void:
+	var expected_counts := {
+		&"ConsoleShockCollar": 6,
+		&"SpineClamp": 5,
+		&"ExteriorPipeClamp": 4,
+		&"RackCableTrayClamp": 4,
+		&"PedestalBearing": 4,
+		&"ConduitCollar": 3,
+	}
+	var observed_counts: Dictionary = {}
+	var mesh_ids: Dictionary = {}
+	var snapshots: Array[Dictionary] = []
+	for candidate in module.find_children("*", "MeshInstance3D", true, false):
+		var instance := candidate as MeshInstance3D
+		if StringName(instance.get_meta(TorusGeometryBudget.PROFILE_META, &"")) \
+				!= TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
+			continue
+		var mesh := instance.mesh as TorusMesh
+		var kind := StringName(instance.get_meta(AftJunctionStack.INTERFACE_COLLAR_KIND_META, &""))
+		observed_counts[kind] = int(observed_counts.get(kind, 0)) + 1
+		if mesh == null:
+			continue
+		mesh_ids[mesh.get_instance_id()] = true
+		snapshots.append({
+			"instance": instance,
+			"transform": instance.transform,
+			"material": instance.material_override,
+			"inner_radius": mesh.inner_radius,
+			"outer_radius": mesh.outer_radius,
+			"aabb": mesh.get_aabb(),
+		})
+
+	_check(observed_counts == expected_counts, "Aft profile selects only the exact 26 interface-collar roster")
+	_check(mesh_ids.size() == 26, "all 26 profiled collars retain independent TorusMesh resources")
+	var report := TorusGeometryBudget.normalise_tree(module)
+	var exact_geometry := snapshots.size() == 26
+	for snapshot in snapshots:
+		var instance := snapshot["instance"] as MeshInstance3D
+		var mesh := instance.mesh as TorusMesh
+		var before_transform: Transform3D = snapshot["transform"]
+		var before_material: Material = snapshot["material"]
+		var before_aabb: AABB = snapshot["aabb"]
+		exact_geometry = exact_geometry \
+			and instance.transform.is_equal_approx(before_transform) \
+			and instance.material_override == before_material \
+			and instance.get_child_count() == 0 \
+			and is_equal_approx(mesh.inner_radius, float(snapshot["inner_radius"])) \
+			and is_equal_approx(mesh.outer_radius, float(snapshot["outer_radius"])) \
+			and mesh.get_aabb().is_equal_approx(before_aabb) \
+			and mesh.rings == TorusGeometryBudget.MIN_RINGS \
+			and mesh.ring_segments == TorusGeometryBudget.AFT_INTERFACE_COLLAR_RING_SEGMENTS \
+			and mesh.get_surface_count() == 1
+	_check(
+		exact_geometry,
+		"profile preserves every collar transform, radius, bound, material, child roster, and surface"
+	)
+	var profile_report := (report.get("profiles", {}) as Dictionary).get(
+		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
+	) as Dictionary
+	_check(
+		int(profile_report.get("resources", 0)) == 26
+		and int(profile_report.get("instances", 0)) == 26
+		and int(profile_report.get("surfaces", 0)) == 26,
+		"profile report freezes 26 resources, visible instances, and surfaces"
+	)
+	_check(
+		int(profile_report.get("triangles_baseline", 0)) == 19968
+		and int(profile_report.get("triangles_after", 0)) == 13312,
+		"Aft interface family freezes at 19968 -> 13312 triangles"
+	)
 
 
 func _test_vip_landmark(module: AftJunctionStack) -> void:

@@ -114,7 +114,7 @@ const SUBJECTS: Array = [
 	{
 		"key": "exterior_pipe_clamp",
 		"node": "ShipyardWorld/AftJunctionStack/Structure/OperationsRoom/VisualPressureEnvelope/ExteriorPipeClamp",
-		"note": "the deepest relative cut in the scene: 48x16 to 18x8",
+		"note": "bounded interface collar: 32-edge major sweep, cardinal 8-edge tube section",
 	},
 	{
 		"key": "arrow_panel_band",

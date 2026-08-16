@@ -161,6 +161,7 @@ const MINIMUM_SAVING_FRACTION := 0.10
 ## unmarked torus.
 const PROFILE_META := "torus_geometry_budget_profile"
 const PROFILE_OCCLUDED_CHAIR_BEARING: StringName = &"occluded_chair_bearing"
+const PROFILE_AFT_INTERFACE_COLLAR: StringName = &"aft_interface_collar"
 
 ## The eight observation-common chair bearings sit inside the pedestal/seat
 ## overlap. Their 32-edge major silhouette remains at the globally reviewed
@@ -169,6 +170,14 @@ const PROFILE_OCCLUDED_CHAIR_BEARING: StringName = &"occluded_chair_bearing"
 ## retain exact extrema. This family was approved from its same-camera Forward+
 ## comparison, not generalized to exposed collars.
 const OCCLUDED_CHAIR_BEARING_RING_SEGMENTS := 8
+
+## Twenty-six visual-only Aft Junction collars wrap an existing solid support or
+## service run: chair pedestals, console shocks, roof/service pipes, cable tray
+## and cabinet conduits. They share the generic budget's 32x12 result. Keeping
+## all 32 major rings and using the same cardinal-aligned eight-edge tube section
+## preserves their outer extrema while removing an invisible roundness premium
+## from these inset interfaces. Freestanding and large rings never opt in.
+const AFT_INTERFACE_COLLAR_RING_SEGMENTS := 8
 
 
 ## Smallest segment count whose sagitta on a circle of `radius` stays within
@@ -250,6 +259,8 @@ static func apply_profile(
 	var segments := mini(mesh.ring_segments, int(chosen["ring_segments"]))
 	if profile == PROFILE_OCCLUDED_CHAIR_BEARING:
 		segments = mini(segments, OCCLUDED_CHAIR_BEARING_RING_SEGMENTS)
+	elif profile == PROFILE_AFT_INTERFACE_COLLAR:
+		segments = mini(segments, AFT_INTERFACE_COLLAR_RING_SEGMENTS)
 	var before := mesh.rings * mesh.ring_segments
 	if before - rings * segments < int(ceil(MINIMUM_SAVING_FRACTION * float(before))):
 		return mesh
