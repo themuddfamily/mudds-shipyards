@@ -869,7 +869,7 @@ unique_name_in_owner = true
 collision_mask = 5
 shape = SubResource("SphereShape_camera")
 spring_length = 5.2
-margin = 0.12
+margin = 0.28
 
 [node name="PlayerCamera" type="Camera3D" parent="CameraRig/CameraYaw/CameraPitch/SpringArm3D"]
 unique_name_in_owner = true

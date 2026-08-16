@@ -109,6 +109,11 @@ const WHEEL_WIDTH := 0.25
 const WHEEL_HALF_TRACK := 1.15
 const WHEEL_AXLE_Z := 1.05
 const BODY_PROBE_RADIUS := 1.9
+## Swept-sphere radius for the driving camera's obstruction arm. Matched to the
+## craft rig's 0.55 m scaled down for a boom less than half as long, and larger
+## than the camera's own near-plane corner so the near plane cannot reach a
+## surface the sweep has already cleared.
+const CAMERA_ARM_SWEEP_RADIUS := 0.32
 
 ## Handling. Provisional modern values chosen for feel, not recovered data.
 @export_range(1.0, 30.0, 0.5) var maximum_forward_speed := 11.5
@@ -204,6 +209,7 @@ func _ready() -> void:
 	collision_mask = PhysicsLayers.WORLD
 	_home_transform = global_transform
 	_camera_pitch_pivot.rotation.x = _camera_pitch
+	_configure_camera_arm()
 	_camera.current = false
 	_build_materials()
 	_build_visual()
@@ -427,6 +433,30 @@ func get_interaction_prompt() -> String:
 	if _driven:
 		return ""
 	return "[ E ]  DRIVE THE TOW TRACTOR"
+
+
+## Brings the driving camera up to the same obstruction contract the piloted
+## craft already use, which this rig was authored before.
+##
+## Two things were wrong and both only show while the camera orbits. The arm had
+## no shape, so it was a bare ray: a ray threads railings, kerb lips and berth
+## strut work that the camera body then sits inside, which is the whole reason
+## `HeroShip` sweeps a sphere. And it masked `WORLD` while this vehicle is itself
+## on `WORLD` — deliberately, so the walking player and the craft still collide
+## with it — so the arm collided with its own bonnet. Looking forward past the
+## nose put the boom through `BonnetCollision` and slammed the camera from 7.2 m
+## to under a metre with no obstacle the driver can see. Excluding this body's
+## own RID is exactly what the craft rig does for the same reason.
+func _configure_camera_arm() -> void:
+	var arm := get_node_or_null("CameraRig/CameraPitch/CameraArm") as SpringArm3D
+	if arm == null:
+		return
+	arm.collision_mask = PhysicsLayers.CAMERA_OBSTRUCTION_QUERY_MASK
+	arm.add_excluded_object(get_rid())
+	if arm.shape == null:
+		var swept := SphereShape3D.new()
+		swept.radius = CAMERA_ARM_SWEEP_RADIUS
+		arm.shape = swept
 
 
 ## Keeps the walk-up interaction surface in step with whether the seat can

@@ -667,7 +667,10 @@ func _board_tow_tractor() -> void:
 	_driving = true
 	player.set_camera_active(false)
 	tow_tractor.set_driven(true)
-	hud.set_mode("on-foot")
+	# Driving is neither piloting nor walking. Leaving it as "on-foot" left the
+	# readout naming the regeneration deck and the controls card offering JUMP,
+	# SPRINT and BOARD -- none of which the seated driver has.
+	hud.set_mode("driving", "YARD TOW TRACTOR")
 	hud.set_objective(
 		"Drive the tow tractor anywhere on the deck — press E to hop out",
 		"TOW TRACTOR"
@@ -1309,7 +1312,7 @@ func _leave_seat_into_cabin() -> void:
 	# re-boarding costs exactly one key press.
 	player.set_control_enabled(true)
 	# On foot, but not on the station: name the craft the pilot is standing in.
-	hud.set_mode("on-foot", "%s CABIN" % transition_ship.get_display_name())
+	hud.set_mode("cabin", transition_ship.get_display_name())
 	hud.toast(
 		"Out of the seat",
 		"%s is shut down and drifting — the cabin is yours" % transition_ship.get_display_name(),

@@ -94,6 +94,23 @@ const TOAST_FADE_IN_SECONDS := 0.18
 const TOAST_FADE_OUT_SECONDS := 0.35
 const INTRO_FADE_SECONDS := 0.45
 
+## Where the player is standing when nothing more specific is known. On foot used
+## to mean exactly one place; it no longer does.
+const DEFAULT_ON_FOOT_LOCATION := "REGENERATION DECK"
+
+## The embodiment the HUD is presenting. Every state-dependent readout -- the
+## mode line, the controls card, the telemetry panel, the reticle -- is derived
+## from this one value, so a state added by one caller cannot leave another
+## readout describing the previous one. That is exactly the defect class already
+## caught twice by rendering (`ON FOOT // REGENERATION DECK` while aboard a
+## flying craft, and `EXIT: LANDED + OFFLINE` after the exit rule changed).
+const MODE_PILOTING: StringName = &"piloting"
+const MODE_ON_FOOT: StringName = &"on_foot"
+## On foot, but inside a craft under way rather than on the station.
+const MODE_ABOARD: StringName = &"aboard"
+## Seated in a deck vehicle: not piloting, and not walking either.
+const MODE_DRIVING: StringName = &"driving"
+
 var _root: Control
 var _intro: Control
 var _hud: Control
@@ -161,6 +178,8 @@ var _caption_hold := 0.0
 ## Last known signal state, so a palette change repaints state colours
 ## immediately instead of waiting for the next telemetry tick.
 var _state_piloting := false
+var _state_mode: StringName = MODE_ON_FOOT
+var _state_location := DEFAULT_ON_FOOT_LOCATION
 var _state_engine := "OFFLINE"
 var _state_damage := "HEALTHY"
 var _state_throttle_reverse := false
@@ -210,39 +229,112 @@ func show_intro() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-## `on_foot_location` names where the player is standing. It defaults to the
+## `mode` names the embodiment and `on_foot_location` names where the player is
+## standing while it is one of the on-foot ones. The location defaults to the
 ## station because that used to be the only place on-foot could mean; a crew
 ## member walking a craft's cabin under way is on foot somewhere else entirely,
 ## and the readout must not tell them they are on the regeneration deck.
-func set_mode(mode: String, on_foot_location: String = "REGENERATION DECK") -> void:
-	var piloting := mode.to_lower().contains("pilot")
-	_state_piloting = piloting
+##
+## The mode string is matched rather than enumerated so existing callers passing
+## `"piloting"` / `"on-foot"` keep working; `"driving"` and `"cabin"` reach the
+## two states added since.
+func set_mode(mode: String, on_foot_location: String = DEFAULT_ON_FOOT_LOCATION) -> void:
+	_state_mode = _resolve_mode(mode)
 	var location := on_foot_location.strip_edges().to_upper()
 	if location.is_empty():
-		location = "REGENERATION DECK"
-	_mode_label.text = "PILOTING  //  %s" % _active_ship_name if piloting else "ON FOOT  //  %s" % location
+		location = DEFAULT_ON_FOOT_LOCATION
+	_state_location = location
+	_refresh_mode_readouts()
+
+
+## Resolves a caller's mode word to one of the four embodiments. Unknown words
+## resolve to on-foot, which is the state whose controls card is safe to show
+## when nothing else is known.
+func _resolve_mode(mode: String) -> StringName:
+	var normalized := mode.to_lower()
+	if normalized.contains("pilot"):
+		return MODE_PILOTING
+	if normalized.contains("driv") or normalized.contains("tractor") or normalized.contains("vehicle"):
+		return MODE_DRIVING
+	if normalized.contains("cabin") or normalized.contains("aboard"):
+		return MODE_ABOARD
+	return MODE_ON_FOOT
+
+
+## Single writer of every readout that depends on the embodiment. Called from
+## both [method set_mode] and [method set_ship_identity] so naming the craft can
+## never leave the controls card describing a different state -- it previously
+## overwrote the card with the walking hints whenever telemetry was hidden, which
+## is every ground vehicle and cabin state there now is.
+func _refresh_mode_readouts() -> void:
+	var piloting := _state_mode == MODE_PILOTING
+	_state_piloting = piloting
+	if not is_instance_valid(_mode_label) or not is_instance_valid(_help_panel):
+		return
+	match _state_mode:
+		MODE_PILOTING:
+			_mode_label.text = "PILOTING  //  %s" % _active_ship_name
+		MODE_DRIVING:
+			_mode_label.text = "DRIVING  //  %s" % _state_location
+		MODE_ABOARD:
+			# Still on foot -- but aboard, not on the station. The state word is
+			# placed before the craft name so it survives a clipped long name.
+			_mode_label.text = "ON FOOT  //  ABOARD %s" % _state_location
+		_:
+			_mode_label.text = "ON FOOT  //  %s" % _state_location
 	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
 	_telemetry_panel.visible = piloting
 	_reticle.visible = piloting
 	if _flight_cue_layer != null:
 		_flight_cue_layer.set_piloting(piloting)
-	if piloting:
-		_set_help_text([
-			["Y", "START ENGINES"], ["W / S", "FORWARD / REVERSE"],
-			["MOUSE", "STEER"], ["UP / DOWN", "PITCH"], ["A / D", "YAW"],
-			["Q / R", "ROLL"], ["F / LMB", "FIRE"],
-			["SHIFT / CTRL/RMB", "BOOST / BRAKE"], ["V / WHEEL", "VIEW / DISTANCE"],
-			["H / G", "HOVER / BARREL ROLL"], ["L", "LANDING ASSIST"],
-			["X", "STOP ENGINES"], ["E", "LEAVE SEAT: OFFLINE"],
-			["F1 / BACK", "CONTROLS"],
-			["GAMEPAD", "STICKS FLY / TRIGGERS + FACE"]
-		])
-	else:
-		_set_help_text([
-			["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
-			["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
-			["F1 / BACK", "CONTROLS"]
-		])
+	_set_help_text(_help_rows_for_mode(_state_mode))
+
+
+## The controls card for one embodiment. Every row here names a binding that is
+## live in that state: a hint for a key that does nothing is the same defect as a
+## missing one, only harder to notice.
+func _help_rows_for_mode(mode: StringName) -> Array:
+	match mode:
+		MODE_PILOTING:
+			return [
+				["Y", "START ENGINES"], ["W / S", "FORWARD / REVERSE"],
+				["MOUSE", "STEER"], ["UP / DOWN", "PITCH"], ["A / D", "YAW"],
+				["Q / R", "ROLL"], ["F / LMB", "FIRE"],
+				["SHIFT / CTRL/RMB", "BOOST / BRAKE"], ["V / WHEEL", "VIEW / DISTANCE"],
+				["H / G", "HOVER / BARREL ROLL"], ["L", "LANDING ASSIST"],
+				["X", "STOP ENGINES"], ["E", "LEAVE SEAT: OFFLINE"],
+				["F1 / BACK", "CONTROLS"],
+				["GAMEPAD", "STICKS FLY / TRIGGERS + FACE"]
+			]
+		MODE_DRIVING:
+			# The tractor brakes on `brake` *or* `jump`, steers on A/D, and hands
+			# the seat back on `interact` only once it has come to a stop.
+			return [
+				["W / S", "DRIVE / REVERSE"], ["A / D", "STEER"],
+				["SPACE / CTRL", "BRAKE"], ["MOUSE", "LOOK"],
+				["E", "HOP OUT: STOPPED"],
+				["F1 / BACK", "CONTROLS"]
+			]
+		MODE_ABOARD:
+			# Inside a craft under way there is nothing to board and nowhere to
+			# walk off to; the only thing `E` does here is sit back down.
+			return [
+				["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
+				["SPACE", "JUMP"], ["E", "TAKE THE PILOT SEAT"],
+				["F1 / BACK", "CONTROLS"]
+			]
+		_:
+			return [
+				["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
+				["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
+				["F1 / BACK", "CONTROLS"]
+			]
+
+
+## The embodiment the HUD is currently presenting. Exposed so a regression can
+## assert the state rather than parse the rendered label.
+func get_hud_mode() -> StringName:
+	return _state_mode
 
 
 func set_ship_identity(display_name: String, role: String = "") -> void:
@@ -250,14 +342,8 @@ func set_ship_identity(display_name: String, role: String = "") -> void:
 	if _active_ship_name.is_empty():
 		_active_ship_name = "SPACECRAFT"
 	_active_ship_role = role.strip_edges().to_upper()
-	if _mode_label != null and _telemetry_panel != null and _telemetry_panel.visible:
-		_mode_label.text = "PILOTING  //  %s" % _active_ship_name
-	else:
-		_set_help_text([
-			["W A S D", "MOVE"], ["MOUSE", "LOOK"], ["SHIFT", "SPRINT"],
-			["SPACE", "JUMP"], ["E", "INTERACT / BOARD"],
-			["F1 / BACK", "CONTROLS"]
-		])
+	if _mode_label != null:
+		_refresh_mode_readouts()
 
 
 func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
@@ -850,7 +936,17 @@ func _build_hud() -> void:
 	_brand_block.add_theme_constant_override("separation", 2)
 	_hud_panels.add_child(_brand_block)
 	_brand_block.add_child(_label("MUDDS  /  SHIPYARDS", 20, PRIMARY))
-	_mode_label = _label("ON FOOT  //  REGENERATION DECK", 12, NOMINAL)
+	_mode_label = _label("ON FOOT  //  %s" % DEFAULT_ON_FOOT_LOCATION, 12, NOMINAL)
+	# The mode line is the one HUD string whose length the HUD does not control:
+	# it carries a craft display name, and a longer craft than the one this block
+	# was measured against widened the whole brand block past its authored
+	# PANEL_BRAND_WIDTH and into the centre-top toast band. Clipping makes the
+	# label's minimum width independent of its content, so the brand gutter holds
+	# its authored width for any name and the layout contract cannot be broken by
+	# adding a craft. `text` keeps the full string for callers and regressions.
+	_mode_label.clip_text = true
+	_mode_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_mode_label.custom_minimum_size.x = PANEL_BRAND_WIDTH
 	_brand_block.add_child(_mode_label)
 	var brand_rule := ColorRect.new()
 	brand_rule.custom_minimum_size = Vector2(245.0, 2.0)
