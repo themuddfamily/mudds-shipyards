@@ -316,17 +316,82 @@ const CENTRAL_HERO_CONTENT_NOTE := (
 	+ "name-to-model mapping are provisional modern interpretation."
 )
 
-const NAVY := Color("0b1d2a")
-const DEEP_BLUE := Color("10364b")
-const STEEL_BLUE := Color("1c566e")
+## Hub palette.
+##
+## Re-frozen as a group, because the problem was the group and not any one entry.
+## Every structural colour here sat between 41% and 79% HSV saturation, which is
+## a range real painted and bare metal essentially never occupies: photographed
+## station hardware clusters in a narrow, desaturated band and takes its variety
+## from how surfaces answer light, not from hue. A set of evenly spaced saturated
+## primaries laid over untextured volumes is the exact signature the player
+## described, and the hub was the last part of the station still using one — the
+## four authored modules had already moved to greys at 5-25% saturation, so this
+## also stops the hub disagreeing with everything it joins.
+##
+## Structural roles, old -> new, with saturation before and after:
+##   NAVY        0b1d2a -> 141c22   74% -> 41%
+##   DEEP_BLUE   10364b -> 1d2f39   79% -> 49%
+##   STEEL_BLUE  1c566e -> 33505c   74% -> 45%
+##   DECK        203744 -> 232d33   53% -> 33%
+##   DECK_LIGHT  36505c -> 424c51   41% -> 19%
+##   IVORY       dce8e4 -> cfd6d3    5% ->  3%
+##
+## Value spacing is deliberately made uneven at the same time. The old set walked
+## up in near-equal steps, which is another toy-render tell: it makes a palette
+## read as a swatch strip. DECK and NAVY are now close together and DECK_LIGHT
+## pulls away from both, so the decks group as one material family with one
+## lighter grade rather than as three ranked tones.
+##
+## The signal colours are NOT desaturated. KETH_CYAN, ALERT_RED, PALE_CYAN and
+## KETH_ORANGE drive emissives, guide lights, warning lamps and weapon impacts,
+## where saturation is carrying meaning rather than describing a surface, and
+## where the accessibility work downstream depends on them. Desaturating a
+## signal is a legibility regression, not an art improvement.
+##
+## What the hazard paint needed was to stop borrowing the lamp's colour. One
+## constant was serving both a warning light and roughly every railing post,
+## cross brace, safety pylon and tow tractor on the station, so the largest
+## painted areas in the frame were being drawn at full-value 100% signal orange.
+## HAZARD_AMBER splits the surface off at the ochre real hazard paint actually
+## photographs as; KETH_ORANGE keeps the lamps.
+const NAVY := Color("141c22")
+const DEEP_BLUE := Color("1d2f39")
+const STEEL_BLUE := Color("33505c")
 const KETH_CYAN := Color("48dbe2")
 const PALE_CYAN := Color("baf7f1")
 const KETH_ORANGE := Color("ff9f43")
 const ALERT_RED := Color("ff5f57")
-const DECK := Color("203744")
-const DECK_LIGHT := Color("36505c")
-const IVORY := Color("dce8e4")
+const DECK := Color("232d33")
+const DECK_LIGHT := Color("424c51")
+const IVORY := Color("cfd6d3")
+const HAZARD_AMBER := Color("8f6530")
 const GLASS := Color(0.24, 0.86, 0.93, 0.24)
+
+## Aim of the station's key light, and of the sky's sun glow.
+##
+## One constant serves both. A backdrop whose bright side does not agree with the
+## direction the geometry is lit from is one of the things that makes a sky read
+## as a painted wall rather than as the place the light is coming from.
+const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
+
+## Deep-space sky. See `deep_space_sky.gdshader` for why this replaced
+## ProceduralSkyMaterial; these are its complete authored state.
+const SKY_SHADER_PATH := "res://scripts/rendering/deep_space_sky.gdshader"
+## Pole of the great-circle dust band, so the band lies perpendicular to it. It
+## is deliberately oblique to the station's own axes: a band that ran parallel to
+## the launch spine would read as part of the architecture.
+const SKY_BAND_AXIS := Vector3(0.34, 0.88, -0.33)
+const SKY_BAND_WIDTH := 0.42
+const SKY_BAND_COLOR := Color("18202c")
+const SKY_CORE_COLOR := Color("4a3928")
+const SKY_CORE_AXIS := Vector3(-0.62, -0.12, -0.77)
+const SKY_CORE_FOCUS := 7.0
+const SKY_ZENITH_COLOR := Color("0b1018")
+const SKY_NADIR_COLOR := Color("0c0c0e")
+const SKY_SUN_COLOR := Color("3c606f")
+const SKY_SUN_FOCUS := 260.0
+const SKY_SUN_HALO := 0.55
+const SKY_DUST_SCALE := 3.4
 
 @export_category("Landing")
 @export var landing_half_extents := Vector3(12.0, 3.8, 17.0)
@@ -2187,15 +2252,30 @@ func get_space_backdrop_evidence_metadata() -> Dictionary:
 	}.duplicate(true)
 
 
+static func _sky_color_matches(material: ShaderMaterial, name: StringName, expected: Color) -> bool:
+	var value = material.get_shader_parameter(name)
+	return value is Color and (value as Color).is_equal_approx(expected)
+
+
+static func _sky_vector_matches(material: ShaderMaterial, name: StringName, expected: Vector3) -> bool:
+	var value = material.get_shader_parameter(name)
+	return value is Vector3 and (value as Vector3).is_equal_approx(expected)
+
+
+static func _sky_scalar_matches(material: ShaderMaterial, name: StringName, expected: float) -> bool:
+	var value = material.get_shader_parameter(name)
+	return (value is float or value is int) and is_equal_approx(float(value), expected)
+
+
 func get_space_backdrop_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var backdrop := get_node_or_null(^"SpaceBackdrop") as Node3D
 	var stars := get_node_or_null(^"SpaceBackdrop/ParallaxStars") as MultiMeshInstance3D
 	var environment_node := get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
 	var environment := environment_node.environment if environment_node != null else null
-	var sky_material: ProceduralSkyMaterial = null
+	var sky_material: ShaderMaterial = null
 	if environment != null and environment.sky != null:
-		sky_material = environment.sky.sky_material as ProceduralSkyMaterial
+		sky_material = environment.sky.sky_material as ShaderMaterial
 	if backdrop == null:
 		errors.append("SpaceBackdrop root is unavailable")
 	elif (
@@ -2203,24 +2283,52 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		or backdrop.get_meta(&"gameplay_authority", true) != false
 	):
 		errors.append("space backdrop authority metadata drifted")
+	# Re-frozen from the ProceduralSkyMaterial contract. The four hemisphere
+	# colours it used to check no longer exist: the sky is a shader now, because
+	# the procedural material's sky/ground model drew a ruled horizon across every
+	# wide frame and could not give the ambient or the reflections any lateral
+	# structure. What is asserted is unchanged in kind — the sky's entire authored
+	# state, exactly, plus the survival of the project-original nebula at the same
+	# faint eight percent — only the property names moved.
 	if sky_material == null:
-		errors.append("near-black procedural sky is unavailable")
+		errors.append("deep-space sky shader material is unavailable")
 	else:
 		if (
-			not sky_material.sky_top_color.is_equal_approx(Color("0a1420"))
-			or not sky_material.sky_horizon_color.is_equal_approx(Color("0d1a24"))
-			or not sky_material.ground_horizon_color.is_equal_approx(Color("070d13"))
-			or not sky_material.ground_bottom_color.is_equal_approx(Color("03060a"))
-			or not is_zero_approx(sky_material.sun_angle_max)
+			sky_material.shader == null
+			or sky_material.shader.resource_path != SKY_SHADER_PATH
 		):
-			errors.append("near-black procedural sky palette drifted")
-		var cover_strength := sky_material.sky_cover_modulate.r
+			errors.append("deep-space sky shader binding drifted")
 		if (
-			sky_material.sky_cover == null
-			or sky_material.sky_cover.resource_path != "res://assets/keth-nebula.png"
-			or not is_equal_approx(cover_strength, SPACE_BACKDROP_NEBULA_COVER_STRENGTH)
-			or not is_equal_approx(sky_material.sky_cover_modulate.g, cover_strength)
-			or not is_equal_approx(sky_material.sky_cover_modulate.b, cover_strength)
+			not _sky_color_matches(sky_material, &"zenith_color", SKY_ZENITH_COLOR)
+			or not _sky_color_matches(sky_material, &"nadir_color", SKY_NADIR_COLOR)
+			or not _sky_color_matches(sky_material, &"band_color", SKY_BAND_COLOR)
+			or not _sky_color_matches(sky_material, &"core_color", SKY_CORE_COLOR)
+			or not _sky_color_matches(sky_material, &"sun_color", SKY_SUN_COLOR)
+		):
+			errors.append("deep-space sky palette drifted")
+		if (
+			not _sky_vector_matches(sky_material, &"band_axis", SKY_BAND_AXIS)
+			or not _sky_vector_matches(sky_material, &"core_axis", SKY_CORE_AXIS)
+			or not _sky_scalar_matches(sky_material, &"band_width", SKY_BAND_WIDTH)
+			or not _sky_scalar_matches(sky_material, &"core_focus", SKY_CORE_FOCUS)
+			or not _sky_scalar_matches(sky_material, &"dust_scale", SKY_DUST_SCALE)
+		):
+			errors.append("deep-space sky composition drifted")
+		# The sky's sun glow and the key light are one aim by construction. This is
+		# the assertion that keeps them one aim.
+		if (
+			not _sky_vector_matches(sky_material, &"sun_direction", sky_sun_direction())
+			or not _sky_scalar_matches(sky_material, &"sun_focus", SKY_SUN_FOCUS)
+			or not _sky_scalar_matches(sky_material, &"sun_halo", SKY_SUN_HALO)
+		):
+			errors.append("deep-space sky sun disagrees with the key light aim")
+		var cover := sky_material.get_shader_parameter(&"nebula_cover") as Texture2D
+		if (
+			cover == null
+			or cover.resource_path != "res://assets/keth-nebula.png"
+			or not _sky_scalar_matches(
+				sky_material, &"nebula_strength", SPACE_BACKDROP_NEBULA_COVER_STRENGTH
+			)
 		):
 			errors.append("faint legacy-nebula cover contract drifted")
 	if (
@@ -2272,8 +2380,13 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			or not material.albedo_color.is_equal_approx(spec.color as Color)
 			or not material.emission_enabled
 			or not material.emission.is_equal_approx(spec.color as Color)
-			or not is_equal_approx(material.emission_energy_multiplier, 0.32)
-			or not is_equal_approx(material.roughness, 0.9)
+			# Re-frozen from 0.32/0.9 by the global art pass. See the body material
+			# construction for the full reason: at 0.32 emission each body filled its
+			# own night side back in and rendered as a flat saturated disc rather
+			# than a lit sphere. Still an exact equality, still the same four
+			# authored colours, radii and placements.
+			or not is_equal_approx(material.emission_energy_multiplier, 0.1)
+			or not is_equal_approx(material.roughness, 1.0)
 			or body.get_meta(&"palette_role", &"") != spec.palette_role
 			or body.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			or body.gi_mode != GeometryInstance3D.GI_MODE_DISABLED
@@ -2317,7 +2430,9 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		"star_radius_max": SPACE_BACKDROP_STAR_RADIUS_MAX,
 		"body_count": SPACE_BACKDROP_BODY_SPECS.size(),
 		"body_specs": body_specs,
-		"near_black_sky": sky_material != null and errors.find("near-black procedural sky palette drifted") < 0,
+		"near_black_sky": sky_material != null and errors.find("deep-space sky palette drifted") < 0,
+		"sky_shader_path": SKY_SHADER_PATH,
+		"sky_sun_direction": sky_sun_direction(),
 		"legacy_nebula_cover_strength": SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
 		"authority_node_count": authority_node_count,
 		"renderable_count": renderable_count,
@@ -2505,21 +2620,52 @@ func _create_materials() -> void:
 	# berth already use, traffic-worn deck plate stays low-metal and rough, and the
 	# painted roles stay paint. Colours are unchanged.
 	#
-	# Metalness is deliberately capped below those modules' 0.62-0.78 on anything
-	# broad. Reflections come from the background, the background is near-black
-	# space, and ambient is now sky-sourced, so a high-metal surface has almost
-	# nothing to reflect and metalness only subtracts its diffuse response. That is
-	# fine on a keel or a mast, where dark steel is the intent; it is wrong on a
-	# 1809 square metre walkable launch-arm deck, which is what `navy` covers.
-	_materials["deck"] = _material(DECK, 0.06, 0.82)
-	_materials["deck_light"] = _material(DECK_LIGHT, 0.14, 0.7)
-	_materials["navy"] = _material(NAVY, 0.18, 0.6)
-	_materials["blue"] = _material(DEEP_BLUE, 0.42, 0.42)
-	_materials["steel_blue"] = _material(STEEL_BLUE, 0.5, 0.34)
-	_materials["ivory"] = _material(IVORY, 0.05, 0.62)
-	_materials["orange"] = _material(KETH_ORANGE, 0.1, 0.56)
-	_materials["red"] = _material(ALERT_RED, 0.08, 0.54)
-	_materials["black"] = _material(Color("03080d"), 0.34, 0.66)
+	# The cap that used to sit on metalness is lifted, and the reason it existed is
+	# gone. It was capped because reflections are sourced from the background and
+	# the background was uniformly near-black, so metalness had nothing to return
+	# and only subtracted diffuse. The sky now carries a dust band, a warm core and
+	# a sun halo, which is a real if dim environment to reflect, so the roles that
+	# are supposed to be metal can finally be metal.
+	#
+	# The spread is the point. The old set ran 0.06-0.50 metallic over 0.34-0.82
+	# roughness with the two loosely correlated, which is one material family with
+	# a slider on it: everything answered a highlight the same way and only the hue
+	# changed. Real dock hardware separates hard, so the roles are pushed apart
+	# into recognisably different substances rather than ranked along one axis:
+	#
+	#   deck        0.06/0.82 -> 0.04/0.88  traffic-worn plate; almost no highlight
+	#   deck_light  0.14/0.70 -> 0.10/0.74  the same plate, less walked on
+	#   navy        0.18/0.60 -> 0.30/0.55  painted structural steel
+	#   blue        0.42/0.42 -> 0.72/0.34  bare structural steel
+	#   steel_blue  0.50/0.34 -> 0.86/0.22  polished mast and keel stock
+	#   ivory       0.05/0.62 -> 0.02/0.48  gloss paint, carried by clearcoat
+	#   orange      0.10/0.56 -> 0.02/0.52  the same gloss paint, hazard ochre
+	#   red         0.08/0.54 -> 0.02/0.50  the same gloss paint, alert
+	#   black       0.34/0.66 -> 0.02/0.94  rubber and composite, not dark metal
+	#
+	# `black` moving from mid-metal to a dead-matte non-metal is the largest single
+	# jump and the most useful one: it covers gaskets, treads, kick plates and
+	# service dressing, and while it was 0.34 metallic those all carried a faint
+	# sheen that made them read as painted plastic parts. At 0.94 roughness and
+	# effectively no metalness they read as rubber, which gives the frame a genuine
+	# matte end to sit against the polished end. Its colour moves 03080d -> 0a0c0d
+	# in the same step: at 0.94 roughness a nearly pure black albedo returns almost
+	# nothing at all and the role dropped out of the frame entirely, so it comes up
+	# to a very dark neutral that can still show a form.
+	#
+	# Colours here are unchanged except where the palette block above changed them,
+	# and `orange` is the one role whose *identity* moved: it now takes
+	# HAZARD_AMBER rather than the signal-orange the warning lamps use. See the
+	# palette block for why.
+	_materials["deck"] = _material(DECK, 0.04, 0.88)
+	_materials["deck_light"] = _material(DECK_LIGHT, 0.1, 0.74)
+	_materials["navy"] = _material(NAVY, 0.3, 0.55)
+	_materials["blue"] = _material(DEEP_BLUE, 0.72, 0.34)
+	_materials["steel_blue"] = _material(STEEL_BLUE, 0.86, 0.22)
+	_materials["ivory"] = _painted_material(IVORY, 0.48)
+	_materials["orange"] = _painted_material(HAZARD_AMBER, 0.52)
+	_materials["red"] = _painted_material(ALERT_RED, 0.5)
+	_materials["black"] = _material(Color("0a0c0d"), 0.02, 0.94)
 	_materials["cyan_glow"] = _material(
 		KETH_CYAN,
 		0.05,
@@ -2590,7 +2736,7 @@ func _apply_station_panel_family() -> void:
 	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
 	if panel_albedo == null or panel_normal == null or panel_roughness == null:
 		return
-	for key in ["deck", "deck_light", "navy", "blue", "steel_blue", "ivory", "black"]:
+	for key in ["deck", "deck_light", "navy", "blue", "steel_blue", "ivory", "black", "orange"]:
 		var panel_material := _materials[key] as StandardMaterial3D
 		panel_material.albedo_texture = panel_albedo
 		panel_material.normal_enabled = true
@@ -2613,6 +2759,22 @@ func _apply_station_panel_family() -> void:
 		panel_material.texture_repeat = true
 
 
+## Unit vector pointing from the station *toward* the sun.
+##
+## A DirectionalLight3D emits along its local -Z, so the direction light arrives
+## from is its basis' +Z. Deriving the sky's glow from the same rotation the key
+## light is given is what keeps the two from drifting apart; it is exposed rather
+## than inlined so a test can assert the agreement instead of trusting it.
+static func sky_sun_direction() -> Vector3:
+	return Basis.from_euler(
+		Vector3(
+			deg_to_rad(KEY_LIGHT_ROTATION_DEGREES.x),
+			deg_to_rad(KEY_LIGHT_ROTATION_DEGREES.y),
+			deg_to_rad(KEY_LIGHT_ROTATION_DEGREES.z)
+		)
+	).z.normalized()
+
+
 func _build_environment() -> void:
 	var world_environment := WorldEnvironment.new()
 	world_environment.name = "ShipyardEnvironment"
@@ -2622,43 +2784,71 @@ func _build_environment() -> void:
 	# with dense stars and large simple colour bodies. Retain the project-original
 	# nebula only as faint modern atmosphere rather than the live composition's
 	# dominant identity. Exact colours/placement remain explicitly unauthenticated.
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("0a1420")
-	sky_material.sky_horizon_color = Color("0d1a24")
-	sky_material.ground_horizon_color = Color("070d13")
-	sky_material.ground_bottom_color = Color("03060a")
-	sky_material.sun_angle_max = 0.0
-	# The two curves stayed at their engine defaults (0.15 sky, 0.02 ground),
-	# which put the whole top-to-horizon blend into a narrow band and left the
-	# horizon reading as a ruled line across the frame rather than a gradient.
-	# That line is visible from the decks and reads as a distant wall. Softening
-	# the curves spreads both hemispheres, which also makes the sky-sourced
-	# ambient vary more smoothly with surface orientation instead of switching at
-	# the equator. The four authored colours are unchanged.
-	sky_material.sky_curve = 0.4
-	sky_material.ground_curve = 0.38
-	sky_material.sky_cover = load("res://assets/keth-nebula.png") as Texture2D
-	sky_material.sky_cover_modulate = Color(
-		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
-		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
-		SPACE_BACKDROP_NEBULA_COVER_STRENGTH,
-		1.0
+	#
+	# The sky is no longer a ProceduralSkyMaterial. That material is built out of a
+	# sky hemisphere blended into a *ground* hemisphere, and in a vacuum scene the
+	# ground half is a liability: with the four authored colours it drew a ruled
+	# horizontal line across the middle of every wide frame, which read as a
+	# distant wall standing behind the station. Softening the two curves in an
+	# earlier pass spread the line but did not remove it, because the model itself
+	# has an equator. See `deep_space_sky.gdshader` for the full reasoning; in
+	# short, the sky here has two structural jobs beyond being a backdrop, and the
+	# procedural material could do neither:
+	#
+	#   * It is the ambient source. Ambient with no lateral structure lands on
+	#     every face identically no matter which way the face points, which is the
+	#     single most reliable way to make a scene read as filled rather than lit.
+	#     The dust band is bright on one side of the sphere and dark on the other,
+	#     so the fill itself now has a direction.
+	#   * It is the reflection source. Against a uniformly near-black background
+	#     metalness had nothing to return, which is why every broad structural
+	#     role was pinned to low metallic and the whole station answered light like
+	#     one painted polymer. A band and a sun glow give metal something to
+	#     reflect, which is what unlocks the material split below.
+	#
+	# The sun is a glow, not a disc, and it is aimed by the same constant that
+	# aims the key light, so the bright quarter of the sky and the lit face of
+	# every surface cannot disagree.
+	var sky_material := ShaderMaterial.new()
+	sky_material.shader = load(SKY_SHADER_PATH) as Shader
+	sky_material.set_shader_parameter(&"band_axis", SKY_BAND_AXIS)
+	sky_material.set_shader_parameter(&"band_width", SKY_BAND_WIDTH)
+	sky_material.set_shader_parameter(&"band_color", SKY_BAND_COLOR)
+	sky_material.set_shader_parameter(&"core_color", SKY_CORE_COLOR)
+	sky_material.set_shader_parameter(&"core_axis", SKY_CORE_AXIS)
+	sky_material.set_shader_parameter(&"core_focus", SKY_CORE_FOCUS)
+	sky_material.set_shader_parameter(&"zenith_color", SKY_ZENITH_COLOR)
+	sky_material.set_shader_parameter(&"nadir_color", SKY_NADIR_COLOR)
+	sky_material.set_shader_parameter(&"sun_direction", sky_sun_direction())
+	sky_material.set_shader_parameter(&"sun_color", SKY_SUN_COLOR)
+	sky_material.set_shader_parameter(&"sun_focus", SKY_SUN_FOCUS)
+	sky_material.set_shader_parameter(&"sun_halo", SKY_SUN_HALO)
+	sky_material.set_shader_parameter(&"dust_scale", SKY_DUST_SCALE)
+	sky_material.set_shader_parameter(
+		&"nebula_cover",
+		load("res://assets/keth-nebula.png") as Texture2D
 	)
-	sky_material.energy_multiplier = 1.0
+	sky_material.set_shader_parameter(
+		&"nebula_strength",
+		SPACE_BACKDROP_NEBULA_COVER_STRENGTH
+	)
 	sky.sky_material = sky_material
+	# Nothing in this sky animates, so it never needs re-integrating per frame.
+	# High quality resolves the band and the sun halo into the radiance map once.
+	sky.process_mode = Sky.PROCESS_MODE_QUALITY
+	sky.radiance_size = Sky.RADIANCE_SIZE_256
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
-	# Raised from 0.55. Measured in isolation on this scene: this multiplier is the
-	# only knob that scales the *hemispheric* half of the ambient term, and the
-	# hemispheric half is the orientation-dependent one. At 0.55 the median pixel
-	# of a parked-berth frame sat at 14/255 and screen-space AO had almost no
-	# ambient to modulate, which is the ceiling three separate surface passes ran
-	# into. It is deliberately not raised further: at 1.6 the backdrop stops
-	# reading as vacuum and starts reading as a navy sky, and the frame flattens
-	# (measured stddev fell) because ambient lifts lit and unlit faces alike.
-	# Directional contrast is restored below by the key, the counter-fill and the
-	# deck bounce, not by this number.
-	environment.background_energy_multiplier = 0.8
+	# Lowered from 0.8. This multiplier scales the sky both as drawn and as the
+	# ambient source, and the sky it is now scaling carries a dust band and a sun
+	# halo instead of a flat near-black gradient, so the same number delivers
+	# considerably more light than it used to. It is brought down so the total
+	# ambient budget is roughly held while its *composition* changes: the light
+	# that remains arrives from a direction instead of from everywhere. Raising
+	# this is the brightness knob that flattened the frame the last time it was
+	# tried; the depth cue below and the widened key/fill ratio are what carry
+	# contrast.
+	environment.background_energy_multiplier = 0.95
 	# Ambient comes from the sky rather than a single colour. A flat colour fill
 	# lands identically on every face regardless of orientation, which is the
 	# reason a bevelled box still reads as a toy: nothing distinguishes a deck top
@@ -2684,21 +2874,75 @@ func _build_environment() -> void:
 	# enclosed rooms — which the sky hemisphere cannot see into — from going
 	# backwards. The flat term is now a smaller share of a larger total, which is
 	# the opposite of a global gain.
+	#
+	# The split moves from 0.82 to 0.93 and the flat term's energy comes down with
+	# it. The flat quarter was doing the job the sky could not do while the sky was
+	# featureless; now that the sky has a band, a core and a sun side, the flat
+	# term is mostly working against it, because a colour floor is by definition
+	# the orientation-independent part of the fill. What is left of it is a floor
+	# under the darkest faces so the outer Fleet Dock decks and the two enclosed
+	# rooms do not fall out of the frame, and its colour is pulled further toward
+	# neutral so it stops tinting every unlit face the same cyan.
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.82
-	environment.ambient_light_color = Color("54808c")
-	environment.ambient_light_energy = 4.4
+	environment.ambient_light_sky_contribution = 0.86
+	environment.ambient_light_color = Color("5a656b")
+	environment.ambient_light_energy = 6.4
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_exposure = 0.94
 	environment.glow_enabled = true
 	environment.glow_intensity = 0.45
 	environment.glow_bloom = 0.08
+
+	# Atmospheric depth. This is the largest single change in the pass and the one
+	# aimed squarely at the wide shot.
+	#
+	# The station is roughly 220 m corner to corner and the free-flight range runs
+	# out past 165 m beyond it, and until now none of that distance was visible:
+	# depth fog was on, but at density 0.00065 exponential it removed about 6% of
+	# contrast at 100 m, which is nothing. A gantry 140 m away carried exactly the
+	# same local contrast as a railing two metres from the camera, so the eye had
+	# no cue for scale and a 220 m lattice read the size of a desk model. Distance
+	# haze is the strongest realism cue available in a large exterior, and it was
+	# effectively switched off.
+	#
+	# The mode changes from exponential to depth-ranged, which is the part that
+	# makes the strength affordable. Exponential fog starts at the camera, so any
+	# density strong enough to separate 150 m also veils the deck plate under the
+	# player's feet and every interior. Depth-ranged fog contributes nothing at all
+	# inside `fog_depth_begin`, so the near field, the berths and both enclosed
+	# rooms are untouched by a cue that is entirely about the far field. That is
+	# deliberately not a global gain knob: it is a change that is invisible under
+	# 55 m and unmissable past 120 m. Every interior in the station, every berth
+	# and the whole near deck sit inside `fog_depth_begin` and are untouched.
+	#
+	# `fog_depth_end` sits past the far corner of the lattice but well inside the
+	# 900-1250 m celestial bodies, so a distant body is muted rather than erased,
+	# and the 1450-1650 m star shell opts out of fog entirely at its material.
+	#
+	# `fog_light_energy` is the number this took the longest to get right, and the
+	# reason is worth writing down. Fog only reads as *haze* if its colour sits
+	# above the thing it is veiling. Here the background is vacuum, so at the
+	# energy this started at the fog colour was darker than the station and the cue
+	# rendered as "distant things get slightly dimmer" - measurable at about one
+	# percent of frame mean, which is to say invisible. Turning the fog off
+	# entirely and rendering the same frame changed the image by 0.8%. Raising the
+	# energy until the haze sits above the station's shadow side is what turns the
+	# same density into visible aerial perspective: far structure loses contrast
+	# in both directions, lit faces coming down and unlit faces coming up.
+	#
+	# Aerial perspective is raised hard in the quality profiles so the haze takes
+	# its colour from the sky in the view direction rather than being one flat slab
+	# of blue laid over everything.
 	environment.fog_enabled = true
-	environment.fog_light_color = Color("183849")
-	environment.fog_light_energy = 0.38
-	environment.fog_density = 0.00065
-	environment.fog_sky_affect = 0.08
+	environment.fog_mode = Environment.FOG_MODE_DEPTH
+	environment.fog_depth_begin = 55.0
+	environment.fog_depth_end = 260.0
+	environment.fog_depth_curve = 0.55
+	environment.fog_density = 0.42
+	environment.fog_light_color = Color("4a6e82")
+	environment.fog_light_energy = 1.6
+	environment.fog_sky_affect = 0.0
 	world_environment.environment = environment
 	add_child(world_environment)
 	_visual_quality_report = VisualQualityController.apply_profile(
@@ -2729,12 +2973,24 @@ func _build_environment() -> void:
 	# gets more texels and contact shadows under railings, treads and landing gear
 	# resolve instead of dissolving. Nothing at the station is 130 m from the
 	# camera and still expected to cast a legible shadow.
+	#
+	# The key's aim is `KEY_LIGHT_ROTATION_DEGREES`, the same constant the sky
+	# shader's sun glow is derived from. A sun that is visible in the backdrop and
+	# a sun that lights the geometry disagreeing about where they are is one of the
+	# things that makes a backdrop read as wallpaper.
+	#
+	# Energy is raised again and `light_specular` with it. Ambient's flat term came
+	# down in the same pass, so the ratio between a face this light reaches and a
+	# face it does not is wider than before, not narrower. The specular rise
+	# matters more than it used to: with a sky that has a bright side, a raised
+	# specular response on a metal role now produces a highlight that moves across
+	# the surface as the camera does, instead of a uniform sheen.
 	var key_light := DirectionalLight3D.new()
 	key_light.name = "SpaceKeyLight"
-	key_light.rotation_degrees = Vector3(-42.0, -28.0, 0.0)
-	key_light.light_color = Color("b8edf1")
-	key_light.light_energy = 1.75
-	key_light.light_specular = 0.6
+	key_light.rotation_degrees = KEY_LIGHT_ROTATION_DEGREES
+	key_light.light_color = Color("cdeef2")
+	key_light.light_energy = 2.2
+	key_light.light_specular = 0.9
 	key_light.light_angular_distance = 0.65
 	key_light.shadow_enabled = true
 	key_light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -2748,8 +3004,8 @@ func _build_environment() -> void:
 	var counter_fill := DirectionalLight3D.new()
 	counter_fill.name = "SpaceCounterFill"
 	counter_fill.rotation_degrees = Vector3(-16.0, 152.0, 0.0)
-	counter_fill.light_color = Color("3d6f8c")
-	counter_fill.light_energy = 0.62
+	counter_fill.light_color = Color("2f5a75")
+	counter_fill.light_energy = 0.44
 	counter_fill.light_specular = 0.45
 	counter_fill.shadow_enabled = false
 	add_child(counter_fill)
@@ -3965,6 +4221,12 @@ func _build_space_backdrop() -> void:
 	star_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	star_material.vertex_color_use_as_albedo = true
 	star_material.disable_receive_shadows = true
+	# The depth fog that separates the station's far field is a local dock
+	# atmosphere, and this shell sits 1.45 kilometres out. Without this the fog
+	# reaches full density long before the stars and dissolves the entire star
+	# identity into haze - the cue that was added to make the station read as
+	# large would have erased the backdrop it is read against.
+	star_material.disable_fog = true
 	star_mesh.material = star_material
 	var stars := MultiMeshInstance3D.new()
 	stars.name = "ParallaxStars"
@@ -4010,8 +4272,25 @@ func _build_space_backdrop() -> void:
 	for body_name: StringName in SPACE_BACKDROP_BODY_SPECS:
 		var spec := SPACE_BACKDROP_BODY_SPECS[body_name] as Dictionary
 		var body_color := spec.color as Color
-		var body_material := _material(body_color, 0.0, 0.9, body_color, 0.32)
+		# Emission re-frozen from 0.32 to 0.10. The four bodies are lit by the same
+		# key light as the station, but at 0.32 the self-emission was bright enough
+		# to fill the unlit half back in, so each one rendered as a flat saturated
+		# disc with a barely visible terminator - four coloured circles pasted on
+		# the backdrop, and the most toy-like objects left in any wide frame. At
+		# 0.10 the emission is a night-side floor rather than a fill, the terminator
+		# resolves, and a body reads as a sphere with a lit limb whose bright side
+		# agrees with the direction everything else on screen is lit from. The
+		# authored colours, radii and placements are untouched; this changes only
+		# how the surface answers light, which is the whole subject of the pass.
+		var body_material := _material(body_color, 0.0, 1.0, body_color, 0.1)
 		body_material.disable_receive_shadows = true
+		# The bodies deliberately stay *in* the depth fog, unlike the star shell.
+		# Exempting them was tried and reverted: unfogged and lit by the raised key
+		# they came back as vivid, fully saturated green and orange billiard balls,
+		# which is a worse toy tell than the flat discs the emission change was
+		# fixing. Aerial perspective is doing the right thing to them - a body a
+		# kilometre out should read muted and far, and the haze is the only thing
+		# on hand that says so about an untextured sphere.
 		var body := _sphere(
 			backdrop,
 			String(body_name),
@@ -4231,6 +4510,30 @@ func _material(
 		result.emission_enabled = true
 		result.emission = emission_color
 		result.emission_energy_multiplier = emission_energy
+	return result
+
+
+## Painted metal: a dielectric base under a thin gloss layer.
+##
+## The hub had no way to say "painted" that was distinct from "made of paint".
+## Every painted role was a plain dielectric with a middling roughness, which
+## gives one broad diffuse-plus-soft-highlight response — and that response is
+## indistinguishable from moulded plastic, which is precisely the read the whole
+## pass is trying to break. Paint over metal has *two* specular lobes: a broad
+## dull one from the pigment layer and a tight bright one from the clear coat on
+## top. Clearcoat supplies the second lobe, so a painted railing catches a sharp
+## line of the key light along its edge while its face stays matte, and a
+## bare-steel brace beside it answers with a single wide highlight instead. That
+## difference is what separates two surfaces that are the same brightness.
+##
+## The base roughness is also dropped relative to the old painted roles. A high
+## base roughness under a clear coat reads as chalked, weathered paint; these are
+## maintained station surfaces.
+func _painted_material(color: Color, roughness: float) -> StandardMaterial3D:
+	var result := _material(color, 0.02, roughness)
+	result.clearcoat_enabled = true
+	result.clearcoat = 0.45
+	result.clearcoat_roughness = 0.12
 	return result
 
 

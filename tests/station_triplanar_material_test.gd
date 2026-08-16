@@ -238,12 +238,33 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# (`Hull`, `ForwardCowl`, `PortPod`, `StarboardPod`, `TailFin`), so 4 x 5 = +20
 	# at 0.30, 960 -> 980. The painted `orange` cargo pod and the cyan status lens
 	# stay outside the family like every other module's painted and lit cues.
+	# Re-frozen again by the global art-direction pass: `ShipyardWorld.orange`
+	# joins the family, +68 at 0.30, 1495 -> 1563 and 848 -> 916. This is the same
+	# move the Jovian berth's `orange` made in the previous pass and for the same
+	# reason. The hub's hazard-paint role is not signage: it covers every branch
+	# cross brace, every rail post on the branch arms, the aft spine and the aft
+	# connector, the dock mast collars, the signal mast collars, the junction
+	# stair rail, the safety pylons and the tow tractor. Left unmapped those were
+	# the largest remaining fields of flat untextured colour anywhere in a deck
+	# frame, and with the palette pass desaturating them to ochre they still read
+	# as moulded plastic sticks next to plated steel until they took the plate.
+	# 0.22 and 0.28 are untouched. Everything listed above as deliberately outside
+	# the family stays outside it: the hub's own emissives, `orange_glow` lane
+	# striping, `red` alert paint and the transparent `glass` are unchanged.
+	#
+	# Re-frozen once more, 1627 -> 1703, when the global look pass merged with the
+	# station-life and nearby-sector work. Measured on the merged tree rather than
+	# predicted: neither branch's arithmetic gives this number on its own. The look
+	# pass's `HAZARD_AMBER` split the hazard surface off the warning lamp and joined
+	# the plate family, which lands at BOTH mapped scales, not just 0.30 --
+	# 0.22 goes 115 -> 129 (+14) and 0.30 goes 980 -> 1042 (+62). 0.28 is untouched
+	# at 532. No previously mapped surface was removed and no new scale introduced.
 	_check(
-		mapped_surface_count == 1627
-		and scale_022_count == 115
+		mapped_surface_count == 1703
+		and scale_022_count == 129
 		and scale_028_count == 532
-		and scale_030_count == 980,
-		"live station binds exactly 1627 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		and scale_030_count == 1042,
+		"live station binds exactly 1703 surfaces at the frozen 0.22/0.28/0.30 physical scales"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

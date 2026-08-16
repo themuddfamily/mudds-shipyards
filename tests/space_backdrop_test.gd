@@ -146,33 +146,74 @@ func _test_pristine_audit(world: ShipyardWorld) -> void:
 func _test_near_black_sky(world: ShipyardWorld) -> void:
 	var environment_node := world.get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
 	var environment := environment_node.environment if environment_node != null else null
-	var sky_material: ProceduralSkyMaterial = null
+	var sky_material: ShaderMaterial = null
 	if environment != null and environment.sky != null:
-		sky_material = environment.sky.sky_material as ProceduralSkyMaterial
-	_check(sky_material != null, "production environment uses ProceduralSkyMaterial rather than the former panorama sky")
+		sky_material = environment.sky.sky_material as ShaderMaterial
+	# Re-frozen from ProceduralSkyMaterial. That material builds a sky hemisphere
+	# blended into a *ground* hemisphere, and this scene has no ground: with the
+	# four colours it was frozen at it drew a ruled line straight across the middle
+	# of every wide frame, which read as a wall standing behind the station.
+	# Softening its two curves in the previous pass spread the line without
+	# removing it, because the model itself has an equator. It also could not give
+	# the sky-sourced ambient any lateral structure - the reason the fill landed on
+	# every face identically - or give the background-sourced reflections anything
+	# for metal to return.
+	_check(sky_material != null, "production environment uses the deep-space sky shader rather than a hemisphere sky")
 	if sky_material == null:
 		return
-	# Re-frozen from 020204/030305/030305/010102. The station's ambient is now
-	# sourced from this sky instead of a flat colour fill, so the sky has to carry
-	# a real hemispheric signal: a lighter, cooler top and horizon and a darker
-	# ground half. The values stay deep enough to read as near-black space at the
-	# scene's 0.55 background energy - the brightest of them is 0x0d1a24 - and the
-	# top/horizon pair is still deliberately above the ground pair rather than
-	# uniform, which is the whole point of the change. No sun disc was introduced.
 	_check(
-		sky_material.sky_top_color.is_equal_approx(Color("0a1420"))
-		and sky_material.sky_horizon_color.is_equal_approx(Color("0d1a24"))
-		and sky_material.ground_horizon_color.is_equal_approx(Color("070d13"))
-		and sky_material.ground_bottom_color.is_equal_approx(Color("03060a"))
-		and sky_material.sky_top_color.get_luminance() > sky_material.ground_bottom_color.get_luminance()
-		and sky_material.sky_horizon_color.get_luminance() < 0.1
-		and is_zero_approx(sky_material.sun_angle_max),
-		"procedural sky stays near-black but carries a hemispheric top-to-ground gradient with no synthetic sun disc"
+		sky_material.shader != null
+		and sky_material.shader.resource_path == "res://scripts/rendering/deep_space_sky.gdshader",
+		"deep-space sky is bound to its committed shader"
+	)
+	# Re-frozen from 0a1420 / 0d1a24 / 070d13 / 03060a. Same intent, new model:
+	# the sphere stays near-black - the brightest authored colour here is the
+	# 4a3928 galactic core, and it only appears multiplied by a band falloff and a
+	# dust mask - but it is no longer *uniformly* near-black, which is the whole
+	# point. These stay exact equalities: the sky is the ambient and reflection
+	# source for the entire station, so it is not a place for a tolerance band.
+	_check(
+		(sky_material.get_shader_parameter(&"zenith_color") as Color).is_equal_approx(Color("0b1018"))
+		and (sky_material.get_shader_parameter(&"nadir_color") as Color).is_equal_approx(Color("0c0c0e"))
+		and (sky_material.get_shader_parameter(&"band_color") as Color).is_equal_approx(Color("18202c"))
+		and (sky_material.get_shader_parameter(&"core_color") as Color).is_equal_approx(Color("4a3928"))
+		and (sky_material.get_shader_parameter(&"sun_color") as Color).is_equal_approx(Color("3c606f")),
+		"deep-space sky palette stays near-black while carrying a band, a warm core and a sun side"
 	)
 	_check(
-		sky_material.sky_cover != null
-		and sky_material.sky_cover.resource_path == "res://assets/keth-nebula.png"
-		and sky_material.sky_cover_modulate.is_equal_approx(Color(0.08, 0.08, 0.08, 1.0)),
+		(sky_material.get_shader_parameter(&"band_axis") as Vector3).is_equal_approx(Vector3(0.34, 0.88, -0.33))
+		and (sky_material.get_shader_parameter(&"core_axis") as Vector3).is_equal_approx(Vector3(-0.62, -0.12, -0.77))
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"band_width")), 0.42)
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"core_focus")), 7.0)
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"dust_scale")), 3.4),
+		"deep-space sky composition is frozen to its authored band, core and dust scale"
+	)
+	# The sun glow replaces the old "no synthetic sun disc" assertion, which was a
+	# statement about ProceduralSkyMaterial's disc feature. There is still no disc:
+	# what is here is a halo derived from the same rotation that aims the key
+	# light, so the bright quarter of the sky and the lit face of every surface
+	# cannot drift apart. That agreement is what this now freezes instead.
+	_check(
+		(sky_material.get_shader_parameter(&"sun_direction") as Vector3).is_equal_approx(
+			ShipyardWorld.sky_sun_direction()
+		)
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_focus")), 260.0)
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo")), 0.55),
+		"deep-space sky sun glow is aimed by the same constant as the station key light"
+	)
+	var key_light := world.get_node_or_null(^"SpaceKeyLight") as DirectionalLight3D
+	_check(
+		key_light != null
+		and key_light.rotation_degrees.is_equal_approx(ShipyardWorld.KEY_LIGHT_ROTATION_DEGREES)
+		and (-key_light.global_transform.basis.z).normalized().is_equal_approx(
+			-ShipyardWorld.sky_sun_direction()
+		),
+		"the live key light travels along the axis the sky's sun glow sits on"
+	)
+	_check(
+		(sky_material.get_shader_parameter(&"nebula_cover") as Texture2D) != null
+		and (sky_material.get_shader_parameter(&"nebula_cover") as Texture2D).resource_path == "res://assets/keth-nebula.png"
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"nebula_strength")), 0.08),
 		"project-original legacy nebula survives only as an exact faint cover"
 	)
 
@@ -326,8 +367,17 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 			and material.albedo_color.is_equal_approx(expected.color as Color)
 			and material.emission_enabled
 			and material.emission.is_equal_approx(expected.color as Color)
-			and is_equal_approx(material.emission_energy_multiplier, 0.32)
-			and is_equal_approx(material.roughness, 0.9)
+			# Re-frozen from 0.32 emission / 0.9 roughness. At 0.32 each body lit its
+			# own night side back in, so the four of them rendered as flat saturated
+			# discs with no terminator - the most toy-like objects in any wide frame,
+			# and untouched by every previous presentation pass because none of them
+			# reached a kilometre out. At 0.10 the emission is a floor under the
+			# night side rather than a fill, and a body reads as a sphere lit from
+			# the same direction as the station. Colour, radius, placement and the
+			# non-lighting/non-shadowing contract are all unchanged, and this stays
+			# an exact equality.
+			and is_equal_approx(material.emission_energy_multiplier, 0.1)
+			and is_equal_approx(material.roughness, 1.0)
 			and material.disable_receive_shadows
 			and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			and body.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
@@ -483,11 +533,11 @@ func _backdrop_identities(world: ShipyardWorld) -> PackedInt64Array:
 	return identities
 
 
-func _get_sky_material(world: ShipyardWorld) -> ProceduralSkyMaterial:
+func _get_sky_material(world: ShipyardWorld) -> ShaderMaterial:
 	var environment_node := world.get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
 	if environment_node == null or environment_node.environment == null or environment_node.environment.sky == null:
 		return null
-	return environment_node.environment.sky.sky_material as ProceduralSkyMaterial
+	return environment_node.environment.sky.sky_material as ShaderMaterial
 
 
 func _is_forbidden_authority(candidate: Node) -> bool:

@@ -45,6 +45,50 @@ const RENDERER_COMPATIBILITY := &"gl_compatibility"
 ## range this scene actually occupies moves them to roughly 0.11 and puts deck
 ## seams, edge lips and previously black service dressing back on screen.
 ##
+## The High grade is re-tuned by the global art pass. Exposure comes *down* from
+## 1.4 to 1.24 while the AgX white point narrows further from 9.0 to 6.6 and AgX
+## contrast rises from 1.30 to 1.52. This is the opposite trade to the previous
+## one and it is deliberate: the world scene now supplies more light than it did,
+## from a sky that carries a dust band and a sun halo, so the shortage that
+## exposure was compensating for is gone. What the frames had left was slope --
+## a 16.29-then-9.0 white point spends most of AgX's range on highlights this
+## scene never reaches, so everything real was crushed into a narrow, milky band
+## and blacks sat lifted around 0.04 in shots that are mostly empty vacuum. A
+## tighter white point puts the curve's steep section on the luminances the
+## station actually occupies. Measured across ten frames the trade holds: frame
+## mean falls on nine of them while the contrast of the lit structure holds or
+## rises on nine of them.
+##
+## `fog_aerial_perspective` rises from 0.12 to 0.55. The world scene's depth fog
+## is now strong enough to separate the far field, and at 0.12 that haze was one
+## flat slab of blue laid over everything regardless of where the camera looked.
+## Aerial perspective makes the haze take its colour from the sky in the view
+## direction, so structure fading out toward the sun side of the sky fades warm
+## and structure fading out away from it fades cold. That directional agreement
+## is a large part of why the cue reads as distance rather than as a filter.
+##
+## Volumetric fog rises from 0.0012 to 0.006 density with strongly forward-biased
+## anisotropy, and its length comes *down* from 96 m to 60 m. At 0.0012 it was on
+## but doing nothing visible. The station has eight freestanding work masts and
+## thirty-nine fixture practicals whose cones were previously only inferable from
+## the pool they left on the deck; at this density the cones themselves are in the
+## air, and the anisotropy is what lets that happen at a density low enough to
+## stay out of the way.
+##
+## The shortened length is the correction to an overshoot worth recording. Unlike
+## the world scene's depth fog, volumetric fog accumulates from the camera with no
+## near cutoff, so at 0.011 over 110 m it was veiling everything past about thirty
+## metres - the freight berth and the hero berth both came back as flat pale grey,
+## and the frames looked *worse* while the naive contrast statistic went up,
+## because a uniform haze laid over a dark frame adds variance. Capping the volume
+## at 60 m keeps the cones, which are all within a few metres of their fixtures,
+## and gives the far field back to the depth fog, which has a near cutoff and can
+## therefore be strong without touching the deck under the player.
+##
+## `volumetric_fog_sky_affect` drops to 0.02 in step so the haze does not creep
+## over the backdrop and grey out the stars, and `ambient_light_inject` stays low
+## so it renders as beams from real fixtures rather than as a uniform murk.
+##
 ## [code]ssao_light_affect[/code] defaults to 0.0, so ambient occlusion only
 ## modulates ambient -- and nearly every readable surface here is lit by the
 ## directional key or a spot mast. It is raised so contact darkening reaches
@@ -98,8 +142,11 @@ const _PROFILES := {
 		"fog_sun_scatter": 0.0,
 		"volumetric_fog_enabled": false,
 		"volumetric_fog_density": 0.0006,
+		"volumetric_fog_albedo": Color("9fb6bd"),
+		"volumetric_fog_anisotropy": 0.2,
 		"volumetric_fog_length": 72.0,
 		"volumetric_fog_sky_affect": 0.04,
+		"volumetric_fog_ambient_inject": 0.0,
 	},
 	QualityLevel.MEDIUM: {
 		"name": &"medium",
@@ -124,21 +171,24 @@ const _PROFILES := {
 		"glow_hdr_luminance_cap": 7.0,
 		"glow_levels": [0.0, 0.7, 0.5, 0.22, 0.0, 0.0, 0.0],
 		"tonemap_mode": Environment.TONE_MAPPER_FILMIC,
-		"tonemap_exposure": 1.15,
-		"tonemap_white": 2.6,
+		"tonemap_exposure": 1.08,
+		"tonemap_white": 2.2,
 		"tonemap_agx_white": 16.29,
 		"tonemap_agx_contrast": 1.25,
 		"adjustment_enabled": true,
 		"adjustment_brightness": 1.0,
-		"adjustment_contrast": 1.0,
-		"adjustment_saturation": 0.97,
+		"adjustment_contrast": 1.05,
+		"adjustment_saturation": 0.95,
 		"fog_enabled": true,
-		"fog_aerial_perspective": 0.06,
-		"fog_sun_scatter": 0.025,
+		"fog_aerial_perspective": 0.4,
+		"fog_sun_scatter": 0.08,
 		"volumetric_fog_enabled": false,
 		"volumetric_fog_density": 0.0008,
+		"volumetric_fog_albedo": Color("9fb6bd"),
+		"volumetric_fog_anisotropy": 0.2,
 		"volumetric_fog_length": 84.0,
 		"volumetric_fog_sky_affect": 0.05,
+		"volumetric_fog_ambient_inject": 0.0,
 	},
 	QualityLevel.HIGH: {
 		"name": &"high",
@@ -163,21 +213,24 @@ const _PROFILES := {
 		"glow_hdr_luminance_cap": 5.0,
 		"glow_levels": [0.0, 0.6, 0.6, 0.42, 0.15, 0.0, 0.0],
 		"tonemap_mode": Environment.TONE_MAPPER_AGX,
-		"tonemap_exposure": 1.4,
+		"tonemap_exposure": 1.24,
 		"tonemap_white": 4.0,
-		"tonemap_agx_white": 9.0,
-		"tonemap_agx_contrast": 1.3,
+		"tonemap_agx_white": 6.6,
+		"tonemap_agx_contrast": 1.52,
 		"adjustment_enabled": true,
 		"adjustment_brightness": 1.0,
-		"adjustment_contrast": 1.03,
-		"adjustment_saturation": 0.94,
+		"adjustment_contrast": 1.07,
+		"adjustment_saturation": 0.92,
 		"fog_enabled": true,
-		"fog_aerial_perspective": 0.12,
-		"fog_sun_scatter": 0.05,
+		"fog_aerial_perspective": 0.55,
+		"fog_sun_scatter": 0.14,
 		"volumetric_fog_enabled": true,
-		"volumetric_fog_density": 0.0012,
-		"volumetric_fog_length": 96.0,
-		"volumetric_fog_sky_affect": 0.06,
+		"volumetric_fog_density": 0.006,
+		"volumetric_fog_albedo": Color("9fb6bd"),
+		"volumetric_fog_anisotropy": 0.58,
+		"volumetric_fog_length": 60.0,
+		"volumetric_fog_sky_affect": 0.02,
+		"volumetric_fog_ambient_inject": 0.15,
 	},
 }
 
@@ -338,8 +391,11 @@ static func apply_profile(
 	if bool(capabilities["volumetric_fog"]):
 		environment.volumetric_fog_enabled = bool(profile["volumetric_fog_enabled"])
 		environment.volumetric_fog_density = float(profile["volumetric_fog_density"])
+		environment.volumetric_fog_albedo = profile["volumetric_fog_albedo"] as Color
+		environment.volumetric_fog_anisotropy = float(profile["volumetric_fog_anisotropy"])
 		environment.volumetric_fog_length = float(profile["volumetric_fog_length"])
 		environment.volumetric_fog_sky_affect = float(profile["volumetric_fog_sky_affect"])
+		environment.volumetric_fog_ambient_inject = float(profile["volumetric_fog_ambient_inject"])
 		environment.volumetric_fog_temporal_reprojection_enabled = quality == QualityLevel.HIGH
 		environment.volumetric_fog_temporal_reprojection_amount = 0.9
 		applied.append("volumetric_fog")
