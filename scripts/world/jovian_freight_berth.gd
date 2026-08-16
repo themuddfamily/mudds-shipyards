@@ -26,6 +26,12 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const PANEL_SURFACE_SCALE := 0.30
 const WALKED_PANEL_SURFACE_SCALE := 0.22
 
+## Distance fade applied to every light this module builds. Measured, not chosen:
+## a fade ending inside the module switched the whole practical pass off in every
+## rendered framing of it.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+
 const DECK_ELEVATION := 0.0
 const CONNECTION_CLEAR_WIDTH := 5.8
 const SERVICE_DOOR_CLEAR_WIDTH := 3.1
@@ -502,7 +508,14 @@ func get_performance_contract() -> Dictionary:
 		"static_bodies": 220,
 		"collision_shapes": 220,
 		"labels": 30,
-		"lights": 24,
+		# Light ceiling re-frozen in the open, 24 -> 26. The module built 21 against
+		# that 24 and now builds 26: a wash behind each of the four Label3D legends
+		# and one warm desk lamp in the control room. Label3D is unlit type on a
+		# transparent quad, so those four signs could not light anything at all
+		# regardless of modulate; the desk lamp is the control room's second colour
+		# temperature. All shadowless, sub-5.5 m range, distance-faded. Frame cost
+		# is unmeasured: this box renders through llvmpipe.
+		"lights": 26,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -885,10 +898,39 @@ func _build_lighting_and_signage() -> void:
 	room_fill.shadow_enabled = false
 	presentation.add_child(room_fill)
 
+	# The control room's single fill is the same cyan as everything else in it, so
+	# the room was one hue. This is a low sodium-temperature desk lamp under the
+	# fill: it lands on the console run and the floor, leaves the cool fill
+	# dominant overhead, and gives the enclosed volume the two colour temperatures
+	# a working room actually has. It is deliberately below the fill in energy —
+	# the station stays cool, the warmth is the local, human-scale layer.
+	var control_desk_lamp := OmniLight3D.new()
+	control_desk_lamp.name = "FreightControlDeskLamp"
+	control_desk_lamp.position = Vector3(18.4, 1.35, 29.6)
+	control_desk_lamp.light_color = Color("f6c286")
+	control_desk_lamp.light_energy = 0.62
+	control_desk_lamp.omni_range = 5.0
+	control_desk_lamp.omni_attenuation = 2.0
+	control_desk_lamp.shadow_enabled = false
+	control_desk_lamp.distance_fade_enabled = true
+	control_desk_lamp.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	control_desk_lamp.distance_fade_length = PRACTICAL_FADE_LENGTH
+	control_desk_lamp.set_meta("fixture_practical", true)
+	presentation.add_child(control_desk_lamp)
+
+	# Each legend gets the wash its own colour implies. The two amber deck legends
+	# are the module's warm cues and now put warm light on the apron plate they
+	# are painted on; the two cyan legends wash the structures they are mounted to.
+	# Nothing about the legend colours themselves moves — the cue palette and its
+	# amber/cyan separation are unchanged, only whether the cue lights anything.
 	_label(presentation, "MUDDS FREIGHT NODE  //  JOVIAN", Vector3(0, 4.6, 7.9), 0.62, Color("bffff6"), Vector3(0, 180, 0))
+	_sign_practical(presentation, "FreightNodeSignWash", Vector3(0.0, 4.3, 8.35), Color("8fe6dd"), 0.5, 5.0)
 	_label(presentation, "BERTH F-01", Vector3(0, 0.14, 9.8), 0.46, Color("ffb45b"), Vector3(-90, 0, 0))
+	_sign_practical(presentation, "BerthLegendWash", Vector3(0.0, 0.55, 9.8), Color("f7b866"), 0.44, 4.4)
 	_label(presentation, "FREIGHT CONTROL", Vector3(15.38, 3.95, 29.0), 0.42, Color("8df2ed"), Vector3(0, -90, 0))
+	_sign_practical(presentation, "ControlSignWash", Vector3(14.95, 3.7, 29.0), Color("8df2ed"), 0.4, 3.6)
 	_label(presentation, "KEEP TRANSFER LANE CLEAR", Vector3(12.7, 0.13, 29.0), 0.3, Color("ffb45b"), Vector3(-90, 0, 90))
+	_sign_practical(presentation, "TransferLaneWash", Vector3(12.7, 0.5, 29.0), Color("f7b866"), 0.36, 3.8)
 
 
 func _style_service_access() -> void:
@@ -1175,7 +1217,51 @@ func _guide_light(parent: Node3D, position_value: Vector3, color: Color, energy:
 	light.light_energy = energy
 	light.omni_range = range_value
 	light.shadow_enabled = false
+	# Distance fade only. An attenuation curve was tried here and reverted: raising
+	# it to 1.55 steepened the falloff on all eighteen existing apron guide lights
+	# at once and measured as a real loss — `05_jovian_freight_operations` lost
+	# 0.25 of structural sigma, which is most of what this module gained elsewhere.
+	# The pools these lay on the apron are the module's best-lit feature and their
+	# authored falloff stays exactly as it was.
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	parent.add_child(light, true)
+
+
+## A sign's spill, as an actual light.
+##
+## The freight legends are Label3D, which is unlit type on a transparent quad: it
+## is the purest case of the defect this pass addresses, because a Label3D
+## cannot illuminate anything at all no matter what modulate it carries. These
+## small omnis give each legend a wash on the plate behind it, tinted to the
+## legend's own colour, so a lit sign reads as a lit sign rather than as decal
+## text floating in front of dark steel. Shadowless, steeply attenuated, and
+## faded out past the station so the whole-lattice overview pays for none of
+## them. The fade distance is measured, not chosen: at the 22 m it was first
+## given, these were off in every rendered framing of this module.
+func _sign_practical(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		color: Color,
+		energy: float,
+		range_value: float
+	) -> OmniLight3D:
+	var light := OmniLight3D.new()
+	light.name = node_name
+	light.position = position_value
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = range_value
+	light.omni_attenuation = 2.1
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
+	light.set_meta("fixture_practical", true)
+	parent.add_child(light, true)
+	return light
 
 
 func _label(parent: Node3D, text: String, position_value: Vector3, physical_height: float, color: Color, rotation_value: Vector3 = Vector3.ZERO) -> Label3D:

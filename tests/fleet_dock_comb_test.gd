@@ -160,12 +160,37 @@ func _test_chamfered_meshes_do_not_move_collision(module: FleetDockComb) -> void
 	)
 
 
+## Re-frozen in the open: light count 0 -> 4, everything else unchanged.
+##
+## The comb was the only station module carrying no light at all, so its status
+## stripes, corner beacons, rung edge cues and trunk route lights rendered as
+## flat painted decals on unlit plate — emission does not illuminate anything in
+## Forward+, and the glow pass only convolves the finished image. The four are
+## one amber practical over each of the three dock slabs and one over the trunk's
+## middle route light. The equality stays exact rather than becoming a ceiling,
+## and the properties that made this module cheap are asserted separately below:
+## every light must be shadowless and range-bounded, and both loop budgets stay
+## at zero.
 func _test_performance_contract(module: FleetDockComb) -> void:
 	var performance := module.get_performance_contract()
 	_check(bool(performance.within_budget), "module stays within every fixed geometry and processing budget")
 	_check(int(performance.static_bodies) == 7 and int(performance.collision_shapes) == 7, "performance report agrees with the exact collision roster")
-	_check(int(performance.labels) == 3 and int(performance.lights) == 0, "presentation contains exactly three labels and no light nodes")
+	_check(int(performance.labels) == 3 and int(performance.lights) == 4, "presentation contains exactly three labels and four practical light nodes")
 	_check(int(performance.process_loops) == 0, "static module allocates no frame or physics process loop")
+	var practicals_are_restrained := true
+	var lights := module.find_children("*", "Light3D", true, false)
+	for raw_light in lights:
+		var light := raw_light as OmniLight3D
+		practicals_are_restrained = practicals_are_restrained \
+			and light != null \
+			and not light.shadow_enabled \
+			and light.distance_fade_enabled \
+			and light.omni_range <= 8.0 \
+			and bool(light.get_meta("fixture_practical", false))
+	_check(
+		lights.size() == 4 and practicals_are_restrained,
+		"every comb light is a shadowless, range-bounded, distance-faded fixture practical"
+	)
 
 
 func _test_reversible_lifecycle(module: FleetDockComb) -> void:

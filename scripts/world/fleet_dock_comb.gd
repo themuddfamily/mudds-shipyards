@@ -44,7 +44,23 @@ const MESH_INSTANCE_BUDGET := 64
 const STATIC_BODY_BUDGET := COLLISION_BODY_COUNT
 const COLLISION_SHAPE_BUDGET := COLLISION_SHAPE_COUNT
 const LABEL_BUDGET := DOCK_MARKER_COUNT
-const LIGHT_BUDGET := 0
+# Re-frozen in the open, 0 -> 4. The comb was the only station module with no
+# light of any kind, and it showed: three dock slabs carrying stripes, corner
+# beacons and edge cues that every one of them rendered as a flat painted decal
+# on unlit plate, because `emission` illuminates nothing in Forward+ and the glow
+# pass only convolves the finished image. The four additions are one amber
+# practical per slab, sited over the four corner beacons it shares, plus one over
+# the trunk's middle route light. They are shadowless, range-bounded, faded out
+# at 26 m, and none of them is a process or physics loop — the "static geometry,
+# no frame cost" half of this module's policy is unchanged, and the two loop
+# budgets stay at zero. Frame cost is unmeasured: this box renders through
+# llvmpipe and any number produced here would be meaningless.
+const LIGHT_BUDGET := 4
+
+## Distance fade applied to every comb practical. Measured, not chosen — see
+## `_dock_practical`.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
 
 const SURFACE_IDS := [
 	"trunk",
@@ -653,6 +669,11 @@ func _build_surface_detail() -> void:
 		_visual_box(detail, "TrunkExpansionJoint", Vector3(0, 0.018, float(z_position)), Vector3(4.25, 0.035, 0.06), _materials["grip"])
 	for z_position in [5.0, 20.0, 35.0]:
 		_visual_box(detail, "TrunkRouteLight", Vector3(0, 0.045, float(z_position)), Vector3(0.22, 0.05, 1.25), _materials["cyan"])
+	# One of the three trunk route lights actually lights the trunk. Three would
+	# be three copies of the same 4 m pool down a 2 m wide walkway; the middle one
+	# alone puts a gradient along the trunk that reads as a lit route rather than
+	# three glowing tiles on dark plate.
+	_dock_practical(detail, "TrunkRouteSpill", Vector3(0, 0.32, 20.0), Color("7fe0e4"), 0.5, 4.6)
 
 	var slab_specs := [
 		[Vector3(15.0, 0.02, 8.5), 0.0],
@@ -674,6 +695,20 @@ func _build_surface_detail() -> void:
 				Vector3(0.48, 0.12, 0.48),
 				_materials["amber"]
 			)
+		# One practical per slab, over the slab centre, carrying the amber of the
+		# four corner beacons it stands between. Amber for all three rather than
+		# each slab's own status colour: the beacons are the constant element, and
+		# tinting a whole berth deck with the deferred red would read as an alarm
+		# rather than as a dock that is not yet in service. The status stripes keep
+		# their exact authored colours and their cyan/red separation.
+		_dock_practical(
+			detail,
+			"SlabBeaconSpill%02d" % (index + 1),
+			Vector3(15.0, elevation + 0.55, top_center.z),
+			Color("f6b568"),
+			0.6,
+			7.2
+		)
 
 	# Narrow edge cues belong only to the true walkable rungs. They never bridge
 	# either of the large gaps between slabs.
@@ -817,6 +852,41 @@ func _beam_between(parent: Node3D, node_name: String, from: Vector3, to: Vector3
 	result.set_meta("visual_detail_only", true)
 	parent.add_child(result)
 	return result
+
+
+## A deck cue's spill, as an actual light.
+##
+## The comb's cues — status stripes, corner beacons, rung edge cues, trunk route
+## lights — are emissive meshes lying flat on plate, and an emissive mesh
+## illuminates nothing: `emission` is a local surface term and the glow pass
+## convolves the finished image, so raising it only blooms the cue and leaves the
+## deck under it at structure value. That is exactly the "glowing decal" reading.
+## These are the smallest lights that fix it: shadowless, sub-8 m range, steep
+## falloff, faded out at 26 m so the comb seen from across the lattice pays for
+## none of them, and no process or physics loop is introduced.
+func _dock_practical(
+		parent: Node3D,
+		node_name: String,
+		light_position: Vector3,
+		color: Color,
+		energy: float,
+		range_value: float
+	) -> OmniLight3D:
+	var light := OmniLight3D.new()
+	light.name = node_name
+	light.position = light_position
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = range_value
+	light.omni_attenuation = 2.0
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
+	light.set_meta("fixture_practical", true)
+	light.set_meta("visual_detail_only", true)
+	parent.add_child(light)
+	return light
 
 
 func _material(

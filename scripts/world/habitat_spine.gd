@@ -21,6 +21,11 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 ## space per texture repeat. Frozen.
 const PANEL_SURFACE_SCALE := 0.28
 
+## Distance fade applied to every fixture practical in this module. Measured, not
+## chosen — see `_fixture_practical`.
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+
 const FLOOR_ELEVATION := 0.0
 const CONNECTOR_CLEAR_WIDTH := 4.45
 const DOOR_CLEAR_WIDTH := 3.1
@@ -409,7 +414,14 @@ func get_performance_contract() -> Dictionary:
 		"static_bodies": 180,
 		"collision_shapes": 220,
 		"labels": 25,
-		"lights": 12,
+		# Light ceiling re-frozen in the open, 12 -> 15. The module built 6 lights
+		# against that 12 and now builds 15: one warm practical inside each of the
+		# six bunk alcoves, one cool one over the common-room table display, and a
+		# wash behind each of the two room legends. All shadowless, sub-3 m range
+		# except the table's 2.4 m, and distance-faded out at 16 m. The ceiling is
+		# set at the exact built count rather than left with headroom. Frame cost
+		# is unmeasured: this box renders through llvmpipe.
+		"lights": 15,
 		"process_loops": 1,
 		"physics_process_loops": 1,
 	})
@@ -517,8 +529,18 @@ func _create_materials() -> void:
 	_materials["copper"] = _material(Color("9b6848"), 0.76, 0.28)
 	_materials["fabric"] = _material(Color("2f5960"), 0.03, 0.91)
 	_materials["fabric_dark"] = _material(Color("21363c"), 0.02, 0.95)
-	_materials["screen"] = _material(Color("b4efec"), 0.08, 0.24, Color("51cdd2"), 1.35)
-	_materials["warm_light"] = _material(Color("f4ede0"), 0.02, 0.2, Color("ffe6bd"), 2.3)
+	# Emission 1.35 -> 1.05. Measured off `habitat_common_room.png`: the common
+	# table display rendered as a solid 255 white rectangle on a table that
+	# received nothing from it — the single clearest instance of the bimodal frame
+	# in the project. Its practical (`TableDisplayGlow`) now carries the table, so
+	# the panel itself no longer has to be clipped white to read as on.
+	_materials["screen"] = _material(Color("b4efec"), 0.08, 0.24, Color("51cdd2"), 1.05)
+	# Emission 2.3 -> 1.7. This lens was the brightest thing in the habitat and it
+	# was lighting nothing: at 2.3 it clips past the AgX shoulder, blooms, and the
+	# ceiling plate it is recessed into still sat at structure value. The energy
+	# taken out here goes into the pool lights below, which is the trade that
+	# turns a bloomed strip into a luminaire.
+	_materials["warm_light"] = _material(Color("f4ede0"), 0.02, 0.2, Color("ffe6bd"), 1.7)
 	_materials["glass"] = _transparent_material(Color(0.33, 0.67, 0.73, 0.2), 0.06, 0.12)
 	# One call per key into the published kit recipe rather than an inline copy of
 	# it, so this module cannot drift from the shared `normal_scale = 1.0` that
@@ -584,6 +606,10 @@ func _build_connector(structure: Node3D) -> void:
 	# `Vector3.ZERO`, so it read backwards to anyone walking in from the station.
 	# `OBSERVATION COMMON` in the same module already yaws 180 for its reader.
 	_text_sign(connector, "HABITAT SPINE  //  FIXED-ERA-INSPIRED", Vector3(4.0, 3.85, 0.43), Vector3(0, 180, 0), 0.22, _materials["amber"])
+	# Warm wash on the connector legend, matching its amber type. This is the
+	# first habitat fixture a player walking in from the station sees, and it is
+	# where the module's warmer colour temperature announces itself.
+	_fixture_practical(connector, "ConnectorSignWash", Vector3(4.0, 3.6, 0.78), Color("f3c076"), 0.34, 3.0)
 
 
 func _build_habitat_corridor(structure: Node3D) -> void:
@@ -626,10 +652,18 @@ func _build_habitat_corridor(structure: Node3D) -> void:
 		_arch_across_x(habitat, "HabitatPressureRib%02d" % rib_index, rib_z, -6.35, 6.35, 4.65, 5.55, 0.12, _materials["shell_light"])
 		for side in [-1.0, 1.0]:
 			_cylinder(habitat, "RibFoot", Vector3(float(side) * 6.37, 2.25, rib_z), 0.14, 4.5, _materials["structural"], false)
+	# The cove strips are `warm_light` — an authored #ffe6bd lens — but the pools
+	# beneath them were #e5eee9, a cool near-white. The fixture looked like one
+	# kind of lamp and cast another, which is a specific "not real" cue: a viewer
+	# does not need to name it to feel the room is tinted rather than lit. The
+	# pool now carries the lens colour, so the corridor is warm because its own
+	# fixtures are warm. This is the habitat's hue separation from the station and
+	# it costs no lights: #e5eee9 -> #ffdfb0, energy 0.44 -> 0.6 to cover the
+	# emission taken out of the lens.
 	for cove_x in [-2.0, 2.0]:
 		_beam_between(habitat, "CorridorCoveLight", Vector3(float(cove_x), 4.35, 2.7), Vector3(float(cove_x), 4.35, 17.6), 0.055, _materials["warm_light"], false)
 	for light_z in [4.4, 9.9, 15.4]:
-		_omni_light(habitat, "CorridorPoolLight", Vector3(0, 3.8, float(light_z)), Color("e5eee9"), 0.44, 5.4)
+		_omni_light(habitat, "CorridorPoolLight", Vector3(0, 3.8, float(light_z)), Color("ffdfb0"), 0.6, 5.4)
 
 	for index in BUNK_ALCOVE_COUNT:
 		_build_bunk_alcove(habitat, index, _get_bunk_local_center(index))
@@ -652,6 +686,21 @@ func _build_bunk_alcove(parent: Node3D, index: int, center: Vector3) -> void:
 	_box(bunk, "Pillow", Vector3(outer_x - float(side) * 0.08, 0.88, 0.88), Vector3(1.0, 0.16, 0.52), _materials["fabric_dark"], false, Vector3(0, 0, float(side) * 3.0))
 	_box(bunk, "HeadServiceUnit", Vector3(outer_x, 1.42, 1.42), Vector3(1.7, 1.65, 0.22), _materials["shell_light"], true)
 	_box(bunk, "ReadingLight", Vector3(outer_x - float(side) * 0.1, 1.85, 1.29), Vector3(0.55, 0.1, 0.06), _materials["amber"], false)
+	# Six alcoves, each with an amber reading lamp that lit nothing — six warm
+	# stickers on a cool wall. A reading lamp is the most obviously *personal*
+	# fixture on the station, and giving each one a genuine 1.7 m pool turns the
+	# corridor from a uniformly lit tube into a row of warm pockets with cool
+	# structure between them. That rhythm is worth more to the corridor than any
+	# further lift of its overall level, and it is a small light: 1.7 m range,
+	# steep falloff, faded out well inside the module.
+	_fixture_practical(
+		bunk,
+		"ReadingLightSpill",
+		Vector3(outer_x - float(side) * 0.16, 1.7, 1.12),
+		Color("ffc98a"),
+		0.5,
+		1.7
+	)
 	_box(bunk, "BunkIdentifier", Vector3(-float(side) * 0.7, 1.95, 1.42), Vector3(0.38, 0.16, 0.045), _materials["teal"], false)
 	for arch_z in [-1.25, 1.25]:
 		_arch_across_x(
@@ -724,11 +773,30 @@ func _build_observation_common(structure: Node3D) -> void:
 			0.13,
 			_materials["shell_light"]
 		)
+	# Same correction as the corridor: a warm #ffe6bd lens over a cool #e6f2ec
+	# pool. The common room is the module a crew lives in, and warm overheads are
+	# both what such a room actually has and the single strongest thing available
+	# for breaking the station's monochrome. It also reads from outside — this is
+	# the only glazed volume on the station, and warm light through those panes
+	# against the cool lattice is what makes the habitat look inhabited in the wide
+	# shots. #e6f2ec -> #ffe0b4, energy 0.56 -> 0.76.
 	for light_x in [-4.7, 0.0, 4.7]:
 		_box(common, "CeilingLightBody", Vector3(float(light_x), 4.58, 23.0), Vector3(2.8, 0.12, 0.52), _materials["graphite"], false)
 		_box(common, "CeilingLightLens", Vector3(float(light_x), 4.5, 23.0), Vector3(2.35, 0.035, 0.25), _materials["warm_light"], false)
-		_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, 23.2), Color("e6f2ec"), 0.56, 5.6)
+		_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, 23.2), Color("ffe0b4"), 0.76, 5.6)
+	# The table display was a lit rectangle lying on an unlit table. Its practical
+	# is cool: it is the room's cool counterpoint against the warm overheads, and
+	# it puts a gradient on the chair backs and the copper table edge so the
+	# seating group reads as a group. Sited 0.8 m above the panel rather than the
+	# 0.19 m it was first given — that close, a 0.34 omni made a blown specular
+	# hotspot on the deck past the table edge and put the frame's near-blown
+	# fraction up 0.43 points, which is the same defect this pass exists to remove.
+	# Higher and weaker lights the table and stops there.
+	_fixture_practical(common, "TableDisplayGlow", Vector3(0.0, 2.15, 21.45), Color("8fe6ea"), 0.26, 3.0)
 	_text_sign(common, "OBSERVATION COMMON  //  MODERN INTERPRETATION", Vector3(-3.8, 3.95, 18.16), Vector3(0, 180, 0), 0.2, _materials["teal"])
+	# Wash behind the room legend, so the bulkhead it hangs on carries the sign's
+	# own colour rather than the sign floating on flat plate.
+	_fixture_practical(common, "CommonSignWash", Vector3(-3.8, 3.7, 18.5), Color("7fd8dc"), 0.3, 2.6)
 
 
 func _build_side_window_wall(parent: Node3D, side: float, pane_centers: Array) -> void:
@@ -1084,6 +1152,31 @@ func _omni_light(
 	light.distance_fade_length = 12.0
 	light.set_meta("localized_practical_light", true)
 	parent.add_child(light)
+	return light
+
+
+## A luminaire's spill, as an actual light. See the long note on the identical
+## helper in `aft_junction_stack.gd`: `emission` is a local surface term and glow
+## is a screen-space convolution of the finished image, so no amount of emission
+## makes a fixture light the plate it is bolted to. Only a Light3D does. These
+## are small, shadowless and steeply attenuated, and each carries its own
+## fixture's hue so the spill identifies the source. The fade distance is
+## measured — at the 16 m/8 m it was first given, every one of these was off in
+## every framing except the two room interiors and the pass measured as a net
+## loss on structural sigma.
+func _fixture_practical(
+		parent: Node3D,
+		node_name: String,
+		light_position: Vector3,
+		color: Color,
+		energy: float,
+		range_value: float
+	) -> OmniLight3D:
+	var light := _omni_light(parent, node_name, light_position, color, energy, range_value)
+	light.omni_attenuation = 2.1
+	light.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	light.distance_fade_length = PRACTICAL_FADE_LENGTH
+	light.set_meta("fixture_practical", true)
 	return light
 
 
