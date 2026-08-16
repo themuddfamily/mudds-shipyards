@@ -210,23 +210,50 @@ physics and geometry probes, `xvfb-run -a -s "-screen 0 1920x1080x24" ...
   Plus `_test_no_station_collision_without_visible_geometry` above, which is the
   permanent guard for the invisible-barrier half and is the exact inverse of the
   visible-surface-needs-collision check that already existed.
-- **Recorded, not fixed — the berth cue plates.** The one piece of geometry beside
-  the Zenith that still hangs in the air is its own berth cue: the four
-  `ZenithFleetDockBerth/BerthFeedback/FeedbackVisual` boundary strips plus
-  `GlyphSecuredBar`, `LeaseStatePlate` and the two status plates all have their
+- **The berth cue plates — recorded here, now CLOSED (fixed 2026-08-16).** The one
+  piece of geometry beside the Zenith that still hung in the air was its own berth
+  cue: the four `ZenithFleetDockBerth/BerthFeedback/FeedbackVisual` boundary strips
+  plus `GlyphSecuredBar`, `LeaseStatePlate` and the two status plates all had their
   underside at `y = 4.380` over a dock slab whose top is `y = 4.200` and whose
-  inset is `y = 4.240` — a **0.180 m hover**, touching nothing. Measured across
-  the fleet the hover is 0.235 m at the central berth, 0.210 m at the Jovian and
-  0.380 m at the Arrow; the difference at the Zenith is that the other three
-  berths have a raised ring at roughly cue height for the cue to read against and
-  the Zenith has none, so there the plates read as loose blocks. The cause is
-  `ShipBerthFeedback.RENDER_MIN_Y = 0.14` plus the per-berth `local_transform` in
-  `SHIP_BERTH_FEEDBACK_SPECS`, a frozen cross-berth contract duplicated in
-  `tests/ship_berth_feedback_world_test.gd` and framed by
-  `tests/capture_berth_feedback.gd`. This pass deliberately did not move it: the
-  task scope protects berth transforms and the capture harness was out of bounds
-  for edits. **Recommended next pass:** seat all four berth cues on the deck they
-  mark, re-freezing `local_transform` per berth in the open.
+  inset is `y = 4.240`. The cause was `ShipBerthFeedback.RENDER_MIN_Y = 0.14` plus
+  the per-berth `local_transform` in `SHIP_BERTH_FEEDBACK_SPECS`, a frozen
+  cross-berth contract duplicated in `tests/ship_berth_feedback_world_test.gd` and
+  framed by `tests/capture_berth_feedback.gd`.
+  - **Re-measured before fixing, and one number in this record was wrong.** The
+    original sweep rayed World *collision*, which at the central berth reports the
+    box under the authored Blender shell rather than the shell — 0.350, not the
+    0.235 recorded. Measured against **drawn triangles** under each plate's own
+    footprint, the hovers were Zenith **0.140** (against the 4.240 grip inset that
+    is under 83.8% of that cue, not the 4.200 slab), Jovian **0.210**, central
+    **0.235**, Arrow **0.380**. The Zenith still reads worst despite the smallest
+    number, for the reason recorded here: the other three berths carry a pad or
+    dock ring whose top stands at roughly cue height, so the eye has something for
+    the plate to belong to, and Dock 01 has none.
+  - Fixed by seating all four cues on the deck they mark, re-freezing
+    `local_transform` per berth in the open with the reason at
+    `ShipyardWorld.BERTH_CUE_SEAT_HEIGHT`: central `-0.960 -> -1.185`, Arrow
+    `-0.930 -> -1.300`, Jovian `-1.180 -> -1.380`, Zenith `-1.040 -> -1.170`. Each
+    is its own measured hover less a 0.010 m contact bias, so every cue underside
+    now sits 0.010 m over its deck. Raised deck dressing — pad rings, grip strips,
+    centrelines — now crosses *over* the cue instead of under it, which is what a
+    painted deck marking running past a raised rib looks like.
+  - **Not changed, deliberately:** `RENDER_MIN_Y`/`RENDER_MAX_Y`, the plate sizes,
+    the `MESH_COUNT`/`MATERIAL_COUNT` budget, the colourblind-safe lightness ladder
+    and the non-colour shape channel. Those are frozen for accessibility and owned
+    elsewhere; this changed how high the plate sits, not what it looks like.
+  - Regression (`tests/station_presentation_defect_witness_test.gd`
+    `_test_berth_cues_are_seated_on_the_deck_they_mark`): neither existing helper
+    in that file can answer this class, and the header records why. `_drop_below`
+    rays collision and is wrong by 0.115 at the central berth;
+    `_test_structural_pieces_rest_on_drawn_geometry` intersects bounding boxes, and
+    three of the four berth rings are **tori** whose box covers their own hole, so
+    every plate "intersects" a ring it is nowhere near and all four berths pass at
+    any hover. The new check rays drawn triangles, and carries a structured red
+    that lifts the Zenith cue 0.10 m — below the smallest hover ever reported here,
+    so the guard bites before the defect is as bad as the one that was filed.
+    Worst measured seat is now 0.051 at the Zenith, where two boundary strips bear
+    on the grip inset and overhang its 0.040 m edge; rendered and confirmed at
+    `artifacts/berth_feedback/`.
 
 ---
 

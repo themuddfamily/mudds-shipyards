@@ -30,6 +30,46 @@ const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"amber",
 	&"secured",
 ]
+## Contact bias between a seated berth cue plate and the deck it marks.
+##
+## The four berth cues hovered over their decks — the player's own reported
+## category, "random objects floating in the air". Measured by raying down onto
+## **drawn triangles**, per plate, over the whole cue rectangle, because the two
+## cheap answers both lie here: the berth rings are tori whose bounding box covers
+## their own hole, and the central berth's drawn deck is an authored Blender shell
+## sitting 0.115 m above the collision box under it, so a World-layer ray reports
+## the wrong surface by exactly that much.
+##
+## Measured before, and the deck each cue actually reads against:
+##
+##   berth      plate underside   deck under the cue                    hover
+##   Zenith            4.380      SlabInset01        4.240 (83.8%)      0.140
+##   Jovian            0.590      ApronDeck01-04     0.380 (57.7%)      0.210
+##   central           0.330      authored shell     0.095 (73.5%)      0.235
+##   Arrow             0.360      PortBerthNode     -0.020 (83.2%)      0.380
+##
+## The Zenith reads worst despite the smallest number, and that is the whole
+## reason this was reported there: the other three berths carry a raised pad or
+## dock ring whose top happens to stand at roughly cue height, so the eye has
+## something at that height for the plate to belong to. Dock 01 has no ring, so
+## there the plates read as loose blocks over a bare slab.
+##
+## What changed is only how high the cue sits. `RENDER_MIN_Y`/`RENDER_MAX_Y`, the
+## plate sizes, the four-material budget, the colourblind-safe lightness ladder
+## and the non-colour shape channel are untouched — those are frozen for
+## accessibility and are owned elsewhere. Each berth's `local_transform` drops by
+## its own measured hover less this bias, so every cue's underside now sits
+## exactly this far above the drawn deck:
+##
+##   central  -0.960 -> -1.185   Arrow  -0.930 -> -1.300
+##   Jovian   -1.180 -> -1.380   Zenith -1.040 -> -1.170
+##
+## 0.010 m rather than 0: coincident faces z-fight, and this is the same seat the
+## thirteen floating structural pieces took in the 2026-08-16 pass. Deck dressing
+## that stands proud of the deck — pad rings, grip strips, centrelines — now
+## crosses over the cue instead of under it, which is what a painted deck marking
+## running past a raised rib actually looks like.
+const BERTH_CUE_SEAT_HEIGHT := 0.010
 const SHIP_BERTH_FEEDBACK_SPECS := {
 	CENTRAL_BERTH_ID: {
 		"berth_path": NodePath("CentralBerth"),
@@ -42,7 +82,8 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["small_craft"],
 		"feedback_path": NodePath("CentralBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -0.96, 0.0)),
+		# Re-frozen -0.96 -> -1.185. See BERTH_CUE_SEAT_HEIGHT.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.185, 0.0)),
 		"cue_half_width": 8.2,
 		"cue_half_length": 12.5,
 	},
@@ -63,7 +104,8 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		# small-craft tag here would falsely admit the wider Torrent interceptor.
 		"compatibility_tags": ["recon"],
 		"feedback_path": NodePath("ArrowReconBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -0.93, 0.0)),
+		# Re-frozen -0.93 -> -1.30. See BERTH_CUE_SEAT_HEIGHT.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.30, 0.0)),
 		"cue_half_width": 6.3,
 		"cue_half_length": 7.2,
 	},
@@ -88,7 +130,8 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 			"freight",
 		],
 		"feedback_path": NodePath("JovianFreightShipBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.18, 0.0)),
+		# Re-frozen -1.18 -> -1.38. See BERTH_CUE_SEAT_HEIGHT.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.38, 0.0)),
 		"cue_half_width": 11.6,
 		"cue_half_length": 16.5,
 	},
@@ -106,7 +149,8 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["zenith_b7"],
 		"feedback_path": NodePath("ZenithFleetDockBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.04, 0.0)),
+		# Re-frozen -1.04 -> -1.17. See BERTH_CUE_SEAT_HEIGHT.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.17, 0.0)),
 		"cue_half_width": 5.0,
 		"cue_half_length": 4.8,
 	},
@@ -374,6 +418,48 @@ const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 ## as a painted wall rather than as the place the light is coming from.
 const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
 
+## Outbound flight clearance under the exterior range gate.
+##
+## The range's own header beam spans the full 63 m of the gate at y = 8.5 .. 9.5,
+## z = -120.5 .. -119.5, and a review flight flew into it at 46 m/s. The beam is
+## not the defect and does not move — the layout is confirmed correct — but two
+## things about it were: the station's published outbound aim, the `LaunchGate`
+## marker, sat at y = 8.0, which is *inside* the band the beam blocks; and the
+## beam itself carried no lamp, no marking and no clearance legend over its whole
+## span, so it did not read as an obstacle until it filled the canopy.
+##
+## Measured against the real production hulls with the production World layer, as
+## a ship-origin altitude on the launch centreline (`tests/outbound_route_clearance_test.gd`
+## re-measures all of this from the live tree rather than trusting these numbers):
+##
+##   craft    hull (m)              clear under the gate   blocked band
+##   Torrent   7.20 x 4.50 x  9.00  y <= 4.70              4.80 .. 10.20
+##   Arrow    11.10 x 1.65 x 12.20  y <= 6.80              6.90 ..  9.50
+##   Jovian   18.53 x 5.94 x 26.15  y <= 3.80              3.90 .. 10.70
+##   Zenith   14.42 x 4.28 x 10.45  y <= 5.20              5.30 .. 10.50
+##
+## The aperture is uniform across the whole span: every sampled x from -35 to +35
+## gives a Torrent the same 4.70 m ceiling, so there is no lateral way around it
+## inside the gate. Over the top is not a usable route either — it needs y >= 10.3
+## for a Torrent and y >= 10.8 for a Jovian, an 8 m climb inside the 56 m between
+## the launch gate and the beam, and the beacon chain descends from there anyway
+## (RouteBeaconAlpha is at y = -9). **Under is the only line the whole fleet can
+## fly**, which is also the line the Cinder Reach beacon chain was already drawn
+## for.
+##
+## `OUTBOUND_CLEARANCE_CEILING` is the fleet-worst ceiling: the Jovian's, because
+## it is the deepest hull. `OUTBOUND_CLEARANCE_FLOOR` is the same craft's clearance
+## over the launch arm deck at z = -64. The launch gate is aimed at the centre of
+## that band, so the largest craft in the fleet leaves the station with the same
+## margin under the beam as it has over its own deck.
+const OUTBOUND_CLEARANCE_CEILING := 3.80
+const OUTBOUND_CLEARANCE_FLOOR := 1.24
+const LAUNCH_GATE_AIM_Y := 2.5
+## Nine positions along the header beam. Nine and not four because the span is
+## 63 m: at four the lamps are 15.75 m apart and the beam still reads as unlit
+## structure between them from the launch gate.
+const RANGE_HEADER_CUE_X: Array[float] = [-28.0, -21.0, -14.0, -7.0, 0.0, 7.0, 14.0, 21.0, 28.0]
+
 ## Deep-space sky. See `deep_space_sky.gdshader` for why this replaced
 ## ProceduralSkyMaterial; these are its complete authored state.
 const SKY_SHADER_PATH := "res://scripts/rendering/deep_space_sky.gdshader"
@@ -512,6 +598,37 @@ func get_player_spawn() -> Transform3D:
 ## Exact world-space transform for placing the flyable ship.
 func get_ship_spawn() -> Transform3D:
 	return get_berth_transform(CENTRAL_BERTH_ID)
+
+
+## The station's published outbound aim point, at the mouth of the launch
+## corridor.
+##
+## Re-aimed in the open, `(0, 8, -64)` -> `(0, 2.5, -64)`. The old altitude was
+## inside the band the exterior range's own header beam blocks — a craft holding
+## it out of the corridor meets the beam 51 m later, and a review flight did, at
+## 46 m/s. The new altitude is the centre of the measured lane the deepest hull in
+## the fleet can hold between the launch arm deck and the beam's 8.5 m underside;
+## see `OUTBOUND_CLEARANCE_CEILING` for the full per-craft measurement and
+## `tests/outbound_route_clearance_test.gd` for the guard. The range itself did
+## not move.
+func get_launch_gate_transform() -> Transform3D:
+	return launch_gate.global_transform
+
+
+## Ship-origin altitudes on the outbound centreline that clear both the launch
+## arm deck and the range header beam, for every craft in the fleet.
+##
+## Published rather than left implicit because three separate things need to agree
+## on it: the launch gate marker, the rendered flight review's first outbound
+## waypoint, and the clearance regression. It is a design envelope measured from
+## the production hulls, not a runtime constraint — nothing forces a pilot to
+## stay inside it, which is exactly why the beam also carries a visible cue.
+func get_outbound_clearance_band() -> Dictionary:
+	return {
+		"floor": OUTBOUND_CLEARANCE_FLOOR,
+		"ceiling": OUTBOUND_CLEARANCE_CEILING,
+		"aim_y": LAUNCH_GATE_AIM_Y,
+	}
 
 
 ## Fixed-era-inspired habitat insertion at the starboard physical node. The
@@ -4183,6 +4300,7 @@ func _build_exterior_range() -> void:
 		0.68,
 		_materials["cyan_glow"]
 	)
+	_build_range_gate_clearance_cue(exterior)
 
 	var target_positions := [
 		Vector3(-13.0, 7.0, -95.0),
@@ -4197,6 +4315,94 @@ func _build_exterior_range() -> void:
 	_cylinder(exterior, "BeaconMast", Vector3(-48, 0, -145), 1.1, 26, _materials["steel_blue"])
 	_torus(exterior, "BeaconRing", Vector3(-48, 9, -145), 4.5, 4.85, _materials["orange_glow"], Vector3(90, 0, 0))
 	_add_guide_light(exterior, Vector3(-48, 13.4, -145), ALERT_RED, true, 8.0, 38.0)
+
+
+## Makes the range gate's header beam read as an obstacle from the launch gate,
+## and says where the clear lane is.
+##
+## The measurements this exists for are on `OUTBOUND_CLEARANCE_CEILING` above. In
+## short: the beam blocks a 5.4 m band of outbound altitude for a Torrent and a
+## 6.8 m band for a Jovian, and before this pass it carried nothing at all — the
+## gate's only lamps were six on the trusses, 31 m off the centreline and *above*
+## the beam, which if anything reads as "the gap is under the lamps" while
+## actually being level with the thing that stops you.
+##
+## Everything here is presentation on the beam's own faces. Nothing collides,
+## nothing is added away from the beam, and the header, the trusses, the four
+## drones and the range sign are all exactly where they were: the map is right
+## and this pass does not touch it. The two cues are deliberately different
+## channels — a lit line and a repeated shape — so the gate still reads with the
+## colour taken out of it.
+func _build_range_gate_clearance_cue(exterior: Node3D) -> void:
+	# Every piece below lives on the beam's own station-facing face or is sunk into
+	# its underside, and every one is checked against the beam's 8.5 .. 9.5 m band
+	# by the regression. That constraint is not decoration: a cue hung *under* the
+	# beam would be drawn geometry inside the very aperture it advertises, and a
+	# craft flying the top of the clear lane would pass straight through it — the
+	# same floating/ghost-geometry class the player has already reported twice.
+	var header_face_z := -119.42
+	var header_under_y := 8.5
+
+	# One continuous lit line along the face. This is the element that carries at
+	# range: 63 m of emissive edge resolves as a drawn horizontal at the distance
+	# where a 1 m unlit bar against vacuum is nothing at all.
+	_box(
+		exterior,
+		"RangeHeaderClearanceStripe",
+		Vector3(0.0, 9.36, header_face_z),
+		Vector3(62.6, 0.2, 0.1),
+		_materials["orange_glow"],
+		false
+	)
+
+	# The legend, centred on the face under the stripe. Redundant with the chevrons
+	# on purpose; it is the cue that still works once the pilot is close enough to
+	# read it and slow enough for words to help.
+	#
+	# `+0.02`, toward the station, and not `-0.09`: the beam's station-facing face
+	# is at z = -119.5 and z runs *away* from the station, so the first version of
+	# this line put the legend 0.04 m inside the girder. Nothing in the audit could
+	# see that — the sign existed, it was in the right y band, it was not a
+	# collider — and the rendered close-up is what showed the beam face with no
+	# legend on it at all.
+	_text_sign(
+		exterior,
+		"CLEARANCE BELOW",
+		Vector3(0.0, 8.95, header_face_z + 0.02),
+		Vector3.ZERO,
+		0.4,
+		_materials["orange_glow"]
+	)
+
+	for index in RANGE_HEADER_CUE_X.size():
+		var x_position := RANGE_HEADER_CUE_X[index]
+		# Downward chevrons flanking the legend: the aperture is below this line.
+		# Shape, not colour, is what this cue is — it is the channel that survives a
+		# fully desaturated frame, and it points at the only line the whole fleet
+		# can fly. The centre position is left to the legend.
+		if not is_zero_approx(x_position):
+			for side in [-1.0, 1.0]:
+				var arm := _box(
+					exterior,
+					"RangeHeaderClearanceChevron%02d%s" % [index, "Port" if side < 0.0 else "Starboard"],
+					Vector3(x_position + side * 0.52, 8.92, header_face_z),
+					Vector3(1.2, 0.14, 0.1),
+					_materials["cyan_glow"],
+					false
+				)
+				arm.rotation_degrees = Vector3(0.0, 0.0, side * 26.0)
+		# Pulsing red obstruction lamps sunk into the underside, the same cue the
+		# launch corridor's signal masts and the deck safety pylons use for "solid
+		# thing here". Short range and low energy: these exist to be seen, not to
+		# light anything, and the gate is 120 m from the nearest lit surface.
+		_add_guide_light(
+			exterior,
+			Vector3(x_position, header_under_y - 0.02, header_face_z - 0.5),
+			ALERT_RED,
+			true,
+			2.6,
+			9.0
+		)
 
 
 func _build_space_backdrop() -> void:
