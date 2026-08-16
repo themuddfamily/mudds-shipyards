@@ -72,16 +72,20 @@ func _test_defaults_and_descriptors() -> void:
 	var classic: Dictionary = settings.get_control_preset_descriptor(Settings.ControlPreset.CLASSIC)
 	_check(modern.get("id") == &"modern" and modern.get("applies_input_map") == false, "modern preset is descriptive and side-effect free")
 	_check(classic.get("id") == &"classic" and classic.get("applies_input_map") == false, "classic preset is descriptive and does not claim remapping")
-	_check((classic.get("key_hints") as Dictionary).get("engine_start") == "Y", "classic descriptor preserves the original engine-start hint")
+	_check(
+		not (classic.get("key_hints") as Dictionary).has("engine_start")
+		and not (classic.get("key_hints") as Dictionary).has("engine_stop"),
+		"classic descriptor omits retired manual engine controls"
+	)
 	_check((classic.get("key_hints") as Dictionary).get("barrel_roll") == "G", "classic descriptor preserves the original barrel-roll hint")
 	_check(settings.get_control_preset_descriptor(999).is_empty(), "invalid control presets have no implicit descriptor")
 	_check(settings.get_control_preset_descriptor(-2).is_empty(), "only -1 selects the active control descriptor")
 
 	# Deep copies keep menu code from corrupting the canonical descriptors.
-	(classic["key_hints"] as Dictionary)["engine_start"] = "Changed"
+	(classic["key_hints"] as Dictionary)["hover"] = "Changed"
 	classic["label"] = "Changed"
 	var detached: Dictionary = settings.get_control_preset_descriptor(Settings.ControlPreset.CLASSIC)
-	_check(detached.get("label") == "Classic" and (detached["key_hints"] as Dictionary)["engine_start"] == "Y", "control descriptors are detached deep copies")
+	_check(detached.get("label") == "Classic" and (detached["key_hints"] as Dictionary)["hover"] == "H", "control descriptors are detached deep copies")
 
 	var levels: Dictionary = settings.get_audio_bus_levels_db()
 	_check(is_equal_approx(float(levels[&"Master"]), 0.0), "neutral master gain retains the authored 0 dB level")

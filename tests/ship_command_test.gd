@@ -76,6 +76,20 @@ func _test_command_snapshot() -> void:
 	_check(command.interact and command.camera_toggle, "interaction edge snapshot preserves booleans")
 	_check(command.is_valid(), "sanitized command validates at the trust boundary")
 	_check(command.has_lifecycle_edge(), "lifecycle-edge classification includes ordered game-flow actions")
+	var legacy_engine_only := ShipCommandType.from_dictionary({
+		"schema_version": ShipCommandType.SCHEMA_VERSION,
+		"sequence": 8,
+		"timestamp_usec": 123457,
+		"stream_id": 9,
+		"engine_start": true,
+		"engine_stop": true,
+	})
+	_check(
+		legacy_engine_only.engine_start
+		and legacy_engine_only.engine_stop
+		and not legacy_engine_only.has_lifecycle_edge(),
+		"deprecated engine fields deserialize for transport compatibility but are not live lifecycle actions"
+	)
 	_check(
 		command.is_strictly_newer_than(8, ShipCommandType.MAX_SAFE_SERIALIZED_INTEGER)
 		and command.is_strictly_newer_than(9, 6)
@@ -139,7 +153,7 @@ func _test_source_stream_and_authority() -> void:
 	provider.strengths[&"roll_right"] = 0.4
 	provider.set_pressed(&"sprint_boost", true)
 	provider.set_pressed(&"fire", true)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	provider.set_pressed(&"barrel_roll", true)
 
 	var source_a := LocalShipInputSourceType.new()
@@ -167,13 +181,13 @@ func _test_source_stream_and_authority() -> void:
 	_check(is_equal_approx(first_a.yaw, 0.55) and is_equal_approx(first_a.pitch, 0.25), "local source samples keyboard yaw and pitch rate axes")
 	_check(is_zero_approx(first_a.look_yaw_delta) and is_zero_approx(first_a.look_pitch_delta), "rate axes do not synthesize mouse look deltas")
 	_check(is_equal_approx(first_a.roll, 0.4) and first_a.barrel_roll, "analogue roll and classic barrel-roll edge remain distinct")
-	_check(first_a.boost and first_a.fire and first_a.engine_start, "held and initial edge actions share one snapshot")
+	_check(first_a.boost and first_a.fire and first_a.landing, "held and initial edge actions share one snapshot")
 
 	source_a.look_motion_for_full_axis = 100.0
 	source_a.queue_look_motion(Vector2(35.0, -20.0))
 	var second_a := source_a.next_command(1000)
 	_check(second_a.sequence == 1 and second_a.timestamp_usec == 1001, "sequence and timestamp remain strictly monotonic")
-	_check(second_a.fire and not second_a.engine_start, "held fire repeats while engine-start edge does not")
+	_check(second_a.fire and not second_a.landing, "held fire repeats while landing edge does not")
 	_check(is_equal_approx(second_a.yaw, 0.55) and is_equal_approx(second_a.pitch, 0.25), "mouse motion cannot alter keyboard attitude-rate axes")
 	_check(is_equal_approx(second_a.look_yaw_delta, 0.35) and is_equal_approx(second_a.look_pitch_delta, 0.2), "queued mouse motion occupies independent per-tick look fields")
 	_check(is_equal_approx(second_a.roll, 0.4) and not second_a.barrel_roll, "held classic barrel-roll action cannot repeat its edge")
@@ -185,13 +199,13 @@ func _test_source_stream_and_authority() -> void:
 	_check(published_a.size() == 2 and published_b.is_empty(), "only an enabled owner publishes commands")
 	_check(source_a.get_authority_peer_id() == 11 and source_b.get_authority_peer_id() == 22, "sources expose independent authority peer IDs")
 
-	provider.set_pressed(&"engine_start", false)
+	provider.set_pressed(&"landing_assist", false)
 	var released := source_a.next_command(1002)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	var repressed := source_a.next_command(1003)
-	_check(not released.engine_start and repressed.engine_start, "release and repress creates exactly one new edge")
+	_check(not released.landing and repressed.landing, "release and repress creates exactly one new edge")
 	var held_again := source_a.next_command(1004)
-	_check(not held_again.engine_start, "an edge action cannot repeat while held")
+	_check(not held_again.landing, "an edge action cannot repeat while held")
 
 	source_a.enabled = false
 	provider.set_pressed(&"toggle_ship_camera_view", true)
@@ -219,12 +233,12 @@ func _test_source_stream_and_authority() -> void:
 	# start key is held must not replay A's prior edge into B's command stream.
 	source_b.set_local_peer_id_override(22)
 	var transferred := source_b.next_command(501)
-	_check(not transferred.engine_start, "ownership transfer suppresses already-held edge actions")
-	provider.set_pressed(&"engine_start", false)
+	_check(not transferred.landing, "ownership transfer suppresses already-held edge actions")
+	provider.set_pressed(&"landing_assist", false)
 	source_b.next_command(502)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	var b_repress := source_b.next_command(503)
-	_check(b_repress.engine_start, "new owner receives a fresh edge after release and repress")
+	_check(b_repress.landing, "new owner receives a fresh edge after release and repress")
 	_check(
 		source_a.get_stream_id() == 2
 		and source_a.get_next_sequence() == 4
@@ -262,14 +276,14 @@ func _test_source_stream_and_authority() -> void:
 	_check(isolated_return.fire and isolated_return.sequence == 0, "signal listener mutation cannot alter the caller's snapshot")
 
 	var reset_provider := FakeInputProvider.new()
-	reset_provider.set_pressed(&"engine_start", true)
+	reset_provider.set_pressed(&"landing_assist", true)
 	var reset_source := LocalShipInputSourceType.new()
 	root.add_child(reset_source)
 	reset_source.set_input_provider(reset_provider)
-	_check(reset_source.next_command(950).engine_start, "initial held action produces its first edge")
+	_check(reset_source.next_command(950).landing, "initial held action produces its first edge")
 	reset_source.reset_stream()
 	var held_across_reset := reset_source.next_command(951)
-	_check(not held_across_reset.engine_start and held_across_reset.stream_id == 1, "stream reset primes held edges without control side effects")
+	_check(not held_across_reset.landing and held_across_reset.stream_id == 1, "stream reset primes held edges without control side effects")
 
 	var base_source := ShipCommandSourceType.new()
 	base_source.set_authority_peer_id(77)
@@ -298,27 +312,27 @@ func _test_lossless_lifecycle_delivery() -> void:
 		# Attempt to corrupt both metadata and the edge after the source has queued
 		# its detached delivery copy.
 		command._sequence = 999
-		command._engine_start = false
+		command._landing = false
 	)
 
 	source.next_command(3000)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	var start := source.next_command(3001)
-	provider.set_pressed(&"engine_start", false)
+	provider.set_pressed(&"landing_assist", false)
 	var between := source.next_command(3002)
-	provider.set_pressed(&"engine_stop", true)
+	provider.set_pressed(&"interact", true)
 	var stop := source.next_command(3003)
 	var generation := source.get_delivery_generation()
 	var batch := source.drain_pending_commands(generation)
 	_check(
-		start.engine_start
+		start.landing
 		and between.is_neutral()
-		and stop.engine_stop
+		and stop.interact
 		and batch.size() == 2
 		and batch[0].sequence == start.sequence
-		and batch[0].engine_start
+		and batch[0].landing
 		and batch[1].sequence == stop.sequence
-		and batch[1].engine_stop,
+		and batch[1].interact,
 		"lifecycle FIFO preserves every edge in production order across a newer neutral sample"
 	)
 	_check(
@@ -326,15 +340,15 @@ func _test_lossless_lifecycle_delivery() -> void:
 		"lifecycle FIFO transfers each queued snapshot exactly once"
 	)
 	batch[0]._sequence = 777
-	batch[0]._engine_start = false
+	batch[0]._landing = false
 	_check(
-		start.sequence == 1 and start.engine_start,
+		start.sequence == 1 and start.landing,
 		"drained and signal snapshots are isolated from the direct physics snapshot"
 	)
 
 	# A boundary revokes previously sampled input and advances a delivery-only
 	# generation without rewinding the command sequence.
-	provider.set_pressed(&"engine_stop", false)
+	provider.set_pressed(&"interact", false)
 	source.next_command(3004)
 	provider.set_pressed(&"interact", true)
 	var stale := source.next_command(3005)
@@ -351,7 +365,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 	provider.set_pressed(&"interact", false)
 	source.next_command(3006)
-	provider.set_pressed(&"engine_start", true)
+	provider.set_pressed(&"landing_assist", true)
 	var fresh := source.next_command(3007)
 	_check(
 		source.drain_pending_commands(stale_generation).is_empty(),
@@ -359,13 +373,13 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 	var fresh_batch := source.drain_pending_commands(fresh_generation)
 	_check(
-		fresh.engine_start
+		fresh.landing
 		and fresh_batch.size() == 1
 		and fresh_batch[0].sequence == fresh.sequence,
 		"a rejected stale-generation drain leaves the current ordered queue intact"
 	)
 
-	provider.set_pressed(&"engine_start", false)
+	provider.set_pressed(&"landing_assist", false)
 	source.next_command(3008)
 	provider.set_pressed(&"landing_assist", true)
 	source.next_command(3009)
@@ -398,7 +412,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 	# when a later physics sample happens to observe them. Each probe deliberately
 	# queues an actionable edge and drains immediately after revocation.
 	var disabled_boundary_provider := FakeInputProvider.new()
-	disabled_boundary_provider.set_pressed(&"engine_start", true)
+	disabled_boundary_provider.set_pressed(&"landing_assist", true)
 	var disabled_boundary := LocalShipInputSourceType.new()
 	disabled_boundary.set_input_provider(disabled_boundary_provider)
 	var disabled_captured := disabled_boundary.next_command(4100)
@@ -406,7 +420,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 	var disabled_stream := disabled_boundary.get_stream_id()
 	disabled_boundary.enabled = false
 	_check(
-		disabled_captured.engine_start
+		disabled_captured.landing
 		and disabled_boundary.get_delivery_generation() > disabled_generation
 		and disabled_boundary.get_stream_id() > disabled_stream
 		and disabled_boundary.drain_pending_commands(disabled_generation).is_empty()
@@ -415,14 +429,14 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 
 	var authority_boundary_provider := FakeInputProvider.new()
-	authority_boundary_provider.set_pressed(&"engine_start", true)
+	authority_boundary_provider.set_pressed(&"landing_assist", true)
 	var authority_boundary := LocalShipInputSourceType.new()
 	authority_boundary.set_input_provider(authority_boundary_provider)
 	var authority_captured := authority_boundary.next_command(4200)
 	var authority_generation := authority_boundary.get_delivery_generation()
 	authority_boundary.set_authority_peer_id(77)
 	_check(
-		authority_captured.engine_start
+		authority_captured.landing
 		and not authority_boundary.is_enabled_owner()
 		and authority_boundary.get_delivery_generation() > authority_generation
 		and authority_boundary.drain_pending_commands(authority_generation).is_empty()
@@ -431,14 +445,14 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 
 	var local_peer_boundary_provider := FakeInputProvider.new()
-	local_peer_boundary_provider.set_pressed(&"engine_start", true)
+	local_peer_boundary_provider.set_pressed(&"landing_assist", true)
 	var local_peer_boundary := LocalShipInputSourceType.new()
 	local_peer_boundary.set_input_provider(local_peer_boundary_provider)
 	var local_peer_captured := local_peer_boundary.next_command(4300)
 	var local_peer_generation := local_peer_boundary.get_delivery_generation()
 	local_peer_boundary.set_local_peer_id_override(2)
 	_check(
-		local_peer_captured.engine_start
+		local_peer_captured.landing
 		and not local_peer_boundary.is_enabled_owner()
 		and local_peer_boundary.get_delivery_generation() > local_peer_generation
 		and local_peer_boundary.drain_pending_commands(local_peer_generation).is_empty()
@@ -447,7 +461,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 
 	var direct_authority_provider := FakeInputProvider.new()
-	direct_authority_provider.set_pressed(&"engine_start", true)
+	direct_authority_provider.set_pressed(&"landing_assist", true)
 	var direct_authority_boundary := LocalShipInputSourceType.new()
 	direct_authority_boundary.set_input_provider(direct_authority_provider)
 	direct_authority_boundary.next_command(4400)
@@ -465,7 +479,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 
 	var owner_to_owner_provider := FakeInputProvider.new()
-	owner_to_owner_provider.set_pressed(&"engine_start", true)
+	owner_to_owner_provider.set_pressed(&"landing_assist", true)
 	var owner_to_owner_boundary := LocalShipInputSourceType.new()
 	owner_to_owner_boundary.set_input_provider(owner_to_owner_provider)
 	owner_to_owner_boundary.set_local_peer_id_override(2)
@@ -516,13 +530,13 @@ func _test_lossless_lifecycle_delivery() -> void:
 		-1,
 		ShipCommandType.MAX_SAFE_SERIALIZED_INTEGER
 	)
-	exhaustion_provider.set_pressed(&"engine_start", true)
+	exhaustion_provider.set_pressed(&"landing_assist", true)
 	var final_actionable := exhaustion_source.next_command(6000)
 	var generation_before_exhaustion := exhaustion_source.get_delivery_generation()
 	var exhausted := exhaustion_source.next_command(6001)
 	var terminal_batch := exhaustion_source.drain_pending_commands()
 	_check(
-		final_actionable.engine_start
+		final_actionable.landing
 		and final_actionable.stream_id == ShipCommandType.MAX_SAFE_SERIALIZED_INTEGER
 		and final_actionable.sequence == ShipCommandType.MAX_SAFE_SERIALIZED_INTEGER
 		and exhaustion_source.is_stream_exhausted()
@@ -541,11 +555,11 @@ func _test_lossless_lifecycle_delivery() -> void:
 	)
 	delivery_exhaustion_source.invalidate_pending_commands()
 	delivery_exhaustion_source.next_command(6501)
-	delivery_exhaustion_provider.set_pressed(&"engine_start", true)
+	delivery_exhaustion_provider.set_pressed(&"landing_assist", true)
 	var undeliverable_edge := delivery_exhaustion_source.next_command(6502)
 	_check(
 		delivery_exhaustion_source.is_delivery_exhausted()
-		and undeliverable_edge.engine_start
+		and undeliverable_edge.landing
 		and delivery_exhaustion_source.drain_pending_commands().is_empty(),
 		"delivery-generation saturation fails closed instead of wrapping onto a stale drain token"
 	)
@@ -556,7 +570,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 	var reentrant_provider := FakeInputProvider.new()
 	var reentrant_source := LocalShipInputSourceType.new()
 	reentrant_source.set_input_provider(reentrant_provider)
-	reentrant_provider.set_pressed(&"engine_start", true)
+	reentrant_provider.set_pressed(&"landing_assist", true)
 	reentrant_source.command_produced.connect(func(_command: ShipCommand, _peer_id: int) -> void:
 		reentrant_source.invalidate_pending_commands()
 	, CONNECT_ONE_SHOT)
@@ -583,18 +597,34 @@ func _test_real_input_map_adapter() -> void:
 	# This complements the deterministic fake-provider coverage by proving the
 	# default adapter reaches the project's actual InputMap actions.
 	Input.action_release(&"move_forward")
-	Input.action_release(&"engine_start")
+	Input.action_release(&"landing_assist")
 	var source := LocalShipInputSourceType.new()
 	root.add_child(source)
 	Input.action_press(&"move_forward", 0.65)
-	Input.action_press(&"engine_start")
+	Input.action_press(&"landing_assist")
 	var first := source.next_command(2000)
 	var second := source.next_command(2001)
 	_check(is_equal_approx(first.throttle, 0.65), "default local source reads analogue strength from the real InputMap")
-	_check(first.engine_start and not second.engine_start, "real InputMap edge is emitted once while held")
+	_check(first.landing and not second.landing, "real InputMap edge is emitted once while held")
 	Input.action_release(&"move_forward")
-	Input.action_release(&"engine_start")
+	Input.action_release(&"landing_assist")
 	source.queue_free()
+
+	var retired_provider := FakeInputProvider.new()
+	retired_provider.set_pressed(&"engine_start", true)
+	retired_provider.set_pressed(&"engine_stop", true)
+	var retired_source := LocalShipInputSourceType.new()
+	retired_source.set_input_provider(retired_provider)
+	retired_source.queue_action_edge(&"engine_start")
+	retired_source.queue_action_edge(&"engine_stop")
+	var retired_sample := retired_source.next_command(2002)
+	_check(
+		not retired_sample.engine_start
+		and not retired_sample.engine_stop
+		and retired_source.drain_pending_commands().is_empty(),
+		"LocalShipInputSource neither samples nor explicitly queues retired engine actions"
+	)
+	retired_source.free()
 
 
 func _check(condition: bool, description: String) -> void:
