@@ -176,12 +176,9 @@ func _render_piloting() -> void:
 	print("RENDER_STAGE boarded=", boarded, " phase=", _game.phase)
 	await _capture("hud_06_seated_engines_off.png")
 
-	_ship.engine_start_time = 0.05
-	_action(&"engine_start")
-	await _wait(
-		func() -> bool: return str(_ship.get_telemetry().get("engine_state")).to_upper() == "ONLINE",
-		300
-	)
+	if not await _wake_engine_with_flight_demand():
+		printerr("RENDER_STAGE accepted hover demand did not wake propulsion in one physics tick")
+		return
 	Input.action_press(&"move_forward")
 	var ticks := 0
 	while bool(_ship.get_telemetry().get("landed", true)) and ticks < 300:
@@ -191,10 +188,13 @@ func _render_piloting() -> void:
 	for _tick in 120:
 		await physics_frame
 		await process_frame
-	Input.action_release(&"move_forward")
 	for _tick in 20:
 		await physics_frame
 		await process_frame
+	if StringName(_ship.get_telemetry().get("engine_state", &"")) != HeroShip.ENGINE_ONLINE:
+		printerr("RENDER_STAGE held forward demand did not keep propulsion ONLINE")
+		Input.action_release(&"move_forward")
+		return
 	await _capture("hud_07_piloting_in_flight.png")
 
 	# Combat overlay on a live flight frame. The enemy readout, the caption
@@ -229,6 +229,7 @@ func _render_piloting() -> void:
 	_hud.set_paused(false)
 	for _tick in 4:
 		await process_frame
+	Input.action_release(&"move_forward")
 	print("RENDER_STAGE piloting sequence complete")
 
 
@@ -253,13 +254,6 @@ func _press(action: StringName, ticks: int) -> void:
 	await physics_frame
 
 
-func _action(action: StringName) -> void:
-	var event := InputEventAction.new()
-	event.action = action
-	event.pressed = true
-	_game._unhandled_input(event)
-
-
 func _wait(predicate: Callable, budget: int) -> bool:
 	var frames := 0
 	while not bool(predicate.call()):
@@ -269,6 +263,30 @@ func _wait(predicate: Callable, budget: int) -> bool:
 		await process_frame
 		frames += 1
 	return true
+
+
+## Preserve the seated framing while exercising the player-facing automatic
+## propulsion path. Hover is accepted by the live pilot command source and wakes
+## the engine in the same physics tick without translating the parked craft.
+func _wake_engine_with_flight_demand() -> bool:
+	_release_flight_controls()
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		StringName(_ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and _ship.get_last_ship_command().hover
+	)
+	Input.action_release(&"hover")
+	return accepted
+
+
+func _release_flight_controls() -> void:
+	for action in [
+		&"move_forward", &"move_back", &"move_left", &"move_right", &"hover",
+		&"fire", &"sprint_boost", &"jump",
+	]:
+		Input.action_release(action)
 
 
 ## Reports the live chase boom alongside the shot, so camera clearance is a
