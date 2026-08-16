@@ -170,14 +170,15 @@ func _test_victory_is_not_completion_and_return_loss_retries() -> void:
 		await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.8),
 		"the regenerated Torrent can be physically boarded for the retry"
 	)
-	torrent.engine_start_time = 0.01
-	_dispatch_pilot_action(game, &"engine_start")
 	_check(
-		await _wait_for_engine_state(torrent, "ONLINE", 0.35)
-		and await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 0.35),
-		"the retry restores the guided launch path rather than sandbox completion"
+		await _apply_forward_demand_for_one_tick(torrent),
+		"the retry accepts one real flight-demand tick and wakes Torrent ONLINE"
 	)
 	await _depart_active_ship(game, torrent, "the guided retry physically releases its regenerated berth")
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 0.35),
+		"the retry's physical departure restores the guided launch path rather than sandbox completion"
+	)
 	game.call("_begin_interceptor_engagement")
 	await process_frame
 	_check(
@@ -296,8 +297,10 @@ func _test_return_exit_destruction_invalidates_completion() -> void:
 		await _wait_for_phase(game, GameFlow.Phase.SHUT_DOWN, 5.0),
 		"exit-destruction fixture completes the authorized return landing"
 	)
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(torrent, "OFFLINE", 0.35), "exit-destruction fixture shuts down safely")
+	_check(
+		await _wait_for_automatic_engine_offline(torrent),
+		"exit-destruction fixture idles automatically OFFLINE on a finite physics-time budget"
+	)
 	_dispatch_pilot_action(game, &"interact")
 	_check(
 		await _wait_until(func() -> bool:
@@ -365,7 +368,7 @@ func _test_completion_occurs_once_after_physical_disembark() -> void:
 	)
 
 	# Stage only the approach position; landing itself, berth occupation, phase
-	# handoff, engine stop, and physical exit all use the production paths.
+	# handoff, neutral automatic shutdown, and physical exit all use production paths.
 	var berth_transform := world.get_berth_transform(torrent.get_home_berth_id())
 	torrent.global_transform = berth_transform.translated_local(Vector3(0.0, 3.0, 0.0))
 	torrent.velocity = Vector3.ZERO
@@ -382,8 +385,10 @@ func _test_completion_occurs_once_after_physical_disembark() -> void:
 		"successful landing alone leaves the guide incomplete"
 	)
 
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(torrent, "OFFLINE", 0.35), "the landed Torrent completes engine shutdown")
+	_check(
+		await _wait_for_automatic_engine_offline(torrent),
+		"the landed Torrent completes automatic shutdown on the exact idle-clock budget"
+	)
 	_check(
 		game.phase == GameFlow.Phase.SHUT_DOWN
 		and bool(game.get("_guided_return_ready_for_completion"))
@@ -512,14 +517,15 @@ func _new_guided_combat_fixture() -> Dictionary:
 		await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.8),
 		"guided fixture completes production boarding and seating"
 	)
-	torrent.engine_start_time = 0.01
-	_dispatch_pilot_action(game, &"engine_start")
 	_check(
-		await _wait_for_engine_state(torrent, "ONLINE", 0.35)
-		and await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 0.35),
-		"guided fixture reaches the production launch phase"
+		await _apply_forward_demand_for_one_tick(torrent),
+		"guided fixture accepts one real flight-demand tick and wakes Torrent ONLINE"
 	)
 	await _depart_active_ship(game, torrent, "guided fixture physically clears the occupied berth")
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.LAUNCH, 0.35),
+		"guided fixture's physical departure reaches the production launch phase"
+	)
 	game.destroyed_targets = game.total_targets
 	game.call("_begin_interceptor_engagement")
 	await process_frame
@@ -581,11 +587,31 @@ func _wait_for_phase(game: GameFlow, expected: GameFlow.Phase, timeout: float) -
 	return await _wait_until(func() -> bool: return game.phase == expected, timeout)
 
 
-func _wait_for_engine_state(ship: HeroShip, expected: String, timeout: float) -> bool:
-	return await _wait_until(func() -> bool:
-		return str(ship.get_telemetry().get("engine_state", "")).to_upper() == expected,
-		timeout
+func _apply_forward_demand_for_one_tick(ship: HeroShip) -> bool:
+	Input.action_press(&"move_forward")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "ONLINE"
+		and ship.get_last_ship_command().throttle > 0.0
 	)
+	Input.action_release(&"move_forward")
+	return accepted
+
+
+func _wait_for_automatic_engine_offline(ship: HeroShip) -> bool:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
+		Input.action_release(action)
+	var frame_budget := (
+		int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	for _frame in frame_budget:
+		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE":
+			return true
+		await physics_frame
+		await process_frame
+	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE"
 
 
 ## Waits for `predicate` on a finite simulation-frame budget.
@@ -662,7 +688,7 @@ func _label_text(value: Variant) -> String:
 
 
 func _free_fixture(game: GameFlow) -> void:
-	for action in [&"interact", &"move_forward", &"engine_start", &"engine_stop", &"landing_assist"]:
+	for action in [&"interact", &"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
 		Input.action_release(action)
 	if is_instance_valid(game):
 		game.queue_free()

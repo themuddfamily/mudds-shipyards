@@ -450,13 +450,14 @@ func _test_physical_sortie(
 		"Zenith boarding preserves the dormant pending Torrent guide"
 	)
 
-	zenith.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(zenith, "ONLINE", 0.4), "live Y action starts Zenith's real engine lifecycle")
-	_check(await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.4), "Zenith startup enters unrestricted free flight")
 	_check(
-		berth.get_occupant() == zenith and berth.get_reservation_owner() == zenith,
-		"engine startup alone retains the occupied Fleet Dock lease"
+		await _apply_forward_demand_for_one_tick(zenith),
+		"one accepted forward-demand tick wakes Zenith ONLINE through its real command stream"
+	)
+	_check(
+		game.phase == GameFlow.Phase.START_ENGINES
+		and berth.get_occupant() == zenith and berth.get_reservation_owner() == zenith,
+		"one wake tick alone retains the occupied Fleet Dock lease and startup phase"
 	)
 
 	var fired_events: Array[Dictionary] = []
@@ -500,6 +501,10 @@ func _test_physical_sortie(
 		and departure_offset.normalized().dot(departure_forward) > 0.85
 		and not bool(zenith.get_telemetry().get("landed", true)),
 		"real W thrust moves Zenith nose-first and clears its landed latch"
+	)
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.4),
+		"Zenith's physical departure enters unrestricted free flight"
 	)
 	_check(
 		berth.get_occupant() == null and berth.get_reservation_owner() == null
@@ -547,8 +552,10 @@ func _test_physical_sortie(
 		"completed return restores the exact dock transform, occupied lease and feedback"
 	)
 
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(zenith, "OFFLINE", 0.3), "live X action stops Zenith at the occupied berth")
+	_check(
+		await _wait_for_automatic_engine_offline(zenith),
+		"neutral Zenith controls reach automatic OFFLINE on the finite physics-idle budget"
+	)
 	var exit_target := zenith.get_exit_transform().origin
 	_dispatch_pilot_action(game, &"interact")
 	_check(
@@ -667,16 +674,31 @@ func _wait_for_phase(game: GameFlow, expected_phase: int, timeout_seconds: float
 	)
 
 
-func _wait_for_engine_state(
-	ship: HeroShip,
-	expected_state: String,
-	timeout_seconds: float
-	) -> bool:
-	return await _wait_until(
-		func() -> bool:
-			return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state,
-		timeout_seconds
+func _apply_forward_demand_for_one_tick(ship: HeroShip) -> bool:
+	Input.action_press(&"move_forward")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "ONLINE"
+		and ship.get_last_ship_command().throttle > 0.0
 	)
+	Input.action_release(&"move_forward")
+	return accepted
+
+
+func _wait_for_automatic_engine_offline(ship: HeroShip) -> bool:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
+		Input.action_release(action)
+	var frame_budget := (
+		int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	for _frame in frame_budget:
+		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE":
+			return true
+		await physics_frame
+		await process_frame
+	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE"
 
 
 ## Waits for `predicate` on a finite simulation-frame budget.
@@ -704,7 +726,7 @@ func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 func _clean_up(game: Node) -> void:
 	for action in [
 		&"interact", &"move_forward", &"move_back", &"move_left", &"move_right",
-		&"fire", &"engine_start", &"engine_stop", &"landing_assist",
+		&"fire", &"landing_assist",
 	]:
 		Input.action_release(action)
 	await _release_combat_audio_before_main_teardown(game)
