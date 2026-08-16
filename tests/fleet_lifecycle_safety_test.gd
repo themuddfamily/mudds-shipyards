@@ -60,23 +60,25 @@ func _test_engine_and_departure_authority() -> void:
 		game.phase == GameFlow.Phase.BOARDING and bool(game.get("_transition_busy")),
 		"Arrow boarding enters an atomic transition before pilot authority transfers"
 	)
-	_dispatch_pilot_action(game, &"engine_start")
-	await physics_frame
+	var boarding_demand_accepted := await _apply_forward_demand_for_one_tick(arrow)
 	_check(
-		str(arrow.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE",
-		"engine-start input is ignored during the live boarding transition"
+		not boarding_demand_accepted
+		and str(arrow.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE",
+		"flight demand is neutralized before pilot authority transfers during boarding"
 	)
 	_check(await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.5), "Arrow boarding reaches engine startup")
 	_check(player.is_seated() and arrow.is_piloted(), "boarding transfers the same physical pilot into Arrow")
 
-	# Also inject the event with pilot authority active but the atomic guard set;
-	# this catches future input routing that might only happen after seating.
+	# Also inject a lifecycle edge with pilot authority active but the atomic guard
+	# set; direct flight demand is ship-local, while this guard still owns landing
+	# and exit transitions after seating.
 	game.set("_transition_busy", true)
-	_dispatch_pilot_action(game, &"engine_start")
+	_dispatch_pilot_action(game, &"landing_assist")
 	await physics_frame
 	_check(
-		str(arrow.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE",
-		"transition guard rejects engine startup even after pilot authority exists"
+		str(arrow.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE"
+		and not arrow.is_landing_active(),
+		"transition guard rejects a landing lifecycle edge after pilot authority exists"
 	)
 	game.set("_transition_busy", false)
 
@@ -86,24 +88,16 @@ func _test_engine_and_departure_authority() -> void:
 		and berth.get_reservation_owner() == arrow,
 		"parked Arrow begins with one occupied authoritative berth lease"
 	)
-	arrow.engine_start_time = 0.02
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(arrow, "ONLINE", 0.3), "authorized engine startup reaches ONLINE")
-	# The phase transition that follows ONLINE lands in `_process`, but the wait
-	# above advances the physics loop, and a loaded machine runs several physics
-	# steps per idle frame. A single hardcoded `process_frame` is therefore not a
-	# bound on anything: this assertion was observed failing under parallel load
-	# purely because the idle tick had not come round yet. Use the same bounded
-	# frame budget every other phase assertion in this suite already uses.
 	_check(
-		await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.5),
-		"pre-guide Arrow startup enters its free sortie"
+		await _apply_forward_demand_for_one_tick(arrow),
+		"one accepted flight-demand tick wakes the authorized Arrow ONLINE"
 	)
 	_check(
 		bool(arrow.get_telemetry().get("landed", false))
+		and game.phase == GameFlow.Phase.START_ENGINES
 		and berth.get_occupant() == arrow
 		and berth.get_reservation_owner() == arrow,
-		"engine startup alone retains the parked craft's occupied berth"
+		"one wake tick alone retains the parked craft's occupied berth and startup phase"
 	)
 
 	# A landing request while still parked is adversarial but legal input. It
@@ -112,7 +106,10 @@ func _test_engine_and_departure_authority() -> void:
 	_dispatch_pilot_action(game, &"landing_assist")
 	await physics_frame
 	await process_frame
-	_check(game.phase == GameFlow.Phase.FREE_FLIGHT, "parked landing input cannot auto-complete a free sortie")
+	_check(
+		game.phase == GameFlow.Phase.START_ENGINES,
+		"parked landing input cannot advance the apply-thrust phase before departure"
+	)
 	_check(
 		berth.get_occupant() == arrow and berth.get_reservation_owner() == arrow,
 		"rejected parked landing input preserves the original berth lease"
@@ -133,36 +130,32 @@ func _test_engine_and_departure_authority() -> void:
 	await physics_frame
 	await process_frame
 	_check(not bool(arrow.get_telemetry().get("landed", true)), "authoritative thrust clears Arrow's landed state")
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.5),
+		"physical Arrow departure enters its free sortie"
+	)
 	_check(arrow.global_position.distance_to(departure_origin) > 0.01, "Arrow physically moves away from its parked transform")
 	_check(
 		berth.get_occupant() == null and berth.get_reservation_owner() == null,
 		"berth lease releases only after authoritative physical departure"
 	)
 
-	# Complete one real return, shut the engine down, then inject a restart event
-	# while GameFlow owns SHUT_DOWN. That phase must be a one-way safety gate until
-	# the pilot exits rather than an accidental relaunch path.
+	# Complete one real return, neutralize flight controls, and let the exact
+	# automatic-idle clock shut propulsion down while GameFlow owns SHUT_DOWN.
 	var berth_transform := world.get_berth_transform(arrow.get_home_berth_id())
 	arrow.global_transform = berth_transform.translated_local(Vector3(0.0, 3.0, 0.0))
 	arrow.velocity = Vector3.ZERO
 	await physics_frame
 	_dispatch_pilot_action(game, &"landing_assist")
 	_check(await _wait_for_phase(game, GameFlow.Phase.SHUT_DOWN, 3.0), "Arrow return reaches authoritative SHUT_DOWN")
-	_dispatch_pilot_action(game, &"engine_stop")
-	await physics_frame
 	_check(
-		str(arrow.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE",
-		"returned Arrow shuts down before the restart probe"
+		await _wait_for_automatic_engine_offline(arrow),
+		"returned Arrow reaches automatic OFFLINE on the finite physics-idle budget"
 	)
-	_dispatch_pilot_action(game, &"engine_start")
-	await physics_frame
-	await process_frame
 	_check(
-		game.phase == GameFlow.Phase.SHUT_DOWN
-		and str(arrow.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE",
-		"engine-start input is ignored after docking reaches SHUT_DOWN"
+		game.phase == GameFlow.Phase.SHUT_DOWN and berth.get_occupant() == arrow,
+		"neutral automatic shutdown preserves SHUT_DOWN and physical berth occupancy"
 	)
-	_check(berth.get_occupant() == arrow, "SHUT_DOWN restart rejection preserves physical berth occupancy")
 
 	await _clean_up(game)
 
@@ -420,14 +413,31 @@ func _wait_for_phase(game: GameFlow, expected_phase: GameFlow.Phase, timeout: fl
 	return game.phase == expected_phase
 
 
-func _wait_for_engine_state(ship: HeroShip, expected_state: String, timeout: float) -> bool:
-	var elapsed := 0.0
-	while elapsed < timeout:
-		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state:
+func _apply_forward_demand_for_one_tick(ship: HeroShip) -> bool:
+	Input.action_press(&"move_forward")
+	await physics_frame
+	await process_frame
+	var accepted := (
+		str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "ONLINE"
+		and ship.get_last_ship_command().throttle > 0.0
+	)
+	Input.action_release(&"move_forward")
+	return accepted
+
+
+func _wait_for_automatic_engine_offline(ship: HeroShip) -> bool:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
+		Input.action_release(action)
+	var frame_budget := (
+		int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * float(Engine.physics_ticks_per_second)))
+		+ FRAME_BUDGET_GRACE
+	)
+	for _frame in frame_budget:
+		if str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE":
 			return true
 		await physics_frame
-		elapsed += 1.0 / 60.0
-	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == expected_state
+		await process_frame
+	return str(ship.get_telemetry().get("engine_state", &"")).to_upper() == "OFFLINE"
 
 
 func _wait_for_ship_regeneration(ship: HeroShip, timeout: float) -> bool:
@@ -441,7 +451,7 @@ func _wait_for_ship_regeneration(ship: HeroShip, timeout: float) -> bool:
 
 
 func _clean_up(game: Node) -> void:
-	for action in [&"move_forward", &"engine_start", &"engine_stop", &"landing_assist"]:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
 		Input.action_release(action)
 	if is_instance_valid(game):
 		game.queue_free()
