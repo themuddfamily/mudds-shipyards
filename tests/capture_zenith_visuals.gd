@@ -77,7 +77,11 @@ const EXPECTED_COLLISION_SHAPE_COUNT := 24
 const EXPECTED_COLLISION_GEOMETRY_SHA256 := "7717ba624158dca52c71dc271e13663436b9b9bf52658972f92fbc9e4482c273"
 # Re-frozen 2026-08-15 for the cockpit seat/camera anchor correction below.
 const EXPECTED_RUNTIME_V2_SHA256 := "d74e5f31665502c714b3ef96d615ebd56a24d99124573da346b8c09e01d54062"
-const EXPECTED_INTEGRATION_SHA256 := "a9559c66cd0d743c7cfbd4c4c7d42d63e6e68ddf3a9077a01a4ba06b6b0601fd"
+# Re-frozen after `ad6aabf` converted this suite's wrong-clock waits to frame
+# budgets without re-freezing the oracle hash, which left this capture failing
+# on pristine `main`. The matrix cannot catch it: it collects only
+# `tests/*_test.gd`, and this harness is deliberately outside that glob.
+const EXPECTED_INTEGRATION_SHA256 := "a545be45da2ef13e652844799c6574c94e1b0f9fda3a179b93a2697e6d0434f2"
 # RE-FROZEN 2026-08-15 with tests/zenith_interceptor_test.gd: the cockpit seat
 # anchor moved 1.58 -> 1.11 (it is a feet-frame marker, not a cushion height)
 # and the cockpit camera (0, 2.28, -1.24) -> (0, 2.87, -0.80). Modern cockpit
