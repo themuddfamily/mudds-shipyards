@@ -1,0 +1,267 @@
+class_name StartupLoader
+extends Node3D
+
+## Boot scene root: the packaged build's `run/main_scene`.
+##
+## The window used to open on `scenes/main.tscn`, which meant the engine had to
+## load every resource the yard references and then run every `_ready()` in the
+## Main subtree before a single frame could be presented. On the reference box
+## that was ~1.5 s of resource loading followed by ~1.8 s of node construction,
+## all of it inside one uninterrupted main-loop iteration, so Windows marked the
+## window unresponsive and the cursor was already captured by the time the
+## player could see anything at all.
+##
+## This scene is deliberately almost empty. It presents [LoadingScreen] on the
+## first frames, then does the same work in two halves that both let the main
+## loop breathe:
+##
+## 1. **Resources.** `scenes/main.tscn` is pulled in with
+##    `ResourceLoader.load_threaded_request()`, so the import work happens on
+##    loader threads while this scene keeps drawing and pumping input. The bar
+##    is driven by `load_threaded_get_status()`'s own percentage.
+## 2. **Construction.** Scene-tree mutation must stay on the main thread, so it
+##    is chunked instead: [GameFlow] hands back its authored children before it
+##    enters the tree and re-adds them a frame at a time, and [ShipyardWorld]
+##    walks its procedural builders the same way. Both yield on a time budget
+##    rather than blindly per item, so no chunk is the whole freeze and cheap
+##    ones do not each cost a drawn frame.
+##
+## Staged construction is strictly opt-in and lives only on this path. Anything
+## that instantiates `scenes/main.tscn` directly - every test suite, and every
+## detach/re-add cycle - gets the original synchronous `_ready()`, unchanged.
+
+const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
+
+const MAIN_SCENE_PATH := "res://scenes/main.tscn"
+
+## Frames to present before any expensive work starts. Two, because the first
+## one is where the loading screen's Controls take their layout.
+const PRESENT_FRAMES := 2
+
+## Share of the progress bar each startup phase owns. These are the measured
+## proportions on the reference box, not guesses: resource loading really is
+## about 45% of a cold boot and construction the rest. Inside every phase the
+## bar is driven by work that has actually completed.
+const PHASE_RESOURCES := 0.45
+const PHASE_CONSTRUCTION := 0.52
+const PHASE_HANDOFF := 0.03
+
+signal startup_completed(main: Node)
+
+## Set false to drive the loader by hand from a test.
+@export var auto_start := true
+
+var _screen: LoadingScreen
+var _main: Node
+var _running := false
+var _boot_usec := 0
+var _first_frame_usec := 0
+var _resources_ready_usec := 0
+var _interactive_usec := 0
+var _stage_log: Array[Dictionary] = []
+var _last_stage_usec := 0
+var _mouse_was_free := true
+var _worst_frame_ms := 0.0
+var _last_frame_usec := 0
+
+
+func _ready() -> void:
+	_boot_usec = Time.get_ticks_usec()
+	# Nothing is playable yet, so nothing may own the cursor. This is also the
+	# backstop for a reloaded scene: `reload_current_scene()` returns here with
+	# whatever mouse mode gameplay left behind.
+	_release_mouse()
+	_screen = LoadingScreenType.new()
+	_screen.name = "LoadingScreen"
+	_screen.configure(_read_accessibility_descriptor())
+	add_child(_screen)
+	_screen.set_stage("Starting up", 0.0)
+	if auto_start:
+		run_startup()
+
+
+## Loads and constructs Main behind the loading screen. Awaitable; also safe to
+## call and forget, which is what `_ready()` does.
+func run_startup() -> Node:
+	if _running or is_instance_valid(_main):
+		return _main
+	_running = true
+	var tree := get_tree()
+
+	# Present before working. Until these frames have gone out there is nothing
+	# on screen but the engine boot splash, and any long call made here would be
+	# indistinguishable from the freeze this whole scene exists to remove.
+	for _index in PRESENT_FRAMES:
+		await tree.process_frame
+	_first_frame_usec = Time.get_ticks_usec()
+	_last_stage_usec = _first_frame_usec
+	_screen.attach_backdrop()
+
+	var packed := await _load_main_scene()
+	_resources_ready_usec = Time.get_ticks_usec()
+	if packed == null:
+		_screen.set_stage("Startup failed", 1.0, "scenes/main.tscn could not be loaded")
+		_running = false
+		return null
+
+	_main = packed.instantiate()
+	var flow := _main as GameFlow
+	var staged := flow != null and flow.prepare_staged_startup()
+	add_child(_main)
+	if staged:
+		await flow.run_staged_startup(_on_construction_stage)
+	_note_stage("construction", "Shipyard ready")
+
+	# Suppressing 3D behind the opaque loading screen was measured and rejected:
+	# it does not remove the renderer's one-time warm-up, it collects all of it -
+	# including every deferred reflection-probe bake - into the single frame that
+	# turns 3D back on, which is exactly the monolithic stall this scene exists to
+	# break up. Letting each staged chunk draw spreads that warm-up over frames
+	# the loading screen is already repainting between.
+	_screen.set_stage("Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION)
+	await tree.process_frame
+	_screen.set_stage("Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION + PHASE_HANDOFF)
+	_interactive_usec = Time.get_ticks_usec()
+	_screen.dismiss()
+	_running = false
+	startup_completed.emit(_main)
+	return _main
+
+
+func get_main() -> Node:
+	return _main
+
+
+func get_loading_screen() -> LoadingScreen:
+	return _screen
+
+
+## Honest startup timings, in milliseconds from the boot scene's `_ready()`.
+##
+## `time_to_first_frame_ms` is when the loading screen was on screen and the
+## window was already pumping input. `time_to_interactive_ms` is when the title
+## screen's "BEGIN SHIFT" became pressable. `worst_frame_ms` is the longest
+## single main-loop iteration between those two, which is the number that decides
+## whether the OS thinks the window has stopped responding - a phase that takes a
+## second spread over sixty drawn frames costs the player nothing, and a single
+## uninterrupted second costs them the window.
+func get_startup_report() -> Dictionary:
+	return {
+		"time_to_first_frame_ms": _ms_since_boot(_first_frame_usec),
+		"time_to_resources_ms": _ms_since_boot(_resources_ready_usec),
+		"time_to_interactive_ms": _ms_since_boot(_interactive_usec),
+		"worst_frame_ms": _worst_frame_ms,
+		"stages": _stage_log.duplicate(true),
+		"mouse_free_during_load": _mouse_was_free,
+	}
+
+
+func _ms_since_boot(usec: int) -> float:
+	if usec <= 0 or _boot_usec <= 0:
+		return 0.0
+	return (usec - _boot_usec) / 1000.0
+
+
+func _load_main_scene() -> PackedScene:
+	var tree := get_tree()
+	var request := ResourceLoader.load_threaded_request(MAIN_SCENE_PATH, "PackedScene", false)
+	if request != OK:
+		# A loader thread was refused. Fall back to the blocking load rather than
+		# failing to boot; the loading screen is still up, it just stops moving.
+		_screen.set_stage("Loading station data", PHASE_RESOURCES)
+		var fallback := load(MAIN_SCENE_PATH) as PackedScene
+		_note_stage("resources", "Loading station data")
+		return fallback
+	var progress: Array = []
+	while true:
+		var status := ResourceLoader.load_threaded_get_status(MAIN_SCENE_PATH, progress)
+		var ratio := 0.0
+		if not progress.is_empty():
+			ratio = clampf(float(progress[0]), 0.0, 1.0)
+		_screen.set_stage(
+			"Loading station data",
+			PHASE_RESOURCES * ratio,
+			"%d%%" % roundi(ratio * 100.0)
+		)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			break
+		if status != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			_note_stage("resources", "Loading station data")
+			return null
+		# Yielding here is the point: the window repaints and pumps input while
+		# the loader threads work.
+		await tree.process_frame
+	_screen.set_stage("Loading station data", PHASE_RESOURCES, "100%")
+	_note_stage("resources", "Loading station data")
+	return ResourceLoader.load_threaded_get(MAIN_SCENE_PATH) as PackedScene
+
+
+## Progress sink handed to [method GameFlow.run_staged_startup]. `ratio` is the
+## fraction of construction stages finished, weighted by nothing - it is a plain
+## count of real stages that have run.
+func _on_construction_stage(label: String, ratio: float) -> void:
+	if not is_instance_valid(_screen):
+		return
+	_screen.set_stage(
+		"Building the shipyard",
+		PHASE_RESOURCES + PHASE_CONSTRUCTION * clampf(ratio, 0.0, 1.0),
+		label
+	)
+	_note_stage("construction", label)
+
+
+func _note_stage(phase: String, label: String) -> void:
+	var now := Time.get_ticks_usec()
+	var elapsed := 0.0
+	if _last_stage_usec > 0:
+		elapsed = (now - _last_stage_usec) / 1000.0
+	_last_stage_usec = now
+	_stage_log.append({
+		"phase": phase,
+		"label": label,
+		"elapsed_ms": elapsed,
+		"at_ms": _ms_since_boot(now),
+	})
+
+
+func _release_mouse() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _process(_delta: float) -> void:
+	if not _running:
+		return
+	# Wall clock between two `_process` calls, which is the length of the
+	# main-loop iteration that just finished - the stall the player would have
+	# felt. `delta` cannot be used for this: the engine clamps it, so a two-second
+	# freeze and a 150 ms one arrive here looking identical.
+	var now := Time.get_ticks_usec()
+	if _last_frame_usec > 0:
+		_worst_frame_ms = maxf(_worst_frame_ms, (now - _last_frame_usec) / 1000.0)
+	_last_frame_usec = now
+	if DisplayServer.get_name() == "headless":
+		return
+	# A regression here is invisible in a screenshot and obvious to a player, so
+	# it is recorded rather than assumed: nothing may capture the cursor while
+	# the loading screen owns the window.
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		_mouse_was_free = false
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## Reads the stored accessibility preferences without constructing any gameplay.
+## `RuntimeSettings` is documented as side-effect free to load, so this cannot
+## disturb the presets `GameFlow` applies for real a moment later; the one global
+## it does apply is the window mode, so the player who chose fullscreen sees the
+## loading screen in fullscreen instead of a window that jumps afterwards.
+func _read_accessibility_descriptor() -> Dictionary:
+	var settings := RuntimeSettings.new()
+	var error := settings.load_from_file()
+	if error != OK and error != ERR_FILE_NOT_FOUND:
+		push_warning("Startup could not read stored settings: %s" % error_string(error))
+		return {}
+	settings.apply_window_mode()
+	return settings.get_accessibility_descriptor()

@@ -125,18 +125,23 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 @export_range(0.0, 4.0, 0.05) var boarding_motion_time := 1.1
 @export_range(0.0, 4.0, 0.05) var disembarking_motion_time := 0.9
 
-@onready var world: Node3D = $ShipyardWorld
-@onready var player: CharacterBody3D = $Player
+# Resolved by `_resolve_scene_bindings()` rather than `@onready`, because under a
+# staged startup these children are deliberately not in the tree yet when
+# `_ready()` runs. The resolver is called at exactly the moment the authored
+# subtree is complete on both paths, so every reader still sees the same nodes it
+# always did.
+var world: Node3D
+var player: CharacterBody3D
 ## Legacy primary alias retained for the guided vertical-slice tests. Runtime
 ## gameplay uses `active_ship` and the physical `ships` registry below.
-@onready var ship: HeroShip = $TorrentInterceptor
-@onready var opponent: CharacterBody3D = $RangeOpponent
-@onready var combat_authority: LiveCombatAuthorityType = $CombatAuthority as LiveCombatAuthorityType
-@onready var pulse_presentation: PulseWeaponPresentation = $PulseWeaponPresentation
-@onready var combat_audio: CombatAudioPresentation = $CombatAudioPresentation
-@onready var hud: CanvasLayer = $HUD
-@onready var audio: Node = $AudioDirector
-@onready var music_bed: StationMusicBed = $StationMusicBed
+var ship: HeroShip
+var opponent: CharacterBody3D
+var combat_authority: LiveCombatAuthorityType
+var pulse_presentation: PulseWeaponPresentation
+var combat_audio: CombatAudioPresentation
+var hud: CanvasLayer
+var audio: Node
+var music_bed: StationMusicBed
 
 var phase := Phase.INTRO
 var destroyed_targets := 0
@@ -208,6 +213,15 @@ var _cabin_ship: HeroShip
 var _last_lifecycle_command_ship_instance_id := 0
 var _last_lifecycle_command_stream_id := -1
 var _last_lifecycle_command_sequence := -1
+## Startup that a boot loader drives. Off by default and never latched by a
+## detach, so a directly instantiated Main - every test, and every re-entry -
+## builds synchronously in `_ready()` exactly as before.
+var _staged_startup := false
+var _staged_children: Array[Node] = []
+var _staged_child_owners: Dictionary = {}
+var _staged_done := 0.0
+var _staged_total := 1.0
+var _staged_sink := Callable()
 
 
 func _enter_tree() -> void:
@@ -236,11 +250,142 @@ func _exit_tree() -> void:
 	# transient effect is resurrected on re-entry.
 	_pending_combat_audio_receipts.clear()
 
+	# Leaving the tree is leaving gameplay. Whatever owned the cursor, the player
+	# gets it back: a detached Main has no camera to steer, and the reload behind
+	# `_restart_shift()` goes through here on its way to the loading screen.
+	release_mouse_capture()
+
+
+## Returns the cursor to the desktop. Safe to call from any state, and a no-op
+## under `--headless`, where `Input.mouse_mode` has nothing to address.
+func release_mouse_capture() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
 
 func _ready() -> void:
 	if _initialized:
 		_restore_runtime_bindings_after_reentry()
 		return
+	if _staged_startup:
+		# A boot loader holds the authored children and will call
+		# `run_staged_startup()` once they are all back in the tree.
+		return
+	_resolve_scene_bindings()
+	_start_up()
+
+
+## Binds the authored Main children. Idempotent, and the single place the
+## coordinator learns what its subtree contains.
+func _resolve_scene_bindings() -> void:
+	world = get_node_or_null(^"ShipyardWorld") as Node3D
+	player = get_node_or_null(^"Player") as CharacterBody3D
+	ship = get_node_or_null(^"TorrentInterceptor") as HeroShip
+	opponent = get_node_or_null(^"RangeOpponent") as CharacterBody3D
+	combat_authority = get_node_or_null(^"CombatAuthority") as LiveCombatAuthorityType
+	pulse_presentation = get_node_or_null(^"PulseWeaponPresentation") as PulseWeaponPresentation
+	combat_audio = get_node_or_null(^"CombatAudioPresentation") as CombatAudioPresentation
+	hud = get_node_or_null(^"HUD") as CanvasLayer
+	audio = get_node_or_null(^"AudioDirector")
+	music_bed = get_node_or_null(^"StationMusicBed") as StationMusicBed
+
+
+## Detaches the authored children so a boot loader can add them back one frame
+## at a time instead of paying for all of them in a single main-loop iteration.
+##
+## Must be called while Main itself is outside the tree, which is where a loader
+## has it: `PackedScene.instantiate()` does not enter the tree, so no `_ready()`
+## has run and nothing is torn down here. Returns false - changing nothing - if
+## the caller is too late, so the synchronous path stays the safe default.
+func prepare_staged_startup() -> bool:
+	if is_inside_tree() or _initialized or _staged_startup:
+		return false
+	_staged_startup = true
+	for child in get_children():
+		_staged_child_owners[child] = child.owner
+		# Cleared only for the detached interval. Godot warns about a node whose
+		# owner is not one of its ancestors, and the owner is restored the moment
+		# the child is back under Main.
+		child.owner = null
+		remove_child(child)
+		_staged_children.append(child)
+		if child.has_method(&"prepare_staged_construction"):
+			child.call(&"prepare_staged_construction")
+	return true
+
+
+## Longest a run of cheap children may hold the main loop before it yields. Six
+## of the authored children cost a couple of milliseconds each, and a yield
+## draws a whole frame, so they are batched; the heavy ones exceed the budget on
+## their own and yield immediately after.
+const STAGED_STARTUP_FRAME_BUDGET_USEC := 24_000
+
+
+## Re-adds the authored children a frame at a time, letting any of them that owns
+## a staged builder run it, and then performs the ordinary gameplay startup.
+##
+## `on_stage` is called as `on_stage.call(label: String, ratio: float)` where
+## `ratio` is the fraction of real stages that have finished.
+func run_staged_startup(on_stage: Callable = Callable()) -> void:
+	if not _staged_startup or _initialized:
+		return
+	var tree := get_tree()
+	var pending := _staged_children.duplicate()
+	# One unit per child, plus one for each staged builder stage a child declares,
+	# plus one for the gameplay startup tail. Counting real work is what keeps the
+	# bar from completing in a single jump.
+	_staged_total = float(pending.size() + 1)
+	for child in pending:
+		if child.has_method(&"get_staged_construction_stage_count"):
+			_staged_total += float(child.call(&"get_staged_construction_stage_count"))
+	_staged_done = 0.0
+	_staged_sink = on_stage
+	var budget_started := Time.get_ticks_usec()
+	for child in pending:
+		add_child(child)
+		if _staged_child_owners.has(child):
+			child.owner = _staged_child_owners[child] as Node
+		_advance_staged_stage(_staged_stage_label(child))
+		if Time.get_ticks_usec() - budget_started >= STAGED_STARTUP_FRAME_BUDGET_USEC:
+			await tree.process_frame
+			budget_started = Time.get_ticks_usec()
+		if child.has_method(&"run_staged_construction"):
+			# A bound method, not a lambda: GDScript lambdas capture locals by
+			# value, so a counter incremented inside one never advances.
+			await child.call(&"run_staged_construction", _advance_staged_stage)
+			budget_started = Time.get_ticks_usec()
+	_staged_children.clear()
+	_staged_child_owners.clear()
+	_staged_startup = false
+	_resolve_scene_bindings()
+	_staged_done = _staged_total
+	_advance_staged_stage("Bringing systems online")
+	_staged_sink = Callable()
+	_start_up()
+
+
+## Counts one finished stage and reports the new fraction to the loader.
+func _advance_staged_stage(label: String) -> void:
+	_staged_done = minf(_staged_done + 1.0, _staged_total)
+	if _staged_sink.is_valid():
+		_staged_sink.call(label, clampf(_staged_done / maxf(_staged_total, 1.0), 0.0, 1.0))
+
+
+func _staged_stage_label(child: Node) -> String:
+	if child is HeroShip or child is RangeOpponent:
+		return "Preparing %s" % String(child.name).capitalize()
+	if child.name == &"ShipyardWorld":
+		return "Raising the shipyard"
+	if child.name == &"Player":
+		return "Waking the pilot"
+	return "Preparing %s" % String(child.name).capitalize()
+
+
+## The one-time gameplay startup. Identical on both construction paths; the only
+## difference is when the authored subtree became complete.
+func _start_up() -> void:
 	_initialize_runtime_settings()
 	player.teleport_to(world.get_player_spawn())
 	player.set_control_enabled(false)
@@ -287,6 +432,11 @@ func _apply_torus_geometry_budget() -> void:
 
 
 func _process(delta: float) -> void:
+	# Under a staged startup the coordinator is in the tree while its subtree is
+	# still being assembled. Nothing here has anything to act on until the
+	# gameplay startup tail has run.
+	if not _initialized:
+		return
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
 	if phase == Phase.INTRO:
@@ -315,6 +465,8 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if not _initialized:
+		return
 	if not _piloting:
 		return
 	if not is_instance_valid(active_ship):
