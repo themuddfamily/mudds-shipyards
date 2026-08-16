@@ -28,7 +28,7 @@ def parse(data, base):
     count = u32(data, base+96)
     pos = base + 100
     if count > 1000000: raise ValueError("unreasonable PCK entry count")
-    if count == 0: raise ValueError("PCK uses compressed/nonstandard TOC; format-4 entry table is unavailable")
+    if count == 0: raise ValueError("unsupported embedded PCK TOC: this Godot 4.7.1 export uses GDSC/zstd chunk compression; no inventory was emitted")
     entries=[]
     for _ in range(count):
         if pos+36 > len(data): raise ValueError("truncated PCK entry table")
