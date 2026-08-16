@@ -51,16 +51,38 @@ func _run() -> void:
 		StationOperationsActivity.ActivityProfile.GANTRY: [1, 0, 0, 4, 1],
 		StationOperationsActivity.ActivityProfile.SERVICE_ARM: [0, 1, 0, 4, 2],
 		StationOperationsActivity.ActivityProfile.DRONE_PATROL: [0, 0, 2, 4, 2],
+		StationOperationsActivity.ActivityProfile.CARGO_LINE: [0, 0, 0, 4, 2],
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: [0, 0, 0, 4, 1],
+		StationOperationsActivity.ActivityProfile.OBSERVATORY: [0, 0, 0, 4, 2],
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: [0, 0, 0, 4, 2],
+	}
+	## Movers and material-swapped lenses each station-life profile must build.
+	var expected_station_life := {
+		StationOperationsActivity.ActivityProfile.GANTRY: [0, 0],
+		StationOperationsActivity.ActivityProfile.SERVICE_ARM: [0, 0],
+		StationOperationsActivity.ActivityProfile.DRONE_PATROL: [0, 0],
+		StationOperationsActivity.ActivityProfile.CARGO_LINE: [2, 2],
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: [1, 5],
+		StationOperationsActivity.ActivityProfile.OBSERVATORY: [2, 1],
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: [2, 1],
 	}
 	var expected_mounts := {
 		StationOperationsActivity.ActivityProfile.GANTRY: &"level_deck",
 		StationOperationsActivity.ActivityProfile.SERVICE_ARM: &"deck_edge",
 		StationOperationsActivity.ActivityProfile.DRONE_PATROL: &"deck_or_inverted_ceiling_anchor",
+		StationOperationsActivity.ActivityProfile.CARGO_LINE: &"level_deck",
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: &"level_deck",
+		StationOperationsActivity.ActivityProfile.OBSERVATORY: &"level_deck",
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: &"deck_edge",
 	}
 	for profile: int in [
 		StationOperationsActivity.ActivityProfile.GANTRY,
 		StationOperationsActivity.ActivityProfile.SERVICE_ARM,
 		StationOperationsActivity.ActivityProfile.DRONE_PATROL,
+		StationOperationsActivity.ActivityProfile.CARGO_LINE,
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON,
+		StationOperationsActivity.ActivityProfile.OBSERVATORY,
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST,
 	]:
 		var profiled := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
 		profiled.activity_profile = profile
@@ -83,6 +105,12 @@ func _run() -> void:
 			and int(equipment.safety_beacon_count) == int(expected[3])
 			and int(equipment.animated_assembly_count) == int(expected[4]),
 			"%s profile builds only its declared equipment" % profiled.get_activity_profile_id()
+		)
+		var expected_life: Array = expected_station_life[profile]
+		_check(
+			int(equipment.station_life_mover_count) == int(expected_life[0])
+			and int(equipment.station_life_lens_count) == int(expected_life[1]),
+			"%s profile builds exactly its declared station-life movers and lenses" % profiled.get_activity_profile_id()
 		)
 		_check(
 			profile_integration.mount_type == expected_mounts[profile]
@@ -116,7 +144,12 @@ func _run() -> void:
 	var roster_audit := StationOperationsActivity.audit_production_roster(profile_instances)
 	print("STATION_OPERATIONS_PRODUCTION_ROSTER: ", roster_audit)
 	_check(bool(roster_audit.valid), "one of each profile satisfies the recommended production roster audit")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) <= 180, "four distinct production roles stay within the 180-mesh aggregate budget")
+	# Re-frozen from 4 roles / 180 meshes by the station-life pass. The roster is
+	# now the four original fixed-rail roles plus cargo_line, signage_pylon,
+	# observatory and crew_workpost, and its aggregate mesh budget went 180 -> 339
+	# (79 + 48 + 19 + 32 + 47 + 33 + 33 + 48).
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) <= 339, "eight distinct production roles stay within the 339-mesh aggregate budget")
+	_check(int((roster_audit.counts as Dictionary).instance_count) == 8, "the recommended production roster is exactly eight role-specific placements")
 	var mutated_profile := profile_instances[1] as StationOperationsActivity
 	mutated_profile.activity_profile = StationOperationsActivity.ActivityProfile.FULL
 	_check(not bool(mutated_profile.get_audit_report().valid), "changing the exported profile after build is detected instead of misreporting geometry")
@@ -325,6 +358,8 @@ func _run() -> void:
 	(detached_audit.performance as Dictionary).clear()
 	_check(not activity.get_performance_audit().is_empty(), "audit dictionaries are detached from component state")
 
+	await _test_station_life_behaviour()
+
 	peer.queue_free()
 	preconfigured.queue_free()
 	invalid_profile.queue_free()
@@ -335,6 +370,119 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+## The four station-life profiles as a behaviour group: the movers must be pure
+## functions of the clock, the material-swapped lenses must actually change state
+## over one cycle rather than sitting on one material, and both must fail the
+## audit red when nudged off the pose or the material the clock implies.
+func _test_station_life_behaviour() -> void:
+	var cases := {
+		StationOperationsActivity.ActivityProfile.CARGO_LINE: "PresentationRoot/CargoTransferLine/AnimatedCargoSled",
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON: "PresentationRoot/WayfindingPylon/AnimatedIdentifierDrum",
+		StationOperationsActivity.ActivityProfile.OBSERVATORY: "PresentationRoot/SkywatchPost/AnimatedSkywatchYoke",
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST: "PresentationRoot/CrewWorkPost/AnimatedToolCarousel",
+	}
+	for profile: int in cases:
+		var activity := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+		activity.activity_profile = profile
+		activity.variation_seed = 60000 + profile
+		root.add_child(activity)
+		await process_frame
+		var profile_id := activity.get_activity_profile_id()
+
+		# A mover must actually move, and both movers must be distinguishable.
+		activity.set_activity_time(0.0)
+		var first_state := activity.get_activity_state()
+		activity.set_activity_time(4.4)
+		var later_state := activity.get_activity_state()
+		var moved := false
+		var movers_first := first_state.station_life_movers as Array
+		var movers_later := later_state.station_life_movers as Array
+		for index in movers_first.size():
+			var before := movers_first[index] as Dictionary
+			var after := movers_later[index] as Dictionary
+			moved = moved or not (
+				(before.position as Vector3).is_equal_approx(after.position as Vector3)
+				and (before.rotation as Vector3).is_equal_approx(after.rotation as Vector3)
+			)
+		_check(moved, "%s station-life movers advance with the deterministic clock" % profile_id)
+
+		# Every lens must be observed both lit and unlit inside one 8 s sweep, so
+		# a lens frozen on one material cannot pass as a working cue.
+		var lens_count := int((activity.get_equipment_counts() as Dictionary).station_life_lens_count)
+		var seen_lit: Array[bool] = []
+		var seen_dark: Array[bool] = []
+		for _index in lens_count:
+			seen_lit.append(false)
+			seen_dark.append(false)
+		for step in 320:
+			activity.set_activity_time(float(step) * 0.025)
+			var lit := activity.get_activity_state().station_life_lit as Array
+			for index in lit.size():
+				if bool(lit[index]):
+					seen_lit[index] = true
+				else:
+					seen_dark[index] = true
+		var all_cycle := lens_count > 0
+		for index in lens_count:
+			all_cycle = all_cycle and seen_lit[index] and seen_dark[index]
+		_check(all_cycle, "%s lights and clears every station-life lens within one cycle" % profile_id)
+
+		# Frame subdivision independence for the new movers specifically.
+		var peer := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+		peer.activity_profile = profile
+		peer.variation_seed = activity.variation_seed
+		peer.position = Vector3(-24.0, 3.0, 41.0)
+		root.add_child(peer)
+		await process_frame
+		activity.reset_activity_time()
+		peer.reset_activity_time()
+		activity.advance_activity_simulation(6.0)
+		for _step in 24:
+			peer.advance_activity_simulation(0.25)
+		_check(
+			_states_match(activity.get_activity_state(), peer.get_activity_state()),
+			"%s station-life motion is frame-subdivision and placement independent" % profile_id
+		)
+
+		_check(bool(activity.get_audit_report().valid), "%s station-life build passes its own audit" % profile_id)
+		var mover := activity.get_node(cases[profile] as String) as Node3D
+		var original_position := mover.position
+		mover.position.x += 0.25
+		_check(
+			not bool(activity.get_audit_report().valid),
+			"%s audit rejects a station-life mover nudged off its clock pose" % profile_id
+		)
+		mover.position = original_position
+		var lens_path := _first_station_life_lens_path(activity)
+		var lens := activity.get_node(lens_path) as MeshInstance3D
+		var original_lens_material := lens.material_override
+		lens.material_override = (
+			activity.get_node("PresentationRoot/SafetyBeacon01/Base") as MeshInstance3D
+		).material_override
+		_check(
+			not bool(activity.get_audit_report().valid),
+			"%s audit rejects a station-life lens forced off its clock material" % profile_id
+		)
+		lens.material_override = original_lens_material
+		_check(bool(activity.get_audit_report().valid), "%s station-life mutations are fully reversible" % profile_id)
+
+		peer.queue_free()
+		activity.queue_free()
+		await process_frame
+
+
+func _first_station_life_lens_path(activity: StationOperationsActivity) -> String:
+	match activity.get_activity_profile():
+		StationOperationsActivity.ActivityProfile.CARGO_LINE:
+			return "PresentationRoot/CargoTransferLine/AnimatedCargoSled/SledStrobe"
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON:
+			return "PresentationRoot/WayfindingPylon/Chevron"
+		StationOperationsActivity.ActivityProfile.OBSERVATORY:
+			return "PresentationRoot/SkywatchPost/AnimatedSkywatchYoke/AnimatedOpticTube/OpticLens"
+		_:
+			return "PresentationRoot/CrewWorkPost/AnimatedWeldJig/WeldArc"
 
 
 func _states_match(first: Dictionary, second: Dictionary, compare_lifecycle: bool = true) -> bool:
@@ -363,6 +511,17 @@ func _states_match(first: Dictionary, second: Dictionary, compare_lifecycle: boo
 			return false
 		if not ((first_drones[index] as Dictionary).rotation as Vector3).is_equal_approx((second_drones[index] as Dictionary).rotation as Vector3):
 			return false
+	var first_movers := first.station_life_movers as Array
+	var second_movers := second.station_life_movers as Array
+	if first_movers.size() != second_movers.size():
+		return false
+	for index in first_movers.size():
+		if not ((first_movers[index] as Dictionary).position as Vector3).is_equal_approx((second_movers[index] as Dictionary).position as Vector3):
+			return false
+		if not ((first_movers[index] as Dictionary).rotation as Vector3).is_equal_approx((second_movers[index] as Dictionary).rotation as Vector3):
+			return false
+	if first.station_life_lit != second.station_life_lit:
+		return false
 	return first.beacon_pattern == second.beacon_pattern
 
 

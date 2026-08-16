@@ -150,7 +150,10 @@ const CENTRAL_HERO_MODULE_ID: StringName = &"central-berth-hero-cell"
 const CENTRAL_HERO_SHIP_ID: StringName = &"torrent_provisional"
 const CENTRAL_HERO_EVIDENCE_STATUS: StringName = &"creator_roster_supported_modern_interpretation"
 const OPERATIONAL_LATTICE_EVIDENCE_STATUS: StringName = &"modern_interpretation"
-const EXPECTED_STATION_ACTIVITY_COUNT := 4
+## Re-frozen from 4 by the station-life pass: the four original fixed-rail roles
+## plus one cargo transfer line, one crew work post, one skywatch post and one
+## wayfinding pylon. Every one of the eight remains presentation-only.
+const EXPECTED_STATION_ACTIVITY_COUNT := 8
 const EXPECTED_STATION_AMBIENCE_COUNT := 4
 const EXPECTED_STATION_DRESSING_COUNT := 4
 const STATION_ACTIVITY_SPECS := {
@@ -158,6 +161,14 @@ const STATION_ACTIVITY_SPECS := {
 	&"AftOperationsActivity": {"path": NodePath("OperationalLattice/Activities/AftOperationsActivity"), "transform": Transform3D(Basis(Vector3.UP, PI), Vector3(5.8, 4.99, 61.2)), "profile": &"service_arm", "seed": 2207},
 	&"HabitatServicePatrol": {"path": NodePath("OperationalLattice/Activities/HabitatServicePatrol"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(59.15, 4.88, 15.5)), "profile": &"drone_patrol", "seed": 3301},
 	&"FreightApproachGantry": {"path": NodePath("OperationalLattice/Activities/FreightApproachGantry"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-53.0, 0.38, 29.7)), "profile": &"gantry", "seed": 4409},
+	# Station-life placements. Each sits on a support body an existing sibling
+	# already proved walkable or roofed, keeps at least 12 m from every other
+	# activity root, and clears every berth landing volume; none of them adds
+	# collision, so no deliberate void is filled and no deck is widened.
+	&"CentralCargoTransferLine": {"path": NodePath("OperationalLattice/Activities/CentralCargoTransferLine"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(-7.0, 0.0, 18.0)), "profile": &"cargo_line", "seed": 5507},
+	&"AftCrewWorkPost": {"path": NodePath("OperationalLattice/Activities/AftCrewWorkPost"), "transform": Transform3D(Basis.IDENTITY, Vector3(-7.0, 4.2, 65.0)), "profile": &"crew_workpost", "seed": 6607},
+	&"HabitatSkywatchPost": {"path": NodePath("OperationalLattice/Activities/HabitatSkywatchPost"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(73.0, 5.08, 19.0)), "profile": &"observatory", "seed": 7703},
+	&"FreightApproachSignage": {"path": NodePath("OperationalLattice/Activities/FreightApproachSignage"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-41.0, 6.18, 29.0)), "profile": &"signage_pylon", "seed": 8821},
 }
 const STATION_AMBIENCE_SPECS := {
 	&"central-berth-utilities": {"node_name": &"CentralBerthUtilitiesAmbience", "path": NodePath("OperationalLattice/Ambience/CentralBerthUtilitiesAmbience"), "position": Vector3(10.65, 1.8, -19.25), "seed": 4831, "base_frequency_hz": 44.0, "maximum_distance": 26.0, "reference_distance": 4.0},
@@ -171,7 +182,70 @@ const STATION_DRESSING_SPECS := {
 	&"HabitatOuterServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/HabitatOuterServiceDressing"), "transform": Transform3D(Basis.IDENTITY, Vector3(59.15, 4.45, 21.94)), "length": 12.0, "profile": &"standard", "orientation": &"along_mount_x"},
 	&"FreightRackServiceDressing": {"path": NodePath("OperationalLattice/StructuralDressing/FreightRackServiceDressing"), "transform": Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), "length": 20.0, "profile": &"light", "orientation": &"along_mount_x"},
 }
+const STATION_NAVIGATION_SCHEMA_VERSION := 1
+const EXPECTED_STATION_SERVICE_AGENT_COUNT := 4
+const STATION_SERVICE_AGENT_MINIMUM_BERTH_GAP := 0.15
+## Metres the bottom of a courier's published envelope must clear the highest
+## waypoint of its own route by. The route markers sit on the connector deck, so
+## this keeps the presentation body above the production player capsule
+## (`1.94 m`). The real deck-surface clearance is proved by raycast in
+## `tests/station_navigation_graph_test.gd`.
+const STATION_SERVICE_AGENT_MINIMUM_ROUTE_CLEARANCE := 2.2
+
+## Exactly one presentation courier per declared station connection slot.
+##
+## Every route below is *resolved* from `StationNavigationGraph`, never authored
+## here: the world names the two declared endpoints and the graph decides whether
+## and how they connect. A slot that stops pairing therefore removes its courier
+## and turns the navigation audit red instead of leaving an agent flying a stale
+## line. Hover lifts keep the courier body at least
+## `STATION_SERVICE_AGENT_MINIMUM_DECK_CLEARANCE` above the deck it follows, so a
+## presentation body never appears to occupy player walking space.
+const STATION_SERVICE_AGENT_SPECS := {
+	&"aft-junction-courier": {
+		"node_name": &"AftJunctionServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/AftJunctionServiceCourier"),
+		"slot_id": &"hub-aft-junction",
+		"from_node_id": &"station-hub:hub-aft-junction",
+		"to_node_id": &"aft-junction-stack:approach",
+		"seed": 5501,
+		"speed": 0.85,
+		"lift": 3.7,
+	},
+	&"fleet-dock-courier": {
+		"node_name": &"FleetDockServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/FleetDockServiceCourier"),
+		"slot_id": &"hub-fleet-dock-comb",
+		"from_node_id": &"station-hub:hub-fleet-dock-comb",
+		"to_node_id": &"fleet-dock-comb:approach",
+		"seed": 7703,
+		"speed": 1.2,
+		"lift": 3.4,
+	},
+	&"freight-branch-courier": {
+		"node_name": &"FreightBranchServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/FreightBranchServiceCourier"),
+		"slot_id": &"hub-registry-pod-freight",
+		"from_node_id": &"station-hub:hub-registry-pod-freight",
+		"to_node_id": &"jovian-freight-berth:approach",
+		"seed": 8821,
+		"speed": 1.5,
+		"lift": 3.6,
+	},
+	&"habitat-spine-courier": {
+		"node_name": &"HabitatSpineServiceCourier",
+		"path": NodePath("OperationalLattice/ServiceAgents/HabitatSpineServiceCourier"),
+		"slot_id": &"hub-starboard-habitat",
+		"from_node_id": &"station-hub:hub-starboard-habitat",
+		"to_node_id": &"habitat-spine:approach",
+		"seed": 6607,
+		"speed": 0.9,
+		"lift": 3.7,
+	},
+}
 const STATION_ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
+const STATION_SERVICE_AGENT_SCENE := preload("res://scenes/world/components/station_service_agent.tscn")
+const STATION_NAVIGATION_GRAPH_SCRIPT := preload("res://scripts/world/station_navigation_graph.gd")
 const STATION_AMBIENCE_SCENE := preload("res://scenes/audio/station_machinery_ambience.tscn")
 const STATION_DRESSING_SCENE := preload("res://scenes/world/components/station_structural_service_dressing.tscn")
 const STATION_ROUTE_REGISTRY_SCENE := preload("res://scripts/world/station_route_registry.gd")
@@ -286,6 +360,9 @@ var _station_door_audio_hook_count := 0
 var _station_door_audio_bindings: Dictionary = {}
 var _station_route_registry := STATION_ROUTE_REGISTRY_SCENE.new() as StationRouteRegistry
 var _station_route_registry_report: Dictionary = {}
+var _station_service_agents: Array[StationServiceAgent] = []
+var _station_navigation_graph := STATION_NAVIGATION_GRAPH_SCRIPT.new() as StationNavigationGraph
+var _station_navigation_graph_report: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -328,10 +405,13 @@ func _ready() -> void:
 	_build_space_backdrop()
 	# After the backdrop, so the update-once bake sees the finished sky.
 	_build_module_reflection_probes()
-	_index_operational_lattice_components()
 	# The hub endpoints resolve against lattice geometry built above, so the
-	# registry can only be assembled once the environment exists.
+	# registry can only be assembled once the environment exists. Service couriers
+	# consume routes resolved from that registry, so they are created afterwards
+	# and indexed together with the rest of the lattice.
 	_initialize_station_route_registry()
+	_build_station_service_agents()
+	_index_operational_lattice_components()
 	_connect_operational_lattice_audio()
 	_apply_operational_dressing_quality()
 	set_station_activity_enabled(_station_activity_enabled)
@@ -496,6 +576,29 @@ func get_station_structural_service_dressings() -> Array[StationStructuralServic
 	return result
 
 
+## Integrated, presentation-only service couriers. Like the activity accessor,
+## the returned array is a detached registry: a caller can control a component
+## but cannot mutate the world's authoritative roster by changing an array.
+func get_station_service_agents() -> Array[StationServiceAgent]:
+	var result: Array[StationServiceAgent] = []
+	for agent in _station_service_agents:
+		if is_instance_valid(agent) and is_ancestor_of(agent):
+			result.append(agent)
+	return result
+
+
+## Deep-detached navigation graph derived from the station route registry. The
+## graph owns no topology of its own and grants no gameplay authority.
+func get_station_navigation_graph_report() -> Dictionary:
+	return _station_navigation_graph_report.duplicate(true)
+
+
+## Deterministic route resolution over the declared station graph, for tests and
+## UI. A valid route is not proof the player can physically walk it.
+func find_station_route(from_node_id: StringName, to_node_id: StringName) -> Dictionary:
+	return _station_navigation_graph.find_route(from_node_id, to_node_id)
+
+
 ## Deep-detached route-registry report for static station modules. The data is
 ## refreshed when the world is built and on reentry reindex.
 func get_station_route_registry_report() -> Dictionary:
@@ -518,6 +621,9 @@ func set_station_activity_enabled(enabled: bool) -> void:
 	for ambience in _station_machinery_ambience_nodes:
 		if is_instance_valid(ambience):
 			ambience.set_ambience_enabled(enabled)
+	for agent in _station_service_agents:
+		if is_instance_valid(agent):
+			agent.set_agent_enabled(enabled)
 	if is_instance_valid(jovian_freight_berth):
 		jovian_freight_berth.set_equipment_animation_enabled(enabled)
 
@@ -594,7 +700,16 @@ func get_operational_lattice_audit_report() -> Dictionary:
 		):
 			errors.append("station activity %s diverged from its audited placement/profile/seed" % activity.name)
 	activity_profiles.sort()
-	var expected_profiles := PackedStringArray(["drone_patrol", "full", "gantry", "service_arm"])
+	var expected_profiles := PackedStringArray([
+		"cargo_line",
+		"crew_workpost",
+		"drone_patrol",
+		"full",
+		"gantry",
+		"observatory",
+		"service_arm",
+		"signage_pylon",
+	])
 	if activity_profiles != expected_profiles:
 		errors.append("station activity roster must contain each role-specific profile exactly once")
 	if activity_placements.size() != STATION_ACTIVITY_SPECS.size():
@@ -721,7 +836,7 @@ func get_operational_lattice_audit_report() -> Dictionary:
 		errors.append("station structural dressing roster must contain each exact production name once")
 
 	if _station_operations_activities.size() != EXPECTED_STATION_ACTIVITY_COUNT:
-		errors.append("station must integrate exactly four operations activity instances")
+		errors.append("station must integrate exactly eight operations activity instances")
 	if _station_machinery_ambience_nodes.size() != EXPECTED_STATION_AMBIENCE_COUNT:
 		errors.append("station must integrate exactly four machinery ambience emitters")
 	if _station_structural_service_dressings.size() != EXPECTED_STATION_DRESSING_COUNT:
@@ -769,6 +884,229 @@ func get_operational_lattice_audit_report() -> Dictionary:
 			"door_audio_hook_count": _station_door_audio_hook_count,
 		},
 	}.duplicate(true)
+
+
+## Deep-detached audit for the declared station navigation graph and the
+## presentation couriers that consume it.
+##
+## The graph is derived, never authored: every assertion here compares a live
+## courier against the route the graph resolves *now*. A module that stops
+## declaring its connection slot, a hub endpoint that moves, a courier that is
+## re-aimed, re-seeded, or re-parented, or a courier that gains collision,
+## interaction, or berth authority all turn this report red.
+func get_station_navigation_audit_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var graph_report := _station_navigation_graph_report
+	if not bool(graph_report.get("valid", false)):
+		errors.append("station navigation graph is invalid: %s" % ", ".join(
+			graph_report.get("errors", PackedStringArray()) as PackedStringArray
+		))
+	if int(graph_report.get("edge_count", 0)) != STATION_HUB_ENDPOINT_DECLARATIONS.size():
+		errors.append("station navigation graph must expose one edge per declared hub endpoint")
+
+	var live_agent_instance_ids := {}
+	_collect_live_station_service_agent_ids(self, live_agent_instance_ids)
+	var registered_agent_instance_ids := {}
+	for agent in _station_service_agents:
+		if is_instance_valid(agent):
+			registered_agent_instance_ids[agent.get_instance_id()] = true
+	if not _instance_id_sets_match(registered_agent_instance_ids, live_agent_instance_ids):
+		errors.append("station service agent registry does not match the live world hierarchy")
+	if _station_service_agents.size() != EXPECTED_STATION_SERVICE_AGENT_COUNT:
+		errors.append("station must integrate exactly four declared-slot service couriers")
+
+	var berth_volumes: Array[AABB] = []
+	for berth_id in get_berth_ids():
+		var berth := get_berth_node(berth_id)
+		if not is_instance_valid(berth):
+			continue
+		var half := berth.get_landing_half_extents()
+		berth_volumes.append(_station_local_aabb_to_world(berth.get_dock_transform(), -half, half))
+
+	var placements := {}
+	var smallest_berth_gap := INF
+	var smallest_route_clearance := INF
+	for agent in _station_service_agents:
+		if not is_instance_valid(agent):
+			errors.append("station service agent registry contains a freed instance")
+			continue
+		if not is_ancestor_of(agent):
+			errors.append("station service agent registry contains a node outside the live world hierarchy")
+			continue
+		var agent_id := agent.get_agent_id()
+		if placements.has(agent_id):
+			errors.append("duplicate station service agent id %s" % agent_id)
+		var agent_audit := agent.get_audit_report()
+		if not bool(agent_audit.get("valid", false)):
+			errors.append("station service agent %s failed its component audit: %s" % [
+				agent_id,
+				", ".join(agent_audit.get("errors", PackedStringArray()) as PackedStringArray),
+			])
+		var integration := agent.get_integration_contract()
+		var envelope := _station_local_aabb_to_world(
+			agent.global_transform,
+			integration.local_min as Vector3,
+			integration.local_max as Vector3
+		)
+		placements[agent_id] = {
+			"path": agent.get_path(),
+			"global_transform": agent.global_transform,
+			"route_id": agent.get_route_id(),
+			"route_node_ids": agent.get_route_node_ids(),
+			"route_length": agent.get_route_length(),
+			"variation_seed": agent.variation_seed,
+			"traversal_speed": agent.traversal_speed,
+			"hover_lift": agent.hover_lift,
+			"service_envelope_world": envelope,
+			"integration": integration,
+		}
+		var spec := STATION_SERVICE_AGENT_SPECS.get(agent_id, {}) as Dictionary
+		if spec.is_empty():
+			errors.append("unknown station service agent %s" % agent_id)
+			continue
+		if (
+			StringName(agent.name) != StringName(spec.node_name)
+			or get_node_or_null(spec.path as NodePath) != agent
+			or agent.variation_seed != int(spec.seed)
+			or not is_equal_approx(agent.traversal_speed, float(spec.speed))
+			or not is_equal_approx(agent.hover_lift, float(spec.lift))
+			or agent.get_route_id() != StringName(spec.slot_id)
+		):
+			errors.append("station service agent %s diverged from its audited placement/seed/cadence" % agent_id)
+		# The route is re-resolved from the live graph on every audit, so a station
+		# graph that changed under a running courier is reported rather than flown.
+		var route := _station_navigation_graph.find_route(
+			spec.from_node_id as StringName,
+			spec.to_node_id as StringName
+		)
+		if not bool(route.get("valid", false)):
+			errors.append("station service agent %s no longer resolves a declared route: %s" % [
+				agent_id,
+				", ".join(route.get("errors", PackedStringArray()) as PackedStringArray),
+			])
+			continue
+		if agent.get_route_node_ids() != (route.get("node_ids", PackedStringArray()) as PackedStringArray):
+			errors.append("station service agent %s route endpoints diverged from the live navigation graph" % agent_id)
+		var graph_waypoints := route.get("waypoints", PackedVector3Array()) as PackedVector3Array
+		var agent_waypoints := agent.get_world_route_points()
+		if agent_waypoints.size() != graph_waypoints.size():
+			errors.append("station service agent %s waypoint count diverged from the live navigation graph" % agent_id)
+		else:
+			var highest_route_y := -INF
+			for index in graph_waypoints.size():
+				if not agent_waypoints[index].is_equal_approx(graph_waypoints[index]):
+					errors.append("station service agent %s waypoint %d diverged from the live navigation graph" % [agent_id, index])
+					break
+				highest_route_y = maxf(highest_route_y, graph_waypoints[index].y)
+			var clearance := envelope.position.y - highest_route_y
+			smallest_route_clearance = minf(smallest_route_clearance, clearance)
+			if clearance < STATION_SERVICE_AGENT_MINIMUM_ROUTE_CLEARANCE:
+				errors.append(
+					"station service agent %s hovers only %.3f m above its own route line" % [agent_id, clearance]
+				)
+		for berth_volume in berth_volumes:
+			if _station_aabbs_overlap(envelope, berth_volume):
+				errors.append("station service agent %s service envelope intrudes on a live berth volume" % agent_id)
+				smallest_berth_gap = 0.0
+			else:
+				smallest_berth_gap = minf(smallest_berth_gap, _station_aabb_separation(envelope, berth_volume))
+	if smallest_berth_gap < STATION_SERVICE_AGENT_MINIMUM_BERTH_GAP:
+		errors.append("station service couriers must leave every berth volume clear by at least 0.15 m")
+	if placements.size() != STATION_SERVICE_AGENT_SPECS.size():
+		errors.append("station service courier roster must contain each exact production id once")
+
+	var agent_root := get_node_or_null(^"OperationalLattice/ServiceAgents")
+	var forbidden_nodes := PackedStringArray()
+	if agent_root == null:
+		errors.append("OperationalLattice/ServiceAgents root is missing")
+	else:
+		for node in agent_root.find_children("*", "", true, false):
+			var script := node.get_script() as Script
+			if (
+				node is CollisionObject3D
+				or node is CollisionShape3D
+				or node is Area3D
+				or node is Light3D
+				or node is GPUParticles3D
+				or node is CPUParticles3D
+				or node is AudioStreamPlayer3D
+				or (script != null and script.resource_path.ends_with("/ship_berth.gd"))
+			):
+				forbidden_nodes.append(str(agent_root.get_path_to(node)))
+		if not forbidden_nodes.is_empty():
+			errors.append("station service courier subtree gained forbidden authority or emitter nodes: %s" % ", ".join(forbidden_nodes))
+
+	return {
+		"schema_version": STATION_NAVIGATION_SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"evidence_status": OPERATIONAL_LATTICE_EVIDENCE_STATUS,
+		"evidence": {
+			"schema_version": STATION_NAVIGATION_SCHEMA_VERSION,
+			"evidence_status": OPERATIONAL_LATTICE_EVIDENCE_STATUS,
+			"source_bounded": true,
+			"derived_from": &"station_route_registry",
+			"authenticated_original_routes": false,
+			"authenticated_original_logistics": false,
+			"authenticated_original_traffic": false,
+			"content_note": (
+				"Station service couriers travel routes resolved from the declared, non-metric "
+				+ "station route registry. Which endpoints connect, the courier silhouette, its "
+				+ "cadence, hover band, and the idea of autonomous station logistics at all are "
+				+ "project-original modern interpretation."
+			),
+		},
+		"authority": {
+			"owns_berth_authority": false,
+			"owns_lease_authority": false,
+			"owns_spawn_or_regeneration_authority": false,
+			"owns_combat_or_damage_authority": false,
+			"owns_interaction_authority": false,
+			"forbidden_node_paths": forbidden_nodes,
+			"proves_physical_traversability": false,
+		},
+		"graph": graph_report.duplicate(true),
+		"placements": placements,
+		"clearances": {
+			"minimum_berth_gap": smallest_berth_gap,
+			"minimum_route_clearance": smallest_route_clearance,
+			"required_berth_gap": STATION_SERVICE_AGENT_MINIMUM_BERTH_GAP,
+			"required_route_clearance": STATION_SERVICE_AGENT_MINIMUM_ROUTE_CLEARANCE,
+		},
+		"lifecycle": {
+			"enabled": _station_activity_enabled,
+			"agent_count": _station_service_agents.size(),
+		},
+	}.duplicate(true)
+
+
+func _station_local_aabb_to_world(world_transform: Transform3D, local_min: Vector3, local_max: Vector3) -> AABB:
+	var bounds := AABB(world_transform * local_min, Vector3.ZERO)
+	for corner_index in range(1, 8):
+		var corner := Vector3(
+			local_max.x if corner_index & 1 else local_min.x,
+			local_max.y if corner_index & 2 else local_min.y,
+			local_max.z if corner_index & 4 else local_min.z
+		)
+		bounds = bounds.expand(world_transform * corner)
+	return bounds
+
+
+func _station_aabbs_overlap(first: AABB, second: AABB) -> bool:
+	return (
+		first.position.x < second.end.x and second.position.x < first.end.x
+		and first.position.y < second.end.y and second.position.y < first.end.y
+		and first.position.z < second.end.z and second.position.z < first.end.z
+	)
+
+
+func _station_aabb_separation(first: AABB, second: AABB) -> float:
+	var gap := Vector3(
+		maxf(first.position.x - second.end.x, second.position.x - first.end.x),
+		maxf(first.position.y - second.end.y, second.position.y - first.end.y),
+		maxf(first.position.z - second.end.z, second.position.z - first.end.z)
+	)
+	return maxf(maxf(gap.x, gap.y), gap.z)
 
 
 ## Stable physical berth registry used by the multi-ship sandbox. Exact side-
@@ -1211,6 +1549,12 @@ func _initialize_station_route_registry() -> void:
 		discovered_modules,
 		_build_station_hub_endpoints()
 	)
+	# The navigation graph is a pure consumer of the registry report, so it is
+	# rebuilt together with it. Rebuilding never touches courier node identities;
+	# a drifted graph is reported by the navigation audit instead.
+	_station_navigation_graph_report = _station_navigation_graph.build_from_registry_report(
+		_station_route_registry_report
+	)
 
 
 ## The world owns placement, so it also owns the hub half of every station
@@ -1289,6 +1633,11 @@ func _build_operational_lattice_components() -> void:
 	var dressings := Node3D.new()
 	dressings.name = "StructuralDressing"
 	lattice.add_child(dressings)
+	# Populated after the route registry and navigation graph resolve, because a
+	# courier route is read out of the declared station graph rather than authored.
+	var service_agents := Node3D.new()
+	service_agents.name = "ServiceAgents"
+	lattice.add_child(service_agents)
 
 	_add_station_activity(
 		activities, "CentralTowServiceActivity",
@@ -1313,6 +1662,30 @@ func _build_operational_lattice_components() -> void:
 		StationOperationsActivity.ActivityProfile.GANTRY, 4409
 	)
 
+	# Station life. Cargo movement beside the Central berth, a crew work post at
+	# the head of the Aft upper stair, an observation instrument on the Habitat
+	# common roof, and wayfinding at the Freight approach.
+	_add_station_activity(
+		activities, "CentralCargoTransferLine",
+		Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(-7.0, 0.0, 18.0)),
+		StationOperationsActivity.ActivityProfile.CARGO_LINE, 5507
+	)
+	_add_station_activity(
+		activities, "AftCrewWorkPost",
+		Transform3D(Basis.IDENTITY, Vector3(-7.0, 4.2, 65.0)),
+		StationOperationsActivity.ActivityProfile.CREW_WORKPOST, 6607
+	)
+	_add_station_activity(
+		activities, "HabitatSkywatchPost",
+		Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(73.0, 5.08, 19.0)),
+		StationOperationsActivity.ActivityProfile.OBSERVATORY, 7703
+	)
+	_add_station_activity(
+		activities, "FreightApproachSignage",
+		Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-41.0, 6.18, 29.0)),
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON, 8821
+	)
+
 	_add_station_ambience(ambience, "CentralBerthUtilitiesAmbience", Vector3(10.65, 1.8, -19.25), &"central-berth-utilities", 4831, 44.0, 26.0, 4.0)
 	_add_station_ambience(ambience, "AftOperationsAmbience", Vector3(10.0, 2.35, 60.55), &"aft-operations-service-wall", 7759, 52.0, 24.0, 3.5)
 	_add_station_ambience(ambience, "HabitatEnvironmentalAmbience", Vector3(59.15, 3.2, 20.95), &"habitat-environmental-main", 9127, 39.0, 22.0, 3.0)
@@ -1322,6 +1695,52 @@ func _build_operational_lattice_components() -> void:
 	_add_station_dressing(dressings, "AftOperationsOuterFascia", Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(10.86, 4.6, 60.55)), 6.0, StationStructuralServiceDressing.StructuralProfile.LIGHT)
 	_add_station_dressing(dressings, "HabitatOuterServiceDressing", Transform3D(Basis.IDENTITY, Vector3(59.15, 4.45, 21.94)), 12.0, StationStructuralServiceDressing.StructuralProfile.STANDARD)
 	_add_station_dressing(dressings, "FreightRackServiceDressing", Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), 20.0, StationStructuralServiceDressing.StructuralProfile.LIGHT)
+
+
+## Creates one courier per declared connection slot from routes the navigation
+## graph resolved. Nothing is authored here except the identity, cadence, and
+## hover band: if the graph cannot resolve a spec's two declared endpoints, no
+## courier is created and `get_station_navigation_audit_report()` turns red.
+func _build_station_service_agents() -> void:
+	var parent := get_node_or_null(^"OperationalLattice/ServiceAgents") as Node3D
+	if parent == null:
+		return
+	var agent_ids: Array[StringName] = []
+	for agent_id: StringName in STATION_SERVICE_AGENT_SPECS.keys():
+		agent_ids.append(agent_id)
+	agent_ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
+	for agent_id in agent_ids:
+		var spec := STATION_SERVICE_AGENT_SPECS[agent_id] as Dictionary
+		var route := _station_navigation_graph.find_route(
+			spec.from_node_id as StringName,
+			spec.to_node_id as StringName
+		)
+		if not bool(route.get("valid", false)):
+			continue
+		var waypoints := route.get("waypoints", PackedVector3Array()) as PackedVector3Array
+		if waypoints.size() < 2:
+			continue
+		# The mount keeps the world basis so the courier's hover lift stays world-up;
+		# only the origin follows the route's first declared endpoint.
+		var mount := Transform3D(Basis.IDENTITY, waypoints[0])
+		var local_waypoints := PackedVector3Array()
+		for point in waypoints:
+			local_waypoints.append(point - waypoints[0])
+		var agent := STATION_SERVICE_AGENT_SCENE.instantiate() as StationServiceAgent
+		agent.name = String(spec.node_name)
+		agent.transform = mount
+		agent.agent_id = agent_id
+		agent.variation_seed = int(spec.seed)
+		agent.traversal_speed = float(spec.speed)
+		agent.hover_lift = float(spec.lift)
+		if not agent.configure_service_route(
+			spec.slot_id as StringName,
+			route.get("node_ids", PackedStringArray()) as PackedStringArray,
+			local_waypoints
+		):
+			agent.free()
+			continue
+		parent.add_child(agent)
 
 
 func _add_station_activity(
@@ -1381,6 +1800,7 @@ func _index_operational_lattice_components() -> void:
 	_station_operations_activities.clear()
 	_station_machinery_ambience_nodes.clear()
 	_station_structural_service_dressings.clear()
+	_station_service_agents.clear()
 	_collect_operational_lattice_components(self)
 
 
@@ -1392,7 +1812,16 @@ func _collect_operational_lattice_components(search_root: Node) -> void:
 			_station_machinery_ambience_nodes.append(child as StationMachineryAmbience)
 		elif child is StationStructuralServiceDressing:
 			_station_structural_service_dressings.append(child as StationStructuralServiceDressing)
+		elif child is StationServiceAgent:
+			_station_service_agents.append(child as StationServiceAgent)
 		_collect_operational_lattice_components(child)
+
+
+func _collect_live_station_service_agent_ids(search_root: Node, agent_instance_ids: Dictionary) -> void:
+	for child in search_root.get_children():
+		if child is StationServiceAgent:
+			agent_instance_ids[child.get_instance_id()] = true
+		_collect_live_station_service_agent_ids(child, agent_instance_ids)
 
 
 func _collect_live_operational_lattice_component_ids(
