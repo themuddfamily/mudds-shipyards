@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/observation_logistics_spur.gd" id="1_module"]
+
+[node name="ObservationLogisticsSpur" type="Node3D"]
+script = ExtResource("1_module")
+
+[node name="ModuleAnchor" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="OriginConnection" type="Marker3D" parent="."]
+unique_name_in_owner = true
+
+[node name="ConnectorMidpoint" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0, 11)
+
+[node name="CrossLanding" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0, 24)
+
+[node name="ObservationPadMarker" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(-8, 0, 32)
+
+[node name="LogisticsPadMarker" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(8, 0, 32)
+
+[node name="FarReturn" type="Marker3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0, 38)
