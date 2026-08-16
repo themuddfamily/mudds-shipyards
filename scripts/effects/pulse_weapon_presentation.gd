@@ -53,6 +53,11 @@ const LIGHTS_PER_SLOT := 2
 const NODES_PER_SLOT := 13
 const MAX_VISIBLE_MESHES_PER_SHOT := 5
 const MAX_VISIBLE_LIGHTS_PER_SHOT := 1
+const RESOURCE_CATALOG_MESH_COUNT := 2
+const RESOURCE_CATALOG_MATERIAL_COUNT := 9
+const RESOURCE_CATALOG_RESOURCE_COUNT := (
+	RESOURCE_CATALOG_MESH_COUNT + RESOURCE_CATALOG_MATERIAL_COUNT
+)
 
 const MIN_SHOT_DISTANCE := 0.05
 const MAX_SHOT_DISTANCE := 2500.0
@@ -72,6 +77,13 @@ const CONTENT_NOTE := (
 	+ "presentation treatment. They do not claim to reproduce an authenticated "
 	+ "historical Keth Shipyards weapon effect or weapon-system behaviour."
 )
+
+## Visual resources are immutable after their first build and identical for every
+## component instance. Keep only the Resource identities process-wide; all pool
+## nodes, slot dictionaries, transforms, visibility, lights, and lifecycle state
+## remain owned by each PulseWeaponPresentation instance.
+static var _process_resource_catalog: Dictionary = {}
+static var _process_resource_catalog_build_count := 0
 
 @export_category("Bounded presentation")
 @export_range(1, MAX_POOL_CAPACITY, 1) var pool_capacity := DEFAULT_POOL_CAPACITY
@@ -470,6 +482,58 @@ func get_determinism_fingerprint() -> String:
 	)
 
 
+## Detached audit of the process-wide immutable visual catalog. Resource handles
+## are deliberately not exposed: callers receive only identity and visible-value
+## contracts, so the audit cannot mutate live presentation resources.
+func get_resource_catalog_audit() -> Dictionary:
+	var identity_contracts := {}
+	var content_contracts := {}
+	_append_mesh_catalog_audit(
+		identity_contracts,
+		content_contracts,
+		&"mesh:orb",
+		_shared_meshes.get(&"orb") as Mesh
+	)
+	_append_mesh_catalog_audit(
+		identity_contracts,
+		content_contracts,
+		&"mesh:dash",
+		_shared_meshes.get(&"dash") as Mesh
+	)
+	for style_id: StringName in STYLE_IDS:
+		_append_material_catalog_audit(
+			identity_contracts,
+			content_contracts,
+			StringName("material:%s:core" % style_id),
+			_style_materials.get(style_id) as StandardMaterial3D
+		)
+		var atlas_roles := _atlas_materials.get(style_id, {}) as Dictionary
+		for role: String in ["pulse", "impact"]:
+			_append_material_catalog_audit(
+				identity_contracts,
+				content_contracts,
+				StringName("material:%s:%s" % [style_id, role]),
+				atlas_roles.get(role) as StandardMaterial3D
+			)
+	return {
+		"scope": &"process_wide_immutable_resource_catalog",
+		"mapping_state_scope": &"component_instance",
+		"catalog_build_count": _process_resource_catalog_build_count,
+		"resource_count": identity_contracts.size(),
+		"mesh_resource_count": RESOURCE_CATALOG_MESH_COUNT,
+		"material_resource_count": RESOURCE_CATALOG_MATERIAL_COUNT,
+		"legacy_resources_per_component": RESOURCE_CATALOG_RESOURCE_COUNT,
+		"shared_resources_per_process": RESOURCE_CATALOG_RESOURCE_COUNT,
+		"identity_contracts": identity_contracts,
+		"content_contracts": content_contracts,
+		"mesh_instance_nodes_per_component": get_pool_capacity() * MESHES_PER_SLOT,
+		"maximum_visible_mesh_submissions_per_component": (
+			get_pool_capacity() * MAX_VISIBLE_MESHES_PER_SHOT
+		),
+		"light_nodes_per_component": get_pool_capacity() * LIGHTS_PER_SLOT,
+	}.duplicate(true)
+
+
 func get_performance_audit() -> Dictionary:
 	var counts := {
 		"node_count": 0,
@@ -521,6 +585,7 @@ func get_performance_audit() -> Dictionary:
 		"active_effects": _active_effect_count,
 		"resident_mesh_resources": _shared_meshes.size(),
 		"resident_style_materials": _style_materials.size() + _atlas_materials.size() * 2,
+		"resource_catalog": get_resource_catalog_audit(),
 		"runtime_node_allocation": false,
 		"runtime_resource_allocation": false,
 		"per_frame_allocation": false,
@@ -645,22 +710,59 @@ func _find_available_slot() -> int:
 
 
 func _build_shared_resources() -> void:
+	if _process_resource_catalog.is_empty():
+		_process_resource_catalog = _create_resource_catalog()
+		_process_resource_catalog_build_count += 1
+
+	# These small dictionaries remain instance-owned runtime mappings. Only their
+	# immutable Resource values are shared with the process catalog.
+	var catalog_meshes := _process_resource_catalog.get("meshes", {}) as Dictionary
+	_shared_meshes = {
+		&"orb": catalog_meshes.get(&"orb") as Mesh,
+		&"dash": catalog_meshes.get(&"dash") as Mesh,
+	}
+	var catalog_style_materials := (
+		_process_resource_catalog.get("style_materials", {}) as Dictionary
+	)
+	var catalog_atlas_materials := (
+		_process_resource_catalog.get("atlas_materials", {}) as Dictionary
+	)
+	for style_id: StringName in STYLE_IDS:
+		_style_materials[style_id] = (
+			catalog_style_materials.get(style_id) as StandardMaterial3D
+		)
+		var catalog_roles := catalog_atlas_materials.get(style_id, {}) as Dictionary
+		_atlas_materials[style_id] = {
+			"pulse": catalog_roles.get("pulse") as StandardMaterial3D,
+			"impact": catalog_roles.get("impact") as StandardMaterial3D,
+		}
+
+
+func _create_resource_catalog() -> Dictionary:
+	var meshes := {}
 	var atlas_quad := QuadMesh.new()
 	atlas_quad.resource_name = "PulsePresentationSharedAtlasQuad"
 	atlas_quad.size = Vector2.ONE
-	_shared_meshes[&"orb"] = atlas_quad
+	meshes[&"orb"] = atlas_quad
 
 	var dash := BoxMesh.new()
 	dash.resource_name = "PulsePresentationSharedDash"
 	dash.size = Vector3.ONE
-	_shared_meshes[&"dash"] = dash
+	meshes[&"dash"] = dash
 
+	var style_materials := {}
+	var atlas_materials := {}
 	for style_id: StringName in STYLE_IDS:
-		_style_materials[style_id] = _make_style_material(style_id)
-		_atlas_materials[style_id] = {
+		style_materials[style_id] = _make_style_material(style_id)
+		atlas_materials[style_id] = {
 			"pulse": _make_atlas_material(style_id, Vector3.ZERO, &"Pulse"),
 			"impact": _make_atlas_material(style_id, Vector3(0.5, 0.0, 0.0), &"Impact"),
 		}
+	return {
+		"meshes": meshes,
+		"style_materials": style_materials,
+		"atlas_materials": atlas_materials,
+	}
 
 
 func _build_pool() -> void:
@@ -1146,6 +1248,7 @@ func _resource_contracts_are_live() -> bool:
 		_shared_meshes.size() != 2
 		or _style_materials.size() != STYLE_IDS.size()
 		or _atlas_materials.size() != STYLE_IDS.size()
+		or not _resource_catalog_bindings_are_live()
 		or not _atlas_contract_is_live()
 	):
 		return false
@@ -1184,6 +1287,41 @@ func _resource_contracts_are_live() -> bool:
 				or mesh_instance.layers != 1
 			):
 				return false
+	return true
+
+
+func _resource_catalog_bindings_are_live() -> bool:
+	if (
+		_process_resource_catalog_build_count != 1
+		or _process_resource_catalog.size() != 3
+	):
+		return false
+	var catalog_meshes := _process_resource_catalog.get("meshes", {}) as Dictionary
+	var catalog_style_materials := (
+		_process_resource_catalog.get("style_materials", {}) as Dictionary
+	)
+	var catalog_atlas_materials := (
+		_process_resource_catalog.get("atlas_materials", {}) as Dictionary
+	)
+	if (
+		catalog_meshes.size() != RESOURCE_CATALOG_MESH_COUNT
+		or catalog_style_materials.size() != STYLE_IDS.size()
+		or catalog_atlas_materials.size() != STYLE_IDS.size()
+		or _shared_meshes.get(&"orb") != catalog_meshes.get(&"orb")
+		or _shared_meshes.get(&"dash") != catalog_meshes.get(&"dash")
+	):
+		return false
+	for style_id: StringName in STYLE_IDS:
+		if _style_materials.get(style_id) != catalog_style_materials.get(style_id):
+			return false
+		var instance_roles := _atlas_materials.get(style_id, {}) as Dictionary
+		var catalog_roles := catalog_atlas_materials.get(style_id, {}) as Dictionary
+		if (
+			instance_roles.size() != 2
+			or instance_roles.get("pulse") != catalog_roles.get("pulse")
+			or instance_roles.get("impact") != catalog_roles.get("impact")
+		):
+			return false
 	return true
 
 
@@ -1279,6 +1417,32 @@ func _mesh_contract(mesh: Mesh) -> Dictionary:
 	elif mesh is QuadMesh:
 		result["size"] = (mesh as QuadMesh).size
 	return result
+
+
+func _append_mesh_catalog_audit(
+		identity_contracts: Dictionary,
+		content_contracts: Dictionary,
+		catalog_key: StringName,
+		mesh: Mesh
+	) -> void:
+	var contract := _mesh_contract(mesh)
+	identity_contracts[catalog_key] = int(contract.get("instance_id", 0))
+	contract.erase("instance_id")
+	content_contracts[catalog_key] = contract
+
+
+func _append_material_catalog_audit(
+		identity_contracts: Dictionary,
+		content_contracts: Dictionary,
+		catalog_key: StringName,
+		material: StandardMaterial3D
+	) -> void:
+	var contract := _material_contract(material)
+	identity_contracts[catalog_key] = int(contract.get("instance_id", 0))
+	contract.erase("instance_id")
+	contract.erase("albedo_texture_id")
+	contract.erase("emission_texture_id")
+	content_contracts[catalog_key] = contract
 
 
 func _count_runtime_nodes(node: Node, counts: Dictionary) -> void:

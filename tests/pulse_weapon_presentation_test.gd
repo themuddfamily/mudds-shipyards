@@ -361,6 +361,91 @@ func _run() -> void:
 		"equivalent builds publish the same deterministic resource fingerprint"
 	)
 
+	# Three independent component instances retain their own pool and lifecycle
+	# state while binding the same immutable two-mesh/nine-material catalog.
+	var catalog_components: Array[PulseWeaponPresentation] = [
+		presentation,
+		deterministic_a,
+		deterministic_b,
+	]
+	var catalog_audits: Array[Dictionary] = []
+	var unique_catalog_resource_ids := {}
+	var aggregate_node_count := 0
+	var aggregate_mesh_instance_nodes := 0
+	var aggregate_light_nodes := 0
+	var aggregate_submission_ceiling := 0
+	for catalog_component in catalog_components:
+		var catalog_audit := catalog_component.get_resource_catalog_audit()
+		catalog_audits.append(catalog_audit)
+		for resource_id: int in (catalog_audit.identity_contracts as Dictionary).values():
+			unique_catalog_resource_ids[resource_id] = true
+		var component_performance := catalog_component.get_performance_audit()
+		var component_counts := component_performance.counts as Dictionary
+		aggregate_node_count += int(component_counts.node_count)
+		aggregate_mesh_instance_nodes += int(component_counts.mesh_instances)
+		aggregate_light_nodes += int(component_counts.lights)
+		aggregate_submission_ceiling += int(
+			catalog_audit.maximum_visible_mesh_submissions_per_component
+		)
+	var legacy_resource_allocations := (
+		catalog_components.size() * int(catalog_audits[0].legacy_resources_per_component)
+	)
+	var catalog_sharing_evidence := {
+		"component_instances": catalog_components.size(),
+		"resource_allocations_old": legacy_resource_allocations,
+		"resource_allocations_new": unique_catalog_resource_ids.size(),
+		"allocated_nodes_old": aggregate_node_count,
+		"allocated_nodes_new": aggregate_node_count,
+		"mesh_instance_nodes_old": aggregate_mesh_instance_nodes,
+		"mesh_instance_nodes_new": aggregate_mesh_instance_nodes,
+		"maximum_visible_mesh_submissions_old": aggregate_submission_ceiling,
+		"maximum_visible_mesh_submissions_new": aggregate_submission_ceiling,
+		"light_nodes_old": aggregate_light_nodes,
+		"light_nodes_new": aggregate_light_nodes,
+	}
+	print("PULSE_WEAPON_PRESENTATION_CATALOG_SHARING: ", catalog_sharing_evidence)
+	_check(
+		catalog_audits[0].scope == &"process_wide_immutable_resource_catalog"
+		and catalog_audits[0].mapping_state_scope == &"component_instance"
+		and int(catalog_audits[0].catalog_build_count) == 1,
+		"catalog is built once process-wide while component mapping state stays instance-owned"
+	)
+	_check(
+		(catalog_audits[0].identity_contracts as Dictionary)
+			== (catalog_audits[1].identity_contracts as Dictionary)
+		and (catalog_audits[0].identity_contracts as Dictionary)
+			== (catalog_audits[2].identity_contracts as Dictionary),
+		"three live components bind identical mesh and material Resource identities"
+	)
+	_check(
+		(catalog_audits[0].content_contracts as Dictionary)
+			== (catalog_audits[1].content_contracts as Dictionary)
+		and (catalog_audits[0].content_contracts as Dictionary)
+			== (catalog_audits[2].content_contracts as Dictionary)
+		and (catalog_audits[0].content_contracts as Dictionary).size() == 11,
+		"shared catalog preserves the complete visible mesh/material roster and parameter contracts"
+	)
+	_check(
+		legacy_resource_allocations == 33
+		and unique_catalog_resource_ids.size() == 11,
+		"three components reduce immutable Resource allocations from 33 to 11"
+	)
+	_check(
+		aggregate_node_count == 240
+		and aggregate_mesh_instance_nodes == 180
+		and aggregate_light_nodes == 36
+		and aggregate_submission_ceiling == 90,
+		"sharing preserves 240 nodes, 180 semantic mesh nodes, 36 lights, and the 90-submission ceiling"
+	)
+	var detached_catalog_audit := presentation.get_resource_catalog_audit()
+	(detached_catalog_audit.identity_contracts as Dictionary).clear()
+	(detached_catalog_audit.content_contracts as Dictionary).clear()
+	_check(
+		(presentation.get_resource_catalog_audit().identity_contracts as Dictionary).size() == 11
+		and (presentation.get_resource_catalog_audit().content_contracts as Dictionary).size() == 11,
+		"catalog audit maps are detached and cannot mutate live Resource mappings"
+	)
+
 	# Saturation deterministically retires the oldest visual without growing nodes.
 	presentation.clear_effects()
 	var node_count_before_stress := int(presentation.get_performance_audit().counts.node_count)
