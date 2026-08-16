@@ -98,6 +98,24 @@ func _run() -> void:
 	await _shot(output_dir, "h10_room_legends.png", habitat.to_global(Vector3(0.4, 2.30, 23.4)), habitat.to_global(Vector3(-1.6, 3.20, 18.3)), 66.0)
 	# The side branch door from inside the common room, now that it opens.
 	await _shot(output_dir, "h11_branch_door.png", habitat.to_global(Vector3(3.4, 1.68, 21.6)), habitat.to_global(Vector3(8.6, 1.45, 19.6)), 64.0)
+	# Render the destination through the real open leaf. Teleporting the camera past
+	# a still-closed door hid leaf/pocket and threshold defects in the first probe.
+	var garden_access := habitat.call("get_deferred_branch_access") as StationDoor
+	if garden_access == null or not garden_access.interact(habitat):
+		print("ROOM_PROBE_FAIL: garden access did not accept its open interaction")
+		quit(1)
+		return
+	for _frame in 90:
+		if garden_access.is_open():
+			break
+		await physics_frame
+	if not garden_access.is_open() or garden_access.is_portal_blocked():
+		print("ROOM_PROBE_FAIL: garden access did not reach a clear open state")
+		quit(1)
+		return
+	# Repeat the same-side branch view with the leaf open so its slide pocket and
+	# final transform stay visually reviewable rather than hidden between shots.
+	await _shot(output_dir, "h11b_branch_door_open.png", habitat.to_global(Vector3(3.4, 1.68, 21.6)), habitat.to_global(Vector3(8.6, 1.45, 19.6)), 64.0)
 	# Walking out of the link into the garden bay.
 	await _shot(output_dir, "h12_garden_entry.png", habitat.to_global(Vector3(9.6, 1.68, 20.0)), habitat.to_global(Vector3(16.8, 2.30, 21.9)), 70.0)
 	# Standing under the cupola looking up past the column at the oculus.

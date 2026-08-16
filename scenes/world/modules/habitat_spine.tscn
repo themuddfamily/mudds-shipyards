@@ -31,7 +31,7 @@ position = Vector3(0, 0.15, 25.3)
 
 [node name="RouteDeferredBranch" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(6.1, 0.15, 20)
+position = Vector3(10.6, 0.15, 20)
 
 [node name="BunkAlcoveMarker01" type="Marker3D" parent="."]
 position = Vector3(-4.25, 0.15, 5.1)

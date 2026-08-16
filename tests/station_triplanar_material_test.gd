@@ -571,7 +571,9 @@ func _test_instanced_station_family(world: Node3D, cluster_root: Node3D) -> void
 	# bind the family; sled wheels are `rubber` and hoist post bands are painted
 	# `orange`, and both stay outside it exactly as their drawn equivalents in
 	# every other module do.
-	_check(batches == 13 and mapped == 6, "instanced station structure is exactly thirteen batches, six of them mapped")
+	# Re-frozen 13 -> 23 total and 6 -> 9 mapped: the Habitat adds ten visual-only
+	# stock batches, of which the cupola posts/caps and spare trays use the family.
+	_check(batches == 23 and mapped == 9, "instanced station structure is exactly twenty-three batches, nine of them mapped")
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
 

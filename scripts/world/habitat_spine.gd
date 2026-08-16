@@ -461,9 +461,10 @@ func get_authority_contract() -> Dictionary:
 func get_performance_contract() -> Dictionary:
 	# Budgets are this module's own policy: declared regression ceilings measured
 	# against the built module, not representative-hardware performance evidence.
-	# The spine carries the living quarters, so its 663 glazing, bunk, chair, and
-	# service primitives need the loosest mesh ceiling of the four; it was
-	# previously set to 260, a figure no build ever met.
+	# The spine carries the living quarters and garden, so its measured 1,284
+	# glazing, bunk, chair, service, and planting meshes need the loosest module
+	# ceiling of the four; its original mesh ceiling was 260, a figure no build
+	# ever met.
 	#
 	# Re-frozen in the open for the habitat rooms pass, measured on the built
 	# module rather than estimated:
@@ -492,6 +493,11 @@ func get_performance_contract() -> Dictionary:
 	# six grow racks with two uprights and three trays each, three benches, a
 	# potting bench and three nutrient tanks. Everything a player can walk into in
 	# that room is solid, which is the whole reason the number moved.
+	#
+	# Collision closure re-measured the built counts while retaining the 260/270
+	# ceilings: static bodies 247 -> 250 and shapes 253 -> 263. The oculus and soil
+	# each add one matching body/shape; the eight batched cap visuals add one sibling
+	# body with eight exact shapes. Meshes remain 1,284 and lights remain 35.
 	#
 	# The mesh delta is where the living quarters went from a fit-out to a place
 	# people are in: 6 bunk mouths with jambs, heads, curtains, grab handles and
@@ -1397,14 +1403,16 @@ func _build_garden_shell(branch: Node3D) -> void:
 	var cupola_cap_transforms: Array[Transform3D] = []
 	for facet_index in 8:
 		var facet_angle := deg_to_rad(float(facet_index) * 45.0)
-		var facet_yaw := -float(facet_index) * 45.0
+		# Position uses (sin(a), cos(a)); a long local-X facet is tangent only at
+		# yaw +a. The old -a sign turned diagonal panes/caps into radial spokes.
+		var facet_yaw := float(facet_index) * 45.0
 		var facet_position := Vector3(14.4 + sin(facet_angle) * 3.16, 5.98, 20.2 + cos(facet_angle) * 3.16)
 		_register_window(
 			_box(shell, "CupolaPane%02d" % (facet_index + 1), facet_position, Vector3(2.46, 1.76, 0.12), _materials["glass"], true, Vector3(0, facet_yaw, 0))
 		)
 		# Mullions and cap segments are batched: 16 identical boxes at 16 known
-		# transforms, no collision on either. The panes between them stay individual
-		# bodies because they are a pressure barrier like every other pane here.
+		# transforms. Posts are visual-only; the caps derive one sibling collision
+		# body below. The panes stay individual pressure-barrier bodies.
 		var post_angle := deg_to_rad(float(facet_index) * 45.0 + 22.5)
 		cupola_post_transforms.append(
 			Transform3D(
@@ -1419,9 +1427,12 @@ func _build_garden_shell(branch: Node3D) -> void:
 			)
 		)
 	_multimesh_boxes(shell, "CupolaPosts", Vector3(0.26, 1.94, 0.26), _materials["structural"], cupola_post_transforms)
-	_multimesh_boxes(shell, "CupolaCaps", Vector3(2.30, 0.24, 1.28), _materials["shell_light"], cupola_cap_transforms)
+	var cupola_caps := _multimesh_boxes(
+		shell, "CupolaCaps", Vector3(2.30, 0.24, 1.28), _materials["shell_light"], cupola_cap_transforms
+	)
+	_multimesh_box_collision(shell, "CupolaCapCollision", cupola_caps)
 	_torus(shell, "CupolaCapRing", Vector3(14.4, 6.92, 20.2), 3.02, 3.30, _materials["copper"])
-	_register_window(_cylinder(shell, "CupolaOculus", Vector3(14.4, 7.02, 20.2), 1.94, 0.10, _materials["glass"], false))
+	_register_window(_cylinder(shell, "CupolaOculus", Vector3(14.4, 7.02, 20.2), 1.94, 0.10, _materials["glass"], true))
 	# Three lens housings on the drum curb, one light between them.
 	#
 	# Built first as three lamps, one per housing, and cut to a single lantern at
@@ -1519,9 +1530,10 @@ func _build_garden_column(branch: Node3D) -> void:
 			Vector3(1.28, 0.46, 0.30),
 			_materials["structural"],
 			true,
-			Vector3(0, -float(kerb_index) * 45.0, 0)
+			# Position uses (sin(a), cos(a)); yaw +a keeps long local X tangent.
+			Vector3(0, float(kerb_index) * 45.0, 0)
 		)
-	_cylinder(column, "BedSoil", Vector3(14.4, 0.20, 20.2), 1.52, 0.40, _materials["graphite"], false)
+	_cylinder(column, "BedSoil", Vector3(14.4, 0.20, 20.2), 1.52, 0.40, _materials["graphite"], true)
 	var bed_planting := [
 		[0.0, 1.18, 0.46, 0.62], [42.0, 0.94, 0.34, 0.44], [88.0, 1.22, 0.52, 0.70],
 		[131.0, 0.86, 0.30, 0.38], [176.0, 1.16, 0.44, 0.58], [219.0, 1.00, 0.36, 0.48],
@@ -1589,7 +1601,9 @@ func _build_garden_racks(branch: Node3D) -> void:
 		var rack := Node3D.new()
 		rack.name = "GrowRack%02d" % (rack_index + 1)
 		rack.position = Vector3(14.4 + sin(rack_radians) * 3.05, 0.0, 20.2 + cos(rack_radians) * 3.05)
-		rack.rotation_degrees.y = -rack_angle
+		# The rack's narrow local X is its face normal and its label sits at -X.
+		# `angle - 90` puts +X radially outward and the labelled -X face inward.
+		rack.rotation_degrees.y = rack_angle - 90.0
 		rack.set_meta("station_grow_rack", true)
 		racks.add_child(rack)
 
@@ -2083,8 +2097,8 @@ func _build_common_galley(common: Node3D) -> void:
 ## The mess table, in the starboard half of the room's forward quadrant.
 ##
 ## Placed at z = 23.3 rather than further forward because the starboard wall from
-## z = 18.33 to 21.67 is the deferred branch bay, and nothing in this pass gets
-## to crowd a deliberately closed landmark. Everything here stands on the deck:
+## z = 18.33 to 21.67 is the garden branch bay, and nothing in this pass gets to
+## crowd its usable internal route. Everything here stands on the deck:
 ## two trestles at y = 0 carrying a top whose underside is their 0.72 head, two
 ## benches on their own four legs, and the objects left on the table with their
 ## undersides on its 0.79 surface.
@@ -2392,10 +2406,12 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 ##
 ## Two rules, both load-bearing:
 ##
-## 1. **Never batch anything that carries collision.** The inverse sweep in
-##    `station_surface_playability_test` indexes `MeshInstance3D`, so a batched
-##    piece with a collider reads to it as standable collision with nothing drawn
-##    at it — an orphan. Everything below is visual-only by construction.
+## 1. **Never put collision inside the batch.** A solid repeated assembly keeps
+##    its visual draw batched and owns one sibling StaticBody whose BoxShape3D
+##    transforms and extents are derived from that live MultiMesh. The station
+##    inverse sweep indexes both drawn node types, and the component regression
+##    holds every sibling shape to its exact instance. The cupola caps are the
+##    first such assembly; every other batch remains visual-only.
 ## 2. **Never batch anything in a seated roster.** The presentation witness
 ##    resolves node paths, and a batched piece has no node of its own to name. The
 ##    rack trays, jambs, worktops and benches the roster does name all stay as
@@ -2421,8 +2437,45 @@ func _multimesh_boxes(
 	instance.multimesh = multi
 	instance.material_override = material
 	instance.set_meta("visual_detail_only", true)
+	# RenderingServer owns the MultiMesh buffer. Under `--headless`, reading it
+	# back yields identity transforms even though Forward+ renders the authored
+	# transforms correctly. Keep the authored roster beside the batch so collision
+	# and audits consume the same authority in both environments.
+	instance.set_meta("authored_instance_transforms", transforms.duplicate())
 	parent.add_child(instance)
 	return instance
+
+
+## One collision body for a solid box MultiMesh, derived from the live visual.
+##
+## Shapes are not built from a duplicate caller roster: their transforms come
+## from the authored roster stored on the visual batch and their extent comes from
+## its live mesh. MultiMesh transform buffers read back as identity under headless,
+## so treating that renderer-owned buffer as build-time authority would stack every
+## shape at the origin. One roster fills both the renderer and physics instead.
+func _multimesh_box_collision(
+		parent: Node3D,
+		node_name: String,
+		visual: MultiMeshInstance3D
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	parent.add_child(body)
+	body.set_meta("multimesh_visual_path", body.get_path_to(visual))
+	var multi := visual.multimesh
+	var authored_transforms := visual.get_meta("authored_instance_transforms", []) as Array
+	var box_size := multi.mesh.get_aabb().size
+	for instance_index in authored_transforms.size():
+		var collision := CollisionShape3D.new()
+		collision.name = "Collision%02d" % instance_index
+		collision.transform = authored_transforms[instance_index] as Transform3D
+		var shape := BoxShape3D.new()
+		shape.size = box_size
+		collision.shape = shape
+		body.add_child(collision)
+	return body
 
 
 func _cylinder(
