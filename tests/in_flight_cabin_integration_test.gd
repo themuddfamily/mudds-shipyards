@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Production-scene integration regression for the whole in-flight cabin loop,
 ## driven through `res://scenes/main.tscn` with real player and pilot input:
-## board, fly out, shut down in open space, leave the seat, walk the length of
+## board, fly out, idle offline in open space, leave the seat, walk the length of
 ## the hold while the hull drifts, get back in, and fly home to a real berth.
 ##
 ## `modern_interpretation`. This is a modern design decision about this fleet
@@ -32,6 +32,12 @@ const FRAME_BUDGET_GRACE := 30
 ## that changes between runs; a bounded condition is not.
 const LOCOMOTION_TICK_BUDGET := 400
 const THRUST_TICK_BUDGET := 400
+const FLIGHT_CONTROL_ACTIONS := [
+	&"move_forward", &"move_back", &"move_left", &"move_right",
+	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+	&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+	&"landing_assist",
+]
 
 var _failures: Array[String] = []
 var _assertion_count := 0
@@ -111,11 +117,9 @@ func _test_fighter_refuses_to_release_its_pilot(
 		game.phase == GameFlow.Phase.START_ENGINES and player.is_seated(),
 		"the fighter takes a real E boarding interaction"
 	)
-	fighter.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(
-		await _wait_for_engine_state(fighter, "ONLINE", 0.6),
-		"the fighter starts through the live pilot action path"
+	await _wake_engine_with_flight_demand(
+		fighter,
+		"one accepted fighter flight-demand tick wakes propulsion before departure"
 	)
 	var fighter_clearance := await _thrust_clear_of_the_berth(fighter, 90.0)
 	_check(
@@ -123,10 +127,9 @@ func _test_fighter_refuses_to_release_its_pilot(
 		"the fighter really is away from its berth, in open space"
 	)
 
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(
-		await _wait_for_engine_state(fighter, "OFFLINE", 0.6),
-		"the fighter shuts down in open space"
+	await _idle_engine_offline(
+		fighter,
+		"released fighter controls idle propulsion OFFLINE in finite physics time"
 	)
 	var phase_before := game.phase
 	_dispatch_pilot_action(game, &"interact")
@@ -147,15 +150,19 @@ func _test_fighter_refuses_to_release_its_pilot(
 	fighter.global_transform = berth_transform.translated_local(Vector3(0.0, 3.0, 0.0))
 	fighter.velocity = Vector3.ZERO
 	await physics_frame
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(fighter, "ONLINE", 0.6), "the fighter restarts for its return")
+	await _wake_engine_with_flight_demand(
+		fighter,
+		"return flight demand re-wakes the fighter in the same physics tick"
+	)
 	_dispatch_pilot_action(game, &"landing_assist")
 	_check(
 		await _wait_for_phase(game, GameFlow.Phase.SHUT_DOWN, 6.0),
 		"the fighter completes its physical berth return"
 	)
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(fighter, "OFFLINE", 0.6), "the fighter shuts down at its berth")
+	await _idle_engine_offline(
+		fighter,
+		"the landed fighter idles OFFLINE before its ordinary berth exit"
+	)
 	_dispatch_pilot_action(game, &"interact")
 	_check(
 		await _wait_for_phase(game, GameFlow.Phase.APPROACH_SHIP, 1.5),
@@ -180,15 +187,18 @@ func _test_cabin_loop(
 		game.phase == GameFlow.Phase.START_ENGINES and player.is_seated() and jovian.is_piloted(),
 		"the freighter takes a real E boarding interaction"
 	)
-	jovian.engine_start_time = 0.03
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(jovian, "ONLINE", 0.6), "the freighter starts for the sortie")
-	_check(await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.6), "the freighter sortie is a free flight")
-
+	await _wake_engine_with_flight_demand(
+		jovian,
+		"one accepted Jovian flight-demand tick wakes propulsion for the sortie"
+	)
 	var departure_distance := await _thrust_clear_of_the_berth(jovian, 120.0)
 	_check(
 		departure_distance > 100.0 and not bool(jovian.get_telemetry().get("landed", true)),
 		"real W thrust flies the freighter clear of the yard"
+	)
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.6),
+		"physical departure advances the freighter sortie to free flight"
 	)
 
 	# Structured red for the loop's precondition: the seat may only be left once
@@ -205,10 +215,9 @@ func _test_cabin_loop(
 		"RED: the seat cannot be left in space while the engine is still running"
 	)
 
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(
-		await _wait_for_engine_state(jovian, "OFFLINE", 0.6),
-		"real X shutdown works away from a berth, exactly as it already did"
+	await _idle_engine_offline(
+		jovian,
+		"released Jovian controls idle propulsion OFFLINE before cabin exit"
 	)
 	for _prompt_tick in 6:
 		await physics_frame
@@ -449,8 +458,10 @@ func _test_cabin_loop(
 	)
 
 	# --- fly home ------------------------------------------------------------
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(jovian, "ONLINE", 0.6), "the freighter restarts after the cabin walk")
+	await _wake_engine_with_flight_demand(
+		jovian,
+		"flight demand re-wakes the freighter after the cabin walk"
+	)
 	_check(await _wait_for_phase(game, GameFlow.Phase.FREE_FLIGHT, 0.6), "the sortie resumes in free flight")
 	jovian.global_transform = berth_transform.translated_local(Vector3(0.0, 3.0, 0.0))
 	jovian.velocity = Vector3.ZERO
@@ -464,8 +475,10 @@ func _test_cabin_loop(
 		jovian.global_transform.is_equal_approx(berth_transform),
 		"the return restores the berth's exact origin and basis"
 	)
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(jovian, "OFFLINE", 0.6), "the freighter shuts down at its berth")
+	await _idle_engine_offline(
+		jovian,
+		"the returned freighter idles OFFLINE before the landed exit"
+	)
 	_dispatch_pilot_action(game, &"interact")
 	_check(
 		await _wait_for_phase(game, GameFlow.Phase.APPROACH_SHIP, 1.5),
@@ -494,12 +507,16 @@ func _test_losing_the_cabin_recovers_the_pilot(
 	) -> void:
 	var frame := jovian.get_moving_interior_component()
 	await _board_with_real_interaction(game, player, jovian)
-	_dispatch_pilot_action(game, &"engine_start")
-	_check(await _wait_for_engine_state(jovian, "ONLINE", 0.6), "the freighter restarts for the loss case")
+	await _wake_engine_with_flight_demand(
+		jovian,
+		"flight demand wakes the freighter for the cabin-loss case"
+	)
 	var clearance := await _thrust_clear_of_the_berth(jovian, 90.0)
 	_check(clearance > 60.0, "the freighter is well clear of the yard for the loss case")
-	_dispatch_pilot_action(game, &"engine_stop")
-	_check(await _wait_for_engine_state(jovian, "OFFLINE", 0.6), "the freighter shuts down for the loss case")
+	await _idle_engine_offline(
+		jovian,
+		"the loss-case freighter idles OFFLINE before cabin exit"
+	)
 	_dispatch_pilot_action(game, &"interact")
 	_check(
 		await _wait_until(
@@ -623,6 +640,47 @@ func _press_live_action(action: StringName, physics_ticks: int) -> void:
 	await physics_frame
 
 
+## Exercises the player-facing automatic-propulsion path rather than the retired
+## start action. The process-frame boundary observes the one completed physics
+## tick, so ONLINE and the accepted demand belong to the same simulation tick.
+func _wake_engine_with_flight_demand(craft: HeroShip, description: String) -> void:
+	_release_all_flight_controls(craft)
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	_check(
+		StringName(craft.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and craft.get_last_ship_command().hover,
+		description
+	)
+	Input.action_release(&"hover")
+
+
+## Advances a fixed, finite physics-time budget after every flight control is
+## neutral. Two ticks of numeric grace sit beyond the exact published deadline;
+## no wall-clock sleep or retired stop action can satisfy this assertion.
+func _idle_engine_offline(craft: HeroShip, description: String) -> void:
+	_release_all_flight_controls(craft)
+	var physics_tick := 1.0 / float(Engine.physics_ticks_per_second)
+	var idle_budget := HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS + physics_tick * 2.0
+	var frame_count := int(ceil(idle_budget * float(Engine.physics_ticks_per_second)))
+	for _frame in frame_count:
+		await physics_frame
+		await process_frame
+	_check(
+		StringName(craft.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE,
+		description
+	)
+
+
+func _release_all_flight_controls(craft: HeroShip) -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
+	var source := craft.get_command_source() as LocalShipInputSource
+	if source != null:
+		source.clear_pending_look_motion()
+
+
 func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 	var event := InputEventAction.new()
 	event.action = action
@@ -633,14 +691,6 @@ func _dispatch_pilot_action(game: GameFlow, action: StringName) -> void:
 func _wait_for_phase(game: GameFlow, expected_phase: int, timeout_seconds: float) -> bool:
 	return await _wait_until(
 		func() -> bool: return game.phase == expected_phase,
-		timeout_seconds
-	)
-
-
-func _wait_for_engine_state(craft: HeroShip, expected_state: String, timeout_seconds: float) -> bool:
-	return await _wait_until(
-		func() -> bool:
-			return str(craft.get_telemetry().get("engine_state", &"")).to_upper() == expected_state,
 		timeout_seconds
 	)
 
@@ -667,7 +717,8 @@ func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 func _clean_up(game: Node) -> void:
 	for action in [
 		&"interact", &"move_forward", &"move_back", &"move_left", &"move_right",
-		&"fire", &"engine_start", &"engine_stop", &"landing_assist", &"sprint_boost",
+		&"pitch_up", &"pitch_down", &"roll_left", &"roll_right", &"fire",
+		&"landing_assist", &"sprint_boost", &"brake", &"hover", &"barrel_roll",
 	]:
 		Input.action_release(action)
 	game.queue_free()

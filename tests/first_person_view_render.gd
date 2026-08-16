@@ -21,6 +21,12 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const OUTPUT_DIR := "res://artifacts/first_person_view"
 const LOCOMOTION_TICK_BUDGET := 400
+const FLIGHT_CONTROL_ACTIONS := [
+	&"move_forward", &"move_back", &"move_left", &"move_right",
+	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+	&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+	&"landing_assist",
+]
 ## Comma-separated subset of `station,tractor,cabin`. Empty runs all three.
 const STAGES_ENVIRONMENT_VARIABLE := "KETH_FIRST_PERSON_RENDER_STAGES"
 
@@ -175,8 +181,8 @@ func _cabin_frames() -> void:
 	await _settle(20)
 	await _press(&"interact", 2)
 	# Wait for the phase, not just the seat: `is_seated()` goes true a frame
-	# before GameFlow has finished the boarding transition, and an `engine_start`
-	# delivered in that gap is discarded.
+	# before GameFlow has finished the boarding transition, and flight demand in
+	# that gap is deliberately outside the active pilot command stream.
 	if not await _wait(
 		func() -> bool: return _game.phase == GameFlow.Phase.START_ENGINES,
 		600
@@ -185,12 +191,10 @@ func _cabin_frames() -> void:
 		return
 	print("STAGE jovian seated phase=", _game.phase)
 
-	_jovian.engine_start_time = 0.03
-	_action(&"engine_start")
-	await _wait(
-		func() -> bool: return str(_jovian.get_telemetry().get("engine_state")).to_upper() == "ONLINE",
-		300
-	)
+	if not await _wake_engine_with_flight_demand():
+		printerr("STAGE Jovian automatic flight demand did not wake in one physics tick")
+		_misses += 1
+		return
 	var origin := _jovian.global_position
 	Input.action_press(&"move_forward")
 	var ticks := 0
@@ -207,11 +211,10 @@ func _cabin_frames() -> void:
 	_jovian.velocity = -_jovian.global_basis.z * 26.0
 	await _settle(10)
 
-	_action(&"engine_stop")
-	await _wait(
-		func() -> bool: return str(_jovian.get_telemetry().get("engine_state")).to_upper() == "OFFLINE",
-		300
-	)
+	if not await _idle_engine_offline():
+		printerr("STAGE Jovian did not idle OFFLINE in the finite physics budget")
+		_misses += 1
+		return
 	await _settle(10)
 	await _press(&"interact", 2)
 	if not await _wait(
@@ -308,11 +311,36 @@ func _press(action: StringName, ticks: int) -> void:
 	await physics_frame
 
 
-func _action(action: StringName) -> void:
-	var event := InputEventAction.new()
-	event.action = action
-	event.pressed = true
-	_game._unhandled_input(event)
+func _wake_engine_with_flight_demand() -> bool:
+	_release_all_flight_controls()
+	Input.action_press(&"hover")
+	await physics_frame
+	await process_frame
+	var woke_same_tick := (
+		StringName(_jovian.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
+		and _jovian.get_last_ship_command().hover
+	)
+	Input.action_release(&"hover")
+	return woke_same_tick
+
+
+func _idle_engine_offline() -> bool:
+	_release_all_flight_controls()
+	var physics_tick := 1.0 / float(Engine.physics_ticks_per_second)
+	var idle_budget := HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS + physics_tick * 2.0
+	var frame_count := int(ceil(idle_budget * float(Engine.physics_ticks_per_second)))
+	for _frame in frame_count:
+		await physics_frame
+		await process_frame
+	return StringName(_jovian.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE
+
+
+func _release_all_flight_controls() -> void:
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		Input.action_release(action)
+	var source := _jovian.get_command_source() as LocalShipInputSource
+	if source != null:
+		source.clear_pending_look_motion()
 
 
 func _settle(frames: int) -> void:
