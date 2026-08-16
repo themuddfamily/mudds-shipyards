@@ -82,6 +82,21 @@ position = Vector3(0, -1.17, 0)
 cue_half_width = 5.0
 cue_half_length = 4.8
 
+[node name="HalyardFleetDockBerth" parent="." instance=ExtResource("2_berth")]
+position = Vector3(37, 5.28, 53.3)
+berth_id = &"halyard_fleet_dock_berth"
+compatibility_tags = PackedStringArray("crew_transport")
+landing_half_extents = Vector3(7, 6.5, 16.5)
+assist_capture_center = Vector3(0, 11, -24)
+assist_capture_half_extents = Vector3(24, 16, 44)
+assist_capture_maximum_speed = 22.0
+assist_maximum_tilt_degrees = 75.0
+
+[node name="BerthFeedback" parent="HalyardFleetDockBerth" instance=ExtResource("6_berth_feedback")]
+position = Vector3(0, -1.04, 0)
+cue_half_width = 5.4
+cue_half_length = 6.2
+
 [node name="HabitatSpine" parent="." instance=ExtResource("4_habitat_spine")]
 position = Vector3(49, 0, 15.5)
 rotation = Vector3(0, 1.570796, 0)

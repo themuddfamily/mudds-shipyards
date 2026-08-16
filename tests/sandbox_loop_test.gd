@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## End-to-end regression for the first repeatable physical sandbox foundation:
-## enter the completed-activity sandbox, choose among four parked craft, berth/exit,
+## enter the completed-activity sandbox, choose among five parked craft, berth/exit,
 ## move to another craft, crash it, recover without a reload, and keep flying.
 
 ## Extra simulated frames every bounded wait is granted on top of the frames its
@@ -38,8 +38,8 @@ func _run() -> void:
 	var original_player_id := player.get_instance_id()
 	var world := game.get_node("ShipyardWorld") as ShipyardWorld
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
-	_check(fleet.size() == 4, "exactly four physical flyable craft share the station")
-	if fleet.size() != 4:
+	_check(fleet.size() == 5, "exactly five physical flyable craft share the station")
+	if fleet.size() != 5:
 		game.queue_free()
 		await process_frame
 		_finish()
@@ -74,7 +74,7 @@ func _run() -> void:
 		and primary.yaw_speed_degrees != arrow.yaw_speed_degrees,
 		"Torrent and Arrow have measurably different handling profiles"
 	)
-	_check(world.get_berth_ids().size() == 4, "world exposes exactly four registered production landing berths")
+	_check(world.get_berth_ids().size() == 5, "world exposes exactly five registered production landing berths")
 	var jovian_berth := world.get_berth_node(jovian.get_home_berth_id())
 	_check(
 		jovian_berth != null

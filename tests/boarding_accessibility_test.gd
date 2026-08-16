@@ -34,13 +34,14 @@ func _run() -> void:
 	var arrow := game.get_node_or_null("ArrowReconShip") as HeroShip
 	var jovian := game.get_node_or_null("JovianLightFreighter") as HeroShip
 	var zenith := game.get_node_or_null("ZenithInterceptor") as HeroShip
+	var halyard := game.get_node_or_null("HalyardCrewTransport") as HeroShip
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 	_check(
-		player != null and torrent != null and arrow != null and jovian != null and zenith != null,
-		"production player and complete four-craft fleet resolve"
+		player != null and torrent != null and arrow != null and jovian != null and zenith != null and halyard != null,
+		"production player and complete five-craft fleet resolve"
 	)
-	_check(fleet.size() == 4, "accessibility fixture covers all four production spacecraft")
-	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or fleet.size() != 4:
+	_check(fleet.size() == 5, "accessibility fixture covers all five production spacecraft")
+	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or halyard == null or fleet.size() != 5:
 		game.queue_free()
 		await process_frame
 		_finish()

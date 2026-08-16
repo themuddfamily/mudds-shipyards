@@ -187,7 +187,7 @@ continuity is a walkability fact, not a recorded graph edge.
 | `dangling_slot_count` | 0 |
 | `overclaimed_slot_count` | 0 |
 | `authority_claim_count` | 0 |
-| `production_berth_count` | 4 |
+| `production_berth_count` | 5 |
 | `deferred_or_dead_end_route_marker_count` | 5 |
 
 <!-- LIVE-GRAPH-TOTALS:END -->
@@ -240,7 +240,7 @@ end and never joins the adjacency graph.
 | Aft VIP access | `aft-junction-stack` | `vip-landmark` | `(-5.15, 4.35, 66.9)` | `VIPAccess` door, locked and deferred, `INTERIOR NOT YET AUTHENTICATED` |
 | Habitat sealed side branch | `habitat-spine` | `deferred-branch` | `(69.0, 0.15, 9.4)` | `DeferredBranchAccess` door, locked and deferred, `INTERIOR DEFERRED` |
 | Comb dock 01 threshold | `fleet-dock-comb` | `dock-01-threshold` | `(22.0, 4.35, 59.05)` | marker `assigned-dock-01`, `assigned_external`, external berth `zenith_fleet_dock_berth` |
-| Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `deferred_empty` |
+| Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `assigned_external`, external berth `halyard_fleet_dock_berth` |
 | Comb dock 03 threshold | `fleet-dock-comb` | `dock-03-threshold` | `(52.0, 6.75, 59.05)` | marker `deferred-dock-03`, `deferred_empty` |
 
 <!-- LIVE-GRAPH-DEFERRED:END -->
@@ -261,6 +261,7 @@ boarding, or spawn authority, and the registry records zero authority claims.
 | `central_berth` | `(0.0, 1.15, -10.0)` | `0` |
 | `jovian_freight_berth` | `(-53.0, 1.63, 57.3)` | `180` |
 | `zenith_fleet_dock_berth` | `(22.0, 5.28, 53.3)` | `0` |
+| `halyard_fleet_dock_berth` | `(37.0, 5.28, 53.3)` | `0` |
 
 <!-- LIVE-GRAPH-BERTHS:END -->
 
@@ -277,8 +278,8 @@ Exact implementation anchors:
 | Operations | Starboard node → Dock Operations pod, `OperationsPodFloor (43, 0.18, 27)` | Compact-room motif only; role, shape, and adjacency are modern. |
 | Habitat | Habitat root `(49, 0, 15.5)`, yaw `90°`, extends east; `approach` marker at `(46, 0.15, 15.5)` claims `hub-starboard-habitat` | C1-inspired later-source interpretation, not recovered original geometry. |
 | Aft | Central → AftSpine → AftModuleConnector `(0, -0.62, 43.5)` → AftJunctionStack `(0, 0, 48)`, whose `approach` marker at `(0, 0.15, 46.3)` claims `hub-aft-junction` | Open spine/room/vertical motifs are supported; exact module graph is modern. |
-| Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)`; Dock02 and Dock03 remain empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and the Zenith assignment are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
-| Production berth registry | `ShipyardWorld` owns exactly four lease-bound production berths: Central/Torrent, Arrow, Jovian, and Zenith. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
+| Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)` and its Dock02 marker to the modern Halyard berth `halyard_fleet_dock_berth` at `(37, 5.28, 53.3)`; Dock03 remains empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and the Zenith assignment are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
+| Production berth registry | `ShipyardWorld` owns exactly five lease-bound production berths: Central/Torrent, Arrow, Jovian, Zenith, and Halyard. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
 | Operational overlay | Activities, ambience, and facade dressing at Central/Aft/Habitat/Freight | Entirely modern presentation; no topology authority. |
 
 ## Per-relationship confidence grading
@@ -360,8 +361,8 @@ The live pod holds no regeneration authority. It publishes the
 | A long narrow trunk carries perpendicular rung-like arms | FleetDockComb, `48 m` trunk, three rungs, three slabs, at `(12, 4.2, 68.3)` yaw `90°` | observed | B2 `04:55–05:10` `OE-B2-COMB` | `original_era_observed` | count, orientation, scale, elevation |
 | Exactly three teeth | three | new | none | `modern_interpretation` | historical arm count |
 | Broad orthogonal branch arms off a central crossing | `PortBranchArm` and `StarboardBranchArm` at `(±25, -0.62, 15.5)`, size `25 × 7`, into berth nodes at `±43` | inferred | B2 `04:55–05:10` supports orthogonal branching in kind only | `modern_interpretation` | the live mirror symmetry is not supported; A8 shows an asymmetric lattice |
-| Ships sit at separate lattice offsets | four world-owned berths at separate nodes | observed | B4 `f1742` "a small pale craft appears in the previously empty distant berth"; the B2 `04:40–05:10` range that `OE-B2-BERTHS` cites is not a registered anchor | `original_era_observed` | how many, which classes, whether the distant berth is on a separate arm |
-| Which class occupies which dock arm | Dock01 → `zenith_fleet_dock_berth` by modern external assignment | new | none | `modern_interpretation` | no source authenticates a historical class-to-berth topology |
+| Ships sit at separate lattice offsets | five world-owned berths at separate nodes | observed | B4 `f1742` "a small pale craft appears in the previously empty distant berth"; the B2 `04:40–05:10` range that `OE-B2-BERTHS` cites is not a registered anchor | `original_era_observed` | how many, which classes, whether the distant berth is on a separate arm |
+| Which class occupies which dock arm | Dock01 → `zenith_fleet_dock_berth` and Dock02 → `halyard_fleet_dock_berth`, both by modern external assignment | new | none | `modern_interpretation` | no source authenticates a historical class-to-berth topology |
 
 ### Room relationships
 
@@ -379,7 +380,7 @@ The live pod holds no regeneration authority. It publishes the
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `OE-B2-COMB` | original era | long trunk with perpendicular rung-like arms | B2 `04:55–05:10` | medium-high | `original_era_observed` | Current orthogonal branches echo but do not reproduce it | count, orientation, scale |
 | `OE-B2-SLABS` | original era | broad parallel slabs/end volumes through thin necks and voids | B2 `04:55–05:10` | medium | `original_era_observed` | Comb dock slabs echo the rhythm; no other strong live equivalent | functions, dimensions |
-| `OE-B2-BERTHS` | original era | ships at separate lattice offsets | B2 `04:40–05:10`; B4 `03:43–03:53` (B4 timestamp unregistered) | high/medium layout | `original_era_observed` | Current world has exactly four lease-bound production berths; the comb's three dock markers do not establish a historical mapping | class assignment, simultaneous roster |
+| `OE-B2-BERTHS` | original era | ships at separate lattice offsets | B2 `04:40–05:10`; B4 `03:43–03:53` (B4 timestamp unregistered) | high/medium layout | `original_era_observed` | Current world has exactly five lease-bound production berths; the comb's three dock markers do not establish a historical mapping | class assignment, simultaneous roster |
 | `OE-B3-SPAWN` | observed build | exposed deck and short vertical transition | B3 `00:04–00:52` | medium-high | `original_era_observed` | Central spawn and observation stair | first-login vs return |
 | `OE-B3-ROOM` | observed build | deck → blue opening → console/window room | B3 `02:40–03:00` (unregistered timestamp; the claim is registered without an anchor) | medium | `original_era_observed` | Dock Operations and Aft operations motifs only | function, wider adjacency, anchor |
 | `OE-B3-LEVELS` | observed build | projecting routes at several elevations | B3 `06:13–07:10` (unregistered timestamp) | low until anchored | `inferred` | Aft stack and observation stair | obscured connections, anchor |
@@ -406,12 +407,13 @@ The first evidence-safe architecture correction is now the bounded
    module.
 2. Three short orthogonal teeth terminate in broad physically separated slabs.
 3. The Dock01 marker carries a modern external assignment from `ShipyardWorld`
-   to the Zenith berth; Dock02 and Dock03 remain empty and explicitly deferred.
+   to the Zenith berth and the Dock02 marker one to the Halyard berth, an
+   original modern design; Dock03 remains empty and explicitly deferred.
    The markers and FleetDockComb module remain non-authoritative.
 4. Genuine voids remain; no hidden full-footprint collision slab exists.
 5. One short ramp supplies a second local elevation without importing C1
    habitat adjacency.
-6. `ShipyardWorld` now owns exactly four lease-bound production berths; the
+6. `ShipyardWorld` now owns exactly five lease-bound production berths; the
    FleetDockComb module owns none of their berth, lease, landing, boarding, or
    spawn authority.
 

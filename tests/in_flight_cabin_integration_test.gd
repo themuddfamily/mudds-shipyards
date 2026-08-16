@@ -58,6 +58,7 @@ func _run() -> void:
 	var arrow := game.get_node("ArrowReconShip") as ArrowReconShip
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
+	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 
 	game.canopy_motion_time = 0.02
@@ -71,8 +72,9 @@ func _run() -> void:
 		not torrent.supports_in_flight_cabin_access()
 		and not arrow.supports_in_flight_cabin_access()
 		and not zenith.supports_in_flight_cabin_access()
-		and jovian.supports_in_flight_cabin_access(),
-		"only the craft with a connected walkable interior offers in-flight cabin access"
+		and jovian.supports_in_flight_cabin_access()
+		and halyard.supports_in_flight_cabin_access(),
+		"exactly the craft with a connected walkable interior offer in-flight cabin access"
 	)
 
 	await _test_fighter_refuses_to_release_its_pilot(game, player, arrow, world)

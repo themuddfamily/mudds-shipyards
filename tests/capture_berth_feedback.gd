@@ -1,6 +1,6 @@
 extends SceneTree
 
-## HUD-free Forward+ evidence for the four production berth-state displays.
+## HUD-free Forward+ evidence for the five production berth-state displays.
 ##
 ## The complete production main scene supplies every photographed berth, ship,
 ## deck, and feedback component. This harness adds only an evidence camera and
@@ -19,6 +19,7 @@ const BERTH_ORDER: Array[StringName] = [
 	&"arrow_recon_berth",
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
+	&"halyard_fleet_dock_berth",
 ]
 const STATE_ORDER: Array[StringName] = [
 	&"released",
@@ -30,18 +31,21 @@ const EXPECTED_SHIP_BY_BERTH := {
 	&"arrow_recon_berth": &"arrow_provisional",
 	&"jovian_freight_berth": &"jovian_provisional",
 	&"zenith_fleet_dock_berth": &"zenith_b7_observed",
+	&"halyard_fleet_dock_berth": &"halyard_new_design",
 }
 const CAMERA_LOCAL_DIRECTIONS := {
 	&"central_berth": Vector3(0.76, 0.92, 0.82),
 	&"arrow_recon_berth": Vector3(-0.82, 0.90, 0.72),
 	&"jovian_freight_berth": Vector3(0.72, 0.96, -0.82),
 	&"zenith_fleet_dock_berth": Vector3(-0.78, 0.92, 0.78),
+	&"halyard_fleet_dock_berth": Vector3(0.78, 0.92, 0.78),
 }
 const CAMERA_FOV := {
 	&"central_berth": 45.0,
 	&"arrow_recon_berth": 43.0,
 	&"jovian_freight_berth": 47.0,
 	&"zenith_fleet_dock_berth": 44.0,
+	&"halyard_fleet_dock_berth": 46.0,
 }
 const CAPTURE_FILES := {
 	&"central_berth": {
@@ -64,9 +68,14 @@ const CAPTURE_FILES := {
 		&"approach": "11_zenith_fleet_dock_berth_approach.png",
 		&"occupied": "12_zenith_fleet_dock_berth_occupied.png",
 	},
+	&"halyard_fleet_dock_berth": {
+		&"released": "13_halyard_fleet_dock_berth_released.png",
+		&"approach": "14_halyard_fleet_dock_berth_approach.png",
+		&"occupied": "15_halyard_fleet_dock_berth_occupied.png",
+	},
 }
 
-const EXPECTED_COMPONENT_COUNT := 4
+const EXPECTED_COMPONENT_COUNT := 5
 # Re-frozen 11 -> 16 when the berth cue gained its shape channel: five glyph
 # meshes (two gate marks, two chevron arms, one secured bar) of which exactly one
 # state's set is ever rendered. See the header of scripts/world/ship_berth_feedback.gd.
@@ -243,7 +252,7 @@ func _validate_exact_feedback_roster() -> void:
 	var typed_descendants := _world.find_children("*", "ShipBerthFeedback", true, false)
 	_check(
 		feedback_nodes.size() == EXPECTED_COMPONENT_COUNT,
-		"production world exposes exactly four berth-feedback components"
+		"production world exposes exactly five berth-feedback components"
 	)
 	_check(
 		_node_sets_match(feedback_nodes, grouped_nodes),
@@ -268,7 +277,7 @@ func _validate_exact_feedback_roster() -> void:
 			_feedback_by_berth[berth_id] = feedback
 	_check(
 		_feedback_by_berth.size() == EXPECTED_COMPONENT_COUNT,
-		"all and only the four authoritative berths map to feedback components"
+		"all and only the five authoritative berths map to feedback components"
 	)
 	var freight_marker := _world.get_node_or_null("JovianFreightBerth/BerthDockMarker")
 	_check(
@@ -280,7 +289,7 @@ func _validate_exact_feedback_roster() -> void:
 	_check(_report_is_valid(world_audit), "production berth-feedback roster audit is valid")
 	_check(
 		int(world_audit.get("component_count", 0)) == EXPECTED_COMPONENT_COUNT,
-		"world audit reports exactly four feedback components"
+		"world audit reports exactly five feedback components"
 	)
 	_check(
 		StringName(world_audit.get("evidence_status", &"")) == &"modern_interpretation"
@@ -292,7 +301,7 @@ func _validate_exact_feedback_roster() -> void:
 
 func _validate_initial_fleet_leases() -> void:
 	var fleet := _game.get_flyable_ships()
-	_check(fleet.size() == EXPECTED_COMPONENT_COUNT, "production main scene contains exactly four flyable ships")
+	_check(fleet.size() == EXPECTED_COMPONENT_COUNT, "production main scene contains exactly five flyable ships")
 	_ships_by_berth.clear()
 	_initial_ship_transforms.clear()
 	for candidate in fleet:
@@ -412,14 +421,14 @@ func _validate_component_audits_and_budgets() -> void:
 	_check(
 		aggregate_meshes == EXPECTED_COMPONENT_COUNT * EXPECTED_MESHES_PER_COMPONENT
 		and aggregate_meshes <= aggregate_mesh_budget,
-		"four-component roster owns exactly 64 meshes within aggregate budget"
+		"five-component roster owns exactly 80 meshes within aggregate budget"
 	)
 	_check(
 		aggregate_materials == EXPECTED_COMPONENT_COUNT * EXPECTED_MATERIALS_PER_COMPONENT
 		and aggregate_materials <= aggregate_material_budget,
-		"four-component roster owns exactly 16 isolated materials within aggregate budget"
+		"five-component roster owns exactly 20 isolated materials within aggregate budget"
 	)
-	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "four-component roster owns exactly four diegetic labels")
+	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "five-component roster owns exactly five diegetic labels")
 	for key: String in prohibited_totals:
 		_check(int(prohibited_totals[key]) == 0, "aggregate feedback roster owns zero %s" % key)
 	print(
@@ -785,9 +794,9 @@ func _sample_luminance_statistics(image: Image) -> Dictionary:
 
 func _validate_capture_set() -> void:
 	var expected_file_count := BERTH_ORDER.size() * STATE_ORDER.size()
-	_check(_capture_order.size() == expected_file_count, "exactly twelve berth-state frames were captured")
-	_check(_captured_images.size() == expected_file_count, "all twelve captured images have distinct filenames")
-	_check(_capture_contracts.size() == expected_file_count, "all twelve frames retain semantic berth/state contracts")
+	_check(_capture_order.size() == expected_file_count, "exactly fifteen berth-state frames were captured")
+	_check(_captured_images.size() == expected_file_count, "all fifteen captured images have distinct filenames")
+	_check(_capture_contracts.size() == expected_file_count, "all fifteen frames retain semantic berth/state contracts")
 	for berth_id in BERTH_ORDER:
 		for state in STATE_ORDER:
 			var file_name := str((CAPTURE_FILES[berth_id] as Dictionary)[state])
@@ -868,7 +877,7 @@ func _validate_all_berths_restored() -> void:
 			_validate_ship_was_not_staged(berth_id, ship)
 	_check(
 		_report_is_valid(_world.get_ship_berth_feedback_audit_report()),
-		"final four-component production feedback audit is valid"
+		"final five-component production feedback audit is valid"
 	)
 
 

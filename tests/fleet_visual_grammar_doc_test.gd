@@ -51,6 +51,7 @@ const METRICS_PATH := "res://tests/fleet_colour_metrics.gd"
 const HERO_SHIP_PATH := "res://scripts/ships/hero_ship.gd"
 const ARROW_PATH := "res://scripts/ships/arrow_recon_ship.gd"
 const JOVIAN_PATH := "res://scripts/ships/jovian_light_freighter.gd"
+const HALYARD_PATH := "res://scripts/ships/halyard_crew_transport.gd"
 const TORRENT_HERO_PRESENTATION_PATH := "res://scenes/ships/presentation/torrent_hero_presentation.gd"
 const TORRENT_MACROFORM_PATH := "res://scenes/ships/presentation/torrent_authored_macroform.tscn"
 const ZENITH_PRESENTATION_PATH := "res://scenes/ships/presentation/zenith_authored_presentation.gd"
@@ -68,6 +69,8 @@ const AUDIT_CONSTANT_KEYS := {
 	"eye_above_head_bone_minimum_m": "EYE_ABOVE_HEAD_BONE_MINIMUM",
 	"eye_above_head_bone_maximum_m": "EYE_ABOVE_HEAD_BONE_MAXIMUM",
 	"head_hull_clearance_minimum_m": "HEAD_HULL_CLEARANCE_MINIMUM",
+	"small_craft_envelope_maximum_m": "SMALL_CRAFT_ENVELOPE_MAXIMUM",
+	"interior_minimum_volume_m3": "INTERIOR_MINIMUM_VOLUME",
 	"boarding_fallback_reach_m": "BOARDING_FALLBACK_REACH",
 	"minimum_staged_distance_m": "MINIMUM_STAGED_DISTANCE",
 	"minimum_walk_metres": "MINIMUM_WALK_METRES",
@@ -75,12 +78,19 @@ const AUDIT_CONSTANT_KEYS := {
 
 ## Numbers the audit spells inline inside its assertions rather than as named
 ## constants. Key in the document -> the pattern that recovers the literal.
+## The per-craft interior floors moved into the audit's `INTERIOR_CRAFT` table
+## when a second interior-bearing craft joined the fleet, so these patterns are
+## anchored on each craft's own role tag rather than on a craft-specific local
+## variable name. The values they recover are the same numbers the audit
+## enforces; the freighter's are unchanged.
 const AUDIT_LITERAL_KEYS := {
 	"minimum_differing_handling_axes": "differing >= ([0-9]+)",
-	"small_craft_envelope_maximum_m": "envelope\\.size\\.x < ([0-9.]+)",
-	"interior_craft_envelope_minimum_x_m": "jovian_envelope\\.size\\.x > ([0-9.]+)",
-	"interior_craft_envelope_minimum_z_m": "jovian_envelope\\.size\\.z > ([0-9.]+)",
-	"freighter_passenger_seat_minimum": "passenger_seat_count\", 0\\)\\) >= ([0-9]+)",
+	"freighter_envelope_minimum_x_m": "\"light_freighter\",[\\s\\S]*?\"minimum_envelope_x\": ([0-9.]+)",
+	"freighter_envelope_minimum_z_m": "\"light_freighter\",[\\s\\S]*?\"minimum_envelope_z\": ([0-9.]+)",
+	"freighter_passenger_seat_minimum": "\"light_freighter\",[\\s\\S]*?\"minimum_seats\": ([0-9]+)",
+	"crew_transport_envelope_minimum_x_m": "\"crew_transport\",[\\s\\S]*?\"minimum_envelope_x\": ([0-9.]+)",
+	"crew_transport_envelope_minimum_z_m": "\"crew_transport\",[\\s\\S]*?\"minimum_envelope_z\": ([0-9.]+)",
+	"crew_transport_seat_minimum": "\"crew_transport\",[\\s\\S]*?\"minimum_seats\": ([0-9]+)",
 }
 
 ## Material values authored per craft. Key -> [source path, capture pattern].
@@ -90,6 +100,7 @@ const SURFACE_KEYS := {
 	"normal_scale_torrent_macroform_atlas": [TORRENT_MACROFORM_PATH, "normal_scale = ([0-9.]+)"],
 	"normal_scale_arrow": [ARROW_PATH, "hull_material\\.normal_scale = ([0-9.]+)"],
 	"normal_scale_jovian": [JOVIAN_PATH, "hull_material\\.normal_scale = ([0-9.]+)"],
+	"normal_scale_halyard": [HALYARD_PATH, "const HULL_NORMAL_SCALE := ([0-9.]+)"],
 	"normal_scale_zenith_hull": [
 		ZENITH_PRESENTATION_PATH,
 		"PaleCeramicHull\": _hull_material\\(Color\\(\"[0-9a-fA-F]{6}\"\\), [0-9.]+, [0-9.]+, ([0-9.]+)\\)",
@@ -103,6 +114,7 @@ const SURFACE_KEYS := {
 	"clearcoat_torrent_authored_hero": [TORRENT_HERO_PRESENTATION_PATH, "material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_arrow": [ARROW_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_jovian": [JOVIAN_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],
+	"clearcoat_halyard": [HALYARD_PATH, "const HULL_CLEARCOAT := ([0-9.]+)"],
 	"clearcoat_zenith": [ZENITH_PRESENTATION_PATH, "material\\.clearcoat = ([0-9.]+)"],
 }
 
@@ -116,6 +128,8 @@ const PALETTE_KEYS := {
 	"accent_arrow": ["EXPECTED_ACCENTS", "arrow_provisional"],
 	"accent_jovian": ["EXPECTED_ACCENTS", "jovian_provisional"],
 	"accent_zenith": ["EXPECTED_ACCENTS", "zenith_b7_observed"],
+	"body_tone_halyard": ["EXPECTED_BODY_TONE", "halyard_new_design"],
+	"accent_halyard": ["EXPECTED_ACCENTS", "halyard_new_design"],
 }
 
 const DOCUMENTED_SHIP_IDS := ["torrent", "zenith", "arrow", "jovian"]

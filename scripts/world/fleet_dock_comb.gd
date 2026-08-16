@@ -27,8 +27,15 @@ const RUNG_CLEAR_WIDTH := 3.6
 const RUNG_COUNT := 3
 const DOCK_SLAB_COUNT := 3
 const DOCK_MARKER_COUNT := 3
-const ASSIGNED_DOCK_COUNT := 1
-const DEFERRED_DOCK_COUNT := 2
+# Dock 02 stopped being empty when the Halyard Crew Transport was parked on it.
+# The marker's bookkeeping moves with the craft rather than after it: a slab
+# that still reported `deferred_empty` while a 27 m transport stood on it would
+# be exactly the documentation drift this repository keeps having to correct.
+# The module still owns no berth authority for either assignment; the world owns
+# both berths (`ShipyardWorld.SHIP_BERTH_FEEDBACK_SPECS`). Dock 03 remains
+# genuinely deferred and genuinely empty.
+const ASSIGNED_DOCK_COUNT := 2
+const DEFERRED_DOCK_COUNT := 1
 const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
@@ -442,9 +449,9 @@ func get_validation_errors() -> PackedStringArray:
 	if _dock_markers.size() != DOCK_MARKER_COUNT:
 		errors.append("dock registry must contain exactly three physical landmarks")
 	if get_assigned_dock_ids().size() != ASSIGNED_DOCK_COUNT:
-		errors.append("dock registry must contain exactly one external assignment")
+		errors.append("dock registry must contain exactly two external assignments")
 	if get_deferred_dock_ids().size() != DEFERRED_DOCK_COUNT:
-		errors.append("dock registry must retain exactly two empty deferred landmarks")
+		errors.append("dock registry must retain exactly one empty deferred landmark")
 	if _surface_nodes.size() != WALKABLE_SURFACE_COUNT:
 		errors.append("walkable surface roster must contain exactly seven collision-backed surfaces")
 	var roster := get_component_roster()
@@ -474,14 +481,36 @@ func get_validation_errors() -> PackedStringArray:
 	for dock in get_deferred_dock_roster():
 		if dock.status != &"deferred_empty" \
 			or dock.ship_assignment != &"none":
-			errors.append("dock 02/03 must remain empty, deferred, and non-authoritative")
+			errors.append("dock 03 must remain empty, deferred, and non-authoritative")
 			break
+	# Two external assignments, checked by dock id rather than by position, so a
+	# reordered roster cannot silently validate the wrong dock. Neither is a
+	# historical class-to-berth mapping: dock 01 carries the B7-observed Zenith
+	# reconstruction, and dock 02 carries the Halyard, an original modern design.
+	var expected_assignments := {
+		&"assigned-dock-01": {
+			"ship": &"zenith_b7_observed",
+			"berth": &"zenith_fleet_dock_berth",
+		},
+		&"deferred-dock-02": {
+			"ship": &"halyard_new_design",
+			"berth": &"halyard_fleet_dock_berth",
+		},
+	}
 	var assigned := get_assigned_dock_roster()
-	if assigned.size() != 1 \
-		or assigned[0].ship_assignment != &"zenith_b7_observed" \
-		or assigned[0].berth_id != &"zenith_fleet_dock_berth" \
-		or bool(assigned[0].historical_class_to_berth_mapping):
-		errors.append("dock 01 external Zenith assignment drifted or gained a historical claim")
+	if assigned.size() != ASSIGNED_DOCK_COUNT:
+		errors.append("external dock assignment roster drifted from its declared size")
+	else:
+		for dock in assigned:
+			var dock_id: StringName = dock.dock_id
+			if not expected_assignments.has(dock_id):
+				errors.append("dock %s published an unregistered external assignment" % dock_id)
+				continue
+			var expected: Dictionary = expected_assignments[dock_id]
+			if dock.ship_assignment != expected["ship"] \
+				or dock.berth_id != expected["berth"] \
+				or bool(dock.historical_class_to_berth_mapping):
+				errors.append("dock %s external assignment drifted or gained a historical claim" % dock_id)
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its fixed geometry or processing budget")
 	var lifecycle := get_lifecycle_contract()
@@ -552,6 +581,14 @@ func _index_semantics() -> void:
 			marker.set_meta("dock_status", &"assigned_external")
 			marker.set_meta("ship_assignment", &"zenith_b7_observed")
 			marker.set_meta("external_berth_id", &"zenith_fleet_dock_berth")
+			marker.set_meta("historical_class_to_berth_mapping", false)
+		elif dock_id == &"deferred-dock-02":
+			# The Halyard is an original modern design, so this assignment maps a
+			# modern name to a modern slab and still claims nothing historical.
+			marker.set_meta("deferred_dock", false)
+			marker.set_meta("dock_status", &"assigned_external")
+			marker.set_meta("ship_assignment", &"halyard_new_design")
+			marker.set_meta("external_berth_id", &"halyard_fleet_dock_berth")
 			marker.set_meta("historical_class_to_berth_mapping", false)
 		else:
 			marker.set_meta("deferred_dock", true)

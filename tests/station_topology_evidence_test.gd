@@ -101,7 +101,7 @@ func _test_document_tables_parse(documented: Dictionary) -> void:
 	_check(edges.size() == 4, "the documented edge table publishes four station edges")
 	_check(routes.size() == 4, "the documented route roster table publishes four modules")
 	_check(deferred.size() == 5, "the documented deferred-landmark table publishes five landmarks")
-	_check(berths.size() == 4, "the documented berth table publishes four production berths")
+	_check(berths.size() == 5, "the documented berth table publishes five production berths")
 
 
 # 2. The core comparison. Any divergence is printed in full, then fails.

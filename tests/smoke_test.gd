@@ -27,6 +27,7 @@ func _run() -> void:
 	var arrow_ship := main.get_node_or_null("ArrowReconShip")
 	var jovian_ship := main.get_node_or_null("JovianLightFreighter")
 	var zenith_ship := main.get_node_or_null("ZenithInterceptor")
+	var halyard_ship := main.get_node_or_null("HalyardCrewTransport")
 	var opponent := main.get_node_or_null("RangeOpponent")
 	var hud := main.get_node_or_null("HUD")
 	var pulse_presentation := main.get_node_or_null("PulseWeaponPresentation") as PulseWeaponPresentation
@@ -37,8 +38,8 @@ func _run() -> void:
 	_check(jovian_ship is JovianLightFreighter, "the provisional Jovian light freighter is physically parked")
 	_check(zenith_ship is ZenithInterceptor, "the B7-observed Zenith interceptor is physically parked")
 	var fleet: Array[HeroShip] = main.call("get_flyable_ships")
-	_check(fleet.size() == 4, "production scene registers exactly four physical flyable craft")
-	_check(fleet.has(ship) and fleet.has(arrow_ship) and fleet.has(jovian_ship) and fleet.has(zenith_ship), "fleet registry contains Torrent, Arrow, Jovian, and Zenith")
+	_check(fleet.size() == 5, "production scene registers exactly five physical flyable craft")
+	_check(fleet.has(ship) and fleet.has(arrow_ship) and fleet.has(jovian_ship) and fleet.has(zenith_ship) and fleet.has(halyard_ship), "fleet registry contains Torrent, Arrow, Jovian, Zenith, and Halyard")
 	_check(main.get_node_or_null("ReserveInterceptor") == null, "retired duplicate Torrent article is absent")
 	_check(opponent != null, "opposing interceptor is staged in the shared world")
 	_check(hud != null, "HUD is instantiated")
@@ -51,6 +52,7 @@ func _run() -> void:
 		&"arrow_provisional": &"efficient_twin_recon",
 		&"jovian_provisional": &"heavy_quad_freighter",
 		&"zenith_b7_observed": &"standard_fighter",
+		&"halyard_new_design": &"heavy_quad_freighter",
 	}
 	for fleet_ship in fleet:
 		var rig := fleet_ship.get_ship_audio_rig()
@@ -66,14 +68,14 @@ func _run() -> void:
 		_check(world.has_method("get_ship_spawn"), "world exposes ship spawn")
 		_check(world.has_method("is_landing_position"), "world exposes landing test")
 		_check(world.has_method("get_berth_ids"), "world exposes a physical berth registry")
-		_check(world.call("get_berth_ids").size() == 4, "world provides exactly four production landing berths")
+		_check(world.call("get_berth_ids").size() == 5, "world provides exactly five production landing berths")
 		_check(world.has_method("get_ship_berth_feedback_nodes"), "world exposes exact berth-feedback discovery")
 		var berth_feedback_nodes: Array = world.call("get_ship_berth_feedback_nodes")
-		_check(berth_feedback_nodes.size() == 4, "each authoritative production berth owns one visual feedback component")
+		_check(berth_feedback_nodes.size() == 5, "each authoritative production berth owns one visual feedback component")
 		var feedback_audit: Dictionary = world.call("get_ship_berth_feedback_audit_report")
 		_check(
 			bool(feedback_audit.get("valid", false))
-			and int(feedback_audit.get("component_count", 0)) == 4,
+			and int(feedback_audit.get("component_count", 0)) == 5,
 			"the complete production berth-feedback roster passes its fail-red audit"
 		)
 		for feedback in berth_feedback_nodes:

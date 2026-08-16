@@ -80,6 +80,7 @@ func _test_production_roster() -> void:
 		"ArrowReconShip",
 		"JovianLightFreighter",
 		"ZenithInterceptor",
+		"HalyardCrewTransport",
 	]
 	var configured := 0
 	var duplicates := 0

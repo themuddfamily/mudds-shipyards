@@ -2,7 +2,7 @@ extends SceneTree
 
 ## HUD-free Forward+ evidence harness for the operational station lattice.
 ##
-## This runner instantiates the complete production scene so the four live
+## This runner instantiates the complete production scene so the five live
 ## spacecraft, their direct world berths, the station modules, operational
 ## activity, and positional ambience are reviewed as one integrated world. It
 ## never adds capture-only architecture or signage. The only staged objects are
@@ -25,6 +25,7 @@ const CAPTURE_FILES: Array[String] = [
 
 const EXPECTED_SHIP_IDS: Array[StringName] = [
 	&"arrow_provisional",
+	&"halyard_new_design",
 	&"jovian_provisional",
 	&"torrent_provisional",
 	&"zenith_b7_observed",
@@ -32,6 +33,7 @@ const EXPECTED_SHIP_IDS: Array[StringName] = [
 const EXPECTED_BERTH_IDS: Array[StringName] = [
 	&"arrow_recon_berth",
 	&"central_berth",
+	&"halyard_fleet_dock_berth",
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
 ]
@@ -233,14 +235,14 @@ func _validate_fleet_and_berths() -> void:
 		"STATION_OPERATIONS_FLEET_CONTRACT: ships=%s berths=%s homes=%s"
 		% [str(ship_ids), str(berth_ids), str(home_berth_ids)]
 	)
-	_check(_ships.size() == 4, "capture world contains exactly four flyable spacecraft")
+	_check(_ships.size() == 5, "capture world contains exactly five flyable spacecraft")
 	_check(
 		_string_name_arrays_match(ship_ids, EXPECTED_SHIP_IDS),
-		"flyable fleet is exactly Arrow, Jovian, Torrent, and Zenith"
+		"flyable fleet is exactly Arrow, Halyard, Jovian, Torrent, and Zenith"
 	)
 	_check(
 		_string_name_arrays_match(berth_ids, EXPECTED_BERTH_IDS),
-		"world registry contains exactly four physical berths"
+		"world registry contains exactly five physical berths"
 	)
 	_check(
 		_string_name_arrays_match(home_berth_ids, EXPECTED_BERTH_IDS),
