@@ -855,6 +855,7 @@ monitorable = false
 shape = SubResource("SphereShape_interaction")
 
 [node name="CameraRig" type="Node3D" parent="."]
+unique_name_in_owner = true
 position = Vector3(0, 1.42, 0)
 
 [node name="CameraYaw" type="Node3D" parent="CameraRig"]

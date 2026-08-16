@@ -17,6 +17,14 @@ enum EmbodimentState {
 	DISEMBARKING,
 }
 
+## Which way round the on-foot camera is pointed. This is the player's own
+## choice, not a situational override: nothing in the world changes it, and it
+## survives every transition for the life of this controller.
+enum CameraViewMode {
+	THIRD_PERSON,
+	FIRST_PERSON,
+}
+
 const BOARDING_ENTRY_FRACTION := 0.42
 const BOARDING_STEP_HEIGHT := 0.16
 const DISEMBARK_STEP_HEIGHT := 0.12
@@ -55,6 +63,53 @@ const STEP_UP_MIN_ADVANCE := 0.01
 ## more and the occupant is returned bodily to the standing pose.
 const CABIN_CONTAINMENT_INSET := 0.12
 const CABIN_HARD_RECALL_DISTANCE := 1.5
+
+## First-person eye placement.
+##
+## The eye is measured off the live rig every time the presentation authority
+## changes, never written down as a height. This body is a feet-frame marker
+## relationship -- the root is on the soles and everything above it is authored
+## relative to that -- so any absolute eye constant here would silently stale the
+## moment the suit's proportions moved, which is precisely how the Zenith pilot
+## once ended up riding 0.47 m above his own seat.
+##
+## Two rig quantities define it, and only two:
+##  - the `head` joint, taken from the skeleton's REST pose rather than its live
+##    animated pose, so walking, running and idling cannot bob the camera. Head
+##    bob is a comfort decision and comfort settings are owned elsewhere; this
+##    view deliberately does not introduce one;
+##  - the crown, which is the top of the suit's bind bounds.
+##
+## The eye rides half-way between them, i.e. at the centre of the skull. On the
+## shipped suit that resolves to 1.560 + 0.5 * (1.945 - 1.560) = 1.7525 m, which
+## lands 7.5 mm from the independently authored blockout visor at 1.745 m -- two
+## art authorities that were never derived from each other agreeing on where this
+## pilot's eyes are.
+##
+## The offset is deliberately kept on the body's own vertical axis with no
+## forward component. The suit is culled for this camera anyway, so there is
+## nothing to see through; keeping the eye at the skull centre instead of the
+## visor also keeps the near plane the furthest possible distance inside the
+## 0.38 m capsule, so leaning on a wall cannot push the view through it.
+const EYE_SKULL_RISE_FRACTION := 0.5
+## Where the eye sits if the rig cannot be measured at all. Not a tuning value:
+## it is the authored `CameraRig` height, i.e. the one place the scene already
+## says "about head height", so a failed measurement degrades to the existing
+## third-person pivot rather than to a guess.
+const EYE_MEASUREMENT_FLOOR := 0.2
+
+## First person owns the whole pitch range a neck has. The third-person limits
+## are boom-clearance limits -- they exist so a 5.2 m arm does not plough the
+## deck or the sky -- and there is no boom here to clear.
+const FIRST_PERSON_MINIMUM_PITCH_DEGREES := -85.0
+const FIRST_PERSON_MAXIMUM_PITCH_DEGREES := 85.0
+
+## Distance from the eye at which the avatar stops being drawn for this camera.
+## Derived from the suit's own bind depth rather than chosen: at half the body's
+## front-to-back thickness the camera is inside the head, which is the first
+## frame at which not drawing the body is invisible rather than a pop.
+const SELF_CULL_DEPTH_FRACTION := 0.5
+const SELF_CULL_MINIMUM_DISTANCE := 0.12
 
 const MOTION_RESET := &"RESET"
 const MOTION_IDLE := &"idle"
@@ -149,6 +204,7 @@ const PILOT_PRESENTATION_VERSION := &"realistic_stylised_v2"
 @onready var _legacy_motion_animation_player: AnimationPlayer = %MotionAnimationPlayer
 @onready var _pilot_presentation: PilotSkinnedPresentation = %PilotSkinnedPresentation
 @onready var _player_collision: CollisionShape3D = $PlayerCollision
+@onready var _camera_rig: Node3D = %CameraRig
 @onready var _camera_yaw: Node3D = %CameraYaw
 @onready var _camera_pitch: Node3D = %CameraPitch
 @onready var _spring_arm: SpringArm3D = %SpringArm3D
@@ -165,6 +221,20 @@ var _camera_active: bool = true
 var _target_camera_distance: float = 5.2
 var _requested_camera_distance: float = 5.2
 var _camera_distance_ceiling: float = 8.0
+## The player's chosen view. Held here beside `_requested_camera_distance` on
+## purpose: both are preferences the player expressed, both are overridden by
+## the situation rather than erased by it, and both come back unchanged when the
+## situation ends.
+var _view_mode: CameraViewMode = CameraViewMode.THIRD_PERSON
+## Authored third-person orbit pivot, read from the scene at `_ready()` so the
+## camera rig can be moved to the eye and put back without a duplicated number.
+var _third_person_pivot := Vector3(0.0, 1.42, 0.0)
+## Player-local eye, measured off the live rig. See `EYE_SKULL_RISE_FRACTION`.
+var _eye_pivot := Vector3(0.0, 1.42, 0.0)
+var _eye_pivot_measured := false
+var _camera_authored_cull_mask := 0xFFFFF
+var _avatar_self_culled := false
+var _self_cull_distance := 0.28
 var _pitch: float = deg_to_rad(-10.0)
 ## Travel-facing yaw in Player-local space, before the active presentation's
 ## visual-axis correction is applied.
@@ -221,6 +291,11 @@ var _imported_skeleton_pose_contract: Array[Dictionary] = []
 
 
 func _ready() -> void:
+	# Captured before anything can touch it. Selecting a presentation authority
+	# can already restate the avatar's render layers, and the mask it restates
+	# them against has to be the one the scene authored.
+	_camera_authored_cull_mask = _camera.cull_mask
+	_third_person_pivot = _camera_rig.position
 	_initialize_legacy_motion_authority()
 	_activate_skinned_pilot_presentation()
 	_step_probe_reach = _resolve_step_probe_reach()
@@ -235,12 +310,11 @@ func _ready() -> void:
 		minimum_camera_distance,
 		maximum_camera_distance
 	)
+	_measure_eye_pivot()
 	_apply_camera_distance_ceiling()
-	_pitch = clampf(
-		_camera_pitch.rotation.x,
-		deg_to_rad(minimum_pitch_degrees),
-		deg_to_rad(maximum_pitch_degrees)
-	)
+	_camera_rig.position = _get_camera_pivot()
+	var pitch_limits := _get_pitch_limits()
+	_pitch = clampf(_camera_pitch.rotation.x, pitch_limits.x, pitch_limits.y)
 	_camera_pitch.rotation.x = _pitch
 	_camera.current = _camera_active
 	if _control_enabled and _camera_active and DisplayServer.get_name() != "headless":
@@ -291,11 +365,21 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	# Single writer for everything the view mode owns. The mode itself can change
+	# from input, and its *effect* can change without any input at all -- boarding
+	# suspends it, stepping back onto the deck resumes it -- so the whole camera
+	# state is resolved from the current situation every frame rather than only at
+	# the edges where the mode is set.
+	_apply_camera_distance_ceiling()
+	var weight := 1.0 - exp(-camera_zoom_speed * delta)
 	_spring_arm.spring_length = lerpf(
 		_spring_arm.spring_length,
 		_target_camera_distance,
-		1.0 - exp(-camera_zoom_speed * delta)
+		weight
 	)
+	_camera_rig.position = _camera_rig.position.lerp(_get_camera_pivot(), weight)
+	_ease_pitch_into_limits(weight)
+	_update_avatar_self_culling()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -304,6 +388,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("pause"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		return
+
+	if event.is_action_pressed("toggle_first_person"):
+		toggle_camera_view_mode()
+		get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseButton:
@@ -327,10 +416,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_camera_yaw.rotate_y(-mouse_motion.relative.x * mouse_sensitivity)
 		_camera_yaw.rotation.y = wrapf(_camera_yaw.rotation.y, -PI, PI)
 		var pitch_direction := 1.0 if invert_mouse_y else -1.0
+		var pitch_limits := _get_pitch_limits()
 		_pitch = clampf(
 			_pitch + mouse_motion.relative.y * mouse_sensitivity * pitch_direction,
-			deg_to_rad(minimum_pitch_degrees),
-			deg_to_rad(maximum_pitch_degrees)
+			pitch_limits.x,
+			pitch_limits.y
 		)
 		_camera_pitch.rotation.x = _pitch
 		get_viewport().set_input_as_handled()
@@ -1765,6 +1855,10 @@ func _select_fallback_motion_authority() -> bool:
 	_refine_pilot_presentation()
 	_set_fallback_presentation_visible(true)
 	_quarantine_unexpected_animation_players()
+	# The visible body just changed rig. The first-person eye is measured off
+	# whichever rig is live, so it is re-measured here rather than left holding
+	# the retired suit's proportions.
+	_measure_eye_pivot()
 	if (
 		_legacy_motion_animation_player == null
 		or not is_instance_valid(_legacy_motion_animation_player)
@@ -2924,7 +3018,17 @@ func _set_target_camera_distance(distance: float) -> void:
 ## Applies the current space's ceiling to the player's requested distance. Never
 ## raises the request, so zooming out inside a cabin does nothing surprising and
 ## the request is still there on the way out.
+##
+## First person is resolved here rather than by writing over the request or the
+## ceiling, so it never fights the cabin logic: it is simply the shortest of the
+## three, and switching back to third person inside a cabin still lands on the
+## cabin's 2.3 m ceiling rather than on whatever the player last asked for
+## outside. Zooming while in first person keeps updating the request silently,
+## so the framing you left third person with is the framing you return to.
 func _apply_camera_distance_ceiling() -> void:
+	if is_first_person_active():
+		_target_camera_distance = 0.0
+		return
 	_target_camera_distance = minf(_requested_camera_distance, _camera_distance_ceiling)
 
 
@@ -2950,3 +3054,233 @@ func _set_camera_distance_ceiling(ceiling: float) -> void:
 	# bulkhead. Growing back on the way out stays eased.
 	if _spring_arm != null and _spring_arm.spring_length > _target_camera_distance:
 		_spring_arm.spring_length = _target_camera_distance
+
+
+# --- On-foot first/third person view -----------------------------------------
+
+
+## Flips the player's chosen on-foot view and returns the mode now chosen.
+##
+## The choice is recorded even when it cannot take effect this instant -- pressed
+## while seated it still lands, and the player stands up into the view they
+## asked for.
+func toggle_camera_view_mode() -> CameraViewMode:
+	set_camera_view_mode(
+		CameraViewMode.THIRD_PERSON
+		if _view_mode == CameraViewMode.FIRST_PERSON
+		else CameraViewMode.FIRST_PERSON
+	)
+	return _view_mode
+
+
+func set_camera_view_mode(mode: CameraViewMode) -> void:
+	if _view_mode == mode:
+		return
+	_view_mode = mode
+	_apply_camera_distance_ceiling()
+	# Restore the body for this camera on the same frame the player asked to see
+	# it again, rather than waiting for the boom to grow: the alternative is a
+	# fifth of a second of looking out through the inside of your own back.
+	# Leaving first person can also leave the head pitched further than a 5.2 m
+	# boom may go; `_process` eases that back rather than snapping it.
+	_update_avatar_self_culling()
+
+
+## The view the player chose, regardless of whether the situation currently
+## allows it.
+func get_camera_view_mode() -> CameraViewMode:
+	return _view_mode
+
+
+## Whether the first-person view is actually driving the camera right now.
+func is_first_person_active() -> bool:
+	return _view_mode == CameraViewMode.FIRST_PERSON and not is_first_person_suspended()
+
+
+## First person is suspended, not cancelled, for every state in which this body
+## is not the thing walking around: the boarding and disembarking arcs move the
+## whole avatar bodily through a hatch, and a seated pilot's view belongs to the
+## craft. Suspension restores the authored chase framing and puts the avatar back
+## on its normal render layer; the player's choice is untouched and resumes by
+## itself the moment they are back on their feet.
+func is_first_person_suspended() -> bool:
+	return _embodiment_state != EmbodimentState.ON_FOOT
+
+
+## Inspectable view state. Everything here is measured or resolved rather than
+## restated, so a regression can assert the eye against the rig it came from.
+func get_camera_view_report() -> Dictionary:
+	return {
+		"mode": &"first_person" if _view_mode == CameraViewMode.FIRST_PERSON else &"third_person",
+		"first_person_chosen": _view_mode == CameraViewMode.FIRST_PERSON,
+		"first_person_active": is_first_person_active(),
+		"suspended": is_first_person_suspended(),
+		"eye_pivot": _eye_pivot,
+		"eye_pivot_measured": _eye_pivot_measured,
+		"third_person_pivot": _third_person_pivot,
+		"camera_pivot": _camera_rig.position if is_instance_valid(_camera_rig) else Vector3.ZERO,
+		"avatar_self_culled": _avatar_self_culled,
+		"self_cull_distance": _self_cull_distance,
+		"camera_cull_mask": _camera.cull_mask if is_instance_valid(_camera) else 0,
+		"authored_camera_cull_mask": _camera_authored_cull_mask,
+		"avatar_cull_layer_mask": PilotSkinnedPresentation.LOCAL_OBSERVER_CULL_MASK,
+		"spring_length": _spring_arm.spring_length if is_instance_valid(_spring_arm) else 0.0,
+		"target_camera_distance": _target_camera_distance,
+		"requested_camera_distance": _requested_camera_distance,
+		"camera_distance_ceiling": _camera_distance_ceiling,
+		"pitch_minimum_degrees": rad_to_deg(_get_pitch_limits().x),
+		"pitch_maximum_degrees": rad_to_deg(_get_pitch_limits().y),
+	}
+
+
+## Player-local orbit centre for the view in force right now.
+func _get_camera_pivot() -> Vector3:
+	return _eye_pivot if is_first_person_active() else _third_person_pivot
+
+
+func _get_pitch_limits() -> Vector2:
+	if is_first_person_active():
+		return Vector2(
+			deg_to_rad(FIRST_PERSON_MINIMUM_PITCH_DEGREES),
+			deg_to_rad(FIRST_PERSON_MAXIMUM_PITCH_DEGREES)
+		)
+	return Vector2(deg_to_rad(minimum_pitch_degrees), deg_to_rad(maximum_pitch_degrees))
+
+
+func _ease_pitch_into_limits(weight: float) -> void:
+	if not is_instance_valid(_camera_pitch):
+		return
+	var limits := _get_pitch_limits()
+	var allowed := clampf(_pitch, limits.x, limits.y)
+	if is_equal_approx(allowed, _pitch):
+		return
+	_pitch = lerpf(_pitch, allowed, clampf(weight, 0.0, 1.0))
+	if absf(allowed - _pitch) < 0.0005:
+		_pitch = allowed
+	_camera_pitch.rotation.x = _pitch
+
+
+## Measures the player-local eye off whichever presentation is actually driving
+## the visible body. Called once the presentation authority is settled, and again
+## if it ever changes, so the fallback rig gets its own eye rather than the
+## imported rig's.
+func _measure_eye_pivot() -> void:
+	_eye_pivot_measured = false
+	var eye_height := _measure_eye_height()
+	if eye_height <= EYE_MEASUREMENT_FLOOR:
+		# Nothing measurable. Ride the authored chase pivot: it is the one height
+		# in this scene that already claims to be near the head, and a view that
+		# is 30 cm low is a far smaller failure than one derived from a guess.
+		_eye_pivot = _third_person_pivot
+	else:
+		_eye_pivot = Vector3(0.0, eye_height, 0.0)
+		_eye_pivot_measured = true
+	var bounds := get_pilot_visual_bounds()
+	if bounds.size.z > 0.0:
+		_self_cull_distance = maxf(
+			SELF_CULL_MINIMUM_DISTANCE,
+			bounds.size.z * SELF_CULL_DEPTH_FRACTION
+		)
+	# A presentation swap replaces the meshes this camera was culling, so the
+	# decision is restated against the new ones rather than left on its last edge.
+	_update_avatar_self_culling(true)
+
+
+func _measure_eye_height() -> float:
+	if _using_imported_pilot_presentation:
+		return _measure_imported_eye_height()
+	return _measure_fallback_eye_height()
+
+
+## Imported Blender suit: `head` joint at rest, raised half-way to the crown.
+func _measure_imported_eye_height() -> float:
+	if _pilot_presentation == null or not is_instance_valid(_pilot_presentation):
+		return 0.0
+	var skeleton: Skeleton3D = _pilot_presentation.get_skeleton()
+	if skeleton == null or not is_instance_valid(skeleton):
+		return 0.0
+	var head_index := skeleton.find_bone(&"head")
+	if head_index < 0:
+		return 0.0
+	# The rest pose is taken in the rig's own space and only its height is used.
+	# The mount between here and the skeleton is a yaw about this body's vertical
+	# axis plus the animated `VisualRoot` bob, and the eye must be immune to both:
+	# the head joint sits on that axis, so a yaw cannot move it, and reading the
+	# rest pose rather than the live global pose is what keeps the bob out.
+	var joint_height := skeleton.get_bone_global_rest(head_index).origin.y
+	var crown := get_pilot_visual_bounds().end.y
+	if crown <= joint_height:
+		return 0.0
+	return joint_height + EYE_SKULL_RISE_FRACTION * (crown - joint_height)
+
+
+## Legacy blockout rig: it authors the visor explicitly, which *is* the eye, so
+## there is nothing to infer. Read from the authored node offsets rather than the
+## live transforms so a turned body or a mid-stride bob cannot move it.
+func _measure_fallback_eye_height() -> float:
+	if _body_pivot == null or not is_instance_valid(_body_pivot):
+		return 0.0
+	var helmet := _body_pivot.get_node_or_null("Helmet") as Node3D
+	if helmet == null:
+		return 0.0
+	var visor := helmet.get_node_or_null("Visor") as Node3D
+	if visor == null:
+		return helmet.position.y
+	return helmet.position.y + visor.position.y
+
+
+## Hides this body from this camera only.
+##
+## The suit is moved onto a render layer this one camera has stopped looking at,
+## rather than hidden. Every other camera in the scene keeps the default
+## all-layers cull mask, so a second occupant, the craft's own chase camera and
+## every capture harness still see the pilot's authored walk, run and idle -- and
+## the suit keeps casting its shadow, so a first-person player still sees himself
+## on the deck.
+func _update_avatar_self_culling(force: bool = false) -> void:
+	var should_cull := (
+		is_first_person_active()
+		and is_instance_valid(_spring_arm)
+		and _spring_arm.spring_length <= _self_cull_distance
+		and _camera_rig.position.distance_to(_eye_pivot) <= _self_cull_distance
+	)
+	if should_cull == _avatar_self_culled and not force:
+		return
+	_avatar_self_culled = should_cull
+	if is_instance_valid(_camera):
+		_camera.cull_mask = (
+			_camera_authored_cull_mask & ~PilotSkinnedPresentation.LOCAL_OBSERVER_CULL_MASK
+			if should_cull
+			else _camera_authored_cull_mask
+		)
+	if _pilot_presentation != null and is_instance_valid(_pilot_presentation):
+		_pilot_presentation.set_local_observer_culled(should_cull)
+	for mesh in _player_owned_avatar_meshes():
+		if not mesh.has_meta(&"authored_render_layers"):
+			mesh.set_meta(&"authored_render_layers", mesh.layers)
+		mesh.layers = (
+			PilotSkinnedPresentation.LOCAL_OBSERVER_CULL_MASK
+			if should_cull
+			else int(mesh.get_meta(&"authored_render_layers", 1))
+		)
+
+
+## The scene-authored blockout and generated fallback meshes. The imported suit
+## is excluded: it owns its own render state behind a declared contract and is
+## moved through that contract instead.
+func _player_owned_avatar_meshes() -> Array[MeshInstance3D]:
+	var meshes: Array[MeshInstance3D] = []
+	if _visual_root == null or not is_instance_valid(_visual_root):
+		return meshes
+	for candidate in _visual_root.find_children("*", "MeshInstance3D", true, false):
+		var mesh := candidate as MeshInstance3D
+		if mesh == null:
+			continue
+		if (
+			_pilot_presentation != null
+			and is_instance_valid(_pilot_presentation)
+			and _pilot_presentation.is_ancestor_of(mesh)
+		):
+			continue
+		meshes.append(mesh)
+	return meshes

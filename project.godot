@@ -118,8 +118,14 @@ toggle_controls_overlay={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":4194332), Object(InputEventJoypadButton,"button_index":4)]
 }
+toggle_first_person={
+"deadzone": 0.18,
+"events": [Object(InputEventKey,"physical_keycode":67), Object(InputEventJoypadButton,"button_index":14)]
+}
 
 [layer_names]
+
+3d_render/layer_20="AvatarSelfView"
 
 3d_physics/layer_1="World"
 3d_physics/layer_2="Player"

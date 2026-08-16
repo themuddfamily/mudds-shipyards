@@ -129,6 +129,20 @@ const EXPECTED_CLIP_TRACK_COUNTS := {
 	&"seated_control": 23,
 	&"disembark_recovery": 23,
 }
+## Render layer reserved for "this avatar's own body, as seen by the observer
+## riding it". Nothing else in the project uses a render layer other than 1, and
+## every camera in the project keeps Godot's default all-layers cull mask, so a
+## suit parked here is still drawn by every other camera in the scene -- the
+## ship's chase camera, a second occupant's camera, and every capture harness.
+## Only the one camera that has deliberately cleared this bit stops seeing it.
+##
+## This is the ONLY sanctioned mutation of the suit's render state, and it is
+## sanctioned precisely because it is per-observer: hiding the pilot by
+## `visible`, `transparency` or `cast_shadow` would remove him for everyone, and
+## is exactly what the integrity contract below exists to catch.
+const LOCAL_OBSERVER_CULL_LAYER := 20
+const LOCAL_OBSERVER_CULL_MASK := 1 << (LOCAL_OBSERVER_CULL_LAYER - 1)
+
 const FORBIDDEN_AUTHORITY_TYPES := [
 	"CollisionObject3D",
 	"CollisionShape3D",
@@ -146,6 +160,7 @@ var _skeleton: Skeleton3D
 var _animation_player: AnimationPlayer
 var _skinned_meshes: Array[MeshInstance3D] = []
 var _built := false
+var _local_observer_culled := false
 var _integrity_contract: Dictionary = {}
 var _canonical_resource_contract: Dictionary = {}
 
@@ -621,7 +636,7 @@ func _append_integrity_errors(errors: PackedStringArray) -> void:
 			!= int(_integrity_contract.get("suit_material_override_id", 0))
 		or (suit.material_overlay.get_instance_id() if suit.material_overlay != null else 0)
 			!= int(_integrity_contract.get("suit_material_overlay_id", 0))
-		or suit.layers != int(_integrity_contract.get("suit_layers", 0))
+		or suit.layers != get_expected_suit_render_layers()
 		or suit.cast_shadow != int(_integrity_contract.get("suit_cast_shadow", 0))
 		or not is_equal_approx(
 			suit.transparency,
@@ -1188,6 +1203,42 @@ func _aabb_corners(bounds: AABB) -> Array[Vector3]:
 			for z in [bounds.position.z, bounds.end.z]:
 				corners.append(Vector3(x, y, z))
 	return corners
+
+
+## Moves the skinned suit onto [constant LOCAL_OBSERVER_CULL_LAYER] so a single
+## camera can stop drawing it, and back to its captured layers when released.
+##
+## This exists for the on-foot first-person view: the observer riding this body
+## must not be shown the inside of its own skull, while every other observer --
+## a second occupant, the craft's chase camera, a capture harness -- must keep
+## seeing the pilot walk, run and idle exactly as authored. Per-observer culling
+## is the only mechanism that can express that; `visible` cannot.
+##
+## Deformation, clip playback, materials, shadow casting and the whole node
+## roster are untouched. The suit keeps casting its shadow while culled, so a
+## first-person player still sees his own shadow on the deck.
+func set_local_observer_culled(culled: bool) -> bool:
+	var suit := get_node_or_null(
+		"PilotMotionImport/PilotArt/PilotRig/PilotSkeleton/PilotSuit"
+	) as MeshInstance3D
+	if suit == null or _integrity_contract.is_empty():
+		return false
+	_local_observer_culled = culled
+	suit.layers = get_expected_suit_render_layers()
+	return true
+
+
+func is_local_observer_culled() -> bool:
+	return _local_observer_culled
+
+
+## Render layers the suit is contractually required to be on right now. This is
+## the captured value except while [method set_local_observer_culled] is engaged,
+## which is the single declared exception. Any other layer value is still drift.
+func get_expected_suit_render_layers() -> int:
+	if _local_observer_culled:
+		return LOCAL_OBSERVER_CULL_MASK
+	return int(_integrity_contract.get("suit_layers", 0))
 
 
 func get_animation_player() -> AnimationPlayer:
