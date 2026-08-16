@@ -135,6 +135,14 @@ var destroyed_targets := 0
 var total_targets := 0
 var _near_ship := false
 var _piloting := false
+## True only while the same visible pilot is seated in the deck tow tractor.
+## Deliberately separate from `_piloting`: the tractor is a ground vehicle and
+## must never reach the flight, berth, landing, combat or regeneration paths that
+## `_piloting` gates. `tests/fleet_lifecycle_safety_test.gd` freezes that roster.
+var _driving := false
+## Which of the tow tractor's two independent safety guards last recalled the
+## driver. Diagnostic only; nothing gameplay-facing reads it.
+var _last_tractor_recovery_reason: StringName = &""
 var _last_engine_state := "OFFLINE"
 var _launch_registered := false
 var _return_registered := false
@@ -149,6 +157,10 @@ var runtime_settings: RuntimeSettings
 ## it, so turning the preset back off restores the exact authored feel.
 var _authored_chase_camera_lag: Dictionary = {}
 var ships: Array[HeroShip] = []
+## The station's one drivable ground vehicle, resolved from the world subtree
+## rather than a global group so a second world instance in a test cannot be
+## mistaken for this one. It is never appended to `ships`.
+var tow_tractor: TowTractor
 var active_ship: HeroShip
 var boarding_candidate: HeroShip
 var station_interaction_candidate: Node3D
@@ -226,6 +238,7 @@ func _ready() -> void:
 	player.set_control_enabled(false)
 	player.set_camera_active(false)
 	_register_flyable_ships()
+	_resolve_ground_vehicle()
 	active_ship = ship
 	_initialize_live_combat()
 	_connect_runtime_signals()
@@ -249,6 +262,11 @@ func _process(delta: float) -> void:
 	if _piloting:
 		_consume_active_ship_command_edges()
 		_update_pilot_flow()
+	elif _driving:
+		# A seated driver is not on foot. Running the on-foot flow here would draw
+		# station prompts the seated player cannot reach and, worse, would let the
+		# walking fall-recall below teleport the avatar out of a live seat.
+		_update_drive_flow()
 	else:
 		_update_on_foot_flow()
 		# The below-deck recall is a station-floor backstop expressed in world
@@ -282,6 +300,10 @@ func _physics_process(_delta: float) -> void:
 func _restore_runtime_bindings_after_reentry() -> void:
 	if not _initialized or not is_inside_tree():
 		return
+	# The world subtree is not rebuilt by a detach, so this re-binds the same
+	# single vehicle rather than producing a second one. Re-resolving is what keeps
+	# the binding honest if the instance was released while detached.
+	_resolve_ground_vehicle()
 	_connect_runtime_signals()
 	_initialize_live_combat()
 	# Part of the settings snapshot is process-wide rather than node-local: the
@@ -333,6 +355,14 @@ func _connect_runtime_signals() -> void:
 		_connect_signal_once(runtime_settings, &"setting_changed", _on_runtime_setting_changed)
 	for fleet_ship in ships:
 		_connect_flyable_ship_signals(fleet_ship)
+	if is_instance_valid(tow_tractor):
+		_connect_signal_once(tow_tractor, &"board_requested", _on_tractor_board_requested)
+		_connect_signal_once(tow_tractor, &"exit_requested", _on_tractor_exit_requested)
+		_connect_signal_once(
+			tow_tractor,
+			&"deck_recovery_required",
+			_on_tractor_deck_recovery_required
+		)
 
 
 func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
@@ -538,6 +568,195 @@ func _update_on_foot_flow() -> void:
 		hud.set_interaction("", false)
 	if player.velocity.length() > 2.0 and player.is_on_floor():
 		audio.play_footstep(clampf(player.velocity.length() / 9.2, 0.0, 1.0))
+
+
+## Resolves the station's drivable ground vehicle.
+##
+## Scoped to this coordinator's own world subtree rather than a scene-tree group,
+## because several suites hold two `Main` instances at once and a global group
+## lookup would hand one session the other session's tractor.
+func _resolve_ground_vehicle() -> void:
+	tow_tractor = null
+	if not is_instance_valid(world):
+		return
+	for candidate in world.find_children("*", "TowTractor", true, false):
+		tow_tractor = candidate as TowTractor
+		break
+
+
+func _update_drive_flow() -> void:
+	if _transition_busy:
+		# The seat handoff owns the HUD and the vehicle's driven flag while it runs.
+		hud.set_interaction("", false)
+		return
+	if not is_instance_valid(tow_tractor):
+		# The vehicle cannot vanish under a seated driver in production, but if it
+		# ever did, leaving the avatar bound to a dead seat anchor is the one
+		# outcome that strands them. Recall through the same path a lost craft uses.
+		_recover_from_lost_tractor(&"vehicle_unavailable")
+		return
+	if tow_tractor.is_edge_interlock_engaged():
+		hud.set_interaction("DECK EDGE  //  SAFETY INTERLOCK")
+	elif tow_tractor.can_release_driver():
+		hud.set_interaction("[ E ]  HOP OUT")
+	else:
+		hud.set_interaction("[ E ]  HOP OUT  //  COME TO A STOP")
+
+
+func _on_tractor_board_requested(actor: Node) -> void:
+	if actor != player:
+		return
+	_board_tow_tractor()
+
+
+func _on_tractor_exit_requested() -> void:
+	_exit_tow_tractor()
+
+
+func _on_tractor_deck_recovery_required(reason: StringName) -> void:
+	_recover_from_lost_tractor(reason)
+
+
+## Boarding generation guard for the ground vehicle.
+##
+## Mirrors `_is_transition_current()` without its craft-specific terms, so a
+## destructive recovery that advances the generation cannot be overtaken by a
+## boarding or dismount coroutine resuming afterwards.
+func _is_ground_transition_current(generation: int) -> bool:
+	return (
+		generation == _transition_generation
+		and _transition_busy
+		and is_instance_valid(tow_tractor)
+	)
+
+
+func _board_tow_tractor() -> void:
+	if _transition_busy or _piloting or _driving or not is_instance_valid(tow_tractor):
+		return
+	if not tow_tractor.is_boardable():
+		return
+	# The two on-foot phases. A tractor is a deck toy, not a way to sidestep an
+	# active flight objective or an in-flight transition.
+	if phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]:
+		return
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	player.set_control_enabled(false)
+	hud.set_interaction("", false)
+	hud.set_objective("Climb into the yard tow tractor", "TOW TRACTOR")
+	if not player.begin_boarding(
+		tow_tractor.get_boarding_entry_transform(),
+		tow_tractor.get_driver_seat_anchor(),
+		boarding_motion_time
+	):
+		_transition_busy = false
+		player.set_control_enabled(true)
+		_restore_on_foot_objective()
+		return
+	await player.boarding_completed
+	if not _is_ground_transition_current(generation):
+		return
+	_driving = true
+	player.set_camera_active(false)
+	tow_tractor.set_driven(true)
+	hud.set_mode("on-foot")
+	hud.set_objective(
+		"Drive the tow tractor anywhere on the deck — press E to hop out",
+		"TOW TRACTOR"
+	)
+	hud.toast(
+		"Tow tractor running",
+		"W / S drive  •  A / D steer  •  SPACE brake  •  E to hop out",
+		3.2
+	)
+	audio.play_ui_confirm()
+	_transition_busy = false
+
+
+func _exit_tow_tractor() -> void:
+	if _transition_busy or not _driving or not is_instance_valid(tow_tractor):
+		return
+	if not tow_tractor.can_release_driver():
+		hud.toast(
+			"Still moving",
+			"Bring the tractor to a stop on the deck before hopping out",
+			2.0
+		)
+		return
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	tow_tractor.set_driven(false)
+	player.set_camera_active(true)
+	# The exit transform is validated against real deck by the vehicle itself; the
+	# on-foot spawn is the fallback it uses when no candidate footfall is backed by
+	# floor, so a dismount can never place the player over a void.
+	if not player.begin_disembark(
+		tow_tractor.get_exit_transform(world.get_player_spawn()),
+		disembarking_motion_time
+	):
+		tow_tractor.set_driven(true)
+		player.set_camera_active(false)
+		_transition_busy = false
+		return
+	await player.disembarking_completed
+	if not _is_ground_transition_current(generation):
+		return
+	_driving = false
+	player.set_control_enabled(true)
+	hud.set_mode("on-foot")
+	hud.set_interaction("", false)
+	_restore_on_foot_objective()
+	audio.set_on_foot(true)
+	audio.play_ui_confirm()
+	_transition_busy = false
+
+
+## The tow tractor's half of the crash-recovery contract.
+##
+## The vehicle raises this at most once per departure, from its own pose, so it
+## fires whatever the reason — an interlock that missed an edge, a launch off a
+## ramp, geometry that changed underneath it. The pilot recall is the *same*
+## `_recall_pilot_to_deck()` a destroyed craft performs; only the vehicle-side
+## reset differs, because a tractor owns no berth to regenerate into.
+func _recover_from_lost_tractor(reason: StringName) -> void:
+	if _recovering:
+		return
+	var had_driver := _driving
+	_recovering = true
+	_invalidate_transition_generation()
+	_transition_busy = true
+	if had_driver:
+		hud.set_enemy_status("", 0.0, 1.0, false)
+		_recall_pilot_to_deck()
+		hud.toast(
+			"Tow tractor recovered",
+			"You are back on the regeneration deck — the tractor returned to its parking spot",
+			3.0
+		)
+		_restore_on_foot_objective()
+	if is_instance_valid(tow_tractor):
+		tow_tractor.recover_to_home_transform()
+	# Recorded rather than surfaced: the reason names which of the two independent
+	# guards fired, which is what a diagnostic read wants and a toast does not.
+	_last_tractor_recovery_reason = reason
+	_transition_busy = false
+	_recovering = false
+
+
+## Restores the on-foot objective and phase after any seat is released.
+func _restore_on_foot_objective() -> void:
+	if _guided_activity_complete:
+		phase = Phase.COMPLETE
+		hud.set_objective(
+			"Explore the deck or walk to another physical spacecraft",
+			"FLIGHT TEST COMPLETE"
+		)
+	else:
+		phase = Phase.APPROACH_SHIP
+		hud.set_objective(
+			"Board the Torrent interceptor to begin the pending guided flight test",
+			"GUIDED TEST PENDING"
+		)
 
 
 func _update_pilot_flow() -> void:
@@ -2090,22 +2309,10 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	destroyed_ship.set_piloted(false)
 	if destroyed_ship.get_camera() != null:
 		destroyed_ship.get_camera().current = false
-	player.set_camera_active(true)
-	# Destruction can arrive at any await boundary: before boarding starts, while
-	# the avatar is interpolating to the seat, while seated, or during exit. The
-	# controller owns the embodiment reset so collision/pose/priority are restored
-	# atomically instead of teleporting a still-BOARDING body.
-	player.force_recovery_to_on_foot(world.get_player_spawn())
-	if _boarding_area != null:
-		_boarding_area.release_reservation(player)
-	_boarding_area = null
-	_piloting = false
+	_recall_pilot_to_deck()
 	_launch_registered = false
 	_return_registered = false
 	_sortie_departed_berth = false
-	player.set_control_enabled(true)
-	hud.set_mode("on-foot")
-	audio.set_on_foot(true)
 	if _guided_activity_complete:
 		phase = Phase.COMPLETE
 		hud.set_objective("Walk to the other craft or wait for berth regeneration", "SHIPYARD SANDBOX")
@@ -2120,6 +2327,31 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_transition_busy = false
 	_recovering = false
 	_replenish_destroyed_ship(destroyed_ship)
+
+
+## Restores one coherent, controllable on-foot pilot at the deck spawn.
+##
+## Extracted from the destroyed-craft recovery so the tow tractor's own loss path
+## reuses it verbatim instead of re-deriving a second embodiment reset. Every
+## caller must have already advanced the transition generation, because
+## `force_recovery_to_on_foot()` cancels an in-flight seat transition and emits
+## its completion signal deferred; the awaiting coroutine returns on that token.
+func _recall_pilot_to_deck() -> void:
+	player.set_camera_active(true)
+	# Loss can arrive at any await boundary: before boarding starts, while the
+	# avatar is interpolating to the seat, while seated, or during exit. The
+	# controller owns the embodiment reset so collision/pose/priority are restored
+	# atomically instead of teleporting a still-BOARDING body.
+	player.force_recovery_to_on_foot(world.get_player_spawn())
+	if _boarding_area != null:
+		_boarding_area.release_reservation(player)
+	_boarding_area = null
+	_piloting = false
+	_driving = false
+	player.set_control_enabled(true)
+	hud.set_mode("on-foot")
+	hud.set_interaction("", false)
+	audio.set_on_foot(true)
 
 
 func _replenish_destroyed_ship(destroyed_ship: HeroShip) -> void:
@@ -2278,6 +2510,20 @@ func get_active_ship() -> HeroShip:
 	return active_ship
 
 
+## The station's drivable ground vehicle. Deliberately not part of
+## `get_flyable_ships()`: it holds no berth, lease, landing or combat authority.
+func get_tow_tractor() -> TowTractor:
+	return tow_tractor
+
+
+func is_driving_tow_tractor() -> bool:
+	return _driving
+
+
+func get_last_tractor_recovery_reason() -> StringName:
+	return _last_tractor_recovery_reason
+
+
 func get_guided_ship() -> HeroShip:
 	return ship
 
@@ -2349,6 +2595,11 @@ func _apply_all_runtime_settings() -> void:
 	player.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 	player.invert_mouse_y = runtime_settings.invert_on_foot_y
 	player.set_camera_fov(runtime_settings.camera_fov)
+	# The tractor's chase camera is an on-foot-scale third-person rig, so it takes
+	# the on-foot look preference rather than the flight one.
+	if is_instance_valid(tow_tractor):
+		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
+		tow_tractor.set_camera_fov(runtime_settings.camera_fov)
 	runtime_settings.apply_audio_settings()
 	runtime_settings.apply_window_mode()
 	if world.has_method("apply_visual_quality"):
@@ -2412,6 +2663,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
 	elif setting == &"on_foot_mouse_sensitivity":
 		player.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
+		if is_instance_valid(tow_tractor):
+			tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 	elif setting == &"invert_ship_y":
 		for fleet_ship in ships:
 			fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
@@ -2421,6 +2674,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		for fleet_ship in ships:
 			fleet_ship.set_camera_fov(runtime_settings.camera_fov)
 		player.set_camera_fov(runtime_settings.camera_fov)
+		if is_instance_valid(tow_tractor):
+			tow_tractor.set_camera_fov(runtime_settings.camera_fov)
 	elif setting in [
 		&"master_volume", &"ambience_volume", &"engine_volume",
 		&"weapons_volume", &"ui_volume", &"music_volume"

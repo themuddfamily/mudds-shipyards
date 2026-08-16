@@ -1,0 +1,55 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/vehicles/tow_tractor.gd" id="1_tractor"]
+[ext_resource type="Script" path="res://scripts/vehicles/tow_tractor_driver_station.gd" id="2_driver_station"]
+
+[sub_resource type="BoxShape3D" id="BoxShape_chassis"]
+size = Vector3(2.3, 1.5, 3.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape_bonnet"]
+size = Vector3(1.9, 0.66, 1.25)
+
+[sub_resource type="SphereShape3D" id="SphereShape_driver_station"]
+radius = 1.55
+
+[node name="TowTractor" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_tractor")
+
+[node name="ChassisCollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("BoxShape_chassis")
+
+[node name="BonnetCollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.53, -1.2)
+shape = SubResource("BoxShape_bonnet")
+
+[node name="DriverSeat" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, 0.12)
+
+[node name="DriverStation" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.75, 1.25, 0.4)
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+script = ExtResource("2_driver_station")
+
+[node name="DriverStationShape" type="CollisionShape3D" parent="DriverStation"]
+shape = SubResource("SphereShape_driver_station")
+
+[node name="CameraRig" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="CameraPitch" type="Node3D" parent="CameraRig"]
+
+[node name="CameraArm" type="SpringArm3D" parent="CameraRig/CameraPitch"]
+collision_mask = 5
+spring_length = 7.2
+margin = 0.35
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/CameraPitch/CameraArm"]
+current = false
+fov = 72.0
+near = 0.08
+far = 4000.0
