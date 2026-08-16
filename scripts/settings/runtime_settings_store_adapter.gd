@@ -5,7 +5,9 @@ extends RefCounted
 ##
 ## RuntimeSettings owns typed validation and live state. UserDataStore owns
 ## durable bytes, generations, and rollback. This adapter owns only payload-key
-## preservation and the one-time ConfigFile import policy.
+## preservation and the one-time ConfigFile import policy. Settings change
+## observers may run synchronously during load; nested adapter load/save calls
+## are rejected without touching the store.
 
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 
@@ -16,6 +18,7 @@ const LEGACY_MIGRATION_COMMIT_ID := "runtime-settings-legacy-v1"
 var _settings: RuntimeSettings
 var _store: UserDataStore
 var _legacy_path: String
+var _operation_active := false
 
 
 func _init(
@@ -38,6 +41,15 @@ func _init(
 ## generation-zero empty store and only reaches live state after the atomic
 ## commit succeeds.
 func load() -> Dictionary:
+	if _operation_active:
+		return _reentrant_status()
+	_operation_active = true
+	var result := _load()
+	_operation_active = false
+	return result
+
+
+func _load() -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})
 	var store_load := _store.load()
@@ -66,6 +78,15 @@ func load() -> Dictionary:
 ## invalid/newer settings section or a backup-recovery load requires a separate
 ## repair decision and is never overwritten by an ordinary save.
 func save(commit_id: String) -> Dictionary:
+	if _operation_active:
+		return _reentrant_status()
+	_operation_active = true
+	var result := _save(commit_id)
+	_operation_active = false
+	return result
+
+
+func _save(commit_id: String) -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})
 	var store_load := _store.load()
@@ -128,6 +149,13 @@ func _legacy_artifact_exists() -> bool:
 		if FileAccess.file_exists(path):
 			return true
 	return false
+
+
+func _reentrant_status() -> Dictionary:
+	return _status(false, &"reentrant_call", false, false, {
+		"reason": &"not_attempted",
+		"generation": _store.get_generation() if _store != null else 0,
+	})
 
 
 static func _is_genuinely_empty(store_load: Dictionary) -> bool:

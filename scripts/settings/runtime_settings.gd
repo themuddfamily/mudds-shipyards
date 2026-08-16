@@ -51,6 +51,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
 const USER_DATA_PAYLOAD_SCHEMA_VERSION := 1
+const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
 const _BACKUP_SUFFIX := ".bak"
@@ -1023,7 +1024,8 @@ static func _is_integral_json_number(value: Variant) -> bool:
 	if not value is int and not value is float:
 		return false
 	var number := float(value)
-	return not is_nan(number) and not is_inf(number) and number == floor(number)
+	return not is_nan(number) and not is_inf(number) \
+		and number == floor(number) and absf(number) <= _MAX_SAFE_JSON_INTEGER
 
 
 func _resolve_path(path_override: String) -> String:

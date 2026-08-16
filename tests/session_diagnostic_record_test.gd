@@ -68,6 +68,8 @@ func _run() -> void:
 	_test_malformed_and_nonfinite_input()
 	_test_detach_and_reentry()
 	_test_injected_persistence_and_failed_commit_preservation()
+	_test_existing_namespace_schema_and_store_races_are_preserved()
+	_test_restore_rejects_ring_and_private_field_mutations()
 	_test_exact_authority_exclusions()
 	_finish()
 
@@ -358,6 +360,201 @@ func _test_injected_persistence_and_failed_commit_preservation() -> void:
 		and guarded.get_snapshot() == guarded_before,
 		"malformed persisted diagnostics fail closed without replacing prior recorder state"
 	)
+
+
+func _test_existing_namespace_schema_and_store_races_are_preserved() -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem)
+	store.load()
+	var future_namespace := {
+		"schema_version": Record.SCHEMA_VERSION + 1,
+		"opaque_future_fields": {"format": 2},
+	}
+	store.commit({
+		"career": {"credits": 91},
+		Record.PAYLOAD_NAMESPACE: future_namespace,
+	}, 0, "future-diagnostics")
+	var bytes_before := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	var payload_before := store.get_snapshot()
+	var record := Record.new(store) as SessionDiagnosticRecord
+	record.attach_session(70)
+	record.record(_event(
+		Event.Code.SESSION_STARTED, Event.Severity.INFO, 70, 0, 0.0
+	))
+	var record_before := record.get_snapshot()
+	var future_persist := record.persist("must-not-replace-future")
+	record.detach_session(70)
+	var future_restore := record.restore_from_store()
+	_check(
+		not bool(future_persist.accepted)
+		and future_persist.reason == &"record_schema_newer"
+		and future_persist.record_reason == &"newer_schema"
+		and not bool(future_restore.accepted)
+		and future_restore.reason == &"record_schema_newer"
+		and future_restore.record_reason == &"newer_schema",
+		"newer diagnostic schema is distinguished and blocks both overwrite and restore"
+	)
+	_check(
+		store.get_generation() == 1
+		and store.get_snapshot() == payload_before
+		and filesystem.files[STORE_PATH] == bytes_before
+		and record.get_snapshot() == record_before,
+		"newer diagnostic bytes, adjacent namespaces, and live ring remain exact"
+	)
+
+	filesystem = FakeFilesystem.new()
+	store = Store.new(STORE_PATH, filesystem)
+	store.load()
+	store.commit({
+		"career": {"credits": 92},
+		Record.PAYLOAD_NAMESPACE: {"schema_version": Record.SCHEMA_VERSION},
+	}, 0, "malformed-diagnostics")
+	bytes_before = (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	payload_before = store.get_snapshot()
+	record = Record.new(store) as SessionDiagnosticRecord
+	record.attach_session(71)
+	record.record(_event(
+		Event.Code.SESSION_STARTED, Event.Severity.INFO, 71, 0, 0.0
+	))
+	var malformed_persist := record.persist("must-not-replace-malformed")
+	_check(
+		not bool(malformed_persist.accepted)
+		and malformed_persist.reason == &"invalid_record"
+		and malformed_persist.record_reason == &"invalid_snapshot"
+		and store.get_generation() == 1
+		and store.get_snapshot() == payload_before
+		and filesystem.files[STORE_PATH] == bytes_before,
+		"ordinary persistence preserves a malformed current-schema namespace for diagnosis"
+	)
+
+	filesystem = FakeFilesystem.new()
+	store = Store.new(STORE_PATH, filesystem)
+	store.load()
+	store.commit({
+		"career": {"credits": 93},
+		Record.PAYLOAD_NAMESPACE: {
+			"schema_version": float(Record.MAX_FIELD_INTEGER) + 1.0,
+		},
+	}, 0, "unsafe-schema-diagnostics")
+	bytes_before = (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	record = Record.new(store) as SessionDiagnosticRecord
+	record.attach_session(73)
+	record.record(_event(
+		Event.Code.SESSION_STARTED, Event.Severity.INFO, 73, 0, 0.0
+	))
+	var unsafe_schema_persist := record.persist("must-not-replace-unsafe-schema")
+	_check(
+		not bool(unsafe_schema_persist.accepted)
+		and unsafe_schema_persist.reason == &"invalid_record"
+		and unsafe_schema_persist.record_reason == &"invalid_snapshot"
+		and store.get_generation() == 1
+		and filesystem.files[STORE_PATH] == bytes_before,
+		"schema numbers outside the JSON-safe integer range are malformed rather than newer"
+	)
+
+	filesystem = FakeFilesystem.new()
+	var winner := Store.new(STORE_PATH, filesystem)
+	winner.load()
+	winner.commit({"career": {"credits": 1}}, 0, "race-base")
+	var stale_store := Store.new(STORE_PATH, filesystem)
+	stale_store.load()
+	record = Record.new(stale_store) as SessionDiagnosticRecord
+	record.attach_session(72)
+	record.record(_event(
+		Event.Code.PERSISTENCE_FAILURE,
+		Event.Severity.ERROR,
+		72,
+		12,
+		0.2,
+		{"error_code": 17}
+	))
+	var stale_ring_before := record.get_snapshot()
+	winner.commit({"career": {"credits": 2}, "winner": true}, 1, "race-winner")
+	var winner_bytes := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	var stale_persist := record.persist("race-loser")
+	_check(
+		not bool(stale_persist.accepted)
+		and stale_persist.reason == &"authority_changed"
+		and stale_store.get_generation() == 1
+		and record.get_snapshot() == stale_ring_before
+		and filesystem.files[STORE_PATH] == winner_bytes,
+		"a stale injected store cannot overwrite a competing generation or mutate the live ring"
+	)
+
+
+func _test_restore_rejects_ring_and_private_field_mutations() -> void:
+	var source := Record.new() as SessionDiagnosticRecord
+	source.attach_session(80)
+	source.record(_event(
+		Event.Code.SESSION_STARTED,
+		Event.Severity.INFO,
+		80,
+		0,
+		0.0,
+		{"entity_count": 2}
+	))
+	source.record(_event(
+		Event.Code.PHYSICS_STALL,
+		Event.Severity.WARNING,
+		80,
+		1,
+		0.1,
+		{"frame_delta_seconds": 0.1}
+	))
+	var valid := source.get_snapshot()
+	var bad_next := valid.duplicate(true)
+	bad_next["next_sequence"] = 4
+	var duplicate_sequence := valid.duplicate(true)
+	(duplicate_sequence.events as Array)[1]["sequence"] = 1
+	var impossible_drop := valid.duplicate(true)
+	impossible_drop["dropped_event_count"] = 1
+	var private_field := valid.duplicate(true)
+	((private_field.events as Array)[0].fields as Dictionary)["crash_path"] = 1
+	var secret_field := valid.duplicate(true)
+	((secret_field.events as Array)[0].fields as Dictionary)["auth_token"] = 17
+	var unsafe_sequence := valid.duplicate(true)
+	unsafe_sequence["next_sequence"] = float(Record.MAX_FIELD_INTEGER) + 1.0
+	var all_rejected := true
+	for mutation_case in [
+		{"label": "next-sequence mismatch", "snapshot": bad_next},
+		{"label": "duplicate sequence", "snapshot": duplicate_sequence},
+		{"label": "impossible dropped count", "snapshot": impossible_drop},
+		{"label": "retained private field", "snapshot": private_field},
+		{"label": "retained secret field", "snapshot": secret_field},
+		{"label": "unsafe sequence integer", "snapshot": unsafe_sequence},
+	]:
+		var rejected := _restore_rejects_without_mutation(
+			mutation_case.snapshot as Dictionary
+		)
+		all_rejected = all_rejected and rejected
+		_check(rejected, "restore rejects %s without mutation" % mutation_case.label)
+	_check(
+		all_rejected,
+		"restore rejects sequence gaps, impossible ring drops, unsafe integers, and retained private/secret fields"
+	)
+
+
+func _restore_rejects_without_mutation(candidate: Dictionary) -> bool:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem)
+	store.load()
+	store.commit({
+		"adjacent": {"preserved": true},
+		Record.PAYLOAD_NAMESPACE: candidate,
+	}, 0, "restore-mutation-fixture")
+	var guarded := Record.new(store) as SessionDiagnosticRecord
+	guarded.attach_session(81)
+	guarded.record(_event(
+		Event.Code.SESSION_STARTED, Event.Severity.INFO, 81, 0, 0.0
+	))
+	guarded.detach_session(81)
+	var before := guarded.get_snapshot()
+	var restored := guarded.restore_from_store()
+	return not bool(restored.accepted) \
+		and restored.reason == &"invalid_record" \
+		and restored.record_reason == &"invalid_snapshot" \
+		and guarded.get_snapshot() == before \
+		and bool(store.get_snapshot().adjacent.preserved)
 
 
 func _test_exact_authority_exclusions() -> void:

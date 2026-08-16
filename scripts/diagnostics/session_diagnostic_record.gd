@@ -199,7 +199,7 @@ func restore_from_store() -> Dictionary:
 		return {"accepted": false, "reason": &"no_record"}
 	var validated := _validate_snapshot(payload.get(PAYLOAD_NAMESPACE))
 	if not bool(validated.accepted):
-		return {"accepted": false, "reason": &"invalid_record"}
+		return _record_rejection(validated)
 	var snapshot := validated.snapshot as Dictionary
 	_events.clear()
 	for event in snapshot.events as Array:
@@ -210,13 +210,21 @@ func restore_from_store() -> Dictionary:
 
 
 ## Merges this one namespace into the injected store's current payload. The
-## caller must load the store and supply the cross-system commit identity.
+## caller must load the store and supply the cross-system commit identity. A
+## malformed or newer existing diagnostics namespace is preserved for explicit
+## recovery/migration instead of being replaced by ordinary persistence.
 func persist(commit_id: String) -> Dictionary:
 	if _store == null:
 		return {"accepted": false, "reason": &"no_store"}
 	if not _valid_commit_token(commit_id):
 		return {"accepted": false, "reason": &"invalid_commit_id"}
 	var payload := _store.get_snapshot()
+	if payload.has(PAYLOAD_NAMESPACE):
+		var existing := _validate_snapshot(payload.get(PAYLOAD_NAMESPACE))
+		if not bool(existing.accepted):
+			var rejected := _record_rejection(existing)
+			rejected["generation"] = _store.get_generation()
+			return rejected
 	payload[PAYLOAD_NAMESPACE] = get_snapshot()
 	var committed := _store.commit(payload, _store.get_generation(), commit_id)
 	# Do not proxy the store's payload/commit metadata back through this service;
@@ -321,44 +329,50 @@ func _sanitize_event(event: SessionDiagnosticEvent) -> Dictionary:
 
 func _validate_snapshot(candidate: Variant) -> Dictionary:
 	if not candidate is Dictionary:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	var snapshot := candidate as Dictionary
+	var raw_schema: Variant = snapshot.get("schema_version")
+	if not _exact_integer(raw_schema):
+		return _invalid_snapshot()
+	var schema := int(raw_schema)
+	if schema > SCHEMA_VERSION:
+		return _invalid_snapshot(&"newer_schema")
+	if schema != SCHEMA_VERSION:
+		return _invalid_snapshot(&"unsupported_schema")
 	if not _has_exact_keys(snapshot, _SNAPSHOT_KEYS):
-		return {"accepted": false}
-	if not _exact_integer(snapshot.schema_version) or int(snapshot.schema_version) != SCHEMA_VERSION:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if not _exact_integer(snapshot.capacity) or int(snapshot.capacity) != MAX_EVENTS:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if not _exact_integer(snapshot.next_sequence) \
 		or int(snapshot.next_sequence) < 1 \
 		or int(snapshot.next_sequence) > MAX_FIELD_INTEGER:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if not _exact_integer(snapshot.dropped_event_count) \
 		or int(snapshot.dropped_event_count) < 0 \
 		or int(snapshot.dropped_event_count) > MAX_FIELD_INTEGER:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if not snapshot.events is Array or (snapshot.events as Array).size() > MAX_EVENTS:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if int(snapshot.dropped_event_count) > 0 and (snapshot.events as Array).size() != MAX_EVENTS:
-		return {"accepted": false}
+		return _invalid_snapshot()
 
 	var canonical_events: Array[Dictionary] = []
 	var previous_sequence := 0
 	for event_variant in snapshot.events as Array:
 		var validated_event := _validate_stored_event(event_variant, previous_sequence, int(snapshot.next_sequence))
 		if not bool(validated_event.accepted):
-			return {"accepted": false}
+			return _invalid_snapshot()
 		var event := validated_event.event as Dictionary
 		previous_sequence = int(event.sequence)
 		canonical_events.append(event)
 	if int(snapshot.next_sequence) - 1 - int(snapshot.dropped_event_count) != canonical_events.size():
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if not canonical_events.is_empty() \
 		and int(canonical_events[0].sequence) != int(snapshot.dropped_event_count) + 1:
-		return {"accepted": false}
+		return _invalid_snapshot()
 	if not canonical_events.is_empty() \
 		and int(canonical_events[-1].sequence) + 1 != int(snapshot.next_sequence):
-		return {"accepted": false}
+		return _invalid_snapshot()
 	return {
 		"accepted": true,
 		"snapshot": {
@@ -368,6 +382,19 @@ func _validate_snapshot(candidate: Variant) -> Dictionary:
 			"dropped_event_count": int(snapshot.dropped_event_count),
 			"events": canonical_events,
 		},
+	}
+
+
+static func _invalid_snapshot(reason: StringName = &"invalid_snapshot") -> Dictionary:
+	return {"accepted": false, "reason": reason}
+
+
+static func _record_rejection(validation: Dictionary) -> Dictionary:
+	var record_reason := StringName(validation.get("reason", &"invalid_snapshot"))
+	return {
+		"accepted": false,
+		"reason": &"record_schema_newer" if record_reason == &"newer_schema" else &"invalid_record",
+		"record_reason": record_reason,
 	}
 
 
@@ -535,11 +562,12 @@ static func _has_exact_keys(dictionary: Dictionary, expected: Array) -> bool:
 
 static func _exact_integer(value: Variant) -> bool:
 	if value is int:
-		return true
+		return int(value) >= -MAX_FIELD_INTEGER and int(value) <= MAX_FIELD_INTEGER
 	if not value is float:
 		return false
 	var number := float(value)
-	return not is_nan(number) and not is_inf(number) and number == floor(number)
+	return not is_nan(number) and not is_inf(number) \
+		and number == floor(number) and absf(number) <= MAX_FIELD_INTEGER
 
 
 static func _valid_commit_token(commit_id: String) -> bool:

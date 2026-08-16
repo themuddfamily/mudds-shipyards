@@ -71,6 +71,7 @@ func _run() -> void:
 	_test_failed_writes_preserve_live_and_disk()
 	_test_corrupt_and_newer_authority_is_preserved()
 	_test_typed_payload_rejection_is_atomic()
+	_test_signal_reentry_cannot_mutate_store_authority()
 	_cleanup_legacy()
 	_finish()
 
@@ -388,6 +389,69 @@ func _test_typed_payload_rejection_is_atomic() -> void:
 		and rejected.reason == &"invalid_input_binding_profile"
 		and settings.to_dictionary() == before,
 		"unknown input-profile fields cannot be silently normalized into live state"
+	)
+	var unsafe_schema := settings.to_user_data_payload()
+	unsafe_schema["schema_version"] = 1.0e300
+	rejected = settings.apply_user_data_payload(unsafe_schema)
+	var unsafe_profile_schema := settings.to_user_data_payload()
+	var unsafe_profile := (
+		(unsafe_profile_schema.values as Dictionary).input_binding_profile as Dictionary
+	)
+	unsafe_profile["schema_version"] = 1.0e300
+	var profile_rejected := settings.apply_user_data_payload(unsafe_profile_schema)
+	_check(
+		not bool(rejected.accepted)
+		and rejected.reason == &"schema_invalid"
+		and not bool(profile_rejected.accepted)
+		and profile_rejected.reason == &"invalid_input_binding_profile"
+		and settings.to_dictionary() == before,
+		"integral-looking numbers outside JSON's safe integer range are invalid schemas, not future versions"
+	)
+
+
+func _test_signal_reentry_cannot_mutate_store_authority() -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem)
+	store.load()
+	var persisted_settings := Settings.new(_legacy_path)
+	persisted_settings.camera_fov = 96.0
+	_check(
+		bool(store.commit({
+			"career": {"credits": 27},
+			Adapter.SETTINGS_PAYLOAD_KEY: persisted_settings.to_user_data_payload(),
+		}, 0, "reentry-fixture").accepted),
+		"reentry fixture publishes one settings generation"
+	)
+	var settings := Settings.new(_legacy_path)
+	var adapter := Adapter.new(settings, store, _legacy_path)
+	var nested_results: Array[Dictionary] = []
+	var reentry_callback := func(_names: PackedStringArray) -> void:
+		nested_results.append(adapter.save("nested-signal-save"))
+		nested_results.append(adapter.load())
+	settings.settings_changed.connect(reentry_callback)
+	var bytes_before := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	var payload_before := store.get_snapshot()
+	var loaded := adapter.load()
+	settings.settings_changed.disconnect(reentry_callback)
+	var nested_rejected := nested_results.size() == 2
+	for nested in nested_results:
+		nested_rejected = nested_rejected \
+			and not bool(nested.get("accepted", true)) \
+			and nested.get("reason") == &"reentrant_call" \
+			and nested.get("store_reason") == &"not_attempted"
+	_check(
+		bool(loaded.accepted)
+		and loaded.reason == &"loaded"
+		and int(loaded.generation) == 1
+		and is_equal_approx(settings.camera_fov, 96.0)
+		and nested_rejected,
+		"settings signals see committed live values but nested adapter load/save calls are rejected"
+	)
+	_check(
+		store.get_generation() == 1
+		and store.get_snapshot() == payload_before
+		and filesystem.files[STORE_PATH] == bytes_before,
+		"signal reentry cannot advance store generation or alter adjacent payload namespaces"
 	)
 
 
