@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keths.invalid/schemas/audio_voice_census.schema.json",
+  "title": "Keths renderer-independent audio voice census",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario",
+    "loaded_instance_count",
+    "settle_frames",
+    "freeze_policy",
+    "measurement_scope",
+    "totals",
+    "bus_split",
+    "component_buckets",
+    "players",
+    "retained_streams",
+    "authority_exclusions",
+    "measurement_fingerprint"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "scenario": { "enum": ["station_resident", "cinder_loaded"] },
+    "loaded_instance_count": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "settle_frames": { "type": "integer", "minimum": 1 },
+    "freeze_policy": { "type": "string", "minLength": 1 },
+    "measurement_scope": { "const": "scene_graph_audio_players_and_reachable_AudioStream_payloads" },
+    "totals": { "$ref": "#/$defs/countRow" },
+    "bus_split": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/busRow" }
+    },
+    "component_buckets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/componentRow" }
+    },
+    "players": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/playerRow" }
+    },
+    "retained_streams": { "$ref": "#/$defs/retainedStreams" },
+    "authority_exclusions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "measurement_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "busRow": {
+      "type": "object",
+      "required": [
+        "player_nodes",
+        "currently_playing_nodes",
+        "currently_playing_voice_lower_bound",
+        "currently_playing_voice_ceiling",
+        "max_polyphony_exposed_nodes",
+        "max_polyphony_unexposed_nodes",
+        "summed_max_polyphony_ceiling"
+      ],
+      "properties": {
+        "player_nodes": { "type": "integer", "minimum": 0 },
+        "currently_playing_nodes": { "type": "integer", "minimum": 0 },
+        "currently_playing_voice_lower_bound": { "type": "integer", "minimum": 0 },
+        "currently_playing_voice_ceiling": { "type": "integer", "minimum": 0 },
+        "max_polyphony_exposed_nodes": { "type": "integer", "minimum": 0 },
+        "max_polyphony_unexposed_nodes": { "type": "integer", "minimum": 0 },
+        "summed_max_polyphony_ceiling": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "countRow": {
+      "allOf": [
+        { "$ref": "#/$defs/busRow" },
+        {
+          "type": "object",
+          "required": [
+            "audio_stream_player_nodes",
+            "audio_stream_player_2d_nodes",
+            "audio_stream_player_3d_nodes"
+          ],
+          "properties": {
+            "audio_stream_player_nodes": { "type": "integer", "minimum": 0 },
+            "audio_stream_player_2d_nodes": { "type": "integer", "minimum": 0 },
+            "audio_stream_player_3d_nodes": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "componentRow": {
+      "allOf": [
+        { "$ref": "#/$defs/countRow" },
+        {
+          "type": "object",
+          "required": ["bus_split", "bound_unique_streams", "bound_unique_stream_payload_bytes"],
+          "properties": {
+            "bus_split": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/busRow" }
+            },
+            "bound_unique_streams": { "type": "integer", "minimum": 0 },
+            "bound_unique_stream_payload_bytes": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "playerRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bucket",
+        "class",
+        "bus",
+        "playing",
+        "max_polyphony_exposed",
+        "max_polyphony",
+        "bound_stream_class",
+        "bound_stream_path"
+      ],
+      "properties": {
+        "path": { "type": "string" },
+        "bucket": { "type": "string" },
+        "class": { "enum": ["AudioStreamPlayer", "AudioStreamPlayer2D", "AudioStreamPlayer3D"] },
+        "bus": { "type": "string" },
+        "playing": { "type": "boolean" },
+        "max_polyphony_exposed": { "type": "boolean" },
+        "max_polyphony": { "type": "integer", "minimum": 0 },
+        "bound_stream_class": { "type": "string" },
+        "bound_stream_path": { "type": "string" }
+      }
+    },
+    "retainedStreams": {
+      "type": "object",
+      "required": [
+        "unique_count",
+        "payload_bytes",
+        "unknown_payload_count",
+        "skipped_freed_object_references",
+        "rows"
+      ],
+      "properties": {
+        "unique_count": { "type": "integer", "minimum": 0 },
+        "payload_bytes": { "type": "integer", "minimum": 0 },
+        "unknown_payload_count": { "type": "integer", "minimum": 0 },
+        "skipped_freed_object_references": { "type": "integer", "minimum": 0 },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "origin",
+              "class",
+              "resource_path",
+              "payload_bytes",
+              "payload_sha256",
+              "format_contract"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
