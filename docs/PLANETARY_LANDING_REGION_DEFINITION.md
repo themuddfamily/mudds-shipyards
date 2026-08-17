@@ -13,8 +13,11 @@ first character is a lowercase letter. The planetary scene root is the body's
 physical centre. `body_local_center_m` is the radial vector from that
 body-centred scene-root origin, in metres.
 `body_local_basis` is a finite, unit-scale, right-handed orthonormal tangent
-frame: +Y is surface normal and +X/+Z form the surface plane. All child geometry
-is expressed relative to that region frame, avoiding any implied world-space or
+frame: +Y must align outward with the normalized, nonzero
+`body_local_center_m` radial vector within `ORTHONORMAL_TOLERANCE`, while +X/+Z
+form the surface plane. Rotation about that radial normal remains free, so any
+yaw that preserves +Y alignment is valid. All child geometry is expressed
+relative to that region frame, avoiding any implied world-space or
 floating-origin transform.
 
 The definition declares an independent sea-level datum: `body_radius_m`,
@@ -51,8 +54,9 @@ Every scalar, vector, basis, transform, collection count, and dimension is
 finite and bounded. Cross-field validation rejects mismatched typed arrays,
 duplicate IDs/tags, missing corridor targets, pads without approaches, unknown
 egress anchors, a region centre outside the declared radial surface envelope,
-insufficient projected corridor height, pad normals beyond the surface-slope
-limit, and inverted altitude or elevation limits.
+a region-frame +Y axis that points sideways or inward instead of along the
+outward radial normal, insufficient projected corridor height, pad normals
+beyond the surface-slope limit, and inverted altitude or elevation limits.
 
 ## Evidence, snapshots, and authority
 

@@ -119,10 +119,23 @@ func get_validation_errors() -> PackedStringArray:
 	_validate_stable_id(errors, "region_id", str(region_id))
 	_validate_ui_copy(errors, "display_name", display_name, 96)
 	_validate_body_surface_envelope(errors)
-	if not _is_bounded_vector(body_local_center_m, MAX_BODY_LOCAL_COORDINATE_M):
+	var center_is_bounded := _is_bounded_vector(
+		body_local_center_m,
+		MAX_BODY_LOCAL_COORDINATE_M
+	)
+	if not center_is_bounded:
 		errors.append("body_local_center_m must be finite and inside the body-local coordinate bound")
-	if not _is_orthonormal_right_handed_basis(body_local_basis):
+	var basis_is_orthonormal := _is_orthonormal_right_handed_basis(body_local_basis)
+	if not basis_is_orthonormal:
 		errors.append("body_local_basis must be finite, orthonormal, unit scale, and right-handed")
+	if center_is_bounded and body_local_center_m.length_squared() > 0.0 \
+		and basis_is_orthonormal \
+		and absf(
+			body_local_basis.y.dot(body_local_center_m.normalized()) - 1.0
+		) > ORTHONORMAL_TOLERANCE:
+		errors.append(
+			"body_local_basis +Y must align outward with the body_local_center_m radial normal"
+		)
 
 	_validate_touchdown_pads(errors)
 	_validate_approach_corridors(errors)

@@ -118,6 +118,26 @@ func _test_stable_identity_and_frame_bounds() -> void:
 	var non_finite_basis := DefinitionScript.new()
 	non_finite_basis.body_local_basis = Basis(Vector3(NAN, 0.0, 0.0), Vector3.UP, Vector3.BACK)
 	_check(not non_finite_basis.is_definition_valid(), "region basis rejects non-finite axes")
+	var sideways_basis := DefinitionScript.new()
+	sideways_basis.body_local_basis = Basis(Vector3.RIGHT, deg_to_rad(90.0))
+	_check(
+		not bool(sideways_basis.audit().valid)
+			and _has_error(sideways_basis.get_validation_errors(), "align outward"),
+		"structured-red: a sideways region-frame +Y fails radial-normal alignment"
+	)
+	var inward_basis := DefinitionScript.new()
+	inward_basis.body_local_basis = Basis(Vector3.RIGHT, deg_to_rad(180.0))
+	_check(
+		not bool(inward_basis.audit().valid)
+			and _has_error(inward_basis.get_validation_errors(), "align outward"),
+		"structured-red: an inward region-frame +Y fails radial-normal alignment"
+	)
+	var yawed_basis := DefinitionScript.new()
+	yawed_basis.body_local_basis = Basis(Vector3.UP, deg_to_rad(37.0))
+	_check(
+		yawed_basis.is_definition_valid(),
+		"arbitrary yaw around the outward radial normal preserves a valid region frame"
+	)
 
 
 func _test_body_radius_and_surface_envelope() -> void:
