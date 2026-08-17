@@ -28,6 +28,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_definition_and_evidence(jovian)
+	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	await _test_scale_handling_and_presentation(jovian)
 	_test_connected_interior_contract(jovian)
 	_test_collision_access_and_cameras(jovian)
@@ -67,6 +68,146 @@ func _test_definition_and_evidence(jovian: JovianLightFreighter) -> void:
 	_check(str(audit.weapon_class) == "freighter_defensive_pulse" and int(audit.engine_count) == 4, "audit exposes restrained weapons and quad-engine layout")
 	_check(bool(jovian.get_meta("jovian_light_freighter_candidate", false)), "root metadata identifies a candidate")
 	_check(not bool(jovian.get_meta("authenticated_historical_silhouette", true)), "root metadata cannot imply historical silhouette authentication")
+
+
+func _test_dorsal_cargo_rib_joint_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_dorsal_cargo_rib_joint_allocation_audit()
+	if not bool(audit.get("valid", false)):
+		print("JOVIAN_DORSAL_RIB_ALLOCATION_ERRORS: ", audit.get("errors", PackedStringArray()))
+	_check(
+		bool(audit.get("valid", false)),
+		"Jovian dorsal-rib joint allocation audit is green"
+	)
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	_check(
+		legacy == {
+			"geometry_nodes": 25,
+			"named_nodes": 25,
+			"drawn_copies": 25,
+			"geometry_submissions": 25,
+			"mesh_resource_allocations": 25,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		}
+		and current == {
+			"geometry_nodes": 25,
+			"named_nodes": 25,
+			"drawn_copies": 25,
+			"geometry_submissions": 25,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		}
+		and delta == {
+			"geometry_nodes": 0,
+			"drawn_copies": 0,
+			"geometry_submissions": 0,
+			"mesh_resource_allocations": -24,
+			"material_resource_allocations": 0,
+		},
+		"25 named nodes/copies/submissions retain one mesh instead of 25"
+	)
+	_check(
+		int(audit.get("descendant_node_count", -1)) == 0
+		and int(audit.get("collision_object_count", -1)) == 0
+		and int(audit.get("collision_shape_count", -1)) == 0
+		and int(audit.get("interaction_area_count", -1)) == 0
+		and int(audit.get("marker_count", -1)) == 0
+		and int(audit.get("metadata_entry_count", -1)) == 0
+		and int(audit.get("scripted_node_count", -1)) == 0
+		and int(audit.get("grouped_node_count", -1)) == 0
+		and int(audit.get("processing_node_count", -1)) == 0
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("driver_draw_call_claimed", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("vram_claimed", true)),
+		"shared joints retain renderer submissions and zero semantic, collision, interaction, evidence, or lifecycle authority"
+	)
+
+	(current as Dictionary)["geometry_nodes"] = -1
+	(audit.get("behavior_rows", []) as Array).clear()
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("caller_mutation")
+	var detached := jovian.get_dorsal_cargo_rib_joint_allocation_audit()
+	_check(
+		int((detached.get("current", {}) as Dictionary).get("geometry_nodes", 0)) == 25
+		and (detached.get("behavior_rows", []) as Array).size() == 25
+		and not (detached.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"caller_mutation"
+		),
+		"dorsal-rib allocation evidence is deeply detached"
+	)
+
+	var visual := jovian.get_jovian_visual_root()
+	var first_rib := visual.get_node(^"DorsalCargoRib00") as Node3D
+	var last_rib := visual.get_node(^"DorsalCargoRib04") as Node3D
+	var first_joint := first_rib.get_node(^"CurveJoint") as MeshInstance3D
+	var last_joint: MeshInstance3D = null
+	for child in last_rib.get_children():
+		var candidate := child as MeshInstance3D
+		if candidate != null and candidate.mesh is SphereMesh:
+			last_joint = candidate
+	var shared_mesh := first_joint.mesh as SphereMesh
+	_check(
+		shared_mesh != null and last_joint != null and last_joint.mesh == shared_mesh,
+		"all five ribs resolve their 25 joints through one exact SphereMesh"
+	)
+
+	last_joint.mesh = shared_mesh.duplicate() as SphereMesh
+	var identity_red := jovian.get_dorsal_cargo_rib_joint_allocation_audit()
+	_check(
+		not bool(identity_red.get("valid", true))
+		and int((identity_red.get("current", {}) as Dictionary).get(
+			"mesh_resource_allocations", 0
+		)) == 2
+		and _has_error_prefix(identity_red, "dorsal_rib_joint_mesh_identity_drift:")
+		and _has_error(identity_red, "dorsal_rib_joint_mesh_resource_count_drift"),
+		"structured red: one private exact-looking joint mesh invalidates shared identity"
+	)
+	last_joint.mesh = shared_mesh
+
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings = original_rings - 1
+	var recipe_red := jovian.get_dorsal_cargo_rib_joint_allocation_audit()
+	_check(
+		not bool(recipe_red.get("valid", true))
+		and _has_error_prefix(recipe_red, "dorsal_rib_joint_mesh_recipe_drift:"),
+		"structured red: shared sphere recipe drift is visible through the live family"
+	)
+	shared_mesh.rings = original_rings
+
+	var rogue_area := Area3D.new()
+	rogue_area.name = "RogueRibInteractionAuthority"
+	rogue_area.set_meta(&"evidence_status", &"unregistered")
+	var rogue_shape := CollisionShape3D.new()
+	rogue_shape.name = "RogueRibCollision"
+	rogue_shape.shape = SphereShape3D.new()
+	rogue_area.add_child(rogue_shape)
+	last_joint.add_child(rogue_area)
+	var authority_red := jovian.get_dorsal_cargo_rib_joint_allocation_audit()
+	_check(
+		not bool(authority_red.get("valid", true))
+		and int(authority_red.get("descendant_node_count", 0)) == 2
+		and int(authority_red.get("collision_object_count", 0)) == 1
+		and int(authority_red.get("collision_shape_count", 0)) == 1
+		and int(authority_red.get("interaction_area_count", 0)) == 1
+		and int(authority_red.get("metadata_entry_count", 0)) == 1
+		and _has_error(authority_red, "dorsal_rib_joint_gained_children")
+		and _has_error(
+			authority_red,
+			"dorsal_rib_joint_gained_collision_or_interaction_authority"
+		)
+		and _has_error(authority_red, "dorsal_rib_joint_gained_evidence_metadata"),
+		"structured red: collision, interaction, or evidence authority cannot hide under a shared joint"
+	)
+	last_joint.remove_child(rogue_area)
+	rogue_area.free()
+	_check(
+		bool(jovian.get_dorsal_cargo_rib_joint_allocation_audit().get("valid", false))
+		and bool(jovian.get_jovian_audit_report().get("valid", false)),
+		"identity, recipe, and authority mutations restore the component audit to green"
+	)
 
 
 func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void:
@@ -419,6 +560,17 @@ func _test_cleanup(jovian: JovianLightFreighter) -> void:
 	_check(coordinator_reference.get_ref() == null, "moving-interior coordinator cleans up with ship")
 	_test_root.queue_free()
 	await process_frame
+
+
+func _has_error(audit: Dictionary, expected: String) -> bool:
+	return (audit.get("errors", PackedStringArray()) as PackedStringArray).has(expected)
+
+
+func _has_error_prefix(audit: Dictionary, expected_prefix: String) -> bool:
+	for error in audit.get("errors", PackedStringArray()) as PackedStringArray:
+		if error.begins_with(expected_prefix):
+			return true
+	return false
 
 
 func _check(condition: bool, description: String) -> void:

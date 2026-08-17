@@ -57,6 +57,26 @@ const CARGO_RESTRAINT_OFFSET_Y := 1.62
 const CARGO_RESTRAINT_BAND_Z: Array[float] = [-0.64, 0.64]
 const CARGO_RESTRAINT_SIZE := Vector3(2.02, 0.08, 0.1)
 
+# Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
+# MeshInstance3D curve joints and therefore all 25 authored draw submissions.
+# Their geometry recipe and structure material are exact, so those nodes share
+# one immutable SphereMesh instead of retaining 25 indistinguishable resources.
+const DORSAL_CARGO_RIB_COUNT := 5
+const DORSAL_CARGO_RIB_JOINTS_PER_RIB := 5
+const DORSAL_CARGO_RIB_JOINT_COPY_COUNT := (
+	DORSAL_CARGO_RIB_COUNT * DORSAL_CARGO_RIB_JOINTS_PER_RIB
+)
+const DORSAL_CARGO_RIB_JOINT_RADIUS := 0.095
+const DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS := 24
+const DORSAL_CARGO_RIB_JOINT_RINGS := 12
+const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
+	Vector2(-5.55, 4.28),
+	Vector2(-3.7, 4.72),
+	Vector2(0.0, 4.9),
+	Vector2(3.7, 4.72),
+	Vector2(5.55, 4.28),
+]
+
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
 const PROVISIONAL_NOTE := (
@@ -107,6 +127,7 @@ var _cargo_hardpoints: Array[Marker3D] = []
 var _passenger_seat_anchors: Array[Marker3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
 var _jovian_engine_lights: Array[OmniLight3D] = []
+var _dorsal_cargo_rib_joint_mesh: SphereMesh
 var _elapsed_jovian := 0.0
 
 
@@ -327,6 +348,7 @@ func get_jovian_evidence_report() -> Dictionary:
 
 func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
+	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var definition := get_ship_definition()
 	if definition == null or not definition.is_definition_valid():
 		errors.append("valid provisional ShipDefinition is missing")
@@ -352,6 +374,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("provisional quad-engine presentation is incomplete")
 	if get_node_or_null("LeftMuzzle") == null or get_node_or_null("RightMuzzle") == null:
 		errors.append("defensive muzzle markers are missing")
+	if not bool(dorsal_rib_allocation.get("valid", false)):
+		errors.append("dorsal cargo rib joint allocation contract drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -364,7 +388,280 @@ func get_jovian_audit_report() -> Dictionary:
 		"combat_source_id": COMBAT_SOURCE_ID,
 		"interior": get_walkable_interior_report(),
 		"evidence": get_jovian_evidence_report(),
+		"dorsal_cargo_rib_joint_allocation": dorsal_rib_allocation,
 	}
+
+
+## Renderer-independent component evidence for one bounded repeated family.
+##
+## The report deliberately makes no driver draw-call, timing, or VRAM claim:
+## resource identity is the only changed currency. Every named MeshInstance3D,
+## drawn copy, surface submission, transform, renderer value, and semantic
+## boundary remains independently present in the live Jovian hierarchy.
+func get_dorsal_cargo_rib_joint_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids: Dictionary = {}
+	var material_resource_ids: Dictionary = {}
+	var node_instance_ids: Dictionary = {}
+	var family_node_count := 0
+	var named_node_count := 0
+	var drawn_copy_count := 0
+	var structural_surface_submission_count := 0
+	var multimesh_batch_count := 0
+	var descendant_node_count := 0
+	var collision_object_count := 0
+	var collision_shape_count := 0
+	var interaction_area_count := 0
+	var marker_count := 0
+	var metadata_entry_count := 0
+	var scripted_node_count := 0
+	var grouped_node_count := 0
+	var processing_node_count := 0
+	var behavior_rows: Array[Dictionary] = []
+
+	if _jovian_visual == null or not is_instance_valid(_jovian_visual):
+		errors.append("dorsal_rib_visual_root_unavailable")
+	else:
+		for rib_index in DORSAL_CARGO_RIB_COUNT:
+			var rib_name := "DorsalCargoRib%02d" % rib_index
+			var rib := _jovian_visual.get_node_or_null(NodePath(rib_name)) as Node3D
+			if rib == null:
+				errors.append("dorsal_rib_root_missing:%s" % rib_name)
+				continue
+			if (
+				not rib.position.is_equal_approx(Vector3.ZERO)
+				or not rib.rotation.is_equal_approx(Vector3.ZERO)
+				or not rib.scale.is_equal_approx(Vector3.ONE)
+				or not rib.visible
+			):
+				errors.append("dorsal_rib_root_transform_drift:%s" % rib_name)
+
+			var rib_joints: Array[MeshInstance3D] = []
+			var rib_segment_count := 0
+			var rib_node_names: Dictionary = {}
+			for child in rib.get_children():
+				var mesh_instance := child as MeshInstance3D
+				if mesh_instance == null:
+					continue
+				if mesh_instance.mesh is SphereMesh:
+					rib_joints.append(mesh_instance)
+					rib_node_names[String(mesh_instance.name)] = true
+				elif String(mesh_instance.name).begins_with("Segment"):
+					rib_segment_count += 1
+			if (
+				rib.get_child_count() != 9
+				or rib_segment_count != 4
+				or rib_joints.size() != DORSAL_CARGO_RIB_JOINTS_PER_RIB
+			):
+				errors.append("dorsal_rib_child_roster_drift:%s" % rib_name)
+			if rib_node_names.size() != rib_joints.size():
+				errors.append("dorsal_rib_joint_name_roster_drift:%s" % rib_name)
+			if (
+				rib_joints.is_empty()
+				or rib.get_node_or_null(^"CurveJoint") != rib_joints[0]
+			):
+				errors.append("dorsal_rib_primary_joint_path_drift:%s" % rib_name)
+			multimesh_batch_count += rib.find_children(
+				"*", "MultiMeshInstance3D", true, false
+			).size()
+
+			for joint_index in rib_joints.size():
+				var joint := rib_joints[joint_index]
+				var sphere := joint.mesh as SphereMesh
+				family_node_count += 1
+				drawn_copy_count += 1
+				node_instance_ids[joint.get_instance_id()] = true
+				if not String(joint.name).is_empty():
+					named_node_count += 1
+				if sphere == null:
+					errors.append(
+						"dorsal_rib_joint_mesh_type_drift:%s/%s" % [rib_name, joint.name]
+					)
+					continue
+				mesh_resource_ids[sphere.get_instance_id()] = true
+				structural_surface_submission_count += sphere.get_surface_count()
+				for surface_index in sphere.get_surface_count():
+					var material := sphere.surface_get_material(surface_index)
+					if material != null:
+						material_resource_ids[material.get_instance_id()] = true
+				if sphere != _dorsal_cargo_rib_joint_mesh:
+					errors.append(
+						"dorsal_rib_joint_mesh_identity_drift:%s/%s" % [rib_name, joint.name]
+					)
+				if (
+					not is_equal_approx(sphere.radius, DORSAL_CARGO_RIB_JOINT_RADIUS)
+					or not is_equal_approx(
+						sphere.height, DORSAL_CARGO_RIB_JOINT_RADIUS * 2.0
+					)
+					or sphere.radial_segments != DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS
+					or sphere.rings != DORSAL_CARGO_RIB_JOINT_RINGS
+					or sphere.material != _jovian_materials.get("structure")
+					or sphere.get_surface_count() != 1
+				):
+					errors.append(
+						"dorsal_rib_joint_mesh_recipe_drift:%s/%s" % [rib_name, joint.name]
+					)
+
+				var expected_xy := DORSAL_CARGO_RIB_JOINT_XY[joint_index]
+				var expected_position := Vector3(
+					expected_xy.x,
+					expected_xy.y,
+					-2.4 + float(rib_index) * 2.72
+				)
+				if (
+					not joint.position.is_equal_approx(expected_position)
+					or not joint.rotation.is_equal_approx(Vector3.ZERO)
+					or not joint.scale.is_equal_approx(Vector3.ONE)
+					or not joint.visible
+					or joint.layers != 1
+					or joint.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+					or joint.material_override != null
+					or joint.material_overlay != null
+					or not is_zero_approx(joint.transparency)
+					or not is_zero_approx(joint.extra_cull_margin)
+					or joint.custom_aabb != AABB()
+				):
+					errors.append(
+						"dorsal_rib_joint_renderer_recipe_drift:%s/%s" % [rib_name, joint.name]
+					)
+
+				var authority_state := {
+					"descendants": 0,
+					"collision_objects": 0,
+					"collision_shapes": 0,
+					"interaction_areas": 0,
+					"markers": 0,
+					"metadata_entries": 0,
+					"scripted_nodes": 0,
+					"grouped_nodes": 0,
+					"processing_nodes": 0,
+				}
+				_accumulate_dorsal_rib_joint_authority(joint, joint, authority_state)
+				descendant_node_count += int(authority_state["descendants"])
+				collision_object_count += int(authority_state["collision_objects"])
+				collision_shape_count += int(authority_state["collision_shapes"])
+				interaction_area_count += int(authority_state["interaction_areas"])
+				marker_count += int(authority_state["markers"])
+				metadata_entry_count += int(authority_state["metadata_entries"])
+				scripted_node_count += int(authority_state["scripted_nodes"])
+				grouped_node_count += int(authority_state["grouped_nodes"])
+				processing_node_count += int(authority_state["processing_nodes"])
+				behavior_rows.append({
+					"rib_index": rib_index,
+					"joint_index": joint_index,
+					"node_name": String(joint.name),
+					"position": [joint.position.x, joint.position.y, joint.position.z],
+					"rotation": [joint.rotation.x, joint.rotation.y, joint.rotation.z],
+					"scale": [joint.scale.x, joint.scale.y, joint.scale.z],
+				})
+
+	if family_node_count != DORSAL_CARGO_RIB_JOINT_COPY_COUNT:
+		errors.append("dorsal_rib_joint_node_count_drift")
+	if named_node_count != DORSAL_CARGO_RIB_JOINT_COPY_COUNT:
+		errors.append("dorsal_rib_joint_named_node_count_drift")
+	if node_instance_ids.size() != DORSAL_CARGO_RIB_JOINT_COPY_COUNT:
+		errors.append("dorsal_rib_joint_node_identity_count_drift")
+	if mesh_resource_ids.size() != 1:
+		errors.append("dorsal_rib_joint_mesh_resource_count_drift")
+	if material_resource_ids.size() != 1:
+		errors.append("dorsal_rib_joint_material_resource_count_drift")
+	if structural_surface_submission_count != DORSAL_CARGO_RIB_JOINT_COPY_COUNT:
+		errors.append("dorsal_rib_joint_submission_count_drift")
+	if multimesh_batch_count != 0:
+		errors.append("dorsal_rib_joint_unexpected_batch")
+	if descendant_node_count != 0:
+		errors.append("dorsal_rib_joint_gained_children")
+	if collision_object_count != 0 or collision_shape_count != 0 or interaction_area_count != 0:
+		errors.append("dorsal_rib_joint_gained_collision_or_interaction_authority")
+	if metadata_entry_count != 0:
+		errors.append("dorsal_rib_joint_gained_evidence_metadata")
+	if (
+		marker_count != 0
+		or scripted_node_count != 0
+		or grouped_node_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("dorsal_rib_joint_gained_lifecycle_or_semantic_authority")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_dorsal_cargo_rib_curve_joints",
+		"current": {
+			"geometry_nodes": family_node_count,
+			"named_nodes": named_node_count,
+			"drawn_copies": drawn_copy_count,
+			"geometry_submissions": structural_surface_submission_count,
+			"mesh_resource_allocations": mesh_resource_ids.size(),
+			"material_resource_allocations": material_resource_ids.size(),
+			"multimesh_batches": multimesh_batch_count,
+		},
+		"legacy": {
+			"geometry_nodes": DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"named_nodes": DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"drawn_copies": DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"geometry_submissions": DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"mesh_resource_allocations": DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		},
+		"delta": {
+			"geometry_nodes": family_node_count - DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"drawn_copies": drawn_copy_count - DORSAL_CARGO_RIB_JOINT_COPY_COUNT,
+			"geometry_submissions": (
+				structural_surface_submission_count - DORSAL_CARGO_RIB_JOINT_COPY_COUNT
+			),
+			"mesh_resource_allocations": (
+				mesh_resource_ids.size() - DORSAL_CARGO_RIB_JOINT_COPY_COUNT
+			),
+			"material_resource_allocations": material_resource_ids.size() - 1,
+		},
+		"descendant_node_count": descendant_node_count,
+		"collision_object_count": collision_object_count,
+		"collision_shape_count": collision_shape_count,
+		"interaction_area_count": interaction_area_count,
+		"marker_count": marker_count,
+		"metadata_entry_count": metadata_entry_count,
+		"scripted_node_count": scripted_node_count,
+		"grouped_node_count": grouped_node_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"driver_draw_call_claimed": false,
+		"frame_time_claimed": false,
+		"vram_claimed": false,
+		"behavior_rows": behavior_rows,
+	}.duplicate(true)
+
+
+func _accumulate_dorsal_rib_joint_authority(
+	root_joint: MeshInstance3D,
+	node: Node,
+	state: Dictionary
+	) -> void:
+	if node != root_joint:
+		state["descendants"] = int(state["descendants"]) + 1
+	if node is CollisionObject3D:
+		state["collision_objects"] = int(state["collision_objects"]) + 1
+	if node is CollisionShape3D:
+		state["collision_shapes"] = int(state["collision_shapes"]) + 1
+	if node is Area3D:
+		state["interaction_areas"] = int(state["interaction_areas"]) + 1
+	if node is Marker3D:
+		state["markers"] = int(state["markers"]) + 1
+	state["metadata_entries"] = int(state["metadata_entries"]) + node.get_meta_list().size()
+	if node.get_script() != null:
+		state["scripted_nodes"] = int(state["scripted_nodes"]) + 1
+	if not node.get_groups().is_empty():
+		state["grouped_nodes"] = int(state["grouped_nodes"]) + 1
+	if (
+		node.is_processing()
+		or node.is_physics_processing()
+		or node.is_processing_input()
+		or node.is_processing_unhandled_input()
+	):
+		state["processing_nodes"] = int(state["processing_nodes"]) + 1
+	for child in node.get_children():
+		_accumulate_dorsal_rib_joint_authority(root_joint, child, state)
 
 
 func _build_jovian_variant(_controller: HeroShip) -> bool:
@@ -636,7 +933,13 @@ func _build_exterior() -> void:
 		0.24,
 		_jovian_materials.hull_warm
 	)
-	for rib_index in 5:
+	_dorsal_cargo_rib_joint_mesh = SphereMesh.new()
+	_dorsal_cargo_rib_joint_mesh.radius = DORSAL_CARGO_RIB_JOINT_RADIUS
+	_dorsal_cargo_rib_joint_mesh.height = DORSAL_CARGO_RIB_JOINT_RADIUS * 2.0
+	_dorsal_cargo_rib_joint_mesh.radial_segments = DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS
+	_dorsal_cargo_rib_joint_mesh.rings = DORSAL_CARGO_RIB_JOINT_RINGS
+	_dorsal_cargo_rib_joint_mesh.material = _jovian_materials.structure
+	for rib_index in DORSAL_CARGO_RIB_COUNT:
 		var rib_z := -2.4 + float(rib_index) * 2.72
 		_curve_tube(
 			_jovian_visual,
@@ -648,8 +951,9 @@ func _build_exterior() -> void:
 				Vector3(3.7, 4.72, rib_z),
 				Vector3(5.55, 4.28, rib_z),
 			]),
-			0.095,
-			_jovian_materials.structure
+			DORSAL_CARGO_RIB_JOINT_RADIUS,
+			_jovian_materials.structure,
+			_dorsal_cargo_rib_joint_mesh
 		)
 	_box(_jovian_visual, "VentralKeel", Vector3(0.0, 0.02, 3.25), Vector3(2.2, 0.42, 19.4), _jovian_materials.structure)
 	for side in [-1.0, 1.0]:
@@ -1362,7 +1666,8 @@ func _curve_tube(
 		node_name: String,
 		points: PackedVector3Array,
 		radius: float,
-		material: Material
+		material: Material,
+		joint_mesh: SphereMesh = null
 	) -> Node3D:
 	var root := Node3D.new()
 	root.name = node_name
@@ -1372,7 +1677,14 @@ func _curve_tube(
 		var segment := _cylinder(root, "Segment%02d" % index, (points[index] + points[index + 1]) * 0.5, radius, direction.length(), material)
 		segment.quaternion = Quaternion(Vector3.UP, direction.normalized())
 	for point in points:
-		_sphere(root, "CurveJoint", point, radius, material)
+		if joint_mesh == null:
+			_sphere(root, "CurveJoint", point, radius, material)
+		else:
+			var joint := MeshInstance3D.new()
+			joint.name = "CurveJoint"
+			joint.position = point
+			joint.mesh = joint_mesh
+			root.add_child(joint)
 	return root
 
 
