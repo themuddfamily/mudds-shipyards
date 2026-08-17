@@ -6,7 +6,9 @@ extends Node
 ## It owns no rewards, activities, ships, berths, UI, persistence, or network
 ## replication. A caller registers a live entity, receives generation-bearing
 ## entity/manifest handles, and must present both current handles for every
-## transfer. All rejection happens before either manifest mutates.
+## transfer. Transfer rejection happens before either manifest quantity mutates;
+## the fixed-pair lifecycle seam compensates every attachment it commits if a
+## synchronous post-state observer invalidates the pair.
 
 signal manifest_registered(handle: Dictionary)
 signal manifest_detached(handle: Dictionary)
@@ -27,6 +29,11 @@ var _manifest_generation_cursors: Dictionary = {}
 var _committed_transfer_ids: Dictionary = {}
 var _next_receipt_id := 1
 var _emitting_commit_signal := false
+## A fixed-pair reattach commits both records before notifying observers. Owner
+## tree exits triggered synchronously by those observers are retained until both
+## post-state signals finish, then applied before the pair result is returned.
+var _emitting_pair_reattach_signals := false
+var _deferred_pair_owner_exits: Array[int] = []
 
 
 func _process(_delta: float) -> void:
@@ -34,7 +41,7 @@ func _process(_delta: float) -> void:
 
 
 func register_item(definition: CargoItemDefinition) -> Dictionary:
-	if _emitting_commit_signal:
+	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
 	if definition == null or not definition.is_definition_valid():
 		return _result(false, &"invalid_item_definition")
@@ -51,7 +58,7 @@ func register_entity(
 	capacity: int,
 	initial_quantities: Variant = {}
 	) -> Dictionary:
-	if _emitting_commit_signal:
+	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
 	if not is_instance_valid(entity) or not entity.is_inside_tree():
 		return _result(false, &"invalid_entity")
@@ -104,7 +111,7 @@ func register_entity(
 
 
 func reattach_entity(entity: Node, handle: Dictionary) -> Dictionary:
-	if _emitting_commit_signal:
+	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
 	if not is_instance_valid(entity) or not entity.is_inside_tree():
 		return _result(false, &"invalid_entity")
@@ -129,8 +136,124 @@ func reattach_entity(entity: Node, handle: Dictionary) -> Dictionary:
 	return _result(true, &"reattached", {"handle": detached_handle})
 
 
+## Atomically restores the exact two-owner composition used by production cargo.
+## Both members are fully preflighted, then every required record/index commit is
+## complete before either `manifest_reattached` observer runs. Public mutation
+## re-entry is rejected while those signals emit. A synchronous owner tree exit
+## is applied after notification; any member newly attached by this call is then
+## rolled back so a rejected result never leaves half of the pair committed.
+func reattach_entity_pair(
+	first_entity: Node,
+	first_handle: Dictionary,
+	second_entity: Node,
+	second_handle: Dictionary
+	) -> Dictionary:
+	if _mutation_is_guarded():
+		return _reattach_pair_result(
+			false,
+			&"reentrant_call",
+			first_entity,
+			first_handle,
+			second_entity,
+			second_handle
+		)
+	var first := _preflight_reattach_member(first_entity, first_handle, &"first")
+	if not bool(first.get("accepted", false)):
+		return _reattach_pair_result(
+			false,
+			StringName(first.get("reason", &"invalid_first_member")),
+			first_entity,
+			first_handle,
+			second_entity,
+			second_handle,
+			&"first"
+		)
+	var second := _preflight_reattach_member(second_entity, second_handle, &"second")
+	if not bool(second.get("accepted", false)):
+		return _reattach_pair_result(
+			false,
+			StringName(second.get("reason", &"invalid_second_member")),
+			first_entity,
+			first_handle,
+			second_entity,
+			second_handle,
+			&"second"
+		)
+	if (
+		first.get("manifest_id", &"") == second.get("manifest_id", &"")
+		or int(first.get("instance_id", 0)) == int(second.get("instance_id", 0))
+	):
+		return _reattach_pair_result(
+			false,
+			&"duplicate_pair_member",
+			first_entity,
+			first_handle,
+			second_entity,
+			second_handle
+		)
+
+	var members: Array[Dictionary] = [first, second]
+	var committed_members: Array[Dictionary] = []
+	for member: Dictionary in members:
+		if bool(member.get("was_attached", false)):
+			continue
+		_commit_reattach_member(member)
+		committed_members.append(member)
+	if committed_members.is_empty():
+		return _reattach_pair_result(
+			true,
+			&"already_attached",
+			first_entity,
+			first_handle,
+			second_entity,
+			second_handle
+		)
+
+	_deferred_pair_owner_exits.clear()
+	_emitting_pair_reattach_signals = true
+	_emitting_commit_signal = true
+	var invalidated := false
+	for member: Dictionary in committed_members:
+		manifest_reattached.emit(
+			(member.get("handle", {}) as Dictionary).duplicate(true)
+		)
+		_settle_deferred_pair_owner_exits()
+		if not _reattach_pair_is_current(members):
+			invalidated = true
+			break
+	if invalidated:
+		var rolled_back_handles: Array[Dictionary] = []
+		for member: Dictionary in committed_members:
+			var rolled_back := _rollback_reattach_member(member)
+			if not rolled_back.is_empty():
+				rolled_back_handles.append(rolled_back)
+		for handle: Dictionary in rolled_back_handles:
+			manifest_detached.emit(handle.duplicate(true))
+			_settle_deferred_pair_owner_exits()
+	_emitting_commit_signal = false
+	_emitting_pair_reattach_signals = false
+	_settle_deferred_pair_owner_exits()
+	if invalidated:
+		return _reattach_pair_result(
+			false,
+			&"pair_invalidated_during_signal",
+			first_entity,
+			first_handle,
+			second_entity,
+			second_handle
+		)
+	return _reattach_pair_result(
+		true,
+		&"reattached",
+		first_entity,
+		first_handle,
+		second_entity,
+		second_handle
+	)
+
+
 func retire_entity(handle: Dictionary) -> Dictionary:
-	if _emitting_commit_signal:
+	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
 	var validation := _validate_handle(handle, false)
 	if not bool(validation.get("accepted", false)):
@@ -149,7 +272,7 @@ func transfer(
 	item_id: StringName,
 	quantity: int
 	) -> Dictionary:
-	if _emitting_commit_signal:
+	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
 	if not CargoItemDefinition.is_stable_id(transfer_id):
 		return _result(false, &"invalid_transfer_id")
@@ -304,8 +427,25 @@ func audit() -> Dictionary:
 		elif bool(record.get("attached", false)):
 			if not entity.is_inside_tree():
 				errors.append("attached owner is outside tree for %s" % manifest_id)
+			if entity.is_queued_for_deletion():
+				errors.append("attached owner is queued for deletion for %s" % manifest_id)
 			if _manifest_id_by_instance_id.get(entity.get_instance_id(), &"") != manifest_id:
 				errors.append("instance index mismatch for %s" % manifest_id)
+		elif _manifest_id_by_instance_id.has(int(record.get("instance_id", 0))):
+			errors.append("detached owner retains instance index for %s" % manifest_id)
+	for raw_instance_id: Variant in _manifest_id_by_instance_id:
+		var indexed_manifest_id := StringName(
+			_manifest_id_by_instance_id[raw_instance_id]
+		)
+		var indexed_record := _records_by_manifest_id.get(
+			indexed_manifest_id, {}
+		) as Dictionary
+		if (
+			indexed_record.is_empty()
+			or not bool(indexed_record.get("attached", false))
+			or int(indexed_record.get("instance_id", 0)) != int(raw_instance_id)
+		):
+			errors.append("orphaned instance index %s" % int(raw_instance_id))
 	if _committed_transfer_ids.size() > MAX_COMMITTED_TRANSFERS:
 		errors.append("committed transfer ledger exceeds bound")
 	errors.sort()
@@ -358,6 +498,140 @@ func _normalize_initial_quantities(initial_quantities: Variant, capacity: int) -
 	return _result(true, &"valid", {"quantities": normalized})
 
 
+func _preflight_reattach_member(
+	entity: Node,
+	handle: Dictionary,
+	side: StringName
+	) -> Dictionary:
+	if (
+		not is_instance_valid(entity)
+		or not entity.is_inside_tree()
+		or entity.is_queued_for_deletion()
+	):
+		return _result(false, &"invalid_entity", {"side": side})
+	var validation := _validate_handle(handle, false)
+	if not bool(validation.get("accepted", false)):
+		return _side_result(validation, side)
+	var record := validation.get("record", {}) as Dictionary
+	var reference := record.get("entity") as WeakRef
+	if reference == null or reference.get_ref() != entity:
+		return _result(false, &"wrong_owner", {"side": side})
+	var instance_id := entity.get_instance_id()
+	if int(record.get("instance_id", 0)) != instance_id:
+		return _result(false, &"wrong_owner", {"side": side})
+	var manifest := validation.get("manifest") as CargoManifest
+	return _result(true, &"current", {
+		"side": side,
+		"entity": entity,
+		"handle": _handle_for(manifest),
+		"instance_id": instance_id,
+		"manifest_id": manifest.manifest_id,
+		"record": record,
+		"was_attached": bool(record.get("attached", false)),
+	})
+
+
+func _commit_reattach_member(member: Dictionary) -> void:
+	var manifest_id := StringName(member.get("manifest_id", &""))
+	var instance_id := int(member.get("instance_id", 0))
+	var entity := member.get("entity") as Node
+	var record := (member.get("record", {}) as Dictionary).duplicate()
+	record["attached"] = true
+	_records_by_manifest_id[manifest_id] = record
+	_manifest_id_by_instance_id[instance_id] = manifest_id
+	_connect_entity_exit(entity, instance_id)
+
+
+func _rollback_reattach_member(member: Dictionary) -> Dictionary:
+	if bool(member.get("was_attached", false)):
+		return {}
+	var manifest_id := StringName(member.get("manifest_id", &""))
+	var record := _records_by_manifest_id.get(manifest_id, {}) as Dictionary
+	if record.is_empty() or not bool(record.get("attached", false)):
+		return {}
+	record["attached"] = false
+	_records_by_manifest_id[manifest_id] = record
+	_manifest_id_by_instance_id.erase(int(member.get("instance_id", 0)))
+	_disconnect_entity_exit(
+		member.get("entity") as Node,
+		int(member.get("instance_id", 0))
+	)
+	return (member.get("handle", {}) as Dictionary).duplicate(true)
+
+
+func _reattach_pair_is_current(members: Array[Dictionary]) -> bool:
+	for member: Dictionary in members:
+		var entity := member.get("entity") as Node
+		if (
+			not is_instance_valid(entity)
+			or not entity.is_inside_tree()
+			or entity.is_queued_for_deletion()
+		):
+			return false
+		var snapshot := get_manifest_snapshot(
+			member.get("handle", {}) as Dictionary
+		)
+		if snapshot.is_empty() or not bool(snapshot.get("attached", false)):
+			return false
+	return true
+
+
+func _reattach_pair_result(
+	accepted: bool,
+	reason: StringName,
+	first_entity: Node,
+	first_handle: Dictionary,
+	second_entity: Node,
+	second_handle: Dictionary,
+	side: StringName = &""
+	) -> Dictionary:
+	var fields := {
+		"first": _reattach_member_result(first_entity, first_handle),
+		"second": _reattach_member_result(second_entity, second_handle),
+	}
+	if not side.is_empty():
+		fields["side"] = side
+	return _result(accepted, reason, fields)
+
+
+func _reattach_member_result(entity: Node, handle: Dictionary) -> Dictionary:
+	var snapshot := get_manifest_snapshot(handle)
+	var canonical_handle := _canonical_handle(handle)
+	return {
+		"handle": canonical_handle,
+		"attached": bool(snapshot.get("attached", false)),
+		"entity_inside_tree": (
+			is_instance_valid(entity)
+			and entity.is_inside_tree()
+			and not entity.is_queued_for_deletion()
+		),
+		"manifest": snapshot.duplicate(true),
+	}
+
+
+func _canonical_handle(handle: Dictionary) -> Dictionary:
+	var validation := _validate_handle(handle, false)
+	if bool(validation.get("accepted", false)):
+		return _handle_for(validation.get("manifest") as CargoManifest)
+	if (
+		handle.has("entity_id")
+		and (handle.entity_id is String or handle.entity_id is StringName)
+		and handle.has("entity_generation")
+		and handle.entity_generation is int
+		and handle.has("manifest_id")
+		and (handle.manifest_id is String or handle.manifest_id is StringName)
+		and handle.has("manifest_generation")
+		and handle.manifest_generation is int
+	):
+		return {
+			"entity_id": StringName(handle.entity_id),
+			"entity_generation": int(handle.entity_generation),
+			"manifest_id": StringName(handle.manifest_id),
+			"manifest_generation": int(handle.manifest_generation),
+		}
+	return {}
+
+
 func _validate_handle(handle: Dictionary, require_attached: bool) -> Dictionary:
 	for field in [&"entity_id", &"entity_generation", &"manifest_id", &"manifest_generation"]:
 		if not handle.has(field):
@@ -394,6 +668,22 @@ func _validate_handle(handle: Dictionary, require_attached: bool) -> Dictionary:
 
 
 func _on_entity_tree_exiting(instance_id: int) -> void:
+	if _emitting_pair_reattach_signals:
+		if not _deferred_pair_owner_exits.has(instance_id):
+			_deferred_pair_owner_exits.append(instance_id)
+		return
+	_apply_entity_tree_exit(instance_id)
+
+
+func _settle_deferred_pair_owner_exits() -> void:
+	while not _deferred_pair_owner_exits.is_empty():
+		var deferred_exits := _deferred_pair_owner_exits.duplicate()
+		_deferred_pair_owner_exits.clear()
+		for instance_id: int in deferred_exits:
+			_apply_entity_tree_exit(instance_id)
+
+
+func _apply_entity_tree_exit(instance_id: int) -> void:
 	var manifest_id := StringName(_manifest_id_by_instance_id.get(instance_id, &""))
 	if manifest_id.is_empty():
 		return
@@ -418,6 +708,14 @@ func _connect_entity_exit(entity: Node, instance_id: int) -> void:
 	var callback := _on_entity_tree_exiting.bind(instance_id)
 	if not entity.tree_exiting.is_connected(callback):
 		entity.tree_exiting.connect(callback, CONNECT_ONE_SHOT)
+
+
+func _disconnect_entity_exit(entity: Node, instance_id: int) -> void:
+	if not is_instance_valid(entity):
+		return
+	var callback := _on_entity_tree_exiting.bind(instance_id)
+	if entity.tree_exiting.is_connected(callback):
+		entity.tree_exiting.disconnect(callback)
 
 
 func _remove_record(manifest_id: StringName) -> void:
@@ -492,7 +790,12 @@ func _result(accepted: bool, reason: StringName, fields: Dictionary = {}) -> Dic
 	return result
 
 
+func _mutation_is_guarded() -> bool:
+	return _emitting_commit_signal or _emitting_pair_reattach_signals
+
+
 func _emit_manifest_signal(target_signal: Signal, handle: Dictionary) -> void:
+	var was_emitting := _emitting_commit_signal
 	_emitting_commit_signal = true
 	target_signal.emit(handle.duplicate(true))
-	_emitting_commit_signal = false
+	_emitting_commit_signal = was_emitting

@@ -536,29 +536,16 @@ func _restore_cargo_delivery_bindings() -> bool:
 		or not cargo_transfer_authority.is_inside_tree()
 	):
 		return false
-	var bindings := [
-		{
-			"entity": _cargo_delivery_source_ship,
-			"handle": _cargo_delivery_source_handle,
-		},
-		{
-			"entity": _cargo_delivery_destination,
-			"handle": _cargo_delivery_destination_handle,
-		},
-	]
-	for binding: Dictionary in bindings:
-		var entity := binding.get("entity") as Node
-		var handle := binding.get("handle", {}) as Dictionary
-		if not is_instance_valid(entity) or not entity.is_inside_tree():
-			return false
-		var manifest := cargo_transfer_authority.get_manifest_snapshot(handle)
-		if manifest.is_empty():
-			return false
-		if not bool(manifest.get("attached", false)):
-			var reattached := cargo_transfer_authority.reattach_entity(entity, handle)
-			if not bool(reattached.get("accepted", false)):
-				return false
-	return true
+	# The authority owns the complete two-record transaction. In particular, its
+	# first post-state signal cannot strand one attached manifest by synchronously
+	# removing the second physical owner before a later scalar reattach.
+	var restored := cargo_transfer_authority.reattach_entity_pair(
+		_cargo_delivery_source_ship,
+		_cargo_delivery_source_handle,
+		_cargo_delivery_destination,
+		_cargo_delivery_destination_handle
+	)
+	return bool(restored.get("accepted", false))
 
 
 func _find_flyable_ship_by_id(ship_id: StringName) -> HeroShip:

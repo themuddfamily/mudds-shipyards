@@ -93,7 +93,9 @@ func _run() -> void:
 		_finish()
 		return
 
-	await _test_player_selection_and_atomic_failure(game, hud, jovian)
+	await _test_player_selection_and_atomic_failure(
+		game, hud, jovian, freight_berth
+	)
 	_test_contract_and_start_gates(game, hud, jovian, torrent, freight_berth)
 	await _test_physics_reentry_and_physical_delivery(
 		game, hud, world, jovian, freight_berth
@@ -107,7 +109,8 @@ func _run() -> void:
 func _test_player_selection_and_atomic_failure(
 	game: GameFlow,
 	hud: GameHUD,
-	jovian: HeroShip
+	jovian: HeroShip,
+	freight_berth: JovianFreightBerth
 	) -> void:
 	# Bypass only the title splash; the pause event and every selection below use
 	# the real shipping HUD controls and request signal.
@@ -165,12 +168,53 @@ func _test_player_selection_and_atomic_failure(
 		"the race button restores exactly one Cinder route owner"
 	)
 
-	# Structured failure witness: cargo cannot attach while its real owner node is
-	# detached. The rejected button transaction must retain the previous race.
+	# Structured reentrant failure witness: both cargo owners return detached, then
+	# an observer of the source's reattach removes the destination synchronously.
+	# The pair transaction must roll back both manifests as well as preserve the
+	# previous race owner and rejected board state.
 	var ship_parent := jovian.get_parent()
 	var ship_index := jovian.get_index()
+	var berth_parent := freight_berth.get_parent()
+	var berth_index := freight_berth.get_index()
 	ship_parent.remove_child(jovian)
+	berth_parent.remove_child(freight_berth)
 	await process_frame
+	ship_parent.add_child(jovian)
+	ship_parent.move_child(jovian, mini(ship_index, ship_parent.get_child_count() - 1))
+	berth_parent.add_child(freight_berth)
+	berth_parent.move_child(
+		freight_berth,
+		mini(berth_index, berth_parent.get_child_count() - 1)
+	)
+	await process_frame
+	var cargo_before_rejection := game.get_activity_integration_report()
+	var source_before_rejection := (
+		cargo_before_rejection.get("cargo_source_manifest", {}) as Dictionary
+	).duplicate(true)
+	var destination_before_rejection := (
+		cargo_before_rejection.get("cargo_destination_manifest", {}) as Dictionary
+	).duplicate(true)
+	var cargo_authority := cargo_before_rejection.get(
+		"cargo_transfer_authority"
+	) as CargoTransferAuthority
+	var observer_attack := {"triggered": false}
+	var lifecycle_events: Array[StringName] = []
+	cargo_authority.manifest_reattached.connect(
+		func(handle: Dictionary) -> void:
+			lifecycle_events.append(StringName("reattached:%s" % handle.manifest_id))
+	)
+	cargo_authority.manifest_detached.connect(
+		func(handle: Dictionary) -> void:
+			lifecycle_events.append(StringName("detached:%s" % handle.manifest_id))
+	)
+	cargo_authority.manifest_reattached.connect(
+		func(handle: Dictionary) -> void:
+			if handle.get("manifest_id", &"") != &"jovian_provisional_manifest":
+				return
+			observer_attack["triggered"] = true
+			berth_parent.remove_child(freight_berth),
+		CONNECT_ONE_SHOT
+	)
 	cargo_button.emit_signal("pressed")
 	var rejected := game.get_activity_integration_report()
 	var rejected_board := hud.get_activity_selection_report()
@@ -178,11 +222,25 @@ func _test_player_selection_and_atomic_failure(
 		rejected.get("selected_activity_kind", &"")
 		== GameFlow.ACTIVITY_KIND_TIMED_RACE
 		and int(rejected.get("attached_route_owner_count", 0)) == 1
+		and bool(observer_attack.get("triggered", false))
+		and lifecycle_events == [
+			&"reattached:jovian_provisional_manifest",
+			&"detached:jovian_freight_berth_manifest",
+			&"detached:jovian_provisional_manifest",
+		]
+		and rejected.get("cargo_source_manifest", {}) == source_before_rejection
+		and rejected.get("cargo_destination_manifest", {}) == destination_before_rejection
+		and not bool(source_before_rejection.get("attached", true))
+		and not bool(destination_before_rejection.get("attached", true))
 		and "ACTIVITY ATTACH FAILED" in str(rejected_board.get("status", "")),
-		"failed cargo preflight atomically preserves the prior selection and route owner"
+		"reentrant cargo attach failure preserves both detached manifests, the prior selection, and its route owner"
 	)
-	ship_parent.add_child(jovian)
-	ship_parent.move_child(jovian, mini(ship_index, ship_parent.get_child_count() - 1))
+	if freight_berth.get_parent() == null:
+		berth_parent.add_child(freight_berth)
+		berth_parent.move_child(
+			freight_berth,
+			mini(berth_index, berth_parent.get_child_count() - 1)
+		)
 	await process_frame
 	await process_frame
 	cargo_button.emit_signal("pressed")

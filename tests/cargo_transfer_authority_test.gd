@@ -18,6 +18,7 @@ func _init() -> void:
 func _run() -> void:
 	await _test_registration_and_atomic_transfer()
 	await _test_detach_reentry_and_generation_cleanup()
+	await _test_atomic_pair_reattach_signal_adversary()
 	_finish()
 
 
@@ -346,6 +347,430 @@ func _test_detach_reentry_and_generation_cleanup() -> void:
 	replacement_destination.queue_free()
 	authority.queue_free()
 	await process_frame
+
+
+func _test_atomic_pair_reattach_signal_adversary() -> void:
+	await _test_pair_idempotence_and_one_attached_modes()
+	await _test_pair_second_preflight_and_queued_owner_rejection()
+	await _test_pair_owner_removal_case(&"first", &"first")
+	await _test_pair_owner_removal_case(&"first", &"second")
+	await _test_pair_owner_removal_case(&"second", &"first")
+	await _test_pair_owner_removal_case(&"second", &"second")
+	await _test_pair_owner_removal_case(&"first", &"second", true)
+
+
+func _test_pair_idempotence_and_one_attached_modes() -> void:
+	var fixture := await _create_pair_fixture()
+	var authority := fixture.authority as CargoTransferAuthority
+	var source := fixture.source as Node
+	var destination := fixture.destination as Node
+	var source_handle := (fixture.source_handle as Dictionary).duplicate(true)
+	var destination_handle := (fixture.destination_handle as Dictionary).duplicate(true)
+	var events: Array[StringName] = []
+	authority.manifest_reattached.connect(
+		func(handle: Dictionary) -> void:
+			events.append(StringName("reattached:%s" % handle.manifest_id))
+	)
+	# Extra caller values are tolerated as input but never reflected back through
+	# the detached four-field result handle.
+	source_handle["unsafe_node"] = source
+	source_handle["unsafe_resource"] = Resource.new()
+	source_handle["unsafe_callable"] = func() -> void:
+		pass
+	var idempotent := authority.reattach_entity_pair(
+		source, source_handle, destination, destination_handle
+	)
+	_check(
+		bool(idempotent.get("accepted", false))
+		and idempotent.get("reason", &"") == &"already_attached"
+		and events.is_empty()
+		and _is_canonical_handle((idempotent.first as Dictionary).handle)
+		and _is_canonical_handle((idempotent.second as Dictionary).handle)
+		and not _contains_live_reference(idempotent),
+		"both-attached pair restore is signal-free idempotence with canonical primitive handles"
+	)
+	source_handle["entity_id"] = &"input_mutation"
+	var detached_result := idempotent.duplicate(true)
+	(detached_result.first as Dictionary).handle["entity_id"] = &"consumer_mutation"
+	((detached_result.first as Dictionary).manifest.entries as Array).clear()
+	_check(
+		authority.get_manifest_snapshot(fixture.source_handle).get("owner_entity_id", &"")
+		== &"pair_source"
+		and not (authority.get_manifest_snapshot(fixture.source_handle).entries as Array).is_empty()
+		and (idempotent.first as Dictionary).handle.entity_id == &"pair_source",
+		"pair results are deeply detached from caller mutation and contain no live-reference extras"
+	)
+
+	root.remove_child(source)
+	await process_frame
+	root.add_child(source)
+	events.clear()
+	var first_only := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	_check(
+		bool(first_only.get("accepted", false))
+		and events == [&"reattached:pair_source_manifest"]
+		and bool(authority.get_manifest_snapshot(fixture.destination_handle).attached),
+		"detached-first plus attached-second commits only the first member"
+	)
+	root.remove_child(destination)
+	await process_frame
+	root.add_child(destination)
+	events.clear()
+	var second_only := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	_check(
+		bool(second_only.get("accepted", false))
+		and events == [&"reattached:pair_destination_manifest"]
+		and bool(authority.get_manifest_snapshot(fixture.source_handle).attached),
+		"attached-first plus detached-second commits only the second member"
+	)
+	events.clear()
+	var repeated := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	_check(
+		bool(repeated.get("accepted", false))
+		and repeated.get("reason", &"") == &"already_attached"
+		and events.is_empty()
+		and source.tree_exiting.get_connections().size() == 1
+		and destination.tree_exiting.get_connections().size() == 1,
+		"repeated pair restore adds no success signals or owner-exit connections"
+	)
+	await _cleanup_pair_fixture(fixture)
+
+
+func _test_pair_second_preflight_and_queued_owner_rejection() -> void:
+	var fixture := await _create_pair_fixture()
+	var authority := fixture.authority as CargoTransferAuthority
+	var source := fixture.source as Node
+	var destination := fixture.destination as Node
+	root.remove_child(source)
+	root.remove_child(destination)
+	await process_frame
+	root.add_child(source)
+	var signal_count := {"value": 0}
+	authority.manifest_reattached.connect(
+		func(_handle: Dictionary) -> void:
+			signal_count["value"] = int(signal_count.value) + 1
+	)
+	var rejected_second := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	_check(
+		not bool(rejected_second.get("accepted", true))
+		and rejected_second.get("side", &"") == &"second"
+		and rejected_second.get("reason", &"") == &"invalid_entity"
+		and int(signal_count.value) == 0
+		and not bool(authority.get_manifest_snapshot(fixture.source_handle).attached)
+		and source.tree_exiting.get_connections().is_empty(),
+		"second-member preflight rejection changes neither member, signal, index, nor connection"
+	)
+	root.add_child(destination)
+	destination.queue_free()
+	var rejected_queued := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	_check(
+		not bool(rejected_queued.get("accepted", true))
+		and rejected_queued.get("side", &"") == &"second"
+		and rejected_queued.get("reason", &"") == &"invalid_entity"
+		and int(signal_count.value) == 0
+		and not bool(authority.get_manifest_snapshot(fixture.source_handle).attached),
+		"a queued-for-deletion second owner is rejected during preflight without a first-member commit"
+	)
+	await process_frame
+	source.queue_free()
+	authority.queue_free()
+	await process_frame
+
+
+func _test_pair_owner_removal_case(
+	trigger_side: StringName,
+	removed_side: StringName,
+	queue_removal: bool = false
+	) -> void:
+	var fixture := await _create_pair_fixture()
+	var authority := fixture.authority as CargoTransferAuthority
+	var source := fixture.source as Node
+	var destination := fixture.destination as Node
+	root.remove_child(source)
+	root.remove_child(destination)
+	await process_frame
+	root.add_child(source)
+	root.add_child(destination)
+	var events: Array[StringName] = []
+	var detach_reentry_batches: Array = []
+	var observer := {"triggered": false, "both_committed": false, "reentrant": {}}
+	var trigger_manifest := (
+		&"pair_source_manifest"
+		if trigger_side == &"first"
+		else &"pair_destination_manifest"
+	)
+	authority.manifest_reattached.connect(
+		func(handle: Dictionary) -> void:
+			events.append(StringName("reattached:%s" % handle.manifest_id))
+			if bool(observer.triggered) or handle.manifest_id != trigger_manifest:
+				return
+			observer["triggered"] = true
+			observer["both_committed"] = (
+				bool(authority.get_manifest_snapshot(fixture.source_handle).attached)
+				and bool(authority.get_manifest_snapshot(fixture.destination_handle).attached)
+			)
+			observer["reentrant"] = authority.retire_entity(fixture.source_handle)
+			var removed := source if removed_side == &"first" else destination
+			if queue_removal:
+				removed.queue_free()
+			else:
+				root.remove_child(removed)
+	)
+	authority.manifest_detached.connect(
+		func(handle: Dictionary) -> void:
+			events.append(StringName("detached:%s" % handle.manifest_id))
+			detach_reentry_batches.append(
+				_attempt_all_public_mutations_during_detach(
+					authority, source, destination, fixture, events
+				)
+			)
+	)
+	var attacked := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	var expected := _expected_pair_removal_events(
+		trigger_side, removed_side, queue_removal
+	)
+	_check(
+		not bool(attacked.get("accepted", true))
+		and attacked.get("reason", &"") == &"pair_invalidated_during_signal"
+		and bool(observer.triggered)
+		and bool(observer.both_committed)
+		and (observer.reentrant as Dictionary).get("reason", &"") == &"reentrant_call"
+		and events == expected
+		and detach_reentry_batches.size() == 2
+		and _all_mutation_attempts_are_reentrant(detach_reentry_batches),
+		"%s callback %s-removing %s owner has exact stop-and-compensate chronology"
+		% ["queued" if queue_removal else "synchronous", trigger_side, removed_side]
+	)
+	_check(
+		not bool(authority.get_manifest_snapshot(fixture.source_handle).attached)
+		and not bool(authority.get_manifest_snapshot(fixture.destination_handle).attached)
+		and not bool((attacked.first as Dictionary).attached)
+		and not bool((attacked.second as Dictionary).attached)
+		and _is_canonical_handle((attacked.first as Dictionary).handle)
+		and _is_canonical_handle((attacked.second as Dictionary).handle),
+		"observer invalidation returns one exact all-detached primitive pair"
+	)
+	_check(
+		bool(authority.audit().valid)
+		and source.tree_exiting.get_connections().is_empty()
+		and destination.tree_exiting.get_connections().is_empty(),
+		"observer invalidation leaks no attached index or owner-exit connection"
+	)
+	if queue_removal:
+		await process_frame
+		source.queue_free()
+		authority.queue_free()
+		await process_frame
+		return
+	var removed := source if removed_side == &"first" else destination
+	root.add_child(removed)
+	events.clear()
+	var retried := authority.reattach_entity_pair(
+		source, fixture.source_handle, destination, fixture.destination_handle
+	)
+	_check(
+		bool(retried.get("accepted", false))
+		and bool((retried.first as Dictionary).attached)
+		and bool((retried.second as Dictionary).attached)
+		and source.tree_exiting.get_connections().size() == 1
+		and destination.tree_exiting.get_connections().size() == 1,
+		"the compensated pair retries with exactly one lifecycle connection per owner"
+	)
+	await _cleanup_pair_fixture(fixture)
+
+
+func _expected_pair_removal_events(
+	trigger_side: StringName,
+	removed_side: StringName,
+	queue_removal: bool
+	) -> Array[StringName]:
+	if queue_removal:
+		return _with_detach_reentry_events([
+			&"reattached:pair_source_manifest",
+			&"detached:pair_source_manifest",
+			&"detached:pair_destination_manifest",
+		])
+	var first_success := &"reattached:pair_source_manifest"
+	var second_success := &"reattached:pair_destination_manifest"
+	var removed_detach := (
+		&"detached:pair_source_manifest"
+		if removed_side == &"first"
+		else &"detached:pair_destination_manifest"
+	)
+	var compensated_detach := (
+		&"detached:pair_destination_manifest"
+		if removed_side == &"first"
+		else &"detached:pair_source_manifest"
+	)
+	if trigger_side == &"first":
+		return _with_detach_reentry_events(
+			[first_success, removed_detach, compensated_detach]
+		)
+	return _with_detach_reentry_events(
+		[first_success, second_success, removed_detach, compensated_detach]
+	)
+
+
+func _attempt_all_public_mutations_during_detach(
+	authority: CargoTransferAuthority,
+	source: Node,
+	destination: Node,
+	fixture: Dictionary,
+	events: Array[StringName]
+	) -> Array[Dictionary]:
+	var names: Array[StringName] = [
+		&"register_item",
+		&"register_entity",
+		&"reattach_entity",
+		&"reattach_entity_pair",
+		&"retire_entity",
+		&"transfer",
+	]
+	var attempts: Array[Dictionary] = [
+		authority.register_item(_item(&"reentry_probe", "Reentry probe", 1)),
+		authority.register_entity(
+			source, &"reentry_probe", &"reentry_probe_manifest", 1
+		),
+		authority.reattach_entity(
+			source, fixture.source_handle as Dictionary
+		),
+		authority.reattach_entity_pair(
+			source,
+			fixture.source_handle as Dictionary,
+			destination,
+			fixture.destination_handle as Dictionary
+		),
+		authority.retire_entity(fixture.source_handle as Dictionary),
+		authority.transfer(
+			&"reentry_probe_transfer",
+			fixture.source_handle as Dictionary,
+			fixture.destination_handle as Dictionary,
+			&"machine_parts",
+			1
+		),
+	]
+	for index in attempts.size():
+		events.append(StringName(
+			"reentry:%s:%s" % [names[index], attempts[index].get("reason", &"")]
+		))
+	return attempts
+
+
+func _all_mutation_attempts_are_reentrant(batches: Array) -> bool:
+	for batch_value: Variant in batches:
+		if not batch_value is Array:
+			return false
+		var batch := batch_value as Array
+		if batch.size() != 6:
+			return false
+		for result_value: Variant in batch:
+			if not result_value is Dictionary:
+				return false
+			if (result_value as Dictionary).get("reason", &"") != &"reentrant_call":
+				return false
+	return true
+
+
+func _with_detach_reentry_events(
+	lifecycle_events: Array[StringName]
+	) -> Array[StringName]:
+	var expected: Array[StringName] = []
+	var mutation_names: Array[StringName] = [
+		&"register_item",
+		&"register_entity",
+		&"reattach_entity",
+		&"reattach_entity_pair",
+		&"retire_entity",
+		&"transfer",
+	]
+	for event: StringName in lifecycle_events:
+		expected.append(event)
+		if not str(event).begins_with("detached:"):
+			continue
+		for mutation_name: StringName in mutation_names:
+			expected.append(StringName(
+				"reentry:%s:reentrant_call" % mutation_name
+			))
+	return expected
+
+
+func _create_pair_fixture() -> Dictionary:
+	var authority := AuthorityScript.new() as CargoTransferAuthority
+	root.add_child(authority)
+	await process_frame
+	authority.register_item(_item(&"machine_parts", "Machine parts", 1))
+	var source := Node.new()
+	var destination := Node.new()
+	root.add_child(source)
+	root.add_child(destination)
+	var source_registration := authority.register_entity(
+		source, &"pair_source", &"pair_source_manifest", 8, {&"machine_parts": 4}
+	)
+	var destination_registration := authority.register_entity(
+		destination, &"pair_destination", &"pair_destination_manifest", 8
+	)
+	return {
+		"authority": authority,
+		"source": source,
+		"destination": destination,
+		"source_handle": (source_registration.handle as Dictionary).duplicate(true),
+		"destination_handle": (
+			destination_registration.handle as Dictionary
+		).duplicate(true),
+	}
+
+
+func _cleanup_pair_fixture(fixture: Dictionary) -> void:
+	var source := fixture.source as Node
+	var destination := fixture.destination as Node
+	var authority := fixture.authority as CargoTransferAuthority
+	if is_instance_valid(source):
+		source.queue_free()
+	if is_instance_valid(destination):
+		destination.queue_free()
+	authority.queue_free()
+	await process_frame
+
+
+func _is_canonical_handle(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	var handle := value as Dictionary
+	return (
+		handle.size() == 4
+		and handle.get("entity_id") is StringName
+		and handle.get("entity_generation") is int
+		and handle.get("manifest_id") is StringName
+		and handle.get("manifest_generation") is int
+	)
+
+
+func _contains_live_reference(value: Variant) -> bool:
+	if value is Object or value is Callable:
+		return true
+	if value is Dictionary:
+		for key: Variant in value as Dictionary:
+			if _contains_live_reference(key):
+				return true
+			if _contains_live_reference((value as Dictionary)[key]):
+				return true
+	elif value is Array:
+		for entry: Variant in value as Array:
+			if _contains_live_reference(entry):
+				return true
+	return false
 
 
 func _item(item_id: StringName, display_name: String, unit_capacity: int) -> CargoItemDefinition:
