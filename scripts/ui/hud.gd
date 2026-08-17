@@ -166,6 +166,10 @@ var _settings_scroll: ScrollContainer
 var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 var _settings_status_label: Label
+## The pause overlay survives a whole-Main detach, but Viewport focus does not.
+## Retain the exact in-overlay target so controller users return to the same
+## reachable control instead of an open page with no GUI focus owner.
+var _pause_reentry_focus_target: Control
 var _updating_settings := false
 var _input_rebind_service: InputRebindService
 var _input_binding_profile: InputBindingProfile
@@ -285,6 +289,23 @@ var _activity_objective_report: Dictionary = {
 }
 
 
+func _enter_tree() -> void:
+	# `_ready()` is not called when the retained Main subtree re-enters. Defer
+	# until every pause-page descendant is back in the tree before reclaiming the
+	# focus that the Viewport necessarily dropped during detach.
+	if _pause != null:
+		call_deferred("_restore_pause_focus_after_reentry")
+
+
+func _exit_tree() -> void:
+	if _pause == null or not _pause.visible:
+		return
+	var viewport := get_viewport()
+	var focus_owner := viewport.gui_get_focus_owner() if viewport != null else null
+	if is_instance_valid(focus_owner) and is_ancestor_of(focus_owner):
+		_pause_reentry_focus_target = focus_owner
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_caption_presenter = get_node_or_null(^"CaptionPresenter") as CaptionPresenter
@@ -302,6 +323,23 @@ func _ready() -> void:
 	var viewport := get_viewport()
 	if viewport != null and not viewport.size_changed.is_connected(_apply_ui_scale):
 		viewport.size_changed.connect(_apply_ui_scale)
+	if viewport != null and not viewport.gui_focus_changed.is_connected(
+		_on_viewport_gui_focus_changed
+	):
+		viewport.gui_focus_changed.connect(_on_viewport_gui_focus_changed)
+
+
+func _on_viewport_gui_focus_changed(control: Control) -> void:
+	# The Viewport emits `null` when detaching the focused subtree. Retain the
+	# last valid in-overlay target across that clear so `_enter_tree()` can return
+	# controller navigation to the exact row rather than merely reopening a page.
+	if (
+		_pause != null
+		and _pause.visible
+		and is_instance_valid(control)
+		and is_ancestor_of(control)
+	):
+		_pause_reentry_focus_target = control
 
 
 func _input(event: InputEvent) -> void:
@@ -920,12 +958,54 @@ func set_paused(paused: bool) -> void:
 	else:
 		_binding_capture_action = &""
 		_cancel_pending_input_conflict(false)
+		_pause_reentry_focus_target = null
 	get_tree().paused = paused
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if paused else Input.MOUSE_MODE_CAPTURED
 	if paused and _pause_main_page != null:
 		var resume := _pause_main_page.find_child("ResumeButton", true, false) as Button
 		if resume != null:
 			resume.grab_focus()
+
+
+func _restore_pause_focus_after_reentry() -> void:
+	if not is_inside_tree() or _pause == null or not _pause.visible:
+		return
+	var target := _pause_reentry_focus_target
+	if (
+		not is_instance_valid(target)
+		or not is_ancestor_of(target)
+		or not target.is_visible_in_tree()
+		or target.focus_mode == Control.FOCUS_NONE
+		or (target is BaseButton and (target as BaseButton).disabled)
+	):
+		target = _pause_focus_fallback()
+	if not is_instance_valid(target):
+		return
+	target.grab_focus()
+	if (
+		_settings_scroll != null
+		and _settings_page != null
+		and _settings_page.visible
+		and _settings_page.is_ancestor_of(target)
+	):
+		_settings_scroll.ensure_control_visible.call_deferred(target)
+
+
+func _pause_focus_fallback() -> Control:
+	if _binding_conflict_panel != null and _binding_conflict_panel.visible:
+		return _binding_conflict_replace_button
+	if _settings_page != null and _settings_page.visible:
+		if (
+			not _binding_capture_action.is_empty()
+			and _binding_buttons.has(_binding_capture_action)
+		):
+			return _binding_buttons[_binding_capture_action] as Control
+		return _settings_controls.get(&"ship_mouse_sensitivity") as Control
+	if _activity_selection_page != null and _activity_selection_page.visible:
+		return _activity_selection_buttons.get(_activity_selection_kind) as Control
+	if _pause_main_page != null and _pause_main_page.visible:
+		return _pause_main_page.find_child("ResumeButton", true, false) as Control
+	return null
 
 
 ## Populates every supplied preference without sending change requests back to

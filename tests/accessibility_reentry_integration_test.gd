@@ -369,6 +369,26 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 		"the applied volume preference reaches the process-wide audio buses before the detach"
 	)
 
+	# Pause/settings nodes are retained with Main, but the Viewport releases GUI
+	# focus when their subtree leaves. Keep a deep, scrolled binding row focused
+	# so re-entry proves controller navigation resumes from the exact control.
+	hud.set_paused(true)
+	var pause_main := hud.get("_pause_main_page") as Control
+	var settings_open := pause_main.find_child(
+		"SettingsOpenButton", true, false
+	) as Button
+	settings_open.pressed.emit()
+	var binding_buttons := hud.get("_binding_buttons") as Dictionary
+	var reentry_focus := binding_buttons[&"toggle_ship_camera_view"] as Button
+	reentry_focus.grab_focus()
+	await process_frame
+	await process_frame
+	_check(
+		reentry_focus.has_focus()
+		and (hud.get("_settings_page") as Control).visible,
+		"whole-Main re-entry fixture starts on a controller-focused deep settings row"
+	)
+
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
@@ -401,6 +421,13 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 		and bool(caption_report_after.hud_request_sink_bound),
 		"re-entry restores one request binding around the same single service and presenter instances"
 	)
+	_check(
+		(hud.get("_settings_page") as Control).visible
+		and reentry_focus.has_focus()
+		and hud.get_viewport().gui_get_focus_owner() == reentry_focus,
+		"whole-Main re-entry restores the exact settings control for controller navigation"
+	)
+	hud.set_paused(false)
 	_check(
 		caption_after.caption.get("stable_id", &"") == caption_before.caption.get("stable_id", &"")
 		and float(caption_after.caption.get("remaining_physics_seconds", 0.0)) > 0.0
