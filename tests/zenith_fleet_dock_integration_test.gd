@@ -464,9 +464,15 @@ func _test_physical_sortie(
 	zenith.projectile_fired.connect(func(origin: Vector3, direction: Vector3) -> void:
 		fired_events.append({"origin": origin, "direction": direction})
 	)
+	var production_weapon_cooldown := zenith.weapon_cooldown
+	_check(
+		is_equal_approx(production_weapon_cooldown, 0.24),
+		"Zenith protected-fire fixture begins from the exact production weapon cadence"
+	)
 	zenith.weapon_cooldown = 0.02
 	await _press_live_action(&"fire", 2)
 	await process_frame
+	zenith.weapon_cooldown = production_weapon_cooldown
 	var protected_result := game.get_last_player_shot_result()
 	_check(
 		not fired_events.is_empty(),

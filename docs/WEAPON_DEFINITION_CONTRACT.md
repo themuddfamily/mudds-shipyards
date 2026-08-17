@@ -71,7 +71,7 @@ dictionary.
 
 | Registration owner | Source IDs and faction | Weapon profiles | Migration state |
 | --- | --- | --- | --- |
-| `GameFlow` player fleet | Torrent `1101`, Arrow `1102`, Jovian `1103`, Zenith `1104`, Halyard `1105`; `shipyard_flight_test` | All: `range_pulse_cannon` `360 / 50 / 24`. Combat: Torrent `360 / 34 / 24`, Arrow `410 / 25 / 24`, Jovian `315 / 23 / 32`, Zenith `390 / 27 / 24`, Halyard `280 / 18 / 30` | Torrent and Arrow combat are converted from their checked-in resources in `assets/weapons/`; Jovian, Zenith, and Halyard remain their existing dictionaries. |
+| `GameFlow` player fleet | Torrent `1101`, Arrow `1102`, Jovian `1103`, Zenith `1104`, Halyard `1105`; `shipyard_flight_test` | All: `range_pulse_cannon` `360 / 50 / 24`. Combat: Torrent `360 / 34 / 24`, Arrow `410 / 25 / 24`, Jovian `315 / 23 / 32`, Zenith `390 / 27 / 24`, Halyard `280 / 18 / 30` | Torrent, Arrow, and Zenith combat are converted from their checked-in resources in `assets/weapons/`; Jovian and Halyard remain their existing dictionaries. |
 | `GameFlow` range defender | `2101`; `range_defence` | `defence_pulse_cannon` `420 / 11 / 18` | Unmigrated. |
 | `StandoffPicketOpponent` | `2102`; `range_defence` | `picket_lance_cannon` `520 / 21 / 22` | Unmigrated component-local dictionary. |
 | `ResolverBackedOpponent` skirmishers | `2103`, `2104`; `range_defence` | `skirmisher_repeater` `150 / 6 / 22` | Unmigrated component-local dictionary. |
@@ -91,11 +91,12 @@ inherited faction or an exactly matching fixed faction, denied friendly fire,
 and disabled spread/heat/ammunition only. Any unsupported or invalid input
 returns an empty dictionary without a legacy fallback.
 
-The Torrent and Arrow resources are now the sole production sources of their
-respective combat-pulse range and damage. Each cadence is guarded for exact
-equivalence with its existing `HeroShip.weapon_cooldown`; presentation and cue
-IDs are likewise guarded against the existing cyan/player-fire/medium-impact/
-dry-fire route. Those lifecycle and presentation owners have not moved.
+The Torrent, Arrow, and Zenith resources are now the sole production sources of
+their respective combat-pulse range and damage. Each cadence is guarded for
+exact equivalence with its existing `HeroShip.weapon_cooldown`; presentation
+and cue IDs are likewise guarded against the existing cyan/player-fire/
+medium-impact/dry-fire route. Those lifecycle and presentation owners have not
+moved.
 `LiveCombatAuthority`, `ShotRequest`, and `CombatResolver` still exclusively own
 registration, sequence, receipt, validation, and damage state, including
 detach/re-entry.

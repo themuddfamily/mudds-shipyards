@@ -144,6 +144,15 @@ const ARROW_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUDIO
 const ARROW_COMBAT_WEAPON_DEFINITION := preload(
 	"res://assets/weapons/arrow_combat_pulse.tres"
 )
+const ZENITH_SHIP_ID: StringName = &"zenith_b7_observed"
+const ZENITH_COMBAT_ORIGIN_TOLERANCE_METERS := 24.0
+const ZENITH_COMBAT_PRESENTATION_ID: StringName = TORRENT_COMBAT_PRESENTATION_ID
+const ZENITH_COMBAT_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_FIRE_AUDIO_ID
+const ZENITH_COMBAT_IMPACT_AUDIO_ID: StringName = TORRENT_COMBAT_IMPACT_AUDIO_ID
+const ZENITH_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
+const ZENITH_COMBAT_WEAPON_DEFINITION := preload(
+	"res://assets/weapons/zenith_combat_pulse.tres"
+)
 const PLAYER_WEAPON_PROFILES := {
 	RANGE_WEAPON_ID: {
 		"range": 360.0,
@@ -160,11 +169,6 @@ const PLAYER_COMBAT_WEAPON_OVERRIDES := {
 		"range": 315.0,
 		"damage": 23.0,
 		"origin_tolerance": 32.0,
-	},
-	&"zenith_b7_observed": {
-		"range": 390.0,
-		"damage": 27.0,
-		"origin_tolerance": 24.0,
 	},
 	# The crew transport's cadence is already the slowest in the fleet; its
 	# mounts are self-defence hardware, so range and damage are the lowest too.
@@ -2833,6 +2837,14 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 			return {}
 		profiles[COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
+	if candidate.get_ship_id() == ZENITH_SHIP_ID:
+		# Zenith has no legacy override after migration. Invalid modern weapon data
+		# must not borrow another craft's combat envelope.
+		var migrated_profile := _get_zenith_combat_weapon_profile(candidate)
+		if migrated_profile.is_empty():
+			return {}
+		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		return profiles
 	var override: Dictionary = PLAYER_COMBAT_WEAPON_OVERRIDES.get(candidate.get_ship_id(), {})
 	if not override.is_empty():
 		profiles[COMBAT_WEAPON_ID] = override.duplicate(true)
@@ -2860,6 +2872,18 @@ func _get_arrow_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 		ARROW_COMBAT_FIRE_AUDIO_ID,
 		ARROW_COMBAT_IMPACT_AUDIO_ID,
 		ARROW_COMBAT_DRY_FIRE_AUDIO_ID
+	)
+
+
+func _get_zenith_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
+	return _get_migrated_player_combat_weapon_profile(
+		candidate,
+		ZENITH_COMBAT_WEAPON_DEFINITION,
+		ZENITH_COMBAT_ORIGIN_TOLERANCE_METERS,
+		ZENITH_COMBAT_PRESENTATION_ID,
+		ZENITH_COMBAT_FIRE_AUDIO_ID,
+		ZENITH_COMBAT_IMPACT_AUDIO_ID,
+		ZENITH_COMBAT_DRY_FIRE_AUDIO_ID
 	)
 
 

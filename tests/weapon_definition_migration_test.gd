@@ -8,8 +8,10 @@ const LiveCombatAuthorityScript := preload(
 )
 const TORRENT_DEFINITION_PATH := "res://assets/weapons/torrent_combat_pulse.tres"
 const ARROW_DEFINITION_PATH := "res://assets/weapons/arrow_combat_pulse.tres"
+const ZENITH_DEFINITION_PATH := "res://assets/weapons/zenith_combat_pulse.tres"
 const TORRENT_SOURCE_ID := 1101
 const ARROW_SOURCE_ID := 1102
+const ZENITH_SOURCE_ID := 1104
 const SOURCE_FACTION: StringName = &"shipyard_flight_test"
 const WEAPON_ID: StringName = &"combat_pulse_cannon"
 const ORIGIN_TOLERANCE := 24.0
@@ -21,6 +23,11 @@ const TORRENT_EXPECTED_PROFILE := {
 const ARROW_EXPECTED_PROFILE := {
 	"range": 410.0,
 	"damage": 25.0,
+	"origin_tolerance": ORIGIN_TOLERANCE,
+}
+const ZENITH_EXPECTED_PROFILE := {
+	"range": 390.0,
+	"damage": 27.0,
 	"origin_tolerance": ORIGIN_TOLERANCE,
 }
 
@@ -40,10 +47,14 @@ func _run() -> void:
 	var arrow_definition := ResourceLoader.load(
 		ARROW_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
 	) as WeaponDefinition
+	var zenith_definition := ResourceLoader.load(
+		ZENITH_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
+	) as WeaponDefinition
 	_test_checked_in_resource(torrent_definition)
 	_test_arrow_checked_in_resource(arrow_definition)
+	_test_zenith_checked_in_resource(zenith_definition)
 	_test_pure_converter(torrent_definition)
-	_test_production_selection(torrent_definition, arrow_definition)
+	_test_production_selection(torrent_definition, arrow_definition, zenith_definition)
 	await _test_authority_lifecycle(
 		torrent_definition,
 		TORRENT_SOURCE_ID,
@@ -59,6 +70,14 @@ func _run() -> void:
 		410.0,
 		25.0,
 		"Arrow"
+	)
+	await _test_authority_lifecycle(
+		zenith_definition,
+		ZENITH_SOURCE_ID,
+		ZENITH_EXPECTED_PROFILE,
+		390.0,
+		27.0,
+		"Zenith"
 	)
 	_finish()
 
@@ -155,6 +174,61 @@ func _test_arrow_checked_in_resource(definition: WeaponDefinition) -> void:
 		(fresh.get(WEAPON_ID, {}) as Dictionary) == ARROW_EXPECTED_PROFILE
 			and is_equal_approx(definition.range_meters, 410.0),
 		"Arrow conversion output is detached from the resource and later conversions"
+	)
+
+
+func _test_zenith_checked_in_resource(definition: WeaponDefinition) -> void:
+	_check(definition != null, "checked-in Zenith weapon definition loads with its concrete type")
+	if definition == null:
+		return
+	_check(
+		definition.resource_path == ZENITH_DEFINITION_PATH,
+		"Zenith production definition has one checked-in resource identity"
+	)
+	_check(definition.is_definition_valid(), "production Zenith definition passes strict validation")
+	_check(
+		definition.weapon_id == WEAPON_ID
+			and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
+		"Zenith resource preserves the existing combat weapon ID and hitscan mode"
+	)
+	_check(
+		is_equal_approx(definition.range_meters, 390.0)
+			and is_equal_approx(definition.damage_per_hit, 27.0),
+		"Zenith resource preserves its exact production range and damage"
+	)
+	_check(
+		is_equal_approx(1.0 / definition.cadence_shots_per_second, 0.24),
+		"Zenith resource cadence is exactly equivalent to its existing 0.24 second cooldown"
+	)
+	_check(
+		definition.faction_policy == WeaponDefinition.FactionPolicy.INHERIT_SOURCE
+			and definition.fixed_faction_id.is_empty()
+			and definition.friendly_fire_policy == WeaponDefinition.FriendlyFirePolicy.DENY,
+		"Zenith resource preserves registered source faction and denied friendly fire"
+	)
+	_check(
+		definition.presentation_id == &"cyan"
+			and definition.fire_audio_id == &"player_pulse_fire"
+			and definition.impact_audio_id == &"hull_impact_medium"
+			and definition.dry_fire_audio_id == &"dry_fire_click",
+		"Zenith resource records the unchanged player presentation and audio route"
+	)
+	_check(
+		definition.evidence_status == WeaponDefinition.EvidenceStatus.NEW
+			and definition.evidence_notes.contains("not a recovered historical"),
+		"Zenith weapon balance remains explicit new-design evidence"
+	)
+	var converted := ConverterScript.to_resolver_profiles(
+		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
+	)
+	(converted.get(WEAPON_ID, {}) as Dictionary)["damage"] = -1.0
+	var fresh := ConverterScript.to_resolver_profiles(
+		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
+	)
+	_check(
+		(fresh.get(WEAPON_ID, {}) as Dictionary) == ZENITH_EXPECTED_PROFILE
+			and is_equal_approx(definition.damage_per_hit, 27.0),
+		"Zenith conversion output is detached from the resource and later conversions"
 	)
 
 
@@ -264,9 +338,10 @@ func _test_pure_converter(definition: WeaponDefinition) -> void:
 
 func _test_production_selection(
 	torrent_definition: WeaponDefinition,
-	arrow_definition: WeaponDefinition
+	arrow_definition: WeaponDefinition,
+	zenith_definition: WeaponDefinition
 	) -> void:
-	if torrent_definition == null or arrow_definition == null:
+	if torrent_definition == null or arrow_definition == null or zenith_definition == null:
 		return
 	var flow := GameFlow.new()
 	var candidate := HeroShip.new()
@@ -350,6 +425,55 @@ func _test_production_selection(
 		"cadence drift rejects Arrow registration instead of borrowing another player profile"
 	)
 
+	candidate.ship_id = GameFlow.ZENITH_SHIP_ID
+	candidate.weapon_cooldown = 0.24
+	var zenith_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
+	_check(
+		zenith_profiles.size() == 2
+			and (zenith_profiles.get(WEAPON_ID, {}) as Dictionary) == ZENITH_EXPECTED_PROFILE,
+		"production Zenith selection combines the migrated combat profile with the unchanged range profile"
+	)
+	_check(
+		not GameFlow.PLAYER_COMBAT_WEAPON_OVERRIDES.has(GameFlow.ZENITH_SHIP_ID),
+		"production overrides contain no legacy Zenith combat fallback"
+	)
+	_check(
+		GameFlow.ZENITH_COMBAT_WEAPON_DEFINITION == zenith_definition
+			or GameFlow.ZENITH_COMBAT_WEAPON_DEFINITION.resource_path
+				== zenith_definition.resource_path,
+		"GameFlow binds the checked-in Zenith resource rather than a test fixture"
+	)
+	_check(
+		GameFlow.ZENITH_COMBAT_WEAPON_DEFINITION != zenith_definition
+			and GameFlow.ZENITH_COMBAT_WEAPON_DEFINITION.resource_path
+				== zenith_definition.resource_path,
+		"cache-ignored Zenith fixture is a detached Resource identity with the same checked-in path"
+	)
+
+	var production_zenith_definition := (
+		GameFlow.ZENITH_COMBAT_WEAPON_DEFINITION as WeaponDefinition
+	)
+	var original_zenith_damage := production_zenith_definition.damage_per_hit
+	production_zenith_definition.damage_per_hit = NAN
+	var rejected_zenith_mutation := flow.call(
+		"_get_player_weapon_profiles", candidate
+	) as Dictionary
+	production_zenith_definition.damage_per_hit = original_zenith_damage
+	var restored_zenith_profiles := flow.call(
+		"_get_player_weapon_profiles", candidate
+	) as Dictionary
+	_check(
+		rejected_zenith_mutation.is_empty()
+			and (restored_zenith_profiles.get(WEAPON_ID, {}) as Dictionary)
+				== ZENITH_EXPECTED_PROFILE,
+		"invalid live Zenith resource mutation fails closed without a legacy fallback and restores cleanly"
+	)
+	candidate.weapon_cooldown = 0.25
+	_check(
+		(flow.call("_get_player_weapon_profiles", candidate) as Dictionary).is_empty(),
+		"cadence drift rejects Zenith registration instead of borrowing another player profile"
+	)
+
 	candidate.ship_id = &"jovian_provisional"
 	candidate.weapon_cooldown = 0.62
 	var jovian_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
@@ -360,6 +484,17 @@ func _test_production_selection(
 			"origin_tolerance": 32.0,
 		},
 		"unmigrated Jovian keeps its exact existing override"
+	)
+	candidate.ship_id = &"halyard_new_design"
+	candidate.weapon_cooldown = 0.95
+	var halyard_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
+	_check(
+		(halyard_profiles.get(WEAPON_ID, {}) as Dictionary) == {
+			"range": 280.0,
+			"damage": 18.0,
+			"origin_tolerance": 30.0,
+		},
+		"unmigrated Halyard keeps its exact existing override"
 	)
 	candidate.free()
 	flow.free()
