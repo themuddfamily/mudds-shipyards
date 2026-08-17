@@ -81,10 +81,42 @@ func _run() -> void:
 	_check(feedback.get_feedback_state() == &"released", "fresh unclaimed berth renders released state")
 	_check(bool(feedback.get_audit_report().valid), "fresh component passes its complete audit")
 	var perf := feedback.get_performance_report()
-	# Re-frozen 11 -> 16 meshes: the five added are the state glyph (two gate
-	# marks, two chevron arms, one secured bar), the non-colour channel frozen by
-	# _test_state_channels below. The material budget is unchanged at four.
-	_check(int(perf.mesh_instances) == 16 and int(perf.material_resources) == 4, "component owns exactly sixteen meshes and four instance-local materials")
+	# All sixteen named/stateful copies and submissions remain. Seven exact size
+	# recipes replace sixteen one-use BoxMeshes: copy roster 4,4,2,2,2,1,1.
+	_check(
+		int(perf.owned_nodes) == 19
+		and int(perf.mesh_instances) == 16
+		and int(perf.drawn_copies) == 16
+		and int(perf.render_submissions) == 16
+		and int(perf.material_resources) == 4,
+		"component preserves nineteen nodes, sixteen named copies/submissions, and four instance-local materials"
+	)
+	_check(
+		int(perf.mesh_resources_before_sharing) == 16
+		and int(perf.mesh_resources) == 7
+		and int(perf.mesh_resource_savings) == 9
+		and bool(perf.mesh_sharing_exact)
+		and perf.mesh_resource_copy_roster == [1, 1, 2, 2, 2, 4, 4],
+		"component-local BoxMesh allocation is frozen at 16 -> 7 with the exact copy roster"
+	)
+	var boundary_port_forward := feedback.get_node(
+		"FeedbackVisual/Boundary_Port_Forward"
+	) as MeshInstance3D
+	var boundary_port_aft := feedback.get_node(
+		"FeedbackVisual/Boundary_Port_Aft"
+	) as MeshInstance3D
+	var boundary_starboard_forward := feedback.get_node(
+		"FeedbackVisual/Boundary_Starboard_Forward"
+	) as MeshInstance3D
+	var boundary_starboard_aft := feedback.get_node(
+		"FeedbackVisual/Boundary_Starboard_Aft"
+	) as MeshInstance3D
+	_check(
+		boundary_port_forward.mesh == boundary_port_aft.mesh
+		and boundary_port_forward.mesh == boundary_starboard_forward.mesh
+		and boundary_port_forward.mesh == boundary_starboard_aft.mesh,
+		"the four independent boundary nodes share their one exact build-frozen size recipe"
+	)
 	_check(int(perf.collision_nodes) == 0 and int(perf.lights) == 0 and int(perf.audio_nodes) == 0 and int(perf.particle_emitters) == 0, "feedback adds no collision, light, audio, or particle authority")
 	_check(feedback.get_evidence_metadata().evidence_status == &"modern_interpretation" and not bool(feedback.get_evidence_metadata().historically_supported), "feedback remains an explicit unsupported modern interpretation")
 
@@ -129,10 +161,12 @@ func _run() -> void:
 	var feedback_two := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
 	berth_two.add_child(feedback_two)
 	await process_frame
-	var first_ids: Dictionary = feedback.get_audit_report().performance
 	var material_a := (feedback.get_node("FeedbackVisual/LeaseStatePlate") as MeshInstance3D).material_override
 	var material_b := (feedback_two.get_node("FeedbackVisual/LeaseStatePlate") as MeshInstance3D).material_override
 	_check(material_a != material_b, "two berth instances never share mutable presentation materials")
+	var mesh_a := (feedback.get_node("FeedbackVisual/Boundary_Port_Forward") as MeshInstance3D).mesh
+	var mesh_b := (feedback_two.get_node("FeedbackVisual/Boundary_Port_Forward") as MeshInstance3D).mesh
+	_check(mesh_a != mesh_b, "component-local mesh sharing cannot leak a mutable test or runtime mutation between berths")
 	var ship_two := Node3D.new()
 	stage.add_child(ship_two)
 	var token_two := berth_two.try_reserve(ship_two, TORRENT_DEFINITION)
@@ -248,6 +282,38 @@ func _run() -> void:
 	_check(not bool(feedback.get_audit_report().valid), "audit rejects in-place BoxMesh size drift")
 	plate_box.size = plate_box_size
 	_check(bool(feedback.get_audit_report().valid), "restoring the exact BoxMesh size restores a green audit")
+
+	# Structured negative controls for the sharing seam itself. An equal-recipe
+	# duplicate must fail because it reintroduces an eighth retained resource;
+	# mutating the shared recipe must fail all four boundary contracts together.
+	var shared_boundary_mesh := boundary_port_forward.mesh as BoxMesh
+	var duplicate_boundary_mesh := BoxMesh.new()
+	duplicate_boundary_mesh.size = shared_boundary_mesh.size
+	boundary_port_forward.mesh = duplicate_boundary_mesh
+	var duplicate_mesh_report := feedback.get_performance_report()
+	_check(
+		not bool(feedback.get_audit_report().valid)
+		and int(duplicate_mesh_report.mesh_resources) == 8
+		and not bool(duplicate_mesh_report.mesh_sharing_exact),
+		"audit rejects an equal-size duplicate that reasserts an eighth BoxMesh allocation"
+	)
+	boundary_port_forward.mesh = shared_boundary_mesh
+	_check(
+		bool(feedback.get_audit_report().valid)
+		and int(feedback.get_performance_report().mesh_resources) == 7,
+		"restoring the exact shared boundary identity restores the seven-resource audit"
+	)
+	var shared_boundary_size := shared_boundary_mesh.size
+	shared_boundary_mesh.size += Vector3(0.1, 0.01, 0.02)
+	_check(
+		not bool(feedback.get_audit_report().valid)
+		and (boundary_port_aft.mesh as BoxMesh).size == shared_boundary_mesh.size
+		and (boundary_starboard_forward.mesh as BoxMesh).size == shared_boundary_mesh.size
+		and (boundary_starboard_aft.mesh as BoxMesh).size == shared_boundary_mesh.size,
+		"audit rejects shared recipe drift observed by all four independent boundary copies"
+	)
+	shared_boundary_mesh.size = shared_boundary_size
+	_check(bool(feedback.get_audit_report().valid), "restoring the shared boundary recipe restores a green audit")
 
 	var plate_material := plate.material_override as StandardMaterial3D
 	var billboard_mode := plate_material.billboard_mode

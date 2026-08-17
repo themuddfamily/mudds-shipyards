@@ -48,6 +48,9 @@ const VALID_STATES := [STATE_RELEASED, STATE_APPROACH, STATE_OCCUPIED]
 # described above. Nothing else about the budget moved; the material count, the
 # five-material ceiling, and the zero-authority prohibitions are unchanged.
 const MESH_COUNT := 16
+const MESH_RESOURCE_COUNT_BEFORE_SHARING := 16
+const MESH_RESOURCE_COUNT := 7
+const MESH_RESOURCE_COPY_ROSTER := [1, 1, 2, 2, 2, 4, 4]
 const MATERIAL_COUNT := 4
 const RENDER_MIN_Y := 0.14
 const RENDER_MAX_Y := 0.22
@@ -113,6 +116,7 @@ var _status_meshes: Array[MeshInstance3D] = []
 var _glyph_meshes: Array[MeshInstance3D] = []
 var _glyph_mesh_states: Array[StringName] = []
 var _materials: Dictionary = {}
+var _box_mesh_cache: Dictionary = {}
 var _material_instance_ids: Dictionary = {}
 var _material_contracts: Dictionary = {}
 var _mesh_contracts: Dictionary = {}
@@ -301,15 +305,51 @@ func get_performance_report() -> Dictionary:
 	var visible_meshes := 0
 	var live_meshes := find_children("*", "MeshInstance3D", true, false)
 	var live_labels := find_children("*", "Label3D", true, false)
+	var mesh_resource_copy_counts: Dictionary = {}
 	for mesh in live_meshes:
-		if is_instance_valid(mesh) and (mesh as MeshInstance3D).is_visible_in_tree():
+		if not is_instance_valid(mesh):
+			continue
+		var mesh_instance := mesh as MeshInstance3D
+		if mesh_instance.is_visible_in_tree():
 			visible_meshes += 1
+		if mesh_instance.mesh != null:
+			var mesh_id := mesh_instance.mesh.get_instance_id()
+			mesh_resource_copy_counts[mesh_id] = int(
+				mesh_resource_copy_counts.get(mesh_id, 0)
+			) + 1
+	var mesh_resource_copy_roster: Array[int] = []
+	for copy_count in mesh_resource_copy_counts.values():
+		mesh_resource_copy_roster.append(int(copy_count))
+	mesh_resource_copy_roster.sort()
+	var mesh_sharing_exact := (
+		mesh_resource_copy_counts.size() == MESH_RESOURCE_COUNT
+		and mesh_resource_copy_roster == MESH_RESOURCE_COPY_ROSTER
+		and _box_mesh_cache.size() == MESH_RESOURCE_COUNT
+	)
+	var owned_node_count := 1 + find_children("*", "", true, false).size()
 	return {
 		"schema_version": 1,
-		"within_budget": live_meshes.size() == MESH_COUNT and _materials.size() == MATERIAL_COUNT,
+		"within_budget": (
+			live_meshes.size() == MESH_COUNT
+			and _materials.size() == MATERIAL_COUNT
+			and mesh_sharing_exact
+		),
+		"owned_nodes": owned_node_count,
 		"mesh_instances": live_meshes.size(),
+		"drawn_copies": live_meshes.size(),
+		"render_submissions": live_meshes.size(),
+		"visible_submissions": visible_meshes,
 		"visible_meshes": visible_meshes,
 		"mesh_budget": MESH_COUNT,
+		"mesh_resources_before_sharing": MESH_RESOURCE_COUNT_BEFORE_SHARING,
+		"mesh_resources": mesh_resource_copy_counts.size(),
+		"mesh_resource_budget": MESH_RESOURCE_COUNT,
+		"mesh_resource_savings": (
+			MESH_RESOURCE_COUNT_BEFORE_SHARING - mesh_resource_copy_counts.size()
+		),
+		"mesh_resource_copy_roster": mesh_resource_copy_roster,
+		"mesh_sharing_exact": mesh_sharing_exact,
+		"mesh_sharing_policy": &"component_local_exact_size_box_mesh_cache",
 		"material_resources": _materials.size(),
 		"material_budget": 5,
 		"labels": live_labels.size(),
@@ -400,6 +440,8 @@ func get_audit_report() -> Dictionary:
 	if not _label_matches_contract():
 		errors.append("label_contract_changed")
 	var performance := get_performance_report()
+	if not bool(performance.get("mesh_sharing_exact", false)):
+		errors.append("mesh_resource_sharing_contract_changed")
 	for key in ["collision_nodes", "physics_query_nodes", "lights", "audio_nodes", "particle_emitters", "timers"]:
 		if int(performance.get(key, 0)) != 0:
 			errors.append("prohibited_%s_present" % key)
@@ -850,8 +892,19 @@ func _add_box(
 	size: Vector3,
 	material: Material
 	) -> MeshInstance3D:
-	var mesh_resource := BoxMesh.new()
-	mesh_resource.size = size
+	# Every cue remains its own named/stateful MeshInstance and therefore its own
+	# submission. Only build-frozen geometry recipes are shared: identical BoxMesh
+	# sizes inside this component generation resolve to one retained resource.
+	# The cache is deliberately instance-local so an integrity mutation in one
+	# berth can never bleed into another berth's presentation.
+	var mesh_resource := _box_mesh_cache.get(size) as BoxMesh
+	if mesh_resource == null:
+		mesh_resource = BoxMesh.new()
+		mesh_resource.size = size
+		mesh_resource.resource_name = "BerthFeedbackBox_%s" % str(size)
+		mesh_resource.set_meta(&"visual_resource_family", &"ship_berth_feedback_box")
+		mesh_resource.set_meta(&"component_local_shared", true)
+		_box_mesh_cache[size] = mesh_resource
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
