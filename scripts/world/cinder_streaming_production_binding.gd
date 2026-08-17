@@ -172,15 +172,27 @@ func audit() -> Dictionary:
 	var binding_count := 0
 	var coordinator_count := 0
 	var policy_count := 0
+	var expected_coordinator := (
+		_bootstrap.get_node_or_null(^"WorldStreamingCoordinator")
+		if is_instance_valid(_bootstrap)
+		else null
+	)
+	var expected_policy := (
+		_bootstrap.get_node_or_null(^"WorldStreamingDistancePolicy")
+		if is_instance_valid(_bootstrap)
+		else null
+	)
 	if host != null:
 		for candidate in host.find_children("*", "", true, false):
 			if candidate is CinderStreamingBootstrap:
 				bootstrap_count += 1
 			elif candidate is CinderStreamingProductionBinding:
 				binding_count += 1
-			elif candidate is WorldStreamingCoordinator:
+			elif candidate is WorldStreamingCoordinator \
+					and candidate == expected_coordinator:
 				coordinator_count += 1
-			elif candidate is WorldStreamingDistancePolicy:
+			elif candidate is WorldStreamingDistancePolicy \
+					and candidate == expected_policy:
 				policy_count += 1
 	if not _activated:
 		errors.append("production streaming binding is not activated: %s" % _configuration_error)
@@ -202,7 +214,7 @@ func audit() -> Dictionary:
 		or coordinator_count != 1
 		or policy_count != 1
 	):
-		errors.append("Main must contain exactly one binding, bootstrap, coordinator, and policy")
+		errors.append("Main must contain exactly one Cinder binding, bootstrap-owned coordinator, and policy")
 	var snapshot := get_snapshot()
 	if (
 		int(snapshot.get("policy_update_index", -1))

@@ -221,6 +221,8 @@ var cinder_convoy_host: CinderConvoyEscortHost
 var cinder_streaming_bootstrap: CinderStreamingBootstrap
 var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
+var ember_streaming_bootstrap: EmberMoonStreamingBootstrap
+var ember_streaming_binding: EmberMoonStreamingProductionBinding
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## One presentation-only caption authority for this Main lifetime. It is a
@@ -342,7 +344,7 @@ var _activity_selection_locked := false
 ## position sample, proving no second adapter or retired director sampler is live.
 var _cinder_position_sample_count := 0
 ## Counts the one actor world-position read performed for each production
-## physics tick. Streaming and convoy consume the same detached sample.
+## physics tick. Cinder, Ember, and convoy consume the same detached sample.
 var _cinder_actor_sample_count := 0
 var _convoy_stream_instance_id := 0
 var _convoy_stream_generation := -1
@@ -439,6 +441,14 @@ func _resolve_scene_bindings() -> void:
 		as WorldStreamingCoordinator
 		if is_instance_valid(cinder_streaming_bootstrap)
 		else null
+	)
+	ember_streaming_bootstrap = (
+		get_node_or_null(^"EmberMoonStreamingBootstrap")
+		as EmberMoonStreamingBootstrap
+	)
+	ember_streaming_binding = (
+		get_node_or_null(^"EmberMoonStreamingProductionBinding")
+		as EmberMoonStreamingProductionBinding
 	)
 	if (
 		not _initialized
@@ -942,6 +952,8 @@ func _physics_process(delta: float) -> void:
 	var actor_sample := _capture_cinder_actor_sample()
 	if is_instance_valid(cinder_streaming_binding):
 		cinder_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
+	if is_instance_valid(ember_streaming_binding):
+		ember_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
 	_sync_cinder_convoy_stream_presence()
 	if _convoy_is_running() and not _convoy_lifecycle_accepts_sample(actor_sample):
 		_fail_active_activity(_convoy_lifecycle_failure_reason(actor_sample))
@@ -3313,6 +3325,16 @@ func reset_active_activity() -> bool:
 
 func get_activity_director() -> ActivityDirector:
 	return activity_director
+
+
+## Detached Ember production composition state. This is observability only;
+## GameFlow never gains Ember streaming-generation or rebase authority.
+func get_ember_streaming_report() -> Dictionary:
+	return (
+		ember_streaming_binding.audit()
+		if is_instance_valid(ember_streaming_binding)
+		else {}
+	).duplicate(true)
 
 
 func get_active_activity_snapshot() -> Dictionary:

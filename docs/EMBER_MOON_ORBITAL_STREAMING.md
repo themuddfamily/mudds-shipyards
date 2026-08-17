@@ -1,9 +1,11 @@
 # Ember Moon orbital placement and streaming foundation
 
 `NearbySectorOrbitalRegistry` and `EmberMoonStreamingBootstrap` form one
-opt-in, explicit-update foundation for Ember Moon. They are not instanced in
-`Main` and do not alter `ShipyardWorld`, Cinder Reach, `SpaceBackdrop`,
-`GameFlow`, a ship, a player, or a `PlanetaryTravelSession`.
+explicit-update foundation for Ember Moon. Production `Main` now instances the
+bootstrap and a narrow caller-physics adapter, described in
+`EMBER_MOON_PRODUCTION_STREAMING_BINDING.md`. They do not alter
+`ShipyardWorld`, Cinder Reach, `SpaceBackdrop`, a ship, a player, or a
+`PlanetaryTravelSession`.
 
 ## Absolute datum
 
@@ -93,12 +95,14 @@ GameFlow, travel-session mutation, landing approval, world/terrain/collision
 generation, save, network, SpaceBackdrop, and Cinder streaming authority are
 all exactly false.
 
-Production insertion remains deferred until one host can atomically rebase the
-station, Cinder, ships, player, and Ember roots. Also deferred are motion and
-travel handoff, GameFlow transitions, TravelSession streaming-generation
-binding, landing authority, spherical gravity, global terrain/LOD/collision,
-actor spawning, persistence/networking, and production performance/render
-validation.
+Production insertion is limited to one lifetime-stable bootstrap and one
+caller-physics observation binding. Applying an origin rebase remains deferred
+until one host can atomically translate the station, Cinder, ships, player,
+effects, and Ember roots; the production binding exposes only a detached preview
+and fails closed at generation 1. Also deferred are motion and travel handoff,
+GameFlow transitions, TravelSession streaming-generation binding, landing
+authority, spherical gravity, global terrain/LOD/collision, actor spawning,
+persistence/networking, and production performance/render validation.
 
 Focused verification covers exact cells and detachment, canonical rejection,
 the required initial rebase, both inclusive distance boundaries, coordinator

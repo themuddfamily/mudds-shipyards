@@ -336,7 +336,7 @@ func audit() -> Dictionary:
 			"references": PackedStringArray([
 				"res://docs/EMBER_MOON_ORBITAL_STREAMING.md",
 			]),
-			"notes": "Opt-in Ember-only composition; no Main, Cinder, SpaceBackdrop, motion, or GameFlow integration.",
+			"notes": "Ember-only streaming composition; production observation remains external and owns no Cinder, SpaceBackdrop, motion, or GameFlow authority.",
 		},
 		"owned_capabilities": owned_capabilities,
 		"adjacent_authority": adjacent_authority,
