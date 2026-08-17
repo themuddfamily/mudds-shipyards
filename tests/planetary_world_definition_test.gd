@@ -3,6 +3,32 @@ extends SceneTree
 const DefinitionScript := preload(
 	"res://scripts/world/definitions/planetary_world_definition.gd"
 )
+const COMMON_EVIDENCE_CORE_KEYS := [
+	"content_class",
+	"status",
+	"scope",
+	"references",
+	"notes",
+]
+const WORLD_EVIDENCE_DETAIL_KEYS := [
+	"historical_claim",
+	"authenticated",
+	"manual_review_required",
+]
+const COMMON_AUTHORITY_KEYS := [
+	"renderer",
+	"gameplay",
+	"streaming",
+	"save",
+	"network",
+	"physics",
+	"world_generation",
+	"terrain_generation",
+	"collision_generation",
+	"origin_shift",
+	"weather_clock",
+	"audio",
+]
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -55,7 +81,9 @@ func _test_valid_definition_and_authority_boundary() -> void:
 	)
 	var body := audit.body as Dictionary
 	_check(
-		is_equal_approx(float(body.radius_metres), 1800.0)
+		is_equal_approx(float(body.radius_metres), 120000.0)
+		and body.centre_reference == &"scene_root"
+		and body.radius_reference == &"sea_level"
 		and bool(body.has_atmosphere)
 		and body.atmosphere_definition_id == &"ember_thin_atmosphere"
 		and body.terrain_definition_id == &"ember_basalt_terrain"
@@ -68,19 +96,41 @@ func _test_valid_definition_and_authority_boundary() -> void:
 	var evidence := audit.evidence as Dictionary
 	var authority := audit.authority as Dictionary
 	_check(
-		evidence.status == &"modern_interpretation"
+		_dictionary_has_exact_keys(
+			evidence,
+			COMMON_EVIDENCE_CORE_KEYS + WORLD_EVIDENCE_DETAIL_KEYS
+		),
+		"evidence has the exact common five-key core plus world-specific details"
+	)
+	_check(
+		evidence.content_class == &"NEW"
+		and evidence.status == &"modern_interpretation"
+		and evidence.scope == &"authored_planetary_destination"
 		and not bool(evidence.historical_claim)
 		and not bool(evidence.authenticated),
 		"modern planetary content cannot imply a historical claim"
+	)
+	_check(
+		_dictionary_has_exact_keys(authority, COMMON_AUTHORITY_KEYS),
+		"authority has the exact common 12-key roster"
 	)
 	_check(
 		not bool(audit.gameplay_authority)
 		and not bool(audit.streaming_authority)
 		and not bool(audit.save_authority)
 		and authority == {
+			"renderer": false,
 			"gameplay": false,
 			"streaming": false,
 			"save": false,
+			"network": false,
+			"physics": false,
+			"world_generation": false,
+			"terrain_generation": false,
+			"collision_generation": false,
+			"origin_shift": false,
+			"weather_clock": false,
+			"audio": false,
 		},
 		"resource explicitly owns zero gameplay, streaming, or save authority"
 	)
@@ -149,6 +199,24 @@ func _test_identity_scene_and_reference_validation() -> void:
 		_has_error(missing_terrain.get_validation_errors(), "terrain_definition_id"),
 		"terrain requires a stable catalog reference"
 	)
+	var leading_digit_atmosphere := canonical.duplicate_definition()
+	leading_digit_atmosphere.atmosphere_definition_id = &"9_atmosphere"
+	_check(
+		_has_error(
+			leading_digit_atmosphere.get_validation_errors(),
+			"atmosphere_definition_id"
+		),
+		"atmosphere logical IDs must begin with a lowercase letter"
+	)
+	var leading_digit_terrain := canonical.duplicate_definition()
+	leading_digit_terrain.terrain_definition_id = &"9_terrain"
+	_check(
+		_has_error(
+			leading_digit_terrain.get_validation_errors(),
+			"terrain_definition_id"
+		),
+		"terrain logical IDs must begin with a lowercase letter"
+	)
 	var no_regions := canonical.duplicate_definition()
 	no_regions.landing_region_ids = PackedStringArray()
 	_check(
@@ -200,10 +268,24 @@ func _test_identity_scene_and_reference_validation() -> void:
 
 func _test_finite_coordinate_and_radius_bounds() -> void:
 	var canonical := _valid_definition()
+	var defaults := DefinitionScript.new() as PlanetaryWorldDefinition
+	_check(
+		is_equal_approx(defaults.body_radius_metres, 120000.0)
+		and is_equal_approx(
+			defaults.get_body_radius_metres(),
+			DefinitionScript.DEFAULT_BODY_RADIUS_METRES
+		),
+		"default body radius is the canonical 120 km sea-level datum"
+	)
 	var minimum_radius := canonical.duplicate_definition()
 	minimum_radius.body_radius_metres = DefinitionScript.MIN_BODY_RADIUS_METRES
 	var maximum_radius := canonical.duplicate_definition()
 	maximum_radius.body_radius_metres = DefinitionScript.MAX_BODY_RADIUS_METRES
+	maximum_radius.orbital_anchor.origin = Vector3(
+		DefinitionScript.MAX_ANCHOR_COMPONENT_METRES,
+		DefinitionScript.MAX_ANCHOR_COMPONENT_METRES,
+		DefinitionScript.MAX_ANCHOR_COMPONENT_METRES
+	)
 	_check(
 		minimum_radius.is_definition_valid() and maximum_radius.is_definition_valid(),
 		"exact minimum and maximum body-radius endpoints validate"
@@ -259,6 +341,33 @@ func _test_finite_coordinate_and_radius_bounds() -> void:
 	_check(
 		_has_error(reflected.get_validation_errors(), "unit-scale and orthonormal"),
 		"reflected coordinate frames are rejected to preserve Godot handedness"
+	)
+	var offset_centre := canonical.duplicate_definition()
+	offset_centre.scene_anchor.origin = Vector3(0.0, 0.0, 1.0)
+	_check(
+		_has_error(offset_centre.get_validation_errors(), "body centre"),
+		"scene anchor origin is fixed to the body centre"
+	)
+	var buried_orbit := canonical.duplicate_definition()
+	buried_orbit.orbital_anchor.origin = Vector3(
+		0.0,
+		0.0,
+		canonical.body_radius_metres
+	)
+	_check(
+		_has_error(buried_orbit.get_validation_errors(), "outside the sea-level"),
+		"orbital handoff must be radially outside sea level"
+	)
+	var centred_surface := canonical.duplicate_definition()
+	centred_surface.surface_anchor.origin = Vector3.ZERO
+	_check(
+		_has_error(centred_surface.get_validation_errors(), "positive body-centred radius"),
+		"surface handoff cannot collapse to the body centre"
+	)
+	_check(
+		is_equal_approx(canonical.get_orbital_anchor_radius_metres(), 126000.0)
+		and is_equal_approx(canonical.get_surface_anchor_radius_metres(), 120000.0),
+		"canonical anchor-radius accessors return body-centred metres"
 	)
 
 
@@ -361,9 +470,9 @@ func _test_deep_copy_and_deterministic_audit() -> void:
 	copy.landing_region_ids[0] = "copy_region"
 	copy.evidence_references[0] = "COPY-SOURCE"
 	_check(
-		copy.orbital_anchor.origin == Vector3(1.0, 1.0, 3601.0)
+		copy.orbital_anchor.origin == Vector3(1.0, 1.0, 126001.0)
 		and definition.world_id == &"ember_moon"
-		and definition.orbital_anchor.origin == Vector3(0.0, 0.0, 3600.0)
+		and definition.orbital_anchor.origin == Vector3(0.0, 0.0, 126000.0)
 		and definition.landing_region_ids[0] == "ember_caldera"
 		and definition.evidence_references[0] == "PLANETARY-VERTICAL-SLICE",
 		"typed duplicate_definition deeply detaches mutable packed references"
@@ -411,19 +520,19 @@ func _valid_definition() -> PlanetaryWorldDefinition:
 	definition.navigation_anchor_id = &"ember_navigation"
 	definition.navigation_anchor = Transform3D(
 		Basis(Vector3.UP, deg_to_rad(15.0)),
-		Vector3(0.0, 0.0, 3400.0)
+		Vector3(0.0, 0.0, 123400.0)
 	)
 	definition.orbital_anchor_id = &"ember_orbit_entry"
 	definition.orbital_anchor = Transform3D(
 		Basis(Vector3.UP, deg_to_rad(30.0)),
-		Vector3(0.0, 0.0, 3600.0)
+		Vector3(0.0, 0.0, 126000.0)
 	)
 	definition.surface_anchor_id = &"ember_surface_entry"
 	definition.surface_anchor = Transform3D(
 		Basis(Vector3.UP, deg_to_rad(-20.0)),
-		Vector3(0.0, 1800.0, 0.0)
+		Vector3(0.0, 120000.0, 0.0)
 	)
-	definition.body_radius_metres = 1800.0
+	definition.body_radius_metres = 120000.0
 	definition.has_atmosphere = true
 	definition.atmosphere_definition_id = &"ember_thin_atmosphere"
 	definition.terrain_definition_id = &"ember_basalt_terrain"
@@ -442,6 +551,15 @@ func _has_error(errors: PackedStringArray, fragment: String) -> bool:
 		if String(error).contains(fragment):
 			return true
 	return false
+
+
+func _dictionary_has_exact_keys(source: Dictionary, expected_keys: Array) -> bool:
+	if source.size() != expected_keys.size():
+		return false
+	for expected_key in expected_keys:
+		if not source.has(expected_key):
+			return false
+	return true
 
 
 func _check(condition: bool, description: String) -> bool:

@@ -8,8 +8,11 @@ resources can be composed later without either one owning the other.
 ## Deterministic coordinate and unit contract
 
 - `reference_planet_radius_meters` is the game-scale radial distance from the
-  planet centre to sea level. Elevations are signed metre offsets from that
-  reference; the minimum elevation must still leave a positive radius.
+  body-centred planetary scene root to the shared sea-level datum. Its composable
+  default is 120,000 m, exactly matching the world and atmosphere defaults.
+  Elevations are signed metre offsets from that reference; the minimum elevation
+  must still leave a positive radius. The default −2,500..8,500 m envelope sits
+  wholly inside the default atmosphere's 20,000 m top.
 - All distances are metres and landing slopes are degrees. Tile resolution is
   vertices per edge, while tile budgets are exact integer tile ceilings. No
   implicit world-scale conversion is permitted.
@@ -25,6 +28,9 @@ resources can be composed later without either one owning the other.
 - Biome IDs are unique lowercase snake-case IDs. Declared order is retained as
   the deterministic material/splat channel order; no profile method reorders
   them.
+- Profile and biome IDs use the shared 1–64 character grammar and begin with a
+  lowercase letter, so a valid profile identity is also a valid world logical
+  reference.
 - Landing slope and roughness are eligibility limits only. Roughness means the
   maximum peak-to-mean height deviation, in metres, inside a later evaluator's
   chosen footprint. This contract does not choose that footprint or approve a
@@ -42,10 +48,17 @@ shift threshold at or beyond the planet radius. `get_snapshot()` and `audit()`
 return deeply detached dictionaries and packed arrays, so presentation or tool
 callers cannot mutate the source resource through a returned value.
 
+`get_planet_radius_meters()`, `get_minimum_elevation_meters()`, and
+`get_maximum_elevation_meters()` are canonical composition accessors. Evidence
+is explicitly `NEW / modern_interpretation`, with a bounded reference roster and
+scope limited to game-scale terrain parameters.
+
 The audit freezes the schema, units, ordering, LOD/radius references, validation
 errors, and the full snapshot. It explicitly reports false for terrain renderer,
 terrain generation, collision generation, gameplay, streaming, save, network,
-and origin-shift authority.
+and origin-shift authority. It also publishes the shared nested authority roster
+and nested evidence vocabulary used by the other planetary contracts, without
+granting any authority.
 
 ## Deliberate limits
 

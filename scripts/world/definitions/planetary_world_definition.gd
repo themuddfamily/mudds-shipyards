@@ -17,6 +17,11 @@ enum EvidenceStatus {
 }
 
 const SCHEMA_VERSION := 1
+const UNIT_SYSTEM: StringName = &"game_scale_si"
+const CONTENT_CLASS: StringName = &"NEW"
+const EVIDENCE_SCOPE: StringName = &"authored_planetary_destination"
+const BODY_CENTRE_REFERENCE: StringName = &"scene_root"
+const BODY_RADIUS_REFERENCE: StringName = &"sea_level"
 const MAX_ID_LENGTH := 64
 const MAX_DISPLAY_NAME_LENGTH := 96
 const MAX_CONTENT_NOTE_LENGTH := 512
@@ -24,9 +29,11 @@ const MAX_SCENE_PATH_LENGTH := 256
 const MAX_EVIDENCE_REFERENCES := 32
 const MAX_EVIDENCE_REFERENCE_LENGTH := 192
 const MAX_LANDING_REGION_REFERENCES := 32
-const MIN_BODY_RADIUS_METRES := 1.0
+const DEFAULT_BODY_RADIUS_METRES := 120_000.0
+const MIN_BODY_RADIUS_METRES := 1_000.0
 const MAX_BODY_RADIUS_METRES := 100_000_000.0
 const MAX_ANCHOR_COMPONENT_METRES := 100_000_000.0
+const ANCHOR_ORIGIN_EPSILON_METRES := 0.001
 const BASIS_EPSILON := 0.0001
 
 const EVIDENCE_AUTHENTICATED: StringName = &"authenticated"
@@ -46,7 +53,8 @@ const EVIDENCE_UNKNOWN: StringName = &"unknown"
 
 @export_category("Coordinate-frame anchors")
 ## All four transforms are expressed relative to the future planetary scene
-## root. Their bases are unit-scale orthonormal frames; their origins use metres.
+## root at the body centre. Their bases are unit-scale orthonormal frames; their
+## origins use metres.
 @export var scene_anchor_id: StringName = &"scene_origin"
 @export var scene_anchor := Transform3D.IDENTITY
 @export var navigation_anchor_id: StringName = &"navigation_anchor"
@@ -58,7 +66,7 @@ const EVIDENCE_UNKNOWN: StringName = &"unknown"
 
 @export_category("Planetary body")
 @export_range(MIN_BODY_RADIUS_METRES, MAX_BODY_RADIUS_METRES, 1.0)
-var body_radius_metres := 1000.0
+var body_radius_metres := DEFAULT_BODY_RADIUS_METRES
 @export var has_atmosphere := false
 ## Empty is required for an airless body; otherwise this is a stable ID resolved
 ## by a future atmosphere catalog.
@@ -114,6 +122,24 @@ func get_surface_anchor() -> Transform3D:
 	return surface_anchor
 
 
+func get_body_radius_metres() -> float:
+	return body_radius_metres
+
+
+## Canonical cross-contract accessor. The British-spelled exported field and
+## compatibility getter remain stable for existing resources.
+func get_body_radius_meters() -> float:
+	return body_radius_metres
+
+
+func get_orbital_anchor_radius_metres() -> float:
+	return orbital_anchor.origin.length()
+
+
+func get_surface_anchor_radius_metres() -> float:
+	return surface_anchor.origin.length()
+
+
 func get_landing_region_ids() -> PackedStringArray:
 	return landing_region_ids.duplicate()
 
@@ -145,6 +171,7 @@ func get_validation_errors() -> PackedStringArray:
 		MIN_BODY_RADIUS_METRES,
 		MAX_BODY_RADIUS_METRES
 	)
+	_validate_anchor_radial_semantics(errors)
 	if has_atmosphere:
 		_validate_stable_id(
 			errors,
@@ -177,6 +204,7 @@ func audit() -> Dictionary:
 		)
 	var report := {
 		"schema_version": SCHEMA_VERSION,
+		"unit_system": UNIT_SYSTEM,
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"warnings": warnings,
@@ -196,13 +224,17 @@ func audit() -> Dictionary:
 		},
 		"body": {
 			"radius_metres": body_radius_metres,
+			"centre_reference": BODY_CENTRE_REFERENCE,
+			"radius_reference": BODY_RADIUS_REFERENCE,
 			"has_atmosphere": has_atmosphere,
 			"atmosphere_definition_id": atmosphere_definition_id,
 			"terrain_definition_id": terrain_definition_id,
 			"landing_region_ids": landing_region_ids.duplicate(),
 		},
 		"evidence": {
+			"content_class": CONTENT_CLASS,
 			"status": get_evidence_status_id(),
+			"scope": EVIDENCE_SCOPE,
 			"historical_claim": evidence_status in [
 				EvidenceStatus.AUTHENTICATED,
 				EvidenceStatus.BOUNDED_PARTIAL_RECONSTRUCTION,
@@ -214,9 +246,18 @@ func audit() -> Dictionary:
 			"notes": evidence_notes,
 		},
 		"authority": {
+			"renderer": false,
 			"gameplay": false,
 			"streaming": false,
 			"save": false,
+			"network": false,
+			"physics": false,
+			"world_generation": false,
+			"terrain_generation": false,
+			"collision_generation": false,
+			"origin_shift": false,
+			"weather_clock": false,
+			"audio": false,
 		},
 		"gameplay_authority": false,
 		"streaming_authority": false,
@@ -292,6 +333,22 @@ func _validate_anchor(
 		)
 	if not _is_orthonormal_basis(anchor_transform.basis):
 		errors.append("%s_anchor basis must be unit-scale and orthonormal" % label)
+
+
+func _validate_anchor_radial_semantics(errors: PackedStringArray) -> void:
+	if not is_finite(body_radius_metres) \
+			or body_radius_metres < MIN_BODY_RADIUS_METRES \
+			or body_radius_metres > MAX_BODY_RADIUS_METRES:
+		return
+	if _is_finite_vector(scene_anchor.origin) \
+			and scene_anchor.origin.length() > ANCHOR_ORIGIN_EPSILON_METRES:
+		errors.append("scene_anchor origin must coincide with the body centre")
+	if _is_finite_vector(orbital_anchor.origin) \
+			and orbital_anchor.origin.length() <= body_radius_metres:
+		errors.append("orbital_anchor origin must be outside the sea-level body radius")
+	if _is_finite_vector(surface_anchor.origin) \
+			and surface_anchor.origin.length() <= ANCHOR_ORIGIN_EPSILON_METRES:
+		errors.append("surface_anchor origin must have a positive body-centred radius")
 
 
 func _validate_landing_regions(errors: PackedStringArray) -> void:

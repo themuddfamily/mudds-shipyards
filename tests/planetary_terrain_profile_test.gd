@@ -1,6 +1,14 @@
 extends SceneTree
 
 const ProfileScript := preload("res://scripts/world/planetary_terrain_profile.gd")
+const COMMON_EVIDENCE_KEYS := [
+	"content_class", "status", "scope", "references", "notes",
+]
+const COMMON_AUTHORITY_KEYS := [
+	"renderer", "gameplay", "streaming", "save", "network", "physics",
+	"world_generation", "terrain_generation", "collision_generation",
+	"origin_shift", "weather_clock", "audio",
+]
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -17,6 +25,7 @@ func _run() -> void:
 	_test_tile_and_biome_ceilings()
 	_test_landing_and_origin_limits()
 	_test_detached_snapshot_audit_and_zero_authority()
+	_test_resource_round_trip()
 	_finish()
 
 
@@ -29,6 +38,7 @@ func _test_valid_contract_and_deterministic_units() -> void:
 		"the terrain profile is data, never a scene/process owner"
 	)
 	_check(profile.is_profile_valid(), "the authored default planetary terrain contract validates")
+	_check(profile.get_planet_radius_meters() == 120000.0 and profile.get_maximum_elevation_meters() == 8500.0, "canonical metre accessors publish the shared sea-level datum and elevation envelope")
 	_check(
 		snapshot.get("planet_radius_reference") == &"sea_level"
 			and snapshot.get("lod_strategy") == &"clipmap_rings"
@@ -55,6 +65,15 @@ func _test_valid_contract_and_deterministic_units() -> void:
 
 func _test_scale_elevation_and_finite_bounds() -> void:
 	var profile := ProfileScript.new()
+	profile.profile_id = &"9terrain"
+	_check(not profile.is_profile_valid(), "terrain profile identity starts with a lowercase letter like world references")
+	profile = ProfileScript.new()
+	profile.evidence_references = PackedStringArray(["source", "source"])
+	_check(not profile.is_profile_valid(), "terrain evidence references reject duplicates")
+	profile = ProfileScript.new()
+	profile.evidence_references = PackedStringArray(["x".repeat(ProfileScript.MAX_EVIDENCE_REFERENCE_LENGTH + 1)])
+	_check(not profile.is_profile_valid(), "terrain evidence references have the shared length ceiling")
+	profile = ProfileScript.new()
 	var mutations: Array[Dictionary] = [
 		{"field": &"reference_planet_radius_meters", "value": NAN},
 		{"field": &"reference_planet_radius_meters", "value": ProfileScript.MIN_PLANET_RADIUS_METERS - 0.01},
@@ -132,6 +151,8 @@ func _test_tile_and_biome_ceilings() -> void:
 	_check(not profile.is_profile_valid(), "duplicate biome channel IDs are rejected")
 	profile.biome_layer_ids = PackedStringArray(["Bed Rock"])
 	_check(not profile.is_profile_valid(), "biome IDs use stable lowercase snake case")
+	profile.biome_layer_ids = PackedStringArray(["9bedrock"])
+	_check(not profile.is_profile_valid(), "biome IDs begin with a lowercase letter")
 	var too_many_biomes := PackedStringArray()
 	for index in ProfileScript.MAX_BIOME_LAYER_COUNT + 1:
 		too_many_biomes.append("layer_%d" % index)
@@ -178,12 +199,31 @@ func _test_detached_snapshot_audit_and_zero_authority() -> void:
 	var audit_snapshot := audit.get("snapshot", {}) as Dictionary
 	(audit_snapshot.get("biome_layer_ids") as PackedStringArray)[0] = "audit_mutated"
 	(audit.get("errors") as PackedStringArray).append("caller_mutated")
+	((audit.get("evidence") as Dictionary))["status"] = &"caller_mutated"
+	(audit.get("authority") as Dictionary)["terrain_generation"] = true
 	var fresh_audit := profile.audit()
+	var evidence := fresh_audit.get("evidence", {}) as Dictionary
+	var authority := fresh_audit.get("authority", {}) as Dictionary
 	_check(
 		(fresh_audit.get("snapshot", {}) as Dictionary).get("biome_layer_ids")
 			== PackedStringArray(["bedrock", "regolith", "ice"])
 			and (fresh_audit.get("errors") as PackedStringArray).is_empty(),
 		"audit trees are deeply detached across calls"
+	)
+	_check(
+		_dictionary_has_exact_keys(evidence, COMMON_EVIDENCE_KEYS)
+			and evidence.status == &"modern_interpretation",
+		"common nested evidence publishes exactly the five-key core",
+	)
+	var all_zero := _dictionary_has_exact_keys(authority, COMMON_AUTHORITY_KEYS)
+	for key in COMMON_AUTHORITY_KEYS:
+		all_zero = all_zero and authority[key] is bool and not bool(authority[key])
+	_check(all_zero, "common nested authority is detached and freezes the exact zero-authority roster")
+	var authority_without_audio := authority.duplicate(true)
+	authority_without_audio.erase("audio")
+	_check(
+		not _dictionary_has_exact_keys(authority_without_audio, COMMON_AUTHORITY_KEYS),
+		"the exact authority roster rejects a missing audio key",
 	)
 	_check(
 		bool(fresh_audit.get("valid", false))
@@ -197,6 +237,33 @@ func _test_detached_snapshot_audit_and_zero_authority() -> void:
 			and not bool(fresh_audit.get("origin_shift_authority", true)),
 		"the profile freezes zero renderer/generator/gameplay/stream/save authority"
 	)
+
+
+func _test_resource_round_trip() -> void:
+	var profile := ProfileScript.new() as PlanetaryTerrainProfile
+	profile.profile_id = &"round_trip_terrain"
+	profile.evidence_references = PackedStringArray(["phase_10_design_note"])
+	var resource_path := "user://planetary_terrain_profile_test_%d.tres" % Time.get_ticks_usec()
+	var absolute_path := ProjectSettings.globalize_path(resource_path)
+	var save_error := ResourceSaver.save(profile, resource_path)
+	_check(save_error == OK, "terrain profile saves as a normal typed Godot Resource")
+	var loaded := ResourceLoader.load(
+		resource_path,
+		"",
+		ResourceLoader.CACHE_MODE_IGNORE
+	) as PlanetaryTerrainProfile
+	_check(loaded != null, "saved terrain profile reloads with its concrete type")
+	if loaded != null:
+		_check(
+			loaded.is_profile_valid()
+				and loaded.profile_id == &"round_trip_terrain"
+				and loaded.get_snapshot() == profile.get_snapshot()
+				and loaded.get_authority_report() == profile.get_authority_report(),
+			"round trip preserves terrain units, evidence, budgets, and zero authority",
+		)
+	if FileAccess.file_exists(resource_path):
+		var remove_error := DirAccess.remove_absolute(absolute_path)
+		_check(remove_error == OK, "temporary terrain profile Resource is removed")
 	_check(
 		not profile.has_method("_process")
 			and not profile.has_method("_physics_process")
@@ -213,6 +280,15 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures.append(message)
 		push_error("FAIL: %s" % message)
+
+
+func _dictionary_has_exact_keys(candidate: Dictionary, expected: Array) -> bool:
+	if candidate.size() != expected.size():
+		return false
+	for key in expected:
+		if not candidate.has(key):
+			return false
+	return true
 
 
 func _finish() -> void:

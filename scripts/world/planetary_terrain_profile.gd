@@ -17,6 +17,11 @@ const DISTANCE_UNIT: StringName = &"meters"
 const ANGLE_UNIT: StringName = &"degrees"
 const TILE_RESOLUTION_UNIT: StringName = &"vertices_per_edge"
 const TILE_COUNT_UNIT: StringName = &"tiles"
+const CONTENT_CLASS: StringName = &"NEW"
+const EVIDENCE_STATUS: StringName = &"modern_interpretation"
+const EVIDENCE_SCOPE: StringName = &"game_scale_terrain_parameters"
+const MAX_EVIDENCE_REFERENCES := 32
+const MAX_EVIDENCE_REFERENCE_LENGTH := 192
 
 const MIN_PLANET_RADIUS_METERS := 1000.0
 const MAX_PLANET_RADIUS_METERS := 100000000.0
@@ -37,6 +42,10 @@ const MAX_ORIGIN_SHIFT_THRESHOLD_METERS := 10000000.0
 @export_category("Identity")
 @export var profile_id: StringName = &"default_planetary_terrain"
 @export var display_name := "Default planetary terrain"
+
+@export_category("Evidence")
+@export var evidence_references := PackedStringArray()
+@export_multiline var evidence_notes := "New game-scale terrain tuning profile; not a claim about historical or real terrain."
 
 @export_category("Game-scale elevation envelope")
 ## Sea-level radius used as the deterministic radial reference.
@@ -102,6 +111,7 @@ func get_validation_errors() -> PackedStringArray:
 		or display_name.contains("\n") or display_name.contains("\r") \
 		or display_name.length() > 96:
 		errors.append("display_name must be a 1-96 character trimmed single line")
+	_validate_evidence(errors)
 
 	_validate_range(
 		errors,
@@ -213,12 +223,51 @@ func is_profile_valid() -> bool:
 	return get_validation_errors().is_empty()
 
 
+func get_planet_radius_meters() -> float:
+	return reference_planet_radius_meters
+
+
+func get_minimum_elevation_meters() -> float:
+	return minimum_elevation_meters
+
+
+func get_maximum_elevation_meters() -> float:
+	return maximum_elevation_meters
+
+
+func get_authority_report() -> Dictionary:
+	return {
+		"renderer": false,
+		"gameplay": false,
+		"streaming": false,
+		"save": false,
+		"network": false,
+		"physics": false,
+		"world_generation": false,
+		"terrain_generation": false,
+		"collision_generation": false,
+		"origin_shift": false,
+		"weather_clock": false,
+		"audio": false,
+	}.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"profile_id": profile_id,
 		"display_name": display_name,
+		"evidence_references": evidence_references.duplicate(),
+		"evidence_notes": evidence_notes,
 		"planet_radius_reference": PLANET_RADIUS_REFERENCE,
+		"evidence": {
+			"content_class": CONTENT_CLASS,
+			"status": EVIDENCE_STATUS,
+			"scope": EVIDENCE_SCOPE,
+			"references": evidence_references.duplicate(),
+			"notes": evidence_notes,
+		},
+		"authority": get_authority_report(),
 		"reference_planet_radius_meters": reference_planet_radius_meters,
 		"minimum_elevation_meters": minimum_elevation_meters,
 		"maximum_elevation_meters": maximum_elevation_meters,
@@ -252,6 +301,14 @@ func audit() -> Dictionary:
 		},
 		"lod_strategy": LOD_STRATEGY,
 		"planet_radius_reference": PLANET_RADIUS_REFERENCE,
+		"evidence": {
+			"content_class": CONTENT_CLASS,
+			"status": EVIDENCE_STATUS,
+			"scope": EVIDENCE_SCOPE,
+			"references": evidence_references.duplicate(),
+			"notes": evidence_notes,
+		},
+		"authority": get_authority_report(),
 		"deterministic_ordering": &"clipmap_near_to_far_biomes_declared_order",
 		"terrain_renderer_authority": false,
 		"terrain_generation_authority": false,
@@ -332,6 +389,9 @@ static func _is_stable_id(value: String) -> bool:
 	if value.is_empty() or value.length() > 64 or value.begins_with("_") \
 		or value.ends_with("_") or value.contains("__"):
 		return false
+	var first_code := value.unicode_at(0)
+	if first_code < 97 or first_code > 122:
+		return false
 	for index in value.length():
 		var code := value.unicode_at(index)
 		var is_lower_letter := code >= 97 and code <= 122
@@ -339,6 +399,23 @@ static func _is_stable_id(value: String) -> bool:
 		if not is_lower_letter and not is_digit and code != 95:
 			return false
 	return true
+
+
+func _validate_evidence(errors: PackedStringArray) -> void:
+	if evidence_notes.is_empty() or evidence_notes != evidence_notes.strip_edges():
+		errors.append("evidence_notes must be non-empty and trimmed")
+	if evidence_references.size() > MAX_EVIDENCE_REFERENCES:
+		errors.append("evidence references must contain at most %d entries" % MAX_EVIDENCE_REFERENCES)
+	var seen := PackedStringArray()
+	for reference in evidence_references:
+		if reference.is_empty() or reference != reference.strip_edges() \
+			or reference.contains("\n") or reference.contains("\r") \
+			or reference.length() > MAX_EVIDENCE_REFERENCE_LENGTH:
+			errors.append("evidence references must be non-empty, trimmed, single-line, and at most %d characters" % MAX_EVIDENCE_REFERENCE_LENGTH)
+		elif seen.has(reference):
+			errors.append("evidence reference '%s' is duplicated" % reference)
+		else:
+			seen.append(reference)
 
 
 static func _is_power_of_two_plus_one(value: int) -> bool:

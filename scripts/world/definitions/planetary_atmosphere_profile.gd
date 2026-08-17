@@ -13,7 +13,10 @@ const UNIT_SYSTEM: StringName = &"game_scale_si"
 const CONTENT_CLASS: StringName = &"NEW"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const EVIDENCE_SCOPE: StringName = &"game_scale_atmosphere_parameters"
+const MAX_EVIDENCE_REFERENCES := 32
+const MAX_EVIDENCE_REFERENCE_LENGTH := 192
 
+const MIN_PLANET_RADIUS_M := 1_000.0
 const MAX_PLANET_RADIUS_M := 100_000_000.0
 const MAX_ATMOSPHERE_ALTITUDE_M := 10_000_000.0
 const MAX_DENSITY_KG_M3 := 100.0
@@ -33,13 +36,13 @@ const MAX_AUDIO_GAIN_DB := 24.0
 @export_multiline var evidence_notes := "New game-scale tuning profile; not a claim about a historical or real atmosphere."
 
 @export_category("Geometry (metres)")
-@export_range(1.0, MAX_PLANET_RADIUS_M, 1.0) var planet_radius_m := 6_000.0
+@export_range(MIN_PLANET_RADIUS_M, MAX_PLANET_RADIUS_M, 1.0) var planet_radius_m := 120_000.0
 @export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var reference_altitude_m := 0.0
-@export_range(1.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var atmosphere_top_altitude_m := 1_200.0
+@export_range(1.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var atmosphere_top_altitude_m := 20_000.0
 
 @export_category("Density")
 @export_range(0.000001, MAX_DENSITY_KG_M3, 0.000001) var reference_density_kg_m3 := 1.225
-@export_range(0.1, MAX_DENSITY_SCALE_HEIGHT_M, 0.1) var density_scale_height_m := 240.0
+@export_range(0.1, MAX_DENSITY_SCALE_HEIGHT_M, 0.1) var density_scale_height_m := 4_000.0
 @export_range(0.01, MAX_DENSITY_FALLOFF_EXPONENT, 0.01) var density_falloff_exponent := 1.0
 
 @export_category("Optics (inverse metres)")
@@ -49,14 +52,14 @@ const MAX_AUDIO_GAIN_DB := 24.0
 @export_range(-0.99, 0.99, 0.01) var mie_anisotropy_unitless := 0.76
 
 @export_category("Visibility and fog")
-@export_range(0.1, MAX_VISIBILITY_M, 0.1) var maximum_visibility_m := 2_000.0
-@export_range(0.0, MAX_VISIBILITY_M, 0.1) var fog_start_distance_m := 180.0
-@export_range(0.1, MAX_VISIBILITY_M, 0.1) var fog_end_distance_m := 1_600.0
+@export_range(0.1, MAX_VISIBILITY_M, 0.1) var maximum_visibility_m := 20_000.0
+@export_range(0.0, MAX_VISIBILITY_M, 0.1) var fog_start_distance_m := 1_500.0
+@export_range(0.1, MAX_VISIBILITY_M, 0.1) var fog_end_distance_m := 12_000.0
 @export_range(0.0, 1.0, 0.001) var fog_density_unitless := 0.22
 
 @export_category("Cloud layer")
-@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var cloud_base_altitude_m := 420.0
-@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var cloud_top_altitude_m := 720.0
+@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var cloud_base_altitude_m := 3_000.0
+@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var cloud_top_altitude_m := 6_000.0
 @export_range(0.0, 1.0, 0.001) var cloud_coverage_unitless := 0.55
 
 @export_category("Weather")
@@ -64,8 +67,8 @@ const MAX_AUDIO_GAIN_DB := 24.0
 @export_range(0.0, 1.0, 0.001) var weather_intensity_unitless := 0.35
 
 @export_category("Entry effects")
-@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var entry_effect_start_altitude_m := 1_000.0
-@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var entry_effect_full_altitude_m := 520.0
+@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var entry_effect_start_altitude_m := 18_000.0
+@export_range(0.0, MAX_ATMOSPHERE_ALTITUDE_M, 1.0) var entry_effect_full_altitude_m := 10_000.0
 @export_range(0.0, MAX_ENTRY_SPEED_MPS, 0.1) var entry_effect_minimum_speed_mps := 160.0
 @export_range(0.0, MAX_ENTRY_SPEED_MPS, 0.1) var entry_effect_full_speed_mps := 340.0
 
@@ -84,7 +87,7 @@ func get_validation_errors() -> PackedStringArray:
 	if evidence_notes.is_empty() or evidence_notes != evidence_notes.strip_edges():
 		errors.append("evidence_notes must be non-empty and trimmed")
 
-	_validate_range(errors, "planet_radius_m", planet_radius_m, 1.0, MAX_PLANET_RADIUS_M)
+	_validate_range(errors, "planet_radius_m", planet_radius_m, MIN_PLANET_RADIUS_M, MAX_PLANET_RADIUS_M)
 	_validate_range(errors, "reference_altitude_m", reference_altitude_m, 0.0, MAX_ATMOSPHERE_ALTITUDE_M)
 	_validate_range(errors, "atmosphere_top_altitude_m", atmosphere_top_altitude_m, 1.0, MAX_ATMOSPHERE_ALTITUDE_M)
 	if _is_finite_float(reference_altitude_m) and _is_finite_float(atmosphere_top_altitude_m) \
@@ -153,6 +156,16 @@ func is_definition_valid() -> bool:
 	return get_validation_errors().is_empty()
 
 
+## Canonical composition accessor. The exported `_m` field remains stable for
+## existing resources while cross-contract code uses one unabbreviated unit.
+func get_planet_radius_meters() -> float:
+	return planet_radius_m
+
+
+func get_atmosphere_top_altitude_meters() -> float:
+	return atmosphere_top_altitude_m
+
+
 func get_geometry_snapshot() -> Dictionary:
 	return {
 		"planet_radius_m": planet_radius_m,
@@ -214,12 +227,16 @@ func get_authority_report() -> Dictionary:
 	return {
 		"renderer": false,
 		"gameplay": false,
-		"weather_clock": false,
+		"streaming": false,
 		"save": false,
-		"audio": false,
+		"network": false,
 		"physics": false,
 		"world_generation": false,
-		"network": false,
+		"terrain_generation": false,
+		"collision_generation": false,
+		"origin_shift": false,
+		"weather_clock": false,
+		"audio": false,
 	}.duplicate(true)
 
 
@@ -237,6 +254,13 @@ func audit() -> Dictionary:
 		"evidence_scope": EVIDENCE_SCOPE,
 		"evidence_references": evidence_references.duplicate(),
 		"evidence_notes": evidence_notes,
+		"evidence": {
+			"content_class": CONTENT_CLASS,
+			"status": EVIDENCE_STATUS,
+			"scope": EVIDENCE_SCOPE,
+			"references": evidence_references.duplicate(),
+			"notes": evidence_notes,
+		},
 		"geometry": get_geometry_snapshot(),
 		"density": get_density_snapshot(),
 		"optics": get_optics_snapshot(),
@@ -252,11 +276,14 @@ func get_audit_report() -> Dictionary:
 
 
 func _validate_evidence_references(errors: PackedStringArray) -> void:
+	if evidence_references.size() > MAX_EVIDENCE_REFERENCES:
+		errors.append("evidence references must contain at most %d entries" % MAX_EVIDENCE_REFERENCES)
 	var seen := PackedStringArray()
 	for reference in evidence_references:
 		if reference.is_empty() or reference != reference.strip_edges() \
-				or reference.contains("\n") or reference.contains("\r"):
-			errors.append("evidence references must be non-empty, trimmed, and single-line")
+				or reference.contains("\n") or reference.contains("\r") \
+				or reference.length() > MAX_EVIDENCE_REFERENCE_LENGTH:
+			errors.append("evidence references must be non-empty, trimmed, single-line, and at most %d characters" % MAX_EVIDENCE_REFERENCE_LENGTH)
 		elif seen.has(reference):
 			errors.append("evidence reference '%s' is duplicated" % reference)
 		else:

@@ -1,6 +1,14 @@
 extends SceneTree
 
 const ProfileScript := preload("res://scripts/world/definitions/planetary_atmosphere_profile.gd")
+const COMMON_EVIDENCE_KEYS := [
+	"content_class", "status", "scope", "references", "notes",
+]
+const COMMON_AUTHORITY_KEYS := [
+	"renderer", "gameplay", "streaming", "save", "network", "physics",
+	"world_generation", "terrain_generation", "collision_generation",
+	"origin_shift", "weather_clock", "audio",
+]
 
 var _failures := PackedStringArray()
 
@@ -22,17 +30,19 @@ func _test_valid_profile_and_units() -> void:
 	_check(audit.unit_system == &"game_scale_si", "audit freezes the deterministic unit system")
 	_check(audit.content_class == &"NEW" and audit.evidence_status == &"modern_interpretation", "evidence rejects a recovered historical claim")
 	_check(audit.evidence_scope == &"game_scale_atmosphere_parameters", "evidence is scoped to atmosphere tuning data")
+	_check(_dictionary_has_exact_keys(audit.evidence as Dictionary, COMMON_EVIDENCE_KEYS), "nested evidence publishes exactly the five-key common core")
 	var geometry := audit.geometry as Dictionary
 	var density := audit.density as Dictionary
 	var optics := audit.optics as Dictionary
 	var weather := audit.weather as Dictionary
 	var entry := audit.entry_effects as Dictionary
 	var audio := audit.audio_hints as Dictionary
-	_check(geometry.planet_radius_m == 6_000.0 and geometry.reference_altitude_m == 0.0 and geometry.atmosphere_top_altitude_m == 1_200.0, "geometry snapshot uses explicit metre fields")
-	_check(density.reference_density_kg_m3 == 1.225 and density.density_scale_height_m == 240.0, "density snapshot uses kilograms per cubic metre and metres")
-	_check((optics.rayleigh_scattering_per_m as Color).b > 0.0 and optics.maximum_visibility_m == 2_000.0, "optics snapshot carries inverse-metre coefficients and metre visibility")
+	_check(geometry.planet_radius_m == 120_000.0 and geometry.reference_altitude_m == 0.0 and geometry.atmosphere_top_altitude_m == 20_000.0, "geometry snapshot uses the shared 120 km sea-level datum and composable atmosphere shell")
+	_check(profile.get_planet_radius_meters() == 120_000.0 and profile.get_atmosphere_top_altitude_meters() == 20_000.0, "canonical metre accessors preserve the existing abbreviated public fields")
+	_check(density.reference_density_kg_m3 == 1.225 and density.density_scale_height_m == 4_000.0, "density snapshot uses kilograms per cubic metre and metres")
+	_check((optics.rayleigh_scattering_per_m as Color).b > 0.0 and optics.maximum_visibility_m == 20_000.0, "optics snapshot carries inverse-metre coefficients and metre visibility")
 	_check(weather.wind_velocity_mps == Vector3(12.0, 0.0, -4.0) and weather.weather_intensity_unitless == 0.35, "weather snapshot separates metric wind from normalized intensity")
-	_check(entry.start_altitude_m == 1_000.0 and entry.full_altitude_m == 520.0 and entry.minimum_speed_mps == 160.0, "entry-effect thresholds expose altitude and speed units")
+	_check(entry.start_altitude_m == 18_000.0 and entry.full_altitude_m == 10_000.0 and entry.minimum_speed_mps == 160.0, "entry-effect thresholds expose altitude and speed units")
 	_check(audio.exterior_audio_profile_id == &"temperate_exterior" and audio.interior_attenuation_db == -18.0, "audio values remain stable hints with decibel units")
 
 
@@ -40,11 +50,22 @@ func _test_strict_bounds_and_relationships() -> void:
 	var invalid_id := _profile()
 	invalid_id.profile_id = &"Planet-Profile"
 	_check(_has_error(invalid_id.get_validation_errors(), "profile_id"), "profile identity rejects non-snake-case IDs")
+	var digit_id := _profile()
+	digit_id.profile_id = &"9atmosphere"
+	_check(_has_error(digit_id.get_validation_errors(), "profile_id"), "profile identity starts with a lowercase letter like world references")
+	var too_small := _profile()
+	too_small.planet_radius_m = ProfileScript.MIN_PLANET_RADIUS_M - 0.01
+	_check(_has_error(too_small.get_validation_errors(), "planet_radius_m"), "atmosphere radius shares terrain's 1 km minimum")
 
 	var invalid_evidence := _profile()
 	invalid_evidence.evidence_references = PackedStringArray(["source_a", "source_a", " padded"])
 	var evidence_errors := invalid_evidence.get_validation_errors()
 	_check(_has_error(evidence_errors, "duplicated") and _has_error(evidence_errors, "trimmed"), "evidence references reject duplicates and padded data")
+	var oversized_evidence := _profile()
+	oversized_evidence.evidence_references = PackedStringArray()
+	for index in ProfileScript.MAX_EVIDENCE_REFERENCES + 1:
+		oversized_evidence.evidence_references.append("source_%d" % index)
+	_check(_has_error(oversized_evidence.get_validation_errors(), "at most 32"), "evidence roster has the shared finite count ceiling")
 
 	var non_finite := _profile()
 	non_finite.planet_radius_m = NAN
@@ -65,7 +86,7 @@ func _test_strict_bounds_and_relationships() -> void:
 	_check(_has_error(range_errors, "exterior_wind_gain_db"), "audio hint gains remain bounded")
 
 	var invalid_layers := _profile()
-	invalid_layers.reference_altitude_m = 1_200.0
+	invalid_layers.reference_altitude_m = invalid_layers.atmosphere_top_altitude_m
 	invalid_layers.cloud_base_altitude_m = 800.0
 	invalid_layers.cloud_top_altitude_m = 700.0
 	invalid_layers.entry_effect_full_altitude_m = 1_050.0
@@ -85,6 +106,7 @@ func _test_strict_bounds_and_relationships() -> void:
 
 	var invalid_ceiling := _profile()
 	invalid_ceiling.planet_radius_m = 1_100.0
+	invalid_ceiling.atmosphere_top_altitude_m = 1_200.0
 	invalid_ceiling.cloud_top_altitude_m = 1_250.0
 	invalid_ceiling.entry_effect_start_altitude_m = 1_300.0
 	var ceiling_errors := invalid_ceiling.get_validation_errors()
@@ -112,7 +134,7 @@ func _test_detached_snapshots_and_zero_authority() -> void:
 	(audit.evidence_references as PackedStringArray).append("mutation")
 	(audit.authority as Dictionary)["renderer"] = true
 	var fresh := profile.get_audit_report()
-	_check((fresh.geometry as Dictionary).planet_radius_m == 6_000.0, "nested geometry audit data is detached")
+	_check((fresh.geometry as Dictionary).planet_radius_m == 120_000.0, "nested geometry audit data is detached")
 	_check((fresh.weather as Dictionary).cloud_coverage_unitless == 0.55, "nested weather audit data is detached")
 	_check(not (fresh.evidence_references as PackedStringArray).has("mutation"), "evidence arrays are detached")
 	_check(not bool((fresh.authority as Dictionary).renderer), "authority audit mutation cannot alter the profile")
@@ -122,9 +144,8 @@ func _test_detached_snapshots_and_zero_authority() -> void:
 	_check(profile.get_weather_snapshot().weather_intensity_unitless == 0.35, "public snapshots are detached from Resource state")
 
 	var authority := profile.get_authority_report()
-	var expected_keys := PackedStringArray(["renderer", "gameplay", "weather_clock", "save", "audio", "physics", "world_generation", "network"])
-	var all_zero := authority.size() == expected_keys.size()
-	for key in expected_keys:
+	var all_zero := _dictionary_has_exact_keys(authority, COMMON_AUTHORITY_KEYS)
+	for key in COMMON_AUTHORITY_KEYS:
 		all_zero = all_zero and authority.has(key) and authority[key] is bool and not bool(authority[key])
 	_check(all_zero, "profile explicitly owns zero renderer, gameplay, weather-clock, save, audio, physics, world-generation, or network authority")
 	_check(not profile.has_method("_process") and not profile.has_method("_physics_process"), "data profile has no frame or physics lifecycle")
@@ -158,6 +179,15 @@ func _has_error(errors: PackedStringArray, fragment: String) -> bool:
 		if error.contains(fragment):
 			return true
 	return false
+
+
+func _dictionary_has_exact_keys(candidate: Dictionary, expected: Array) -> bool:
+	if candidate.size() != expected.size():
+		return false
+	for key in expected:
+		if not candidate.has(key):
+			return false
+	return true
 
 
 func _check(condition: bool, description: String) -> void:
