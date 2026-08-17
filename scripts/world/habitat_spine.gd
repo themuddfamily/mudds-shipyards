@@ -34,19 +34,25 @@ const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
 
-## Component-local renderer freeze for the twelve childless floor-hatch
-## fasteners. Their parent hatches retain service-roster authority; the brass
-## fasteners have no collider, room, route, door, seat, readiness or evidence
-## role and retain every authored copy through one MultiMesh submission.
+## Component-local renderer freeze for two childless visual-only families. Their
+## parent hatches and nutrient tanks retain service/collision authority; the
+## brass fasteners and copper bands have no collider, room, route, door, seat,
+## readiness or evidence role and retain every authored copy through MultiMesh
+## submissions.
 const HATCH_FASTENER_RADIUS := 0.03
 const HATCH_FASTENER_HEIGHT := 0.025
 const HATCH_FASTENER_COPY_COUNT := 12
-const RENDER_DESCENDANT_COUNT := 1911
-const RENDER_MESH_INSTANCE_COUNT := 1263
-const RENDER_MULTIMESH_BATCH_COUNT := 12
+const NUTRIENT_TANK_BAND_INNER_RADIUS := 0.40
+const NUTRIENT_TANK_BAND_OUTER_RADIUS := 0.47
+const NUTRIENT_TANK_BAND_RINGS := 48
+const NUTRIENT_TANK_BAND_RING_SEGMENTS := 16
+const NUTRIENT_TANK_BAND_COPY_COUNT := 3
+const RENDER_DESCENDANT_COUNT := 1909
+const RENDER_MESH_INSTANCE_COUNT := 1260
+const RENDER_MULTIMESH_BATCH_COUNT := 13
 const RENDER_DRAWN_COPY_COUNT := 1400
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1275
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 359
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1273
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 357
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
 ## Which of the six berths are currently taken, in alcove order.
@@ -143,6 +149,9 @@ var _module_enabled := true
 var _hatch_fastener_mesh: Mesh
 var _hatch_fastener_batch: MultiMeshInstance3D
 var _hatch_fastener_transforms: Array[Transform3D] = []
+var _nutrient_tank_band_mesh: TorusMesh
+var _nutrient_tank_band_batch: MultiMeshInstance3D
+var _nutrient_tank_band_transforms: Array[Transform3D] = []
 
 
 func _ready() -> void:
@@ -423,6 +432,19 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("Habitat hatch-fastener culling bounds drifted from its authored copies")
 	if not bool(render.mesh_resource_matches_authored) or not bool(render.material_resource_matches_authored):
 		errors.append("Habitat hatch-fastener mesh or material identity drifted")
+	if not bool(render.nutrient_tank_band_renderer_buffer_matches_authored):
+		errors.append("Habitat nutrient-tank-band renderer buffer drifted from its authored transforms")
+	if not bool(render.nutrient_tank_band_bounds_match_authored):
+		errors.append("Habitat nutrient-tank-band culling bounds drifted from its authored copies")
+	if not bool(render.nutrient_tank_band_recipe_matches_authored):
+		errors.append("Habitat nutrient-tank-band TorusMesh recipe drifted")
+	if (
+		not bool(render.nutrient_tank_band_material_matches_authored)
+		or not bool(render.nutrient_tank_band_renderer_state_matches_authored)
+	):
+		errors.append("Habitat nutrient-tank-band material or renderer state drifted")
+	if not bool(render.nutrient_tank_band_authority_clean):
+		errors.append("Habitat nutrient-tank-band batch acquired semantic authority")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -683,6 +705,70 @@ func get_render_allocation_report() -> Dictionary:
 			)
 		mesh_matches = multi.mesh == _hatch_fastener_mesh
 		material_matches = _hatch_fastener_batch.material_override == _materials.get("brass")
+
+	var nutrient_expected_buffer := _encode_multimesh_transforms(
+		_nutrient_tank_band_transforms
+	)
+	var nutrient_buffer_matches := (
+		is_instance_valid(_nutrient_tank_band_batch)
+		and _nutrient_tank_band_batch.multimesh != null
+		and _nutrient_tank_band_batch.multimesh.buffer == nutrient_expected_buffer
+	)
+	var nutrient_bounds_match := false
+	var nutrient_recipe_matches := false
+	var nutrient_material_matches := false
+	var nutrient_renderer_state_matches := false
+	var nutrient_authority_clean := false
+	if (
+		is_instance_valid(_nutrient_tank_band_batch)
+		and _nutrient_tank_band_batch.multimesh != null
+	):
+		var nutrient_multi := _nutrient_tank_band_batch.multimesh
+		if nutrient_multi.mesh != null:
+			nutrient_bounds_match = nutrient_multi.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(
+					nutrient_multi.mesh.get_aabb(),
+					_nutrient_tank_band_transforms
+				)
+			)
+		var torus := nutrient_multi.mesh as TorusMesh
+		nutrient_recipe_matches = (
+			torus != null
+			and torus == _nutrient_tank_band_mesh
+			and is_equal_approx(torus.inner_radius, NUTRIENT_TANK_BAND_INNER_RADIUS)
+			and is_equal_approx(torus.outer_radius, NUTRIENT_TANK_BAND_OUTER_RADIUS)
+			and torus.rings == NUTRIENT_TANK_BAND_RINGS
+			and torus.ring_segments == NUTRIENT_TANK_BAND_RING_SEGMENTS
+			and torus.get_surface_count() == 1
+		)
+		nutrient_material_matches = (
+			_nutrient_tank_band_batch.material_override == _materials.get("copper")
+		)
+		nutrient_renderer_state_matches = (
+			nutrient_multi.instance_count == NUTRIENT_TANK_BAND_COPY_COUNT
+			and nutrient_multi.visible_instance_count == -1
+			and _nutrient_tank_band_batch.cast_shadow
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _nutrient_tank_band_batch.layers == 1
+			and _nutrient_tank_band_batch.visible
+		)
+		var allowed_metadata := {
+			&"visual_detail_only": true,
+			&"authored_source_name": true,
+			&"authored_instance_transforms": true,
+		}
+		var metadata_clean := true
+		for metadata_key in _nutrient_tank_band_batch.get_meta_list():
+			metadata_clean = metadata_clean and allowed_metadata.has(metadata_key)
+		nutrient_authority_clean = (
+			_nutrient_tank_band_batch.get_script() == null
+			and _nutrient_tank_band_batch.get_groups().is_empty()
+			and _nutrient_tank_band_batch.get_child_count() == 0
+			and metadata_clean
+			and bool(_nutrient_tank_band_batch.get_meta("visual_detail_only", false))
+			and StringName(_nutrient_tank_band_batch.get_meta("authored_source_name", &""))
+				== &"NutrientTankBand"
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -694,6 +780,7 @@ func get_render_allocation_report() -> Dictionary:
 		and material_resource_ids.size() == RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
 		and multimesh_resource_ids.size() == RENDER_MULTIMESH_BATCH_COUNT
 		and _hatch_fastener_transforms.size() == HATCH_FASTENER_COPY_COUNT
+		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
 	)
 	return {
 		"schema_version": 1,
@@ -711,8 +798,42 @@ func get_render_allocation_report() -> Dictionary:
 		"bounds_match_authored": bounds_match,
 		"mesh_resource_matches_authored": mesh_matches,
 		"material_resource_matches_authored": material_matches,
+		"nutrient_tank_band_legacy_mesh_instances": NUTRIENT_TANK_BAND_COPY_COUNT,
+		"nutrient_tank_band_mesh_instances": 0,
+		"nutrient_tank_band_legacy_multimesh_batches": 0,
+		"nutrient_tank_band_multimesh_batches": (
+			1 if is_instance_valid(_nutrient_tank_band_batch) else 0
+		),
+		"nutrient_tank_band_legacy_drawn_copies": NUTRIENT_TANK_BAND_COPY_COUNT,
+		"nutrient_tank_band_drawn_copies": _nutrient_tank_band_transforms.size(),
+		"nutrient_tank_band_legacy_submissions": NUTRIENT_TANK_BAND_COPY_COUNT,
+		"nutrient_tank_band_submissions": (
+			1
+			if is_instance_valid(_nutrient_tank_band_batch)
+			and _nutrient_tank_band_batch.multimesh != null
+			and _nutrient_tank_band_batch.multimesh.mesh != null
+			else 0
+		),
+		"nutrient_tank_band_legacy_mesh_resources": NUTRIENT_TANK_BAND_COPY_COUNT,
+		"nutrient_tank_band_mesh_resources": (
+			1
+			if is_instance_valid(_nutrient_tank_band_batch)
+			and _nutrient_tank_band_batch.multimesh != null
+			and _nutrient_tank_band_batch.multimesh.mesh != null
+			else 0
+		),
+		"nutrient_tank_band_renderer_buffer_floats": nutrient_expected_buffer.size(),
+		"nutrient_tank_band_renderer_buffer_matches_authored": nutrient_buffer_matches,
+		"nutrient_tank_band_bounds_match_authored": nutrient_bounds_match,
+		"nutrient_tank_band_recipe_matches_authored": nutrient_recipe_matches,
+		"nutrient_tank_band_material_matches_authored": nutrient_material_matches,
+		"nutrient_tank_band_renderer_state_matches_authored": nutrient_renderer_state_matches,
+		"nutrient_tank_band_authority_clean": nutrient_authority_clean,
 		"exact_counts": exact_counts,
 		"authored_hatch_fastener_transforms": _hatch_fastener_transforms.duplicate(),
+		"authored_nutrient_tank_band_transforms": (
+			_nutrient_tank_band_transforms.duplicate()
+		),
 	}
 
 
@@ -1865,13 +1986,29 @@ func _build_garden_service(branch: Node3D) -> void:
 	_box(service, "PottingBinLid", Vector3(14.10, 0.70, 14.96), Vector3(0.48, 0.04, 0.48), _materials["structural"], false)
 
 	# Nutrient tanks against the forward wall, whose inner face is z = 25.80.
+	_nutrient_tank_band_mesh = TorusMesh.new()
+	_nutrient_tank_band_mesh.inner_radius = NUTRIENT_TANK_BAND_INNER_RADIUS
+	_nutrient_tank_band_mesh.outer_radius = NUTRIENT_TANK_BAND_OUTER_RADIUS
+	_nutrient_tank_band_mesh.rings = NUTRIENT_TANK_BAND_RINGS
+	_nutrient_tank_band_mesh.ring_segments = NUTRIENT_TANK_BAND_RING_SEGMENTS
+	_nutrient_tank_band_transforms.clear()
 	for tank_index in 3:
 		var tank_x := 12.30 + float(tank_index) * 1.00
 		_cylinder(service, "NutrientTank", Vector3(tank_x, 0.82, 25.34), 0.40, 1.64, _materials["steel_bright"], true)
 		_cylinder(service, "NutrientTankCap", Vector3(tank_x, 1.70, 25.34), 0.30, 0.14, _materials["graphite"], false)
-		_torus(service, "NutrientTankBand", Vector3(tank_x, 1.16, 25.34), 0.40, 0.47, _materials["copper"])
+		_nutrient_tank_band_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(tank_x, 1.16, 25.34))
+		)
 		_box(service, "NutrientTankGauge", Vector3(tank_x - 0.02, 1.06, 24.99), Vector3(0.16, 0.42, 0.05), _materials["teal"], false)
 		_beam_between(service, "NutrientRiser", Vector3(tank_x, 1.62, 25.34), Vector3(tank_x, 2.52, 25.34), 0.05, _materials["copper"], false)
+	_nutrient_tank_band_batch = _multimesh_visual_stock(
+		service,
+		"NutrientTankBands",
+		_nutrient_tank_band_mesh,
+		_materials["copper"],
+		_nutrient_tank_band_transforms,
+		&"NutrientTankBand"
+	)
 	_beam_between(service, "NutrientManifold", Vector3(12.10, 2.52, 25.34), Vector3(14.50, 2.52, 25.34), 0.07, _materials["copper"], false)
 	# Runs into the column sleeve at 20.55 rather than stopping at 21.20, where its
 	# inboard end was a copper pipe finishing in mid-air over the planting bed.
