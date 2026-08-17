@@ -1,0 +1,105 @@
+[gd_scene load_steps=10 format=3 uid="uid://dtembermoonworld"]
+
+[ext_resource type="Script" path="res://scripts/world/ember_moon_authored_scene.gd" id="1_scene"]
+
+[sub_resource type="StandardMaterial3D" id="Material_body"]
+shading_mode = 0
+albedo_color = Color(0.333333, 0.156863, 0.0901961, 1)
+roughness = 1.0
+
+[sub_resource type="SphereMesh" id="Sphere_body"]
+material = SubResource("Material_body")
+radius = 119999.0
+height = 239998.0
+radial_segments = 64
+rings = 32
+
+[sub_resource type="StandardMaterial3D" id="Material_floor"]
+shading_mode = 0
+albedo_color = Color(0.160784, 0.141176, 0.129412, 1)
+roughness = 1.0
+
+[sub_resource type="CylinderMesh" id="Cylinder_floor"]
+material = SubResource("Material_floor")
+top_radius = 256.0
+bottom_radius = 256.0
+height = 2.0
+radial_segments = 64
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Material_rim"]
+shading_mode = 0
+albedo_color = Color(0.443137, 0.227451, 0.145098, 1)
+roughness = 1.0
+
+[sub_resource type="TorusMesh" id="Torus_rim"]
+material = SubResource("Material_rim")
+inner_radius = 240.0
+outer_radius = 280.0
+rings = 64
+ring_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="Material_pad"]
+shading_mode = 0
+albedo_color = Color(0.658824, 0.372549, 0.196078, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="Box_pad"]
+material = SubResource("Material_pad")
+size = Vector3(28, 0.04, 32)
+
+[sub_resource type="BoxShape3D" id="BoxShape_walkable"]
+size = Vector3(96, 0.5, 96)
+
+[node name="EmberMoon" type="Node3D"]
+script = ExtResource("1_scene")
+
+[node name="BodyVisual" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Sphere_body")
+material_override = SubResource("Material_body")
+
+[node name="LandingRegion" type="Node3D" parent="."]
+position = Vector3(0, 120000, 0)
+
+[node name="CalderaFloor" type="MeshInstance3D" parent="LandingRegion"]
+position = Vector3(0, -1, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Cylinder_floor")
+material_override = SubResource("Material_floor")
+
+[node name="CalderaRim" type="MeshInstance3D" parent="LandingRegion"]
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Torus_rim")
+material_override = SubResource("Material_rim")
+
+[node name="PadVisual" type="MeshInstance3D" parent="LandingRegion"]
+position = Vector3(0, 0.02, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_pad")
+material_override = SubResource("Material_pad")
+
+[node name="WalkablePatch" type="StaticBody3D" parent="LandingRegion"]
+position = Vector3(0, -0.25, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LandingRegion/WalkablePatch"]
+shape = SubResource("BoxShape_walkable")
+
+[node name="Markers" type="Node3D" parent="LandingRegion"]
+
+[node name="CalderaPad" type="Marker3D" parent="LandingRegion/Markers"]
+
+[node name="ApproachEntry" type="Marker3D" parent="LandingRegion/Markers"]
+position = Vector3(0, 60, 300)
+
+[node name="PadEgress" type="Marker3D" parent="LandingRegion/Markers"]
+position = Vector3(18, 0, 0)
+
+[node name="StagingGate" type="Marker3D" parent="LandingRegion/Markers"]
+position = Vector3(42, 0, 0)

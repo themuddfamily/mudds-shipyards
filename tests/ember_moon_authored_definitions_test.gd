@@ -74,8 +74,10 @@ func _test_authored_resources_load_and_validate() -> void:
 		"the authored definitions grant no renderer, generation, streaming, landing, or gameplay authority",
 	)
 	_check(
-		world.scene_path == RESERVED_SCENE_PATH and not ResourceLoader.exists(RESERVED_SCENE_PATH),
-		"the future scene path is reserved but no scene is placed or loadable in this slice",
+		world.scene_path == RESERVED_SCENE_PATH
+			and ResourceLoader.exists(RESERVED_SCENE_PATH)
+			and ResourceLoader.load(RESERVED_SCENE_PATH) is PackedScene,
+		"the exact scene reference resolves without the definition placing or loading an instance",
 	)
 
 

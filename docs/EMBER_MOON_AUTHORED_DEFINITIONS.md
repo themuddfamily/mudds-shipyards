@@ -20,9 +20,9 @@ persist state.
 - Atmosphere: absent. The world has `has_atmosphere=false`, an empty atmosphere
   ID, and composes only when the resolved atmosphere input is null.
 
-The world reserves `res://scenes/world/planets/ember_moon.tscn` as a future
-scene reference. That scene is not part of this slice and is not placed or
-loaded. The definition validates only the reference syntax.
+The world scene reference resolves to the standalone authored
+`res://scenes/world/planets/ember_moon.tscn`. The Resource still neither places,
+streams, nor loads that scene; production composition remains deferred.
 
 ## Evidence and visual boundary
 
@@ -47,5 +47,6 @@ a global terrain, circumnavigation, atmosphere, settlements, NPCs, economy,
 cargo, missions, rewards, save, networking, or production-ready runtime.
 
 Focused verification loads the three Resources, proves both world/terrain and
-world/terrain/coordinate-frame/landing joins, checks the reserved scene remains
-unavailable, and round-trips detached copies through Godot Resource serialization.
+world/terrain/coordinate-frame/landing joins, checks the exact scene reference
+resolves without placing it, and round-trips detached copies through Godot
+Resource serialization.

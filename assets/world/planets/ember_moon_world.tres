@@ -24,4 +24,4 @@ terrain_definition_id = &"ember_basalt_terrain"
 landing_region_ids = PackedStringArray("ember_caldera")
 evidence_status = 3
 evidence_references = PackedStringArray("res://docs/EMBER_MOON_AUTHORED_DEFINITIONS.md")
-evidence_notes = "Original modern design for a bounded airless gameplay slice; the reserved scene is not authored, placed, streamed, or loaded by this definition."
+evidence_notes = "Original modern design for a bounded airless gameplay slice; its standalone scene is authored, but this definition does not place, stream, or load it."
