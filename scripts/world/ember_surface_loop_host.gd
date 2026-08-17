@@ -1,0 +1,1450 @@
+class_name EmberSurfaceLoopHost
+extends Node3D
+
+## Standalone production-actor composition for one complete Ember visit.
+##
+## The host has no automatic callback. A caller supplies the physics delta after
+## each real physics tick. Existing HeroShip, PlayerController, ShipBerth, and
+## ShipBoardingArea APIs own all actor movement and embodiment; this host only
+## validates current identities, selects a bounded ShipCommand mode, samples the
+## existing planetary contracts, and advances PlanetaryTravelSession.
+
+enum Phase {
+	IDLE,
+	ORBIT_APPROACH,
+	DESCENT,
+	SURFACE_APPROACH,
+	LANDING_APPROACH,
+	LANDED,
+	DISEMBARKING,
+	SURFACE_OUTBOUND,
+	ON_FOOT,
+	BOARDING,
+	REBOARDED,
+	TAKEOFF,
+	ASCENT,
+	ORBIT_RETURN,
+	COMPLETED,
+	FAILED,
+}
+
+const SCHEMA_VERSION := 1
+const HOST_ID: StringName = &"ember_surface_loop"
+const WORLD_ID: StringName = &"ember_moon"
+const BODY_ID: StringName = &"ember_body"
+const REGION_ID: StringName = &"ember_caldera"
+const TERRAIN_PROFILE_ID: StringName = &"ember_basalt_terrain"
+const ORBITAL_FRAME_ID: StringName = &"nearby_sector_orbital"
+const SHIP_DEFINITION_ID: StringName = &"arrow_provisional"
+const LOCATION_GENERATION_META: StringName = &"world_location_generation"
+const LOCATION_ID_META: StringName = &"world_location_id"
+
+const WORLD_PATH := "res://assets/world/planets/ember_moon_world.tres"
+const TERRAIN_PATH := "res://assets/world/planets/ember_basalt_terrain.tres"
+const REGION_PATH := "res://assets/world/planets/ember_caldera_landing_region.tres"
+const AUTHORED_SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
+const ARROW_SCENE_PATH := "res://scenes/ships/arrow_recon_ship.tscn"
+const PLAYER_SCENE_PATH := "res://scenes/player/player.tscn"
+const EVIDENCE_PATH := "res://docs/EMBER_SURFACE_LOOP_HOST.md"
+
+const APPROACH_ENTRY_REGION_LOCAL_M := Vector3(0.0, 60.0, 300.0)
+const SURFACE_CLEAR_ALTITUDE_M := 15.0
+const ORBIT_RETURN_ALTITUDE_M := 20_000.0
+const APPROACH_BRAKE_Z_M := 45.0
+const APPROACH_HANDOFF_MAXIMUM_SPEED_MPS := 1.0
+const ROUTE_ANCHOR_RADIUS_M := 1.35
+const MAX_CALLER_DELTA_SECONDS := PlanetaryTravelSession.MAX_CALLER_PHYSICS_DELTA_SECONDS
+
+const OWNED_CAPABILITY_KEYS := [
+	"caller_physics_session_clock",
+	"travel_session_composition",
+	"landing_composition_validation",
+	"surface_gravity_multiplier_composition",
+	"bounded_ship_command_transport",
+	"berth_lease_orchestration",
+	"boarding_lifecycle_orchestration",
+	"dependency_failure",
+]
+const ADJACENT_AUTHORITY_KEYS := [
+	"main", "game_flow", "production_streaming_cadence", "input_map",
+	"ship_physics", "ship_collision", "player_physics", "player_collision",
+	"combat_damage", "reward", "save", "network", "global_terrain",
+	"terrain_generation", "collision_generation", "origin_shift", "activity",
+	"hud", "audio",
+]
+
+const _WORLD: PlanetaryWorldDefinition = preload(WORLD_PATH)
+const _TERRAIN: PlanetaryTerrainProfile = preload(TERRAIN_PATH)
+const _REGION: PlanetaryLandingRegionDefinition = preload(REGION_PATH)
+
+var _phase := Phase.IDLE
+var _generation := 0
+var _attachment_generation := 0
+var _attached := false
+var _bound_once := false
+var _mutation_active := false
+var _pending_failure_reason: StringName = &""
+var _configuration_error: StringName = &""
+var _terminal_reason: StringName = &""
+var _location_generation := 0
+var _coordinate_frame_generation := 0
+var _elapsed_seconds := 0.0
+var _phase_elapsed_seconds := 0.0
+var _transition_count := 0
+var _physics_advance_count := 0
+var _gravity_sample_count := 0
+var _gravity_application_count := 0
+var _surface_route_outbound_complete := false
+var _surface_route_return_complete := false
+var _return_departed_staging := false
+var _disembark_requested := false
+var _takeoff_requested := false
+var _landing_completed_observed := false
+var _landing_aborted_reason: StringName = &""
+var _disembarking_completed_observed := false
+var _boarding_completed_observed := false
+var _surface_clear_submitted := false
+var _last_gravity_sample: Dictionary = {}
+var _last_result: Dictionary = {}
+var _berth_token: StringName = &""
+var _source_generation := 0
+var _loaded_scene_instance_id := 0
+var _ship_instance_id := 0
+var _player_instance_id := 0
+
+var _bootstrap: EmberMoonStreamingBootstrap
+var _scene: EmberMoonAuthoredScene
+var _berth: EmberSurfaceBerth
+var _ship: ArrowReconShip
+var _player: PlayerController
+var _boarding_area: ShipBoardingArea
+var _walkable_body: StaticBody3D
+var _landing_root: Node3D
+var _frame: PlanetaryCoordinateFrame
+var _session: PlanetaryTravelSession
+var _gravity_policy: PlanetarySurfaceGravityPolicy
+var _command_source: EmberSurfaceLoopCommandSource
+var _original_command_source: ShipCommandSource
+var _world_report: Dictionary = {}
+var _landing_report: Dictionary = {}
+var _landing_identity: Dictionary = {}
+var _ship_collision_bounds := AABB()
+var _original_ship_piloted := false
+var _original_player_control_enabled := false
+var _original_player_gravity_multiplier := 1.0
+var _original_player_camera_current := false
+var _reference_tangent_basis_body := Basis.IDENTITY
+var _host_acquired_boarding_reservation := false
+var _runtime_bindings_restored := false
+var _connections: Array[Dictionary] = []
+
+
+func _ready() -> void:
+	set_process(false)
+	set_physics_process(false)
+
+
+func bind_dependencies(
+	bootstrap: EmberMoonStreamingBootstrap,
+	berth: EmberSurfaceBerth,
+	ship: ArrowReconShip,
+	player: PlayerController,
+	reference_surface_gravity_mps2: float,
+	location_generation: int,
+	expected_generation: int = 0,
+	expected_attachment_generation: int = 0
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	if expected_generation != _generation:
+		return _finish(false, &"stale_generation")
+	if expected_attachment_generation != _attachment_generation:
+		return _finish(false, &"stale_attachment_generation")
+	if _bound_once:
+		return _finish(false, &"single_use_host")
+	var validation := _validate_dependencies(
+		bootstrap, berth, ship, player,
+		reference_surface_gravity_mps2, location_generation
+	)
+	if not bool(validation.get("accepted", false)):
+		_configuration_error = validation.get("reason", &"invalid_configuration") as StringName
+		return _finish(false, _configuration_error)
+
+	_bootstrap = bootstrap
+	_scene = validation.scene as EmberMoonAuthoredScene
+	_berth = berth
+	_ship = ship
+	_player = player
+	_boarding_area = validation.boarding_area as ShipBoardingArea
+	_landing_root = validation.landing_root as Node3D
+	_walkable_body = validation.walkable_body as StaticBody3D
+	_frame = validation.frame as PlanetaryCoordinateFrame
+	_location_generation = location_generation
+	_coordinate_frame_generation = _frame.get_generation()
+	_loaded_scene_instance_id = _scene.get_instance_id()
+	_ship_instance_id = _ship.get_instance_id()
+	_player_instance_id = _player.get_instance_id()
+	_world_report = (validation.world_report as Dictionary).duplicate(true)
+	_landing_report = (validation.landing_report as Dictionary).duplicate(true)
+	_landing_identity = {
+		"world_id": WORLD_ID,
+		"body_id": BODY_ID,
+		"region_id": REGION_ID,
+		"terrain_profile_id": TERRAIN_PROFILE_ID,
+	}.duplicate(true)
+	_gravity_policy = validation.gravity_policy as PlanetarySurfaceGravityPolicy
+	_reference_tangent_basis_body = validation.reference_tangent_basis_body as Basis
+	_ship_collision_bounds = validation.ship_collision_bounds as AABB
+	_original_command_source = _ship.get_command_source()
+	_original_ship_piloted = _ship.is_piloted()
+	_original_player_control_enabled = _player.is_control_enabled()
+	_original_player_gravity_multiplier = _player.gravity_multiplier
+	_original_player_camera_current = _player.get_camera().current
+	# The fixture transfers its exact seated Player reservation to this host for
+	# the bounded loop lifetime; cleanup therefore never leaves an orphan token.
+	_host_acquired_boarding_reservation = true
+
+	_command_source = EmberSurfaceLoopCommandSource.new()
+	_command_source.name = "EmberSurfaceLoopCommandSource"
+	add_child(_command_source)
+	var source_attach := _command_source.attach(0)
+	if not bool(source_attach.get("accepted", false)):
+		_configuration_error = &"command_source_attach_failed"
+		_release_leases()
+		_restore_runtime_bindings()
+		return _finish(false, _configuration_error)
+	_source_generation = _command_source.get_generation()
+	_ship.set_command_source(_command_source)
+
+	_session = PlanetaryTravelSession.new(
+		HOST_ID,
+		_WORLD.duplicate(true) as PlanetaryWorldDefinition,
+		_frame,
+		_world_report
+	)
+	if not _session.is_configuration_valid():
+		_configuration_error = &"travel_session_configuration_failed"
+		_release_leases()
+		_restore_runtime_bindings()
+		return _finish(false, _configuration_error)
+	var session_attach := _session.attach(
+		WORLD_ID, _frame, _coordinate_frame_generation, 0, 0
+	)
+	if not bool(session_attach.get("accepted", false)):
+		_configuration_error = &"travel_session_attach_failed"
+		_release_leases()
+		_restore_runtime_bindings()
+		return _finish(false, _configuration_error)
+
+	_connect_dependency_signals()
+	_attachment_generation = _session.get_attachment_generation()
+	_attached = true
+	_bound_once = true
+	_configuration_error = &""
+	return _finish(true, &"bound")
+
+
+func start(
+	expected_generation: int,
+	expected_attachment_generation: int,
+	expected_coordinate_frame_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _token_rejection(
+		expected_generation,
+		expected_attachment_generation,
+		expected_coordinate_frame_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if _phase != Phase.IDLE:
+		return _finish(false, &"already_started")
+	if not _initial_fixture_is_exact():
+		return _finish(false, &"initial_fixture_mismatch")
+	var bound := _session.bind_landing_composition_report(
+		_landing_report, 0, _attachment_generation
+	)
+	if not bool(bound.get("accepted", false)):
+		return _commit_failure(&"landing_composition_bind_failed")
+	var started := _session.start(0, _attachment_generation)
+	if not bool(started.get("accepted", false)):
+		return _commit_failure(&"travel_session_start_failed")
+	_generation = _session.get_generation()
+	_command_source.set_mode(
+		EmberSurfaceLoopCommandSource.Mode.APPROACH, _source_generation
+	)
+	_set_phase(Phase.ORBIT_APPROACH)
+	return _finish(true, &"started")
+
+
+## Call exactly once after each real physics tick with that tick's delta.
+func advance_physics(
+	delta: float,
+	expected_generation: int,
+	expected_attachment_generation: int,
+	expected_coordinate_frame_generation: int,
+	expected_location_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _token_rejection(
+		expected_generation,
+		expected_attachment_generation,
+		expected_coordinate_frame_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if expected_location_generation != _location_generation:
+		return _finish(false, &"stale_location_generation")
+	if _phase in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED]:
+		return _finish(false, &"not_running")
+	if not is_finite(delta) or delta < 0.0 or delta > MAX_CALLER_DELTA_SECONDS:
+		return _finish(false, &"invalid_delta")
+	var dependency_failure := _dependency_failure_reason()
+	if not dependency_failure.is_empty():
+		return _commit_failure(dependency_failure)
+	if not _pending_failure_reason.is_empty():
+		var pending := _pending_failure_reason
+		_pending_failure_reason = &""
+		return _commit_failure(pending)
+	if is_zero_approx(delta):
+		return _finish(true, &"no_delta")
+	var clock := _session.advance_physics(delta, _generation, _session.get_attachment_generation())
+	if not bool(clock.get("accepted", false)):
+		return _commit_failure(&"travel_clock_desynchronized")
+	_elapsed_seconds += delta
+	_phase_elapsed_seconds += delta
+	_physics_advance_count += 1
+	var gravity := _sample_and_compose_gravity()
+	if not bool(gravity.get("accepted", false)):
+		return _commit_failure(gravity.get("reason", &"gravity_sample_rejected") as StringName)
+	var phase_result := _advance_phase()
+	if not _pending_failure_reason.is_empty():
+		var pending_after_phase := _pending_failure_reason
+		_pending_failure_reason = &""
+		return _commit_failure(pending_after_phase)
+	if not bool(phase_result.get("accepted", false)):
+		return _commit_failure(phase_result.get("reason", &"phase_advance_failed") as StringName)
+	return _finish(true, phase_result.get("reason", &"advanced") as StringName)
+
+
+func request_disembark(
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	return _queue_intent(
+		&"disembark", Phase.LANDED,
+		expected_generation, expected_attachment_generation
+	)
+
+
+func request_reboard(
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if _phase != Phase.ON_FOOT or not _surface_route_return_complete:
+		return _finish(false, &"return_route_incomplete")
+	if not _player_near_boarding_area():
+		return _finish(false, &"boarding_area_not_reached")
+	if not _boarding_area.try_reserve(_player):
+		return _finish(false, &"boarding_reservation_unavailable")
+	_host_acquired_boarding_reservation = true
+	_player.set_control_enabled(false)
+	_ship.set_canopy_open(true, 0.0)
+	if not _player.begin_boarding(
+		_ship.get_boarding_entry_transform(),
+		_ship.get_pilot_seat_anchor(),
+		0.6,
+		_ship
+	):
+		_boarding_area.release_reservation(_player)
+		_host_acquired_boarding_reservation = false
+		_player.set_control_enabled(true)
+		return _finish(false, &"boarding_rejected")
+	_boarding_completed_observed = false
+	_set_phase(Phase.BOARDING)
+	return _finish(true, &"boarding_started")
+
+
+func request_takeoff(
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	return _queue_intent(
+		&"takeoff", Phase.REBOARDED,
+		expected_generation, expected_attachment_generation
+	)
+
+
+func detach(
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	if expected_generation != _generation:
+		return _finish(false, &"stale_generation")
+	if expected_attachment_generation != _attachment_generation:
+		return _finish(false, &"stale_attachment_generation")
+	if not _attached:
+		return _finish(false, &"not_attached")
+	var recover_embodiment := _phase in [Phase.DISEMBARKING, Phase.BOARDING]
+	if _phase not in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED] and _session != null:
+		_terminal_reason = &"host_detached"
+		_set_phase(Phase.FAILED)
+		_session.fail(&"host_detached", _generation, _session.get_attachment_generation())
+	_release_leases()
+	_disconnect_dependency_signals()
+	_restore_runtime_bindings(recover_embodiment)
+	_session.detach(_generation, _session.get_attachment_generation())
+	_attached = false
+	_attachment_generation += 1
+	return _finish(true, &"detached")
+
+
+func get_generation() -> int:
+	return _generation
+
+
+func get_attachment_generation() -> int:
+	return _attachment_generation
+
+
+func get_phase() -> int:
+	return _phase
+
+
+func get_snapshot() -> Dictionary:
+	var bootstrap_snapshot := _bootstrap.get_snapshot() \
+		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}
+	var ship_position := _ship.global_position if is_instance_valid(_ship) else Vector3.ZERO
+	var player_position := _player.global_position if is_instance_valid(_player) else Vector3.ZERO
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"host_id": HOST_ID,
+		"attached": _attached,
+		"phase": _phase,
+		"phase_id": _phase_id(_phase),
+		"generation": _generation,
+		"attachment_generation": _attachment_generation,
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"location_generation": _location_generation,
+		"elapsed_seconds": _elapsed_seconds,
+		"phase_elapsed_seconds": _phase_elapsed_seconds,
+		"transition_count": _transition_count,
+		"physics_advance_count": _physics_advance_count,
+		"configuration_error": _configuration_error,
+		"terminal_reason": _terminal_reason,
+		"identities": {
+			"world_id": WORLD_ID,
+			"body_id": BODY_ID,
+			"region_id": REGION_ID,
+			"terrain_profile_id": TERRAIN_PROFILE_ID,
+			"orbital_frame_id": ORBITAL_FRAME_ID,
+			"ship_definition_id": SHIP_DEFINITION_ID,
+			"loaded_scene_instance_id": _loaded_scene_instance_id,
+			"ship_instance_id": _ship_instance_id,
+			"player_instance_id": _player_instance_id,
+			"bootstrap_instance_id": _bootstrap.get_instance_id() if is_instance_valid(_bootstrap) else 0,
+		},
+		"resources": {
+			"world": WORLD_PATH,
+			"terrain": TERRAIN_PATH,
+			"landing_region": REGION_PATH,
+			"authored_scene": AUTHORED_SCENE_PATH,
+			"ship_scene": ARROW_SCENE_PATH,
+			"player_scene": PLAYER_SCENE_PATH,
+		},
+		"actor_state": {
+			"ship_position": ship_position,
+			"player_position": player_position,
+			"ship_telemetry": _ship.get_telemetry() if is_instance_valid(_ship) else {},
+			"player_seated": _player.is_seated() if is_instance_valid(_player) else false,
+			"player_control_enabled": _player.is_control_enabled() if is_instance_valid(_player) else false,
+			"host_transform_writes": 0,
+			"host_velocity_writes": 0,
+			"host_move_and_collide_calls": 0,
+			"host_reparent_calls": 0,
+		},
+		"surface_route": {
+			"outbound_complete": _surface_route_outbound_complete,
+			"return_complete": _surface_route_return_complete,
+			"coordinate_space": &"gravity_policy_reference_tangent",
+			"reference_tangent_basis_body_local": _reference_tangent_basis_body,
+			"live_landing_basis_world": _landing_root.global_basis \
+				if _node_is_current(_landing_root) else Basis.IDENTITY,
+			"walkable_body_instance_id": _walkable_body.get_instance_id() \
+				if _node_is_current(_walkable_body) else 0,
+			"egress_anchor": _region_local_to_world(_REGION.surface_route_anchor_positions_region_local_m[0]),
+			"staging_anchor": _region_local_to_world(_REGION.surface_route_anchor_positions_region_local_m[1]),
+		},
+		"gravity": {
+			"sample_count": _gravity_sample_count,
+			"application_count": _gravity_application_count,
+			"last_sample": _last_gravity_sample.duplicate(true),
+			"policy": _gravity_policy.get_snapshot() if _gravity_policy != null else {},
+			"application": &"player_public_gravity_multiplier_tangent_projection",
+		},
+		"berth": _berth.audit() if is_instance_valid(_berth) else {},
+		"boarding_reserved_for_player": _boarding_area.get_reservation_token() == _player \
+			if is_instance_valid(_boarding_area) and is_instance_valid(_player) else false,
+		"command_source": _command_source.get_snapshot() if is_instance_valid(_command_source) else {},
+		"travel_session": _session.get_presentation_snapshot() if _session != null else {},
+		"world_composition": _world_report.duplicate(true),
+		"landing_composition": _landing_report.duplicate(true),
+		"bootstrap": bootstrap_snapshot,
+		"owned_capabilities": _owned_capabilities(),
+		"adjacent_authority": _adjacent_authority(),
+	}.duplicate(true)
+
+
+func audit() -> Dictionary:
+	var errors := PackedStringArray()
+	if not _configuration_error.is_empty():
+		errors.append("configuration failed: %s" % _configuration_error)
+	if _attached and _phase not in [Phase.COMPLETED, Phase.FAILED] \
+			and not _dependency_failure_reason().is_empty():
+		errors.append("an attached dependency is no longer current")
+	if _session != null and not bool(_session.audit().get("valid", false)):
+		errors.append("travel session contract is invalid")
+	if _gravity_policy != null and not bool(_gravity_policy.audit().get("valid", false)):
+		errors.append("surface gravity policy is invalid")
+	if is_processing() or is_physics_processing():
+		errors.append("host gained an automatic callback")
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"snapshot": get_snapshot(),
+		"clock": {
+			"source": &"caller_physics_delta_after_real_actor_tick",
+			"maximum_delta_seconds": MAX_CALLER_DELTA_SECONDS,
+			"automatic_host_process": false,
+		},
+		"evidence": {
+			"content_class": &"NEW",
+			"status": &"modern_interpretation",
+			"scope": &"standalone_ember_surface_loop",
+			"references": PackedStringArray([EVIDENCE_PATH]),
+			"notes": "Public production actors and existing Ember contracts; no historical behavior claim.",
+		},
+		"owned_capabilities": _owned_capabilities(),
+		"adjacent_authority": _adjacent_authority(),
+	}.duplicate(true)
+
+
+func _advance_phase() -> Dictionary:
+	match _phase:
+		Phase.ORBIT_APPROACH:
+			return _advance_orbit_approach()
+		Phase.DESCENT:
+			return _advance_descent()
+		Phase.SURFACE_APPROACH:
+			return _advance_surface_approach()
+		Phase.LANDING_APPROACH:
+			return _advance_landing_approach()
+		Phase.LANDED:
+			return _begin_disembark_if_ready()
+		Phase.DISEMBARKING:
+			return _advance_disembarking()
+		Phase.SURFACE_OUTBOUND:
+			return _advance_surface_outbound()
+		Phase.ON_FOOT:
+			return _advance_surface_return_observation()
+		Phase.BOARDING:
+			return _advance_boarding()
+		Phase.REBOARDED:
+			return _begin_takeoff_if_requested()
+		Phase.TAKEOFF:
+			return _advance_takeoff()
+		Phase.ASCENT:
+			return _advance_ascent()
+		Phase.ORBIT_RETURN:
+			return _complete_orbit_return()
+		_:
+			return {"accepted": false, "reason": &"invalid_phase"}
+
+
+func _advance_orbit_approach() -> Dictionary:
+	if bool(_ship.get_telemetry().get("landed", true)):
+		return {"accepted": true, "reason": &"awaiting_production_departure"}
+	var observation := _travel_observation()
+	if not bool(observation.get("accepted", false)):
+		return {"accepted": false, "reason": &"orbit_observation_rejected"}
+	var result := _session.submit_orbit_approach_sample(
+		true,
+		observation.orbital_coordinate as Dictionary,
+		float(observation.speed_meters_per_second),
+		_coordinate_frame_generation,
+		_generation,
+		_session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"descent":
+		return {"accepted": false, "reason": &"orbit_approach_desynchronized"}
+	_set_phase(Phase.DESCENT)
+	return {"accepted": true, "reason": &"orbit_approach_complete"}
+
+
+func _advance_descent() -> Dictionary:
+	var observation := _travel_observation()
+	if not bool(observation.get("accepted", false)):
+		return {"accepted": false, "reason": &"descent_observation_rejected"}
+	var result := _session.submit_descent_sample(
+		observation.orbital_coordinate as Dictionary,
+		float(observation.speed_meters_per_second),
+		_coordinate_frame_generation,
+		_generation,
+		_session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"surface_flight":
+		return {"accepted": false, "reason": &"descent_desynchronized"}
+	_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.APPROACH, _source_generation)
+	_set_phase(Phase.SURFACE_APPROACH)
+	return {"accepted": true, "reason": &"surface_approach_started"}
+
+
+func _advance_surface_approach() -> Dictionary:
+	var relative := _ship.global_position - _berth.global_position
+	if relative.z > APPROACH_BRAKE_Z_M:
+		return {"accepted": true, "reason": &"production_approach_in_progress"}
+	_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.BRAKE, _source_generation)
+	if _ship.velocity.length() > APPROACH_HANDOFF_MAXIMUM_SPEED_MPS:
+		return {"accepted": true, "reason": &"production_approach_braking"}
+	var definition := _ship.get_ship_definition()
+	_berth_token = _berth.try_reserve(_ship, definition)
+	if _berth_token.is_empty() \
+			or not _berth.has_valid_lease(_ship, _berth_token, definition.ship_id):
+		return {"accepted": false, "reason": &"berth_reservation_rejected"}
+	if not _ship.request_berth_landing(_berth):
+		return {"accepted": false, "reason": &"production_landing_rejected"}
+	_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.NEUTRAL, _source_generation)
+	_landing_completed_observed = false
+	_landing_aborted_reason = &""
+	_set_phase(Phase.LANDING_APPROACH)
+	return {"accepted": true, "reason": &"production_landing_started"}
+
+
+func _advance_landing_approach() -> Dictionary:
+	if not _landing_aborted_reason.is_empty():
+		return {"accepted": false, "reason": StringName("landing_%s" % _landing_aborted_reason)}
+	if not _landing_completed_observed:
+		if not _ship.is_landing_active() and not bool(_ship.get_telemetry().get("landed", false)):
+			return {"accepted": false, "reason": &"landing_ended_without_completion"}
+		return {"accepted": true, "reason": &"production_landing_in_progress"}
+	if not _landed_public_state_is_exact():
+		return {"accepted": false, "reason": &"landed_public_state_mismatch"}
+	var result := _session.submit_landing_sample(
+		true, _landing_identity, _generation, _session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"landed":
+		return {"accepted": false, "reason": &"landing_desynchronized"}
+	_set_phase(Phase.LANDED)
+	return {"accepted": true, "reason": &"landed"}
+
+
+func _begin_disembark_if_ready() -> Dictionary:
+	if not _disembark_requested:
+		return {"accepted": true, "reason": &"awaiting_disembark_request"}
+	if str(_ship.get_telemetry().get("engine_state", "ONLINE")) != "OFFLINE":
+		return {"accepted": true, "reason": &"awaiting_engine_offline"}
+	if not _landed_public_state_is_exact() or not _player.is_seated() \
+			or _boarding_area.get_reservation_token() != _player:
+		return {"accepted": false, "reason": &"disembark_public_state_mismatch"}
+	_disembark_requested = false
+	_ship.set_canopy_open(true, 0.0)
+	_ship.set_piloted(false)
+	_player.set_camera_active(true)
+	if not _player.begin_disembark(_ship.get_exit_transform(), 0.6, _ship):
+		return {"accepted": false, "reason": &"disembark_rejected"}
+	_disembarking_completed_observed = false
+	_set_phase(Phase.DISEMBARKING)
+	return {"accepted": true, "reason": &"disembark_started"}
+
+
+func _advance_disembarking() -> Dictionary:
+	if not _disembarking_completed_observed:
+		return {"accepted": true, "reason": &"disembark_in_progress"}
+	if _player.is_seated() or _player.collision_layer == 0 \
+			or not bool(_ship.get_telemetry().get("landed", false)):
+		return {"accepted": false, "reason": &"disembark_public_state_mismatch"}
+	if not _boarding_area.release_reservation(_player):
+		return {"accepted": false, "reason": &"boarding_reservation_release_failed"}
+	_host_acquired_boarding_reservation = false
+	_ship.set_canopy_open(false, 0.0)
+	_player.set_control_enabled(true)
+	var result := _session.submit_disembark_sample(
+		true, true, _generation, _session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"on_foot":
+		return {"accepted": false, "reason": &"disembark_desynchronized"}
+	_set_phase(Phase.SURFACE_OUTBOUND)
+	return {"accepted": true, "reason": &"surface_traverse_started"}
+
+
+func _advance_surface_outbound() -> Dictionary:
+	if not _surface_actor_supported():
+		return {"accepted": false, "reason": &"surface_support_lost"}
+	var player_tangent := _world_to_reference_tangent(_player.global_position)
+	var egress := _REGION.surface_route_anchor_positions_region_local_m[0]
+	var staging := _REGION.surface_route_anchor_positions_region_local_m[1]
+	if not _surface_route_outbound_complete \
+			and _tangent_distance(player_tangent, egress) <= ROUTE_ANCHOR_RADIUS_M:
+		_surface_route_outbound_complete = true
+	if not _surface_route_outbound_complete:
+		return {"accepted": true, "reason": &"awaiting_egress_anchor"}
+	if _tangent_distance(player_tangent, staging) > ROUTE_ANCHOR_RADIUS_M:
+		return {"accepted": true, "reason": &"awaiting_staging_anchor"}
+	_set_phase(Phase.ON_FOOT)
+	return {"accepted": true, "reason": &"surface_outbound_complete"}
+
+
+func _advance_surface_return_observation() -> Dictionary:
+	if not _surface_actor_supported():
+		return {"accepted": false, "reason": &"surface_support_lost"}
+	var player_tangent := _world_to_reference_tangent(_player.global_position)
+	var egress := _REGION.surface_route_anchor_positions_region_local_m[0]
+	var staging := _REGION.surface_route_anchor_positions_region_local_m[1]
+	if _tangent_distance(player_tangent, staging) > ROUTE_ANCHOR_RADIUS_M * 2.0:
+		_return_departed_staging = true
+	if _return_departed_staging \
+			and _tangent_distance(player_tangent, egress) <= ROUTE_ANCHOR_RADIUS_M:
+		_surface_route_return_complete = true
+	return {
+		"accepted": true,
+		"reason": &"surface_return_complete" if _surface_route_return_complete else &"on_foot",
+	}
+
+
+func _advance_boarding() -> Dictionary:
+	if not _boarding_completed_observed:
+		return {"accepted": true, "reason": &"boarding_in_progress"}
+	if not _player.is_seated() or _boarding_area.get_reservation_token() != _player \
+			or not bool(_ship.get_telemetry().get("landed", false)):
+		return {"accepted": false, "reason": &"boarding_public_state_mismatch"}
+	_ship.set_canopy_open(false, 0.0)
+	_player.set_camera_active(false)
+	_player.gravity_multiplier = _original_player_gravity_multiplier
+	_ship.set_piloted(true)
+	var result := _session.submit_reboard_sample(
+		true, true, _generation, _session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"reboarded":
+		return {"accepted": false, "reason": &"reboard_desynchronized"}
+	_set_phase(Phase.REBOARDED)
+	return {"accepted": true, "reason": &"reboarded"}
+
+
+func _begin_takeoff_if_requested() -> Dictionary:
+	if not _takeoff_requested:
+		return {"accepted": true, "reason": &"awaiting_takeoff_request"}
+	_takeoff_requested = false
+	_command_source.set_mode(
+		EmberSurfaceLoopCommandSource.Mode.TAKEOFF_ROTATE, _source_generation
+	)
+	_set_phase(Phase.TAKEOFF)
+	return {"accepted": true, "reason": &"takeoff_commanded"}
+
+
+func _advance_takeoff() -> Dictionary:
+	var surface_up := _berth.global_basis.y.normalized()
+	var flight_forward := -_ship.global_basis.z.normalized()
+	if flight_forward.dot(surface_up) >= 0.94:
+		_command_source.set_mode(
+			EmberSurfaceLoopCommandSource.Mode.ASCENT, _source_generation
+		)
+	if bool(_ship.get_telemetry().get("landed", true)):
+		return {"accepted": true, "reason": &"production_takeoff_in_progress"}
+	if _berth_token.is_empty() or not _berth.release(_ship, _berth_token):
+		return {"accepted": false, "reason": &"departure_lease_release_failed"}
+	_berth_token = &""
+	var result := _session.submit_takeoff_sample(
+		true, false, _generation, _session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"takeoff":
+		return {"accepted": false, "reason": &"takeoff_desynchronized"}
+	_set_phase(Phase.ASCENT)
+	return {"accepted": true, "reason": &"departed_surface"}
+
+
+func _advance_ascent() -> Dictionary:
+	var surface_up := _berth.global_basis.y.normalized()
+	var flight_forward := -_ship.global_basis.z.normalized()
+	if flight_forward.dot(surface_up) >= 0.94:
+		_command_source.set_mode(
+			EmberSurfaceLoopCommandSource.Mode.ASCENT, _source_generation
+		)
+	var altitude := (_ship.global_position - _berth.global_position).dot(surface_up)
+	var observation := _travel_observation()
+	if not bool(observation.get("accepted", false)):
+		return {"accepted": false, "reason": &"ascent_observation_rejected"}
+	if not _surface_clear_submitted and altitude >= SURFACE_CLEAR_ALTITUDE_M:
+		var ascent := _session.submit_ascent_sample(
+			true,
+			observation.orbital_coordinate as Dictionary,
+			float(observation.speed_meters_per_second),
+			_coordinate_frame_generation,
+			_generation,
+			_session.get_attachment_generation()
+		)
+		if not bool(ascent.get("accepted", false)) or ascent.get("state_id") != &"ascent":
+			return {"accepted": false, "reason": &"ascent_desynchronized"}
+		_surface_clear_submitted = true
+	if altitude < ORBIT_RETURN_ALTITUDE_M:
+		return {"accepted": true, "reason": &"production_ascent_in_progress"}
+	var returned := _session.submit_orbit_return_sample(
+		observation.orbital_coordinate as Dictionary,
+		float(observation.speed_meters_per_second),
+		_coordinate_frame_generation,
+		_generation,
+		_session.get_attachment_generation()
+	)
+	if not bool(returned.get("accepted", false)) or returned.get("state_id") != &"orbit_return":
+		return {"accepted": false, "reason": &"orbit_return_desynchronized"}
+	_set_phase(Phase.ORBIT_RETURN)
+	return {"accepted": true, "reason": &"orbit_return_reached"}
+
+
+func _complete_orbit_return() -> Dictionary:
+	var observation := _travel_observation()
+	if not bool(observation.get("accepted", false)):
+		return {"accepted": false, "reason": &"completion_observation_rejected"}
+	var result := _session.submit_completion_sample(
+		true,
+		observation.orbital_coordinate as Dictionary,
+		float(observation.speed_meters_per_second),
+		_coordinate_frame_generation,
+		_generation,
+		_session.get_attachment_generation()
+	)
+	if not bool(result.get("accepted", false)) or result.get("state_id") != &"completed":
+		return {"accepted": false, "reason": &"completion_desynchronized"}
+	_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.NEUTRAL, _source_generation)
+	_set_phase(Phase.COMPLETED)
+	return {"accepted": true, "reason": &"completed"}
+
+
+func _sample_and_compose_gravity() -> Dictionary:
+	var actor_position := _player.global_position if is_instance_valid(_player) \
+		else _ship.global_position
+	var body_local := actor_position - _bootstrap.global_position
+	var sample := _gravity_policy.sample(body_local)
+	if not bool(sample.get("accepted", false)):
+		return sample
+	_last_gravity_sample = sample.duplicate(true)
+	_gravity_sample_count += 1
+	if _phase in [
+		Phase.DISEMBARKING, Phase.SURFACE_OUTBOUND, Phase.ON_FOOT, Phase.BOARDING,
+	]:
+		var project_gravity := float(ProjectSettings.get_setting(
+			"physics/3d/default_gravity", 9.8
+		))
+		if not is_finite(project_gravity) or project_gravity <= 0.0:
+			return {"accepted": false, "reason": &"project_gravity_invalid"}
+		var tangent_gravity := _reference_tangent_basis_body.transposed() \
+			* (sample.gravity_vector_mps2 as Vector3)
+		var multiplier := -tangent_gravity.y / project_gravity
+		if not is_finite(multiplier) or multiplier <= 0.0:
+			return {"accepted": false, "reason": &"gravity_projection_invalid"}
+		_player.gravity_multiplier = multiplier
+		_gravity_application_count += 1
+	return {"accepted": true, "reason": &"gravity_composed"}
+
+
+func _travel_observation() -> Dictionary:
+	return _bootstrap.create_travel_observation(
+		_ship.global_position,
+		_ship.velocity.length(),
+		_coordinate_frame_generation,
+		_location_generation
+	)
+
+
+func _validate_dependencies(
+	bootstrap: EmberMoonStreamingBootstrap,
+	berth: EmberSurfaceBerth,
+	ship: ArrowReconShip,
+	player: PlayerController,
+	reference_surface_gravity_mps2: float,
+	location_generation: int
+) -> Dictionary:
+	if not is_inside_tree() or transform != Transform3D.IDENTITY:
+		return {"accepted": false, "reason": &"host_frame_mismatch"}
+	if not _node_is_current(bootstrap) or bootstrap.get_parent() != self \
+			or not bool(bootstrap.audit().get("valid", false)):
+		return {"accepted": false, "reason": &"bootstrap_mismatch"}
+	var bootstrap_snapshot := bootstrap.get_snapshot()
+	var scene := bootstrap.get_loaded_instance() as EmberMoonAuthoredScene
+	if not _node_is_current(scene) or not bool(scene.audit().get("valid", false)) \
+			or scene.get_meta(LOCATION_ID_META, &"") != WORLD_ID \
+			or location_generation < 1 \
+			or int(scene.get_meta(LOCATION_GENERATION_META, 0)) != location_generation \
+			or int(bootstrap_snapshot.get("location_generation", -1)) != location_generation \
+			or int(bootstrap_snapshot.get("loaded_instance_id", 0)) != scene.get_instance_id():
+		return {"accepted": false, "reason": &"loaded_scene_generation_mismatch"}
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	if frame == null or not frame.is_configured() \
+			or not bool(frame.audit().get("valid", false)):
+		return {"accepted": false, "reason": &"coordinate_frame_mismatch"}
+	var frame_snapshot := frame.get_snapshot()
+	if frame_snapshot.get("body_id") != BODY_ID \
+			or frame_snapshot.get("orbital_frame_id") != ORBITAL_FRAME_ID:
+		return {"accepted": false, "reason": &"coordinate_frame_identity_mismatch"}
+	if not _node_is_current(berth) or berth.get_parent() != self:
+		return {"accepted": false, "reason": &"berth_mismatch"}
+	if not _node_is_current(ship) or ship.get_parent() != self \
+			or ship.is_destroyed() or ship.get_ship_definition() == null \
+			or ship.get_ship_definition().ship_id != SHIP_DEFINITION_ID:
+		return {"accepted": false, "reason": &"ship_mismatch"}
+	if not berth.is_configured_for(ship):
+		var configured := berth.configure_for_ship(ship)
+		if not bool(configured.get("accepted", false)):
+			return {"accepted": false, "reason": &"berth_configuration_failed"}
+	if not bool(berth.audit().get("valid", false)):
+		return {"accepted": false, "reason": &"berth_contract_invalid"}
+	if not _node_is_current(player) or player.get_parent() != self:
+		return {"accepted": false, "reason": &"player_mismatch"}
+	var boarding_area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	if not _node_is_current(boarding_area) or boarding_area.get_ship() != ship \
+			or boarding_area.get_reservation_token() != player:
+		return {"accepted": false, "reason": &"boarding_contract_mismatch"}
+	var collision_report := ship.get_landing_collision_report()
+	if not bool(collision_report.get("valid", false)):
+		return {"accepted": false, "reason": &"ship_collision_invalid"}
+	var world_report := PlanetaryWorldCompositionValidator.new().validate_composition(
+		_WORLD, null, _TERRAIN
+	)
+	if not bool(world_report.get("valid", false)):
+		return {"accepted": false, "reason": &"world_composition_invalid"}
+	var landing_report := PlanetaryLandingCompositionValidator.new().validate_composition(
+		_WORLD, _TERRAIN, frame_snapshot, _REGION
+	)
+	if not bool(landing_report.get("valid", false)):
+		return {"accepted": false, "reason": &"landing_composition_invalid"}
+	var gravity_policy := PlanetarySurfaceGravityPolicy.new()
+	var gravity_configuration := gravity_policy.configure(
+		_WORLD, _TERRAIN, frame, reference_surface_gravity_mps2
+	)
+	if not bool(gravity_configuration.get("accepted", false)):
+		return {"accepted": false, "reason": &"gravity_configuration_invalid"}
+	var reference_gravity := gravity_policy.sample(_REGION.body_local_center_m)
+	if not bool(reference_gravity.get("accepted", false)):
+		return {"accepted": false, "reason": &"reference_tangent_unavailable"}
+	var reference_tangent_basis := reference_gravity.get(
+		"tangent_basis_body_local", Basis.IDENTITY
+	) as Basis
+	if not reference_tangent_basis.is_equal_approx(_REGION.body_local_basis):
+		return {"accepted": false, "reason": &"landing_tangent_basis_mismatch"}
+	var landing_root := scene.get_node_or_null(^"LandingRegion") as Node3D
+	var walkable_body := scene.get_node_or_null(
+		^"LandingRegion/WalkablePatch"
+	) as StaticBody3D
+	if not _node_is_current(landing_root) or landing_root.get_parent() != scene \
+			or not _node_is_current(walkable_body) \
+			or walkable_body.get_parent() != landing_root:
+		return {"accepted": false, "reason": &"landing_surface_dependency_mismatch"}
+	if not berth.global_transform.is_equal_approx(landing_root.global_transform):
+		return {"accepted": false, "reason": &"berth_surface_frame_mismatch"}
+	if not landing_root.global_basis.is_equal_approx(reference_tangent_basis) \
+			or not landing_root.global_position.is_equal_approx(
+				bootstrap.global_position + _REGION.body_local_center_m
+			):
+		return {"accepted": false, "reason": &"landing_surface_frame_mismatch"}
+	return {
+		"accepted": true,
+		"reason": &"valid_dependencies",
+		"scene": scene,
+		"frame": frame,
+		"boarding_area": boarding_area,
+		"landing_root": landing_root,
+		"walkable_body": walkable_body,
+		"world_report": world_report.duplicate(true),
+		"landing_report": landing_report.duplicate(true),
+		"gravity_policy": gravity_policy,
+		"reference_tangent_basis_body": reference_tangent_basis,
+		"ship_collision_bounds": collision_report.local_bounds as AABB,
+	}
+
+
+func _initial_fixture_is_exact() -> bool:
+	if not _dependencies_current() or not _player.is_seated() \
+			or not _ship.is_piloted() or _boarding_area.get_reservation_token() != _player:
+		return false
+	var expected := _berth.global_position + APPROACH_ENTRY_REGION_LOCAL_M
+	return _ship.global_position.distance_to(expected) <= 0.05 \
+		and _ship.global_basis.is_equal_approx(Basis.IDENTITY) \
+		and _ship.velocity.length() <= 0.001 \
+		and _player.global_position.distance_to(
+			_ship.get_pilot_seat_anchor().global_position
+		) <= 0.05
+
+
+func _landed_public_state_is_exact() -> bool:
+	if not bool(_ship.get_telemetry().get("landed", false)) \
+			or _ship.is_landing_active() or _berth.get_occupant() != _ship \
+			or not _berth.has_valid_lease(
+				_ship, _berth_token, _ship.get_ship_definition().ship_id
+			):
+		return false
+	var report := _ship.get_landing_contract_report()
+	return bool(report.get("contract_accepted", false)) \
+		and bool(report.get("strict_dock_acceptance", false)) \
+		and report.get("berth_id") == EmberSurfaceBerth.BERTH_ID \
+		and _berth.contains_oriented_bounds(
+			_ship.global_transform, _ship_collision_bounds, 0.05
+		) and _ship_has_current_surface_support()
+
+
+func _ship_has_current_surface_support() -> bool:
+	if not _dependencies_current():
+		return false
+	var surface_up := _landing_root.global_basis.y.normalized()
+	var minimum_projection := INF
+	var lowest_corners: Array[Vector3] = []
+	for x: float in [_ship_collision_bounds.position.x, _ship_collision_bounds.end.x]:
+		for y: float in [_ship_collision_bounds.position.y, _ship_collision_bounds.end.y]:
+			for z: float in [_ship_collision_bounds.position.z, _ship_collision_bounds.end.z]:
+				var corner := _ship.global_transform * Vector3(x, y, z)
+				var projection := corner.dot(surface_up)
+				if projection < minimum_projection - 0.001:
+					minimum_projection = projection
+					lowest_corners.assign([corner])
+				elif absf(projection - minimum_projection) <= 0.001:
+					lowest_corners.append(corner)
+	if lowest_corners.is_empty():
+		return false
+	var support_centroid := Vector3.ZERO
+	for corner: Vector3 in lowest_corners:
+		support_centroid += corner
+	support_centroid /= float(lowest_corners.size())
+	var query := PhysicsRayQueryParameters3D.create(
+		support_centroid + surface_up * 0.08,
+		support_centroid - surface_up * 0.18,
+		PhysicsLayers.WORLD_BODY_LAYER
+	)
+	query.exclude = [_ship.get_rid()]
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or hit.get("collider") != _walkable_body \
+			or (hit.get("normal", Vector3.ZERO) as Vector3).dot(surface_up) < 0.9:
+		return false
+	var contact_gap := absf(
+		((hit.get("position", Vector3.INF) as Vector3) - support_centroid).dot(surface_up)
+	)
+	return is_finite(contact_gap) and contact_gap <= 0.12
+
+
+func _token_rejection(
+	expected_generation: int,
+	expected_attachment_generation: int,
+	expected_coordinate_frame_generation: int
+) -> StringName:
+	var simple := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not simple.is_empty():
+		return simple
+	if expected_coordinate_frame_generation != _coordinate_frame_generation:
+		return &"stale_coordinate_frame_generation"
+	return &""
+
+
+func _simple_token_rejection(
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> StringName:
+	if expected_generation != _generation:
+		return &"stale_generation"
+	if expected_attachment_generation != _attachment_generation:
+		return &"stale_attachment_generation"
+	if not _attached:
+		return &"not_attached"
+	return &""
+
+
+func _dependency_failure_reason() -> StringName:
+	if not _node_is_current(_bootstrap):
+		return &"dependency_detached"
+	if is_instance_valid(_frame) \
+			and _frame.get_generation() != _coordinate_frame_generation:
+		return &"stale_coordinate_frame_generation"
+	var bootstrap_snapshot := _bootstrap.get_snapshot()
+	if int(bootstrap_snapshot.get("location_generation", -1)) \
+			!= _location_generation \
+			or int(bootstrap_snapshot.get("loaded_instance_id", 0)) \
+			!= _loaded_scene_instance_id \
+			or not _node_is_current(_scene) \
+			or _bootstrap.get_loaded_instance() != _scene \
+			or int(_scene.get_meta(LOCATION_GENERATION_META, -1)) \
+			!= _location_generation:
+		return &"stale_loaded_scene_generation"
+	if not _dependencies_current():
+		return &"dependency_detached"
+	if not _landing_root.global_basis.is_equal_approx(
+			_reference_tangent_basis_body
+		) or not _landing_root.global_position.is_equal_approx(
+			_bootstrap.global_position + _REGION.body_local_center_m
+		):
+		return &"landing_surface_frame_drift"
+	if _ship.is_destroyed():
+		return &"ship_destroyed"
+	if _phase in [
+		Phase.LANDING_APPROACH, Phase.LANDED, Phase.DISEMBARKING,
+		Phase.SURFACE_OUTBOUND, Phase.ON_FOOT, Phase.BOARDING,
+		Phase.REBOARDED, Phase.TAKEOFF,
+	] and (_berth_token.is_empty() or not _berth.has_valid_lease(
+		_ship, _berth_token, _ship.get_ship_definition().ship_id
+	)):
+		return &"berth_lease_lost"
+	var reservation: Variant = _boarding_area.get_reservation_token()
+	if _phase in [
+		Phase.ORBIT_APPROACH, Phase.DESCENT, Phase.SURFACE_APPROACH,
+		Phase.LANDING_APPROACH, Phase.LANDED, Phase.DISEMBARKING,
+		Phase.BOARDING, Phase.REBOARDED, Phase.TAKEOFF, Phase.ASCENT,
+		Phase.ORBIT_RETURN,
+	] and reservation != _player:
+		return &"boarding_reservation_lost"
+	if _phase in [Phase.SURFACE_OUTBOUND, Phase.ON_FOOT] \
+			and reservation != null:
+		return &"boarding_reservation_unexpected"
+	return &""
+
+
+func _dependencies_current() -> bool:
+	return _node_is_current(_bootstrap) and _bootstrap.get_parent() == self \
+		and _node_is_current(_scene) \
+		and _node_is_current(_landing_root) and _landing_root.get_parent() == _scene \
+		and _node_is_current(_walkable_body) \
+		and _walkable_body.get_parent() == _landing_root \
+		and _node_is_current(_berth) and _berth.get_parent() == self \
+		and _node_is_current(_ship) and _ship.get_parent() == self \
+		and _node_is_current(_player) and _player.get_parent() == self \
+		and _node_is_current(_boarding_area) and _boarding_area.get_parent() == _ship \
+		and is_instance_valid(_frame)
+
+
+func _player_near_boarding_area() -> bool:
+	for nearby in _player.get_nearby_interactables():
+		if nearby == _boarding_area:
+			return true
+	return false
+
+
+func _queue_intent(
+	intent: StringName,
+	expected_phase: int,
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if _phase != expected_phase:
+		return _finish(false, &"out_of_order")
+	match intent:
+		&"disembark": _disembark_requested = true
+		&"takeoff": _takeoff_requested = true
+		_: return _finish(false, &"unknown_intent")
+	return _finish(true, StringName("%s_queued" % intent))
+
+
+func _region_local_to_world(region_local: Vector3) -> Vector3:
+	return _landing_root.to_global(region_local) \
+		if _node_is_current(_landing_root) else Vector3.ZERO
+
+
+func _world_to_reference_tangent(world_position: Vector3) -> Vector3:
+	var body_local := world_position - _bootstrap.global_position
+	return _reference_tangent_basis_body.transposed() \
+		* (body_local - _REGION.body_local_center_m)
+
+
+func _tangent_distance(first: Vector3, second: Vector3) -> float:
+	return Vector2(first.x - second.x, first.z - second.z).length()
+
+
+func _surface_actor_supported() -> bool:
+	if not _dependencies_current() or not _player.is_on_floor():
+		return false
+	var player_tangent := _world_to_reference_tangent(_player.global_position)
+	var live_surface_local := _landing_root.to_local(_player.global_position)
+	if player_tangent.distance_to(live_surface_local) > 0.02 \
+			or live_surface_local.y < -0.1 or live_surface_local.y > 2.5:
+		return false
+	var surface_up := _landing_root.global_basis.y.normalized()
+	var query := PhysicsRayQueryParameters3D.create(
+		_player.global_position + surface_up * 0.25,
+		_player.global_position - surface_up * 2.5,
+		PhysicsLayers.WORLD_BODY_LAYER
+	)
+	query.exclude = [_player.get_rid()]
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return not hit.is_empty() and hit.get("collider") == _walkable_body \
+		and (hit.get("normal", Vector3.ZERO) as Vector3).dot(surface_up) >= 0.9
+
+
+func _connect_dependency_signals() -> void:
+	_connect_signal(_ship.destroyed, _on_ship_destroyed)
+	_connect_signal(_ship.landing_completed, _on_landing_completed)
+	_connect_signal(_ship.landing_aborted, _on_landing_aborted)
+	_connect_signal(_player.disembarking_completed, _on_disembarking_completed)
+	_connect_signal(_player.boarding_completed, _on_boarding_completed)
+	for record in [
+		{"node": _bootstrap, "reason": &"bootstrap_detached"},
+		{"node": _scene, "reason": &"loaded_scene_detached"},
+		{"node": _berth, "reason": &"berth_detached"},
+		{"node": _ship, "reason": &"ship_detached"},
+		{"node": _player, "reason": &"player_detached"},
+	]:
+		var node := record.node as Node
+		_connect_signal(node.tree_exiting, _on_dependency_tree_exiting.bind(record.reason))
+
+
+func _connect_signal(signal_value: Signal, callback: Callable) -> void:
+	signal_value.connect(callback)
+	_connections.append({"signal": signal_value, "callback": callback})
+
+
+func _disconnect_dependency_signals() -> void:
+	for record in _connections:
+		var signal_value := record.signal as Signal
+		var callback := record.callback as Callable
+		if signal_value.is_connected(callback):
+			signal_value.disconnect(callback)
+	_connections.clear()
+
+
+func _restore_runtime_bindings(recover_embodiment: bool = false) -> void:
+	if _runtime_bindings_restored:
+		return
+	_runtime_bindings_restored = true
+	var recovered_on_foot := recover_embodiment and _node_is_current(_player)
+	var recovery := _surface_recovery_transform() if recovered_on_foot else {}
+	var safe_surface_recovery := bool(recovery.get("accepted", false))
+	if recovered_on_foot:
+		var recovery_transform := recovery.get(
+			"transform", _player.global_transform
+		) as Transform3D
+		_player.force_recovery_to_on_foot(recovery_transform)
+	if _node_is_current(_ship):
+		_ship.set_canopy_open(false, 0.0)
+		_ship.set_command_source(_original_command_source)
+		_ship.set_piloted(
+			false if recovered_on_foot or _ship.is_destroyed() \
+			else _original_ship_piloted
+		)
+	if _node_is_current(_player):
+		_player.gravity_multiplier = _original_player_gravity_multiplier
+		_player.set_camera_active(
+			true if recovered_on_foot else _original_player_camera_current
+		)
+		_player.set_control_enabled(
+			true if safe_surface_recovery else _original_player_control_enabled
+		)
+	if is_instance_valid(_command_source):
+		if _command_source.get_snapshot().attached:
+			_command_source.detach(_source_generation)
+		_command_source.queue_free()
+
+
+func _surface_recovery_transform() -> Dictionary:
+	if not _dependencies_current() or _ship.is_destroyed() \
+			or not bool(_ship.get_telemetry().get("landed", false)):
+		return {"accepted": false}
+	var recovery := _ship.get_exit_transform()
+	var recovery_tangent := _world_to_reference_tangent(recovery.origin)
+	if absf(recovery_tangent.x) > 47.5 or absf(recovery_tangent.z) > 47.5:
+		return {"accepted": false}
+	var surface_up := _landing_root.global_basis.y.normalized()
+	var query := PhysicsRayQueryParameters3D.create(
+		recovery.origin + surface_up * 4.0,
+		recovery.origin - surface_up * 4.0,
+		PhysicsLayers.WORLD_BODY_LAYER
+	)
+	query.exclude = [_ship.get_rid(), _player.get_rid()]
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or hit.get("collider") != _walkable_body \
+			or (hit.get("normal", Vector3.ZERO) as Vector3).dot(surface_up) < 0.9:
+		return {"accepted": false}
+	var surface_position := hit.get("position", Vector3.INF) as Vector3
+	if not surface_position.is_finite():
+		return {"accepted": false}
+	return {
+		"accepted": true,
+		"transform": Transform3D(
+			recovery.basis.orthonormalized(), surface_position + surface_up * 0.02
+		),
+	}
+
+
+func _release_leases() -> void:
+	if _node_is_current(_berth) and _node_is_current(_ship) \
+			and not _berth_token.is_empty():
+		_berth.release(_ship, _berth_token)
+	_berth_token = &""
+	if _host_acquired_boarding_reservation \
+			and _node_is_current(_boarding_area) and _node_is_current(_player):
+		_boarding_area.release_reservation(_player)
+	_host_acquired_boarding_reservation = false
+
+
+func _commit_failure(reason: StringName) -> Dictionary:
+	if _phase == Phase.FAILED:
+		return _finish(false, _terminal_reason)
+	var recover_embodiment := _phase in [Phase.DISEMBARKING, Phase.BOARDING]
+	var should_fail_session := _phase not in [Phase.IDLE, Phase.COMPLETED]
+	_terminal_reason = reason
+	_pending_failure_reason = &""
+	_set_phase(Phase.FAILED)
+	if should_fail_session and _session != null:
+		_session.fail(reason, _generation, _session.get_attachment_generation())
+	if is_instance_valid(_command_source):
+		_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.NEUTRAL, _source_generation)
+	_release_leases()
+	_disconnect_dependency_signals()
+	_restore_runtime_bindings(recover_embodiment)
+	return _finish(false, reason)
+
+
+func _on_ship_destroyed(_world_position: Vector3, _inherited_velocity: Vector3) -> void:
+	_queue_terminal(&"ship_destroyed")
+
+
+func _on_dependency_tree_exiting(reason: StringName) -> void:
+	_queue_terminal(reason)
+
+
+func _queue_terminal(reason: StringName) -> void:
+	if _phase in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED]:
+		return
+	if _pending_failure_reason.is_empty():
+		_pending_failure_reason = reason
+	if not _mutation_active:
+		_mutation_active = true
+		var pending := _pending_failure_reason
+		_pending_failure_reason = &""
+		_commit_failure(pending)
+
+
+func _on_landing_completed() -> void:
+	_landing_completed_observed = true
+
+
+func _on_landing_aborted(reason: StringName) -> void:
+	_landing_aborted_reason = reason
+
+
+func _on_disembarking_completed() -> void:
+	_disembarking_completed_observed = true
+
+
+func _on_boarding_completed() -> void:
+	_boarding_completed_observed = true
+
+
+func _exit_tree() -> void:
+	if _attached:
+		var recover_embodiment := _phase in [Phase.DISEMBARKING, Phase.BOARDING]
+		if _phase not in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED] \
+				and _session != null:
+			_terminal_reason = &"host_detached"
+			_set_phase(Phase.FAILED)
+			_session.fail(
+				&"host_detached", _generation, _session.get_attachment_generation()
+			)
+		if _session != null:
+			_session.detach(_generation, _session.get_attachment_generation())
+		_disconnect_dependency_signals()
+		_release_leases()
+		_restore_runtime_bindings(recover_embodiment)
+		_attached = false
+		_attachment_generation += 1
+
+
+func _set_phase(next_phase: int) -> void:
+	if _phase == next_phase:
+		return
+	_phase = next_phase
+	_phase_elapsed_seconds = 0.0
+	_transition_count += 1
+
+
+func _finish(accepted: bool, reason: StringName) -> Dictionary:
+	if not _pending_failure_reason.is_empty() \
+			and _phase not in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED]:
+		var pending := _pending_failure_reason
+		_pending_failure_reason = &""
+		return _commit_failure(pending)
+	_mutation_active = false
+	_last_result = _result(accepted, reason)
+	return _last_result.duplicate(true)
+
+
+func _result(accepted: bool, reason: StringName) -> Dictionary:
+	var result := get_snapshot()
+	result["accepted"] = accepted
+	result["reason"] = reason
+	return result.duplicate(true)
+
+
+func _owned_capabilities() -> Dictionary:
+	var result := {}
+	for key in OWNED_CAPABILITY_KEYS:
+		result[key] = true
+	return result.duplicate(true)
+
+
+func _adjacent_authority() -> Dictionary:
+	var result := {}
+	for key in ADJACENT_AUTHORITY_KEYS:
+		result[key] = false
+	return result.duplicate(true)
+
+
+static func _node_is_current(node: Variant) -> bool:
+	return is_instance_valid(node) and node is Node \
+		and (node as Node).is_inside_tree() \
+		and not (node as Node).is_queued_for_deletion()
+
+
+static func _phase_id(value: int) -> StringName:
+	match value:
+		Phase.IDLE: return &"idle"
+		Phase.ORBIT_APPROACH: return &"orbit_approach"
+		Phase.DESCENT: return &"descent"
+		Phase.SURFACE_APPROACH: return &"surface_approach"
+		Phase.LANDING_APPROACH: return &"landing_approach"
+		Phase.LANDED: return &"landed"
+		Phase.DISEMBARKING: return &"disembarking"
+		Phase.SURFACE_OUTBOUND: return &"surface_outbound"
+		Phase.ON_FOOT: return &"on_foot"
+		Phase.BOARDING: return &"boarding"
+		Phase.REBOARDED: return &"reboarded"
+		Phase.TAKEOFF: return &"takeoff"
+		Phase.ASCENT: return &"ascent"
+		Phase.ORBIT_RETURN: return &"orbit_return"
+		Phase.COMPLETED: return &"completed"
+		Phase.FAILED: return &"failed"
+		_: return &"unknown"
