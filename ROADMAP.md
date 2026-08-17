@@ -946,7 +946,11 @@ geometry, shader code, noise, shadows or a visible production layer.
 `PlanetarySunLightingPolicy` evaluates a spherical elevated horizon,
 airless/vacuum terminator and bounded atmospheric twilight into normalized
 unitless hints only—no lux, star spectrum, ephemeris, terrain/cloud shadow or
-renderer mutation. `PlanetarySurfaceAudioPolicy` similarly returns opaque
+renderer mutation. `PlanetarySunPresentation` may transactionally multiply an
+existing caller-authored `DirectionalLight3D` baseline colour and energy by
+those hints, with exact rollback/detach restoration; it never orients the light
+or claims clock, ephemeris, shadow, occlusion, calibrated colour or lux.
+`PlanetarySurfaceAudioPolicy` similarly returns opaque
 exterior/interior route IDs, endpoint mix, base/attenuation values and a
 density/airflow intensity hint; it resolves no asset and owns no playback,
 mixer, clock or audio authority. These are coherent foundations, not a complete
