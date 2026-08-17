@@ -20,6 +20,7 @@ signal camera_view_changed(view: StringName)
 signal damage_stage_changed(stage: int, status: StringName)
 signal component_damage_changed(component_id: StringName, state: int, integrity: float)
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
+signal planetary_cruise_state_changed(snapshot: Dictionary)
 
 const ENGINE_OFFLINE: StringName = &"OFFLINE"
 const ENGINE_STARTING: StringName = &"STARTING"
@@ -35,6 +36,68 @@ const WEAPON_AIM_MASK := PhysicsLayers.HITSCAN_QUERY_MASK
 const WEAPON_AIM_DISTANCE := 1000.0
 const DEPARTURE_SPEED_THRESHOLD := 0.25
 const DEPARTURE_MOTION_EPSILON_SQUARED := 0.000001
+const PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION := 1
+const PLANETARY_CRUISE_ENVELOPE_SCHEMA_VERSION := 1
+const PLANETARY_CRUISE_MAX_SAFE_INTEGER := 9_007_199_254_740_991
+const PLANETARY_CRUISE_MAX_SPEED_METERS_PER_SECOND := 100_000.0
+const PLANETARY_CRUISE_MAX_ACCELERATION_METERS_PER_SECOND_SQUARED := 10_000.0
+const PLANETARY_CRUISE_DIRECTION_EPSILON := 0.00001
+const PLANETARY_CRUISE_STATE_INACTIVE: StringName = &"inactive"
+const PLANETARY_CRUISE_STATE_ACCELERATING: StringName = &"accelerating"
+const PLANETARY_CRUISE_STATE_CRUISING: StringName = &"cruising"
+const PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED: StringName = &"braking_to_speed"
+const PLANETARY_CRUISE_STATE_BRAKING: StringName = &"braking"
+const PLANETARY_CRUISE_CLEARANCE_PROOF_KEYS := [
+	"accepted",
+	"reason",
+	"schema_version",
+	"ship_instance_id",
+	"ship_attachment_generation",
+	"coordinate_frame_generation",
+	"proof_sequence",
+	"controller_instance_id",
+	"direction_world",
+	"sweep_distance_meters",
+	"verified_clearance_meters",
+	"clearance_full_hull",
+	"clearance_verified",
+	"obstacle_detected",
+	"enabled_shape_count",
+	"queried_shape_count",
+	"shape_names",
+	"shape_transforms",
+	"collision_mask",
+	"fixed_orientation_basis",
+	"ship_position_world",
+	"velocity_world",
+	"ship_speed_meters_per_second",
+	"alignment_basis",
+	"alignment_dot",
+	"closing_speed_meters_per_second",
+	"currently_participating",
+]
+const PLANETARY_CRUISE_ENVELOPE_KEYS := [
+	"schema_version",
+	"ship_instance_id",
+	"ship_attachment_generation",
+	"controller_instance_id",
+	"controller_generation",
+	"sequence",
+	"coordinate_frame_generation",
+	"destination_direction_world",
+	"desired_participation",
+	"desired_speed_meters_per_second",
+	"acceleration_hint_meters_per_second_squared",
+	"braking_requested",
+	"braking_acceleration_hint_meters_per_second_squared",
+	"policy_reason",
+	"observation",
+	"clearance_proof_sequence",
+	"clearance_proof_generation",
+	"clearance_full_hull",
+	"clearance_verified",
+	"obstacle_detected",
+]
 const LANDING_CONTRACT_SCHEMA_VERSION := 3
 const LANDING_TIMEOUT_SECONDS := 24.0
 const LANDING_STALL_TIMEOUT_SECONDS := 4.0
@@ -64,6 +127,9 @@ const CAMERA_VIEW_CHASE: StringName = &"CHASE"
 const CAMERA_VIEW_COCKPIT: StringName = &"COCKPIT"
 const ShipCommandType := preload("res://scripts/control/ship_command.gd")
 const LocalShipInputSourceType := preload("res://scripts/control/local_ship_input_source.gd")
+const PlanetaryCruisePolicyType := preload(
+	"res://scripts/world/planetary_cruise_policy.gd"
+)
 const TORRENT_AUTHORED_MACROFORM_SCENE := preload(
 	"res://scenes/ships/presentation/torrent_authored_macroform.tscn"
 )
@@ -260,6 +326,27 @@ var _torrent_vent_louver_mesh: ArrayMesh
 var _torrent_vent_louver_batches: Array[MultiMeshInstance3D] = []
 var _audio_throttle_state := -1.0
 var _audio_boost_state := false
+## Planetary cruise is an optional, caller-issued envelope inside this body's
+## existing physics authority. No external component writes velocity or calls a
+## movement method. The attachment generation fences every lifecycle boundary.
+var _planetary_cruise_attachment_generation := 1
+var _planetary_cruise_state: StringName = PLANETARY_CRUISE_STATE_INACTIVE
+var _planetary_cruise_reason: StringName = &"never_engaged"
+var _planetary_cruise_pending_envelope: Dictionary = {}
+var _planetary_cruise_last_envelope: Dictionary = {}
+var _planetary_cruise_pending_clearance_proof: Dictionary = {}
+var _planetary_cruise_clearance_proof_sequence := 0
+var _planetary_cruise_controller_instance_id := 0
+var _planetary_cruise_last_controller_generation := 0
+var _planetary_cruise_last_sequence := 0
+var _planetary_cruise_coordinate_frame_generation := 0
+var _planetary_cruise_direction_world := Vector3.ZERO
+var _planetary_cruise_desired_speed := 0.0
+var _planetary_cruise_acceleration := 0.0
+var _planetary_cruise_braking_acceleration := 0.0
+var _planetary_cruise_mutation_active := false
+var _planetary_cruise_signal_dispatch_active := false
+var _planetary_cruise_policy := PlanetaryCruisePolicyType.new()
 
 
 func _enter_tree() -> void:
@@ -270,6 +357,12 @@ func _enter_tree() -> void:
 		rig.profile_id = ship_definition.audio_profile_id
 	if _destroyed and _destroyed_hull_hide_pending:
 		call_deferred("_resume_destroyed_hull_hide_after_reentry")
+
+
+func _exit_tree() -> void:
+	# A detached body performs no physics. Fence every envelope captured against
+	# the old World3D so re-entry requires a new physical proof and submission.
+	_retire_planetary_cruise(&"ship_detached", true)
 
 
 func _ready() -> void:
@@ -314,12 +407,15 @@ func _physics_process(delta: float) -> void:
 		if _piloted and direct_command_accepted
 		else false
 	)
+	if _command_interrupts_planetary_cruise(command):
+		_retire_planetary_cruise(&"manual_flight_command", true)
 	_update_automatic_engine_control(delta, command)
 	_update_engine(delta)
 	if _landing_active:
 		_update_landing(delta)
 	elif _piloted and _engine_state == ENGINE_ONLINE and not _docked_latch:
-		_update_flight(delta, command, camera_changed)
+		if not _update_planetary_cruise_physics(delta):
+			_update_flight(delta, command, camera_changed)
 	else:
 		# Looking around during boarding, startup, landing, or shutdown must not
 		# become a queued steering command on the first active flight frame.
@@ -369,6 +465,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func set_piloted(piloted: bool) -> void:
 	_ensure_command_source()
 	_invalidate_command_delivery(_command_source)
+	if _piloted != piloted:
+		_retire_planetary_cruise(
+			&"pilot_attached" if piloted else &"pilot_unseated",
+			true
+		)
 	_piloted = piloted
 	# No producer may carry undelivered lifecycle edges across a pilot-authority
 	# boundary. The local adapter additionally starts a new stream epoch and clears
@@ -847,6 +948,7 @@ func _begin_landing_assist(
 	initial_phase: StringName,
 	acceptance: Dictionary
 	) -> void:
+	_retire_planetary_cruise(&"landing_started", true)
 	_landing_target = dock_target
 	_landing_staging_target = staging_target
 	_landing_active = true
@@ -942,6 +1044,313 @@ func get_landing_collision_report() -> Dictionary:
 		"shape_count": shape_count,
 		"unsupported_shapes": unsupported,
 	}
+
+
+## Binds exactly one caller-owned cruise controller to this lifecycle epoch.
+## The controller receives no movement capability: it can only submit validated,
+## detached envelopes that this body may consume during its own physics step.
+func attach_planetary_cruise_controller(
+	controller_instance_id: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_receipt(false, &"reentrant_call")
+	if not _planetary_cruise_body_is_live():
+		return _planetary_cruise_receipt(false, &"ship_unavailable")
+	if expected_attachment_generation != _planetary_cruise_attachment_generation:
+		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
+	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_BRAKING:
+		return _planetary_cruise_receipt(false, &"braking_in_progress")
+	if controller_instance_id <= 0:
+		return _planetary_cruise_receipt(false, &"invalid_controller_instance_id")
+	var controller_candidate := instance_from_id(controller_instance_id)
+	if not controller_candidate is Node \
+		or not is_instance_valid(controller_candidate) \
+		or (controller_candidate as Node).is_queued_for_deletion() \
+		or not (controller_candidate as Node).is_inside_tree():
+		return _planetary_cruise_receipt(false, &"controller_unavailable")
+	if _planetary_cruise_controller_instance_id != 0 \
+		and _planetary_cruise_controller_instance_id != controller_instance_id:
+		return _planetary_cruise_receipt(false, &"controller_collision")
+	if _planetary_cruise_controller_instance_id == controller_instance_id:
+		return _planetary_cruise_receipt(true, &"already_attached")
+	_planetary_cruise_mutation_active = true
+	_planetary_cruise_controller_instance_id = controller_instance_id
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_reason = &"controller_attached"
+	_planetary_cruise_mutation_active = false
+	_emit_planetary_cruise_state_changed()
+	return _planetary_cruise_receipt(true, &"attached")
+
+
+## Performs the current-generation, fixed-orientation sweep proof used by the
+## pure PlanetaryCruisePolicy. Every enabled direct collision shape on this body
+## is queried with this body's mask; the body itself is the only exclusion.
+func build_planetary_cruise_clearance_proof(
+	direction_world: Vector3,
+	sweep_distance_meters: float,
+	coordinate_frame_generation: int,
+	expected_attachment_generation: int,
+	controller_instance_id: int
+) -> Dictionary:
+	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_clearance_receipt(
+			false,
+			&"reentrant_call",
+			direction_world,
+			sweep_distance_meters,
+			coordinate_frame_generation
+		)
+	# A newest proof request supersedes any unconsumed capability. A malformed or
+	# stale request therefore cannot leave an older clear route or already queued
+	# envelope reusable before the body's next physics tick.
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_pending_envelope.clear()
+	var rejection := _validate_planetary_cruise_query_context(
+		direction_world,
+		sweep_distance_meters,
+		coordinate_frame_generation,
+		expected_attachment_generation,
+		controller_instance_id
+	)
+	if not rejection.is_empty():
+		return _planetary_cruise_clearance_receipt(
+			false,
+			rejection,
+			direction_world,
+			sweep_distance_meters,
+			coordinate_frame_generation
+		)
+	var enabled_shapes: Array[CollisionShape3D] = []
+	for child in get_children():
+		if child is CollisionShape3D:
+			var collision := child as CollisionShape3D
+			if not collision.disabled and collision.shape != null:
+				enabled_shapes.append(collision)
+	enabled_shapes.sort_custom(func(left: CollisionShape3D, right: CollisionShape3D) -> bool:
+		return String(left.name) < String(right.name)
+	)
+	if enabled_shapes.is_empty():
+		return _planetary_cruise_clearance_receipt(
+			false,
+			&"no_enabled_root_collision_shapes",
+			direction_world,
+			sweep_distance_meters,
+			coordinate_frame_generation
+		)
+	if collision_mask == 0:
+		return _planetary_cruise_clearance_receipt(
+			false,
+			&"collision_mask_empty",
+			direction_world,
+			sweep_distance_meters,
+			coordinate_frame_generation,
+			enabled_shapes.size()
+		)
+	if _planetary_cruise_clearance_proof_sequence \
+		>= PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return _planetary_cruise_clearance_receipt(
+			false,
+			&"clearance_proof_sequence_exhausted",
+			direction_world,
+			sweep_distance_meters,
+			coordinate_frame_generation,
+			enabled_shapes.size()
+		)
+	var space := get_world_3d().direct_space_state
+	var normalized_direction := direction_world.normalized()
+	var motion := normalized_direction * sweep_distance_meters
+	var minimum_safe_fraction := 1.0
+	var obstacle_detected := false
+	var queried_shape_count := 0
+	var shape_names := PackedStringArray()
+	var shape_transforms: Array[Transform3D] = []
+	for collision in enabled_shapes:
+		shape_names.append(str(collision.name))
+		shape_transforms.append(collision.global_transform)
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = collision.shape
+		query.transform = collision.global_transform
+		query.collision_mask = collision_mask
+		query.collide_with_bodies = true
+		query.collide_with_areas = false
+		query.exclude = [get_rid()]
+		query.margin = 0.0
+		if not space.intersect_shape(query, 1).is_empty():
+			minimum_safe_fraction = 0.0
+			obstacle_detected = true
+			queried_shape_count += 1
+			continue
+		query.motion = motion
+		var cast_result := space.cast_motion(query)
+		if cast_result.size() != 2 \
+			or not is_finite(float(cast_result[0])) \
+			or not is_finite(float(cast_result[1])):
+			return _planetary_cruise_clearance_receipt(
+				false,
+				&"shape_cast_failed",
+				direction_world,
+				sweep_distance_meters,
+				coordinate_frame_generation,
+				enabled_shapes.size(),
+				queried_shape_count
+			)
+		var safe_fraction := clampf(float(cast_result[0]), 0.0, 1.0)
+		minimum_safe_fraction = minf(minimum_safe_fraction, safe_fraction)
+		if safe_fraction < 1.0:
+			obstacle_detected = true
+		else:
+			# `cast_motion()` returns [1, 1] for both a clear sweep and some exact
+			# endpoint contacts. Test the closed endpoint explicitly so the proof
+			# matches the policy's at-or-before boundary.
+			query.motion = Vector3.ZERO
+			query.transform = Transform3D(
+				collision.global_basis,
+				collision.global_position + motion
+			)
+			if not space.intersect_shape(query, 1).is_empty():
+				obstacle_detected = true
+		queried_shape_count += 1
+	var verified_clearance := sweep_distance_meters * minimum_safe_fraction
+	var ship_speed := velocity.length()
+	var alignment_basis: StringName
+	var alignment_dot: float
+	var closing_speed: float
+	if ship_speed == 0.0:
+		alignment_basis = PlanetaryCruisePolicyType.ALIGNMENT_BASIS_ZERO_SPEED
+		alignment_dot = clampf(
+			(-global_basis.z.normalized()).dot(normalized_direction),
+			-1.0,
+			1.0
+		)
+		closing_speed = 0.0
+	else:
+		alignment_basis = PlanetaryCruisePolicyType.ALIGNMENT_BASIS_VELOCITY
+		alignment_dot = clampf(
+			velocity.normalized().dot(normalized_direction),
+			-1.0,
+			1.0
+		)
+		closing_speed = ship_speed * alignment_dot
+	var proof_sequence := _planetary_cruise_clearance_proof_sequence + 1
+	var proof := {
+		"accepted": true,
+		"reason": &"clearance_proved",
+		"schema_version": PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION,
+		"ship_instance_id": get_instance_id(),
+		"ship_attachment_generation": _planetary_cruise_attachment_generation,
+		"coordinate_frame_generation": coordinate_frame_generation,
+		"proof_sequence": proof_sequence,
+		"controller_instance_id": controller_instance_id,
+		"direction_world": normalized_direction,
+		"sweep_distance_meters": sweep_distance_meters,
+		"verified_clearance_meters": verified_clearance,
+		"clearance_full_hull": queried_shape_count == enabled_shapes.size(),
+		"clearance_verified": queried_shape_count == enabled_shapes.size(),
+		"obstacle_detected": obstacle_detected,
+		"enabled_shape_count": enabled_shapes.size(),
+		"queried_shape_count": queried_shape_count,
+		"shape_names": shape_names,
+		"shape_transforms": shape_transforms.duplicate(),
+		"collision_mask": collision_mask,
+		"fixed_orientation_basis": global_basis,
+		"ship_position_world": global_position,
+		"velocity_world": velocity,
+		"ship_speed_meters_per_second": ship_speed,
+		"alignment_basis": alignment_basis,
+		"alignment_dot": alignment_dot,
+		"closing_speed_meters_per_second": closing_speed,
+		"currently_participating": _planetary_cruise_state in [
+			PLANETARY_CRUISE_STATE_ACCELERATING,
+			PLANETARY_CRUISE_STATE_CRUISING,
+			PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED,
+		],
+	}.duplicate(true)
+	_planetary_cruise_mutation_active = true
+	_planetary_cruise_clearance_proof_sequence = proof_sequence
+	_planetary_cruise_pending_clearance_proof = proof.duplicate(true)
+	_planetary_cruise_mutation_active = false
+	return proof.duplicate(true)
+
+
+## Queues one exact envelope for the next HeroShip physics step. Acceptance does
+## not move the body or alter velocity; it only transfers detached intent into
+## the body that already owns physics integration.
+func submit_planetary_cruise_envelope(envelope: Dictionary) -> Dictionary:
+	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_receipt(false, &"reentrant_call")
+	var validation_reason := _validate_planetary_cruise_envelope(envelope)
+	if not validation_reason.is_empty():
+		return _planetary_cruise_receipt(false, validation_reason)
+	_planetary_cruise_mutation_active = true
+	_planetary_cruise_pending_envelope = envelope.duplicate(true)
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_last_controller_generation = int(envelope.controller_generation)
+	_planetary_cruise_last_sequence = int(envelope.sequence)
+	_planetary_cruise_mutation_active = false
+	return _planetary_cruise_receipt(true, &"envelope_queued")
+
+
+## Explicitly retires the bound controller and any pending/active envelope. The
+## body begins a bounded HeroShip-owned brake when that is physically allowed.
+func disengage_planetary_cruise(
+	controller_instance_id: int,
+	expected_attachment_generation: int,
+	brake_to_stop: bool = true
+) -> Dictionary:
+	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_receipt(false, &"reentrant_call")
+	if controller_instance_id != _planetary_cruise_controller_instance_id:
+		return _planetary_cruise_receipt(false, &"controller_identity_mismatch")
+	if expected_attachment_generation != _planetary_cruise_attachment_generation:
+		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
+	_planetary_cruise_pending_envelope.clear()
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_controller_instance_id = 0
+	if brake_to_stop and _planetary_cruise_can_brake() and velocity.length() > 0.0:
+		_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING
+		_planetary_cruise_reason = &"explicit_disengage"
+		_planetary_cruise_braking_acceleration = (
+			PlanetaryCruisePolicyType.BRAKING_HINT_METERS_PER_SECOND_SQUARED
+		)
+		_planetary_cruise_attachment_generation = _next_planetary_cruise_generation()
+		_emit_planetary_cruise_state_changed()
+		return _planetary_cruise_receipt(true, &"braking")
+	_retire_planetary_cruise(&"explicit_disengage", true)
+	return _planetary_cruise_receipt(true, &"disengaged")
+
+
+func get_planetary_cruise_attachment_report() -> Dictionary:
+	return {
+		"schema_version": PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION,
+		"ship_instance_id": get_instance_id(),
+		"ship_attachment_generation": _planetary_cruise_attachment_generation,
+		"controller_instance_id": _planetary_cruise_controller_instance_id,
+		"attached": _planetary_cruise_controller_instance_id > 0,
+		"inside_tree": is_inside_tree(),
+		"queued_for_deletion": is_queued_for_deletion(),
+		"piloted": _piloted,
+		"destroyed": _destroyed,
+		"landing_active": _landing_active,
+		"state": _planetary_cruise_state,
+		"reason": _planetary_cruise_reason,
+		"coordinate_frame_generation": _planetary_cruise_coordinate_frame_generation,
+		"last_controller_generation": _planetary_cruise_last_controller_generation,
+		"last_sequence": _planetary_cruise_last_sequence,
+		"pending_envelope": _planetary_cruise_pending_envelope.duplicate(true),
+		"pending_clearance_proof": (
+			_planetary_cruise_pending_clearance_proof.duplicate(true)
+		),
+		"last_consumed_envelope": _planetary_cruise_last_envelope.duplicate(true),
+		"direction_world": _planetary_cruise_direction_world,
+		"desired_speed_meters_per_second": _planetary_cruise_desired_speed,
+		"acceleration_meters_per_second_squared": _planetary_cruise_acceleration,
+		"braking_acceleration_meters_per_second_squared": (
+			_planetary_cruise_braking_acceleration
+		),
+		"body_owns_velocity": true,
+		"body_owns_move_and_slide": true,
+	}.duplicate(true)
 
 
 func get_landing_contract_report() -> Dictionary:
@@ -1141,6 +1550,7 @@ func is_piloted() -> bool:
 ## respawn timing instead of the presentation component silently resurrecting.
 func reset_for_reuse(spawn_transform: Transform3D) -> void:
 	_destruction_serial += 1
+	_retire_planetary_cruise(&"reset_for_reuse", true)
 	_end_landing_for_lifecycle(&"reset_for_reuse")
 	_destroyed = false
 	global_transform = spawn_transform
@@ -1396,6 +1806,7 @@ func apply_damage(
 		critical_damage.emit()
 	if _hull <= 0.0:
 		_destroyed = true
+		_retire_planetary_cruise(&"ship_destroyed", true)
 		_destruction_serial += 1
 		var destruction_serial := _destruction_serial
 		var destruction_position := global_position
@@ -1513,7 +1924,9 @@ func _update_automatic_engine_control(delta: float, command: ShipCommand) -> voi
 	if not _piloted or _destroyed or _hull <= 0.0:
 		_automatic_engine_idle_elapsed = 0.0
 		return
-	var propulsion_demand := _landing_active or _command_requires_engine(command)
+	var propulsion_demand := _landing_active \
+		or _command_requires_engine(command) \
+		or _planetary_cruise_has_propulsion_demand()
 	if propulsion_demand:
 		_automatic_engine_idle_elapsed = 0.0
 		_wake_engine_for_automatic_demand()
@@ -1543,6 +1956,531 @@ func _command_requires_engine(command: ShipCommand) -> bool:
 		or command.barrel_roll
 		or command.landing
 	)
+
+
+func _command_interrupts_planetary_cruise(command: ShipCommand) -> bool:
+	return (
+		_planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE
+		or not _planetary_cruise_pending_envelope.is_empty()
+	) \
+		and _command_requires_engine(command)
+
+
+func _planetary_cruise_has_propulsion_demand() -> bool:
+	return not _planetary_cruise_pending_envelope.is_empty() \
+		or _planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE
+
+
+## Returns true only when this physics tick was fully integrated by the cruise
+## branch. The branch owns no second movement path: it mutates this body's
+## velocity, then calls the same CharacterBody3D move and collision accounting
+## that ordinary flight uses, exactly once.
+func _update_planetary_cruise_physics(delta: float) -> bool:
+	if _destroyed or not _piloted or _landing_active or not is_inside_tree():
+		_retire_planetary_cruise(&"lifecycle_gate", true)
+		return false
+	var had_pending := not _planetary_cruise_pending_envelope.is_empty()
+	if had_pending:
+		var envelope := _planetary_cruise_pending_envelope.duplicate(true)
+		_planetary_cruise_pending_envelope.clear()
+		var validation_reason := _validate_planetary_cruise_envelope(
+			envelope,
+			true
+		)
+		if not validation_reason.is_empty():
+			_retire_planetary_cruise(validation_reason, true)
+			return false
+		_planetary_cruise_last_envelope = envelope.duplicate(true)
+		_planetary_cruise_coordinate_frame_generation = int(
+			envelope.coordinate_frame_generation
+		)
+		_planetary_cruise_direction_world = (
+			envelope.destination_direction_world as Vector3
+		).normalized()
+		_planetary_cruise_desired_speed = float(
+			envelope.desired_speed_meters_per_second
+		)
+		var signed_acceleration := float(
+			envelope.acceleration_hint_meters_per_second_squared
+		)
+		_planetary_cruise_acceleration = absf(signed_acceleration)
+		_planetary_cruise_braking_acceleration = absf(float(
+			envelope.braking_acceleration_hint_meters_per_second_squared
+		))
+		if bool(envelope.desired_participation):
+			if bool(envelope.braking_requested) or signed_acceleration < 0.0:
+				_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED
+			elif _planetary_cruise_acceleration > 0.0:
+				_planetary_cruise_state = PLANETARY_CRUISE_STATE_ACCELERATING
+			else:
+				_planetary_cruise_state = PLANETARY_CRUISE_STATE_CRUISING
+			_planetary_cruise_reason = StringName(envelope.policy_reason)
+		elif bool(envelope.braking_requested) and _planetary_cruise_can_brake():
+			_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING
+			_planetary_cruise_reason = StringName(envelope.policy_reason)
+		else:
+			_retire_planetary_cruise(StringName(envelope.policy_reason), true)
+			return false
+		_emit_planetary_cruise_state_changed()
+	elif _planetary_cruise_state in [
+		PLANETARY_CRUISE_STATE_ACCELERATING,
+		PLANETARY_CRUISE_STATE_CRUISING,
+		PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED,
+	]:
+		# Participation needs one proof-bearing envelope per physics tick. Missing
+		# cadence cannot coast indefinitely on an old obstacle observation.
+		_planetary_cruise_controller_instance_id = 0
+		_planetary_cruise_attachment_generation = _next_planetary_cruise_generation()
+		_planetary_cruise_last_controller_generation = 0
+		_planetary_cruise_last_sequence = 0
+		_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING
+		_planetary_cruise_reason = &"fresh_envelope_missing"
+		_planetary_cruise_braking_acceleration = (
+			PlanetaryCruisePolicyType.BRAKING_HINT_METERS_PER_SECOND_SQUARED
+		)
+		_emit_planetary_cruise_state_changed()
+	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_INACTIVE:
+		return false
+
+	var safe_delta := maxf(delta, 0.0)
+	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_BRAKING:
+		var braking_step := _planetary_cruise_braking_acceleration * safe_delta
+		velocity = velocity.move_toward(Vector3.ZERO, braking_step)
+		_throttle = 0.0
+	else:
+		var target_velocity := _planetary_cruise_direction_world \
+			* _planetary_cruise_desired_speed
+		velocity = velocity.move_toward(
+			target_velocity,
+			_planetary_cruise_acceleration * safe_delta
+		)
+		_throttle = (
+			1.0
+			if _planetary_cruise_acceleration > 0.0 \
+				and velocity.dot(_planetary_cruise_direction_world) \
+				< _planetary_cruise_desired_speed
+			else 0.0
+		)
+	var pre_collision_velocity := velocity
+	var pre_move_position := global_position
+	if velocity.length_squared() > 0.0:
+		move_and_slide()
+	if (
+		_landed
+		and velocity.length() > DEPARTURE_SPEED_THRESHOLD
+		and global_position.distance_squared_to(pre_move_position) \
+			> DEPARTURE_MOTION_EPSILON_SQUARED
+	):
+		_landed = false
+	_apply_collision_damage(pre_collision_velocity)
+	if get_slide_collision_count() > 0:
+		_retire_planetary_cruise(&"physical_collision", true)
+		return true
+	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_BRAKING \
+		and velocity.length() <= PlanetaryCruisePolicyType.SPEED_DEADBAND_METERS_PER_SECOND:
+		velocity = Vector3.ZERO
+		_retire_planetary_cruise(&"braking_complete", true)
+	return true
+
+
+func _validate_planetary_cruise_query_context(
+	direction_world: Vector3,
+	sweep_distance_meters: float,
+	coordinate_frame_generation: int,
+	expected_attachment_generation: int,
+	controller_instance_id: int
+) -> StringName:
+	if not _planetary_cruise_body_is_live():
+		return &"ship_unavailable"
+	if _destroyed:
+		return &"destroyed"
+	if not _piloted:
+		return &"not_piloted"
+	if _landing_active:
+		return &"landing_active"
+	if expected_attachment_generation != _planetary_cruise_attachment_generation:
+		return &"attachment_generation_mismatch"
+	if controller_instance_id != _planetary_cruise_controller_instance_id:
+		return &"controller_identity_mismatch"
+	if coordinate_frame_generation < 1 \
+		or coordinate_frame_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return &"coordinate_frame_generation_out_of_bounds"
+	if not direction_world.is_finite() \
+		or absf(direction_world.length() - 1.0) > PLANETARY_CRUISE_DIRECTION_EPSILON:
+		return &"direction_not_normalized"
+	if not is_finite(sweep_distance_meters) \
+		or sweep_distance_meters <= 0.0 \
+		or sweep_distance_meters > PlanetaryCruisePolicyType.MAX_CLEARANCE_METERS:
+		return &"sweep_distance_out_of_bounds"
+	return &""
+
+
+func _validate_planetary_cruise_envelope(
+	envelope: Dictionary,
+	allow_pending_identity: bool = false
+) -> StringName:
+	if not _has_exact_planetary_cruise_keys(
+		envelope,
+		PLANETARY_CRUISE_ENVELOPE_KEYS
+	):
+		return &"envelope_schema_mismatch"
+	for key in [
+		"schema_version",
+		"ship_instance_id",
+		"ship_attachment_generation",
+		"controller_instance_id",
+		"controller_generation",
+		"sequence",
+		"coordinate_frame_generation",
+		"clearance_proof_sequence",
+		"clearance_proof_generation",
+	]:
+		if not envelope[key] is int:
+			return StringName("%s_not_int" % key)
+	for key in [
+		"desired_speed_meters_per_second",
+		"acceleration_hint_meters_per_second_squared",
+		"braking_acceleration_hint_meters_per_second_squared",
+	]:
+		if not envelope[key] is float or not is_finite(float(envelope[key])):
+			return StringName("%s_invalid" % key)
+	for key in [
+		"desired_participation",
+		"braking_requested",
+		"clearance_full_hull",
+		"clearance_verified",
+		"obstacle_detected",
+	]:
+		if not envelope[key] is bool:
+			return StringName("%s_not_bool" % key)
+	if not envelope.policy_reason is StringName:
+		return &"policy_reason_not_string_name"
+	if not envelope.observation is Dictionary:
+		return &"observation_not_dictionary"
+	if not envelope.destination_direction_world is Vector3:
+		return &"direction_not_vector3"
+	var direction := envelope.destination_direction_world as Vector3
+	if not direction.is_finite() \
+		or absf(direction.length() - 1.0) > PLANETARY_CRUISE_DIRECTION_EPSILON:
+		return &"direction_not_normalized"
+	if int(envelope.schema_version) != PLANETARY_CRUISE_ENVELOPE_SCHEMA_VERSION:
+		return &"envelope_schema_version_mismatch"
+	if int(envelope.ship_instance_id) != get_instance_id():
+		return &"ship_instance_mismatch"
+	if int(envelope.ship_attachment_generation) \
+		!= _planetary_cruise_attachment_generation:
+		return &"attachment_generation_mismatch"
+	if int(envelope.controller_instance_id) \
+		!= _planetary_cruise_controller_instance_id:
+		return &"controller_identity_mismatch"
+	if not allow_pending_identity and not _planetary_cruise_body_is_live():
+		return &"ship_unavailable"
+	if _destroyed:
+		return &"destroyed"
+	if not _piloted:
+		return &"not_piloted"
+	if _landing_active:
+		return &"landing_active"
+	var controller_generation := int(envelope.controller_generation)
+	var sequence := int(envelope.sequence)
+	if controller_generation < 1 \
+		or controller_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return &"controller_generation_out_of_bounds"
+	if sequence < 1 or sequence > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return &"sequence_out_of_bounds"
+	if (
+		controller_generation < _planetary_cruise_last_controller_generation
+		or (
+			controller_generation == _planetary_cruise_last_controller_generation
+			and sequence < _planetary_cruise_last_sequence
+		)
+	):
+		return &"stale_envelope"
+	if not allow_pending_identity \
+		and controller_generation == _planetary_cruise_last_controller_generation \
+		and sequence == _planetary_cruise_last_sequence:
+		return &"duplicate_envelope"
+	var frame_generation := int(envelope.coordinate_frame_generation)
+	if frame_generation < 1 \
+		or frame_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return &"coordinate_frame_generation_out_of_bounds"
+	if int(envelope.clearance_proof_generation) != frame_generation:
+		return &"clearance_proof_generation_mismatch"
+	if int(envelope.clearance_proof_sequence) < 1 \
+		or int(envelope.clearance_proof_sequence) \
+		> PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return &"clearance_proof_sequence_out_of_bounds"
+	var pending_frame_generation := int(
+		_planetary_cruise_pending_envelope.get(
+			"coordinate_frame_generation",
+			_planetary_cruise_coordinate_frame_generation
+		)
+	)
+	if frame_generation < max(
+		_planetary_cruise_coordinate_frame_generation,
+		pending_frame_generation
+	):
+		return &"stale_coordinate_frame_generation"
+	var desired_speed := float(envelope.desired_speed_meters_per_second)
+	var acceleration := float(envelope.acceleration_hint_meters_per_second_squared)
+	var braking := float(
+		envelope.braking_acceleration_hint_meters_per_second_squared
+	)
+	if desired_speed < 0.0 \
+		or desired_speed > PLANETARY_CRUISE_MAX_SPEED_METERS_PER_SECOND:
+		return &"desired_speed_out_of_bounds"
+	if absf(acceleration) \
+		> PLANETARY_CRUISE_MAX_ACCELERATION_METERS_PER_SECOND_SQUARED:
+		return &"acceleration_out_of_bounds"
+	if braking < 0.0 \
+		or braking > PLANETARY_CRUISE_MAX_ACCELERATION_METERS_PER_SECOND_SQUARED:
+		return &"braking_acceleration_out_of_bounds"
+	var observation := (envelope.observation as Dictionary).duplicate(true)
+	var policy_result := _planetary_cruise_policy.evaluate(
+		observation,
+		frame_generation
+	)
+	if not bool(policy_result.get("accepted", false)):
+		return StringName(
+			"policy_%s" % String(policy_result.get("reason", &"rejected"))
+		)
+	if bool(envelope.desired_participation) \
+		!= bool(policy_result.get("desired_cruise_participation", false)) \
+		or desired_speed \
+		!= float(policy_result.get("desired_speed_meters_per_second", 0.0)) \
+		or acceleration \
+		!= float(policy_result.get(
+			"acceleration_hint_meters_per_second_squared", 0.0
+		)) \
+		or bool(envelope.braking_requested) \
+		!= bool(policy_result.get("braking_requested", false)) \
+		or braking \
+		!= float(policy_result.get(
+			"braking_acceleration_hint_meters_per_second_squared", 0.0
+		)) \
+		or StringName(envelope.policy_reason) \
+		!= StringName(policy_result.get("reason", &"")):
+		return &"policy_result_mismatch"
+	if not allow_pending_identity:
+		var proof_reason := _validate_planetary_cruise_proof_capability(
+			envelope,
+			observation
+		)
+		if not proof_reason.is_empty():
+			return proof_reason
+	return &""
+
+
+func _validate_planetary_cruise_proof_capability(
+	envelope: Dictionary,
+	observation: Dictionary
+) -> StringName:
+	if _planetary_cruise_pending_clearance_proof.is_empty():
+		return &"clearance_proof_unavailable"
+	var proof := _planetary_cruise_pending_clearance_proof
+	if not _has_exact_planetary_cruise_keys(
+		proof,
+		PLANETARY_CRUISE_CLEARANCE_PROOF_KEYS
+	):
+		return &"clearance_proof_schema_mismatch"
+	if int(envelope.clearance_proof_sequence) \
+		!= int(proof.get("proof_sequence", 0)):
+		return &"clearance_proof_sequence_mismatch"
+	if int(proof.get("controller_instance_id", 0)) \
+		!= _planetary_cruise_controller_instance_id \
+		or int(proof.get("ship_instance_id", 0)) != get_instance_id() \
+		or int(proof.get("ship_attachment_generation", 0)) \
+		!= _planetary_cruise_attachment_generation:
+		return &"clearance_proof_identity_mismatch"
+	if int(proof.get("coordinate_frame_generation", 0)) \
+		!= int(envelope.coordinate_frame_generation) \
+		or not (proof.get("direction_world", Vector3.ZERO) as Vector3).is_equal_approx(
+			envelope.destination_direction_world as Vector3
+		):
+		return &"clearance_proof_geometry_mismatch"
+	if bool(envelope.clearance_full_hull) \
+		!= bool(proof.get("clearance_full_hull", false)) \
+		or bool(envelope.clearance_verified) \
+		!= bool(proof.get("clearance_verified", false)) \
+		or bool(envelope.obstacle_detected) \
+		!= bool(proof.get("obstacle_detected", false)):
+		return &"clearance_proof_flags_mismatch"
+	if not bool(proof.get("clearance_full_hull", false)) \
+		or not bool(proof.get("clearance_verified", false)):
+		return &"clearance_proof_unverified"
+	if float(observation.get("distance_to_destination_meters", -1.0)) \
+		< float(proof.get("sweep_distance_meters", INF)) \
+		or float(observation.get("ship_speed_meters_per_second", -1.0)) \
+		!= float(proof.get("ship_speed_meters_per_second", -2.0)) \
+		or float(observation.get("closing_speed_meters_per_second", INF)) \
+		!= float(proof.get("closing_speed_meters_per_second", -INF)) \
+		or StringName(observation.get("alignment_basis", &"")) \
+		!= StringName(proof.get("alignment_basis", &"invalid")) \
+		or float(observation.get("alignment_dot", INF)) \
+		!= float(proof.get("alignment_dot", -INF)) \
+		or int(observation.get("coordinate_frame_generation", 0)) \
+		!= int(proof.get("coordinate_frame_generation", -1)) \
+		or float(observation.get("verified_clearance_meters", -1.0)) \
+		!= float(proof.get("verified_clearance_meters", -2.0)) \
+		or float(observation.get("clearance_sweep_distance_meters", -1.0)) \
+		!= float(proof.get("sweep_distance_meters", -2.0)) \
+		or int(observation.get("clearance_proof_generation", 0)) \
+		!= int(proof.get("coordinate_frame_generation", -1)) \
+		or bool(observation.get("clearance_full_hull", false)) \
+		!= bool(proof.get("clearance_full_hull", false)) \
+		or bool(observation.get("clearance_verified", false)) \
+		!= bool(proof.get("clearance_verified", false)) \
+		or bool(observation.get("obstacle_detected", false)) \
+		!= bool(proof.get("obstacle_detected", false)) \
+		or bool(observation.get("currently_participating", false)) \
+		!= bool(proof.get("currently_participating", false)):
+		return &"clearance_observation_mismatch"
+	if bool(observation.get("piloted", false)) != _piloted \
+		or bool(observation.get("destroyed", false)) != _destroyed \
+		or bool(observation.get("landing_active", false)) != _landing_active:
+		return &"lifecycle_observation_mismatch"
+	if not (proof.get("fixed_orientation_basis", Basis()) as Basis).is_equal_approx(
+		global_basis
+	) \
+		or not (proof.get("ship_position_world", Vector3.INF) as Vector3) \
+			.is_equal_approx(global_position) \
+		or not (proof.get("velocity_world", Vector3.INF) as Vector3) \
+			.is_equal_approx(velocity) \
+		or float(proof.get("ship_speed_meters_per_second", -1.0)) \
+		!= velocity.length() \
+		or int(proof.get("collision_mask", -1)) != collision_mask:
+		return &"clearance_proof_no_longer_current"
+	var current_shape_names := PackedStringArray()
+	var current_shape_transforms: Array[Transform3D] = []
+	var current_shapes: Array[CollisionShape3D] = []
+	for child in get_children():
+		if child is CollisionShape3D:
+			var collision := child as CollisionShape3D
+			if not collision.disabled and collision.shape != null:
+				current_shapes.append(collision)
+	current_shapes.sort_custom(func(left: CollisionShape3D, right: CollisionShape3D) -> bool:
+		return String(left.name) < String(right.name)
+	)
+	for collision in current_shapes:
+		current_shape_names.append(str(collision.name))
+		current_shape_transforms.append(collision.global_transform)
+	if current_shape_names != proof.get("shape_names", PackedStringArray()) \
+		or current_shape_transforms != proof.get("shape_transforms", []):
+		return &"clearance_hull_roster_changed"
+	return &""
+
+
+func _planetary_cruise_body_is_live() -> bool:
+	return is_inside_tree() \
+		and not is_queued_for_deletion() \
+		and get_world_3d() != null
+
+
+func _planetary_cruise_can_brake() -> bool:
+	return _piloted and not _destroyed and not _landing_active
+
+
+func _retire_planetary_cruise(reason: StringName, advance_generation: bool) -> void:
+	var changed := _planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE \
+		or not _planetary_cruise_pending_envelope.is_empty() \
+		or _planetary_cruise_controller_instance_id != 0 \
+		or _planetary_cruise_reason != reason
+	_planetary_cruise_pending_envelope.clear()
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_controller_instance_id = 0
+	_planetary_cruise_state = PLANETARY_CRUISE_STATE_INACTIVE
+	_planetary_cruise_reason = reason
+	_planetary_cruise_direction_world = Vector3.ZERO
+	_planetary_cruise_desired_speed = 0.0
+	_planetary_cruise_acceleration = 0.0
+	_planetary_cruise_braking_acceleration = 0.0
+	_planetary_cruise_coordinate_frame_generation = 0
+	_planetary_cruise_last_controller_generation = 0
+	_planetary_cruise_last_sequence = 0
+	if advance_generation:
+		_planetary_cruise_attachment_generation = _next_planetary_cruise_generation()
+	if changed:
+		_emit_planetary_cruise_state_changed()
+
+
+func _next_planetary_cruise_generation() -> int:
+	if _planetary_cruise_attachment_generation \
+		>= PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return 1
+	return _planetary_cruise_attachment_generation + 1
+
+
+func _emit_planetary_cruise_state_changed() -> void:
+	if _planetary_cruise_signal_dispatch_active:
+		return
+	_planetary_cruise_signal_dispatch_active = true
+	planetary_cruise_state_changed.emit(
+		get_planetary_cruise_attachment_report().duplicate(true)
+	)
+	_planetary_cruise_signal_dispatch_active = false
+
+
+func _planetary_cruise_receipt(accepted: bool, reason: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"schema_version": PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION,
+		"ship_instance_id": get_instance_id(),
+		"ship_attachment_generation": _planetary_cruise_attachment_generation,
+		"state": _planetary_cruise_state,
+	}.duplicate(true)
+
+
+func _planetary_cruise_clearance_receipt(
+	accepted: bool,
+	reason: StringName,
+	direction_world: Vector3,
+	sweep_distance_meters: float,
+	coordinate_frame_generation: int,
+	enabled_shape_count: int = 0,
+	queried_shape_count: int = 0
+) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"schema_version": PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION,
+		"ship_instance_id": get_instance_id(),
+		"ship_attachment_generation": _planetary_cruise_attachment_generation,
+		"coordinate_frame_generation": coordinate_frame_generation,
+		"proof_sequence": 0,
+		"controller_instance_id": 0,
+		"direction_world": direction_world,
+		"sweep_distance_meters": sweep_distance_meters,
+		"verified_clearance_meters": 0.0,
+		"clearance_full_hull": false,
+		"clearance_verified": false,
+		"obstacle_detected": false,
+		"enabled_shape_count": enabled_shape_count,
+		"queried_shape_count": queried_shape_count,
+		"shape_names": PackedStringArray(),
+		"shape_transforms": [],
+		"collision_mask": collision_mask,
+		"fixed_orientation_basis": global_basis,
+		"ship_position_world": global_position,
+		"velocity_world": velocity,
+		"ship_speed_meters_per_second": 0.0,
+		"alignment_basis": &"",
+		"alignment_dot": 0.0,
+		"closing_speed_meters_per_second": 0.0,
+		"currently_participating": false,
+	}.duplicate(true)
+
+
+static func _has_exact_planetary_cruise_keys(
+	value: Dictionary,
+	keys: Array
+) -> bool:
+	if value.size() != keys.size():
+		return false
+	for key in keys:
+		if not value.has(key):
+			return false
+	return true
 
 
 ## Player demand bypasses the legacy timed-start seam so the command that wakes
@@ -1883,6 +2821,7 @@ func _complete_landing(berth: ShipBerth, target_basis: Basis) -> void:
 			_abort_landing(authority_failure)
 			return
 	global_transform = Transform3D(target_basis, _landing_target.origin)
+	_retire_planetary_cruise(&"landing_completed", true)
 	velocity = Vector3.ZERO
 	_landing_active = false
 	_landed = true
@@ -1899,6 +2838,7 @@ func _complete_landing(berth: ShipBerth, target_basis: Basis) -> void:
 func _abort_landing(reason: StringName) -> void:
 	if not _landing_active:
 		return
+	_retire_planetary_cruise(&"landing_aborted", true)
 	var released_lease := _release_landing_lease()
 	if not _landing_contract.is_empty():
 		_landing_contract["reservation_released_on_abort"] = released_lease
