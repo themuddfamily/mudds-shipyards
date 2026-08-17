@@ -56,11 +56,12 @@ pending load is retired when either its focus or body centre leaves the bounded
 envelope. Coordinator generations remain independent: first load is 1, unload
 is 2, and reload is 3.
 
-## Caller-owned rebase and observations
+## Explicit rebase ownership and observations
 
 The bootstrap exposes the exact configured coordinate-frame object because a
-`PlanetaryTravelSession` requires frame instance identity. The caller owns the
-entire rebase transaction:
+`PlanetaryTravelSession` requires frame instance identity. In production,
+`Main`'s lifetime-stable `CommonWorldOriginRebaseOwner` owns the entire rebase
+transaction:
 
 1. request a rebase from the current frame generation;
 2. apply the frozen `world_translation_delta` to the common world root,
@@ -69,9 +70,11 @@ entire rebase transaction:
    commit fails;
 4. resume updates with the target generation.
 
-The bootstrap never requests, commits, or applies this translation. Streaming
-updates and observations reject a pending rebase, stale generation, or root
-whose identity basis/position no longer matches the frame.
+The bootstrap and production observation binding never request, commit, or
+apply this translation. The separate owner atomically translates the common
+station, Cinder, actor, effects, and Ember roster. Streaming updates and
+observations reject a pending rebase, stale generation, or root whose identity
+basis/position no longer matches the frame.
 
 `create_travel_observation()` requires a finite bounded speed, exact current
 coordinate generation, exact live coordinator generation, and a current loaded
@@ -90,19 +93,21 @@ immutable datum. The bootstrap truthfully owns frame configuration, absolute
 focus evaluation, Ember registration, load/unload requests, and observation
 encoding. The coordinator owns the instantiated root lifecycle.
 
-Automatic processing, rebase decision/application, ship or player movement,
-GameFlow, travel-session mutation, landing approval, world/terrain/collision
-generation, save, network, SpaceBackdrop, and Cinder streaming authority are
-all exactly false.
+For the registry and bootstrap themselves, automatic processing, rebase
+decision/application, ship or player movement, GameFlow, travel-session
+mutation, landing approval, world/terrain/collision generation, save, network,
+SpaceBackdrop, and Cinder streaming authority are all exactly false.
 
-Production insertion is limited to one lifetime-stable bootstrap and one
-caller-physics observation binding. Applying an origin rebase remains deferred
-until one host can atomically translate the station, Cinder, ships, player,
-effects, and Ember roots; the production binding exposes only a detached preview
-and fails closed at generation 1. Also deferred are motion and travel handoff,
-GameFlow transitions, TravelSession streaming-generation binding, landing
-authority, spherical gravity, global terrain/LOD/collision, actor spawning,
-persistence/networking, and production performance/render validation.
+Production `Main` owns one lifetime-stable bootstrap, one caller-physics
+observation binding, and one `CommonWorldOriginRebaseOwner`. The owner consumes
+the binding's detached preview, translates the common live spatial roster, and
+commits the coordinate frame; it does not grant travel, landing, or gameplay
+authority. The newer Ember surface-loop host remains a standalone focused proof
+with no production GameFlow/activity selection or handoff. Also deferred are
+production motion and travel handoff, TravelSession streaming-generation
+binding, landing selection/authority, global terrain/LOD/collision, production
+actor staging, persistence/networking, and production performance/render
+validation. These foundations do not by themselves make Ember visitable.
 
 Focused verification covers exact cells and detachment, canonical rejection,
 the required initial rebase, both inclusive distance boundaries, coordinator

@@ -3,8 +3,9 @@
 `EmberMoonAuthoredScene` is a standalone, loadable, body-centred witness for the
 existing Ember Moon definitions. It owns a bounded visual surface patch, one
 World-layer walkable collision box, and a small original surface-content roster.
-It is not registered with production streaming, `Main`, `GameFlow`, Cinder
-Reach, or a travel session.
+Production's `EmberMoonStreamingBootstrap` registers and can stream this scene
+beneath its private coordinator. The scene itself owns no production `Main`,
+`GameFlow`, Cinder Reach, travel-session, or streaming authority.
 
 The scene root is the physical body centre. A non-colliding 119,999 m sphere is
 an intentionally inset silhouette proxy, one metre inside the exact 120,000 m
@@ -55,15 +56,17 @@ test-only local-origin translation, then drives the real production Player from
 the pad through egress to staging using ordinary forward locomotion. After the
 exact initial placement, the traversal uses neither jumping nor teleporting and
 probes the route's negative space at every landmark station. This validates the
-local surface while leaving production rebase application to the separate
-coordinate-frame integration seam.
+local surface without exercising production's separate
+`CommonWorldOriginRebaseOwner`, which applies the common spatial translation and
+coordinate-frame commit rather than delegating either to this scene.
 
 At 120 km, the standard single-precision build has approximately 0.0078125 m
 spacing. Keeping patch vertices and marker offsets under the landing-region
 parent preserves useful local authoring precision, but the scene promises no
 sub-centimetre placement and no arbitrary-radius precision. The +Y polar patch
-also happens to align with existing global -Y gravity; spherical gravity is not
-implemented or implied.
+also happens to align with existing global -Y gravity. The scene owns no gravity
+policy. The standalone surface-loop host composes a bounded tangent-gravity
+policy for its focused proof; global spherical locomotion remains absent.
 
 ## LOD and ownership
 
@@ -81,9 +84,12 @@ only capabilities. Streaming, GameFlow, gameplay, landing decisions, movement,
 world/terrain/collision generation, origin shifting, save, network, rewards,
 audio, camera, and lighting authority are all false.
 
-The opt-in Ember orbital bootstrap now supplies a checked absolute datum and an
-isolated streaming generation for this scene without placing it in `Main`.
-Production rebase application, actor spawning, travel-session integration,
-landing eligibility, approach navigation, global terrain and collision,
-spherical gravity, atmosphere, production light and sky, audio/VFX, missions,
-economy, persistence, and networking remain deferred.
+Production `Main` now owns the Ember orbital bootstrap and observation binding,
+plus one `CommonWorldOriginRebaseOwner`; together they can make exactly one
+checked scene generation resident in a correctly rebased local frame. The
+standalone `EmberSurfaceLoopHost` separately proves real-actor travel, berth,
+egress, reboarding, takeoff, and orbit return, but production GameFlow/activity
+selection and handoff remain absent. The composition therefore does not yet
+claim visitability. Production actor staging, landing selection, global terrain
+and collision, global spherical locomotion, atmosphere, production light and
+sky, audio/VFX, missions, economy, persistence, and networking remain deferred.

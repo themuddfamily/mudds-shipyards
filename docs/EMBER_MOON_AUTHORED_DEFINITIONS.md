@@ -22,7 +22,8 @@ persist state.
 
 The world scene reference resolves to the standalone authored
 `res://scenes/world/planets/ember_moon.tscn`. The Resource still neither places,
-streams, nor loads that scene; production composition remains deferred.
+streams, nor loads that scene. Production's separate
+`EmberMoonStreamingBootstrap` resolves, registers, and streams the reference.
 
 ## Evidence and visual boundary
 
@@ -33,21 +34,24 @@ material, and presentation-only identity are not reused and are not evidence
 of a physical body. Cinder Reach and its ringed moonlet are likewise separate
 authored content and provide no orbital placement datum for Ember Moon.
 
-The Resources themselves do not assign an absolute orbital cell. The opt-in
+The Resources themselves do not assign an absolute orbital cell. The separate
 `NearbySectorOrbitalRegistry` now authors Ember's original modern 8,000 km datum
-in a shared orbital frame, and `EmberMoonStreamingBootstrap` can own an isolated
-scene generation. They remain outside `Main`. A later production composition
-owner must still apply coordinate-frame rebases and move the station, Cinder,
-ships, player, and Ember roots together; none of those authorities is implied by
-these definition Resources.
+in a shared orbital frame. Production `Main` now owns one
+`EmberMoonStreamingBootstrap`, its caller-physics observation binding, and one
+`CommonWorldOriginRebaseOwner`. The bootstrap can own an isolated scene
+generation, while the rebase owner atomically moves the station, Cinder, actors,
+effects, and Ember roots together. None of those authorities is implied by these
+definition Resources.
 
 ## First-loop boundary
 
-The sole bounded content promise is enough authored data for a later owner to
-compose one orbital handoff, descent, surface-flight handoff, landing region,
-on-foot egress, reboarding, takeoff, and orbit return. This slice does not claim
-a global terrain, circumnavigation, atmosphere, settlements, NPCs, economy,
-cargo, missions, rewards, save, networking, or production-ready runtime.
+The sole bounded content promise is enough authored data for the standalone
+`EmberSurfaceLoopHost` proof to compose one orbital handoff, descent,
+surface-flight handoff, landing region, on-foot egress, reboarding, takeoff, and
+orbit return. That host is not selected or entered by production GameFlow or an
+activity. This slice does not claim visitability, a global terrain,
+circumnavigation, atmosphere, settlements, NPCs, economy, cargo, missions,
+rewards, save, networking, or a production-ready runtime.
 
 Focused verification loads the three Resources, proves both world/terrain and
 world/terrain/coordinate-frame/landing joins, checks the exact scene reference
