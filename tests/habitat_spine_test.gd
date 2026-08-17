@@ -437,6 +437,7 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_hatch_fastener_batch(module)
 	_test_nutrient_tank_band_batch(module)
 	_test_nutrient_valve_batch(module)
+	_test_garden_column_collar_mesh_sharing(module)
 	_check(
 		module.find_children("*", "Node", true, false).size() == 1907
 		and module.find_children("*", "MeshInstance3D", true, false).size() == 1257
@@ -617,11 +618,11 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 		"drawn copies remain 1400 while surface submissions fall 1286 -> 1271"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 355
+		int(report.unique_mesh_resources) == 353
 		and int(report.unique_material_resources) == 31
 		and int(report.multimesh_resources) == 14
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 355/31 while the hatch batch retains its 144-float renderer buffer"
+		"mesh/material allocations freeze at 353/31 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
@@ -1040,6 +1041,179 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 	_check(
 		module.get_validation_errors() == baseline_errors,
 		"restoring valve payload, recipe and metadata restores the pre-mutation Habitat audit"
+	)
+
+
+func _test_garden_column_collar_mesh_sharing(module: HabitatSpine) -> void:
+	var report := module.get_render_allocation_report()
+	var sharing := report.garden_column_collar_mesh_sharing as Dictionary
+	_check(
+		bool(sharing.valid)
+		and (sharing.errors as PackedStringArray).is_empty()
+		and sharing.legacy == {
+			"geometry_nodes": 3,
+			"geometry_submissions": 3,
+			"visible_geometry_copies": 3,
+			"primitive_mesh_allocations": 3,
+		}
+		and int(sharing.geometry_nodes) == 3
+		and int(sharing.geometry_submissions) == 3
+		and int(sharing.visible_geometry_copies) == 3
+		and int(sharing.primitive_mesh_allocations) == 1
+		and int(sharing.resource_allocation_reduction) == 2,
+		"garden-column collars retain 3 nodes/submissions/copies while immutable TorusMesh allocations fall 3 -> 1"
+	)
+	var paths := sharing.node_paths as PackedStringArray
+	_check(
+		paths.size() == 3
+		and paths[0] == "ColumnCollar"
+		and paths[1].begins_with("@MeshInstance3D@")
+		and paths[2].begins_with("@MeshInstance3D@")
+		and module.has_node(
+			^"Structure/SideBranchGarden/GardenColumn/ColumnCollar"
+		),
+		"the stable presentation path and both ordinary generated collar siblings remain present"
+	)
+	if paths.size() != 3:
+		return
+	var column := module.get_node(
+		^"Structure/SideBranchGarden/GardenColumn"
+	) as Node3D
+	var collars: Array[MeshInstance3D] = []
+	for path in paths:
+		collars.append(column.get_node(NodePath(path)) as MeshInstance3D)
+	var expected_transforms := [
+		Transform3D(Basis.IDENTITY, Vector3(14.4, 1.20, 20.2)),
+		Transform3D(Basis.IDENTITY, Vector3(14.4, 2.90, 20.2)),
+		Transform3D(Basis.IDENTITY, Vector3(14.4, 4.50, 20.2)),
+	]
+	var shared_mesh := collars[0].mesh as TorusMesh
+	var copies_exact := shared_mesh != null
+	for index in collars.size():
+		var collar := collars[index]
+		copies_exact = copies_exact \
+			and collar != null \
+			and collar.mesh == shared_mesh \
+			and collar.transform.is_equal_approx(expected_transforms[index]) \
+			and collar.material_override == collars[0].material_override \
+			and collar.material_overlay == null \
+			and collar.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and collar.layers == 1 \
+			and collar.visible \
+			and collar.get_child_count() == 0 \
+			and collar.get_script() == null \
+			and collar.get_groups().is_empty() \
+			and collar.get_meta_list().is_empty()
+	_check(
+		copies_exact,
+		"all three ordinary collars retain exact transforms, copper identity, renderer state and zero authority"
+	)
+	_check(
+		shared_mesh != null
+		and is_equal_approx(
+			shared_mesh.inner_radius,
+			HabitatSpine.GARDEN_COLUMN_COLLAR_INNER_RADIUS
+		)
+		and is_equal_approx(
+			shared_mesh.outer_radius,
+			HabitatSpine.GARDEN_COLUMN_COLLAR_OUTER_RADIUS
+		)
+		and shared_mesh.rings == HabitatSpine.GARDEN_COLUMN_COLLAR_BUDGETED_RINGS
+		and shared_mesh.ring_segments \
+			== HabitatSpine.GARDEN_COLUMN_COLLAR_BUDGETED_RING_SEGMENTS
+		and shared_mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		) == Vector2i(48, 16)
+		and shared_mesh.get_meta_list().size() == 1
+		and shared_mesh.get_meta_list().has(TorusGeometryBudget.AUTHORED_META)
+		and shared_mesh.get_surface_count() == 1
+		and shared_mesh.material == null
+		and not shared_mesh.resource_local_to_scene
+		and sharing.authored_tessellation == Vector2i(48, 16)
+		and sharing.live_tessellation == Vector2i(40, 16),
+		"shared collar resource retains the exact live 40x16 recipe and authored 48x16 budget metadata"
+	)
+
+	var detached_report := report.duplicate(true)
+	(detached_report.garden_column_collar_mesh_sharing as Dictionary)[
+		"primitive_mesh_allocations"
+	] = -1
+	var detached_transforms := (
+		(detached_report.garden_column_collar_mesh_sharing as Dictionary)
+			.authored_transforms as Array
+	)
+	detached_transforms[0] = Transform3D.IDENTITY
+	var fresh_sharing := (
+		module.get_render_allocation_report().garden_column_collar_mesh_sharing as Dictionary
+	)
+	_check(
+		int(fresh_sharing.primitive_mesh_allocations) == 1
+		and not ((fresh_sharing.authored_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"caller mutation cannot alter detached collar allocation or transform evidence"
+	)
+
+	var baseline_errors := module.get_validation_errors()
+	var last_collar := collars[-1]
+	last_collar.mesh = shared_mesh.duplicate() as TorusMesh
+	_check(
+		module.get_validation_errors().has(
+			"garden-column collar shared-mesh identity drift"
+		),
+		"RED: one private collar mesh fails immutable shared-resource identity"
+	)
+	last_collar.mesh = shared_mesh
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings = original_rings + 1
+	_check(
+		module.get_validation_errors().has(
+			"garden-column collar TorusMesh recipe drift"
+		),
+		"RED: shared collar recipe mutation fails the live tessellation gate"
+	)
+	shared_mesh.rings = original_rings
+	var authored_tessellation: Vector2i = shared_mesh.get_meta(
+		TorusGeometryBudget.AUTHORED_META
+	)
+	shared_mesh.set_meta(
+		TorusGeometryBudget.AUTHORED_META, Vector2i(47, 16)
+	)
+	_check(
+		module.get_validation_errors().has(
+			"garden-column collar torus-budget metadata drift"
+		),
+		"RED: shared collar authored-budget mutation fails its 48x16 metadata gate"
+	)
+	shared_mesh.set_meta(TorusGeometryBudget.AUTHORED_META, authored_tessellation)
+	var copper_material := last_collar.material_override
+	last_collar.material_override = null
+	_check(
+		module.get_validation_errors().has(
+			"garden-column collar render-state drift: %s" % paths[-1]
+		),
+		"RED: collar material-identity mutation fails the renderer-state gate"
+	)
+	last_collar.material_override = copper_material
+	last_collar.layers = 2
+	_check(
+		module.get_validation_errors().has(
+			"garden-column collar render-state drift: %s" % paths[-1]
+		),
+		"RED: collar renderer-layer mutation fails the renderer-state gate"
+	)
+	last_collar.layers = 1
+	last_collar.set_meta("station_service_detail", true)
+	_check(
+		module.get_validation_errors().has(
+			"garden-column collar gained semantic authority: %s" % paths[-1]
+		),
+		"RED: service metadata on visual collar stock fails the zero-authority gate"
+	)
+	last_collar.remove_meta("station_service_detail")
+	_check(
+		module.get_validation_errors() == baseline_errors,
+		"restoring collar identity, recipe, budget, renderer and authority state restores the Habitat audit"
 	)
 
 

@@ -34,11 +34,13 @@ const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
 
-## Component-local renderer freeze for three childless visual-only families.
-## Their parent hatches, nutrient tanks and pipework retain service/collision
-## authority; the brass fasteners, copper bands and red valve-wheel trim have no
-## collider, room, route, door, seat, readiness, state or evidence role and
-## retain every authored copy through MultiMesh submissions.
+## Component-local renderer freeze for four childless visual-only families.
+## Their parent hatches, nutrient tanks, pipework and garden column retain
+## service/collision authority; the brass fasteners, copper bands, red
+## valve-wheel trim and copper column collars have no collider, room, route,
+## door, seat, readiness, state or evidence role. The batches retain every
+## authored copy through MultiMesh submissions; the named collar nodes retain
+## their three ordinary submissions while sharing one immutable TorusMesh.
 const HATCH_FASTENER_RADIUS := 0.03
 const HATCH_FASTENER_HEIGHT := 0.025
 const HATCH_FASTENER_COPY_COUNT := 12
@@ -56,12 +58,19 @@ const NUTRIENT_VALVE_RING_SEGMENTS := 16
 const NUTRIENT_VALVE_BUDGETED_RINGS := 32
 const NUTRIENT_VALVE_BUDGETED_RING_SEGMENTS := 12
 const NUTRIENT_VALVE_COPY_COUNT := 3
+const GARDEN_COLUMN_COLLAR_INNER_RADIUS := 0.46
+const GARDEN_COLUMN_COLLAR_OUTER_RADIUS := 0.62
+const GARDEN_COLUMN_COLLAR_AUTHORED_RINGS := 48
+const GARDEN_COLUMN_COLLAR_AUTHORED_RING_SEGMENTS := 16
+const GARDEN_COLUMN_COLLAR_BUDGETED_RINGS := 40
+const GARDEN_COLUMN_COLLAR_BUDGETED_RING_SEGMENTS := 16
+const GARDEN_COLUMN_COLLAR_COPY_COUNT := 3
 const RENDER_DESCENDANT_COUNT := 1907
 const RENDER_MESH_INSTANCE_COUNT := 1257
 const RENDER_MULTIMESH_BATCH_COUNT := 14
 const RENDER_DRAWN_COPY_COUNT := 1400
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 1271
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 355
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 353
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
 ## Which of the six berths are currently taken, in alcove order.
@@ -164,6 +173,7 @@ var _nutrient_tank_band_transforms: Array[Transform3D] = []
 var _nutrient_valve_mesh: TorusMesh
 var _nutrient_valve_batch: MultiMeshInstance3D
 var _nutrient_valve_transforms: Array[Transform3D] = []
+var _garden_column_collar_mesh: TorusMesh
 
 
 func _ready() -> void:
@@ -474,6 +484,9 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("Habitat nutrient-valve material or renderer state drifted")
 	if not bool(render.nutrient_valve_authority_clean):
 		errors.append("Habitat nutrient-valve batch acquired semantic authority")
+	var collar_sharing := render.garden_column_collar_mesh_sharing as Dictionary
+	if not bool(collar_sharing.valid):
+		errors.append_array(collar_sharing.errors as PackedStringArray)
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -887,6 +900,7 @@ func get_render_allocation_report() -> Dictionary:
 			and StringName(_nutrient_valve_batch.get_meta("authored_source_name", &""))
 				== &"NutrientValve"
 		)
+	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -999,6 +1013,7 @@ func get_render_allocation_report() -> Dictionary:
 		"nutrient_valve_material_matches_authored": valve_material_matches,
 		"nutrient_valve_renderer_state_matches_authored": valve_renderer_state_matches,
 		"nutrient_valve_authority_clean": valve_authority_clean,
+		"garden_column_collar_mesh_sharing": collar_sharing,
 		"exact_counts": exact_counts,
 		"authored_hatch_fastener_transforms": _hatch_fastener_transforms.duplicate(),
 		"authored_nutrient_tank_band_transforms": (
@@ -1006,6 +1021,129 @@ func get_render_allocation_report() -> Dictionary:
 		),
 		"authored_nutrient_valve_transforms": _nutrient_valve_transforms.duplicate(),
 	}
+
+
+## The column collars stay as ordinary named MeshInstance3D nodes because the
+## first path is a presentation/capture landmark. Only their immutable primitive
+## resource is shared. This audit deliberately discovers the live direct-child
+## roster by exact recipe instead of trusting the retained member alone, so a
+## private duplicate, missing sibling or newly authoritative look-alike is red.
+func _inspect_garden_column_collar_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var collars: Array[MeshInstance3D] = []
+	var actual_paths := PackedStringArray()
+	var mesh_identities := {}
+	var submission_count := 0
+	var column := get_node_or_null(
+		^"Structure/SideBranchGarden/GardenColumn"
+	) as Node3D
+	var expected_transforms := _garden_column_collar_transforms()
+	if column == null:
+		errors.append("garden-column collar parent missing")
+	else:
+		for child in column.get_children():
+			var collar := child as MeshInstance3D
+			var torus := collar.mesh as TorusMesh if collar != null else null
+			if torus == null \
+				or not is_equal_approx(torus.inner_radius, GARDEN_COLUMN_COLLAR_INNER_RADIUS) \
+				or not is_equal_approx(torus.outer_radius, GARDEN_COLUMN_COLLAR_OUTER_RADIUS):
+				continue
+			var index := collars.size()
+			collars.append(collar)
+			var path := str(column.get_path_to(collar))
+			actual_paths.append(path)
+			mesh_identities[torus.get_instance_id()] = true
+			submission_count += torus.get_surface_count()
+			if index >= expected_transforms.size() \
+				or not collar.transform.is_equal_approx(expected_transforms[index]):
+				errors.append("garden-column collar transform drift: %s" % path)
+			if not collar.visible \
+				or collar.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or collar.material_override != _materials.get("copper") \
+				or collar.material_overlay != null \
+				or collar.layers != 1 \
+				or not is_zero_approx(collar.transparency):
+				errors.append("garden-column collar render-state drift: %s" % path)
+			if collar.get_child_count() != 0 \
+				or collar.get_script() != null \
+				or not collar.get_groups().is_empty() \
+				or not collar.get_meta_list().is_empty():
+				errors.append("garden-column collar gained semantic authority: %s" % path)
+
+	if collars.size() != GARDEN_COLUMN_COLLAR_COPY_COUNT \
+		or actual_paths.is_empty() \
+		or actual_paths[0] != "ColumnCollar":
+		errors.append("garden-column collar visible/path roster drift")
+	for index in range(1, actual_paths.size()):
+		if not actual_paths[index].begins_with("@MeshInstance3D@"):
+			errors.append("garden-column collar generated sibling path drift")
+			break
+	if mesh_identities.size() != 1:
+		errors.append("garden-column collar shared-mesh identity drift")
+
+	var mesh := _garden_column_collar_mesh
+	if mesh == null \
+		or not is_equal_approx(mesh.inner_radius, GARDEN_COLUMN_COLLAR_INNER_RADIUS) \
+		or not is_equal_approx(mesh.outer_radius, GARDEN_COLUMN_COLLAR_OUTER_RADIUS) \
+		or mesh.rings != GARDEN_COLUMN_COLLAR_BUDGETED_RINGS \
+		or mesh.ring_segments != GARDEN_COLUMN_COLLAR_BUDGETED_RING_SEGMENTS \
+		or mesh.get_surface_count() != 1 \
+		or mesh.material != null:
+		errors.append("garden-column collar TorusMesh recipe drift")
+	else:
+		var authored_value: Variant = mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		var mesh_metadata := mesh.get_meta_list()
+		if authored_value is not Vector2i \
+			or authored_value != Vector2i(
+				GARDEN_COLUMN_COLLAR_AUTHORED_RINGS,
+				GARDEN_COLUMN_COLLAR_AUTHORED_RING_SEGMENTS
+			) \
+			or mesh_metadata.size() != 1 \
+			or not mesh_metadata.has(TorusGeometryBudget.AUTHORED_META):
+			errors.append("garden-column collar torus-budget metadata drift")
+		if mesh.resource_local_to_scene:
+			errors.append("garden-column collar shared mesh became scene-local")
+	for collar in collars:
+		if collar.mesh != mesh:
+			errors.append("garden-column collar retained a private mesh")
+			break
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": actual_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": collars.size(),
+		"geometry_submissions": submission_count,
+		"visible_geometry_copies": collars.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 2,
+		"component_retained_mesh_present": mesh != null,
+		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
+		"authored_tessellation": Vector2i(
+			GARDEN_COLUMN_COLLAR_AUTHORED_RINGS,
+			GARDEN_COLUMN_COLLAR_AUTHORED_RING_SEGMENTS
+		),
+		"live_tessellation": Vector2i(
+			mesh.rings, mesh.ring_segments
+		) if mesh != null else Vector2i.ZERO,
+		"legacy": {
+			"geometry_nodes": GARDEN_COLUMN_COLLAR_COPY_COUNT,
+			"geometry_submissions": GARDEN_COLUMN_COLLAR_COPY_COUNT,
+			"visible_geometry_copies": GARDEN_COLUMN_COLLAR_COPY_COUNT,
+			"primitive_mesh_allocations": GARDEN_COLUMN_COLLAR_COPY_COUNT,
+		},
+	}.duplicate(true)
+
+
+static func _garden_column_collar_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(Basis.IDENTITY, Vector3(14.4, 1.20, 20.2)),
+		Transform3D(Basis.IDENTITY, Vector3(14.4, 2.90, 20.2)),
+		Transform3D(Basis.IDENTITY, Vector3(14.4, 4.50, 20.2)),
+	]
 
 
 ## Applied unconditionally. A no-op guard on the flag made drifted state
@@ -1970,8 +2108,26 @@ func _build_garden_column(branch: Node3D) -> void:
 	_cylinder(column, "ColumnCore", Vector3(14.4, 2.60, 20.2), 0.17, 4.64, _materials["structural"], true)
 	_cylinder(column, "ColumnGlow", Vector3(14.4, 2.60, 20.2), 0.34, 4.40, _materials["teal"], false)
 	_cylinder(column, "ColumnSleeve", Vector3(14.4, 2.60, 20.2), 0.46, 4.64, _materials["glass"], false)
+	_garden_column_collar_mesh = TorusMesh.new()
+	_garden_column_collar_mesh.inner_radius = GARDEN_COLUMN_COLLAR_INNER_RADIUS
+	_garden_column_collar_mesh.outer_radius = GARDEN_COLUMN_COLLAR_OUTER_RADIUS
+	_garden_column_collar_mesh.rings = GARDEN_COLUMN_COLLAR_AUTHORED_RINGS
+	_garden_column_collar_mesh.ring_segments = GARDEN_COLUMN_COLLAR_AUTHORED_RING_SEGMENTS
+	# These remain ordinary named MeshInstance3D nodes. Eagerly apply the same
+	# global budget they already received in ShipyardWorld so the retained shared
+	# resource is honest even when Habitat is validated synchronously on its own.
+	TorusGeometryBudget.apply(_garden_column_collar_mesh, 1.0)
 	for collar_y in [1.20, 2.90, 4.50]:
-		_torus(column, "ColumnCollar", Vector3(14.4, float(collar_y), 20.2), 0.46, 0.62, _materials["copper"])
+		_torus(
+			column,
+			"ColumnCollar",
+			Vector3(14.4, float(collar_y), 20.2),
+			GARDEN_COLUMN_COLLAR_INNER_RADIUS,
+			GARDEN_COLUMN_COLLAR_OUTER_RADIUS,
+			_materials["copper"],
+			Vector3.ZERO,
+			_garden_column_collar_mesh
+		)
 	_cylinder(column, "ColumnHead", Vector3(14.4, 5.07, 20.2), 0.72, 0.30, _materials["structural"], true)
 	_torus(column, "ColumnHeadRing", Vector3(14.4, 5.16, 20.2), 0.72, 0.90, _materials["copper"])
 	for feed_angle in [45.0, 165.0, 285.0]:
@@ -3167,17 +3323,20 @@ func _torus(
 		inner_radius: float,
 		outer_radius: float,
 		material: Material,
-		rotation_degrees_value: Vector3 = Vector3.ZERO
+		rotation_degrees_value: Vector3 = Vector3.ZERO,
+		shared_mesh: TorusMesh = null
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = torus_position
 	instance.rotation_degrees = rotation_degrees_value
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 48
-	mesh.ring_segments = 16
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = TorusMesh.new()
+		mesh.inner_radius = inner_radius
+		mesh.outer_radius = outer_radius
+		mesh.rings = 48
+		mesh.ring_segments = 16
 	instance.mesh = mesh
 	instance.material_override = material
 	parent.add_child(instance)
