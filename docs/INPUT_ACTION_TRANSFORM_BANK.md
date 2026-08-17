@@ -96,5 +96,6 @@ snapshot, exact-roster and atomicity declarations, and explicit boundaries:
 constructs the authored compatibility profile, accepts generation-safe complete
 profiles from a RuntimeSettings owner, and maps the atomic transformed frame into
 the existing command stream. See `docs/LOCAL_SHIP_TRANSFORMED_INPUT.md` for that
-boundary. Startup still must pass the active RuntimeSettings profile; the bank
+boundary. Production `GameFlow` now preflights and passes the active profile to
+every retained ship-local source at startup and live replacement. The bank
 itself remains free of persistence, startup, and gameplay authority.

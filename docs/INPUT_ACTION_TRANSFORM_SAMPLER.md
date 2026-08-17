@@ -103,5 +103,6 @@ detach, reset, or replace the bank, and it has no `_process` or
 sampler for an active command sample and passes the detached frame into
 `TransformedShipCommandMapper`, while retaining mouse-event backlog and existing
 command-stream authority. See `docs/LOCAL_SHIP_TRANSFORMED_INPUT.md`. Startup
-still owns passing the active RuntimeSettings profile; this sampler deliberately
-does not choose that profile or bypass source authority.
+passes the active RuntimeSettings profile through `GameFlow`'s preflighted
+five-source transaction; this sampler deliberately does not choose that profile
+or bypass source authority.

@@ -12,6 +12,8 @@ extends ShipCommandSource
 ## signed step stream: negative moves the chase camera nearer, positive farther.
 
 const MAX_PENDING_CAMERA_DISTANCE_STEPS := 32.0
+const INPUT_PROVIDER_RAW: StringName = &"raw"
+const INPUT_PROVIDER_INPUT_MAP_RESOLVED: StringName = &"input_map_resolved"
 const InputBindingProfileType := preload("res://scripts/settings/input_binding_profile.gd")
 const RuntimeSettingsType := preload("res://scripts/settings/runtime_settings.gd")
 const InputActionTransformBankType := preload("res://scripts/settings/input_action_transform_bank.gd")
@@ -87,6 +89,43 @@ class AxisCompatibleInputProvider:
 			else false
 		)
 
+
+## RuntimeSettings applies an action's deadzone to InputMap before this source
+## samples it. The returned action strength is therefore already in the logical
+## post-InputMap domain used by the pre-transform production path. Lift that
+## resolved value into InputActionTransform's deadzone-remap domain so the bank
+## can retain the exact profile and apply its curve/hold semantics without
+## attenuating the authored default response a second time.
+class ResolvedInputProfileProvider:
+	extends RefCounted
+
+	var provider: Object
+	var deadzones := {}
+
+	func _init(p_provider: Object, profile: InputBindingProfile) -> void:
+		provider = p_provider
+		if profile == null:
+			return
+		for action: StringName in profile.bindings:
+			deadzones[action] = float(profile.get_action_options(action).deadzone)
+
+	func get_action_strength(action: StringName) -> Variant:
+		if provider == null or not is_instance_valid(provider):
+			return null
+		var candidate: Variant = provider.call(&"get_action_strength", action)
+		if not candidate is float and not candidate is int:
+			return candidate
+		var resolved := clampf(float(candidate), 0.0, 1.0)
+		if is_zero_approx(resolved):
+			return 0.0
+		var deadzone := clampf(float(deadzones.get(action, 0.0)), 0.0, 1.0)
+		return deadzone + resolved * (1.0 - deadzone)
+
+	func is_action_pressed(action: StringName) -> Variant:
+		if provider == null or not is_instance_valid(provider):
+			return null
+		return provider.call(&"is_action_pressed", action)
+
 @export_category("Analogue / held actions")
 @export var throttle_forward_action: StringName = &"move_forward"
 @export var throttle_reverse_action: StringName = &"move_back"
@@ -115,6 +154,7 @@ class AxisCompatibleInputProvider:
 @export var camera_distance_out_action: StringName = &"camera_distance_out"
 
 var _input_provider: Object
+var _input_provider_strength_domain := INPUT_PROVIDER_RAW
 var _sampler_input_provider: Object
 var _pending_look_motion := Vector2.ZERO
 var _pending_camera_distance_delta := 0.0
@@ -130,6 +170,7 @@ var _ship_command_mapper: TransformedShipCommandMapper
 var _input_transform_physics_delta := 1.0 / 60.0
 var _input_configuration_errors := PackedStringArray()
 var _transform_boundary_committed := false
+var _production_input_profile_active := false
 
 
 func _init() -> void:
@@ -253,10 +294,21 @@ func queue_action_edge(action: StringName) -> void:
 	_pending_explicit_edges[action] = true
 
 
-## Passing null restores Godot's Input singleton.
-func set_input_provider(provider: Object) -> void:
+## Passing null restores Godot's Input singleton. Deterministic providers supply
+## raw physical strengths by default; an InputMap-aware adapter may explicitly
+## declare already-resolved strengths so the retained profile deadzone is not
+## applied to that logical magnitude twice.
+func set_input_provider(
+		provider: Object,
+		strength_domain: StringName = INPUT_PROVIDER_RAW,
+	) -> void:
 	var replacing_live_provider := get_next_sequence() > 0 or get_stream_id() > 0
 	_input_provider = provider
+	_input_provider_strength_domain = (
+		INPUT_PROVIDER_INPUT_MAP_RESOLVED
+		if provider != null and strength_domain == INPUT_PROVIDER_INPUT_MAP_RESOLVED
+		else INPUT_PROVIDER_RAW
+	)
 	_rebuild_input_transform_sampler()
 	# Initial injection has no produced or queued history to revoke and preserves
 	# the established contract that an initially-held edge is observable once.
@@ -278,6 +330,25 @@ func get_input_provider() -> Object:
 	return _input_provider
 
 
+## Side-effect-free half of a multi-source profile transaction. The retained
+## bank checks the caller's exact generation and fully prepares the candidate,
+## including attached child transforms, without changing live command state.
+func validate_input_binding_profile(
+		profile: InputBindingProfile,
+		expected_generation: int,
+	) -> Dictionary:
+	if not is_input_configuration_valid():
+		return _input_configuration_result(false, &"invalid_configuration")
+	var validated := _input_transform_bank.validate_profile_replacement(
+		profile,
+		expected_generation,
+	)
+	return _input_configuration_result(
+		bool(validated.accepted),
+		StringName(validated.reason),
+	)
+
+
 ## Atomically installs a complete RuntimeSettings-compatible binding profile.
 ## The bank enforces the exact authored action roster. A successful replacement
 ## advances both bank generation and command stream; stale/invalid candidates do
@@ -291,6 +362,7 @@ func replace_input_binding_profile(
 	var replaced := _input_transform_bank.replace_profile(profile, expected_generation)
 	if not bool(replaced.accepted):
 		return _input_configuration_result(false, StringName(replaced.reason))
+	_production_input_profile_active = true
 	_commit_transform_boundary()
 	return _input_configuration_result(true, &"profile_replaced")
 
@@ -312,6 +384,7 @@ func reset_input_binding_profile(expected_generation: int) -> Dictionary:
 	)
 	if not bool(replaced.accepted):
 		return _input_configuration_result(false, StringName(replaced.reason))
+	_production_input_profile_active = false
 	_commit_transform_boundary()
 	return _input_configuration_result(true, &"profile_reset")
 
@@ -425,6 +498,14 @@ func get_input_integration_audit() -> Dictionary:
 		"owns_command_timestamp": true,
 		"emits_engine_start": false,
 		"emits_engine_stop": false,
+		"production_input_profile_active": _production_input_profile_active,
+		"input_provider_strength_domain": _input_provider_strength_domain,
+		"production_input_strength_domain": (
+			_input_provider_strength_domain
+			if _input_provider != null
+			else &"input_map_resolved" if _production_input_profile_active
+			else &"compatibility_resolved"
+		),
 		"bank": _input_transform_bank.audit() if _input_transform_bank != null else {},
 		"sampler": _input_transform_sampler.audit() if _input_transform_sampler != null else {},
 		"mapper": _ship_command_mapper.audit() if _ship_command_mapper != null else {},
@@ -638,11 +719,29 @@ func _rebuild_input_transform_sampler() -> void:
 	if _input_transform_bank == null:
 		_input_transform_sampler = null
 		return
-	_sampler_input_provider = (
-		AxisCompatibleInputProvider.new(_input_provider, _axis_actions())
-		if _input_provider != null
-		else null
-	)
+	if _input_provider != null:
+		var compatible := AxisCompatibleInputProvider.new(
+			_input_provider,
+			_axis_actions(),
+		)
+		_sampler_input_provider = (
+			ResolvedInputProfileProvider.new(
+				compatible,
+				_input_transform_bank.get_profile(),
+			)
+			if (
+				_production_input_profile_active
+				and _input_provider_strength_domain == INPUT_PROVIDER_INPUT_MAP_RESOLVED
+			)
+			else compatible
+		)
+	elif _production_input_profile_active:
+		_sampler_input_provider = ResolvedInputProfileProvider.new(
+			Input,
+			_input_transform_bank.get_profile(),
+		)
+	else:
+		_sampler_input_provider = null
 	_input_transform_sampler = InputActionTransformSamplerType.new(
 		_input_transform_bank,
 		_sampler_input_provider,

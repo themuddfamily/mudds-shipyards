@@ -103,6 +103,24 @@ func replace_profile(candidate: InputBindingProfile, expected_generation: int) -
 	return _bank_result(true, &"profile_replaced")
 
 
+## Validates the exact same generation, roster, options, and child-lifecycle
+## preparation as `replace_profile()` without mutating this bank. A composition
+## owner can preflight several banks before entering one synchronous commit.
+func validate_profile_replacement(
+		candidate: InputBindingProfile,
+		expected_generation: int,
+	) -> Dictionary:
+	var rejection := _validate_request(expected_generation, false)
+	if not rejection.is_empty():
+		return rejection
+	if _generation == MAX_GENERATION:
+		return _bank_result(false, &"generation_exhausted")
+	var prepared := _prepare_profile(candidate, _action_order, true, _attached)
+	if not bool(prepared.accepted):
+		return _bank_result(false, StringName(prepared.reason), prepared)
+	return _bank_result(true, &"profile_accepted")
+
+
 ## Resets sampled state for the entire current profile. Rebuilding all children
 ## before commit gives reset the same atomic/no-leak guarantee as replacement.
 func reset(expected_generation: int) -> Dictionary:

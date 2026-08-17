@@ -65,6 +65,23 @@ class FakeFilesystem extends UserDataFilesystem:
 		return OK
 
 
+class MutableInputProvider:
+	extends RefCounted
+
+	var strengths := {}
+	var pressed := {}
+
+	func get_action_strength(action: StringName) -> float:
+		return float(strengths.get(action, 0.0))
+
+	func is_action_pressed(action: StringName) -> bool:
+		return bool(pressed.get(action, false))
+
+	func set_action(action: StringName, strength: float, is_pressed: bool) -> void:
+		strengths[action] = strength
+		pressed[action] = is_pressed
+
+
 func _initialize() -> void:
 	_run()
 
@@ -97,8 +114,18 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	})
 	_check(
 		seeded_profile.set_bindings(&"fire", fire_bindings)
+		and seeded_profile.set_action_options(&"move_forward", {
+			"deadzone": 0.31,
+			"curve": Profile.CURVE_SQUARED,
+			"hold_mode": Profile.HOLD,
+		})
+		and seeded_profile.set_action_options(&"sprint_boost", {
+			"deadzone": 0.0,
+			"curve": Profile.CURVE_LINEAR,
+			"hold_mode": Profile.TOGGLE,
+		})
 		and seeded_settings.set_input_binding_profile(seeded_profile),
-		"fixture creates one complete validated custom binding profile"
+		"fixture creates one complete validated custom binding and processing profile"
 	)
 	_check(bool(store.load().accepted), "fixture opens the injected empty store")
 	_check(
@@ -150,6 +177,30 @@ func _test_production_startup_transactions_and_reentry() -> void:
 			and is_equal_approx(fleet_ship.mouse_sensitivity, 0.0067) \
 			and is_equal_approx(fleet_ship.get_camera_fov(), 96.0)
 	_check(ships_match, "every ship consumes the loaded snapshot before production play begins")
+	var startup_profile_matches := true
+	var startup_generations := PackedInt64Array()
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		var source := fleet_ship.get_command_source() as LocalShipInputSource
+		startup_profile_matches = startup_profile_matches \
+			and source != null \
+			and source.get_input_binding_profile().to_dictionary() \
+				== settings.get_input_binding_profile().to_dictionary()
+		startup_generations.append(source.get_input_profile_generation() if source != null else -1)
+	_check(
+		startup_profile_matches and startup_generations == PackedInt64Array([3, 3, 3, 3, 3]),
+		"startup atomically installs the persisted options into all five production transform banks"
+	)
+	var curve_source := game.get_flyable_ships()[1].get_local_input_source()
+	Input.action_press(&"move_forward", 0.6)
+	var curved_command := curve_source.next_command(900)
+	Input.action_release(&"move_forward")
+	var curve_audit := curve_source.get_input_integration_audit()
+	_check(
+		is_equal_approx(curved_command.throttle, 0.36)
+		and bool(curve_audit.production_input_profile_active)
+		and curve_audit.production_input_strength_domain == &"input_map_resolved",
+		"production input executes the stored squared curve without applying InputMap's deadzone response twice"
+	)
 	var hud_binding_report := hud.get_input_binding_report()
 	_check(
 		_input_map_has_key(&"fire", KEY_F13)
@@ -158,6 +209,67 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and (hud_binding_report.bindings as Dictionary)[&"fire"]
 			== settings.get_input_binding_profile().get_bindings(&"fire"),
 		"the complete persisted binding profile reaches InputMap and HUD before input consumers"
+	)
+
+	var local_source_ids := PackedInt64Array()
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		var source := fleet_ship.get_local_input_source()
+		local_source_ids.append(source.get_instance_id())
+	var probed_source := game.get_flyable_ships()[0].get_local_input_source()
+	var provider := MutableInputProvider.new()
+	probed_source.set_input_provider(provider)
+	probed_source.next_command(1000)
+	provider.set_action(&"sprint_boost", 1.0, true)
+	var generations_before_profile_change := _fleet_input_generations(game)
+	var live_profile := settings.get_input_binding_profile()
+	_check(
+		live_profile.set_action_options(&"move_forward", {
+			"deadzone": 0.42,
+			"curve": Profile.CURVE_SQUARED,
+			"hold_mode": Profile.HOLD,
+		})
+		and settings.set_input_binding_profile(live_profile),
+		"RuntimeSettings accepts one live complete processing-profile replacement"
+	)
+	var live_profiles_match := true
+	var live_generations := PackedInt64Array()
+	var banks_own_no_input_map := true
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		var source := fleet_ship.get_local_input_source()
+		live_profiles_match = live_profiles_match \
+			and source.get_input_binding_profile().to_dictionary() \
+				== settings.get_input_binding_profile().to_dictionary()
+		live_generations.append(source.get_input_profile_generation())
+		banks_own_no_input_map = banks_own_no_input_map \
+			and not bool(source.get_input_integration_audit().bank.mutates_input_map)
+	var primed_toggle := probed_source.next_command(1001)
+	provider.set_action(&"sprint_boost", 0.0, false)
+	probed_source.next_command(1002)
+	provider.set_action(&"sprint_boost", 1.0, true)
+	var repressed_toggle := probed_source.next_command(1003)
+	_check(
+		live_profiles_match
+		and _generations_advanced(generations_before_profile_change, live_generations, 1)
+		and _fleet_local_source_ids(game) == local_source_ids
+		and is_equal_approx(InputMap.action_get_deadzone(&"move_forward"), 0.42)
+		and banks_own_no_input_map,
+		"one live RuntimeSettings change advances all five banks exactly once while RuntimeSettings alone mutates InputMap"
+	)
+	_check(
+		not primed_toggle.boost and repressed_toggle.boost,
+		"live profile replacement primes a held toggle without synthesizing flight intent"
+	)
+	var incomplete := Profile.from_dictionary({
+		"schema_version": Profile.SCHEMA_VERSION,
+		"bindings": {&"fire": []},
+		"action_options": {&"fire": Profile.default_action_options()},
+	})
+	var generations_before_rejection := live_generations.duplicate()
+	_check(
+		not settings.set_input_binding_profile(incomplete)
+		and _fleet_input_generations(game) == generations_before_rejection
+		and is_equal_approx(InputMap.action_get_deadzone(&"move_forward"), 0.42),
+		"an incomplete live roster changes neither any bank generation nor InputMap"
 	)
 	_check(
 		not game.configure_runtime_settings_persistence(
@@ -286,6 +398,9 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	)
 
 	var before_detach := game.get_runtime_settings_persistence_report()
+	var source_ids_before_detach := _fleet_local_source_ids(game)
+	var generations_before_detach := _fleet_input_generations(game)
+	var profile_before_detach := settings.get_input_binding_profile().to_dictionary()
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
@@ -300,8 +415,15 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and int(after_detach.store_instance_id) == int(before_detach.store_instance_id)
 		and int(after_detach.adapter_instance_id) == int(before_detach.adapter_instance_id)
 		and int(after_detach.load_attempt_count) == 1
-		and int(after_detach.save_attempt_count) == int(before_detach.save_attempt_count),
-		"whole-Main detach/re-entry retains both identities and never reloads or saves implicitly"
+		and int(after_detach.save_attempt_count) == int(before_detach.save_attempt_count)
+		and _fleet_local_source_ids(game) == source_ids_before_detach
+		and _generations_advanced(
+			generations_before_detach,
+			_fleet_input_generations(game),
+			2,
+		)
+		and _fleet_profiles_match(game, profile_before_detach),
+		"whole-Main detach/re-entry retains settings and all five source/profile identities with only the two lifecycle generation fences"
 	)
 
 	game.queue_free()
@@ -438,6 +560,40 @@ func _input_map_has_key(action: StringName, code: Key) -> bool:
 		if event is InputEventKey and (event as InputEventKey).physical_keycode == code:
 			return true
 	return false
+
+
+func _fleet_local_source_ids(game: GameFlow) -> PackedInt64Array:
+	var result := PackedInt64Array()
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		result.append(fleet_ship.get_local_input_source().get_instance_id())
+	return result
+
+
+func _fleet_input_generations(game: GameFlow) -> PackedInt64Array:
+	var result := PackedInt64Array()
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		result.append(fleet_ship.get_local_input_source().get_input_profile_generation())
+	return result
+
+
+func _fleet_profiles_match(game: GameFlow, expected: Dictionary) -> bool:
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		if fleet_ship.get_local_input_source().get_input_binding_profile().to_dictionary() != expected:
+			return false
+	return true
+
+
+func _generations_advanced(
+		before: PackedInt64Array,
+		after: PackedInt64Array,
+		expected_delta: int,
+	) -> bool:
+	if before.size() != after.size():
+		return false
+	for index: int in range(before.size()):
+		if after[index] != before[index] + expected_delta:
+			return false
+	return true
 
 
 func _restore_project_input_defaults() -> void:

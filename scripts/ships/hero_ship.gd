@@ -419,6 +419,15 @@ func get_command_source() -> ShipCommandSource:
 	return _command_source
 
 
+## The ship-retained production InputMap source, even while an injected replay,
+## AI, or network source temporarily owns the active command stream. Runtime
+## settings configure this identity so restoring local control cannot resurrect
+## an obsolete profile.
+func get_local_input_source() -> LocalShipInputSource:
+	_ensure_default_local_command_source()
+	return _default_local_command_source
+
+
 ## Returns the exact snapshot consumed by the most recent physics tick.
 func get_last_ship_command() -> ShipCommand:
 	return _last_ship_command

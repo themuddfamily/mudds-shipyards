@@ -860,7 +860,8 @@ func _start_up() -> void:
 	_initialize_live_combat()
 	# The atomic load above is complete before the first global, player, ship or
 	# HUD settings consumer sees a snapshot. In particular, the complete binding
-	# profile reaches InputMap before gameplay signals can sample it.
+	# profile reaches InputMap and all retained local ship banks before gameplay
+	# signals can sample it.
 	_apply_all_runtime_settings()
 	_connect_runtime_signals()
 	opponent.set_target(active_ship)
@@ -4592,7 +4593,7 @@ func _apply_all_runtime_settings() -> void:
 		)
 		if _safe_start_production_recovery != null:
 			_safe_start_production_recovery.note_first_settings_apply()
-	runtime_settings.apply_input_bindings()
+	_apply_runtime_input_bindings_and_options()
 	for fleet_ship in ships:
 		fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
 		fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
@@ -4720,11 +4721,128 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 	elif setting == &"window_mode":
 		runtime_settings.apply_window_mode()
 	elif setting == &"input_binding_profile":
-		runtime_settings.apply_input_bindings()
+		_apply_runtime_input_bindings_and_options()
 	elif setting in [
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:
 		_apply_accessibility_settings()
+
+
+## Applies one validated RuntimeSettings profile to InputMap and every retained
+## ship-local transform bank as a single synchronous composition step. All banks
+## preflight the exact candidate/generation before InputMap or any bank mutates;
+## replacement then has no signal or await boundary at which the plan can stale.
+## Exact matches are retained so whole-Main re-entry reclaims process-global
+## InputMap state without resetting toggles or advancing ship-bank generations.
+func _apply_runtime_input_bindings_and_options() -> Dictionary:
+	if runtime_settings == null:
+		return {
+			"accepted": false,
+			"reason": &"runtime_settings_unavailable",
+			"source_count": 0,
+			"replaced_count": 0,
+			"unchanged_count": 0,
+		}
+	var profile := runtime_settings.get_input_binding_profile()
+	var target := profile.to_dictionary() if profile != null else {}
+	var pending: Array[Dictionary] = []
+	var unchanged_count := 0
+	var source_ids := {}
+	for fleet_ship: HeroShip in ships:
+		if not is_instance_valid(fleet_ship):
+			push_error("Runtime input profile rejected: invalid fleet ship")
+			return {
+				"accepted": false,
+				"reason": &"invalid_fleet_ship",
+				"source_count": source_ids.size(),
+				"replaced_count": 0,
+				"unchanged_count": unchanged_count,
+			}
+		var source := fleet_ship.get_local_input_source()
+		if source == null or not is_instance_valid(source):
+			push_error("Runtime input profile rejected: missing local source for %s" % fleet_ship.name)
+			return {
+				"accepted": false,
+				"reason": &"missing_local_input_source",
+				"source_count": source_ids.size(),
+				"replaced_count": 0,
+				"unchanged_count": unchanged_count,
+			}
+		var source_id := source.get_instance_id()
+		if source_ids.has(source_id):
+			push_error("Runtime input profile rejected: duplicate local source")
+			return {
+				"accepted": false,
+				"reason": &"duplicate_local_input_source",
+				"source_count": source_ids.size(),
+				"replaced_count": 0,
+				"unchanged_count": unchanged_count,
+			}
+		source_ids[source_id] = true
+		var current := source.get_input_binding_profile()
+		if current != null and current.to_dictionary() == target:
+			unchanged_count += 1
+			continue
+		var generation := source.get_input_profile_generation()
+		var preflight := source.validate_input_binding_profile(profile, generation)
+		if not bool(preflight.accepted):
+			push_error(
+				"Runtime input profile rejected by %s: %s"
+				% [fleet_ship.name, str(preflight.reason)]
+			)
+			return {
+				"accepted": false,
+				"reason": StringName(preflight.reason),
+				"source_count": source_ids.size(),
+				"replaced_count": 0,
+				"unchanged_count": unchanged_count,
+			}
+		pending.append({
+			"ship_name": StringName(fleet_ship.name),
+			"source": source,
+			"generation": generation,
+		})
+
+	var input_map_result := runtime_settings.apply_input_bindings()
+	if not bool(input_map_result.applied):
+		push_error("Runtime input profile rejected by InputMap")
+		return {
+			"accepted": false,
+			"reason": &"input_map_apply_failed",
+			"source_count": source_ids.size(),
+			"replaced_count": 0,
+			"unchanged_count": unchanged_count,
+		}
+	var replaced_count := 0
+	for entry: Dictionary in pending:
+		var source := entry.source as LocalShipInputSource
+		var replaced := source.replace_input_binding_profile(
+			profile,
+			int(entry.generation),
+		)
+		if not bool(replaced.accepted):
+			# Preflight and commit are synchronous and signal-free. Reaching this
+			# branch therefore indicates an internal invariant violation rather
+			# than a recoverable profile rejection.
+			push_error(
+				"Runtime input profile commit invariant failed for %s: %s"
+				% [str(entry.ship_name), str(replaced.reason)]
+			)
+			return {
+				"accepted": false,
+				"reason": &"source_commit_invariant_failed",
+				"source_count": source_ids.size(),
+				"replaced_count": replaced_count,
+				"unchanged_count": unchanged_count,
+			}
+		replaced_count += 1
+	return {
+		"accepted": true,
+		"reason": &"profile_applied" if replaced_count > 0 else &"profile_reclaimed",
+		"source_count": source_ids.size(),
+		"replaced_count": replaced_count,
+		"unchanged_count": unchanged_count,
+	}
 
 
 func _on_settings_save_requested() -> void:

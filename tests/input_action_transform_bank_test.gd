@@ -289,6 +289,18 @@ func _test_atomic_profile_replacement() -> void:
 			&"interact": _options(0.3, Profile.CURVE_SQUARED, Profile.HOLD),
 		},
 	)
+	var before_preflight := bank.get_snapshot()
+	var preflight := bank.validate_profile_replacement(replacement, 0)
+	var stale_preflight := bank.validate_profile_replacement(replacement, 1)
+	var rejected_preflight := bank.validate_profile_replacement(missing, 0)
+	_check(
+		preflight.accepted and preflight.reason == &"profile_accepted"
+		and not stale_preflight.accepted and stale_preflight.reason == &"stale_generation"
+		and not rejected_preflight.accepted
+		and rejected_preflight.reason == &"action_roster_mismatch"
+		and bank.get_snapshot() == before_preflight,
+		"replacement preflight validates exact roster and generation without mutating the live bank",
+	)
 	var replaced := bank.replace_profile(replacement, 0)
 	_check(
 		replaced.accepted

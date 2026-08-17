@@ -96,7 +96,10 @@ func _run() -> void:
 		await _clean_up(game)
 		_finish()
 		return
-	source.set_input_provider(provider)
+	source.set_input_provider(
+		provider,
+		LocalShipInputSource.INPUT_PROVIDER_INPUT_MAP_RESOLVED,
+	)
 
 	var engine_events: Array[StringName] = []
 	arrow.engine_state_changed.connect(func(state: StringName) -> void:

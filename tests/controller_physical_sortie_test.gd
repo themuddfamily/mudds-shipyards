@@ -216,7 +216,10 @@ func _run() -> void:
 		await _clean_up(game, provider)
 		_finish()
 		return
-	source.set_input_provider(provider)
+	source.set_input_provider(
+		provider,
+		LocalShipInputSource.INPUT_PROVIDER_INPUT_MAP_RESOLVED,
+	)
 
 	var initial_distance := torrent.get_chase_camera_distance()
 	await _tap_provider_button(provider, BUTTON_RIGHT_SHOULDER)
