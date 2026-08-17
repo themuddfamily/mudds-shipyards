@@ -223,6 +223,7 @@ var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
 var ember_streaming_bootstrap: EmberMoonStreamingBootstrap
 var ember_streaming_binding: EmberMoonStreamingProductionBinding
+var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## One presentation-only caption authority for this Main lifetime. It is a
@@ -449,6 +450,10 @@ func _resolve_scene_bindings() -> void:
 	ember_streaming_binding = (
 		get_node_or_null(^"EmberMoonStreamingProductionBinding")
 		as EmberMoonStreamingProductionBinding
+	)
+	common_world_origin_rebase_owner = (
+		get_node_or_null(^"CommonWorldOriginRebaseOwner")
+		as CommonWorldOriginRebaseOwner
 	)
 	if (
 		not _initialized
@@ -950,10 +955,25 @@ func _physics_process(delta: float) -> void:
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
 	var actor_sample := _capture_cinder_actor_sample()
+	if is_instance_valid(ember_streaming_binding):
+		var ember_tick := ember_streaming_binding.physics_tick_from_caller_sample(
+			delta, actor_sample
+		)
+		if (
+			is_instance_valid(common_world_origin_rebase_owner)
+			and (ember_tick.has("coordinate_frame_generation"))
+		):
+			var preview := ember_streaming_binding.preview_origin_rebase(
+				int(ember_tick.get("coordinate_frame_generation", 0))
+			)
+			if bool(preview.get("accepted", false)):
+				var rebase := common_world_origin_rebase_owner.consume_rebase_preview(
+					preview, actor_sample
+				)
+				if bool(rebase.get("accepted", false)) and rebase.has("actor_sample"):
+					actor_sample = (rebase.get("actor_sample", {}) as Dictionary).duplicate(true)
 	if is_instance_valid(cinder_streaming_binding):
 		cinder_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
-	if is_instance_valid(ember_streaming_binding):
-		ember_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
 	_sync_cinder_convoy_stream_presence()
 	if _convoy_is_running() and not _convoy_lifecycle_accepts_sample(actor_sample):
 		_fail_active_activity(_convoy_lifecycle_failure_reason(actor_sample))
@@ -3267,7 +3287,7 @@ func _start_cinder_convoy(sampled_world_position: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_ship_position"}
 	_convoy_last_player_position = position
 	_convoy_has_player_sample = true
-	if position.distance_to(CINDER_CONVOY_ACTIVATION_CENTER) > CINDER_CONVOY_ACTIVATION_RADIUS:
+	if position.distance_to(_cinder_convoy_activation_center()) > CINDER_CONVOY_ACTIVATION_RADIUS:
 		return {"accepted": false, "reason": &"outside_convoy_activation_sphere"}
 	var stream := _get_cinder_stream_snapshot()
 	var loaded_instance_id := int(stream.get("loaded_instance_id", 0))
@@ -3341,6 +3361,14 @@ func get_ember_streaming_report() -> Dictionary:
 	return (
 		ember_streaming_binding.audit()
 		if is_instance_valid(ember_streaming_binding)
+		else {}
+	).duplicate(true)
+
+
+func get_common_world_origin_report() -> Dictionary:
+	return (
+		common_world_origin_rebase_owner.audit()
+		if is_instance_valid(common_world_origin_rebase_owner)
 		else {}
 	).duplicate(true)
 
@@ -3436,7 +3464,7 @@ func get_activity_integration_report() -> Dictionary:
 		"convoy_stream_generation": _convoy_stream_generation,
 		"convoy_active_ship_instance_id": _convoy_active_ship_instance_id,
 		"convoy_terminal_reason": _convoy_terminal_reason,
-		"convoy_activation_center": CINDER_CONVOY_ACTIVATION_CENTER,
+		"convoy_activation_center": _cinder_convoy_activation_center(),
 		"convoy_activation_radius": CINDER_CONVOY_ACTIVATION_RADIUS,
 		"convoy_escort_lane_offset": CINDER_CONVOY_ESCORT_LANE_OFFSET,
 		"streaming": (
@@ -3556,7 +3584,7 @@ func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
 		)
 		if (
 			activity.get("state_id", &"") == &"idle"
-			and world_position.distance_to(CINDER_CONVOY_ACTIVATION_CENTER)
+			and world_position.distance_to(_cinder_convoy_activation_center())
 			<= CINDER_CONVOY_ACTIVATION_RADIUS
 		):
 			request_activity_start(CINDER_CONVOY_ACTIVITY_ID, world_position)
@@ -3951,11 +3979,11 @@ func _decorate_activity_snapshot(source: Dictionary) -> Dictionary:
 			else StringName(snapshot.get("terminal_reason", &""))
 		)
 		snapshot["terminal_reason"] = snapshot["failure_reason"]
-		snapshot["activation_center"] = CINDER_CONVOY_ACTIVATION_CENTER
+		snapshot["activation_center"] = _cinder_convoy_activation_center()
 		snapshot["activation_radius"] = CINDER_CONVOY_ACTIVATION_RADIUS
 		snapshot["escort_lane_offset"] = CINDER_CONVOY_ESCORT_LANE_OFFSET
 		snapshot["activation_distance"] = (
-			_convoy_last_player_position.distance_to(CINDER_CONVOY_ACTIVATION_CENTER)
+			_convoy_last_player_position.distance_to(_cinder_convoy_activation_center())
 			if _convoy_has_player_sample else -1.0
 		)
 		snapshot["stream_instance_id"] = _convoy_stream_instance_id
@@ -3982,6 +4010,14 @@ func _decorate_activity_snapshot(source: Dictionary) -> Dictionary:
 		snapshot["item_id"] = CARGO_DELIVERY_ITEM_ID
 		snapshot["item_display_name"] = CARGO_DELIVERY_ITEM_DISPLAY_NAME
 	return snapshot
+
+
+func _cinder_convoy_activation_center() -> Vector3:
+	return (
+		cinder_streaming_bootstrap.global_transform * CINDER_CONVOY_ACTIVATION_CENTER
+		if is_instance_valid(cinder_streaming_bootstrap)
+		else CINDER_CONVOY_ACTIVATION_CENTER
+	)
 
 
 func _activity_selection_result(accepted: bool, reason: StringName) -> Dictionary:

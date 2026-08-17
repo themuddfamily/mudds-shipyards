@@ -127,7 +127,8 @@ func _test_composition_and_absolute_observation(
 		no_adjacent_authority
 			and authority.size() == 15
 			and report.get("origin_rebase_policy")
-				== &"detached_preview_only_future_common_world_owner",
+				== &"detached_preview_exact_common_world_owner_commit"
+			and bool(report.get("can_make_ember_resident", false)),
 		"audit freezes the complete false adjacent-authority boundary",
 	)
 

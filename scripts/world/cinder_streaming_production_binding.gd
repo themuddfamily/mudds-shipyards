@@ -347,9 +347,7 @@ func _drive_physics_tick(
 			var generation := int(
 				cluster.get_meta(&"world_location_generation", -1)
 			)
-			var distance := position.distance_to(
-				CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
-			)
+			var distance := position.distance_to(_current_navigation_anchor())
 			_last_presentation_result = cluster.advance_streaming_transition(
 				delta, distance, generation
 			)
@@ -365,7 +363,7 @@ func _drive_physics_tick(
 					_presentation_unload_hold_count += 1
 			else:
 				_presentation_rejection_count += 1
-		if _bootstrap.set_tracked_position(policy_position):
+		if _bootstrap.set_tracked_position(_bootstrap.to_local(policy_position)):
 			_available_sample_count += 1
 			_last_actor_kind = sample_dictionary.get("actor_kind", &"unknown") as StringName
 			_last_actor_instance_id = int(sample_dictionary.get("actor_instance_id", 0))
@@ -436,7 +434,7 @@ func _synchronize_loaded_cluster_quality() -> void:
 
 
 func _position_at_unload_boundary(actual_position: Vector3) -> Vector3:
-	var anchor := CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
+	var anchor := _current_navigation_anchor()
 	var direction := actual_position - anchor
 	if direction.is_zero_approx():
 		return anchor
@@ -444,6 +442,14 @@ func _position_at_unload_boundary(actual_position: Vector3) -> Vector3:
 	# comparison. Reconstructing a non-axis-aligned Vector3 at exactly 650 can
 	# round outward and accidentally retire a still-visible generation.
 	return anchor + direction.normalized() * UNLOAD_HOLD_DISTANCE_METERS
+
+
+func _current_navigation_anchor() -> Vector3:
+	return (
+		_bootstrap.global_transform * CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
+		if is_instance_valid(_bootstrap)
+		else CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
+	)
 
 
 func _sample_production_actor_position() -> Dictionary:

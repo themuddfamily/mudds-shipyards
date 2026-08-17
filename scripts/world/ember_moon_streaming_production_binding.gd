@@ -42,6 +42,7 @@ var _last_world_streaming_position := Vector3.ZERO
 var _last_absolute_coordinate: Dictionary = {}
 var _last_streaming_result: Dictionary = {}
 var _last_tick_result: Dictionary = {}
+var _external_rebase_commit_count := 0
 
 
 func _enter_tree() -> void:
@@ -169,6 +170,85 @@ func preview_origin_rebase(expected_frame_generation: int) -> Dictionary:
 	})
 
 
+## Validates the exact pending request created by the sole common-world owner.
+## This does not move a node, commit the frame, or change the bound generation.
+func preflight_external_origin_rebase(preview: Variant, request: Variant) -> Dictionary:
+	if _tick_active:
+		return _result(false, &"reentrant_call")
+	if not preview is Dictionary or not request is Dictionary:
+		return _result(false, &"invalid_rebase_contract")
+	var p := preview as Dictionary
+	var r := request as Dictionary
+	if p.get("reason") != &"origin_rebase_preview" \
+			or not bool(p.get("rebase_required", false)) \
+			or int(p.get("coordinate_frame_generation", 0)) != _bound_frame_generation \
+			or p.get("absolute_coordinate") != _last_absolute_coordinate \
+			or int(p.get("actor_instance_id", 0)) != _last_actor_instance_id \
+			or p.get("actor_kind") != _last_actor_kind:
+		return _result(false, &"preview_identity_mismatch")
+	if int(r.get("source_generation", 0)) != _bound_frame_generation \
+			or int(r.get("target_generation", 0)) != _bound_frame_generation + 1 \
+			or r.get("focus_world_streaming_position") != _last_world_streaming_position \
+			or r.get("world_translation_delta") != -_last_world_streaming_position \
+			or r.get("target_origin_orbital_coordinate") != _last_absolute_coordinate:
+		return _result(false, &"request_identity_mismatch")
+	var pending := _coordinate_frame.get_snapshot().get("pending_rebase", {}) as Dictionary
+	if pending != r:
+		return _result(false, &"pending_request_mismatch")
+	return _result(true, &"external_rebase_preflighted")
+
+
+## Reconciles this observation adapter after the common-world owner has applied
+## and committed the exact preflighted transaction. It cannot request or commit
+## a rebase itself.
+func accept_committed_origin_rebase(
+		preview: Variant,
+		request: Variant,
+		adjusted_actor_sample: Variant,
+		target_generation: int,
+	) -> Dictionary:
+	if _tick_active:
+		return _result(false, &"reentrant_call")
+	if not preview is Dictionary or not request is Dictionary \
+			or not adjusted_actor_sample is Dictionary:
+		return _result(false, &"invalid_rebase_contract")
+	var p := preview as Dictionary
+	var r := request as Dictionary
+	var sample := adjusted_actor_sample as Dictionary
+	if target_generation != _bound_frame_generation + 1 \
+			or int(r.get("source_generation", 0)) != _bound_frame_generation \
+			or int(r.get("target_generation", 0)) != target_generation \
+			or p.get("absolute_coordinate") != _last_absolute_coordinate \
+			or _coordinate_frame.get_generation() != target_generation \
+			or not (_coordinate_frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
+		return _result(false, &"committed_rebase_mismatch")
+	if not bool(sample.get("available", false)) \
+			or sample.get("actor_kind") != _last_actor_kind \
+			or int(sample.get("actor_instance_id", 0)) != _last_actor_instance_id:
+		return _result(false, &"adjusted_actor_mismatch")
+	var adjusted_position := sample.get("position", Vector3.INF) as Vector3
+	var converted := _coordinate_frame.world_streaming_to_orbital_position(
+		adjusted_position, target_generation
+	)
+	if not bool(converted.get("accepted", false)) \
+			or converted.get("coordinate") != _last_absolute_coordinate:
+		return _result(false, &"absolute_coordinate_drift")
+	if not bool(_bootstrap.audit().get("valid", false)):
+		return _result(false, &"bootstrap_alignment_invalid")
+	_bound_frame_generation = target_generation
+	_last_world_streaming_position = adjusted_position
+	var streaming := _bootstrap.update_absolute_focus(
+		_last_absolute_coordinate, target_generation
+	)
+	_last_streaming_result = streaming.duplicate(true)
+	_external_rebase_commit_count += 1
+	return _result(true, &"external_rebase_accepted", {
+		"coordinate_frame_generation": target_generation,
+		"absolute_coordinate": _last_absolute_coordinate.duplicate(true),
+		"streaming": streaming.duplicate(true),
+	})
+
+
 func get_snapshot() -> Dictionary:
 	var frame_snapshot := (
 		_coordinate_frame.get_snapshot()
@@ -197,6 +277,7 @@ func get_snapshot() -> Dictionary:
 		"invalid_delta_count": _invalid_delta_count,
 		"reentrant_rejection_count": _reentrant_rejection_count,
 		"generation_drift_rejection_count": _generation_drift_rejection_count,
+		"external_rebase_commit_count": _external_rebase_commit_count,
 		"last_actor_kind": _last_actor_kind,
 		"last_actor_instance_id": _last_actor_instance_id,
 		"last_world_streaming_position": _last_world_streaming_position,
@@ -261,8 +342,8 @@ func audit() -> Dictionary:
 			"streaming_update_cadence": true,
 		},
 		"absolute_coordinate_policy": &"current_frame_generation_exact_conversion",
-		"origin_rebase_policy": &"detached_preview_only_future_common_world_owner",
-		"can_make_ember_resident": false,
+		"origin_rebase_policy": &"detached_preview_exact_common_world_owner_commit",
+		"can_make_ember_resident": true,
 		"requires_external_common_world_origin_owner": true,
 		"adjacent_authority": authority,
 	}.duplicate(true)
