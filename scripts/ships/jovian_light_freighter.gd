@@ -100,6 +100,26 @@ const SHOULDER_RAIL_JOINT_POSITIONS: Array[Array] = [
 	],
 ]
 
+# Four interior cargo frames retain their exact roots, 20 ordinary named joint
+# nodes, and 20 surface submissions inside the moving ship hierarchy. Their
+# hull-cool geometry recipe is identical, so the immutable SphereMesh resource
+# is shared without batching or moving any authored renderer node.
+const CARGO_FRAME_COUNT := 4
+const CARGO_FRAME_JOINTS_PER_FRAME := 5
+const CARGO_FRAME_JOINT_COPY_COUNT := CARGO_FRAME_COUNT * CARGO_FRAME_JOINTS_PER_FRAME
+const CARGO_FRAME_JOINT_RADIUS := 0.085
+const CARGO_FRAME_JOINT_RADIAL_SEGMENTS := 24
+const CARGO_FRAME_JOINT_RINGS := 12
+const CARGO_FRAME_START_Z := -1.7
+const CARGO_FRAME_Z_STEP := 3.25
+const CARGO_FRAME_JOINT_XY: Array[Vector2] = [
+	Vector2(-5.35, 0.72),
+	Vector2(-5.35, 4.15),
+	Vector2(0.0, 4.48),
+	Vector2(5.35, 4.15),
+	Vector2(5.35, 0.72),
+]
+
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
 const PROVISIONAL_NOTE := (
@@ -152,6 +172,7 @@ var _engine_plumes: Array[MeshInstance3D] = []
 var _jovian_engine_lights: Array[OmniLight3D] = []
 var _dorsal_cargo_rib_joint_mesh: SphereMesh
 var _shoulder_rail_joint_mesh: SphereMesh
+var _cargo_frame_joint_mesh: SphereMesh
 var _elapsed_jovian := 0.0
 
 
@@ -374,6 +395,7 @@ func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
+	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
 	var definition := get_ship_definition()
 	if definition == null or not definition.is_definition_valid():
 		errors.append("valid provisional ShipDefinition is missing")
@@ -403,6 +425,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("dorsal cargo rib joint allocation contract drifted")
 	if not bool(shoulder_rail_allocation.get("valid", false)):
 		errors.append("shoulder rail joint allocation contract drifted")
+	if not bool(cargo_frame_allocation.get("valid", false)):
+		errors.append("cargo frame joint allocation contract drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -417,6 +441,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"evidence": get_jovian_evidence_report(),
 		"dorsal_cargo_rib_joint_allocation": dorsal_rib_allocation,
 		"shoulder_rail_joint_allocation": shoulder_rail_allocation,
+		"cargo_frame_joint_allocation": cargo_frame_allocation,
 	}
 
 
@@ -870,6 +895,253 @@ func get_shoulder_rail_joint_allocation_audit() -> Dictionary:
 			),
 			"material_resource_allocations": material_resource_ids.size() - 1,
 		},
+		"descendant_node_count": descendant_node_count,
+		"collision_object_count": collision_object_count,
+		"collision_shape_count": collision_shape_count,
+		"interaction_area_count": interaction_area_count,
+		"marker_count": marker_count,
+		"metadata_entry_count": metadata_entry_count,
+		"scripted_node_count": scripted_node_count,
+		"grouped_node_count": grouped_node_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"driver_draw_call_claimed": false,
+		"frame_time_claimed": false,
+		"vram_claimed": false,
+		"behavior_rows": behavior_rows,
+	}.duplicate(true)
+
+
+## Renderer-independent allocation evidence for the 20 moving-interior cargo
+## frame joints. Resource identity is the only changed currency: every frame
+## root, joint node, visible copy, transform, renderer value, and submission
+## remains live under the same connected CargoBay hierarchy.
+func get_cargo_frame_joint_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids: Dictionary = {}
+	var material_resource_ids: Dictionary = {}
+	var node_instance_ids: Dictionary = {}
+	var family_node_count := 0
+	var named_node_count := 0
+	var drawn_copy_count := 0
+	var structural_surface_submission_count := 0
+	var multimesh_batch_count := 0
+	var descendant_node_count := 0
+	var collision_object_count := 0
+	var collision_shape_count := 0
+	var interaction_area_count := 0
+	var marker_count := 0
+	var metadata_entry_count := 0
+	var scripted_node_count := 0
+	var grouped_node_count := 0
+	var processing_node_count := 0
+	var behavior_rows: Array[Dictionary] = []
+	var moving_interior_attached := (
+		_cargo_bay != null
+		and is_instance_valid(_cargo_bay)
+		and _walkable_interior != null
+		and is_instance_valid(_walkable_interior)
+		and _cargo_bay.get_parent() == _walkable_interior
+		and _walkable_interior.get_parent() == self
+		and _moving_interior_component != null
+		and _moving_interior_component.get_moving_frame() == self
+	)
+
+	if not moving_interior_attached:
+		errors.append("cargo_frame_moving_interior_attachment_drift")
+	if _cargo_bay == null or not is_instance_valid(_cargo_bay):
+		errors.append("cargo_frame_visual_root_unavailable")
+	else:
+		for frame_index in CARGO_FRAME_COUNT:
+			var frame_name := "CargoFrame%02d" % frame_index
+			var frame := _cargo_bay.get_node_or_null(NodePath(frame_name)) as Node3D
+			if frame == null:
+				errors.append("cargo_frame_root_missing:%s" % frame_name)
+				continue
+			if (
+				not frame.position.is_equal_approx(Vector3.ZERO)
+				or not frame.rotation.is_equal_approx(Vector3.ZERO)
+				or not frame.scale.is_equal_approx(Vector3.ONE)
+				or not frame.visible
+			):
+				errors.append("cargo_frame_root_transform_drift:%s" % frame_name)
+
+			var frame_joints: Array[MeshInstance3D] = []
+			var frame_segment_count := 0
+			var frame_node_names: Dictionary = {}
+			for child in frame.get_children():
+				var mesh_instance := child as MeshInstance3D
+				if mesh_instance == null:
+					continue
+				if mesh_instance.mesh is SphereMesh:
+					frame_joints.append(mesh_instance)
+					frame_node_names[String(mesh_instance.name)] = true
+				elif String(mesh_instance.name).begins_with("Segment"):
+					frame_segment_count += 1
+			if (
+				frame.get_child_count() != 9
+				or frame_segment_count != 4
+				or frame_joints.size() != CARGO_FRAME_JOINTS_PER_FRAME
+			):
+				errors.append("cargo_frame_child_roster_drift:%s" % frame_name)
+			if frame_node_names.size() != frame_joints.size():
+				errors.append("cargo_frame_joint_name_roster_drift:%s" % frame_name)
+			if frame_joints.is_empty() or frame.get_node_or_null(^"CurveJoint") != frame_joints[0]:
+				errors.append("cargo_frame_primary_joint_path_drift:%s" % frame_name)
+			multimesh_batch_count += frame.find_children(
+				"*", "MultiMeshInstance3D", true, false
+			).size()
+
+			for joint_index in frame_joints.size():
+				var joint := frame_joints[joint_index]
+				var sphere := joint.mesh as SphereMesh
+				family_node_count += 1
+				drawn_copy_count += 1
+				node_instance_ids[joint.get_instance_id()] = true
+				if not String(joint.name).is_empty():
+					named_node_count += 1
+				if sphere == null:
+					errors.append("cargo_frame_joint_mesh_type_drift:%s/%s" % [
+						frame_name, joint.name,
+					])
+					continue
+				mesh_resource_ids[sphere.get_instance_id()] = true
+				structural_surface_submission_count += sphere.get_surface_count()
+				for surface_index in sphere.get_surface_count():
+					var material := sphere.surface_get_material(surface_index)
+					if material != null:
+						material_resource_ids[material.get_instance_id()] = true
+				if sphere != _cargo_frame_joint_mesh:
+					errors.append("cargo_frame_joint_mesh_identity_drift:%s/%s" % [
+						frame_name, joint.name,
+					])
+				if (
+					not is_equal_approx(sphere.radius, CARGO_FRAME_JOINT_RADIUS)
+					or not is_equal_approx(sphere.height, CARGO_FRAME_JOINT_RADIUS * 2.0)
+					or sphere.radial_segments != CARGO_FRAME_JOINT_RADIAL_SEGMENTS
+					or sphere.rings != CARGO_FRAME_JOINT_RINGS
+					or sphere.material != _jovian_materials.get("hull_cool")
+					or sphere.get_surface_count() != 1
+				):
+					errors.append("cargo_frame_joint_mesh_recipe_drift:%s/%s" % [
+						frame_name, joint.name,
+					])
+
+				var expected_xy := CARGO_FRAME_JOINT_XY[joint_index]
+				var expected_position := Vector3(
+					expected_xy.x,
+					expected_xy.y,
+					CARGO_FRAME_START_Z + float(frame_index) * CARGO_FRAME_Z_STEP
+				)
+				if (
+					not joint.position.is_equal_approx(expected_position)
+					or not joint.rotation.is_equal_approx(Vector3.ZERO)
+					or not joint.scale.is_equal_approx(Vector3.ONE)
+					or not joint.visible
+					or joint.layers != 1
+					or joint.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+					or joint.material_override != null
+					or joint.material_overlay != null
+					or not is_zero_approx(joint.transparency)
+					or not is_zero_approx(joint.extra_cull_margin)
+					or joint.custom_aabb != AABB()
+				):
+					errors.append("cargo_frame_joint_renderer_recipe_drift:%s/%s" % [
+						frame_name, joint.name,
+					])
+
+				var authority_state := {
+					"descendants": 0,
+					"collision_objects": 0,
+					"collision_shapes": 0,
+					"interaction_areas": 0,
+					"markers": 0,
+					"metadata_entries": 0,
+					"scripted_nodes": 0,
+					"grouped_nodes": 0,
+					"processing_nodes": 0,
+				}
+				_accumulate_visual_family_authority(joint, joint, authority_state)
+				descendant_node_count += int(authority_state["descendants"])
+				collision_object_count += int(authority_state["collision_objects"])
+				collision_shape_count += int(authority_state["collision_shapes"])
+				interaction_area_count += int(authority_state["interaction_areas"])
+				marker_count += int(authority_state["markers"])
+				metadata_entry_count += int(authority_state["metadata_entries"])
+				scripted_node_count += int(authority_state["scripted_nodes"])
+				grouped_node_count += int(authority_state["grouped_nodes"])
+				processing_node_count += int(authority_state["processing_nodes"])
+				behavior_rows.append({
+					"frame_index": frame_index,
+					"joint_index": joint_index,
+					"node_name": String(joint.name),
+					"position": [joint.position.x, joint.position.y, joint.position.z],
+					"rotation": [joint.rotation.x, joint.rotation.y, joint.rotation.z],
+					"scale": [joint.scale.x, joint.scale.y, joint.scale.z],
+				})
+
+	if family_node_count != CARGO_FRAME_JOINT_COPY_COUNT:
+		errors.append("cargo_frame_joint_node_count_drift")
+	if named_node_count != CARGO_FRAME_JOINT_COPY_COUNT:
+		errors.append("cargo_frame_joint_named_node_count_drift")
+	if node_instance_ids.size() != CARGO_FRAME_JOINT_COPY_COUNT:
+		errors.append("cargo_frame_joint_node_identity_count_drift")
+	if mesh_resource_ids.size() != 1:
+		errors.append("cargo_frame_joint_mesh_resource_count_drift")
+	if material_resource_ids.size() != 1:
+		errors.append("cargo_frame_joint_material_resource_count_drift")
+	if structural_surface_submission_count != CARGO_FRAME_JOINT_COPY_COUNT:
+		errors.append("cargo_frame_joint_submission_count_drift")
+	if multimesh_batch_count != 0:
+		errors.append("cargo_frame_joint_unexpected_batch")
+	if descendant_node_count != 0:
+		errors.append("cargo_frame_joint_gained_children")
+	if collision_object_count != 0 or collision_shape_count != 0 or interaction_area_count != 0:
+		errors.append("cargo_frame_joint_gained_collision_or_interaction_authority")
+	if metadata_entry_count != 0:
+		errors.append("cargo_frame_joint_gained_evidence_metadata")
+	if (
+		marker_count != 0
+		or scripted_node_count != 0
+		or grouped_node_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("cargo_frame_joint_gained_lifecycle_or_semantic_authority")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_moving_interior_cargo_frame_curve_joints",
+		"current": {
+			"geometry_nodes": family_node_count,
+			"named_nodes": named_node_count,
+			"drawn_copies": drawn_copy_count,
+			"geometry_submissions": structural_surface_submission_count,
+			"mesh_resource_allocations": mesh_resource_ids.size(),
+			"material_resource_allocations": material_resource_ids.size(),
+			"multimesh_batches": multimesh_batch_count,
+		},
+		"legacy": {
+			"geometry_nodes": CARGO_FRAME_JOINT_COPY_COUNT,
+			"named_nodes": CARGO_FRAME_JOINT_COPY_COUNT,
+			"drawn_copies": CARGO_FRAME_JOINT_COPY_COUNT,
+			"geometry_submissions": CARGO_FRAME_JOINT_COPY_COUNT,
+			"mesh_resource_allocations": CARGO_FRAME_JOINT_COPY_COUNT,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		},
+		"delta": {
+			"geometry_nodes": family_node_count - CARGO_FRAME_JOINT_COPY_COUNT,
+			"drawn_copies": drawn_copy_count - CARGO_FRAME_JOINT_COPY_COUNT,
+			"geometry_submissions": (
+				structural_surface_submission_count - CARGO_FRAME_JOINT_COPY_COUNT
+			),
+			"mesh_resource_allocations": (
+				mesh_resource_ids.size() - CARGO_FRAME_JOINT_COPY_COUNT
+			),
+			"material_resource_allocations": material_resource_ids.size() - 1,
+		},
+		"moving_interior_attached": moving_interior_attached,
 		"descendant_node_count": descendant_node_count,
 		"collision_object_count": collision_object_count,
 		"collision_shape_count": collision_shape_count,
@@ -1341,8 +1613,14 @@ func _build_cargo_bay() -> void:
 	_box(_cargo_bay, "ForwardBulkheadHeader", Vector3(0.0, 4.12, -2.88), Vector3(2.95, 0.62, 0.18), _jovian_materials.amber)
 	# Curved interior frames expose the true structural scale without closing the
 	# route. All fixtures are children of the moving ship.
-	for frame_index in 4:
-		var frame_z := -1.7 + float(frame_index) * 3.25
+	_cargo_frame_joint_mesh = SphereMesh.new()
+	_cargo_frame_joint_mesh.radius = CARGO_FRAME_JOINT_RADIUS
+	_cargo_frame_joint_mesh.height = CARGO_FRAME_JOINT_RADIUS * 2.0
+	_cargo_frame_joint_mesh.radial_segments = CARGO_FRAME_JOINT_RADIAL_SEGMENTS
+	_cargo_frame_joint_mesh.rings = CARGO_FRAME_JOINT_RINGS
+	_cargo_frame_joint_mesh.material = _jovian_materials.hull_cool
+	for frame_index in CARGO_FRAME_COUNT:
+		var frame_z := CARGO_FRAME_START_Z + float(frame_index) * CARGO_FRAME_Z_STEP
 		_curve_tube(
 			_cargo_bay,
 			"CargoFrame%02d" % frame_index,
@@ -1353,8 +1631,9 @@ func _build_cargo_bay() -> void:
 				Vector3(5.35, 4.15, frame_z),
 				Vector3(5.35, 0.72, frame_z),
 			]),
-			0.085,
-			_jovian_materials.hull_cool
+			CARGO_FRAME_JOINT_RADIUS,
+			_jovian_materials.hull_cool,
+			_cargo_frame_joint_mesh
 		)
 	# Four stable tie-down hardpoints and their secured cargo units. The central
 	# lane and door-to-cabin diagonal remain at least 2 m wide. Positions come from

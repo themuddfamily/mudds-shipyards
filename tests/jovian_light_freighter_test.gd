@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_definition_and_evidence(jovian)
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
+	_test_cargo_frame_joint_allocation(jovian)
 	await _test_scale_handling_and_presentation(jovian)
 	_test_connected_interior_contract(jovian)
 	_test_collision_access_and_cameras(jovian)
@@ -357,6 +358,170 @@ func _test_shoulder_rail_joint_allocation(jovian: JovianLightFreighter) -> void:
 		bool(jovian.get_shoulder_rail_joint_allocation_audit().get("valid", false))
 		and bool(jovian.get_jovian_audit_report().get("valid", false)),
 		"shoulder identity, recipe, renderer, and authority mutations restore to green"
+	)
+
+
+func _test_cargo_frame_joint_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_cargo_frame_joint_allocation_audit()
+	if not bool(audit.get("valid", false)):
+		print("JOVIAN_CARGO_FRAME_ALLOCATION_ERRORS: ", audit.get(
+			"errors", PackedStringArray()
+		))
+	_check(bool(audit.get("valid", false)), "Jovian cargo-frame joint allocation audit is green")
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	_check(
+		legacy == {
+			"geometry_nodes": 20,
+			"named_nodes": 20,
+			"drawn_copies": 20,
+			"geometry_submissions": 20,
+			"mesh_resource_allocations": 20,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		}
+		and current == {
+			"geometry_nodes": 20,
+			"named_nodes": 20,
+			"drawn_copies": 20,
+			"geometry_submissions": 20,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		}
+		and delta == {
+			"geometry_nodes": 0,
+			"drawn_copies": 0,
+			"geometry_submissions": 0,
+			"mesh_resource_allocations": -19,
+			"material_resource_allocations": 0,
+		},
+		"20 named moving-interior joints retain one mesh instead of 20"
+	)
+	_check(
+		bool(audit.get("moving_interior_attached", false))
+		and int(audit.get("descendant_node_count", -1)) == 0
+		and int(audit.get("collision_object_count", -1)) == 0
+		and int(audit.get("collision_shape_count", -1)) == 0
+		and int(audit.get("interaction_area_count", -1)) == 0
+		and int(audit.get("marker_count", -1)) == 0
+		and int(audit.get("metadata_entry_count", -1)) == 0
+		and int(audit.get("scripted_node_count", -1)) == 0
+		and int(audit.get("grouped_node_count", -1)) == 0
+		and int(audit.get("processing_node_count", -1)) == 0
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("driver_draw_call_claimed", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("vram_claimed", true)),
+		"shared cargo-frame joints stay attached to the moving interior with unchanged submissions and zero authority"
+	)
+
+	(current as Dictionary)["geometry_nodes"] = -1
+	(audit.get("behavior_rows", []) as Array).clear()
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("caller_mutation")
+	var detached := jovian.get_cargo_frame_joint_allocation_audit()
+	_check(
+		int((detached.get("current", {}) as Dictionary).get("geometry_nodes", 0)) == 20
+		and (detached.get("behavior_rows", []) as Array).size() == 20
+		and not (detached.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"caller_mutation"
+		),
+		"cargo-frame allocation evidence is deeply detached"
+	)
+
+	var cargo_bay := jovian.get_node(^"WalkableInterior/CargoBay") as Node3D
+	var first_frame := cargo_bay.get_node(^"CargoFrame00") as Node3D
+	var last_frame := cargo_bay.get_node(^"CargoFrame03") as Node3D
+	var first_joint := first_frame.get_node(^"CurveJoint") as MeshInstance3D
+	var last_joint: MeshInstance3D = null
+	for child in last_frame.get_children():
+		var candidate := child as MeshInstance3D
+		if candidate != null and candidate.mesh is SphereMesh:
+			last_joint = candidate
+	var shared_mesh := first_joint.mesh as SphereMesh
+	_check(
+		shared_mesh != null and last_joint != null and last_joint.mesh == shared_mesh,
+		"all four cargo frames resolve their 20 joints through one exact SphereMesh"
+	)
+
+	last_joint.mesh = shared_mesh.duplicate() as SphereMesh
+	var identity_red := jovian.get_cargo_frame_joint_allocation_audit()
+	_check(
+		not bool(identity_red.get("valid", true))
+		and int((identity_red.get("current", {}) as Dictionary).get(
+			"mesh_resource_allocations", 0
+		)) == 2
+		and _has_error_prefix(identity_red, "cargo_frame_joint_mesh_identity_drift:")
+		and _has_error(identity_red, "cargo_frame_joint_mesh_resource_count_drift"),
+		"structured red: one private exact-looking cargo-frame mesh invalidates shared identity"
+	)
+	last_joint.mesh = shared_mesh
+
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings = original_rings - 1
+	var recipe_red := jovian.get_cargo_frame_joint_allocation_audit()
+	_check(
+		not bool(recipe_red.get("valid", true))
+		and _has_error_prefix(recipe_red, "cargo_frame_joint_mesh_recipe_drift:"),
+		"structured red: shared cargo-frame sphere recipe drift is visible"
+	)
+	shared_mesh.rings = original_rings
+
+	var original_layers := last_joint.layers
+	last_joint.layers = 2
+	var renderer_red := jovian.get_cargo_frame_joint_allocation_audit()
+	_check(
+		not bool(renderer_red.get("valid", true))
+		and _has_error_prefix(renderer_red, "cargo_frame_joint_renderer_recipe_drift:"),
+		"structured red: cargo-frame renderer-state drift is visible"
+	)
+	last_joint.layers = original_layers
+
+	var interior := jovian.get_interior_root()
+	cargo_bay.reparent(jovian, false)
+	var moving_interior_red := jovian.get_cargo_frame_joint_allocation_audit()
+	_check(
+		not bool(moving_interior_red.get("valid", true))
+		and not bool(moving_interior_red.get("moving_interior_attached", true))
+		and _has_error(
+			moving_interior_red,
+			"cargo_frame_moving_interior_attachment_drift"
+		),
+		"structured red: cargo frames cannot detach from the physical moving interior"
+	)
+	cargo_bay.reparent(interior, false)
+
+	var rogue_area := Area3D.new()
+	rogue_area.name = "RogueCargoFrameInteractionAuthority"
+	rogue_area.set_meta(&"evidence_status", &"unregistered")
+	var rogue_shape := CollisionShape3D.new()
+	rogue_shape.name = "RogueCargoFrameCollision"
+	rogue_shape.shape = SphereShape3D.new()
+	rogue_area.add_child(rogue_shape)
+	last_joint.add_child(rogue_area)
+	var authority_red := jovian.get_cargo_frame_joint_allocation_audit()
+	_check(
+		not bool(authority_red.get("valid", true))
+		and int(authority_red.get("descendant_node_count", 0)) == 2
+		and int(authority_red.get("collision_object_count", 0)) == 1
+		and int(authority_red.get("collision_shape_count", 0)) == 1
+		and int(authority_red.get("interaction_area_count", 0)) == 1
+		and int(authority_red.get("metadata_entry_count", 0)) == 1
+		and _has_error(authority_red, "cargo_frame_joint_gained_children")
+		and _has_error(
+			authority_red,
+			"cargo_frame_joint_gained_collision_or_interaction_authority"
+		)
+		and _has_error(authority_red, "cargo_frame_joint_gained_evidence_metadata"),
+		"structured red: authority cannot hide under a shared cargo-frame joint"
+	)
+	last_joint.remove_child(rogue_area)
+	rogue_area.free()
+	_check(
+		bool(jovian.get_cargo_frame_joint_allocation_audit().get("valid", false))
+		and bool(jovian.get_jovian_audit_report().get("valid", false)),
+		"cargo-frame identity, recipe, renderer, and authority mutations restore to green"
 	)
 
 

@@ -167,17 +167,16 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `3fd86fd` after the Jovian shoulder-rail
-resource sharing, VIP sill-light consolidation, Fabrication paired-pool slice,
-and the player-reachable Music settings row, Godot 4.7.1, headless Forward+,
-Dummy audio and HIGH quality freezes:
+Focused production evidence on base `9d24589` with the bounded Jovian cargo-frame
+joint resource sharing applied, Godot 4.7.1, headless Forward+, Dummy audio and
+HIGH quality freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
 | Mesh renderer nodes | 5,691 | 5,857 | +166 |
 | Surfaces | 5,698 | 5,864 | +166 |
-| Unique meshes | 2,597 | 2,727 | +130 |
+| Unique meshes | 2,578 | 2,708 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 631 | 650 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
@@ -186,11 +185,11 @@ Dummy audio and HIGH quality freezes:
 | Scene-tree nodes | 9,328 | 9,629 | +301 |
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
-row: the seven existing joints beneath `PortForwardShoulderRail`,
-`PortAftShoulderRail`, and `StarboardShoulderRail` retain seven visible copies
-and seven surface submissions but share one immutable SphereMesh, so both
-production scenarios retain six fewer unique meshes. No collision, interaction,
-evidence or lifecycle node moved into that visual family.
+row: the 20 existing joints beneath `WalkableInterior/CargoBay/CargoFrame00..03`
+retain 20 named nodes, visible copies, and surface submissions but share one
+immutable SphereMesh, so both production scenarios retain 19 fewer unique
+meshes. No collision, interaction, evidence or lifecycle node moved into that
+visual family, and its four frame roots remain in the physical moving interior.
 
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
@@ -233,9 +232,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`21939eca30fbfebb39abab9ccac5e116226e2090341af1c767e6743f24b50f45`;
+`d7ef46d61e24627072a0d2a410e1dbbca6ae586ec5f444c55ba682f73a870978`;
 the loaded fingerprint is
-`a7bff2b35d73b3df167a25e5731d2fa9a8801b7e1318c30dca7e9f30f0d375a3`.
+`b1f00c60d86449587ae201738acd69296ac414f275a60c425056cc51289d7281`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
