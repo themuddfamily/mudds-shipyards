@@ -101,9 +101,76 @@ func _run() -> void:
 		"independent collectors produce identical deterministic fingerprints"
 	)
 
+	_test_measurement_fingerprint_scenario_identity(
+		bound_fingerprint,
+		retained_fingerprint
+	)
+
 	fixture.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_measurement_fingerprint_scenario_identity(
+		bound_fingerprint: String,
+		retained_fingerprint: String
+	) -> void:
+	var report := {
+		"scenario": CENSUS_SCRIPT.SCENARIO_STATION_RESIDENT,
+		"loaded_instance_count": 0,
+		"total_triangles": 12,
+		"total_mesh_instances": 1,
+		"total_surfaces": 1,
+		"unique_meshes": 1,
+		"text_triangles": 0,
+		"text_instances": 0,
+		"bound_phase_unique_materials": 6,
+		"retained_reachable_unique_materials": 8,
+		"bound_material_fingerprint": bound_fingerprint,
+		"retained_material_fingerprint": retained_fingerprint,
+		"unique_shaders": 1,
+		"unique_textures": 1,
+		"texture_bytes": 24,
+		"lights": 0,
+		"shadow_lights": 0,
+		"particle_systems": 0,
+		"nodes": 3,
+		"buckets": {
+			"Fixture": {
+				"triangles": 12,
+				"instances": 1,
+				"surfaces": 1,
+				"multimesh_instances": 0,
+				"lights": 0,
+				"nodes": 3,
+				"text_triangles": 0,
+				"text_instances": 0,
+			},
+		},
+	}
+	var resident := CENSUS_SCRIPT.build_measurement_fingerprint(report)
+	var repeated := CENSUS_SCRIPT.build_measurement_fingerprint(
+		report.duplicate(true)
+	)
+	var loaded := report.duplicate(true)
+	loaded["scenario"] = CENSUS_SCRIPT.SCENARIO_CINDER_LOADED
+	loaded["loaded_instance_count"] = 1
+	var relabelled := CENSUS_SCRIPT.build_measurement_fingerprint(loaded)
+	var count_mutation := report.duplicate(true)
+	(count_mutation["buckets"] as Dictionary)["Fixture"]["triangles"] = 13
+	var recounted := CENSUS_SCRIPT.build_measurement_fingerprint(count_mutation)
+	_check(
+		not resident.is_empty() and resident == repeated,
+		"whole-census measurement fingerprint is deterministic across detached reports"
+	)
+	_check(
+		resident != relabelled,
+		"scenario identity and loaded-instance count participate in the census fingerprint"
+	)
+	_check(
+		resident != recounted,
+		"bucket-count mutation changes the whole-census measurement fingerprint"
+	)
 
 
 func _check(condition: bool, message: String) -> void:

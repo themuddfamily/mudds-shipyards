@@ -145,6 +145,62 @@ future code could load only after another gameplay state. Texture bytes remain
 the same uncompressed `width × height × 4` upper-bound proxy for discovered
 `Texture2D` resources; they are not compressed package size or actual residency.
 
+### Scenario-aware geometry and material census
+
+The production census now makes streaming residency explicit instead of letting
+the words “whole scene” hide two different live graphs. `station_resident` is
+the default and fails closed if any `NearbySectorCluster` is loaded.
+`cinder_loaded` moves the real guided ship to the documented clear approach and
+drives `CinderStreamingProductionBinding` until exactly one coordinator-owned
+Cinder generation is committed. Both paths wait for `Main` to apply saved
+settings, force the production HIGH visual-quality profile, take the same
+eight-idle/one-physics/one-idle settle, and disable `Main` before synchronous
+geometry and retained-resource traversal.
+
+Every schema-v2 JSON report publishes `scenario` and
+`loaded_instance_count` both at top level and in run metadata. The whole-census
+`measurement_fingerprint` hashes those fields, exact geometry/text/material-
+count/resource/light/node totals, and every sorted bucket count. It deliberately
+excludes Git dirty state, command line, output path and other run provenance.
+The two detailed bound/retained material descriptor fingerprints remain
+separate diagnostics rather than being recursively folded into the count
+fingerprint. Runtime fallback node names are normalized to stable
+class-and-sibling ordinals in both bucket paths and material origins.
+
+Focused production evidence on base `4167686`, Godot 4.7.1, headless Forward+,
+Dummy audio and HIGH quality freezes:
+
+| Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
+| --- | ---: | ---: | ---: |
+| Triangles | 1,683,905 | 1,801,362 | +117,457 |
+| Mesh renderer nodes | 5,691 | 5,857 | +166 |
+| Surfaces | 5,698 | 5,864 | +166 |
+| Unique meshes | 2,627 | 2,757 | +130 |
+| Bound-phase materials | 450 | 469 | +19 |
+| Retained/reachable materials | 631 | 650 | +19 |
+| Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
+| Lights / shadow lights | 298 / 19 | 321 / 19 | +23 / 0 |
+| Particle systems | 25 | 25 | 0 |
+| Scene-tree nodes | 9,327 | 9,628 | +301 |
+
+The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
+117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
+copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
+`+301` delta replace the resident bootstrap/coordinator shell nodes rather than
+contradicting the total.
+
+The resident measurement fingerprint is
+`13bb83b5356f04213655db5d824fb62e73f9d697065e16f7427dd989d601339f`;
+the loaded fingerprint is
+`7943fd103015f62e90456c367a75aba6b677d43e09f1113663a254cf6477df38`.
+`tests/geometry_census_scenario_test.gd` freezes both production scenarios,
+their exact totals/delta, sole-generation ownership, a resident-mismatch red
+mutation, and the separate fingerprints. These are renderer-independent live
+scene-graph ceilings, not draw-call, visibility, VRAM, GPU-time or frame-time
+measurements. Only one Cinder generation is covered; transition overlap,
+failed loads, other future locations and package/native residency remain out of
+scope.
+
 ### Deterministic station light-overlap measurement
 
 `tools/station_light_overlap_census.gd` closes the route-overlap measurement
@@ -762,7 +818,12 @@ legend complaint getting quieter, not louder.
 ## How to check this
 
 ```
-# Whole-scene census. Add KETH_CENSUS_JSON=path to diff two runs.
+# Resident production census. Add KETH_CENSUS_JSON=path to persist schema-v2 JSON.
+godot --headless --audio-driver Dummy --script res://tools/geometry_census.gd
+
+# One real production-streamed Cinder generation.
+KETH_CENSUS_SCENARIO=cinder_loaded \
+KETH_CENSUS_JSON=/tmp/geometry-census-cinder-loaded.json \
 godot --headless --audio-driver Dummy --script res://tools/geometry_census.gd
 
 # Per-ring breakdown: world-space radii, authored vs budgeted tessellation.
@@ -771,6 +832,10 @@ godot --headless --audio-driver Dummy --script res://tools/torus_census.gd
 # Material-census fixture: bound/retained split and dependency traversal.
 godot --headless --audio-driver Dummy \
   --script res://tests/geometry_census_retained_material_test.gd
+
+# Production resident/loaded identities, exact counts, deltas, and fingerprints.
+godot --headless --audio-driver Dummy \
+  --script res://tests/geometry_census_scenario_test.gd
 
 # Lettering and ring regression gates.
 tools/release/run_test_matrix.sh --scope sign_geometry_budget_test \

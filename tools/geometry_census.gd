@@ -16,10 +16,21 @@ extends SceneTree
 ## Optional environment variables:
 ##   KETH_CENSUS_JSON=path   also write the census as JSON for diffing.
 ##   KETH_CENSUS_SETTLE=N    frames to settle before counting (default 8).
+##   KETH_CENSUS_SCENARIO=station_resident  (default)
+##   KETH_CENSUS_SCENARIO=cinder_loaded
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const CINDER_LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
 
+const SCHEMA_VERSION := 2
 const DEFAULT_SETTLE_FRAMES := 8
+const SCENARIO_STATION_RESIDENT: StringName = &"station_resident"
+const SCENARIO_CINDER_LOADED: StringName = &"cinder_loaded"
+const DEFAULT_SCENARIO: StringName = SCENARIO_STATION_RESIDENT
+const SCENARIO_ENVIRONMENT_VARIABLE := "KETH_CENSUS_SCENARIO"
+const HIGH_VISUAL_QUALITY_LEVEL := 2
+const CINDER_CLEAR_APPROACH_OFFSET := Vector3(0.0, 4.0, 170.0)
+const CINDER_LOAD_FRAME_BUDGET := 60
 
 
 ## Deterministic resource-graph collector used by the production census and its
@@ -145,7 +156,10 @@ class MaterialResourceCensus:
 					note_bound(mesh_instance.get_surface_override_material(surface), "%s.surface_override[%d]" % [origin, surface])
 					note_bound(mesh_instance.mesh.surface_get_material(surface), "%s.mesh.surface[%d]" % [origin, surface])
 		for child in node.get_children():
-			_walk_bound_node(child, "%s/%s" % [origin, child.name])
+			_walk_bound_node(
+				child,
+				"%s/%s" % [origin, _stable_sibling_segment(child)]
+			)
 
 
 	func _visit_object(object: Object, origin: String) -> void:
@@ -196,7 +210,10 @@ class MaterialResourceCensus:
 		if object is Node:
 			var node := object as Node
 			for child in node.get_children():
-				_visit_object(child, "%s/%s" % [origin, child.name])
+				_visit_object(
+					child,
+					"%s/%s" % [origin, _stable_sibling_segment(child)]
+				)
 
 
 	func _note_retained_material(material: Material, origin: String) -> void:
@@ -209,6 +226,23 @@ class MaterialResourceCensus:
 
 	func _hold_resource(resource: Resource) -> void:
 		_strong_resources.append(resource)
+
+
+	func _stable_sibling_segment(node: Node) -> String:
+		var runtime_name := str(node.name)
+		if not runtime_name.begins_with("@"):
+			return runtime_name
+		var parent := node.get_parent()
+		if parent == null:
+			return "%s[01]" % node.get_class()
+		var ordinal := 0
+		for sibling in parent.get_children():
+			if sibling.get_class() == node.get_class() \
+				and str(sibling.name).begins_with("@"):
+				ordinal += 1
+				if sibling == node:
+					break
+		return "%s[%02d]" % [node.get_class(), maxi(ordinal, 1)]
 
 
 	func _descriptors(resources: Dictionary, origins: Dictionary) -> PackedStringArray:
@@ -254,18 +288,48 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	var scenario := StringName(
+		OS.get_environment(SCENARIO_ENVIRONMENT_VARIABLE).strip_edges()
+	)
+	if scenario.is_empty():
+		scenario = DEFAULT_SCENARIO
+	if scenario not in [SCENARIO_STATION_RESIDENT, SCENARIO_CINDER_LOADED]:
+		printerr("census: unsupported scenario: %s" % scenario)
+		quit(1)
+		return
 	var settle := DEFAULT_SETTLE_FRAMES
 	var settle_override := OS.get_environment("KETH_CENSUS_SETTLE")
 	if settle_override.is_valid_int():
 		settle = maxi(1, settle_override.to_int())
 
-	var game := MAIN_SCENE.instantiate()
+	var game := MAIN_SCENE.instantiate() as GameFlow
 	if game == null:
 		printerr("census: main scene failed to instantiate")
 		quit(1)
 		return
 	root.add_child(game)
+	# Let Main finish its production settings application before overriding the
+	# saved profile with the census's declared HIGH contract.
+	await process_frame
+	await physics_frame
+	await process_frame
+	if not force_high_visual_quality(game):
+		printerr("census: production HIGH visual quality is unavailable")
+		game.queue_free()
+		await process_frame
+		quit(1)
+		return
 
+	if scenario == SCENARIO_CINDER_LOADED:
+		var prepared := await prepare_cinder_loaded_scenario(game)
+		if not bool(prepared.get("accepted", false)):
+			printerr("census: Cinder scenario preparation failed: %s" % prepared)
+			game.queue_free()
+			await process_frame
+			quit(1)
+			return
+	# Give either production scenario the same declared settle phase before
+	# freezing either material view.
 	for _frame in settle:
 		await process_frame
 	await physics_frame
@@ -275,16 +339,125 @@ func _run() -> void:
 	# makes "bound" a declared phase rather than whichever `_process()` callback
 	# happens to win while the tree is being walked.
 	game.process_mode = Node.PROCESS_MODE_DISABLED
-	_run_metadata = _capture_run_metadata(settle, game)
+	var scenario_contract := inspect_production_scenario(game, scenario)
+	if not bool(scenario_contract.get("valid", false)):
+		printerr("census: invalid production scenario: %s" % scenario_contract)
+		game.queue_free()
+		await process_frame
+		quit(1)
+		return
+	var loaded_instance_count := int(
+		scenario_contract.get("loaded_instance_count", -1)
+	)
+	_run_metadata = _capture_run_metadata(
+		settle,
+		game,
+		scenario,
+		loaded_instance_count
+	)
 	_material_census.collect_bound(game)
 	_walk(game, "")
 	_material_census.collect_retained(game)
 
-	_report()
+	_report(scenario, loaded_instance_count)
 
 	game.queue_free()
 	await process_frame
 	quit(0)
+
+
+## Saved local settings must not silently select a different geometry/LOD
+## roster. Both scenarios freeze the production HIGH profile before settling.
+static func force_high_visual_quality(game: GameFlow) -> bool:
+	if not is_instance_valid(game):
+		return false
+	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+	if not is_instance_valid(world):
+		return false
+	world.apply_visual_quality(HIGH_VISUAL_QUALITY_LEVEL)
+	return world.visual_quality_level == HIGH_VISUAL_QUALITY_LEVEL
+
+
+## Loads one real Cinder generation through Main's production streaming
+## bootstrap/binding pair. The guided ship occupies the authored clear approach
+## lane only to supply the production distance sample; the census takes no
+## streaming or gameplay authority itself.
+static func prepare_cinder_loaded_scenario(game: GameFlow) -> Dictionary:
+	if not is_instance_valid(game) or not game.is_inside_tree():
+		return {"accepted": false, "reason": &"invalid_main"}
+	var bootstrap := game.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	var binding := game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var ship := game.get_guided_ship()
+	if not is_instance_valid(bootstrap) \
+		or not is_instance_valid(binding) \
+		or not is_instance_valid(ship):
+		return {"accepted": false, "reason": &"production_streaming_unavailable"}
+	game.active_ship = ship
+	ship.set_piloted(true)
+	ship.global_position = CINDER_LOCATION.get_anchor_position() \
+		+ CINDER_CLEAR_APPROACH_OFFSET
+	var tree := game.get_tree()
+	for _frame in CINDER_LOAD_FRAME_BUDGET:
+		await tree.physics_frame
+		await tree.process_frame
+		var loaded := bootstrap.get_loaded_instance()
+		if is_instance_valid(loaded) and int(
+			binding.get_snapshot().get("quality_synced_instance_id", 0)
+		) == loaded.get_instance_id():
+			return {
+				"accepted": true,
+				"reason": &"loaded",
+				"loaded_instance_count": game.find_children(
+					"*", "NearbySectorCluster", true, false
+				).size(),
+				"generation": int(loaded.get_meta(
+					&"world_location_generation", -1
+				)),
+			}.duplicate(true)
+	return {"accepted": false, "reason": &"load_timeout"}
+
+
+## Rejects accidental mixed baselines: resident means no Cinder generation;
+## loaded means the sole instance is the coordinator-owned committed one.
+static func inspect_production_scenario(
+		scene_root: Node,
+		scenario: StringName
+	) -> Dictionary:
+	var errors := PackedStringArray()
+	var loaded_instances := scene_root.find_children(
+		"*", "NearbySectorCluster", true, false
+	) if is_instance_valid(scene_root) else []
+	var loaded_instance_count := loaded_instances.size()
+	var bootstrap := scene_root.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap if is_instance_valid(scene_root) else null
+	var coordinator_loaded := bootstrap.get_loaded_instance() \
+		if is_instance_valid(bootstrap) else null
+	if scenario == SCENARIO_STATION_RESIDENT:
+		if loaded_instance_count != 0 or is_instance_valid(coordinator_loaded):
+			errors.append(
+				"station-resident scenario requires zero loaded Cinder instances"
+			)
+	elif scenario == SCENARIO_CINDER_LOADED:
+		if loaded_instance_count != 1:
+			errors.append("Cinder-loaded scenario requires exactly one loaded instance")
+		elif not is_instance_valid(coordinator_loaded) \
+			or coordinator_loaded != loaded_instances[0]:
+			errors.append(
+				"loaded Cinder instance must be the coordinator-owned generation"
+			)
+	else:
+		errors.append("unsupported production scenario: %s" % scenario)
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scenario": scenario,
+		"loaded_instance_count": loaded_instance_count,
+	}.duplicate(true)
 
 
 func _bucket_for(path: String) -> String:
@@ -315,7 +488,7 @@ func _walk(node: Node, path: String) -> void:
 	var here := path
 	if here != "":
 		here += "/"
-	here += String(node.name)
+	here += _stable_sibling_segment(node)
 	# The scene root itself is not a bucket key.
 	var effective := here.substr(here.find("/") + 1) if here.contains("/") else ""
 
@@ -377,6 +550,23 @@ func _walk(node: Node, path: String) -> void:
 		_walk(child, here)
 
 
+static func _stable_sibling_segment(node: Node) -> String:
+	var runtime_name := str(node.name)
+	if not runtime_name.begins_with("@"):
+		return runtime_name
+	var parent := node.get_parent()
+	if parent == null:
+		return "%s[01]" % node.get_class()
+	var ordinal := 0
+	for sibling in parent.get_children():
+		if sibling.get_class() == node.get_class() \
+			and str(sibling.name).begins_with("@"):
+			ordinal += 1
+			if sibling == node:
+				break
+	return "%s[%02d]" % [node.get_class(), maxi(ordinal, 1)]
+
+
 func _note_mesh(mesh: Mesh, triangles: int, instances: int, path: String) -> void:
 	_unique_meshes[mesh.get_instance_id()] = true
 	var mesh_class := mesh.get_class()
@@ -417,7 +607,40 @@ func _texture_bytes() -> int:
 	return _material_census.texture_bytes_upper_bound()
 
 
-func _capture_run_metadata(settle_frames: int, game: Node) -> Dictionary:
+## Public focused-test seam. The caller owns lifecycle/settling and must pass a
+## disabled production root plus an already-validated scenario contract.
+func measure_frozen_scene(
+		scene_root: Node,
+		scenario: StringName,
+		loaded_instance_count: int
+	) -> Dictionary:
+	_reset_measurement()
+	_material_census.collect_bound(scene_root)
+	_walk(scene_root, "")
+	_material_census.collect_retained(scene_root)
+	return _build_payload(scenario, loaded_instance_count)
+
+
+func _reset_measurement() -> void:
+	_rows = {}
+	_unique_meshes = {}
+	_material_census = MaterialResourceCensus.new()
+	_mesh_triangle_cache = {}
+	_text_sign_rows = []
+	_mesh_classes = {}
+	_heaviest_instances = []
+	_total_nodes = 0
+	_total_lights = 0
+	_shadow_lights = 0
+	_particles = 0
+
+
+func _capture_run_metadata(
+		settle_frames: int,
+		game: Node,
+		scenario: StringName,
+		loaded_instance_count: int
+	) -> Dictionary:
 	var revision_output: Array = []
 	var revision_exit := OS.execute("git", ["rev-parse", "HEAD"], revision_output, true)
 	var status_output: Array = []
@@ -432,6 +655,8 @@ func _capture_run_metadata(settle_frames: int, game: Node) -> Dictionary:
 		if world.has_method("get_visual_quality_report"):
 			visual_quality_report = world.call("get_visual_quality_report") as Dictionary
 	return {
+		"scenario": scenario,
+		"loaded_instance_count": loaded_instance_count,
 		"engine_version": str(version.get("string", Engine.get_version_info())),
 		"source_commit": str(revision_output[0]).strip_edges() if revision_exit == 0 and not revision_output.is_empty() else "unknown",
 		"source_tree_dirty": status_exit != 0 or (not status_output.is_empty() and not str(status_output[0]).strip_edges().is_empty()),
@@ -443,6 +668,9 @@ func _capture_run_metadata(settle_frames: int, game: Node) -> Dictionary:
 		"visual_quality_report": visual_quality_report,
 		"command_line": command_line,
 		"settle_strategy": {
+			"initialization_idle_frames_before_quality": 1,
+			"initialization_physics_frames_before_quality": 1,
+			"initialization_final_idle_frames_before_quality": 1,
 			"idle_frames_before_freeze": settle_frames,
 			"physics_frames_before_freeze": 1,
 			"final_idle_frames_before_freeze": 1,
@@ -452,25 +680,74 @@ func _capture_run_metadata(settle_frames: int, game: Node) -> Dictionary:
 	}
 
 
-func _report() -> void:
-	var buckets := _rows.keys()
-	buckets.sort_custom(func(a, b): return int(_rows[a]["triangles"]) > int(_rows[b]["triangles"]))
-
+func _build_payload(
+		scenario: StringName,
+		loaded_instance_count: int
+	) -> Dictionary:
 	var total_triangles := 0
 	var total_instances := 0
 	var total_surfaces := 0
 	var total_text_triangles := 0
 	var total_text_instances := 0
-	for bucket in buckets:
-		total_triangles += int(_rows[bucket]["triangles"])
-		total_instances += int(_rows[bucket]["instances"])
-		total_surfaces += int(_rows[bucket]["surfaces"])
-		total_text_triangles += int(_rows[bucket]["text_triangles"])
-		total_text_instances += int(_rows[bucket]["text_instances"])
+	for row_variant in _rows.values():
+		var row := row_variant as Dictionary
+		total_triangles += int(row.get("triangles", 0))
+		total_instances += int(row.get("instances", 0))
+		total_surfaces += int(row.get("surfaces", 0))
+		total_text_triangles += int(row.get("text_triangles", 0))
+		total_text_instances += int(row.get("text_instances", 0))
+	var payload := {
+		"schema_version": SCHEMA_VERSION,
+		"scenario": scenario,
+		"loaded_instance_count": loaded_instance_count,
+		"total_triangles": total_triangles,
+		"total_mesh_instances": total_instances,
+		"total_surfaces": total_surfaces,
+		"text_triangles": total_text_triangles,
+		"text_instances": total_text_instances,
+		"unique_meshes": _unique_meshes.size(),
+		# Compatibility alias now resolves to the honest budget currency: the
+		# retained/reachable union, not the phase sample.
+		"unique_materials": _material_census.retained_materials.size(),
+		"bound_phase_unique_materials": _material_census.bound_materials.size(),
+		"retained_reachable_unique_materials": _material_census.retained_materials.size(),
+		"bound_material_fingerprint": _material_census.bound_fingerprint(),
+		"retained_material_fingerprint": _material_census.retained_fingerprint(),
+		"bound_material_descriptors": _material_census.bound_descriptors(),
+		"retained_material_descriptors": _material_census.retained_descriptors(),
+		"unique_shaders": _material_census.retained_shaders.size(),
+		"unique_textures": _material_census.retained_textures.size(),
+		"texture_bytes": _texture_bytes(),
+		"retained_traversal_skipped_freed_object_references": _material_census.skipped_freed_object_references,
+		"lights": _total_lights,
+		"shadow_lights": _shadow_lights,
+		"particle_systems": _particles,
+		"nodes": _total_nodes,
+		"buckets": _rows.duplicate(true),
+		"signs": _text_sign_rows.duplicate(true),
+		"run_metadata": _run_metadata.duplicate(true),
+	}
+	payload["measurement_fingerprint"] = build_measurement_fingerprint(payload)
+	return payload.duplicate(true)
+
+
+func _report(scenario: StringName, loaded_instance_count: int) -> void:
+	var payload := _build_payload(scenario, loaded_instance_count)
+	var buckets := _rows.keys()
+	buckets.sort_custom(func(a, b): return int(_rows[a]["triangles"]) > int(_rows[b]["triangles"]))
+
+	var total_triangles := int(payload.total_triangles)
+	var total_instances := int(payload.total_mesh_instances)
+	var total_surfaces := int(payload.total_surfaces)
+	var total_text_triangles := int(payload.text_triangles)
+	var total_text_instances := int(payload.text_instances)
 
 	print("")
 	print("=== GEOMETRY CENSUS: scenes/main.tscn ===")
 	print("(counts are renderer-independent; this box has no usable GPU timing)")
+	print("scenario: %s / loaded Cinder instances: %d" % [
+		str(scenario), loaded_instance_count,
+	])
 	print("engine: %s" % str(_run_metadata.get("engine_version", "unknown")))
 	print("source: %s%s" % [
 		str(_run_metadata.get("source_commit", "unknown")),
@@ -557,38 +834,74 @@ func _report() -> void:
 			])
 		print("")
 
+	print("Measurement fingerprint: %s" % payload.measurement_fingerprint)
+	print("")
+
 	var json_path := OS.get_environment("KETH_CENSUS_JSON")
 	if json_path != "":
-		var payload := {
-			"total_triangles": total_triangles,
-			"total_mesh_instances": total_instances,
-			"total_surfaces": total_surfaces,
-			"text_triangles": total_text_triangles,
-			"text_instances": total_text_instances,
-			"unique_meshes": _unique_meshes.size(),
-			# Compatibility alias now resolves to the honest budget currency: the
-			# retained/reachable union, not the phase sample.
-			"unique_materials": _material_census.retained_materials.size(),
-			"bound_phase_unique_materials": _material_census.bound_materials.size(),
-			"retained_reachable_unique_materials": _material_census.retained_materials.size(),
-			"bound_material_fingerprint": _material_census.bound_fingerprint(),
-			"retained_material_fingerprint": _material_census.retained_fingerprint(),
-			"bound_material_descriptors": _material_census.bound_descriptors(),
-			"retained_material_descriptors": _material_census.retained_descriptors(),
-			"unique_shaders": _material_census.retained_shaders.size(),
-			"unique_textures": _material_census.retained_textures.size(),
-			"texture_bytes": _texture_bytes(),
-			"retained_traversal_skipped_freed_object_references": _material_census.skipped_freed_object_references,
-			"lights": _total_lights,
-			"shadow_lights": _shadow_lights,
-			"particle_systems": _particles,
-			"nodes": _total_nodes,
-			"buckets": _rows,
-			"signs": _text_sign_rows,
-			"run_metadata": _run_metadata,
-		}
 		var file := FileAccess.open(json_path, FileAccess.WRITE)
 		if file != null:
 			file.store_string(JSON.stringify(payload, "\t"))
 			file.close()
 			print("census JSON written to %s" % json_path)
+
+
+## Hashes the deterministic measurement contract, deliberately excluding run
+## provenance such as Git dirty state and command-line paths. Scenario identity
+## and loaded count are first-class inputs even if every numeric count is held
+## constant by a mutation fixture.
+static func build_measurement_fingerprint(report: Dictionary) -> String:
+	var descriptors := PackedStringArray([
+		"scenario|id=%s|loaded_instances=%d" % [
+			str(report.get("scenario", &"")),
+			int(report.get("loaded_instance_count", -1)),
+		],
+		"geometry|triangles=%d|instances=%d|surfaces=%d|unique_meshes=%d" % [
+			int(report.get("total_triangles", 0)),
+			int(report.get("total_mesh_instances", 0)),
+			int(report.get("total_surfaces", 0)),
+			int(report.get("unique_meshes", 0)),
+		],
+		"text|triangles=%d|instances=%d" % [
+			int(report.get("text_triangles", 0)),
+			int(report.get("text_instances", 0)),
+		],
+		"materials|bound=%d|retained=%d" % [
+			int(report.get("bound_phase_unique_materials", 0)),
+			int(report.get("retained_reachable_unique_materials", 0)),
+		],
+		"resources|shaders=%d|textures=%d|texture_bytes=%d" % [
+			int(report.get("unique_shaders", 0)),
+			int(report.get("unique_textures", 0)),
+			int(report.get("texture_bytes", 0)),
+		],
+		"scene|lights=%d|shadow_lights=%d|particles=%d|nodes=%d" % [
+			int(report.get("lights", 0)),
+			int(report.get("shadow_lights", 0)),
+			int(report.get("particle_systems", 0)),
+			int(report.get("nodes", 0)),
+		],
+	])
+	var buckets := report.get("buckets", {}) as Dictionary
+	var bucket_names := PackedStringArray()
+	for bucket_variant in buckets:
+		bucket_names.append(str(bucket_variant))
+	bucket_names.sort()
+	for bucket_name in bucket_names:
+		var row := buckets.get(bucket_name, {}) as Dictionary
+		descriptors.append(
+			"bucket|%s|triangles=%d|instances=%d|surfaces=%d|multi_copies=%d|lights=%d|nodes=%d|text_triangles=%d|text_instances=%d"
+			% [
+				bucket_name,
+				int(row.get("triangles", 0)),
+				int(row.get("instances", 0)),
+				int(row.get("surfaces", 0)),
+				int(row.get("multimesh_instances", 0)),
+				int(row.get("lights", 0)),
+				int(row.get("nodes", 0)),
+				int(row.get("text_triangles", 0)),
+				int(row.get("text_instances", 0)),
+			]
+		)
+	descriptors.sort()
+	return "\n".join(descriptors).sha256_text()
