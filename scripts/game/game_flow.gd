@@ -71,6 +71,7 @@ const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 	SafeStartProductionRecoveryType.RECOMMENDATION_PRESERVED_KEYS
 )
 const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
+const PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL := 9_007_199_254_740_991
 
 ## Production Main can be destroyed and rebuilt by the shift-restart loader
 ## without ending the OS process. Keep the atomic composition root here so that
@@ -378,6 +379,11 @@ var _cargo_delivery_destination_handle: Dictionary = {}
 ## observation. The cruise binding rejects duplicate/replayed serials rather
 ## than minting more than one envelope for a HeroShip physics tick.
 var _planetary_cruise_caller_tick := 0
+## Last request serial accepted from the one retained HUD. Replayed signals and
+## duplicate connections cannot toggle production state twice, and the value
+## survives whole-Main detach/re-entry with the HUD's matching serial.
+var _last_hud_planetary_cruise_toggle_serial := 0
+var _planetary_cruise_hud_toggle_active := false
 
 
 func _enter_tree() -> void:
@@ -913,6 +919,7 @@ func _start_up() -> void:
 	_update_music_bed_state()
 	_apply_torus_geometry_budget()
 	_sync_activity_hud()
+	_sync_planetary_cruise_hud()
 	_initialized = true
 
 
@@ -1021,6 +1028,7 @@ func _physics_process(delta: float) -> void:
 				_planetary_cruise_combat_active(),
 				_planetary_cruise_gate_reason(false),
 			)
+	_sync_planetary_cruise_hud()
 	if is_instance_valid(cinder_streaming_binding):
 		cinder_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
 	_sync_cinder_convoy_stream_presence()
@@ -1192,6 +1200,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_update_music_bed_state()
 	_restore_cabin_occupancy_after_reentry()
 	_sync_activity_hud()
+	_sync_planetary_cruise_hud()
 
 
 func _connect_runtime_signals() -> void:
@@ -1217,6 +1226,11 @@ func _connect_runtime_signals() -> void:
 		hud,
 		&"activity_selection_requested",
 		_on_hud_activity_selection_requested
+	)
+	_connect_signal_once(
+		hud,
+		&"planetary_cruise_toggle_requested",
+		_on_hud_planetary_cruise_toggle_requested
 	)
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
@@ -4318,6 +4332,62 @@ func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 		)
 
 
+## The pause HUD supplies only a bounded monotonic request serial. This owner
+## re-reads the live production gates synchronously and never treats the label or
+## button state as authority. Duplicate/replayed signals are silent no-ops.
+func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
+	if _planetary_cruise_hud_toggle_active:
+		return
+	if (
+		request_serial < 1
+		or request_serial > PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL
+		or _last_hud_planetary_cruise_toggle_serial
+			>= PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL
+		or request_serial != _last_hud_planetary_cruise_toggle_serial + 1
+	):
+		_sync_planetary_cruise_hud()
+		return
+	_last_hud_planetary_cruise_toggle_serial = request_serial
+	_planetary_cruise_hud_toggle_active = true
+	var before := _planetary_cruise_presentation()
+	var result: Dictionary
+	if bool(before.get("engagement_requested", false)):
+		result = disengage_planetary_cruise(true)
+	elif (
+		before.get("status_id", &"") == &"ready"
+		and bool(before.get("toggle_enabled", false))
+	):
+		result = engage_planetary_cruise()
+	else:
+		_sync_planetary_cruise_hud()
+		if is_instance_valid(hud):
+			hud.toast(
+				"EMBER CRUISE UNAVAILABLE",
+				str(before.get("status_text", "UNAVAILABLE — NOT AVAILABLE")),
+				2.4,
+			)
+		_planetary_cruise_hud_toggle_active = false
+		return
+	var after := _planetary_cruise_presentation()
+	_sync_planetary_cruise_hud()
+	if not is_instance_valid(hud):
+		_planetary_cruise_hud_toggle_active = false
+		return
+	if bool(result.get("accepted", false)):
+		hud.toast(
+			"EMBER CRUISE",
+			str(after.get("status_text", "QUEUED")),
+			2.4,
+		)
+	else:
+		hud.toast(
+			"EMBER CRUISE UNAVAILABLE",
+			str(after.get("status_text", before.get("status_text", "UNAVAILABLE — NOT AVAILABLE"))),
+			2.4,
+		)
+	_planetary_cruise_hud_toggle_active = false
+
+
 ## Restores one coherent, controllable on-foot pilot at the deck spawn.
 ##
 ## Extracted from the destroyed-craft recovery so the tow tractor's own loss path
@@ -4644,29 +4714,145 @@ func get_active_ship() -> HeroShip:
 
 
 ## Explicit production request seam for the canonical Ember navigation anchor.
-## No HUD, InputMap, raw Input, movement, or reward path calls this yet.
+## The pause HUD can request it, but this method rechecks all production gates;
+## neither the HUD nor its displayed state is authoritative.
 func engage_planetary_cruise() -> Dictionary:
 	if not is_instance_valid(planetary_cruise_binding):
+		_sync_planetary_cruise_hud()
 		return {"accepted": false, "reason": &"binding_unavailable"}
 	var frame_generation := 0
 	if is_instance_valid(ember_streaming_bootstrap):
 		var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
 		if frame != null:
 			frame_generation = frame.get_generation()
-	return planetary_cruise_binding.request_engage(
+	var result := planetary_cruise_binding.request_engage(
 		active_ship,
 		frame_generation,
 		_planetary_cruise_gate_reason(),
 		planetary_cruise_binding.get_generation(),
 	)
+	_sync_planetary_cruise_hud()
+	return result
 
 
 func disengage_planetary_cruise(brake_to_stop: bool = true) -> Dictionary:
 	if not is_instance_valid(planetary_cruise_binding):
+		_sync_planetary_cruise_hud()
 		return {"accepted": false, "reason": &"binding_unavailable"}
-	return planetary_cruise_binding.request_disengage(
+	var result := planetary_cruise_binding.request_disengage(
 		planetary_cruise_binding.get_generation(),
 		brake_to_stop,
+	)
+	_sync_planetary_cruise_hud()
+	return result
+
+
+## Maps only the finite public gate vocabulary to bounded player copy. Internal
+## generation, proof, controller, and transaction errors remain diagnostics.
+func _planetary_cruise_public_gate_copy(reason: StringName) -> String:
+	match reason:
+		&"main_unavailable", &"binding_unavailable":
+			return "SYSTEM OFFLINE"
+		&"active_ship_unavailable":
+			return "NO ACTIVE SHIP"
+		&"ship_destroyed":
+			return "SHIP DESTROYED"
+		&"pilot_unseated":
+			return "PILOT REQUIRED"
+		&"landing_active":
+			return "LANDING ACTIVE"
+		&"combat_active":
+			return "COMBAT ACTIVE"
+		&"ship_recovery":
+			return "SHIP RECOVERY"
+		&"free_flight_unavailable":
+			return "DEPART SHIPYARD"
+		&"activity_running":
+			return "ACTIVITY RUNNING"
+		&"coordinate_frame_unavailable":
+			return "NAVIGATION OFFLINE"
+		&"origin_rebase_pending":
+			return "ORIGIN SHIFT PENDING"
+		_:
+			return "NOT AVAILABLE"
+
+
+func _planetary_cruise_presentation() -> Dictionary:
+	var binding_snapshot: Dictionary = {}
+	if is_instance_valid(planetary_cruise_binding):
+		binding_snapshot = planetary_cruise_binding.get_snapshot().duplicate(true)
+	var ship_report: Dictionary = {}
+	if is_instance_valid(active_ship):
+		ship_report = active_ship.get_planetary_cruise_attachment_report().duplicate(true)
+	var engagement_requested := bool(
+		binding_snapshot.get("engagement_requested", false)
+	)
+	var ship_state := StringName(
+		ship_report.get("state", HeroShip.PLANETARY_CRUISE_STATE_INACTIVE)
+	)
+	var status_id: StringName
+	var status_text: String
+	var toggle_enabled := false
+	var public_gate := &""
+	match ship_state:
+		HeroShip.PLANETARY_CRUISE_STATE_ACCELERATING:
+			status_id = &"accelerating"
+			status_text = "ACCELERATING"
+			toggle_enabled = engagement_requested
+		HeroShip.PLANETARY_CRUISE_STATE_CRUISING:
+			status_id = &"cruising"
+			status_text = "CRUISING"
+			toggle_enabled = engagement_requested
+		HeroShip.PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED:
+			status_id = &"braking_to_speed"
+			status_text = "BRAKING TO SPEED"
+			toggle_enabled = engagement_requested
+		HeroShip.PLANETARY_CRUISE_STATE_BRAKING:
+			status_id = &"braking"
+			status_text = "BRAKING"
+		_:
+			if engagement_requested:
+				status_id = &"queued"
+				status_text = "QUEUED"
+				toggle_enabled = true
+			else:
+				var gate_reason := (
+					_planetary_cruise_gate_reason()
+					if is_instance_valid(planetary_cruise_binding)
+					else &"binding_unavailable"
+				)
+				if gate_reason.is_empty():
+					status_id = &"ready"
+					status_text = "READY — EMBER MOON"
+					toggle_enabled = true
+				else:
+					status_id = &"unavailable"
+					public_gate = gate_reason
+					status_text = "UNAVAILABLE — %s" % (
+						_planetary_cruise_public_gate_copy(gate_reason)
+					)
+	return {
+		"status_id": status_id,
+		"status_text": status_text,
+		"toggle_enabled": toggle_enabled,
+		"engagement_requested": engagement_requested,
+		"public_gate": public_gate,
+	}.duplicate(true)
+
+
+func _sync_planetary_cruise_hud() -> void:
+	if (
+		not is_instance_valid(hud)
+		or not hud.has_method(&"set_planetary_cruise_state")
+	):
+		return
+	var presentation := _planetary_cruise_presentation()
+	hud.call(
+		&"set_planetary_cruise_state",
+		StringName(presentation.get("status_id", &"unavailable")),
+		str(presentation.get("status_text", "UNAVAILABLE — SYSTEM OFFLINE")),
+		bool(presentation.get("toggle_enabled", false)),
+		bool(presentation.get("engagement_requested", false)),
 	)
 
 
@@ -4675,13 +4861,20 @@ func get_planetary_cruise_report() -> Dictionary:
 		return {
 			"available": false,
 			"reason": &"binding_unavailable",
+			"presentation": _planetary_cruise_presentation(),
 		}.duplicate(true)
+	var ship_report: Dictionary = {}
+	if is_instance_valid(active_ship):
+		ship_report = active_ship.get_planetary_cruise_attachment_report().duplicate(true)
 	return {
 		"available": true,
 		"gate_reason": _planetary_cruise_gate_reason(),
 		"combat_active": _planetary_cruise_combat_active(),
 		"caller_tick": _planetary_cruise_caller_tick,
+		"last_hud_toggle_serial": _last_hud_planetary_cruise_toggle_serial,
 		"binding": planetary_cruise_binding.get_snapshot().duplicate(true),
+		"ship": ship_report,
+		"presentation": _planetary_cruise_presentation(),
 	}.duplicate(true)
 
 

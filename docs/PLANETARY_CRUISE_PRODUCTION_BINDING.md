@@ -36,11 +36,25 @@ frame change.
 ## API and lifecycle
 
 `GameFlow.engage_planetary_cruise()` and
-`GameFlow.disengage_planetary_cruise(brake_to_stop)` are the only production
-request seams in this slice. Nothing calls them from HUD, `InputMap`, or raw
-`Input` yet. Engage requires the exact live, piloted active ship in departed
-free flight, no landing request/assist, no live combat, no recovery, no running
-activity, and no pending origin transaction.
+`GameFlow.disengage_planetary_cruise(brake_to_stop)` remain the only production
+request seams. The existing pause navigation has one controller-focusable
+`EMBER CRUISE` toggle that emits a typed monotonic request serial; it adds no
+`InputMap` action and reads no raw `Input`. `GameFlow` synchronously rechecks
+the live report and gates before calling engage or `disengage(true)`, while
+replayed or skipped serials cannot toggle twice. There is no automatic engage.
+Engage requires the exact live, piloted active ship in departed free flight, no
+landing request/assist, no live combat, no recovery, no running activity, and
+no pending origin transaction.
+
+The HUD receives presentation only. Its exact detached state vocabulary is
+`READY — EMBER MOON`, `QUEUED`, `ACCELERATING`, `CRUISING`,
+`BRAKING TO SPEED`, `BRAKING`, or `UNAVAILABLE — <bounded public gate>`.
+Internal controller, proof, generation, and transaction reasons are not shown.
+The fixed destination remains Ember's canonical navigation anchor; this slice
+adds no destination selection, return target, surface transition, movement,
+sampling, policy, or origin authority. Whole-`Main` re-entry retains the same
+HUD and binding identities but never restores an engagement: a fresh player
+request is required.
 
 The binding owns exactly one stable `PlanetaryCruisePhysicalController` child.
 The controller asks `HeroShip` for its current fixed-orientation, full-hull
@@ -87,9 +101,12 @@ and once-per-caller-tick delivery cadence. Combat, landing, piloting, activity,
 ship destruction, frame generation, streaming generations, and movement remain
 observed external authorities.
 
-The focused production test freezes singular composition, ordering, canonical
+The focused production tests freeze singular composition, ordering, canonical
 destination identity, one-sample/one-envelope delivery, next-Hero-tick physical
 consumption, an exact frame rebind with no stale-broadphase false obstacle, a
 second rebase with a translated blocker that cannot become a stale false clear,
 combat/lifecycle/replacement failure, stale-controller reconciliation, detached
-reports, and whole-Main re-entry.
+reports, and whole-Main re-entry. Player-activation evidence additionally drives
+the existing pause/controller focus route, the typed request serial, all exact
+HUD states and bounded gate copy, braking disengage, layout endpoints, and
+re-entry without ghost engagement.

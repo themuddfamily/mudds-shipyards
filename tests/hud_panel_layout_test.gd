@@ -85,6 +85,7 @@ func _run() -> void:
 	await _test_ceiling_delivers_the_contract()
 	await _test_headroom_below_the_contract()
 	_test_uncapped_hundred_percent_still_holds()
+	await _test_planetary_cruise_pause_layout()
 	await _test_activity_board_layout()
 
 	print("MEASURED: tightest clearance anywhere in the supported range -> %.1f logical px (%s)"
@@ -470,6 +471,91 @@ func _test_uncapped_hundred_percent_still_holds() -> void:
 		GameHUD.MIN_LOGICAL_WIDTH <= 1280.0 and GameHUD.MIN_LOGICAL_HEIGHT <= 720.0,
 		"the layout contract stays inside 1280x720, which is what keeps 100% uncapped there"
 	)
+
+
+## The player-facing cruise control shares the pause main page, including the
+## maximum effective accessibility scale. Its compact status row must never
+## escape the panel or overlap the controller-focusable button.
+func _test_planetary_cruise_pause_layout() -> void:
+	_hud.set_paused(true)
+	var pause_overlay := _hud.get("_pause") as Control
+	var button := pause_overlay.find_child(
+		"PlanetaryCruiseToggleButton", true, false
+	) as Button
+	var settings := pause_overlay.find_child(
+		"SettingsOpenButton", true, false
+	) as Button
+	var restart := pause_overlay.find_child("RestartButton", true, false) as Button
+	var dirty: Array[String] = []
+	var cases := 0
+	for viewport: Vector2 in [
+		Vector2(1280.0, 720.0),
+		Vector2(1600.0, 900.0),
+		Vector2(1920.0, 1080.0),
+		Vector2(3440.0, 1440.0),
+	]:
+		for scale_request: float in [
+			GameHUD.MIN_UI_SCALE, 1.0, GameHUD.MAX_UI_SCALE
+		]:
+			_hud.set_ui_scale(scale_request)
+			var effective := _hud.layout_for_viewport(viewport)
+			await process_frame
+			await process_frame
+			cases += 1
+			var report := _hud.get_planetary_cruise_presentation_report()
+			var page := report.get("pause_main_rect", Rect2()) as Rect2
+			var row := report.get("row_rect", Rect2()) as Rect2
+			var button_rect := report.get("button_rect", Rect2()) as Rect2
+			var status_rect := report.get("status_rect", Rect2()) as Rect2
+			var viewport_rect := Rect2(Vector2.ZERO, viewport)
+			if not viewport_rect.encloses(page):
+				dirty.append(
+					"%.0fx%.0f @%.2f page outside viewport" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
+			# Canvas scaling can place a child's exact shared bottom edge less than
+			# 0.01 px past its VBox due to float rounding; this tolerance is far
+			# below a visible pixel and does not excuse actual overflow.
+			if (
+				not page.grow(0.01).encloses(row)
+				or not row.grow(0.01).encloses(button_rect)
+				or not row.grow(0.01).encloses(status_rect)
+			):
+				dirty.append(
+					(
+						"%.0fx%.0f @%.2f cruise row enclosure "
+						+ "page=%s row=%s button=%s status=%s"
+					) % [
+						viewport.x, viewport.y, scale_request,
+						str(page), str(row), str(button_rect), str(status_rect),
+					]
+				)
+			if button_rect.intersects(status_rect):
+				dirty.append(
+					"%.0fx%.0f @%.2f cruise button/status overlap" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
+			print(
+				"MEASURED: cruise row %.0fx%.0f request %.2f -> effective %.4f page %s"
+				% [viewport.x, viewport.y, scale_request, effective, str(page)]
+			)
+	_check(
+		button != null
+		and settings != null
+		and restart != null
+		and button.focus_mode == Control.FOCUS_ALL
+		and settings.get_node_or_null(settings.focus_neighbor_bottom) == button
+		and button.get_node_or_null(button.focus_neighbor_bottom) == restart,
+		"existing pause navigation exposes one controller-focusable Ember cruise row",
+	)
+	_check(
+		dirty.is_empty(),
+		"Ember cruise page, row, button, and status stay enclosed and disjoint across %d endpoint cases%s"
+		% [cases, "" if dirty.is_empty() else " -- " + "; ".join(dirty.slice(0, 8))],
+	)
+	_hud.set_paused(false)
 
 
 ## The Activity Board is a player-facing pause page, so its safe enclosure and

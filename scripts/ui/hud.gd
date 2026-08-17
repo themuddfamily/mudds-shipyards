@@ -11,6 +11,7 @@ const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 signal start_requested
 signal restart_requested
 signal activity_selection_requested(activity_kind: StringName)
+signal planetary_cruise_toggle_requested(request_serial: int)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
@@ -102,6 +103,30 @@ const PANEL_HELP_WIDTH := 272.0
 const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
 const GAMEPAD_CAPTURE_THRESHOLD := 0.75
+const MAX_PLANETARY_CRUISE_TOGGLE_SERIAL := 9_007_199_254_740_991
+const PLANETARY_CRUISE_STATUS_IDS := [
+	&"ready",
+	&"queued",
+	&"accelerating",
+	&"cruising",
+	&"braking_to_speed",
+	&"braking",
+	&"unavailable",
+]
+const PLANETARY_CRUISE_UNAVAILABLE_TEXTS := [
+	"UNAVAILABLE — SYSTEM OFFLINE",
+	"UNAVAILABLE — NO ACTIVE SHIP",
+	"UNAVAILABLE — SHIP DESTROYED",
+	"UNAVAILABLE — PILOT REQUIRED",
+	"UNAVAILABLE — LANDING ACTIVE",
+	"UNAVAILABLE — COMBAT ACTIVE",
+	"UNAVAILABLE — SHIP RECOVERY",
+	"UNAVAILABLE — DEPART SHIPYARD",
+	"UNAVAILABLE — ACTIVITY RUNNING",
+	"UNAVAILABLE — NAVIGATION OFFLINE",
+	"UNAVAILABLE — ORIGIN SHIFT PENDING",
+	"UNAVAILABLE — NOT AVAILABLE",
+]
 
 const INPUT_ACTION_LABELS := {
 	&"move_forward": "Move / thrust forward",
@@ -161,6 +186,14 @@ var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
 var _activity_selection_locked := false
+var _planetary_cruise_button: Button
+var _planetary_cruise_status_label: Label
+var _planetary_cruise_status_id: StringName = &"unavailable"
+var _planetary_cruise_status_text := "UNAVAILABLE — SYSTEM OFFLINE"
+var _planetary_cruise_toggle_enabled := false
+var _planetary_cruise_engagement_requested := false
+var _planetary_cruise_toggle_serial := 0
+var _planetary_cruise_request_dispatch_active := false
 var _settings_page: Control
 var _settings_scroll: ScrollContainer
 var _settings_controls: Dictionary = {}
@@ -1376,6 +1409,7 @@ func _refresh_state_tints() -> void:
 		_damage_status_label.modulate = _damage_status_color(_state_damage)
 	if is_instance_valid(_enemy_health_bar):
 		_enemy_health_bar.modulate = _c(DANGER) if _state_enemy_breaking else _c(CAUTION)
+	_refresh_planetary_cruise_row()
 
 
 func _apply_ui_scale() -> void:
@@ -1803,8 +1837,8 @@ func _build_pause_main_page() -> void:
 	_pause_main_page = PanelContainer.new()
 	_pause_main_page.name = "PauseMainPage"
 	_pause_main_page.set_anchors_preset(Control.PRESET_CENTER)
-	_pause_main_page.position = Vector2(-240.0, -204.0)
-	_pause_main_page.size = Vector2(480.0, 408.0)
+	_pause_main_page.position = Vector2(-240.0, -250.0)
+	_pause_main_page.size = Vector2(480.0, 500.0)
 	_pause_main_page.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pause_main_page.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 10, NOMINAL))
 	_pause_panels.add_child(_pause_main_page)
@@ -1836,6 +1870,24 @@ func _build_pause_main_page() -> void:
 	activity_board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	activity_board.pressed.connect(_show_activity_selection_page)
 	menu_row.add_child(activity_board)
+	var cruise_row := VBoxContainer.new()
+	cruise_row.name = "PlanetaryCruiseRow"
+	cruise_row.add_theme_constant_override("separation", 4)
+	stack.add_child(cruise_row)
+	_planetary_cruise_button = _menu_button("EMBER CRUISE", NOMINAL_SOFT)
+	_planetary_cruise_button.name = "PlanetaryCruiseToggleButton"
+	_planetary_cruise_button.pressed.connect(_request_planetary_cruise_toggle)
+	cruise_row.add_child(_planetary_cruise_button)
+	_planetary_cruise_status_label = _label(
+		_planetary_cruise_status_text,
+		10,
+		MUTED,
+	)
+	_planetary_cruise_status_label.name = "PlanetaryCruiseStatus"
+	_planetary_cruise_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_planetary_cruise_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cruise_row.add_child(_planetary_cruise_status_label)
+	_refresh_planetary_cruise_row()
 	var restart := _menu_button("RESTART SHIFT", CAUTION)
 	restart.name = "RestartButton"
 	restart.pressed.connect(func() -> void:
@@ -1847,6 +1899,25 @@ func _build_pause_main_page() -> void:
 	exit.name = "ExitButton"
 	exit.pressed.connect(func() -> void: orderly_shutdown_requested.emit())
 	stack.add_child(exit)
+	# Freeze a controller-only path through the existing pause page. Horizontal
+	# movement still crosses the paired Settings/Activity buttons; either route
+	# reaches the cruise row on the next down press without pointer input.
+	resume.focus_neighbor_bottom = resume.get_path_to(settings)
+	settings.focus_neighbor_top = settings.get_path_to(resume)
+	settings.focus_neighbor_right = settings.get_path_to(activity_board)
+	settings.focus_neighbor_bottom = settings.get_path_to(_planetary_cruise_button)
+	activity_board.focus_neighbor_top = activity_board.get_path_to(resume)
+	activity_board.focus_neighbor_left = activity_board.get_path_to(settings)
+	activity_board.focus_neighbor_bottom = activity_board.get_path_to(
+		_planetary_cruise_button
+	)
+	_planetary_cruise_button.focus_neighbor_top = (
+		_planetary_cruise_button.get_path_to(settings)
+	)
+	_planetary_cruise_button.focus_neighbor_bottom = (
+		_planetary_cruise_button.get_path_to(restart)
+	)
+	restart.focus_neighbor_top = restart.get_path_to(_planetary_cruise_button)
 
 
 ## The smallest reachable selection surface for the four production activities.
@@ -2694,6 +2765,164 @@ func set_activity_selection_state(
 
 func _request_activity_selection(activity_kind: StringName) -> void:
 	activity_selection_requested.emit(activity_kind)
+
+
+func _request_planetary_cruise_toggle() -> void:
+	if (
+		_planetary_cruise_request_dispatch_active
+		or not _planetary_cruise_toggle_enabled
+		or _planetary_cruise_toggle_serial >= MAX_PLANETARY_CRUISE_TOGGLE_SERIAL
+	):
+		return
+	_planetary_cruise_toggle_serial += 1
+	_refresh_planetary_cruise_row()
+	_planetary_cruise_request_dispatch_active = true
+	planetary_cruise_toggle_requested.emit(_planetary_cruise_toggle_serial)
+	_planetary_cruise_request_dispatch_active = false
+
+
+## Presentation-only ingress from GameFlow's synchronous production report.
+## The exact state roster and bounded single-line copy prevent internal binding,
+## policy, or lifecycle reasons from leaking through the pause UI.
+func set_planetary_cruise_state(
+	status_id: StringName,
+	status_text: String,
+	toggle_enabled: bool,
+	engagement_requested: bool,
+	) -> bool:
+	if status_id not in PLANETARY_CRUISE_STATUS_IDS:
+		return false
+	var bounded_text := status_text.strip_edges()
+	if (
+		bounded_text.is_empty()
+		or bounded_text.length() > 64
+		or bounded_text.contains("\n")
+		or bounded_text.contains("\r")
+	):
+		return false
+	var exact_text := {
+		&"ready": "READY — EMBER MOON",
+		&"queued": "QUEUED",
+		&"accelerating": "ACCELERATING",
+		&"cruising": "CRUISING",
+		&"braking_to_speed": "BRAKING TO SPEED",
+		&"braking": "BRAKING",
+	}.get(status_id, "") as String
+	if (
+		(not exact_text.is_empty() and bounded_text != exact_text)
+		or (
+			status_id == &"unavailable"
+			and bounded_text not in PLANETARY_CRUISE_UNAVAILABLE_TEXTS
+		)
+	):
+		return false
+	var exact_semantics := (
+		(status_id == &"ready" and toggle_enabled and not engagement_requested)
+		or (status_id == &"queued" and toggle_enabled and engagement_requested)
+		or (
+			status_id in [&"accelerating", &"cruising", &"braking_to_speed"]
+			and toggle_enabled == engagement_requested
+		)
+		or (
+			status_id in [&"braking", &"unavailable"]
+			and not toggle_enabled
+			and not engagement_requested
+		)
+	)
+	if not exact_semantics:
+		return false
+	if (
+		_planetary_cruise_status_id == status_id
+		and _planetary_cruise_status_text == bounded_text
+		and _planetary_cruise_toggle_enabled == toggle_enabled
+		and _planetary_cruise_engagement_requested == engagement_requested
+	):
+		return true
+	_planetary_cruise_status_id = status_id
+	_planetary_cruise_status_text = bounded_text
+	_planetary_cruise_toggle_enabled = toggle_enabled
+	_planetary_cruise_engagement_requested = engagement_requested
+	_refresh_planetary_cruise_row()
+	return true
+
+
+func _refresh_planetary_cruise_row() -> void:
+	if not is_instance_valid(_planetary_cruise_button):
+		return
+	_planetary_cruise_button.text = (
+		"EMBER CRUISE  //  DISENGAGE"
+		if _planetary_cruise_engagement_requested
+		else "EMBER CRUISE  //  ENGAGE"
+	)
+	_planetary_cruise_button.disabled = (
+		not _planetary_cruise_toggle_enabled
+		or _planetary_cruise_toggle_serial >= MAX_PLANETARY_CRUISE_TOGGLE_SERIAL
+	)
+	if is_instance_valid(_planetary_cruise_status_label):
+		_planetary_cruise_status_label.text = _planetary_cruise_status_text
+		_planetary_cruise_status_label.modulate = (
+			_c(DANGER)
+			if _planetary_cruise_status_id == &"unavailable"
+			else _c(CAUTION)
+			if _planetary_cruise_status_id in [&"braking", &"braking_to_speed"]
+			else _c(NOMINAL_SOFT)
+		)
+
+
+## Detached pause-row state and geometry for controller, re-entry, and layout
+## evidence. It exposes no Callable and cannot issue a request.
+func get_planetary_cruise_presentation_report() -> Dictionary:
+	var row := (
+		_planetary_cruise_button.get_parent() as Control
+		if is_instance_valid(_planetary_cruise_button)
+		else null
+	)
+	return {
+		"status_id": _planetary_cruise_status_id,
+		"status_text": _planetary_cruise_status_text,
+		"toggle_enabled": (
+			_planetary_cruise_toggle_enabled
+			and _planetary_cruise_toggle_serial
+				< MAX_PLANETARY_CRUISE_TOGGLE_SERIAL
+		),
+		"engagement_requested": _planetary_cruise_engagement_requested,
+		"request_serial": _planetary_cruise_toggle_serial,
+		"button_text": (
+			_planetary_cruise_button.text
+			if is_instance_valid(_planetary_cruise_button)
+			else ""
+		),
+		"button_disabled": (
+			_planetary_cruise_button.disabled
+			if is_instance_valid(_planetary_cruise_button)
+			else true
+		),
+		"button_rect": (
+			_planetary_cruise_button.get_global_rect()
+			if is_instance_valid(_planetary_cruise_button)
+			else Rect2()
+		),
+		"status_rect": (
+			_planetary_cruise_status_label.get_global_rect()
+			if is_instance_valid(_planetary_cruise_status_label)
+			else Rect2()
+		),
+		"row_rect": row.get_global_rect() if row != null else Rect2(),
+		"pause_main_rect": (
+			_pause_main_page.get_global_rect()
+			if is_instance_valid(_pause_main_page)
+			else Rect2()
+		),
+		"pause_visible": _pause != null and _pause.visible,
+		"pause_main_visible": (
+			_pause_main_page != null and _pause_main_page.visible
+		),
+		"actor_sampling_authority": false,
+		"policy_authority": false,
+		"movement_authority": false,
+		"origin_authority": false,
+		"destination_selection_authority": false,
+	}.duplicate(true)
 
 
 func _refresh_activity_selection_page(status_reason: StringName) -> void:
