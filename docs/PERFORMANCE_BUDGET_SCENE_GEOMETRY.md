@@ -167,17 +167,17 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `c1e94c2` after the bounded Aft/Habitat
-MultiMesh and Arrow immutable-resource trims, production Ember origin ownership,
-and streamed-berth binding, using Godot 4.7.1, headless Forward+, Dummy audio
-and HIGH quality, freezes:
+Focused production evidence on base `af84aa1` after the bounded Aft/Habitat
+MultiMesh, Arrow/Habitat/RangeOpponent immutable-resource trims, production
+Ember origin ownership, and streamed-berth binding, using Godot 4.7.1,
+headless Forward+, Dummy audio and HIGH quality, freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
 | Mesh renderer nodes | 5,684 | 5,850 | +166 |
 | Surfaces | 5,691 | 5,857 | +166 |
-| Unique meshes | 2,555 | 2,685 | +130 |
+| Unique meshes | 2,552 | 2,682 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 639 | 658 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
@@ -219,6 +219,17 @@ recipes (Aft 32x14, tank bands 40x12, valves 32x12) while retaining authored
 and the batching reductions; focused A/B captures made before the correction
 were pixel-identical, and the corrected recipes restore the exact pre-batch
 renderer geometry rather than introducing a new visual value.
+
+Two subsequent component-local identity-only shares change no renderer value or
+submission. The three ordinary Habitat `GardenColumn/ColumnCollar` TorusMesh
+nodes retain their stable paths, transforms, live 40x16 recipe, copper material
+and three submissions while their private mesh resources fall from three to
+one. The base RangeOpponent's two ordinary `WeaponTelegraph` SphereMesh nodes
+likewise retain both paths, transforms, dynamic scale/visibility, amber material
+and two submissions while their private mesh resources fall from two to one.
+Together they remove three unique meshes from both scenarios without changing
+triangles, renderer nodes, surfaces, materials, lights, particles, scene nodes,
+collision, evidence, combat, or lifecycle authority.
 
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
@@ -275,9 +286,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`a6a5343ac793a3d67456d2a898077b3a750e60089636b40bd4fb4b3d17b990d2`;
+`5acadda994ab4eabb32d78710e73978004424e0e61a5ac1a11e4302e5000148e`;
 the loaded fingerprint is
-`85a6f9a0f81b8ef220a74e16224b1f075c6d8b466c2a0ff0da7d75df1e4ec1e5`.
+`0011fbece57d2c9329f3a1ad845528c610d8b15affb0e7d9f7172fb05351e06a`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
