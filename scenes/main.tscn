@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -27,6 +27,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/components/cinder_streaming_bootstrap.tscn" id="24_cinder_streaming"]
 [ext_resource type="Script" path="res://scripts/world/cinder_streaming_production_binding.gd" id="25_cinder_binding"]
 [ext_resource type="Script" path="res://scripts/activities/cinder_convoy_escort_host.gd" id="26_cinder_convoy"]
+[ext_resource type="Script" path="res://scripts/world/cinder_streamed_ship_berth_binding.gd" id="27_cinder_berths"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_flow")
@@ -86,6 +87,9 @@ activity_definitions = [ExtResource("23_cinder_route")]
 [node name="HUD" parent="." instance=ExtResource("5_hud")]
 
 [node name="CinderStreamingBootstrap" parent="." instance=ExtResource("24_cinder_streaming")]
+
+[node name="CinderStreamedShipBerthBinding" type="Node" parent="."]
+script = ExtResource("27_cinder_berths")
 
 [node name="CinderStreamingProductionBinding" type="Node" parent="."]
 script = ExtResource("25_cinder_binding")

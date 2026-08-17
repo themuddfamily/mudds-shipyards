@@ -6,9 +6,12 @@
 named live-node resolver without changing the coordinator, the resident berth
 registry, or any physical berth.
 
-This foundation is not production-wired. Its only production dependency is the
-existing coordinator and berth contracts; a later owner must configure it
-before the first streaming request and explicitly merge its read view.
+Production Main now owns one `CinderStreamedShipBerthBinding` that configures
+this overlay against the existing Cinder coordinator before its first streaming
+request. The binding exposes the detached merged read and exact-provenance live
+resolver, but `ShipyardWorld` does not yet consume them. Cinder Cargo Access and
+its terminal are not placed by this stage, so the current Cinder scene truthfully
+publishes no streamed berth roster.
 
 ## Configuration and complete-root registration
 

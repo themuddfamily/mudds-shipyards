@@ -4,9 +4,52 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
+const Store := preload("res://scripts/persistence/user_data_store.gd")
+const STORE_PATH := "memory://cinder-streaming-production-settings.json"
 
 var _assertions := 0
 var _failures: Array[String] = []
+
+
+class MemoryFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
+		}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		if files.has(to_path):
+			return ERR_ALREADY_EXISTS
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 
 func _init() -> void:
@@ -19,6 +62,14 @@ func _run() -> void:
 	if game == null:
 		_finish()
 		return
+	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
+	_check(
+		game.configure_runtime_settings_persistence(
+			store,
+			"memory://cinder-streaming-production-legacy.cfg"
+		),
+		"production journey injects isolated settings before Main startup"
+	)
 	root.add_child(game)
 	await process_frame
 	await physics_frame
@@ -159,6 +210,7 @@ func _test_ship_outbound_missing_actor_and_reentry(
 	var toward_station := (Vector3.ZERO - anchor).normalized()
 	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
 	if world != null:
+		game.runtime_settings.graphics_profile = RuntimeSettings.GraphicsProfile.LOW
 		world.apply_visual_quality(NearbySectorCluster.DetailQuality.LOW)
 	game.active_ship = ship
 	ship.set_piloted(true)
@@ -359,31 +411,46 @@ func _test_ship_outbound_missing_actor_and_reentry(
 	ship.global_position = anchor + toward_station * 499.9
 	var before_second_load_tick := int(binding.get_snapshot().get("physics_tick_count", -1))
 	await _wait_for_binding_tick(binding, before_second_load_tick)
-	var second_load_outcome := _last_policy_outcome(bootstrap)
 	await _wait_for_cluster(bootstrap)
+	# The load is deferred. Read the retained policy outcome after the cluster
+	# wait, so a fast headless physics tick cannot leave this assertion holding
+	# the preceding station/no-op observation.
+	var second_load_outcome := _last_policy_outcome(bootstrap)
 	var second_cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
 	await _wait_for_quality_sync(binding, second_cluster.get_instance_id())
 	var second_cluster_ref: WeakRef = weakref(second_cluster)
 	var second_generation := int(second_cluster.get_meta(&"world_location_generation", -1))
 	var second_coordinator := bootstrap.get_snapshot().get("coordinator", {}) as Dictionary
-	_check(
-		second_load_outcome.get("action") == &"load"
-		and second_load_outcome.get("reason") == &"load_requested"
-		and second_cluster.get_instance_id() != cluster_id
-		and second_generation == cluster_generation + 2
-		and second_cluster.get_parent() == coordinator
-		and second_cluster.transform == Transform3D.IDENTITY
-		and world.get_nearby_sector_cluster() == second_cluster
-		and game.find_children("*", "NearbySectorCluster", true, false).size() == 1
-		and int(second_coordinator.get("load_request_count", -1)) == 2
-		and int(second_coordinator.get("owned_instance_count", -1)) == 1
-		and second_cluster.get_detail_quality() == NearbySectorCluster.DetailQuality.LOW
-		and int(binding.get_snapshot().get("quality_sync_count", -1)) == 2
-		and int(binding.get_snapshot().get("quality_synced_instance_id", 0))
-			== second_cluster.get_instance_id()
-		and (second_cluster.get_node_or_null(
+	var second_generation_checks := {
+		"load_action": second_load_outcome.get("action") == &"load",
+		"load_reason": second_load_outcome.get("reason") == &"load_requested",
+		"new_instance": second_cluster.get_instance_id() != cluster_id,
+		"generation": second_generation == cluster_generation + 2,
+		"coordinator_parent": second_cluster.get_parent() == coordinator,
+		"identity_transform": second_cluster.transform == Transform3D.IDENTITY,
+		"world_lookup": world.get_nearby_sector_cluster() == second_cluster,
+		"single_cluster": game.find_children(
+			"*", "NearbySectorCluster", true, false
+		).size() == 1,
+		"load_request_count": int(second_coordinator.get("load_request_count", -1)) == 2,
+		"owned_instance_count": int(second_coordinator.get("owned_instance_count", -1)) == 1,
+		"retained_quality": second_cluster.get_detail_quality()
+			== NearbySectorCluster.DetailQuality.LOW,
+		"quality_sync_count": int(binding.get_snapshot().get("quality_sync_count", -1)) == 2,
+		"quality_sync_identity": int(binding.get_snapshot().get(
+			"quality_synced_instance_id", 0
+		)) == second_cluster.get_instance_id(),
+		"torus_normalized": (second_cluster.get_node_or_null(
 			^"RouteBeacons/RouteBeaconAlpha/SignalRing"
 		) as MeshInstance3D).mesh.has_meta(TorusGeometryBudget.AUTHORED_META),
+	}
+	var second_generation_valid := true
+	for check_value in second_generation_checks.values():
+		second_generation_valid = second_generation_valid and bool(check_value)
+	if not second_generation_valid:
+		print("CINDER_PRODUCTION_SECOND_GENERATION_RED: ", second_generation_checks)
+	_check(
+		second_generation_valid,
 		"a second outbound trip commits one new tombstone-safe generation with retained presentation"
 	)
 	ship.global_position = anchor + toward_station * 650.1
@@ -476,8 +543,8 @@ func _check(condition: bool, description: String) -> void:
 func _finish() -> void:
 	print("CINDER_STREAMING_PRODUCTION_JOURNEY_ASSERTIONS: ", _assertions)
 	if _failures.is_empty():
-		print("CINDER_STREAMING_PRODUCTION_JOURNEY_OK")
+		print("CINDER_STREAMING_PRODUCTION_JOURNEY_TEST_OK")
 		quit(0)
 	else:
-		print("CINDER_STREAMING_PRODUCTION_JOURNEY_FAILED: ", ", ".join(_failures))
+		print("CINDER_STREAMING_PRODUCTION_JOURNEY_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
