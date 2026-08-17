@@ -46,14 +46,14 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 
 # Phase 9 allocation freeze. These two mirrored ribs were the first repeated
 # Arrow family with identical mesh/material state and no gameplay, evidence,
-# collision, lifecycle, or stable-node identity. The five later panel bands are
-# deliberately excluded because `capture_torus_smoothness.gd` owns their first
-# node as a checked-in evidence path. The next audited family is narrower still:
-# only the identical, childless CurveJoint sphere resources under the paired
-# lateral arrays, sensor-wing leading edges and three-point dorsal data conduit
-# are shared within their exact family. Their nodes, paths, transforms,
-# materials, shadows, copies and submissions remain ordinary independent
-# renderers.
+# collision, lifecycle, or stable-node identity. The five later panel bands keep
+# every ordinary renderer, including the checked-in `FuselagePanelBand` capture
+# path, while sharing only their identical TorusMesh resource. The other audited
+# families are narrower still: only the identical, childless CurveJoint sphere
+# resources under the paired lateral arrays, sensor-wing leading edges and
+# three-point dorsal data conduit are shared within their exact family. All
+# retained nodes, paths, transforms, materials, shadows, copies and submissions
+# remain ordinary independent renderers.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -89,6 +89,14 @@ const DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS := [
 	"DorsalDataConduit/@MeshInstance3D@8",
 	"DorsalDataConduit/@MeshInstance3D@9",
 ]
+const FUSELAGE_PANEL_BAND_INNER_RADIUS := 1.31
+const FUSELAGE_PANEL_BAND_OUTER_RADIUS := 1.35
+const FUSELAGE_PANEL_BAND_AUTHORED_RINGS := 64
+const FUSELAGE_PANEL_BAND_AUTHORED_RING_SEGMENTS := 18
+const FUSELAGE_PANEL_BAND_BUDGETED_RINGS := 41
+const FUSELAGE_PANEL_BAND_BUDGETED_RING_SEGMENTS := 12
+const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
+const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
 const LEGACY_ARROW_VISUAL_CENSUS := {
 	"nodes": 177,
 	"mesh_instance_nodes": 159,
@@ -104,7 +112,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 129,
+	"unique_mesh_resource_allocations": 125,
 	"auto_fallback_names": 23,
 }
 
@@ -120,6 +128,7 @@ var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 var _lateral_array_curve_joint_mesh: SphereMesh
 var _sensor_leading_edge_curve_joint_mesh: SphereMesh
 var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
+var _fuselage_panel_band_mesh: TorusMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -239,6 +248,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"lateral_array_curve_joint_sharing": {},
 			"sensor_leading_edge_curve_joint_sharing": {},
 			"dorsal_data_conduit_curve_joint_sharing": {},
+			"fuselage_panel_band_mesh_sharing": {},
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
@@ -257,6 +267,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var dorsal_conduit_joints := _inspect_dorsal_data_conduit_curve_joint_sharing()
 	if not bool(dorsal_conduit_joints.valid):
 		errors.append_array(dorsal_conduit_joints.errors as PackedStringArray)
+	var panel_bands := _inspect_fuselage_panel_band_mesh_sharing()
+	if not bool(panel_bands.valid):
+		errors.append_array(panel_bands.errors as PackedStringArray)
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -266,7 +279,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 13,
+			"unique_mesh_resource_allocations": 17,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
@@ -274,6 +287,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"lateral_array_curve_joint_sharing": lateral_joints,
 		"sensor_leading_edge_curve_joint_sharing": leading_edge_joints,
 		"dorsal_data_conduit_curve_joint_sharing": dorsal_conduit_joints,
+		"fuselage_panel_band_mesh_sharing": panel_bands,
 	}.duplicate(true)
 
 
@@ -406,6 +420,12 @@ func _build_slender_airframe() -> void:
 	_dorsal_data_conduit_curve_joint_mesh.radial_segments = DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIAL_SEGMENTS
 	_dorsal_data_conduit_curve_joint_mesh.rings = DORSAL_DATA_CONDUIT_CURVE_JOINT_RINGS
 	_dorsal_data_conduit_curve_joint_mesh.material = _arrow_materials.sensor
+	_fuselage_panel_band_mesh = TorusMesh.new()
+	_fuselage_panel_band_mesh.inner_radius = FUSELAGE_PANEL_BAND_INNER_RADIUS
+	_fuselage_panel_band_mesh.outer_radius = FUSELAGE_PANEL_BAND_OUTER_RADIUS
+	_fuselage_panel_band_mesh.rings = FUSELAGE_PANEL_BAND_AUTHORED_RINGS
+	_fuselage_panel_band_mesh.ring_segments = FUSELAGE_PANEL_BAND_AUTHORED_RING_SEGMENTS
+	_fuselage_panel_band_mesh.material = _arrow_materials.titanium
 	# A narrow 32-section elliptical fuselage, not the Torrent's broad delta.
 	_loft_hull(
 		_arrow_visual,
@@ -516,7 +536,17 @@ func _build_slender_airframe() -> void:
 		_dorsal_data_conduit_curve_joint_mesh
 	)
 	for seam_z in [-4.4, -2.6, 0.4, 2.2, 4.3]:
-		_torus(_arrow_visual, "FuselagePanelBand", Vector3(0, 1.22, seam_z), 1.31, 1.35, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.0, 0.58, 1.0))
+		_torus(
+			_arrow_visual,
+			"FuselagePanelBand",
+			Vector3(0, 1.22, seam_z),
+			FUSELAGE_PANEL_BAND_INNER_RADIUS,
+			FUSELAGE_PANEL_BAND_OUTER_RADIUS,
+			_arrow_materials.titanium,
+			Vector3(90, 0, 0),
+			Vector3(1.0, 0.58, 1.0),
+			_fuselage_panel_band_mesh
+		)
 
 
 func _build_recon_systems() -> void:
@@ -1166,6 +1196,133 @@ func _inspect_dorsal_data_conduit_curve_joint_sharing() -> Dictionary:
 	}.duplicate(true)
 
 
+func _inspect_fuselage_panel_band_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var bands: Array[MeshInstance3D] = []
+	var actual_paths := PackedStringArray()
+	var mesh_identities := {}
+	var expected_transforms := _fuselage_panel_band_transforms()
+	for child in _arrow_visual.get_children():
+		var band := child as MeshInstance3D
+		if band == null or band.mesh is not TorusMesh:
+			continue
+		var band_mesh := band.mesh as TorusMesh
+		if not is_equal_approx(
+			band_mesh.inner_radius, FUSELAGE_PANEL_BAND_INNER_RADIUS
+		) or not is_equal_approx(
+			band_mesh.outer_radius, FUSELAGE_PANEL_BAND_OUTER_RADIUS
+		):
+			continue
+		var index := bands.size()
+		bands.append(band)
+		var path := str(_arrow_visual.get_path_to(band))
+		actual_paths.append(path)
+		mesh_identities[band.mesh.get_instance_id()] = true
+		if index >= expected_transforms.size() \
+			or not band.transform.is_equal_approx(expected_transforms[index]):
+			errors.append("fuselage panel-band transform drift: %s" % path)
+		if not band.visible \
+			or band.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or band.material_override != null \
+			or band.material_overlay != null \
+			or band.layers != 1 \
+			or not is_zero_approx(band.transparency):
+			errors.append("fuselage panel-band render-state drift: %s" % path)
+		if not StringName(
+			band.get_meta(TorusGeometryBudget.PROFILE_META, &"")
+		).is_empty():
+			errors.append("fuselage panel-band torus-budget profile drift: %s" % path)
+		if band.get_child_count() != 0 \
+			or band.get_script() != null \
+			or not band.get_groups().is_empty() \
+			or not band.get_meta_list().is_empty():
+			errors.append("fuselage panel-band gained semantic authority: %s" % path)
+
+	if bands.size() != FUSELAGE_PANEL_BAND_VISIBLE_COPIES \
+		or actual_paths.is_empty() \
+		or actual_paths[0] != FUSELAGE_PANEL_BAND_STABLE_PATH:
+		errors.append("fuselage panel-band visible/path roster drift")
+	for index in range(1, actual_paths.size()):
+		if not actual_paths[index].begins_with("@MeshInstance3D@"):
+			errors.append("fuselage panel-band generated sibling path drift")
+			break
+	if mesh_identities.size() != 1:
+		errors.append("fuselage panel-band shared-mesh identity drift")
+
+	var mesh := _fuselage_panel_band_mesh
+	var normalised := mesh != null \
+		and mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	var authored_tessellation := Vector2i(
+		FUSELAGE_PANEL_BAND_AUTHORED_RINGS,
+		FUSELAGE_PANEL_BAND_AUTHORED_RING_SEGMENTS
+	)
+	var retained_authored_tessellation := Vector2i.ZERO
+	if normalised:
+		var authored_value: Variant = mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		if authored_value is Vector2i:
+			retained_authored_tessellation = authored_value
+		if retained_authored_tessellation != authored_tessellation:
+			errors.append("fuselage panel-band authored budget metadata drift")
+	var expected_tessellation := Vector2i(
+		FUSELAGE_PANEL_BAND_BUDGETED_RINGS,
+		FUSELAGE_PANEL_BAND_BUDGETED_RING_SEGMENTS
+	) if normalised else authored_tessellation
+	if mesh == null \
+		or not is_equal_approx(mesh.inner_radius, FUSELAGE_PANEL_BAND_INNER_RADIUS) \
+		or not is_equal_approx(mesh.outer_radius, FUSELAGE_PANEL_BAND_OUTER_RADIUS) \
+		or mesh.rings != expected_tessellation.x \
+		or mesh.ring_segments != expected_tessellation.y \
+		or mesh.get_surface_count() != 1:
+		errors.append("fuselage panel-band primitive recipe drift")
+	elif mesh.material != _arrow_materials.titanium:
+		errors.append("fuselage panel-band material identity drift")
+	if mesh != null:
+		var expected_mesh_metadata := PackedStringArray([
+			TorusGeometryBudget.AUTHORED_META
+		]) if normalised else PackedStringArray()
+		var actual_mesh_metadata := PackedStringArray()
+		for key in mesh.get_meta_list():
+			actual_mesh_metadata.append(str(key))
+		actual_mesh_metadata.sort()
+		expected_mesh_metadata.sort()
+		if actual_mesh_metadata != expected_mesh_metadata:
+			errors.append("fuselage panel-band mesh budget metadata roster drift")
+		if mesh.resource_local_to_scene:
+			errors.append("fuselage panel-band mesh became scene-local")
+	for band in bands:
+		if band.mesh != mesh:
+			errors.append("fuselage panel-band retained a private mesh")
+			break
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": actual_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": bands.size(),
+		"geometry_submissions": bands.size(),
+		"visible_geometry_copies": bands.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 4,
+		"component_retained_mesh_present": mesh != null,
+		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
+		"normalised_by_torus_budget": normalised,
+		"authored_tessellation": authored_tessellation,
+		"current_tessellation": Vector2i(
+			mesh.rings, mesh.ring_segments
+		) if mesh != null else Vector2i.ZERO,
+		"budget_profile": &"",
+		"legacy": {
+			"geometry_nodes": 5,
+			"geometry_submissions": 5,
+			"visible_geometry_copies": 5,
+			"primitive_mesh_allocations": 5,
+		},
+	}.duplicate(true)
+
+
 func _count_visual_nodes(search_root: Node) -> int:
 	var count := 1
 	for child in search_root.get_children():
@@ -1211,6 +1368,17 @@ static func _dorsal_data_conduit_curve_joint_transforms() -> Array[Transform3D]:
 		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.65, 1.45)),
 		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.42, 3.8)),
 	]
+
+
+static func _fuselage_panel_band_transforms() -> Array[Transform3D]:
+	var basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	basis.x *= 1.0
+	basis.y *= 0.58
+	basis.z *= 1.0
+	var transforms: Array[Transform3D] = []
+	for seam_z in [-4.4, -2.6, 0.4, 2.2, 4.3]:
+		transforms.append(Transform3D(basis, Vector3(0, 1.22, seam_z)))
+	return transforms
 
 
 static func _transform_arrays_match(
@@ -1476,18 +1644,30 @@ func _sphere(
 	return instance
 
 
-func _torus(parent: Node3D, node_name: String, position: Vector3, inner_radius: float, outer_radius: float, material: Material, rotation_degrees_value := Vector3.ZERO, scale_value := Vector3.ONE) -> MeshInstance3D:
+func _torus(
+	parent: Node3D,
+	node_name: String,
+	position: Vector3,
+	inner_radius: float,
+	outer_radius: float,
+	material: Material,
+	rotation_degrees_value := Vector3.ZERO,
+	scale_value := Vector3.ONE,
+	shared_mesh: TorusMesh = null
+	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = position
 	instance.rotation_degrees = rotation_degrees_value
 	instance.scale = scale_value
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 64
-	mesh.ring_segments = 18
-	mesh.material = material
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = TorusMesh.new()
+		mesh.inner_radius = inner_radius
+		mesh.outer_radius = outer_radius
+		mesh.rings = 64
+		mesh.ring_segments = 18
+		mesh.material = material
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance

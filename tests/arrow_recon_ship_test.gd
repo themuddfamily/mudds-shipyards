@@ -194,6 +194,21 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		int(report.dorsal_data_conduit_curve_joint_sharing.legacy.visible_geometry_copies),
 		int(report.dorsal_data_conduit_curve_joint_sharing.visible_geometry_copies),
 	])
+	var panel_band_evidence_format := (
+		"ARROW_FUSELAGE_PANEL_BAND_MESH_SHARING: nodes %d->%d "
+		+ "submissions %d->%d primitive_mesh_allocations %d->%d "
+		+ "visible_copies %d->%d"
+	)
+	print(panel_band_evidence_format % [
+		int(report.fuselage_panel_band_mesh_sharing.legacy.geometry_nodes),
+		int(report.fuselage_panel_band_mesh_sharing.geometry_nodes),
+		int(report.fuselage_panel_band_mesh_sharing.legacy.geometry_submissions),
+		int(report.fuselage_panel_band_mesh_sharing.geometry_submissions),
+		int(report.fuselage_panel_band_mesh_sharing.legacy.primitive_mesh_allocations),
+		int(report.fuselage_panel_band_mesh_sharing.primitive_mesh_allocations),
+		int(report.fuselage_panel_band_mesh_sharing.legacy.visible_geometry_copies),
+		int(report.fuselage_panel_band_mesh_sharing.visible_geometry_copies),
+	])
 	var whole_evidence_format := (
 		"ARROW_VISUAL_CENSUS: nodes %d->%d submissions %d->%d "
 		+ "unique_mesh_allocations %d->%d visible_copies %d->%d"
@@ -216,10 +231,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 129,
+			"unique_mesh_resource_allocations": 125,
 			"auto_fallback_names": 23,
 		},
-		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->129 unique-mesh allocation census while retaining all 159 copies"
+		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->125 unique-mesh allocation census while retaining all 159 copies"
 	)
 	_check(
 		report.wing_root_rib_batch.legacy == {
@@ -299,6 +314,29 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		]),
 		"three named dorsal-conduit nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of three"
 	)
+	_check(
+		report.fuselage_panel_band_mesh_sharing.legacy == {
+			"geometry_nodes": 5,
+			"geometry_submissions": 5,
+			"visible_geometry_copies": 5,
+			"primitive_mesh_allocations": 5,
+		}
+		and int(report.fuselage_panel_band_mesh_sharing.geometry_nodes) == 5
+		and int(report.fuselage_panel_band_mesh_sharing.geometry_submissions) == 5
+		and int(report.fuselage_panel_band_mesh_sharing.visible_geometry_copies) == 5
+		and int(report.fuselage_panel_band_mesh_sharing.primitive_mesh_allocations) == 1
+		and int(report.fuselage_panel_band_mesh_sharing.resource_allocation_reduction) == 4
+		and not bool(report.fuselage_panel_band_mesh_sharing.normalised_by_torus_budget)
+		and report.fuselage_panel_band_mesh_sharing.authored_tessellation == Vector2i(64, 18)
+		and report.fuselage_panel_band_mesh_sharing.current_tessellation == Vector2i(64, 18)
+		and (report.fuselage_panel_band_mesh_sharing.node_paths as PackedStringArray).size() == 5
+		and str(report.fuselage_panel_band_mesh_sharing.node_paths[0]) == "FuselagePanelBand"
+		and str(report.fuselage_panel_band_mesh_sharing.node_paths[1]).begins_with("@MeshInstance3D@")
+		and str(report.fuselage_panel_band_mesh_sharing.node_paths[2]).begins_with("@MeshInstance3D@")
+		and str(report.fuselage_panel_band_mesh_sharing.node_paths[3]).begins_with("@MeshInstance3D@")
+		and str(report.fuselage_panel_band_mesh_sharing.node_paths[4]).begins_with("@MeshInstance3D@"),
+		"five ordinary named panel-band nodes/submissions/copies retain one exact authored TorusMesh instead of five"
+	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
 	_check(
@@ -326,10 +364,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	(report.lateral_array_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	(report.sensor_leading_edge_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	(report.dorsal_data_conduit_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
+	(report.fuselage_panel_band_mesh_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	var detached_dorsal_transforms := (
 		report.dorsal_data_conduit_curve_joint_sharing.authored_transforms as Array
 	)
 	detached_dorsal_transforms[0] = Transform3D.IDENTITY
+	var detached_panel_transforms := (
+		report.fuselage_panel_band_mesh_sharing.authored_transforms as Array
+	)
+	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
 		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176
 		and int(
@@ -355,6 +398,30 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			Transform3D.IDENTITY
 		),
 		"caller mutation cannot alter detached dorsal-conduit allocation or transform evidence"
+	)
+	var fresh_panel_report := (
+		arrow.get_arrow_visual_performance_report()
+			.fuselage_panel_band_mesh_sharing as Dictionary
+	)
+	_check(
+		int(fresh_panel_report.primitive_mesh_allocations) == 1
+		and not ((fresh_panel_report.authored_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"caller mutation cannot alter detached panel-band allocation or transform evidence"
+	)
+	var torus_budget_report := TorusGeometryBudget.normalise_tree(arrow)
+	var budgeted_panel_report := (
+		arrow.get_arrow_visual_performance_report()
+			.fuselage_panel_band_mesh_sharing as Dictionary
+	)
+	_check(
+		bool(budgeted_panel_report.valid)
+		and bool(budgeted_panel_report.normalised_by_torus_budget)
+		and budgeted_panel_report.authored_tessellation == Vector2i(64, 18)
+		and budgeted_panel_report.current_tessellation == Vector2i(41, 12)
+		and int(torus_budget_report.tori) == 14,
+		"production torus budget retains the exact 64x18 authored recipe and yields the shared panel band's live 41x12 recipe"
 	)
 	var injected := Node3D.new()
 	injected.name = "ForbiddenVisualAllocation"
@@ -601,6 +668,86 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		"structured-red: dorsal-conduit lifecycle metadata fails the zero-authority audit"
 	)
 	last_dorsal_joint.remove_meta("forbidden_lifecycle_authority")
+	var panel_band_paths := (
+		budgeted_panel_report.node_paths as PackedStringArray
+	)
+	var first_panel_band := (
+		visual.get_node(NodePath(panel_band_paths[0])) as MeshInstance3D
+	)
+	var last_panel_band := (
+		visual.get_node(NodePath(panel_band_paths[-1])) as MeshInstance3D
+	)
+	var shared_panel_band_mesh := first_panel_band.mesh as TorusMesh
+	last_panel_band.mesh = shared_panel_band_mesh.duplicate() as TorusMesh
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"fuselage panel-band shared-mesh identity drift"
+		),
+		"structured-red: one private panel-band mesh fails shared-allocation identity"
+	)
+	last_panel_band.mesh = shared_panel_band_mesh
+	var budgeted_ring_segments := shared_panel_band_mesh.ring_segments
+	shared_panel_band_mesh.ring_segments -= 1
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"fuselage panel-band primitive recipe drift"
+		),
+		"structured-red: shared panel-band live recipe mutation fails presentation audit"
+	)
+	shared_panel_band_mesh.ring_segments = budgeted_ring_segments
+	var authored_panel_tessellation: Vector2i = shared_panel_band_mesh.get_meta(
+		TorusGeometryBudget.AUTHORED_META
+	)
+	shared_panel_band_mesh.set_meta(
+		TorusGeometryBudget.AUTHORED_META,
+		Vector2i(authored_panel_tessellation.x - 1, authored_panel_tessellation.y)
+	)
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"fuselage panel-band authored budget metadata drift"
+		),
+		"structured-red: panel-band authored-budget metadata mutation fails its 64x18 provenance gate"
+	)
+	shared_panel_band_mesh.set_meta(
+		TorusGeometryBudget.AUTHORED_META, authored_panel_tessellation
+	)
+	var authored_panel_material := shared_panel_band_mesh.material
+	shared_panel_band_mesh.material = null
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"fuselage panel-band material identity drift"
+		),
+		"structured-red: panel-band titanium-material mutation fails presentation audit"
+	)
+	shared_panel_band_mesh.material = authored_panel_material
+	last_panel_band.layers = 2
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"fuselage panel-band render-state drift"
+		),
+		"structured-red: panel-band renderer-layer mutation fails presentation audit"
+	)
+	last_panel_band.layers = 1
+	last_panel_band.set_meta("forbidden_semantic_authority", true)
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"fuselage panel-band gained semantic authority"
+		),
+		"structured-red: panel-band metadata fails the zero-authority audit"
+	)
+	last_panel_band.remove_meta("forbidden_semantic_authority")
 	_check(
 		bool(arrow.get_arrow_audit_report().valid),
 		"whole/local Arrow visual audits return green after every mutation is restored"
