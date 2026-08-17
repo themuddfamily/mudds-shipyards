@@ -751,6 +751,18 @@ migration adds no second weapon, ammunition, heat, repair,
 shield, projectile gameplay or balance variety, so the Phase 6 expansion items
 remain open.
 
+The shared damage-state prerequisite now also has a standalone data-only
+foundation. `ComponentDamageModel` freezes ordered component definitions,
+maximum/current health, strictly descending inclusive damage stages and
+explicit disabled/performance consequences; it applies generation- and
+sequence-bound damage atomically and rejects duplicate, stale, nonfinite,
+unknown and floating-point-no-effect requests without consuming sequence or
+emitting a signal. Snapshots, events and audits are detached, evidence is
+explicitly `NEW`, and every common authority flag is false. It is not yet an
+adapter for HeroShip, RangeOpponent or world targets and owns no collision,
+handling, repair, VFX/audio, destruction, reward or reset policy outside its
+private ledger, so production component damage and repair remain open.
+
 - [ ] Expand the Phase 2 single-interceptor encounter into varied weapons, opponents, tactics, and combat scenarios.
   - [x] Add two encounter scenarios with different objectives and two laterally differentiated opponent archetypes, owned by `scripts/combat/encounter_scenario_director.gd` and `scripts/combat/wing_coordinator.gd`. **Player-visible outcome:** a sortie now opens either a *courier intercept* — a runner making for the yard boundary, which is a loss condition that fires whether or not the player engages, and which calls an escort wing onto the player's six the moment it is hurt — or a *paired wing*, two craft that split the frontal and rear jobs between them and trade those jobs when the player turns. **Authority owner:** `EncounterScenarioDirector` owns scenario objective state only; it never assigns `GameFlow.phase`, never applies damage, and never holds a phase open, so `GameFlow` still exits `INTERCEPTOR_ENGAGEMENT` exactly when the defender dies regardless of what a scenario is doing. `WingCoordinator` owns anchor/flanker assignment and nothing else. Both new craft resolve on the one live `CombatResolver` under their own registered identities through `scripts/ships/resolver_backed_opponent.gd`, and reuse the shared pooled pulse and ten-voice audio seams. **Soft-lock discipline:** every scenario terminates on six independent conditions — player lost, phase left, objective met, objective lost, player disengaged, and an unconditional accumulated-physics time backstop that reads nothing at all. Fire rights are re-asked on the frame a shot is *dispatched* rather than cached from the frame its charge began, so the SANDBOX-002 shape (a committed charge landing after the state that authorized it has ended) cannot occur for anything built on that base. **Regressions:** `tests/wing_coordinator_test.gd`, `tests/encounter_scenario_director_test.gd` (every branch driven to a terminal outcome, including the unreachable-objective backstop), `tests/opponent_role_differentiation_test.gd` (no strict dominance and a measured manoeuvre-separation floor across all four archetypes), `tests/varied_encounter_integration_test.gd` (the real coordinator, a real resolved shot, and the phase ending under a live scenario). **Not done here:** no new weapon *definitions*, no `WeaponDefinition` resource migration, no new pulse style, no repair or shield work, and no change to the existing defender or picket.
 - [ ] Extend the Phase 2 hero/enemy impact, staged sparks/smoke, engine degradation, destruction, debris, and failure presentations into consistent component damage, repair, cleanup, respawn, and recovery systems; add shields or further failures only where research or explicit new design supports them.
