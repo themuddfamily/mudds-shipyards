@@ -167,7 +167,7 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `1b8c655` after the bounded Aft/Habitat
+Focused production evidence on base `c9b4341` after the bounded Aft/Habitat
 MultiMesh, Arrow/Habitat/RangeOpponent immutable-resource trims, production
 Ember origin ownership, and streamed-berth binding, using Godot 4.7.1,
 headless Forward+, Dummy audio and HIGH quality, freezes:
@@ -177,7 +177,7 @@ headless Forward+, Dummy audio and HIGH quality, freezes:
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
 | Mesh renderer nodes | 5,684 | 5,850 | +166 |
 | Surfaces | 5,691 | 5,857 | +166 |
-| Unique meshes | 2,548 | 2,678 | +130 |
+| Unique meshes | 2,545 | 2,675 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 639 | 658 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
@@ -239,6 +239,13 @@ unchanged; only five private TorusMesh identities become one component-local
 immutable resource. This removes four further unique meshes in both scenarios
 without changing any other census or authority field.
 
+The adjacent Aft `WatchRackBank/RackCableTrayClamp` family applies the same
+identity-only rule to four ordinary profiled nodes: exact authored 48x16 to
+live 32x8 metadata, paths, transforms, brass material, four copies and four
+submissions remain, while four private TorusMesh identities become one. That
+removes three additional unique meshes in both scenarios and changes no other
+census or authority field.
+
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
 the uninterrupted 11.4 m emissive `OutboardSillCove`. It therefore removes one
@@ -294,9 +301,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`882ebbabe9851be4876885ec0d2b6dc33abbb3e05b0b71c83091c7f951795188`;
+`cec1f250a32ba4349001e0ffd215aca353f2464498782abf9fccbc35ac2e0931`;
 the loaded fingerprint is
-`f9c4e3b8cbb03477eeb89820f068c493ee29ccfcc685dcf0441cf9b3bd129b09`.
+`89e1d43e15648959c2addbe1e0706746e795cf2b33daa5ac732f2295d8c1eaa9`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
