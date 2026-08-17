@@ -17,12 +17,23 @@ const PILOT_VISOR := Color("011017")
 const PILOT_KETH_CYAN := Color("42dce2")
 const PILOT_AMBER := Color("e9aa3a")
 const PILOT_PRESENTATION_VERSION := &"realistic_stylised_v2"
+const ABDOMEN_SEAL_NAMES := [&"AbdomenSeal00", &"AbdomenSeal01", &"AbdomenSeal02"]
+const ABDOMEN_SEAL_INNER_RADIUS := 0.192
+const ABDOMEN_SEAL_OUTER_RADIUS := 0.207
+const ABDOMEN_SEAL_SCALE := Vector3(1.0, 1.0, 0.68)
+const GENERATED_VISUAL_NODE_COUNT := 79
+const BASELINE_GENERATED_MESH_RESOURCE_COUNT := 79
+const RETAINED_GENERATED_MESH_RESOURCE_COUNT := 77
+const GENERATED_MATERIAL_RESOURCE_COUNT := 12
+const GENERATED_STRUCTURAL_SURFACE_SUBMISSION_COUNT := 79
 
 var _materials: Dictionary = {}
+var _abdomen_seal_mesh: TorusMesh
 
 
 func create_materials() -> Dictionary:
 	_create_pilot_materials()
+	_abdomen_seal_mesh = null
 	return _materials
 
 
@@ -38,6 +49,198 @@ func build(
 	_build_pilot_arm(right_arm, 1.0)
 	_build_pilot_leg(left_leg, -1.0)
 	_build_pilot_leg(right_leg, 1.0)
+
+
+## Renderer-independent evidence for the first exact repeated fallback family.
+##
+## Generated MeshInstance3D nodes keep their names, transforms, semantic
+## metadata, and one structural mesh surface each. Only the three identical
+## abdomen-seal TorusMesh resources are shared; no batching or driver draw-call,
+## frame-time, or VRAM claim is made.
+func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictionary:
+	var errors := PackedStringArray()
+	var generated_nodes: Array[MeshInstance3D] = []
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var abdomen_mesh_ids: Dictionary = {}
+	var structural_surface_submissions := 0
+	var abdomen_child_count := 0
+	var abdomen_script_count := 0
+	var abdomen_group_count := 0
+	var abdomen_processing_count := 0
+	var abdomen_metadata_entry_count := 0
+	var collision_object_count := 0
+	var collision_shape_count := 0
+	var navigation_region_count := 0
+	var behavior_rows: Array[Dictionary] = []
+
+	if presentation_root == null or not is_instance_valid(presentation_root):
+		errors.append("pilot_fallback_presentation_root_unavailable")
+	else:
+		collision_object_count = presentation_root.find_children(
+			"*", "CollisionObject3D", true, false
+		).size()
+		collision_shape_count = presentation_root.find_children(
+			"*", "CollisionShape3D", true, false
+		).size()
+		navigation_region_count = presentation_root.find_children(
+			"*", "NavigationRegion3D", true, false
+		).size()
+		for candidate in presentation_root.find_children(
+			"*", "MeshInstance3D", true, false
+		):
+			var mesh_instance := candidate as MeshInstance3D
+			if mesh_instance == null or not bool(mesh_instance.get_meta(&"pilot_generated", false)):
+				continue
+			generated_nodes.append(mesh_instance)
+			if mesh_instance.mesh == null:
+				errors.append("pilot_generated_mesh_missing:%s" % String(mesh_instance.name))
+				continue
+			mesh_ids[mesh_instance.mesh.get_instance_id()] = true
+			structural_surface_submissions += mesh_instance.mesh.get_surface_count()
+			for surface_index in mesh_instance.mesh.get_surface_count():
+				var material := mesh_instance.mesh.surface_get_material(surface_index)
+				if material != null:
+					material_ids[material.get_instance_id()] = true
+
+		var refined_core := presentation_root.find_child(
+			"RefinedPilotCore", true, false
+		) as Node3D
+		if refined_core == null:
+			errors.append("pilot_refined_core_unavailable")
+		else:
+			for seal_index in ABDOMEN_SEAL_NAMES.size():
+				var seal_name: StringName = ABDOMEN_SEAL_NAMES[seal_index]
+				var seal := refined_core.get_node_or_null(
+					NodePath(String(seal_name))
+				) as MeshInstance3D
+				if seal == null:
+					errors.append("abdomen_seal_node_missing:%s" % String(seal_name))
+					continue
+				var torus := seal.mesh as TorusMesh
+				abdomen_child_count += seal.get_child_count()
+				abdomen_metadata_entry_count += seal.get_meta_list().size()
+				abdomen_group_count += seal.get_groups().size()
+				if seal.get_script() != null:
+					abdomen_script_count += 1
+				if seal.is_processing() or seal.is_physics_processing():
+					abdomen_processing_count += 1
+				if torus == null:
+					errors.append("abdomen_seal_mesh_type_drift:%s" % String(seal_name))
+				else:
+					abdomen_mesh_ids[torus.get_instance_id()] = true
+					if torus != _abdomen_seal_mesh:
+						errors.append("abdomen_seal_mesh_identity_drift:%s" % String(seal_name))
+					if (
+						not is_equal_approx(torus.inner_radius, ABDOMEN_SEAL_INNER_RADIUS)
+						or not is_equal_approx(torus.outer_radius, ABDOMEN_SEAL_OUTER_RADIUS)
+						or torus.rings != 24
+						or torus.ring_segments != 10
+						or torus.material != _materials.get("soft_armor")
+						or torus.get_surface_count() != 1
+					):
+						errors.append("abdomen_seal_mesh_recipe_drift:%s" % String(seal_name))
+				if (
+					not seal.position.is_equal_approx(
+						Vector3(0.0, 0.845 + float(seal_index) * 0.078, -0.006)
+					)
+					or not seal.rotation.is_equal_approx(Vector3.ZERO)
+					or not seal.scale.is_equal_approx(ABDOMEN_SEAL_SCALE)
+					or not seal.visible
+					or seal.layers != 1
+					or seal.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+					or seal.material_override != null
+					or seal.material_overlay != null
+					or not is_zero_approx(seal.transparency)
+					or not is_zero_approx(seal.extra_cull_margin)
+					or seal.custom_aabb != AABB()
+				):
+					errors.append("abdomen_seal_renderer_recipe_drift:%s" % String(seal_name))
+				var metadata_keys := seal.get_meta_list()
+				if (
+					metadata_keys.size() != 3
+					or not metadata_keys.has(&"pilot_generated")
+					or not metadata_keys.has(&"material_role")
+					or not metadata_keys.has(&"construction_role")
+					or not bool(seal.get_meta(&"pilot_generated", false))
+					or seal.get_meta(&"material_role", &"") != &"soft_armor"
+					or seal.get_meta(&"construction_role", &"") != &"flexible"
+				):
+					errors.append("abdomen_seal_semantic_metadata_drift:%s" % String(seal_name))
+				behavior_rows.append({
+					"name": String(seal_name),
+					"position": [seal.position.x, seal.position.y, seal.position.z],
+					"rotation": [seal.rotation.x, seal.rotation.y, seal.rotation.z],
+					"scale": [seal.scale.x, seal.scale.y, seal.scale.z],
+					"material_role": String(seal.get_meta(&"material_role", &"")),
+					"construction_role": String(seal.get_meta(&"construction_role", &"")),
+				})
+
+	if generated_nodes.size() != GENERATED_VISUAL_NODE_COUNT:
+		errors.append("pilot_generated_visual_node_count_drift")
+	if mesh_ids.size() != RETAINED_GENERATED_MESH_RESOURCE_COUNT:
+		errors.append("pilot_generated_mesh_resource_count_drift")
+	if material_ids.size() != GENERATED_MATERIAL_RESOURCE_COUNT:
+		errors.append("pilot_generated_material_resource_count_drift")
+	if structural_surface_submissions != GENERATED_STRUCTURAL_SURFACE_SUBMISSION_COUNT:
+		errors.append("pilot_generated_structural_submission_count_drift")
+	if abdomen_mesh_ids.size() != 1:
+		errors.append("abdomen_seal_mesh_identity_count_drift")
+	if collision_object_count != 0 or collision_shape_count != 0 or navigation_region_count != 0:
+		errors.append("pilot_fallback_visuals_gained_collision_or_navigation_authority")
+	if (
+		abdomen_child_count != 0
+		or abdomen_script_count != 0
+		or abdomen_group_count != 0
+		or abdomen_processing_count != 0
+	):
+		errors.append("abdomen_seal_visuals_gained_lifecycle_authority")
+	if abdomen_metadata_entry_count != ABDOMEN_SEAL_NAMES.size() * 3:
+		errors.append("abdomen_seal_semantic_metadata_count_drift")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"pilot_fallback_abdomen_seal_visuals",
+		"generated_visual_node_count": generated_nodes.size(),
+		"baseline_generated_visual_node_count": GENERATED_VISUAL_NODE_COUNT,
+		"generated_visual_node_delta": generated_nodes.size() - GENERATED_VISUAL_NODE_COUNT,
+		"drawn_copy_count": generated_nodes.size(),
+		"baseline_drawn_copy_count": GENERATED_VISUAL_NODE_COUNT,
+		"drawn_copy_delta": generated_nodes.size() - GENERATED_VISUAL_NODE_COUNT,
+		"mesh_resource_identity_count": mesh_ids.size(),
+		"baseline_mesh_resource_identity_count": BASELINE_GENERATED_MESH_RESOURCE_COUNT,
+		"mesh_resource_identity_delta": mesh_ids.size() - BASELINE_GENERATED_MESH_RESOURCE_COUNT,
+		"abdomen_seal_copy_count": ABDOMEN_SEAL_NAMES.size(),
+		"abdomen_seal_mesh_resource_identity_count": abdomen_mesh_ids.size(),
+		"baseline_abdomen_seal_mesh_resource_identity_count": ABDOMEN_SEAL_NAMES.size(),
+		"abdomen_seal_mesh_resource_identity_delta": (
+			abdomen_mesh_ids.size() - ABDOMEN_SEAL_NAMES.size()
+		),
+		"material_resource_identity_count": material_ids.size(),
+		"baseline_material_resource_identity_count": GENERATED_MATERIAL_RESOURCE_COUNT,
+		"material_resource_identity_delta": material_ids.size() - GENERATED_MATERIAL_RESOURCE_COUNT,
+		"structural_surface_submission_count": structural_surface_submissions,
+		"baseline_structural_surface_submission_count": (
+			GENERATED_STRUCTURAL_SURFACE_SUBMISSION_COUNT
+		),
+		"structural_surface_submission_delta": (
+			structural_surface_submissions - GENERATED_STRUCTURAL_SURFACE_SUBMISSION_COUNT
+		),
+		"collision_object_count": collision_object_count,
+		"collision_shape_count": collision_shape_count,
+		"navigation_region_count": navigation_region_count,
+		"abdomen_seal_child_count": abdomen_child_count,
+		"abdomen_seal_script_count": abdomen_script_count,
+		"abdomen_seal_group_count": abdomen_group_count,
+		"abdomen_seal_processing_count": abdomen_processing_count,
+		"abdomen_seal_metadata_entry_count": abdomen_metadata_entry_count,
+		"batched": false,
+		"driver_draw_call_claimed": false,
+		"frame_time_claimed": false,
+		"vram_claimed": false,
+		"behavior_rows": behavior_rows,
+	}.duplicate(true)
 
 
 func _create_pilot_materials() -> void:
@@ -107,15 +310,19 @@ func _build_pilot_core(body_pivot: Node3D) -> void:
 		0.235, 0.215, 0.28, _materials.undersuit,
 		Vector3(1.0, 1.0, 0.66)
 	)
+	_abdomen_seal_mesh = TorusMesh.new()
+	_abdomen_seal_mesh.inner_radius = ABDOMEN_SEAL_INNER_RADIUS
+	_abdomen_seal_mesh.outer_radius = ABDOMEN_SEAL_OUTER_RADIUS
+	_abdomen_seal_mesh.rings = 24
+	_abdomen_seal_mesh.ring_segments = 10
 	for rib_index in range(3):
-		_pilot_torus(
+		_pilot_mesh_instance(
 			core,
 			"AbdomenSeal%02d" % rib_index,
 			Vector3(0.0, 0.845 + float(rib_index) * 0.078, -0.006),
-			0.192,
-			0.207,
+			_abdomen_seal_mesh,
 			_materials.soft_armor,
-			Vector3(1.0, 1.0, 0.68)
+			ABDOMEN_SEAL_SCALE
 		)
 
 	_pilot_sphere(
