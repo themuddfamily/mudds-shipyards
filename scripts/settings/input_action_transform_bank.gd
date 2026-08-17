@@ -160,11 +160,14 @@ func process_action_sample(
 ## sample shapes, numeric inputs, and every possible child time accumulation are
 ## preflighted before the first InputActionTransform is invoked. Children are
 ## private, signal-free, and lifecycle-matched, so the post-preflight commit loop
-## cannot reject without an internal bank invariant violation.
+## cannot reject without an internal bank invariant violation. A priming frame
+## seeds physical state across the same exact roster without emitting edges or
+## changing toggle latches.
 func process_complete_frame(
 		samples: Variant,
 		physics_delta: Variant,
 		expected_generation: int,
+		prime_physical_state: bool = false,
 	) -> Dictionary:
 	var rejection := _validate_request(expected_generation, true)
 	if not rejection.is_empty():
@@ -235,6 +238,8 @@ func process_complete_frame(
 			bool(sample.raw_pressed),
 			delta,
 			transform.get_generation(),
+			false,
+			prime_physical_state,
 		)
 		if not bool(transformed.accepted):
 			push_error("InputActionTransformBank complete-frame invariant failed for %s" % action_id)

@@ -34,8 +34,14 @@ func is_configuration_valid() -> bool:
 ## Samples a complete profile frame. Configuration, bank generation/lifecycle,
 ## and caller delta are checked before touching the provider. Provider outputs
 ## for the whole roster are collected before the bank is invoked, so a malformed
-## value cannot partially mutate transform state.
-func sample_physics_frame(physics_delta: Variant, expected_generation: int) -> Dictionary:
+## value cannot partially mutate transform state. `prime_physical_state` retains
+## the exact same one-read-per-action sampling but seeds boundary state without
+## manufacturing logical toggle presses.
+func sample_physics_frame(
+		physics_delta: Variant,
+		expected_generation: int,
+		prime_physical_state: bool = false,
+	) -> Dictionary:
 	if not is_configuration_valid():
 		return _frame_result(false, &"invalid_configuration", 0.0, {})
 	if expected_generation != _bank.get_generation():
@@ -124,7 +130,12 @@ func sample_physics_frame(physics_delta: Variant, expected_generation: int) -> D
 
 	# Re-checking occurs inside the bank after all provider calls. A provider that
 	# changes bank generation/lifecycle cannot commit the collected stale frame.
-	var transformed := _bank.process_complete_frame(raw_frame, delta, expected_generation)
+	var transformed := _bank.process_complete_frame(
+		raw_frame,
+		delta,
+		expected_generation,
+		prime_physical_state,
+	)
 	return transformed.duplicate(true)
 
 

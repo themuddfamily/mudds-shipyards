@@ -52,6 +52,7 @@ func _run() -> void:
 	_test_default_compatibility_and_audit()
 	_test_process_stable_authored_defaults()
 	_test_profile_replacement_toggle_edges_and_reset()
+	_test_toggle_boundary_priming_requires_repress()
 	_test_stale_detached_and_malformed_fail_neutral()
 	await process_frame
 	_finish()
@@ -250,6 +251,65 @@ func _test_profile_replacement_toggle_edges_and_reset() -> void:
 		"authored reset restores identity axes and HOLD semantics without a GameFlow or RuntimeSettings mutation",
 	)
 	source.free()
+
+
+func _test_toggle_boundary_priming_requires_repress() -> void:
+	var source := LocalSource.new() as LocalShipInputSource
+	var provider := MutableProvider.new()
+	source.set_input_provider(provider)
+	root.add_child(source)
+	var custom := source.get_input_binding_profile()
+	custom.set_action_options(&"sprint_boost", {
+		"deadzone": 0.0,
+		"curve": Profile.CURVE_LINEAR,
+		"hold_mode": Profile.TOGGLE,
+	})
+	var configured := source.configure_input_binding_profile(custom)
+	_check(configured.accepted, "toggle boundary fixture configures")
+	source.next_command(2500)
+	source.notification(Node.NOTIFICATION_PAUSED)
+	provider.set_action(&"sprint_boost", 1.0)
+	source.notification(Node.NOTIFICATION_UNPAUSED)
+	var resumed := source.next_command(2501)
+	provider.set_action(&"sprint_boost", 0.0, false)
+	source.next_command(2502)
+	provider.set_action(&"sprint_boost", 1.0)
+	var repressed := source.next_command(2503)
+	_check(
+		not resumed.boost and repressed.boost,
+		"a toggle pressed while paused is primed without changing its latch and requires one physical repress",
+	)
+
+	provider.set_action(&"sprint_boost", 0.0, false)
+	source.next_command(2504)
+	provider.set_action(&"sprint_boost", 1.0)
+	configured = source.configure_input_binding_profile(custom)
+	var replaced_while_held := source.next_command(2505)
+	provider.set_action(&"sprint_boost", 0.0, false)
+	source.next_command(2506)
+	provider.set_action(&"sprint_boost", 1.0)
+	var replacement_repress := source.next_command(2507)
+	_check(
+		configured.accepted and not replaced_while_held.boost and replacement_repress.boost,
+		"a profile replacement primes an already-held toggle without treating the boundary as a physical press",
+	)
+
+	provider.set_action(&"sprint_boost", 0.0, false)
+	configured = source.configure_input_binding_profile(custom)
+	source.next_command(2508)
+	root.remove_child(source)
+	provider.set_action(&"sprint_boost", 1.0)
+	root.add_child(source)
+	var reentered := source.next_command(2509)
+	provider.set_action(&"sprint_boost", 0.0, false)
+	source.next_command(2510)
+	provider.set_action(&"sprint_boost", 1.0)
+	var reentry_repress := source.next_command(2511)
+	_check(
+		configured.accepted and not reentered.boost and reentry_repress.boost,
+		"whole-tree detach and re-entry seed a toggle held during detachment without changing its latch",
+	)
+	source.queue_free()
 
 
 func _test_stale_detached_and_malformed_fail_neutral() -> void:

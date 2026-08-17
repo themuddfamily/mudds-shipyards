@@ -439,14 +439,15 @@ func _sample_controls() -> Dictionary:
 	):
 		return {}
 	var generation := _input_transform_bank.get_generation()
+	var prime_physical_state := _edge_reprime_pending
 	var frame := _input_transform_sampler.sample_physics_frame(
 		_input_transform_physics_delta,
 		generation,
+		prime_physical_state,
 	)
 	if not bool(frame.accepted):
 		return {}
-	if _edge_reprime_pending:
-		_suppress_frame_edges(frame)
+	if prime_physical_state:
 		_edge_reprime_pending = false
 	var mapped := _ship_command_mapper.map_frame(frame, generation, 0, 0, 0)
 	if not bool(mapped.accepted):
@@ -496,6 +497,7 @@ func _prime_transform_states() -> void:
 	var frame := _input_transform_sampler.sample_physics_frame(
 		0.0,
 		_input_transform_bank.get_generation(),
+		true,
 	)
 	_edge_reprime_pending = not bool(frame.accepted)
 
@@ -662,16 +664,6 @@ func _commit_transform_boundary() -> void:
 	invalidate_pending_commands()
 	_transform_boundary_committed = false
 	_edge_reprime_pending = true
-
-
-func _suppress_frame_edges(frame: Dictionary) -> void:
-	var actions := frame.get("actions", {}) as Dictionary
-	for action_id: Variant in actions:
-		var snapshot := actions[action_id] as Dictionary
-		snapshot["physical_just_pressed"] = false
-		snapshot["physical_just_released"] = false
-		snapshot["just_pressed"] = false
-		snapshot["just_released"] = false
 
 
 func _apply_explicit_edges(values: Dictionary) -> void:

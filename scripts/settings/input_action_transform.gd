@@ -114,14 +114,17 @@ func reset(expected_generation: int) -> Dictionary:
 ## Processes one caller-owned physics sample. `raw_scalar` is clamped to the
 ## normalized action-strength range [-1, 1] before its signed deadzone remap.
 ## Echo samples clear one-sample edge flags but cannot advance time, change the
-## latch, or create a second press. A pressed sample inside the deadzone is
-## treated as inactive noise; crossing back inside creates one physical release.
+## latch, or create a second press. A priming sample seeds current physical state
+## without emitting edges or changing a toggle latch; HOLD output still follows
+## the seeded state. A pressed sample inside the deadzone is treated as inactive
+## noise; crossing back inside creates one physical release.
 func process_sample(
 		raw_scalar: float,
 		raw_pressed: bool,
 		physics_delta: float,
 		expected_generation: int,
 		echo: bool = false,
+		prime_physical_state: bool = false,
 	) -> Dictionary:
 	var rejection := _validate_mutation(expected_generation, true)
 	if not rejection.is_empty():
@@ -144,7 +147,7 @@ func process_sample(
 	var next_pressed := next_physical_pressed
 	var next_value := transformed if next_physical_pressed else 0.0
 	if _options.hold_mode == InputBindingProfileType.TOGGLE:
-		if physical_rising:
+		if physical_rising and not prime_physical_state:
 			next_toggle_latched = not next_toggle_latched
 		next_pressed = next_toggle_latched
 		next_value = 1.0 if next_toggle_latched else 0.0
@@ -163,10 +166,12 @@ func process_sample(
 	if not _is_finite(next_elapsed) or not _is_finite(next_physical_hold) or not _is_finite(next_hold):
 		return _result(false, &"non_finite_accumulation")
 
-	_physical_just_pressed = next_physical_pressed and not _physical_pressed
-	_physical_just_released = not next_physical_pressed and _physical_pressed
-	_just_pressed = next_pressed and not _pressed
-	_just_released = not next_pressed and _pressed
+	_physical_just_pressed = physical_rising and not prime_physical_state
+	_physical_just_released = (
+		not next_physical_pressed and _physical_pressed and not prime_physical_state
+	)
+	_just_pressed = next_pressed and not _pressed and not prime_physical_state
+	_just_released = not next_pressed and _pressed and not prime_physical_state
 	_raw_scalar = normalized_raw
 	_raw_pressed = raw_pressed
 	_last_sample_was_clamped = not is_equal_approx(normalized_raw, raw_scalar)
