@@ -359,15 +359,55 @@ func _test_ship_outbound_missing_actor_and_reentry(
 		"whole-Main re-entry preserves streaming, SafeStart, and RuntimeSettings identities without duplicates"
 	)
 
+	# Freeze GameFlow's automatic caller tick so the presentation lifecycle can
+	# be proven at exact 60 Hz samples without idle/render timing influencing it.
+	game.set_physics_process(false)
 	ship.global_position = anchor + toward_station * 650.1
-	var before_return_tick := int(binding.get_snapshot().get("physics_tick_count", -1))
-	await _wait_for_binding_tick(binding, before_return_tick)
-	var returning := binding.get_snapshot().get("last_tick_result", {}) as Dictionary
+	var outside_sample := _ship_sample(ship)
+	var holds_before := int(binding.get_snapshot().get(
+		"presentation_unload_hold_count", -1
+	))
+	binding.physics_tick_from_caller_sample(1.0 / 60.0, outside_sample)
+	var first_outside := cluster.get_streaming_transition_snapshot() as Dictionary
+	var held_policy := (
+		bootstrap.get_snapshot().get("distance_policy", {}) as Dictionary
+	)
+	var held_locations := held_policy.get("locations", []) as Array
+	var held_policy_distance := float(
+		(held_locations[0] as Dictionary).get("distance", 1000.0)
+	) if not held_locations.is_empty() else 1000.0
+	_check(
+		bootstrap.get_loaded_instance() == cluster
+		and first_outside.get("phase") == &"fading_out"
+		and float(first_outside.get("opacity", -1.0)) < 1.0
+		and float(first_outside.get("opacity", -1.0)) > 0.0
+		and int(binding.get_snapshot().get("presentation_unload_hold_count", -1))
+			== holds_before + 1
+		and held_policy_distance < 650.0
+		and is_equal_approx(held_policy_distance, 649.5)
+		and is_equal_approx(
+			float(binding.get_snapshot().get(
+				"presentation_unload_hold_distance_meters", -1.0
+			)), 649.5
+		),
+		"a non-axis-aligned >650m sample is held safely inside the boundary while fading"
+	)
+	for _tick_index in 29:
+		binding.physics_tick_from_caller_sample(1.0 / 60.0, outside_sample)
+	var fade_complete := cluster.get_streaming_transition_snapshot() as Dictionary
+	var held_coordinator := bootstrap.get_snapshot().get("coordinator", {}) as Dictionary
+	_check(
+		bootstrap.get_loaded_instance() == cluster
+		and fade_complete.get("phase") == &"fade_out_complete"
+		and is_zero_approx(float(fade_complete.get("opacity", -1.0)))
+		and not bool(fade_complete.get("retire_ready", true))
+		and int(held_coordinator.get("unload_count", -1)) == 0,
+		"exactly 0.5 caller-physics seconds reaches hidden while generation ownership is retained"
+	)
+	var returning := binding.physics_tick_from_caller_sample(
+		1.0 / 60.0, outside_sample
+	)
 	var return_transition := _first_transition(returning)
-	if return_transition.is_empty():
-		# Headless scheduling may run the following no-op physics tick before its
-		# process-frame waiter resumes. The policy retains the committed outcome.
-		return_transition = _last_policy_outcome(bootstrap)
 	print("CINDER_PRODUCTION_RETURN_TRANSITION: ", return_transition)
 	_check(
 		return_transition.get("action") == &"unload"
@@ -376,8 +416,9 @@ func _test_ship_outbound_missing_actor_and_reentry(
 		and int((bootstrap.get_snapshot().get("coordinator", {}) as Dictionary).get(
 			"unload_count", -1
 		)) == 1,
-		"return travel unloads the one cluster outside 650 metres"
+		"the subsequent still-outside tick retires through the unchanged coordinator policy"
 	)
+	game.set_physics_process(true)
 	await process_frame
 	await process_frame
 	_check(
@@ -453,10 +494,22 @@ func _test_ship_outbound_missing_actor_and_reentry(
 		second_generation_valid,
 		"a second outbound trip commits one new tombstone-safe generation with retained presentation"
 	)
+	game.set_physics_process(false)
 	ship.global_position = anchor + toward_station * 650.1
-	var before_second_unload_tick := int(binding.get_snapshot().get("physics_tick_count", -1))
-	await _wait_for_binding_tick(binding, before_second_unload_tick)
-	var second_unload_outcome := _last_policy_outcome(bootstrap)
+	var second_outside_sample := _ship_sample(ship)
+	for _tick_index in 30:
+		binding.physics_tick_from_caller_sample(1.0 / 60.0, second_outside_sample)
+	_check(
+		bootstrap.get_loaded_instance() == second_cluster
+		and (second_cluster.get_streaming_transition_snapshot() as Dictionary).get("phase")
+			== &"fade_out_complete",
+		"the second generation also reaches hidden before retirement"
+	)
+	var second_unload_result := binding.physics_tick_from_caller_sample(
+		1.0 / 60.0, second_outside_sample
+	)
+	var second_unload_outcome := _first_transition(second_unload_result)
+	game.set_physics_process(true)
 	await process_frame
 	await process_frame
 	var final_snapshot := bootstrap.get_snapshot()
@@ -521,6 +574,15 @@ func _forged_position_sample() -> Dictionary:
 		"position": LOCATION.get_anchor_position(),
 		"actor_kind": &"forged",
 		"actor_instance_id": -1,
+	}
+
+
+func _ship_sample(ship: HeroShip) -> Dictionary:
+	return {
+		"available": true,
+		"position": ship.global_position,
+		"actor_kind": &"ship",
+		"actor_instance_id": ship.get_instance_id(),
 	}
 
 

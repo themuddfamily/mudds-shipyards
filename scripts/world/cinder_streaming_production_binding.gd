@@ -15,6 +15,7 @@ extends Node
 const SCHEMA_VERSION := 1
 const DEFAULT_BOOTSTRAP_PATH := NodePath("../CinderStreamingBootstrap")
 const DEFAULT_PLAYER_PATH := NodePath("../Player")
+const UNLOAD_HOLD_DISTANCE_METERS := 649.5
 
 @export var bootstrap_path: NodePath = DEFAULT_BOOTSTRAP_PATH
 @export var player_path: NodePath = DEFAULT_PLAYER_PATH
@@ -38,6 +39,10 @@ var _provider_mutation_rejection_count := 0
 var _quality_sync_count := 0
 var _quality_synced_instance_id := 0
 var _deferred_quality_sync_pending := false
+var _presentation_advance_count := 0
+var _presentation_rejection_count := 0
+var _presentation_unload_hold_count := 0
+var _last_presentation_result: Dictionary = {}
 var _initial_policy_update_index := 0
 var _last_actor_kind: StringName = &""
 var _last_actor_instance_id := 0
@@ -144,6 +149,11 @@ func get_snapshot() -> Dictionary:
 		"quality_sync_count": _quality_sync_count,
 		"quality_synced_instance_id": _quality_synced_instance_id,
 		"deferred_quality_sync_pending": _deferred_quality_sync_pending,
+		"presentation_advance_count": _presentation_advance_count,
+		"presentation_rejection_count": _presentation_rejection_count,
+		"presentation_unload_hold_count": _presentation_unload_hold_count,
+		"last_presentation_result": _last_presentation_result.duplicate(true),
+		"presentation_unload_hold_distance_meters": UNLOAD_HOLD_DISTANCE_METERS,
 		"initial_policy_update_index": _initial_policy_update_index,
 		"policy_update_index": policy_update_index,
 		"last_actor_kind": _last_actor_kind,
@@ -210,6 +220,11 @@ func audit() -> Dictionary:
 		and _quality_synced_instance_id != loaded_cluster.get_instance_id()
 	):
 		errors.append("loaded Cinder generation has not received the retained visual quality")
+	if is_instance_valid(loaded_cluster) \
+		and not bool(loaded_cluster.get_streaming_transition_audit().get("valid", false)):
+		errors.append("loaded Cinder transition presentation audit is invalid")
+	if _presentation_rejection_count > 0:
+		errors.append("production transition presentation rejected an internal advance")
 	if is_processing():
 		errors.append("binding must never own an idle process loop")
 	if (
@@ -250,6 +265,8 @@ func audit() -> Dictionary:
 		"runtime_settings_authority": false,
 		"presentation_profile_authority": false,
 		"presentation_profile_policy": &"forward_shipyard_quality_and_torus_budget_once_per_loaded_generation",
+		"streaming_transition_policy": &"caller_physics_fade_then_confirmed_outside_retirement",
+		"streaming_threshold_mutation": false,
 		"staged_startup_authority": false,
 	}.duplicate(true)
 
@@ -312,7 +329,31 @@ func _drive_physics_tick(
 		available = position_value is Vector3 and (position_value as Vector3).is_finite()
 	if available:
 		var position := position_value as Vector3
-		if _bootstrap.set_tracked_position(position):
+		var policy_position := position
+		var cluster := _bootstrap.get_loaded_instance() as NearbySectorCluster
+		if is_instance_valid(cluster):
+			var generation := int(
+				cluster.get_meta(&"world_location_generation", -1)
+			)
+			var distance := position.distance_to(
+				CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
+			)
+			_last_presentation_result = cluster.advance_streaming_transition(
+				delta, distance, generation
+			)
+			if bool(_last_presentation_result.get("accepted", false)):
+				_presentation_advance_count += 1
+				if (
+					distance > CinderStreamingBootstrap.UNLOAD_RADIUS_METERS
+					and not bool(
+						_last_presentation_result.get("retire_ready", false)
+					)
+				):
+					policy_position = _position_at_unload_boundary(position)
+					_presentation_unload_hold_count += 1
+			else:
+				_presentation_rejection_count += 1
+		if _bootstrap.set_tracked_position(policy_position):
 			_available_sample_count += 1
 			_last_actor_kind = sample_dictionary.get("actor_kind", &"unknown") as StringName
 			_last_actor_instance_id = int(sample_dictionary.get("actor_instance_id", 0))
@@ -380,6 +421,17 @@ func _synchronize_loaded_cluster_quality() -> void:
 	TorusGeometryBudget.normalise_tree(cluster)
 	_quality_synced_instance_id = instance_id
 	_quality_sync_count += 1
+
+
+func _position_at_unload_boundary(actual_position: Vector3) -> Vector3:
+	var anchor := CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
+	var direction := actual_position - anchor
+	if direction.is_zero_approx():
+		return anchor
+	# Keep a deliberate half-metre guard inside the strict `> 650` policy
+	# comparison. Reconstructing a non-axis-aligned Vector3 at exactly 650 can
+	# round outward and accidentally retire a still-visible generation.
+	return anchor + direction.normalized() * UNLOAD_HOLD_DISTANCE_METERS
 
 
 func _sample_production_actor_position() -> Dictionary:

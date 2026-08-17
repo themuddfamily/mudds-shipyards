@@ -191,6 +191,7 @@ var _cluster_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _elapsed := 0.0
 var _audit_report: Dictionary = {}
+var _streaming_transition: CinderStreamingTransitionPresentation
 
 
 func _enter_tree() -> void:
@@ -215,6 +216,7 @@ func _ready() -> void:
 	_build_extraction_platform()
 	_audit_report = _compose_audit_report()
 	set_cluster_enabled(starts_enabled)
+	_arm_streaming_transition()
 
 
 func _process(delta: float) -> void:
@@ -233,7 +235,14 @@ func _process(delta: float) -> void:
 			continue
 		var phase := float(lamp.get_meta(&"pulse_phase", 0.0))
 		var base := float(lamp.get_meta(&"base_energy", 1.0))
-		lamp.light_energy = base * (0.62 + 0.38 * (0.5 + 0.5 * sin(_elapsed * 1.9 + phase)))
+		var raw_energy := base * (
+			0.62 + 0.38 * (0.5 + 0.5 * sin(_elapsed * 1.9 + phase))
+		)
+		lamp.light_energy = (
+			_streaming_transition.scale_dynamic_light_energy(raw_energy)
+			if _streaming_transition != null
+			else raw_energy
+		)
 	if is_instance_valid(_hazard_head):
 		_hazard_head.rotation.y = _elapsed * 0.9
 	if is_instance_valid(_moonlet):
@@ -245,7 +254,10 @@ func _process(delta: float) -> void:
 ## geometry comes back on re-enable.
 func set_cluster_enabled(enabled: bool) -> void:
 	_cluster_enabled = enabled
-	visible = enabled
+	var presentation_opacity := float(
+		get_streaming_transition_snapshot().get("opacity", 1.0)
+	)
+	visible = enabled and presentation_opacity > 0.0
 	set_process(enabled and _built)
 	set_physics_process(false)
 
@@ -268,6 +280,65 @@ func set_detail_quality(quality: int) -> void:
 
 func get_detail_quality() -> int:
 	return _quality_level
+
+
+## Production streaming facade. Direct component fixtures have no coordinator
+## metadata, remain fully authored, and reject advancement.
+func advance_streaming_transition(
+	delta: Variant, distance_meters: Variant, expected_generation: Variant
+	) -> Dictionary:
+	if _streaming_transition == null:
+		return {
+			"accepted": false,
+			"reason": &"not_streamed",
+			"generation": -1,
+			"opacity": 1.0,
+			"phase": &"standalone",
+			"retire_ready": false,
+		}
+	return _streaming_transition.advance_physics(
+		delta, distance_meters, expected_generation
+	)
+
+
+func get_streaming_transition_snapshot() -> Dictionary:
+	if _streaming_transition == null:
+		return {
+			"schema_version": CinderStreamingTransitionPresentation.SCHEMA_VERSION,
+			"bound": false,
+			"generation": -1,
+			"opacity": 1.0,
+			"phase": &"standalone",
+			"retire_ready": false,
+			"root_visible": visible,
+		}.duplicate(true)
+	return _streaming_transition.get_snapshot()
+
+
+func get_streaming_transition_audit() -> Dictionary:
+	if _streaming_transition == null:
+		return {
+			"valid": true,
+			"standalone": true,
+			"automatic_processing": false,
+			"streaming_authority": false,
+			"gameplay_authority": false,
+		}.duplicate(true)
+	return _streaming_transition.audit()
+
+
+func _arm_streaming_transition() -> void:
+	var location_id := get_meta(&"world_location_id", &"") as StringName
+	var generation := int(get_meta(&"world_location_generation", -1))
+	if location_id != CinderStreamingTransitionPresentation.LOCATION_ID \
+		or generation <= 0:
+		return
+	_streaming_transition = CinderStreamingTransitionPresentation.new()
+	var bound := _streaming_transition.bind_streamed_content(self, generation)
+	if not bool(bound.get("accepted", false)):
+		# A streamed generation whose renderer roster cannot be safely controlled
+		# fails visually closed. Collision and coordinator ownership remain intact.
+		visible = false
 
 
 ## Straight-line distance from the station origin to the platform, in metres.

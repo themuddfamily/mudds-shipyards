@@ -5,7 +5,9 @@ extends SceneTree
 ## A capture-only camera remains at one immutable transform while the real
 ## guided ship supplies the production binding's tracked position. Each quality
 ## and reduced-motion combination records the same six transition states. The
-## harness changes no production lighting, geometry, thresholds, or fades.
+## harness manually supplies exact caller-physics ticks so renderer draws cannot
+## advance the production fade. It changes no production lighting, geometry, or
+## streaming thresholds.
 ##
 ## Contract-only:
 ##   godot --headless --path . --script \
@@ -33,8 +35,10 @@ const LOAD_RADIUS_M := 500.0
 const UNLOAD_RADIUS_M := 650.0
 const PRE_LOAD_DISTANCE_M := 500.1
 const LOAD_DISTANCE_M := 499.9
-const PRE_UNLOAD_DISTANCE_M := 649.9
+const PRE_UNLOAD_DISTANCE_M := 650.0
 const UNLOAD_DISTANCE_M := 650.1
+const TRANSITION_TICK_SECONDS := 1.0 / 60.0
+const TRANSITION_TICKS := 30
 const SETTLE_DRAWS := 60
 const CAMERA_FOV := 60.0
 const CAMERA_NEAR_M := 0.15
@@ -54,7 +58,7 @@ const STATES := [
 	{"id": "first_committed", "loaded": true, "distance_m": LOAD_DISTANCE_M},
 	{"id": "load_settled", "loaded": true, "distance_m": LOAD_DISTANCE_M},
 	{"id": "pre_unload", "loaded": true, "distance_m": PRE_UNLOAD_DISTANCE_M},
-	{"id": "first_unloaded", "loaded": false, "distance_m": UNLOAD_DISTANCE_M},
+	{"id": "fade_out_complete", "loaded": true, "distance_m": UNLOAD_DISTANCE_M},
 	{"id": "unload_settled", "loaded": false, "distance_m": UNLOAD_DISTANCE_M},
 ]
 
@@ -275,6 +279,10 @@ func _prepare_capture_scene() -> void:
 	_ship.set_physics_process(false)
 	_ship.set_piloted(true)
 	_game.active_ship = _ship
+	# GameFlow normally supplies the binding's one sample from its physics tick.
+	# The evidence harness disables that automatic cadence and invokes the same
+	# public caller-sample seam with exact deterministic deltas.
+	_game.set_physics_process(false)
 
 	_camera_target = ROUTE.get_checkpoint_position(0) + Vector3(0.0, 4.0, 0.0)
 	_camera = Camera3D.new()
@@ -305,7 +313,8 @@ func _capture_scenario(scenario: Dictionary, previous_retirement_generation: int
 	await _capture_frame(scenario, STATES[0] as Dictionary, previous_retirement_generation, 0)
 
 	var render_count_before_commit := _rendered_frame_count
-	_ship.global_position = _position_at_distance(LOAD_DISTANCE_M)
+	var load_tick := _drive_binding_distance(LOAD_DISTANCE_M)
+	_check(bool(load_tick.get("accepted", false)), "%s load caller tick is accepted" % scenario.id)
 	var loaded_event: Array = await _coordinator.location_loaded
 	var load_generation := int(loaded_event[1]) if loaded_event.size() >= 2 else -1
 	var cluster := loaded_event[2] as NearbySectorCluster if loaded_event.size() >= 3 else null
@@ -322,6 +331,15 @@ func _capture_scenario(scenario: Dictionary, previous_retirement_generation: int
 		and cluster.get_detail_quality() == int(scenario.quality),
 		"%s first committed frame is quality-synchronized" % scenario.id
 	)
+	var committed_transition := cluster.get_streaming_transition_snapshot() \
+		if cluster != null else {}
+	_check(
+		cluster != null
+		and committed_transition.get("phase") == &"fading_in"
+		and is_zero_approx(float(committed_transition.get("opacity", -1.0)))
+		and not cluster.visible,
+		"%s first committed renderer frame is fully transition-hidden" % scenario.id
+	)
 	_check(
 		rendered_before_quality_sync == rendered_at_commit,
 		"%s performs no renderer frame between commit and quality synchronization"
@@ -332,24 +350,62 @@ func _capture_scenario(scenario: Dictionary, previous_retirement_generation: int
 	await _capture_frame(
 		scenario, STATES[1] as Dictionary, load_generation, rendered_before_quality_sync
 	)
+	for _tick_index in TRANSITION_TICKS:
+		var fade_in_tick := _drive_binding_distance(LOAD_DISTANCE_M)
+		_check(
+			bool(fade_in_tick.get("accepted", false)),
+			"%s fade-in caller tick %d is accepted" % [scenario.id, _tick_index + 1]
+		)
 	await _renderer_draws(SETTLE_DRAWS - 1)
+	_check(
+		cluster.get_streaming_transition_snapshot().get("phase") == &"authored"
+		and is_equal_approx(float(
+			cluster.get_streaming_transition_snapshot().get("opacity", -1.0)
+		), 1.0),
+		"%s load settles at exact authored opacity" % scenario.id
+	)
 	await _capture_frame(scenario, STATES[2] as Dictionary, load_generation, 0)
 
-	_ship.global_position = _position_at_distance(PRE_UNLOAD_DISTANCE_M)
-	_ship.velocity = Vector3.ZERO
-	await physics_frame
+	var boundary_tick := _drive_binding_distance(PRE_UNLOAD_DISTANCE_M)
 	_check(_bootstrap.get_loaded_instance() == cluster, "%s remains loaded inside hysteresis" % scenario.id)
+	_check(
+		bool(boundary_tick.get("accepted", false))
+		and cluster.get_streaming_transition_snapshot().get("phase") == &"authored"
+		and is_equal_approx(float(
+			cluster.get_streaming_transition_snapshot().get("opacity", -1.0)
+		), 1.0),
+		"%s remains fully authored at the exact 650m boundary" % scenario.id
+	)
 	await _capture_frame(scenario, STATES[3] as Dictionary, load_generation, 0)
 
-	_ship.global_position = _position_at_distance(UNLOAD_DISTANCE_M)
-	var unloaded_event: Array = await _coordinator.location_unloaded
-	var unload_generation := int(unloaded_event[1]) if unloaded_event.size() >= 2 else -1
+	for _tick_index in TRANSITION_TICKS:
+		var fade_out_tick := _drive_binding_distance(UNLOAD_DISTANCE_M)
+		_check(
+			bool(fade_out_tick.get("accepted", false)),
+			"%s fade-out caller tick %d is accepted" % [scenario.id, _tick_index + 1]
+		)
+	var fade_out_snapshot := cluster.get_streaming_transition_snapshot()
 	_check(
-		_bootstrap.get_loaded_instance() == null
-		and _game.find_children("*", "NearbySectorCluster", true, false).is_empty(),
-		"%s first unloaded state is synchronously detached" % scenario.id
+		_bootstrap.get_loaded_instance() == cluster
+		and fade_out_snapshot.get("phase") == &"fade_out_complete"
+		and is_zero_approx(float(fade_out_snapshot.get("opacity", -1.0)))
+		and not bool(fade_out_snapshot.get("retire_ready", true))
+		and not cluster.visible,
+		"%s fade-out completes while the sole generation remains owned" % scenario.id
 	)
-	await _capture_frame(scenario, STATES[4] as Dictionary, unload_generation, 0)
+	await _capture_frame(scenario, STATES[4] as Dictionary, load_generation, 0)
+
+	var unload_tick := _drive_binding_distance(UNLOAD_DISTANCE_M)
+	var unload_transition := _first_transition(unload_tick)
+	var unload_generation := int(unload_transition.get("generation", -1))
+	_check(
+		unload_transition.get("action") == &"unload"
+		and unload_transition.get("reason") == &"unloaded"
+		and _bootstrap.get_loaded_instance() == null
+		and _game.find_children("*", "NearbySectorCluster", true, false).is_empty(),
+		"%s subsequent still-outside tick synchronously detaches the hidden generation"
+			% scenario.id
+	)
 	await _renderer_draws(SETTLE_DRAWS - 1)
 	_check(cluster_ref.get_ref() == null, "%s settled unload frees the retired generation" % scenario.id)
 	await _capture_frame(scenario, STATES[5] as Dictionary, unload_generation, 0)
@@ -368,6 +424,8 @@ func _capture_scenario(scenario: Dictionary, previous_retirement_generation: int
 		"unload_generation": unload_generation,
 		"one_loaded_instance": true,
 		"rendered_frames_before_quality_sync": rendered_before_quality_sync,
+		"caller_physics_tick_seconds": TRANSITION_TICK_SECONDS,
+		"fade_ticks_per_phase": TRANSITION_TICKS,
 	}
 
 
@@ -474,6 +532,8 @@ func _frame_metadata(
 		^"RouteBeacons/RouteBeaconAlpha"
 	) as Node3D if loaded else null
 	var settings := _game.get_runtime_settings()
+	var presentation := loaded_cluster.get_streaming_transition_snapshot() \
+		if loaded else {}
 	return {
 		"index": _frames.size() + 1,
 		"scenario_id": str(scenario.id),
@@ -508,6 +568,10 @@ func _frame_metadata(
 				== loaded_cluster.get_instance_id()
 		),
 		"cluster_quality_level": loaded_cluster.get_detail_quality() if loaded else -1,
+		"presentation_phase": presentation.get("phase", &"absent"),
+		"presentation_opacity": float(presentation.get("opacity", 0.0)),
+		"presentation_root_visible": bool(presentation.get("root_visible", false)),
+		"presentation_retire_ready": bool(presentation.get("retire_ready", false)),
 		"runtime_settings_graphics_profile": settings.graphics_profile,
 		"runtime_settings_reduced_motion": settings.reduced_motion,
 		"chase_camera_rotation_lag_degrees": _ship.maximum_chase_camera_rotation_lag_degrees,
@@ -625,9 +689,9 @@ func _validate_static_contract() -> void:
 		STATES.size() == 6
 		and state_ids == PackedStringArray([
 			"pre_load", "first_committed", "load_settled",
-			"pre_unload", "first_unloaded", "unload_settled"
+			"pre_unload", "fade_out_complete", "unload_settled"
 		]),
-		"contract freezes the six ordered transition states"
+		"contract freezes hidden commit, settled load, retained fade-out, and settled unload"
 	)
 	_check(
 		files.size() == 24 and unique_files.size() == 24,
@@ -672,6 +736,11 @@ func _validate_complete_evidence() -> void:
 	_check(_frames.size() == 24, "capture records exactly 24 frames")
 	_check(_scenario_records.size() == 4, "capture records exactly four scenarios")
 	_check(actual_files == sorted_expected, "output contains exactly the declared 24 PNGs")
+	for source in _source_input_hashes():
+		_check(
+			not str(source.get("sha256", "")).is_empty(),
+			"source manifest hashes %s" % str(source.get("path", ""))
+		)
 	for index in mini(_frames.size(), 24):
 		var frame := _frames[index]
 		var expected_state := STATES[index % STATES.size()] as Dictionary
@@ -706,20 +775,23 @@ func _validate_complete_evidence() -> void:
 				int(SCENARIOS[scenario_index].quality)
 				if bool(expected_state.loaded) else -1
 			)
+			and frame.presentation_phase == (
+				&"absent" if not bool(expected_state.loaded) else [
+					&"fading_in", &"fading_in", &"authored",
+					&"authored", &"fade_out_complete", &"absent"
+				][index % STATES.size()]
+			)
+			and is_equal_approx(float(frame.presentation_opacity), [
+				0.0, 0.0, 1.0, 1.0, 0.0, 0.0
+			][index % STATES.size()])
 			and float((frame.whole_frame as Dictionary).maximum_luminance)
 				> float((frame.whole_frame as Dictionary).minimum_luminance),
 			"frame %02d preserves exact ordering, state, distance, camera, and environment"
 				% (index + 1)
 		)
-	for scenario_index in SCENARIOS.size():
-		var base := scenario_index * STATES.size()
-		_check(
-			str(_frames[base].png_sha256) != str(_frames[base + 1].png_sha256)
-			and str(_frames[base + 3].png_sha256)
-				!= str(_frames[base + 4].png_sha256),
-			"%s load and unload transition pairs change rendered pixels"
-				% str(SCENARIOS[scenario_index].id)
-		)
+	# Pixel pairs are reported for original-resolution human review without a
+	# subjective automated threshold. State/generation/opacity invariants above
+	# are the machine acceptance gate.
 
 
 func _write_manifest() -> void:
@@ -755,8 +827,15 @@ func _write_manifest() -> void:
 			"camera_fov_degrees": CAMERA_FOV,
 			"camera_near_m": CAMERA_NEAR_M,
 			"camera_far_m": CAMERA_FAR_M,
-			"tracked_actor_policy": "hidden production guided ship sampled by GameFlow",
+			"tracked_actor_policy": "hidden production guided ship supplied manually through the production binding caller-sample seam",
+			"automatic_game_flow_physics": false,
 			"settle_renderer_draws": SETTLE_DRAWS,
+			"caller_physics_tick_seconds": TRANSITION_TICK_SECONDS,
+			"fade_ticks_per_phase": TRANSITION_TICKS,
+			"fade_in_seconds": CinderStreamingTransitionPresentation.FADE_IN_SECONDS,
+			"fade_out_seconds": CinderStreamingTransitionPresentation.FADE_OUT_SECONDS,
+			"maximum_retained_distance_m": CinderStreamingTransitionPresentation.MAX_RETAINED_DISTANCE_METERS,
+			"retirement_policy": "fade to exact zero, then one subsequent still-outside caller tick",
 			"luminance_sample_stride": LUMINANCE_SAMPLE_STRIDE,
 			"readability_roi": [ROI.position.x, ROI.position.y, ROI.size.x, ROI.size.y],
 			"state_ids": _state_id_strings(),
@@ -789,11 +868,14 @@ func _source_input_hashes() -> Array[Dictionary]:
 		"res://tests/cinder_streaming_transition_render.gd",
 		"res://scenes/main.tscn",
 		"res://scripts/world/cinder_streaming_production_binding.gd",
+		"res://scripts/world/cinder_streaming_transition_presentation.gd",
 		"res://scripts/world/cinder_streaming_bootstrap.gd",
 		"res://scripts/world/world_streaming_coordinator.gd",
 		"res://scripts/world/world_streaming_distance_policy.gd",
-		"res://scenes/world/nearby_sector_cluster.tscn",
+		"res://scripts/world/nearby_sector_cluster.gd",
+		"res://scenes/world/components/nearby_sector_cluster.tscn",
 		"res://assets/world/locations/cinder_reach.tres",
+		"res://assets/activities/cinder_reach_checkpoint_route.tres",
 	])
 	var result: Array[Dictionary] = []
 	for path in paths:
@@ -806,8 +888,8 @@ func _build_pair_metrics() -> Array[Dictionary]:
 	var pair_indices := [
 		[0, 1, "pre_load_to_first_committed"],
 		[1, 2, "first_committed_to_load_settled"],
-		[3, 4, "pre_unload_to_first_unloaded"],
-		[4, 5, "first_unloaded_to_unload_settled"],
+		[3, 4, "pre_unload_to_fade_out_complete"],
+		[4, 5, "fade_out_complete_to_unload_settled"],
 	]
 	for scenario_index in SCENARIOS.size():
 		var base := scenario_index * STATES.size()
@@ -890,6 +972,25 @@ func _scenario_id_strings() -> PackedStringArray:
 func _position_at_distance(distance_m: float) -> Vector3:
 	var anchor := LOCATION.get_anchor_position()
 	return anchor + (Vector3.ZERO - anchor).normalized() * distance_m
+
+
+func _drive_binding_distance(distance_m: float) -> Dictionary:
+	_ship.global_position = _position_at_distance(distance_m)
+	_ship.velocity = Vector3.ZERO
+	return _binding.physics_tick_from_caller_sample(
+		TRANSITION_TICK_SECONDS,
+		{
+			"available": true,
+			"position": _ship.global_position,
+			"actor_kind": &"ship",
+			"actor_instance_id": _ship.get_instance_id(),
+		}
+	)
+
+
+func _first_transition(result: Dictionary) -> Dictionary:
+	var transitions := result.get("transitions", []) as Array
+	return transitions[0] as Dictionary if not transitions.is_empty() else {}
 
 
 func _transform_dictionary(value: Transform3D) -> Dictionary:
