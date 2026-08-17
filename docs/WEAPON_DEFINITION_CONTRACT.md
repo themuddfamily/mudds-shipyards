@@ -1,10 +1,11 @@
 # Weapon definition contract
 
 `WeaponDefinition` is a strict, reusable Godot `Resource` for authoring one
-weapon configuration. It is a Phase 6 data foundation, not a gameplay
-integration. No production weapon constants, combat source registration,
-resolver behavior, damage path, presentation pool, audio pool, save format, or
-network contract changes with this foundation.
+weapon configuration. The Resource itself remains a zero-authority Phase 6 data
+foundation. One bounded production migration now converts the Torrent combat
+pulse into the unchanged resolver profile dictionary; it does not alter combat
+source registration, resolver behavior, damage, presentation/audio pools, save
+format, or networking.
 
 ## Stable data
 
@@ -61,23 +62,47 @@ The schema and default numbers are `NEW` gameplay design. They are not recovered
 weapon specifications. A future authenticated or provisional definition must
 name its evidence and still receives no runtime authority from that status.
 
-## Exact next migration seam
+## Current registration map
 
-The next migration should be a separate change that creates authored `.tres`
-resources and converts validated `WeaponDefinition` resolution envelopes into
-the existing `{range, damage, origin_tolerance}` profiles at
-`LiveCombatAuthority.register_source()`. The source registration remains the
-authority for live source identity and inherited faction. `ShotRequest` and
-`CombatResolver` remain the sole shot-validation and damage-resolution path.
+Every production call to `LiveCombatAuthority.register_source()` is accounted
+for below. Values are `range / damage / origin tolerance`; cadence is still
+owned by each ship or opponent lifecycle and is not part of the resolver
+dictionary.
 
-That migration must first prove equivalence for the current player and defender
-profiles assembled in `scripts/game/game_flow.gd`, then for the independent
-profiles exposed by `scripts/ships/resolver_backed_opponent.gd` and
-`scripts/ships/standoff_picket_opponent.gd`. Cadence currently owned by ship and
-opponent lifecycle code must move only after its cooldown tests demonstrate the
-same accepted-shot timing. Presentation/audio IDs should be consumed by their
-existing bounded pools only after cue and receipt tests prove the same atomic
-acceptance behavior. Projectile, beam, spread, heat, ammunition, fixed-faction,
-and per-weapon friendly-fire behavior remain unsupported until explicitly
-implemented and tested; consumers must reject those modes rather than silently
-approximate them.
+| Registration owner | Source IDs and faction | Weapon profiles | Migration state |
+| --- | --- | --- | --- |
+| `GameFlow` player fleet | Torrent `1101`, Arrow `1102`, Jovian `1103`, Zenith `1104`, Halyard `1105`; `shipyard_flight_test` | All: `range_pulse_cannon` `360 / 50 / 24`. Combat: Torrent `360 / 34 / 24`, Arrow `410 / 25 / 24`, Jovian `315 / 23 / 32`, Zenith `390 / 27 / 24`, Halyard `280 / 18 / 30` | Torrent combat only is converted from `assets/weapons/torrent_combat_pulse.tres`; every other entry remains its existing dictionary. |
+| `GameFlow` range defender | `2101`; `range_defence` | `defence_pulse_cannon` `420 / 11 / 18` | Unmigrated. |
+| `StandoffPicketOpponent` | `2102`; `range_defence` | `picket_lance_cannon` `520 / 21 / 22` | Unmigrated component-local dictionary. |
+| `ResolverBackedOpponent` skirmishers | `2103`, `2104`; `range_defence` | `skirmisher_repeater` `150 / 6 / 22` | Unmigrated component-local dictionary. |
+| `ResolverBackedOpponent` courier | `2105`; `range_defence` | `courier_tail_deterrent` `110 / 8 / 22` | Unmigrated component-local dictionary. |
+| `StationDefenseEncounterContent` | `2121`, `2122`, `2123`; checked-in `perimeter_raiders` faction | `perimeter_defense_pulse` `170 / 11 / 18` | Unmigrated shared encounter dictionary; the atomic-acquire and wire paths submit the same profile. |
+
+Tests construct additional registration dictionaries, but they are fixtures and
+not production profile owners.
+
+## Bounded converter and next migration seam
+
+`WeaponDefinitionResolverProfile` is a pure converter. It accepts a validated
+definition, the already-authoritative registered faction, and the per-source
+origin tolerance, then returns a newly detached dictionary in the existing
+`{weapon_id: {range, damage, origin_tolerance}}` shape. It accepts hitscan,
+inherited faction or an exactly matching fixed faction, denied friendly fire,
+and disabled spread/heat/ammunition only. Any unsupported or invalid input
+returns an empty dictionary without a legacy fallback.
+
+The Torrent resource is now the sole production source of its combat-pulse
+range and damage. Its cadence is guarded for exact equivalence with the existing
+`HeroShip.weapon_cooldown`; presentation and cue IDs are likewise guarded
+against the existing cyan/player-fire/medium-impact/dry-fire route. Those
+lifecycle and presentation owners have not moved. `LiveCombatAuthority`,
+`ShotRequest`, and `CombatResolver` still exclusively own registration,
+sequence, receipt, validation, and damage state, including detach/re-entry.
+
+The next migration should choose one row above, add its checked-in definition,
+and prove exact behavior before removing that row's dictionary. Cadence can
+move only after the relevant cooldown tests demonstrate identical accepted-shot
+timing. Presentation/audio IDs can become active routing inputs only after pool
+and cue tests prove the same atomic acceptance behavior. Projectile, beam,
+spread, heat, ammunition, and allowed friendly fire remain unsupported and
+must continue to fail closed rather than being approximated.

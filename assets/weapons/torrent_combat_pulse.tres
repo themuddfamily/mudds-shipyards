@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3 uid="uid://bq7e2m5s8v1ha"]
+
+[ext_resource type="Script" path="res://scripts/combat/weapon_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+weapon_id = &"combat_pulse_cannon"
+display_name = "Torrent combat pulse cannon"
+resolution_mode = 0
+evidence_status = 2
+evidence_notes = "New prototype balance migrated exactly from the production Torrent combat pulse; not a recovered historical weapon specification."
+range_meters = 360.0
+damage_per_hit = 34.0
+cadence_shots_per_second = 4.54545454545455
+faction_policy = 0
+friendly_fire_policy = 0
+presentation_id = &"cyan"
+fire_audio_id = &"player_pulse_fire"
+impact_audio_id = &"hull_impact_medium"
+dry_fire_audio_id = &"dry_fire_click"

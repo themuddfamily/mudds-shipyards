@@ -5,6 +5,9 @@ const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_autho
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
+const WeaponDefinitionResolverProfileType := preload(
+	"res://scripts/combat/weapon_definition_resolver_profile.gd"
+)
 const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.gd")
 const CaptionPresentationEventType := preload("res://scripts/ui/caption_presentation_event.gd")
 const CaptionPresentationServiceType := preload("res://scripts/ui/caption_presentation_service.gd")
@@ -101,7 +104,6 @@ enum Phase {
 const ENEMY_SPAWN := Vector3(24.0, 12.0, -148.0)
 const ENEMY_WEAPON_RANGE := 420.0
 const ENEMY_HIT_DAMAGE := 11.0
-const PLAYER_HIT_DAMAGE := 34.0
 const RANGE_TARGET_HIT_DAMAGE := 50.0
 const PLAYER_SOURCE_IDS := {
 	&"torrent_provisional": 1101,
@@ -124,15 +126,19 @@ const OPPONENT_FACTION: StringName = &"range_defence"
 const RANGE_WEAPON_ID: StringName = &"range_pulse_cannon"
 const COMBAT_WEAPON_ID: StringName = &"combat_pulse_cannon"
 const OPPONENT_WEAPON_ID: StringName = &"defence_pulse_cannon"
+const TORRENT_SHIP_ID: StringName = &"torrent_provisional"
+const TORRENT_COMBAT_ORIGIN_TOLERANCE_METERS := 24.0
+const TORRENT_COMBAT_PRESENTATION_ID: StringName = &"cyan"
+const TORRENT_COMBAT_FIRE_AUDIO_ID: StringName = &"player_pulse_fire"
+const TORRENT_COMBAT_IMPACT_AUDIO_ID: StringName = &"hull_impact_medium"
+const TORRENT_COMBAT_DRY_FIRE_AUDIO_ID: StringName = &"dry_fire_click"
+const TORRENT_COMBAT_WEAPON_DEFINITION := preload(
+	"res://assets/weapons/torrent_combat_pulse.tres"
+)
 const PLAYER_WEAPON_PROFILES := {
 	RANGE_WEAPON_ID: {
 		"range": 360.0,
 		"damage": RANGE_TARGET_HIT_DAMAGE,
-		"origin_tolerance": 24.0,
-	},
-	COMBAT_WEAPON_ID: {
-		"range": 360.0,
-		"damage": PLAYER_HIT_DAMAGE,
 		"origin_tolerance": 24.0,
 	},
 }
@@ -2807,10 +2813,46 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 	var profiles := PLAYER_WEAPON_PROFILES.duplicate(true)
 	if not is_instance_valid(candidate):
 		return profiles
+	if candidate.get_ship_id() == TORRENT_SHIP_ID:
+		# There is no legacy base combat entry: malformed or unsupported authored
+		# data cannot silently fall back to the value this Resource replaced.
+		var migrated_profile := _get_torrent_combat_weapon_profile(candidate)
+		if migrated_profile.is_empty():
+			return {}
+		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		return profiles
 	var override: Dictionary = PLAYER_COMBAT_WEAPON_OVERRIDES.get(candidate.get_ship_id(), {})
 	if not override.is_empty():
 		profiles[COMBAT_WEAPON_ID] = override.duplicate(true)
 	return profiles
+
+
+func _get_torrent_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
+	if (
+		not is_instance_valid(candidate)
+		or TORRENT_COMBAT_WEAPON_DEFINITION == null
+		or not is_finite(candidate.weapon_cooldown)
+		or candidate.weapon_cooldown <= 0.0
+		or not is_equal_approx(
+			TORRENT_COMBAT_WEAPON_DEFINITION.cadence_shots_per_second,
+			1.0 / candidate.weapon_cooldown
+		)
+		or TORRENT_COMBAT_WEAPON_DEFINITION.presentation_id
+			!= TORRENT_COMBAT_PRESENTATION_ID
+		or TORRENT_COMBAT_WEAPON_DEFINITION.fire_audio_id
+			!= TORRENT_COMBAT_FIRE_AUDIO_ID
+		or TORRENT_COMBAT_WEAPON_DEFINITION.impact_audio_id
+			!= TORRENT_COMBAT_IMPACT_AUDIO_ID
+		or TORRENT_COMBAT_WEAPON_DEFINITION.dry_fire_audio_id
+			!= TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
+	):
+		return {}
+	var converted := WeaponDefinitionResolverProfileType.to_resolver_profiles(
+		TORRENT_COMBAT_WEAPON_DEFINITION,
+		PLAYER_FACTION,
+		TORRENT_COMBAT_ORIGIN_TOLERANCE_METERS
+	)
+	return (converted.get(COMBAT_WEAPON_ID, {}) as Dictionary).duplicate(true)
 
 
 func _get_ship_entry_descriptor(candidate: HeroShip) -> Dictionary:
