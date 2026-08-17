@@ -1,16 +1,16 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/activities/station_defense_encounter_content.gd" id="1_content"]
 [ext_resource type="Resource" path="res://assets/activities/shipyard_perimeter_defense.tres" id="2_contract"]
 [ext_resource type="Script" path="res://scripts/activities/station_defense_encounter_host.gd" id="3_host"]
-[ext_resource type="Script" path="res://scripts/combat/live_combat_authority.gd" id="4_authority"]
-[ext_resource type="Script" path="res://scripts/combat/combat_resolver.gd" id="5_resolver"]
 [ext_resource type="PackedScene" path="res://scenes/ships/range_opponent.tscn" id="6_opponent"]
+[ext_resource type="PackedScene" path="res://scenes/activities/station_defense_perimeter_asset.tscn" id="7_asset"]
 
 [sub_resource type="SphereShape3D" id="Sphere_keep_clear"]
 radius = 9.0
 
 [node name="StationDefenseEncounter" type="Node3D"]
+position = Vector3(90, 0, -10)
 script = ExtResource("1_content")
 contract_definition = ExtResource("2_contract")
 metadata/evidence_status = &"modern_interpretation"
@@ -20,11 +20,8 @@ metadata/content_role = &"station_defense_encounter"
 [node name="Host" type="Node3D" parent="."]
 script = ExtResource("3_host")
 
-[node name="CombatAuthority" type="Node3D" parent="."]
-script = ExtResource("4_authority")
-
-[node name="Resolver" type="Node3D" parent="CombatAuthority"]
-script = ExtResource("5_resolver")
+[node name="ProtectedPerimeterAsset" parent="." instance=ExtResource("7_asset")]
+position = Vector3(0, 8, -60)
 
 [node name="SpawnStaging" type="Node3D" parent="."]
 
@@ -75,13 +72,34 @@ shape = SubResource("Sphere_keep_clear")
 [node name="OpponentRoster" type="Node3D" parent="."]
 
 [node name="PerimeterRaiderAlpha" parent="OpponentRoster" instance=ExtResource("6_opponent")]
+cruise_speed = 18.0
+chase_speed = 26.0
+acceleration = 16.0
+turn_speed_degrees = 160.0
+preferred_range = 26.0
+retreat_range = 12.0
+engagement_range = 140.0
 metadata/hostile_id = &"perimeter_raider_alpha"
 metadata/handle_generation = 1
 
 [node name="PerimeterRaiderBeta" parent="OpponentRoster" instance=ExtResource("6_opponent")]
+cruise_speed = 18.0
+chase_speed = 26.0
+acceleration = 16.0
+turn_speed_degrees = 160.0
+preferred_range = 26.0
+retreat_range = 12.0
+engagement_range = 140.0
 metadata/hostile_id = &"perimeter_raider_beta"
 metadata/handle_generation = 2
 
 [node name="PerimeterRaiderGamma" parent="OpponentRoster" instance=ExtResource("6_opponent")]
+cruise_speed = 18.0
+chase_speed = 26.0
+acceleration = 16.0
+turn_speed_degrees = 160.0
+preferred_range = 26.0
+retreat_range = 12.0
+engagement_range = 140.0
 metadata/hostile_id = &"perimeter_raider_gamma"
 metadata/handle_generation = 3

@@ -213,6 +213,41 @@ func reset(expected_generation: int) -> Dictionary:
 	return _forward_terminal(&"reset", expected_generation)
 
 
+## Rebinds only the activity's observed protected handle after a public reset.
+## Physical renewal and health remain on the caller-owned protected object.
+func renew_protected_asset_handle(
+	old_handle: Dictionary,
+	new_handle: Dictionary,
+	expected_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	if not _configured:
+		return _result(false, &"not_configured")
+	_mutation_active = true
+	var result := _activity.renew_protected_asset_handle(
+		old_handle,
+		new_handle,
+		expected_generation
+	)
+	if bool(result.get("accepted", false)):
+		var handles := _contract_snapshot.get("protected_asset_handles", []) as Array
+		for index in handles.size():
+			var retained := handles[index] as Dictionary
+			if StationDefenseContract.handle_key(retained, "asset_id") \
+				== StationDefenseContract.handle_key(old_handle, "asset_id"):
+				handles[index] = StationDefenseContract.canonical_asset_handle(
+					new_handle
+				).duplicate(true)
+				break
+		_contract_snapshot["protected_asset_handles"] = handles
+	_publish_snapshot()
+	return _finish_mutation(
+		bool(result.get("accepted", false)),
+		StringName(result.get("reason", &"unknown"))
+	)
+
+
 func get_generation() -> int:
 	return _activity.get_generation() if _activity != null else 0
 
@@ -404,6 +439,7 @@ func _connect_activity_signals() -> void:
 	_activity.wave_completed.connect(_on_activity_changed)
 	_activity.protected_asset_damage_accepted.connect(_on_activity_asset_changed)
 	_activity.protected_asset_destruction_accepted.connect(_on_activity_asset_changed)
+	_activity.protected_asset_renewed.connect(_on_activity_asset_renewed)
 	_activity.activity_completed.connect(_on_activity_terminal)
 	_activity.activity_failed.connect(_on_activity_terminal)
 	_activity.activity_aborted.connect(_on_activity_terminal)
@@ -490,6 +526,14 @@ func _on_activity_asset_changed(
 	_snapshot: Dictionary,
 	_asset_handle: Dictionary,
 	_event_handle: Dictionary
+	) -> void:
+	_publish_snapshot()
+
+
+func _on_activity_asset_renewed(
+	_snapshot: Dictionary,
+	_old_handle: Dictionary,
+	_new_handle: Dictionary
 	) -> void:
 	_publish_snapshot()
 

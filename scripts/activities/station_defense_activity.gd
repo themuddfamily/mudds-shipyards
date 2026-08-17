@@ -21,6 +21,11 @@ signal protected_asset_destruction_accepted(
 	asset_handle: Dictionary,
 	event_handle: Dictionary
 )
+signal protected_asset_renewed(
+	snapshot: Dictionary,
+	old_handle: Dictionary,
+	new_handle: Dictionary
+)
 signal activity_completed(snapshot: Dictionary)
 signal activity_failed(snapshot: Dictionary)
 signal activity_aborted(snapshot: Dictionary)
@@ -253,6 +258,61 @@ func reset(expected_generation: int) -> Dictionary:
 	_reset_asset_states()
 	_emit_snapshot(activity_reset)
 	return _finish_mutation(true, &"reset")
+
+
+## Rebinds one protected object to its next exact physical generation. This is
+## permitted only in the post-reset IDLE state, never during an encounter, and
+## changes no activity generation or clock. Signal observers see the committed
+## handle while the ordinary mutation guard still rejects synchronous reentry.
+func renew_protected_asset_handle(
+	old_handle: Dictionary,
+	new_handle: Dictionary,
+	expected_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if not _attached:
+		return _result(false, &"detached")
+	if _state != State.IDLE:
+		return _result(false, &"protected_asset_renewal_requires_idle")
+	if not _valid_input_handle(old_handle, "asset_id") \
+		or not _valid_input_handle(new_handle, "asset_id"):
+		return _result(false, &"invalid_protected_asset_handle")
+	var canonical_old := StationDefenseContract.canonical_asset_handle(old_handle)
+	var canonical_new := StationDefenseContract.canonical_asset_handle(new_handle)
+	if StringName(canonical_new.asset_id) != StringName(canonical_old.asset_id) \
+		or int(canonical_old.generation) >= StationDefenseContract.MAX_SAFE_INTEGER \
+		or int(canonical_new.generation) != int(canonical_old.generation) + 1:
+		return _result(false, &"invalid_protected_asset_renewal")
+	var lookup := _find_protected_asset(canonical_old)
+	if not bool(lookup.accepted):
+		return _result(false, StringName(lookup.reason))
+	for state in _protected_asset_states:
+		var retained := state.handle as Dictionary
+		if StringName(retained.asset_id) == StringName(canonical_new.asset_id) \
+			and int(retained.generation) == int(canonical_new.generation):
+			return _result(false, &"duplicate_protected_asset_handle")
+
+	_mutation_active = true
+	var asset_index := int(lookup.asset_index)
+	_protected_asset_states[asset_index]["handle"] = canonical_new.duplicate(true)
+	_protected_asset_states[asset_index]["damage_event_count"] = 0
+	_protected_asset_states[asset_index]["destroyed"] = false
+	var contract_handles := _get_protected_handles()
+	for index in contract_handles.size():
+		var retained := contract_handles[index] as Dictionary
+		if _handles_equal(retained, canonical_old, "asset_id"):
+			contract_handles[index] = canonical_new.duplicate(true)
+			break
+	_contract_snapshot["protected_asset_handles"] = contract_handles
+	protected_asset_renewed.emit(
+		get_snapshot().duplicate(true),
+		canonical_old.duplicate(true),
+		canonical_new.duplicate(true)
+	)
+	return _finish_mutation(true, &"protected_asset_renewed")
 
 
 ## Detachment is an observation-lifecycle gate only. It does not change the

@@ -18,6 +18,7 @@ func _init() -> void:
 func _run() -> void:
 	await _test_ordered_simultaneous_waves_and_detach_reentry()
 	_test_protected_asset_observations()
+	_test_protected_asset_generation_renewal()
 	_test_timeout_fail_abort_and_reset()
 	_test_signal_reentry_and_hud_snapshot_detachment()
 	_test_contract_validation_and_exact_authority_exclusions()
@@ -224,6 +225,103 @@ func _test_protected_asset_observations() -> void:
 	)
 
 
+func _test_protected_asset_generation_renewal() -> void:
+	var activity := ActivityScript.new(_contract()) as StationDefenseActivity
+	var started := activity.start(0)
+	var active_generation := int(started.generation)
+	var original_handle := _asset(&"command_core", 4)
+	var renewed_handle := _asset(&"command_core", 5)
+	var active_before := activity.get_snapshot()
+	_check(
+		activity.renew_protected_asset_handle(
+			original_handle, renewed_handle, active_generation
+		).reason == &"protected_asset_renewal_requires_idle"
+		and activity.get_snapshot() == active_before,
+		"protected handles cannot renew while the encounter is active"
+	)
+	activity.abort(active_generation)
+	var reset := activity.reset(active_generation)
+	var idle_generation := int(reset.generation)
+	_check(
+		activity.detach(idle_generation).accepted
+		and activity.renew_protected_asset_handle(
+			original_handle, renewed_handle, idle_generation
+		).reason == &"detached"
+		and activity.reattach(idle_generation).accepted,
+		"protected handle renewal is gated while the activity is detached"
+	)
+	var idle_before := activity.get_snapshot()
+	_check(
+		activity.renew_protected_asset_handle(
+			original_handle, _asset(&"other_asset", 5), idle_generation
+		).reason == &"invalid_protected_asset_renewal"
+		and activity.renew_protected_asset_handle(
+			original_handle, _asset(&"command_core", 6), idle_generation
+		).reason == &"invalid_protected_asset_renewal"
+		and activity.renew_protected_asset_handle(
+			original_handle, renewed_handle, idle_generation - 1
+		).reason == &"stale_generation"
+		and activity.get_snapshot() == idle_before,
+		"renewal requires the same identity, exact generation plus one, and current activity generation"
+	)
+
+	var renewal_observation := {}
+	activity.protected_asset_renewed.connect(
+		func(
+			snapshot: Dictionary,
+			emitted_old: Dictionary,
+			emitted_new: Dictionary
+			) -> void:
+			var committed_before := activity.get_snapshot()
+			var reentry := activity.renew_protected_asset_handle(
+				emitted_old, emitted_new, int(snapshot.generation)
+			)
+			renewal_observation["reason"] = reentry.reason
+			renewal_observation["snapshot_unchanged"] = (
+				activity.get_snapshot() == committed_before
+			)
+			(emitted_old as Dictionary).clear()
+			(emitted_new as Dictionary).clear()
+			(snapshot.protected_assets as Array).clear()
+	)
+	var renewed := activity.renew_protected_asset_handle(
+		original_handle, renewed_handle, idle_generation
+	)
+	var after_renewal := activity.get_snapshot()
+	_check(
+		renewed.accepted
+		and renewed.reason == &"protected_asset_renewed"
+		and int(renewed.generation) == idle_generation
+		and int(after_renewal.protected_assets[0].handle.generation) == 5
+		and int(after_renewal.protected_assets[0].damage_event_count) == 0
+		and not bool(after_renewal.protected_assets[0].destroyed),
+		"idle renewal commits the exact next physical generation without changing activity generation"
+	)
+	_check(
+		renewal_observation.get("reason") == &"reentrant_call"
+		and bool(renewal_observation.get("snapshot_unchanged", false))
+		and int(activity.get_snapshot().protected_assets[0].handle.generation) == 5,
+		"renewal observers receive detached handles and cannot re-enter or corrupt committed state"
+	)
+	_check(
+		activity.renew_protected_asset_handle(
+			original_handle, renewed_handle, idle_generation
+		).reason == &"stale_protected_asset_generation",
+		"a committed old protected generation cannot be renewed twice"
+	)
+	var restarted := activity.start(idle_generation)
+	var restarted_generation := int(restarted.generation)
+	_check(
+		activity.protected_asset_damaged(
+			original_handle, _event(&"old_generation_hit", 5), restarted_generation
+		).reason == &"stale_protected_asset_generation"
+		and activity.protected_asset_damaged(
+			renewed_handle, _event(&"new_generation_hit", 5), restarted_generation
+		).accepted,
+		"post-renewal observations accept only the new protected-object generation"
+	)
+
+
 func _test_timeout_fail_abort_and_reset() -> void:
 	var timeout_contract := ContractScript.new(
 		&"timed_defense",
@@ -387,6 +485,9 @@ func _probe_reentry(
 		),
 		activity.protected_asset_destroyed(
 			_asset(&"single_asset", 1), _event(&"reentry_destroy", 1), generation
+		),
+		activity.renew_protected_asset_handle(
+			_asset(&"single_asset", 1), _asset(&"single_asset", 2), generation
 		),
 		activity.fail(&"observer_attack", generation),
 		activity.abort(generation),

@@ -1,15 +1,24 @@
 extends SceneTree
 
-## Focused checked-in content integration. The scene supplies its own exact
-## contract, physical staging, production RangeOpponent roster, host, and real
-## resolver; the fixture supplies only an existing combat source and physics
-## deltas that a future world integration would already own.
+## Focused production-site integration for the checked-in station-defense
+## content. It composes the production ShipyardWorld directly (never Main), an
+## externally owned LiveCombatAuthority, the real host, real RangeOpponents,
+## and the dedicated renewable Damageable-backed perimeter asset.
 
 const CONTENT_SCENE := preload("res://scenes/activities/station_defense_encounter.tscn")
+const ASSET_SCENE := preload("res://scenes/activities/station_defense_perimeter_asset.tscn")
+const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const CONTENT_SCRIPT_PATH := "res://scripts/activities/station_defense_encounter_content.gd"
+const CONTENT_SCENE_PATH := "res://scenes/activities/station_defense_encounter.tscn"
+const ASSET_SCENE_PATH := "res://scenes/activities/station_defense_perimeter_asset.tscn"
 const DEFINITION_PATH := "res://assets/activities/shipyard_perimeter_defense.tres"
+
 const TEST_WEAPON: StringName = &"content_integration_cannon"
 const TEST_SOURCE_ID := 9201
+const TEST_WEAPON_DAMAGE := 100.0
+const PHYSICS_STEP := 1.0 / 60.0
+const FULL_ENCOUNTER_PHYSICS_STEPS := 720
+const AUDITED_WORLD_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(90.0, 0.0, -10.0))
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -22,57 +31,107 @@ func _init() -> void:
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_checked_in_encounter_content()
+	await _test_source_conflict_rolls_back_atomically()
 	_check(
 		root.get_child_count() == original_root_child_count,
-		"content fixture removes its scene instance and external combat source"
+		"content fixture removes the production world, encounter, and external authority"
 	)
 	_finish()
 
 
 func _test_checked_in_encounter_content() -> void:
-	var content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
-	_check(
-		content != null
-		and content.scene_file_path == "res://scenes/activities/station_defense_encounter.tscn"
-		and content.get_meta("evidence_status") == &"modern_interpretation",
-		"the checked-in encounter scene instantiates as the production content type"
-	)
-	root.add_child(content)
+	var world := WORLD_SCENE.instantiate() as ShipyardWorld
+	world.name = "AuditedShipyardWorld"
+	root.add_child(world)
+	var authority := LiveCombatAuthority.new()
+	authority.name = "ExistingSessionCombatAuthority"
+	root.add_child(authority)
 	await process_frame
 	await physics_frame
 
-	var host := content.get_node_or_null(^"Host") as StationDefenseEncounterHost
-	var authority := content.get_node_or_null(^"CombatAuthority") as LiveCombatAuthority
-	var resolver := authority.get_resolver() if authority != null else null
-	var roster := content.get_node_or_null(^"OpponentRoster") as Node3D
-	var alpha := roster.get_node_or_null(^"PerimeterRaiderAlpha") as RangeOpponent
-	var beta := roster.get_node_or_null(^"PerimeterRaiderBeta") as RangeOpponent
-	var gamma := roster.get_node_or_null(^"PerimeterRaiderGamma") as RangeOpponent
+	var content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	root.add_child(content)
+	await process_frame
+	await physics_frame
 	_check(
-		content.is_content_ready()
-		and host != null and authority != null and resolver is CombatResolver
-		and content.get_host() == host
-		and content.get_combat_authority() == authority
-		and host.get_combat_authority() == authority,
-		"scene readiness composes one existing host with one live production resolver"
+		content != null
+		and content.scene_file_path == CONTENT_SCENE_PATH
+		and content.get_meta("evidence_status") == &"modern_interpretation"
+		and content.global_transform.is_equal_approx(AUDITED_WORLD_TRANSFORM)
+		and not content.is_content_ready()
+		and content.get_snapshot().configuration_state == &"awaiting_external_authority"
+		and content.get_combat_authority() == null,
+		"checked-in content instantiates at the audited site but waits for an external authority"
 	)
+	var configured := content.configure_external_combat_authority(authority)
+	await process_frame
+	_check(
+		configured.accepted and content.is_content_ready()
+		and content.get_combat_authority() == authority
+		and content.get_host().get_combat_authority() == authority
+		and authority.get_resolver() is CombatResolver
+		and content.find_children("*", "LiveCombatAuthority", true, false).is_empty()
+		and content.find_children("*", "CombatResolver", true, false).is_empty(),
+		"the exact injected authority and its existing resolver are reused with no internal authority node"
+	)
+	_check(
+		content.configure_external_combat_authority(authority).reason == &"already_configured",
+		"initialized content cannot replace its exact external combat authority identity"
+	)
+
+	var host := content.get_host()
+	var resolver := authority.get_resolver()
+	var roster := content.get_node(^"OpponentRoster") as Node3D
+	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
+	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
+	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var opponents: Array[RangeOpponent] = [alpha, beta, gamma]
+	var asset := content.get_protected_asset()
+	var damageable := asset.get_damageable_component() if asset != null else null
 	_check(
 		alpha != null and beta != null and gamma != null
+		and _count_direct_opponents(roster) == 3
+		and content.find_children("*", "RangeOpponent", true, false).size() == 3
 		and alpha.scene_file_path == "res://scenes/ships/range_opponent.tscn"
 		and beta.scene_file_path == "res://scenes/ships/range_opponent.tscn"
-		and gamma.scene_file_path == "res://scenes/ships/range_opponent.tscn",
-		"the exact roster is three pre-created instances of the production RangeOpponent scene"
+		and gamma.scene_file_path == "res://scenes/ships/range_opponent.tscn"
+		and alpha.get_node(^"AuthoritativeDamageable") is LifecycleDamageableAdapter
+		and beta.get_node(^"AuthoritativeDamageable") is LifecycleDamageableAdapter
+		and gamma.get_node(^"AuthoritativeDamageable") is LifecycleDamageableAdapter,
+		"the bounded roster remains three pre-created production RangeOpponents with existing lifecycle adapters"
 	)
 	_check(
-		alpha.get_node_or_null(^"AuthoritativeDamageable") is LifecycleDamageableAdapter
-		and beta.get_node_or_null(^"AuthoritativeDamageable") is LifecycleDamageableAdapter
-		and gamma.get_node_or_null(^"AuthoritativeDamageable") is LifecycleDamageableAdapter,
-		"checked-in opponents are wired through the existing lifecycle adapter seam"
+		asset != null and asset.scene_file_path == ASSET_SCENE_PATH
+		and asset.global_position == Vector3(90.0, 8.0, -70.0)
+		and asset.get_meta("source_label") == &"NEW"
+		and asset.get_meta("evidence_status") == &"modern_interpretation"
+		and damageable is Damageable
+		and damageable.name == &"AuthoritativeDamageable"
+		and damageable.get_target_entity() == asset
+		and is_equal_approx(damageable.get_maximum_health(), 240.0)
+		and int(asset.get_asset_handle().generation) == 1
+		and asset.audit().valid,
+		"the dedicated modern perimeter asset has one existing Damageable as its sole health store"
 	)
+	var physical_before_preflight := asset.get_snapshot()
+	_check(
+		asset.preflight_renew(0).reason == &"stale_asset_generation"
+		and asset.preflight_renew(1).accepted
+		and asset.get_snapshot() == physical_before_preflight,
+		"physical renewal preflight checks exact generation without mutating asset or health"
+	)
+	var unavailable_asset := ASSET_SCENE.instantiate() as StationDefensePerimeterAsset
+	_check(
+		unavailable_asset.preflight_renew(1).reason == &"damageable_unavailable",
+		"physical renewal preflight rejects a missing authoritative Damageable before tree entry"
+	)
+	unavailable_asset.free()
 
 	var definition := content.contract_definition
 	var definition_audit := definition.audit() if definition != null else {}
 	var contract := definition.instantiate_contract() if definition != null else null
+	var contract_snapshot := contract.get_snapshot() if contract != null else {}
+	var waves := contract_snapshot.get("waves", []) as Array
 	_check(
 		definition != null and definition.resource_path == DEFINITION_PATH
 		and bool(definition_audit.get("valid", false))
@@ -80,274 +139,470 @@ func _test_checked_in_encounter_content() -> void:
 		and int(definition_audit.get("wave_count", 0)) == 2
 		and int(definition_audit.get("hostile_count", 0)) == 3
 		and int(definition_audit.get("protected_asset_count", 0)) == 1
-		and int((definition_audit.limits as Dictionary).maximum_content_hostiles) == 8,
-		"one checked-in bounded resource supplies the exact validated activity contract"
-	)
-	var contract_snapshot := contract.get_snapshot() if contract != null else {}
-	var waves := contract_snapshot.get("waves", []) as Array
-	_check(
-		contract_snapshot.get("activity_id") == &"shipyard_perimeter_defense"
 		and waves.size() == 2
 		and waves[0].wave_id == &"yard_approach"
 		and int(waves[0].mode) == StationDefenseContract.WaveMode.ORDERED
-		and (waves[0].hostile_handles as Array).size() == 1
 		and waves[1].wave_id == &"dockside_relief"
 		and int(waves[1].mode) == StationDefenseContract.WaveMode.SIMULTANEOUS
 		and is_equal_approx(float(waves[1].delay_seconds), 0.5)
-		and (waves[1].hostile_handles as Array).size() == 2
 		and is_equal_approx(float(contract_snapshot.timeout_seconds), 12.0),
-		"resource freezes one ordered probe and one delayed simultaneous relief wave"
+		"the original bounded contract still freezes one ordered and one simultaneous wave"
 	)
 
 	var initial := content.get_snapshot()
-	var host_roster := initial.host.spawn_roster as Array
-	_check(
-		bool(initial.content_ready) and bool(initial.precreated_roster_wired)
-		and int(initial.opponent_count) == 3
-		and int(initial.authored_node_count) == 18
-		and host_roster.size() == 3
-		and host_roster[0].hostile_id == &"perimeter_raider_alpha"
-		and host_roster[1].hostile_id == &"perimeter_raider_beta"
-		and host_roster[2].hostile_id == &"perimeter_raider_gamma",
-		"scene initialization closes manual caller staging in deterministic contract order"
-	)
-	_check(
-		_count_direct_opponents(roster) == 3
-		and content.find_children("*", "RangeOpponent", true, false).size() == 3
-		and int(initial.authored_node_count) <= StationDefenseEncounterContent.MAX_AUTHORED_NODE_COUNT,
-		"authored nodes and production opponents remain within exact component-local bounds"
-	)
-
 	var staging := initial.staging as Array
 	_check(
-		staging.size() == 3
-		and staging[0].hostile_id == &"perimeter_raider_alpha"
+		initial.content_ready and initial.precreated_roster_wired
+		and initial.external_combat_authority_injected
+		and not initial.owns_combat_authority
+		and int(initial.opponent_count) == 3
+		and int(initial.authored_node_count) == 24
+		and int(initial.registered_hostile_source_count) == 3
+		and resolver.get_registered_source_count() == 3
+		and staging.size() == 3
 		and staging[0].local_position == Vector3(-24.0, 6.0, -52.0)
-		and staging[1].hostile_id == &"perimeter_raider_beta"
 		and staging[1].local_position == Vector3(24.0, 6.0, -52.0)
-		and staging[2].hostile_id == &"perimeter_raider_gamma"
 		and staging[2].local_position == Vector3(0.0, 10.0, -86.0)
-		and _staging_rows_valid(staging),
-		"each stable handle has one deterministic marker and centered 9 m query-inert volume"
+		and _staging_rows_valid(staging)
+		and _minimum_keep_clear_gap(staging) > StationDefenseEncounterContent.MIN_KEEP_CLEAR_GAP,
+		"checked-in content keeps exact bounded nodes, sources, staging identities, and 9 m volumes"
 	)
 	_check(
-		_minimum_keep_clear_gap(staging) > StationDefenseEncounterContent.MIN_KEEP_CLEAR_GAP,
-		"all authored keep-clear spheres have more than the required physical separation"
+		content.global_transform.is_equal_approx(AUDITED_WORLD_TRANSFORM)
+		and _staging_world_clear(content, staging)
+		and _aabb_world_clear(content, StationDefenseEncounterContent.PLAYER_SHIP_ORIGIN_ENVELOPE)
+		and _aabb_world_clear(content, StationDefenseEncounterContent.HOSTILE_ORIGIN_LEASH),
+		"audited world pose keeps all staging, engagement, and hostile-leash volumes clear of production collision"
 	)
 	_check(
-		_distinct_ship_colliders_in_volume(content, "AlphaSpawn").is_empty()
-		and _distinct_ship_colliders_in_volume(content, "BetaSpawn").is_empty()
-		and _distinct_ship_colliders_in_volume(content, "GammaSpawn").is_empty(),
-		"dormant staging volumes begin clear of every ship collision body"
+		alpha.get("_target") == asset
+		and beta.get("_target") == asset
+		and gamma.get("_target") == asset
+		and authority.get_source_id(alpha) == 2121
+		and authority.get_source_id(beta) == 2122
+		and authority.get_source_id(gamma) == 2123,
+		"all opponent target, projectile, and stable source seams use the injected authority and dedicated asset"
 	)
 
 	var attacker := Node3D.new()
 	attacker.name = "ExistingStationDefenseSource"
 	root.add_child(attacker)
 	var weapons := {
-		TEST_WEAPON: {"range": 120.0, "damage": 50.0, "origin_tolerance": 8.0},
+		TEST_WEAPON: {
+			"range": 180.0,
+			"damage": TEST_WEAPON_DAMAGE,
+			"origin_tolerance": 8.0,
+		},
 	}
 	_check(
 		authority.register_source(attacker, TEST_SOURCE_ID, &"station_allies", weapons)
-		and resolver.get_registered_source_count() == 1,
-		"the content reuses a caller-owned source registration on its one resolver"
-	)
-	var started := content.start(0)
-	var generation := int(started.activity.generation)
-	var alpha_marker := content.get_node(^"SpawnStaging/AlphaSpawn") as Marker3D
-	await physics_frame
-	_check(
-		started.accepted and generation == 1
-		and alpha.is_active() and not beta.is_active() and not gamma.is_active()
-		and alpha.global_transform.is_equal_approx(alpha_marker.global_transform),
-		"start activates only the ordered wave hostile at its authored physical marker"
-	)
-	var alpha_space := _distinct_ship_colliders_in_volume(content, "AlphaSpawn")
-	_check(
-		alpha_space.size() == 1 and alpha_space.has(alpha.get_instance_id()),
-		"the active ordered hostile occupies its own otherwise-clear staging volume"
+		and resolver.get_registered_source_count() == 4,
+		"an existing session source shares the same resolver with the three encounter sources"
 	)
 
-	var alpha_first := await _shoot(authority, attacker, alpha)
-	var alpha_health_before_detach := alpha.get_health()
-	var elapsed_before_detach := float(content.get_snapshot().host.activity.elapsed_seconds)
+	var started := content.start(0)
+	var generation := int(started.activity.generation)
 	_check(
-		bool(alpha_first.get("damaged", false))
-		and not bool(alpha_first.get("destroyed", false))
-		and is_equal_approx(alpha_health_before_detach, 35.0),
-		"real resolver damage changes only the existing opponent hull before streaming"
+		started.accepted and generation == 1
+		and alpha.is_active() and not beta.is_active() and not gamma.is_active(),
+		"start activates only the ordered production opponent"
 	)
+	var alpha_hostile_shot := await _emit_hostile_projectile(alpha, asset, content)
+	var alpha_terminal := await _shoot(authority, attacker, alpha)
+	var relief := content.advance_physics(0.5, generation)
+	await physics_frame
+	_check(
+		alpha_terminal.destroyed and relief.accepted
+		and beta.is_active() and gamma.is_active(),
+		"resolver terminal authority and exact caller delta activate the simultaneous relief wave"
+	)
+	var beta_hostile_shot := await _emit_hostile_projectile(beta, asset, content)
+	var gamma_hostile_shot := await _emit_hostile_projectile(gamma, asset, content)
+	_check(
+		alpha_hostile_shot.damaged and int(alpha_hostile_shot.source_id) == 2121
+		and beta_hostile_shot.damaged and int(beta_hostile_shot.source_id) == 2122
+		and gamma_hostile_shot.damaged and int(gamma_hostile_shot.source_id) == 2123
+		and is_equal_approx(damageable.get_health(), 207.0)
+		and int(content.get_snapshot().host.activity.accepted_asset_event_count) == 3,
+		"all three production projectile signals resolve through their exact injected-authority source identities"
+	)
+	var beta_terminal := await _shoot(authority, attacker, beta)
+	var gamma_terminal := await _shoot(authority, attacker, gamma)
+	var completed := content.get_snapshot()
+	_check(
+		beta_terminal.destroyed and gamma_terminal.destroyed
+		and completed.host.activity.state_id == &"completed"
+		and int(completed.host.destroyed_entity_count) == 3
+		and int(completed.host.active_entity_count) == 0
+		and resolver.get_registered_source_count() == 1,
+		"three real resolver terminal results complete exactly once and retire every hostile source"
+	)
+
+	var reset_after_completion := content.reset(generation)
+	var idle_generation := int(reset_after_completion.activity.generation)
+	_check(
+		reset_after_completion.accepted and idle_generation == 2
+		and int(asset.get_asset_handle().generation) == 2
+		and int(reset_after_completion.activity.protected_assets[0].handle.generation) == 2
+		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
+		and asset.collision_layer == PhysicsLayers.TARGET,
+		"post-completion reset commits host renewal before physical health/collision generation plus one"
+	)
+	var timeout_start := content.start(idle_generation)
+	var timeout_generation := int(timeout_start.activity.generation)
+	var observed_hostile_fire := {"count": 0}
+	alpha.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3) -> void:
+		observed_hostile_fire.count = int(observed_hostile_fire.count) + 1
+	)
+	var full_physics_clear := true
+	var timed_result: Dictionary = {}
+	for _step in FULL_ENCOUNTER_PHYSICS_STEPS:
+		await physics_frame
+		for opponent in opponents:
+			if opponent.is_active() and not _sphere_world_clear(content, opponent.global_position, 5.0):
+				full_physics_clear = false
+		timed_result = content.advance_physics(PHYSICS_STEP, timeout_generation)
+		if StringName((timed_result.get("activity", {}) as Dictionary).get("state_id", &"")) \
+			in [&"failed", &"aborted", &"timed_out", &"completed"]:
+			break
+	var asset_after_physics := asset.get_snapshot()
+	_check(
+		full_physics_clear
+		and timed_result.accepted and timed_result.reason == &"timed_out"
+		and timed_result.activity.state_id == &"timed_out"
+		and not alpha.is_active()
+		and float(asset_after_physics.health) < float(asset_after_physics.maximum_health)
+		and not bool(asset_after_physics.destroyed)
+		and int(asset_after_physics.damage_event_count) > 0
+		and int(observed_hostile_fire.count) > 0
+		and resolver.get_registered_source_count() == 1,
+		"a full 12 s of real physics stays collision-clear, resolves hostile fire, times out, and retires cleanly"
+	)
+
+	var reset_after_timeout := content.reset(timeout_generation)
+	var reentry_start := content.start(int(reset_after_timeout.activity.generation))
+	var reentry_generation := int(reentry_start.activity.generation)
+	var retained_content_id := content.get_instance_id()
+	var retained_asset_id := asset.get_instance_id()
+	var retained_alpha_id := alpha.get_instance_id()
+	var retained_asset_generation := int(asset.get_asset_handle().generation)
+	var retained_health := damageable.get_health()
 	root.remove_child(content)
 	await process_frame
 	_check(
 		not bool(content.get_snapshot().host.activity.attached)
-		and alpha.is_active()
-		and is_equal_approx(alpha.get_health(), alpha_health_before_detach)
-		and is_equal_approx(
-			float(content.get_snapshot().host.activity.elapsed_seconds), elapsed_before_detach
-		),
-		"whole-content detach preserves the same active opponent, hull, and caller-owned clock"
+		and resolver.get_registered_source_count() == 1
+		and int(asset.get_asset_handle().generation) == retained_asset_generation
+		and is_equal_approx(damageable.get_health(), retained_health),
+		"whole-content detach retires hostile sources without changing objective, asset, health, or generation"
 	)
 	root.add_child(content)
 	await process_frame
 	await physics_frame
 	await process_frame
 	_check(
-		bool(content.get_snapshot().host.activity.attached)
-		and alpha.is_active()
-		and is_equal_approx(alpha.get_health(), alpha_health_before_detach)
+		content.get_instance_id() == retained_content_id
+		and asset.get_instance_id() == retained_asset_id
+		and alpha.get_instance_id() == retained_alpha_id
+		and bool(content.get_snapshot().host.activity.attached)
+		and resolver.get_registered_source_count() == 4
+		and int(asset.get_asset_handle().generation) == retained_asset_generation
+		and is_equal_approx(damageable.get_health(), retained_health),
+		"same-instance re-entry restores exact authority/source wiring without rebuilding or healing"
+	)
+
+	var renewal_reentry := {}
+	asset.asset_destroyed.connect(
+		func(_asset_handle: Dictionary, _event_handle: Dictionary) -> void:
+			var before_reset := content.get_snapshot()
+			var reset_result := content.reset(content.get_generation())
+			renewal_reentry["result"] = reset_result.duplicate(true)
+			renewal_reentry["snapshot_unchanged"] = content.get_snapshot() == before_reset
+	)
+	var first_asset_hit := await _shoot(authority, attacker, asset)
+	var second_asset_hit := await _shoot(authority, attacker, asset)
+	var terminal_asset_hit := await _shoot(authority, attacker, asset)
+	var asset_failure := content.get_snapshot()
+	_check(
+		first_asset_hit.damaged and second_asset_hit.damaged
+		and terminal_asset_hit.destroyed and damageable.is_destroyed()
+		and asset.collision_layer == PhysicsLayers.NONE
+		and asset_failure.host.activity.state_id == &"failed"
+		and asset_failure.host.activity.failure_reason == &"protected_asset_destroyed"
 		and resolver.get_registered_source_count() == 1,
-		"same-instance re-entry restores host observation without rebuilding roster or resolver"
+		"only AuthoritativeDamageable health emits protected destruction, which the host observes and terminalizes"
+	)
+	var renewal_reentry_result := renewal_reentry.get("result", {}) as Dictionary
+	_check(
+		renewal_reentry_result.get("reason") == &"protected_asset_renewal_preflight_failed"
+		and renewal_reentry_result.get("preflight_reason") == &"reentrant_call"
+		and bool(renewal_reentry.get("snapshot_unchanged", false))
+		and content.get_snapshot() == asset_failure,
+		"asset-observer reset preflight rejects before host commit and leaves host/activity/physical state exact"
 	)
 
-	var alpha_terminal := await _shoot(authority, attacker, alpha)
+	var reset_after_asset_failure := content.reset(reentry_generation)
+	var renewed_generation := int(asset.get_asset_handle().generation)
+	var leash_start := content.start(int(reset_after_asset_failure.activity.generation))
+	var leash_generation := int(leash_start.activity.generation)
 	_check(
-		bool(alpha_terminal.get("destroyed", false)) and not alpha.is_active()
-		and not beta.is_active() and not gamma.is_active()
-		and is_equal_approx(
-			float(content.get_snapshot().host.activity.wave_delay_remaining_seconds), 0.5
-		),
-		"terminal resolver damage completes wave one and enters the caller-timed delay"
+		reset_after_asset_failure.accepted
+		and renewed_generation == retained_asset_generation + 1
+		and int(reset_after_asset_failure.activity.protected_assets[0].handle.generation) == renewed_generation
+		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
+		and content.protected_asset_damaged(
+			{"asset_id": StationDefensePerimeterAsset.ASSET_ID, "generation": retained_asset_generation},
+			{"event_id": &"stale_physical_hit", "generation": retained_asset_generation},
+			leash_generation
+		).reason == &"stale_protected_asset_generation",
+		"reset renews exact generation plus one and stale physical callbacks cannot mutate the new activity"
 	)
-	var relief := content.advance_physics(0.5, generation)
-	await physics_frame
-	await physics_frame
+	alpha.global_position = content.to_global(Vector3(40.0, 8.0, -60.0))
+	var leash_result := content.advance_physics(0.0, leash_generation)
+	var after_leash := content.get_snapshot()
 	_check(
-		relief.accepted and int(relief.activity.current_wave_index) == 1
-		and beta.is_active() and gamma.is_active()
-		and beta.global_position == Vector3(24.0, 6.0, -52.0)
-		and gamma.global_position == Vector3(0.0, 10.0, -86.0),
-		"the exact caller delta simultaneously activates both relief-wave scene instances"
+		not leash_result.accepted and leash_result.reason == &"engagement_leash_exited"
+		and after_leash.host.activity.state_id == &"aborted"
+		and after_leash.last_leash_exit.hostile_id == &"perimeter_raider_alpha"
+		and after_leash.last_leash_exit.policy == &"abort_then_retire"
+		and not alpha.is_active()
+		and resolver.get_registered_source_count() == 1,
+		"leash exit first aborts through public host authority, then retires the hostile and its source"
 	)
-	var beta_space := _distinct_ship_colliders_in_volume(content, "BetaSpawn")
-	var gamma_space := _distinct_ship_colliders_in_volume(content, "GammaSpawn")
-	print("OBSERVATION_STATION_DEFENSE_RELIEF_KEEP_CLEAR: beta=", beta_space, " gamma=", gamma_space)
+	var audited_pose := content.global_transform
+	content.global_position += Vector3(1.0, 0.0, 0.0)
+	var pose_red := content.audit()
 	_check(
-		beta_space.size() == 1 and beta_space.has(beta.get_instance_id())
-		and gamma_space.size() == 1 and gamma_space.has(gamma.get_instance_id()),
-		"simultaneous hostiles occupy separate keep-clear volumes without collision intrusion"
+		not bool(pose_red.valid)
+		and "encounter live transform differs from the audited world site" in pose_red.errors
+		and not bool(pose_red.snapshot.engagement.live_pose_matches_required)
+		and content.start(leash_generation).reason == &"audited_world_pose_required",
+		"live pose mutation is structured red and cannot start while reporting the required audited site"
 	)
-
-	await _shoot(authority, attacker, beta)
-	var beta_terminal := await _shoot(authority, attacker, beta)
-	await _shoot(authority, attacker, gamma)
-	var gamma_terminal := await _shoot(authority, attacker, gamma)
-	var completed := content.get_snapshot()
-	_check(
-		bool(beta_terminal.get("destroyed", false))
-		and bool(gamma_terminal.get("destroyed", false))
-		and completed.host.activity.state_id == "completed"
-		and int(completed.host.activity.remaining_hostile_count) == 0
-		and int(completed.host.destroyed_entity_count) == 3
-		and int(completed.host.active_entity_count) == 0,
-		"real production resolver terminal results complete the checked-in contract exactly once"
-	)
+	content.global_transform = audited_pose
 
 	var detached_snapshot := content.get_snapshot()
 	(detached_snapshot.staging as Array).clear()
 	(detached_snapshot.host.spawn_roster as Array).clear()
-	(detached_snapshot.evidence as Dictionary)["evidence_status"] = &"historical"
+	(detached_snapshot.protected_asset.asset_handle as Dictionary)["generation"] = 999
 	(detached_snapshot.authority_exclusions as Dictionary)["rewards"] = true
-	_check(
-		(content.get_snapshot().staging as Array).size() == 3
-		and (content.get_snapshot().host.spawn_roster as Array).size() == 3
-		and content.get_snapshot().evidence.evidence_status == &"modern_interpretation"
-		and not bool(content.get_snapshot().authority_exclusions.rewards),
-		"HUD-ready scene snapshot is deeply detached from content and authority data"
-	)
-
 	var audit_first := content.audit()
 	var audit_second := content.audit()
 	_check(
-		audit_first == audit_second and bool(audit_first.valid)
+		(content.get_snapshot().staging as Array).size() == 3
+		and (content.get_snapshot().host.spawn_roster as Array).size() == 3
+		and int(content.get_snapshot().protected_asset.asset_handle.generation) == renewed_generation
+		and not bool(content.get_snapshot().authority_exclusions.rewards)
+		and audit_first == audit_second and bool(audit_first.valid)
 		and audit_first.evidence.evidence_status == &"modern_interpretation"
-		and not bool(audit_first.evidence.historically_supported)
-		and not bool(definition_audit.evidence.authenticated_original_encounter),
-		"content and resource audits are deterministic and explicitly modern interpretation"
+		and not bool(audit_first.evidence.historically_supported),
+		"HUD-ready snapshots are deeply detached and the content audit is deterministic modern interpretation"
 	)
 	_check(
-		_authority_is_excluded(audit_first.authority_exclusions)
-		and _authority_is_excluded(definition_audit.authority_exclusions)
-		and _authority_is_excluded(completed.authority_exclusions),
-		"content, resource, and runtime host publish zero reward/ship/berth/save/network authority"
+		_authority_is_exactly_excluded(audit_first.authority_exclusions)
+		and _authority_is_exactly_excluded(definition_audit.authority_exclusions)
+		and _authority_is_exactly_excluded(after_leash.authority_exclusions),
+		"content, definition, and runtime snapshots freeze zero reward/save/network/ship/berth/world authority"
 	)
-
-	var reset_after_completion := content.reset(generation)
-	var restarted := content.start(int(reset_after_completion.activity.generation))
-	var failure_generation := int(restarted.activity.generation)
-	var failed := content.fail(&"station_asset_disabled", failure_generation)
-	_check(
-		reset_after_completion.accepted and restarted.accepted and failed.accepted
-		and failed.activity.state_id == "failed"
-		and failed.activity.failure_reason == &"station_asset_disabled"
-		and int(failed.retired_entity_count) == 1 and not alpha.is_active(),
-		"explicit production failure retires the active scene roster through the existing host"
-	)
-	var reset_after_failure := content.reset(failure_generation)
-	var final_start := content.start(int(reset_after_failure.activity.generation))
-	await physics_frame
-	_check(
-		reset_after_failure.accepted and final_start.accepted and alpha.is_active()
-		and is_equal_approx(alpha.get_health(), alpha.maximum_health)
-		and alpha.global_transform.is_equal_approx(alpha_marker.global_transform),
-		"reset reuses and reactivates the same pre-created opponent at its deterministic marker"
-	)
-	content.abort(int(final_start.activity.generation))
 
 	var content_source := FileAccess.get_file_as_string(CONTENT_SCRIPT_PATH)
+	var scene_source := FileAccess.get_file_as_string(CONTENT_SCENE_PATH)
+	var asset_source := FileAccess.get_file_as_string(
+		"res://scripts/activities/station_defense_perimeter_asset.gd"
+	)
 	_check(
 		not content_source.contains("func _process(")
 		and not content_source.contains("func _physics_process(")
 		and not content_source.contains("Time.")
-		and not content_source.contains(".instantiate(")
-		and not content_source.contains("apply_damage("),
-		"content source contains no hidden clock, runtime spawning, or parallel damage path"
+		and not content_source.contains("apply_damage(")
+		and not asset_source.contains("func _process(")
+		and not asset_source.contains("func _physics_process(")
+		and not scene_source.contains("LiveCombatAuthority")
+		and not scene_source.contains("CombatResolver")
+		and not scene_source.contains("name=\"Resolver\""),
+		"content owns no hidden clock, damage path, internal authority, or resolver node"
 	)
 
 	root.remove_child(content)
 	content.queue_free()
 	root.remove_child(attacker)
 	attacker.queue_free()
-	for _frame in 8:
+	root.remove_child(authority)
+	authority.queue_free()
+	root.remove_child(world)
+	world.queue_free()
+	for _frame in 10:
 		await process_frame
+
+
+func _test_source_conflict_rolls_back_atomically() -> void:
+	var authority := LiveCombatAuthority.new()
+	authority.name = "ConflictSessionCombatAuthority"
+	root.add_child(authority)
+	var conflicting_source := Node3D.new()
+	conflicting_source.name = "ExistingSourceOwning2122"
+	root.add_child(conflicting_source)
+	await process_frame
+	var conflict_profiles := {
+		&"existing_weapon": {"range": 50.0, "damage": 1.0, "origin_tolerance": 2.0},
+	}
+	_check(
+		authority.register_source(
+			conflicting_source, 2122, &"existing_session_faction", conflict_profiles
+		),
+		"conflict fixture owns the fixed beta source ID before encounter injection"
+	)
+	var resolver := authority.get_resolver()
+	var content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	root.add_child(content)
+	await process_frame
+	var configured := content.configure_external_combat_authority(authority)
+	await process_frame
+	var roster := content.get_node(^"OpponentRoster") as Node3D
+	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
+	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
+	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var failed_snapshot := content.get_snapshot()
+	_check(
+		not configured.accepted
+		and configured.reason == &"configuration_failed_terminal"
+		and not content.is_content_ready()
+		and failed_snapshot.configuration_state == &"configuration_failed_terminal"
+		and not failed_snapshot.initialization_errors.is_empty()
+		and not bool(failed_snapshot.host.configured)
+		and int(failed_snapshot.registered_hostile_source_count) == 0,
+		"fixed-ID conflict terminalizes configuration before the Host is bound"
+	)
+	_check(
+		resolver.get_registered_source_count() == 1
+		and authority.get_source_id(conflicting_source) == 2122
+		and authority.get_source_id(alpha) == 0
+		and authority.get_source_id(beta) == 0
+		and authority.get_source_id(gamma) == 0
+		and content.find_children("*", "LiveCombatAuthority", true, false).is_empty()
+		and content.find_children("*", "CombatResolver", true, false).is_empty()
+		and authority.find_children("*", "CombatResolver", true, false).size() == 1,
+		"failed acquisition rolls back every new source and creates no authority or resolver duplicate"
+	)
+	var replacement_source := Node3D.new()
+	replacement_source.name = "ReplacementSourceForRolledBack2121"
+	root.add_child(replacement_source)
+	_check(
+		authority.register_source(
+			replacement_source, 2121, &"replacement_faction", conflict_profiles
+		)
+		and resolver.get_registered_source_count() == 2,
+		"rollback forgets the transient stable-ID owner so a later session source can acquire 2121"
+	)
+	authority.forget_source(replacement_source, 2121)
+	root.remove_child(replacement_source)
+	replacement_source.queue_free()
+	_check(
+		content.configure_external_combat_authority(authority).reason \
+			== &"configuration_failed_terminal",
+		"terminal configuration failure is explicit and cannot partially retry the bound content"
+	)
+	root.remove_child(content)
+	content.queue_free()
+	await process_frame
+	_check(
+		resolver.get_registered_source_count() == 1
+		and authority.get_source_id(conflicting_source) == 2122,
+		"failed content exit preserves only the caller's prior source registration"
+	)
+	root.remove_child(conflicting_source)
+	conflicting_source.queue_free()
+	await process_frame
+	root.remove_child(authority)
+	authority.queue_free()
+	for _frame in 4:
+		await process_frame
+
+
+func _emit_hostile_projectile(
+	opponent: RangeOpponent,
+	asset: StationDefensePerimeterAsset,
+	content: StationDefenseEncounterContent
+	) -> Dictionary:
+	await physics_frame
+	await process_frame
+	var origin := opponent.global_position
+	var direction := (asset.global_position - origin).normalized()
+	opponent.projectile_fired.emit(origin, direction)
+	await process_frame
+	return (content.get_snapshot().last_hostile_shot as Dictionary).duplicate(true)
 
 
 func _shoot(
 	authority: LiveCombatAuthority,
 	attacker: Node3D,
-	target: RangeOpponent
+	target: Node3D
 	) -> Dictionary:
-	attacker.global_position = target.global_position + Vector3(0.0, 0.0, 18.0)
 	await physics_frame
+	await process_frame
+	var aim_position := target.global_position
+	if target is RangeOpponent:
+		var keel := target.get_node_or_null(^"KeelCollision") as CollisionShape3D
+		if keel != null:
+			aim_position = keel.global_position
+	attacker.global_position = aim_position + Vector3(0.0, 0.0, 18.0)
 	var result := authority.submit_hitscan(
 		attacker,
 		TEST_WEAPON,
 		attacker.global_position,
-		(target.global_position - attacker.global_position).normalized()
+		(aim_position - attacker.global_position).normalized()
 	)
 	await process_frame
 	return result
 
 
-func _distinct_ship_colliders_in_volume(
+func _staging_world_clear(
 	content: StationDefenseEncounterContent,
-	marker_name: String
-	) -> Dictionary:
-	var collision := content.get_node(
-		NodePath("SpawnStaging/%s/KeepClearVolume/CollisionShape3D" % marker_name)
-	) as CollisionShape3D
+	staging: Array
+	) -> bool:
+	for row_value in staging:
+		var row := row_value as Dictionary
+		if not _sphere_world_clear(
+			content,
+			row.world_position as Vector3,
+			float(row.keep_clear_radius)
+		):
+			return false
+	return true
+
+
+func _sphere_world_clear(
+	content: StationDefenseEncounterContent,
+	world_position: Vector3,
+	radius: float
+	) -> bool:
+	var sphere := SphereShape3D.new()
+	sphere.radius = radius
 	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = collision.shape
-	query.transform = collision.global_transform
-	query.collision_mask = PhysicsLayers.SHIP
+	query.shape = sphere
+	query.transform = Transform3D(Basis.IDENTITY, world_position)
+	query.collision_mask = PhysicsLayers.WORLD
 	query.collide_with_bodies = true
-	query.collide_with_areas = false
-	var distinct: Dictionary = {}
-	for hit in content.get_world_3d().direct_space_state.intersect_shape(query, 32):
-		var collider := (hit as Dictionary).get("collider") as CollisionObject3D
-		if is_instance_valid(collider):
-			distinct[collider.get_instance_id()] = String(collider.name)
-	return distinct
+	query.collide_with_areas = true
+	return content.get_world_3d().direct_space_state.intersect_shape(query, 64).is_empty()
+
+
+func _aabb_world_clear(
+	content: StationDefenseEncounterContent,
+	local_bounds: AABB
+	) -> bool:
+	var shape := BoxShape3D.new()
+	shape.size = local_bounds.size
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(
+		content.global_basis,
+		content.to_global(local_bounds.position + local_bounds.size * 0.5)
+	)
+	query.collision_mask = PhysicsLayers.WORLD
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+	return content.get_world_3d().direct_space_state.intersect_shape(query, 64).is_empty()
 
 
 func _minimum_keep_clear_gap(staging: Array) -> float:
@@ -366,8 +621,8 @@ func _minimum_keep_clear_gap(staging: Array) -> float:
 
 
 func _staging_rows_valid(staging: Array) -> bool:
-	for value in staging:
-		var row := value as Dictionary
+	for row_value in staging:
+		var row := row_value as Dictionary
 		if not is_equal_approx(float(row.keep_clear_radius), 9.0) \
 			or not bool(row.query_inert):
 			return false
@@ -382,32 +637,38 @@ func _count_direct_opponents(roster: Node3D) -> int:
 	return count
 
 
-func _authority_is_excluded(authority: Dictionary) -> bool:
-	return not bool(authority.get("rewards", true)) \
-		and not bool(authority.get("ships", true)) \
-		and not bool(authority.get("berths", true)) \
-		and not bool(authority.get("save", true)) \
-		and not bool(authority.get("network", true)) \
-		and not bool(authority.get("health", true)) \
-		and not bool(authority.get("damage", true)) \
-		and not bool(authority.get("combat_resolution", true))
+func _authority_is_exactly_excluded(authority: Dictionary) -> bool:
+	for key in [
+		&"rewards", &"ships", &"berths", &"world_geometry", &"hud",
+		&"game_flow", &"main", &"save", &"network",
+	]:
+		if bool(authority.get(key, true)):
+			return false
+	return true
 
 
 func _check(condition: bool, description: String) -> bool:
 	_assertions += 1
 	if condition:
 		print("PASS: ", description)
-	else:
-		_failures.append(description)
-		push_error("FAIL: " + description)
-	return condition
+		return true
+	_failures.append(description)
+	push_error("FAIL: " + description)
+	return false
 
 
 func _finish() -> void:
-	print("STATION_DEFENSE_ENCOUNTER_CONTENT_TEST_ASSERTIONS: ", _assertions)
 	if _failures.is_empty():
-		print("STATION_DEFENSE_ENCOUNTER_CONTENT_TEST_OK")
+		print("Station defense encounter content tests passed: ", _assertions, " assertions")
 		quit(0)
-	else:
-		print("STATION_DEFENSE_ENCOUNTER_CONTENT_TEST_FAILED: ", "; ".join(_failures))
-		quit(1)
+		return
+	print(
+		"Station defense encounter content tests failed: ",
+		_failures.size(),
+		" of ",
+		_assertions,
+		" assertions"
+	)
+	for failure in _failures:
+		print(" - ", failure)
+	quit(1)

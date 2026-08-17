@@ -281,14 +281,37 @@ func _test_real_resolver_waves_and_lifecycle() -> void:
 	)
 
 	var reset := host.reset(generation)
+	var host_idle_generation := int(reset.activity.generation)
+	var host_before_bad_renewal := host.get_snapshot()
+	var renewed_asset := host.renew_protected_asset_handle(
+		_asset(&"station_core", 5), _asset(&"station_core", 6), host_idle_generation
+	)
+	_check(
+		reset.accepted and renewed_asset.accepted
+		and renewed_asset.reason == &"protected_asset_renewed"
+		and int(renewed_asset.activity.protected_assets[0].handle.generation) == 6
+		and int(renewed_asset.activity.generation) == host_idle_generation
+		and host.renew_protected_asset_handle(
+			_asset(&"station_core", 5), _asset(&"station_core", 6), host_idle_generation
+		).reason == &"stale_protected_asset_generation",
+		"host proxies only the exact idle old-to-next protected handle without changing activity generation"
+	)
+	_check(
+		host.renew_protected_asset_handle(
+			_asset(&"station_core", 6), _asset(&"station_core", 8), host_idle_generation
+		).reason == &"invalid_protected_asset_renewal"
+		and int(host_before_bad_renewal.activity.protected_assets[0].handle.generation) == 5
+		and int(host.get_snapshot().activity.protected_assets[0].handle.generation) == 6,
+		"malformed host renewal is rejected while the prior detached snapshot stays immutable"
+	)
 	var restarted := host.start(int(reset.activity.generation))
 	var failure_generation := int(restarted.activity.generation)
 	var health_before_asset_event := alpha.get_health()
 	var damage_event := host.protected_asset_damaged(
-		_asset(&"station_core", 5), _event(&"asset_hit_001", 1), failure_generation
+		_asset(&"station_core", 6), _event(&"asset_hit_001", 1), failure_generation
 	)
 	var asset_failure := host.protected_asset_destroyed(
-		_asset(&"station_core", 5), _event(&"asset_destroyed_001", 1), failure_generation
+		_asset(&"station_core", 6), _event(&"asset_destroyed_001", 1), failure_generation
 	)
 	_check(
 		reset.accepted and restarted.accepted and alpha.is_active() == false
