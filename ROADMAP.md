@@ -1043,21 +1043,27 @@ and atomic recovery during both embodiment transitions. A later 84-assertion
 prerequisite lets the host bind through an explicit shared composition root and
 accepts a typed measured approach envelope (full Arrow hull inside the authored
 corridor, at most 12 m/s and 12 degrees) rather than a fixture-only exact pose.
-It still never stages, teleports or reparents an actor, requests an origin
-shift, streams a location, selects an activity, grants a reward or edits
-GameFlow.
+The current 99-assertion Host suite additionally proves exact adoption of the
+sole common-origin owner's real N→N+1 receipt, pre-start reservation/command
+preservation, foreign command-source non-clobber and an atomic runtime-ownership
+handback. It still never stages, teleports or reparents an actor, requests or
+commits an origin shift, streams a location, selects an activity, grants a
+reward or edits GameFlow.
 
 The first planet is therefore **not yet production-visitable**. The physical
 cruise path now reaches a fixed Ember navigation target through production, but
 its braking contract intentionally completes about 55 km before the surface
 host's approach envelope; no owner yet flies that bounded low-speed final leg.
-The surface host still lacks a Main-owned late post-Arrow/Player scheduler,
-atomic transfer/return of GameFlow's boarding and command state, and exact
-adoption of committed N→N+1 origin receipts during its 20 km ascent. Whole-Main
-detach remains a terminal standalone visit rather than proven production
-continuity. Production must satisfy those contracts without reparenting Main's
-retained actors, teleporting final approach, adding a second mover/origin owner
-or travel session, or polling raw Input in the binding. The audited station
+The Host now exposes the required atomic ownership-return and exact committed
+origin-adoption primitives, but production still lacks a Main-owned two-phase
+scheduler: receipt adoption must occur synchronously in GameFlow's priority
+-100 phase before Arrow moves, while one Host advance must occur at priority 2
+after Arrow and Player. GameFlow also needs an exclusive embodiment handoff and
+must retire cruise before starting the Host. Whole-Main detach remains a
+terminal standalone visit rather than proven production continuity. Production
+must satisfy those contracts without reparenting Main's retained actors,
+teleporting final approach, adding a second mover/origin owner or travel
+session, or polling raw Input in the binding. The audited station
 datum remains an occupied coordinate reference, not a selectable return
 destination; a candidate return approach still lacks a live all-five-craft
 750 km route proof and an owner for its roughly 65 km brake-complete shell.
