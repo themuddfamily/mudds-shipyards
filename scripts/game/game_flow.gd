@@ -22,6 +22,23 @@ const SafeStartProductionRecoveryType := preload(
 const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
 const ACTIVITY_KIND_TIMED_RACE: StringName = &"timed_race"
 const ACTIVITY_KIND_PATROL: StringName = &"patrol"
+const ACTIVITY_KIND_CARGO_DELIVERY: StringName = &"cargo_delivery"
+const CARGO_DELIVERY_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
+const CARGO_DELIVERY_DISPLAY_NAME := "Jovian fabrication kit delivery"
+const CARGO_DELIVERY_EVIDENCE_STATUS: StringName = &"modern_interpretation"
+const CARGO_DELIVERY_ITEM_ID: StringName = &"fabrication_kits"
+const CARGO_DELIVERY_ITEM_DISPLAY_NAME := "Fabrication kits"
+const CARGO_DELIVERY_QUANTITY := 2
+const CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY := 6
+const CARGO_DELIVERY_SOURCE_MANIFEST_ID: StringName = &"jovian_provisional_manifest"
+const CARGO_DELIVERY_DESTINATION_MANIFEST_ID: StringName = &"jovian_freight_berth_manifest"
+const CARGO_DELIVERY_SOURCE_CAPACITY := 6
+const CARGO_DELIVERY_DESTINATION_CAPACITY := 64
+const CARGO_DELIVERY_DEADLINE_SECONDS := 180.0
+const CARGO_DELIVERY_PHASES: Array[StringName] = [
+	&"departed_shipyard",
+	&"returned_to_shipyard",
+]
 const CINDER_RACE_LAPS := 1
 const CINDER_RACE_COUNTDOWN_SECONDS := 2.0
 const CINDER_RACE_TIMEOUT_SECONDS := 120.0
@@ -193,6 +210,8 @@ var music_bed: StationMusicBed
 var activity_director: ActivityDirector
 var cinder_race_session: CinderTimedRaceSession
 var patrol_activity: PatrolActivity
+var cargo_transfer_authority: CargoTransferAuthority
+var cargo_delivery_activity: CargoDeliveryActivity
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -311,6 +330,11 @@ var _activity_selection_locked := false
 ## Diagnostic only: exactly one increment accompanies each production physics
 ## position sample, proving no second adapter or retired director sampler is live.
 var _cinder_position_sample_count := 0
+var _cargo_delivery_physics_step_count := 0
+var _cargo_delivery_source_ship: HeroShip
+var _cargo_delivery_destination: JovianFreightBerth
+var _cargo_delivery_source_handle: Dictionary = {}
+var _cargo_delivery_destination_handle: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -384,6 +408,126 @@ func _resolve_scene_bindings() -> void:
 	activity_director = get_node_or_null(^"ActivityDirector") as ActivityDirector
 
 
+## Composes one deterministic modern delivery over the production Jovian and
+## its published freight berth. The two real nodes own identity/lifecycle only;
+## every quantity and transfer remains inside CargoTransferAuthority.
+func _initialize_cargo_delivery_composition() -> void:
+	if cargo_transfer_authority == null:
+		cargo_transfer_authority = CargoTransferAuthority.new()
+		cargo_transfer_authority.name = "CargoTransferAuthority"
+		add_child(cargo_transfer_authority)
+	if cargo_delivery_activity != null:
+		_restore_cargo_delivery_bindings()
+		return
+	_cargo_delivery_source_ship = _find_flyable_ship_by_id(&"jovian_provisional")
+	_cargo_delivery_destination = (
+		world.call(&"get_jovian_freight_berth") as JovianFreightBerth
+		if is_instance_valid(world) and world.has_method(&"get_jovian_freight_berth")
+		else null
+	)
+	if (
+		not is_instance_valid(_cargo_delivery_source_ship)
+		or not is_instance_valid(_cargo_delivery_destination)
+		or _cargo_delivery_destination.get_berth_id() != &"jovian_freight_berth"
+	):
+		return
+	var item := CargoItemDefinition.new()
+	item.item_id = CARGO_DELIVERY_ITEM_ID
+	item.display_name = CARGO_DELIVERY_ITEM_DISPLAY_NAME
+	item.unit_capacity = 1
+	var item_registration := cargo_transfer_authority.register_item(item)
+	if not bool(item_registration.get("accepted", false)):
+		return
+	var source_registration := cargo_transfer_authority.register_entity(
+		_cargo_delivery_source_ship,
+		_cargo_delivery_source_ship.get_ship_id(),
+		CARGO_DELIVERY_SOURCE_MANIFEST_ID,
+		CARGO_DELIVERY_SOURCE_CAPACITY,
+		{CARGO_DELIVERY_ITEM_ID: CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY}
+	)
+	if not bool(source_registration.get("accepted", false)):
+		return
+	var destination_registration := cargo_transfer_authority.register_entity(
+		_cargo_delivery_destination,
+		_cargo_delivery_destination.get_berth_id(),
+		CARGO_DELIVERY_DESTINATION_MANIFEST_ID,
+		CARGO_DELIVERY_DESTINATION_CAPACITY
+	)
+	if not bool(destination_registration.get("accepted", false)):
+		cargo_transfer_authority.retire_entity(
+			source_registration.get("handle", {}) as Dictionary
+		)
+		return
+	_cargo_delivery_source_handle = (
+		source_registration.get("handle", {}) as Dictionary
+	).duplicate(true)
+	_cargo_delivery_destination_handle = (
+		destination_registration.get("handle", {}) as Dictionary
+	).duplicate(true)
+	var contract := CargoDeliveryContract.new(
+		CARGO_DELIVERY_ACTIVITY_ID,
+		_cargo_delivery_source_handle,
+		_cargo_delivery_destination_handle,
+		CARGO_DELIVERY_ITEM_ID,
+		CARGO_DELIVERY_QUANTITY,
+		CARGO_DELIVERY_PHASES,
+		CARGO_DELIVERY_DEADLINE_SECONDS
+	)
+	cargo_delivery_activity = CargoDeliveryActivity.new(
+		cargo_transfer_authority,
+		contract
+	)
+	cargo_delivery_activity.started.connect(_on_cargo_delivery_snapshot_changed)
+	cargo_delivery_activity.phase_advanced.connect(
+		_on_cargo_delivery_snapshot_changed
+	)
+	cargo_delivery_activity.failed.connect(_on_cargo_delivery_snapshot_changed)
+	cargo_delivery_activity.expired.connect(_on_cargo_delivery_snapshot_changed)
+	cargo_delivery_activity.activity_reset.connect(
+		_on_cargo_delivery_snapshot_changed
+	)
+	cargo_delivery_activity.completed.connect(_on_cargo_delivery_completed)
+
+
+func _restore_cargo_delivery_bindings() -> bool:
+	if (
+		cargo_transfer_authority == null
+		or cargo_delivery_activity == null
+		or not cargo_transfer_authority.is_inside_tree()
+	):
+		return false
+	var bindings := [
+		{
+			"entity": _cargo_delivery_source_ship,
+			"handle": _cargo_delivery_source_handle,
+		},
+		{
+			"entity": _cargo_delivery_destination,
+			"handle": _cargo_delivery_destination_handle,
+		},
+	]
+	for binding: Dictionary in bindings:
+		var entity := binding.get("entity") as Node
+		var handle := binding.get("handle", {}) as Dictionary
+		if not is_instance_valid(entity) or not entity.is_inside_tree():
+			return false
+		var manifest := cargo_transfer_authority.get_manifest_snapshot(handle)
+		if manifest.is_empty():
+			return false
+		if not bool(manifest.get("attached", false)):
+			var reattached := cargo_transfer_authority.reattach_entity(entity, handle)
+			if not bool(reattached.get("accepted", false)):
+				return false
+	return true
+
+
+func _find_flyable_ship_by_id(ship_id: StringName) -> HeroShip:
+	for fleet_ship: HeroShip in ships:
+		if is_instance_valid(fleet_ship) and fleet_ship.get_ship_id() == ship_id:
+			return fleet_ship
+	return null
+
+
 ## Owns one lifetime-stable adapter of each supported presentation kind, while
 ## attaching only the selected one to the single shared director route. The
 ## selected adapter is detached rather than discarded when Main leaves the tree,
@@ -409,42 +553,49 @@ func _initialize_cinder_race_session() -> void:
 	_restore_cinder_race_session()
 
 
-func _restore_cinder_race_session() -> void:
+func _restore_cinder_race_session(sync_hud: bool = true) -> void:
 	if cinder_race_session == null or patrol_activity == null:
 		_initialize_cinder_race_session()
 		return
-	# Defensive exclusivity: re-entry may only restore the selected owner.
-	var inactive_snapshot := (
-		patrol_activity.get_presentation_snapshot()
-		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE
-		else cinder_race_session.get_presentation_snapshot()
-	)
-	if bool(inactive_snapshot.get("attached", false)):
-		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
-			patrol_activity.detach(patrol_activity.get_generation())
-		else:
-			cinder_race_session.detach(cinder_race_session.get_session_generation())
-	var snapshot := _get_selected_activity_snapshot()
-	if not bool(snapshot.get("attached", false)):
-		if _selected_activity_kind == ACTIVITY_KIND_PATROL:
-			patrol_activity.attach(activity_director, patrol_activity.get_generation())
-		else:
+	# Defensive exclusivity: cargo owns no director route, and re-entry may restore
+	# at most the one selected Cinder adapter.
+	var race_snapshot := cinder_race_session.get_presentation_snapshot()
+	var patrol_snapshot := patrol_activity.get_presentation_snapshot()
+	if (
+		_selected_activity_kind != ACTIVITY_KIND_TIMED_RACE
+		and bool(race_snapshot.get("attached", false))
+	):
+		cinder_race_session.detach(cinder_race_session.get_session_generation())
+	if (
+		_selected_activity_kind != ACTIVITY_KIND_PATROL
+		and bool(patrol_snapshot.get("attached", false))
+	):
+		patrol_activity.detach(patrol_activity.get_generation())
+	if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
+		if not bool(cinder_race_session.get_presentation_snapshot().get("attached", false)):
 			cinder_race_session.attach(
 				activity_director,
 				cinder_race_session.get_session_generation()
 			)
-	_sync_activity_hud()
+	elif _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		if not bool(patrol_activity.get_presentation_snapshot().get("attached", false)):
+			patrol_activity.attach(
+				activity_director,
+				patrol_activity.get_generation()
+			)
+	else:
+		_restore_cargo_delivery_bindings()
+	if sync_hud:
+		_sync_activity_hud()
 
 
 func _detach_cinder_race_session() -> void:
 	if cinder_race_session == null or patrol_activity == null:
 		return
-	var snapshot := _get_selected_activity_snapshot()
-	if bool(snapshot.get("attached", false)):
-		if _selected_activity_kind == ACTIVITY_KIND_PATROL:
-			patrol_activity.detach(patrol_activity.get_generation())
-		else:
-			cinder_race_session.detach(cinder_race_session.get_session_generation())
+	if bool(cinder_race_session.get_presentation_snapshot().get("attached", false)):
+		cinder_race_session.detach(cinder_race_session.get_session_generation())
+	if bool(patrol_activity.get_presentation_snapshot().get("attached", false)):
+		patrol_activity.detach(patrol_activity.get_generation())
 
 
 ## Creates exactly one service for this Main lifetime and binds the authored HUD
@@ -543,6 +694,44 @@ func _notification(what: int) -> void:
 		return
 	_detach_caption_presentation()
 	_caption_presentation_service = null
+	if cargo_delivery_activity != null:
+		if cargo_delivery_activity.started.is_connected(
+			_on_cargo_delivery_snapshot_changed
+		):
+			cargo_delivery_activity.started.disconnect(
+				_on_cargo_delivery_snapshot_changed
+			)
+		if cargo_delivery_activity.phase_advanced.is_connected(
+			_on_cargo_delivery_snapshot_changed
+		):
+			cargo_delivery_activity.phase_advanced.disconnect(
+				_on_cargo_delivery_snapshot_changed
+			)
+		if cargo_delivery_activity.failed.is_connected(
+			_on_cargo_delivery_snapshot_changed
+		):
+			cargo_delivery_activity.failed.disconnect(
+				_on_cargo_delivery_snapshot_changed
+			)
+		if cargo_delivery_activity.expired.is_connected(
+			_on_cargo_delivery_snapshot_changed
+		):
+			cargo_delivery_activity.expired.disconnect(
+				_on_cargo_delivery_snapshot_changed
+			)
+		if cargo_delivery_activity.activity_reset.is_connected(
+			_on_cargo_delivery_snapshot_changed
+		):
+			cargo_delivery_activity.activity_reset.disconnect(
+				_on_cargo_delivery_snapshot_changed
+			)
+		if cargo_delivery_activity.completed.is_connected(
+			_on_cargo_delivery_completed
+		):
+			cargo_delivery_activity.completed.disconnect(
+				_on_cargo_delivery_completed
+			)
+		cargo_delivery_activity = null
 	if cinder_race_session != null:
 		if cinder_race_session.presentation_changed.is_connected(
 			_on_cinder_session_presentation_changed
@@ -622,6 +811,7 @@ func _start_up() -> void:
 	_register_flyable_ships()
 	_resolve_ground_vehicle()
 	active_ship = ship
+	_initialize_cargo_delivery_composition()
 	_initialize_cinder_race_session()
 	_initialize_caption_presentation()
 	_initialize_live_combat()
@@ -727,6 +917,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# single vehicle rather than producing a second one. Re-resolving is what keeps
 	# the binding honest if the instance was released while detached.
 	_resolve_ground_vehicle()
+	_restore_cargo_delivery_bindings()
 	_restore_cinder_race_session()
 	_restore_caption_presentation()
 	_connect_runtime_signals()
@@ -767,6 +958,11 @@ func _connect_runtime_signals() -> void:
 	)
 	_connect_signal_once(hud, &"start_requested", start_shift)
 	_connect_signal_once(hud, &"restart_requested", _restart_shift)
+	_connect_signal_once(
+		hud,
+		&"activity_selection_requested",
+		_on_hud_activity_selection_requested
+	)
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
@@ -2089,7 +2285,10 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		hud.set_objective("Docking claim interrupted — keep the pad clear and retry the approach")
 		hud.toast("Docking coordination fault", "The berth lease could not be secured; do not exit", 3.5)
 		return
-	_fail_active_activity(&"returned_to_shipyard")
+	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		_complete_cargo_delivery_on_return()
+	else:
+		_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
 	phase = Phase.SHUT_DOWN
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
@@ -2740,27 +2939,53 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_replenish_destroyed_ship(destroyed_ship)
 
 
-## Selects the typed interpretation of the one published Cinder route. This is
-## deliberately separate from the shared ActivityDefinition ID. Selection may
-## happen before boarding, but locks on the first accepted start so race and
-## patrol can never alternately claim generations from the same director route.
+## Selects one production sortie before launch. Race and patrol remain distinct
+## typed interpretations of the same published Cinder route; cargo uses its own
+## authority-backed contract. The first accepted start locks every interpretation
+## so no generation-bearing sortie can be swapped under the player.
 func select_activity_kind(activity_kind: StringName) -> Dictionary:
-	if activity_kind not in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL]:
+	if activity_kind not in [
+		ACTIVITY_KIND_TIMED_RACE,
+		ACTIVITY_KIND_PATROL,
+		ACTIVITY_KIND_CARGO_DELIVERY,
+	]:
 		return _activity_selection_result(false, &"unsupported_activity_kind")
 	if _activity_selection_locked and activity_kind != _selected_activity_kind:
 		return _activity_selection_result(false, &"selection_locked")
 	if activity_kind == _selected_activity_kind:
 		return _activity_selection_result(true, &"already_selected")
-	if cinder_race_session == null or patrol_activity == null:
+	if (
+		cinder_race_session == null
+		or patrol_activity == null
+		or cargo_transfer_authority == null
+		or cargo_delivery_activity == null
+	):
 		return _activity_selection_result(false, &"director_unavailable")
 	var current := _get_selected_activity_snapshot()
 	if bool(current.get("running", false)):
 		return _activity_selection_result(false, &"activity_in_progress")
+	# Cargo binding is the one replacement preflight that can fail while the
+	# current Cinder owner is still healthy. Reject before touching that owner.
+	if (
+		activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
+		and not _restore_cargo_delivery_bindings()
+	):
+		return _activity_selection_result(false, &"activity_attach_failed")
+	var previous_kind := _selected_activity_kind
+	var previous_active_id := _active_activity_id
+	var previous_active_generation := _active_activity_generation
 	_detach_cinder_race_session()
 	_selected_activity_kind = activity_kind
-	_restore_cinder_race_session()
-	var selected := _get_selected_activity_snapshot()
-	if not bool(selected.get("attached", false)):
+	_restore_cinder_race_session(false)
+	if not _selected_activity_composition_ready():
+		# Selection is a transaction: a failed replacement cannot strand the
+		# previous route without an owner or make a rejected HUD request visible.
+		_detach_cinder_race_session()
+		_selected_activity_kind = previous_kind
+		_active_activity_id = previous_active_id
+		_active_activity_generation = previous_active_generation
+		_restore_cinder_race_session(false)
+		_sync_activity_hud()
 		return _activity_selection_result(false, &"activity_attach_failed")
 	_active_activity_id = &""
 	_active_activity_generation = 0
@@ -2776,21 +3001,56 @@ func request_activity_start(activity_id: StringName) -> Dictionary:
 		not is_instance_valid(activity_director)
 		or cinder_race_session == null
 		or patrol_activity == null
+		or cargo_transfer_authority == null
+		or cargo_delivery_activity == null
 	):
 		return {"accepted": false, "reason": &"director_unavailable"}
-	if activity_id != DEFAULT_FREE_FLIGHT_ACTIVITY_ID:
+	if activity_id != _get_selected_activity_id():
 		return {"accepted": false, "reason": &"unsupported_activity"}
 	if not _piloting or not is_instance_valid(active_ship) or phase != Phase.FREE_FLIGHT:
 		return {"accepted": false, "reason": &"not_in_free_flight"}
-	var started := (
-		patrol_activity.start(patrol_activity.get_generation())
-		if _selected_activity_kind == ACTIVITY_KIND_PATROL
-		else cinder_race_session.start(cinder_race_session.get_session_generation())
-	)
+	if (
+		_selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
+		and active_ship != _cargo_delivery_source_ship
+	):
+		return {"accepted": false, "reason": &"delivery_craft_required"}
+	var started: Dictionary
+	match _selected_activity_kind:
+		ACTIVITY_KIND_PATROL:
+			started = patrol_activity.start(patrol_activity.get_generation())
+		ACTIVITY_KIND_CARGO_DELIVERY:
+			if not _restore_cargo_delivery_bindings():
+				return {"accepted": false, "reason": &"cargo_authority_detached"}
+			started = cargo_delivery_activity.start(
+				cargo_delivery_activity.get_generation()
+			)
+		_:
+			started = cinder_race_session.start(
+				cinder_race_session.get_session_generation()
+			)
 	if bool(started.get("accepted", false)):
 		_active_activity_id = activity_id
 		_activity_selection_locked = true
 		_active_activity_generation = _get_selected_activity_generation()
+		if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+			# FREE_FLIGHT is reached only after the physical ship has cleared its
+			# berth, so this phase observes an existing lifecycle fact.
+			var departed := cargo_delivery_activity.submit_phase(
+				CARGO_DELIVERY_PHASES[0],
+				_active_activity_generation
+			)
+			if not bool(departed.get("accepted", false)):
+				cargo_delivery_activity.fail(
+					&"delivery_departure_rejected",
+					_active_activity_generation
+				)
+				started = cargo_delivery_activity.get_snapshot()
+				started["accepted"] = false
+				started["reason"] = &"delivery_departure_rejected"
+			else:
+				started = cargo_delivery_activity.get_snapshot()
+				started["accepted"] = true
+				started["reason"] = &"started"
 		_sync_activity_hud()
 	return _decorate_activity_snapshot(started)
 
@@ -2806,14 +3066,22 @@ func reset_active_activity() -> bool:
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
+		or cargo_delivery_activity == null
 		or _active_activity_id.is_empty()
 	):
 		return false
-	var reset := (
-		patrol_activity.reset(patrol_activity.get_generation())
-		if _selected_activity_kind == ACTIVITY_KIND_PATROL
-		else cinder_race_session.reset(cinder_race_session.get_session_generation())
-	)
+	var reset: Dictionary
+	match _selected_activity_kind:
+		ACTIVITY_KIND_PATROL:
+			reset = patrol_activity.reset(patrol_activity.get_generation())
+		ACTIVITY_KIND_CARGO_DELIVERY:
+			reset = cargo_delivery_activity.reset(
+				cargo_delivery_activity.get_generation()
+			)
+		_:
+			reset = cinder_race_session.reset(
+				cinder_race_session.get_session_generation()
+			)
 	if bool(reset.get("accepted", false)):
 		_active_activity_generation = _get_selected_activity_generation()
 		_sync_activity_hud()
@@ -2828,6 +3096,7 @@ func get_active_activity_snapshot() -> Dictionary:
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
+		or cargo_delivery_activity == null
 		or _active_activity_id.is_empty()
 	):
 		return {}
@@ -2852,10 +3121,18 @@ func get_activity_integration_report() -> Dictionary:
 		int(bool(race_snapshot.get("attached", false)))
 		+ int(bool(patrol_snapshot.get("attached", false)))
 	)
-	var selected_adapter: RefCounted = (
-		patrol_activity
-		if _selected_activity_kind == ACTIVITY_KIND_PATROL
-		else cinder_race_session
+	var selected_adapter: RefCounted
+	match _selected_activity_kind:
+		ACTIVITY_KIND_PATROL:
+			selected_adapter = patrol_activity
+		ACTIVITY_KIND_CARGO_DELIVERY:
+			selected_adapter = cargo_delivery_activity
+		_:
+			selected_adapter = cinder_race_session
+	var cargo_authority_audit := (
+		cargo_transfer_authority.audit()
+		if cargo_transfer_authority != null
+		else {}
 	)
 	return {
 		"director": activity_director,
@@ -2874,6 +3151,45 @@ func get_activity_integration_report() -> Dictionary:
 		"patrol_activity": patrol_activity,
 		"patrol_activity_instance_id": patrol_activity.get_instance_id() if patrol_activity != null else 0,
 		"position_sample_count": _cinder_position_sample_count,
+		"cargo_delivery_activity": cargo_delivery_activity,
+		"cargo_delivery_activity_instance_id": cargo_delivery_activity.get_instance_id() if cargo_delivery_activity != null else 0,
+		"cargo_transfer_authority": cargo_transfer_authority,
+		"cargo_transfer_authority_instance_id": cargo_transfer_authority.get_instance_id() if cargo_transfer_authority != null else 0,
+		"cargo_transfer_authority_count": find_children("CargoTransferAuthority", "CargoTransferAuthority", true, false).size(),
+		"cargo_source_handle": _cargo_delivery_source_handle.duplicate(true),
+		"cargo_destination_handle": _cargo_delivery_destination_handle.duplicate(true),
+		"cargo_source_entity": _cargo_delivery_source_ship,
+		"cargo_destination_entity": _cargo_delivery_destination,
+		"cargo_source_manifest": (
+			cargo_transfer_authority.get_manifest_snapshot(
+				_cargo_delivery_source_handle
+			)
+			if cargo_transfer_authority != null
+			else {}
+		),
+		"cargo_destination_manifest": (
+			cargo_transfer_authority.get_manifest_snapshot(
+				_cargo_delivery_destination_handle
+			)
+			if cargo_transfer_authority != null
+			else {}
+		),
+		"cargo_contract": (
+			(
+				cargo_delivery_activity.get_snapshot().get("contract", {})
+				as Dictionary
+			).duplicate(true)
+			if cargo_delivery_activity != null
+			else {}
+		),
+		"cargo_authority_audit": cargo_authority_audit.duplicate(true),
+		"cargo_physics_step_count": _cargo_delivery_physics_step_count,
+		"cargo_evidence_status": CARGO_DELIVERY_EVIDENCE_STATUS,
+		"cargo_source_bounded": false,
+		"cargo_historical_authenticity_claim": false,
+		"inventory_authority": cargo_transfer_authority,
+		"owns_inventory": false,
+		"uses_caller_physics_delta": true,
 		"observed_ship": active_ship if _piloting and is_instance_valid(active_ship) else null,
 		"gameplay_authority": false,
 		"grants_rewards": false,
@@ -2889,7 +3205,17 @@ func _start_default_free_flight_activity() -> void:
 		var existing := get_active_activity_snapshot()
 		if bool(existing.get("running", false)):
 			return
-	request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	var result := request_activity_start(_get_selected_activity_id())
+	if (
+		_selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
+		and result.get("reason", &"") == &"delivery_craft_required"
+		and is_instance_valid(hud)
+	):
+		hud.toast(
+			"Delivery craft required",
+			"Board the Jovian light freighter for this fabrication-kit run",
+			3.2
+		)
 
 
 func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
@@ -2899,11 +3225,15 @@ func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
 		or not world_position.is_finite()
 		or cinder_race_session == null
 		or patrol_activity == null
+		or cargo_delivery_activity == null
 		or _active_activity_id.is_empty()
 	):
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
 		_advance_patrol(delta, world_position)
+		return
+	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		_advance_cargo_delivery(delta)
 		return
 	var generation := cinder_race_session.get_session_generation()
 	var advanced := cinder_race_session.advance_physics(delta, generation)
@@ -2931,24 +3261,67 @@ func _advance_patrol(delta: float, world_position: Vector3) -> void:
 		patrol_activity.advance_physics(delta, world_position, generation)
 
 
+func _advance_cargo_delivery(delta: float) -> void:
+	var generation := cargo_delivery_activity.get_generation()
+	var snapshot := cargo_delivery_activity.get_snapshot()
+	if int(snapshot.get("state", CargoDeliveryActivity.State.IDLE)) != CargoDeliveryActivity.State.ACTIVE:
+		return
+	var advanced := cargo_delivery_activity.advance_physics(delta, generation)
+	if bool(advanced.get("accepted", false)) and not is_zero_approx(delta):
+		_cargo_delivery_physics_step_count += 1
+
+
+func _complete_cargo_delivery_on_return() -> bool:
+	if (
+		_selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY
+		or cargo_delivery_activity == null
+		or _active_activity_id != CARGO_DELIVERY_ACTIVITY_ID
+	):
+		return false
+	var snapshot := cargo_delivery_activity.get_snapshot()
+	if int(snapshot.get("state", CargoDeliveryActivity.State.IDLE)) != CargoDeliveryActivity.State.ACTIVE:
+		return false
+	var generation := cargo_delivery_activity.get_generation()
+	var returned := cargo_delivery_activity.submit_phase(
+		CARGO_DELIVERY_PHASES[1],
+		generation
+	)
+	if not bool(returned.get("accepted", false)):
+		cargo_delivery_activity.fail(&"delivery_return_rejected", generation)
+		return false
+	var delivered := cargo_delivery_activity.submit_transfer(generation)
+	if not bool(delivered.get("accepted", false)):
+		if cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.ACTIVE:
+			cargo_delivery_activity.fail(&"cargo_transfer_rejected", generation)
+		return false
+	return true
+
+
 func _fail_active_activity(reason: StringName) -> bool:
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
+		or cargo_delivery_activity == null
 		or _active_activity_id.is_empty()
 	):
 		return false
 	var failed: Dictionary
-	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
-		if reason == &"returned_to_shipyard":
-			failed = patrol_activity.abort(reason, patrol_activity.get_generation())
-		else:
-			failed = patrol_activity.fail(reason, patrol_activity.get_generation())
-	else:
-		failed = cinder_race_session.fail(
-			reason,
-			cinder_race_session.get_session_generation()
-		)
+	match _selected_activity_kind:
+		ACTIVITY_KIND_PATROL:
+			if reason == &"returned_to_shipyard":
+				failed = patrol_activity.abort(reason, patrol_activity.get_generation())
+			else:
+				failed = patrol_activity.fail(reason, patrol_activity.get_generation())
+		ACTIVITY_KIND_CARGO_DELIVERY:
+			failed = cargo_delivery_activity.fail(
+				reason,
+				cargo_delivery_activity.get_generation()
+			)
+		_:
+			failed = cinder_race_session.fail(
+				reason,
+				cinder_race_session.get_session_generation()
+			)
 	return bool(failed.get("accepted", false))
 
 
@@ -2956,11 +3329,12 @@ func _reset_terminal_activity_for_next_sortie() -> void:
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
+		or cargo_delivery_activity == null
 		or _active_activity_id.is_empty()
 	):
 		return
 	var state_id := StringName(get_active_activity_snapshot().get("state_id", &"idle"))
-	if state_id in [&"completed", &"failed", &"aborted"]:
+	if state_id in [&"completed", &"failed", &"aborted", &"expired"]:
 		reset_active_activity()
 
 
@@ -2984,22 +3358,51 @@ func _on_patrol_completed(_snapshot: Dictionary) -> void:
 		hud.toast("Cinder Reach patrol complete", "Sweep recorded — no reward granted", 3.2)
 
 
+func _on_cargo_delivery_snapshot_changed(_snapshot: Dictionary) -> void:
+	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		_sync_activity_hud()
+
+
+func _on_cargo_delivery_completed(
+	_snapshot: Dictionary,
+	receipt: Dictionary
+	) -> void:
+	if _selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY:
+		return
+	_sync_activity_hud()
+	if is_instance_valid(hud):
+		hud.toast(
+			"Fabrication kits delivered",
+			"%d units received at the Jovian freight berth — no reward granted"
+			% int(receipt.get("quantity", 0)),
+			3.2
+		)
+
+
 func _sync_activity_hud() -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
+		or cargo_delivery_activity == null
 		or _active_activity_id.is_empty()
 	):
 		hud.call(&"clear_activity_objective")
-		return
-	var snapshot := get_active_activity_snapshot()
-	hud.call(
-		&"set_activity_objective",
-		str(snapshot.get("display_name", "Cinder Reach race")),
-		snapshot
-	)
+	else:
+		var snapshot := get_active_activity_snapshot()
+		hud.call(
+			&"set_activity_objective",
+			str(snapshot.get("display_name", "Cinder Reach race")),
+			snapshot
+		)
+	if hud.has_method(&"set_activity_selection_state"):
+		hud.call(
+			&"set_activity_selection_state",
+			_selected_activity_kind,
+			_activity_selection_locked,
+			&""
+		)
 
 
 func _get_selected_activity_snapshot() -> Dictionary:
@@ -3007,6 +3410,12 @@ func _get_selected_activity_snapshot() -> Dictionary:
 		return (
 			patrol_activity.get_presentation_snapshot()
 			if patrol_activity != null
+			else {}
+		)
+	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		return (
+			cargo_delivery_activity.get_snapshot()
+			if cargo_delivery_activity != null
 			else {}
 		)
 	return (
@@ -3019,6 +3428,12 @@ func _get_selected_activity_snapshot() -> Dictionary:
 func _get_selected_activity_generation() -> int:
 	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
 		return patrol_activity.get_generation() if patrol_activity != null else 0
+	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		return (
+			cargo_delivery_activity.get_generation()
+			if cargo_delivery_activity != null
+			else 0
+		)
 	return (
 		cinder_race_session.get_session_generation()
 		if cinder_race_session != null
@@ -3035,6 +3450,24 @@ func _decorate_activity_snapshot(source: Dictionary) -> Dictionary:
 	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
 		snapshot["session_generation"] = int(snapshot.get("generation", 0))
 		snapshot["race_generation"] = 0
+	elif _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		var state := int(snapshot.get("state", CargoDeliveryActivity.State.IDLE))
+		var phase_index := int(snapshot.get("next_phase_index", 0))
+		snapshot["activity_id"] = CARGO_DELIVERY_ACTIVITY_ID
+		snapshot["display_name"] = CARGO_DELIVERY_DISPLAY_NAME
+		snapshot["state_id"] = _cargo_delivery_state_id(state)
+		snapshot["running"] = state == CargoDeliveryActivity.State.ACTIVE
+		snapshot["session_generation"] = int(snapshot.get("generation", 0))
+		snapshot["activity_generation"] = int(snapshot.get("generation", 0))
+		snapshot["race_generation"] = 0
+		snapshot["phase_id"] = _cargo_delivery_phase_id(state, phase_index)
+		snapshot["current_time_seconds"] = float(snapshot.get("elapsed_seconds", 0.0))
+		snapshot["next_checkpoint_index"] = phase_index
+		snapshot["checkpoint_count"] = int(snapshot.get("phase_count", 0))
+		snapshot["completed_checkpoint_count"] = phase_index
+		snapshot["quantity"] = CARGO_DELIVERY_QUANTITY
+		snapshot["item_id"] = CARGO_DELIVERY_ITEM_ID
+		snapshot["item_display_name"] = CARGO_DELIVERY_ITEM_DISPLAY_NAME
 	return snapshot
 
 
@@ -3042,11 +3475,62 @@ func _activity_selection_result(accepted: bool, reason: StringName) -> Dictionar
 	return {
 		"accepted": accepted,
 		"reason": reason,
-		"activity_id": DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+		"activity_id": _get_selected_activity_id(),
 		"activity_kind": _selected_activity_kind,
 		"selection_locked": _activity_selection_locked,
-		"attached": bool(_get_selected_activity_snapshot().get("attached", false)),
+		"attached": _selected_activity_composition_ready(),
 	}.duplicate(true)
+
+
+func _get_selected_activity_id() -> StringName:
+	return (
+		CARGO_DELIVERY_ACTIVITY_ID
+		if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
+		else DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+	)
+
+
+func _selected_activity_composition_ready() -> bool:
+	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
+		return _restore_cargo_delivery_bindings()
+	return bool(_get_selected_activity_snapshot().get("attached", false))
+
+
+func _cargo_delivery_state_id(state: int) -> StringName:
+	match state:
+		CargoDeliveryActivity.State.ACTIVE:
+			return &"active"
+		CargoDeliveryActivity.State.COMPLETED:
+			return &"completed"
+		CargoDeliveryActivity.State.FAILED:
+			return &"failed"
+		CargoDeliveryActivity.State.EXPIRED:
+			return &"expired"
+		_:
+			return &"idle"
+
+
+func _cargo_delivery_phase_id(state: int, next_phase_index: int) -> StringName:
+	if state == CargoDeliveryActivity.State.COMPLETED:
+		return &"complete"
+	if state == CargoDeliveryActivity.State.FAILED:
+		return &"failed"
+	if state == CargoDeliveryActivity.State.EXPIRED:
+		return &"expired"
+	if state != CargoDeliveryActivity.State.ACTIVE:
+		return &"idle"
+	return &"outbound" if next_phase_index <= 0 else &"return"
+
+
+func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
+	var result := select_activity_kind(activity_kind)
+	if is_instance_valid(hud) and hud.has_method(&"set_activity_selection_state"):
+		hud.call(
+			&"set_activity_selection_state",
+			_selected_activity_kind,
+			_activity_selection_locked,
+			StringName(result.get("reason", &"selection_rejected"))
+		)
 
 
 ## Restores one coherent, controllable on-foot pilot at the deck spawn.

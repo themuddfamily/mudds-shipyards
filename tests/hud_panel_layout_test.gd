@@ -34,6 +34,7 @@ const LONGEST_TOAST_TITLE := "Welcome back to Mudds Shipyards"
 const LONGEST_TOAST_DETAIL := "Guided Torrent test and free-flight fleet access are available"
 const LONGEST_ENEMY := "Mudds range defence interceptor"
 const LONGEST_PATROL_FAILURE: StringName = &"activity_patrol_desynchronized"
+const LONGEST_CARGO_FAILURE: StringName = &"transfer_id_consumed_externally"
 
 ## Viewports the game is expected to run in. 1600x900 is the project's stretch
 ## viewport, which is what the HUD actually sees under `canvas_items` stretch
@@ -83,6 +84,7 @@ func _run() -> void:
 	await _test_ceiling_delivers_the_contract()
 	await _test_headroom_below_the_contract()
 	_test_uncapped_hundred_percent_still_holds()
+	await _test_activity_board_layout()
 
 	print("MEASURED: tightest clearance anywhere in the supported range -> %.1f logical px (%s)"
 		% [_worst_clearance, _worst_clearance_label])
@@ -101,22 +103,7 @@ func _seed_worst_case_content() -> void:
 	_hud.set_ship_identity("Torrent-class Interceptor", "Interceptor")
 	_hud.set_mode("piloting")
 	_hud.set_objective(LONGEST_OBJECTIVE)
-	_hud.set_activity_objective("Cinder Reach beacon route", {
-		"activity_id": &"cinder_reach_checkpoint_route",
-		"activity_kind": &"patrol",
-		"state_id": &"failed",
-		"phase_id": &"failed",
-		"generation": 9,
-		"session_generation": 9,
-		"activity_generation": 12,
-		"next_checkpoint_index": 4,
-		"checkpoint_count": 5,
-		"completed_checkpoint_count": 4,
-		"current_time_seconds": 119.9,
-		"last_duration_seconds": -1.0,
-		"failure_reason": LONGEST_PATROL_FAILURE,
-		"terminal_reason": LONGEST_PATROL_FAILURE,
-	})
+	_set_cargo_worst_case_activity()
 	_hud.set_target_count(2, 3)
 	_hud.set_interaction(LONGEST_INTERACTION, true)
 	_hud.set_enemy_status(LONGEST_ENEMY, 22.0, 100.0, true)
@@ -157,6 +144,47 @@ func _seed_worst_case_content() -> void:
 	)
 
 
+func _set_cargo_worst_case_activity() -> void:
+	_hud.set_activity_objective("Jovian fabrication kit delivery", {
+		"activity_id": &"jovian_fabrication_kit_delivery",
+		"activity_kind": &"cargo_delivery",
+		"state_id": &"failed",
+		"phase_id": &"failed",
+		"generation": 9,
+		"session_generation": 9,
+		"activity_generation": 12,
+		"next_checkpoint_index": 2,
+		"checkpoint_count": 2,
+		"completed_checkpoint_count": 2,
+		"current_time_seconds": 119.9,
+		"deadline_remaining_seconds": 60.1,
+		"quantity": 2,
+		"item_id": &"fabrication_kits",
+		"item_display_name": "Fabrication kits",
+		"failure_reason": LONGEST_CARGO_FAILURE,
+		"terminal_reason": LONGEST_CARGO_FAILURE,
+	})
+
+
+func _set_patrol_worst_case_activity() -> void:
+	_hud.set_activity_objective("Cinder Reach beacon route", {
+		"activity_id": &"cinder_reach_checkpoint_route",
+		"activity_kind": &"patrol",
+		"state_id": &"failed",
+		"phase_id": &"failed",
+		"generation": 9,
+		"session_generation": 9,
+		"activity_generation": 12,
+		"next_checkpoint_index": 4,
+		"checkpoint_count": 5,
+		"completed_checkpoint_count": 4,
+		"current_time_seconds": 119.9,
+		"last_duration_seconds": -1.0,
+		"failure_reason": LONGEST_PATROL_FAILURE,
+		"terminal_reason": LONGEST_PATROL_FAILURE,
+	})
+
+
 ## The contract itself. Every clearance in this layout is monotone in the logical
 ## size -- the gutters are pinned to the viewport edges while the centre panels
 ## track the midpoint -- so a clean layout exactly at the floor is a clean layout
@@ -182,6 +210,24 @@ func _test_contract_floor() -> void:
 	var objective_panel_rect := objective_panel.get_global_rect()
 	_check(
 		activity_label.visible
+		and "DELIVERY  FAILED — TRANSFER ID CONSUMED EXTERNALLY"
+		in activity_label.text
+		and objective_panel_rect.encloses(activity_label.get_global_rect())
+		and objective_panel_rect.encloses(target_label.get_global_rect())
+		and not activity_label.get_global_rect().intersects(
+			objective_label.get_global_rect()
+		)
+		and not activity_label.get_global_rect().intersects(
+			target_label.get_global_rect()
+		),
+		"the longest cargo failure remains visible inside the objective card without clipping adjacent rows"
+	)
+	_set_patrol_worst_case_activity()
+	await process_frame
+	await process_frame
+	objective_panel_rect = objective_panel.get_global_rect()
+	_check(
+		activity_label.visible
 		and "PATROL  FAILED — ACTIVITY PATROL DESYNCHRONIZED  4/5"
 		in activity_label.text
 		and objective_panel_rect.encloses(activity_label.get_global_rect())
@@ -192,8 +238,11 @@ func _test_contract_floor() -> void:
 		and not activity_label.get_global_rect().intersects(
 			target_label.get_global_rect()
 		),
-		"the longest patrol failure remains visible inside the objective card without clipping adjacent rows"
+		"the longest patrol failure retains its prior clipping and row-separation regression"
 	)
+	_set_cargo_worst_case_activity()
+	await process_frame
+	await process_frame
 	_check(
 		logical.is_equal_approx(floor_size),
 		"a viewport at the contract floor lays the panels out at exactly %s (got %s)"
@@ -382,6 +431,114 @@ func _test_uncapped_hundred_percent_still_holds() -> void:
 		GameHUD.MIN_LOGICAL_WIDTH <= 1280.0 and GameHUD.MIN_LOGICAL_HEIGHT <= 720.0,
 		"the layout contract stays inside 1280x720, which is what keeps 100% uncapped there"
 	)
+
+
+## The Activity Board is a player-facing pause page, so its safe enclosure and
+## focus geometry are frozen across the same viewport/scale endpoints as HUD.
+func _test_activity_board_layout() -> void:
+	_hud.set_paused(true)
+	var pause_overlay := _hud.get("_pause") as Control
+	var board_open := pause_overlay.find_child(
+		"ActivityBoardButton", true, false
+	) as Button
+	board_open.emit_signal("pressed")
+	var dirty: Array[String] = []
+	var cases := 0
+	for viewport: Vector2 in [
+		Vector2(1280.0, 720.0),
+		Vector2(1600.0, 900.0),
+		Vector2(1920.0, 1080.0),
+		Vector2(3440.0, 1440.0),
+	]:
+		for scale_request: float in [GameHUD.MIN_UI_SCALE, 1.0, GameHUD.MAX_UI_SCALE]:
+			_hud.set_ui_scale(scale_request)
+			var effective := _hud.layout_for_viewport(viewport)
+			await process_frame
+			await process_frame
+			cases += 1
+			var report := _hud.get_activity_selection_report()
+			var page := report.get("page_rect", Rect2()) as Rect2
+			var viewport_rect := Rect2(Vector2.ZERO, viewport)
+			if not viewport_rect.encloses(page):
+				dirty.append(
+					"%.0fx%.0f @%.2f page %s" % [
+						viewport.x, viewport.y, scale_request, str(page)
+					]
+				)
+			var button_rects: Array[Rect2] = []
+			var buttons := report.get("buttons", {}) as Dictionary
+			var row_rects := report.get("row_rects", {}) as Dictionary
+			var vertical_regions: Array[Rect2] = []
+			for activity_kind: StringName in [
+				&"timed_race", &"patrol", &"cargo_delivery"
+			]:
+				var button := buttons.get(activity_kind, {}) as Dictionary
+				var rect := button.get("rect", Rect2()) as Rect2
+				var row_rect := row_rects.get(activity_kind, Rect2()) as Rect2
+				button_rects.append(rect)
+				vertical_regions.append(row_rect)
+				if not page.encloses(rect):
+					dirty.append(
+						"%.0fx%.0f @%.2f %s outside page" % [
+							viewport.x, viewport.y, scale_request, activity_kind
+						]
+					)
+				if not page.encloses(row_rect) or not row_rect.encloses(rect):
+					dirty.append(
+						"%.0fx%.0f @%.2f %s row enclosure" % [
+							viewport.x, viewport.y, scale_request, activity_kind
+						]
+					)
+			var status_rect := report.get("status_rect", Rect2()) as Rect2
+			var back_rect := report.get("back_rect", Rect2()) as Rect2
+			vertical_regions.append(status_rect)
+			vertical_regions.append(back_rect)
+			if not page.encloses(status_rect) or not page.encloses(back_rect):
+				dirty.append(
+					"%.0fx%.0f @%.2f status/back outside page" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
+			for index in button_rects.size():
+				for other_index in range(index + 1, button_rects.size()):
+					if button_rects[index].intersects(button_rects[other_index]):
+						dirty.append(
+							"%.0fx%.0f @%.2f activity buttons overlap" % [
+								viewport.x, viewport.y, scale_request
+							]
+						)
+			for index in vertical_regions.size():
+				for other_index in range(index + 1, vertical_regions.size()):
+					if vertical_regions[index].intersects(vertical_regions[other_index]):
+						dirty.append(
+							"%.0fx%.0f @%.2f board rows/status/back overlap" % [
+								viewport.x, viewport.y, scale_request
+							]
+						)
+			print(
+				"MEASURED: activity board %.0fx%.0f request %.2f -> effective %.4f page %s"
+				% [viewport.x, viewport.y, scale_request, effective, str(page)]
+			)
+	var selected := _hud.get_activity_selection_report()
+	var selected_buttons := selected.get("buttons", {}) as Dictionary
+	_check(
+		bool(selected.get("page_visible", false))
+		and selected.get("selected_activity_kind", &"") == &"timed_race"
+		and str((selected_buttons.get(&"timed_race", {}) as Dictionary).get("text", ""))
+		.begins_with("SELECTED")
+		and not bool(
+			(selected_buttons.get(&"cargo_delivery", {}) as Dictionary).get(
+				"disabled", true
+			)
+		),
+		"the open board communicates selection in text and keeps pre-start choices enabled"
+	)
+	_check(
+		dirty.is_empty(),
+		"Activity Board and all three player controls stay enclosed and disjoint across %d endpoint cases%s"
+		% [cases, "" if dirty.is_empty() else " -- " + "; ".join(dirty.slice(0, 8))]
+	)
+	_hud.set_paused(false)
 
 
 func _layout(viewport: Vector2, requested: float) -> Dictionary:

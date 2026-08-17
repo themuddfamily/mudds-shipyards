@@ -10,6 +10,7 @@ const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 
 signal start_requested
 signal restart_requested
+signal activity_selection_requested(activity_kind: StringName)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
@@ -154,6 +155,11 @@ var _hud_panels: Control
 var _pause: Control
 var _pause_panels: Control
 var _pause_main_page: Control
+var _activity_selection_page: Control
+var _activity_selection_buttons: Dictionary = {}
+var _activity_selection_status_label: Label
+var _activity_selection_kind: StringName = &"timed_race"
+var _activity_selection_locked := false
 var _settings_page: Control
 var _settings_scroll: ScrollContainer
 var _settings_controls: Dictionary = {}
@@ -270,6 +276,10 @@ var _activity_objective_report: Dictionary = {
 	"completed_checkpoint_count": 0,
 	"dwell_remaining_seconds": 0.0,
 	"terminal_reason": &"",
+	"deadline_remaining_seconds": 0.0,
+	"quantity": 0,
+	"item_id": &"",
+	"item_display_name": "",
 	"text": "",
 }
 
@@ -305,7 +315,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("pause") and _started:
-		if _pause.visible and _settings_page != null and _settings_page.visible:
+		if (
+			_pause.visible
+			and (
+				(_settings_page != null and _settings_page.visible)
+				or (
+					_activity_selection_page != null
+					and _activity_selection_page.visible
+				)
+			)
+		):
 			_show_pause_main()
 		else:
 			set_paused(not _pause.visible)
@@ -538,11 +557,43 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 		float(snapshot.get("dwell_remaining_seconds", 0.0)), 0.0
 	)
 	var last_duration := float(snapshot.get("last_duration_seconds", -1.0))
+	var deadline_remaining := maxf(
+		float(snapshot.get("deadline_remaining_seconds", 0.0)), 0.0
+	)
+	var quantity := maxi(int(snapshot.get("quantity", 0)), 0)
+	var item_id := StringName(snapshot.get("item_id", &""))
+	var item_display_name := str(snapshot.get("item_display_name", "")).strip_edges()
 	var short_name := display_name.strip_edges().to_upper()
 	if short_name.is_empty():
 		short_name = str(activity_id).replace("_", " ").to_upper()
 	var activity_text := ""
-	if activity_kind == &"patrol":
+	if activity_kind == &"cargo_delivery":
+		match state_id:
+			&"active":
+				activity_text = "DELIVERY  %s  %d/%d  %s LEFT" % [
+					"OUTBOUND" if phase_id == &"outbound" else "RETURN",
+					mini(completed_checkpoints, checkpoint_count),
+					checkpoint_count,
+					_format_activity_time(deadline_remaining),
+				]
+			&"completed":
+				activity_text = "DELIVERY  COMPLETE  %d %s" % [
+					quantity,
+					(
+						item_display_name.to_upper()
+						if not item_display_name.is_empty()
+						else str(item_id).replace("_", " ").to_upper()
+					),
+				]
+			&"failed", &"expired":
+				var readable_reason := str(terminal_reason).replace("_", " ").to_upper()
+				activity_text = "DELIVERY  %s%s" % [
+					"EXPIRED" if state_id == &"expired" else "FAILED",
+					(" — " + readable_reason) if not readable_reason.is_empty() else "",
+				]
+			_:
+				activity_text = ""
+	elif activity_kind == &"patrol":
 		var gate_number := mini(next_index + 1, checkpoint_count)
 		match state_id:
 			&"active":
@@ -648,6 +699,10 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 		"completed_checkpoint_count": completed_checkpoints,
 		"dwell_remaining_seconds": dwell_remaining,
 		"terminal_reason": terminal_reason,
+		"deadline_remaining_seconds": deadline_remaining,
+		"quantity": quantity,
+		"item_id": item_id,
+		"item_display_name": item_display_name,
 		"text": activity_text,
 	}
 	if is_instance_valid(_activity_objective_label):
@@ -1623,6 +1678,7 @@ func _build_pause() -> void:
 	_pause.add_child(_pause_panels)
 	_scaled_layers.append(_pause_panels)
 	_build_pause_main_page()
+	_build_activity_selection_page()
 	_build_settings_page()
 	_show_pause_main()
 
@@ -1651,10 +1707,19 @@ func _build_pause_main_page() -> void:
 	resume.name = "ResumeButton"
 	resume.pressed.connect(func() -> void: set_paused(false))
 	stack.add_child(resume)
+	var menu_row := HBoxContainer.new()
+	menu_row.add_theme_constant_override("separation", 10)
+	stack.add_child(menu_row)
 	var settings := _menu_button("SETTINGS", NOMINAL_SOFT)
 	settings.name = "SettingsOpenButton"
+	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.pressed.connect(_show_settings_page)
-	stack.add_child(settings)
+	menu_row.add_child(settings)
+	var activity_board := _menu_button("ACTIVITY BOARD", NOMINAL_SOFT)
+	activity_board.name = "ActivityBoardButton"
+	activity_board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	activity_board.pressed.connect(_show_activity_selection_page)
+	menu_row.add_child(activity_board)
 	var restart := _menu_button("RESTART SHIFT", CAUTION)
 	restart.name = "RestartButton"
 	restart.pressed.connect(func() -> void:
@@ -1666,6 +1731,88 @@ func _build_pause_main_page() -> void:
 	exit.name = "ExitButton"
 	exit.pressed.connect(func() -> void: get_tree().quit())
 	stack.add_child(exit)
+
+
+## The smallest reachable selection surface for the three production activities.
+## Buttons emit requests only; GameFlow remains the owner of validation, route
+## exclusivity, and the post-start selection lock.
+func _build_activity_selection_page() -> void:
+	_activity_selection_page = PanelContainer.new()
+	_activity_selection_page.name = "ActivitySelectionPage"
+	_activity_selection_page.set_anchors_preset(Control.PRESET_CENTER)
+	_activity_selection_page.position = Vector2(-340.0, -250.0)
+	_activity_selection_page.size = Vector2(680.0, 500.0)
+	_activity_selection_page.mouse_filter = Control.MOUSE_FILTER_STOP
+	_activity_selection_page.add_theme_stylebox_override(
+		"panel",
+		_border_box(PANEL_SOLID, 10, NOMINAL)
+	)
+	_pause_panels.add_child(_activity_selection_page)
+	var margin := _margin(30, 24, 30, 24)
+	_activity_selection_page.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 10)
+	margin.add_child(stack)
+	var title := _label("ACTIVITY BOARD", 26, PRIMARY)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(title)
+	var subtitle := _label(
+		"Choose the next sortie before launch. Starting it locks this board.",
+		12,
+		MUTED
+	)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(subtitle)
+	_add_activity_selection_row(
+		stack,
+		&"timed_race",
+		"TIMED CINDER RACE",
+		"Ordered Cinder anchors with countdown, lap time and timeout."
+	)
+	_add_activity_selection_row(
+		stack,
+		&"patrol",
+		"CINDER PATROL",
+		"Travel to each published anchor and hold through its dwell window."
+	)
+	_add_activity_selection_row(
+		stack,
+		&"cargo_delivery",
+		"JOVIAN KIT DELIVERY",
+		"Carry two fabrication kits from the Jovian craft to its freight berth."
+	)
+	_activity_selection_status_label = _label("READY  //  TIMED CINDER RACE", 10, NOMINAL_SOFT)
+	_activity_selection_status_label.name = "ActivitySelectionStatus"
+	_activity_selection_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_activity_selection_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(_activity_selection_status_label)
+	var back := _menu_button("BACK", MUTED)
+	back.name = "ActivitySelectionBackButton"
+	back.pressed.connect(_show_pause_main)
+	stack.add_child(back)
+	_refresh_activity_selection_page(&"")
+
+
+func _add_activity_selection_row(
+	parent: VBoxContainer,
+	activity_kind: StringName,
+	button_text: String,
+	detail_text: String
+	) -> void:
+	var row := VBoxContainer.new()
+	row.name = String(activity_kind).to_pascal_case() + "ActivityRow"
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	var button := _menu_button(button_text, NOMINAL_SOFT)
+	button.name = String(activity_kind).to_pascal_case() + "ActivityButton"
+	button.pressed.connect(_request_activity_selection.bind(activity_kind))
+	row.add_child(button)
+	var detail := _label(detail_text, 10, MUTED)
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(detail)
+	_activity_selection_buttons[activity_kind] = button
 
 
 func _build_settings_page() -> void:
@@ -2344,6 +2491,7 @@ func _update_setting_value_label(key: StringName, value: float) -> void:
 
 func _show_settings_page() -> void:
 	_pause_main_page.visible = false
+	_activity_selection_page.visible = false
 	_settings_page.visible = true
 	var first_control := _settings_controls.get(&"ship_mouse_sensitivity") as Control
 	if first_control != null:
@@ -2351,15 +2499,145 @@ func _show_settings_page() -> void:
 
 
 func _show_pause_main() -> void:
-	if _pause_main_page == null or _settings_page == null:
+	if (
+		_pause_main_page == null
+		or _activity_selection_page == null
+		or _settings_page == null
+	):
 		return
+	var returning_from_activity := _activity_selection_page.visible
 	_binding_capture_action = &""
 	_cancel_pending_input_conflict(false)
 	_pause_main_page.visible = true
+	_activity_selection_page.visible = false
 	_settings_page.visible = false
-	var settings_button := _pause_main_page.find_child("SettingsOpenButton", true, false) as Button
-	if _pause.visible and settings_button != null:
-		settings_button.grab_focus()
+	var focus_button := _pause_main_page.find_child(
+		"ActivityBoardButton" if returning_from_activity else "SettingsOpenButton",
+		true,
+		false
+	) as Button
+	if _pause.visible and focus_button != null:
+		focus_button.grab_focus()
+
+
+func _show_activity_selection_page() -> void:
+	_pause_main_page.visible = false
+	_settings_page.visible = false
+	_activity_selection_page.visible = true
+	_refresh_activity_selection_page(&"")
+	var selected_button := _activity_selection_buttons.get(
+		_activity_selection_kind
+	) as Button
+	if selected_button != null:
+		selected_button.grab_focus()
+
+
+## Commits presentation only after GameFlow returns its validated result. A
+## rejected button press therefore cannot make the board lie about selection.
+func set_activity_selection_state(
+	selected_kind: StringName,
+	selection_locked: bool,
+	status_reason: StringName = &""
+	) -> void:
+	if selected_kind not in [&"timed_race", &"patrol", &"cargo_delivery"]:
+		return
+	_activity_selection_kind = selected_kind
+	_activity_selection_locked = selection_locked
+	_refresh_activity_selection_page(status_reason)
+	if _activity_selection_page != null and _activity_selection_page.visible:
+		var selected_button := _activity_selection_buttons.get(
+			_activity_selection_kind
+		) as Button
+		if selected_button != null:
+			selected_button.grab_focus()
+
+
+func _request_activity_selection(activity_kind: StringName) -> void:
+	activity_selection_requested.emit(activity_kind)
+
+
+func _refresh_activity_selection_page(status_reason: StringName) -> void:
+	for raw_kind: Variant in _activity_selection_buttons:
+		var activity_kind := StringName(raw_kind)
+		var button := _activity_selection_buttons[activity_kind] as Button
+		if button == null:
+			continue
+		var selected := activity_kind == _activity_selection_kind
+		button.disabled = _activity_selection_locked and not selected
+		var base_text := {
+			&"timed_race": "TIMED CINDER RACE",
+			&"patrol": "CINDER PATROL",
+			&"cargo_delivery": "JOVIAN KIT DELIVERY",
+		}.get(activity_kind, String(activity_kind).to_upper()) as String
+		button.text = ("SELECTED  //  " if selected else "") + base_text
+	if _activity_selection_status_label == null:
+		return
+	var selected_text := {
+		&"timed_race": "TIMED CINDER RACE",
+		&"patrol": "CINDER PATROL",
+		&"cargo_delivery": "JOVIAN KIT DELIVERY",
+	}.get(_activity_selection_kind, String(_activity_selection_kind).to_upper()) as String
+	if _activity_selection_locked:
+		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"
+		_activity_selection_status_label.modulate = _c(CAUTION)
+	elif status_reason in [&"", &"selected", &"already_selected"]:
+		_activity_selection_status_label.text = "READY  //  " + selected_text
+		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+	else:
+		_activity_selection_status_label.text = (
+			"NOT CHANGED  //  "
+			+ str(status_reason).replace("_", " ").to_upper()
+		)
+		_activity_selection_status_label.modulate = _c(DANGER)
+
+
+## Detached geometry/state evidence for the production button-route and layout
+## regressions. It exposes no callback and cannot mutate selection.
+func get_activity_selection_report() -> Dictionary:
+	var buttons := {}
+	var rows := {}
+	for raw_kind: Variant in _activity_selection_buttons:
+		var activity_kind := StringName(raw_kind)
+		var button := _activity_selection_buttons[activity_kind] as Button
+		buttons[activity_kind] = {
+			"rect": button.get_global_rect(),
+			"text": button.text,
+			"disabled": button.disabled,
+		}
+		rows[activity_kind] = (button.get_parent() as Control).get_global_rect()
+	var back := (
+		_activity_selection_page.find_child(
+			"ActivitySelectionBackButton", true, false
+		) as Button
+		if _activity_selection_page != null
+		else null
+	)
+	return {
+		"selected_activity_kind": _activity_selection_kind,
+		"selection_locked": _activity_selection_locked,
+		"page_visible": (
+			_activity_selection_page != null
+			and _activity_selection_page.visible
+		),
+		"page_rect": (
+			_activity_selection_page.get_global_rect()
+			if _activity_selection_page != null
+			else Rect2()
+		),
+		"status": (
+			_activity_selection_status_label.text
+			if _activity_selection_status_label != null
+			else ""
+		),
+		"status_rect": (
+			_activity_selection_status_label.get_global_rect()
+			if _activity_selection_status_label != null
+			else Rect2()
+		),
+		"back_rect": back.get_global_rect() if back != null else Rect2(),
+		"buttons": buttons,
+		"row_rects": rows,
+	}.duplicate(true)
 
 
 func _set_help_text(rows: Array) -> void:
