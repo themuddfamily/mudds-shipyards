@@ -496,12 +496,20 @@ were stale when this tree resumed. Current evidence is:
 
 ### Current audit-candidate implementation notes
 
-The following are still `CANDIDATE`, not confirmed defects. Reproduce each on the current source tree and latest source-matched package before changing behaviour. If a candidate does not reproduce in ten attempts across two recorded configurations, mark it `NOT_REPRODUCED` with evidence rather than deleting it. If it reproduces, use these bounded implementation seams and gates:
+These records began as `CANDIDATE` reports. The current-source audit has since
+resolved all four code seams below: the receipt collision was reproduced and
+fixed; both audio acceptance paths now mutate presentation state only after the
+shared playback gate accepts; and the explicit whole-`Main` deferred-damage
+discard path was already present and made candidate 4 `NOT_REPRODUCED` on the
+current tree. The specifications remain here as regression contracts rather
+than work to repeat. Native real-device audibility for items 2 and 3 is still a
+release-evidence gap, so a source-level fix must not be mistaken for a heard,
+mixed package result.
 
-1. **Combat receipt identity:** in `scripts/combat/live_combat_authority.gd`, replace the bit-packed `(source_id << 32) | (sequence & 0xffffffff)` presentation receipt with a session-monotonic positive signed-64-bit allocator. Receipt identity must be independent of source ID and request sequence, begin at `1`, persist across detach/re-entry of the same authority instance, never be reused within a session, and fail closed before exhaustion. Keep source/sequence separately in the accepted-shot record for validation and diagnostics. Add tests for source IDs at and above `2^31`, sequences separated by `2^32`, two sources using the same sequence, saturation, reset, and Main detach/re-entry; every receipt must remain positive/distinct and commit only its own target once.
-2. **Station cue acceptance:** in `scripts/audio/station_machinery_ambience.gd`, define success precisely. On a real audio driver, call `play()`, then require `_cue_player.playing`; when false, stop the player, detach the stream, leave counters/last-cue state unchanged, and return `false`. Dummy audio remains explicitly non-audible and returns `false`. Component tests cover invalid cue, unknown cue, intensity boundaries, rejected playback, teardown, stream cleanup, and state/counter invariants; a native real-driver test must hear and observe successful door-servo/latch cues before closing the candidate.
-3. **Combat cue acceptance:** in `scripts/audio/combat_audio_presentation.gd`, update pool cursor, counters, last-cue metadata, and `cue_started` only after a real driver reports `player.playing`. A rejected real playback must stop/detach its stream, return `false`, and leave the selected pool available; preserve explicitly documented Dummy simulation only where deterministic tests require it. Test each fire/impact/explosion/dry-fire pool independently, rejection without cursor/statistic/signal mutation, overlapping accepted cues, detach/re-entry cleanup, and a native real-device audibility checklist.
-4. **Deferred presentation teardown:** preserve `HeroDamagePresentation`'s documented standalone detach/re-entry behaviour, but give the whole-Main owner an explicit discard path. Add `discard_deferred_damage_presentations()` to `HeroDamagePresentation`, forwarding methods on `HeroShip` and `RangeOpponent`, and the equivalent on `ShipyardWorld` that clears both its dictionary and order queue. `GameFlow._exit_tree()` calls the discard method on every fleet ship, opponent, and world target before clearing coordinator receipts. Extend the Main re-entry test to create hero/opponent/world receipts, remove Main, prove every coordinator/target queue is empty, re-add Main, prove old commits return false, retain final authoritative health/destruction state, and verify no stale VFX/audio resurrects. Keep the standalone component preservation test green so ownership semantics remain explicit.
+1. **Combat receipt identity — reproduced and fixed:** `scripts/combat/live_combat_authority.gd` now uses a session-monotonic positive signed-64-bit allocator independent of source ID and request sequence. It begins at `1`, persists on the authority instance, never reuses a session receipt, and fails closed before exhaustion; full source/sequence remain separate in the accepted record. `combat_receipt_identity_test.gd` retains the old signed-shift and `2^32` alias witnesses, source reset/re-registration, saturation, detach/re-entry, and one-target/one-commit gates.
+2. **Station cue acceptance — source gate fixed, native listening open:** `scripts/audio/station_machinery_ambience.gd` calls `play()` and requires the real player to report `playing` before success. Rejection stops and detaches the stream and preserves counters/last-cue state; Dummy remains explicitly non-audible. Component invalid/unknown/intensity/teardown/state gates are green, but this host could not open a native output device, so a heard servo/latch pass remains required.
+3. **Combat cue acceptance — source gate fixed, native listening open:** the shared `scripts/audio/combat_audio_presentation.gd` playback path updates its pool cursor, counters, last-cue metadata, and `cue_started` only after accepted playback; rejection stops/detaches and leaves the slot available. Focused fire/impact/explosion/dry-fire, overlap, rejection, detach/re-entry and dormant-source gates are green. Dummy simulation remains documented, and native audibility/mix evidence remains open.
+4. **Deferred presentation teardown — already landed, current candidate not reproduced:** `GameFlow._exit_tree()` explicitly discards deferred presentation records on all fleet ships, the range opponent, and world targets before clearing coordinator receipts, while standalone `HeroDamagePresentation` still deliberately preserves ordinary detach/re-entry. Focused Main cycles and live-combat teardown prove old hero/opponent/world commits return `false`, every pending queue reaches zero, authoritative health/destruction remains final, and no stale VFX/audio resurrects. No further source change is warranted.
 
 - [x] Establish a Godot 4 native desktop project and Windows export preset.
 - [x] Implement third-person walk, sprint, jump, orbit camera, and physical collision.
@@ -724,6 +732,25 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 7. Test duplicates/out-of-order sequences, invalid owner/faction, self/friendly/world occlusion, miss, close/min-duration hit, hitch past impact, saturation/reentrant callbacks, reverse receipt arrival, lethal/nonlethal chronology, detach/re-entry, reset/regeneration, repair interruption, exact pool/resource ceilings, and one score/damage commit.
 8. Capture phase-locked muzzle, mid-flight, impact, damaged, critical, explosion, and cleanup frames at combat distance with High and glow-disabled profiles. Human review must confirm colour/team distinction, endpoint alignment, effect size, damage readability, no hard pop, and acceptable audio chronology/mix.
 
+The immutable profile foundation and first player-fleet migration pass are now
+complete without changing combat balance or authority. `WeaponDefinition` is a strict
+typed Resource for hitscan/projectile/beam mode, range, damage, cadence,
+faction/friendly-fire policy, optional spread/heat/ammunition, presentation and
+audio IDs, evidence, serialization and zero-authority audit. A pure fail-closed
+converter feeds the existing `LiveCombatAuthority` profile shape; it never
+creates a `ShotRequest`, ray query, receipt or damage. Torrent, Arrow, Zenith,
+Jovian and Halyard now load checked definitions at their exact former envelopes:
+`360/34/0.22/24`, `410/25/0.38/24`, `390/27/0.24/24`,
+`315/23/0.62/32`, and `280/18/0.95/30` for
+range/damage/cooldown/origin tolerance. Invalid resource
+mutation or cadence drift has no legacy fallback. Source generations,
+monotonic receipts, faction policy, presentation/audio IDs and whole-`Main`
+re-entry remain unchanged. No player-fleet legacy combat override remains;
+an unknown ship identity is range-only and gains no combat fallback. This
+migration adds no second weapon, ammunition, heat, repair,
+shield, projectile gameplay or balance variety, so the Phase 6 expansion items
+remain open.
+
 - [ ] Expand the Phase 2 single-interceptor encounter into varied weapons, opponents, tactics, and combat scenarios.
   - [x] Add two encounter scenarios with different objectives and two laterally differentiated opponent archetypes, owned by `scripts/combat/encounter_scenario_director.gd` and `scripts/combat/wing_coordinator.gd`. **Player-visible outcome:** a sortie now opens either a *courier intercept* — a runner making for the yard boundary, which is a loss condition that fires whether or not the player engages, and which calls an escort wing onto the player's six the moment it is hurt — or a *paired wing*, two craft that split the frontal and rear jobs between them and trade those jobs when the player turns. **Authority owner:** `EncounterScenarioDirector` owns scenario objective state only; it never assigns `GameFlow.phase`, never applies damage, and never holds a phase open, so `GameFlow` still exits `INTERCEPTOR_ENGAGEMENT` exactly when the defender dies regardless of what a scenario is doing. `WingCoordinator` owns anchor/flanker assignment and nothing else. Both new craft resolve on the one live `CombatResolver` under their own registered identities through `scripts/ships/resolver_backed_opponent.gd`, and reuse the shared pooled pulse and ten-voice audio seams. **Soft-lock discipline:** every scenario terminates on six independent conditions — player lost, phase left, objective met, objective lost, player disengaged, and an unconditional accumulated-physics time backstop that reads nothing at all. Fire rights are re-asked on the frame a shot is *dispatched* rather than cached from the frame its charge began, so the SANDBOX-002 shape (a committed charge landing after the state that authorized it has ended) cannot occur for anything built on that base. **Regressions:** `tests/wing_coordinator_test.gd`, `tests/encounter_scenario_director_test.gd` (every branch driven to a terminal outcome, including the unreachable-objective backstop), `tests/opponent_role_differentiation_test.gd` (no strict dominance and a measured manoeuvre-separation floor across all four archetypes), `tests/varied_encounter_integration_test.gd` (the real coordinator, a real resolved shot, and the phase ending under a live scenario). **Not done here:** no new weapon *definitions*, no `WeaponDefinition` resource migration, no new pulse style, no repair or shield work, and no change to the existing defender or picket.
 - [ ] Extend the Phase 2 hero/enemy impact, staged sparks/smoke, engine degradation, destruction, debris, and failure presentations into consistent component damage, repair, cleanup, respawn, and recovery systems; add shields or further failures only where research or explicit new design supports them.
@@ -830,13 +857,28 @@ The matching **production streaming path** now exists in `scripts/world/world_st
 8. Give every artifact a unique semantic version plus build label and record source commit, matrix ID, Godot version, EXE/PCK size/hash/inventory, signing state, and smoke/native results. Never replace two different binaries under the same finalized/source-current label.
 9. Keep signing/installer credentials outside repo/logs. Validate clean install, upgrade, rollback, corrupt-data recovery, crash-log redaction, uninstall, keyboard/mouse and controller-only play, audible mix, accessibility, performance, and multiplayer if shipped. Public/commercial promotion remains blocked until permission and licence/legal review are recorded; a valid signature does not grant rights.
 
-- [ ] Establish performance budgets for a representative mid-range Windows PC. **The renderer-independent half of this has landed** in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`: a named minimum/target machine, a whole-scene census tool (`tools/geometry_census.gd`), and written ceilings for triangles, mesh instances, surfaces, unique meshes/materials/shaders, texture bytes, lights, shadow-casting lights, particle systems and node counts. **Frame time, GPU time, per-frame draw calls and VRAM are deliberately absent and are not claimed**: the development box renders through llvmpipe, so closing that half still requires Phase 9 item 7's benchmark runner on representative Windows hardware. The first major trim reduced `TextMesh` signage from 315,360 to 60,829 triangles with stable-camera legibility review. Later bounded profiles reduced eight occluded Habitat chair-bearing tori by 2,560 triangles and 26 Aft interface collars by 6,656, while the VIP banquette batch removed thirteen submissions and nodes with an exact zero-pixel comparison. Those historical per-change deltas remain frozen separately. The current scenario-aware HIGH census now measures the station-resident graph at **1,683,905 triangles, 5,691 renderer nodes, 5,698 surfaces, 2,573 unique meshes, 450 bound / 631 retained materials, 294 lights / 19 shadow lights, 25 particle systems, and 9,329 nodes**. Loading one real coordinator-owned Cinder generation adds exactly **117,457 triangles, 166 renderer nodes/surfaces, 130 unique meshes, 19 bound/retained materials, 23 enabled non-shadow lights, and 301 nodes**. The VIP sill and Fabrication practical-pool consolidations together removed four enabled shadowless lights after same-process visual A/B review; the player-reachable Music settings row adds five retained UI nodes, and the authority-only streamed-berth binding adds one further node without renderer or process work. Those deterministic count/fingerprint gates still do not provide draw calls, visibility cost, VRAM, GPU time, or native frame-time evidence.
+- [ ] Establish performance budgets for a representative mid-range Windows PC. **The renderer-independent half of this has landed** in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`: a named minimum/target machine, a whole-scene census tool (`tools/geometry_census.gd`), and written ceilings for triangles, mesh instances, surfaces, unique meshes/materials/shaders, texture bytes, lights, shadow-casting lights, particle systems and node counts. **Frame time, GPU time, per-frame draw calls and VRAM are deliberately absent and are not claimed**: the development box renders through llvmpipe, so closing that half still requires Phase 9 item 7's benchmark runner on representative Windows hardware. The first major trim reduced `TextMesh` signage from 315,360 to 60,829 triangles with stable-camera legibility review. Later bounded profiles reduced eight occluded Habitat chair-bearing tori by 2,560 triangles and 26 Aft interface collars by 6,656, while the VIP banquette batch removed thirteen submissions and nodes with an exact zero-pixel comparison. Those historical per-change deltas remain frozen separately. The current scenario-aware HIGH census now measures the station-resident graph at **1,683,905 triangles, 5,684 renderer nodes, 5,691 surfaces, 2,545 unique meshes, 450 bound / 639 retained materials, 294 lights / 19 shadow lights, 25 particle systems, and 9,326 nodes**. Loading one real coordinator-owned Cinder generation adds exactly **117,457 triangles, 166 renderer nodes/surfaces, 130 unique meshes, 19 bound/retained materials, 23 enabled non-shadow lights, and 301 nodes**. The VIP sill and Fabrication practical-pool consolidations together removed four enabled shadowless lights after same-process visual A/B review; the player-reachable Music settings row adds five retained UI nodes, the streamed-berth binding adds one non-rendering node, and production Ember/origin ownership makes eight authored Ember materials reachable without binding them in the resident scene. Those deterministic count/fingerprint gates still do not provide draw calls, visibility cost, VRAM, GPU time, or native frame-time evidence.
 
   One resource-only guide-light trim now shares the 51 identical childless lens meshes and their four immutable color recipes, reducing retained mesh/material identities **102 -> 5 (-97)** while keeping exactly 102 nodes and 51 structural mesh-surface submissions; `tests/upper_operations_allocation_test.gd` freezes the unchanged behavior and mutation/lifecycle boundary. It claims no batching, draw-call, frame-time, GPU, VRAM, or whole-scene-budget result.
 
   Two current Jovian resource-only trims share exact immutable SphereMeshes across 25 dorsal-rib joints and seven exterior shoulder-rail joints, reducing those private mesh identities **32 -> 2 (-30)** while preserving every named node, visible copy, material and structural submission. The first measured light consolidation removes only the centre of three overlapping VIP outboard sill spills, retains both side pools plus the complete 11.4 m emissive sill, and reduces each resident/streamed scenario by one enabled light and one node. The next retains all six Fabrication luminaire meshes while consolidating their six same-colour practicals into three midpoint pools, removing three more enabled lights and nodes. Same-process Forward+ A/B reviews found no black gaps or readability/colour loss; these are composition checks only, not frame-time claims.
 
   The Arrow lateral sensor arrays now likewise share one exact immutable SphereMesh across six retained childless curve-joint nodes, reducing whole-scene unique meshes by another five while preserving all six renderer submissions, transforms, materials, shadows, collision and semantic authority. The current census and fingerprints above include that trim.
+
+  Subsequent audited identity/batch slices remove another 28 unique meshes
+  without changing the triangle total: Arrow SensorLeadingEdge, dorsal conduit
+  and panel-band families remove 11 private resources; the Aft VIP and Habitat
+  tank/valve MultiMeshes remove seven more resources plus seven renderer
+  submissions/nodes; Habitat GardenColumn collars, the RangeOpponent weapon
+  telegraph plus the Aft SpineClamp and rack-clamp families remove the final ten
+  private resources while
+  retaining every ordinary renderer/submission in those identity-only families.
+  The first torus batches accidentally bypassed their live geometry budget and
+  added 6,592 triangles; the focused audit caught that regression, restored the
+  exact prior 32x14, 40x12 and 32x12 recipes while retaining authored 48x16
+  metadata, and the final census above proves the triangle total is back at the
+  pre-regression value. These are allocation/submission facts, not GPU timing or
+  driver draw-call claims.
 
   One LandingPad-local resource-only trim now shares the identical mesh behind the three childless parked-umbilical `DeckConnector` copies, reducing connector mesh identities **3 -> 1 (-2)** while retaining all three nodes, exact materials/transforms, and three structural submissions. `tests/central_berth_hero_test.gd` freezes the bounded allocation and authority exclusions; no batching, pixel change, draw-call, timing, VRAM, or whole-scene result is claimed.
 
@@ -865,7 +907,7 @@ Complete these tracks in order. Do not hide a known stability or performance def
 
 ### 1. Whole-game bug hunt and stabilization
 
-The first focused audit wave has already closed several concrete production defects without treating that as an end-to-end playthrough: cargo source/destination reattachment is now one atomic, generation-safe transaction under synchronous removal and signal re-entry; orderly HUD/window exit enters the existing safe-start clean-shutdown seam before quitting; settings profiles reach all five retained ship input banks atomically; and whole-`Main` re-entry restores the exact retained pause/settings/activity focus target instead of leaving controller navigation unfocused or jumping Activity Back to Timed Race. Fleet destruction/regeneration, ship cameras, combat authority, audio teardown, berth indexes and long-lived Main identities have focused green lifecycle evidence, but packaged/native repetition and a reviewed residual P2 list remain open.
+The first focused audit wave has already closed several concrete production defects without treating that as an end-to-end playthrough: cargo source/destination reattachment is now one atomic, generation-safe transaction under synchronous removal and signal re-entry; orderly HUD/window exit enters the existing safe-start clean-shutdown seam before quitting; settings profiles reach all five retained ship input banks atomically; and whole-`Main` re-entry restores the exact retained pause/settings/activity focus target instead of leaving controller navigation unfocused or jumping Activity Back to Timed Race. Active activities now terminalize on pilot unseating and active-hull replacement even when Cinder is already fading or Main has detached/re-entered, rather than leaking non-convoy cargo/activity generations. Combat fire from a destroyed source epoch is quarantined across re-entry while consuming the rejected source sequence, so a same-instance regeneration cannot make that stale request current. Fleet destruction/regeneration, ship cameras, combat authority, audio teardown, berth indexes and long-lived Main identities have focused green lifecycle evidence, but packaged/native repetition and a reviewed residual P2 list remain open.
 
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.
@@ -892,11 +934,76 @@ The first required transition harness now captures production Cinder residency a
 
 The first contract layer has landed without claiming a visitable planet. `PlanetaryWorldDefinition` freezes destination identity, scene/navigation/orbital/surface frames, atmosphere/terrain/landing references and evidence status; `PlanetaryAtmosphereProfile` freezes explicit metre/SI density, optical, fog, cloud, weather, entry-effect and audio-hint fields; and `PlanetaryTerrainProfile` freezes elevation, clipmap/collision LOD, tile ceilings, biome ordering, landing tolerances and floating-origin thresholds. `PlanetaryWorldCompositionValidator` joins those three around one exact **120,000 m centre-to-sea-level datum**, rejects mismatched IDs/radii, terrain above the atmosphere shell and invalid scene/surface/orbital/navigation radii, and treats its documented endpoints inclusively. `PlanetaryCoordinateFrame` represents absolute orbital positions as safe integer cells plus canonical metre offsets, subtracts cells before float composition, and exposes generation-stamped caller-owned rebase translations without moving a node itself. `PlanetaryLandingRegionDefinition` adds bounded body-local approach boxes, touchdown pads, compatibility tags, on-foot egress, surface-route anchors, slope/roughness and clearance data; its +Y basis must point along the outward radial while retaining arbitrary tangent yaw. `PlanetaryLandingCompositionValidator` binds that region to the world's landing roster, terrain profile, configured body frame, exact radius/elevation datum and canonical absolute-orbital representation, and freezes a rebase witness in which absolute position remains stable while world-local position changes by the committed translation.
 
-`PlanetaryAtmosphereSampler` derives bounded density, transmittance, visibility/fog, cloud, wind and entry-effect samples from a copied validated profile. `PlanetaryAtmospherePresentation` is the first passive renderer consumer: a generation-safe caller observation may update exactly four supplied `Environment` properties (`fog_density`, `fog_light_color`, `fog_light_energy`, and `fog_sky_affect`), while detach restores the captured baseline and re-entry reapplies the retained state without replay. It does **not** own fog enable/depth policy, a WorldEnvironment, sky or shell scattering, clouds/shadows, weather selection or time, entry visuals, audio, streaming, movement, physics or gameplay, so this is an aerial-perspective/fog foundation rather than the promised complete atmosphere. `PlanetaryTerrainLodPolicy` selects inclusive near-to-far render/collision rings and exposes only bounded tile-ceiling hints. `PlanetarySurfaceGravityPolicy` now supplies pure body-local radial up, inward inverse-square gravity and tangent-frame samples from the exact composed datum; it applies no force, movement, collision, landing decision or origin shift. `PlanetaryTravelSession` composes validated world and landing reports into a caller-physics orbit/entry/descent/surface/landing/on-foot/take-off/ascent/return state machine; new absolute observations require the current coordinate-frame generation, while validated body-local landing identity survives an origin rebase.
+`PlanetaryAtmosphereSampler` derives bounded density, transmittance,
+visibility/fog, cloud, wind and entry-effect samples from a copied validated
+profile. Three passive renderer adapters consume only caller-owned targets:
+`PlanetaryAtmospherePresentation` transactionally owns four supplied
+`Environment` fog properties; `PlanetarySkyPresentation` owns only top and two
+horizon colours on an existing `ProceduralSkyMaterial`; and
+`PlanetaryCloudPresentation` owns six reflected uniforms on an existing
+compatible `ShaderMaterial`. The cloud adapter does **not** create cloud
+geometry, shader code, noise, shadows or a visible production layer.
+`PlanetarySunLightingPolicy` evaluates a spherical elevated horizon,
+airless/vacuum terminator and bounded atmospheric twilight into normalized
+unitless hints only—no lux, star spectrum, ephemeris, terrain/cloud shadow or
+renderer mutation. `PlanetarySurfaceAudioPolicy` similarly returns opaque
+exterior/interior route IDs, endpoint mix, base/attenuation values and a
+density/airflow intensity hint; it resolves no asset and owns no playback,
+mixer, clock or audio authority. These are coherent foundations, not a complete
+atmosphere, and no authored atmospheric production world consumes them yet.
 
-The first authored destination data exists as the original airless `ember_moon`, with exact `ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the orange backdrop sphere is palette inspiration only and is not promoted into a physical destination. Its authored scene is now a loadable body-centred **35-node** standalone witness: the 119,999 m non-colliding silhouette and bounded caldera floor/rim/pad are joined by a continuous 4 m pad-to-egress-to-staging route, paired solid guidance posts, a sample rack and a three-part relay. Every solid landmark has matching World collision, the 96 x 0.5 x 96 m tangent patch remains the only ground proxy, and the production Player walks the exact route without jumping or leaving the clear corridor. A stable-camera Forward+ frame was inspected for the horizon, pad, route and distinct unobstructed landmarks. The new Ember orbital foundation also freezes one shared `nearby_sector_orbital` cell frame, places the body centre at an exact 8,000 km absolute offset, and composes an independent 250 km load / 300 km unload coordinator/bootstrap around caller observations and caller-applied origin rebases. It is deliberately not instanced by Main and cannot yet move a ship, Player or scene root.
+`PlanetaryTerrainLodPolicy` selects inclusive near-to-far render/collision
+rings and exposes only bounded tile-ceiling hints. `PlanetarySurfaceGravityPolicy`
+supplies pure body-local radial up, inward inverse-square gravity and tangent
+frames without applying a force. `PlanetaryTravelSession` composes validated
+world and landing reports into a caller-physics
+orbit/entry/descent/surface/landing/on-foot/take-off/ascent/return state
+machine. `PlanetaryCruisePolicy` now publishes a strict 20,000 m/s recommendation
+with current-generation full-hull swept-corridor proof, exact acceleration and
+braking envelopes, and no movement authority. The standalone
+`PlanetaryCruisePhysicalController` plus `HeroShip` integration turns one fresh
+proof into real acceleration, overspeed braking and collision-safe movement;
+the ship remains the sole velocity and `move_and_slide()` owner, stale/forged
+proofs fail closed, and the bounded sweep horizon is 750 km. Main/GameFlow,
+HUD/InputMap activation and post-rebase destination routing remain unwired.
 
-These definitions, pure policies and standalone witnesses still own no production planetary streaming/rebase application, ship or Player motion, landing approval, global terrain/clipmap generation, spherical physics integration, activity/reward, save or network authority. Production orbital approach, embodied descent/landing/reboarding/take-off, full surface gravity integration, global terrain and collision, an atmospheric destination with complete sky/cloud/weather/entry/audio presentation, and repeated orbit-to-surface lifecycle evidence remain open. These are prerequisites for — not substitutes for — a visitable planet.
+The first authored destination is the original airless `ember_moon`, with exact
+`ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the
+orange backdrop sphere is palette inspiration only and is not promoted into a
+physical destination. Its body-centred **35-node** scene retains the 119,999 m
+non-colliding silhouette, bounded caldera floor/rim/pad, continuous 4 m
+pad-to-egress-to-staging route, solid guide posts, sample rack and relay; the
+96 x 0.5 x 96 m tangent patch remains the only ground proxy. Main now owns the
+Ember bootstrap/binding and the sole `CommonWorldOriginRebaseOwner`: the shared
+`nearby_sector_orbital` frame places Ember at an exact 8,000 km absolute offset,
+the production coordinator uses 250/300 km load/unload thresholds, and one
+atomic origin transaction moves the covered world roots before returning the
+adjusted actor sample. Cinder still consumes that same post-rebase sample.
+
+A separate standalone Ember surface-loop witness now advances farther than the
+old fixture: after two caller-owned coordinate-frame commits it uses a real
+Arrow command source and ship physics, a strict generation-bound `ShipBerth`
+landing/occupancy, public Player disembark and Input locomotion across exact live
+`WalkablePatch` support, reboarding, real take-off and ascent. Its 62 focused
+assertions cover frame/location/root staleness, N+1 unload/N+2 replay, support
+loss, reservation theft, synchronous destruction, queued dependencies and
+atomic recovery during both embodiment transitions. It never requests an
+origin shift, streams a location, selects an activity, grants a reward or edits
+GameFlow.
+
+The first planet is therefore **not yet production-visitable**. The physical
+cruise controller needs a post-rebase production binding and one-envelope-per-
+ship-tick ordering. The surface host still assumes one shared composition root,
+an exact fixture-only entry pose, a late post-Arrow/Player scheduler, exclusive
+GameFlow piloting/boarding coordination, and either bounded origin deferral or
+an exact committed-rebase adoption seam during its 20 km ascent. Production
+must satisfy those contracts without reparenting Main's retained actors,
+teleporting final approach, adding a second mover/origin owner/travel session,
+or polling raw Input in the binding. Global terrain/clipmap generation,
+spherical vehicle gravity, an atmospheric authored destination with complete
+sky/cloud/weather/entry/audio presentation, activity/reward, save/network,
+native performance and repeated orbit-to-surface lifecycle evidence all remain
+open. These are prerequisites for—not substitutes for—a visitable planet.
 
 - [ ] Turn the nearby coloured bodies into authored, visitable destinations rather than decorative spheres. Begin with one vertical slice planet or moon and complete it before multiplying worlds: orbital approach, atmospheric entry where applicable, descent, surface flight, landing, on-foot traversal, activities, take-off, ascent, orbit, and return to Mudds Shipyards without a loading/lifecycle dead end.
 - [ ] Build a reusable planetary-world contract covering scale and coordinate frames, streaming/origin management, terrain LOD and collision, biome/material layers, atmosphere and sky scattering, clouds, weather, wind, fog, day/night and sun/moon lighting, water where appropriate, surface audio, navigation, landing sites, settlements/structures, hazards, wildlife only if deliberately authored, and save/session persistence.
