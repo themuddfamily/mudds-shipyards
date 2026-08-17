@@ -33,10 +33,13 @@ material, and presentation-only identity are not reused and are not evidence
 of a physical body. Cinder Reach and its ringed moonlet are likewise separate
 authored content and provide no orbital placement datum for Ember Moon.
 
-The Resources intentionally do not assign an absolute orbital cell. A later
-production composition owner must author that datum in a shared orbital frame,
-own world-streaming generations, and apply any coordinate-frame rebase. None of
-those authorities is implied here.
+The Resources themselves do not assign an absolute orbital cell. The opt-in
+`NearbySectorOrbitalRegistry` now authors Ember's original modern 8,000 km datum
+in a shared orbital frame, and `EmberMoonStreamingBootstrap` can own an isolated
+scene generation. They remain outside `Main`. A later production composition
+owner must still apply coordinate-frame rebases and move the station, Cinder,
+ships, player, and Ember roots together; none of those authorities is implied by
+these definition Resources.
 
 ## First-loop boundary
 

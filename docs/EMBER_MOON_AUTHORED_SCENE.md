@@ -51,8 +51,9 @@ static collision as owned capabilities. Streaming, GameFlow, gameplay, landing
 decisions, movement, world/terrain/collision generation, origin shifting, save,
 network, rewards, audio, camera, and lighting authority are all false.
 
-Absolute orbital placement, streaming generations, rebase application, actor
-spawning, travel-session integration, landing eligibility, approach navigation,
-global terrain and collision, spherical gravity, atmosphere, production light
-and sky, audio/VFX, missions, economy, persistence, and networking remain
-deferred.
+The opt-in Ember orbital bootstrap now supplies a checked absolute datum and an
+isolated streaming generation for this scene without placing it in `Main`.
+Production rebase application, actor spawning, travel-session integration,
+landing eligibility, approach navigation, global terrain and collision,
+spherical gravity, atmosphere, production light and sky, audio/VFX, missions,
+economy, persistence, and networking remain deferred.

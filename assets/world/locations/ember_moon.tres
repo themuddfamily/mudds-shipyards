@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WorldLocationDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/world_location_definition.gd" id="1_location"]
+
+[resource]
+script = ExtResource("1_location")
+location_id = &"ember_moon"
+display_name = "Ember Moon"
+sector_id = &"nearby_sector"
+content_note = "Original modern airless destination. Its absolute body-centre datum is owned by NearbySectorOrbitalRegistry; no SpaceBackdrop or Cinder identity is reused."
+anchor_source_id = &"ember_navigation_body_local"
+anchor_position = Vector3(0, 130000, 0)
+scene_origin_position = Vector3(0, 0, 0)
