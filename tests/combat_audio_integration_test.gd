@@ -29,7 +29,7 @@ func _run() -> void:
 	var presentation := game.get_combat_audio_presentation()
 	var authority := game.get_combat_authority()
 	var hero := game.get_guided_ship()
-	var opponent := game.get_node_or_null("RangeOpponent") as Node3D
+	var opponent := game.get_node_or_null("RangeOpponent") as RangeOpponent
 	_check(
 		presentation != null and authority != null and hero != null and opponent != null,
 		"production combat fixture exposes presentation, authority, hero, and defender"
@@ -170,8 +170,24 @@ func _run() -> void:
 		"rejected authoritative replay cannot start any combat cue"
 	)
 
-	# Defender requests share authority but use a distinct authored signature.
+	# The production defender is registered while dormant, but a dormant physical
+	# lifecycle may not fire. Preserve that guard before activating the same craft
+	# through its public lifecycle for the authored defender-cue witness.
 	var defender_origin := opponent.global_position + Vector3.UP
+	var before_inactive_defender := presentation.get_state_snapshot()
+	var inactive_defender_result := authority.submit_hitscan(
+		opponent, GameFlow.OPPONENT_WEAPON_ID, defender_origin, Vector3.UP
+	)
+	var after_inactive_defender := presentation.get_state_snapshot()
+	_check(
+		not bool(inactive_defender_result.get("accepted", true))
+		and inactive_defender_result.get("status", &"") == &"source_destroyed"
+		and _cue_count(after_inactive_defender, CombatAudioPresentation.CUE_DEFENDER_FIRE)
+		== _cue_count(before_inactive_defender, CombatAudioPresentation.CUE_DEFENDER_FIRE),
+		"dormant defender authority is rejected without emitting a fire cue"
+	)
+	opponent.activate(opponent.global_transform)
+	defender_origin = opponent.global_position + Vector3.UP
 	var before_defender := presentation.get_state_snapshot()
 	var defender_result := authority.submit_hitscan(
 		opponent, GameFlow.OPPONENT_WEAPON_ID, defender_origin, Vector3.UP
