@@ -17,6 +17,39 @@ SHA-256 is over the sorted discovered paths and canonicalized registry entries;
 it changes when either surface changes. `--root` and `--registry` exist for
 isolated fixtures and release automation.
 
+## Required graphical readiness
+
+The same tool has a metadata-only report and an opt-in release check:
+
+```sh
+python3 tools/release/graphical_harness_inventory.py --required-readiness
+python3 tools/release/graphical_harness_inventory.py --required-readiness --json
+python3 tools/release/graphical_harness_inventory.py --required-readiness --strict
+```
+
+The report consumes only the checked-in registry. For each of the twelve
+mandatory IDs, it reports the source-freeze status, declared image-inventory
+status and PNG count, original-resolution human-review status, and an exact
+stage/reason blocker. Harnesses and blockers are emitted in stable ID and stage
+order, with a deterministic readiness fingerprint. Invalid registry structure
+always exits nonzero. A structurally valid report exits zero by default so it
+can expose pending work; `--strict` exits nonzero unless all twelve harnesses
+have all three completed evidence stages.
+
+Human `readiness: ready` means that machine evidence is ready to be inspected;
+it remains a strict blocker. Only `readiness: reviewed`, with the required
+bounded evidence reference after verified source and image declarations,
+satisfies the human-review stage. The report never upgrades a state, inspects
+pixels, or infers human approval from `review_status`.
+
+At this revision all twelve required rows truthfully remain pending in all
+three stages, so the deterministic report has `ready=0`, `required=12`, and 36
+blockers. The listed PNG counts are declarations frozen by the registry policy,
+not a claim that those image files exist or were reviewed. Both text and JSON
+outputs explicitly state `render_execution=false` and
+`human_review_performed=false`; neither report mode invokes Godot, a capture
+script, a renderer, or an external review service.
+
 ## Discovery boundary
 
 The validator scans all `.gd` files recursively below `tests/` and `tools/`. A
@@ -116,6 +149,9 @@ because it is not a release gate.
 - Source-freeze and image-inventory verification are pending in this initial
   registry. The validator checks evidence shape and state transitions but does
   not manufacture hashes or treat historical narrative as machine evidence.
+- Required-readiness is a registry-state check, not a filesystem image
+  verifier. A future evidence-producing workflow must calculate and record the
+  declared manifests before strict readiness can pass.
 - A render profile is declared metadata. This validator does not inspect the
   active GPU, display server, viewport size, renderer result, pixels, manifests,
   or human review evidence.

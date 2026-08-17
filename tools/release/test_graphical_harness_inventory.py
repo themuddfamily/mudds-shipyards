@@ -2,10 +2,12 @@
 """Focused fixture tests for graphical_harness_inventory.py."""
 
 import copy
+import io
 import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 
@@ -69,6 +71,13 @@ class FixtureRepository:
             self.root,
             self.registry,
             mandatory_required_ids=frozenset(("capture-alpha",)),
+        )
+
+    def readiness(self):
+        return inventory._evaluate_required_readiness(
+            self.root,
+            self.registry,
+            mandatory_image_counts={"capture-alpha": 1},
         )
 
     def close(self):
@@ -323,6 +332,169 @@ class GraphicalHarnessInventoryTests(unittest.TestCase):
         self.assertTrue(
             any("cannot be ready before source and image evidence" in error for error in result.errors)
         )
+
+    def test_required_readiness_reports_exact_pending_stage_blockers(self):
+        self.fixture.register([entry()])
+        first = self.fixture.readiness()
+        second = self.fixture.readiness()
+        self.assertEqual(first, second)
+        self.assertTrue(first.inventory_valid, first.inventory_errors)
+        self.assertFalse(first.ready)
+        self.assertEqual(first.blocker_count, 3)
+        harness = first.harnesses[0]
+        self.assertEqual(harness.harness_id, "capture-alpha")
+        self.assertEqual(harness.declared_png_count, 1)
+        self.assertEqual(
+            tuple((blocker.stage, blocker.reason) for blocker in harness.blockers),
+            (
+                ("source_freeze", "status_pending"),
+                ("declared_image_inventory", "status_pending"),
+                ("original_resolution_human_review", "readiness_pending"),
+            ),
+        )
+        detached = first.to_dict()
+        detached["harnesses"][0]["blockers"].clear()
+        self.assertEqual(first.blocker_count, 3)
+        self.assertFalse(detached["render_execution"])
+        self.assertFalse(detached["human_review_performed"])
+
+    def test_required_readiness_passes_only_complete_declared_evidence(self):
+        complete = entry()
+        complete["source_freeze"] = {
+            "status": "verified",
+            "manifest_sha256": "a" * 64,
+        }
+        complete["image_inventory"] = {
+            "status": "verified",
+            "expected_png_count": 1,
+            "inventory_sha256": "b" * 64,
+        }
+        complete["human_review"] = {
+            "readiness": "reviewed",
+            "original_resolution_required": True,
+            "evidence_reference": "review/alpha-original-resolution",
+        }
+        self.fixture.register([complete])
+        result = self.fixture.readiness()
+        self.assertTrue(result.inventory_valid, result.inventory_errors)
+        self.assertTrue(result.ready)
+        self.assertEqual(result.blocker_count, 0)
+        self.assertTrue(result.harnesses[0].ready)
+
+    def test_ready_for_review_is_not_a_human_review_claim(self):
+        waiting = entry()
+        waiting["source_freeze"] = {
+            "status": "verified",
+            "manifest_sha256": "a" * 64,
+        }
+        waiting["image_inventory"] = {
+            "status": "verified",
+            "expected_png_count": 1,
+            "inventory_sha256": "b" * 64,
+        }
+        waiting["human_review"]["readiness"] = "ready"
+        self.fixture.register([waiting])
+        result = self.fixture.readiness()
+        self.assertTrue(result.inventory_valid, result.inventory_errors)
+        self.assertFalse(result.ready)
+        self.assertEqual(
+            tuple(
+                (blocker.stage, blocker.reason)
+                for blocker in result.harnesses[0].blockers
+            ),
+            (
+                (
+                    "original_resolution_human_review",
+                    "awaiting_original_resolution_human_review",
+                ),
+            ),
+        )
+
+    def test_missing_required_row_fails_closed_in_all_three_stages(self):
+        self.fixture.register([])
+        result = self.fixture.readiness()
+        self.assertFalse(result.inventory_valid)
+        self.assertFalse(result.ready)
+        self.assertEqual(result.blocker_count, 3)
+        self.assertEqual(
+            tuple(blocker.reason for blocker in result.harnesses[0].blockers),
+            ("harness_missing", "harness_missing", "harness_missing"),
+        )
+
+    def test_required_readiness_type_malformation_is_structured_not_exception(self):
+        malformed = entry()
+        malformed["source_freeze"] = []
+        malformed["image_inventory"] = True
+        malformed["human_review"] = "reviewed"
+        self.fixture.register([malformed])
+        result = self.fixture.readiness()
+        self.assertFalse(result.inventory_valid)
+        self.assertFalse(result.ready)
+        self.assertEqual(
+            tuple((blocker.stage, blocker.reason) for blocker in result.harnesses[0].blockers),
+            (
+                ("source_freeze", "status_invalid"),
+                ("declared_image_inventory", "status_invalid"),
+                (
+                    "original_resolution_human_review",
+                    "original_resolution_not_required",
+                ),
+            ),
+        )
+
+    def test_checked_in_required_report_is_exact_and_strict_pending_fails(self):
+        repository = Path(__file__).resolve().parents[2]
+        registry_path = repository / inventory.DEFAULT_REGISTRY
+        first = inventory.evaluate_required_readiness(repository, registry_path)
+        second = inventory.evaluate_required_readiness(repository, registry_path)
+        self.assertEqual(first, second)
+        self.assertTrue(first.inventory_valid, "\n".join(first.inventory_errors))
+        self.assertFalse(first.ready)
+        self.assertEqual(len(first.harnesses), 12)
+        self.assertEqual(first.blocker_count, 36)
+        self.assertEqual(
+            tuple(harness.harness_id for harness in first.harnesses),
+            tuple(sorted(inventory.MANDATORY_REQUIRED_IDS)),
+        )
+        for harness in first.harnesses:
+            self.assertEqual(len(harness.blockers), 3)
+            self.assertEqual(
+                harness.declared_png_count,
+                inventory.MANDATORY_REQUIRED_IMAGE_COUNTS[harness.harness_id],
+            )
+
+        report_output = io.StringIO()
+        with redirect_stdout(report_output):
+            report_exit = inventory.main(
+                [
+                    "--root",
+                    str(repository),
+                    "--registry",
+                    str(registry_path),
+                    "--required-readiness",
+                    "--json",
+                ]
+            )
+        strict_output = io.StringIO()
+        with redirect_stdout(strict_output):
+            strict_exit = inventory.main(
+                [
+                    "--root",
+                    str(repository),
+                    "--registry",
+                    str(registry_path),
+                    "--required-readiness",
+                    "--strict",
+                    "--json",
+                ]
+            )
+        self.assertEqual(report_exit, 0)
+        self.assertEqual(strict_exit, 1)
+        self.assertEqual(report_output.getvalue(), strict_output.getvalue())
+        payload = json.loads(report_output.getvalue())
+        self.assertFalse(payload["ready"])
+        self.assertFalse(payload["render_execution"])
+        self.assertFalse(payload["human_review_performed"])
 
     def test_checked_in_registry_covers_live_discovery(self):
         repository = Path(__file__).resolve().parents[2]

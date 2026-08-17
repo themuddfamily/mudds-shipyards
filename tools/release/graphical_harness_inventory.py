@@ -113,6 +113,74 @@ class InventoryResult:
         }
 
 
+@dataclass(frozen=True)
+class ReadinessBlocker:
+    stage: str
+    reason: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"stage": self.stage, "reason": self.reason}
+
+
+@dataclass(frozen=True)
+class RequiredHarnessReadiness:
+    harness_id: str
+    ready: bool
+    source_freeze_status: str
+    image_inventory_status: str
+    declared_png_count: int | None
+    human_review_readiness: str
+    original_resolution_required: bool | None
+    blockers: tuple[ReadinessBlocker, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.harness_id,
+            "ready": self.ready,
+            "source_freeze_status": self.source_freeze_status,
+            "image_inventory_status": self.image_inventory_status,
+            "declared_png_count": self.declared_png_count,
+            "human_review_readiness": self.human_review_readiness,
+            "original_resolution_required": self.original_resolution_required,
+            "blockers": [blocker.to_dict() for blocker in self.blockers],
+        }
+
+
+@dataclass(frozen=True)
+class RequiredReadinessResult:
+    inventory_errors: tuple[str, ...]
+    harnesses: tuple[RequiredHarnessReadiness, ...]
+    inventory_fingerprint: str
+    fingerprint: str
+
+    @property
+    def inventory_valid(self) -> bool:
+        return not self.inventory_errors
+
+    @property
+    def ready(self) -> bool:
+        return self.inventory_valid and all(harness.ready for harness in self.harnesses)
+
+    @property
+    def blocker_count(self) -> int:
+        return sum(len(harness.blockers) for harness in self.harnesses)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ready": self.ready,
+            "inventory_valid": self.inventory_valid,
+            "required_count": len(self.harnesses),
+            "ready_count": sum(harness.ready for harness in self.harnesses),
+            "blocker_count": self.blocker_count,
+            "inventory_errors": list(self.inventory_errors),
+            "harnesses": [harness.to_dict() for harness in self.harnesses],
+            "inventory_fingerprint": self.inventory_fingerprint,
+            "fingerprint": self.fingerprint,
+            "render_execution": False,
+            "human_review_performed": False,
+        }
+
+
 class DuplicateJsonKey(ValueError):
     """Raised when a JSON object repeats a key."""
 
@@ -178,6 +246,15 @@ def _is_enum(value: Any, allowed: frozenset[str]) -> bool:
 
 def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and SHA256_PATTERN.fullmatch(value) is not None
+
+
+def _is_human_evidence_reference(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and bool(value.strip())
+        and len(value) <= 512
+        and all(ord(character) >= 32 for character in value)
+    )
 
 
 def _safe_script_path(root: Path, value: Any) -> str | None:
@@ -364,12 +441,7 @@ def _validate_human_review(
         errors.append(
             f"{label}.human_review.original_resolution_required must be true for a graphical harness"
         )
-    if evidence is not None and (
-        not isinstance(evidence, str)
-        or not evidence.strip()
-        or len(evidence) > 512
-        or any(ord(character) < 32 for character in evidence)
-    ):
+    if evidence is not None and not _is_human_evidence_reference(evidence):
         errors.append(
             f"{label}.human_review.evidence_reference must be null or bounded printable text"
         )
@@ -568,20 +640,266 @@ def validate_inventory(root: Path, registry_path: Path) -> InventoryResult:
     )
 
 
+def _normalized_status(value: Any, allowed: frozenset[str]) -> str:
+    return value if _is_enum(value, allowed) else "invalid"
+
+
+def _required_harness_readiness(
+    harness_id: str,
+    entry: dict[str, Any] | None,
+    frozen_png_count: int,
+) -> RequiredHarnessReadiness:
+    if entry is None:
+        return RequiredHarnessReadiness(
+            harness_id=harness_id,
+            ready=False,
+            source_freeze_status="missing",
+            image_inventory_status="missing",
+            declared_png_count=None,
+            human_review_readiness="missing",
+            original_resolution_required=None,
+            blockers=(
+                ReadinessBlocker("source_freeze", "harness_missing"),
+                ReadinessBlocker("declared_image_inventory", "harness_missing"),
+                ReadinessBlocker(
+                    "original_resolution_human_review", "harness_missing"
+                ),
+            ),
+        )
+
+    source = entry.get("source_freeze")
+    source = source if isinstance(source, dict) else {}
+    source_status = _normalized_status(
+        source.get("status"), SOURCE_FREEZE_STATUSES
+    )
+    source_ready = source_status == "verified" and _is_sha256(
+        source.get("manifest_sha256")
+    )
+
+    image = entry.get("image_inventory")
+    image = image if isinstance(image, dict) else {}
+    image_status = _normalized_status(
+        image.get("status"), IMAGE_INVENTORY_STATUSES
+    )
+    raw_count = image.get("expected_png_count")
+    declared_count = raw_count if type(raw_count) is int else None
+    image_ready = (
+        image_status == "verified"
+        and declared_count == frozen_png_count
+        and _is_sha256(image.get("inventory_sha256"))
+    )
+
+    human = entry.get("human_review")
+    human = human if isinstance(human, dict) else {}
+    human_readiness = _normalized_status(
+        human.get("readiness"), HUMAN_REVIEW_READINESS
+    )
+    raw_original_required = human.get("original_resolution_required")
+    original_required = (
+        raw_original_required if type(raw_original_required) is bool else None
+    )
+    evidence = human.get("evidence_reference")
+    human_ready = (
+        human_readiness == "reviewed"
+        and original_required is True
+        and _is_human_evidence_reference(evidence)
+        and source_ready
+        and image_ready
+    )
+
+    blockers: list[ReadinessBlocker] = []
+    if not source_ready:
+        source_reason = (
+            f"status_{source_status}"
+            if source_status != "verified"
+            else "manifest_sha256_invalid"
+        )
+        blockers.append(ReadinessBlocker("source_freeze", source_reason))
+    if not image_ready:
+        if image_status != "verified":
+            image_reason = f"status_{image_status}"
+        elif declared_count != frozen_png_count:
+            image_reason = "declared_png_count_mismatch"
+        else:
+            image_reason = "inventory_sha256_invalid"
+        blockers.append(
+            ReadinessBlocker("declared_image_inventory", image_reason)
+        )
+    if not human_ready:
+        if original_required is not True:
+            human_reason = "original_resolution_not_required"
+        elif human_readiness == "pending":
+            human_reason = "readiness_pending"
+        elif human_readiness == "ready":
+            human_reason = "awaiting_original_resolution_human_review"
+        elif human_readiness != "reviewed":
+            human_reason = f"readiness_{human_readiness}"
+        elif not _is_human_evidence_reference(evidence):
+            human_reason = "evidence_reference_invalid"
+        else:
+            human_reason = "machine_evidence_incomplete"
+        blockers.append(
+            ReadinessBlocker("original_resolution_human_review", human_reason)
+        )
+
+    return RequiredHarnessReadiness(
+        harness_id=harness_id,
+        ready=not blockers,
+        source_freeze_status=source_status,
+        image_inventory_status=image_status,
+        declared_png_count=declared_count,
+        human_review_readiness=human_readiness,
+        original_resolution_required=original_required,
+        blockers=tuple(blockers),
+    )
+
+
+def _evaluate_required_readiness(
+    root: Path,
+    registry_path: Path,
+    *,
+    mandatory_image_counts: dict[str, int],
+) -> RequiredReadinessResult:
+    inventory_result = _validate_inventory(
+        root,
+        registry_path,
+        mandatory_required_ids=frozenset(mandatory_image_counts),
+    )
+    data, _load_errors = load_registry(registry_path)
+    rows_by_id: dict[str, dict[str, Any]] = {}
+    if isinstance(data, dict) and isinstance(data.get("harnesses"), list):
+        for raw_entry in data["harnesses"]:
+            if not isinstance(raw_entry, dict):
+                continue
+            harness_id = raw_entry.get("id")
+            if isinstance(harness_id, str) and harness_id not in rows_by_id:
+                rows_by_id[harness_id] = raw_entry
+
+    harnesses = tuple(
+        _required_harness_readiness(
+            harness_id,
+            rows_by_id.get(harness_id),
+            mandatory_image_counts[harness_id],
+        )
+        for harness_id in sorted(mandatory_image_counts)
+    )
+    inventory_errors = tuple(inventory_result.errors)
+    canonical_payload = {
+        "inventory_errors": list(inventory_errors),
+        "inventory_fingerprint": inventory_result.fingerprint,
+        "harnesses": [harness.to_dict() for harness in harnesses],
+        "render_execution": False,
+        "human_review_performed": False,
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            canonical_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("ascii")
+    ).hexdigest()
+    return RequiredReadinessResult(
+        inventory_errors=inventory_errors,
+        harnesses=harnesses,
+        inventory_fingerprint=inventory_result.fingerprint,
+        fingerprint=fingerprint,
+    )
+
+
+def evaluate_required_readiness(
+    root: Path, registry_path: Path
+) -> RequiredReadinessResult:
+    """Report readiness for the non-overridable twelve required harnesses."""
+    return _evaluate_required_readiness(
+        root,
+        registry_path,
+        mandatory_image_counts=MANDATORY_REQUIRED_IMAGE_COUNTS,
+    )
+
+
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     default_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=default_root)
     parser.add_argument("--registry", type=Path)
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument(
+        "--required-readiness",
+        action="store_true",
+        help="report metadata-only readiness for the twelve mandatory harnesses",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit nonzero when required readiness has any blocker",
+    )
     args = parser.parse_args(argv)
+    if args.strict and not args.required_readiness:
+        parser.error("--strict requires --required-readiness")
     if args.registry is None:
         args.registry = args.root / DEFAULT_REGISTRY
     return args
 
 
+def _print_required_readiness(result: RequiredReadinessResult) -> None:
+    if not result.inventory_valid:
+        status = "INVALID"
+    elif result.ready:
+        status = "READY"
+    else:
+        status = "BLOCKED"
+    ready_count = sum(harness.ready for harness in result.harnesses)
+    print(
+        f"REQUIRED_GRAPHICAL_READINESS_{status}: "
+        f"ready={ready_count} required={len(result.harnesses)} "
+        f"blockers={result.blocker_count} fingerprint={result.fingerprint}"
+    )
+    for error in result.inventory_errors:
+        print(f"INVENTORY_ERROR: {error}")
+    for harness in result.harnesses:
+        count = (
+            str(harness.declared_png_count)
+            if harness.declared_png_count is not None
+            else "null"
+        )
+        original_required = (
+            str(harness.original_resolution_required).lower()
+            if harness.original_resolution_required is not None
+            else "null"
+        )
+        print(
+            f"HARNESS: id={harness.harness_id} ready={str(harness.ready).lower()} "
+            f"source_freeze={harness.source_freeze_status} "
+            f"declared_image_inventory={harness.image_inventory_status} "
+            f"declared_png_count={count} "
+            f"original_resolution_required={original_required} "
+            f"original_resolution_human_review={harness.human_review_readiness}"
+        )
+        for blocker in harness.blockers:
+            print(
+                f"BLOCKER: id={harness.harness_id} "
+                f"stage={blocker.stage} reason={blocker.reason}"
+            )
+    print("AUTHORITY: render_execution=false human_review_performed=false")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.required_readiness:
+        readiness = evaluate_required_readiness(args.root, args.registry)
+        if args.as_json:
+            print(
+                json.dumps(
+                    readiness.to_dict(), sort_keys=True, separators=(",", ":")
+                )
+            )
+        else:
+            _print_required_readiness(readiness)
+        if not readiness.inventory_valid:
+            return 1
+        return 1 if args.strict and not readiness.ready else 0
+
     result = validate_inventory(args.root, args.registry)
     if args.as_json:
         print(json.dumps(result.to_dict(), sort_keys=True, separators=(",", ":")))
