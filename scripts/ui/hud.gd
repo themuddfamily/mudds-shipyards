@@ -2673,7 +2673,22 @@ func set_activity_selection_state(
 		var selected_button := _activity_selection_buttons.get(
 			_activity_selection_kind
 		) as Button
-		if selected_button != null:
+		# Activity authority may publish while the retained Main subtree is
+		# detaching or re-entering. Do not ask an off-tree control for focus, and
+		# do not replace the exact pause-page target retained for re-entry (for
+		# example the Back button). A live selection request already originates
+		# from one of these activity buttons, so only that focus may follow a
+		# changed selection.
+		var focus_owner := (
+			get_viewport().gui_get_focus_owner()
+			if is_inside_tree() and get_viewport() != null
+			else null
+		)
+		if (
+			selected_button != null
+			and is_instance_valid(focus_owner)
+			and _activity_selection_buttons.values().has(focus_owner)
+		):
 			selected_button.grab_focus()
 
 

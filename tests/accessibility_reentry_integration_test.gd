@@ -427,6 +427,43 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 		and hud.get_viewport().gui_get_focus_owner() == reentry_focus,
 		"whole-Main re-entry restores the exact settings control for controller navigation"
 	)
+
+	# The activity authority publishes its detached state while Main leaves the
+	# tree and publishes again as it re-enters. Those lifecycle snapshots must
+	# not steal the exact pause-page focus from Back or call `grab_focus()` on an
+	# off-tree button.
+	var settings_back := (hud.get("_settings_page") as Control).find_child(
+		"SettingsBackButton", true, false
+	) as Button
+	settings_back.pressed.emit()
+	var activity_open := pause_main.find_child(
+		"ActivityBoardButton", true, false
+	) as Button
+	activity_open.pressed.emit()
+	var activity_page := hud.get("_activity_selection_page") as Control
+	var activity_back := activity_page.find_child(
+		"ActivitySelectionBackButton", true, false
+	) as Button
+	activity_back.grab_focus()
+	await process_frame
+	_check(
+		activity_page.visible
+		and activity_back.has_focus()
+		and hud.get_viewport().gui_get_focus_owner() == activity_back,
+		"whole-Main activity re-entry fixture starts on the controller-focused Back action"
+	)
+
+	parent.remove_child(game)
+	await process_frame
+	parent.add_child(game)
+	await process_frame
+	await process_frame
+	_check(
+		activity_page.visible
+		and activity_back.has_focus()
+		and hud.get_viewport().gui_get_focus_owner() == activity_back,
+		"whole-Main re-entry restores exact Activity Back focus across authority snapshots"
+	)
 	hud.set_paused(false)
 	_check(
 		caption_after.caption.get("stable_id", &"") == caption_before.caption.get("stable_id", &"")
