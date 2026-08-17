@@ -31,6 +31,7 @@ func _run() -> void:
 	root.add_child(host)
 	await process_frame
 	_test_content_and_authority_contract(host)
+	_test_cargo_pod_visual_allocation(host)
 	await _test_movement_proximity_and_safe_arrival(host)
 	await _test_loss_reset_and_reentry(host)
 	host.queue_free()
@@ -51,6 +52,129 @@ func _test_content_and_authority_contract(host: CinderConvoyEscortHost) -> void:
 		and audit.get("route_resource_path") == ROUTE.resource_path,
 		"the host composes the exact valid four-position Emberline route resource"
 	)
+	_test_remaining_content_and_authority_contract(host, audit)
+
+
+func _test_cargo_pod_visual_allocation(host: CinderConvoyEscortHost) -> void:
+	var audit := host.get_cargo_pod_visual_allocation_audit()
+	_check(
+		bool(audit.get("valid", false)),
+		"cargo-pod visual allocation audit is green: %s" % [audit.get("errors", [])]
+	)
+	_check(
+		int(audit.get("visual_node_count", 0)) == 7
+		and int(audit.get("baseline_visual_node_count", 0)) == 7
+		and int(audit.get("visual_node_delta", 99)) == 0
+		and int(audit.get("drawn_copy_count", 0)) == 7
+		and int(audit.get("drawn_copy_delta", 99)) == 0
+		and int(audit.get("mesh_resource_identity_count", 0)) == 6
+		and int(audit.get("baseline_mesh_resource_identity_count", 0)) == 7
+		and int(audit.get("mesh_resource_identity_delta", 0)) == -1,
+		"seven visible nodes and copies retain six meshes instead of seven"
+	)
+	_check(
+		int(audit.get("cargo_pod_copy_count", 0)) == 2
+		and int(audit.get("cargo_pod_mesh_resource_identity_count", 0)) == 1
+		and int(audit.get("baseline_cargo_pod_mesh_resource_identity_count", 0)) == 2
+		and int(audit.get("cargo_pod_mesh_resource_identity_delta", 0)) == -1
+		and int(audit.get("material_resource_identity_count", 0)) == 5
+		and int(audit.get("material_resource_identity_delta", 99)) == 0,
+		"the exact paired cargo-pod family shares one mesh and preserves five materials"
+	)
+	_check(
+		int(audit.get("structural_surface_submission_count", 0)) == 7
+		and int(audit.get("structural_surface_submission_delta", 99)) == 0
+		and int(audit.get("collision_object_count", -1)) == 0
+		and int(audit.get("collision_shape_count", -1)) == 0
+		and int(audit.get("navigation_region_count", -1)) == 0
+		and int(audit.get("cargo_pod_child_count", -1)) == 0
+		and int(audit.get("cargo_pod_script_count", -1)) == 0
+		and int(audit.get("cargo_pod_metadata_entry_count", -1)) == 0
+		and int(audit.get("cargo_pod_group_count", -1)) == 0
+		and int(audit.get("cargo_pod_processing_count", -1)) == 0
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("driver_draw_call_claimed", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("vram_claimed", true)),
+		"renderer surfaces remain exact and cargo-pod stock owns no collision, navigation, or lifecycle authority"
+	)
+
+	var rows := audit.get("behavior_rows", []) as Array
+	rows.clear()
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("mutation")
+	var detached_allocation := host.get_cargo_pod_visual_allocation_audit()
+	_check(
+		bool(detached_allocation.get("valid", false))
+		and (detached_allocation.get("behavior_rows", []) as Array).size() == 2
+		and not (detached_allocation.get("errors", PackedStringArray()) as PackedStringArray).has("mutation"),
+		"cargo-pod allocation evidence is deeply detached"
+	)
+
+	var allocation_port_pod := host.get_node(
+		^"EmberlineSupplyTender/PortCargoPod"
+	) as MeshInstance3D
+	var allocation_starboard_pod := host.get_node(
+		^"EmberlineSupplyTender/StarboardCargoPod"
+	) as MeshInstance3D
+	var shared_mesh := allocation_port_pod.mesh
+	_check(allocation_starboard_pod.mesh == shared_mesh, "both named cargo pods reference the same exact mesh")
+	allocation_starboard_pod.mesh = shared_mesh.duplicate() as Mesh
+	var identity_red := host.get_cargo_pod_visual_allocation_audit()
+	_check(
+		not bool(identity_red.get("valid", true))
+		and int(identity_red.get("mesh_resource_identity_count", 0)) == 7
+		and int(identity_red.get("cargo_pod_mesh_resource_identity_count", 0)) == 2
+		and _audit_has_error(identity_red, "cargo_pod_mesh_identity_drift:StarboardCargoPod")
+		and _audit_has_error(identity_red, "cargo_pod_mesh_identity_count_drift"),
+		"structured red: duplicating one identical pod mesh invalidates retained allocation identity"
+	)
+	allocation_starboard_pod.mesh = shared_mesh
+
+	allocation_starboard_pod.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var renderer_red := host.get_cargo_pod_visual_allocation_audit()
+	_check(
+		not bool(renderer_red.get("valid", true))
+		and _audit_has_error(renderer_red, "cargo_pod_renderer_recipe_drift:StarboardCargoPod"),
+		"structured red: renderer shadow drift invalidates the exact pod recipe"
+	)
+	allocation_starboard_pod.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+	var rogue_area := Area3D.new()
+	rogue_area.name = "RoguePodInteraction"
+	var rogue_shape := CollisionShape3D.new()
+	rogue_shape.shape = BoxShape3D.new()
+	rogue_area.add_child(rogue_shape)
+	allocation_starboard_pod.add_child(rogue_area)
+	var authority_red := host.get_cargo_pod_visual_allocation_audit()
+	_check(
+		not bool(authority_red.get("valid", true))
+		and int(authority_red.get("collision_object_count", 0)) == 1
+		and int(authority_red.get("collision_shape_count", 0)) == 1
+		and _audit_has_error(authority_red, "convoy_visuals_gained_collision_or_navigation_authority")
+		and _audit_has_error(authority_red, "cargo_pod_visuals_gained_semantic_or_lifecycle_authority"),
+		"structured red: a pod interaction collider cannot hide inside visual stock"
+	)
+	allocation_starboard_pod.remove_child(rogue_area)
+	rogue_area.free()
+	allocation_starboard_pod.set_meta(&"interaction_owner", true)
+	var semantic_red := host.get_cargo_pod_visual_allocation_audit()
+	_check(
+		not bool(semantic_red.get("valid", true))
+		and _audit_has_error(semantic_red, "cargo_pod_visuals_gained_semantic_or_lifecycle_authority"),
+		"structured red: semantic metadata cannot turn a shared pod visual into authority"
+	)
+	allocation_starboard_pod.remove_meta(&"interaction_owner")
+	_check(
+		bool(host.get_cargo_pod_visual_allocation_audit().get("valid", false))
+		and bool(host.audit().get("valid", false)),
+		"all renderer, collision, and authority mutations restore to a green host audit"
+	)
+
+
+func _test_remaining_content_and_authority_contract(
+		host: CinderConvoyEscortHost,
+		audit: Dictionary
+	) -> void:
 	_check(
 		StringName(audit.get("content_class", &"")) == &"NEW"
 		and StringName(audit.get("evidence_status", &"")) == &"modern_interpretation"
@@ -425,6 +549,10 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures.append(message)
 		print("FAIL: ", message)
+
+
+func _audit_has_error(audit: Dictionary, expected: String) -> bool:
+	return (audit.get("errors", PackedStringArray()) as PackedStringArray).has(expected)
 
 
 func _finish() -> void:
