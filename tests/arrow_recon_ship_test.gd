@@ -164,6 +164,21 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		int(report.lateral_array_curve_joint_sharing.legacy.visible_geometry_copies),
 		int(report.lateral_array_curve_joint_sharing.visible_geometry_copies),
 	])
+	var leading_edge_evidence_format := (
+		"ARROW_SENSOR_LEADING_EDGE_CURVE_JOINT_SHARING: nodes %d->%d "
+		+ "submissions %d->%d primitive_mesh_allocations %d->%d "
+		+ "visible_copies %d->%d"
+	)
+	print(leading_edge_evidence_format % [
+		int(report.sensor_leading_edge_curve_joint_sharing.legacy.geometry_nodes),
+		int(report.sensor_leading_edge_curve_joint_sharing.geometry_nodes),
+		int(report.sensor_leading_edge_curve_joint_sharing.legacy.geometry_submissions),
+		int(report.sensor_leading_edge_curve_joint_sharing.geometry_submissions),
+		int(report.sensor_leading_edge_curve_joint_sharing.legacy.primitive_mesh_allocations),
+		int(report.sensor_leading_edge_curve_joint_sharing.primitive_mesh_allocations),
+		int(report.sensor_leading_edge_curve_joint_sharing.legacy.visible_geometry_copies),
+		int(report.sensor_leading_edge_curve_joint_sharing.visible_geometry_copies),
+	])
 	var whole_evidence_format := (
 		"ARROW_VISUAL_CENSUS: nodes %d->%d submissions %d->%d "
 		+ "unique_mesh_allocations %d->%d visible_copies %d->%d"
@@ -186,10 +201,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 136,
+			"unique_mesh_resource_allocations": 131,
 			"auto_fallback_names": 23,
 		},
-		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->136 unique-mesh allocation census while retaining all 159 copies"
+		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->131 unique-mesh allocation census while retaining all 159 copies"
 	)
 	_check(
 		report.wing_root_rib_batch.legacy == {
@@ -228,6 +243,28 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		]),
 		"six unchanged lateral-array nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of six"
 	)
+	_check(
+		report.sensor_leading_edge_curve_joint_sharing.legacy == {
+			"geometry_nodes": 6,
+			"geometry_submissions": 6,
+			"visible_geometry_copies": 6,
+			"primitive_mesh_allocations": 6,
+		}
+		and int(report.sensor_leading_edge_curve_joint_sharing.geometry_nodes) == 6
+		and int(report.sensor_leading_edge_curve_joint_sharing.geometry_submissions) == 6
+		and int(report.sensor_leading_edge_curve_joint_sharing.visible_geometry_copies) == 6
+		and int(report.sensor_leading_edge_curve_joint_sharing.primitive_mesh_allocations) == 1
+		and int(report.sensor_leading_edge_curve_joint_sharing.resource_allocation_reduction) == 5
+		and report.sensor_leading_edge_curve_joint_sharing.node_paths == PackedStringArray([
+			"SensorLeadingEdge/CurveJoint",
+			"SensorLeadingEdge/@MeshInstance3D@2",
+			"SensorLeadingEdge/@MeshInstance3D@3",
+			"@Node3D@4/CurveJoint",
+			"@Node3D@4/@MeshInstance3D@5",
+			"@Node3D@4/@MeshInstance3D@6",
+		]),
+		"six unchanged sensor-leading-edge nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of six"
+	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
 	_check(
@@ -253,6 +290,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	(report.current as Dictionary)["nodes"] = -1
 	(report.wing_root_rib_batch as Dictionary)["geometry_nodes"] = -1
 	(report.lateral_array_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
+	(report.sensor_leading_edge_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	_check(
 		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176
 		and int(
@@ -260,6 +298,13 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
 		) == 1,
 		"caller mutation cannot alter the detached visual performance evidence"
+	)
+	_check(
+		int(
+			arrow.get_arrow_visual_performance_report()
+				.sensor_leading_edge_curve_joint_sharing.primitive_mesh_allocations
+		) == 1,
+		"caller mutation cannot alter detached sensor-leading-edge allocation evidence"
 	)
 	var injected := Node3D.new()
 	injected.name = "ForbiddenVisualAllocation"
@@ -378,6 +423,70 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		"structured-red: lateral-array shadow mutation fails presentation audit"
 	)
 	last_joint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var leading_edge_report := (
+		arrow.get_arrow_visual_performance_report()
+			.sensor_leading_edge_curve_joint_sharing as Dictionary
+	)
+	var leading_edge_paths := leading_edge_report.node_paths as PackedStringArray
+	var first_leading_edge_joint := (
+		visual.get_node(NodePath(leading_edge_paths[0])) as MeshInstance3D
+	)
+	var last_leading_edge_joint := (
+		visual.get_node(NodePath(leading_edge_paths[-1])) as MeshInstance3D
+	)
+	var shared_leading_edge_mesh := first_leading_edge_joint.mesh as SphereMesh
+	last_leading_edge_joint.mesh = shared_leading_edge_mesh.duplicate() as SphereMesh
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"sensor-leading-edge CurveJoint shared-mesh identity drift"
+		),
+		"structured-red: one private sensor-leading-edge joint mesh fails shared-allocation identity"
+	)
+	last_leading_edge_joint.mesh = shared_leading_edge_mesh
+	var authored_leading_edge_rings := shared_leading_edge_mesh.rings
+	shared_leading_edge_mesh.rings -= 1
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"sensor-leading-edge CurveJoint primitive recipe drift"
+		),
+		"structured-red: shared sensor-leading-edge sphere recipe mutation fails presentation audit"
+	)
+	shared_leading_edge_mesh.rings = authored_leading_edge_rings
+	var authored_leading_edge_material := shared_leading_edge_mesh.material
+	shared_leading_edge_mesh.material = null
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"sensor-leading-edge CurveJoint material identity drift"
+		),
+		"structured-red: sensor-leading-edge material mutation fails presentation audit"
+	)
+	shared_leading_edge_mesh.material = authored_leading_edge_material
+	last_leading_edge_joint.layers = 2
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"sensor-leading-edge CurveJoint render-state drift"
+		),
+		"structured-red: sensor-leading-edge renderer-layer mutation fails presentation audit"
+	)
+	last_leading_edge_joint.layers = 1
+	last_leading_edge_joint.set_meta("forbidden_semantic_authority", true)
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"sensor-leading-edge CurveJoint gained semantic authority"
+		),
+		"structured-red: sensor-leading-edge semantic metadata fails the zero-authority audit"
+	)
+	last_leading_edge_joint.remove_meta("forbidden_semantic_authority")
 	_check(
 		bool(arrow.get_arrow_audit_report().valid),
 		"whole/local Arrow visual audits return green after every mutation is restored"

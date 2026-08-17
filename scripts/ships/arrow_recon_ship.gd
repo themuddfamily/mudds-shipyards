@@ -49,9 +49,10 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # collision, lifecycle, or stable-node identity. The five later panel bands are
 # deliberately excluded because `capture_torus_smoothness.gd` owns their first
 # node as a checked-in evidence path. The next audited family is narrower still:
-# only the six identical, childless CurveJoint sphere resources under the paired
-# lateral sensor arrays are shared. Their nodes, paths, transforms, materials,
-# shadows, copies and submissions remain ordinary independent renderers.
+# only the six identical, childless CurveJoint sphere resources under each of
+# the paired lateral sensor arrays and sensor-wing leading edges are shared
+# within their exact family. Their nodes, paths, transforms, materials, shadows,
+# copies and submissions remain ordinary independent renderers.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -65,6 +66,18 @@ const LATERAL_ARRAY_CURVE_JOINT_PATHS := [
 	"StarboardLateralArray/CurveJoint",
 	"StarboardLateralArray/@MeshInstance3D@17",
 	"StarboardLateralArray/@MeshInstance3D@18",
+]
+const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS := 0.105
+const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIAL_SEGMENTS := 28
+const SENSOR_LEADING_EDGE_CURVE_JOINT_RINGS := 14
+const SENSOR_LEADING_EDGE_CURVE_JOINT_VISIBLE_COPIES := 6
+const SENSOR_LEADING_EDGE_CURVE_JOINT_PATHS := [
+	"SensorLeadingEdge/CurveJoint",
+	"SensorLeadingEdge/@MeshInstance3D@2",
+	"SensorLeadingEdge/@MeshInstance3D@3",
+	"@Node3D@4/CurveJoint",
+	"@Node3D@4/@MeshInstance3D@5",
+	"@Node3D@4/@MeshInstance3D@6",
 ]
 const LEGACY_ARROW_VISUAL_CENSUS := {
 	"nodes": 177,
@@ -81,7 +94,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 136,
+	"unique_mesh_resource_allocations": 131,
 	"auto_fallback_names": 23,
 }
 
@@ -95,6 +108,7 @@ var _sensor_sweep: Node3D
 var _elapsed_arrow := 0.0
 var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 var _lateral_array_curve_joint_mesh: SphereMesh
+var _sensor_leading_edge_curve_joint_mesh: SphereMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -212,6 +226,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"current": {},
 			"wing_root_rib_batch": {},
 			"lateral_array_curve_joint_sharing": {},
+			"sensor_leading_edge_curve_joint_sharing": {},
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
@@ -224,6 +239,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var lateral_joints := _inspect_lateral_array_curve_joint_sharing()
 	if not bool(lateral_joints.valid):
 		errors.append_array(lateral_joints.errors as PackedStringArray)
+	var leading_edge_joints := _inspect_sensor_leading_edge_curve_joint_sharing()
+	if not bool(leading_edge_joints.valid):
+		errors.append_array(leading_edge_joints.errors as PackedStringArray)
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -233,12 +251,13 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 6,
+			"unique_mesh_resource_allocations": 11,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
 		"wing_root_rib_batch": batch,
 		"lateral_array_curve_joint_sharing": lateral_joints,
+		"sensor_leading_edge_curve_joint_sharing": leading_edge_joints,
 	}.duplicate(true)
 
 
@@ -359,6 +378,12 @@ func get_variant_materials() -> Dictionary:
 
 
 func _build_slender_airframe() -> void:
+	_sensor_leading_edge_curve_joint_mesh = SphereMesh.new()
+	_sensor_leading_edge_curve_joint_mesh.radius = SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS
+	_sensor_leading_edge_curve_joint_mesh.height = SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS * 2.0
+	_sensor_leading_edge_curve_joint_mesh.radial_segments = SENSOR_LEADING_EDGE_CURVE_JOINT_RADIAL_SEGMENTS
+	_sensor_leading_edge_curve_joint_mesh.rings = SENSOR_LEADING_EDGE_CURVE_JOINT_RINGS
+	_sensor_leading_edge_curve_joint_mesh.material = _arrow_materials.sensor
 	# A narrow 32-section elliptical fuselage, not the Torrent's broad delta.
 	_loft_hull(
 		_arrow_visual,
@@ -416,8 +441,9 @@ func _build_slender_airframe() -> void:
 				Vector3(side * 3.4, 1.1, -0.55),
 				Vector3(side * 5.35, 1.02, 0.75),
 			]),
-			0.105,
-			_arrow_materials.sensor
+			SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS,
+			_arrow_materials.sensor,
+			_sensor_leading_edge_curve_joint_mesh
 		)
 		_loft_hull(
 			_arrow_visual,
@@ -944,6 +970,92 @@ func _inspect_lateral_array_curve_joint_sharing() -> Dictionary:
 	}.duplicate(true)
 
 
+func _inspect_sensor_leading_edge_curve_joint_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var joints: Array[MeshInstance3D] = []
+	var actual_paths := PackedStringArray()
+	var mesh_identities := {}
+	var expected_transforms := _sensor_leading_edge_curve_joint_transforms()
+	for index in SENSOR_LEADING_EDGE_CURVE_JOINT_PATHS.size():
+		var path := NodePath(SENSOR_LEADING_EDGE_CURVE_JOINT_PATHS[index])
+		var joint := _arrow_visual.get_node_or_null(path) as MeshInstance3D
+		if joint == null or joint.mesh is not SphereMesh:
+			errors.append(
+				"sensor-leading-edge CurveJoint node/path roster drift: %s" % path
+			)
+			continue
+		joints.append(joint)
+		actual_paths.append(str(_arrow_visual.get_path_to(joint)))
+		mesh_identities[joint.mesh.get_instance_id()] = true
+		if not joint.transform.is_equal_approx(expected_transforms[index]):
+			errors.append("sensor-leading-edge CurveJoint transform drift: %s" % path)
+		if not joint.visible \
+			or joint.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or joint.material_override != null \
+			or joint.material_overlay != null \
+			or joint.layers != 1 \
+			or not is_zero_approx(joint.transparency):
+			errors.append("sensor-leading-edge CurveJoint render-state drift: %s" % path)
+		if joint.get_child_count() != 0 \
+			or joint.get_script() != null \
+			or not joint.get_groups().is_empty() \
+			or not joint.get_meta_list().is_empty():
+			errors.append("sensor-leading-edge CurveJoint gained semantic authority: %s" % path)
+
+	var family_child_count := 0
+	for parent_path in [NodePath("SensorLeadingEdge"), NodePath("@Node3D@4")]:
+		var parent := _arrow_visual.get_node_or_null(parent_path)
+		if parent == null:
+			errors.append("sensor-leading-edge parent missing: %s" % parent_path)
+			continue
+		for child in parent.get_children():
+			if child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh:
+				family_child_count += 1
+	if joints.size() != SENSOR_LEADING_EDGE_CURVE_JOINT_VISIBLE_COPIES \
+		or family_child_count != SENSOR_LEADING_EDGE_CURVE_JOINT_VISIBLE_COPIES \
+		or actual_paths != PackedStringArray(SENSOR_LEADING_EDGE_CURVE_JOINT_PATHS):
+		errors.append("sensor-leading-edge CurveJoint visible/path roster drift")
+	if mesh_identities.size() != 1:
+		errors.append("sensor-leading-edge CurveJoint shared-mesh identity drift")
+
+	var mesh := _sensor_leading_edge_curve_joint_mesh
+	if mesh == null \
+		or not is_equal_approx(mesh.radius, SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS) \
+		or not is_equal_approx(mesh.height, SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS * 2.0) \
+		or mesh.radial_segments != SENSOR_LEADING_EDGE_CURVE_JOINT_RADIAL_SEGMENTS \
+		or mesh.rings != SENSOR_LEADING_EDGE_CURVE_JOINT_RINGS \
+		or mesh.get_surface_count() != 1:
+		errors.append("sensor-leading-edge CurveJoint primitive recipe drift")
+	elif mesh.material != _arrow_materials.sensor:
+		errors.append("sensor-leading-edge CurveJoint material identity drift")
+	if mesh != null and mesh.resource_local_to_scene:
+		errors.append("sensor-leading-edge CurveJoint mesh became scene-local")
+	for joint in joints:
+		if joint.mesh != mesh:
+			errors.append("sensor-leading-edge CurveJoint retained a private mesh")
+			break
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": actual_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": joints.size(),
+		"geometry_submissions": joints.size(),
+		"visible_geometry_copies": joints.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 5,
+		"component_retained_mesh_present": mesh != null,
+		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
+		"legacy": {
+			"geometry_nodes": 6,
+			"geometry_submissions": 6,
+			"visible_geometry_copies": 6,
+			"primitive_mesh_allocations": 6,
+		},
+	}.duplicate(true)
+
+
 func _count_visual_nodes(search_root: Node) -> int:
 	var count := 1
 	for child in search_root.get_children():
@@ -969,6 +1081,17 @@ static func _lateral_array_curve_joint_transforms() -> Array[Transform3D]:
 		Transform3D(Basis.IDENTITY, Vector3(1.35, 1.36, -2.0)),
 		Transform3D(Basis.IDENTITY, Vector3(2.25, 1.38, -1.2)),
 		Transform3D(Basis.IDENTITY, Vector3(3.45, 1.25, -0.25)),
+	]
+
+
+static func _sensor_leading_edge_curve_joint_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(Basis.IDENTITY, Vector3(-1.0, 1.19, -1.65)),
+		Transform3D(Basis.IDENTITY, Vector3(-3.4, 1.1, -0.55)),
+		Transform3D(Basis.IDENTITY, Vector3(-5.35, 1.02, 0.75)),
+		Transform3D(Basis.IDENTITY, Vector3(1.0, 1.19, -1.65)),
+		Transform3D(Basis.IDENTITY, Vector3(3.4, 1.1, -0.55)),
+		Transform3D(Basis.IDENTITY, Vector3(5.35, 1.02, 0.75)),
 	]
 
 
