@@ -436,11 +436,12 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_cabinet_louvre_batch(module)
 	_test_hatch_fastener_batch(module)
 	_test_nutrient_tank_band_batch(module)
+	_test_nutrient_valve_batch(module)
 	_check(
-		module.find_children("*", "Node", true, false).size() == 1909
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1260
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 13,
-		"visual batching re-freezes the Habitat census at 1909 nodes, 1260 meshes and 13 MultiMeshes"
+		module.find_children("*", "Node", true, false).size() == 1907
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1257
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 14,
+		"visual batching re-freezes the Habitat census at 1907 nodes, 1257 meshes and 14 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -604,23 +605,23 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1909
-		and int(report.mesh_instances) == 1260
-		and int(report.multimesh_batches) == 13,
-		"renderer nodes freeze at 1922 -> 1909, MeshInstances 1275 -> 1260, batches 11 -> 13"
+		int(report.descendant_nodes) == 1907
+		and int(report.mesh_instances) == 1257
+		and int(report.multimesh_batches) == 14,
+		"renderer nodes freeze at 1922 -> 1907, MeshInstances 1275 -> 1257, batches 11 -> 14"
 	)
 	_check(
 		int(report.drawn_copies) == 1400
-		and int(report.geometry_submissions) == 1273
+		and int(report.geometry_submissions) == 1271
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies remain 1400 while surface submissions fall 1286 -> 1273"
+		"drawn copies remain 1400 while surface submissions fall 1286 -> 1271"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 357
+		int(report.unique_mesh_resources) == 355
 		and int(report.unique_material_resources) == 31
-		and int(report.multimesh_resources) == 13
+		and int(report.multimesh_resources) == 14
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 357/31 while the hatch batch retains its 144-float renderer buffer"
+		"mesh/material allocations freeze at 355/31 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
@@ -836,6 +837,165 @@ func _test_nutrient_tank_band_batch(module: HabitatSpine) -> void:
 	_check(
 		module.get_validation_errors() == baseline_errors,
 		"restoring band payload, recipe and metadata restores the pre-mutation Habitat audit"
+	)
+
+
+func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
+	var service := module.find_child("GardenService", true, false) as Node3D
+	var batch := module.find_child("NutrientValves", true, false) as MultiMeshInstance3D
+	_check(
+		service != null and batch != null and batch.multimesh != null,
+		"three garden nutrient-valve wheels resolve through one visual-only MultiMesh"
+	)
+	if service == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var torus := multi.mesh as TorusMesh
+	var expected: Array[Transform3D] = []
+	var valve_basis := Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0))
+	for valve_x in [12.30, 13.30, 14.30]:
+		expected.append(
+			Transform3D(valve_basis, Vector3(float(valve_x), 2.30, 25.34))
+		)
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+	_check(
+		multi.instance_count == HabitatSpine.NUTRIENT_VALVE_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"NutrientValve",
+		"batch preserves all three valve transforms, yaw, ordering and source identity"
+	)
+	var red_reference := module.find_child("IsolationValve", true, false) as MeshInstance3D
+	_check(
+		torus != null
+		and is_equal_approx(torus.inner_radius, HabitatSpine.NUTRIENT_VALVE_INNER_RADIUS)
+		and is_equal_approx(torus.outer_radius, HabitatSpine.NUTRIENT_VALVE_OUTER_RADIUS)
+		and torus.rings == HabitatSpine.NUTRIENT_VALVE_RINGS
+		and torus.ring_segments == HabitatSpine.NUTRIENT_VALVE_RING_SEGMENTS
+		and torus.get_surface_count() == 1
+		and red_reference != null
+		and batch.material_override == red_reference.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"batch preserves the exact TorusMesh recipe, red material identity, shadows and render layer"
+	)
+	var old_valves := service.get_children().filter(
+		func(candidate: Node) -> bool:
+			if not candidate is MeshInstance3D:
+				return false
+			var old_torus := (candidate as MeshInstance3D).mesh as TorusMesh
+			return (
+				old_torus != null
+				and is_equal_approx(old_torus.inner_radius, 0.13)
+				and is_equal_approx(old_torus.outer_radius, 0.20)
+				and is_equal_approx((candidate as Node3D).position.y, 2.30)
+				and is_equal_approx((candidate as Node3D).position.z, 25.34)
+			)
+	)
+	var manifold := service.find_child("NutrientManifold", false, false) as Node3D
+	var main_pipe := service.find_child("NutrientMain", false, false) as Node3D
+	var registered_isolation_valves := module.find_children("*", "Node3D", true, false).filter(
+		func(candidate: Node) -> bool:
+			return candidate.get_meta("service_class", &"") == &"isolation-valve"
+	)
+	_check(
+		old_valves.is_empty()
+		and manifold != null
+		and main_pipe != null
+		and registered_isolation_valves.size() == 6
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.get_groups().is_empty()
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"only childless visual valve trim is batched while pipework and registered service valves remain"
+	)
+
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.nutrient_valve_legacy_mesh_instances) == 3
+		and int(report.nutrient_valve_mesh_instances) == 0
+		and int(report.nutrient_valve_legacy_multimesh_batches) == 0
+		and int(report.nutrient_valve_multimesh_batches) == 1,
+		"nutrient valves freeze renderer nodes at 3 -> 0 MeshInstances and 0 -> 1 MultiMesh batch"
+	)
+	_check(
+		int(report.nutrient_valve_legacy_drawn_copies) == 3
+		and int(report.nutrient_valve_drawn_copies) == 3
+		and int(report.nutrient_valve_legacy_submissions) == 3
+		and int(report.nutrient_valve_submissions) == 1,
+		"nutrient valves preserve three drawn copies while submissions fall 3 -> 1"
+	)
+	_check(
+		int(report.nutrient_valve_legacy_mesh_resources) == 3
+		and int(report.nutrient_valve_mesh_resources) == 1
+		and int(report.nutrient_valve_renderer_buffer_floats) == 36,
+		"nutrient valves replace three private mesh resources with one exact 36-float renderer payload"
+	)
+	_check(
+		bool(report.nutrient_valve_renderer_buffer_matches_authored)
+		and bool(report.nutrient_valve_bounds_match_authored)
+		and bool(report.nutrient_valve_recipe_matches_authored)
+		and bool(report.nutrient_valve_material_matches_authored)
+		and bool(report.nutrient_valve_renderer_state_matches_authored)
+		and bool(report.nutrient_valve_authority_clean)
+		and bool(report.exact_counts),
+		"valve buffer, culling union, visual recipe and zero-authority boundary match the authored roster"
+	)
+	var detached := report.authored_nutrient_valve_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((module.get_render_allocation_report().authored_nutrient_valve_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"render report returns a detached nutrient-valve transform roster"
+	)
+
+	var baseline_errors := module.get_validation_errors()
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has(
+			"Habitat nutrient-valve renderer buffer drifted from its authored transforms"
+		),
+		"RED: mutating one live valve transform is rejected by the Habitat audit"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		module.get_validation_errors().has(
+			"Habitat nutrient-valve culling bounds drifted from its authored copies"
+		),
+		"RED: mutating the explicit valve culling union is rejected by the Habitat audit"
+	)
+	multi.custom_aabb = original_bounds
+	var original_segments := torus.ring_segments
+	torus.ring_segments = original_segments + 1
+	_check(
+		module.get_validation_errors().has(
+			"Habitat nutrient-valve TorusMesh recipe drifted"
+		),
+		"RED: mutating the live valve TorusMesh recipe is rejected by the Habitat audit"
+	)
+	torus.ring_segments = original_segments
+	batch.set_meta("station_service_detail", true)
+	_check(
+		module.get_validation_errors().has(
+			"Habitat nutrient-valve batch acquired semantic authority"
+		),
+		"RED: attaching service authority to visual-only valve trim is rejected"
+	)
+	batch.remove_meta("station_service_detail")
+	_check(
+		module.get_validation_errors() == baseline_errors,
+		"restoring valve payload, recipe and metadata restores the pre-mutation Habitat audit"
 	)
 
 

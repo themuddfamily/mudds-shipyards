@@ -34,11 +34,11 @@ const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
 
-## Component-local renderer freeze for two childless visual-only families. Their
-## parent hatches and nutrient tanks retain service/collision authority; the
-## brass fasteners and copper bands have no collider, room, route, door, seat,
-## readiness or evidence role and retain every authored copy through MultiMesh
-## submissions.
+## Component-local renderer freeze for three childless visual-only families.
+## Their parent hatches, nutrient tanks and pipework retain service/collision
+## authority; the brass fasteners, copper bands and red valve-wheel trim have no
+## collider, room, route, door, seat, readiness, state or evidence role and
+## retain every authored copy through MultiMesh submissions.
 const HATCH_FASTENER_RADIUS := 0.03
 const HATCH_FASTENER_HEIGHT := 0.025
 const HATCH_FASTENER_COPY_COUNT := 12
@@ -47,12 +47,17 @@ const NUTRIENT_TANK_BAND_OUTER_RADIUS := 0.47
 const NUTRIENT_TANK_BAND_RINGS := 48
 const NUTRIENT_TANK_BAND_RING_SEGMENTS := 16
 const NUTRIENT_TANK_BAND_COPY_COUNT := 3
-const RENDER_DESCENDANT_COUNT := 1909
-const RENDER_MESH_INSTANCE_COUNT := 1260
-const RENDER_MULTIMESH_BATCH_COUNT := 13
+const NUTRIENT_VALVE_INNER_RADIUS := 0.13
+const NUTRIENT_VALVE_OUTER_RADIUS := 0.20
+const NUTRIENT_VALVE_RINGS := 48
+const NUTRIENT_VALVE_RING_SEGMENTS := 16
+const NUTRIENT_VALVE_COPY_COUNT := 3
+const RENDER_DESCENDANT_COUNT := 1907
+const RENDER_MESH_INSTANCE_COUNT := 1257
+const RENDER_MULTIMESH_BATCH_COUNT := 14
 const RENDER_DRAWN_COPY_COUNT := 1400
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1273
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 357
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1271
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 355
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
 ## Which of the six berths are currently taken, in alcove order.
@@ -152,6 +157,9 @@ var _hatch_fastener_transforms: Array[Transform3D] = []
 var _nutrient_tank_band_mesh: TorusMesh
 var _nutrient_tank_band_batch: MultiMeshInstance3D
 var _nutrient_tank_band_transforms: Array[Transform3D] = []
+var _nutrient_valve_mesh: TorusMesh
+var _nutrient_valve_batch: MultiMeshInstance3D
+var _nutrient_valve_transforms: Array[Transform3D] = []
 
 
 func _ready() -> void:
@@ -445,6 +453,19 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("Habitat nutrient-tank-band material or renderer state drifted")
 	if not bool(render.nutrient_tank_band_authority_clean):
 		errors.append("Habitat nutrient-tank-band batch acquired semantic authority")
+	if not bool(render.nutrient_valve_renderer_buffer_matches_authored):
+		errors.append("Habitat nutrient-valve renderer buffer drifted from its authored transforms")
+	if not bool(render.nutrient_valve_bounds_match_authored):
+		errors.append("Habitat nutrient-valve culling bounds drifted from its authored copies")
+	if not bool(render.nutrient_valve_recipe_matches_authored):
+		errors.append("Habitat nutrient-valve TorusMesh recipe drifted")
+	if (
+		not bool(render.nutrient_valve_material_matches_authored)
+		or not bool(render.nutrient_valve_renderer_state_matches_authored)
+	):
+		errors.append("Habitat nutrient-valve material or renderer state drifted")
+	if not bool(render.nutrient_valve_authority_clean):
+		errors.append("Habitat nutrient-valve batch acquired semantic authority")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -769,6 +790,65 @@ func get_render_allocation_report() -> Dictionary:
 			and StringName(_nutrient_tank_band_batch.get_meta("authored_source_name", &""))
 				== &"NutrientTankBand"
 		)
+
+	var valve_expected_buffer := _encode_multimesh_transforms(_nutrient_valve_transforms)
+	var valve_buffer_matches := (
+		is_instance_valid(_nutrient_valve_batch)
+		and _nutrient_valve_batch.multimesh != null
+		and _nutrient_valve_batch.multimesh.buffer == valve_expected_buffer
+	)
+	var valve_bounds_match := false
+	var valve_recipe_matches := false
+	var valve_material_matches := false
+	var valve_renderer_state_matches := false
+	var valve_authority_clean := false
+	if is_instance_valid(_nutrient_valve_batch) and _nutrient_valve_batch.multimesh != null:
+		var valve_multi := _nutrient_valve_batch.multimesh
+		if valve_multi.mesh != null:
+			valve_bounds_match = valve_multi.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(
+					valve_multi.mesh.get_aabb(),
+					_nutrient_valve_transforms
+				)
+			)
+		var valve_torus := valve_multi.mesh as TorusMesh
+		valve_recipe_matches = (
+			valve_torus != null
+			and valve_torus == _nutrient_valve_mesh
+			and is_equal_approx(valve_torus.inner_radius, NUTRIENT_VALVE_INNER_RADIUS)
+			and is_equal_approx(valve_torus.outer_radius, NUTRIENT_VALVE_OUTER_RADIUS)
+			and valve_torus.rings == NUTRIENT_VALVE_RINGS
+			and valve_torus.ring_segments == NUTRIENT_VALVE_RING_SEGMENTS
+			and valve_torus.get_surface_count() == 1
+		)
+		valve_material_matches = _nutrient_valve_batch.material_override == _materials.get("red")
+		valve_renderer_state_matches = (
+			valve_multi.instance_count == NUTRIENT_VALVE_COPY_COUNT
+			and valve_multi.visible_instance_count == -1
+			and _nutrient_valve_batch.cast_shadow
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _nutrient_valve_batch.layers == 1
+			and _nutrient_valve_batch.visible
+		)
+		var allowed_valve_metadata := {
+			&"visual_detail_only": true,
+			&"authored_source_name": true,
+			&"authored_instance_transforms": true,
+		}
+		var valve_metadata_clean := true
+		for metadata_key in _nutrient_valve_batch.get_meta_list():
+			valve_metadata_clean = valve_metadata_clean and allowed_valve_metadata.has(
+				metadata_key
+			)
+		valve_authority_clean = (
+			_nutrient_valve_batch.get_script() == null
+			and _nutrient_valve_batch.get_groups().is_empty()
+			and _nutrient_valve_batch.get_child_count() == 0
+			and valve_metadata_clean
+			and bool(_nutrient_valve_batch.get_meta("visual_detail_only", false))
+			and StringName(_nutrient_valve_batch.get_meta("authored_source_name", &""))
+				== &"NutrientValve"
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -781,6 +861,7 @@ func get_render_allocation_report() -> Dictionary:
 		and multimesh_resource_ids.size() == RENDER_MULTIMESH_BATCH_COUNT
 		and _hatch_fastener_transforms.size() == HATCH_FASTENER_COPY_COUNT
 		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
+		and _nutrient_valve_transforms.size() == NUTRIENT_VALVE_COPY_COUNT
 	)
 	return {
 		"schema_version": 1,
@@ -829,11 +910,43 @@ func get_render_allocation_report() -> Dictionary:
 		"nutrient_tank_band_material_matches_authored": nutrient_material_matches,
 		"nutrient_tank_band_renderer_state_matches_authored": nutrient_renderer_state_matches,
 		"nutrient_tank_band_authority_clean": nutrient_authority_clean,
+		"nutrient_valve_legacy_mesh_instances": NUTRIENT_VALVE_COPY_COUNT,
+		"nutrient_valve_mesh_instances": 0,
+		"nutrient_valve_legacy_multimesh_batches": 0,
+		"nutrient_valve_multimesh_batches": (
+			1 if is_instance_valid(_nutrient_valve_batch) else 0
+		),
+		"nutrient_valve_legacy_drawn_copies": NUTRIENT_VALVE_COPY_COUNT,
+		"nutrient_valve_drawn_copies": _nutrient_valve_transforms.size(),
+		"nutrient_valve_legacy_submissions": NUTRIENT_VALVE_COPY_COUNT,
+		"nutrient_valve_submissions": (
+			1
+			if is_instance_valid(_nutrient_valve_batch)
+			and _nutrient_valve_batch.multimesh != null
+			and _nutrient_valve_batch.multimesh.mesh != null
+			else 0
+		),
+		"nutrient_valve_legacy_mesh_resources": NUTRIENT_VALVE_COPY_COUNT,
+		"nutrient_valve_mesh_resources": (
+			1
+			if is_instance_valid(_nutrient_valve_batch)
+			and _nutrient_valve_batch.multimesh != null
+			and _nutrient_valve_batch.multimesh.mesh != null
+			else 0
+		),
+		"nutrient_valve_renderer_buffer_floats": valve_expected_buffer.size(),
+		"nutrient_valve_renderer_buffer_matches_authored": valve_buffer_matches,
+		"nutrient_valve_bounds_match_authored": valve_bounds_match,
+		"nutrient_valve_recipe_matches_authored": valve_recipe_matches,
+		"nutrient_valve_material_matches_authored": valve_material_matches,
+		"nutrient_valve_renderer_state_matches_authored": valve_renderer_state_matches,
+		"nutrient_valve_authority_clean": valve_authority_clean,
 		"exact_counts": exact_counts,
 		"authored_hatch_fastener_transforms": _hatch_fastener_transforms.duplicate(),
 		"authored_nutrient_tank_band_transforms": (
 			_nutrient_tank_band_transforms.duplicate()
 		),
+		"authored_nutrient_valve_transforms": _nutrient_valve_transforms.duplicate(),
 	}
 
 
@@ -2013,8 +2126,27 @@ func _build_garden_service(branch: Node3D) -> void:
 	# Runs into the column sleeve at 20.55 rather than stopping at 21.20, where its
 	# inboard end was a copper pipe finishing in mid-air over the planting bed.
 	_beam_between(service, "NutrientMain", Vector3(14.40, 2.52, 25.34), Vector3(14.40, 2.52, 20.55), 0.07, _materials["copper"], false)
+	_nutrient_valve_mesh = TorusMesh.new()
+	_nutrient_valve_mesh.inner_radius = NUTRIENT_VALVE_INNER_RADIUS
+	_nutrient_valve_mesh.outer_radius = NUTRIENT_VALVE_OUTER_RADIUS
+	_nutrient_valve_mesh.rings = NUTRIENT_VALVE_RINGS
+	_nutrient_valve_mesh.ring_segments = NUTRIENT_VALVE_RING_SEGMENTS
+	_nutrient_valve_transforms.clear()
 	for valve_x in [12.30, 13.30, 14.30]:
-		_torus(service, "NutrientValve", Vector3(float(valve_x), 2.30, 25.34), 0.13, 0.20, _materials["red"], Vector3(0, 90, 0))
+		_nutrient_valve_transforms.append(
+			Transform3D(
+				Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0)),
+				Vector3(float(valve_x), 2.30, 25.34)
+			)
+		)
+	_nutrient_valve_batch = _multimesh_visual_stock(
+		service,
+		"NutrientValves",
+		_nutrient_valve_mesh,
+		_materials["red"],
+		_nutrient_valve_transforms,
+		&"NutrientValve"
+	)
 	_box(service, "NutrientPanel", Vector3(15.60, 1.70, 25.76), Vector3(0.90, 1.10, 0.10), _materials["graphite"], false)
 	for readout_index in 3:
 		_box(
