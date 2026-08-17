@@ -95,6 +95,35 @@ const RAIL_COLOR := Color("18343e")
 const CUE_COLOR := Color("56e0e3")
 const HAZARD_COLOR := Color("f6a13b")
 
+## Phase 9 component-local allocation freeze. The first childless, visual-only
+## repeated family in authored order is the five route cues. They retain five
+## named nodes, five visible copies, two exact material identities, and five
+## renderer submissions, while one immutable BoxMesh replaces five identical
+## primitive allocations.
+const ROUTE_CUE_COUNT := 5
+const ROUTE_CUE_SIZE := Vector3(0.42, 0.08, 0.42)
+const ROUTE_CUE_NODE_NAMES: Array[String] = [
+	"RouteCue1",
+	"RouteCue2",
+	"RouteCue3",
+	"RouteCue4",
+	"RouteCue5",
+]
+const ROUTE_CUE_LEGACY_ALLOCATION := {
+	"nodes": 5,
+	"visible_copies": 5,
+	"renderer_submissions": 5,
+	"mesh_resource_allocations": 5,
+	"material_resource_allocations": 2,
+}
+const ROUTE_CUE_CURRENT_ALLOCATION := {
+	"nodes": 5,
+	"visible_copies": 5,
+	"renderer_submissions": 5,
+	"mesh_resource_allocations": 1,
+	"material_resource_allocations": 2,
+}
+
 var _built := false
 var _build_generation := 0
 var _attachment_generation := 0
@@ -239,6 +268,101 @@ func get_placement_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+## Headless-safe allocation and renderer-value evidence for the route-cue
+## family. Resource identity comes from live Objects; submission count comes
+## from bound mesh surfaces and does not require a RenderingServer buffer.
+func get_route_cue_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var visible_copy_count := 0
+	var childless_count := 0
+	var renderer_submission_count := 0
+	var authored_transforms := _get_route_cue_authored_transforms()
+	var live_transforms: Array[Transform3D] = []
+	for cue_index in ROUTE_CUE_COUNT:
+		var cue_name := ROUTE_CUE_NODE_NAMES[cue_index]
+		var cue := get_node_or_null(
+			NodePath("VisualRouteCues/%s" % cue_name)
+		) as MeshInstance3D
+		if cue == null:
+			errors.append("route_cue_node_missing_%s" % cue_name)
+			continue
+		live_transforms.append(cue.transform)
+		if cue.get_child_count() != 0:
+			errors.append("route_cue_not_childless_%s" % cue_name)
+		else:
+			childless_count += 1
+		if not cue.transform.is_equal_approx(authored_transforms[cue_index]):
+			errors.append("route_cue_transform_drift_%s" % cue_name)
+		if not cue.visible:
+			errors.append("route_cue_visibility_drift_%s" % cue_name)
+		else:
+			visible_copy_count += 1
+		if cue.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or cue.material_overlay != null or cue.layers != 1 \
+			or not is_zero_approx(cue.extra_cull_margin) \
+			or not is_zero_approx(cue.visibility_range_begin) \
+			or not is_zero_approx(cue.visibility_range_end):
+			errors.append("route_cue_renderer_state_drift_%s" % cue_name)
+		var mesh := cue.mesh as BoxMesh
+		if mesh == null:
+			errors.append("route_cue_box_mesh_missing_%s" % cue_name)
+		else:
+			mesh_resource_ids[mesh.get_instance_id()] = true
+			renderer_submission_count += mesh.get_surface_count()
+			if not mesh.size.is_equal_approx(ROUTE_CUE_SIZE) \
+				or mesh.material != null or mesh.get_surface_count() != 1:
+				errors.append("route_cue_mesh_recipe_drift_%s" % cue_name)
+		var material := cue.material_override as StandardMaterial3D
+		var expected_material := (
+			_materials.cue if cue_index % 2 == 0 else _materials.hazard
+		) as StandardMaterial3D
+		var expected_color := CUE_COLOR if cue_index % 2 == 0 else HAZARD_COLOR
+		if material == null:
+			errors.append("route_cue_material_missing_%s" % cue_name)
+		else:
+			material_resource_ids[material.get_instance_id()] = true
+			if material != expected_material \
+				or not _matches_route_cue_material_recipe(material, expected_color):
+				errors.append("route_cue_material_recipe_drift_%s" % cue_name)
+	if mesh_resource_ids.size() != 1:
+		errors.append("route_cue_mesh_resource_count_drift")
+	if material_resource_ids.size() != 2:
+		errors.append("route_cue_material_resource_count_drift")
+	if visible_copy_count != ROUTE_CUE_COUNT:
+		errors.append("route_cue_visible_copy_count_drift")
+	if renderer_submission_count != ROUTE_CUE_COUNT:
+		errors.append("route_cue_renderer_submission_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors.duplicate(),
+		"family_id": &"route_cue_boxes",
+		"visual_only": childless_count == ROUTE_CUE_COUNT,
+		"childless": childless_count == ROUTE_CUE_COUNT,
+		"batched": false,
+		"immutable_shared_mesh": mesh_resource_ids.size() == 1,
+		"authored_node_names": PackedStringArray(ROUTE_CUE_NODE_NAMES),
+		"authored_transforms": authored_transforms.duplicate(true),
+		"live_transforms": live_transforms.duplicate(true),
+		"mesh_size": ROUTE_CUE_SIZE,
+		"visible_copy_count": visible_copy_count,
+		"renderer_submission_count": renderer_submission_count,
+		"mesh_resource_allocations": mesh_resource_ids.size(),
+		"material_resource_allocations": material_resource_ids.size(),
+		"legacy": ROUTE_CUE_LEGACY_ALLOCATION.duplicate(true),
+		"current": ROUTE_CUE_CURRENT_ALLOCATION.duplicate(true),
+		"mesh_resource_allocation_delta": (
+			int(ROUTE_CUE_CURRENT_ALLOCATION.mesh_resource_allocations)
+			- int(ROUTE_CUE_LEGACY_ALLOCATION.mesh_resource_allocations)
+		),
+		"renderer_submission_delta": (
+			int(ROUTE_CUE_CURRENT_ALLOCATION.renderer_submissions)
+			- int(ROUTE_CUE_LEGACY_ALLOCATION.renderer_submissions)
+		),
+	}.duplicate(true)
+
+
 func audit() -> Dictionary:
 	var actual_budget := {
 		"ship_berths": find_children("*", "ShipBerth", true, false).size(),
@@ -282,6 +406,7 @@ func audit() -> Dictionary:
 		"local_budget": LOCAL_BUDGET.duplicate(true),
 		"actual_budget": actual_budget,
 		"budget_exact": actual_budget == LOCAL_BUDGET,
+		"route_cue_visual_allocation": get_route_cue_visual_allocation_audit(),
 		"cargo_authority": false,
 		"inventory_authority": false,
 		"reward_authority": false,
@@ -304,6 +429,10 @@ func _get_contract_errors(actual_budget: Dictionary) -> PackedStringArray:
 	var errors := PackedStringArray()
 	if actual_budget != LOCAL_BUDGET:
 		errors.append("local_budget_drift")
+	for allocation_error in get_route_cue_visual_allocation_audit().get(
+		"errors", PackedStringArray()
+	):
+		errors.append(String(allocation_error))
 	var surface_ids := PackedStringArray()
 	for body_node in find_children("*", "StaticBody3D", true, false):
 		var body := body_node as StaticBody3D
@@ -569,15 +698,18 @@ func _build_route_markers_and_cues() -> void:
 	var cues := Node3D.new()
 	cues.name = "VisualRouteCues"
 	add_child(cues)
-	for cue_index in 5:
+	var shared_route_cue_mesh := BoxMesh.new()
+	shared_route_cue_mesh.size = ROUTE_CUE_SIZE
+	for cue_index in ROUTE_CUE_COUNT:
 		var cue_position := ROUTE_LOCAL_POINTS[cue_index]
 		cue_position.y += 0.08
 		_visual_box(
 			cues,
 			"RouteCue%d" % (cue_index + 1),
 			cue_position,
-			Vector3(0.42, 0.08, 0.42),
-			_materials.cue if cue_index % 2 == 0 else _materials.hazard
+			ROUTE_CUE_SIZE,
+			_materials.cue if cue_index % 2 == 0 else _materials.hazard,
+			shared_route_cue_mesh
 		)
 	var label := Label3D.new()
 	label.name = "CargoAccessLabel"
@@ -705,18 +837,45 @@ func _visual_box(
 		node_name: String,
 		position_value: Vector3,
 		size: Vector3,
-		material: Material
+		material: Material,
+		shared_mesh: BoxMesh = null
 	) -> MeshInstance3D:
 	var visible := MeshInstance3D.new()
 	visible.name = node_name
 	visible.position = position_value
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = BoxMesh.new()
+		mesh.size = size
 	visible.mesh = mesh
 	visible.material_override = material
 	visible.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(visible)
 	return visible
+
+
+func _get_route_cue_authored_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for cue_index in ROUTE_CUE_COUNT:
+		var cue_position := ROUTE_LOCAL_POINTS[cue_index]
+		cue_position.y += 0.08
+		transforms.append(Transform3D(Basis.IDENTITY, cue_position))
+	return transforms
+
+
+func _matches_route_cue_material_recipe(
+		material: StandardMaterial3D,
+		emission_color: Color
+	) -> bool:
+	return material.albedo_color.is_equal_approx(emission_color.darkened(0.46)) \
+		and is_equal_approx(material.metallic, 0.26) \
+		and is_equal_approx(material.roughness, 0.22) \
+		and material.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL \
+		and material.diffuse_mode == BaseMaterial3D.DIFFUSE_BURLEY \
+		and material.specular_mode == BaseMaterial3D.SPECULAR_SCHLICK_GGX \
+		and material.emission_enabled \
+		and material.emission.is_equal_approx(emission_color) \
+		and is_equal_approx(material.emission_energy_multiplier, 1.5)
 
 
 func _marker(parent: Node3D, node_name: String, position_value: Vector3) -> Marker3D:

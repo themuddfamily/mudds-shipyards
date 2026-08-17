@@ -167,6 +167,55 @@ func _test_identity_placement_budget_and_authority(
 		and (audit.actual_budget as Dictionary) == CinderCargoAccess.LOCAL_BUDGET,
 		"component-local nodes and submissions equal the checked-in exact budget"
 	)
+	var route_cue_allocation := access.get_route_cue_visual_allocation_audit()
+	_check(
+		bool(route_cue_allocation.valid)
+		and (route_cue_allocation.legacy as Dictionary) == {
+			"nodes": 5,
+			"visible_copies": 5,
+			"renderer_submissions": 5,
+			"mesh_resource_allocations": 5,
+			"material_resource_allocations": 2,
+		}
+		and (route_cue_allocation.current as Dictionary) == {
+			"nodes": 5,
+			"visible_copies": 5,
+			"renderer_submissions": 5,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 2,
+		}
+		and int(route_cue_allocation.mesh_resource_allocation_delta) == -4
+		and int(route_cue_allocation.renderer_submission_delta) == 0,
+		"route cues freeze exact 5->1 mesh allocations while retaining five nodes, copies, submissions, and two materials"
+	)
+	_check(
+		route_cue_allocation.authored_node_names
+			== PackedStringArray(["RouteCue1", "RouteCue2", "RouteCue3", "RouteCue4", "RouteCue5"])
+		and route_cue_allocation.authored_transforms == route_cue_allocation.live_transforms
+		and (route_cue_allocation.mesh_size as Vector3).is_equal_approx(Vector3(0.42, 0.08, 0.42))
+		and bool(route_cue_allocation.visual_only)
+		and bool(route_cue_allocation.childless)
+		and not bool(route_cue_allocation.batched),
+		"allocation audit retains the exact named transform roster and renderer recipe without batching semantic nodes"
+	)
+	var route_cue_3 := access.get_node_or_null(
+		^"VisualRouteCues/RouteCue3"
+	) as MeshInstance3D
+	var shared_route_cue_mesh := route_cue_3.mesh if route_cue_3 != null else null
+	if route_cue_3 != null and shared_route_cue_mesh != null:
+		route_cue_3.mesh = shared_route_cue_mesh.duplicate() as Mesh
+	var split_resource_red := access.get_route_cue_visual_allocation_audit()
+	if route_cue_3 != null:
+		route_cue_3.mesh = shared_route_cue_mesh
+	_check(
+		not bool(split_resource_red.valid)
+		and _has_error(
+			split_resource_red.errors,
+			"route_cue_mesh_resource_count_drift"
+		)
+		and bool(access.get_route_cue_visual_allocation_audit().valid),
+		"structured-red: splitting one byte-identical route-cue mesh resource fails allocation identity and restores cleanly"
+	)
 	var surface_ids := PackedStringArray()
 	var surface_census_valid := true
 	for body_node in access.find_children("*", "StaticBody3D", true, false):
