@@ -53,6 +53,8 @@ func get_maximum_health() -> float:
 		if telemetry is Dictionary:
 			return maxf(0.001, float((telemetry as Dictionary).get("maximum_hull", 1.0)))
 	if lifecycle_kind == LifecycleKind.RANGE_OPPONENT:
+		if target.has_method("get_maximum_health"):
+			return maxf(0.001, float(target.call("get_maximum_health")))
 		return maxf(0.001, float(target.get("maximum_health")))
 	return maxf(0.001, get_health())
 

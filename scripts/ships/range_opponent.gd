@@ -1,6 +1,10 @@
 class_name RangeOpponent
 extends CharacterBody3D
 
+const RangeOpponentDamageAdapterType := preload(
+	"res://scripts/combat/range_opponent_component_damage_adapter.gd"
+)
+
 ## Reusable range-defense interceptor for the prototype combat encounter.
 ##
 ## The craft is assembled entirely from procedural Godot geometry. Local
@@ -98,7 +102,7 @@ const WEAPON_TELEGRAPH_POSITIONS := [
 var _chamfered_cylinder_cache: Dictionary = {}
 var _active := false
 var _built := false
-var _health := 0.0
+var _hull_damage: RangeOpponentComponentDamageAdapter
 var _elapsed := 0.0
 var _cooldown_remaining := 0.0
 var _telegraph_remaining := 0.0
@@ -139,6 +143,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_ensure_hull_damage_adapter()
 	_build_interceptor()
 	if _active:
 		if _apply_spawn_on_ready:
@@ -223,7 +228,21 @@ func _get_target_aim_position() -> Vector3:
 
 
 ## Restores the interceptor and places it at a world-space spawn transform.
-func activate(spawn_transform: Transform3D) -> void:
+func activate(spawn_transform: Transform3D) -> Dictionary:
+	return activate_with_result(spawn_transform)
+
+
+## Typed, fail-closed activation seam for lifecycle owners that need acceptance
+## evidence. Existing valid callers may continue to ignore the detached result.
+func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
+	_ensure_hull_damage_adapter()
+	var reset_result := _hull_damage.reset_for_reuse(maximum_health)
+	if not bool(reset_result.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": reset_result.get("reason", &"damage_model_reset_rejected"),
+			"damage_model": reset_result.duplicate(true),
+		}.duplicate(true)
 	_build_interceptor()
 	_clear_destruction_effects()
 	var clean_spawn := spawn_transform
@@ -237,7 +256,6 @@ func activate(spawn_transform: Transform3D) -> void:
 		_pending_spawn_transform = clean_spawn
 		_apply_spawn_on_ready = true
 	velocity = Vector3.ZERO
-	_health = maximum_health
 	_active = true
 	visible = true
 	_visual_root.visible = true
@@ -258,7 +276,14 @@ func activate(spawn_transform: Transform3D) -> void:
 	_restart_particles_cleared(_damage_sparks)
 	_restart_particles_cleared(_damage_smoke)
 	_set_damage_stage()
-	health_changed.emit(_health, maximum_health)
+	health_changed.emit(get_health(), get_maximum_health())
+	return {
+		"accepted": true,
+		"reason": &"activated",
+		"health": get_health(),
+		"maximum_health": get_maximum_health(),
+		"damage_model": reset_result.duplicate(true),
+	}.duplicate(true)
 
 
 ## Removes the craft from play without producing a destruction effect.
@@ -290,16 +315,20 @@ func apply_damage(
 	sequence: int = -1,
 	defer_visuals: bool = false
 	) -> void:
-	if not _active or amount <= 0.0 or _health <= 0.0:
+	var before_health := get_health()
+	if not _active or before_health <= 0.0:
 		return
-	_health = maxf(0.0, _health - amount)
-	var terminal := _health <= 0.0
+	var damage_result := _hull_damage.apply_hull_damage(amount, maximum_health)
+	if not bool(damage_result.get("accepted", false)):
+		return
+	var current_health := float(damage_result.get("current_health", before_health))
+	var terminal := current_health <= 0.0
 	var effect_pose := global_transform
 	effect_pose.basis = effect_pose.basis.orthonormalized()
 	var presentation := {
 		"sequence": sequence,
 		"hit_position": hit_position,
-		"health": _health,
+		"health": current_health,
 		"terminal": terminal,
 		"effect_pose": effect_pose,
 		"inherited_velocity": velocity,
@@ -309,13 +338,25 @@ func apply_damage(
 	else:
 		_clear_pending_damage_presentations()
 		_present_damage_record(presentation)
-	health_changed.emit(_health, maximum_health)
+	health_changed.emit(current_health, get_maximum_health())
 	if terminal:
 		_destroy_interceptor(effect_pose.origin)
 
 
 func get_health() -> float:
-	return _health
+	return _hull_damage.get_health() if _hull_damage != null else 0.0
+
+
+func get_maximum_health() -> float:
+	return _hull_damage.get_maximum_health() if _hull_damage != null else maximum_health
+
+
+func get_component_damage_snapshot() -> Dictionary:
+	if _hull_damage == null:
+		return {}
+	var snapshot := _hull_damage.get_snapshot()
+	snapshot["configuration_current"] = _hull_damage.configuration_matches(maximum_health)
+	return snapshot.duplicate(true)
 
 
 func is_active() -> bool:
@@ -752,13 +793,13 @@ func _fire_at_target(target_position: Vector3) -> void:
 
 
 func _set_damage_stage() -> void:
-	_set_damage_stage_for_health(_health, _active)
+	_set_damage_stage_for_health(get_health(), _active)
 
 
 func _set_damage_stage_for_health(presented_health: float, presentation_active: bool) -> void:
 	if _damage_sparks == null or _damage_smoke == null:
 		return
-	var ratio := presented_health / maxf(maximum_health, 0.001)
+	var ratio := presented_health / maxf(get_maximum_health(), 0.001)
 	_damage_sparks.emitting = presentation_active and ratio <= 0.67
 	_damage_smoke.emitting = presentation_active and ratio <= 0.34
 
@@ -766,7 +807,7 @@ func _set_damage_stage_for_health(presented_health: float, presentation_active: 
 func _update_presentation(delta: float) -> void:
 	if not _built:
 		return
-	var ratio := clampf(_health / maxf(maximum_health, 0.001), 0.0, 1.0)
+	var ratio := clampf(get_health() / maxf(get_maximum_health(), 0.001), 0.0, 1.0)
 	var engine_strength := 0.0
 	if _active:
 		engine_strength = 0.78 + clampf(velocity.length() / maxf(chase_speed, 1.0), 0.0, 1.0) * 0.4
@@ -831,7 +872,13 @@ func _present_damage_record(presentation: Dictionary) -> void:
 	# Receipts may arrive out of firing order when shot ranges differ. Persistent
 	# damage cues must reflect current authority, never an older receipt that
 	# would visually heal a craft after a newer critical hit was presented.
-	_set_damage_stage_for_health(_health, _active)
+	_set_damage_stage_for_health(get_health(), _active)
+
+
+func _ensure_hull_damage_adapter() -> void:
+	if _hull_damage == null:
+		_hull_damage = RangeOpponentDamageAdapterType.new(maximum_health) \
+			as RangeOpponentComponentDamageAdapter
 
 
 func _clear_pending_damage_presentations() -> void:

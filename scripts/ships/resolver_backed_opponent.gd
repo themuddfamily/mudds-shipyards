@@ -106,13 +106,16 @@ func _exit_tree() -> void:
 	super()
 
 
-func activate(spawn_transform: Transform3D) -> void:
-	super(spawn_transform)
+func activate(spawn_transform: Transform3D) -> Dictionary:
+	var activation := super(spawn_transform) as Dictionary
+	if not bool(activation.get("accepted", false)):
+		return activation
 	_shots_fired = 0
 	_shots_withheld = 0
 	_last_shot_result = {}
 	_discard_shot_receipts()
 	_register_combat_source()
+	return activation
 
 
 func deactivate() -> void:

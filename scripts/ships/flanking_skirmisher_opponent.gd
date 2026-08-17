@@ -132,11 +132,14 @@ func _ready() -> void:
 	_apply_role_presentation()
 
 
-func activate(spawn_transform: Transform3D) -> void:
-	super(spawn_transform)
+func activate(spawn_transform: Transform3D) -> Dictionary:
+	var activation := super(spawn_transform) as Dictionary
+	if not bool(activation.get("accepted", false)):
+		return activation
 	_shots_arc_denied = 0
 	_set_weapon_safed(true)
 	_apply_role_presentation()
+	return activation
 
 
 func deactivate() -> void:

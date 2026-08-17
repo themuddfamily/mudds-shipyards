@@ -392,14 +392,17 @@ func get_validation_errors() -> PackedStringArray:
 
 # ------------------------------------------------------------- activation ----
 
-func activate(spawn_transform: Transform3D) -> void:
-	super(spawn_transform)
+func activate(spawn_transform: Transform3D) -> Dictionary:
+	var activation := super(spawn_transform) as Dictionary
+	if not bool(activation.get("accepted", false)):
+		return activation
 	_cooldown_remaining = maxf(_cooldown_remaining, initial_arming_delay)
 	_shots_fired = 0
 	_shots_aborted = 0
 	_discard_lance_receipts()
 	_register_combat_source()
 	_set_engagement_state(STATE_CLOSING)
+	return activation
 
 
 func deactivate() -> void:
