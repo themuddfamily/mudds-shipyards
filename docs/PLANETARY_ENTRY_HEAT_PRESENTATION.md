@@ -1,10 +1,10 @@
 # Planetary entry-heat presentation foundation
 
-`PlanetaryEntryHeatPresentation` is a passive Stage-1 renderer adapter for the
-existing `PlanetaryAtmosphereProfile` and `PlanetaryAtmosphereSampler`. The
-checked-in `PlanetaryEntryHeatTarget` scene supplies its dedicated visual target.
-This slice is generic and is not attached to Arrow, another ship, Main, or
-GameFlow.
+`PlanetaryEntryHeatPresentation` is a passive renderer adapter for the existing
+`PlanetaryAtmosphereProfile` and `PlanetaryAtmosphereSampler`. The checked-in
+`PlanetaryEntryHeatTarget` scene supplies its dedicated visual target. Stage 2
+attaches one still-unconfigured target to the Arrow host; Main, GameFlow, and
+atmosphere-observation composition remain absent.
 
 ## Exact contract
 
@@ -70,9 +70,31 @@ Fresnel exponent). It uses no `TIME`, noise, screen/depth texture, light, or
 particle system. The isotropic envelope is deliberately not a directional bow
 shock.
 
-The caller must attach and align the target to an appropriate stable visual
-anchor. Stage 1 does not choose a ship, infer airflow direction, or affect the
-parent's visibility.
+Generic callers must attach and align the target to an appropriate stable visual
+anchor. Arrow now performs that narrow host step after `_build_arrow_variant()`
+has installed its final `ArrowReconVisual`: exactly one target is a direct child,
+with `top_level = false`, position `(0, 1.4, -0.15)` m, zero rotation, and scale
+`(1.45, 1.4, 1.08)`. The fitted authored bounds are
+`AABB((-5.8,-1.4,-7.71), (11.6,5.6,15.12))`; the 0.25 m standoff bounds are
+`AABB((-6.1625,-1.75,-7.98), (12.325,6.3,15.66))` in Arrow visual-root space.
+
+The host attachment adds exactly three nodes (target, overlay, presentation),
+one renderer, one surface/submission, one visible geometry copy, one shared-mesh
+allocation reference, and one exclusive live material. Two Arrows share the
+immutable mesh and shader but never their live material. Attachment does not
+configure the presentation, sample atmosphere state, or add a process loop. Its
+zero intensity therefore remains invisible until a later caller explicitly
+configures and drives it. Because it is under the stable final visual root, the
+same target and material follow inherited hull hide, damage/reset, reuse, and
+whole-ship detach/re-entry without rebuilding or duplicating the target.
+Arrow audits the untouched zero/generation-0 state only while the adapter is
+unconfigured. Once an external composition owner configures it, the host accepts
+bounded live intensity only when the adapter's own generation, renderer target,
+transaction, and baseline audit is green; valid driving does not invalidate the
+Arrow census.
+Arrow's performance report retains the Phase-9 pre-attachment census separately;
+its current `reductions` values are honest legacy-minus-current deltas, so nodes
+and visible copies are `-2` and `-1` after this deliberate renderer addition.
 
 ## Transaction and lifecycle
 
@@ -120,11 +142,14 @@ mesh and shader. Neither component owns movement, airflow direction, drag,
 damage, gameplay heat, weather/time selection, quality policy, particles,
 lights, or playback.
 
-Stage 1 does **not** provide production ship integration, physical heating,
-damage, directional flow, clouds, weather, camera logic, audio, or calibrated
-photometry. A later integration may attach one target under a ship's stable
-visual root and explicitly feed observations; it must preserve the exclusive
-material and zero-authority boundaries here.
+Stage 2 provides only the first Arrow host attachment. It does **not** configure
+the adapter or provide production atmosphere sampling, physical heating, damage,
+directional flow, clouds, weather, camera logic, audio, or calibrated photometry.
+A later composition owner must explicitly configure the existing adapter and
+feed complete observations while preserving this exclusive-material and
+zero-gameplay-authority boundary. The generic target's
+`ship_integration = false` capability remains truthful: it implements no ship
+logic; Arrow alone owns the hosting relationship.
 
 ## Focused evidence
 
@@ -136,7 +161,12 @@ material and zero-authority boundaries here.
   freezes the AABB, mesh/surface/submission roster, per-live-target material
   exclusivity, shared mesh/shader identity, absence of collision/authority
   nodes, structured-red mutations, and whole-target detach/reentry.
+- `tests/arrow_recon_ship_test.gd` freezes the direct-child transform/bounds,
+  exact +3/+1/+1 census, one target per Arrow, shared mesh/shader with distinct
+  materials across two ships, zero/unconfigured baseline, structured-red host
+  mutations, and stable damage/reset/detach/re-entry identity.
 
-An optional isolated Forward+ review may compare HIGH/LOW at intensity 0, 0.25,
-and 1 with a fixed camera. It is presentation evidence only: it cannot prove
-production attachment or establish a frame-time claim.
+An optional isolated same-process Forward+ review may compare the attached Arrow
+under HIGH/LOW at intensity 0, 0.25, and 1 from fixed external chase and cockpit
+views. It is presentation evidence only: it cannot prove atmosphere composition
+or establish a frame-time claim.

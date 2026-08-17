@@ -28,6 +28,7 @@ func _run() -> void:
 
 	_test_definition_and_evidence(arrow)
 	_test_distinct_presentation(arrow)
+	await _test_entry_heat_attachment(arrow)
 	_test_visual_performance_batch(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_collision_boarding_and_cameras(arrow)
@@ -78,6 +79,208 @@ func _test_distinct_presentation(arrow: ArrowReconShip) -> void:
 	_check(visual.get_node_or_null("PortSensorWing") is MeshInstance3D, "port sensor wing is a smooth authored planform mesh")
 	_check(visual.get_node_or_null("StarboardSensorWing") is MeshInstance3D, "starboard sensor wing is a smooth authored planform mesh")
 	_check(visual.get_node_or_null("DorsalSurveySpine") is MeshInstance3D, "dorsal survey spine is a curved loft")
+
+
+func _test_entry_heat_attachment(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var target := arrow.get_entry_heat_target()
+	_check(
+		target != null
+		and target.name == "PlanetaryEntryHeatTarget"
+		and target.get_parent() == visual
+		and not target.top_level,
+		"Arrow exposes exactly one typed entry-heat target as a direct non-top-level child of its final visual root"
+	)
+	_check(
+		target != null
+		and target.position == Vector3(0.0, 1.4, -0.15)
+		and target.rotation == Vector3.ZERO
+		and target.scale == Vector3(1.45, 1.4, 1.08),
+		"Arrow entry-heat target freezes the exact authored ship-local fit"
+	)
+	var attachment := arrow.get_arrow_audit_report().entry_heat_attachment as Dictionary
+	_check(
+		bool(attachment.valid)
+		and (attachment.authored_local_bounds as AABB).is_equal_approx(AABB(
+			Vector3(-5.8, -1.4, -7.71), Vector3(11.6, 5.6, 15.12)
+		))
+		and (attachment.expanded_local_bounds as AABB).is_equal_approx(AABB(
+			Vector3(-6.1625, -1.75, -7.98), Vector3(12.325, 6.3, 15.66)
+		)),
+		"attachment audit freezes the authored and 0.25m-standoff Arrow-local bounds"
+	)
+	_check(
+		int(attachment.target_subtree_nodes) == 3
+		and int(attachment.renderer_nodes) == 1
+		and int(attachment.surface_count) == 1
+		and int(attachment.geometry_submissions) == 1
+		and int(attachment.visible_geometry_copies) == 1
+		and int(attachment.unique_mesh_resource_allocations) == 1
+		and int(attachment.exclusive_material_allocations) == 1
+		and not bool(attachment.presentation_configured)
+		and float(attachment.intensity_baseline) == 0.0
+		and float(attachment.live_intensity) == 0.0,
+		"attachment contributes exactly one three-node target subtree, renderer, surface/submission, visible copy, mesh allocation, and exclusive material"
+	)
+	var presentation := target.get_presentation() if target != null else null
+	var state := presentation.get_state_snapshot() if presentation != null else {}
+	var material := target.get_material() if target != null else null
+	_check(
+		presentation != null
+		and not bool(state.get("configured", true))
+		and int(state.get("generation", -1)) == 0
+		and int(state.get("revision", -1)) == 0
+		and not bool(state.get("has_presented_observation", true))
+		and material != null
+		and material.resource_local_to_scene
+		and float(material.get_shader_parameter(
+			PlanetaryEntryHeatTarget.OWNED_PARAMETER
+		)) == 0.0,
+		"host attachment is passive and starts at the exact zero baseline without configuring or sampling"
+	)
+	_check(
+		target != null
+		and target.is_contract_valid()
+		and target.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and not target.is_processing()
+		and not target.is_physics_processing(),
+		"entry-heat attachment owns no collision or automatic process authority"
+	)
+
+	var second := ARROW_SCENE.instantiate() as ArrowReconShip
+	_check(second != null, "a second Arrow instantiates for resource-ownership evidence")
+	if second != null:
+		second.position = Vector3(100.0, 0.0, 0.0)
+		_test_root.add_child(second)
+		await process_frame
+		await physics_frame
+		var second_target := second.get_entry_heat_target()
+		var second_material := (
+			second_target.get_material() if second_target != null else null
+		)
+		var first_overlay := target.get_overlay() if target != null else null
+		var second_overlay := (
+			second_target.get_overlay() if second_target != null else null
+		)
+		_check(
+			second_target != null
+			and second_target != target
+			and first_overlay != null
+			and second_overlay != null
+			and first_overlay.mesh == second_overlay.mesh
+			and material != null
+			and second_material != null
+			and material != second_material
+			and material.shader == second_material.shader
+			and float(second_material.get_shader_parameter(
+				PlanetaryEntryHeatTarget.OWNED_PARAMETER
+			)) == 0.0,
+			"two Arrows share the immutable target mesh/shader but own distinct exact-zero live materials"
+		)
+		_check(
+			_count_named(visual, "PlanetaryEntryHeatTarget") == 1
+			and _count_named(
+				second.get_arrow_visual_root(), "PlanetaryEntryHeatTarget"
+			) == 1,
+			"each live Arrow owns exactly one entry-heat target generation"
+		)
+		second.queue_free()
+		await process_frame
+
+	(attachment.authored_transform as Dictionary)["position"] = Vector3(INF, INF, INF)
+	(attachment.target_contract as Dictionary)["valid"] = false
+	_check(
+		bool(arrow.get_arrow_audit_report().entry_heat_attachment.valid)
+		and arrow.get_arrow_audit_report().entry_heat_attachment.authored_transform.position \
+			== Vector3(0.0, 1.4, -0.15),
+		"caller mutation cannot alter detached entry-heat attachment evidence"
+	)
+	if target != null:
+		var authored_position := target.position
+		target.position += Vector3(0.1, 0.0, 0.0)
+		_check(
+			not bool(arrow.get_arrow_audit_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_audit_report(),
+				"authored transform drift"
+			),
+			"structured-red: entry-heat attachment transform drift fails Arrow audit"
+		)
+		target.position = authored_position
+		target.top_level = true
+		_check(
+			not bool(arrow.get_arrow_audit_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_audit_report(),
+				"top-level transform authority"
+			),
+			"structured-red: top-level target drift fails Arrow audit"
+		)
+		target.top_level = false
+		target.position = authored_position
+		target.rotation = Vector3.ZERO
+		target.scale = Vector3(1.45, 1.4, 1.08)
+		if material != null:
+			material.set_shader_parameter(
+				PlanetaryEntryHeatTarget.OWNED_PARAMETER, 0.25
+			)
+			_check(
+				not bool(arrow.get_arrow_audit_report().valid)
+				and _report_has_error(
+					arrow.get_arrow_audit_report(),
+					"target contract is invalid"
+				),
+				"structured-red: unconfigured nonzero intensity fails Arrow target audit"
+			)
+			material.set_shader_parameter(
+				PlanetaryEntryHeatTarget.OWNED_PARAMETER, 0.0
+			)
+		var duplicate := preload(
+			"res://scenes/effects/planetary_entry_heat_target.tscn"
+		).instantiate() as PlanetaryEntryHeatTarget
+		visual.add_child(duplicate)
+		_check(
+			not bool(arrow.get_arrow_audit_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_audit_report(),
+				"instance roster drift"
+			),
+			"structured-red: a duplicate entry-heat target fails the one-instance host roster"
+		)
+		visual.remove_child(duplicate)
+		duplicate.free()
+	_check(
+		bool(arrow.get_arrow_audit_report().valid),
+		"Arrow audit returns green after every entry-heat host mutation is restored"
+	)
+	var configured := presentation.configure(
+		PlanetaryAtmosphereProfile.new(), material
+	)
+	_check(
+		bool(configured.get("accepted", false))
+		and bool(arrow.get_arrow_audit_report().valid),
+		"a legitimate external adapter configuration keeps the immutable Arrow host audit green"
+	)
+	var presented := presentation.present_observation(
+		14000.0, 250.0, presentation.get_generation()
+	)
+	_check(
+		bool(presented.get("accepted", false))
+		and is_equal_approx(float(material.get_shader_parameter(
+			PlanetaryEntryHeatTarget.OWNED_PARAMETER
+		)), 0.25)
+		and bool(arrow.get_arrow_audit_report().valid),
+		"bounded externally driven live intensity remains valid without giving Arrow sampling authority"
+	)
+	var reset := presentation.reset_for_reuse(presentation.get_generation())
+	_check(
+		bool(reset.get("accepted", false))
+		and float(material.get_shader_parameter(
+			PlanetaryEntryHeatTarget.OWNED_PARAMETER
+		)) == 0.0
+		and bool(arrow.get_arrow_audit_report().valid),
+		"explicit adapter reset restores zero while the unchanged Arrow host remains valid"
+	)
 	var loft := (visual.get_node("ReconFuselage") as MeshInstance3D).mesh
 	_check(loft is ArrayMesh and (loft as ArrayMesh).get_faces().size() > 700, "recon fuselage has a dense smooth loft rather than a box primitive")
 
@@ -226,6 +429,18 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
+			"nodes": 179,
+			"mesh_instance_nodes": 158,
+			"multi_mesh_instance_nodes": 1,
+			"geometry_submissions": 159,
+			"visible_geometry_copies": 160,
+			"unique_mesh_resource_allocations": 126,
+			"auto_fallback_names": 23,
+		},
+		"whole Arrow visual freezes the exact Stage-2 179-node, 159-submission, 126-mesh census with all 160 copies"
+	)
+	_check(
+		report.phase9_before_entry_heat == {
 			"nodes": 176,
 			"mesh_instance_nodes": 157,
 			"multi_mesh_instance_nodes": 1,
@@ -233,8 +448,31 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"visible_geometry_copies": 159,
 			"unique_mesh_resource_allocations": 125,
 			"auto_fallback_names": 23,
+		}
+		and report.entry_heat_target_delta == {
+			"target_subtree_nodes": 3,
+			"renderer_nodes": 1,
+			"surface_count": 1,
+			"geometry_submissions": 1,
+			"visible_geometry_copies": 1,
+			"unique_mesh_resource_allocations": 1,
+			"exclusive_material_allocations": 1,
+		}
+		and report.reductions == {
+			"nodes": -2,
+			"geometry_submissions": 0,
+			"unique_mesh_resource_allocations": 16,
+			"auto_fallback_names": 1,
+			"visible_geometry_copies": -1,
+		}
+		and report.phase9_reductions_before_entry_heat == {
+			"nodes": 1,
+			"geometry_submissions": 1,
+			"unique_mesh_resource_allocations": 17,
+			"auto_fallback_names": 1,
+			"visible_geometry_copies": 0,
 		},
-		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->125 unique-mesh allocation census while retaining all 159 copies"
+		"Stage-2 evidence isolates the exact entry-heat delta from the frozen Phase-9 optimized visual"
 	)
 	_check(
 		report.wing_root_rib_batch.legacy == {
@@ -365,6 +603,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	(report.sensor_leading_edge_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	(report.dorsal_data_conduit_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	(report.fuselage_panel_band_mesh_sharing as Dictionary)["primitive_mesh_allocations"] = -1
+	(report.entry_heat_target as Dictionary)["target_subtree_nodes"] = -1
 	var detached_dorsal_transforms := (
 		report.dorsal_data_conduit_curve_joint_sharing.authored_transforms as Array
 	)
@@ -374,12 +613,16 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 179
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
-		) == 1,
-		"caller mutation cannot alter the detached visual performance evidence"
+		) == 1
+		and int(
+			arrow.get_arrow_visual_performance_report()
+				.entry_heat_target.target_subtree_nodes
+		) == 3,
+		"caller mutation cannot alter the detached visual or entry-heat performance evidence"
 	)
 	_check(
 		int(
@@ -816,6 +1059,33 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 		"WingRootRibBatch"
 	) as MultiMeshInstance3D
 	var rib_batch_identity := rib_batch.get_instance_id() if rib_batch != null else 0
+	var entry_target := arrow.get_entry_heat_target()
+	var entry_overlay := entry_target.get_overlay() if entry_target != null else null
+	var entry_material := entry_target.get_material() if entry_target != null else null
+	var entry_mesh := entry_overlay.mesh if entry_overlay != null else null
+	var entry_shader := entry_material.shader if entry_material != null else null
+	var entry_target_identity := (
+		entry_target.get_instance_id() if entry_target != null else 0
+	)
+	_test_root.remove_child(arrow)
+	await process_frame
+	_check(
+		arrow.get_entry_heat_target() == entry_target
+		and entry_target != null
+		and entry_target.get_parent() == arrow.get_arrow_visual_root()
+		and entry_target.get_material() == entry_material,
+		"whole-Arrow detach retains the same passive target, visual-root parent, and exclusive material"
+	)
+	_test_root.add_child(arrow)
+	await process_frame
+	await physics_frame
+	_check(
+		arrow.get_entry_heat_target() == entry_target
+		and entry_target != null
+		and entry_target.get_instance_id() == entry_target_identity
+		and bool(arrow.get_arrow_audit_report().valid),
+		"whole-Arrow re-entry restores no target and preserves the sole attachment identity"
+	)
 	var fired_events: Array[Dictionary] = []
 	arrow.projectile_fired.connect(func(origin: Vector3, direction: Vector3) -> void:
 		fired_events.append({"origin": origin, "direction": direction})
@@ -865,9 +1135,16 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 	arrow.set_piloted(false)
 	arrow.request_engine_stop()
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
-	await physics_frame
+	for index in 15:
+		await physics_frame
 	_check(arrow.is_destroyed(), "Arrow participates in inherited damage/destruction lifecycle")
 	_check(arrow.collision_layer == 0 and arrow.collision_mask == 0, "destroyed Arrow disables physical collision")
+	_check(
+		entry_target != null
+		and arrow.get_entry_heat_target() == entry_target
+		and not arrow.get_arrow_visual_root().visible,
+		"destroyed-hull hiding applies to the attached target through the stable visual root"
+	)
 	var reset_transform := Transform3D(Basis(Vector3.UP, deg_to_rad(24.0)), Vector3(12, 3, -18))
 	arrow.reset_for_reuse(reset_transform)
 	await physics_frame
@@ -883,10 +1160,26 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 		and rib_batch.get_instance_id() == rib_batch_identity,
 		"damage/reset lifecycle preserves the same rib batch and never duplicates it"
 	)
+	_check(
+		entry_target_identity != 0
+		and arrow.get_entry_heat_target() == entry_target
+		and entry_target.get_instance_id() == entry_target_identity
+		and entry_target.get_overlay().mesh == entry_mesh
+		and entry_target.get_material() == entry_material
+		and entry_target.get_material().shader == entry_shader
+		and float(entry_target.get_material().get_shader_parameter(
+			PlanetaryEntryHeatTarget.OWNED_PARAMETER
+		)) == 0.0
+		and _count_named(
+			arrow.get_arrow_visual_root(), "PlanetaryEntryHeatTarget"
+		) == 1,
+		"damage/reset preserves one exact target, shared resources, exclusive material, and zero baseline"
+	)
 
 
 func _test_cleanup(arrow: ArrowReconShip) -> void:
 	var arrow_reference: WeakRef = weakref(arrow)
+	var entry_target_reference: WeakRef = weakref(arrow.get_entry_heat_target())
 	var pod_reference: WeakRef = weakref(arrow.get_escape_pod(&"port"))
 	var boarding_reference: WeakRef = weakref(arrow.get_node_or_null("ShipBoardingArea"))
 	arrow.queue_free()
@@ -895,6 +1188,7 @@ func _test_cleanup(arrow: ArrowReconShip) -> void:
 	await physics_frame
 	await process_frame
 	_check(arrow_reference.get_ref() == null, "Arrow root cleans up without retention")
+	_check(entry_target_reference.get_ref() == null, "entry-heat target cleans up with the Arrow visual root")
 	_check(pod_reference.get_ref() == null, "escape pod hierarchy cleans up with Arrow")
 	_check(boarding_reference.get_ref() == null, "boarding component cleans up with Arrow")
 	_test_root.queue_free()

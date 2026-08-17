@@ -97,6 +97,22 @@ const FUSELAGE_PANEL_BAND_BUDGETED_RINGS := 41
 const FUSELAGE_PANEL_BAND_BUDGETED_RING_SEGMENTS := 12
 const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
 const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
+const ENTRY_HEAT_TARGET_SCENE: PackedScene = preload(
+	"res://scenes/effects/planetary_entry_heat_target.tscn"
+)
+const ENTRY_HEAT_TARGET_NODE_NAME: StringName = &"PlanetaryEntryHeatTarget"
+# Modern ship-local fit for the generic target's immutable ellipsoid. The
+# transform covers the full provisional Arrow visual envelope without changing
+# the target scene, hull resources, collision, cameras, or presentation logic.
+const ENTRY_HEAT_TARGET_POSITION := Vector3(0.0, 1.4, -0.15)
+const ENTRY_HEAT_TARGET_ROTATION := Vector3.ZERO
+const ENTRY_HEAT_TARGET_SCALE := Vector3(1.45, 1.4, 1.08)
+const ENTRY_HEAT_TARGET_AUTHORED_LOCAL_BOUNDS := AABB(
+	Vector3(-5.8, -1.4, -7.71), Vector3(11.6, 5.6, 15.12)
+)
+const ENTRY_HEAT_TARGET_EXPANDED_LOCAL_BOUNDS := AABB(
+	Vector3(-6.1625, -1.75, -7.98), Vector3(12.325, 6.3, 15.66)
+)
 const LEGACY_ARROW_VISUAL_CENSUS := {
 	"nodes": 177,
 	"mesh_instance_nodes": 159,
@@ -106,7 +122,7 @@ const LEGACY_ARROW_VISUAL_CENSUS := {
 	"unique_mesh_resource_allocations": 142,
 	"auto_fallback_names": 24,
 }
-const EXPECTED_ARROW_VISUAL_CENSUS := {
+const PHASE9_ARROW_VISUAL_CENSUS := {
 	"nodes": 176,
 	"mesh_instance_nodes": 157,
 	"multi_mesh_instance_nodes": 1,
@@ -115,9 +131,28 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"unique_mesh_resource_allocations": 125,
 	"auto_fallback_names": 23,
 }
+const EXPECTED_ARROW_VISUAL_CENSUS := {
+	"nodes": 179,
+	"mesh_instance_nodes": 158,
+	"multi_mesh_instance_nodes": 1,
+	"geometry_submissions": 159,
+	"visible_geometry_copies": 160,
+	"unique_mesh_resource_allocations": 126,
+	"auto_fallback_names": 23,
+}
+const ENTRY_HEAT_TARGET_VISUAL_DELTA := {
+	"target_subtree_nodes": 3,
+	"renderer_nodes": 1,
+	"surface_count": 1,
+	"geometry_submissions": 1,
+	"visible_geometry_copies": 1,
+	"unique_mesh_resource_allocations": 1,
+	"exclusive_material_allocations": 1,
+}
 
 var _arrow_built := false
 var _arrow_visual: Node3D
+var _entry_heat_target: PlanetaryEntryHeatTarget
 var _arrow_materials: Dictionary = {}
 var _escape_pods: Array[Node3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
@@ -139,6 +174,8 @@ func _ready() -> void:
 	super._ready()
 	if not _arrow_built:
 		_arrow_built = rebuild_variant_presentation(_build_arrow_variant)
+	if _arrow_built:
+		_arrow_built = _install_entry_heat_target()
 	_apply_arrow_metadata()
 	_sync_arrow_engine_presentation_immediately()
 
@@ -170,6 +207,10 @@ func get_sensor_mast() -> Node3D:
 
 func get_arrow_visual_root() -> Node3D:
 	return _arrow_visual
+
+
+func get_entry_heat_target() -> PlanetaryEntryHeatTarget:
+	return _entry_heat_target
 
 
 func get_arrow_evidence_report() -> Dictionary:
@@ -217,6 +258,9 @@ func get_arrow_audit_report() -> Dictionary:
 	var performance := get_arrow_visual_performance_report()
 	if not bool(performance.valid):
 		errors.append("Arrow visual allocation/submission census is invalid")
+	var entry_heat_attachment := _inspect_entry_heat_attachment()
+	if not bool(entry_heat_attachment.valid):
+		errors.append_array(entry_heat_attachment.errors as PackedStringArray)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -228,6 +272,7 @@ func get_arrow_audit_report() -> Dictionary:
 		"sensor_mast_present": _sensor_sweep != null,
 		"weapon_class": &"light_recon_pulse",
 		"engine_count": _engine_plumes.size(),
+		"entry_heat_attachment": entry_heat_attachment,
 		"evidence": get_arrow_evidence_report(),
 		"performance": performance,
 	}
@@ -244,6 +289,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"errors": PackedStringArray(["Arrow visual root is missing"]),
 			"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
 			"current": {},
+			"entry_heat_target": {},
 			"wing_root_rib_batch": {},
 			"lateral_array_curve_joint_sharing": {},
 			"sensor_leading_edge_curve_joint_sharing": {},
@@ -270,13 +316,25 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var panel_bands := _inspect_fuselage_panel_band_mesh_sharing()
 	if not bool(panel_bands.valid):
 		errors.append_array(panel_bands.errors as PackedStringArray)
+	var entry_heat_target := _inspect_entry_heat_attachment()
+	if not bool(entry_heat_target.valid):
+		errors.append_array(entry_heat_target.errors as PackedStringArray)
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
+		"phase9_before_entry_heat": PHASE9_ARROW_VISUAL_CENSUS.duplicate(true),
 		"expected": EXPECTED_ARROW_VISUAL_CENSUS.duplicate(true),
 		"current": current,
+		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),
 		"reductions": {
+			"nodes": -2,
+			"geometry_submissions": 0,
+			"unique_mesh_resource_allocations": 16,
+			"auto_fallback_names": 1,
+			"visible_geometry_copies": -1,
+		},
+		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
 			"geometry_submissions": 1,
 			"unique_mesh_resource_allocations": 17,
@@ -288,7 +346,31 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"sensor_leading_edge_curve_joint_sharing": leading_edge_joints,
 		"dorsal_data_conduit_curve_joint_sharing": dorsal_conduit_joints,
 		"fuselage_panel_band_mesh_sharing": panel_bands,
+		"entry_heat_target": entry_heat_target,
 	}.duplicate(true)
+
+
+func _install_entry_heat_target() -> bool:
+	if not is_instance_valid(_arrow_visual) \
+			or get_variant_visual_root() != _arrow_visual:
+		return false
+	if is_instance_valid(_entry_heat_target):
+		return _entry_heat_target.get_parent() == _arrow_visual
+	if _arrow_visual.get_node_or_null(NodePath(String(ENTRY_HEAT_TARGET_NODE_NAME))) \
+			!= null:
+		return false
+	var candidate := ENTRY_HEAT_TARGET_SCENE.instantiate() \
+		as PlanetaryEntryHeatTarget
+	if candidate == null:
+		return false
+	candidate.name = ENTRY_HEAT_TARGET_NODE_NAME
+	candidate.top_level = false
+	candidate.position = ENTRY_HEAT_TARGET_POSITION
+	candidate.rotation = ENTRY_HEAT_TARGET_ROTATION
+	candidate.scale = ENTRY_HEAT_TARGET_SCALE
+	_arrow_visual.add_child(candidate)
+	_entry_heat_target = candidate
+	return candidate.is_contract_valid()
 
 
 func _build_arrow_variant(_controller: HeroShip) -> bool:
@@ -853,6 +935,117 @@ func _collect_arrow_visual_census() -> Dictionary:
 		"unique_mesh_resource_allocations": unique_mesh_resources.size(),
 		"auto_fallback_names": auto_fallback_names,
 	}
+
+
+func _inspect_entry_heat_attachment() -> Dictionary:
+	var errors := PackedStringArray()
+	var target := _entry_heat_target
+	if not is_instance_valid(target):
+		return {
+			"valid": false,
+			"errors": PackedStringArray(["Arrow entry-heat target is missing"]),
+		}.duplicate(true)
+	if target.name != ENTRY_HEAT_TARGET_NODE_NAME:
+		errors.append("Arrow entry-heat target name drift")
+	if target.get_parent() != _arrow_visual:
+		errors.append("Arrow entry-heat target is not a direct visual-root child")
+	if target.top_level:
+		errors.append("Arrow entry-heat target gained top-level transform authority")
+	if target.position != ENTRY_HEAT_TARGET_POSITION \
+			or target.rotation != ENTRY_HEAT_TARGET_ROTATION \
+			or target.scale != ENTRY_HEAT_TARGET_SCALE:
+		errors.append("Arrow entry-heat target authored transform drift")
+	if _count_direct_entry_heat_targets() != 1:
+		errors.append("Arrow entry-heat target instance roster drift")
+	var target_audit := target.audit()
+	if not bool(target_audit.get("valid", false)):
+		errors.append("Arrow entry-heat target contract is invalid")
+	var authored_bounds := target.transform * target.authored_visual_bounds
+	var expanded_bounds := target.transform * target.get_expanded_visual_bounds()
+	if not authored_bounds.is_equal_approx(
+			ENTRY_HEAT_TARGET_AUTHORED_LOCAL_BOUNDS
+		) or not expanded_bounds.is_equal_approx(
+			ENTRY_HEAT_TARGET_EXPANDED_LOCAL_BOUNDS
+		):
+		errors.append("Arrow entry-heat target fitted bounds drift")
+	var presentation := target.get_presentation()
+	var state := presentation.get_state_snapshot() if presentation != null else {}
+	var material := target.get_material()
+	var overlay := target.get_overlay()
+	var mesh := overlay.mesh if overlay != null else null
+	var shader := material.shader if material != null else null
+	var renderer := presentation.get_renderer_snapshot() if presentation != null else {}
+	var configured := bool(state.get("configured", false))
+	if presentation == null:
+		errors.append("Arrow entry-heat presentation is missing")
+	elif not configured:
+		if int(state.get("generation", -1)) != 0 \
+				or int(state.get("revision", -1)) != 0 \
+				or int(state.get("presented_observation_count", -1)) != 0 \
+				or bool(state.get("has_presented_observation", true)):
+			errors.append("Arrow entry-heat target gained automatic presentation authority")
+	elif not bool(presentation.audit().get("valid", false)):
+		errors.append("Arrow configured entry-heat presentation is invalid")
+	if material == null \
+			or not material.resource_local_to_scene:
+		errors.append("Arrow entry-heat target exclusive material drift")
+	elif not configured and float(material.get_shader_parameter(
+			PlanetaryEntryHeatTarget.OWNED_PARAMETER
+		)) != 0.0:
+		errors.append("Arrow unconfigured entry-heat target baseline drift")
+	var baseline := renderer.get("baseline", {}) as Dictionary
+	if configured and float(baseline.get(
+		PlanetaryEntryHeatTarget.OWNED_PARAMETER, -1.0
+	)) != 0.0:
+		errors.append("Arrow configured entry-heat target baseline drift")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_name": StringName(target.name),
+		"direct_visual_root_child": target.get_parent() == _arrow_visual,
+		"top_level": target.top_level,
+		"authored_transform": {
+			"position": target.position,
+			"rotation": target.rotation,
+			"scale": target.scale,
+		},
+		"authored_local_bounds": authored_bounds,
+		"expanded_local_bounds": expanded_bounds,
+		"target_subtree_nodes": _count_visual_nodes(target),
+		"renderer_nodes": 1 if overlay != null else 0,
+		"surface_count": mesh.get_surface_count() if mesh != null else 0,
+		"geometry_submissions": mesh.get_surface_count() if mesh != null else 0,
+		"visible_geometry_copies": 1 if overlay != null else 0,
+		"unique_mesh_resource_allocations": 1 if mesh != null else 0,
+		"exclusive_material_allocations": 1 if material != null else 0,
+		"mesh_resource_instance_id": mesh.get_instance_id() if mesh != null else 0,
+		"material_instance_id": material.get_instance_id() if material != null else 0,
+		"shader_instance_id": shader.get_instance_id() if shader != null else 0,
+		"material_local_to_scene": (
+			material.resource_local_to_scene if material != null else false
+		),
+		"intensity_baseline": (
+			baseline.get(PlanetaryEntryHeatTarget.OWNED_PARAMETER, null)
+			if configured else 0.0
+		),
+		"live_intensity": (
+			material.get_shader_parameter(PlanetaryEntryHeatTarget.OWNED_PARAMETER)
+			if material != null else null
+		),
+		"presentation_configured": configured,
+		"presentation_generation": int(state.get("generation", -1)),
+		"presentation_revision": int(state.get("revision", -1)),
+		"target_contract": target_audit,
+	}.duplicate(true)
+
+
+func _count_direct_entry_heat_targets() -> int:
+	var count := 0
+	for child in _arrow_visual.get_children():
+		if child is PlanetaryEntryHeatTarget:
+			count += 1
+	return count
 
 
 func _inspect_wing_root_rib_batch() -> Dictionary:
