@@ -45,16 +45,31 @@ const POD_CORNER_COLLAR_POSITIONS := [
 	Vector3(0.4, 4.45, 17.24),
 	Vector3(10.8, 4.45, 17.24),
 ]
+## Four identical brass rings at the feet and crowns of the two VIP facade
+## columns. They are childless presentation trim: the adjacent columns carry
+## the visible structure, and the independent StationDoor/evidence hierarchy
+## carries all interaction and provenance authority.
+const VIP_FACADE_COLUMN_TRIM_INNER_RADIUS := 0.19
+const VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS := 0.28
+const VIP_FACADE_COLUMN_TRIM_RINGS := 48
+const VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS := 16
+const VIP_FACADE_COLUMN_TRIM_COPY_COUNT := 4
+const VIP_FACADE_COLUMN_TRIM_TRANSFORMS := [
+	Transform3D(Basis.IDENTITY, Vector3(-9.0, 4.43, 20.02)),
+	Transform3D(Basis.IDENTITY, Vector3(-9.0, 8.07, 20.02)),
+	Transform3D(Basis.IDENTITY, Vector3(-1.3, 4.43, 20.02)),
+	Transform3D(Basis.IDENTITY, Vector3(-1.3, 8.07, 20.02)),
+]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
-const RENDER_DESCENDANT_NODE_COUNT := 1159
+const RENDER_DESCENDANT_NODE_COUNT := 1156
 const BASELINE_RENDERER_NODE_COUNT := 851
-const RENDERER_NODE_COUNT := 851
+const RENDERER_NODE_COUNT := 848
 const BASELINE_DRAWN_COPY_COUNT := 851
 const DRAWN_COPY_COUNT := 851
 const BASELINE_SURFACE_SUBMISSION_COUNT := 851
-const SURFACE_SUBMISSION_COUNT := 851
+const SURFACE_SUBMISSION_COUNT := 848
 const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 314
+const MESH_RESOURCE_COUNT := 311
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -122,6 +137,7 @@ var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _pod_corner_collar_mesh: TorusMesh
+var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -350,6 +366,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("module component counts exceed the declared quality budget")
 	if not bool(performance.pod_corner_collar_visual_sharing.valid):
 		errors.append("shared pod-corner collar visual allocation contract drifted")
+	if not bool(performance.vip_facade_column_trim_batch.valid):
+		errors.append("VIP facade column-trim batch contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -526,9 +544,13 @@ func get_performance_contract() -> Dictionary:
 	})
 	contract["schema_version"] = SCHEMA_VERSION
 	var visual_sharing := get_pod_corner_collar_visual_allocation_audit()
+	var facade_batch := get_vip_facade_column_trim_batch_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
+	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["within_budget"] = (
-		bool(contract.within_budget) and bool(visual_sharing.valid)
+		bool(contract.within_budget)
+		and bool(visual_sharing.valid)
+		and bool(facade_batch.valid)
 	)
 	return contract
 
@@ -703,11 +725,11 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": 0,
-			"renderer_nodes": 0,
+			"descendant_nodes": 3,
+			"renderer_nodes": 3,
 			"drawn_copies": 0,
-			"surface_submissions": 0,
-			"mesh_resource_allocations": 3,
+			"surface_submissions": 3,
+			"mesh_resource_allocations": 6,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
@@ -741,6 +763,126 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"gpu_draw_call_claimed": false,
 		"vram_claimed": false,
 		"whole_scene_budget_claimed": false,
+		"pixel_equivalence_claimed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the four VIP facade foot/crown copies.
+## MultiMesh submissions are counted as one mesh surface for the batch while
+## visible copies count every authored transform. This is renderer-allocation
+## evidence, not a frame-time, GPU, VRAM, or pixel-equivalence claim.
+func get_vip_facade_column_trim_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var batch := _vip_facade_column_trim_batch
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh as TorusMesh if multimesh != null else null
+	var expected_transforms := _vip_facade_column_trim_transforms()
+	var expected_buffer := _encode_multimesh_transforms(expected_transforms)
+	var expected_bounds := (
+		_transformed_mesh_bounds(mesh.get_aabb(), expected_transforms)
+		if mesh != null else AABB()
+	)
+	var vip := get_node_or_null(^"Structure/VIPLandmark") as Node3D
+	if batch == null or multimesh == null or mesh == null:
+		errors.append("vip_facade_column_trim_batch_missing")
+	else:
+		if batch.get_parent() != vip or str(batch.name) != "VIPFacadeColumnTrimBatch":
+			errors.append("vip_facade_column_trim_batch_path_drift")
+		if multimesh.transform_format != MultiMesh.TRANSFORM_3D \
+			or multimesh.use_colors \
+			or multimesh.use_custom_data:
+			errors.append("vip_facade_column_trim_multimesh_format_drift")
+		if multimesh.instance_count != VIP_FACADE_COLUMN_TRIM_COPY_COUNT \
+			or multimesh.visible_instance_count != VIP_FACADE_COLUMN_TRIM_COPY_COUNT:
+			errors.append("vip_facade_column_trim_visible_copy_roster_drift")
+		if multimesh.buffer != expected_buffer:
+			errors.append("vip_facade_column_trim_renderer_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(expected_bounds):
+			errors.append("vip_facade_column_trim_culling_bounds_drift")
+		if not batch.transform.is_equal_approx(Transform3D.IDENTITY) \
+			or not batch.visible \
+			or batch.layers != 1 \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or batch.material_override != _materials.get("brass") \
+			or batch.material_overlay != null \
+			or not is_zero_approx(batch.transparency):
+			errors.append("vip_facade_column_trim_render_state_drift")
+		var metadata_keys := batch.get_meta_list()
+		if batch.get_child_count() != 0 \
+			or batch.get_script() != null \
+			or not batch.get_groups().is_empty() \
+			or metadata_keys.size() != 2 \
+			or not metadata_keys.has(&"visual_detail_only") \
+			or not metadata_keys.has(&"authored_instance_transforms") \
+			or not bool(batch.get_meta("visual_detail_only", false)) \
+			or not _transform_arrays_match(
+				batch.get_meta("authored_instance_transforms", []) as Array,
+				expected_transforms
+			):
+			errors.append("vip_facade_column_trim_gained_semantic_authority")
+		if not is_equal_approx(mesh.inner_radius, VIP_FACADE_COLUMN_TRIM_INNER_RADIUS) \
+			or not is_equal_approx(mesh.outer_radius, VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS) \
+			or mesh.rings != VIP_FACADE_COLUMN_TRIM_RINGS \
+			or mesh.ring_segments != VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS \
+			or mesh.get_surface_count() != 1 \
+			or mesh.material != null \
+			or mesh.resource_local_to_scene:
+			errors.append("vip_facade_column_trim_mesh_recipe_drift")
+	if vip == null:
+		errors.append("vip_facade_landmark_missing")
+	else:
+		if not vip.find_children(
+			"VIPFacadeColumnFoot", "MeshInstance3D", false, false
+		).is_empty() or not vip.find_children(
+			"VIPFacadeColumnCrown", "MeshInstance3D", false, false
+		).is_empty():
+			errors.append("retired_vip_facade_column_trim_renderer_remains")
+
+	var current_visible_copies := (
+		multimesh.visible_instance_count if multimesh != null else 0
+	)
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_vip_facade_column_trim",
+		"batch_path": String(get_path_to(batch)) if batch != null else "",
+		"legacy": {
+			"renderer_nodes": 4,
+			"mesh_instance_nodes": 4,
+			"multimesh_instance_nodes": 0,
+			"drawn_copies": 4,
+			"surface_submissions": 4,
+			"mesh_resource_allocations": 4,
+		},
+		"current": {
+			"renderer_nodes": 1 if batch != null else 0,
+			"mesh_instance_nodes": 0,
+			"multimesh_instance_nodes": 1 if batch != null else 0,
+			"drawn_copies": current_visible_copies,
+			"surface_submissions": mesh.get_surface_count() if mesh != null else 0,
+			"mesh_resource_allocations": 1 if mesh != null else 0,
+		},
+		"reductions": {
+			"renderer_nodes": 3,
+			"surface_submissions": 3,
+			"mesh_resource_allocations": 3,
+			"drawn_copies": 0,
+		},
+		"authored_transforms": expected_transforms.duplicate(),
+		"renderer_buffer": expected_buffer.duplicate(),
+		"renderer_buffer_float_count": multimesh.buffer.size() if multimesh != null else 0,
+		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
+		"material_identity_preserved": (
+			batch != null and batch.material_override == _materials.get("brass")
+		),
+		"collision_authority_added": false,
+		"interaction_authority_added": false,
+		"evidence_authority_added": false,
+		"lifecycle_authority_added": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
 		"pixel_equivalence_claimed": false,
 	}.duplicate(true)
 
@@ -2488,8 +2630,18 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var frame_x := -5.15 + float(side) * 3.85
 		_cylinder(vip, "VIPFacadeColumn", Vector3(frame_x, 6.25, 20.02), 0.18, 4.15, _materials["hull_dark"], false)
-		_torus(vip, "VIPFacadeColumnFoot", Vector3(frame_x, 4.43, 20.02), 0.19, 0.28, _materials["brass"])
-		_torus(vip, "VIPFacadeColumnCrown", Vector3(frame_x, 8.07, 20.02), 0.19, 0.28, _materials["brass"])
+	_vip_facade_column_trim_batch = _multimesh_torus(
+		vip,
+		"VIPFacadeColumnTrimBatch",
+		_torus_mesh(
+			VIP_FACADE_COLUMN_TRIM_INNER_RADIUS,
+			VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS,
+			VIP_FACADE_COLUMN_TRIM_RINGS,
+			VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
+		),
+		_materials["brass"],
+		_vip_facade_column_trim_transforms()
+	)
 	_arch_across_x(vip, "VIPFacadeArch", 20.04, -9.0, -1.3, 8.05, 8.72, 0.12, _materials["hull_dark"])
 	_box(vip, "VIPRedCrown", Vector3(-5.15, 8.15, 20.03), Vector3(6.2, 0.18, 0.12), _materials["red"], false)
 	for side in [-1.0, 1.0]:
@@ -2897,6 +3049,91 @@ func _torus_mesh(
 	mesh.rings = rings
 	mesh.ring_segments = ring_segments
 	return mesh
+
+
+func _multimesh_torus(
+		parent: Node3D,
+		node_name: String,
+		mesh: TorusMesh,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = transforms.size()
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
+	multimesh.custom_aabb = _transformed_mesh_bounds(mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multimesh
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+static func _vip_facade_column_trim_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for transform_value in VIP_FACADE_COLUMN_TRIM_TRANSFORMS:
+		transforms.append(transform_value as Transform3D)
+	return transforms
+
+
+static func _transform_arrays_match(
+		actual: Array,
+		expected: Array[Transform3D]
+	) -> bool:
+	if actual.size() != expected.size():
+		return false
+	for index in expected.size():
+		if actual[index] is not Transform3D \
+			or not (actual[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return true
+
+
+static func _encode_multimesh_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+static func _transformed_mesh_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 ## Module-local Z of the stair-base landing's southern edge.

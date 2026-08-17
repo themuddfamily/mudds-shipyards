@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
 	_test_pod_corner_collar_visual_resource_sharing(module)
+	_test_vip_facade_column_trim_batch(module)
 	_test_interface_collar_profile(module)
 	_test_vip_landmark(module)
 	await _test_negative_space(module)
@@ -286,26 +287,26 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1159,
-			"renderer_nodes": 851,
+			"descendant_nodes": 1156,
+			"renderer_nodes": 848,
 			"drawn_copies": 851,
-			"surface_submissions": 851,
-			"mesh_resource_allocations": 314,
+			"surface_submissions": 848,
+			"mesh_resource_allocations": 311,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"pod-corner sharing preserves 1159 descendants, 851 renderer nodes/copies/submissions and reduces exact mesh allocations 317 -> 314"
+		"pod sharing plus the independent VIP trim batch freeze 1156 descendants, 848 renderers/submissions, 851 copies, and 311 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": 0,
-			"renderer_nodes": 0,
+			"descendant_nodes": 3,
+			"renderer_nodes": 3,
 			"drawn_copies": 0,
-			"surface_submissions": 0,
-			"mesh_resource_allocations": 3,
+			"surface_submissions": 3,
+			"mesh_resource_allocations": 6,
 			"material_resource_allocations": 0,
 		}
 		and not bool(report.batched)
@@ -314,7 +315,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and not bool(report.vram_claimed)
 		and not bool(report.whole_scene_budget_claimed)
 		and not bool(report.pixel_equivalence_claimed),
-		"allocation evidence is local immutable sharing with no batching, timing, GPU, VRAM, whole-scene or pixel claim"
+		"selected pod-family evidence remains immutable sharing, with no timing, GPU, VRAM, whole-scene or pixel claim"
 	)
 
 	var collars: Array[MeshInstance3D] = []
@@ -377,7 +378,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 314
+		int(detached.current.mesh_resource_allocations) == 311
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -419,7 +420,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 315
+		and int(identity_red.current.mesh_resource_allocations) == 312
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -428,6 +429,203 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(module.get_pod_corner_collar_visual_allocation_audit().valid)
 		and module.get_validation_errors() == baseline_errors,
 		"restoring the shared pod-corner recipe and identity returns the exact pre-mutation module validator state"
+	)
+
+
+func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
+	var report := module.get_vip_facade_column_trim_batch_audit()
+	if not bool(report.valid):
+		print("AFT_VIP_FACADE_COLUMN_TRIM_ERRORS: ", report.errors)
+	print(
+		"AFT_VIP_FACADE_COLUMN_TRIM_BATCH: "
+		+ "nodes %d->%d submissions %d->%d mesh_resources %d->%d copies %d->%d" % [
+			int(report.legacy.renderer_nodes),
+			int(report.current.renderer_nodes),
+			int(report.legacy.surface_submissions),
+			int(report.current.surface_submissions),
+			int(report.legacy.mesh_resource_allocations),
+			int(report.current.mesh_resource_allocations),
+			int(report.legacy.drawn_copies),
+			int(report.current.drawn_copies),
+		]
+	)
+	_check(
+		bool(report.valid)
+		and report.legacy == {
+			"renderer_nodes": 4,
+			"mesh_instance_nodes": 4,
+			"multimesh_instance_nodes": 0,
+			"drawn_copies": 4,
+			"surface_submissions": 4,
+			"mesh_resource_allocations": 4,
+		}
+		and report.current == {
+			"renderer_nodes": 1,
+			"mesh_instance_nodes": 0,
+			"multimesh_instance_nodes": 1,
+			"drawn_copies": 4,
+			"surface_submissions": 1,
+			"mesh_resource_allocations": 1,
+		}
+		and report.reductions == {
+			"renderer_nodes": 3,
+			"surface_submissions": 3,
+			"mesh_resource_allocations": 3,
+			"drawn_copies": 0,
+		},
+		"VIP facade foot/crown trim freezes exact 4->1 nodes, submissions and mesh allocations while retaining four copies"
+	)
+	var batch := module.get_node_or_null(
+		^"Structure/VIPLandmark/VIPFacadeColumnTrimBatch"
+	) as MultiMeshInstance3D
+	var expected_transforms: Array[Transform3D] = []
+	for transform_value in AftJunctionStack.VIP_FACADE_COLUMN_TRIM_TRANSFORMS:
+		expected_transforms.append(transform_value as Transform3D)
+	var metadata_transforms := (
+		batch.get_meta("authored_instance_transforms", []) as Array
+		if batch != null else []
+	)
+	var transforms_exact := metadata_transforms.size() == expected_transforms.size()
+	for index in mini(metadata_transforms.size(), expected_transforms.size()):
+		transforms_exact = (
+			transforms_exact
+			and metadata_transforms[index] is Transform3D
+			and (metadata_transforms[index] as Transform3D).is_equal_approx(
+				expected_transforms[index]
+			)
+		)
+	var mesh := (
+		batch.multimesh.mesh as TorusMesh
+		if batch != null and batch.multimesh != null else null
+	)
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and mesh != null
+		and transforms_exact
+		and batch.multimesh.instance_count == 4
+		and batch.multimesh.visible_instance_count == 4
+		and int(report.renderer_buffer_float_count) == 48
+		and batch.multimesh.buffer == (report.renderer_buffer as PackedFloat32Array)
+		and batch.multimesh.custom_aabb.is_equal_approx(report.culling_bounds as AABB)
+		and is_equal_approx(
+			mesh.inner_radius, AftJunctionStack.VIP_FACADE_COLUMN_TRIM_INNER_RADIUS
+		)
+		and is_equal_approx(
+			mesh.outer_radius, AftJunctionStack.VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS
+		)
+		and mesh.rings == AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RINGS
+		and mesh.ring_segments == AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
+		and mesh.get_surface_count() == 1,
+		"batch retains exact authored transform ordering, 48-float renderer buffer, culling union and 48x16 torus recipe"
+	)
+	var vip := module.get_node_or_null(^"Structure/VIPLandmark")
+	var authority := module.get_authority_contract()
+	var collision := module.get_collision_contract()
+	_check(
+		batch != null
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.get_groups().is_empty()
+		and batch.get_meta_list().size() == 2
+		and bool(batch.get_meta("visual_detail_only", false))
+		and not bool(report.collision_authority_added)
+		and not bool(report.interaction_authority_added)
+		and not bool(report.evidence_authority_added)
+		and not bool(report.lifecycle_authority_added)
+		and int(authority.lease_authority_count) == 0
+		and int(authority.spawn_authority_count) == 0
+		and str(authority.network_authority_role) == "none"
+		and int(collision.body_count) == 102
+		and int(collision.shape_count) == 108
+		and module.get_operations_entrance() != null
+		and module.get_vip_access() != null
+		and vip != null
+		and vip.find_children(
+			"VIPFacadeColumnFoot", "MeshInstance3D", false, false
+		).is_empty()
+		and vip.find_children(
+			"VIPFacadeColumnCrown", "MeshInstance3D", false, false
+		).is_empty(),
+		"batch adds zero collision, interaction, evidence or lifecycle authority and preserves both doors plus 102 bodies and 108 shapes"
+	)
+
+	(report.current as Dictionary)["renderer_nodes"] = -1
+	(report.authored_transforms as Array).clear()
+	(report.renderer_buffer as PackedFloat32Array)[0] = -999.0
+	var detached := module.get_vip_facade_column_trim_batch_audit()
+	_check(
+		int(detached.current.renderer_nodes) == 1
+		and (detached.authored_transforms as Array).size() == 4
+		and (detached.renderer_buffer as PackedFloat32Array)[0] != -999.0,
+		"VIP facade batch allocation, transform and raw-buffer evidence is deeply detached"
+	)
+
+	var baseline_errors := module.get_validation_errors()
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var corrupted_buffer := original_buffer.duplicate()
+	corrupted_buffer[3] += 0.1
+	batch.multimesh.buffer = corrupted_buffer
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_renderer_buffer_drift"
+		),
+		"RED renderer-buffer mutation rejects a shifted VIP trim copy"
+	)
+	batch.multimesh.buffer = original_buffer
+	var original_bounds := batch.multimesh.custom_aabb
+	batch.multimesh.custom_aabb = original_bounds.grow(0.1)
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_culling_bounds_drift"
+		),
+		"RED culling mutation rejects a non-authored VIP trim AABB"
+	)
+	batch.multimesh.custom_aabb = original_bounds
+	var original_rings := mesh.rings
+	mesh.rings -= 1
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_mesh_recipe_drift"
+		),
+		"RED recipe mutation rejects a lower-detail VIP trim torus"
+	)
+	mesh.rings = original_rings
+	var original_material := batch.material_override
+	batch.material_override = null
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_render_state_drift"
+		),
+		"RED material mutation rejects facade trim renderer-state drift"
+	)
+	batch.material_override = original_material
+	batch.set_meta("forbidden_evidence_authority", true)
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_gained_semantic_authority"
+		),
+		"RED metadata mutation rejects semantic authority on the visual-only batch"
+	)
+	batch.remove_meta("forbidden_evidence_authority")
+	batch.multimesh.visible_instance_count = 3
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_visible_copy_roster_drift"
+		),
+		"RED visible-count mutation rejects a missing facade trim copy"
+	)
+	batch.multimesh.visible_instance_count = 4
+	_check(
+		bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and module.get_validation_errors() == baseline_errors,
+		"restoring buffer, bounds, recipe, material, authority and copies returns the exact pre-mutation validator state"
 	)
 
 
