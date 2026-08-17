@@ -1,0 +1,33 @@
+[gd_scene load_steps=6 format=3 uid="uid://dentryheattgt01"]
+
+[ext_resource type="Script" path="res://scripts/effects/planetary_entry_heat_target.gd" id="1_target"]
+[ext_resource type="Script" path="res://scripts/world/planetary_entry_heat_presentation.gd" id="2_presentation"]
+[ext_resource type="Shader" path="res://scripts/rendering/planetary_entry_heat_overlay.gdshader" id="3_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_entry"]
+resource_local_to_scene = true
+shader = ExtResource("3_shader")
+shader_parameter/entry_effect_intensity_unitless = 0.0
+shader_parameter/entry_heat_color = Color(1, 0.22, 0.035, 1)
+shader_parameter/entry_heat_max_alpha = 0.62
+shader_parameter/entry_heat_emission_multiplier = 5.0
+shader_parameter/entry_heat_fresnel_exponent = 2.4
+
+[sub_resource type="SphereMesh" id="SphereMesh_overlay"]
+radius = 1.0
+height = 2.0
+radial_segments = 32
+rings = 16
+
+[node name="PlanetaryEntryHeatTarget" type="Node3D"]
+script = ExtResource("1_target")
+
+[node name="Overlay" type="MeshInstance3D" parent="."]
+transform = Transform3D(4.25, 0, 0, 0, 2.25, 0, 0, 0, 7.25, 0, 0, 0)
+cast_shadow = 0
+gi_mode = 0
+material_override = SubResource("ShaderMaterial_entry")
+mesh = SubResource("SphereMesh_overlay")
+
+[node name="Presentation" type="Node" parent="."]
+script = ExtResource("2_presentation")
