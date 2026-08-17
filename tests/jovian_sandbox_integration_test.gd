@@ -287,9 +287,15 @@ func _run() -> void:
 		"automatic power alone retains Jovian's occupied freight lease"
 	)
 
+	var production_weapon_cooldown := jovian.weapon_cooldown
+	_check(
+		is_equal_approx(production_weapon_cooldown, 0.62),
+		"Jovian protected-fire fixture begins from the exact production weapon cadence"
+	)
 	jovian.weapon_cooldown = 0.02
 	await _press_live_action(&"fire", 2)
 	await process_frame
+	jovian.weapon_cooldown = production_weapon_cooldown
 	var protected_result := game.get_last_player_shot_result()
 	_check(
 		protected_result.get("status") == &"guided_range_reserved"
