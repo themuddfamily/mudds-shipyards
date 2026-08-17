@@ -179,6 +179,21 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		int(report.sensor_leading_edge_curve_joint_sharing.legacy.visible_geometry_copies),
 		int(report.sensor_leading_edge_curve_joint_sharing.visible_geometry_copies),
 	])
+	var dorsal_conduit_evidence_format := (
+		"ARROW_DORSAL_DATA_CONDUIT_CURVE_JOINT_SHARING: nodes %d->%d "
+		+ "submissions %d->%d primitive_mesh_allocations %d->%d "
+		+ "visible_copies %d->%d"
+	)
+	print(dorsal_conduit_evidence_format % [
+		int(report.dorsal_data_conduit_curve_joint_sharing.legacy.geometry_nodes),
+		int(report.dorsal_data_conduit_curve_joint_sharing.geometry_nodes),
+		int(report.dorsal_data_conduit_curve_joint_sharing.legacy.geometry_submissions),
+		int(report.dorsal_data_conduit_curve_joint_sharing.geometry_submissions),
+		int(report.dorsal_data_conduit_curve_joint_sharing.legacy.primitive_mesh_allocations),
+		int(report.dorsal_data_conduit_curve_joint_sharing.primitive_mesh_allocations),
+		int(report.dorsal_data_conduit_curve_joint_sharing.legacy.visible_geometry_copies),
+		int(report.dorsal_data_conduit_curve_joint_sharing.visible_geometry_copies),
+	])
 	var whole_evidence_format := (
 		"ARROW_VISUAL_CENSUS: nodes %d->%d submissions %d->%d "
 		+ "unique_mesh_allocations %d->%d visible_copies %d->%d"
@@ -201,10 +216,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 131,
+			"unique_mesh_resource_allocations": 129,
 			"auto_fallback_names": 23,
 		},
-		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->131 unique-mesh allocation census while retaining all 159 copies"
+		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->129 unique-mesh allocation census while retaining all 159 copies"
 	)
 	_check(
 		report.wing_root_rib_batch.legacy == {
@@ -265,6 +280,25 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		]),
 		"six unchanged sensor-leading-edge nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of six"
 	)
+	_check(
+		report.dorsal_data_conduit_curve_joint_sharing.legacy == {
+			"geometry_nodes": 3,
+			"geometry_submissions": 3,
+			"visible_geometry_copies": 3,
+			"primitive_mesh_allocations": 3,
+		}
+		and int(report.dorsal_data_conduit_curve_joint_sharing.geometry_nodes) == 3
+		and int(report.dorsal_data_conduit_curve_joint_sharing.geometry_submissions) == 3
+		and int(report.dorsal_data_conduit_curve_joint_sharing.visible_geometry_copies) == 3
+		and int(report.dorsal_data_conduit_curve_joint_sharing.primitive_mesh_allocations) == 1
+		and int(report.dorsal_data_conduit_curve_joint_sharing.resource_allocation_reduction) == 2
+		and report.dorsal_data_conduit_curve_joint_sharing.node_paths == PackedStringArray([
+			"DorsalDataConduit/CurveJoint",
+			"DorsalDataConduit/@MeshInstance3D@8",
+			"DorsalDataConduit/@MeshInstance3D@9",
+		]),
+		"three named dorsal-conduit nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of three"
+	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
 	_check(
@@ -291,6 +325,11 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	(report.wing_root_rib_batch as Dictionary)["geometry_nodes"] = -1
 	(report.lateral_array_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	(report.sensor_leading_edge_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
+	(report.dorsal_data_conduit_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
+	var detached_dorsal_transforms := (
+		report.dorsal_data_conduit_curve_joint_sharing.authored_transforms as Array
+	)
+	detached_dorsal_transforms[0] = Transform3D.IDENTITY
 	_check(
 		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176
 		and int(
@@ -305,6 +344,17 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 				.sensor_leading_edge_curve_joint_sharing.primitive_mesh_allocations
 		) == 1,
 		"caller mutation cannot alter detached sensor-leading-edge allocation evidence"
+	)
+	var fresh_dorsal_report := (
+		arrow.get_arrow_visual_performance_report()
+			.dorsal_data_conduit_curve_joint_sharing as Dictionary
+	)
+	_check(
+		int(fresh_dorsal_report.primitive_mesh_allocations) == 1
+		and not ((fresh_dorsal_report.authored_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"caller mutation cannot alter detached dorsal-conduit allocation or transform evidence"
 	)
 	var injected := Node3D.new()
 	injected.name = "ForbiddenVisualAllocation"
@@ -487,6 +537,70 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		"structured-red: sensor-leading-edge semantic metadata fails the zero-authority audit"
 	)
 	last_leading_edge_joint.remove_meta("forbidden_semantic_authority")
+	var dorsal_conduit_report := (
+		arrow.get_arrow_visual_performance_report()
+			.dorsal_data_conduit_curve_joint_sharing as Dictionary
+	)
+	var dorsal_joint_paths := dorsal_conduit_report.node_paths as PackedStringArray
+	var first_dorsal_joint := (
+		visual.get_node(NodePath(dorsal_joint_paths[0])) as MeshInstance3D
+	)
+	var last_dorsal_joint := (
+		visual.get_node(NodePath(dorsal_joint_paths[-1])) as MeshInstance3D
+	)
+	var shared_dorsal_mesh := first_dorsal_joint.mesh as SphereMesh
+	last_dorsal_joint.mesh = shared_dorsal_mesh.duplicate() as SphereMesh
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"dorsal-data-conduit CurveJoint shared-mesh identity drift"
+		),
+		"structured-red: one private dorsal-conduit joint mesh fails shared-allocation identity"
+	)
+	last_dorsal_joint.mesh = shared_dorsal_mesh
+	var authored_dorsal_radial_segments := shared_dorsal_mesh.radial_segments
+	shared_dorsal_mesh.radial_segments -= 1
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"dorsal-data-conduit CurveJoint primitive recipe drift"
+		),
+		"structured-red: shared dorsal-conduit sphere recipe mutation fails presentation audit"
+	)
+	shared_dorsal_mesh.radial_segments = authored_dorsal_radial_segments
+	var authored_dorsal_material := shared_dorsal_mesh.material
+	shared_dorsal_mesh.material = null
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"dorsal-data-conduit CurveJoint material identity drift"
+		),
+		"structured-red: dorsal-conduit sensor-material mutation fails presentation audit"
+	)
+	shared_dorsal_mesh.material = authored_dorsal_material
+	last_dorsal_joint.layers = 2
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"dorsal-data-conduit CurveJoint render-state drift"
+		),
+		"structured-red: dorsal-conduit renderer-layer mutation fails presentation audit"
+	)
+	last_dorsal_joint.layers = 1
+	last_dorsal_joint.set_meta("forbidden_lifecycle_authority", true)
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"dorsal-data-conduit CurveJoint gained semantic authority"
+		),
+		"structured-red: dorsal-conduit lifecycle metadata fails the zero-authority audit"
+	)
+	last_dorsal_joint.remove_meta("forbidden_lifecycle_authority")
 	_check(
 		bool(arrow.get_arrow_audit_report().valid),
 		"whole/local Arrow visual audits return green after every mutation is restored"

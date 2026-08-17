@@ -49,10 +49,11 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # collision, lifecycle, or stable-node identity. The five later panel bands are
 # deliberately excluded because `capture_torus_smoothness.gd` owns their first
 # node as a checked-in evidence path. The next audited family is narrower still:
-# only the six identical, childless CurveJoint sphere resources under each of
-# the paired lateral sensor arrays and sensor-wing leading edges are shared
-# within their exact family. Their nodes, paths, transforms, materials, shadows,
-# copies and submissions remain ordinary independent renderers.
+# only the identical, childless CurveJoint sphere resources under the paired
+# lateral arrays, sensor-wing leading edges and three-point dorsal data conduit
+# are shared within their exact family. Their nodes, paths, transforms,
+# materials, shadows, copies and submissions remain ordinary independent
+# renderers.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -79,6 +80,15 @@ const SENSOR_LEADING_EDGE_CURVE_JOINT_PATHS := [
 	"@Node3D@4/@MeshInstance3D@5",
 	"@Node3D@4/@MeshInstance3D@6",
 ]
+const DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIUS := 0.075
+const DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIAL_SEGMENTS := 28
+const DORSAL_DATA_CONDUIT_CURVE_JOINT_RINGS := 14
+const DORSAL_DATA_CONDUIT_CURVE_JOINT_VISIBLE_COPIES := 3
+const DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS := [
+	"DorsalDataConduit/CurveJoint",
+	"DorsalDataConduit/@MeshInstance3D@8",
+	"DorsalDataConduit/@MeshInstance3D@9",
+]
 const LEGACY_ARROW_VISUAL_CENSUS := {
 	"nodes": 177,
 	"mesh_instance_nodes": 159,
@@ -94,7 +104,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 131,
+	"unique_mesh_resource_allocations": 129,
 	"auto_fallback_names": 23,
 }
 
@@ -109,6 +119,7 @@ var _elapsed_arrow := 0.0
 var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 var _lateral_array_curve_joint_mesh: SphereMesh
 var _sensor_leading_edge_curve_joint_mesh: SphereMesh
+var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -227,6 +238,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"wing_root_rib_batch": {},
 			"lateral_array_curve_joint_sharing": {},
 			"sensor_leading_edge_curve_joint_sharing": {},
+			"dorsal_data_conduit_curve_joint_sharing": {},
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
@@ -242,6 +254,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var leading_edge_joints := _inspect_sensor_leading_edge_curve_joint_sharing()
 	if not bool(leading_edge_joints.valid):
 		errors.append_array(leading_edge_joints.errors as PackedStringArray)
+	var dorsal_conduit_joints := _inspect_dorsal_data_conduit_curve_joint_sharing()
+	if not bool(dorsal_conduit_joints.valid):
+		errors.append_array(dorsal_conduit_joints.errors as PackedStringArray)
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -251,13 +266,14 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 11,
+			"unique_mesh_resource_allocations": 13,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
 		"wing_root_rib_batch": batch,
 		"lateral_array_curve_joint_sharing": lateral_joints,
 		"sensor_leading_edge_curve_joint_sharing": leading_edge_joints,
+		"dorsal_data_conduit_curve_joint_sharing": dorsal_conduit_joints,
 	}.duplicate(true)
 
 
@@ -384,6 +400,12 @@ func _build_slender_airframe() -> void:
 	_sensor_leading_edge_curve_joint_mesh.radial_segments = SENSOR_LEADING_EDGE_CURVE_JOINT_RADIAL_SEGMENTS
 	_sensor_leading_edge_curve_joint_mesh.rings = SENSOR_LEADING_EDGE_CURVE_JOINT_RINGS
 	_sensor_leading_edge_curve_joint_mesh.material = _arrow_materials.sensor
+	_dorsal_data_conduit_curve_joint_mesh = SphereMesh.new()
+	_dorsal_data_conduit_curve_joint_mesh.radius = DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIUS
+	_dorsal_data_conduit_curve_joint_mesh.height = DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIUS * 2.0
+	_dorsal_data_conduit_curve_joint_mesh.radial_segments = DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIAL_SEGMENTS
+	_dorsal_data_conduit_curve_joint_mesh.rings = DORSAL_DATA_CONDUIT_CURVE_JOINT_RINGS
+	_dorsal_data_conduit_curve_joint_mesh.material = _arrow_materials.sensor
 	# A narrow 32-section elliptical fuselage, not the Torrent's broad delta.
 	_loft_hull(
 		_arrow_visual,
@@ -489,8 +511,9 @@ func _build_slender_airframe() -> void:
 			Vector3(0, 2.65, 1.45),
 			Vector3(0, 2.42, 3.8),
 		]),
-		0.075,
-		_arrow_materials.sensor
+		DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIUS,
+		_arrow_materials.sensor,
+		_dorsal_data_conduit_curve_joint_mesh
 	)
 	for seam_z in [-4.4, -2.6, 0.4, 2.2, 4.3]:
 		_torus(_arrow_visual, "FuselagePanelBand", Vector3(0, 1.22, seam_z), 1.31, 1.35, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.0, 0.58, 1.0))
@@ -1056,6 +1079,93 @@ func _inspect_sensor_leading_edge_curve_joint_sharing() -> Dictionary:
 	}.duplicate(true)
 
 
+func _inspect_dorsal_data_conduit_curve_joint_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var joints: Array[MeshInstance3D] = []
+	var actual_paths := PackedStringArray()
+	var mesh_identities := {}
+	var expected_transforms := _dorsal_data_conduit_curve_joint_transforms()
+	for index in DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS.size():
+		var path := NodePath(DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS[index])
+		var joint := _arrow_visual.get_node_or_null(path) as MeshInstance3D
+		if joint == null or joint.mesh is not SphereMesh:
+			errors.append(
+				"dorsal-data-conduit CurveJoint node/path roster drift: %s" % path
+			)
+			continue
+		joints.append(joint)
+		actual_paths.append(str(_arrow_visual.get_path_to(joint)))
+		mesh_identities[joint.mesh.get_instance_id()] = true
+		if not joint.transform.is_equal_approx(expected_transforms[index]):
+			errors.append("dorsal-data-conduit CurveJoint transform drift: %s" % path)
+		if not joint.visible \
+			or joint.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or joint.material_override != null \
+			or joint.material_overlay != null \
+			or joint.layers != 1 \
+			or not is_zero_approx(joint.transparency):
+			errors.append("dorsal-data-conduit CurveJoint render-state drift: %s" % path)
+		if joint.get_child_count() != 0 \
+			or joint.get_script() != null \
+			or not joint.get_groups().is_empty() \
+			or not joint.get_meta_list().is_empty():
+			errors.append(
+				"dorsal-data-conduit CurveJoint gained semantic authority: %s" % path
+			)
+
+	var conduit := _arrow_visual.get_node_or_null(^"DorsalDataConduit") as Node3D
+	var family_child_count := 0
+	if conduit == null:
+		errors.append("dorsal-data-conduit parent missing")
+	else:
+		for child in conduit.get_children():
+			if child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh:
+				family_child_count += 1
+	if joints.size() != DORSAL_DATA_CONDUIT_CURVE_JOINT_VISIBLE_COPIES \
+		or family_child_count != DORSAL_DATA_CONDUIT_CURVE_JOINT_VISIBLE_COPIES \
+		or actual_paths != PackedStringArray(DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS):
+		errors.append("dorsal-data-conduit CurveJoint visible/path roster drift")
+	if mesh_identities.size() != 1:
+		errors.append("dorsal-data-conduit CurveJoint shared-mesh identity drift")
+
+	var mesh := _dorsal_data_conduit_curve_joint_mesh
+	if mesh == null \
+		or not is_equal_approx(mesh.radius, DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIUS) \
+		or not is_equal_approx(mesh.height, DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIUS * 2.0) \
+		or mesh.radial_segments != DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIAL_SEGMENTS \
+		or mesh.rings != DORSAL_DATA_CONDUIT_CURVE_JOINT_RINGS \
+		or mesh.get_surface_count() != 1:
+		errors.append("dorsal-data-conduit CurveJoint primitive recipe drift")
+	elif mesh.material != _arrow_materials.sensor:
+		errors.append("dorsal-data-conduit CurveJoint material identity drift")
+	if mesh != null and mesh.resource_local_to_scene:
+		errors.append("dorsal-data-conduit CurveJoint mesh became scene-local")
+	for joint in joints:
+		if joint.mesh != mesh:
+			errors.append("dorsal-data-conduit CurveJoint retained a private mesh")
+			break
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": actual_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": joints.size(),
+		"geometry_submissions": joints.size(),
+		"visible_geometry_copies": joints.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 2,
+		"component_retained_mesh_present": mesh != null,
+		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
+		"legacy": {
+			"geometry_nodes": 3,
+			"geometry_submissions": 3,
+			"visible_geometry_copies": 3,
+			"primitive_mesh_allocations": 3,
+		},
+	}.duplicate(true)
+
+
 func _count_visual_nodes(search_root: Node) -> int:
 	var count := 1
 	for child in search_root.get_children():
@@ -1092,6 +1202,14 @@ static func _sensor_leading_edge_curve_joint_transforms() -> Array[Transform3D]:
 		Transform3D(Basis.IDENTITY, Vector3(1.0, 1.19, -1.65)),
 		Transform3D(Basis.IDENTITY, Vector3(3.4, 1.1, -0.55)),
 		Transform3D(Basis.IDENTITY, Vector3(5.35, 1.02, 0.75)),
+	]
+
+
+static func _dorsal_data_conduit_curve_joint_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.52, -0.6)),
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.65, 1.45)),
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.42, 3.8)),
 	]
 
 
