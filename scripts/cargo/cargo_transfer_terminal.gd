@@ -31,6 +31,63 @@ const PLACEMENT_SLOT_TRANSFORM := Transform3D.IDENTITY
 const INTERACTION_ORIGIN := Vector3(0.0, 0.85, 0.25)
 const APPROACH_ORIGIN := Vector3(0.0, 0.85, 1.10)
 
+## Phase 9 component-local resource freeze. The checked-in source and
+## destination fixtures use the same four immutable box recipes. Materials stay
+## instance-owned because the role accent differs; collisions, nodes, semantic
+## paths, visible copies, and renderer submissions are deliberately untouched.
+const VISUAL_MESH_ROSTER := [
+	{
+		"role": &"access_deck",
+		"cache_key": &"AccessDeck",
+		"path": ^"AccessDeck/Mesh",
+		"size": TERMINAL_DECK_SIZE,
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -0.15, 0.50)),
+	},
+	{
+		"role": &"console_body",
+		"cache_key": &"ConsoleBody",
+		"path": ^"ConsoleBody/Mesh",
+		"size": TERMINAL_CONSOLE_SIZE,
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, 0.65, -0.55)),
+	},
+	{
+		"role": &"status_screen",
+		"cache_key": &"StatusScreen",
+		"path": ^"StatusScreen",
+		"size": Vector3(0.92, 0.48, 0.035),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, 0.82, -0.185)),
+	},
+	{
+		"role": &"role_stripe",
+		"cache_key": &"RoleStripe",
+		"path": ^"RoleStripe",
+		"size": Vector3(1.10, 0.10, 0.035),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, 0.20, -0.185)),
+	},
+]
+const PRODUCTION_TERMINAL_COUNT := 2
+const TERMINAL_PAIR_LEGACY_VISUAL_ALLOCATION := {
+	"nodes": 8,
+	"visible_copies": 8,
+	"renderer_submissions": 8,
+	"mesh_resource_allocations": 8,
+	"material_resource_allocations": 6,
+	"collision_nodes": 6,
+}
+const TERMINAL_PAIR_CURRENT_VISUAL_ALLOCATION := {
+	"nodes": 8,
+	"visible_copies": 8,
+	"renderer_submissions": 8,
+	"mesh_resource_allocations": 4,
+	"material_resource_allocations": 6,
+	"collision_nodes": 6,
+}
+
+## Process-wide because both production terminal scenes instantiate this same
+## script. Values are created once, never exposed as a mutable catalog, and the
+## live allocation audit rejects recipe or identity drift.
+static var _shared_visual_meshes: Dictionary = {}
+
 @export_category("Stable identity")
 @export var terminal_id: StringName = &""
 @export var manifest_id: StringName = &""
@@ -389,6 +446,10 @@ func audit() -> Dictionary:
 			errors.append("physical terminal geometry or collision drifted")
 		if not _placement_contract_exact():
 			errors.append("placement slot or approach markers drifted")
+		for allocation_error in get_visual_resource_allocation_audit().get(
+			"errors", PackedStringArray()
+		):
+			errors.append(String(allocation_error))
 	var state := get_state_snapshot()
 	if _bound and StringName(state.state_id) == &"stale":
 		errors.append("bound authority handle is stale")
@@ -399,6 +460,7 @@ func audit() -> Dictionary:
 		"state": state,
 		"placement_slot": get_placement_slot_snapshot(),
 		"physical": get_physical_contract(),
+		"visual_resource_allocation": get_visual_resource_allocation_audit(),
 		"owns_inventory": false,
 		"uses_cargo_transfer_authority": true,
 		"ship_authority": false,
@@ -408,6 +470,181 @@ func audit() -> Dictionary:
 		"network_authority": false,
 		"activity_authority": false,
 		"ui_authority": false,
+	}.duplicate(true)
+
+
+## Headless-safe live proof that this terminal retains all four semantic mesh
+## nodes and their exact renderer recipes while binding the shared immutable
+## meshes. Resource identity is observed from Objects; submission count is the
+## sum of mesh surfaces and does not require a rendered frame.
+func get_visual_resource_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var visible_copies := 0
+	var renderer_submissions := 0
+	var childless_nodes := 0
+	var live_paths := PackedStringArray()
+	var live_transforms: Array[Transform3D] = []
+	var accent_material: Material
+	for recipe in VISUAL_MESH_ROSTER:
+		var path := recipe.path as NodePath
+		var role := recipe.role as StringName
+		var mesh_instance := get_node_or_null(path) as MeshInstance3D
+		if mesh_instance == null:
+			errors.append("visual_mesh_node_missing_%s" % role)
+			continue
+		live_paths.append(String(path))
+		var local_transform := global_transform.affine_inverse() * mesh_instance.global_transform
+		live_transforms.append(local_transform)
+		if not local_transform.is_equal_approx(recipe.local_transform as Transform3D):
+			errors.append("visual_mesh_transform_drift_%s" % role)
+		if mesh_instance.get_child_count() == 0:
+			childless_nodes += 1
+		else:
+			errors.append("visual_mesh_node_not_childless_%s" % role)
+		if mesh_instance.visible:
+			visible_copies += 1
+		else:
+			errors.append("visual_mesh_visibility_drift_%s" % role)
+		if (
+			mesh_instance.cast_shadow
+			!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			or mesh_instance.layers != 1
+			or mesh_instance.material_overlay != null
+			or not is_zero_approx(mesh_instance.extra_cull_margin)
+			or not is_zero_approx(mesh_instance.visibility_range_begin)
+			or not is_zero_approx(mesh_instance.visibility_range_end)
+		):
+			errors.append("visual_mesh_renderer_state_drift_%s" % role)
+		var mesh := mesh_instance.mesh as BoxMesh
+		var expected_mesh := _shared_visual_meshes.get(recipe.cache_key) as BoxMesh
+		if mesh == null:
+			errors.append("visual_box_mesh_missing_%s" % role)
+		else:
+			mesh_resource_ids[mesh.get_instance_id()] = true
+			renderer_submissions += mesh.get_surface_count()
+			if (
+				mesh != expected_mesh
+				or not mesh.size.is_equal_approx(recipe.size as Vector3)
+				or mesh.material != null
+				or mesh.get_surface_count() != 1
+			):
+				errors.append("visual_mesh_recipe_or_identity_drift_%s" % role)
+		var material := mesh_instance.material_override as StandardMaterial3D
+		if material == null:
+			errors.append("visual_material_missing_%s" % role)
+		else:
+			material_resource_ids[material.get_instance_id()] = true
+			if not _matches_visual_material_recipe(role, material):
+				errors.append("visual_material_recipe_drift_%s" % role)
+			if role == &"status_screen":
+				accent_material = material
+			elif role == &"role_stripe" and material != accent_material:
+				errors.append("terminal_accent_material_identity_drift")
+	if mesh_resource_ids.size() != VISUAL_MESH_ROSTER.size():
+		errors.append("terminal_visual_mesh_resource_count_drift")
+	if material_resource_ids.size() != 3:
+		errors.append("terminal_visual_material_resource_count_drift")
+	if visible_copies != VISUAL_MESH_ROSTER.size():
+		errors.append("terminal_visual_copy_count_drift")
+	if renderer_submissions != VISUAL_MESH_ROSTER.size():
+		errors.append("terminal_renderer_submission_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors.duplicate(),
+		"family_id": &"cargo_terminal_box_recipes",
+		"visual_only": childless_nodes == VISUAL_MESH_ROSTER.size(),
+		"childless": childless_nodes == VISUAL_MESH_ROSTER.size(),
+		"batched": false,
+		"immutable_shared_meshes": mesh_resource_ids.size() == VISUAL_MESH_ROSTER.size(),
+		"node_paths": live_paths.duplicate(),
+		"live_transforms": live_transforms.duplicate(true),
+		"visible_copies": visible_copies,
+		"renderer_submissions": renderer_submissions,
+		"mesh_resource_allocations": mesh_resource_ids.size(),
+		"material_resource_allocations": material_resource_ids.size(),
+		"collision_nodes": find_children("*", "CollisionShape3D", true, false).size(),
+	}.duplicate(true)
+
+
+## Exact two-fixture component census. This is intentionally not a whole-world
+## count: it proves only the checked-in source/destination production family.
+static func audit_production_visual_resource_roster(terminals: Array) -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var visible_copies := 0
+	var renderer_submissions := 0
+	var collision_nodes := 0
+	var node_count := 0
+	if terminals.size() != PRODUCTION_TERMINAL_COUNT:
+		errors.append("production_terminal_count_drift")
+	for terminal_index in terminals.size():
+		var terminal := terminals[terminal_index] as CargoTransferTerminal
+		if terminal == null:
+			errors.append("production_terminal_invalid_%d" % terminal_index)
+			continue
+		var terminal_audit := terminal.get_visual_resource_allocation_audit()
+		for allocation_error in terminal_audit.get("errors", PackedStringArray()):
+			errors.append("terminal_%d_%s" % [terminal_index, allocation_error])
+		visible_copies += int(terminal_audit.visible_copies)
+		renderer_submissions += int(terminal_audit.renderer_submissions)
+		collision_nodes += int(terminal_audit.collision_nodes)
+		for recipe in VISUAL_MESH_ROSTER:
+			var mesh_instance := terminal.get_node_or_null(
+				recipe.path as NodePath
+			) as MeshInstance3D
+			if mesh_instance == null:
+				continue
+			node_count += 1
+			if mesh_instance.mesh != null:
+				mesh_resource_ids[mesh_instance.mesh.get_instance_id()] = true
+			if mesh_instance.material_override != null:
+				material_resource_ids[
+					mesh_instance.material_override.get_instance_id()
+				] = true
+	var current := {
+		"nodes": node_count,
+		"visible_copies": visible_copies,
+		"renderer_submissions": renderer_submissions,
+		"mesh_resource_allocations": mesh_resource_ids.size(),
+		"material_resource_allocations": material_resource_ids.size(),
+		"collision_nodes": collision_nodes,
+	}
+	if current != TERMINAL_PAIR_CURRENT_VISUAL_ALLOCATION:
+		errors.append("production_terminal_visual_allocation_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors.duplicate(),
+		"family_id": &"cargo_terminal_box_recipes",
+		"scope": &"checked_in_source_destination_pair",
+		"terminal_instances": terminals.size(),
+		"legacy": TERMINAL_PAIR_LEGACY_VISUAL_ALLOCATION.duplicate(true),
+		"current": current.duplicate(true),
+		"mesh_resource_allocation_delta": (
+			int(current.mesh_resource_allocations)
+			- int(TERMINAL_PAIR_LEGACY_VISUAL_ALLOCATION.mesh_resource_allocations)
+		),
+		"renderer_submission_delta": (
+			int(current.renderer_submissions)
+			- int(TERMINAL_PAIR_LEGACY_VISUAL_ALLOCATION.renderer_submissions)
+		),
+		"node_delta": int(current.nodes) - int(TERMINAL_PAIR_LEGACY_VISUAL_ALLOCATION.nodes),
+		"collision_node_delta": (
+			int(current.collision_nodes)
+			- int(TERMINAL_PAIR_LEGACY_VISUAL_ALLOCATION.collision_nodes)
+		),
+		"authority_exclusions": {
+			"inventory": false,
+			"ship": false,
+			"berth": false,
+			"combat": false,
+			"reward": false,
+			"network": false,
+			"activity": false,
+			"ui": false,
+		},
 	}.duplicate(true)
 
 
@@ -638,9 +875,7 @@ func _static_box(
 	add_child(body)
 	var visible := MeshInstance3D.new()
 	visible.name = "Mesh"
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	visible.mesh = mesh
+	visible.mesh = _shared_visual_box_mesh(StringName(node_name), size)
 	visible.material_override = material
 	body.add_child(visible)
 	var collision := CollisionShape3D.new()
@@ -660,9 +895,7 @@ func _visual_box(
 	var visible := MeshInstance3D.new()
 	visible.name = node_name
 	visible.position = position_value
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	visible.mesh = mesh
+	visible.mesh = _shared_visual_box_mesh(StringName(node_name), size)
 	visible.material_override = material
 	visible.set_meta("visual_detail_only", true)
 	add_child(visible)
@@ -674,6 +907,44 @@ func _material(color: Color, roughness: float, metallic: float) -> StandardMater
 	material.roughness = roughness
 	material.metallic = metallic
 	return material
+
+
+static func _shared_visual_box_mesh(cache_key: StringName, size: Vector3) -> BoxMesh:
+	var cached := _shared_visual_meshes.get(cache_key) as BoxMesh
+	if cached != null:
+		return cached
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	_shared_visual_meshes[cache_key] = mesh
+	return mesh
+
+
+func _matches_visual_material_recipe(
+		role: StringName,
+		material: StandardMaterial3D
+	) -> bool:
+	if role == &"access_deck":
+		return (
+			material.albedo_color.is_equal_approx(Color("56666b"))
+			and is_equal_approx(material.roughness, 0.48)
+			and is_equal_approx(material.metallic, 0.26)
+			and not material.emission_enabled
+		)
+	if role == &"console_body":
+		return (
+			material.albedo_color.is_equal_approx(Color("26333a"))
+			and is_equal_approx(material.roughness, 0.62)
+			and is_equal_approx(material.metallic, 0.32)
+			and not material.emission_enabled
+		)
+	return (
+		material.albedo_color.is_equal_approx(accent_color.darkened(0.38))
+		and is_equal_approx(material.roughness, 0.28)
+		and is_equal_approx(material.metallic, 0.18)
+		and material.emission_enabled
+		and material.emission.is_equal_approx(accent_color)
+		and is_equal_approx(material.emission_energy_multiplier, 1.15)
+	)
 
 
 func _physical_contract_exact() -> bool:

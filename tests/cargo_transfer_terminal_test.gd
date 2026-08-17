@@ -41,6 +41,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_fixture_identity_slots_and_physics(source, destination)
+	_test_visual_resource_sharing(source, destination)
 	var authority := AuthorityScript.new() as CargoTransferAuthority
 	authority.name = "CargoTransferAuthority"
 	root.add_child(authority)
@@ -126,6 +127,112 @@ func _test_fixture_identity_slots_and_physics(
 			"%s is physically valid, front-readable and undiscoverable before authority binding"
 			% terminal.name
 		)
+
+
+func _test_visual_resource_sharing(
+		source: CargoTransferTerminal,
+		destination: CargoTransferTerminal
+	) -> void:
+	var source_state_before := source.get_state_snapshot()
+	var destination_state_before := destination.get_state_snapshot()
+	var source_physical_before := source.get_physical_contract()
+	var destination_physical_before := destination.get_physical_contract()
+	var allocation := CargoTransferTerminal.audit_production_visual_resource_roster(
+		[source, destination]
+	)
+	_check(
+		bool(allocation.valid)
+		and (allocation.legacy as Dictionary) == {
+			"nodes": 8,
+			"visible_copies": 8,
+			"renderer_submissions": 8,
+			"mesh_resource_allocations": 8,
+			"material_resource_allocations": 6,
+			"collision_nodes": 6,
+		}
+		and (allocation.current as Dictionary) == {
+			"nodes": 8,
+			"visible_copies": 8,
+			"renderer_submissions": 8,
+			"mesh_resource_allocations": 4,
+			"material_resource_allocations": 6,
+			"collision_nodes": 6,
+		}
+		and int(allocation.mesh_resource_allocation_delta) == -4
+		and int(allocation.renderer_submission_delta) == 0
+		and int(allocation.node_delta) == 0
+		and int(allocation.collision_node_delta) == 0,
+		"source/destination visual stock freezes exact 8->4 meshes with eight nodes, copies, submissions and six collision nodes unchanged"
+	)
+	var source_visual := source.get_visual_resource_allocation_audit()
+	var destination_visual := destination.get_visual_resource_allocation_audit()
+	_check(
+		bool(source_visual.valid)
+		and bool(destination_visual.valid)
+		and bool(source_visual.visual_only)
+		and bool(destination_visual.childless)
+		and not bool(source_visual.batched)
+		and int(source_visual.mesh_resource_allocations) == 4
+		and int(destination_visual.material_resource_allocations) == 3
+		and source_visual.node_paths == PackedStringArray([
+			"AccessDeck/Mesh",
+			"ConsoleBody/Mesh",
+			"StatusScreen",
+			"RoleStripe",
+		]),
+		"each terminal retains four named childless visual nodes, exact transforms, renderer recipes and instance-owned materials"
+	)
+	var source_deck := source.get_node(^"AccessDeck/Mesh") as MeshInstance3D
+	var destination_deck := destination.get_node(^"AccessDeck/Mesh") as MeshInstance3D
+	var source_console := source.get_node(^"ConsoleBody/Mesh") as MeshInstance3D
+	var destination_console := destination.get_node(^"ConsoleBody/Mesh") as MeshInstance3D
+	_check(
+		source_deck.mesh == destination_deck.mesh
+		and source_console.mesh == destination_console.mesh
+		and source_deck.material_override != destination_deck.material_override
+		and source_console.material_override != destination_console.material_override,
+		"identical geometry shares exact mesh identity while both terminal material catalogs remain separately owned"
+	)
+	var destination_screen := destination.get_node(^"StatusScreen") as MeshInstance3D
+	var shared_screen_mesh := destination_screen.mesh
+	if shared_screen_mesh != null:
+		destination_screen.mesh = shared_screen_mesh.duplicate() as Mesh
+	var split_red := destination.get_visual_resource_allocation_audit()
+	var roster_red := CargoTransferTerminal.audit_production_visual_resource_roster(
+		[source, destination]
+	)
+	if shared_screen_mesh != null:
+		destination_screen.mesh = shared_screen_mesh
+	_check(
+		not bool(split_red.valid)
+		and (split_red.errors as PackedStringArray).has(
+			"visual_mesh_recipe_or_identity_drift_status_screen"
+		)
+		and not bool(roster_red.valid)
+		and (roster_red.errors as PackedStringArray).has(
+			"production_terminal_visual_allocation_drift"
+		)
+		and bool(destination.get_visual_resource_allocation_audit().valid),
+		"structured-red: splitting one byte-identical terminal mesh fails shared identity and restores cleanly"
+	)
+	var authority_exclusions := allocation.authority_exclusions as Dictionary
+	_check(
+		source.get_state_snapshot() == source_state_before
+		and destination.get_state_snapshot() == destination_state_before
+		and source.get_physical_contract() == source_physical_before
+		and destination.get_physical_contract() == destination_physical_before
+		and authority_exclusions == {
+			"inventory": false,
+			"ship": false,
+			"berth": false,
+			"combat": false,
+			"reward": false,
+			"network": false,
+			"activity": false,
+			"ui": false,
+		},
+		"allocation audit and mutation preserve collision, terminal state and every excluded authority exactly"
+	)
 
 
 func _register_fixture_manifests(
