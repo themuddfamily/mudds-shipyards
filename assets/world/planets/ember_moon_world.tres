@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PlanetaryWorldDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/planetary_world_definition.gd" id="1_world"]
+
+[resource]
+script = ExtResource("1_world")
+world_id = &"ember_moon"
+display_name = "Ember Moon"
+sector_id = &"nearby_sector"
+content_note = "Original modern airless vertical-slice destination. The SpaceBackdrop orange palette role is visual inspiration only; no backdrop sphere, transform, radius, material, or historical destination identity is claimed."
+scene_path = "res://scenes/world/planets/ember_moon.tscn"
+scene_anchor_id = &"ember_scene_origin"
+scene_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+navigation_anchor_id = &"ember_navigation"
+navigation_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 130000, 0)
+orbital_anchor_id = &"ember_orbit_entry"
+orbital_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 140000, 0)
+surface_anchor_id = &"ember_surface_entry"
+surface_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 120000, 0)
+body_radius_metres = 120000.0
+has_atmosphere = false
+atmosphere_definition_id = &""
+terrain_definition_id = &"ember_basalt_terrain"
+landing_region_ids = PackedStringArray("ember_caldera")
+evidence_status = 3
+evidence_references = PackedStringArray("res://docs/EMBER_MOON_AUTHORED_DEFINITIONS.md")
+evidence_notes = "Original modern design for a bounded airless gameplay slice; the reserved scene is not authored, placed, streamed, or loaded by this definition."

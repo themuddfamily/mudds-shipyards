@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="PlanetaryLandingRegionDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/planetary_landing_region_definition.gd" id="1_region"]
+
+[resource]
+script = ExtResource("1_region")
+world_id = &"ember_moon"
+body_id = &"ember_body"
+region_id = &"ember_caldera"
+display_name = "Ember Caldera"
+body_radius_m = 120000.0
+minimum_elevation_m = -2500.0
+maximum_elevation_m = 8500.0
+body_local_center_m = Vector3(0, 120000, 0)
+body_local_basis = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+approach_corridor_ids = PackedStringArray("caldera_approach")
+approach_corridor_transforms_region_local_m = Array[Transform3D]([Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 60, 300)])
+approach_corridor_half_extents_m = PackedVector3Array(45, 60, 300)
+approach_corridor_target_pad_ids = PackedStringArray("caldera_pad")
+touchdown_pad_ids = PackedStringArray("caldera_pad")
+touchdown_pad_transforms_region_local_m = Array[Transform3D]([Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)])
+touchdown_pad_sizes_m = PackedVector2Array(28, 32)
+touchdown_pad_egress_anchor_ids = PackedStringArray("caldera_pad_egress")
+compatible_ship_tags = PackedStringArray("small_craft", "medium_craft")
+maximum_surface_slope_degrees = 8.0
+maximum_surface_roughness_m = 0.35
+minimum_vertical_clearance_m = 18.0
+minimum_approach_altitude_m = 15.0
+maximum_approach_altitude_m = 1000.0
+minimum_on_foot_egress_width_m = 2.0
+surface_route_anchor_ids = PackedStringArray("caldera_pad_egress", "caldera_staging_gate")
+surface_route_anchor_positions_region_local_m = PackedVector3Array(18, 0, 0, 42, 0, 0)
+evidence_references = PackedStringArray("res://docs/EMBER_MOON_AUTHORED_DEFINITIONS.md")
+evidence_notes = "Original modern body-local landing geometry declaration; it does not prove terrain, traversal, landing eligibility, or a loaded scene."

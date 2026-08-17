@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PlanetaryTerrainProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/planetary_terrain_profile.gd" id="1_terrain"]
+
+[resource]
+script = ExtResource("1_terrain")
+profile_id = &"ember_basalt_terrain"
+display_name = "Ember Moon basalt terrain"
+evidence_references = PackedStringArray("res://docs/EMBER_MOON_AUTHORED_DEFINITIONS.md")
+evidence_notes = "Original modern game-scale airless terrain tuning; not recovered historical or real terrain."
+reference_planet_radius_meters = 120000.0
+minimum_elevation_meters = -2500.0
+maximum_elevation_meters = 8500.0
+clipmap_ring_distances_meters = PackedFloat64Array(256, 768, 2048, 6144, 18432)
+collision_lod_ring_index = 2
+collision_maximum_distance_meters = 1500.0
+tile_resolution_vertices_per_edge = 129
+maximum_visible_tile_count = 512
+maximum_resident_tile_count = 1024
+maximum_collision_tile_count = 256
+biome_layer_ids = PackedStringArray("basalt", "regolith")
+landing_site_maximum_slope_degrees = 12.0
+landing_site_maximum_roughness_meters = 0.75
+origin_shift_threshold_meters = 10000.0
