@@ -6,10 +6,13 @@ extends SceneTree
 ## that can quietly ruin it are invisible to a node-existence check: geometry
 ## wound inside out, and a rock scattered into the lane the pilot is being told
 ## to fly down. Both are measured here against the real world scene, not a
-## fixture. So is the boundary the cluster must not cross — it grants nothing,
-## adds no range targets, and never reaches back toward the station.
+## fixture. The production world starts without this streamed component, so the
+## component-local fixture instantiates the same real PackedScene directly. So is
+## the boundary the cluster must not cross — it grants nothing, adds no range
+## targets, and never reaches back toward the station.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 const ENGINE_CALIBRATION_MESHES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
 const EXPECTED_COMPONENT_ID: StringName = &"nearby-sector-cluster"
 const EXPECTED_EVIDENCE_STATUS: StringName = &"modern_interpretation"
@@ -71,27 +74,26 @@ func _init() -> void:
 
 func _run() -> void:
 	var world := WORLD_SCENE.instantiate() as ShipyardWorld
-	var twin := WORLD_SCENE.instantiate() as ShipyardWorld
-	_check(world != null and twin != null, "two production ShipyardWorld scenes instantiate")
-	if world == null or twin == null:
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	var twin_cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	_check(
+		world != null and cluster != null and twin_cluster != null,
+		"the station world and two real nearby-sector component fixtures instantiate"
+	)
+	if world == null or cluster == null or twin_cluster == null:
 		_finish()
 		return
 	root.add_child(world)
-	root.add_child(twin)
+	root.add_child(cluster)
+	root.add_child(twin_cluster)
 	await process_frame
 
-	var cluster := world.get_nearby_sector_cluster()
-	var twin_cluster := twin.get_nearby_sector_cluster()
 	_check(
-		cluster != null and twin_cluster != null,
-		"the production world exposes its nearby sector cluster component"
+		world.get_nearby_sector_cluster() == null
+		and world.get_nearby_sector_cluster_audit_report().get("reason")
+			== &"streamed_cluster_unavailable",
+		"the production station owns no static Cinder child and reports streamed absence honestly"
 	)
-	if cluster == null or twin_cluster == null:
-		world.queue_free()
-		twin.queue_free()
-		await process_frame
-		_finish()
-		return
 
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
@@ -103,7 +105,8 @@ func _run() -> void:
 	_test_determinism(cluster, twin_cluster)
 	await _test_lifecycle(world, cluster)
 
-	twin.queue_free()
+	twin_cluster.queue_free()
+	cluster.queue_free()
 	world.queue_free()
 	await process_frame
 	await process_frame
@@ -793,9 +796,10 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 		"re-entry keeps the identical built field rather than scattering a second one"
 	)
 	_check(
-		world.get_nearby_sector_cluster() == cluster
-		and bool(world.get_nearby_sector_cluster_audit_report().get("valid", false)),
-		"the world still resolves the same cluster and its audit after re-entry"
+		world.get_nearby_sector_cluster() == null
+		and world.get_nearby_sector_cluster_audit_report().get("reason")
+			== &"streamed_cluster_unavailable",
+		"a component-local re-entry cannot create a stale ShipyardWorld streaming reference"
 	)
 
 

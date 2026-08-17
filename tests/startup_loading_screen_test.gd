@@ -112,6 +112,12 @@ func _test_boot_presents_before_it_builds() -> void:
 	var world := flow.get_node_or_null("ShipyardWorld") as ShipyardWorld
 	var player := flow.get_node_or_null("Player")
 	var hud := flow.get_node_or_null("HUD")
+	var binding := flow.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var bootstrap := flow.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
 	_check(world != null and player != null and hud != null, "every authored Main child is back in the tree")
 	_check(
 		flow.get_node_or_null("ShipyardWorld") == flow.world,
@@ -131,6 +137,38 @@ func _test_boot_presents_before_it_builds() -> void:
 		hud != null and not bool(hud.get("_started")),
 		"the shift has not auto-started: the player still presses BEGIN SHIFT"
 	)
+	_check(
+		binding != null
+		and bootstrap != null
+		and bool(binding.audit().get("valid", false))
+		and bootstrap.get_loaded_instance() == null
+		and flow.find_children("*", "NearbySectorCluster", true, false).is_empty(),
+		"staged startup restores one active production streaming binding with Cinder absent at station"
+	)
+	if binding == null or bootstrap == null:
+		boot.queue_free()
+		await process_frame
+		return
+	var coordinator := bootstrap.get_node_or_null(
+		^"WorldStreamingCoordinator"
+	) as WorldStreamingCoordinator
+	var policy := bootstrap.get_node_or_null(
+		^"WorldStreamingDistancePolicy"
+	) as WorldStreamingDistancePolicy
+	_check(
+		coordinator != null and policy != null,
+		"the staged bootstrap owns its coordinator and distance policy"
+	)
+	if coordinator == null or policy == null:
+		boot.queue_free()
+		await process_frame
+		return
+	var safe_start_before := flow.get_safe_start_recovery_report()
+	var binding_id := binding.get_instance_id()
+	var bootstrap_id := bootstrap.get_instance_id()
+	var coordinator_id := coordinator.get_instance_id()
+	var policy_id := policy.get_instance_id()
+	var settings_id := flow.runtime_settings.get_instance_id()
 
 	# The re-entry suites detach and re-add a Main that `_ready()` built. A Main
 	# the loader built must behave identically, or the staged path would be a
@@ -158,6 +196,20 @@ func _test_boot_presents_before_it_builds() -> void:
 		world != null and not world.get_station_navigation_audit_report().is_empty(),
 		"the re-added staged world restored its station lattice bindings"
 	)
+	var safe_start_after := flow.get_safe_start_recovery_report()
+	_check(
+		binding.get_instance_id() == binding_id
+		and bootstrap.get_instance_id() == bootstrap_id
+		and coordinator.get_instance_id() == coordinator_id
+		and policy.get_instance_id() == policy_id
+		and int(safe_start_after.get("policy_instance_id", 0))
+			== int(safe_start_before.get("policy_instance_id", -1))
+		and flow.runtime_settings.get_instance_id() == settings_id
+		and bootstrap.get_loaded_instance() == null
+		and flow.find_children("*", "NearbySectorCluster", true, false).is_empty()
+		and bool(binding.audit().get("valid", false)),
+		"staged detach/re-entry preserves streaming, SafeStart, and RuntimeSettings identities without duplicates"
+	)
 
 	boot.queue_free()
 	await process_frame
@@ -181,6 +233,22 @@ func _test_direct_instantiation_is_unstaged() -> void:
 	_check(
 		not main.prepare_staged_startup(),
 		"staged startup is refused once Main is already in the tree"
+	)
+	await process_frame
+	await physics_frame
+	var binding := main.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var bootstrap := main.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	_check(
+		binding != null
+		and bootstrap != null
+		and bool(binding.audit().get("valid", false))
+		and bootstrap.get_loaded_instance() == null
+		and main.find_children("*", "NearbySectorCluster", true, false).is_empty(),
+		"direct Main activates one production streaming binding with Cinder absent at station"
 	)
 	main.queue_free()
 	await process_frame

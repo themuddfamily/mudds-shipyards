@@ -829,7 +829,6 @@ const SKY_DUST_SCALE := 3.4
 @onready var fabrication_annex: FabricationAnnex = $FabricationAnnex
 @onready var observation_logistics_spur: ObservationLogisticsSpur = $ObservationLogisticsSpur
 @onready var salvage_terrace: SalvageTerrace = $SalvageTerrace
-@onready var nearby_sector_cluster: NearbySectorCluster = $NearbySectorCluster
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
@@ -1022,7 +1021,7 @@ func run_staged_construction(on_stage: Callable = Callable()) -> void:
 ## than five copies of the budget that drift apart, the world sweeps its whole
 ## subtree once, after the modules have finished building. Godot readies children
 ## before parents, so `AftJunctionStack`, `HabitatSpine`, `JovianFreightBerth`,
-## `FleetDockComb` and `NearbySectorCluster` have all built their signs by the
+## `FleetDockComb` and the other resident station modules have built their signs by the
 ## time this runs. Modules that already call `SignGeometryBudget` themselves are
 ## detected and skipped, so this only ever catches what nothing else owns.
 ##
@@ -1655,20 +1654,37 @@ func get_jovian_freight_berth() -> JovianFreightBerth:
 	return jovian_freight_berth
 
 
-## The hand-authored destination cluster outside the station envelope: the route
-## beacon chain, the ringed moonlet, the Cinder Reach debris field and the
-## derelict extraction platform. It is mounted at the world origin with an
-## identity transform, so its published coordinates read directly against the
-## launch gate and the target range. It owns no gameplay authority and adds no
-## range targets, so `get_target_count()` and the guided mission are unaffected.
+## Resolves the currently committed, coordinator-owned Cinder instance without
+## caching a Node across streaming generations. The cluster is intentionally
+## absent at station start and after return travel, so callers must handle null.
+## Its authored coordinates are station-world coordinates and the coordinator
+## mounts its root at identity. It owns no gameplay authority and adds no range
+## targets, so `get_target_count()` and the guided mission are unaffected.
 func get_nearby_sector_cluster() -> NearbySectorCluster:
-	return nearby_sector_cluster
+	var host := get_parent()
+	if host == null:
+		return null
+	var bootstrap := host.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	if not is_instance_valid(bootstrap):
+		return null
+	return bootstrap.get_loaded_instance() as NearbySectorCluster
 
 
 func get_nearby_sector_cluster_audit_report() -> Dictionary:
-	if not is_instance_valid(nearby_sector_cluster):
-		return {"valid": false, "errors": ["nearby sector cluster is missing from the world"]}
-	return nearby_sector_cluster.get_cluster_audit_report()
+	var cluster := get_nearby_sector_cluster()
+	if not is_instance_valid(cluster):
+		return {
+			"valid": false,
+			"available": false,
+			"reason": &"streamed_cluster_unavailable",
+			"errors": PackedStringArray([
+				"nearby sector cluster is not currently loaded"
+			]),
+			"streaming_owned": true,
+		}.duplicate(true)
+	return cluster.get_cluster_audit_report()
 
 
 ## Source-bounded B2 comb/slab macro correction. Dock 01 records a modern,
@@ -3583,10 +3599,12 @@ func _apply_operational_dressing_quality() -> void:
 	for dressing in _station_structural_service_dressings:
 		if is_instance_valid(dressing):
 			dressing.set_quality_level(visual_quality_level)
-	# The cluster's fine debris shell follows the same profile the station
-	# dressing does. Its structures, boulders and collision never vary.
-	if is_instance_valid(nearby_sector_cluster):
-		nearby_sector_cluster.set_detail_quality(visual_quality_level)
+	# A currently loaded cluster follows the same presentation profile. The
+	# production streaming binding also forwards the retained profile once to
+	# each newly committed generation, because the cluster is absent at startup.
+	var cluster := get_nearby_sector_cluster()
+	if is_instance_valid(cluster):
+		cluster.set_detail_quality(visual_quality_level)
 
 
 ## Resolves a hitscan projectile against station collision and target drones.

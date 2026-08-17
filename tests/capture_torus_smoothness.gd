@@ -34,6 +34,7 @@ extends SceneTree
 ##                                        camera framing (default: both).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
 
 const DEFAULT_OUTPUT_DIR := "res://artifacts/torus_smoothness"
 const CAPTURE_RESOLUTION := Vector2i(1920, 1080)
@@ -60,12 +61,12 @@ const NEAR_SURFACE_METRES := 0.6
 const SUBJECTS: Array = [
 	{
 		"key": "beacon_signal_ring",
-		"node": "ShipyardWorld/NearbySectorCluster/RouteBeacons/RouteBeaconAlpha/SignalRing",
+		"node": "CinderStreamingBootstrap/WorldStreamingCoordinator/WorldLocation_CinderReach/RouteBeacons/RouteBeaconAlpha/SignalRing",
 		"note": "THE NAMED RISK: Cinder Reach beacon signal ring, read as a circle",
 	},
 	{
 		"key": "beacon_trim_ring",
-		"node": "ShipyardWorld/NearbySectorCluster/RouteBeacons/RouteBeaconAlpha/TrimRing",
+		"node": "CinderStreamingBootstrap/WorldStreamingCoordinator/WorldLocation_CinderReach/RouteBeacons/RouteBeaconAlpha/TrimRing",
 		"note": "the larger ring of the same beacon",
 	},
 	{
@@ -130,7 +131,7 @@ const SUBJECTS: Array = [
 	},
 	{
 		"key": "moonlet_outer_ring",
-		"node": "ShipyardWorld/NearbySectorCluster/Landmarks/MoonletRings/OuterRing",
+		"node": "CinderStreamingBootstrap/WorldStreamingCoordinator/WorldLocation_CinderReach/Landmarks/MoonletRings/OuterRing",
 		"note": "148 m landmark ring, the largest circle in the game",
 	},
 ]
@@ -160,6 +161,8 @@ func _run() -> void:
 	for _frame in 16:
 		await process_frame
 	await physics_frame
+	if not await _load_cinder_through_production_binding(game):
+		_failures.append("production binding did not stream Cinder for its torus subjects")
 
 	# The production main scene opens on its title layer. These are pictures of
 	# geometry, so every CanvasLayer is switched off rather than dismissed.
@@ -240,6 +243,33 @@ func _run() -> void:
 	for failure in _failures:
 		printerr(failure)
 	quit(1)
+
+
+func _load_cinder_through_production_binding(game: Node) -> bool:
+	var flow := game as GameFlow
+	var bootstrap := game.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	var ship := flow.get_guided_ship() if flow != null else null
+	if flow == null or ship == null or bootstrap == null:
+		return false
+	# Player recall would race this helper at y=-70. Use the real piloted ship as
+	# the binding's tracked actor in the authored clear approach lane, outside the
+	# platform's collidable CoreDrum; the harness then pauses the complete scene.
+	flow.active_ship = ship
+	ship.set_piloted(true)
+	ship.velocity = Vector3.ZERO
+	ship.global_position = LOCATION.get_anchor_position() + Vector3(
+		0.0,
+		NearbySectorCluster.GANTRY_CENTER_Y,
+		170.0
+	)
+	for _frame in 60:
+		await physics_frame
+		await process_frame
+		if bootstrap.get_loaded_instance() != null:
+			return true
+	return false
 
 
 ## Two framings per ring.

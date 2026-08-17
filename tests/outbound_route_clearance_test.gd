@@ -32,6 +32,8 @@ extends SceneTree
 ## them to, which is exactly why the cue half of the fix is not optional.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+const PLATFORM_APPROACH_OFFSET := Vector3(0.0, 4.0, 170.0)
 
 const CRAFT_PATHS := {
 	&"torrent": "TorrentInterceptor",
@@ -321,18 +323,24 @@ func _test_aperture_is_uniform_across_the_gate(hulls: Dictionary) -> void:
 
 
 func _test_whole_outbound_route_is_flyable(world: ShipyardWorld, hulls: Dictionary) -> void:
-	var cluster := world.get_nearby_sector_cluster()
-	_check(cluster != null, "the world exposes the Cinder Reach cluster the route runs to")
-	if cluster == null:
-		return
+	_check(
+		world.get_nearby_sector_cluster() == null and ROUTE.is_definition_valid(),
+		"the station-owned route remains available while streamed Cinder geometry is absent"
+	)
 	var gate := world.get_launch_gate_transform()
 	var route: Array[Vector3] = [
 		Vector3(0.0, gate.origin.y, -30.0),
 		gate.origin,
 	]
-	for beacon in cluster.get_route_beacon_positions():
-		route.append(beacon)
-	route.append(cluster.get_approach_lane_point(170.0))
+	# The last resource checkpoint is the activity anchor itself. Clearance ends
+	# at the authored approach point because flying through the platform anchor
+	# would intentionally intersect destination structure.
+	for checkpoint_index in ROUTE.get_checkpoint_count() - 1:
+		route.append(ROUTE.get_checkpoint_position(checkpoint_index))
+	route.append(
+		ROUTE.get_checkpoint_position(ROUTE.get_checkpoint_count() - 1)
+		+ PLATFORM_APPROACH_OFFSET
+	)
 
 	# The Jovian is the widest and tallest hull; the Halyard is the deepest. Sweep
 	# both independent envelope extremes, plus the Torrent that reproduced the

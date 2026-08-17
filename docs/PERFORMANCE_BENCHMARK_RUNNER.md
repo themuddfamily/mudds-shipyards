@@ -16,9 +16,14 @@ window. Scenario order and inputs are frozen in the JSON:
    drives the real `PlayerController` with four equal movement segments:
    forward, forward+right, forward, and forward+left.
 2. `nearby_sector_ship_flight_route` places the production Torrent at the
-   production nearby-sector approach-lane point, aims it at the dock gate, and
+   registered Cinder navigation anchor, waits outside the measured window for
+   the production physics binding and coordinator to commit the one real
+   streamed NearbySectorCluster generation, then resolves that generation's
+   approach-lane point and dock gate. It aims the Torrent at the dock gate and
    drives its `LocalShipInputSource` with forward thrust plus boost for the
-   middle half of the route.
+   middle half of the route. Missing streaming composition, a failed load, or
+   invalid route markers fail staging; there is no unrelated coordinate
+   fallback.
 
 Neither scenario can pass by sampling an idle scene. Each records the actor's
 start and end transforms, accumulated path, and maximum displacement. The

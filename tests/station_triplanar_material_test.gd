@@ -5,6 +5,7 @@ extends SceneTree
 ## remain deliberately outside the station material family.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 const ALBEDO_PATH := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
 const NORMAL_PATH := "res://assets/materials/procedural-panel-triplanar-normal-v2.png"
 const ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar-roughness-v2.png"
@@ -26,14 +27,19 @@ func _run() -> void:
 		_finish()
 		return
 	root.add_child(game)
+	var cluster_fixture := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	if cluster_fixture != null:
+		root.add_child(cluster_fixture)
 	await process_frame
 	await physics_frame
 	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
 	_check(world != null, "production ShipyardWorld is present")
 	if world != null:
-		_test_live_station_coverage(world)
+		_test_live_station_coverage(world, cluster_fixture)
 		_test_live_central_deck_uv0(world)
 	_test_four_ship_material_identity(game)
+	if is_instance_valid(cluster_fixture):
+		cluster_fixture.queue_free()
 	game.queue_free()
 	await process_frame
 	_finish()
@@ -78,15 +84,18 @@ func _test_imported_normal_direction() -> void:
 	)
 
 
-func _test_live_station_coverage(world: ShipyardWorld) -> void:
+func _test_live_station_coverage(
+	world: ShipyardWorld,
+	cluster_fixture: NearbySectorCluster
+	) -> void:
 	var mapped_surface_count := 0
 	var scale_022_count := 0
 	var scale_028_count := 0
 	var scale_030_count := 0
 	var exact_recipe := true
 	var forbidden_ship_atlas_count := 0
-	# The nearby sector cluster is inside the world but is not station stock, and
-	# its plate size is not the station's. `uv1_scale` is a physical scale under
+	# The streamed nearby sector cluster is absent from the station tree and is
+	# not station stock. Its plate size is not the station's. `uv1_scale` is a physical scale under
 	# world triplanar — 0.22 lays a plate every 4.5 m, which is right for a 2 m
 	# door frame and reads as woven gingham on Cinder Reach's 34 m gantry beams,
 	# where a rendered frame settled it. So the cluster keeps the same registered
@@ -104,7 +113,12 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# registered maps and normal_scale; `_test_vip_suite_family` holds it to the
 	# recipe so nothing hides in the gap.
 	var vip_root := world.get_node_or_null(^"VipReceptionSuite")
-	var cluster_root := world.get_node_or_null(^"NearbySectorCluster")
+	var cluster_root: Node = cluster_fixture
+	_check(
+		world.get_node_or_null(^"NearbySectorCluster") == null
+		and world.get_nearby_sector_cluster() == null,
+		"station material coverage begins with no always-resident Cinder subtree"
+	)
 	for candidate in world.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := candidate as MeshInstance3D
 		if mesh_instance.mesh == null:
@@ -552,12 +566,16 @@ func _test_live_station_coverage(world: ShipyardWorld) -> void:
 	# colliders remained. Again, no copy or material leaves the family: 0.30 loses
 	# four ordinary surfaces and the instanced-family check gains one mapped batch.
 	# The Modern root's local roster below makes that transfer independently visible.
+	# Habitat's twelve brass floor-hatch fasteners moved from twelve mapped
+	# 0.28 ordinary surfaces into one mapped MultiMesh in c8280f7. The visible
+	# copy/material roster is unchanged: ordinary bindings 2612 -> 2600 and the
+	# instanced-family census below gains exactly one mapped batch.
 	_check(
-		mapped_surface_count == 2612
+		mapped_surface_count == 2600
 		and scale_022_count == 130
-		and scale_028_count == 862
+		and scale_028_count == 850
 		and scale_030_count == 1620,
-		"live station binds exactly 2612 surfaces at the frozen 0.22/0.28/0.30 physical scales"
+		"live station binds exactly 2600 ordinary surfaces after the twelve-copy Habitat hatch batch"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -644,9 +662,14 @@ func _test_instanced_station_family(
 	# station-family material identity.
 	# ModernFleetRegistry's four steel-blue column visuals make the same bounded
 	# transfer into one mapped batch; their collision bodies stay independent.
+	# Habitat's twelve brass hatch fasteners add one further mapped batch without
+	# changing their twelve drawn copies or registered 0.28 material.
+	# The current production tree also contains the two deliberately painted
+	# maintenance-gantry SafetyBands and the rubber TowTractor wheel batch. Those
+	# three visual-only families are intentionally outside the station plate maps.
 	_check(
-		batches == 45 and mapped == 17,
-		"instanced station structure is exactly forty-five batches, seventeen of them mapped"
+		batches == 49 and mapped == 18,
+		"instanced station structure is exactly forty-nine batches, eighteen of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -730,7 +753,7 @@ func _material_family_roster(module_root: Node) -> Dictionary:
 ## and it is required to be coarser than the station's largest plate rather than
 ## merely different, so "not 0.22" cannot quietly become "anything".
 func _test_cluster_family(cluster_root: Node) -> void:
-	_check(cluster_root != null, "the nearby sector cluster is present in the live world")
+	_check(cluster_root != null, "the real nearby-sector PackedScene fixture is available")
 	if cluster_root == null:
 		return
 	var mapped := 0

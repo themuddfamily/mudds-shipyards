@@ -5,6 +5,7 @@ extends SceneTree
 ## system is present in this fixture.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 const LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const DirectorScript := preload("res://scripts/activities/activity_director.gd")
@@ -47,30 +48,37 @@ func _test_resources_match_the_live_nearby_sector() -> void:
 		"definition validation audits a non-finite scene origin separately from the navigation anchor"
 	)
 	var world := WORLD_SCENE.instantiate() as ShipyardWorld
-	_check(world != null, "the production ShipyardWorld scene instantiates for anchor verification")
-	if world == null:
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	_check(
+		world != null and cluster != null,
+		"the station and real streamed-component fixture instantiate for resource verification"
+	)
+	if world == null or cluster == null:
 		return
 	root.add_child(world)
+	root.add_child(cluster)
 	await process_frame
-	var cluster := world.get_nearby_sector_cluster()
-	_check(cluster != null, "the production world exposes its nearby-sector cluster")
-	if cluster != null:
-		_check(
-			LOCATION.get_anchor_position().is_equal_approx(cluster.PLATFORM_ANCHOR),
-			"the location resource uses the live Cinder Reach platform anchor"
-		)
-		var beacon_positions := cluster.get_route_beacon_positions()
-		_check(
-			ROUTE.get_checkpoint_count() == beacon_positions.size() + 1,
-			"the route has each live beacon plus the Cinder Reach destination"
-		)
-		var matches := true
-		for index in beacon_positions.size():
-			matches = matches and ROUTE.get_checkpoint_position(index).is_equal_approx(beacon_positions[index])
-		matches = matches and ROUTE.get_checkpoint_position(ROUTE.get_checkpoint_count() - 1).is_equal_approx(
-			cluster.PLATFORM_ANCHOR
-		)
-		_check(matches, "the route checkpoints remain anchored to the existing beacon chain and platform")
+	_check(
+		world.get_nearby_sector_cluster() == null,
+		"station-owned activity resources do not require an always-resident Cinder instance"
+	)
+	_check(
+		LOCATION.get_anchor_position().is_equal_approx(cluster.PLATFORM_ANCHOR),
+		"the location resource uses the authored Cinder Reach platform anchor"
+	)
+	var beacon_positions := cluster.get_route_beacon_positions()
+	_check(
+		ROUTE.get_checkpoint_count() == beacon_positions.size() + 1,
+		"the route has each authored beacon plus the Cinder Reach destination"
+	)
+	var matches := true
+	for index in beacon_positions.size():
+		matches = matches and ROUTE.get_checkpoint_position(index).is_equal_approx(beacon_positions[index])
+	matches = matches and ROUTE.get_checkpoint_position(ROUTE.get_checkpoint_count() - 1).is_equal_approx(
+		cluster.PLATFORM_ANCHOR
+	)
+	_check(matches, "the station-owned route stays anchored to the streamed component contract")
+	cluster.queue_free()
 	world.queue_free()
 	await process_frame
 

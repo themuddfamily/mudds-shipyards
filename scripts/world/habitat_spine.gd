@@ -2455,10 +2455,22 @@ func _build_common_soft_goods(common: Node3D) -> void:
 func _style_access_landmarks() -> void:
 	if _main_access != null:
 		_apply_door_material(_main_access, _materials["teal"], _materials["teal"])
+		_finalize_host_coloured_door(_main_access)
 	if _deferred_branch_access != null:
 		# Was red for a locked, deferred landmark. The branch is open, so it takes
 		# the module's usable-route cyan like the main access does.
 		_apply_door_material(_deferred_branch_access, _materials["teal"], _materials["teal"])
+		_finalize_host_coloured_door(_deferred_branch_access)
+
+
+func _finalize_host_coloured_door(door: StationDoor) -> void:
+	# StationDoor normally defers this bind so its host can colour the authored
+	# leaf first. Habitat has just completed that host-owned colour step, while
+	# ShipyardWorld will validate this module synchronously in its parent `_ready`.
+	# Finalizing now prevents that parent from seeing the temporary pre-bind
+	# material roster and rejecting the entire station route graph. The door's
+	# already-queued bind is idempotent over the same live leaf and remains safe.
+	door.call(&"_bind_panel_surface_family")
 
 
 func _apply_door_material(door: StationDoor, panel_material: Material, indicator_material: Material) -> void:

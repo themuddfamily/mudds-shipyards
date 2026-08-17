@@ -35,6 +35,14 @@ func _run() -> void:
 	module.position = Vector3(-17.0, 2.25, 31.0)
 	module.rotation_degrees.y = -34.0
 	_test_root.add_child(module)
+	var synchronous_audit := module.get_audit_report()
+	var synchronous_render := module.get_render_allocation_report()
+	_check(
+		bool(synchronous_audit.get("valid", false))
+		and bool(synchronous_render.get("exact_counts", false))
+		and int(synchronous_render.get("unique_material_resources", -1)) == 31,
+		"Habitat is allocation-green synchronously before its ShipyardWorld parent can validate it"
+	)
 	await process_frame
 	await physics_frame
 	await physics_frame

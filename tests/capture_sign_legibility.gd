@@ -16,6 +16,7 @@ extends SceneTree
 ##   KETH_SIGN_CAPTURE_TAG=before       filename prefix (default "shot").
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
 
 const DEFAULT_OUTPUT_DIR := "res://artifacts/sign_legibility"
 const CAPTURE_RESOLUTION := Vector2i(1920, 1080)
@@ -51,7 +52,7 @@ const SUBJECTS: Array = [
 	},
 	{
 		"key": "cinder_gate",
-		"node": "ShipyardWorld/NearbySectorCluster/ExtractionPlatform/CinderReachPlatform/Sign_CINDER_REACH_DOCK_GATE",
+		"node": "CinderStreamingBootstrap/WorldStreamingCoordinator/WorldLocation_CinderReach/ExtractionPlatform/CinderReachPlatform/Sign_CINDER_REACH_DOCK_GATE",
 		"reading": 40.0,
 		"far": 190.0,
 		"note": "sector wayfinding, read from a moving craft",
@@ -84,6 +85,8 @@ func _run() -> void:
 	for _frame in 12:
 		await process_frame
 	await physics_frame
+	if not await _load_cinder_through_production_binding(game):
+		_failures.append("production binding did not stream Cinder for its capture subject")
 
 	# The production main scene opens on its title layer. These are pictures of
 	# geometry, so every CanvasLayer is switched off rather than dismissed, and
@@ -145,6 +148,34 @@ func _run() -> void:
 	for failure in _failures:
 		printerr(failure)
 	quit(1)
+
+
+func _load_cinder_through_production_binding(game: Node) -> bool:
+	var flow := game as GameFlow
+	var bootstrap := game.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	var ship := flow.get_guided_ship() if flow != null else null
+	if flow == null or ship == null or bootstrap == null:
+		return false
+	# The on-foot Player would trigger GameFlow's below-deck recall at Cinder's
+	# y=-70 anchor. Hold the legitimate production ship/provider in the authored
+	# clear approach lane instead: it remains within the load radius without
+	# embedding the live hull in the platform's collidable CoreDrum.
+	flow.active_ship = ship
+	ship.set_piloted(true)
+	ship.velocity = Vector3.ZERO
+	ship.global_position = LOCATION.get_anchor_position() + Vector3(
+		0.0,
+		NearbySectorCluster.GANTRY_CENTER_Y,
+		170.0
+	)
+	for _frame in 60:
+		await physics_frame
+		await process_frame
+		if bootstrap.get_loaded_instance() != null:
+			return true
+	return false
 
 
 ## `TextMesh` presents its readable face toward local +Z, so the reader stands

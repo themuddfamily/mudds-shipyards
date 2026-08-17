@@ -191,6 +191,16 @@ func _test_live_smoke() -> void:
 				"station smoke proves horizontal production PlayerController movement"
 			)
 		else:
+			var inputs := scenario.deterministic_inputs as Dictionary
+			_check(
+				inputs.get("route_source")
+					== "coordinator_owned_cinder_streaming_generation"
+				and inputs.get("streamed_location_id") == "cinder_reach"
+				and int(inputs.get("streamed_generation", -1)) > 0
+				and inputs.get("streaming_owner")
+					== "CinderStreamingBootstrap/WorldStreamingCoordinator",
+				"flight smoke resolves its route from one real streamed Cinder generation"
+			)
 			_check(
 				bool(progress.engine_online_observed)
 				and bool(progress.accepted_propulsion_observed)

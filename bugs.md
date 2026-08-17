@@ -1675,6 +1675,16 @@ detaching that scene's authored children and re-resolving the world's `@onready`
 markers, in the file two siblings are actively editing. The wait it removes does
 not pay for that; it is left alone.
 
+**2026-08-17 follow-up:** the 62.7 ms conclusion above remains the correct
+adjudication of Cinder deferral as a remedy for BOOT-001; it was not large enough
+to explain or fix the cold-start freeze. Production later adopted Cinder
+streaming for a different contract: zero station residency, one
+generation-safe outbound instance, return unload, and repeatable journey
+detach/re-entry. That implementation removed the static scene child and replaced
+the old `@onready` assumption with a nullable coordinator lookup rather than
+silently deferring an authored child inside `ShipyardWorld`. The historical
+measurements and startup conclusion are unchanged.
+
 ### BOOT-001 — before and after
 
 Both columns are the same probe, same box, same session pairing.

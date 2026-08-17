@@ -16,6 +16,7 @@ const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_
 const MINIMUM_SMOKE_MOVEMENT_METERS := 0.001
 const MINIMUM_FULL_STATION_PATH_METERS := 1.0
 const FLIGHT_ENDPOINT_RADIUS_METERS := 20.0
+const STREAMING_READY_FRAME_BUDGET := 24
 
 const MONITORS := {
 	"engine_fps": Performance.TIME_FPS,
@@ -177,7 +178,20 @@ static func _run_scenario(
 		await tree.process_frame
 		return {"name": String(scenario_name), "completed": false, "error": "production actors unavailable"}
 	var quality_report := world.apply_visual_quality(quality_level)
-	var inputs := _stage_scenario(game, world, player, ship, scenario_name)
+	var inputs := await _stage_scenario(tree, game, world, player, ship, scenario_name)
+	if not bool(inputs.get("staging_valid", false)):
+		_release_inputs()
+		if is_instance_valid(ship):
+			ship.set_piloted(false)
+		game.queue_free()
+		await tree.process_frame
+		await tree.process_frame
+		return {
+			"name": String(scenario_name),
+			"completed": false,
+			"error": str(inputs.get("staging_error", "scenario staging failed")),
+			"deterministic_inputs": inputs,
+		}
 	var progress_tracker := _begin_scenario_progress(player, ship, scenario_name, inputs, smoke_run)
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
@@ -422,6 +436,7 @@ static func validate_scenario_progress(
 
 
 static func _stage_scenario(
+		tree: SceneTree,
 		game: GameFlow,
 		world: ShipyardWorld,
 		player: PlayerController,
@@ -433,17 +448,59 @@ static func _stage_scenario(
 		player.teleport_to(world.get_player_spawn())
 		player.set_control_enabled(true)
 		return {
+			"staging_valid": true,
 			"actor": "production PlayerController",
 			"global_rng_seed": _scenario_seed(scenario_name),
 			"start_transform": _transform_record(world.get_player_spawn()),
 			"sequence": "forward, forward+right, forward, forward+left in four equal frame segments",
 		}
-	var cluster := world.get_nearby_sector_cluster()
-	var route_start := Vector3(8.0, 12.0, -180.0)
-	var route_target := Vector3(8.0, 12.0, -900.0)
-	if cluster != null:
-		route_start = cluster.get_approach_lane_point(170.0)
-		route_target = cluster.get_dock_gate_center()
+	var binding := game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var bootstrap := game.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	if binding == null or bootstrap == null:
+		return {
+			"staging_valid": false,
+			"staging_error": "production Cinder streaming composition unavailable",
+		}
+	var bootstrap_snapshot := bootstrap.get_snapshot()
+	var anchor_value: Variant = bootstrap_snapshot.get("navigation_anchor_position")
+	if not anchor_value is Vector3 or not (anchor_value as Vector3).is_finite():
+		return {
+			"staging_valid": false,
+			"staging_error": "production Cinder navigation anchor unavailable",
+		}
+	# The nearby-sector benchmark is a production streaming consumer. Stage its
+	# already-selected production ship at the registered navigation anchor and
+	# let the one production physics binding request/commit the real generation
+	# before resolving geometry-owned route markers. There is deliberately no
+	# unrelated coordinate fallback.
+	game.active_ship = ship
+	ship.velocity = Vector3.ZERO
+	ship.global_position = anchor_value as Vector3
+	ship.set_piloted(true)
+	var cluster: NearbySectorCluster
+	for frame_index in STREAMING_READY_FRAME_BUDGET:
+		await tree.physics_frame
+		await tree.process_frame
+		cluster = bootstrap.get_loaded_instance() as NearbySectorCluster
+		if is_instance_valid(cluster):
+			break
+	if not is_instance_valid(cluster) or world.get_nearby_sector_cluster() != cluster:
+		return {
+			"staging_valid": false,
+			"staging_error": "coordinator-owned Cinder generation did not become available",
+		}
+	var route_start := cluster.get_approach_lane_point(170.0)
+	var route_target := cluster.get_dock_gate_center()
+	if not route_start.is_finite() or not route_target.is_finite() \
+		or route_start.is_equal_approx(route_target):
+		return {
+			"staging_valid": false,
+			"staging_error": "streamed Cinder route markers are invalid",
+		}
 	var direction := (route_target - route_start).normalized()
 	if direction.is_zero_approx():
 		direction = Vector3.FORWARD
@@ -451,7 +508,12 @@ static func _stage_scenario(
 	ship.velocity = Vector3.ZERO
 	ship.set_piloted(true)
 	return {
+		"staging_valid": true,
 		"actor": "production TorrentInterceptor and LocalShipInputSource",
+		"route_source": "coordinator_owned_cinder_streaming_generation",
+		"streamed_location_id": String(CinderStreamingBootstrap.LOCATION_ID),
+		"streamed_generation": int(cluster.get_meta(&"world_location_generation", -1)),
+		"streaming_owner": "CinderStreamingBootstrap/WorldStreamingCoordinator",
 		"global_rng_seed": _scenario_seed(scenario_name),
 		"start_transform": _transform_record(ship.global_transform),
 		"route_target": [route_target.x, route_target.y, route_target.z],

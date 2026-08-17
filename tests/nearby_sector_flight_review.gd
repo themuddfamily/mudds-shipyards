@@ -21,6 +21,8 @@ extends SceneTree
 ##   --script tests/nearby_sector_flight_review.gd
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
+const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const OUTPUT_DIR := "res://artifacts/nearby-sector"
 ## Review resolution. Deliberately not the 2560x1440 the frozen gameplay capture
 ## uses: this script renders every frame of a twenty-five second round trip, and
@@ -118,22 +120,11 @@ func _run() -> void:
 		_finish()
 		return
 
-	var cluster := world.get_nearby_sector_cluster()
-	if cluster == null:
-		_fail("the world exposes no nearby sector cluster")
+	if world.get_nearby_sector_cluster() != null:
+		_fail("the station starts with an unexpected resident nearby sector cluster")
 		await _dispose(game)
 		_finish()
 		return
-	var report := cluster.get_cluster_audit_report()
-	print("CLUSTER_AUDIT_VALID: ", report.get("valid", false), " errors=", report.get("errors", []))
-	print(
-		"CLUSTER_PLATFORM: distance=%.1f m cruise=%.2f s boost=%.2f s"
-		% [
-			float(report.get("platform_distance", 0.0)),
-			float(report.get("cruise_travel_seconds", 0.0)),
-			float(report.get("boost_travel_seconds", 0.0)),
-		]
-	)
 
 	var picket := game.get_node_or_null("StandoffPicket")
 
@@ -211,10 +202,13 @@ func _run() -> void:
 		% [ship.maximum_speed, ship.boost_speed, ship.thrust_acceleration]
 	)
 
-	var lane_entry: Vector3 = cluster.get_approach_lane_point(170.0)
-	var gate_center: Vector3 = cluster.get_dock_gate_center()
-	var gate_exit: Vector3 = cluster.get_approach_lane_point(58.0)
-	var beacons: Array[Vector3] = cluster.get_route_beacon_positions()
+	var platform_anchor := LOCATION.get_anchor_position()
+	var lane_entry := platform_anchor + Vector3(0.0, 4.0, 170.0)
+	var gate_center := platform_anchor + Vector3(0.0, 4.0, 95.0)
+	var gate_exit := platform_anchor + Vector3(0.0, 4.0, 58.0)
+	var beacons: Array[Vector3] = []
+	for checkpoint_index in ROUTE.get_checkpoint_count() - 1:
+		beacons.append(ROUTE.get_checkpoint_position(checkpoint_index))
 
 	# --- Outbound -------------------------------------------------------------
 	var outbound_start := _flight_frames
@@ -249,6 +243,23 @@ func _run() -> void:
 	_suppress_range_encounter(opponent, picket)
 
 	await _fly(ship, provider, beacons[0] + Vector3(18.0, 4.0, -8.0), 14.0, 14.0)
+	var cluster := await _wait_for_streamed_cluster(world)
+	if cluster == null:
+		_fail("production binding did not stream Cinder before the first route beacon")
+		await _dispose(game)
+		_finish()
+		return
+	var report := cluster.get_cluster_audit_report()
+	print("CLUSTER_AUDIT_VALID: ", report.get("valid", false), " errors=", report.get("errors", []))
+	print(
+		"CLUSTER_PLATFORM: generation=%d distance=%.1f m cruise=%.2f s boost=%.2f s"
+		% [
+			int(cluster.get_meta(&"world_location_generation", -1)),
+			float(report.get("platform_distance", 0.0)),
+			float(report.get("cruise_travel_seconds", 0.0)),
+			float(report.get("boost_travel_seconds", 0.0)),
+		]
+	)
 	await _capture("02_beacon_alpha.png")
 
 	await _fly(ship, provider, beacons[2] + Vector3(20.0, 6.0, -10.0), 16.0, 22.0)
@@ -460,6 +471,16 @@ func _frame_camera(camera: Camera3D, from: Vector3, look_at: Vector3, fov: float
 func _frames(count: int) -> void:
 	for _index in count:
 		await process_frame
+
+
+func _wait_for_streamed_cluster(world: ShipyardWorld) -> NearbySectorCluster:
+	for _frame in 60:
+		var cluster := world.get_nearby_sector_cluster()
+		if is_instance_valid(cluster):
+			return cluster
+		await physics_frame
+		await process_frame
+	return null
 
 
 func _wait_for_phase(game: GameFlow, phase: int, seconds: float) -> bool:

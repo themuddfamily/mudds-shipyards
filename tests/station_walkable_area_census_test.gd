@@ -89,7 +89,11 @@ func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
 	sorted_identities.sort()
 	_check(identities == sorted_identities, "per-owner and per-surface rows are stably sorted")
 	_check(not forbidden_selected, "ships, vehicles, roofs, ceilings, and nearby-sector geometry select no census row")
-	_check(world.has_node(^"NearbySectorCluster") and world.has_node(^"JovianFreightShipBerth"), "exclusions are proven against live excluded production geometry")
+	_check(
+		not world.has_node(^"NearbySectorCluster")
+		and world.has_node(^"JovianFreightShipBerth"),
+		"the station census excludes streamed Cinder by architectural absence and live berth geometry by contract"
+	)
 	_check(
 		String(report.source_sha).length() == 40
 		and not String(report.engine).is_empty()
