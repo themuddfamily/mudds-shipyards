@@ -12,6 +12,10 @@ The caller supplies one valid profile and one existing `Environment` to
 generation 1, configures a private immutable sampler, and retains only detached
 profile values plus a weak renderer-target identity. Mutating or releasing the
 source profile cannot retune the component.
+The captured baseline must have finite fog density and sky-affect values in
+`[0,1]`, a finite `[0,1]` RGBA fog colour, and finite fog-light energy in
+`[0,64]`; malformed renderer state rejects as `invalid_renderer_baseline`
+before configuration commits.
 
 Every visual change comes from
 `present_observation(altitude_m, path_distance_m, speed_mps, weather_scalar,
@@ -22,11 +26,32 @@ stale generation leave state, signals, and renderer values unchanged. An exact
 duplicate is signal-free. Signals fire only after state and renderer properties
 commit, and every synchronous mutator re-entry is rejected.
 
+Renderer changes are transactional. A candidate sample, expected renderer
+values, observation count, and reset generation remain provisional while all
+four setters run. Individual Godot setters may notify their own listeners; the
+adapter also emits one explicit consolidated `Environment.changed` notification
+under its mutation/lifecycle guard, then re-resolves the exact
+weak Environment identity and reads back all four owned values exactly. A real
+synchronous callback that invalidates the frozen target identity returns
+`target_changed_during_apply`; one that overwrites an owned value restores the
+complete pre-call renderer cache and returns
+`renderer_state_changed_during_apply`. A failed restoration returns
+`rollback_failed`. None of these failures changes retained sample/current
+values, generation, revision, counters, or `presentation_committed` count.
+Every public mutator returns `reentrant_call` from both the Resource callback
+and the adapter's post-commit signal.
+
 `reset_for_reuse(expected_generation)` advances the bounded generation, clears
-the last sample, and restores the captured renderer baseline. Tree exit also
-restores that baseline so an unloaded presentation cannot leak fog into another
-world. Re-entry reapplies the retained current-generation values without a new
-revision, generation, signal, sampler, or renderer allocation.
+the last sample, and restores the captured renderer baseline only after that
+baseline has applied and verified. Tree exit also restores that baseline so an
+unloaded presentation cannot leak fog into another world. Re-entry reapplies
+the retained current-generation values through the same guarded transaction
+without a new revision, generation, signal, sampler, or renderer allocation.
+The public capability roster therefore records
+`transactional_renderer_apply=true` and
+`consolidated_resource_changed_notification=true`; both are implementation
+contracts, not claims that Godot suppresses notifications from individual
+property setters.
 
 ## Exact renderer ownership
 
@@ -76,7 +101,12 @@ The focused suite freezes profile/target identity, equations and exact
 boundaries; invalid inputs and generation tombstones; signal re-entry; baseline
 restore/re-entry; deep-copy reports; the authority and allocation rosters; and
 structured-red renderer, child-node, profile-identity, and expired-target
-mutations.
+mutations. Real `Environment.changed` callbacks attack all three mutators,
+overwrite owned state during presentation and reset, and replace the exact target during
+apply; each witness freezes exact rollback and no-success/no-signal behavior.
+The same real callback attacks configure, present, and reset during both guarded
+tree-exit baseline restoration and tree-entry current-value reapplication; all
+three mutators return `reentrant_call` without lifecycle state or signal churn.
 
 A single optional Forward+ review harness is intentionally deferred until the
 static implementation review. Headless resource assertions prove deterministic

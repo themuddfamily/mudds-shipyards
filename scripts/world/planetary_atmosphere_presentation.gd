@@ -16,6 +16,7 @@ const COMPONENT_ID: StringName = &"planetary-atmosphere-presentation"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const MIN_FOG_PATH_M := 0.1
 const MIN_TRANSMITTANCE := 0.0000000000000000000000000001
+const MAX_FOG_LIGHT_ENERGY := 64.0
 const OWNED_RENDERER_PROPERTIES := [
 	"fog_density",
 	"fog_light_color",
@@ -71,16 +72,21 @@ var _presented_observation_count := 0
 var _reset_count := 0
 var _mutation_active := false
 var _signal_dispatch_active := false
+var _lifecycle_apply_active := false
 
 
 func _enter_tree() -> void:
 	if _configured:
+		_lifecycle_apply_active = true
 		_apply_renderer_values(_current_renderer_values)
+		_lifecycle_apply_active = false
 
 
 func _exit_tree() -> void:
 	if _configured:
+		_lifecycle_apply_active = true
 		_apply_renderer_values(_baseline_renderer_values)
+		_lifecycle_apply_active = false
 
 
 ## Configures this component once. The source Resource is read and released;
@@ -89,7 +95,7 @@ func configure(
 		profile: PlanetaryAtmosphereProfile,
 		environment: Environment
 	) -> Dictionary:
-	if _mutation_active or _signal_dispatch_active:
+	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	if _configured:
 		return _result(false, &"already_configured")
@@ -112,6 +118,9 @@ func configure(
 	if not bool(sampler_result.get("accepted", false)) \
 			or not bool(sampler.audit().get("valid", false)):
 		return _result(false, &"sampler_configuration_failed")
+	var baseline := _read_renderer_values(environment)
+	if not _renderer_values_are_bounded(baseline):
+		return _result(false, &"invalid_renderer_baseline")
 
 	_mutation_active = true
 	_profile_id = StringName(profile_audit.get("profile_id", &""))
@@ -120,7 +129,7 @@ func configure(
 	_sampler = sampler
 	_environment_ref = weakref(environment)
 	_environment_instance_id = environment.get_instance_id()
-	_baseline_renderer_values = _read_renderer_values(environment)
+	_baseline_renderer_values = baseline.duplicate(true)
 	_current_renderer_values = _baseline_renderer_values.duplicate(true)
 	_generation += 1
 	_configured = true
@@ -139,7 +148,7 @@ func present_observation(
 		cloud_scalar: float,
 		expected_generation: int
 	) -> Dictionary:
-	if _mutation_active or _signal_dispatch_active:
+	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
@@ -164,6 +173,9 @@ func present_observation(
 		_mutation_active = false
 		return _result(false, &"sampler_contract_mismatch")
 	var renderer_values := _renderer_values_for_sample(sample)
+	if not _renderer_values_are_bounded(renderer_values):
+		_mutation_active = false
+		return _result(false, &"renderer_mapping_out_of_bounds")
 	var identical_sample := sample == _last_sample \
 		and renderer_values == _current_renderer_values
 	var target_matches := _target_matches_expected(environment)
@@ -171,13 +183,19 @@ func present_observation(
 		_mutation_active = false
 		return _result(true, &"unchanged")
 
+	var values_to_apply := (
+		renderer_values if is_inside_tree() else _baseline_renderer_values
+	)
+	var apply_result := _apply_renderer_values(values_to_apply)
+	if not bool(apply_result.get("accepted", false)):
+		_mutation_active = false
+		return _result(
+			false,
+			StringName(apply_result.get("reason", &"renderer_apply_failed"))
+		)
 	_last_sample = sample.duplicate(true)
 	_current_renderer_values = renderer_values.duplicate(true)
 	_presented_observation_count += 1
-	if is_inside_tree():
-		_apply_renderer_values(_current_renderer_values)
-	else:
-		_apply_renderer_values(_baseline_renderer_values)
 	_mutation_active = false
 	var reason: StringName = (
 		&"renderer_reapplied" if identical_sample else &"observation_presented"
@@ -189,7 +207,7 @@ func present_observation(
 ## Tombstones stale callers, clears the sample, and restores the captured
 ## renderer baseline without replacing the profile, sampler or target identity.
 func reset_for_reuse(expected_generation: int) -> Dictionary:
-	if _mutation_active or _signal_dispatch_active:
+	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
@@ -200,11 +218,17 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 	if _resolve_environment() == null:
 		return _result(false, &"environment_unavailable")
 	_mutation_active = true
+	var apply_result := _apply_renderer_values(_baseline_renderer_values)
+	if not bool(apply_result.get("accepted", false)):
+		_mutation_active = false
+		return _result(
+			false,
+			StringName(apply_result.get("reason", &"renderer_apply_failed"))
+		)
 	_generation += 1
 	_last_sample.clear()
 	_current_renderer_values = _baseline_renderer_values.duplicate(true)
 	_reset_count += 1
-	_apply_renderer_values(_baseline_renderer_values)
 	_mutation_active = false
 	_commit(&"reset")
 	return _result(true, &"reset")
@@ -323,6 +347,8 @@ func audit() -> Dictionary:
 		),
 		"capabilities": {
 			"fog_renderer_implemented": true,
+			"transactional_renderer_apply": true,
+			"consolidated_resource_changed_notification": true,
 			"sky_renderer_implemented": false,
 			"cloud_renderer_implemented": false,
 			"entry_renderer_implemented": false,
@@ -364,14 +390,16 @@ func _renderer_values_for_sample(sample: Dictionary) -> Dictionary:
 			1.0
 		)
 	return {
-		"fog_density": fog_density,
+		"fog_density": _renderer_real(fog_density),
 		"fog_light_color": _frozen_scattering_color(),
-		"fog_light_energy": clampf(
+		"fog_light_energy": _renderer_real(clampf(
 			0.35 + float(sample.get("density_ratio", 0.0)) * 0.65,
 			0.0,
 			1.0
-		),
-		"fog_sky_affect": clampf(fog_factor * 0.5, 0.0, 1.0),
+		)),
+		"fog_sky_affect": _renderer_real(clampf(
+			fog_factor * 0.5, 0.0, 1.0
+		)),
 	}.duplicate(true)
 
 
@@ -427,23 +455,9 @@ func _target_matches_expected(environment: Environment) -> bool:
 
 
 func _renderer_values_match(actual: Dictionary, expected: Dictionary) -> bool:
-	if actual.size() != expected.size():
-		return false
-	if not actual.get("fog_light_color") is Color \
-			or not expected.get("fog_light_color") is Color:
-		return false
-	return is_equal_approx(
-		float(actual.get("fog_density", NAN)),
-		float(expected.get("fog_density", NAN))
-	) and (actual.get("fog_light_color") as Color).is_equal_approx(
-		expected.get("fog_light_color") as Color
-	) and is_equal_approx(
-		float(actual.get("fog_light_energy", NAN)),
-		float(expected.get("fog_light_energy", NAN))
-	) and is_equal_approx(
-		float(actual.get("fog_sky_affect", NAN)),
-		float(expected.get("fog_sky_affect", NAN))
-	)
+	return _renderer_values_are_bounded(actual) \
+		and _renderer_values_are_bounded(expected) \
+		and actual == expected
 
 
 func _resolve_environment() -> Environment:
@@ -468,16 +482,116 @@ func _read_renderer_values(environment: Environment) -> Dictionary:
 	}.duplicate(true)
 
 
-func _apply_renderer_values(values: Dictionary) -> void:
+func _apply_renderer_values(values: Dictionary) -> Dictionary:
 	var environment := _resolve_environment()
-	if environment == null or values.is_empty():
-		return
+	if environment == null:
+		return {"accepted": false, "reason": &"renderer_target_unavailable"}
+	if not _renderer_values_are_bounded(values):
+		return {"accepted": false, "reason": &"renderer_mapping_out_of_bounds"}
+	var previous := _read_renderer_values(environment)
+	var wrote_property := false
+	var fog_density := float(values.get("fog_density", 0.0))
+	var fog_light_color := values.get("fog_light_color", Color.BLACK) as Color
+	var fog_light_energy := float(values.get("fog_light_energy", 0.0))
+	var fog_sky_affect := float(values.get("fog_sky_affect", 0.0))
+	if environment.fog_density != fog_density:
+		environment.fog_density = fog_density
+		wrote_property = true
+		if _resolve_environment() != environment:
+			if is_instance_valid(environment):
+				_restore_cached_environment(environment, previous)
+			return {
+				"accepted": false,
+				"reason": &"target_changed_during_apply",
+			}
+	if environment.fog_light_color != fog_light_color:
+		environment.fog_light_color = fog_light_color
+		wrote_property = true
+		if _resolve_environment() != environment:
+			if is_instance_valid(environment):
+				_restore_cached_environment(environment, previous)
+			return {
+				"accepted": false,
+				"reason": &"target_changed_during_apply",
+			}
+	if environment.fog_light_energy != fog_light_energy:
+		environment.fog_light_energy = fog_light_energy
+		wrote_property = true
+		if _resolve_environment() != environment:
+			if is_instance_valid(environment):
+				_restore_cached_environment(environment, previous)
+			return {
+				"accepted": false,
+				"reason": &"target_changed_during_apply",
+			}
+	if environment.fog_sky_affect != fog_sky_affect:
+		environment.fog_sky_affect = fog_sky_affect
+		wrote_property = true
+		if _resolve_environment() != environment:
+			if is_instance_valid(environment):
+				_restore_cached_environment(environment, previous)
+			return {
+				"accepted": false,
+				"reason": &"target_changed_during_apply",
+			}
+	# Property setters may emit their own notifications. This explicit event is
+	# the one consolidated callback spanning the complete four-property attempt.
+	if wrote_property and is_instance_valid(environment):
+		environment.emit_changed()
+	if _resolve_environment() != environment:
+		if is_instance_valid(environment):
+			_restore_cached_environment(environment, previous)
+		return {
+			"accepted": false,
+			"reason": &"target_changed_during_apply",
+		}
+	if _read_renderer_values(environment) != values:
+		if not _restore_cached_environment(environment, previous):
+			return {"accepted": false, "reason": &"rollback_failed"}
+		return {
+			"accepted": false,
+			"reason": &"renderer_state_changed_during_apply",
+		}
+	return {
+		"accepted": true,
+		"reason": &"renderer_values_applied" if wrote_property else &"unchanged",
+	}
+
+
+func _restore_cached_environment(
+		environment: Environment,
+		values: Dictionary
+	) -> bool:
+	if environment == null or not is_instance_valid(environment) \
+			or not _renderer_values_are_bounded(values):
+		return false
 	environment.fog_density = float(values.get("fog_density", 0.0))
-	environment.fog_light_color = values.get(
-		"fog_light_color", Color(0.5, 0.5, 0.5, 1.0)
-	) as Color
-	environment.fog_light_energy = float(values.get("fog_light_energy", 1.0))
-	environment.fog_sky_affect = float(values.get("fog_sky_affect", 1.0))
+	environment.fog_light_color = values.get("fog_light_color", Color.BLACK) as Color
+	environment.fog_light_energy = float(values.get("fog_light_energy", 0.0))
+	environment.fog_sky_affect = float(values.get("fog_sky_affect", 0.0))
+	if not is_instance_valid(environment):
+		return false
+	return _read_renderer_values(environment) == values
+
+
+func _renderer_values_are_bounded(values: Dictionary) -> bool:
+	if values.size() != OWNED_RENDERER_PROPERTIES.size() \
+			or values.get("fog_density") is not float \
+			or values.get("fog_light_color") is not Color \
+			or values.get("fog_light_energy") is not float \
+			or values.get("fog_sky_affect") is not float:
+		return false
+	var color := values.get("fog_light_color") as Color
+	return _is_finite_range(values.get("fog_density"), 0.0, 1.0) \
+		and _color_is_bounded(color) \
+		and _is_finite_range(
+			values.get("fog_light_energy"), 0.0, MAX_FOG_LIGHT_ENERGY
+		) \
+		and _is_finite_range(values.get("fog_sky_affect"), 0.0, 1.0)
+
+
+func _is_reentrant() -> bool:
+	return _mutation_active or _signal_dispatch_active or _lifecycle_apply_active
 
 
 func _commit(reason: StringName) -> void:
@@ -507,3 +621,27 @@ func _result(
 static func _is_unit_float(value: Variant) -> bool:
 	return value is float and is_finite(float(value)) \
 		and float(value) >= 0.0 and float(value) <= 1.0
+
+
+static func _is_finite_range(
+		value: Variant,
+		minimum: float,
+		maximum: float
+	) -> bool:
+	return value is float and is_finite(float(value)) \
+		and float(value) >= minimum and float(value) <= maximum
+
+
+static func _renderer_real(value: Variant) -> float:
+	# Vector components use the renderer build's real_t representation. Freeze
+	# the candidate in that representation before exact Environment readback.
+	return Vector2(float(value), 0.0).x
+
+
+static func _color_is_bounded(value: Color) -> bool:
+	return is_finite(value.r) and is_finite(value.g) \
+		and is_finite(value.b) and is_finite(value.a) \
+		and value.r >= 0.0 and value.r <= 1.0 \
+		and value.g >= 0.0 and value.g <= 1.0 \
+		and value.b >= 0.0 and value.b <= 1.0 \
+		and value.a >= 0.0 and value.a <= 1.0

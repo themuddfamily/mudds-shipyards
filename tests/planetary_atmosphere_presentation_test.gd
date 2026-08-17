@@ -9,7 +9,7 @@ const SamplerScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_atmosphere_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 34
+const EXPECTED_ASSERTIONS := 37
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -25,6 +25,19 @@ const EXPECTED_RENDERER_PROPERTIES := [
 	"fog_light_energy",
 	"fog_sky_affect",
 ]
+const EXPECTED_CAPABILITIES := {
+	"fog_renderer_implemented": true,
+	"transactional_renderer_apply": true,
+	"consolidated_resource_changed_notification": true,
+	"sky_renderer_implemented": false,
+	"cloud_renderer_implemented": false,
+	"entry_renderer_implemented": false,
+	"wind_renderer_implemented": false,
+	"shell_renderer_implemented": false,
+	"caller_driven_observations_only": true,
+	"tree_exit_restores_baseline": true,
+	"tree_reentry_reapplies_current_generation": true,
+}
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -35,6 +48,14 @@ var _signal_events: Array[Dictionary] = []
 var _signal_post_commit_checks := PackedByteArray()
 var _probe_reentry := false
 var _reentry_results: Array[Dictionary] = []
+var _environment_attack_adapter: PlanetaryAtmospherePresentation
+var _environment_attack_profile: PlanetaryAtmosphereProfile
+var _environment_attack_target: Environment
+var _environment_replacement_target: Environment
+var _environment_attack_mode: StringName = &""
+var _environment_attack_armed := false
+var _environment_reentry_results: Array[Dictionary] = []
+var _attack_signal_count := 0
 
 
 func _init() -> void:
@@ -53,11 +74,17 @@ func _run() -> void:
 	_signal_environment = environment
 	adapter.presentation_committed.connect(_on_presentation_committed)
 	_test_configuration_and_detachment(adapter, profile, environment, sampler)
+	_environment_attack_adapter = adapter
+	_environment_attack_profile = profile
+	_environment_attack_target = environment
+	environment.changed.connect(_on_environment_changed)
 	_test_fog_and_atmosphere_boundaries(adapter, profile, environment, sampler)
 	_test_cloud_entry_and_invalid_observations(adapter, profile, environment)
 	_test_structured_red_and_repair(adapter, profile, environment)
+	_test_environment_changed_transactions(adapter, environment)
 	await _test_tree_detach_reentry(adapter, profile, environment)
 	_test_reset_generation_and_reports(adapter, profile, environment)
+	_test_target_replacement_during_apply()
 	await _test_expired_environment_fails_closed()
 	if is_instance_valid(adapter):
 		adapter.queue_free()
@@ -71,18 +98,24 @@ func _test_configuration_rejections() -> void:
 	var environment := _environment()
 	var invalid_profile := _profile()
 	invalid_profile.reference_density_kg_m3 = NAN
+	var invalid_baseline_environment := _environment()
+	invalid_baseline_environment.fog_density = NAN
 	var before := adapter.get_state_snapshot()
 	var missing_profile := adapter.configure(null, environment)
 	var missing_environment := adapter.configure(_profile(), null)
 	var invalid := adapter.configure(invalid_profile, environment)
+	var invalid_baseline := adapter.configure(
+		_profile(), invalid_baseline_environment
+	)
 	var reset := adapter.reset_for_reuse(0)
 	_check(
 		missing_profile.reason == &"missing_profile"
 		and missing_environment.reason == &"missing_environment"
 		and invalid.reason == &"invalid_profile"
+		and invalid_baseline.reason == &"invalid_renderer_baseline"
 		and reset.reason == &"not_configured"
 		and adapter.get_state_snapshot() == before,
-		"missing/invalid configuration and premature reset reject without partial state"
+		"missing/invalid configuration, nonfinite baseline, and premature reset reject atomically"
 	)
 	_check(
 		not bool(adapter.audit().valid)
@@ -366,6 +399,110 @@ func _test_structured_red_and_repair(
 	)
 
 
+func _test_environment_changed_transactions(
+		adapter: PlanetaryAtmospherePresentation,
+		environment: Environment
+	) -> void:
+	var generation := adapter.get_generation()
+	adapter.present_observation(1000.0, 12000.0, 0.0, 1.0, 1.0, generation)
+	var before_state := adapter.get_state_snapshot()
+	var before_values := _renderer_values(environment)
+	var before_signals := _signal_events.size()
+	_environment_reentry_results.clear()
+	_environment_attack_mode = &"overwrite_density"
+	_environment_attack_armed = true
+	var overwritten := adapter.present_observation(
+		4000.0, 12000.0, 0.0, 1.0, 1.0, generation
+	)
+	_check(
+		not bool(overwritten.accepted)
+		and overwritten.reason == &"renderer_state_changed_during_apply"
+		and adapter.get_state_snapshot() == before_state
+		and _renderer_values(environment) == before_values
+		and _signal_events.size() == before_signals
+		and _all_reason(_environment_reentry_results, &"reentrant_call")
+		and bool(adapter.audit().valid),
+		"real Environment.changed overwrite rolls presentation back with every mutator reentry blocked"
+	)
+
+	before_state = adapter.get_state_snapshot()
+	before_values = _renderer_values(environment)
+	before_signals = _signal_events.size()
+	_environment_reentry_results.clear()
+	_environment_attack_mode = &"overwrite_density"
+	_environment_attack_armed = true
+	var reset := adapter.reset_for_reuse(generation)
+	_check(
+		not bool(reset.accepted)
+		and reset.reason == &"renderer_state_changed_during_apply"
+		and adapter.get_state_snapshot() == before_state
+		and adapter.get_generation() == generation
+		and _renderer_values(environment) == before_values
+		and _signal_events.size() == before_signals
+		and _all_reason(_environment_reentry_results, &"reentrant_call")
+		and bool(adapter.audit().valid),
+		"reset generation/count/state stay provisional when a real Resource callback defeats its baseline write"
+	)
+
+
+func _test_target_replacement_during_apply() -> void:
+	var adapter := PresentationScript.new() as PlanetaryAtmospherePresentation
+	adapter.name = "ReplacedTargetAtmospherePresentation"
+	root.add_child(adapter)
+	var profile := _profile()
+	var environment := _environment()
+	var replacement_environment := _environment()
+	_attack_signal_count = 0
+	adapter.presentation_committed.connect(_on_attack_presentation_committed)
+	var configured := adapter.configure(profile, environment)
+	var generation := adapter.get_generation()
+	adapter.present_observation(0.0, 12000.0, 0.0, 1.0, 1.0, generation)
+	_environment_attack_adapter = adapter
+	_environment_attack_profile = profile
+	_environment_attack_target = environment
+	_environment_replacement_target = replacement_environment
+	environment.changed.connect(_on_environment_changed)
+	var before_state := adapter.get_state_snapshot()
+	var before_values := _renderer_values(environment)
+	var replacement_baseline := _renderer_values(replacement_environment)
+	var before_signals := _attack_signal_count
+	_environment_reentry_results.clear()
+	_environment_attack_mode = &"replace_target"
+	_environment_attack_armed = true
+	var drifted := adapter.present_observation(
+		4000.0, 12000.0, 0.0, 1.0, 1.0, generation
+	)
+	var after_state := adapter.get_state_snapshot()
+	var before_renderer := before_state.renderer as Dictionary
+	var after_renderer := after_state.renderer as Dictionary
+	_check(
+		configured.accepted and not bool(drifted.accepted)
+		and drifted.reason == &"target_changed_during_apply"
+		and int(after_state.generation) == int(before_state.generation)
+		and int(after_state.revision) == int(before_state.revision)
+		and int(after_state.presented_observation_count)
+		== int(before_state.presented_observation_count)
+		and after_state.last_sample == before_state.last_sample
+		and after_renderer.baseline == before_renderer.baseline
+		and after_renderer.expected == before_renderer.expected
+		and not bool(after_renderer.environment_available)
+		and _renderer_values(environment) == before_values
+		and _renderer_values(replacement_environment) == replacement_baseline
+		and _attack_signal_count == before_signals
+		and _all_reason(_environment_reentry_results, &"reentrant_call")
+		and not bool(adapter.audit().valid)
+		and (adapter.audit().errors as PackedStringArray).has(
+			"environment_unavailable"
+		),
+		"real callback target-handle replacement is typed red with no retained commit or success signal"
+	)
+	_environment_attack_adapter = null
+	_environment_attack_profile = null
+	_environment_attack_target = null
+	_environment_replacement_target = null
+	adapter.queue_free()
+
+
 func _test_tree_detach_reentry(
 		adapter: PlanetaryAtmospherePresentation,
 		_profile_source: PlanetaryAtmosphereProfile,
@@ -378,7 +515,11 @@ func _test_tree_detach_reentry(
 	var before := adapter.get_state_snapshot()
 	var signal_count := _signal_events.size()
 	var parent := adapter.get_parent()
+	_environment_reentry_results.clear()
+	_environment_attack_mode = &"reentry_only"
+	_environment_attack_armed = true
 	parent.remove_child(adapter)
+	var exit_reentry := _environment_reentry_results.duplicate(true)
 	await process_frame
 	var detached := adapter.get_state_snapshot()
 	_check(
@@ -386,10 +527,17 @@ func _test_tree_detach_reentry(
 		and int(detached.generation) == generation
 		and int(detached.revision) == int(before.revision)
 		and detached.last_sample == before.last_sample
-		and _signal_events.size() == signal_count,
+		and int(detached.presented_observation_count)
+		== int(before.presented_observation_count)
+		and _signal_events.size() == signal_count
+		and _all_reason(exit_reentry, &"reentrant_call"),
 		"tree detach restores baseline and freezes generation/sample/signals"
 	)
+	_environment_reentry_results.clear()
+	_environment_attack_mode = &"reentry_only"
+	_environment_attack_armed = true
 	parent.add_child(adapter)
+	var enter_reentry := _environment_reentry_results.duplicate(true)
 	await process_frame
 	var reentered := adapter.get_state_snapshot()
 	_check(
@@ -397,7 +545,10 @@ func _test_tree_detach_reentry(
 		and int(reentered.generation) == generation
 		and int(reentered.revision) == int(before.revision)
 		and reentered.last_sample == before.last_sample
+		and int(reentered.presented_observation_count)
+		== int(before.presented_observation_count)
 		and _signal_events.size() == signal_count
+		and _all_reason(enter_reentry, &"reentrant_call")
 		and bool(adapter.audit().valid),
 		"tree reentry reapplies the same resource state without replay or generation churn"
 	)
@@ -453,8 +604,9 @@ func _test_reset_generation_and_reports(
 		_exact_authority(fresh_audit.authority, COMMON_AUTHORITY_KEYS, &"renderer")
 		and _exact_authority(fresh_audit.adjacent_authority, ADJACENT_AUTHORITY_KEYS)
 		and (fresh_audit.owned_renderer_properties as Array)
-		== EXPECTED_RENDERER_PROPERTIES,
-		"audit freezes exact renderer-only authority and the four-property ownership roster"
+		== EXPECTED_RENDERER_PROPERTIES
+		and (fresh_audit.capabilities as Dictionary) == EXPECTED_CAPABILITIES,
+		"audit freezes exact renderer authority, ownership, and transaction capabilities"
 	)
 	_check(
 		not _contains_live_capability(fresh)
@@ -513,6 +665,38 @@ func _on_presentation_committed(reason: StringName, snapshot: Dictionary) -> voi
 		))
 	(snapshot.get("profile", {}) as Dictionary).clear()
 	(snapshot.get("renderer", {}) as Dictionary).clear()
+
+
+func _on_environment_changed() -> void:
+	if not _environment_attack_armed:
+		return
+	_environment_attack_armed = false
+	var generation := _environment_attack_adapter.get_generation()
+	_environment_reentry_results = [
+		_environment_attack_adapter.configure(
+			_environment_attack_profile, _environment_attack_target
+		),
+		_environment_attack_adapter.present_observation(
+			0.0, 0.0, 0.0, 1.0, 1.0, generation
+		),
+		_environment_attack_adapter.reset_for_reuse(generation),
+	]
+	if _environment_attack_mode == &"overwrite_density":
+		_environment_attack_target.fog_density = 0.91
+	elif _environment_attack_mode == &"replace_target":
+		# Environment is RefCounted and cannot be synchronously force-freed. A
+		# second live target in the real changed callback is the executable
+		# identity-drift witness; the configured instance ID remains frozen.
+		_environment_attack_adapter._environment_ref = weakref(
+			_environment_replacement_target
+		)
+
+
+func _on_attack_presentation_committed(
+		_reason: StringName,
+		_snapshot: Dictionary
+	) -> void:
+	_attack_signal_count += 1
 
 
 func _make_fixture() -> Dictionary:
@@ -610,6 +794,15 @@ func _contains_live_capability(value: Variant) -> bool:
 			if _contains_live_capability(entry):
 				return true
 	return false
+
+
+func _all_reason(results: Array[Dictionary], reason: StringName) -> bool:
+	if results.size() != 3:
+		return false
+	for result in results:
+		if result.get("reason", &"") != reason:
+			return false
+	return true
 
 
 func _check(condition: bool, description: String) -> void:
