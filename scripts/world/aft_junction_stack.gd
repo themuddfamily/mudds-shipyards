@@ -114,6 +114,18 @@ const CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS := [
 	Vector3(-0.86, 0.08, 0.34),
 	Vector3(0.86, 0.08, 0.34),
 ]
+## Four copper visual bearings wrapped around the operations chairs' existing
+## collision-backed pedestal bodies. Every chair, pedestal and bearing node
+## remains ordinary and separately addressable; only the exact TorusMesh recipe
+## becomes one component-local immutable allocation.
+const PEDESTAL_BEARING_INNER_RADIUS := 0.18
+const PEDESTAL_BEARING_OUTER_RADIUS := 0.25
+const PEDESTAL_BEARING_RINGS := 48
+const PEDESTAL_BEARING_RING_SEGMENTS := 16
+const PEDESTAL_BEARING_BUDGETED_RINGS := 32
+const PEDESTAL_BEARING_BUDGETED_RING_SEGMENTS := 8
+const PEDESTAL_BEARING_COPY_COUNT := 4
+const PEDESTAL_BEARING_LOCAL_POSITION := Vector3(0.0, 0.68, 0.0)
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
 const RENDER_DESCENDANT_NODE_COUNT := 1156
 const BASELINE_RENDERER_NODE_COUNT := 851
@@ -123,7 +135,7 @@ const DRAWN_COPY_COUNT := 851
 const BASELINE_SURFACE_SUBMISSION_COUNT := 851
 const SURFACE_SUBMISSION_COUNT := 848
 const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 299
+const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -195,6 +207,7 @@ var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
+var _pedestal_bearing_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -431,6 +444,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("shared rack-cable-tray clamp visual allocation contract drifted")
 	if not bool(performance.console_shock_collar_visual_sharing.valid):
 		errors.append("shared console-shock-collar visual allocation contract drifted")
+	if not bool(performance.pedestal_bearing_visual_sharing.valid):
+		errors.append("shared chair-pedestal-bearing visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -611,11 +626,13 @@ func get_performance_contract() -> Dictionary:
 	var spine_sharing := get_spine_clamp_visual_allocation_audit()
 	var tray_clamp_sharing := get_rack_cable_tray_clamp_visual_allocation_audit()
 	var console_collar_sharing := get_console_shock_collar_visual_allocation_audit()
+	var pedestal_bearing_sharing := get_pedestal_bearing_visual_allocation_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["spine_clamp_visual_sharing"] = spine_sharing
 	contract["rack_cable_tray_clamp_visual_sharing"] = tray_clamp_sharing
 	contract["console_shock_collar_visual_sharing"] = console_collar_sharing
+	contract["pedestal_bearing_visual_sharing"] = pedestal_bearing_sharing
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
@@ -623,6 +640,7 @@ func get_performance_contract() -> Dictionary:
 		and bool(spine_sharing.valid)
 		and bool(tray_clamp_sharing.valid)
 		and bool(console_collar_sharing.valid)
+		and bool(pedestal_bearing_sharing.valid)
 	)
 	return contract
 
@@ -801,7 +819,7 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 			"renderer_nodes": 3,
 			"drawn_copies": 0,
 			"surface_submissions": 3,
-			"mesh_resource_allocations": 18,
+			"mesh_resource_allocations": 21,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
@@ -1420,6 +1438,243 @@ func get_console_shock_collar_visual_allocation_audit() -> Dictionary:
 		"material_identity_preserved": material_ids.size() == 1,
 		"collision_authority_count": collision_nodes,
 		"semantic_authority_count": authority_nodes,
+		"batched": false,
+		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the four ordinary PedestalBearing
+## renderers. The visual rings share one mesh; every chair keeps its own
+## collision-backed Pedestal sibling and all semantic metadata remains on the
+## chair rather than moving onto the presentation-only bearing.
+func get_pedestal_bearing_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var family_nodes: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var node_paths := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	var surface_submissions := 0
+	var visible_copies := 0
+	var collision_nodes := 0
+	var authority_nodes := 0
+	var pedestal_collision_bodies := 0
+	var pedestal_collision_shapes := 0
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			TorusGeometryBudget.PROFILE_META, &""
+		)) != TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
+			continue
+		if StringName(instance.get_meta(INTERFACE_COLLAR_KIND_META, &"")) \
+				!= &"PedestalBearing":
+			continue
+		family_nodes.append(instance)
+		node_paths.append(String(get_path_to(instance)))
+		transforms.append(instance.transform)
+		visible_copies += 1 if instance.visible else 0
+		if instance.mesh != null:
+			mesh_ids[instance.mesh.get_instance_id()] = true
+			surface_submissions += instance.mesh.get_surface_count()
+		if instance.material_override != null:
+			material_ids[instance.material_override.get_instance_id()] = true
+		if instance.mesh != _pedestal_bearing_mesh:
+			errors.append("pedestal_bearing_mesh_identity_not_shared")
+		if instance.material_override != _materials.get("copper"):
+			errors.append("pedestal_bearing_material_identity_drift")
+		if not instance.position.is_equal_approx(PEDESTAL_BEARING_LOCAL_POSITION) \
+				or not instance.rotation_degrees.is_equal_approx(Vector3.ZERO) \
+				or instance.scale != Vector3.ONE:
+			errors.append("pedestal_bearing_transform_drift")
+		if not instance.visible \
+				or instance.layers != 1 \
+				or instance.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or instance.material_overlay != null \
+				or not is_zero_approx(instance.transparency):
+			errors.append("pedestal_bearing_renderer_state_drift")
+
+		var family_index := family_nodes.size() - 1
+		var chair_path := "Structure/OperationsRoom/OperationsChair%02d" % (
+			family_index + 1
+		)
+		var expected_parent := get_node_or_null(NodePath(chair_path)) as Node3D
+		var metadata_keys := instance.get_meta_list()
+		var exact_metadata := (
+			metadata_keys.size() == 2
+			and metadata_keys.has(TorusGeometryBudget.PROFILE_META)
+			and metadata_keys.has(INTERFACE_COLLAR_KIND_META)
+			and StringName(instance.get_meta(
+				TorusGeometryBudget.PROFILE_META, &""
+			)) == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+			and StringName(instance.get_meta(
+				INTERFACE_COLLAR_KIND_META, &""
+			)) == &"PedestalBearing"
+		)
+		var gained_authority := (
+			instance.get_parent() != expected_parent
+			or instance.get_child_count() != 0
+			or instance.get_script() != null
+			or not instance.get_groups().is_empty()
+			or not exact_metadata
+		)
+		if gained_authority:
+			authority_nodes += 1
+			errors.append("pedestal_bearing_gained_authority_or_lifecycle")
+		collision_nodes += instance.find_children(
+			"*", "CollisionObject3D", true, false
+		).size()
+		collision_nodes += instance.find_children(
+			"*", "CollisionShape3D", true, false
+		).size()
+
+		var pedestal := (
+			expected_parent.get_node_or_null(^"Pedestal") as StaticBody3D
+			if expected_parent != null else null
+		)
+		var collision_shapes := (
+			pedestal.find_children("*", "CollisionShape3D", true, false)
+			if pedestal != null else []
+		)
+		var pedestal_shape := (
+			collision_shapes[0] as CollisionShape3D
+			if collision_shapes.size() == 1 else null
+		)
+		var cylinder_shape := (
+			pedestal_shape.shape as CylinderShape3D
+			if pedestal_shape != null else null
+		)
+		var exact_pedestal_collision := (
+			pedestal != null
+			and pedestal != instance
+			and pedestal.get_parent() == expected_parent
+			and pedestal.position.is_equal_approx(Vector3(0.0, 0.38, 0.0))
+			and pedestal.rotation_degrees.is_equal_approx(Vector3.ZERO)
+			and pedestal.scale == Vector3.ONE
+			and pedestal.collision_layer == WORLD_LAYER
+			and pedestal.collision_mask == 0
+			and pedestal_shape != null
+			and not pedestal_shape.disabled
+			and cylinder_shape != null
+			and is_equal_approx(cylinder_shape.radius, 0.18)
+			and is_equal_approx(cylinder_shape.height, 0.76)
+		)
+		if exact_pedestal_collision:
+			pedestal_collision_bodies += 1
+			pedestal_collision_shapes += 1
+		else:
+			errors.append("pedestal_bearing_support_collision_drift")
+
+	if family_nodes.size() != PEDESTAL_BEARING_COPY_COUNT:
+		errors.append("pedestal_bearing_visual_node_count_drift")
+	var stable_paths := family_nodes.size() == PEDESTAL_BEARING_COPY_COUNT
+	if stable_paths:
+		for index in family_nodes.size():
+			stable_paths = (
+				stable_paths
+				and String(node_paths[index]) == (
+					"Structure/OperationsRoom/OperationsChair%02d/PedestalBearing"
+					% (index + 1)
+				)
+			)
+	if not stable_paths:
+		errors.append("pedestal_bearing_node_path_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("pedestal_bearing_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("pedestal_bearing_material_identity_drift")
+	if collision_nodes != 0:
+		errors.append("pedestal_bearing_gained_collision_authority")
+	if pedestal_collision_bodies != PEDESTAL_BEARING_COPY_COUNT \
+			or pedestal_collision_shapes != PEDESTAL_BEARING_COPY_COUNT:
+		errors.append("pedestal_bearing_support_collision_roster_drift")
+
+	var authored_tessellation := Vector2i(
+		PEDESTAL_BEARING_RINGS,
+		PEDESTAL_BEARING_RING_SEGMENTS
+	)
+	var normalised := (
+		_pedestal_bearing_mesh != null
+		and _pedestal_bearing_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	)
+	var live_tessellation := Vector2i(
+		PEDESTAL_BEARING_BUDGETED_RINGS,
+		PEDESTAL_BEARING_BUDGETED_RING_SEGMENTS
+	) if normalised else authored_tessellation
+	if _pedestal_bearing_mesh == null \
+			or not is_equal_approx(
+				_pedestal_bearing_mesh.inner_radius,
+				PEDESTAL_BEARING_INNER_RADIUS
+			) \
+			or not is_equal_approx(
+				_pedestal_bearing_mesh.outer_radius,
+				PEDESTAL_BEARING_OUTER_RADIUS
+			) \
+			or _pedestal_bearing_mesh.rings != live_tessellation.x \
+			or _pedestal_bearing_mesh.ring_segments != live_tessellation.y \
+			or _pedestal_bearing_mesh.get_surface_count() != 1:
+		errors.append("pedestal_bearing_torus_recipe_drift")
+	var mesh_metadata: Array[StringName] = []
+	if _pedestal_bearing_mesh != null:
+		mesh_metadata = _pedestal_bearing_mesh.get_meta_list()
+	var exact_mesh_metadata: bool = (
+		_pedestal_bearing_mesh != null
+		and _pedestal_bearing_mesh.material == null
+		and not _pedestal_bearing_mesh.resource_local_to_scene
+		and (
+			(not normalised and mesh_metadata.is_empty())
+			or (
+				normalised
+				and mesh_metadata.size() == 1
+				and mesh_metadata.has(TorusGeometryBudget.AUTHORED_META)
+				and _pedestal_bearing_mesh.get_meta(
+					TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+				) == authored_tessellation
+			)
+		)
+	)
+	if not exact_mesh_metadata:
+		errors.append("pedestal_bearing_budget_metadata_drift")
+
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_pedestal_bearing_visuals",
+		"legacy": {
+			"visual_nodes": PEDESTAL_BEARING_COPY_COUNT,
+			"drawn_copies": PEDESTAL_BEARING_COPY_COUNT,
+			"surface_submissions": PEDESTAL_BEARING_COPY_COUNT,
+			"mesh_resource_allocations": PEDESTAL_BEARING_COPY_COUNT,
+			"material_resource_allocations": 1,
+		},
+		"current": {
+			"visual_nodes": family_nodes.size(),
+			"drawn_copies": visible_copies,
+			"surface_submissions": surface_submissions,
+			"mesh_resource_allocations": mesh_ids.size(),
+			"material_resource_allocations": material_ids.size(),
+		},
+		"reductions": {
+			"visual_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 0,
+		},
+		"node_paths": node_paths,
+		"authored_transforms": transforms,
+		"authored_tessellation": authored_tessellation,
+		"live_tessellation": Vector2i(
+			_pedestal_bearing_mesh.rings,
+			_pedestal_bearing_mesh.ring_segments
+		) if _pedestal_bearing_mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
+		"material_identity_preserved": material_ids.size() == 1,
+		"collision_authority_count": collision_nodes,
+		"semantic_authority_count": authority_nodes,
+		"pedestal_collision_body_count": pedestal_collision_bodies,
+		"pedestal_collision_shape_count": pedestal_collision_shapes,
 		"batched": false,
 		"renderer_values_changed": false,
 	}.duplicate(true)
@@ -2180,6 +2435,13 @@ func _build_operations_room(structure: Node3D) -> void:
 	# the room toward the plot table and the status board, which is where a watch
 	# coordinator looks — and its own task wash at (2.0, 1.05, 12.4) was sited for
 	# exactly that pose.
+	_pedestal_bearing_mesh = _torus_mesh(
+		PEDESTAL_BEARING_INNER_RADIUS,
+		PEDESTAL_BEARING_OUTER_RADIUS,
+		PEDESTAL_BEARING_RINGS,
+		PEDESTAL_BEARING_RING_SEGMENTS
+	)
+	_pedestal_bearing_mesh.resource_name = "AftPedestalBearingMesh"
 	for chair_index in 4:
 		var chair_position: Vector3
 		var chair_yaw := 180.0
@@ -3275,7 +3537,16 @@ func _build_chair(parent: Node3D, chair_index: int, chair_position: Vector3, yaw
 	_chair_nodes.append(chair)
 	_cylinder(chair, "Pedestal", Vector3(0, 0.38, 0), 0.18, 0.76, _materials["mid_grey"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.52, 0.12, _materials["graphite"], true)
-	_interface_collar(chair, "PedestalBearing", Vector3(0, 0.68, 0), 0.18, 0.25, _materials["copper"])
+	_interface_collar(
+		chair,
+		"PedestalBearing",
+		PEDESTAL_BEARING_LOCAL_POSITION,
+		PEDESTAL_BEARING_INNER_RADIUS,
+		PEDESTAL_BEARING_OUTER_RADIUS,
+		_materials["copper"],
+		Vector3.ZERO,
+		_pedestal_bearing_mesh
+	)
 	_box(chair, "SeatShell", Vector3(0, 0.8, 0), Vector3(1.03, 0.19, 0.98), _materials["chair"], true)
 	_box(chair, "SeatCushion", Vector3(0, 0.93, -0.06), Vector3(0.83, 0.12, 0.74), _materials["chair_pad"], false, Vector3(-3, 0, 0))
 	_box(chair, "BackFrame", Vector3(0, 1.48, 0.43), Vector3(1.0, 1.32, 0.18), _materials["chair"], true, Vector3(-7, 0, 0))
