@@ -136,13 +136,17 @@ func _test_player_selection_and_atomic_failure(
 	var cargo_button := pause_overlay.find_child(
 		"CargoDeliveryActivityButton", true, false
 	) as Button
+	var convoy_button := pause_overlay.find_child(
+		"ConvoyEscortActivityButton", true, false
+	) as Button
 	var board := hud.get_activity_selection_report()
 	_check(
 		bool(board.get("page_visible", false))
 		and patrol_button != null and race_button != null and cargo_button != null
+		and convoy_button != null
 		and cargo_button.focus_mode == Control.FOCUS_ALL
 		and hud.get_viewport().gui_get_focus_owner() == race_button,
-		"the activity page exposes all three controls and focuses the selected race button"
+		"the activity page exposes all four controls and focuses the selected race button"
 	)
 
 	patrol_button.emit_signal("pressed")

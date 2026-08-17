@@ -563,11 +563,43 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	var quantity := maxi(int(snapshot.get("quantity", 0)), 0)
 	var item_id := StringName(snapshot.get("item_id", &""))
 	var item_display_name := str(snapshot.get("item_display_name", "")).strip_edges()
+	var escort_distance := float(snapshot.get("escort_distance", -1.0))
+	var activation_distance := float(snapshot.get("activation_distance", -1.0))
+	var terminal_result_id := StringName(snapshot.get("terminal_result_id", &"none"))
 	var short_name := display_name.strip_edges().to_upper()
 	if short_name.is_empty():
 		short_name = str(activity_id).replace("_", " ").to_upper()
 	var activity_text := ""
-	if activity_kind == &"cargo_delivery":
+	if activity_kind == &"convoy_escort":
+		match state_id:
+			&"idle":
+				activity_text = "CONVOY  RENDEZVOUS %s  SAFE LANE +20M" % (
+					"%.0fm" % activation_distance if activation_distance >= 0.0 else "--"
+				)
+			&"active":
+				activity_text = "CONVOY  L%d/%d  %s  %s" % [
+					mini(next_index + 1, checkpoint_count),
+					checkpoint_count,
+					"%.0fm" % escort_distance if escort_distance >= 0.0 else "--",
+					_format_activity_time(current_time),
+				]
+			&"completed":
+				activity_text = "CONVOY  ARRIVED  %s  %d/%d" % [
+					_format_activity_time(current_time),
+					completed_checkpoints,
+					checkpoint_count,
+				]
+			&"failed", &"aborted":
+				var readable_reason := str(terminal_reason).replace("_", " ").to_upper()
+				activity_text = "CONVOY  %s%s  %d/%d" % [
+					"LOST" if state_id == &"failed" else "ABORTED",
+					(" — " + readable_reason) if not readable_reason.is_empty() else "",
+					completed_checkpoints,
+					checkpoint_count,
+				]
+			_:
+				activity_text = ""
+	elif activity_kind == &"cargo_delivery":
 		match state_id:
 			&"active":
 				activity_text = "DELIVERY  %s  %d/%d  %s LEFT" % [
@@ -703,6 +735,9 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 		"quantity": quantity,
 		"item_id": item_id,
 		"item_display_name": item_display_name,
+		"escort_distance": escort_distance,
+		"activation_distance": activation_distance,
+		"terminal_result_id": terminal_result_id,
 		"text": activity_text,
 	}
 	if is_instance_valid(_activity_objective_label):
@@ -1733,15 +1768,15 @@ func _build_pause_main_page() -> void:
 	stack.add_child(exit)
 
 
-## The smallest reachable selection surface for the three production activities.
+## The smallest reachable selection surface for the four production activities.
 ## Buttons emit requests only; GameFlow remains the owner of validation, route
 ## exclusivity, and the post-start selection lock.
 func _build_activity_selection_page() -> void:
 	_activity_selection_page = PanelContainer.new()
 	_activity_selection_page.name = "ActivitySelectionPage"
 	_activity_selection_page.set_anchors_preset(Control.PRESET_CENTER)
-	_activity_selection_page.position = Vector2(-340.0, -250.0)
-	_activity_selection_page.size = Vector2(680.0, 500.0)
+	_activity_selection_page.position = Vector2(-340.0, -310.0)
+	_activity_selection_page.size = Vector2(680.0, 620.0)
 	_activity_selection_page.mouse_filter = Control.MOUSE_FILTER_STOP
 	_activity_selection_page.add_theme_stylebox_override(
 		"panel",
@@ -1781,6 +1816,12 @@ func _build_activity_selection_page() -> void:
 		&"cargo_delivery",
 		"JOVIAN KIT DELIVERY",
 		"Carry two fabrication kits from the Jovian craft to its freight berth."
+	)
+	_add_activity_selection_row(
+		stack,
+		&"convoy_escort",
+		"EMBERLINE CONVOY ESCORT",
+		"Rendezvous 20 m above the tender route and remain within escort range."
 	)
 	_activity_selection_status_label = _label("READY  //  TIMED CINDER RACE", 10, NOMINAL_SOFT)
 	_activity_selection_status_label.name = "ActivitySelectionStatus"
@@ -2539,7 +2580,9 @@ func set_activity_selection_state(
 	selection_locked: bool,
 	status_reason: StringName = &""
 	) -> void:
-	if selected_kind not in [&"timed_race", &"patrol", &"cargo_delivery"]:
+	if selected_kind not in [
+		&"timed_race", &"patrol", &"cargo_delivery", &"convoy_escort"
+	]:
 		return
 	_activity_selection_kind = selected_kind
 	_activity_selection_locked = selection_locked
@@ -2568,6 +2611,7 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 			&"timed_race": "TIMED CINDER RACE",
 			&"patrol": "CINDER PATROL",
 			&"cargo_delivery": "JOVIAN KIT DELIVERY",
+			&"convoy_escort": "EMBERLINE CONVOY ESCORT",
 		}.get(activity_kind, String(activity_kind).to_upper()) as String
 		button.text = ("SELECTED  //  " if selected else "") + base_text
 	if _activity_selection_status_label == null:
@@ -2576,6 +2620,7 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 		&"timed_race": "TIMED CINDER RACE",
 		&"patrol": "CINDER PATROL",
 		&"cargo_delivery": "JOVIAN KIT DELIVERY",
+		&"convoy_escort": "EMBERLINE CONVOY ESCORT",
 	}.get(_activity_selection_kind, String(_activity_selection_kind).to_upper()) as String
 	if _activity_selection_locked:
 		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"

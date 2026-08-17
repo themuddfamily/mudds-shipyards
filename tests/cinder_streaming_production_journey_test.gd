@@ -70,21 +70,22 @@ func _test_composition_startup_and_player_tracking(
 	)
 	_check(
 		bool(snapshot.get("activated", false))
-		and bool(snapshot.get("provider_bound", false))
-		and int(snapshot.get("provider_generation", -1)) == 1
-		and bool(snapshot.get("physics_processing", false))
+		and bool(snapshot.get("caller_sample_mode", false))
+		and not bool(snapshot.get("provider_bound", true))
+		and int(snapshot.get("provider_generation", -1)) == 0
+		and not bool(snapshot.get("physics_processing", true))
 		and report.get("position_provider_policy")
-			== &"piloted_active_ship_else_live_player"
+			== &"caller_supplied_piloted_active_ship_else_live_player"
 		and report.get("update_authority")
-			== &"one_physics_tick_from_injected_provider",
-		"one explicitly injected provider drives the existing policy only from physics"
+			== &"one_physics_tick_from_caller_sample",
+		"one caller-supplied GameFlow sample drives the existing policy only from physics"
 	)
 	var provider_generation := int(snapshot.get("provider_generation", -1))
 	_check(
 		not binding.set_position_provider(Callable(self, &"_forged_position_sample"))
 		and int(binding.get_snapshot().get("provider_generation", -2))
 			== provider_generation,
-		"the activated production provider cannot be replaced by a later caller"
+		"caller-sampled production mode cannot gain a competing provider"
 	)
 	_check(
 		bootstrap.get_loaded_instance() == null
@@ -105,7 +106,7 @@ func _test_composition_startup_and_player_tracking(
 		and not bool(report.get("network_authority", true))
 		and not bool(report.get("runtime_settings_authority", true))
 		and not bool(report.get("staged_startup_authority", true)),
-		"the binding owns sampling cadence and no gameplay, settings, startup, or persistence authority"
+		"the binding consumes caller cadence and owns no gameplay, settings, startup, or persistence authority"
 	)
 	var safe_start := game.get_safe_start_recovery_report()
 	_check(

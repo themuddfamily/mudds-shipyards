@@ -3,10 +3,10 @@ extends Node
 
 ## Production-only physics driver for [CinderStreamingBootstrap].
 ##
-## Main owns this one binding and injects one callable position provider during
-## deferred scene activation. The provider observes the already-authoritative
-## GameFlow actor choice: a live piloted active ship, otherwise the live Player.
-## This node owns only sampling cadence. It never chooses a destination, moves an
+## Main owns this one binding. Standalone composition injects one callable
+## position provider during deferred activation; production Main instead selects
+## caller-sample mode before activation so streaming and an activity can consume
+## the exact same actor read. This node never chooses a destination, moves an
 ## actor, starts an activity, grants a reward, or mutates combat/save/network
 ## state. A missing/invalid actor clears tracking and still advances the existing
 ## policy exactly once, whose documented no-tracking behavior preserves loaded
@@ -21,11 +21,13 @@ const DEFAULT_PLAYER_PATH := NodePath("../Player")
 
 var _bootstrap: CinderStreamingBootstrap
 var _position_provider := Callable()
+var _caller_sample_mode := false
 var _activated := false
 var _configuration_error: StringName = &""
 var _tick_active := false
 var _provider_generation := 0
 var _provider_sample_count := 0
+var _caller_sample_count := 0
 var _available_sample_count := 0
 var _unavailable_sample_count := 0
 var _invalid_sample_count := 0
@@ -46,7 +48,7 @@ var _last_tick_result: Dictionary = {}
 
 func _enter_tree() -> void:
 	if _activated:
-		set_physics_process(true)
+		set_physics_process(not _caller_sample_mode)
 
 
 func _ready() -> void:
@@ -67,6 +69,27 @@ func _physics_process(delta: float) -> void:
 	_drive_physics_tick(delta)
 
 
+## Selects the production composition in which a parent supplies the one actor
+## sample already captured for its physics tick. Configuration is deliberately
+## pre-activation only, so automatic and caller-driven cadence can never overlap.
+func configure_caller_sample_mode() -> bool:
+	if _tick_active or _activated or _position_provider.is_valid():
+		_provider_mutation_rejection_count += 1
+		return false
+	_caller_sample_mode = true
+	set_physics_process(false)
+	return true
+
+
+## Advances streaming from a detached actor sample captured by the production
+## parent. The Dictionary uses the same validated shape as the injected provider
+## seam; this method never reads an actor or chooses between ship and player.
+func physics_tick_from_caller_sample(delta: float, sample: Variant) -> Dictionary:
+	if not _caller_sample_mode:
+		return {"accepted": false, "reason": &"caller_sample_mode_not_configured"}
+	return _drive_physics_tick(delta, sample, true)
+
+
 ## Explicit provider injection seam. A provider returns a detached Dictionary:
 ##
 ##     {"available": true, "position": Vector3, "actor_kind": StringName,
@@ -76,11 +99,11 @@ func _physics_process(delta: float) -> void:
 ## provider once during activation; later replacement and tick-time mutation are
 ## rejected so the production actor source cannot drift.
 func set_position_provider(provider: Callable) -> bool:
-	if _tick_active or _activated:
+	if _tick_active or _activated or _caller_sample_mode:
 		_provider_mutation_rejection_count += 1
 	if _tick_active:
 		_reentrant_rejection_count += 1
-	if _tick_active or _activated:
+	if _tick_active or _activated or _caller_sample_mode:
 		return false
 	if not provider.is_valid():
 		return false
@@ -109,6 +132,8 @@ func get_snapshot() -> Dictionary:
 		"provider_bound": _position_provider.is_valid(),
 		"provider_generation": _provider_generation,
 		"provider_sample_count": _provider_sample_count,
+		"caller_sample_mode": _caller_sample_mode,
+		"caller_sample_count": _caller_sample_count,
 		"available_sample_count": _available_sample_count,
 		"unavailable_sample_count": _unavailable_sample_count,
 		"invalid_sample_count": _invalid_sample_count,
@@ -153,8 +178,14 @@ func audit() -> Dictionary:
 		errors.append("one sibling Cinder streaming bootstrap is required")
 	elif not bool(_bootstrap.audit().get("valid", false)):
 		errors.append("Cinder streaming bootstrap audit is invalid")
-	if not _position_provider.is_valid() or _provider_generation != 1:
-		errors.append("exactly one production actor provider must be injected")
+	if _caller_sample_mode:
+		if _position_provider.is_valid() or _provider_generation != 0:
+			errors.append("caller-sampled mode cannot retain an actor provider")
+		if _caller_sample_count != _provider_sample_count:
+			errors.append("every caller-sampled tick must consume exactly one caller sample")
+	else:
+		if not _position_provider.is_valid() or _provider_generation != 1:
+			errors.append("exactly one production actor provider must be injected")
 	if (
 		bootstrap_count != 1
 		or binding_count != 1
@@ -181,8 +212,12 @@ func audit() -> Dictionary:
 		errors.append("loaded Cinder generation has not received the retained visual quality")
 	if is_processing():
 		errors.append("binding must never own an idle process loop")
-	if is_inside_tree() and _activated and not is_physics_processing():
-		errors.append("active in-tree binding must own one physics process loop")
+	if (
+		is_inside_tree()
+		and _activated
+		and is_physics_processing() == _caller_sample_mode
+	):
+		errors.append("binding physics processing does not match its configured cadence")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -192,9 +227,17 @@ func audit() -> Dictionary:
 		"bootstrap_count": bootstrap_count,
 		"coordinator_count": coordinator_count,
 		"distance_policy_count": policy_count,
-		"position_provider_policy": &"piloted_active_ship_else_live_player",
+		"position_provider_policy": (
+			&"caller_supplied_piloted_active_ship_else_live_player"
+			if _caller_sample_mode
+			else &"piloted_active_ship_else_live_player"
+		),
 		"missing_actor_policy": &"clear_tracking_tick_once_preserve_streaming_state",
-		"update_authority": &"one_physics_tick_from_injected_provider",
+		"update_authority": (
+			&"one_physics_tick_from_caller_sample"
+			if _caller_sample_mode
+			else &"one_physics_tick_from_injected_provider"
+		),
 		"automatic_idle_processing": false,
 		"activity_authority": false,
 		"gameplay_authority": false,
@@ -221,32 +264,45 @@ func _activate_scene_binding() -> void:
 	if not bool(_bootstrap.audit().get("valid", false)):
 		_configuration_error = &"invalid_cinder_streaming_bootstrap"
 		return
-	if not set_position_provider(Callable(self, &"_sample_production_actor_position")):
-		_configuration_error = &"provider_injection_failed"
-		return
+	if not _caller_sample_mode:
+		if not set_position_provider(Callable(self, &"_sample_production_actor_position")):
+			_configuration_error = &"provider_injection_failed"
+			return
 	var bootstrap_snapshot := _bootstrap.get_snapshot()
 	var policy_snapshot := bootstrap_snapshot.get("distance_policy", {}) as Dictionary
 	_initial_policy_update_index = int(policy_snapshot.get("update_index", 0))
 	_activated = true
 	_configuration_error = &""
-	set_physics_process(true)
+	set_physics_process(not _caller_sample_mode)
 
 
-func _drive_physics_tick(delta: float) -> void:
+func _drive_physics_tick(
+	delta: float,
+	caller_sample: Variant = null,
+	caller_supplied: bool = false
+	) -> Dictionary:
 	if not _activated or not is_inside_tree():
-		return
+		return {"accepted": false, "reason": &"binding_unavailable"}
 	if _tick_active:
 		_reentrant_rejection_count += 1
-		return
+		return {"accepted": false, "reason": &"reentrant_call"}
 	if not is_finite(delta) or delta < 0.0:
 		_invalid_delta_count += 1
-		return
+		return {"accepted": false, "reason": &"invalid_delta"}
+	if caller_supplied != _caller_sample_mode:
+		return {"accepted": false, "reason": &"sampling_mode_mismatch"}
 	_tick_active = true
 	_provider_sample_count += 1
+	if caller_supplied:
+		_caller_sample_count += 1
 	var sample: Variant = (
-		_position_provider.call()
-		if _position_provider.is_valid()
-		else {"available": false, "reason": &"missing_position_provider"}
+		caller_sample
+		if caller_supplied
+		else (
+			_position_provider.call()
+			if _position_provider.is_valid()
+			else {"available": false, "reason": &"missing_position_provider"}
+		)
 	)
 	var sample_valid := sample is Dictionary
 	var sample_dictionary := sample as Dictionary if sample_valid else {}
@@ -280,6 +336,7 @@ func _drive_physics_tick(delta: float) -> void:
 	_schedule_deferred_presentation_sync_after_load_request()
 	_physics_tick_count += 1
 	_tick_active = false
+	return _last_tick_result.duplicate(true)
 
 
 func _schedule_deferred_presentation_sync_after_load_request() -> void:

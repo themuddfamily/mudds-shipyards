@@ -35,6 +35,7 @@ const LONGEST_TOAST_DETAIL := "Guided Torrent test and free-flight fleet access 
 const LONGEST_ENEMY := "Mudds range defence interceptor"
 const LONGEST_PATROL_FAILURE: StringName = &"activity_patrol_desynchronized"
 const LONGEST_CARGO_FAILURE: StringName = &"transfer_id_consumed_externally"
+const LONGEST_CONVOY_FAILURE: StringName = &"cinder_stream_generation_replaced"
 
 ## Viewports the game is expected to run in. 1600x900 is the project's stretch
 ## viewport, which is what the HUD actually sees under `canvas_items` stretch
@@ -185,6 +186,26 @@ func _set_patrol_worst_case_activity() -> void:
 	})
 
 
+func _set_convoy_worst_case_activity() -> void:
+	_hud.set_activity_objective("Emberline supply tender escort", {
+		"activity_id": &"cinder_reach_emberline_convoy",
+		"activity_kind": &"convoy_escort",
+		"state_id": &"failed",
+		"phase_id": &"escort",
+		"generation": 9,
+		"session_generation": 9,
+		"activity_generation": 9,
+		"next_checkpoint_index": 3,
+		"checkpoint_count": 4,
+		"completed_checkpoint_count": 3,
+		"current_time_seconds": 89.9,
+		"escort_distance": 42.1,
+		"terminal_reason": LONGEST_CONVOY_FAILURE,
+		"failure_reason": LONGEST_CONVOY_FAILURE,
+		"terminal_result_id": &"convoy_lost",
+	})
+
+
 ## The contract itself. Every clearance in this layout is monotone in the logical
 ## size -- the gutters are pinned to the viewport edges while the centre panels
 ## track the midpoint -- so a clean layout exactly at the floor is a clean layout
@@ -239,6 +260,24 @@ func _test_contract_floor() -> void:
 			target_label.get_global_rect()
 		),
 		"the longest patrol failure retains its prior clipping and row-separation regression"
+	)
+	_set_convoy_worst_case_activity()
+	await process_frame
+	await process_frame
+	objective_panel_rect = objective_panel.get_global_rect()
+	_check(
+		activity_label.visible
+		and "CONVOY  LOST — CINDER STREAM GENERATION REPLACED  3/4"
+		in activity_label.text
+		and objective_panel_rect.encloses(activity_label.get_global_rect())
+		and objective_panel_rect.encloses(target_label.get_global_rect())
+		and not activity_label.get_global_rect().intersects(
+			objective_label.get_global_rect()
+		)
+		and not activity_label.get_global_rect().intersects(
+			target_label.get_global_rect()
+		),
+		"the longest convoy failure remains inside the objective card without clipping adjacent rows"
 	)
 	_set_cargo_worst_case_activity()
 	await process_frame
@@ -470,7 +509,7 @@ func _test_activity_board_layout() -> void:
 			var row_rects := report.get("row_rects", {}) as Dictionary
 			var vertical_regions: Array[Rect2] = []
 			for activity_kind: StringName in [
-				&"timed_race", &"patrol", &"cargo_delivery"
+				&"timed_race", &"patrol", &"cargo_delivery", &"convoy_escort"
 			]:
 				var button := buttons.get(activity_kind, {}) as Dictionary
 				var rect := button.get("rect", Rect2()) as Rect2
@@ -535,7 +574,7 @@ func _test_activity_board_layout() -> void:
 	)
 	_check(
 		dirty.is_empty(),
-		"Activity Board and all three player controls stay enclosed and disjoint across %d endpoint cases%s"
+		"Activity Board and all four player controls stay enclosed and disjoint across %d endpoint cases%s"
 		% [cases, "" if dirty.is_empty() else " -- " + "; ".join(dirty.slice(0, 8))]
 	)
 	_hud.set_paused(false)
