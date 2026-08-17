@@ -297,6 +297,13 @@ var _damage_presentation: HeroDamagePresentation
 ## `scripts/combat/ship_component_damage.gd` for the authority boundary.
 var _component_damage: ShipComponentDamage
 var _last_component_damage_revision := -1
+## Fleet variants replace the temporary common root collision only after the
+## base `_ready()` returns. This one-shot gate lets that same initial ready pass
+## bind the existing component model to the final live envelope without opening
+## a detach/re-entry or reuse reconfiguration path.
+var _component_damage_final_collision_capture_open := false
+var _component_damage_final_collision_capture_attempted := false
+var _component_damage_final_collision_capture_accepted := false
 var _command_source: ShipCommandSource
 var _default_local_command_source: LocalShipInputSource
 var _last_ship_command: ShipCommand = ShipCommandType.neutral()
@@ -383,6 +390,8 @@ func _ready() -> void:
 		_damage_presentation.stage_changed.connect(_on_damage_stage_changed)
 		_sync_damage_presentation()
 	_ensure_component_damage()
+	_component_damage_final_collision_capture_open = true
+	call_deferred("_close_component_damage_final_collision_capture")
 	_set_camera_current(_piloted)
 	if _piloted and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -3084,9 +3093,10 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 
 
 ## Creates or adopts the ship-local component model and derives its roster from
-## this craft's own collision envelope. Called once from `_ready()` after
-## `_build_ship()`; a scene-authored `ShipComponentDamage` child wins if present,
-## so no variant is forced to take the programmatic one.
+## this craft's initial common collision envelope. Called once from `_ready()`
+## after `_build_ship()`; a scene-authored `ShipComponentDamage` child wins if
+## present, so no variant is forced to take the programmatic one. Fleet variants
+## use the one-shot protected seam below after installing final root collision.
 func _ensure_component_damage() -> void:
 	if _component_damage == null:
 		_component_damage = get_node_or_null("ShipComponentDamage") as ShipComponentDamage
@@ -3104,6 +3114,39 @@ func _ensure_component_damage() -> void:
 		return
 	_component_damage.configure(local_bounds, maxf(maximum_hull, 0.001))
 	_last_component_damage_revision = -1
+
+
+## One-shot protected seam for fleet subclasses during their initial `_ready()`.
+##
+## The existing model identity and signal connection are retained. A successful
+## call changes only its captured bounds/derived anchors, preserves any integrity,
+## and closes the gate before returning. Repeated calls return the cached result
+## without another configure/revision; late calls on Torrent fail closed. The
+## gate is never reopened by detach/re-entry or `reset_for_reuse()`.
+func _reconfigure_component_damage_from_final_root_collision() -> bool:
+	if _component_damage_final_collision_capture_attempted:
+		return _component_damage_final_collision_capture_accepted
+	_component_damage_final_collision_capture_attempted = true
+	if not _component_damage_final_collision_capture_open:
+		return false
+	_component_damage_final_collision_capture_open = false
+	if _component_damage == null or not _component_damage.is_configured():
+		return false
+	var collision_report := get_landing_collision_report()
+	if not bool(collision_report.get("valid", false)):
+		return false
+	var local_bounds: AABB = collision_report.get("local_bounds", AABB())
+	_component_damage_final_collision_capture_accepted = _component_damage.configure(
+		local_bounds,
+		maximum_hull
+	)
+	if _component_damage_final_collision_capture_accepted:
+		_last_component_damage_revision = -1
+	return _component_damage_final_collision_capture_accepted
+
+
+func _close_component_damage_final_collision_capture() -> void:
+	_component_damage_final_collision_capture_open = false
 
 
 ## Advances repair and republishes the localized presentation channel. Repair is

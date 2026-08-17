@@ -24,12 +24,28 @@ const NO_REPAIR_PHYSICS_FRAMES := 90
 const BERTH_REPAIR_PHYSICS_FRAMES := 180
 ## Bounded drain for the authored one-shot explosion voice at teardown.
 const AUDIO_DRAIN_FRAME_BUDGET := 900
+const FLEET_CRAFT_NAMES := [
+	"TorrentInterceptor",
+	"ArrowReconShip",
+	"JovianLightFreighter",
+	"ZenithInterceptor",
+	"HalyardCrewTransport",
+]
+const EXPECTED_MAXIMUM_HULL := {
+	"TorrentInterceptor": 100.0,
+	"ArrowReconShip": 82.0,
+	"JovianLightFreighter": 260.0,
+	"ZenithInterceptor": 68.0,
+	"HalyardCrewTransport": 190.0,
+}
 
 var _failures: Array[String] = []
 var _game: GameFlow
 var _hero: HeroShip
 var _opponent: CharacterBody3D
 var _component_events: Array[Dictionary] = []
+var _initial_fleet_geometry: Dictionary = {}
+var _initial_component_model_ids: Dictionary = {}
 
 
 func _init() -> void:
@@ -59,6 +75,7 @@ func _run() -> void:
 		picket.call("deactivate")
 
 	_test_production_roster()
+	_test_fleet_reset_geometry_stability()
 	_test_hull_authority_is_untouched()
 	_test_difficulty_neutrality()
 	await _test_live_encounter()
@@ -75,16 +92,14 @@ func _run() -> void:
 
 
 func _test_production_roster() -> void:
-	var craft_names := [
-		"TorrentInterceptor",
-		"ArrowReconShip",
-		"JovianLightFreighter",
-		"ZenithInterceptor",
-		"HalyardCrewTransport",
-	]
 	var configured := 0
 	var duplicates := 0
-	for craft_name: String in craft_names:
+	var exact_live_bounds := 0
+	var exact_layouts := 0
+	var exact_maxima := 0
+	var exact_capture_revisions := 0
+	var single_connections := 0
+	for craft_name: String in FLEET_CRAFT_NAMES:
 		var craft := _game.get_node_or_null(craft_name) as HeroShip
 		if craft == null:
 			_fail("production craft %s is present for the component roster check" % craft_name)
@@ -93,6 +108,8 @@ func _test_production_roster() -> void:
 		if models.size() != 1:
 			duplicates += 1
 		var report: Dictionary = craft.get_component_damage_report()
+		var collision_report := craft.get_landing_collision_report()
+		var live_bounds: AABB = collision_report.get("local_bounds", AABB())
 		if (
 			bool(report.get("configured", false))
 			and int(report.get("component_count", 0))
@@ -101,20 +118,54 @@ func _test_production_roster() -> void:
 			and report.get("interpretation") == ShipComponentDamage.INTERPRETATION
 		):
 			configured += 1
+		if bool(collision_report.get("valid", false)) \
+			and (report.get("local_bounds", AABB()) as AABB) == live_bounds:
+			exact_live_bounds += 1
+		if _layout_matches_bounds(report, live_bounds):
+			exact_layouts += 1
+		if is_equal_approx(
+			float(report.get("maximum_hull", -1.0)),
+			float(EXPECTED_MAXIMUM_HULL.get(craft_name, -2.0))
+		):
+			exact_maxima += 1
+		var expected_revision := 1 if craft_name == "TorrentInterceptor" else 2
+		if int(report.get("revision", -1)) == expected_revision:
+			exact_capture_revisions += 1
+		var model := craft.get_component_damage()
+		if model != null \
+			and model.get_signal_connection_list(&"component_state_changed").size() == 1:
+			single_connections += 1
+		if model != null:
+			_initial_component_model_ids[craft_name] = model.get_instance_id()
+		_initial_fleet_geometry[craft_name] = _component_geometry_snapshot(report)
 	_check(
-		configured == craft_names.size(),
+		configured == FLEET_CRAFT_NAMES.size(),
 		"every production craft boots with one configured, fully nominal component roster"
 	)
 	_check(
 		duplicates == 0,
 		"no production craft carries a duplicate component model node"
 	)
+	_check(
+		exact_live_bounds == FLEET_CRAFT_NAMES.size()
+			and exact_layouts == FLEET_CRAFT_NAMES.size(),
+		"every roster captures its final live root-collision bounds and exact derived anchors"
+	)
+	_check(
+		exact_maxima == FLEET_CRAFT_NAMES.size(),
+		"component normalization preserves exact fleet maxima 100, 82, 260, 68, and 190"
+	)
+	_check(
+		exact_capture_revisions == FLEET_CRAFT_NAMES.size(),
+		"Torrent configures once while each collision-replacing variant performs exactly one final capture"
+	)
+	_check(
+		single_connections == FLEET_CRAFT_NAMES.size(),
+		"final geometry capture retains exactly one component-state signal connection per craft"
+	)
 
-	# The roster is derived from each craft's own live collision envelope rather
-	# than a second hand-authored hull table. The production fleet currently shares
-	# one `_build_collision()`, so this asserts the derivation itself: every
-	# section must sit inside the envelope the craft actually reports, with the
-	# forward and aft sections at opposite ends of it.
+	# The roster is derived from each craft's final live collision envelope rather
+	# than the temporary Torrent collision the four variants replace during ready.
 	var torrent_report: Dictionary = _hero.get_component_damage_report()
 	var envelope: AABB = _hero.get_landing_collision_report().get("local_bounds", AABB())
 	var reported_bounds: AABB = torrent_report.get("local_bounds", AABB())
@@ -146,6 +197,76 @@ func _test_production_roster() -> void:
 			float(_hero.get_telemetry().get("maximum_hull", -1.0))
 		),
 		"the roster normalizes against the craft's own authoritative maximum hull"
+	)
+
+	var distinct_variant_bounds := 0
+	var distinct_variant_layouts := 0
+	var torrent_geometry := _initial_fleet_geometry.get("TorrentInterceptor", {}) as Dictionary
+	for craft_name: String in FLEET_CRAFT_NAMES.slice(1):
+		var geometry := _initial_fleet_geometry.get(craft_name, {}) as Dictionary
+		if not _bounds_equal(
+			geometry.get("local_bounds", AABB()) as AABB,
+			torrent_geometry.get("local_bounds", AABB()) as AABB
+		):
+			distinct_variant_bounds += 1
+		if _count_distinct_component_anchors(geometry, torrent_geometry) \
+			== ShipComponentDamage.COMPONENT_ORDER.size():
+			distinct_variant_layouts += 1
+	_check(
+		distinct_variant_bounds == 4 and distinct_variant_layouts == 4,
+		"Arrow, Jovian, Zenith, and Halyard each reject the stale Torrent bounds and all five Torrent anchors"
+	)
+
+	var idempotent_variants := 0
+	for craft_name: String in FLEET_CRAFT_NAMES.slice(1):
+		var craft := _game.get_node(craft_name) as HeroShip
+		var before := craft.get_component_damage_report()
+		var model_id := craft.get_component_damage().get_instance_id()
+		var accepted := bool(craft.call("_reconfigure_component_damage_from_final_root_collision"))
+		var after := craft.get_component_damage_report()
+		if accepted and before == after \
+			and craft.get_component_damage().get_instance_id() == model_id:
+			idempotent_variants += 1
+	_check(
+		idempotent_variants == 4,
+		"a repeated protected variant capture is idempotent and retains model identity and revision"
+	)
+	var torrent_before := _hero.get_component_damage_report()
+	var torrent_late := bool(
+		_hero.call("_reconfigure_component_damage_from_final_root_collision")
+	)
+	_check(
+		not torrent_late and _hero.get_component_damage_report() == torrent_before,
+		"Torrent rejects a late variant-only capture and remains exactly unchanged"
+	)
+
+
+func _test_fleet_reset_geometry_stability() -> void:
+	var stable := 0
+	for craft_name: String in FLEET_CRAFT_NAMES:
+		var craft := _game.get_node(craft_name) as HeroShip
+		var model_id := craft.get_component_damage().get_instance_id()
+		var before_revision := int(craft.get_component_damage_report().get("revision", -1))
+		var spawn_transform := craft.global_transform
+		craft.reset_for_reuse(spawn_transform)
+		var reset_report := craft.get_component_damage_report()
+		var reset_geometry := _component_geometry_snapshot(reset_report)
+		var reset_revision := int(reset_report.get("revision", -1))
+		var cached_capture := bool(
+			craft.call("_reconfigure_component_damage_from_final_root_collision")
+		)
+		var post_capture_report := craft.get_component_damage_report()
+		var expected_capture := craft_name != "TorrentInterceptor"
+		if reset_geometry == _initial_fleet_geometry.get(craft_name, {}) \
+			and _component_geometry_snapshot(post_capture_report) == reset_geometry \
+			and reset_revision == before_revision + 1 \
+			and int(post_capture_report.get("revision", -2)) == reset_revision \
+			and craft.get_component_damage().get_instance_id() == model_id \
+			and cached_capture == expected_capture:
+			stable += 1
+	_check(
+		stable == FLEET_CRAFT_NAMES.size(),
+		"reset restores integrity without recapturing geometry or replacing any fleet component model"
 	)
 
 
@@ -300,6 +421,10 @@ func _test_whole_main_reentry() -> void:
 	var presentation := _hero.get_damage_presentation()
 	var report_before: Dictionary = _hero.get_component_damage_report()
 	var rigs_before := presentation.get_component_effect_ids()
+	var fleet_revisions: Dictionary = {}
+	for craft_name: String in FLEET_CRAFT_NAMES:
+		var craft := _game.get_node(craft_name) as HeroShip
+		fleet_revisions[craft_name] = int(craft.get_component_damage_report().get("revision", -1))
 	_check(
 		float(report_before.get("worst_integrity", 1.0)) < 1.0 and not rigs_before.is_empty(),
 		"the craft carries real component damage and live rigs into the detach"
@@ -330,6 +455,20 @@ func _test_whole_main_reentry() -> void:
 	_check(
 		presentation.get_component_effect_ids() == rigs_before,
 		"re-entry restores the same localized rig roster without duplicating or dropping one"
+	)
+	var stable_fleet_geometry := 0
+	for craft_name: String in FLEET_CRAFT_NAMES:
+		var craft := _game.get_node(craft_name) as HeroShip
+		if _component_geometry_snapshot(craft.get_component_damage_report()) \
+			== _initial_fleet_geometry.get(craft_name, {}) \
+			and craft.get_component_damage().get_instance_id() \
+				== int(_initial_component_model_ids.get(craft_name, 0)) \
+			and int(craft.get_component_damage_report().get("revision", -1)) \
+				== int(fleet_revisions.get(craft_name, -2)):
+			stable_fleet_geometry += 1
+	_check(
+		stable_fleet_geometry == FLEET_CRAFT_NAMES.size(),
+		"whole-Main detach/re-entry preserves every final fleet geometry, model identity, and revision"
 	)
 	var emitting := true
 	for rig_id: StringName in rigs_before:
@@ -412,6 +551,100 @@ func _test_berth_repair() -> void:
 
 
 # ---------------------------------------------------------------- helpers --
+
+
+func _layout_matches_bounds(report: Dictionary, bounds: AABB) -> bool:
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0 or bounds.size.z <= 0.0:
+		return false
+	var centre := bounds.get_center()
+	var extents := bounds.size * 0.5
+	var longitudinal_radius := maxf(
+		extents.z * 0.55,
+		ShipComponentDamage.MINIMUM_COMPONENT_RADIUS
+	)
+	var lateral_radius := maxf(
+		extents.x * 0.55,
+		ShipComponentDamage.MINIMUM_COMPONENT_RADIUS
+	)
+	var core_radius := maxf(
+		(extents.x + extents.z) * 0.28,
+		ShipComponentDamage.MINIMUM_COMPONENT_RADIUS
+	)
+	var expected := {
+		ShipComponentDamage.COMPONENT_FORWARD_HULL: {
+			"position": centre + Vector3(0.0, extents.y * 0.22, -extents.z * 0.70),
+			"radius": longitudinal_radius,
+		},
+		ShipComponentDamage.COMPONENT_PORT_WING: {
+			"position": centre + Vector3(-extents.x * 0.78, extents.y * 0.12, 0.0),
+			"radius": lateral_radius,
+		},
+		ShipComponentDamage.COMPONENT_STARBOARD_WING: {
+			"position": centre + Vector3(extents.x * 0.78, extents.y * 0.12, 0.0),
+			"radius": lateral_radius,
+		},
+		ShipComponentDamage.COMPONENT_CORE_SYSTEMS: {
+			"position": centre + Vector3(0.0, extents.y * 0.42, 0.0),
+			"radius": core_radius,
+		},
+		ShipComponentDamage.COMPONENT_ENGINE_BAY: {
+			"position": centre + Vector3(0.0, extents.y * 0.20, extents.z * 0.74),
+			"radius": longitudinal_radius,
+		},
+	}
+	var components := report.get("components", []) as Array
+	if components.size() != ShipComponentDamage.COMPONENT_ORDER.size():
+		return false
+	for entry: Dictionary in components:
+		var component_id := StringName(entry.get("id", &""))
+		if not expected.has(component_id):
+			return false
+		var expected_entry := expected[component_id] as Dictionary
+		var position := entry.get("local_position", Vector3.INF) as Vector3
+		if not position.is_equal_approx(expected_entry.position as Vector3) \
+			or not is_equal_approx(
+				float(entry.get("local_radius", -1.0)),
+				float(expected_entry.radius)
+			) \
+			or not bounds.has_point(position):
+			return false
+	return true
+
+
+func _component_geometry_snapshot(report: Dictionary) -> Dictionary:
+	var components: Array[Dictionary] = []
+	for entry: Dictionary in report.get("components", []) as Array:
+		components.append({
+			"id": StringName(entry.get("id", &"")),
+			"local_position": entry.get("local_position", Vector3.INF) as Vector3,
+			"local_radius": float(entry.get("local_radius", -1.0)),
+		})
+	return {
+		"maximum_hull": float(report.get("maximum_hull", -1.0)),
+		"local_bounds": report.get("local_bounds", AABB()) as AABB,
+		"components": components,
+	}.duplicate(true)
+
+
+func _bounds_equal(left: AABB, right: AABB) -> bool:
+	return left.position.is_equal_approx(right.position) \
+		and left.size.is_equal_approx(right.size)
+
+
+func _count_distinct_component_anchors(left: Dictionary, right: Dictionary) -> int:
+	var right_positions: Dictionary = {}
+	for entry: Dictionary in right.get("components", []) as Array:
+		right_positions[StringName(entry.get("id", &""))] = (
+			entry.get("local_position", Vector3.INF) as Vector3
+		)
+	var distinct := 0
+	for entry: Dictionary in left.get("components", []) as Array:
+		var component_id := StringName(entry.get("id", &""))
+		var position := entry.get("local_position", Vector3.INF) as Vector3
+		var other := right_positions.get(component_id, Vector3.INF) as Vector3
+		if not position.is_equal_approx(other):
+			distinct += 1
+	return distinct
 
 
 func _arm_encounter() -> void:

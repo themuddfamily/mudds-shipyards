@@ -3212,6 +3212,8 @@ func _ready() -> void:
 	super._ready()
 	if not _zenith_built:
 		_zenith_built = rebuild_variant_presentation(_build_zenith_variant)
+	if _zenith_built:
+		_zenith_built = _reconfigure_component_damage_from_final_root_collision()
 	_apply_zenith_metadata()
 	_sync_zenith_canopy_immediately()
 	_sync_zenith_engine_presentation_immediately()

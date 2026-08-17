@@ -184,6 +184,8 @@ func _ready() -> void:
 	super._ready()
 	if not _jovian_built:
 		_jovian_built = rebuild_variant_presentation(_build_jovian_variant)
+	if _jovian_built:
+		_jovian_built = _reconfigure_component_damage_from_final_root_collision()
 	_apply_jovian_metadata()
 	_sync_jovian_engine_presentation_immediately()
 

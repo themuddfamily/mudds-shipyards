@@ -175,6 +175,8 @@ func _ready() -> void:
 	if not _arrow_built:
 		_arrow_built = rebuild_variant_presentation(_build_arrow_variant)
 	if _arrow_built:
+		_arrow_built = _reconfigure_component_damage_from_final_root_collision()
+	if _arrow_built:
 		_arrow_built = _install_entry_heat_target()
 	_apply_arrow_metadata()
 	_sync_arrow_engine_presentation_immediately()

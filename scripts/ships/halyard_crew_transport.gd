@@ -241,6 +241,8 @@ func _ready() -> void:
 	super._ready()
 	if not _halyard_built:
 		_halyard_built = rebuild_variant_presentation(_build_halyard_variant)
+	if _halyard_built:
+		_halyard_built = _reconfigure_component_damage_from_final_root_collision()
 	_apply_halyard_metadata()
 	_sync_halyard_engine_presentation_immediately()
 
