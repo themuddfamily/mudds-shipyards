@@ -9,9 +9,12 @@ extends RefCounted
 ## authority. A later ship/control owner must prove the supplied clearance and
 ## decide whether and how to enact an accepted hint.
 
-const SCHEMA_VERSION := 1
-const POLICY_VERSION: StringName = &"planetary_cruise_policy_v1"
+const SCHEMA_VERSION := 2
+const POLICY_VERSION: StringName = &"planetary_cruise_policy_v2"
 const TUNING_VERSION: StringName = &"ember_eight_megameter_minutes_v1"
+const ALIGNMENT_BASIS_VELOCITY: StringName = &"normalized_velocity_forward"
+const ALIGNMENT_BASIS_ZERO_SPEED: StringName = &"normalized_ship_forward_zero_speed"
+const CLEARANCE_SWEEP_BASIS: StringName = &"normalized_cruise_direction"
 
 const TARGET_CRUISE_SPEED_METERS_PER_SECOND := 20_000.0
 const ACCELERATION_HINT_METERS_PER_SECOND_SQUARED := 500.0
@@ -26,12 +29,20 @@ const EMBER_REFERENCE_LEG_METERS := 8_000_000.0
 const MAX_DISTANCE_METERS := 1_000_000_000.0
 const MAX_ABSOLUTE_SPEED_METERS_PER_SECOND := 100_000.0
 const MAX_CLEARANCE_METERS := 1_000_000_000.0
+const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 
 const _OBSERVATION_KEYS := [
 	"distance_to_destination_meters",
+	"ship_speed_meters_per_second",
 	"closing_speed_meters_per_second",
+	"alignment_basis",
 	"alignment_dot",
+	"coordinate_frame_generation",
 	"verified_clearance_meters",
+	"clearance_sweep_distance_meters",
+	"clearance_proof_generation",
+	"clearance_sweep_basis",
+	"clearance_full_hull",
 	"clearance_verified",
 	"obstacle_detected",
 	"currently_participating",
@@ -47,22 +58,38 @@ const _COMMON_AUTHORITY_KEYS := [
 ]
 
 
-## Evaluates exactly one observation without retaining it or accepting delta.
+## Evaluates exactly one observation against the caller's authoritative current
+## coordinate-frame generation, without retaining either or accepting delta.
 ## Safety gate results are accepted policy decisions; malformed observations
 ## are rejected and still return a complete safe, non-participating hint set.
-func evaluate(observation: Dictionary) -> Dictionary:
-	var validation_reason := _validate_observation(observation)
+func evaluate(
+	observation: Dictionary,
+	expected_coordinate_frame_generation: int
+) -> Dictionary:
+	if expected_coordinate_frame_generation < 1 \
+		or expected_coordinate_frame_generation > MAX_SAFE_GENERATION:
+		return _safe_result(
+			false,
+			&"expected_coordinate_frame_generation_out_of_bounds",
+			expected_coordinate_frame_generation
+		)
+	var validation_reason := _validate_observation(
+		observation, expected_coordinate_frame_generation
+	)
 	if not validation_reason.is_empty():
-		return _safe_result(false, validation_reason)
+		return _safe_result(
+			false, validation_reason, expected_coordinate_frame_generation
+		)
 
 	var detached_observation := observation.duplicate(true)
 	var distance := float(observation.distance_to_destination_meters)
+	var ship_speed := float(observation.ship_speed_meters_per_second)
 	var closing_speed := float(observation.closing_speed_meters_per_second)
 	var alignment := float(observation.alignment_dot)
 	var clearance := float(observation.verified_clearance_meters)
 	var currently_participating := bool(observation.currently_participating)
 	var current_braking_envelope := _braking_envelope_meters(
-		maxf(closing_speed, 0.0)
+		ship_speed
 	)
 	var target_braking_envelope := _braking_envelope_meters(
 		TARGET_CRUISE_SPEED_METERS_PER_SECOND
@@ -94,22 +121,27 @@ func evaluate(observation: Dictionary) -> Dictionary:
 	)
 	if not gate_reason.is_empty():
 		var brake_requested := _should_offer_disengage_brake(
-			gate_reason, closing_speed, observation
+			gate_reason, ship_speed, observation
 		)
-		return _safe_result(true, gate_reason, {
-			"observation": detached_observation,
-			"braking_requested": brake_requested,
-			"braking_acceleration_hint_meters_per_second_squared": (
-				BRAKING_HINT_METERS_PER_SECOND_SQUARED
-				if brake_requested else 0.0
-			),
-			"current_braking_envelope_meters": current_braking_envelope,
-			"required_verified_clearance_meters": required_clearance,
-			"required_destination_distance_meters": (
-				required_destination_distance
-			),
-			"minimum_engage_distance_meters": minimum_engage_distance,
-		})
+		return _safe_result(
+			true,
+			gate_reason,
+			expected_coordinate_frame_generation,
+			{
+				"observation": detached_observation,
+				"braking_requested": brake_requested,
+				"braking_acceleration_hint_meters_per_second_squared": (
+					BRAKING_HINT_METERS_PER_SECOND_SQUARED
+					if brake_requested else 0.0
+				),
+				"current_braking_envelope_meters": current_braking_envelope,
+				"required_verified_clearance_meters": required_clearance,
+				"required_destination_distance_meters": (
+					required_destination_distance
+				),
+				"minimum_engage_distance_meters": minimum_engage_distance,
+			}
+		)
 
 	var acceleration_hint := 0.0
 	var braking_requested := false
@@ -124,26 +156,31 @@ func evaluate(observation: Dictionary) -> Dictionary:
 		braking_requested = true
 		state = &"brake_to_cruise_speed"
 
-	return _safe_result(true, &"cruise_participation_desired", {
-		"observation": detached_observation,
-		"desired_cruise_participation": true,
-		"state": state,
-		"desired_speed_meters_per_second": (
-			TARGET_CRUISE_SPEED_METERS_PER_SECOND
-		),
-		"acceleration_hint_meters_per_second_squared": acceleration_hint,
-		"braking_requested": braking_requested,
-		"braking_acceleration_hint_meters_per_second_squared": (
-			BRAKING_HINT_METERS_PER_SECOND_SQUARED
-			if braking_requested else 0.0
-		),
-		"current_braking_envelope_meters": current_braking_envelope,
-		"required_verified_clearance_meters": required_clearance,
-		"required_destination_distance_meters": (
-			required_destination_distance
-		),
-		"minimum_engage_distance_meters": minimum_engage_distance,
-	})
+	return _safe_result(
+		true,
+		&"cruise_participation_desired",
+		expected_coordinate_frame_generation,
+		{
+			"observation": detached_observation,
+			"desired_cruise_participation": true,
+			"state": state,
+			"desired_speed_meters_per_second": (
+				TARGET_CRUISE_SPEED_METERS_PER_SECOND
+			),
+			"acceleration_hint_meters_per_second_squared": acceleration_hint,
+			"braking_requested": braking_requested,
+			"braking_acceleration_hint_meters_per_second_squared": (
+				BRAKING_HINT_METERS_PER_SECOND_SQUARED
+				if braking_requested else 0.0
+			),
+			"current_braking_envelope_meters": current_braking_envelope,
+			"required_verified_clearance_meters": required_clearance,
+			"required_destination_distance_meters": (
+				required_destination_distance
+			),
+			"minimum_engage_distance_meters": minimum_engage_distance,
+		}
+	)
 
 
 func audit() -> Dictionary:
@@ -161,6 +198,30 @@ func audit() -> Dictionary:
 			"acceleration": &"meters_per_second_squared",
 			"alignment": &"unitless_dot_product",
 		},
+		"geometry_contract": {
+			"cruise_direction": &"caller_normalized_destination_direction",
+			"moving_alignment_basis": ALIGNMENT_BASIS_VELOCITY,
+			"zero_speed_alignment_basis": ALIGNMENT_BASIS_ZERO_SPEED,
+			"closing_speed_equation": &"ship_speed_times_alignment_dot",
+			"clearance_sweep_basis": CLEARANCE_SWEEP_BASIS,
+			"clearance_shape": &"all_enabled_shapes_owned_by_ship_collision_body",
+			"clearance_blockers": &"physics_bodies_in_ship_collision_mask_excluding_self",
+			"clearance_distance": &"collision_free_prefix_of_sweep_meters",
+			"obstacle_true": &"initial_overlap_or_first_contact_at_or_before_sweep_end",
+			"obstacle_false": &"full_sweep_distance_collision_free",
+			"currentness": &"observation_and_proof_equal_expected_frame_generation",
+		},
+		"gate_priority": [
+			&"destroyed",
+			&"not_piloted",
+			&"landing_active",
+			&"combat_active",
+			&"clearance_unverified",
+			&"obstacle_detected",
+			&"alignment_below_threshold",
+			&"insufficient_verified_clearance",
+			&"destination_braking_envelope",
+		],
 		"tuning": _tuning_snapshot(),
 		"ember_reference": {
 			"distance_meters": EMBER_REFERENCE_LEG_METERS,
@@ -194,28 +255,37 @@ func get_authority_report() -> Dictionary:
 	return _zero_authority()
 
 
-static func _validate_observation(observation: Dictionary) -> StringName:
+static func _validate_observation(
+	observation: Dictionary,
+	expected_coordinate_frame_generation: int
+) -> StringName:
 	if not _has_exact_keys(observation, _OBSERVATION_KEYS):
 		return &"observation_schema_mismatch"
 	for key in [
 		"distance_to_destination_meters",
+		"ship_speed_meters_per_second",
 		"closing_speed_meters_per_second",
 		"alignment_dot",
 		"verified_clearance_meters",
+		"clearance_sweep_distance_meters",
 	]:
 		if not observation[key] is float:
 			return StringName("%s_not_float" % key)
 		if not is_finite(float(observation[key])):
 			return StringName("%s_nonfinite" % key)
 	for key in [
-		"clearance_verified", "obstacle_detected", "currently_participating",
-		"piloted", "destroyed", "landing_active", "combat_active",
+		"clearance_full_hull", "clearance_verified", "obstacle_detected",
+		"currently_participating", "piloted", "destroyed", "landing_active",
+		"combat_active",
 	]:
 		if not observation[key] is bool:
 			return StringName("%s_not_bool" % key)
 	var distance := float(observation.distance_to_destination_meters)
 	if distance < 0.0 or distance > MAX_DISTANCE_METERS:
 		return &"distance_to_destination_out_of_bounds"
+	var ship_speed := float(observation.ship_speed_meters_per_second)
+	if ship_speed < 0.0 or ship_speed > MAX_ABSOLUTE_SPEED_METERS_PER_SECOND:
+		return &"ship_speed_out_of_bounds"
 	var closing_speed := float(observation.closing_speed_meters_per_second)
 	if absf(closing_speed) > MAX_ABSOLUTE_SPEED_METERS_PER_SECOND:
 		return &"closing_speed_out_of_bounds"
@@ -225,6 +295,50 @@ static func _validate_observation(observation: Dictionary) -> StringName:
 	var clearance := float(observation.verified_clearance_meters)
 	if clearance < 0.0 or clearance > MAX_CLEARANCE_METERS:
 		return &"clearance_out_of_bounds"
+	var sweep_distance := float(observation.clearance_sweep_distance_meters)
+	if sweep_distance < 0.0 or sweep_distance > MAX_CLEARANCE_METERS:
+		return &"clearance_sweep_distance_out_of_bounds"
+	for key in ["alignment_basis", "clearance_sweep_basis"]:
+		if not observation[key] is StringName:
+			return StringName("%s_not_string_name" % key)
+	for key in ["coordinate_frame_generation", "clearance_proof_generation"]:
+		if not observation[key] is int:
+			return StringName("%s_not_int" % key)
+		var generation := int(observation[key])
+		if generation < 1 or generation > MAX_SAFE_GENERATION:
+			return StringName("%s_out_of_bounds" % key)
+	if int(observation.coordinate_frame_generation) \
+		!= expected_coordinate_frame_generation:
+		return &"coordinate_frame_generation_mismatch"
+	if ship_speed == 0.0:
+		if closing_speed != 0.0:
+			return &"zero_speed_closing_speed_mismatch"
+		if observation.alignment_basis != ALIGNMENT_BASIS_ZERO_SPEED:
+			return &"zero_speed_alignment_basis_mismatch"
+	else:
+		if observation.alignment_basis != ALIGNMENT_BASIS_VELOCITY:
+			return &"moving_alignment_basis_mismatch"
+		if closing_speed != ship_speed * alignment:
+			return &"closing_speed_alignment_mismatch"
+	if observation.clearance_sweep_basis != CLEARANCE_SWEEP_BASIS:
+		return &"clearance_sweep_basis_mismatch"
+	var clearance_verified := bool(observation.clearance_verified)
+	var obstacle_detected := bool(observation.obstacle_detected)
+	if clearance_verified:
+		if int(observation.clearance_proof_generation) \
+			!= int(observation.coordinate_frame_generation):
+			return &"clearance_proof_generation_mismatch"
+		if not bool(observation.clearance_full_hull):
+			return &"clearance_proof_not_full_hull"
+		if clearance > sweep_distance:
+			return &"clearance_exceeds_sweep_distance"
+		if not obstacle_detected and clearance != sweep_distance:
+			return &"clear_sweep_distance_mismatch"
+	else:
+		if obstacle_detected:
+			return &"unverified_obstacle_claim"
+		if clearance != 0.0:
+			return &"unverified_clearance_nonzero"
 	return &""
 
 
@@ -264,10 +378,10 @@ static func _safety_gate_reason(
 
 static func _should_offer_disengage_brake(
 	reason: StringName,
-	closing_speed: float,
+	ship_speed: float,
 	observation: Dictionary
 ) -> bool:
-	if closing_speed <= SPEED_DEADBAND_METERS_PER_SECOND:
+	if ship_speed <= SPEED_DEADBAND_METERS_PER_SECOND:
 		return false
 	if bool(observation.destroyed) or not bool(observation.piloted):
 		return false
@@ -357,6 +471,7 @@ static func _contract_errors() -> Array[StringName]:
 static func _safe_result(
 	accepted: bool,
 	reason: StringName,
+	expected_coordinate_frame_generation: int,
 	details: Dictionary = {}
 ) -> Dictionary:
 	var result := {
@@ -365,6 +480,9 @@ static func _safe_result(
 		"schema_version": SCHEMA_VERSION,
 		"policy_version": POLICY_VERSION,
 		"tuning_version": TUNING_VERSION,
+		"expected_coordinate_frame_generation": (
+			expected_coordinate_frame_generation
+		),
 		"desired_cruise_participation": false,
 		"state": &"disengaged",
 		"desired_speed_meters_per_second": 0.0,
