@@ -135,6 +135,15 @@ const TORRENT_COMBAT_DRY_FIRE_AUDIO_ID: StringName = &"dry_fire_click"
 const TORRENT_COMBAT_WEAPON_DEFINITION := preload(
 	"res://assets/weapons/torrent_combat_pulse.tres"
 )
+const ARROW_SHIP_ID: StringName = &"arrow_provisional"
+const ARROW_COMBAT_ORIGIN_TOLERANCE_METERS := 24.0
+const ARROW_COMBAT_PRESENTATION_ID: StringName = TORRENT_COMBAT_PRESENTATION_ID
+const ARROW_COMBAT_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_FIRE_AUDIO_ID
+const ARROW_COMBAT_IMPACT_AUDIO_ID: StringName = TORRENT_COMBAT_IMPACT_AUDIO_ID
+const ARROW_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
+const ARROW_COMBAT_WEAPON_DEFINITION := preload(
+	"res://assets/weapons/arrow_combat_pulse.tres"
+)
 const PLAYER_WEAPON_PROFILES := {
 	RANGE_WEAPON_ID: {
 		"range": 360.0,
@@ -147,11 +156,6 @@ const PLAYER_WEAPON_PROFILES := {
 ## not silently give a light recon ship and a durable freighter identical guns.
 ## These are modern provisional balance values, not recovered historical data.
 const PLAYER_COMBAT_WEAPON_OVERRIDES := {
-	&"arrow_provisional": {
-		"range": 410.0,
-		"damage": 25.0,
-		"origin_tolerance": 24.0,
-	},
 	&"jovian_provisional": {
 		"range": 315.0,
 		"damage": 23.0,
@@ -2821,6 +2825,14 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 			return {}
 		profiles[COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
+	if candidate.get_ship_id() == ARROW_SHIP_ID:
+		# Arrow has no legacy override after migration. Reject invalid authored data
+		# instead of borrowing Torrent's different combat envelope.
+		var migrated_profile := _get_arrow_combat_weapon_profile(candidate)
+		if migrated_profile.is_empty():
+			return {}
+		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		return profiles
 	var override: Dictionary = PLAYER_COMBAT_WEAPON_OVERRIDES.get(candidate.get_ship_id(), {})
 	if not override.is_empty():
 		profiles[COMBAT_WEAPON_ID] = override.duplicate(true)
@@ -2828,29 +2840,57 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 
 
 func _get_torrent_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
+	return _get_migrated_player_combat_weapon_profile(
+		candidate,
+		TORRENT_COMBAT_WEAPON_DEFINITION,
+		TORRENT_COMBAT_ORIGIN_TOLERANCE_METERS,
+		TORRENT_COMBAT_PRESENTATION_ID,
+		TORRENT_COMBAT_FIRE_AUDIO_ID,
+		TORRENT_COMBAT_IMPACT_AUDIO_ID,
+		TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
+	)
+
+
+func _get_arrow_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
+	return _get_migrated_player_combat_weapon_profile(
+		candidate,
+		ARROW_COMBAT_WEAPON_DEFINITION,
+		ARROW_COMBAT_ORIGIN_TOLERANCE_METERS,
+		ARROW_COMBAT_PRESENTATION_ID,
+		ARROW_COMBAT_FIRE_AUDIO_ID,
+		ARROW_COMBAT_IMPACT_AUDIO_ID,
+		ARROW_COMBAT_DRY_FIRE_AUDIO_ID
+	)
+
+
+func _get_migrated_player_combat_weapon_profile(
+	candidate: HeroShip,
+	definition: WeaponDefinition,
+	origin_tolerance_meters: float,
+	presentation_id: StringName,
+	fire_audio_id: StringName,
+	impact_audio_id: StringName,
+	dry_fire_audio_id: StringName
+	) -> Dictionary:
 	if (
 		not is_instance_valid(candidate)
-		or TORRENT_COMBAT_WEAPON_DEFINITION == null
+		or definition == null
 		or not is_finite(candidate.weapon_cooldown)
 		or candidate.weapon_cooldown <= 0.0
 		or not is_equal_approx(
-			TORRENT_COMBAT_WEAPON_DEFINITION.cadence_shots_per_second,
+			definition.cadence_shots_per_second,
 			1.0 / candidate.weapon_cooldown
 		)
-		or TORRENT_COMBAT_WEAPON_DEFINITION.presentation_id
-			!= TORRENT_COMBAT_PRESENTATION_ID
-		or TORRENT_COMBAT_WEAPON_DEFINITION.fire_audio_id
-			!= TORRENT_COMBAT_FIRE_AUDIO_ID
-		or TORRENT_COMBAT_WEAPON_DEFINITION.impact_audio_id
-			!= TORRENT_COMBAT_IMPACT_AUDIO_ID
-		or TORRENT_COMBAT_WEAPON_DEFINITION.dry_fire_audio_id
-			!= TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
+		or definition.presentation_id != presentation_id
+		or definition.fire_audio_id != fire_audio_id
+		or definition.impact_audio_id != impact_audio_id
+		or definition.dry_fire_audio_id != dry_fire_audio_id
 	):
 		return {}
 	var converted := WeaponDefinitionResolverProfileType.to_resolver_profiles(
-		TORRENT_COMBAT_WEAPON_DEFINITION,
+		definition,
 		PLAYER_FACTION,
-		TORRENT_COMBAT_ORIGIN_TOLERANCE_METERS
+		origin_tolerance_meters
 	)
 	return (converted.get(COMBAT_WEAPON_ID, {}) as Dictionary).duplicate(true)
 
