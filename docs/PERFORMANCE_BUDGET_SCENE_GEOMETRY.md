@@ -167,9 +167,9 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence after the Jovian shoulder-rail resource-sharing
-slice on base `9ce3738` plus the bounded VIP sill-light consolidation, Godot
-4.7.1, headless Forward+, Dummy audio and HIGH quality freezes:
+Focused production evidence on base `d6a3529` after the Jovian shoulder-rail
+resource sharing, VIP sill-light consolidation, and Fabrication paired-pool
+slice, Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
@@ -180,9 +180,9 @@ slice on base `9ce3738` plus the bounded VIP sill-light consolidation, Godot
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 631 | 650 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
-| Lights / shadow lights | 297 / 19 | 320 / 19 | +23 / 0 |
+| Lights / shadow lights | 294 / 19 | 317 / 19 | +23 / 0 |
 | Particle systems | 25 | 25 | 0 |
-| Scene-tree nodes | 9,326 | 9,627 | +301 |
+| Scene-tree nodes | 9,323 | 9,624 | +301 |
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
 row: the seven existing joints beneath `PortForwardShoulderRail`,
@@ -205,6 +205,21 @@ mean luminance changed `0.21202 -> 0.21093`; the centre-window ROI changed
 sill and side-pair wash remain continuous. This is a bounded composition check,
 not a GPU-time or frame-time claim.
 
+The Fabrication slice retains all six authored ceiling-luminaire copies and
+replaces their six static, shadowless omnis with three longitudinal
+same-colour pools: warm port, cool central, and warm starboard. Each pool sits
+at its pair midpoint (`z=10.75`), uses range `11.75 m` and energy `4.8`, and
+geometrically contains both former range-`8 m`, energy-`3.2` source spheres
+because `3.75 + 8 = 11.75`. This removes three enabled omnis and three nodes in
+both scenarios without changing geometry, materials, collision, routes, or
+authority. One same-process 1280x720 Forward+ A/B reconstructed the six old
+lights and then enabled only the three production pools: whole-frame mean
+luminance changed `0.118814 -> 0.118952`, mean absolute luminance delta was
+`0.000770`, and the sampled near-black fraction decreased
+`4.1142% -> 4.0268%`. Direct inspection found no black gap, label-readability
+loss, or warm/cool colour drift. This is a visual-composition check, not a
+GPU-time or frame-time claim.
+
 The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
 117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
 copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
@@ -212,9 +227,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`8e8a32c47f2d38afd70f4485c2160c8be437722f6bcdf95de29541db2b64a4c2`;
+`4db90c30434482fbb174fec6378b38da0a08ceccdc2c3edf6172616a95521e6b`;
 the loaded fingerprint is
-`63ace7e2dc297b57c42c00d966d302e1ec03ffa8fb284700027b53fa49658fc6`.
+`8535301898bcd027801cd07b54c546bc03eb135608da3ff86a85de4dd743527b`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
@@ -285,27 +300,28 @@ silently include destination lighting. Both fields are also inputs to the
 measurement fingerprint; relabelling identical counts and contributor rows
 therefore produces a different hash.
 
-The production `Main` measured here is base `9ce3738` plus the bounded VIP sill
-light change, after Cinder Reach became streamed rather than always resident.
+The production `Main` measured here is base `d6a3529` plus the bounded
+Fabrication paired-pool change, after Cinder Reach became streamed rather than
+always resident.
 The roster fingerprint is
 `7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca`.
 The station-resident complete scene/per-point/contributor fingerprint is
-`afd8e8759c35890c6d0ab87cfdc9aac9fa7552dc1a5edf54a631e9e754ec31d6`;
+`2362c050653c4f350f8fc76d66de08ff1fade101f6d5c23ee8e228611897ae8f`;
 the separately loaded fingerprint is
-`395cd89305818b0e6eed681b7a8d70338c4add777fab82ac245c0e05fc801cdf`.
+`d8d1c16017f5fce3248b28ef339d3a1c8d806ba5f6510f57c5e2e0a6e181ace6`.
 Pulsing lights report the stable positive-energy predicate used for inclusion,
 not their clock-dependent instantaneous amplitude.
 
 | HIGH scenario / light roster | Total | Enabled at frozen phase | Shadow casting |
 | --- | ---: | ---: | ---: |
 | Station resident: `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| Station resident: `OmniLight3D` | 283 | 231 | reported in combined row |
+| Station resident: `OmniLight3D` | 280 | 228 | reported in combined row |
 | Station resident: `SpotLight3D` | 11 | 11 | reported in combined row |
-| **Station resident: all `Light3D`** | **297** | **245** | **19 total / 19 enabled** |
+| **Station resident: all `Light3D`** | **294** | **242** | **19 total / 19 enabled** |
 | Cinder loaded: `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| Cinder loaded: `OmniLight3D` | 305 | 253 | reported in combined row |
+| Cinder loaded: `OmniLight3D` | 302 | 250 | reported in combined row |
 | Cinder loaded: `SpotLight3D` | 12 | 12 | reported in combined row |
-| **Cinder loaded: all `Light3D`** | **320** | **268** | **19 total / 19 enabled** |
+| **Cinder loaded: all `Light3D`** | **317** | **265** | **19 total / 19 enabled** |
 
 Streaming Cinder therefore adds exactly **22 enabled omnis and one enabled
 spot**, with no change to the 52 disabled lights, three directionals, or 19
@@ -325,9 +341,11 @@ Historical note: the prior **315 -> 321 total / 263 -> 269 enabled** refreeze wa
 measured while Cinder was always resident. It remains valid evidence that
 Observation Logistics Spur added exactly six enabled, shadowless omnis at
 stable paths `Practical01` through `Practical06`; it is not the present
-station-resident baseline. Salvage Terrace itself contributes zero dynamic
-lights, and none of the Fabrication, Observation or Salvage paths reaches any
-frozen sample. The five worst points, sorted by total overlap then shadow overlap
+station-resident baseline. Fabrication now contributes three enabled,
+shadowless pools at stable paths `PracticalPoolCentral`, `PracticalPoolPort`,
+and `PracticalPoolStarboard`; Salvage Terrace contributes zero dynamic lights.
+None of the Fabrication, Observation or Salvage paths reaches any frozen
+sample. The five worst points, sorted by total overlap then shadow overlap
 then stable id, remain identical in both current scenarios:
 
 | Point | Kind | Enabled influence | Shadow casters |
@@ -440,8 +458,8 @@ has now landed, while the roadmap still owes enemy craft, a walkable freighter
 interior and station-wide modelling. New content must fit through sharing,
 instancing, LOD or impostors rather than larger ceilings.
 
-Shadow-casting lights remain the most important line. Nineteen of 297 resident
-lights (and 320 with Cinder loaded) cast shadows, three above the ceiling; each
+Shadow-casting lights remain the most important line. Nineteen of 294 resident
+lights (and 317 with Cinder loaded) cast shadows, three above the ceiling; each
 can re-rasterise the geometry in its range every frame it is visible.
 Consolidate at least three before adding another shadowed fixture.
 

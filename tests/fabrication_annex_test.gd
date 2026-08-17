@@ -127,6 +127,46 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(int(performance.mesh_instances) <= int(performance.budgets.mesh_instances), "mesh budget is explicit")
 	_check(int(performance.lights) <= int(performance.budgets.lights), "light budget is explicit")
 	_check(int(performance.nodes) <= int(performance.budgets.nodes), "node budget is explicit")
+	var lighting := annex.get_lighting_contract()
+	_check(
+		int(lighting.source_practical_count) == 6
+		and int(lighting.paired_pool_count) == 3
+		and int(lighting.luminaire_count) == 6
+		and bool(lighting.exact_pool_roster)
+		and bool(lighting.luminaires_exact),
+		"three exact paired pools retain all six authored luminaire copies"
+	)
+	_check(
+		is_equal_approx(float(lighting.source_range_m), 8.0)
+		and is_equal_approx(float(lighting.pair_midpoint_offset_m), 3.75)
+		and is_equal_approx(float(lighting.pool_range_m), 11.75)
+		and is_equal_approx(float(lighting.pool_energy), 4.8)
+		and is_equal_approx(float(lighting.attenuation), 1.0)
+		and bool(lighting.coverage_preserved),
+		"each 11.75 m pool geometrically contains both former 8 m source volumes"
+	)
+	var expected_pools := {
+		&"port": [Vector3(-8.5, 4.6, 10.75), Color("ffe0b0")],
+		&"central": [Vector3(0.0, 4.6, 10.75), Color("c9e2dd")],
+		&"starboard": [Vector3(8.5, 4.6, 10.75), Color("ffe0b0")],
+	}
+	var pools_exact := (lighting.pools as Array).size() == expected_pools.size()
+	for pool_variant in lighting.pools as Array:
+		var pool := pool_variant as Dictionary
+		var pool_id := StringName(pool.pool_id)
+		pools_exact = pools_exact and expected_pools.has(pool_id)
+		if expected_pools.has(pool_id):
+			var expected := expected_pools[pool_id] as Array
+			pools_exact = pools_exact \
+				and (pool.position as Vector3).is_equal_approx(expected[0] as Vector3) \
+				and (pool.color as Color).is_equal_approx(expected[1] as Color) \
+				and is_equal_approx(float(pool.attenuation), 1.0) \
+				and is_equal_approx(float(pool.fade_begin_m), 18.0) \
+				and is_equal_approx(float(pool.fade_length_m), 8.0) \
+				and not bool(pool.shadow_enabled) \
+				and (pool.source_positions as Array).size() == 2 \
+				and bool(pool.sources_geometrically_contained)
+	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
 	_check(int(render.multi_mesh_batches) == 12 and int(render.multi_mesh_drawn_copies) == 94, "twelve batches store all 94 non-colliding drawn copies")
@@ -135,7 +175,7 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(int(render.forward_plus_buffer_float_count) == 1128 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 94 valid 3D transforms")
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 132 and int(naming.generated_name_allocation_count) == 52, "all 132 nodes and 52 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 129 and int(naming.generated_name_allocation_count) == 46, "all 129 nodes and 46 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -243,6 +283,12 @@ func _test_structured_red_mutations(annex: FabricationAnnex) -> void:
 	annex.set_process(true)
 	_check(not bool(annex.get_audit_report().valid), "structured-red: an unbudgeted process loop fails audit")
 	annex.set_process(false)
+
+	var pool := annex.get_node(^"GeneratedAnnex/PracticalPoolCentral") as OmniLight3D
+	var pool_position := pool.position
+	pool.position.z += 0.25
+	_check(not bool(annex.get_audit_report().valid), "structured-red: moving a paired light pool fails the exact lighting audit")
+	pool.position = pool_position
 
 	var batch := annex.find_children("*", "MultiMeshInstance3D", true, false)[0] as MultiMeshInstance3D
 	var authored_buffer := RenderingServer.multimesh_get_buffer(batch.multimesh.get_rid())

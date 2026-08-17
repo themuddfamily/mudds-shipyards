@@ -13,6 +13,45 @@ const SOURCE_CONFIDENCE := &"none"
 const GROSS_HORIZONTAL_AREA_M2 := 480.0
 const FIXED_EQUIPMENT_FOOTPRINT_M2 := 69.30
 const FLOOR_AFTER_FIXED_EQUIPMENT_M2 := 410.70
+const LUMINAIRE_SIZE := Vector3(1.8, 0.12, 0.3)
+const SOURCE_PRACTICAL_RANGE_M := 8.0
+const PAIRED_POOL_RANGE_M := 11.75
+const SOURCE_PRACTICAL_ENERGY := 3.2
+const PAIRED_POOL_ENERGY := 4.8
+const PRACTICAL_ATTENUATION := 1.0
+const PRACTICAL_FADE_BEGIN_M := 18.0
+const PRACTICAL_FADE_LENGTH_M := 8.0
+const LUMINAIRE_POSITIONS := [
+	Vector3(-8.5, 4.72, 7.0),
+	Vector3(-8.5, 4.72, 14.5),
+	Vector3(0.0, 4.72, 7.0),
+	Vector3(0.0, 4.72, 14.5),
+	Vector3(8.5, 4.72, 7.0),
+	Vector3(8.5, 4.72, 14.5),
+]
+const PAIRED_POOL_DEFINITIONS := [
+	{
+		"pool_id": &"port",
+		"node_name": &"PracticalPoolPort",
+		"position": Vector3(-8.5, 4.6, 10.75),
+		"color": Color("ffe0b0"),
+		"source_positions": [Vector3(-8.5, 4.6, 7.0), Vector3(-8.5, 4.6, 14.5)],
+	},
+	{
+		"pool_id": &"central",
+		"node_name": &"PracticalPoolCentral",
+		"position": Vector3(0.0, 4.6, 10.75),
+		"color": Color("c9e2dd"),
+		"source_positions": [Vector3(0.0, 4.6, 7.0), Vector3(0.0, 4.6, 14.5)],
+	},
+	{
+		"pool_id": &"starboard",
+		"node_name": &"PracticalPoolStarboard",
+		"position": Vector3(8.5, 4.6, 10.75),
+		"color": Color("ffe0b0"),
+		"source_positions": [Vector3(8.5, 4.6, 7.0), Vector3(8.5, 4.6, 14.5)],
+	},
+]
 
 const ROUTE_TRANSFORMS := {
 	&"annex_inbound": Transform3D(Basis.IDENTITY, Vector3(0.0, 0.15, 0.0)),
@@ -35,10 +74,10 @@ const PERFORMANCE_BUDGETS := {
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 3,
-	"lights": 6,
+	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 132,
+	"nodes": 129,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
 	"mesh_instances": 35,
@@ -49,10 +88,10 @@ const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 3,
-	"lights": 6,
+	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 135,
+	"nodes": 132,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -229,20 +268,26 @@ func _add_label(text: String, at: Vector3, font_size: float) -> void:
 
 
 func _build_lighting() -> void:
-	for x in [-8.5, 0.0, 8.5]:
-		for z in [7.0, 14.5]:
-			var light := OmniLight3D.new()
-			light.name = _next_stable_name("PracticalLight")
-			light.position = Vector3(x, 4.6, z)
-			light.light_color = Color("c9e2dd") if x == 0.0 else Color("ffe0b0")
-			light.light_energy = 3.2
-			light.omni_range = 8.0
-			light.shadow_enabled = false
-			light.distance_fade_enabled = true
-			light.distance_fade_begin = 18.0
-			light.distance_fade_length = 8.0
-			_build_root.add_child(light)
-			_add_mesh("Luminaire", Vector3(1.8, 0.12, 0.3), Vector3(x, 4.72, z), &"accent")
+	# All six visible fittings stay at their authored ceiling positions. Only the
+	# shadowless light volumes are consolidated: each longitudinal same-colour
+	# pair becomes one midpoint pool whose radius contains both former spheres.
+	for luminaire_position in LUMINAIRE_POSITIONS:
+		_add_mesh("Luminaire", LUMINAIRE_SIZE, luminaire_position as Vector3, &"accent")
+	for definition_variant in PAIRED_POOL_DEFINITIONS:
+		var definition := definition_variant as Dictionary
+		var light := OmniLight3D.new()
+		light.name = StringName(definition.node_name)
+		light.position = definition.position as Vector3
+		light.light_color = definition.color as Color
+		light.light_energy = PAIRED_POOL_ENERGY
+		light.omni_range = PAIRED_POOL_RANGE_M
+		light.omni_attenuation = PRACTICAL_ATTENUATION
+		light.shadow_enabled = false
+		light.distance_fade_enabled = true
+		light.distance_fade_begin = PRACTICAL_FADE_BEGIN_M
+		light.distance_fade_length = PRACTICAL_FADE_LENGTH_M
+		light.set_meta(&"fabrication_paired_pool", definition.pool_id)
+		_build_root.add_child(light)
 
 
 func _add_solid(label: String, size: Vector3, at: Vector3, material_id: StringName) -> StaticBody3D:
@@ -470,6 +515,83 @@ func get_render_submission_contract() -> Dictionary:
 	}
 
 
+func get_lighting_contract() -> Dictionary:
+	var pools: Array[Dictionary] = []
+	var exact_pool_roster := true
+	var coverage_preserved := true
+	for definition_variant in PAIRED_POOL_DEFINITIONS:
+		var definition := definition_variant as Dictionary
+		var node := _build_root.get_node_or_null(NodePath(str(definition.node_name))) as OmniLight3D
+		var source_positions := definition.source_positions as Array
+		var sources_contained := source_positions.size() == 2
+		for source_position_variant in source_positions:
+			var source_position := source_position_variant as Vector3
+			sources_contained = sources_contained and (
+				source_position.distance_to(definition.position as Vector3)
+					+ SOURCE_PRACTICAL_RANGE_M
+				<= PAIRED_POOL_RANGE_M + 0.000001
+			)
+		coverage_preserved = coverage_preserved and sources_contained
+		var exact: bool = (
+			node != null
+			and node.position.is_equal_approx(definition.position as Vector3)
+			and node.light_color.is_equal_approx(definition.color as Color)
+			and is_equal_approx(node.light_energy, PAIRED_POOL_ENERGY)
+			and is_equal_approx(node.omni_range, PAIRED_POOL_RANGE_M)
+			and is_equal_approx(node.omni_attenuation, PRACTICAL_ATTENUATION)
+			and not node.shadow_enabled
+			and node.distance_fade_enabled
+			and is_equal_approx(node.distance_fade_begin, PRACTICAL_FADE_BEGIN_M)
+			and is_equal_approx(node.distance_fade_length, PRACTICAL_FADE_LENGTH_M)
+			and StringName(node.get_meta(&"fabrication_paired_pool", &""))
+				== definition.pool_id
+		)
+		exact_pool_roster = exact_pool_roster and exact
+		pools.append({
+			"pool_id": definition.pool_id,
+			"node_name": definition.node_name,
+			"position": node.position if node != null else Vector3.ZERO,
+			"color": node.light_color if node != null else Color.TRANSPARENT,
+			"energy": node.light_energy if node != null else 0.0,
+			"range_m": node.omni_range if node != null else 0.0,
+			"attenuation": node.omni_attenuation if node != null else 0.0,
+			"fade_begin_m": node.distance_fade_begin if node != null else 0.0,
+			"fade_length_m": node.distance_fade_length if node != null else 0.0,
+			"shadow_enabled": node.shadow_enabled if node != null else true,
+			"source_positions": source_positions.duplicate(true),
+			"source_range_m": SOURCE_PRACTICAL_RANGE_M,
+			"sources_geometrically_contained": sources_contained,
+		})
+	var luminaire_key := "accent:%0.3f:%0.3f:%0.3f" % [
+		LUMINAIRE_SIZE.x, LUMINAIRE_SIZE.y, LUMINAIRE_SIZE.z,
+	]
+	var authored_luminaires := _authored_batch_transforms.get(luminaire_key, []) as Array
+	var luminaires_exact := authored_luminaires.size() == LUMINAIRE_POSITIONS.size()
+	for index in mini(authored_luminaires.size(), LUMINAIRE_POSITIONS.size()):
+		luminaires_exact = luminaires_exact and (
+			(authored_luminaires[index] as Transform3D).origin.is_equal_approx(
+				LUMINAIRE_POSITIONS[index] as Vector3
+			)
+		)
+	return {
+		"schema_version": 1,
+		"source_practical_count": 6,
+		"paired_pool_count": pools.size(),
+		"luminaire_count": authored_luminaires.size(),
+		"pool_energy": PAIRED_POOL_ENERGY,
+		"pool_range_m": PAIRED_POOL_RANGE_M,
+		"attenuation": PRACTICAL_ATTENUATION,
+		"source_energy": SOURCE_PRACTICAL_ENERGY,
+		"source_range_m": SOURCE_PRACTICAL_RANGE_M,
+		"pair_midpoint_offset_m": 3.75,
+		"exact_pool_roster": exact_pool_roster,
+		"coverage_preserved": coverage_preserved,
+		"luminaires_exact": luminaires_exact,
+		"pools": pools.duplicate(true),
+		"luminaire_transforms": authored_luminaires.duplicate(true),
+	}
+
+
 func get_deterministic_naming_contract() -> Dictionary:
 	var fallback_paths := PackedStringArray()
 	var paths := PackedStringArray([str(get_path())])
@@ -527,6 +649,7 @@ func get_component_roster() -> Dictionary:
 	roster["fixed_equipment_footprints"] = get_fixed_equipment_footprint_roster()
 	roster["walkable_area"] = get_walkable_area_contract()
 	roster["render_submissions"] = get_render_submission_contract()
+	roster["lighting"] = get_lighting_contract()
 	roster["deterministic_naming"] = get_deterministic_naming_contract()
 	return roster
 
@@ -615,7 +738,12 @@ func get_lifecycle_contract() -> Dictionary:
 
 func get_audit_report() -> Dictionary:
 	var errors := get_validation_errors()
-	return {"valid": errors.is_empty(), "errors": errors.duplicate(), "module_id": MODULE_ID}
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors.duplicate(),
+		"module_id": MODULE_ID,
+		"lighting": get_lighting_contract(),
+	}
 
 
 func get_validation_errors() -> PackedStringArray:
@@ -648,11 +776,18 @@ func get_validation_errors() -> PackedStringArray:
 	for budget_key in ["mesh_instances", "multi_mesh_instances", "multi_mesh_drawn_copies", "geometry_instances", "visible_geometry_copies", "static_bodies", "collision_shapes", "labels", "lights", "nodes"]:
 		if int(performance.get(budget_key, -1)) != int(budgets.get(budget_key, -2)):
 			errors.append("frozen performance count drifted: %s" % budget_key)
+	var lighting := get_lighting_contract()
+	if not bool(lighting.exact_pool_roster):
+		errors.append("paired practical pool roster drifted")
+	if not bool(lighting.coverage_preserved):
+		errors.append("paired practical pools no longer contain both source volumes")
+	if not bool(lighting.luminaires_exact):
+		errors.append("the six authored luminaire meshes drifted")
 	var render := get_render_submission_contract()
 	if not bool(render.forward_plus_buffers_match_authored) or int(render.authored_transform_count) != int(render.multi_mesh_drawn_copies):
 		errors.append("Forward+ MultiMesh buffers drifted from authored transforms")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 53 if observation_rear_gate_open else 52
+	var expected_name_allocations := 47 if observation_rear_gate_open else 46
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()

@@ -5,15 +5,12 @@ extends SceneTree
 const CENSUS := preload("res://tools/station_light_overlap_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROSTER_FINGERPRINT := "7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca"
-const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "afd8e8759c35890c6d0ab87cfdc9aac9fa7552dc1a5edf54a631e9e754ec31d6"
-const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "395cd89305818b0e6eed681b7a8d70338c4add777fab82ac245c0e05fc801cdf"
+const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "2362c050653c4f350f8fc76d66de08ff1fade101f6d5c23ee8e228611897ae8f"
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "d8d1c16017f5fce3248b28ef339d3a1c8d806ba5f6510f57c5e2e0a6e181ace6"
 const FABRICATION_LIGHT_PATHS := [
-	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight",
-	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight01",
-	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight02",
-	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight03",
-	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight04",
-	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight05",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolCentral",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolPort",
+	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolStarboard",
 ]
 const OBSERVATION_LIGHT_PATHS := [
 	"ShipyardWorld/ObservationLogisticsSpur/Structure/Dressing/Practical01",
@@ -297,18 +294,18 @@ func _test_production_main_roster_and_measurement() -> void:
 		int(report.schema_version) == CENSUS.SCHEMA_VERSION
 		and report.scenario == CENSUS.SCENARIO_STATION_RESIDENT
 		and int(report.loaded_instance_count) == 0
-		and int(scene_lights.total) == 297
-		and int(scene_lights.enabled) == 245
+		and int(scene_lights.total) == 294
+		and int(scene_lights.enabled) == 242
 		and int(scene_lights.disabled) == 52
 		and int(scene_lights.shadow_casting_total) == 19
 		and int(scene_lights.enabled_shadow_casting) == 19
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 283
-		and int((by_type.omni as Dictionary).enabled) == 231
+		and int((by_type.omni as Dictionary).total) == 280
+		and int((by_type.omni as Dictionary).enabled) == 228
 		and int((by_type.spot as Dictionary).total) == 11
 		and int((by_type.spot as Dictionary).enabled) == 11,
-		"station-resident HIGH freezes 297 total / 245 enabled lights and exact type/shadow splits"
+		"station-resident HIGH freezes 294 total / 242 enabled lights and exact type/shadow splits"
 	)
 	_test_expansion_light_provenance(game, report)
 	var expected_worst := [
@@ -358,7 +355,7 @@ func _test_expansion_light_provenance(game: Node, report: Dictionary) -> void:
 	_check(
 		_light_paths(fabrication) == FABRICATION_LIGHT_PATHS
 		and _all_enabled_shadowless_omni(fabrication),
-		"the prior baseline's six Fabrication practicals remain exact enabled shadowless omnis"
+		"Fabrication contributes exactly three stable enabled shadowless paired pools"
 	)
 	_check(
 		_light_paths(observation) == OBSERVATION_LIGHT_PATHS
@@ -442,18 +439,18 @@ func _test_cinder_loaded_production_scenario(
 	_check(
 		report.scenario == CENSUS.SCENARIO_CINDER_LOADED
 		and int(report.loaded_instance_count) == 1
-		and int(lights.total) == 320
-		and int(lights.enabled) == 268
+		and int(lights.total) == 317
+		and int(lights.enabled) == 265
 		and int(lights.disabled) == 52
 		and int(lights.shadow_casting_total) == 19
 		and int(lights.enabled_shadow_casting) == 19
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 305
-		and int((by_type.omni as Dictionary).enabled) == 253
+		and int((by_type.omni as Dictionary).total) == 302
+		and int((by_type.omni as Dictionary).enabled) == 250
 		and int((by_type.spot as Dictionary).total) == 12
 		and int((by_type.spot as Dictionary).enabled) == 12,
-		"Cinder-loaded HIGH freezes 320 total / 268 enabled lights and exact type/shadow splits"
+		"Cinder-loaded HIGH freezes 317 total / 265 enabled lights and exact type/shadow splits"
 	)
 	_check(
 		int(lights.total) - int(resident_lights.total) == 23
