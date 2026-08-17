@@ -167,8 +167,8 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence after the Jovian dorsal-rib resource-sharing slice
-on base `b6b1df3`, Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality
+Focused production evidence after the Jovian shoulder-rail resource-sharing
+slice on base `87e4465`, Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality
 freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
@@ -176,7 +176,7 @@ freezes:
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
 | Mesh renderer nodes | 5,691 | 5,857 | +166 |
 | Surfaces | 5,698 | 5,864 | +166 |
-| Unique meshes | 2,603 | 2,733 | +130 |
+| Unique meshes | 2,597 | 2,727 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 631 | 650 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
@@ -184,11 +184,12 @@ freezes:
 | Particle systems | 25 | 25 | 0 |
 | Scene-tree nodes | 9,327 | 9,628 | +301 |
 
-The only geometry-census delta from the bounded Jovian slice is the unique-mesh
-row: the 25 existing `DorsalCargoRib00..04/*CurveJoint*` renderer nodes retain
-25 visible copies and 25 surface submissions but share one immutable SphereMesh,
-so both production scenarios retain 24 fewer unique meshes. No collision,
-interaction, evidence or lifecycle node moved into that visual family.
+The only geometry-census delta from this bounded Jovian slice is the unique-mesh
+row: the seven existing joints beneath `PortForwardShoulderRail`,
+`PortAftShoulderRail`, and `StarboardShoulderRail` retain seven visible copies
+and seven surface submissions but share one immutable SphereMesh, so both
+production scenarios retain six fewer unique meshes. No collision, interaction,
+evidence or lifecycle node moved into that visual family.
 
 The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
 117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
@@ -197,9 +198,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`8897b14d55da8cd87c87b1db4fa2664c4aa4f42a07a471010c1daf4f16783bd0`;
+`a560a3a227ebc6ec1b991a9d37217434fb951ec58604b6486de25451db695505`;
 the loaded fingerprint is
-`007461f07fb8e95ec067033ff9052165d265140f76a8f93e3d23fd1f8a135218`.
+`a5014770014f39d8bbfcdd5ee056c5c1f15d7cee98d395fab3c9e1a16b08a074`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live

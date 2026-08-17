@@ -77,6 +77,29 @@ const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
 	Vector2(5.55, 4.28),
 ]
 
+# The three shoulder service rails retain their exact Node3D roots, seven
+# ordinary MeshInstance3D joints, and seven surface submissions. The joint
+# recipe and teal material are identical, so only the immutable SphereMesh
+# resource is shared.
+const SHOULDER_RAIL_JOINT_COPY_COUNT := 7
+const SHOULDER_RAIL_JOINT_RADIUS := 0.13
+const SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS := 24
+const SHOULDER_RAIL_JOINT_RINGS := 12
+const SHOULDER_RAIL_NAMES: Array[StringName] = [
+	&"PortForwardShoulderRail",
+	&"PortAftShoulderRail",
+	&"StarboardShoulderRail",
+]
+const SHOULDER_RAIL_JOINT_POSITIONS: Array[Array] = [
+	[Vector3(-7.55, 3.2, -4.8), Vector3(-7.8, 3.34, 0.95)],
+	[Vector3(-7.78, 3.3, 5.48), Vector3(-7.5, 3.1, 8.7)],
+	[
+		Vector3(7.55, 3.2, -4.8),
+		Vector3(7.82, 3.35, 1.0),
+		Vector3(7.5, 3.1, 8.7),
+	],
+]
+
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
 const PROVISIONAL_NOTE := (
@@ -128,6 +151,7 @@ var _passenger_seat_anchors: Array[Marker3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
 var _jovian_engine_lights: Array[OmniLight3D] = []
 var _dorsal_cargo_rib_joint_mesh: SphereMesh
+var _shoulder_rail_joint_mesh: SphereMesh
 var _elapsed_jovian := 0.0
 
 
@@ -349,6 +373,7 @@ func get_jovian_evidence_report() -> Dictionary:
 func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
+	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var definition := get_ship_definition()
 	if definition == null or not definition.is_definition_valid():
 		errors.append("valid provisional ShipDefinition is missing")
@@ -376,6 +401,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("defensive muzzle markers are missing")
 	if not bool(dorsal_rib_allocation.get("valid", false)):
 		errors.append("dorsal cargo rib joint allocation contract drifted")
+	if not bool(shoulder_rail_allocation.get("valid", false)):
+		errors.append("shoulder rail joint allocation contract drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -389,6 +416,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"interior": get_walkable_interior_report(),
 		"evidence": get_jovian_evidence_report(),
 		"dorsal_cargo_rib_joint_allocation": dorsal_rib_allocation,
+		"shoulder_rail_joint_allocation": shoulder_rail_allocation,
 	}
 
 
@@ -536,7 +564,7 @@ func get_dorsal_cargo_rib_joint_allocation_audit() -> Dictionary:
 					"grouped_nodes": 0,
 					"processing_nodes": 0,
 				}
-				_accumulate_dorsal_rib_joint_authority(joint, joint, authority_state)
+				_accumulate_visual_family_authority(joint, joint, authority_state)
 				descendant_node_count += int(authority_state["descendants"])
 				collision_object_count += int(authority_state["collision_objects"])
 				collision_shape_count += int(authority_state["collision_shapes"])
@@ -633,7 +661,233 @@ func get_dorsal_cargo_rib_joint_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-func _accumulate_dorsal_rib_joint_authority(
+## Renderer-independent allocation evidence for the seven shoulder-rail joints.
+##
+## This freezes resource identity without claiming a batch or draw-call saving:
+## the three rail roots, seven renderer nodes, visible copies, and submissions
+## remain independently live.
+func get_shoulder_rail_joint_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids: Dictionary = {}
+	var material_resource_ids: Dictionary = {}
+	var node_instance_ids: Dictionary = {}
+	var family_node_count := 0
+	var named_node_count := 0
+	var drawn_copy_count := 0
+	var structural_surface_submission_count := 0
+	var multimesh_batch_count := 0
+	var descendant_node_count := 0
+	var collision_object_count := 0
+	var collision_shape_count := 0
+	var interaction_area_count := 0
+	var marker_count := 0
+	var metadata_entry_count := 0
+	var scripted_node_count := 0
+	var grouped_node_count := 0
+	var processing_node_count := 0
+	var behavior_rows: Array[Dictionary] = []
+
+	if _jovian_visual == null or not is_instance_valid(_jovian_visual):
+		errors.append("shoulder_rail_visual_root_unavailable")
+	else:
+		for rail_index in SHOULDER_RAIL_NAMES.size():
+			var rail_name := SHOULDER_RAIL_NAMES[rail_index]
+			var rail := _jovian_visual.get_node_or_null(NodePath(rail_name)) as Node3D
+			var expected_positions := SHOULDER_RAIL_JOINT_POSITIONS[rail_index] as Array
+			if rail == null:
+				errors.append("shoulder_rail_root_missing:%s" % rail_name)
+				continue
+			if (
+				not rail.position.is_equal_approx(Vector3.ZERO)
+				or not rail.rotation.is_equal_approx(Vector3.ZERO)
+				or not rail.scale.is_equal_approx(Vector3.ONE)
+				or not rail.visible
+			):
+				errors.append("shoulder_rail_root_transform_drift:%s" % rail_name)
+
+			var rail_joints: Array[MeshInstance3D] = []
+			var rail_segment_count := 0
+			for child in rail.get_children():
+				var mesh_instance := child as MeshInstance3D
+				if mesh_instance == null:
+					continue
+				if mesh_instance.mesh is SphereMesh:
+					rail_joints.append(mesh_instance)
+				elif String(mesh_instance.name).begins_with("Segment"):
+					rail_segment_count += 1
+			if (
+				rail.get_child_count() != expected_positions.size() * 2 - 1
+				or rail_segment_count != expected_positions.size() - 1
+				or rail_joints.size() != expected_positions.size()
+			):
+				errors.append("shoulder_rail_child_roster_drift:%s" % rail_name)
+			if rail_joints.is_empty() or rail.get_node_or_null(^"CurveJoint") != rail_joints[0]:
+				errors.append("shoulder_rail_primary_joint_path_drift:%s" % rail_name)
+			multimesh_batch_count += rail.find_children(
+				"*", "MultiMeshInstance3D", true, false
+			).size()
+
+			for joint_index in rail_joints.size():
+				var joint := rail_joints[joint_index]
+				var sphere := joint.mesh as SphereMesh
+				family_node_count += 1
+				drawn_copy_count += 1
+				node_instance_ids[joint.get_instance_id()] = true
+				if not String(joint.name).is_empty():
+					named_node_count += 1
+				if sphere == null:
+					errors.append("shoulder_rail_joint_mesh_type_drift:%s/%s" % [
+					rail_name, joint.name,
+				])
+					continue
+				mesh_resource_ids[sphere.get_instance_id()] = true
+				structural_surface_submission_count += sphere.get_surface_count()
+				for surface_index in sphere.get_surface_count():
+					var material := sphere.surface_get_material(surface_index)
+					if material != null:
+						material_resource_ids[material.get_instance_id()] = true
+				if sphere != _shoulder_rail_joint_mesh:
+					errors.append("shoulder_rail_joint_mesh_identity_drift:%s/%s" % [
+					rail_name, joint.name,
+				])
+				if (
+					not is_equal_approx(sphere.radius, SHOULDER_RAIL_JOINT_RADIUS)
+					or not is_equal_approx(sphere.height, SHOULDER_RAIL_JOINT_RADIUS * 2.0)
+					or sphere.radial_segments != SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS
+					or sphere.rings != SHOULDER_RAIL_JOINT_RINGS
+					or sphere.material != _jovian_materials.get("teal")
+					or sphere.get_surface_count() != 1
+				):
+					errors.append("shoulder_rail_joint_mesh_recipe_drift:%s/%s" % [
+					rail_name, joint.name,
+				])
+				var expected_position := expected_positions[joint_index] as Vector3
+				if (
+					not joint.position.is_equal_approx(expected_position)
+					or not joint.rotation.is_equal_approx(Vector3.ZERO)
+					or not joint.scale.is_equal_approx(Vector3.ONE)
+					or not joint.visible
+					or joint.layers != 1
+					or joint.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+					or joint.material_override != null
+					or joint.material_overlay != null
+					or not is_zero_approx(joint.transparency)
+					or not is_zero_approx(joint.extra_cull_margin)
+					or joint.custom_aabb != AABB()
+				):
+					errors.append("shoulder_rail_joint_renderer_recipe_drift:%s/%s" % [
+					rail_name, joint.name,
+				])
+
+				var authority_state := {
+					"descendants": 0,
+					"collision_objects": 0,
+					"collision_shapes": 0,
+					"interaction_areas": 0,
+					"markers": 0,
+					"metadata_entries": 0,
+					"scripted_nodes": 0,
+					"grouped_nodes": 0,
+					"processing_nodes": 0,
+				}
+				_accumulate_visual_family_authority(joint, joint, authority_state)
+				descendant_node_count += int(authority_state["descendants"])
+				collision_object_count += int(authority_state["collision_objects"])
+				collision_shape_count += int(authority_state["collision_shapes"])
+				interaction_area_count += int(authority_state["interaction_areas"])
+				marker_count += int(authority_state["markers"])
+				metadata_entry_count += int(authority_state["metadata_entries"])
+				scripted_node_count += int(authority_state["scripted_nodes"])
+				grouped_node_count += int(authority_state["grouped_nodes"])
+				processing_node_count += int(authority_state["processing_nodes"])
+				behavior_rows.append({
+					"rail_name": String(rail_name),
+					"joint_index": joint_index,
+					"node_name": String(joint.name),
+					"position": [joint.position.x, joint.position.y, joint.position.z],
+					"rotation": [joint.rotation.x, joint.rotation.y, joint.rotation.z],
+					"scale": [joint.scale.x, joint.scale.y, joint.scale.z],
+				})
+
+	if family_node_count != SHOULDER_RAIL_JOINT_COPY_COUNT:
+		errors.append("shoulder_rail_joint_node_count_drift")
+	if named_node_count != SHOULDER_RAIL_JOINT_COPY_COUNT:
+		errors.append("shoulder_rail_joint_named_node_count_drift")
+	if node_instance_ids.size() != SHOULDER_RAIL_JOINT_COPY_COUNT:
+		errors.append("shoulder_rail_joint_node_identity_count_drift")
+	if mesh_resource_ids.size() != 1:
+		errors.append("shoulder_rail_joint_mesh_resource_count_drift")
+	if material_resource_ids.size() != 1:
+		errors.append("shoulder_rail_joint_material_resource_count_drift")
+	if structural_surface_submission_count != SHOULDER_RAIL_JOINT_COPY_COUNT:
+		errors.append("shoulder_rail_joint_submission_count_drift")
+	if multimesh_batch_count != 0:
+		errors.append("shoulder_rail_joint_unexpected_batch")
+	if descendant_node_count != 0:
+		errors.append("shoulder_rail_joint_gained_children")
+	if collision_object_count != 0 or collision_shape_count != 0 or interaction_area_count != 0:
+		errors.append("shoulder_rail_joint_gained_collision_or_interaction_authority")
+	if metadata_entry_count != 0:
+		errors.append("shoulder_rail_joint_gained_evidence_metadata")
+	if (
+		marker_count != 0
+		or scripted_node_count != 0
+		or grouped_node_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("shoulder_rail_joint_gained_lifecycle_or_semantic_authority")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_exterior_shoulder_rail_curve_joints",
+		"current": {
+			"geometry_nodes": family_node_count,
+			"named_nodes": named_node_count,
+			"drawn_copies": drawn_copy_count,
+			"geometry_submissions": structural_surface_submission_count,
+			"mesh_resource_allocations": mesh_resource_ids.size(),
+			"material_resource_allocations": material_resource_ids.size(),
+			"multimesh_batches": multimesh_batch_count,
+		},
+		"legacy": {
+			"geometry_nodes": SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"named_nodes": SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"drawn_copies": SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"geometry_submissions": SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"mesh_resource_allocations": SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"material_resource_allocations": 1,
+			"multimesh_batches": 0,
+		},
+		"delta": {
+			"geometry_nodes": family_node_count - SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"drawn_copies": drawn_copy_count - SHOULDER_RAIL_JOINT_COPY_COUNT,
+			"geometry_submissions": (
+				structural_surface_submission_count - SHOULDER_RAIL_JOINT_COPY_COUNT
+			),
+			"mesh_resource_allocations": (
+				mesh_resource_ids.size() - SHOULDER_RAIL_JOINT_COPY_COUNT
+			),
+			"material_resource_allocations": material_resource_ids.size() - 1,
+		},
+		"descendant_node_count": descendant_node_count,
+		"collision_object_count": collision_object_count,
+		"collision_shape_count": collision_shape_count,
+		"interaction_area_count": interaction_area_count,
+		"marker_count": marker_count,
+		"metadata_entry_count": metadata_entry_count,
+		"scripted_node_count": scripted_node_count,
+		"grouped_node_count": grouped_node_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"driver_draw_call_claimed": false,
+		"frame_time_claimed": false,
+		"vram_claimed": false,
+		"behavior_rows": behavior_rows,
+	}.duplicate(true)
+
+
+func _accumulate_visual_family_authority(
 	root_joint: MeshInstance3D,
 	node: Node,
 	state: Dictionary
@@ -661,7 +915,7 @@ func _accumulate_dorsal_rib_joint_authority(
 	):
 		state["processing_nodes"] = int(state["processing_nodes"]) + 1
 	for child in node.get_children():
-		_accumulate_dorsal_rib_joint_authority(root_joint, child, state)
+		_accumulate_visual_family_authority(root_joint, child, state)
 
 
 func _build_jovian_variant(_controller: HeroShip) -> bool:
@@ -831,6 +1085,12 @@ func _build_exterior() -> void:
 		_jovian_materials.hull_warm,
 		28
 	)
+	_shoulder_rail_joint_mesh = SphereMesh.new()
+	_shoulder_rail_joint_mesh.radius = SHOULDER_RAIL_JOINT_RADIUS
+	_shoulder_rail_joint_mesh.height = SHOULDER_RAIL_JOINT_RADIUS * 2.0
+	_shoulder_rail_joint_mesh.radial_segments = SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS
+	_shoulder_rail_joint_mesh.rings = SHOULDER_RAIL_JOINT_RINGS
+	_shoulder_rail_joint_mesh.material = _jovian_materials.teal
 	# Long shoulder volumes carry load and engines outside the open central
 	# interior. Their dense lofts provide a materially larger, non-box silhouette.
 	for side_index in 2:
@@ -885,10 +1145,10 @@ func _build_exterior() -> void:
 		if side < 0.0:
 			_curve_tube(_jovian_visual, "PortForwardShoulderRail", PackedVector3Array([
 				Vector3(-7.55, 3.2, -4.8), Vector3(-7.8, 3.34, 0.95),
-			]), 0.13, _jovian_materials.teal)
+			]), 0.13, _jovian_materials.teal, _shoulder_rail_joint_mesh)
 			_curve_tube(_jovian_visual, "PortAftShoulderRail", PackedVector3Array([
 				Vector3(-7.78, 3.3, 5.48), Vector3(-7.5, 3.1, 8.7),
-			]), 0.13, _jovian_materials.teal)
+			]), 0.13, _jovian_materials.teal, _shoulder_rail_joint_mesh)
 		else:
 			_curve_tube(
 				_jovian_visual,
@@ -899,7 +1159,8 @@ func _build_exterior() -> void:
 					Vector3(side * 7.5, 3.1, 8.7),
 				]),
 				0.13,
-				_jovian_materials.teal
+				_jovian_materials.teal,
+				_shoulder_rail_joint_mesh
 			)
 		for panel_index in 4:
 			if side < 0.0 and panel_index == 2:
