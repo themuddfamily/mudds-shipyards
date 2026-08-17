@@ -6,6 +6,42 @@ const ComponentDamageModelType := preload(
 
 const ENGINE_ID: StringName = &"engine_core"
 const WEAPON_ID: StringName = &"pulse_mount"
+const MODEL_SCHEMA_VERSION := 2
+const MAX_FINITE_REPAIR := 1.7976931348623157e308
+const DEFINITION_SNAPSHOT_KEYS := [
+	"schema_version",
+	"components",
+	"evidence",
+	"authority",
+]
+const MODEL_SNAPSHOT_KEYS := [
+	"schema_version",
+	"generation",
+	"revision",
+	"last_operation_sequence",
+	"last_damage_sequence",
+	"active",
+	"component_order",
+	"components",
+	"evidence",
+	"authority",
+]
+const COMPONENT_STATE_KEYS := [
+	"component_id",
+	"maximum_health",
+	"current_health",
+	"health_ratio",
+	"stage",
+]
+const AUDIT_KEYS := [
+	"schema_version",
+	"valid",
+	"configuration_errors",
+	"definition",
+	"state",
+	"evidence",
+	"authority",
+]
 const AUTHORITY_KEYS := [
 	"renderer",
 	"gameplay",
@@ -88,7 +124,10 @@ func _init() -> void:
 func _run() -> void:
 	_test_typed_configuration_snapshot()
 	_test_reset_and_ordered_stages()
+	_test_ordered_repair_and_shared_sequence()
 	_test_atomic_rejections()
+	_test_repair_atomic_rejections()
+	_test_reentrant_mutation_guard()
 	_test_generation_safe_reuse()
 	_test_configuration_validation()
 	_test_detached_snapshots_and_audit()
@@ -117,6 +156,12 @@ func _test_typed_configuration_snapshot() -> void:
 	source[0]["maximum_health"] = 999.0
 	(source[0]["damage_stages"] as Array)[0]["performance_multiplier"] = 0.1
 	var captured := model.get_definition_snapshot()
+	_check(
+		int(captured.get("schema_version", 0)) == MODEL_SCHEMA_VERSION
+			and _has_exact_keys(captured, DEFINITION_SNAPSHOT_KEYS)
+			and _has_exact_keys(model.get_snapshot(), MODEL_SNAPSHOT_KEYS),
+		"schema version two freezes the exact definition and aggregate snapshot rosters"
+	)
 	var captured_components := captured.get("components", []) as Array
 	_check(
 		is_equal_approx(float(captured_components[0].maximum_health), 100.0)
@@ -138,6 +183,13 @@ func _test_typed_configuration_snapshot() -> void:
 	_check(
 		not bool(inactive.accepted) and inactive.reason == &"inactive",
 		"an inactive definition cannot accept damage"
+	)
+	var inactive_repair := model.apply_component_repair(
+		_repair_context(ENGINE_ID, 1.0, 0, 0)
+	)
+	_check(
+		not bool(inactive_repair.accepted) and inactive_repair.reason == &"inactive",
+		"an inactive definition cannot accept repair"
 	)
 
 
@@ -167,7 +219,8 @@ func _test_reset_and_ordered_stages() -> void:
 	_check(resets.size() == 1, "an accepted reset emits exactly one detached reset signal")
 	var engine := model.get_component_state(ENGINE_ID)
 	_check(
-		is_equal_approx(float(engine.maximum_health), 100.0)
+		_has_exact_keys(engine, COMPONENT_STATE_KEYS)
+			and is_equal_approx(float(engine.maximum_health), 100.0)
 			and is_equal_approx(float(engine.current_health), 100.0)
 			and is_equal_approx(float(engine.health_ratio), 1.0),
 		"reset publishes exact maximum and current component health"
@@ -243,6 +296,130 @@ func _test_reset_and_ordered_stages() -> void:
 			and no_effect.reason == &"no_component_effect"
 			and model.get_snapshot() == no_effect_before,
 		"damage against a failed component is rejected without consuming its sequence"
+	)
+
+
+func _test_ordered_repair_and_shared_sequence() -> void:
+	var model := _make_model()
+	model.reset_for_reuse(0)
+	var damage_events: Array[Dictionary] = []
+	var repair_events: Array[Dictionary] = []
+	var stage_events: Array[Dictionary] = []
+	model.component_damage_applied.connect(
+		func(result: Dictionary) -> void: damage_events.append(result)
+	)
+	model.component_repair_applied.connect(
+		func(result: Dictionary) -> void: repair_events.append(result)
+	)
+	model.component_stage_changed.connect(
+		func(result: Dictionary) -> void: stage_events.append(result)
+	)
+
+	var damaged := model.apply_component_damage(
+		_damage_context(ENGINE_ID, 65.0, 1, 0)
+	)
+	var repaired := model.apply_component_repair(
+		_repair_context(ENGINE_ID, 40.0, 1, 1)
+	)
+	_check(
+		bool(damaged.accepted)
+			and bool(repaired.accepted)
+			and repaired.reason == &"repaired"
+			and is_equal_approx(float(repaired.requested_repair), 40.0)
+			and is_equal_approx(float(repaired.applied_repair), 40.0)
+			and is_equal_approx(float(repaired.previous_health), 35.0)
+			and is_equal_approx(float(repaired.current_health), 75.0)
+			and StringName((repaired.stage as Dictionary).stage_id) == &"damaged",
+		"repair applies an exact finite amount and deterministically improves the inclusive stage"
+	)
+	_check(
+		model.get_last_operation_sequence() == 1
+			and model.get_last_damage_sequence() == 1
+			and int(model.get_snapshot().last_operation_sequence) == 1
+			and int(model.get_snapshot().last_damage_sequence) == 1,
+		"damage and repair publish one shared operation cursor through the compatibility alias"
+	)
+
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(ENGINE_ID, 2.0, 1, 1),
+		&"duplicate_sequence",
+		"a repair cannot replay the sequence consumed by the preceding repair"
+	)
+	_check_rejection_atomic(
+		model,
+		_damage_context(ENGINE_ID, 2.0, 1, 0),
+		&"stale_sequence",
+		"damage cannot move behind a later repair in the shared operation order"
+	)
+
+	var interleaved_damage := model.apply_component_damage(
+		_damage_context(WEAPON_ID, 10.0, 1, 2)
+	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(ENGINE_ID, 1.0, 1, 2),
+		&"duplicate_sequence",
+		"repair cannot replay a sequence consumed by damage in the shared operation order"
+	)
+	var before_clamp_revision := model.get_revision()
+	var clamped := model.apply_component_repair(
+		_repair_context(ENGINE_ID, MAX_FINITE_REPAIR, 1, 3)
+	)
+	_check(
+		bool(interleaved_damage.accepted)
+			and bool(clamped.accepted)
+			and is_finite(float(clamped.requested_repair))
+			and is_equal_approx(float(clamped.applied_repair), 25.0)
+			and float(clamped.current_health) == 100.0
+			and is_finite(float(clamped.current_health))
+			and model.get_revision() == before_clamp_revision + 1
+			and model.get_last_operation_sequence() == 3
+			and StringName((clamped.stage as Dictionary).stage_id) == &"nominal",
+		"maximum finite repair clamps overflow-safely at exact maximum in one commit"
+	)
+	(clamped.stage as Dictionary)["performance_multiplier"] = 0.0
+	clamped["current_health"] = -250.0
+	_check(
+		is_equal_approx(float(model.get_component_state(ENGINE_ID).current_health), 100.0)
+			and is_equal_approx(
+				float((model.get_component_state(ENGINE_ID).stage as Dictionary).performance_multiplier),
+				1.0
+			),
+		"returned repair results are detached from component health and stage consequences"
+	)
+	var before_no_effect_events := repair_events.size()
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(ENGINE_ID, 1.0, 1, 4),
+		&"no_component_effect",
+		"repair against a full component is rejected without consuming the operation"
+	)
+	var reused_after_no_effect := model.apply_component_damage(
+		_damage_context(WEAPON_ID, 1.0, 1, 4)
+	)
+	_check(
+		bool(reused_after_no_effect.accepted)
+			and model.get_last_operation_sequence() == 4
+			and repair_events.size() == before_no_effect_events,
+		"a no-effect repair leaves its sequence available to the next valid operation"
+	)
+	_check(
+		damage_events.size() == 3
+			and repair_events.size() == 2
+			and stage_events.size() == 3,
+		"accepted interleaved operations emit one typed signal and only real stage transitions"
+	)
+	var repair_signal_copy: Dictionary = repair_events.back()
+	(repair_signal_copy.stage as Dictionary)["performance_multiplier"] = 0.0
+	repair_signal_copy["current_health"] = -500.0
+	_check(
+		is_equal_approx(float(model.get_component_state(ENGINE_ID).current_health), 100.0)
+			and is_equal_approx(
+				float((model.get_component_state(ENGINE_ID).stage as Dictionary).performance_multiplier),
+				1.0
+			),
+		"repair signal payloads are detached from component health and stage consequences"
 	)
 
 
@@ -343,6 +520,256 @@ func _test_atomic_rejections() -> void:
 	)
 
 
+func _test_repair_atomic_rejections() -> void:
+	var model := _make_model()
+	model.reset_for_reuse(0)
+	model.apply_component_damage(_damage_context(WEAPON_ID, 10.0, 1, 4))
+	var repair_events: Array[Dictionary] = []
+	var stage_events: Array[Dictionary] = []
+	model.component_repair_applied.connect(
+		func(result: Dictionary) -> void: repair_events.append(result)
+	)
+	model.component_stage_changed.connect(
+		func(result: Dictionary) -> void: stage_events.append(result)
+	)
+
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(&"unknown_thruster", 2.0, 1, 5),
+		&"unknown_component",
+		"repair rejects an unknown stable component without partial mutation"
+	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(&"UnknownComponent", 2.0, 1, 5),
+		&"invalid_component_id",
+		"repair rejects a malformed component identity before lookup"
+	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(WEAPON_ID, 1.0e-300, 1, 5),
+		&"no_component_effect",
+		"sub-ULP repair is rejected without consuming sequence, revision, health, or signals"
+	)
+	for invalid_repair in [NAN, INF, -INF, 0.0, -1.0]:
+		_check_repair_rejection_atomic(
+			model,
+			_repair_context(WEAPON_ID, invalid_repair, 1, 5),
+			&"invalid_repair",
+			"non-finite, zero, and negative repair is rejected atomically"
+		)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(WEAPON_ID, 2.0, 0, 5),
+		&"stale_generation",
+		"repair from an older generation is rejected atomically"
+	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(WEAPON_ID, 2.0, 2, 5),
+		&"stale_generation",
+		"repair from an unissued future generation is rejected atomically"
+	)
+	var extra := _repair_context(WEAPON_ID, 2.0, 1, 5)
+	extra["repair_rate"] = 0.62
+	_check_repair_rejection_atomic(
+		model,
+		extra,
+		&"invalid_context",
+		"repair rejects unknown policy fields rather than acquiring timing authority"
+	)
+	var missing := _repair_context(WEAPON_ID, 2.0, 1, 5)
+	missing.erase("repair")
+	_check_repair_rejection_atomic(
+		model,
+		missing,
+		&"invalid_context",
+		"repair rejects a context missing its amount"
+	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(WEAPON_ID, 2.0, 1, -1),
+		&"invalid_sequence",
+		"repair rejects a negative operation sequence"
+	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(
+			WEAPON_ID,
+			2.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER + 1
+		),
+		&"invalid_sequence",
+		"repair rejects an out-of-range sequence before the ledger is exhausted"
+	)
+	_check(
+		repair_events.is_empty() and stage_events.is_empty(),
+		"no rejected repair request emits a repair or stage signal"
+	)
+	var resumed := model.apply_component_repair(
+		_repair_context(WEAPON_ID, 2.0, 1, 5)
+	)
+	_check(
+		bool(resumed.accepted)
+			and model.get_last_operation_sequence() == 5
+			and repair_events.size() == 1,
+		"the rejected shared sequence remains available for one later valid repair"
+	)
+
+	var exhausted := _make_model()
+	exhausted.reset_for_reuse(0)
+	var final_safe := exhausted.apply_component_damage(
+		_damage_context(
+			ENGINE_ID,
+			10.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER
+		)
+	)
+	_check(
+		bool(final_safe.accepted)
+			and exhausted.get_last_operation_sequence()
+				== ComponentDamageModelType.MAX_SAFE_INTEGER,
+		"the maximum signed-safe sequence is the final accepted operation identity"
+	)
+	_check_repair_rejection_atomic(
+		exhausted,
+		_repair_context(
+			ENGINE_ID,
+			1.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER + 1
+		),
+		&"sequence_exhausted",
+		"repair fails closed once no newer signed-safe operation identity remains"
+	)
+	_check_rejection_atomic(
+		exhausted,
+		_damage_context(
+			ENGINE_ID,
+			1.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER + 1
+		),
+		&"sequence_exhausted",
+		"damage observes the same exhausted shared operation ledger"
+	)
+	_check_repair_rejection_atomic(
+		exhausted,
+		_repair_context(
+			ENGINE_ID,
+			1.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER
+		),
+		&"duplicate_sequence",
+		"retrying the final accepted identity remains a duplicate after exhaustion"
+	)
+
+
+func _test_reentrant_mutation_guard() -> void:
+	var model := _make_model()
+	var chronology: Array[StringName] = []
+	var reentrant_attempts: Array[Dictionary] = []
+	var attempt_reentrant_mutations: Callable = func(source: StringName) -> void:
+		var next_sequence := model.get_last_operation_sequence() + 1
+		var before_reset := model.get_snapshot()
+		var reset_result := model.reset_for_reuse(model.get_generation())
+		reentrant_attempts.append({
+			"source": source,
+			"mutation": &"reset",
+			"result": reset_result,
+			"unchanged": model.get_snapshot() == before_reset,
+		})
+		var before_damage := model.get_snapshot()
+		var damage_result := model.apply_component_damage(
+			_damage_context(ENGINE_ID, 1.0, model.get_generation(), next_sequence)
+		)
+		reentrant_attempts.append({
+			"source": source,
+			"mutation": &"damage",
+			"result": damage_result,
+			"unchanged": model.get_snapshot() == before_damage,
+		})
+		var before_repair := model.get_snapshot()
+		var repair_result := model.apply_component_repair(
+			_repair_context(ENGINE_ID, 1.0, model.get_generation(), next_sequence)
+		)
+		reentrant_attempts.append({
+			"source": source,
+			"mutation": &"repair",
+			"result": repair_result,
+			"unchanged": model.get_snapshot() == before_repair,
+		})
+
+	var reset_callback: Callable = func(_result: Dictionary) -> void:
+		chronology.append(&"reset")
+		attempt_reentrant_mutations.call(&"reset")
+	var stage_callback: Callable = func(_result: Dictionary) -> void:
+		chronology.append(&"stage")
+		attempt_reentrant_mutations.call(&"stage")
+	var damage_callback: Callable = func(_result: Dictionary) -> void:
+		chronology.append(&"damage")
+		attempt_reentrant_mutations.call(&"damage")
+	var repair_callback: Callable = func(_result: Dictionary) -> void:
+		chronology.append(&"repair")
+		attempt_reentrant_mutations.call(&"repair")
+	model.model_reset.connect(reset_callback)
+	model.component_stage_changed.connect(stage_callback)
+	model.component_damage_applied.connect(damage_callback)
+	model.component_repair_applied.connect(repair_callback)
+
+	var outer_reset := model.reset_for_reuse(0)
+	var outer_damage := model.apply_component_damage(
+		_damage_context(ENGINE_ID, 70.0, 1, 0)
+	)
+	var outer_repair := model.apply_component_repair(
+		_repair_context(ENGINE_ID, 50.0, 1, 1)
+	)
+	var all_reentrant := reentrant_attempts.size() == 15
+	for attempt in reentrant_attempts:
+		var result := attempt.get("result", {}) as Dictionary
+		all_reentrant = (
+			all_reentrant
+			and not bool(result.get("accepted", true))
+			and result.get("reason", &"") == &"reentrant_call"
+			and bool(attempt.get("unchanged", false))
+		)
+	_check(
+		all_reentrant,
+		"reset, stage, damage, and repair callbacks cannot nest any public mutation"
+	)
+	var expected_chronology: Array[StringName] = [
+		&"reset",
+		&"stage",
+		&"damage",
+		&"stage",
+		&"repair",
+	]
+	_check(
+		chronology == expected_chronology,
+		"outer commits publish the exact reset then stage-before-operation signal chronology"
+	)
+	_check(
+		bool(outer_reset.accepted)
+			and int(outer_reset.revision) == 1
+			and bool(outer_damage.accepted)
+			and is_equal_approx(float(outer_damage.current_health), 30.0)
+			and int(outer_damage.revision) == 2
+			and bool(outer_repair.accepted)
+			and is_equal_approx(float(outer_repair.current_health), 80.0)
+			and int(outer_repair.revision) == 3
+			and model.get_revision() == 3
+			and model.get_last_operation_sequence() == 1,
+		"hostile callbacks leave each outer result current and consume only its own commit"
+	)
+	model.model_reset.disconnect(reset_callback)
+	model.component_stage_changed.disconnect(stage_callback)
+	model.component_damage_applied.disconnect(damage_callback)
+	model.component_repair_applied.disconnect(repair_callback)
+
+
 func _test_generation_safe_reuse() -> void:
 	var model := _make_model()
 	model.reset_for_reuse(0)
@@ -355,6 +782,7 @@ func _test_generation_safe_reuse() -> void:
 	_check(
 		bool(reset.accepted)
 			and model.get_generation() == 2
+			and model.get_last_operation_sequence() == -1
 			and model.get_last_damage_sequence() == -1
 			and is_equal_approx(
 				float(model.get_component_state(ENGINE_ID).current_health), 100.0
@@ -367,6 +795,12 @@ func _test_generation_safe_reuse() -> void:
 		&"stale_generation",
 		"a delayed generation-one damage event cannot touch the reused component"
 	)
+	_check_repair_rejection_atomic(
+		model,
+		_repair_context(ENGINE_ID, 5.0, 1, 1),
+		&"stale_generation",
+		"a delayed generation-one repair event cannot touch the reused component"
+	)
 	var reused_sequence := model.apply_component_damage(
 		_damage_context(ENGINE_ID, 10.0, 2, 0)
 	)
@@ -374,6 +808,15 @@ func _test_generation_safe_reuse() -> void:
 		bool(reused_sequence.accepted)
 			and is_equal_approx(float(reused_sequence.current_health), 90.0),
 		"the same numeric sequence is valid once in the new physical generation"
+	)
+	var reused_repair := model.apply_component_repair(
+		_repair_context(ENGINE_ID, 5.0, 2, 1)
+	)
+	_check(
+		bool(reused_repair.accepted)
+			and is_equal_approx(float(reused_repair.current_health), 95.0)
+			and model.get_last_operation_sequence() == 1,
+		"the new generation composes damage then repair in one fresh operation order"
 	)
 	var before_duplicate_reset := model.get_snapshot()
 	var duplicate_reset := model.reset_for_reuse(1)
@@ -488,6 +931,7 @@ func _test_detached_snapshots_and_audit() -> void:
 	var model := _make_model()
 	model.reset_for_reuse(0)
 	model.apply_component_damage(_damage_context(ENGINE_ID, 30.0, 1, 0))
+	model.apply_component_repair(_repair_context(ENGINE_ID, 5.0, 1, 1))
 	var first := model.get_snapshot()
 	var second := model.get_snapshot()
 	_check(first == second, "unchanged model state produces deterministic equal snapshots")
@@ -501,12 +945,14 @@ func _test_detached_snapshots_and_audit() -> void:
 	var fresh := model.get_snapshot()
 	var fresh_components := fresh.get("components", []) as Array
 	_check(
-		is_equal_approx(float(fresh_components[0].current_health), 70.0)
+		is_equal_approx(float(fresh_components[0].current_health), 75.0)
 			and not bool((fresh_components[0].stage as Dictionary).disabled),
 		"nested component and stage snapshots are detached"
 	)
 	_check(
 		(fresh.get("component_order", []) as Array).size() == 2
+			and int(fresh.get("last_operation_sequence", -1)) == 1
+			and int(fresh.get("last_damage_sequence", -1)) == 1
 			and not bool((fresh.get("authority", {}) as Dictionary).gameplay)
 			and (fresh.get("evidence", {}) as Dictionary).status == &"new",
 		"order, authority, and evidence snapshots are detached"
@@ -518,10 +964,12 @@ func _test_detached_snapshots_and_audit() -> void:
 
 	var audit := model.get_audit_report()
 	_check(
-		bool(audit.valid)
+		_has_exact_keys(audit, AUDIT_KEYS)
+			and int(audit.schema_version) == MODEL_SCHEMA_VERSION
+			and bool(audit.valid)
 			and (audit.get("configuration_errors", PackedStringArray()) as PackedStringArray).is_empty()
 			and (audit.get("state", {}) as Dictionary) == fresh,
-		"the audit deterministically combines definition validation and current state"
+		"the exact versioned audit roster deterministically combines definition and state"
 	)
 	(audit.get("definition", {}) as Dictionary).clear()
 	(audit.get("state", {}) as Dictionary).clear()
@@ -556,10 +1004,12 @@ func _test_zero_authority_boundary() -> void:
 	var object_variant: Variant = model
 	_check(
 		not object_variant is Node
-			and not model.has_method("repair")
+			and model.has_method("apply_component_repair")
+			and not model.has_method("authorize_repair")
+			and not model.has_method("tick_repair")
 			and not model.has_method("apply_shield_damage")
 			and not model.has_method("spawn_debris"),
-		"the standalone contract has no scene, repair, shield, or debris lifecycle"
+		"the standalone repair mutation grants no scene, authorization, ticking, shield, or debris lifecycle"
 	)
 
 
@@ -581,6 +1031,20 @@ func _damage_context(
 	}
 
 
+func _repair_context(
+	component_id: StringName,
+	repair: float,
+	generation: int,
+	sequence: int
+	) -> Dictionary:
+	return {
+		"component_id": component_id,
+		"repair": repair,
+		"generation": generation,
+		"sequence": sequence,
+	}
+
+
 func _check_rejection_atomic(
 	model: ComponentDamageModel,
 	context: Dictionary,
@@ -589,6 +1053,22 @@ func _check_rejection_atomic(
 	) -> void:
 	var before := model.get_snapshot()
 	var result := model.apply_component_damage(context)
+	_check(
+		not bool(result.accepted)
+			and result.reason == expected_reason
+			and model.get_snapshot() == before,
+		description
+	)
+
+
+func _check_repair_rejection_atomic(
+	model: ComponentDamageModel,
+	context: Dictionary,
+	expected_reason: StringName,
+	description: String
+	) -> void:
+	var before := model.get_snapshot()
+	var result := model.apply_component_repair(context)
 	_check(
 		not bool(result.accepted)
 			and result.reason == expected_reason
@@ -619,6 +1099,15 @@ func _has_error(errors: PackedStringArray, fragment: String) -> bool:
 		if error.contains(fragment):
 			return true
 	return false
+
+
+func _has_exact_keys(dictionary: Dictionary, expected_keys: Array) -> bool:
+	if dictionary.size() != expected_keys.size():
+		return false
+	for key in expected_keys:
+		if not dictionary.has(key) and not dictionary.has(StringName(key)):
+			return false
+	return true
 
 
 func _check(condition: bool, description: String) -> void:

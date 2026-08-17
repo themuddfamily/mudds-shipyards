@@ -5,14 +5,16 @@ extends RefCounted
 ##
 ## This model snapshots authored component definitions, owns only its detached
 ## component-health ledger, and exposes data-only stage consequences. It does
-## not resolve combat, mutate a ship, enforce a consequence, repair damage,
-## create debris, present effects, or participate in any scene-tree lifecycle.
+## not resolve combat, mutate a ship, enforce a consequence, authorize or time
+## repairs, create debris, present effects, or participate in any scene-tree
+## lifecycle.
 
 signal component_damage_applied(result: Dictionary)
+signal component_repair_applied(result: Dictionary)
 signal component_stage_changed(result: Dictionary)
 signal model_reset(result: Dictionary)
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ID_LENGTH := 64
 const MAX_COMPONENTS := 64
@@ -36,6 +38,7 @@ const _STAGE_KEYS := [
 	"performance_multiplier",
 ]
 const _DAMAGE_CONTEXT_KEYS := ["component_id", "damage", "generation", "sequence"]
+const _REPAIR_CONTEXT_KEYS := ["component_id", "repair", "generation", "sequence"]
 
 var _definitions: Array[Dictionary] = []
 var _configuration_errors := PackedStringArray()
@@ -43,7 +46,15 @@ var _components: Dictionary = {}
 var _component_order: Array[StringName] = []
 var _generation := 0
 var _revision := 0
-var _last_damage_sequence := -1
+## Damage and repair share one total order inside a generation. The compatibility
+## damage getter/snapshot key below deliberately expose this same cursor: before
+## repair existed it was the damage sequence, and damage-only consumers retain
+## exactly that behavior.
+var _last_operation_sequence := -1
+## Public mutations and their synchronous signal dispatch form one indivisible
+## boundary. Signal callbacks may inspect detached state but cannot nest a
+## reset, damage, or repair commit ahead of the outer operation's final signal.
+var _mutation_dispatch_active := false
 
 
 func _init(component_definitions: Array = []) -> void:
@@ -68,8 +79,14 @@ func get_revision() -> int:
 	return _revision
 
 
+func get_last_operation_sequence() -> int:
+	return _last_operation_sequence
+
+
+## Compatibility alias for the original damage-only contract. Once repair is
+## used this is the shared damage-or-repair operation high-water mark.
 func get_last_damage_sequence() -> int:
-	return _last_damage_sequence
+	return _last_operation_sequence
 
 
 ## Starts the first generation or restores every component for reuse.
@@ -78,6 +95,8 @@ func get_last_damage_sequence() -> int:
 ## advances exactly once. Duplicate, stale, and exhausted requests are rejected
 ## without changing health, sequence history, revision, or signals.
 func reset_for_reuse(expected_generation: int) -> Dictionary:
+	if _mutation_dispatch_active:
+		return _result(false, &"reentrant_call")
 	if not is_configuration_valid():
 		return _result(false, &"invalid_configuration")
 	if expected_generation != _generation:
@@ -85,9 +104,10 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 	if _generation >= MAX_SAFE_INTEGER:
 		return _result(false, &"generation_exhausted")
 
+	_mutation_dispatch_active = true
 	_generation += 1
 	_revision += 1
-	_last_damage_sequence = -1
+	_last_operation_sequence = -1
 	_components.clear()
 	_component_order.clear()
 	for definition in _definitions:
@@ -106,6 +126,7 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 	var result := _result(true, &"reset")
 	result["component_count"] = _component_order.size()
 	model_reset.emit(result.duplicate(true))
+	_mutation_dispatch_active = false
 	return result
 
 
@@ -116,6 +137,8 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 ## and must increase monotonically. Rejections are atomic and never consume a
 ## sequence or emit a signal.
 func apply_component_damage(context: Dictionary) -> Dictionary:
+	if _mutation_dispatch_active:
+		return _result(false, &"reentrant_call")
 	var gate := _damage_rejection(context)
 	if not gate.is_empty():
 		return _result(false, gate)
@@ -139,9 +162,10 @@ func apply_component_damage(context: Dictionary) -> Dictionary:
 		float(component.get("maximum_health", 0.0)),
 		stages
 	)
+	_mutation_dispatch_active = true
 	component["current_health"] = after_health
 	component["stage_index"] = next_stage_index
-	_last_damage_sequence = sequence
+	_last_operation_sequence = sequence
 	_revision += 1
 
 	var result := _result(true, &"applied")
@@ -156,6 +180,62 @@ func apply_component_damage(context: Dictionary) -> Dictionary:
 	if bool(result.get("stage_changed", false)):
 		component_stage_changed.emit(result.duplicate(true))
 	component_damage_applied.emit(result.duplicate(true))
+	_mutation_dispatch_active = false
+	return result
+
+
+## Applies one caller-authorized component repair in the generation's shared
+## operation order.
+##
+## The exact context is `{component_id, repair, generation, sequence}`. This
+## object does not decide when repair is allowed or how much a caller should
+## request. Rejections are atomic and never consume the shared operation
+## sequence or emit a signal.
+func apply_component_repair(context: Dictionary) -> Dictionary:
+	if _mutation_dispatch_active:
+		return _result(false, &"reentrant_call")
+	var gate := _repair_rejection(context)
+	if not gate.is_empty():
+		return _result(false, gate)
+
+	var component_id := StringName(_field(context, "component_id", &""))
+	var requested_repair := float(_field(context, "repair", 0.0))
+	var sequence := int(_field(context, "sequence", -1))
+	var component := _components[component_id] as Dictionary
+	var before_health := float(component.get("current_health", 0.0))
+	var maximum_health := float(component.get("maximum_health", 0.0))
+	if before_health >= maximum_health:
+		return _result(false, &"no_component_effect")
+
+	var remaining_health := maximum_health - before_health
+	var applied_repair := minf(requested_repair, remaining_health)
+	var after_health := before_health + applied_repair
+	if applied_repair == remaining_health:
+		after_health = maximum_health
+	if not after_health > before_health:
+		return _result(false, &"no_component_effect")
+	var prior_stage_index := int(component.get("stage_index", -1))
+	var stages := component.get("damage_stages", []) as Array
+	var next_stage_index := _stage_index_for_health(after_health, maximum_health, stages)
+	_mutation_dispatch_active = true
+	component["current_health"] = after_health
+	component["stage_index"] = next_stage_index
+	_last_operation_sequence = sequence
+	_revision += 1
+
+	var result := _result(true, &"repaired")
+	result["component_id"] = component_id
+	result["requested_repair"] = requested_repair
+	result["applied_repair"] = applied_repair
+	result["previous_health"] = before_health
+	result["current_health"] = after_health
+	result["maximum_health"] = maximum_health
+	result["stage"] = _stage_snapshot(stages, next_stage_index)
+	result["stage_changed"] = next_stage_index != prior_stage_index
+	if bool(result.get("stage_changed", false)):
+		component_stage_changed.emit(result.duplicate(true))
+	component_repair_applied.emit(result.duplicate(true))
+	_mutation_dispatch_active = false
 	return result
 
 
@@ -199,7 +279,8 @@ func get_snapshot() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"generation": _generation,
 		"revision": _revision,
-		"last_damage_sequence": _last_damage_sequence,
+		"last_operation_sequence": _last_operation_sequence,
+		"last_damage_sequence": _last_operation_sequence,
 		"active": _generation > 0,
 		"component_order": _component_order.duplicate(),
 		"components": get_component_states(),
@@ -392,27 +473,53 @@ func _validate_stages(stages: Array) -> void:
 
 
 func _damage_rejection(context: Dictionary) -> StringName:
+	var common := _operation_rejection(context, _DAMAGE_CONTEXT_KEYS)
+	if not common.is_empty():
+		return common
+	var raw_damage: Variant = _field(context, "damage", null)
+	if not raw_damage is int and not raw_damage is float:
+		return &"invalid_damage"
+	var damage := float(raw_damage)
+	if not is_finite(damage) or damage <= 0.0:
+		return &"invalid_damage"
+	return &""
+
+
+func _repair_rejection(context: Dictionary) -> StringName:
+	var common := _operation_rejection(context, _REPAIR_CONTEXT_KEYS)
+	if not common.is_empty():
+		return common
+	var raw_repair: Variant = _field(context, "repair", null)
+	if not raw_repair is int and not raw_repair is float:
+		return &"invalid_repair"
+	var repair := float(raw_repair)
+	if not is_finite(repair) or repair <= 0.0:
+		return &"invalid_repair"
+	return &""
+
+
+func _operation_rejection(context: Dictionary, exact_keys: Array) -> StringName:
 	if not is_configuration_valid():
 		return &"invalid_configuration"
 	if _generation <= 0:
 		return &"inactive"
-	if not _has_exact_keys(context, _DAMAGE_CONTEXT_KEYS):
+	if not _has_exact_keys(context, exact_keys):
 		return &"invalid_context"
 	var raw_generation: Variant = _field(context, "generation", null)
 	if not raw_generation is int or int(raw_generation) != _generation:
 		return &"stale_generation"
 	var raw_sequence: Variant = _field(context, "sequence", null)
-	if (
-		not raw_sequence is int
-		or int(raw_sequence) < 0
-		or int(raw_sequence) > MAX_SAFE_INTEGER
-	):
+	if not raw_sequence is int or int(raw_sequence) < 0:
 		return &"invalid_sequence"
 	var sequence := int(raw_sequence)
-	if sequence == _last_damage_sequence:
+	if sequence == _last_operation_sequence:
 		return &"duplicate_sequence"
-	if sequence < _last_damage_sequence:
+	if sequence < _last_operation_sequence:
 		return &"stale_sequence"
+	if _last_operation_sequence >= MAX_SAFE_INTEGER:
+		return &"sequence_exhausted"
+	if sequence > MAX_SAFE_INTEGER:
+		return &"invalid_sequence"
 	var raw_component_id: Variant = _field(context, "component_id", null)
 	if not raw_component_id is String and not raw_component_id is StringName:
 		return &"invalid_component_id"
@@ -421,12 +528,6 @@ func _damage_rejection(context: Dictionary) -> StringName:
 		return &"invalid_component_id"
 	if not _components.has(component_id):
 		return &"unknown_component"
-	var raw_damage: Variant = _field(context, "damage", null)
-	if not raw_damage is int and not raw_damage is float:
-		return &"invalid_damage"
-	var damage := float(raw_damage)
-	if not is_finite(damage) or damage <= 0.0:
-		return &"invalid_damage"
 	return &""
 
 
@@ -453,7 +554,7 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 		"accepted": accepted,
 		"reason": reason,
 		"generation": _generation,
-		"sequence": _last_damage_sequence,
+		"sequence": _last_operation_sequence,
 		"revision": _revision,
 	}
 
