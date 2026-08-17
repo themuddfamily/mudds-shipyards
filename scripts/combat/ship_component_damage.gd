@@ -87,6 +87,12 @@ var _components: Dictionary = {}
 ## Bumped on every observable change so an owner can push presentation state
 ## without comparing dictionaries every physics frame.
 var _revision := 0
+## The owning Hero claims one opaque object identity after initial configuration.
+## This component retains only a weak comparison reference; the capability is
+## never published again and survives ordinary detach/re-entry with its owner.
+var _owner_mutation_capability: WeakRef
+var _owner_mutation_capability_claimed := false
+var _owner_mutation_transaction_active := false
 
 
 ## Builds the deterministic roster from a ship-local collision envelope.
@@ -96,6 +102,8 @@ var _revision := 0
 ## with the same envelope is idempotent and preserves current integrity, so a
 ## re-entered or re-measured ship never gains a duplicate roster.
 func configure(local_bounds: AABB, maximum_hull: float) -> bool:
+	if _owner_mutation_transaction_active:
+		return false
 	if not _is_usable_bounds(local_bounds) or not is_finite(maximum_hull) or maximum_hull <= 0.0:
 		return false
 	var layout := _derive_layout(local_bounds)
@@ -157,6 +165,9 @@ func record_damage(amount: float, local_hit_position: Vector3 = Vector3.INF) -> 
 		"revision": _revision,
 		"components": {},
 	}
+	if _owner_mutation_transaction_active:
+		report["reason"] = &"owner_transaction_active"
+		return report
 	if not _configured:
 		report["reason"] = &"not_configured"
 		return report
@@ -213,6 +224,9 @@ func tick_repair(delta: float, repairing: bool) -> Dictionary:
 		"repaired_components": 0,
 		"revision": _revision,
 	}
+	if _owner_mutation_transaction_active:
+		report["reason"] = &"owner_transaction_active"
+		return report
 	if not _configured:
 		report["reason"] = &"not_configured"
 		return report
@@ -248,6 +262,62 @@ func tick_repair(delta: float, repairing: bool) -> Dictionary:
 ## never held back by an in-progress repair. The name deliberately matches the
 ## lifecycle verb every other recyclable component in this project uses.
 func reset_for_reuse() -> void:
+	if _owner_mutation_transaction_active:
+		return
+	_reset_for_reuse_unchecked()
+
+
+## One-time owner claim. An opaque RefCounted identity is deliberately used
+## instead of an instance ID or integer token that a synchronous callback could
+## guess or reconstruct. Duplicate and pre-configuration claims fail closed.
+func claim_owner_mutation_capability() -> RefCounted:
+	if _owner_mutation_capability_claimed or not _configured:
+		return null
+	var capability := RefCounted.new()
+	_owner_mutation_capability = weakref(capability)
+	_owner_mutation_capability_claimed = true
+	return capability
+
+
+func is_owner_mutation_capability_current(capability: RefCounted) -> bool:
+	return _owner_mutation_capability_claimed \
+		and capability != null \
+		and is_instance_valid(capability) \
+		and _owner_mutation_capability != null \
+		and _owner_mutation_capability.get_ref() == capability
+
+
+## Starts the guard before Hero emits any reset-adjacent signal. Only the exact
+## one-time capability can start or end it; nested, stale, and foreign attempts
+## leave the current transaction untouched.
+func begin_owner_mutation_transaction(capability: RefCounted) -> bool:
+	if _owner_mutation_transaction_active \
+			or not is_owner_mutation_capability_current(capability):
+		return false
+	_owner_mutation_transaction_active = true
+	return true
+
+
+func end_owner_mutation_transaction(capability: RefCounted) -> bool:
+	if not _owner_mutation_transaction_active \
+			or not is_owner_mutation_capability_current(capability):
+		return false
+	_owner_mutation_transaction_active = false
+	return true
+
+
+## The sole mutation permitted while the owner guard is active. Capability and
+## active-transaction identity are checked before the first integrity change;
+## signal callbacks cannot reuse this path without the Hero-retained object.
+func reset_for_reuse_as_owner(capability: RefCounted) -> bool:
+	if not _owner_mutation_transaction_active \
+			or not is_owner_mutation_capability_current(capability):
+		return false
+	_reset_for_reuse_unchecked()
+	return true
+
+
+func _reset_for_reuse_unchecked() -> void:
 	if not _configured:
 		return
 	for component_id: StringName in COMPONENT_ORDER:

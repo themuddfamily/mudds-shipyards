@@ -328,6 +328,13 @@ var _landing_request_active := false
 var _active_landing_berth_id: StringName = &""
 var _recovering := false
 var _regeneration_pending: Dictionary = {}
+## Synchronous berth signals may call back into the coordinator. One ship may
+## own only one preflight/reserve/commit attempt at a time.
+var _regeneration_attempts_active: Dictionary = {}
+## Held only across the accepted ship commit. Reset signals may synchronously
+## reach ordinary landing/departure cleanup, but they cannot release the exact
+## lease that makes the regenerated physical hull safe to reveal.
+var _regeneration_lease_guarded_instance_ids: Dictionary = {}
 var _berth_tokens: Dictionary = {}
 var _reserved_berth_ids: Dictionary = {}
 var _last_player_shot_result: Dictionary = {}
@@ -4448,35 +4455,120 @@ func _update_pending_regeneration(delta: float) -> void:
 		var ready_at_msec := int(entry.get("ready_at_msec", 0))
 		if Time.get_ticks_msec() < ready_at_msec:
 			continue
-		var berth_id := pending_ship.get_home_berth_id()
-		var berth_transform: Transform3D = world.call("get_ship_spawn") as Transform3D
-		var has_registered_berth: bool = (
-			world.has_method("has_berth")
-			and world.call("has_berth", berth_id)
-		)
-		if has_registered_berth:
-			berth_transform = world.call("get_berth_transform", berth_id) as Transform3D
-			# Acquire and occupy the physical pad before making the hull visible or
-			# collidable. An occupied home pad keeps the hull safely despawned and
-			# schedules one bounded retry without allocating a timer/coroutine.
-			if not _reserve_berth_for_ship(pending_ship, berth_id, true):
-				hud.toast(
-					"Regeneration holding",
-					"%s is waiting for its home berth" % pending_ship.get_display_name(),
-					2.0
-				)
-				entry["ready_at_msec"] = Time.get_ticks_msec() + 2000
-				_regeneration_pending[instance_id] = entry
-				continue
-		pending_ship.reset_for_reuse(berth_transform)
-		if not has_registered_berth:
-			_reserve_berth_for_ship(pending_ship, berth_id, true)
-		hud.toast(
-			"Berth regeneration complete",
-			"%s is available again" % pending_ship.get_display_name(),
-			2.2
-		)
-		_regeneration_pending.erase(instance_id)
+		if _regeneration_attempts_active.has(instance_id):
+			continue
+		_regeneration_attempts_active[instance_id] = true
+		_attempt_pending_regeneration(instance_id, entry, pending_ship)
+		_regeneration_attempts_active.erase(instance_id)
+
+
+func _attempt_pending_regeneration(
+	instance_id: int,
+	entry: Dictionary,
+	pending_ship: HeroShip
+) -> void:
+	var berth_id := pending_ship.get_home_berth_id()
+	var berth_transform: Transform3D = world.call("get_ship_spawn") as Transform3D
+	var has_registered_berth: bool = (
+		world.has_method("has_berth")
+		and world.call("has_berth", berth_id)
+	)
+	if has_registered_berth:
+		berth_transform = world.call("get_berth_transform", berth_id) as Transform3D
+
+	# Reset rejection must precede every lease mutation and synchronous berth
+	# signal. The ship privately retains the accepted transform/currentness proof.
+	var preflight := pending_ship.preflight_reset_for_reuse(berth_transform)
+	if not bool(preflight.get("accepted", false)):
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+
+	# Acquire and occupy before restoring a visible/collidable hull. Calling the
+	# same helper for the legacy unregistered fallback is harmless (it has no
+	# physical berth) and removes the old reset-before-reservation split.
+	if not _reserve_berth_for_ship(pending_ship, berth_id, true):
+		pending_ship.cancel_reset_for_reuse(preflight)
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+	if has_registered_berth and not _ship_owns_exact_occupied_berth(pending_ship, berth_id):
+		_release_ship_berth(pending_ship)
+		pending_ship.cancel_reset_for_reuse(preflight)
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+	if not _pending_regeneration_is_current(instance_id, pending_ship):
+		_release_ship_berth(pending_ship)
+		pending_ship.cancel_reset_for_reuse(preflight)
+		return
+
+	_regeneration_lease_guarded_instance_ids[instance_id] = true
+	var committed := pending_ship.commit_reset_for_reuse(preflight)
+	_regeneration_lease_guarded_instance_ids.erase(instance_id)
+	if not bool(committed.get("accepted", false)):
+		# Commit revalidates before its first mutation. A red result therefore leaves
+		# the destroyed craft intact; release only this attempt's lease and retry.
+		_release_ship_berth(pending_ship)
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+	# Synchronous reset listeners run before commit returns. Re-prove both the
+	# process-owned pending identity and the exact physical lease before claiming
+	# success; neither toast nor pending retirement is allowed on a stale result.
+	if not _pending_regeneration_entry_matches(instance_id, pending_ship) \
+			or (has_registered_berth \
+			and not _ship_owns_exact_occupied_berth(pending_ship, berth_id)):
+		_release_ship_berth(pending_ship)
+		return
+	hud.toast(
+		"Berth regeneration complete",
+		"%s is available again" % pending_ship.get_display_name(),
+		2.2
+	)
+	_regeneration_pending.erase(instance_id)
+
+
+func _hold_pending_regeneration(
+	instance_id: int,
+	entry: Dictionary,
+	pending_ship: HeroShip
+) -> void:
+	if not _pending_regeneration_is_current(instance_id, pending_ship):
+		return
+	hud.toast(
+		"Regeneration holding",
+		"%s is waiting for its home berth" % pending_ship.get_display_name(),
+		2.0
+	)
+	entry["ready_at_msec"] = Time.get_ticks_msec() + 2000
+	_regeneration_pending[instance_id] = entry
+
+
+func _pending_regeneration_is_current(instance_id: int, pending_ship: HeroShip) -> bool:
+	if not is_instance_valid(pending_ship) or not pending_ship.is_destroyed():
+		return false
+	return _pending_regeneration_entry_matches(instance_id, pending_ship)
+
+
+func _pending_regeneration_entry_matches(instance_id: int, pending_ship: HeroShip) -> bool:
+	var current := _regeneration_pending.get(instance_id, {}) as Dictionary
+	var ship_reference := current.get("ship") as WeakRef
+	return ship_reference != null \
+		and is_instance_valid(ship_reference.get_ref()) \
+		and ship_reference.get_ref() == pending_ship
+
+
+func _ship_owns_exact_occupied_berth(candidate: HeroShip, berth_id: StringName) -> bool:
+	var instance_id := candidate.get_instance_id()
+	if not _berth_tokens.has(instance_id) \
+			or not _reserved_berth_ids.has(instance_id) \
+			or StringName(_reserved_berth_ids.get(instance_id, &"")) != berth_id \
+			or not world.has_method("get_berth_node"):
+		return false
+	var berth := world.call("get_berth_node", berth_id) as ShipBerth
+	if berth == null:
+		return false
+	var token := StringName(_berth_tokens.get(instance_id, &""))
+	return not token.is_empty() \
+		and berth.has_valid_lease(candidate, token, candidate.get_ship_id()) \
+		and berth.get_occupant() == candidate
 
 
 func _can_ship_use_berth(candidate: HeroShip, berth_id: StringName) -> bool:
@@ -4547,6 +4639,8 @@ func _release_ship_berth(candidate: HeroShip) -> void:
 	if not is_instance_valid(candidate):
 		return
 	var instance_id := candidate.get_instance_id()
+	if _regeneration_lease_guarded_instance_ids.has(instance_id):
+		return
 	if not _berth_tokens.has(instance_id) or not _reserved_berth_ids.has(instance_id):
 		return
 	if world.has_method("get_berth_node"):

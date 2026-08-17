@@ -30,6 +30,10 @@ const REPAIR_STEP_BUDGET := 120
 var _failures: Array[String] = []
 var _state_events: Array[Dictionary] = []
 var _restore_events := 0
+var _owner_guard_model: ShipComponentDamage
+var _owner_guard_foreign_capability: RefCounted
+var _owner_guard_events := PackedStringArray()
+var _owner_guard_attacks: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -41,6 +45,7 @@ func _run() -> void:
 	_test_invalid_configuration()
 	_test_unconfigured_model_fails_closed()
 	_test_duplicate_configuration()
+	_test_owner_mutation_transaction()
 	_test_attribution()
 	_test_state_boundaries()
 	_test_invalid_damage()
@@ -196,6 +201,123 @@ func _test_duplicate_configuration() -> void:
 		"re-configuration advances the revision so an owner republishes presentation once"
 	)
 	model.free()
+
+
+func _test_owner_mutation_transaction() -> void:
+	var model := _make_model()
+	var foreign_model := _make_model()
+	var abandoned_model := _make_model()
+	var capability := model.claim_owner_mutation_capability()
+	var foreign_capability := foreign_model.claim_owner_mutation_capability()
+	var abandoned_capability := abandoned_model.claim_owner_mutation_capability()
+	var abandoned_weak: WeakRef = weakref(abandoned_capability)
+	abandoned_capability = null
+	_check(
+		capability != null
+		and model.is_owner_mutation_capability_current(capability)
+		and model.claim_owner_mutation_capability() == null,
+		"one opaque owner capability is claimed once after configuration"
+	)
+	_check(
+		foreign_capability != null
+		and not model.is_owner_mutation_capability_current(foreign_capability)
+		and not model.begin_owner_mutation_transaction(foreign_capability),
+		"a capability issued by another component cannot start this model's transaction"
+	)
+	_check(
+		abandoned_weak.get_ref() == null
+		and abandoned_model.claim_owner_mutation_capability() == null
+		and not abandoned_model.is_owner_mutation_capability_current(null),
+		"an abandoned owner capability becomes stale and can never be reissued"
+	)
+
+	model.record_damage(80.0, _component_position(
+		model, ShipComponentDamageType.COMPONENT_FORWARD_HULL
+	))
+	var revision_before := model.get_revision()
+	var bounds_before := model.get_component_report().get("local_bounds", AABB()) as AABB
+	_check(
+		model.begin_owner_mutation_transaction(capability)
+		and not model.begin_owner_mutation_transaction(capability),
+		"the exact owner opens one non-nestable transaction"
+	)
+
+	root.add_child(model)
+	root.remove_child(model)
+	root.add_child(model)
+	_check(
+		model.is_owner_mutation_capability_current(capability),
+		"detach and re-entry preserve the exact owner capability identity"
+	)
+
+	var blocked_damage := model.record_damage(4.0, Vector3.INF)
+	var blocked_repair := model.tick_repair(SIMULATION_STEP, true)
+	model.reset_for_reuse()
+	_check(
+		not model.configure(SHIP_BOUNDS, MAXIMUM_HULL)
+		and not bool(blocked_damage.accepted)
+		and blocked_damage.reason == &"owner_transaction_active"
+		and not bool(blocked_repair.accepted)
+		and blocked_repair.reason == &"owner_transaction_active"
+		and model.get_revision() == revision_before,
+		"every legacy component mutator is atomic while the owner transaction is active"
+	)
+
+	_owner_guard_model = model
+	_owner_guard_foreign_capability = foreign_capability
+	_owner_guard_events.clear()
+	_owner_guard_attacks.clear()
+	model.component_state_changed.connect(_attack_owner_guard_from_state_signal)
+	model.components_restored.connect(_attack_owner_guard_from_restore_signal)
+	_check(
+		model.reset_for_reuse_as_owner(capability),
+		"the exact owner capability can perform the sole guarded roster reset"
+	)
+	_check(
+		model.get_revision() == revision_before + 1
+		and is_equal_approx(model.get_worst_integrity(), 1.0)
+		and (model.get_component_report().get("local_bounds", AABB()) as AABB) == bounds_before,
+		"owner reset preserves geometry and advances exactly one restoration revision"
+	)
+	var attacks_rejected := not _owner_guard_attacks.is_empty()
+	for attack in _owner_guard_attacks:
+		attacks_rejected = attacks_rejected \
+			and not bool(attack.configure_accepted) \
+			and attack.damage_reason == &"owner_transaction_active" \
+			and attack.repair_reason == &"owner_transaction_active" \
+			and not bool(attack.duplicate_claimed) \
+			and not bool(attack.foreign_end_accepted) \
+			and not bool(attack.foreign_reset_accepted) \
+			and int(attack.revision_after) == int(attack.revision_before)
+	_check(
+		attacks_rejected,
+		"state and restore callbacks cannot mutate the roster or end the owner's guard"
+	)
+	_check(
+		not _owner_guard_events.is_empty()
+		and _owner_guard_events[-1] == &"restored"
+		and _owner_guard_events.find(&"state") >= 0,
+		"guarded reset preserves component-state-before-restored signal chronology"
+	)
+	_check(
+		not model.end_owner_mutation_transaction(foreign_capability)
+		and model.record_damage(2.0, Vector3.INF).reason == &"owner_transaction_active"
+		and model.end_owner_mutation_transaction(capability)
+		and not model.end_owner_mutation_transaction(capability),
+		"only the current owner closes the guard, exactly once"
+	)
+	_check(
+		bool(model.record_damage(2.0, Vector3.INF).accepted),
+		"legacy public mutations resume with their original outcome after owner commit"
+	)
+	model.component_state_changed.disconnect(_attack_owner_guard_from_state_signal)
+	model.components_restored.disconnect(_attack_owner_guard_from_restore_signal)
+	_owner_guard_model = null
+	_owner_guard_foreign_capability = null
+	root.remove_child(model)
+	model.free()
+	foreign_model.free()
+	abandoned_model.free()
 
 
 # ------------------------------------------------------------ attribution --
@@ -725,6 +847,42 @@ func _record_state_event(component_id: StringName, state: int, integrity: float)
 
 func _record_restore() -> void:
 	_restore_events += 1
+
+
+func _attack_owner_guard_from_state_signal(
+	_component_id: StringName,
+	_state: int,
+	_integrity: float
+) -> void:
+	_owner_guard_events.append(&"state")
+	_attack_owner_guard()
+
+
+func _attack_owner_guard_from_restore_signal() -> void:
+	_owner_guard_events.append(&"restored")
+	_attack_owner_guard()
+
+
+func _attack_owner_guard() -> void:
+	var revision_before := _owner_guard_model.get_revision()
+	var configure_accepted := _owner_guard_model.configure(SHIP_BOUNDS, MAXIMUM_HULL)
+	var damage := _owner_guard_model.record_damage(3.0, Vector3.INF)
+	var repair := _owner_guard_model.tick_repair(SIMULATION_STEP, true)
+	_owner_guard_model.reset_for_reuse()
+	_owner_guard_attacks.append({
+		"configure_accepted": configure_accepted,
+		"damage_reason": damage.reason,
+		"repair_reason": repair.reason,
+		"duplicate_claimed": _owner_guard_model.claim_owner_mutation_capability() != null,
+		"foreign_end_accepted": _owner_guard_model.end_owner_mutation_transaction(
+			_owner_guard_foreign_capability
+		),
+		"foreign_reset_accepted": _owner_guard_model.reset_for_reuse_as_owner(
+			_owner_guard_foreign_capability
+		),
+		"revision_before": revision_before,
+		"revision_after": _owner_guard_model.get_revision(),
+	})
 
 
 func _check(condition: bool, description: String) -> void:

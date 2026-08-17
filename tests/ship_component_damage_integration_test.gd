@@ -248,7 +248,7 @@ func _test_fleet_reset_geometry_stability() -> void:
 		var model_id := craft.get_component_damage().get_instance_id()
 		var before_revision := int(craft.get_component_damage_report().get("revision", -1))
 		var spawn_transform := craft.global_transform
-		craft.reset_for_reuse(spawn_transform)
+		var reset_result := craft.reset_for_reuse(spawn_transform)
 		var reset_report := craft.get_component_damage_report()
 		var reset_geometry := _component_geometry_snapshot(reset_report)
 		var reset_revision := int(reset_report.get("revision", -1))
@@ -257,7 +257,11 @@ func _test_fleet_reset_geometry_stability() -> void:
 		)
 		var post_capture_report := craft.get_component_damage_report()
 		var expected_capture := craft_name != "TorrentInterceptor"
-		if reset_geometry == _initial_fleet_geometry.get(craft_name, {}) \
+		if bool(reset_result.get("accepted", false)) \
+			and reset_result.get("reason") == &"reset_committed" \
+			and int(reset_result.get("component_instance_id", 0)) == model_id \
+			and int(reset_result.get("component_revision", -1)) == before_revision \
+			and reset_geometry == _initial_fleet_geometry.get(craft_name, {}) \
 			and _component_geometry_snapshot(post_capture_report) == reset_geometry \
 			and reset_revision == before_revision + 1 \
 			and int(post_capture_report.get("revision", -2)) == reset_revision \

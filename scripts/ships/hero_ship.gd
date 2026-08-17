@@ -42,6 +42,21 @@ const PLANETARY_CRUISE_MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_SPEED_METERS_PER_SECOND := 100_000.0
 const PLANETARY_CRUISE_MAX_ACCELERATION_METERS_PER_SECOND_SQUARED := 10_000.0
 const PLANETARY_CRUISE_DIRECTION_EPSILON := 0.00001
+const RESET_FOR_REUSE_SCHEMA_VERSION := 1
+const RESET_FOR_REUSE_MAX_SAFE_RECEIPT_ID := 9_007_199_254_740_991
+const RESET_FOR_REUSE_RESULT_KEYS := [
+	"schema_version",
+	"accepted",
+	"reason",
+	"phase",
+	"receipt_id",
+	"ship_instance_id",
+	"spawn_transform",
+	"destruction_serial",
+	"component_instance_id",
+	"component_revision",
+	"planetary_cruise_attachment_generation",
+]
 const PLANETARY_CRUISE_STATE_INACTIVE: StringName = &"inactive"
 const PLANETARY_CRUISE_STATE_ACCELERATING: StringName = &"accelerating"
 const PLANETARY_CRUISE_STATE_CRUISING: StringName = &"cruising"
@@ -296,6 +311,10 @@ var _damage_presentation: HeroDamagePresentation
 ## Observational component model. It never owns hull; see
 ## `scripts/combat/ship_component_damage.gd` for the authority boundary.
 var _component_damage: ShipComponentDamage
+## Opaque one-time identity claimed after initial component configuration. It is
+## never returned by Hero, so synchronous reset callbacks cannot forge the sole
+## component mutation permitted while the whole-ship transaction is guarded.
+var _component_damage_owner_capability: RefCounted
 var _last_component_damage_revision := -1
 ## Fleet variants replace the temporary common root collision only after the
 ## base `_ready()` returns. This one-shot gate lets that same initial ready pass
@@ -304,6 +323,12 @@ var _last_component_damage_revision := -1
 var _component_damage_final_collision_capture_open := false
 var _component_damage_final_collision_capture_attempted := false
 var _component_damage_final_collision_capture_accepted := false
+## One accepted preflight privately owns its dependency snapshot until exact
+## commit or cancellation. Receipt IDs are process-session monotonic and never
+## rewound by reuse or tree detach/re-entry.
+var _next_reset_for_reuse_receipt_id := 1
+var _pending_reset_for_reuse: Dictionary = {}
+var _reset_for_reuse_dispatch_active := false
 var _command_source: ShipCommandSource
 var _default_local_command_source: LocalShipInputSource
 var _last_ship_command: ShipCommand = ShipCommandType.neutral()
@@ -398,6 +423,10 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Production holds a preflight for one synchronous GameFlow call. Freezing the
+	# body also makes a deliberately delayed external transaction deterministic.
+	if _reset_for_reuse_mutation_blocked():
+		return
 	_elapsed += delta
 	_weapon_timer = maxf(0.0, _weapon_timer - delta)
 	_impact_cooldown_remaining = maxf(0.0, _impact_cooldown_remaining - delta)
@@ -441,6 +470,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if not _piloted:
 		return
 	if event.is_action_pressed("pause"):
@@ -472,6 +503,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Enables or suspends flight controls and whichever ship camera was selected.
 func set_piloted(piloted: bool) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	_ensure_command_source()
 	_invalidate_command_delivery(_command_source)
 	if _piloted != piloted:
@@ -500,6 +533,8 @@ func set_piloted(piloted: bool) -> void:
 ## real `_unhandled_input()` events are forwarded to the current source, so the
 ## ship never maintains a second accumulator or consumes one event twice.
 func apply_look_motion(relative: Vector2) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if _piloted and not _landing_active:
 		_queue_look_motion(relative)
 
@@ -511,6 +546,8 @@ func apply_look_motion(relative: Vector2) -> void:
 ## begin above the newest epoch this ship has consumed. Merely swapping Node
 ## instances never makes an older captured command current again.
 func set_command_source(source: ShipCommandSource) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	var outgoing_source := _command_source
 	_invalidate_command_delivery(outgoing_source)
 	if source == null:
@@ -548,6 +585,8 @@ func get_last_ship_command() -> ShipCommand:
 ## InputEventAction compatibility path, which samples immediately instead of
 ## waiting for the next physics callback. Held flight state is never applied here.
 func consume_sampled_camera_edges(command: ShipCommand) -> bool:
+	if _reset_for_reuse_mutation_blocked():
+		return false
 	if not _piloted or not _claim_camera_command(command):
 		return false
 	var camera_changed := false
@@ -751,6 +790,8 @@ func _rebase_command_source_above_ship_cursor(source: ShipCommandSource) -> void
 ## Selects the physical first-person cockpit or the collision-safe chase rig.
 ## The preference persists across disembarking so the next boarding restores it.
 func set_cockpit_view(enabled: bool) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if _cockpit_view == enabled:
 		return
 	_cockpit_view = enabled
@@ -783,6 +824,8 @@ func get_camera_view() -> StringName:
 
 ## Sets the desired unobstructed chase distance; the visible rig eases toward it.
 func set_chase_camera_distance(distance: float) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	_target_chase_camera_distance = _clamp_chase_camera_distance(distance)
 
 
@@ -810,6 +853,8 @@ func get_current_chase_camera_rotation_lag_degrees() -> float:
 ## Internal lifecycle/AI compatibility seam; local player input never calls it.
 ## Begins the deliberate legacy start sequence and releases a docked latch.
 func request_engine_start() -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if _engine_state != ENGINE_OFFLINE or _hull <= 0.0 or _destroyed:
 		return
 	_docked_latch = false
@@ -825,6 +870,8 @@ func request_engine_start() -> void:
 ## Internal lifecycle/AI/test compatibility seam; it is not a player control.
 ## Stops thrust immediately. Shutdown is accepted at any time for safety.
 func request_engine_stop(play_transition_cue: bool = true) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if _engine_state == ENGINE_OFFLINE:
 		return
 	_engine_state = ENGINE_OFFLINE
@@ -842,6 +889,8 @@ func request_engine_stop(play_transition_cue: bool = true) -> void:
 ## Transform3D preserves side-berth orientation; Vector3 remains accepted for
 ## compatibility with the original central-pad API and older tests.
 func request_landing(target: Variant) -> bool:
+	if _reset_for_reuse_mutation_blocked():
+		return false
 	if _engine_state != ENGINE_ONLINE or _landing_active or _destroyed:
 		return false
 	var target_transform := Transform3D.IDENTITY
@@ -873,6 +922,8 @@ func request_landing(target: Variant) -> bool:
 ## for legacy callers; it is deliberately not allowed to veto a berth-approved
 ## accessibility capture.
 func request_berth_landing(berth: ShipBerth) -> bool:
+	if _reset_for_reuse_mutation_blocked():
+		return false
 	if _landing_active or _destroyed:
 		return false
 	if berth == null or not is_instance_valid(berth) or not berth.is_inside_tree():
@@ -1062,7 +1113,8 @@ func attach_planetary_cruise_controller(
 	controller_instance_id: int,
 	expected_attachment_generation: int
 ) -> Dictionary:
-	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
 		return _planetary_cruise_receipt(false, &"reentrant_call")
 	if not _planetary_cruise_body_is_live():
 		return _planetary_cruise_receipt(false, &"ship_unavailable")
@@ -1102,7 +1154,8 @@ func build_planetary_cruise_clearance_proof(
 	expected_attachment_generation: int,
 	controller_instance_id: int
 ) -> Dictionary:
-	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
 		return _planetary_cruise_clearance_receipt(
 			false,
 			&"reentrant_call",
@@ -1286,7 +1339,8 @@ func build_planetary_cruise_clearance_proof(
 ## not move the body or alter velocity; it only transfers detached intent into
 ## the body that already owns physics integration.
 func submit_planetary_cruise_envelope(envelope: Dictionary) -> Dictionary:
-	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
 		return _planetary_cruise_receipt(false, &"reentrant_call")
 	var validation_reason := _validate_planetary_cruise_envelope(envelope)
 	if not validation_reason.is_empty():
@@ -1307,7 +1361,8 @@ func disengage_planetary_cruise(
 	expected_attachment_generation: int,
 	brake_to_stop: bool = true
 ) -> Dictionary:
-	if _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
 		return _planetary_cruise_receipt(false, &"reentrant_call")
 	if controller_instance_id != _planetary_cruise_controller_instance_id:
 		return _planetary_cruise_receipt(false, &"controller_identity_mismatch")
@@ -1424,6 +1479,14 @@ func get_boarding_entry_transform() -> Transform3D:
 
 ## Opens or closes the complete framed canopy around its physical aft hinge.
 func set_canopy_open(open: bool, duration: float = 0.65) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
+	_set_canopy_open_unchecked(open, duration)
+
+
+## Reset owns a private path because its dispatch guard must reject a hostile
+## callback without blocking the transaction's own authored canopy restoration.
+func _set_canopy_open_unchecked(open: bool, duration: float) -> void:
 	_canopy_open = open
 	_canopy_motion_serial += 1
 	var motion_serial := _canopy_motion_serial
@@ -1472,6 +1535,8 @@ func get_camera() -> Camera3D:
 ## Applies one FOV to both aiming rigs so the reticle and current view remain
 ## consistent when the player changes the camera setting mid-flight.
 func set_camera_fov(field_of_view: float) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	var safe_fov := clampf(field_of_view, 55.0, 110.0)
 	if _camera != null:
 		_camera.fov = safe_fov
@@ -1554,10 +1619,139 @@ func is_piloted() -> bool:
 	return _piloted
 
 
-## Restores the same physical ship instance at a berth after destruction. This
-## is deliberately explicit so activities, future networking, and tests own the
-## respawn timing instead of the presentation component silently resurrecting.
-func reset_for_reuse(spawn_transform: Transform3D) -> void:
+## Validates and reserves one exact reuse operation without changing gameplay,
+## presentation, component, landing, cruise, or variant state. The returned
+## dictionary is a detached capability report; commit uses the private snapshot,
+## never caller-owned fields such as `spawn_transform`.
+func preflight_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
+	if _reset_for_reuse_dispatch_active:
+		return _reset_for_reuse_result(false, &"reentrant_call", &"preflight", {}, spawn_transform)
+	if not _pending_reset_for_reuse.is_empty():
+		return _reset_for_reuse_result(false, &"reset_pending", &"preflight", {}, spawn_transform)
+	if _next_reset_for_reuse_receipt_id > RESET_FOR_REUSE_MAX_SAFE_RECEIPT_ID:
+		return _reset_for_reuse_result(false, &"receipt_exhausted", &"preflight", {}, spawn_transform)
+	if not _reset_for_reuse_transform_is_finite(spawn_transform):
+		return _reset_for_reuse_result(false, &"invalid_spawn_transform", &"preflight", {}, spawn_transform)
+	if not is_finite(maximum_hull) or maximum_hull <= 0.0:
+		return _reset_for_reuse_result(false, &"invalid_maximum_hull", &"preflight", {}, spawn_transform)
+	if _component_damage == null \
+			or not is_instance_valid(_component_damage) \
+			or not _component_damage.is_configured():
+		return _reset_for_reuse_result(false, &"component_unavailable", &"preflight", {}, spawn_transform)
+	if not _component_damage.is_owner_mutation_capability_current(
+		_component_damage_owner_capability
+	):
+		return _reset_for_reuse_result(
+			false,
+			&"component_owner_unavailable",
+			&"preflight",
+			{},
+			spawn_transform
+		)
+
+	_reset_for_reuse_dispatch_active = true
+	var variant_preflight := _preflight_variant_reset_for_reuse(spawn_transform)
+	if not bool(variant_preflight.get("accepted", false)):
+		var variant_reason := StringName(variant_preflight.get("reason", &"variant_rejected"))
+		if variant_reason.is_empty():
+			variant_reason = &"variant_rejected"
+		var rejected := _reset_for_reuse_result(
+			false,
+			variant_reason,
+			&"preflight",
+			{},
+			spawn_transform
+		)
+		_reset_for_reuse_dispatch_active = false
+		return rejected
+
+	var component_report := _component_damage.get_component_report()
+	var receipt_id := _next_reset_for_reuse_receipt_id
+	_next_reset_for_reuse_receipt_id += 1
+	_pending_reset_for_reuse = {
+		"receipt_id": receipt_id,
+		"ship_instance_id": get_instance_id(),
+		"spawn_transform": spawn_transform,
+		"destruction_serial": _destruction_serial,
+		"component_instance_id": _component_damage.get_instance_id(),
+		"component_revision": _component_damage.get_revision(),
+		"component_owner_capability_instance_id": (
+			_component_damage_owner_capability.get_instance_id()
+			if is_instance_valid(_component_damage_owner_capability)
+			else 0
+		),
+		"component_configured": _component_damage.is_configured(),
+		"component_maximum_hull": float(component_report.get("maximum_hull", 0.0)),
+		"component_local_bounds": component_report.get("local_bounds", AABB()) as AABB,
+		"maximum_hull": maximum_hull,
+		"hull": _hull,
+		"destroyed": _destroyed,
+		"piloted": _piloted,
+		"engine_state": _engine_state,
+		"landing_active": _landing_active,
+		"global_transform": global_transform,
+		"inside_tree": is_inside_tree(),
+		"damage_presentation_instance_id": (
+			_damage_presentation.get_instance_id()
+			if is_instance_valid(_damage_presentation)
+			else 0
+		),
+		"planetary_cruise_attachment_generation": _planetary_cruise_attachment_generation,
+	}.duplicate(true)
+	var accepted := _reset_for_reuse_result(
+		true,
+		&"preflight_ready",
+		&"preflight",
+		_pending_reset_for_reuse
+	)
+	_reset_for_reuse_dispatch_active = false
+	return accepted
+
+
+## Commits the exact pending receipt. Every possible rejection is decided before
+## the first mutation; once currentness passes, the existing accepted reset and
+## signal chronology runs under one guard and the deterministic variant hook is
+## the final step before the receipt is retired.
+func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
+	if _reset_for_reuse_dispatch_active:
+		return _reset_for_reuse_result(false, &"reentrant_call", &"commit")
+	if _pending_reset_for_reuse.is_empty():
+		return _reset_for_reuse_result(false, &"no_pending_reset", &"commit")
+	if not _reset_for_reuse_receipt_matches(receipt, _pending_reset_for_reuse):
+		return _reset_for_reuse_result(false, &"receipt_identity_mismatch", &"commit")
+
+	_reset_for_reuse_dispatch_active = true
+	var context := _pending_reset_for_reuse.duplicate(true)
+	if not _reset_for_reuse_dependencies_are_current(context):
+		_pending_reset_for_reuse.clear()
+		var stale := _reset_for_reuse_result(false, &"dependency_changed", &"commit", context)
+		_reset_for_reuse_dispatch_active = false
+		return stale
+	var variant_preflight := _preflight_variant_reset_for_reuse(
+		context.get("spawn_transform", Transform3D.IDENTITY) as Transform3D
+	)
+	if not bool(variant_preflight.get("accepted", false)):
+		_pending_reset_for_reuse.clear()
+		var variant_reason := StringName(variant_preflight.get("reason", &"variant_rejected"))
+		if variant_reason.is_empty():
+			variant_reason = &"variant_rejected"
+		var rejected := _reset_for_reuse_result(false, variant_reason, &"commit", context)
+		_reset_for_reuse_dispatch_active = false
+		return rejected
+	if not _component_damage.begin_owner_mutation_transaction(
+		_component_damage_owner_capability
+	):
+		_pending_reset_for_reuse.clear()
+		var unavailable := _reset_for_reuse_result(
+			false,
+			&"component_transaction_unavailable",
+			&"commit",
+			context
+		)
+		_reset_for_reuse_dispatch_active = false
+		return unavailable
+
+	var spawn_transform := context.get("spawn_transform", Transform3D.IDENTITY) as Transform3D
 	_destruction_serial += 1
 	_retire_planetary_cruise(&"reset_for_reuse", true)
 	_end_landing_for_lifecycle(&"reset_for_reuse")
@@ -1608,17 +1802,167 @@ func reset_for_reuse(spawn_transform: Transform3D) -> void:
 		_visual_root.rotation = Vector3.ZERO
 	_sync_engine_visuals_immediately()
 	_snap_chase_camera_response()
-	set_canopy_open(false, 0.0)
+	_set_canopy_open_unchecked(false, 0.0)
 	if _damage_presentation != null:
 		_damage_presentation.reset_for_reuse(1.0, HeroDamagePresentation.STATE_POWERED_DOWN)
 	# Respawn restores the whole roster in one call, so recovery never waits on the
 	# gradual berth repair. `reset_for_reuse()` clears the presentation rigs too.
 	if _component_damage != null:
-		_component_damage.reset_for_reuse()
+		if not _component_damage.reset_for_reuse_as_owner(
+			_component_damage_owner_capability
+		):
+			push_error("HeroShip component owner reset invariant failed after accepted preflight")
 		_last_component_damage_revision = _component_damage.get_revision()
 	_set_camera_current(false)
 	engine_state_changed.emit(_engine_state)
 	hull_changed.emit(_hull, maximum_hull)
+	_commit_variant_reset_for_reuse(context.duplicate(true))
+	if not _component_damage.end_owner_mutation_transaction(
+		_component_damage_owner_capability
+	):
+		push_error("HeroShip component owner transaction could not close")
+	var committed := _reset_for_reuse_result(true, &"reset_committed", &"commit", context)
+	_pending_reset_for_reuse.clear()
+	_reset_for_reuse_dispatch_active = false
+	return committed
+
+
+## Releases an accepted preflight after an external prerequisite such as berth
+## occupancy fails. Cancellation consumes the receipt but changes no ship state
+## and emits no lifecycle or presentation signal.
+func cancel_reset_for_reuse(receipt: Dictionary) -> Dictionary:
+	if _reset_for_reuse_dispatch_active:
+		return _reset_for_reuse_result(false, &"reentrant_call", &"cancel")
+	if _pending_reset_for_reuse.is_empty():
+		return _reset_for_reuse_result(false, &"no_pending_reset", &"cancel")
+	if not _reset_for_reuse_receipt_matches(receipt, _pending_reset_for_reuse):
+		return _reset_for_reuse_result(false, &"receipt_identity_mismatch", &"cancel")
+	_reset_for_reuse_dispatch_active = true
+	var context := _pending_reset_for_reuse.duplicate(true)
+	_pending_reset_for_reuse.clear()
+	var cancelled := _reset_for_reuse_result(true, &"reset_cancelled", &"cancel", context)
+	_reset_for_reuse_dispatch_active = false
+	return cancelled
+
+
+## Synchronous compatibility seam used by tests and non-transactional callers.
+## Existing callers may continue to ignore the detached Dictionary result.
+func reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
+	var preflight := preflight_reset_for_reuse(spawn_transform)
+	if not bool(preflight.get("accepted", false)):
+		return preflight
+	return commit_reset_for_reuse(preflight)
+
+
+## Current variants have no fallible reset prerequisite. The explicit hook is
+## the future home for a pure identity/configuration check and may never mutate.
+func _preflight_variant_reset_for_reuse(_spawn_transform: Transform3D) -> Dictionary:
+	return {"accepted": true, "reason": &"variant_ready"}
+
+
+## Runs under the reset dispatch guard, after the base engine/hull signals, at
+## the exact point where today's subclass code returns from `super`.
+func _commit_variant_reset_for_reuse(_context: Dictionary) -> void:
+	pass
+
+
+func _reset_for_reuse_mutation_blocked() -> bool:
+	return _reset_for_reuse_dispatch_active or not _pending_reset_for_reuse.is_empty()
+
+
+func _reset_for_reuse_transform_is_finite(value: Transform3D) -> bool:
+	return value.origin.is_finite() \
+		and value.basis.x.is_finite() \
+		and value.basis.y.is_finite() \
+		and value.basis.z.is_finite()
+
+
+func _reset_for_reuse_receipt_matches(receipt: Dictionary, context: Dictionary) -> bool:
+	return typeof(receipt.get("schema_version")) == TYPE_INT \
+		and int(receipt.get("schema_version", 0)) == RESET_FOR_REUSE_SCHEMA_VERSION \
+		and typeof(receipt.get("receipt_id")) == TYPE_INT \
+		and int(receipt.get("receipt_id", -1)) == int(context.get("receipt_id", -2)) \
+		and typeof(receipt.get("ship_instance_id")) == TYPE_INT \
+		and int(receipt.get("ship_instance_id", 0)) == get_instance_id() \
+		and int(context.get("ship_instance_id", 0)) == get_instance_id()
+
+
+func _reset_for_reuse_dependencies_are_current(context: Dictionary) -> bool:
+	if int(context.get("ship_instance_id", 0)) != get_instance_id() \
+			or not _reset_for_reuse_transform_is_finite(
+				context.get("spawn_transform", Transform3D.IDENTITY) as Transform3D
+			) \
+			or bool(context.get("inside_tree", false)) != is_inside_tree() \
+			or int(context.get("destruction_serial", -1)) != _destruction_serial \
+			or float(context.get("maximum_hull", NAN)) != maximum_hull \
+			or float(context.get("hull", NAN)) != _hull \
+			or bool(context.get("destroyed", not _destroyed)) != _destroyed \
+			or bool(context.get("piloted", not _piloted)) != _piloted \
+			or StringName(context.get("engine_state", &"")) != _engine_state \
+			or bool(context.get("landing_active", not _landing_active)) != _landing_active \
+			or (context.get("global_transform", Transform3D.IDENTITY) as Transform3D) != global_transform \
+			or int(context.get("planetary_cruise_attachment_generation", -1)) \
+				!= _planetary_cruise_attachment_generation:
+		return false
+	if _component_damage == null or not is_instance_valid(_component_damage):
+		return false
+	if int(context.get("component_instance_id", 0)) != _component_damage.get_instance_id() \
+			or bool(context.get("component_configured", false)) != _component_damage.is_configured() \
+			or int(context.get("component_revision", -1)) != _component_damage.get_revision():
+		return false
+	if not _component_damage.is_owner_mutation_capability_current(
+			_component_damage_owner_capability
+		) \
+			or int(context.get("component_owner_capability_instance_id", 0)) \
+				!= _component_damage_owner_capability.get_instance_id():
+		return false
+	var component_report := _component_damage.get_component_report()
+	if float(context.get("component_maximum_hull", NAN)) \
+			!= float(component_report.get("maximum_hull", NAN)) \
+			or (context.get("component_local_bounds", AABB()) as AABB) \
+				!= (component_report.get("local_bounds", AABB()) as AABB):
+		return false
+	var presentation_id := (
+		_damage_presentation.get_instance_id()
+		if is_instance_valid(_damage_presentation)
+		else 0
+	)
+	return int(context.get("damage_presentation_instance_id", -1)) == presentation_id
+
+
+func _reset_for_reuse_result(
+	accepted: bool,
+	reason: StringName,
+	phase: StringName,
+	context: Dictionary = {},
+	requested_transform: Transform3D = Transform3D.IDENTITY
+) -> Dictionary:
+	var component_instance_id := (
+		_component_damage.get_instance_id()
+		if is_instance_valid(_component_damage)
+		else 0
+	)
+	var component_revision := (
+		_component_damage.get_revision()
+		if is_instance_valid(_component_damage)
+		else -1
+	)
+	return {
+		"schema_version": RESET_FOR_REUSE_SCHEMA_VERSION,
+		"accepted": accepted,
+		"reason": reason,
+		"phase": phase,
+		"receipt_id": int(context.get("receipt_id", -1)),
+		"ship_instance_id": get_instance_id(),
+		"spawn_transform": context.get("spawn_transform", requested_transform) as Transform3D,
+		"destruction_serial": int(context.get("destruction_serial", _destruction_serial)),
+		"component_instance_id": int(context.get("component_instance_id", component_instance_id)),
+		"component_revision": int(context.get("component_revision", component_revision)),
+		"planetary_cruise_attachment_generation": int(context.get(
+			"planetary_cruise_attachment_generation",
+			_planetary_cruise_attachment_generation
+		)),
+	}.duplicate(true)
 
 
 ## Stable snapshot consumed by the HUD and gameplay coordinator.
@@ -1779,6 +2123,8 @@ func apply_damage(
 		presentation_receipt_id: int = -1,
 		defer_presentation: bool = false
 	) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if amount <= 0.0 or _hull <= 0.0 or _destroyed:
 		return
 	var safe_normal := world_hit_normal.normalized()
@@ -1881,6 +2227,8 @@ func apply_damage(
 
 
 func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+	if _reset_for_reuse_mutation_blocked():
+		return false
 	if _damage_presentation == null:
 		return false
 	var committed := _damage_presentation.commit_deferred_damage_presentation(receipt_id)
@@ -1898,6 +2246,8 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 ## For re-entry and teardown, discard pending deferred presentation records so
 ## stale receipt IDs can never commit on a recycled ship instance.
 func discard_deferred_damage_presentations() -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if _damage_presentation != null:
 		_damage_presentation.discard_deferred_damage_presentations()
 	_deferred_terminal_presentation_receipt_id = -1
@@ -3112,7 +3462,15 @@ func _ensure_component_damage() -> void:
 		# A craft with no usable root collision keeps an unconfigured model. Every
 		# entry point below fails closed rather than inventing an envelope.
 		return
-	_component_damage.configure(local_bounds, maxf(maximum_hull, 0.001))
+	var configured := _component_damage.configure(local_bounds, maxf(maximum_hull, 0.001))
+	if configured and _component_damage_owner_capability == null:
+		_component_damage_owner_capability = (
+			_component_damage.claim_owner_mutation_capability()
+		)
+	if configured and not _component_damage.is_owner_mutation_capability_current(
+		_component_damage_owner_capability
+	):
+		push_error("HeroShip could not claim the component mutation owner capability")
 	_last_component_damage_revision = -1
 
 
@@ -3155,6 +3513,8 @@ func _close_component_damage_final_collision_capture() -> void:
 ## craft is berthed. Nothing in the game waits on it: destruction recovery goes
 ## through `reset_for_reuse()`, which restores the whole roster in one call.
 func _sync_component_damage(delta: float) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
 	if _component_damage == null or not _component_damage.is_configured():
 		return
 	_component_damage.tick_repair(delta, _landed and not _destroyed and not _landing_active)

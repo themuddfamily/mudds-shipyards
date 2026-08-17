@@ -249,6 +249,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
+	if _reset_for_reuse_mutation_blocked():
+		return
 	_elapsed_halyard += delta
 	_update_halyard_presentation(delta)
 
@@ -271,8 +273,12 @@ func apply_damage(
 		_set_interior_operational(false)
 
 
-func reset_for_reuse(spawn_transform: Transform3D) -> void:
-	super.reset_for_reuse(spawn_transform)
+func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
+	return super._preflight_variant_reset_for_reuse(spawn_transform)
+
+
+func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
+	super._commit_variant_reset_for_reuse(context)
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)

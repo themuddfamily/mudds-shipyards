@@ -56,6 +56,7 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 
 	var arrow_id := arrow.get_instance_id()
 	var original_arrow_id := arrow_id
+	var next_receipt_before_contention := int(arrow.get("_next_reset_for_reuse_receipt_id"))
 	var berth_id := arrow.get_home_berth_id()
 	var home_transform := world.get_berth_transform(berth_id)
 	var berth := world.get_berth_node(berth_id) as ShipBerth
@@ -71,6 +72,7 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
 	await process_frame
+	var component_revision_before_contention := arrow.get_component_damage().get_revision()
 	var initial_pending := _pending_entry(game, arrow_id)
 	var initial_ship_reference := initial_pending.get("ship") as WeakRef
 	_check(
@@ -160,12 +162,61 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 		and berth.get_occupant() == temporary_occupant,
 		"expired regeneration cannot replace the berth's live occupant after re-entry"
 	)
+	_check(
+		int(arrow.get("_next_reset_for_reuse_receipt_id"))
+			== next_receipt_before_contention + 1
+		and arrow.get_component_damage().get_revision()
+			== component_revision_before_contention,
+		"berth contention cancels and consumes one preflight without resetting components"
+	)
 
 	_check(
 		berth.release(temporary_occupant, temporary_token),
 		"stand-in releases the same opaque berth lease after the re-entry attempt"
 	)
+	# Force currentness to change in the synchronous occupancy callback between
+	# reservation and commit. The red commit must release its exact lease, retain
+	# the destroyed pending craft, and schedule a retry without partial reset.
+	var drift_result := {"report": {"accepted": false}}
+	var force_stale_commit := func(occupant: Node) -> void:
+		if occupant == arrow:
+			drift_result["report"] = arrow.get_component_damage().tick_repair(
+				1.0 / 60.0,
+				true
+			)
+	berth.occupancy_changed.connect(force_stale_commit)
+	var stale_ready_at := Time.get_ticks_msec() + SHORT_DEADLINE_MSEC
+	_check(
+		_set_pending_ready_at(game, arrow_id, stale_ready_at),
+		"commit-rejection probe retains the pending identity while shortening its retry"
+	)
+	var stale_commit_rejected := await _wait_until(
+		func() -> bool:
+			var retry := _pending_entry(game, arrow_id)
+			return arrow.is_destroyed() \
+				and int(arrow.get("_next_reset_for_reuse_receipt_id")) \
+					== next_receipt_before_contention + 2 \
+				and int(retry.get("ready_at_msec", 0)) > Time.get_ticks_msec() + 1000,
+		1.0
+	)
+	berth.occupancy_changed.disconnect(force_stale_commit)
+	_check(
+		stale_commit_rejected
+		and bool((drift_result.get("report", {}) as Dictionary).get("accepted", false))
+		and berth.get_reservation_owner() == null
+		and berth.get_occupant() == null
+		and berth.get_reservation_token(arrow).is_empty()
+		and arrow.get_component_damage().get_revision()
+			== component_revision_before_contention + 1,
+		"commit currentness red releases the acquired lease and leaves the destroyed craft pending"
+	)
+
 	var final_ready_at := Time.get_ticks_msec() + SHORT_DEADLINE_MSEC
+	var hostile_release_callbacks := {"count": 0}
+	arrow.hull_changed.connect(func(_current: float, _maximum: float) -> void:
+		hostile_release_callbacks["count"] = int(hostile_release_callbacks.get("count", 0)) + 1
+		game.call("_release_ship_berth", arrow)
+	)
 	_check(
 		_set_pending_ready_at(game, arrow_id, final_ready_at),
 		"occupied-berth retry can be shortened while preserving the pending identity"
@@ -186,15 +237,23 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 	)
 	_check(
 		regenerated
+		and int(hostile_release_callbacks.get("count", 0)) == 1
 		and not regenerated_token.is_empty()
 		and berth.has_valid_lease(arrow, regenerated_token, arrow.get_ship_id())
 		and berth.get_reservation_owner() == arrow
 		and berth.get_occupant() == arrow,
-		"regenerated Arrow owns one valid occupied home-berth lease"
+		"reset callback cannot release the regenerated Arrow's exact occupied lease"
 	)
 	_check(
 		not pending_after.has(arrow_id),
 		"successful re-entry regeneration clears the pending lifecycle entry"
+	)
+	_check(
+		int(arrow.get("_next_reset_for_reuse_receipt_id"))
+			== next_receipt_before_contention + 3
+		and arrow.get_component_damage().get_revision()
+			== component_revision_before_contention + 2,
+		"red commit and successful retry each consume one newer receipt without partial reset"
 	)
 
 	await _clean_up(game)
@@ -291,12 +350,14 @@ func _test_guided_mid_landing_reset_is_terminal() -> void:
 		"guided mid-landing fixture owns one exact pending berth lease"
 	)
 
-	torrent.reset_for_reuse(dock_transform)
+	var reset_result := torrent.reset_for_reuse(dock_transform)
 	var reset_report := torrent.get_landing_contract_report()
 	var berth_tokens := game.get("_berth_tokens") as Dictionary
 	var reserved_berths := game.get("_reserved_berth_ids") as Dictionary
 	_check(
-		abort_reasons == PackedStringArray([&"reset_for_reuse"])
+		bool(reset_result.get("accepted", false))
+		and reset_result.get("reason") == &"reset_committed"
+		and abort_reasons == PackedStringArray([&"reset_for_reuse"])
 		and not torrent.is_landing_active()
 		and bool(torrent.get_telemetry().get("landed", false)),
 		"reset_for_reuse terminates the active assist once and restores a parked craft"

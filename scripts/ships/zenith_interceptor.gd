@@ -3221,6 +3221,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
+	if _reset_for_reuse_mutation_blocked():
+		return
 	_update_zenith_engine_presentation(delta)
 
 
@@ -3418,8 +3420,12 @@ func _sync_variant_engine_presentation_immediately() -> void:
 	_sync_zenith_engine_presentation_immediately()
 
 
-func reset_for_reuse(spawn_transform: Transform3D) -> void:
-	super.reset_for_reuse(spawn_transform)
+func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
+	return super._preflight_variant_reset_for_reuse(spawn_transform)
+
+
+func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
+	super._commit_variant_reset_for_reuse(context)
 	_sync_zenith_canopy_immediately()
 
 
