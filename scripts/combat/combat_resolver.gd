@@ -128,6 +128,27 @@ func resolve_hitscan(request: ShotRequestType) -> Dictionary:
 			request
 		)
 
+	# A reusable craft retains its stable source identity while its destroyed hull
+	# waits for regeneration. Registration continuity must not also grant that dead
+	# physical epoch live firing authority. Consume a fresh sequence before
+	# rejecting it: otherwise the rejected request could be captured, then replayed
+	# after reset_for_reuse() makes the same object healthy again.
+	var authoritative_entity: Node3D = authority_context.source_entity
+	if _source_lifecycle_is_destroyed(authoritative_entity):
+		_last_sequence_by_source[source_key] = request.sequence
+		_remember_history_owner(
+			source_key,
+			authoritative_entity,
+			int(authority_context.source_id)
+		)
+		result["last_sequence"] = request.sequence
+		return _reject(
+			result,
+			&"source_destroyed",
+			"registered source belongs to a destroyed lifecycle epoch",
+			request
+		)
+
 	if not is_inside_tree() or get_world_3d() == null:
 		return _reject(result, &"no_physics_world", "resolver is not in a 3D world", request)
 
@@ -143,7 +164,6 @@ func resolve_hitscan(request: ShotRequestType) -> Dictionary:
 	result["resolved"] = true
 	result["last_sequence"] = request.sequence
 
-	var authoritative_entity: Node3D = authority_context.source_entity
 	var authoritative_range: float = authority_context.range
 	var authoritative_damage: float = authority_context.damage
 	var authoritative_faction: StringName = authority_context.faction_id
@@ -549,6 +569,27 @@ func _method_accepts_no_arguments(node: Node, method_name: StringName) -> bool:
 		var defaults: Array = method_info.get("default_args", [])
 		return arguments.size() - defaults.size() <= 0
 	return false
+
+
+## Queries only lifecycle state already owned by the registered physical source
+## or its attached Damageable adapter. A merely inactive but healthy pooled craft
+## is not classified as destroyed; its encounter coordinator continues to own
+## ordinary activation/deactivation authorization.
+func _source_lifecycle_is_destroyed(source_entity: Node) -> bool:
+	if not is_instance_valid(source_entity):
+		return true
+	if (
+		source_entity.has_method(&"is_destroyed")
+		and _method_accepts_no_arguments(source_entity, &"is_destroyed")
+		and bool(source_entity.call(&"is_destroyed"))
+	):
+		return true
+	var damageable := _damageable_on_node(source_entity)
+	return (
+		damageable != null
+		and damageable.get_target_entity() == source_entity
+		and damageable.is_destroyed()
+	)
 
 
 func _collider_is_world(collider: Object) -> bool:
