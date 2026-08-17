@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StationDefenseEncounterDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/activities/station_defense_encounter_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+activity_id = &"shipyard_perimeter_defense"
+display_name = "Shipyard perimeter defense"
+content_note = "A bounded original encounter composition for the modern prototype; it authenticates no historical mission, wave plan, hostile identity, or spawn geometry."
+hostile_faction_id = &"perimeter_raiders"
+wave_ids = PackedStringArray("yard_approach", "dockside_relief")
+wave_modes = PackedInt32Array(0, 1)
+wave_delays_seconds = PackedFloat32Array(0, 0.5)
+wave_hostile_counts = PackedInt32Array(1, 2)
+hostile_ids = PackedStringArray("perimeter_raider_alpha", "perimeter_raider_beta", "perimeter_raider_gamma")
+hostile_generations = PackedInt32Array(1, 2, 3)
+protected_asset_ids = PackedStringArray("station_perimeter_core")
+protected_asset_generations = PackedInt32Array(1)
+timeout_seconds = 12.0
