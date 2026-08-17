@@ -167,7 +167,7 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `af84aa1` after the bounded Aft/Habitat
+Focused production evidence on base `1b8c655` after the bounded Aft/Habitat
 MultiMesh, Arrow/Habitat/RangeOpponent immutable-resource trims, production
 Ember origin ownership, and streamed-berth binding, using Godot 4.7.1,
 headless Forward+, Dummy audio and HIGH quality, freezes:
@@ -177,7 +177,7 @@ headless Forward+, Dummy audio and HIGH quality, freezes:
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
 | Mesh renderer nodes | 5,684 | 5,850 | +166 |
 | Surfaces | 5,691 | 5,857 | +166 |
-| Unique meshes | 2,552 | 2,682 | +130 |
+| Unique meshes | 2,548 | 2,678 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 639 | 658 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
@@ -230,6 +230,14 @@ and two submissions while their private mesh resources fall from two to one.
 Together they remove three unique meshes from both scenarios without changing
 triangles, renderer nodes, surfaces, materials, lights, particles, scene nodes,
 collision, evidence, combat, or lifecycle authority.
+
+The later Aft `VisualPressureEnvelope/SpineClamp` identity-only share retains
+all five ordinary profiled nodes, stable first/generated paths, transforms,
+five visible copies and five submissions. Their exact authored 48x16 to live
+32x8 `aft_interface_collar` recipe, copper material and node/mesh metadata are
+unchanged; only five private TorusMesh identities become one component-local
+immutable resource. This removes four further unique meshes in both scenarios
+without changing any other census or authority field.
 
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
@@ -286,9 +294,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`5acadda994ab4eabb32d78710e73978004424e0e61a5ac1a11e4302e5000148e`;
+`882ebbabe9851be4876885ec0d2b6dc33abbb3e05b0b71c83091c7f951795188`;
 the loaded fingerprint is
-`0011fbece57d2c9329f3a1ad845528c610d8b15affb0e7d9f7172fb05351e06a`.
+`f9c4e3b8cbb03477eeb89820f068c493ee29ccfcc685dcf0441cf9b3bd129b09`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
