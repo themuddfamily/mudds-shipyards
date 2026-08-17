@@ -145,9 +145,24 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			int(report.wing_root_rib_batch.legacy.geometry_submissions),
 			int(report.wing_root_rib_batch.geometry_submissions),
 			int(report.wing_root_rib_batch.legacy.primitive_mesh_allocations),
-			int(report.wing_root_rib_batch.primitive_mesh_allocations),
-			int(report.wing_root_rib_batch.legacy.visible_geometry_copies),
-			int(report.wing_root_rib_batch.visible_geometry_copies),
+		int(report.wing_root_rib_batch.primitive_mesh_allocations),
+		int(report.wing_root_rib_batch.legacy.visible_geometry_copies),
+		int(report.wing_root_rib_batch.visible_geometry_copies),
+	])
+	var joint_evidence_format := (
+		"ARROW_LATERAL_ARRAY_CURVE_JOINT_SHARING: nodes %d->%d "
+		+ "submissions %d->%d primitive_mesh_allocations %d->%d "
+		+ "visible_copies %d->%d"
+	)
+	print(joint_evidence_format % [
+		int(report.lateral_array_curve_joint_sharing.legacy.geometry_nodes),
+		int(report.lateral_array_curve_joint_sharing.geometry_nodes),
+		int(report.lateral_array_curve_joint_sharing.legacy.geometry_submissions),
+		int(report.lateral_array_curve_joint_sharing.geometry_submissions),
+		int(report.lateral_array_curve_joint_sharing.legacy.primitive_mesh_allocations),
+		int(report.lateral_array_curve_joint_sharing.primitive_mesh_allocations),
+		int(report.lateral_array_curve_joint_sharing.legacy.visible_geometry_copies),
+		int(report.lateral_array_curve_joint_sharing.visible_geometry_copies),
 	])
 	var whole_evidence_format := (
 		"ARROW_VISUAL_CENSUS: nodes %d->%d submissions %d->%d "
@@ -171,10 +186,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 141,
+			"unique_mesh_resource_allocations": 136,
 			"auto_fallback_names": 23,
 		},
-		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->141 unique-mesh allocation census while retaining all 159 copies"
+		"whole Arrow visual freezes the exact 177->176 node, 159->158 submission, 142->136 unique-mesh allocation census while retaining all 159 copies"
 	)
 	_check(
 		report.wing_root_rib_batch.legacy == {
@@ -190,6 +205,28 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and int(report.wing_root_rib_batch.primitive_mesh_allocations) == 1
 		and int(report.wing_root_rib_batch.multimesh_allocations) == 1,
 		"local rib family records exact 2->1 node/submission/primitive allocation with its two visible copies unchanged"
+	)
+	_check(
+		report.lateral_array_curve_joint_sharing.legacy == {
+			"geometry_nodes": 6,
+			"geometry_submissions": 6,
+			"visible_geometry_copies": 6,
+			"primitive_mesh_allocations": 6,
+		}
+		and int(report.lateral_array_curve_joint_sharing.geometry_nodes) == 6
+		and int(report.lateral_array_curve_joint_sharing.geometry_submissions) == 6
+		and int(report.lateral_array_curve_joint_sharing.visible_geometry_copies) == 6
+		and int(report.lateral_array_curve_joint_sharing.primitive_mesh_allocations) == 1
+		and int(report.lateral_array_curve_joint_sharing.resource_allocation_reduction) == 5
+		and report.lateral_array_curve_joint_sharing.node_paths == PackedStringArray([
+			"PortLateralArray/CurveJoint",
+			"PortLateralArray/@MeshInstance3D@15",
+			"PortLateralArray/@MeshInstance3D@16",
+			"StarboardLateralArray/CurveJoint",
+			"StarboardLateralArray/@MeshInstance3D@17",
+			"StarboardLateralArray/@MeshInstance3D@18",
+		]),
+		"six unchanged lateral-array nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of six"
 	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
@@ -215,8 +252,13 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	# authored transform buffer, visible roster, and shared primitive allocation.
 	(report.current as Dictionary)["nodes"] = -1
 	(report.wing_root_rib_batch as Dictionary)["geometry_nodes"] = -1
+	(report.lateral_array_curve_joint_sharing as Dictionary)["primitive_mesh_allocations"] = -1
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176,
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 176
+		and int(
+			arrow.get_arrow_visual_performance_report()
+				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
+		) == 1,
 		"caller mutation cannot alter the detached visual performance evidence"
 	)
 	var injected := Node3D.new()
@@ -286,6 +328,56 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 				"structured-red: shared rib primitive mutation fails presentation audit"
 			)
 			box.size = authored_size
+	var lateral_report := (
+		arrow.get_arrow_visual_performance_report()
+			.lateral_array_curve_joint_sharing as Dictionary
+	)
+	var joint_paths := lateral_report.node_paths as PackedStringArray
+	var first_joint := visual.get_node(NodePath(joint_paths[0])) as MeshInstance3D
+	var last_joint := visual.get_node(NodePath(joint_paths[-1])) as MeshInstance3D
+	var shared_joint_mesh := first_joint.mesh as SphereMesh
+	last_joint.mesh = shared_joint_mesh.duplicate() as SphereMesh
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"lateral-array CurveJoint shared-mesh identity drift"
+		),
+		"structured-red: one private lateral-array joint mesh fails shared-allocation identity"
+	)
+	last_joint.mesh = shared_joint_mesh
+	var authored_radius := shared_joint_mesh.radius
+	shared_joint_mesh.radius += 0.01
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"lateral-array CurveJoint primitive recipe drift"
+		),
+		"structured-red: shared lateral-array sphere recipe mutation fails presentation audit"
+	)
+	shared_joint_mesh.radius = authored_radius
+	var authored_material := shared_joint_mesh.material
+	shared_joint_mesh.material = null
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"lateral-array CurveJoint material identity drift"
+		),
+		"structured-red: lateral-array material mutation fails presentation audit"
+	)
+	shared_joint_mesh.material = authored_material
+	last_joint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_check(
+		not bool(arrow.get_arrow_audit_report().valid)
+		and _report_has_error(
+			arrow.get_arrow_visual_performance_report(),
+			"lateral-array CurveJoint render-state drift"
+		),
+		"structured-red: lateral-array shadow mutation fails presentation audit"
+	)
+	last_joint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_check(
 		bool(arrow.get_arrow_audit_report().valid),
 		"whole/local Arrow visual audits return green after every mutation is restored"

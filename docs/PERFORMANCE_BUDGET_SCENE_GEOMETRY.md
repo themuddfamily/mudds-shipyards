@@ -167,16 +167,17 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `bc881e5` with the bounded Jovian cargo-frame
-joint resource sharing and production streamed-berth binding applied, Godot
-4.7.1, headless Forward+, Dummy audio and HIGH quality freezes:
+Focused production evidence on base `c2be846` with the bounded Jovian cargo-
+frame and Arrow lateral-array CurveJoint sharing plus production streamed-berth
+binding applied, Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality
+freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
 | Mesh renderer nodes | 5,691 | 5,857 | +166 |
 | Surfaces | 5,698 | 5,864 | +166 |
-| Unique meshes | 2,578 | 2,708 | +130 |
+| Unique meshes | 2,573 | 2,703 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 631 | 650 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
@@ -190,6 +191,14 @@ retain 20 named nodes, visible copies, and surface submissions but share one
 immutable SphereMesh, so both production scenarios retain 19 fewer unique
 meshes. No collision, interaction, evidence or lifecycle node moved into that
 visual family, and its four frame roots remain in the physical moving interior.
+
+The Arrow follow-up keeps the six existing childless `CurveJoint` sphere nodes,
+their exact paths and transforms beneath `PortLateralArray` and
+`StarboardLateralArray`, six visible copies, six surface submissions, sensor
+material identity, and shadow state. Their identical `0.07 m`, 28-radial,
+14-ring recipe now retains one component-local immutable `SphereMesh` instead
+of six, reducing both production scenarios by exactly five unique meshes and
+changing no other renderer, material, collision, evidence, or lifecycle count.
 
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
@@ -238,9 +247,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`345d518d2b9d13130f35d849a7ed0994f1bea96a00aa8bae41dab994c0d514f9`;
+`cd28846c0ae9f8b55c2f38381be868ce4a9d9c97d6fefdcacb7ac96f68997a9c`;
 the loaded fingerprint is
-`c8c2ca8c180e865b5eb83a4d9be3894e1bcdbf4913900cae49d3e40d4cb730ff`.
+`0456d73bfec46f1873ede9c24c073ade71749c896a7e71e976070edec05b966d`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live

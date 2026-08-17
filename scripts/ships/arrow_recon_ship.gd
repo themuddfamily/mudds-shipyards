@@ -48,9 +48,24 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # Arrow family with identical mesh/material state and no gameplay, evidence,
 # collision, lifecycle, or stable-node identity. The five later panel bands are
 # deliberately excluded because `capture_torus_smoothness.gd` owns their first
-# node as a checked-in evidence path.
+# node as a checked-in evidence path. The next audited family is narrower still:
+# only the six identical, childless CurveJoint sphere resources under the paired
+# lateral sensor arrays are shared. Their nodes, paths, transforms, materials,
+# shadows, copies and submissions remain ordinary independent renderers.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
+const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
+const LATERAL_ARRAY_CURVE_JOINT_RADIAL_SEGMENTS := 28
+const LATERAL_ARRAY_CURVE_JOINT_RINGS := 14
+const LATERAL_ARRAY_CURVE_JOINT_VISIBLE_COPIES := 6
+const LATERAL_ARRAY_CURVE_JOINT_PATHS := [
+	"PortLateralArray/CurveJoint",
+	"PortLateralArray/@MeshInstance3D@15",
+	"PortLateralArray/@MeshInstance3D@16",
+	"StarboardLateralArray/CurveJoint",
+	"StarboardLateralArray/@MeshInstance3D@17",
+	"StarboardLateralArray/@MeshInstance3D@18",
+]
 const LEGACY_ARROW_VISUAL_CENSUS := {
 	"nodes": 177,
 	"mesh_instance_nodes": 159,
@@ -66,7 +81,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 141,
+	"unique_mesh_resource_allocations": 136,
 	"auto_fallback_names": 23,
 }
 
@@ -79,6 +94,7 @@ var _arrow_engine_lights: Array[OmniLight3D] = []
 var _sensor_sweep: Node3D
 var _elapsed_arrow := 0.0
 var _wing_root_rib_authored_transforms: Array[Transform3D] = []
+var _lateral_array_curve_joint_mesh: SphereMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -195,6 +211,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
 			"current": {},
 			"wing_root_rib_batch": {},
+			"lateral_array_curve_joint_sharing": {},
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
@@ -204,6 +221,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var batch := _inspect_wing_root_rib_batch()
 	if not bool(batch.valid):
 		errors.append_array(batch.errors as PackedStringArray)
+	var lateral_joints := _inspect_lateral_array_curve_joint_sharing()
+	if not bool(lateral_joints.valid):
+		errors.append_array(lateral_joints.errors as PackedStringArray)
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -213,11 +233,12 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 1,
+			"unique_mesh_resource_allocations": 6,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
 		"wing_root_rib_batch": batch,
+		"lateral_array_curve_joint_sharing": lateral_joints,
 	}.duplicate(true)
 
 
@@ -469,6 +490,12 @@ func _build_recon_systems() -> void:
 	# Ventral camera/spectral turret is a smooth gimbal, not a weapon hardpoint.
 	_sphere(_arrow_visual, "VentralSensorGimbal", Vector3(0, -0.06, -1.8), 0.42, _arrow_materials.titanium)
 	_sphere(_arrow_visual, "VentralSensorLens", Vector3(0, -0.33, -2.08), 0.2, _arrow_materials.sensor)
+	_lateral_array_curve_joint_mesh = SphereMesh.new()
+	_lateral_array_curve_joint_mesh.radius = LATERAL_ARRAY_CURVE_JOINT_RADIUS
+	_lateral_array_curve_joint_mesh.height = LATERAL_ARRAY_CURVE_JOINT_RADIUS * 2.0
+	_lateral_array_curve_joint_mesh.radial_segments = LATERAL_ARRAY_CURVE_JOINT_RADIAL_SEGMENTS
+	_lateral_array_curve_joint_mesh.rings = LATERAL_ARRAY_CURVE_JOINT_RINGS
+	_lateral_array_curve_joint_mesh.material = _arrow_materials.sensor
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
 		_curve_tube(
@@ -479,8 +506,9 @@ func _build_recon_systems() -> void:
 				Vector3(side * 2.25, 1.38, -1.2),
 				Vector3(side * 3.45, 1.25, -0.25),
 			]),
-			0.07,
-			_arrow_materials.sensor
+			LATERAL_ARRAY_CURVE_JOINT_RADIUS,
+			_arrow_materials.sensor,
+			_lateral_array_curve_joint_mesh
 		)
 
 
@@ -830,6 +858,92 @@ func _inspect_wing_root_rib_batch() -> Dictionary:
 	}.duplicate(true)
 
 
+func _inspect_lateral_array_curve_joint_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var joints: Array[MeshInstance3D] = []
+	var actual_paths := PackedStringArray()
+	var mesh_identities := {}
+	var expected_transforms := _lateral_array_curve_joint_transforms()
+	for index in LATERAL_ARRAY_CURVE_JOINT_PATHS.size():
+		var path := NodePath(LATERAL_ARRAY_CURVE_JOINT_PATHS[index])
+		var joint := _arrow_visual.get_node_or_null(path) as MeshInstance3D
+		if joint == null or joint.mesh is not SphereMesh:
+			errors.append(
+				"lateral-array CurveJoint node/path roster drift: %s" % path
+			)
+			continue
+		joints.append(joint)
+		actual_paths.append(str(_arrow_visual.get_path_to(joint)))
+		mesh_identities[joint.mesh.get_instance_id()] = true
+		if not joint.transform.is_equal_approx(expected_transforms[index]):
+			errors.append("lateral-array CurveJoint transform drift: %s" % path)
+		if not joint.visible \
+			or joint.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or joint.material_override != null \
+			or joint.material_overlay != null \
+			or joint.layers != 1 \
+			or not is_zero_approx(joint.transparency):
+			errors.append("lateral-array CurveJoint render-state drift: %s" % path)
+		if joint.get_child_count() != 0 \
+			or joint.get_script() != null \
+			or not joint.get_groups().is_empty() \
+			or not joint.get_meta_list().is_empty():
+			errors.append("lateral-array CurveJoint gained semantic authority: %s" % path)
+
+	var family_child_count := 0
+	for parent_name in [&"PortLateralArray", &"StarboardLateralArray"]:
+		var parent := _arrow_visual.get_node_or_null(NodePath(parent_name))
+		if parent == null:
+			errors.append("lateral-array parent missing: %s" % parent_name)
+			continue
+		for child in parent.get_children():
+			if child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh:
+				family_child_count += 1
+	if joints.size() != LATERAL_ARRAY_CURVE_JOINT_VISIBLE_COPIES \
+		or family_child_count != LATERAL_ARRAY_CURVE_JOINT_VISIBLE_COPIES \
+		or actual_paths != PackedStringArray(LATERAL_ARRAY_CURVE_JOINT_PATHS):
+		errors.append("lateral-array CurveJoint visible/path roster drift")
+	if mesh_identities.size() != 1:
+		errors.append("lateral-array CurveJoint shared-mesh identity drift")
+
+	var mesh := _lateral_array_curve_joint_mesh
+	if mesh == null \
+		or not is_equal_approx(mesh.radius, LATERAL_ARRAY_CURVE_JOINT_RADIUS) \
+		or not is_equal_approx(mesh.height, LATERAL_ARRAY_CURVE_JOINT_RADIUS * 2.0) \
+		or mesh.radial_segments != LATERAL_ARRAY_CURVE_JOINT_RADIAL_SEGMENTS \
+		or mesh.rings != LATERAL_ARRAY_CURVE_JOINT_RINGS \
+		or mesh.get_surface_count() != 1:
+		errors.append("lateral-array CurveJoint primitive recipe drift")
+	elif mesh.material != _arrow_materials.sensor:
+		errors.append("lateral-array CurveJoint material identity drift")
+	if mesh != null and mesh.resource_local_to_scene:
+		errors.append("lateral-array CurveJoint mesh became scene-local")
+	for joint in joints:
+		if joint.mesh != mesh:
+			errors.append("lateral-array CurveJoint retained a private mesh")
+			break
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": actual_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": joints.size(),
+		"geometry_submissions": joints.size(),
+		"visible_geometry_copies": joints.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 5,
+		"component_retained_mesh_present": mesh != null,
+		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
+		"legacy": {
+			"geometry_nodes": 6,
+			"geometry_submissions": 6,
+			"visible_geometry_copies": 6,
+			"primitive_mesh_allocations": 6,
+		},
+	}.duplicate(true)
+
+
 func _count_visual_nodes(search_root: Node) -> int:
 	var count := 1
 	for child in search_root.get_children():
@@ -845,6 +959,17 @@ static func _wing_root_rib_transforms() -> Array[Transform3D]:
 			Vector3(side * 1.45, 1.03, 1.0)
 		))
 	return transforms
+
+
+static func _lateral_array_curve_joint_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(Basis.IDENTITY, Vector3(-1.35, 1.36, -2.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-2.25, 1.38, -1.2)),
+		Transform3D(Basis.IDENTITY, Vector3(-3.45, 1.25, -0.25)),
+		Transform3D(Basis.IDENTITY, Vector3(1.35, 1.36, -2.0)),
+		Transform3D(Basis.IDENTITY, Vector3(2.25, 1.38, -1.2)),
+		Transform3D(Basis.IDENTITY, Vector3(3.45, 1.25, -0.25)),
+	]
 
 
 static func _transform_arrays_match(
@@ -1033,7 +1158,14 @@ func _build_planform_surface(node_name: String, outline: PackedVector3Array, thi
 	return instance
 
 
-func _curve_tube(parent: Node3D, node_name: String, points: PackedVector3Array, radius: float, material: Material) -> Node3D:
+func _curve_tube(
+	parent: Node3D,
+	node_name: String,
+	points: PackedVector3Array,
+	radius: float,
+	material: Material,
+	joint_mesh: SphereMesh = null,
+	) -> Node3D:
 	var root := Node3D.new()
 	root.name = node_name
 	parent.add_child(root)
@@ -1042,7 +1174,7 @@ func _curve_tube(parent: Node3D, node_name: String, points: PackedVector3Array, 
 		var segment := _cylinder(root, "Segment%02d" % index, (points[index] + points[index + 1]) * 0.5, radius, direction.length(), material)
 		segment.quaternion = Quaternion(Vector3.UP, direction.normalized())
 	for point in points:
-		_sphere(root, "CurveJoint", point, radius, material)
+		_sphere(root, "CurveJoint", point, radius, material, joint_mesh)
 	return root
 
 
@@ -1079,16 +1211,25 @@ func _cylinder(parent: Node3D, node_name: String, position: Vector3, radius: flo
 	return instance
 
 
-func _sphere(parent: Node3D, node_name: String, position: Vector3, radius: float, material: Material) -> MeshInstance3D:
+func _sphere(
+	parent: Node3D,
+	node_name: String,
+	position: Vector3,
+	radius: float,
+	material: Material,
+	shared_mesh: SphereMesh = null,
+	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = position
-	var mesh := SphereMesh.new()
-	mesh.radius = radius
-	mesh.height = radius * 2.0
-	mesh.radial_segments = 28
-	mesh.rings = 14
-	mesh.material = material
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = SphereMesh.new()
+		mesh.radius = radius
+		mesh.height = radius * 2.0
+		mesh.radial_segments = 28
+		mesh.rings = 14
+		mesh.material = material
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance

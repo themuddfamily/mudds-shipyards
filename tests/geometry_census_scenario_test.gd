@@ -6,8 +6,8 @@ extends SceneTree
 const CENSUS := preload("res://tools/geometry_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
-const RESIDENT_FINGERPRINT := "345d518d2b9d13130f35d849a7ed0994f1bea96a00aa8bae41dab994c0d514f9"
-const CINDER_LOADED_FINGERPRINT := "c8c2ca8c180e865b5eb83a4d9be3894e1bcdbf4913900cae49d3e40d4cb730ff"
+const RESIDENT_FINGERPRINT := "cd28846c0ae9f8b55c2f38381be868ce4a9d9c97d6fefdcacb7ac96f68997a9c"
+const CINDER_LOADED_FINGERPRINT := "0456d73bfec46f1873ede9c24c073ade71749c896a7e71e976070edec05b966d"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -59,8 +59,8 @@ func _run() -> void:
 		int(resident.get("total_triangles", -1)) == 1683905
 			and int(resident.get("total_mesh_instances", -1)) == 5691
 			and int(resident.get("total_surfaces", -1)) == 5698
-			and int(resident.get("unique_meshes", -1)) == 2578,
-		"resident geometry freezes 1,683,905 triangles / 5,691 meshes / 5,698 surfaces / 2,578 unique meshes"
+			and int(resident.get("unique_meshes", -1)) == 2573,
+		"resident geometry freezes 1,683,905 triangles / 5,691 meshes / 5,698 surfaces / 2,573 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 450
@@ -125,8 +125,8 @@ func _run() -> void:
 		int(loaded.get("total_triangles", -1)) == 1801362
 			and int(loaded.get("total_mesh_instances", -1)) == 5857
 			and int(loaded.get("total_surfaces", -1)) == 5864
-			and int(loaded.get("unique_meshes", -1)) == 2708,
-		"loaded geometry freezes 1,801,362 triangles / 5,857 meshes / 5,864 surfaces / 2,708 unique meshes"
+			and int(loaded.get("unique_meshes", -1)) == 2703,
+		"loaded geometry freezes 1,801,362 triangles / 5,857 meshes / 5,864 surfaces / 2,703 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 469
