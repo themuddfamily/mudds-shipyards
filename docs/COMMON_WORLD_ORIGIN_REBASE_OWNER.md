@@ -7,8 +7,11 @@ threshold the owner synchronously validates the exact actor/frame/absolute
 coordinate, captures the live spatial roster, requests the exact frame rebase,
 translates every direct Main `Node3D` plus every nested `top_level` `Node3D`,
 verifies authoritative roots by their exact global delta and ordinary descendants
-by unchanged local transforms, commits the
-request, and reconciles the Ember binding to the target generation. GameFlow
+by unchanged local transforms, then mirrors every exact covered live
+`CollisionObject3D` global transform into `PhysicsServer3D`. Physics bodies use
+`body_set_state(BODY_STATE_TRANSFORM)` and areas use `area_set_transform`; the
+owner exposes the frame commit only after that roster is synchronized. It then
+commits the request and reconciles the Ember binding to the target generation. GameFlow
 then gives Cinder and activity consumers the adjusted detached sample without a
 second actor read.
 
@@ -17,7 +20,10 @@ queued, detached, or mismatched identities fail before mutation. Translation or
 commit failure restores every translated root and cancels the matching pending
 request. Rollback also restores every captured descendant local transform, so
 derived SpringArm/camera responses cannot leak from a rejected transaction. The
-committed signal fires only after state is final and rejects
+same rollback synchronously restores the covered body and area server transforms;
+if that restoration cannot be proven, the owner returns the distinct fail-closed
+`collision_transform_rollback_desynchronized` result rather than claiming an
+atomic rollback. The committed signal fires only after state is final and rejects
 synchronous re-entry.
 
 Normal descendants inherit their direct root shift. Nested `top_level` nodes are
@@ -35,10 +41,13 @@ every physical, collision, authored-content, and streamed descendant retain
 exact transforms; large-coordinate float quantisation is avoided by verifying
 ordinary descendants in their unchanged local frame.
 
-The owner controls only coordinate-frame rebase request/commit and common-world
-translation. It has no activity, combat, gameplay, landing, ship-flight, reward,
-save, network, or streaming load/unload/generation authority. The same owner,
-bootstrap, binding, frame, and counters survive whole-Main detach/re-entry.
+The owner controls only coordinate-frame rebase request/commit, common-world
+translation, and the matching transform synchronization for the exact covered
+collision roster. It owns no collision query, shape construction, collision or
+landing decision, velocity integration, or second physics simulation. It has no
+activity, combat, gameplay, landing, ship-flight, reward, save, network, or
+streaming load/unload/generation authority. The same owner, bootstrap, binding,
+frame, and counters survive whole-Main detach/re-entry.
 
 The remaining player-facing gap is travel and landing orchestration: no
 production travel session selects Ember, transitions orbit/atmosphere/descent,

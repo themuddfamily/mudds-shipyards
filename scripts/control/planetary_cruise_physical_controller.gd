@@ -297,6 +297,37 @@ func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictiona
 	return _receipt(true, StringName(ship_receipt.get("reason", &"disengaged")))
 
 
+## Reconciles a HeroShip-owned lifecycle retirement without replacing this
+## controller. HeroShip may advance its attachment generation independently on
+## unpilot, landing, destruction, collision, reset, detach, or missed cadence.
+## In that case an ordinary disengage is intentionally stale; this method only
+## clears the controller's local binding after proving that the exact prior
+## attachment is no longer current. It never asks the ship to move or brake.
+func reconcile_retired_ship_binding(expected_generation: int) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _receipt(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _receipt(false, &"generation_mismatch")
+	if not _attached:
+		return _receipt(true, &"already_detached")
+	if not _controller_is_live():
+		return _receipt(false, &"controller_unavailable")
+	var ship := _resolve_ship()
+	if ship != null:
+		var report := ship.get_planetary_cruise_attachment_report()
+		if (
+			int(report.get("ship_instance_id", 0)) == _ship_instance_id
+			and int(report.get("ship_attachment_generation", 0))
+				== _ship_attachment_generation
+			and int(report.get("controller_instance_id", 0)) == get_instance_id()
+		):
+			return _receipt(false, &"ship_binding_still_current")
+	_mutation_active = true
+	_clear_binding(&"ship_binding_retired", true)
+	_mutation_active = false
+	return _receipt(true, &"ship_binding_reconciled")
+
+
 func get_generation() -> int:
 	return _generation
 

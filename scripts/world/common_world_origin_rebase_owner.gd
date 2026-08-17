@@ -115,27 +115,47 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		_mutation_active = false
 		return _reject(binding_preflight.get("reason", &"binding_preflight_rejected") as StringName)
 	if not _apply_root_translation(roots, delta):
-		_rollback_world(roots, covered)
+		var apply_rollback_synchronized := _rollback_world(roots, covered)
 		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
+		if not apply_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"translation_apply_failed")
 	if not _verify_covered_translation(covered, roots, delta):
-		_rollback_world(roots, covered)
+		var verification_rollback_synchronized := _rollback_world(roots, covered)
 		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
+		if not verification_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"translation_verification_failed")
+	# Node3D transforms commit immediately, but broadphase state for inherited
+	# CollisionObject3D transforms can otherwise remain at the pre-translation
+	# coordinates until the next physics flush. Downstream same-tick consumers
+	# (notably HeroShip's full-hull cruise proof) must observe neither a false
+	# obstacle nor a false clear, so synchronize the exact covered collision
+	# roster before the coordinate-frame commit is exposed.
+	if not _synchronize_collision_transforms(covered):
+		var synchronization_rollback_synchronized := _rollback_world(roots, covered)
+		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		_rollback_count += 1
+		_mutation_active = false
+		if not synchronization_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
+		return _reject(&"collision_transform_synchronization_failed")
 	var commit := _commit_frame_rebase(
 		int(request.get("request_id", 0)), source_generation
 	)
 	if not bool(commit.get("accepted", false)):
-		_rollback_world(roots, covered)
+		var commit_rollback_synchronized := _rollback_world(roots, covered)
 		var pending := _frame.get_snapshot().get("pending_rebase", {}) as Dictionary
 		if int(pending.get("request_id", 0)) == int(request.get("request_id", 0)):
 			_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
+		if not commit_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(commit.get("reason", &"rebase_commit_rejected") as StringName)
 	var target_generation := int(request.get("target_generation", 0))
 	var adjusted_sample := sample_value.duplicate(true)
@@ -243,7 +263,9 @@ func audit() -> Dictionary:
 			"coordinate_frame_rebase_request": true,
 			"coordinate_frame_rebase_commit": true,
 			"common_world_translation": true,
+			"collision_transform_synchronization": true,
 		},
+		"collision_transform_synchronization_policy": &"exact_covered_collision_object_roster_before_commit_and_after_rollback",
 		"adjacent_authority": {
 			"activity": false,
 			"combat": false,
@@ -423,20 +445,23 @@ func _verify_covered_translation(covered: Array, roots: Array, delta: Vector3) -
 	return true
 
 
-func _rollback_roots(roots: Array) -> void:
+func _rollback_roots(roots: Array) -> bool:
+	var restored := true
 	for index in range(roots.size() - 1, -1, -1):
 		var record := roots[index] as Dictionary
 		var node := record.get("node") as Node3D
-		if not is_instance_valid(node):
+		if not is_instance_valid(node) or node.is_queued_for_deletion():
+			restored = false
 			continue
 		if record.get("mode") == &"top_level":
 			node.global_transform = record.get("global_transform") as Transform3D
 		else:
 			node.transform = record.get("transform") as Transform3D
+	return restored
 
 
-func _rollback_world(roots: Array, covered: Array) -> void:
-	_rollback_roots(roots)
+func _rollback_world(roots: Array, covered: Array) -> bool:
+	var restored := _rollback_roots(roots)
 	var root_ids := {}
 	for root_value in roots:
 		root_ids[int((root_value as Dictionary).get("instance_id", 0))] = true
@@ -447,9 +472,46 @@ func _rollback_world(roots: Array, covered: Array) -> void:
 	for record_value in covered:
 		var record := record_value as Dictionary
 		var node := record.get("node") as Node3D
-		if not is_instance_valid(node) or root_ids.has(node.get_instance_id()):
+		if not is_instance_valid(node) or node.is_queued_for_deletion():
+			restored = false
+			continue
+		if root_ids.has(node.get_instance_id()):
 			continue
 		node.transform = record.get("transform") as Transform3D
+	# A failed transaction must also restore physics-server transforms that were
+	# synchronously advanced before a later commit rejection.
+	return _synchronize_collision_transforms(covered) and restored
+
+
+func _synchronize_collision_transforms(covered: Array) -> bool:
+	for record_value in covered:
+		var record := record_value as Dictionary
+		var node := record.get("node") as Node3D
+		if not node is CollisionObject3D:
+			continue
+		var collision := node as CollisionObject3D
+		if (
+			not is_instance_valid(collision)
+			or collision.is_queued_for_deletion()
+			or not collision.is_inside_tree()
+			or collision.get_instance_id() != int(record.get("instance_id", 0))
+		):
+			return false
+		collision.force_update_transform()
+		var rid := collision.get_rid()
+		if not rid.is_valid():
+			return false
+		if collision is PhysicsBody3D:
+			PhysicsServer3D.body_set_state(
+				rid,
+				PhysicsServer3D.BODY_STATE_TRANSFORM,
+				collision.global_transform,
+			)
+		elif collision is Area3D:
+			PhysicsServer3D.area_set_transform(rid, collision.global_transform)
+		else:
+			return false
+	return true
 
 
 func _commit_frame_rebase(request_id: int, source_generation: int) -> Dictionary:

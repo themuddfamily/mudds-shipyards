@@ -63,9 +63,10 @@ func _run() -> void:
 
 	var owner_audit := owner.audit()
 	var authority := owner_audit.get("adjacent_authority", {}) as Dictionary
+	var owned := owner_audit.get("owned_capabilities", {}) as Dictionary
 	var authority_false := true
 	for value: Variant in authority.values(): authority_false = authority_false and value is bool and not value
-	_check(bool(owner_audit.get("valid", false)) and int(owner_audit.get("owner_count", 0)) == 1 and authority_false and not owner.is_processing() and not owner.is_physics_processing(), "one caller-only owner has zero adjacent authority")
+	_check(bool(owner_audit.get("valid", false)) and int(owner_audit.get("owner_count", 0)) == 1 and authority_false and bool(owned.get("collision_transform_synchronization", false)) and not owner.is_processing() and not owner.is_physics_processing(), "one caller-only owner exposes narrow collision-transform synchronization and zero adjacent authority")
 
 	player.global_position = CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
 	cinder_binding.physics_tick_from_caller_sample(1.0 / 60.0, _sample(player))
@@ -118,6 +119,19 @@ func _run() -> void:
 	var mutable := owner.get_snapshot(); (mutable.last_receipt as Dictionary).clear(); (mutable.last_root_roster as Array).clear()
 	_check(not (owner.get_snapshot().last_receipt as Dictionary).is_empty() and not (owner.get_snapshot().last_root_roster as Array).is_empty(), "owner snapshots are deeply detached")
 
+	var rollback_area := Area3D.new()
+	rollback_area.name = "RollbackCollisionAreaProbe"
+	rollback_area.collision_layer = 0
+	rollback_area.collision_mask = 0
+	var rollback_area_shape := CollisionShape3D.new()
+	rollback_area_shape.name = "RollbackCollisionAreaShape"
+	var rollback_area_sphere := SphereShape3D.new()
+	rollback_area_sphere.radius = 1.0
+	rollback_area_shape.shape = rollback_area_sphere
+	rollback_area.add_child(rollback_area_shape)
+	game.add_child(rollback_area)
+	rollback_area.global_position = Vector3(17.0, 23.0, 31.0)
+	await physics_frame
 	player.global_position = Vector3(10_000.0, 0.0, 0.0)
 	var rollback_sample := _sample(player)
 	var rollback_tick := ember_binding.physics_tick_from_caller_sample(1.0 / 60.0, rollback_sample)
@@ -126,10 +140,23 @@ func _run() -> void:
 	var camera := game.get_node(^"Player/CameraRig/CameraYaw/CameraPitch/SpringArm3D/PlayerCamera") as Camera3D
 	var before_rollback_camera := camera.transform
 	var before_rollback_generation := frame.get_generation()
+	var rollback_body := ship as PhysicsBody3D
+	var before_rollback_body_server := PhysicsServer3D.body_get_state(
+		rollback_body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM
+	) as Transform3D
+	var before_rollback_area_server := PhysicsServer3D.area_get_transform(
+		rollback_area.get_rid()
+	)
 	owner._commit_adapter = Callable(self, &"_reject_commit")
 	var rejected := owner.consume_rebase_preview(rollback_preview, rollback_sample)
 	owner._commit_adapter = Callable()
-	_check(rejected.reason == &"forced_commit_rejection" and world.global_transform.is_equal_approx(before_rollback_world) and camera.transform.is_equal_approx(before_rollback_camera) and frame.get_generation() == before_rollback_generation and (frame.get_snapshot().pending_rebase as Dictionary).is_empty(), "commit failure restores roots and derived local state, then cancels the exact request")
+	var after_rollback_body_server := PhysicsServer3D.body_get_state(
+		rollback_body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM
+	) as Transform3D
+	var after_rollback_area_server := PhysicsServer3D.area_get_transform(
+		rollback_area.get_rid()
+	)
+	_check(rejected.reason == &"forced_commit_rejection" and world.global_transform.is_equal_approx(before_rollback_world) and camera.transform.is_equal_approx(before_rollback_camera) and after_rollback_body_server.is_equal_approx(before_rollback_body_server) and after_rollback_area_server.is_equal_approx(before_rollback_area_server) and frame.get_generation() == before_rollback_generation and (frame.get_snapshot().pending_rebase as Dictionary).is_empty(), "commit failure restores roots, derived local state, and body/area PhysicsServer transforms before cancelling the exact request")
 	_check(int(owner.get_snapshot().rollback_count) == 1 and bool(owner.audit().valid), "rollback is counted and production audit recovers")
 
 	var identities := [owner.get_instance_id(), ember.get_instance_id(), ember_binding.get_instance_id(), frame.get_instance_id(), cinder_loaded.get_instance_id()]
@@ -143,6 +170,7 @@ func _run() -> void:
 	_check([owner.get_instance_id(), ember.get_instance_id(), ember_binding.get_instance_id(), frame.get_instance_id(), cinder_loaded.get_instance_id()] == identities and int(owner.get_snapshot().transaction_count) == transaction_count and bool(owner.audit().valid), "re-entry preserves owner/frame/stream identities without replay")
 
 	top_probe.queue_free()
+	rollback_area.queue_free()
 	await _cleanup(game)
 	_finish()
 

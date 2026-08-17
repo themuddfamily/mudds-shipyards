@@ -70,6 +70,7 @@ const SAFE_START_STABILITY_PHYSICS_SECONDS := (
 const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 	SafeStartProductionRecoveryType.RECOMMENDATION_PRESERVED_KEYS
 )
+const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
 
 ## Production Main can be destroyed and rebuilt by the shift-restart loader
 ## without ending the OS process. Keep the atomic composition root here so that
@@ -238,6 +239,7 @@ var cinder_streaming_coordinator: WorldStreamingCoordinator
 var ember_streaming_bootstrap: EmberMoonStreamingBootstrap
 var ember_streaming_binding: EmberMoonStreamingProductionBinding
 var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
+var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## One presentation-only caption authority for this Main lifetime. It is a
@@ -372,6 +374,10 @@ var _cargo_delivery_source_ship: HeroShip
 var _cargo_delivery_destination: JovianFreightBerth
 var _cargo_delivery_source_handle: Dictionary = {}
 var _cargo_delivery_destination_handle: Dictionary = {}
+## One process-lifetime physics serial for the already captured shared actor
+## observation. The cruise binding rejects duplicate/replayed serials rather
+## than minting more than one envelope for a HeroShip physics tick.
+var _planetary_cruise_caller_tick := 0
 
 
 func _enter_tree() -> void:
@@ -468,6 +474,10 @@ func _resolve_scene_bindings() -> void:
 	common_world_origin_rebase_owner = (
 		get_node_or_null(^"CommonWorldOriginRebaseOwner")
 		as CommonWorldOriginRebaseOwner
+	)
+	planetary_cruise_binding = (
+		get_node_or_null(^"PlanetaryCruiseProductionBinding")
+		as PlanetaryCruiseProductionBinding
 	)
 	if (
 		not _initialized
@@ -969,9 +979,13 @@ func _physics_process(delta: float) -> void:
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
 	var actor_sample := _capture_cinder_actor_sample()
+	var coordinate_frame_generation := 0
 	if is_instance_valid(ember_streaming_binding):
 		var ember_tick := ember_streaming_binding.physics_tick_from_caller_sample(
 			delta, actor_sample
+		)
+		coordinate_frame_generation = int(
+			ember_tick.get("coordinate_frame_generation", 0)
 		)
 		if (
 			is_instance_valid(common_world_origin_rebase_owner)
@@ -986,6 +1000,27 @@ func _physics_process(delta: float) -> void:
 				)
 				if bool(rebase.get("accepted", false)) and rebase.has("actor_sample"):
 					actor_sample = (rebase.get("actor_sample", {}) as Dictionary).duplicate(true)
+					coordinate_frame_generation = int(
+						rebase.get(
+							"coordinate_frame_generation",
+							coordinate_frame_generation,
+						)
+					)
+	if is_instance_valid(planetary_cruise_binding):
+		if _planetary_cruise_caller_tick >= PLANETARY_CRUISE_MAX_CALLER_TICK:
+			planetary_cruise_binding.request_caller_tick_exhausted(
+				planetary_cruise_binding.get_generation()
+			)
+		else:
+			_planetary_cruise_caller_tick += 1
+			planetary_cruise_binding.physics_tick_from_caller_sample(
+				_planetary_cruise_caller_tick,
+				actor_sample,
+				active_ship,
+				coordinate_frame_generation,
+				_planetary_cruise_combat_active(),
+				_planetary_cruise_gate_reason(false),
+			)
 	if is_instance_valid(cinder_streaming_binding):
 		cinder_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
 	_sync_cinder_convoy_stream_presence()
@@ -1042,6 +1077,55 @@ func _capture_cinder_actor_sample() -> Dictionary:
 			}
 		return {"available": false, "reason": &"nonfinite_player_position"}
 	return {"available": false, "reason": &"no_tracked_production_actor"}
+
+
+## Returns the first production-owned reason that prevents an Ember cruise
+## request. This observes already-authoritative lifecycle state only; it does
+## not decide combat, landing, activity, or ship ownership.
+func _planetary_cruise_gate_reason(include_combat: bool = true) -> StringName:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return &"main_unavailable"
+	if (
+		not is_instance_valid(active_ship)
+		or active_ship.is_queued_for_deletion()
+		or not active_ship.is_inside_tree()
+	):
+		return &"active_ship_unavailable"
+	if active_ship.is_destroyed():
+		return &"ship_destroyed"
+	if not _piloting or not active_ship.is_piloted():
+		return &"pilot_unseated"
+	if _landing_request_active or active_ship.is_landing_active():
+		return &"landing_active"
+	var combat_active := _planetary_cruise_combat_active()
+	if include_combat and combat_active:
+		return &"combat_active"
+	if _recovering or phase == Phase.RECOVERING:
+		return &"ship_recovery"
+	# An already engaged controller must observe the authoritative combat flag so
+	# the existing policy produces the fail-closed hint. Public engage uses the
+	# stricter branch above and can never start during combat.
+	if combat_active:
+		return &""
+	if phase != Phase.FREE_FLIGHT or not _sortie_departed_berth:
+		return &"free_flight_unavailable"
+	if _selected_activity_is_running():
+		return &"activity_running"
+	if not is_instance_valid(ember_streaming_bootstrap):
+		return &"coordinate_frame_unavailable"
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return &"coordinate_frame_unavailable"
+	if not (frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
+		return &"origin_rebase_pending"
+	return &""
+
+
+func _planetary_cruise_combat_active() -> bool:
+	return (
+		phase == Phase.INTERCEPTOR_ENGAGEMENT
+		or (is_instance_valid(opponent) and opponent.is_active())
+	)
 
 
 func _convoy_lifecycle_accepts_sample(sample: Dictionary) -> bool:
@@ -4557,6 +4641,48 @@ func get_flyable_ships() -> Array[HeroShip]:
 
 func get_active_ship() -> HeroShip:
 	return active_ship
+
+
+## Explicit production request seam for the canonical Ember navigation anchor.
+## No HUD, InputMap, raw Input, movement, or reward path calls this yet.
+func engage_planetary_cruise() -> Dictionary:
+	if not is_instance_valid(planetary_cruise_binding):
+		return {"accepted": false, "reason": &"binding_unavailable"}
+	var frame_generation := 0
+	if is_instance_valid(ember_streaming_bootstrap):
+		var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+		if frame != null:
+			frame_generation = frame.get_generation()
+	return planetary_cruise_binding.request_engage(
+		active_ship,
+		frame_generation,
+		_planetary_cruise_gate_reason(),
+		planetary_cruise_binding.get_generation(),
+	)
+
+
+func disengage_planetary_cruise(brake_to_stop: bool = true) -> Dictionary:
+	if not is_instance_valid(planetary_cruise_binding):
+		return {"accepted": false, "reason": &"binding_unavailable"}
+	return planetary_cruise_binding.request_disengage(
+		planetary_cruise_binding.get_generation(),
+		brake_to_stop,
+	)
+
+
+func get_planetary_cruise_report() -> Dictionary:
+	if not is_instance_valid(planetary_cruise_binding):
+		return {
+			"available": false,
+			"reason": &"binding_unavailable",
+		}.duplicate(true)
+	return {
+		"available": true,
+		"gate_reason": _planetary_cruise_gate_reason(),
+		"combat_active": _planetary_cruise_combat_active(),
+		"caller_tick": _planetary_cruise_caller_tick,
+		"binding": planetary_cruise_binding.get_snapshot().duplicate(true),
+	}.duplicate(true)
 
 
 ## The station's drivable ground vehicle. Deliberately not part of
