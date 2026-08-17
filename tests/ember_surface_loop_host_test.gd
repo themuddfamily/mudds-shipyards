@@ -19,6 +19,7 @@ func _init() -> void:
 func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
+	await _test_shared_composition_and_measured_entry()
 	await _test_normal_public_actor_loop()
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
@@ -32,6 +33,214 @@ func _run() -> void:
 		await _test_transition_terminal_atomicity(phase, &"queued_surface")
 	Engine.time_scale = _original_time_scale
 	_finish()
+
+
+func _test_shared_composition_and_measured_entry() -> void:
+	var fixture := await _fixture(false, true, false)
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var composition_root := fixture.world as Node3D
+	var original_source := fixture.original_source as ShipCommandSource
+	var wrong_root := Node3D.new()
+	wrong_root.name = "WrongCompositionRoot"
+	root.add_child(wrong_root)
+	var wrong_bind := _bind_fixture(fixture, wrong_root)
+	_check(
+		wrong_bind.reason == &"composition_root_mismatch"
+			and ship.get_command_source() == original_source,
+		"bind rejects a root that is not the exact shared direct parent without changing actors",
+	)
+	wrong_root.queue_free()
+	var bound := _bind_fixture(fixture, composition_root)
+	_check(
+		bound.accepted,
+		"production-shaped Host/Bootstrap/Berth/Arrow/Player siblings bind under one explicit root",
+	)
+	if not bool(bound.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+
+	_place_entry_actor(
+		fixture,
+		Vector3(EmberSurfaceLoopHost.APPROACH_ENTRY_POSITION_HALF_EXTENTS_M.x + 0.1, 0.0, 0.0),
+		Basis.IDENTITY,
+		Vector3.ZERO
+	)
+	var before_pose := ship.global_transform
+	var before_velocity := ship.velocity
+	var rejected := _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_position_out_of_bounds"
+			and ship.global_transform == before_pose and ship.velocity == before_velocity,
+		"measured entry rejects an out-of-bounds root without transform or velocity writes",
+	)
+
+	_place_entry_actor(
+		fixture,
+		Vector3(41.9, 0.0, 0.0),
+		Basis.IDENTITY,
+		Vector3.ZERO
+	)
+	before_pose = ship.global_transform
+	before_velocity = ship.velocity
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_hull_outside_corridor"
+			and ship.global_transform == before_pose and ship.velocity == before_velocity,
+		"root-inside candidate rejects when the exact Arrow hull crosses the authored corridor",
+	)
+
+	_place_entry_actor(
+		fixture,
+		Vector3.ZERO,
+		Basis.IDENTITY,
+		Vector3(0.0, 0.0, -EmberSurfaceLoopHost.APPROACH_ENTRY_MAXIMUM_SPEED_MPS - 0.1)
+	)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_speed_out_of_bounds",
+		"measured entry rejects finite excess speed at the authored corridor",
+	)
+
+	_place_entry_actor(
+		fixture, Vector3.ZERO, Basis.IDENTITY, Vector3(NAN, 0.0, 0.0)
+	)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_nonfinite_measurement",
+		"measured entry rejects non-finite actor velocity before any session mutation",
+	)
+
+	_place_entry_actor(
+		fixture,
+		Vector3.ZERO,
+		Basis(
+			Vector3.UP,
+			deg_to_rad(EmberSurfaceLoopHost.APPROACH_ENTRY_MAXIMUM_ATTITUDE_DEGREES + 0.5)
+		),
+		Vector3.ZERO
+	)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_attitude_out_of_bounds",
+		"measured entry rejects excess attitude relative to the authored corridor basis",
+	)
+
+	_place_entry_actor(fixture, Vector3.ZERO, Basis.IDENTITY, Vector3.ZERO)
+	(fixture.scene as Node).set_meta(EmberSurfaceLoopHost.LOCATION_GENERATION_META, 2)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_location_generation_mismatch",
+		"measured entry rejects a live loaded-root location generation mismatch",
+	)
+	(fixture.scene as Node).set_meta(EmberSurfaceLoopHost.LOCATION_GENERATION_META, 1)
+
+	ship.reparent(host, true)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_composition_root_mismatch",
+		"measured entry rejects a dependency moved below the frozen shared root",
+	)
+	ship.reparent(composition_root, true)
+
+	_place_entry_actor(
+		fixture,
+		Vector3(8.0, 5.0, -20.0),
+		Basis(Vector3.UP, deg_to_rad(5.0)),
+		Vector3(0.0, 0.0, -4.0)
+	)
+	before_pose = ship.global_transform
+	before_velocity = ship.velocity
+	var started := _start_host(fixture)
+	var snapshot := host.get_snapshot()
+	var composition := snapshot.composition as Dictionary
+	var entry := snapshot.approach_entry as Dictionary
+	var measurement := (entry.accepted_measurement as Dictionary).measurement as Dictionary
+	_check(
+		started.accepted and host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
+			and ship.global_transform == before_pose and ship.velocity == before_velocity,
+		"non-exact finite position/speed/attitude inside the envelope starts without actor writes",
+	)
+	_check(
+		int(composition.root_instance_id) == composition_root.get_instance_id()
+			and not bool(composition.standalone_root_is_host)
+			and bool(composition.dependencies_are_direct_children)
+			and bool(measurement.root_inside_entry_volume)
+			and bool(measurement.full_hull_inside_authored_corridor)
+			and is_equal_approx(float(measurement.speed_mps), 4.0),
+		"snapshot freezes exact shared-root identity and detached measured corridor proof",
+	)
+	_check(
+		host.detach(host.get_generation(), host.get_attachment_generation()).accepted,
+		"shared-root proof detaches explicitly before composition teardown",
+	)
+	await _cleanup(fixture)
+
+	fixture = await _fixture(false, true, true)
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	var frame := fixture.frame as PlanetaryCoordinateFrame
+	var rebase := frame.request_rebase(Vector3(12_000.0, 0.0, 0.0), frame.get_generation())
+	_check(
+		bool(rebase.get("accepted", false))
+			and bool(frame.commit_rebase(rebase.request.request_id, frame.get_generation()).get("accepted", false)),
+		"entry red fixture advances the live frame after binding",
+	)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_frame_generation_mismatch"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE,
+		"measured entry rejects current frame drift without starting the session",
+	)
+	await _cleanup(fixture)
+
+	fixture = await _fixture(false, true, true)
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	frame = fixture.frame as PlanetaryCoordinateFrame
+	var bootstrap := fixture.bootstrap as EmberMoonStreamingBootstrap
+	var original_loaded_id := (fixture.scene as Node).get_instance_id()
+	var far := _absolute(frame, Vector3(0.0, 300_001.0, 0.0))
+	_check(
+		bootstrap.update_absolute_focus(far, frame.get_generation()).accepted,
+		"entry identity red unloads the frozen loaded root to N+1",
+	)
+	var unloaded := await _wait_for_bootstrap_identity(
+		bootstrap, 2, 0, original_loaded_id, 120
+	)
+	_check(
+		unloaded,
+		"entry identity red observes completed N+1 unload with no loaded instance",
+	)
+	if not unloaded:
+		await _cleanup(fixture)
+		return
+	var near := _absolute(frame, Vector3(0.0, 250_000.0, 0.0))
+	_check(
+		bootstrap.update_absolute_focus(near, frame.get_generation()).accepted,
+		"entry identity red loads a distinct root at N+2",
+	)
+	var reloaded := await _wait_for_bootstrap_identity(
+		bootstrap, 3, -1, original_loaded_id, 120
+	)
+	_check(
+		reloaded,
+		"entry identity red observes completed N+2 reload with a distinct instance",
+	)
+	if not reloaded:
+		await _cleanup(fixture)
+		return
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_loaded_root_mismatch"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE,
+		"measured entry rejects a current N+2 loaded-root identity swap before session start",
+	)
+	await _cleanup(fixture)
 
 
 func _test_normal_public_actor_loop() -> void:
@@ -396,10 +605,22 @@ func _fixture_at_transition(phase: int) -> Dictionary:
 	return fixture
 
 
-func _fixture() -> Dictionary:
-	var world := EmberSurfaceLoopHost.new()
-	world.name = "EmberSurfaceLoopHost"
-	root.add_child(world)
+func _fixture(
+	auto_start: bool = true,
+	shared_composition_root: bool = false,
+	bind_now: bool = true
+) -> Dictionary:
+	var world: Node3D
+	var host := EmberSurfaceLoopHost.new()
+	host.name = "EmberSurfaceLoopHost"
+	if shared_composition_root:
+		world = Node3D.new()
+		world.name = "SharedCompositionRoot"
+		root.add_child(world)
+		world.add_child(host)
+	else:
+		world = host
+		root.add_child(world)
 	var bootstrap := BOOTSTRAP_SCENE.instantiate() as EmberMoonStreamingBootstrap
 	bootstrap.name = "EmberMoonStreamingBootstrap"
 	world.add_child(bootstrap)
@@ -450,9 +671,10 @@ func _fixture() -> Dictionary:
 	await process_frame
 	await physics_frame
 	var original_source := ship.get_command_source()
-	ship.global_transform = Transform3D(
-		Basis.IDENTITY,
-		berth.global_position + EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M
+	ship.global_transform = (scene.get_node(^"LandingRegion") as Node3D).global_transform \
+		* Transform3D(
+			Basis.IDENTITY,
+			EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M
 	)
 	ship.velocity = Vector3.ZERO
 	var area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
@@ -466,19 +688,10 @@ func _fixture() -> Dictionary:
 		_check(false, "initial fixture establishes public seated/reservation state")
 		return {}
 	ship.set_piloted(true)
-	var bound := world.bind_dependencies(
-		bootstrap, berth, ship, player, 1.62, 1, 0, 0
-	)
-	if not bool(bound.get("accepted", false)):
-		_check(false, "exact current dependencies bind: %s" % bound.get("reason", &""))
-		return {}
-	var started := world.start(0, world.get_attachment_generation(), 3)
-	if not bool(started.get("accepted", false)):
-		_check(false, "one exact staged fixture starts: %s" % started.get("reason", &""))
-		return {}
-	return {
+	var fixture := {
 		"world": world,
-		"host": world,
+		"host": host,
+		"composition_root": world,
 		"bootstrap": bootstrap,
 		"frame": frame,
 		"scene": scene,
@@ -490,6 +703,61 @@ func _fixture() -> Dictionary:
 		"area": area,
 		"original_source": original_source,
 	}
+	if not bind_now:
+		return fixture
+	var bound := _bind_fixture(fixture, world)
+	if not bool(bound.get("accepted", false)):
+		_check(false, "exact current dependencies bind: %s" % bound.get("reason", &""))
+		return {}
+	if auto_start:
+		var started := _start_host(fixture)
+		if not bool(started.get("accepted", false)):
+			_check(false, "one measured staged fixture starts: %s" % started.get("reason", &""))
+			return {}
+	return fixture
+
+
+func _bind_fixture(fixture: Dictionary, composition_root: Node) -> Dictionary:
+	var host := fixture.host as EmberSurfaceLoopHost
+	if composition_root == host:
+		return host.bind_dependencies(
+			fixture.bootstrap as EmberMoonStreamingBootstrap,
+			fixture.berth as EmberSurfaceBerth,
+			fixture.ship as ArrowReconShip,
+			fixture.player as PlayerController,
+			1.62, 1, 0, 0
+		)
+	return host.bind_dependencies(
+		fixture.bootstrap as EmberMoonStreamingBootstrap,
+		fixture.berth as EmberSurfaceBerth,
+		fixture.ship as ArrowReconShip,
+		fixture.player as PlayerController,
+		1.62, 1, 0, 0, composition_root
+	)
+
+
+func _start_host(fixture: Dictionary) -> Dictionary:
+	var host := fixture.host as EmberSurfaceLoopHost
+	return host.start(
+		host.get_generation(),
+		host.get_attachment_generation(),
+		int(host.get_snapshot().coordinate_frame_generation)
+	)
+
+
+func _place_entry_actor(
+	fixture: Dictionary,
+	entry_offset_local_m: Vector3,
+	attitude_region_local: Basis,
+	velocity_region_local_mps: Vector3
+) -> void:
+	var landing_root := fixture.landing_root as Node3D
+	var ship := fixture.ship as ArrowReconShip
+	ship.global_transform = landing_root.global_transform * Transform3D(
+		attitude_region_local,
+		EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M + entry_offset_local_m
+	)
+	ship.velocity = landing_root.global_basis * velocity_region_local_mps
 
 
 func _drive_to_phase(fixture: Dictionary, phase: int, frame_budget: int) -> bool:
@@ -624,6 +892,26 @@ func _tick(fixture: Dictionary) -> Dictionary:
 func _absolute(frame: PlanetaryCoordinateFrame, body_local: Vector3) -> Dictionary:
 	var encoded := frame.encode_body_local_position(body_local, frame.get_generation())
 	return (encoded.coordinate as Dictionary).orbital_coordinate as Dictionary
+
+
+func _wait_for_bootstrap_identity(
+	bootstrap: EmberMoonStreamingBootstrap,
+	expected_location_generation: int,
+	expected_loaded_instance_id: int,
+	excluded_loaded_instance_id: int,
+	frame_budget: int
+) -> bool:
+	for _index in frame_budget:
+		var snapshot := bootstrap.get_snapshot()
+		var loaded_id := int(snapshot.get("loaded_instance_id", -1))
+		if int(snapshot.get("location_generation", -1)) == expected_location_generation \
+				and (
+					expected_loaded_instance_id < 0 and loaded_id > 0 \
+					or loaded_id == expected_loaded_instance_id
+				) and loaded_id != excluded_loaded_instance_id:
+			return true
+		await process_frame
+	return false
 
 
 func _player_near(area: ShipBoardingArea, player: PlayerController) -> bool:

@@ -48,12 +48,272 @@ const PLAYER_SCENE_PATH := "res://scenes/player/player.tscn"
 const EVIDENCE_PATH := "res://docs/EMBER_SURFACE_LOOP_HOST.md"
 
 const APPROACH_ENTRY_REGION_LOCAL_M := Vector3(0.0, 60.0, 300.0)
+const APPROACH_ENTRY_POSITION_HALF_EXTENTS_M := Vector3(42.0, 25.0, 75.0)
+const APPROACH_ENTRY_MAXIMUM_SPEED_MPS := 12.0
+const APPROACH_ENTRY_MAXIMUM_ATTITUDE_DEGREES := 12.0
+const APPROACH_CORRIDOR_HULL_MARGIN_M := 0.05
 const SURFACE_CLEAR_ALTITUDE_M := 15.0
 const ORBIT_RETURN_ALTITUDE_M := 20_000.0
 const APPROACH_BRAKE_Z_M := 45.0
 const APPROACH_HANDOFF_MAXIMUM_SPEED_MPS := 1.0
 const ROUTE_ANCHOR_RADIUS_M := 1.35
 const MAX_CALLER_DELTA_SECONDS := PlanetaryTravelSession.MAX_CALLER_PHYSICS_DELTA_SECONDS
+
+
+## Immutable, typed declaration and evaluator for the production-reachable
+## approach handoff. It freezes the authored corridor rather than inventing a
+## second route volume, and only measures caller-owned actor state.
+class ApproachEntryEnvelope:
+	extends RefCounted
+
+	const SCHEMA_VERSION := 1
+
+	var corridor_id: StringName
+	var target_pad_id: StringName
+	var corridor_transform_region_local_m: Transform3D
+	var corridor_half_extents_m: Vector3
+	var entry_position_half_extents_m: Vector3
+	var maximum_speed_mps: float
+	var maximum_attitude_degrees: float
+	var hull_margin_m: float
+	var collision_bounds: AABB
+	var composition_root_instance_id: int
+	var loaded_scene_instance_id: int
+	var coordinate_frame_instance_id: int
+	var coordinate_frame_generation: int
+	var location_generation: int
+	var configuration_error: StringName = &""
+
+
+	func _init(
+		p_corridor_id: StringName,
+		p_target_pad_id: StringName,
+		p_corridor_transform_region_local_m: Transform3D,
+		p_corridor_half_extents_m: Vector3,
+		p_entry_position_half_extents_m: Vector3,
+		p_maximum_speed_mps: float,
+		p_maximum_attitude_degrees: float,
+		p_hull_margin_m: float,
+		p_collision_bounds: AABB,
+		p_composition_root_instance_id: int,
+		p_loaded_scene_instance_id: int,
+		p_coordinate_frame_instance_id: int,
+		p_coordinate_frame_generation: int,
+		p_location_generation: int
+	) -> void:
+		corridor_id = p_corridor_id
+		target_pad_id = p_target_pad_id
+		corridor_transform_region_local_m = p_corridor_transform_region_local_m
+		corridor_half_extents_m = p_corridor_half_extents_m
+		entry_position_half_extents_m = p_entry_position_half_extents_m
+		maximum_speed_mps = p_maximum_speed_mps
+		maximum_attitude_degrees = p_maximum_attitude_degrees
+		hull_margin_m = p_hull_margin_m
+		collision_bounds = p_collision_bounds
+		composition_root_instance_id = p_composition_root_instance_id
+		loaded_scene_instance_id = p_loaded_scene_instance_id
+		coordinate_frame_instance_id = p_coordinate_frame_instance_id
+		coordinate_frame_generation = p_coordinate_frame_generation
+		location_generation = p_location_generation
+		configuration_error = _configuration_rejection()
+
+
+	func get_snapshot() -> Dictionary:
+		return {
+			"schema_version": SCHEMA_VERSION,
+			"valid": configuration_error.is_empty(),
+			"configuration_error": configuration_error,
+			"corridor_id": corridor_id,
+			"target_pad_id": target_pad_id,
+			"corridor_transform_region_local_m": corridor_transform_region_local_m,
+			"corridor_half_extents_m": corridor_half_extents_m,
+			"entry_position_half_extents_m": entry_position_half_extents_m,
+			"maximum_speed_mps": maximum_speed_mps,
+			"maximum_attitude_degrees": maximum_attitude_degrees,
+			"hull_margin_m": hull_margin_m,
+			"collision_bounds": collision_bounds,
+			"composition_root_instance_id": composition_root_instance_id,
+			"loaded_scene_instance_id": loaded_scene_instance_id,
+			"coordinate_frame_instance_id": coordinate_frame_instance_id,
+			"coordinate_frame_generation": coordinate_frame_generation,
+			"location_generation": location_generation,
+			"measurement_only": true,
+			"transform_writes": 0,
+			"velocity_writes": 0,
+		}.duplicate(true)
+
+
+	func measure(
+		landing_root_transform: Transform3D,
+		ship_transform: Transform3D,
+		ship_velocity: Vector3,
+		current_composition_root_instance_id: int,
+		composition_topology_current: bool,
+		current_loaded_scene_instance_id: int,
+		coordinate_frame_identity_current: bool,
+		current_coordinate_frame_instance_id: int,
+		current_coordinate_frame_generation: int,
+		current_scene_location_generation: int,
+		current_bootstrap_location_generation: int,
+		actor_contract_current: bool
+	) -> Dictionary:
+		var result := get_snapshot()
+		result["accepted"] = false
+		result["reason"] = configuration_error
+		result["current"] = {
+			"composition_root_instance_id": current_composition_root_instance_id,
+			"composition_topology_current": composition_topology_current,
+			"loaded_scene_instance_id": current_loaded_scene_instance_id,
+			"coordinate_frame_identity_current": coordinate_frame_identity_current,
+			"coordinate_frame_instance_id": current_coordinate_frame_instance_id,
+			"coordinate_frame_generation": current_coordinate_frame_generation,
+			"scene_location_generation": current_scene_location_generation,
+			"bootstrap_location_generation": current_bootstrap_location_generation,
+			"actor_contract_current": actor_contract_current,
+		}
+		if not configuration_error.is_empty():
+			return result.duplicate(true)
+		if current_composition_root_instance_id != composition_root_instance_id \
+				or not composition_topology_current:
+			result.reason = &"approach_entry_composition_root_mismatch"
+			return result.duplicate(true)
+		if current_loaded_scene_instance_id != loaded_scene_instance_id:
+			result.reason = &"approach_entry_loaded_root_mismatch"
+			return result.duplicate(true)
+		if not coordinate_frame_identity_current \
+				or (coordinate_frame_instance_id > 0 \
+					and current_coordinate_frame_instance_id \
+						!= coordinate_frame_instance_id):
+			result.reason = &"approach_entry_frame_identity_mismatch"
+			return result.duplicate(true)
+		if current_coordinate_frame_generation != coordinate_frame_generation:
+			result.reason = &"approach_entry_frame_generation_mismatch"
+			return result.duplicate(true)
+		if current_scene_location_generation != location_generation \
+				or current_bootstrap_location_generation != location_generation:
+			result.reason = &"approach_entry_location_generation_mismatch"
+			return result.duplicate(true)
+		if not actor_contract_current:
+			result.reason = &"approach_entry_actor_state_mismatch"
+			return result.duplicate(true)
+		if not _transform_is_finite(landing_root_transform) \
+				or not _transform_is_finite(ship_transform) \
+				or not ship_velocity.is_finite():
+			result.reason = &"approach_entry_nonfinite_measurement"
+			return result.duplicate(true)
+		var ship_scale := ship_transform.basis.get_scale()
+		if not ship_scale.is_equal_approx(Vector3.ONE) \
+				or ship_transform.basis.determinant() <= 0.0:
+			result.reason = &"approach_entry_ship_basis_invalid"
+			return result.duplicate(true)
+
+		var corridor_world := landing_root_transform \
+			* corridor_transform_region_local_m
+		var entry_position := corridor_world.affine_inverse() * ship_transform.origin
+		var speed := ship_velocity.length()
+		var attitude := rad_to_deg(
+			Quaternion(corridor_world.basis.orthonormalized()).angle_to(
+				Quaternion(ship_transform.basis.orthonormalized())
+			)
+		)
+		var root_inside_entry := _point_inside(
+			entry_position, entry_position_half_extents_m, 0.0
+		)
+		var full_hull_inside_corridor := _oriented_bounds_inside(
+			corridor_world, corridor_half_extents_m,
+			ship_transform, collision_bounds, hull_margin_m
+		)
+		result["measurement"] = {
+			"position_offset_entry_local_m": entry_position,
+			"speed_mps": speed,
+			"attitude_degrees": attitude,
+			"root_inside_entry_volume": root_inside_entry,
+			"full_hull_inside_authored_corridor": full_hull_inside_corridor,
+		}
+		if not root_inside_entry:
+			result.reason = &"approach_entry_position_out_of_bounds"
+			return result.duplicate(true)
+		if not full_hull_inside_corridor:
+			result.reason = &"approach_entry_hull_outside_corridor"
+			return result.duplicate(true)
+		if speed > maximum_speed_mps:
+			result.reason = &"approach_entry_speed_out_of_bounds"
+			return result.duplicate(true)
+		if attitude > maximum_attitude_degrees:
+			result.reason = &"approach_entry_attitude_out_of_bounds"
+			return result.duplicate(true)
+		result.accepted = true
+		result.reason = &"approach_entry_accepted"
+		return result.duplicate(true)
+
+
+	func _configuration_rejection() -> StringName:
+		if corridor_id.is_empty() or target_pad_id.is_empty():
+			return &"approach_entry_identity_invalid"
+		if not _transform_is_finite(corridor_transform_region_local_m) \
+				or not corridor_half_extents_m.is_finite() \
+				or not entry_position_half_extents_m.is_finite() \
+				or not collision_bounds.position.is_finite() \
+				or not collision_bounds.size.is_finite():
+			return &"approach_entry_declaration_nonfinite"
+		if corridor_half_extents_m.x <= 0.0 or corridor_half_extents_m.y <= 0.0 \
+				or corridor_half_extents_m.z <= 0.0 \
+				or entry_position_half_extents_m.x <= 0.0 \
+				or entry_position_half_extents_m.y <= 0.0 \
+				or entry_position_half_extents_m.z <= 0.0 \
+				or entry_position_half_extents_m.x > corridor_half_extents_m.x \
+				or entry_position_half_extents_m.y > corridor_half_extents_m.y \
+				or entry_position_half_extents_m.z > corridor_half_extents_m.z:
+			return &"approach_entry_extents_invalid"
+		if not is_finite(maximum_speed_mps) or maximum_speed_mps <= 0.0 \
+				or not is_finite(maximum_attitude_degrees) \
+				or maximum_attitude_degrees <= 0.0 \
+				or maximum_attitude_degrees > 90.0 \
+				or not is_finite(hull_margin_m) or hull_margin_m < 0.0:
+			return &"approach_entry_limits_invalid"
+		if collision_bounds.size.x <= 0.0 or collision_bounds.size.y <= 0.0 \
+				or collision_bounds.size.z <= 0.0:
+			return &"approach_entry_collision_bounds_invalid"
+		if composition_root_instance_id <= 0:
+			return &"approach_entry_composition_root_identity_invalid"
+		if loaded_scene_instance_id <= 0:
+			return &"approach_entry_loaded_root_identity_invalid"
+		if coordinate_frame_generation < 1:
+			return &"approach_entry_frame_generation_invalid"
+		if location_generation < 1:
+			return &"approach_entry_location_generation_invalid"
+		return &""
+
+
+	static func _point_inside(
+		point: Vector3, half_extents: Vector3, margin: float
+	) -> bool:
+		return absf(point.x) <= half_extents.x - margin \
+			and absf(point.y) <= half_extents.y - margin \
+			and absf(point.z) <= half_extents.z - margin
+
+
+	static func _oriented_bounds_inside(
+		volume_transform: Transform3D,
+		half_extents: Vector3,
+		body_transform: Transform3D,
+		bounds: AABB,
+		margin: float
+	) -> bool:
+		var inverse := volume_transform.affine_inverse()
+		for x: float in [bounds.position.x, bounds.end.x]:
+			for y: float in [bounds.position.y, bounds.end.y]:
+				for z: float in [bounds.position.z, bounds.end.z]:
+					var corner := inverse * (body_transform * Vector3(x, y, z))
+					if not _point_inside(corner, half_extents, margin):
+						return false
+		return true
+
+
+	static func _transform_is_finite(value: Transform3D) -> bool:
+		return value.origin.is_finite() and value.basis.x.is_finite() \
+			and value.basis.y.is_finite() and value.basis.z.is_finite() \
+			and not is_zero_approx(value.basis.determinant())
 
 const OWNED_CAPABILITY_KEYS := [
 	"caller_physics_session_clock",
@@ -108,10 +368,12 @@ var _last_gravity_sample: Dictionary = {}
 var _last_result: Dictionary = {}
 var _berth_token: StringName = &""
 var _source_generation := 0
+var _composition_root_instance_id := 0
 var _loaded_scene_instance_id := 0
 var _ship_instance_id := 0
 var _player_instance_id := 0
 
+var _composition_root: Node
 var _bootstrap: EmberMoonStreamingBootstrap
 var _scene: EmberMoonAuthoredScene
 var _berth: EmberSurfaceBerth
@@ -124,11 +386,13 @@ var _frame: PlanetaryCoordinateFrame
 var _session: PlanetaryTravelSession
 var _gravity_policy: PlanetarySurfaceGravityPolicy
 var _command_source: EmberSurfaceLoopCommandSource
+var _approach_entry_envelope: ApproachEntryEnvelope
 var _original_command_source: ShipCommandSource
 var _world_report: Dictionary = {}
 var _landing_report: Dictionary = {}
 var _landing_identity: Dictionary = {}
 var _ship_collision_bounds := AABB()
+var _accepted_approach_entry_measurement: Dictionary = {}
 var _original_ship_piloted := false
 var _original_player_control_enabled := false
 var _original_player_gravity_multiplier := 1.0
@@ -152,7 +416,8 @@ func bind_dependencies(
 	reference_surface_gravity_mps2: float,
 	location_generation: int,
 	expected_generation: int = 0,
-	expected_attachment_generation: int = 0
+	expected_attachment_generation: int = 0,
+	composition_root: Node = null
 ) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
@@ -163,14 +428,19 @@ func bind_dependencies(
 		return _finish(false, &"stale_attachment_generation")
 	if _bound_once:
 		return _finish(false, &"single_use_host")
+	var resolved_composition_root := composition_root \
+		if composition_root != null else self
 	var validation := _validate_dependencies(
 		bootstrap, berth, ship, player,
-		reference_surface_gravity_mps2, location_generation
+		reference_surface_gravity_mps2, location_generation,
+		resolved_composition_root
 	)
 	if not bool(validation.get("accepted", false)):
 		_configuration_error = validation.get("reason", &"invalid_configuration") as StringName
 		return _finish(false, _configuration_error)
 
+	_composition_root = validation.composition_root as Node
+	_composition_root_instance_id = _composition_root.get_instance_id()
 	_bootstrap = bootstrap
 	_scene = validation.scene as EmberMoonAuthoredScene
 	_berth = berth
@@ -196,6 +466,25 @@ func bind_dependencies(
 	_gravity_policy = validation.gravity_policy as PlanetarySurfaceGravityPolicy
 	_reference_tangent_basis_body = validation.reference_tangent_basis_body as Basis
 	_ship_collision_bounds = validation.ship_collision_bounds as AABB
+	_approach_entry_envelope = ApproachEntryEnvelope.new(
+		StringName(_REGION.approach_corridor_ids[0]),
+		StringName(_REGION.approach_corridor_target_pad_ids[0]),
+		_REGION.approach_corridor_transforms_region_local_m[0],
+		_REGION.approach_corridor_half_extents_m[0],
+		APPROACH_ENTRY_POSITION_HALF_EXTENTS_M,
+		APPROACH_ENTRY_MAXIMUM_SPEED_MPS,
+		APPROACH_ENTRY_MAXIMUM_ATTITUDE_DEGREES,
+		APPROACH_CORRIDOR_HULL_MARGIN_M,
+		_ship_collision_bounds,
+		_composition_root_instance_id,
+		_loaded_scene_instance_id,
+		_frame.get_instance_id(),
+		_coordinate_frame_generation,
+		_location_generation
+	)
+	if not _approach_entry_envelope.configuration_error.is_empty():
+		_configuration_error = _approach_entry_envelope.configuration_error
+		return _finish(false, _configuration_error)
 	_original_command_source = _ship.get_command_source()
 	_original_ship_piloted = _ship.is_piloted()
 	_original_player_control_enabled = _player.is_control_enabled()
@@ -262,8 +551,16 @@ func start(
 		return _finish(false, rejection)
 	if _phase != Phase.IDLE:
 		return _finish(false, &"already_started")
-	if not _initial_fixture_is_exact():
-		return _finish(false, &"initial_fixture_mismatch")
+	var approach_entry := _measure_approach_entry()
+	if not bool(approach_entry.get("accepted", false)):
+		var entry_rejection := approach_entry.get(
+			"reason", &"approach_entry_rejected"
+		) as StringName
+		var rejected := _finish(false, entry_rejection)
+		rejected["approach_entry"] = approach_entry.duplicate(true)
+		_last_result = rejected.duplicate(true)
+		return rejected
+	_accepted_approach_entry_measurement = approach_entry.duplicate(true)
 	var bound := _session.bind_landing_composition_report(
 		_landing_report, 0, _attachment_generation
 	)
@@ -455,6 +752,7 @@ func get_snapshot() -> Dictionary:
 			"terrain_profile_id": TERRAIN_PROFILE_ID,
 			"orbital_frame_id": ORBITAL_FRAME_ID,
 			"ship_definition_id": SHIP_DEFINITION_ID,
+			"composition_root_instance_id": _composition_root_instance_id,
 			"loaded_scene_instance_id": _loaded_scene_instance_id,
 			"ship_instance_id": _ship_instance_id,
 			"player_instance_id": _player_instance_id,
@@ -467,6 +765,23 @@ func get_snapshot() -> Dictionary:
 			"authored_scene": AUTHORED_SCENE_PATH,
 			"ship_scene": ARROW_SCENE_PATH,
 			"player_scene": PLAYER_SCENE_PATH,
+		},
+		"composition": {
+			"root_instance_id": _composition_root_instance_id,
+			"standalone_root_is_host": _composition_root == self,
+			"topology_current": _composition_topology_current() \
+				if _composition_root != null else false,
+			"host_direct_child_or_root": _composition_root == self \
+				or (_node_is_current(_composition_root) and get_parent() == _composition_root),
+			"dependencies_are_direct_children": _composition_topology_current() \
+				if _composition_root != null else false,
+			"host_reparent_calls": 0,
+			"dependency_reparent_calls": 0,
+		},
+		"approach_entry": {
+			"envelope": _approach_entry_envelope.get_snapshot() \
+				if _approach_entry_envelope != null else {},
+			"accepted_measurement": _accepted_approach_entry_measurement.duplicate(true),
 		},
 		"actor_state": {
 			"ship_position": ship_position,
@@ -518,6 +833,16 @@ func audit() -> Dictionary:
 	if _attached and _phase not in [Phase.COMPLETED, Phase.FAILED] \
 			and not _dependency_failure_reason().is_empty():
 		errors.append("an attached dependency is no longer current")
+	if _attached and (_composition_root == null \
+			or _composition_root_instance_id <= 0 \
+			or not _composition_topology_current()):
+		errors.append("the frozen shared composition root is no longer exact")
+	if _attached and (_approach_entry_envelope == null \
+			or not _approach_entry_envelope.configuration_error.is_empty()):
+		errors.append("the typed approach-entry envelope is invalid")
+	if _phase not in [Phase.IDLE, Phase.FAILED] \
+			and _accepted_approach_entry_measurement.is_empty():
+		errors.append("a started loop lacks accepted approach-entry evidence")
 	if _session != null and not bool(_session.audit().get("valid", false)):
 		errors.append("travel session contract is invalid")
 	if _gravity_policy != null and not bool(_gravity_policy.audit().get("valid", false)):
@@ -878,11 +1203,15 @@ func _validate_dependencies(
 	ship: ArrowReconShip,
 	player: PlayerController,
 	reference_surface_gravity_mps2: float,
-	location_generation: int
+	location_generation: int,
+	composition_root: Node
 ) -> Dictionary:
 	if not is_inside_tree() or transform != Transform3D.IDENTITY:
 		return {"accepted": false, "reason": &"host_frame_mismatch"}
-	if not _node_is_current(bootstrap) or bootstrap.get_parent() != self \
+	if not _node_is_current(composition_root) \
+			or (composition_root != self and get_parent() != composition_root):
+		return {"accepted": false, "reason": &"composition_root_mismatch"}
+	if not _node_is_current(bootstrap) or bootstrap.get_parent() != composition_root \
 			or not bool(bootstrap.audit().get("valid", false)):
 		return {"accepted": false, "reason": &"bootstrap_mismatch"}
 	var bootstrap_snapshot := bootstrap.get_snapshot()
@@ -902,9 +1231,9 @@ func _validate_dependencies(
 	if frame_snapshot.get("body_id") != BODY_ID \
 			or frame_snapshot.get("orbital_frame_id") != ORBITAL_FRAME_ID:
 		return {"accepted": false, "reason": &"coordinate_frame_identity_mismatch"}
-	if not _node_is_current(berth) or berth.get_parent() != self:
+	if not _node_is_current(berth) or berth.get_parent() != composition_root:
 		return {"accepted": false, "reason": &"berth_mismatch"}
-	if not _node_is_current(ship) or ship.get_parent() != self \
+	if not _node_is_current(ship) or ship.get_parent() != composition_root \
 			or ship.is_destroyed() or ship.get_ship_definition() == null \
 			or ship.get_ship_definition().ship_id != SHIP_DEFINITION_ID:
 		return {"accepted": false, "reason": &"ship_mismatch"}
@@ -914,7 +1243,7 @@ func _validate_dependencies(
 			return {"accepted": false, "reason": &"berth_configuration_failed"}
 	if not bool(berth.audit().get("valid", false)):
 		return {"accepted": false, "reason": &"berth_contract_invalid"}
-	if not _node_is_current(player) or player.get_parent() != self:
+	if not _node_is_current(player) or player.get_parent() != composition_root:
 		return {"accepted": false, "reason": &"player_mismatch"}
 	var boarding_area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
 	if not _node_is_current(boarding_area) or boarding_area.get_ship() != ship \
@@ -965,6 +1294,7 @@ func _validate_dependencies(
 	return {
 		"accepted": true,
 		"reason": &"valid_dependencies",
+		"composition_root": composition_root,
 		"scene": scene,
 		"frame": frame,
 		"boarding_area": boarding_area,
@@ -978,17 +1308,42 @@ func _validate_dependencies(
 	}
 
 
-func _initial_fixture_is_exact() -> bool:
-	if not _dependencies_current() or not _player.is_seated() \
-			or not _ship.is_piloted() or _boarding_area.get_reservation_token() != _player:
-		return false
-	var expected := _berth.global_position + APPROACH_ENTRY_REGION_LOCAL_M
-	return _ship.global_position.distance_to(expected) <= 0.05 \
-		and _ship.global_basis.is_equal_approx(Basis.IDENTITY) \
-		and _ship.velocity.length() <= 0.001 \
-		and _player.global_position.distance_to(
-			_ship.get_pilot_seat_anchor().global_position
-		) <= 0.05
+func _measure_approach_entry() -> Dictionary:
+	if _approach_entry_envelope == null:
+		return {
+			"accepted": false,
+			"reason": &"approach_entry_envelope_unavailable",
+		}.duplicate(true)
+	var current_root_id := _composition_root.get_instance_id() \
+		if _node_is_current(_composition_root) else 0
+	var current_loaded_scene: Node = _bootstrap.get_loaded_instance() \
+		if _node_is_current(_bootstrap) else null
+	var bootstrap_snapshot := _bootstrap.get_snapshot() \
+		if _node_is_current(_bootstrap) else {}
+	var current_frame := _bootstrap.get_coordinate_frame_for_session() \
+		if _node_is_current(_bootstrap) else null
+	var actor_contract_current: bool = _node_is_current(_ship) \
+		and _node_is_current(_player) and _node_is_current(_boarding_area) \
+		and not _ship.is_destroyed() and _player.is_seated() \
+		and _ship.is_piloted() \
+		and _boarding_area.get_reservation_token() == _player
+	return _approach_entry_envelope.measure(
+		_landing_root.global_transform \
+			if _node_is_current(_landing_root) else Transform3D.IDENTITY,
+		_ship.global_transform if _node_is_current(_ship) else Transform3D.IDENTITY,
+		_ship.velocity if _node_is_current(_ship) else Vector3.INF,
+		current_root_id,
+		_composition_topology_current(),
+		current_loaded_scene.get_instance_id() \
+			if _node_is_current(current_loaded_scene) else 0,
+		current_frame == _frame,
+		current_frame.get_instance_id() if is_instance_valid(current_frame) else 0,
+		current_frame.get_generation() if is_instance_valid(current_frame) else -1,
+		int(_scene.get_meta(LOCATION_GENERATION_META, -1)) \
+			if _node_is_current(_scene) else -1,
+		int(bootstrap_snapshot.get("location_generation", -1)),
+		actor_contract_current
+	)
 
 
 func _landed_public_state_is_exact() -> bool:
@@ -1076,8 +1431,14 @@ func _simple_token_rejection(
 
 
 func _dependency_failure_reason() -> StringName:
+	if not _node_is_current(_composition_root) \
+			or _composition_root.get_instance_id() != _composition_root_instance_id \
+			or not _composition_topology_current():
+		return &"composition_root_detached"
 	if not _node_is_current(_bootstrap):
 		return &"dependency_detached"
+	if _bootstrap.get_coordinate_frame_for_session() != _frame:
+		return &"coordinate_frame_identity_changed"
 	if is_instance_valid(_frame) \
 			and _frame.get_generation() != _coordinate_frame_generation:
 		return &"stale_coordinate_frame_generation"
@@ -1124,16 +1485,26 @@ func _dependency_failure_reason() -> StringName:
 
 
 func _dependencies_current() -> bool:
-	return _node_is_current(_bootstrap) and _bootstrap.get_parent() == self \
-		and _node_is_current(_scene) \
+	return _composition_topology_current() and _node_is_current(_scene) \
 		and _node_is_current(_landing_root) and _landing_root.get_parent() == _scene \
 		and _node_is_current(_walkable_body) \
 		and _walkable_body.get_parent() == _landing_root \
-		and _node_is_current(_berth) and _berth.get_parent() == self \
-		and _node_is_current(_ship) and _ship.get_parent() == self \
-		and _node_is_current(_player) and _player.get_parent() == self \
 		and _node_is_current(_boarding_area) and _boarding_area.get_parent() == _ship \
-		and is_instance_valid(_frame)
+		and is_instance_valid(_frame) \
+		and _bootstrap.get_coordinate_frame_for_session() == _frame
+
+
+func _composition_topology_current() -> bool:
+	if not _node_is_current(_composition_root) \
+			or _composition_root.get_instance_id() != _composition_root_instance_id:
+		return false
+	if _composition_root != self and get_parent() != _composition_root:
+		return false
+	return _node_is_current(_bootstrap) \
+		and _bootstrap.get_parent() == _composition_root \
+		and _node_is_current(_berth) and _berth.get_parent() == _composition_root \
+		and _node_is_current(_ship) and _ship.get_parent() == _composition_root \
+		and _node_is_current(_player) and _player.get_parent() == _composition_root
 
 
 func _player_near_boarding_area() -> bool:
@@ -1229,7 +1600,8 @@ func _disconnect_dependency_signals() -> void:
 	for record in _connections:
 		var signal_value := record.signal as Signal
 		var callback := record.callback as Callable
-		if signal_value.is_connected(callback):
+		var signal_owner := signal_value.get_object()
+		if is_instance_valid(signal_owner) and signal_value.is_connected(callback):
 			signal_value.disconnect(callback)
 	_connections.clear()
 
@@ -1238,7 +1610,9 @@ func _restore_runtime_bindings(recover_embodiment: bool = false) -> void:
 	if _runtime_bindings_restored:
 		return
 	_runtime_bindings_restored = true
-	var recovered_on_foot := recover_embodiment and _node_is_current(_player)
+	var composition_current := _node_is_current(_composition_root)
+	var recovered_on_foot := recover_embodiment and composition_current \
+		and _node_is_current(_player)
 	var recovery := _surface_recovery_transform() if recovered_on_foot else {}
 	var safe_surface_recovery := bool(recovery.get("accepted", false))
 	if recovered_on_foot:
@@ -1246,14 +1620,14 @@ func _restore_runtime_bindings(recover_embodiment: bool = false) -> void:
 			"transform", _player.global_transform
 		) as Transform3D
 		_player.force_recovery_to_on_foot(recovery_transform)
-	if _node_is_current(_ship):
+	if composition_current and _node_is_current(_ship):
 		_ship.set_canopy_open(false, 0.0)
 		_ship.set_command_source(_original_command_source)
 		_ship.set_piloted(
 			false if recovered_on_foot or _ship.is_destroyed() \
 			else _original_ship_piloted
 		)
-	if _node_is_current(_player):
+	if composition_current and _node_is_current(_player):
 		_player.gravity_multiplier = _original_player_gravity_multiplier
 		_player.set_camera_active(
 			true if recovered_on_foot else _original_player_camera_current
