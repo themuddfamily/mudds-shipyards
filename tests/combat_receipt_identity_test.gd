@@ -11,6 +11,7 @@ const BASE_RANGE := 220.0
 const HIGH_SOURCE_ID_A := (1 << 31)
 const HIGH_SOURCE_ID_B := (1 << 31) + 1
 const TWO_TO_THE_32 := 4294967296
+const ALIASED_SOURCE_ID := PRIMARY_SOURCE_ID + TWO_TO_THE_32
 const INT64_MAX := 9223372036854775807
 const SOURCE_A_POSITION := Vector3(-24.0, 0.0, 0.0)
 
@@ -105,6 +106,26 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	# Retained witnesses for the identity failures in the replaced bit-pack.
+	# These make the regression concrete without reintroducing the legacy path to
+	# production: signed high source IDs lose positivity, and either a 32-bit
+	# source or sequence stride aliases the same receipt.
+	_check(
+		_legacy_bitpacked_receipt(HIGH_SOURCE_ID_A, 0) <= 0
+		and _legacy_bitpacked_receipt(HIGH_SOURCE_ID_B, 0) <= 0,
+		"legacy bit-packing cannot keep source IDs at or above 2^31 positive"
+	)
+	_check(
+		_legacy_bitpacked_receipt(PRIMARY_SOURCE_ID, 0)
+		== _legacy_bitpacked_receipt(PRIMARY_SOURCE_ID, TWO_TO_THE_32),
+		"legacy bit-packing aliases sequences separated by 2^32"
+	)
+	_check(
+		_legacy_bitpacked_receipt(PRIMARY_SOURCE_ID, 0)
+		== _legacy_bitpacked_receipt(ALIASED_SOURCE_ID, 0),
+		"legacy bit-packing aliases one sequence from sources separated by 2^32"
+	)
+
 	var registered: bool = authority.register_source(source, PRIMARY_SOURCE_ID, &"test_force", TEST_WEAPON_PROFILES)
 	var high_sources_registered: bool = authority.register_source(high_source_a, HIGH_SOURCE_ID_A, &"test_force", TEST_WEAPON_PROFILES)
 	high_sources_registered = high_sources_registered and authority.register_source(high_source_b, HIGH_SOURCE_ID_B, &"test_force", TEST_WEAPON_PROFILES)
@@ -147,6 +168,16 @@ func _run() -> void:
 	var shot_gap := _shoot(authority, source, target_b)
 	var gap_receipt: int = int(shot_gap.get("receipt_id", -1))
 	_check(gap_receipt > receipt5, "sequence gaps are reflected in request metadata but not receipt identity")
+	var gap_request := shot_gap.get("request") as ShotRequestType
+	var gap_result := shot_gap.get("result", {}) as Dictionary
+	_check(
+		gap_request != null
+		and gap_request.source_id == PRIMARY_SOURCE_ID
+		and gap_request.sequence == TWO_TO_THE_32
+		and int(gap_result.get("source_id", 0)) == PRIMARY_SOURCE_ID
+		and int(gap_result.get("last_sequence", -1)) == TWO_TO_THE_32,
+		"accepted-shot records keep source and full-width sequence separate from receipt identity"
+	)
 
 	# Receipt identity must remain own-to-target only.
 	var wrong_a := target_b.commit_deferred_damage_presentation(receipt4)
@@ -167,6 +198,31 @@ func _run() -> void:
 		"all pending receipts are consumed once per target"
 	)
 
+	# A deliberate source reset may restart its request sequence, but receipt
+	# identity belongs to the authority session and must never restart with it.
+	authority.forget_source(source, PRIMARY_SOURCE_ID)
+	var reset_registered := authority.register_source(
+		source,
+		PRIMARY_SOURCE_ID,
+		&"test_force",
+		TEST_WEAPON_PROFILES
+	)
+	var post_reset_shot := _shoot(authority, source, target_a)
+	var post_reset_request := post_reset_shot.get("request") as ShotRequestType
+	var post_reset_receipt := int(post_reset_shot.get("receipt_id", -1))
+	_check(
+		reset_registered
+		and post_reset_request != null
+		and post_reset_request.sequence == 0
+		and post_reset_receipt > gap_receipt,
+		"source reset restarts its sequence without resetting or reusing the session receipt"
+	)
+	_check(
+		target_a.commit_deferred_damage_presentation(post_reset_receipt)
+		and not target_a.commit_deferred_damage_presentation(post_reset_receipt),
+		"post-reset receipt commits its exact target once"
+	)
+
 	# Detach/re-add the same authority instance; receipt IDs keep monotonic state
 	# across Main-like tree streaming boundaries.
 	_check(authority_holder != null, "authority instance is attached to a shared holder")
@@ -182,7 +238,7 @@ func _run() -> void:
 	await process_frame
 	var post_reentry_shot: Dictionary = _shoot(authority, source, target_b)
 	_check(
-		int(post_reentry_shot.get("receipt_id", -1)) > gap_receipt,
+		int(post_reentry_shot.get("receipt_id", -1)) > post_reset_receipt,
 		"presentation receipt sequence remains monotonic after authority detachment/re-entry"
 	)
 
@@ -294,6 +350,10 @@ func _shoot(
 func _on_shot_submitted(request: ShotRequestType, result: Dictionary) -> void:
 	_captured_requests.append(request)
 	_captured_results.append(result.duplicate(true))
+
+
+func _legacy_bitpacked_receipt(source_id: int, sequence: int) -> int:
+	return (source_id << 32) | (sequence & 0xffffffff)
 
 
 func _check(condition: bool, description: String) -> void:
