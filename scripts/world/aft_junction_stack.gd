@@ -2520,6 +2520,14 @@ func _style_access_landmarks() -> void:
 		_apply_door_material(_operations_entrance, _materials["cyan"], _materials["cyan"])
 	if _vip_access != null:
 		_apply_door_material(_vip_access, _materials["red"], _materials["red"])
+	# StationDoor defers this binding because production hosts apply their accent
+	# material from the parent's `_ready`. Aft's exact material/resource census is
+	# itself consumed synchronously by ShipyardWorld later in that same ready
+	# cascade, so both host-coloured leaves must finish their idempotent binding
+	# here rather than exist as two deferred allocations during parent validation.
+	for door in [_operations_entrance, _vip_access]:
+		if door != null:
+			door.call(&"_bind_panel_surface_family")
 
 
 func _apply_door_material(door: StationDoor, panel_material: Material, indicator_material: Material) -> void:

@@ -30,6 +30,7 @@ func _run() -> void:
 	module.position = Vector3(23.0, 1.5, -31.0)
 	module.rotation_degrees.y = 27.0
 	_test_root.add_child(module)
+	_test_synchronous_parent_validation(module)
 	await process_frame
 	await physics_frame
 	await physics_frame
@@ -47,6 +48,50 @@ func _run() -> void:
 	_test_collision_matrix(module)
 	await _test_cleanup(module)
 	_finish()
+
+
+## No frame has elapsed when this runs. ShipyardWorld consumes the same public
+## contracts from its parent `_ready`, so this witness must be green on the exact
+## stack where `add_child()` completes the Aft module's ready cascade.
+func _test_synchronous_parent_validation(module: AftJunctionStack) -> void:
+	var resource_audit := module.get_pod_corner_collar_visual_allocation_audit()
+	var module_contract := StationModuleContract.new().validate_contract(module)
+	var operations_panel := module.get_node_or_null(
+		^"OperationsEntrance/SlidingPanel/PanelMesh"
+	) as MeshInstance3D
+	var vip_panel := module.get_node_or_null(
+		^"VIPAccess/SlidingPanel/PanelMesh"
+	) as MeshInstance3D
+	var operations_material := (
+		operations_panel.material_override as StandardMaterial3D
+		if operations_panel != null else null
+	)
+	var vip_material := (
+		vip_panel.material_override as StandardMaterial3D
+		if vip_panel != null else null
+	)
+	_check(
+		bool(resource_audit.valid)
+		and int(resource_audit.current.material_resource_allocations) == 30
+		and (resource_audit.errors as PackedStringArray).is_empty(),
+		"Aft resource census is immediately green at 30 materials before any deferred frame"
+	)
+	_check(
+		operations_material != null
+		and vip_material != null
+		and operations_material != vip_material
+		and operations_material.uv1_world_triplanar
+		and vip_material.uv1_world_triplanar,
+		"both host-coloured StationDoor leaves synchronously own their panel-surface bindings"
+	)
+	_check(
+		bool(module_contract.valid)
+		and (module_contract.errors as PackedStringArray).is_empty()
+		and module.get_validation_errors().is_empty(),
+		"the complete public Aft contract is valid on the synchronous parent-validation stack"
+	)
+
+
 func _test_identity_evidence_and_audit(module: AftJunctionStack) -> void:
 	_check(module.get_module_id() == &"aft-junction-stack", "module exposes a stable kebab-case identity")
 	_check(bool(module.get_meta("station_module", false)), "root metadata identifies a station module")
