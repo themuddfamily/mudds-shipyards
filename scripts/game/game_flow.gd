@@ -1819,7 +1819,11 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	var from_cabin := phase == Phase.IN_FLIGHT_CABIN and candidate == _cabin_ship
 	if from_cabin:
 		_release_cabin_occupancy()
-	if _convoy_is_running() and candidate != active_ship:
+	# Every route generation is bound to the physical sortie that started it.
+	# Switching hulls is a terminal actor replacement even for the adapters that
+	# do not own a convoy entity; otherwise their clock/progress survives and the
+	# newly boarded craft silently resumes another ship's activity.
+	if _selected_activity_is_running() and candidate != active_ship:
 		_fail_active_activity(&"active_ship_replaced")
 	active_ship = candidate
 	_reset_lifecycle_command_cursor()
@@ -2050,7 +2054,11 @@ func _leave_seat_into_cabin() -> void:
 		"Cabin access — walk %s, then return to the pilot seat" % transition_ship.get_display_name(),
 		"UNDER WAY"
 	)
-	if _convoy_is_running():
+	# Leaving the seat removes the sole production actor authority for every
+	# selected flight activity. Convoy already failed here, but race, patrol, and
+	# cargo previously remained active (and their clocks froze) until the same or
+	# another craft was boarded, creating an unbounded stale generation.
+	if _selected_activity_is_running():
 		_fail_active_activity(&"pilot_unseated")
 	transition_ship.set_piloted(false)
 	if transition_ship.get_camera() != null:
@@ -3783,6 +3791,12 @@ func _convoy_is_running() -> bool:
 		return false
 	var activity := cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary
 	return activity.get("state_id", &"") == &"active"
+
+
+func _selected_activity_is_running() -> bool:
+	if _active_activity_id.is_empty():
+		return false
+	return bool(get_active_activity_snapshot().get("running", false))
 
 
 func _other_activity_is_running() -> bool:
