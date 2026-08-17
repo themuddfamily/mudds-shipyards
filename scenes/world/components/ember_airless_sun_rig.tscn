@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://demberairlesssun1"]
+
+[ext_resource type="Script" path="res://scripts/world/ember_airless_sun_binding.gd" id="1_binding"]
+[ext_resource type="Script" path="res://scripts/world/planetary_sun_presentation.gd" id="2_presentation"]
+
+[node name="EmberAirlessSunRig" type="Node3D"]
+script = ExtResource("1_binding")
+
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0)
+light_color = Color(1, 0.75, 0.5, 1)
+light_energy = 1.5
+shadow_enabled = false
+
+[node name="Presentation" type="Node" parent="."]
+script = ExtResource("2_presentation")
