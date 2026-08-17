@@ -2014,6 +2014,7 @@ func _build_settings_page() -> void:
 	var audio_group := _settings_group(right_column, "AUDIO MIX", "Independent linear volume controls.")
 	_add_slider_setting(audio_group, &"master_volume", "Master", 0.0, 1.0, 0.01, 1.0)
 	_add_slider_setting(audio_group, &"ambience_volume", "Shipyard ambience", 0.0, 1.0, 0.01, 1.0)
+	_add_slider_setting(audio_group, &"music_volume", "Music", 0.0, 1.0, 0.01, 1.0)
 	_add_slider_setting(audio_group, &"engine_volume", "Engines", 0.0, 1.0, 0.01, 1.0)
 	_add_slider_setting(audio_group, &"weapons_volume", "Weapons", 0.0, 1.0, 0.01, 1.0)
 	_add_slider_setting(audio_group, &"ui_volume", "Interface", 0.0, 1.0, 0.01, 1.0)

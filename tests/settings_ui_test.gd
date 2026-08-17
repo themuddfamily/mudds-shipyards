@@ -42,6 +42,7 @@ func _run() -> void:
 		&"camera_fov",
 		&"master_volume",
 		&"ambience_volume",
+		&"music_volume",
 		&"engine_volume",
 		&"weapons_volume",
 		&"ui_volume",
@@ -68,6 +69,7 @@ func _run() -> void:
 		"camera_fov": 88.0,
 		"master_volume": 0.55,
 		"ambience_volume": 0.45,
+		"music_volume": 0.35,
 		"engine_volume": 0.8,
 		"weapons_volume": 0.7,
 		"ui_volume": 0.65,
@@ -88,6 +90,7 @@ func _run() -> void:
 	_check((controls[&"graphics_profile"] as OptionButton).selected == 1, "graphics profile snapshot reaches its selector")
 	_check((controls[&"window_mode"] as OptionButton).selected == 2, "window mode snapshot reaches its selector")
 	_check((controls[&"control_preset"] as OptionButton).selected == 1, "control-hint descriptor snapshot reaches its selector")
+	_check(is_equal_approx((controls[&"music_volume"] as HSlider).value, 0.35), "Music snapshot reaches its dedicated slider")
 	_check(is_equal_approx((controls[&"ui_scale"] as HSlider).value, 1.25), "UI scale snapshot reaches its slider")
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
@@ -96,6 +99,21 @@ func _run() -> void:
 	_check((value_labels[&"ship_mouse_sensitivity"] as Label).text == "200%", "sensitivity is presented as a friendly relative percentage")
 	_check((value_labels[&"camera_fov"] as Label).text == "88°", "field of view is presented in degrees")
 	_check((value_labels[&"master_volume"] as Label).text == "55%", "volume is presented as a friendly percentage")
+	_check((value_labels[&"music_volume"] as Label).text == "35%", "Music volume exposes readable percentage feedback")
+	var music_slider := controls[&"music_volume"] as HSlider
+	var music_copy := music_slider.get_parent().get_child(0) as HBoxContainer
+	_check(
+		music_slider.name == &"MusicVolumeControl"
+		and music_slider.focus_mode == Control.FOCUS_ALL
+		and music_slider.get_parent().name == &"MusicVolumeRow",
+		"Music owns a labelled controller-focusable row in the audio mix"
+	)
+	_check(
+		music_copy != null
+		and music_copy.get_child_count() > 0
+		and (music_copy.get_child(0) as Label).text == "Music",
+		"Music exposes unambiguous readable text beside its control"
+	)
 	_test_input_prompt_family_switching(hud)
 
 	(controls[&"camera_fov"] as HSlider).value = 91.0
@@ -112,6 +130,13 @@ func _run() -> void:
 	hints.select(0)
 	hints.item_selected.emit(0)
 	_check(_change_events.size() == 4 and _change_events[3].key == &"control_preset" and int(_change_events[3].value) == 0, "control-hint edit emits its integer descriptor")
+	(controls[&"music_volume"] as HSlider).value = 0.3
+	_check(
+		_change_events.size() == 5
+		and _change_events[4].key == &"music_volume"
+		and is_equal_approx(float(_change_events[4].value), 0.3),
+		"a player Music edit emits its typed live volume request"
+	)
 
 	hud.set("_started", true)
 	var help_panel := hud.get("_help_panel") as Control
