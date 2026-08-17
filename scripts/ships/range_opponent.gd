@@ -66,6 +66,19 @@ const SYMMETRIC_HULL_BOX_BASELINE_SUBMISSIONS := 8
 const SYMMETRIC_HULL_BOX_BASELINE_MESH_RESOURCES := 8
 const SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES := 4
 
+## Twin gun-charge spheres are state-driven presentation nodes: their scale and
+## visibility animate independently, while firing, collision and damage
+## authority remain on the opponent root, muzzle markers and collision shapes.
+## Keep both ordinary nodes/submissions and share only their immutable recipe.
+const WEAPON_TELEGRAPH_RADIUS := 0.16
+const WEAPON_TELEGRAPH_RADIAL_SEGMENTS := 24
+const WEAPON_TELEGRAPH_RINGS := 12
+const WEAPON_TELEGRAPH_COPY_COUNT := 2
+const WEAPON_TELEGRAPH_POSITIONS := [
+	Vector3(-2.65, -0.08, -4.98),
+	Vector3(2.65, -0.08, -4.98),
+]
+
 @export_category("Defense craft")
 @export_range(1.0, 1000.0, 1.0) var maximum_health := 85.0
 @export_range(10.0, 160.0, 1.0) var cruise_speed := 38.0
@@ -104,6 +117,7 @@ var _muzzle_port: Marker3D
 var _muzzle_starboard: Marker3D
 var _warning_light: OmniLight3D
 var _warning_lenses: Array[MeshInstance3D] = []
+var _weapon_telegraph_mesh: SphereMesh
 var _engine_glows: Array[MeshInstance3D] = []
 var _engine_lights: Array[OmniLight3D] = []
 var _materials: Dictionary = {}
@@ -472,6 +486,128 @@ func get_symmetric_hull_box_allocation_audit() -> Dictionary:
 		"gpu_draw_call_claimed": false,
 		"vram_claimed": false,
 		"whole_scene_budget_claimed": false,
+	}.duplicate(true)
+
+
+## Detached allocation and authority evidence for the two independently
+## animated gun-charge spheres. This is deliberately separate from the hull-box
+## audit: the nodes are dynamic presentation, but the SphereMesh recipe is not.
+func get_weapon_telegraph_mesh_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var paths := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var submissions := 0
+	var authority_nodes := 0
+	var collision_shape_nodes := 0
+	var visual := _visual_root
+	var telegraphs: Array[MeshInstance3D] = []
+	if visual == null or not is_instance_valid(visual) or visual.name != &"RangeInterceptorVisual":
+		errors.append("weapon_telegraph_visual_root_unavailable")
+	else:
+		for raw_node in visual.get_children():
+			var candidate := raw_node as MeshInstance3D
+			var sphere := candidate.mesh as SphereMesh if candidate != null else null
+			if sphere != null and is_equal_approx(sphere.radius, WEAPON_TELEGRAPH_RADIUS):
+				telegraphs.append(candidate)
+
+	for index in telegraphs.size():
+		var telegraph := telegraphs[index]
+		var sphere := telegraph.mesh as SphereMesh
+		var path := str(visual.get_path_to(telegraph))
+		paths.append(path)
+		transforms.append(telegraph.transform)
+		mesh_ids[sphere.get_instance_id()] = true
+		submissions += sphere.get_surface_count()
+		if sphere.material != null:
+			material_ids[sphere.material.get_instance_id()] = true
+		if index >= WEAPON_TELEGRAPH_POSITIONS.size() \
+			or not telegraph.position.is_equal_approx(WEAPON_TELEGRAPH_POSITIONS[index]) \
+			or not telegraph.rotation.is_zero_approx() \
+			or not is_equal_approx(telegraph.scale.x, telegraph.scale.y) \
+			or not is_equal_approx(telegraph.scale.y, telegraph.scale.z) \
+			or not telegraph.scale.is_finite():
+			errors.append("weapon_telegraph_transform_drift:%s" % path)
+		if telegraph.get_parent() != visual \
+			or telegraph.layers != 1 \
+			or telegraph.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or telegraph.material_override != null \
+			or telegraph.material_overlay != null \
+			or not is_zero_approx(telegraph.transparency):
+			errors.append("weapon_telegraph_renderer_state_drift:%s" % path)
+		var gained_authority := telegraph.get_child_count() != 0 \
+			or telegraph.get_script() != null \
+			or not telegraph.get_groups().is_empty() \
+			or not telegraph.get_meta_list().is_empty() \
+			or telegraph.is_processing() \
+			or telegraph.is_physics_processing()
+		for descendant in telegraph.find_children("*", "Node", true, false):
+			if descendant is CollisionShape3D:
+				collision_shape_nodes += 1
+			if descendant is CollisionObject3D \
+				or descendant is CollisionShape3D \
+				or descendant is NavigationRegion3D \
+				or descendant is Light3D \
+				or descendant is Camera3D \
+				or descendant is AudioStreamPlayer \
+				or descendant is AudioStreamPlayer3D:
+				gained_authority = true
+		if gained_authority:
+			authority_nodes += 1
+			errors.append("weapon_telegraph_gained_authority_or_lifecycle:%s" % path)
+
+	if telegraphs.size() != WEAPON_TELEGRAPH_COPY_COUNT \
+		or paths.is_empty() \
+		or paths[0] != "WeaponTelegraph":
+		errors.append("weapon_telegraph_node_path_roster_drift")
+	if paths.size() == WEAPON_TELEGRAPH_COPY_COUNT \
+		and not paths[1].begins_with("@MeshInstance3D@"):
+		errors.append("weapon_telegraph_generated_sibling_path_drift")
+	if mesh_ids.size() != 1:
+		errors.append("weapon_telegraph_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("weapon_telegraph_material_identity_count_drift")
+	var mesh := _weapon_telegraph_mesh
+	if mesh == null \
+		or not is_equal_approx(mesh.radius, WEAPON_TELEGRAPH_RADIUS) \
+		or not is_equal_approx(mesh.height, WEAPON_TELEGRAPH_RADIUS * 2.0) \
+		or mesh.radial_segments != WEAPON_TELEGRAPH_RADIAL_SEGMENTS \
+		or mesh.rings != WEAPON_TELEGRAPH_RINGS \
+		or mesh.get_surface_count() != 1:
+		errors.append("weapon_telegraph_sphere_recipe_drift")
+	elif mesh.material != _materials.get("amber_emissive"):
+		errors.append("weapon_telegraph_material_identity_drift")
+	if mesh != null:
+		if mesh.resource_local_to_scene or not mesh.get_meta_list().is_empty():
+			errors.append("weapon_telegraph_mesh_mutability_or_metadata_drift")
+	for telegraph in telegraphs:
+		if telegraph.mesh != mesh:
+			errors.append("weapon_telegraph_retained_private_mesh")
+			break
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"range_opponent_weapon_telegraph_immutable_sphere",
+		"node_paths": paths,
+		"current_transforms": transforms.duplicate(),
+		"geometry_nodes": telegraphs.size(),
+		"geometry_submissions": submissions,
+		"visible_geometry_copies": telegraphs.size(),
+		"primitive_mesh_allocations": mesh_ids.size(),
+		"material_resource_identities": material_ids.size(),
+		"resource_allocation_reduction": 1,
+		"collision_shape_nodes": collision_shape_nodes,
+		"authority_nodes": authority_nodes,
+		"batched": false,
+		"legacy": {
+			"geometry_nodes": WEAPON_TELEGRAPH_COPY_COUNT,
+			"geometry_submissions": WEAPON_TELEGRAPH_COPY_COUNT,
+			"visible_geometry_copies": WEAPON_TELEGRAPH_COPY_COUNT,
+			"primitive_mesh_allocations": WEAPON_TELEGRAPH_COPY_COUNT,
+			"material_resource_identities": 1,
+		},
 	}.duplicate(true)
 
 
@@ -899,6 +1035,12 @@ func _build_interceptor() -> void:
 		var material := _materials.get(String(StringName(spec["material_key"]))) as Material
 		var family_name := StringName(spec["name"])
 		symmetric_box_meshes[family_name] = _make_box_mesh(spec["size"], material)
+	_weapon_telegraph_mesh = SphereMesh.new()
+	_weapon_telegraph_mesh.radius = WEAPON_TELEGRAPH_RADIUS
+	_weapon_telegraph_mesh.height = WEAPON_TELEGRAPH_RADIUS * 2.0
+	_weapon_telegraph_mesh.radial_segments = WEAPON_TELEGRAPH_RADIAL_SEGMENTS
+	_weapon_telegraph_mesh.rings = WEAPON_TELEGRAPH_RINGS
+	_weapon_telegraph_mesh.material = _materials.amber_emissive
 
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
@@ -914,7 +1056,14 @@ func _build_interceptor() -> void:
 			)
 		_cylinder(_visual_root, "GunHousing", Vector3(side * 2.65, -0.08, -4.35), 0.31, 1.0, _materials.frame, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "ChargeLens", Vector3(side * 2.65, -0.08, -4.88), 0.18, 0.12, _materials.amber_emissive, Vector3(90.0, 0.0, 0.0))
-		var lens := _sphere(_visual_root, "WeaponTelegraph", Vector3(side * 2.65, -0.08, -4.98), 0.16, _materials.amber_emissive)
+		var lens := _sphere(
+			_visual_root,
+			"WeaponTelegraph",
+			Vector3(side * 2.65, -0.08, -4.98),
+			WEAPON_TELEGRAPH_RADIUS,
+			_materials.amber_emissive,
+			_weapon_telegraph_mesh
+		)
 		_warning_lenses.append(lens)
 
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 2.67, 0.05, 3.1), 0.58, 1.45, _materials.frame, Vector3(90.0, 0.0, 0.0))
@@ -1144,16 +1293,25 @@ func _cylinder(parent: Node3D, node_name: String, position_value: Vector3, radiu
 	return instance
 
 
-func _sphere(parent: Node3D, node_name: String, position_value: Vector3, radius: float, material: Material) -> MeshInstance3D:
+func _sphere(
+	parent: Node3D,
+	node_name: String,
+	position_value: Vector3,
+	radius: float,
+	material: Material,
+	shared_mesh: SphereMesh = null
+	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = position_value
-	var mesh := SphereMesh.new()
-	mesh.radius = radius
-	mesh.height = radius * 2.0
-	mesh.radial_segments = 24
-	mesh.rings = 12
-	mesh.material = material
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = SphereMesh.new()
+		mesh.radius = radius
+		mesh.height = radius * 2.0
+		mesh.radial_segments = 24
+		mesh.rings = 12
+		mesh.material = material
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance

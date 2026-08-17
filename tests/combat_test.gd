@@ -58,6 +58,7 @@ func _run() -> void:
 	_check(is_zero_approx(float(opponent.call("get_health"))), "dormant opponent has no stale health")
 	_check(opponent.get_node_or_null("RangeInterceptorVisual") != null, "opponent presentation is built while dormant")
 	_test_symmetric_hull_box_allocation(opponent as RangeOpponent)
+	_test_weapon_telegraph_mesh_allocation(opponent as RangeOpponent)
 	opponent.call("apply_damage", 10.0, Vector3(1.0, 2.0, 3.0))
 	for _frame in 3:
 		await physics_frame
@@ -202,6 +203,10 @@ func _run() -> void:
 	_check(
 		bool((opponent as RangeOpponent).get_symmetric_hull_box_allocation_audit().get("valid", false)),
 		"tree re-entry preserves the shared visual allocation without rebuilding authority"
+	)
+	_check(
+		bool((opponent as RangeOpponent).get_weapon_telegraph_mesh_allocation_audit().get("valid", false)),
+		"tree re-entry preserves the shared telegraph mesh and both presentation nodes"
 	)
 	_check(not bool(opponent.call("commit_deferred_damage_presentation", 502)), "re-entry cannot replay a committed or stale sequence")
 	opponent.call("activate", respawn)
@@ -377,6 +382,167 @@ func _test_symmetric_hull_box_allocation(opponent: RangeOpponent) -> void:
 	_check(
 		bool(opponent.get_symmetric_hull_box_allocation_audit().get("valid", false)),
 		"restoring recipe, identity, and authority returns the allocation audit green"
+	)
+
+
+func _test_weapon_telegraph_mesh_allocation(opponent: RangeOpponent) -> void:
+	_check(
+		opponent.has_method("get_weapon_telegraph_mesh_allocation_audit"),
+		"RangeOpponent exposes bounded twin-telegraph allocation evidence"
+	)
+	var audit := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		bool(audit.get("valid", false))
+		and (audit.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
+		and audit.get("scope") == &"range_opponent_weapon_telegraph_immutable_sphere",
+		"twin-telegraph allocation audit is valid: %s" % [audit.get("errors", [])]
+	)
+	_check(
+		audit.get("legacy") == {
+			"geometry_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"primitive_mesh_allocations": 2,
+			"material_resource_identities": 1,
+		}
+		and int(audit.get("geometry_nodes", 0)) == 2
+		and int(audit.get("geometry_submissions", 0)) == 2
+		and int(audit.get("visible_geometry_copies", 0)) == 2
+		and int(audit.get("primitive_mesh_allocations", 0)) == 1
+		and int(audit.get("material_resource_identities", 0)) == 1
+		and int(audit.get("resource_allocation_reduction", 0)) == 1,
+		"telegraph nodes/submissions/copies/materials remain 2/2/2/1 while SphereMesh allocations fall 2 -> 1"
+	)
+	_check(
+		int(audit.get("collision_shape_nodes", -1)) == 0
+		and int(audit.get("authority_nodes", -1)) == 0
+		and not bool(audit.get("batched", true)),
+		"telegraph stock remains childless, collision-free, authority-free and unbatched"
+	)
+
+	var paths := audit.get("node_paths", PackedStringArray()) as PackedStringArray
+	_check(
+		paths.size() == 2
+		and paths[0] == "WeaponTelegraph"
+		and paths[1].begins_with("@MeshInstance3D@"),
+		"the stable WeaponTelegraph path and its ordinary generated sibling remain intact"
+	)
+	if paths.size() != 2:
+		return
+	var visual := opponent.get_node(^"RangeInterceptorVisual") as Node3D
+	var port := visual.get_node(NodePath(paths[0])) as MeshInstance3D
+	var starboard := visual.get_node(NodePath(paths[1])) as MeshInstance3D
+	var shared_mesh := port.mesh as SphereMesh
+	_check(
+		port.position.is_equal_approx(Vector3(-2.65, -0.08, -4.98))
+		and starboard.position.is_equal_approx(Vector3(2.65, -0.08, -4.98))
+		and port.mesh == starboard.mesh
+		and shared_mesh != null
+		and is_equal_approx(shared_mesh.radius, 0.16)
+		and is_equal_approx(shared_mesh.height, 0.32)
+		and shared_mesh.radial_segments == 24
+		and shared_mesh.rings == 12
+		and shared_mesh.get_surface_count() == 1
+		and shared_mesh.material != null
+		and not shared_mesh.resource_local_to_scene
+		and shared_mesh.get_meta_list().is_empty(),
+		"both telegraph nodes share the exact immutable 0.16 m, 24x12 SphereMesh recipe"
+	)
+	var nodes_exact := true
+	for telegraph in [port, starboard]:
+		nodes_exact = nodes_exact \
+			and telegraph.get_parent() == visual \
+			and telegraph.rotation.is_zero_approx() \
+			and is_equal_approx(telegraph.scale.x, telegraph.scale.y) \
+			and is_equal_approx(telegraph.scale.y, telegraph.scale.z) \
+			and telegraph.layers == 1 \
+			and telegraph.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and telegraph.material_override == null \
+			and telegraph.material_overlay == null \
+			and telegraph.get_child_count() == 0 \
+			and telegraph.get_script() == null \
+			and telegraph.get_groups().is_empty() \
+			and telegraph.get_meta_list().is_empty() \
+			and not telegraph.is_processing() \
+			and not telegraph.is_physics_processing()
+	_check(
+		nodes_exact,
+		"both retained dynamic nodes preserve transform symmetry, renderer state and zero authority"
+	)
+
+	var detached := audit.duplicate(true)
+	(detached.get("node_paths") as PackedStringArray)[0] = "mutation"
+	(detached.get("current_transforms") as Array)[0] = Transform3D.IDENTITY
+	(detached.get("legacy") as Dictionary)["primitive_mesh_allocations"] = -1
+	var fresh := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		(fresh.get("node_paths") as PackedStringArray)[0] == "WeaponTelegraph"
+		and not ((fresh.get("current_transforms") as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		)
+		and int((fresh.get("legacy") as Dictionary).get("primitive_mesh_allocations", 0)) == 2,
+		"telegraph path, transform and allocation evidence is deeply detached"
+	)
+
+	starboard.mesh = shared_mesh.duplicate() as SphereMesh
+	var identity_red := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		not bool(identity_red.get("valid", true))
+		and _audit_has_error(identity_red, "weapon_telegraph_mesh_identity_not_shared")
+		and _audit_has_error(identity_red, "weapon_telegraph_retained_private_mesh"),
+		"an exact-looking private telegraph mesh turns shared identity red"
+	)
+	starboard.mesh = shared_mesh
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings = original_rings - 1
+	var recipe_red := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		not bool(recipe_red.get("valid", true))
+		and _audit_has_error(recipe_red, "weapon_telegraph_sphere_recipe_drift"),
+		"shared telegraph tessellation mutation turns the primitive recipe red"
+	)
+	shared_mesh.rings = original_rings
+	var original_material := shared_mesh.material
+	shared_mesh.material = null
+	var material_red := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		not bool(material_red.get("valid", true))
+		and _audit_has_error(material_red, "weapon_telegraph_material_identity_drift"),
+		"shared telegraph material mutation turns exact material identity red"
+	)
+	shared_mesh.material = original_material
+	starboard.layers = 2
+	var renderer_red := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		not bool(renderer_red.get("valid", true))
+		and _audit_has_error(
+			renderer_red,
+			"weapon_telegraph_renderer_state_drift:%s" % paths[1]
+		),
+		"telegraph renderer-layer mutation turns presentation state red"
+	)
+	starboard.layers = 1
+	var rogue_area := Area3D.new()
+	var rogue_shape := CollisionShape3D.new()
+	rogue_shape.shape = SphereShape3D.new()
+	rogue_area.add_child(rogue_shape)
+	starboard.add_child(rogue_area)
+	var authority_red := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	_check(
+		not bool(authority_red.get("valid", true))
+		and int(authority_red.get("authority_nodes", 0)) == 1
+		and int(authority_red.get("collision_shape_nodes", 0)) == 1
+		and _audit_has_error(
+			authority_red,
+			"weapon_telegraph_gained_authority_or_lifecycle:%s" % paths[1]
+		),
+		"collision/interaction authority beneath telegraph stock turns the zero-authority gate red"
+	)
+	starboard.remove_child(rogue_area)
+	rogue_area.free()
+	_check(
+		bool(opponent.get_weapon_telegraph_mesh_allocation_audit().get("valid", false)),
+		"restoring telegraph identity, recipe, material, renderer and authority returns the audit green"
 	)
 
 
