@@ -47,6 +47,7 @@ func _run() -> void:
 	_test_rack_cable_tray_clamp_visual_resource_sharing(module)
 	_test_console_shock_collar_visual_resource_sharing(module)
 	_test_pedestal_bearing_visual_resource_sharing(module)
+	_test_conduit_collar_visual_resource_sharing(module)
 	_test_interface_collar_profile(module)
 	_test_vip_landmark(module)
 	await _test_negative_space(module)
@@ -295,14 +296,14 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"renderer_nodes": 848,
 			"drawn_copies": 851,
 			"surface_submissions": 848,
-			"mesh_resource_allocations": 296,
+			"mesh_resource_allocations": 294,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"pod, spine, rack, console and chair-bearing sharing plus the independent VIP trim batch freeze 1156 descendants, 848 renderers/submissions, 851 copies, and 296 mesh allocations"
+		"pod, spine, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1156 descendants, 848 renderers/submissions, 851 copies, and 294 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -310,7 +311,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"renderer_nodes": 3,
 			"drawn_copies": 0,
 			"surface_submissions": 3,
-			"mesh_resource_allocations": 21,
+			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		}
 		and not bool(report.batched)
@@ -382,7 +383,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 296
+		int(detached.current.mesh_resource_allocations) == 294
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -424,7 +425,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 297
+		and int(identity_red.current.mesh_resource_allocations) == 295
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -1194,6 +1195,215 @@ func _test_pedestal_bearing_visual_resource_sharing(
 	)
 
 
+func _test_conduit_collar_visual_resource_sharing(
+		module: AftJunctionStack
+	) -> void:
+	var report := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		bool(report.valid)
+		and report.legacy == {
+			"visual_nodes": 3,
+			"drawn_copies": 3,
+			"surface_submissions": 3,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 1,
+		}
+		and report.current == {
+			"visual_nodes": 3,
+			"drawn_copies": 3,
+			"surface_submissions": 3,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+		}
+		and report.reductions == {
+			"visual_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 2,
+			"material_resource_allocations": 0,
+		}
+		and not bool(report.batched)
+		and not bool(report.renderer_values_changed)
+		and not bool(report.normalised)
+		and report.authored_tessellation == Vector2i(48, 16)
+		and report.live_tessellation == Vector2i(48, 16)
+		and bool(report.material_identity_preserved)
+		and int(report.collision_authority_count) == 0
+		and int(report.semantic_authority_count) == 0,
+		"three ConduitCollar renderers preserve nodes, copies, submissions and zero authority while mesh allocations fall 3 -> 1"
+	)
+
+	var paths := report.node_paths as PackedStringArray
+	var transforms := report.authored_transforms as Array
+	var collars: Array[MeshInstance3D] = []
+	for raw_node in module.find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			AftJunctionStack.INTERFACE_COLLAR_KIND_META, &""
+		)) == &"ConduitCollar":
+			collars.append(instance)
+	var shared_mesh := collars[0].mesh as TorusMesh if not collars.is_empty() else null
+	var shared_material := (
+		collars[0].material_override if not collars.is_empty() else null
+	)
+	var service_wall := module.get_node_or_null(
+		^"Structure/OperationsRoom/ServiceWall"
+	) as Node3D
+	var exact_family := (
+		collars.size() == AftJunctionStack.CONDUIT_COLLAR_COPY_COUNT
+		and paths.size() == AftJunctionStack.CONDUIT_COLLAR_COPY_COUNT
+		and transforms.size() == AftJunctionStack.CONDUIT_COLLAR_COPY_COUNT
+	)
+	for index in collars.size():
+		var collar := collars[index]
+		var metadata_keys := collar.get_meta_list()
+		exact_family = (
+			exact_family
+			and collar.mesh == shared_mesh
+			and collar.material_override == shared_material
+			and shared_material != null
+			and collar.position.is_equal_approx(
+				AftJunctionStack.CONDUIT_COLLAR_POSITIONS[index] as Vector3
+			)
+			and collar.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+			and collar.scale == Vector3.ONE
+			and (transforms[index] as Transform3D).is_equal_approx(collar.transform)
+			and collar.visible
+			and collar.layers == 1
+			and collar.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and collar.material_overlay == null
+			and is_zero_approx(collar.transparency)
+			and collar.get_child_count() == 0
+			and collar.get_script() == null
+			and collar.get_groups().is_empty()
+			and metadata_keys.size() == 2
+			and metadata_keys.has(TorusGeometryBudget.PROFILE_META)
+			and metadata_keys.has(AftJunctionStack.INTERFACE_COLLAR_KIND_META)
+			and StringName(collar.get_meta(
+				TorusGeometryBudget.PROFILE_META, &""
+			)) == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+			and StringName(collar.get_meta(
+				AftJunctionStack.INTERFACE_COLLAR_KIND_META, &""
+			)) == &"ConduitCollar"
+			and collar.get_parent() == service_wall
+			and (
+				String(paths[index]) \
+					== "Structure/OperationsRoom/ServiceWall/ConduitCollar"
+				if index == 0
+				else String(collar.name).begins_with("@MeshInstance3D@")
+			)
+		)
+	_check(
+		exact_family
+		and service_wall != null
+		and bool(service_wall.get_meta("station_service_wall", false))
+		and shared_mesh != null
+		and shared_mesh.resource_name == "AftConduitCollarMesh"
+		and not shared_mesh.resource_local_to_scene
+		and shared_mesh.material == null
+		and is_equal_approx(shared_mesh.inner_radius, 0.1)
+		and is_equal_approx(shared_mesh.outer_radius, 0.16)
+		and shared_mesh.rings == 48
+		and shared_mesh.ring_segments == 16
+		and shared_mesh.get_surface_count() == 1,
+		"the exact service-wall path/transform roster, brass renderer state and authored 48x16 recipe remain intact"
+	)
+
+	(report.current as Dictionary)["mesh_resource_allocations"] = -1
+	paths[0] = "mutated"
+	transforms.clear()
+	var detached := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		int(detached.current.mesh_resource_allocations) == 1
+		and (detached.node_paths as PackedStringArray)[0] \
+			== "Structure/OperationsRoom/ServiceWall/ConduitCollar"
+		and (detached.authored_transforms as Array).size() == 3,
+		"conduit-collar allocation, path and transform evidence is deeply detached"
+	)
+
+	var baseline_errors := module.get_validation_errors()
+	var original_second_mesh := collars[1].mesh
+	collars[1].mesh = shared_mesh.duplicate() as Mesh
+	var identity_red := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		not bool(identity_red.valid)
+		and (identity_red.errors as PackedStringArray).has(
+			"conduit_collar_mesh_identity_not_shared"
+		)
+		and int(identity_red.current.mesh_resource_allocations) == 2
+		and module.get_validation_errors().has(
+			"shared service-wall-conduit-collar visual allocation contract drifted"
+		),
+		"RED private-duplicate mutation rejects an exact-looking ConduitCollar mesh"
+	)
+	collars[1].mesh = original_second_mesh
+
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings += 1
+	var recipe_red := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		not bool(recipe_red.valid)
+		and (recipe_red.errors as PackedStringArray).has(
+			"conduit_collar_torus_recipe_drift"
+		),
+		"RED recipe mutation rejects arbitrary ConduitCollar tessellation"
+	)
+	shared_mesh.rings = original_rings
+
+	shared_mesh.set_meta(TorusGeometryBudget.AUTHORED_META, Vector2i(47, 15))
+	var budget_red := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		not bool(budget_red.valid)
+		and (budget_red.errors as PackedStringArray).has(
+			"conduit_collar_budget_metadata_drift"
+		),
+		"RED budget mutation rejects false ConduitCollar authorship metadata"
+	)
+	shared_mesh.remove_meta(TorusGeometryBudget.AUTHORED_META)
+
+	var original_material := collars[2].material_override
+	collars[2].material_override = null
+	var material_red := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		not bool(material_red.valid)
+		and (material_red.errors as PackedStringArray).has(
+			"conduit_collar_material_identity_drift"
+		),
+		"RED material mutation rejects loss of the shared brass binding"
+	)
+	collars[2].material_override = original_material
+
+	var original_layers := collars[0].layers
+	collars[0].layers = 2
+	var renderer_red := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		not bool(renderer_red.valid)
+		and (renderer_red.errors as PackedStringArray).has(
+			"conduit_collar_renderer_state_drift"
+		),
+		"RED layer mutation rejects ConduitCollar renderer-state drift"
+	)
+	collars[0].layers = original_layers
+
+	collars[1].set_meta("forbidden_evidence_authority", true)
+	var authority_red := module.get_conduit_collar_visual_allocation_audit()
+	_check(
+		not bool(authority_red.valid)
+		and (authority_red.errors as PackedStringArray).has(
+			"conduit_collar_gained_authority_or_lifecycle"
+		)
+		and int(authority_red.semantic_authority_count) == 1,
+		"RED authority mutation rejects semantics on a visual-only ConduitCollar"
+	)
+	collars[1].remove_meta("forbidden_evidence_authority")
+	_check(
+		bool(module.get_conduit_collar_visual_allocation_audit().valid)
+		and module.get_validation_errors() == baseline_errors,
+		"restoring conduit identity, recipe, budget, material, layer and authority returns the exact validator state"
+	)
+
+
 func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 	var report := module.get_vip_facade_column_trim_batch_audit()
 	if not bool(report.valid):
@@ -1446,7 +1656,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		})
 
 	_check(observed_counts == expected_counts, "Aft profile selects only the exact 26 interface-collar roster")
-	_check(mesh_ids.size() == 11, "26 profiled collars retain 11 TorusMesh resources after exact SpineClamp, rack, console and chair-bearing sharing")
+	_check(mesh_ids.size() == 9, "26 profiled collars retain 9 TorusMesh resources after exact spine, rack, console, chair-bearing and conduit sharing")
 	# The operations test deliberately leaves the door open. Production performs
 	# the geometry pass at startup with this portal closed, so restore that real
 	# lifecycle state before asserting the complete module contract below.
@@ -1484,10 +1694,10 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
 	) as Dictionary
 	_check(
-		int(profile_report.get("resources", 0)) == 11
+		int(profile_report.get("resources", 0)) == 9
 		and int(profile_report.get("instances", 0)) == 26
 		and int(profile_report.get("surfaces", 0)) == 26,
-		"profile report freezes 11 resources, 26 visible instances, and 26 surfaces"
+		"profile report freezes 9 resources, 26 visible instances, and 26 surfaces"
 	)
 	_check(
 		int(profile_report.get("triangles_baseline", 0)) == 19968
@@ -1501,6 +1711,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 	var rack_clamp_report := module.get_rack_cable_tray_clamp_visual_allocation_audit()
 	var console_collar_report := module.get_console_shock_collar_visual_allocation_audit()
 	var pedestal_bearing_report := module.get_pedestal_bearing_visual_allocation_audit()
+	var conduit_collar_report := module.get_conduit_collar_visual_allocation_audit()
 	_check(
 		bool(pod_report.valid)
 		and bool(spine_report.valid)
@@ -1519,6 +1730,10 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and bool(pedestal_bearing_report.normalised)
 		and pedestal_bearing_report.authored_tessellation == Vector2i(48, 16)
 		and pedestal_bearing_report.live_tessellation == Vector2i(32, 8)
+		and bool(conduit_collar_report.valid)
+		and bool(conduit_collar_report.normalised)
+		and conduit_collar_report.authored_tessellation == Vector2i(48, 16)
+		and conduit_collar_report.live_tessellation == Vector2i(32, 8)
 		and bool(pod_recipe.get("normalised", false))
 		and int(pod_recipe.get("authored_rings", 0)) \
 			== AftJunctionStack.POD_CORNER_COLLAR_RINGS
@@ -1529,7 +1744,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and int(pod_recipe.get("ring_segments", 0)) \
 			== AftJunctionStack.POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS
 		and module.get_validation_errors().is_empty(),
-		"production torus normalization retains exact 48x16 authorship metadata and keeps pod collars at 34x14 plus all four shared profiled families at 32x8"
+		"production torus normalization retains exact 48x16 authorship metadata and keeps pod collars at 34x14 plus all five shared profiled families at 32x8"
 	)
 
 	var pod_mesh := (
@@ -1556,17 +1771,20 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 	var reentry_rack_clamp_report := module.get_rack_cable_tray_clamp_visual_allocation_audit()
 	var reentry_console_collar_report := module.get_console_shock_collar_visual_allocation_audit()
 	var reentry_pedestal_bearing_report := module.get_pedestal_bearing_visual_allocation_audit()
+	var reentry_conduit_collar_report := module.get_conduit_collar_visual_allocation_audit()
 	_check(
 		bool(reentry_report.valid)
 		and bool(reentry_spine_report.valid)
 		and bool(reentry_rack_clamp_report.valid)
 		and bool(reentry_console_collar_report.valid)
 		and bool(reentry_pedestal_bearing_report.valid)
+		and bool(reentry_conduit_collar_report.valid)
 		and bool((reentry_report.mesh_recipe as Dictionary).normalised)
 		and bool(reentry_spine_report.normalised)
 		and bool(reentry_rack_clamp_report.normalised)
 		and bool(reentry_console_collar_report.normalised)
 		and bool(reentry_pedestal_bearing_report.normalised)
+		and bool(reentry_conduit_collar_report.normalised)
 		and module.get_validation_errors().is_empty(),
 		"Aft re-entry preserves the exact normalized shared resource and immediately restores a green contract"
 	)

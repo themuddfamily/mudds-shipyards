@@ -126,6 +126,22 @@ const PEDESTAL_BEARING_BUDGETED_RINGS := 32
 const PEDESTAL_BEARING_BUDGETED_RING_SEGMENTS := 8
 const PEDESTAL_BEARING_COPY_COUNT := 4
 const PEDESTAL_BEARING_LOCAL_POSITION := Vector3(0.0, 0.68, 0.0)
+## Three brass visual collars around the service wall's existing conduit
+## renderers. The childless collar nodes and their exact presentation stay in
+## place; only their identical TorusMesh recipe becomes one component-local
+## immutable allocation. Neither collar nor conduit owns collision or gameplay.
+const CONDUIT_COLLAR_INNER_RADIUS := 0.1
+const CONDUIT_COLLAR_OUTER_RADIUS := 0.16
+const CONDUIT_COLLAR_RINGS := 48
+const CONDUIT_COLLAR_RING_SEGMENTS := 16
+const CONDUIT_COLLAR_BUDGETED_RINGS := 32
+const CONDUIT_COLLAR_BUDGETED_RING_SEGMENTS := 8
+const CONDUIT_COLLAR_COPY_COUNT := 3
+const CONDUIT_COLLAR_POSITIONS := [
+	Vector3(-0.55, 2.95, -2.05),
+	Vector3(-0.55, 2.95, 0.0),
+	Vector3(-0.55, 2.95, 2.05),
+]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
 const RENDER_DESCENDANT_NODE_COUNT := 1156
 const BASELINE_RENDERER_NODE_COUNT := 851
@@ -135,7 +151,7 @@ const DRAWN_COPY_COUNT := 851
 const BASELINE_SURFACE_SUBMISSION_COUNT := 851
 const SURFACE_SUBMISSION_COUNT := 848
 const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 296
+const MESH_RESOURCE_COUNT := 294
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -208,6 +224,7 @@ var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
 var _pedestal_bearing_mesh: TorusMesh
+var _conduit_collar_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -446,6 +463,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("shared console-shock-collar visual allocation contract drifted")
 	if not bool(performance.pedestal_bearing_visual_sharing.valid):
 		errors.append("shared chair-pedestal-bearing visual allocation contract drifted")
+	if not bool(performance.conduit_collar_visual_sharing.valid):
+		errors.append("shared service-wall-conduit-collar visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -627,12 +646,14 @@ func get_performance_contract() -> Dictionary:
 	var tray_clamp_sharing := get_rack_cable_tray_clamp_visual_allocation_audit()
 	var console_collar_sharing := get_console_shock_collar_visual_allocation_audit()
 	var pedestal_bearing_sharing := get_pedestal_bearing_visual_allocation_audit()
+	var conduit_collar_sharing := get_conduit_collar_visual_allocation_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["spine_clamp_visual_sharing"] = spine_sharing
 	contract["rack_cable_tray_clamp_visual_sharing"] = tray_clamp_sharing
 	contract["console_shock_collar_visual_sharing"] = console_collar_sharing
 	contract["pedestal_bearing_visual_sharing"] = pedestal_bearing_sharing
+	contract["conduit_collar_visual_sharing"] = conduit_collar_sharing
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
@@ -641,6 +662,7 @@ func get_performance_contract() -> Dictionary:
 		and bool(tray_clamp_sharing.valid)
 		and bool(console_collar_sharing.valid)
 		and bool(pedestal_bearing_sharing.valid)
+		and bool(conduit_collar_sharing.valid)
 	)
 	return contract
 
@@ -819,7 +841,7 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 			"renderer_nodes": 3,
 			"drawn_copies": 0,
 			"surface_submissions": 3,
-			"mesh_resource_allocations": 21,
+			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
@@ -1675,6 +1697,202 @@ func get_pedestal_bearing_visual_allocation_audit() -> Dictionary:
 		"semantic_authority_count": authority_nodes,
 		"pedestal_collision_body_count": pedestal_collision_bodies,
 		"pedestal_collision_shape_count": pedestal_collision_shapes,
+		"batched": false,
+		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the three ordinary ConduitCollar
+## renderers. Repository eligibility found no path/name consumer beyond the
+## generic interface profile; sharing therefore changes resource identity only,
+## while all ordinary nodes, submissions and renderer values remain authored.
+func get_conduit_collar_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var family_nodes: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var node_paths := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	var surface_submissions := 0
+	var visible_copies := 0
+	var collision_nodes := 0
+	var authority_nodes := 0
+	var expected_parent := get_node_or_null(
+		^"Structure/OperationsRoom/ServiceWall"
+	) as Node3D
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			TorusGeometryBudget.PROFILE_META, &""
+		)) != TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
+			continue
+		if StringName(instance.get_meta(INTERFACE_COLLAR_KIND_META, &"")) \
+				!= &"ConduitCollar":
+			continue
+		family_nodes.append(instance)
+		node_paths.append(String(get_path_to(instance)))
+		transforms.append(instance.transform)
+		visible_copies += 1 if instance.visible else 0
+		if instance.mesh != null:
+			mesh_ids[instance.mesh.get_instance_id()] = true
+			surface_submissions += instance.mesh.get_surface_count()
+		if instance.material_override != null:
+			material_ids[instance.material_override.get_instance_id()] = true
+		if instance.mesh != _conduit_collar_mesh:
+			errors.append("conduit_collar_mesh_identity_not_shared")
+		if instance.material_override != _materials.get("brass"):
+			errors.append("conduit_collar_material_identity_drift")
+		var family_index := family_nodes.size() - 1
+		if family_index >= CONDUIT_COLLAR_POSITIONS.size() \
+				or not instance.position.is_equal_approx(
+					CONDUIT_COLLAR_POSITIONS[family_index] as Vector3
+				) \
+				or not instance.rotation_degrees.is_equal_approx(
+					Vector3(90.0, 0.0, 0.0)
+				) \
+				or instance.scale != Vector3.ONE:
+			errors.append("conduit_collar_transform_drift")
+		if not instance.visible \
+				or instance.layers != 1 \
+				or instance.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or instance.material_overlay != null \
+				or not is_zero_approx(instance.transparency):
+			errors.append("conduit_collar_renderer_state_drift")
+		var metadata_keys := instance.get_meta_list()
+		var exact_metadata := (
+			metadata_keys.size() == 2
+			and metadata_keys.has(TorusGeometryBudget.PROFILE_META)
+			and metadata_keys.has(INTERFACE_COLLAR_KIND_META)
+			and StringName(instance.get_meta(
+				TorusGeometryBudget.PROFILE_META, &""
+			)) == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+			and StringName(instance.get_meta(
+				INTERFACE_COLLAR_KIND_META, &""
+			)) == &"ConduitCollar"
+		)
+		var gained_authority := (
+			instance.get_parent() != expected_parent
+			or instance.get_child_count() != 0
+			or instance.get_script() != null
+			or not instance.get_groups().is_empty()
+			or not exact_metadata
+		)
+		if gained_authority:
+			authority_nodes += 1
+			errors.append("conduit_collar_gained_authority_or_lifecycle")
+		collision_nodes += instance.find_children(
+			"*", "CollisionObject3D", true, false
+		).size()
+		collision_nodes += instance.find_children(
+			"*", "CollisionShape3D", true, false
+		).size()
+
+	if family_nodes.size() != CONDUIT_COLLAR_COPY_COUNT:
+		errors.append("conduit_collar_visual_node_count_drift")
+	var stable_paths := family_nodes.size() == CONDUIT_COLLAR_COPY_COUNT
+	if stable_paths:
+		stable_paths = node_paths[0] \
+			== "Structure/OperationsRoom/ServiceWall/ConduitCollar"
+		for index in range(1, node_paths.size()):
+			stable_paths = (
+				stable_paths
+				and String(family_nodes[index].name).begins_with("@MeshInstance3D@")
+				and family_nodes[index].get_parent() == expected_parent
+			)
+	if not stable_paths:
+		errors.append("conduit_collar_node_path_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("conduit_collar_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("conduit_collar_material_identity_drift")
+	if collision_nodes != 0:
+		errors.append("conduit_collar_gained_collision_authority")
+
+	var authored_tessellation := Vector2i(
+		CONDUIT_COLLAR_RINGS,
+		CONDUIT_COLLAR_RING_SEGMENTS
+	)
+	var normalised := (
+		_conduit_collar_mesh != null
+		and _conduit_collar_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	)
+	var live_tessellation := Vector2i(
+		CONDUIT_COLLAR_BUDGETED_RINGS,
+		CONDUIT_COLLAR_BUDGETED_RING_SEGMENTS
+	) if normalised else authored_tessellation
+	if _conduit_collar_mesh == null \
+			or not is_equal_approx(
+				_conduit_collar_mesh.inner_radius,
+				CONDUIT_COLLAR_INNER_RADIUS
+			) \
+			or not is_equal_approx(
+				_conduit_collar_mesh.outer_radius,
+				CONDUIT_COLLAR_OUTER_RADIUS
+			) \
+			or _conduit_collar_mesh.rings != live_tessellation.x \
+			or _conduit_collar_mesh.ring_segments != live_tessellation.y \
+			or _conduit_collar_mesh.get_surface_count() != 1:
+		errors.append("conduit_collar_torus_recipe_drift")
+	var mesh_metadata: Array[StringName] = []
+	if _conduit_collar_mesh != null:
+		mesh_metadata = _conduit_collar_mesh.get_meta_list()
+	var exact_mesh_metadata: bool = (
+		_conduit_collar_mesh != null
+		and _conduit_collar_mesh.material == null
+		and not _conduit_collar_mesh.resource_local_to_scene
+		and (
+			(not normalised and mesh_metadata.is_empty())
+			or (
+				normalised
+				and mesh_metadata.size() == 1
+				and mesh_metadata.has(TorusGeometryBudget.AUTHORED_META)
+				and _conduit_collar_mesh.get_meta(
+					TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+				) == authored_tessellation
+			)
+		)
+	)
+	if not exact_mesh_metadata:
+		errors.append("conduit_collar_budget_metadata_drift")
+
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_conduit_collar_visuals",
+		"legacy": {
+			"visual_nodes": CONDUIT_COLLAR_COPY_COUNT,
+			"drawn_copies": CONDUIT_COLLAR_COPY_COUNT,
+			"surface_submissions": CONDUIT_COLLAR_COPY_COUNT,
+			"mesh_resource_allocations": CONDUIT_COLLAR_COPY_COUNT,
+			"material_resource_allocations": 1,
+		},
+		"current": {
+			"visual_nodes": family_nodes.size(),
+			"drawn_copies": visible_copies,
+			"surface_submissions": surface_submissions,
+			"mesh_resource_allocations": mesh_ids.size(),
+			"material_resource_allocations": material_ids.size(),
+		},
+		"reductions": {
+			"visual_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 2,
+			"material_resource_allocations": 0,
+		},
+		"node_paths": node_paths,
+		"authored_transforms": transforms,
+		"authored_tessellation": authored_tessellation,
+		"live_tessellation": Vector2i(
+			_conduit_collar_mesh.rings,
+			_conduit_collar_mesh.ring_segments
+		) if _conduit_collar_mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
+		"material_identity_preserved": material_ids.size() == 1,
+		"collision_authority_count": collision_nodes,
+		"semantic_authority_count": authority_nodes,
 		"batched": false,
 		"renderer_values_changed": false,
 	}.duplicate(true)
@@ -3582,10 +3800,26 @@ func _build_service_wall(room: Node3D) -> void:
 		for fastener_y in [0.67, 2.77]:
 			for fastener_z in [-0.53, 0.53]:
 				_cylinder(service, "CabinetFastener", Vector3(-0.535, float(fastener_y), z_position + float(fastener_z)), 0.035, 0.028, _materials["brass"], false, Vector3(0, 0, 90))
+	_conduit_collar_mesh = _torus_mesh(
+		CONDUIT_COLLAR_INNER_RADIUS,
+		CONDUIT_COLLAR_OUTER_RADIUS,
+		CONDUIT_COLLAR_RINGS,
+		CONDUIT_COLLAR_RING_SEGMENTS
+	)
+	_conduit_collar_mesh.resource_name = "AftConduitCollarMesh"
 	for pipe_index in 3:
 		var pipe_z := -2.05 + float(pipe_index) * 2.05
 		_cylinder(service, "ServiceConduit", Vector3(-0.55, 3.65, pipe_z), 0.09, 1.9, _materials["mid_grey"], false)
-		_interface_collar(service, "ConduitCollar", Vector3(-0.55, 2.95, pipe_z), 0.1, 0.16, _materials["brass"], Vector3(90, 0, 0))
+		_interface_collar(
+			service,
+			"ConduitCollar",
+			Vector3(-0.55, 2.95, pipe_z),
+			CONDUIT_COLLAR_INNER_RADIUS,
+			CONDUIT_COLLAR_OUTER_RADIUS,
+			_materials["brass"],
+			Vector3(90, 0, 0),
+			_conduit_collar_mesh
+		)
 	_beam_between(service, "ServiceBus", Vector3(-0.66, 4.15, -2.85), Vector3(-0.66, 4.15, 2.85), 0.065, _materials["copper"], false)
 	# Three status strips in a recessed cabinet face, none of which lit the recess
 	# they sit in — the exact "glowing decal" reading. One practical per strip,
