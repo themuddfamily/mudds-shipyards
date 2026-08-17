@@ -27,13 +27,13 @@ python3 tools/release/graphical_harness_inventory.py --required-readiness --json
 python3 tools/release/graphical_harness_inventory.py --required-readiness --strict
 ```
 
-The report consumes only the checked-in registry. For each of the twelve
+The report consumes only the checked-in registry. For each of the thirteen
 mandatory IDs, it reports the source-freeze status, declared image-inventory
 status and PNG count, original-resolution human-review status, and an exact
 stage/reason blocker. Harnesses and blockers are emitted in stable ID and stage
 order, with a deterministic readiness fingerprint. Invalid registry structure
 always exits nonzero. A structurally valid report exits zero by default so it
-can expose pending work; `--strict` exits nonzero unless all twelve harnesses
+can expose pending work; `--strict` exits nonzero unless all thirteen harnesses
 have all three completed evidence stages.
 
 Human `readiness: ready` means that machine evidence is ready to be inspected;
@@ -42,13 +42,19 @@ bounded evidence reference after verified source and image declarations,
 satisfies the human-review stage. The report never upgrades a state, inspects
 pixels, or infers human approval from `review_status`.
 
-At this revision all twelve required rows truthfully remain pending in all
-three stages, so the deterministic report has `ready=0`, `required=12`, and 36
+At this revision all thirteen required rows truthfully remain pending in all
+three stages, so the deterministic report has `ready=0`, `required=13`, and 39
 blockers. The listed PNG counts are declarations frozen by the registry policy,
 not a claim that those image files exist or were reviewed. Both text and JSON
 outputs explicitly state `render_execution=false` and
 `human_review_performed=false`; neither report mode invokes Godot, a capture
 script, a renderer, or an external review service.
+
+The new `cinder-streaming-transition-render` requirement freezes 24 declared
+HIGH/LOW × normal/reduced-motion transition frames. Its exact state, camera,
+threshold, and manifest contract is documented in
+`docs/CINDER_STREAMING_TRANSITION_EVIDENCE.md`; all three registry evidence
+stages remain pending and no human pixel review is claimed.
 
 ## Discovery boundary
 
@@ -64,7 +70,7 @@ probes and PNG asset processors such as `generate_material_maps.gd` and
 `simulate_dichromacy.gd`, because they do not read rendered viewport evidence.
 
 At the foundation revision the rule discovers and the registry covers exactly
-48 scripts: 12 required, 36 historical, and 0 deprecated. The twelve required
+49 scripts: 13 required, 36 historical, and 0 deprecated. The thirteen required
 IDs and their exact expected PNG counts are hard-frozen in the validator, so a
 registry edit cannot silently remove or demote one, or weaken its image count.
 Zero deprecated is
@@ -143,7 +149,7 @@ because it is not a release gate.
 - The tool validates registered fallback roots and environment-variable names;
   it cannot constrain a caller's runtime environment override or dynamic file
   label. Godot harnesses remain responsible for their own runtime path safety.
-- The twelve required harnesses freeze exact expected PNG counts. Historical
+- The thirteen required harnesses freeze exact expected PNG counts. Historical
   rows may retain a null count while their image inventory is explicitly
   pending; no cardinality or hash is inferred for them.
 - Source-freeze and image-inventory verification are pending in this initial

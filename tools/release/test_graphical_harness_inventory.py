@@ -450,8 +450,14 @@ class GraphicalHarnessInventoryTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertTrue(first.inventory_valid, "\n".join(first.inventory_errors))
         self.assertFalse(first.ready)
-        self.assertEqual(len(first.harnesses), 12)
-        self.assertEqual(first.blocker_count, 36)
+        self.assertEqual(len(first.harnesses), 13)
+        self.assertEqual(first.blocker_count, 39)
+        self.assertEqual(
+            inventory.MANDATORY_REQUIRED_IMAGE_COUNTS[
+                "cinder-streaming-transition-render"
+            ],
+            24,
+        )
         self.assertEqual(
             tuple(harness.harness_id for harness in first.harnesses),
             tuple(sorted(inventory.MANDATORY_REQUIRED_IDS)),

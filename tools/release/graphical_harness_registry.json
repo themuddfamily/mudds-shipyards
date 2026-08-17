@@ -24,6 +24,17 @@
       "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
     },
     {
+      "id": "cinder-streaming-transition-render",
+      "script": "tests/cinder_streaming_transition_render.gd",
+      "classification": "required",
+      "output": {"root": "/tmp/cinder-streaming-transition-evidence", "contract": "png_set_and_manifest", "runtime_override_env": "KETH_CINDER_TRANSITION_CAPTURE_DIR"},
+      "render": {"required": true, "profile": "forward_plus_2560x1440"},
+      "review_status": "reviewed_current",
+      "source_freeze": {"status": "pending", "manifest_sha256": null},
+      "image_inventory": {"status": "pending", "expected_png_count": 24, "inventory_sha256": null},
+      "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
+    },
+    {
       "id": "capture-accessibility-presets",
       "script": "tests/capture_accessibility_presets.gd",
       "classification": "historical",

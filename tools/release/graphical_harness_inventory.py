@@ -50,6 +50,7 @@ HUMAN_REVIEW_READINESS = frozenset(
 MANDATORY_REQUIRED_IMAGE_COUNTS = {
     "caption-presenter-forward-render": 1,
     "caption-production-forward-render": 1,
+    "cinder-streaming-transition-render": 24,
     "capture-berth-feedback": 15,
     "capture-combat-visuals": 7,
     "capture-hero-cell": 18,
@@ -810,7 +811,7 @@ def _evaluate_required_readiness(
 def evaluate_required_readiness(
     root: Path, registry_path: Path
 ) -> RequiredReadinessResult:
-    """Report readiness for the non-overridable twelve required harnesses."""
+    """Report readiness for the non-overridable thirteen required harnesses."""
     return _evaluate_required_readiness(
         root,
         registry_path,
@@ -827,7 +828,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--required-readiness",
         action="store_true",
-        help="report metadata-only readiness for the twelve mandatory harnesses",
+        help="report metadata-only readiness for the thirteen mandatory harnesses",
     )
     parser.add_argument(
         "--strict",
