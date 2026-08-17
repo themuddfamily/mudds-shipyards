@@ -168,8 +168,8 @@ fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
 Focused production evidence after the Jovian shoulder-rail resource-sharing
-slice on base `87e4465`, Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality
-freezes:
+slice on base `9ce3738` plus the bounded VIP sill-light consolidation, Godot
+4.7.1, headless Forward+, Dummy audio and HIGH quality freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
@@ -180,9 +180,9 @@ freezes:
 | Bound-phase materials | 450 | 469 | +19 |
 | Retained/reachable materials | 631 | 650 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
-| Lights / shadow lights | 298 / 19 | 321 / 19 | +23 / 0 |
+| Lights / shadow lights | 297 / 19 | 320 / 19 | +23 / 0 |
 | Particle systems | 25 | 25 | 0 |
-| Scene-tree nodes | 9,327 | 9,628 | +301 |
+| Scene-tree nodes | 9,326 | 9,627 | +301 |
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
 row: the seven existing joints beneath `PortForwardShoulderRail`,
@@ -191,6 +191,20 @@ and seven surface submissions but share one immutable SphereMesh, so both
 production scenarios retain six fewer unique meshes. No collision, interaction,
 evidence or lifecycle node moved into that visual family.
 
+The subsequent VIP slice removes only the centre
+`OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
+the uninterrupted 11.4 m emissive `OutboardSillCove`. It therefore removes one
+enabled, shadowless omni and one scene-tree node in both scenarios without
+changing any geometry, material, collision, evidence, or authority count.
+A single stable-camera 1280x720 Forward+ A/B reconstructed the old centre light
+for the first capture and hid only that light for the second capture in the
+same Godot process. At the gameplay-distance well-to-window framing, whole-frame
+mean luminance changed `0.21202 -> 0.21093`; the centre-window ROI changed
+`0.18679 -> 0.18444`, and its below-0.02-luminance fraction changed only
+`5.0008% -> 5.0101%`. Direct inspection found no centre black gap: the emissive
+sill and side-pair wash remain continuous. This is a bounded composition check,
+not a GPU-time or frame-time claim.
+
 The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
 117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
 copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
@@ -198,9 +212,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`a560a3a227ebc6ec1b991a9d37217434fb951ec58604b6486de25451db695505`;
+`8e8a32c47f2d38afd70f4485c2160c8be437722f6bcdf95de29541db2b64a4c2`;
 the loaded fingerprint is
-`a5014770014f39d8bbfcdd5ee056c5c1f15d7cee98d395fab3c9e1a16b08a074`.
+`63ace7e2dc297b57c42c00d966d302e1ec03ffa8fb284700027b53fa49658fc6`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
@@ -271,26 +285,27 @@ silently include destination lighting. Both fields are also inputs to the
 measurement fingerprint; relabelling identical counts and contributor rows
 therefore produces a different hash.
 
-The production `Main` measured here is merge base `6d297c1`, after Cinder Reach
-became streamed rather than always resident. The roster fingerprint is
+The production `Main` measured here is base `9ce3738` plus the bounded VIP sill
+light change, after Cinder Reach became streamed rather than always resident.
+The roster fingerprint is
 `7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca`.
 The station-resident complete scene/per-point/contributor fingerprint is
-`4368c6f3572cf5aaebcea175dd8e69763128e18bb76b0caea94ac8fed72811bb`;
+`afd8e8759c35890c6d0ab87cfdc9aac9fa7552dc1a5edf54a631e9e754ec31d6`;
 the separately loaded fingerprint is
-`bd41a162a0c138911a0048c8ea03f0af8aaf214548e4d7ce0bde10d5e370b4a9`.
+`395cd89305818b0e6eed681b7a8d70338c4add777fab82ac245c0e05fc801cdf`.
 Pulsing lights report the stable positive-energy predicate used for inclusion,
 not their clock-dependent instantaneous amplitude.
 
 | HIGH scenario / light roster | Total | Enabled at frozen phase | Shadow casting |
 | --- | ---: | ---: | ---: |
 | Station resident: `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| Station resident: `OmniLight3D` | 284 | 232 | reported in combined row |
+| Station resident: `OmniLight3D` | 283 | 231 | reported in combined row |
 | Station resident: `SpotLight3D` | 11 | 11 | reported in combined row |
-| **Station resident: all `Light3D`** | **298** | **246** | **19 total / 19 enabled** |
+| **Station resident: all `Light3D`** | **297** | **245** | **19 total / 19 enabled** |
 | Cinder loaded: `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| Cinder loaded: `OmniLight3D` | 306 | 254 | reported in combined row |
+| Cinder loaded: `OmniLight3D` | 305 | 253 | reported in combined row |
 | Cinder loaded: `SpotLight3D` | 12 | 12 | reported in combined row |
-| **Cinder loaded: all `Light3D`** | **321** | **269** | **19 total / 19 enabled** |
+| **Cinder loaded: all `Light3D`** | **320** | **268** | **19 total / 19 enabled** |
 
 Streaming Cinder therefore adds exactly **22 enabled omnis and one enabled
 spot**, with no change to the 52 disabled lights, three directionals, or 19
@@ -425,8 +440,8 @@ has now landed, while the roadmap still owes enemy craft, a walkable freighter
 interior and station-wide modelling. New content must fit through sharing,
 instancing, LOD or impostors rather than larger ceilings.
 
-Shadow-casting lights remain the most important line. Nineteen of 298 resident
-lights (and 321 with Cinder loaded) cast shadows, three above the ceiling; each
+Shadow-casting lights remain the most important line. Nineteen of 297 resident
+lights (and 320 with Cinder loaded) cast shadows, three above the ceiling; each
 can re-rasterise the geometry in its range every frame it is visible.
 Consolidate at least three before adding another shadowed fixture.
 

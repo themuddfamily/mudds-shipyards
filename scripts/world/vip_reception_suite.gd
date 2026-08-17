@@ -109,18 +109,19 @@ const WELL_Z_MAX := 11.3
 ## roster drifts.
 const SEAT_COUNT := 15
 const GLAZING_PANE_COUNT := 11
+const PRACTICAL_LIGHT_COUNT := 18
 
 ## Exact post-batch presentation census. Fourteen childless lacquer joint blocks
 ## and five childless exterior roof cassettes still draw, but two MultiMeshes own
 ## their submissions instead of nineteen individual MeshInstance3D nodes.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const ROOF_CASSETTE_COPY_COUNT := 5
-const BASELINE_RENDER_DESCENDANT_COUNT := 469
+const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
 const BASELINE_RENDER_DRAWN_COPY_COUNT := 278
 const BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT := 265
-const RENDER_DESCENDANT_COUNT := 465
+const RENDER_DESCENDANT_COUNT := 464
 const RENDER_MESH_INSTANCE_COUNT := 259
 const RENDER_MULTIMESH_BATCH_COUNT := 2
 const RENDER_DRAWN_COPY_COUNT := 278
@@ -347,8 +348,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("the outboard view requires at least %d independent panes" % GLAZING_PANE_COUNT)
 	if _support_members.size() < 8:
 		errors.append("the cantilever load path is not fully published")
-	if _practical_lights.size() < 12:
-		errors.append("a considered-lighting interior needs its practicals")
+	if _practical_lights.size() != PRACTICAL_LIGHT_COUNT:
+		errors.append("the considered-lighting practical roster drifted")
 	var clearance := get_clearance_profile()
 	if float(clearance.threshold_clear_width) < 3.0:
 		errors.append("threshold circulation is not player-clear")
@@ -1185,9 +1186,21 @@ func _build_reception_lighting(structure: Node3D) -> void:
 	# rectangle at night-side and its surround reads as a panel rather than an
 	# opening — the exact defect the habitat's rear glazing was fixed for.
 	_box(lighting, "OutboardSillCove", Vector3(-1.3, 0.62, 13.86), Vector3(11.4, 0.06, 0.1), _materials["cove_lens"], false)
-	for sill_index in 3:
-		var sill_x := -5.2 + float(sill_index) * 3.9
-		_fixture_practical(lighting, "OutboardSillSpill%02d" % (sill_index + 1), Vector3(sill_x, 0.85, 13.7), Color("ffe6c4"), 0.36, 4.4)
+	# The two original side practicals overlap across the full 11.4 m emissive
+	# cove. The former centre omni duplicated their coverage without owning a
+	# fixture mesh, collision, cue state, or any other authority.
+	for sill_practical in [
+		["OutboardSillSpill01", -5.2],
+		["OutboardSillSpill03", 2.6],
+	]:
+		_fixture_practical(
+			lighting,
+			str(sill_practical[0]),
+			Vector3(float(sill_practical[1]), 0.85, 13.7),
+			Color("ffe6c4"),
+			0.36,
+			4.4
+		)
 	_fixture_practical(lighting, "ServeryNicheSpill", Vector3(-6.6, 1.95, 9.0), Color("ffd7a0"), 0.34, 3.0)
 	_fixture_practical(lighting, "HostDeskSpill", Vector3(2.6, 1.7, 4.35), Color("ffe0b6"), 0.28, 2.6)
 

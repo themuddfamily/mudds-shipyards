@@ -85,7 +85,66 @@ func _test_contract(suite: VipReceptionSuite) -> void:
 	_check(bool(audit.valid), "the suite validates clean")
 	_check(int(audit.seat_count) == VipReceptionSuite.SEAT_COUNT, "the seating roster is complete")
 	_check(int(audit.glazing_pane_count) >= VipReceptionSuite.GLAZING_PANE_COUNT, "the glazing roster is complete")
-	_check(int(audit.practical_light_count) >= 12, "the interior is lit by real practicals rather than by emission alone")
+	_check(
+		int(audit.practical_light_count) == VipReceptionSuite.PRACTICAL_LIGHT_COUNT,
+		"the exact eighteen-practical suite roster lights the interior rather than relying on emission alone"
+	)
+	var lighting := suite.get_node_or_null(^"Structure/Lighting") as Node3D
+	var sill_cove := suite.get_node_or_null(
+		^"Structure/Lighting/OutboardSillCove"
+	) as MeshInstance3D
+	var sill_port := suite.get_node_or_null(
+		^"Structure/Lighting/OutboardSillSpill01"
+	) as OmniLight3D
+	var sill_center := suite.get_node_or_null(
+		^"Structure/Lighting/OutboardSillSpill02"
+	) as OmniLight3D
+	var sill_starboard := suite.get_node_or_null(
+		^"Structure/Lighting/OutboardSillSpill03"
+	) as OmniLight3D
+	var exact_sill_paths := PackedStringArray()
+	if lighting != null:
+		for candidate in lighting.find_children("OutboardSillSpill*", "OmniLight3D", false, false):
+			exact_sill_paths.append(str(candidate.name))
+		exact_sill_paths.sort()
+	_check(
+		exact_sill_paths == PackedStringArray([
+			"OutboardSillSpill01", "OutboardSillSpill03",
+		])
+		and sill_port != null
+		and sill_center == null
+		and sill_starboard != null
+		and sill_port.position.is_equal_approx(Vector3(-5.2, 0.85, 13.7))
+		and sill_starboard.position.is_equal_approx(Vector3(2.6, 0.85, 13.7))
+		and is_equal_approx(sill_port.omni_range, 4.4)
+		and is_equal_approx(sill_starboard.omni_range, 4.4)
+		and is_equal_approx(sill_port.light_energy, 0.36)
+		and is_equal_approx(sill_starboard.light_energy, 0.36)
+		and sill_port.light_color.is_equal_approx(Color("ffe6c4"))
+		and sill_starboard.light_color.is_equal_approx(Color("ffe6c4"))
+		and is_equal_approx(sill_port.omni_attenuation, 2.1)
+		and is_equal_approx(sill_starboard.omni_attenuation, 2.1)
+		and sill_port.distance_fade_enabled
+		and sill_starboard.distance_fade_enabled
+		and is_equal_approx(sill_port.distance_fade_begin, 60.0)
+		and is_equal_approx(sill_starboard.distance_fade_begin, 60.0)
+		and is_equal_approx(sill_port.distance_fade_length, 25.0)
+		and is_equal_approx(sill_starboard.distance_fade_length, 25.0)
+		and sill_port.is_visible_in_tree()
+		and sill_starboard.is_visible_in_tree()
+		and not sill_port.shadow_enabled
+		and not sill_starboard.shadow_enabled,
+		"the outboard sill retains only its exact enabled shadowless side pair"
+	)
+	_check(
+		sill_cove != null
+		and sill_cove.mesh != null
+		and sill_cove.mesh.get_aabb().size.is_equal_approx(Vector3(11.4, 0.06, 0.1))
+		and sill_cove.position.is_equal_approx(Vector3(-1.3, 0.62, 13.86))
+		and sill_cove.material_override is StandardMaterial3D
+		and (sill_cove.material_override as StandardMaterial3D).emission_enabled,
+		"the continuous 11.4 m emissive sill fixture remains geometrically and materially intact"
+	)
 
 	var clearance := suite.get_clearance_profile()
 	_check(float(clearance.threshold_clear_width) >= 4.0, "the threshold is generously player-clear")
@@ -174,13 +233,13 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 
 	var render := suite.get_render_batch_contract()
 	_check(
-		int(render.baseline_descendant_nodes) == 469
-		and int(render.descendant_nodes) == 465
+		int(render.baseline_descendant_nodes) == 468
+		and int(render.descendant_nodes) == 464
 		and int(render.baseline_mesh_instances) == 264
 		and int(render.mesh_instances) == 259
 		and int(render.baseline_multimesh_batches) == 1
 		and int(render.multimesh_batches) == 2,
-		"the second bounded slice freezes descendants 469 -> 465, MeshInstances 264 -> 259, and batches 1 -> 2"
+		"the sill-light slice freezes descendants 468 -> 464, MeshInstances 264 -> 259, and batches 1 -> 2"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
