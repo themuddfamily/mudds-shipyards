@@ -95,6 +95,25 @@ const RACK_CABLE_TRAY_CLAMP_POSITIONS := [
 	Vector3(7.75, 2.44, 9.58),
 	Vector3(9.45, 2.44, 9.58),
 ]
+## Six rubber isolation collars around the three console bays' existing copper
+## shock mounts. The mounts and console-bay roots retain all physical and
+## semantic meaning; the childless TorusMesh renderers remain ordinary nodes
+## while their identical immutable mesh recipe is shared component-locally.
+const CONSOLE_SHOCK_COLLAR_INNER_RADIUS := 0.09
+const CONSOLE_SHOCK_COLLAR_OUTER_RADIUS := 0.13
+const CONSOLE_SHOCK_COLLAR_RINGS := 48
+const CONSOLE_SHOCK_COLLAR_RING_SEGMENTS := 16
+const CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS := 32
+const CONSOLE_SHOCK_COLLAR_BUDGETED_RING_SEGMENTS := 8
+const CONSOLE_SHOCK_COLLAR_COPY_COUNT := 6
+const CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS := [
+	Vector3(-0.86, 0.08, 0.34),
+	Vector3(0.86, 0.08, 0.34),
+	Vector3(-0.86, 0.08, 0.34),
+	Vector3(0.86, 0.08, 0.34),
+	Vector3(-0.86, 0.08, 0.34),
+	Vector3(0.86, 0.08, 0.34),
+]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
 const RENDER_DESCENDANT_NODE_COUNT := 1156
 const BASELINE_RENDERER_NODE_COUNT := 851
@@ -104,7 +123,7 @@ const DRAWN_COPY_COUNT := 851
 const BASELINE_SURFACE_SUBMISSION_COUNT := 851
 const SURFACE_SUBMISSION_COUNT := 848
 const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 304
+const MESH_RESOURCE_COUNT := 299
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -175,6 +194,7 @@ var _pod_corner_collar_mesh: TorusMesh
 var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
+var _console_shock_collar_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -409,6 +429,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("shared spine-clamp visual allocation contract drifted")
 	if not bool(performance.rack_cable_tray_clamp_visual_sharing.valid):
 		errors.append("shared rack-cable-tray clamp visual allocation contract drifted")
+	if not bool(performance.console_shock_collar_visual_sharing.valid):
+		errors.append("shared console-shock-collar visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -588,16 +610,19 @@ func get_performance_contract() -> Dictionary:
 	var facade_batch := get_vip_facade_column_trim_batch_audit()
 	var spine_sharing := get_spine_clamp_visual_allocation_audit()
 	var tray_clamp_sharing := get_rack_cable_tray_clamp_visual_allocation_audit()
+	var console_collar_sharing := get_console_shock_collar_visual_allocation_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["spine_clamp_visual_sharing"] = spine_sharing
 	contract["rack_cable_tray_clamp_visual_sharing"] = tray_clamp_sharing
+	contract["console_shock_collar_visual_sharing"] = console_collar_sharing
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
 		and bool(facade_batch.valid)
 		and bool(spine_sharing.valid)
 		and bool(tray_clamp_sharing.valid)
+		and bool(console_collar_sharing.valid)
 	)
 	return contract
 
@@ -776,7 +801,7 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 			"renderer_nodes": 3,
 			"drawn_copies": 0,
 			"surface_submissions": 3,
-			"mesh_resource_allocations": 13,
+			"mesh_resource_allocations": 18,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
@@ -1188,6 +1213,209 @@ func get_rack_cable_tray_clamp_visual_allocation_audit() -> Dictionary:
 			_rack_cable_tray_clamp_mesh.rings,
 			_rack_cable_tray_clamp_mesh.ring_segments
 		) if _rack_cable_tray_clamp_mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
+		"material_identity_preserved": material_ids.size() == 1,
+		"collision_authority_count": collision_nodes,
+		"semantic_authority_count": authority_nodes,
+		"batched": false,
+		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the six ordinary ConsoleShockCollar
+## renderers. Sharing changes only mesh allocation identity: every console bay,
+## node, transform, visible copy, submission, material and renderer value stays
+## at its authored value while the copper mount retains physical authority.
+func get_console_shock_collar_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var family_nodes: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var node_paths := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	var surface_submissions := 0
+	var visible_copies := 0
+	var collision_nodes := 0
+	var authority_nodes := 0
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			TorusGeometryBudget.PROFILE_META, &""
+		)) != TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
+			continue
+		if StringName(instance.get_meta(INTERFACE_COLLAR_KIND_META, &"")) \
+				!= &"ConsoleShockCollar":
+			continue
+		family_nodes.append(instance)
+		node_paths.append(String(get_path_to(instance)))
+		transforms.append(instance.transform)
+		visible_copies += 1 if instance.visible else 0
+		if instance.mesh != null:
+			mesh_ids[instance.mesh.get_instance_id()] = true
+			surface_submissions += instance.mesh.get_surface_count()
+		if instance.material_override != null:
+			material_ids[instance.material_override.get_instance_id()] = true
+		if instance.mesh != _console_shock_collar_mesh:
+			errors.append("console_shock_collar_mesh_identity_not_shared")
+		if instance.material_override != _materials.get("rubber"):
+			errors.append("console_shock_collar_material_identity_drift")
+		var family_index := family_nodes.size() - 1
+		if family_index >= CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS.size() \
+				or not instance.position.is_equal_approx(
+					CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS[family_index] as Vector3
+				) \
+				or not instance.rotation_degrees.is_equal_approx(
+					Vector3(90.0, 0.0, 0.0)
+				) \
+				or instance.scale != Vector3.ONE:
+			errors.append("console_shock_collar_transform_drift")
+		if not instance.visible \
+				or instance.layers != 1 \
+				or instance.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or instance.material_overlay != null \
+				or not is_zero_approx(instance.transparency):
+			errors.append("console_shock_collar_renderer_state_drift")
+		var bay_index := int(family_index / 2)
+		var expected_parent := get_node_or_null(
+			NodePath("Structure/OperationsRoom/ConsoleBay%02d" % (bay_index + 1))
+		) as Node3D
+		var metadata_keys := instance.get_meta_list()
+		var exact_metadata := (
+			metadata_keys.size() == 2
+			and metadata_keys.has(TorusGeometryBudget.PROFILE_META)
+			and metadata_keys.has(INTERFACE_COLLAR_KIND_META)
+			and StringName(instance.get_meta(
+				TorusGeometryBudget.PROFILE_META, &""
+			)) == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+			and StringName(instance.get_meta(
+				INTERFACE_COLLAR_KIND_META, &""
+			)) == &"ConsoleShockCollar"
+		)
+		var gained_authority := (
+			instance.get_parent() != expected_parent
+			or instance.get_child_count() != 0
+			or instance.get_script() != null
+			or not instance.get_groups().is_empty()
+			or not exact_metadata
+		)
+		if gained_authority:
+			authority_nodes += 1
+			errors.append("console_shock_collar_gained_authority_or_lifecycle")
+		collision_nodes += instance.find_children(
+			"*", "CollisionObject3D", true, false
+		).size()
+		collision_nodes += instance.find_children(
+			"*", "CollisionShape3D", true, false
+		).size()
+
+	if family_nodes.size() != CONSOLE_SHOCK_COLLAR_COPY_COUNT:
+		errors.append("console_shock_collar_visual_node_count_drift")
+	var stable_paths := family_nodes.size() == CONSOLE_SHOCK_COLLAR_COPY_COUNT
+	if stable_paths:
+		for index in family_nodes.size():
+			var bay_path := "Structure/OperationsRoom/ConsoleBay%02d" % (
+				int(index / 2) + 1
+			)
+			stable_paths = (
+				stable_paths
+				and family_nodes[index].get_parent() != null
+				and String(get_path_to(family_nodes[index].get_parent())) == bay_path
+				and (
+					String(node_paths[index]) == bay_path + "/ConsoleShockCollar"
+					if index % 2 == 0
+					else String(family_nodes[index].name).begins_with("@MeshInstance3D@")
+				)
+			)
+	if not stable_paths:
+		errors.append("console_shock_collar_node_path_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("console_shock_collar_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("console_shock_collar_material_identity_drift")
+	if collision_nodes != 0:
+		errors.append("console_shock_collar_gained_collision_authority")
+
+	var authored_tessellation := Vector2i(
+		CONSOLE_SHOCK_COLLAR_RINGS,
+		CONSOLE_SHOCK_COLLAR_RING_SEGMENTS
+	)
+	var normalised := (
+		_console_shock_collar_mesh != null
+		and _console_shock_collar_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	)
+	var live_tessellation := Vector2i(
+		CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS,
+		CONSOLE_SHOCK_COLLAR_BUDGETED_RING_SEGMENTS
+	) if normalised else authored_tessellation
+	if _console_shock_collar_mesh == null \
+			or not is_equal_approx(
+				_console_shock_collar_mesh.inner_radius,
+				CONSOLE_SHOCK_COLLAR_INNER_RADIUS
+			) \
+			or not is_equal_approx(
+				_console_shock_collar_mesh.outer_radius,
+				CONSOLE_SHOCK_COLLAR_OUTER_RADIUS
+			) \
+			or _console_shock_collar_mesh.rings != live_tessellation.x \
+			or _console_shock_collar_mesh.ring_segments != live_tessellation.y \
+			or _console_shock_collar_mesh.get_surface_count() != 1:
+		errors.append("console_shock_collar_torus_recipe_drift")
+	var mesh_metadata: Array[StringName] = []
+	if _console_shock_collar_mesh != null:
+		mesh_metadata = _console_shock_collar_mesh.get_meta_list()
+	var exact_mesh_metadata: bool = (
+		_console_shock_collar_mesh != null
+		and _console_shock_collar_mesh.material == null
+		and not _console_shock_collar_mesh.resource_local_to_scene
+		and (
+			(not normalised and mesh_metadata.is_empty())
+			or (
+				normalised
+				and mesh_metadata.size() == 1
+				and mesh_metadata.has(TorusGeometryBudget.AUTHORED_META)
+				and _console_shock_collar_mesh.get_meta(
+					TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+				) == authored_tessellation
+			)
+		)
+	)
+	if not exact_mesh_metadata:
+		errors.append("console_shock_collar_budget_metadata_drift")
+
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_console_shock_collar_visuals",
+		"legacy": {
+			"visual_nodes": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
+			"drawn_copies": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
+			"surface_submissions": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
+			"mesh_resource_allocations": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
+			"material_resource_allocations": 1,
+		},
+		"current": {
+			"visual_nodes": family_nodes.size(),
+			"drawn_copies": visible_copies,
+			"surface_submissions": surface_submissions,
+			"mesh_resource_allocations": mesh_ids.size(),
+			"material_resource_allocations": material_ids.size(),
+		},
+		"reductions": {
+			"visual_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 5,
+			"material_resource_allocations": 0,
+		},
+		"node_paths": node_paths,
+		"authored_transforms": transforms,
+		"authored_tessellation": authored_tessellation,
+		"live_tessellation": Vector2i(
+			_console_shock_collar_mesh.rings,
+			_console_shock_collar_mesh.ring_segments
+		) if _console_shock_collar_mesh != null else Vector2i.ZERO,
 		"normalised": normalised,
 		"material_identity_preserved": material_ids.size() == 1,
 		"collision_authority_count": collision_nodes,
@@ -1855,6 +2083,13 @@ func _build_operations_room(structure: Node3D) -> void:
 	_build_operations_shell_detail(room)
 
 	# Three operator stations face the broad exterior sightline.
+	_console_shock_collar_mesh = _torus_mesh(
+		CONSOLE_SHOCK_COLLAR_INNER_RADIUS,
+		CONSOLE_SHOCK_COLLAR_OUTER_RADIUS,
+		CONSOLE_SHOCK_COLLAR_RINGS,
+		CONSOLE_SHOCK_COLLAR_RING_SEGMENTS
+	)
+	_console_shock_collar_mesh.resource_name = "AftConsoleShockCollarMesh"
 	for bay_index in 3:
 		var bay := Node3D.new()
 		bay.name = "ConsoleBay%02d" % (bay_index + 1)
@@ -1868,7 +2103,16 @@ func _build_operations_room(structure: Node3D) -> void:
 		_box(bay, "PlinthInset", Vector3(0, 0.7, -0.47), Vector3(1.72, 0.48, 0.08), _materials["hull_dark"], false)
 		for support_x in [-0.86, 0.86]:
 			_cylinder(bay, "ConsoleShockMount", Vector3(float(support_x), 0.23, 0.34), 0.085, 0.38, _materials["copper"], false)
-			_interface_collar(bay, "ConsoleShockCollar", Vector3(float(support_x), 0.08, 0.34), 0.09, 0.13, _materials["rubber"], Vector3(90, 0, 0))
+			_interface_collar(
+				bay,
+				"ConsoleShockCollar",
+				Vector3(float(support_x), 0.08, 0.34),
+				CONSOLE_SHOCK_COLLAR_INNER_RADIUS,
+				CONSOLE_SHOCK_COLLAR_OUTER_RADIUS,
+				_materials["rubber"],
+				Vector3(90, 0, 0),
+				_console_shock_collar_mesh
+			)
 		_box(bay, "AngledConsole", Vector3(0, 1.26, -0.1), Vector3(2.18, 0.28, 1.0), _materials["graphite"], true, Vector3(-12, 0, 0))
 		_box(bay, "ConsoleEdgeRail", Vector3(0, 1.43, -0.56), Vector3(2.18, 0.09, 0.09), _materials["panel_light"], false, Vector3(-12, 0, 0))
 		_box(bay, "PrimaryDisplay", Vector3(0, 1.43, -0.18), Vector3(1.55, 0.035, 0.56), _materials["screen"], false, Vector3(-12, 0, 0))
