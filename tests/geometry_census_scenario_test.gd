@@ -6,8 +6,8 @@ extends SceneTree
 const CENSUS := preload("res://tools/geometry_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
-const RESIDENT_FINGERPRINT := "d7ef46d61e24627072a0d2a410e1dbbca6ae586ec5f444c55ba682f73a870978"
-const CINDER_LOADED_FINGERPRINT := "b1f00c60d86449587ae201738acd69296ac414f275a60c425056cc51289d7281"
+const RESIDENT_FINGERPRINT := "345d518d2b9d13130f35d849a7ed0994f1bea96a00aa8bae41dab994c0d514f9"
+const CINDER_LOADED_FINGERPRINT := "c8c2ca8c180e865b5eb83a4d9be3894e1bcdbf4913900cae49d3e40d4cb730ff"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -66,8 +66,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 450
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 631
 			and int(resident.get("lights", -1)) == 294
-			and int(resident.get("nodes", -1)) == 9328,
-		"resident resource roster freezes 450 bound / 631 retained materials, 294 lights, and 9,328 nodes"
+			and int(resident.get("nodes", -1)) == 9329,
+		"resident resource roster freezes 450 bound / 631 retained materials, 294 lights, and 9,329 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -132,8 +132,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 469
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 650
 			and int(loaded.get("lights", -1)) == 317
-			and int(loaded.get("nodes", -1)) == 9629,
-		"loaded resource roster freezes 469 bound / 650 retained materials, 317 lights, and 9,629 nodes"
+			and int(loaded.get("nodes", -1)) == 9630,
+		"loaded resource roster freezes 469 bound / 650 retained materials, 317 lights, and 9,630 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

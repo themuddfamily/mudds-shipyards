@@ -167,9 +167,9 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `9d24589` with the bounded Jovian cargo-frame
-joint resource sharing applied, Godot 4.7.1, headless Forward+, Dummy audio and
-HIGH quality freezes:
+Focused production evidence on base `bc881e5` with the bounded Jovian cargo-frame
+joint resource sharing and production streamed-berth binding applied, Godot
+4.7.1, headless Forward+, Dummy audio and HIGH quality freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
@@ -182,7 +182,7 @@ HIGH quality freezes:
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
 | Lights / shadow lights | 294 / 19 | 317 / 19 | +23 / 0 |
 | Particle systems | 25 | 25 | 0 |
-| Scene-tree nodes | 9,328 | 9,629 | +301 |
+| Scene-tree nodes | 9,329 | 9,630 | +301 |
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
 row: the 20 existing joints beneath `WalkableInterior/CargoBay/CargoFrame00..03`
@@ -225,6 +225,12 @@ existing generic HUD settings builder. Its row contributes five retained UI
 nodes in both scenarios, so it changes only the absolute scene-tree node row;
 the loaded-minus-resident delta remains exactly `+301`.
 
+The production `CinderStreamedShipBerthBinding` contributes one further
+resident node in both scenarios. It has no renderer, material, light, particle,
+physics, audio, or process-loop contribution; its only purpose at this stage is
+to observe the real zero-berth Cinder generations and retain the unchanged five
+resident berth IDs without fabricating a streamed record.
+
 The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
 117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
 copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
@@ -232,9 +238,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`d7ef46d61e24627072a0d2a410e1dbbca6ae586ec5f444c55ba682f73a870978`;
+`345d518d2b9d13130f35d849a7ed0994f1bea96a00aa8bae41dab994c0d514f9`;
 the loaded fingerprint is
-`b1f00c60d86449587ae201738acd69296ac414f275a60c425056cc51289d7281`.
+`c8c2ca8c180e865b5eb83a4d9be3894e1bcdbf4913900cae49d3e40d4cb730ff`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
