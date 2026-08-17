@@ -14,6 +14,7 @@ signal activity_selection_requested(activity_kind: StringName)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
+signal orderly_shutdown_requested
 
 const INK := Color("07111d")
 const PANEL := Color("101c2bd9")
@@ -1764,7 +1765,7 @@ func _build_pause_main_page() -> void:
 	stack.add_child(restart)
 	var exit := _menu_button("EXIT TO DESKTOP", DANGER)
 	exit.name = "ExitButton"
-	exit.pressed.connect(func() -> void: get_tree().quit())
+	exit.pressed.connect(func() -> void: orderly_shutdown_requested.emit())
 	stack.add_child(exit)
 
 

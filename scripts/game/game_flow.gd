@@ -739,6 +739,12 @@ func _submit_caption_request(request: Dictionary) -> bool:
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		# The window manager's close request is explicit process-exit intent. It
+		# may synchronously publish CLEAN_SHUTDOWN before SceneTree accepts the
+		# quit; detach, free, and streaming notifications remain non-authoritative.
+		mark_orderly_shutdown()
+		return
 	if what != NOTIFICATION_PREDELETE:
 		return
 	_detach_caption_presentation()
@@ -1097,6 +1103,11 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
+	_connect_signal_once(
+		hud,
+		&"orderly_shutdown_requested",
+		_on_orderly_shutdown_requested
+	)
 	_connect_signal_once(player, &"interact_requested", _on_interact_requested)
 	_connect_signal_once(opponent, &"projectile_fired", _on_opponent_projectile_fired)
 	_connect_signal_once(opponent, &"health_changed", _on_opponent_health_changed)
@@ -4279,6 +4290,15 @@ func mark_orderly_shutdown() -> Dictionary:
 	var result := _safe_start_production_recovery.mark_orderly_shutdown()
 	_sync_production_runtime_settings_state()
 	return result
+
+
+## The HUD has no persistence or process-lifecycle authority. Its explicit exit
+## intent reaches this owner first, then the tree exits even if the best-effort
+## clean marker cannot be written (for example, a failing filesystem).
+func _on_orderly_shutdown_requested() -> void:
+	mark_orderly_shutdown()
+	if is_inside_tree():
+		get_tree().quit()
 
 
 ## The only public caption payload: the service's detached, validated consumer

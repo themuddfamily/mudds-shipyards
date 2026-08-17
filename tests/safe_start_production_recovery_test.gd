@@ -194,11 +194,23 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		and not bool(before_orderly.automatic_clean_shutdown_inference),
 		"detach/free hooks never infer a clean shutdown"
 	)
-	var orderly := game.mark_orderly_shutdown()
+	# Detach solely so the real Exit button can exercise its production signal
+	# route without ending this focused test's SceneTree.
+	parent.remove_child(game)
+	var exit_button := game.find_child("ExitButton", true, false) as Button
+	if exit_button != null:
+		exit_button.pressed.emit()
+	var orderly := (
+		game.get_safe_start_recovery_report().orderly_shutdown_status as Dictionary
+	)
 	var orderly_bytes := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
-	var duplicate := game.mark_orderly_shutdown()
+	game.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	var duplicate := (
+		game.get_safe_start_recovery_report().orderly_shutdown_status as Dictionary
+	)
 	_check(
-		bool(orderly.accepted)
+		exit_button != null
+		and bool(orderly.accepted)
 		and orderly.reason == &"clean_shutdown"
 		and bool(duplicate.accepted)
 		and duplicate.reason == &"already_clean"
@@ -206,8 +218,11 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 			== Record.STATE_CLEAN_SHUTDOWN
 		and filesystem.files[STORE_PATH] == orderly_bytes
 		and store.get_generation() == 3,
-		"only the explicit orderly seam commits CLEAN_SHUTDOWN and duplicate calls are inert"
+		"HUD exit and window-manager close both use the explicit idempotent orderly seam"
 	)
+	parent.add_child(game)
+	game.set_physics_process(false)
+	await process_frame
 	game.queue_free()
 	await process_frame
 	await process_frame
