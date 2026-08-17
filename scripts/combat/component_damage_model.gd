@@ -14,7 +14,7 @@ signal component_repair_applied(result: Dictionary)
 signal component_stage_changed(result: Dictionary)
 signal model_reset(result: Dictionary)
 
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ID_LENGTH := 64
 const MAX_COMPONENTS := 64
@@ -137,51 +137,21 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 ## and must increase monotonically. Rejections are atomic and never consume a
 ## sequence or emit a signal.
 func apply_component_damage(context: Dictionary) -> Dictionary:
-	if _mutation_dispatch_active:
-		return _result(false, &"reentrant_call")
-	var gate := _damage_rejection(context)
-	if not gate.is_empty():
-		return _result(false, gate)
+	var batch_result := apply_component_damage_batch([context])
+	if not bool(batch_result.get("accepted", false)):
+		return batch_result
+	return ((batch_result.get("operations", []) as Array)[0] as Dictionary).duplicate(true)
 
-	var component_id := StringName(_field(context, "component_id", &""))
-	var requested_damage := float(_field(context, "damage", 0.0))
-	var sequence := int(_field(context, "sequence", -1))
-	var component := _components[component_id] as Dictionary
-	var before_health := float(component.get("current_health", 0.0))
-	if before_health <= 0.0:
-		return _result(false, &"no_component_effect")
 
-	var after_health := maxf(before_health - requested_damage, 0.0)
-	if not after_health < before_health:
-		return _result(false, &"no_component_effect")
-	var applied_damage := before_health - after_health
-	var prior_stage_index := int(component.get("stage_index", -1))
-	var stages := component.get("damage_stages", []) as Array
-	var next_stage_index := _stage_index_for_health(
-		after_health,
-		float(component.get("maximum_health", 0.0)),
-		stages
-	)
-	_mutation_dispatch_active = true
-	component["current_health"] = after_health
-	component["stage_index"] = next_stage_index
-	_last_operation_sequence = sequence
-	_revision += 1
-
-	var result := _result(true, &"applied")
-	result["component_id"] = component_id
-	result["requested_damage"] = requested_damage
-	result["applied_damage"] = applied_damage
-	result["previous_health"] = before_health
-	result["current_health"] = after_health
-	result["maximum_health"] = float(component.get("maximum_health", 0.0))
-	result["stage"] = _stage_snapshot(stages, next_stage_index)
-	result["stage_changed"] = next_stage_index != prior_stage_index
-	if bool(result.get("stage_changed", false)):
-		component_stage_changed.emit(result.duplicate(true))
-	component_damage_applied.emit(result.duplicate(true))
-	_mutation_dispatch_active = false
-	return result
+## Atomically applies an ordered, homogeneous component-damage batch.
+##
+## Every entry uses the scalar damage context. Component IDs must be distinct,
+## and operation sequences must be a contiguous signed-safe range in captured
+## input order. The complete batch is planned before any mutation. One accepted
+## batch advances revision once and returns one detached aggregate receipt;
+## existing stage and damage signals are still emitted once per operation.
+func apply_component_damage_batch(contexts: Array) -> Dictionary:
+	return _apply_component_batch(contexts, &"damage")
 
 
 ## Applies one caller-authorized component repair in the generation's shared
@@ -192,50 +162,184 @@ func apply_component_damage(context: Dictionary) -> Dictionary:
 ## request. Rejections are atomic and never consume the shared operation
 ## sequence or emit a signal.
 func apply_component_repair(context: Dictionary) -> Dictionary:
+	var batch_result := apply_component_repair_batch([context])
+	if not bool(batch_result.get("accepted", false)):
+		return batch_result
+	return ((batch_result.get("operations", []) as Array)[0] as Dictionary).duplicate(true)
+
+
+## Atomically applies an ordered, homogeneous component-repair batch.
+##
+## This has the same roster, generation, contiguous-sequence, planning, receipt,
+## revision, and dispatch guarantees as the damage batch. The model still does
+## not authorize repair or choose an amount or rate.
+func apply_component_repair_batch(contexts: Array) -> Dictionary:
+	return _apply_component_batch(contexts, &"repair")
+
+
+func _apply_component_batch(contexts: Array, operation_kind: StringName) -> Dictionary:
 	if _mutation_dispatch_active:
 		return _result(false, &"reentrant_call")
-	var gate := _repair_rejection(context)
-	if not gate.is_empty():
-		return _result(false, gate)
+	if not is_configuration_valid():
+		return _result(false, &"invalid_configuration")
+	if _generation <= 0:
+		return _result(false, &"inactive")
+	if contexts.is_empty() or contexts.size() > MAX_COMPONENTS:
+		return _result(false, &"invalid_batch")
 
+	var plans: Array[Dictionary] = []
+	var seen_components: Dictionary = {}
+	var seen_sequences: Dictionary = {}
+	var first_sequence := -1
+	for index in contexts.size():
+		var raw_context: Variant = contexts[index]
+		if not raw_context is Dictionary:
+			return _result(false, &"invalid_batch")
+		var context := raw_context as Dictionary
+		var gate := (
+			_damage_rejection(context)
+			if operation_kind == &"damage"
+			else _repair_rejection(context)
+		)
+		if not gate.is_empty():
+			return _result(false, gate)
+
+		var sequence := int(_field(context, "sequence", -1))
+		if index == 0:
+			first_sequence = sequence
+			if first_sequence > MAX_SAFE_INTEGER - (contexts.size() - 1):
+				return _result(false, &"sequence_exhausted")
+		elif sequence != first_sequence + index:
+			if seen_sequences.has(sequence):
+				return _result(false, &"duplicate_sequence")
+			if sequence < first_sequence + index:
+				return _result(false, &"stale_sequence")
+			return _result(false, &"invalid_sequence")
+		seen_sequences[sequence] = true
+
+		var component_id := StringName(_field(context, "component_id", &""))
+		if seen_components.has(component_id):
+			return _result(false, &"duplicate_component")
+		seen_components[component_id] = true
+		var plan := _plan_component_operation(context, operation_kind)
+		if not bool(plan.get("accepted", false)):
+			return _result(false, StringName(plan.get("reason", &"no_component_effect")))
+		plans.append(plan)
+
+	var last_sequence := first_sequence + plans.size() - 1
+	var next_revision := _revision + 1
+	var operation_results: Array[Dictionary] = []
+	for plan in plans:
+		operation_results.append(
+			_operation_result(plan, operation_kind, _generation, next_revision)
+		)
+	var result := {
+		"accepted": true,
+		"reason": &"applied_batch" if operation_kind == &"damage" else &"repaired_batch",
+		"generation": _generation,
+		"sequence": last_sequence,
+		"revision": next_revision,
+		"operation_kind": operation_kind,
+		"operation_count": operation_results.size(),
+		"first_sequence": first_sequence,
+		"last_sequence": last_sequence,
+		"operations": operation_results.duplicate(true),
+	}
+
+	_mutation_dispatch_active = true
+	for plan in plans:
+		var component_id := StringName(plan.get("component_id", &""))
+		var component := _components[component_id] as Dictionary
+		component["current_health"] = float(plan.get("current_health", 0.0))
+		component["stage_index"] = int(plan.get("next_stage_index", -1))
+	_last_operation_sequence = last_sequence
+	_revision = next_revision
+
+	for operation_result in operation_results:
+		if bool(operation_result.get("stage_changed", false)):
+			component_stage_changed.emit(operation_result.duplicate(true))
+		if operation_kind == &"damage":
+			component_damage_applied.emit(operation_result.duplicate(true))
+		else:
+			component_repair_applied.emit(operation_result.duplicate(true))
+	_mutation_dispatch_active = false
+	return result.duplicate(true)
+
+
+func _plan_component_operation(context: Dictionary, operation_kind: StringName) -> Dictionary:
 	var component_id := StringName(_field(context, "component_id", &""))
-	var requested_repair := float(_field(context, "repair", 0.0))
-	var sequence := int(_field(context, "sequence", -1))
 	var component := _components[component_id] as Dictionary
 	var before_health := float(component.get("current_health", 0.0))
 	var maximum_health := float(component.get("maximum_health", 0.0))
-	if before_health >= maximum_health:
-		return _result(false, &"no_component_effect")
+	var requested_amount := float(
+		_field(context, "damage" if operation_kind == &"damage" else "repair", 0.0)
+	)
+	var after_health := before_health
+	var applied_amount := 0.0
+	if operation_kind == &"damage":
+		if before_health <= 0.0:
+			return {"accepted": false, "reason": &"no_component_effect"}
+		after_health = maxf(before_health - requested_amount, 0.0)
+		if not after_health < before_health:
+			return {"accepted": false, "reason": &"no_component_effect"}
+		applied_amount = before_health - after_health
+	else:
+		if before_health >= maximum_health:
+			return {"accepted": false, "reason": &"no_component_effect"}
+		var remaining_health := maximum_health - before_health
+		applied_amount = minf(requested_amount, remaining_health)
+		after_health = before_health + applied_amount
+		if applied_amount == remaining_health:
+			after_health = maximum_health
+		if not after_health > before_health:
+			return {"accepted": false, "reason": &"no_component_effect"}
 
-	var remaining_health := maximum_health - before_health
-	var applied_repair := minf(requested_repair, remaining_health)
-	var after_health := before_health + applied_repair
-	if applied_repair == remaining_health:
-		after_health = maximum_health
-	if not after_health > before_health:
-		return _result(false, &"no_component_effect")
-	var prior_stage_index := int(component.get("stage_index", -1))
 	var stages := component.get("damage_stages", []) as Array
-	var next_stage_index := _stage_index_for_health(after_health, maximum_health, stages)
-	_mutation_dispatch_active = true
-	component["current_health"] = after_health
-	component["stage_index"] = next_stage_index
-	_last_operation_sequence = sequence
-	_revision += 1
+	return {
+		"accepted": true,
+		"component_id": component_id,
+		"sequence": int(_field(context, "sequence", -1)),
+		"requested_amount": requested_amount,
+		"applied_amount": applied_amount,
+		"previous_health": before_health,
+		"current_health": after_health,
+		"maximum_health": maximum_health,
+		"stages": stages,
+		"prior_stage_index": int(component.get("stage_index", -1)),
+		"next_stage_index": _stage_index_for_health(after_health, maximum_health, stages),
+	}
 
-	var result := _result(true, &"repaired")
-	result["component_id"] = component_id
-	result["requested_repair"] = requested_repair
-	result["applied_repair"] = applied_repair
-	result["previous_health"] = before_health
-	result["current_health"] = after_health
-	result["maximum_health"] = maximum_health
-	result["stage"] = _stage_snapshot(stages, next_stage_index)
-	result["stage_changed"] = next_stage_index != prior_stage_index
-	if bool(result.get("stage_changed", false)):
-		component_stage_changed.emit(result.duplicate(true))
-	component_repair_applied.emit(result.duplicate(true))
-	_mutation_dispatch_active = false
+
+func _operation_result(
+	plan: Dictionary,
+	operation_kind: StringName,
+	generation: int,
+	revision: int
+	) -> Dictionary:
+	var result := {
+		"accepted": true,
+		"reason": &"applied" if operation_kind == &"damage" else &"repaired",
+		"generation": generation,
+		"sequence": int(plan.get("sequence", -1)),
+		"revision": revision,
+		"component_id": StringName(plan.get("component_id", &"")),
+	}
+	if operation_kind == &"damage":
+		result["requested_damage"] = float(plan.get("requested_amount", 0.0))
+		result["applied_damage"] = float(plan.get("applied_amount", 0.0))
+	else:
+		result["requested_repair"] = float(plan.get("requested_amount", 0.0))
+		result["applied_repair"] = float(plan.get("applied_amount", 0.0))
+	result["previous_health"] = float(plan.get("previous_health", 0.0))
+	result["current_health"] = float(plan.get("current_health", 0.0))
+	result["maximum_health"] = float(plan.get("maximum_health", 0.0))
+	result["stage"] = _stage_snapshot(
+		plan.get("stages", []) as Array,
+		int(plan.get("next_stage_index", -1))
+	)
+	result["stage_changed"] = (
+		int(plan.get("next_stage_index", -1)) != int(plan.get("prior_stage_index", -1))
+	)
 	return result
 
 

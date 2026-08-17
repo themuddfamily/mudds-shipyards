@@ -6,7 +6,7 @@ const ComponentDamageModelType := preload(
 
 const ENGINE_ID: StringName = &"engine_core"
 const WEAPON_ID: StringName = &"pulse_mount"
-const MODEL_SCHEMA_VERSION := 2
+const MODEL_SCHEMA_VERSION := 3
 const MAX_FINITE_REPAIR := 1.7976931348623157e308
 const DEFINITION_SNAPSHOT_KEYS := [
 	"schema_version",
@@ -32,6 +32,55 @@ const COMPONENT_STATE_KEYS := [
 	"current_health",
 	"health_ratio",
 	"stage",
+]
+const BATCH_RESULT_KEYS := [
+	"accepted",
+	"reason",
+	"generation",
+	"sequence",
+	"revision",
+	"operation_kind",
+	"operation_count",
+	"first_sequence",
+	"last_sequence",
+	"operations",
+]
+const DAMAGE_RESULT_KEYS := [
+	"accepted",
+	"reason",
+	"generation",
+	"sequence",
+	"revision",
+	"component_id",
+	"requested_damage",
+	"applied_damage",
+	"previous_health",
+	"current_health",
+	"maximum_health",
+	"stage",
+	"stage_changed",
+]
+const REPAIR_RESULT_KEYS := [
+	"accepted",
+	"reason",
+	"generation",
+	"sequence",
+	"revision",
+	"component_id",
+	"requested_repair",
+	"applied_repair",
+	"previous_health",
+	"current_health",
+	"maximum_health",
+	"stage",
+	"stage_changed",
+]
+const REJECTION_RESULT_KEYS := [
+	"accepted",
+	"reason",
+	"generation",
+	"sequence",
+	"revision",
 ]
 const AUDIT_KEYS := [
 	"schema_version",
@@ -125,6 +174,9 @@ func _run() -> void:
 	_test_typed_configuration_snapshot()
 	_test_reset_and_ordered_stages()
 	_test_ordered_repair_and_shared_sequence()
+	_test_atomic_damage_batch_order_and_detachment()
+	_test_atomic_repair_batch_order_and_detachment()
+	_test_batch_structured_red_rejections()
 	_test_atomic_rejections()
 	_test_repair_atomic_rejections()
 	_test_reentrant_mutation_guard()
@@ -160,7 +212,7 @@ func _test_typed_configuration_snapshot() -> void:
 		int(captured.get("schema_version", 0)) == MODEL_SCHEMA_VERSION
 			and _has_exact_keys(captured, DEFINITION_SNAPSHOT_KEYS)
 			and _has_exact_keys(model.get_snapshot(), MODEL_SNAPSHOT_KEYS),
-		"schema version two freezes the exact definition and aggregate snapshot rosters"
+		"schema version three freezes the exact definition and aggregate snapshot rosters"
 	)
 	var captured_components := captured.get("components", []) as Array
 	_check(
@@ -190,6 +242,23 @@ func _test_typed_configuration_snapshot() -> void:
 	_check(
 		not bool(inactive_repair.accepted) and inactive_repair.reason == &"inactive",
 		"an inactive definition cannot accept repair"
+	)
+	var inactive_damage_batch := model.apply_component_damage_batch([
+		_damage_context(ENGINE_ID, 1.0, 0, 0),
+		_damage_context(WEAPON_ID, 1.0, 0, 1),
+	])
+	var inactive_repair_batch := model.apply_component_repair_batch([
+		_repair_context(ENGINE_ID, 1.0, 0, 0),
+		_repair_context(WEAPON_ID, 1.0, 0, 1),
+	])
+	_check(
+		not bool(inactive_damage_batch.accepted)
+			and inactive_damage_batch.reason == &"inactive"
+			and _has_exact_keys(inactive_damage_batch, REJECTION_RESULT_KEYS)
+			and not bool(inactive_repair_batch.accepted)
+			and inactive_repair_batch.reason == &"inactive"
+			and _has_exact_keys(inactive_repair_batch, REJECTION_RESULT_KEYS),
+		"inactive damage and repair batches retain the exact rejection roster"
 	)
 
 
@@ -420,6 +489,388 @@ func _test_ordered_repair_and_shared_sequence() -> void:
 				1.0
 			),
 		"repair signal payloads are detached from component health and stage consequences"
+	)
+
+
+func _test_atomic_damage_batch_order_and_detachment() -> void:
+	var model := _make_model()
+	model.reset_for_reuse(0)
+	var chronology: Array[Dictionary] = []
+	var dispatch_snapshots: Array[Dictionary] = []
+	var damage_events: Array[Dictionary] = []
+	var stage_callback: Callable = func(result: Dictionary) -> void:
+		chronology.append({"signal": &"stage", "component_id": result.component_id})
+		dispatch_snapshots.append(model.get_snapshot())
+	var damage_callback: Callable = func(result: Dictionary) -> void:
+		chronology.append({"signal": &"damage", "component_id": result.component_id})
+		damage_events.append(result)
+		dispatch_snapshots.append(model.get_snapshot())
+	model.component_stage_changed.connect(stage_callback)
+	model.component_damage_applied.connect(damage_callback)
+
+	var contexts := [
+		_damage_context(ENGINE_ID, 65.0, 1, 4),
+		_damage_context(WEAPON_ID, 30.0, 1, 5),
+	]
+	var before_revision := model.get_revision()
+	var result := model.apply_component_damage_batch(contexts)
+	var operations := result.get("operations", []) as Array
+	_check(
+		bool(result.accepted)
+			and result.reason == &"applied_batch"
+			and _has_exact_keys(result, BATCH_RESULT_KEYS)
+			and result.operation_kind == &"damage"
+			and int(result.operation_count) == 2
+			and int(result.first_sequence) == 4
+			and int(result.last_sequence) == 5
+			and int(result.sequence) == 5
+			and int(result.revision) == before_revision + 1
+			and model.get_revision() == before_revision + 1
+			and model.get_last_operation_sequence() == 5,
+		"one accepted damage batch returns the exact aggregate receipt and advances revision once"
+	)
+	_check(
+		operations.size() == 2
+			and _has_exact_keys(operations[0] as Dictionary, DAMAGE_RESULT_KEYS)
+			and _has_exact_keys(operations[1] as Dictionary, DAMAGE_RESULT_KEYS)
+			and operations[0].component_id == ENGINE_ID
+			and int(operations[0].sequence) == 4
+			and is_equal_approx(float(operations[0].current_health), 35.0)
+			and operations[1].component_id == WEAPON_ID
+			and int(operations[1].sequence) == 5
+			and is_equal_approx(float(operations[1].current_health), 30.0)
+			and int(operations[0].revision) == int(result.revision)
+			and int(operations[1].revision) == int(result.revision),
+		"damage batch operations preserve captured input order, contiguous identities, and one aggregate revision"
+	)
+	var expected_chronology := [
+		{"signal": &"stage", "component_id": ENGINE_ID},
+		{"signal": &"damage", "component_id": ENGINE_ID},
+		{"signal": &"stage", "component_id": WEAPON_ID},
+		{"signal": &"damage", "component_id": WEAPON_ID},
+	]
+	_check(
+		chronology == expected_chronology,
+		"damage batch dispatch is stage-before-operation in captured roster order"
+	)
+	var all_committed_before_dispatch := dispatch_snapshots.size() == 4
+	for snapshot in dispatch_snapshots:
+		var states := snapshot.get("components", []) as Array
+		all_committed_before_dispatch = (
+			all_committed_before_dispatch
+			and is_equal_approx(float(states[0].current_health), 35.0)
+			and is_equal_approx(float(states[1].current_health), 30.0)
+			and int(snapshot.revision) == int(result.revision)
+			and int(snapshot.last_operation_sequence) == 5
+		)
+	_check(
+		all_committed_before_dispatch,
+		"every damage callback observes the complete atomic batch state rather than a partial ledger"
+	)
+
+	contexts[0]["damage"] = 999.0
+	operations[0]["current_health"] = -10.0
+	(operations[0].stage as Dictionary)["disabled"] = true
+	damage_events[0]["current_health"] = -20.0
+	(damage_events[0].stage as Dictionary)["performance_multiplier"] = 0.99
+	_check(
+		is_equal_approx(float(model.get_component_state(ENGINE_ID).current_health), 35.0)
+			and is_equal_approx(float(model.get_component_state(WEAPON_ID).current_health), 30.0)
+			and is_equal_approx(
+				float((model.get_component_state(ENGINE_ID).stage as Dictionary).performance_multiplier),
+				0.38
+			),
+		"damage batch input, aggregate operations, and signal payloads are deeply detached"
+	)
+	var scalar := model.apply_component_damage(_damage_context(ENGINE_ID, 1.0, 1, 6))
+	_check(
+		bool(scalar.accepted)
+			and _has_exact_keys(scalar, DAMAGE_RESULT_KEYS)
+			and int(scalar.sequence) == 6
+			and int(scalar.revision) == before_revision + 2
+			and not scalar.has("operations"),
+		"scalar damage remains an outcome-compatible one-operation commit on the shared cursor"
+	)
+	model.component_stage_changed.disconnect(stage_callback)
+	model.component_damage_applied.disconnect(damage_callback)
+
+
+func _test_atomic_repair_batch_order_and_detachment() -> void:
+	var model := _make_model()
+	model.reset_for_reuse(0)
+	model.apply_component_damage_batch([
+		_damage_context(ENGINE_ID, 70.0, 1, 0),
+		_damage_context(WEAPON_ID, 40.0, 1, 1),
+	])
+	var chronology: Array[Dictionary] = []
+	var repair_events: Array[Dictionary] = []
+	var dispatch_snapshots: Array[Dictionary] = []
+	var stage_callback: Callable = func(result: Dictionary) -> void:
+		chronology.append({"signal": &"stage", "component_id": result.component_id})
+		dispatch_snapshots.append(model.get_snapshot())
+	var repair_callback: Callable = func(result: Dictionary) -> void:
+		chronology.append({"signal": &"repair", "component_id": result.component_id})
+		repair_events.append(result)
+		dispatch_snapshots.append(model.get_snapshot())
+	model.component_stage_changed.connect(stage_callback)
+	model.component_repair_applied.connect(repair_callback)
+
+	var before_revision := model.get_revision()
+	var result := model.apply_component_repair_batch([
+		_repair_context(ENGINE_ID, 45.0, 1, 2),
+		_repair_context(WEAPON_ID, MAX_FINITE_REPAIR, 1, 3),
+	])
+	var operations := result.get("operations", []) as Array
+	_check(
+		bool(result.accepted)
+			and result.reason == &"repaired_batch"
+			and _has_exact_keys(result, BATCH_RESULT_KEYS)
+			and result.operation_kind == &"repair"
+			and int(result.operation_count) == 2
+			and int(result.first_sequence) == 2
+			and int(result.last_sequence) == 3
+			and int(result.revision) == before_revision + 1
+			and model.get_revision() == before_revision + 1
+			and model.get_last_operation_sequence() == 3,
+		"one accepted repair batch returns one exact aggregate receipt and revision"
+	)
+	_check(
+		operations.size() == 2
+			and _has_exact_keys(operations[0] as Dictionary, REPAIR_RESULT_KEYS)
+			and _has_exact_keys(operations[1] as Dictionary, REPAIR_RESULT_KEYS)
+			and is_equal_approx(float(operations[0].current_health), 75.0)
+			and is_equal_approx(float(operations[0].applied_repair), 45.0)
+			and float(operations[1].current_health) == 60.0
+			and is_equal_approx(float(operations[1].applied_repair), 40.0)
+			and is_finite(float(operations[1].current_health)),
+		"repair batch precomputes exact per-component outcomes and clamps maximum finite input safely"
+	)
+	var expected_chronology := [
+		{"signal": &"stage", "component_id": ENGINE_ID},
+		{"signal": &"repair", "component_id": ENGINE_ID},
+		{"signal": &"stage", "component_id": WEAPON_ID},
+		{"signal": &"repair", "component_id": WEAPON_ID},
+	]
+	_check(
+		chronology == expected_chronology,
+		"repair batch emits detached stage-before-repair signals in captured roster order"
+	)
+	var all_committed_before_dispatch := dispatch_snapshots.size() == 4
+	for snapshot in dispatch_snapshots:
+		var states := snapshot.get("components", []) as Array
+		all_committed_before_dispatch = (
+			all_committed_before_dispatch
+			and is_equal_approx(float(states[0].current_health), 75.0)
+			and float(states[1].current_health) == 60.0
+			and int(snapshot.revision) == int(result.revision)
+			and int(snapshot.last_operation_sequence) == 3
+		)
+	_check(
+		all_committed_before_dispatch,
+		"every repair callback observes the complete atomic batch state"
+	)
+	operations[0]["current_health"] = -1.0
+	(repair_events[0].stage as Dictionary)["performance_multiplier"] = 0.0
+	_check(
+		is_equal_approx(float(model.get_component_state(ENGINE_ID).current_health), 75.0)
+			and float(model.get_component_state(WEAPON_ID).current_health) == 60.0
+			and is_equal_approx(
+				float((model.get_component_state(ENGINE_ID).stage as Dictionary).performance_multiplier),
+				0.72
+			),
+		"repair aggregate and per-operation signal payloads cannot mutate committed state"
+	)
+	model.component_stage_changed.disconnect(stage_callback)
+	model.component_repair_applied.disconnect(repair_callback)
+
+
+func _test_batch_structured_red_rejections() -> void:
+	var model := _make_model()
+	model.reset_for_reuse(0)
+	var signal_counts := {"count": 0}
+	model.component_stage_changed.connect(
+		func(_result: Dictionary) -> void:
+			signal_counts["count"] = int(signal_counts.get("count", 0)) + 1
+	)
+	model.component_damage_applied.connect(
+		func(_result: Dictionary) -> void:
+			signal_counts["count"] = int(signal_counts.get("count", 0)) + 1
+	)
+	model.component_repair_applied.connect(
+		func(_result: Dictionary) -> void:
+			signal_counts["count"] = int(signal_counts.get("count", 0)) + 1
+	)
+
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(WEAPON_ID, 1.0e-300, 1, 1),
+		],
+		&"no_component_effect",
+		"a no-effect second damage operation rejects the whole batch without partial health"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(ENGINE_ID, 5.0, 1, 1),
+		],
+		&"duplicate_component",
+		"one component cannot appear twice in an atomic damage batch"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(WEAPON_ID, 5.0, 1, 0),
+		],
+		&"duplicate_sequence",
+		"duplicate identities inside a batch reject before commit"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(WEAPON_ID, 5.0, 1, 2),
+		],
+		&"invalid_sequence",
+		"gapped identities inside a batch reject before commit"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(WEAPON_ID, 5.0, 2, 1),
+		],
+		&"stale_generation",
+		"every batch entry must carry the exact active generation"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(WEAPON_ID, NAN, 1, 1),
+		],
+		&"invalid_damage",
+		"a non-finite later amount rejects the complete damage batch"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, 0),
+			_damage_context(&"unknown_thruster", 5.0, 1, 1),
+		],
+		&"unknown_component",
+		"an unknown later component rejects the complete damage batch"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[],
+		&"invalid_batch",
+		"an empty batch cannot consume revision or sequence state"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[_damage_context(ENGINE_ID, 10.0, 1, 0), &"not_a_context"],
+		&"invalid_batch",
+		"a non-dictionary roster entry rejects the complete batch"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 10.0, 1, ComponentDamageModelType.MAX_SAFE_INTEGER),
+			_damage_context(WEAPON_ID, 5.0, 1, ComponentDamageModelType.MAX_SAFE_INTEGER + 1),
+		],
+		&"sequence_exhausted",
+		"a batch that cannot fit a complete contiguous signed-safe range fails closed"
+	)
+	var boundary_model := _make_model()
+	boundary_model.reset_for_reuse(0)
+	var final_safe_batch := boundary_model.apply_component_damage_batch([
+		_damage_context(
+			ENGINE_ID,
+			1.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER - 1
+		),
+		_damage_context(
+			WEAPON_ID,
+			1.0,
+			1,
+			ComponentDamageModelType.MAX_SAFE_INTEGER
+		),
+	])
+	_check(
+		bool(final_safe_batch.accepted)
+			and int(final_safe_batch.first_sequence)
+				== ComponentDamageModelType.MAX_SAFE_INTEGER - 1
+			and int(final_safe_batch.last_sequence)
+				== ComponentDamageModelType.MAX_SAFE_INTEGER
+			and boundary_model.get_last_operation_sequence()
+				== ComponentDamageModelType.MAX_SAFE_INTEGER,
+		"the final complete contiguous signed-safe batch range is accepted exactly once"
+	)
+	_check_repair_batch_rejection_atomic(
+		boundary_model,
+		[
+			_repair_context(
+				ENGINE_ID,
+				1.0,
+				1,
+				ComponentDamageModelType.MAX_SAFE_INTEGER + 1
+			),
+		],
+		&"sequence_exhausted",
+		"no scalar-sized repair batch can advance an exhausted shared cursor"
+	)
+	_check(
+		int(signal_counts.get("count", 0)) == 0,
+		"structured-red damage batches emit no stage, damage, or repair signals"
+	)
+
+	var accepted := model.apply_component_damage(_damage_context(ENGINE_ID, 20.0, 1, 4))
+	_check(bool(accepted.accepted), "the stale and repair batch fixtures begin from one scalar commit")
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 1.0, 1, 4),
+			_damage_context(WEAPON_ID, 1.0, 1, 5),
+		],
+		&"duplicate_sequence",
+		"a batch cannot replay the current shared high-water identity"
+	)
+	_check_damage_batch_rejection_atomic(
+		model,
+		[
+			_damage_context(ENGINE_ID, 1.0, 1, 3),
+			_damage_context(WEAPON_ID, 1.0, 1, 4),
+		],
+		&"stale_sequence",
+		"a batch cannot begin behind the shared high-water identity"
+	)
+	var signal_count_after_scalar := int(signal_counts.get("count", 0))
+	_check_repair_batch_rejection_atomic(
+		model,
+		[
+			_repair_context(ENGINE_ID, 5.0, 1, 5),
+			_repair_context(WEAPON_ID, 5.0, 1, 6),
+		],
+		&"no_component_effect",
+		"a full later component rejects the whole repair batch without partially repairing the first"
+	)
+	_check_repair_batch_rejection_atomic(
+		model,
+		[
+			_repair_context(ENGINE_ID, 5.0, 1, 5),
+			_repair_context(WEAPON_ID, NAN, 1, 6),
+		],
+		&"invalid_repair",
+		"a non-finite later repair rejects the complete batch before the first plan commits"
+	)
+	_check(
+		int(signal_counts.get("count", 0)) == signal_count_after_scalar,
+		"structured-red repair batch emits no signal after a valid first plan"
 	)
 
 
@@ -702,6 +1153,28 @@ func _test_reentrant_mutation_guard() -> void:
 			"result": repair_result,
 			"unchanged": model.get_snapshot() == before_repair,
 		})
+		var before_damage_batch := model.get_snapshot()
+		var damage_batch_result := model.apply_component_damage_batch([
+			_damage_context(ENGINE_ID, 1.0, model.get_generation(), next_sequence),
+			_damage_context(WEAPON_ID, 1.0, model.get_generation(), next_sequence + 1),
+		])
+		reentrant_attempts.append({
+			"source": source,
+			"mutation": &"damage_batch",
+			"result": damage_batch_result,
+			"unchanged": model.get_snapshot() == before_damage_batch,
+		})
+		var before_repair_batch := model.get_snapshot()
+		var repair_batch_result := model.apply_component_repair_batch([
+			_repair_context(ENGINE_ID, 1.0, model.get_generation(), next_sequence),
+			_repair_context(WEAPON_ID, 1.0, model.get_generation(), next_sequence + 1),
+		])
+		reentrant_attempts.append({
+			"source": source,
+			"mutation": &"repair_batch",
+			"result": repair_batch_result,
+			"unchanged": model.get_snapshot() == before_repair_batch,
+		})
 
 	var reset_callback: Callable = func(_result: Dictionary) -> void:
 		chronology.append(&"reset")
@@ -727,7 +1200,7 @@ func _test_reentrant_mutation_guard() -> void:
 	var outer_repair := model.apply_component_repair(
 		_repair_context(ENGINE_ID, 50.0, 1, 1)
 	)
-	var all_reentrant := reentrant_attempts.size() == 15
+	var all_reentrant := reentrant_attempts.size() == 25
 	for attempt in reentrant_attempts:
 		var result := attempt.get("result", {}) as Dictionary
 		all_reentrant = (
@@ -738,7 +1211,7 @@ func _test_reentrant_mutation_guard() -> void:
 		)
 	_check(
 		all_reentrant,
-		"reset, stage, damage, and repair callbacks cannot nest any public mutation"
+		"reset, stage, damage, and repair callbacks cannot nest scalar or batch mutations"
 	)
 	var expected_chronology: Array[StringName] = [
 		&"reset",
@@ -1003,8 +1476,10 @@ func _test_zero_authority_boundary() -> void:
 	)
 	var object_variant: Variant = model
 	_check(
-		not object_variant is Node
-			and model.has_method("apply_component_repair")
+			not object_variant is Node
+				and model.has_method("apply_component_repair")
+				and model.has_method("apply_component_damage_batch")
+				and model.has_method("apply_component_repair_batch")
 			and not model.has_method("authorize_repair")
 			and not model.has_method("tick_repair")
 			and not model.has_method("apply_shield_damage")
@@ -1072,6 +1547,40 @@ func _check_repair_rejection_atomic(
 	_check(
 		not bool(result.accepted)
 			and result.reason == expected_reason
+			and model.get_snapshot() == before,
+		description
+	)
+
+
+func _check_damage_batch_rejection_atomic(
+	model: ComponentDamageModel,
+	contexts: Array,
+	expected_reason: StringName,
+	description: String
+	) -> void:
+	var before := model.get_snapshot()
+	var result := model.apply_component_damage_batch(contexts)
+	_check(
+		not bool(result.accepted)
+			and result.reason == expected_reason
+			and _has_exact_keys(result, REJECTION_RESULT_KEYS)
+			and model.get_snapshot() == before,
+		description
+	)
+
+
+func _check_repair_batch_rejection_atomic(
+	model: ComponentDamageModel,
+	contexts: Array,
+	expected_reason: StringName,
+	description: String
+	) -> void:
+	var before := model.get_snapshot()
+	var result := model.apply_component_repair_batch(contexts)
+	_check(
+		not bool(result.accepted)
+			and result.reason == expected_reason
+			and _has_exact_keys(result, REJECTION_RESULT_KEYS)
 			and model.get_snapshot() == before,
 		description
 	)

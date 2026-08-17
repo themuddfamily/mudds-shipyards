@@ -2,19 +2,20 @@
 
 `ComponentDamageModel` is a strict, standalone `RefCounted` foundation for an
 ordered roster of damageable components. It snapshots its constructor input,
-tracks only an isolated component-health ledger, and has no production adapter
-in this slice.
+and tracks only an isolated component-health ledger.
 
-The existing `ShipComponentDamage` observer and every current `HeroShip`,
-opponent, target, `GameFlow`, resolver, presentation, destruction, and recovery
-path remain unchanged. This contract is not wired beside them and does not
-claim to replace them yet.
+The existing RangeOpponent adapter remains unchanged and does not use the new
+batch APIs. The existing `ShipComponentDamage` observer and every current
+`HeroShip`, target, `GameFlow`, resolver, presentation, destruction, and
+recovery path also remain unchanged. This batch prerequisite does not claim a
+HeroShip integration yet.
 
 ## Definition schema
 
-The public schema version is exactly `2`. Version 2 adds ordered repair,
-`component_repair_applied`, and the canonical shared-operation cursor while
-retaining the original damage cursor as a compatibility alias.
+The public schema version is exactly `3`. Version 2 added ordered repair,
+`component_repair_applied`, and the canonical shared-operation cursor. Version
+3 adds atomic ordered homogeneous damage and repair batches. The scalar APIs
+and original damage cursor remain compatibility surfaces on the same ledger.
 
 Each component definition contains exactly:
 
@@ -62,6 +63,12 @@ publish the canonical cursor. `get_last_damage_sequence()` and
 `last_damage_sequence` remain compatibility aliases for damage-only consumers;
 after repair they expose the same shared damage-or-repair high-water mark.
 
+Scalar damage and repair remain one-operation commits: each accepted scalar
+call advances revision once, consumes its explicit operation sequence, returns
+the same per-operation result roster as version 2, and emits the same signals
+in the same order. They share the batch planner and commit path, but do not
+return aggregate-only fields.
+
 `apply_component_damage(context)` accepts exactly four fields:
 
 ```text
@@ -108,14 +115,74 @@ rejected before mutation. Health, stage, generation, revision, sequence, and
 signals remain unchanged. The model applies one explicit amount only; it does
 not choose a rate, authorize a repair site, read time, or tick itself.
 
-Reset, damage, and repair commits include their synchronous signal dispatch in
-one non-nestable mutation boundary. A reset, stage-change, damage, or repair
-callback may inspect detached snapshots, but any nested call to any of the
-three public mutators returns `reentrant_call`. Reentrant calls change no
-health, stage, generation, revision, sequence, or signal state. This preserves
-the exact outer chronology: reset emits `model_reset`; a stage-changing health
-operation emits `component_stage_changed` before its matching damage or repair
-signal; an operation without a stage transition emits only its matching signal.
+### Atomic homogeneous batches
+
+`apply_component_damage_batch(contexts)` and
+`apply_component_repair_batch(contexts)` accept one to sixty-four scalar
+contexts of their matching kind. An input array is a captured ordered roster:
+the model never derives commit or signal order from dictionary iteration. Every
+component ID must be stable, known, and distinct within that roster. Every
+entry must carry the exact active generation and an explicit signed-safe
+operation sequence. Sequences may begin at any identity newer than the shared
+cursor but must then be contiguous in input order, and the complete range must
+fit through the maximum signed-safe identity.
+
+The entire roster is validated and planned before mutation. This includes
+exact context keys, numeric types, finite positive requested amounts, component
+health, overflow-safe clamps, representable health effects, and every resulting
+stage. Empty or over-bound rosters, non-dictionary entries, duplicate component
+IDs, malformed or unknown components, invalid amounts, stale generations,
+stale/duplicate/gapped identities, insufficient safe sequence capacity, and a
+no-effect operation anywhere in the roster reject the complete batch. No
+health, stage, generation, revision, sequence, or signal is partially changed.
+
+On acceptance, all planned component health and stage values commit first. The
+shared cursor becomes the roster's last sequence and the model revision
+increments exactly once for the aggregate batch, regardless of roster length.
+The existing per-operation signals then dispatch in captured input order under
+the same mutation guard: a changed stage signal precedes that operation's
+damage or repair signal. Every per-operation result carries its own input
+sequence and the one aggregate revision, and every callback observes the fully
+committed batch rather than an intermediate component ledger. There is no
+additional aggregate signal.
+
+The returned aggregate receipt contains exactly:
+
+```text
+accepted, reason, generation, sequence, revision, operation_kind,
+operation_count, first_sequence, last_sequence, operations
+```
+
+`sequence` and `last_sequence` are the same committed high-water identity.
+`operation_kind` is exactly `damage` or `repair`; `operations` is the detached
+ordered roster of the existing scalar per-operation results. The accepted
+reason is `applied_batch` or `repaired_batch`. A rejected batch returns the
+same exact five-field rejection result as a rejected scalar operation:
+
+```text
+accepted, reason, generation, sequence, revision
+```
+
+The damage per-operation result contains exactly:
+
+```text
+accepted, reason, generation, sequence, revision, component_id,
+requested_damage, applied_damage, previous_health, current_health,
+maximum_health, stage, stage_changed
+```
+
+The repair result has the same roster with `requested_repair` and
+`applied_repair` in place of the damage amount fields.
+
+Reset, scalar damage/repair, and batch damage/repair commits include their
+synchronous signal dispatch in one non-nestable mutation boundary. A reset,
+stage-change, damage, or repair callback may inspect detached snapshots, but
+any nested call to any of the five public mutators returns `reentrant_call`.
+Reentrant calls change no health, stage, generation, revision, sequence, or
+signal state. This preserves the exact outer chronology: reset emits
+`model_reset`; a stage-changing health operation emits
+`component_stage_changed` before its matching damage or repair signal; an
+operation without a stage transition emits only its matching signal.
 
 ## Snapshots, audit, and authority
 
@@ -124,7 +191,7 @@ audit dictionaries are detached value snapshots. Component order always
 matches captured definition order; no unordered dictionary iteration defines
 published ordering. Repeated reads of unchanged state are equal.
 
-The version-2 definition snapshot contains exactly:
+The version-3 definition snapshot contains exactly:
 
 ```text
 schema_version, components, evidence, authority
