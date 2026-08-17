@@ -49,6 +49,7 @@ func _run() -> void:
 	_test_materials_signage_and_detail(module)
 	_test_handling_infrastructure(module)
 	_test_recessed_lashing_ring_profile(module)
+	_test_lashing_ring_visual_allocation(module)
 	_test_nothing_drawn_floats(module)
 	await _test_handling_fixtures_are_solid(module)
 	_test_collision_contract(module)
@@ -523,8 +524,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	var renderer_before := _renderer_census(module)
 	var collision_before := module.get_collision_contract()
 	var authority_before := module.get_authority_contract()
+	var allocation_before_budget := module.get_lashing_ring_visual_allocation_audit()
+	_check(
+		bool(allocation_before_budget.get("valid", false))
+		and not bool(allocation_before_budget.get("normalised", true)),
+		"shared lashing-ring allocation is valid at its exact authored tessellation before the production budget sweep"
+	)
 	var report := TorusGeometryBudget.normalise_tree(module)
-	var exact := rings.size() == 8 and resource_ids.size() == 8
+	var exact := rings.size() == 8 and resource_ids.size() == 1
 	var profile_triangles := 0
 	var expected_aabb := AABB(Vector3(-0.24, -0.04, -0.24), Vector3(0.48, 0.08, 0.48))
 	var cardinal_extrema: Array[Vector3] = [
@@ -577,7 +584,7 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		and observed_paths == expected_paths
 		and baseline_triangles == 6144
 		and profile_triangles == 4096,
-		"profile keeps the exact eight-path/name bijection, transforms, materials, resources, surfaces, radii and AABBs while cutting only 6144 -> 4096 tube triangles"
+		"profile keeps the exact eight-path/name bijection, transforms, shared resource, materials, surfaces, radii and AABBs while cutting only 6144 -> 4096 tube triangles"
 	)
 	_check(
 		cardinal_extrema_exact,
@@ -587,12 +594,12 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING, {}
 	) as Dictionary
 	_check(
-		int(profile_report.get("resources", 0)) == 8
+		int(profile_report.get("resources", 0)) == 1
 		and int(profile_report.get("instances", 0)) == 8
 		and int(profile_report.get("surfaces", 0)) == 8
 		and int(profile_report.get("triangles_baseline", 0)) == 6144
 		and int(profile_report.get("triangles_after", 0)) == 4096,
-		"profile report derives the exact eight-resource/eight-instance/eight-surface family delta"
+		"profile report derives the exact one-resource/eight-instance/eight-surface family after sharing"
 	)
 	_check(
 		renderer_before == {
@@ -609,6 +616,145 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		module.get_collision_contract() == collision_before
 		and module.get_authority_contract() == authority_before,
 		"tube tessellation cannot change collision, interaction, lifecycle, or authority"
+	)
+
+
+func _test_lashing_ring_visual_allocation(module: JovianFreightBerth) -> void:
+	var audit := module.get_lashing_ring_visual_allocation_audit()
+	_check(
+		bool(audit.get("valid", false)) and bool(audit.get("normalised", false)),
+		"lashing-ring retained-resource allocation audit is valid after the production torus budget: %s"
+			% [audit.get("errors", [])]
+	)
+	_check(
+		int(audit.get("node_count_before", 0)) == 8
+		and int(audit.get("node_count_after", 0)) == 8
+		and int(audit.get("node_delta", 99)) == 0
+		and int(audit.get("drawn_copy_count_before", 0)) == 8
+		and int(audit.get("drawn_copy_count_after", 0)) == 8
+		and int(audit.get("drawn_copy_delta", 99)) == 0
+		and int(audit.get("structural_submission_count_before", 0)) == 8
+		and int(audit.get("structural_submission_count_after", 0)) == 8
+		and int(audit.get("structural_submission_delta", 99)) == 0,
+		"eight named nodes, eight visible copies and eight structural submissions remain exact"
+	)
+	_check(
+		int(audit.get("mesh_resource_identity_count_before", 0)) == 8
+		and int(audit.get("mesh_resource_identity_count_after", 0)) == 1
+		and int(audit.get("mesh_resource_identity_delta", 0)) == -7
+		and int(audit.get("material_resource_identity_count_before", 0)) == 1
+		and int(audit.get("material_resource_identity_count_after", 0)) == 1
+		and int(audit.get("material_resource_identity_delta", 99)) == 0
+		and int(audit.get("retained_visual_resource_identity_count_before", 0)) == 9
+		and int(audit.get("retained_visual_resource_identity_count_after", 0)) == 2
+		and int(audit.get("retained_visual_resource_identity_delta", 0)) == -7,
+		"only retained ring mesh identities fall from eight to one, for nine -> two visual resources"
+	)
+	var mesh_recipe := audit.get("mesh_recipe", {}) as Dictionary
+	_check(
+		is_equal_approx(float(mesh_recipe.get("inner_radius", -1.0)), 0.16)
+		and is_equal_approx(float(mesh_recipe.get("outer_radius", -1.0)), 0.24)
+		and int(mesh_recipe.get("authored_rings", 0)) == 48
+		and int(mesh_recipe.get("authored_ring_segments", 0)) == 12
+		and int(mesh_recipe.get("rings", 0)) == 32
+		and int(mesh_recipe.get("ring_segments", 0)) == 8
+		and int(mesh_recipe.get("surface_count", 0)) == 1
+		and (mesh_recipe.get("aabb", AABB()) as AABB).is_equal_approx(
+			AABB(Vector3(-0.24, -0.04, -0.24), Vector3(0.48, 0.08, 0.48))
+		),
+		"the shared mesh retains exact authored/budgeted tessellation, radii, surface and AABB"
+	)
+	_check(
+		int(audit.get("family_node_count", 0)) == 8
+		and int(audit.get("child_node_count", -1)) == 0
+		and int(audit.get("authority_node_count", -1)) == 0
+		and int(audit.get("scripted_node_count", -1)) == 0
+		and int(audit.get("unexpected_metadata_entry_count", -1)) == 0
+		and int(audit.get("processing_node_count", -1)) == 0
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("frame_time_claimed", true))
+		and not bool(audit.get("gpu_draw_call_claimed", true))
+		and not bool(audit.get("vram_claimed", true))
+		and not bool(audit.get("whole_scene_budget_claimed", true)),
+		"shared stock remains childless, authority-free, unbatched and claim-bounded"
+	)
+
+	var rows := audit.get("behavior_rows", []) as Array
+	(rows[0] as Dictionary)["material"] = &"mutation"
+	(audit.get("errors", PackedStringArray()) as PackedStringArray).append("mutation")
+	var detached := module.get_lashing_ring_visual_allocation_audit()
+	_check(
+		bool(detached.get("valid", false))
+		and StringName(((detached.get("behavior_rows", []) as Array)[0] as Dictionary).get(
+			"material", &""
+		)) == &"ceramic"
+		and not (detached.get("errors", PackedStringArray()) as PackedStringArray).has("mutation"),
+		"lashing-ring allocation snapshots are deeply detached"
+	)
+
+	var rings: Array[MeshInstance3D] = []
+	for row in detached.get("behavior_rows", []) as Array:
+		rings.append(module.get_node(NodePath(str((row as Dictionary).get("path", "")))) as MeshInstance3D)
+	var shared_mesh := rings[0].mesh as TorusMesh
+	var shared_resources := true
+	for ring in rings:
+		shared_resources = shared_resources \
+			and ring.mesh == shared_mesh \
+			and ring.material_override == rings[0].material_override
+	_check(shared_resources, "all eight retained named ring nodes share the exact mesh and ceramic material")
+
+	shared_mesh.outer_radius = 0.25
+	var recipe_mutation := module.get_lashing_ring_visual_allocation_audit()
+	var recipe_error := (recipe_mutation.get("errors", PackedStringArray()) as PackedStringArray).has(
+		"lashing_ring_mesh_recipe_drift"
+	)
+	_check(
+		not bool(recipe_mutation.get("valid", true)) and recipe_error,
+		"mutating the shared torus recipe reaches every copy and turns the audit red"
+	)
+	shared_mesh.outer_radius = 0.24
+
+	var second_original_mesh := rings[1].mesh
+	rings[1].mesh = shared_mesh.duplicate()
+	var identity_mutation := module.get_lashing_ring_visual_allocation_audit()
+	var identity_errors := identity_mutation.get("errors", PackedStringArray()) as PackedStringArray
+	_check(
+		not bool(identity_mutation.get("valid", true))
+		and identity_errors.has(
+			"lashing_ring_mesh_identity_not_shared:HandlingZones/LashingRingPort02"
+		)
+		and identity_errors.has("lashing_ring_mesh_identity_count_drift"),
+		"an exact-looking private ring mesh turns both identity witnesses red"
+	)
+	rings[1].mesh = second_original_mesh
+
+	var original_transform := rings[0].transform
+	rings[0].position.x += 0.1
+	var transform_mutation := module.get_lashing_ring_visual_allocation_audit()
+	_check(
+		not bool(transform_mutation.get("valid", true))
+		and (transform_mutation.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"lashing_ring_visual_transform_or_visibility_drift:HandlingZones/LashingRingPort01"
+		),
+		"moving one retained semantic path turns the exact transform witness red"
+	)
+	rings[0].transform = original_transform
+
+	var rogue_authority := Area3D.new()
+	rings[0].add_child(rogue_authority)
+	var authority_mutation := module.get_lashing_ring_visual_allocation_audit()
+	_check(
+		not bool(authority_mutation.get("valid", true))
+		and (authority_mutation.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"lashing_ring_stock_gained_authority_or_lifecycle"
+		),
+		"authority below visual ring stock turns the audit red"
+	)
+	rings[0].remove_child(rogue_authority)
+	rogue_authority.free()
+	_check(
+		bool(module.get_lashing_ring_visual_allocation_audit().get("valid", false)),
+		"restoring recipe, identity, transform and authority mutations returns the audit green"
 	)
 
 

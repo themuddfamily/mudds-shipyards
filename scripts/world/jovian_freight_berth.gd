@@ -94,6 +94,13 @@ const DOCK_GUIDE_COPY_COUNT := 12
 const LASHING_RING_FAMILY_META := "jovian_freight_torus_family"
 const LASHING_RING_FAMILY_ID: StringName = &"recessed_lashing_ring"
 const LASHING_RING_COPY_COUNT := 8
+const LASHING_RING_INNER_RADIUS := 0.16
+const LASHING_RING_OUTER_RADIUS := 0.24
+const LASHING_RING_AUTHORED_RINGS := 48
+const LASHING_RING_AUTHORED_RING_SEGMENTS := 12
+const LASHING_RING_BASELINE_MESH_RESOURCES := 8
+const LASHING_RING_BASELINE_MATERIAL_RESOURCES := 1
+const LASHING_RING_BASELINE_SUBMISSIONS := 8
 
 ## Standalone module census frozen around the dock-guide batching change. The
 ## twelve 60-triangle copies remain exact; only renderer/node representation
@@ -184,6 +191,7 @@ const CONTENT_NOTE := (
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
+var _lashing_ring_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
 var _service_details: Array[Node3D] = []
@@ -626,6 +634,188 @@ func get_dock_guide_batch_contract() -> Dictionary:
 		"census_before": DOCK_GUIDE_BATCH_CENSUS_BEFORE.duplicate(true),
 		"census_after": DOCK_GUIDE_BATCH_CENSUS_AFTER.duplicate(true),
 	}
+
+
+## Renderer-independent retained-resource audit for the eight childless freight
+## tie-down rings. Their stable nodes, paths, transforms and one-surface
+## submissions remain separate; only the identical TorusMesh allocation is
+## shared. A structural submission is not a driver draw-call or GPU-time claim.
+func get_lashing_ring_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_rows: Array[Dictionary] = []
+	for side in [-1.0, 1.0]:
+		var side_tag := "Port" if side < 0.0 else "Starboard"
+		for index in 4:
+			expected_rows.append({
+				"path": NodePath("HandlingZones/LashingRing%s%02d" % [side_tag, index + 1]),
+				"transform": Transform3D(
+					Basis.IDENTITY,
+					Vector3(side * 10.6, 0.075, 16.0 + float(index) * 8.0)
+				),
+			})
+
+	var family_nodes: Array[MeshInstance3D] = []
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var instance := candidate as MeshInstance3D
+		if StringName(instance.get_meta(LASHING_RING_FAMILY_META, &"")) == LASHING_RING_FAMILY_ID:
+			family_nodes.append(instance)
+
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var behavior_rows: Array[Dictionary] = []
+	var structural_submissions := 0
+	var child_node_count := 0
+	var authority_node_count := 0
+	var scripted_node_count := 0
+	var unexpected_metadata_entry_count := 0
+	var processing_node_count := 0
+	for expected_entry in expected_rows:
+		var ring_path := expected_entry.get("path", NodePath()) as NodePath
+		var expected_transform := expected_entry.get("transform", Transform3D.IDENTITY) as Transform3D
+		var ring := get_node_or_null(ring_path) as MeshInstance3D
+		if ring == null:
+			errors.append("lashing_ring_missing:%s" % String(ring_path))
+			continue
+		var mesh := ring.mesh as TorusMesh
+		if mesh != null:
+			mesh_ids[mesh.get_instance_id()] = true
+			structural_submissions += mesh.get_surface_count()
+		if ring.material_override != null:
+			material_ids[ring.material_override.get_instance_id()] = true
+		if (
+			not ring.transform.is_equal_approx(expected_transform)
+			or not ring.visible
+			or ring.layers != 1
+			or ring.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		):
+			errors.append("lashing_ring_visual_transform_or_visibility_drift:%s" % String(ring_path))
+		if ring.mesh != _lashing_ring_mesh:
+			errors.append("lashing_ring_mesh_identity_not_shared:%s" % String(ring_path))
+		if ring.material_override != _materials.get("ceramic"):
+			errors.append("lashing_ring_material_identity_drift:%s" % String(ring_path))
+		if StringName(ring.get_meta(TorusGeometryBudget.PROFILE_META, &"")) \
+				!= TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING \
+				or StringName(ring.get_meta(LASHING_RING_FAMILY_META, &"")) != LASHING_RING_FAMILY_ID:
+			errors.append("lashing_ring_family_metadata_drift:%s" % String(ring_path))
+		for meta_name in ring.get_meta_list():
+			if meta_name not in [TorusGeometryBudget.PROFILE_META, LASHING_RING_FAMILY_META]:
+				unexpected_metadata_entry_count += 1
+		if ring.get_script() != null:
+			scripted_node_count += 1
+		if ring.is_processing() or ring.is_physics_processing():
+			processing_node_count += 1
+		child_node_count += ring.get_child_count()
+		for child in ring.find_children("*", "Node", true, false):
+			if child is CollisionObject3D \
+					or child is CollisionShape3D \
+					or child is NavigationRegion3D \
+					or child is Light3D \
+					or child is AudioStreamPlayer \
+					or child is AudioStreamPlayer3D \
+					or child is Camera3D:
+				authority_node_count += 1
+		behavior_rows.append({
+			"path": String(ring_path),
+			"transform": ring.transform,
+			"material": &"ceramic",
+		})
+
+	var mesh := _lashing_ring_mesh
+	var authored_segments := Vector2i(
+		LASHING_RING_AUTHORED_RINGS, LASHING_RING_AUTHORED_RING_SEGMENTS
+	)
+	var normalised := mesh != null and mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	if normalised:
+		var authored_value: Variant = mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		if authored_value is Vector2i:
+			authored_segments = authored_value
+	var expected_current_segments := Vector2i(
+		32 if normalised else LASHING_RING_AUTHORED_RINGS,
+		TorusGeometryBudget.FREIGHT_RECESSED_LASHING_RING_SEGMENTS \
+			if normalised else LASHING_RING_AUTHORED_RING_SEGMENTS
+	)
+	var expected_aabb := AABB(Vector3(-0.24, -0.04, -0.24), Vector3(0.48, 0.08, 0.48))
+	if (
+		mesh == null
+		or not is_equal_approx(mesh.inner_radius, LASHING_RING_INNER_RADIUS)
+		or not is_equal_approx(mesh.outer_radius, LASHING_RING_OUTER_RADIUS)
+		or mesh.rings != expected_current_segments.x
+		or mesh.ring_segments != expected_current_segments.y
+		or authored_segments != Vector2i(
+			LASHING_RING_AUTHORED_RINGS, LASHING_RING_AUTHORED_RING_SEGMENTS
+		)
+		or mesh.get_surface_count() != 1
+		or not mesh.get_aabb().is_equal_approx(expected_aabb)
+	):
+		errors.append("lashing_ring_mesh_recipe_drift")
+	if family_nodes.size() != LASHING_RING_COPY_COUNT:
+		errors.append("lashing_ring_family_roster_drift")
+	if behavior_rows.size() != LASHING_RING_COPY_COUNT:
+		errors.append("lashing_ring_node_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("lashing_ring_mesh_identity_count_drift")
+	if material_ids.size() != LASHING_RING_BASELINE_MATERIAL_RESOURCES:
+		errors.append("lashing_ring_material_identity_count_drift")
+	if structural_submissions != LASHING_RING_BASELINE_SUBMISSIONS:
+		errors.append("lashing_ring_submission_count_drift")
+	if (
+		child_node_count != 0
+		or authority_node_count != 0
+		or scripted_node_count != 0
+		or unexpected_metadata_entry_count != 0
+		or processing_node_count != 0
+	):
+		errors.append("lashing_ring_stock_gained_authority_or_lifecycle")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_freight_berth_recessed_lashing_rings",
+		"node_count_before": LASHING_RING_COPY_COUNT,
+		"node_count_after": behavior_rows.size(),
+		"node_delta": behavior_rows.size() - LASHING_RING_COPY_COUNT,
+		"drawn_copy_count_before": LASHING_RING_COPY_COUNT,
+		"drawn_copy_count_after": behavior_rows.size(),
+		"drawn_copy_delta": behavior_rows.size() - LASHING_RING_COPY_COUNT,
+		"structural_submission_count_before": LASHING_RING_BASELINE_SUBMISSIONS,
+		"structural_submission_count_after": structural_submissions,
+		"structural_submission_delta": structural_submissions - LASHING_RING_BASELINE_SUBMISSIONS,
+		"mesh_resource_identity_count_before": LASHING_RING_BASELINE_MESH_RESOURCES,
+		"mesh_resource_identity_count_after": mesh_ids.size(),
+		"mesh_resource_identity_delta": mesh_ids.size() - LASHING_RING_BASELINE_MESH_RESOURCES,
+		"material_resource_identity_count_before": LASHING_RING_BASELINE_MATERIAL_RESOURCES,
+		"material_resource_identity_count_after": material_ids.size(),
+		"material_resource_identity_delta": material_ids.size() - LASHING_RING_BASELINE_MATERIAL_RESOURCES,
+		"retained_visual_resource_identity_count_before": LASHING_RING_BASELINE_MESH_RESOURCES + LASHING_RING_BASELINE_MATERIAL_RESOURCES,
+		"retained_visual_resource_identity_count_after": mesh_ids.size() + material_ids.size(),
+		"retained_visual_resource_identity_delta": mesh_ids.size() + material_ids.size() \
+			- (LASHING_RING_BASELINE_MESH_RESOURCES + LASHING_RING_BASELINE_MATERIAL_RESOURCES),
+		"normalised": normalised,
+		"mesh_recipe": {
+			"inner_radius": mesh.inner_radius if mesh != null else -1.0,
+			"outer_radius": mesh.outer_radius if mesh != null else -1.0,
+			"rings": mesh.rings if mesh != null else -1,
+			"ring_segments": mesh.ring_segments if mesh != null else -1,
+			"authored_rings": authored_segments.x,
+			"authored_ring_segments": authored_segments.y,
+			"surface_count": mesh.get_surface_count() if mesh != null else 0,
+			"aabb": mesh.get_aabb() if mesh != null else AABB(),
+		},
+		"behavior_rows": behavior_rows,
+		"family_node_count": family_nodes.size(),
+		"child_node_count": child_node_count,
+		"authority_node_count": authority_node_count,
+		"scripted_node_count": scripted_node_count,
+		"unexpected_metadata_entry_count": unexpected_metadata_entry_count,
+		"processing_node_count": processing_node_count,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"whole_scene_budget_claimed": false,
+	}.duplicate(true)
 
 
 func get_collision_contract() -> Dictionary:
@@ -1203,6 +1393,12 @@ func _build_handling_zones() -> void:
 	var zones := Node3D.new()
 	zones.name = "HandlingZones"
 	add_child(zones)
+	_lashing_ring_mesh = _torus_mesh(
+		LASHING_RING_INNER_RADIUS,
+		LASHING_RING_OUTER_RADIUS,
+		LASHING_RING_AUTHORED_RINGS,
+		LASHING_RING_AUTHORED_RING_SEGMENTS
+	)
 
 	# Envelope bollards. The parked hull's protected width is 23.0 m; these stand
 	# at x = +/-12.4 with a 0.19 m radius, so the whole line clears the envelope by
@@ -1253,10 +1449,11 @@ func _build_handling_zones() -> void:
 				zones,
 				"LashingRing%s%02d" % [side_tag, index + 1],
 				Vector3(side * 10.6, 0.075, z_position),
-				0.16,
-				0.24,
+				LASHING_RING_INNER_RADIUS,
+				LASHING_RING_OUTER_RADIUS,
 				_materials["ceramic"],
-				Vector3.ZERO
+				Vector3.ZERO,
+				_lashing_ring_mesh
 			)
 			lashing_ring.set_meta(
 				TorusGeometryBudget.PROFILE_META,
@@ -2255,16 +2452,36 @@ func _cylinder(
 	return container
 
 
-func _torus(parent: Node3D, node_name: String, position_value: Vector3, inner_radius: float, outer_radius: float, material: Material, rotation_value: Vector3) -> MeshInstance3D:
+func _torus_mesh(
+		inner_radius: float,
+		outer_radius: float,
+		rings: int = 48,
+		ring_segments: int = 12
+	) -> TorusMesh:
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = inner_radius
+	mesh.outer_radius = outer_radius
+	mesh.rings = rings
+	mesh.ring_segments = ring_segments
+	return mesh
+
+
+func _torus(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		inner_radius: float,
+		outer_radius: float,
+		material: Material,
+		rotation_value: Vector3,
+		mesh_override: TorusMesh = null
+	) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
 	mesh_instance.rotation_degrees = rotation_value
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 48
-	mesh.ring_segments = 12
+	var mesh := mesh_override if mesh_override != null \
+		else _torus_mesh(inner_radius, outer_radius)
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	parent.add_child(mesh_instance, true)
