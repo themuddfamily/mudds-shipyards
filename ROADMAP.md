@@ -932,16 +932,17 @@ Complete these tracks in order. Do not hide a known stability or performance def
 The first focused audit wave has already closed several concrete production defects without treating that as an end-to-end playthrough: cargo source/destination reattachment is now one atomic, generation-safe transaction under synchronous removal and signal re-entry; orderly HUD/window exit enters the existing safe-start clean-shutdown seam before quitting; settings profiles reach all five retained ship input banks atomically; and whole-`Main` re-entry restores the exact retained pause/settings/activity focus target instead of leaving controller navigation unfocused or jumping Activity Back to Timed Race. Active activities now terminalize on pilot unseating and active-hull replacement even when Cinder is already fading or Main has detached/re-entered, rather than leaking non-convoy cargo/activity generations. Combat fire from a destroyed source epoch is quarantined across re-entry while consuming the rejected source sequence, so a same-instance regeneration cannot make that stale request current. Fleet destruction/regeneration, ship cameras, combat authority, audio teardown, berth indexes and long-lived Main identities have focused green lifecycle evidence, but packaged/native repetition and a reviewed residual P2 list remain open.
 
 The generic `ComponentDamageModel` now provides one generation-safe detached
-ledger with strict stages, ordered damage and repair, atomic rejection and
-reentrant-signal guards; RangeOpponent uses it as its sole hull ledger while
-preserving resolver, scoring, audio and presentation behavior. Hero ships still
-use the older five-section presentation observer. A fleet audit found that all
-four non-Torrent variants currently inherit Torrent's component-attribution
-bounds because their final collision replacement happens after base
-configuration; correcting that placement is separate from, and must not be
-silently folded into, a future ledger migration. Atomic multi-section model
-batches and a result-bearing regeneration preflight remain prerequisites for
-that migration.
+ledger with strict stages, ordered scalar and atomic multi-component damage and
+repair, all-or-none prevalidation, one aggregate revision, detached ordered
+signals and reentrant-dispatch guards. RangeOpponent uses it as its sole hull
+ledger while preserving resolver, scoring, audio and presentation behavior.
+Hero ships still use the older five-section presentation observer, but the
+concrete fleet placement defect found by the audit is fixed: each non-Torrent
+variant now rebinds that same observer exactly once to its final live collision
+AABB before gameplay, while Torrent remains unchanged and reset/re-entry retain
+the captured geometry. A result-bearing Hero/variant/GameFlow regeneration
+preflight is the remaining prerequisite before any generic-ledger migration;
+the migration must not create a second hull or component ledger.
 
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.
