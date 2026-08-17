@@ -465,6 +465,17 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 
 	_check(observed_counts == expected_counts, "Aft profile selects only the exact 26 interface-collar roster")
 	_check(mesh_ids.size() == 26, "all 26 profiled collars retain independent TorusMesh resources")
+	# The operations test deliberately leaves the door open. Production performs
+	# the geometry pass at startup with this portal closed, so restore that real
+	# lifecycle state before asserting the complete module contract below.
+	var operations_door := module.get_operations_entrance()
+	var original_motion_duration := operations_door.motion_duration
+	operations_door.motion_duration = 0.0
+	_check(
+		operations_door.interact(module),
+		"normalization witness restores the production closed-door lifecycle"
+	)
+	operations_door.motion_duration = original_motion_duration
 	var report := TorusGeometryBudget.normalise_tree(module)
 	var exact_geometry := snapshots.size() == 26
 	for snapshot in snapshots:
@@ -500,6 +511,50 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		int(profile_report.get("triangles_baseline", 0)) == 19968
 		and int(profile_report.get("triangles_after", 0)) == 13312,
 		"Aft interface family freezes at 19968 -> 13312 triangles"
+	)
+
+	var pod_report := module.get_pod_corner_collar_visual_allocation_audit()
+	var pod_recipe := pod_report.get("mesh_recipe", {}) as Dictionary
+	_check(
+		bool(pod_report.valid)
+		and bool(pod_recipe.get("normalised", false))
+		and int(pod_recipe.get("authored_rings", 0)) \
+			== AftJunctionStack.POD_CORNER_COLLAR_RINGS
+		and int(pod_recipe.get("authored_ring_segments", 0)) \
+			== AftJunctionStack.POD_CORNER_COLLAR_RING_SEGMENTS
+		and int(pod_recipe.get("rings", 0)) \
+			== AftJunctionStack.POD_CORNER_COLLAR_BUDGETED_RINGS
+		and int(pod_recipe.get("ring_segments", 0)) \
+			== AftJunctionStack.POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS
+		and module.get_validation_errors().is_empty(),
+		"production torus normalization retains exact 48x16 authorship metadata and keeps the Aft contract green at 34x14"
+	)
+
+	var pod_mesh := (
+		module.get_node(^"Structure/OperationsRoom/PodCornerCollar") as MeshInstance3D
+	).mesh as TorusMesh
+	var original_budgeted_rings := pod_mesh.rings
+	pod_mesh.rings += 1
+	var arbitrary_recipe := module.get_pod_corner_collar_visual_allocation_audit()
+	_check(
+		not bool(arbitrary_recipe.valid)
+		and (arbitrary_recipe.errors as PackedStringArray).has(
+			"pod_corner_collar_mesh_recipe_drift"
+		),
+		"RED metadata-backed arbitrary pod-collar tessellation remains rejected"
+	)
+	pod_mesh.rings = original_budgeted_rings
+
+	var original_index := module.get_index()
+	_test_root.remove_child(module)
+	_test_root.add_child(module)
+	_test_root.move_child(module, mini(original_index, _test_root.get_child_count() - 1))
+	var reentry_report := module.get_pod_corner_collar_visual_allocation_audit()
+	_check(
+		bool(reentry_report.valid)
+		and bool((reentry_report.mesh_recipe as Dictionary).normalised)
+		and module.get_validation_errors().is_empty(),
+		"Aft re-entry preserves the exact normalized shared resource and immediately restores a green contract"
 	)
 
 

@@ -34,6 +34,8 @@ const POD_CORNER_COLLAR_INNER_RADIUS := 0.25
 const POD_CORNER_COLLAR_OUTER_RADIUS := 0.34
 const POD_CORNER_COLLAR_RINGS := 48
 const POD_CORNER_COLLAR_RING_SEGMENTS := 16
+const POD_CORNER_COLLAR_BUDGETED_RINGS := 34
+const POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS := 14
 const POD_CORNER_COLLAR_COPY_COUNT := 4
 const POD_CORNER_COLLAR_FAMILY_META := "aft_visual_resource_family"
 const POD_CORNER_COLLAR_FAMILY_ID: StringName = &"pod_corner_collars"
@@ -618,6 +620,24 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		errors.append("pod_corner_collar_mesh_identity_count_drift")
 	if family_material_ids.size() != 1:
 		errors.append("pod_corner_collar_material_identity_count_drift")
+	var authored_tessellation := Vector2i(
+		POD_CORNER_COLLAR_RINGS, POD_CORNER_COLLAR_RING_SEGMENTS
+	)
+	var retained_authored_tessellation := Vector2i.ZERO
+	var normalised := (
+		_pod_corner_collar_mesh != null
+		and _pod_corner_collar_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	)
+	if normalised:
+		var authored_value: Variant = _pod_corner_collar_mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		if authored_value is Vector2i:
+			retained_authored_tessellation = authored_value
+	var expected_tessellation := Vector2i(
+		POD_CORNER_COLLAR_BUDGETED_RINGS,
+		POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS
+	) if normalised else authored_tessellation
 	if _pod_corner_collar_mesh == null or (
 		not is_equal_approx(
 			_pod_corner_collar_mesh.inner_radius,
@@ -627,9 +647,13 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 			_pod_corner_collar_mesh.outer_radius,
 			POD_CORNER_COLLAR_OUTER_RADIUS
 		)
-		or _pod_corner_collar_mesh.rings != POD_CORNER_COLLAR_RINGS
+		or _pod_corner_collar_mesh.rings != expected_tessellation.x
 		or _pod_corner_collar_mesh.ring_segments \
-				!= POD_CORNER_COLLAR_RING_SEGMENTS
+				!= expected_tessellation.y
+		or (
+			normalised
+			and retained_authored_tessellation != authored_tessellation
+		)
 		or _pod_corner_collar_mesh.get_surface_count() != 1
 	):
 		errors.append("pod_corner_collar_mesh_recipe_drift")
@@ -703,6 +727,9 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 				_pod_corner_collar_mesh.ring_segments
 				if _pod_corner_collar_mesh != null else 0
 			),
+			"authored_rings": authored_tessellation.x,
+			"authored_ring_segments": authored_tessellation.y,
+			"normalised": normalised,
 			"surface_count": (
 				_pod_corner_collar_mesh.get_surface_count()
 				if _pod_corner_collar_mesh != null else 0
