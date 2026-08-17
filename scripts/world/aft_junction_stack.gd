@@ -26,6 +26,36 @@ const PRACTICAL_FADE_BEGIN := 60.0
 const PRACTICAL_FADE_LENGTH := 25.0
 const INTERFACE_COLLAR_KIND_META := "aft_interface_collar_kind"
 
+## The first repeated childless visual family not already served by the rounded
+## box/chamfered-cylinder caches or the independently profiled interface collars.
+## Four named renderer nodes and four submissions remain; only their exact
+## TorusMesh recipe becomes one module-owned resource treated as immutable.
+const POD_CORNER_COLLAR_INNER_RADIUS := 0.25
+const POD_CORNER_COLLAR_OUTER_RADIUS := 0.34
+const POD_CORNER_COLLAR_RINGS := 48
+const POD_CORNER_COLLAR_RING_SEGMENTS := 16
+const POD_CORNER_COLLAR_COPY_COUNT := 4
+const POD_CORNER_COLLAR_FAMILY_META := "aft_visual_resource_family"
+const POD_CORNER_COLLAR_FAMILY_ID: StringName = &"pod_corner_collars"
+const POD_CORNER_COLLAR_POSITIONS := [
+	Vector3(0.4, 4.45, 9.18),
+	Vector3(10.8, 4.45, 9.18),
+	Vector3(0.4, 4.45, 17.24),
+	Vector3(10.8, 4.45, 17.24),
+]
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
+const RENDER_DESCENDANT_NODE_COUNT := 1159
+const BASELINE_RENDERER_NODE_COUNT := 851
+const RENDERER_NODE_COUNT := 851
+const BASELINE_DRAWN_COPY_COUNT := 851
+const DRAWN_COPY_COUNT := 851
+const BASELINE_SURFACE_SUBMISSION_COUNT := 851
+const SURFACE_SUBMISSION_COUNT := 851
+const BASELINE_MESH_RESOURCE_COUNT := 317
+const MESH_RESOURCE_COUNT := 314
+const BASELINE_MATERIAL_RESOURCE_COUNT := 30
+const MATERIAL_RESOURCE_COUNT := 30
+
 const LOWER_FLOOR_ELEVATION := 0.0
 const UPPER_FLOOR_ELEVATION := 4.2
 const STAIR_STEP_COUNT := 15
@@ -89,6 +119,7 @@ const CONTENT_NOTE := (
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
+var _pod_corner_collar_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -312,8 +343,11 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("station structure must not query collision through a mask")
 	if not bool(collision.all_shapes_present_and_enabled):
 		errors.append("a walkable surface is missing an enabled collision shape")
-	if not bool(get_performance_contract().within_budget):
+	var performance := get_performance_contract()
+	if not bool(performance.within_budget):
 		errors.append("module component counts exceed the declared quality budget")
+	if not bool(performance.pod_corner_collar_visual_sharing.valid):
+		errors.append("shared pod-corner collar visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -489,7 +523,199 @@ func get_performance_contract() -> Dictionary:
 		"physics_process_loops": 1,
 	})
 	contract["schema_version"] = SCHEMA_VERSION
+	var visual_sharing := get_pod_corner_collar_visual_allocation_audit()
+	contract["pod_corner_collar_visual_sharing"] = visual_sharing
+	contract["within_budget"] = (
+		bool(contract.within_budget) and bool(visual_sharing.valid)
+	)
 	return contract
+
+
+## Renderer-independent, component-local evidence for the first eligible Aft
+## visual-resource family. A structural submission is one mesh surface; this
+## report deliberately makes no frame-time, GPU draw-call, VRAM, whole-scene or
+## pixel-equivalence claim.
+func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
+	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
+	var batch_nodes := find_children("*", "MultiMeshInstance3D", true, false)
+	var mesh_resource_ids := {}
+	var material_resource_ids := {}
+	var drawn_copies := 0
+	var surface_submissions := 0
+	for raw_node in mesh_nodes:
+		var instance := raw_node as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		drawn_copies += 1
+		surface_submissions += instance.mesh.get_surface_count()
+		mesh_resource_ids[instance.mesh.get_instance_id()] = true
+		if instance.material_override != null:
+			material_resource_ids[instance.material_override.get_instance_id()] = true
+	for raw_node in batch_nodes:
+		var batch := raw_node as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var visible_copies := batch.multimesh.visible_instance_count
+		if visible_copies < 0:
+			visible_copies = batch.multimesh.instance_count
+		drawn_copies += visible_copies
+		surface_submissions += batch.multimesh.mesh.get_surface_count()
+		mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+		if batch.material_override != null:
+			material_resource_ids[batch.material_override.get_instance_id()] = true
+
+	var errors := PackedStringArray()
+	var family_nodes: Array[MeshInstance3D] = []
+	var family_mesh_ids := {}
+	var family_material_ids := {}
+	var behavior_rows: Array[Dictionary] = []
+	var family_visible_copies := 0
+	var family_surface_submissions := 0
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(POD_CORNER_COLLAR_FAMILY_META, &"")) \
+				!= POD_CORNER_COLLAR_FAMILY_ID:
+			continue
+		family_nodes.append(instance)
+		family_visible_copies += 1 if instance.visible else 0
+		if instance.mesh != null:
+			family_mesh_ids[instance.mesh.get_instance_id()] = true
+			family_surface_submissions += instance.mesh.get_surface_count()
+		if instance.material_override != null:
+			family_material_ids[instance.material_override.get_instance_id()] = true
+		if instance.mesh != _pod_corner_collar_mesh:
+			errors.append("pod_corner_collar_mesh_identity_not_shared")
+		if (
+			instance.material_override != _materials.get("brass")
+			or not instance.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+			or instance.scale != Vector3.ONE
+			or not instance.visible
+			or instance.get_child_count() != 0
+			or instance.layers != 1
+			or instance.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		):
+			errors.append("pod_corner_collar_render_state_drift")
+		behavior_rows.append({
+			"path": String(get_path_to(instance)),
+			"position": instance.position,
+			"rotation_degrees": instance.rotation_degrees,
+		})
+
+	if family_nodes.size() != POD_CORNER_COLLAR_COPY_COUNT:
+		errors.append("pod_corner_collar_visual_node_count_drift")
+	var transforms_exact := family_nodes.size() == POD_CORNER_COLLAR_POSITIONS.size()
+	for index in mini(family_nodes.size(), POD_CORNER_COLLAR_POSITIONS.size()):
+		transforms_exact = (
+			transforms_exact
+			and family_nodes[index].position.is_equal_approx(
+				POD_CORNER_COLLAR_POSITIONS[index] as Vector3
+			)
+		)
+	if not transforms_exact:
+		errors.append("pod_corner_collar_transform_roster_drift")
+	if family_mesh_ids.size() != 1:
+		errors.append("pod_corner_collar_mesh_identity_count_drift")
+	if family_material_ids.size() != 1:
+		errors.append("pod_corner_collar_material_identity_count_drift")
+	if _pod_corner_collar_mesh == null or (
+		not is_equal_approx(
+			_pod_corner_collar_mesh.inner_radius,
+			POD_CORNER_COLLAR_INNER_RADIUS
+		)
+		or not is_equal_approx(
+			_pod_corner_collar_mesh.outer_radius,
+			POD_CORNER_COLLAR_OUTER_RADIUS
+		)
+		or _pod_corner_collar_mesh.rings != POD_CORNER_COLLAR_RINGS
+		or _pod_corner_collar_mesh.ring_segments \
+				!= POD_CORNER_COLLAR_RING_SEGMENTS
+		or _pod_corner_collar_mesh.get_surface_count() != 1
+	):
+		errors.append("pod_corner_collar_mesh_recipe_drift")
+
+	var descendant_nodes := find_children("*", "Node", true, false).size()
+	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
+	if (
+		descendant_nodes != RENDER_DESCENDANT_NODE_COUNT
+		or renderer_nodes != RENDERER_NODE_COUNT
+		or drawn_copies != DRAWN_COPY_COUNT
+		or surface_submissions != SURFACE_SUBMISSION_COUNT
+		or mesh_resource_ids.size() != MESH_RESOURCE_COUNT
+		or material_resource_ids.size() != MATERIAL_RESOURCE_COUNT
+	):
+		errors.append("pod_corner_collar_component_allocation_census_drift")
+
+	var legacy := {
+		"descendant_nodes": BASELINE_RENDER_DESCENDANT_NODE_COUNT,
+		"renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
+		"drawn_copies": BASELINE_DRAWN_COPY_COUNT,
+		"surface_submissions": BASELINE_SURFACE_SUBMISSION_COUNT,
+		"mesh_resource_allocations": BASELINE_MESH_RESOURCE_COUNT,
+		"material_resource_allocations": BASELINE_MATERIAL_RESOURCE_COUNT,
+		"family_visual_nodes": POD_CORNER_COLLAR_COPY_COUNT,
+		"family_visible_copies": POD_CORNER_COLLAR_COPY_COUNT,
+		"family_surface_submissions": POD_CORNER_COLLAR_COPY_COUNT,
+		"family_mesh_resource_allocations": POD_CORNER_COLLAR_COPY_COUNT,
+	}
+	var current := {
+		"descendant_nodes": descendant_nodes,
+		"renderer_nodes": renderer_nodes,
+		"drawn_copies": drawn_copies,
+		"surface_submissions": surface_submissions,
+		"mesh_resource_allocations": mesh_resource_ids.size(),
+		"material_resource_allocations": material_resource_ids.size(),
+		"family_visual_nodes": family_nodes.size(),
+		"family_visible_copies": family_visible_copies,
+		"family_surface_submissions": family_surface_submissions,
+		"family_mesh_resource_allocations": family_mesh_ids.size(),
+	}
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_pod_corner_collar_visuals",
+		"selected_family": POD_CORNER_COLLAR_FAMILY_ID,
+		"legacy": legacy,
+		"current": current,
+		"reductions": {
+			"descendant_nodes": 0,
+			"renderer_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 0,
+		},
+		"mesh_recipe": {
+			"inner_radius": (
+				_pod_corner_collar_mesh.inner_radius
+				if _pod_corner_collar_mesh != null else 0.0
+			),
+			"outer_radius": (
+				_pod_corner_collar_mesh.outer_radius
+				if _pod_corner_collar_mesh != null else 0.0
+			),
+			"rings": (
+				_pod_corner_collar_mesh.rings
+				if _pod_corner_collar_mesh != null else 0
+			),
+			"ring_segments": (
+				_pod_corner_collar_mesh.ring_segments
+				if _pod_corner_collar_mesh != null else 0
+			),
+			"surface_count": (
+				_pod_corner_collar_mesh.get_surface_count()
+				if _pod_corner_collar_mesh != null else 0
+			),
+		},
+		"behavior_rows": behavior_rows,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"whole_scene_budget_claimed": false,
+		"pixel_equivalence_claimed": false,
+	}.duplicate(true)
 
 
 ## Applied unconditionally. A no-op guard on the flag made drifted state
@@ -966,6 +1192,13 @@ func _build_operations_room(structure: Node3D) -> void:
 			_box(room, "FloorSeam", Vector3(float(floor_x), 0.042, float(seam_z)), Vector3(3.25, 0.018, 0.035), _materials["rubber"], false)
 	# Rounded guards and a tubular roof rail soften the pod silhouette while its
 	# dependable box colliders retain a clean, testable room envelope.
+	_pod_corner_collar_mesh = _torus_mesh(
+		POD_CORNER_COLLAR_INNER_RADIUS,
+		POD_CORNER_COLLAR_OUTER_RADIUS,
+		POD_CORNER_COLLAR_RINGS,
+		POD_CORNER_COLLAR_RING_SEGMENTS
+	)
+	_pod_corner_collar_mesh.resource_name = "AftPodCornerCollarMesh"
 	for corner in [
 		Vector3(0.4, 2.4, 9.18),
 		Vector3(10.8, 2.4, 9.18),
@@ -973,7 +1206,20 @@ func _build_operations_room(structure: Node3D) -> void:
 		Vector3(10.8, 2.4, 17.24),
 	]:
 		_cylinder(room, "RoundedPodCorner", corner, 0.24, 4.8, _materials["mid_grey"], false)
-		_torus(room, "PodCornerCollar", corner + Vector3.UP * 2.05, 0.25, 0.34, _materials["brass"], Vector3(90, 0, 0))
+		var collar := _torus(
+			room,
+			"PodCornerCollar",
+			corner + Vector3.UP * 2.05,
+			POD_CORNER_COLLAR_INNER_RADIUS,
+			POD_CORNER_COLLAR_OUTER_RADIUS,
+			_materials["brass"],
+			Vector3(90, 0, 0),
+			_pod_corner_collar_mesh
+		)
+		collar.set_meta(
+			POD_CORNER_COLLAR_FAMILY_META,
+			POD_CORNER_COLLAR_FAMILY_ID
+		)
 	_beam_between(room, "WindowRoofRail", Vector3(0.7, 5.08, 17.15), Vector3(10.5, 5.08, 17.15), 0.11, _materials["off_white"], false)
 
 	# A wide north-facing window dominates the room. Transparent panes remain
@@ -2588,21 +2834,34 @@ func _torus(
 		inner_radius: float,
 		outer_radius: float,
 		material: Material,
-		rotation_degrees_value: Vector3 = Vector3.ZERO
+		rotation_degrees_value: Vector3 = Vector3.ZERO,
+		shared_mesh: TorusMesh = null
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = torus_position
 	instance.rotation_degrees = rotation_degrees_value
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 48
-	mesh.ring_segments = 16
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = _torus_mesh(inner_radius, outer_radius, 48, 16)
 	instance.mesh = mesh
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+func _torus_mesh(
+		inner_radius: float,
+		outer_radius: float,
+		rings: int,
+		ring_segments: int
+	) -> TorusMesh:
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = inner_radius
+	mesh.outer_radius = outer_radius
+	mesh.rings = rings
+	mesh.ring_segments = ring_segments
+	return mesh
 
 
 ## Module-local Z of the stair-base landing's southern edge.

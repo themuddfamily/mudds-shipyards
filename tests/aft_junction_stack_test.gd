@@ -40,14 +40,13 @@ func _run() -> void:
 	await _test_stair_circulation(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
+	_test_pod_corner_collar_visual_resource_sharing(module)
 	_test_interface_collar_profile(module)
 	_test_vip_landmark(module)
 	await _test_negative_space(module)
 	_test_collision_matrix(module)
 	await _test_cleanup(module)
 	_finish()
-
-
 func _test_identity_evidence_and_audit(module: AftJunctionStack) -> void:
 	_check(module.get_module_id() == &"aft-junction-stack", "module exposes a stable kebab-case identity")
 	_check(bool(module.get_meta("station_module", false)), "root metadata identifies a station module")
@@ -207,6 +206,184 @@ func _test_operations_contents(module: AftJunctionStack) -> void:
 	_check(furniture_tagged, "operations furniture exposes stable semantic metadata")
 	var service_wall := module.get_service_wall()
 	_check(service_wall != null and bool(service_wall.get_meta("station_service_wall", false)), "service wall is present and semantically tagged")
+
+
+func _test_pod_corner_collar_visual_resource_sharing(
+		module: AftJunctionStack
+	) -> void:
+	var report := module.get_pod_corner_collar_visual_allocation_audit()
+	print(
+		"AFT_POD_CORNER_COLLAR_VISUALS: "
+		+ "nodes %d->%d submissions %d->%d mesh_resources %d->%d copies %d->%d" % [
+			int(report.legacy.renderer_nodes),
+			int(report.current.renderer_nodes),
+			int(report.legacy.surface_submissions),
+			int(report.current.surface_submissions),
+			int(report.legacy.mesh_resource_allocations),
+			int(report.current.mesh_resource_allocations),
+			int(report.legacy.drawn_copies),
+			int(report.current.drawn_copies),
+		]
+	)
+	_check(
+		bool(report.valid)
+		and StringName(report.selected_family) == &"pod_corner_collars"
+		and report.legacy == {
+			"descendant_nodes": 1159,
+			"renderer_nodes": 851,
+			"drawn_copies": 851,
+			"surface_submissions": 851,
+			"mesh_resource_allocations": 317,
+			"material_resource_allocations": 30,
+			"family_visual_nodes": 4,
+			"family_visible_copies": 4,
+			"family_surface_submissions": 4,
+			"family_mesh_resource_allocations": 4,
+		}
+		and report.current == {
+			"descendant_nodes": 1159,
+			"renderer_nodes": 851,
+			"drawn_copies": 851,
+			"surface_submissions": 851,
+			"mesh_resource_allocations": 314,
+			"material_resource_allocations": 30,
+			"family_visual_nodes": 4,
+			"family_visible_copies": 4,
+			"family_surface_submissions": 4,
+			"family_mesh_resource_allocations": 1,
+		},
+		"pod-corner sharing preserves 1159 descendants, 851 renderer nodes/copies/submissions and reduces exact mesh allocations 317 -> 314"
+	)
+	_check(
+		report.reductions == {
+			"descendant_nodes": 0,
+			"renderer_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 0,
+		}
+		and not bool(report.batched)
+		and not bool(report.frame_time_claimed)
+		and not bool(report.gpu_draw_call_claimed)
+		and not bool(report.vram_claimed)
+		and not bool(report.whole_scene_budget_claimed)
+		and not bool(report.pixel_equivalence_claimed),
+		"allocation evidence is local immutable sharing with no batching, timing, GPU, VRAM, whole-scene or pixel claim"
+	)
+
+	var collars: Array[MeshInstance3D] = []
+	for raw_node in module.find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			AftJunctionStack.POD_CORNER_COLLAR_FAMILY_META, &""
+		)) == AftJunctionStack.POD_CORNER_COLLAR_FAMILY_ID:
+			collars.append(instance)
+	var exact_family := collars.size() == AftJunctionStack.POD_CORNER_COLLAR_COPY_COUNT
+	var shared_mesh: TorusMesh = collars[0].mesh as TorusMesh if not collars.is_empty() else null
+	for index in collars.size():
+		var collar := collars[index]
+		exact_family = (
+			exact_family
+			and collar.mesh == shared_mesh
+			and collar.position.is_equal_approx(
+				AftJunctionStack.POD_CORNER_COLLAR_POSITIONS[index]
+				as Vector3
+			)
+			and collar.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+			and collar.scale == Vector3.ONE
+			and collar.visible
+			and collar.layers == 1
+			and collar.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and collar.get_child_count() == 0
+			and collar.get_script() == null
+			and StringName(collar.get_meta(TorusGeometryBudget.PROFILE_META, &"")) \
+				!= TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+		)
+	_check(
+		exact_family
+		and shared_mesh != null
+		and is_equal_approx(
+			shared_mesh.inner_radius,
+			AftJunctionStack.POD_CORNER_COLLAR_INNER_RADIUS
+		)
+		and is_equal_approx(
+			shared_mesh.outer_radius,
+			AftJunctionStack.POD_CORNER_COLLAR_OUTER_RADIUS
+		)
+		and shared_mesh.rings == AftJunctionStack.POD_CORNER_COLLAR_RINGS
+		and shared_mesh.ring_segments \
+			== AftJunctionStack.POD_CORNER_COLLAR_RING_SEGMENTS
+		and shared_mesh.get_surface_count() == 1,
+		"four childless named pod collars preserve transforms, material/render policy and exact torus recipe through one mesh identity"
+	)
+	_check(
+		module.get_node_or_null(
+			^"Structure/OperationsRoom/PodCornerCollar"
+		) == collars[0]
+		and module.get_operations_entrance() != null
+		and module.get_vip_access() != null
+		and module.get_service_wall() != null,
+		"resource sharing retains the existing collar path and door, VIP and service-wall semantic paths"
+	)
+
+	(report.current as Dictionary)["mesh_resource_allocations"] = -1
+	(report.behavior_rows as Array).clear()
+	var detached := module.get_pod_corner_collar_visual_allocation_audit()
+	_check(
+		int(detached.current.mesh_resource_allocations) == 314
+		and (detached.behavior_rows as Array).size() == 4,
+		"component-local allocation and transform evidence is deeply detached"
+	)
+
+	# The door test immediately before this one intentionally leaves the reusable
+	# StationDoor open. Recovery must restore that exact live validator state,
+	# rather than pretending an unrelated subsystem is still at startup.
+	var baseline_errors := module.get_validation_errors()
+	var original_outer_radius := shared_mesh.outer_radius
+	shared_mesh.outer_radius += 0.01
+	var recipe_red := module.get_pod_corner_collar_visual_allocation_audit()
+	var recipe_reached_all_copies := true
+	for collar in collars:
+		recipe_reached_all_copies = (
+			recipe_reached_all_copies
+			and is_equal_approx(
+				(collar.mesh as TorusMesh).outer_radius,
+				original_outer_radius + 0.01
+			)
+		)
+	_check(
+		not bool(recipe_red.valid)
+		and (recipe_red.errors as PackedStringArray).has(
+			"pod_corner_collar_mesh_recipe_drift"
+		)
+		and recipe_reached_all_copies
+		and module.get_validation_errors().has(
+			"shared pod-corner collar visual allocation contract drifted"
+		),
+		"RED recipe mutation reaches all four shared copies and turns the module audit red"
+	)
+	shared_mesh.outer_radius = original_outer_radius
+
+	var original_second_mesh := collars[1].mesh
+	collars[1].mesh = shared_mesh.duplicate() as Mesh
+	var identity_red := module.get_pod_corner_collar_visual_allocation_audit()
+	_check(
+		not bool(identity_red.valid)
+		and (identity_red.errors as PackedStringArray).has(
+			"pod_corner_collar_mesh_identity_not_shared"
+		)
+		and int(identity_red.current.mesh_resource_allocations) == 315
+		and int(identity_red.current.family_mesh_resource_allocations) == 2,
+		"RED identity mutation rejects an exact-looking private collar mesh allocation"
+	)
+	collars[1].mesh = original_second_mesh
+	_check(
+		bool(module.get_pod_corner_collar_visual_allocation_audit().valid)
+		and module.get_validation_errors() == baseline_errors,
+		"restoring the shared pod-corner recipe and identity returns the exact pre-mutation module validator state"
+	)
 
 
 func _test_interface_collar_profile(module: AftJunctionStack) -> void:
