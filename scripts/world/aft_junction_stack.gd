@@ -79,6 +79,22 @@ const SPINE_CLAMP_POSITIONS := [
 	Vector3(5.6, 5.62, 15.1),
 	Vector3(5.6, 5.62, 16.95),
 ]
+## Four brass clamps around the existing watch-rack cable tray. The tray keeps
+## all structural and content meaning and the ordinary clamp nodes stay in
+## place; their identical TorusMesh recipe is the only shared allocation.
+const RACK_CABLE_TRAY_CLAMP_INNER_RADIUS := 0.09
+const RACK_CABLE_TRAY_CLAMP_OUTER_RADIUS := 0.135
+const RACK_CABLE_TRAY_CLAMP_RINGS := 48
+const RACK_CABLE_TRAY_CLAMP_RING_SEGMENTS := 16
+const RACK_CABLE_TRAY_CLAMP_BUDGETED_RINGS := 32
+const RACK_CABLE_TRAY_CLAMP_BUDGETED_RING_SEGMENTS := 8
+const RACK_CABLE_TRAY_CLAMP_COPY_COUNT := 4
+const RACK_CABLE_TRAY_CLAMP_POSITIONS := [
+	Vector3(4.35, 2.44, 9.58),
+	Vector3(6.05, 2.44, 9.58),
+	Vector3(7.75, 2.44, 9.58),
+	Vector3(9.45, 2.44, 9.58),
+]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
 const RENDER_DESCENDANT_NODE_COUNT := 1156
 const BASELINE_RENDERER_NODE_COUNT := 851
@@ -88,7 +104,7 @@ const DRAWN_COPY_COUNT := 851
 const BASELINE_SURFACE_SUBMISSION_COUNT := 851
 const SURFACE_SUBMISSION_COUNT := 848
 const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 307
+const MESH_RESOURCE_COUNT := 304
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -158,6 +174,7 @@ var _chamfered_cylinder_cache: Dictionary = {}
 var _pod_corner_collar_mesh: TorusMesh
 var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
+var _rack_cable_tray_clamp_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -390,6 +407,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP facade column-trim batch contract drifted")
 	if not bool(performance.spine_clamp_visual_sharing.valid):
 		errors.append("shared spine-clamp visual allocation contract drifted")
+	if not bool(performance.rack_cable_tray_clamp_visual_sharing.valid):
+		errors.append("shared rack-cable-tray clamp visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -568,14 +587,17 @@ func get_performance_contract() -> Dictionary:
 	var visual_sharing := get_pod_corner_collar_visual_allocation_audit()
 	var facade_batch := get_vip_facade_column_trim_batch_audit()
 	var spine_sharing := get_spine_clamp_visual_allocation_audit()
+	var tray_clamp_sharing := get_rack_cable_tray_clamp_visual_allocation_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["spine_clamp_visual_sharing"] = spine_sharing
+	contract["rack_cable_tray_clamp_visual_sharing"] = tray_clamp_sharing
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
 		and bool(facade_batch.valid)
 		and bool(spine_sharing.valid)
+		and bool(tray_clamp_sharing.valid)
 	)
 	return contract
 
@@ -754,7 +776,7 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 			"renderer_nodes": 3,
 			"drawn_copies": 0,
 			"surface_submissions": 3,
-			"mesh_resource_allocations": 10,
+			"mesh_resource_allocations": 13,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
@@ -973,6 +995,199 @@ func get_spine_clamp_visual_allocation_audit() -> Dictionary:
 		"live_tessellation": Vector2i(
 			_spine_clamp_mesh.rings, _spine_clamp_mesh.ring_segments
 		) if _spine_clamp_mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
+		"material_identity_preserved": material_ids.size() == 1,
+		"collision_authority_count": collision_nodes,
+		"semantic_authority_count": authority_nodes,
+		"batched": false,
+		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the four ordinary RackCableTrayClamp
+## renderers. Sharing changes resource identity only; all authored nodes,
+## submissions, transforms and budget ownership remain unchanged.
+func get_rack_cable_tray_clamp_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var family_nodes: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var node_paths := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	var surface_submissions := 0
+	var visible_copies := 0
+	var collision_nodes := 0
+	var authority_nodes := 0
+	var expected_parent := get_node_or_null(
+		^"Structure/OperationsRoom/OperationsContent/WatchRackBank"
+	) as Node3D
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			TorusGeometryBudget.PROFILE_META, &""
+		)) != TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
+			continue
+		if StringName(instance.get_meta(INTERFACE_COLLAR_KIND_META, &"")) \
+				!= &"RackCableTrayClamp":
+			continue
+		family_nodes.append(instance)
+		node_paths.append(String(get_path_to(instance)))
+		transforms.append(instance.transform)
+		visible_copies += 1 if instance.visible else 0
+		if instance.mesh != null:
+			mesh_ids[instance.mesh.get_instance_id()] = true
+			surface_submissions += instance.mesh.get_surface_count()
+		if instance.material_override != null:
+			material_ids[instance.material_override.get_instance_id()] = true
+		if instance.mesh != _rack_cable_tray_clamp_mesh:
+			errors.append("rack_cable_tray_clamp_mesh_identity_not_shared")
+		if instance.material_override != _materials.get("brass"):
+			errors.append("rack_cable_tray_clamp_material_identity_drift")
+		var family_index := family_nodes.size() - 1
+		if family_index >= RACK_CABLE_TRAY_CLAMP_POSITIONS.size() \
+				or not instance.position.is_equal_approx(
+					RACK_CABLE_TRAY_CLAMP_POSITIONS[family_index] as Vector3
+				) \
+				or not instance.rotation_degrees.is_equal_approx(Vector3(0.0, 0.0, 90.0)) \
+				or instance.scale != Vector3.ONE:
+			errors.append("rack_cable_tray_clamp_transform_drift")
+		if not instance.visible \
+				or instance.layers != 1 \
+				or instance.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or instance.material_overlay != null \
+				or not is_zero_approx(instance.transparency):
+			errors.append("rack_cable_tray_clamp_renderer_state_drift")
+		var metadata_keys := instance.get_meta_list()
+		var exact_metadata := (
+			metadata_keys.size() == 2
+			and metadata_keys.has(TorusGeometryBudget.PROFILE_META)
+			and metadata_keys.has(INTERFACE_COLLAR_KIND_META)
+			and StringName(instance.get_meta(
+				TorusGeometryBudget.PROFILE_META, &""
+			)) == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+			and StringName(instance.get_meta(
+				INTERFACE_COLLAR_KIND_META, &""
+			)) == &"RackCableTrayClamp"
+		)
+		var gained_authority := (
+			instance.get_parent() != expected_parent
+			or instance.get_child_count() != 0
+			or instance.get_script() != null
+			or not instance.get_groups().is_empty()
+			or not exact_metadata
+		)
+		if gained_authority:
+			authority_nodes += 1
+			errors.append("rack_cable_tray_clamp_gained_authority_or_lifecycle")
+		collision_nodes += instance.find_children(
+			"*", "CollisionObject3D", true, false
+		).size()
+		collision_nodes += instance.find_children(
+			"*", "CollisionShape3D", true, false
+		).size()
+
+	if family_nodes.size() != RACK_CABLE_TRAY_CLAMP_COPY_COUNT:
+		errors.append("rack_cable_tray_clamp_visual_node_count_drift")
+	var stable_paths := family_nodes.size() == RACK_CABLE_TRAY_CLAMP_COPY_COUNT
+	if stable_paths:
+		stable_paths = node_paths[0] == (
+			"Structure/OperationsRoom/OperationsContent/WatchRackBank/"
+			+ "RackCableTrayClamp"
+		)
+		for index in range(1, node_paths.size()):
+			stable_paths = stable_paths and String(family_nodes[index].name).begins_with(
+				"@MeshInstance3D@"
+			)
+	if not stable_paths:
+		errors.append("rack_cable_tray_clamp_node_path_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("rack_cable_tray_clamp_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("rack_cable_tray_clamp_material_identity_drift")
+	if collision_nodes != 0:
+		errors.append("rack_cable_tray_clamp_gained_collision_authority")
+
+	var authored_tessellation := Vector2i(
+		RACK_CABLE_TRAY_CLAMP_RINGS,
+		RACK_CABLE_TRAY_CLAMP_RING_SEGMENTS
+	)
+	var normalised := (
+		_rack_cable_tray_clamp_mesh != null
+		and _rack_cable_tray_clamp_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	)
+	var live_tessellation := Vector2i(
+		RACK_CABLE_TRAY_CLAMP_BUDGETED_RINGS,
+		RACK_CABLE_TRAY_CLAMP_BUDGETED_RING_SEGMENTS
+	) if normalised else authored_tessellation
+	if _rack_cable_tray_clamp_mesh == null \
+			or not is_equal_approx(
+				_rack_cable_tray_clamp_mesh.inner_radius,
+				RACK_CABLE_TRAY_CLAMP_INNER_RADIUS
+			) \
+			or not is_equal_approx(
+				_rack_cable_tray_clamp_mesh.outer_radius,
+				RACK_CABLE_TRAY_CLAMP_OUTER_RADIUS
+			) \
+			or _rack_cable_tray_clamp_mesh.rings != live_tessellation.x \
+			or _rack_cable_tray_clamp_mesh.ring_segments != live_tessellation.y \
+			or _rack_cable_tray_clamp_mesh.get_surface_count() != 1:
+		errors.append("rack_cable_tray_clamp_torus_recipe_drift")
+	var mesh_metadata: Array[StringName] = []
+	if _rack_cable_tray_clamp_mesh != null:
+		mesh_metadata = _rack_cable_tray_clamp_mesh.get_meta_list()
+	var exact_mesh_metadata: bool = (
+		_rack_cable_tray_clamp_mesh != null
+		and _rack_cable_tray_clamp_mesh.material == null
+		and not _rack_cable_tray_clamp_mesh.resource_local_to_scene
+		and (
+			(not normalised and mesh_metadata.is_empty())
+			or (
+				normalised
+				and mesh_metadata.size() == 1
+				and mesh_metadata.has(TorusGeometryBudget.AUTHORED_META)
+				and _rack_cable_tray_clamp_mesh.get_meta(
+					TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+				) == authored_tessellation
+			)
+		)
+	)
+	if not exact_mesh_metadata:
+		errors.append("rack_cable_tray_clamp_budget_metadata_drift")
+
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_rack_cable_tray_clamp_visuals",
+		"legacy": {
+			"visual_nodes": RACK_CABLE_TRAY_CLAMP_COPY_COUNT,
+			"drawn_copies": RACK_CABLE_TRAY_CLAMP_COPY_COUNT,
+			"surface_submissions": RACK_CABLE_TRAY_CLAMP_COPY_COUNT,
+			"mesh_resource_allocations": RACK_CABLE_TRAY_CLAMP_COPY_COUNT,
+			"material_resource_allocations": 1,
+		},
+		"current": {
+			"visual_nodes": family_nodes.size(),
+			"drawn_copies": visible_copies,
+			"surface_submissions": surface_submissions,
+			"mesh_resource_allocations": mesh_ids.size(),
+			"material_resource_allocations": material_ids.size(),
+		},
+		"reductions": {
+			"visual_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 0,
+		},
+		"node_paths": node_paths,
+		"authored_transforms": transforms,
+		"authored_tessellation": authored_tessellation,
+		"live_tessellation": Vector2i(
+			_rack_cable_tray_clamp_mesh.rings,
+			_rack_cable_tray_clamp_mesh.ring_segments
+		) if _rack_cable_tray_clamp_mesh != null else Vector2i.ZERO,
 		"normalised": normalised,
 		"material_identity_preserved": material_ids.size() == 1,
 		"collision_authority_count": collision_nodes,
@@ -2107,8 +2322,23 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 	# wall, which is where this room's cabling already goes.
 	_beam_between(bank, "RackCableTray", Vector3(4.05, 2.44, 9.58), Vector3(10.15, 2.44, 9.58), 0.085, _materials["hull_dark"], false)
 	_beam_between(bank, "RackCableTrayRiser", Vector3(10.15, 2.44, 9.58), Vector3(10.15, 2.44, 10.35), 0.075, _materials["hull_dark"], false)
-	for clamp_x in [4.35, 6.05, 7.75, 9.45]:
-		_interface_collar(bank, "RackCableTrayClamp", Vector3(float(clamp_x), 2.44, 9.58), 0.09, 0.135, _materials["brass"], Vector3(0, 0, 90))
+	_rack_cable_tray_clamp_mesh = _torus_mesh(
+		RACK_CABLE_TRAY_CLAMP_INNER_RADIUS,
+		RACK_CABLE_TRAY_CLAMP_OUTER_RADIUS,
+		RACK_CABLE_TRAY_CLAMP_RINGS,
+		RACK_CABLE_TRAY_CLAMP_RING_SEGMENTS
+	)
+	for clamp_position in RACK_CABLE_TRAY_CLAMP_POSITIONS:
+		_interface_collar(
+			bank,
+			"RackCableTrayClamp",
+			clamp_position as Vector3,
+			RACK_CABLE_TRAY_CLAMP_INNER_RADIUS,
+			RACK_CABLE_TRAY_CLAMP_OUTER_RADIUS,
+			_materials["brass"],
+			Vector3(0, 0, 90),
+			_rack_cable_tray_clamp_mesh
+		)
 
 	for rack_index in 3:
 		var rack_x := 5.15 + float(rack_index) * 1.75
