@@ -1,7 +1,8 @@
 extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
-const EXPECTED_ASSERTIONS := 30
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const EXPECTED_ASSERTIONS := 46
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -31,6 +32,7 @@ func _run() -> void:
 	_test_identity_and_audit(scene)
 	_test_geometry_and_markers(scene)
 	_test_collision(scene)
+	await _test_embodied_surface_traversal(scene)
 	_test_lod_seam(scene)
 	await _test_detachment_and_structured_reds(packed, scene)
 	scene.queue_free()
@@ -40,6 +42,8 @@ func _run() -> void:
 
 func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	var audit := scene.audit()
+	if not bool(audit.valid):
+		print("EMBER_MOON_AUTHORED_SCENE_AUDIT_ERRORS: %s" % [audit.errors])
 	_check(audit.valid and (audit.errors as Array).is_empty(), "the exact static authored scene audits green")
 	_check(
 		scene.get_world_id() == &"ember_moon"
@@ -59,16 +63,18 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 		(audit.owned_capabilities as Dictionary) == {
 			"presentation_geometry": true,
 			"static_world_collision": true,
+			"authored_surface_landmarks": true,
+			"authored_surface_route": true,
 		},
-		"audit truthfully owns only presentation geometry and bounded static collision",
+		"audit owns only bounded presentation, landmark, route, and static collision capabilities",
 	)
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 13
-			and audit.performance.mesh_instances == 4
-			and audit.performance.static_bodies == 1
-			and audit.performance.collision_shapes == 1
+		audit.performance.node_count == 35
+			and audit.performance.mesh_instances == 11
+			and audit.performance.static_bodies == 5
+			and audit.performance.collision_shapes == 7
 			and audit.performance.triangle_count <= 8192,
 		"live topology and primitive triangles stay inside the exact bounded budget",
 	)
@@ -96,6 +102,53 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	_check((markers.caldera_staging_gate as Transform3D).origin == Vector3(42.0, 120_000.0, 0.0), "staging marker composes through the landing-region frame")
 	markers[&"caldera_pad"] = Transform3D.IDENTITY
 	_check((scene.get_body_local_marker_transforms().caldera_pad as Transform3D).origin == Vector3(0.0, 120_000.0, 0.0), "returned marker dictionaries are detached")
+	var snapshot := scene.get_snapshot()
+	var landmark_ids := PackedStringArray()
+	for landmark_id: Variant in snapshot.surface_content.landmark_ids:
+		landmark_ids.append(str(landmark_id))
+	landmark_ids.sort()
+	_check(
+		snapshot.surface_content.content_class == &"NEW"
+			and snapshot.surface_content.status == &"modern_interpretation"
+			and snapshot.surface_content.route_id == &"ember_caldera_pad_to_staging"
+			and is_equal_approx(float(snapshot.surface_content.route_width_m), 4.0)
+			and snapshot.surface_content.route_points_region_local_m == [
+				Vector3(0.0, 0.0, 0.0),
+				Vector3(18.0, 0.0, 0.0),
+				Vector3(42.0, 0.0, 0.0),
+			],
+		"surface snapshot publishes the exact bounded pad-to-egress-to-staging route",
+	)
+	_check(
+		landmark_ids == PackedStringArray([
+			"ember_pad_guidance_port",
+			"ember_pad_guidance_starboard",
+			"ember_sample_rack",
+			"ember_staging_relay",
+		]),
+		"surface snapshot publishes the exact stable modern landmark roster",
+	)
+	var surface_markers := scene.get_surface_landmark_marker_transforms()
+	_check(
+		surface_markers.size() == 3
+			and (surface_markers.ember_pad_guidance_threshold as Transform3D).origin == Vector3(14.0, 120_000.0, 0.0)
+			and (surface_markers.ember_sample_rack_access as Transform3D).origin == Vector3(28.0, 120_000.0, -4.8)
+			and (surface_markers.ember_staging_relay_access as Transform3D).origin == Vector3(42.0, 120_000.0, 4.4),
+		"three stable access markers compose through the body-local landing frame",
+	)
+	surface_markers.clear()
+	_check(
+		scene.get_surface_landmark_marker_transforms().size() == 3,
+		"returned surface-landmark marker dictionaries are detached",
+	)
+	var route_visual := scene.get_node(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
+	var route_mesh := route_visual.mesh as BoxMesh if route_visual != null else null
+	_check(
+		route_visual != null and route_mesh != null
+			and route_visual.position == Vector3(28.0, 0.01, 0.0)
+			and route_mesh.size == Vector3(28.0, 0.02, 4.0),
+		"the surface stripe touches the pad edge at x=14 and reaches staging at x=42 without a visual gap",
+	)
 
 
 func _test_collision(scene: EmberMoonAuthoredScene) -> void:
@@ -117,6 +170,104 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 	_check(not hit_egress.is_empty() and hit_egress.collider == body, "the egress point is collision-supported")
 	_check(not hit_staging.is_empty() and hit_staging.collider == body, "the staging point is collision-supported")
 	_check(outside.is_empty(), "collision fails closed immediately beyond the authored +/-48m patch")
+	var landmark_paths := [
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort",
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard",
+		^"LandingRegion/SurfaceLandmarks/SampleRack",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay",
+	]
+	var solid_centres := [
+		Vector3(14.8, 120_003.0, -5.0),
+		Vector3(14.8, 120_003.0, 5.0),
+		Vector3(28.0, 120_003.0, -7.0),
+		Vector3(42.0, 120_005.0, 7.0),
+	]
+	var all_solids_collide := true
+	for index in landmark_paths.size():
+		var expected_body := scene.get_node(landmark_paths[index]) as StaticBody3D
+		var hit := _ray_hit(space, solid_centres[index])
+		all_solids_collide = all_solids_collide \
+			and expected_body != null and not hit.is_empty() \
+			and hit.collider == expected_body
+	_check(all_solids_collide, "every visually solid guide, rack, and relay owns matching World collision")
+	var corridor_clear := true
+	for x in [14.8, 28.0, 42.0]:
+		var route_hit := _ray_hit(space, Vector3(x, 120_002.0, 0.0))
+		corridor_clear = corridor_clear \
+			and not route_hit.is_empty() and route_hit.collider == body
+	_check(corridor_clear, "negative-space probes hit only the walkable patch through every landmark station")
+	var collision_snapshot := scene.get_snapshot().collision as Dictionary
+	_check(
+		int(collision_snapshot.landmark_static_body_count) == 4
+			and int(collision_snapshot.solid_landmark_collision_shape_count) == 6
+			and is_equal_approx(float(collision_snapshot.route_clear_half_width_m), 2.0),
+		"surface collision snapshot freezes four landmark bodies and six solid shapes",
+	)
+
+
+func _test_embodied_surface_traversal(scene: EmberMoonAuthoredScene) -> void:
+	# Exercise the body-local authoring through the explicit local-origin seam.
+	# CharacterBody contact at an unre-based 120 km coordinate is intentionally
+	# outside this static component's authority and is covered by the separate
+	# planetary coordinate-frame contracts.
+	scene.position = Vector3(0.0, -120_000.0, 0.0)
+	await physics_frame
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	root.add_child(player)
+	await process_frame
+	player.set_camera_active(false)
+	Input.action_release(&"jump")
+	Input.action_release(&"sprint_boost")
+	Input.action_release(&"move_forward")
+	var route_basis := Basis.looking_at(Vector3.RIGHT, Vector3.UP)
+	player.teleport_to(Transform3D(
+		route_basis,
+		Vector3(0.0, 0.05, 0.0),
+	))
+	for _settle in 12:
+		await physics_frame
+	var start := player.global_position
+	var reached_egress := false
+	var reached_staging := false
+	var maximum_lateral_offset := 0.0
+	var maximum_surface_offset := 0.0
+	var jump_was_pressed := false
+	Input.action_press(&"move_forward")
+	for _frame in 540:
+		await physics_frame
+		var local := player.global_position
+		maximum_lateral_offset = maxf(maximum_lateral_offset, absf(local.z))
+		maximum_surface_offset = maxf(maximum_surface_offset, absf(local.y))
+		jump_was_pressed = jump_was_pressed or Input.is_action_pressed(&"jump")
+		reached_egress = reached_egress or local.x >= 18.0
+		if local.x >= 41.5:
+			reached_staging = true
+			break
+	Input.action_release(&"move_forward")
+	await physics_frame
+	var final_local := player.global_position
+	_check(
+		start.x >= -0.1 and start.x <= 0.1 and absf(start.z) <= 0.1 \
+			and player.is_on_floor(),
+		"the production Player settles physically at the authored pad start",
+	)
+	_check(reached_egress, "continuous production locomotion crosses the exact pad-egress marker")
+	_check(
+		reached_staging and final_local.x >= 41.5 and final_local.x < 48.0,
+		"the same no-teleport walk reaches staging before the bounded patch edge",
+	)
+	_check(
+		not jump_was_pressed and maximum_surface_offset <= 0.1,
+		"pad-to-staging traversal uses no jump and remains on the tangent collision surface",
+	)
+	_check(
+		maximum_lateral_offset <= 0.2,
+		"landmark collision preserves the straight four-metre negative-space corridor",
+	)
+	player.queue_free()
+	await process_frame
+	scene.position = Vector3.ZERO
+	await physics_frame
 
 
 func _test_lod_seam(scene: EmberMoonAuthoredScene) -> void:
@@ -154,6 +305,28 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 	(drifted.get_node(^"LandingRegion/WalkablePatch") as StaticBody3D).collision_layer = 0
 	var collision_report := drifted.audit()
 	_check((collision_report.error_codes as PackedStringArray).has("walkable_body_drift"), "collision authority drift produces a structured red code")
+	(drifted.get_node(^"LandingRegion/SurfaceLandmarks/SampleRack") as StaticBody3D).set_meta(
+		"landmark_id", &"wrong_sample_rack",
+	)
+	var roster_report := drifted.audit()
+	_check(
+		(roster_report.error_codes as PackedStringArray).has("surface_landmark_identity_drift"),
+		"surface landmark identity drift produces a structured red code",
+	)
+	(drifted.get_node(^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadCollision") as CollisionShape3D).disabled = true
+	var solid_report := drifted.audit()
+	_check(
+		(solid_report.error_codes as PackedStringArray).has("landmark_collision_shape_drift"),
+		"a missing visual-solid collision recipe produces a structured red code",
+	)
+	(drifted.get_node(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D).set_meta(
+		"route_id", &"wrong_route",
+	)
+	var route_report := drifted.audit()
+	_check(
+		(route_report.error_codes as PackedStringArray).has("surface_route_identity_drift"),
+		"surface route identity drift produces a structured red code",
+	)
 	drifted.queue_free()
 	await process_frame
 

@@ -27,16 +27,42 @@ const WALKABLE_PATCH_SIZE_M := Vector3(96.0, 0.5, 96.0)
 const WALKABLE_PATCH_POSITION_REGION_LOCAL_M := Vector3(0.0, -0.25, 0.0)
 const PAD_VISUAL_SIZE_M := Vector3(28.0, 0.04, 32.0)
 const PAD_VISUAL_POSITION_REGION_LOCAL_M := Vector3(0.0, 0.02, 0.0)
+const SURFACE_ROUTE_ID: StringName = &"ember_caldera_pad_to_staging"
+const SURFACE_ROUTE_WIDTH_M := 4.0
+const SURFACE_ROUTE_VISUAL_SIZE_M := Vector3(28.0, 0.02, SURFACE_ROUTE_WIDTH_M)
+const SURFACE_ROUTE_VISUAL_POSITION_M := Vector3(28.0, 0.01, 0.0)
+const SURFACE_ROUTE_POINTS_M := [
+	Vector3(0.0, 0.0, 0.0),
+	Vector3(18.0, 0.0, 0.0),
+	Vector3(42.0, 0.0, 0.0),
+]
+const PAD_GUIDE_SIZE_M := Vector3(0.5, 1.8, 0.5)
+const PORT_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, -5.0)
+const STARBOARD_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, 5.0)
+const SAMPLE_RACK_SIZE_M := Vector3(4.0, 1.0, 1.4)
+const SAMPLE_RACK_POSITION_M := Vector3(28.0, 0.5, -7.0)
+const RELAY_ROOT_POSITION_M := Vector3(42.0, 0.0, 7.0)
+const RELAY_BASE_SIZE_M := Vector3(2.4, 0.35, 2.4)
+const RELAY_BASE_POSITION_M := Vector3(0.0, 0.175, 0.0)
+const RELAY_MAST_RADIUS_M := 0.18
+const RELAY_MAST_HEIGHT_M := 3.0
+const RELAY_MAST_POSITION_M := Vector3(0.0, 1.675, 0.0)
+const RELAY_HEAD_SIZE_M := Vector3(0.9, 0.45, 0.9)
+const RELAY_HEAD_POSITION_M := Vector3(0.0, 3.25, 0.0)
 
 const BODY_COLOR := Color("552817")
 const FLOOR_COLOR := Color("292421")
 const RIM_COLOR := Color("713a25")
 const PAD_COLOR := Color("a85f32")
+const ROUTE_COLOR := Color("d28245")
+const GUIDE_COLOR := Color("71d9da")
+const EQUIPMENT_COLOR := Color("4f4942")
+const RELAY_COLOR := Color("e1a458")
 
-const EXPECTED_NODE_COUNT := 13
-const EXPECTED_MESH_INSTANCE_COUNT := 4
-const EXPECTED_STATIC_BODY_COUNT := 1
-const EXPECTED_COLLISION_SHAPE_COUNT := 1
+const EXPECTED_NODE_COUNT := 35
+const EXPECTED_MESH_INSTANCE_COUNT := 11
+const EXPECTED_STATIC_BODY_COUNT := 5
+const EXPECTED_COLLISION_SHAPE_COUNT := 7
 const MAXIMUM_TRIANGLE_COUNT := 8192
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
@@ -46,6 +72,17 @@ const MARKER_NODE_PATHS := {
 	&"caldera_approach": ^"LandingRegion/Markers/ApproachEntry",
 	&"caldera_pad_egress": ^"LandingRegion/Markers/PadEgress",
 	&"caldera_staging_gate": ^"LandingRegion/Markers/StagingGate",
+}
+const SURFACE_LANDMARK_NODE_PATHS := {
+	&"ember_pad_guidance_port": ^"LandingRegion/SurfaceLandmarks/PadGuidancePort",
+	&"ember_pad_guidance_starboard": ^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard",
+	&"ember_sample_rack": ^"LandingRegion/SurfaceLandmarks/SampleRack",
+	&"ember_staging_relay": ^"LandingRegion/SurfaceLandmarks/StagingRelay",
+}
+const SURFACE_MARKER_NODE_PATHS := {
+	&"ember_pad_guidance_threshold": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold",
+	&"ember_sample_rack_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/SampleRackAccess",
+	&"ember_staging_relay_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess",
 }
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
@@ -87,6 +124,20 @@ func get_body_local_marker_transforms() -> Dictionary:
 		return result
 	for marker_id: StringName in MARKER_NODE_PATHS:
 		var marker := get_node_or_null(MARKER_NODE_PATHS[marker_id]) as Marker3D
+		if marker != null:
+			result[marker_id] = landing_root.transform * marker.transform
+	return result.duplicate(true)
+
+
+## Detached body-local transforms for the bounded surface-content access points.
+## These are presentation/route references only, never navigation authority.
+func get_surface_landmark_marker_transforms() -> Dictionary:
+	var result := {}
+	var landing_root := get_node_or_null(^"LandingRegion") as Node3D
+	if landing_root == null:
+		return result
+	for marker_id: StringName in SURFACE_MARKER_NODE_PATHS:
+		var marker := get_node_or_null(SURFACE_MARKER_NODE_PATHS[marker_id]) as Marker3D
 		if marker != null:
 			result[marker_id] = landing_root.transform * marker.transform
 	return result.duplicate(true)
@@ -136,11 +187,27 @@ func get_snapshot() -> Dictionary:
 			"standard_float_spacing_at_landing_m": 0.0078125,
 		},
 		"marker_transforms_body_local": get_body_local_marker_transforms(),
+		"surface_content": {
+			"content_class": &"NEW",
+			"status": &"modern_interpretation",
+			"route_id": SURFACE_ROUTE_ID,
+			"route_width_m": SURFACE_ROUTE_WIDTH_M,
+			"route_points_region_local_m": SURFACE_ROUTE_POINTS_M.duplicate(),
+			"landmark_ids": SURFACE_LANDMARK_NODE_PATHS.keys(),
+			"marker_transforms_body_local": get_surface_landmark_marker_transforms(),
+		},
 		"geometry": {
 			"caldera_floor_radius_m": CALDERA_FLOOR_RADIUS_M,
 			"caldera_rim_inner_radius_m": CALDERA_RIM_INNER_RADIUS_M,
 			"caldera_rim_outer_radius_m": CALDERA_RIM_OUTER_RADIUS_M,
 			"pad_visual_size_m": PAD_VISUAL_SIZE_M,
+			"surface_route_visual_size_m": SURFACE_ROUTE_VISUAL_SIZE_M,
+			"pad_guide_size_m": PAD_GUIDE_SIZE_M,
+			"sample_rack_size_m": SAMPLE_RACK_SIZE_M,
+			"relay_base_size_m": RELAY_BASE_SIZE_M,
+			"relay_mast_radius_m": RELAY_MAST_RADIUS_M,
+			"relay_mast_height_m": RELAY_MAST_HEIGHT_M,
+			"relay_head_size_m": RELAY_HEAD_SIZE_M,
 		},
 		"collision": {
 			"shape": &"box",
@@ -149,6 +216,9 @@ func get_snapshot() -> Dictionary:
 			"top_surface_region_local_y_m": 0.0,
 			"layer": WORLD_LAYER,
 			"mask": WORLD_MASK,
+			"landmark_static_body_count": 4,
+			"solid_landmark_collision_shape_count": 6,
+			"route_clear_half_width_m": SURFACE_ROUTE_WIDTH_M * 0.5,
 		},
 		"terrain_lod_policy": lod_snapshot,
 		"evidence": _evidence_report(),
@@ -167,6 +237,7 @@ func audit() -> Dictionary:
 	_validate_transforms(errors)
 	_validate_geometry(errors)
 	_validate_collision(errors)
+	_validate_surface_content(errors)
 	_validate_forbidden_nodes(errors)
 	var performance := _performance_census()
 	_validate_performance(errors, performance)
@@ -255,20 +326,48 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/Markers/ApproachEntry": "Marker3D",
 		^"LandingRegion/Markers/PadEgress": "Marker3D",
 		^"LandingRegion/Markers/StagingGate": "Marker3D",
+		^"LandingRegion/SurfaceLandmarks": "Node3D",
+		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort": "StaticBody3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/CollisionShape3D": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard": "StaticBody3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/CollisionShape3D": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SampleRack": "StaticBody3D",
+		^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SampleRack/CollisionShape3D": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay": "StaticBody3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/MastCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers": "Node3D",
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold": "Marker3D",
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers/SampleRackAccess": "Marker3D",
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess": "Marker3D",
 	}
 	for path: NodePath in expected:
 		var node := get_node_or_null(path)
 		if node == null or not node.is_class(expected[path]):
 			_append_error(errors, &"missing_or_wrong_node", StringName(str(path)), "required authored node is missing or has the wrong type")
 	if _count_nodes() != EXPECTED_NODE_COUNT:
-		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirteen nodes")
+		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-five nodes")
 	var landing_root := get_node_or_null(^"LandingRegion")
 	var walkable := get_node_or_null(^"LandingRegion/WalkablePatch")
 	var markers := get_node_or_null(^"LandingRegion/Markers")
+	var landmarks := get_node_or_null(^"LandingRegion/SurfaceLandmarks")
+	var route_markers := get_node_or_null(^"LandingRegion/SurfaceLandmarks/RouteMarkers")
+	var relay := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay")
 	if get_child_count() != 2 \
-			or landing_root == null or landing_root.get_child_count() != 5 \
+			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
-			or markers == null or markers.get_child_count() != 4:
+			or markers == null or markers.get_child_count() != 4 \
+			or landmarks == null or landmarks.get_child_count() != 6 \
+			or route_markers == null or route_markers.get_child_count() != 3 \
+			or relay == null or relay.get_child_count() != 6:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
 
 
@@ -288,10 +387,24 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var floor := get_node_or_null(^"LandingRegion/CalderaFloor") as MeshInstance3D
 	var rim := get_node_or_null(^"LandingRegion/CalderaRim") as MeshInstance3D
 	var pad := get_node_or_null(^"LandingRegion/PadVisual") as MeshInstance3D
+	var route := get_node_or_null(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
+	var port_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual") as MeshInstance3D
+	var starboard_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual") as MeshInstance3D
+	var rack := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual") as MeshInstance3D
+	var relay_base := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual") as MeshInstance3D
+	var relay_mast := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual") as MeshInstance3D
+	var relay_head := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual") as MeshInstance3D
 	var body_mesh := body.mesh as SphereMesh if body != null else null
 	var floor_mesh := floor.mesh as CylinderMesh if floor != null else null
 	var rim_mesh := rim.mesh as TorusMesh if rim != null else null
 	var pad_mesh := pad.mesh as BoxMesh if pad != null else null
+	var route_mesh := route.mesh as BoxMesh if route != null else null
+	var port_guide_mesh := port_guide.mesh as BoxMesh if port_guide != null else null
+	var starboard_guide_mesh := starboard_guide.mesh as BoxMesh if starboard_guide != null else null
+	var rack_mesh := rack.mesh as BoxMesh if rack != null else null
+	var relay_base_mesh := relay_base.mesh as BoxMesh if relay_base != null else null
+	var relay_mast_mesh := relay_mast.mesh as CylinderMesh if relay_mast != null else null
+	var relay_head_mesh := relay_head.mesh as BoxMesh if relay_head != null else null
 	if body_mesh == null or body_mesh.radius != BODY_VISUAL_RADIUS_M \
 			or body_mesh.height != BODY_VISUAL_RADIUS_M * 2.0 \
 			or body_mesh.radial_segments != 64 or body_mesh.rings != 32 \
@@ -310,11 +423,34 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	if pad_mesh == null or pad_mesh.size != PAD_VISUAL_SIZE_M \
 			or pad == null or pad.position != PAD_VISUAL_POSITION_REGION_LOCAL_M:
 		_append_error(errors, &"pad_visual_drift", &"PadVisual", "authored pad visual drifted")
+	if route_mesh == null or route_mesh.size != SURFACE_ROUTE_VISUAL_SIZE_M \
+			or route == null or route.position != SURFACE_ROUTE_VISUAL_POSITION_M:
+		_append_error(errors, &"surface_route_visual_drift", &"EgressRouteVisual", "continuous pad-to-staging route visual drifted")
+	if port_guide_mesh == null or port_guide_mesh.size != PAD_GUIDE_SIZE_M \
+			or starboard_guide_mesh == null or starboard_guide_mesh.size != PAD_GUIDE_SIZE_M:
+		_append_error(errors, &"pad_guidance_visual_drift", &"PadGuidance", "paired solid pad guidance recipe drifted")
+	if rack_mesh == null or rack_mesh.size != SAMPLE_RACK_SIZE_M:
+		_append_error(errors, &"sample_rack_visual_drift", &"SampleRack", "low solid sample-rack recipe drifted")
+	if relay_base_mesh == null or relay_base_mesh.size != RELAY_BASE_SIZE_M \
+			or relay_mast_mesh == null \
+			or not is_equal_approx(relay_mast_mesh.top_radius, RELAY_MAST_RADIUS_M) \
+			or not is_equal_approx(relay_mast_mesh.bottom_radius, RELAY_MAST_RADIUS_M) \
+			or relay_mast_mesh.height != RELAY_MAST_HEIGHT_M \
+			or relay_mast_mesh.radial_segments != 12 \
+			or relay_head_mesh == null or relay_head_mesh.size != RELAY_HEAD_SIZE_M:
+		_append_error(errors, &"staging_relay_visual_drift", &"StagingRelay", "solid staging-relay recipe drifted")
 	var material_specs := {
 		body: BODY_COLOR,
 		floor: FLOOR_COLOR,
 		rim: RIM_COLOR,
 		pad: PAD_COLOR,
+		route: ROUTE_COLOR,
+		port_guide: GUIDE_COLOR,
+		starboard_guide: GUIDE_COLOR,
+		rack: EQUIPMENT_COLOR,
+		relay_base: EQUIPMENT_COLOR,
+		relay_mast: EQUIPMENT_COLOR,
+		relay_head: RELAY_COLOR,
 	}
 	for instance: MeshInstance3D in material_specs:
 		var material := instance.material_override as StandardMaterial3D if instance != null else null
@@ -337,6 +473,83 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 	if collision == null or collision.transform != Transform3D.IDENTITY \
 			or collision.disabled or shape == null or shape.size != WALKABLE_PATCH_SIZE_M:
 		_append_error(errors, &"walkable_shape_drift", &"CollisionShape3D", "single bounded walkable box drifted")
+	var body_specs := {
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort": PORT_PAD_GUIDE_POSITION_M,
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard": STARBOARD_PAD_GUIDE_POSITION_M,
+		^"LandingRegion/SurfaceLandmarks/SampleRack": SAMPLE_RACK_POSITION_M,
+		^"LandingRegion/SurfaceLandmarks/StagingRelay": RELAY_ROOT_POSITION_M,
+	}
+	for body_path: NodePath in body_specs:
+		var landmark_body := get_node_or_null(body_path) as StaticBody3D
+		if landmark_body == null or landmark_body.position != body_specs[body_path] \
+				or landmark_body.collision_layer != WORLD_LAYER \
+				or landmark_body.collision_mask != WORLD_MASK:
+			_append_error(errors, &"landmark_collision_body_drift", StringName(str(body_path)), "solid landmark body transform or World collision contract drifted")
+	var shape_specs := {
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/CollisionShape3D": {"type": &"box", "size": PAD_GUIDE_SIZE_M, "position": Vector3.ZERO},
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/CollisionShape3D": {"type": &"box", "size": PAD_GUIDE_SIZE_M, "position": Vector3.ZERO},
+		^"LandingRegion/SurfaceLandmarks/SampleRack/CollisionShape3D": {"type": &"box", "size": SAMPLE_RACK_SIZE_M, "position": Vector3.ZERO},
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseCollision": {"type": &"box", "size": RELAY_BASE_SIZE_M, "position": RELAY_BASE_POSITION_M},
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/MastCollision": {"type": &"cylinder", "radius": RELAY_MAST_RADIUS_M, "height": RELAY_MAST_HEIGHT_M, "position": RELAY_MAST_POSITION_M},
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadCollision": {"type": &"box", "size": RELAY_HEAD_SIZE_M, "position": RELAY_HEAD_POSITION_M},
+	}
+	for shape_path: NodePath in shape_specs:
+		var landmark_shape := get_node_or_null(shape_path) as CollisionShape3D
+		var spec := shape_specs[shape_path] as Dictionary
+		var valid_shape: bool = landmark_shape != null and not landmark_shape.disabled \
+			and landmark_shape.position == spec.position
+		if valid_shape and spec.type == &"box":
+			var box := landmark_shape.shape as BoxShape3D
+			valid_shape = box != null and box.size == spec.size
+		elif valid_shape and spec.type == &"cylinder":
+			var cylinder := landmark_shape.shape as CylinderShape3D
+			valid_shape = cylinder != null \
+				and is_equal_approx(cylinder.radius, float(spec.radius)) \
+				and cylinder.height == float(spec.height)
+		if not valid_shape:
+			_append_error(errors, &"landmark_collision_shape_drift", StringName(str(shape_path)), "visual-solid landmark collision recipe drifted")
+
+
+func _validate_surface_content(errors: Array[Dictionary]) -> void:
+	var route := get_node_or_null(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
+	if route == null \
+			or StringName(route.get_meta("route_id", &"")) != SURFACE_ROUTE_ID \
+			or StringName(route.get_meta("content_class", &"")) != &"NEW" \
+			or StringName(route.get_meta("status", &"")) != &"modern_interpretation":
+		_append_error(errors, &"surface_route_identity_drift", SURFACE_ROUTE_ID, "surface route identity/evidence metadata drifted")
+	for landmark_id: StringName in SURFACE_LANDMARK_NODE_PATHS:
+		var landmark := get_node_or_null(SURFACE_LANDMARK_NODE_PATHS[landmark_id]) as StaticBody3D
+		if landmark == null \
+				or StringName(landmark.get_meta("landmark_id", &"")) != landmark_id \
+				or StringName(landmark.get_meta("content_class", &"")) != &"NEW" \
+				or StringName(landmark.get_meta("status", &"")) != &"modern_interpretation" \
+				or not bool(landmark.get_meta("solid_visual_collision", false)):
+			_append_error(errors, &"surface_landmark_identity_drift", landmark_id, "stable landmark identity/evidence/collision metadata drifted")
+	for marker_id: StringName in SURFACE_MARKER_NODE_PATHS:
+		var marker := get_node_or_null(SURFACE_MARKER_NODE_PATHS[marker_id]) as Marker3D
+		if marker == null \
+				or marker.transform != _expected_surface_marker_transform(marker_id) \
+				or StringName(marker.get_meta("marker_id", &"")) != marker_id:
+			_append_error(errors, &"surface_marker_drift", marker_id, "stable surface landmark marker drifted")
+	for point: Vector3 in SURFACE_ROUTE_POINTS_M:
+		if absf(point.x) > WALKABLE_PATCH_SIZE_M.x * 0.5 \
+				or absf(point.z) + SURFACE_ROUTE_WIDTH_M * 0.5 > WALKABLE_PATCH_SIZE_M.z * 0.5 \
+				or not is_zero_approx(point.y):
+			_append_error(errors, &"surface_route_outside_patch", SURFACE_ROUTE_ID, "route centreline or clear width leaves the bounded collision patch")
+			break
+	# The nearest solid edge is a pad guide at |z|=4.75 m. Keeping every solid
+	# beyond the 2 m route half-width plus the production player's 0.38 m capsule
+	# radius makes the straight pad->egress->staging corridor honest.
+	var solid_clearances := PackedFloat32Array([
+		absf(PORT_PAD_GUIDE_POSITION_M.z) - PAD_GUIDE_SIZE_M.z * 0.5,
+		absf(STARBOARD_PAD_GUIDE_POSITION_M.z) - PAD_GUIDE_SIZE_M.z * 0.5,
+		absf(SAMPLE_RACK_POSITION_M.z) - SAMPLE_RACK_SIZE_M.z * 0.5,
+		absf(RELAY_ROOT_POSITION_M.z) - RELAY_BASE_SIZE_M.z * 0.5,
+	])
+	for clearance: float in solid_clearances:
+		if clearance <= SURFACE_ROUTE_WIDTH_M * 0.5 + 0.38:
+			_append_error(errors, &"surface_route_obstructed", SURFACE_ROUTE_ID, "solid landmark intrudes into production Player clearance")
+			break
 
 
 func _validate_forbidden_nodes(errors: Array[Dictionary]) -> void:
@@ -419,6 +632,18 @@ func _expected_marker_transform(marker_id: StringName) -> Transform3D:
 			return Transform3D.IDENTITY
 
 
+static func _expected_surface_marker_transform(marker_id: StringName) -> Transform3D:
+	match marker_id:
+		&"ember_pad_guidance_threshold":
+			return Transform3D(Basis.IDENTITY, Vector3(14.0, 0.0, 0.0))
+		&"ember_sample_rack_access":
+			return Transform3D(Basis.IDENTITY, Vector3(28.0, 0.0, -4.8))
+		&"ember_staging_relay_access":
+			return Transform3D(Basis.IDENTITY, Vector3(42.0, 0.0, 4.4))
+		_:
+			return Transform3D.IDENTITY
+
+
 func _evidence_report() -> Dictionary:
 	return {
 		"content_class": &"NEW",
@@ -429,7 +654,7 @@ func _evidence_report() -> Dictionary:
 		"authenticated": false,
 		"space_backdrop_palette_inspiration_only": true,
 		"space_backdrop_physical_reuse": false,
-		"notes": "Original Ember Moon visual proxy and bounded static pad collision; no historical or production-placement claim.",
+		"notes": "Original Ember Moon visual proxy, bounded static pad collision, traversable surface route, and small modern landmark roster; no historical or production-placement claim.",
 	}.duplicate(true)
 
 
@@ -437,6 +662,8 @@ func _owned_capabilities() -> Dictionary:
 	return {
 		"presentation_geometry": true,
 		"static_world_collision": true,
+		"authored_surface_landmarks": true,
+		"authored_surface_route": true,
 	}.duplicate(true)
 
 
