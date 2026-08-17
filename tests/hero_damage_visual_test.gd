@@ -73,6 +73,43 @@ func _run() -> void:
 	_check(warning_light != null and failure_light != null, "component builds warning and engine-failure light cues")
 	_check(int(presentation.call("get_damage_stage")) == 0, "presentation begins healthy")
 	_check(not damage_sparks.emitting and not engine_smoke.emitting, "healthy presentation has no damage particles")
+	var persistent_spark_audit := presentation.call("get_spark_mesh_allocation_audit") as Dictionary
+	_check(
+		bool(persistent_spark_audit.get("valid", false)),
+		"persistent spark allocation audit is valid: %s" % [persistent_spark_audit.get("errors", [])]
+	)
+	_check(
+		int(persistent_spark_audit.get("draw_consumer_count", 0)) == 2
+		and int(persistent_spark_audit.get("baseline_draw_consumer_count", 0)) == 2
+		and int(persistent_spark_audit.get("draw_consumer_delta", 99)) == 0
+		and int(persistent_spark_audit.get("retained_mesh_resource_allocations", 0)) == 1
+		and int(persistent_spark_audit.get("baseline_retained_mesh_resource_allocations", 0)) == 2
+		and int(persistent_spark_audit.get("retained_mesh_resource_allocation_delta", 0)) == -1,
+		"two persistent spark consumers retain one shared mesh instead of two"
+	)
+	_check(
+		int(persistent_spark_audit.get("structural_submission_count", 0)) == 2
+		and int(persistent_spark_audit.get("structural_submission_delta", 99)) == 0
+		and int(persistent_spark_audit.get("particle_amount_total", 0)) == 29
+		and int(persistent_spark_audit.get("particle_amount_delta", 99)) == 0
+		and int(persistent_spark_audit.get("material_resource_identity_count", 0)) == 1
+		and int(persistent_spark_audit.get("material_resource_identity_delta", 99)) == 0
+		and not bool(persistent_spark_audit.get("batched", true))
+		and not bool(persistent_spark_audit.get("frame_time_claimed", true))
+		and not bool(persistent_spark_audit.get("gpu_draw_call_claimed", true))
+		and not bool(persistent_spark_audit.get("vram_claimed", true)),
+		"sharing preserves particle amounts, surfaces, material identity and claim boundaries"
+	)
+	var mutated_audit_snapshot := persistent_spark_audit
+	(mutated_audit_snapshot.get("errors", PackedStringArray()) as PackedStringArray).append("mutation")
+	(mutated_audit_snapshot.get("behavior_rows", []) as Array).clear()
+	var detached_spark_audit := presentation.call("get_spark_mesh_allocation_audit") as Dictionary
+	_check(
+		bool(detached_spark_audit.get("valid", false))
+		and not (detached_spark_audit.get("errors", PackedStringArray()) as PackedStringArray).has("mutation")
+		and (detached_spark_audit.get("behavior_rows", []) as Array).size() == 2,
+		"spark allocation snapshots are deeply detached"
+	)
 
 	# Exact threshold values enter the damaged and critical stages immediately.
 	presentation.call("update_state", 0.68, &"active", Vector3(4.0, 1.0, -7.0))
@@ -86,6 +123,41 @@ func _run() -> void:
 	var impact_position := Vector3(-5.0, 13.0, 21.0)
 	presentation.call("present_impact", impact_position, Vector3.RIGHT, 1.25)
 	_check(int(presentation.call("get_live_world_effect_count")) == 1, "impact creates one tracked world-space transient")
+	var impact_root := root.get_node_or_null("HeroDamageImpact") as Node3D
+	var impact_sparks := impact_root.get_node_or_null("ImpactSparks") as CPUParticles3D if impact_root != null else null
+	var live_spark_audit := presentation.call("get_spark_mesh_allocation_audit") as Dictionary
+	_check(
+		impact_sparks != null
+		and impact_sparks.mesh == damage_sparks.mesh
+		and failure_sparks.mesh == damage_sparks.mesh,
+		"persistent and detached impact emitters reference the same exact spark mesh"
+	)
+	_check(
+		bool(live_spark_audit.get("valid", false))
+		and int(live_spark_audit.get("draw_consumer_count", 0)) == 3
+		and int(live_spark_audit.get("baseline_retained_mesh_resource_allocations", 0)) == 3
+		and int(live_spark_audit.get("retained_mesh_resource_allocations", 0)) == 1
+		and int(live_spark_audit.get("retained_mesh_resource_allocation_delta", 0)) == -2
+		and int(live_spark_audit.get("structural_submission_count", 0)) == 3
+		and int(live_spark_audit.get("particle_amount_total", 0)) == 49,
+		"a live impact raises the exact retained saving to two meshes without changing draw consumers"
+	)
+	if impact_sparks != null:
+		var shared_spark_mesh := impact_sparks.mesh
+		impact_sparks.mesh = shared_spark_mesh.duplicate() as Mesh
+		var identity_red := presentation.call("get_spark_mesh_allocation_audit") as Dictionary
+		_check(
+			not bool(identity_red.get("valid", true))
+			and int(identity_red.get("retained_mesh_resource_allocations", 0)) == 2
+			and _audit_has_error(identity_red, "spark_mesh_identity_drift:ImpactSparks")
+			and _audit_has_error(identity_red, "spark_mesh_identity_count_drift"),
+			"structured red: duplicating one identical spark mesh invalidates shared identity"
+		)
+		impact_sparks.mesh = shared_spark_mesh
+		_check(
+			bool((presentation.call("get_spark_mesh_allocation_audit") as Dictionary).get("valid", false)),
+			"restoring the shared spark mesh returns the allocation audit to green"
+		)
 
 	var critical_velocity := Vector3(18.0, -2.0, 41.0)
 	presentation.call("update_state", 0.32, &"active", critical_velocity)
@@ -268,6 +340,10 @@ func _count_debris(effect_root: Node3D) -> int:
 		if String(child.name).begins_with("HeroHullDebris"):
 			count += 1
 	return count
+
+
+func _audit_has_error(audit: Dictionary, expected: String) -> bool:
+	return (audit.get("errors", PackedStringArray()) as PackedStringArray).has(expected)
 
 
 func _clean_up(host: Node) -> void:

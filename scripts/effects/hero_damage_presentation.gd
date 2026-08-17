@@ -44,6 +44,8 @@ const ENGINE_CYAN := Color("62efff")
 const SMOKE_COLOR := Color(0.045, 0.065, 0.075, 0.72)
 const DEBRIS_DARK := Color("12242b")
 const DEBRIS_IVORY := Color("dedbd0")
+const SPARK_MESH_SIZE := Vector3(0.035, 0.035, 0.38)
+const SPARK_VISIBILITY_AABB := AABB(Vector3(-12.0, -12.0, -12.0), Vector3.ONE * 24.0)
 
 @export_category("Damage thresholds")
 @export_range(0.05, 0.95, 0.01) var damaged_threshold := 0.68
@@ -99,6 +101,7 @@ var _explosion_core: MeshInstance3D
 var _shockwave: MeshInstance3D
 var _transient_effects: Array[Dictionary] = []
 var _materials: Dictionary = {}
+var _meshes: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -609,6 +612,146 @@ func get_live_world_effect_count() -> int:
 	return count
 
 
+## Renderer-independent allocation evidence for the spark particle draw family.
+##
+## The emitters remain independent because they own authored particle counts,
+## transforms and lifetimes. Only their identical, childless visual BoxMesh is
+## shared per presentation instance. Structural submissions below are retained
+## emitter mesh surfaces, not a driver draw-call or frame-time claim.
+func get_spark_mesh_allocation_audit() -> Dictionary:
+	_ensure_built()
+	var errors := PackedStringArray()
+	var emitters := _get_live_spark_emitters()
+	var shared_mesh := _meshes.get(&"spark") as BoxMesh
+	var expected_material := _materials.get(&"spark") as Material
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var structural_submissions := 0
+	var particle_amount_total := 0
+	var scripted_consumer_count := 0
+	var child_node_count := 0
+	var metadata_entry_count := 0
+	var behavior_rows: Array[Dictionary] = []
+
+	if shared_mesh == null:
+		errors.append("spark_shared_mesh_unavailable")
+	if expected_material == null:
+		errors.append("spark_shared_material_unavailable")
+	for emitter in emitters:
+		var mesh := emitter.mesh as BoxMesh
+		particle_amount_total += emitter.amount
+		child_node_count += emitter.get_child_count()
+		metadata_entry_count += emitter.get_meta_list().size()
+		if emitter.get_script() != null:
+			scripted_consumer_count += 1
+		if mesh == null:
+			errors.append("spark_mesh_type_drift:%s" % String(emitter.name))
+		else:
+			mesh_ids[mesh.get_instance_id()] = true
+			structural_submissions += mesh.get_surface_count()
+			if mesh.material != null:
+				material_ids[mesh.material.get_instance_id()] = true
+			if mesh != shared_mesh:
+				errors.append("spark_mesh_identity_drift:%s" % String(emitter.name))
+			if (
+				not mesh.size.is_equal_approx(SPARK_MESH_SIZE)
+				or mesh.material != expected_material
+				or mesh.get_surface_count() != 1
+			):
+				errors.append("spark_mesh_recipe_drift:%s" % String(emitter.name))
+		if (
+			emitter.material_override != null
+			or not emitter.visibility_aabb.is_equal_approx(SPARK_VISIBILITY_AABB)
+		):
+			errors.append("spark_emitter_render_recipe_drift:%s" % String(emitter.name))
+		behavior_rows.append({
+			"name": String(emitter.name),
+			"amount": emitter.amount,
+			"lifetime": emitter.lifetime,
+			"one_shot": emitter.one_shot,
+		})
+
+	var retained_baseline_mesh_allocations := emitters.size()
+	if emitters.size() < 2:
+		errors.append("spark_draw_consumer_roster_too_small")
+	if mesh_ids.size() != 1:
+		errors.append("spark_mesh_identity_count_drift")
+	if material_ids.size() != 1:
+		errors.append("spark_material_identity_count_drift")
+	if structural_submissions != emitters.size():
+		errors.append("spark_structural_submission_count_drift")
+	if scripted_consumer_count != 0 or child_node_count != 0 or metadata_entry_count != 0:
+		errors.append("spark_visual_consumers_gained_semantic_state")
+
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"hero_damage_presentation_spark_particle_draw_mesh",
+		"draw_consumer_count": emitters.size(),
+		"baseline_draw_consumer_count": emitters.size(),
+		"draw_consumer_delta": 0,
+		"retained_mesh_resource_allocations": mesh_ids.size(),
+		"baseline_retained_mesh_resource_allocations": retained_baseline_mesh_allocations,
+		"retained_mesh_resource_allocation_delta": (
+			mesh_ids.size() - retained_baseline_mesh_allocations
+		),
+		"material_resource_identity_count": material_ids.size(),
+		"baseline_material_resource_identity_count": 1,
+		"material_resource_identity_delta": material_ids.size() - 1,
+		"structural_submission_count": structural_submissions,
+		"baseline_structural_submission_count": emitters.size(),
+		"structural_submission_delta": structural_submissions - emitters.size(),
+		"particle_amount_total": particle_amount_total,
+		"baseline_particle_amount_total": particle_amount_total,
+		"particle_amount_delta": 0,
+		"scripted_consumer_count": scripted_consumer_count,
+		"child_node_count": child_node_count,
+		"metadata_entry_count": metadata_entry_count,
+		"batched": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"behavior_rows": behavior_rows,
+	}.duplicate(true)
+
+
+func _get_live_spark_emitters() -> Array[CPUParticles3D]:
+	var emitters: Array[CPUParticles3D] = []
+	var seen_ids: Dictionary = {}
+	_append_live_spark_emitter(emitters, seen_ids, _damage_sparks)
+	_append_live_spark_emitter(emitters, seen_ids, _engine_failure_sparks)
+	for component_id in get_component_effect_ids():
+		var component_effect: Dictionary = _component_effects.get(component_id, {})
+		_append_live_spark_emitter(emitters, seen_ids, component_effect.get("sparks"))
+	for transient_effect in _transient_effects:
+		var effect_root := transient_effect.get("node") as Node
+		if is_instance_valid(effect_root):
+			_append_live_spark_emitter(
+				emitters,
+				seen_ids,
+				effect_root.get_node_or_null("ImpactSparks")
+			)
+	if is_instance_valid(_destruction_root):
+		_append_live_spark_emitter(
+			emitters,
+			seen_ids,
+			_destruction_root.get_node_or_null("ExplosionSparks")
+		)
+	return emitters
+
+
+func _append_live_spark_emitter(
+		emitters: Array[CPUParticles3D],
+		seen_ids: Dictionary,
+		candidate: Variant
+	) -> void:
+	var emitter := candidate as CPUParticles3D
+	if not is_instance_valid(emitter) or seen_ids.has(emitter.get_instance_id()):
+		return
+	seen_ids[emitter.get_instance_id()] = true
+	emitters.append(emitter)
+
+
 func _stage_for_ratio(ratio: float) -> int:
 	var safe_damaged := clampf(damaged_threshold, 0.05, 0.95)
 	var safe_critical := clampf(critical_threshold, 0.01, safe_damaged)
@@ -887,6 +1030,7 @@ func _ensure_built() -> void:
 		return
 	_built = true
 	_create_materials()
+	_create_shared_meshes()
 	_damage_sparks = _make_sparks(18, 0.72, 4.6, false)
 	_damage_sparks.name = "DamageSparks"
 	_damage_sparks.position = spark_anchor
@@ -940,11 +1084,8 @@ func _make_sparks(amount: int, lifetime_value: float, speed: float, one_shot_val
 	particles.initial_velocity_max = speed
 	particles.scale_amount_min = 0.35
 	particles.scale_amount_max = 1.0
-	particles.visibility_aabb = AABB(Vector3(-12.0, -12.0, -12.0), Vector3.ONE * 24.0)
-	var spark_mesh := BoxMesh.new()
-	spark_mesh.size = Vector3(0.035, 0.035, 0.38)
-	spark_mesh.material = _materials.spark
-	particles.mesh = spark_mesh
+	particles.visibility_aabb = SPARK_VISIBILITY_AABB
+	particles.mesh = _meshes.spark
 	return particles
 
 
@@ -1014,6 +1155,15 @@ func _create_materials() -> void:
 	shockwave.emission_energy_multiplier = 3.5
 	shockwave.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_materials.shockwave = shockwave
+
+
+func _create_shared_meshes() -> void:
+	# All spark variation lives on CPUParticles3D. The draw mesh has no collider,
+	# script, metadata or child authority, and is never mutated after this build.
+	var spark_mesh := BoxMesh.new()
+	spark_mesh.size = SPARK_MESH_SIZE
+	spark_mesh.material = _materials.spark
+	_meshes.spark = spark_mesh
 
 
 func _emissive_material(color: Color, energy: float) -> StandardMaterial3D:
