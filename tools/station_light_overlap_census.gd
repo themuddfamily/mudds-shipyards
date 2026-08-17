@@ -12,17 +12,30 @@ extends SceneTree
 ##   KETH_LIGHT_CENSUS_JSON=/tmp/station-light-overlap.json \
 ##     godot --headless --audio-driver Dummy \
 ##     --script res://tools/station_light_overlap_census.gd
+##
+## Optional environment variable:
+##   KETH_LIGHT_CENSUS_SCENARIO=station_resident  (default)
+##   KETH_LIGHT_CENSUS_SCENARIO=cinder_loaded
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const CINDER_ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+const CINDER_LOCATION := preload("res://assets/world/locations/cinder_reach.tres")
 
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 const DEFAULT_SETTLE_FRAMES := 8
 const DEFAULT_OUTPUT_PATH := "/tmp/station-light-overlap-census.json"
 const DEFAULT_VISUAL_LAYER_MASK := 1
 const POSITION_EPSILON_M := 0.001
 const FLOAT_PRECISION := 0.000001
 const WORST_POINT_LIMIT := 5
+const SCENARIO_FIXTURE: StringName = &"fixture"
+const SCENARIO_STATION_RESIDENT: StringName = &"station_resident"
+const SCENARIO_CINDER_LOADED: StringName = &"cinder_loaded"
+const DEFAULT_SCENARIO: StringName = SCENARIO_STATION_RESIDENT
+const SCENARIO_ENVIRONMENT_VARIABLE := "KETH_LIGHT_CENSUS_SCENARIO"
+const HIGH_VISUAL_QUALITY_LEVEL := 2
+const CINDER_CLEAR_APPROACH_OFFSET := Vector3(0.0, 4.0, 170.0)
+const CINDER_LOAD_FRAME_BUDGET := 60
 
 ## Node samples use an embodied torso offset where their authored marker lies on
 ## a walking plane. Ship/flight markers are already body-centre positions.
@@ -206,17 +219,48 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var game := MAIN_SCENE.instantiate()
+	var scenario := StringName(OS.get_environment(SCENARIO_ENVIRONMENT_VARIABLE).strip_edges())
+	if scenario.is_empty():
+		scenario = DEFAULT_SCENARIO
+	if scenario not in [SCENARIO_STATION_RESIDENT, SCENARIO_CINDER_LOADED]:
+		printerr("station light census: unsupported scenario: %s" % scenario)
+		quit(1)
+		return
+	var game := MAIN_SCENE.instantiate() as GameFlow
 	if game == null:
 		printerr("station light census: Main failed to instantiate")
 		quit(1)
 		return
 	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	if not force_high_visual_quality(game):
+		printerr("station light census: production HIGH visual quality is unavailable")
+		game.queue_free()
+		await process_frame
+		quit(1)
+		return
+	if scenario == SCENARIO_CINDER_LOADED:
+		var prepared := await prepare_cinder_loaded_scenario(game)
+		if not bool(prepared.get("accepted", false)):
+			printerr("station light census: Cinder scenario preparation failed: %s" % prepared)
+			game.queue_free()
+			await process_frame
+			quit(1)
+			return
 	for _frame in DEFAULT_SETTLE_FRAMES:
 		await process_frame
 	await physics_frame
 	await process_frame
 	game.process_mode = Node.PROCESS_MODE_DISABLED
+	var scenario_contract := inspect_production_scenario(game, scenario)
+	if not bool(scenario_contract.get("valid", false)):
+		printerr("station light census: invalid production scenario: %s" % scenario_contract)
+		game.queue_free()
+		await process_frame
+		quit(1)
+		return
 
 	var roster := build_frozen_production_roster(game)
 	if not bool(roster.valid):
@@ -225,7 +269,16 @@ func _run() -> void:
 		await process_frame
 		quit(1)
 		return
-	var report := measure_scene(game, roster.points as Array[Dictionary])
+	var report := measure_scene(
+		game,
+		roster.points as Array[Dictionary],
+		scenario,
+		int(scenario_contract.get("loaded_instance_count", -1))
+	)
+	report["visual_quality"] = {
+		"level": HIGH_VISUAL_QUALITY_LEVEL,
+		"name": &"high",
+	}
 	report["frozen_phase"] = {
 		"idle_frames_before_freeze": DEFAULT_SETTLE_FRAMES,
 		"physics_frames_before_freeze": 1,
@@ -246,6 +299,8 @@ func _run() -> void:
 	output.store_string(json_text + "\n")
 	output.close()
 	print("STATION_LIGHT_OVERLAP_CENSUS_OK: ", {
+		"scenario": report.scenario,
+		"loaded_instance_count": report.loaded_instance_count,
 		"sample_count": report.sample_count,
 		"total_scene_lights": (report.scene_lights as Dictionary).total,
 		"enabled_scene_lights": (report.scene_lights as Dictionary).enabled,
@@ -256,6 +311,97 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	quit(0)
+
+
+## The census always freezes the authored HIGH profile so saved local settings
+## cannot silently change enabled-light or presentation evidence.
+static func force_high_visual_quality(game: GameFlow) -> bool:
+	if not is_instance_valid(game):
+		return false
+	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+	if not is_instance_valid(world):
+		return false
+	world.apply_visual_quality(HIGH_VISUAL_QUALITY_LEVEL)
+	return world.visual_quality_level == HIGH_VISUAL_QUALITY_LEVEL
+
+
+## Loads one real Cinder generation through Main's checked production binding.
+## The piloted guided ship is retained in the authored clear approach lane, so
+## the distance policy keeps the generation resident without embedding the body
+## in platform collision geometry.
+static func prepare_cinder_loaded_scenario(game: GameFlow) -> Dictionary:
+	if not is_instance_valid(game) or not game.is_inside_tree():
+		return {"accepted": false, "reason": &"invalid_main"}
+	var bootstrap := game.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	var binding := game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var ship := game.get_guided_ship()
+	if not is_instance_valid(bootstrap) \
+		or not is_instance_valid(binding) \
+		or not is_instance_valid(ship):
+		return {"accepted": false, "reason": &"production_streaming_unavailable"}
+	game.active_ship = ship
+	ship.set_piloted(true)
+	ship.global_position = CINDER_LOCATION.get_anchor_position() \
+		+ CINDER_CLEAR_APPROACH_OFFSET
+	var tree := game.get_tree()
+	for _frame in CINDER_LOAD_FRAME_BUDGET:
+		await tree.physics_frame
+		await tree.process_frame
+		var loaded := bootstrap.get_loaded_instance()
+		if is_instance_valid(loaded) and int(
+			binding.get_snapshot().get("quality_synced_instance_id", 0)
+		) == loaded.get_instance_id():
+			return {
+				"accepted": true,
+				"reason": &"loaded",
+				"loaded_instance_count": game.find_children(
+					"*", "NearbySectorCluster", true, false
+				).size(),
+				"generation": int(loaded.get_meta(
+					&"world_location_generation", -1
+				)),
+			}.duplicate(true)
+	return {"accepted": false, "reason": &"load_timeout"}
+
+
+## Read-only scenario guard used before every production measurement. The
+## default resident path is invalid if any streamed Cinder instance is present;
+## the loaded path requires exactly the coordinator-owned committed instance.
+static func inspect_production_scenario(
+		scene_root: Node,
+		scenario: StringName
+	) -> Dictionary:
+	var errors := PackedStringArray()
+	var loaded_instances := scene_root.find_children(
+		"*", "NearbySectorCluster", true, false
+	) if is_instance_valid(scene_root) else []
+	var loaded_instance_count := loaded_instances.size()
+	var bootstrap := scene_root.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap if is_instance_valid(scene_root) else null
+	var coordinator_loaded := bootstrap.get_loaded_instance() \
+		if is_instance_valid(bootstrap) else null
+	if scenario == SCENARIO_STATION_RESIDENT:
+		if loaded_instance_count != 0 or is_instance_valid(coordinator_loaded):
+			errors.append("station-resident scenario requires zero loaded Cinder instances")
+	elif scenario == SCENARIO_CINDER_LOADED:
+		if loaded_instance_count != 1:
+			errors.append("Cinder-loaded scenario requires exactly one loaded instance")
+		elif not is_instance_valid(coordinator_loaded) \
+			or coordinator_loaded != loaded_instances[0]:
+			errors.append("loaded Cinder instance must be the coordinator-owned generation")
+	else:
+		errors.append("unsupported production scenario: %s" % scenario)
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scenario": scenario,
+		"loaded_instance_count": loaded_instance_count,
+	}.duplicate(true)
 
 
 static func build_frozen_production_roster(scene_root: Node) -> Dictionary:
@@ -310,7 +456,12 @@ static func build_frozen_production_roster(scene_root: Node) -> Dictionary:
 	}.duplicate(true)
 
 
-static func measure_scene(scene_root: Node, samples: Array[Dictionary]) -> Dictionary:
+static func measure_scene(
+		scene_root: Node,
+		samples: Array[Dictionary],
+		scenario: StringName = SCENARIO_FIXTURE,
+		loaded_instance_count: int = 0
+	) -> Dictionary:
 	var lights: Array[Light3D] = []
 	if scene_root is Light3D:
 		lights.append(scene_root as Light3D)
@@ -375,9 +526,13 @@ static func measure_scene(scene_root: Node, samples: Array[Dictionary]) -> Dicti
 	var maximum_shadows := 0
 	for row in point_rows:
 		maximum_shadows = maxi(maximum_shadows, int(row.shadow_caster_count))
-	var measurement_fingerprint := build_measurement_fingerprint(point_rows, scene_counts)
+	var measurement_fingerprint := build_measurement_fingerprint(
+		point_rows, scene_counts, scenario, loaded_instance_count
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
+		"scenario": scenario,
+		"loaded_instance_count": loaded_instance_count,
 		"method": {
 			"name": "geometric_light_influence_proxy",
 			"includes": "enabled visibility, positive energy, cull mask, DirectionalLight3D global reach, OmniLight3D range, SpotLight3D range and cone, local-light distance-fade endpoint and separate shadow-fade endpoint using each sample as the camera point",
@@ -399,7 +554,7 @@ static func measure_scene(scene_root: Node, samples: Array[Dictionary]) -> Dicti
 ## Stable read-only roster used by the focused production refreeze to identify
 ## which authored subtrees contributed a scene-total delta. It is deliberately
 ## separate from the measurement payload so adding audit evidence cannot change
-## the v2 deterministic JSON contract or its per-point fingerprint.
+## the current deterministic JSON contract or its per-point fingerprint.
 static func build_scene_light_roster(scene_root: Node) -> Array[Dictionary]:
 	var roster: Array[Dictionary] = []
 	var lights: Array[Light3D] = []
@@ -609,14 +764,18 @@ static func _sample_roster_fingerprint(samples: Array[Dictionary]) -> String:
 	return "\n".join(descriptors).sha256_text()
 
 
-## Public so the focused rebase witness can substitute the previous scene-total
-## row and prove that a content expansion changed totals without changing any
-## frozen point or contributor row.
+## Public so focused mutation witnesses can hold every scene/point row constant
+## while proving residency identity itself participates in the hash.
 static func build_measurement_fingerprint(
 		point_rows: Array[Dictionary],
-		scene_counts: Dictionary
+		scene_counts: Dictionary,
+		scenario: StringName = SCENARIO_FIXTURE,
+		loaded_instance_count: int = 0
 	) -> String:
 	var descriptors := PackedStringArray([
+		"scenario|id=%s|loaded_instances=%d" % [
+			str(scenario), loaded_instance_count,
+		],
 		"scene|total=%d|enabled=%d|shadows=%d|enabled_shadows=%d" % [
 			int(scene_counts.total),
 			int(scene_counts.enabled),

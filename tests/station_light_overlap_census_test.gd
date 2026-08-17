@@ -4,7 +4,9 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_light_overlap_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
-const PRE_OBSERVATION_MEASUREMENT_FINGERPRINT := "d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a"
+const ROSTER_FINGERPRINT := "7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca"
+const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "4368c6f3572cf5aaebcea175dd8e69763128e18bb76b0caea94ac8fed72811bb"
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "bd41a162a0c138911a0048c8ea03f0af8aaf214548e4d7ce0bde10d5e370b4a9"
 const FABRICATION_LIGHT_PATHS := [
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight",
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalLight01",
@@ -127,6 +129,24 @@ func _test_type_range_cone_shadow_and_visibility_fixture() -> void:
 	var first_json := CENSUS.deterministic_json(baseline)
 	var second_json := CENSUS.deterministic_json(CENSUS.measure_scene(fixture, samples))
 	_check(first_json == second_json and first_json.sha256_text() == second_json.sha256_text(), "identical fixture state emits byte-identical deterministic JSON")
+	var resident_identity_fingerprint := CENSUS.build_measurement_fingerprint(
+		baseline.points as Array[Dictionary],
+		baseline.scene_lights as Dictionary,
+		CENSUS.SCENARIO_STATION_RESIDENT,
+		0
+	)
+	var loaded_identity_fingerprint := CENSUS.build_measurement_fingerprint(
+		baseline.points as Array[Dictionary],
+		baseline.scene_lights as Dictionary,
+		CENSUS.SCENARIO_CINDER_LOADED,
+		1
+	)
+	_check(
+		resident_identity_fingerprint != loaded_identity_fingerprint
+		and resident_identity_fingerprint != baseline.measurement_fingerprint
+		and loaded_identity_fingerprint != baseline.measurement_fingerprint,
+		"MUTATION: identical rows and counts hash differently under each residency identity"
+	)
 
 	omni.distance_fade_enabled = false
 	var fade_disabled := CENSUS.measure_scene(fixture, samples)
@@ -197,13 +217,28 @@ func _test_type_range_cone_shadow_and_visibility_fixture() -> void:
 
 
 func _test_production_main_roster_and_measurement() -> void:
-	var game := MAIN_SCENE.instantiate()
+	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	_check(
+		CENSUS.force_high_visual_quality(game),
+		"production census explicitly freezes HIGH quality independent of saved local settings"
+	)
 	for _frame in CENSUS.DEFAULT_SETTLE_FRAMES:
 		await process_frame
 	await physics_frame
 	await process_frame
 	game.process_mode = Node.PROCESS_MODE_DISABLED
+	var scenario_contract := CENSUS.inspect_production_scenario(
+		game, CENSUS.SCENARIO_STATION_RESIDENT
+	)
+	_check(
+		bool(scenario_contract.get("valid", false))
+		and int(scenario_contract.get("loaded_instance_count", -1)) == 0,
+		"default station-resident production scenario requires zero streamed Cinder instances"
+	)
 	var roster := CENSUS.build_frozen_production_roster(game)
 	_check(bool(roster.valid) and (roster.errors as PackedStringArray).is_empty(), "all frozen production sample paths and published Cinder positions resolve exactly")
 	var category_counts := {&"walking": 0, &"boarding": 0, &"operations": 0, &"flight_route": 0}
@@ -219,7 +254,12 @@ func _test_production_main_roster_and_measurement() -> void:
 		and sample_ids.size() == sorted_ids.size(),
 		"frozen roster spans six walking, five boarding, four operations and seven flight-route points"
 	)
-	var report := CENSUS.measure_scene(game, roster.points as Array[Dictionary])
+	var report := CENSUS.measure_scene(
+		game,
+		roster.points as Array[Dictionary],
+		CENSUS.SCENARIO_STATION_RESIDENT,
+		int(scenario_contract.get("loaded_instance_count", -1))
+	)
 	print("STATION_LIGHT_OVERLAP_PRODUCTION_RESULT: ", {
 		"roster_fingerprint": report.sample_roster_fingerprint,
 		"measurement_fingerprint": report.measurement_fingerprint,
@@ -244,23 +284,31 @@ func _test_production_main_roster_and_measurement() -> void:
 		"live Main report measures every frozen point and publishes whole-scene totals"
 	)
 	var json_first := CENSUS.deterministic_json(report)
-	var json_second := CENSUS.deterministic_json(CENSUS.measure_scene(game, roster.points as Array[Dictionary]))
+	var json_second := CENSUS.deterministic_json(CENSUS.measure_scene(
+		game,
+		roster.points as Array[Dictionary],
+		CENSUS.SCENARIO_STATION_RESIDENT,
+		0
+	))
 	_check(json_first == json_second, "frozen production phase emits byte-identical JSON on repeat measurement")
 	var scene_lights := report.scene_lights as Dictionary
 	var by_type := scene_lights.by_type as Dictionary
 	_check(
-		int(scene_lights.total) == 321
-		and int(scene_lights.enabled) == 269
+		int(report.schema_version) == CENSUS.SCHEMA_VERSION
+		and report.scenario == CENSUS.SCENARIO_STATION_RESIDENT
+		and int(report.loaded_instance_count) == 0
+		and int(scene_lights.total) == 298
+		and int(scene_lights.enabled) == 246
 		and int(scene_lights.disabled) == 52
 		and int(scene_lights.shadow_casting_total) == 19
 		and int(scene_lights.enabled_shadow_casting) == 19
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 306
-		and int((by_type.omni as Dictionary).enabled) == 254
-		and int((by_type.spot as Dictionary).total) == 12
-		and int((by_type.spot as Dictionary).enabled) == 12,
-		"production freeze retains 321 total / 269 enabled lights and exact type/shadow splits"
+		and int((by_type.omni as Dictionary).total) == 284
+		and int((by_type.omni as Dictionary).enabled) == 232
+		and int((by_type.spot as Dictionary).total) == 11
+		and int((by_type.spot as Dictionary).enabled) == 11,
+		"station-resident HIGH freezes 298 total / 246 enabled lights and exact type/shadow splits"
 	)
 	_test_expansion_light_provenance(game, report)
 	var expected_worst := [
@@ -285,15 +333,17 @@ func _test_production_main_roster_and_measurement() -> void:
 		"production freeze retains the sorted five worst overlap points and separate maxima"
 	)
 	_check(
-		str(report.sample_roster_fingerprint) == "7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca"
-		and str(report.measurement_fingerprint) == "44683d8e44554f813d31ac83b385185865069b01afaffd0c3b54e551153455ba",
-		"production roster and complete per-point contributor measurement have frozen fingerprints"
+		str(report.sample_roster_fingerprint) == ROSTER_FINGERPRINT
+		and str(report.measurement_fingerprint)
+			== STATION_RESIDENT_MEASUREMENT_FINGERPRINT,
+		"station-resident roster and complete per-point contributor measurement have frozen fingerprints"
 	)
 	_check(
 		not json_first.contains("@OmniLight3D@")
 		and not json_first.contains("@SpotLight3D@"),
 		"runtime fallback light names are canonicalized to stable sibling ordinals in JSON paths"
 	)
+	await _test_cinder_loaded_production_scenario(game, roster, report)
 	game.queue_free()
 	await process_frame
 	await physics_frame
@@ -313,7 +363,7 @@ func _test_expansion_light_provenance(game: Node, report: Dictionary) -> void:
 	_check(
 		_light_paths(observation) == OBSERVATION_LIGHT_PATHS
 		and _all_enabled_shadowless_omni(observation),
-		"the 315 -> 321 delta is exactly Observation's six intended enabled shadowless practicals"
+		"Observation retains its six intended enabled shadowless practicals in the resident station"
 	)
 	_check(
 		salvage.is_empty(),
@@ -334,22 +384,109 @@ func _test_expansion_light_provenance(game: Node, report: Dictionary) -> void:
 		"Fabrication, Observation and Salvage add no contributor to any of the 22 frozen samples"
 	)
 
-	# Replacing only the scene totals with the previous 315/263 split must recover
-	# the previous complete fingerprint. This makes the assertion sensitive to any
-	# point count, contributor, range, fade, cone or shadow-row drift while proving
-	# the six new lights changed totals only.
-	var previous_counts := (report.scene_lights as Dictionary).duplicate(true)
-	previous_counts.total = 315
-	previous_counts.enabled = 263
-	previous_counts.disabled = 52
-	var previous_by_type := previous_counts.by_type as Dictionary
-	(previous_by_type.omni as Dictionary).total = 300
-	(previous_by_type.omni as Dictionary).enabled = 248
+
+func _test_cinder_loaded_production_scenario(
+		game: GameFlow,
+		roster: Dictionary,
+		resident_report: Dictionary
+	) -> void:
+	game.process_mode = Node.PROCESS_MODE_INHERIT
+	var prepared := await CENSUS.prepare_cinder_loaded_scenario(game)
 	_check(
-		CENSUS.build_measurement_fingerprint(
-			report.points as Array[Dictionary], previous_counts
-		) == PRE_OBSERVATION_MEASUREMENT_FINGERPRINT,
-		"substituting only the old scene totals recovers the old full fingerprint, proving every overlap row unchanged"
+		bool(prepared.get("accepted", false))
+		and prepared.get("reason") == &"loaded"
+		and int(prepared.get("generation", -1)) == 1
+		and int(prepared.get("loaded_instance_count", -1)) == 1,
+		"loaded scenario commits exactly one real Cinder generation through the production binding"
+	)
+	for _frame in CENSUS.DEFAULT_SETTLE_FRAMES:
+		await process_frame
+	await physics_frame
+	await process_frame
+	game.process_mode = Node.PROCESS_MODE_DISABLED
+	var loaded_contract := CENSUS.inspect_production_scenario(
+		game, CENSUS.SCENARIO_CINDER_LOADED
+	)
+	_check(
+		bool(loaded_contract.get("valid", false))
+		and int(loaded_contract.get("loaded_instance_count", -1)) == 1,
+		"Cinder-loaded production scenario recognizes the sole coordinator-owned generation"
+	)
+	var resident_mismatch := CENSUS.inspect_production_scenario(
+		game, CENSUS.SCENARIO_STATION_RESIDENT
+	)
+	_check(
+		not bool(resident_mismatch.get("valid", true))
+		and int(resident_mismatch.get("loaded_instance_count", -1)) == 1
+		and str((resident_mismatch.get("errors", PackedStringArray()) as PackedStringArray)[0]).contains(
+			"requires zero"
+		),
+		"MUTATION: a loaded Cinder generation makes the default resident scenario fail closed"
+	)
+	var report := CENSUS.measure_scene(
+		game,
+		roster.points as Array[Dictionary],
+		CENSUS.SCENARIO_CINDER_LOADED,
+		1
+	)
+	var lights := report.scene_lights as Dictionary
+	var by_type := lights.by_type as Dictionary
+	var resident_lights := resident_report.scene_lights as Dictionary
+	var resident_by_type := resident_lights.by_type as Dictionary
+	print("STATION_LIGHT_OVERLAP_CINDER_LOADED_RESULT: ", {
+		"scenario": report.scenario,
+		"loaded_instance_count": report.loaded_instance_count,
+		"measurement_fingerprint": report.measurement_fingerprint,
+		"scene_lights": lights,
+	})
+	_check(
+		report.scenario == CENSUS.SCENARIO_CINDER_LOADED
+		and int(report.loaded_instance_count) == 1
+		and int(lights.total) == 321
+		and int(lights.enabled) == 269
+		and int(lights.disabled) == 52
+		and int(lights.shadow_casting_total) == 19
+		and int(lights.enabled_shadow_casting) == 19
+		and int((by_type.directional as Dictionary).total) == 3
+		and int((by_type.directional as Dictionary).enabled) == 3
+		and int((by_type.omni as Dictionary).total) == 306
+		and int((by_type.omni as Dictionary).enabled) == 254
+		and int((by_type.spot as Dictionary).total) == 12
+		and int((by_type.spot as Dictionary).enabled) == 12,
+		"Cinder-loaded HIGH freezes 321 total / 269 enabled lights and exact type/shadow splits"
+	)
+	_check(
+		int(lights.total) - int(resident_lights.total) == 23
+		and int(lights.enabled) - int(resident_lights.enabled) == 23
+		and int(lights.disabled) - int(resident_lights.disabled) == 0
+		and int(lights.shadow_casting_total)
+			- int(resident_lights.shadow_casting_total) == 0
+		and int((by_type.omni as Dictionary).total)
+			- int((resident_by_type.omni as Dictionary).total) == 22
+		and int((by_type.spot as Dictionary).total)
+			- int((resident_by_type.spot as Dictionary).total) == 1
+		and int((by_type.directional as Dictionary).total)
+			- int((resident_by_type.directional as Dictionary).total) == 0,
+		"streaming delta is exactly +22 omni and +1 spot with no disabled, directional, or shadow change"
+	)
+	_check(
+		str(report.sample_roster_fingerprint) == ROSTER_FINGERPRINT
+		and str(report.measurement_fingerprint)
+			== CINDER_LOADED_MEASUREMENT_FINGERPRINT,
+		"Cinder-loaded roster and complete contributor measurement retain their separate fingerprint"
+	)
+	var json_first := CENSUS.deterministic_json(report)
+	var json_second := CENSUS.deterministic_json(CENSUS.measure_scene(
+		game,
+		roster.points as Array[Dictionary],
+		CENSUS.SCENARIO_CINDER_LOADED,
+		1
+	))
+	_check(
+		json_first == json_second
+		and json_first.contains("\"scenario\": \"cinder_loaded\"")
+		and json_first.contains("\"loaded_instance_count\": 1"),
+		"loaded scenario emits deterministic JSON with explicit residency identity"
 	)
 
 

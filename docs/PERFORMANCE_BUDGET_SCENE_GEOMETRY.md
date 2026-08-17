@@ -149,9 +149,13 @@ the same uncompressed `width × height × 4` upper-bound proxy for discovered
 
 `tools/station_light_overlap_census.gd` closes the route-overlap measurement
 called for below without deleting, changing or second-guessing any fixture. It
-instantiates the production `Main`, settles for eight idle frames, one physics
-frame and one final idle frame, then disables processing on `Main` before taking
-the synchronous sample. The frozen roster is 22 named embodied points: six
+instantiates the production `Main`, explicitly applies HIGH visual quality,
+settles for eight idle frames, one physics frame and one final idle frame, then
+disables processing on `Main` before taking the synchronous sample. Its default
+`station_resident` scenario rejects any loaded Cinder instance. The separate
+`cinder_loaded` scenario drives the checked production binding until exactly one
+coordinator-owned generation has committed, then takes the same frozen sample.
+The frozen roster is 22 named embodied points: six
 walking, five boarding, four operations and seven flight-route samples. The
 node-backed samples freeze both their exact production paths and world
 positions. Five flight points are resolved directly from the published Cinder
@@ -188,7 +192,7 @@ cull mask, fade enablement, fade begin, fade length and the shadow-fade boundary
 into mutation-sensitive checks. Exact-endpoint and just-beyond-endpoint
 witnesses freeze the inclusive renderer cutoff.
 
-Run it with:
+Run the default station-resident scenario with:
 
 ```sh
 KETH_LIGHT_CENSUS_JSON=/tmp/station-light-overlap-census.json \
@@ -196,24 +200,37 @@ KETH_LIGHT_CENSUS_JSON=/tmp/station-light-overlap-census.json \
   --script res://tools/station_light_overlap_census.gd
 ```
 
-The production `Main` measured here is merge base `89fcf2a`, including the
-integrated Fabrication Annex, Observation Logistics Spur and Salvage Terrace;
-this refreeze changes only the census contract, its focused test and this
-record. The roster fingerprint is
+Run the production-streamed destination scenario by adding
+`KETH_LIGHT_CENSUS_SCENARIO=cinder_loaded`. Each schema-v3 JSON report records
+the scenario and exact loaded-instance count, so a station baseline cannot
+silently include destination lighting. Both fields are also inputs to the
+measurement fingerprint; relabelling identical counts and contributor rows
+therefore produces a different hash.
+
+The production `Main` measured here is merge base `6d297c1`, after Cinder Reach
+became streamed rather than always resident. The roster fingerprint is
 `7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca`.
-The complete scene/per-point/contributor-evidence fingerprint is
-`44683d8e44554f813d31ac83b385185865069b01afaffd0c3b54e551153455ba`.
-Two independent processes produced byte-identical JSON with SHA-256
-`6a7de04106b3eba28f41d1d18f368852c8295678c8d2d6fd002b5321c3922c17`.
+The station-resident complete scene/per-point/contributor fingerprint is
+`4368c6f3572cf5aaebcea175dd8e69763128e18bb76b0caea94ac8fed72811bb`;
+the separately loaded fingerprint is
+`bd41a162a0c138911a0048c8ea03f0af8aaf214548e4d7ce0bde10d5e370b4a9`.
 Pulsing lights report the stable positive-energy predicate used for inclusion,
 not their clock-dependent instantaneous amplitude.
 
-| Scene light roster | Total | Enabled at frozen phase | Shadow casting |
+| HIGH scenario / light roster | Total | Enabled at frozen phase | Shadow casting |
 | --- | ---: | ---: | ---: |
-| `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| `OmniLight3D` | 306 | 254 | reported in combined row |
-| `SpotLight3D` | 12 | 12 | reported in combined row |
-| **All `Light3D`** | **321** | **269** | **19 total / 19 enabled** |
+| Station resident: `DirectionalLight3D` | 3 | 3 | reported in combined row |
+| Station resident: `OmniLight3D` | 284 | 232 | reported in combined row |
+| Station resident: `SpotLight3D` | 11 | 11 | reported in combined row |
+| **Station resident: all `Light3D`** | **298** | **246** | **19 total / 19 enabled** |
+| Cinder loaded: `DirectionalLight3D` | 3 | 3 | reported in combined row |
+| Cinder loaded: `OmniLight3D` | 306 | 254 | reported in combined row |
+| Cinder loaded: `SpotLight3D` | 12 | 12 | reported in combined row |
+| **Cinder loaded: all `Light3D`** | **321** | **269** | **19 total / 19 enabled** |
+
+Streaming Cinder therefore adds exactly **22 enabled omnis and one enabled
+spot**, with no change to the 52 disabled lights, three directionals, or 19
+shadow casters. The loaded-instance count changes from zero to one.
 
 The maximum geometric overlap is **15 enabled lights** at
 `operate-aft-service-arm`; only one of those casts shadows. The largest shadow
@@ -225,19 +242,14 @@ also lies within its exact `distance_fade_shadow` cutoff. It does change the
 method and evidence—the census can now reject a long-range light or shadow
 culled at the camera point, and the focused fixture proves that path.
 
-The prior 315-total baseline already included Fabrication Annex's six enabled,
-shadowless practical omnis. Observation Logistics Spur adds exactly six more
-enabled, shadowless omnis at stable paths `Practical01` through `Practical06`;
-those are the complete **315 -> 321 total / 263 -> 269 enabled** delta. Salvage
-Terrace itself contributes zero dynamic lights, matching its module audit. None
-of the Fabrication, Observation or Salvage paths reaches any frozen sample, the
-disabled count remains 52, and both shadow totals remain 19. As a stronger row
-witness, substituting only the old 315/263 and 300/248-omni totals into the live
-measurement recovers the former complete fingerprint
-`d562fe1c2faf37f63ac4694606f634168bb27c784937d1efcb7249d6e360716a`;
-therefore every per-point contributor row is byte-equivalent and only the scene
-roster changed. The five worst points, sorted by total overlap then shadow
-overlap then stable id, remain:
+Historical note: the prior **315 -> 321 total / 263 -> 269 enabled** refreeze was
+measured while Cinder was always resident. It remains valid evidence that
+Observation Logistics Spur added exactly six enabled, shadowless omnis at
+stable paths `Practical01` through `Practical06`; it is not the present
+station-resident baseline. Salvage Terrace itself contributes zero dynamic
+lights, and none of the Fabrication, Observation or Salvage paths reaches any
+frozen sample. The five worst points, sorted by total overlap then shadow overlap
+then stable id, remain identical in both current scenarios:
 
 | Point | Kind | Enabled influence | Shadow casters |
 | --- | --- | ---: | ---: |
@@ -349,10 +361,10 @@ has now landed, while the roadmap still owes enemy craft, a walkable freighter
 interior and station-wide modelling. New content must fit through sharing,
 instancing, LOD or impostors rather than larger ceilings.
 
-Shadow-casting lights remain the most important line. Nineteen of 309 lights
-cast shadows, three above the ceiling; each can re-rasterise the geometry in its
-range every frame it is visible. Consolidate at least three before adding
-another shadowed fixture.
+Shadow-casting lights remain the most important line. Nineteen of 298 resident
+lights (and 321 with Cinder loaded) cast shadows, three above the ceiling; each
+can re-rasterise the geometry in its range every frame it is visible.
+Consolidate at least three before adding another shadowed fixture.
 
 ### Historical: re-measured either side of the long-cargo pass
 
