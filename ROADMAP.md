@@ -869,7 +869,7 @@ The matching **production streaming path** now exists in `scripts/world/world_st
 8. Give every artifact a unique semantic version plus build label and record source commit, matrix ID, Godot version, EXE/PCK size/hash/inventory, signing state, and smoke/native results. Never replace two different binaries under the same finalized/source-current label.
 9. Keep signing/installer credentials outside repo/logs. Validate clean install, upgrade, rollback, corrupt-data recovery, crash-log redaction, uninstall, keyboard/mouse and controller-only play, audible mix, accessibility, performance, and multiplayer if shipped. Public/commercial promotion remains blocked until permission and licence/legal review are recorded; a valid signature does not grant rights.
 
-- [ ] Establish performance budgets for a representative mid-range Windows PC. **The renderer-independent half of this has landed** in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`: a named minimum/target machine, a whole-scene census tool (`tools/geometry_census.gd`), and written ceilings for triangles, mesh instances, surfaces, unique meshes/materials/shaders, texture bytes, lights, shadow-casting lights, particle systems and node counts. **Frame time, GPU time, per-frame draw calls and VRAM are deliberately absent and are not claimed**: the development box renders through llvmpipe, so closing that half still requires Phase 9 item 7's benchmark runner on representative Windows hardware. The first major trim reduced `TextMesh` signage from 315,360 to 60,829 triangles with stable-camera legibility review. Later bounded profiles reduced eight occluded Habitat chair-bearing tori by 2,560 triangles and 26 Aft interface collars by 6,656, while the VIP banquette batch removed thirteen submissions and nodes with an exact zero-pixel comparison. Those historical per-change deltas remain frozen separately. The current scenario-aware HIGH census now measures the station-resident graph at **1,683,905 triangles, 5,684 renderer nodes, 5,691 surfaces, 2,545 unique meshes, 450 bound / 639 retained materials, 294 lights / 19 shadow lights, 25 particle systems, and 9,326 nodes**. Loading one real coordinator-owned Cinder generation adds exactly **117,457 triangles, 166 renderer nodes/surfaces, 130 unique meshes, 19 bound/retained materials, 23 enabled non-shadow lights, and 301 nodes**. The VIP sill and Fabrication practical-pool consolidations together removed four enabled shadowless lights after same-process visual A/B review; the player-reachable Music settings row adds five retained UI nodes, the streamed-berth binding adds one non-rendering node, and production Ember/origin ownership makes eight authored Ember materials reachable without binding them in the resident scene. Those deterministic count/fingerprint gates still do not provide draw calls, visibility cost, VRAM, GPU time, or native frame-time evidence.
+- [ ] Establish performance budgets for a representative mid-range Windows PC. **The renderer-independent half of this has landed** in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`: a named minimum/target machine, a whole-scene census tool (`tools/geometry_census.gd`), and written ceilings for triangles, mesh instances, surfaces, unique meshes/materials/shaders, texture bytes, lights, shadow-casting lights, particle systems and node counts. **Frame time, GPU time, per-frame draw calls and VRAM are deliberately absent and are not claimed**: the development box renders through llvmpipe, so closing that half still requires Phase 9 item 7's benchmark runner on representative Windows hardware. The first major trim reduced `TextMesh` signage from 315,360 to 60,829 triangles with stable-camera legibility review. Later bounded profiles reduced eight occluded Habitat chair-bearing tori by 2,560 triangles and 26 Aft interface collars by 6,656, while the VIP banquette batch removed thirteen submissions and nodes with an exact zero-pixel comparison. Those historical per-change deltas remain frozen separately. The current scenario-aware HIGH census now measures the station-resident graph at **1,684,993 triangles, 5,685 renderer nodes, 5,692 surfaces, 2,536 unique meshes, 451 bound / 640 retained materials, 294 lights / 19 shadow lights, 25 particle systems, and 9,334 nodes**. Loading one real coordinator-owned Cinder generation adds exactly **117,457 triangles, 166 renderer nodes/surfaces, 130 unique meshes, 19 bound/retained materials, 23 enabled non-shadow lights, and 301 nodes**. The VIP sill and Fabrication practical-pool consolidations together removed four enabled shadowless lights after same-process visual A/B review; the player-reachable Music and Ember-cruise pause rows, streamed-berth binding and production cruise controller add only retained UI/non-rendering nodes; and production Ember/origin ownership makes eight authored Ember materials reachable without binding them in the resident scene. Arrow's passive entry-heat target adds the exact visible-resource delta described below. Those deterministic count/fingerprint gates still do not provide draw calls, visibility cost, VRAM, GPU time, or native frame-time evidence.
 
   One resource-only guide-light trim now shares the 51 identical childless lens meshes and their four immutable color recipes, reducing retained mesh/material identities **102 -> 5 (-97)** while keeping exactly 102 nodes and 51 structural mesh-surface submissions; `tests/upper_operations_allocation_test.gd` freezes the unchanged behavior and mutation/lifecycle boundary. It claims no batching, draw-call, frame-time, GPU, VRAM, or whole-scene-budget result.
 
@@ -891,6 +891,16 @@ The matching **production streaming path** now exists in `scripts/world/world_st
   metadata, and the final census above proves the triangle total is back at the
   pre-regression value. These are allocation/submission facts, not GPU timing or
   driver draw-call claims.
+
+  Three subsequent Aft identity-only shares retain all thirteen ordinary
+  ConsoleShockCollar, PedestalBearing and ConduitCollar renderer nodes and
+  submissions while replacing thirteen private live-32x8 TorusMeshes with
+  three exact component-local resources. They remove another ten unique meshes
+  without changing triangles, materials, collision or authority. The merged
+  Arrow entry-heat host then adds one passive three-node target subtree, one
+  SphereMesh renderer/surface/material/shader and exactly 1,088 triangles. It
+  remains configured at exact zero in production: no atmosphere profile or
+  observation caller is wired, and no visible/physical heating claim is made.
 
   One LandingPad-local resource-only trim now shares the identical mesh behind the three childless parked-umbilical `DeckConnector` copies, reducing connector mesh identities **3 -> 1 (-2)** while retaining all three nodes, exact materials/transforms, and three structural submissions. `tests/central_berth_hero_test.gd` freezes the bounded allocation and authority exclusions; no batching, pixel change, draw-call, timing, VRAM, or whole-scene result is claimed.
 
@@ -920,6 +930,18 @@ Complete these tracks in order. Do not hide a known stability or performance def
 ### 1. Whole-game bug hunt and stabilization
 
 The first focused audit wave has already closed several concrete production defects without treating that as an end-to-end playthrough: cargo source/destination reattachment is now one atomic, generation-safe transaction under synchronous removal and signal re-entry; orderly HUD/window exit enters the existing safe-start clean-shutdown seam before quitting; settings profiles reach all five retained ship input banks atomically; and whole-`Main` re-entry restores the exact retained pause/settings/activity focus target instead of leaving controller navigation unfocused or jumping Activity Back to Timed Race. Active activities now terminalize on pilot unseating and active-hull replacement even when Cinder is already fading or Main has detached/re-entered, rather than leaking non-convoy cargo/activity generations. Combat fire from a destroyed source epoch is quarantined across re-entry while consuming the rejected source sequence, so a same-instance regeneration cannot make that stale request current. Fleet destruction/regeneration, ship cameras, combat authority, audio teardown, berth indexes and long-lived Main identities have focused green lifecycle evidence, but packaged/native repetition and a reviewed residual P2 list remain open.
+
+The generic `ComponentDamageModel` now provides one generation-safe detached
+ledger with strict stages, ordered damage and repair, atomic rejection and
+reentrant-signal guards; RangeOpponent uses it as its sole hull ledger while
+preserving resolver, scoring, audio and presentation behavior. Hero ships still
+use the older five-section presentation observer. A fleet audit found that all
+four non-Torrent variants currently inherit Torrent's component-attribution
+bounds because their final collision replacement happens after base
+configuration; correcting that placement is separate from, and must not be
+silently folded into, a future ledger migration. Atomic multi-section model
+batches and a result-bearing regeneration preflight remain prerequisites for
+that migration.
 
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.
@@ -965,7 +987,14 @@ or claims clock, ephemeris, shadow, occlusion, calibrated colour or lux.
 `PlanetarySurfaceAudioPolicy` similarly returns opaque
 exterior/interior route IDs, endpoint mix, base/attenuation values and a
 density/airflow intensity hint; it resolves no asset and owns no playback,
-mixer, clock or audio authority. These are coherent foundations, not a complete
+mixer, clock or audio authority. The passive entry-heat foundation owns one
+normalized uniform on an exclusive collision-free overlay target; Arrow now
+hosts exactly one such target beneath its final visual root, but the target
+remains unconfigured at exact zero because no production atmospheric profile
+or observation caller exists. A separate Ember airless-sun rig/binding
+foundation composes the normalized sun policy and two-property light adapter
+against exact streamed Ember identities, but it is also standalone and has no
+Main/GameFlow caller. These are coherent foundations, not a complete
 atmosphere, and no authored atmospheric production world consumes them yet.
 
 `PlanetaryTerrainLodPolicy` selects inclusive near-to-far render/collision
@@ -980,8 +1009,14 @@ braking envelopes, and no movement authority. The standalone
 `PlanetaryCruisePhysicalController` plus `HeroShip` integration turns one fresh
 proof into real acceleration, overspeed braking and collision-safe movement;
 the ship remains the sole velocity and `move_and_slide()` owner, stale/forged
-proofs fail closed, and the bounded sweep horizon is 750 km. Main/GameFlow,
-HUD/InputMap activation and post-rebase destination routing remain unwired.
+proofs fail closed, and the bounded sweep horizon is 750 km. Main now owns one
+production binding and one stable controller; GameFlow queues at most one
+envelope after the common-origin transaction from the same adjusted actor
+sample, and Hero consumes it on the next physics tick. The existing pause menu
+exposes a controller-reachable fixed `EMBER CRUISE` engage/disengage row with
+bounded public status, replay/re-entry protection and no auto-engage. There is
+still no destination catalog, safe station-return target, arrival owner or
+surface handoff, and no new raw-input or ship-command authority was added.
 
 The first authored destination is the original airless `ember_moon`, with exact
 `ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the
@@ -1000,26 +1035,36 @@ A separate standalone Ember surface-loop witness now advances farther than the
 old fixture: after two caller-owned coordinate-frame commits it uses a real
 Arrow command source and ship physics, a strict generation-bound `ShipBerth`
 landing/occupancy, public Player disembark and Input locomotion across exact live
-`WalkablePatch` support, reboarding, real take-off and ascent. Its 62 focused
-assertions cover frame/location/root staleness, N+1 unload/N+2 replay, support
-loss, reservation theft, synchronous destruction, queued dependencies and
-atomic recovery during both embodiment transitions. It never requests an
-origin shift, streams a location, selects an activity, grants a reward or edits
+`WalkablePatch` support, reboarding, real take-off and ascent. Its original 62
+focused assertions cover frame/location/root staleness, N+1 unload/N+2 replay,
+support loss, reservation theft, synchronous destruction, queued dependencies
+and atomic recovery during both embodiment transitions. A later 84-assertion
+prerequisite lets the host bind through an explicit shared composition root and
+accepts a typed measured approach envelope (full Arrow hull inside the authored
+corridor, at most 12 m/s and 12 degrees) rather than a fixture-only exact pose.
+It still never stages, teleports or reparents an actor, requests an origin
+shift, streams a location, selects an activity, grants a reward or edits
 GameFlow.
 
 The first planet is therefore **not yet production-visitable**. The physical
-cruise controller needs a post-rebase production binding and one-envelope-per-
-ship-tick ordering. The surface host still assumes one shared composition root,
-an exact fixture-only entry pose, a late post-Arrow/Player scheduler, exclusive
-GameFlow piloting/boarding coordination, and either bounded origin deferral or
-an exact committed-rebase adoption seam during its 20 km ascent. Production
-must satisfy those contracts without reparenting Main's retained actors,
-teleporting final approach, adding a second mover/origin owner/travel session,
-or polling raw Input in the binding. Global terrain/clipmap generation,
-spherical vehicle gravity, an atmospheric authored destination with complete
-sky/cloud/weather/entry/audio presentation, activity/reward, save/network,
-native performance and repeated orbit-to-surface lifecycle evidence all remain
-open. These are prerequisites for—not substitutes for—a visitable planet.
+cruise path now reaches a fixed Ember navigation target through production, but
+its braking contract intentionally completes about 55 km before the surface
+host's approach envelope; no owner yet flies that bounded low-speed final leg.
+The surface host still lacks a Main-owned late post-Arrow/Player scheduler,
+atomic transfer/return of GameFlow's boarding and command state, and exact
+adoption of committed N→N+1 origin receipts during its 20 km ascent. Whole-Main
+detach remains a terminal standalone visit rather than proven production
+continuity. Production must satisfy those contracts without reparenting Main's
+retained actors, teleporting final approach, adding a second mover/origin owner
+or travel session, or polling raw Input in the binding. The audited station
+datum remains an occupied coordinate reference, not a selectable return
+destination; a candidate return approach still lacks a live all-five-craft
+750 km route proof and an owner for its roughly 65 km brake-complete shell.
+Global terrain/clipmap generation, spherical vehicle gravity, an atmospheric
+authored destination with complete sky/cloud/weather/entry/audio presentation,
+activity/reward, save/network, native performance and repeated orbit-to-surface
+lifecycle evidence all remain open. These are prerequisites for—not
+substitutes for—a visitable planet.
 
 - [ ] Turn the nearby coloured bodies into authored, visitable destinations rather than decorative spheres. Begin with one vertical slice planet or moon and complete it before multiplying worlds: orbital approach, atmospheric entry where applicable, descent, surface flight, landing, on-foot traversal, activities, take-off, ascent, orbit, and return to Mudds Shipyards without a loading/lifecycle dead end.
 - [ ] Build a reusable planetary-world contract covering scale and coordinate frames, streaming/origin management, terrain LOD and collision, biome/material layers, atmosphere and sky scattering, clouds, weather, wind, fog, day/night and sun/moon lighting, water where appropriate, surface audio, navigation, landing sites, settlements/structures, hazards, wildlife only if deliberately authored, and save/session persistence.

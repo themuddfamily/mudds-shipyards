@@ -167,23 +167,25 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `c9b4341` after the bounded Aft/Habitat
-MultiMesh, Arrow/Habitat/RangeOpponent immutable-resource trims, production
-Ember origin ownership, and streamed-berth binding, using Godot 4.7.1,
-headless Forward+, Dummy audio and HIGH quality, freezes:
+Focused production evidence on exact clean base `97b58d7` after the bounded
+Aft/Habitat MultiMesh and immutable-resource trims, production Ember/cruise
+ownership, the pause-menu cruise row, streamed-berth binding, and Arrow's
+passive entry-heat target, using Godot 4.7.1, headless Forward+, Dummy audio
+and HIGH quality, freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,683,905 | 1,801,362 | +117,457 |
-| Mesh renderer nodes | 5,684 | 5,850 | +166 |
-| Surfaces | 5,691 | 5,857 | +166 |
-| Unique meshes | 2,545 | 2,675 | +130 |
-| Bound-phase materials | 450 | 469 | +19 |
-| Retained/reachable materials | 639 | 658 | +19 |
+| Triangles | 1,684,993 | 1,802,450 | +117,457 |
+| Mesh renderer nodes | 5,685 | 5,851 | +166 |
+| Surfaces | 5,692 | 5,858 | +166 |
+| Unique meshes | 2,536 | 2,666 | +130 |
+| Bound-phase materials | 451 | 470 | +19 |
+| Retained/reachable materials | 640 | 659 | +19 |
+| Unique shaders | 2 | 2 | 0 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
 | Lights / shadow lights | 294 / 19 | 317 / 19 | +23 / 0 |
 | Particle systems | 25 | 25 | 0 |
-| Scene-tree nodes | 9,326 | 9,627 | +301 |
+| Scene-tree nodes | 9,334 | 9,635 | +301 |
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
 row: the 20 existing joints beneath `WalkableInterior/CargoBay/CargoFrame00..03`
@@ -246,6 +248,30 @@ submissions remain, while four private TorusMesh identities become one. That
 removes three additional unique meshes in both scenarios and changes no other
 census or authority field.
 
+Three later Aft operations-room families extend the same identity-only rule.
+Six rubber `ConsoleShockCollar` nodes share one exact live-32x8 TorusMesh,
+four chair `PedestalBearing` nodes share one, and three brass `ConduitCollar`
+nodes share one. All thirteen ordinary renderer nodes, visible copies,
+submissions, paths, transforms, materials, authored-48x16 metadata and separate
+collision/semantic owners remain. The three shares remove exactly ten unique
+meshes in both scenarios and change no triangle, renderer, surface, material,
+light, particle or node count.
+
+Production planetary cruise adds one direct-Main binding and its one retained
+physical-controller child. The controller-reachable pause row adds one
+`VBoxContainer`, one `Button` and one `Label`; together those two slices add
+five non-rendering scene-tree nodes in both scenarios. They do not add a
+renderer, material, light, particle, physics shape or streamed-generation
+delta.
+
+Arrow's passive `PlanetaryEntryHeatTarget` is now one direct child subtree of
+the final variant visual root. It adds exactly three nodes, one SphereMesh
+renderer/surface/submission, 1,088 triangles, one unique mesh, one exclusive
+material and one shader to both scenarios. Its checked-in intensity remains
+exactly zero and no production atmosphere profile or observation caller is
+wired, so these are reachability/census facts rather than a visible-entry or
+physical-heating claim.
+
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
 the uninterrupted 11.4 m emissive `OutboardSillCove`. It therefore removes one
@@ -301,9 +327,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`cec1f250a32ba4349001e0ffd215aca353f2464498782abf9fccbc35ac2e0931`;
+`e5110ffa13f84b088e6292ac457a170f1ab2a0aa4655fd1ec586615ce0d8e8c8`;
 the loaded fingerprint is
-`89e1d43e15648959c2addbe1e0706746e795cf2b33daa5ac732f2295d8c1eaa9`.
+`563bbdc9b11953fc6799e2eff8e810b91b57c695aa4a7024255a6136f72f3493`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
