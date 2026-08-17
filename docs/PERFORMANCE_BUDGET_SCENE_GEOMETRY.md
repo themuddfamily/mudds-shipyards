@@ -167,23 +167,23 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on base `c2be846` with the bounded Jovian cargo-
-frame and Arrow lateral-array CurveJoint sharing plus production streamed-berth
-binding applied, Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality
-freezes:
+Focused production evidence on base `c1e94c2` after the bounded Aft/Habitat
+MultiMesh and Arrow immutable-resource trims, production Ember origin ownership,
+and streamed-berth binding, using Godot 4.7.1, headless Forward+, Dummy audio
+and HIGH quality, freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
 | Triangles | 1,683,905 | 1,801,362 | +117,457 |
-| Mesh renderer nodes | 5,691 | 5,857 | +166 |
-| Surfaces | 5,698 | 5,864 | +166 |
-| Unique meshes | 2,573 | 2,703 | +130 |
+| Mesh renderer nodes | 5,684 | 5,850 | +166 |
+| Surfaces | 5,691 | 5,857 | +166 |
+| Unique meshes | 2,555 | 2,685 | +130 |
 | Bound-phase materials | 450 | 469 | +19 |
-| Retained/reachable materials | 631 | 650 | +19 |
+| Retained/reachable materials | 639 | 658 | +19 |
 | Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
 | Lights / shadow lights | 294 / 19 | 317 / 19 | +23 / 0 |
 | Particle systems | 25 | 25 | 0 |
-| Scene-tree nodes | 9,329 | 9,630 | +301 |
+| Scene-tree nodes | 9,326 | 9,627 | +301 |
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
 row: the 20 existing joints beneath `WalkableInterior/CargoBay/CargoFrame00..03`
@@ -199,6 +199,26 @@ material identity, and shadow state. Their identical `0.07 m`, 28-radial,
 14-ring recipe now retains one component-local immutable `SphereMesh` instead
 of six, reducing both production scenarios by exactly five unique meshes and
 changing no other renderer, material, collision, evidence, or lifecycle count.
+
+Three later immutable-resource slices retain every renderer node and submission
+while reducing allocations: Arrow's six `SensorLeadingEdge` joints share one
+SphereMesh, its three `DorsalDataConduit` joints share one SphereMesh, and its
+five `FuselagePanelBand` rings share one TorusMesh while retaining the stable
+named capture path and the authored-64x18 to live-41x12 torus-budget metadata.
+Together these slices remove eleven unique mesh resources without changing
+drawn copies, materials, collision, evidence, or lifecycle authority.
+
+The Aft VIP facade foot/crown family and the Habitat nutrient-tank bands and
+valves are now three visual-only MultiMesh batches. They retain eleven drawn
+copies but remove seven renderer nodes/surface submissions and seven scene-tree
+nodes. The first implementation accidentally built all three families at their
+authored 48x16 TorusMesh recipes, bypassing the production TorusGeometryBudget
+and adding 6,592 triangles. The landed correction applies the exact prior live
+recipes (Aft 32x14, tank bands 40x12, valves 32x12) while retaining authored
+48x16 metadata. The final census therefore preserves the prior triangle total
+and the batching reductions; focused A/B captures made before the correction
+were pixel-identical, and the corrected recipes restore the exact pre-batch
+renderer geometry rather than introducing a new visual value.
 
 The subsequent VIP slice removes only the centre
 `OutboardSillSpill02` omni while retaining the original `01`/`03` side pair and
@@ -240,6 +260,14 @@ physics, audio, or process-loop contribution; its only purpose at this stage is
 to observe the real zero-berth Cinder generations and retain the unchanged five
 resident berth IDs without fabricating a streamed record.
 
+The Main-owned Ember bootstrap/binding and atomic common-world origin owner make
+the authored Ember PackedScene reachable from the production ownership graph
+without loading it in the station-resident scenario. Its eight original material
+resources consequently raise the retained/reachable material count from 631 to
+639 while bound-phase materials stay exactly 450. The origin owner is one
+non-rendering scene node and adds no mesh, surface, light, particle, physics, or
+audio work.
+
 The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
 117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
 copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
@@ -247,9 +275,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`cd28846c0ae9f8b55c2f38381be868ce4a9d9c97d6fefdcacb7ac96f68997a9c`;
+`a6a5343ac793a3d67456d2a898077b3a750e60089636b40bd4fb4b3d17b990d2`;
 the loaded fingerprint is
-`0456d73bfec46f1873ede9c24c073ade71749c896a7e71e976070edec05b966d`.
+`85a6f9a0f81b8ef220a74e16224b1f075c6d8b466c2a0ff0da7d75df1e4ec1e5`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
