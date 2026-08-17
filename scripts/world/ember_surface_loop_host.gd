@@ -58,6 +58,28 @@ const APPROACH_BRAKE_Z_M := 45.0
 const APPROACH_HANDOFF_MAXIMUM_SPEED_MPS := 1.0
 const ROUTE_ANCHOR_RADIUS_M := 1.35
 const MAX_CALLER_DELTA_SECONDS := PlanetaryTravelSession.MAX_CALLER_PHYSICS_DELTA_SECONDS
+const MAX_SAFE_INTEGER := 9_007_199_254_740_991
+const ORIGIN_REBASE_RECEIPT_KEYS := [
+	"absolute_coordinate",
+	"actor_instance_id",
+	"actor_kind",
+	"adjusted_actor_sample",
+	"covered_instance_ids",
+	"covered_node_count",
+	"ember_streaming",
+	"reason",
+	"request_id",
+	"root_roster",
+	"schema_version",
+	"source_generation",
+	"target_generation",
+	"transaction_index",
+	"world_translation_delta",
+]
+const ORIGIN_REBASE_ROOT_RECORD_KEYS := ["instance_id", "mode", "path"]
+const ORIGIN_REBASE_SAMPLE_KEYS := [
+	"actor_instance_id", "actor_kind", "available", "position",
+]
 
 
 ## Immutable, typed declaration and evaluator for the production-reachable
@@ -323,6 +345,9 @@ const OWNED_CAPABILITY_KEYS := [
 	"bounded_ship_command_transport",
 	"berth_lease_orchestration",
 	"boarding_lifecycle_orchestration",
+	"committed_origin_receipt_validation",
+	"coordinate_frame_generation_adoption",
+	"runtime_command_reservation_return",
 	"dependency_failure",
 ]
 const ADJACENT_AUTHORITY_KEYS := [
@@ -370,11 +395,15 @@ var _berth_token: StringName = &""
 var _source_generation := 0
 var _composition_root_instance_id := 0
 var _loaded_scene_instance_id := 0
+var _origin_owner_instance_id := 0
+var _origin_binding_instance_id := 0
 var _ship_instance_id := 0
 var _player_instance_id := 0
 
 var _composition_root: Node
 var _bootstrap: EmberMoonStreamingBootstrap
+var _origin_owner: CommonWorldOriginRebaseOwner
+var _origin_binding: EmberMoonStreamingProductionBinding
 var _scene: EmberMoonAuthoredScene
 var _berth: EmberSurfaceBerth
 var _ship: ArrowReconShip
@@ -393,6 +422,10 @@ var _landing_report: Dictionary = {}
 var _landing_identity: Dictionary = {}
 var _ship_collision_bounds := AABB()
 var _accepted_approach_entry_measurement: Dictionary = {}
+var _origin_adoption_count := 0
+var _last_origin_adoption_receipt: Dictionary = {}
+var _runtime_ownership_returned := false
+var _last_runtime_ownership_return_receipt: Dictionary = {}
 var _original_ship_piloted := false
 var _original_player_control_enabled := false
 var _original_player_gravity_multiplier := 1.0
@@ -417,7 +450,8 @@ func bind_dependencies(
 	location_generation: int,
 	expected_generation: int = 0,
 	expected_attachment_generation: int = 0,
-	composition_root: Node = null
+	composition_root: Node = null,
+	origin_owner: CommonWorldOriginRebaseOwner = null
 ) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
@@ -433,7 +467,7 @@ func bind_dependencies(
 	var validation := _validate_dependencies(
 		bootstrap, berth, ship, player,
 		reference_surface_gravity_mps2, location_generation,
-		resolved_composition_root
+		resolved_composition_root, origin_owner
 	)
 	if not bool(validation.get("accepted", false)):
 		_configuration_error = validation.get("reason", &"invalid_configuration") as StringName
@@ -442,6 +476,8 @@ func bind_dependencies(
 	_composition_root = validation.composition_root as Node
 	_composition_root_instance_id = _composition_root.get_instance_id()
 	_bootstrap = bootstrap
+	_origin_owner = validation.origin_owner as CommonWorldOriginRebaseOwner
+	_origin_binding = validation.origin_binding as EmberMoonStreamingProductionBinding
 	_scene = validation.scene as EmberMoonAuthoredScene
 	_berth = berth
 	_ship = ship
@@ -453,6 +489,10 @@ func bind_dependencies(
 	_location_generation = location_generation
 	_coordinate_frame_generation = _frame.get_generation()
 	_loaded_scene_instance_id = _scene.get_instance_id()
+	_origin_owner_instance_id = _origin_owner.get_instance_id() \
+		if is_instance_valid(_origin_owner) else 0
+	_origin_binding_instance_id = _origin_binding.get_instance_id() \
+		if is_instance_valid(_origin_binding) else 0
 	_ship_instance_id = _ship.get_instance_id()
 	_player_instance_id = _player.get_instance_id()
 	_world_report = (validation.world_report as Dictionary).duplicate(true)
@@ -490,10 +530,12 @@ func bind_dependencies(
 	_original_player_control_enabled = _player.is_control_enabled()
 	_original_player_gravity_multiplier = _player.gravity_multiplier
 	_original_player_camera_current = _player.get_camera().current
-	# The fixture transfers its exact seated Player reservation to this host for
-	# the bounded loop lifetime; cleanup therefore never leaves an orphan token.
-	_host_acquired_boarding_reservation = true
 
+	# Construct the bounded producer while it is still detached from the ship.
+	# Installing it, and accepting logical cleanup ownership of the Player's
+	# existing reservation, are part of start's measured transaction. A caller may
+	# therefore bind early and retry an out-of-envelope start without losing its
+	# command source or boarding token.
 	_command_source = EmberSurfaceLoopCommandSource.new()
 	_command_source.name = "EmberSurfaceLoopCommandSource"
 	add_child(_command_source)
@@ -504,7 +546,6 @@ func bind_dependencies(
 		_restore_runtime_bindings()
 		return _finish(false, _configuration_error)
 	_source_generation = _command_source.get_generation()
-	_ship.set_command_source(_command_source)
 
 	_session = PlanetaryTravelSession.new(
 		HOST_ID,
@@ -560,6 +601,9 @@ func start(
 		rejected["approach_entry"] = approach_entry.duplicate(true)
 		_last_result = rejected.duplicate(true)
 		return rejected
+	var ownership_rejection := _start_ownership_preflight()
+	if not ownership_rejection.is_empty():
+		return _finish(false, ownership_rejection)
 	_accepted_approach_entry_measurement = approach_entry.duplicate(true)
 	var bound := _session.bind_landing_composition_report(
 		_landing_report, 0, _attachment_generation
@@ -569,6 +613,16 @@ func start(
 	var started := _session.start(0, _attachment_generation)
 	if not bool(started.get("accepted", false)):
 		return _commit_failure(&"travel_session_start_failed")
+	# All entry/session checks are committed before either external lifecycle
+	# capability changes hands. The reservation already belongs to this exact
+	# Player; this flag transfers only cleanup responsibility. Installing the
+	# command source is verified synchronously before the running phase is visible.
+	_host_acquired_boarding_reservation = true
+	_ship.set_command_source(_command_source)
+	if _ship.get_command_source() != _command_source \
+			or _boarding_area.get_reservation_token() != _player:
+		_host_acquired_boarding_reservation = false
+		return _commit_failure(&"runtime_ownership_commit_failed")
 	_generation = _session.get_generation()
 	_command_source.set_mode(
 		EmberSurfaceLoopCommandSource.Mode.APPROACH, _source_generation
@@ -685,6 +739,121 @@ func request_takeoff(
 	)
 
 
+## Adopts one already committed common-origin transaction. This method cannot
+## request, apply, defer, cancel, or commit a rebase. It accepts only the exact
+## detached receipt produced after the shared root roster was translated, proves
+## that every frozen dependency and the tracked actor's absolute observation are
+## unchanged, then advances only this host's frame-generation fence.
+func adopt_committed_origin_rebase(
+	receipt: Variant,
+	expected_generation: int,
+	expected_attachment_generation: int,
+	expected_location_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if expected_location_generation != _location_generation:
+		return _finish(false, &"stale_location_generation")
+	if _phase < Phase.ORBIT_APPROACH or _phase > Phase.ORBIT_RETURN:
+		return _finish(false, &"origin_adoption_out_of_order")
+	var validation := _validate_committed_origin_receipt(receipt)
+	if not bool(validation.get("accepted", false)):
+		return _finish(
+			false,
+			validation.get("reason", &"invalid_origin_rebase_receipt") as StringName,
+		)
+	_coordinate_frame_generation = int(validation.get("target_generation", 0))
+	_origin_adoption_count += 1
+	_last_origin_adoption_receipt = (receipt as Dictionary).duplicate(true)
+	return _finish(true, &"committed_origin_adopted")
+
+
+## Completion-only handback for a later production GameFlow owner. The original
+## command source is restored and the host attachment is retired in one guarded
+## transaction, while the exact seated Player reservation remains continuously
+## held. The receipt contains only detached primitive identity evidence; it
+## grants no caller authority and never reparents or moves either actor.
+func return_runtime_ownership(
+	expected_generation: int,
+	expected_attachment_generation: int
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if _phase != Phase.COMPLETED:
+		return _finish(false, &"runtime_ownership_return_out_of_order")
+	if _attachment_generation >= MAX_SAFE_INTEGER:
+		return _finish(false, &"attachment_generation_exhausted")
+	var return_rejection := _runtime_ownership_return_preflight()
+	if not return_rejection.is_empty():
+		return _finish(false, return_rejection)
+
+	var retired_attachment_generation := _attachment_generation
+	var host_source_instance_id := _command_source.get_instance_id()
+	var original_source_instance_id := _original_command_source.get_instance_id()
+	_ship.set_command_source(_original_command_source)
+	if _ship.get_command_source() != _original_command_source:
+		_ship.set_command_source(_command_source)
+		return _finish(false, &"command_source_return_rejected")
+	var session_detach := _session.detach(
+		_generation, _session.get_attachment_generation()
+	)
+	if not bool(session_detach.get("accepted", false)):
+		_ship.set_command_source(_command_source)
+		if _ship.get_command_source() != _command_source:
+			return _commit_failure(&"runtime_ownership_return_rollback_failed")
+		return _finish(false, &"travel_session_return_rejected")
+
+	# Logical reservation cleanup ownership transfers to the caller without
+	# dropping the Player token, so no synchronous availability observer can
+	# steal a seat whose embodied Player never left it.
+	_host_acquired_boarding_reservation = false
+	_disconnect_dependency_signals()
+	if _command_source.get_snapshot().attached:
+		_command_source.detach(_source_generation)
+	_command_source.queue_free()
+	_runtime_bindings_restored = true
+	_attached = false
+	_attachment_generation += 1
+	_runtime_ownership_returned = true
+	_last_runtime_ownership_return_receipt = {
+		"schema_version": SCHEMA_VERSION,
+		"reason": &"runtime_ownership_returned",
+		"host_id": HOST_ID,
+		"generation": _generation,
+		"retired_attachment_generation": retired_attachment_generation,
+		"current_attachment_generation": _attachment_generation,
+		"ship_instance_id": _ship_instance_id,
+		"player_instance_id": _player_instance_id,
+		"boarding_area_instance_id": _boarding_area.get_instance_id(),
+		"boarding_reservation_token_instance_id": _player.get_instance_id(),
+		"boarding_reservation_retained": true,
+		"host_command_source_instance_id": host_source_instance_id,
+		"restored_command_source_instance_id": original_source_instance_id,
+		"command_source_restored": true,
+		"ship_piloted": _ship.is_piloted(),
+		"player_seated": _player.is_seated(),
+		"host_attached": false,
+	}.duplicate(true)
+	var result := _finish(true, &"runtime_ownership_returned")
+	result["runtime_ownership_return"] = (
+		_last_runtime_ownership_return_receipt.duplicate(true)
+	)
+	_last_result = result.duplicate(true)
+	return result
+
+
 func detach(
 	expected_generation: int,
 	expected_attachment_generation: int
@@ -757,6 +926,8 @@ func get_snapshot() -> Dictionary:
 			"ship_instance_id": _ship_instance_id,
 			"player_instance_id": _player_instance_id,
 			"bootstrap_instance_id": _bootstrap.get_instance_id() if is_instance_valid(_bootstrap) else 0,
+			"origin_owner_instance_id": _origin_owner_instance_id,
+			"origin_binding_instance_id": _origin_binding_instance_id,
 		},
 		"resources": {
 			"world": WORLD_PATH,
@@ -782,6 +953,21 @@ func get_snapshot() -> Dictionary:
 			"envelope": _approach_entry_envelope.get_snapshot() \
 				if _approach_entry_envelope != null else {},
 			"accepted_measurement": _accepted_approach_entry_measurement.duplicate(true),
+			"command_source_installed": _node_is_current(_ship) \
+				and _ship.get_command_source() == _command_source,
+			"boarding_cleanup_owned": _host_acquired_boarding_reservation,
+		},
+		"origin_rebase": {
+			"adoption_count": _origin_adoption_count,
+			"last_adopted_receipt": _last_origin_adoption_receipt.duplicate(true),
+			"requests": 0,
+			"applications": 0,
+			"commits": 0,
+			"deferrals": 0,
+		},
+		"runtime_ownership_return": {
+			"returned": _runtime_ownership_returned,
+			"last_receipt": _last_runtime_ownership_return_receipt.duplicate(true),
 		},
 		"actor_state": {
 			"ship_position": ship_position,
@@ -847,6 +1033,23 @@ func audit() -> Dictionary:
 		errors.append("travel session contract is invalid")
 	if _gravity_policy != null and not bool(_gravity_policy.audit().get("valid", false)):
 		errors.append("surface gravity policy is invalid")
+	if _origin_adoption_count < 0 \
+			or (_origin_adoption_count == 0 and not _last_origin_adoption_receipt.is_empty()) \
+			or (_origin_adoption_count > 0 and (
+				_last_origin_adoption_receipt.is_empty()
+				or int(_last_origin_adoption_receipt.get("target_generation", 0))
+					!= _coordinate_frame_generation
+			)):
+		errors.append("committed-origin adoption evidence is incoherent")
+	if _attached and _phase == Phase.IDLE and (
+		_host_acquired_boarding_reservation
+		or (_node_is_current(_ship) and _ship.get_command_source() == _command_source)
+	):
+		errors.append("idle preflight acquired runtime ownership before start")
+	if _runtime_ownership_returned and (
+		_attached or _last_runtime_ownership_return_receipt.is_empty()
+	):
+		errors.append("runtime ownership return evidence is incoherent")
 	if is_processing() or is_physics_processing():
 		errors.append("host gained an automatic callback")
 	return {
@@ -1204,7 +1407,8 @@ func _validate_dependencies(
 	player: PlayerController,
 	reference_surface_gravity_mps2: float,
 	location_generation: int,
-	composition_root: Node
+	composition_root: Node,
+	origin_owner: CommonWorldOriginRebaseOwner
 ) -> Dictionary:
 	if not is_inside_tree() or transform != Transform3D.IDENTITY:
 		return {"accepted": false, "reason": &"host_frame_mismatch"}
@@ -1231,6 +1435,36 @@ func _validate_dependencies(
 	if frame_snapshot.get("body_id") != BODY_ID \
 			or frame_snapshot.get("orbital_frame_id") != ORBITAL_FRAME_ID:
 		return {"accepted": false, "reason": &"coordinate_frame_identity_mismatch"}
+	var origin_binding: EmberMoonStreamingProductionBinding
+	if composition_root == self:
+		if origin_owner != null:
+			return {"accepted": false, "reason": &"standalone_origin_owner_unexpected"}
+	else:
+		if not _node_is_current(origin_owner) \
+				or origin_owner.get_parent() != composition_root \
+				or not bool(origin_owner.audit().get("valid", false)):
+			return {"accepted": false, "reason": &"origin_owner_mismatch"}
+		var owner_snapshot := origin_owner.get_snapshot()
+		if int(owner_snapshot.get("bootstrap_instance_id", 0)) \
+				!= bootstrap.get_instance_id() \
+				or int(owner_snapshot.get("coordinate_frame_instance_id", 0)) \
+					!= frame.get_instance_id():
+			return {"accepted": false, "reason": &"origin_owner_binding_mismatch"}
+		origin_binding = instance_from_id(
+			int(owner_snapshot.get("binding_instance_id", 0))
+		) as EmberMoonStreamingProductionBinding
+		if not _node_is_current(origin_binding) \
+				or origin_binding.get_parent() != composition_root \
+				or not bool(origin_binding.audit().get("valid", false)):
+			return {"accepted": false, "reason": &"origin_binding_mismatch"}
+		var binding_snapshot := origin_binding.get_snapshot()
+		if int(binding_snapshot.get("bootstrap_instance_id", 0)) \
+				!= bootstrap.get_instance_id() \
+				or int(binding_snapshot.get("coordinate_frame_instance_id", 0)) \
+					!= frame.get_instance_id() \
+				or int(binding_snapshot.get("bound_coordinate_frame_generation", 0)) \
+					!= frame.get_generation():
+			return {"accepted": false, "reason": &"origin_binding_frame_mismatch"}
 	if not _node_is_current(berth) or berth.get_parent() != composition_root:
 		return {"accepted": false, "reason": &"berth_mismatch"}
 	if not _node_is_current(ship) or ship.get_parent() != composition_root \
@@ -1295,6 +1529,8 @@ func _validate_dependencies(
 		"accepted": true,
 		"reason": &"valid_dependencies",
 		"composition_root": composition_root,
+		"origin_owner": origin_owner,
+		"origin_binding": origin_binding,
 		"scene": scene,
 		"frame": frame,
 		"boarding_area": boarding_area,
@@ -1344,6 +1580,282 @@ func _measure_approach_entry() -> Dictionary:
 		int(bootstrap_snapshot.get("location_generation", -1)),
 		actor_contract_current
 	)
+
+
+func _start_ownership_preflight() -> StringName:
+	if not _node_is_current(_ship) or not _node_is_current(_player) \
+			or not _node_is_current(_boarding_area):
+		return &"runtime_ownership_dependency_detached"
+	if not is_instance_valid(_original_command_source) \
+			or _original_command_source.is_queued_for_deletion() \
+			or _ship.get_command_source() != _original_command_source:
+		return &"command_source_ownership_changed"
+	if _boarding_area.get_reservation_token() != _player:
+		return &"boarding_reservation_changed"
+	if not _player.is_seated() or not _ship.is_piloted():
+		return &"pilot_ownership_changed"
+	return &""
+
+
+func _validate_committed_origin_receipt(receipt: Variant) -> Dictionary:
+	if not receipt is Dictionary:
+		return {"accepted": false, "reason": &"origin_receipt_not_dictionary"}
+	var value := receipt as Dictionary
+	if not _has_exact_string_keys(value, ORIGIN_REBASE_RECEIPT_KEYS) \
+			or not _detached_value_is_safe(value):
+		return {"accepted": false, "reason": &"origin_receipt_schema_mismatch"}
+	if not value.schema_version is int or int(value.schema_version) != 1 \
+			or not value.reason is StringName or value.reason != &"rebase_committed":
+		return {"accepted": false, "reason": &"origin_receipt_identity_mismatch"}
+	if not value.actor_kind is StringName \
+			or not _is_safe_positive_integer(value.actor_instance_id) \
+			or not value.absolute_coordinate is Dictionary \
+			or not value.world_translation_delta is Vector3:
+		return {"accepted": false, "reason": &"origin_receipt_identity_mismatch"}
+	for key in ["transaction_index", "request_id", "source_generation", "target_generation"]:
+		if not _is_safe_positive_integer(value.get(key)):
+			return {"accepted": false, "reason": &"origin_receipt_serial_invalid"}
+	var source_generation := int(value.source_generation)
+	var target_generation := int(value.target_generation)
+	if source_generation != _coordinate_frame_generation \
+			or source_generation >= PlanetaryCoordinateFrame.MAX_GENERATION \
+			or target_generation != source_generation + 1:
+		return {"accepted": false, "reason": &"origin_receipt_generation_mismatch"}
+	var owner_rejection := _origin_owner_receipt_rejection(
+		value, source_generation, target_generation
+	)
+	if not owner_rejection.is_empty():
+		return {"accepted": false, "reason": owner_rejection}
+	if not _node_is_current(_composition_root) or not _node_is_current(_bootstrap) \
+			or not _node_is_current(_scene) or not _node_is_current(_berth) \
+			or not _node_is_current(_ship) or not _node_is_current(_player) \
+			or not _node_is_current(_boarding_area) \
+			or not _node_is_current(_landing_root) \
+			or not _node_is_current(_walkable_body):
+		return {"accepted": false, "reason": &"origin_receipt_dependency_detached"}
+	if _frame == null or _bootstrap.get_coordinate_frame_for_session() != _frame:
+		return {"accepted": false, "reason": &"origin_receipt_frame_identity_mismatch"}
+	var frame_snapshot := _frame.get_snapshot()
+	if int(frame_snapshot.get("generation", 0)) != target_generation \
+			or not (frame_snapshot.get("pending_rebase", {}) as Dictionary).is_empty():
+		return {"accepted": false, "reason": &"origin_receipt_frame_not_committed"}
+	var delta := value.world_translation_delta as Vector3 \
+			if value.world_translation_delta is Vector3 else Vector3.INF
+	if not delta.is_finite() or delta.is_zero_approx():
+		return {"accepted": false, "reason": &"origin_receipt_translation_invalid"}
+	var committed := frame_snapshot.get("last_rebase_result", {}) as Dictionary
+	if int(committed.get("request_id", 0)) != int(value.request_id) \
+			or int(committed.get("source_generation", 0)) != source_generation \
+			or int(committed.get("target_generation", 0)) != target_generation \
+			or committed.get("world_translation_delta", Vector3.INF) != delta:
+		return {"accepted": false, "reason": &"origin_receipt_frame_commit_mismatch"}
+
+	var roster_rejection := _origin_receipt_roster_rejection(value)
+	if not roster_rejection.is_empty():
+		return {"accepted": false, "reason": roster_rejection}
+	if not _composition_topology_current() \
+			or _bootstrap.get_loaded_instance() != _scene \
+			or _scene.get_instance_id() != _loaded_scene_instance_id \
+			or int(_scene.get_meta(LOCATION_GENERATION_META, -1)) != _location_generation:
+		return {"accepted": false, "reason": &"origin_receipt_live_identity_mismatch"}
+	var bootstrap_snapshot := _bootstrap.get_snapshot()
+	if int(bootstrap_snapshot.get("location_generation", -1)) != _location_generation \
+			or int(bootstrap_snapshot.get("loaded_instance_id", 0)) \
+				!= _loaded_scene_instance_id:
+		return {"accepted": false, "reason": &"origin_receipt_stream_generation_mismatch"}
+	var streaming := value.ember_streaming as Dictionary \
+			if value.ember_streaming is Dictionary else {}
+	if not bool(streaming.get("accepted", false)) \
+			or int(streaming.get("coordinate_frame_generation", 0)) != target_generation \
+			or int(streaming.get("location_generation", -1)) != _location_generation:
+		return {"accepted": false, "reason": &"origin_receipt_streaming_mismatch"}
+	if not _berth.global_transform.is_equal_approx(_landing_root.global_transform) \
+			or not _landing_root.global_basis.is_equal_approx(_reference_tangent_basis_body) \
+			or not _landing_root.global_position.is_equal_approx(
+				_bootstrap.global_position + _REGION.body_local_center_m
+			):
+		return {"accepted": false, "reason": &"origin_receipt_surface_frame_drift"}
+
+	var sample := value.adjusted_actor_sample as Dictionary \
+			if value.adjusted_actor_sample is Dictionary else {}
+	if not _has_exact_string_keys(sample, ORIGIN_REBASE_SAMPLE_KEYS) \
+			or not sample.available is bool or not bool(sample.available) \
+			or not sample.actor_kind is StringName \
+			or not sample.actor_instance_id is int \
+			or not sample.position is Vector3 \
+			or not (sample.position as Vector3).is_finite():
+		return {"accepted": false, "reason": &"origin_receipt_actor_sample_invalid"}
+	if value.actor_kind != sample.actor_kind \
+			or int(value.actor_instance_id) != int(sample.actor_instance_id):
+		return {"accepted": false, "reason": &"origin_receipt_actor_identity_mismatch"}
+	var actor: Node3D
+	var actor_speed := 0.0
+	if sample.actor_kind == &"ship" \
+			and int(sample.actor_instance_id) == _ship_instance_id:
+		actor = _ship
+		actor_speed = _ship.velocity.length()
+	elif sample.actor_kind == &"player" \
+			and int(sample.actor_instance_id) == _player_instance_id:
+		actor = _player
+		actor_speed = _player.velocity.length()
+	else:
+		return {"accepted": false, "reason": &"origin_receipt_actor_identity_mismatch"}
+	if not actor.global_position.is_equal_approx(sample.position as Vector3):
+		return {"accepted": false, "reason": &"origin_receipt_actor_position_mismatch"}
+	var converted := _frame.world_streaming_to_orbital_position(
+		actor.global_position, target_generation
+	)
+	if not bool(converted.get("accepted", false)) \
+			or converted.get("coordinate", {}) != value.absolute_coordinate:
+		return {"accepted": false, "reason": &"origin_receipt_absolute_coordinate_drift"}
+	var observation := _bootstrap.create_travel_observation(
+		actor.global_position, actor_speed, target_generation, _location_generation
+	)
+	if not bool(observation.get("accepted", false)) \
+			or observation.get("orbital_coordinate", {}) != value.absolute_coordinate:
+		return {"accepted": false, "reason": &"origin_receipt_absolute_observation_drift"}
+	return {
+		"accepted": true,
+		"reason": &"origin_receipt_valid",
+		"target_generation": target_generation,
+	}
+
+
+func _origin_owner_receipt_rejection(
+	receipt: Dictionary,
+	source_generation: int,
+	target_generation: int
+) -> StringName:
+	if _composition_root == self:
+		return &"origin_adoption_requires_shared_root"
+	if not _node_is_current(_origin_owner) \
+			or _origin_owner.get_instance_id() != _origin_owner_instance_id \
+			or _origin_owner.get_parent() != _composition_root \
+			or not _node_is_current(_origin_binding) \
+			or _origin_binding.get_instance_id() != _origin_binding_instance_id \
+			or _origin_binding.get_parent() != _composition_root:
+		return &"origin_owner_identity_mismatch"
+	var owner_audit := _origin_owner.audit()
+	var owner_snapshot := _origin_owner.get_snapshot()
+	if not bool(owner_audit.get("valid", false)) \
+			or int(owner_audit.get("owner_count", 0)) != 1 \
+			or int(owner_snapshot.get("bootstrap_instance_id", 0)) \
+				!= _bootstrap.get_instance_id() \
+			or int(owner_snapshot.get("binding_instance_id", 0)) \
+				!= _origin_binding_instance_id \
+			or int(owner_snapshot.get("coordinate_frame_instance_id", 0)) \
+				!= _frame.get_instance_id():
+		return &"origin_owner_identity_mismatch"
+	if int(owner_snapshot.get("last_source_generation", 0)) != source_generation \
+			or int(owner_snapshot.get("last_target_generation", 0)) \
+				!= target_generation \
+			or int(owner_snapshot.get("transaction_count", 0)) \
+				!= int(receipt.transaction_index) \
+			or owner_snapshot.get("last_receipt", {}) != receipt:
+		return &"origin_owner_receipt_mismatch"
+	var binding_audit := _origin_binding.audit()
+	var binding_snapshot := _origin_binding.get_snapshot()
+	if not bool(binding_audit.get("valid", false)) \
+			or int(binding_snapshot.get("bootstrap_instance_id", 0)) \
+				!= _bootstrap.get_instance_id() \
+			or int(binding_snapshot.get("coordinate_frame_instance_id", 0)) \
+				!= _frame.get_instance_id() \
+			or int(binding_snapshot.get("bound_coordinate_frame_generation", 0)) \
+				!= target_generation \
+			or int(binding_snapshot.get("current_coordinate_frame_generation", 0)) \
+				!= target_generation:
+		return &"origin_binding_receipt_mismatch"
+	return &""
+
+
+func _origin_receipt_roster_rejection(receipt: Dictionary) -> StringName:
+	if _composition_root == self:
+		return &"origin_adoption_requires_shared_root"
+	if not receipt.root_roster is Array \
+			or not receipt.covered_instance_ids is PackedInt64Array \
+			or not receipt.covered_node_count is int:
+		return &"origin_receipt_roster_schema_mismatch"
+	var roots := receipt.root_roster as Array
+	var expected_covered_nodes: Array[Node3D] = []
+	for candidate in _composition_root.find_children("*", "Node3D", true, false):
+		var node := candidate as Node3D
+		if not _node_is_current(node):
+			return &"origin_receipt_live_roster_detached"
+		expected_covered_nodes.append(node)
+	expected_covered_nodes.sort_custom(func(left: Node3D, right: Node3D) -> bool:
+		return str(_composition_root.get_path_to(left)) \
+			< str(_composition_root.get_path_to(right))
+	)
+	var expected_roots: Array[Node3D] = []
+	for node in expected_covered_nodes:
+		if node.get_parent() == _composition_root or node.top_level:
+			expected_roots.append(node)
+	if roots.size() != expected_roots.size():
+		return &"origin_receipt_roster_count_mismatch"
+	var previous_path := ""
+	for index in roots.size():
+		var root_value: Variant = roots[index]
+		if not root_value is Dictionary:
+			return &"origin_receipt_roster_schema_mismatch"
+		var record := root_value as Dictionary
+		if not _has_exact_string_keys(record, ORIGIN_REBASE_ROOT_RECORD_KEYS) \
+				or not record.path is String or str(record.path).is_empty() \
+				or not _is_safe_positive_integer(record.instance_id) \
+				or not record.mode is StringName \
+				or record.mode not in [&"direct", &"top_level"]:
+			return &"origin_receipt_roster_schema_mismatch"
+		var path := str(record.path)
+		if not previous_path.is_empty() and path <= previous_path:
+			return &"origin_receipt_roster_order_mismatch"
+		previous_path = path
+		var expected_root := expected_roots[index]
+		var expected_mode: StringName = &"top_level" \
+			if expected_root.top_level else &"direct"
+		if path != str(_composition_root.get_path_to(expected_root)) \
+				or int(record.instance_id) != expected_root.get_instance_id() \
+				or record.mode != expected_mode:
+			return &"origin_receipt_roster_identity_mismatch"
+
+	var covered := receipt.covered_instance_ids as PackedInt64Array
+	if int(receipt.covered_node_count) != covered.size() \
+			or covered.size() != expected_covered_nodes.size():
+		return &"origin_receipt_covered_count_mismatch"
+	for index in covered.size():
+		if covered[index] != expected_covered_nodes[index].get_instance_id():
+			return &"origin_receipt_covered_roster_mismatch"
+	return &""
+
+
+func _runtime_ownership_return_preflight() -> StringName:
+	if _runtime_ownership_returned or _runtime_bindings_restored:
+		return &"runtime_ownership_already_returned"
+	if not _node_is_current(_ship) or not _node_is_current(_player) \
+			or not _node_is_current(_boarding_area) \
+			or not _node_is_current(_berth) \
+			or not is_instance_valid(_command_source) \
+			or _command_source.is_queued_for_deletion() \
+			or not is_instance_valid(_original_command_source) \
+			or _original_command_source.is_queued_for_deletion():
+		return &"runtime_ownership_dependency_detached"
+	if not _host_acquired_boarding_reservation \
+			or _boarding_area.get_reservation_token() != _player:
+		return &"runtime_ownership_reservation_mismatch"
+	if _ship.get_command_source() != _command_source:
+		return &"runtime_ownership_command_source_mismatch"
+	if not _player.is_seated() or not _ship.is_piloted() \
+			or _ship.is_piloted() != _original_ship_piloted \
+			or _player.is_control_enabled() != _original_player_control_enabled \
+			or _player.get_camera().current != _original_player_camera_current \
+			or not is_equal_approx(
+				_player.gravity_multiplier, _original_player_gravity_multiplier
+			):
+		return &"runtime_ownership_actor_state_mismatch"
+	if not _berth_token.is_empty() or _berth.get_occupant() != null:
+		return &"runtime_ownership_berth_lease_active"
+	if _session == null \
+			or not bool(_session.get_presentation_snapshot().get("attached", false)):
+		return &"runtime_ownership_session_mismatch"
+	return &""
 
 
 func _landed_public_state_is_exact() -> bool:
@@ -1452,6 +1964,9 @@ func _dependency_failure_reason() -> StringName:
 			or int(_scene.get_meta(LOCATION_GENERATION_META, -1)) \
 			!= _location_generation:
 		return &"stale_loaded_scene_generation"
+	if _phase >= Phase.ORBIT_APPROACH and _phase <= Phase.ORBIT_RETURN \
+			and _ship.get_command_source() != _command_source:
+		return &"command_source_replaced"
 	if not _dependencies_current():
 		return &"dependency_detached"
 	if not _landing_root.global_basis.is_equal_approx(
@@ -1499,6 +2014,15 @@ func _composition_topology_current() -> bool:
 			or _composition_root.get_instance_id() != _composition_root_instance_id:
 		return false
 	if _composition_root != self and get_parent() != _composition_root:
+		return false
+	if _composition_root != self and (
+		not _node_is_current(_origin_owner)
+		or _origin_owner.get_instance_id() != _origin_owner_instance_id
+		or _origin_owner.get_parent() != _composition_root
+		or not _node_is_current(_origin_binding)
+		or _origin_binding.get_instance_id() != _origin_binding_instance_id
+		or _origin_binding.get_parent() != _composition_root
+	):
 		return false
 	return _node_is_current(_bootstrap) \
 		and _bootstrap.get_parent() == _composition_root \
@@ -1622,7 +2146,11 @@ func _restore_runtime_bindings(recover_embodiment: bool = false) -> void:
 		_player.force_recovery_to_on_foot(recovery_transform)
 	if composition_current and _node_is_current(_ship):
 		_ship.set_canopy_open(false, 0.0)
-		_ship.set_command_source(_original_command_source)
+		# Restore only the capability still owned by this host. A later production
+		# owner may synchronously replace the source to stop the loop; cleanup must
+		# terminalize without overwriting that foreign live authority.
+		if _ship.get_command_source() == _command_source:
+			_ship.set_command_source(_original_command_source)
 		_ship.set_piloted(
 			false if recovered_on_foot or _ship.is_destroyed() \
 			else _original_ship_piloted
@@ -1801,6 +2329,35 @@ static func _node_is_current(node: Variant) -> bool:
 	return is_instance_valid(node) and node is Node \
 		and (node as Node).is_inside_tree() \
 		and not (node as Node).is_queued_for_deletion()
+
+
+static func _has_exact_string_keys(value: Dictionary, expected: Array) -> bool:
+	if value.size() != expected.size():
+		return false
+	for key: Variant in value:
+		if not key is String or not expected.has(key):
+			return false
+	return true
+
+
+static func _is_safe_positive_integer(value: Variant) -> bool:
+	return value is int and int(value) >= 1 and int(value) <= MAX_SAFE_INTEGER
+
+
+static func _detached_value_is_safe(value: Variant) -> bool:
+	match typeof(value):
+		TYPE_OBJECT, TYPE_CALLABLE, TYPE_SIGNAL:
+			return false
+		TYPE_DICTIONARY:
+			for key: Variant in (value as Dictionary):
+				if not _detached_value_is_safe(key) \
+						or not _detached_value_is_safe((value as Dictionary)[key]):
+					return false
+		TYPE_ARRAY:
+			for item: Variant in (value as Array):
+				if not _detached_value_is_safe(item):
+					return false
+	return true
 
 
 static func _phase_id(value: int) -> StringName:

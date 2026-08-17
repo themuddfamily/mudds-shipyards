@@ -20,7 +20,9 @@ func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
 	await _test_shared_composition_and_measured_entry()
+	await _test_committed_origin_receipt_adoption()
 	await _test_normal_public_actor_loop()
+	await _test_active_command_source_replacement()
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
 	await _test_synchronous_destruction_first_wins()
@@ -43,6 +45,8 @@ func _test_shared_composition_and_measured_entry() -> void:
 	var ship := fixture.ship as ArrowReconShip
 	var composition_root := fixture.world as Node3D
 	var original_source := fixture.original_source as ShipCommandSource
+	var area := fixture.area as ShipBoardingArea
+	var player := fixture.player as PlayerController
 	var wrong_root := Node3D.new()
 	wrong_root.name = "WrongCompositionRoot"
 	root.add_child(wrong_root)
@@ -61,6 +65,14 @@ func _test_shared_composition_and_measured_entry() -> void:
 	if not bool(bound.get("accepted", false)):
 		await _cleanup(fixture)
 		return
+	var prepared := host.get_snapshot().approach_entry as Dictionary
+	_check(
+		ship.get_command_source() == original_source
+			and area.get_reservation_token() == player
+			and not bool(prepared.command_source_installed)
+			and not bool(prepared.boarding_cleanup_owned),
+		"binding prepares the typed envelope without acquiring command or reservation cleanup ownership",
+	)
 
 	_place_entry_actor(
 		fixture,
@@ -73,8 +85,11 @@ func _test_shared_composition_and_measured_entry() -> void:
 	var rejected := _start_host(fixture)
 	_check(
 		rejected.reason == &"approach_entry_position_out_of_bounds"
-			and ship.global_transform == before_pose and ship.velocity == before_velocity,
-		"measured entry rejects an out-of-bounds root without transform or velocity writes",
+			and ship.global_transform == before_pose and ship.velocity == before_velocity
+			and ship.get_command_source() == original_source
+			and area.get_reservation_token() == player
+			and not bool((host.get_snapshot().approach_entry as Dictionary).boarding_cleanup_owned),
+		"measured entry rejection is atomic across actor, command source and the caller-owned reservation",
 	)
 
 	_place_entry_actor(
@@ -145,6 +160,29 @@ func _test_shared_composition_and_measured_entry() -> void:
 	)
 	ship.reparent(composition_root, true)
 
+	var prestart_foreign := EmberSurfaceLoopCommandSource.new()
+	prestart_foreign.name = "PrestartForeignCommandSource"
+	composition_root.add_child(prestart_foreign)
+	var prestart_foreign_attach := prestart_foreign.attach(0)
+	if not bool(prestart_foreign_attach.get("accepted", false)):
+		_check(false, "entry ownership red attaches its foreign source witness")
+		await _cleanup(fixture)
+		return
+	ship.set_command_source(prestart_foreign)
+	_place_entry_actor(fixture, Vector3.ZERO, Basis.IDENTITY, Vector3.ZERO)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"command_source_ownership_changed"
+			and ship.get_command_source() == prestart_foreign
+			and area.get_reservation_token() == player
+			and not bool((host.get_snapshot().approach_entry as Dictionary).boarding_cleanup_owned),
+		"post-measure ownership rejection preserves the foreign command source and caller Player token",
+	)
+	ship.set_command_source(original_source)
+	prestart_foreign.detach(prestart_foreign.get_generation())
+	prestart_foreign.queue_free()
+	await process_frame
+
 	_place_entry_actor(
 		fixture,
 		Vector3(8.0, 5.0, -20.0),
@@ -160,8 +198,11 @@ func _test_shared_composition_and_measured_entry() -> void:
 	var measurement := (entry.accepted_measurement as Dictionary).measurement as Dictionary
 	_check(
 		started.accepted and host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
-			and ship.global_transform == before_pose and ship.velocity == before_velocity,
-		"non-exact finite position/speed/attitude inside the envelope starts without actor writes",
+			and ship.global_transform == before_pose and ship.velocity == before_velocity
+			and ship.get_command_source() != original_source
+			and area.get_reservation_token() == player
+			and bool((snapshot.approach_entry as Dictionary).boarding_cleanup_owned),
+		"accepted measured entry transfers only command and reservation cleanup ownership without actor writes",
 	)
 	_check(
 		int(composition.root_instance_id) == composition_root.get_instance_id()
@@ -172,9 +213,20 @@ func _test_shared_composition_and_measured_entry() -> void:
 			and is_equal_approx(float(measurement.speed_mps), 4.0),
 		"snapshot freezes exact shared-root identity and detached measured corridor proof",
 	)
+	var return_before_completion := host.get_snapshot()
+	var early_return := host.return_runtime_ownership(
+		host.get_generation(), host.get_attachment_generation()
+	)
 	_check(
-		host.detach(host.get_generation(), host.get_attachment_generation()).accepted,
-		"shared-root proof detaches explicitly before composition teardown",
+		early_return.reason == &"runtime_ownership_return_out_of_order"
+			and host.get_snapshot() == return_before_completion,
+		"runtime ownership return is completion-only and state-preserving while the loop runs",
+	)
+	_check(
+		host.detach(host.get_generation(), host.get_attachment_generation()).accepted
+			and ship.get_command_source() == original_source
+			and area.get_reservation_token() == null,
+		"ordinary detach restores command and releases only the reservation cleanup ownership accepted at start",
 	)
 	await _cleanup(fixture)
 
@@ -239,6 +291,118 @@ func _test_shared_composition_and_measured_entry() -> void:
 		rejected.reason == &"approach_entry_loaded_root_mismatch"
 			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE,
 		"measured entry rejects a current N+2 loaded-root identity swap before session start",
+	)
+	await _cleanup(fixture)
+
+
+func _test_committed_origin_receipt_adoption() -> void:
+	var fixture := await _fixture(true, true, true)
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var area := fixture.area as ShipBoardingArea
+	var source := ship.get_command_source()
+	var source_generation := int(host.get_snapshot().coordinate_frame_generation)
+	var receipt := _commit_shared_origin_rebase(fixture, Vector3(12_000.0, 0.0, 0.0))
+	if receipt.is_empty():
+		await _cleanup(fixture)
+		return
+	var before_rejection := host.get_snapshot()
+	var missing_coverage := receipt.duplicate(true)
+	var covered := missing_coverage.covered_instance_ids as PackedInt64Array
+	var walkable_index := covered.find(
+		(fixture.walkable as StaticBody3D).get_instance_id()
+	)
+	if walkable_index < 0:
+		_check(false, "origin fixture receipt covers the exact walkable body")
+		await _cleanup(fixture)
+		return
+	covered[walkable_index] = -1
+	missing_coverage.covered_instance_ids = covered
+	var rejected := host.adopt_committed_origin_rebase(
+		missing_coverage,
+		host.get_generation(),
+		host.get_attachment_generation(),
+		1,
+	)
+	_check(
+		rejected.reason == &"origin_owner_receipt_mismatch"
+			and host.get_snapshot() == before_rejection,
+		"committed-origin adoption rejects a roster not present in the exact owner's last receipt",
+	)
+	var forged_absolute := receipt.duplicate(true)
+	var forged_sample := forged_absolute.adjusted_actor_sample as Dictionary
+	forged_sample.position = (forged_sample.position as Vector3) + Vector3(1.0, 0.0, 0.0)
+	forged_absolute.adjusted_actor_sample = forged_sample
+	rejected = host.adopt_committed_origin_rebase(
+		forged_absolute,
+		host.get_generation(),
+		host.get_attachment_generation(),
+		1,
+	)
+	_check(
+		rejected.reason == &"origin_owner_receipt_mismatch"
+			and host.get_snapshot() == before_rejection,
+		"committed-origin adoption rejects a forged adjusted position before changing its frame fence",
+	)
+
+	var adopted := host.adopt_committed_origin_rebase(
+		receipt,
+		host.get_generation(),
+		host.get_attachment_generation(),
+		1,
+	)
+	var target_generation := int(receipt.target_generation)
+	var after := host.get_snapshot()
+	var adoption := after.origin_rebase as Dictionary
+	var identities := after.identities as Dictionary
+	var owner_snapshot := (
+		fixture.origin_owner as CommonWorldOriginRebaseOwner
+	).get_snapshot()
+	_check(
+		adopted.accepted
+			and source_generation + 1 == target_generation
+			and int(after.coordinate_frame_generation) == target_generation
+			and int(adoption.adoption_count) == 1
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
+			and ship.get_command_source() == source
+			and area.get_reservation_token() == player
+			and int(identities.origin_owner_instance_id) \
+				== (fixture.origin_owner as CommonWorldOriginRebaseOwner).get_instance_id()
+			and int(identities.origin_binding_instance_id) \
+				== (fixture.origin_binding as EmberMoonStreamingProductionBinding).get_instance_id()
+			and owner_snapshot.get("last_receipt", {}) == receipt,
+		"exact owner-linked N-to-N+1 receipt advances only the frame fence and preserves runtime ownership",
+	)
+	var converted := (fixture.frame as PlanetaryCoordinateFrame) \
+		.world_streaming_to_orbital_position(ship.global_position, target_generation)
+	_check(
+		bool(converted.get("accepted", false))
+			and converted.get("coordinate", {}) == receipt.absolute_coordinate
+			and bool((host.audit().owned_capabilities as Dictionary).get(
+				"coordinate_frame_generation_adoption", false
+			))
+			and not bool((host.audit().adjacent_authority as Dictionary).origin_shift),
+		"adoption proves absolute observation invariance without gaining origin authority",
+	)
+	var replay_before := host.get_snapshot()
+	var replay := host.adopt_committed_origin_rebase(
+		receipt,
+		host.get_generation(),
+		host.get_attachment_generation(),
+		1,
+	)
+	_check(
+		replay.reason == &"origin_receipt_generation_mismatch"
+			and host.get_snapshot() == replay_before,
+		"a committed receipt is single-generation evidence and cannot replay",
+	)
+	(receipt.root_roster as Array).clear()
+	_check(
+		not ((host.get_snapshot().origin_rebase as Dictionary).last_adopted_receipt as Dictionary).root_roster.is_empty(),
+		"stored committed-origin evidence is deeply detached from caller mutation",
 	)
 	await _cleanup(fixture)
 
@@ -360,10 +524,71 @@ func _test_normal_public_actor_loop() -> void:
 				== (fixture.walkable as StaticBody3D).get_instance_id(),
 		"completed audit freezes tangent identity and exact loaded support body",
 	)
+	var retired_attachment := host.get_attachment_generation()
+	var returned := host.return_runtime_ownership(
+		host.get_generation(), retired_attachment
+	)
+	var return_receipt := returned.get(
+		"runtime_ownership_return", {}
+	) as Dictionary
 	_check(
-		host.detach(host.get_generation(), host.get_attachment_generation()).accepted
-			and ship.get_command_source() == original_source,
-		"clean completion detach restores the prior command source",
+		returned.accepted
+			and not bool(host.get_snapshot().attached)
+			and host.get_attachment_generation() == retired_attachment + 1
+			and ship.get_command_source() == original_source
+			and area.get_reservation_token() == player
+			and bool(return_receipt.get("boarding_reservation_retained", false))
+			and bool(return_receipt.get("command_source_restored", false))
+			and int(return_receipt.get("ship_instance_id", 0)) == ship.get_instance_id()
+			and int(return_receipt.get("player_instance_id", 0)) == player.get_instance_id(),
+		"completion atomically returns command ownership while continuously retaining the seated Player reservation",
+	)
+	return_receipt["ship_instance_id"] = -1
+	_check(
+		int(((host.get_snapshot().runtime_ownership_return as Dictionary).last_receipt as Dictionary).ship_instance_id)
+			== ship.get_instance_id(),
+		"runtime ownership return receipt is deeply detached for a later production owner",
+	)
+	var replay := host.return_runtime_ownership(
+		host.get_generation(), retired_attachment
+	)
+	_check(
+		replay.reason == &"stale_attachment_generation"
+			and ship.get_command_source() == original_source
+			and area.get_reservation_token() == player,
+		"retired attachment cannot repeat or drop an already returned reservation",
+	)
+	await _cleanup(fixture)
+
+
+func _test_active_command_source_replacement() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var area := fixture.area as ShipBoardingArea
+	var foreign := EmberSurfaceLoopCommandSource.new()
+	foreign.name = "ForeignCommandSource"
+	(fixture.world as Node).add_child(foreign)
+	var attached := foreign.attach(0)
+	if not bool(attached.get("accepted", false)):
+		_check(false, "foreign command-source witness attaches")
+		await _cleanup(fixture)
+		return
+	ship.set_command_source(foreign)
+	var result := await _tick(fixture)
+	_check(
+		not bool(result.get("accepted", true))
+			and result.get("reason") == &"command_source_replaced"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED
+			and ship.get_command_source() == foreign,
+		"active foreign command-source replacement terminalizes without clobbering the replacement",
+	)
+	_check(
+		area.get_reservation_token() == null
+			and bool(foreign.get_snapshot().get("attached", false)),
+		"foreign-source retirement releases only the Host-owned Player token and never detaches foreign authority",
 	)
 	await _cleanup(fixture)
 
@@ -617,7 +842,6 @@ func _fixture(
 		world = Node3D.new()
 		world.name = "SharedCompositionRoot"
 		root.add_child(world)
-		world.add_child(host)
 	else:
 		world = host
 		root.add_child(world)
@@ -625,39 +849,78 @@ func _fixture(
 	bootstrap.name = "EmberMoonStreamingBootstrap"
 	world.add_child(bootstrap)
 	var frame := bootstrap.get_coordinate_frame_for_session()
-	var rebase := frame.request_rebase(bootstrap.position, frame.get_generation())
-	if not bool(rebase.get("accepted", false)):
-		_check(false, "fixture obtains the required Ember origin rebase")
-		return {}
-	bootstrap.position += rebase.request.world_translation_delta
-	if not bool(frame.commit_rebase(rebase.request.request_id, 1).get("accepted", false)):
-		_check(false, "fixture commits Ember frame generation two")
-		return {}
-	var body_coordinate := NearbySectorOrbitalRegistry.new().get_coordinate(
-		NearbySectorOrbitalRegistry.EMBER_BODY_CENTER_ID
-	)
-	if not bool(bootstrap.update_absolute_focus(body_coordinate, 2).get("accepted", false)):
-		_check(false, "fixture loads current Ember generation one")
-		return {}
+	var origin_binding: EmberMoonStreamingProductionBinding
+	var origin_owner: CommonWorldOriginRebaseOwner
+	var origin_probe: Node3D
+	if shared_composition_root:
+		origin_binding = EmberMoonStreamingProductionBinding.new()
+		origin_binding.name = "EmberMoonStreamingProductionBinding"
+		world.add_child(origin_binding)
+		origin_owner = CommonWorldOriginRebaseOwner.new()
+		origin_owner.name = "CommonWorldOriginRebaseOwner"
+		world.add_child(origin_owner)
+		origin_probe = Node3D.new()
+		origin_probe.name = "OriginActorProbe"
+		world.add_child(origin_probe)
+		await process_frame
+		await process_frame
+		if not bool(origin_binding.audit().get("valid", false)) \
+				or not bool(origin_owner.audit().get("valid", false)):
+			_check(false, "shared fixture activates the exact Ember binding and common-origin owner")
+			return {}
+		origin_probe.global_position = bootstrap.global_position
+		if not bool(_consume_real_origin_rebase(
+			origin_binding, origin_owner, origin_probe
+		).get("accepted", false)):
+			_check(false, "shared fixture consumes the required real Ember origin transaction")
+			return {}
+	else:
+		var rebase := frame.request_rebase(bootstrap.position, frame.get_generation())
+		if not bool(rebase.get("accepted", false)):
+			_check(false, "fixture obtains the required Ember origin rebase")
+			return {}
+		bootstrap.position += rebase.request.world_translation_delta
+		if not bool(frame.commit_rebase(rebase.request.request_id, 1).get("accepted", false)):
+			_check(false, "fixture commits Ember frame generation two")
+			return {}
+		var body_coordinate := NearbySectorOrbitalRegistry.new().get_coordinate(
+			NearbySectorOrbitalRegistry.EMBER_BODY_CENTER_ID
+		)
+		if not bool(bootstrap.update_absolute_focus(body_coordinate, 2).get("accepted", false)):
+			_check(false, "fixture loads current Ember generation one")
+			return {}
 	await process_frame
 	await process_frame
 	var scene := bootstrap.get_loaded_instance() as EmberMoonAuthoredScene
 	if scene == null:
 		_check(false, "fixture resolves the current authored Ember root")
 		return {}
-	var surface_rebase := frame.request_rebase(
-		(scene.get_node(^"LandingRegion") as Node3D).global_position,
-		frame.get_generation()
-	)
-	if not bool(surface_rebase.get("accepted", false)):
-		_check(false, "fixture requests the caller-owned surface-local rebase")
-		return {}
-	bootstrap.position += surface_rebase.request.world_translation_delta
-	if not bool(frame.commit_rebase(
-		surface_rebase.request.request_id, 2
-	).get("accepted", false)):
-		_check(false, "fixture commits surface-local frame generation three")
-		return {}
+	if shared_composition_root:
+		origin_probe.global_position = (
+			scene.get_node(^"LandingRegion") as Node3D
+		).global_position
+		if not bool(_consume_real_origin_rebase(
+			origin_binding, origin_owner, origin_probe
+		).get("accepted", false)):
+			_check(false, "shared fixture consumes the real surface-local origin transaction")
+			return {}
+		origin_probe.queue_free()
+		await process_frame
+		world.add_child(host)
+	else:
+		var surface_rebase := frame.request_rebase(
+			(scene.get_node(^"LandingRegion") as Node3D).global_position,
+			frame.get_generation()
+		)
+		if not bool(surface_rebase.get("accepted", false)):
+			_check(false, "fixture requests the caller-owned surface-local rebase")
+			return {}
+		bootstrap.position += surface_rebase.request.world_translation_delta
+		if not bool(frame.commit_rebase(
+			surface_rebase.request.request_id, 2
+		).get("accepted", false)):
+			_check(false, "fixture commits surface-local frame generation three")
+			return {}
 
 	var berth := EmberSurfaceBerth.new()
 	world.add_child(berth)
@@ -702,6 +965,8 @@ func _fixture(
 		"player": player,
 		"area": area,
 		"original_source": original_source,
+		"origin_binding": origin_binding,
+		"origin_owner": origin_owner,
 	}
 	if not bind_now:
 		return fixture
@@ -732,7 +997,8 @@ func _bind_fixture(fixture: Dictionary, composition_root: Node) -> Dictionary:
 		fixture.berth as EmberSurfaceBerth,
 		fixture.ship as ArrowReconShip,
 		fixture.player as PlayerController,
-		1.62, 1, 0, 0, composition_root
+		1.62, 1, 0, 0, composition_root,
+		fixture.origin_owner as CommonWorldOriginRebaseOwner
 	)
 
 
@@ -892,6 +1158,50 @@ func _tick(fixture: Dictionary) -> Dictionary:
 func _absolute(frame: PlanetaryCoordinateFrame, body_local: Vector3) -> Dictionary:
 	var encoded := frame.encode_body_local_position(body_local, frame.get_generation())
 	return (encoded.coordinate as Dictionary).orbital_coordinate as Dictionary
+
+
+func _commit_shared_origin_rebase(
+	fixture: Dictionary,
+	physical_ship_translation: Vector3
+) -> Dictionary:
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	ship.global_position += physical_ship_translation
+	player.teleport_to(ship.get_pilot_seat_anchor().global_transform)
+	var result := _consume_real_origin_rebase(
+		fixture.origin_binding as EmberMoonStreamingProductionBinding,
+		fixture.origin_owner as CommonWorldOriginRebaseOwner,
+		ship,
+	)
+	if not bool(result.get("accepted", false)):
+		_check(false, "origin fixture commits through the exact common-world owner")
+		return {}
+	return (result.get("receipt", {}) as Dictionary).duplicate(true)
+
+
+func _consume_real_origin_rebase(
+	binding: EmberMoonStreamingProductionBinding,
+	owner: CommonWorldOriginRebaseOwner,
+	actor: Node3D
+) -> Dictionary:
+	var sample := {
+		"available": true,
+		"position": actor.global_position,
+		"actor_kind": &"ship",
+		"actor_instance_id": actor.get_instance_id(),
+	}
+	binding.physics_tick_from_caller_sample(PHYSICS_DELTA, sample)
+	var generation := int(
+		binding.get_snapshot().get("bound_coordinate_frame_generation", 0)
+	)
+	var preview := binding.preview_origin_rebase(generation)
+	if not bool(preview.get("accepted", false)) \
+			or not bool(preview.get("rebase_required", false)):
+		return {
+			"accepted": false,
+			"reason": preview.get("reason", &"origin_preview_rejected"),
+		}
+	return owner.consume_rebase_preview(preview, sample)
 
 
 func _wait_for_bootstrap_identity(

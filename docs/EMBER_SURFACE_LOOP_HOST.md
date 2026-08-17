@@ -7,20 +7,26 @@ interpretation work and makes no historical-behaviour claim.
 The caller first performs the existing Ember body-centre rebase and streaming
 load, then a second explicit common-origin transaction that places the live
 landing tangent patch at local origin (coordinate-frame generation three in the
-focused fixture). The bootstrap and its loaded root participate in that
-transaction; the standalone fixture instantiates the berth overlay and actors
-immediately afterward in the resulting frame. Unre-based CharacterBody contact
-at 120 km is not claimed. It then supplies one exact loaded location generation,
-the production `EmberMoonStreamingBootstrap`, an `EmberSurfaceBerth`, one real Arrow recon
-ship, and the real `PlayerController`.
+focused fixture). In shared-root coverage, both commits run through the real
+`EmberMoonStreamingProductionBinding` preview and
+`CommonWorldOriginRebaseOwner.consume_rebase_preview()` transaction, including
+its quiescence, rollback and PhysicsServer synchronization contract. The
+bootstrap and its loaded root participate; the standalone fixture instantiates
+the berth overlay and actors immediately afterward in the resulting frame.
+Unre-based CharacterBody contact at 120 km is not claimed. It then supplies one
+exact loaded location generation, the production
+`EmberMoonStreamingBootstrap`, an `EmberSurfaceBerth`, one real Arrow recon ship,
+and the real `PlayerController`.
 
 `bind_dependencies()` freezes one explicit composition root. Omitting the final
 argument retains the standalone topology: the host itself is the root and all
 four dependencies are its direct children. A later production composition may
-supply `Main` instead; in that topology the host, bootstrap, berth, Arrow, and
-Player must all be exact direct children of that same root. The host records the
-root instance and checks that sibling topology for the full attachment. It
-never reparents any of them.
+supply `Main` instead; in that topology the host, bootstrap, berth, Arrow,
+Player, one `EmberMoonStreamingProductionBinding`, and one
+`CommonWorldOriginRebaseOwner` must all be exact siblings under that same root.
+The host freezes the root, owner and binding instance IDs and proves that both
+components bind its exact bootstrap and coordinate frame. It checks the sibling
+topology for the full attachment and never reparents any dependency.
 
 The fixture may place the actors once inside the authored corridor and establish
 the Player's public seated state. Start no longer depends on a synthetic exact
@@ -34,10 +40,19 @@ remain inside the full authored `(45, 60, 300)` corridor with `0.05 m` margin.
 These are a bounded subset and proof of the existing corridor, not new geometry.
 The evaluator only reads the public ship transform and velocity.
 
-The exact seated `ShipBoardingArea` reservation is transferred to the host at
-successful bind, so every terminal path has one explicit cleanup owner.
-After `start()`, neither the host nor its focused test writes an actor transform,
-velocity, parent, collision state, or physics-processing state.
+`bind_dependencies()` only freezes the existing seated
+`ShipBoardingArea` reservation and original ship command source; it neither
+installs its command source nor accepts reservation-cleanup ownership. `start()`
+first measures the complete typed approach envelope, then preflights the exact
+live Player token, piloted/seated state, and original command source. Only after
+the landing report and TravelSession start are accepted does it install the
+bounded command source and accept cleanup responsibility for that already-held
+reservation. A rejected start therefore cannot steal or reacquire GameFlow's
+command/reservation state and remains retryable. After an accepted start, the
+host writes no actor transform, velocity, parent, collision state, or
+physics-processing state. The focused receipt fixture applies only its explicit
+caller-owned common-world translation before asking the host to validate the
+committed result.
 
 ## Physical sequence
 
@@ -87,6 +102,8 @@ The host freezes and checks all of these identities on every caller tick:
 
 - host generation and attachment generation;
 - the bootstrap and coordinate-frame instances and frame generation;
+- for shared-root composition, the exact live origin-owner and Ember-binding
+  siblings plus their bootstrap/frame identities;
 - current bootstrap loaded-root instance ID;
 - exact coordinator/location generation and loaded-root metadata;
 - exact shared composition-root instance and direct-child topology;
@@ -94,10 +111,10 @@ The host freezes and checks all of these identities on every caller tick:
 - Arrow definition and instance ID, Player instance ID, berth and boarding-area
   instances.
 
-Queued deletion, unloaded/replaced roots, N→N+2 generation replay, coordinate
-rebase, composition-root/topology drift, ship destruction, landing abort,
-obstruction/support mismatch, or any
-detached dependency fails the TravelSession. Synchronous destruction during a
+Queued deletion, unloaded/replaced roots, N→N+2 generation replay, an
+unadopted coordinate rebase, composition-root/topology drift, ship destruction,
+landing abort, obstruction/support mismatch, or any detached dependency fails
+the TravelSession. Synchronous destruction during a
 berth or ship signal is retained by a first-wins pending-terminal guard and is
 committed before the outer host mutation can return success. Explicit detach
 disconnects callbacks, restores the prior command/control/gravity bindings,
@@ -105,6 +122,30 @@ releases only host-owned leases, detaches the TravelSession, and advances the
 host attachment generation so old tokens cannot resume it. Releasing an active
 landing lease uses the existing HeroShip next-physics `reservation_lost` abort;
 no private landing method is called.
+
+While the loop is active, the ship's exact command source is also a frozen
+dependency. A foreign public `set_command_source()` replacement terminalizes
+the host on the next caller tick. Cleanup neutralizes and retires only the
+host-owned producer, releases only the host-owned Player/berth tokens, restores
+the other actor bindings it owns, and deliberately leaves the foreign source
+installed and attached. It never overwrites a later command owner with the
+captured pre-loop source.
+
+During an active shared-root loop, a caller may pass the exact detached receipt
+from an already committed `CommonWorldOriginRebaseOwner` transaction to
+`adopt_committed_origin_rebase()`. Adoption is caller-driven and accepts only
+the frozen live sibling owner's current `last_receipt`, with exact transaction,
+bootstrap, production-binding and coordinate-frame identity, and only for an
+exact current N→N+1 frame commit with no pending rebase. It reconstructs the
+complete sorted Node3D root roster and covered-instance roster from the frozen
+composition root, matches every path/mode/instance ID, preserves the exact
+bootstrap/location/loaded-scene identities and landing tangent relations, and
+re-encodes the current ship or Player position to prove the receipt's absolute
+orbital observation is unchanged. A valid receipt updates only the host's
+coordinate-frame-generation fence and detached audit evidence. The host never
+requests, applies, commits, cancels, or defers an origin transaction; standalone
+self-root composition deliberately rejects this production-oriented adoption
+seam because it cannot prove the external common-world roster.
 
 Failure or detach during public boarding/disembark is atomic: the host first
 commits its terminal state, disconnects callbacks and releases exact leases,
@@ -130,13 +171,25 @@ owner, keep the Player publicly seated/piloting with the exact boarding
 reservation, and call `start()` with current generations. The host neither
 teleports nor brakes a rejected candidate into compliance.
 
+After `COMPLETED`, `return_runtime_ownership()` provides one atomic handback for
+a later production GameFlow owner. It preflights the exact host command source,
+seated Player token, actor/control/camera/gravity state, empty berth lease, and
+attached TravelSession; restores the original ship command source; detaches the
+session and bounded producer; retires the host attachment generation; and leaves
+the exact Player reservation continuously held. Its returned dictionary is a
+deep-detached identity/serial receipt, not a capability. If a preflight or
+session detach is rejected, command/reservation ownership remains unchanged.
+The host stays single-use. Ordinary failure/detach continues to restore bindings
+and release only cleanup ownership that an accepted start actually transferred.
+
 Production now has a `CommonWorldOriginRebaseOwner` that can translate station,
 Cinder, Ember, actors, effects and streaming roots atomically. This standalone
 host does not own or invoke it: production still needs explicit
 GameFlow/activity selection that enters the loop only after the existing owner
-has committed the surface-local frame and that forwards later generation
-changes fail-closed. Until then, this remains a standalone proof entered only
-after caller-owned rebase/load. It grants no reward and does not save progress.
+has committed the surface-local frame, forwards later committed receipts, and
+accepts the completion handback. Until then, this remains a standalone proof
+entered only after caller-owned rebase/load. It grants no reward and does not
+save progress.
 
 Focused gate (after editor import):
 
