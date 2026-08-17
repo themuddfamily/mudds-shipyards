@@ -53,6 +53,8 @@ const VIP_FACADE_COLUMN_TRIM_INNER_RADIUS := 0.19
 const VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS := 0.28
 const VIP_FACADE_COLUMN_TRIM_RINGS := 48
 const VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS := 16
+const VIP_FACADE_COLUMN_TRIM_BUDGETED_RINGS := 32
+const VIP_FACADE_COLUMN_TRIM_BUDGETED_RING_SEGMENTS := 14
 const VIP_FACADE_COLUMN_TRIM_COPY_COUNT := 4
 const VIP_FACADE_COLUMN_TRIM_TRANSFORMS := [
 	Transform3D(Basis.IDENTITY, Vector3(-9.0, 4.43, 20.02)),
@@ -822,12 +824,24 @@ func get_vip_facade_column_trim_batch_audit() -> Dictionary:
 			errors.append("vip_facade_column_trim_gained_semantic_authority")
 		if not is_equal_approx(mesh.inner_radius, VIP_FACADE_COLUMN_TRIM_INNER_RADIUS) \
 			or not is_equal_approx(mesh.outer_radius, VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS) \
-			or mesh.rings != VIP_FACADE_COLUMN_TRIM_RINGS \
-			or mesh.ring_segments != VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS \
+			or mesh.rings != VIP_FACADE_COLUMN_TRIM_BUDGETED_RINGS \
+			or mesh.ring_segments != VIP_FACADE_COLUMN_TRIM_BUDGETED_RING_SEGMENTS \
 			or mesh.get_surface_count() != 1 \
 			or mesh.material != null \
 			or mesh.resource_local_to_scene:
 			errors.append("vip_facade_column_trim_mesh_recipe_drift")
+		var authored_tessellation: Variant = mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		var mesh_metadata := mesh.get_meta_list()
+		if authored_tessellation is not Vector2i \
+			or authored_tessellation != Vector2i(
+				VIP_FACADE_COLUMN_TRIM_RINGS,
+				VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
+			) \
+			or mesh_metadata.size() != 1 \
+			or not mesh_metadata.has(TorusGeometryBudget.AUTHORED_META):
+			errors.append("vip_facade_column_trim_budget_metadata_drift")
 	if vip == null:
 		errors.append("vip_facade_landmark_missing")
 	else:
@@ -873,6 +887,13 @@ func get_vip_facade_column_trim_batch_audit() -> Dictionary:
 		"renderer_buffer": expected_buffer.duplicate(),
 		"renderer_buffer_float_count": multimesh.buffer.size() if multimesh != null else 0,
 		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
+		"authored_tessellation": Vector2i(
+			VIP_FACADE_COLUMN_TRIM_RINGS,
+			VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
+		),
+		"live_tessellation": Vector2i(
+			mesh.rings, mesh.ring_segments
+		) if mesh != null else Vector2i.ZERO,
 		"material_identity_preserved": (
 			batch != null and batch.material_override == _materials.get("brass")
 		),
@@ -2630,15 +2651,20 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var frame_x := -5.15 + float(side) * 3.85
 		_cylinder(vip, "VIPFacadeColumn", Vector3(frame_x, 6.25, 20.02), 0.18, 4.15, _materials["hull_dark"], false)
+	var trim_mesh := _torus_mesh(
+		VIP_FACADE_COLUMN_TRIM_INNER_RADIUS,
+		VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS,
+		VIP_FACADE_COLUMN_TRIM_RINGS,
+		VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
+	)
+	# MultiMesh resources are not visited by the global MeshInstance3D sweep.
+	# Apply the same budget eagerly and retain its authored metadata so this batch
+	# has the exact live recipe the four retired ordinary renderers had.
+	TorusGeometryBudget.apply(trim_mesh, 1.0)
 	_vip_facade_column_trim_batch = _multimesh_torus(
 		vip,
 		"VIPFacadeColumnTrimBatch",
-		_torus_mesh(
-			VIP_FACADE_COLUMN_TRIM_INNER_RADIUS,
-			VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS,
-			VIP_FACADE_COLUMN_TRIM_RINGS,
-			VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
-		),
+		trim_mesh,
 		_materials["brass"],
 		_vip_facade_column_trim_transforms()
 	)

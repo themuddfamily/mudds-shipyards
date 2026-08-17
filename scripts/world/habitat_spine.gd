@@ -46,11 +46,15 @@ const NUTRIENT_TANK_BAND_INNER_RADIUS := 0.40
 const NUTRIENT_TANK_BAND_OUTER_RADIUS := 0.47
 const NUTRIENT_TANK_BAND_RINGS := 48
 const NUTRIENT_TANK_BAND_RING_SEGMENTS := 16
+const NUTRIENT_TANK_BAND_BUDGETED_RINGS := 40
+const NUTRIENT_TANK_BAND_BUDGETED_RING_SEGMENTS := 12
 const NUTRIENT_TANK_BAND_COPY_COUNT := 3
 const NUTRIENT_VALVE_INNER_RADIUS := 0.13
 const NUTRIENT_VALVE_OUTER_RADIUS := 0.20
 const NUTRIENT_VALVE_RINGS := 48
 const NUTRIENT_VALVE_RING_SEGMENTS := 16
+const NUTRIENT_VALVE_BUDGETED_RINGS := 32
+const NUTRIENT_VALVE_BUDGETED_RING_SEGMENTS := 12
 const NUTRIENT_VALVE_COPY_COUNT := 3
 const RENDER_DESCENDANT_COUNT := 1907
 const RENDER_MESH_INSTANCE_COUNT := 1257
@@ -446,6 +450,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("Habitat nutrient-tank-band culling bounds drifted from its authored copies")
 	if not bool(render.nutrient_tank_band_recipe_matches_authored):
 		errors.append("Habitat nutrient-tank-band TorusMesh recipe drifted")
+	if not bool(render.nutrient_tank_band_budget_metadata_matches_authored):
+		errors.append("Habitat nutrient-tank-band torus-budget metadata drifted")
 	if (
 		not bool(render.nutrient_tank_band_material_matches_authored)
 		or not bool(render.nutrient_tank_band_renderer_state_matches_authored)
@@ -459,6 +465,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("Habitat nutrient-valve culling bounds drifted from its authored copies")
 	if not bool(render.nutrient_valve_recipe_matches_authored):
 		errors.append("Habitat nutrient-valve TorusMesh recipe drifted")
+	if not bool(render.nutrient_valve_budget_metadata_matches_authored):
+		errors.append("Habitat nutrient-valve torus-budget metadata drifted")
 	if (
 		not bool(render.nutrient_valve_material_matches_authored)
 		or not bool(render.nutrient_valve_renderer_state_matches_authored)
@@ -737,6 +745,7 @@ func get_render_allocation_report() -> Dictionary:
 	)
 	var nutrient_bounds_match := false
 	var nutrient_recipe_matches := false
+	var nutrient_budget_metadata_matches := false
 	var nutrient_material_matches := false
 	var nutrient_renderer_state_matches := false
 	var nutrient_authority_clean := false
@@ -758,10 +767,24 @@ func get_render_allocation_report() -> Dictionary:
 			and torus == _nutrient_tank_band_mesh
 			and is_equal_approx(torus.inner_radius, NUTRIENT_TANK_BAND_INNER_RADIUS)
 			and is_equal_approx(torus.outer_radius, NUTRIENT_TANK_BAND_OUTER_RADIUS)
-			and torus.rings == NUTRIENT_TANK_BAND_RINGS
-			and torus.ring_segments == NUTRIENT_TANK_BAND_RING_SEGMENTS
+			and torus.rings == NUTRIENT_TANK_BAND_BUDGETED_RINGS
+			and torus.ring_segments == NUTRIENT_TANK_BAND_BUDGETED_RING_SEGMENTS
 			and torus.get_surface_count() == 1
 		)
+		if torus != null:
+			var nutrient_mesh_metadata := torus.get_meta_list()
+			var nutrient_authored_tessellation: Variant = torus.get_meta(
+				TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+			)
+			nutrient_budget_metadata_matches = (
+				nutrient_authored_tessellation is Vector2i
+				and nutrient_authored_tessellation == Vector2i(
+					NUTRIENT_TANK_BAND_RINGS,
+					NUTRIENT_TANK_BAND_RING_SEGMENTS
+				)
+				and nutrient_mesh_metadata.size() == 1
+				and nutrient_mesh_metadata.has(TorusGeometryBudget.AUTHORED_META)
+			)
 		nutrient_material_matches = (
 			_nutrient_tank_band_batch.material_override == _materials.get("copper")
 		)
@@ -799,6 +822,7 @@ func get_render_allocation_report() -> Dictionary:
 	)
 	var valve_bounds_match := false
 	var valve_recipe_matches := false
+	var valve_budget_metadata_matches := false
 	var valve_material_matches := false
 	var valve_renderer_state_matches := false
 	var valve_authority_clean := false
@@ -817,10 +841,24 @@ func get_render_allocation_report() -> Dictionary:
 			and valve_torus == _nutrient_valve_mesh
 			and is_equal_approx(valve_torus.inner_radius, NUTRIENT_VALVE_INNER_RADIUS)
 			and is_equal_approx(valve_torus.outer_radius, NUTRIENT_VALVE_OUTER_RADIUS)
-			and valve_torus.rings == NUTRIENT_VALVE_RINGS
-			and valve_torus.ring_segments == NUTRIENT_VALVE_RING_SEGMENTS
+			and valve_torus.rings == NUTRIENT_VALVE_BUDGETED_RINGS
+			and valve_torus.ring_segments == NUTRIENT_VALVE_BUDGETED_RING_SEGMENTS
 			and valve_torus.get_surface_count() == 1
 		)
+		if valve_torus != null:
+			var valve_mesh_metadata := valve_torus.get_meta_list()
+			var valve_authored_tessellation: Variant = valve_torus.get_meta(
+				TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+			)
+			valve_budget_metadata_matches = (
+				valve_authored_tessellation is Vector2i
+				and valve_authored_tessellation == Vector2i(
+					NUTRIENT_VALVE_RINGS,
+					NUTRIENT_VALVE_RING_SEGMENTS
+				)
+				and valve_mesh_metadata.size() == 1
+				and valve_mesh_metadata.has(TorusGeometryBudget.AUTHORED_META)
+			)
 		valve_material_matches = _nutrient_valve_batch.material_override == _materials.get("red")
 		valve_renderer_state_matches = (
 			valve_multi.instance_count == NUTRIENT_VALVE_COPY_COUNT
@@ -907,6 +945,16 @@ func get_render_allocation_report() -> Dictionary:
 		"nutrient_tank_band_renderer_buffer_matches_authored": nutrient_buffer_matches,
 		"nutrient_tank_band_bounds_match_authored": nutrient_bounds_match,
 		"nutrient_tank_band_recipe_matches_authored": nutrient_recipe_matches,
+		"nutrient_tank_band_budget_metadata_matches_authored": (
+			nutrient_budget_metadata_matches
+		),
+		"nutrient_tank_band_authored_tessellation": Vector2i(
+			NUTRIENT_TANK_BAND_RINGS, NUTRIENT_TANK_BAND_RING_SEGMENTS
+		),
+		"nutrient_tank_band_live_tessellation": Vector2i(
+			_nutrient_tank_band_mesh.rings,
+			_nutrient_tank_band_mesh.ring_segments
+		) if _nutrient_tank_band_mesh != null else Vector2i.ZERO,
 		"nutrient_tank_band_material_matches_authored": nutrient_material_matches,
 		"nutrient_tank_band_renderer_state_matches_authored": nutrient_renderer_state_matches,
 		"nutrient_tank_band_authority_clean": nutrient_authority_clean,
@@ -938,6 +986,16 @@ func get_render_allocation_report() -> Dictionary:
 		"nutrient_valve_renderer_buffer_matches_authored": valve_buffer_matches,
 		"nutrient_valve_bounds_match_authored": valve_bounds_match,
 		"nutrient_valve_recipe_matches_authored": valve_recipe_matches,
+		"nutrient_valve_budget_metadata_matches_authored": (
+			valve_budget_metadata_matches
+		),
+		"nutrient_valve_authored_tessellation": Vector2i(
+			NUTRIENT_VALVE_RINGS, NUTRIENT_VALVE_RING_SEGMENTS
+		),
+		"nutrient_valve_live_tessellation": Vector2i(
+			_nutrient_valve_mesh.rings,
+			_nutrient_valve_mesh.ring_segments
+		) if _nutrient_valve_mesh != null else Vector2i.ZERO,
 		"nutrient_valve_material_matches_authored": valve_material_matches,
 		"nutrient_valve_renderer_state_matches_authored": valve_renderer_state_matches,
 		"nutrient_valve_authority_clean": valve_authority_clean,
@@ -2104,6 +2162,10 @@ func _build_garden_service(branch: Node3D) -> void:
 	_nutrient_tank_band_mesh.outer_radius = NUTRIENT_TANK_BAND_OUTER_RADIUS
 	_nutrient_tank_band_mesh.rings = NUTRIENT_TANK_BAND_RINGS
 	_nutrient_tank_band_mesh.ring_segments = NUTRIENT_TANK_BAND_RING_SEGMENTS
+	# MultiMesh resources are outside the global MeshInstance3D torus sweep.
+	# Apply the same budget eagerly so the batch exactly matches the three retired
+	# live bands while retaining their 48x16 authored tessellation metadata.
+	TorusGeometryBudget.apply(_nutrient_tank_band_mesh, 1.0)
 	_nutrient_tank_band_transforms.clear()
 	for tank_index in 3:
 		var tank_x := 12.30 + float(tank_index) * 1.00
@@ -2131,6 +2193,7 @@ func _build_garden_service(branch: Node3D) -> void:
 	_nutrient_valve_mesh.outer_radius = NUTRIENT_VALVE_OUTER_RADIUS
 	_nutrient_valve_mesh.rings = NUTRIENT_VALVE_RINGS
 	_nutrient_valve_mesh.ring_segments = NUTRIENT_VALVE_RING_SEGMENTS
+	TorusGeometryBudget.apply(_nutrient_valve_mesh, 1.0)
 	_nutrient_valve_transforms.clear()
 	for valve_x in [12.30, 13.30, 14.30]:
 		_nutrient_valve_transforms.append(

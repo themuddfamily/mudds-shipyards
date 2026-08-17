@@ -707,14 +707,20 @@ func _test_nutrient_tank_band_batch(module: HabitatSpine) -> void:
 		torus != null
 		and is_equal_approx(torus.inner_radius, HabitatSpine.NUTRIENT_TANK_BAND_INNER_RADIUS)
 		and is_equal_approx(torus.outer_radius, HabitatSpine.NUTRIENT_TANK_BAND_OUTER_RADIUS)
-		and torus.rings == HabitatSpine.NUTRIENT_TANK_BAND_RINGS
-		and torus.ring_segments == HabitatSpine.NUTRIENT_TANK_BAND_RING_SEGMENTS
+		and torus.rings == HabitatSpine.NUTRIENT_TANK_BAND_BUDGETED_RINGS
+		and torus.ring_segments \
+			== HabitatSpine.NUTRIENT_TANK_BAND_BUDGETED_RING_SEGMENTS
 		and torus.get_surface_count() == 1
+		and torus.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+			== Vector2i(
+				HabitatSpine.NUTRIENT_TANK_BAND_RINGS,
+				HabitatSpine.NUTRIENT_TANK_BAND_RING_SEGMENTS
+			)
 		and copper_reference != null
 		and batch.material_override == copper_reference.material_override
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1,
-		"batch preserves the exact TorusMesh recipe, copper material identity, shadows and render layer"
+		"batch preserves the prior live 40x12 recipe, 48x16 authored metadata, copper identity, shadows and render layer"
 	)
 	var tanks := service.get_children().filter(
 		func(candidate: Node) -> bool:
@@ -781,6 +787,9 @@ func _test_nutrient_tank_band_batch(module: HabitatSpine) -> void:
 		bool(report.nutrient_tank_band_renderer_buffer_matches_authored)
 		and bool(report.nutrient_tank_band_bounds_match_authored)
 		and bool(report.nutrient_tank_band_recipe_matches_authored)
+		and bool(report.nutrient_tank_band_budget_metadata_matches_authored)
+		and report.nutrient_tank_band_authored_tessellation == Vector2i(48, 16)
+		and report.nutrient_tank_band_live_tessellation == Vector2i(40, 12)
 		and bool(report.nutrient_tank_band_material_matches_authored)
 		and bool(report.nutrient_tank_band_renderer_state_matches_authored)
 		and bool(report.nutrient_tank_band_authority_clean)
@@ -826,6 +835,19 @@ func _test_nutrient_tank_band_batch(module: HabitatSpine) -> void:
 		"RED: mutating the live TorusMesh recipe is rejected by the Habitat audit"
 	)
 	torus.rings = original_rings
+	var original_authored_tessellation: Vector2i = torus.get_meta(
+		TorusGeometryBudget.AUTHORED_META
+	)
+	torus.set_meta(TorusGeometryBudget.AUTHORED_META, Vector2i(47, 16))
+	_check(
+		module.get_validation_errors().has(
+			"Habitat nutrient-tank-band torus-budget metadata drifted"
+		),
+		"RED: mutating band authored-budget metadata is rejected"
+	)
+	torus.set_meta(
+		TorusGeometryBudget.AUTHORED_META, original_authored_tessellation
+	)
 	batch.set_meta("evidence_status", &"source_supported")
 	_check(
 		module.get_validation_errors().has(
@@ -875,14 +897,20 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 		torus != null
 		and is_equal_approx(torus.inner_radius, HabitatSpine.NUTRIENT_VALVE_INNER_RADIUS)
 		and is_equal_approx(torus.outer_radius, HabitatSpine.NUTRIENT_VALVE_OUTER_RADIUS)
-		and torus.rings == HabitatSpine.NUTRIENT_VALVE_RINGS
-		and torus.ring_segments == HabitatSpine.NUTRIENT_VALVE_RING_SEGMENTS
+		and torus.rings == HabitatSpine.NUTRIENT_VALVE_BUDGETED_RINGS
+		and torus.ring_segments \
+			== HabitatSpine.NUTRIENT_VALVE_BUDGETED_RING_SEGMENTS
 		and torus.get_surface_count() == 1
+		and torus.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+			== Vector2i(
+				HabitatSpine.NUTRIENT_VALVE_RINGS,
+				HabitatSpine.NUTRIENT_VALVE_RING_SEGMENTS
+			)
 		and red_reference != null
 		and batch.material_override == red_reference.material_override
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1,
-		"batch preserves the exact TorusMesh recipe, red material identity, shadows and render layer"
+		"batch preserves the prior live 32x12 recipe, 48x16 authored metadata, red identity, shadows and render layer"
 	)
 	var old_valves := service.get_children().filter(
 		func(candidate: Node) -> bool:
@@ -940,6 +968,9 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 		bool(report.nutrient_valve_renderer_buffer_matches_authored)
 		and bool(report.nutrient_valve_bounds_match_authored)
 		and bool(report.nutrient_valve_recipe_matches_authored)
+		and bool(report.nutrient_valve_budget_metadata_matches_authored)
+		and report.nutrient_valve_authored_tessellation == Vector2i(48, 16)
+		and report.nutrient_valve_live_tessellation == Vector2i(32, 12)
 		and bool(report.nutrient_valve_material_matches_authored)
 		and bool(report.nutrient_valve_renderer_state_matches_authored)
 		and bool(report.nutrient_valve_authority_clean)
@@ -985,6 +1016,19 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 		"RED: mutating the live valve TorusMesh recipe is rejected by the Habitat audit"
 	)
 	torus.ring_segments = original_segments
+	var original_authored_tessellation: Vector2i = torus.get_meta(
+		TorusGeometryBudget.AUTHORED_META
+	)
+	torus.set_meta(TorusGeometryBudget.AUTHORED_META, Vector2i(48, 15))
+	_check(
+		module.get_validation_errors().has(
+			"Habitat nutrient-valve torus-budget metadata drifted"
+		),
+		"RED: mutating valve authored-budget metadata is rejected"
+	)
+	torus.set_meta(
+		TorusGeometryBudget.AUTHORED_META, original_authored_tessellation
+	)
 	batch.set_meta("station_service_detail", true)
 	_check(
 		module.get_validation_errors().has(

@@ -514,10 +514,18 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and is_equal_approx(
 			mesh.outer_radius, AftJunctionStack.VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS
 		)
-		and mesh.rings == AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RINGS
-		and mesh.ring_segments == AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
-		and mesh.get_surface_count() == 1,
-		"batch retains exact authored transform ordering, 48-float renderer buffer, culling union and 48x16 torus recipe"
+		and mesh.rings == AftJunctionStack.VIP_FACADE_COLUMN_TRIM_BUDGETED_RINGS
+		and mesh.ring_segments \
+			== AftJunctionStack.VIP_FACADE_COLUMN_TRIM_BUDGETED_RING_SEGMENTS
+		and mesh.get_surface_count() == 1
+		and mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+			== Vector2i(
+				AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RINGS,
+				AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
+			)
+		and report.authored_tessellation == Vector2i(48, 16)
+		and report.live_tessellation == Vector2i(32, 14),
+		"batch retains exact transform/buffer/culling evidence and the prior live 32x14 recipe with 48x16 authored metadata"
 	)
 	var vip := module.get_node_or_null(^"Structure/VIPLandmark")
 	var authority := module.get_authority_contract()
@@ -594,6 +602,20 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		"RED recipe mutation rejects a lower-detail VIP trim torus"
 	)
 	mesh.rings = original_rings
+	var original_authored_tessellation: Vector2i = mesh.get_meta(
+		TorusGeometryBudget.AUTHORED_META
+	)
+	mesh.set_meta(TorusGeometryBudget.AUTHORED_META, Vector2i(47, 16))
+	_check(
+		not bool(module.get_vip_facade_column_trim_batch_audit().valid)
+		and (module.get_vip_facade_column_trim_batch_audit().errors as PackedStringArray).has(
+			"vip_facade_column_trim_budget_metadata_drift"
+		),
+		"RED budget-metadata mutation rejects a VIP trim mesh detached from its authored 48x16 recipe"
+	)
+	mesh.set_meta(
+		TorusGeometryBudget.AUTHORED_META, original_authored_tessellation
+	)
 	var original_material := batch.material_override
 	batch.material_override = null
 	_check(
