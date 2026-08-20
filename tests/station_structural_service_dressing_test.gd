@@ -444,6 +444,60 @@ func _run() -> void:
 	task_light.light_cull_mask = original_cull_mask
 	_check(bool(dressing.get_audit_report().valid), "restoring structural resources and task light restores the complete audit")
 
+	var lifecycle_before := _presentation_snapshot(dressing)
+	root.remove_child(dressing)
+	dressing.set_dressing_enabled(false)
+	var detached_quality := dressing.set_quality_level(
+		StationStructuralServiceDressing.DetailQuality.LOW
+	)
+	_check(
+		not dressing.is_inside_tree()
+			and not detached_quality
+			and _presentation_snapshot(dressing) == lifecycle_before,
+		"detached direct dressing profile mutators leave retained presentation atomic"
+	)
+	root.add_child(dressing)
+	dressing.set_dressing_enabled(false)
+	var reentered_low := dressing.set_quality_level(
+		StationStructuralServiceDressing.DetailQuality.LOW
+	)
+	var low_reentry := _presentation_snapshot(dressing)
+	_check(
+		dressing.is_inside_tree()
+			and reentered_low
+			and not bool(low_reentry.get("enabled", true))
+			and int(low_reentry.get("quality", -1)) \
+				== StationStructuralServiceDressing.DetailQuality.LOW
+			and not bool(low_reentry.get("presentation_visible", true))
+			and not bool(low_reentry.get("service_visible", true))
+			and not bool(low_reentry.get("high_visible", true))
+			and int(low_reentry.get("visible_primitives", -1)) == 0
+			and int(low_reentry.get("visible_lights", -1)) == 0,
+		"readded dressing accepts fresh live disable and low-detail presentation control"
+	)
+	dressing.set_dressing_enabled(true)
+	var reentered_high := dressing.set_quality_level(
+		StationStructuralServiceDressing.DetailQuality.HIGH
+	)
+	_check(
+		reentered_high and _presentation_snapshot(dressing) == lifecycle_before,
+		"fresh live re-entry restores the exact high-detail presentation contract"
+	)
+
+	var queued_before := _presentation_snapshot(dressing)
+	dressing.queue_free()
+	dressing.set_dressing_enabled(false)
+	var queued_quality := dressing.set_quality_level(
+		StationStructuralServiceDressing.DetailQuality.LOW
+	)
+	_check(
+		dressing.is_inside_tree()
+			and dressing.is_queued_for_deletion()
+			and not queued_quality
+			and _presentation_snapshot(dressing) == queued_before,
+		"queued direct dressing profile mutators leave retained presentation atomic"
+	)
+
 	var dressing_reference: WeakRef = weakref(dressing)
 	var turned_reference: WeakRef = weakref(turned) if turned != null else null
 	if turned != null:
@@ -473,6 +527,26 @@ func _subtree_has_only_allowed_static_nodes(node: Node) -> bool:
 		if not _subtree_has_only_allowed_static_nodes(child):
 			return false
 	return true
+
+
+func _presentation_snapshot(dressing: StationStructuralServiceDressing) -> Dictionary:
+	var presentation_root := dressing.get_node_or_null(^"PresentationRoot") as Node3D
+	var service_root := dressing.get_node_or_null(
+		^"PresentationRoot/ServiceDetailRoot"
+	) as Node3D
+	var high_root := dressing.get_node_or_null(
+		^"PresentationRoot/HighDetailRoot"
+	) as Node3D
+	var counts := dressing.get_performance_audit().get("counts", {}) as Dictionary
+	return {
+		"enabled": dressing.is_dressing_enabled(),
+		"quality": dressing.get_quality_level(),
+		"presentation_visible": presentation_root.visible if presentation_root != null else false,
+		"service_visible": service_root.visible if service_root != null else false,
+		"high_visible": high_root.visible if high_root != null else false,
+		"visible_primitives": int(counts.get("visible_primitives", -1)),
+		"visible_lights": int(counts.get("visible_lights", -1)),
+	}.duplicate(true)
 
 
 func _subtree_meshes_fit_footprint(

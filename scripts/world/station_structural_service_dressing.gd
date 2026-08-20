@@ -191,6 +191,8 @@ func get_dressing_center_transform() -> Transform3D:
 
 
 func set_dressing_enabled(enabled: bool) -> void:
+	if not _is_current():
+		return
 	_dressing_enabled = enabled
 	_refresh_visibility()
 
@@ -200,6 +202,8 @@ func is_dressing_enabled() -> bool:
 
 
 func set_quality_level(level: int) -> bool:
+	if not _is_current():
+		return false
 	if not _is_valid_quality(level):
 		return false
 	_quality_level = level
@@ -209,6 +213,10 @@ func set_quality_level(level: int) -> bool:
 
 func get_quality_level() -> int:
 	return _quality_level
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_configuration() -> Dictionary:
