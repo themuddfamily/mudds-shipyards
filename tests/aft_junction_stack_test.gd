@@ -53,6 +53,7 @@ func _run() -> void:
 	_test_vip_landmark(module)
 	await _test_negative_space(module)
 	_test_collision_matrix(module)
+	await _test_module_enabled_currentness(module)
 	await _test_cleanup(module)
 	_finish()
 
@@ -1901,6 +1902,69 @@ func _test_collision_matrix(module: AftJunctionStack) -> void:
 			every_body_shaped = false
 	_check(every_body_canonical, "every static collider follows the canonical World layer/mask contract")
 	_check(every_body_shaped, "every static body owns at least one real collision shape")
+
+
+func _test_module_enabled_currentness(module: AftJunctionStack) -> void:
+	var original_index := module.get_index()
+	_test_root.remove_child(module)
+	_check(not module.is_inside_tree(), "a detached Aft module is no longer a live lifecycle target")
+	var detached_before := _module_lifecycle_mutation_snapshot(module)
+	module.set_module_enabled(false)
+	_check(
+		module.is_module_enabled()
+		and _module_lifecycle_mutation_snapshot(module) == detached_before,
+		"a detached Aft module rejects disable without retaining collision, visibility, or processing drift"
+	)
+	_test_root.add_child(module)
+	_test_root.move_child(module, mini(original_index, _test_root.get_child_count() - 1))
+	await process_frame
+	var reentry_before := _module_lifecycle_mutation_snapshot(module)
+	module.set_module_enabled(false)
+	var disabled := module.get_lifecycle_contract()
+	_check(
+		not module.is_module_enabled()
+		and bool(disabled.visible_matches_enabled)
+		and bool(disabled.collision_matches_enabled)
+		and bool(disabled.process_matches_lifecycle),
+		"a reattached Aft module accepts a fresh disable and withdraws collision plus processing"
+	)
+	module.set_module_enabled(true)
+	_check(
+		module.is_module_enabled()
+		and _module_lifecycle_mutation_snapshot(module) == reentry_before,
+		"a fresh reentry restore returns the exact enabled lifecycle contract"
+	)
+
+	module.queue_free()
+	_check(
+		module.is_inside_tree() and module.is_queued_for_deletion(),
+		"a queued Aft module remains in-tree during its deletion window"
+	)
+	var queued_before := _module_lifecycle_mutation_snapshot(module)
+	module.set_module_enabled(false)
+	_check(
+		module.is_module_enabled()
+		and _module_lifecycle_mutation_snapshot(module) == queued_before,
+		"a queued Aft module rejects lifecycle mutation without retained drift"
+	)
+
+
+func _module_lifecycle_mutation_snapshot(module: AftJunctionStack) -> Dictionary:
+	var static_bodies: Array[Dictionary] = []
+	for candidate in module.find_children("*", "StaticBody3D", true, false):
+		var body := candidate as StaticBody3D
+		static_bodies.append({
+			"instance_id": body.get_instance_id(),
+			"collision_layer": body.collision_layer,
+			"visible": body.visible,
+		})
+	return {
+		"enabled": module.is_module_enabled(),
+		"visible": module.visible,
+		"processing": module.is_processing(),
+		"physics_processing": module.is_physics_processing(),
+		"static_bodies": static_bodies,
+	}.duplicate(true)
 
 
 func _test_cleanup(module: AftJunctionStack) -> void:

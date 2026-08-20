@@ -2133,11 +2133,13 @@ func get_vip_facade_column_trim_batch_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Applied unconditionally. A no-op guard on the flag made drifted state
-## unrepairable: if the nodes lost their layer or visibility while the flag still
-## read `true`, the obvious repair call returned immediately and the module
-## stayed unwalkable.
+## Applied unconditionally once the live module admits the request. A no-op guard
+## on the flag made drifted state unrepairable: if the nodes lost their layer or
+## visibility while the flag still read `true`, the obvious repair call returned
+## immediately and the module stayed unwalkable.
 func set_module_enabled(enabled: bool) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_module_enabled = enabled
 	_apply_enabled_state()
 
