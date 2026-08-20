@@ -152,6 +152,7 @@ func _run() -> void:
 	_test_deterministic_motion(activities)
 	_test_audio_contract(ambience_nodes)
 	_test_structural_contract(world, dressings)
+	await _test_visual_quality_currentness()
 	await _test_world_lifecycle(world, activities, ambience_nodes, dressings)
 	await _test_freed_emitter_callback_safety()
 	_test_world_audit_detects_placement_mutation(world, activities, dressings)
@@ -683,6 +684,10 @@ func _test_audio_contract(ambience_nodes: Array[StationMachineryAmbience]) -> vo
 
 
 func _test_structural_contract(world: ShipyardWorld, dressings: Array[StationStructuralServiceDressing]) -> void:
+	# The production fixture may retain a user-selected profile from its runtime
+	# settings pass. Establish the High-detail budget before auditing its exact
+	# resident presentation counts.
+	world.apply_visual_quality(2)
 	var total_nodes := 0
 	var total_meshes := 0
 	var total_lights := 0
@@ -709,6 +714,85 @@ func _test_structural_contract(world: ShipyardWorld, dressings: Array[StationStr
 	for dressing in dressings:
 		high_forwarded = high_forwarded and dressing.get_quality_level() == StationStructuralServiceDressing.DetailQuality.HIGH and int((dressing.get_performance_audit().counts as Dictionary).visible_primitives) == 41
 	_check(high_forwarded, "world High quality restores all prebuilt structural detail")
+
+
+func _test_visual_quality_currentness() -> void:
+	var world := WORLD_SCENE.instantiate() as ShipyardWorld
+	root.add_child(world)
+	await process_frame
+	await physics_frame
+	var dressings := world.get_station_structural_service_dressings()
+	var world_environment := world.get_node_or_null("ShipyardEnvironment") as WorldEnvironment
+	var environment: Environment = (
+		world_environment.environment if world_environment != null else null
+	)
+	_check(
+		environment != null and dressings.size() == 4,
+		"visual-quality currentness fixture resolves the live environment and four dressings"
+	)
+	if environment == null or dressings.size() != 4:
+		world.queue_free()
+		await process_frame
+		return
+
+	world.apply_visual_quality(2)
+	var parent := world.get_parent()
+	parent.remove_child(world)
+	var detached_before := _visual_quality_snapshot(world, dressings, environment)
+	var detached_result := world.apply_visual_quality(0)
+	_check(
+		not world.is_inside_tree()
+		and detached_result == detached_before.report
+		and _visual_quality_snapshot(world, dressings, environment) == detached_before,
+		"detached ShipyardWorld rejects visual-quality ingress without changing profile, environment, or children"
+	)
+
+	parent.add_child(world)
+	await process_frame
+	await physics_frame
+	var live_result := world.apply_visual_quality(0)
+	var all_low := world.visual_quality_level == 0
+	for dressing in dressings:
+		all_low = all_low and dressing.get_quality_level() == StationStructuralServiceDressing.DetailQuality.LOW
+	_check(
+		world.is_inside_tree() and int(live_result.get("quality", -1)) == 0 and all_low,
+		"reentered ShipyardWorld accepts a fresh Low-quality profile and forwards it to all visual consumers"
+	)
+
+	var queued_before := _visual_quality_snapshot(world, dressings, environment)
+	world.queue_free()
+	var queued_result := world.apply_visual_quality(2)
+	_check(
+		world.is_inside_tree()
+		and world.is_queued_for_deletion()
+		and queued_result == queued_before.report
+		and _visual_quality_snapshot(world, dressings, environment) == queued_before,
+		"queued ShipyardWorld rejects visual-quality ingress without retained profile or presentation mutation"
+	)
+	await process_frame
+	_check(not is_instance_valid(world), "visual-quality currentness fixture frees normally")
+
+
+func _visual_quality_snapshot(
+	world: ShipyardWorld,
+	dressings: Array[StationStructuralServiceDressing],
+	environment: Environment
+	) -> Dictionary:
+	var dressing_levels: Array[int] = []
+	for dressing in dressings:
+		dressing_levels.append(dressing.get_quality_level())
+	return {
+		"quality_level": world.visual_quality_level,
+		"report": world.get_visual_quality_report(),
+		"dressing_levels": dressing_levels,
+		"environment": {
+			"ssao_enabled": environment.ssao_enabled,
+			"glow_enabled": environment.glow_enabled,
+			"tonemap_exposure": environment.tonemap_exposure,
+			"fog_enabled": environment.fog_enabled,
+			"volumetric_fog_enabled": environment.volumetric_fog_enabled,
+		},
+	}.duplicate(true)
 
 
 func _test_world_lifecycle(

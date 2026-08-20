@@ -4170,6 +4170,8 @@ func _get_central_feature_counts(hero_root: Node3D) -> Dictionary:
 ## is deliberately local to the active viewport and does not mutate global
 ## renderer ProjectSettings.
 func apply_visual_quality(quality_level: int) -> Dictionary:
+	if not _can_apply_visual_quality():
+		return get_visual_quality_report()
 	visual_quality_level = clampi(quality_level, 0, 2)
 	_apply_operational_dressing_quality()
 	var world_environment := get_node_or_null("ShipyardEnvironment") as WorldEnvironment
@@ -4186,6 +4188,10 @@ func apply_visual_quality(quality_level: int) -> Dictionary:
 		visual_quality_level
 	)
 	return get_visual_quality_report()
+
+
+func _can_apply_visual_quality() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func _create_materials() -> void:
