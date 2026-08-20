@@ -53,11 +53,14 @@ func _run() -> void:
 func _make_ambience(
 		label: String,
 		seed: int,
-		frequency_hz: float = 52.5
+		frequency_hz: float = 52.5,
+		component_script: Script = null
 	) -> StationMachineryAmbience:
 	var ambience := AMBIENCE_SCENE.instantiate() as StationMachineryAmbience
 	if ambience == null:
 		return null
+	if component_script != null:
+		ambience.set_script(component_script)
 	ambience.name = label
 	ambience.emitter_id = StringName("%s-emitter" % label.to_lower())
 	ambience.synthesis_seed = seed
@@ -274,10 +277,20 @@ func _test_queued_reentry_restore_is_inert() -> void:
 
 
 func _test_queued_public_mutators_are_inert() -> void:
-	var ambience := _make_ambience("QueuedPublicMutators", 73429)
+	var pre_tree := AMBIENCE_SCENE.instantiate() as StationMachineryAmbience
+	if pre_tree != null:
+		pre_tree.set_ambience_enabled(false)
+		_check(
+			not pre_tree.is_ambience_enabled(),
+			"uninitialized pre-tree ambience retains authored enablement configuration"
+		)
+		pre_tree.queue_free()
+
+	var ambience := _make_ambience(
+		"QueuedPublicMutators", 73429, 52.5, RejectingStationAmbience
+	)
 	if ambience == null:
 		return
-	ambience.set_script(RejectingStationAmbience)
 	await process_frame
 	# Make the cue path reach its player preparation in headless runs. The
 	# rejecting hook leaves a bad queued guard observable through cue volume.
@@ -324,15 +337,25 @@ func _test_queued_public_mutators_are_inert() -> void:
 	await process_frame
 	var parent := reentered.get_parent()
 	parent.remove_child(reentered)
-	# Detached desired-state configuration remains deliberate and is applied by
-	# the same object after it has re-entered its live owner.
+	await process_frame
+	var detached_enabled := reentered.is_ambience_enabled()
+	var detached_synthesis := reentered.get_synthesis_report()
+	var detached_spatial := reentered.get_spatial_contract()
 	reentered.set_ambience_enabled(false)
+	_check(
+		not reentered.is_inside_tree()
+			and reentered.is_ambience_enabled() == detached_enabled
+			and reentered.get_synthesis_report() == detached_synthesis
+			and reentered.get_spatial_contract() == detached_spatial,
+		"initialized detached ambience enablement preserves retained desired state, resources, and voice contract"
+	)
 	parent.add_child(reentered)
 	await process_frame
 	await process_frame
 	_check(
-		not reentered.is_ambience_enabled() and _players_are_stopped_and_detached(reentered),
-		"a fresh re-entry still applies intentionally retained detached ambience configuration"
+		reentered.is_ambience_enabled()
+			and bool(reentered.get_synthesis_report().resources_ready),
+		"a fresh re-entry restores the retained enabled ambience lifecycle after detached rejection"
 	)
 	reentered.queue_free()
 	await process_frame

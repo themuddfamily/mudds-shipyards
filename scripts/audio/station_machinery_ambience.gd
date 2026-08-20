@@ -55,6 +55,7 @@ var _synthesis_generation_count := 0
 var _resources_ready := false
 var _audio_available := false
 var _tearing_down := false
+var _initialized := false
 var _has_synthesis_build_snapshot := false
 var _built_synthesis_seed := 0
 var _built_base_frequency_hz := 0.0
@@ -91,6 +92,7 @@ func _ready() -> void:
 	add_to_group(&"station_machinery_ambience")
 	_ensure_synthesized()
 	_apply_enabled_state()
+	_initialized = true
 
 
 func _exit_tree() -> void:
@@ -110,10 +112,10 @@ func get_emitter_id() -> StringName:
 ## detaches their streams, while retaining the small deterministic templates for
 ## a cheap restart. The Dummy driver never receives a playback request.
 func set_ambience_enabled(enabled: bool) -> void:
-	# Detached/pre-tree callers intentionally retain their desired configuration
-	# for the next entry, but a queued owner must not publish a new desired state
-	# or touch either voice while disposal is pending.
-	if is_queued_for_deletion():
+	# A fresh scene may receive authored/pre-tree configuration. Once this emitter
+	# has completed a live lifecycle, a detached or queued caller must not rewrite
+	# the retained desired state that its next entry will restore.
+	if _initialized and (_tearing_down or is_queued_for_deletion() or not is_inside_tree()):
 		return
 	ambience_enabled = enabled
 	if not is_inside_tree():
