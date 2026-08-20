@@ -596,6 +596,21 @@ func _test_authority_identity_lifecycle() -> void:
 	var adapter_before := picket.get_node_or_null("AuthoritativeDamageable")
 	var child_count_before := picket.get_child_count()
 	picket.queue_free()
+	var queued_transform := picket.global_transform
+	var queued_lifecycle := picket.get_audit_report().lifecycle as Dictionary
+	var queued_health := picket.get_health()
+	var queued_collision_layer := picket.collision_layer
+	var queued_collision_mask := picket.collision_mask
+	var queued_visible := picket.visible
+	var queued_state_event_count := _state_events.size()
+	var queued_activation := picket.activate(
+		Transform3D(Basis.IDENTITY, Vector3(48.0, 0.0, 0.0))
+	)
+	_check(
+		not bool(queued_activation.get("accepted", true))
+		and StringName(queued_activation.get("reason", &"")) == &"queued_for_deletion",
+		"a queued picket rejects direct activation before inherited lifecycle staging"
+	)
 	picket.call("_restore_after_reentry")
 	_check(
 		picket.is_queued_for_deletion()
@@ -608,6 +623,16 @@ func _test_authority_identity_lifecycle() -> void:
 		and picket.get_node_or_null("AuthoritativeDamageable") == adapter_before
 		and picket.get_child_count() == child_count_before,
 		"a queued picket re-entry cannot reclaim source, pulse signals, or damage-adapter hierarchy"
+	)
+	_check(
+		picket.global_transform == queued_transform
+		and picket.get_audit_report().lifecycle == queued_lifecycle
+		and is_equal_approx(picket.get_health(), queued_health)
+		and picket.collision_layer == queued_collision_layer
+		and picket.collision_mask == queued_collision_mask
+		and picket.visible == queued_visible
+		and _state_events.size() == queued_state_event_count,
+		"a queued direct activation mutates neither ship lifecycle nor engagement publication"
 	)
 
 	await _free_fixture(fixture)

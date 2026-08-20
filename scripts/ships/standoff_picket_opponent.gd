@@ -393,6 +393,14 @@ func get_validation_errors() -> PackedStringArray:
 # ------------------------------------------------------------- activation ----
 
 func activate(spawn_transform: Transform3D) -> Dictionary:
+	# A queued picket is still attached until the frame drain, but it can no
+	# longer safely reclaim collision, damage, or combat-authority ownership.
+	# Deliberately retain the inherited detached/pre-tree staging path.
+	if is_queued_for_deletion():
+		return {
+			"accepted": false,
+			"reason": &"queued_for_deletion",
+		}.duplicate(true)
 	var activation := super(spawn_transform) as Dictionary
 	if not bool(activation.get("accepted", false)):
 		return activation
