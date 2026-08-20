@@ -61,6 +61,7 @@ func _run() -> void:
 	await _test_frame_rate_equivalence()
 	await _test_pause_disable_and_reset()
 	await _test_no_gameplay_authority()
+	await _test_queued_reentry_restore_is_inert()
 	await _test_whole_main_detach_and_reentry()
 
 	_test_root.queue_free()
@@ -562,6 +563,35 @@ func _test_no_gameplay_authority() -> void:
 		_check(not bed.has_method(method_name), "bed exposes no %s gameplay entry point" % method_name)
 	_release(bed)
 	await process_frame
+
+
+func _test_queued_reentry_restore_is_inert() -> void:
+	var bed := _make_manual_bed("QueuedReentryBed", AcceptingMusicBed)
+	if bed == null:
+		return
+	await process_frame
+	var parent := bed.get_parent()
+	parent.remove_child(bed)
+	await process_frame
+	parent.add_child(bed)
+	# `_enter_tree()` has now queued its normal restore. A terminal disposal in
+	# the same turn must make that restore inert: no voice may be reattached after
+	# the owner has committed to deletion.
+	bed.queue_free()
+	var before := bed.get_state_snapshot()
+	var performance_before := bed.get_performance_report()
+	bed.call("_restore_after_enter_tree")
+	var after := bed.get_state_snapshot()
+	var performance_after := bed.get_performance_report()
+	_check(
+		bed.is_queued_for_deletion()
+		and after == before
+		and performance_after == performance_before
+		and (after["active_layer_ids"] as PackedStringArray).is_empty(),
+		"a queued post-reentry music bed cannot restore playback or mutate retained state"
+	)
+	await process_frame
+	_check(not is_instance_valid(bed), "the queued re-entry music-bed fixture frees normally")
 
 
 func _test_whole_main_detach_and_reentry() -> void:

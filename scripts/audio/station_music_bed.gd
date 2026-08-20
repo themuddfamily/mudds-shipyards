@@ -641,7 +641,12 @@ func _stop_and_detach(layer_id: StringName) -> void:
 
 
 func _restore_after_enter_tree() -> void:
-	if not _initialized or _tearing_down or not is_inside_tree():
+	if (
+		not _initialized
+		or _tearing_down
+		or is_queued_for_deletion()
+		or not is_inside_tree()
+	):
 		return
 	_configure_players()
 	_load_streams()
