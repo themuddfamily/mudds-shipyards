@@ -605,6 +605,13 @@ func _set_engagement_state(state: StringName) -> void:
 func _fire_at_target(target_position: Vector3) -> void:
 	if not _active or not is_inside_tree():
 		return
+	# Dispatch is checked only on the escort's physics cadence, but a committed
+	# charge can complete before that next cadence after the defender synchronously
+	# concludes the coordinator encounter. Re-check the same live coordinator
+	# condition at the irreversible resolver seam so a RETURN_TO_YARD transition
+	# cannot accept one stale lance shot.
+	if not _encounter_authorizes_dispatch():
+		return
 	var authority := _get_combat_authority()
 	var resolver: CombatResolver = (
 		authority.get_resolver() as CombatResolver if is_instance_valid(authority) else null

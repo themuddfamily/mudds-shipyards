@@ -279,12 +279,34 @@ func _test_production_encounter() -> void:
 	)
 
 	# --------------------------------- withdrawal keeps the guide winnable ----
+	# The defender's terminal signal switches GameFlow to RETURN_TO_YARD
+	# synchronously, while the picket withdraws on its next physics step. Keep the
+	# picket deliberately armed inside that one-call window: it may still be an
+	# active registered node, but must not commit another lance after the encounter
+	# has concluded.
+	var post_victory_sequence := resolver.get_last_sequence(picket, picket.source_id)
+	var post_victory_hull := float(torrent.get_telemetry().get("hull", 0.0))
+	var post_victory_pulses := int(pulse.get_statistics().presented)
+	var post_victory_receipts := picket.get_pending_lance_receipt_count()
+	picket._cooldown_remaining = 0.0
 	defender.apply_damage(defender.maximum_health + 1.0, defender.global_position)
-	await process_frame
 	_check(
 		game.phase == GameFlow.Phase.RETURN_TO_YARD,
 		"destroying the defender still completes the guided combat beat with the picket in play"
 	)
+	_check(
+		picket.is_active() and picket.is_combat_source_registered(),
+		"the terminal transition exposes the one-call pre-withdrawal picket window"
+	)
+	picket._fire_at_target(torrent.global_position)
+	_check(
+		resolver.get_last_sequence(picket, picket.source_id) == post_victory_sequence
+		and is_equal_approx(float(torrent.get_telemetry().get("hull", 0.0)), post_victory_hull)
+		and int(pulse.get_statistics().presented) == post_victory_pulses
+		and picket.get_pending_lance_receipt_count() == post_victory_receipts,
+		"a post-defender-destruction lance is withheld before sequence, hull, pulse, or receipt state changes"
+	)
+	await process_frame
 	var withdrawn := await _advance_until(
 		func() -> bool: return not picket.is_active(),
 		SETTLE_FRAME_BUDGET
