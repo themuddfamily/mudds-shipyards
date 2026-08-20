@@ -1987,6 +1987,8 @@ func _simple_token_rejection(
 	expected_generation: int,
 	expected_attachment_generation: int
 ) -> StringName:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return &"host_detached"
 	if expected_generation != _generation:
 		return &"stale_generation"
 	if expected_attachment_generation != _attachment_generation:
