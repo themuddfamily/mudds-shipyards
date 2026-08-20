@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://planetary-cruise-production-settings.json"
-const EXPECTED_ASSERTIONS := 37
+const EXPECTED_ASSERTIONS := 38
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -250,6 +250,31 @@ func _run() -> void:
 	var travel_direction := (old_destination_world - ship.global_position).normalized()
 	ship.global_position = travel_direction * 10_000.0
 	ship.velocity = travel_direction * 10.0
+	var accepted_ticks_before_rebase_failure := int(
+		binding.get_snapshot().get("accepted_tick_count", -1)
+	)
+	owner._commit_adapter = Callable(self, &"_reject_rebase_commit")
+	game._physics_process(1.0 / 60.0)
+	owner._commit_adapter = Callable()
+	var failed_rebase := binding.get_snapshot()
+	var failed_rebase_pending := (
+		ship.get_planetary_cruise_attachment_report().get("pending_envelope", {})
+		as Dictionary
+	)
+	ship._physics_process(1.0 / 60.0)
+	ship.velocity = travel_direction * 10.0
+	var resumed_after_failed_rebase := game.engage_planetary_cruise()
+	_check(
+		frame.get_generation() == 1
+			and (frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty()
+			and failed_rebase.get("last_reason") == &"origin_rebase_required"
+			and not bool(failed_rebase.get("engagement_requested", true))
+			and failed_rebase_pending.is_empty()
+			and int(failed_rebase.get("accepted_tick_count", -2))
+				== accepted_ticks_before_rebase_failure
+			and bool(resumed_after_failed_rebase.get("accepted", false)),
+		"an uncommitted required common-origin rebase retires cruise before it can queue a source-frame envelope",
+	)
 	game._physics_process(1.0 / 60.0)
 	var rebound := binding.get_snapshot()
 	var rebound_pending := (
@@ -453,6 +478,13 @@ func _make_blocker(
 	body.add_child(collision)
 	body.position = world_position
 	return body
+
+
+func _reject_rebase_commit(
+		_request_id: int,
+		_source_generation: int,
+	) -> Dictionary:
+	return {"accepted": false, "reason": &"forced_rebase_commit_rejection"}
 
 
 func _has_exact_zero_common_authority(audit: Dictionary) -> bool:

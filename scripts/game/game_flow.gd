@@ -994,6 +994,11 @@ func _physics_process(delta: float) -> void:
 		_caption_presentation_service.advance_physics(delta)
 	var actor_sample := _capture_cinder_actor_sample()
 	var coordinate_frame_generation := 0
+	# Cruise may decode its canonical destination only after an origin rebase
+	# required by this exact actor observation has committed. A rejected owner
+	# transaction leaves the source frame live, but that frame is not a valid
+	# substitute for the required post-rebase handoff.
+	var required_origin_rebase_uncommitted := false
 	if is_instance_valid(ember_streaming_binding):
 		var ember_tick := ember_streaming_binding.physics_tick_from_caller_sample(
 			delta, actor_sample
@@ -1001,26 +1006,31 @@ func _physics_process(delta: float) -> void:
 		coordinate_frame_generation = int(
 			ember_tick.get("coordinate_frame_generation", 0)
 		)
-		if (
-			is_instance_valid(common_world_origin_rebase_owner)
-			and (ember_tick.has("coordinate_frame_generation"))
-		):
+		if ember_tick.has("coordinate_frame_generation"):
 			var preview := ember_streaming_binding.preview_origin_rebase(
 				int(ember_tick.get("coordinate_frame_generation", 0))
 			)
 			if bool(preview.get("accepted", false)):
-				var rebase := common_world_origin_rebase_owner.consume_rebase_preview(
-					preview, actor_sample
-				)
-				if bool(rebase.get("accepted", false)) and rebase.has("actor_sample"):
-					actor_sample = (rebase.get("actor_sample", {}) as Dictionary).duplicate(true)
-					coordinate_frame_generation = int(
-						rebase.get(
-							"coordinate_frame_generation",
-							coordinate_frame_generation,
-						)
+				var preview_requires_rebase := bool(preview.get("rebase_required", false))
+				required_origin_rebase_uncommitted = preview_requires_rebase
+				if is_instance_valid(common_world_origin_rebase_owner):
+					var rebase := common_world_origin_rebase_owner.consume_rebase_preview(
+						preview, actor_sample
 					)
+					if bool(rebase.get("accepted", false)) and rebase.has("actor_sample"):
+						actor_sample = (rebase.get("actor_sample", {}) as Dictionary).duplicate(true)
+						coordinate_frame_generation = int(
+							rebase.get(
+								"coordinate_frame_generation",
+								coordinate_frame_generation,
+							)
+						)
+						if preview_requires_rebase:
+							required_origin_rebase_uncommitted = false
 	if is_instance_valid(planetary_cruise_binding):
+		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
+		if required_origin_rebase_uncommitted:
+			cruise_gate_reason = &"origin_rebase_required"
 		if _planetary_cruise_caller_tick >= PLANETARY_CRUISE_MAX_CALLER_TICK:
 			planetary_cruise_binding.request_caller_tick_exhausted(
 				planetary_cruise_binding.get_generation()
@@ -1033,7 +1043,7 @@ func _physics_process(delta: float) -> void:
 				active_ship,
 				coordinate_frame_generation,
 				_planetary_cruise_combat_active(),
-				_planetary_cruise_gate_reason(false),
+				cruise_gate_reason,
 			)
 	_sync_planetary_cruise_hud()
 	if is_instance_valid(cinder_streaming_binding):
