@@ -1,0 +1,64 @@
+extends SceneTree
+
+## Focused presentation regression for the wider lattice, catwalk, and control
+## room's station-family finish hierarchy. This is a material-only audit: it
+## does not claim geometry, lighting, or performance completion.
+
+const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+
+var _assertions := 0
+var _failures: Array[String] = []
+
+
+func _init() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var world := WORLD_SCENE.instantiate() as ShipyardWorld
+	_check(world != null, "ShipyardWorld instantiates for finish-profile audit")
+	if world == null:
+		_finish()
+		return
+	root.add_child(world)
+	await process_frame
+	var materials := world.get("_materials") as Dictionary
+	_check(materials != null, "world exposes its constructed material roster")
+	if materials != null:
+		_check(_finish_matches(materials.get("deck"), 0.06, 0.72), "walked deck uses the restrained matte finish")
+		_check(_finish_matches(materials.get("deck_light"), 0.06, 0.72), "light deck uses the restrained matte finish")
+		_check(_finish_matches(materials.get("steel_blue"), 0.30, 0.24), "lattice/control-room trim uses the tight edge finish")
+		_check(_finish_matches(materials.get("navy"), 0.18, 0.38), "control-room structural panels use the alloy finish")
+		for key in ["deck", "deck_light", "navy", "steel_blue"]:
+			var material := materials.get(key) as StandardMaterial3D
+			_check(
+				material != null and material.uv1_triplanar and material.uv1_world_triplanar
+				and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.3),
+				"wide-station %s keeps the shared world-metric panel mapping" % key
+			)
+	world.queue_free()
+	await process_frame
+	_finish()
+
+
+func _finish_matches(value: Variant, clearcoat: float, roughness: float) -> bool:
+	var material := value as StandardMaterial3D
+	return material != null and material.clearcoat_enabled \
+		and is_equal_approx(material.clearcoat, clearcoat) \
+		and is_equal_approx(material.clearcoat_roughness, roughness)
+
+
+func _check(condition: bool, message: String) -> void:
+	_assertions += 1
+	if not condition:
+		_failures.append(message)
+
+
+func _finish() -> void:
+	if _failures.is_empty():
+		print("PASS: shipyard_world_material_finish_test (%d assertions)" % _assertions)
+	else:
+		for failure in _failures:
+			push_error("FAIL: " + failure)
+		print("FAIL: shipyard_world_material_finish_test (%d assertions, %d failures)" % [_assertions, _failures.size()])
+	quit(1 if not _failures.is_empty() else 0)

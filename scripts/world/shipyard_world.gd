@@ -4374,32 +4374,22 @@ func _create_materials() -> void:
 ## legend and the transparent glass deliberately stay unmapped, as they do in the
 ## sibling modules, so signage and lit cues keep their flat readable identity.
 func _apply_station_panel_family() -> void:
-	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
-	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
-	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
-	if panel_albedo == null or panel_normal == null or panel_roughness == null:
-		return
+	# Keep the shared map recipe in StationSurfaceKit so the world and authored
+	# modules cannot drift. The finish is deliberately role-specific: deck plate
+	# should not sparkle like a polished handrail, while structural trim needs a
+	# tighter edge response to remain legible at the wide-lattice read distance.
+	var finish_by_key := {
+		"deck": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"deck_light": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"steel_blue": StationSurfaceKit.PanelFinish.METAL_TRIM,
+	}
 	for key in ["deck", "deck_light", "navy", "blue", "steel_blue", "ivory", "black", "orange"]:
 		var panel_material := _materials[key] as StandardMaterial3D
-		panel_material.albedo_texture = panel_albedo
-		panel_material.normal_enabled = true
-		panel_material.normal_texture = panel_normal
-		# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
-		# plated wall at eye height is nearly featureless: the seams and rivets are
-		# present in the map but too shallow to catch light, which is much of why
-		# plated geometry still read as untextured. At 1.9 the plate faces dome and
-		# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
-		# value at which no frame showed doming while the dark walls resolved into
-		# pressed sheet metal. Every module shares the value so a deck and the wall
-		# beside it cannot disagree.
-		panel_material.normal_scale = 1.0
-		panel_material.roughness_texture = panel_roughness
-		panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-		panel_material.uv1_triplanar = true
-		panel_material.uv1_world_triplanar = true
-		panel_material.uv1_triplanar_sharpness = 4.0
-		panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
-		panel_material.texture_repeat = true
+		StationSurfaceKit.apply_panel_triplanar(
+			panel_material,
+			0.3,
+			finish_by_key.get(key, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY)
+		)
 
 
 ## Unit vector pointing from the station *toward* the sun.
