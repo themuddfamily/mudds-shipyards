@@ -44,7 +44,7 @@ func _run() -> void:
 	await _test_physical_walkable_surfaces(module)
 	await _test_ship_envelope_is_structurally_clear(module)
 	await _test_service_door_lifecycle(module)
-	_test_animated_equipment(module)
+	await _test_animated_equipment(module)
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
 	_test_handling_infrastructure(module)
@@ -349,21 +349,31 @@ func _test_animated_equipment(module: JovianFreightBerth) -> void:
 	_check(hook_lowest_y >= 10.75 and hook_lowest_y <= 11.25, "animated hoist respects its published visual clearance limits")
 	var parent := module.get_parent()
 	parent.remove_child(module)
-	var detached_before := module.get_equipment_state()
+	var detached_before := _freight_mutator_snapshot(module)
+	module.set_equipment_animation_enabled(true)
+	module.set_module_enabled(false)
 	module.advance_equipment_simulation(2.0)
-	var detached_after := module.get_equipment_state()
+	var detached_after := _freight_mutator_snapshot(module)
 	_check(
-		is_equal_approx(float(detached_after.elapsed), float(detached_before.elapsed))
-		and (detached_after.trolley_local_position as Vector3).is_equal_approx(
-			detached_before.trolley_local_position as Vector3
-		)
-		and (detached_after.hook_local_position as Vector3).is_equal_approx(
-			detached_before.hook_local_position as Vector3
-		),
-		"a detached freight berth rejects queued crane advancement without mutating its retained pose"
+		not module.is_inside_tree() and detached_after == detached_before,
+		"a detached freight berth rejects animation, clock, and module mutations atomically"
 	)
 	parent.add_child(module)
 	await process_frame
+	module.set_module_enabled(false)
+	var live_disabled := module.get_lifecycle_contract()
+	module.set_module_enabled(true)
+	var live_enabled := module.get_lifecycle_contract()
+	_check(
+		not bool(live_disabled.enabled)
+			and bool(live_disabled.visible_matches_enabled)
+			and bool(live_disabled.collision_matches_enabled)
+			and bool(live_enabled.enabled)
+			and bool(live_enabled.visible_matches_enabled)
+			and bool(live_enabled.collision_matches_enabled),
+		"the reattached freight berth accepts fresh module lifecycle mutations"
+	)
+	module.set_equipment_animation_enabled(true)
 	var reattached_before := module.get_equipment_state()
 	module.advance_equipment_simulation(2.0)
 	_check(
@@ -372,6 +382,41 @@ func _test_animated_equipment(module: JovianFreightBerth) -> void:
 	)
 	module.set_equipment_animation_enabled(true)
 	_check(module.is_equipment_animation_enabled(), "equipment can resume for live presentation")
+	await _test_queued_equipment_currentness()
+
+
+func _test_queued_equipment_currentness() -> void:
+	var queued_module := MODULE_SCENE.instantiate() as JovianFreightBerth
+	_check(queued_module != null, "queued freight lifecycle fixture instantiates")
+	if queued_module == null:
+		return
+	_test_root.add_child(queued_module)
+	await process_frame
+	await physics_frame
+	var queued_before := _freight_mutator_snapshot(queued_module)
+	queued_module.queue_free()
+	queued_module.set_equipment_animation_enabled(false)
+	queued_module.set_module_enabled(false)
+	queued_module.advance_equipment_simulation(2.0)
+	var queued_after := _freight_mutator_snapshot(queued_module)
+	_check(
+		queued_module.is_inside_tree()
+			and queued_module.is_queued_for_deletion()
+			and queued_after == queued_before,
+		"a queued freight berth rejects animation, clock, and module mutations atomically"
+	)
+	await process_frame
+
+
+func _freight_mutator_snapshot(module: JovianFreightBerth) -> Dictionary:
+	return {
+		"equipment": module.get_equipment_state(),
+		"animation_enabled": module.is_equipment_animation_enabled(),
+		"module_enabled": module.is_module_enabled(),
+		"processing": module.is_processing(),
+		"lifecycle": module.get_lifecycle_contract(),
+		"collision": module.get_collision_contract(),
+	}.duplicate(true)
 
 
 func _test_direct_world_berth_lifecycle(module: JovianFreightBerth) -> void:

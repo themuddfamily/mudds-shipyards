@@ -435,6 +435,8 @@ func get_equipment_motion_contract() -> Dictionary:
 
 
 func set_equipment_animation_enabled(enabled: bool) -> void:
+	if not _can_mutate_freight_berth():
+		return
 	_equipment_animation_enabled = enabled
 	# A disabled module never processes, whatever the animation flag says.
 	set_process(enabled and _module_enabled)
@@ -446,7 +448,7 @@ func is_equipment_animation_enabled() -> bool:
 
 ## Deterministic hook for tests, replays, and future multiplayer presentation.
 func advance_equipment_simulation(delta: float) -> void:
-	if not is_inside_tree() or not is_finite(delta) or delta <= 0.0:
+	if not _can_mutate_freight_berth() or not is_finite(delta) or delta <= 0.0:
 		return
 	_equipment_elapsed += delta
 	_update_equipment_transforms()
@@ -1002,12 +1004,18 @@ func get_performance_contract() -> Dictionary:
 ## read `true`, the obvious repair call returned immediately and the module
 ## stayed unwalkable.
 func set_module_enabled(enabled: bool) -> void:
+	if not _can_mutate_freight_berth():
+		return
 	_module_enabled = enabled
 	_apply_enabled_state()
 
 
 func is_module_enabled() -> bool:
 	return _module_enabled
+
+
+func _can_mutate_freight_berth() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_lifecycle_contract() -> Dictionary:
