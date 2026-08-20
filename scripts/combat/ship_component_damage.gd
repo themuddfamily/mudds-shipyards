@@ -164,6 +164,9 @@ func record_damage(amount: float, local_hit_position: Vector3 = Vector3.INF) -> 
 	if _ledger_dispatch_active:
 		report["reason"] = &"reentrant_call"
 		return report
+	if not _can_mutate_live_components():
+		report["reason"] = &"component_detached"
+		return report
 	if not is_configured():
 		report["reason"] = &"not_configured"
 		return report
@@ -229,6 +232,9 @@ func tick_repair(delta: float, repairing: bool) -> Dictionary:
 	if _ledger_dispatch_active:
 		report["reason"] = &"reentrant_call"
 		return report
+	if not _can_mutate_live_components():
+		report["reason"] = &"component_detached"
+		return report
 	if not is_configured():
 		report["reason"] = &"not_configured"
 		return report
@@ -274,6 +280,10 @@ func reset_for_reuse() -> void:
 	if _owner_mutation_transaction_active or _ledger_dispatch_active:
 		return
 	_reset_for_reuse_unchecked()
+
+
+func _can_mutate_live_components() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func claim_owner_mutation_capability() -> RefCounted:

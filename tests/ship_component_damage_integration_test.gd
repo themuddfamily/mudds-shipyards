@@ -83,6 +83,7 @@ func _run() -> void:
 	await _test_whole_main_reentry()
 	_test_respawn_recovery_is_immediate()
 	await _test_berth_repair()
+	await _test_direct_component_currentness()
 
 	await _clean_up()
 	_finish()
@@ -498,6 +499,62 @@ func _test_whole_main_reentry() -> void:
 		if sparks == null or not sparks.emitting:
 			emitting = false
 	_check(emitting, "every re-entered rig resumes emitting rather than sitting silent")
+
+
+func _test_direct_component_currentness() -> void:
+	var model := _hero.get_component_damage()
+	if model == null:
+		_fail("the live Torrent component model exists for currentness coverage")
+		return
+	var events: Array[StringName] = []
+	model.component_state_changed.connect(
+		func(_id: StringName, _state: int, _integrity: float) -> void:
+			events.append(&"stage")
+	)
+	model.components_restored.connect(func() -> void: events.append(&"restored"))
+	var parent := _hero.get_parent()
+	var detached_before := model.get_component_report()
+	if parent != null:
+		parent.remove_child(_hero)
+	var detached_damage := model.record_damage(5.0)
+	var detached_repair := model.tick_repair(1.0, true)
+	_check(
+		not _hero.is_inside_tree()
+			and not bool(detached_damage.get("accepted", true))
+			and detached_damage.get("reason", &"") == &"component_detached"
+			and not bool(detached_repair.get("accepted", true))
+			and detached_repair.get("reason", &"") == &"component_detached"
+			and model.get_component_report() == detached_before
+			and events.is_empty(),
+		"a detached live component model rejects direct damage and repair atomically"
+	)
+	if parent != null:
+		parent.add_child(_hero)
+	await process_frame
+	var live_damage := model.record_damage(1.0)
+	_check(
+		_hero.is_inside_tree()
+			and bool(live_damage.get("accepted", false))
+			and int(model.get_component_report().get("revision", -1))
+				> int(detached_before.get("revision", -1)),
+		"a re-entered live component model still accepts a fresh direct damage mutation"
+	)
+	var queued_before := model.get_component_report()
+	var queued_events_before := events.size()
+	model.queue_free()
+	var queued_damage := model.record_damage(5.0)
+	var queued_repair := model.tick_repair(1.0, true)
+	_check(
+		model.is_inside_tree()
+			and model.is_queued_for_deletion()
+			and not bool(queued_damage.get("accepted", true))
+			and queued_damage.get("reason", &"") == &"component_detached"
+			and not bool(queued_repair.get("accepted", true))
+			and queued_repair.get("reason", &"") == &"component_detached"
+			and model.get_component_report() == queued_before
+			and events.size() == queued_events_before,
+		"a queued live component model rejects direct damage and repair atomically"
+	)
 
 
 # ----------------------------------------------------------- fast recovery --
