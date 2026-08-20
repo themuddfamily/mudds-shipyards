@@ -278,6 +278,10 @@ func reset_for_reuse(expected_generation: Variant) -> Dictionary:
 	if not _is_exact_integer(expected_generation) \
 			or int(expected_generation) != _generation:
 		return _result(false, &"stale_generation")
+	# Reuse changes retained renderer intent and the caller-owned material. Like
+	# observations, it must not commit after detachment or terminal teardown.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"presentation_detached")
 	if _generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"generation_exhausted")
 	if _resolve_shader() == null:

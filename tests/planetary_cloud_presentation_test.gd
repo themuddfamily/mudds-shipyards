@@ -476,12 +476,14 @@ func _test_detach_reentry() -> void:
 	var detached_before := _adapter.get_state_snapshot()
 	var detached_events := _events.size()
 	var detached := _adapter.present_observation(4500.0, 16.0, 0.7, 0.6, 1)
+	var detached_reset := _adapter.reset_for_reuse(1)
 	_check(
 		not detached.accepted and detached.reason == &"presentation_detached"
+		and not detached_reset.accepted and detached_reset.reason == &"presentation_detached"
 		and _adapter.get_state_snapshot() == detached_before
 		and _events.size() == detached_events
 		and _parameter_values(_material) == baseline,
-		"detached cloud observation rejects atomically without retaining deferred material intent"
+		"detached cloud observation and reset reject atomically without retaining deferred material intent"
 	)
 	root.add_child(_adapter)
 	var reentry_values := _parameter_values(_material)
@@ -515,12 +517,14 @@ func _test_queued_adapter_rejects_atomically() -> void:
 	var before := adapter.get_state_snapshot()
 	var values_before := _parameter_values(material)
 	var queued := adapter.present_observation(4500.0, 16.0, 0.7, 0.6, 1)
+	var queued_reset := adapter.reset_for_reuse(1)
 	_check(
 		adapter.is_queued_for_deletion()
 		and not queued.accepted and queued.reason == &"presentation_detached"
+		and not queued_reset.accepted and queued_reset.reason == &"presentation_detached"
 		and adapter.get_state_snapshot() == before and events.is_empty()
 		and _parameter_values(material) == values_before,
-		"queued cloud adapter rejects observation atomically before material or retained intent drift"
+		"queued cloud adapter rejects observation and reset atomically before material or retained intent drift"
 	)
 	await process_frame
 
