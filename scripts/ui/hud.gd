@@ -1001,7 +1001,7 @@ func set_paused(paused: bool) -> void:
 
 
 func _restore_pause_focus_after_reentry() -> void:
-	if not is_inside_tree() or _pause == null or not _pause.visible:
+	if is_queued_for_deletion() or not is_inside_tree() or _pause == null or not _pause.visible:
 		return
 	var target := _pause_reentry_focus_target
 	if (

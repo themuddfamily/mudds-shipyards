@@ -133,6 +133,7 @@ func _run() -> void:
 	_test_persistence_across_restart(settings)
 	await _test_whole_main_reentry(game, hud, fleet)
 	await _test_reset_restores_defaults(game, hud, fleet, authored_lag)
+	await _test_queued_pause_focus_restore_is_inert()
 
 	await _clean_up(game)
 	_cleanup()
@@ -529,6 +530,44 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 		int(game.get_caption_integration_report().caption_accepted_count) == accepted_before + 1,
 		"the rebound caption channel accepts a production combat cue after re-entry"
 	)
+
+
+func _test_queued_pause_focus_restore_is_inert() -> void:
+	var queued_hud := GameHUD.new()
+	queued_hud.name = "QueuedPauseFocusHud"
+	root.add_child(queued_hud)
+	await process_frame
+	queued_hud.set_paused(true)
+	var resume := (queued_hud.get("_pause_main_page") as Control).find_child(
+		"ResumeButton", true, false
+	) as Button
+	root.remove_child(queued_hud)
+	root.add_child(queued_hud)
+	# Re-entry queued the ordinary focus restoration. Give an independent live UI
+	# owner focus first, then retire the HUD in the same idle turn: the queued HUD
+	# must not reclaim focus or request a scroll pass while it is terminal.
+	var foreign_layer := CanvasLayer.new()
+	var foreign_focus := Button.new()
+	foreign_focus.name = "ForeignFocusOwner"
+	foreign_focus.text = "FOREIGN FOCUS"
+	foreign_layer.add_child(foreign_focus)
+	root.add_child(foreign_layer)
+	foreign_focus.grab_focus()
+	var focus_before := root.gui_get_focus_owner()
+	queued_hud.queue_free()
+	queued_hud.call("_restore_pause_focus_after_reentry")
+	_check(
+		queued_hud.is_inside_tree()
+		and queued_hud.is_queued_for_deletion()
+		and resume != null
+		and root.gui_get_focus_owner() == focus_before
+		and root.gui_get_focus_owner() == foreign_focus,
+		"a queued re-entry HUD cannot reclaim pause focus from the live UI owner"
+	)
+	paused = false
+	foreign_layer.queue_free()
+	await process_frame
+	_check(not is_instance_valid(queued_hud), "the queued pause-focus HUD fixture frees normally")
 
 
 func _test_reset_restores_defaults(
