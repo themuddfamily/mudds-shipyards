@@ -226,7 +226,8 @@ func _play(
 		source_instance_id: int,
 		volume_db: float
 	) -> bool:
-	if not is_inside_tree() or not world_position.is_finite() or source_instance_id < 0:
+	if is_queued_for_deletion() or not is_inside_tree() \
+			or not world_position.is_finite() or source_instance_id < 0:
 		return false
 	var stream := _streams.get(cue_id) as AudioStreamWAV
 	var pool := _get_pool(pool_id)

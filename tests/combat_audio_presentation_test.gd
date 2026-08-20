@@ -147,22 +147,42 @@ func _test_queued_reentry_restore_is_inert() -> void:
 	_test_root.remove_child(presentation)
 	await process_frame
 	_test_root.add_child(presentation)
+	await process_frame
+	_check(
+		presentation.play_player_fire(Vector3(6.0, 1.0, -3.0), 404),
+		"a reentered combat-audio presentation accepts one fresh live playback"
+	)
 	var voice := presentation.get_node_or_null(^"FireVoice0") as AudioStreamPlayer3D
 	if voice == null:
 		_check(false, "queued re-entry fixture retains the first fixed fire voice")
 		presentation.queue_free()
 		await process_frame
 		return
-	# The ordinary re-entry callback is now queued. Freeze deliberately noncanonical
-	# values so this test detects any post-disposal player configuration work.
+	var cue_events: Array[StringName] = []
+	presentation.cue_started.connect(
+		func(cue_id: StringName, _voice_name: StringName, _world_position: Vector3, _source_id: int) -> void:
+			cue_events.append(cue_id)
+	)
+	presentation.queue_free()
+	var playback_before := presentation.get_state_snapshot()
+	var queued_playback := presentation.play_player_fire(Vector3(-8.0, 2.0, 5.0), 405)
+	_check(
+		presentation.is_queued_for_deletion()
+		and not queued_playback
+		and presentation.get_state_snapshot() == playback_before
+		and cue_events.is_empty(),
+		"a queued combat-audio presentation rejects live playback without voice, state, or signal mutation"
+	)
+	# The ordinary re-entry callback is still queued. Freeze deliberately
+	# noncanonical values after playback has proven the queue gate, so this
+	# independently detects any post-disposal player configuration work.
 	voice.top_level = false
 	voice.max_distance = 17.0
-	var snapshot_before := presentation.get_state_snapshot()
-	presentation.queue_free()
+	var restore_before := presentation.get_state_snapshot()
 	presentation.call("_restore_players_after_reentry")
 	_check(
 		presentation.is_queued_for_deletion()
-		and presentation.get_state_snapshot() == snapshot_before
+		and presentation.get_state_snapshot() == restore_before
 		and not voice.top_level
 		and is_equal_approx(voice.max_distance, 17.0),
 		"a queued post-reentry combat-audio presentation cannot reconfigure its fixed voices"
