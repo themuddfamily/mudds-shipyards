@@ -77,6 +77,14 @@ does not turn route completion into proof that the proposed p95/p99/RAM budgets
 were met. A later native-Windows acceptance procedure must evaluate those
 thresholds and supply GPU/VRAM evidence from suitable platform tooling.
 
+The repository includes a reviewable template at
+`tools/performance/benchmark_target_profile.example.json`. Copy it outside the
+repository, replace the identity placeholders with values captured on the
+evaluated machine, and preserve the budget fields as the acceptance record's
+protocol. The runner compares only the identity fields; the budget values are
+intentionally retained for the later native-Windows gate rather than being
+silently treated as measured results.
+
 Example target profile:
 
 ```json

@@ -1,0 +1,22 @@
+{
+  "profile_schema_version": 1,
+  "description": "Replace every placeholder with values captured on the evaluated Windows PC.",
+  "os": {"name": "Windows"},
+  "cpu": {"name": "Exact processor string"},
+  "gpu": {
+    "adapter": "Exact adapter string",
+    "driver": "Exact driver string returned by Godot"
+  },
+  "render": {
+    "method": "gl_compatibility",
+    "display_server": "windows",
+    "resolution": [1920, 1080]
+  },
+  "profile": {"quality_name": "High"},
+  "budgets": {
+    "warmup_seconds": 60,
+    "sample_seconds": 600,
+    "frame_time_ms": {"p95": 16.7, "p99": 33.3, "max": 100.0},
+    "peak_working_set_bytes": 4294967296
+  }
+}
