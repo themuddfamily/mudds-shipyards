@@ -55,6 +55,7 @@ func _run() -> void:
 	_test_restore_and_determinism()
 	_test_presentation_channel()
 	_test_presentation_cleanup_and_reentry()
+	await _test_queued_destruction_resume_is_inert()
 	_finish()
 
 
@@ -827,6 +828,40 @@ func _test_presentation_cleanup_and_reentry() -> void:
 		"disposal of an already-clean channel is idempotent"
 	)
 	presentation.free()
+
+
+func _test_queued_destruction_resume_is_inert() -> void:
+	var presentation := HeroDamagePresentationType.new() as HeroDamagePresentation
+	root.add_child(presentation)
+	var destruction_events := [0]
+	presentation.destruction_started.connect(
+		func(_position: Vector3, _velocity: Vector3) -> void:
+			destruction_events[0] += 1
+	)
+	root.remove_child(presentation)
+	presentation.present_destruction(Vector3.ZERO, Transform3D.IDENTITY)
+	_check(
+		bool(presentation.get("_pending_destruction"))
+		and presentation.get_live_world_effect_count() == 0,
+		"detached destruction remains pending without spawning a world effect"
+	)
+	root.add_child(presentation)
+	# Re-entry queued the deferred destruction handoff. Terminal disposal in the
+	# same idle turn must not leak debris/particles into the live world root.
+	presentation.queue_free()
+	presentation.call("_resume_pending_destruction_after_reentry")
+	_check(
+		presentation.is_queued_for_deletion()
+		and bool(presentation.get("_pending_destruction"))
+		and presentation.get_live_world_effect_count() == 0
+		and destruction_events[0] == 0,
+		"a queued post-reentry presentation cannot resume destruction into world space"
+	)
+	await process_frame
+	_check(
+		not is_instance_valid(presentation),
+		"the queued pending-destruction presentation frees normally"
+	)
 
 
 # ---------------------------------------------------------------- helpers --

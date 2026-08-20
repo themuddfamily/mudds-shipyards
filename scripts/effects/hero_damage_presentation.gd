@@ -904,7 +904,7 @@ func _spawn_destruction_effects(
 
 
 func _resume_pending_destruction_after_reentry() -> void:
-	if not is_inside_tree() or not _pending_destruction:
+	if is_queued_for_deletion() or not is_inside_tree() or not _pending_destruction:
 		return
 	_pending_destruction = false
 	_spawn_destruction_effects(_pending_destruction_pose, _pending_destruction_pose_valid)
