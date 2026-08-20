@@ -83,6 +83,24 @@ func _test_conflicts_and_resolution() -> void:
 	_check(updated.get_bindings(&"charlie").size() == 2, "replace preserves target bindings and appends the new binding")
 	_check(profile.get_bindings(&"alpha").size() == 2 and profile.get_bindings(&"bravo").size() == 2, "rebind never mutates its input profile")
 	_check(not bool(service.rebind(profile, &"charlie", _key(KEY_Z), &"discard").ok), "unknown conflict resolution is rejected")
+	var authored_overlap := _profile_from({
+		&"jump": [_key(KEY_SPACE), _joy_button(JOY_BUTTON_A)],
+		&"hover": [_key(KEY_H), _joy_button(JOY_BUTTON_A)],
+	}, {})
+	var altered_overlap := authored_overlap.duplicate_profile()
+	altered_overlap.set_bindings(&"jump", [_key(KEY_J)])
+	var restored_overlap := RebindService.new(authored_overlap).reset_action_to_defaults(altered_overlap, &"jump")
+	_check(restored_overlap != null, "single-action reset restores a complete compatible profile")
+	_check(
+		restored_overlap != null
+		and restored_overlap.get_bindings(&"hover").size() == 2
+		and restored_overlap.get_bindings(&"jump").size() == 2,
+		"single-action reset preserves intentional shared gamepad bindings on other actions"
+	)
+	_check(
+		RebindService.new(authored_overlap).reset_action_to_defaults(altered_overlap, &"missing") == null,
+		"single-action reset rejects actions outside the authored inventory"
+	)
 	_check(RebindService.binding_signature(_key(KEY_F)) == "keyboard:key:%d" % KEY_F, "binding signatures are stable and device-specific")
 	_check(RebindService.binding_signature({"device": &"keyboard", "type": &"key", "physical_keycode": 0}).is_empty(), "invalid bindings have no conflict signature")
 

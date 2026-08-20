@@ -2522,20 +2522,10 @@ func _cancel_input_binding_capture() -> void:
 func _reset_input_action(action: StringName) -> void:
 	if not _input_binding_defaults.bindings.has(action):
 		return
-	var updated := _input_binding_profile.duplicate_profile()
-	updated.set_bindings(action, [])
-	for binding: Dictionary in _input_binding_defaults.get_bindings(action):
-		var result := _input_rebind_service.rebind(
-			updated,
-			action,
-			binding,
-			InputRebindServiceType.CONFLICT_REPLACE
-		)
-		if not bool(result.get("ok", false)):
-			set_settings_status("RESET FAILED  //  %s" % _input_action_label(action).to_upper(), false)
-			return
-		updated = result.get("profile") as InputBindingProfile
-	updated.set_action_options(action, _input_binding_defaults.get_action_options(action))
+	var updated := _input_rebind_service.reset_action_to_defaults(_input_binding_profile, action)
+	if updated == null:
+		set_settings_status("RESET FAILED  //  %s" % _input_action_label(action).to_upper(), false)
+		return
 	_commit_input_binding_profile(
 		updated,
 		"DEFAULT RESTORED  //  %s" % _input_action_label(action).to_upper()

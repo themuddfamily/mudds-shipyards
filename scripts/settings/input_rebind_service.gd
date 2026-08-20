@@ -27,6 +27,24 @@ func reset_to_defaults() -> InputBindingProfile:
 	return get_defaults()
 
 
+## Restores one action's authored bindings and transform options as one detached
+## transaction.  Unlike a sequence of conflict-replacing rebinds, this keeps
+## intentional authored overlaps (for example the shared gamepad face button
+## used by jump and hover) intact on every other action.  The returned profile
+## is null when the candidate is not a complete, compatible profile.
+func reset_action_to_defaults(profile: InputBindingProfile, action: StringName) -> InputBindingProfile:
+	if profile == null or action.is_empty() or not _defaults.bindings.has(action):
+		return null
+	var updated := profile.duplicate_profile()
+	if not updated.set_bindings(action, _defaults.get_bindings(action)):
+		return null
+	if not updated.set_action_options(action, _defaults.get_action_options(action)):
+		return null
+	if not is_profile_compatible_with_defaults(updated):
+		return null
+	return updated
+
+
 ## A persisted settings profile must describe the same action inventory captured
 ## from the project. This prevents a damaged file from silently deleting whole
 ## actions or injecting arbitrary ones. Authored cross-action overlaps (for
