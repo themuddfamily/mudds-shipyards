@@ -29,6 +29,29 @@ func _run() -> void:
 		and not composition.is_processing() and not composition.is_physics_processing(),
 		"unconfigured standalone composition has no installed environment or cadence"
 	)
+	var retry_composition := COMPOSITION_SCENE.instantiate() as PlanetaryAtmosphereComposition
+	root.add_child(retry_composition)
+	await process_frame
+	var preserved_baseline := Environment.new()
+	retry_composition.get_world_environment().environment = preserved_baseline
+	var repaired_world := WORLD.duplicate(true) as PlanetaryWorldDefinition
+	repaired_world.atmosphere_definition_id = &"mismatched_atmosphere"
+	retry_composition.world_definition = repaired_world
+	var rejected := retry_composition.configure()
+	var rejected_audit := retry_composition.audit()
+	repaired_world.atmosphere_definition_id = ATMOSPHERE.profile_id
+	var repaired := retry_composition.configure()
+	_check(
+		not bool(rejected.accepted) and rejected.reason == &"invalid_atmospheric_composition"
+		and retry_composition.get_world_environment().environment == preserved_baseline
+		and not bool(rejected_audit.configured)
+		and repaired.accepted
+		and retry_composition.get_world_environment().environment
+		== retry_composition.get_atmosphere_rig().get_scene_environment(),
+		"rejected pre-install composition preserves baseline and repaired input retries into one install"
+	)
+	retry_composition.queue_free()
+	await process_frame
 	var configured := composition.configure()
 	_check(
 		configured.accepted and configured.generation == 1
