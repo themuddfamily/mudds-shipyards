@@ -999,6 +999,10 @@ func _physics_process(delta: float) -> void:
 	# binding reconciles its generation before reporting the resulting streaming
 	# transition, which can still reject (for example, a load failure).
 	var ember_streaming_accepted := false
+	# A required rebase may enter Ember's load envelope. In that exact case, an
+	# asynchronous `load_requested` acknowledgement is not yet a physical world
+	# root for HeroShip's collision proof; do not queue cruise until it exists.
+	var ember_streaming_residency_required := false
 	# Cruise may decode its canonical destination only after an origin rebase
 	# required by this exact actor observation has committed. A rejected owner
 	# transaction leaves the source frame live, but that frame is not a valid
@@ -1036,12 +1040,24 @@ func _physics_process(delta: float) -> void:
 							var receipt := rebase.get("receipt", {}) as Dictionary
 							var streaming := receipt.get("ember_streaming", {}) as Dictionary
 							ember_streaming_accepted = bool(streaming.get("accepted", false))
+							ember_streaming_residency_required = (
+								ember_streaming_accepted
+								and streaming.get("action", &"") == &"load"
+							)
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
 		if required_origin_rebase_uncommitted:
 			cruise_gate_reason = &"origin_rebase_required"
 		elif not ember_streaming_accepted:
 			cruise_gate_reason = &"ember_streaming_unavailable"
+		elif (
+			ember_streaming_residency_required
+			and (
+				not is_instance_valid(ember_streaming_bootstrap)
+				or not is_instance_valid(ember_streaming_bootstrap.get_loaded_instance())
+			)
+		):
+			cruise_gate_reason = &"ember_streaming_pending"
 		if _planetary_cruise_caller_tick >= PLANETARY_CRUISE_MAX_CALLER_TICK:
 			planetary_cruise_binding.request_caller_tick_exhausted(
 				planetary_cruise_binding.get_generation()
