@@ -581,6 +581,18 @@ func _check_seat_contract() -> void:
 		requested.size() == 1 and requested[0] == actor,
 		"the accepted request names the actor that made it"
 	)
+	var station := _tractor.get_driver_station()
+	station.set_available(false)
+	_check(
+		station.collision_layer == 0 and not station.monitorable
+		and station.get_interaction_prompt().is_empty()
+		and not station.can_interact(actor)
+		and not station.interact(actor)
+		and requested.size() == 1,
+		"withdrawn driver station rejects direct prompt and boarding paths without emitting a request"
+	)
+	station.set_available(true)
+	_check(station.can_interact(actor), "restored driver station accepts its direct interaction contract again")
 
 	_tractor.set_driven(true)
 	await _settle(4)

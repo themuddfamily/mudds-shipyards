@@ -60,6 +60,8 @@ func get_vehicle() -> Node3D:
 
 
 func get_interaction_prompt() -> String:
+	if not _available or not is_inside_tree():
+		return ""
 	var vehicle := get_vehicle()
 	if vehicle == null:
 		return ""
@@ -67,6 +69,8 @@ func get_interaction_prompt() -> String:
 
 
 func can_interact(_actor: Node = null) -> bool:
+	if not _available or not is_inside_tree():
+		return false
 	var vehicle := get_vehicle()
 	return vehicle != null and bool(vehicle.call(&"is_boardable"))
 
@@ -74,6 +78,8 @@ func can_interact(_actor: Node = null) -> bool:
 ## Returns true only when the request was actually accepted, so the coordinator's
 ## confirmation cue never fires for a seat that is occupied or recovering.
 func interact(actor: Node = null) -> bool:
+	if not _available or not is_inside_tree():
+		return false
 	var vehicle := get_vehicle()
 	if vehicle == null:
 		return false
