@@ -1,0 +1,17 @@
+{
+  "schema": "settings_accessibility_matrix_v1",
+  "source": {"revision": "working-tree-roadmap-914", "settings_owner": "GameFlow/RuntimeSettings"},
+  "action_roster": {
+    "status": "COMPLETE",
+    "required": ["move_forward", "move_backward", "move_left", "move_right", "move_up", "move_down", "pitch_up", "pitch_down", "roll_left", "roll_right", "yaw_left", "yaw_right", "throttle", "brake", "fire_primary", "boost", "hover", "barrel_roll", "interact", "camera_cycle", "toggle_controls_overlay", "pause", "landing_assist"],
+    "covered": ["move_forward", "move_backward", "move_left", "move_right", "move_up", "move_down", "pitch_up", "pitch_down", "roll_left", "roll_right", "yaw_left", "yaw_right", "throttle", "brake", "fire_primary", "boost", "hover", "barrel_roll", "interact", "camera_cycle", "toggle_controls_overlay", "pause", "landing_assist"],
+    "evidence": ["tests/control_mapping_test.gd", "tests/controller_physical_sortie_test.gd"]
+  },
+  "glyphs": {"status": "COMPLETE", "families": ["keyboard", "mouse", "gamepad_generic", "gamepad_xbox", "gamepad_playstation", "gamepad_nintendo", "unknown_fallback"], "fallback": "input.unknown", "evidence": ["tests/input_glyph_resolver_test.gd"]},
+  "ultrawide": {"status": "IN_PROGRESS", "aspect_ratios": ["16:9", "16:10", "21:9", "32:9"], "safe_area_contract": "tests/ultrawide_safe_area_contract_test.gd", "evidence": ["tests/ultrawide_safe_area_contract_test.gd"]},
+  "visual": {"status": "COMPLETE", "presets": ["captions", "colour_safe", "high_contrast", "reduced_flash", "reduced_motion", "ui_scale"], "evidence": ["tests/accessibility_visual_preset_test.gd", "tests/accessibility_presets_test.gd"]},
+  "audio": {"status": "IN_PROGRESS", "groups": ["master", "music", "effects", "voice", "ui"], "evidence": ["tests/audio_accessibility_policy_test.gd", "tests/audio/audio_accessibility_preset_test.gd"]},
+  "subtitles": {"status": "IN_PROGRESS", "modes": ["off", "captions", "captions_and_visual"], "evidence": ["tests/audio_accessibility_policy_test.gd", "tests/caption_accessibility_contract_test.gd"]},
+  "remapping": {"status": "IN_PROGRESS", "actions": ["move_forward", "move_backward", "move_left", "move_right", "move_up", "move_down", "pitch_up", "pitch_down", "roll_left", "roll_right", "yaw_left", "yaw_right", "throttle", "brake", "fire_primary", "boost", "hover", "barrel_roll", "interact", "camera_cycle", "toggle_controls_overlay", "pause", "landing_assist"], "conflict_resolution": true, "defaults_reset": true, "ui_focus": true, "curves": ["linear", "squared"], "modes": ["hold", "toggle"], "deadzone_range": [0.0, 1.0], "evidence": ["tests/input_action_transform_bank_test.gd", "tests/runtime_settings_production_persistence_test.gd"]},
+  "hardware": {"status": "NOT_RUN", "platform": "Windows gamepad and ultrawide display", "evidence": null}
+}
