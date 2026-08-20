@@ -80,6 +80,38 @@ func _run() -> void:
 		and authority.network_authority_role == &"none",
 		"semantic authority is unchanged; only all_nodes_checked follows the eleven-node trim"
 	)
+	var lens_audit := module.get_guide_lens_visual_allocation_audit()
+	_check(
+		bool(lens_audit.valid)
+			and int(lens_audit.node_count) == 18
+			and int(lens_audit.structural_submission_count) == 18
+			and int(lens_audit.mesh_resource_identity_count_before) == 18
+			and int(lens_audit.mesh_resource_identity_count_after) == 1
+			and int(lens_audit.mesh_resource_identity_delta) == -17
+			and int(lens_audit.material_resource_identity_count_after) == 18
+			and int(lens_audit.cyan_lens_count) == 12
+			and int(lens_audit.amber_lens_count) == 6
+			and int(lens_audit.housing_count) == 18
+			and int(lens_audit.light_count) == 18
+			and not bool(lens_audit.batched)
+			and not bool(lens_audit.material_sharing)
+			and not bool(lens_audit.collision_authority),
+		"eighteen guide lenses share exactly one mesh while retaining their material, housing, light, and authority contract"
+	)
+	var lens := module.get_node_or_null(^"FreightPresentation/DockGuideLens18") as MeshInstance3D
+	var shared_mesh := lens.mesh if lens != null else null
+	if lens != null:
+		lens.mesh = SphereMesh.new()
+	var drifted_lens_audit := module.get_guide_lens_visual_allocation_audit()
+	_check(
+		lens != null
+			and not bool(drifted_lens_audit.valid)
+			and (drifted_lens_audit.errors as PackedStringArray).has("guide_lens_mesh_identity_count_drift"),
+		"one guide lens escaping the shared mesh fails the allocation audit closed"
+	)
+	if lens != null:
+		lens.mesh = shared_mesh
+	_check(bool(module.get_guide_lens_visual_allocation_audit().valid), "restoring the shared mesh returns the guide-lens audit green")
 	module.queue_free()
 	await process_frame
 	if _failures.is_empty():

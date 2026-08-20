@@ -102,6 +102,19 @@ const LASHING_RING_BASELINE_MESH_RESOURCES := 8
 const LASHING_RING_BASELINE_MATERIAL_RESOURCES := 1
 const LASHING_RING_BASELINE_SUBMISSIONS := 8
 
+## Eighteen named, light-owning guide lenses keep their authored transforms and
+## individual colour materials. Only their identical, one-surface sphere mesh is
+## shared; this is not batching or a light/material consolidation.
+const GUIDE_LENS_COPY_COUNT := 18
+const GUIDE_LENS_RADIUS := 0.13
+const GUIDE_LENS_HEIGHT := 0.26
+const GUIDE_LENS_RADIAL_SEGMENTS := 12
+const GUIDE_LENS_RINGS := 6
+const GUIDE_LENS_BASELINE_MESH_RESOURCES := 18
+const GUIDE_LENS_BASELINE_MATERIAL_RESOURCES := 18
+const GUIDE_LENS_CYAN_COLOR := Color("4bdce3")
+const GUIDE_LENS_AMBER_COLOR := Color("f6a445")
+
 ## Standalone module census frozen around the dock-guide batching change. The
 ## twelve 60-triangle copies remain exact; only renderer/node representation
 ## changes. Collision and authority counts are unchanged. `all_nodes_checked`
@@ -192,6 +205,7 @@ var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
+var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
 var _service_details: Array[Node3D] = []
@@ -209,6 +223,7 @@ func _ready() -> void:
 	if not _built:
 		_built = true
 		_create_materials()
+		_create_guide_lens_mesh()
 		_index_semantics()
 		_build_connection_lattice()
 		_build_loading_apron()
@@ -818,6 +833,97 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Renderer-independent resource audit for all eighteen named dock guide lenses.
+## Their nodes, per-lens material identities, lights, housings, and submitted
+## surfaces remain independent; only one immutable sphere mesh is shared.
+func get_guide_lens_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var lens_nodes: Array[MeshInstance3D] = []
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var cyan_count := 0
+	var amber_count := 0
+	var structural_submissions := 0
+	var child_node_count := 0
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var lens := candidate as MeshInstance3D
+		if not str(lens.name).begins_with("DockGuideLens"):
+			continue
+		lens_nodes.append(lens)
+		if lens.mesh != _guide_lens_mesh:
+			errors.append("guide_lens_mesh_identity_not_shared:%s" % String(lens.get_path()))
+		var mesh := lens.mesh as SphereMesh
+		if mesh != null:
+			mesh_ids[mesh.get_instance_id()] = true
+			structural_submissions += mesh.get_surface_count()
+		if lens.material_override != null:
+			material_ids[lens.material_override.get_instance_id()] = true
+			var material := lens.material_override as StandardMaterial3D
+			if material != null and material.albedo_color.is_equal_approx(GUIDE_LENS_CYAN_COLOR):
+				cyan_count += 1
+			elif material != null and material.albedo_color.is_equal_approx(GUIDE_LENS_AMBER_COLOR):
+				amber_count += 1
+			else:
+				errors.append("guide_lens_material_recipe_drift:%s" % String(lens.get_path()))
+		child_node_count += lens.get_child_count()
+	var mesh := _guide_lens_mesh
+	if mesh == null \
+			or not is_equal_approx(mesh.radius, GUIDE_LENS_RADIUS) \
+			or not is_equal_approx(mesh.height, GUIDE_LENS_HEIGHT) \
+			or mesh.radial_segments != GUIDE_LENS_RADIAL_SEGMENTS \
+			or mesh.rings != GUIDE_LENS_RINGS \
+			or mesh.get_surface_count() != 1:
+		errors.append("guide_lens_mesh_recipe_drift")
+	var presentation := get_node_or_null(^"FreightPresentation")
+	var housing_count := 0
+	var light_count := 0
+	if presentation != null:
+		for child in presentation.get_children():
+			if str(child.name).begins_with("DockGuideHousing"):
+				housing_count += 1
+			elif child is OmniLight3D and str(child.name).begins_with("DockGuideLight"):
+				light_count += 1
+	if lens_nodes.size() != GUIDE_LENS_COPY_COUNT:
+		errors.append("guide_lens_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("guide_lens_mesh_identity_count_drift")
+	if material_ids.size() != GUIDE_LENS_BASELINE_MATERIAL_RESOURCES:
+		errors.append("guide_lens_material_identity_count_drift")
+	if cyan_count != 12 or amber_count != 6:
+		errors.append("guide_lens_colour_roster_drift")
+	if structural_submissions != GUIDE_LENS_COPY_COUNT:
+		errors.append("guide_lens_submission_count_drift")
+	if housing_count != GUIDE_LENS_COPY_COUNT or light_count != GUIDE_LENS_COPY_COUNT:
+		errors.append("guide_lens_sibling_roster_drift")
+	if child_node_count != 0:
+		errors.append("guide_lens_node_authority_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_freight_berth_dock_guide_lenses",
+		"node_count": lens_nodes.size(),
+		"structural_submission_count": structural_submissions,
+		"mesh_resource_identity_count_before": GUIDE_LENS_BASELINE_MESH_RESOURCES,
+		"mesh_resource_identity_count_after": mesh_ids.size(),
+		"mesh_resource_identity_delta": mesh_ids.size() - GUIDE_LENS_BASELINE_MESH_RESOURCES,
+		"material_resource_identity_count_before": GUIDE_LENS_BASELINE_MATERIAL_RESOURCES,
+		"material_resource_identity_count_after": material_ids.size(),
+		"material_resource_identity_delta": material_ids.size() - GUIDE_LENS_BASELINE_MATERIAL_RESOURCES,
+		"cyan_lens_count": cyan_count,
+		"amber_lens_count": amber_count,
+		"housing_count": housing_count,
+		"light_count": light_count,
+		"child_node_count": child_node_count,
+		"batched": false,
+		"material_sharing": false,
+		"collision_authority": false,
+		"route_authority": false,
+		"interaction_authority": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+	}.duplicate(true)
+
+
 func get_collision_contract() -> Dictionary:
 	var contract := StationModuleContract.build_collision_contract(
 		self, WORLD_LAYER, _module_enabled
@@ -1002,6 +1108,14 @@ func _create_materials() -> void:
 		panel.clearcoat_enabled = true
 		panel.clearcoat = 0.28
 		panel.clearcoat_roughness = 0.38
+
+
+func _create_guide_lens_mesh() -> void:
+	_guide_lens_mesh = SphereMesh.new()
+	_guide_lens_mesh.radius = GUIDE_LENS_RADIUS
+	_guide_lens_mesh.height = GUIDE_LENS_HEIGHT
+	_guide_lens_mesh.radial_segments = GUIDE_LENS_RADIAL_SEGMENTS
+	_guide_lens_mesh.rings = GUIDE_LENS_RINGS
 
 
 func _build_connection_lattice() -> void:
@@ -2509,15 +2623,10 @@ func _guide_light(parent: Node3D, position_value: Vector3, color: Color, energy:
 	)
 	housing.set_meta("station_fixture_housing", true)
 
-	var lens_mesh := SphereMesh.new()
-	lens_mesh.radius = 0.13
-	lens_mesh.height = 0.26
-	lens_mesh.radial_segments = 12
-	lens_mesh.rings = 6
 	var lens := MeshInstance3D.new()
 	lens.name = "DockGuideLens"
 	lens.position = position_value
-	lens.mesh = lens_mesh
+	lens.mesh = _guide_lens_mesh
 	lens.material_override = _material(color, 0.0, 0.2, color, 1.6)
 	parent.add_child(lens, true)
 	var light := OmniLight3D.new()
