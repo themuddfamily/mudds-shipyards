@@ -213,6 +213,39 @@ func _run() -> void:
 	opponent.call("activate", respawn)
 	_check(bool(opponent.call("is_active")) and visual_root.visible, "re-entered opponent activates with a clean hull presentation")
 	_check(int(opponent.call("get_pending_damage_presentation_count")) == 0 and opponent.call("get_destruction_effect_root") == null, "re-entered activation owns no stale pending or world effects")
+	var detached_health := float(opponent.call("get_health"))
+	var detached_component_snapshot := opponent.call("get_component_damage_snapshot") as Dictionary
+	var detached_health_events := _health_events.size()
+	var detached_destroyed_events := _destroyed_positions.size()
+	var detached_collision_layer := opponent.collision_layer
+	var detached_collision_mask := opponent.collision_mask
+	opponent_parent.remove_child(opponent)
+	await process_frame
+	opponent.call("apply_damage", 10.0, Vector3.ZERO, 580, true)
+	_check(
+		not opponent.is_inside_tree()
+			and is_equal_approx(float(opponent.call("get_health")), detached_health)
+			and opponent.call("get_component_damage_snapshot") == detached_component_snapshot
+			and bool(opponent.call("is_active"))
+			and opponent.collision_layer == detached_collision_layer
+			and opponent.collision_mask == detached_collision_mask
+			and int(opponent.call("get_pending_damage_presentation_count")) == 0
+			and _health_events.size() == detached_health_events
+			and _destroyed_positions.size() == detached_destroyed_events,
+		"detached opponent rejects direct damage before health, presentation, collision, or signals mutate"
+	)
+	opponent_parent.add_child(opponent)
+	await process_frame
+	var live_health_before_damage := float(opponent.call("get_health"))
+	opponent.call("apply_damage", 10.0, opponent.global_position, 581, true)
+	_check(
+		opponent.is_inside_tree()
+			and is_equal_approx(float(opponent.call("get_health")), live_health_before_damage - 10.0)
+			and int(opponent.call("get_pending_damage_presentation_count")) == 1
+			and _health_events.size() == detached_health_events + 1,
+		"reattached opponent accepts a fresh direct damage receipt"
+	)
+	opponent.call("activate", respawn)
 
 	for sequence in range(600, 618):
 		opponent.call("apply_damage", 0.1, opponent.global_position, sequence, true)
@@ -322,6 +355,46 @@ func _run() -> void:
 	)
 	await process_frame
 	_check(not is_instance_valid(opponent), "queued opponent frees after its terminal receipt is rejected")
+
+	var queued_damage_opponent := packed.instantiate() as CharacterBody3D
+	var queued_damage_health_events := PackedFloat32Array()
+	var queued_damage_destroyed_events := PackedVector3Array()
+	queued_damage_opponent.connect(&"health_changed",
+		func(current: float, _maximum: float) -> void:
+			queued_damage_health_events.append(current)
+	)
+	queued_damage_opponent.connect(&"destroyed",
+		func(position: Vector3) -> void:
+			queued_damage_destroyed_events.append(position)
+	)
+	opponent_parent.add_child(queued_damage_opponent)
+	await process_frame
+	queued_damage_opponent.call("activate", respawn)
+	var queued_damage_health := float(queued_damage_opponent.call("get_health"))
+	var queued_damage_snapshot := queued_damage_opponent.call("get_component_damage_snapshot") as Dictionary
+	var queued_damage_collision_layer := queued_damage_opponent.collision_layer
+	var queued_damage_collision_mask := queued_damage_opponent.collision_mask
+	var queued_damage_pending := int(queued_damage_opponent.call("get_pending_damage_presentation_count"))
+	var queued_damage_visual := queued_damage_opponent.get_node_or_null("RangeInterceptorVisual") as Node3D
+	var queued_damage_visual_visible := queued_damage_visual.visible if queued_damage_visual != null else false
+	var queued_damage_signal_count := queued_damage_health_events.size()
+	queued_damage_opponent.queue_free()
+	queued_damage_opponent.call("apply_damage", 10.0, Vector3.ZERO, 720, true)
+	_check(
+		queued_damage_opponent.is_queued_for_deletion()
+			and is_equal_approx(float(queued_damage_opponent.call("get_health")), queued_damage_health)
+			and queued_damage_opponent.call("get_component_damage_snapshot") == queued_damage_snapshot
+			and bool(queued_damage_opponent.call("is_active"))
+			and queued_damage_opponent.collision_layer == queued_damage_collision_layer
+			and queued_damage_opponent.collision_mask == queued_damage_collision_mask
+			and int(queued_damage_opponent.call("get_pending_damage_presentation_count")) == queued_damage_pending
+			and queued_damage_visual != null and queued_damage_visual.visible == queued_damage_visual_visible
+			and queued_damage_health_events.size() == queued_damage_signal_count
+			and queued_damage_destroyed_events.is_empty(),
+		"queued opponent rejects direct damage before health, presentation, collision, or signals mutate"
+	)
+	await process_frame
+	_check(not is_instance_valid(queued_damage_opponent), "queued direct-damage fixture releases its opponent cleanly")
 
 	await _clean_up(host, null)
 	_check(root.get_child_count() == original_root_child_count, "combat fixture cleans up all scene nodes")

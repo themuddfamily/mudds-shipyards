@@ -330,6 +330,8 @@ func apply_damage(
 	sequence: int = -1,
 	defer_visuals: bool = false
 	) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	var before_health := get_health()
 	if not _active or before_health <= 0.0:
 		return
