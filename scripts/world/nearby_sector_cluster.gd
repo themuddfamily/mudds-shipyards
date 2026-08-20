@@ -144,6 +144,10 @@ const LAMP_LENS_HEIGHT := 0.9
 const LAMP_LENS_RADIAL_SEGMENTS := 12
 const LAMP_LENS_RINGS := 6
 const LAMP_LENS_COPY_COUNT := 22
+const TORUS_RINGS := 40
+const TORUS_RING_SEGMENTS := 14
+const TORUS_COPY_COUNT := 19
+const TORUS_MESH_RESOURCE_ALLOCATIONS := 12
 
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 44,
@@ -188,6 +192,7 @@ var _lamp_lenses: Array[MeshInstance3D] = []
 var _box_cache: Dictionary = {}
 var _rock_mesh_cache: Dictionary = {}
 var _cylinder_cache: Dictionary = {}
+var _torus_mesh_cache: Dictionary = {}
 var _spin_bodies: Array[Node3D] = []
 var _pulse_lamps: Array[OmniLight3D] = []
 var _boulder_offsets: Array[Vector3] = []
@@ -436,6 +441,92 @@ func get_lamp_lens_allocation_audit() -> Dictionary:
 			"rings": LAMP_LENS_RINGS,
 		}.duplicate(true),
 	}.duplicate(true)
+
+
+## Exact torus recipes are component-local immutable render resources. This
+## checks the cache only shares indistinguishable geometry; every named instance
+## keeps its authored path, transform, material override and no-collision status.
+func get_torus_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	var tori: Array[MeshInstance3D] = []
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var instance := candidate as MeshInstance3D
+		var mesh := instance.mesh as TorusMesh
+		if mesh == null:
+			continue
+		tori.append(instance)
+		mesh_ids[mesh.get_instance_id()] = true
+		if instance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			errors.append("torus_shadow_contract_drift")
+		if not instance.find_children("*", "CollisionObject3D", true, false).is_empty():
+			errors.append("torus_collision_authority_added")
+		if not _torus_recipe_is_authored(mesh):
+			errors.append("torus_mesh_recipe_drift")
+	if tori.size() != TORUS_COPY_COUNT:
+		errors.append("torus_copy_count_drift")
+	if mesh_ids.size() != TORUS_MESH_RESOURCE_ALLOCATIONS:
+		errors.append("torus_mesh_allocation_count_drift")
+	if _torus_mesh_cache.size() != TORUS_MESH_RESOURCE_ALLOCATIONS:
+		errors.append("torus_cache_recipe_count_drift")
+	_validate_shared_torus_family(
+		[
+			^"RouteBeacons/RouteBeaconAlpha/SignalRing",
+			^"RouteBeacons/RouteBeaconBravo/SignalRing",
+			^"RouteBeacons/RouteBeaconCharlie/SignalRing",
+			^"RouteBeacons/RouteBeaconDelta/SignalRing",
+		], errors
+	)
+	_validate_shared_torus_family(
+		[
+			^"RouteBeacons/RouteBeaconAlpha/TrimRing",
+			^"RouteBeacons/RouteBeaconBravo/TrimRing",
+			^"RouteBeacons/RouteBeaconCharlie/TrimRing",
+			^"RouteBeacons/RouteBeaconDelta/TrimRing",
+		], errors
+	)
+	_validate_shared_torus_family(
+		[
+			^"ExtractionPlatform/CinderReachPlatform/DrumCollarUpper",
+			^"ExtractionPlatform/CinderReachPlatform/DrumCollarLower",
+		], errors
+	)
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"copy_count": tori.size(),
+		"mesh_resource_allocations": mesh_ids.size(),
+		"expected_copy_count": TORUS_COPY_COUNT,
+		"expected_mesh_resource_allocations": TORUS_MESH_RESOURCE_ALLOCATIONS,
+		"authored_recipe": {
+			"rings": TORUS_RINGS,
+			"ring_segments": TORUS_RING_SEGMENTS,
+		}.duplicate(true),
+	}.duplicate(true)
+
+
+func _validate_shared_torus_family(paths: Array[NodePath], errors: PackedStringArray) -> void:
+	var shared_mesh: TorusMesh
+	for path in paths:
+		var instance := get_node_or_null(path) as MeshInstance3D
+		var mesh := instance.mesh as TorusMesh if instance != null else null
+		if mesh == null:
+			errors.append("torus_family_node_or_mesh_lost")
+			continue
+		if shared_mesh == null:
+			shared_mesh = mesh
+		elif mesh != shared_mesh:
+			errors.append("torus_shared_family_identity_drift")
+
+
+func _torus_recipe_is_authored(mesh: TorusMesh) -> bool:
+	if mesh == null:
+		return false
+	if mesh.has_meta(TorusGeometryBudget.AUTHORED_META):
+		var authored := mesh.get_meta(TorusGeometryBudget.AUTHORED_META) as Vector2i
+		return authored == Vector2i(TORUS_RINGS, TORUS_RING_SEGMENTS)
+	return mesh.rings == TORUS_RINGS and mesh.ring_segments == TORUS_RING_SEGMENTS
 
 
 func _compose_audit_report() -> Dictionary:
@@ -1385,11 +1476,7 @@ func _torus(
 		material: Material,
 		torus_rotation_degrees: Vector3
 	) -> MeshInstance3D:
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 40
-	mesh.ring_segments = 14
+	var mesh := _shared_torus_mesh(inner_radius, outer_radius)
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = torus_position
@@ -1399,6 +1486,25 @@ func _torus(
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(instance)
 	return instance
+
+
+func _shared_torus_mesh(inner_radius: float, outer_radius: float) -> TorusMesh:
+	var key := _torus_recipe_key(inner_radius, outer_radius)
+	if _torus_mesh_cache.has(key):
+		return _torus_mesh_cache[key] as TorusMesh
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = inner_radius
+	mesh.outer_radius = outer_radius
+	mesh.rings = TORUS_RINGS
+	mesh.ring_segments = TORUS_RING_SEGMENTS
+	_torus_mesh_cache[key] = mesh
+	return mesh
+
+
+## Vector4 hashing retains the exact authored float pair; unlike a formatted
+## decimal key, it cannot alias nearby but distinct geometry recipes.
+func _torus_recipe_key(inner_radius: float, outer_radius: float) -> Vector4:
+	return Vector4(inner_radius, outer_radius, TORUS_RINGS, TORUS_RING_SEGMENTS)
 
 
 func _lamp(

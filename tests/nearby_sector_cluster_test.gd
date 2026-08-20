@@ -65,6 +65,10 @@ const EXPECTED_LAMP_LENS_RADIUS := 0.45
 const EXPECTED_LAMP_LENS_HEIGHT := 0.9
 const EXPECTED_LAMP_LENS_RADIAL_SEGMENTS := 12
 const EXPECTED_LAMP_LENS_RINGS := 6
+const EXPECTED_TORUS_COPY_COUNT := 19
+const EXPECTED_TORUS_MESH_RESOURCE_ALLOCATIONS := 12
+const EXPECTED_TORUS_RINGS := 40
+const EXPECTED_TORUS_RING_SEGMENTS := 14
 ## The furthest the whole cluster may sit from the station and still be somewhere
 ## a pilot chooses to go rather than commits an evening to.
 const MAXIMUM_TRAVEL_DISTANCE := 760.0
@@ -104,6 +108,7 @@ func _run() -> void:
 	_test_identity_and_authority(world, cluster)
 	_test_processing_spine_rib_batch(cluster)
 	_test_lamp_lens_mesh_sharing(cluster)
+	_test_torus_mesh_sharing(cluster)
 	_test_placement_envelope(cluster)
 	_test_placement_predicate_rejects_the_lane(cluster)
 	_test_winding(cluster)
@@ -349,6 +354,92 @@ func _test_lamp_lens_mesh_sharing(cluster: NearbySectorCluster) -> void:
 	_check(
 		bool(cluster.get_lamp_lens_allocation_audit().valid),
 		"restoring the shared lamp-lens identity returns the allocation audit green"
+	)
+
+
+func _test_torus_mesh_sharing(cluster: NearbySectorCluster) -> void:
+	var signal_alpha := cluster.get_node_or_null(
+		^"RouteBeacons/RouteBeaconAlpha/SignalRing"
+	) as MeshInstance3D
+	var signal_bravo := cluster.get_node_or_null(
+		^"RouteBeacons/RouteBeaconBravo/SignalRing"
+	) as MeshInstance3D
+	var trim_alpha := cluster.get_node_or_null(
+		^"RouteBeacons/RouteBeaconAlpha/TrimRing"
+	) as MeshInstance3D
+	var trim_bravo := cluster.get_node_or_null(
+		^"RouteBeacons/RouteBeaconBravo/TrimRing"
+	) as MeshInstance3D
+	var upper_collar := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/DrumCollarUpper"
+	) as MeshInstance3D
+	var lower_collar := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/DrumCollarLower"
+	) as MeshInstance3D
+	var audit := cluster.get_torus_allocation_audit()
+	_check(
+		bool(audit.valid)
+		and int(audit.copy_count) == EXPECTED_TORUS_COPY_COUNT
+		and int(audit.mesh_resource_allocations) == EXPECTED_TORUS_MESH_RESOURCE_ALLOCATIONS
+		and signal_alpha != null and signal_bravo != null
+		and trim_alpha != null and trim_bravo != null
+		and upper_collar != null and lower_collar != null
+		and signal_alpha.mesh == signal_bravo.mesh
+		and trim_alpha.mesh == trim_bravo.mesh
+		and upper_collar.mesh == lower_collar.mesh
+		and signal_alpha.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and trim_alpha.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and upper_collar.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"nineteen named non-colliding tori retain their paths while twelve exact recipes share resources"
+	)
+	if signal_alpha == null or signal_bravo == null:
+		return
+	var original_mesh := signal_bravo.mesh
+	signal_bravo.mesh = (original_mesh as TorusMesh).duplicate() as TorusMesh
+	var identity_drift := cluster.get_torus_allocation_audit()
+	_check(
+		not bool(identity_drift.valid)
+		and (identity_drift.errors as PackedStringArray).has("torus_shared_family_identity_drift")
+		and (identity_drift.errors as PackedStringArray).has("torus_mesh_allocation_count_drift"),
+		"a private route-ring mesh is a structured allocation and family-identity red"
+	)
+	signal_bravo.mesh = original_mesh
+	var shared_mesh := signal_alpha.mesh as TorusMesh
+	shared_mesh.rings = EXPECTED_TORUS_RINGS - 1
+	var recipe_drift := cluster.get_torus_allocation_audit()
+	_check(
+		not bool(recipe_drift.valid)
+		and (recipe_drift.errors as PackedStringArray).has("torus_mesh_recipe_drift"),
+		"an authored torus tessellation change is a structured recipe red"
+	)
+	shared_mesh.rings = EXPECTED_TORUS_RINGS
+	_check(
+		bool(cluster.get_torus_allocation_audit().valid),
+		"restoring route-ring identity and tessellation returns the allocation audit green"
+	)
+	var before_normalise := cluster.get_torus_allocation_audit()
+	TorusGeometryBudget.normalise_tree(cluster)
+	var after_normalise := cluster.get_torus_allocation_audit()
+	_check(
+		bool(before_normalise.valid)
+		and bool(after_normalise.valid)
+		and int(after_normalise.copy_count) == EXPECTED_TORUS_COPY_COUNT
+		and int(after_normalise.mesh_resource_allocations) == EXPECTED_TORUS_MESH_RESOURCE_ALLOCATIONS
+		and signal_alpha.mesh == signal_bravo.mesh
+		and trim_alpha.mesh == trim_bravo.mesh
+		and upper_collar.mesh == lower_collar.mesh,
+		"TorusGeometryBudget preserves shared resource identity and the nineteen-copy/twelve-allocation census"
+	)
+	var exact_recipe_mesh := cluster._shared_torus_mesh(5.0, 5.6)
+	var near_recipe_mesh := cluster._shared_torus_mesh(5.00005, 5.6)
+	_check(
+		exact_recipe_mesh != near_recipe_mesh,
+		"a near-equal but nonidentical radius is a non-sharing red rather than rounded into the signal-ring resource"
+	)
+	cluster._torus_mesh_cache.erase(cluster._torus_recipe_key(5.00005, 5.6))
+	_check(
+		bool(cluster.get_torus_allocation_audit().valid),
+		"removing the isolated near-equal probe restores the component's frozen torus allocation census"
 	)
 
 
