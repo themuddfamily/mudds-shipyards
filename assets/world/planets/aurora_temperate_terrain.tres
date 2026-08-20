@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PlanetaryTerrainProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/planetary_terrain_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+profile_id = &"aurora_temperate_terrain"
+display_name = "Aurora temperate terrain"
+evidence_notes = "NEW modern game-scale terrain constraints for the standalone Aurora composition foundation."

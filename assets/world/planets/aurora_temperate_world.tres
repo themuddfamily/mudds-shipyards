@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="PlanetaryWorldDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/planetary_world_definition.gd" id="1_world"]
+
+[resource]
+script = ExtResource("1_world")
+world_id = &"aurora_temperate_world"
+display_name = "Aurora Temperate World"
+sector_id = &"aurora_foundation_sector"
+content_note = "NEW modern atmospheric world resource for a standalone renderer composition foundation; it is not streamed, visitable, or production wired."
+scene_path = "res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn"
+scene_anchor_id = &"aurora_scene_origin"
+scene_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+navigation_anchor_id = &"aurora_navigation"
+navigation_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 130000, 0)
+orbital_anchor_id = &"aurora_orbit"
+orbital_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 140000, 0)
+surface_anchor_id = &"aurora_surface"
+surface_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 120000, 0)
+body_radius_metres = 120000.0
+has_atmosphere = true
+atmosphere_definition_id = &"aurora_temperate_atmosphere"
+terrain_definition_id = &"aurora_temperate_terrain"
+landing_region_ids = PackedStringArray("aurora_foundation_landing")
+evidence_status = 3
+evidence_notes = "NEW modern atmospheric resource triple for a standalone composition foundation; no historical or production-world claim."

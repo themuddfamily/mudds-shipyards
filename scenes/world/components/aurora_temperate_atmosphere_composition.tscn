@@ -1,0 +1,17 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/planetary_atmosphere_composition.gd" id="1_composition"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/planetary_atmosphere_world_rig.tscn" id="2_rig"]
+[ext_resource type="Resource" path="res://assets/world/planets/aurora_temperate_world.tres" id="3_world"]
+[ext_resource type="Resource" path="res://assets/world/planets/aurora_temperate_atmosphere.tres" id="4_atmosphere"]
+[ext_resource type="Resource" path="res://assets/world/planets/aurora_temperate_terrain.tres" id="5_terrain"]
+
+[node name="AuroraTemperateAtmosphereComposition" type="Node3D"]
+script = ExtResource("1_composition")
+world_definition = ExtResource("3_world")
+atmosphere_profile = ExtResource("4_atmosphere")
+terrain_profile = ExtResource("5_terrain")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="PlanetaryAtmosphereWorldRig" parent="." instance=ExtResource("2_rig")]
