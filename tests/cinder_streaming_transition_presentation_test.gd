@@ -154,16 +154,24 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 	var fading_out_opacity := float(fading_out.get("opacity", -1.0))
 	root.remove_child(cluster)
 	await process_frame
+	var detached_before := cluster.get_streaming_transition_snapshot()
+	var detached_advance := cluster.advance_streaming_transition(
+		0.25, 650.1, GENERATION
+	)
+	var detached_after := cluster.get_streaming_transition_snapshot()
 	root.add_child(cluster)
 	await process_frame
 	var fading_out_reentry := cluster.get_streaming_transition_snapshot()
 	_check(
-		fading_out_reentry.get("phase") == &"fading_out"
+		not bool(detached_advance.get("accepted", true))
+		and detached_advance.get("reason") == &"content_root_detached"
+		and detached_after == detached_before
+		and fading_out_reentry.get("phase") == &"fading_out"
 		and is_equal_approx(
 			float(fading_out_reentry.get("opacity", -2.0)), fading_out_opacity
 		)
 		and int(fading_out_reentry.get("generation", -1)) == GENERATION,
-		"detach and re-entry during fade-out retain phase, opacity, and generation"
+		"detached fade calls reject and re-entry retains phase, opacity, and generation"
 	)
 	var reversed := cluster.advance_streaming_transition(0.25, 650.0, GENERATION)
 	_check(

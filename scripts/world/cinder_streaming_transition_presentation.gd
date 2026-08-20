@@ -96,6 +96,8 @@ func advance_physics(
 		return _result(false, &"reentrant_call")
 	if not _bound or not is_instance_valid(_content_root):
 		return _result(false, &"not_bound")
+	if _content_root.is_queued_for_deletion() or not _content_root.is_inside_tree():
+		return _result(false, &"content_root_detached")
 	if typeof(expected_generation) != TYPE_INT \
 		or int(expected_generation) != _generation:
 		return _result(false, &"stale_generation")
