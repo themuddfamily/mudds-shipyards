@@ -1,0 +1,15 @@
+{
+  "schema": "production_settings_coverage_manifest_v1",
+  "source": {"revision": "working-tree-roadmap-914", "settings_owner": "GameFlow/RuntimeSettings"},
+  "action_roster": {
+    "status": "COMPLETE",
+    "required_actions": ["move_forward", "move_backward", "move_left", "move_right", "move_up", "move_down", "pitch_up", "pitch_down", "roll_left", "roll_right", "yaw_left", "yaw_right", "throttle", "brake", "fire_primary", "boost", "hover", "barrel_roll", "interact", "camera_cycle", "toggle_controls_overlay", "pause", "landing_assist"],
+    "covered_actions": ["move_forward", "move_backward", "move_left", "move_right", "move_up", "move_down", "pitch_up", "pitch_down", "roll_left", "roll_right", "yaw_left", "yaw_right", "throttle", "brake", "fire_primary", "boost", "hover", "barrel_roll", "interact", "camera_cycle", "toggle_controls_overlay", "pause", "landing_assist"]
+  },
+  "prompts": {"status": "COMPLETE", "families": ["confirm", "cancel", "back", "apply", "reset", "unsaved_changes"]},
+  "ultrawide": {"status": "IN_PROGRESS", "aspect_ratios": ["16:9", "16:10", "21:9"], "safe_area_contract": "tests/ultrawide_safe_area_contract_test.gd"},
+  "accessibility": {"status": "IN_PROGRESS", "presets": ["captions", "color_safe", "high_contrast", "reduced_motion", "ui_scale"]},
+  "remapping": {"status": "IN_PROGRESS", "actions": ["move_forward", "move_backward", "move_left", "move_right", "move_up", "move_down", "pitch_up", "pitch_down", "roll_left", "roll_right", "yaw_left", "yaw_right", "throttle", "brake", "fire_primary", "boost", "hover", "barrel_roll", "interact", "camera_cycle", "toggle_controls_overlay", "pause", "landing_assist"], "conflict_resolution": true, "defaults_reset": true, "ui_focus": true},
+  "curve_hold_toggle": {"status": "COMPLETE", "curves": ["linear", "squared"], "modes": ["hold", "toggle"], "deadzone_range": [0.0, 1.0]},
+  "hardware": {"status": "NOT_RUN", "platform": "Windows gamepad and ultrawide display", "evidence": null}
+}
