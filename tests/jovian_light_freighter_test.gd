@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
 	_test_cargo_frame_joint_allocation(jovian)
+	_test_passenger_seat_mesh_allocation(jovian)
 	await _test_scale_handling_and_presentation(jovian)
 	_test_connected_interior_contract(jovian)
 	_test_collision_access_and_cameras(jovian)
@@ -70,6 +71,53 @@ func _test_definition_and_evidence(jovian: JovianLightFreighter) -> void:
 	_check(str(audit.weapon_class) == "freighter_defensive_pulse" and int(audit.engine_count) == 4, "audit exposes restrained weapons and quad-engine layout")
 	_check(bool(jovian.get_meta("jovian_light_freighter_candidate", false)), "root metadata identifies a candidate")
 	_check(not bool(jovian.get_meta("authenticated_historical_silhouette", true)), "root metadata cannot imply historical silhouette authentication")
+
+
+func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_passenger_seat_mesh_allocation_audit()
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	_check(
+		bool(audit.get("valid", false))
+		and int(current.get("nodes", 0)) == 18
+		and int(current.get("copies", 0)) == 18
+		and int(current.get("submissions", 0)) == 18
+		and int(current.get("mesh_resource_allocations", 0)) == 3
+		and int(legacy.get("mesh_resource_allocations", 0)) == 18
+		and int(delta.get("mesh_resource_allocations", 0)) == -15
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("collision_authority", true)),
+		"six passenger seats retain 18 rounded visual copies/submissions while exact mesh allocations fall 18 -> 3"
+	)
+	var cabin := jovian.get_node(^"WalkableInterior/PassengerCabin") as Node3D
+	var port_base := cabin.get_node(^"PortPassengerSeat00/SeatBase") as MeshInstance3D
+	var starboard_base := cabin.get_node(^"StarboardPassengerSeat02/SeatBase") as MeshInstance3D
+	var port_back := cabin.get_node(^"PortPassengerSeat00/SeatBack") as MeshInstance3D
+	var starboard_back := cabin.get_node(^"StarboardPassengerSeat02/SeatBack") as MeshInstance3D
+	var port_harness := cabin.get_node(^"PortPassengerSeat00/Harness") as MeshInstance3D
+	var starboard_harness := cabin.get_node(^"StarboardPassengerSeat02/Harness") as MeshInstance3D
+	_check(
+		port_base.mesh == starboard_base.mesh
+		and port_back.mesh == starboard_back.mesh
+		and port_harness.mesh == starboard_harness.mesh
+		and port_base.mesh != port_back.mesh and port_back.mesh != port_harness.mesh
+		and cabin.get_node(^"PortPassengerSeat00/PassengerAnchor") is Marker3D
+		and cabin.get_node(^"StarboardPassengerSeat02/PassengerAnchor") is Marker3D,
+		"seat family sharing preserves exact named visual paths and independent passenger anchors"
+	)
+	var retained := starboard_base.mesh
+	starboard_base.mesh = (retained as ArrayMesh).duplicate() as ArrayMesh
+	_check(
+		not bool(jovian.get_passenger_seat_mesh_allocation_audit().get("valid", true))
+		and _has_error(jovian.get_passenger_seat_mesh_allocation_audit(), "passenger_seat_recipe_or_authority_drift:StarboardPassengerSeat02/SeatBase"),
+		"RED: one private passenger-seat mesh fails the exact shared-resource audit"
+	)
+	starboard_base.mesh = retained
+	_check(
+		bool(jovian.get_passenger_seat_mesh_allocation_audit().get("valid", false)),
+		"restoring the shared passenger-seat mesh returns the Jovian audit green"
+	)
 
 
 func _test_dorsal_cargo_rib_joint_allocation(jovian: JovianLightFreighter) -> void:

@@ -56,6 +56,10 @@ const CARGO_CONTAINER_SIZE := Vector3(1.95, 1.3, 2.15)
 const CARGO_RESTRAINT_OFFSET_Y := 1.62
 const CARGO_RESTRAINT_BAND_Z: Array[float] = [-0.64, 0.64]
 const CARGO_RESTRAINT_SIZE := Vector3(2.02, 0.08, 0.1)
+const PASSENGER_SEAT_COUNT := 6
+const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
+const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
+const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
@@ -173,6 +177,9 @@ var _jovian_engine_lights: Array[OmniLight3D] = []
 var _dorsal_cargo_rib_joint_mesh: SphereMesh
 var _shoulder_rail_joint_mesh: SphereMesh
 var _cargo_frame_joint_mesh: SphereMesh
+var _passenger_seat_base_mesh: ArrayMesh
+var _passenger_seat_back_mesh: ArrayMesh
+var _passenger_seat_harness_mesh: ArrayMesh
 var _elapsed_jovian := 0.0
 
 
@@ -404,6 +411,7 @@ func get_jovian_audit_report() -> Dictionary:
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
+	var passenger_seat_allocation := get_passenger_seat_mesh_allocation_audit()
 	var definition := get_ship_definition()
 	if definition == null or not definition.is_definition_valid():
 		errors.append("valid provisional ShipDefinition is missing")
@@ -435,6 +443,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("shoulder rail joint allocation contract drifted")
 	if not bool(cargo_frame_allocation.get("valid", false)):
 		errors.append("cargo frame joint allocation contract drifted")
+	if not bool(passenger_seat_allocation.get("valid", false)):
+		errors.append("passenger seat mesh allocation contract drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -450,7 +460,96 @@ func get_jovian_audit_report() -> Dictionary:
 		"dorsal_cargo_rib_joint_allocation": dorsal_rib_allocation,
 		"shoulder_rail_joint_allocation": shoulder_rail_allocation,
 		"cargo_frame_joint_allocation": cargo_frame_allocation,
+		"passenger_seat_mesh_allocation": passenger_seat_allocation,
 	}
+
+
+## Six passenger seats retain all 18 visible parts and submissions, while their
+## three exact rounded-box visual recipes share one immutable ArrayMesh each. Seat anchors and
+## collision remain separately owned; this changes no authority or batching.
+func get_passenger_seat_mesh_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids: Dictionary = {}
+	var node_ids: Dictionary = {}
+	var surface_count := 0
+	var family_counts := {&"SeatBase": 0, &"SeatBack": 0, &"Harness": 0}
+	var expected_meshes := {
+		&"SeatBase": _passenger_seat_base_mesh,
+		&"SeatBack": _passenger_seat_back_mesh,
+		&"Harness": _passenger_seat_harness_mesh,
+	}
+	var expected_materials := {
+		&"SeatBase": _jovian_materials.get("cabin_cloth"),
+		&"SeatBack": _jovian_materials.get("cabin_cloth"),
+		&"Harness": _jovian_materials.get("amber"),
+	}
+	var expected_positions := {
+		&"SeatBase": Vector3(0.0, 0.88, 0.0),
+		&"SeatBack": Vector3(0.0, 1.42, 0.36),
+		&"Harness": Vector3(0.0, 1.42, 0.25),
+	}
+	var expected_rotations := {
+		&"SeatBase": Vector3.ZERO,
+		&"SeatBack": Vector3(deg_to_rad(8.0), 0.0, 0.0),
+		&"Harness": Vector3.ZERO,
+	}
+	if not is_instance_valid(_passenger_cabin):
+		errors.append("passenger_seat_cabin_unavailable")
+	else:
+		for side_name in [&"Port", &"Starboard"]:
+			for seat_index in 3:
+				var root_name := "%sPassengerSeat%02d" % [side_name, seat_index]
+				var seat_root := _passenger_cabin.get_node_or_null(NodePath(root_name)) as Node3D
+				if not is_instance_valid(seat_root):
+					errors.append("passenger_seat_root_missing:%s" % root_name)
+					continue
+				if seat_root.get_node_or_null(^"PassengerAnchor") == null:
+					errors.append("passenger_seat_anchor_missing:%s" % root_name)
+				for family_name: StringName in expected_meshes:
+					var visual := seat_root.get_node_or_null(NodePath(family_name)) as MeshInstance3D
+					if not is_instance_valid(visual):
+						errors.append("passenger_seat_visual_missing:%s/%s" % [root_name, family_name])
+						continue
+					family_counts[family_name] = int(family_counts[family_name]) + 1
+					node_ids[visual.get_instance_id()] = true
+					var mesh := visual.mesh as ArrayMesh
+					if mesh == null:
+						errors.append("passenger_seat_mesh_type_drift:%s/%s" % [root_name, family_name])
+						continue
+					mesh_ids[mesh.get_instance_id()] = true
+					surface_count += mesh.get_surface_count()
+					if (
+						mesh != expected_meshes[family_name]
+						or mesh.surface_get_material(0) != expected_materials[family_name]
+						or mesh.get_surface_count() != 1
+						or visual.get_child_count() != 0
+						or not visual.position.is_equal_approx(expected_positions[family_name] as Vector3)
+						or not visual.rotation.is_equal_approx(expected_rotations[family_name] as Vector3)
+						or not visual.scale.is_equal_approx(Vector3.ONE)
+						or not visual.visible
+						or visual.material_override != null
+						or visual.material_overlay != null
+					):
+						errors.append("passenger_seat_recipe_or_authority_drift:%s/%s" % [root_name, family_name])
+	for family_name: StringName in family_counts:
+		if int(family_counts[family_name]) != PASSENGER_SEAT_COUNT:
+			errors.append("passenger_seat_family_count_drift:%s" % family_name)
+	if node_ids.size() != PASSENGER_SEAT_COUNT * 3:
+		errors.append("passenger_seat_node_count_drift")
+	if mesh_ids.size() != 3:
+		errors.append("passenger_seat_mesh_resource_count_drift")
+	if surface_count != PASSENGER_SEAT_COUNT * 3:
+		errors.append("passenger_seat_submission_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_passenger_seat_visuals",
+		"current": {"nodes": node_ids.size(), "copies": PASSENGER_SEAT_COUNT * 3, "submissions": surface_count, "mesh_resource_allocations": mesh_ids.size()},
+		"legacy": {"nodes": PASSENGER_SEAT_COUNT * 3, "copies": PASSENGER_SEAT_COUNT * 3, "submissions": PASSENGER_SEAT_COUNT * 3, "mesh_resource_allocations": PASSENGER_SEAT_COUNT * 3},
+		"delta": {"mesh_resource_allocations": mesh_ids.size() - PASSENGER_SEAT_COUNT * 3},
+		"batched": false,
+		"collision_authority": false,
+	}.duplicate(true)
 
 
 ## Renderer-independent component evidence for one bounded repeated family.
@@ -1689,12 +1788,31 @@ func _build_cargo_bay() -> void:
 		_cargo_bay.add_child(cargo_light)
 
 
+func _rounded_box_from_mesh(
+	parent: Node3D,
+	node_name: String,
+	position_value: Vector3,
+	mesh: ArrayMesh,
+	rotation_value := Vector3.ZERO
+	) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	instance.rotation = rotation_value
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
+
+
 func _build_passenger_cabin() -> void:
 	_passenger_cabin = Node3D.new()
 	_passenger_cabin.name = "PassengerCabin"
 	_passenger_cabin.set_meta("space_id", &"passenger_cabin")
 	_passenger_cabin.set_meta("capacity_status", &"provisional")
 	_walkable_interior.add_child(_passenger_cabin)
+	_passenger_seat_base_mesh = _rounded_box_mesh(PASSENGER_SEAT_BASE_SIZE, _jovian_materials.cabin_cloth)
+	_passenger_seat_back_mesh = _rounded_box_mesh(PASSENGER_SEAT_BACK_SIZE, _jovian_materials.cabin_cloth)
+	_passenger_seat_harness_mesh = _rounded_box_mesh(PASSENGER_SEAT_HARNESS_SIZE, _jovian_materials.amber)
 	_box(_passenger_cabin, "PassengerDeck", Vector3(0.0, 0.5, -5.25), Vector3(6.9, 0.18, 4.65), _jovian_materials.deck)
 	_box(_passenger_cabin, "PassengerRoof", Vector3(0.0, 3.82, -5.25), Vector3(6.9, 0.16, 4.65), _jovian_materials.hull_cool)
 	for side in [-1.0, 1.0]:
@@ -1709,9 +1827,9 @@ func _build_passenger_cabin() -> void:
 			seat_root.position = Vector3(side * 2.62, 0.0, seat_z)
 			seat_root.rotation.y = -side * PI * 0.5
 			_passenger_cabin.add_child(seat_root)
-			_box(seat_root, "SeatBase", Vector3(0.0, 0.88, 0.0), Vector3(0.72, 0.2, 0.82), _jovian_materials.cabin_cloth)
-			_box(seat_root, "SeatBack", Vector3(0.0, 1.42, 0.36), Vector3(0.72, 0.95, 0.16), _jovian_materials.cabin_cloth, Vector3(deg_to_rad(8.0), 0.0, 0.0))
-			_box(seat_root, "Harness", Vector3(0.0, 1.42, 0.25), Vector3(0.13, 0.72, 0.04), _jovian_materials.amber)
+			_rounded_box_from_mesh(seat_root, "SeatBase", Vector3(0.0, 0.88, 0.0), _passenger_seat_base_mesh)
+			_rounded_box_from_mesh(seat_root, "SeatBack", Vector3(0.0, 1.42, 0.36), _passenger_seat_back_mesh, Vector3(deg_to_rad(8.0), 0.0, 0.0))
+			_rounded_box_from_mesh(seat_root, "Harness", Vector3(0.0, 1.42, 0.25), _passenger_seat_harness_mesh)
 			var anchor := Marker3D.new()
 			anchor.name = "PassengerAnchor"
 			anchor.position = Vector3(0.0, 0.24, -0.02)
