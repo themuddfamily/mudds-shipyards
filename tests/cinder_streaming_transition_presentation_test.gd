@@ -15,6 +15,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_standalone_is_authored_and_inert()
+	await _test_bind_currentness()
 	await _test_streamed_fade_lifecycle_and_baselines()
 	await _test_invalid_stale_and_detached_reports()
 	_finish()
@@ -68,6 +69,62 @@ func _test_standalone_is_authored_and_inert() -> void:
 		"opacity one restores exact authored transparency, shadow, and energy baselines"
 	)
 	cluster.queue_free()
+	await process_frame
+
+
+func _test_bind_currentness() -> void:
+	var detached := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	detached.set_meta(&"world_location_id", LOCATION_ID)
+	detached.set_meta(&"world_location_generation", GENERATION)
+	var detached_component := CinderStreamingTransitionPresentation.new()
+	var detached_component_before := detached_component.get_snapshot()
+	var detached_root_before := _presentation_state(detached)
+	var detached_result := detached_component.bind_streamed_content(detached, GENERATION)
+	_check(
+		not bool(detached_result.get("accepted", true))
+		and detached_result.get("reason") == &"content_root_detached"
+		and detached_component.get_snapshot() == detached_component_before
+		and _presentation_state(detached) == detached_root_before,
+		"detached bind rejects before component ownership or renderer presentation mutation"
+	)
+	detached.queue_free()
+
+	var queued := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	root.add_child(queued)
+	await process_frame
+	queued.set_meta(&"world_location_id", LOCATION_ID)
+	queued.set_meta(&"world_location_generation", GENERATION)
+	var queued_component := CinderStreamingTransitionPresentation.new()
+	var queued_component_before := queued_component.get_snapshot()
+	var queued_root_before := _presentation_state(queued)
+	queued.queue_free()
+	var queued_result := queued_component.bind_streamed_content(queued, GENERATION)
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and not bool(queued_result.get("accepted", true))
+		and queued_result.get("reason") == &"content_root_detached"
+		and queued_component.get_snapshot() == queued_component_before
+		and _presentation_state(queued) == queued_root_before,
+		"queued bind rejects before component ownership or renderer presentation mutation"
+	)
+	await process_frame
+
+	var live := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	root.add_child(live)
+	await process_frame
+	live.set_meta(&"world_location_id", LOCATION_ID)
+	live.set_meta(&"world_location_generation", GENERATION)
+	var live_component := CinderStreamingTransitionPresentation.new()
+	var live_result := live_component.bind_streamed_content(live, GENERATION)
+	_check(
+		bool(live_result.get("accepted", false))
+		and live_result.get("reason") == &"bound_hidden"
+		and bool(live_component.get_snapshot().get("bound", false))
+		and not live.visible,
+		"a fresh live root still binds into the hidden fade-in presentation state"
+	)
+	live.queue_free()
 	await process_frame
 
 
@@ -278,6 +335,26 @@ func _visual_resource_ids(renderers: Array[Node]) -> PackedInt64Array:
 		else:
 			ids.append(0)
 	return ids
+
+
+func _presentation_state(cluster: NearbySectorCluster) -> Dictionary:
+	var renderers := cluster.find_children("*", "GeometryInstance3D", true, false)
+	var lights := cluster.find_children("*", "Light3D", true, false)
+	var transparencies := PackedFloat32Array()
+	var shadows := PackedInt32Array()
+	var energies := PackedFloat32Array()
+	for renderer_node in renderers:
+		var renderer := renderer_node as GeometryInstance3D
+		transparencies.append(renderer.transparency)
+		shadows.append(renderer.cast_shadow)
+	for light_node in lights:
+		energies.append((light_node as Light3D).light_energy)
+	return {
+		"visible": cluster.visible,
+		"transparencies": transparencies,
+		"shadows": shadows,
+		"energies": energies,
+	}.duplicate(true)
 
 
 func _collision_contract(collisions: Array[Node]) -> Array[String]:

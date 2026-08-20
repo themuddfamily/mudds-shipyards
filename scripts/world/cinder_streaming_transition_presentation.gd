@@ -38,6 +38,8 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 		return _result(false, &"already_bound")
 	if not is_instance_valid(content_root):
 		return _result(false, &"invalid_content_root")
+	if content_root.is_queued_for_deletion() or not content_root.is_inside_tree():
+		return _result(false, &"content_root_detached")
 	if generation <= 0 \
 		or int(content_root.get_meta(&"world_location_generation", -1)) != generation \
 		or content_root.get_meta(&"world_location_id", &"") != LOCATION_ID:
