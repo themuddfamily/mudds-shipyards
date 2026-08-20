@@ -649,7 +649,11 @@ func _is_input_sampling_active() -> bool:
 		return false
 	# Before first attachment, injected providers remain usable by deterministic
 	# unit/replay tools. Once attached, Godot's process policy is authoritative.
-	return not _has_entered_tree or (is_inside_tree() and can_process())
+	return not _has_entered_tree or (
+		is_inside_tree()
+		and not is_queued_for_deletion()
+		and can_process()
+	)
 
 
 ## Overridable only so headless regressions can supply deterministic focus. A

@@ -397,7 +397,18 @@ func _test_focus_and_tree_reentry_boundaries() -> void:
 		and is_equal_approx(reentry_repress.camera_distance_delta, -1.0),
 		"release and repress after tree re-entry produces one fresh controller edge"
 	)
+	source.drain_pending_commands()
 	source.queue_free()
+	source.queue_look_motion(Vector2(80.0, -30.0))
+	source.queue_camera_distance_delta(-2.0)
+	source.queue_action_edge(&"interact")
+	var queued_sample := source.next_command(4011)
+	_check(
+		source.is_inside_tree() and source.is_queued_for_deletion()
+		and queued_sample.is_neutral()
+		and source.drain_pending_commands().is_empty(),
+		"queued local input source drops injected look, wheel, and lifecycle edges before actionable command sampling"
+	)
 	await process_frame
 
 
