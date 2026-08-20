@@ -239,6 +239,8 @@ func present_policy_result(
 		return _result(false, &"not_configured")
 	if not _attached:
 		return _result(false, &"not_attached")
+	if not _binding_is_available():
+		return _result(false, &"binding_unavailable")
 	var freshness_reason := _freshness_reason(
 		expected_attachment_generation,
 		expected_root_instance_id,
@@ -303,6 +305,8 @@ func set_paused(paused: bool, expected_attachment_generation: int) -> Dictionary
 		return _result(false, &"not_configured")
 	if not _attached:
 		return _result(false, &"not_attached")
+	if not _binding_is_available():
+		return _result(false, &"binding_unavailable")
 	if expected_attachment_generation != _attachment_generation:
 		return _result(false, &"stale_attachment_generation")
 	if _paused == paused:
@@ -328,6 +332,8 @@ func detach(
 		return _result(false, &"not_configured")
 	if not _attached:
 		return _result(false, &"not_attached")
+	if not _binding_is_available():
+		return _result(false, &"binding_unavailable")
 	if expected_attachment_generation != _attachment_generation:
 		return _result(false, &"stale_attachment_generation")
 	if not DETACH_REASONS.has(reason) or reason == &"tree_exiting" \

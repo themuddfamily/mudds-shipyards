@@ -277,6 +277,29 @@ func _test_binding_contract() -> void:
 		and not bool((detached.voices.interior as Dictionary).stream_attached),
 		"immediate caller detach stops and clears both voices"
 	)
+	var queued_attachment := binding.attach(
+		atmosphere_profile_id, 1001, 7, 11, binding.get_attachment_generation()
+	)
+	_check(bool(queued_attachment.accepted), "queued-currentness fixture starts with one live attachment")
+	var queued_generation := binding.get_attachment_generation()
+	var queued_signal_count := reentrant_reasons.size()
+	binding.queue_free()
+	var queued_snapshot := binding.get_state_snapshot()
+	var queued_present := binding.present_policy_result(
+		_policy_result(policy, &"exterior"), 0.25, queued_generation, 1001, 7, 11
+	)
+	var queued_pause := binding.set_paused(true, queued_generation)
+	var queued_detach := binding.detach(&"root_lost", queued_generation)
+	_check(
+		binding.is_inside_tree()
+		and binding.is_queued_for_deletion()
+		and queued_present.reason == &"binding_unavailable"
+		and queued_pause.reason == &"binding_unavailable"
+		and queued_detach.reason == &"binding_unavailable"
+		and binding.get_state_snapshot() == queued_snapshot
+		and reentrant_reasons.size() == queued_signal_count,
+		"queued binding rejects policy, pause, and detach without attachment, voice, fade, or signal drift"
+	)
 	var snapshot := binding.get_state_snapshot()
 	_check(
 		bool((binding.get_audit_report() as Dictionary).get("valid", false))
@@ -291,7 +314,6 @@ func _test_binding_contract() -> void:
 		and "set_process(false)" in source and "set_physics_process(false)" in source,
 		"binding has no AudioDirector reuse, bus mutation, or autonomous process loop"
 	)
-	binding.queue_free()
 	await process_frame
 
 
