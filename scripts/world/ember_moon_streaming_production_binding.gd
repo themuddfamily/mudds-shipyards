@@ -207,6 +207,8 @@ func accept_committed_origin_rebase(
 		adjusted_actor_sample: Variant,
 		target_generation: int,
 	) -> Dictionary:
+	if not _activated or not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"binding_unavailable")
 	if _tick_active:
 		return _result(false, &"reentrant_call")
 	if not preview is Dictionary or not request is Dictionary \

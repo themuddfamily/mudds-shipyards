@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 21
+const EXPECTED_ASSERTIONS := 24
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -168,6 +168,47 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_check([owner.get_instance_id(), ember.get_instance_id(), ember_binding.get_instance_id(), frame.get_instance_id(), cinder_loaded.get_instance_id()] == identities and int(owner.get_snapshot().transaction_count) == transaction_count and bool(owner.audit().valid), "re-entry preserves owner/frame/stream identities without replay")
+
+	game.remove_child(ember_binding)
+	var detached_binding_before := ember_binding.get_snapshot()
+	var detached_bootstrap_before := ember.get_snapshot()
+	var detached_accept := ember_binding.accept_committed_origin_rebase({}, {}, {}, 0)
+	_check(
+		not bool(detached_accept.accepted)
+			and detached_accept.reason == &"binding_unavailable"
+			and ember_binding.get_snapshot() == detached_binding_before
+			and ember.get_snapshot() == detached_bootstrap_before,
+		"a detached Ember binding rejects direct rebase acceptance without retained or bootstrap mutation"
+	)
+	game.add_child(ember_binding)
+	await process_frame
+	player.global_position = Vector3(12_000.0, 0.0, 0.0)
+	var reentry_sample := _sample(player)
+	var reentry_tick := ember_binding.physics_tick_from_caller_sample(1.0 / 60.0, reentry_sample)
+	var reentry_preview := ember_binding.preview_origin_rebase(
+		int(reentry_tick.coordinate_frame_generation)
+	)
+	var reentry_transaction := owner.consume_rebase_preview(reentry_preview, reentry_sample)
+	_check(
+		bool(reentry_transaction.accepted)
+			and reentry_transaction.reason == &"rebase_committed"
+			and int(ember_binding.get_snapshot().get("external_rebase_commit_count", 0)) == 2,
+		"a reattached Ember binding accepts one fresh live origin-rebase transaction"
+	)
+
+	var queued_binding_before := ember_binding.get_snapshot()
+	var queued_bootstrap_before := ember.get_snapshot()
+	ember_binding.queue_free()
+	var queued_accept := ember_binding.accept_committed_origin_rebase({}, {}, {}, 0)
+	_check(
+		ember_binding.is_inside_tree()
+			and ember_binding.is_queued_for_deletion()
+			and not bool(queued_accept.accepted)
+			and queued_accept.reason == &"binding_unavailable"
+			and ember_binding.get_snapshot() == queued_binding_before
+			and ember.get_snapshot() == queued_bootstrap_before,
+		"a queued Ember binding rejects direct rebase acceptance without retained or bootstrap mutation"
+	)
 
 	top_probe.queue_free()
 	rollback_area.queue_free()
