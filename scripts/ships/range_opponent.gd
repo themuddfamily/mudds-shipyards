@@ -125,6 +125,8 @@ var _weapon_telegraph_mesh: SphereMesh
 var _engine_glows: Array[MeshInstance3D] = []
 var _engine_lights: Array[OmniLight3D] = []
 var _materials: Dictionary = {}
+var _spark_particle_mesh: BoxMesh
+var _smoke_particle_mesh: QuadMesh
 var _damage_sparks: CPUParticles3D
 var _damage_smoke: CPUParticles3D
 var _destruction_root: Node3D
@@ -1189,6 +1191,7 @@ func _build_collision() -> void:
 
 
 func _build_damage_effects() -> void:
+	_ensure_particle_meshes()
 	_damage_sparks = _make_spark_particles(18, 0.7, 4.4)
 	_damage_sparks.name = "DamageSparks"
 	_damage_sparks.position = Vector3(-1.2, 0.45, 1.8)
@@ -1217,10 +1220,7 @@ func _make_spark_particles(count: int, lifetime_value: float, speed: float) -> C
 	particles.initial_velocity_max = speed
 	particles.scale_amount_min = 0.35
 	particles.scale_amount_max = 1.0
-	var spark_mesh := BoxMesh.new()
-	spark_mesh.size = Vector3(0.035, 0.035, 0.42)
-	spark_mesh.material = _materials.spark
-	particles.mesh = spark_mesh
+	particles.mesh = _spark_particle_mesh
 	return particles
 
 
@@ -1239,11 +1239,19 @@ func _make_smoke_particles(one_shot_value: bool) -> CPUParticles3D:
 	particles.initial_velocity_max = 1.8
 	particles.scale_amount_min = 0.35
 	particles.scale_amount_max = 1.25
-	var smoke_quad := QuadMesh.new()
-	smoke_quad.size = Vector2(0.85, 0.85)
-	smoke_quad.material = _materials.smoke
-	particles.mesh = smoke_quad
+	particles.mesh = _smoke_particle_mesh
 	return particles
+
+
+func _ensure_particle_meshes() -> void:
+	if _spark_particle_mesh == null:
+		_spark_particle_mesh = BoxMesh.new()
+		_spark_particle_mesh.size = Vector3(0.035, 0.035, 0.42)
+		_spark_particle_mesh.material = _materials.spark
+	if _smoke_particle_mesh == null:
+		_smoke_particle_mesh = QuadMesh.new()
+		_smoke_particle_mesh.size = Vector2(0.85, 0.85)
+		_smoke_particle_mesh.material = _materials.smoke
 
 
 func _create_materials() -> void:

@@ -117,6 +117,7 @@ func _run() -> void:
 	_check(destruction_root != null and destruction_root.get_node_or_null("DestructionSmoke") != null, "destruction creates a smoke burst")
 	_check(destruction_root != null and destruction_root.get_node_or_null("DestructionFlash") != null, "destruction creates a flash")
 	_check(_count_debris(destruction_root) == 10, "destruction creates the complete physical debris stage")
+	_test_particle_mesh_sharing(opponent as RangeOpponent, damage_sparks, engine_smoke, destruction_root)
 	var destruction_pose := destruction_root.global_transform if destruction_root != null else Transform3D.IDENTITY
 	var moved_owner_pose := opponent.global_transform
 	moved_owner_pose.origin += Vector3(91.0, -26.0, 48.0)
@@ -543,6 +544,47 @@ func _test_weapon_telegraph_mesh_allocation(opponent: RangeOpponent) -> void:
 	_check(
 		bool(opponent.get_weapon_telegraph_mesh_allocation_audit().get("valid", false)),
 		"restoring telegraph identity, recipe, material, renderer and authority returns the audit green"
+	)
+
+
+func _test_particle_mesh_sharing(
+		opponent: RangeOpponent,
+		damage_sparks: CPUParticles3D,
+		engine_smoke: CPUParticles3D,
+		destruction_root: Node3D
+	) -> void:
+	opponent.call("_spawn_muzzle_flash", opponent.global_position)
+	var impact := root.find_child("ImpactSparks", true, false) as CPUParticles3D
+	var muzzle := root.find_child("DefenseMuzzleFlash", true, false) as CPUParticles3D
+	var burst := destruction_root.get_node_or_null("InterceptorDestructionBurst") as CPUParticles3D if destruction_root != null else null
+	var smoke_burst := destruction_root.get_node_or_null("DestructionSmoke") as CPUParticles3D if destruction_root != null else null
+	var spark_mesh := damage_sparks.mesh as BoxMesh if damage_sparks != null else null
+	var smoke_mesh := engine_smoke.mesh as QuadMesh if engine_smoke != null else null
+	_check(
+		spark_mesh != null
+		and impact != null and impact.mesh == spark_mesh
+		and muzzle != null and muzzle.mesh == spark_mesh
+		and burst != null and burst.mesh == spark_mesh
+		and spark_mesh.size.is_equal_approx(Vector3(0.035, 0.035, 0.42)),
+		"persistent, impact, muzzle, and destruction sparks share one fixed BoxMesh"
+	)
+	_check(
+		smoke_mesh != null
+		and smoke_burst != null and smoke_burst.mesh == smoke_mesh
+		and smoke_mesh.size.is_equal_approx(Vector2(0.85, 0.85)),
+		"persistent and destruction smoke share one fixed QuadMesh"
+	)
+	if muzzle == null or spark_mesh == null:
+		return
+	muzzle.mesh = spark_mesh.duplicate() as BoxMesh
+	_check(
+		muzzle.mesh != spark_mesh,
+		"RED: a private muzzle-flash BoxMesh breaks the particle sharing family"
+	)
+	muzzle.mesh = spark_mesh
+	_check(
+		muzzle.mesh == spark_mesh,
+		"restoring the shared muzzle-flash BoxMesh returns the particle family green"
 	)
 
 
