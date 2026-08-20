@@ -247,15 +247,30 @@ func _run() -> void:
 	var detached_state := feedback.get_state_snapshot()
 	feedback.advance_simulation(1.0)
 	feedback.seek_simulation(float(detached_state.elapsed) + 3.0)
+	feedback.set_feedback_enabled(false)
+	feedback.set_feedback_paused(true)
+	feedback.set_auto_advance_enabled(true)
 	_check(
 		not feedback.is_inside_tree()
 		and feedback.get_state_snapshot() == detached_state
 		and detached_state_events.is_empty(),
-		"detached berth feedback rejects stale manual clock mutations without publishing state"
+		"detached berth feedback rejects all stale public mutators without publishing state"
 	)
 	berth.add_child(feedback)
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released" and bool(feedback.get_audit_report().valid), "child detach and re-add reconnects lifecycle without rebuilding")
+	feedback.set_feedback_paused(true)
+	feedback.set_auto_advance_enabled(true)
+	feedback.set_feedback_enabled(false)
+	_check(
+		feedback.is_feedback_paused()
+		and feedback.is_auto_advance_enabled()
+		and not feedback.is_feedback_enabled(),
+		"re-added berth feedback accepts fresh lifecycle mutators"
+	)
+	feedback.set_feedback_enabled(true)
+	feedback.set_feedback_paused(false)
+	feedback.set_auto_advance_enabled(false)
 	var reentered_elapsed := float(feedback.get_state_snapshot().elapsed)
 	feedback.advance_simulation(0.25)
 	_check(
@@ -268,6 +283,33 @@ func _run() -> void:
 		"re-added berth feedback accepts a fresh manual seek"
 	)
 	feedback.state_changed.disconnect(detached_state_listener)
+
+	var queued_berth := BERTH_SCENE.instantiate() as ShipBerth
+	queued_berth.berth_id = &"queued_feedback_berth"
+	stage.add_child(queued_berth)
+	var queued_feedback := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
+	queued_berth.add_child(queued_feedback)
+	await process_frame
+	var queued_events: Array[StringName] = []
+	queued_feedback.state_changed.connect(func(state: StringName) -> void:
+		queued_events.append(state)
+	)
+	queued_feedback.queue_free()
+	var queued_state := queued_feedback.get_state_snapshot()
+	queued_feedback.set_feedback_enabled(false)
+	queued_feedback.set_feedback_paused(true)
+	queued_feedback.set_auto_advance_enabled(false)
+	queued_feedback.advance_simulation(1.0)
+	queued_feedback.seek_simulation(float(queued_state.elapsed) + 3.0)
+	_check(
+		queued_feedback.is_inside_tree()
+		and queued_feedback.is_queued_for_deletion()
+		and queued_feedback.get_state_snapshot() == queued_state
+		and queued_events.is_empty(),
+		"queued berth feedback rejects every public mutator without retained state or signal drift"
+	)
+	await process_frame
+	queued_berth.queue_free()
 
 	var stale_owner := Node3D.new()
 	stage.add_child(stale_owner)

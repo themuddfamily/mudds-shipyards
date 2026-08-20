@@ -190,7 +190,13 @@ func get_feedback_state() -> StringName:
 	return _state
 
 
+func _can_mutate_feedback() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
+
+
 func set_feedback_enabled(enabled: bool) -> void:
+	if not _can_mutate_feedback():
+		return
 	_feedback_enabled = enabled
 	visible = enabled
 	if is_instance_valid(_visual_root):
@@ -205,6 +211,8 @@ func is_feedback_enabled() -> bool:
 
 
 func set_feedback_paused(paused: bool) -> void:
+	if not _can_mutate_feedback():
+		return
 	_feedback_paused = paused
 	_refresh_processing()
 
@@ -214,6 +222,8 @@ func is_feedback_paused() -> bool:
 
 
 func set_auto_advance_enabled(enabled: bool) -> void:
+	if not _can_mutate_feedback():
+		return
 	_auto_advance = enabled
 	_refresh_processing()
 
@@ -223,7 +233,7 @@ func is_auto_advance_enabled() -> bool:
 
 
 func advance_simulation(delta: float) -> void:
-	if not is_inside_tree():
+	if not _can_mutate_feedback():
 		return
 	_reconcile_state(false)
 	if not is_finite(delta) or delta < 0.0 or not _feedback_enabled or _feedback_paused:
@@ -233,7 +243,7 @@ func advance_simulation(delta: float) -> void:
 
 
 func seek_simulation(time_seconds: float) -> void:
-	if not is_inside_tree():
+	if not _can_mutate_feedback():
 		return
 	if not is_finite(time_seconds) or time_seconds < 0.0:
 		return
