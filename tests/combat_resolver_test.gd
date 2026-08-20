@@ -196,6 +196,21 @@ func _run() -> void:
 		and resolver.get_last_sequence(null, SOURCE_ID + 1) == 0,
 		"temporary source exit drops only its live registration"
 	)
+	var detached_reregistered := resolver.register_source(
+		SOURCE_ID + 1, second_shooter, &"allied", weapon_profiles
+	)
+	var detached_source_shot := _shot(second_shooter, 1, Vector3(60.0, 0.0, 0.0))
+	detached_source_shot.source_id = SOURCE_ID + 1
+	detached_source_shot.faction_id = &"allied"
+	var detached_source_result := resolver.resolve_hitscan(detached_source_shot)
+	_check(
+		not detached_reregistered
+		and resolver.get_registered_source_count() == 1
+		and resolver.get_last_sequence(null, SOURCE_ID + 1) == 0
+		and not bool(detached_source_result.get("accepted", true))
+		and detached_source_result.get("status", &"") == &"unregistered_source",
+		"a detached source cannot re-authorize itself or resolve a fresh shot"
+	)
 	var identity_impostor := Node3D.new()
 	identity_impostor.name = "IdentityImpostor"
 	host.add_child(identity_impostor)
@@ -315,7 +330,12 @@ func _shot(
 	sequence: int,
 	target_position: Vector3
 	) -> ShotRequest:
-	var source_position := (shooter as Node3D).global_position
+	var source_node := shooter as Node3D
+	var source_position := Vector3.ZERO
+	if source_node != null:
+		source_position = (
+			source_node.global_position if source_node.is_inside_tree() else source_node.position
+		)
 	var direction := (target_position - source_position).normalized()
 	if direction.length_squared() <= 0.000001:
 		direction = Vector3.FORWARD

@@ -36,7 +36,13 @@ func register_source(
 	faction_id: StringName,
 	weapon_profiles: Dictionary
 	) -> bool:
-	if source_id < 0 or not is_instance_valid(source_entity) or faction_id.is_empty():
+	if (
+		source_id < 0
+		or not is_instance_valid(source_entity)
+		or not source_entity.is_inside_tree()
+		or source_entity.is_queued_for_deletion()
+		or faction_id.is_empty()
+	):
 		return false
 	var source_key := _source_key(source_entity, source_id)
 	if source_key.is_empty():
@@ -335,12 +341,16 @@ func _resolve_authority_context(request: ShotRequestType) -> Dictionary:
 		return _trusted_local_context(request, source_key)
 	var source_reference: WeakRef = registration.get("entity") as WeakRef
 	var source_entity := source_reference.get_ref() as Node3D if source_reference != null else null
-	if not is_instance_valid(source_entity):
+	if (
+		not is_instance_valid(source_entity)
+		or not source_entity.is_inside_tree()
+		or source_entity.is_queued_for_deletion()
+	):
 		_remove_source_registration(source_key)
 		return {
 			"valid": false,
 			"status": &"source_unavailable",
-			"reason": "registered source no longer exists",
+			"reason": "registered source is not live in the scene tree",
 		}
 	if is_instance_valid(request.source_entity) and request.source_entity != source_entity:
 		return {
@@ -391,11 +401,16 @@ func _resolve_authority_context(request: ShotRequestType) -> Dictionary:
 
 
 func _trusted_local_context(request: ShotRequestType, source_key: String) -> Dictionary:
-	if not is_instance_valid(request.source_entity) or not request.source_entity is Node3D:
+	if (
+		not is_instance_valid(request.source_entity)
+		or not request.source_entity is Node3D
+		or not (request.source_entity as Node3D).is_inside_tree()
+		or (request.source_entity as Node3D).is_queued_for_deletion()
+	):
 		return {
 			"valid": false,
 			"status": &"source_unavailable",
-			"reason": "unregistered local request requires a live Node3D source",
+			"reason": "unregistered local request requires an in-tree Node3D source",
 		}
 	return {
 		"valid": true,
