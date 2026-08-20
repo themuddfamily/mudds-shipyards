@@ -58,6 +58,7 @@ func _run() -> void:
 	await _test_garden_branch(module)
 	await _test_negative_space(module)
 	_test_collision_contract(module)
+	await _test_lifecycle(module)
 	await _test_cleanup(module)
 	_finish()
 
@@ -1392,6 +1393,63 @@ func _test_collision_contract(module: HabitatSpine) -> void:
 	_check(every_body_shaped, "every StaticBody owns at least one real collision shape")
 	_check(module.get_main_access().collision_layer == PhysicsLayers.INTERACTABLE, "main StationDoor remains discoverable on Interactable layer")
 	_check(module.get_deferred_branch_access().collision_layer == PhysicsLayers.INTERACTABLE, "garden StationDoor remains discoverable on Interactable layer")
+
+
+func _test_lifecycle(module: HabitatSpine) -> void:
+	var live_snapshot := _lifecycle_snapshot(module)
+	var floor := module.get_node_or_null(
+		^"Structure/PressurizedHabitatCorridor/HabitatFloor"
+	) as StaticBody3D
+	_test_root.remove_child(module)
+	module.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"detached direct disable leaves retained enabled, visibility, and collision state unchanged"
+	)
+	_test_root.add_child(module)
+	await process_frame
+	module.set_module_enabled(false)
+	_check(
+		not module.is_module_enabled()
+		and not module.visible
+		and floor != null and floor.collision_layer == 0,
+		"re-added Habitat accepts a fresh live disable of its root and representative floor"
+	)
+	module.set_module_enabled(true)
+	_check(
+		module.is_module_enabled()
+		and module.visible
+		and floor != null and floor.collision_layer == WORLD_LAYER,
+		"fresh live re-enable restores the root and representative floor"
+	)
+	var reentered_snapshot := _lifecycle_snapshot(module)
+	module.queue_free()
+	module.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(module) == reentered_snapshot,
+		"queued direct disable leaves retained enabled, visibility, and collision state unchanged"
+	)
+
+
+func _lifecycle_snapshot(module: HabitatSpine) -> Dictionary:
+	var body_states: Array[Dictionary] = []
+	for raw_body in StationModuleContract.collect_static_bodies(module):
+		var body := raw_body as StaticBody3D
+		body_states.append({
+			"path": module.get_path_to(body),
+			"visible": body.visible,
+			"collision_layer": body.collision_layer,
+			"collision_mask": body.collision_mask,
+		})
+	body_states.sort_custom(
+		func(first: Dictionary, second: Dictionary) -> bool:
+			return str(first.path) < str(second.path)
+	)
+	return {
+		"enabled": module.is_module_enabled(),
+		"visible": module.visible,
+		"body_states": body_states,
+	}.duplicate(true)
 
 
 func _test_cleanup(module: HabitatSpine) -> void:

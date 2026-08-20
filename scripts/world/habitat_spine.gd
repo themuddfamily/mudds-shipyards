@@ -1231,6 +1231,8 @@ func _inspect_pipe_collar_mesh_sharing() -> Dictionary:
 ## read `true`, the obvious repair call returned immediately and the module
 ## stayed unwalkable.
 func set_module_enabled(enabled: bool) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_module_enabled = enabled
 	_apply_enabled_state()
 
