@@ -58,6 +58,7 @@ func _run() -> void:
 	await _test_swap_requires_margin_and_hold()
 	await _test_hurt_anchor_is_relieved_immediately()
 	await _test_stand_down_and_roster_lifecycle()
+	await _test_queued_target_stands_down_and_live_rebinds()
 	await _test_red_mutations()
 	_check(
 		root.get_child_count() == original_children,
@@ -279,6 +280,46 @@ func _test_stand_down_and_roster_lifecycle() -> void:
 	_check(
 		coordinator.get_member_count() == 0 and coordinator.get_audit_report().roles.is_empty(),
 		"dismissing the whole wing empties both the roster and the role table"
+	)
+	await _free_fixture(fixture)
+
+
+func _test_queued_target_stands_down_and_live_rebinds() -> void:
+	var fixture := await _make_fixture(2)
+	var coordinator: WingCoordinator = fixture.coordinator
+	var target: Node3D = fixture.target
+	var first: WingMember = fixture.members[0]
+	var second: WingMember = fixture.members[1]
+	_place(first, Vector3(0.0, 0.0, -120.0))
+	_place(second, Vector3(0.0, 0.0, 120.0))
+	coordinator.update_assignments(0.0)
+	_role_events.clear()
+	var assignments_before := coordinator.get_assignment_count()
+	target.queue_free()
+	coordinator.update_assignments(0.0)
+	_check(
+		target.is_queued_for_deletion()
+		and coordinator.get_target() == null
+		and coordinator.get("_target") == null
+		and coordinator.get_role(first) == WingCoordinator.ROLE_UNASSIGNED
+		and coordinator.get_role(second) == WingCoordinator.ROLE_UNASSIGNED
+		and _role_events.size() == 2
+		and coordinator.get_assignment_count() == assignments_before + 1,
+		"a queued target synchronously clears the retained binding and stands down every wing role"
+	)
+	await process_frame
+	var rebound_target := Node3D.new()
+	rebound_target.name = "ReboundCoordinationTarget"
+	var host := fixture.host as Node3D
+	host.add_child(rebound_target)
+	_face(rebound_target, Vector3(0.0, 0.0, -1.0))
+	coordinator.set_target(rebound_target)
+	coordinator.update_assignments(0.0)
+	_check(
+		coordinator.get_target() == rebound_target
+		and coordinator.get_role(first) == WingCoordinator.ROLE_ANCHOR
+		and coordinator.get_role(second) == WingCoordinator.ROLE_FLANKER,
+		"a fresh live target rebinds and restores the ordinary anchor/flanker assignment"
 	)
 	await _free_fixture(fixture)
 

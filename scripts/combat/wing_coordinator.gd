@@ -120,14 +120,15 @@ func dismiss_all() -> void:
 ## The craft the wing is co-ordinating against. Roles are geometric with respect
 ## to this craft's facing, so without one every member is unassigned.
 func set_target(target: Node3D) -> void:
-	if _target == target:
+	var resolved_target := target if _is_live_target(target) else null
+	if _target == resolved_target:
 		return
-	_target = target
+	_target = resolved_target
 	_clear_pending_swap()
 
 
 func get_target() -> Node3D:
-	return _target if is_instance_valid(_target) else null
+	return _target if _has_live_target() else null
 
 
 func get_member_count() -> int:
@@ -173,7 +174,8 @@ func update_assignments(delta: float) -> void:
 		_clear_pending_swap()
 		return
 	var active := _collect_active_members()
-	if active.is_empty() or not is_instance_valid(_target) or not _target.is_inside_tree():
+	if active.is_empty() or not _has_live_target():
+		_target = null
 		_clear_pending_swap()
 		_assign_all(ROLE_UNASSIGNED)
 		return
@@ -234,7 +236,7 @@ func update_assignments(delta: float) -> void:
 ## claim on the anchor role: the craft the player is already looking at is the
 ## one that should be trading shots with him.
 func _frontal_claim(member: Node3D) -> float:
-	if not is_instance_valid(_target) or not is_instance_valid(member):
+	if not _has_live_target() or not is_instance_valid(member):
 		return -1.0
 	var offset := member.global_position - _target.global_position
 	if offset.length_squared() <= 0.000001:
@@ -381,6 +383,14 @@ func _is_member_active(member: Node3D) -> bool:
 		and member.has_method(&"is_active")
 		and bool(member.call(&"is_active"))
 	)
+
+
+func _has_live_target() -> bool:
+	return _is_live_target(_target)
+
+
+func _is_live_target(target: Node3D) -> bool:
+	return is_instance_valid(target) and target.is_inside_tree() and not target.is_queued_for_deletion()
 
 
 # ------------------------------------------------------------- audit ----
