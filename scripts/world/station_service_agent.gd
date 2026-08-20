@@ -383,6 +383,8 @@ func get_evidence_metadata() -> Dictionary:
 
 
 func set_agent_enabled(enabled: bool) -> void:
+	if not _can_mutate_agent():
+		return
 	_enabled_overridden = true
 	_agent_enabled = enabled
 	_refresh_lifecycle()
@@ -393,6 +395,8 @@ func is_agent_enabled() -> bool:
 
 
 func set_agent_paused(paused: bool) -> void:
+	if not _can_mutate_agent():
+		return
 	_paused_overridden = true
 	_agent_paused = paused
 	_refresh_lifecycle()
@@ -406,10 +410,14 @@ func is_agent_advancing() -> bool:
 	return _agent_enabled and not _agent_paused
 
 
+func _can_mutate_agent() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
+
+
 ## Advances the courier only while enabled and unpaused. The pose is a function of
 ## total elapsed time, so frame subdivision does not change state.
 func advance_agent_simulation(delta: float) -> bool:
-	if not is_inside_tree() or not is_agent_advancing() or not is_finite(delta) or delta <= 0.0:
+	if not _can_mutate_agent() or not is_agent_advancing() or not is_finite(delta) or delta <= 0.0:
 		return false
 	_elapsed += delta
 	_update_agent_transforms()
@@ -419,7 +427,7 @@ func advance_agent_simulation(delta: float) -> bool:
 ## Deterministic seek used by capture tooling. This intentionally works while
 ## paused or disabled, but it never changes either lifecycle flag.
 func set_agent_time(seconds: float) -> bool:
-	if not is_finite(seconds) or seconds < 0.0:
+	if not _can_mutate_agent() or not is_finite(seconds) or seconds < 0.0:
 		return false
 	_elapsed = seconds
 	_update_agent_transforms()
@@ -427,6 +435,8 @@ func set_agent_time(seconds: float) -> bool:
 
 
 func reset_agent_time() -> void:
+	if not _can_mutate_agent():
+		return
 	_elapsed = 0.0
 	_update_agent_transforms()
 

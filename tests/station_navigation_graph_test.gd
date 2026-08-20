@@ -651,10 +651,18 @@ func _test_agent_detach_readd_identity() -> void:
 	await process_frame
 	_check(not agent.is_processing(), "a detached courier stops burning frames")
 	var detached_state := agent.get_agent_state()
+	var detached_processing := agent.is_processing()
+	var detached_advance := agent.advance_agent_simulation(1.0)
+	var detached_seek := agent.set_agent_time(float(detached_state.elapsed) + 3.0)
+	agent.reset_agent_time()
+	agent.set_agent_enabled(false)
+	agent.set_agent_paused(true)
 	_check(
-		not agent.advance_agent_simulation(1.0)
-		and _agent_states_match(detached_state, agent.get_agent_state()),
-		"a detached courier rejects stale direct advancement without changing its retained pose"
+		not detached_advance
+		and not detached_seek
+		and agent.get_agent_state() == detached_state
+		and agent.is_processing() == detached_processing,
+		"a detached courier rejects all lifecycle and clock mutators without retained-state drift"
 	)
 	root.add_child(agent)
 	await process_frame
@@ -681,6 +689,24 @@ func _test_agent_detach_readd_identity() -> void:
 	_check(not agent.is_processing() and agent.is_agent_paused(), "re-entry restores the paused lifecycle rather than silently resuming it")
 	_check(agent.get_instance_id() == instance_id and _descendant_instance_ids(agent) == descendants, "a second detach and re-entry still creates no duplicate courier node")
 	_check(bool(agent.get_audit_report().valid), "the courier audit stays green across detach and re-entry")
+	agent.set_agent_paused(false)
+	var queued_state := agent.get_agent_state()
+	var queued_processing := agent.is_processing()
+	agent.queue_free()
+	var queued_advance := agent.advance_agent_simulation(1.0)
+	var queued_seek := agent.set_agent_time(float(queued_state.elapsed) + 3.0)
+	agent.reset_agent_time()
+	agent.set_agent_enabled(false)
+	agent.set_agent_paused(true)
+	_check(
+		agent.is_inside_tree()
+		and agent.is_queued_for_deletion()
+		and not queued_advance
+		and not queued_seek
+		and agent.get_agent_state() == queued_state
+		and agent.is_processing() == queued_processing,
+		"a queued courier rejects all lifecycle and clock mutators without retained-state drift"
+	)
 	agent.queue_free()
 	await process_frame
 	await process_frame
