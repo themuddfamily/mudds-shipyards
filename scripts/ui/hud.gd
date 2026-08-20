@@ -426,6 +426,8 @@ func show_intro() -> void:
 ## `"piloting"` / `"on-foot"` keep working; `"driving"` and `"cabin"` reach the
 ## two states added since.
 func set_mode(mode: String, on_foot_location: String = DEFAULT_ON_FOOT_LOCATION) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_state_mode = _resolve_mode(mode)
 	var location := on_foot_location.strip_edges().to_upper()
 	if location.is_empty():

@@ -134,6 +134,7 @@ func _run() -> void:
 	await _test_whole_main_reentry(game, hud, fleet)
 	await _test_reset_restores_defaults(game, hud, fleet, authored_lag)
 	await _test_queued_pause_focus_restore_is_inert()
+	await _test_mode_currentness()
 
 	await _clean_up(game)
 	_cleanup()
@@ -568,6 +569,69 @@ func _test_queued_pause_focus_restore_is_inert() -> void:
 	foreign_layer.queue_free()
 	await process_frame
 	_check(not is_instance_valid(queued_hud), "the queued pause-focus HUD fixture frees normally")
+
+
+func _test_mode_currentness() -> void:
+	var mode_hud := GameHUD.new()
+	mode_hud.name = "ModeCurrentnessHud"
+	root.add_child(mode_hud)
+	await process_frame
+	mode_hud.set_mode("piloting")
+	var parent := mode_hud.get_parent()
+	parent.remove_child(mode_hud)
+	var detached_before := _mode_snapshot(mode_hud)
+	mode_hud.set_mode("on-foot", "HANGAR")
+	_check(
+		not mode_hud.is_inside_tree()
+		and _mode_snapshot(mode_hud) == detached_before,
+		"a detached HUD rejects mode presentation without retained state or readout mutation"
+	)
+
+	parent.add_child(mode_hud)
+	await process_frame
+	mode_hud.set_mode("on-foot", "HANGAR")
+	var reentered := _mode_snapshot(mode_hud)
+	_check(
+		mode_hud.is_inside_tree()
+		and mode_hud.get_hud_mode() == GameHUD.MODE_ON_FOOT
+		and not bool(reentered.get("piloting", true))
+		and not bool(reentered.get("telemetry_visible", true))
+		and not bool(reentered.get("reticle_visible", true)),
+		"a reentered HUD accepts a fresh mode presentation and refreshes its live readouts"
+	)
+
+	var queued_hud := GameHUD.new()
+	queued_hud.name = "QueuedModeCurrentnessHud"
+	root.add_child(queued_hud)
+	await process_frame
+	queued_hud.set_mode("piloting")
+	var queued_before := _mode_snapshot(queued_hud)
+	queued_hud.queue_free()
+	queued_hud.set_mode("on-foot", "HANGAR")
+	_check(
+		queued_hud.is_inside_tree()
+		and queued_hud.is_queued_for_deletion()
+		and _mode_snapshot(queued_hud) == queued_before,
+		"a queued HUD rejects mode presentation without retained state or readout mutation"
+	)
+	await process_frame
+	_check(not is_instance_valid(queued_hud), "the queued HUD mode fixture frees normally")
+	mode_hud.queue_free()
+	await process_frame
+
+
+func _mode_snapshot(hud: GameHUD) -> Dictionary:
+	var mode_label := hud.get("_mode_label") as Label
+	var telemetry := hud.get("_telemetry_panel") as Control
+	var reticle := hud.get("_reticle") as Control
+	return {
+		"mode": hud.get_hud_mode(),
+		"piloting": hud.get("_state_piloting"),
+		"mode_label": mode_label.text if mode_label != null else "",
+		"telemetry_visible": telemetry.visible if telemetry != null else false,
+		"reticle_visible": reticle.visible if reticle != null else false,
+		"flight_cue": hud.get_flight_cue_report(),
+	}.duplicate(true)
 
 
 func _test_reset_restores_defaults(
