@@ -566,11 +566,12 @@ func _test_detached_presentation_adapter_reentry(torrent: HeroShip) -> void:
 	torrent.set_canopy_open(true, 0.0)
 	_check(
 		not torrent.is_inside_tree()
-		and bool(reset.get("accepted", false))
+		and not bool(reset.get("accepted", true))
+		and reset.get("reason") == &"ship_detached"
 		and is_instance_valid(adapter) and adapter.get_parent() == visual and not adapter.is_inside_tree()
 		and not legacy_far.visible and not legacy_cockpit.visible and not legacy_canopy.visible
 		and readout.visible and practical.visible,
-		"detached canopy and reset sync preserve the valid retained adapter instead of exposing stale fallbacks"
+		"detached reset rejects before mutation while canopy sync preserves the valid retained adapter"
 	)
 	_test_root.add_child(torrent)
 	await process_frame
