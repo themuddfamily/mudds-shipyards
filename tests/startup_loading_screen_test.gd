@@ -12,6 +12,7 @@ extends SceneTree
 
 const BOOT_SCENE := preload("res://scenes/boot.tscn")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
 
 var _failures := PackedStringArray()
 
@@ -21,10 +22,67 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_queued_loading_screen_public_mutators_are_inert()
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_direct_instantiation_is_unstaged()
 	_finish()
+
+
+func _test_queued_loading_screen_public_mutators_are_inert() -> void:
+	var screen := LoadingScreenType.new() as LoadingScreen
+	root.add_child(screen)
+	await process_frame
+	screen.configure({
+		"colorblind_palette_id": &"deuteranopia",
+		"ui_scale": 1.25,
+		"reduced_motion": false,
+	})
+	screen.set_stage("Live stage", 0.35, "Live detail")
+	var backdrop_slot := screen.get_node_or_null("LoadingRoot/BackdropSlot") as Control
+	var report_before := screen.get_report()
+	var palette_before := (screen.get("_palette") as Dictionary).duplicate(true)
+	var backdrop_count_before := backdrop_slot.get_child_count() if backdrop_slot != null else -1
+	screen.queue_free()
+	screen.configure({
+		"colorblind_palette_id": &"protanopia",
+		"ui_scale": 1.6,
+		"reduced_motion": true,
+	})
+	screen.set_stage("Stale stage", 1.0, "Stale detail")
+	screen.attach_backdrop()
+	screen.dismiss()
+	_check(
+		screen.is_inside_tree()
+		and screen.is_queued_for_deletion()
+		and screen.get_report() == report_before
+		and (screen.get("_palette") as Dictionary) == palette_before
+		and (backdrop_slot.get_child_count() if backdrop_slot != null else -1) == backdrop_count_before,
+		"a queued loading screen rejects public configuration, stage, backdrop, and dismissal mutation atomically"
+	)
+	await process_frame
+	_check(not is_instance_valid(screen), "the queued loading-screen fixture frees normally")
+
+	var reentered := LoadingScreenType.new() as LoadingScreen
+	root.add_child(reentered)
+	await process_frame
+	root.remove_child(reentered)
+	root.add_child(reentered)
+	await process_frame
+	reentered.configure({"ui_scale": 1.3, "reduced_motion": true})
+	reentered.set_stage("Reentered stage", 0.6, "Current detail")
+	reentered.attach_backdrop()
+	var reentered_report := reentered.get_report()
+	_check(
+		is_equal_approx(float(reentered_report.ui_scale), 1.3)
+		and bool(reentered_report.reduced_motion)
+		and str(reentered_report.stage) == "Reentered stage"
+		and str(reentered_report.detail) == "Current detail"
+		and bool(reentered_report.backdrop_attached),
+		"a fresh live re-entry still accepts current loading-screen presentation updates"
+	)
+	reentered.queue_free()
+	await process_frame
 
 
 func _test_detached_boot_cancels_stale_continuation() -> void:

@@ -69,6 +69,8 @@ func _ready() -> void:
 ## `RuntimeSettings.get_accessibility_descriptor()` hands the HUD, so the
 ## loading screen and the HUD can never disagree about what the player chose.
 func configure(descriptor: Dictionary) -> void:
+	if is_queued_for_deletion():
+		return
 	if descriptor.has("colorblind_palette_id"):
 		_palette = PaletteType.get_palette(
 			StringName(str(descriptor["colorblind_palette_id"]))
@@ -84,6 +86,8 @@ func configure(descriptor: Dictionary) -> void:
 
 ## Names the stage now running and how far startup has actually got, 0..1.
 func set_stage(stage_text: String, progress: float, detail_text: String = "") -> void:
+	if is_queued_for_deletion():
+		return
 	_stage_text = stage_text
 	_detail_text = detail_text
 	# Startup only ever moves forward. Clamping here means a caller that reports
@@ -100,6 +104,8 @@ func set_stage(stage_text: String, progress: float, detail_text: String = "") ->
 ## Loads and fades in the shared title backdrop. Called after the first frames
 ## have been presented, so its import cost is never part of time-to-first-frame.
 func attach_backdrop() -> void:
+	if is_queued_for_deletion():
+		return
 	if _backdrop_slot == null or _backdrop_slot.get_child_count() > 0:
 		return
 	var texture := load(BACKDROP_PATH) as Texture2D
@@ -129,6 +135,8 @@ func attach_backdrop() -> void:
 ## unreachable `RefCounted` instances, which the engine reports as leaks at exit;
 ## a counter costs less and cannot outlive the node it animates.
 func dismiss() -> void:
+	if is_queued_for_deletion():
+		return
 	if _dismissed:
 		return
 	_dismissed = true
