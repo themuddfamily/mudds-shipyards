@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "report_kind": "fleet_craft_physical_interaction",
+  "claim_scope": "runtime_acceptance_contract_not_historical_authentication",
+  "source_of_runtime_facts": "tests/fleet_role_differentiation_test.gd",
+  "source_of_visual_grammar": "docs/design/FLEET_VISUAL_GRAMMAR.md",
+  "small_craft_envelope_maximum_m": 15.0,
+  "minimum_walk_m": 1.2,
+  "minimum_head_hull_clearance_m": 0.5,
+  "seat_to_cockpit_camera_rise_m": 1.76,
+  "required_interior_route_markers": [
+    "exterior_access",
+    "interior_deck",
+    "pilot_seat"
+  ],
+  "ships": [
+    {
+      "ship_id": "torrent_provisional",
+      "role": "Interceptor",
+      "role_tag": "interceptor",
+      "scale_band": "small",
+      "evidence_status": "provisional",
+      "name_to_model_status": "bounded_partial_reconstruction",
+      "evidence_references": [
+        "B5: decisive uncut Torrent name-to-model chain",
+        "B6: independent upload-era corroboration",
+        "docs/TORRENT_2011_RECONSTRUCTION_SPEC.md"
+      ],
+      "silhouette": {
+        "family": "compact_longitudinal_wedge",
+        "width_m": 7.2,
+        "length_m": 9.0,
+        "claim": "bounded_partial",
+        "source": "docs/design/FLEET_VISUAL_GRAMMAR.md §2"
+      },
+      "boarding": {
+        "physical": true,
+        "entry_anchor": "BoardingArea/BoardingPosition",
+        "approach_route": "production_collision_walk_up",
+        "staged_beyond_fallback_reach": true,
+        "route_clear": true,
+        "minimum_walk_m": 1.2,
+        "grounded_ticks_required": 1,
+        "prompt_after_walk": true,
+        "focused_test": "tests/fleet_role_differentiation_test.gd"
+      },
+      "cockpit": {
+        "pilot_seat_anchor": "CockpitInterior/PilotSeatAnchor",
+        "camera_anchor": "CockpitInterior/CockpitCamera",
+        "pilot_seats": 1,
+        "seat_to_camera_rise_m": 1.76,
+        "head_hull_clearance_m": 0.561
+      },
+      "interior": {
+        "walkable": false,
+        "connected_to_ship_frame": false,
+        "route_markers": [],
+        "passenger_seats": 0,
+        "moving_interior_frame": false,
+        "claim": "fighter_cockpit_only"
+      }
+    },
+    {
+      "ship_id": "arrow_provisional",
+      "role": "Reconnaissance ship",
+      "role_tag": "recon",
+      "scale_band": "small",
+      "evidence_status": "provisional",
+      "name_to_model_status": "unknown",
+      "evidence_references": [
+        "A3: creator-authored roster role and two-pod count",
+        "RESEARCH.md#arrow-and-jovian-name-to-model-boundary"
+      ],
+      "silhouette": {
+        "family": "slender_length_dominant_fuselage",
+        "width_m": 11.1,
+        "length_m": 12.2,
+        "claim": "modern_interpretation",
+        "source": "docs/design/FLEET_VISUAL_GRAMMAR.md §2"
+      },
+      "boarding": {
+        "physical": true,
+        "entry_anchor": "BoardingArea/BoardingPosition",
+        "approach_route": "production_collision_walk_up",
+        "staged_beyond_fallback_reach": true,
+        "route_clear": true,
+        "minimum_walk_m": 1.2,
+        "grounded_ticks_required": 1,
+        "prompt_after_walk": true,
+        "focused_test": "tests/fleet_role_differentiation_test.gd"
+      },
+      "cockpit": {
+        "pilot_seat_anchor": "CockpitInterior/PilotSeatAnchor",
+        "camera_anchor": "CockpitInterior/CockpitCamera",
+        "pilot_seats": 1,
+        "seat_to_camera_rise_m": 1.76,
+        "head_hull_clearance_m": 1.401
+      },
+      "interior": {
+        "walkable": false,
+        "connected_to_ship_frame": false,
+        "route_markers": [],
+        "passenger_seats": 0,
+        "moving_interior_frame": false,
+        "claim": "fighter_cockpit_only"
+      }
+    },
+    {
+      "ship_id": "jovian_provisional",
+      "role": "Light freighter",
+      "role_tag": "light_freighter",
+      "scale_band": "medium",
+      "evidence_status": "provisional",
+      "name_to_model_status": "unknown",
+      "evidence_references": [
+        "A3: creator-authored roster role",
+        "RESEARCH.md#arrow-and-jovian-name-to-model-boundary"
+      ],
+      "silhouette": {
+        "family": "slab_box_freighter",
+        "width_m": 18.55,
+        "length_m": 26.2,
+        "claim": "modern_interpretation",
+        "source": "docs/design/FLEET_VISUAL_GRAMMAR.md §2"
+      },
+      "boarding": {
+        "physical": true,
+        "entry_anchor": "BoardingArea/BoardingPosition",
+        "approach_route": "exterior_pilot_hatch_apron_walk_up",
+        "staged_beyond_fallback_reach": true,
+        "route_clear": true,
+        "minimum_walk_m": 1.2,
+        "grounded_ticks_required": 1,
+        "prompt_after_walk": true,
+        "focused_test": "tests/fleet_role_differentiation_test.gd"
+      },
+      "cockpit": {
+        "pilot_seat_anchor": "WalkableInterior/CockpitInterior/PilotSeatAnchor",
+        "camera_anchor": "WalkableInterior/CockpitInterior/CockpitCamera",
+        "pilot_seats": 1,
+        "seat_to_camera_rise_m": 1.76,
+        "head_hull_clearance_m": 3.256
+      },
+      "interior": {
+        "walkable": true,
+        "connected_to_ship_frame": true,
+        "root": "WalkableInterior",
+        "route_markers": ["exterior_access", "interior_deck", "pilot_seat"],
+        "passenger_seats": 4,
+        "moving_interior_frame": true,
+        "dimensions_m": [11.44, 4.6, 17.25],
+        "volume_m3": 908.628,
+        "claim": "connected_walkable_modern_interpretation"
+      }
+    },
+    {
+      "ship_id": "zenith_b7_observed",
+      "role": "Interceptor (B7 label)",
+      "role_tag": "interceptor",
+      "scale_band": "small",
+      "evidence_status": "provisional",
+      "name_to_model_status": "bounded_partial_reconstruction",
+      "evidence_references": [
+        "B7@00:33.455-00:42.455/f368-f467: label, berth, boarding and flight identity chain",
+        "docs/ZENITH_B7_RECONSTRUCTION_SPEC.md"
+      ],
+      "silhouette": {
+        "family": "width_dominant_delta_arrowhead",
+        "width_m": 14.42,
+        "length_m": 10.45,
+        "claim": "bounded_partial",
+        "source": "docs/design/FLEET_VISUAL_GRAMMAR.md §2"
+      },
+      "boarding": {
+        "physical": true,
+        "entry_anchor": "BoardingArea/BoardingPosition",
+        "approach_route": "fleet_dock_apron_walk_up",
+        "staged_beyond_fallback_reach": true,
+        "route_clear": true,
+        "minimum_walk_m": 1.2,
+        "grounded_ticks_required": 1,
+        "prompt_after_walk": true,
+        "focused_test": "tests/fleet_role_differentiation_test.gd"
+      },
+      "cockpit": {
+        "pilot_seat_anchor": "CockpitInterior/PilotSeatAnchor",
+        "camera_anchor": "CockpitInterior/CockpitCamera",
+        "pilot_seats": 1,
+        "seat_to_camera_rise_m": 1.76,
+        "head_hull_clearance_m": 0.531
+      },
+      "interior": {
+        "walkable": false,
+        "connected_to_ship_frame": false,
+        "route_markers": [],
+        "passenger_seats": 0,
+        "moving_interior_frame": false,
+        "claim": "fighter_cockpit_only"
+      }
+    },
+    {
+      "ship_id": "halyard_new_design",
+      "role": "Crew transport",
+      "role_tag": "crew_transport",
+      "scale_band": "medium",
+      "evidence_status": "new",
+      "name_to_model_status": "modern_interpretation",
+      "evidence_references": [],
+      "silhouette": {
+        "family": "long_narrow_faceted_pressure_tube",
+        "width_m": 9.6,
+        "length_m": 28.3,
+        "claim": "modern_interpretation",
+        "source": "docs/design/FLEET_VISUAL_GRAMMAR.md §2"
+      },
+      "boarding": {
+        "physical": true,
+        "entry_anchor": "BoardingArea/BoardingPosition",
+        "approach_route": "fleet_dock_apron_airstair_walk_up",
+        "staged_beyond_fallback_reach": true,
+        "route_clear": true,
+        "minimum_walk_m": 1.2,
+        "grounded_ticks_required": 1,
+        "prompt_after_walk": true,
+        "focused_test": "tests/halyard_crew_transport_test.gd"
+      },
+      "cockpit": {
+        "pilot_seat_anchor": "WalkableInterior/CockpitInterior/PilotSeatAnchor",
+        "camera_anchor": "WalkableInterior/CockpitInterior/CockpitCamera",
+        "pilot_seats": 1,
+        "seat_to_camera_rise_m": 1.76,
+        "head_hull_clearance_m": 3.01
+      },
+      "interior": {
+        "walkable": true,
+        "connected_to_ship_frame": true,
+        "root": "WalkableInterior",
+        "route_markers": ["exterior_access", "interior_deck", "pilot_seat"],
+        "passenger_seats": 6,
+        "moving_interior_frame": true,
+        "dimensions_m": [5.2, 3.6, 22.7],
+        "volume_m3": 425.304,
+        "claim": "connected_walkable_modern_interpretation"
+      }
+    }
+  ]
+}
