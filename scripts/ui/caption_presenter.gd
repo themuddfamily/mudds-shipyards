@@ -170,6 +170,31 @@ func get_layout_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+## Detached accessibility contract consumed by settings/review tooling.  The
+## presenter remains presentation-only: this describes what the current scene
+## guarantees, but does not enable captions, mutate settings, or infer audio
+## state.  Keeping this beside the visual contract prevents a caller from
+## treating a colour or flash treatment as the accessibility feature itself.
+func get_accessibility_contract() -> Dictionary:
+	return {
+		"captions_are_textual": true,
+		"category_is_textual": true,
+		"speaker_is_textual": true,
+		"body_contrast_ratio_minimum": 7.0,
+		"speaker_contrast_ratio_minimum": 7.0,
+		"category_contrast_ratio_minimum": 7.0,
+		"border_contrast_ratio_minimum": 7.0,
+		"reduced_flash_policy": &"steady_no_flash",
+		"standard_transition_policy": &"consumer_standard",
+		"animation_player_count": 0,
+		"owned_tween_count": 0,
+		"input_transparent": true,
+		"captions_enabled_authority": &"caller_accessibility_settings",
+		"audio_authority": false,
+		"gameplay_authority": false,
+	}.duplicate(true)
+
+
 func get_layout_report() -> Dictionary:
 	var viewport_size := _resolved_viewport_size()
 	var safe_rect := _safe_rect(viewport_size)

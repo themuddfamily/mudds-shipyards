@@ -80,6 +80,25 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 		and int(contract.maximum_text_characters) == 512,
 		"layout contract freezes exact UI-scale, panel, safe-area and text bounds"
 	)
+	var accessibility := presenter.get_accessibility_contract()
+	_check(
+		bool(accessibility.captions_are_textual)
+		and bool(accessibility.category_is_textual)
+		and bool(accessibility.speaker_is_textual)
+		and float(accessibility.body_contrast_ratio_minimum) >= 7.0
+		and float(accessibility.speaker_contrast_ratio_minimum) >= 7.0
+		and float(accessibility.category_contrast_ratio_minimum) >= 7.0
+		and float(accessibility.border_contrast_ratio_minimum) >= 7.0
+		and accessibility.reduced_flash_policy == &"steady_no_flash"
+		and accessibility.standard_transition_policy == &"consumer_standard"
+		and int(accessibility.animation_player_count) == 0
+		and int(accessibility.owned_tween_count) == 0
+		and bool(accessibility.input_transparent)
+		and accessibility.captions_enabled_authority == &"caller_accessibility_settings"
+		and not bool(accessibility.audio_authority)
+		and not bool(accessibility.gameplay_authority),
+		"accessibility contract freezes semantic text, contrast, reduced-flash and authority boundaries"
+	)
 	_check(
 		not presenter.set_ui_scale(0.74)
 		and not presenter.set_ui_scale(1.61)
