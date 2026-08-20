@@ -383,10 +383,16 @@ func evaluate_assist_capture_candidate(
 ## berth tags mean unrestricted. Otherwise at least one definition tag must
 ## match. A requester may inspect or renew its own existing claim.
 func can_accept(definition: ShipDefinition, requester: Node = null) -> bool:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return false
 	_cleanup_stale_claims()
 	if definition == null or not definition.is_definition_valid():
 		return false
-	if requester != null and not is_instance_valid(requester):
+	if requester != null and (
+		not is_instance_valid(requester)
+		or requester.is_queued_for_deletion()
+		or not requester.is_inside_tree()
+	):
 		return false
 	if not _is_compatible(definition):
 		return false
@@ -414,7 +420,7 @@ func is_compatible_with(definition: ShipDefinition) -> bool:
 ## again with the same requester and definition is idempotent and returns the
 ## existing token. An empty token means the berth was not claimable.
 func try_reserve(requester: Node, definition: ShipDefinition) -> StringName:
-	if requester == null or not is_instance_valid(requester) or not can_accept(definition, requester):
+	if requester == null or not can_accept(definition, requester):
 		return &""
 	if get_reservation_owner() == requester and not _reservation_token.is_empty():
 		return _reservation_token

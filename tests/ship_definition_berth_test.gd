@@ -258,6 +258,56 @@ func _test_berth_reservation_and_occupancy() -> void:
 	_check(not berth.release(requester_a, token_a), "duplicate release is rejected")
 	_check(not berth.is_reserved() and not berth.is_occupied(), "release clears reservation and occupancy together")
 
+	var detached_admission_events: Array[StringName] = []
+	berth.reservation_changed.connect(
+		func(_owner: Node, token: StringName) -> void:
+			detached_admission_events.append(token)
+	)
+	stage.remove_child(berth)
+	_check(
+		not berth.can_accept(compatible, requester_a)
+		and berth.try_reserve(requester_a, compatible).is_empty()
+		and not berth.is_reserved() and not berth.is_occupied()
+		and detached_admission_events.is_empty(),
+		"detached berth rejects new lease admission without state or reservation signal drift"
+	)
+	stage.add_child(berth)
+	var reentered_token := berth.try_reserve(requester_a, compatible)
+	_check(
+		not reentered_token.is_empty()
+		and berth.has_valid_lease(requester_a, reentered_token, compatible.ship_id),
+		"re-added berth accepts a fresh live reservation"
+	)
+	_check(berth.release(requester_a, reentered_token), "re-added berth releases its fresh live reservation")
+
+	detached_admission_events.clear()
+	stage.remove_child(requester_a)
+	_check(
+		not berth.can_accept(compatible, requester_a)
+		and berth.try_reserve(requester_a, compatible).is_empty()
+		and not berth.is_reserved() and detached_admission_events.is_empty(),
+		"detached requester cannot claim a live physical berth"
+	)
+	stage.add_child(requester_a)
+
+	var queued_berth := BerthScript.new() as ShipBerth
+	queued_berth.berth_id = &"queued_berth"
+	stage.add_child(queued_berth)
+	var queued_admission_events: Array[StringName] = []
+	queued_berth.reservation_changed.connect(
+		func(_owner: Node, token: StringName) -> void:
+			queued_admission_events.append(token)
+	)
+	queued_berth.queue_free()
+	_check(
+		queued_berth.is_inside_tree() and queued_berth.is_queued_for_deletion()
+		and not queued_berth.can_accept(compatible, requester_a)
+		and queued_berth.try_reserve(requester_a, compatible).is_empty()
+		and not queued_berth.is_reserved() and not queued_berth.is_occupied()
+		and queued_admission_events.is_empty(),
+		"queued berth rejects new lease admission before lease state or reservation signal mutation"
+	)
+
 	var unrestricted := BerthScript.new() as ShipBerth
 	unrestricted.berth_id = &"unrestricted_berth"
 	stage.add_child(unrestricted)
