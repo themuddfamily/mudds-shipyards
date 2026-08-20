@@ -72,6 +72,7 @@ func _run() -> void:
 	await _test_player_flight_withdraws_the_scenario()
 	await _test_player_loss_aborts_the_scenario()
 	await _test_queued_target_is_rejected_before_scenario_mutation()
+	await _test_queued_target_aborts_an_active_scenario()
 	await _test_paired_wing_cleared_when_broken()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
@@ -239,6 +240,35 @@ func _test_queued_target_is_rejected_before_scenario_mutation() -> void:
 		and scenario_began.is_empty(),
 		"queued target disposal cannot leave a latent scenario after rejected admission"
 	)
+	await _free_fixture(fixture)
+
+
+func _test_queued_target_aborts_an_active_scenario() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var authority: LiveCombatAuthority = fixture.authority
+	var target: EncounterTarget = fixture.target
+	_check(
+		director.begin_scenario(EncounterScenarioDirector.SCENARIO_PAIRED_WING, target)
+		and director.is_running()
+		and authority.get_resolver().get_registered_source_count() == 2,
+		"a live target starts the paired wing with both combat sources registered"
+	)
+	target.queue_free()
+	# Queueing keeps the target valid and in-tree until the frame drains. Drive
+	# this exact physics seam now, before that deferred free, so the witness
+	# proves currentness rather than merely observing an invalid target later.
+	director._physics_process(1.0 / 60.0)
+	_check(
+		target.is_inside_tree()
+		and target.is_queued_for_deletion()
+		and director.is_concluded()
+		and director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED
+		and director.get_roster().is_empty()
+		and authority.get_resolver().get_registered_source_count() == 0,
+		"a queued in-tree target aborts the active scenario before deletion and releases its roster sources"
+	)
+	await _assert_fully_terminated(fixture, "queued active target")
 	await _free_fixture(fixture)
 
 

@@ -574,7 +574,11 @@ func _resolve_host_target() -> Node3D:
 
 
 func _is_target_alive() -> bool:
-	if not is_instance_valid(_target) or not _target.is_inside_tree():
+	if (
+		not is_instance_valid(_target)
+		or _target.is_queued_for_deletion()
+		or not _target.is_inside_tree()
+	):
 		return false
 	if _target.has_method(&"is_destroyed") and bool(_target.call(&"is_destroyed")):
 		return false
