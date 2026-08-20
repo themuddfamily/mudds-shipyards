@@ -167,18 +167,19 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on exact clean base `9844fe9` after the bounded
+Focused production evidence on exact clean base `704ceed` after the bounded
 Aft/Habitat MultiMesh and immutable-resource trims, production Ember/cruise
-ownership, the pause-menu cruise row, streamed-berth binding, and Arrow's
-passive entry-heat target, using Godot 4.7.1, headless Forward+, Dummy audio
-and HIGH quality, freezes:
+ownership, the pause-menu cruise row, streamed-berth binding, Arrow's passive
+entry-heat target, and the immutable Observation LogisticsCase and Jovian
+passenger-seat sharing, using Godot 4.7.1, headless Forward+, Dummy audio and
+HIGH quality, freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
 | Triangles | 1,684,993 | 1,802,450 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,493 | 2,595 | +102 |
+| Unique meshes | 2,473 | 2,575 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -372,9 +373,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`7631fc2ae83e357dfdb34f84686191081cca8ef7562368199abd384e117e2602`;
+`f3d0883f8d6d8643c7461221ae8a6e30ac3bea8ddd5223fc0e16227636cfe774`;
 the loaded fingerprint is
-`a29ce07cd02618a71a87e1e4d02b0ea1d0eeca9b578e27b63e9e3b6d71e438b2`.
+`417604780da425a44a61f5a914a63d820aed2f2360086f5ea0ae723b373ea80c`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
