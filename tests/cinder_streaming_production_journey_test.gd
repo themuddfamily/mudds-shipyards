@@ -95,6 +95,7 @@ func _run() -> void:
 	await _test_composition_startup_and_player_tracking(game, binding, bootstrap, player)
 	await _test_ship_outbound_missing_actor_and_reentry(game, binding, bootstrap, player, ship)
 	await _cleanup(game)
+	await _test_deferred_quality_sync_currentness()
 	await _test_queued_binding_boundaries()
 	_finish()
 
@@ -671,6 +672,128 @@ func _test_queued_binding_boundaries() -> void:
 		not is_instance_valid(tick_game),
 		"queued tick fixture frees without a late streaming update"
 	)
+
+
+func _test_deferred_quality_sync_currentness() -> void:
+	var detached_game := MAIN_SCENE.instantiate() as GameFlow
+	var detached_store := Store.new(
+		"memory://cinder-detached-quality-sync-settings.json", MemoryFilesystem.new()
+	) as UserDataStore
+	_check(
+		detached_game.configure_runtime_settings_persistence(
+			detached_store, "memory://cinder-detached-quality-sync-legacy.cfg"
+		),
+		"detached quality-sync fixture injects isolated settings before Main startup"
+	)
+	root.add_child(detached_game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var detached_binding := detached_game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var detached_bootstrap := detached_game.get_node_or_null(
+		^"CinderStreamingBootstrap"
+	) as CinderStreamingBootstrap
+	var detached_ship := detached_game.get_guided_ship()
+	_check(
+		detached_binding != null and detached_bootstrap != null and detached_ship != null,
+		"detached quality-sync fixture resolves the live production binding, bootstrap, and ship"
+	)
+	if detached_binding == null or detached_bootstrap == null or detached_ship == null:
+		await _cleanup(detached_game)
+		return
+	detached_game.set_physics_process(false)
+	detached_ship.set_piloted(true)
+	detached_ship.global_position = LOCATION.get_anchor_position() + Vector3.FORWARD * 499.9
+	var detached_load := detached_binding.physics_tick_from_caller_sample(
+		1.0 / 60.0, _ship_sample(detached_ship)
+	)
+	var detached_before := _quality_sync_snapshot(detached_binding)
+	_check(
+		bool(detached_load.get("accepted", false))
+			and bool(detached_before.get("pending", false)),
+		"a real outbound load schedules one deferred retained-quality completion"
+	)
+	var binding_parent := detached_binding.get_parent()
+	if binding_parent != null:
+		binding_parent.remove_child(detached_binding)
+	detached_binding.call(
+		"_complete_deferred_presentation_sync",
+		int(detached_before.get("deferred_generation", -1))
+	)
+	_check(
+		not detached_binding.is_inside_tree()
+			and _quality_sync_snapshot(detached_binding) == detached_before,
+		"a detached deferred quality completion preserves its retained pending and sync state atomically"
+	)
+	if binding_parent != null:
+		binding_parent.add_child(detached_binding)
+	await _wait_for_cluster(detached_bootstrap)
+	var detached_cluster := detached_bootstrap.get_loaded_instance() as NearbySectorCluster
+	if detached_cluster != null:
+		await _wait_for_quality_sync(detached_binding, detached_cluster.get_instance_id())
+	var detached_after := _quality_sync_snapshot(detached_binding)
+	_check(
+		detached_cluster != null
+			and not bool(detached_after.get("pending", true))
+			and int(detached_after.get("sync_count", -1))
+				== int(detached_before.get("sync_count", -2)) + 1
+			and int(detached_after.get("synced_instance_id", 0)) == detached_cluster.get_instance_id(),
+		"a re-entered binding completes one fresh current-generation quality synchronization"
+	)
+	await _cleanup(detached_game)
+
+	var queued_game := MAIN_SCENE.instantiate() as GameFlow
+	var queued_store := Store.new(
+		"memory://cinder-queued-quality-sync-settings.json", MemoryFilesystem.new()
+	) as UserDataStore
+	_check(
+		queued_game.configure_runtime_settings_persistence(
+			queued_store, "memory://cinder-queued-quality-sync-legacy.cfg"
+		),
+		"queued quality-sync fixture injects isolated settings before Main startup"
+	)
+	root.add_child(queued_game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var queued_binding := queued_game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var queued_ship := queued_game.get_guided_ship()
+	if queued_binding != null and queued_ship != null:
+		queued_game.set_physics_process(false)
+		queued_ship.set_piloted(true)
+		queued_ship.global_position = LOCATION.get_anchor_position() + Vector3.FORWARD * 499.9
+		queued_binding.physics_tick_from_caller_sample(1.0 / 60.0, _ship_sample(queued_ship))
+	var queued_before := _quality_sync_snapshot(queued_binding)
+	if queued_binding != null:
+		queued_binding.queue_free()
+		queued_binding.call(
+			"_complete_deferred_presentation_sync",
+			int(queued_before.get("deferred_generation", -1))
+		)
+	_check(
+		queued_binding != null
+			and queued_binding.is_queued_for_deletion()
+			and bool(queued_before.get("pending", false))
+			and _quality_sync_snapshot(queued_binding) == queued_before,
+		"a queued deferred quality completion preserves pending and quality state before disposal"
+	)
+	await _cleanup(queued_game)
+
+
+func _quality_sync_snapshot(binding: CinderStreamingProductionBinding) -> Dictionary:
+	if binding == null:
+		return {}
+	var snapshot := binding.get_snapshot()
+	return {
+		"pending": bool(snapshot.get("deferred_quality_sync_pending", false)),
+		"deferred_generation": int(snapshot.get("deferred_quality_sync_generation", -1)),
+		"sync_count": int(snapshot.get("quality_sync_count", -1)),
+		"synced_instance_id": int(snapshot.get("quality_synced_instance_id", 0)),
+	}.duplicate(true)
 
 
 func _cleanup(game: GameFlow) -> void:

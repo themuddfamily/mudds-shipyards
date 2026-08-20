@@ -39,6 +39,8 @@ var _provider_mutation_rejection_count := 0
 var _quality_sync_count := 0
 var _quality_synced_instance_id := 0
 var _deferred_quality_sync_pending := false
+var _deferred_quality_sync_generation := 0
+var _tree_generation := 0
 var _presentation_advance_count := 0
 var _presentation_rejection_count := 0
 var _presentation_unload_hold_count := 0
@@ -54,6 +56,11 @@ var _last_tick_result: Dictionary = {}
 func _enter_tree() -> void:
 	if _activated:
 		set_physics_process(not _caller_sample_mode)
+		if _deferred_quality_sync_pending:
+			# A deferred completion from the prior tree lifetime is deliberately
+			# stale. Requeue this retained work for the current attachment instead.
+			_deferred_quality_sync_pending = false
+			_queue_deferred_presentation_sync()
 
 
 func _ready() -> void:
@@ -65,6 +72,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_tree_generation += 1
 	# The bootstrap and its loaded child remain intact inside the detached Main.
 	# Only automatic sampling pauses until this same binding re-enters.
 	set_physics_process(false)
@@ -149,6 +157,8 @@ func get_snapshot() -> Dictionary:
 		"quality_sync_count": _quality_sync_count,
 		"quality_synced_instance_id": _quality_synced_instance_id,
 		"deferred_quality_sync_pending": _deferred_quality_sync_pending,
+		"deferred_quality_sync_generation": _deferred_quality_sync_generation,
+		"tree_generation": _tree_generation,
 		"presentation_advance_count": _presentation_advance_count,
 		"presentation_rejection_count": _presentation_rejection_count,
 		"presentation_unload_hold_count": _presentation_unload_hold_count,
@@ -403,12 +413,29 @@ func _schedule_deferred_presentation_sync_after_load_request() -> void:
 			# The production PackedScene loader completes on idle. Queue exactly one
 			# idempotent synchronization behind that completion instead of burning a
 			# deferred callable on every physics tick.
-			_deferred_quality_sync_pending = true
-			call_deferred(&"_complete_deferred_presentation_sync")
+			_queue_deferred_presentation_sync()
 			return
 
 
-func _complete_deferred_presentation_sync() -> void:
+func _queue_deferred_presentation_sync() -> void:
+	if _deferred_quality_sync_pending:
+		return
+	_deferred_quality_sync_pending = true
+	_deferred_quality_sync_generation = _tree_generation
+	call_deferred(
+		&"_complete_deferred_presentation_sync",
+		_deferred_quality_sync_generation
+	)
+
+
+func _complete_deferred_presentation_sync(generation: int) -> void:
+	if (
+		generation != _tree_generation
+		or generation != _deferred_quality_sync_generation
+		or is_queued_for_deletion()
+		or not is_inside_tree()
+	):
+		return
 	_deferred_quality_sync_pending = false
 	_synchronize_loaded_cluster_quality()
 
