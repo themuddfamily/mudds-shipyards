@@ -23,6 +23,10 @@ var _staged_child_owners: Dictionary = {}
 var _staged_done := 0.0
 var _staged_total := 1.0
 var _staged_sink := Callable()
+var _host_tree_generation := 0
+var _run_generation := 0
+var _active_run_generation := 0
+var _active_host_tree_generation := 0
 
 
 func _init(
@@ -33,6 +37,7 @@ func _init(
 	_host = host
 	_resolve_scene_bindings = resolve_scene_bindings
 	_start_up = start_up
+	_host.tree_exiting.connect(_on_host_tree_exiting)
 
 
 func is_prepared() -> bool:
@@ -71,6 +76,13 @@ func prepare(initialized: bool) -> bool:
 func run(initialized: bool, on_stage: Callable = Callable()) -> void:
 	if not _prepared or initialized:
 		return
+	_run_generation += 1
+	var run_generation := _run_generation
+	var host_tree_generation := _host_tree_generation
+	if not _is_run_current(run_generation, host_tree_generation):
+		return
+	_active_run_generation = run_generation
+	_active_host_tree_generation = host_tree_generation
 	var tree := _host.get_tree()
 	var pending := _staged_children.duplicate()
 	# One unit per child, plus one for each staged builder stage a child declares,
@@ -78,36 +90,95 @@ func run(initialized: bool, on_stage: Callable = Callable()) -> void:
 	# bar from completing in a single jump.
 	_staged_total = float(pending.size() + 1)
 	for child in pending:
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return
 		if child.has_method(&"get_staged_construction_stage_count"):
 			_staged_total += float(child.call(&"get_staged_construction_stage_count"))
 	_staged_done = 0.0
 	_staged_sink = on_stage
 	var budget_started := Time.get_ticks_usec()
 	for child in pending:
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return
 		_host.add_child(child)
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return
 		if _staged_child_owners.has(child):
 			child.owner = _staged_child_owners[child] as Node
 		_advance_stage(_stage_label(child))
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return
 		if Time.get_ticks_usec() - budget_started >= STAGED_STARTUP_FRAME_BUDGET_USEC:
 			await tree.process_frame
+			if not _is_run_current(run_generation, host_tree_generation):
+				_cancel_stale_run()
+				return
 			budget_started = Time.get_ticks_usec()
 		if child.has_method(&"run_staged_construction"):
 			# A bound method, not a lambda: GDScript lambdas capture locals by
 			# value, so a counter incremented inside one never advances.
 			await child.call(&"run_staged_construction", _advance_stage)
+			if not _is_run_current(run_generation, host_tree_generation):
+				_cancel_stale_run()
+				return
 			budget_started = Time.get_ticks_usec()
+	if not _is_run_current(run_generation, host_tree_generation):
+		_cancel_stale_run()
+		return
 	_staged_children.clear()
 	_staged_child_owners.clear()
 	_prepared = false
 	_resolve_scene_bindings.call()
+	if not _is_run_current(run_generation, host_tree_generation):
+		_cancel_stale_run()
+		return
 	_staged_done = _staged_total
 	_advance_stage("Bringing systems online")
+	if not _is_run_current(run_generation, host_tree_generation):
+		_cancel_stale_run()
+		return
 	_staged_sink = Callable()
+	_active_run_generation = 0
+	_active_host_tree_generation = 0
 	_start_up.call()
+
+
+func _on_host_tree_exiting() -> void:
+	# A host can leave and re-enter during one awaited staged-builder callback.
+	# The generation makes that stale continuation fail closed even if it resumes
+	# after the host has already been reattached.
+	_host_tree_generation += 1
+
+
+func _is_run_current(run_generation: int, host_tree_generation: int) -> bool:
+	return (
+		run_generation == _run_generation
+		and host_tree_generation == _host_tree_generation
+		and is_instance_valid(_host)
+		and _host.is_inside_tree()
+		and not _host.is_queued_for_deletion()
+	)
+
+
+func _cancel_stale_run() -> void:
+	# Retain the detached-child transaction for the owning host's teardown, but
+	# drop the loader callback so a stale generation cannot publish more progress.
+	_staged_sink = Callable()
+	_active_run_generation = 0
+	_active_host_tree_generation = 0
 
 
 ## Counts one finished stage and reports the new fraction to the loader.
 func _advance_stage(label: String) -> void:
+	if (
+		_active_run_generation != 0
+		and not _is_run_current(_active_run_generation, _active_host_tree_generation)
+	):
+		return
 	_staged_done = minf(_staged_done + 1.0, _staged_total)
 	if _staged_sink.is_valid():
 		_staged_sink.call(

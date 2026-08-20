@@ -13,8 +13,19 @@ extends SceneTree
 const BOOT_SCENE := preload("res://scenes/boot.tscn")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
+const MainStartupStagerType := preload("res://scripts/game/main_startup_stager.gd")
 
 var _failures := PackedStringArray()
+
+
+class YieldingStagedChild extends Node:
+	func get_staged_construction_stage_count() -> int:
+		return 1
+
+
+	func run_staged_construction(on_stage: Callable) -> void:
+		await get_tree().process_frame
+		on_stage.call("Finishing yielded child")
 
 
 func _init() -> void:
@@ -23,10 +34,75 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_queued_loading_screen_public_mutators_are_inert()
+	await _test_stager_rejects_stale_host_generation_after_yield()
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_direct_instantiation_is_unstaged()
 	_finish()
+
+
+func _test_stager_rejects_stale_host_generation_after_yield() -> void:
+	var host := Node3D.new()
+	var child := YieldingStagedChild.new()
+	host.add_child(child)
+	var stale_stages: Array[String] = []
+	var stale_resolutions: Array[int] = []
+	var stale_startups: Array[int] = []
+	var stager := MainStartupStagerType.new(
+		host,
+		func() -> void:
+			stale_resolutions.append(1),
+		func() -> void:
+			stale_startups.append(1)
+	)
+	_check(stager.prepare(false), "a pre-tree startup stager still prepares its authored child transaction")
+	root.add_child(host)
+	stager.run(
+		false,
+		func(label: String, _ratio: float) -> void:
+			stale_stages.append(label)
+	)
+	# The child is now suspended at its real staged-build yield. Reattaching the
+	# same host before it resumes must not make that old run current again.
+	root.remove_child(host)
+	root.add_child(host)
+	var stages_before_resume := stale_stages.duplicate()
+	var children_before_resume := host.get_child_count()
+	await process_frame
+	await process_frame
+	_check(
+		host.is_inside_tree()
+			and stale_stages == stages_before_resume
+			and host.get_child_count() == children_before_resume
+			and stale_resolutions.is_empty()
+			and stale_startups.is_empty(),
+		"a detached-and-reentered staged host rejects its stale yielded continuation atomically"
+	)
+	host.queue_free()
+	await process_frame
+
+	var fresh_host := Node3D.new()
+	fresh_host.add_child(YieldingStagedChild.new())
+	var fresh_resolutions: Array[int] = []
+	var fresh_startups: Array[int] = []
+	var fresh_stager := MainStartupStagerType.new(
+		fresh_host,
+		func() -> void:
+			fresh_resolutions.append(1),
+		func() -> void:
+			fresh_startups.append(1)
+	)
+	_check(fresh_stager.prepare(false), "a fresh pre-tree stager remains eligible after stale-host cancellation")
+	root.add_child(fresh_host)
+	await fresh_stager.run(false)
+	_check(
+		fresh_resolutions.size() == 1
+			and fresh_startups.size() == 1
+			and fresh_host.get_child_count() == 1,
+		"a fresh attached host still resolves and starts exactly once after its yielded stage"
+	)
+	fresh_host.queue_free()
+	await process_frame
 
 
 func _test_queued_loading_screen_public_mutators_are_inert() -> void:
