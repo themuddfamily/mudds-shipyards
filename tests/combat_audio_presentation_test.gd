@@ -35,6 +35,7 @@ func _run() -> void:
 	await _test_default_playback_accepts_and_counts()
 	await _test_rejection_is_atomic_and_detached()
 	await _test_first_reject_then_accept_keeps_pool()
+	await _test_queued_reentry_restore_is_inert()
 
 	_test_root.queue_free()
 	await process_frame
@@ -137,6 +138,37 @@ func _test_first_reject_then_accept_keeps_pool() -> void:
 	)
 	presentation.queue_free()
 	await process_frame
+
+
+func _test_queued_reentry_restore_is_inert() -> void:
+	var presentation := await _make_presentation()
+	if presentation == null:
+		return
+	_test_root.remove_child(presentation)
+	await process_frame
+	_test_root.add_child(presentation)
+	var voice := presentation.get_node_or_null(^"FireVoice0") as AudioStreamPlayer3D
+	if voice == null:
+		_check(false, "queued re-entry fixture retains the first fixed fire voice")
+		presentation.queue_free()
+		await process_frame
+		return
+	# The ordinary re-entry callback is now queued. Freeze deliberately noncanonical
+	# values so this test detects any post-disposal player configuration work.
+	voice.top_level = false
+	voice.max_distance = 17.0
+	var snapshot_before := presentation.get_state_snapshot()
+	presentation.queue_free()
+	presentation.call("_restore_players_after_reentry")
+	_check(
+		presentation.is_queued_for_deletion()
+		and presentation.get_state_snapshot() == snapshot_before
+		and not voice.top_level
+		and is_equal_approx(voice.max_distance, 17.0),
+		"a queued post-reentry combat-audio presentation cannot reconfigure its fixed voices"
+	)
+	await process_frame
+	_check(not is_instance_valid(presentation), "the queued combat-audio fixture frees normally")
 
 
 func _check(condition: bool, description: String) -> void:

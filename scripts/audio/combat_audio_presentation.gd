@@ -318,6 +318,8 @@ func _stop_all_players() -> void:
 
 
 func _restore_players_after_reentry() -> void:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return
 	for pool_value in _pools.values():
 		for player: AudioStreamPlayer3D in pool_value:
 			if is_instance_valid(player):
