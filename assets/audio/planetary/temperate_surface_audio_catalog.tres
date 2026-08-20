@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PlanetarySurfaceAudioCatalog" load_steps=4 format=3 uid="uid://dpsaudiocatalogres1"]
+
+[ext_resource type="Script" uid="uid://dpsaudiocatalog1" path="res://scripts/audio/planetary_surface_audio_catalog.gd" id="1_catalog"]
+[ext_resource type="AudioStream" uid="uid://3xhd2t8oymsq" path="res://assets/audio/planetary/temperate_exterior_wind_air_v1.wav" id="2_exterior"]
+[ext_resource type="AudioStream" uid="uid://3xhhrt8oymsq" path="res://assets/audio/planetary/temperate_interior_cabin_air_v1.wav" id="3_interior"]
+
+[resource]
+script = ExtResource("1_catalog")
+exterior_stream = ExtResource("2_exterior")
+interior_stream = ExtResource("3_interior")

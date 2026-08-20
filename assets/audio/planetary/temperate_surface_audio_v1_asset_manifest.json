@@ -1,0 +1,82 @@
+{
+  "asset_id": "mudds.audio.planetary.temperate_surface_loops.v1",
+  "authorship": "project_original_fixed_seed_offline_periodic_synthesis",
+  "content_note": "Both beds are project-original modern sound design. No source authenticates planetary ambience for the original Keth Shipyards, and automated checks do not establish audibility, comfort, or mix quality.",
+  "evidence_status": "modern_interpretation",
+  "format_contract": {
+    "bit_depth": 16,
+    "channel_layout": "mono",
+    "channels": 1,
+    "container": "RIFF/WAVE",
+    "encoding": "linear PCM signed 16-bit little-endian",
+    "loop_begin_frame": 0,
+    "loop_end_frame": 191999,
+    "loop_mode": "forward",
+    "looped": true,
+    "sample_rate_hz": 24000
+  },
+  "generator": "tools/audio/generate_planetary_surface_audio_v1.py",
+  "generator_sha256": "56d0caaa1e104f5bd875f07df86adb90eadadc481ba21c4e752ee707dc0971b8",
+  "historically_supported": false,
+  "human_listening_pass": "outstanding",
+  "loops": [
+    {
+      "duration_seconds": 8.0,
+      "filename": "temperate_exterior_wind_air_v1.wav",
+      "first_sample_pcm16": -4224,
+      "frame_count": 192000,
+      "last_sample_pcm16": -4082,
+      "loop_join_step_pcm16": 142,
+      "maximum_cycles_per_loop": 5200,
+      "maximum_internal_step_pcm16": 446,
+      "minimum_cycles_per_loop": 5,
+      "partial_count": 176,
+      "pcm_payload_sha256": "aee627cee390c218c22242785257dafc994012f1a00c5a549a9b660e7ca2710e",
+      "peak_abs_pcm16": 7336,
+      "peak_dbfs": -12.9995,
+      "profile_id": "temperate_exterior",
+      "raw_file_sha256": "5c04b1711a696033e8f3a770a94568845265cbdf0294118f5751d99acc063320",
+      "rms_dbfs": -25.4372,
+      "role": "non-positional exterior wind and moving-air bed",
+      "seed_u32": 1262834689,
+      "target_peak_dbfs": -13.0
+    },
+    {
+      "duration_seconds": 8.0,
+      "filename": "temperate_interior_cabin_air_v1.wav",
+      "first_sample_pcm16": -353,
+      "frame_count": 192000,
+      "last_sample_pcm16": -355,
+      "loop_join_step_pcm16": 2,
+      "maximum_cycles_per_loop": 1100,
+      "maximum_internal_step_pcm16": 16,
+      "minimum_cycles_per_loop": 3,
+      "partial_count": 112,
+      "pcm_payload_sha256": "30f72556aa14e36e49921a8011f5a8bfd7136d85d2ebd2115bbdad05e0ff76c3",
+      "peak_abs_pcm16": 4125,
+      "peak_dbfs": -18.0003,
+      "profile_id": "temperate_interior",
+      "raw_file_sha256": "a63fab5afc695f2422394c5720dde6f73e34f8bc04a1a2d3ffcf52eefc13fc28",
+      "rms_dbfs": -28.16,
+      "role": "attenuated low-passed interior and cabin air bed",
+      "seed_u32": 1262834690,
+      "target_peak_dbfs": -18.0
+    }
+  ],
+  "mix_contract": {
+    "interior_asset_is_lower_and_spectrally_restrained": true,
+    "native_listening_required": true,
+    "runtime_bus": "Ambience",
+    "runtime_policy_gain_is_additional": true
+  },
+  "recorded_or_sampled_source_material": false,
+  "runtime_generation": false,
+  "runtime_intent": "non-positional temperate planetary exterior and interior/cabin ambience",
+  "schema_version": 1,
+  "synthesis_contract": {
+    "asset_count": 2,
+    "integer_cycles_per_loop": true,
+    "loop_seconds": 8.0,
+    "periodic_by_construction": true
+  }
+}

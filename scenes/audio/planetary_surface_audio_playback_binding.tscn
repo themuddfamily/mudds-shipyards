@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3 uid="uid://dpsaudiobindscene1"]
+
+[ext_resource type="Script" uid="uid://dpsaudiobinding1" path="res://scripts/audio/planetary_surface_audio_playback_binding.gd" id="1_binding"]
+
+[node name="PlanetarySurfaceAudioPlaybackBinding" type="Node"]
+script = ExtResource("1_binding")
+
+[node name="ExteriorVoice" type="AudioStreamPlayer" parent="."]
+bus = &"Ambience"
+volume_db = -80.0
+max_polyphony = 1
+
+[node name="InteriorVoice" type="AudioStreamPlayer" parent="."]
+bus = &"Ambience"
+volume_db = -80.0
+max_polyphony = 1
