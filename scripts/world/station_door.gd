@@ -267,7 +267,10 @@ func _apply_panel_transform() -> void:
 ## Cancelling the travel out of the UV phase keeps the grain welded to the leaf
 ## while every static surface keeps the shared world-metric phase.
 func _pin_panel_grain(local_travel: Vector3) -> void:
-	if _panel_grain_materials.is_empty():
+	# A deferred panel-family bind can still be unwinding while an ancestor tears
+	# this door out of the world. Do not sample a world transform or advance the
+	# leaf's UV phase unless this is the current live door.
+	if is_queued_for_deletion() or not is_inside_tree() or _panel_grain_materials.is_empty():
 		return
 	var world_travel := global_transform.basis * local_travel
 	for material_index in _panel_grain_materials.size():

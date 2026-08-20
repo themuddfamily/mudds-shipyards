@@ -209,6 +209,22 @@ func _test_deferred_panel_binding_currentness() -> void:
 		and panel.material_override == rebound_material,
 		"re-entry applies one current panel-family binding without duplicate deferred material mutation"
 	)
+	var rebound_grain := rebound_material as StandardMaterial3D
+	var rebound_grain_offset := rebound_grain.uv1_offset
+	_test_root.remove_child(deferred_door)
+	deferred_door.call("_pin_panel_grain", Vector3(1.0, 0.0, 0.0))
+	_check(
+		not deferred_door.is_inside_tree()
+		and rebound_grain.uv1_offset.is_equal_approx(rebound_grain_offset),
+		"detached panel-grain pin rejects world-transform sampling and UV mutation after a prior live bind"
+	)
+	_test_root.add_child(deferred_door)
+	await process_frame
+	_check(
+		deferred_door.is_inside_tree()
+		and panel.material_override != rebound_material,
+		"re-entry after a rejected panel-grain pin schedules a fresh current material bind"
+	)
 	deferred_door.queue_free()
 	await process_frame
 	var queued_door := DOOR_SCENE.instantiate() as StationDoor
