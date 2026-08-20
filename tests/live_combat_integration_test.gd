@@ -200,13 +200,50 @@ func _run() -> void:
 	# Range targets use the same request/resolver path, then forward lethal damage
 	# to ShipyardWorld so mission counting, burst presentation, and cleanup remain.
 	opponent.call("deactivate")
-	var range_target := targets[0] as StaticBody3D
 	hero.global_position = Vector3(230.0, 48.0, -250.0)
-	range_target.global_position = hero.global_position + Vector3(0.0, 0.0, -28.0)
-	range_target.set_meta("base_position", (range_target.get_parent() as Node3D).to_local(range_target.global_position))
 	game.phase = GameFlow.Phase.TARGET_PRACTICE
 	await physics_frame
 	var range_origin := hero.global_position + Vector3(0.0, 0.0, -5.5)
+	var queued_range_target := targets[0] as StaticBody3D
+	var queued_adapter := queued_range_target.get_node_or_null("AuthoritativeDamageable") as Damageable
+	queued_range_target.global_position = hero.global_position + Vector3(0.0, 0.0, -28.0)
+	queued_range_target.set_meta(
+		"base_position",
+		(queued_range_target.get_parent() as Node3D).to_local(queued_range_target.global_position)
+	)
+	# Make the old stale-target path terminal if it is admitted: before the guard,
+	# this same production projectile could still lower metadata and start the
+	# ShipyardWorld target-destruction lifecycle during queue_free's deferred turn.
+	queued_range_target.set_meta("health", 1.0)
+	var queued_health_before := float(queued_range_target.get_meta("health", -1.0))
+	var queued_destroyed_before := bool(queued_range_target.get_meta("destroyed", false))
+	var queued_mission_count_before := game.destroyed_targets
+	queued_range_target.queue_free()
+	var queued_direction := (queued_range_target.global_position - range_origin).normalized()
+	game.call("_on_projectile_fired", range_origin, queued_direction, hero)
+	var queued_result: Dictionary = game.call("get_last_player_shot_result")
+	_check(
+		queued_range_target.is_queued_for_deletion()
+		and queued_result.get("collider") == queued_range_target
+		and queued_result.get("target_entity") == queued_range_target
+		and queued_result.get("damageable") == queued_adapter
+		and queued_result.get("status") == &"target_unavailable"
+		and not bool(queued_result.get("damaged", true))
+		and (queued_result.get("damage_result", {}) as Dictionary).get("reason") == &"target_unavailable"
+		and is_equal_approx(float(queued_range_target.get_meta("health", -1.0)), queued_health_before)
+		and bool(queued_range_target.get_meta("destroyed", false)) == queued_destroyed_before
+		and game.destroyed_targets == queued_mission_count_before,
+		"a queued range target rejects the real production projectile before health or mission mutation"
+	)
+	await process_frame
+	_check(
+		not is_instance_valid(queued_range_target),
+		"queued range target releases normally after its atomic projectile rejection"
+	)
+
+	var range_target := targets[1] as StaticBody3D
+	range_target.global_position = hero.global_position + Vector3(0.0, 0.0, -28.0)
+	range_target.set_meta("base_position", (range_target.get_parent() as Node3D).to_local(range_target.global_position))
 	for _shot in 2:
 		var range_direction := (range_target.global_position - range_origin).normalized()
 		game.call("_on_projectile_fired", range_origin, range_direction, hero)

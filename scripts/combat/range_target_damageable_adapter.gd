@@ -62,7 +62,12 @@ func is_destroyed() -> bool:
 
 
 func can_receive_damage() -> bool:
-	return damage_enabled and not is_destroyed() and get_health() > 0.0
+	return (
+		_is_damage_target_current(get_target_entity())
+		and damage_enabled
+		and not is_destroyed()
+		and get_health() > 0.0
+	)
 
 
 func get_last_hit_context() -> Dictionary:
@@ -79,14 +84,23 @@ func apply_damage(
 	hit_normal: Vector3 = Vector3.ZERO,
 	source_context: Dictionary = {}
 	) -> Dictionary:
-	var before := get_health()
+	var target := get_target_entity()
+	var target_is_current := _is_damage_target_current(target)
+	var before := get_health() if target_is_current else 0.0
 	var result := {
 		"accepted": false,
 		"applied_damage": 0.0,
 		"health": before,
-		"maximum_health": get_maximum_health(),
-		"destroyed": is_destroyed(),
+		"maximum_health": get_maximum_health() if target_is_current else 1.0,
+		"destroyed": is_destroyed() if target_is_current else true,
 	}
+	# A target remains valid and can still have a physics RID for the deferred
+	# deletion turn. It is nevertheless no longer a current combat lifecycle,
+	# so reject before reading or mutating its health metadata or contacting the
+	# ShipyardWorld destruction/presentation authority.
+	if not target_is_current:
+		result["reason"] = &"target_unavailable"
+		return result
 	if not damage_enabled:
 		result["reason"] = &"damage_disabled"
 		return result
@@ -97,7 +111,6 @@ func apply_damage(
 		result["reason"] = &"already_destroyed"
 		return result
 
-	var target := get_target_entity()
 	var applied := minf(amount, before)
 	var after := maxf(0.0, before - applied)
 	target.set_meta("health", after)
@@ -169,6 +182,16 @@ func apply_damage(
 	if after <= 0.0:
 		destroyed.emit(safe_position, safe_normal, safe_context.duplicate(true))
 	return result
+
+
+func _is_damage_target_current(target: Node) -> bool:
+	return (
+		is_inside_tree()
+		and not is_queued_for_deletion()
+		and is_instance_valid(target)
+		and target.is_inside_tree()
+		and not target.is_queued_for_deletion()
+	)
 
 
 func _get_world_owner() -> Node:
