@@ -184,6 +184,20 @@ func _test_unknown_fallbacks() -> void:
 		keyboard_only.glyph_token == &"key.e" and keyboard_only.selected_by_fallback,
 		"missing preferred-family binding falls back deterministically without altering override"
 	)
+	var source_profile := _profile()
+	var all_bindings := resolver.resolve_action_bindings(source_profile, &"fire")
+	_check(
+		all_bindings.size() == 3
+		and all_bindings[0].glyph_token == &"key.f"
+		and all_bindings[1].glyph_token == &"mouse.left"
+		and all_bindings[2].glyph_token == &"gamepad.generic.face_bottom",
+		"accessible binding enumeration exposes every retained Fire glyph in profile order"
+	)
+	(all_bindings[0] as Dictionary).binding.physical_keycode = KEY_G
+	_check(
+		int((source_profile.get_bindings(&"fire")[0] as Dictionary).physical_keycode) == KEY_F,
+		"enumerated glyph descriptors are detached from the source binding profile"
+	)
 
 
 func _profile() -> InputBindingProfile:

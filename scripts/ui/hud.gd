@@ -2652,12 +2652,16 @@ func _refresh_all_binding_rows() -> void:
 
 
 func _action_bindings_text(action: StringName) -> String:
-	var resolved := _input_glyph_resolver.resolve_action(_input_binding_profile, action)
-	return (
-		str(resolved.get("text", "Unbound Input"))
-		if bool(resolved.get("valid", false))
-		else "UNBOUND  //  SELECT TO ADD"
-	)
+	var labels := PackedStringArray()
+	for resolved: Dictionary in _input_glyph_resolver.resolve_action_bindings(
+			_input_binding_profile, action
+		):
+		if not bool(resolved.get("valid", false)):
+			continue
+		var label := str(resolved.get("text", "Unbound Input"))
+		if not label.is_empty() and label not in labels:
+			labels.append(label)
+	return " / ".join(labels) if not labels.is_empty() else "UNBOUND  //  SELECT TO ADD"
 
 
 func _binding_text(binding: Dictionary) -> String:

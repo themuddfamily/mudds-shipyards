@@ -226,6 +226,28 @@ func resolve_action(
 	return result.duplicate(true)
 
 
+## Resolves every binding retained for an action, rather than only the binding
+## selected for the current device family.  Settings can use this to expose
+## the complete remappable surface to players who cannot infer hidden
+## alternatives from a single glyph.  The returned descriptors are detached
+## and retain profile order; this method has no InputMap or device side effects.
+func resolve_action_bindings(
+		profile: InputBindingProfile,
+		action: StringName,
+		device_metadata: Dictionary = {}
+	) -> Array[Dictionary]:
+	var resolved: Array[Dictionary] = []
+	if profile == null:
+		return resolved
+	for binding in profile.get_bindings(action):
+		var family := _family_for_binding(binding, device_metadata)
+		var descriptor := resolve_binding(binding, family, device_metadata)
+		descriptor["action"] = action
+		descriptor["binding"] = binding.duplicate(true)
+		resolved.append(descriptor.duplicate(true))
+	return resolved
+
+
 static func resolve_binding(
 		candidate: Variant,
 		requested_family: StringName = FAMILY_KEYBOARD,
