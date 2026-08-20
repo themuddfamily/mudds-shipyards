@@ -2065,6 +2065,66 @@ func get_station_route_adjacency_graph() -> Dictionary:
 	return (_station_route_registry_report.get("adjacency", {}) as Dictionary).duplicate(true)
 
 
+## Validates the embodied station controls against the live module roster.
+##
+## This is intentionally a read-only topology/interaction audit: a door does
+## not create a route or acquire gameplay authority merely by being visible,
+## but an orphaned door must not advertise an interaction in a module that the
+## route registry rejected.  The report is consumed by tests and diagnostics;
+## GameFlow remains the sole interaction selector and StationDoor remains the
+## sole door authority.
+func get_station_interaction_audit_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var doors := find_children("*", "StationDoor", true, false)
+	var modules := {}
+	for module_id: StringName in (_station_route_registry_report.get("modules", {}) as Dictionary).keys():
+		modules[module_id] = true
+	var placements := {}
+	for raw_door in doors:
+		var door := raw_door as StationDoor
+		if door == null or not is_instance_valid(door):
+			continue
+		var module_id := StringName("")
+		var cursor: Node = door.get_parent()
+		while cursor != null and cursor != self:
+			if cursor.has_method("get_module_id"):
+				module_id = StringName(cursor.call("get_module_id"))
+				break
+			cursor = cursor.get_parent()
+		if module_id.is_empty() or not modules.has(module_id):
+			errors.append("station door %s is not owned by a registered route module" % door.get_path())
+		if door.collision_layer != StationDoor.INTERACTION_LAYER or door.collision_mask != 0:
+			errors.append("station door %s interaction layer/mask drifted" % door.get_path())
+		if door.monitoring:
+			errors.append("station door %s must remain a passive interaction area" % door.get_path())
+		var door_transform := door.global_transform
+		if (
+			not door_transform.origin.is_finite()
+			or not door_transform.basis.x.is_finite()
+			or not door_transform.basis.y.is_finite()
+			or not door_transform.basis.z.is_finite()
+		):
+			errors.append("station door %s transform is not finite" % door.get_path())
+		placements[String(door.get_path())] = {
+			"module_id": module_id,
+			"deferred_access": door.deferred_access,
+			"evidence_status": door.evidence_status,
+			"global_transform": door.global_transform,
+		}
+	if doors.is_empty():
+		errors.append("station interaction roster is empty")
+	return {
+		"schema_version": 1,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"door_count": placements.size(),
+		"registered_module_count": modules.size(),
+		"placements": placements,
+		"owns_interaction_authority": false,
+		"derived_from": &"station_route_registry",
+	}.duplicate(true)
+
+
 ## One reversible switch for station movers, the existing freight crane, and
 ## the finite-range machinery beds. Static structural dressing deliberately
 ## stays visible because it remains part of the station silhouette.
