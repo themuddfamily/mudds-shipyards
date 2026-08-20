@@ -56,6 +56,8 @@ func _run() -> void:
 	_test_propulsion_and_hardware(torrent)
 	_test_render_allocations(torrent)
 	await _test_cockpit_canopy_and_contracts(torrent)
+	await _test_detached_presentation_adapter_reentry(torrent)
+	await _test_stale_presentation_adapter_recovery(torrent)
 	await _test_variant_seams()
 	torrent.queue_free()
 	await process_frame
@@ -510,6 +512,83 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 	_check(torrent.get_boarding_entry_transform().is_equal_approx(entry_before), "boarding-entry transform is preserved")
 	_check(torrent.get_boarding_position().is_equal_approx(boarding_before) and torrent.get_exit_transform().is_equal_approx(exit_before), "boarding and exit marker transforms are preserved")
 	_check((torrent.get_node("LeftMuzzle") as Marker3D).transform.is_equal_approx(left_muzzle_before) and (torrent.get_node("RightMuzzle") as Marker3D).transform.is_equal_approx(right_muzzle_before), "weapon marker transforms are preserved")
+
+
+func _test_stale_presentation_adapter_recovery(torrent: HeroShip) -> void:
+	var visual := torrent.get_variant_visual_root()
+	var adapter := visual.get_node_or_null("TorrentHeroPresentation") as TorrentHeroPresentation if visual != null else null
+	var legacy_far := visual.get_node_or_null("LegacyFarPresentation") as Node3D if visual != null else null
+	var legacy_cockpit := visual.get_node_or_null("CockpitInterior/LegacyCockpitArt") as Node3D if visual != null else null
+	var legacy_canopy := visual.get_node_or_null("CanopyHinge/LegacyCanopyArt") as Node3D if visual != null else null
+	var readout := visual.get_node_or_null("CockpitInterior/FlightDataReadout") as Label3D if visual != null else null
+	var practical := visual.get_node_or_null("CockpitInterior/CockpitPracticalLight") as SpotLight3D if visual != null else null
+	_check(adapter != null and legacy_far != null and legacy_cockpit != null and legacy_canopy != null and readout != null and practical != null, "stale-adapter fixture resolves the live close adapter and every retained fallback overlay")
+	if adapter == null or legacy_far == null or legacy_cockpit == null \
+			or legacy_canopy == null or readout == null or practical == null:
+		return
+	adapter.queue_free()
+	torrent.set_canopy_open(true, 0.0)
+	_check(
+		adapter.is_queued_for_deletion()
+		and legacy_far.visible and legacy_cockpit.visible and legacy_canopy.visible
+		and readout.visible and practical.visible,
+		"queued Torrent adapter clears the cache before canopy sync and restores fallback overlay visibility"
+	)
+	await process_frame
+	await physics_frame
+	torrent.set_canopy_open(false, 0.0)
+	_check(
+		not is_instance_valid(adapter)
+		and visual.get_node_or_null("TorrentHeroPresentation") == null
+		and legacy_far.visible and legacy_cockpit.visible and legacy_canopy.visible
+		and readout.visible and practical.visible,
+		"freed Torrent adapter leaves frame, canopy, and overlay sync paths on the visible fallback without stale calls"
+	)
+
+
+func _test_detached_presentation_adapter_reentry(torrent: HeroShip) -> void:
+	var visual := torrent.get_variant_visual_root()
+	var adapter := visual.get_node_or_null("TorrentHeroPresentation") as TorrentHeroPresentation if visual != null else null
+	var imported_canopy := adapter.get_canopy_pivot() if adapter != null else null
+	var legacy_far := visual.get_node_or_null("LegacyFarPresentation") as Node3D if visual != null else null
+	var legacy_cockpit := visual.get_node_or_null("CockpitInterior/LegacyCockpitArt") as Node3D if visual != null else null
+	var legacy_canopy := visual.get_node_or_null("CanopyHinge/LegacyCanopyArt") as Node3D if visual != null else null
+	var readout := visual.get_node_or_null("CockpitInterior/FlightDataReadout") as Label3D if visual != null else null
+	var practical := visual.get_node_or_null("CockpitInterior/CockpitPracticalLight") as SpotLight3D if visual != null else null
+	_check(adapter != null and imported_canopy != null and legacy_far != null and legacy_cockpit != null and legacy_canopy != null and readout != null and practical != null, "detached-adapter fixture resolves the retained close adapter and fallback overlays")
+	if adapter == null or imported_canopy == null or legacy_far == null \
+			or legacy_cockpit == null or legacy_canopy == null or readout == null or practical == null:
+		return
+	torrent.set_canopy_open(false, 0.0)
+	_test_root.remove_child(torrent)
+	await process_frame
+	var reset := torrent.reset_for_reuse(Transform3D.IDENTITY)
+	torrent.set_canopy_open(true, 0.0)
+	_check(
+		not torrent.is_inside_tree()
+		and bool(reset.get("accepted", false))
+		and is_instance_valid(adapter) and adapter.get_parent() == visual and not adapter.is_inside_tree()
+		and not legacy_far.visible and not legacy_cockpit.visible and not legacy_canopy.visible
+		and readout.visible and practical.visible,
+		"detached canopy and reset sync preserve the valid retained adapter instead of exposing stale fallbacks"
+	)
+	_test_root.add_child(torrent)
+	await process_frame
+	await physics_frame
+	torrent.set_canopy_open(true, 0.0)
+	var reopened := imported_canopy.rotation.x > 0.8
+	torrent.set_canopy_open(false, 0.0)
+	var audit := torrent.get_torrent_art_audit_report()
+	_check(
+		adapter.is_inside_tree()
+		and visual.get_node_or_null("TorrentHeroPresentation") == adapter
+		and reopened and absf(imported_canopy.rotation.x) < 0.01
+		and adapter.get_active_lod() == 0
+		and not legacy_far.visible and not legacy_cockpit.visible and not legacy_canopy.visible
+		and readout.visible and practical.visible
+		and bool(audit.get("valid", false)),
+		"re-entry retains cached close presentation, restores canopy and close overlays, and passes the Torrent art audit"
+	)
 
 
 func _test_variant_seams() -> void:

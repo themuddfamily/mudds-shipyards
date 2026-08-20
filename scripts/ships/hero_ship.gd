@@ -3426,8 +3426,9 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 	for core in _engine_core_glows:
 		if is_instance_valid(core):
 			core.visible = engine_level > 0.01
-	if _torrent_hero_presentation != null and _canopy_pivot != null:
-		_torrent_hero_presentation.set_canopy_fraction(
+	var torrent_presentation := _get_live_torrent_hero_presentation()
+	if torrent_presentation != null and _canopy_pivot != null:
+		torrent_presentation.set_canopy_fraction(
 			_canopy_pivot.rotation.x / maxf(CANOPY_OPEN_ANGLE, 0.001)
 		)
 		_sync_torrent_close_overlay_visibility()
@@ -4985,9 +4986,10 @@ func _sync_variant_engine_presentation_immediately() -> void:
 
 
 func _sync_imported_canopy_immediately() -> void:
-	if _torrent_hero_presentation == null or _canopy_pivot == null:
+	var presentation := _get_live_torrent_hero_presentation()
+	if presentation == null or _canopy_pivot == null:
 		return
-	_torrent_hero_presentation.set_canopy_fraction(
+	presentation.set_canopy_fraction(
 		_canopy_pivot.rotation.x / maxf(CANOPY_OPEN_ANGLE, 0.001)
 	)
 
@@ -4996,8 +4998,9 @@ func _set_canopy_open_fraction(open_fraction: float) -> void:
 	var fraction := clampf(open_fraction, 0.0, 1.0)
 	if _canopy_pivot != null:
 		_canopy_pivot.rotation = Vector3(CANOPY_OPEN_ANGLE * fraction, 0.0, 0.0)
-	if _torrent_hero_presentation != null:
-		_torrent_hero_presentation.set_canopy_fraction(fraction)
+	var presentation := _get_live_torrent_hero_presentation()
+	if presentation != null:
+		presentation.set_canopy_fraction(fraction)
 
 
 func _on_torrent_lod_changed(_lod_index: int) -> void:
@@ -5005,13 +5008,45 @@ func _on_torrent_lod_changed(_lod_index: int) -> void:
 
 
 func _sync_torrent_close_overlay_visibility() -> void:
-	if _torrent_hero_presentation == null:
+	var presentation := _get_live_torrent_hero_presentation()
+	if presentation == null:
 		return
-	var close_visible := _torrent_hero_presentation.get_active_lod() == 0
+	var close_visible := presentation.get_active_lod() == 0
 	if _cockpit_readout != null:
 		_cockpit_readout.visible = close_visible
 	if _cockpit_practical_light != null:
 		_cockpit_practical_light.visible = close_visible
+
+
+func _get_live_torrent_hero_presentation() -> TorrentHeroPresentation:
+	if (
+		_torrent_hero_presentation != null
+		and is_instance_valid(_torrent_hero_presentation)
+		and not _torrent_hero_presentation.is_queued_for_deletion()
+		and _torrent_hero_presentation.get_parent() == _visual_root
+	):
+		# A whole HeroShip detach temporarily takes this retained direct child out of
+		# the tree. It is still the installed adapter, so presentation calls simply
+		# defer until re-entry rather than treating that ordinary lifecycle boundary
+		# as a stale-cache failure.
+		if _torrent_hero_presentation.is_inside_tree():
+			return _torrent_hero_presentation
+		return null
+	_torrent_hero_presentation = null
+	if _legacy_torrent_cockpit_art != null \
+			and is_instance_valid(_legacy_torrent_cockpit_art):
+		_legacy_torrent_cockpit_art.visible = true
+	if _legacy_torrent_canopy_art != null \
+			and is_instance_valid(_legacy_torrent_canopy_art):
+		_legacy_torrent_canopy_art.visible = true
+	if _legacy_torrent_presentation != null \
+			and is_instance_valid(_legacy_torrent_presentation):
+		_legacy_torrent_presentation.visible = true
+	if _cockpit_readout != null and is_instance_valid(_cockpit_readout):
+		_cockpit_readout.visible = true
+	if _cockpit_practical_light != null and is_instance_valid(_cockpit_practical_light):
+		_cockpit_practical_light.visible = true
+	return null
 
 
 func _get_torrent_collision_authority_errors() -> PackedStringArray:
