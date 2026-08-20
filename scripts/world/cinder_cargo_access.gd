@@ -123,6 +123,17 @@ const ROUTE_CUE_CURRENT_ALLOCATION := {
 	"mesh_resource_allocations": 1,
 	"material_resource_allocations": 2,
 }
+const STATIC_BOX_VIEW_COUNT := 21
+const STATIC_BOX_MESH_RESOURCE_ALLOCATIONS := 16
+const STATIC_BOX_COLLISION_RESOURCE_ALLOCATIONS := 21
+const STATIC_BOX_LEGACY_ALLOCATION := {
+	"mesh_resource_allocations": 21,
+	"collision_resource_allocations": 21,
+}
+const STATIC_BOX_CURRENT_ALLOCATION := {
+	"mesh_resource_allocations": STATIC_BOX_MESH_RESOURCE_ALLOCATIONS,
+	"collision_resource_allocations": STATIC_BOX_COLLISION_RESOURCE_ALLOCATIONS,
+}
 
 var _built := false
 var _build_generation := 0
@@ -133,6 +144,7 @@ var _terminal_root: Marker3D
 var _terminal_approach: Marker3D
 var _route_markers: Array[Marker3D] = []
 var _materials: Dictionary = {}
+var _static_box_mesh_cache: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -363,6 +375,86 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Static bodies retain their independent BoxShape3D resources. Only exact
+## visual BoxMesh recipes are shared, preserving every collision owner and
+## renderer node while avoiding duplicate immutable surface allocations.
+func get_static_box_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_resource_ids := {}
+	var collision_resource_ids := {}
+	var views := 0
+	for body_node in find_children("*", "StaticBody3D", true, false):
+		var body := body_node as StaticBody3D
+		var view := body.get_node_or_null(^"Mesh") as MeshInstance3D
+		var mesh := view.mesh as BoxMesh if view != null else null
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		if mesh == null:
+			errors.append("static_box_mesh_missing_%s" % body.name)
+		else:
+			views += 1
+			mesh_resource_ids[mesh.get_instance_id()] = true
+		if shape == null:
+			errors.append("static_box_collision_missing_%s" % body.name)
+		else:
+			collision_resource_ids[shape.get_instance_id()] = true
+	if views != STATIC_BOX_VIEW_COUNT:
+		errors.append("static_box_view_count_drift")
+	if mesh_resource_ids.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
+		errors.append("static_box_mesh_resource_count_drift")
+	if collision_resource_ids.size() != STATIC_BOX_COLLISION_RESOURCE_ALLOCATIONS:
+		errors.append("static_box_collision_resource_count_drift")
+	if _static_box_mesh_cache.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
+		errors.append("static_box_cache_recipe_count_drift")
+	_validate_shared_static_box_family(
+		[
+			^"Structure/TerminalApproachSupportPort",
+			^"Structure/TerminalApproachSupportStarboard",
+		], errors
+	)
+	_validate_shared_static_box_family(
+		[^"Rails/StairRailPort", ^"Rails/StairRailStarboard"], errors
+	)
+	_validate_shared_static_box_family(
+		[^"Rails/RiseRailPort", ^"Rails/RiseRailStarboard"], errors
+	)
+	_validate_shared_static_box_family(
+		[^"Rails/CrossRailNorth", ^"Rails/CrossRailSouth"], errors
+	)
+	_validate_shared_static_box_family(
+		[^"Rails/HandoffRailPort", ^"Rails/HandoffRailStarboard"], errors
+	)
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"view_count": views,
+		"mesh_resource_allocations": mesh_resource_ids.size(),
+		"collision_resource_allocations": collision_resource_ids.size(),
+		"legacy": STATIC_BOX_LEGACY_ALLOCATION.duplicate(true),
+		"current": STATIC_BOX_CURRENT_ALLOCATION.duplicate(true),
+		"mesh_resource_allocation_delta": (
+			STATIC_BOX_MESH_RESOURCE_ALLOCATIONS
+			- int(STATIC_BOX_LEGACY_ALLOCATION.mesh_resource_allocations)
+		),
+	}.duplicate(true)
+
+
+func _validate_shared_static_box_family(paths: Array[NodePath], errors: PackedStringArray) -> void:
+	var shared_mesh: BoxMesh
+	for path in paths:
+		var body := get_node_or_null(path) as StaticBody3D
+		var view := body.get_node_or_null(^"Mesh") as MeshInstance3D if body != null else null
+		var mesh := view.mesh as BoxMesh if view != null else null
+		if mesh == null:
+			errors.append("static_box_family_node_or_mesh_lost")
+			continue
+		if shared_mesh == null:
+			shared_mesh = mesh
+		elif mesh != shared_mesh:
+			errors.append("static_box_shared_family_identity_drift")
+
+
 func audit() -> Dictionary:
 	var actual_budget := {
 		"ship_berths": find_children("*", "ShipBerth", true, false).size(),
@@ -407,6 +499,7 @@ func audit() -> Dictionary:
 		"actual_budget": actual_budget,
 		"budget_exact": actual_budget == LOCAL_BUDGET,
 		"route_cue_visual_allocation": get_route_cue_visual_allocation_audit(),
+		"static_box_visual_allocation": get_static_box_visual_allocation_audit(),
 		"cargo_authority": false,
 		"inventory_authority": false,
 		"reward_authority": false,
@@ -430,6 +523,10 @@ func _get_contract_errors(actual_budget: Dictionary) -> PackedStringArray:
 	if actual_budget != LOCAL_BUDGET:
 		errors.append("local_budget_drift")
 	for allocation_error in get_route_cue_visual_allocation_audit().get(
+		"errors", PackedStringArray()
+	):
+		errors.append(String(allocation_error))
+	for allocation_error in get_static_box_visual_allocation_audit().get(
 		"errors", PackedStringArray()
 	):
 		errors.append(String(allocation_error))
@@ -773,8 +870,7 @@ func _static_box(
 	parent.add_child(body)
 	var visible := MeshInstance3D.new()
 	visible.name = "Mesh"
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh := _shared_static_box_mesh(size)
 	visible.mesh = mesh
 	visible.material_override = material
 	visible.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -786,6 +882,15 @@ func _static_box(
 	collision.shape = shape
 	body.add_child(collision)
 	return body
+
+
+func _shared_static_box_mesh(size: Vector3) -> BoxMesh:
+	if _static_box_mesh_cache.has(size):
+		return _static_box_mesh_cache[size] as BoxMesh
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	_static_box_mesh_cache[size] = mesh
+	return mesh
 
 
 func _static_horizontal_segment(

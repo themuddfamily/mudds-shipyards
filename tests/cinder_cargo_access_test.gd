@@ -188,6 +188,48 @@ func _test_identity_placement_budget_and_authority(
 		and int(route_cue_allocation.renderer_submission_delta) == 0,
 		"route cues freeze exact 5->1 mesh allocations while retaining five nodes, copies, submissions, and two materials"
 	)
+	var static_box_allocation := access.get_static_box_visual_allocation_audit()
+	_check(
+		bool(static_box_allocation.valid)
+		and int(static_box_allocation.view_count) == 21
+		and int(static_box_allocation.mesh_resource_allocations) == 16
+		and int(static_box_allocation.collision_resource_allocations) == 21
+		and (static_box_allocation.legacy as Dictionary) == {
+			"mesh_resource_allocations": 21,
+			"collision_resource_allocations": 21,
+		}
+		and (static_box_allocation.current as Dictionary) == {
+			"mesh_resource_allocations": 16,
+			"collision_resource_allocations": 21,
+		}
+		and int(static_box_allocation.mesh_resource_allocation_delta) == -5,
+		"five exact static-box visual pairs share 21->16 meshes while all 21 collision shapes remain private"
+	)
+	var stair_port := access.get_node_or_null(^"Rails/StairRailPort") as StaticBody3D
+	var stair_starboard := access.get_node_or_null(^"Rails/StairRailStarboard") as StaticBody3D
+	var stair_port_view := stair_port.get_node_or_null(^"Mesh") as MeshInstance3D if stair_port != null else null
+	var stair_starboard_view := stair_starboard.get_node_or_null(^"Mesh") as MeshInstance3D if stair_starboard != null else null
+	var stair_port_collision := stair_port.get_node_or_null(^"Collision") as CollisionShape3D if stair_port != null else null
+	var stair_starboard_collision := stair_starboard.get_node_or_null(^"Collision") as CollisionShape3D if stair_starboard != null else null
+	_check(
+		stair_port_view != null and stair_starboard_view != null
+		and stair_port_collision != null and stair_starboard_collision != null
+		and stair_port_view.mesh == stair_starboard_view.mesh
+		and stair_port_collision.shape != stair_starboard_collision.shape,
+		"a shared visual rail mesh never aliases the two collision-shape resources"
+	)
+	if stair_port_view != null and stair_starboard_view != null:
+		var original_mesh := stair_starboard_view.mesh
+		stair_starboard_view.mesh = original_mesh.duplicate() as BoxMesh
+		var split_resource_red := access.get_static_box_visual_allocation_audit()
+		stair_starboard_view.mesh = original_mesh
+		_check(
+			not bool(split_resource_red.valid)
+			and _has_error(split_resource_red.errors, "static_box_shared_family_identity_drift")
+			and _has_error(split_resource_red.errors, "static_box_mesh_resource_count_drift")
+			and bool(access.get_static_box_visual_allocation_audit().valid),
+			"structured-red: splitting one paired static visual mesh fails identity without changing collision ownership"
+		)
 	_check(
 		route_cue_allocation.authored_node_names
 			== PackedStringArray(["RouteCue1", "RouteCue2", "RouteCue3", "RouteCue4", "RouteCue5"])
