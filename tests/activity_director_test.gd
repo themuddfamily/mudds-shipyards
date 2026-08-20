@@ -85,9 +85,26 @@ func _test_resources_match_the_live_nearby_sector() -> void:
 
 func _test_route_lifecycle_and_generation_guards() -> void:
 	var director := DirectorScript.new() as ActivityDirector
+	_check(
+		director.register_definition(ROUTE),
+		"a valid route definition registers before tree entry"
+	)
 	root.add_child(director)
-	_check(director.register_definition(ROUTE), "a valid route definition registers once")
 	_check(not director.register_definition(ROUTE), "duplicate activity definitions are rejected")
+	var lifecycle_events := PackedStringArray()
+	director.activity_started.connect(func(_id: StringName, _generation: int) -> void:
+		lifecycle_events.append("started")
+	)
+	director.activity_checkpoint_reached.connect(
+		func(_id: StringName, _index: int, _generation: int) -> void:
+			lifecycle_events.append("checkpoint")
+	)
+	director.activity_failed.connect(func(_id: StringName, _reason: StringName, _generation: int) -> void:
+		lifecycle_events.append("failed")
+	)
+	director.activity_reset.connect(func(_id: StringName, _generation: int) -> void:
+		lifecycle_events.append("reset")
+	)
 	var audit := director.audit()
 	_check(
 		not bool(audit.get("gameplay_authority", true))
@@ -147,28 +164,105 @@ func _test_route_lifecycle_and_generation_guards() -> void:
 
 	root.remove_child(director)
 	await process_frame
+	var detached_before := _director_currentness_snapshot(director)
+	var detached_event_count := lifecycle_events.size()
+	var detached_start := director.start_activity(ROUTE.activity_id)
+	var detached_submit := director.submit_position(
+		ROUTE.activity_id, ROUTE.get_checkpoint_position(0), third_generation
+	)
+	var detached_fail := director.fail_activity(ROUTE.activity_id, &"detached", third_generation)
+	var detached_reset := director.reset_activity(ROUTE.activity_id, third_generation)
+	_check(
+		not bool(detached_start.get("accepted", true))
+		and detached_start.get("reason", &"") == &"director_detached"
+		and not bool(detached_submit.get("accepted", true))
+		and detached_submit.get("reason", &"") == &"director_detached"
+		and not detached_fail
+		and not detached_reset
+		and _director_currentness_snapshot(director) == detached_before
+		and lifecycle_events.size() == detached_event_count,
+		"detached route APIs reject before activity state or lifecycle signal mutation"
+	)
 	root.add_child(director)
 	await process_frame
 	_check(
 		int(director.get_activity_snapshot(ROUTE.activity_id).get("generation", -1)) == third_generation,
 		"director tree re-entry preserves the live route without replaying it"
 	)
+	var live_checkpoint := director.submit_position(
+		ROUTE.activity_id, ROUTE.get_checkpoint_position(0), third_generation
+	)
 	_check(
-		director.reset_activity(ROUTE.activity_id, third_generation),
-		"the current generation can reset an active route"
+		bool(live_checkpoint.get("accepted", false))
+		and director.fail_activity(ROUTE.activity_id, &"live_reentry", third_generation),
+		"re-entered director accepts fresh submit and failure transitions"
+	)
+	var fourth_start := director.start_activity(ROUTE.activity_id)
+	var fourth_generation := int(fourth_start.get("generation", -1))
+	_check(
+		bool(fourth_start.get("accepted", false))
+		and fourth_generation == third_generation + 1
+		and director.reset_activity(ROUTE.activity_id, fourth_generation),
+		"re-entered director accepts fresh start and reset transitions"
 	)
 	var reset_snapshot := director.get_activity_snapshot(ROUTE.activity_id)
 	_check(
 		int(reset_snapshot.get("state", -1)) == CheckpointRouteActivity.State.IDLE
-			and int(reset_snapshot.get("generation", -1)) == third_generation + 1,
+			and int(reset_snapshot.get("generation", -1)) == fourth_generation + 1,
 		"reset clears route progress and invalidates the prior generation"
 	)
 	_check(
-		not director.reset_activity(ROUTE.activity_id, third_generation),
+		not director.reset_activity(ROUTE.activity_id, fourth_generation),
 		"a stale generation cannot reset the replacement route state"
 	)
+
+	var queued := DirectorScript.new() as ActivityDirector
+	_check(queued.register_definition(ROUTE), "queued currentness fixture configures before tree entry")
+	root.add_child(queued)
+	var queued_generation := 1
+	var queued_events := PackedStringArray()
+	queued.activity_started.connect(func(_id: StringName, _generation: int) -> void:
+		queued_events.append("started")
+	)
+	queued.activity_checkpoint_reached.connect(
+		func(_id: StringName, _index: int, _generation: int) -> void:
+			queued_events.append("checkpoint")
+	)
+	queued.activity_failed.connect(func(_id: StringName, _reason: StringName, _generation: int) -> void:
+		queued_events.append("failed")
+	)
+	queued.activity_reset.connect(func(_id: StringName, _generation: int) -> void:
+		queued_events.append("reset")
+	)
+	queued.queue_free()
+	var queued_before := _director_currentness_snapshot(queued)
+	var queued_start_rejected := queued.start_activity(ROUTE.activity_id)
+	var queued_submit := queued.submit_position(
+		ROUTE.activity_id, ROUTE.get_checkpoint_position(0), queued_generation
+	)
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and not bool(queued_start_rejected.get("accepted", true))
+		and queued_start_rejected.get("reason", &"") == &"director_detached"
+		and not bool(queued_submit.get("accepted", true))
+		and queued_submit.get("reason", &"") == &"director_detached"
+		and not queued.fail_activity(ROUTE.activity_id, &"queued", queued_generation)
+		and not queued.reset_activity(ROUTE.activity_id, queued_generation)
+		and _director_currentness_snapshot(queued) == queued_before
+		and queued_events.is_empty(),
+		"queued route APIs reject before activity state or lifecycle signal mutation"
+	)
+	await process_frame
 	director.queue_free()
 	await process_frame
+
+
+func _director_currentness_snapshot(director: ActivityDirector) -> Dictionary:
+	return {
+		"route": director.get_activity_snapshot(ROUTE.activity_id).duplicate(true),
+		"audit": director.audit().duplicate(true),
+	}.duplicate(true)
 
 
 func _check(condition: bool, description: String) -> bool:

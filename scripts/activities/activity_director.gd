@@ -30,6 +30,8 @@ func register_definition(definition: ActivityDefinition) -> bool:
 
 
 func start_activity(activity_id: StringName) -> Dictionary:
+	if not _can_mutate_live_activity():
+		return {"accepted": false, "reason": &"director_detached"}
 	var activity := _get_or_create_activity(activity_id)
 	if activity == null:
 		return {"accepted": false, "reason": &"unknown_activity"}
@@ -40,6 +42,8 @@ func start_activity(activity_id: StringName) -> Dictionary:
 
 
 func submit_position(activity_id: StringName, position: Vector3, expected_generation: int) -> Dictionary:
+	if not _can_mutate_live_activity():
+		return {"accepted": false, "reason": &"director_detached"}
 	var activity := _activities.get(activity_id) as CheckpointRouteActivity
 	if activity == null:
 		return {"accepted": false, "reason": &"unknown_activity"}
@@ -47,13 +51,21 @@ func submit_position(activity_id: StringName, position: Vector3, expected_genera
 
 
 func fail_activity(activity_id: StringName, reason: StringName, expected_generation: int) -> bool:
+	if not _can_mutate_live_activity():
+		return false
 	var activity := _activities.get(activity_id) as CheckpointRouteActivity
 	return activity != null and activity.fail(reason, expected_generation)
 
 
 func reset_activity(activity_id: StringName, expected_generation: int = CheckpointRouteActivity.ANY_GENERATION) -> bool:
+	if not _can_mutate_live_activity():
+		return false
 	var activity := _activities.get(activity_id) as CheckpointRouteActivity
 	return activity != null and activity.reset(expected_generation)
+
+
+func _can_mutate_live_activity() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_activity_snapshot(activity_id: StringName) -> Dictionary:
