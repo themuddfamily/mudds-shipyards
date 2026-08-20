@@ -111,6 +111,15 @@ const SEAT_COUNT := 15
 const GLAZING_PANE_COUNT := 11
 const PRACTICAL_LIGHT_COUNT := 18
 
+## Three named servery-stool foot rings retain their individual nodes and the
+## existing bronze binding. Only their identical one-surface torus mesh is
+## shared; this is not batching or a seating/collision change.
+const SERVERY_STOOL_FOOT_RING_COPY_COUNT := 3
+const SERVERY_STOOL_FOOT_RING_INNER_RADIUS := 0.18
+const SERVERY_STOOL_FOOT_RING_OUTER_RADIUS := 0.22
+const SERVERY_STOOL_FOOT_RING_RINGS := 32
+const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
+
 ## Exact post-batch presentation census. Fourteen childless lacquer joint blocks
 ## and five childless exterior roof cassettes still draw, but two MultiMeshes own
 ## their submissions instead of nineteen individual MeshInstance3D nodes.
@@ -155,6 +164,7 @@ const CONTENT_NOTE := (
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
+var _servery_stool_foot_ring_mesh: TorusMesh
 var _seat_nodes: Array[Node3D] = []
 var _glazing_panes: Array[Node3D] = []
 var _support_members: Array[Node3D] = []
@@ -171,6 +181,7 @@ func _ready() -> void:
 	if not _built:
 		_built = true
 		_create_materials()
+		_create_servery_stool_foot_ring_mesh()
 		_build_structure()
 		_apply_metadata()
 	_apply_enabled_state()
@@ -263,6 +274,93 @@ func get_glazing_pane_count() -> int:
 
 func get_practical_light_count() -> int:
 	return _practical_lights.size()
+
+
+## Renderer-independent allocation audit for the three named servery-stool foot
+## rings. Each renderer/submission and every seating/collision owner remains
+## distinct; the mesh identity is the sole shared resource.
+func get_servery_stool_foot_ring_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var paths := [
+		^"Structure/Fitout/ServeryStool01/FootRing",
+		^"Structure/Fitout/ServeryStool02/FootRing",
+		^"Structure/Fitout/ServeryStool03/FootRing",
+	]
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var submissions := 0
+	var child_node_count := 0
+	var stool_seat_count := 0
+	var foot_collision_body_count := 0
+	for path: NodePath in paths:
+		var ring := get_node_or_null(path) as MeshInstance3D
+		if ring == null:
+			errors.append("servery_stool_foot_ring_missing:%s" % String(path))
+			continue
+		if ring.mesh != _servery_stool_foot_ring_mesh:
+			errors.append("servery_stool_foot_ring_mesh_identity_not_shared:%s" % String(path))
+		if ring.position != Vector3(0.0, 0.26, 0.0) \
+				or ring.rotation_degrees != Vector3.ZERO \
+				or ring.material_override != _materials.get("bronze"):
+			errors.append("servery_stool_foot_ring_renderer_drift:%s" % String(path))
+		var stool := ring.get_parent() as Node3D
+		if stool != null \
+				and bool(stool.get_meta("station_seat", false)) \
+				and StringName(stool.get_meta("seat_class", &"")) == &"stool":
+			stool_seat_count += 1
+		else:
+			errors.append("servery_stool_foot_ring_seat_contract_drift:%s" % String(path))
+		if stool != null and stool.get_node_or_null(^"Foot") is StaticBody3D:
+			foot_collision_body_count += 1
+		else:
+			errors.append("servery_stool_foot_ring_collision_contract_drift:%s" % String(path))
+		var mesh := ring.mesh as TorusMesh
+		if mesh != null:
+			mesh_ids[mesh.get_instance_id()] = true
+			submissions += mesh.get_surface_count()
+		if ring.material_override != null:
+			material_ids[ring.material_override.get_instance_id()] = true
+		child_node_count += ring.get_child_count()
+	var mesh := _servery_stool_foot_ring_mesh
+	if mesh == null \
+			or not is_equal_approx(mesh.inner_radius, SERVERY_STOOL_FOOT_RING_INNER_RADIUS) \
+			or not is_equal_approx(mesh.outer_radius, SERVERY_STOOL_FOOT_RING_OUTER_RADIUS) \
+			or mesh.rings != SERVERY_STOOL_FOOT_RING_RINGS \
+			or mesh.ring_segments != SERVERY_STOOL_FOOT_RING_SEGMENTS \
+			or mesh.get_surface_count() != 1:
+		errors.append("servery_stool_foot_ring_recipe_drift")
+	if mesh_ids.size() != 1:
+		errors.append("servery_stool_foot_ring_mesh_identity_count_drift")
+	if material_ids.size() != 1:
+		errors.append("servery_stool_foot_ring_material_identity_drift")
+	if submissions != SERVERY_STOOL_FOOT_RING_COPY_COUNT:
+		errors.append("servery_stool_foot_ring_submission_count_drift")
+	if child_node_count != 0:
+		errors.append("servery_stool_foot_ring_authority_drift")
+	if stool_seat_count != SERVERY_STOOL_FOOT_RING_COPY_COUNT \
+			or foot_collision_body_count != SERVERY_STOOL_FOOT_RING_COPY_COUNT:
+		errors.append("servery_stool_foot_ring_owner_roster_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"vip_reception_servery_stool_foot_rings",
+		"node_count": paths.size(),
+		"structural_submission_count": submissions,
+		"mesh_resource_identity_count_before": SERVERY_STOOL_FOOT_RING_COPY_COUNT,
+		"mesh_resource_identity_count_after": mesh_ids.size(),
+		"mesh_resource_identity_delta": mesh_ids.size() - SERVERY_STOOL_FOOT_RING_COPY_COUNT,
+		"material_resource_identity_count": material_ids.size(),
+		"child_node_count": child_node_count,
+		"stool_seat_count": stool_seat_count,
+		"foot_collision_body_count": foot_collision_body_count,
+		"batched": false,
+		"material_sharing": false,
+		"seat_authority": false,
+		"collision_authority": false,
+		"route_authority": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+	}.duplicate(true)
 
 
 func get_clearance_profile() -> Dictionary:
@@ -655,6 +753,14 @@ func _create_materials() -> void:
 		StationSurfaceKit.apply_panel_triplanar(
 			_materials[key] as StandardMaterial3D, float(PANEL_SURFACE_SCALES[key])
 		)
+
+
+func _create_servery_stool_foot_ring_mesh() -> void:
+	_servery_stool_foot_ring_mesh = TorusMesh.new()
+	_servery_stool_foot_ring_mesh.inner_radius = SERVERY_STOOL_FOOT_RING_INNER_RADIUS
+	_servery_stool_foot_ring_mesh.outer_radius = SERVERY_STOOL_FOOT_RING_OUTER_RADIUS
+	_servery_stool_foot_ring_mesh.rings = SERVERY_STOOL_FOOT_RING_RINGS
+	_servery_stool_foot_ring_mesh.ring_segments = SERVERY_STOOL_FOOT_RING_SEGMENTS
 
 
 # --- Build -----------------------------------------------------------------
@@ -1142,7 +1248,7 @@ func _build_stool(parent: Node3D, index: int, stool_position: Vector3) -> void:
 	_register_support(foot, &"servery stool", &"port floor plate")
 	_cylinder(stool, "Stem", Vector3(0.0, 0.4, 0.0), 0.07, 0.72, _materials["bronze"], false)
 	_cylinder(stool, "Seat", Vector3(0.0, 0.79, 0.0), 0.26, 0.1, _materials["upholstery"], false)
-	_torus(stool, "FootRing", Vector3(0.0, 0.26, 0.0), 0.18, 0.22, _materials["bronze"])
+	_torus(stool, "FootRing", Vector3(0.0, 0.26, 0.0), SERVERY_STOOL_FOOT_RING_INNER_RADIUS, SERVERY_STOOL_FOOT_RING_OUTER_RADIUS, _materials["bronze"], Vector3.ZERO, _servery_stool_foot_ring_mesh)
 
 
 ## Lighting the room rather than illuminating it. Every fixture here is a lens
@@ -1500,17 +1606,20 @@ func _torus(
 		inner_radius: float,
 		outer_radius: float,
 		material: Material,
-		rotation_degrees_value: Vector3 = Vector3.ZERO
+		rotation_degrees_value: Vector3 = Vector3.ZERO,
+		shared_mesh: TorusMesh = null
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = torus_position
 	instance.rotation_degrees = rotation_degrees_value
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 32
-	mesh.ring_segments = 12
+	var mesh := shared_mesh
+	if mesh == null:
+		mesh = TorusMesh.new()
+		mesh.inner_radius = inner_radius
+		mesh.outer_radius = outer_radius
+		mesh.rings = 32
+		mesh.ring_segments = 12
 	instance.mesh = mesh
 	instance.material_override = material
 	parent.add_child(instance)
