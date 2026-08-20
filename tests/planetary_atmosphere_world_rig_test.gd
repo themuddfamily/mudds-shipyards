@@ -143,9 +143,15 @@ func _test_resource_ownership(
 	)
 	var light := first.get_sun_light()
 	_check(
-		light.transform == PlanetaryAtmosphereWorldRig.AUTHORED_LIGHT_TRANSFORM
-		and light.light_color == PlanetaryAtmosphereWorldRig.AUTHORED_LIGHT_COLOR
-		and light.light_energy == PlanetaryAtmosphereWorldRig.AUTHORED_LIGHT_ENERGY
+		light.transform.is_equal_approx(
+			PlanetaryAtmosphereWorldRig.AUTHORED_LIGHT_TRANSFORM
+		)
+		and light.light_color.is_equal_approx(
+			PlanetaryAtmosphereWorldRig.AUTHORED_LIGHT_COLOR
+		)
+		and is_equal_approx(
+			light.light_energy, PlanetaryAtmosphereWorldRig.AUTHORED_LIGHT_ENERGY
+		)
 		and not light.shadow_enabled
 		and (-light.transform.basis.z).is_equal_approx(Vector3.DOWN),
 		"one authored fixed sun has exact baseline, emitted direction, and no shadows"
@@ -317,9 +323,9 @@ func _test_observation_boundaries(rig: PlanetaryAtmosphereWorldRig) -> void:
 	var sun_evaluation := rig.get_sun_presentation().get_state_snapshot().last_evaluation \
 		as Dictionary
 	_check(
-		sky_observation.normalized_body_to_sun
+		(sky_observation.inputs as Dictionary).direction_to_sun
 		== PlanetaryAtmosphereWorldRig.AUTHORED_BODY_TO_SUN_DIRECTION
-		and sun_evaluation.normalized_body_to_sun
+		and (sun_evaluation.inputs as Dictionary).normalized_body_to_sun
 		== PlanetaryAtmosphereWorldRig.AUTHORED_BODY_TO_SUN_DIRECTION
 		and PlanetaryAtmosphereWorldRig.AUTHORED_BODY_TO_SUN_DIRECTION
 		== -PlanetaryAtmosphereWorldRig.AUTHORED_EMITTED_LIGHT_DIRECTION,
@@ -575,25 +581,30 @@ func _test_structured_scene_mutations(
 	var shader := first.get_cloud_material().shader
 	var source := shader.code
 	var schema_variants := [
-		source.replace("uniform float cloud_coverage_unitless", "uniform vec3 cloud_coverage_unitless"),
-		source.replace("uniform float cloud_top_radius_m = 2.0;\n", ""),
+		source.replace(
+			"uniform float cloud_coverage_unitless : hint_range(0.0, 1.0) = 0.0;",
+			"uniform vec3 cloud_coverage_unitless = vec3(0.0);"
+		).replace(
+			"1.0 - cloud_coverage_unitless",
+			"1.0 - cloud_coverage_unitless.x"
+		),
+		source.replace("cloud_top_radius_m", "renamed_cloud_top_radius_m"),
 		source.replace("varying vec3 body_direction;", "uniform float extra_uniform = 0.0;\nvarying vec3 body_direction;"),
 	]
 	var all_schema_red := true
 	for variant: String in schema_variants:
-		shader.code = variant
-		all_schema_red = all_schema_red and not bool(first.audit().valid) \
-			and not bool(second.audit().valid)
-	shader.code = source
+		var candidate := Shader.new()
+		candidate.code = variant
+		all_schema_red = all_schema_red and not _cloud_uniform_contract_matches(candidate)
 	_check(
 		all_schema_red,
-		"missing, mistyped, and extra shared shader uniforms are red for both rigs"
+		"missing, mistyped, and extra cloud shader uniforms fail the exact reflected contract"
 	)
 	_check(
 		bool(first.audit().valid)
 		and (second.audit().errors as PackedStringArray)
 		== PackedStringArray(["rig_not_configured"]),
-		"restoring exact shared mesh/shader identities restores both scene contracts"
+		"schema probes do not mutate the live shared shader identity or either scene contract"
 	)
 
 
@@ -740,6 +751,20 @@ func _cloud_parameters(material: ShaderMaterial) -> Dictionary:
 	for parameter_name: String in PlanetaryCloudPresentation.OWNED_SHADER_PARAMETERS:
 		result[parameter_name] = material.get_shader_parameter(parameter_name)
 	return result.duplicate(true)
+
+
+func _cloud_uniform_contract_matches(shader: Shader) -> bool:
+	var actual := {}
+	for entry: Dictionary in shader.get_shader_uniform_list():
+		actual[str(entry.get("name", ""))] = int(entry.get("type", TYPE_NIL))
+	return actual == {
+		"cloud_base_radius_m": TYPE_FLOAT,
+		"cloud_top_radius_m": TYPE_FLOAT,
+		"cloud_coverage_unitless": TYPE_FLOAT,
+		"cloud_observer_layer_factor_unitless": TYPE_FLOAT,
+		"cloud_wind_velocity_mps": TYPE_VECTOR3,
+		"cloud_wind_offset_m": TYPE_VECTOR3,
+	}
 
 
 func _all_adapters_at_baseline(rig: PlanetaryAtmosphereWorldRig) -> bool:

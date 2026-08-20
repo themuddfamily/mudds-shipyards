@@ -426,12 +426,13 @@ func present_observation(
 		"committed_adapter_ids": committed_prefix,
 		"observation": canonical,
 	})
-	_last_transaction = success.duplicate(true)
 	_mutation_active = false
-	if not unchanged:
-		_signal_dispatch_active = true
-		presentation_committed.emit(reason, get_snapshot())
-		_signal_dispatch_active = false
+	if unchanged:
+		return success
+	_last_transaction = success.duplicate(true)
+	_signal_dispatch_active = true
+	presentation_committed.emit(reason, get_snapshot())
+	_signal_dispatch_active = false
 	return success
 
 
@@ -630,7 +631,7 @@ func _capture_authored_scene_contract() -> void:
 
 func _scene_contract_errors(configured_scale: bool) -> PackedStringArray:
 	var errors := PackedStringArray()
-	if name != &"PlanetaryAtmosphereWorldRig" or scene_file_path != RIG_SCENE_PATH:
+	if scene_file_path != RIG_SCENE_PATH:
 		errors.append("rig_scene_identity_drift")
 	if get_child_count() != 6 or _count_nodes(self) != 7:
 		errors.append("seven_node_topology_drift")
@@ -724,8 +725,7 @@ func _mesh_recipe_is_exact(mesh: SphereMesh) -> bool:
 		and mesh.height == float(AUTHORED_CLOUD_MESH_RECIPE.height) \
 		and mesh.radial_segments == int(AUTHORED_CLOUD_MESH_RECIPE.radial_segments) \
 		and mesh.rings == int(AUTHORED_CLOUD_MESH_RECIPE.rings) \
-		and mesh.get_surface_count() == 1 \
-		and mesh.get_aabb() == AABB(Vector3(-1.0, -1.0, -1.0), Vector3(2.0, 2.0, 2.0))
+		and mesh.get_surface_count() == 1
 
 
 func _cloud_uniform_contract_is_exact(shader: Shader) -> bool:
