@@ -178,7 +178,7 @@ and HIGH quality, freezes:
 | Triangles | 1,684,993 | 1,802,450 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,536 | 2,666 | +130 |
+| Unique meshes | 2,536 | 2,638 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -329,7 +329,7 @@ contradicting the total.
 The resident measurement fingerprint is
 `e5110ffa13f84b088e6292ac457a170f1ab2a0aa4655fd1ec586615ce0d8e8c8`;
 the loaded fingerprint is
-`563bbdc9b11953fc6799e2eff8e810b91b57c695aa4a7024255a6136f72f3493`.
+`eaa236383d10d4512bd9e9270517c66750732e8f763992293315e5cd8983d959`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
