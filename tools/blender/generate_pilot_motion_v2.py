@@ -564,6 +564,71 @@ def timed(table: list[tuple[float, float]], time: float) -> float:
     return _catmull(before, start_value, end_value, after, u)
 
 
+def assert_timing_table(
+    label: str,
+    table: list[tuple[float, float]],
+    end: float,
+    cyclic_table: bool = False,
+) -> None:
+    """Reject malformed authored timing data before it reaches Blender.
+
+    A typo in a phase or beat table otherwise gets silently tolerated by the
+    spline helpers: an out-of-order key changes which segment is selected, and
+    a duplicate key can make a whole authored beat unreachable.  This is an
+    authoring contract, not a runtime repair, so the generator stops at the
+    source of the defect with the table name and offending key.
+    """
+    if len(table) < 3:
+        raise RuntimeError(f"{label}: authored table needs at least three keys")
+    previous = -math.inf
+    for index, (time, value) in enumerate(table):
+        if not math.isfinite(time) or not math.isfinite(value):
+            raise RuntimeError(f"{label}: key {index} is not finite")
+        if time <= previous:
+            raise RuntimeError(f"{label}: keys must be strictly increasing")
+        if time < 0.0 or time > end:
+            raise RuntimeError(
+                f"{label}: key {index} ({time}) falls outside 0..{end}"
+            )
+        previous = time
+    if table[0][0] != 0.0 or (
+        table[-1][0] >= end if cyclic_table else table[-1][0] > end
+    ):
+        raise RuntimeError(
+            f"{label}: authored range must start at 0 and stay within its end"
+        )
+    if cyclic_table and table[-1][0] >= 1.0:
+        raise RuntimeError(f"{label}: cyclic phase keys must stay below 1")
+
+
+def assert_counter_swing(
+    label: str,
+    leg_table: list[tuple[float, float]],
+    arm_table: list[tuple[float, float]],
+) -> None:
+    """Ensure a locomotion arm does not swing with its same-side leg.
+
+    The old placeholder gait did exactly that and read as a pair of scissors.
+    A negative sampled covariance is a compact source-level witness for the
+    authored counter-swing while leaving the actual deformation checks to the
+    Godot pilot suites.
+    """
+    samples = [index / 16.0 for index in range(16)]
+    legs = [cyclic(leg_table, phase) for phase in samples]
+    arms = [cyclic(arm_table, phase) for phase in samples]
+    leg_mean = sum(legs) / len(legs)
+    arm_mean = sum(arms) / len(arms)
+    covariance = sum(
+        (leg - leg_mean) * (arm - arm_mean)
+        for leg, arm in zip(legs, arms)
+    )
+    if covariance >= -0.01:
+        raise RuntimeError(
+            f"{label}: same-side arm/leg channels do not counter-swing "
+            f"(sampled covariance {covariance:.4f})"
+        )
+
+
 def blend_pose(start: dict, end: dict, amount: float) -> dict:
     """Interpolate two whole poses channel by channel."""
     amount = min(max(amount, 0.0), 1.0)
@@ -785,6 +850,27 @@ def window(start: float, end: float, rising: bool) -> "callable":
 
 
 def build_actions(rig: bpy.types.Object) -> None:
+    # Validate the reusable locomotion tables before any action datablock is
+    # created.  These checks intentionally operate on authored source values;
+    # they do not hide a bad key with a clamp or a post-export correction.
+    for label, table in (
+        ("WALK_THIGH", WALK_THIGH),
+        ("WALK_CALF", WALK_CALF),
+        ("WALK_FOOT", WALK_FOOT),
+        ("WALK_TOE", WALK_TOE),
+        ("WALK_ARM", WALK_ARM),
+        ("WALK_FOREARM", WALK_FOREARM),
+        ("RUN_THIGH", RUN_THIGH),
+        ("RUN_CALF", RUN_CALF),
+        ("RUN_FOOT", RUN_FOOT),
+        ("RUN_TOE", RUN_TOE),
+        ("RUN_ARM", RUN_ARM),
+        ("RUN_FOREARM", RUN_FOREARM),
+    ):
+        assert_timing_table(label, table, 1.0, cyclic_table=True)
+    assert_counter_swing("WALK", WALK_THIGH, WALK_ARM)
+    assert_counter_swing("RUN", RUN_THIGH, RUN_ARM)
+
     rig.animation_data_create()
     make_action(rig, "RESET", 0.0, lambda time: ({}, {}))
 
@@ -1174,6 +1260,47 @@ def build_actions(rig: bpy.types.Object) -> None:
         "disembark_recovery must finish standing", disembark_pose(0.9),
         (seat_transition_pose(dict(STANDING)), {"pelvis": (0.0, 0.0, 0.0)}),
     )
+
+    # Every boarding/exit beat is one-shot data.  Keep the beat order strict so
+    # Catmull-Rom cannot skip an authored event or introduce an accidental
+    # duplicate timestamp while preserving the existing hand-off assertions.
+    for label, table in (
+        ("BOARD_LIFT", BOARD_LIFT),
+        ("BOARD_FORWARD", BOARD_FORWARD),
+        ("BOARD_SIDE", BOARD_SIDE),
+        ("BOARD_LEAN", BOARD_LEAN),
+        ("BOARD_TWIST", BOARD_TWIST),
+        ("BOARD_THIGH_L", BOARD_THIGH_L),
+        ("BOARD_CALF_L", BOARD_CALF_L),
+        ("BOARD_FOOT_L", BOARD_FOOT_L),
+        ("BOARD_THIGH_R", BOARD_THIGH_R),
+        ("BOARD_CALF_R", BOARD_CALF_R),
+        ("BOARD_FOOT_R", BOARD_FOOT_R),
+        ("BOARD_ARM_R", BOARD_ARM_R),
+        ("BOARD_ABDUCT_R", BOARD_ABDUCT_R),
+        ("BOARD_FOREARM_R", BOARD_FOREARM_R),
+        ("BOARD_ARM_L", BOARD_ARM_L),
+        ("BOARD_ABDUCT_L", BOARD_ABDUCT_L),
+        ("BOARD_FOREARM_L", BOARD_FOREARM_L),
+        ("BOARD_SEATED", BOARD_SEATED),
+    ):
+        assert_timing_table(label, table, 1.1)
+    for label, table in (
+        ("OUT_LIFT", OUT_LIFT),
+        ("OUT_FORWARD", OUT_FORWARD),
+        ("OUT_LEAN", OUT_LEAN),
+        ("OUT_THIGH_L", OUT_THIGH_L),
+        ("OUT_CALF_L", OUT_CALF_L),
+        ("OUT_FOOT_L", OUT_FOOT_L),
+        ("OUT_THIGH_R", OUT_THIGH_R),
+        ("OUT_CALF_R", OUT_CALF_R),
+        ("OUT_FOOT_R", OUT_FOOT_R),
+        ("OUT_ARM", OUT_ARM),
+        ("OUT_ABDUCT", OUT_ABDUCT),
+        ("OUT_FOREARM", OUT_FOREARM),
+        ("OUT_STANDING", OUT_STANDING),
+    ):
+        assert_timing_table(label, table, 0.9)
 
     make_action(rig, "disembark_recovery", 0.9, disembark_pose, ground={
         "weight": window(0.56, 0.78, True), "minimum": -0.04, "maximum": 0.14,
