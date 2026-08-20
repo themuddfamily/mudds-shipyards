@@ -54,6 +54,10 @@ signal startup_completed(main: Node)
 var _screen: LoadingScreen
 var _main: Node
 var _running := false
+## Every awaitable boot continuation is tied to this loader lifetime. Leaving
+## the tree retires it before any pending resource or staged-construction yield
+## can attach a Main beneath an orphaned boot root.
+var _startup_generation := 0
 var _boot_usec := 0
 var _first_frame_usec := 0
 var _resources_ready_usec := 0
@@ -80,11 +84,26 @@ func _ready() -> void:
 		run_startup()
 
 
+func _exit_tree() -> void:
+	# ResourceLoader work cannot be cancelled, but its eventual continuation must
+	# never perform scene-tree work for a boot root that has left the tree.
+	if _running and is_instance_valid(_main):
+		var incomplete_main := _main
+		_main = null
+		if incomplete_main.get_parent() == self:
+			remove_child(incomplete_main)
+		incomplete_main.queue_free()
+	_startup_generation += 1
+	_running = false
+
+
 ## Loads and constructs Main behind the loading screen. Awaitable; also safe to
 ## call and forget, which is what `_ready()` does.
 func run_startup() -> Node:
-	if _running or is_instance_valid(_main):
+	if _running or is_instance_valid(_main) or not is_inside_tree():
 		return _main
+	_startup_generation += 1
+	var startup_generation := _startup_generation
 	_running = true
 	var tree := get_tree()
 
@@ -93,24 +112,37 @@ func run_startup() -> Node:
 	# indistinguishable from the freeze this whole scene exists to remove.
 	for _index in PRESENT_FRAMES:
 		await tree.process_frame
+		if not _is_startup_current(startup_generation):
+			return null
 	_first_frame_usec = Time.get_ticks_usec()
 	_last_stage_usec = _first_frame_usec
 	_screen.attach_backdrop()
 
-	var packed := await _load_main_scene()
+	var packed := await _load_main_scene(startup_generation)
+	if not _is_startup_current(startup_generation):
+		return null
 	_resources_ready_usec = Time.get_ticks_usec()
 	if packed == null:
 		_screen.set_stage("Startup failed", 1.0, "scenes/main.tscn could not be loaded")
-		_running = false
+		_finish_startup(startup_generation)
 		return null
 
 	_main = packed.instantiate()
+	if not _is_startup_current(startup_generation):
+		_main.queue_free()
+		_main = null
+		return null
 	var flow := _main as GameFlow
 	var staged := flow != null and flow.prepare_staged_startup()
 	add_child(_main)
 	if staged:
-		await flow.run_staged_startup(_on_construction_stage)
-	_note_stage("construction", "Shipyard ready")
+		await flow.run_staged_startup(
+			func(label: String, ratio: float) -> void:
+				_on_construction_stage(startup_generation, label, ratio)
+		)
+		if not _is_startup_current(startup_generation):
+			return null
+		_note_stage("construction", "Shipyard ready")
 
 	# Suppressing 3D behind the opaque loading screen was measured and rejected:
 	# it does not remove the renderer's one-time warm-up, it collects all of it -
@@ -120,10 +152,12 @@ func run_startup() -> Node:
 	# the loading screen is already repainting between.
 	_screen.set_stage("Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION)
 	await tree.process_frame
+	if not _is_startup_current(startup_generation):
+		return null
 	_screen.set_stage("Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION + PHASE_HANDOFF)
 	_interactive_usec = Time.get_ticks_usec()
 	_screen.dismiss()
-	_running = false
+	_finish_startup(startup_generation)
 	startup_completed.emit(_main)
 	return _main
 
@@ -162,7 +196,9 @@ func _ms_since_boot(usec: int) -> float:
 	return (usec - _boot_usec) / 1000.0
 
 
-func _load_main_scene() -> PackedScene:
+func _load_main_scene(startup_generation: int) -> PackedScene:
+	if not _is_startup_current(startup_generation):
+		return null
 	var tree := get_tree()
 	var request := ResourceLoader.load_threaded_request(MAIN_SCENE_PATH, "PackedScene", false)
 	if request != OK:
@@ -174,6 +210,8 @@ func _load_main_scene() -> PackedScene:
 		return fallback
 	var progress: Array = []
 	while true:
+		if not _is_startup_current(startup_generation):
+			return null
 		var status := ResourceLoader.load_threaded_get_status(MAIN_SCENE_PATH, progress)
 		var ratio := 0.0
 		if not progress.is_empty():
@@ -191,6 +229,8 @@ func _load_main_scene() -> PackedScene:
 		# Yielding here is the point: the window repaints and pumps input while
 		# the loader threads work.
 		await tree.process_frame
+		if not _is_startup_current(startup_generation):
+			return null
 	_screen.set_stage("Loading station data", PHASE_RESOURCES, "100%")
 	_note_stage("resources", "Loading station data")
 	return ResourceLoader.load_threaded_get(MAIN_SCENE_PATH) as PackedScene
@@ -199,8 +239,8 @@ func _load_main_scene() -> PackedScene:
 ## Progress sink handed to [method GameFlow.run_staged_startup]. `ratio` is the
 ## fraction of construction stages finished, weighted by nothing - it is a plain
 ## count of real stages that have run.
-func _on_construction_stage(label: String, ratio: float) -> void:
-	if not is_instance_valid(_screen):
+func _on_construction_stage(startup_generation: int, label: String, ratio: float) -> void:
+	if not _is_startup_current(startup_generation) or not is_instance_valid(_screen):
 		return
 	_screen.set_stage(
 		"Building the shipyard",
@@ -208,6 +248,20 @@ func _on_construction_stage(label: String, ratio: float) -> void:
 		label
 	)
 	_note_stage("construction", label)
+
+
+func _is_startup_current(startup_generation: int) -> bool:
+	return (
+		_running
+		and startup_generation == _startup_generation
+		and is_inside_tree()
+		and not is_queued_for_deletion()
+	)
+
+
+func _finish_startup(startup_generation: int) -> void:
+	if startup_generation == _startup_generation:
+		_running = false
 
 
 func _note_stage(phase: String, label: String) -> void:

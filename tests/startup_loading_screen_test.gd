@@ -21,9 +21,73 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_direct_instantiation_is_unstaged()
 	_finish()
+
+
+func _test_detached_boot_cancels_stale_continuation() -> void:
+	var boot := BOOT_SCENE.instantiate() as StartupLoader
+	_check(boot != null, "boot lifetime fixture instantiates")
+	if boot == null:
+		return
+	boot.auto_start = false
+	root.add_child(boot)
+	await process_frame
+	var completions: Array[Node] = []
+	boot.startup_completed.connect(
+		func(main: Node) -> void:
+			completions.append(main)
+	)
+	# Detach only after Main has attached and staged construction has published a
+	# real stage. This is the high-risk await boundary: an incomplete Main must not
+	# survive to block the next boot generation.
+	boot.run_startup()
+	var staged := await _wait_for_staged_main(boot)
+	_check(staged, "boot reaches real staged construction before the cancellation boundary")
+	if not staged:
+		boot.queue_free()
+		await process_frame
+		return
+	root.remove_child(boot)
+	_check(
+		boot.get_main() == null
+			and completions.is_empty()
+			and boot.find_children("*", "GameFlow", false, false).is_empty(),
+		"detaching staged boot retires its incomplete Main before a completion exists"
+	)
+	root.add_child(boot)
+	var fresh := await boot.run_startup()
+	await process_frame
+	await process_frame
+	var main_children: Array[Node] = []
+	for child in boot.get_children():
+		if child is GameFlow:
+			main_children.append(child)
+	_check(
+		fresh != null
+			and boot.get_main() == fresh
+			and fresh.get_parent() == boot
+			and completions.size() == 1
+			and completions[0] == fresh
+			and main_children == [fresh],
+		"stale boot continuation cannot orphan or duplicate Main; re-entry completes one fresh generation"
+	)
+	boot.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _wait_for_staged_main(boot: StartupLoader) -> bool:
+	for _frame_index in 720:
+		if boot.get_main() != null and bool(boot.get("_running")):
+			for entry_value in boot.get_startup_report().get("stages", []) as Array:
+				var entry := entry_value as Dictionary
+				if entry.get("phase", "") == "construction":
+					return true
+		await process_frame
+	return false
 
 
 func _test_boot_presents_before_it_builds() -> void:
