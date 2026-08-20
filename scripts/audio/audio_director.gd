@@ -187,28 +187,38 @@ func _exit_tree() -> void:
 
 
 func play_ui_confirm() -> void:
+	if not _can_mutate_runtime_state():
+		return
 	cue_started.emit(CUE_UI_CONFIRM)
 	_play_resident(STREAM_UI_CONFIRM, &"UI", -7.0)
 
 
 func play_impact() -> void:
+	if not _can_mutate_runtime_state():
+		return
 	cue_started.emit(CUE_IMPACT)
 	_play_resident(STREAM_IMPACT, &"Weapons", -1.0)
 
 
 func play_target_destroyed() -> void:
+	if not _can_mutate_runtime_state():
+		return
 	cue_started.emit(CUE_TARGET_DESTROYED)
 	if _play_resident(STREAM_TARGET_DESTROYED_PRIMARY, &"Weapons", -1.0):
 		_restart_sequence_timer(_target_destroyed_timer)
 
 
 func play_combat_alert() -> void:
+	if not _can_mutate_runtime_state():
+		return
 	cue_started.emit(CUE_COMBAT_ALERT)
 	if _play_resident(STREAM_COMBAT_ALERT_PRIMARY, &"UI", -4.0):
 		_restart_sequence_timer(_combat_alert_timer)
 
 
 func play_canopy(opening: bool) -> void:
+	if not _can_mutate_runtime_state():
+		return
 	cue_started.emit(CUE_CANOPY_OPEN if opening else CUE_CANOPY_CLOSE)
 	_play_resident(
 		STREAM_CANOPY_OPEN if opening else STREAM_CANOPY_CLOSE,
@@ -218,12 +228,16 @@ func play_canopy(opening: bool) -> void:
 
 
 func play_enemy_destroyed() -> void:
+	if not _can_mutate_runtime_state():
+		return
 	cue_started.emit(CUE_ENEMY_DESTROYED)
 	if _play_resident(STREAM_ENEMY_DESTROYED_PRIMARY, &"Weapons", 0.0):
 		_restart_sequence_timer(_enemy_destroyed_timer)
 
 
 func play_footstep(intensity: float = 1.0) -> void:
+	if not _can_mutate_runtime_state():
+		return
 	if _footstep_cooldown > 0.0:
 		return
 	var safe_intensity := clampf(intensity, 0.0, 1.0) if is_finite(intensity) else 1.0
@@ -237,6 +251,8 @@ func play_footstep(intensity: float = 1.0) -> void:
 
 
 func set_on_foot(on_foot: bool) -> void:
+	if not _can_mutate_runtime_state():
+		return
 	_desired_ambience_volume_db = -10.0 if on_foot else -18.0
 	if is_instance_valid(_ambience):
 		_ambience.volume_db = _desired_ambience_volume_db
@@ -397,7 +413,7 @@ func get_audit_report() -> Dictionary:
 func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) -> bool:
 	# Check the backend before even looking up a resource. In particular, Dummy
 	# calls neither attach nor discard bank entries and leave the cursor stable.
-	if not _audio_enabled or _shutting_down or _effects.is_empty():
+	if not _can_mutate_runtime_state() or not _audio_enabled or _effects.is_empty():
 		return false
 	var stream := _get_stream(stream_id)
 	if stream == null:
@@ -429,7 +445,7 @@ func _play_enemy_destroyed_tail() -> void:
 
 
 func _restart_sequence_timer(timer: Timer) -> void:
-	if _shutting_down or not _audio_enabled or not is_instance_valid(timer):
+	if not _can_mutate_runtime_state() or not _audio_enabled or not is_instance_valid(timer):
 		return
 	timer.start()
 
@@ -446,6 +462,15 @@ func _restore_after_enter_tree() -> void:
 	_restore_fixed_hierarchy_configuration()
 	_build_stream_bank()
 	_restore_backend_state()
+
+
+func _can_mutate_runtime_state() -> bool:
+	return (
+		_initialized
+		and is_inside_tree()
+		and not is_queued_for_deletion()
+		and not _shutting_down
+	)
 
 
 func _restore_fixed_hierarchy_configuration() -> void:

@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_resident_bank(director)
 	await _test_request_churn(director)
 	await _test_detach_reentry_cycles(director)
+	await _test_queued_public_mutators_are_inert()
 	await _test_queued_reentry_restore_is_inert()
 	await _test_clean_lifecycle(director)
 	_finish()
@@ -366,6 +367,102 @@ func _test_queued_reentry_restore_is_inert() -> void:
 	)
 	await process_frame
 	_check(not is_instance_valid(director), "the queued re-entry director fixture frees normally")
+
+
+func _test_queued_public_mutators_are_inert() -> void:
+	var director := AudioDirector.new()
+	director.name = "QueuedPublicAudioDirector"
+	root.add_child(director)
+	await process_frame
+	var cue_events: Array[StringName] = []
+	director.cue_started.connect(func(cue_id: StringName) -> void:
+		cue_events.append(cue_id)
+	)
+	var synthesis_before := director.get_synthesis_report()
+	var performance_before := director.get_performance_report()
+	var desired_mix_before := float(director.get("_desired_ambience_volume_db"))
+	var effect_cursor_before := int(director.get("_effect_cursor"))
+	var footstep_cooldown_before := float(director.get("_footstep_cooldown"))
+	var players_before := _player_runtime_snapshot(director)
+	var timers_before := _timer_runtime_snapshot(director)
+	director.queue_free()
+	director.play_ui_confirm()
+	director.play_impact()
+	director.play_target_destroyed()
+	director.play_combat_alert()
+	director.play_canopy(true)
+	director.play_canopy(false)
+	director.play_enemy_destroyed()
+	director.play_footstep(0.8)
+	director.set_on_foot(true)
+	_check(
+		director.is_inside_tree()
+		and director.is_queued_for_deletion()
+		and cue_events.is_empty()
+		and director.get_synthesis_report() == synthesis_before
+		and director.get_performance_report() == performance_before
+		and is_equal_approx(float(director.get("_desired_ambience_volume_db")), desired_mix_before)
+		and int(director.get("_effect_cursor")) == effect_cursor_before
+		and is_equal_approx(float(director.get("_footstep_cooldown")), footstep_cooldown_before)
+		and _player_runtime_snapshot(director) == players_before
+		and _timer_runtime_snapshot(director) == timers_before,
+		"queued public cue, footstep, and mix calls leave director events and runtime state unchanged"
+	)
+	await process_frame
+	_check(not is_instance_valid(director), "the queued public-director fixture frees normally")
+
+	var reentered := AudioDirector.new()
+	reentered.name = "QueuedPublicAudioDirectorReentry"
+	root.add_child(reentered)
+	await process_frame
+	root.remove_child(reentered)
+	root.add_child(reentered)
+	await process_frame
+	await process_frame
+	var reentry_events: Array[StringName] = []
+	reentered.cue_started.connect(func(cue_id: StringName) -> void:
+		reentry_events.append(cue_id)
+	)
+	reentered.play_ui_confirm()
+	reentered.play_footstep(0.8)
+	reentered.set_on_foot(true)
+	_check(
+		reentered.is_inside_tree()
+		and not reentered.is_queued_for_deletion()
+		and reentry_events.size() == 1
+		and reentry_events[0] == AudioDirector.CUE_UI_CONFIRM
+		and float(reentered.get("_footstep_cooldown")) > 0.0
+		and is_equal_approx(float(reentered.get("_desired_ambience_volume_db")), -10.0),
+		"a fresh live re-entry accepts current cue, footstep, and ambience-mix requests"
+	)
+	reentered.queue_free()
+	await process_frame
+
+
+func _player_runtime_snapshot(director: AudioDirector) -> Dictionary:
+	var snapshot := {}
+	for candidate in director.find_children("*", "AudioStreamPlayer", true, false):
+		var player := candidate as AudioStreamPlayer
+		snapshot[player.name] = {
+			"stream": player.stream,
+			"playing": player.playing,
+			"bus": player.bus,
+			"volume_db": player.volume_db,
+			"pitch_scale": player.pitch_scale,
+		}
+	return snapshot
+
+
+func _timer_runtime_snapshot(director: AudioDirector) -> Dictionary:
+	var snapshot := {}
+	for candidate in director.find_children("*", "Timer", true, false):
+		var timer := candidate as Timer
+		snapshot[timer.name] = {
+			"stopped": timer.is_stopped(),
+			"wait_time": timer.wait_time,
+			"one_shot": timer.one_shot,
+		}
+	return snapshot
 
 
 func _all_players_stopped_and_detached(director: AudioDirector) -> bool:
