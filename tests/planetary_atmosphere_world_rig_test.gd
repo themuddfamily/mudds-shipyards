@@ -501,11 +501,16 @@ func _test_lifecycle(
 	var signal_count := _root_signal_events.size()
 	host.remove_child(rig)
 	await process_frame
+	var detached_observation := rig.present_observation(
+		_observation(6_000.0, 5.0), rig.get_generation()
+	)
 	_check(
 		not rig.is_inside_tree() and _all_adapters_at_baseline(rig)
+		and not bool(detached_observation.get("accepted", true))
+		and detached_observation.get("reason", &"") == &"rig_detached"
 		and rig.get_snapshot() == before
 		and _root_signal_events.size() == signal_count,
-		"whole-rig detach restores all four exact baselines without state or signal churn"
+		"whole-rig detach restores baselines and rejects direct hidden presentation mutation"
 	)
 	host.add_child(rig)
 	await process_frame
