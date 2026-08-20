@@ -51,6 +51,7 @@ func configure() -> Dictionary:
 	var result := rig.configure(world_definition, atmosphere_profile, terrain_profile)
 	if not bool(result.get("accepted", false)):
 		return result.duplicate(true)
+	_baseline_environment = target.environment
 	target.environment = rig.get_scene_environment()
 	_configured = true
 	_generation = rig.get_generation()

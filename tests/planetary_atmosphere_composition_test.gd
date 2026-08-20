@@ -51,6 +51,22 @@ func _run() -> void:
 		== retry_composition.get_atmosphere_rig().get_scene_environment(),
 		"rejected pre-install composition preserves baseline and repaired input retries into one install"
 	)
+	var retry_rig_environment := retry_composition.get_world_environment().environment
+	root.remove_child(retry_composition)
+	await process_frame
+	_check(
+		not retry_composition.is_inside_tree()
+		and retry_composition.get_world_environment().environment == preserved_baseline
+		and bool(retry_composition.audit().valid),
+		"detach restores a baseline assigned after ready and before accepted installation"
+	)
+	root.add_child(retry_composition)
+	await process_frame
+	_check(
+		retry_composition.get_world_environment().environment == retry_rig_environment
+		and bool(retry_composition.audit().valid),
+		"re-entry reapplies the rig Environment after late-baseline restoration"
+	)
 	retry_composition.queue_free()
 	await process_frame
 	var configured := composition.configure()
