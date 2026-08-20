@@ -790,6 +790,8 @@ func _orient_toward_route_index(index: int) -> void:
 func _common_mutation_rejection(expected_generation: int) -> StringName:
 	if not _built:
 		return &"not_ready"
+	if is_queued_for_deletion():
+		return &"queued_for_deletion"
 	if not _attached or not is_inside_tree():
 		return &"detached"
 	if expected_generation != get_generation():

@@ -541,6 +541,31 @@ func _test_loss_reset_and_reentry(host: CinderConvoyEscortHost) -> void:
 	)
 	_check(bool(host.audit().get("valid", false)), "the reused host retains a clean deep audit")
 
+	var queued_before := host.get_snapshot()
+	var queued_events := 0
+	host.presentation_changed.connect(func(_snapshot: Dictionary) -> void:
+		queued_events += 1
+	)
+	host.queue_free()
+	var queued_start := host.start(reentry_generation)
+	var queued_advance := host.advance_physics(
+		0.25,
+		queued_before.get("entity_position") as Vector3,
+		reentry_generation
+	)
+	var queued_loss := host.report_convoy_lost(reentry_generation)
+	var queued_reset := host.reset(reentry_generation)
+	_check(
+		host.is_queued_for_deletion()
+		and queued_start.get("reason") == &"queued_for_deletion"
+		and queued_advance.get("reason") == &"queued_for_deletion"
+		and queued_loss.get("reason") == &"queued_for_deletion"
+		and queued_reset.get("reason") == &"queued_for_deletion"
+		and host.get_snapshot() == queued_before
+		and queued_events == 0,
+		"a queued convoy host rejects every public mutation before state or presentation publication"
+	)
+
 
 func _check(condition: bool, message: String) -> void:
 	_assertions += 1
