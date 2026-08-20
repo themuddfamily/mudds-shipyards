@@ -456,6 +456,8 @@ func defer_damage_presentation(
 		world_velocity: Vector3,
 		world_pose: Variant = null
 	) -> bool:
+	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
+		return false
 	if receipt_id < 0 or not world_position.is_finite():
 		return false
 	if _pending_damage_presentations.has(receipt_id):
@@ -476,6 +478,8 @@ func defer_damage_presentation(
 
 
 func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
+		return false
 	if not _pending_damage_presentations.has(receipt_id):
 		return false
 	var record := _pending_damage_presentations[receipt_id] as Dictionary

@@ -280,9 +280,8 @@ func _run() -> void:
 	_check(reentry_destruction != null and not reentry_destruction.is_inside_tree(), "reset synchronously detaches the re-entry destruction root")
 	_check(_clear_events == clear_events_before_reset + 1, "re-entry reset reports cleanup only after synchronous detachment")
 
-	# A receipt may complete while the owning ship is streamed out. It must retain
-	# the exact authority-time pose (including valid world identity), then create
-	# the detached explosion on the same instance's next tree entry.
+	# Deferred receipts are live presentation work. A detached owner must neither
+	# accept a new record nor consume an existing receipt until it has re-entered.
 	presentation.call("reset_for_reuse", 1.0, &"active")
 	var captured_identity_pose := Transform3D.IDENTITY
 	var detached_velocity := Vector3(9.0, -1.0, 4.0)
@@ -301,19 +300,40 @@ func _run() -> void:
 	)
 	transformed_ship.remove_child(presentation)
 	transformed_ship.position = Vector3(130.0, 42.0, -76.0)
+	var detached_receipt_count := int(presentation.call("get_pending_damage_presentation_count"))
+	var detached_stage := int(presentation.call("get_damage_stage"))
+	var detached_effect_count := int(presentation.call("get_live_world_effect_count"))
+	var detached_stage_event_count := _stage_events.size()
+	var detached_destruction_event_count := _destruction_events.size()
 	_check(
-		bool(presentation.call("commit_deferred_damage_presentation", 9001))
-		and presentation.call("get_destruction_effect_root") == null,
-		"detached receipt commits without creating an out-of-tree explosion"
+		not bool(presentation.call("commit_deferred_damage_presentation", 9001))
+		and not bool(presentation.call(
+			"defer_damage_presentation",
+			9002,
+			Vector3(18.0, 2.0, -5.0),
+			Vector3.UP,
+			1.0,
+			false,
+			Vector3.ZERO
+		))
+		and int(presentation.call("get_pending_damage_presentation_count")) == detached_receipt_count
+		and int(presentation.call("get_damage_stage")) == detached_stage
+		and int(presentation.call("get_live_world_effect_count")) == detached_effect_count
+		and presentation.call("get_destruction_effect_root") == null
+		and _stage_events.size() == detached_stage_event_count
+		and _destruction_events.size() == detached_destruction_event_count,
+		"detached deferred receipt ingress and commit preserve queue, state, effects, and signals"
 	)
 	transformed_ship.add_child(presentation)
 	await process_frame
 	await process_frame
+	var detached_commit_accepted := bool(presentation.call("commit_deferred_damage_presentation", 9001))
 	var detached_commit_root := presentation.call("get_destruction_effect_root") as Node3D
 	_check(
-		detached_commit_root != null
+		detached_commit_accepted
+		and detached_commit_root != null
 		and detached_commit_root.global_transform.is_equal_approx(captured_identity_pose),
-		"re-entry creates the terminal effect at its captured identity pose"
+		"re-entry accepts the retained terminal receipt at its captured identity pose"
 	)
 	_check(
 		(presentation.call("get_last_world_velocity") as Vector3).is_equal_approx(detached_velocity),
@@ -418,13 +438,37 @@ func _test_queued_direct_effect_currentness(packed: PackedScene) -> void:
 	var queued_engine_smoke := queued.get_node_or_null("EngineSmoke") as CPUParticles3D
 	var queued_damage_sparks_before := queued_damage_sparks != null and queued_damage_sparks.emitting
 	var queued_engine_smoke_before := queued_engine_smoke != null and queued_engine_smoke.emitting
+	var queued_receipt_id := 9301
+	var queued_receipt_staged := queued.defer_damage_presentation(
+		queued_receipt_id,
+		Vector3(8.0, 1.0, -3.0),
+		Vector3.UP,
+		1.0,
+		true,
+		Vector3(2.0, 0.0, -1.0),
+		Transform3D.IDENTITY
+	)
+	var queued_pending_before := queued.get_pending_damage_presentation_count()
 	queued.queue_free()
 	queued.update_state(0.15, HeroDamagePresentation.STATE_ACTIVE, Vector3(5.0, -1.0, 2.0))
 	queued.present_impact(Vector3(24.0, 3.0, -7.0), Vector3.UP, 1.0)
 	queued.present_destruction(Vector3(5.0, -1.0, 2.0), Transform3D.IDENTITY)
+	var queued_defer_rejected := not queued.defer_damage_presentation(
+		9302,
+		Vector3(12.0, 2.0, -4.0),
+		Vector3.UP,
+		1.0,
+		false,
+		Vector3.ZERO
+	)
+	var queued_commit_rejected := not queued.commit_deferred_damage_presentation(queued_receipt_id)
 	_check(
 		queued.is_inside_tree()
 		and queued.is_queued_for_deletion()
+		and queued_receipt_staged
+		and queued_defer_rejected
+		and queued_commit_rejected
+		and queued.get_pending_damage_presentation_count() == queued_pending_before
 		and queued.get_damage_stage() == HeroDamagePresentation.DamageStage.HEALTHY
 		and queued.get_live_world_effect_count() == 0
 		and queued.get_destruction_effect_root() == null
