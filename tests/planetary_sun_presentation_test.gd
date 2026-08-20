@@ -46,7 +46,7 @@ const CAPABILITY_KEYS := [
 	"calibrated_colorimetry_implemented", "shadow_or_occlusion_implemented",
 	"clock_or_ephemeris_implemented", "environment_or_sky_implemented",
 ]
-const EXPECTED_ASSERTIONS := 43
+const EXPECTED_ASSERTIONS := 44
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -76,6 +76,7 @@ func _run() -> void:
 	await _test_adapter_and_target_lifecycle()
 	_test_reset_and_generation_exhaustion()
 	_test_detached_audit_and_authority()
+	await _test_queued_target_rejects_atomically()
 	await _test_expired_target_fails_closed()
 	if is_instance_valid(_host):
 		_host.queue_free()
@@ -385,20 +386,27 @@ func _test_adapter_and_target_lifecycle() -> void:
 		and bool(_adapter.get_renderer_snapshot().baseline_applied_while_inactive),
 		"adapter tree exit restores the exact authored baseline"
 	)
+	var detached_adapter_before := _adapter.get_state_snapshot()
+	var detached_adapter_events := _events.size()
 	var detached_night := _adapter.present_observation(
 		_observation(Vector3.DOWN), 1
 	)
 	_check(
-		detached_night.accepted and detached_night.renderer_values.light_energy == 0.0
+		not detached_night.accepted and detached_night.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_adapter_before
+		and _events.size() == detached_adapter_events
 		and _renderer_values(_light) == _adapter.get_renderer_snapshot().baseline,
-		"detached presentation retains a candidate without leaking renderer state"
+		"detached adapter rejects observation without retaining a deferred renderer candidate"
 	)
 	_host.add_child(_adapter)
 	await process_frame
+	var adapter_reentry_values := _renderer_values(_light)
+	var live_night := _adapter.present_observation(_observation(Vector3.DOWN), 1)
 	_check(
-		_light.light_energy == 0.0
+		adapter_reentry_values == day_values
+		and live_night.accepted and _light.light_energy == 0.0
 		and bool(_adapter.get_renderer_snapshot().current_values_applied),
-		"adapter re-entry reapplies the retained generation without a new commit"
+		"adapter re-entry restores only the last live state before a fresh observation updates it"
 	)
 	_host.remove_child(_light)
 	await process_frame
@@ -407,17 +415,25 @@ func _test_adapter_and_target_lifecycle() -> void:
 		and bool(_adapter.get_renderer_snapshot().baseline_applied_while_inactive),
 		"independent target tree exit restores the authored baseline"
 	)
+	var detached_target_before := _adapter.get_state_snapshot()
+	var detached_target_events := _events.size()
 	var outside_day := _adapter.present_observation(_observation(Vector3.UP), 1)
 	_check(
-		outside_day.accepted and outside_day.renderer_values == day_values
+		not outside_day.accepted and outside_day.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_target_before
+		and _events.size() == detached_target_events
 		and _renderer_values(_light) == _adapter.get_renderer_snapshot().baseline,
-		"target-outside-tree evaluation commits state but keeps baseline applied"
+		"detached target rejects observation without retaining a deferred renderer candidate"
 	)
 	_host.add_child(_light)
 	await process_frame
+	var target_reentry_values := _renderer_values(_light)
+	var fresh_day := _adapter.present_observation(_observation(Vector3.UP), 1)
 	_check(
-		_renderer_values(_light) == day_values and bool(_adapter.audit().valid),
-		"target re-entry reapplies the current generation exactly once"
+		target_reentry_values.light_energy == 0.0
+		and fresh_day.accepted and _renderer_values(_light) == day_values
+		and bool(_adapter.audit().valid),
+		"target re-entry restores only the last live state before a fresh observation updates it"
 	)
 
 
@@ -503,6 +519,27 @@ func _test_expired_target_fails_closed() -> void:
 		),
 		"freed target fails closed without exposing a stale renderer identity"
 	)
+	(fixture.host as Node).queue_free()
+
+
+func _test_queued_target_rejects_atomically() -> void:
+	var fixture := _make_fixture(false)
+	var adapter := fixture.adapter as PlanetarySunPresentation
+	var light := fixture.light as DirectionalLight3D
+	var events: Array[Dictionary] = []
+	adapter.presentation_committed.connect(func(reason: StringName, snapshot: Dictionary) -> void:
+		events.append({"reason": reason, "snapshot": snapshot.duplicate(true)})
+	)
+	light.queue_free()
+	var before := adapter.get_state_snapshot()
+	var queued := adapter.present_observation(_observation(Vector3.UP), 1)
+	_check(
+		light.is_queued_for_deletion()
+		and not queued.accepted and queued.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == before and events.is_empty(),
+		"queued target rejects observation atomically before it can become a deferred candidate"
+	)
+	await process_frame
 	(fixture.host as Node).queue_free()
 
 

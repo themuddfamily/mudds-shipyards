@@ -218,8 +218,15 @@ func present_observation(
 	if not _is_exact_integer(expected_generation) \
 			or int(expected_generation) != _generation:
 		return _result(false, &"stale_generation")
-	if _resolve_light() == null:
+	var light := _resolve_light(true)
+	if light == null:
 		return _result(false, &"directional_light_unavailable")
+	# This public adapter can be called without its composition owner. A detached
+	# sample must not become a retained candidate that first appears on a later
+	# adapter or target re-entry.
+	if is_queued_for_deletion() or not is_inside_tree() \
+			or light.is_queued_for_deletion() or not light.is_inside_tree():
+		return _result(false, &"presentation_detached")
 	if _policy == null or not bool(_policy.audit().get("valid", false)):
 		return _result(false, &"policy_unavailable")
 
@@ -243,13 +250,7 @@ func present_observation(
 		})
 
 	_mutation_active = true
-	var light := _resolve_light()
-	var values_to_apply := (
-		renderer_values
-		if is_inside_tree() and light != null and light.is_inside_tree()
-		else _baseline_renderer_values
-	)
-	var apply_result := _apply_renderer_values(values_to_apply)
+	var apply_result := _apply_renderer_values(renderer_values)
 	if not bool(apply_result.get("accepted", false)):
 		_mutation_active = false
 		return _result(
