@@ -104,9 +104,13 @@ func _test_selection_and_authority_boundary(
 	var initial := game.get_activity_integration_report()
 	var race := initial.get("race_session") as CinderTimedRaceSession
 	var patrol := initial.get("patrol_activity") as PatrolActivity
+	var activation_center_before_detach := initial.get(
+		"convoy_activation_center", Vector3.INF
+	) as Vector3
 	_check(
 		int(initial.get("director_count", 0)) == 1
 		and director.get_definition(ROUTE.activity_id) == ROUTE
+		and activation_center_before_detach.is_finite()
 		and initial.get("selected_activity_kind", &"")
 		== GameFlow.ACTIVITY_KIND_TIMED_RACE
 		and int(initial.get("attached_route_owner_count", 0)) == 1
@@ -147,18 +151,21 @@ func _test_selection_and_authority_boundary(
 		and not bool(detached.get("selection_locked", true))
 		and int(detached.get("attached_route_owner_count", -1)) == 0
 		and int(race.get_presentation_snapshot().get("session_generation", -2)) == race_generation
-		and not bool(patrol.get_presentation_snapshot().get("attached", true)),
-		"detached activity selection and start reject before restoring or advancing a route owner"
+		and not bool(patrol.get_presentation_snapshot().get("attached", true))
+		and detached.get("convoy_activation_center", Vector3.ZERO) == Vector3.INF,
+		"detached activity selection and report reject world-space route-owner work without sampling Ember's stale transform"
 	)
 	parent.add_child(game)
 	await process_frame
 	await process_frame
+	var reentered := game.get_activity_integration_report()
 	_check(
-		game.get_activity_integration_report().get("selected_activity_kind", &"")
-		== GameFlow.ACTIVITY_KIND_TIMED_RACE
-		and int(game.get_activity_integration_report().get("attached_route_owner_count", 0)) == 1
-		and bool(race.get_presentation_snapshot().get("attached", false)),
-		"re-entry restores the original timed-race owner after detached requests are rejected"
+		reentered.get("selected_activity_kind", &"") == GameFlow.ACTIVITY_KIND_TIMED_RACE
+		and int(reentered.get("attached_route_owner_count", 0)) == 1
+		and bool(race.get_presentation_snapshot().get("attached", false))
+		and (reentered.get("convoy_activation_center", Vector3.INF) as Vector3).is_finite()
+		and reentered.get("convoy_activation_center", Vector3.INF) == activation_center_before_detach,
+		"re-entry restores the original timed-race owner and its current Ember activation transform"
 	)
 
 	var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)

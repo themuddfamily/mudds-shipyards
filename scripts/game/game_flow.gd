@@ -4352,11 +4352,18 @@ func _decorate_activity_snapshot(source: Dictionary) -> Dictionary:
 
 
 func _cinder_convoy_activation_center() -> Vector3:
-	return (
-		cinder_streaming_bootstrap.global_transform * CINDER_CONVOY_ACTIVATION_CENTER
-		if is_instance_valid(cinder_streaming_bootstrap)
-		else CINDER_CONVOY_ACTIVATION_CENTER
-	)
+	if not is_instance_valid(cinder_streaming_bootstrap):
+		return CINDER_CONVOY_ACTIVATION_CENTER
+	if (
+		cinder_streaming_bootstrap.is_queued_for_deletion()
+		or not cinder_streaming_bootstrap.is_inside_tree()
+	):
+		# The authored activation coordinate is local to the streamed Ember root.
+		# Detached/queued roots have no current world transform, so observability
+		# must publish an explicit unavailable value rather than sampling Godot's
+		# invalid identity fallback.
+		return Vector3.INF
+	return cinder_streaming_bootstrap.global_transform * CINDER_CONVOY_ACTIVATION_CENTER
 
 
 func _activity_selection_result(accepted: bool, reason: StringName) -> Dictionary:
