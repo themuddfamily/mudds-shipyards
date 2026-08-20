@@ -568,9 +568,9 @@ func get_long_rail_visual_allocation_audit() -> Dictionary:
 
 
 func set_module_enabled(enabled: bool) -> void:
-	# Detached/pre-tree callers may configure the next installed lifecycle, but a
-	# queued module must not rewrite visibility or collision during disposal.
-	if is_queued_for_deletion():
+	# An unbuilt scene may receive authored/pre-tree configuration, but an
+	# initialized module must stay current to rewrite visibility or collision.
+	if is_queued_for_deletion() or (_built and not is_inside_tree()):
 		return
 	_enabled = enabled
 	_apply_enabled_state()

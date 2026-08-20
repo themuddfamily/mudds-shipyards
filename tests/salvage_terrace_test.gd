@@ -480,6 +480,27 @@ func _test_queued_module_enable_guard() -> void:
 		"live module enable control still hides presentation and clears collision"
 	)
 	module.set_module_enabled(true)
+	var detached_snapshot := module.get_lifecycle_contract()
+	var detached_visibility := generated_root.visible if generated_root != null else false
+	_test_root.remove_child(module)
+	module.set_module_enabled(false)
+	_check(
+		not module.is_inside_tree()
+		and module.is_module_enabled()
+		and module.get_lifecycle_contract() == detached_snapshot
+		and generated_root != null and generated_root.visible == detached_visibility,
+		"initialized detached module enable request is inert before visibility or collision mutation"
+	)
+	_test_root.add_child(module)
+	await process_frame
+	module.set_module_enabled(false)
+	_check(
+		not module.is_module_enabled()
+		and generated_root != null and not generated_root.visible
+		and bool(module.get_lifecycle_contract().collision_matches_enabled),
+		"reentered module accepts a fresh live disable after detached rejection"
+	)
+	module.set_module_enabled(true)
 	var live_snapshot := module.get_lifecycle_contract()
 	var live_visibility := generated_root.visible if generated_root != null else false
 	module.queue_free()
