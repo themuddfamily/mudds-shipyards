@@ -9,7 +9,7 @@ const PresentationScript := preload(
 const ENTRY_SHADER := preload(
 	"res://scripts/rendering/planetary_entry_heat_overlay.gdshader"
 )
-const EXPECTED_ASSERTIONS := 42
+const EXPECTED_ASSERTIONS := 44
 const OWNED_PARAMETER: StringName = &"entry_effect_intensity_unitless"
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
@@ -58,6 +58,7 @@ func _run() -> void:
 	_test_owned_drift_and_non_owned_uniform()
 	_test_resource_changed_transactions()
 	_test_signal_reentry_and_detachment()
+	await _test_queued_adapter_rejects_atomically()
 	_test_reset_and_detached_reports()
 	await _test_target_expiry()
 	if is_instance_valid(_adapter):
@@ -388,21 +389,52 @@ func _test_signal_reentry_and_detachment() -> void:
 		and _adapter.get_state_snapshot().revision == revision,
 		"tree exit restores exact zero without advancing lifecycle identity"
 	)
+	var detached_before := _adapter.get_state_snapshot()
+	var detached_events := _events.size()
 	var detached := _adapter.present_observation(14000.0, 250.0, generation)
 	_check(
-		detached.accepted
-		and detached.observation.entry_effect_intensity_unitless == 0.25
+		not detached.accepted and detached.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_before
+		and _events.size() == detached_events
 		and _material.get_shader_parameter(OWNED_PARAMETER) == 0.0,
-		"detached observation retains current intent while renderer stays zero"
+		"detached observation rejects atomically without retaining deferred intent"
 	)
-	var detached_revision: int = int(_adapter.get_state_snapshot().revision)
 	root.add_child(_adapter)
+	var reentry_intensity: Variant = _material.get_shader_parameter(OWNED_PARAMETER)
+	var fresh := _adapter.present_observation(14000.0, 250.0, generation)
 	_check(
-		_material.get_shader_parameter(OWNED_PARAMETER) == 0.25
-		and _adapter.get_state_snapshot().revision == detached_revision
+		reentry_intensity == 1.0
+		and fresh.accepted
+		and _material.get_shader_parameter(OWNED_PARAMETER) == 0.25
 		and _adapter.get_generation() == generation,
-		"tree reentry reapplies retained generation without duplicate commit"
+		"tree reentry restores last live intent before a fresh observation updates it"
 	)
+
+
+func _test_queued_adapter_rejects_atomically() -> void:
+	var fixture := _make_fixture()
+	var adapter := fixture.adapter as PlanetaryEntryHeatPresentation
+	var material := fixture.material as ShaderMaterial
+	var events: Array[Dictionary] = []
+	_check(
+		adapter.configure(fixture.profile as PlanetaryAtmosphereProfile, material).accepted
+		and adapter.present_observation(10000.0, 340.0, 1).accepted,
+		"queued fixture has one live entry-heat presentation before deletion"
+	)
+	adapter.presentation_committed.connect(func(_reason: StringName, _snapshot: Dictionary) -> void:
+		events.append({})
+	)
+	adapter.queue_free()
+	var before := adapter.get_state_snapshot()
+	var queued := adapter.present_observation(14000.0, 250.0, 1)
+	_check(
+		adapter.is_queued_for_deletion()
+		and not queued.accepted and queued.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == before and events.is_empty()
+		and material.get_shader_parameter(OWNED_PARAMETER) == 1.0,
+		"queued adapter rejects observation atomically before material or retained intent drift"
+	)
+	await process_frame
 
 
 func _test_reset_and_detached_reports() -> void:

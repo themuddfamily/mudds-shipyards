@@ -175,6 +175,10 @@ func present_observation(
 	if not _is_exact_generation(expected_generation) \
 			or int(expected_generation) != _generation:
 		return _result(false, &"stale_generation")
+	# This public adapter has no owner-gated caller. A detached or queued sample
+	# must not become retained intent that appears only after a later re-entry.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"presentation_detached")
 	if not _is_finite_number(altitude_m):
 		return _result(false, &"invalid_altitude")
 	if not _is_finite_number(speed_mps):
