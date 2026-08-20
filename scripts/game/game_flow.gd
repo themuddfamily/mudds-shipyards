@@ -1499,6 +1499,8 @@ func _flight_path_ellipse_boundary_offset(direction: Vector2, radii: Vector2) ->
 
 
 func start_shift() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	if phase != Phase.INTRO:
 		return
 	phase = Phase.APPROACH_SHIP

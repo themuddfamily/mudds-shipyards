@@ -16,6 +16,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_start_shift_currentness()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
@@ -92,6 +93,77 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_start_shift_currentness() -> void:
+	var detached_game := MAIN_SCENE.instantiate() as GameFlow
+	detached_game.name = "DetachedStartShiftGame"
+	root.add_child(detached_game)
+	await process_frame
+	await physics_frame
+	var detached_before := _start_shift_snapshot(detached_game)
+	root.remove_child(detached_game)
+	detached_game.start_shift()
+	_check(
+		not detached_game.is_inside_tree()
+			and _start_shift_snapshot(detached_game) == detached_before,
+		"a detached GameFlow rejects direct start-shift mutation atomically"
+	)
+	root.add_child(detached_game)
+	await process_frame
+	detached_game.start_shift()
+	_check(
+		detached_game.is_inside_tree()
+			and detached_game.phase == GameFlow.Phase.APPROACH_SHIP
+			and (detached_game.player as PlayerController).is_control_enabled()
+			and (detached_game.player as PlayerController).get_camera().current,
+		"a fresh live GameFlow re-entry accepts its current start-shift request"
+	)
+	detached_game.queue_free()
+	await process_frame
+	await process_frame
+
+	var queued_game := MAIN_SCENE.instantiate() as GameFlow
+	queued_game.name = "QueuedStartShiftGame"
+	root.add_child(queued_game)
+	await process_frame
+	await physics_frame
+	var queued_before := _start_shift_snapshot(queued_game)
+	queued_game.queue_free()
+	queued_game.start_shift()
+	_check(
+		queued_game.is_inside_tree()
+			and queued_game.is_queued_for_deletion()
+			and _start_shift_snapshot(queued_game) == queued_before,
+		"a queued GameFlow rejects direct start-shift mutation atomically"
+	)
+	await process_frame
+	await process_frame
+	_check(not is_instance_valid(queued_game), "the queued GameFlow fixture frees normally")
+
+
+func _start_shift_snapshot(game: GameFlow) -> Dictionary:
+	var player := game.player as PlayerController
+	var hud := game.hud as CanvasLayer
+	var audio := game.audio as AudioDirector
+	var objective := hud.get("_objective_label") as Label
+	var objective_kicker := hud.get("_objective_kicker") as Label
+	var toast_title := hud.get("_toast_title") as Label
+	var toast_detail := hud.get("_toast_detail") as Label
+	var toast_panel := hud.get("_toast_panel") as PanelContainer
+	return {
+		"phase": game.phase,
+		"player_control_enabled": player.is_control_enabled(),
+		"player_camera_current": player.get_camera().current,
+		"hud_mode": hud.get("_state_mode"),
+		"objective": objective.text if objective != null else "",
+		"objective_kicker": objective_kicker.text if objective_kicker != null else "",
+		"toast_title": toast_title.text if toast_title != null else "",
+		"toast_detail": toast_detail.text if toast_detail != null else "",
+		"toast_visible": toast_panel.visible if toast_panel != null else false,
+		"toast_serial": hud.get("_toast_serial"),
+		"audio_on_foot_volume_db": audio.get("_desired_ambience_volume_db"),
+	}.duplicate(true)
 
 
 ## Exactly the number of physics steps `door.motion_duration` needs at the
