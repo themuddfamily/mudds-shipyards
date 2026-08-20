@@ -167,7 +167,7 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on exact clean base `c6c62ed` after the bounded
+Focused production evidence on exact clean base `9844fe9` after the bounded
 Aft/Habitat MultiMesh and immutable-resource trims, production Ember/cruise
 ownership, the pause-menu cruise row, streamed-berth binding, and Arrow's
 passive entry-heat target, using Godot 4.7.1, headless Forward+, Dummy audio
@@ -178,7 +178,7 @@ and HIGH quality, freezes:
 | Triangles | 1,684,993 | 1,802,450 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,496 | 2,598 | +102 |
+| Unique meshes | 2,493 | 2,595 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -231,6 +231,13 @@ component-local six-copy meshes (`-3`). Both changes preserve renderer nodes,
 surfaces, triangles, materials, lights, collision and authority boundaries, so
 each scenario's unique-mesh roster falls by exactly eight while the streamed
 Cinder delta remains `+102`.
+
+Torrent's four named CaptureJaw renderers now retain one Hero-local gold
+rounded-box mesh rather than four (`-3`) with their paths, transforms, surface
+material, submissions and visual-only status unchanged. The later RangeOpponent
+particle-mesh cache has no effect on either frozen production scenario: neither
+station-resident nor one-Cinder-loaded progression activates its transient
+particle mesh, so it changes no schema-v2 count or scenario delta here.
 
 The Arrow follow-up keeps the six existing childless `CurveJoint` sphere nodes,
 their exact paths and transforms beneath `PortLateralArray` and
@@ -365,9 +372,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`edcefdf583cdb304d9e53ca4e7c519d058a1b28d80b97d300ab6193e94af6475`;
+`7631fc2ae83e357dfdb34f84686191081cca8ef7562368199abd384e117e2602`;
 the loaded fingerprint is
-`900e8a1c952e13ad8ac905cf67f92edc62f4c5fc2baf52ddf145fc9bef3985a0`.
+`a29ce07cd02618a71a87e1e4d02b0ea1d0eeca9b578e27b63e9e3b6d71e438b2`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
