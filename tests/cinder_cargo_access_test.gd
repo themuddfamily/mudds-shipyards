@@ -620,6 +620,23 @@ func _test_detach_reentry(
 	replacement.queue_free()
 	await process_frame
 
+	# A current attachment generation is not a live ownership capability once the
+	# standalone access component is queued, even though SceneTree removal has
+	# not reached it yet.
+	var queued_attachment_generation := access.get_attachment_generation()
+	access.queue_free()
+	var queued_snapshot := access.get_attachment_snapshot(queued_attachment_generation)
+	_check(
+		access.is_queued_for_deletion()
+		and not bool(queued_snapshot.accepted)
+		and queued_snapshot.reason == &"queued_for_deletion"
+		and not queued_snapshot.has("component_instance_id")
+		and not queued_snapshot.has("berth_instance_id"),
+		"queued Cinder access rejects a current attachment snapshot before publishing berth identity"
+	)
+	await process_frame
+	_check(not is_instance_valid(access), "queued Cinder access snapshot fixture frees cleanly")
+
 
 func _await_public_landing(ship: HeroShip, maximum_frames: int) -> int:
 	for frame_index in maximum_frames:

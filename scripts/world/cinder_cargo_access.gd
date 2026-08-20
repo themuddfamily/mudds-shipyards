@@ -188,6 +188,13 @@ func get_attachment_snapshot(expected_generation: int) -> Dictionary:
 			"expected_generation": expected_generation,
 			"attachment_generation": _attachment_generation,
 		}.duplicate(true)
+	if is_queued_for_deletion():
+		return {
+			"accepted": false,
+			"reason": &"queued_for_deletion",
+			"expected_generation": expected_generation,
+			"attachment_generation": _attachment_generation,
+		}.duplicate(true)
 	if not is_inside_tree():
 		return {
 			"accepted": false,
