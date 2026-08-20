@@ -6,7 +6,7 @@ const ProfileScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_cloud_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 42
+const EXPECTED_ASSERTIONS := 45
 const SHADER_CODE := """shader_type spatial;
 uniform float cloud_base_radius_m = 100.0;
 uniform float cloud_top_radius_m = 200.0;
@@ -89,6 +89,7 @@ func _run() -> void:
 	_test_owned_drift_and_non_owned_state()
 	_test_real_resource_and_signal_transactions()
 	await _test_detach_reentry()
+	await _test_queued_adapter_rejects_atomically()
 	_test_reset_reports_and_structured_red()
 	await _test_expired_target_fails_closed()
 	if is_instance_valid(_adapter):
@@ -472,13 +473,54 @@ func _test_detach_reentry() -> void:
 		and bool(_adapter.get_renderer_snapshot().baseline_applied_while_detached),
 		"whole-component detach restores all six exact material baselines"
 	)
-	root.add_child(_adapter)
+	var detached_before := _adapter.get_state_snapshot()
+	var detached_events := _events.size()
+	var detached := _adapter.present_observation(4500.0, 16.0, 0.7, 0.6, 1)
 	_check(
-		_parameter_values(_material) == expected
+		not detached.accepted and detached.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_before
+		and _events.size() == detached_events
+		and _parameter_values(_material) == baseline,
+		"detached cloud observation rejects atomically without retaining deferred material intent"
+	)
+	root.add_child(_adapter)
+	var reentry_values := _parameter_values(_material)
+	var fresh := _adapter.present_observation(4500.0, 16.0, 0.7, 0.6, 1)
+	_check(
+		reentry_values == expected
+		and fresh.accepted
+		and _parameter_values(_material) == _adapter.get_renderer_snapshot().expected
 		and _adapter.get_generation() == int(state.generation)
-		and int(_adapter.get_state_snapshot().revision) == int(state.revision)
-		and _events.size() == events and bool(_adapter.audit().valid),
-		"re-entry reapplies retained generation without revision, signal, or identity drift"
+		and int(_adapter.get_state_snapshot().revision) == int(state.revision) + 1
+		and _events.size() == events + 1 and bool(_adapter.audit().valid),
+		"re-entry restores last live cloud values before a fresh observation commits"
+	)
+	await process_frame
+
+
+func _test_queued_adapter_rejects_atomically() -> void:
+	var fixture := _make_fixture()
+	var adapter := fixture.adapter as PlanetaryCloudPresentation
+	var material := fixture.material as ShaderMaterial
+	var events: Array[Dictionary] = []
+	_check(
+		adapter.configure(fixture.profile as PlanetaryAtmosphereProfile, material).accepted
+		and adapter.present_observation(4000.0, 15.0, 0.5, 0.5, 1).accepted,
+		"queued fixture has one live cloud presentation before deletion"
+	)
+	adapter.presentation_committed.connect(func(_reason: StringName, _snapshot: Dictionary) -> void:
+		events.append({})
+	)
+	adapter.queue_free()
+	var before := adapter.get_state_snapshot()
+	var values_before := _parameter_values(material)
+	var queued := adapter.present_observation(4500.0, 16.0, 0.7, 0.6, 1)
+	_check(
+		adapter.is_queued_for_deletion()
+		and not queued.accepted and queued.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == before and events.is_empty()
+		and _parameter_values(material) == values_before,
+		"queued cloud adapter rejects observation atomically before material or retained intent drift"
 	)
 	await process_frame
 
@@ -556,7 +598,6 @@ func _test_expired_target_fails_closed() -> void:
 	var material := fixture.material as ShaderMaterial
 	var shader := fixture.shader as Shader
 	var configured := adapter.configure(fixture.profile, material)
-	root.remove_child(adapter)
 	fixture.clear()
 	material = null
 	shader = null
