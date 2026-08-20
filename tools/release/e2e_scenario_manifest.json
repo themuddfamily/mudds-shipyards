@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "manifest_kind": "keths_end_to_end_scenario",
+  "source": {
+    "status": "pending",
+    "git_sha": null,
+    "git_dirty": null
+  },
+  "required_scenario_ids": [
+    "core_lifecycle_reentry"
+  ],
+  "scenarios": [
+    {
+      "id": "core_lifecycle_reentry",
+      "title": "Core lifecycle and whole-Main re-entry",
+      "scope": "packaged_core_loop",
+      "crafts": [
+        "Torrent",
+        "Arrow",
+        "Jovian",
+        "Zenith",
+        "Halyard"
+      ],
+      "repeat_policy": {
+        "fresh_process_passes": 3,
+        "same_world_repeats": 10,
+        "long_session_seconds": 1800
+      },
+      "steps": [
+        {"id": "boot", "kind": "cold_boot", "expected": "The packaged process reaches the title screen without debug shortcuts."},
+        {"id": "begin", "kind": "begin", "expected": "Begin enters the station with one stable player and world identity."},
+        {"id": "walk", "kind": "walk", "expected": "The player walks the embodied station route without clipping or phantom blockers."},
+        {"id": "board", "kind": "board", "expected": "The player boards the selected craft through its authored access route."},
+        {"id": "automatic_power", "kind": "automatic_propulsion", "expected": "The same-tick thrust demand powers the craft without a manual engine shortcut."},
+        {"id": "launch", "kind": "physical_launch", "expected": "The craft clears its lease-bound berth and launch corridor physically."},
+        {"id": "engage", "kind": "combat", "expected": "Targets and defender can be engaged through the shared combat authority."},
+        {"id": "crash", "kind": "destruction", "expected": "A deliberate destruction reaches the normal terminal damage path once."},
+        {"id": "recover", "kind": "recovery", "expected": "Recovery returns the player to a usable on-foot lifecycle without stranded authority."},
+        {"id": "land", "kind": "landing", "expected": "A surviving craft accepts a physical lease landing and dock state."},
+        {"id": "activity", "kind": "activity", "expected": "One selected activity can start, progress, and reset without an invented reward."},
+        {"id": "disembark", "kind": "disembark", "expected": "Automatic neutral shutdown settles before physical disembark completes."},
+        {"id": "save", "kind": "save", "expected": "Settings and session state save atomically with unrelated namespaces preserved."},
+        {"id": "restart", "kind": "restart", "expected": "A fresh process restores only validated persisted state."},
+        {"id": "pause", "kind": "pause_resume", "expected": "Pause and resume preserve the active lifecycle without advancing while paused."},
+        {"id": "settings", "kind": "settings", "expected": "Keyboard, mouse, and current gamepad lifecycle settings remain reachable and effective."},
+        {"id": "camera", "kind": "camera_modes", "expected": "Required cockpit and chase camera modes remain valid after re-entry."},
+        {"id": "return", "kind": "return", "expected": "The player returns to the same station lifecycle with no duplicate activity or ship identity."},
+        {"id": "teardown", "kind": "long_session_teardown", "expected": "Long-session detach and orderly teardown release transient resources exactly once."}
+      ],
+      "reentry": {
+        "boundary": "whole_main",
+        "identity_fields": ["scenario_id", "generation", "active_ship_id", "activity_id"],
+        "generation_field": "generation",
+        "preserved_fields": ["scenario_id", "active_ship_id", "activity_id", "activity_progress", "settings_profile", "save_namespace"],
+        "reset_fields": ["input_edges", "transient_pause_request", "camera_blend", "completion_signal"],
+        "resume_phase": "return",
+        "stale_generation_rejected": true,
+        "duplicate_completion_rejected": true
+      },
+      "evidence": {
+        "status": "pending",
+        "source_commit": null,
+        "package": "not_run",
+        "artifacts": [],
+        "runs": []
+      }
+    }
+  ]
+}
