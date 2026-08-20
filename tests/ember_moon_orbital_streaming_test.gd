@@ -4,7 +4,7 @@ const BOOTSTRAP_SCENE := preload(
 	"res://scenes/world/components/ember_moon_streaming_bootstrap.tscn"
 )
 const EMBER_SCENE := preload("res://scenes/world/planets/ember_moon.tscn")
-const EXPECTED_ASSERTIONS := 43
+const EXPECTED_ASSERTIONS := 45
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -42,6 +42,7 @@ func _run() -> void:
 	_test_bootstrap_contract_and_required_rebase(bootstrap)
 	await _test_exact_lifecycle_and_observations(bootstrap)
 	await _test_stale_completion_and_reentry()
+	await _test_detached_bootstrap_update_guard()
 	_test_audit_authority_and_mutation(bootstrap)
 	bootstrap.queue_free()
 	await process_frame
@@ -207,6 +208,41 @@ func _test_stale_completion_and_reentry() -> void:
 	_check(unload.accepted and unload.location_generation == 2, "pending generation can be retired before completion")
 	var stale := loader.complete(0)
 	_check(not stale.accepted and stale.reason == &"stale_generation" and bootstrap.get_loaded_instance() == null, "retired async completion is stale and cannot leak a scene")
+	bootstrap.queue_free()
+	await process_frame
+
+
+func _test_detached_bootstrap_update_guard() -> void:
+	var bootstrap := _bootstrap()
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var loader := ManualLoader.new()
+	bootstrap.set_scene_loader(Callable(loader, "request_scene"))
+	var body_coordinate := NearbySectorOrbitalRegistry.new().get_coordinate(
+		NearbySectorOrbitalRegistry.EMBER_BODY_CENTER_ID
+	)
+	var request := frame.request_rebase(bootstrap.position, 1)
+	bootstrap.position += request.request.world_translation_delta
+	frame.commit_rebase(request.request.request_id, 1)
+	root.remove_child(bootstrap)
+	await process_frame
+	var detached_before := bootstrap.get_snapshot()
+	var detached_update := bootstrap.update_absolute_focus(body_coordinate, 2)
+	_check(
+		not bootstrap.is_inside_tree()
+			and not detached_update.accepted
+			and detached_update.reason == &"bootstrap_detached"
+			and bootstrap.get_snapshot() == detached_before
+			and loader.requests.is_empty(),
+		"detached bootstrap rejects focus without retaining a deferred streaming request",
+	)
+	root.add_child(bootstrap)
+	await process_frame
+	var reentry_load := bootstrap.update_absolute_focus(body_coordinate, 2)
+	_check(
+		reentry_load.accepted and reentry_load.action == &"load"
+			and reentry_load.location_generation == 1 and loader.requests.size() == 1,
+		"reentry permits one fresh current focus request after detached rejection",
+	)
 	bootstrap.queue_free()
 	await process_frame
 

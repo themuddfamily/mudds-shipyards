@@ -109,6 +109,11 @@ func update_absolute_focus(
 	) -> Dictionary:
 	if _update_active:
 		return _update_result(false, &"update_in_progress")
+	# This standalone seam may be called without its production binding. Reject a
+	# stale host sample before it can retain a streaming request that would only
+	# become visible after this bootstrap re-enters the scene tree.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _update_result(false, &"bootstrap_detached")
 	_update_active = true
 	if not _configured or not is_instance_valid(_coordinator):
 		return _finish_update(false, &"bootstrap_not_configured")
