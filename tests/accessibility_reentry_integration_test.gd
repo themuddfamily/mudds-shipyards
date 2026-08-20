@@ -135,6 +135,7 @@ func _run() -> void:
 	await _test_reset_restores_defaults(game, hud, fleet, authored_lag)
 	await _test_queued_pause_focus_restore_is_inert()
 	await _test_mode_currentness()
+	await _test_engine_state_currentness()
 
 	await _clean_up(game)
 	_cleanup()
@@ -631,6 +632,61 @@ func _mode_snapshot(hud: GameHUD) -> Dictionary:
 		"telemetry_visible": telemetry.visible if telemetry != null else false,
 		"reticle_visible": reticle.visible if reticle != null else false,
 		"flight_cue": hud.get_flight_cue_report(),
+	}.duplicate(true)
+
+
+func _test_engine_state_currentness() -> void:
+	var engine_hud := GameHUD.new()
+	engine_hud.name = "EngineStateCurrentnessHud"
+	root.add_child(engine_hud)
+	await process_frame
+	engine_hud.set_engine_state("OFFLINE")
+	var parent := engine_hud.get_parent()
+	parent.remove_child(engine_hud)
+	var detached_before := _engine_state_snapshot(engine_hud)
+	engine_hud.set_engine_state("ONLINE")
+	_check(
+		not engine_hud.is_inside_tree()
+			and _engine_state_snapshot(engine_hud) == detached_before,
+		"a detached HUD rejects direct engine presentation without retained or readout mutation"
+	)
+
+	parent.add_child(engine_hud)
+	await process_frame
+	engine_hud.set_engine_state("ONLINE")
+	_check(
+		engine_hud.is_inside_tree()
+			and _engine_state_snapshot(engine_hud).get("state", &"") == "ONLINE"
+			and _engine_state_snapshot(engine_hud).get("text", "") == "ENGINE  //  ONLINE",
+		"a reentered HUD accepts a fresh direct engine presentation"
+	)
+
+	var queued_hud := GameHUD.new()
+	queued_hud.name = "QueuedEngineStateCurrentnessHud"
+	root.add_child(queued_hud)
+	await process_frame
+	queued_hud.set_engine_state("OFFLINE")
+	var queued_before := _engine_state_snapshot(queued_hud)
+	queued_hud.queue_free()
+	queued_hud.set_engine_state("ONLINE")
+	_check(
+		queued_hud.is_inside_tree()
+			and queued_hud.is_queued_for_deletion()
+			and _engine_state_snapshot(queued_hud) == queued_before,
+		"a queued HUD rejects direct engine presentation without retained or readout mutation"
+	)
+	await process_frame
+	_check(not is_instance_valid(queued_hud), "the queued HUD engine-state fixture frees normally")
+	engine_hud.queue_free()
+	await process_frame
+
+
+func _engine_state_snapshot(hud: GameHUD) -> Dictionary:
+	var engine_label := hud.get("_engine_label") as Label
+	return {
+		"state": hud.get("_state_engine"),
+		"text": engine_label.text if engine_label != null else "",
+		"modulate": engine_label.modulate if engine_label != null else Color.TRANSPARENT,
 	}.duplicate(true)
 
 

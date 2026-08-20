@@ -898,6 +898,8 @@ func get_flight_cue_report() -> Dictionary:
 
 
 func set_engine_state(state: String) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	var normalized := state.to_upper()
 	_state_engine = normalized
 	_engine_label.text = "ENGINE  //  " + normalized
