@@ -30,6 +30,26 @@ func _run() -> void:
 
 
 func _test_queued_loading_screen_public_mutators_are_inert() -> void:
+	var pre_tree := LoadingScreenType.new() as LoadingScreen
+	pre_tree.configure({
+		"colorblind_palette_id": &"tritanopia",
+		"ui_scale": 1.15,
+		"reduced_motion": true,
+	})
+	var pre_tree_report := pre_tree.get_report()
+	var pre_tree_palette := (pre_tree.get("_palette") as Dictionary).duplicate(true)
+	root.add_child(pre_tree)
+	await process_frame
+	_check(
+		is_equal_approx(float(pre_tree.get_report().ui_scale), 1.15)
+			and bool(pre_tree.get_report().reduced_motion)
+			and (pre_tree.get("_palette") as Dictionary) == pre_tree_palette
+			and pre_tree.get_report() == pre_tree_report,
+		"pre-tree loading-screen configuration remains available to startup construction"
+	)
+	pre_tree.queue_free()
+	await process_frame
+
 	var screen := LoadingScreenType.new() as LoadingScreen
 	root.add_child(screen)
 	await process_frame
@@ -70,10 +90,16 @@ func _test_queued_loading_screen_public_mutators_are_inert() -> void:
 	detached.set_stage("Live stage", 0.35, "Live detail")
 	var detached_backdrop_slot := detached.get_node_or_null("LoadingRoot/BackdropSlot") as Control
 	var detached_report_before := detached.get_report()
+	var detached_palette_before := (detached.get("_palette") as Dictionary).duplicate(true)
 	var detached_backdrop_count_before := (
 		detached_backdrop_slot.get_child_count() if detached_backdrop_slot != null else -1
 	)
 	root.remove_child(detached)
+	detached.configure({
+		"colorblind_palette_id": &"protanopia",
+		"ui_scale": 1.6,
+		"reduced_motion": true,
+	})
 	detached.set_stage("Stale stage", 1.0, "Stale detail")
 	detached.attach_backdrop()
 	detached.dismiss()
@@ -81,17 +107,19 @@ func _test_queued_loading_screen_public_mutators_are_inert() -> void:
 		not detached.is_inside_tree()
 			and not detached.is_queued_for_deletion()
 			and detached.get_report() == detached_report_before
+			and (detached.get("_palette") as Dictionary) == detached_palette_before
 			and (detached_backdrop_slot.get_child_count() if detached_backdrop_slot != null else -1) == detached_backdrop_count_before,
-		"a detached loading screen rejects stage, backdrop, and dismissal mutation atomically"
+		"a detached loading screen rejects configuration, stage, backdrop, and dismissal mutation atomically"
 	)
 	root.add_child(detached)
 	await process_frame
+	detached.configure({"colorblind_palette_id": &"protanopia", "ui_scale": 1.15})
 	detached.set_stage("Reentered stage", 0.6, "Current detail")
 	detached.attach_backdrop()
 	detached.dismiss()
 	var reentered_report := detached.get_report()
 	_check(
-		is_equal_approx(float(reentered_report.ui_scale), 1.3)
+		is_equal_approx(float(reentered_report.ui_scale), 1.15)
 		and not bool(reentered_report.reduced_motion)
 		and str(reentered_report.stage) == "Reentered stage"
 		and str(reentered_report.detail) == "Current detail"

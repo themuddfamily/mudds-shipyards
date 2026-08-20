@@ -49,6 +49,7 @@ var _dismissed := false
 var _backdrop: TextureRect
 var _backdrop_fade_remaining := 0.0
 var _dismiss_fade_remaining := 0.0
+var _has_entered_live_tree := false
 
 
 func _init() -> void:
@@ -57,6 +58,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	_has_entered_live_tree = true
 	_build()
 	_repaint()
 	var viewport := get_viewport()
@@ -69,7 +71,11 @@ func _ready() -> void:
 ## `RuntimeSettings.get_accessibility_descriptor()` hands the HUD, so the
 ## loading screen and the HUD can never disagree about what the player chose.
 func configure(descriptor: Dictionary) -> void:
-	if is_queued_for_deletion():
+	# Startup construction configures this screen before it enters the tree, but
+	# once it has been live its presentation state belongs only to its current
+	# attachment generation. A stale detached continuation must not alter what a
+	# later re-entry presents.
+	if is_queued_for_deletion() or (_has_entered_live_tree and not is_inside_tree()):
 		return
 	if descriptor.has("colorblind_palette_id"):
 		_palette = PaletteType.get_palette(
