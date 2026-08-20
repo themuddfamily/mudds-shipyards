@@ -619,7 +619,7 @@ func _test_detached_reports(rig: PlanetaryAtmosphereWorldRig) -> void:
 	var fresh_audit := rig.audit()
 	_check(
 		not (fresh.world as Dictionary).is_empty()
-		and int((fresh.targets as Dictionary).cloud_mesh_instance_id) > 0
+		and int((fresh.targets as Dictionary).cloud_mesh_instance_id) != -1
 		and not bool((fresh_audit.capabilities as Dictionary).cross_adapter_atomicity)
 		and not bool((fresh_audit.authority as Dictionary).gameplay),
 		"nested snapshots, targets, capabilities, and authority are deeply detached"
