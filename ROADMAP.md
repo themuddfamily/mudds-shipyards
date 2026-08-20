@@ -877,6 +877,8 @@ The matching **production streaming path** now exists in `scripts/world/world_st
 
   The Arrow lateral sensor arrays now likewise share one exact immutable SphereMesh across six retained childless curve-joint nodes, reducing whole-scene unique meshes by another five while preserving all six renderer submissions, transforms, materials, shadows, collision and semantic authority. The current census and fingerprints above include that trim.
 
+  The pilot fallback builder now retains 65 local generated mesh identities instead of 79 while preserving its 79 named visual nodes and submissions, but the documented resident and Cinder-loaded scenarios select `PilotSkinnedPresentation`; the direct `2f2419f` remeasurement therefore leaves their complete-scene counts and fingerprints unchanged.
+
   Subsequent audited identity/batch slices remove another 28 unique meshes
   without changing the triangle total: Arrow SensorLeadingEdge, dorsal conduit
   and panel-band families remove 11 private resources; the Aft VIP and Habitat

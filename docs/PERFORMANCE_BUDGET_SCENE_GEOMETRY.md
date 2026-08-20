@@ -216,6 +216,13 @@ material, transform, light, collision, and authority boundary while removing a
 further three unique mesh identities from each complete-scene roster; the
 streamed Cinder delta remains `+102`.
 
+The fallback pilot builder now reduces its local generated mesh identities from
+79 to 65 (`-14`) while retaining its 79 named nodes and structural submissions.
+The documented resident and Cinder-loaded production scenarios resolve the
+Player bucket through `PilotSkinnedPresentation`, not that fallback builder, so
+the direct `2f2419f` remeasurement leaves every complete-scene count and both
+measurement fingerprints unchanged.
+
 The Arrow follow-up keeps the six existing childless `CurveJoint` sphere nodes,
 their exact paths and transforms beneath `PortLateralArray` and
 `StarboardLateralArray`, six visible copies, six surface submissions, sensor
