@@ -417,7 +417,7 @@ func _run() -> void:
 			"whole-Main re-entry does not resurrect discarded transient art or audio"
 		)
 
-	var queued_health := opponent.get_health()
+	var queued_health: float = opponent.get_health()
 	var queued_sequence := authority.get_last_submitted_sequence(hero)
 	var queued_events := _resolved_events.size()
 	var queued_roster := resolver.get_registered_source_count()
