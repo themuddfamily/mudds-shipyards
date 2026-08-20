@@ -131,6 +131,39 @@ func _test_whole_main_reentry(
 		and health_after_initial_shot < replay_damageable.maximum_health,
 		"re-entry replay fixture captures one accepted damaging authority request"
 	)
+	var damageable_events: Array[StringName] = []
+	replay_damageable.damage_applied.connect(
+		func(_amount: float, _current: float, _maximum: float, _position: Vector3, _normal: Vector3, _context: Dictionary) -> void:
+			damageable_events.append(&"damage")
+	)
+	replay_damageable.reset.connect(func(_current: float, _maximum: float) -> void: damageable_events.append(&"reset"))
+	var replay_parent := replay_target.get_parent()
+	var detached_health := replay_damageable.get_health()
+	var detached_context := replay_damageable.get_last_hit_context()
+	if replay_parent != null:
+		replay_parent.remove_child(replay_target)
+	var detached_damage := replay_damageable.apply_damage(10.0)
+	replay_damageable.reset_health(140.0)
+	_check(
+		not replay_damageable.is_inside_tree()
+			and not bool(detached_damage.get("accepted", true))
+			and detached_damage.get("reason", &"") == &"damageable_unavailable"
+			and is_equal_approx(replay_damageable.get_health(), detached_health)
+			and replay_damageable.get_last_hit_context() == detached_context
+			and damageable_events.is_empty(),
+		"a detached Main-owned Damageable rejects direct health and reset mutation atomically"
+	)
+	if replay_parent != null:
+		replay_parent.add_child(replay_target)
+	await physics_frame
+	replay_damageable.reset_health(140.0)
+	var live_damage := replay_damageable.apply_damage(10.0)
+	_check(
+		replay_damageable.is_inside_tree()
+			and bool(live_damage.get("accepted", false))
+			and is_equal_approx(replay_damageable.get_health(), 130.0),
+		"a re-entered Main-owned Damageable accepts fresh reset and direct damage"
+	)
 
 	var hero_receipt_id := 91001
 	var opponent_receipt_id := 91002
@@ -403,6 +436,22 @@ func _test_whole_main_reentry(
 			and pulse.get_active_effect_count() == 6,
 			"re-entry cycle %d accepts live submissions from all six sources and presents each exactly once" % (cycle + 1)
 		)
+	var queued_health := replay_damageable.get_health()
+	var queued_context := replay_damageable.get_last_hit_context()
+	var queued_events := damageable_events.size()
+	replay_damageable.queue_free()
+	var queued_damage := replay_damageable.apply_damage(10.0)
+	replay_damageable.reset_health(180.0)
+	_check(
+		replay_damageable.is_inside_tree()
+			and replay_damageable.is_queued_for_deletion()
+			and not bool(queued_damage.get("accepted", true))
+			and queued_damage.get("reason", &"") == &"damageable_unavailable"
+			and is_equal_approx(replay_damageable.get_health(), queued_health)
+			and replay_damageable.get_last_hit_context() == queued_context
+			and damageable_events.size() == queued_events,
+		"a queued Main-owned Damageable rejects direct health and reset mutation atomically"
+	)
 
 
 func _test_queued_main_reentry_restore() -> void:

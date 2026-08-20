@@ -32,6 +32,7 @@ signal reset(current: float, maximum: float)
 
 var _health: float = 0.0
 var _initialized := false
+var _has_entered_live_tree := false
 var _destroyed := false
 var _last_hit_position := Vector3.INF
 var _last_hit_normal := Vector3.ZERO
@@ -39,6 +40,7 @@ var _last_source_context: Dictionary = {}
 
 
 func _ready() -> void:
+	_has_entered_live_tree = true
 	if not _initialized:
 		_initialize_health()
 
@@ -97,6 +99,15 @@ func apply_damage(
 	hit_normal: Vector3 = Vector3.ZERO,
 	source_context: Dictionary = {}
 	) -> Dictionary:
+	if not _can_mutate_runtime_health():
+		return {
+			"accepted": false,
+			"applied_damage": 0.0,
+			"health": _health,
+			"maximum_health": maximum_health,
+			"destroyed": _destroyed,
+			"reason": &"damageable_unavailable",
+		}
 	_ensure_initialized()
 	var result := {
 		"accepted": false,
@@ -149,6 +160,8 @@ func apply_damage(
 
 ## Re-arms pooled/despawned entities and emits a distinct lifecycle event.
 func reset_health(new_maximum_health: float = -1.0) -> void:
+	if not _can_mutate_runtime_health():
+		return
 	if is_finite(new_maximum_health) and new_maximum_health > 0.0:
 		maximum_health = new_maximum_health
 	maximum_health = _sanitize_maximum(maximum_health)
@@ -165,6 +178,12 @@ func reset_health(new_maximum_health: float = -1.0) -> void:
 func _ensure_initialized() -> void:
 	if not _initialized:
 		_initialize_health()
+
+
+func _can_mutate_runtime_health() -> bool:
+	return not _has_entered_live_tree or (
+		is_inside_tree() and not is_queued_for_deletion()
+	)
 
 
 func _sanitize_maximum(value: float) -> float:
