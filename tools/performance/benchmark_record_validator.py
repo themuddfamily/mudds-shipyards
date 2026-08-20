@@ -18,6 +18,13 @@ from typing import Any
 REPORT_KIND = "keths_performance_benchmark"
 SCHEMA_VERSION = 1
 SCENARIOS = {"station_embodied_route", "nearby_sector_ship_flight_route"}
+NATIVE_METRIC_FIELDS = {
+    "frame_time_ms": "milliseconds",
+    "gpu_frame_time_ms": "milliseconds",
+    "ram_bytes": "bytes",
+    "vram_bytes": "bytes",
+    "draw_calls": "count",
+}
 
 
 def _number(value: Any) -> bool:
@@ -36,6 +43,31 @@ def _summary_errors(label: str, summary: Any) -> list[str]:
     if not (0 <= summary["p50"] <= summary["p95"] <= summary["p99"] <= summary["max"]):
         return [f"{label} percentiles are not monotonic"]
     return []
+
+
+def _native_metric_errors(metrics: Any) -> list[str]:
+    """Validate evidence shape while allowing counters to remain unavailable."""
+    errors: list[str] = []
+    if not isinstance(metrics, dict):
+        return ["native_metrics must be an object"]
+    for name, unit in NATIVE_METRIC_FIELDS.items():
+        entry = metrics.get(name)
+        if not isinstance(entry, dict):
+            errors.append(f"native_metrics.{name} must be an object")
+            continue
+        available = entry.get("available")
+        value = entry.get("value")
+        if not isinstance(available, bool):
+            errors.append(f"native_metrics.{name}.available must be boolean")
+        if entry.get("unit") != unit:
+            errors.append(f"native_metrics.{name}.unit must be {unit}")
+        if available is True and (not _number(value) or value < 0):
+            errors.append(f"native_metrics.{name}.value must be non-negative when available")
+        elif available is not True and value is not None:
+            errors.append(f"native_metrics.{name}.value must be null when unavailable")
+        if not isinstance(entry.get("source"), str) or not entry["source"].strip():
+            errors.append(f"native_metrics.{name}.source is required")
+    return errors
 
 
 def validate_record(report: dict[str, Any], target: dict[str, Any] | None = None) -> list[str]:
@@ -61,6 +93,8 @@ def validate_record(report: dict[str, Any], target: dict[str, Any] | None = None
     configuration = report.get("configuration")
     if not isinstance(configuration, dict) or configuration.get("smoke_run") is not False:
         errors.append("configuration.smoke_run must be false")
+
+    errors.extend(_native_metric_errors(report.get("native_metrics")))
 
     unavailable = report.get("unavailable_metrics")
     for metric in ("gpu_frame_time_ms", "vram_bytes"):

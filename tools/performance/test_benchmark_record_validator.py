@@ -21,6 +21,10 @@ def record():
             "gpu_frame_time_ms": {"available": True, "value": 8.0},
             "vram_bytes": {"available": True, "value": 1024},
         },
+        "native_metrics": {
+            name: {"available": False, "value": None, "unit": unit, "source": "not captured by harness"}
+            for name, unit in validator.NATIVE_METRIC_FIELDS.items()
+        },
         "target_profile": {
             "budgets": {
                 "frame_time_ms": {"p95": 16.7, "p99": 33.3, "max": 100.0},
@@ -67,6 +71,17 @@ class BenchmarkRecordValidatorTests(unittest.TestCase):
         del value["target_profile"]["budgets"]
         self.assertIn("target budgets.frame_time_ms is required", validator.validate_record(value))
         self.assertIn("target budgets.peak_working_set_bytes must be positive", validator.validate_record(value))
+
+    def test_unavailable_native_fields_do_not_claim_measurements(self):
+        value = record()
+        value["native_metrics"]["vram_bytes"]["available"] = True
+        value["native_metrics"]["vram_bytes"]["value"] = None
+        self.assertIn("native_metrics.vram_bytes.value must be non-negative when available", validator.validate_record(value))
+
+    def test_native_field_shape_is_complete(self):
+        value = record()
+        del value["native_metrics"]["draw_calls"]
+        self.assertIn("native_metrics.draw_calls must be an object", validator.validate_record(value))
 
 
 if __name__ == "__main__":
