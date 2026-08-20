@@ -3263,6 +3263,8 @@ func get_zenith_evidence_report() -> Dictionary:
 
 
 func update_zenith_lod_for_distance(distance_metres: float) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	if _authored_presentation != null \
 		and _authored_presentation.has_method("update_lod_for_distance"):
 		_authored_presentation.call("update_lod_for_distance", distance_metres)

@@ -3634,6 +3634,11 @@ func _test_strict_berth_fit_capture_and_landing(zenith: ZenithInterceptor) -> vo
 func _test_detach_readd_and_resource_identities(zenith: ZenithInterceptor) -> void:
 	var baseline := zenith.get_zenith_runtime_identity_report().baseline as Dictionary
 	var visual := zenith.get_zenith_visual_root()
+	var presentation := zenith.get_zenith_authored_presentation()
+	var lod_events := PackedInt32Array()
+	presentation.connect(&"lod_changed", func(lod_index: int) -> void: lod_events.append(lod_index))
+	zenith.update_zenith_lod_for_distance(0.0)
+	var lod_events_before_detach := lod_events.size()
 	zenith.remove_child(visual)
 	var detached_visual_audit := zenith.get_zenith_audit_report()
 	_check(not bool(detached_visual_audit.valid) and (detached_visual_audit.error_codes as PackedStringArray).has("visual_root_identity_drift"), "detached visual root fails red with stable identity code")
@@ -3643,13 +3648,53 @@ func _test_detach_readd_and_resource_identities(zenith: ZenithInterceptor) -> vo
 
 	_test_root.remove_child(zenith)
 	await process_frame
+	zenith.update_zenith_lod_for_distance(1000.0)
+	_check(
+		not zenith.is_inside_tree()
+			and zenith.get_zenith_active_lod() == 0
+			and _all_visible(presentation.call("get_lod0_roots") as Array, true)
+			and _all_visible(presentation.call("get_lod1_roots") as Array, false)
+			and lod_events.size() == lod_events_before_detach,
+		"detached Zenith rejects public LOD mutation before retained visibility or signals change"
+	)
 	_test_root.add_child(zenith)
+	zenith.update_zenith_lod_for_distance(1000.0)
+	_check(
+		zenith.is_inside_tree()
+			and zenith.get_zenith_active_lod() == 1
+			and _all_visible(presentation.call("get_lod0_roots") as Array, false)
+			and _all_visible(presentation.call("get_lod1_roots") as Array, true)
+			and lod_events.size() == lod_events_before_detach + 1,
+		"reentered Zenith accepts a fresh public far-LOD update"
+	)
+	zenith.update_zenith_lod_for_distance(0.0)
 	await process_frame
 	await physics_frame
 	_check(bool(zenith.get_zenith_runtime_identity_report().stable), "whole-ship detach/reentry preserves runtime node/resource identities")
 	_check((zenith.get_zenith_runtime_identity_report().current as Dictionary) == baseline, "whole-ship reentry does not rebuild authored meshes or collision shapes")
 	_check(bool(zenith.get_zenith_audit_report().valid), "whole-ship reentry returns green without rerunning ready")
 	_check(zenith.is_boardable() and _all_plumes_visible(zenith, false), "reentered reset ship remains boardable and powered down")
+
+	var queued := ZENITH_SCENE.instantiate() as ZenithInterceptor
+	_test_root.add_child(queued)
+	await process_frame
+	var queued_presentation := queued.get_zenith_authored_presentation()
+	var queued_lod_events := PackedInt32Array()
+	queued_presentation.connect(&"lod_changed", func(lod_index: int) -> void: queued_lod_events.append(lod_index))
+	queued.update_zenith_lod_for_distance(0.0)
+	var queued_event_count := queued_lod_events.size()
+	queued.queue_free()
+	queued.update_zenith_lod_for_distance(1000.0)
+	_check(
+		queued.is_queued_for_deletion()
+			and queued.get_zenith_active_lod() == 0
+			and _all_visible(queued_presentation.call("get_lod0_roots") as Array, true)
+			and _all_visible(queued_presentation.call("get_lod1_roots") as Array, false)
+			and queued_lod_events.size() == queued_event_count,
+		"queued Zenith rejects public LOD mutation before retained visibility or signals change"
+	)
+	await process_frame
+	_check(not is_instance_valid(queued), "queued LOD fixture releases its Zenith cleanly")
 
 
 func _test_structured_red_mutations(zenith: ZenithInterceptor) -> void:
