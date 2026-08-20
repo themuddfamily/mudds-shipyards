@@ -105,7 +105,7 @@ func unregister_location(location_id: StringName) -> bool:
 
 ## Updates the retained tracking sample without evaluating transitions.
 func set_tracked_position(position: Vector3) -> bool:
-	if _evaluation_active or not _is_finite_vector(position):
+	if not _is_runtime_current() or _evaluation_active or not _is_finite_vector(position):
 		return false
 	_tracked_position = position
 	_has_tracking = true
@@ -115,7 +115,7 @@ func set_tracked_position(position: Vector3) -> bool:
 ## Marks tracking temporarily unavailable. Updates become no-ops and preserve
 ## both loaded and loading coordinator state until a new valid sample arrives.
 func clear_tracked_position() -> void:
-	if _evaluation_active:
+	if not _is_runtime_current() or _evaluation_active:
 		return
 	_has_tracking = false
 
@@ -123,6 +123,8 @@ func clear_tracked_position() -> void:
 ## Explicitly supplies a new tracking sample and evaluates once without
 ## advancing physics time.
 func update_position(position: Vector3) -> Dictionary:
+	if not _is_runtime_current():
+		return _update_result(false, &"policy_unavailable", [], 0)
 	if _evaluation_active:
 		return _update_result(false, &"evaluation_in_progress", [], 0)
 	if not set_tracked_position(position):
@@ -132,6 +134,8 @@ func update_position(position: Vector3) -> Dictionary:
 
 ## Evaluates the retained position using caller-owned physics time.
 func physics_tick(delta: float) -> Dictionary:
+	if not _is_runtime_current():
+		return _update_result(false, &"policy_unavailable", [], 0)
 	if _evaluation_active:
 		return _update_result(false, &"evaluation_in_progress", [], 0)
 	if not is_finite(delta) or delta < 0.0:
@@ -141,6 +145,8 @@ func physics_tick(delta: float) -> Dictionary:
 
 ## Evaluates the retained position without advancing physics time.
 func update_now() -> Dictionary:
+	if not _is_runtime_current():
+		return _update_result(false, &"policy_unavailable", [], 0)
 	if _evaluation_active:
 		return _update_result(false, &"evaluation_in_progress", [], 0)
 	return _evaluate(false, 0.0)
@@ -304,6 +310,14 @@ func _evaluate(advance_physics_time: bool, delta: float) -> Dictionary:
 	var result := _update_result(true, &"updated", transitions, candidates.size() - attempt_limit)
 	_evaluation_active = false
 	return result
+
+
+## Direct caller samples and evaluations can dispatch coordinator scene work,
+## publish transition signals, and advance retained policy state. Keep only
+## those runtime routes inert without restricting detached construction,
+## configuration, or location registration.
+func _is_runtime_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func _distance_for(registration: Dictionary) -> float:

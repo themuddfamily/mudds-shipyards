@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_signal_reentry_guard_and_time_overflow()
 	await _test_hysteresis_tracking_loss_and_failures()
 	await _test_external_retirement_and_detach_reentry()
+	await _test_direct_runtime_calls_require_live_policy()
 	await _test_detached_snapshot_and_authority_boundary()
 	_finish()
 
@@ -314,6 +315,83 @@ func _test_external_retirement_and_detach_reentry() -> void:
 			and coordinator.get_loaded_instance(definition.location_id) == replacement
 			and loader.requests.size() == requests_before_detach,
 		"whole detach/re-entry does not duplicate the location on the next explicit update"
+	)
+	await _free_fixture(fixture)
+
+
+func _test_direct_runtime_calls_require_live_policy() -> void:
+	var fixture := _fixture(1)
+	var coordinator := fixture.coordinator as WorldStreamingCoordinator
+	var policy := fixture.policy as WorldStreamingDistancePolicy
+	var loader := fixture.loader as ControlledLoader
+	var definition := _definition(&"policy_currentness", Vector3.ZERO)
+	policy.register_location(definition, 10.0, 20.0)
+	policy.set_tracked_position(Vector3.ZERO)
+	var transition_events := PackedStringArray()
+	policy.transition_attempted.connect(
+		func(location_id: StringName, action: StringName, _distance: float, _outcome: Dictionary) -> void:
+			transition_events.append("%s:%s" % [str(location_id), str(action)])
+	)
+
+	root.remove_child(policy)
+	await process_frame
+	var detached_policy_snapshot := policy.get_snapshot()
+	var detached_coordinator_snapshot := coordinator.audit()
+	var detached_set := policy.set_tracked_position(Vector3(99.0, 0.0, 0.0))
+	policy.clear_tracked_position()
+	var detached_update := policy.update_position(Vector3(99.0, 0.0, 0.0))
+	var detached_tick := policy.physics_tick(0.5)
+	var detached_now := policy.update_now()
+	_check(
+		not policy.is_inside_tree()
+			and not detached_set
+			and not bool(detached_update.get("accepted", true))
+			and detached_update.get("reason") == &"policy_unavailable"
+			and not bool(detached_tick.get("accepted", true))
+			and detached_tick.get("reason") == &"policy_unavailable"
+			and not bool(detached_now.get("accepted", true))
+			and detached_now.get("reason") == &"policy_unavailable"
+			and policy.get_snapshot() == detached_policy_snapshot
+			and coordinator.audit() == detached_coordinator_snapshot
+			and loader.requests.is_empty()
+			and transition_events.is_empty(),
+		"detached policy rejects direct sampling and evaluation before retained state, coordinator work, or transition publication mutate"
+	)
+
+	root.add_child(policy)
+	await process_frame
+	var reentered := policy.update_now()
+	_check(
+		bool(reentered.get("accepted", false))
+			and int(reentered.get("attempted_count", -1)) == 1
+			and coordinator.get_loaded_ids() == PackedStringArray([definition.location_id])
+			and loader.requests.size() == 1
+			and transition_events == PackedStringArray(["policy_currentness:load"]),
+		"reattached policy accepts one fresh evaluation and publishes its live coordinator transition"
+	)
+
+	var queued_policy_snapshot := policy.get_snapshot()
+	var queued_coordinator_snapshot := coordinator.audit()
+	policy.queue_free()
+	var queued_set := policy.set_tracked_position(Vector3(199.0, 0.0, 0.0))
+	policy.clear_tracked_position()
+	var queued_update := policy.update_position(Vector3(199.0, 0.0, 0.0))
+	var queued_tick := policy.physics_tick(0.5)
+	var queued_now := policy.update_now()
+	_check(
+		policy.is_queued_for_deletion()
+			and not queued_set
+			and not bool(queued_update.get("accepted", true))
+			and queued_update.get("reason") == &"policy_unavailable"
+			and not bool(queued_tick.get("accepted", true))
+			and queued_tick.get("reason") == &"policy_unavailable"
+			and not bool(queued_now.get("accepted", true))
+			and queued_now.get("reason") == &"policy_unavailable"
+			and policy.get_snapshot() == queued_policy_snapshot
+			and coordinator.audit() == queued_coordinator_snapshot
+			and loader.requests.size() == 1
+			and transition_events == PackedStringArray(["policy_currentness:load"]),
+		"queued policy rejects direct sampling and evaluation without changing policy or coordinator state"
 	)
 	await _free_fixture(fixture)
 
