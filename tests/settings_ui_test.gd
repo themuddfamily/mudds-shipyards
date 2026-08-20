@@ -169,6 +169,7 @@ func _run() -> void:
 	open_button.pressed.emit()
 	_check(settings_page.visible and not main_page.visible, "Settings switches to a dedicated second page")
 	_check(settings_page.size.x <= 1280.0 and settings_page.size.y <= 720.0, "settings panel fits a 1280 by 720 window")
+	await _test_ultrawide_settings_layout(hud, settings_page)
 	await _test_input_binding_editor(hud, settings_owner)
 	await _test_deferred_settings_scroll_currentness()
 
@@ -212,6 +213,38 @@ func _run() -> void:
 	await process_frame
 	_cleanup_settings_files()
 	_finish()
+
+
+## The settings page is a real player-facing pause surface, not just a 16:9
+## fixture. Keep its fixed authored width centred and its long binding list
+## vertically reachable when a wide monitor supplies substantially more
+## horizontal room. Rendered ultrawide appearance still requires human review.
+func _test_ultrawide_settings_layout(hud: GameHUD, settings_page: Control) -> void:
+	var scroll := settings_page.find_child("SettingsScroll", true, false) as ScrollContainer
+	var binding_buttons := hud.get("_binding_buttons") as Dictionary
+	var viewport_cases := [Vector2(2560.0, 1080.0), Vector2(3440.0, 1440.0)]
+	var dirty: Array[String] = []
+	for viewport: Vector2 in viewport_cases:
+		hud.layout_for_viewport(viewport)
+		await process_frame
+		await process_frame
+		var viewport_rect := Rect2(Vector2.ZERO, viewport)
+		var page_rect := settings_page.get_global_rect()
+		if not viewport_rect.encloses(page_rect):
+			dirty.append("%.0fx%.0f page=%s" % [viewport.x, viewport.y, str(page_rect)])
+		if scroll == null or scroll.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+			dirty.append("%.0fx%.0f horizontal scroll enabled" % [viewport.x, viewport.y])
+		var final_row := binding_buttons.get(&"toggle_ship_camera_view") as Control
+		if final_row != null:
+			final_row.grab_focus()
+			await process_frame
+			if not final_row.has_focus() or scroll.scroll_vertical <= 0 or not page_rect.grow(0.5).encloses(final_row.get_global_rect()):
+				dirty.append("%.0fx%.0f final binding is not focus-reachable" % [viewport.x, viewport.y])
+	_check(
+		dirty.is_empty(),
+		"settings page remains enclosed, horizontal-scroll-free, and controller-reachable at 21:9/32:9 (%d cases)%s"
+		% [viewport_cases.size(), " -- " + "; ".join(dirty) if not dirty.is_empty() else ""],
+	)
 
 
 func _test_input_binding_editor(hud: GameHUD, settings_owner: RuntimeSettings) -> void:
