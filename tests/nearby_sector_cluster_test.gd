@@ -60,6 +60,11 @@ const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 166
 const EXPECTED_LOCAL_TRIANGLES := 117457
 const EXPECTED_LOCAL_STATIC_BODIES := 38
 const EXPECTED_LOCAL_COLLISION_SHAPES := 38
+const EXPECTED_LAMP_LENS_COPY_COUNT := 22
+const EXPECTED_LAMP_LENS_RADIUS := 0.45
+const EXPECTED_LAMP_LENS_HEIGHT := 0.9
+const EXPECTED_LAMP_LENS_RADIAL_SEGMENTS := 12
+const EXPECTED_LAMP_LENS_RINGS := 6
 ## The furthest the whole cluster may sit from the station and still be somewhere
 ## a pilot chooses to go rather than commits an evening to.
 const MAXIMUM_TRAVEL_DISTANCE := 760.0
@@ -98,6 +103,7 @@ func _run() -> void:
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
 	_test_processing_spine_rib_batch(cluster)
+	_test_lamp_lens_mesh_sharing(cluster)
 	_test_placement_envelope(cluster)
 	_test_placement_predicate_rejects_the_lane(cluster)
 	_test_winding(cluster)
@@ -219,6 +225,8 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		and multimesh.visible_instance_count == -1,
 		"the batch draws all four authored 3D rib copies"
 	)
+
+
 	_check(
 		multimesh.buffer == _encode_multimesh_transforms(EXPECTED_SPINE_RIB_TRANSFORMS),
 		"the 48-float renderer buffer preserves the exact four original local transforms"
@@ -296,6 +304,51 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
 		and int(geometry["collision_shapes"]) == EXPECTED_LOCAL_COLLISION_SHAPES,
 		"the bounded trim leaves the cluster's 38 bodies and 38 collision shapes unchanged"
+	)
+
+
+func _test_lamp_lens_mesh_sharing(cluster: NearbySectorCluster) -> void:
+	var audit := cluster.get_lamp_lens_allocation_audit()
+	var first_lens := cluster.get_node_or_null(
+		^"RouteBeacons/RouteBeaconAlpha/HomeLampLens"
+	) as MeshInstance3D
+	var second_lens := cluster.get_node_or_null(
+		^"RouteBeacons/RouteBeaconAlpha/OutboundLampLens"
+	) as MeshInstance3D
+	var shared_mesh := first_lens.mesh as SphereMesh if first_lens != null else null
+	_check(
+		bool(audit.valid)
+		and int(audit.copy_count) == EXPECTED_LAMP_LENS_COPY_COUNT
+		and int(audit.mesh_resource_allocations) == 1
+		and first_lens != null and second_lens != null
+		and second_lens.mesh == shared_mesh
+		and first_lens.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and second_lens.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and is_equal_approx(shared_mesh.radius, EXPECTED_LAMP_LENS_RADIUS)
+		and is_equal_approx(shared_mesh.height, EXPECTED_LAMP_LENS_HEIGHT)
+		and shared_mesh.radial_segments == EXPECTED_LAMP_LENS_RADIAL_SEGMENTS
+		and shared_mesh.rings == EXPECTED_LAMP_LENS_RINGS,
+		"all 22 named presentation-only lamp lenses share one exact immutable sphere mesh"
+	)
+	if shared_mesh == null or second_lens == null:
+		return
+	var original_mesh := second_lens.mesh
+	second_lens.mesh = shared_mesh.duplicate() as SphereMesh
+	var identity_drift := cluster.get_lamp_lens_allocation_audit()
+	_check(
+		not bool(identity_drift.valid)
+		and (identity_drift.errors as PackedStringArray).has(
+			"lamp_lens_retained_private_mesh"
+		)
+		and (identity_drift.errors as PackedStringArray).has(
+			"lamp_lens_mesh_identity_drift"
+		),
+		"a private lamp-lens mesh copy is structured red without changing any path or light"
+	)
+	second_lens.mesh = original_mesh
+	_check(
+		bool(cluster.get_lamp_lens_allocation_audit().valid),
+		"restoring the shared lamp-lens identity returns the allocation audit green"
 	)
 
 

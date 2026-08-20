@@ -139,6 +139,11 @@ const SPINE_CENTER_Z := -6.0
 const PROCESSING_SPINE_RIB_SIZE := Vector3(13.0, 9.5, 1.6)
 const PROCESSING_SPINE_RIB_Z_POSITIONS: Array[float] = [-24.0, -14.0, 0.0, 12.0]
 const PROCESSING_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
+const LAMP_LENS_RADIUS := 0.45
+const LAMP_LENS_HEIGHT := 0.9
+const LAMP_LENS_RADIAL_SEGMENTS := 12
+const LAMP_LENS_RINGS := 6
+const LAMP_LENS_COPY_COUNT := 22
 
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 44,
@@ -178,6 +183,8 @@ const MOONLET_CRATER_COUNT := 6
 
 var _materials: Dictionary = {}
 var _lens_materials: Dictionary = {}
+var _lamp_lens_mesh: SphereMesh
+var _lamp_lenses: Array[MeshInstance3D] = []
 var _box_cache: Dictionary = {}
 var _rock_mesh_cache: Dictionary = {}
 var _cylinder_cache: Dictionary = {}
@@ -382,6 +389,53 @@ func get_boulder_offsets() -> Array[Vector3]:
 ## record of what it built.
 func get_cluster_audit_report() -> Dictionary:
 	return _audit_report.duplicate(true)
+
+
+## One immutable primitive serves every visual-only lamp lens. The individual
+## MeshInstance3D nodes retain their authored paths, transforms, materials and
+## light siblings; only indistinguishable resource allocation is shared.
+func get_lamp_lens_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	for lens in _lamp_lenses:
+		if not is_instance_valid(lens):
+			errors.append("lamp_lens_node_lost")
+			continue
+		if lens.mesh == null:
+			errors.append("lamp_lens_missing_mesh")
+			continue
+		mesh_ids[lens.mesh.get_instance_id()] = true
+		if lens.mesh != _lamp_lens_mesh:
+			errors.append("lamp_lens_retained_private_mesh")
+		if lens.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			errors.append("lamp_lens_shadow_contract_drift")
+		if not lens.find_children("*", "CollisionObject3D", true, false).is_empty():
+			errors.append("lamp_lens_collision_authority_added")
+	if _lamp_lenses.size() != LAMP_LENS_COPY_COUNT:
+		errors.append("lamp_lens_copy_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("lamp_lens_mesh_identity_drift")
+	if _lamp_lens_mesh == null \
+			or not is_equal_approx(_lamp_lens_mesh.radius, LAMP_LENS_RADIUS) \
+			or not is_equal_approx(_lamp_lens_mesh.height, LAMP_LENS_HEIGHT) \
+			or _lamp_lens_mesh.radial_segments != LAMP_LENS_RADIAL_SEGMENTS \
+			or _lamp_lens_mesh.rings != LAMP_LENS_RINGS:
+		errors.append("lamp_lens_mesh_recipe_drift")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"copy_count": _lamp_lenses.size(),
+		"mesh_resource_allocations": mesh_ids.size(),
+		"expected_copy_count": LAMP_LENS_COPY_COUNT,
+		"expected_mesh_resource_allocations": 1,
+		"mesh_recipe": {
+			"radius": LAMP_LENS_RADIUS,
+			"height": LAMP_LENS_HEIGHT,
+			"radial_segments": LAMP_LENS_RADIAL_SEGMENTS,
+			"rings": LAMP_LENS_RINGS,
+		}.duplicate(true),
+	}.duplicate(true)
 
 
 func _compose_audit_report() -> Dictionary:
@@ -1219,6 +1273,16 @@ func _lens_material(color: Color) -> StandardMaterial3D:
 	return _lens_materials[key] as StandardMaterial3D
 
 
+func _shared_lamp_lens_mesh() -> SphereMesh:
+	if not is_instance_valid(_lamp_lens_mesh):
+		_lamp_lens_mesh = SphereMesh.new()
+		_lamp_lens_mesh.radius = LAMP_LENS_RADIUS
+		_lamp_lens_mesh.height = LAMP_LENS_HEIGHT
+		_lamp_lens_mesh.radial_segments = LAMP_LENS_RADIAL_SEGMENTS
+		_lamp_lens_mesh.rings = LAMP_LENS_RINGS
+	return _lamp_lens_mesh
+
+
 func _box(
 		parent: Node3D,
 		node_name: String,
@@ -1349,15 +1413,11 @@ func _lamp(
 	var lens := MeshInstance3D.new()
 	lens.name = node_name + "Lens"
 	lens.position = lamp_position
-	var lens_mesh := SphereMesh.new()
-	lens_mesh.radius = 0.45
-	lens_mesh.height = 0.9
-	lens_mesh.radial_segments = 12
-	lens_mesh.rings = 6
-	lens.mesh = lens_mesh
+	lens.mesh = _shared_lamp_lens_mesh()
 	lens.material_override = _lens_material(color)
 	lens.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(lens)
+	_lamp_lenses.append(lens)
 
 	var light := OmniLight3D.new()
 	light.name = node_name
