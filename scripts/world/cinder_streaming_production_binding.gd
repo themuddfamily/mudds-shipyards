@@ -284,7 +284,7 @@ func audit() -> Dictionary:
 
 
 func _activate_scene_binding() -> void:
-	if _activated or not is_inside_tree():
+	if _activated or is_queued_for_deletion() or not is_inside_tree():
 		return
 	_bootstrap = get_node_or_null(bootstrap_path) as CinderStreamingBootstrap
 	if not is_instance_valid(_bootstrap):
@@ -310,7 +310,7 @@ func _drive_physics_tick(
 	caller_sample: Variant = null,
 	caller_supplied: bool = false
 	) -> Dictionary:
-	if not _activated or not is_inside_tree():
+	if not _activated or is_queued_for_deletion() or not is_inside_tree():
 		return {"accepted": false, "reason": &"binding_unavailable"}
 	if _tick_active:
 		_reentrant_rejection_count += 1

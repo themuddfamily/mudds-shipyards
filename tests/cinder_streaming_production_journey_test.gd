@@ -95,6 +95,7 @@ func _run() -> void:
 	await _test_composition_startup_and_player_tracking(game, binding, bootstrap, player)
 	await _test_ship_outbound_missing_actor_and_reentry(game, binding, bootstrap, player, ship)
 	await _cleanup(game)
+	await _test_queued_binding_boundaries()
 	_finish()
 
 
@@ -584,6 +585,92 @@ func _ship_sample(ship: HeroShip) -> Dictionary:
 		"actor_kind": &"ship",
 		"actor_instance_id": ship.get_instance_id(),
 	}
+
+
+func _test_queued_binding_boundaries() -> void:
+	var activation_game := MAIN_SCENE.instantiate() as GameFlow
+	var activation_store := Store.new(
+		"memory://cinder-queued-activation-settings.json", MemoryFilesystem.new()
+	) as UserDataStore
+	_check(
+		activation_game.configure_runtime_settings_persistence(
+			activation_store, "memory://cinder-queued-activation-legacy.cfg"
+		),
+		"queued activation fixture injects isolated settings before Main startup"
+	)
+	root.add_child(activation_game)
+	var activation_binding := activation_game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	if activation_binding != null:
+		activation_binding.queue_free()
+		activation_binding.call("_activate_scene_binding")
+	var activation_snapshot := activation_binding.get_snapshot() if activation_binding != null else {}
+	_check(
+		activation_binding != null
+		and activation_binding.is_queued_for_deletion()
+		and not bool(activation_snapshot.get("activated", true))
+		and int(activation_snapshot.get("bootstrap_instance_id", -1)) == 0
+		and not bool(activation_snapshot.get("provider_bound", true))
+		and int(activation_snapshot.get("physics_tick_count", -1)) == 0,
+		"queued deferred binding activation remains inert before bootstrap/provider ownership"
+	)
+	activation_game.queue_free()
+	await process_frame
+	await process_frame
+	_check(
+		not is_instance_valid(activation_game),
+		"queued activation fixture frees before any deferred binding activation can run"
+	)
+
+	var tick_game := MAIN_SCENE.instantiate() as GameFlow
+	var tick_store := Store.new(
+		"memory://cinder-queued-tick-settings.json", MemoryFilesystem.new()
+	) as UserDataStore
+	_check(
+		tick_game.configure_runtime_settings_persistence(
+			tick_store, "memory://cinder-queued-tick-legacy.cfg"
+		),
+		"queued tick fixture injects isolated settings before Main startup"
+	)
+	root.add_child(tick_game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var tick_binding := tick_game.get_node_or_null(
+		^"CinderStreamingProductionBinding"
+	) as CinderStreamingProductionBinding
+	var tick_player := tick_game.get_node_or_null(^"Player") as PlayerController
+	var before_tick := tick_binding.get_snapshot() if tick_binding != null else {}
+	var queued_sample := {
+		"available": true,
+		"position": tick_player.global_position if tick_player != null else Vector3.ZERO,
+		"actor_kind": &"player",
+		"actor_instance_id": tick_player.get_instance_id() if tick_player != null else 0,
+	}
+	if tick_binding != null:
+		tick_binding.queue_free()
+	var queued_tick := (
+		tick_binding.physics_tick_from_caller_sample(
+			0.25, queued_sample
+		)
+		if tick_binding != null else {}
+	)
+	_check(
+		tick_binding != null
+		and tick_binding.is_queued_for_deletion()
+		and not bool(queued_tick.get("accepted", true))
+		and queued_tick.get("reason", &"") == &"binding_unavailable"
+		and tick_binding.get_snapshot() == before_tick,
+		"queued direct caller tick rejects before streaming counters, policy, or tracking mutate"
+	)
+	tick_game.queue_free()
+	await process_frame
+	await process_frame
+	_check(
+		not is_instance_valid(tick_game),
+		"queued tick fixture frees without a late streaming update"
+	)
 
 
 func _cleanup(game: GameFlow) -> void:
