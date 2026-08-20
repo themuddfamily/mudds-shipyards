@@ -347,6 +347,29 @@ func _test_animated_equipment(module: JovianFreightBerth) -> void:
 	var hook_local := after.hook_local_position as Vector3
 	var hook_lowest_y := (after.trolley_local_position as Vector3).y + hook_local.y - 0.66
 	_check(hook_lowest_y >= 10.75 and hook_lowest_y <= 11.25, "animated hoist respects its published visual clearance limits")
+	var parent := module.get_parent()
+	parent.remove_child(module)
+	var detached_before := module.get_equipment_state()
+	module.advance_equipment_simulation(2.0)
+	var detached_after := module.get_equipment_state()
+	_check(
+		is_equal_approx(float(detached_after.elapsed), float(detached_before.elapsed))
+		and (detached_after.trolley_local_position as Vector3).is_equal_approx(
+			detached_before.trolley_local_position as Vector3
+		)
+		and (detached_after.hook_local_position as Vector3).is_equal_approx(
+			detached_before.hook_local_position as Vector3
+		),
+		"a detached freight berth rejects queued crane advancement without mutating its retained pose"
+	)
+	parent.add_child(module)
+	await process_frame
+	var reattached_before := module.get_equipment_state()
+	module.advance_equipment_simulation(2.0)
+	_check(
+		float(module.get_equipment_state().elapsed) > float(reattached_before.elapsed),
+		"the same freight berth accepts a fresh crane advance after re-entry"
+	)
 	module.set_equipment_animation_enabled(true)
 	_check(module.is_equipment_animation_enabled(), "equipment can resume for live presentation")
 

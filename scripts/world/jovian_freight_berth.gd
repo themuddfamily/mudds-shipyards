@@ -446,7 +446,7 @@ func is_equipment_animation_enabled() -> bool:
 
 ## Deterministic hook for tests, replays, and future multiplayer presentation.
 func advance_equipment_simulation(delta: float) -> void:
-	if not is_finite(delta) or delta <= 0.0:
+	if not is_inside_tree() or not is_finite(delta) or delta <= 0.0:
 		return
 	_equipment_elapsed += delta
 	_update_equipment_transforms()
