@@ -417,6 +417,10 @@ func disconnect_peer(source_peer_id: int) -> Dictionary:
 			"lifecycle": disconnected,
 		}))
 	_migration_attached = false
+	# A true disconnect has no pending rebind receipt. Retire this bounded
+	# adapter ledger so the next connection cannot consume stale transport
+	# state; the transport owns actual socket teardown.
+	_reset_migration_ledger()
 	_phase = &"disconnected"
 	_record_event(&"disconnected", {"peer_id": _peer_id})
 	return _remember(_result(true, &"disconnected", {
@@ -470,10 +474,21 @@ func get_last_result() -> Dictionary:
 func _rollback_join() -> void:
 	if _peer_id > 0 and not _lifecycle.get_peer(_peer_id).is_empty():
 		_lifecycle.disconnect_peer(_authority_peer_id, _peer_id, _peer_generation)
+	_reset_migration_ledger()
 	_migration_attached = false
 	_phase = &"empty"
 	_peer_id = 0
 	_peer_generation = 0
+
+
+func _reset_migration_ledger() -> void:
+	_migration = Migration.new(
+		_authority_peer_id,
+		_protocol_version,
+		_package_generation,
+		_session_generation,
+		_migration_generation
+	)
 
 
 func _seat_generation_for(seat_id: StringName) -> int:

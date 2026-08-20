@@ -151,8 +151,9 @@ func _test_rotation_rebind_and_disconnect() -> void:
 		and (after.lifecycle.peers as Array).is_empty()
 		and (after.lifecycle.peer_interest as Dictionary).is_empty()
 		and (after.lifecycle.seats.assignments as Array).is_empty()
-		and int(after.lifecycle.ships.ships[0].owner_peer_id) == 0,
-		"disconnect removes peer, interest, seat, and ship ownership state"
+		and int(after.lifecycle.ships.ships[0].owner_peer_id) == 0
+		and (after.migration.peers as Array).is_empty(),
+		"disconnect removes peer, interest, seat, ship, and migration ownership state"
 	)
 	var events: Array = after.events
 	_check(
