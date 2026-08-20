@@ -1003,7 +1003,8 @@ atmosphere, and no authored atmospheric production world consumes them yet.
 `aurora_temperate_world` is now a separate, explicitly non-production
 atmospheric witness: matching 120 km world/terrain/atmosphere/landing resources
 join through both composition validators, a body-centred scene provides an
-inset silhouette and bounded +Y landing patch/collision markers, and its
+inset silhouette, bounded +Y landing patch/collision markers, and a detached
+non-traversable pad-to-staging route/landmark audit, and its
 standalone composition is the sole `WorldEnvironment` owner. It has no
 streaming, Player, camera, gameplay, terrain-generation or Main/GameFlow
 authority, so it does not yet make Aurora visitable.

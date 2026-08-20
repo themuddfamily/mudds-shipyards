@@ -9,6 +9,21 @@ It owns no streaming, player, camera, gameplay, landing decision, terrain or
 collision generation, origin shifting, save, network, or production binding.
 It does not make Aurora visitable.
 
+## Detached surface-route and landmark audit
+
+The existing landing declaration supplies exactly one `NEW` / modern,
+non-traversable `aurora_pad_to_staging` polyline: the authored `aurora_pad`
+at `(0, 0, 0)`, then `aurora_egress` at `(18, 0, 0)`, then `aurora_staging` at
+`(42, 0, 0)`, all in region-local metres. The scene audit resolves those points
+from the landing resource and requires the three existing marker nodes to match.
+It publishes this only as detached content data; `traversable` and
+`route_authority` are explicitly false.
+
+This is neither a navigation graph nor a clearance/traversal claim. The bounded
+96 m patch remains the only collision promise. No Player, NavigationRegion,
+landing decision, streaming, production binding, Main/GameFlow ownership, or
+origin/rebase application is introduced.
+
 ## Standalone renderer witness
 
 `tests/capture_aurora_temperate_visuals.gd` is an evidence-only native
