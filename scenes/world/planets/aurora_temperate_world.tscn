@@ -1,0 +1,65 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/aurora_temperate_authored_scene.gd" id="1_scene"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn" id="2_composition"]
+
+[sub_resource type="StandardMaterial3D" id="BodyMaterial"]
+shading_mode = 0
+albedo_color = Color(0.14, 0.25, 0.32, 1)
+[sub_resource type="SphereMesh" id="BodyMesh"]
+radius = 119999.0
+height = 239998.0
+radial_segments = 64
+rings = 32
+material = SubResource("BodyMaterial")
+[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
+shading_mode = 0
+albedo_color = Color(0.24, 0.33, 0.35, 1)
+[sub_resource type="CylinderMesh" id="FloorMesh"]
+top_radius = 96.0
+bottom_radius = 96.0
+height = 2.0
+radial_segments = 48
+material = SubResource("FloorMaterial")
+[sub_resource type="StandardMaterial3D" id="PadMaterial"]
+shading_mode = 0
+albedo_color = Color(0.42, 0.66, 0.69, 1)
+[sub_resource type="BoxMesh" id="PadMesh"]
+size = Vector3(28, 0.04, 32)
+material = SubResource("PadMaterial")
+[sub_resource type="BoxShape3D" id="WalkableShape"]
+size = Vector3(96, 0.5, 96)
+
+[node name="AuroraTemperateWorld" type="Node3D"]
+script = ExtResource("1_scene")
+[node name="AuroraAtmosphereComposition" parent="." instance=ExtResource("2_composition")]
+[node name="BodyVisual" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("BodyMesh")
+[node name="LandingRegion" type="Node3D" parent="."]
+position = Vector3(0, 120000, 0)
+[node name="LandingFloor" type="MeshInstance3D" parent="LandingRegion"]
+position = Vector3(0, -1, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("FloorMesh")
+[node name="PadVisual" type="MeshInstance3D" parent="LandingRegion"]
+position = Vector3(0, 0.02, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PadMesh")
+[node name="WalkablePatch" type="StaticBody3D" parent="LandingRegion"]
+position = Vector3(0, -0.25, 0)
+collision_layer = 1
+collision_mask = 0
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LandingRegion/WalkablePatch"]
+shape = SubResource("WalkableShape")
+[node name="Markers" type="Node3D" parent="LandingRegion"]
+[node name="AuroraPad" type="Marker3D" parent="LandingRegion/Markers"]
+[node name="ApproachEntry" type="Marker3D" parent="LandingRegion/Markers"]
+position = Vector3(0, 60, 300)
+[node name="AuroraEgress" type="Marker3D" parent="LandingRegion/Markers"]
+position = Vector3(18, 0, 0)
+[node name="AuroraStaging" type="Marker3D" parent="LandingRegion/Markers"]
+position = Vector3(42, 0, 0)
