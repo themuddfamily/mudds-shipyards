@@ -505,12 +505,57 @@ func _test_reversible_lifecycle(module: FleetDockComb) -> void:
 	var restored_hit := await _ray_local(module, Vector3(0, 2, 4), Vector3(0, -2, 4))
 	_check(not restored_hit.is_empty(), "re-enabled lifecycle restores physical trunk collision")
 
+	var live_snapshot := _lifecycle_snapshot(module)
 	_test_root.remove_child(module)
-	await process_frame
+	module.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"detached direct disable leaves retained enabled, generated visibility, and surface collision state unchanged"
+	)
 	_test_root.add_child(module)
 	await process_frame
 	await physics_frame
 	_check(module.get_lifecycle_contract().surface_instance_ids == initial_ids and bool(module.get_audit_report().valid), "detach and re-add preserves identities and a valid lifecycle")
+	module.set_module_enabled(false)
+	_check(
+		not module.is_module_enabled()
+		and bool(module.get_lifecycle_contract().visible_matches_enabled)
+		and bool(module.get_lifecycle_contract().collision_matches_enabled),
+		"re-added comb accepts a fresh live disable"
+	)
+	module.set_module_enabled(true)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"fresh live re-enable restores retained enabled, generated visibility, and surface collision state"
+	)
+	module.queue_free()
+	module.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"queued direct disable leaves retained enabled, generated visibility, and surface collision state unchanged"
+	)
+
+
+func _lifecycle_snapshot(module: FleetDockComb) -> Dictionary:
+	var body_states: Array[Dictionary] = []
+	for raw_body in StationModuleContract.collect_static_bodies(module):
+		var body := raw_body as StaticBody3D
+		body_states.append({
+			"path": module.get_path_to(body),
+			"visible": body.visible,
+			"collision_layer": body.collision_layer,
+			"collision_mask": body.collision_mask,
+		})
+	body_states.sort_custom(
+		func(first: Dictionary, second: Dictionary) -> bool:
+			return str(first.path) < str(second.path)
+	)
+	var generated := module.get_node_or_null(^"GeneratedComb") as Node3D
+	return {
+		"enabled": module.is_module_enabled(),
+		"generated_visible": generated.visible if generated != null else false,
+		"body_states": body_states,
+	}.duplicate(true)
 
 
 func _test_cleanup(module: FleetDockComb) -> void:

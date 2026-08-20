@@ -536,6 +536,8 @@ func get_render_batch_contract() -> Dictionary:
 
 
 func set_module_enabled(enabled: bool) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_enabled = enabled
 	_apply_enabled_state()
 
