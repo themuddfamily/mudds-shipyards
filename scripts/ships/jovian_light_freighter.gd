@@ -60,6 +60,7 @@ const PASSENGER_SEAT_COUNT := 6
 const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
 const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
 const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
+const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
 
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
@@ -180,6 +181,7 @@ var _cargo_frame_joint_mesh: SphereMesh
 var _passenger_seat_base_mesh: ArrayMesh
 var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
+var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _elapsed_jovian := 0.0
 
 
@@ -412,6 +414,7 @@ func get_jovian_audit_report() -> Dictionary:
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
 	var passenger_seat_allocation := get_passenger_seat_mesh_allocation_audit()
+	var passenger_cabin_light_strip_allocation := get_passenger_cabin_light_strip_allocation_audit()
 	var definition := get_ship_definition()
 	if definition == null or not definition.is_definition_valid():
 		errors.append("valid provisional ShipDefinition is missing")
@@ -445,6 +448,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("cargo frame joint allocation contract drifted")
 	if not bool(passenger_seat_allocation.get("valid", false)):
 		errors.append("passenger seat mesh allocation contract drifted")
+	if not bool(passenger_cabin_light_strip_allocation.get("valid", false)):
+		errors.append("passenger cabin light-strip allocation contract drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -461,6 +466,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"shoulder_rail_joint_allocation": shoulder_rail_allocation,
 		"cargo_frame_joint_allocation": cargo_frame_allocation,
 		"passenger_seat_mesh_allocation": passenger_seat_allocation,
+		"passenger_cabin_light_strip_allocation": passenger_cabin_light_strip_allocation,
 	}
 
 
@@ -547,6 +553,75 @@ func get_passenger_seat_mesh_allocation_audit() -> Dictionary:
 		"current": {"nodes": node_ids.size(), "copies": PASSENGER_SEAT_COUNT * 3, "submissions": surface_count, "mesh_resource_allocations": mesh_ids.size()},
 		"legacy": {"nodes": PASSENGER_SEAT_COUNT * 3, "copies": PASSENGER_SEAT_COUNT * 3, "submissions": PASSENGER_SEAT_COUNT * 3, "mesh_resource_allocations": PASSENGER_SEAT_COUNT * 3},
 		"delta": {"mesh_resource_allocations": mesh_ids.size() - PASSENGER_SEAT_COUNT * 3},
+		"batched": false,
+		"collision_authority": false,
+	}.duplicate(true)
+
+
+## The port and starboard cabin light strips retain their independent authored
+## nodes and transforms, but one exact rounded ArrayMesh supplies their shared
+## visual-only recipe. No collision, material override, batching, or authority
+## is introduced by this allocation reduction.
+func get_passenger_cabin_light_strip_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids: Dictionary = {}
+	var node_ids: Dictionary = {}
+	var surface_count := 0
+	var expected_positions := {
+		&"Port": Vector3(-3.23, 3.46, -5.25),
+		&"Starboard": Vector3(3.23, 3.46, -5.25),
+	}
+	if not is_instance_valid(_passenger_cabin):
+		errors.append("passenger_cabin_light_strip_cabin_unavailable")
+	else:
+		for side_name: StringName in expected_positions:
+			var expected_position := expected_positions[side_name] as Vector3
+			var strip: MeshInstance3D
+			for candidate in _passenger_cabin.get_children():
+				if (
+					candidate is MeshInstance3D
+					and (candidate as MeshInstance3D).position.is_equal_approx(expected_position)
+				):
+					if is_instance_valid(strip):
+						errors.append("passenger_cabin_light_strip_duplicate:%s" % side_name)
+					else:
+						strip = candidate as MeshInstance3D
+			if not is_instance_valid(strip):
+				errors.append("passenger_cabin_light_strip_missing:%s" % side_name)
+				continue
+			node_ids[strip.get_instance_id()] = true
+			var mesh := strip.mesh as ArrayMesh
+			if mesh == null:
+				errors.append("passenger_cabin_light_strip_mesh_type_drift:%s" % side_name)
+				continue
+			mesh_ids[mesh.get_instance_id()] = true
+			surface_count += mesh.get_surface_count()
+			if (
+				mesh != _passenger_cabin_light_strip_mesh
+				or mesh.surface_get_material(0) != _jovian_materials.get("interior_light")
+				or mesh.get_surface_count() != 1
+				or strip.get_child_count() != 0
+				or not strip.position.is_equal_approx(expected_position)
+				or not strip.rotation.is_equal_approx(Vector3.ZERO)
+				or not strip.scale.is_equal_approx(Vector3.ONE)
+				or not strip.visible
+				or strip.material_override != null
+				or strip.material_overlay != null
+			):
+				errors.append("passenger_cabin_light_strip_recipe_or_authority_drift:%s" % side_name)
+	if node_ids.size() != 2:
+		errors.append("passenger_cabin_light_strip_node_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("passenger_cabin_light_strip_mesh_resource_count_drift")
+	if surface_count != 2:
+		errors.append("passenger_cabin_light_strip_submission_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_passenger_cabin_light_strips",
+		"current": {"nodes": node_ids.size(), "copies": 2, "submissions": surface_count, "mesh_resource_allocations": mesh_ids.size()},
+		"legacy": {"nodes": 2, "copies": 2, "submissions": 2, "mesh_resource_allocations": 2},
+		"delta": {"mesh_resource_allocations": mesh_ids.size() - 2},
 		"batched": false,
 		"collision_authority": false,
 	}.duplicate(true)
@@ -1813,11 +1888,19 @@ func _build_passenger_cabin() -> void:
 	_passenger_seat_base_mesh = _rounded_box_mesh(PASSENGER_SEAT_BASE_SIZE, _jovian_materials.cabin_cloth)
 	_passenger_seat_back_mesh = _rounded_box_mesh(PASSENGER_SEAT_BACK_SIZE, _jovian_materials.cabin_cloth)
 	_passenger_seat_harness_mesh = _rounded_box_mesh(PASSENGER_SEAT_HARNESS_SIZE, _jovian_materials.amber)
+	_passenger_cabin_light_strip_mesh = _rounded_box_mesh(
+		PASSENGER_CABIN_LIGHT_STRIP_SIZE, _jovian_materials.interior_light
+	)
 	_box(_passenger_cabin, "PassengerDeck", Vector3(0.0, 0.5, -5.25), Vector3(6.9, 0.18, 4.65), _jovian_materials.deck)
 	_box(_passenger_cabin, "PassengerRoof", Vector3(0.0, 3.82, -5.25), Vector3(6.9, 0.16, 4.65), _jovian_materials.hull_cool)
 	for side in [-1.0, 1.0]:
 		_box(_passenger_cabin, "CabinSidewall", Vector3(side * 3.36, 2.15, -5.25), Vector3(0.18, 3.35, 4.6), _jovian_materials.structure)
-		_box(_passenger_cabin, "CabinLightStrip", Vector3(side * 3.23, 3.46, -5.25), Vector3(0.04, 0.12, 3.55), _jovian_materials.interior_light)
+		_rounded_box_from_mesh(
+			_passenger_cabin,
+			"CabinLightStrip",
+			Vector3(side * 3.23, 3.46, -5.25),
+			_passenger_cabin_light_strip_mesh
+		)
 		# Three side-facing seats per side keep a clear central passage to the
 		# inherited cockpit. Their anchors are explicit future passenger contracts.
 		for seat_index in 3:

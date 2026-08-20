@@ -32,6 +32,7 @@ func _run() -> void:
 	_test_shoulder_rail_joint_allocation(jovian)
 	_test_cargo_frame_joint_allocation(jovian)
 	_test_passenger_seat_mesh_allocation(jovian)
+	_test_passenger_cabin_light_strip_allocation(jovian)
 	await _test_scale_handling_and_presentation(jovian)
 	_test_connected_interior_contract(jovian)
 	_test_collision_access_and_cameras(jovian)
@@ -90,6 +91,8 @@ func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:
 		and not bool(audit.get("collision_authority", true)),
 		"six passenger seats retain 18 rounded visual copies/submissions while exact mesh allocations fall 18 -> 3"
 	)
+
+
 	var cabin := jovian.get_node(^"WalkableInterior/PassengerCabin") as Node3D
 	var port_base := cabin.get_node(^"PortPassengerSeat00/SeatBase") as MeshInstance3D
 	var starboard_base := cabin.get_node(^"StarboardPassengerSeat02/SeatBase") as MeshInstance3D
@@ -118,6 +121,67 @@ func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:
 		bool(jovian.get_passenger_seat_mesh_allocation_audit().get("valid", false)),
 		"restoring the shared passenger-seat mesh returns the Jovian audit green"
 	)
+
+
+func _test_passenger_cabin_light_strip_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_passenger_cabin_light_strip_allocation_audit()
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	_check(
+		bool(audit.get("valid", false))
+		and int(current.get("nodes", 0)) == 2
+		and int(current.get("copies", 0)) == 2
+		and int(current.get("submissions", 0)) == 2
+		and int(current.get("mesh_resource_allocations", 0)) == 1
+		and int(legacy.get("mesh_resource_allocations", 0)) == 2
+		and int(delta.get("mesh_resource_allocations", 0)) == -1
+		and not bool(audit.get("batched", true))
+		and not bool(audit.get("collision_authority", true)),
+		"two passenger-cabin light strips retain their nodes/copies/submissions while one rounded mesh replaces two"
+	)
+	var cabin := jovian.get_node(^"WalkableInterior/PassengerCabin") as Node3D
+	var port_strip := _passenger_cabin_light_strip_at(cabin, -3.23)
+	var starboard_strip := _passenger_cabin_light_strip_at(cabin, 3.23)
+	_check(
+		port_strip != null and starboard_strip != null,
+		"the frozen port/starboard direct-child transforms resolve both cabin light strips"
+	)
+	if port_strip == null or starboard_strip == null:
+		return
+	_check(
+		port_strip.mesh == starboard_strip.mesh
+		and port_strip.mesh is ArrayMesh
+		and (port_strip.mesh as ArrayMesh).surface_get_material(0) != null
+		and port_strip.position.is_equal_approx(Vector3(-3.23, 3.46, -5.25))
+		and starboard_strip.position.is_equal_approx(Vector3(3.23, 3.46, -5.25))
+		and port_strip.get_child_count() == 0 and starboard_strip.get_child_count() == 0,
+		"cabin light-strip sharing preserves the inherited rounded recipe and both authored paths/transforms"
+	)
+	var retained := starboard_strip.mesh
+	starboard_strip.mesh = (retained as ArrayMesh).duplicate() as ArrayMesh
+	_check(
+		not bool(jovian.get_passenger_cabin_light_strip_allocation_audit().get("valid", true))
+		and _has_error(jovian.get_passenger_cabin_light_strip_allocation_audit(), "passenger_cabin_light_strip_recipe_or_authority_drift:Starboard"),
+		"RED: a private passenger-cabin light-strip mesh fails the exact shared-resource audit"
+	)
+	starboard_strip.mesh = retained
+	_check(
+		bool(jovian.get_passenger_cabin_light_strip_allocation_audit().get("valid", false)),
+		"restoring the shared passenger-cabin light-strip mesh returns the Jovian audit green"
+	)
+
+
+func _passenger_cabin_light_strip_at(cabin: Node3D, x: float) -> MeshInstance3D:
+	for child in cabin.get_children():
+		if (
+			child is MeshInstance3D
+			and is_equal_approx((child as MeshInstance3D).position.x, x)
+			and is_equal_approx((child as MeshInstance3D).position.y, 3.46)
+			and is_equal_approx((child as MeshInstance3D).position.z, -5.25)
+		):
+			return child as MeshInstance3D
+	return null
 
 
 func _test_dorsal_cargo_rib_joint_allocation(jovian: JovianLightFreighter) -> void:
