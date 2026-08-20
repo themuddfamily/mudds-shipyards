@@ -110,6 +110,11 @@ func get_emitter_id() -> StringName:
 ## detaches their streams, while retaining the small deterministic templates for
 ## a cheap restart. The Dummy driver never receives a playback request.
 func set_ambience_enabled(enabled: bool) -> void:
+	# Detached/pre-tree callers intentionally retain their desired configuration
+	# for the next entry, but a queued owner must not publish a new desired state
+	# or touch either voice while disposal is pending.
+	if is_queued_for_deletion():
+		return
 	ambience_enabled = enabled
 	if not is_inside_tree():
 		return
@@ -129,6 +134,7 @@ func play_cue(cue_id: StringName = CUE_SERVO, intensity: float = 1.0) -> bool:
 		or not ambience_enabled
 		or not _audio_available
 		or not is_inside_tree()
+		or is_queued_for_deletion()
 		or not is_instance_valid(_cue_player)
 		or not is_finite(intensity)
 		or intensity <= 0.0

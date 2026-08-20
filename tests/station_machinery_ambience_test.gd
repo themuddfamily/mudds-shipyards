@@ -41,6 +41,7 @@ func _run() -> void:
 	await _test_built_snapshot_spoof_and_rebuild()
 	await _test_disabled_detach_and_reentry()
 	await _test_determinism_and_lifecycle(ambience)
+	await _test_queued_public_mutators_are_inert()
 	await _test_queued_reentry_restore_is_inert()
 	await _test_cleanup(ambience)
 
@@ -270,6 +271,71 @@ func _test_queued_reentry_restore_is_inert() -> void:
 	)
 	await process_frame
 	_check(not is_instance_valid(ambience), "the queued re-entry machinery fixture frees normally")
+
+
+func _test_queued_public_mutators_are_inert() -> void:
+	var ambience := _make_ambience("QueuedPublicMutators", 73429)
+	if ambience == null:
+		return
+	ambience.set_script(RejectingStationAmbience)
+	await process_frame
+	# Make the cue path reach its player preparation in headless runs. The
+	# rejecting hook leaves a bad queued guard observable through cue volume.
+	ambience._audio_available = true
+	var loop := ambience.get_node("MachineryLoop") as AudioStreamPlayer3D
+	var cue := ambience.get_node("CueVoice") as AudioStreamPlayer3D
+	var enabled_before := ambience.is_ambience_enabled()
+	var synthesis_before := ambience.get_synthesis_report()
+	var spatial_before := ambience.get_spatial_contract()
+	var players_before := {
+		"loop_stream": loop.stream,
+		"loop_playing": loop.playing,
+		"loop_volume_db": loop.volume_db,
+		"cue_stream": cue.stream,
+		"cue_playing": cue.playing,
+		"cue_volume_db": cue.volume_db,
+	}
+	ambience.queue_free()
+	var cue_accepted := ambience.play_cue(&"servo", 1.25)
+	ambience.set_ambience_enabled(not enabled_before)
+	var players_after := {
+		"loop_stream": loop.stream,
+		"loop_playing": loop.playing,
+		"loop_volume_db": loop.volume_db,
+		"cue_stream": cue.stream,
+		"cue_playing": cue.playing,
+		"cue_volume_db": cue.volume_db,
+	}
+	_check(
+		ambience.is_queued_for_deletion()
+		and not cue_accepted
+		and ambience.is_ambience_enabled() == enabled_before
+		and ambience.get_synthesis_report() == synthesis_before
+		and ambience.get_spatial_contract() == spatial_before
+		and players_after == players_before,
+		"queued public ambience toggles and cues leave desired state, resources, and voices unchanged"
+	)
+	await process_frame
+	_check(not is_instance_valid(ambience), "the queued public-mutator machinery fixture frees normally")
+
+	var reentered := _make_ambience("QueuedPublicReentry", 81643)
+	if reentered == null:
+		return
+	await process_frame
+	var parent := reentered.get_parent()
+	parent.remove_child(reentered)
+	# Detached desired-state configuration remains deliberate and is applied by
+	# the same object after it has re-entered its live owner.
+	reentered.set_ambience_enabled(false)
+	parent.add_child(reentered)
+	await process_frame
+	await process_frame
+	_check(
+		not reentered.is_ambience_enabled() and _players_are_stopped_and_detached(reentered),
+		"a fresh re-entry still applies intentionally retained detached ambience configuration"
+	)
+	reentered.queue_free()
+	await process_frame
 
 
 func _test_live_configuration_audit() -> void:
