@@ -262,7 +262,11 @@ func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
 		return false
 	if _state == STATE_RUNNING:
 		return false
-	if not is_instance_valid(target) or not target.is_inside_tree():
+	if (
+		not is_instance_valid(target)
+		or target.is_queued_for_deletion()
+		or not target.is_inside_tree()
+	):
 		return false
 	_reset_run_state()
 	_scenario = scenario_id

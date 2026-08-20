@@ -71,6 +71,7 @@ func _run() -> void:
 	await _test_courier_escapes_when_ignored()
 	await _test_player_flight_withdraws_the_scenario()
 	await _test_player_loss_aborts_the_scenario()
+	await _test_queued_target_is_rejected_before_scenario_mutation()
 	await _test_paired_wing_cleared_when_broken()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
@@ -195,6 +196,49 @@ func _test_player_loss_aborts_the_scenario() -> void:
 		"the loss of the player's craft aborts the scenario (%s)" % director.get_outcome()
 	)
 	await _assert_fully_terminated(fixture, "player destroyed")
+	await _free_fixture(fixture)
+
+
+func _test_queued_target_is_rejected_before_scenario_mutation() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var authority: LiveCombatAuthority = fixture.authority
+	var target: EncounterTarget = fixture.target
+	var courier: CourierRunnerOpponent = fixture.courier
+	var scenario_began: Array[StringName] = []
+	director.scenario_began.connect(func(scenario_id: StringName) -> void:
+		scenario_began.append(scenario_id)
+	)
+	var completed_before := director.get_completed_run_count()
+	target.queue_free()
+	var accepted := director.begin_scenario(
+		EncounterScenarioDirector.SCENARIO_COURIER_INTERCEPT, target
+	)
+	_check(
+		not accepted
+		and target.is_inside_tree()
+		and target.is_queued_for_deletion()
+		and director.get_state() == EncounterScenarioDirector.STATE_IDLE
+		and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_NONE
+		and director.get_outcome() == EncounterScenarioDirector.OUTCOME_PENDING
+		and director.get_completed_run_count() == completed_before
+		and director.get_roster().is_empty()
+		and not courier.is_active()
+		and not courier.is_combat_source_registered()
+		and authority.get_resolver().get_registered_source_count() == 0
+		and scenario_began.is_empty(),
+		"a queued target rejects scenario admission before state, roster, source, or signal mutation"
+	)
+	await process_frame
+	_check(
+		not is_instance_valid(target)
+		and director.get_state() == EncounterScenarioDirector.STATE_IDLE
+		and director.get_roster().is_empty()
+		and not courier.is_active()
+		and authority.get_resolver().get_registered_source_count() == 0
+		and scenario_began.is_empty(),
+		"queued target disposal cannot leave a latent scenario after rejected admission"
+	)
 	await _free_fixture(fixture)
 
 
