@@ -31,6 +31,8 @@ func _ready() -> void:
 ## station-interaction selection and could therefore silently suppress a
 ## spacecraft boarding prompt for anyone standing between the two.
 func set_available(value: bool) -> void:
+	if not _is_current():
+		return
 	if _available == value:
 		return
 	_available = value
@@ -49,6 +51,10 @@ func _apply_availability() -> void:
 			(child as CollisionShape3D).set_deferred(&"disabled", not _available)
 
 
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
+
+
 ## The vehicle this step belongs to, or null when it is not a live drivable one.
 func get_vehicle() -> Node3D:
 	if vehicle_path.is_empty():
@@ -60,7 +66,7 @@ func get_vehicle() -> Node3D:
 
 
 func get_interaction_prompt() -> String:
-	if not _available or not is_inside_tree():
+	if not _available or not _is_current():
 		return ""
 	var vehicle := get_vehicle()
 	if vehicle == null:
@@ -69,7 +75,7 @@ func get_interaction_prompt() -> String:
 
 
 func can_interact(_actor: Node = null) -> bool:
-	if not _available or not is_inside_tree():
+	if not _available or not _is_current():
 		return false
 	var vehicle := get_vehicle()
 	return vehicle != null and bool(vehicle.call(&"is_boardable"))
@@ -78,7 +84,7 @@ func can_interact(_actor: Node = null) -> bool:
 ## Returns true only when the request was actually accepted, so the coordinator's
 ## confirmation cue never fires for a seat that is occupied or recovering.
 func interact(actor: Node = null) -> bool:
-	if not _available or not is_inside_tree():
+	if not _available or not _is_current():
 		return false
 	var vehicle := get_vehicle()
 	if vehicle == null:

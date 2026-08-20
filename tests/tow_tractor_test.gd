@@ -51,6 +51,7 @@ func _run() -> void:
 	await _check_slope_and_kerb()
 	await _check_seat_contract()
 	await _check_recovery_net()
+	await _check_driver_station_currentness()
 
 	_release_inputs()
 	_root.queue_free()
@@ -752,6 +753,81 @@ func _check_recovery_net() -> void:
 	)
 	_tractor.recover_to_home_transform()
 	await _settle(20)
+
+
+# ------------------------------------------------ station currentness contract
+
+
+func _check_driver_station_currentness() -> void:
+	var station := _tractor.get_driver_station()
+	var station_shape := station.get_node_or_null(^"DriverStationShape") as CollisionShape3D
+	var actor := Node.new()
+	actor.name = "CurrentnessPilot"
+	_root.add_child(actor)
+	var requested: Array[Node] = []
+	_tractor.board_requested.connect(func(requesting_actor: Node) -> void:
+		requested.append(requesting_actor)
+	)
+	var availability_before := station.is_available()
+	var collision_layer_before := station.collision_layer
+	var monitorable_before := station.monitorable
+	var shape_disabled_before := station_shape.disabled if station_shape != null else false
+
+	_tractor.remove_child(station)
+	_check(not station.is_inside_tree(), "a removed driver station is no longer a live interaction surface")
+	station.set_available(not availability_before)
+	_check(
+		station.is_available() == availability_before
+		and station.collision_layer == collision_layer_before
+		and station.monitorable == monitorable_before
+		and (station_shape == null or station_shape.disabled == shape_disabled_before),
+		"a detached driver station rejects availability changes without retaining stale physics state"
+	)
+	_check(
+		station.get_interaction_prompt().is_empty()
+		and not station.can_interact(actor)
+		and not station.interact(actor)
+		and requested.is_empty(),
+		"a detached driver station rejects every public prompt and boarding path atomically"
+	)
+
+	_tractor.add_child(station)
+	await process_frame
+	station.set_available(not availability_before)
+	_check(
+		station.is_available() == (not availability_before)
+		and station.collision_layer == (PhysicsLayers.INTERACTABLE_AREA_LAYER if not availability_before else 0)
+		and station.monitorable == (not availability_before),
+		"a reattached driver station accepts a fresh availability update"
+	)
+	station.set_available(true)
+	_check(
+		station.interact(actor) and requested.size() == 1 and requested[0] == actor,
+		"a reattached available driver station accepts a fresh boarding request"
+	)
+
+	availability_before = station.is_available()
+	collision_layer_before = station.collision_layer
+	monitorable_before = station.monitorable
+	shape_disabled_before = station_shape.disabled if station_shape != null else false
+	station.queue_free()
+	_check(
+		station.is_inside_tree() and station.is_queued_for_deletion(),
+		"a queued driver station remains in-tree during its deletion window"
+	)
+	station.set_available(false)
+	_check(
+		station.is_available() == availability_before
+		and station.collision_layer == collision_layer_before
+		and station.monitorable == monitorable_before
+		and (station_shape == null or station_shape.disabled == shape_disabled_before)
+		and station.get_interaction_prompt().is_empty()
+		and not station.can_interact(actor)
+		and not station.interact(actor)
+		and requested.size() == 1,
+		"a queued driver station rejects availability, prompt, and boarding paths without mutation or a request"
+	)
+	actor.queue_free()
 
 
 # ----------------------------------------------------------------- scaffolding
