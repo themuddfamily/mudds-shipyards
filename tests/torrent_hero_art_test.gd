@@ -185,7 +185,26 @@ func _test_propulsion_and_hardware(torrent: HeroShip) -> void:
 	var docking_receiver := modern_systems.get_node_or_null("VentralDockingReceiver") as Node3D if modern_systems != null else null
 	_check(docking_receiver != null and docking_receiver.get_parent() == modern_systems, "ventral docking receiver lives under ModernSystems")
 	_check(docking_receiver != null and docking_receiver.get_node_or_null("DockingCaptureRing") is MeshInstance3D, "ventral docking receiver has a physical capture ring")
-	_check(docking_receiver != null and docking_receiver.find_children("CaptureJaw*", "MeshInstance3D", false, false).size() == 4, "docking receiver exposes four capture jaws")
+	var jaws := docking_receiver.find_children("CaptureJaw*", "MeshInstance3D", false, false) if docking_receiver != null else []
+	var shared_jaw_mesh: Mesh = null
+	var jaw_contract_matches := jaws.size() == HeroShip.TORRENT_CAPTURE_JAW_COPY_COUNT
+	for jaw_index in HeroShip.TORRENT_CAPTURE_JAW_COPY_COUNT:
+		var jaw := docking_receiver.get_node_or_null("CaptureJaw%02d" % jaw_index) as MeshInstance3D if docking_receiver != null else null
+		var jaw_angle := TAU * float(jaw_index) / 4.0
+		jaw_contract_matches = jaw_contract_matches and (
+			jaw != null
+			and jaw.position.is_equal_approx(Vector3(cos(jaw_angle) * 0.46, -0.08, sin(jaw_angle) * 0.46))
+			and jaw.rotation.is_equal_approx(Vector3(0.0, -jaw_angle, 0.0))
+			and jaw.material_override == null
+			and jaw.mesh != null
+			and jaw.mesh.get_surface_count() == 1
+			and jaw.mesh.surface_get_material(0) == torrent.get_variant_materials().get("gold")
+		)
+		if shared_jaw_mesh == null and jaw != null:
+			shared_jaw_mesh = jaw.mesh
+		elif jaw != null:
+			jaw_contract_matches = jaw_contract_matches and jaw.mesh == shared_jaw_mesh
+	_check(jaw_contract_matches, "four capture jaws retain their authored paths/transforms and share one gold rounded-box mesh")
 	_check(modern_systems != null and modern_systems.find_children("*RCSCluster", "Node3D", true, false).size() == 4, "four presentation-only RCS clusters are visible")
 	_check(modern_systems != null and modern_systems.find_children("*DorsalVentBank", "Node3D", true, false).size() == 2, "paired louvred vent banks service the aft fuselage")
 
@@ -269,9 +288,9 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 	_check(
 		int(component.get("drawn_copies", -1)) == 247
 		and int(component.get("geometry_submissions", -1)) == 237
-		and int(component.get("unique_mesh_resources", -1)) == 208
+		and int(component.get("unique_mesh_resources", -1)) == 205
 		and int(component.get("unique_material_resources", -1)) == 36,
-		"drawn copies/materials remain 247/36 while submissions fall 247 -> 237 and unique meshes 219 -> 208"
+		"drawn copies/materials remain 247/36 while submissions remain 237 and unique meshes fall 219 -> 205"
 	)
 	_check(
 		int(fallback.get("descendant_nodes", -1)) == 107
@@ -290,8 +309,11 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		and bool(report.get("bounds_match_authored", false))
 		and bool(report.get("mesh_material_matches_authored", false))
 		and bool(report.get("batch_contract_matches", false))
+		and int(report.get("capture_jaw_copies", -1)) == 4
+		and int(report.get("capture_jaw_shared_mesh_resources", -1)) == 1
+		and bool(report.get("capture_jaw_contract_matches", false))
 		and bool(report.get("exact_counts", false)),
-		"two 72-float renderer buffers, explicit culling unions and one shared mesh match the authored louvre roster"
+		"louvre batches and four authored capture jaws preserve their visual contracts while sharing only immutable family meshes"
 	)
 
 	var detached := report.get("authored_bank_transforms", []) as Array
@@ -323,9 +345,22 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		"RED: mutating one bank's explicit culling union is rejected by the Torrent audit"
 	)
 	multi.custom_aabb = original_bounds
+	var docking_receiver := modern.get_node_or_null("VentralDockingReceiver") as Node3D
+	var capture_jaw := docking_receiver.get_node_or_null("CaptureJaw00") as MeshInstance3D if docking_receiver != null else null
+	var original_jaw_mesh := capture_jaw.mesh if capture_jaw != null else null
+	if capture_jaw != null:
+		capture_jaw.mesh = SphereMesh.new()
+	_check(
+		(torrent.get_torrent_reconstruction_audit_report().errors as PackedStringArray).has(
+			"Torrent capture-jaw mesh-sharing contract drifted"
+		),
+		"RED: replacing one capture jaw mesh is rejected by the Torrent allocation audit"
+	)
+	if capture_jaw != null:
+		capture_jaw.mesh = original_jaw_mesh
 	_check(
 		bool(torrent.get_torrent_reconstruction_audit_report().valid),
-		"restoring the exact batch payload restores a clean Torrent reconstruction audit"
+		"restoring the exact batch payload and capture-jaw mesh restores a clean Torrent reconstruction audit"
 	)
 
 

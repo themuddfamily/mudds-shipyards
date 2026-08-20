@@ -170,22 +170,22 @@ const TORRENT_RECONSTRUCTION_STATUS: StringName = &"partial"
 const TORRENT_2009_CONTINUITY: StringName = &"unproved"
 const TORRENT_VENT_LOUVERS_PER_BANK := 6
 const TORRENT_VENT_LOUVER_COPY_COUNT := 12
-# Component-local render census after replacing twelve childless louvre nodes
-# and meshes with two bank-local MultiMeshes sharing one immutable mesh. Before:
-# 303 descendants, 247 MeshInstances, 0 batches, 247 copies/submissions, 219
-# unique meshes. The close authored asset and every semantic/system root remain.
+const TORRENT_CAPTURE_JAW_COPY_COUNT := 4
+# Component-local render census retains all close art and semantic/system roots.
+# The two louvre batches reduce 219 to 208 meshes; the four unchanged capture
+# jaw renderers then share one immutable mesh, reducing that roster to 205.
 const TORRENT_RENDER_DESCENDANT_COUNT := 293
 const TORRENT_RENDER_MESH_INSTANCE_COUNT := 235
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 2
 const TORRENT_RENDER_DRAWN_COPY_COUNT := 247
 const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 237
-const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 208
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 205
 const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 36
 const TORRENT_MODERN_DESCENDANT_COUNT := 107
 const TORRENT_MODERN_MESH_INSTANCE_COUNT := 89
 const TORRENT_MODERN_DRAWN_COPY_COUNT := 101
 const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 91
-const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 73
+const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 70
 const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 10
 
 @export_category("Identity")
@@ -356,6 +356,9 @@ var _legacy_torrent_canopy_art: Node3D
 var _torrent_unknown_function_panel: MeshInstance3D
 var _torrent_vent_louver_mesh: ArrayMesh
 var _torrent_vent_louver_batches: Array[MultiMeshInstance3D] = []
+## Torrent-local and immutable: all four articulated-visual-only capture jaws
+## retain their paths and transforms while sharing this exact gold box mesh.
+var _torrent_capture_jaw_mesh: ArrayMesh
 var _audio_throttle_state := -1.0
 var _audio_boost_state := false
 ## Planetary cruise is an optional, caller-issued envelope inside this body's
@@ -4124,6 +4127,29 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		for raw_node in modern.find_children("VentLouver*", "MeshInstance3D", true, false):
 			retired_louver_nodes += 1
 	batch_contract_matches = batch_contract_matches and retired_louver_nodes == 0
+	var capture_jaw_contract_matches := _torrent_capture_jaw_mesh != null
+	var docking_receiver := (
+		modern.get_node_or_null("VentralDockingReceiver") as Node3D
+		if modern != null else null
+	)
+	var capture_jaws := (
+		docking_receiver.find_children("CaptureJaw*", "MeshInstance3D", false, false)
+		if docking_receiver != null else []
+	)
+	capture_jaw_contract_matches = capture_jaw_contract_matches and (
+		capture_jaws.size() == TORRENT_CAPTURE_JAW_COPY_COUNT
+		and _torrent_capture_jaw_mesh.get_surface_count() == 1
+		and _torrent_capture_jaw_mesh.get_aabb().size.is_equal_approx(Vector3(0.18, 0.12, 0.3))
+		and _torrent_capture_jaw_mesh.surface_get_material(0) == _materials.get("gold")
+	)
+	for raw_jaw in capture_jaws:
+		var jaw := raw_jaw as MeshInstance3D
+		capture_jaw_contract_matches = capture_jaw_contract_matches and (
+			jaw != null
+			and jaw.mesh == _torrent_capture_jaw_mesh
+			and jaw.material_override == null
+			and jaw.get_parent() == docking_receiver
+		)
 	var errors := PackedStringArray()
 	if not exact_counts:
 		errors.append("Torrent render allocations drifted from the frozen component-local roster")
@@ -4135,6 +4161,8 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		errors.append("Torrent dorsal vent-louver culling bounds drifted from its authored copies")
 	if not mesh_material_matches:
 		errors.append("Torrent dorsal vent-louver mesh or material identity drifted")
+	if not capture_jaw_contract_matches:
+		errors.append("Torrent capture-jaw mesh-sharing contract drifted")
 	return {
 		"schema_version": 1,
 		"valid": errors.is_empty(),
@@ -4144,11 +4172,14 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		"vent_louver_batches": _torrent_vent_louver_batches.size(),
 		"vent_louver_copies": TORRENT_VENT_LOUVER_COPY_COUNT,
 		"vent_louver_shared_mesh_resources": 1 if _torrent_vent_louver_mesh != null else 0,
+		"capture_jaw_copies": TORRENT_CAPTURE_JAW_COPY_COUNT,
+		"capture_jaw_shared_mesh_resources": 1 if _torrent_capture_jaw_mesh != null else 0,
 		"renderer_buffer_floats": renderer_buffer_floats,
 		"renderer_buffer_matches_authored": buffer_matches,
 		"bounds_match_authored": bounds_match,
 		"mesh_material_matches_authored": mesh_material_matches,
 		"batch_contract_matches": batch_contract_matches,
+		"capture_jaw_contract_matches": capture_jaw_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_bank_transforms": expected_transforms.duplicate(),
 		"old_family": {
@@ -4501,16 +4532,18 @@ func _build_torrent_service_detail(parent: Node3D) -> void:
 	parent.add_child(docking_receiver)
 	_torus(docking_receiver, "DockingCaptureRing", Vector3.ZERO, 0.38, 0.56, _materials.mid)
 	_cylinder(docking_receiver, "DockingHardpoint", Vector3(0.0, -0.035, 0.0), 0.28, 0.08, _materials.dark)
+	if _torrent_capture_jaw_mesh == null:
+		_torrent_capture_jaw_mesh = _rounded_box_mesh(
+			Vector3(0.18, 0.12, 0.3), _materials.gold
+		)
 	for jaw_index in 4:
 		var jaw_angle := TAU * float(jaw_index) / 4.0
-		_box(
-			docking_receiver,
-			"CaptureJaw%02d" % jaw_index,
-			Vector3(cos(jaw_angle) * 0.46, -0.08, sin(jaw_angle) * 0.46),
-			Vector3(0.18, 0.12, 0.3),
-			_materials.gold,
-			Vector3(0.0, -jaw_angle, 0.0)
-		)
+		var jaw := MeshInstance3D.new()
+		jaw.name = "CaptureJaw%02d" % jaw_index
+		jaw.position = Vector3(cos(jaw_angle) * 0.46, -0.08, sin(jaw_angle) * 0.46)
+		jaw.rotation = Vector3(0.0, -jaw_angle, 0.0)
+		jaw.mesh = _torrent_capture_jaw_mesh
+		docking_receiver.add_child(jaw)
 
 
 ## The twelve louvres are repeated childless surface dressing. Their two bank
