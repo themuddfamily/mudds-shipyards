@@ -1055,12 +1055,15 @@ cruise path now reaches a fixed Ember navigation target through production, but
 its braking contract intentionally completes about 55 km before the surface
 host's approach envelope; no owner yet flies that bounded low-speed final leg.
 The Host now exposes the required atomic ownership-return and exact committed
-origin-adoption primitives, but production still lacks a Main-owned two-phase
-scheduler: receipt adoption must occur synchronously in GameFlow's priority
--100 phase before Arrow moves, while one Host advance must occur at priority 2
-after Arrow and Player. GameFlow also needs an exclusive embodiment handoff and
-must retire cruise before starting the Host. Whole-Main detach remains a
-terminal standalone visit rather than proven production continuity. Production
+origin-adoption primitives. A focused 37-assertion standalone
+`EmberSurfaceLoopProductionBinding` foundation now proves the required two-phase
+cadence: receipt adoption occurs in an early caller phase before Arrow moves and
+one Host start/advance occurs at priority 2 after Arrow and Player, with
+same-frame fencing, typed intent forwarding and exact handback validation. It
+is not yet composed into Main or GameFlow. GameFlow still needs the exclusive
+embodiment handoff, early receipt ingress, completion handback routing, and a
+cruise retirement gate before it can start the Host. Whole-Main detach remains
+a terminal standalone visit rather than proven production continuity. Production
 must satisfy those contracts without reparenting Main's retained actors,
 teleporting final approach, adding a second mover/origin owner or travel
 session, or polling raw Input in the binding. The audited station
