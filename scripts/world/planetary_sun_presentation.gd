@@ -283,8 +283,12 @@ func reset_for_reuse(expected_generation: Variant) -> Dictionary:
 		return _result(false, &"stale_generation")
 	if _generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"generation_exhausted")
-	if _resolve_light() == null:
+	var light := _resolve_light(true)
+	if light == null:
 		return _result(false, &"directional_light_unavailable")
+	if is_queued_for_deletion() or not is_inside_tree() \
+			or light.is_queued_for_deletion() or not light.is_inside_tree():
+		return _result(false, &"presentation_detached")
 	_mutation_active = true
 	var apply_result := _apply_renderer_values(_baseline_renderer_values)
 	if not bool(apply_result.get("accepted", false)):

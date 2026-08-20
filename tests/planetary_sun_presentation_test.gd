@@ -46,7 +46,7 @@ const CAPABILITY_KEYS := [
 	"calibrated_colorimetry_implemented", "shadow_or_occlusion_implemented",
 	"clock_or_ephemeris_implemented", "environment_or_sky_implemented",
 ]
-const EXPECTED_ASSERTIONS := 44
+const EXPECTED_ASSERTIONS := 46
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -388,6 +388,14 @@ func _test_adapter_and_target_lifecycle() -> void:
 	)
 	var detached_adapter_before := _adapter.get_state_snapshot()
 	var detached_adapter_events := _events.size()
+	var detached_reset := _adapter.reset_for_reuse(_adapter.get_generation())
+	_check(
+		not detached_reset.accepted and detached_reset.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_adapter_before
+		and _events.size() == detached_adapter_events
+		and _renderer_values(_light) == _adapter.get_renderer_snapshot().baseline,
+		"detached adapter rejects reset without advancing generation or retaining a baseline mutation"
+	)
 	var detached_night := _adapter.present_observation(
 		_observation(Vector3.DOWN), 1
 	)
@@ -417,6 +425,14 @@ func _test_adapter_and_target_lifecycle() -> void:
 	)
 	var detached_target_before := _adapter.get_state_snapshot()
 	var detached_target_events := _events.size()
+	var detached_target_reset := _adapter.reset_for_reuse(_adapter.get_generation())
+	_check(
+		not detached_target_reset.accepted and detached_target_reset.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_target_before
+		and _events.size() == detached_target_events
+		and _renderer_values(_light) == _adapter.get_renderer_snapshot().baseline,
+		"detached target rejects reset without advancing generation or retaining a baseline mutation"
+	)
 	var outside_day := _adapter.present_observation(_observation(Vector3.UP), 1)
 	_check(
 		not outside_day.accepted and outside_day.reason == &"presentation_detached"
