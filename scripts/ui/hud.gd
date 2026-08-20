@@ -2642,16 +2642,17 @@ func _refresh_all_binding_rows() -> void:
 
 
 func _action_bindings_text(action: StringName) -> String:
-	var labels := PackedStringArray()
-	for resolved: Dictionary in _input_glyph_resolver.resolve_action_bindings(
-			_input_binding_profile, action
-		):
-		if not bool(resolved.get("valid", false)):
-			continue
-		var label := str(resolved.get("text", "Unbound Input"))
-		if not label.is_empty() and label not in labels:
-			labels.append(label)
-	return " / ".join(labels) if not labels.is_empty() else "UNBOUND  //  SELECT TO ADD"
+	# A settings row is also a live prompt surface: show the binding for the
+	# currently active device family, including the resolver's deterministic
+	# fallback when that family has no binding.  Rendering every retained family
+	# here (for example `F / Left Mouse / Right Trigger`) makes controller users
+	# read a desktop prompt and makes a remap appear not to take effect until
+	# another screen refreshes.  The editor still retains every family in the
+	# profile; this is presentation-only selection.
+	var resolved := _input_glyph_resolver.resolve_action(_input_binding_profile, action)
+	if bool(resolved.get("valid", false)):
+		return str(resolved.get("text", "Unbound Input"))
+	return "UNBOUND  //  SELECT TO ADD"
 
 
 func _binding_text(binding: Dictionary) -> String:
