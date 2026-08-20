@@ -13,6 +13,7 @@ const EXPECTED_STAR_COUNT := 2600
 const EXPECTED_STAR_RADIUS_MIN := 1450.0
 const EXPECTED_STAR_RADIUS_MAX := 1650.0
 const EXPECTED_NEBULA_COVER_STRENGTH := 0.08
+const SKY_SHADER_PATH := "res://scripts/rendering/deep_space_sky.gdshader"
 const EXPECTED_BODY_MESH_RADIUS := 1.0
 const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 24
 const EXPECTED_BODY_MESH_RINGS := 12
@@ -237,6 +238,16 @@ func _test_near_black_sky(world: ShipyardWorld) -> void:
 		and (sky_material.get_shader_parameter(&"nebula_cover") as Texture2D).resource_path == "res://assets/keth-nebula.png"
 		and is_equal_approx(float(sky_material.get_shader_parameter(&"nebula_strength")), 0.08),
 		"project-original legacy nebula survives only as an exact faint cover"
+	)
+	# Headless rendering cannot sample the sky shader, so freeze the seam repair
+	# as source text: the unseamless cover must fade against its equirectangular
+	# U-wrap while the analytic sky continues beneath it.
+	var shader_source := FileAccess.get_file_as_string(SKY_SHADER_PATH)
+	_check(
+		"float wrap_distance = min(cover_uv.x, 1.0 - cover_uv.x);" in shader_source
+		and "float wrap_fade = smoothstep(0.0, 0.035, wrap_distance);" in shader_source
+		and "* pole_fade * wrap_fade;" in shader_source,
+		"legacy nebula fades smoothly at its equirectangular wrap instead of splicing the sky"
 	)
 
 
