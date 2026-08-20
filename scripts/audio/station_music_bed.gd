@@ -219,6 +219,8 @@ func _exit_tree() -> void:
 ## Accepts an already decided session state. Returns false for an unknown state
 ## and changes nothing: the bed never invents or corrects gameplay state.
 func notify_session_state(state: StringName) -> bool:
+	if not _can_mutate_live_bed():
+		return false
 	if not SESSION_STATES.has(state):
 		return false
 	if state != _session_state:
@@ -243,6 +245,8 @@ func get_session_state() -> StringName:
 ## Reversibly starts or silences the whole bed. Disabling immediately releases
 ## every voice; the retained loop positions make re-enabling a resume.
 func set_bed_enabled(enabled: bool) -> void:
+	if not _can_mutate_live_bed():
+		return
 	if bed_enabled == enabled:
 		return
 	bed_enabled = enabled
@@ -264,6 +268,8 @@ func is_bed_enabled() -> bool:
 ## Freezes the bed for a paused game: playback and the loop clock both hold, so
 ## resuming continues the same bar instead of jumping forward or restarting.
 func set_bed_paused(paused: bool) -> void:
+	if not _can_mutate_live_bed():
+		return
 	if _bed_paused == paused:
 		return
 	_bed_paused = paused
@@ -281,6 +287,8 @@ func is_bed_paused() -> bool:
 ## reloading resources. This is the explicit reset seam; a plain detach must not
 ## do this, and does not.
 func reset_bed() -> void:
+	if not _can_mutate_live_bed():
+		return
 	for layer_id in LAYER_IDS:
 		_stop_and_detach(layer_id)
 		_gains[layer_id] = 0.0
@@ -303,6 +311,10 @@ func release_audio_resources() -> void:
 	_stream_fingerprints.clear()
 	_resident_sample_bytes = 0
 	_resources_ready = false
+
+
+func _can_mutate_live_bed() -> bool:
+	return is_inside_tree() and not _tearing_down and not is_queued_for_deletion()
 
 
 func get_component_id() -> StringName:

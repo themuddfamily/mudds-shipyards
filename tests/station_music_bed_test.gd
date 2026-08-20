@@ -61,6 +61,7 @@ func _run() -> void:
 	await _test_frame_rate_equivalence()
 	await _test_pause_disable_and_reset()
 	await _test_no_gameplay_authority()
+	await _test_detached_and_queued_mutators_are_inert()
 	await _test_queued_reentry_restore_is_inert()
 	await _test_whole_main_detach_and_reentry()
 
@@ -563,6 +564,77 @@ func _test_no_gameplay_authority() -> void:
 		_check(not bed.has_method(method_name), "bed exposes no %s gameplay entry point" % method_name)
 	_release(bed)
 	await process_frame
+
+
+func _test_detached_and_queued_mutators_are_inert() -> void:
+	var bed := _make_manual_bed("CurrentnessBed", AcceptingMusicBed)
+	if bed == null:
+		return
+	await process_frame
+	var layer_events: Array[Dictionary] = []
+	bed.layer_state_changed.connect(
+		func(layer_id: StringName, active: bool) -> void:
+			layer_events.append({"layer_id": layer_id, "active": active})
+	)
+	_check(bed.notify_session_state(StationMusicBed.STATE_COMBAT), "currentness fixture accepts an attached session state")
+	var parent := bed.get_parent()
+	parent.remove_child(bed)
+	await process_frame
+	var detached_state := bed.get_state_snapshot()
+	var detached_performance := bed.get_performance_report()
+	var detached_event_count := layer_events.size()
+	_check(
+		not bed.notify_session_state(StationMusicBed.STATE_REST),
+		"detached bed rejects stale session-state requests"
+	)
+	bed.set_bed_enabled(false)
+	bed.set_bed_paused(true)
+	bed.reset_bed()
+	_check(
+		not bed.is_inside_tree()
+		and bed.get_state_snapshot() == detached_state
+		and bed.get_performance_report() == detached_performance
+		and layer_events.size() == detached_event_count,
+		"detached bed public mutators preserve retained state, voices, and signals"
+	)
+	parent.add_child(bed)
+	await process_frame
+	_check(
+		bed.notify_session_state(StationMusicBed.STATE_REST)
+		and bed.is_bed_enabled(),
+		"re-added bed accepts a fresh session-state request"
+	)
+	bed.set_bed_paused(true)
+	_check(bed.is_bed_paused(), "re-added bed accepts a fresh pause request")
+	bed.set_bed_paused(false)
+	bed.set_bed_enabled(false)
+	_check(not bed.is_bed_enabled(), "re-added bed accepts a fresh enabled-state request")
+	bed.set_bed_enabled(true)
+	bed.reset_bed()
+	_check(
+		bed.get_session_state() == StationMusicBed.STATE_REST,
+		"re-added bed accepts a fresh reset request"
+	)
+
+	bed.notify_session_state(StationMusicBed.STATE_COMBAT)
+	bed.queue_free()
+	var queued_state := bed.get_state_snapshot()
+	var queued_performance := bed.get_performance_report()
+	var queued_event_count := layer_events.size()
+	bed.set_bed_enabled(false)
+	bed.set_bed_paused(true)
+	bed.reset_bed()
+	_check(
+		bed.is_inside_tree()
+		and bed.is_queued_for_deletion()
+		and not bed.notify_session_state(StationMusicBed.STATE_REST)
+		and bed.get_state_snapshot() == queued_state
+		and bed.get_performance_report() == queued_performance
+		and layer_events.size() == queued_event_count,
+		"queued bed rejects every public mutator without retained-state, voice, or signal drift"
+	)
+	await process_frame
+	_check(not is_instance_valid(bed), "queued currentness fixture frees normally")
 
 
 func _test_queued_reentry_restore_is_inert() -> void:
