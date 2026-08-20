@@ -51,7 +51,8 @@ func _init() -> void:
 ## public loader contract. This is accepted only under the coordinator's normal
 ## no-in-flight-work rule.
 func set_scene_loader(loader: Callable) -> bool:
-	if _update_active or not _configured or not is_instance_valid(_coordinator):
+	if not _is_current() \
+			or _update_active or not _configured or not is_instance_valid(_coordinator):
 		return false
 	if int(_coordinator.audit().get("load_request_count", -1)) != 0:
 		return false
@@ -60,14 +61,16 @@ func set_scene_loader(loader: Callable) -> bool:
 
 ## Stores one finite tracking sample without evaluating it.
 func set_tracked_position(position: Vector3) -> bool:
-	if _update_active or not _configured or not is_instance_valid(_distance_policy):
+	if not _is_current() \
+			or _update_active or not _configured or not is_instance_valid(_distance_policy):
 		return false
 	return _distance_policy.set_tracked_position(position)
 
 
 ## Temporarily removes tracking without unloading or cancelling Cinder Reach.
 func clear_tracked_position() -> bool:
-	if _update_active or not _configured or not is_instance_valid(_distance_policy):
+	if not _is_current() \
+			or _update_active or not _configured or not is_instance_valid(_distance_policy):
 		return false
 	_distance_policy.clear_tracked_position()
 	return true
@@ -77,6 +80,8 @@ func clear_tracked_position() -> bool:
 func update_position(position: Vector3) -> Dictionary:
 	if _update_active:
 		return _rejected_result(&"bootstrap_update_in_progress")
+	if not _is_current():
+		return _rejected_result(&"bootstrap_detached")
 	if not _configured or not is_instance_valid(_distance_policy):
 		return _unavailable_result()
 	_update_active = true
@@ -89,6 +94,8 @@ func update_position(position: Vector3) -> Dictionary:
 func physics_tick(delta: float) -> Dictionary:
 	if _update_active:
 		return _rejected_result(&"bootstrap_update_in_progress")
+	if not _is_current():
+		return _rejected_result(&"bootstrap_detached")
 	if not _configured or not is_instance_valid(_distance_policy):
 		return _unavailable_result()
 	_update_active = true
@@ -101,6 +108,8 @@ func physics_tick(delta: float) -> Dictionary:
 func update_now() -> Dictionary:
 	if _update_active:
 		return _rejected_result(&"bootstrap_update_in_progress")
+	if not _is_current():
+		return _rejected_result(&"bootstrap_detached")
 	if not _configured or not is_instance_valid(_distance_policy):
 		return _unavailable_result()
 	_update_active = true
@@ -113,6 +122,10 @@ func get_loaded_instance() -> Node3D:
 	if not _configured or not is_instance_valid(_coordinator):
 		return null
 	return _coordinator.get_loaded_instance(LOCATION_ID)
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 ## Detached composition state. No Resource, Node, Callable, or mutable internal

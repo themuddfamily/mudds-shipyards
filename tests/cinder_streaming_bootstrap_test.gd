@@ -32,6 +32,22 @@ class RejectOnceLoader extends RefCounted:
 		return true
 
 
+class RecordingLoader extends RefCounted:
+	var requests: Array[Dictionary] = []
+
+	func request_scene(
+		definition: WorldLocationDefinition,
+		generation: int,
+		completion: Callable
+	) -> bool:
+		requests.append({
+			"location_id": definition.location_id,
+			"generation": generation,
+		})
+		completion.call(definition.location_id, generation, CLUSTER_SCENE, &"")
+		return true
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -41,6 +57,7 @@ func _run() -> void:
 	await _test_station_outbound_cluster_return_journey()
 	await _test_exact_thresholds()
 	await _test_failure_retry_uses_new_generation()
+	await _test_detached_and_queued_public_currentness()
 	_finish()
 
 
@@ -285,6 +302,81 @@ func _test_failure_retry_uses_new_generation() -> void:
 		"the loader receives distinct navigation-anchor and zero-origin definition fields"
 	)
 	await _free_bootstrap(bootstrap)
+
+
+func _test_detached_and_queued_public_currentness() -> void:
+	var anchor := LOCATION.get_anchor_position()
+	var detached := _bootstrap()
+	var retained_detached_loader := RecordingLoader.new()
+	var replacement_detached_loader := RecordingLoader.new()
+	_check(
+		detached.set_scene_loader(Callable(retained_detached_loader, "request_scene"))
+		and detached.set_tracked_position(Vector3.ZERO),
+		"a live bootstrap accepts its retained loader and tracking sample"
+	)
+	var detached_before := detached.get_snapshot()
+	root.remove_child(detached)
+	var detached_update := detached.update_position(anchor)
+	var detached_tick := detached.physics_tick(0.25)
+	var detached_now := detached.update_now()
+	_check(
+		not detached.is_inside_tree()
+		and not detached.set_scene_loader(Callable(replacement_detached_loader, "request_scene"))
+		and not detached.set_tracked_position(anchor)
+		and not detached.clear_tracked_position()
+		and not bool(detached_update.get("accepted", true))
+		and detached_update.get("reason") == &"bootstrap_detached"
+		and not bool(detached_tick.get("accepted", true))
+		and detached_tick.get("reason") == &"bootstrap_detached"
+		and not bool(detached_now.get("accepted", true))
+		and detached_now.get("reason") == &"bootstrap_detached"
+		and detached.get_snapshot() == detached_before
+		and retained_detached_loader.requests.is_empty()
+		and replacement_detached_loader.requests.is_empty(),
+		"a detached bootstrap rejects every public streaming mutation atomically"
+	)
+	root.add_child(detached)
+	var reentry := detached.update_position(anchor)
+	await process_frame
+	_check(
+		bool(reentry.get("accepted", false))
+		and _first_transition(reentry).get("action") == &"load"
+		and retained_detached_loader.requests.size() == 1
+		and replacement_detached_loader.requests.is_empty()
+		and detached.get_loaded_instance() is NearbySectorCluster,
+		"reentry accepts one fresh current update through the retained live loader, not its detached replacement"
+	)
+	await _free_bootstrap(detached)
+
+	var queued := _bootstrap()
+	var retained_queued_loader := RecordingLoader.new()
+	var replacement_queued_loader := RecordingLoader.new()
+	_check(
+		queued.set_scene_loader(Callable(retained_queued_loader, "request_scene")),
+		"a live bootstrap accepts a loader before its queued deletion window"
+	)
+	var queued_before := queued.get_snapshot()
+	queued.queue_free()
+	var queued_update := queued.update_position(anchor)
+	var queued_tick := queued.physics_tick(0.25)
+	var queued_now := queued.update_now()
+	_check(
+		queued.is_inside_tree() and queued.is_queued_for_deletion()
+		and not queued.set_scene_loader(Callable(replacement_queued_loader, "request_scene"))
+		and not queued.set_tracked_position(anchor)
+		and not queued.clear_tracked_position()
+		and not bool(queued_update.get("accepted", true))
+		and queued_update.get("reason") == &"bootstrap_detached"
+		and not bool(queued_tick.get("accepted", true))
+		and queued_tick.get("reason") == &"bootstrap_detached"
+		and not bool(queued_now.get("accepted", true))
+		and queued_now.get("reason") == &"bootstrap_detached"
+		and queued.get_snapshot() == queued_before
+		and retained_queued_loader.requests.is_empty()
+		and replacement_queued_loader.requests.is_empty(),
+		"a queued bootstrap rejects every public streaming mutation atomically"
+	)
+	await process_frame
 
 
 func _bootstrap() -> CinderStreamingBootstrap:
