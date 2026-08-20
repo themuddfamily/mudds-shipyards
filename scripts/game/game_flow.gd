@@ -3485,7 +3485,7 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 ## their own authority-backed definitions. The first accepted start locks every
 ## interpretation so no generation-bearing sortie can be swapped under the player.
 func select_activity_kind(activity_kind: StringName) -> Dictionary:
-	if not is_inside_tree():
+	if is_queued_for_deletion() or not is_inside_tree():
 		return _activity_selection_result(false, &"detached")
 	if activity_kind not in [
 		ACTIVITY_KIND_TIMED_RACE,
@@ -3544,7 +3544,7 @@ func request_activity_start(
 	activity_id: StringName,
 	sampled_world_position: Variant = null
 	) -> Dictionary:
-	if not is_inside_tree():
+	if is_queued_for_deletion() or not is_inside_tree():
 		return {"accepted": false, "reason": &"detached"}
 	if (
 		not is_instance_valid(activity_director)

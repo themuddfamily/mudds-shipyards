@@ -92,6 +92,7 @@ func _run() -> void:
 	_test_failure_reset_and_generation_safety(game, hud)
 
 	await _clean_up(game)
+	await _test_queued_activity_requests()
 	_finish()
 
 
@@ -390,6 +391,52 @@ func _test_failure_reset_and_generation_safety(game: GameFlow, hud: GameHUD) -> 
 		game.reset_active_activity()
 		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
 		"return abort resets cleanly while the locked patrol selection remains stable"
+	)
+
+
+func _test_queued_activity_requests() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	var store := Store.new(
+		"memory://queued-patrol-production-settings.json", MemoryFilesystem.new()
+	) as UserDataStore
+	_check(
+		game.configure_runtime_settings_persistence(
+			store, "memory://queued-patrol-production-legacy.cfg"
+		),
+		"the queued-request fixture configures an isolated real Main"
+	)
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+
+	var before := game.get_activity_integration_report()
+	var race := before.get("race_session") as CinderTimedRaceSession
+	var patrol := before.get("patrol_activity") as PatrolActivity
+	var race_generation := int(race.get_presentation_snapshot().get("session_generation", -1))
+	game.queue_free()
+	var queued_selection := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	var queued_start := game.request_activity_start(ROUTE.activity_id)
+	var after := game.get_activity_integration_report()
+	_check(
+		game.is_queued_for_deletion()
+		and not bool(queued_selection.get("accepted", true))
+		and queued_selection.get("reason", &"") == &"detached"
+		and not bool(queued_start.get("accepted", true))
+		and queued_start.get("reason", &"") == &"detached"
+		and after.get("selected_activity_kind", &"") == GameFlow.ACTIVITY_KIND_TIMED_RACE
+		and not bool(after.get("selection_locked", true))
+		and int(after.get("attached_route_owner_count", -1))
+		== int(before.get("attached_route_owner_count", -2))
+		and int(race.get_presentation_snapshot().get("session_generation", -2)) == race_generation
+		and not bool(patrol.get_presentation_snapshot().get("attached", true)),
+		"queued Main rejects activity selection and start before replacing or advancing the route owner"
+	)
+	await process_frame
+	await process_frame
+	_check(
+		not is_instance_valid(game),
+		"the queued-request fixture frees normally after both ingress guards reject"
 	)
 
 
