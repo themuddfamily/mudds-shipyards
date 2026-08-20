@@ -156,6 +156,10 @@ const INPUT_ACTION_LABELS := {
 const TOAST_FADE_IN_SECONDS := 0.18
 const TOAST_FADE_OUT_SECONDS := 0.35
 const INTRO_FADE_SECONDS := 0.45
+const SCREENSHOT_ACTION: StringName = &"capture_screenshot"
+const SCREENSHOT_DIRECTORY_URI := "user://screenshots"
+const SCREENSHOT_FILE_PREFIX := "mudds_shipyards_"
+const SCREENSHOT_MAX_COLLISION_SUFFIX := 999
 
 ## Where the player is standing when nothing more specific is known. On foot used
 ## to mean exactly one place; it no longer does.
@@ -259,6 +263,10 @@ var _reticle: Control
 var _flight_cue_layer: FlightPathCue
 var _toast_serial := 0
 var _toast_tween: Tween
+## A focused suite supplies a tiny CPU image here so it can prove the complete
+## F2-to-file path without depending on a GPU-backed test viewport. Production
+## always reads the actual viewport texture below.
+var _screenshot_image_provider_for_test := Callable()
 var _started := false
 var _active_ship_name := "TORRENT-CLASS INTERCEPTOR"
 var _active_ship_role := "INTERCEPTOR"
@@ -383,6 +391,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _binding_capture_action.is_empty():
 		_capture_binding_event(event)
 		return
+	if _is_screenshot_capture_event(event):
+		_capture_screenshot()
+		get_viewport().set_input_as_handled()
+		return
 	if not _started and (event.is_action_pressed("interact") or event.is_action_pressed("jump")):
 		_begin()
 		get_viewport().set_input_as_handled()
@@ -406,6 +418,87 @@ func _unhandled_input(event: InputEvent) -> void:
 		# button reach the identical toggle. `is_action_pressed()` still rejects
 		# key repeats, so the previous physical-`F1` behaviour is unchanged.
 		_help_panel.visible = not _help_panel.visible
+
+
+func _is_screenshot_capture_event(event: InputEvent) -> bool:
+	if not event.is_action_pressed(SCREENSHOT_ACTION):
+		return false
+	return not (event is InputEventKey and (event as InputEventKey).echo)
+
+
+## Captures after the current frame has drawn, which makes the saved image the
+## actual player viewport rather than a pre-render UI tree snapshot. The toast
+## follows the write so it confirms the result without appearing in its own PNG.
+func _capture_screenshot() -> void:
+	# A test-supplied CPU image bypasses the renderer-only post-draw signal. The
+	# production route always waits for that signal before reading its viewport.
+	if not _screenshot_image_provider_for_test.is_valid():
+		await RenderingServer.frame_post_draw
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	var image := _capture_screenshot_image()
+	var result := _save_screenshot_image(image)
+	_show_screenshot_capture_result(result)
+
+
+func _capture_screenshot_image() -> Image:
+	if _screenshot_image_provider_for_test.is_valid():
+		var supplied: Variant = _screenshot_image_provider_for_test.call()
+		return supplied as Image if supplied is Image else null
+	var viewport := get_viewport()
+	if viewport == null:
+		return null
+	var texture := viewport.get_texture()
+	return texture.get_image() if texture != null else null
+
+
+func _save_screenshot_image(image: Image) -> Dictionary:
+	if image == null or image.is_empty():
+		return {"accepted": false, "detail": "Viewport image is unavailable."}
+	var directory := ProjectSettings.globalize_path(SCREENSHOT_DIRECTORY_URI)
+	var directory_error := DirAccess.make_dir_recursive_absolute(directory)
+	if directory_error != OK:
+		return {
+			"accepted": false,
+			"detail": "Could not create %s (%s)." % [directory, error_string(directory_error)],
+		}
+	var path := _next_screenshot_path(directory)
+	if path.is_empty():
+		return {
+			"accepted": false,
+			"detail": "No collision-safe filename is available in %s." % directory,
+		}
+	var save_error := image.save_png(path)
+	if save_error != OK:
+		return {
+			"accepted": false,
+			"detail": "Could not save %s (%s)." % [path, error_string(save_error)],
+		}
+	return {"accepted": true, "path": path}
+
+
+func _next_screenshot_path(directory: String) -> String:
+	var now := Time.get_datetime_dict_from_system()
+	var stamp := "%04d-%02d-%02d_%02d-%02d-%02d_%03d" % [
+		int(now.get("year", 0)), int(now.get("month", 0)), int(now.get("day", 0)),
+		int(now.get("hour", 0)), int(now.get("minute", 0)), int(now.get("second", 0)),
+		int(Time.get_ticks_msec() % 1000),
+	]
+	for suffix in range(SCREENSHOT_MAX_COLLISION_SUFFIX + 1):
+		var collision_suffix := "" if suffix == 0 else "_%03d" % suffix
+		var path := "%s/%s%s%s.png" % [
+			directory, SCREENSHOT_FILE_PREFIX, stamp, collision_suffix,
+		]
+		if not FileAccess.file_exists(path):
+			return path
+	return ""
+
+
+func _show_screenshot_capture_result(result: Dictionary) -> void:
+	if bool(result.get("accepted", false)):
+		toast("Screenshot saved", str(result.get("path", "")), 5.0)
+		return
+	toast("Screenshot failed", str(result.get("detail", "Unknown capture failure.")), 5.0)
 
 
 func show_intro() -> void:

@@ -110,6 +110,10 @@ toggle_controls_overlay={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":4194332), Object(InputEventJoypadButton,"button_index":4)]
 }
+capture_screenshot={
+"deadzone": 0.18,
+"events": [Object(InputEventKey,"physical_keycode":4194333)]
+}
 toggle_first_person={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":67), Object(InputEventJoypadButton,"button_index":14)]
