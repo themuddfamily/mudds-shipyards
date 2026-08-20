@@ -6,7 +6,7 @@ const ProfileScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_sky_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 41
+const EXPECTED_ASSERTIONS := 44
 const EXPECTED_RENDERER_PROPERTIES := [
 	"sky_top_color", "sky_horizon_color", "ground_horizon_color",
 ]
@@ -65,6 +65,7 @@ func _run() -> void:
 	_test_renderer_drift_and_non_owned_state()
 	_test_signal_and_resource_reentry()
 	await _test_detach_reentry()
+	await _test_queued_adapter_rejects_atomically()
 	_test_reset_reports_and_structured_red()
 	_test_target_identity_replacement()
 	await _test_expired_target_fails_closed()
@@ -455,13 +456,63 @@ func _test_detach_reentry() -> void:
 		and bool(_adapter.get_renderer_snapshot().baseline_applied_while_detached),
 		"whole-component detach restores exact caller-authored baseline"
 	)
-	root.add_child(_adapter)
+	var detached_before := _adapter.get_state_snapshot()
+	var detached_events := _events.size()
+	var detached := _adapter.present_observation(
+		4500.0, Vector3.FORWARD, Vector3.UP, Vector3.RIGHT, 1
+	)
 	_check(
-		_renderer_values(_material) == expected
+		not detached.accepted and detached.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_before
+		and _events.size() == detached_events
+		and _renderer_values(_material) == baseline,
+		"detached sky observation rejects atomically without retaining deferred renderer intent"
+	)
+	root.add_child(_adapter)
+	var reentry_values := _renderer_values(_material)
+	var fresh := _adapter.present_observation(
+		4500.0, Vector3.FORWARD, Vector3.UP, Vector3.RIGHT, 1
+	)
+	_check(
+		reentry_values == expected
+		and fresh.accepted
+		and _renderer_values(_material) == _adapter.get_renderer_snapshot().expected
 		and _adapter.get_generation() == int(state.generation)
-		and int(_adapter.get_state_snapshot().revision) == int(state.revision)
-		and _events.size() == events and bool(_adapter.audit().valid),
-		"re-entry reapplies one retained generation without signal or identity drift"
+		and int(_adapter.get_state_snapshot().revision) == int(state.revision) + 1
+		and _events.size() == events + 1 and bool(_adapter.audit().valid),
+		"re-entry restores last live sky values before a fresh observation commits"
+	)
+	await process_frame
+
+
+func _test_queued_adapter_rejects_atomically() -> void:
+	var fixture := _make_fixture()
+	var adapter := fixture.adapter as PlanetarySkyPresentation
+	var environment := fixture.environment as Environment
+	var material := fixture.material as ProceduralSkyMaterial
+	var events: Array[Dictionary] = []
+	_check(
+		adapter.configure(fixture.profile as PlanetaryAtmosphereProfile, environment).accepted
+		and adapter.present_observation(
+			4000.0, Vector3.FORWARD, Vector3.UP, Vector3.RIGHT, 1
+		).accepted,
+		"queued fixture has one live sky presentation before deletion"
+	)
+	adapter.presentation_committed.connect(func(_reason: StringName, _snapshot: Dictionary) -> void:
+		events.append({})
+	)
+	adapter.queue_free()
+	var before := adapter.get_state_snapshot()
+	var values_before := _renderer_values(material)
+	var queued := adapter.present_observation(
+		4500.0, Vector3.FORWARD, Vector3.UP, Vector3.RIGHT, 1
+	)
+	_check(
+		adapter.is_queued_for_deletion()
+		and not queued.accepted and queued.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == before and events.is_empty()
+		and _renderer_values(material) == values_before,
+		"queued sky adapter rejects observation atomically before renderer or retained intent drift"
 	)
 	await process_frame
 
@@ -569,7 +620,6 @@ func _test_expired_target_fails_closed() -> void:
 	var adapter := fixture.adapter as PlanetarySkyPresentation
 	var environment := fixture.environment as Environment
 	var configured := adapter.configure(fixture.profile, environment)
-	root.remove_child(adapter)
 	fixture.clear()
 	environment = null
 	await process_frame
