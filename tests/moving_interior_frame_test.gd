@@ -54,6 +54,7 @@ func _run() -> void:
 	_test_multiplayer_authority_lifecycle()
 	await _test_ownership_reparent_free_and_reuse()
 	await _test_component_detach_readd()
+	await _test_direct_step_currentness()
 	await _test_stale_frame_registration_is_atomic()
 	await _test_volume_provenance_and_handoff()
 	await _test_physical_standing_and_auto_volume()
@@ -431,6 +432,70 @@ func _test_component_detach_readd() -> void:
 	await process_frame
 
 
+func _test_direct_step_currentness() -> void:
+	var detached_fixture := _manual_fixture()
+	var detached_root := detached_fixture.root as Node3D
+	var detached_frame := detached_fixture.frame as Node3D
+	var detached_coordinator := detached_fixture.coordinator as MovingInteriorFrame
+	var detached_occupant := detached_fixture.occupant as CharacterBody3D
+	detached_coordinator.register_occupant(detached_occupant)
+	detached_coordinator.step_frame(0.25, _next_token())
+	detached_frame.remove_child(detached_coordinator)
+	await process_frame
+	var detached_snapshot := _frame_step_snapshot(detached_coordinator, detached_occupant)
+	var detached_token := _next_token()
+	detached_frame.global_position += Vector3(3.0, 0.5, -1.0)
+	var detached_step := detached_coordinator.step_frame(0.25, detached_token)
+	_check(
+		not detached_coordinator.is_inside_tree()
+			and not bool(detached_step.get("applied", true))
+			and detached_step.get("status") == &"frame_unavailable"
+			and _frame_step_snapshot(detached_coordinator, detached_occupant) == detached_snapshot,
+		"detached direct frame stepping is inert before token, kinematic, or occupant mutation"
+	)
+
+	detached_frame.add_child(detached_coordinator)
+	await process_frame
+	detached_coordinator.set_physics_process(false)
+	var reentry_registration := detached_coordinator.register_occupant(detached_occupant)
+	var reentry_baseline := detached_coordinator.step_frame(0.25, detached_token)
+	var reentry_origin := detached_occupant.global_position
+	detached_frame.global_position += Vector3(-2.0, 0.25, 1.5)
+	var reentry_step := detached_coordinator.step_frame(0.25, _next_token())
+	_check(
+		bool(reentry_registration.get("registered", false))
+			and reentry_baseline.get("status") == &"baseline_captured"
+			and bool(reentry_step.get("applied", false))
+			and detached_occupant.global_position.distance_to(reentry_origin) > 0.1,
+		"reentered live frame accepts the preserved next token and resumes one current occupant step"
+	)
+	detached_root.queue_free()
+	await process_frame
+
+	var queued_fixture := _manual_fixture()
+	var queued_root := queued_fixture.root as Node3D
+	var queued_frame := queued_fixture.frame as Node3D
+	var queued_coordinator := queued_fixture.coordinator as MovingInteriorFrame
+	var queued_occupant := queued_fixture.occupant as CharacterBody3D
+	queued_coordinator.register_occupant(queued_occupant)
+	queued_coordinator.step_frame(0.25, _next_token())
+	var queued_snapshot := _frame_step_snapshot(queued_coordinator, queued_occupant)
+	queued_frame.global_position += Vector3(4.0, -0.25, 2.0)
+	queued_coordinator.queue_free()
+	var queued_step := queued_coordinator.step_frame(0.25, _next_token())
+	_check(
+		queued_coordinator.is_inside_tree()
+			and queued_coordinator.is_queued_for_deletion()
+			and not bool(queued_step.get("applied", true))
+			and queued_step.get("status") == &"frame_unavailable"
+			and _frame_step_snapshot(queued_coordinator, queued_occupant) == queued_snapshot,
+		"queued direct frame stepping preserves occupant ownership and physics state without applying the pending frame motion"
+	)
+	await process_frame
+	queued_root.queue_free()
+	await process_frame
+
+
 func _test_stale_frame_registration_is_atomic() -> void:
 	var queued_fixture := _manual_fixture()
 	var queued_root := queued_fixture.root as Node3D
@@ -701,6 +766,23 @@ func _manual_fixture() -> Dictionary:
 		"coordinator": coordinator,
 		"occupant": occupant,
 	}
+
+
+func _frame_step_snapshot(
+		coordinator: MovingInteriorFrame,
+		occupant: CharacterBody3D
+	) -> Dictionary:
+	return {
+		"registered": coordinator.is_occupant_registered(occupant),
+		"occupant_count": coordinator.get_occupant_count(),
+		"occupant_transform": occupant.global_transform,
+		"occupant_velocity": occupant.velocity,
+		"occupant_up_direction": occupant.up_direction,
+		"linear_velocity": coordinator.get_frame_linear_velocity(),
+		"angular_velocity": coordinator.get_frame_angular_velocity(),
+		"linear_acceleration": coordinator.get_frame_linear_acceleration(),
+		"angular_acceleration": coordinator.get_frame_angular_acceleration(),
+	}.duplicate(true)
 
 
 func _make_occupant(node_name: String) -> CharacterBody3D:

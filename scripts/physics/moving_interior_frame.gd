@@ -358,6 +358,9 @@ func step_frame(delta: float, step_token: int = -1) -> Dictionary:
 		"linear_velocity": _frame_linear_velocity,
 		"angular_velocity": _frame_angular_velocity,
 	}
+	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
+		report["status"] = &"frame_unavailable"
+		return report
 	if not is_instance_valid(_moving_frame):
 		report["status"] = &"missing_frame"
 		clear_occupants(false, &"missing_frame")
