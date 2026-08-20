@@ -39,9 +39,11 @@ var _observation_active := false
 var _pending_terminal_event: Dictionary = {}
 var _last_event_handle: Dictionary = {}
 var _damageable: Damageable
+var _has_entered_live_tree := false
 
 
 func _ready() -> void:
+	_has_entered_live_tree = true
 	_damageable = get_node_or_null(^"AuthoritativeDamageable") as Damageable
 	_connect_damageable()
 	_apply_live_state()
@@ -70,6 +72,8 @@ func get_next_asset_handle() -> Dictionary:
 ## Read-only guard used before activity/host commit. It mirrors every condition
 ## that can reject physical renewal and changes no generation, health, or signal.
 func preflight_renew(expected_generation: int) -> Dictionary:
+	if _has_entered_live_tree and (is_queued_for_deletion() or not is_inside_tree()):
+		return _result(false, &"asset_detached")
 	if _observation_active:
 		return _result(false, &"reentrant_call")
 	if expected_generation != handle_generation:

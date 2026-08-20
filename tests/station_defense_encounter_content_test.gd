@@ -30,6 +30,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
+	await _test_perimeter_renewal_rejects_stale_live_ownership()
 	await _test_checked_in_encounter_content()
 	await _test_detached_configuration_initializes_once_on_reentry()
 	await _test_queued_deferred_reentry_callbacks_are_inert()
@@ -39,6 +40,68 @@ func _run() -> void:
 		"content fixture removes the production world, encounter, and external authority"
 	)
 	_finish()
+
+
+func _test_perimeter_renewal_rejects_stale_live_ownership() -> void:
+	var detached_asset := ASSET_SCENE.instantiate() as StationDefensePerimeterAsset
+	detached_asset.name = "DetachedRenewalPerimeterAsset"
+	root.add_child(detached_asset)
+	await process_frame
+	var detached_generation := int(detached_asset.get_asset_handle().generation)
+	var detached_before := detached_asset.get_snapshot()
+	var detached_renewal_events: Array[Dictionary] = []
+	detached_asset.asset_renewed.connect(
+		func(asset_handle: Dictionary) -> void:
+			detached_renewal_events.append(asset_handle.duplicate(true))
+	)
+	root.remove_child(detached_asset)
+	var detached_result := detached_asset.renew(detached_generation)
+	_check(
+		not bool(detached_result.get("accepted", true))
+		and detached_result.get("reason") == &"asset_detached"
+		and detached_asset.get_snapshot() == detached_before
+		and detached_renewal_events.is_empty(),
+		"detached live perimeter renewal rejects before generation, health, collision, or publication mutation"
+	)
+	root.add_child(detached_asset)
+	await process_frame
+	var renewed_result := detached_asset.renew(detached_generation)
+	_check(
+		bool(renewed_result.get("accepted", false))
+		and renewed_result.get("reason") == &"renewed"
+		and int(detached_asset.get_asset_handle().generation) == detached_generation + 1
+		and detached_renewal_events.size() == 1,
+		"the same reattached perimeter asset performs one fresh live renewal"
+	)
+	root.remove_child(detached_asset)
+	detached_asset.queue_free()
+
+	var queued_asset := ASSET_SCENE.instantiate() as StationDefensePerimeterAsset
+	queued_asset.name = "QueuedRenewalPerimeterAsset"
+	root.add_child(queued_asset)
+	await process_frame
+	var queued_generation := int(queued_asset.get_asset_handle().generation)
+	var queued_before := queued_asset.get_snapshot()
+	var queued_renewal_events: Array[Dictionary] = []
+	queued_asset.asset_renewed.connect(
+		func(asset_handle: Dictionary) -> void:
+			queued_renewal_events.append(asset_handle.duplicate(true))
+	)
+	queued_asset.queue_free()
+	var queued_result := queued_asset.renew(queued_generation)
+	_check(
+		queued_asset.is_queued_for_deletion()
+		and not bool(queued_result.get("accepted", true))
+		and queued_result.get("reason") == &"asset_detached"
+		and queued_asset.get_snapshot() == queued_before
+		and queued_renewal_events.is_empty(),
+		"queued perimeter renewal rejects before generation, health, collision, or renewal signal mutation"
+	)
+	await process_frame
+	_check(
+		not is_instance_valid(detached_asset) and not is_instance_valid(queued_asset),
+		"perimeter renewal currentness fixtures free both isolated production assets"
+	)
 
 
 func _test_detached_configuration_initializes_once_on_reentry() -> void:
