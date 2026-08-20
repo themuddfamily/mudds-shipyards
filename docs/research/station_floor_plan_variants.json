@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "document_id": "keth_station_floor_plan_variants",
+  "policy": {
+    "canonical_variant_requires": [
+      "adjacency_resolved",
+      "scale_resolved",
+      "version_conflicts_resolved"
+    ],
+    "current_canonical_variant": null,
+    "historical_authentication": "none"
+  },
+  "variants": [
+    {
+      "variant_id": "b2_comb_overview_v1",
+      "scope": "original_era_observed",
+      "source_ids": ["B2"],
+      "claim_ids": ["station.comb_trunk_rung_slab_rhythm"],
+      "resolved": {
+        "adjacency": false,
+        "scale": false,
+        "version_conflicts": true
+      },
+      "disposition": "deferred",
+      "reason": "B2 resolves the repeated comb silhouette and voids, but does not resolve exact adjacency, dimensions, elevation, or berth function."
+    },
+    {
+      "variant_id": "b3_deck_room_graph_v1",
+      "scope": "observed_build",
+      "source_ids": ["B3"],
+      "claim_ids": ["station.spawn_deck_short_vertical_transition"],
+      "resolved": {
+        "adjacency": false,
+        "scale": false,
+        "version_conflicts": false
+      },
+      "disposition": "deferred",
+      "reason": "The registered B3 anchor bounds the exposed deck and short transition only; room and multi-elevation citations remain unregistered."
+    },
+    {
+      "variant_id": "c1_habitat_vip_graph_v1",
+      "scope": "later_source_only",
+      "source_ids": ["C1"],
+      "claim_ids": ["station.habitat_entry_bunks_chair_route_vip"],
+      "resolved": {
+        "adjacency": false,
+        "scale": false,
+        "version_conflicts": false
+      },
+      "disposition": "deferred",
+      "reason": "C1 shows later-source habitat and VIP motifs but does not resolve fixed-build provenance, launch-era applicability, or a join to the B3 VIP sightline."
+    }
+  ]
+}
