@@ -6,8 +6,8 @@ extends SceneTree
 const CENSUS := preload("res://tools/geometry_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
-const RESIDENT_FINGERPRINT := "8e9298bebcc7f6cea0062e35716484dceb8b11a3cdbbe48f68b4479719c7399f"
-const CINDER_LOADED_FINGERPRINT := "477b8aa136fa4d97e751dbd0b52d7b707324dd2eacbbeb3286ec9d200d000aaa"
+const RESIDENT_FINGERPRINT := "a480749183a4ee41ab803d14fec6f709f64c733046a8a21306fa1f68b5e9f507"
+const CINDER_LOADED_FINGERPRINT := "b8eec0999121e159f4e510f88b892e99537ad846b2edcd735ffec8370b160480"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -56,11 +56,11 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1684993
+		int(resident.get("total_triangles", -1)) == 1685281
 			and int(resident.get("total_mesh_instances", -1)) == 5685
 			and int(resident.get("total_surfaces", -1)) == 5692
-			and int(resident.get("unique_meshes", -1)) == 2467,
-		"resident geometry freezes 1,684,993 triangles / 5,685 meshes / 5,692 surfaces / 2,467 unique meshes"
+			and int(resident.get("unique_meshes", -1)) == 2464,
+		"resident geometry freezes 1,685,281 triangles / 5,685 meshes / 5,692 surfaces / 2,464 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 451
@@ -122,11 +122,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1802450
+		int(loaded.get("total_triangles", -1)) == 1802738
 			and int(loaded.get("total_mesh_instances", -1)) == 5851
 			and int(loaded.get("total_surfaces", -1)) == 5858
-			and int(loaded.get("unique_meshes", -1)) == 2569,
-		"loaded geometry freezes 1,802,450 triangles / 5,851 meshes / 5,858 surfaces / 2,569 unique meshes"
+			and int(loaded.get("unique_meshes", -1)) == 2566,
+		"loaded geometry freezes 1,802,738 triangles / 5,851 meshes / 5,858 surfaces / 2,566 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 470

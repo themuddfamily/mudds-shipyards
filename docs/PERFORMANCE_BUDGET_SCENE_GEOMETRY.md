@@ -167,19 +167,20 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on exact clean base `9d8ac0f` after the bounded
+Focused production evidence on exact clean base `e61c951` after the bounded
 Aft/Habitat MultiMesh and immutable-resource trims, production Ember/cruise
 ownership, the pause-menu cruise row, streamed-berth binding, Arrow's passive
 entry-heat target, the immutable Observation LogisticsCase and Jovian
-passenger-seat sharing, and StationServiceAgent pod sharing, using Godot 4.7.1,
+passenger-seat sharing, StationServiceAgent pod sharing, Arrow BoardingStep
+sharing, and Aft RoofVentCollar sharing, using Godot 4.7.1,
 headless Forward+, Dummy audio and HIGH quality, freezes:
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,684,993 | 1,802,450 | +117,457 |
+| Triangles | 1,685,281 | 1,802,738 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,467 | 2,569 | +102 |
+| Unique meshes | 2,464 | 2,566 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -373,9 +374,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`8e9298bebcc7f6cea0062e35716484dceb8b11a3cdbbe48f68b4479719c7399f`;
+`a480749183a4ee41ab803d14fec6f709f64c733046a8a21306fa1f68b5e9f507`;
 the loaded fingerprint is
-`477b8aa136fa4d97e751dbd0b52d7b707324dd2eacbbeb3286ec9d200d000aaa`.
+`b8eec0999121e159f4e510f88b892e99537ad846b2edcd735ffec8370b160480`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
