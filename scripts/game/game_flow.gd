@@ -3651,10 +3651,14 @@ func _start_cinder_convoy(sampled_world_position: Variant) -> Dictionary:
 ## observed generation, so a delayed destruction/landing callback cannot fail a
 ## replacement route.
 func fail_active_activity(reason: StringName) -> bool:
+	if not _can_recover_live_activity():
+		return false
 	return _fail_active_activity(reason)
 
 
 func reset_active_activity() -> bool:
+	if not _can_recover_live_activity():
+		return false
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
@@ -3689,6 +3693,10 @@ func reset_active_activity() -> bool:
 			_convoy_terminal_reason = &""
 		_sync_activity_hud()
 	return bool(reset.get("accepted", false))
+
+
+func _can_recover_live_activity() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_activity_director() -> ActivityDirector:

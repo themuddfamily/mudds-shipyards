@@ -421,23 +421,38 @@ func _test_queued_activity_requests() -> void:
 	var race := before.get("race_session") as CinderTimedRaceSession
 	var patrol := before.get("patrol_activity") as PatrolActivity
 	var race_generation := int(race.get_presentation_snapshot().get("session_generation", -1))
+	var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	var route_ship := game.get_flyable_ships()[1] as HeroShip
+	game.active_ship = route_ship
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := game.request_activity_start(ROUTE.activity_id)
+	var patrol_before_queue := patrol.get_presentation_snapshot()
+	var hud := game.get_node_or_null(^"HUD") as GameHUD
+	var hud_before_queue := hud.get_activity_objective_report() if hud != null else {}
 	game.queue_free()
 	var queued_selection := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
 	var queued_start := game.request_activity_start(ROUTE.activity_id)
+	var queued_failure := game.fail_active_activity(&"queued_recovery")
+	var queued_reset := game.reset_active_activity()
 	var after := game.get_activity_integration_report()
 	_check(
-		game.is_queued_for_deletion()
+		bool(selected.get("accepted", false))
+		and bool(started.get("accepted", false))
+		and game.is_queued_for_deletion()
 		and not bool(queued_selection.get("accepted", true))
 		and queued_selection.get("reason", &"") == &"detached"
 		and not bool(queued_start.get("accepted", true))
 		and queued_start.get("reason", &"") == &"detached"
-		and after.get("selected_activity_kind", &"") == GameFlow.ACTIVITY_KIND_TIMED_RACE
-		and not bool(after.get("selection_locked", true))
+		and not queued_failure and not queued_reset
+		and after.get("selected_activity_kind", &"") == GameFlow.ACTIVITY_KIND_PATROL
+		and bool(after.get("selection_locked", false))
 		and int(after.get("attached_route_owner_count", -1))
 		== int(before.get("attached_route_owner_count", -2))
 		and int(race.get_presentation_snapshot().get("session_generation", -2)) == race_generation
-		and not bool(patrol.get_presentation_snapshot().get("attached", true)),
-		"queued Main rejects activity selection and start before replacing or advancing the route owner"
+		and patrol.get_presentation_snapshot() == patrol_before_queue
+		and (hud.get_activity_objective_report() if hud != null else {}) == hud_before_queue,
+		"queued Main rejects selection, start, failure, and reset before route or HUD mutation"
 	)
 	await process_frame
 	await process_frame
