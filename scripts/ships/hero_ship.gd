@@ -1632,6 +1632,11 @@ func preflight_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
 		return _reset_for_reuse_result(false, &"receipt_exhausted", &"preflight", {}, spawn_transform)
 	if not _reset_for_reuse_transform_is_finite(spawn_transform):
 		return _reset_for_reuse_result(false, &"invalid_spawn_transform", &"preflight", {}, spawn_transform)
+	# Reset captures world-space state and synchronizes the chase camera. A
+	# detached craft has no valid global transform, so it must never reserve a
+	# receipt that could later report an accepted partial reset.
+	if not is_inside_tree():
+		return _reset_for_reuse_result(false, &"ship_detached", &"preflight", {}, spawn_transform)
 	if not is_finite(maximum_hull) or maximum_hull <= 0.0:
 		return _reset_for_reuse_result(false, &"invalid_maximum_hull", &"preflight", {}, spawn_transform)
 	if _component_damage == null \

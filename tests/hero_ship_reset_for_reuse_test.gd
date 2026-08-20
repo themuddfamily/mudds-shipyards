@@ -47,6 +47,7 @@ func _run() -> void:
 	_test_schema_invalid_and_cancel(torrent)
 	_test_dependency_currentness(torrent)
 	_test_damage_callback_reset_rejected(torrent)
+	await _test_detached_preflight_rejected(torrent)
 	await _test_detach_currentness(torrent)
 	await _test_guarded_commit_chronology(torrent)
 	await _test_variant_hook_guard(jovian)
@@ -193,6 +194,35 @@ func _test_damage_callback_reset_rejected(ship: HeroShip) -> void:
 		and not ship.is_destroyed(),
 		"normal generic stage callbacks cannot enter a partial Hero reset"
 	)
+
+
+func _test_detached_preflight_rejected(ship: HeroShip) -> void:
+	var receipt_id_before := int(ship.get("_next_reset_for_reuse_receipt_id"))
+	var hull_before := float(ship.get_telemetry().get("hull", -1.0))
+	var component_revision_before := ship.get_component_damage().get_revision()
+	var canopy_open_before := ship.is_canopy_open()
+	_test_root.remove_child(ship)
+	await process_frame
+	var rejected := ship.preflight_reset_for_reuse(FIRST_TARGET)
+	_check(
+		not bool(rejected.get("accepted", true))
+		and rejected.get("reason") == &"ship_detached"
+		and int(rejected.get("receipt_id", 0)) == -1
+		and int(ship.get("_next_reset_for_reuse_receipt_id")) == receipt_id_before
+		and is_equal_approx(float(ship.get_telemetry().get("hull", -2.0)), hull_before)
+		and ship.get_component_damage().get_revision() == component_revision_before
+		and ship.is_canopy_open() == canopy_open_before,
+		"detached preflight rejects atomically before world-space capture or receipt allocation"
+	)
+	_test_root.add_child(ship)
+	await process_frame
+	var next := ship.preflight_reset_for_reuse(FIRST_TARGET)
+	_check(
+		bool(next.get("accepted", false))
+		and int(next.get("receipt_id", -1)) == receipt_id_before,
+		"re-entered ship accepts the untouched next reset receipt"
+	)
+	ship.cancel_reset_for_reuse(next)
 
 
 func _test_detach_currentness(ship: HeroShip) -> void:
