@@ -1238,7 +1238,7 @@ func _convoy_lifecycle_failure_reason(sample: Dictionary) -> StringName:
 
 
 func _restore_runtime_bindings_after_reentry() -> void:
-	if not _initialized or not is_inside_tree():
+	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
 		return
 	# The world subtree is not rebuilt by a detach, so this re-binds the same
 	# single vehicle rather than producing a second one. Re-resolving is what keeps

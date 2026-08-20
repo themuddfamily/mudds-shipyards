@@ -58,6 +58,7 @@ func _run() -> void:
 	await _test_whole_main_reentry(game, world, audio, authority, resolver, pulse, opponent, fleet)
 	await _test_destroyed_source_impact_ordering(game, pulse, fleet)
 	await _clean_up(game)
+	await _test_queued_main_reentry_restore()
 	_finish()
 
 
@@ -401,6 +402,47 @@ func _test_whole_main_reentry(
 			and pulse.get_active_effect_count() == 6,
 			"re-entry cycle %d accepts live submissions from all six sources and presents each exactly once" % (cycle + 1)
 		)
+
+
+func _test_queued_main_reentry_restore() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_check(game != null, "queued-reentry fixture instantiates a second production Main")
+	if game == null:
+		return
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var resolver := game.get_combat_resolver() as CombatResolver
+	var parent := game.get_parent()
+	_check(
+		resolver != null and resolver.get_registered_source_count() == 6,
+		"queued-reentry fixture begins with the live six-source combat registry"
+	)
+	if resolver == null or parent == null:
+		await _clean_up(game)
+		return
+	parent.remove_child(game)
+	await process_frame
+	var detached_apply_count := int(game.get_runtime_settings_persistence_report().get("apply_count", -1))
+	_check(
+		resolver.get_registered_source_count() == 0
+		and not bool(game.get_caption_integration_report().get("hud_request_sink_bound", true)),
+		"queued-reentry fixture confirms detach releases combat registration and the caption HUD sink"
+	)
+	parent.add_child(game)
+	game.queue_free()
+	game.call("_restore_runtime_bindings_after_reentry")
+	_check(
+		game.is_queued_for_deletion()
+		and resolver.get_registered_source_count() == 0
+		and int(game.get_runtime_settings_persistence_report().get("apply_count", -1)) == detached_apply_count
+		and not bool(game.get_caption_integration_report().get("hud_request_sink_bound", true)),
+		"queued Main rejects reentry restore before combat, global settings, or HUD binding mutation"
+	)
+	for _frame in 3:
+		await process_frame
+	_check(not is_instance_valid(game), "queued-reentry fixture frees its rejected Main without a retained subtree")
 
 
 func _test_safed_fire_contract(
