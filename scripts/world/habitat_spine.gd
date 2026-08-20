@@ -65,12 +65,17 @@ const GARDEN_COLUMN_COLLAR_AUTHORED_RING_SEGMENTS := 16
 const GARDEN_COLUMN_COLLAR_BUDGETED_RINGS := 40
 const GARDEN_COLUMN_COLLAR_BUDGETED_RING_SEGMENTS := 16
 const GARDEN_COLUMN_COLLAR_COPY_COUNT := 3
+const PIPE_COLLAR_INNER_RADIUS := 0.12
+const PIPE_COLLAR_OUTER_RADIUS := 0.19
+const PIPE_COLLAR_RINGS := 48
+const PIPE_COLLAR_RING_SEGMENTS := 16
+const PIPE_COLLAR_COPY_COUNT := 6
 const RENDER_DESCENDANT_COUNT := 1907
 const RENDER_MESH_INSTANCE_COUNT := 1257
 const RENDER_MULTIMESH_BATCH_COUNT := 14
 const RENDER_DRAWN_COPY_COUNT := 1400
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 1271
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 353
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 348
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
 ## Which of the six berths are currently taken, in alcove order.
@@ -174,6 +179,7 @@ var _nutrient_valve_mesh: TorusMesh
 var _nutrient_valve_batch: MultiMeshInstance3D
 var _nutrient_valve_transforms: Array[Transform3D] = []
 var _garden_column_collar_mesh: TorusMesh
+var _pipe_collar_mesh: TorusMesh
 
 
 func _ready() -> void:
@@ -487,6 +493,9 @@ func get_validation_errors() -> PackedStringArray:
 	var collar_sharing := render.garden_column_collar_mesh_sharing as Dictionary
 	if not bool(collar_sharing.valid):
 		errors.append_array(collar_sharing.errors as PackedStringArray)
+	var pipe_collar_sharing := render.pipe_collar_mesh_sharing as Dictionary
+	if not bool(pipe_collar_sharing.valid):
+		errors.append_array(pipe_collar_sharing.errors as PackedStringArray)
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -901,6 +910,7 @@ func get_render_allocation_report() -> Dictionary:
 				== &"NutrientValve"
 		)
 	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
+	var pipe_collar_sharing := _inspect_pipe_collar_mesh_sharing()
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -931,6 +941,7 @@ func get_render_allocation_report() -> Dictionary:
 		"bounds_match_authored": bounds_match,
 		"mesh_resource_matches_authored": mesh_matches,
 		"material_resource_matches_authored": material_matches,
+		"pipe_collar_mesh_sharing": pipe_collar_sharing,
 		"nutrient_tank_band_legacy_mesh_instances": NUTRIENT_TANK_BAND_COPY_COUNT,
 		"nutrient_tank_band_mesh_instances": 0,
 		"nutrient_tank_band_legacy_multimesh_batches": 0,
@@ -1144,6 +1155,58 @@ static func _garden_column_collar_transforms() -> Array[Transform3D]:
 		Transform3D(Basis.IDENTITY, Vector3(14.4, 2.90, 20.2)),
 		Transform3D(Basis.IDENTITY, Vector3(14.4, 4.50, 20.2)),
 	]
+
+
+func _inspect_pipe_collar_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var collars: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var submissions := 0
+	var service := get_node_or_null(^"Structure/MaintenanceServiceLayer") as Node3D
+	if service == null:
+		errors.append("pipe collar parent missing")
+	else:
+		for child in service.get_children():
+			var collar := child as MeshInstance3D
+			if collar == null or StringName(collar.get_meta("service_class", &"")) != &"pipe-collar":
+				continue
+			var mesh := collar.mesh as TorusMesh
+			if mesh == null:
+				errors.append("pipe collar mesh missing")
+				continue
+			collars.append(collar)
+			mesh_ids[mesh.get_instance_id()] = true
+			submissions += mesh.get_surface_count()
+			if mesh != _pipe_collar_mesh:
+				errors.append("pipe collar shared-mesh identity drift")
+			if collar.material_override != _materials.get("graphite") \
+					or collar.rotation_degrees != Vector3(90, 0, 0) \
+					or not bool(collar.get_meta("station_service_detail", false)) \
+					or collar.get_child_count() != 0:
+				errors.append("pipe collar presentation or service drift")
+	var mesh := _pipe_collar_mesh
+	if mesh == null \
+			or not is_equal_approx(mesh.inner_radius, PIPE_COLLAR_INNER_RADIUS) \
+			or not is_equal_approx(mesh.outer_radius, PIPE_COLLAR_OUTER_RADIUS) \
+			or mesh.rings != PIPE_COLLAR_RINGS \
+			or mesh.ring_segments != PIPE_COLLAR_RING_SEGMENTS \
+			or mesh.get_surface_count() != 1 \
+			or mesh.material != null \
+			or mesh.resource_local_to_scene:
+		errors.append("pipe collar primitive recipe drift")
+	if collars.size() != PIPE_COLLAR_COPY_COUNT:
+		errors.append("pipe collar copy roster drift")
+	if mesh_ids.size() != 1:
+		errors.append("pipe collar mesh allocation drift")
+	if submissions != PIPE_COLLAR_COPY_COUNT:
+		errors.append("pipe collar submission drift")
+	return {
+		"valid": errors.is_empty(), "errors": errors,
+		"geometry_nodes": collars.size(), "geometry_submissions": submissions,
+		"visible_geometry_copies": collars.size(), "primitive_mesh_allocations": mesh_ids.size(),
+		"resource_allocation_reduction": PIPE_COLLAR_COPY_COUNT - mesh_ids.size(),
+		"legacy": {"geometry_nodes": PIPE_COLLAR_COPY_COUNT, "geometry_submissions": PIPE_COLLAR_COPY_COUNT, "visible_geometry_copies": PIPE_COLLAR_COPY_COUNT, "primitive_mesh_allocations": PIPE_COLLAR_COPY_COUNT},
+	}.duplicate(true)
 
 
 ## Applied unconditionally. A no-op guard on the flag made drifted state
@@ -1770,6 +1833,11 @@ func _build_service_detail(structure: Node3D) -> void:
 	service.set_meta("station_service_layer", true)
 	service.set_meta("evidence_status", EVIDENCE_STATUS)
 	structure.add_child(service)
+	_pipe_collar_mesh = TorusMesh.new()
+	_pipe_collar_mesh.inner_radius = PIPE_COLLAR_INNER_RADIUS
+	_pipe_collar_mesh.outer_radius = PIPE_COLLAR_OUTER_RADIUS
+	_pipe_collar_mesh.rings = PIPE_COLLAR_RINGS
+	_pipe_collar_mesh.ring_segments = PIPE_COLLAR_RING_SEGMENTS
 
 	# A high-mounted service run keeps every route clear while adding the pipes,
 	# cabinets, valves, and maintenance access expected of a modernised facility.
@@ -1778,7 +1846,7 @@ func _build_service_detail(structure: Node3D) -> void:
 		var main_pipe := _beam_between(service, "EnvironmentalMain", Vector3(pipe_x, 3.6, 2.8), Vector3(pipe_x, 3.6, 17.45), 0.12, _materials["copper"], false)
 		_register_service(main_pipe, &"environmental-main")
 		for valve_z in [4.6, 9.9, 15.2]:
-			var collar := _torus(service, "PipeCollar", Vector3(pipe_x, 3.6, float(valve_z)), 0.12, 0.19, _materials["graphite"], Vector3(90, 0, 0))
+			var collar := _torus(service, "PipeCollar", Vector3(pipe_x, 3.6, float(valve_z)), PIPE_COLLAR_INNER_RADIUS, PIPE_COLLAR_OUTER_RADIUS, _materials["graphite"], Vector3(90, 0, 0), _pipe_collar_mesh)
 			_register_service(collar, &"pipe-collar")
 			var valve := _torus(service, "IsolationValve", Vector3(pipe_x - float(side) * 0.18, 3.25, float(valve_z)), 0.15, 0.23, _materials["red"], Vector3(0, 90, 0))
 			_register_service(valve, &"isolation-valve")

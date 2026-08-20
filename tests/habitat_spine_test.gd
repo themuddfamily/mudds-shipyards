@@ -438,6 +438,7 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_nutrient_tank_band_batch(module)
 	_test_nutrient_valve_batch(module)
 	_test_garden_column_collar_mesh_sharing(module)
+	_test_pipe_collar_mesh_sharing(module)
 	_check(
 		module.find_children("*", "Node", true, false).size() == 1907
 		and module.find_children("*", "MeshInstance3D", true, false).size() == 1257
@@ -618,11 +619,11 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 		"drawn copies remain 1400 while surface submissions fall 1286 -> 1271"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 353
+		int(report.unique_mesh_resources) == 348
 		and int(report.unique_material_resources) == 31
 		and int(report.multimesh_resources) == 14
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 353/31 while the hatch batch retains its 144-float renderer buffer"
+		"mesh/material allocations freeze at 348/31 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
@@ -1041,6 +1042,65 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 	_check(
 		module.get_validation_errors() == baseline_errors,
 		"restoring valve payload, recipe and metadata restores the pre-mutation Habitat audit"
+	)
+
+
+func _test_pipe_collar_mesh_sharing(module: HabitatSpine) -> void:
+	var report := module.get_render_allocation_report()
+	var sharing := report.pipe_collar_mesh_sharing as Dictionary
+	_check(
+		bool(sharing.valid)
+			and sharing.legacy == {
+				"geometry_nodes": 6,
+				"geometry_submissions": 6,
+				"visible_geometry_copies": 6,
+				"primitive_mesh_allocations": 6,
+			}
+			and int(sharing.geometry_nodes) == 6
+			and int(sharing.geometry_submissions) == 6
+			and int(sharing.visible_geometry_copies) == 6
+			and int(sharing.primitive_mesh_allocations) == 1
+			and int(sharing.resource_allocation_reduction) == 5,
+		"six service pipe collars retain their renderer copies while one exact TorusMesh replaces six private allocations"
+	)
+	var service := module.get_node(^"Structure/MaintenanceServiceLayer") as Node3D
+	var collars: Array[MeshInstance3D] = []
+	for child in service.get_children():
+		var collar := child as MeshInstance3D
+		if collar != null and StringName(collar.get_meta("service_class", &"")) == &"pipe-collar":
+			collars.append(collar)
+	if collars.size() != 6:
+		return
+	var shared_mesh := collars[0].mesh as TorusMesh
+	var exact := shared_mesh != null
+	for collar in collars:
+		exact = exact \
+			and collar.mesh == shared_mesh \
+			and collar.material_override != null \
+			and collar.rotation_degrees == Vector3(90, 0, 0) \
+			and bool(collar.get_meta("station_service_detail", false)) \
+			and StringName(collar.get_meta("service_class", &"")) == &"pipe-collar" \
+			and collar.get_child_count() == 0
+	_check(
+		exact
+			and is_equal_approx(shared_mesh.inner_radius, HabitatSpine.PIPE_COLLAR_INNER_RADIUS)
+			and is_equal_approx(shared_mesh.outer_radius, HabitatSpine.PIPE_COLLAR_OUTER_RADIUS)
+			and shared_mesh.rings == HabitatSpine.PIPE_COLLAR_RINGS
+			and shared_mesh.ring_segments == HabitatSpine.PIPE_COLLAR_RING_SEGMENTS
+			and shared_mesh.get_surface_count() == 1
+			and shared_mesh.material == null,
+		"shared collar resource preserves the exact renderer recipe and each service collar's metadata-only role"
+	)
+	var final_collar := collars[-1]
+	final_collar.mesh = shared_mesh.duplicate() as TorusMesh
+	_check(
+		not bool((module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).valid),
+		"RED: a private service pipe-collar mesh fails the local allocation audit"
+	)
+	final_collar.mesh = shared_mesh
+	_check(
+		bool((module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).valid),
+		"restoring the shared service pipe-collar mesh returns the allocation audit green"
 	)
 
 
