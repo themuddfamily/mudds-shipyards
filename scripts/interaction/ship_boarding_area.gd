@@ -32,15 +32,20 @@ var _has_reservation := false
 var _reservation_token: Variant = null
 var _last_reported_availability := false
 var _detaching := false
+var _initialized := false
 
 
 func _enter_tree() -> void:
 	_detaching = false
+	if _initialized:
+		_apply_enabled_state()
+		call_deferred("_publish_availability_after_reentry")
 
 
 func _ready() -> void:
 	_apply_enabled_state()
 	_last_reported_availability = is_available()
+	_initialized = true
 
 
 ## A boarding reservation names one live physical handoff. A streamed-out ship
@@ -51,6 +56,12 @@ func _exit_tree() -> void:
 	# the exiting parent tree.
 	_detaching = true
 	clear_reservation()
+	_emit_availability_if_changed()
+
+
+func _publish_availability_after_reentry() -> void:
+	if _initialized and is_inside_tree() and not _detaching:
+		_emit_availability_if_changed()
 
 
 ## Resolves the spacecraft that owns this interaction point. The return value is

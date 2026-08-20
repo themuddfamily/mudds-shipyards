@@ -175,6 +175,19 @@ func _run() -> void:
 		"re-entry restores physical discovery without carrying the detached pilot token"
 	)
 	_check(area.release_reservation(second_player_token), "new pilot releases the re-entered seat")
+	_availability_events.clear()
+	host.remove_child(ship)
+	await process_frame
+	host.add_child(ship)
+	await _physics_frames(3)
+	_check(
+		_availability_events == [false, true]
+		and area.is_available()
+		and _player_discovers(player, area)
+		and not area.is_reserved()
+		and area.get_reservation_token() == null,
+		"unreserved ship re-entry publishes false then true availability without reviving a reservation"
+	)
 
 	_check(area.try_reserve(first_player_token), "object token reserves before lifetime cleanup")
 	first_player_token.queue_free()
