@@ -9,7 +9,7 @@ const SamplerScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_atmosphere_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 37
+const EXPECTED_ASSERTIONS := 40
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -56,6 +56,7 @@ var _environment_attack_mode: StringName = &""
 var _environment_attack_armed := false
 var _environment_reentry_results: Array[Dictionary] = []
 var _attack_signal_count := 0
+var _queued_presentation_signal_count := 0
 
 
 func _init() -> void:
@@ -83,6 +84,7 @@ func _run() -> void:
 	_test_structured_red_and_repair(adapter, profile, environment)
 	_test_environment_changed_transactions(adapter, environment)
 	await _test_tree_detach_reentry(adapter, profile, environment)
+	await _test_queued_observation_is_atomic()
 	_test_reset_generation_and_reports(adapter, profile, environment)
 	_test_target_replacement_during_apply()
 	await _test_expired_environment_fails_closed()
@@ -533,6 +535,16 @@ func _test_tree_detach_reentry(
 		and _all_reason(exit_reentry, &"reentrant_call"),
 		"tree detach restores baseline and freezes generation/sample/signals"
 	)
+	var detached_rejected := adapter.present_observation(
+		2_000.0, 1_000.0, 180.0, 0.4, 0.6, generation
+	)
+	_check(
+		detached_rejected.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == detached
+		and _renderer_values(environment) == baseline
+		and _signal_events.size() == signal_count,
+		"a detached fresh observation is atomic and cannot retain later renderer intent"
+	)
 	_environment_reentry_results.clear()
 	_environment_attack_mode = &"reentry_only"
 	_environment_attack_armed = true
@@ -552,6 +564,41 @@ func _test_tree_detach_reentry(
 		and bool(adapter.audit().valid),
 		"tree reentry reapplies the same resource state without replay or generation churn"
 	)
+	var fresh_live := adapter.present_observation(
+		2_000.0, 1_000.0, 180.0, 0.4, 0.6, generation
+	)
+	_check(
+		fresh_live.accepted and fresh_live.reason == &"observation_presented"
+		and bool(adapter.get_state_snapshot().has_presented_sample),
+		"re-added atmosphere presentation accepts a fresh current observation"
+	)
+
+
+func _test_queued_observation_is_atomic() -> void:
+	var fixture := _make_fixture()
+	var adapter := fixture.adapter as PlanetaryAtmospherePresentation
+	var profile := fixture.profile as PlanetaryAtmosphereProfile
+	var environment := fixture.environment as Environment
+	if adapter == null or profile == null or environment == null:
+		return
+	var configured := adapter.configure(profile, environment)
+	_queued_presentation_signal_count = 0
+	adapter.presentation_committed.connect(_on_queued_presentation_committed)
+	var before := adapter.get_state_snapshot()
+	var renderer_before := _renderer_values(environment)
+	adapter.queue_free()
+	var queued_rejected := adapter.present_observation(
+		2_000.0, 1_000.0, 180.0, 0.4, 0.6, adapter.get_generation()
+	)
+	_check(
+		configured.accepted and adapter.is_queued_for_deletion()
+		and queued_rejected.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == before
+		and _renderer_values(environment) == renderer_before
+		and _queued_presentation_signal_count == 0,
+		"a queued atmosphere adapter rejects a fresh observation without state, renderer, or signal mutation"
+	)
+	await process_frame
 
 
 func _test_reset_generation_and_reports(
@@ -697,6 +744,13 @@ func _on_attack_presentation_committed(
 		_snapshot: Dictionary
 	) -> void:
 	_attack_signal_count += 1
+
+
+func _on_queued_presentation_committed(
+		_reason: StringName,
+		_snapshot: Dictionary
+	) -> void:
+	_queued_presentation_signal_count += 1
 
 
 func _make_fixture() -> Dictionary:

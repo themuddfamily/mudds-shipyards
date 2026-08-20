@@ -154,6 +154,10 @@ func present_observation(
 		return _result(false, &"not_configured")
 	if expected_generation != _generation:
 		return _result(false, &"stale_generation")
+	# This public adapter has no owner-gated caller. Detached or terminal samples
+	# must not become retained renderer intent that applies on a later re-entry.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"presentation_detached")
 	var environment := _resolve_environment()
 	if environment == null:
 		return _result(false, &"environment_unavailable")
