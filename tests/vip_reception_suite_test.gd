@@ -71,7 +71,7 @@ func _run() -> void:
 	_test_well_is_enterable_without_a_jump(suite)
 	_test_does_not_penetrate_the_aft_module(world, suite)
 	await _test_landmark_opens_onto_the_room(world, suite)
-	_test_lifecycle(suite)
+	await _test_lifecycle(suite)
 
 	game.queue_free()
 	await process_frame
@@ -615,6 +615,56 @@ func _test_lifecycle(suite: VipReceptionSuite) -> void:
 	_check(bool(enabled.reversible), "the lifecycle is reversible")
 	_check(bool(enabled.visible_matches_enabled) and bool(enabled.collision_matches_enabled), "re-enabling restores the room exactly")
 	_check(suite.is_module_enabled(), "the flag and the node state agree")
+
+	var parent := suite.get_parent()
+	var detached_before := _lifecycle_snapshot(suite)
+	parent.remove_child(suite)
+	suite.set_module_enabled(false)
+	_check(
+		not suite.is_inside_tree()
+			and _lifecycle_snapshot(suite) == detached_before,
+		"detached direct VIP lifecycle mutation preserves visible and collision state atomically"
+	)
+	parent.add_child(suite)
+	await process_frame
+	suite.set_module_enabled(false)
+	var live_disabled := suite.get_lifecycle_contract()
+	suite.set_module_enabled(true)
+	_check(
+		suite.is_inside_tree()
+			and bool(live_disabled.visible_matches_enabled)
+			and bool(live_disabled.collision_matches_enabled)
+			and _lifecycle_snapshot(suite) == detached_before,
+		"readded VIP suite accepts fresh live disable and restore without rebuilding"
+	)
+
+	var queued_before := _lifecycle_snapshot(suite)
+	suite.queue_free()
+	suite.set_module_enabled(false)
+	_check(
+		suite.is_inside_tree()
+			and suite.is_queued_for_deletion()
+			and _lifecycle_snapshot(suite) == queued_before,
+		"queued direct VIP lifecycle mutation preserves visible and collision state atomically"
+	)
+
+
+func _lifecycle_snapshot(suite: VipReceptionSuite) -> Dictionary:
+	var body_layers: Array[Dictionary] = []
+	for raw_body in suite.find_children("*", "StaticBody3D", true, false):
+		var body := raw_body as StaticBody3D
+		body_layers.append({
+			"path": suite.get_path_to(body),
+			"collision_layer": body.collision_layer,
+			"collision_mask": body.collision_mask,
+			"visible": body.visible,
+		})
+	return {
+		"enabled": suite.is_module_enabled(),
+		"visible": suite.visible,
+		"lifecycle": suite.get_lifecycle_contract(),
+		"body_layers": body_layers,
+	}.duplicate(true)
 
 
 func _body_world_box(body: StaticBody3D) -> AABB:

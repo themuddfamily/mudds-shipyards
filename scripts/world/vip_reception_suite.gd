@@ -672,12 +672,18 @@ func get_render_batch_contract() -> Dictionary:
 
 
 func set_module_enabled(enabled: bool) -> void:
+	if not _is_current():
+		return
 	_module_enabled = enabled
 	_apply_enabled_state()
 
 
 func is_module_enabled() -> bool:
 	return _module_enabled
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_lifecycle_contract() -> Dictionary:
