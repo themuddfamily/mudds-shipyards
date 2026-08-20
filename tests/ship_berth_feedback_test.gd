@@ -238,10 +238,36 @@ func _run() -> void:
 	feedback.state_changed.disconnect(_on_weak_reconcile_state_changed)
 	feedback.set_feedback_paused(false)
 
+	var detached_state_events: Array[StringName] = []
+	var detached_state_listener := func(state: StringName) -> void:
+		detached_state_events.append(state)
+	feedback.state_changed.connect(detached_state_listener)
 	berth.remove_child(feedback)
+	await process_frame
+	var detached_state := feedback.get_state_snapshot()
+	feedback.advance_simulation(1.0)
+	feedback.seek_simulation(float(detached_state.elapsed) + 3.0)
+	_check(
+		not feedback.is_inside_tree()
+		and feedback.get_state_snapshot() == detached_state
+		and detached_state_events.is_empty(),
+		"detached berth feedback rejects stale manual clock mutations without publishing state"
+	)
 	berth.add_child(feedback)
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released" and bool(feedback.get_audit_report().valid), "child detach and re-add reconnects lifecycle without rebuilding")
+	var reentered_elapsed := float(feedback.get_state_snapshot().elapsed)
+	feedback.advance_simulation(0.25)
+	_check(
+		is_equal_approx(float(feedback.get_state_snapshot().elapsed), reentered_elapsed + 0.25),
+		"re-added berth feedback accepts a fresh manual advancement"
+	)
+	feedback.seek_simulation(7.5)
+	_check(
+		is_equal_approx(float(feedback.get_state_snapshot().elapsed), 7.5),
+		"re-added berth feedback accepts a fresh manual seek"
+	)
+	feedback.state_changed.disconnect(detached_state_listener)
 
 	var stale_owner := Node3D.new()
 	stage.add_child(stale_owner)

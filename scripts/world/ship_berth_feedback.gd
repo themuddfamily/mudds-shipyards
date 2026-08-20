@@ -223,6 +223,8 @@ func is_auto_advance_enabled() -> bool:
 
 
 func advance_simulation(delta: float) -> void:
+	if not is_inside_tree():
+		return
 	_reconcile_state(false)
 	if not is_finite(delta) or delta < 0.0 or not _feedback_enabled or _feedback_paused:
 		return
@@ -231,6 +233,8 @@ func advance_simulation(delta: float) -> void:
 
 
 func seek_simulation(time_seconds: float) -> void:
+	if not is_inside_tree():
+		return
 	if not is_finite(time_seconds) or time_seconds < 0.0:
 		return
 	_elapsed = time_seconds
