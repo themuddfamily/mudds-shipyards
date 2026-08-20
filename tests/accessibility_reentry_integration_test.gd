@@ -407,6 +407,21 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 		not _bus_levels_match(expected_bus_levels),
 		"a foreign owner really does displace the settings-owned bus levels while Main is detached"
 	)
+	# The retained settings resource remains valid while Main is detached, but its
+	# direct change must not reclaim process-global AudioServer ownership from the
+	# scene currently on screen. Re-entry applies this latest validated snapshot.
+	settings.master_volume = 0.55
+	var deferred_bus_levels := settings.get_audio_bus_levels_db()
+	var foreign_levels_retained := true
+	for bus_name: StringName in deferred_bus_levels:
+		foreign_levels_retained = foreign_levels_retained and is_equal_approx(
+			AudioServer.get_bus_volume_db(AudioServer.get_bus_index(bus_name)),
+			foreign_db
+		)
+	_check(
+		foreign_levels_retained and not _bus_levels_match(deferred_bus_levels),
+		"detached settings changes retain foreign global audio ownership until Main re-enters"
+	)
 
 	parent.add_child(game)
 	await process_frame
@@ -474,8 +489,8 @@ func _test_whole_main_reentry(game: GameFlow, hud: GameHUD, fleet: Array[HeroShi
 	)
 
 	_check(
-		_bus_levels_match(expected_bus_levels),
-		"re-entry reapplies the settings snapshot to the process-wide audio buses a foreign owner displaced"
+		_bus_levels_match(deferred_bus_levels),
+		"re-entry applies the latest settings snapshot after foreign global audio ownership ends"
 	)
 
 	var after := hud.get_accessibility_report()

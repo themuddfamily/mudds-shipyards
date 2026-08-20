@@ -5343,11 +5343,16 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		&"master_volume", &"ambience_volume", &"engine_volume",
 		&"weapons_volume", &"ui_volume", &"music_volume"
 	]:
-		runtime_settings.apply_audio_settings()
+		# RuntimeSettings survives a streamed Main detach, but AudioServer belongs
+		# to whichever scene is currently on screen. Preserve the validated value
+		# and let the re-entry snapshot reclaim global buses at the correct boundary.
+		if is_inside_tree():
+			runtime_settings.apply_audio_settings()
 	elif setting == &"graphics_profile" and world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	elif setting == &"window_mode":
-		runtime_settings.apply_window_mode()
+		if is_inside_tree():
+			runtime_settings.apply_window_mode()
 	elif setting == &"input_binding_profile":
 		_apply_runtime_input_bindings_and_options()
 	elif setting in [
