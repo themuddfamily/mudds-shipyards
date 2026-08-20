@@ -256,7 +256,39 @@ func _run() -> void:
 		_validate_vertical_shot(opponent, target, _shots[below_shot_index], -1.0, "below")
 	_check(opponent.global_basis.x.is_finite() and opponent.global_basis.y.is_finite() and opponent.global_basis.z.is_finite(), "inverse vertical tracking keeps a finite attitude basis")
 
-	await _clean_up(host, opponent)
+	# A live pulse may reach its target during the same idle turn that an
+	# individual opponent is scheduled for disposal. Its pending target-side
+	# receipt must remain inert until teardown clears it; the doomed craft cannot
+	# create a world burst or mutate its retained visual state in that window.
+	opponent.call("activate", respawn)
+	var queued_terminal_sequence := 719
+	var queued_terminal_hit := opponent.global_position + Vector3(0.5, 0.2, -0.8)
+	var destroyed_before_queued_commit := _destroyed_positions.size()
+	opponent.call(
+		"apply_damage", maximum_health, queued_terminal_hit, queued_terminal_sequence, true
+	)
+	_check(
+		not bool(opponent.call("is_active"))
+		and int(opponent.call("get_pending_damage_presentation_count")) == 1
+		and opponent.call("get_destruction_effect_root") == null
+		and visual_root.visible,
+		"queued-disposal fixture retains only the unpresented terminal receipt"
+	)
+	opponent.queue_free()
+	var queued_commit := bool(opponent.call("commit_deferred_damage_presentation", queued_terminal_sequence))
+	_check(
+		opponent.is_queued_for_deletion()
+		and not queued_commit
+		and int(opponent.call("get_pending_damage_presentation_count")) == 1
+		and opponent.call("get_destruction_effect_root") == null
+		and visual_root.visible
+		and _destroyed_positions.size() == destroyed_before_queued_commit + 1,
+		"queued opponent rejects a late terminal presentation without creating world effects"
+	)
+	await process_frame
+	_check(not is_instance_valid(opponent), "queued opponent frees after its terminal receipt is rejected")
+
+	await _clean_up(host, null)
 	_check(root.get_child_count() == original_root_child_count, "combat fixture cleans up all scene nodes")
 	_finish()
 

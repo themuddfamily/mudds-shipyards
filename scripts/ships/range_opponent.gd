@@ -671,7 +671,7 @@ func discard_deferred_damage_presentations() -> void:
 ## Commits exactly one delayed hit presentation. Missing, evicted and stale
 ## sequences are harmless so recycled opponents cannot replay prior-life VFX.
 func commit_deferred_damage_presentation(sequence: int) -> bool:
-	if not _pending_damage_presentations.has(sequence):
+	if is_queued_for_deletion() or not is_inside_tree() or not _pending_damage_presentations.has(sequence):
 		return false
 	var presentation := _pending_damage_presentations[sequence] as Dictionary
 	_pending_damage_presentations.erase(sequence)
