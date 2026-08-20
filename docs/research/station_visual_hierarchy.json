@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "document_id": "station_visual_hierarchy",
+  "evidence_boundary": "modern_interpretation_only",
+  "historical_authentication": "none",
+  "review": {
+    "status": "pending_art_review",
+    "required_axes": [
+      "navigation",
+      "readability",
+      "coherent_scale",
+      "material_hierarchy",
+      "colour_safe_cues",
+      "composition"
+    ],
+    "native_playtest_required": true,
+    "renderer_approval": false,
+    "scope": "Gameplay-distance review across walking, cockpit, chase, combat, landing, ultrawide, reduced-motion, and minimum graphics views."
+  },
+  "modules": [
+    {
+      "id": "station_operations",
+      "kind": "station",
+      "identity_status": "modern_interpretation",
+      "review_status": "pending_art_review",
+      "navigation_priority": 1,
+      "palette": {"colors": {"primary": "#506875", "secondary": "#9eafb4", "accent": "#f2c36b", "warning": "#e36b5d"}},
+      "material_families": ["station_symmetric_panel", "brushed_structural_metal", "safety_marking"],
+      "silhouette_cues": ["overhead_route_band", "large_operation_fascia"],
+      "shape_cues": ["horizontal_bands", "triangular_warning_markers"],
+      "colour_safe_shape_channel": true,
+      "decorative_density": "bounded",
+      "review_note": "Confirm route legibility and warm/cool contrast at player height before any asset is approved."
+    },
+    {
+      "id": "station_habitat",
+      "kind": "station",
+      "identity_status": "modern_interpretation",
+      "review_status": "pending_art_review",
+      "navigation_priority": 2,
+      "palette": {"colors": {"primary": "#66715e", "secondary": "#b8b09b", "accent": "#d98c58", "warning": "#cf625a"}},
+      "material_families": ["habitat_structural_frame", "warm_lens", "soft_floor_trim"],
+      "silhouette_cues": ["cove_light_ribbon", "low_habitat_threshold"],
+      "shape_cues": ["rounded_coves", "paired_vertical_wayfinding"],
+      "colour_safe_shape_channel": true,
+      "decorative_density": "bounded",
+      "review_note": "Check that comfort warmth does not erase doors, stairs, or interactable edges."
+    },
+    {
+      "id": "station_freight",
+      "kind": "station",
+      "identity_status": "modern_interpretation",
+      "review_status": "pending_art_review",
+      "navigation_priority": 3,
+      "palette": {"colors": {"primary": "#685b51", "secondary": "#a68c70", "accent": "#e4b84c", "warning": "#de6250"}},
+      "material_families": ["freight_structural_trim", "cargo_plate", "impact_guard"],
+      "silhouette_cues": ["deep_frame_portal", "stacked_cargo_profile"],
+      "shape_cues": ["block_labels", "diagonal_keep_clear_stripes"],
+      "colour_safe_shape_channel": true,
+      "decorative_density": "bounded",
+      "review_note": "Confirm cargo edges and keep-clear routes survive low flight and minimum quality views."
+    },
+    {
+      "id": "fleet",
+      "kind": "fleet",
+      "identity_status": "modern_interpretation",
+      "review_status": "pending_art_review",
+      "navigation_priority": 4,
+      "palette": {"colors": {"primary": "#435b78", "secondary": "#aab7c4", "accent": "#81d1c4", "warning": "#ee735a"}},
+      "material_families": ["craft_hero_surface", "neutral_fleet_trim", "engine_emitter"],
+      "silhouette_cues": ["craft_class_outline", "engine_count_profile"],
+      "shape_cues": ["class_badge_shapes", "distinct_cockpit_canopies"],
+      "colour_safe_shape_channel": true,
+      "decorative_density": "deferred",
+      "review_note": "Review each flyable at berth, chase, cockpit, combat, and landing distance; palette never substitutes for silhouette."
+    },
+    {
+      "id": "nearby_sector",
+      "kind": "nearby_sector",
+      "identity_status": "modern_interpretation",
+      "review_status": "pending_art_review",
+      "navigation_priority": 5,
+      "palette": {"colors": {"primary": "#273d52", "secondary": "#597686", "accent": "#d1a55c", "warning": "#df6a65"}},
+      "material_families": ["sector_distant_silhouette", "beacon_shell", "navigation_marker"],
+      "silhouette_cues": ["large_landmark_mass", "beacon_tower_profile"],
+      "shape_cues": ["beacon_diamond", "route_arrow_geometry"],
+      "colour_safe_shape_channel": true,
+      "decorative_density": "deferred",
+      "review_note": "Confirm distant silhouettes remain readable without implying historical reconstruction or inaccessible collision."
+    },
+    {
+      "id": "ui",
+      "kind": "ui",
+      "identity_status": "modern_interpretation",
+      "review_status": "pending_art_review",
+      "navigation_priority": 6,
+      "palette": {"colors": {"primary": "#162936", "secondary": "#c6d6d7", "accent": "#66c5b2", "warning": "#ed8664"}},
+      "material_families": ["hud_panel", "caption_surface", "focus_ring"],
+      "silhouette_cues": ["stable_panel_edges", "focus_outline"],
+      "shape_cues": ["icon_shape_plus_label", "patterned_warning_state"],
+      "colour_safe_shape_channel": true,
+      "decorative_density": "deferred",
+      "review_note": "Validate captions, focus, colour-safe cues, ultrawide safe area, and reduced-flash settings on native hardware."
+    }
+  ]
+}
