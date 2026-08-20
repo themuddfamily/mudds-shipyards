@@ -61,6 +61,8 @@ func configure() -> Dictionary:
 func present_observation(observation: Dictionary, expected_generation: int) -> Dictionary:
 	if not _configured:
 		return {"accepted": false, "reason": &"not_configured"}
+	if not is_inside_tree():
+		return {"accepted": false, "reason": &"composition_detached"}
 	return get_atmosphere_rig().present_observation(observation, expected_generation)
 
 

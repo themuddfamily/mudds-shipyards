@@ -94,18 +94,25 @@ func _run() -> void:
 	var original := composition.get_world_environment().environment
 	root.remove_child(composition)
 	await process_frame
+	var detached_rig_snapshot := composition.get_atmosphere_rig().get_snapshot()
+	var detached_observation := composition.present_observation(observation, 1)
 	_check(
 		not composition.is_inside_tree()
 		and composition.get_world_environment().environment == null
+		and not bool(detached_observation.get("accepted", true))
+		and detached_observation.get("reason", &"") == &"composition_detached"
+		and composition.get_atmosphere_rig().get_snapshot() == detached_rig_snapshot
 		and bool(composition.audit().valid),
-		"whole composition detach restores its WorldEnvironment baseline without audit drift"
+		"detached composition restores its baseline and rejects hidden rig presentation mutation"
 	)
 	root.add_child(composition)
 	await process_frame
+	var reentry_observation := composition.present_observation(observation, 1)
 	_check(
 		composition.get_world_environment().environment == original
+		and bool(reentry_observation.get("accepted", false))
 		and bool(composition.audit().valid),
-		"whole composition re-entry reapplies the retained rig Environment"
+		"whole composition re-entry reapplies the rig and resumes current-generation presentation"
 	)
 	composition.queue_free()
 	await process_frame
