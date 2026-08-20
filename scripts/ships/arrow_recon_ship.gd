@@ -97,6 +97,8 @@ const FUSELAGE_PANEL_BAND_BUDGETED_RINGS := 41
 const FUSELAGE_PANEL_BAND_BUDGETED_RING_SEGMENTS := 12
 const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
 const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
+const ARRAY_RECEIVER_RADIUS := 0.15
+const ARRAY_RECEIVER_VISIBLE_COPIES := 2
 const ENTRY_HEAT_TARGET_SCENE: PackedScene = preload(
 	"res://scenes/effects/planetary_entry_heat_target.tscn"
 )
@@ -128,7 +130,7 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 125,
+	"unique_mesh_resource_allocations": 124,
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
@@ -137,7 +139,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 159,
 	"visible_geometry_copies": 160,
-	"unique_mesh_resource_allocations": 126,
+	"unique_mesh_resource_allocations": 125,
 	"auto_fallback_names": 23,
 }
 const ENTRY_HEAT_TARGET_VISUAL_DELTA := {
@@ -164,6 +166,7 @@ var _lateral_array_curve_joint_mesh: SphereMesh
 var _sensor_leading_edge_curve_joint_mesh: SphereMesh
 var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
 var _fuselage_panel_band_mesh: TorusMesh
+var _array_receiver_mesh: SphereMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -297,8 +300,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"wing_root_rib_batch": {},
 			"lateral_array_curve_joint_sharing": {},
 			"sensor_leading_edge_curve_joint_sharing": {},
-			"dorsal_data_conduit_curve_joint_sharing": {},
-			"fuselage_panel_band_mesh_sharing": {},
+		"dorsal_data_conduit_curve_joint_sharing": {},
+		"fuselage_panel_band_mesh_sharing": {},
+		"array_receiver_mesh_sharing": {},
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
@@ -320,6 +324,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var panel_bands := _inspect_fuselage_panel_band_mesh_sharing()
 	if not bool(panel_bands.valid):
 		errors.append_array(panel_bands.errors as PackedStringArray)
+	var receivers := _inspect_array_receiver_mesh_sharing()
+	if not bool(receivers.valid):
+		errors.append_array(receivers.errors as PackedStringArray)
 	var entry_heat_target := _inspect_entry_heat_attachment()
 	if not bool(entry_heat_target.valid):
 		errors.append_array(entry_heat_target.errors as PackedStringArray)
@@ -334,14 +341,14 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": -2,
 			"geometry_submissions": 0,
-			"unique_mesh_resource_allocations": 16,
+			"unique_mesh_resource_allocations": 17,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": -1,
 		},
 		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 17,
+			"unique_mesh_resource_allocations": 18,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
@@ -350,6 +357,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"sensor_leading_edge_curve_joint_sharing": leading_edge_joints,
 		"dorsal_data_conduit_curve_joint_sharing": dorsal_conduit_joints,
 		"fuselage_panel_band_mesh_sharing": panel_bands,
+		"array_receiver_mesh_sharing": receivers,
 		"entry_heat_target": entry_heat_target,
 	}.duplicate(true)
 
@@ -649,8 +657,9 @@ func _build_recon_systems() -> void:
 	mast.add_child(_sensor_sweep)
 	_torus(_sensor_sweep, "PassiveArrayRing", Vector3.ZERO, 0.45, 0.54, _arrow_materials.sensor, Vector3(90, 0, 0))
 	_cylinder(_sensor_sweep, "ArrayCrossbar", Vector3.ZERO, 0.055, 1.45, _arrow_materials.titanium, Vector3(0, 0, 90))
+	_array_receiver_mesh = _make_array_receiver_mesh()
 	for side in [-1.0, 1.0]:
-		_sphere(_sensor_sweep, "ArrayReceiver", Vector3(side * 0.67, 0, 0), 0.15, _arrow_materials.sensor)
+		_sphere(_sensor_sweep, "ArrayReceiver", Vector3(side * 0.67, 0, 0), ARRAY_RECEIVER_RADIUS, _arrow_materials.sensor, _array_receiver_mesh)
 
 	# Ventral camera/spectral turret is a smooth gimbal, not a weapon hardpoint.
 	_sphere(_arrow_visual, "VentralSensorGimbal", Vector3(0, -0.06, -1.8), 0.42, _arrow_materials.titanium)
@@ -1843,6 +1852,64 @@ func _sphere(
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance
+
+
+func _make_array_receiver_mesh() -> SphereMesh:
+	var mesh := SphereMesh.new()
+	mesh.radius = ARRAY_RECEIVER_RADIUS
+	mesh.height = ARRAY_RECEIVER_RADIUS * 2.0
+	mesh.radial_segments = 28
+	mesh.rings = 14
+	mesh.material = _arrow_materials.sensor
+	return mesh
+
+
+func _inspect_array_receiver_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var receivers: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var paths := PackedStringArray()
+	if is_instance_valid(_sensor_sweep):
+		for child in _sensor_sweep.get_children():
+			var receiver := child as MeshInstance3D
+			if receiver == null or receiver.mesh is not SphereMesh:
+				continue
+			var mesh := receiver.mesh as SphereMesh
+			if not is_equal_approx(mesh.radius, ARRAY_RECEIVER_RADIUS) \
+					or not is_equal_approx(mesh.height, ARRAY_RECEIVER_RADIUS * 2.0):
+				continue
+			receivers.append(receiver)
+			mesh_ids[mesh.get_instance_id()] = true
+			paths.append(str(_arrow_visual.get_path_to(receiver)))
+			if not receiver.visible or receiver.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+					or receiver.material_override != null or receiver.get_child_count() != 0 \
+					or receiver.get_script() != null or not receiver.get_groups().is_empty() \
+					or not receiver.get_meta_list().is_empty():
+				errors.append("array receiver presentation or authority drift")
+	if receivers.size() != ARRAY_RECEIVER_VISIBLE_COPIES or paths.size() != ARRAY_RECEIVER_VISIBLE_COPIES \
+			or paths.is_empty() or paths[0] != "ReconSensorMast/SensorSweep/ArrayReceiver" \
+			or not paths[1].begins_with("ReconSensorMast/SensorSweep/@MeshInstance3D@"):
+		errors.append("array receiver copy/path roster drift")
+	if mesh_ids.size() != 1:
+		errors.append("array receiver shared-mesh identity drift")
+	if _array_receiver_mesh == null \
+			or not is_equal_approx(_array_receiver_mesh.radius, ARRAY_RECEIVER_RADIUS) \
+			or not is_equal_approx(_array_receiver_mesh.height, ARRAY_RECEIVER_RADIUS * 2.0) \
+			or _array_receiver_mesh.radial_segments != 28 or _array_receiver_mesh.rings != 14 \
+			or _array_receiver_mesh.material != _arrow_materials.sensor \
+			or _array_receiver_mesh.resource_local_to_scene:
+		errors.append("array receiver primitive recipe drift")
+	for receiver in receivers:
+		if receiver.mesh != _array_receiver_mesh:
+			errors.append("array receiver retained a private mesh")
+			break
+	return {
+		"valid": errors.is_empty(), "errors": errors, "node_paths": paths,
+		"geometry_nodes": receivers.size(), "geometry_submissions": receivers.size(),
+		"visible_geometry_copies": receivers.size(), "primitive_mesh_allocations": mesh_ids.size(),
+		"resource_allocation_reduction": 1,
+		"legacy": {"geometry_nodes": 2, "geometry_submissions": 2, "visible_geometry_copies": 2, "primitive_mesh_allocations": 2},
+	}.duplicate(true)
 
 
 func _torus(

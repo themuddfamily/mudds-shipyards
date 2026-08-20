@@ -326,6 +326,26 @@ func _test_escape_pods_and_sensors(arrow: ArrowReconShip) -> void:
 	var mast := arrow.get_sensor_mast()
 	_check(mast != null and mast.name == "SensorSweep", "Arrow exposes its rotating sensor sweep")
 	_check(mast != null and mast.get_parent().name == "ReconSensorMast", "sensor sweep sits on a dedicated dorsal mast")
+	var receiver_report := arrow.get_arrow_visual_performance_report().array_receiver_mesh_sharing as Dictionary
+	_check(
+		bool(receiver_report.valid) and int(receiver_report.geometry_nodes) == 2
+			and int(receiver_report.primitive_mesh_allocations) == 1,
+		"mirrored sensor receivers retain one exact shared SphereMesh"
+	)
+	if mast != null:
+		var receiver := mast.get_node_or_null("ArrayReceiver") as MeshInstance3D
+		if receiver != null:
+			var shared_mesh := receiver.mesh
+			receiver.mesh = shared_mesh.duplicate() as SphereMesh
+			_check(
+				not bool((arrow.get_arrow_visual_performance_report().array_receiver_mesh_sharing as Dictionary).valid),
+				"structured-red: one private receiver mesh fails the sharing audit"
+			)
+			receiver.mesh = shared_mesh
+			_check(
+				bool((arrow.get_arrow_visual_performance_report().array_receiver_mesh_sharing as Dictionary).valid),
+				"restoring the shared receiver mesh clears the allocation audit"
+			)
 	_check(arrow.get_arrow_visual_root().get_node_or_null("VentralSensorGimbal") is MeshInstance3D, "recon craft has a ventral optical/spectral gimbal")
 	_check(
 		arrow.get_arrow_visual_root().get_node_or_null("PortLateralArray") != null
@@ -434,10 +454,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 159,
 			"visible_geometry_copies": 160,
-			"unique_mesh_resource_allocations": 126,
+			"unique_mesh_resource_allocations": 125,
 			"auto_fallback_names": 23,
 		},
-		"whole Arrow visual freezes the exact Stage-2 179-node, 159-submission, 126-mesh census with all 160 copies"
+		"whole Arrow visual freezes the exact Stage-2 179-node, 159-submission, 125-mesh census with all 160 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -446,7 +466,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 125,
+			"unique_mesh_resource_allocations": 124,
 			"auto_fallback_names": 23,
 		}
 		and report.entry_heat_target_delta == {
@@ -461,14 +481,14 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and report.reductions == {
 			"nodes": -2,
 			"geometry_submissions": 0,
-			"unique_mesh_resource_allocations": 16,
+			"unique_mesh_resource_allocations": 17,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": -1,
 		}
 		and report.phase9_reductions_before_entry_heat == {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 17,
+			"unique_mesh_resource_allocations": 18,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
