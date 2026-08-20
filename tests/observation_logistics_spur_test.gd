@@ -212,8 +212,8 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 49
-		and int(performance.mesh_resources) == 47
-		and int(performance.mesh_resource_delta) == -2
+		and int(performance.mesh_resources) == 42
+		and int(performance.mesh_resource_delta) == -7
 		and int(performance.baseline_material_resources) == 9
 		and int(performance.material_resources) == 9
 		and int(performance.baseline_family_nodes) == 3
@@ -222,8 +222,32 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_submissions) == 3
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"the first visual-only family reduces mesh resources 49 -> 47 and family resources 3 -> 1 without changing nodes, submissions or materials"
+		"the two visual-only lens families reduce mesh resources 49 -> 42 without changing nodes, submissions or materials"
 	)
+	var practical_lenses: Array[MeshInstance3D] = []
+	for lens_index in ObservationLogisticsSpur.PRACTICAL_LENS_COPY_COUNT:
+		practical_lenses.append(module.get_node_or_null(NodePath(
+			"Structure/Dressing/LightLens%02d" % (lens_index + 1)
+		)) as MeshInstance3D)
+	_check(
+		int(performance.practical_lens_copies) == 6
+		and int(performance.practical_lens_mesh_resources) == 1
+		and bool(performance.practical_lens_identities_exact)
+		and practical_lenses.all(func(lens: MeshInstance3D) -> bool: return lens != null and lens.mesh == practical_lenses[0].mesh),
+		"all six named practical lenses share one exact mesh while retaining their per-node material overrides"
+	)
+	if practical_lenses[0] != null and practical_lenses[1] != null:
+		var practical_mesh := practical_lenses[1].mesh
+		practical_lenses[1].mesh = practical_mesh.duplicate() as BoxMesh
+		var practical_red := module.get_visual_resource_contract()
+		practical_lenses[1].mesh = practical_mesh
+		_check(
+			not bool(practical_red.exact)
+			and int(practical_red.mesh_resources) == 43
+			and int(practical_red.practical_lens_mesh_resources) == 2
+			and bool(module.get_visual_resource_contract().exact),
+			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
+		)
 
 	var lenses: Array[MeshInstance3D] = []
 	var exact_family := true
@@ -261,7 +285,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and int(red.mesh_resources) == 48
+		and int(red.mesh_resources) == 43
 		and int(red.family_mesh_resources) == 2
 		and module.get_validation_errors().has(
 			"observation lens visual-resource sharing drifted"

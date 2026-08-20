@@ -130,12 +130,15 @@ const DRAWN_COPY_COUNT := 58
 const BASELINE_SURFACE_SUBMISSION_COUNT := 49
 const SURFACE_SUBMISSION_COUNT := 49
 const BASELINE_MESH_RESOURCE_COUNT := 49
-const MESH_RESOURCE_COUNT := 47
+const MESH_RESOURCE_COUNT := 42
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
 const MATERIAL_RESOURCE_COUNT := 9
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
 const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
 const OBSERVATION_LENS_COPY_COUNT := 3
+const PRACTICAL_LENS_SIZE := Vector3(0.42, 0.18, 0.42)
+const PRACTICAL_LENS_COPY_COUNT := 6
+const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -154,6 +157,7 @@ const CONTENT_NOTE := (
 
 var _materials: Dictionary = {}
 var _observation_lens_mesh: BoxMesh
+var _practical_lens_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
 var _built := false
@@ -355,6 +359,23 @@ func get_visual_resource_contract() -> Dictionary:
 			and lens.get_child_count() == 0
 			and bool(lens.get_meta("visual_detail_only", false))
 		)
+	var practical_lens_mesh_resource_ids := {}
+	var practical_lens_identities_exact := is_instance_valid(_practical_lens_mesh)
+	for lens_index in PRACTICAL_LENS_COPY_COUNT:
+		var lens := get_node_or_null(NodePath(
+			"Structure/Dressing/LightLens%02d" % (lens_index + 1)
+		)) as MeshInstance3D
+		if lens == null or lens.mesh == null:
+			practical_lens_identities_exact = false
+			continue
+		practical_lens_mesh_resource_ids[lens.mesh.get_instance_id()] = true
+		practical_lens_identities_exact = (
+			practical_lens_identities_exact
+			and lens.mesh == _practical_lens_mesh
+			and (lens.mesh as BoxMesh).size.is_equal_approx(PRACTICAL_LENS_SIZE)
+			and lens.get_child_count() == 0
+			and bool(lens.get_meta("visual_detail_only", false))
+		)
 
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
@@ -367,6 +388,8 @@ func get_visual_resource_contract() -> Dictionary:
 		and material_resource_ids.size() == MATERIAL_RESOURCE_COUNT
 		and lens_mesh_resource_ids.size() == OBSERVATION_LENS_MESH_RESOURCE_COUNT
 		and lens_identities_exact
+		and practical_lens_mesh_resource_ids.size() == PRACTICAL_LENS_MESH_RESOURCE_COUNT
+		and practical_lens_identities_exact
 	)
 	return {
 		"exact": exact,
@@ -394,6 +417,9 @@ func get_visual_resource_contract() -> Dictionary:
 		"family_mesh_resources": lens_mesh_resource_ids.size(),
 		"family_copies": OBSERVATION_LENS_COPY_COUNT,
 		"family_identities_exact": lens_identities_exact,
+		"practical_lens_copies": PRACTICAL_LENS_COPY_COUNT,
+		"practical_lens_mesh_resources": practical_lens_mesh_resource_ids.size(),
+		"practical_lens_identities_exact": practical_lens_identities_exact,
 	}.duplicate(true)
 
 
@@ -686,6 +712,8 @@ func _build_dressing(parent: Node3D) -> void:
 
 
 func _build_lighting(parent: Node3D) -> void:
+	_practical_lens_mesh = BoxMesh.new()
+	_practical_lens_mesh.size = PRACTICAL_LENS_SIZE
 	var fixtures := [
 		[Vector3(0.0, 2.8, 7.0), Color("8fe8ef"), "practical_cyan"],
 		[Vector3(0.0, 2.8, 18.0), Color("8fe8ef"), "practical_cyan"],
@@ -700,7 +728,7 @@ func _build_lighting(parent: Node3D) -> void:
 		var fixture_color := fixture[1] as Color
 		var fixture_material_key := str(fixture[2])
 		_box(parent, "LightMast%02d" % (fixture_index + 1), fixture_position + Vector3(0, -1.4, 0), Vector3(0.16, 2.8, 0.16), _materials["rail"], false)
-		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, Vector3(0.42, 0.18, 0.42), _materials[fixture_material_key], false)
+		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, PRACTICAL_LENS_SIZE, _materials[fixture_material_key], false, _practical_lens_mesh)
 		var light := OmniLight3D.new()
 		light.name = "Practical%02d" % (fixture_index + 1)
 		light.position = fixture_position + Vector3(0, -0.16, 0)
