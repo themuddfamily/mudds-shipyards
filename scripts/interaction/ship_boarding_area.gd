@@ -60,7 +60,7 @@ func _exit_tree() -> void:
 
 
 func _publish_availability_after_reentry() -> void:
-	if _initialized and is_inside_tree() and not _detaching:
+	if _initialized and not is_queued_for_deletion() and is_inside_tree() and not _detaching:
 		_emit_availability_if_changed()
 
 
@@ -152,7 +152,7 @@ func set_boarding_enabled(enabled: bool) -> void:
 
 
 func _base_availability() -> bool:
-	if _detaching or not is_inside_tree() or not boarding_enabled:
+	if _detaching or is_queued_for_deletion() or not is_inside_tree() or not boarding_enabled:
 		return false
 	var ship := get_ship()
 	if ship == null or not ship.is_inside_tree():

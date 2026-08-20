@@ -194,6 +194,29 @@ func _run() -> void:
 	await process_frame
 	_check(area.is_available(), "freed object reservation is detected and released safely")
 	_check(not area.is_reserved(), "stale occupant token does not retain the seat")
+	var availability_count_before_queued_reentry := _availability_events.size()
+	host.remove_child(ship)
+	await process_frame
+	host.add_child(ship)
+	area.queue_free()
+	area.call("_publish_availability_after_reentry")
+	_check(
+		area.is_queued_for_deletion()
+		and not area.is_available()
+		and not area.try_reserve(second_player_token)
+		and not area.is_reserved()
+		and area.get_reservation_token() == null
+		and _availability_events.size() == availability_count_before_queued_reentry + 1
+		and _availability_events.back() == false,
+		"queued re-entry rejects deferred availability and reservation before reviving a boarding prompt"
+	)
+	for _frame in 3:
+		await process_frame
+	_check(
+		_availability_events.size() == availability_count_before_queued_reentry + 1
+		and _availability_events.back() == false,
+		"queued boarding-area disposal publishes no late availability after the deferred turn"
+	)
 
 	var incompatible_parent := Node3D.new()
 	incompatible_parent.name = "IncompatibleOwner"
