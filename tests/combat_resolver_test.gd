@@ -174,6 +174,47 @@ func _run() -> void:
 	_check(miss.status == &"miss" and miss.accepted and not miss.hit, "valid unobstructed ray returns a structured miss")
 	_check(resolver.get_last_sequence(shooter, SOURCE_ID) == 7, "new valid request advances source ledger")
 	_check(resolver.get_tracked_source_count() == 1, "one source owns one node-scoped ledger entry")
+	var detached_reset_sequence := resolver.get_last_sequence(shooter, SOURCE_ID)
+	var detached_reset_count := resolver.get_tracked_source_count()
+	host.remove_child(resolver)
+	await process_frame
+	resolver.reset_sequence_history()
+	_check(
+		not resolver.is_inside_tree()
+			and resolver.get_last_sequence(shooter, SOURCE_ID) == detached_reset_sequence
+			and resolver.get_tracked_source_count() == detached_reset_count,
+		"detached resolver preserves replay history when direct reset is rejected"
+	)
+	host.add_child(resolver)
+	resolver.reset_sequence_history()
+	var live_reset := resolver.resolve_hitscan(_shot(shooter, detached_reset_sequence, Vector3(20.0, 0.0, 0.0)))
+	_check(
+		resolver.is_inside_tree()
+			and live_reset.accepted and live_reset.status == &"miss"
+			and resolver.get_last_sequence(shooter, SOURCE_ID) == detached_reset_sequence,
+		"reattached resolver accepts an explicit live reset and opens a fresh replay epoch"
+	)
+
+	var queued_resolver := CombatResolverScript.new() as CombatResolver
+	queued_resolver.name = "QueuedReplayLedgerResolver"
+	host.add_child(queued_resolver)
+	_check(
+		queued_resolver.register_source(SOURCE_ID, shooter, SOURCE_FACTION, weapon_profiles),
+		"queued replay fixture registers its independent source ledger"
+	)
+	var queued_seed := queued_resolver.resolve_hitscan(_shot(shooter, 0, Vector3(20.0, 0.0, 0.0)))
+	var queued_reset_count := queued_resolver.get_tracked_source_count()
+	queued_resolver.queue_free()
+	queued_resolver.reset_sequence_history()
+	_check(
+		queued_seed.accepted and queued_seed.status == &"miss"
+			and queued_resolver.is_queued_for_deletion()
+			and queued_resolver.get_last_sequence(shooter, SOURCE_ID) == 0
+			and queued_resolver.get_tracked_source_count() == queued_reset_count,
+		"queued resolver preserves replay history when direct reset is rejected"
+	)
+	await process_frame
+	_check(not is_instance_valid(queued_resolver), "queued replay fixture releases its resolver cleanly")
 	_check(
 		resolver.register_source(SOURCE_ID + 1, second_shooter, &"allied", weapon_profiles),
 		"second physical source receives an independent authority registration"

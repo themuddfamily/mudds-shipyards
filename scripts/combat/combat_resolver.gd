@@ -271,6 +271,8 @@ func retire_source_registration(source_entity: Node = null, source_id: int = 0) 
 
 
 func reset_sequence_history() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_last_sequence_by_source.clear()
 	_history_owner_by_source.clear()
 
