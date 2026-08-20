@@ -88,6 +88,14 @@ func _enter_tree() -> void:
 	_last_live_world_transform = global_transform
 	if _initialized:
 		call_deferred("_restore_after_reentry")
+	elif (
+		_configuration_state == &"configured_pending_tree"
+		and is_instance_valid(_combat_authority)
+	):
+		# A retained content subtree may receive its caller-owned authority while
+		# streamed out. `_ready()` does not run again when that subtree returns,
+		# so only this tree-current callback may finish the accepted configuration.
+		call_deferred("_initialize_pending_configuration_after_reentry")
 
 
 func _exit_tree() -> void:
@@ -105,6 +113,17 @@ func _ready() -> void:
 		_publish_snapshot()
 
 
+func _initialize_pending_configuration_after_reentry() -> void:
+	if (
+		not is_inside_tree()
+		or _initialized
+		or _configuration_state != &"configured_pending_tree"
+		or not is_instance_valid(_combat_authority)
+	):
+		return
+	_initialize_checked_in_content()
+
+
 ## Injects the exact caller-owned session authority. The encounter scene has no
 ## internal LiveCombatAuthority or CombatResolver node and cannot replace this
 ## identity after configuration.
@@ -113,7 +132,7 @@ func configure_external_combat_authority(
 	) -> Dictionary:
 	if _content_mutation_active:
 		return _content_result(false, &"reentrant_call")
-	if _initialized:
+	if _initialized or _configuration_state == &"configured_pending_tree":
 		return _content_result(false, &"already_configured")
 	if not _initialization_errors.is_empty():
 		return _content_result(false, &"configuration_failed_terminal")

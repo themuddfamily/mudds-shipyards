@@ -31,12 +31,72 @@ func _init() -> void:
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_checked_in_encounter_content()
+	await _test_detached_configuration_initializes_once_on_reentry()
 	await _test_source_conflict_rolls_back_atomically()
 	_check(
 		root.get_child_count() == original_root_child_count,
 		"content fixture removes the production world, encounter, and external authority"
 	)
 	_finish()
+
+
+func _test_detached_configuration_initializes_once_on_reentry() -> void:
+	var authority := LiveCombatAuthority.new()
+	authority.name = "DetachedConfigurationAuthority"
+	root.add_child(authority)
+	var replacement_authority := LiveCombatAuthority.new()
+	replacement_authority.name = "RejectedDetachedReplacementAuthority"
+	root.add_child(replacement_authority)
+	var content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	content.name = "DetachedConfigurationContent"
+	root.add_child(content)
+	await process_frame
+	var host := content.get_host()
+	var roster := content.get_node(^"OpponentRoster") as Node3D
+	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
+	root.remove_child(content)
+	await process_frame
+	var configured := content.configure_external_combat_authority(authority)
+	var replacement := content.configure_external_combat_authority(replacement_authority)
+	_check(
+		configured.accepted
+		and not replacement.accepted and replacement.reason == &"already_configured"
+		and not content.is_content_ready()
+		and content.get_snapshot().configuration_state == &"configured_pending_tree"
+		and content.get_combat_authority() == authority
+		and authority.get_resolver().get_registered_source_count() == 0
+		and replacement_authority.get_resolver().get_registered_source_count() == 0,
+		"detached authority configuration binds one exact pending identity without acquiring live encounter sources"
+	)
+	root.add_child(content)
+	await process_frame
+	await process_frame
+	var snapshot := content.get_snapshot()
+	_check(
+		content.is_content_ready()
+		and snapshot.configuration_state == &"ready"
+		and content.get_combat_authority() == authority
+		and content.get_host() == host
+		and host.get_combat_authority() == authority
+		and (roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent) == alpha
+		and authority.get_resolver().get_registered_source_count() == 3
+		and replacement_authority.get_resolver().get_registered_source_count() == 0
+		and content.audit().valid,
+		"re-entry initializes exactly the retained content, authority, host, roster, and three source registrations once"
+	)
+	root.remove_child(content)
+	content.queue_free()
+	root.remove_child(authority)
+	authority.queue_free()
+	root.remove_child(replacement_authority)
+	replacement_authority.queue_free()
+	await process_frame
+	_check(
+		not is_instance_valid(content)
+		and not is_instance_valid(authority)
+		and not is_instance_valid(replacement_authority),
+		"detached-configuration fixture releases retained content and both external authority candidates"
+	)
 
 
 func _test_checked_in_encounter_content() -> void:
