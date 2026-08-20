@@ -178,7 +178,7 @@ and HIGH quality, freezes:
 | Triangles | 1,684,993 | 1,802,450 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,507 | 2,609 | +102 |
+| Unique meshes | 2,504 | 2,606 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -208,6 +208,13 @@ SphereMeshes become one, and six flush tie-down TorusMeshes become one. Their
 named copies, submitted surfaces, materials, lights, collision boundaries, and
 TorusGeometryBudget lifecycle stay unchanged, so the streamed Cinder delta
 remains `+102`.
+
+The VIP servery's three named stool FootRing nodes now share one TorusMesh, and
+the Arrow recon sensor mast's two ArrayReceiver nodes share one SphereMesh.
+Those component-local changes retain every visible copy, structural submission,
+material, transform, light, collision, and authority boundary while removing a
+further three unique mesh identities from each complete-scene roster; the
+streamed Cinder delta remains `+102`.
 
 The Arrow follow-up keeps the six existing childless `CurveJoint` sphere nodes,
 their exact paths and transforms beneath `PortLateralArray` and
@@ -342,9 +349,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`0d9991bccb4d018635517b80c1a290f2b32724f29c07559bfc0ceca769fcd677`;
+`eebf4e1dd1b7a87195148fba41cd8fef39c648126fb8d079eecd8bd9c363385b`;
 the loaded fingerprint is
-`d803df0a08e509b942ae46968fddc4f5e249f112fcad598fc84b8ab6d517778a`.
+`0cae0f7f9d432885d03652487487bf1a101ce68569b2bfb5c541db3d9e28f3a0`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
