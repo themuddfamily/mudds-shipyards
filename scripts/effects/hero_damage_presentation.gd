@@ -176,7 +176,12 @@ func present_impact(
 		intensity: float = 1.0
 	) -> void:
 	_ensure_built()
-	if not is_inside_tree() or _stage == DamageStage.DESTROYED or _ship_state == STATE_HIDDEN:
+	if (
+		is_queued_for_deletion()
+		or not is_inside_tree()
+		or _stage == DamageStage.DESTROYED
+		or _ship_state == STATE_HIDDEN
+	):
 		return
 	var effect_root := Node3D.new()
 	effect_root.name = "HeroDamageImpact"
@@ -503,7 +508,7 @@ func present_destruction(
 		world_pose: Variant = null
 	) -> void:
 	_ensure_built()
-	if _stage == DamageStage.DESTROYED:
+	if is_queued_for_deletion() or _stage == DamageStage.DESTROYED:
 		return
 	_last_world_velocity = world_velocity if world_velocity.is_finite() else Vector3.ZERO
 	_health_ratio = 0.0

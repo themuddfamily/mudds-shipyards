@@ -61,6 +61,7 @@ func _run() -> void:
 	presentation.connect(&"effects_cleared", Callable(self, "_on_effects_cleared"))
 	transformed_ship.add_child(presentation)
 	await process_frame
+	await _test_queued_direct_effect_currentness(packed)
 
 	var damage_sparks := presentation.get_node_or_null("DamageSparks") as CPUParticles3D
 	var failure_sparks := presentation.get_node_or_null("EngineFailureSparks") as CPUParticles3D
@@ -378,6 +379,56 @@ func _on_destruction_started(world_position: Vector3, inherited_velocity: Vector
 
 func _on_effects_cleared() -> void:
 	_clear_events += 1
+
+
+func _test_queued_direct_effect_currentness(packed: PackedScene) -> void:
+	var queued := packed.instantiate() as HeroDamagePresentation
+	if queued == null:
+		_fail("queued hero-damage currentness fixture instantiates")
+		return
+	var queued_destruction_events: Array[bool] = []
+	queued.destruction_started.connect(
+		func(_position: Vector3, _velocity: Vector3) -> void:
+			queued_destruction_events.append(true)
+	)
+	root.add_child(queued)
+	await process_frame
+	var queued_velocity_before := queued.get_last_world_velocity()
+	queued.queue_free()
+	queued.present_impact(Vector3(24.0, 3.0, -7.0), Vector3.UP, 1.0)
+	queued.present_destruction(Vector3(5.0, -1.0, 2.0), Transform3D.IDENTITY)
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and queued.get_damage_stage() == HeroDamagePresentation.DamageStage.HEALTHY
+		and queued.get_live_world_effect_count() == 0
+		and queued.get_destruction_effect_root() == null
+		and queued.get_last_world_velocity().is_equal_approx(queued_velocity_before)
+		and queued_destruction_events.is_empty(),
+		"a queued presentation rejects direct impact and destruction without retained, world-effect, or signal mutation"
+	)
+	await process_frame
+	_check(not is_instance_valid(queued), "queued direct-effect presentation frees normally")
+
+	var reentered := packed.instantiate() as HeroDamagePresentation
+	if reentered == null:
+		_fail("reentry hero-damage currentness fixture instantiates")
+		return
+	root.add_child(reentered)
+	await process_frame
+	root.remove_child(reentered)
+	root.add_child(reentered)
+	await process_frame
+	reentered.present_impact(Vector3(-16.0, 4.0, 9.0), Vector3.FORWARD, 1.0)
+	reentered.present_destruction(Vector3(-2.0, 1.0, 6.0), Transform3D.IDENTITY)
+	_check(
+		reentered.get_live_world_effect_count() == 2
+		and reentered.get_destruction_effect_root() != null,
+		"a reentered presentation accepts fresh direct impact and destruction effects"
+	)
+	reentered.reset_for_reuse()
+	reentered.queue_free()
+	await process_frame
 
 
 ## Waits for `predicate` on a finite simulation-frame budget.
