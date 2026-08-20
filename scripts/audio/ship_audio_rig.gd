@@ -710,7 +710,7 @@ func _configure_cue_timers() -> void:
 
 
 func _restore_after_enter_tree() -> void:
-	if _tearing_down or not is_inside_tree():
+	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
 		return
 	_apply_runtime_state()
 

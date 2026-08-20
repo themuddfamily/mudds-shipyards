@@ -29,6 +29,14 @@ class RejectingZeroLatencyQueueRig extends ShipAudioRig:
 		return false
 
 
+class TrackingShipAudioRig extends ShipAudioRig:
+	var runtime_state_apply_count := 0
+
+	func _apply_runtime_state() -> void:
+		runtime_state_apply_count += 1
+		super()
+
+
 var _failures: Array[String] = []
 var _assertions := 0
 var _test_root: Node3D
@@ -57,6 +65,7 @@ func _run() -> void:
 	await _test_cue_contract_and_budget(rigs[ShipAudioRig.PROFILE_STANDARD_FIGHTER])
 	await _test_fail_red_corruption()
 	await _test_detach_reentry_release_and_cleanup()
+	await _test_queued_reentry_restore_is_inert()
 
 	for rig_value in rigs.values():
 		var rig := rig_value as ShipAudioRig
@@ -79,11 +88,17 @@ func _build_profile_roster() -> Dictionary:
 	return rigs
 
 
-func _make_rig(profile: StringName, label: String) -> ShipAudioRig:
+func _make_rig(
+	profile: StringName,
+	label: String,
+	component_script: Script = null
+	) -> ShipAudioRig:
 	var rig := RIG_SCENE.instantiate() as ShipAudioRig
 	if rig == null:
 		_check(false, "%s scene instantiates as ShipAudioRig" % label)
 		return null
+	if component_script != null:
+		rig.set_script(component_script)
 	rig.name = label
 	rig.rig_id = StringName("%s_audio" % label.to_lower())
 	rig.profile_id = profile
@@ -621,6 +636,34 @@ func _test_detach_reentry_release_and_cleanup() -> void:
 	_check(root_reference.get_ref() == null, "rig root tears down without a retained instance")
 	_check(player_reference.get_ref() == null, "all owned positional voices tear down with the rig")
 	_check(timer_reference.get_ref() == null, "both bounded cue-expiry timers tear down with the rig")
+
+
+func _test_queued_reentry_restore_is_inert() -> void:
+	var rig := _make_rig(
+		ShipAudioRig.PROFILE_STANDARD_FIGHTER,
+		"QueuedReentryProbe",
+		TrackingShipAudioRig
+	) as TrackingShipAudioRig
+	if rig == null:
+		return
+	await process_frame
+	var parent := rig.get_parent()
+	parent.remove_child(rig)
+	await process_frame
+	parent.add_child(rig)
+	# Re-entry queued the normal runtime restore. A terminal owner cannot claim
+	# new loop playback during the same idle turn.
+	var apply_count_before := rig.runtime_state_apply_count
+	rig.queue_free()
+	rig.call("_restore_after_enter_tree")
+	_check(
+		rig.is_queued_for_deletion()
+		and rig.runtime_state_apply_count == apply_count_before
+		and _players_stopped_and_detached(rig),
+		"a queued post-reentry ship audio rig cannot restore runtime playback state"
+	)
+	await process_frame
+	_check(not is_instance_valid(rig), "the queued re-entry ship-audio fixture frees normally")
 
 
 ## Waits for `predicate` on both the simulation clock and the monotonic clock,
