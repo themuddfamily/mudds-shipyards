@@ -7,6 +7,7 @@ extends SceneTree
 const ASSET_DIRECTORY := "res://assets/audio/planetary"
 const MANIFEST_PATH := ASSET_DIRECTORY + "/temperate_surface_audio_v1_asset_manifest.json"
 const CATALOG_PATH := ASSET_DIRECTORY + "/temperate_surface_audio_catalog.tres"
+const AURORA_ATMOSPHERE := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
 const BINDING_SCENE := preload("res://scenes/audio/planetary_surface_audio_playback_binding.tscn")
 const SAMPLE_RATE := 24_000
 const LOOP_FRAMES := 192_000
@@ -149,7 +150,21 @@ func _test_binding_contract() -> void:
 	var catalog := load(CATALOG_PATH) as PlanetarySurfaceAudioCatalog
 	var configuration := binding.configure(catalog)
 	_check(bool(configuration.accepted), "binding accepts one valid immutable catalog")
-	var attachment := binding.attach(&"temperate_game_scale", 1001, 7, 11, binding.get_attachment_generation())
+	var policy := PlanetarySurfaceAudioPolicy.new()
+	var policy_configuration := policy.configure(
+		AURORA_ATMOSPHERE as PlanetaryAtmosphereProfile
+	)
+	var policy_snapshot := policy.get_snapshot()
+	var atmosphere_profile_id := policy_snapshot.get("profile_id", &"") as StringName
+	_check(
+		bool(policy_configuration.get("accepted", false))
+		and bool(policy.audit().get("valid", false))
+		and atmosphere_profile_id == &"aurora_temperate_atmosphere",
+		"Aurora's real atmosphere policy freezes one catalog-compatible profile"
+	)
+	var attachment := binding.attach(
+		atmosphere_profile_id, 1001, 7, 11, binding.get_attachment_generation()
+	)
 	_check(bool(attachment.accepted), "binding accepts only caller-supplied opaque attachment identities")
 	var reentrant_reasons := PackedStringArray()
 	binding.state_committed.connect(func(_reason: StringName, _snapshot: Dictionary) -> void:
@@ -160,29 +175,40 @@ func _test_binding_contract() -> void:
 	# the root or samples any context itself.
 	var attachment_generation := binding.get_attachment_generation()
 	_check(
-		binding.present_policy_result(_policy_result(&"exterior"), 0.75, attachment_generation, 1002, 7, 11).reason == &"stale_root_instance"
-		and binding.present_policy_result(_policy_result(&"exterior"), 0.75, attachment_generation, 1001, 8, 11).reason == &"stale_frame_generation"
-		and binding.present_policy_result(_policy_result(&"exterior"), 0.75, attachment_generation, 1001, 7, 12).reason == &"stale_location_generation",
+		binding.present_policy_result(_policy_result(policy, &"exterior"), 0.75, attachment_generation, 1002, 7, 11).reason == &"stale_root_instance"
+		and binding.present_policy_result(_policy_result(policy, &"exterior"), 0.75, attachment_generation, 1001, 8, 11).reason == &"stale_frame_generation"
+		and binding.present_policy_result(_policy_result(policy, &"exterior"), 0.75, attachment_generation, 1001, 7, 12).reason == &"stale_location_generation",
 		"stale root, frame, and location identities reject before local playback"
 	)
+	var exterior_policy_result := _policy_result(policy, &"exterior")
+	var exterior_evaluation := exterior_policy_result.get("evaluation", {}) as Dictionary
+	var exterior_routing := exterior_evaluation.get("routing", {}) as Dictionary
+	var exterior_intensity := exterior_evaluation.get("intensity", {}) as Dictionary
 	var exterior_result := binding.present_policy_result(
-		_policy_result(&"exterior"), 0.75, attachment_generation, 1001, 7, 11
+		exterior_policy_result, 0.75, attachment_generation, 1001, 7, 11
 	)
 	var exterior_fade := binding.get_state_snapshot().fade as Dictionary
 	_check(
 		bool(exterior_result.accepted)
+		and exterior_routing.get("selected_audio_profile_id", &"") == PlanetarySurfaceAudioCatalog.EXTERIOR_PROFILE_ID
+		and is_equal_approx(float(exterior_intensity.get("recommended_intensity_unitless", -1.0)), 0.8)
 		and is_equal_approx(float(exterior_fade.route_mix_unitless), 0.0)
 		and is_equal_approx(float(exterior_fade.intensity_unitless), 0.8)
 		and is_equal_approx(float(exterior_fade.exterior_route_weight_unitless), 1.0)
 		and is_equal_approx(float(exterior_fade.interior_route_weight_unitless), 0.0),
 		"one accepted exterior result reaches its exact equal-power endpoint"
 	)
+	var cabin_policy_result := _policy_result(policy, &"cabin")
+	var cabin_evaluation := cabin_policy_result.get("evaluation", {}) as Dictionary
+	var cabin_routing := cabin_evaluation.get("routing", {}) as Dictionary
 	var midpoint_result := binding.present_policy_result(
-		_policy_result(&"cabin"), 0.375, attachment_generation, 1001, 7, 11
+		cabin_policy_result, 0.375, attachment_generation, 1001, 7, 11
 	)
 	var midpoint_fade := binding.get_state_snapshot().fade as Dictionary
 	_check(
 		bool(midpoint_result.accepted)
+		and cabin_routing.get("selected_audio_profile_id", &"") == PlanetarySurfaceAudioCatalog.INTERIOR_PROFILE_ID
+		and bool(cabin_routing.get("cabin_aliases_interior", false))
 		and is_equal_approx(float(midpoint_fade.route_mix_unitless), 0.5)
 		and is_equal_approx(float(midpoint_fade.exterior_route_weight_unitless), sqrt(0.5))
 		and is_equal_approx(float(midpoint_fade.interior_route_weight_unitless), sqrt(0.5))
@@ -190,7 +216,7 @@ func _test_binding_contract() -> void:
 		"cabin aliases interior through the 0.75-second equal-power midpoint"
 	)
 	var interior_result := binding.present_policy_result(
-		_policy_result(&"interior"), 0.375, attachment_generation, 1001, 7, 11
+		_policy_result(policy, &"interior"), 0.375, attachment_generation, 1001, 7, 11
 	)
 	var interior_fade := binding.get_state_snapshot().fade as Dictionary
 	_check(
@@ -212,11 +238,11 @@ func _test_binding_contract() -> void:
 		not bool(reentered.attached)
 		and not bool((reentered.voices.exterior as Dictionary).stream_attached)
 		and not bool((reentered.voices.interior as Dictionary).stream_attached)
-		and binding.attach(&"temperate_game_scale", 1001, 7, 11, attachment_generation).reason == &"stale_attachment_generation",
+		and binding.attach(atmosphere_profile_id, 1001, 7, 11, attachment_generation).reason == &"stale_attachment_generation",
 		"tree re-entry clears both voice handles and rejects the stale attachment generation"
 	)
 	var fresh_attachment := binding.attach(
-		&"temperate_game_scale", 1001, 7, 11, binding.get_attachment_generation()
+		atmosphere_profile_id, 1001, 7, 11, binding.get_attachment_generation()
 	)
 	_check(bool(fresh_attachment.accepted), "a fresh generation can attach after tree re-entry")
 	attachment_generation = binding.get_attachment_generation()
@@ -226,7 +252,7 @@ func _test_binding_contract() -> void:
 	corrupted_data[0] ^= 0x01
 	exterior_stream.data = corrupted_data
 	var drift_result := binding.present_policy_result(
-		_policy_result(&"exterior"), 0.0, attachment_generation, 1001, 7, 11
+		_policy_result(policy, &"exterior"), 0.0, attachment_generation, 1001, 7, 11
 	)
 	var drift_snapshot := binding.get_state_snapshot()
 	_check(
@@ -238,7 +264,7 @@ func _test_binding_contract() -> void:
 	)
 	exterior_stream.data = original_data
 	var detach_attachment := binding.attach(
-		&"temperate_game_scale", 1001, 7, 11, binding.get_attachment_generation()
+		atmosphere_profile_id, 1001, 7, 11, binding.get_attachment_generation()
 	)
 	_check(bool(detach_attachment.accepted), "restored catalog permits a new caller attachment")
 	var detach_result := binding.detach(&"root_lost", binding.get_attachment_generation())
@@ -269,50 +295,16 @@ func _test_binding_contract() -> void:
 	await process_frame
 
 
-func _policy_result(context: StringName) -> Dictionary:
-	var interior := context != &"exterior"
-	var selected_id: StringName = (
-		PlanetarySurfaceAudioCatalog.INTERIOR_PROFILE_ID if interior
-		else PlanetarySurfaceAudioCatalog.EXTERIOR_PROFILE_ID
-	)
-	return {
-		"accepted": true,
-		"reason": &"evaluated",
-		"configured": true,
-		"profile_id": &"temperate_game_scale",
-		"evaluation": {
-			"evaluation_schema_version": 1,
-			"profile_id": &"temperate_game_scale",
-			"policy_version": &"planetary_surface_audio_v1",
-			"equation_version": &"density_max_airflow_hints_v1",
-			"inputs": {"listener_context": context},
-			"altitude": {},
-			"routing": {
-				"available_profile_ids": {
-					"exterior": PlanetarySurfaceAudioCatalog.EXTERIOR_PROFILE_ID,
-					"interior": PlanetarySurfaceAudioCatalog.INTERIOR_PROFILE_ID,
-				},
-				"selected_route": &"interior" if interior else &"exterior",
-				"selected_audio_profile_id": selected_id,
-				"listener_context": context,
-				"profile_id_resolved": false,
-				"playback_requested": false,
-				"cabin_aliases_interior": context == &"cabin",
-			},
-			"gain": {
-				"authored_exterior_gain_db": -6.0,
-				"authored_interior_attenuation_db": -18.0,
-				"recommended_gain_db": -24.0 if interior else -6.0,
-			},
-			"mix": {
-				"exterior_route_unitless": 0.0 if interior else 1.0,
-				"interior_route_unitless": 1.0 if interior else 0.0,
-				"instantaneous_endpoints_only": true,
-			},
-			"intensity": {"recommended_intensity_unitless": 0.8},
-			"atmosphere_sample": {},
-		},
-	}
+func _policy_result(
+	policy: PlanetarySurfaceAudioPolicy, context: StringName
+) -> Dictionary:
+	return policy.evaluate({
+		"altitude_m": 0.0,
+		"listener_context": context,
+		"grounded": false,
+		"speed_mps": 80.0,
+		"ambient_wind_scalar_unitless": 0.0,
+	})
 
 
 func _read_json(path: String) -> Dictionary:
