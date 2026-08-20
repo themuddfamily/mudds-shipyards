@@ -74,7 +74,7 @@ func start(expected_generation: int) -> Dictionary:
 		return _result(false, &"reset_required")
 	if not is_configuration_valid():
 		return _result(false, &"invalid_configuration")
-	if not _authority.is_inside_tree():
+	if not _authority.is_inside_tree() or _authority.is_queued_for_deletion():
 		return _result(false, &"authority_outside_tree")
 	if _generation >= CargoTransferAuthority.MAX_SAFE_INTEGER:
 		return _result(false, &"generation_exhausted")

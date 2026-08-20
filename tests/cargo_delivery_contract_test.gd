@@ -399,6 +399,34 @@ func _test_stale_detached_and_spoofed_evidence() -> void:
 	)
 	await _dispose_fixture(detached_fixture)
 
+	var queued_authority_fixture := await _fixture({&"sealed_parts": 8}, {})
+	var queued_authority_contract := _contract(
+		queued_authority_fixture, &"queued_authority_run", 2, [], 10.0
+	)
+	var queued_authority_activity := ActivityScript.new(
+		queued_authority_fixture.authority, queued_authority_contract
+	) as CargoDeliveryActivity
+	var queued_authority_started := 0
+	queued_authority_activity.started.connect(
+		func(_snapshot: Dictionary) -> void:
+			queued_authority_started += 1
+	)
+	var queued_authority := queued_authority_fixture.authority as CargoTransferAuthority
+	queued_authority.queue_free()
+	var queued_authority_start := queued_authority_activity.start(0)
+	_check(
+		queued_authority.is_inside_tree()
+			and queued_authority.is_queued_for_deletion()
+			and not bool(queued_authority_start.accepted)
+			and queued_authority_start.reason == &"authority_outside_tree"
+			and queued_authority_activity.get_generation() == 0
+			and int(queued_authority_activity.get_snapshot().state) == ActivityScript.State.IDLE
+			and queued_authority_activity.get_snapshot().expected_transfer_id == &""
+			and queued_authority_started == 0,
+		"a queued transfer authority rejects delivery start before generation, reservation, or started publication"
+	)
+	await _dispose_fixture(queued_authority_fixture)
+
 	var spoof_fixture := await _fixture({&"sealed_parts": 8}, {})
 	var spoof_contract := _contract(spoof_fixture, &"spoof_run", 2, [], 10.0)
 	var spoof_activity := ActivityScript.new(spoof_fixture.authority, spoof_contract) as CargoDeliveryActivity
