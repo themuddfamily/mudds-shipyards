@@ -243,6 +243,10 @@ func _test_owner_mutation_transaction() -> void:
 		"an abandoned owner capability becomes stale and can never be reissued"
 	)
 
+	# An owner-bound model must be live when it receives its initial damage. The
+	# detached fixture paths elsewhere in this suite remain data-only probes;
+	# lifecycle-owned mutation is covered by the integration currentness test.
+	root.add_child(model)
 	model.record_damage(80.0, _component_position(
 		model, ShipComponentDamageType.COMPONENT_FORWARD_HULL
 	))
@@ -255,7 +259,6 @@ func _test_owner_mutation_transaction() -> void:
 		"the exact owner opens one non-nestable transaction"
 	)
 
-	root.add_child(model)
 	root.remove_child(model)
 	root.add_child(model)
 	_check(

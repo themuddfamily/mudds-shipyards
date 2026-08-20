@@ -283,7 +283,13 @@ func reset_for_reuse() -> void:
 
 
 func _can_mutate_live_components() -> bool:
-	return is_inside_tree() and not is_queued_for_deletion()
+	if is_queued_for_deletion():
+		return false
+	# Unowned fixtures are intentionally usable while detached: the adapter's
+	# focused contract is also exercised as a data-only observer. Once a Hero
+	# claims the capability, detachment is a lifecycle boundary and mutations
+	# must come from the live scene-tree instance.
+	return is_inside_tree() or not _owner_mutation_capability_claimed
 
 
 func claim_owner_mutation_capability() -> RefCounted:
