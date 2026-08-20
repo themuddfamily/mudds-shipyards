@@ -205,7 +205,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	_check(
 		_input_map_has_key(&"fire", KEY_F13)
 		and not _input_map_has_key(&"fire", KEY_F)
-		and int(hud_binding_report.action_count) == 22
+		and int(hud_binding_report.action_count) == 23
 		and (hud_binding_report.bindings as Dictionary)[&"fire"]
 			== settings.get_input_binding_profile().get_bindings(&"fire"),
 		"the complete persisted binding profile reaches InputMap and HUD before input consumers"
