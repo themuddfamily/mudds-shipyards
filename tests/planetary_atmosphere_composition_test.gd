@@ -1,5 +1,8 @@
 extends SceneTree
 
+## This fixture is deliberately standalone: it instantiates no Main, GameFlow,
+## Player, streaming, or route owner, and makes no production-reachability claim.
+
 const COMPOSITION_SCENE := preload("res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn")
 const WORLD := preload("res://assets/world/planets/aurora_temperate_world.tres")
 const ATMOSPHERE := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
@@ -69,6 +72,44 @@ func _run() -> void:
 	)
 	retry_composition.queue_free()
 	await process_frame
+	var queued_composition := COMPOSITION_SCENE.instantiate() as PlanetaryAtmosphereComposition
+	root.add_child(queued_composition)
+	await process_frame
+	var queued_configured := queued_composition.configure()
+	var queued_rig := queued_composition.get_atmosphere_rig()
+	var queued_environment := queued_composition.get_world_environment()
+	var queued_observation := {
+		"body_local_observer_m": Vector3.UP * 123000.0,
+		"view_direction_body_local": Vector3.FORWARD,
+		"fog_path_distance_m": 12000.0,
+		"speed_mps": 200.0,
+		"weather_scalar": 1.0,
+		"cloud_scalar": 1.0,
+		"caller_time_seconds": 0.0,
+	}
+	_check(
+		bool(queued_configured.get("accepted", false))
+		and bool(queued_composition.present_observation(queued_observation, 1).get("accepted", false)),
+		"standalone queued witness begins from one configured live presentation"
+	)
+	var queued_snapshot := queued_rig.get_snapshot()
+	var queued_installed_environment := queued_environment.environment
+	queued_composition.queue_free()
+	var queued_result := queued_composition.present_observation(queued_observation, 1)
+	_check(
+		queued_composition.is_inside_tree()
+		and queued_composition.is_queued_for_deletion()
+		and not bool(queued_result.get("accepted", true))
+		and queued_result.get("reason", &"") == &"composition_detached"
+		and queued_rig.get_snapshot() == queued_snapshot
+		and queued_environment.environment == queued_installed_environment,
+		"queued standalone composition rejects before rig presentation or Environment mutation"
+	)
+	await process_frame
+	_check(
+		not is_instance_valid(queued_composition),
+		"queued standalone composition releases after its inert presentation attempt"
+	)
 	var configured := composition.configure()
 	_check(
 		configured.accepted and configured.generation == 1
