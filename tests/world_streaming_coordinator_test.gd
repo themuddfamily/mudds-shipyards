@@ -404,6 +404,56 @@ func _test_queued_completion_is_inert() -> void:
 	await process_frame
 	_check(not is_instance_valid(coordinator), "queued completion fixture releases its coordinator cleanly")
 
+	var detached := CoordinatorScript.new() as WorldStreamingCoordinator
+	root.add_child(detached)
+	var detached_fake := FakeLoader.new()
+	detached.set_loader(Callable(detached_fake, "request_scene"))
+	var detached_definition := _definition(&"detached_completion", Vector3(-41.0, 8.0, 73.0))
+	detached.register_location(detached_definition)
+	var detached_loaded_events := PackedStringArray()
+	var detached_failed_events := PackedStringArray()
+	detached.location_loaded.connect(
+		func(location_id: StringName, _generation: int, _instance: Node3D) -> void:
+			detached_loaded_events.append(location_id)
+	)
+	detached.location_load_failed.connect(
+		func(location_id: StringName, _generation: int, _reason: StringName) -> void:
+			detached_failed_events.append(location_id)
+	)
+	var detached_request := detached.request_load(detached_definition.location_id)
+	root.remove_child(detached)
+	await process_frame
+	var detached_pending_snapshot := detached.audit()
+	var detached_completion := detached_fake.complete(0, _packed_node_3d())
+	_check(
+		bool(detached_request.get("accepted", false))
+			and not detached.is_inside_tree()
+			and not bool(detached_completion.get("accepted", true))
+			and detached_completion.get("reason") == &"coordinator_unavailable"
+			and detached.audit() == detached_pending_snapshot
+			and detached.get_child_count() == 0
+			and detached_loaded_events.is_empty()
+			and detached_failed_events.is_empty(),
+		"detached coordinator rejects a pending completion without retaining scene ownership or publishing an outcome"
+	)
+	root.add_child(detached)
+	await process_frame
+	var retired_request := detached.request_unload(detached_definition.location_id)
+	var fresh_request := detached.request_load(detached_definition.location_id)
+	var fresh_completion := detached_fake.complete(1, _packed_node_3d())
+	_check(
+		bool(retired_request.get("accepted", false))
+			and bool(fresh_request.get("accepted", false))
+			and bool(fresh_completion.get("accepted", false))
+			and detached.get_loaded_ids() == PackedStringArray([detached_definition.location_id])
+			and detached.get_child_count() == 1
+			and detached_loaded_events == PackedStringArray([detached_definition.location_id])
+			and detached_failed_events.is_empty(),
+		"a reattached coordinator accepts a fresh pending completion after the detached callback was rejected"
+	)
+	detached.queue_free()
+	await process_frame
+
 
 func _test_reentrant_scene_entry_and_same_frame_reload() -> void:
 	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator

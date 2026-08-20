@@ -185,7 +185,7 @@ func complete_load(
 	packed_scene: PackedScene,
 	error_reason: StringName = NO_ERROR
 ) -> Dictionary:
-	if is_queued_for_deletion():
+	if not is_inside_tree() or is_queued_for_deletion():
 		return _completion_result(false, &"coordinator_unavailable", location_id, generation)
 	if not _definitions.has(location_id):
 		return _completion_result(false, &"unknown_location", location_id, generation)
