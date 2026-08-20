@@ -1,0 +1,72 @@
+[gd_scene load_steps=12 format=3 uid="uid://dplanetatmosrig03"]
+
+[ext_resource type="Script" path="res://scripts/world/planetary_atmosphere_world_rig.gd" id="1_rig"]
+[ext_resource type="Shader" path="res://scripts/rendering/planetary_cloud_shell.gdshader" id="2_cloud_shader"]
+[ext_resource type="Script" path="res://scripts/world/planetary_atmosphere_presentation.gd" id="3_atmosphere"]
+[ext_resource type="Script" path="res://scripts/world/planetary_sky_presentation.gd" id="4_sky"]
+[ext_resource type="Script" path="res://scripts/world/planetary_cloud_presentation.gd" id="5_cloud"]
+[ext_resource type="Script" path="res://scripts/world/planetary_sun_presentation.gd" id="6_sun"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_atmosphere"]
+resource_local_to_scene = true
+sky_top_color = Color(0.055, 0.105, 0.22, 1)
+sky_horizon_color = Color(0.42, 0.55, 0.72, 1)
+ground_horizon_color = Color(0.24, 0.3, 0.4, 1)
+
+[sub_resource type="Sky" id="Sky_atmosphere"]
+resource_local_to_scene = true
+sky_material = SubResource("ProceduralSkyMaterial_atmosphere")
+
+[sub_resource type="Environment" id="Environment_atmosphere"]
+resource_local_to_scene = true
+background_mode = 2
+sky = SubResource("Sky_atmosphere")
+fog_enabled = true
+fog_density = 0.0
+fog_light_color = Color(0.5, 0.5, 0.5, 1)
+fog_light_energy = 1.0
+fog_sky_affect = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cloud_shell"]
+resource_local_to_scene = true
+shader = ExtResource("2_cloud_shader")
+shader_parameter/cloud_base_radius_m = 1.0
+shader_parameter/cloud_top_radius_m = 2.0
+shader_parameter/cloud_coverage_unitless = 0.0
+shader_parameter/cloud_observer_layer_factor_unitless = 0.0
+shader_parameter/cloud_wind_velocity_mps = Vector3(0, 0, 0)
+shader_parameter/cloud_wind_offset_m = Vector3(0, 0, 0)
+
+[sub_resource type="SphereMesh" id="SphereMesh_cloud_shell"]
+radius = 1.0
+height = 2.0
+radial_segments = 64
+rings = 32
+
+[node name="PlanetaryAtmosphereWorldRig" type="Node3D"]
+script = ExtResource("1_rig")
+scene_environment = SubResource("Environment_atmosphere")
+
+[node name="CloudShell" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("SphereMesh_cloud_shell")
+material_override = SubResource("ShaderMaterial_cloud_shell")
+
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0)
+light_color = Color(1, 0.94, 0.82, 1)
+light_energy = 1.2
+shadow_enabled = false
+
+[node name="AtmospherePresentation" type="Node" parent="."]
+script = ExtResource("3_atmosphere")
+
+[node name="SkyPresentation" type="Node" parent="."]
+script = ExtResource("4_sky")
+
+[node name="CloudPresentation" type="Node" parent="."]
+script = ExtResource("5_cloud")
+
+[node name="SunPresentation" type="Node" parent="."]
+script = ExtResource("6_sun")
