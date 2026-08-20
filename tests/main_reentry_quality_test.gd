@@ -59,6 +59,7 @@ func _run() -> void:
 	await _test_destroyed_source_impact_ordering(game, pulse, fleet)
 	await _clean_up(game)
 	await _test_queued_main_reentry_restore()
+	await _test_world_deferred_damage_receipt_currentness()
 	_finish()
 
 
@@ -443,6 +444,118 @@ func _test_queued_main_reentry_restore() -> void:
 	for _frame in 3:
 		await process_frame
 	_check(not is_instance_valid(game), "queued-reentry fixture frees its rejected Main without a retained subtree")
+
+
+func _test_world_deferred_damage_receipt_currentness() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_check(game != null, "world deferred-receipt fixture instantiates a third production Main")
+	if game == null:
+		return
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
+	var target: StaticBody3D = null
+	if world != null:
+		for candidate in world.find_children("*", "StaticBody3D", true, false):
+			target = candidate as StaticBody3D
+			if target != null:
+				break
+	_check(
+		world != null and target != null,
+		"world deferred-receipt fixture resolves a live ShipyardWorld target"
+	)
+	if world == null or target == null:
+		await _clean_up(game)
+		return
+
+	var detached_pending := world.defer_target_damage_presentation(
+		92001, target, &"detached_receipt_target", Vector3.ZERO, false
+	)
+	var world_parent := world.get_parent()
+	world_parent.remove_child(world)
+	await process_frame
+	var detached_before := _world_deferred_receipt_snapshot(world, target)
+	var detached_deferred := world.defer_target_damage_presentation(
+		92004, target, &"detached_rejected_target", Vector3.ZERO, false
+	)
+	var detached_committed := world.commit_deferred_damage_presentation(92001)
+	_check(
+		not world.is_inside_tree()
+		and detached_pending
+		and not detached_deferred
+		and not detached_committed
+		and _world_deferred_receipt_snapshot(world, target) == detached_before,
+		"detached ShipyardWorld rejects stale admission and leaves an existing deferred receipt unconsumed"
+	)
+
+	world_parent.add_child(world)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var reentry_pending := world.get_pending_target_damage_presentation_count()
+	world.discard_deferred_damage_presentations()
+	_check(
+		world.is_inside_tree()
+		and reentry_pending == 1
+		and world.get_pending_target_damage_presentation_count() == 0,
+		"reentered ShipyardWorld explicitly discards the stale detached receipt before fresh work"
+	)
+	var live_deferred := world.defer_target_damage_presentation(
+		92002, target, &"live_receipt_target", Vector3.ZERO, false
+	)
+	var live_pending := world.get_pending_target_damage_presentation_count()
+	world.discard_deferred_damage_presentations()
+	_check(
+		world.is_inside_tree()
+		and live_deferred
+		and live_pending == 1
+		and world.get_pending_target_damage_presentation_count() == 0,
+		"reentered ShipyardWorld accepts a fresh deferred receipt and retains explicit teardown discard"
+	)
+
+	var queued_pending := world.defer_target_damage_presentation(
+		92003, target, &"queued_receipt_target", Vector3.ZERO, false
+	)
+	var queued_before := _world_deferred_receipt_snapshot(world, target)
+	world.queue_free()
+	var queued_deferred := world.defer_target_damage_presentation(
+		92005, target, &"queued_rejected_target", Vector3.ZERO, false
+	)
+	var queued_committed := world.commit_deferred_damage_presentation(92003)
+	_check(
+		world.is_inside_tree()
+		and world.is_queued_for_deletion()
+		and queued_pending
+		and not queued_deferred
+		and not queued_committed
+		and _world_deferred_receipt_snapshot(world, target) == queued_before,
+		"queued ShipyardWorld rejects stale receipt admission and commit without pending, target, or effect mutation"
+	)
+	await _clean_up(game)
+
+
+func _world_deferred_receipt_snapshot(
+	world: ShipyardWorld,
+	target: StaticBody3D
+	) -> Dictionary:
+	return {
+		"pending_count": world.get_pending_target_damage_presentation_count(),
+		"child_count": world.get_child_count(),
+		"impact_count": world.find_children(
+			"ProjectileImpact", "MeshInstance3D", true, false
+		).size(),
+		"target_collision_layer": target.collision_layer,
+		"target_collision_mask": target.collision_mask,
+		"target_destroyed": bool(target.get_meta("destroyed", false)),
+		"target_authority_committed": bool(
+			target.get_meta("destruction_authority_committed", false)
+		),
+		"target_visual_committed": bool(
+			target.get_meta("destruction_visual_committed", false)
+		),
+	}.duplicate(true)
 
 
 func _test_safed_fire_contract(

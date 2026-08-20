@@ -3709,7 +3709,12 @@ func defer_target_damage_presentation(
 		hit_position: Vector3,
 		terminal: bool
 	) -> bool:
-	if receipt_id < 0 or not is_instance_valid(target):
+	if (
+		not is_inside_tree()
+		or is_queued_for_deletion()
+		or receipt_id < 0
+		or not is_instance_valid(target)
+	):
 		return false
 	if _pending_target_presentations.has(receipt_id):
 		_pending_target_presentation_order.erase(receipt_id)
@@ -3737,7 +3742,11 @@ func discard_deferred_damage_presentations() -> void:
 
 
 func commit_deferred_damage_presentation(receipt_id: int) -> bool:
-	if not _pending_target_presentations.has(receipt_id):
+	if (
+		not is_inside_tree()
+		or is_queued_for_deletion()
+		or not _pending_target_presentations.has(receipt_id)
+	):
 		return false
 	var record := _pending_target_presentations[receipt_id] as Dictionary
 	_pending_target_presentations.erase(receipt_id)
