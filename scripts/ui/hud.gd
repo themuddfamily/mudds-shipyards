@@ -1021,7 +1021,7 @@ func _restore_pause_focus_after_reentry() -> void:
 		and _settings_page.visible
 		and _settings_page.is_ancestor_of(target)
 	):
-		_settings_scroll.ensure_control_visible.call_deferred(target)
+		_request_settings_scroll(target)
 
 
 func _pause_focus_fallback() -> Control:
@@ -2226,8 +2226,34 @@ func _build_input_binding_rows(parent: VBoxContainer) -> void:
 
 
 func _scroll_to_input_binding(control: Control) -> void:
-	if _settings_scroll != null:
-		_settings_scroll.ensure_control_visible.call_deferred(control)
+	_request_settings_scroll(control)
+
+
+## Scroll mutation must belong to the currently live Settings hierarchy. Input
+## capture and pause-focus restoration can schedule this at the same time as a
+## whole HUD subtree is being retired, so the callback owns the liveness check.
+func _request_settings_scroll(control: Control) -> void:
+	_ensure_settings_control_visible.call_deferred(control)
+
+
+func _ensure_settings_control_visible(control: Control) -> void:
+	if (
+		not is_inside_tree()
+		or is_queued_for_deletion()
+		or not is_instance_valid(_settings_scroll)
+		or _settings_scroll.is_queued_for_deletion()
+		or not _settings_scroll.is_inside_tree()
+		or not is_instance_valid(_settings_page)
+		or _settings_page.is_queued_for_deletion()
+		or not _settings_page.is_inside_tree()
+		or not _settings_page.visible
+		or not is_instance_valid(control)
+		or control.is_queued_for_deletion()
+		or not control.is_inside_tree()
+		or not _settings_page.is_ancestor_of(control)
+	):
+		return
+	_settings_scroll.ensure_control_visible(control)
 
 
 func _binding_button(text: String) -> Button:

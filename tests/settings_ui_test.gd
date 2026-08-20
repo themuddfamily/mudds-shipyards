@@ -170,6 +170,7 @@ func _run() -> void:
 	_check(settings_page.visible and not main_page.visible, "Settings switches to a dedicated second page")
 	_check(settings_page.size.x <= 1280.0 and settings_page.size.y <= 720.0, "settings panel fits a 1280 by 720 window")
 	await _test_input_binding_editor(hud, settings_owner)
+	await _test_deferred_settings_scroll_currentness()
 
 	var save_button := settings_page.find_child("SettingsSaveButton", true, false) as Button
 	var reset_button := settings_page.find_child("SettingsResetButton", true, false) as Button
@@ -465,6 +466,62 @@ func _test_recreated_hud_uses_project_defaults(settings_owner: RuntimeSettings) 
 	reentered_flow.free()
 	second_hud.queue_free()
 	await process_frame
+
+
+func _test_deferred_settings_scroll_currentness() -> void:
+	var probe := GameHUD.new()
+	probe.name = "DeferredSettingsScrollHUDTest"
+	root.add_child(probe)
+	await process_frame
+	probe.set_paused(true)
+	var main_page := probe.get("_pause_main_page") as Control
+	var open_button := main_page.find_child("SettingsOpenButton", true, false) as Button
+	open_button.pressed.emit()
+	var settings_page := probe.get("_settings_page") as Control
+	var scroll := settings_page.find_child("SettingsScroll", true, false) as ScrollContainer
+	var binding_buttons := probe.get("_binding_buttons") as Dictionary
+	var target := binding_buttons[&"toggle_ship_camera_view"] as Control
+	await process_frame
+	await process_frame
+	scroll.scroll_vertical = 0
+	var detached_before := _scroll_snapshot(scroll)
+	probe.call("_scroll_to_input_binding", target)
+	root.remove_child(probe)
+	await process_frame
+	_check(
+		_scroll_snapshot(scroll) == detached_before,
+		"a detached HUD discards its queued Settings scroll without mutating retained layout"
+	)
+
+	root.add_child(probe)
+	await process_frame
+	scroll.scroll_vertical = 0
+	probe.call("_scroll_to_input_binding", target)
+	await process_frame
+	_check(
+		scroll.scroll_vertical > 0
+		and target.is_inside_tree()
+		and settings_page.is_ancestor_of(target),
+		"a reentered HUD accepts a fresh Settings scroll for its current binding row"
+	)
+
+	var queued_before := _scroll_snapshot(scroll)
+	probe.call("_scroll_to_input_binding", target)
+	probe.queue_free()
+	probe.call("_ensure_settings_control_visible", target)
+	_check(
+		_scroll_snapshot(scroll) == queued_before,
+		"a queued in-tree HUD rejects both direct and pending Settings-scroll layout mutation"
+	)
+	await process_frame
+
+
+func _scroll_snapshot(scroll: ScrollContainer) -> Dictionary:
+	return {
+		"horizontal": scroll.scroll_horizontal,
+		"vertical": scroll.scroll_vertical,
+		"rect": scroll.get_global_rect(),
+	}.duplicate(true)
 
 
 func _test_input_prompt_family_switching(hud: GameHUD) -> void:
