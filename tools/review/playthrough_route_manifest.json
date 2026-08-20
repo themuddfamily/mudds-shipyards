@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "manifest_kind": "human_playthrough_route",
+  "human_run_status": "pending",
+  "source_commit": null,
+  "route": [
+    {"id": "walking", "result": "pending", "observations": ["Record station traversal, clipping, blockers, and route transitions."]},
+    {"id": "boarding", "result": "pending", "observations": ["Record authored access, seat entry, and occupancy handoff."]},
+    {"id": "flight", "result": "pending", "observations": ["Exercise automatic propulsion and each flyable craft."]},
+    {"id": "combat", "result": "pending", "observations": ["Exercise combat, destruction, and recovery."]},
+    {"id": "landing", "result": "pending", "observations": ["Record approach, lease landing, and dock state."]},
+    {"id": "activities", "result": "pending", "observations": ["Start, progress, and reset an authored activity."]},
+    {"id": "settings", "result": "pending", "observations": ["Change keyboard, mouse, and gamepad settings and verify effect."]},
+    {"id": "save_reentry", "result": "pending", "observations": ["Save, restart, and verify preserved/reset state."]},
+    {"id": "teardown", "result": "pending", "observations": ["Record long-session teardown and transient-resource cleanup."]}
+  ],
+  "defects": []
+}
