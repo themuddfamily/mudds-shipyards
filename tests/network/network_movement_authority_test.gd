@@ -90,7 +90,7 @@ func _test_mode_and_generation_guards() -> void:
 		authority.set_avatar_mode(1, &"avatar_b", 5, &"seated").accepted,
 		"server can record the external physical seat result"
 	)
-	var walking_while_seated = Intent.create(3, &"avatar_b", 2, 2, 1, 21, Vector2.UP)
+	var walking_while_seated = Intent.create(3, &"avatar_b", 5, 2, 1, 21, Vector2.UP)
 	_check(
 		authority.accept_intent(3, walking_while_seated.to_dictionary()).status == &"action_not_allowed_in_mode",
 		"seated avatar cannot author movement through the on-foot channel"

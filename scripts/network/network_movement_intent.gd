@@ -46,7 +46,7 @@ static func create(
 	p_boarding_target_id: StringName = &"",
 	p_disembark_request := false
 ):
-	return NetworkMovementIntent.new({
+	return new({
 		"schema_version": SCHEMA_VERSION,
 		"peer_id": p_peer_id,
 		"entity_id": p_entity_id,
@@ -62,7 +62,7 @@ static func create(
 
 
 static func from_dictionary(data: Dictionary):
-	return NetworkMovementIntent.new(data.duplicate(true))
+	return new(data.duplicate(true))
 
 
 func _init(data: Dictionary = {}) -> void:

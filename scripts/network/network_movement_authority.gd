@@ -130,7 +130,7 @@ func accept_intent(source_peer_id: int, wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"client_tick_too_old"))
 	if intent.get_client_tick() > _server_tick + _max_tick_ahead:
 		return _remember(_result(false, &"client_tick_too_far_ahead"))
-	var stream_id := intent.get_stream_id()
+	var stream_id: int = intent.get_stream_id()
 	var last_stream := int(avatar.stream_id)
 	if stream_id < last_stream:
 		return _remember(_result(false, &"stale_stream"))
