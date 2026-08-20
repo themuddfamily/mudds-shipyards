@@ -255,6 +255,11 @@ func reset_for_reuse(expected_generation: Variant) -> Dictionary:
 	if not _is_exact_integer(expected_generation) \
 			or int(expected_generation) != _generation:
 		return _result(false, &"stale_generation")
+	# Like observations, reuse is a public renderer-intent mutation. A detached
+	# or terminal adapter must not tombstone its live caller or emit a deferred
+	# reset that changes what a later re-entry restores.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"presentation_detached")
 	if _generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"generation_exhausted")
 	if _resolve_material() == null:

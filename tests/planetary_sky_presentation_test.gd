@@ -6,7 +6,7 @@ const ProfileScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_sky_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 44
+const EXPECTED_ASSERTIONS := 47
 const EXPECTED_RENDERER_PROPERTIES := [
 	"sky_top_color", "sky_horizon_color", "ground_horizon_color",
 ]
@@ -468,6 +468,14 @@ func _test_detach_reentry() -> void:
 		and _renderer_values(_material) == baseline,
 		"detached sky observation rejects atomically without retaining deferred renderer intent"
 	)
+	var detached_reset := _adapter.reset_for_reuse(int(detached_before.generation))
+	_check(
+		not detached_reset.accepted and detached_reset.reason == &"presentation_detached"
+		and _adapter.get_state_snapshot() == detached_before
+		and _events.size() == detached_events
+		and _renderer_values(_material) == baseline,
+		"detached sky reset rejects atomically without tombstoning the live caller"
+	)
 	root.add_child(_adapter)
 	var reentry_values := _renderer_values(_material)
 	var fresh := _adapter.present_observation(
@@ -481,6 +489,15 @@ func _test_detach_reentry() -> void:
 		and int(_adapter.get_state_snapshot().revision) == int(state.revision) + 1
 		and _events.size() == events + 1 and bool(_adapter.audit().valid),
 		"re-entry restores last live sky values before a fresh observation commits"
+	)
+	var reentered_generation := _adapter.get_generation()
+	var reentered_reset := _adapter.reset_for_reuse(reentered_generation)
+	_check(
+		reentered_reset.accepted and reentered_reset.reason == &"reset"
+		and _adapter.get_generation() == reentered_generation + 1
+		and not bool(_adapter.get_state_snapshot().has_presented_observation)
+		and _renderer_values(_material) == baseline,
+		"re-added sky adapter accepts a fresh reuse reset"
 	)
 	await process_frame
 
@@ -513,6 +530,14 @@ func _test_queued_adapter_rejects_atomically() -> void:
 		and adapter.get_state_snapshot() == before and events.is_empty()
 		and _renderer_values(material) == values_before,
 		"queued sky adapter rejects observation atomically before renderer or retained intent drift"
+	)
+	var queued_reset := adapter.reset_for_reuse(int(before.generation))
+	_check(
+		adapter.is_queued_for_deletion()
+		and not queued_reset.accepted and queued_reset.reason == &"presentation_detached"
+		and adapter.get_state_snapshot() == before and events.is_empty()
+		and _renderer_values(material) == values_before,
+		"queued sky adapter rejects reset atomically before caller tombstone or signal drift"
 	)
 	await process_frame
 
