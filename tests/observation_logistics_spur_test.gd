@@ -483,6 +483,59 @@ func _test_lifecycle(module: ObservationLogisticsSpur) -> void:
 	_check(module.visible and first_surface.collision_layer == WORLD_LAYER, "re-enable restores visible World collision")
 	_check(first_surface.get_instance_id() == first_id and bool(module.get_audit_report().valid), "lifecycle reuses the same surface identity and returns audit green")
 
+	var live_snapshot := _lifecycle_snapshot(module)
+	_test_root.remove_child(module)
+	module.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"detached direct disable leaves retained enabled, visibility, processing, and collision state unchanged"
+	)
+	_test_root.add_child(module)
+	await process_frame
+	module.set_module_enabled(false)
+	_check(
+		not module.is_module_enabled()
+		and not module.visible
+		and first_surface.collision_layer == 0
+		and not module.is_processing()
+		and not module.is_physics_processing(),
+		"re-added spur accepts a fresh live disable"
+	)
+	module.set_module_enabled(true)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"fresh live re-enable restores retained enabled, visibility, processing, and collision state"
+	)
+	module.queue_free()
+	module.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(module) == live_snapshot,
+		"queued direct disable leaves retained enabled, visibility, processing, and collision state unchanged"
+	)
+
+
+func _lifecycle_snapshot(module: ObservationLogisticsSpur) -> Dictionary:
+	var body_states: Array[Dictionary] = []
+	for raw_body in StationModuleContract.collect_static_bodies(module):
+		var body := raw_body as StaticBody3D
+		body_states.append({
+			"path": module.get_path_to(body),
+			"visible": body.visible,
+			"collision_layer": body.collision_layer,
+			"collision_mask": body.collision_mask,
+		})
+	body_states.sort_custom(
+		func(first: Dictionary, second: Dictionary) -> bool:
+			return str(first.path) < str(second.path)
+	)
+	return {
+		"enabled": module.is_module_enabled(),
+		"visible": module.visible,
+		"processing": module.is_processing(),
+		"physics_processing": module.is_physics_processing(),
+		"body_states": body_states,
+	}.duplicate(true)
+
 
 func _drive_body_to(body: CharacterBody3D, target: Vector3, frame_budget: int) -> bool:
 	for _frame in frame_budget:
