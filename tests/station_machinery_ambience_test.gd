@@ -10,6 +10,14 @@ class RejectingStationAmbience extends StationMachineryAmbience:
 		return false
 
 
+class TrackingStationAmbience extends StationMachineryAmbience:
+	var enabled_state_apply_count := 0
+
+	func _apply_enabled_state() -> void:
+		enabled_state_apply_count += 1
+		super()
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -33,6 +41,7 @@ func _run() -> void:
 	await _test_built_snapshot_spoof_and_rebuild()
 	await _test_disabled_detach_and_reentry()
 	await _test_determinism_and_lifecycle(ambience)
+	await _test_queued_reentry_restore_is_inert()
 	await _test_cleanup(ambience)
 
 	_test_root.queue_free()
@@ -56,6 +65,24 @@ func _make_ambience(
 	ambience.reference_distance = 4.5
 	_test_root.add_child(ambience)
 	return ambience
+
+
+func _make_tracking_ambience(label: String, seed: int) -> TrackingStationAmbience:
+	var ambience := AMBIENCE_SCENE.instantiate() as StationMachineryAmbience
+	if ambience == null:
+		return null
+	ambience.set_script(TrackingStationAmbience)
+	var tracking := ambience as TrackingStationAmbience
+	if tracking == null:
+		return null
+	tracking.name = label
+	tracking.emitter_id = StringName("%s-emitter" % label.to_lower())
+	tracking.synthesis_seed = seed
+	tracking.base_frequency_hz = 52.5
+	tracking.maximum_distance = 36.0
+	tracking.reference_distance = 4.5
+	_test_root.add_child(tracking)
+	return tracking
 
 
 func _test_identity_and_evidence(ambience: StationMachineryAmbience) -> void:
@@ -219,6 +246,30 @@ func _test_determinism_and_lifecycle(ambience: StationMachineryAmbience) -> void
 	variant.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _test_queued_reentry_restore_is_inert() -> void:
+	var ambience := _make_tracking_ambience("QueuedReentry", 69841)
+	if ambience == null:
+		return
+	await process_frame
+	var parent := ambience.get_parent()
+	parent.remove_child(ambience)
+	await process_frame
+	parent.add_child(ambience)
+	# Re-entry queued the normal restore. Once the retained owner has committed
+	# to deletion, that deferred callback must not apply playback state again.
+	var apply_count_before := ambience.enabled_state_apply_count
+	ambience.queue_free()
+	ambience.call("_restore_after_enter_tree")
+	_check(
+		ambience.is_queued_for_deletion()
+		and ambience.enabled_state_apply_count == apply_count_before
+		and _players_are_stopped_and_detached(ambience),
+		"a queued post-reentry machinery emitter cannot restore playback state"
+	)
+	await process_frame
+	_check(not is_instance_valid(ambience), "the queued re-entry machinery fixture frees normally")
 
 
 func _test_live_configuration_audit() -> void:
