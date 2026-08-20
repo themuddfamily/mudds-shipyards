@@ -101,6 +101,9 @@ const SHORT_SIDE_RAIL_ORIGINS := [
 	Vector3(14.0, 4.25, 9.0),
 ]
 const SHORT_SIDE_RAIL_VISUAL_COUNT := 4
+const LONG_RAIL_VISUAL_SIZE := Vector3(12.0, 1.3, 0.16)
+const LONG_RAIL_NAMES := [&"LowerForward", &"LowerAft", &"UpperForward"]
+const LONG_RAIL_VISUAL_COUNT := 3
 
 const CONTENT_NOTE := (
 	"Salvage Terrace is a NEW modern interpretation. No source authenticates its "
@@ -134,6 +137,7 @@ var _built_multimesh_buffers: Dictionary = {}
 var _built_multimesh_visible_counts: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _short_side_rail_visual_mesh: BoxMesh
+var _long_rail_visual_mesh: BoxMesh
 
 
 func _ready() -> void:
@@ -340,8 +344,12 @@ func get_performance_contract() -> Dictionary:
 	contract["budgets"] = PERFORMANCE_BUDGET.duplicate(true)
 	contract["buffers_match_authored"] = _multimesh_contract_is_live()
 	var rail_visual_sharing := get_short_side_rail_visual_allocation_audit()
+	var long_rail_visual_sharing := get_long_rail_visual_allocation_audit()
 	contract["short_side_rail_visual_sharing"] = rail_visual_sharing
-	contract["resource_sharing_matches_authored"] = bool(rail_visual_sharing.valid)
+	contract["long_rail_visual_sharing"] = long_rail_visual_sharing
+	contract["resource_sharing_matches_authored"] = (
+		bool(rail_visual_sharing.valid) and bool(long_rail_visual_sharing.valid)
+	)
 	var exact_census := true
 	for key in PERFORMANCE_BUDGET:
 		exact_census = exact_census and int(contract.get(key, -1)) == int(PERFORMANCE_BUDGET[key])
@@ -526,6 +534,39 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_long_rail_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	var collision_ids := {}
+	for rail_name in LONG_RAIL_NAMES:
+		var rail := get_node_or_null(NodePath("GeneratedRoot/%s" % rail_name)) as StaticBody3D
+		var visual := rail.get_node_or_null(^"Mesh") as MeshInstance3D if rail != null else null
+		var collision := rail.get_node_or_null(^"Collision") as CollisionShape3D if rail != null else null
+		if visual == null or not (visual.mesh is BoxMesh):
+			errors.append("long_rail_visual_missing")
+		else:
+			mesh_ids[visual.mesh.get_instance_id()] = true
+			if visual.mesh != _long_rail_visual_mesh or not (visual.mesh as BoxMesh).size.is_equal_approx(LONG_RAIL_VISUAL_SIZE):
+				errors.append("long_rail_visual_identity_or_recipe_drift")
+		if collision == null or not (collision.shape is BoxShape3D):
+			errors.append("long_rail_collision_missing")
+		else:
+			collision_ids[collision.shape.get_instance_id()] = true
+	if mesh_ids.size() != 1:
+		errors.append("long_rail_visual_mesh_count_drift")
+	if collision_ids.size() != LONG_RAIL_VISUAL_COUNT:
+		errors.append("long_rail_collision_identity_drift")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(), "errors": errors,
+		"visual_copies": LONG_RAIL_VISUAL_COUNT,
+		"mesh_resource_allocations": mesh_ids.size(),
+		"collision_resource_allocations": collision_ids.size(),
+		"legacy_mesh_resource_allocations": 3,
+		"mesh_resource_allocation_delta": -2,
+	}.duplicate(true)
+
+
 func set_module_enabled(enabled: bool) -> void:
 	_enabled = enabled
 	_apply_enabled_state()
@@ -633,7 +674,7 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(performance.buffers_match_authored):
 		errors.append("MultiMesh batch counts, visibility, transforms, or raw buffers drifted")
 	if not bool(performance.resource_sharing_matches_authored):
-		errors.append("shared short-side rail visual allocation contract drifted")
+		errors.append("shared safety-rail visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if (
 		not bool(lifecycle.reversible)
@@ -770,6 +811,9 @@ func _build_safety_rails() -> void:
 	_short_side_rail_visual_mesh = BoxMesh.new()
 	_short_side_rail_visual_mesh.resource_name = "SalvageTerraceShortSideRailVisualMesh"
 	_short_side_rail_visual_mesh.size = SHORT_SIDE_RAIL_VISUAL_SIZE
+	_long_rail_visual_mesh = BoxMesh.new()
+	_long_rail_visual_mesh.resource_name = "SalvageTerraceLongRailVisualMesh"
+	_long_rail_visual_mesh.size = LONG_RAIL_VISUAL_SIZE
 	_add_rail("EntryFrontPort", Transform3D(Basis.IDENTITY, Vector3(-4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryFrontStarboard", Transform3D(Basis.IDENTITY, Vector3(4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryPortForward", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 1.0)), Vector3(0.16, 1.3, 2.0))
@@ -796,6 +840,8 @@ func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void
 	var visual_mesh: BoxMesh = null
 	if node_name in SHORT_SIDE_RAIL_NAMES:
 		visual_mesh = _short_side_rail_visual_mesh
+	elif StringName(node_name) in LONG_RAIL_NAMES:
+		visual_mesh = _long_rail_visual_mesh
 	var rail := _box_body(
 		_build_root, node_name, transform, size, _materials.rail, visual_mesh
 	)

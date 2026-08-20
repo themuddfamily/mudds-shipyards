@@ -333,6 +333,31 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 		and int(report.processing_node_count) == 0,
 		"shared visual paths add no script, processing loop, or foreign gameplay authority"
 	)
+	var long_report := module.get_long_rail_visual_allocation_audit()
+	_check(
+		bool(long_report.valid)
+		and int(long_report.visual_copies) == 3
+		and int(long_report.legacy_mesh_resource_allocations) == 3
+		and int(long_report.mesh_resource_allocations) == 1
+		and int(long_report.mesh_resource_allocation_delta) == -2
+		and int(long_report.collision_resource_allocations) == 3,
+		"three long safety rails share 3->1 visual meshes while retaining three private collision shapes"
+	)
+	var long_aft := module.get_node(^"GeneratedRoot/LowerAft/Mesh") as MeshInstance3D
+	if long_aft != null:
+		var original_long_mesh := long_aft.mesh
+		long_aft.mesh = original_long_mesh.duplicate() as BoxMesh
+		var long_red := module.get_long_rail_visual_allocation_audit()
+		var full_audit_red := module.get_audit_report()
+		long_aft.mesh = original_long_mesh
+		_check(
+			not bool(long_red.valid)
+			and (long_red.errors as PackedStringArray).has("long_rail_visual_mesh_count_drift")
+			and not bool(full_audit_red.valid)
+			and bool(module.get_long_rail_visual_allocation_audit().valid)
+			and bool(module.get_audit_report().valid),
+			"splitting one long-rail visual mesh turns the full audit red and restores cleanly"
+		)
 
 	(report.current as Dictionary)["mesh_resource_allocations"] = -1
 	(report.behavior_rows as Array).clear()
@@ -358,7 +383,7 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 		and mutation_reached_every_copy
 		and _errors_include(
 			module.get_validation_errors(),
-			"shared short-side rail visual allocation contract"
+			"shared safety-rail visual allocation contract"
 		),
 		"MUTATION: changing the shared visual recipe reaches all four copies and turns the module audit red"
 	)
