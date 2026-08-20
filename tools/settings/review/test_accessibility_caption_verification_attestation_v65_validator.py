@@ -1,0 +1,109 @@
+import copy
+import unittest
+
+from tools.settings.review.accessibility_caption_verification_attestation_v65_validator import (
+    ATTESTATION_ID,
+    AUTHORITY,
+    BINDING,
+    CONTRACT_ID,
+    PREVIOUS_VERSION,
+    SCHEMA_VERSION,
+    SOURCE_ID,
+    SOURCE_SCHEMA,
+    VERIFICATION_ATTESTATION,
+    validate_verification_attestation,
+)
+
+
+def _record() -> dict:
+    return {
+        "schema": "accessibility_caption_verification_attestation_v65_evidence_v1",
+        "source_schema": SOURCE_SCHEMA,
+        "schema_version": SCHEMA_VERSION,
+        "source_revision": "working-tree-caption-verification-v65",
+        "reviewer_required": "human accessibility and caption QA",
+        "open_gate_reason": "no human v65 verification/attestation review or native render has been performed",
+        "human_review_status": "not_performed",
+        "native_render_status": "not_run",
+        "human_review_performed": False,
+        "native_render_performed": False,
+        "verification_attestation_verified": False,
+        "stale_payload_mutation": False,
+        "verification_attestation": copy.deepcopy(VERIFICATION_ATTESTATION),
+        "binding": copy.deepcopy(BINDING),
+        "authority": copy.deepcopy(AUTHORITY),
+        "attestation_id": ATTESTATION_ID,
+        "attestation_status": "open",
+        "verification_mode": "exact",
+        "source_id": SOURCE_ID,
+        "source_mode": "exact",
+        "contract_id": CONTRACT_ID,
+        "contract_mode": "exact",
+        "current_version": SCHEMA_VERSION,
+        "previous_version": PREVIOUS_VERSION,
+        "version_relation": "adjacent_exact",
+        "provenance_source_of_truth": "presentation_only",
+        "status": "planned",
+        "authority_owner": SOURCE_ID,
+        "generation_owner": SOURCE_ID,
+        "service_id": SOURCE_ID,
+        "evidence": None,
+        **AUTHORITY,
+    }
+
+
+class AccessibilityCaptionVerificationAttestationV65Tests(unittest.TestCase):
+    def test_complete_record_keeps_attestation_open_and_native_gate_closed(self):
+        self.assertEqual(validate_verification_attestation(_record()), [])
+
+    def test_verification_attestation_is_exact(self):
+        value = _record()
+        value["verification_mode"] = "best_effort"
+        value["verification_attestation"]["contract_mode"] = "best_effort"
+        value["binding"]["stale_policy"] = "accept_old"
+        errors = validate_verification_attestation(value)
+        self.assertTrue(any("verification_mode must be exact" in error for error in errors))
+        self.assertTrue(any("verification_attestation must exactly" in error for error in errors))
+        self.assertTrue(any("binding must exactly" in error for error in errors))
+
+    def test_native_render_must_remain_not_run(self):
+        value = _record()
+        value["native_render_status"] = "planned"
+        errors = validate_verification_attestation(value)
+        self.assertTrue(any("native_render_status must remain not_run" in error for error in errors))
+
+    def test_stale_and_non_presentation_authority_fail_closed(self):
+        value = _record()
+        value["authority"]["audio_authority"] = True
+        value["audio_authority"] = True
+        value["verification_attestation_verified"] = True
+        value["stale_payload_mutation"] = True
+        errors = validate_verification_attestation(value)
+        self.assertTrue(any("authority must exactly" in error for error in errors))
+        self.assertTrue(any("audio_authority must be false" in error for error in errors))
+        self.assertTrue(any("verification_attestation_verified must be false" in error for error in errors))
+        self.assertTrue(any("stale_payload_mutation must be false" in error for error in errors))
+
+    def test_evidence_requires_sha256_metadata(self):
+        value = _record()
+        value["evidence"] = [{"kind": "report", "path": "reports/v65.json", "sha256": "bad"}]
+        errors = validate_verification_attestation(value)
+        self.assertTrue(any("evidence[0].sha256" in error for error in errors))
+
+    def test_malformed_shapes_fail_without_throwing(self):
+        value = _record()
+        value["human_review_status"] = []
+        value["verification_attestation"] = []
+        value["binding"] = {}
+        value["authority"] = []
+        value["evidence"] = [{"kind": [], "path": {}, "sha256": []}]
+        errors = validate_verification_attestation(value)
+        self.assertTrue(any("human_review_status" in error for error in errors))
+        self.assertTrue(any("verification_attestation must exactly" in error for error in errors))
+        self.assertTrue(any("binding must exactly" in error for error in errors))
+        self.assertTrue(any("authority must exactly" in error for error in errors))
+        self.assertTrue(any("evidence[0].kind" in error for error in errors))
+
+
+if __name__ == "__main__":
+    unittest.main()
