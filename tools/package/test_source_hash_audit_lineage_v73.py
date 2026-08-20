@@ -1,0 +1,56 @@
+import unittest
+
+from tools.package.source_hash_audit_lineage_v73 import validate_v73
+
+
+def record():
+    commit = "3" * 40
+    digest = "e" * 64
+    source_id = "source-73"
+    audit_id = "audit-73"
+    lineage_id = "lineage-73"
+    source_version = "src-73"
+    package_version = "7.3.0"
+    common = {"source_id": source_id, "source_commit": commit, "source_hash": digest, "source_version": source_version, "package_version": package_version}
+    return {
+        "schema_version": 73,
+        "build_label": "audit-lineage-v73",
+        **common,
+        "audit_id": audit_id,
+        "lineage_id": lineage_id,
+        "audit": {"status": "PASS", "evidence": "audit", "audit_id": audit_id, **common, "audited": True},
+        "lineage": {"status": "PASS", "evidence": "lineage", "lineage_id": lineage_id, "audit_id": audit_id, **common, "traced": True},
+        "native_execution": {"status": "NOT_RUN", "evidence": None, "platform": None, "hardware": None, "evidence_path": None},
+    }
+
+
+class SourceHashAuditLineageV73Test(unittest.TestCase):
+    def test_accepts_audited_traced_record(self):
+        self.assertEqual(validate_v73(record()), [])
+
+    def test_requires_audit_and_lineage_hash_binding(self):
+        item = record()
+        item["audit"]["source_hash"] = "f" * 64
+        item["lineage"]["audit_id"] = "audit-other"
+        errors = validate_v73(item)
+        self.assertTrue(any("audit.source_hash must match" in error for error in errors))
+        self.assertTrue(any("lineage.audit_id must match" in error for error in errors))
+
+    def test_rejects_schema_or_lineage_flags(self):
+        item = record()
+        item["schema_version"] = 72
+        item["audit"]["audited"] = False
+        item["lineage"]["traced"] = False
+        errors = validate_v73(item)
+        self.assertTrue(any("schema_version must be 73" in error for error in errors))
+        self.assertTrue(any("audited must be true" in error for error in errors))
+        self.assertTrue(any("traced must be true" in error for error in errors))
+
+    def test_native_not_run_cannot_carry_platform(self):
+        item = record()
+        item["native_execution"]["platform"] = "Linux"
+        self.assertTrue(any("platform must be null" in error for error in validate_v73(item)))
+
+
+if __name__ == "__main__":
+    unittest.main()
