@@ -4,6 +4,15 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const COMBAT_AUDIO_SCENE := preload("res://scenes/audio/combat_audio_presentation.tscn")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 
+
+class ReceiptTargetProbe extends Node:
+	var committed_receipt_ids := PackedInt32Array()
+
+	func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+		committed_receipt_ids.append(receipt_id)
+		return true
+
+
 class RejectingCombatAudioPresentation extends CombatAudioPresentation:
 	func _request_player_playback(_player: AudioStreamPlayer3D) -> bool:
 		return false
@@ -244,6 +253,7 @@ func _run() -> void:
 	)
 
 	await _clean_up(game)
+	await _test_queued_deferred_receipt_finalization()
 	_finish()
 
 
@@ -258,6 +268,65 @@ func _impact_count(snapshot: Dictionary) -> int:
 		+ _cue_count(snapshot, CombatAudioPresentation.CUE_IMPACT_MEDIUM)
 		+ _cue_count(snapshot, CombatAudioPresentation.CUE_IMPACT_HEAVY)
 	)
+
+
+func _test_queued_deferred_receipt_finalization() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	var presentation := game.get_combat_audio_presentation()
+	var hero := game.get_guided_ship()
+	var fixture_ready := presentation != null and hero != null
+	_check(
+		fixture_ready,
+		"queued deferred-receipt witness resolves real Main combat audio and hero"
+	)
+	if not fixture_ready:
+		await _clean_up(game)
+		return
+	var target := ReceiptTargetProbe.new()
+	root.add_child(target)
+	var cue_events := PackedStringArray()
+	if presentation != null:
+		presentation.cue_started.connect(
+			func(cue_id: StringName, _voice: StringName, _position: Vector3, _source_id: int) -> void:
+				cue_events.append(cue_id)
+		)
+	var receipt_id := 9087
+	var deferred_receipt_id := 9088
+	var receipt_record := {
+		"target": weakref(target),
+		"target_instance_id": target.get_instance_id(),
+		"endpoint": Vector3(32.0, 8.0, -64.0),
+		"terminal_position": Vector3(32.0, 8.0, -64.0),
+		"terminal": false,
+		"style_id": &"cyan",
+		"source_instance_id": hero.get_instance_id(),
+	}
+	game.set("_pending_combat_audio_receipts", {
+		receipt_id: receipt_record.duplicate(true),
+		deferred_receipt_id: receipt_record.duplicate(true),
+	})
+	game.queue_free()
+	game.call("_finalize_aborted_combat_receipt", receipt_id)
+	_check(
+		game.is_queued_for_deletion()
+		and game.get_pending_combat_presentation_receipt_count() == 1
+		and cue_events.is_empty()
+		and target.committed_receipt_ids.is_empty(),
+		"queued Main retires the current receipt before late cue or target presentation"
+	)
+	game.call_deferred("_finalize_aborted_combat_receipt", deferred_receipt_id)
+	await process_frame
+	_check(
+		not is_instance_valid(game)
+		and cue_events.is_empty()
+		and target.committed_receipt_ids.is_empty(),
+		"queued Main discards a deferred combat receipt without late cue or target presentation"
+	)
+	target.queue_free()
+	await process_frame
 
 
 func _clean_up(game: Node) -> void:

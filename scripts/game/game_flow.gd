@@ -2559,7 +2559,8 @@ func _finalize_aborted_combat_receipt(receipt_id: int) -> void:
 	var record := _pending_combat_audio_receipts.get(receipt_id, {}) as Dictionary
 	if record.is_empty():
 		return
-	if not is_inside_tree() or not _receipt_target_is_inside_tree(record):
+	if is_queued_for_deletion() or not is_inside_tree() \
+			or not _receipt_target_is_inside_tree(record):
 		# Whole-Main teardown can remove the target before the pulse child publishes
 		# its abort. That transaction intentionally discards transient presentation;
 		# never spawn nodes or start audio into a tree that is dismantling.
