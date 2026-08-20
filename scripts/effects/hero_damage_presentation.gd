@@ -146,6 +146,8 @@ func update_state(
 		ship_state: StringName = STATE_ACTIVE,
 		world_velocity: Vector3 = Vector3.ZERO
 	) -> void:
+	if is_queued_for_deletion():
+		return
 	_ensure_built()
 	_last_world_velocity = world_velocity if world_velocity.is_finite() else Vector3.ZERO
 	if _stage == DamageStage.DESTROYED:

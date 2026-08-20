@@ -387,6 +387,26 @@ func _test_queued_direct_effect_currentness(packed: PackedScene) -> void:
 		_fail("queued hero-damage currentness fixture instantiates")
 		return
 	var queued_destruction_events: Array[bool] = []
+	var queued_stage_events: Array[Vector2] = []
+	var queued_status_events: Array[StringName] = []
+	var queued_alarm_events: Array[Vector2] = []
+	var queued_engine_events: Array[Vector2] = []
+	queued.stage_changed.connect(
+		func(stage: int, health_ratio: float) -> void:
+			queued_stage_events.append(Vector2(float(stage), health_ratio))
+	)
+	queued.status_changed.connect(
+		func(status: StringName, _health_ratio: float) -> void:
+			queued_status_events.append(status)
+	)
+	queued.alarm_changed.connect(
+		func(active: bool, urgency: float) -> void:
+			queued_alarm_events.append(Vector2(1.0 if active else 0.0, urgency))
+	)
+	queued.engine_failure_changed.connect(
+		func(active: bool, power_multiplier: float) -> void:
+			queued_engine_events.append(Vector2(1.0 if active else 0.0, power_multiplier))
+	)
 	queued.destruction_started.connect(
 		func(_position: Vector3, _velocity: Vector3) -> void:
 			queued_destruction_events.append(true)
@@ -394,7 +414,12 @@ func _test_queued_direct_effect_currentness(packed: PackedScene) -> void:
 	root.add_child(queued)
 	await process_frame
 	var queued_velocity_before := queued.get_last_world_velocity()
+	var queued_damage_sparks := queued.get_node_or_null("DamageSparks") as CPUParticles3D
+	var queued_engine_smoke := queued.get_node_or_null("EngineSmoke") as CPUParticles3D
+	var queued_damage_sparks_before := queued_damage_sparks != null and queued_damage_sparks.emitting
+	var queued_engine_smoke_before := queued_engine_smoke != null and queued_engine_smoke.emitting
 	queued.queue_free()
+	queued.update_state(0.15, HeroDamagePresentation.STATE_ACTIVE, Vector3(5.0, -1.0, 2.0))
 	queued.present_impact(Vector3(24.0, 3.0, -7.0), Vector3.UP, 1.0)
 	queued.present_destruction(Vector3(5.0, -1.0, 2.0), Transform3D.IDENTITY)
 	_check(
@@ -404,8 +429,16 @@ func _test_queued_direct_effect_currentness(packed: PackedScene) -> void:
 		and queued.get_live_world_effect_count() == 0
 		and queued.get_destruction_effect_root() == null
 		and queued.get_last_world_velocity().is_equal_approx(queued_velocity_before)
+		and queued_damage_sparks != null
+		and queued_engine_smoke != null
+		and queued_damage_sparks.emitting == queued_damage_sparks_before
+		and queued_engine_smoke.emitting == queued_engine_smoke_before
+		and queued_stage_events.is_empty()
+		and queued_status_events.is_empty()
+		and queued_alarm_events.is_empty()
+		and queued_engine_events.is_empty()
 		and queued_destruction_events.is_empty(),
-		"a queued presentation rejects direct impact and destruction without retained, world-effect, or signal mutation"
+		"a queued presentation rejects state, impact, and destruction without retained, cue, world-effect, or signal mutation"
 	)
 	await process_frame
 	_check(not is_instance_valid(queued), "queued direct-effect presentation frees normally")
@@ -419,12 +452,20 @@ func _test_queued_direct_effect_currentness(packed: PackedScene) -> void:
 	root.remove_child(reentered)
 	root.add_child(reentered)
 	await process_frame
+	reentered.update_state(0.15, HeroDamagePresentation.STATE_ACTIVE, Vector3(3.0, 2.0, -1.0))
+	_check(
+		reentered.get_damage_stage() == HeroDamagePresentation.DamageStage.CRITICAL
+		and reentered.get_last_world_velocity().is_equal_approx(Vector3(3.0, 2.0, -1.0)),
+		"a reentered presentation accepts a fresh authoritative state update"
+	)
 	reentered.present_impact(Vector3(-16.0, 4.0, 9.0), Vector3.FORWARD, 1.0)
 	reentered.present_destruction(Vector3(-2.0, 1.0, 6.0), Transform3D.IDENTITY)
 	_check(
-		reentered.get_live_world_effect_count() == 2
+		reentered.get_damage_stage() == HeroDamagePresentation.DamageStage.DESTROYED
+		and reentered.get_last_world_velocity().is_equal_approx(Vector3(-2.0, 1.0, 6.0))
+		and reentered.get_live_world_effect_count() == 2
 		and reentered.get_destruction_effect_root() != null,
-		"a reentered presentation accepts fresh direct impact and destruction effects"
+		"a reentered presentation accepts fresh state, impact, and destruction effects"
 	)
 	reentered.reset_for_reuse()
 	reentered.queue_free()
