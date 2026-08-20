@@ -21,6 +21,14 @@ const DEFERRED_CONNECTION_ROUTE_IDS := [&"observation-pad", &"logistics-pad"]
 const FOOTPRINT_MIN := Vector3(-13.4, -0.3, 0.0)
 const FOOTPRINT_MAX := Vector3(13.4, 4.4, 39.5)
 const WALKABLE_AREA_M2 := 426.0
+## This is the first source-current, production-integrated continuation of the
+## exposed deck language beyond the bounded historical modules.  The report is
+## intentionally an evidence gate rather than a topology claim: it freezes the
+## sparse, separated-deck composition and makes the void/safety rules auditable
+## before another exposed module is allowed to grow the station footprint.
+const SAFETY_RAIL_COUNT := 15
+const FOOTPRINT_HORIZONTAL_AREA_M2 := 1058.6
+const NEGATIVE_SPACE_RATIO := 0.597586611
 
 ## The five rectangles touch at their boundaries without overlapping in plan,
 ## so their exact union equals the sum of their horizontal areas: 88 + 80 + 120
@@ -453,6 +461,39 @@ func get_visual_resource_contract() -> Dictionary:
 		"logistics_case_copies": LOGISTICS_CASE_COPY_COUNT,
 		"logistics_case_mesh_resources": logistics_case_mesh_resource_ids.size(),
 		"logistics_case_identities_exact": logistics_case_identities_exact,
+	}.duplicate(true)
+
+
+func get_exposed_lattice_language_contract() -> Dictionary:
+	"""Return the bounded, evidence-aware contract for this exposed expansion.
+
+	The module is a player-visible continuation (connector, separated pads and a
+	return bridge), but it must not be mistaken for recovered station topology.
+	All geometry and function remain NEW/modern interpretation; future additions
+	must preserve the measured void ratio, real deck collision and fall-protection
+	edge rule or provide a new evidence-backed contract.
+	"""
+	var rail_count := 0
+	for candidate in find_children("*", "StaticBody3D", true, false):
+		if bool(candidate.get_meta("station_safety_edge", false)):
+			rail_count += 1
+	return {
+		"schema_version": 1,
+		"player_visible_outcome": "walk a narrow exposed connector across separated decks and return over the far bridge",
+		"content_class": CONTENT_CLASS,
+		"evidence_status": EVIDENCE_STATUS,
+		"source_bounded": false,
+		"evidence_gate": "modern_interpretation_only_until_new_source_resolves_adjacency_and_scale",
+		"walkable_surface_ids": PackedStringArray(["exposed-connector", "pad-cross-landing", "observation-pad", "logistics-pad", "far-return-bridge"]),
+		"walkable_surface_count": WALKABLE_SURFACE_SPECS.size(),
+		"walkable_area_m2": WALKABLE_AREA_M2,
+		"footprint_horizontal_area_m2": FOOTPRINT_HORIZONTAL_AREA_M2,
+		"negative_space_ratio": NEGATIVE_SPACE_RATIO,
+		"negative_space_preserved": is_equal_approx(1.0 - WALKABLE_AREA_M2 / FOOTPRINT_HORIZONTAL_AREA_M2, NEGATIVE_SPACE_RATIO),
+		"safety_rail_count": rail_count,
+		"safety_edges_complete": rail_count == SAFETY_RAIL_COUNT,
+		"owns_gameplay_authority": false,
+		"future_expansion_rule": "do not fill deliberate voids, widen decks, or infer historical adjacency from this module",
 	}.duplicate(true)
 
 

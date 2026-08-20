@@ -31,6 +31,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_identity_evidence_and_contract(module)
+	_test_exposed_lattice_language_contract(module)
 	_test_connection_slots(module)
 	_test_surface_roster_and_area(module)
 	_test_material_retention(module)
@@ -69,6 +70,39 @@ func _test_identity_evidence_and_contract(module: ObservationLogisticsSpur) -> v
 	var audit := module.get_audit_report()
 	_check(bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "module audit is green at rest")
 	_check(bool(audit.alternate_return_path), "audit explicitly publishes the alternate return path")
+
+
+func _test_exposed_lattice_language_contract(module: ObservationLogisticsSpur) -> void:
+	var contract := module.get_exposed_lattice_language_contract()
+	_check(
+		StringName(contract.content_class) == &"NEW"
+		and StringName(contract.evidence_status) == &"modern_interpretation"
+		and not bool(contract.source_bounded),
+		"exposed-deck expansion remains explicitly NEW and source-unbounded"
+	)
+	_check(
+		int(contract.walkable_surface_count) == 5
+		and is_equal_approx(float(contract.walkable_area_m2), 426.0)
+		and (contract.walkable_surface_ids as PackedStringArray).size() == 5,
+		"language contract freezes five real player-walkable deck surfaces"
+	)
+	_check(
+		bool(contract.negative_space_preserved)
+		and is_equal_approx(float(contract.negative_space_ratio), ObservationLogisticsSpur.NEGATIVE_SPACE_RATIO)
+		and float(contract.negative_space_ratio) > 0.59,
+		"language contract preserves the measured sparse-lattice negative space"
+	)
+	_check(
+		int(contract.safety_rail_count) == ObservationLogisticsSpur.SAFETY_RAIL_COUNT
+		and bool(contract.safety_edges_complete)
+		and not bool(contract.owns_gameplay_authority),
+		"every exposed edge has physical safety coverage without gameplay authority"
+	)
+	(contract.walkable_surface_ids as PackedStringArray).append("red mutation")
+	_check(
+		(module.get_exposed_lattice_language_contract().walkable_surface_ids as PackedStringArray).size() == 5,
+		"language contract arrays are detached from live state"
+	)
 
 
 func _test_connection_slots(module: ObservationLogisticsSpur) -> void:
