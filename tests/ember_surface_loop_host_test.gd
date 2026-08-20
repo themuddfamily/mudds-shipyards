@@ -269,14 +269,6 @@ func _test_shared_composition_and_measured_entry() -> void:
 	)
 	(fixture.scene as Node).set_meta(EmberSurfaceLoopHost.LOCATION_GENERATION_META, 1)
 
-	ship.reparent(host, true)
-	rejected = _start_host(fixture)
-	_check(
-		rejected.reason == &"approach_entry_composition_root_mismatch",
-		"measured entry rejects a dependency moved below the frozen shared root",
-	)
-	ship.reparent(composition_root, true)
-
 	var prestart_foreign := EmberSurfaceLoopCommandSource.new()
 	prestart_foreign.name = "PrestartForeignCommandSource"
 	composition_root.add_child(prestart_foreign)
@@ -344,6 +336,19 @@ func _test_shared_composition_and_measured_entry() -> void:
 			and ship.get_command_source() == original_source
 			and area.get_reservation_token() == null,
 		"ordinary detach restores command and releases only the reservation cleanup ownership accepted at start",
+	)
+	await _cleanup(fixture)
+
+	fixture = await _fixture(false, true, true)
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	ship = fixture.ship as ArrowReconShip
+	ship.reparent(host, true)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_composition_root_mismatch",
+		"measured entry rejects a dependency moved below the frozen shared root",
 	)
 	await _cleanup(fixture)
 
