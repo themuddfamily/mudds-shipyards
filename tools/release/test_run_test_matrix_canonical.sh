@@ -41,6 +41,11 @@ if [[ -n "$script_path" ]]; then
 	done
 	if [[ "${MATRIX_FAKE_DIAGNOSTIC:-0}" == "1" ]]; then
 		printf 'ERROR: synthetic diagnostic %s\n' "${MATRIX_FAKE_MEASUREMENT:?}"
+		printf 'FATAL ERROR: synthetic fatal diagnostic\n'
+		printf 'ObjectDB instances leaked at exit\n'
+		printf 'Resource 123 still in use\n'
+		printf 'Orphaned Node3D: synthetic\n'
+		printf 'Leaked RID: synthetic\n'
 	fi
 	printf '%s_OK\n' "$base_upper"
 fi
@@ -104,7 +109,7 @@ if TEST_MATRIX_RUN_ID=diagnostic MATRIX_FAKE_MEASUREMENT=42 MATRIX_FAKE_DIAGNOST
 	echo "expected synthetic diagnostic to fail the matrix" >&2
 	exit 1
 fi
-grep -Fx $'tests/smoke_test.gd\tFAIL\t0\tSMOKE_TEST_OK\t1\t1\t1\tdiagnostic_detected' \
+grep -Fx $'tests/smoke_test.gd\tFAIL\t0\tSMOKE_TEST_OK\t1\t1\t6\tdiagnostic_detected' \
 	"$WORK_DIR/results/diagnostic/results-canonical.tsv" >/dev/null
 
 # Duration measurement is observational: a backwards wall-clock correction is

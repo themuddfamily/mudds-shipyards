@@ -37,7 +37,10 @@ if [[ -n "${TEST_MATRIX_SCOPE:-}" ]]; then
 	SCOPE_SPECS+=("${_env_scope[@]}")
 fi
 
-DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\\bFATAL ERROR\\b|\\bObjectDB\\b|Resource.*still in use|\\bOrphaned\\b|\\bLeaked\\b|\\bObjectDB\\b'
+# Keep the word-boundary escapes single: grep receives `\b`, not the literal
+# two-character sequence `\\b`. The latter silently misses ObjectDB/orphan/RID
+# leak lines, allowing a shutdown diagnostic to pass the stabilization gate.
+DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b|\bObjectDB\b'
 
 usage() {
 	cat <<EOF
