@@ -73,6 +73,7 @@ func _run() -> void:
 	await _test_definition_snapshot_and_synchronous_results()
 	await _test_registration_generation_and_failure_recovery()
 	await _test_queued_completion_is_inert()
+	await _test_direct_runtime_requests_require_live_coordinator()
 	await _test_reentrant_scene_entry_and_same_frame_reload()
 	await _test_unexpected_loaded_root_retirement()
 	await _test_unregister_and_generation_tombstones()
@@ -452,6 +453,74 @@ func _test_queued_completion_is_inert() -> void:
 		"a reattached coordinator accepts a fresh pending completion after the detached callback was rejected"
 	)
 	detached.queue_free()
+	await process_frame
+
+
+func _test_direct_runtime_requests_require_live_coordinator() -> void:
+	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator
+	root.add_child(coordinator)
+	var fake := FakeLoader.new()
+	coordinator.set_loader(Callable(fake, "request_scene"))
+	var definition := _definition(&"runtime_currentness", Vector3(19.0, -3.0, 47.0))
+	coordinator.register_location(definition)
+	var load_started_events := PackedStringArray()
+	var unloaded_events := PackedStringArray()
+	coordinator.location_load_started.connect(
+		func(location_id: StringName, _generation: int) -> void:
+			load_started_events.append(location_id)
+	)
+	coordinator.location_unloaded.connect(
+		func(location_id: StringName, _generation: int) -> void:
+			unloaded_events.append(location_id)
+	)
+
+	root.remove_child(coordinator)
+	await process_frame
+	var detached_snapshot := coordinator.audit()
+	var detached_load := coordinator.request_load(definition.location_id)
+	var detached_unload := coordinator.request_unload(definition.location_id)
+	_check(
+		not coordinator.is_inside_tree()
+			and not bool(detached_load.get("accepted", true))
+			and detached_load.get("reason") == &"coordinator_unavailable"
+			and not bool(detached_unload.get("accepted", true))
+			and detached_unload.get("reason") == &"coordinator_unavailable"
+			and coordinator.audit() == detached_snapshot
+			and fake.requests.is_empty()
+			and load_started_events.is_empty()
+			and unloaded_events.is_empty(),
+		"detached coordinator rejects direct load and unload before requests, lifecycle publication, or retained state mutate"
+	)
+
+	root.add_child(coordinator)
+	await process_frame
+	var live_load := coordinator.request_load(definition.location_id)
+	var live_completion := fake.complete(0, _packed_node_3d())
+	_check(
+		bool(live_load.get("accepted", false))
+			and bool(live_completion.get("accepted", false))
+			and coordinator.get_loaded_ids() == PackedStringArray([definition.location_id])
+			and coordinator.get_child_count() == 1
+			and load_started_events == PackedStringArray([definition.location_id]),
+		"reattached coordinator accepts a fresh direct load and owns its completed scene"
+	)
+
+	var queued_snapshot := coordinator.audit()
+	coordinator.queue_free()
+	var queued_load := coordinator.request_load(definition.location_id)
+	var queued_unload := coordinator.request_unload(definition.location_id)
+	_check(
+		coordinator.is_queued_for_deletion()
+			and not bool(queued_load.get("accepted", true))
+			and queued_load.get("reason") == &"coordinator_unavailable"
+			and not bool(queued_unload.get("accepted", true))
+			and queued_unload.get("reason") == &"coordinator_unavailable"
+			and coordinator.audit() == queued_snapshot
+			and fake.requests.size() == 1
+			and load_started_events == PackedStringArray([definition.location_id])
+			and unloaded_events.is_empty(),
+		"queued coordinator rejects direct load and unload without retiring its live scene or publishing lifecycle events"
+	)
 	await process_frame
 
 

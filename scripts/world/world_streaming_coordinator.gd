@@ -111,6 +111,8 @@ func unregister_location(location_id: StringName) -> bool:
 ## Starts exactly one load generation. State is committed before either the
 ## signal or loader is invoked, so synchronous fake loaders are safe too.
 func request_load(location_id: StringName) -> Dictionary:
+	if not _is_runtime_current():
+		return _result(false, &"coordinator_unavailable", location_id, -1)
 	if not _definitions.has(location_id):
 		return _result(false, &"unknown_location", location_id, -1)
 	_reconcile_loaded_location(location_id)
@@ -266,6 +268,8 @@ func complete_load(
 ## queue-free and before the signal, making any racing completion stale and all
 ## signal observers see the final unloaded state.
 func request_unload(location_id: StringName) -> Dictionary:
+	if not _is_runtime_current():
+		return _result(false, &"coordinator_unavailable", location_id, -1)
 	if not _definitions.has(location_id):
 		return _result(false, &"unknown_location", location_id, -1)
 	_reconcile_loaded_location(location_id)
@@ -485,6 +489,14 @@ func _is_loading_generation(location_id: StringName, generation: int) -> bool:
 	if not _loading.has(location_id):
 		return false
 	return int((_loading[location_id] as Dictionary).get("generation", -1)) == generation
+
+
+## Loading and unloading commit scene ownership, generations and lifecycle
+## signals. Keep their direct public entry points inert when the coordinator no
+## longer has a live tree owner, while deliberately leaving construction,
+## loader installation and definition registration usable before tree entry.
+func _is_runtime_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func _advance_generation(location_id: StringName) -> int:
