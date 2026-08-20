@@ -33,6 +33,7 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	await _test_deferred_panel_binding_currentness()
+	await _test_access_policy_currentness()
 
 	_check(door.collision_layer == INTERACTION_LAYER, "interaction Area3D uses layer 8")
 	_check(door.collision_mask == 0, "interaction Area3D has no collision mask")
@@ -268,6 +269,70 @@ func _test_deferred_panel_binding_currentness() -> void:
 		"queued-but-live door rejects deferred panel binding before material mutation"
 	)
 	await process_frame
+
+
+func _test_access_policy_currentness() -> void:
+	var policy_door := DOOR_SCENE.instantiate() as StationDoor
+	_check(policy_door != null, "access-policy currentness fixture instantiates a station door")
+	if policy_door == null:
+		return
+	_test_root.add_child(policy_door)
+	await process_frame
+	var lock_events: Array[bool] = []
+	policy_door.lock_changed.connect(func(value: bool) -> void:
+		lock_events.append(value)
+	)
+	var parent := policy_door.get_parent()
+	parent.remove_child(policy_door)
+	var detached_before := _access_policy_snapshot(policy_door, lock_events)
+	policy_door.set_locked(true)
+	policy_door.set_deferred_access(true)
+	_check(
+		not policy_door.is_inside_tree()
+		and _access_policy_snapshot(policy_door, lock_events) == detached_before,
+		"a detached door rejects access-policy mutation without metadata or signal changes"
+	)
+
+	parent.add_child(policy_door)
+	await process_frame
+	policy_door.set_locked(true)
+	policy_door.set_deferred_access(true)
+	_check(
+		policy_door.is_inside_tree()
+		and policy_door.locked
+		and policy_door.deferred_access
+		and bool(policy_door.get_meta("locked", false))
+		and bool(policy_door.get_meta("deferred_access", false))
+		and lock_events == [true],
+		"a reentered door accepts fresh access-policy mutation and publishes its live metadata"
+	)
+
+	var queued_before := _access_policy_snapshot(policy_door, lock_events)
+	policy_door.queue_free()
+	policy_door.set_locked(false)
+	policy_door.set_deferred_access(false)
+	_check(
+		policy_door.is_inside_tree()
+		and policy_door.is_queued_for_deletion()
+		and _access_policy_snapshot(policy_door, lock_events) == queued_before,
+		"a queued door rejects access-policy mutation without metadata or signal changes"
+	)
+	await process_frame
+
+
+func _access_policy_snapshot(door: StationDoor, lock_events: Array[bool]) -> Dictionary:
+	return {
+		"locked": door.locked,
+		"deferred_access": door.deferred_access,
+		"metadata": {
+			"locked": door.get_meta("locked", false),
+			"deferred_access": door.get_meta("deferred_access", false),
+			"access_label": door.get_meta("access_label", ""),
+		}.duplicate(true),
+		"lock_events": lock_events.duplicate(),
+		"portal_blocked": door.is_portal_blocked(),
+		"panel_transform": (door.get_node(^"SlidingPanel") as Node3D).transform,
+	}.duplicate(true)
 
 
 func _ray_through_portal(door: StationDoor) -> Dictionary:

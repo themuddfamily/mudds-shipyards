@@ -202,6 +202,8 @@ func is_portal_blocked() -> bool:
 
 
 func set_locked(value: bool) -> void:
+	if not _is_interaction_current():
+		return
 	if locked == value:
 		return
 	locked = value
@@ -210,6 +212,8 @@ func set_locked(value: bool) -> void:
 
 
 func set_deferred_access(value: bool) -> void:
+	if not _is_interaction_current():
+		return
 	if deferred_access == value:
 		return
 	deferred_access = value
