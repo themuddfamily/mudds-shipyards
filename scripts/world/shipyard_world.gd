@@ -3093,7 +3093,7 @@ func _node_instance_sets_match(first, second) -> bool:
 
 
 func _restore_operational_lattice_after_reentry() -> void:
-	if not is_inside_tree() or not _built:
+	if is_queued_for_deletion() or not is_inside_tree() or not _built:
 		return
 	_index_operational_lattice_components()
 	_initialize_station_route_registry()

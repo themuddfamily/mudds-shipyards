@@ -165,6 +165,7 @@ func _run() -> void:
 	ambience_nodes = world.get_station_machinery_ambience_nodes()
 	dressings = world.get_station_structural_service_dressings()
 	var lifetime_references := _capture_lifetime_references(world, activities, ambience_nodes, dressings)
+	await _test_queued_lattice_restore_is_inert(world)
 	activities.clear()
 	ambience_nodes.clear()
 	dressings.clear()
@@ -1282,6 +1283,41 @@ func _test_detach_readd_lifecycle(game: Node, world: ShipyardWorld) -> void:
 		bool(world.get_operational_lattice_audit_report().valid),
 		"disabled streaming probe restores the frozen operational placement audit"
 	)
+
+
+func _test_queued_lattice_restore_is_inert(world: ShipyardWorld) -> void:
+	var parent := world.get_parent()
+	parent.remove_child(world)
+	await process_frame
+	parent.add_child(world)
+	# Re-entry has queued the world's authoritative restore, but it has not run
+	# yet. Queue the world in that same turn and freeze the state the callback is
+	# forbidden to revive: component lifecycle plus the door-audio hook registry.
+	var before := _queued_lattice_restore_snapshot(world)
+	world.queue_free()
+	world.call("_restore_operational_lattice_after_reentry")
+	_check(
+		world.is_inside_tree()
+		and world.is_queued_for_deletion()
+		and _queued_lattice_restore_snapshot(world) == before,
+		"queued world re-entry restore cannot revive lattice lifecycle or door-audio hooks"
+	)
+
+
+func _queued_lattice_restore_snapshot(world: ShipyardWorld) -> Dictionary:
+	var activity_states: Array[Dictionary] = []
+	for activity in world.get_station_operations_activities():
+		activity_states.append({
+			"instance_id": activity.get_instance_id(),
+			"enabled": activity.is_activity_enabled(),
+			"visible": bool(activity.get_activity_state().visible),
+			"processing": activity.is_processing(),
+		})
+	return {
+		"station_activity_enabled": world.is_station_activity_enabled(),
+		"door_audio_hook_count": int(world.get("_station_door_audio_hook_count")),
+		"activity_states": activity_states,
+	}.duplicate(true)
 
 
 func _activity_states_match(first: Dictionary, second: Dictionary) -> bool:
