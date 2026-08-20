@@ -175,7 +175,13 @@ func get_pulse_style_id() -> StringName:
 ## Called by `WingCoordinator`. The craft stores and presents the role; it never
 ## chooses it, so two skirmishers can never both believe they are the anchor.
 func assign_wing_role(role: StringName) -> void:
+	if not _can_assign_wing_role():
+		return
 	_assign_wing_role_internal(role)
+
+
+func _can_assign_wing_role() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_wing_role() -> StringName:

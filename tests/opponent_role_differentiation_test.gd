@@ -69,6 +69,7 @@ func _run() -> void:
 	var original_children := root.get_child_count()
 	await _test_production_roster()
 	await _test_skirmisher_wing_chalk_band_resource_sharing()
+	await _test_skirmisher_role_currentness()
 	await _test_courier_visual_resource_sharing()
 	await _test_distinct_manoeuvres()
 	for line in _evidence:
@@ -393,6 +394,77 @@ func _test_skirmisher_wing_chalk_band_resource_sharing() -> void:
 	skirmisher.queue_free()
 	for _index in 4:
 		await process_frame
+
+
+func _test_skirmisher_role_currentness() -> void:
+	var skirmisher := SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
+	skirmisher.name = "WingRoleCurrentnessFixture"
+	root.add_child(skirmisher)
+	await process_frame
+	await physics_frame
+	var role_events: Array[StringName] = []
+	skirmisher.wing_role_changed.connect(func(role: StringName) -> void:
+		role_events.append(role)
+	)
+	skirmisher.assign_wing_role(WingCoordinator.ROLE_ANCHOR)
+	role_events.clear()
+	var parent := skirmisher.get_parent()
+	parent.remove_child(skirmisher)
+	var detached_before := _skirmisher_role_snapshot(skirmisher)
+	skirmisher.assign_wing_role(WingCoordinator.ROLE_FLANKER)
+	_check(
+		not skirmisher.is_inside_tree()
+		and _skirmisher_role_snapshot(skirmisher) == detached_before
+		and role_events.is_empty(),
+		"a detached skirmisher rejects direct wing-role assignment without visual or signal mutation"
+	)
+
+	parent.add_child(skirmisher)
+	await process_frame
+	skirmisher.assign_wing_role(WingCoordinator.ROLE_FLANKER)
+	var role_lamp := skirmisher.get_node_or_null("WingSkirmisherVisual/RoleLamp") as MeshInstance3D
+	var role_material := role_lamp.get_active_material(0) as StandardMaterial3D if role_lamp != null else null
+	_check(
+		skirmisher.is_inside_tree()
+		and skirmisher.get_wing_role() == WingCoordinator.ROLE_FLANKER
+		and role_events == [WingCoordinator.ROLE_FLANKER]
+		and role_material != null
+		and role_material.albedo_color.is_equal_approx(Color("58ff9b")),
+		"a reattached skirmisher accepts one fresh flanker assignment and updates its role lamp"
+	)
+
+	role_events.clear()
+	var queued_before := _skirmisher_role_snapshot(skirmisher)
+	skirmisher.queue_free()
+	skirmisher.assign_wing_role(WingCoordinator.ROLE_ANCHOR)
+	_check(
+		skirmisher.is_inside_tree()
+		and skirmisher.is_queued_for_deletion()
+		and _skirmisher_role_snapshot(skirmisher) == queued_before
+		and role_events.is_empty(),
+		"a queued skirmisher rejects direct wing-role assignment without retained presentation mutation"
+	)
+	await process_frame
+	_check(not is_instance_valid(skirmisher), "the wing-role currentness fixture frees normally")
+
+
+func _skirmisher_role_snapshot(skirmisher: FlankingSkirmisherOpponent) -> Dictionary:
+	var role_lamp := skirmisher.get_node_or_null("WingSkirmisherVisual/RoleLamp") as MeshInstance3D
+	var role_light := skirmisher.get_node_or_null("WingSkirmisherVisual/RoleLampLight") as OmniLight3D
+	var muzzle_lens := skirmisher.get_node_or_null("WingSkirmisherVisual/RepeaterLens") as MeshInstance3D
+	var material := role_lamp.get_active_material(0) as StandardMaterial3D if role_lamp != null else null
+	return {
+		"role": skirmisher.get_wing_role(),
+		"weapon_safed": skirmisher.is_weapon_safed(),
+		"role_lamp_visible": role_lamp.visible if role_lamp != null else false,
+		"role_lamp_color": material.albedo_color if material != null else Color.TRANSPARENT,
+		"role_lamp_emission": material.emission if material != null else Color.TRANSPARENT,
+		"role_lamp_energy": material.emission_energy_multiplier if material != null else -1.0,
+		"role_light_visible": role_light.visible if role_light != null else false,
+		"role_light_color": role_light.light_color if role_light != null else Color.TRANSPARENT,
+		"role_light_energy": role_light.light_energy if role_light != null else -1.0,
+		"muzzle_visible": muzzle_lens.visible if muzzle_lens != null else false,
+	}.duplicate(true)
 
 
 func _test_courier_visual_resource_sharing() -> void:
