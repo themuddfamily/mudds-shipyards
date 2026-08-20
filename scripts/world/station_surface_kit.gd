@@ -34,6 +34,24 @@ const PANEL_ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar
 const PANEL_NORMAL_SCALE := 1.0
 const PANEL_TRIPLANAR_SHARPNESS := 4.0
 
+## Finish response layered over the shared panel maps.  The map family stays
+## identical across the station; these profiles keep broad surfaces, walked
+## decks and close metal trim from collapsing into one plastic-looking response.
+## Callers still own the albedo/metalness values; this only owns the clearcoat
+## hierarchy and therefore cannot rewrite a caller's colour or scalar PBR read.
+enum PanelFinish {
+	STRUCTURAL_ALLOY,
+	WALKED_DECK,
+	METAL_TRIM,
+}
+
+const STRUCTURAL_CLEARCOAT := 0.18
+const STRUCTURAL_CLEARCOAT_ROUGHNESS := 0.38
+const WALKED_CLEARCOAT := 0.06
+const WALKED_CLEARCOAT_ROUGHNESS := 0.72
+const TRIM_CLEARCOAT := 0.30
+const TRIM_CLEARCOAT_ROUGHNESS := 0.24
+
 ## Bevel rule.
 ##
 ## `BEVEL_PROPORTION` keeps the chamfer in scale with the part, so a 4.2 m header
@@ -512,7 +530,11 @@ static func _emit_cylinder_vertex(tool: SurfaceTool, normal: Vector3, uv: Vector
 ## normal and red-channel roughness at one of the frozen physical scales.
 ## Returns false when the registered maps are unavailable, leaving the caller's
 ## untextured PBR values untouched rather than binding a partial recipe.
-static func apply_panel_triplanar(material: StandardMaterial3D, uv_scale: float) -> bool:
+static func apply_panel_triplanar(
+		material: StandardMaterial3D,
+		uv_scale: float,
+		finish: PanelFinish = PanelFinish.STRUCTURAL_ALLOY
+	) -> bool:
 	if material == null:
 		return false
 	var albedo := load(PANEL_ALBEDO_PATH) as Texture2D
@@ -531,7 +553,25 @@ static func apply_panel_triplanar(material: StandardMaterial3D, uv_scale: float)
 	material.uv1_triplanar_sharpness = PANEL_TRIPLANAR_SHARPNESS
 	material.uv1_scale = Vector3.ONE * uv_scale
 	material.texture_repeat = true
+	_apply_panel_finish(material, finish)
 	return true
+
+
+static func _apply_panel_finish(material: StandardMaterial3D, finish: PanelFinish) -> void:
+	var clearcoat := STRUCTURAL_CLEARCOAT
+	var clearcoat_roughness := STRUCTURAL_CLEARCOAT_ROUGHNESS
+	match finish:
+		PanelFinish.WALKED_DECK:
+			clearcoat = WALKED_CLEARCOAT
+			clearcoat_roughness = WALKED_CLEARCOAT_ROUGHNESS
+		PanelFinish.METAL_TRIM:
+			clearcoat = TRIM_CLEARCOAT
+			clearcoat_roughness = TRIM_CLEARCOAT_ROUGHNESS
+		PanelFinish.STRUCTURAL_ALLOY:
+			pass
+	material.clearcoat_enabled = true
+	material.clearcoat = clearcoat
+	material.clearcoat_roughness = clearcoat_roughness
 
 
 static func _add_rounded_vertex(
