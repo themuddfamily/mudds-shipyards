@@ -32,6 +32,7 @@ func _run() -> void:
 	_test_root.add_child(door)
 	await process_frame
 	await physics_frame
+	await _test_deferred_panel_binding_currentness()
 
 	_check(door.collision_layer == INTERACTION_LAYER, "interaction Area3D uses layer 8")
 	_check(door.collision_mask == 0, "interaction Area3D has no collision mask")
@@ -181,6 +182,48 @@ func _run() -> void:
 	_test_root.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_deferred_panel_binding_currentness() -> void:
+	var deferred_door := DOOR_SCENE.instantiate() as StationDoor
+	_test_root.add_child(deferred_door)
+	var panel := deferred_door.get_node(^"SlidingPanel/PanelMesh") as MeshInstance3D
+	var original_material := panel.material_override
+	var original_transform := (deferred_door.get_node(^"SlidingPanel") as Node3D).transform
+	_test_root.remove_child(deferred_door)
+	await process_frame
+	_check(
+		not deferred_door.is_inside_tree()
+		and panel.material_override == original_material
+		and (deferred_door.get_node(^"SlidingPanel") as Node3D).transform.is_equal_approx(original_transform),
+		"detached deferred panel binding leaves the retained door material and grain transform unchanged"
+	)
+	_test_root.add_child(deferred_door)
+	await process_frame
+	var rebound_material := panel.material_override
+	await process_frame
+	_check(
+		deferred_door.is_inside_tree()
+		and rebound_material != null
+		and rebound_material != original_material
+		and panel.material_override == rebound_material,
+		"re-entry applies one current panel-family binding without duplicate deferred material mutation"
+	)
+	deferred_door.queue_free()
+	await process_frame
+	var queued_door := DOOR_SCENE.instantiate() as StationDoor
+	_test_root.add_child(queued_door)
+	var queued_panel := queued_door.get_node(^"SlidingPanel/PanelMesh") as MeshInstance3D
+	var queued_material := queued_panel.material_override
+	queued_door.queue_free()
+	queued_door.call("_bind_panel_surface_family")
+	_check(
+		queued_door.is_inside_tree()
+		and queued_door.is_queued_for_deletion()
+		and queued_panel.material_override == queued_material,
+		"queued-but-live door rejects deferred panel binding before material mutation"
+	)
+	await process_frame
 
 
 func _ray_through_portal(door: StationDoor) -> Dictionary:

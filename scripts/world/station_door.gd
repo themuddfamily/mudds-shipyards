@@ -87,6 +87,7 @@ var _closed_panel_transform := Transform3D.IDENTITY
 var _rounded_box_cache: Dictionary = {}
 var _panel_grain_materials: Array[StandardMaterial3D] = []
 var _panel_grain_scales: Array[Vector3] = []
+var _ready_completed := false
 
 
 func _ready() -> void:
@@ -103,6 +104,12 @@ func _ready() -> void:
 	# frame keeps colour authority with the module — access colour-coding is the
 	# module's language — while the finish stays with the door.
 	_bind_panel_surface_family.call_deferred()
+	_ready_completed = true
+
+
+func _enter_tree() -> void:
+	if _ready_completed:
+		_bind_panel_surface_family.call_deferred()
 
 
 func _physics_process(delta: float) -> void:
@@ -297,6 +304,8 @@ func _apply_manufactured_edges() -> void:
 ## module never acquires a door's finish, and so each door owns the UV phase it
 ## has to correct while it moves.
 func _bind_panel_surface_family() -> void:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return
 	var panel_mesh := get_node_or_null(PANEL_MESH_PATH) as MeshInstance3D
 	if panel_mesh == null:
 		return
