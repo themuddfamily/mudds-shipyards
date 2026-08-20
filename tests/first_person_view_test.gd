@@ -44,6 +44,7 @@ func _run() -> void:
 	await _test_toggle_moves_the_camera_to_the_eye()
 	await _test_avatar_is_hidden_from_this_camera_only()
 	await _test_cabin_containment_and_first_person_do_not_fight()
+	await _test_cabin_containment_currentness()
 	await _test_seat_suspends_and_restores_without_losing_the_choice()
 	await _test_binding_is_bound_and_documented()
 	await process_frame
@@ -262,6 +263,84 @@ func _test_cabin_containment_and_first_person_do_not_fight() -> void:
 	)
 	frame.queue_free()
 	player.queue_free()
+	await process_frame
+
+
+func _test_cabin_containment_currentness() -> void:
+	var player := await _spawn_player() as PlayerController
+	var frame := Node3D.new()
+	root.add_child(frame)
+	await process_frame
+	var bounds := AABB(Vector3(-4, -1, -4), Vector3(8, 4, 8))
+	_check(
+		player.set_cabin_containment(frame, bounds, player.global_transform),
+		"currentness fixture accepts attached cabin containment"
+	)
+	var parent := player.get_parent()
+	parent.remove_child(player)
+	await process_frame
+	var detached_containment := player.get_cabin_containment_report()
+	var detached_view := player.get_camera_view_report()
+	player.clear_cabin_containment()
+	_check(
+		not player.set_cabin_containment(frame, AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2)), Transform3D.IDENTITY)
+		and not player.is_inside_tree()
+		and not bool(detached_containment.active)
+		and not bool(detached_containment.contained)
+		and player.get_cabin_containment_report() == detached_containment
+		and player.get_camera_view_report() == detached_view,
+		"detached player rejects stale cabin changes without containment or camera drift"
+	)
+	parent.add_child(player)
+	await process_frame
+	var detached_frame := Node3D.new()
+	root.add_child(detached_frame)
+	await process_frame
+	root.remove_child(detached_frame)
+	await process_frame
+	var frame_rejection_containment := player.get_cabin_containment_report()
+	var frame_rejection_view := player.get_camera_view_report()
+	_check(
+		not player.set_cabin_containment(detached_frame, bounds, player.global_transform)
+		and player.get_cabin_containment_report() == frame_rejection_containment
+		and player.get_camera_view_report() == frame_rejection_view,
+		"attached player rejects a detached cabin frame without containment or camera drift"
+	)
+	var queued_frame := Node3D.new()
+	root.add_child(queued_frame)
+	await process_frame
+	queued_frame.queue_free()
+	_check(
+		not player.set_cabin_containment(queued_frame, bounds, player.global_transform)
+		and player.get_cabin_containment_report() == frame_rejection_containment
+		and player.get_camera_view_report() == frame_rejection_view,
+		"attached player rejects a queued cabin frame without containment or camera drift"
+	)
+	detached_frame.queue_free()
+	await process_frame
+	player.clear_cabin_containment()
+	_check(
+		not player.is_cabin_containment_active()
+		and player.set_cabin_containment(frame, bounds, player.global_transform),
+		"re-added player accepts fresh cabin clear and set requests"
+	)
+	player.queue_free()
+	var queued_containment := player.get_cabin_containment_report()
+	var queued_view := player.get_camera_view_report()
+	player.clear_cabin_containment()
+	_check(
+		player.is_inside_tree()
+		and player.is_queued_for_deletion()
+		and not player.set_cabin_containment(frame, AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2)), Transform3D.IDENTITY)
+		and not bool(queued_containment.active)
+		and not bool(queued_containment.contained)
+		and player.get_cabin_containment_report() == queued_containment
+		and player.get_camera_view_report() == queued_view,
+		"queued player rejects stale cabin changes without containment or camera drift"
+	)
+	await process_frame
+	_check(not is_instance_valid(player), "queued cabin-currentness fixture frees normally")
+	frame.queue_free()
 	await process_frame
 
 

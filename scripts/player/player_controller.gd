@@ -568,7 +568,7 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 	_control_enabled = false
 	# Destructive recovery is world-space by definition: the craft that owned the
 	# frame and the cabin envelope is the thing that was just lost.
-	clear_cabin_containment()
+	_clear_cabin_containment()
 	_transition_frame = null
 	_transition_start = _clean_transform(target)
 	_transition_entry = _transition_start
@@ -1159,7 +1159,9 @@ func set_cabin_containment(
 		local_bounds: AABB,
 		recall_transform: Transform3D
 	) -> bool:
-	if not is_instance_valid(frame):
+	if not _can_mutate_live_cabin_containment():
+		return false
+	if not is_instance_valid(frame) or not frame.is_inside_tree() or frame.is_queued_for_deletion():
 		return false
 	var canonical := local_bounds.abs()
 	if canonical.size.x <= 0.0 or canonical.size.y <= 0.0 or canonical.size.z <= 0.0:
@@ -1179,10 +1181,20 @@ func set_cabin_containment(
 
 
 func clear_cabin_containment() -> void:
+	if not _can_mutate_live_cabin_containment():
+		return
+	_clear_cabin_containment()
+
+
+func _clear_cabin_containment() -> void:
 	_cabin_frame = null
 	_cabin_bounds = AABB()
 	_cabin_recall_local = Transform3D.IDENTITY
 	_set_camera_distance_ceiling(maximum_camera_distance)
+
+
+func _can_mutate_live_cabin_containment() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func is_cabin_containment_active() -> bool:
@@ -1192,7 +1204,7 @@ func is_cabin_containment_active() -> bool:
 ## Inspectable containment state. `contained` is the invariant a stranding test
 ## asserts: while containment is active the body is inside the envelope.
 func get_cabin_containment_report() -> Dictionary:
-	var active := is_instance_valid(_cabin_frame)
+	var active := _can_mutate_live_cabin_containment() and is_instance_valid(_cabin_frame)
 	var local_position := Vector3.INF
 	if active:
 		local_position = _clean_transform(
@@ -1214,7 +1226,7 @@ func get_cabin_containment_report() -> Dictionary:
 func _resolve_cabin_containment() -> void:
 	if not is_instance_valid(_cabin_frame):
 		if _cabin_frame != null:
-			clear_cabin_containment()
+			_clear_cabin_containment()
 		return
 	if _embodiment_state != EmbodimentState.ON_FOOT:
 		return
