@@ -178,7 +178,7 @@ and HIGH quality, freezes:
 | Triangles | 1,684,993 | 1,802,450 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,529 | 2,631 | +102 |
+| Unique meshes | 2,507 | 2,609 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -201,6 +201,13 @@ six, while the three long safety-rail visuals share one BoxMesh instead of three
 without merging their three collision shapes. Together they remove seven more
 unique meshes from both complete-scene rosters, leaving the streamed Cinder
 delta unchanged at `+102`.
+
+The later resident-only Jovian Freight Berth and LandingPad shares remove a
+further 22 unique meshes from each complete-scene roster: eighteen guide-lens
+SphereMeshes become one, and six flush tie-down TorusMeshes become one. Their
+named copies, submitted surfaces, materials, lights, collision boundaries, and
+TorusGeometryBudget lifecycle stay unchanged, so the streamed Cinder delta
+remains `+102`.
 
 The Arrow follow-up keeps the six existing childless `CurveJoint` sphere nodes,
 their exact paths and transforms beneath `PortLateralArray` and
@@ -335,9 +342,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`2d2a9bc7de7022bacd81625f47d770d1e584787ff272b06add5185baf8e73bac`;
+`0d9991bccb4d018635517b80c1a290f2b32724f29c07559bfc0ceca769fcd677`;
 the loaded fingerprint is
-`7d533b36947b1dc612ee9d399c534f6a3d8bda53c66e36421c933c319d85897d`.
+`d803df0a08e509b942ae46968fddc4f5e249f112fcad598fc84b8ab6d517778a`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
