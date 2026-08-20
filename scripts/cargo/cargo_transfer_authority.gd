@@ -113,7 +113,11 @@ func register_entity(
 func reattach_entity(entity: Node, handle: Dictionary) -> Dictionary:
 	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
-	if not is_instance_valid(entity) or not entity.is_inside_tree():
+	if (
+		not is_instance_valid(entity)
+		or not entity.is_inside_tree()
+		or entity.is_queued_for_deletion()
+	):
 		return _result(false, &"invalid_entity")
 	var validation := _validate_handle(handle, false)
 	if not bool(validation.get("accepted", false)):

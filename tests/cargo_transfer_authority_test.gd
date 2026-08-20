@@ -342,6 +342,49 @@ func _test_detach_reentry_and_generation_cleanup() -> void:
 	)
 	_check(bool(authority.audit().valid), "detach, re-entry, retirement and replacement finish with a green audit")
 
+	var queued_reentry_source := Node.new()
+	root.add_child(queued_reentry_source)
+	var queued_reentry_registration := authority.register_entity(
+		queued_reentry_source,
+		&"queued_reentry_source",
+		&"queued_reentry_source_manifest",
+		2
+	)
+	var queued_reentry_handle := (
+		queued_reentry_registration.get("handle", {}) as Dictionary
+	).duplicate(true)
+	root.remove_child(queued_reentry_source)
+	await process_frame
+	var queued_reentry_signals := 0
+	authority.manifest_reattached.connect(
+		func(_handle: Dictionary) -> void:
+			queued_reentry_signals += 1
+	)
+	root.add_child(queued_reentry_source)
+	queued_reentry_source.queue_free()
+	var queued_reentry := authority.reattach_entity(
+		queued_reentry_source,
+		queued_reentry_handle
+	)
+	_check(
+		not bool(queued_reentry.get("accepted", true))
+		and queued_reentry.get("reason", &"") == &"invalid_entity"
+		and queued_reentry_signals == 0
+		and bool(authority.audit().get("valid", false))
+		and not bool(
+			(authority.get_manifest_snapshot(queued_reentry_handle) as Dictionary).get(
+				"attached",
+				true
+			)
+		),
+		"queued direct re-entry rejects before attachment, index restoration, or reattached publication"
+	)
+	await process_frame
+	_check(
+		authority.get_manifest_snapshot(queued_reentry_handle).is_empty(),
+		"queued direct re-entry leaves the detached owner for ordinary retirement cleanup"
+	)
+
 	impostor.queue_free()
 	source.queue_free()
 	replacement_destination.queue_free()
