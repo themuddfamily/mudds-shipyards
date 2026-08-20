@@ -221,7 +221,7 @@ func _enter_tree() -> void:
 ## overwrite that newer request. It also becomes inert if the component leaves
 ## the tree again before idle.
 func _restore_cluster_enabled_after_reentry() -> void:
-	if not _built or not is_inside_tree():
+	if not _built or is_queued_for_deletion() or not is_inside_tree():
 		return
 	set_cluster_enabled(_cluster_enabled)
 

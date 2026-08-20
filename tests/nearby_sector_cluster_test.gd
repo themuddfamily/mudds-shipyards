@@ -964,6 +964,29 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 		"a component-local re-entry cannot create a stale ShipyardWorld streaming reference"
 	)
 
+	# A re-entry restore is deferred. A streamed cluster may be selected for
+	# deferred deletion in that same turn, while it still reports in-tree; its
+	# queued lifecycle must not rewrite presentation or processing ownership.
+	parent.remove_child(cluster)
+	await process_frame
+	parent.add_child(cluster)
+	var queued_restore_snapshot := {
+		"enabled": cluster.is_cluster_enabled(),
+		"visible": cluster.visible,
+		"processing": cluster.is_processing(),
+	}
+	cluster.queue_free()
+	cluster.call("_restore_cluster_enabled_after_reentry")
+	_check(
+		cluster.is_queued_for_deletion()
+		and {
+			"enabled": cluster.is_cluster_enabled(),
+			"visible": cluster.visible,
+			"processing": cluster.is_processing(),
+		} == queued_restore_snapshot,
+		"queued re-entry restoration leaves Cinder presentation and processing inert"
+	)
+
 
 func _check(condition: bool, description: String) -> bool:
 	_assertions += 1
