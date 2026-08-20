@@ -1000,6 +1000,14 @@ against exact streamed Ember identities, but it is also standalone and has no
 Main/GameFlow caller. These are coherent foundations, not a complete
 atmosphere, and no authored atmospheric production world consumes them yet.
 
+`aurora_temperate_world` is now a separate, explicitly non-production
+atmospheric witness: matching 120 km world/terrain/atmosphere/landing resources
+join through both composition validators, a body-centred scene provides an
+inset silhouette and bounded +Y landing patch/collision markers, and its
+standalone composition is the sole `WorldEnvironment` owner. It has no
+streaming, Player, camera, gameplay, terrain-generation or Main/GameFlow
+authority, so it does not yet make Aurora visitable.
+
 `PlanetaryTerrainLodPolicy` selects inclusive near-to-far render/collision
 rings and exposes only bounded tile-ceiling hints. `PlanetarySurfaceGravityPolicy`
 supplies pure body-local radial up, inward inverse-square gravity and tangent
