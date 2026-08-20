@@ -19,6 +19,7 @@ func _init() -> void:
 func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
+	await _test_read_only_approach_ready_probe()
 	await _test_shared_composition_and_measured_entry()
 	await _test_committed_origin_receipt_adoption()
 	await _test_normal_public_actor_loop()
@@ -35,6 +36,121 @@ func _run() -> void:
 		await _test_transition_terminal_atomicity(phase, &"queued_surface")
 	Engine.time_scale = _original_time_scale
 	_finish()
+
+
+func _test_read_only_approach_ready_probe() -> void:
+	var fixture := await _fixture(false, true, true)
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var berth := fixture.berth as EmberSurfaceBerth
+	var area := fixture.area as ShipBoardingArea
+	var original_source := fixture.original_source as ShipCommandSource
+	_place_entry_actor(
+		fixture,
+		Vector3(8.0, 5.0, -20.0),
+		Basis(Vector3.UP, deg_to_rad(5.0)),
+		Vector3(0.0, 0.0, -4.0)
+	)
+	var before_transform := ship.global_transform
+	var before_velocity := ship.velocity
+	var before_snapshot := host.get_snapshot()
+	var probe := host.probe_approach_ready(
+		host.get_generation(),
+		host.get_attachment_generation(),
+		int(before_snapshot.coordinate_frame_generation),
+		int(before_snapshot.location_generation)
+	)
+	var measurement := probe.get("measurement", {}) as Dictionary
+	var probe_snapshot := probe.get("snapshot", {}) as Dictionary
+	var probe_audit := probe.get("audit", {}) as Dictionary
+	var authority := probe.get("authority", {}) as Dictionary
+	_check(
+		int(probe.get("schema_version", 0))
+			== EmberSurfaceLoopHost.APPROACH_READY_PROBE_SCHEMA_VERSION
+			and bool(probe.get("accepted", false))
+			and probe.get("reason", &"") == &"approach_entry_accepted"
+			and bool(measurement.get("accepted", false))
+			and bool((measurement.get("measurement", {}) as Dictionary).get(
+				"full_hull_inside_authored_corridor", false
+			))
+			and int(probe_snapshot.get("phase", -1)) == EmberSurfaceLoopHost.Phase.IDLE
+			and bool(probe_audit.get("valid", false)),
+		"read-only probe returns the existing typed accepted approach measurement with detached snapshot and audit"
+	)
+	_check(
+		bool(authority.get("measurement_only", false))
+			and int(authority.get("actor_transform_writes", -1)) == 0
+			and int(authority.get("actor_velocity_writes", -1)) == 0
+			and int(authority.get("actor_reparent_calls", -1)) == 0
+			and int(authority.get("command_source_changes", -1)) == 0
+			and int(authority.get("boarding_reservation_mutations", -1)) == 0
+			and int(authority.get("berth_lease_mutations", -1)) == 0
+			and ship.global_transform == before_transform
+			and ship.velocity == before_velocity
+			and ship.get_command_source() == original_source
+			and area.get_reservation_token() == player
+			and berth.get_reservation_owner() == null
+			and berth.get_occupant() == null
+			and (host.get_snapshot().approach_entry as Dictionary).accepted_measurement.is_empty(),
+		"accepted probe changes no actor, command, Player reservation, berth lease, or Host start evidence"
+	)
+	measurement["reason"] = &"forged_measurement"
+	probe_snapshot["phase"] = EmberSurfaceLoopHost.Phase.FAILED
+	probe_audit["valid"] = false
+	var repeat_probe := host.probe_approach_ready(
+		host.get_generation(),
+		host.get_attachment_generation(),
+		int(before_snapshot.coordinate_frame_generation),
+		int(before_snapshot.location_generation)
+	)
+	_check(
+		bool(repeat_probe.get("accepted", false))
+			and repeat_probe.get("reason", &"") == &"approach_entry_accepted"
+			and int((repeat_probe.get("snapshot", {}) as Dictionary).get("phase", -1))
+				== EmberSurfaceLoopHost.Phase.IDLE
+			and bool((repeat_probe.get("audit", {}) as Dictionary).get("valid", false)),
+		"probe result, snapshot, and audit are detached and cannot mutate Host state"
+	)
+	var stale_location := host.probe_approach_ready(
+		host.get_generation(),
+		host.get_attachment_generation(),
+		int(before_snapshot.coordinate_frame_generation),
+		int(before_snapshot.location_generation) + 1
+	)
+	_check(
+		not bool(stale_location.get("accepted", true))
+			and stale_location.get("reason", &"") == &"stale_location_generation"
+			and (stale_location.get("measurement", {}) as Dictionary).is_empty()
+			and ship.get_command_source() == original_source
+			and area.get_reservation_token() == player,
+		"probe rejects a caller-stale streamed generation without remeasuring or acquiring ownership"
+	)
+	_place_entry_actor(
+		fixture,
+		Vector3(EmberSurfaceLoopHost.APPROACH_ENTRY_POSITION_HALF_EXTENTS_M.x + 0.1, 0.0, 0.0),
+		Basis.IDENTITY,
+		Vector3.ZERO
+	)
+	before_transform = ship.global_transform
+	before_velocity = ship.velocity
+	var out_of_bounds := host.probe_approach_ready(
+		host.get_generation(),
+		host.get_attachment_generation(),
+		int(before_snapshot.coordinate_frame_generation),
+		int(before_snapshot.location_generation)
+	)
+	_check(
+		not bool(out_of_bounds.get("accepted", true))
+			and out_of_bounds.get("reason", &"") == &"approach_entry_position_out_of_bounds"
+			and ship.global_transform == before_transform and ship.velocity == before_velocity
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and (host.get_snapshot().approach_entry as Dictionary).accepted_measurement.is_empty(),
+		"probe reuses the authored envelope's bounded position rejection without starting the Host"
+	)
+	await _cleanup(fixture)
 
 
 func _test_shared_composition_and_measured_entry() -> void:

@@ -171,6 +171,17 @@ owner, keep the Player publicly seated/piloting with the exact boarding
 reservation, and call `start()` with current generations. The host neither
 teleports nor brakes a rejected candidate into compliance.
 
+`probe_approach_ready()` exposes that same frozen envelope as a read-only,
+caller-tokened preflight while the bound Host remains `IDLE`. It returns a
+deep-detached accepted/rejected measurement plus point-in-time Host snapshot and
+audit. A successful probe is not a start capability: it does not retain entry
+evidence, install the Host command source, take Player reservation-cleanup
+ownership, reserve or occupy the berth, or write an actor transform, velocity,
+parent, or physics state. Its only use is an honest future GameFlow readiness
+observation after a separate owner has physically flown the real Arrow into the
+already-authored corridor. It neither makes Ember reachable nor chooses a
+manual-approach, landing, surface, or production handoff policy.
+
 After `COMPLETED`, `return_runtime_ownership()` provides one atomic handback for
 a later production GameFlow owner. It preflights the exact host command source,
 seated Player token, actor/control/camera/gravity state, empty berth lease, and

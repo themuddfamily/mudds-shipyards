@@ -57,6 +57,7 @@ const ORBIT_RETURN_ALTITUDE_M := 20_000.0
 const APPROACH_BRAKE_Z_M := 45.0
 const APPROACH_HANDOFF_MAXIMUM_SPEED_MPS := 1.0
 const ROUTE_ANCHOR_RADIUS_M := 1.35
+const APPROACH_READY_PROBE_SCHEMA_VERSION := 1
 const MAX_CALLER_DELTA_SECONDS := PlanetaryTravelSession.MAX_CALLER_PHYSICS_DELTA_SECONDS
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const ORIGIN_REBASE_RECEIPT_KEYS := [
@@ -629,6 +630,59 @@ func start(
 	)
 	_set_phase(Phase.ORBIT_APPROACH)
 	return _finish(true, &"started")
+
+
+## Reads the exact authored approach-entry envelope without beginning the
+## surface loop. This is deliberately a preflight observation: it neither
+## records accepted entry evidence nor acquires a berth lease, boarding cleanup,
+## command source, actor transform, velocity, or physics authority.
+##
+## The caller supplies the current lifecycle tokens and streamed-location
+## generation it already owns. The returned measurement is detached, together
+## with a point-in-time Host snapshot and audit, so it cannot become a capability
+## for `start()` or a mutable view of this Host.
+func probe_approach_ready(
+		expected_generation: int,
+		expected_attachment_generation: int,
+		expected_coordinate_frame_generation: int,
+		expected_location_generation: int
+	) -> Dictionary:
+	var reason: StringName = &""
+	var measurement: Dictionary = {}
+	if _mutation_active:
+		reason = &"reentrant_call"
+	else:
+		reason = _token_rejection(
+			expected_generation,
+			expected_attachment_generation,
+			expected_coordinate_frame_generation
+		)
+		if reason.is_empty() and expected_location_generation != _location_generation:
+			reason = &"stale_location_generation"
+		if reason.is_empty() and _phase != Phase.IDLE:
+			reason = &"approach_ready_phase_not_idle"
+		if reason.is_empty():
+			measurement = _measure_approach_entry()
+			reason = measurement.get("reason", &"approach_entry_rejected") as StringName
+	var snapshot := get_snapshot()
+	var audit_snapshot := audit()
+	return {
+		"schema_version": APPROACH_READY_PROBE_SCHEMA_VERSION,
+		"accepted": reason == &"approach_entry_accepted",
+		"reason": reason,
+		"measurement": measurement.duplicate(true),
+		"snapshot": snapshot.duplicate(true),
+		"audit": audit_snapshot.duplicate(true),
+		"authority": {
+			"measurement_only": true,
+			"actor_transform_writes": 0,
+			"actor_velocity_writes": 0,
+			"actor_reparent_calls": 0,
+			"command_source_changes": 0,
+			"boarding_reservation_mutations": 0,
+			"berth_lease_mutations": 0,
+		}.duplicate(true),
+	}.duplicate(true)
 
 
 ## Call exactly once after each real physics tick with that tick's delta.
