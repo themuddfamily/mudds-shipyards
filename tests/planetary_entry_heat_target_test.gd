@@ -6,7 +6,7 @@ const TARGET_SCENE := preload(
 const ProfileScript := preload(
 	"res://scripts/world/definitions/planetary_atmosphere_profile.gd"
 )
-const EXPECTED_ASSERTIONS := 31
+const EXPECTED_ASSERTIONS := 34
 const EXPECTED_BOUNDS := AABB(
 	Vector3(-4.0, -2.0, -7.0), Vector3(8.0, 4.0, 14.0)
 )
@@ -315,6 +315,15 @@ func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 		and presentation.get_state_snapshot().revision == revision,
 		"whole-target exit restores zero without changing identity"
 	)
+	var detached_state := presentation.get_state_snapshot()
+	var detached_reset := presentation.reset_for_reuse(generation)
+	_check(
+		not bool(detached_reset.accepted)
+			and detached_reset.reason == &"presentation_detached"
+			and presentation.get_state_snapshot() == detached_state
+			and material.get_shader_parameter(OWNED_PARAMETER) == 0.0,
+		"a detached reset rejects before generation, retained observation, revision, or material mutation"
+	)
 	root.add_child(target)
 	await process_frame
 	_check(
@@ -323,6 +332,32 @@ func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 		and presentation.get_state_snapshot().revision == revision
 		and bool(target.audit().valid),
 		"whole-target reentry reapplies retained intensity without duplication"
+	)
+	var live_reset := presentation.reset_for_reuse(generation)
+	var reset_generation := presentation.get_generation()
+	var live_represented := presentation.present_observation(
+		10000.0, 340.0, reset_generation
+	)
+	_check(
+		bool(live_reset.accepted)
+			and live_reset.reason == &"reset"
+			and reset_generation == generation + 1
+			and bool(live_represented.accepted)
+			and material.get_shader_parameter(OWNED_PARAMETER) == 1.0,
+		"a current re-entered target still accepts reset and a fresh generation observation"
+	)
+	var queued_state := presentation.get_state_snapshot()
+	var queued_material: Variant = material.get_shader_parameter(OWNED_PARAMETER)
+	presentation.queue_free()
+	var queued_reset := presentation.reset_for_reuse(reset_generation)
+	_check(
+		presentation.is_inside_tree()
+			and presentation.is_queued_for_deletion()
+			and not bool(queued_reset.accepted)
+			and queued_reset.reason == &"presentation_detached"
+			and presentation.get_state_snapshot() == queued_state
+			and material.get_shader_parameter(OWNED_PARAMETER) == queued_material,
+		"a queued reset rejects before generation, retained observation, revision, or material mutation"
 	)
 
 

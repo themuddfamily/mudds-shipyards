@@ -243,6 +243,10 @@ func reset_for_reuse(expected_generation: Variant) -> Dictionary:
 	if not _is_exact_generation(expected_generation) \
 			or int(expected_generation) != _generation:
 		return _result(false, &"stale_generation")
+	# Reset is a public retained-state mutation just like an observation. A
+	# detached or queued adapter must not clear its live presentation intent.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"presentation_detached")
 	if _generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"generation_exhausted")
 	if _resolve_shader() == null:
