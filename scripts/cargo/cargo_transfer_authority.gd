@@ -276,6 +276,8 @@ func transfer(
 	item_id: StringName,
 	quantity: int
 	) -> Dictionary:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"authority_unavailable")
 	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")
 	if not CargoItemDefinition.is_stable_id(transfer_id):

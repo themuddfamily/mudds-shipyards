@@ -16,10 +16,82 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_authority_transfer_currentness()
 	await _test_registration_and_atomic_transfer()
 	await _test_detach_reentry_and_generation_cleanup()
 	await _test_atomic_pair_reattach_signal_adversary()
 	_finish()
+
+
+func _test_authority_transfer_currentness() -> void:
+	var authority := AuthorityScript.new() as CargoTransferAuthority
+	authority.name = "TransferCurrentnessAuthority"
+	root.add_child(authority)
+	await process_frame
+	authority.register_item(_item(&"currentness_parts", "Currentness parts", 1))
+	var source := Node.new()
+	var destination := Node.new()
+	root.add_child(source)
+	root.add_child(destination)
+	var source_registration := authority.register_entity(
+		source, &"currentness_source", &"currentness_source_manifest", 4,
+		{&"currentness_parts": 2}
+	)
+	var destination_registration := authority.register_entity(
+		destination, &"currentness_destination", &"currentness_destination_manifest", 4
+	)
+	var source_handle := source_registration.handle as Dictionary
+	var destination_handle := destination_registration.handle as Dictionary
+	var committed: Array[Dictionary] = []
+	authority.transfer_committed.connect(func(receipt: Dictionary) -> void:
+		committed.append(receipt.duplicate(true))
+	)
+
+	root.remove_child(authority)
+	var detached_before := authority.to_dictionary()
+	var detached_transfer := authority.transfer(
+		&"detached_authority_transfer", source_handle, destination_handle,
+		&"currentness_parts", 1
+	)
+	_check(
+		not bool(detached_transfer.accepted)
+			and detached_transfer.reason == &"authority_unavailable"
+			and authority.to_dictionary() == detached_before
+			and committed.is_empty(),
+		"a detached authority rejects direct transfer without manifest, ledger, or signal mutation"
+	)
+	root.add_child(authority)
+	var live_transfer := authority.transfer(
+		&"live_authority_transfer", source_handle, destination_handle,
+		&"currentness_parts", 1
+	)
+	_check(
+		bool(live_transfer.accepted)
+			and authority.get_quantity(source_handle, &"currentness_parts") == 1
+			and authority.get_quantity(destination_handle, &"currentness_parts") == 1
+			and committed.size() == 1,
+		"a reattached authority accepts one fresh current transfer"
+	)
+
+	var queued_before := authority.to_dictionary()
+	authority.queue_free()
+	var queued_transfer := authority.transfer(
+		&"queued_authority_transfer", source_handle, destination_handle,
+		&"currentness_parts", 1
+	)
+	_check(
+		authority.is_inside_tree()
+			and authority.is_queued_for_deletion()
+			and not bool(queued_transfer.accepted)
+			and queued_transfer.reason == &"authority_unavailable"
+			and authority.to_dictionary() == queued_before
+			and committed.size() == 1,
+		"a queued authority rejects direct transfer without manifest, ledger, or signal mutation"
+	)
+	await process_frame
+	source.queue_free()
+	destination.queue_free()
+	await process_frame
 
 
 func _test_registration_and_atomic_transfer() -> void:
