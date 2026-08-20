@@ -51,6 +51,7 @@ func _run() -> void:
 	await _check_slope_and_kerb()
 	await _check_seat_contract()
 	await _check_recovery_net()
+	await _check_boarding_currentness()
 	await _check_driver_station_currentness()
 
 	_release_inputs()
@@ -758,6 +759,54 @@ func _check_recovery_net() -> void:
 # ------------------------------------------------ station currentness contract
 
 
+func _check_boarding_currentness() -> void:
+	var actor := Node.new()
+	actor.name = "DirectCurrentnessPilot"
+	_root.add_child(actor)
+	var requested: Array[Node] = []
+	_tractor.board_requested.connect(func(requesting_actor: Node) -> void:
+		requested.append(requesting_actor)
+	)
+	var boardable_before := _tractor.is_boardable()
+	var driven_before := _tractor.is_driven()
+	var recovery_before := _tractor.has_reported_recovery()
+
+	_root.remove_child(_tractor)
+	_check(not _tractor.is_inside_tree(), "a detached tractor is no longer a live boarding target")
+	_check(
+		not _tractor.request_boarding(actor)
+		and requested.is_empty()
+		and _tractor.is_boardable() == boardable_before
+		and _tractor.is_driven() == driven_before
+		and _tractor.has_reported_recovery() == recovery_before,
+		"a detached tractor rejects direct boarding without a request or vehicle-state mutation"
+	)
+
+	_root.add_child(_tractor)
+	await process_frame
+	_check(
+		_tractor.is_inside_tree()
+		and not _tractor.is_queued_for_deletion()
+		and _tractor.request_boarding(actor)
+		and requested.size() == 1
+		and requested[0] == actor,
+		"a reattached tractor accepts a fresh direct boarding request"
+	)
+	actor.queue_free()
+	_check(
+		actor.is_inside_tree() and actor.is_queued_for_deletion(),
+		"a queued boarding actor remains in-tree during its deletion window"
+	)
+	_check(
+		not _tractor.request_boarding(actor)
+		and requested.size() == 1
+		and _tractor.is_boardable() == boardable_before
+		and _tractor.is_driven() == driven_before
+		and _tractor.has_reported_recovery() == recovery_before,
+		"a queued boarding actor is rejected without a request or vehicle-state mutation"
+	)
+
+
 func _check_driver_station_currentness() -> void:
 	var station := _tractor.get_driver_station()
 	var station_shape := station.get_node_or_null(^"DriverStationShape") as CollisionShape3D
@@ -826,6 +875,22 @@ func _check_driver_station_currentness() -> void:
 		and not station.interact(actor)
 		and requested.size() == 1,
 		"a queued driver station rejects availability, prompt, and boarding paths without mutation or a request"
+	)
+	var boardable_before := _tractor.is_boardable()
+	var driven_before := _tractor.is_driven()
+	var recovery_before := _tractor.has_reported_recovery()
+	_tractor.queue_free()
+	_check(
+		_tractor.is_inside_tree() and _tractor.is_queued_for_deletion(),
+		"a queued tractor remains in-tree during its deletion window"
+	)
+	_check(
+		not _tractor.request_boarding(actor)
+		and requested.size() == 1
+		and _tractor.is_boardable() == boardable_before
+		and _tractor.is_driven() == driven_before
+		and _tractor.has_reported_recovery() == recovery_before,
+		"a queued tractor rejects direct boarding without a request or vehicle-state mutation"
 	)
 	actor.queue_free()
 

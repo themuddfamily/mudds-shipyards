@@ -626,6 +626,14 @@ func recover_to_home_transform() -> void:
 
 ## Called by the driver station when a walking player interacts with it.
 func request_boarding(actor: Node) -> bool:
+	if (
+		not is_inside_tree()
+		or is_queued_for_deletion()
+		or not is_instance_valid(actor)
+		or not actor.is_inside_tree()
+		or actor.is_queued_for_deletion()
+	):
+		return false
 	if not is_boardable():
 		return false
 	board_requested.emit(actor)
