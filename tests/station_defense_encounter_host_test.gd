@@ -22,12 +22,123 @@ func _init() -> void:
 
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
+	await _test_queued_lifecycle_mutators_are_atomic()
 	await _test_real_resolver_waves_and_lifecycle()
 	_check(
 		root.get_child_count() == original_root_child_count,
 		"encounter-host fixture cleans up every staged production node"
 	)
 	_finish()
+
+
+func _test_queued_lifecycle_mutators_are_atomic() -> void:
+	var queued_configure_host := HostScript.new() as StationDefenseEncounterHost
+	queued_configure_host.name = "QueuedConfigureHost"
+	var queued_configure_authority := LiveCombatAuthority.new()
+	queued_configure_host.add_child(queued_configure_authority)
+	root.add_child(queued_configure_host)
+	await process_frame
+	var queued_configure_events: Array[Dictionary] = []
+	queued_configure_host.snapshot_changed.connect(func(snapshot: Dictionary) -> void:
+		queued_configure_events.append(snapshot.duplicate(true))
+	)
+	var queued_configure_before := queued_configure_host.get_snapshot()
+	queued_configure_host.queue_free()
+	var queued_configure := queued_configure_host.configure(
+		_contract(), queued_configure_authority
+	)
+	_check(
+		queued_configure_host.is_inside_tree()
+		and queued_configure_host.is_queued_for_deletion()
+		and not bool(queued_configure.accepted)
+		and queued_configure.reason == &"host_queued_for_deletion"
+		and queued_configure_host.get_combat_authority() == null
+		and queued_configure_host.get_snapshot() == queued_configure_before
+		and queued_configure_events.is_empty(),
+		"a queued fresh host rejects configure without authority, snapshot, or signal mutation"
+	)
+	await process_frame
+
+	var queued_register_host := HostScript.new() as StationDefenseEncounterHost
+	queued_register_host.name = "QueuedRegisterHost"
+	var queued_register_authority := LiveCombatAuthority.new()
+	queued_register_host.add_child(queued_register_authority)
+	var queued_register_alpha := _opponent("QueuedRegisterAlpha")
+	queued_register_host.add_child(queued_register_alpha)
+	var configured := queued_register_host.configure(_contract(), queued_register_authority)
+	root.add_child(queued_register_host)
+	await process_frame
+	var queued_register_events: Array[Dictionary] = []
+	queued_register_host.snapshot_changed.connect(func(snapshot: Dictionary) -> void:
+		queued_register_events.append(snapshot.duplicate(true))
+	)
+	var queued_register_before := queued_register_host.get_snapshot()
+	queued_register_host.queue_free()
+	var queued_register := queued_register_host.register_hostile(
+		_hostile(&"raider_alpha", 1),
+		queued_register_alpha,
+		Transform3D(Basis.IDENTITY, Vector3(-20.0, 0.0, -30.0)),
+		HOSTILE_FACTION
+	)
+	_check(
+		bool(configured.accepted)
+		and queued_register_host.is_inside_tree()
+		and queued_register_host.is_queued_for_deletion()
+		and not bool(queued_register.accepted)
+		and queued_register.reason == &"host_queued_for_deletion"
+		and queued_register_alpha.get_node_or_null("AuthoritativeDamageable") == null
+		and queued_register_host.get_snapshot() == queued_register_before
+		and queued_register_events.is_empty(),
+		"a queued configured host rejects registration without adapter, roster, snapshot, or signal mutation"
+	)
+	await process_frame
+
+	var prestart := await _make_lifecycle_fixture("QueuedPrestart")
+	var prestart_host := prestart.host as StationDefenseEncounterHost
+	var prestart_alpha := prestart.alpha as RangeOpponent
+	var prestart_events: Array[Dictionary] = []
+	prestart_host.snapshot_changed.connect(func(snapshot: Dictionary) -> void:
+		prestart_events.append(snapshot.duplicate(true))
+	)
+	var prestart_before := prestart_host.get_snapshot()
+	prestart_host.queue_free()
+	var queued_start := prestart_host.start(0)
+	_check(
+		prestart_host.is_inside_tree()
+		and prestart_host.is_queued_for_deletion()
+		and not bool(queued_start.accepted)
+		and queued_start.reason == &"host_queued_for_deletion"
+		and prestart_host.get_snapshot() == prestart_before
+		and not prestart_alpha.is_active()
+		and prestart_events.is_empty(),
+		"a queued in-tree host rejects pre-start without activation, state, or snapshot mutation"
+	)
+	await process_frame
+
+	var active := await _make_lifecycle_fixture("QueuedAdvance")
+	var active_host := active.host as StationDefenseEncounterHost
+	var active_alpha := active.alpha as RangeOpponent
+	var started := active_host.start(0)
+	var generation := active_host.get_generation()
+	var active_events: Array[Dictionary] = []
+	active_host.snapshot_changed.connect(func(snapshot: Dictionary) -> void:
+		active_events.append(snapshot.duplicate(true))
+	)
+	var active_before := active_host.get_snapshot()
+	active_host.queue_free()
+	var queued_advance := active_host.advance_physics(0.5, generation)
+	_check(
+		bool(started.accepted)
+		and active_host.is_inside_tree()
+		and active_host.is_queued_for_deletion()
+		and not bool(queued_advance.accepted)
+		and queued_advance.reason == &"host_queued_for_deletion"
+		and active_host.get_snapshot() == active_before
+		and active_alpha.is_active()
+		and active_events.is_empty(),
+		"a queued active host rejects caller physics without clock, roster, or snapshot drift"
+	)
+	await process_frame
 
 
 func _test_real_resolver_waves_and_lifecycle() -> void:
@@ -392,6 +503,49 @@ func _shoot(
 	)
 	await process_frame
 	return result
+
+
+func _make_lifecycle_fixture(label: String) -> Dictionary:
+	var host := HostScript.new() as StationDefenseEncounterHost
+	host.name = "%sHost" % label
+	var authority := LiveCombatAuthority.new()
+	authority.name = "%sAuthority" % label
+	host.add_child(authority)
+	var alpha := _opponent("%sAlpha" % label)
+	var beta := _opponent("%sBeta" % label)
+	var gamma := _opponent("%sGamma" % label)
+	host.add_child(alpha)
+	host.add_child(beta)
+	host.add_child(gamma)
+	var configured := host.configure(_contract(), authority)
+	var registered: bool = (
+		host.register_hostile(
+			_hostile(&"raider_alpha", 1),
+			alpha,
+			Transform3D(Basis.IDENTITY, Vector3(-20.0, 0.0, -30.0)),
+			HOSTILE_FACTION
+		).accepted
+		and host.register_hostile(
+			_hostile(&"raider_beta", 2),
+			beta,
+			Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, -35.0)),
+			HOSTILE_FACTION
+		).accepted
+		and host.register_hostile(
+			_hostile(&"raider_gamma", 3),
+			gamma,
+			Transform3D(Basis.IDENTITY, Vector3(20.0, 0.0, -40.0)),
+			HOSTILE_FACTION
+		).accepted
+	)
+	_check(
+		configured.accepted and registered,
+		"%s fixture configures and pre-registers the exact production roster" % label
+	)
+	root.add_child(host)
+	await process_frame
+	await physics_frame
+	return {"host": host, "alpha": alpha}
 
 
 func _opponent(node_name: String) -> RangeOpponent:

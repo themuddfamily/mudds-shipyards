@@ -69,6 +69,8 @@ func configure(
 	) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
+	if is_queued_for_deletion():
+		return _result(false, &"host_queued_for_deletion")
 	if _configured:
 		return _result(false, &"already_configured")
 	if contract == null or not contract.is_configuration_valid():
@@ -99,6 +101,8 @@ func register_hostile(
 	) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
+	if is_queued_for_deletion():
+		return _result(false, &"host_queued_for_deletion")
 	if not _configured:
 		return _result(false, &"not_configured")
 	if _activity.get_state() != StationDefenseActivity.State.IDLE:
@@ -156,8 +160,9 @@ func start(expected_generation: int) -> Dictionary:
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
-	if not is_inside_tree():
-		return _result(false, &"host_not_in_tree")
+	var lifecycle_rejection := _lifecycle_currentness_rejection()
+	if not lifecycle_rejection.is_empty():
+		return _result(false, lifecycle_rejection)
 	var roster_gate := _validate_start_roster()
 	if not bool(roster_gate.get("accepted", false)):
 		return _result(false, roster_gate.get("reason", &"incomplete_spawn_roster"))
@@ -177,6 +182,9 @@ func advance_physics(delta: float, expected_generation: int) -> Dictionary:
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
+	var lifecycle_rejection := _lifecycle_currentness_rejection()
+	if not lifecycle_rejection.is_empty():
+		return _result(false, lifecycle_rejection)
 	_mutation_active = true
 	_pending_failure_reason = &""
 	var result := _activity.advance(delta, expected_generation)
@@ -224,6 +232,9 @@ func renew_protected_asset_handle(
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
+	var lifecycle_rejection := _lifecycle_currentness_rejection()
+	if not lifecycle_rejection.is_empty():
+		return _result(false, lifecycle_rejection)
 	_mutation_active = true
 	var result := _activity.renew_protected_asset_handle(
 		old_handle,
@@ -376,6 +387,9 @@ func _forward_asset_event(
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
+	var lifecycle_rejection := _lifecycle_currentness_rejection()
+	if not lifecycle_rejection.is_empty():
+		return _result(false, lifecycle_rejection)
 	_mutation_active = true
 	var result := (
 		_activity.protected_asset_destroyed(asset_handle, event_handle, expected_generation)
@@ -395,6 +409,9 @@ func _forward_terminal(
 		return _result(false, &"reentrant_call")
 	if not _configured:
 		return _result(false, &"not_configured")
+	var lifecycle_rejection := _lifecycle_currentness_rejection()
+	if not lifecycle_rejection.is_empty():
+		return _result(false, lifecycle_rejection)
 	_mutation_active = true
 	var result: Dictionary
 	match operation:
@@ -616,6 +633,14 @@ func _validate_start_roster() -> Dictionary:
 		if record.get("state_id", &"") != &"registered" or entity.is_active():
 			return {"accepted": false, "reason": &"hostile_roster_state_invalid"}
 	return {"accepted": true}
+
+
+func _lifecycle_currentness_rejection() -> StringName:
+	if not is_inside_tree():
+		return &"host_not_in_tree"
+	if is_queued_for_deletion():
+		return &"host_queued_for_deletion"
+	return &""
 
 
 func _restore_after_reentry() -> void:
