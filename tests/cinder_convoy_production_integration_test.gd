@@ -57,7 +57,7 @@ func _run() -> void:
 		game, host, binding, bootstrap, hud, ship
 	)
 	await _test_reentry_completion_and_lifecycle_failures(
-		game, host, bootstrap, hud, ship
+		game, host, binding, bootstrap, hud, ship
 	)
 
 	await _cleanup(game)
@@ -240,6 +240,7 @@ func _test_exact_activation_and_shared_sampling(
 func _test_reentry_completion_and_lifecycle_failures(
 	game: GameFlow,
 	host: CinderConvoyEscortHost,
+	binding: CinderStreamingProductionBinding,
 	bootstrap: CinderStreamingBootstrap,
 	hud: GameHUD,
 	ship: HeroShip
@@ -337,6 +338,34 @@ func _test_reentry_completion_and_lifecycle_failures(
 	ship.set_piloted(true)
 
 	_check(game.reset_active_activity(), "unpilot failure resets explicitly")
+	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	_check(
+		bool(game.request_activity_start(
+			GameFlow.CINDER_CONVOY_ACTIVITY_ID
+		).get("accepted", false)),
+		"a fresh current generation starts before the required-streaming witness"
+	)
+	var movement_before_streaming_loss := float(
+		host.get_snapshot().get("movement_distance", -1.0)
+	)
+	var original_binding := binding
+	game.set("cinder_streaming_binding", null)
+	game.call("_physics_process", 0.1)
+	game.set("cinder_streaming_binding", original_binding)
+	_check(
+		game.get_active_activity_snapshot().get("state_id", &"") == &"failed"
+		and game.get_active_activity_snapshot().get("terminal_reason", &"")
+			== &"cinder_streaming_unavailable"
+		and is_equal_approx(
+			float(host.get_snapshot().get("movement_distance", -2.0)),
+			movement_before_streaming_loss
+		)
+		and not bool(game.get_activity_integration_report().get("grants_rewards", true))
+		and not bool(game.get_activity_integration_report().get("berth_authority", true)),
+		"loss of the required Cinder binding retires the convoy before this sample can advance it",
+	)
+
+	_check(game.reset_active_activity(), "streaming-binding failure resets explicitly")
 	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
 	_check(
 		bool(game.request_activity_start(

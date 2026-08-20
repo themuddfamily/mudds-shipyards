@@ -1046,9 +1046,21 @@ func _physics_process(delta: float) -> void:
 				cruise_gate_reason,
 			)
 	_sync_planetary_cruise_hud()
+	var cinder_streaming_tick: Dictionary = {
+		"accepted": false,
+		"reason": &"binding_unavailable",
+	}
 	if is_instance_valid(cinder_streaming_binding):
-		cinder_streaming_binding.physics_tick_from_caller_sample(delta, actor_sample)
+		cinder_streaming_tick = cinder_streaming_binding.physics_tick_from_caller_sample(
+			delta, actor_sample
+		)
 	_sync_cinder_convoy_stream_presence()
+	# A live convoy owns one exact streamed Cinder generation, but that retained
+	# residency cannot substitute for the required current caller-sampled update.
+	# If the sole binding is unavailable or rejects its tick, retire before the
+	# host can advance from this physics sample.
+	if _convoy_is_running() and not bool(cinder_streaming_tick.get("accepted", false)):
+		_fail_active_activity(&"cinder_streaming_unavailable")
 	if _convoy_is_running() and not _convoy_lifecycle_accepts_sample(actor_sample):
 		_fail_active_activity(_convoy_lifecycle_failure_reason(actor_sample))
 	if not _piloting:
