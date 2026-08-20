@@ -85,7 +85,7 @@ func _run() -> void:
 		_finish()
 		return
 
-	_test_selection_and_authority_boundary(game, director, hud)
+	await _test_selection_and_authority_boundary(game, director, hud)
 	await _test_physics_progress_reentry_and_completion(
 		game, director, hud, combat_before
 	)
@@ -129,6 +129,35 @@ func _test_selection_and_authority_boundary(
 		and not bool(initial.get("network_authority", true))
 		and not bool(patrol_audit.get("grants_rewards", true)),
 		"selection and sampling add no gameplay, reward, combat, ship, berth, or network authority"
+	)
+	var race_generation := int(race.get_presentation_snapshot().get("session_generation", -1))
+	var parent := game.get_parent()
+	parent.remove_child(game)
+	await process_frame
+	var detached_selection := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	var detached_start := game.request_activity_start(ROUTE.activity_id)
+	var detached := game.get_activity_integration_report()
+	_check(
+		not bool(detached_selection.get("accepted", true))
+		and detached_selection.get("reason", &"") == &"detached"
+		and not bool(detached_start.get("accepted", true))
+		and detached_start.get("reason", &"") == &"detached"
+		and detached.get("selected_activity_kind", &"") == GameFlow.ACTIVITY_KIND_TIMED_RACE
+		and not bool(detached.get("selection_locked", true))
+		and int(detached.get("attached_route_owner_count", -1)) == 0
+		and int(race.get_presentation_snapshot().get("session_generation", -2)) == race_generation
+		and not bool(patrol.get_presentation_snapshot().get("attached", true)),
+		"detached activity selection and start reject before restoring or advancing a route owner"
+	)
+	parent.add_child(game)
+	await process_frame
+	await process_frame
+	_check(
+		game.get_activity_integration_report().get("selected_activity_kind", &"")
+		== GameFlow.ACTIVITY_KIND_TIMED_RACE
+		and int(game.get_activity_integration_report().get("attached_route_owner_count", 0)) == 1
+		and bool(race.get_presentation_snapshot().get("attached", false)),
+		"re-entry restores the original timed-race owner after detached requests are rejected"
 	)
 
 	var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
