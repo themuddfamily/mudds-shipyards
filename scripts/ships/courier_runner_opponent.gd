@@ -147,6 +147,8 @@ func get_pulse_style_id() -> StringName:
 ## Fixes the boundary run. Called by the scenario that dispatched the courier so
 ## the craft and the director measure the same run from the same origin.
 func set_escape_run(origin: Vector3, heading: Vector3, distance: float) -> bool:
+	if not _can_mutate_live_courier():
+		return false
 	if not origin.is_finite() or not heading.is_finite():
 		return false
 	if heading.length_squared() <= 0.000001:
@@ -179,6 +181,8 @@ func get_escape_progress() -> float:
 ## Raised once, by the scenario, when the runner is first hurt. The craft owns
 ## only the presentation of it; the escort dispatch belongs to the director.
 func begin_distress_broadcast() -> bool:
+	if not _can_mutate_live_courier():
+		return false
 	if _distress_broadcast or not _active:
 		return false
 	_distress_broadcast = true
@@ -189,6 +193,10 @@ func begin_distress_broadcast() -> bool:
 
 func is_distress_broadcast() -> bool:
 	return _distress_broadcast
+
+
+func _can_mutate_live_courier() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_arc_denied_count() -> int:

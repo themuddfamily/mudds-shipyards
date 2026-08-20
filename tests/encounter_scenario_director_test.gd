@@ -69,6 +69,7 @@ func _run() -> void:
 	var original_children := root.get_child_count()
 	await _test_courier_cleared_when_intercepted()
 	await _test_courier_escapes_when_ignored()
+	await _test_courier_direct_mutation_currentness()
 	await _test_player_flight_withdraws_the_scenario()
 	await _test_player_loss_aborts_the_scenario()
 	await _test_queued_target_is_rejected_before_scenario_mutation()
@@ -137,6 +138,72 @@ func _test_courier_escapes_when_ignored() -> void:
 		"the escape outcome is announced on the scenario_concluded signal"
 	)
 	await _assert_fully_terminated(fixture, "courier escaped")
+	await _free_fixture(fixture)
+
+
+func _test_courier_direct_mutation_currentness() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var host: Node3D = fixture.host
+	var courier: CourierRunnerOpponent = fixture.courier
+	var escape_events := PackedStringArray()
+	var distress_events := PackedStringArray()
+	courier.escape_run_set.connect(func(_origin: Vector3, _heading: Vector3, _distance: float) -> void:
+		escape_events.append("escape")
+	)
+	courier.distress_broadcast_started.connect(func() -> void:
+		distress_events.append("distress")
+	)
+	_check(
+		director.begin_scenario(EncounterScenarioDirector.SCENARIO_COURIER_INTERCEPT, fixture.target)
+		and courier.is_active(),
+		"currentness fixture launches the production courier before direct mutation checks"
+	)
+
+	host.remove_child(courier)
+	await process_frame
+	var detached_before := _courier_mutation_snapshot(courier)
+	var detached_escape_events := escape_events.size()
+	var detached_distress_events := distress_events.size()
+	_check(
+		not courier.set_escape_run(Vector3(50.0, 4.0, -16.0), Vector3.RIGHT, 320.0)
+		and not courier.begin_distress_broadcast()
+		and _courier_mutation_snapshot(courier) == detached_before
+		and escape_events.size() == detached_escape_events
+		and distress_events.size() == detached_distress_events,
+		"detached courier rejects direct route and distress mutation before state, presentation, or signals"
+	)
+
+	host.add_child(courier)
+	await process_frame
+	var reentry_escape_accepted := courier.set_escape_run(
+		Vector3(50.0, 4.0, -16.0), Vector3.RIGHT, 320.0
+	)
+	var reentry_distress_accepted := courier.begin_distress_broadcast()
+	_check(
+		reentry_escape_accepted
+		and reentry_distress_accepted
+		and escape_events.size() == detached_escape_events + 1
+		and distress_events.size() == detached_distress_events + 1
+		and courier.is_distress_broadcast(),
+		"re-entered courier accepts fresh route and distress presentation mutation"
+	)
+
+	courier.queue_free()
+	var queued_before := _courier_mutation_snapshot(courier)
+	var queued_escape_events := escape_events.size()
+	var queued_distress_events := distress_events.size()
+	_check(
+		courier.is_inside_tree()
+		and courier.is_queued_for_deletion()
+		and not courier.set_escape_run(Vector3(-48.0, 2.0, 21.0), Vector3.FORWARD, 280.0)
+		and not courier.begin_distress_broadcast()
+		and _courier_mutation_snapshot(courier) == queued_before
+		and escape_events.size() == queued_escape_events
+		and distress_events.size() == queued_distress_events,
+		"queued courier rejects direct route and distress mutation before state, presentation, or signals"
+	)
+	await process_frame
 	await _free_fixture(fixture)
 
 
@@ -506,6 +573,19 @@ func _last_conclusion_outcome() -> StringName:
 	if _conclusions.is_empty():
 		return &""
 	return _conclusions[_conclusions.size() - 1].get("outcome", &"")
+
+
+func _courier_mutation_snapshot(courier: CourierRunnerOpponent) -> Dictionary:
+	var audit := courier.get_audit_report()
+	var beacon := courier.get_node_or_null("ContractCourierVisual/DistressBeacon") as MeshInstance3D
+	var light := courier.get_node_or_null("ContractCourierVisual/DistressLight") as OmniLight3D
+	return {
+		"escape": (audit.get("escape", {}) as Dictionary).duplicate(true),
+		"active": courier.is_active(),
+		"distress_broadcast": courier.is_distress_broadcast(),
+		"beacon_visible": beacon.visible if beacon != null else false,
+		"light_energy": light.light_energy if light != null else 0.0,
+	}.duplicate(true)
 
 
 func _errors_mention(errors: PackedStringArray, fragment: String) -> bool:
