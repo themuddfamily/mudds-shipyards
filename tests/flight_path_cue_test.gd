@@ -116,18 +116,23 @@ func _test_hud_contract() -> void:
 	retained_telemetry["flight_path_clamped"] = true
 	hud.update_ship_telemetry(retained_telemetry)
 	var retained_before := _hud_telemetry_state(hud)
+	hud.set_interaction("LIVE INTERACTION BASELINE", true)
+	var retained_interaction := _interaction_state(hud)
 	root.remove_child(hud)
 	hud.update_ship_telemetry(_hud_telemetry(center + Vector2(-120.0, -44.0)))
+	hud.set_interaction("STALE DETACHED INTERACTION", true)
 	cue.set_piloting(false)
 	cue.update_from_telemetry(_hud_telemetry(center + Vector2(-120.0, -44.0)))
 	cue.clear()
 	_check(
-		_hud_telemetry_state(hud) == retained_before,
-		"a detached HUD rejects parent telemetry plus child cue mutations atomically"
+		_hud_telemetry_state(hud) == retained_before
+		and _interaction_state(hud) == retained_interaction,
+		"a detached HUD rejects telemetry, cue, and interaction-prompt mutations atomically"
 	)
 
 	root.add_child(hud)
 	await process_frame
+	hud.set_interaction("FRESH LIVE INTERACTION", true)
 	var fresh_telemetry := _hud_telemetry(center + Vector2(-120.0, -44.0))
 	fresh_telemetry["flight_path_rearward"] = true
 	hud.update_ship_telemetry(fresh_telemetry)
@@ -136,22 +141,28 @@ func _test_hud_contract() -> void:
 		bool(fresh_report.get("marker_visible", false))
 		and bool(fresh_report.get("rearward", false))
 		and (fresh_report.get("marker_position", Vector2.ZERO) as Vector2)
-			.is_equal_approx(fresh_telemetry.get("flight_path_screen_position") as Vector2),
-		"a reentered flight-path cue accepts only a fresh live telemetry sample"
+			.is_equal_approx(fresh_telemetry.get("flight_path_screen_position") as Vector2)
+		and _interaction_state(hud) == {
+			"text": "FRESH LIVE INTERACTION", "visible": true,
+		},
+		"a reentered HUD accepts fresh telemetry and interaction presentation"
 	)
 
 	var queued_before := _hud_telemetry_state(hud)
+	var queued_interaction := _interaction_state(hud)
 	cue.queue_free()
 	hud.queue_free()
 	hud.update_ship_telemetry(_hud_telemetry(center + Vector2(200.0, 30.0)))
+	hud.set_interaction("STALE QUEUED INTERACTION", true)
 	cue.set_piloting(false)
 	cue.update_from_telemetry(_hud_telemetry(center + Vector2(200.0, 30.0)))
 	cue.clear()
 	_check(
 		hud.is_inside_tree()
 		and hud.is_queued_for_deletion()
-		and _hud_telemetry_state(hud) == queued_before,
-		"a queued HUD rejects parent telemetry plus child cue mutations atomically"
+		and _hud_telemetry_state(hud) == queued_before
+		and _interaction_state(hud) == queued_interaction,
+		"a queued HUD rejects telemetry, cue, and interaction-prompt mutations atomically"
 	)
 
 	await process_frame
@@ -312,6 +323,15 @@ func _hud_telemetry_state(hud: GameHUD) -> Dictionary:
 		"damage": damage_label.text if damage_label != null else "",
 		"engine": engine_label.text if engine_label != null else "",
 		"cue": _cue_state(hud.get_flight_cue_report()),
+	}.duplicate(true)
+
+
+func _interaction_state(hud: GameHUD) -> Dictionary:
+	var label := hud.get("_interaction_label") as Label
+	var panel := hud.get("_interaction_panel") as Control
+	return {
+		"text": label.text if label != null else "",
+		"visible": panel.visible if panel != null else false,
 	}.duplicate(true)
 
 

@@ -839,6 +839,8 @@ func get_activity_objective_report() -> Dictionary:
 
 
 func set_interaction(text: String, is_visible: bool = true) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_interaction_label.text = text
 	_interaction_panel.visible = is_visible and not text.is_empty()
 
