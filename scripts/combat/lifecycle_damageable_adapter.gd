@@ -78,7 +78,12 @@ func can_receive_damage() -> bool:
 	if not damage_enabled:
 		return false
 	var target := get_target_entity()
-	if not is_instance_valid(target) or not target.has_method("apply_damage"):
+	if (
+		not is_instance_valid(target)
+		or target.is_queued_for_deletion()
+		or not target.is_inside_tree()
+		or not target.has_method("apply_damage")
+	):
 		return false
 	if lifecycle_kind == LifecycleKind.RANGE_OPPONENT:
 		return target.has_method("is_active") and bool(target.call("is_active")) and get_health() > 0.0

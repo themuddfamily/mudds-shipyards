@@ -34,12 +34,24 @@ func _run() -> void:
 	var authority := game.get_combat_authority() as LiveCombatAuthority
 	var resolver := game.get_combat_resolver() as CombatResolver
 	var arrow := game.get_node_or_null("ArrowReconShip") as HeroShip
+	var torrent := game.get_node_or_null("TorrentInterceptor") as HeroShip
 	var world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
 	_check(
-		authority != null and resolver != null and arrow != null and world != null,
-		"fixture exposes the production authority, resolver, Arrow lifecycle, and berth world"
+		authority != null and resolver != null and arrow != null and torrent != null and world != null,
+		"fixture exposes the production authority, resolver, fleet lifecycle, and berth world"
 	)
-	if authority == null or resolver == null or arrow == null or world == null:
+	if authority == null or resolver == null or arrow == null or torrent == null or world == null:
+		await _clean_up(game)
+		_finish()
+		return
+	var torrent_damageable := torrent.get_node_or_null(
+		"AuthoritativeDamageable"
+	) as LifecycleDamageableAdapter
+	_check(
+		torrent_damageable != null,
+		"Torrent exposes the retained lifecycle damage adapter used by combat"
+	)
+	if torrent_damageable == null:
 		await _clean_up(game)
 		_finish()
 		return
@@ -107,12 +119,24 @@ func _run() -> void:
 	)
 
 	var parent := game.get_parent()
+	var detached_torrent_hull := float(torrent.get_telemetry().get("hull", -1.0))
+	var detached_proxy_context := torrent_damageable.get_last_hit_context()
 	parent.remove_child(game)
 	await process_frame
+	var detached_proxy_damage := torrent_damageable.apply_damage(
+		1.0, Vector3.INF, Vector3.ZERO, {}
+	)
 	_check(
 		resolver.get_registered_source_count() == 0
 		and authority.get_source_id(arrow) == 0,
 		"whole-Main detach retires every live source registration"
+	)
+	_check(
+		not bool(detached_proxy_damage.get("accepted", true))
+		and detached_proxy_damage.get("reason", &"") == &"lifecycle_unavailable"
+		and is_equal_approx(float(torrent.get_telemetry().get("hull", -2.0)), detached_torrent_hull)
+		and torrent_damageable.get_last_hit_context() == detached_proxy_context,
+		"a retained proxy cannot damage or publish hit state for a detached fleet hull"
 	)
 	parent.add_child(game)
 	await process_frame
@@ -127,6 +151,18 @@ func _run() -> void:
 			Callable(game, "_on_ship_destroyed").bind(arrow)
 		) == 1,
 		"re-entry restores six registrations and exactly one destruction signal binding"
+	)
+	var reentry_torrent_hull := float(torrent.get_telemetry().get("hull", -1.0))
+	var reentry_proxy_damage := torrent_damageable.apply_damage(
+		1.0, Vector3.INF, Vector3.ZERO, {}
+	)
+	_check(
+		bool(reentry_proxy_damage.get("accepted", false))
+		and is_equal_approx(float(reentry_proxy_damage.get("applied_damage", 0.0)), 1.0)
+		and is_equal_approx(
+			float(torrent.get_telemetry().get("hull", -1.0)), reentry_torrent_hull - 1.0
+		),
+		"the same retained proxy accepts live damage again after whole-Main re-entry"
 	)
 
 	var replay_result := (
