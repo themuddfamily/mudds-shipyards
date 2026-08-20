@@ -30,6 +30,8 @@ func _run() -> void:
 	await process_frame
 	await _test_contract_and_snapshot_boundary(presenter)
 	await _test_supported_layout_sweep(viewport, presenter)
+	await _test_detached_layout_currentness(viewport, presenter)
+	await _test_queued_layout_currentness(viewport)
 	await _test_hidden_and_reduced_flash(presenter)
 	_test_authority_audit(presenter)
 	presenter.queue_free()
@@ -167,6 +169,52 @@ func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPrese
 		and _contrast_ratio(CaptionPresenter.PANEL_BORDER, CaptionPresenter.PANEL_BACKGROUND) >= 7.0,
 		"body, speaker, category and border each retain high contrast against the panel"
 	)
+
+
+func _test_detached_layout_currentness(viewport: SubViewport, presenter: CaptionPresenter) -> void:
+	presenter.set_ui_scale(1.0)
+	presenter.apply_presentation_snapshot(_snapshot(false, "Retained layout baseline."))
+	await _settle()
+	var baseline := presenter.get_layout_report()
+	presenter.set_ui_scale(1.5)
+	viewport.remove_child(presenter)
+	await process_frame
+	await process_frame
+	var detached := presenter.get_layout_report()
+	_check(
+		not presenter.is_inside_tree()
+		and (detached.panel_rect as Rect2).is_equal_approx(baseline.panel_rect as Rect2),
+		"detached deferred layout leaves the retained panel geometry unchanged"
+	)
+	viewport.add_child(presenter)
+	await _settle()
+	var reentered := presenter.get_layout_report()
+	_check(
+		presenter.is_inside_tree()
+		and is_equal_approx(float(reentered.ui_scale), 1.5)
+		and not (reentered.panel_rect as Rect2).is_equal_approx(baseline.panel_rect as Rect2),
+		"re-entry schedules one current layout pass using the retained scale and live viewport"
+	)
+
+
+func _test_queued_layout_currentness(viewport: SubViewport) -> void:
+	var queued := PRESENTER_SCENE.instantiate() as CaptionPresenter
+	viewport.add_child(queued)
+	await _settle()
+	queued.set_ui_scale(1.5)
+	var token := int(queued.get("_layout_token"))
+	var before := queued.get_layout_report()
+	queued.queue_free()
+	queued.call("_layout_pass_one", token)
+	queued.call("_layout_pass_two", token)
+	var after := queued.get_layout_report()
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and (after.panel_rect as Rect2).is_equal_approx(before.panel_rect as Rect2),
+		"queued-but-live presenter rejects its pending layout callback before Control mutation"
+	)
+	await process_frame
 
 
 func _test_hidden_and_reduced_flash(presenter: CaptionPresenter) -> void:

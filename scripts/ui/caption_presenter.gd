@@ -62,6 +62,12 @@ func _ready() -> void:
 	_queue_layout()
 
 
+func _enter_tree() -> void:
+	# Deferred layout work dropped during a detached turn must not mutate the
+	# retained Control hierarchy off-tree. Re-entry schedules one current pass.
+	_queue_layout()
+
+
 ## Applies only the service's detached presentation snapshot schema. Malformed
 ## or hand-authored lookalikes reject without changing the last committed view.
 func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
@@ -318,7 +324,7 @@ func _queue_layout() -> void:
 
 
 func _layout_pass_one(token: int) -> void:
-	if token != _layout_token or _panel == null:
+	if is_queued_for_deletion() or not is_inside_tree() or token != _layout_token or _panel == null:
 		return
 	_layout_viewport_size = _resolved_viewport_size()
 	var safe_margin_x := BASE_SAFE_MARGIN_X * _ui_scale
@@ -337,7 +343,7 @@ func _layout_pass_one(token: int) -> void:
 
 
 func _layout_pass_two(token: int) -> void:
-	if token != _layout_token or _panel == null:
+	if is_queued_for_deletion() or not is_inside_tree() or token != _layout_token or _panel == null:
 		return
 	var header_height := maxf(
 		_category_label.get_combined_minimum_size().y,
