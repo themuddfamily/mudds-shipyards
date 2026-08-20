@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PlanetaryDestinationContentContract" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/planetary_destination_content_contract.gd" id="1_content"]
+
+[resource]
+script = ExtResource("1_content")
+world_id = &"ember_moon"
+display_name = "Ember Moon"
+orbital_silhouette_id = &"ember_moon_airless_caldera"
+return_target_id = &"mudds_shipyards"
+scene_path = "res://scenes/world/planets/ember_moon.tscn"
+world_definition_path = "res://assets/world/planets/ember_moon_world.tres"
+landing_region_path = "res://assets/world/planets/ember_caldera_landing_region.tres"
+landing_region_ids = PackedStringArray("ember_caldera")
+orbital_landmark_ids = PackedStringArray("ember_orbit_entry", "ember_navigation", "ember_surface_entry")
+surface_landmark_ids = PackedStringArray("ember_pad_guidance_port", "ember_sample_rack", "ember_staging_relay")
+surface_route_ids = PackedStringArray("ember_caldera_pad_to_staging")
+activity_ids = PackedStringArray("caldera_relay_scan")
+reward_ids = PackedStringArray("ember_relay_data")
+failure_recovery_ids = PackedStringArray("return_to_landed_ship", "abort_to_orbit_return")
+activity_authority_id = &"activity_director"
+reward_authority_id = &"game_flow_reward_authority"
+recovery_authority_id = &"planetary_landing_return_contract"
+orbital_silhouette_radius_m = 120000.0
+substantial_landing_area_m2 = 9216.0
+evidence_references = PackedStringArray("res://docs/PLANETARY_DESTINATION_CONTENT_CONTRACT.md")
+evidence_notes = "Original modern Ember Moon content manifest; bounded authored handoffs only, with no historical or procedural-galaxy claim."
