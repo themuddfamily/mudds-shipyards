@@ -191,10 +191,8 @@ func get_occupant_volume() -> Area3D:
 ## - `require_inside_bounds`: overrides the component default.
 func register_occupant(occupant: Node3D, options: Dictionary = {}) -> Dictionary:
 	var result := _registration_result(occupant)
-	if _tearing_down:
+	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
 		result["status"] = &"frame_teardown"
-		if is_instance_valid(occupant):
-			occupant_registration_rejected.emit(occupant, result["status"])
 		return result
 	if not is_instance_valid(occupant):
 		result["status"] = &"invalid_occupant"

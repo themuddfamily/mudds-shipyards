@@ -54,6 +54,7 @@ func _run() -> void:
 	_test_multiplayer_authority_lifecycle()
 	await _test_ownership_reparent_free_and_reuse()
 	await _test_component_detach_readd()
+	await _test_stale_frame_registration_is_atomic()
 	await _test_volume_provenance_and_handoff()
 	await _test_physical_standing_and_auto_volume()
 	_finish()
@@ -427,6 +428,69 @@ func _test_component_detach_readd() -> void:
 	await process_frame
 	_check(coordinator.get_occupant_count() == 0, "re-added component reconnects occupant tree-exit cleanup")
 	world.queue_free()
+	await process_frame
+
+
+func _test_stale_frame_registration_is_atomic() -> void:
+	var queued_fixture := _manual_fixture()
+	var queued_root := queued_fixture.root as Node3D
+	var queued_frame := queued_fixture.frame as Node3D
+	var queued_coordinator := queued_fixture.coordinator as MovingInteriorFrame
+	var queued_occupant := queued_fixture.occupant as CharacterBody3D
+	var queued_priority := queued_occupant.process_physics_priority
+	var queued_up := queued_occupant.up_direction
+	var queued_floor_layers := queued_occupant.platform_floor_layers
+	var queued_wall_layers := queued_occupant.platform_wall_layers
+	var queued_leave := queued_occupant.platform_on_leave
+	var queued_rejections: Array[StringName] = []
+	queued_coordinator.occupant_registration_rejected.connect(
+		func(_occupant: Node3D, status: StringName) -> void: queued_rejections.append(status)
+	)
+	queued_coordinator.queue_free()
+	var queued_result := queued_coordinator.register_occupant(queued_occupant)
+	_check(
+		not bool(queued_result.registered)
+		and queued_result.status == &"frame_teardown"
+		and queued_coordinator.is_queued_for_deletion()
+		and queued_coordinator.get_occupant_count() == 0
+		and queued_rejections.is_empty()
+		and queued_occupant.process_physics_priority == queued_priority
+		and queued_occupant.up_direction.is_equal_approx(queued_up)
+		and queued_occupant.platform_floor_layers == queued_floor_layers
+		and queued_occupant.platform_wall_layers == queued_wall_layers
+		and queued_occupant.platform_on_leave == queued_leave
+		and not queued_occupant.has_meta(MovingFrame.OWNER_META)
+		and not queued_occupant.has_meta(MovingFrame.REGISTRATION_META),
+		"queued moving frame rejects registration before signal, ownership, or occupant physics mutation"
+	)
+	await process_frame
+	queued_root.queue_free()
+	await process_frame
+
+	var detached_fixture := _manual_fixture()
+	var detached_root := detached_fixture.root as Node3D
+	var detached_frame := detached_fixture.frame as Node3D
+	var detached_coordinator := detached_fixture.coordinator as MovingInteriorFrame
+	var detached_occupant := detached_fixture.occupant as CharacterBody3D
+	var detached_priority := detached_occupant.process_physics_priority
+	detached_frame.remove_child(detached_coordinator)
+	var detached_result := detached_coordinator.register_occupant(detached_occupant)
+	_check(
+		not bool(detached_result.registered)
+		and detached_result.status == &"frame_teardown"
+		and not detached_coordinator.is_inside_tree()
+		and detached_coordinator.get_occupant_count() == 0
+		and detached_occupant.process_physics_priority == detached_priority
+		and not detached_occupant.has_meta(MovingFrame.OWNER_META)
+		and not detached_occupant.has_meta(MovingFrame.REGISTRATION_META),
+		"detached moving frame rejects registration without retaining stale occupant authority"
+	)
+	detached_frame.add_child(detached_coordinator)
+	_check(
+		bool(detached_coordinator.register_occupant(detached_occupant).registered),
+		"re-entered moving frame restores live registration authority"
+	)
+	detached_root.queue_free()
 	await process_frame
 
 
