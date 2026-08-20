@@ -5478,7 +5478,12 @@ func _finish_canopy_motion(open: bool, motion_serial: int) -> void:
 
 
 func _emit_canopy_motion_finished(open: bool, motion_serial: int) -> void:
-	if motion_serial != _canopy_motion_serial or open != _canopy_open:
+	if (
+		is_queued_for_deletion()
+		or not is_inside_tree()
+		or motion_serial != _canopy_motion_serial
+		or open != _canopy_open
+	):
 		return
 	canopy_motion_finished.emit(open)
 

@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_loss_during_player_boarding()
 	await _test_loss_during_disembarking_and_reuse()
 	await _test_detached_player_completion_defers_authority_handoff()
+	await _test_queued_canopy_completion_cannot_start_boarding()
 	_finish()
 
 
@@ -181,6 +182,44 @@ func _test_detached_player_completion_defers_authority_handoff() -> void:
 		and bool(game.get("_piloting"))
 		and not bool(game.get("_transition_busy")),
 		"re-entry consumes exactly one deferred Player completion and restores pilot authority"
+	)
+	await _free_fixture(game)
+
+
+func _test_queued_canopy_completion_cannot_start_boarding() -> void:
+	var fixture := await _new_fixture(0.0, 0.5, 0.25)
+	var game := fixture.game as GameFlow
+	var player := fixture.player as PlayerController
+	var craft := fixture.craft as HeroShip
+	var completion_events: Array[bool] = []
+	craft.canopy_motion_finished.connect(func(open: bool) -> void: completion_events.append(open))
+	game.call("_board_ship", craft)
+	var motion_serial := int(craft.get("_canopy_motion_serial"))
+	craft.queue_free()
+	# The real zero-duration boarding path already queued this exact callback.
+	# Invoke it while the retiring craft is still in-tree so the test observes the
+	# queued-owner fence rather than depending on deferred-delete ordering.
+	craft.call("_emit_canopy_motion_finished", true, motion_serial)
+	_check(
+		craft.is_queued_for_deletion()
+		and completion_events.is_empty()
+		and not player.is_seated()
+		and player.collision_layer == PhysicsLayers.PLAYER_BODY_LAYER
+		and not bool(game.get("_piloting"))
+		and bool(game.get("_transition_busy"))
+		and game.phase == GameFlow.Phase.BOARDING,
+		"queued zero-duration canopy completion cannot start Player boarding against a retiring hull"
+	)
+	# The production fixture's cruise binding retains the retiring craft for this
+	# deliberately aborted transaction. Suspend its unrelated physics sampling
+	# while the deferred callback/delete boundary is observed.
+	game.set_physics_process(false)
+	await process_frame
+	_check(
+		not player.is_seated()
+		and player.collision_layer == PhysicsLayers.PLAYER_BODY_LAYER
+		and completion_events.is_empty(),
+		"dropped queued canopy callback cannot later mutate Player boarding state"
 	)
 	await _free_fixture(game)
 
