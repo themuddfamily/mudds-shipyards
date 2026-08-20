@@ -29,6 +29,7 @@ func _run() -> void:
 	await _test_loss_during_opening_canopy()
 	await _test_loss_during_player_boarding()
 	await _test_loss_during_disembarking_and_reuse()
+	await _test_detached_player_completion_defers_authority_handoff()
 	_finish()
 
 
@@ -142,6 +143,45 @@ func _test_loss_during_disembarking_and_reuse() -> void:
 	game.call("_board_ship", craft)
 	_check(await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.8), "recovered transition craft completes a later physical reboard")
 	_check(player.is_seated() and craft.is_piloted(), "later reboard establishes one coherent player/craft authority pair")
+	await _free_fixture(game)
+
+
+func _test_detached_player_completion_defers_authority_handoff() -> void:
+	var fixture := await _new_fixture(0.0, 0.0, 0.25)
+	var game := fixture.game as GameFlow
+	var player := fixture.player as PlayerController
+	var craft := fixture.craft as HeroShip
+	var completion_events: Array[int] = []
+	player.boarding_completed.connect(func() -> void: completion_events.append(1))
+	game.call("_board_ship", craft)
+	# The first canopy edge starts the zero-duration Player transition and queues
+	# its completion. Detach before that deferred delivery can resume GameFlow.
+	craft.canopy_motion_finished.emit(true)
+	root.remove_child(game)
+	await process_frame
+	await process_frame
+	_check(
+		player.is_seated()
+		and completion_events.is_empty()
+		and not craft.is_piloted()
+		and not bool(game.get("_piloting"))
+		and bool(game.get("_transition_busy"))
+		and game.phase == GameFlow.Phase.BOARDING,
+		"detached Player completion cannot hand pilot authority to the retained GameFlow"
+	)
+	root.add_child(game)
+	_check(
+		await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 0.7),
+		"retained Player delivers its queued boarding completion after hierarchy re-entry"
+	)
+	_check(
+		completion_events.size() == 1
+		and player.is_seated()
+		and craft.is_piloted()
+		and bool(game.get("_piloting"))
+		and not bool(game.get("_transition_busy")),
+		"re-entry consumes exactly one deferred Player completion and restores pilot authority"
+	)
 	await _free_fixture(game)
 
 

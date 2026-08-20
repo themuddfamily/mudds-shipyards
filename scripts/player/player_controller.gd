@@ -245,6 +245,11 @@ var _transition_entry_local := Transform3D.IDENTITY
 var _transition_target_local := Transform3D.IDENTITY
 var _transition_elapsed := 0.0
 var _transition_duration := 0.0
+## A transition can reach its physical endpoint in the same turn its owning
+## scene is detached. Keep that completion until this retained Player is live
+## again so a waiting coordinator never resumes against a detached hierarchy.
+var _boarding_completion_pending := false
+var _disembarking_completion_pending := false
 ## Live cabin containment. While set, this body may not leave `_cabin_bounds`
 ## expressed in `_cabin_frame` local space, which is what makes leaving the
 ## pilot seat in open space a recoverable act rather than a soft-lock.
@@ -317,6 +322,12 @@ func _ready() -> void:
 	# it: `set_control_enabled()`, `set_camera_active()` - both of which
 	# `GameFlow.start_shift()` calls when the shift begins - and the HUD's own
 	# "BEGIN SHIFT" handler. Nothing on the boot path calls any of them.
+
+
+func _enter_tree() -> void:
+	# A deferred completion queued while this retained Player was detached must
+	# not be lost, but it is only current once the whole hierarchy is live again.
+	call_deferred("_flush_pending_transition_completions")
 
 
 func _physics_process(delta: float) -> void:
@@ -575,9 +586,9 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 	_set_embodied_collision_enabled(true)
 	reset_physics_interpolation()
 	if interrupted_state == EmbodimentState.BOARDING:
-		boarding_completed.emit.call_deferred()
+		_queue_boarding_completion()
 	elif interrupted_state == EmbodimentState.DISEMBARKING:
-		disembarking_completed.emit.call_deferred()
+		_queue_disembarking_completion()
 
 
 ## True only after the boarding movement has reached the live pilot anchor.
@@ -942,7 +953,7 @@ func _update_boarding(delta: float) -> void:
 		# selected a safe exit transform.
 		_embodiment_state = EmbodimentState.SEATED
 		_set_motion_state(MOTION_SEATED_CONTROL, 0.0, 1.0, true, true)
-		boarding_completed.emit.call_deferred()
+		_queue_boarding_completion()
 		return
 
 	_transition_elapsed = minf(_transition_elapsed + delta, _transition_duration)
@@ -989,7 +1000,7 @@ func _complete_boarding() -> void:
 	reset_physics_interpolation()
 	# Deferred completion keeps the zero-duration path await-safe and gives the
 	# final transform the same observable ordering as an animated transition.
-	boarding_completed.emit.call_deferred()
+	_queue_boarding_completion()
 
 
 func _follow_seat_anchor() -> void:
@@ -1032,7 +1043,28 @@ func _complete_disembark() -> void:
 	reset_physics_interpolation()
 	# CollisionShape3D's deferred enable is queued first, so observers resume
 	# locomotion only after the player is collision-ready at the exit point.
-	disembarking_completed.emit.call_deferred()
+	_queue_disembarking_completion()
+
+
+func _queue_boarding_completion() -> void:
+	_boarding_completion_pending = true
+	call_deferred("_flush_pending_transition_completions")
+
+
+func _queue_disembarking_completion() -> void:
+	_disembarking_completion_pending = true
+	call_deferred("_flush_pending_transition_completions")
+
+
+func _flush_pending_transition_completions() -> void:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return
+	if _boarding_completion_pending:
+		_boarding_completion_pending = false
+		boarding_completed.emit()
+	if _disembarking_completion_pending:
+		_disembarking_completion_pending = false
+		disembarking_completed.emit()
 
 
 func _set_embodied_collision_enabled(enabled: bool) -> void:
