@@ -44,6 +44,7 @@ func _run() -> void:
 	_test_pod_corner_collar_visual_resource_sharing(module)
 	_test_vip_facade_column_trim_batch(module)
 	_test_spine_clamp_visual_resource_sharing(module)
+	_test_roof_vent_collar_visual_resource_sharing(module)
 	_test_rack_cable_tray_clamp_visual_resource_sharing(module)
 	_test_console_shock_collar_visual_resource_sharing(module)
 	_test_pedestal_bearing_visual_resource_sharing(module)
@@ -296,14 +297,14 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"renderer_nodes": 848,
 			"drawn_copies": 851,
 			"surface_submissions": 848,
-			"mesh_resource_allocations": 294,
+			"mesh_resource_allocations": 293,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"pod, spine, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1156 descendants, 848 renderers/submissions, 851 copies, and 294 mesh allocations"
+		"pod, spine, roof-vent, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1156 descendants, 848 renderers/submissions, 851 copies, and 293 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -383,7 +384,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 294
+		int(detached.current.mesh_resource_allocations) == 293
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -425,7 +426,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 295
+		and int(identity_red.current.mesh_resource_allocations) == 294
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -605,6 +606,47 @@ func _test_spine_clamp_visual_resource_sharing(module: AftJunctionStack) -> void
 		and module.get_validation_errors() == baseline_errors,
 		"restoring SpineClamp identity, recipe, budget metadata, material, renderer and authority returns the exact validator state"
 	)
+
+
+func _test_roof_vent_collar_visual_resource_sharing(module: AftJunctionStack) -> void:
+	var report := module.get_roof_vent_collar_visual_allocation_audit()
+	_check(
+		bool(report.valid)
+		and report.legacy == {"visual_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 2, "material_resource_allocations": 1}
+		and report.current == {"visual_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 1, "material_resource_allocations": 1}
+		and report.reductions == {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 1, "material_resource_allocations": 0}
+		and not bool(report.batched) and not bool(report.renderer_values_changed),
+		"two roof-vent collars retain nodes, submissions and renderer values while immutable TorusMesh allocations fall 2 -> 1"
+	)
+	var collars: Array[MeshInstance3D] = []
+	for path_value in report.node_paths as PackedStringArray:
+		var collar := module.get_node_or_null(NodePath(path_value)) as MeshInstance3D
+		if collar != null:
+			collars.append(collar)
+	var shared_mesh := collars[0].mesh as TorusMesh if collars.size() == 2 else null
+	_check(
+		collars.size() == 2 and shared_mesh != null
+		and collars[0].mesh == shared_mesh and collars[1].mesh == shared_mesh
+		and collars[0].position.is_equal_approx(AftJunctionStack.ROOF_VENT_COLLAR_POSITIONS[0])
+		and collars[1].position.is_equal_approx(AftJunctionStack.ROOF_VENT_COLLAR_POSITIONS[1])
+		and is_equal_approx(shared_mesh.inner_radius, AftJunctionStack.ROOF_VENT_COLLAR_INNER_RADIUS)
+		and is_equal_approx(shared_mesh.outer_radius, AftJunctionStack.ROOF_VENT_COLLAR_OUTER_RADIUS)
+		and shared_mesh.rings == AftJunctionStack.ROOF_VENT_COLLAR_RINGS
+		and shared_mesh.ring_segments == AftJunctionStack.ROOF_VENT_COLLAR_RING_SEGMENTS
+		and shared_mesh.get_surface_count() == 1 and shared_mesh.material == null,
+		"roof-vent collar paths, transforms, mid-grey overrides and exact torus recipe remain intact"
+	)
+	if collars.size() == 2:
+		var original_mesh := collars[1].mesh
+		collars[1].mesh = shared_mesh.duplicate() as TorusMesh
+		var red := module.get_roof_vent_collar_visual_allocation_audit()
+		_check(
+			not bool(red.valid) and (red.errors as PackedStringArray).has("roof_vent_collar_mesh_identity_not_shared")
+			and int((red.current as Dictionary).mesh_resource_allocations) == 2,
+			"RED: a private exact-looking roof-vent collar mesh fails the sharing audit"
+		)
+		collars[1].mesh = original_mesh
+		_check(bool(module.get_roof_vent_collar_visual_allocation_audit().valid), "restoring the roof-vent shared mesh returns its audit green")
 
 
 func _test_rack_cable_tray_clamp_visual_resource_sharing(
@@ -1712,6 +1754,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 	var console_collar_report := module.get_console_shock_collar_visual_allocation_audit()
 	var pedestal_bearing_report := module.get_pedestal_bearing_visual_allocation_audit()
 	var conduit_collar_report := module.get_conduit_collar_visual_allocation_audit()
+	var roof_vent_collar_report := module.get_roof_vent_collar_visual_allocation_audit()
 	_check(
 		bool(pod_report.valid)
 		and bool(spine_report.valid)
@@ -1734,6 +1777,11 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and bool(conduit_collar_report.normalised)
 		and conduit_collar_report.authored_tessellation == Vector2i(48, 16)
 		and conduit_collar_report.live_tessellation == Vector2i(32, 8)
+		and bool(roof_vent_collar_report.valid)
+		and bool(roof_vent_collar_report.normalised)
+		and bool(roof_vent_collar_report.metadata_exact)
+		and roof_vent_collar_report.authored_tessellation == Vector2i(48, 16)
+		and roof_vent_collar_report.live_tessellation == Vector2i(40, 16)
 		and bool(pod_recipe.get("normalised", false))
 		and int(pod_recipe.get("authored_rings", 0)) \
 			== AftJunctionStack.POD_CORNER_COLLAR_RINGS

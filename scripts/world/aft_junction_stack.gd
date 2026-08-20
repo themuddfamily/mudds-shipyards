@@ -142,6 +142,18 @@ const CONDUIT_COLLAR_POSITIONS := [
 	Vector3(-0.55, 2.95, 0.0),
 	Vector3(-0.55, 2.95, 2.05),
 ]
+## Two childless roof-vent collars retain their authored visual nodes and one
+## surface each; only their identical immutable TorusMesh allocation is shared.
+const ROOF_VENT_COLLAR_INNER_RADIUS := 0.34
+const ROOF_VENT_COLLAR_OUTER_RADIUS := 0.46
+const ROOF_VENT_COLLAR_RINGS := 48
+const ROOF_VENT_COLLAR_RING_SEGMENTS := 16
+const ROOF_VENT_COLLAR_BUDGETED_RINGS := 40
+const ROOF_VENT_COLLAR_BUDGETED_RING_SEGMENTS := 16
+const ROOF_VENT_COLLAR_COPY_COUNT := 2
+const ROOF_VENT_COLLAR_POSITIONS := [Vector3(3.05, 5.31, 13.0), Vector3(8.1, 5.31, 13.0)]
+const ROOF_VENT_COLLAR_FAMILY_META: StringName = &"aft_roof_vent_collar_family"
+const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
 const RENDER_DESCENDANT_NODE_COUNT := 1156
 const BASELINE_RENDERER_NODE_COUNT := 851
@@ -151,7 +163,7 @@ const DRAWN_COPY_COUNT := 851
 const BASELINE_SURFACE_SUBMISSION_COUNT := 851
 const SURFACE_SUBMISSION_COUNT := 848
 const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 294
+const MESH_RESOURCE_COUNT := 293
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -225,6 +237,7 @@ var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
 var _pedestal_bearing_mesh: TorusMesh
 var _conduit_collar_mesh: TorusMesh
+var _roof_vent_collar_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
@@ -465,6 +478,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("shared chair-pedestal-bearing visual allocation contract drifted")
 	if not bool(performance.conduit_collar_visual_sharing.valid):
 		errors.append("shared service-wall-conduit-collar visual allocation contract drifted")
+	if not bool(performance.roof_vent_collar_visual_sharing.valid):
+		errors.append("shared roof-vent collar visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -647,6 +662,7 @@ func get_performance_contract() -> Dictionary:
 	var console_collar_sharing := get_console_shock_collar_visual_allocation_audit()
 	var pedestal_bearing_sharing := get_pedestal_bearing_visual_allocation_audit()
 	var conduit_collar_sharing := get_conduit_collar_visual_allocation_audit()
+	var roof_vent_collar_sharing := get_roof_vent_collar_visual_allocation_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["spine_clamp_visual_sharing"] = spine_sharing
@@ -654,6 +670,7 @@ func get_performance_contract() -> Dictionary:
 	contract["console_shock_collar_visual_sharing"] = console_collar_sharing
 	contract["pedestal_bearing_visual_sharing"] = pedestal_bearing_sharing
 	contract["conduit_collar_visual_sharing"] = conduit_collar_sharing
+	contract["roof_vent_collar_visual_sharing"] = roof_vent_collar_sharing
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
@@ -663,6 +680,7 @@ func get_performance_contract() -> Dictionary:
 		and bool(console_collar_sharing.valid)
 		and bool(pedestal_bearing_sharing.valid)
 		and bool(conduit_collar_sharing.valid)
+		and bool(roof_vent_collar_sharing.valid)
 	)
 	return contract
 
@@ -876,6 +894,84 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"vram_claimed": false,
 		"whole_scene_budget_claimed": false,
 		"pixel_equivalence_claimed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the two ordinary RoofVentCollar renderers.
+## Sharing changes resource identity only: the named nodes, transforms, graphite
+## family material, visibility, and zero collision/semantic authority remain.
+func get_roof_vent_collar_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var collars: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var paths := PackedStringArray()
+	var submissions := 0
+	var collision_nodes := 0
+	var expected_parent := get_node_or_null(^"Structure/OperationsRoom/VisualPressureEnvelope") as Node3D
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var collar := raw_node as MeshInstance3D
+		if StringName(collar.get_meta(ROOF_VENT_COLLAR_FAMILY_META, &"")) != ROOF_VENT_COLLAR_FAMILY_ID:
+			continue
+		collars.append(collar)
+		paths.append(String(get_path_to(collar)))
+		if collar.mesh != null:
+			mesh_ids[collar.mesh.get_instance_id()] = true
+			submissions += collar.mesh.get_surface_count()
+		if collar.material_override != null:
+			material_ids[collar.material_override.get_instance_id()] = true
+		var index := collars.size() - 1
+		if collar.mesh != _roof_vent_collar_mesh:
+			errors.append("roof_vent_collar_mesh_identity_not_shared")
+		if collar.material_override != _materials.get("mid_grey") \
+				or index >= ROOF_VENT_COLLAR_POSITIONS.size() \
+				or not collar.position.is_equal_approx(ROOF_VENT_COLLAR_POSITIONS[index] as Vector3) \
+				or not collar.rotation_degrees.is_equal_approx(Vector3.ZERO) \
+				or collar.scale != Vector3.ONE \
+				or not collar.visible \
+				or collar.get_parent() != expected_parent \
+				or collar.get_child_count() != 0 \
+				or collar.get_script() != null:
+			errors.append("roof_vent_collar_render_state_drift")
+		collision_nodes += collar.find_children("*", "CollisionObject3D", true, false).size()
+		collision_nodes += collar.find_children("*", "CollisionShape3D", true, false).size()
+	if collars.size() != ROOF_VENT_COLLAR_COPY_COUNT:
+		errors.append("roof_vent_collar_visual_node_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("roof_vent_collar_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("roof_vent_collar_material_identity_drift")
+	if collision_nodes != 0:
+		errors.append("roof_vent_collar_gained_collision_authority")
+	var normalised := _roof_vent_collar_mesh != null and _roof_vent_collar_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	var live_tessellation := Vector2i(ROOF_VENT_COLLAR_BUDGETED_RINGS, ROOF_VENT_COLLAR_BUDGETED_RING_SEGMENTS) if normalised else Vector2i(ROOF_VENT_COLLAR_RINGS, ROOF_VENT_COLLAR_RING_SEGMENTS)
+	var metadata_exact: bool = _roof_vent_collar_mesh != null and (
+		(_roof_vent_collar_mesh.get_meta_list().is_empty() if not normalised else (
+			_roof_vent_collar_mesh.get_meta_list().size() == 1
+			and _roof_vent_collar_mesh.get_meta_list().has(TorusGeometryBudget.AUTHORED_META)
+			and _roof_vent_collar_mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) == Vector2i(ROOF_VENT_COLLAR_RINGS, ROOF_VENT_COLLAR_RING_SEGMENTS)
+		))
+	)
+	if _roof_vent_collar_mesh == null \
+			or not is_equal_approx(_roof_vent_collar_mesh.inner_radius, ROOF_VENT_COLLAR_INNER_RADIUS) \
+			or not is_equal_approx(_roof_vent_collar_mesh.outer_radius, ROOF_VENT_COLLAR_OUTER_RADIUS) \
+			or _roof_vent_collar_mesh.rings != live_tessellation.x \
+			or _roof_vent_collar_mesh.ring_segments != live_tessellation.y \
+			or _roof_vent_collar_mesh.get_surface_count() != 1 \
+			or _roof_vent_collar_mesh.material != null \
+			or _roof_vent_collar_mesh.resource_local_to_scene \
+			or not metadata_exact:
+		errors.append("roof_vent_collar_torus_recipe_drift")
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(), "errors": errors,
+		"scope": &"aft_junction_stack_roof_vent_collar_visuals",
+		"legacy": {"visual_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 2, "material_resource_allocations": 1},
+		"current": {"visual_nodes": collars.size(), "drawn_copies": collars.size(), "surface_submissions": submissions, "mesh_resource_allocations": mesh_ids.size(), "material_resource_allocations": material_ids.size()},
+		"reductions": {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 1, "material_resource_allocations": 0},
+		"node_paths": paths, "collision_authority_count": collision_nodes,
+		"authored_tessellation": Vector2i(ROOF_VENT_COLLAR_RINGS, ROOF_VENT_COLLAR_RING_SEGMENTS), "live_tessellation": live_tessellation, "normalised": normalised, "metadata_exact": metadata_exact,
+		"batched": false, "renderer_values_changed": false,
 	}.duplicate(true)
 
 
@@ -2732,10 +2828,17 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 
 	# Low-profile environmental hardware gives the roof a credible service layer
 	# without implying a source-authenticated room function.
+	_roof_vent_collar_mesh = _torus_mesh(
+		ROOF_VENT_COLLAR_INNER_RADIUS,
+		ROOF_VENT_COLLAR_OUTER_RADIUS,
+		ROOF_VENT_COLLAR_RINGS,
+		ROOF_VENT_COLLAR_RING_SEGMENTS
+	)
 	for vent_index in 2:
 		var vent_x := 3.05 + float(vent_index) * 5.05
 		_cylinder(envelope, "RoofVent", Vector3(vent_x, 5.18, 13.0), 0.42, 0.28, _materials["hull_dark"], false)
-		_torus(envelope, "RoofVentCollar", Vector3(vent_x, 5.31, 13.0), 0.34, 0.46, _materials["mid_grey"])
+		var collar := _torus(envelope, "RoofVentCollar", Vector3(vent_x, 5.31, 13.0), ROOF_VENT_COLLAR_INNER_RADIUS, ROOF_VENT_COLLAR_OUTER_RADIUS, _materials["mid_grey"], Vector3.ZERO, _roof_vent_collar_mesh)
+		collar.set_meta(ROOF_VENT_COLLAR_FAMILY_META, ROOF_VENT_COLLAR_FAMILY_ID)
 		for louvre_index in 3:
 			_box(
 				envelope,
