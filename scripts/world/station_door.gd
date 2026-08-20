@@ -128,6 +128,8 @@ func _physics_process(delta: float) -> void:
 
 ## Returns a state-aware prompt without depending on a HUD implementation.
 func get_interaction_prompt() -> String:
+	if not is_inside_tree():
+		return ""
 	var label := _get_effective_label()
 	if deferred_access:
 		return "[ DEFERRED ]  %s  //  %s" % [label, deferred_prompt]
@@ -140,12 +142,14 @@ func get_interaction_prompt() -> String:
 ## Actor is deliberately optional: access policy can be extended later without
 ## coupling this component to a specific player class.
 func can_interact(_actor: Node = null) -> bool:
-	return not locked and not deferred_access
+	return is_inside_tree() and not locked and not deferred_access
 
 
 ## Toggles the requested destination. Interacting during motion reverses from
 ## the exact current progress rather than restarting from an endpoint.
 func interact(actor: Node = null) -> bool:
+	if not is_inside_tree():
+		return false
 	if deferred_access:
 		interaction_refused.emit(actor, &"deferred")
 		return false

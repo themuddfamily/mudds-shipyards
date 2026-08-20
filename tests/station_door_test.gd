@@ -67,6 +67,27 @@ func _run() -> void:
 	door.interaction_refused.connect(func(_actor: Node, reason: StringName) -> void:
 		refusal_reasons.append(reason)
 	)
+	_test_root.remove_child(door)
+	await process_frame
+	_check(not door.is_inside_tree(), "door detaches before direct interaction admission is sampled")
+	_check(
+		door.get_interaction_prompt().is_empty()
+		and not door.can_interact(actor)
+		and not door.interact(actor)
+		and door.get_state() == StationDoor.DoorState.CLOSED
+		and state_events.is_empty()
+		and accepted_requests.is_empty(),
+		"detached door rejects direct interaction without mutating state or publishing acceptance"
+	)
+	_test_root.add_child(door)
+	await process_frame
+	await physics_frame
+	_check(
+		door.is_inside_tree()
+		and door.can_interact(actor)
+		and "OPEN OPERATIONS ACCESS" in door.get_interaction_prompt(),
+		"re-added door restores its live direct-interaction contract"
+	)
 
 	_check(door.interact(actor), "real interaction starts opening")
 	_check(door.get_state() == StationDoor.DoorState.OPENING, "interaction enters OPENING immediately")
