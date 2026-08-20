@@ -79,7 +79,14 @@ func audit() -> Dictionary:
 		errors.append("authored_scene_contract_invalid")
 	if is_processing() or is_physics_processing():
 		errors.append("process_authority_added")
-	if _configured and (target.environment != rig.get_scene_environment() or _generation != rig.get_generation()):
+	if _configured and (
+		target == null
+		or rig == null
+		or target.environment != (
+			rig.get_scene_environment() if is_inside_tree() else _baseline_environment
+		)
+		or _generation != rig.get_generation()
+	):
 		errors.append("installed_environment_drift")
 	return {
 		"component_id": COMPONENT_ID,

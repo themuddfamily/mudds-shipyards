@@ -79,8 +79,10 @@ func _run() -> void:
 	root.remove_child(composition)
 	await process_frame
 	_check(
-		composition.get_world_environment().environment == null,
-		"whole composition detach restores its WorldEnvironment baseline"
+		not composition.is_inside_tree()
+		and composition.get_world_environment().environment == null
+		and bool(composition.audit().valid),
+		"whole composition detach restores its WorldEnvironment baseline without audit drift"
 	)
 	root.add_child(composition)
 	await process_frame
