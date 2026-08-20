@@ -2143,6 +2143,8 @@ func apply_damage(
 		presentation_receipt_id: int = -1,
 		defer_presentation: bool = false
 	) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	if _reset_for_reuse_mutation_blocked():
 		return
 	if amount <= 0.0 or _hull <= 0.0 or _destroyed:

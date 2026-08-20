@@ -48,6 +48,7 @@ func _run() -> void:
 	_test_dependency_currentness(torrent)
 	_test_damage_callback_reset_rejected(torrent)
 	await _test_detached_preflight_rejected(torrent)
+	await _test_damage_currentness(torrent)
 	await _test_detach_currentness(torrent)
 	await _test_guarded_commit_chronology(torrent)
 	await _test_variant_hook_guard(jovian)
@@ -223,6 +224,69 @@ func _test_detached_preflight_rejected(ship: HeroShip) -> void:
 		"re-entered ship accepts the untouched next reset receipt"
 	)
 	ship.cancel_reset_for_reuse(next)
+
+
+func _test_damage_currentness(ship: HeroShip) -> void:
+	var detached_events := PackedStringArray()
+	ship.hull_changed.connect(func(_current: float, _maximum: float) -> void:
+		detached_events.append("hull")
+	)
+	ship.component_damage_changed.connect(func(_id: StringName, _state: int, _integrity: float) -> void:
+		detached_events.append("component")
+	)
+	ship.critical_damage.connect(func() -> void:
+		detached_events.append("critical")
+	)
+	ship.destroyed.connect(func(_position: Vector3, _velocity: Vector3) -> void:
+		detached_events.append("destroyed")
+	)
+
+	_test_root.remove_child(ship)
+	await process_frame
+	var detached_before := _damage_currentness_snapshot(ship)
+	ship.apply_damage(10.0, Vector3.ZERO, Vector3.UP)
+	_check(
+		_damage_currentness_snapshot(ship) == detached_before and detached_events.is_empty(),
+		"detached direct damage rejects before hull, component, presentation, collision, or signal mutation"
+	)
+
+	_test_root.add_child(ship)
+	await process_frame
+	var live_hull_before := float(ship.get_telemetry().get("hull", -1.0))
+	ship.apply_damage(10.0, Vector3.ZERO, Vector3.UP)
+	_check(
+		is_equal_approx(float(ship.get_telemetry().get("hull", -2.0)), live_hull_before - 10.0)
+		and not detached_events.is_empty(),
+		"re-entered ship accepts fresh direct damage"
+	)
+
+	var queued := TORRENT_SCENE.instantiate() as HeroShip
+	_test_root.add_child(queued)
+	await process_frame
+	var queued_events := PackedStringArray()
+	queued.hull_changed.connect(func(_current: float, _maximum: float) -> void:
+		queued_events.append("hull")
+	)
+	queued.component_damage_changed.connect(func(_id: StringName, _state: int, _integrity: float) -> void:
+		queued_events.append("component")
+	)
+	queued.critical_damage.connect(func() -> void:
+		queued_events.append("critical")
+	)
+	queued.destroyed.connect(func(_position: Vector3, _velocity: Vector3) -> void:
+		queued_events.append("destroyed")
+	)
+	queued.queue_free()
+	var queued_before := _damage_currentness_snapshot(queued)
+	queued.apply_damage(10.0, Vector3.ZERO, Vector3.UP)
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and _damage_currentness_snapshot(queued) == queued_before
+		and queued_events.is_empty(),
+		"queued direct damage rejects before hull, component, presentation, collision, or signal mutation"
+	)
+	await process_frame
 
 
 func _test_detach_currentness(ship: HeroShip) -> void:
@@ -469,6 +533,20 @@ func _ship_snapshot(ship: HeroShip) -> Dictionary:
 		"collision_mask": ship.collision_mask,
 		"canopy_open": ship.is_canopy_open(),
 		"cruise": ship.get_planetary_cruise_attachment_report().duplicate(true),
+	}.duplicate(true)
+
+
+func _damage_currentness_snapshot(ship: HeroShip) -> Dictionary:
+	var presentation := ship.get_damage_presentation()
+	return {
+		"telemetry": ship.get_telemetry().duplicate(true),
+		"component": ship.get_component_damage_report().duplicate(true),
+		"collision_layer": ship.collision_layer,
+		"collision_mask": ship.collision_mask,
+		"destroyed": ship.is_destroyed(),
+		"pending_presentation_count": ship.get_pending_damage_presentation_count(),
+		"presentation_stage": presentation.get_damage_stage() if presentation != null else -1,
+		"presentation_status": presentation.get_status() if presentation != null else &"missing",
 	}.duplicate(true)
 
 
