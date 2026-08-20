@@ -586,6 +586,22 @@ func _test_authority_identity_lifecycle() -> void:
 		"RED C2: a withdrawn picket cannot resolve a shot at all"
 	)
 
+	# A retained active craft normally restores its live source after a whole-tree
+	# re-entry. Disposal requested in that deferred window must not reclaim an
+	# authority registration for a node which is about to leave the world.
+	picket.activate(Transform3D(Basis.IDENTITY, Vector3.ZERO))
+	parent.remove_child(picket)
+	parent.add_child(picket)
+	picket.queue_free()
+	picket.call("_restore_after_reentry")
+	_check(
+		picket.is_queued_for_deletion()
+		and not picket.is_combat_source_registered()
+		and resolver.get_registered_source_count() == 0
+		and authority.get_source_id(picket) == 0,
+		"a queued resolver-backed re-entry cannot restore a live combat source"
+	)
+
 	await _free_fixture(fixture)
 
 
