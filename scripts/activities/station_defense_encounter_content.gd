@@ -115,7 +115,8 @@ func _ready() -> void:
 
 func _initialize_pending_configuration_after_reentry() -> void:
 	if (
-		not is_inside_tree()
+		is_queued_for_deletion()
+		or not is_inside_tree()
 		or _initialized
 		or _configuration_state != &"configured_pending_tree"
 		or not is_instance_valid(_combat_authority)
@@ -893,7 +894,7 @@ func _on_protected_asset_destroyed(
 
 
 func _restore_after_reentry() -> void:
-	if not _initialized or not is_inside_tree():
+	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
 		return
 	var errors := PackedStringArray()
 	_wire_protected_asset()

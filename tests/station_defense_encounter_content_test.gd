@@ -32,6 +32,7 @@ func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_checked_in_encounter_content()
 	await _test_detached_configuration_initializes_once_on_reentry()
+	await _test_queued_deferred_reentry_callbacks_are_inert()
 	await _test_source_conflict_rolls_back_atomically()
 	_check(
 		root.get_child_count() == original_root_child_count,
@@ -97,6 +98,78 @@ func _test_detached_configuration_initializes_once_on_reentry() -> void:
 		and not is_instance_valid(replacement_authority),
 		"detached-configuration fixture releases retained content and both external authority candidates"
 	)
+
+
+func _test_queued_deferred_reentry_callbacks_are_inert() -> void:
+	var pending_authority := LiveCombatAuthority.new()
+	pending_authority.name = "QueuedPendingAuthority"
+	root.add_child(pending_authority)
+	var pending_content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	pending_content.name = "QueuedPendingContent"
+	root.add_child(pending_content)
+	await process_frame
+	root.remove_child(pending_content)
+	await process_frame
+	var configured := pending_content.configure_external_combat_authority(pending_authority)
+	root.add_child(pending_content)
+	pending_content.queue_free()
+	pending_content.call("_initialize_pending_configuration_after_reentry")
+	var pending_snapshot := pending_content.get_snapshot()
+	_check(
+		configured.accepted
+		and pending_content.is_queued_for_deletion()
+		and not pending_content.is_content_ready()
+		and pending_snapshot.get("configuration_state", &"") == &"configured_pending_tree"
+		and int(pending_snapshot.get("registered_hostile_source_count", -1)) == 0
+		and pending_authority.get_resolver().get_registered_source_count() == 0,
+		"queued deferred configuration cannot initialize or acquire hostile sources"
+	)
+	await process_frame
+	await process_frame
+	_check(
+		not is_instance_valid(pending_content)
+		and pending_authority.get_resolver().get_registered_source_count() == 0,
+		"queued pending content frees without leaving external combat registrations"
+	)
+	root.remove_child(pending_authority)
+	pending_authority.queue_free()
+	await process_frame
+
+	var restore_authority := LiveCombatAuthority.new()
+	restore_authority.name = "QueuedRestoreAuthority"
+	root.add_child(restore_authority)
+	var restore_content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	restore_content.name = "QueuedRestoreContent"
+	root.add_child(restore_content)
+	await process_frame
+	var restored_configuration := restore_content.configure_external_combat_authority(
+		restore_authority
+	)
+	await process_frame
+	root.remove_child(restore_content)
+	await process_frame
+	root.add_child(restore_content)
+	restore_content.queue_free()
+	restore_content.call("_restore_after_reentry")
+	var restore_snapshot := restore_content.get_snapshot()
+	_check(
+		restored_configuration.accepted
+		and restore_content.is_queued_for_deletion()
+		and restore_content.is_content_ready()
+		and int(restore_snapshot.get("registered_hostile_source_count", -1)) == 0
+		and restore_authority.get_resolver().get_registered_source_count() == 0,
+		"queued deferred restore cannot reconnect hostiles or reacquire their external source registrations"
+	)
+	await process_frame
+	await process_frame
+	_check(
+		not is_instance_valid(restore_content)
+		and restore_authority.get_resolver().get_registered_source_count() == 0,
+		"queued restored content frees without a late hostile-source reacquisition"
+	)
+	root.remove_child(restore_authority)
+	restore_authority.queue_free()
+	await process_frame
 
 
 func _test_checked_in_encounter_content() -> void:
