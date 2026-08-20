@@ -650,10 +650,22 @@ func _test_agent_detach_readd_identity() -> void:
 	root.remove_child(agent)
 	await process_frame
 	_check(not agent.is_processing(), "a detached courier stops burning frames")
+	var detached_state := agent.get_agent_state()
+	_check(
+		not agent.advance_agent_simulation(1.0)
+		and _agent_states_match(detached_state, agent.get_agent_state()),
+		"a detached courier rejects stale direct advancement without changing its retained pose"
+	)
 	root.add_child(agent)
 	await process_frame
 	_check(agent.get_instance_id() == instance_id and _descendant_instance_ids(agent) == descendants, "re-entry preserves every courier node identity and creates no duplicate")
 	_check(agent.is_processing() and bool(agent.get_agent_state().visible), "re-entry restores the courier process and presentation lifecycle")
+	var reentered_time := agent.get_agent_time()
+	_check(
+		agent.advance_agent_simulation(0.25)
+		and is_equal_approx(agent.get_agent_time(), reentered_time + 0.25),
+		"a re-added courier accepts a fresh direct advancement"
+	)
 
 	# Paused re-entry must not advance the clock or resume processing on its own,
 	# so the exact deterministic pose has to survive the round trip untouched.

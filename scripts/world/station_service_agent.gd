@@ -409,7 +409,7 @@ func is_agent_advancing() -> bool:
 ## Advances the courier only while enabled and unpaused. The pose is a function of
 ## total elapsed time, so frame subdivision does not change state.
 func advance_agent_simulation(delta: float) -> bool:
-	if not is_agent_advancing() or not is_finite(delta) or delta <= 0.0:
+	if not is_inside_tree() or not is_agent_advancing() or not is_finite(delta) or delta <= 0.0:
 		return false
 	_elapsed += delta
 	_update_agent_transforms()
