@@ -24,6 +24,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_unbound_bind_currentness()
 	var stage := Node3D.new()
 	stage.name = "CargoTerminalTestStage"
 	root.add_child(stage)
@@ -66,6 +67,103 @@ func _run() -> void:
 	await _test_queued_terminal_admission_and_restore_currentness()
 	await _cleanup(stage, authority)
 	_finish()
+
+
+func _test_unbound_bind_currentness() -> void:
+	var detached_fixture := await _make_unbound_bind_fixture("DetachedBind")
+	_check(not detached_fixture.is_empty(), "detached bind fixture registers one unbound live terminal")
+	if not detached_fixture.is_empty():
+		var detached_stage := detached_fixture.stage as Node3D
+		var detached_authority := detached_fixture.authority as CargoTransferAuthority
+		var detached_terminal := detached_fixture.terminal as CargoTransferTerminal
+		var detached_handle := detached_fixture.handle as Dictionary
+		var detached_events: Array[bool] = []
+		detached_terminal.binding_changed.connect(func(_snapshot: Dictionary) -> void:
+			detached_events.append(true)
+		)
+		detached_stage.remove_child(detached_terminal)
+		var detached_terminal_before := detached_terminal.get_state_snapshot()
+		var detached_authority_before := detached_authority.to_dictionary()
+		var detached_bind := detached_terminal.bind_authority(
+			detached_authority, detached_handle, 0
+		)
+		_check(
+			not bool(detached_bind.accepted)
+				and detached_bind.reason == &"terminal_unavailable"
+				and detached_terminal.get_state_snapshot() == detached_terminal_before
+				and detached_authority.to_dictionary() == detached_authority_before
+				and detached_events.is_empty(),
+			"a detached unbound terminal rejects stale authority binding atomically"
+		)
+		detached_stage.add_child(detached_terminal)
+		await process_frame
+		var reattached := detached_authority.reattach_entity(detached_terminal, detached_handle)
+		var live_bind := detached_terminal.bind_authority(
+			detached_authority, reattached.get("handle", {}) as Dictionary, 0
+		)
+		_check(
+			bool(reattached.accepted)
+				and bool(live_bind.accepted)
+				and bool(detached_terminal.get_state_snapshot().ready),
+			"a reattached terminal accepts one fresh current authority binding"
+		)
+		await _cleanup(detached_stage, detached_authority)
+
+	var queued_fixture := await _make_unbound_bind_fixture("QueuedBind")
+	_check(not queued_fixture.is_empty(), "queued bind fixture registers one unbound live terminal")
+	if not queued_fixture.is_empty():
+		var queued_stage := queued_fixture.stage as Node3D
+		var queued_authority := queued_fixture.authority as CargoTransferAuthority
+		var queued_terminal := queued_fixture.terminal as CargoTransferTerminal
+		var queued_handle := queued_fixture.handle as Dictionary
+		var queued_events: Array[bool] = []
+		queued_terminal.binding_changed.connect(func(_snapshot: Dictionary) -> void:
+			queued_events.append(true)
+		)
+		var queued_terminal_before := queued_terminal.get_state_snapshot()
+		var queued_authority_before := queued_authority.to_dictionary()
+		queued_terminal.queue_free()
+		var queued_bind := queued_terminal.bind_authority(
+			queued_authority, queued_handle, 0
+		)
+		_check(
+			not bool(queued_bind.accepted)
+				and queued_bind.reason == &"terminal_unavailable"
+				and queued_terminal.get_state_snapshot() == queued_terminal_before
+				and queued_authority.to_dictionary() == queued_authority_before
+				and queued_events.is_empty(),
+			"a queued unbound terminal rejects stale authority binding atomically"
+		)
+		await process_frame
+		await _cleanup(queued_stage, queued_authority)
+
+
+func _make_unbound_bind_fixture(label: String) -> Dictionary:
+	var stage := Node3D.new()
+	stage.name = "%sCargoTerminalStage" % label
+	root.add_child(stage)
+	var terminal := SOURCE_SCENE.instantiate() as CargoTransferTerminal
+	if terminal == null:
+		stage.queue_free()
+		await process_frame
+		return {}
+	stage.add_child(terminal)
+	var authority := AuthorityScript.new() as CargoTransferAuthority
+	authority.name = "%sCargoAuthority" % label
+	root.add_child(authority)
+	await process_frame
+	var registration := authority.register_entity(
+		terminal, terminal.terminal_id, terminal.manifest_id, 2
+	)
+	if not bool(registration.accepted):
+		await _cleanup(stage, authority)
+		return {}
+	return {
+		"stage": stage,
+		"authority": authority,
+		"terminal": terminal,
+		"handle": (registration.handle as Dictionary).duplicate(true),
+	}.duplicate(true)
 
 
 func _test_fixture_identity_slots_and_physics(

@@ -173,6 +173,8 @@ func bind_authority(
 		handle: Dictionary,
 		expected_terminal_generation: int
 	) -> Dictionary:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"terminal_unavailable")
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	_mutation_active = true
