@@ -181,7 +181,7 @@ func attach_lifecycle_damageable(
 	lifecycle_kind: int,
 	target_faction: StringName
 	) -> LifecycleAdapterType:
-	if not is_instance_valid(target_entity):
+	if not is_instance_valid(target_entity) or target_entity.is_queued_for_deletion():
 		return null
 	var existing: LifecycleAdapterType = target_entity.get_node_or_null("AuthoritativeDamageable") as LifecycleAdapterType
 	if existing != null:

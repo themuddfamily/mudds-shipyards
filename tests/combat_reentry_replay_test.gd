@@ -1,6 +1,7 @@
 extends SceneTree
 
 const LiveCombatAuthorityScript := preload("res://scripts/combat/live_combat_authority.gd")
+const LifecycleAdapterScript := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 
 const SOURCE_ID := 7401
 const WEAPON_ID: StringName = &"reentry_probe"
@@ -112,14 +113,60 @@ func _run() -> void:
 		"fresh epoch restarts at sequence zero only after explicit forget"
 	)
 
+	var queued_fresh_target := Node3D.new()
+	queued_fresh_target.name = "QueuedFreshDamageableTarget"
+	streamed_main.add_child(queued_fresh_target)
+	var queued_fresh_child_count := queued_fresh_target.get_child_count()
+	queued_fresh_target.queue_free()
+	var queued_fresh_result := authority.attach_lifecycle_damageable(
+		queued_fresh_target,
+		LifecycleAdapterScript.LifecycleKind.RANGE_OPPONENT,
+		&"queued_fresh"
+	)
+	_check(
+		queued_fresh_target.is_inside_tree()
+		and queued_fresh_target.is_queued_for_deletion()
+		and queued_fresh_result == null
+		and queued_fresh_target.get_child_count() == queued_fresh_child_count
+		and queued_fresh_target.get_node_or_null("AuthoritativeDamageable") == null,
+		"queued target rejects a new lifecycle adapter without hierarchy mutation"
+	)
+
+	var queued_existing_target := Node3D.new()
+	queued_existing_target.name = "QueuedExistingDamageableTarget"
+	streamed_main.add_child(queued_existing_target)
+	var existing_adapter := authority.attach_lifecycle_damageable(
+		queued_existing_target,
+		LifecycleAdapterScript.LifecycleKind.HERO_SHIP,
+		&"before_queue"
+	)
+	var queued_existing_child_count := queued_existing_target.get_child_count()
+	queued_existing_target.queue_free()
+	var queued_existing_result := authority.attach_lifecycle_damageable(
+		queued_existing_target,
+		LifecycleAdapterScript.LifecycleKind.RANGE_OPPONENT,
+		&"after_queue"
+	)
+	_check(
+		existing_adapter != null
+		and queued_existing_target.is_queued_for_deletion()
+		and queued_existing_result == null
+		and queued_existing_target.get_child_count() == queued_existing_child_count
+		and existing_adapter.lifecycle_kind == LifecycleAdapterScript.LifecycleKind.HERO_SHIP
+		and existing_adapter.faction_id == &"before_queue",
+		"queued target rejects lifecycle adapter updates without mutating the existing adapter"
+	)
+
 	source.queue_free()
 	await process_frame
 	await process_frame
 	_check(
 		authority.get_resolver().get_registered_source_count() == 0
 		and authority.get_resolver().get_tracked_source_count() == 0
+		and not is_instance_valid(queued_fresh_target)
+		and not is_instance_valid(queued_existing_target)
 		and (authority.get("_next_sequence_by_instance") as Dictionary).is_empty(),
-		"genuinely freed source leaves no registration or stale replay history"
+		"freed nodes leave no registration, queued damageable, or stale replay history"
 	)
 
 	streamed_main.queue_free()
