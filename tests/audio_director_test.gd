@@ -262,6 +262,7 @@ func _test_detach_reentry_cycles(director: AudioDirector) -> void:
 		var ambience := director.get_node_or_null("Ambience") as AudioStreamPlayer
 		if ambience != null:
 			ambience.volume_db = -42.0
+			ambience.pitch_scale = 0.5
 		var detached := director.get_synthesis_report()
 		var detached_performance := director.get_performance_report()
 		_check(
@@ -329,11 +330,12 @@ func _test_detach_reentry_cycles(director: AudioDirector) -> void:
 		_check(
 			restored_ambience != null
 			and is_equal_approx(restored_ambience.volume_db, expected_ambience_volume)
+			and is_equal_approx(restored_ambience.pitch_scale, 1.0)
 			and is_equal_approx(
 				float(director.get("_desired_ambience_volume_db")),
 				expected_ambience_volume
 			),
-			"re-entry cycle %d restores the selected on-foot or piloting ambience mix" % (cycle + 1)
+			"re-entry cycle %d restores the selected ambience mix and fixed playback pitch" % (cycle + 1)
 		)
 
 

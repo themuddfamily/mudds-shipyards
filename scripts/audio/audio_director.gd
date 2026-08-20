@@ -345,9 +345,10 @@ func get_audit_report() -> Dictionary:
 	if (
 		not is_instance_valid(_ambience)
 		or _ambience.bus != &"Ambience"
+		or (lifecycle_active and not is_equal_approx(_ambience.pitch_scale, 1.0))
 		or int(_player_instance_ids.get(&"Ambience", 0)) != _ambience.get_instance_id()
 	):
-		errors.append("ambience voice must retain the Ambience bus")
+		errors.append("ambience voice must retain its fixed routing and pitch")
 	for index in _effects.size():
 		var effect := _effects[index]
 		if (
@@ -452,6 +453,7 @@ func _restore_fixed_hierarchy_configuration() -> void:
 		_ambience.name = "Ambience"
 		_ambience.bus = &"Ambience"
 		_ambience.max_polyphony = 1
+		_ambience.pitch_scale = 1.0
 		_ambience.stop()
 		_ambience.stream = null
 	for index in _effects.size():
