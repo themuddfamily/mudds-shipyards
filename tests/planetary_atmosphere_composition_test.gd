@@ -39,11 +39,12 @@ func _run() -> void:
 	retry_composition.world_definition = repaired_world
 	var rejected := retry_composition.configure()
 	var rejected_audit := retry_composition.audit()
+	var baseline_preserved := retry_composition.get_world_environment().environment == preserved_baseline
 	repaired_world.atmosphere_definition_id = ATMOSPHERE.profile_id
 	var repaired := retry_composition.configure()
 	_check(
 		not bool(rejected.accepted) and rejected.reason == &"invalid_atmospheric_composition"
-		and retry_composition.get_world_environment().environment == preserved_baseline
+		and baseline_preserved
 		and not bool(rejected_audit.configured)
 		and repaired.accepted
 		and retry_composition.get_world_environment().environment
@@ -94,6 +95,7 @@ func _run() -> void:
 	if _failures.is_empty():
 		print("PLANETARY_ATMOSPHERE_COMPOSITION_TEST_OK")
 		quit(0)
+		return
 	print("PLANETARY_ATMOSPHERE_COMPOSITION_TEST_FAILED: %s" % ", ".join(_failures))
 	quit(1)
 
