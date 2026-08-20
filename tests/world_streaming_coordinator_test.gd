@@ -72,6 +72,7 @@ func _init() -> void:
 func _run() -> void:
 	await _test_definition_snapshot_and_synchronous_results()
 	await _test_registration_generation_and_failure_recovery()
+	await _test_queued_completion_is_inert()
 	await _test_reentrant_scene_entry_and_same_frame_reload()
 	await _test_unexpected_loaded_root_retirement()
 	await _test_unregister_and_generation_tombstones()
@@ -366,6 +367,42 @@ func _test_registration_generation_and_failure_recovery() -> void:
 	coordinator.request_unload(beta.location_id)
 	coordinator.queue_free()
 	await process_frame
+
+
+func _test_queued_completion_is_inert() -> void:
+	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator
+	root.add_child(coordinator)
+	var fake := FakeLoader.new()
+	coordinator.set_loader(Callable(fake, "request_scene"))
+	var definition := _definition(&"queued_completion", Vector3(71.0, -4.0, 19.0))
+	coordinator.register_location(definition)
+	var loaded_signal_count := 0
+	var failed_signal_count := 0
+	coordinator.location_loaded.connect(
+		func(_location_id: StringName, _generation: int, _instance: Node3D) -> void:
+			loaded_signal_count += 1
+	)
+	coordinator.location_load_failed.connect(
+		func(_location_id: StringName, _generation: int, _reason: StringName) -> void:
+			failed_signal_count += 1
+	)
+	var request := coordinator.request_load(definition.location_id)
+	var pending_snapshot := coordinator.audit()
+	coordinator.queue_free()
+	var completion := fake.complete(0, _packed_node_3d())
+	_check(
+		bool(request.get("accepted", false))
+			and coordinator.is_queued_for_deletion()
+			and not bool(completion.get("accepted", true))
+			and completion.get("reason") == &"coordinator_unavailable"
+			and coordinator.audit() == pending_snapshot
+			and coordinator.get_child_count() == 0
+			and loaded_signal_count == 0
+			and failed_signal_count == 0,
+		"queued coordinator rejects a pending completion before scene ownership or publication mutates"
+	)
+	await process_frame
+	_check(not is_instance_valid(coordinator), "queued completion fixture releases its coordinator cleanly")
 
 
 func _test_reentrant_scene_entry_and_same_frame_reload() -> void:
