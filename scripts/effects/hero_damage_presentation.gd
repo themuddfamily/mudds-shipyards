@@ -18,6 +18,11 @@ signal effects_cleared
 ## Emitted whenever the localized component channel gains, loses, or re-grades a
 ## section rig. `modern_interpretation` -- no source authenticates the roster.
 signal component_effects_changed(active_component_count: int)
+## Presentation-only failure lifecycle. These signals describe a visual section
+## crossing the failed boundary; the authoritative component ledger remains owned
+## by `ShipComponentDamage` and no listener may infer damage authority from them.
+signal component_failure_started(component_id: StringName, local_position: Vector3)
+signal component_failure_cleared(component_id: StringName)
 
 enum DamageStage {
 	HEALTHY,
@@ -219,6 +224,7 @@ func present_impact(
 ## number of live rigs after the update.
 func set_component_damage_states(states: Array) -> int:
 	_ensure_built()
+	var failed_before := _failed_component_ids_set()
 	# Pass one accepts only well-formed, damaged entries. Retirement is decided
 	# against that accepted roster before anything is created, so the bound below
 	# always applies to the roster the craft is about to show rather than to a
@@ -262,6 +268,7 @@ func set_component_damage_states(states: Array) -> int:
 	if changed:
 		_apply_component_effect_visibility()
 		component_effects_changed.emit(_component_effects.size())
+	_emit_component_failure_deltas(failed_before)
 	return _component_effects.size()
 
 
@@ -270,8 +277,10 @@ func set_component_damage_states(states: Array) -> int:
 func clear_component_damage_effects() -> void:
 	if _component_effects.is_empty():
 		return
+	var failed_before := _failed_component_ids_set()
 	for component_id: StringName in _component_effects.keys():
 		_retire_component_effect(component_id)
+	_emit_component_failure_clears(failed_before)
 	component_effects_changed.emit(0)
 
 
@@ -293,6 +302,22 @@ func get_component_effect_ids() -> Array[StringName]:
 	var names: Array[String] = []
 	for component_id: StringName in _component_effects.keys():
 		names.append(String(component_id))
+	names.sort()
+	var ids: Array[StringName] = []
+	for component_name: String in names:
+		ids.append(StringName(component_name))
+	return ids
+
+
+## Failed visual sections in a stable lexical order. This is a presentation
+## snapshot only; callers must read the authoritative component ledger for
+## health, stage, repair, or gameplay consequences.
+func get_failed_component_effect_ids() -> Array[StringName]:
+	var names: Array[String] = []
+	for component_id: StringName in _component_effects.keys():
+		var effect: Dictionary = _component_effects[component_id]
+		if int(effect.get("state", COMPONENT_STATE_NOMINAL)) >= COMPONENT_STATE_FAILED:
+			names.append(String(component_id))
 	names.sort()
 	var ids: Array[StringName] = []
 	for component_name: String in names:
@@ -391,6 +416,49 @@ func _retire_component_effect(component_id: StringName) -> bool:
 			rig.get_parent().remove_child(rig)
 		rig.queue_free()
 	return true
+
+
+func _failed_component_ids_set() -> Dictionary:
+	var failed: Dictionary = {}
+	for component_id: StringName in _component_effects.keys():
+		var effect: Dictionary = _component_effects[component_id]
+		if int(effect.get("state", COMPONENT_STATE_NOMINAL)) >= COMPONENT_STATE_FAILED:
+			failed[component_id] = true
+	return failed
+
+
+func _emit_component_failure_deltas(previous: Dictionary) -> void:
+	var current := _failed_component_ids_set()
+	# New failures follow the caller's captured state order only through the stable
+	# lexical roster. Dictionary iteration is never allowed to define event order.
+	var started: Array[String] = []
+	for component_id: StringName in current.keys():
+		if not previous.has(component_id):
+			started.append(String(component_id))
+	started.sort()
+	for component_name: String in started:
+		var component_id := StringName(component_name)
+		var effect: Dictionary = _component_effects.get(component_id, {})
+		var rig := effect.get("root") as Node3D
+		if is_instance_valid(rig):
+			component_failure_started.emit(component_id, rig.position)
+
+	var cleared: Array[String] = []
+	for component_id: StringName in previous.keys():
+		if not current.has(component_id):
+			cleared.append(String(component_id))
+	cleared.sort()
+	for component_name: String in cleared:
+		component_failure_cleared.emit(StringName(component_name))
+
+
+func _emit_component_failure_clears(previous: Dictionary) -> void:
+	var cleared: Array[String] = []
+	for component_id: StringName in previous.keys():
+		cleared.append(String(component_id))
+	cleared.sort()
+	for component_name: String in cleared:
+		component_failure_cleared.emit(StringName(component_name))
 
 
 ## Localized rigs follow the same suppression rule as the staged hull channel: a

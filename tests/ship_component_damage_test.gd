@@ -34,6 +34,8 @@ var _owner_guard_model: ShipComponentDamage
 var _owner_guard_foreign_capability: RefCounted
 var _owner_guard_events := PackedStringArray()
 var _owner_guard_attacks: Array[Dictionary] = []
+var _failure_started: Array[Dictionary] = []
+var _failure_cleared: Array[StringName] = []
 
 
 func _init() -> void:
@@ -671,6 +673,10 @@ func _test_restore_and_determinism() -> void:
 func _test_presentation_channel() -> void:
 	var presentation := HeroDamagePresentationType.new() as HeroDamagePresentation
 	root.add_child(presentation)
+	_failure_started.clear()
+	_failure_cleared.clear()
+	presentation.component_failure_started.connect(_record_failure_started)
+	presentation.component_failure_cleared.connect(_record_failure_cleared)
 	presentation.update_state(1.0, HeroDamagePresentation.STATE_ACTIVE)
 
 	var live := presentation.set_component_damage_states([
@@ -705,6 +711,12 @@ func _test_presentation_channel() -> void:
 		"an impaired section sparks without venting smoke"
 	)
 	_check(failed_smoke.emitting, "a failed section vents smoke as well as sparking")
+	_check(
+		_failure_started.size() == 1
+		and _failure_started[0].get("id") == &"engine_bay"
+		and presentation.get_failed_component_effect_ids() == [&"engine_bay"],
+		"a failed section emits one deterministic failure-start event and appears in the failed snapshot"
+	)
 
 	var repeated := presentation.set_component_damage_states([
 		_state_entry(&"port_wing", 1, Vector3(-3.0, 0.5, 0.0)),
@@ -734,6 +746,10 @@ func _test_presentation_channel() -> void:
 		presentation.get_active_component_effect_count() == 1
 		and presentation.get_node_or_null("ComponentDamage_port_wing") == null,
 		"a repaired section retires its rig synchronously"
+	)
+	_check(
+		_failure_cleared == [&"port_wing"],
+		"a repaired failed section emits one deterministic failure-clear event"
 	)
 
 	var malformed := presentation.set_component_damage_states([
@@ -937,6 +953,14 @@ func _attack_owner_guard() -> void:
 		"revision_before": revision_before,
 		"revision_after": _owner_guard_model.get_revision(),
 	})
+
+
+func _record_failure_started(component_id: StringName, local_position: Vector3) -> void:
+	_failure_started.append({"id": component_id, "position": local_position})
+
+
+func _record_failure_cleared(component_id: StringName) -> void:
+	_failure_cleared.append(component_id)
 
 
 func _check(condition: bool, description: String) -> void:
