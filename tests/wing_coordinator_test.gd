@@ -59,6 +59,7 @@ func _run() -> void:
 	await _test_hurt_anchor_is_relieved_immediately()
 	await _test_stand_down_and_roster_lifecycle()
 	await _test_queued_target_stands_down_and_live_rebinds()
+	await _test_queued_coordinator_tick_is_inert()
 	await _test_red_mutations()
 	_check(
 		root.get_child_count() == original_children,
@@ -320,6 +321,48 @@ func _test_queued_target_stands_down_and_live_rebinds() -> void:
 		and coordinator.get_role(first) == WingCoordinator.ROLE_ANCHOR
 		and coordinator.get_role(second) == WingCoordinator.ROLE_FLANKER,
 		"a fresh live target rebinds and restores the ordinary anchor/flanker assignment"
+	)
+	await _free_fixture(fixture)
+
+
+func _test_queued_coordinator_tick_is_inert() -> void:
+	var fixture := await _make_fixture(2)
+	var coordinator: WingCoordinator = fixture.coordinator
+	var first: WingMember = fixture.members[0]
+	var second: WingMember = fixture.members[1]
+	coordinator.role_swap_hold = 0.0
+	_place(first, Vector3(0.0, 0.0, -120.0))
+	_place(second, Vector3(0.0, 0.0, 120.0))
+	coordinator.update_assignments(0.0)
+	var assignments_before := coordinator.get_assignments()
+	var target_before := coordinator.get_target()
+	var assignment_count_before := coordinator.get_assignment_count()
+	var swap_count_before := coordinator.get_swap_count()
+	var pending_before := float(coordinator.get("_pending_hold"))
+	var first_role_before := first.assigned_role
+	var second_role_before := second.assigned_role
+	var first_assignments_before := first.assignment_count
+	var second_assignments_before := second.assignment_count
+	var event_count_before := _role_events.size()
+	coordinator.queue_free()
+	# This geometry would immediately swap anchor and flanker for a live
+	# coordinator because the hold cost is explicitly zero.
+	_place(first, Vector3(0.0, 0.0, 120.0))
+	_place(second, Vector3(0.0, 0.0, -120.0))
+	coordinator.update_assignments(1.0)
+	_check(
+		coordinator.is_queued_for_deletion()
+		and coordinator.get_assignments() == assignments_before
+		and coordinator.get_target() == target_before
+		and coordinator.get_assignment_count() == assignment_count_before
+		and coordinator.get_swap_count() == swap_count_before
+		and is_equal_approx(float(coordinator.get("_pending_hold")), pending_before)
+		and first.assigned_role == first_role_before
+		and second.assigned_role == second_role_before
+		and first.assignment_count == first_assignments_before
+		and second.assignment_count == second_assignments_before
+		and _role_events.size() == event_count_before,
+		"a queued coordinator tick cannot rewrite member roles, counters, or signals"
 	)
 	await _free_fixture(fixture)
 

@@ -165,6 +165,10 @@ func get_assignment_count() -> int:
 ## Recomputes the assignment from one consistent snapshot. Public so a suite can
 ## step it deterministically without waiting on the physics clock.
 func update_assignments(delta: float) -> void:
+	# Preserve standalone/pre-tree deterministic stepping, but a coordinator
+	# retained only until the deferred free drain must not reassign live members.
+	if is_queued_for_deletion():
+		return
 	_prune_invalid_members()
 	if _members.is_empty():
 		# An empty wing has nothing to decide. Returning here keeps the idle
