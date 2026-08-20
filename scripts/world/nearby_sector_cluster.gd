@@ -276,6 +276,8 @@ func _process(delta: float) -> void:
 ## so a paused or low-profile world pays nothing per frame and the exact same
 ## geometry comes back on re-enable.
 func set_cluster_enabled(enabled: bool) -> void:
+	if not _is_current():
+		return
 	_cluster_enabled = enabled
 	var presentation_opacity := float(
 		get_streaming_transition_snapshot().get("opacity", 1.0)
@@ -293,6 +295,8 @@ func is_cluster_enabled() -> bool:
 ## boulders and every collision shape are identical at all three settings: the
 ## flyable shape of the sector must not depend on a graphics option.
 func set_detail_quality(quality: int) -> void:
+	if not _is_current():
+		return
 	_quality_level = clampi(quality, DetailQuality.LOW, DetailQuality.HIGH)
 	if _field_root == null:
 		return
@@ -303,6 +307,10 @@ func set_detail_quality(quality: int) -> void:
 
 func get_detail_quality() -> int:
 	return _quality_level
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 ## Production streaming facade. Direct component fixtures have no coordinator

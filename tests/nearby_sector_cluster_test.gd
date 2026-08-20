@@ -922,21 +922,47 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 	# Whole-world detach and re-entry, the way `Main` streams the shipyard.
 	var parent := cluster.get_parent()
 	var report_before := cluster.get_cluster_audit_report()
+	var detached_chips := cluster.get_node_or_null(
+		^"DebrisField/DebrisChips"
+	) as MultiMeshInstance3D
+	var detached_snapshot := {
+		"enabled": cluster.is_cluster_enabled(),
+		"visible": cluster.visible,
+		"detail_quality": cluster.get_detail_quality(),
+		"chips_visible": detached_chips.visible if detached_chips != null else false,
+	}
 	parent.remove_child(cluster)
 	await process_frame
-	_check(not cluster.is_inside_tree(), "the cluster detaches cleanly from the world")
+	cluster.set_cluster_enabled(false)
+	cluster.set_detail_quality(NearbySectorCluster.DetailQuality.LOW)
+	_check(
+		not cluster.is_inside_tree()
+		and {
+				"enabled": cluster.is_cluster_enabled(),
+				"visible": cluster.visible,
+				"detail_quality": cluster.get_detail_quality(),
+				"chips_visible": detached_chips.visible if detached_chips != null else false,
+			} == detached_snapshot,
+		"detached direct profile mutators leave Cinder presentation and detail state atomic",
+	)
 	parent.add_child(cluster)
+	var reentered_processing := cluster.is_processing()
 	# Re-entry schedules its lifecycle restoration on idle. A caller may still
 	# choose the retained profile in the same turn; the deferred work must not
 	# restore the pre-detach value over that newer choice.
 	cluster.set_cluster_enabled(false)
+	cluster.set_detail_quality(NearbySectorCluster.DetailQuality.LOW)
 	await process_frame
 	_check(
 		cluster.is_inside_tree()
+		and reentered_processing
 		and not cluster.is_cluster_enabled()
 		and not cluster.visible
-		and not cluster.is_processing(),
-		"a same-turn post-reentry disable survives the deferred lifecycle restoration"
+		and not cluster.is_processing()
+		and cluster.get_detail_quality() == NearbySectorCluster.DetailQuality.LOW
+		and detached_chips != null
+		and not detached_chips.visible,
+		"fresh live profile controls survive the deferred re-entry restoration"
 	)
 	_check(
 		cluster.get_cluster_audit_report() == report_before
@@ -945,12 +971,16 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 	)
 
 	cluster.set_cluster_enabled(true)
+	cluster.set_detail_quality(NearbySectorCluster.DetailQuality.HIGH)
 	await process_frame
 	_check(
 		cluster.is_inside_tree()
 		and cluster.visible
-		and cluster.is_processing(),
-		"re-entry restores the cluster's animation lifecycle"
+		and cluster.is_processing()
+		and cluster.get_detail_quality() == NearbySectorCluster.DetailQuality.HIGH
+		and detached_chips != null
+		and detached_chips.visible,
+		"fresh live re-entry controls restore animation and fine debris presentation"
 	)
 	_check(
 		cluster.get_cluster_audit_report() == report_before
@@ -974,8 +1004,12 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 		"enabled": cluster.is_cluster_enabled(),
 		"visible": cluster.visible,
 		"processing": cluster.is_processing(),
+		"detail_quality": cluster.get_detail_quality(),
+		"chips_visible": detached_chips.visible if detached_chips != null else false,
 	}
 	cluster.queue_free()
+	cluster.set_cluster_enabled(false)
+	cluster.set_detail_quality(NearbySectorCluster.DetailQuality.LOW)
 	cluster.call("_restore_cluster_enabled_after_reentry")
 	_check(
 		cluster.is_queued_for_deletion()
@@ -983,8 +1017,10 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 			"enabled": cluster.is_cluster_enabled(),
 			"visible": cluster.visible,
 			"processing": cluster.is_processing(),
+			"detail_quality": cluster.get_detail_quality(),
+			"chips_visible": detached_chips.visible if detached_chips != null else false,
 		} == queued_restore_snapshot,
-		"queued re-entry restoration leaves Cinder presentation and processing inert"
+		"queued direct profile mutation and re-entry restoration leave Cinder presentation inert"
 	)
 
 
