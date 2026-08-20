@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_resident_bank(director)
 	await _test_request_churn(director)
 	await _test_detach_reentry_cycles(director)
+	await _test_queued_reentry_restore_is_inert()
 	await _test_clean_lifecycle(director)
 	_finish()
 
@@ -337,6 +338,34 @@ func _test_detach_reentry_cycles(director: AudioDirector) -> void:
 			),
 			"re-entry cycle %d restores the selected ambience mix and fixed playback pitch" % (cycle + 1)
 		)
+
+
+func _test_queued_reentry_restore_is_inert() -> void:
+	var director := AudioDirector.new()
+	director.name = "QueuedReentryAudioDirector"
+	root.add_child(director)
+	await process_frame
+	var parent := director.get_parent()
+	parent.remove_child(director)
+	await process_frame
+	parent.add_child(director)
+	# `_enter_tree()` has queued its ordinary backend restoration. Once disposal
+	# is requested in the same turn, that callback must not rebuild the released
+	# resident bank or reattach a playback handle.
+	director.queue_free()
+	var synthesis_before := director.get_synthesis_report()
+	var performance_before := director.get_performance_report()
+	director.call("_restore_after_enter_tree")
+	_check(
+		director.is_queued_for_deletion()
+		and director.get_synthesis_report() == synthesis_before
+		and director.get_performance_report() == performance_before
+		and _all_players_stopped_and_detached(director)
+		and _all_timers_stopped(director),
+		"a queued post-reentry director cannot rebuild resident audio or mutate backend state"
+	)
+	await process_frame
+	_check(not is_instance_valid(director), "the queued re-entry director fixture frees normally")
 
 
 func _all_players_stopped_and_detached(director: AudioDirector) -> bool:

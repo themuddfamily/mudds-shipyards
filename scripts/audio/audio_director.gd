@@ -440,7 +440,7 @@ func _release_finished_stream(player: AudioStreamPlayer) -> void:
 
 
 func _restore_after_enter_tree() -> void:
-	if not _initialized or not is_inside_tree():
+	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
 		return
 	_shutting_down = false
 	_restore_fixed_hierarchy_configuration()
