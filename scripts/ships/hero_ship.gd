@@ -1648,6 +1648,14 @@ func preflight_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
 			{},
 			spawn_transform
 		)
+	if not _component_damage.is_reset_for_reuse_available():
+		return _reset_for_reuse_result(
+			false,
+			&"component_reset_unavailable",
+			&"preflight",
+			{},
+			spawn_transform
+		)
 
 	_reset_for_reuse_dispatch_active = true
 	var variant_preflight := _preflight_variant_reset_for_reuse(spawn_transform)
@@ -1675,6 +1683,7 @@ func preflight_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
 		"destruction_serial": _destruction_serial,
 		"component_instance_id": _component_damage.get_instance_id(),
 		"component_revision": _component_damage.get_revision(),
+		"component_ledger_generation": _component_damage.get_ledger_generation(),
 		"component_owner_capability_instance_id": (
 			_component_damage_owner_capability.get_instance_id()
 			if is_instance_valid(_component_damage_owner_capability)
@@ -1908,7 +1917,10 @@ func _reset_for_reuse_dependencies_are_current(context: Dictionary) -> bool:
 		return false
 	if int(context.get("component_instance_id", 0)) != _component_damage.get_instance_id() \
 			or bool(context.get("component_configured", false)) != _component_damage.is_configured() \
-			or int(context.get("component_revision", -1)) != _component_damage.get_revision():
+			or int(context.get("component_revision", -1)) != _component_damage.get_revision() \
+			or int(context.get("component_ledger_generation", -1)) \
+				!= _component_damage.get_ledger_generation() \
+			or not _component_damage.is_reset_for_reuse_available():
 		return false
 	if not _component_damage.is_owner_mutation_capability_current(
 			_component_damage_owner_capability

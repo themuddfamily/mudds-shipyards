@@ -73,6 +73,7 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
 	await process_frame
 	var component_revision_before_contention := arrow.get_component_damage().get_revision()
+	var component_generation_before_contention := arrow.get_component_damage().get_ledger_generation()
 	var initial_pending := _pending_entry(game, arrow_id)
 	var initial_ship_reference := initial_pending.get("ship") as WeakRef
 	_check(
@@ -166,8 +167,10 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 		int(arrow.get("_next_reset_for_reuse_receipt_id"))
 			== next_receipt_before_contention + 1
 		and arrow.get_component_damage().get_revision()
-			== component_revision_before_contention,
-		"berth contention cancels and consumes one preflight without resetting components"
+			== component_revision_before_contention
+		and arrow.get_component_damage().get_ledger_generation()
+			== component_generation_before_contention,
+		"berth contention cancels and consumes one preflight without resetting the generic ledger"
 	)
 
 	_check(
@@ -207,8 +210,10 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 		and berth.get_occupant() == null
 		and berth.get_reservation_token(arrow).is_empty()
 		and arrow.get_component_damage().get_revision()
-			== component_revision_before_contention + 1,
-		"commit currentness red releases the acquired lease and leaves the destroyed craft pending"
+			== component_revision_before_contention + 1
+		and arrow.get_component_damage().get_ledger_generation()
+			== component_generation_before_contention,
+		"commit currentness red releases the acquired lease without resetting the generic ledger"
 	)
 
 	var final_ready_at := Time.get_ticks_msec() + SHORT_DEADLINE_MSEC
@@ -252,8 +257,10 @@ func _test_regeneration_across_whole_main_reentry() -> void:
 		int(arrow.get("_next_reset_for_reuse_receipt_id"))
 			== next_receipt_before_contention + 3
 		and arrow.get_component_damage().get_revision()
-			== component_revision_before_contention + 2,
-		"red commit and successful retry each consume one newer receipt without partial reset"
+			== component_revision_before_contention + 2
+		and arrow.get_component_damage().get_ledger_generation()
+			== component_generation_before_contention + 1,
+		"only the successful retry advances one generic reset generation"
 	)
 
 	await _clean_up(game)

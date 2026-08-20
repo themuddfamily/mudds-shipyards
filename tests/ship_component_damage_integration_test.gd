@@ -99,6 +99,7 @@ func _test_production_roster() -> void:
 	var exact_maxima := 0
 	var exact_capture_revisions := 0
 	var single_connections := 0
+	var active_generic_ledgers := 0
 	for craft_name: String in FLEET_CRAFT_NAMES:
 		var craft := _game.get_node_or_null(craft_name) as HeroShip
 		if craft == null:
@@ -136,6 +137,12 @@ func _test_production_roster() -> void:
 			and model.get_signal_connection_list(&"component_state_changed").size() == 1:
 			single_connections += 1
 		if model != null:
+			var ledger := model.get_ledger_snapshot()
+			if bool(ledger.get("active", false)) \
+					and int(ledger.get("generation", 0)) == 1 \
+					and ledger.get("component_order", []) == ShipComponentDamage.COMPONENT_ORDER:
+				active_generic_ledgers += 1
+		if model != null:
 			_initial_component_model_ids[craft_name] = model.get_instance_id()
 		_initial_fleet_geometry[craft_name] = _component_geometry_snapshot(report)
 	_check(
@@ -162,6 +169,10 @@ func _test_production_roster() -> void:
 	_check(
 		single_connections == FLEET_CRAFT_NAMES.size(),
 		"final geometry capture retains exactly one component-state signal connection per craft"
+	)
+	_check(
+		active_generic_ledgers == FLEET_CRAFT_NAMES.size(),
+		"every fleet adapter exposes one active generic ledger behind the legacy scene node"
 	)
 
 	# The roster is derived from each craft's final live collision envelope rather
@@ -247,11 +258,13 @@ func _test_fleet_reset_geometry_stability() -> void:
 		var craft := _game.get_node(craft_name) as HeroShip
 		var model_id := craft.get_component_damage().get_instance_id()
 		var before_revision := int(craft.get_component_damage_report().get("revision", -1))
+		var before_ledger_generation := craft.get_component_damage().get_ledger_generation()
 		var spawn_transform := craft.global_transform
 		var reset_result := craft.reset_for_reuse(spawn_transform)
 		var reset_report := craft.get_component_damage_report()
 		var reset_geometry := _component_geometry_snapshot(reset_report)
 		var reset_revision := int(reset_report.get("revision", -1))
+		var reset_ledger_generation := craft.get_component_damage().get_ledger_generation()
 		var cached_capture := bool(
 			craft.call("_reconfigure_component_damage_from_final_root_collision")
 		)
@@ -266,6 +279,7 @@ func _test_fleet_reset_geometry_stability() -> void:
 			and reset_revision == before_revision + 1 \
 			and int(post_capture_report.get("revision", -2)) == reset_revision \
 			and craft.get_component_damage().get_instance_id() == model_id \
+			and reset_ledger_generation == before_ledger_generation + 1 \
 			and cached_capture == expected_capture:
 			stable += 1
 	_check(

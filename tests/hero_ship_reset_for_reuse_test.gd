@@ -7,6 +7,7 @@ extends SceneTree
 
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const ComponentDamageModelType := preload("res://scripts/combat/component_damage_model.gd")
 
 const FIRST_TARGET := Transform3D(
 	Basis(Vector3.UP, deg_to_rad(23.0)),
@@ -45,9 +46,11 @@ func _run() -> void:
 
 	_test_schema_invalid_and_cancel(torrent)
 	_test_dependency_currentness(torrent)
+	_test_damage_callback_reset_rejected(torrent)
 	await _test_detach_currentness(torrent)
 	await _test_guarded_commit_chronology(torrent)
 	await _test_variant_hook_guard(jovian)
+	_test_component_reset_availability(torrent)
 	_test_receipt_exhaustion(torrent)
 
 	_test_root.queue_free()
@@ -165,6 +168,33 @@ func _test_dependency_currentness(ship: HeroShip) -> void:
 	component.reset_for_reuse()
 
 
+func _test_damage_callback_reset_rejected(ship: HeroShip) -> void:
+	var hostile_results: Array[Dictionary] = []
+	var transform_before := ship.global_transform
+	var hull_before := float(ship.get_telemetry().get("hull", 0.0))
+	var component := ship.get_component_damage()
+	var components := component.get_component_report().get("components", []) as Array
+	var first_component := components[0] as Dictionary
+	var local_hit: Vector3 = first_component.get("local_position", Vector3.ZERO) as Vector3
+	var hostile_callback := func(_id: StringName, _state: int, _integrity: float) -> void:
+		hostile_results.append(ship.reset_for_reuse(HOSTILE_TARGET))
+	ship.component_damage_changed.connect(hostile_callback)
+	ship.apply_damage(30.0, ship.to_global(local_hit), Vector3.UP)
+	ship.component_damage_changed.disconnect(hostile_callback)
+	var all_rejected := not hostile_results.is_empty()
+	for result in hostile_results:
+		all_rejected = all_rejected \
+			and not bool(result.get("accepted", true)) \
+			and result.get("reason") == &"component_reset_unavailable"
+	_check(
+		all_rejected
+		and ship.global_transform == transform_before
+		and is_equal_approx(float(ship.get_telemetry().get("hull", -1.0)), hull_before - 30.0)
+		and not ship.is_destroyed(),
+		"normal generic stage callbacks cannot enter a partial Hero reset"
+	)
+
+
 func _test_detach_currentness(ship: HeroShip) -> void:
 	var receipt := ship.preflight_reset_for_reuse(
 		Transform3D(Basis.IDENTITY, Vector3(7.0, 2.0, 9.0))
@@ -197,6 +227,7 @@ func _test_guarded_commit_chronology(ship: HeroShip) -> void:
 	var model_identity := component.get_instance_id()
 	var bounds_before := component.get_component_report().get("local_bounds", AABB()) as AABB
 	var revision_before := component.get_revision()
+	var ledger_generation_before := component.get_ledger_generation()
 	ship.set_cockpit_view(false)
 	ship.set_chase_camera_distance(11.0)
 	ship.set_camera_fov(77.0)
@@ -278,9 +309,10 @@ func _test_guarded_commit_chronology(ship: HeroShip) -> void:
 	_check(
 		component.get_instance_id() == model_identity
 		and component.get_revision() == revision_before + 1
+		and component.get_ledger_generation() == ledger_generation_before + 1
 		and (component.get_component_report().get("local_bounds", AABB()) as AABB) == bounds_before
 		and component.component_state_changed.get_connections().size() == 1,
-		"accepted reset preserves one component identity, geometry, revision, and connection"
+		"accepted reset preserves one component identity, geometry, generic generation, revision, and connection"
 	)
 
 
@@ -336,6 +368,27 @@ func _test_receipt_exhaustion(ship: HeroShip) -> void:
 		"allocator fails closed before issuing an unsafe receipt"
 	)
 	_check(_ship_snapshot(ship) == before, "receipt saturation and cancellation are state-atomic")
+
+
+func _test_component_reset_availability(ship: HeroShip) -> void:
+	var component := ship.get_component_damage()
+	var ledger: ComponentDamageModel = component.get("_ledger") as ComponentDamageModel
+	_check(ledger != null, "Hero component adapter retains one inspectable generic-ledger fixture")
+	if ledger == null:
+		return
+	var generation_before := ledger.get_generation()
+	ledger.set("_generation", ComponentDamageModelType.MAX_SAFE_INTEGER)
+	var before := _ship_snapshot(ship)
+	var next_receipt_before := int(ship.get("_next_reset_for_reuse_receipt_id"))
+	var rejected := ship.preflight_reset_for_reuse(ship.global_transform)
+	_check(
+		not bool(rejected.get("accepted", true))
+		and rejected.get("reason") == &"component_reset_unavailable"
+		and int(ship.get("_next_reset_for_reuse_receipt_id")) == next_receipt_before
+		and _ship_snapshot(ship) == before,
+		"generic generation exhaustion rejects Hero reset before allocating a receipt or mutating state"
+	)
+	ledger.set("_generation", generation_before)
 
 
 func _hostile_signal(ship: HeroShip, label: StringName) -> void:

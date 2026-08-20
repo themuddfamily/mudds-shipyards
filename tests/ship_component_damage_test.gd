@@ -77,6 +77,15 @@ func _test_configuration() -> void:
 		):
 			all_nominal = false
 	_check(all_nominal, "a freshly configured craft reports every component nominal at full integrity")
+	var ledger := model.get_ledger_snapshot()
+	_check(
+		bool(ledger.get("active", false))
+		and int(ledger.get("generation", 0)) == 1
+		and ledger.get("component_order", []) == ShipComponentDamageType.COMPONENT_ORDER
+		and (ledger.get("components", []) as Array).size()
+			== ShipComponentDamageType.COMPONENT_ORDER.size(),
+		"the legacy ship adapter owns one active generic five-section health ledger"
+	)
 
 	var layout: Dictionary = {}
 	for entry in states:
@@ -235,6 +244,7 @@ func _test_owner_mutation_transaction() -> void:
 		model, ShipComponentDamageType.COMPONENT_FORWARD_HULL
 	))
 	var revision_before := model.get_revision()
+	var ledger_generation_before := model.get_ledger_generation()
 	var bounds_before := model.get_component_report().get("local_bounds", AABB()) as AABB
 	_check(
 		model.begin_owner_mutation_transaction(capability)
@@ -275,9 +285,10 @@ func _test_owner_mutation_transaction() -> void:
 	)
 	_check(
 		model.get_revision() == revision_before + 1
+		and model.get_ledger_generation() == ledger_generation_before + 1
 		and is_equal_approx(model.get_worst_integrity(), 1.0)
 		and (model.get_component_report().get("local_bounds", AABB()) as AABB) == bounds_before,
-		"owner reset preserves geometry and advances exactly one restoration revision"
+		"owner reset preserves geometry and advances one generic generation and legacy revision"
 	)
 	var attacks_rejected := not _owner_guard_attacks.is_empty()
 	for attack in _owner_guard_attacks:
@@ -326,8 +337,16 @@ func _test_owner_mutation_transaction() -> void:
 func _test_attribution() -> void:
 	var model := _make_model()
 	var nose_position := _component_position(model, ShipComponentDamageType.COMPONENT_FORWARD_HULL)
+	var ledger_before := model.get_ledger_snapshot()
 	var report := model.record_damage(30.0, nose_position)
 	_check(bool(report.accepted) and bool(report.located), "a located hit is accepted and marked located")
+	var ledger_after := model.get_ledger_snapshot()
+	_check(
+		int(ledger_after.get("revision", -1)) == int(ledger_before.get("revision", -2)) + 1
+		and int(ledger_after.get("last_operation_sequence", -1))
+			== (report.get("components", {}) as Dictionary).size() - 1,
+		"one attributed hit commits its affected sections through one generic ledger batch"
+	)
 
 	var nose_loss := 1.0 - model.get_component_integrity(
 		ShipComponentDamageType.COMPONENT_FORWARD_HULL

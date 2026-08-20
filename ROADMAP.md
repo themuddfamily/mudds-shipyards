@@ -936,13 +936,15 @@ ledger with strict stages, ordered scalar and atomic multi-component damage and
 repair, all-or-none prevalidation, one aggregate revision, detached ordered
 signals and reentrant-dispatch guards. RangeOpponent uses it as its sole hull
 ledger while preserving resolver, scoring, audio and presentation behavior.
-Hero ships still use the older five-section presentation observer, but the
-concrete fleet placement defect found by the audit is fixed: each non-Torrent
-variant now rebinds that same observer exactly once to its final live collision
-AABB before gameplay, while Torrent remains unchanged and reset/re-entry retain
-the captured geometry. A result-bearing Hero/variant/GameFlow regeneration
-preflight is the remaining prerequisite before any generic-ledger migration;
-the migration must not create a second hull or component ledger.
+Hero ships now use one generic ledger through their retained
+`ShipComponentDamage` scene adapter: that adapter keeps collision-derived
+five-section geometry, hull-normalized attribution, legacy presentation state,
+and the opaque reset fence, but no second component-health dictionary. Each
+non-Torrent variant still rebinds the same adapter exactly once to its final
+live collision AABB before gameplay; Torrent remains unchanged and
+reset/re-entry retain the captured geometry. Hero reset preflight captures and
+revalidates generic reset availability/generation, so exhausted or stale generic
+state rejects before berth, hull, transform, presentation, or lifecycle mutation.
 
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.

@@ -5,10 +5,13 @@ ordered roster of damageable components. It snapshots its constructor input,
 and tracks only an isolated component-health ledger.
 
 The existing RangeOpponent adapter remains unchanged and does not use the new
-batch APIs. The existing `ShipComponentDamage` observer and every current
-`HeroShip`, target, `GameFlow`, resolver, presentation, destruction, and
-recovery path also remain unchanged. This batch prerequisite does not claim a
-HeroShip integration yet.
+batch APIs. `ShipComponentDamage` is now the one scene-local Hero adapter over
+one `ComponentDamageModel` ledger: it retains only collision-derived section
+geometry, hull-normalized attribution, parked-repair authorization, the legacy
+presentation report/signal shape, and Hero's opaque reset fence. It owns no
+second component-health ledger. `HeroShip`, target, `GameFlow`, resolver,
+presentation, destruction, and recovery authority remain with their existing
+owners.
 
 ## Definition schema
 
@@ -237,9 +240,11 @@ path.
 
 ## Explicitly outside this foundation
 
-There is no `HeroShip`, opponent, target, `GameFlow`, resolver, or Main-scene
-integration. There is no repair authorization, repair-rate policy, shield model,
-debris model, power bus, effect spawning, audio routing, automatic ticking, or
+There is no direct `HeroShip`, target, `GameFlow`, resolver, or Main-scene
+authority in the detached model. The narrow `ShipComponentDamage` adapter is
+the sole current Hero integration; it supplies repair authorization/rate and
+presentation geometry without granting those concerns to the ledger. There is
+no shield model, debris model, power bus, effect spawning, audio routing, or
 wall-clock behavior. Those systems cannot be inferred from a health mutation,
 stage flag, or multiplier and require their own separately reviewed contracts
 and acceptance evidence.
