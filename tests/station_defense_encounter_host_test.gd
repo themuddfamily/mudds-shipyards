@@ -355,8 +355,24 @@ func _test_real_resolver_waves_and_lifecycle() -> void:
 		"host contains no hidden clock, health store, damage application, or frame progression"
 	)
 
+	var queued_restore_snapshots := [0]
+	host.snapshot_changed.connect(func(_snapshot: Dictionary) -> void:
+		queued_restore_snapshots[0] += 1
+	, CONNECT_ONE_SHOT)
 	root.remove_child(host)
+	root.add_child(host)
 	host.queue_free()
+	host.call("_restore_after_reentry")
+	var queued_restore := host.get_snapshot()
+	var queued_activity := queued_restore.get("activity", {}) as Dictionary
+	_check(
+		host.is_queued_for_deletion()
+		and not bool(queued_activity.get("attached", true))
+		and not bool(queued_restore.get("resolver_connected", true))
+		and bool(host.get("_detached_by_tree"))
+		and queued_restore_snapshots[0] == 0,
+		"queued host disposal rejects deferred reentry without attaching or publishing"
+	)
 	for _frame in 8:
 		await process_frame
 

@@ -619,7 +619,12 @@ func _validate_start_roster() -> Dictionary:
 
 
 func _restore_after_reentry() -> void:
-	if not _configured or not _detached_by_tree or not is_inside_tree():
+	if (
+		not _configured
+		or not _detached_by_tree
+		or is_queued_for_deletion()
+		or not is_inside_tree()
+	):
 		return
 	_mutation_active = true
 	var generation := _activity.get_generation()
