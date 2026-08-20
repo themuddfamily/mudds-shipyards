@@ -52,6 +52,7 @@ func _run() -> void:
 	await _check_seat_contract()
 	await _check_recovery_net()
 	await _check_boarding_currentness()
+	await _check_tractor_mutator_currentness()
 	await _check_driver_station_currentness()
 
 	_release_inputs()
@@ -893,6 +894,80 @@ func _check_driver_station_currentness() -> void:
 		"a queued tractor rejects direct boarding without a request or vehicle-state mutation"
 	)
 	actor.queue_free()
+
+
+func _check_tractor_mutator_currentness() -> void:
+	var tractor := TRACTOR_SCENE.instantiate() as TowTractor
+	tractor.name = "CurrentnessTractor"
+	tractor.position = Vector3(0.0, 0.2, OPEN_LANE_Z)
+	_root.add_child(tractor)
+	await process_frame
+	var parent := tractor.get_parent()
+	parent.remove_child(tractor)
+	var detached_before := _tractor_mutator_snapshot(tractor)
+	tractor.set_driven(true)
+	tractor.set_camera_fov(96.0)
+	tractor.recover_to_home_transform()
+	_check(
+		not tractor.is_inside_tree()
+		and _tractor_mutator_snapshot(tractor) == detached_before,
+		"a detached tractor rejects drive, camera, and recovery mutation atomically"
+	)
+
+	parent.add_child(tractor)
+	await process_frame
+	tractor.set_driven(true)
+	tractor.set_camera_fov(96.0)
+	tractor.global_position += Vector3(6.0, 0.0, 0.0)
+	tractor.recover_to_home_transform()
+	_check(
+		tractor.is_inside_tree()
+		and not tractor.is_driven()
+		and is_equal_approx(tractor.get_camera().fov, 96.0)
+		and tractor.global_transform.is_equal_approx(tractor.get_home_transform())
+		and tractor.get_driver_station().is_available(),
+		"a fresh live re-entry accepts drive, camera, and recovery mutation"
+	)
+
+	var queued_before := _tractor_mutator_snapshot(tractor)
+	tractor.queue_free()
+	tractor.set_driven(true)
+	tractor.set_camera_fov(72.0)
+	tractor.recover_to_home_transform()
+	_check(
+		tractor.is_inside_tree()
+		and tractor.is_queued_for_deletion()
+		and _tractor_mutator_snapshot(tractor) == queued_before,
+		"a queued tractor rejects drive, camera, and recovery mutation atomically"
+	)
+	await process_frame
+	_check(not is_instance_valid(tractor), "the queued tractor-mutator fixture frees normally")
+
+
+func _tractor_mutator_snapshot(tractor: TowTractor) -> Dictionary:
+	var station := tractor.get_driver_station()
+	var camera := tractor.get_camera()
+	var camera_yaw := tractor.get_node_or_null("CameraRig") as Node3D
+	return {
+		"driven": tractor.is_driven(),
+		# Global Transform3D reads are intentionally invalid after this fixture has
+		# detached the tractor. The local transform still catches a rejected
+		# recovery trying to overwrite the authored parking pose.
+		"transform": tractor.transform,
+		"velocity": tractor.velocity,
+		"drive_speed": tractor.get_drive_speed(),
+		"airborne_seconds": tractor.get_airborne_seconds(),
+		"recovery_reported": tractor.has_reported_recovery(),
+		"edge_interlock": tractor.is_edge_interlock_engaged(),
+		"vertical_speed": tractor.get("_vertical_speed"),
+		"throttle_direction": tractor.get("_throttle_direction"),
+		"deck_normal": tractor.get("_deck_normal"),
+		"camera_yaw_offset": tractor.get("_camera_yaw_offset"),
+		"camera_yaw_rotation": camera_yaw.rotation if camera_yaw != null else Vector3.INF,
+		"camera_fov": camera.fov if camera != null else -1.0,
+		"camera_current": camera.current if camera != null else false,
+		"station_available": station.is_available() if station != null else false,
+	}.duplicate(true)
 
 
 # ----------------------------------------------------------------- scaffolding

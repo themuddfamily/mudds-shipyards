@@ -314,6 +314,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## driver. Releasing always parks the drive speed so a re-board cannot inherit
 ## the throttle the previous session left behind.
 func set_driven(value: bool) -> void:
+	if not _can_mutate_live_vehicle():
+		return
 	if _driven == value:
 		return
 	_driven = value
@@ -553,6 +555,8 @@ func get_wheel_batch_report() -> Dictionary:
 
 
 func set_camera_fov(field_of_view: float) -> void:
+	if not _can_mutate_live_vehicle():
+		return
 	_camera.fov = clampf(field_of_view, 55.0, 110.0)
 
 
@@ -608,6 +612,8 @@ func _facing_the_tractor_from(exit_position: Vector3) -> Basis:
 
 ## Restores the authored parking spot and re-arms the recovery report.
 func recover_to_home_transform() -> void:
+	if not _can_mutate_live_vehicle():
+		return
 	set_driven(false)
 	global_transform = _home_transform
 	velocity = Vector3.ZERO
@@ -638,6 +644,10 @@ func request_boarding(actor: Node) -> bool:
 		return false
 	board_requested.emit(actor)
 	return true
+
+
+func _can_mutate_live_vehicle() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_interaction_prompt() -> String:
