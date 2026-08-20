@@ -69,6 +69,8 @@ const PIPE_COLLAR_INNER_RADIUS := 0.12
 const PIPE_COLLAR_OUTER_RADIUS := 0.19
 const PIPE_COLLAR_RINGS := 48
 const PIPE_COLLAR_RING_SEGMENTS := 16
+const PIPE_COLLAR_BUDGETED_RINGS := 32
+const PIPE_COLLAR_BUDGETED_RING_SEGMENTS := 12
 const PIPE_COLLAR_COPY_COUNT := 6
 const RENDER_DESCENDANT_COUNT := 1907
 const RENDER_MESH_INSTANCE_COUNT := 1257
@@ -1188,12 +1190,23 @@ func _inspect_pipe_collar_mesh_sharing() -> Dictionary:
 	if mesh == null \
 			or not is_equal_approx(mesh.inner_radius, PIPE_COLLAR_INNER_RADIUS) \
 			or not is_equal_approx(mesh.outer_radius, PIPE_COLLAR_OUTER_RADIUS) \
-			or mesh.rings != PIPE_COLLAR_RINGS \
-			or mesh.ring_segments != PIPE_COLLAR_RING_SEGMENTS \
+			or mesh.rings != PIPE_COLLAR_BUDGETED_RINGS \
+			or mesh.ring_segments != PIPE_COLLAR_BUDGETED_RING_SEGMENTS \
 			or mesh.get_surface_count() != 1 \
-			or mesh.material != null \
-			or mesh.resource_local_to_scene:
+			or mesh.material != null:
 		errors.append("pipe collar primitive recipe drift")
+	else:
+		var authored_value: Variant = mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		var mesh_metadata := mesh.get_meta_list()
+		if authored_value is not Vector2i \
+			or authored_value != Vector2i(PIPE_COLLAR_RINGS, PIPE_COLLAR_RING_SEGMENTS) \
+			or mesh_metadata.size() != 1 \
+			or not mesh_metadata.has(TorusGeometryBudget.AUTHORED_META):
+			errors.append("pipe collar torus-budget metadata drift")
+		if mesh.resource_local_to_scene:
+			errors.append("pipe collar shared mesh became scene-local")
 	if collars.size() != PIPE_COLLAR_COPY_COUNT:
 		errors.append("pipe collar copy roster drift")
 	if mesh_ids.size() != 1:
@@ -1205,6 +1218,10 @@ func _inspect_pipe_collar_mesh_sharing() -> Dictionary:
 		"geometry_nodes": collars.size(), "geometry_submissions": submissions,
 		"visible_geometry_copies": collars.size(), "primitive_mesh_allocations": mesh_ids.size(),
 		"resource_allocation_reduction": PIPE_COLLAR_COPY_COUNT - mesh_ids.size(),
+		"authored_tessellation": Vector2i(PIPE_COLLAR_RINGS, PIPE_COLLAR_RING_SEGMENTS),
+		"live_tessellation": Vector2i(
+			mesh.rings, mesh.ring_segments
+		) if mesh != null else Vector2i.ZERO,
 		"legacy": {"geometry_nodes": PIPE_COLLAR_COPY_COUNT, "geometry_submissions": PIPE_COLLAR_COPY_COUNT, "visible_geometry_copies": PIPE_COLLAR_COPY_COUNT, "primitive_mesh_allocations": PIPE_COLLAR_COPY_COUNT},
 	}.duplicate(true)
 
@@ -1838,6 +1855,7 @@ func _build_service_detail(structure: Node3D) -> void:
 	_pipe_collar_mesh.outer_radius = PIPE_COLLAR_OUTER_RADIUS
 	_pipe_collar_mesh.rings = PIPE_COLLAR_RINGS
 	_pipe_collar_mesh.ring_segments = PIPE_COLLAR_RING_SEGMENTS
+	TorusGeometryBudget.apply(_pipe_collar_mesh, 1.0)
 
 	# A high-mounted service run keeps every route clear while adding the pipes,
 	# cabinets, valves, and maintenance access expected of a modernised facility.

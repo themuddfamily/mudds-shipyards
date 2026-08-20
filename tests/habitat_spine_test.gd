@@ -1085,11 +1085,28 @@ func _test_pipe_collar_mesh_sharing(module: HabitatSpine) -> void:
 		exact
 			and is_equal_approx(shared_mesh.inner_radius, HabitatSpine.PIPE_COLLAR_INNER_RADIUS)
 			and is_equal_approx(shared_mesh.outer_radius, HabitatSpine.PIPE_COLLAR_OUTER_RADIUS)
-			and shared_mesh.rings == HabitatSpine.PIPE_COLLAR_RINGS
-			and shared_mesh.ring_segments == HabitatSpine.PIPE_COLLAR_RING_SEGMENTS
+			and shared_mesh.rings == HabitatSpine.PIPE_COLLAR_BUDGETED_RINGS
+			and shared_mesh.ring_segments == HabitatSpine.PIPE_COLLAR_BUDGETED_RING_SEGMENTS
+			and shared_mesh.get_meta(
+				TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+			) == Vector2i(
+				HabitatSpine.PIPE_COLLAR_RINGS,
+				HabitatSpine.PIPE_COLLAR_RING_SEGMENTS
+			)
+			and shared_mesh.get_meta_list().size() == 1
+			and shared_mesh.get_meta_list().has(TorusGeometryBudget.AUTHORED_META)
 			and shared_mesh.get_surface_count() == 1
-			and shared_mesh.material == null,
-		"shared collar resource preserves the exact renderer recipe and each service collar's metadata-only role"
+			and shared_mesh.material == null
+			and not shared_mesh.resource_local_to_scene
+			and sharing.authored_tessellation == Vector2i(
+				HabitatSpine.PIPE_COLLAR_RINGS,
+				HabitatSpine.PIPE_COLLAR_RING_SEGMENTS
+			)
+			and sharing.live_tessellation == Vector2i(
+				HabitatSpine.PIPE_COLLAR_BUDGETED_RINGS,
+				HabitatSpine.PIPE_COLLAR_BUDGETED_RING_SEGMENTS
+			),
+		"shared collar resource preserves its authored 48x16 provenance and normalized 32x12 renderer recipe"
 	)
 	var final_collar := collars[-1]
 	final_collar.mesh = shared_mesh.duplicate() as TorusMesh
@@ -1101,6 +1118,39 @@ func _test_pipe_collar_mesh_sharing(module: HabitatSpine) -> void:
 	_check(
 		bool((module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).valid),
 		"restoring the shared service pipe-collar mesh returns the allocation audit green"
+	)
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings = original_rings + 1
+	_check(
+		(module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).errors.has(
+			"pipe collar primitive recipe drift"
+		),
+		"RED: mutating the normalized pipe-collar tessellation is rejected"
+	)
+	shared_mesh.rings = original_rings
+	_check(
+		bool((module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).valid),
+		"restoring the normalized pipe-collar tessellation returns the allocation audit green"
+	)
+	var original_authored_tessellation: Vector2i = shared_mesh.get_meta(
+		TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+	)
+	shared_mesh.set_meta(
+		TorusGeometryBudget.AUTHORED_META,
+		original_authored_tessellation + Vector2i(1, 0)
+	)
+	_check(
+		(module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).errors.has(
+			"pipe collar torus-budget metadata drift"
+		),
+		"RED: mutating pipe-collar authored-budget metadata is rejected"
+	)
+	shared_mesh.set_meta(
+		TorusGeometryBudget.AUTHORED_META, original_authored_tessellation
+	)
+	_check(
+		bool((module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).valid),
+		"restoring pipe-collar provenance metadata returns the allocation audit green"
 	)
 
 
