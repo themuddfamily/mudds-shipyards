@@ -27,7 +27,7 @@ func _run() -> void:
 	await _test_physical_roof_columns(stage, annex)
 	await _test_embodied_traversal(stage, annex)
 	await _test_structured_red_mutations(annex)
-	_test_lifecycle(annex)
+	await _test_lifecycle(annex)
 	if OS.get_cmdline_user_args().has("--capture-fabrication-annex"):
 		await _capture_one_forward_plus_frame(stage, annex)
 
@@ -311,6 +311,57 @@ func _test_lifecycle(annex: FabricationAnnex) -> void:
 	_check(bool(restored.visible_matches_enabled) and bool(restored.collision_matches_enabled), "enable restores the visible collision state")
 	_check(before == (restored.surface_instance_ids as PackedInt64Array), "enable/disable preserves static-body identity")
 	_check(bool(annex.get_audit_report().valid), "lifecycle round-trip leaves the annex valid")
+
+	var live_snapshot := _lifecycle_snapshot(annex)
+	var stage := annex.get_parent()
+	stage.remove_child(annex)
+	annex.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(annex) == live_snapshot,
+		"detached direct disable leaves retained enabled, visibility, and collision state unchanged"
+	)
+	stage.add_child(annex)
+	await process_frame
+	annex.set_module_enabled(false)
+	_check(
+		not annex.is_module_enabled()
+		and bool(annex.get_lifecycle_contract().visible_matches_enabled)
+		and bool(annex.get_lifecycle_contract().collision_matches_enabled),
+		"re-added annex accepts a fresh live disable"
+	)
+	annex.set_module_enabled(true)
+	_check(
+		_lifecycle_snapshot(annex) == live_snapshot,
+		"fresh live re-enable restores the retained enabled, visibility, and collision state"
+	)
+	annex.queue_free()
+	annex.set_module_enabled(false)
+	_check(
+		_lifecycle_snapshot(annex) == live_snapshot,
+		"queued direct disable leaves retained enabled, visibility, and collision state unchanged"
+	)
+
+
+func _lifecycle_snapshot(annex: FabricationAnnex) -> Dictionary:
+	var body_states: Array[Dictionary] = []
+	for raw_body in StationModuleContract.collect_static_bodies(annex):
+		var body := raw_body as StaticBody3D
+		body_states.append({
+			"path": annex.get_path_to(body),
+			"visible": body.visible,
+			"collision_layer": body.collision_layer,
+			"collision_mask": body.collision_mask,
+		})
+	body_states.sort_custom(
+		func(first: Dictionary, second: Dictionary) -> bool:
+			return str(first.path) < str(second.path)
+	)
+	var generated := annex.get_node_or_null(^"GeneratedAnnex") as Node3D
+	return {
+		"enabled": annex.is_module_enabled(),
+		"generated_visible": generated.visible if generated != null else false,
+		"body_states": body_states,
+	}.duplicate(true)
 
 
 func _drive_forward(player: PlayerController, reached: Callable, frame_budget: int) -> bool:

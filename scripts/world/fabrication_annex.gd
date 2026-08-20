@@ -722,6 +722,8 @@ func get_performance_contract() -> Dictionary:
 
 
 func set_module_enabled(enabled: bool) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	_enabled = enabled
 	if _build_root == null:
 		return
