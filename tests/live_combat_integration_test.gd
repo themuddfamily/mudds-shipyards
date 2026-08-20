@@ -417,6 +417,23 @@ func _run() -> void:
 			"whole-Main re-entry does not resurrect discarded transient art or audio"
 		)
 
+	var queued_health := opponent.get_health()
+	var queued_sequence := authority.get_last_submitted_sequence(hero)
+	var queued_events := _resolved_events.size()
+	var queued_roster := resolver.get_registered_source_count()
+	authority.queue_free()
+	var queued_registration := authority.register_source(hero, 9911, &"test", {})
+	var queued_shot := authority.submit_hitscan(hero, GameFlow.COMBAT_WEAPON_ID, hero.global_position, Vector3.FORWARD)
+	_check(
+		not queued_registration and not bool(queued_shot.get("accepted", true))
+		and StringName(queued_shot.get("reason", &"")) == &"authority_unavailable"
+		and is_equal_approx(opponent.get_health(), queued_health)
+		and authority.get_last_submitted_sequence(hero) == queued_sequence
+		and _resolved_events.size() == queued_events
+		and resolver.get_registered_source_count() == queued_roster,
+		"a queued live combat authority rejects direct registration and damage ingress atomically"
+	)
+
 	await _clean_up(game)
 	_finish()
 

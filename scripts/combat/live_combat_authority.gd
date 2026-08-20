@@ -35,6 +35,8 @@ func register_source(
 	faction_id: StringName,
 	weapon_profiles: Dictionary
 	) -> bool:
+	if is_queued_for_deletion():
+		return false
 	_ensure_resolver()
 	if not is_instance_valid(source_entity) or source_id <= 0 or faction_id.is_empty():
 		return false
@@ -85,6 +87,13 @@ func _submit_hitscan(
 	direction: Vector3,
 	defer_damage_presentation: bool
 	) -> Dictionary:
+	if is_queued_for_deletion():
+		return {
+			"accepted": false,
+			"resolved": false,
+			"status": &"authority_unavailable",
+			"reason": &"authority_unavailable",
+		}.duplicate(true)
 	_ensure_resolver()
 	var registration := _get_registration(source_entity)
 	if registration.is_empty():
