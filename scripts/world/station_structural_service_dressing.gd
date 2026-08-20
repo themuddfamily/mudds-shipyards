@@ -43,6 +43,12 @@ const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
 
+## The four resident dressing instances all publish this one material-free,
+## immutable fastener recipe. It intentionally lives for the session rather
+## than in a caller cache: every node keeps its own material override and no
+## collision, lifecycle, or presentation authority is attached to the mesh.
+static var _fascia_fastener_mesh_cache: Dictionary = {}
+
 const PERFORMANCE_BUDGET := {
 	"node_count": 56,
 	"visible_primitives": 45,
@@ -343,6 +349,63 @@ func get_performance_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Per-instance evidence for the session-retained, material-free fascia recipe.
+## Six named visual copies remain local; only their immutable ArrayMesh identity
+## is shared with the other resident dressing instances.
+func get_fascia_fastener_resource_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids: Dictionary = {}
+	var rows: Array[Dictionary] = []
+	for fastener_index in FASCIA_FASTENER_COUNT:
+		var fastener: MeshInstance3D = null
+		if is_instance_valid(_high_detail_root):
+			fastener = _high_detail_root.get_node_or_null(
+				NodePath("FasciaFastener%02d" % (fastener_index + 1))
+			) as MeshInstance3D
+		if fastener == null:
+			errors.append("fascia_fastener_node_missing:%02d" % (fastener_index + 1))
+			continue
+		if fastener.mesh == null:
+			errors.append("fascia_fastener_mesh_missing:%02d" % (fastener_index + 1))
+			continue
+		mesh_ids[fastener.mesh.get_instance_id()] = true
+		if fastener.mesh != _shared_fascia_fastener_mesh():
+			errors.append("fascia_fastener_mesh_identity_drift:%02d" % (fastener_index + 1))
+		if (
+			fastener.material_override != _materials.get("frame_edge")
+			or not fastener.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+			or fastener.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			or fastener.get_child_count() != 0
+			or fastener.get_script() != null
+			or not fastener.get_groups().is_empty()
+			or fastener.is_processing()
+			or fastener.is_physics_processing()
+		):
+			errors.append("fascia_fastener_visual_contract_drift:%02d" % (fastener_index + 1))
+		rows.append({
+			"path": "PresentationRoot/HighDetailRoot/FasciaFastener%02d" % (fastener_index + 1),
+			"position": [fastener.position.x, fastener.position.y, fastener.position.z],
+			"rotation_degrees": [fastener.rotation_degrees.x, fastener.rotation_degrees.y, fastener.rotation_degrees.z],
+			"material_override_id": fastener.material_override.get_instance_id() if fastener.material_override != null else 0,
+		})
+	if mesh_ids.size() != 1:
+		errors.append("fascia_fastener_mesh_identity_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"station_structural_fascia_fasteners",
+		"copy_count": FASCIA_FASTENER_COUNT,
+		"mesh_resource_identity_count": mesh_ids.size(),
+		"baseline_mesh_resource_identity_count": FASCIA_FASTENER_COUNT,
+		"mesh_resource_identity_delta": mesh_ids.size() - FASCIA_FASTENER_COUNT,
+		"session_retained_immutable_mesh": true,
+		"batched": false,
+		"collision_authority": false,
+		"lifecycle_authority": false,
+		"rows": rows,
+	}.duplicate(true)
+
+
 func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if (
@@ -415,6 +478,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("static dressing must not run per-frame callbacks")
 	if not _visibility_contract_matches_lifecycle():
 		errors.append("quality-tier visibility diverged from enabled and quality lifecycle state")
+	if not bool(get_fascia_fastener_resource_audit().get("valid", false)):
+		errors.append("fascia fastener shared-resource contract diverged")
 	if not _all_live_meshes_fit_published_footprint():
 		errors.append("live dressing mesh geometry exceeds the immutable published footprint")
 	return errors
@@ -672,15 +737,11 @@ func _build_high_detail(dimensions: Dictionary) -> void:
 	for fastener_index in FASCIA_FASTENER_COUNT:
 		var progress := float(fastener_index + 1) / float(FASCIA_FASTENER_COUNT + 1)
 		_tag_visual_detail(
-			_cylinder(
+			_fascia_fastener(
 				_high_detail_root,
 				"FasciaFastener%02d" % (fastener_index + 1),
 				Vector3(lerpf(-length * 0.44, length * 0.44, progress), -thickness * 0.76, thickness * 1.57),
-				0.025,
-				0.025,
-				_materials["frame_edge"],
-				Vector3(90.0, 0.0, 0.0),
-				false
+				_materials["frame_edge"]
 			),
 			&"fascia_fastener",
 			DetailQuality.HIGH
@@ -1329,6 +1390,29 @@ func _cylinder(
 	)
 	parent.add_child(mesh_instance, true)
 	return mesh_instance
+
+
+func _fascia_fastener(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		material: Material
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position_value
+	mesh_instance.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	mesh_instance.mesh = _shared_fascia_fastener_mesh()
+	mesh_instance.material_override = material
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mesh_instance, true)
+	return mesh_instance
+
+
+static func _shared_fascia_fastener_mesh() -> ArrayMesh:
+	return StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.025, 0.025, 0.025, 16, _fascia_fastener_mesh_cache, 1
+	)
 
 
 func _cylinder_between(

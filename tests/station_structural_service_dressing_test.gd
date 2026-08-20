@@ -101,6 +101,76 @@ func _run() -> void:
 	_check(task_light != null and task_light.light_energy <= 0.25 and task_light.omni_range <= 2.6, "task light energy and influence stay tightly bounded")
 	_check(_subtree_has_only_allowed_static_nodes(dressing), "runtime subtree contains only static visual, marker, and light node types")
 
+	# Mirrors the exact four resident ShipyardWorld dressings without involving
+	# ShipyardWorld ownership: their 24 visible fasteners keep their paths and
+	# per-instance material overrides while one session-retained mesh is shared.
+	var sharing_root := Node3D.new()
+	sharing_root.name = "FasciaFastenerSharingFixture"
+	root.add_child(sharing_root)
+	var sharing_specs := [
+		["CentralBerthOuterFascia", 20.0, StationStructuralServiceDressing.StructuralProfile.STANDARD],
+		["AftOperationsOuterFascia", 6.0, StationStructuralServiceDressing.StructuralProfile.LIGHT],
+		["HabitatOuterServiceDressing", 12.0, StationStructuralServiceDressing.StructuralProfile.STANDARD],
+		["FreightRackServiceDressing", 20.0, StationStructuralServiceDressing.StructuralProfile.LIGHT],
+	]
+	var sharing_mesh_ids: Dictionary = {}
+	var sharing_rows := 0
+	var sharing_instances: Array[StationStructuralServiceDressing] = []
+	for spec in sharing_specs:
+		var sharing_dressing := DRESSING_SCENE.instantiate() as StationStructuralServiceDressing
+		sharing_dressing.name = String(spec[0])
+		_check(
+			sharing_dressing.configure(
+				float(spec[1]), int(spec[2]),
+				StationStructuralServiceDressing.SegmentOrientation.ALONG_MOUNT_X
+			),
+			"resident fascia-sharing fixture configures %s" % spec[0]
+		)
+		sharing_root.add_child(sharing_dressing)
+		sharing_instances.append(sharing_dressing)
+	await process_frame
+	for sharing_dressing in sharing_instances:
+		var fastener_audit := sharing_dressing.get_fascia_fastener_resource_audit()
+		_check(
+			bool(fastener_audit.get("valid", false))
+			and int(fastener_audit.get("copy_count", 0)) == 6
+			and int(fastener_audit.get("mesh_resource_identity_count", 0)) == 1
+			and int(fastener_audit.get("baseline_mesh_resource_identity_count", 0)) == 6
+			and int(fastener_audit.get("mesh_resource_identity_delta", 0)) == -5
+			and bool(fastener_audit.get("session_retained_immutable_mesh", false))
+			and not bool(fastener_audit.get("batched", true))
+			and not bool(fastener_audit.get("collision_authority", true))
+			and not bool(fastener_audit.get("lifecycle_authority", true)),
+			"%s retains one exact inert fascia-fastener mesh" % sharing_dressing.name
+		)
+		for fastener in sharing_dressing.find_children("FasciaFastener*", "MeshInstance3D", true, false):
+			sharing_mesh_ids[(fastener as MeshInstance3D).mesh.get_instance_id()] = true
+			sharing_rows += 1
+	_check(
+		sharing_rows == 24 and sharing_mesh_ids.size() == 1,
+		"four resident dressings retain 24 fascia copies through one immutable mesh"
+	)
+	var sharing_fastener := sharing_instances[3].get_node(
+		"PresentationRoot/HighDetailRoot/FasciaFastener06"
+	) as MeshInstance3D
+	var shared_fastener_mesh := sharing_fastener.mesh
+	sharing_fastener.mesh = shared_fastener_mesh.duplicate() as ArrayMesh
+	var sharing_red := sharing_instances[3].get_fascia_fastener_resource_audit()
+	_check(
+		not bool(sharing_red.get("valid", true))
+		and int(sharing_red.get("mesh_resource_identity_count", 0)) == 2
+		and _has_error(sharing_red, "fascia_fastener_mesh_identity_drift:06")
+		and _has_error(sharing_red, "fascia_fastener_mesh_identity_count_drift"),
+		"structured red: one duplicated resident fastener breaks the shared identity contract"
+	)
+	sharing_fastener.mesh = shared_fastener_mesh
+	_check(
+		bool(sharing_instances[3].get_fascia_fastener_resource_audit().get("valid", false)),
+		"restoring the fastener mesh repairs the shared-resource contract"
+	)
+	sharing_root.queue_free()
+	await process_frame
+
 	# Quality changes reveal already-built subtrees; they never rebuild geometry.
 	var high_node_count := int(counts["node_count"])
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
@@ -425,14 +495,18 @@ func _subtree_meshes_fit_footprint(
 
 
 func _audit_rejects_live_structural_divergence(
-	dressing: StationStructuralServiceDressing
-) -> bool:
+		dressing: StationStructuralServiceDressing
+	) -> bool:
 	var audit_report := dressing.get_audit_report()
 	return (
 		not bool(audit_report["valid"])
 		and "live structural authoring configuration diverges from immutable build snapshot"
 		in (audit_report["errors"] as PackedStringArray)
 	)
+
+
+func _has_error(audit: Dictionary, expected: String) -> bool:
+	return (audit.get("errors", PackedStringArray()) as PackedStringArray).has(expected)
 
 
 ## Rewrites the one surface of a generated mesh in place, on the same resource
