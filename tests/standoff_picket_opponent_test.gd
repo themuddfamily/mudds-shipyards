@@ -473,6 +473,7 @@ func _test_authority_identity_lifecycle() -> void:
 	var fixture := await _make_fixture()
 	var picket: StandoffPicketOpponent = fixture.picket
 	var authority: LiveCombatAuthority = fixture.authority
+	var pulse: PulseWeaponPresentation = fixture.pulse
 	var resolver: CombatResolver = authority.get_resolver()
 
 	_check(
@@ -592,14 +593,21 @@ func _test_authority_identity_lifecycle() -> void:
 	picket.activate(Transform3D(Basis.IDENTITY, Vector3.ZERO))
 	parent.remove_child(picket)
 	parent.add_child(picket)
+	var adapter_before := picket.get_node_or_null("AuthoritativeDamageable")
+	var child_count_before := picket.get_child_count()
 	picket.queue_free()
 	picket.call("_restore_after_reentry")
 	_check(
 		picket.is_queued_for_deletion()
 		and not picket.is_combat_source_registered()
 		and resolver.get_registered_source_count() == 0
-		and authority.get_source_id(picket) == 0,
-		"a queued resolver-backed re-entry cannot restore a live combat source"
+		and authority.get_source_id(picket) == 0
+		and not bool(picket.get("_pulse_signals_connected"))
+		and not pulse.impact_receipt_ready.is_connected(picket._on_lance_receipt_ready)
+		and not pulse.impact_receipt_aborted.is_connected(picket._on_lance_receipt_aborted)
+		and picket.get_node_or_null("AuthoritativeDamageable") == adapter_before
+		and picket.get_child_count() == child_count_before,
+		"a queued picket re-entry cannot reclaim source, pulse signals, or damage-adapter hierarchy"
 	)
 
 	await _free_fixture(fixture)

@@ -422,7 +422,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 
 
 func _restore_after_reentry() -> void:
-	if not is_inside_tree():
+	if is_queued_for_deletion() or not is_inside_tree():
 		return
 	_connect_pulse_signals()
 	_attach_damage_proxy()
