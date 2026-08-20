@@ -4,7 +4,7 @@ const BOOTSTRAP_SCENE := preload(
 	"res://scenes/world/components/ember_moon_streaming_bootstrap.tscn"
 )
 const EMBER_SCENE := preload("res://scenes/world/planets/ember_moon.tscn")
-const EXPECTED_ASSERTIONS := 45
+const EXPECTED_ASSERTIONS := 48
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -43,6 +43,7 @@ func _run() -> void:
 	await _test_exact_lifecycle_and_observations(bootstrap)
 	await _test_stale_completion_and_reentry()
 	await _test_detached_bootstrap_update_guard()
+	await _test_loader_replacement_currentness()
 	_test_audit_authority_and_mutation(bootstrap)
 	bootstrap.queue_free()
 	await process_frame
@@ -244,6 +245,64 @@ func _test_detached_bootstrap_update_guard() -> void:
 		"reentry permits one fresh current focus request after detached rejection",
 	)
 	bootstrap.queue_free()
+	await process_frame
+
+
+func _test_loader_replacement_currentness() -> void:
+	var bootstrap := _bootstrap()
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var loader_a := ManualLoader.new()
+	var loader_b := ManualLoader.new()
+	var configured_a := bootstrap.set_scene_loader(Callable(loader_a, "request_scene"))
+	var body_coordinate := NearbySectorOrbitalRegistry.new().get_coordinate(
+		NearbySectorOrbitalRegistry.EMBER_BODY_CENTER_ID
+	)
+	var request := frame.request_rebase(bootstrap.position, 1)
+	bootstrap.position += request.request.world_translation_delta
+	frame.commit_rebase(request.request.request_id, 1)
+	root.remove_child(bootstrap)
+	await process_frame
+	var detached_before := bootstrap.get_snapshot()
+	var detached_replacement := bootstrap.set_scene_loader(Callable(loader_b, "request_scene"))
+	_check(
+		configured_a
+		and not bootstrap.is_inside_tree()
+		and not detached_replacement
+		and bootstrap.get_snapshot() == detached_before
+		and loader_a.requests.is_empty()
+		and loader_b.requests.is_empty(),
+		"a detached Ember bootstrap rejects loader replacement without retaining new streaming authority"
+	)
+
+	root.add_child(bootstrap)
+	await process_frame
+	var reentry_load := bootstrap.update_absolute_focus(body_coordinate, 2)
+	_check(
+		reentry_load.accepted
+		and loader_a.requests.size() == 1
+		and loader_b.requests.is_empty(),
+		"a reentered Ember bootstrap dispatches its fresh load through the retained live loader"
+	)
+	bootstrap.queue_free()
+	await process_frame
+
+	var queued := _bootstrap()
+	var queued_loader_a := ManualLoader.new()
+	var queued_loader_b := ManualLoader.new()
+	var queued_configured_a := queued.set_scene_loader(Callable(queued_loader_a, "request_scene"))
+	var queued_before := queued.get_snapshot()
+	queued.queue_free()
+	var queued_replacement := queued.set_scene_loader(Callable(queued_loader_b, "request_scene"))
+	_check(
+		queued_configured_a
+		and queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and not queued_replacement
+		and queued.get_snapshot() == queued_before
+		and queued_loader_a.requests.is_empty()
+		and queued_loader_b.requests.is_empty(),
+		"a queued Ember bootstrap rejects loader replacement without retained streaming mutation"
+	)
 	await process_frame
 
 

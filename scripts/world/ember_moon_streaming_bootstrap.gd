@@ -90,8 +90,11 @@ func get_loaded_instance() -> Node3D:
 
 
 ## Test/integration seam matching WorldStreamingCoordinator. Replacement is
-## allowed only before the first load attempt.
+## allowed only before the first load attempt while this bootstrap owns a live
+## scene-tree lifecycle.
 func set_scene_loader(loader: Callable) -> bool:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return false
 	if _update_active or not _configured or not is_instance_valid(_coordinator):
 		return false
 	if int(_coordinator.audit().get("load_request_count", -1)) != 0:
