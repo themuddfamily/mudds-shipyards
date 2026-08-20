@@ -20,6 +20,11 @@ const INTERACTABLE_LAYER := PhysicsLayers.INTERACTABLE_AREA_LAYER
 @export var ship_path := NodePath("..")
 @export var boarding_enabled := true:
 	set(value):
+		# Scene-authored and pre-tree values define the initial interaction
+		# contract. Once this area has entered a live lifecycle, public changes
+		# must not alter retained discovery or reservation state off-tree.
+		if _initialized and not _can_mutate_runtime():
+			return
 		if boarding_enabled == value:
 			return
 		boarding_enabled = value
@@ -149,6 +154,10 @@ func get_reservation_token() -> Variant:
 ## discovery, preventing a stale prompt during destruction or recycling.
 func set_boarding_enabled(enabled: bool) -> void:
 	boarding_enabled = enabled
+
+
+func _can_mutate_runtime() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() and not _detaching
 
 
 func _base_availability() -> bool:

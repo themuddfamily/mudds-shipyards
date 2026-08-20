@@ -218,6 +218,8 @@ func _run() -> void:
 		"queued boarding-area disposal publishes no late availability after the deferred turn"
 	)
 
+	await _test_live_enablement_currentness(area_scene, host)
+
 	var incompatible_parent := Node3D.new()
 	incompatible_parent.name = "IncompatibleOwner"
 	host.add_child(incompatible_parent)
@@ -236,6 +238,82 @@ func _run() -> void:
 	await process_frame
 	_check(root.get_child_count() == original_root_child_count, "boarding-area fixture cleans up every node")
 	_finish()
+
+
+func _test_live_enablement_currentness(area_scene: PackedScene, host: Node3D) -> void:
+	var ship := DummyCompatibleShip.new()
+	ship.name = "LifecycleCurrentnessShip"
+	host.add_child(ship)
+	var area := area_scene.instantiate() as ShipBoardingArea
+	ship.add_child(area)
+	await _physics_frames(2)
+	var shape := area.get_node_or_null("BoardingRange") as CollisionShape3D
+	var availability_events: Array[bool] = []
+	area.availability_changed.connect(
+		func(available: bool) -> void:
+			availability_events.append(available)
+	)
+
+	host.remove_child(ship)
+	await process_frame
+	availability_events.clear()
+	var detached_snapshot := _enablement_snapshot(area, shape)
+	area.set_boarding_enabled(false)
+	area.boarding_enabled = false
+	_check(
+		not area.is_inside_tree()
+			and _enablement_snapshot(area, shape) == detached_snapshot
+			and availability_events.is_empty(),
+		"detached initialized boarding-area enablement calls preserve retained discovery state and availability"
+	)
+
+	host.add_child(ship)
+	await _physics_frames(2)
+	area.set_boarding_enabled(false)
+	await _physics_frames(2)
+	var disabled_live := not area.boarding_enabled \
+		and area.collision_layer == 0 \
+		and not area.monitorable \
+		and shape != null and shape.disabled
+	area.boarding_enabled = true
+	await _physics_frames(2)
+	_check(
+		disabled_live
+			and area.boarding_enabled
+			and area.collision_layer == INTERACTABLE_LAYER
+			and area.monitorable
+			and shape != null and not shape.disabled,
+		"reentered live boarding-area enablement still updates the authored discovery contract"
+	)
+
+	availability_events.clear()
+	var queued_snapshot := _enablement_snapshot(area, shape)
+	area.queue_free()
+	area.set_boarding_enabled(false)
+	area.boarding_enabled = false
+	_check(
+		area.is_inside_tree()
+			and area.is_queued_for_deletion()
+			and _enablement_snapshot(area, shape) == queued_snapshot
+			and availability_events.is_empty(),
+		"queued boarding-area enablement calls preserve discovery state and publish no availability change"
+	)
+	await process_frame
+	ship.queue_free()
+	await process_frame
+
+
+func _enablement_snapshot(area: ShipBoardingArea, shape: CollisionShape3D) -> Dictionary:
+	return {
+		"enabled": area.boarding_enabled,
+		"collision_layer": area.collision_layer,
+		"collision_mask": area.collision_mask,
+		"monitoring": area.monitoring,
+		"monitorable": area.monitorable,
+		"shape_disabled": shape.disabled if shape != null else true,
+		"reserved": area.is_reserved(),
+		"reservation_token": area.get_reservation_token(),
+	}.duplicate(true)
 
 
 func _player_discovers(player: Node, area: ShipBoardingArea) -> bool:
