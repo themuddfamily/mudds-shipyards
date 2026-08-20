@@ -21,19 +21,47 @@ const ABDOMEN_SEAL_NAMES := [&"AbdomenSeal00", &"AbdomenSeal01", &"AbdomenSeal02
 const ABDOMEN_SEAL_INNER_RADIUS := 0.192
 const ABDOMEN_SEAL_OUTER_RADIUS := 0.207
 const ABDOMEN_SEAL_SCALE := Vector3(1.0, 1.0, 0.68)
+const CHEST_FASTENER_NAMES := [
+	&"ChestFastenerLLow", &"ChestFastenerLHigh",
+	&"ChestFastenerRLow", &"ChestFastenerRHigh",
+]
+const ARM_SHARED_FAMILY_NAMES := [
+	&"PressureShoulder", &"Shoulder", &"UpperArm", &"UpperArmBand", &"Elbow",
+	&"Forearm", &"WristSeal", &"Glove", &"GloveKnuckle",
+]
 const GENERATED_VISUAL_NODE_COUNT := 79
 const BASELINE_GENERATED_MESH_RESOURCE_COUNT := 79
-const RETAINED_GENERATED_MESH_RESOURCE_COUNT := 77
+const RETAINED_GENERATED_MESH_RESOURCE_COUNT := 65
 const GENERATED_MATERIAL_RESOURCE_COUNT := 12
 const GENERATED_STRUCTURAL_SURFACE_SUBMISSION_COUNT := 79
 
 var _materials: Dictionary = {}
 var _abdomen_seal_mesh: TorusMesh
+var _chest_fastener_mesh: CylinderMesh
+var _pressure_shoulder_mesh: SphereMesh
+var _shoulder_mesh: SphereMesh
+var _upper_arm_mesh: CylinderMesh
+var _upper_arm_band_mesh: TorusMesh
+var _elbow_mesh: SphereMesh
+var _forearm_mesh: CylinderMesh
+var _wrist_seal_mesh: TorusMesh
+var _glove_mesh: CapsuleMesh
+var _glove_knuckle_mesh: SphereMesh
 
 
 func create_materials() -> Dictionary:
 	_create_pilot_materials()
 	_abdomen_seal_mesh = null
+	_chest_fastener_mesh = null
+	_pressure_shoulder_mesh = null
+	_shoulder_mesh = null
+	_upper_arm_mesh = null
+	_upper_arm_band_mesh = null
+	_elbow_mesh = null
+	_forearm_mesh = null
+	_wrist_seal_mesh = null
+	_glove_mesh = null
+	_glove_knuckle_mesh = null
 	return _materials
 
 
@@ -44,6 +72,7 @@ func build(
 		left_leg: Node3D,
 		right_leg: Node3D
 	) -> void:
+	_create_shared_primitive_meshes()
 	_build_pilot_core(body_pivot)
 	_build_pilot_arm(left_arm, -1.0)
 	_build_pilot_arm(right_arm, 1.0)
@@ -51,18 +80,22 @@ func build(
 	_build_pilot_leg(right_leg, 1.0)
 
 
-## Renderer-independent evidence for the first exact repeated fallback family.
+## Renderer-independent evidence for the exact repeated fallback families.
 ##
 ## Generated MeshInstance3D nodes keep their names, transforms, semantic
-## metadata, and one structural mesh surface each. Only the three identical
-## abdomen-seal TorusMesh resources are shared; no batching or driver draw-call,
-## frame-time, or VRAM claim is made.
-func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictionary:
+## metadata, and one structural mesh surface each. The abdomen seals, chest
+## fasteners, and mirrored arm components share only identical mesh recipes; no
+## batching or driver draw-call, frame-time, or VRAM claim is made.
+func get_visual_allocation_audit(presentation_root: Node) -> Dictionary:
 	var errors := PackedStringArray()
 	var generated_nodes: Array[MeshInstance3D] = []
 	var mesh_ids: Dictionary = {}
 	var material_ids: Dictionary = {}
 	var abdomen_mesh_ids: Dictionary = {}
+	var chest_fastener_mesh_ids: Dictionary = {}
+	var arm_mesh_ids: Dictionary = {}
+	var chest_fastener_rows: Array[Dictionary] = []
+	var arm_family_rows: Array[Dictionary] = []
 	var structural_surface_submissions := 0
 	var abdomen_child_count := 0
 	var abdomen_script_count := 0
@@ -175,6 +208,39 @@ func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictio
 					"material_role": String(seal.get_meta(&"material_role", &"")),
 					"construction_role": String(seal.get_meta(&"construction_role", &"")),
 				})
+			var chest_audit := _audit_shared_mesh_family(
+				refined_core,
+				CHEST_FASTENER_NAMES,
+				_chest_fastener_mesh,
+				_materials.get("rubber") as Material,
+				&"chest_fastener"
+			)
+			_append_allocation_errors(errors, chest_audit.get("errors", PackedStringArray()))
+			chest_fastener_mesh_ids = chest_audit.get("mesh_ids", {}) as Dictionary
+			chest_fastener_rows = chest_audit.get("rows", []) as Array[Dictionary]
+
+			for family_name in ARM_SHARED_FAMILY_NAMES:
+				var arm_audit := _audit_shared_mesh_family(
+					presentation_root,
+					[
+						StringName("LeftArmPivot/%sL" % String(family_name)),
+						StringName("RightArmPivot/%sR" % String(family_name)),
+					],
+					_get_shared_arm_mesh(family_name),
+					_get_shared_arm_material(family_name),
+					family_name
+				)
+				_append_allocation_errors(errors, arm_audit.get("errors", PackedStringArray()))
+				for mesh_id in (arm_audit.get("mesh_ids", {}) as Dictionary):
+					arm_mesh_ids[mesh_id] = true
+				arm_family_rows.append({
+					"family": String(family_name),
+					"copy_count": int(arm_audit.get("copy_count", 0)),
+					"mesh_resource_identity_count": (arm_audit.get("mesh_ids", {}) as Dictionary).size(),
+					"baseline_mesh_resource_identity_count": 2,
+					"mesh_resource_identity_delta": (arm_audit.get("mesh_ids", {}) as Dictionary).size() - 2,
+					"rows": arm_audit.get("rows", []) as Array[Dictionary],
+				})
 
 	if generated_nodes.size() != GENERATED_VISUAL_NODE_COUNT:
 		errors.append("pilot_generated_visual_node_count_drift")
@@ -186,6 +252,10 @@ func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictio
 		errors.append("pilot_generated_structural_submission_count_drift")
 	if abdomen_mesh_ids.size() != 1:
 		errors.append("abdomen_seal_mesh_identity_count_drift")
+	if chest_fastener_mesh_ids.size() != 1:
+		errors.append("chest_fastener_mesh_identity_count_drift")
+	if arm_mesh_ids.size() != ARM_SHARED_FAMILY_NAMES.size():
+		errors.append("arm_mesh_identity_count_drift")
 	if collision_object_count != 0 or collision_shape_count != 0 or navigation_region_count != 0:
 		errors.append("pilot_fallback_visuals_gained_collision_or_navigation_authority")
 	if (
@@ -201,7 +271,7 @@ func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictio
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
-		"scope": &"pilot_fallback_abdomen_seal_visuals",
+		"scope": &"pilot_fallback_shared_visuals",
 		"generated_visual_node_count": generated_nodes.size(),
 		"baseline_generated_visual_node_count": GENERATED_VISUAL_NODE_COUNT,
 		"generated_visual_node_delta": generated_nodes.size() - GENERATED_VISUAL_NODE_COUNT,
@@ -216,6 +286,18 @@ func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictio
 		"baseline_abdomen_seal_mesh_resource_identity_count": ABDOMEN_SEAL_NAMES.size(),
 		"abdomen_seal_mesh_resource_identity_delta": (
 			abdomen_mesh_ids.size() - ABDOMEN_SEAL_NAMES.size()
+		),
+		"chest_fastener_copy_count": CHEST_FASTENER_NAMES.size(),
+		"chest_fastener_mesh_resource_identity_count": chest_fastener_mesh_ids.size(),
+		"baseline_chest_fastener_mesh_resource_identity_count": CHEST_FASTENER_NAMES.size(),
+		"chest_fastener_mesh_resource_identity_delta": (
+			chest_fastener_mesh_ids.size() - CHEST_FASTENER_NAMES.size()
+		),
+		"arm_copy_count": ARM_SHARED_FAMILY_NAMES.size() * 2,
+		"arm_mesh_resource_identity_count": arm_mesh_ids.size(),
+		"baseline_arm_mesh_resource_identity_count": ARM_SHARED_FAMILY_NAMES.size() * 2,
+		"arm_mesh_resource_identity_delta": (
+			arm_mesh_ids.size() - ARM_SHARED_FAMILY_NAMES.size() * 2
 		),
 		"material_resource_identity_count": material_ids.size(),
 		"baseline_material_resource_identity_count": GENERATED_MATERIAL_RESOURCE_COUNT,
@@ -240,7 +322,249 @@ func get_abdomen_seal_visual_allocation_audit(presentation_root: Node) -> Dictio
 		"frame_time_claimed": false,
 		"vram_claimed": false,
 		"behavior_rows": behavior_rows,
+		"chest_fastener_rows": chest_fastener_rows,
+		"arm_family_rows": arm_family_rows,
 	}.duplicate(true)
+
+
+func _audit_shared_mesh_family(
+		root: Node,
+		paths: Array,
+		expected_mesh: PrimitiveMesh,
+		expected_material: Material,
+		family_name: StringName
+	) -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids: Dictionary = {}
+	var rows: Array[Dictionary] = []
+	for node_path in paths:
+		var mesh_instance := root.get_node_or_null(NodePath(String(node_path))) as MeshInstance3D
+		if mesh_instance == null:
+			errors.append("%s_node_missing:%s" % [family_name, node_path])
+			continue
+		if mesh_instance.mesh == null:
+			errors.append("%s_mesh_missing:%s" % [family_name, node_path])
+			continue
+		mesh_ids[mesh_instance.mesh.get_instance_id()] = true
+		if mesh_instance.mesh != expected_mesh:
+			errors.append("%s_mesh_identity_drift:%s" % [family_name, mesh_instance.name])
+		if not _shared_mesh_recipe_is_exact(family_name, expected_mesh, expected_material):
+			errors.append("%s_mesh_recipe_drift:%s" % [family_name, mesh_instance.name])
+		if not _shared_visual_node_is_exact(mesh_instance, expected_material):
+			errors.append("%s_visual_semantics_drift:%s" % [family_name, mesh_instance.name])
+		if (
+			family_name == &"chest_fastener"
+			and not _chest_fastener_transform_is_exact(mesh_instance)
+		):
+			errors.append("chest_fastener_transform_drift:%s" % mesh_instance.name)
+		elif (
+			ARM_SHARED_FAMILY_NAMES.has(family_name)
+			and not _shared_arm_transform_is_exact(family_name, mesh_instance)
+		):
+			errors.append("%s_transform_drift:%s" % [family_name, mesh_instance.name])
+		rows.append({
+			"path": String(node_path),
+			"name": String(mesh_instance.name),
+			"position": [mesh_instance.position.x, mesh_instance.position.y, mesh_instance.position.z],
+			"rotation": [mesh_instance.rotation.x, mesh_instance.rotation.y, mesh_instance.rotation.z],
+			"scale": [mesh_instance.scale.x, mesh_instance.scale.y, mesh_instance.scale.z],
+			"material_role": String(mesh_instance.get_meta(&"material_role", &"")),
+			"construction_role": String(mesh_instance.get_meta(&"construction_role", &"")),
+		})
+	return {
+		"errors": errors,
+		"mesh_ids": mesh_ids,
+		"copy_count": paths.size(),
+		"rows": rows,
+	}
+
+
+func _append_allocation_errors(errors: PackedStringArray, additions: PackedStringArray) -> void:
+	for error in additions:
+		errors.append(error)
+
+
+func _shared_visual_node_is_exact(
+		mesh_instance: MeshInstance3D,
+		expected_material: Material
+	) -> bool:
+	var material_role := _get_pilot_material_role(expected_material)
+	return (
+		mesh_instance.get_child_count() == 0
+		and mesh_instance.get_script() == null
+		and mesh_instance.get_groups().is_empty()
+		and not mesh_instance.is_processing()
+		and not mesh_instance.is_physics_processing()
+		and mesh_instance.visible
+		and mesh_instance.layers == 1
+		and mesh_instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and mesh_instance.material_override == null
+		and mesh_instance.material_overlay == null
+		and is_zero_approx(mesh_instance.transparency)
+		and is_zero_approx(mesh_instance.extra_cull_margin)
+		and mesh_instance.custom_aabb == AABB()
+		and mesh_instance.get_meta_list().size() == 3
+		and bool(mesh_instance.get_meta(&"pilot_generated", false))
+		and mesh_instance.get_meta(&"material_role", &"") == material_role
+		and mesh_instance.get_meta(&"construction_role", &"") == _get_pilot_construction_role(material_role)
+	)
+
+
+func _chest_fastener_transform_is_exact(mesh_instance: MeshInstance3D) -> bool:
+	var left := String(mesh_instance.name).begins_with("ChestFastenerL")
+	var low := String(mesh_instance.name).ends_with("Low")
+	return (
+		mesh_instance.position.is_equal_approx(Vector3(-0.105 if left else 0.105, 1.2 if low else 1.4, -0.251))
+		and mesh_instance.rotation.is_equal_approx(Vector3(PI * 0.5, 0.0, 0.0))
+		and mesh_instance.scale.is_equal_approx(Vector3.ONE)
+	)
+
+
+func _shared_arm_transform_is_exact(
+		family_name: StringName,
+		mesh_instance: MeshInstance3D
+	) -> bool:
+	var side := -1.0 if String(mesh_instance.name).ends_with("L") else 1.0
+	var expected_position := Vector3.ZERO
+	var expected_rotation := Vector3.ZERO
+	var expected_scale := Vector3.ONE
+	match family_name:
+		&"PressureShoulder":
+			expected_position = Vector3(-side * 0.04, -0.02, 0.0)
+			expected_scale = Vector3(1.04, 1.0, 0.96)
+		&"Shoulder":
+			expected_position = Vector3(-side * 0.04, 0.005, -0.018)
+			expected_scale = Vector3(1.18, 0.56, 0.94)
+		&"UpperArm":
+			expected_position = Vector3(-side * 0.032, -0.21, 0.0)
+			expected_rotation = Vector3(0.0, 0.0, side * deg_to_rad(3.0))
+			expected_scale = Vector3(1.0, 1.0, 0.92)
+		&"UpperArmBand":
+			expected_position = Vector3(-side * 0.039, -0.292, 0.0)
+			expected_scale = Vector3(1.0, 1.0, 0.92)
+		&"Elbow":
+			expected_position = Vector3(-side * 0.045, -0.425, 0.0)
+			expected_scale = Vector3(1.0, 0.9, 0.96)
+		&"Forearm":
+			expected_position = Vector3(-side * 0.055, -0.56, -0.012)
+			expected_rotation = Vector3(0.0, 0.0, side * deg_to_rad(4.0))
+			expected_scale = Vector3(1.0, 1.0, 0.9)
+		&"WristSeal":
+			expected_position = Vector3(-side * 0.065, -0.7, -0.015)
+			expected_scale = Vector3(1.0, 1.0, 0.93)
+		&"Glove":
+			expected_position = Vector3(-side * 0.068, -0.765, -0.045)
+			expected_rotation = Vector3(deg_to_rad(8.0), 0.0, side * deg_to_rad(4.0))
+			expected_scale = Vector3(0.9, 1.0, 0.88)
+		&"GloveKnuckle":
+			expected_position = Vector3(-side * 0.068, -0.82, -0.092)
+			expected_scale = Vector3(1.04, 0.52, 0.4)
+		_: return false
+	return (
+		mesh_instance.position.is_equal_approx(expected_position)
+		and mesh_instance.rotation.is_equal_approx(expected_rotation)
+		and mesh_instance.scale.is_equal_approx(expected_scale)
+	)
+
+
+func _shared_mesh_recipe_is_exact(
+		family_name: StringName,
+		mesh: PrimitiveMesh,
+		material: Material
+	) -> bool:
+	if mesh == null or mesh.material != material or mesh.get_surface_count() != 1:
+		return false
+	match family_name:
+		&"chest_fastener":
+			var cylinder := mesh as CylinderMesh
+			return cylinder != null and _cylinder_recipe_is_exact(cylinder, 0.011, 0.011, 0.016)
+		&"PressureShoulder":
+			return _sphere_recipe_is_exact(mesh as SphereMesh, 0.09)
+		&"Shoulder":
+			return _sphere_recipe_is_exact(mesh as SphereMesh, 0.095)
+		&"UpperArm":
+			return _cylinder_recipe_is_exact(mesh as CylinderMesh, 0.082, 0.068, 0.36)
+		&"UpperArmBand":
+			return _torus_recipe_is_exact(mesh as TorusMesh, 0.073, 0.087)
+		&"Elbow":
+			return _sphere_recipe_is_exact(mesh as SphereMesh, 0.077)
+		&"Forearm":
+			return _cylinder_recipe_is_exact(mesh as CylinderMesh, 0.072, 0.058, 0.275)
+		&"WristSeal":
+			return _torus_recipe_is_exact(mesh as TorusMesh, 0.058, 0.072)
+		&"Glove":
+			var capsule := mesh as CapsuleMesh
+			return (
+				capsule != null
+				and is_equal_approx(capsule.radius, 0.071)
+				and is_equal_approx(capsule.height, 0.18)
+				and capsule.radial_segments == 24
+				and capsule.rings == 8
+			)
+		&"GloveKnuckle":
+			return _sphere_recipe_is_exact(mesh as SphereMesh, 0.054)
+	return false
+
+
+func _sphere_recipe_is_exact(mesh: SphereMesh, radius: float) -> bool:
+	return (
+		mesh != null
+		and is_equal_approx(mesh.radius, radius)
+		and is_equal_approx(mesh.height, radius * 2.0)
+		and mesh.radial_segments == 24
+		and mesh.rings == 12
+	)
+
+
+func _cylinder_recipe_is_exact(
+		mesh: CylinderMesh,
+		top_radius: float,
+		bottom_radius: float,
+		height: float
+	) -> bool:
+	return (
+		mesh != null
+		and is_equal_approx(mesh.top_radius, top_radius)
+		and is_equal_approx(mesh.bottom_radius, bottom_radius)
+		and is_equal_approx(mesh.height, height)
+		and mesh.radial_segments == 24
+		and mesh.rings == 4
+	)
+
+
+func _torus_recipe_is_exact(mesh: TorusMesh, inner_radius: float, outer_radius: float) -> bool:
+	return (
+		mesh != null
+		and is_equal_approx(mesh.inner_radius, inner_radius)
+		and is_equal_approx(mesh.outer_radius, outer_radius)
+		and mesh.rings == 24
+		and mesh.ring_segments == 10
+	)
+
+
+func _get_shared_arm_mesh(family_name: StringName) -> PrimitiveMesh:
+	match family_name:
+		&"PressureShoulder": return _pressure_shoulder_mesh
+		&"Shoulder": return _shoulder_mesh
+		&"UpperArm": return _upper_arm_mesh
+		&"UpperArmBand": return _upper_arm_band_mesh
+		&"Elbow": return _elbow_mesh
+		&"Forearm": return _forearm_mesh
+		&"WristSeal": return _wrist_seal_mesh
+		&"Glove": return _glove_mesh
+		&"GloveKnuckle": return _glove_knuckle_mesh
+	return null
+
+
+func _get_shared_arm_material(family_name: StringName) -> Material:
+	match family_name:
+		&"PressureShoulder", &"UpperArm": return _materials.get("textile") as Material
+		&"Shoulder", &"Forearm": return _materials.get("hard_armor") as Material
+		&"UpperArmBand": return _materials.get("piping") as Material
+		&"Elbow": return _materials.get("soft_armor") as Material
+		&"WristSeal", &"Glove": return _materials.get("rubber") as Material
+		&"GloveKnuckle": return _materials.get("ceramic") as Material
+	return null
 
 
 func _create_pilot_materials() -> void:
@@ -272,6 +596,21 @@ func _create_pilot_materials() -> void:
 			0.48
 		),
 	}
+
+
+func _create_shared_primitive_meshes() -> void:
+	# These resources are immutable recipe matches. They are made before either
+	# arm is composed, then only attached to their existing named visual nodes.
+	_chest_fastener_mesh = _new_cylinder_mesh(0.011, 0.011, 0.016)
+	_pressure_shoulder_mesh = _new_sphere_mesh(0.09)
+	_shoulder_mesh = _new_sphere_mesh(0.095)
+	_upper_arm_mesh = _new_cylinder_mesh(0.082, 0.068, 0.36)
+	_upper_arm_band_mesh = _new_torus_mesh(0.073, 0.087)
+	_elbow_mesh = _new_sphere_mesh(0.077)
+	_forearm_mesh = _new_cylinder_mesh(0.072, 0.058, 0.275)
+	_wrist_seal_mesh = _new_torus_mesh(0.058, 0.072)
+	_glove_mesh = _new_capsule_mesh(0.071, 0.18)
+	_glove_knuckle_mesh = _new_sphere_mesh(0.054)
 
 
 func _build_pilot_core(body_pivot: Node3D) -> void:
@@ -414,11 +753,11 @@ func _build_pilot_core(body_pivot: Node3D) -> void:
 		)
 	for side in [-1.0, 1.0]:
 		for height in [1.2, 1.4]:
-			_pilot_cylinder(
+			_pilot_mesh_instance(
 				core,
 				"ChestFastener%s%s" % ["L" if side < 0.0 else "R", "Low" if height < 1.3 else "High"],
 				Vector3(side * 0.105, height, -0.251),
-				0.011, 0.011, 0.016, _materials.rubber,
+				_chest_fastener_mesh, _materials.rubber,
 				Vector3.ONE, Vector3(PI * 0.5, 0.0, 0.0)
 			)
 
@@ -483,52 +822,52 @@ func _build_pilot_helmet(parent: Node3D) -> void:
 
 func _build_pilot_arm(parent: Node3D, side: float) -> void:
 	var suffix := "L" if side < 0.0 else "R"
-	_pilot_sphere(
+	_pilot_mesh_instance(
 		parent, "PressureShoulder%s" % suffix, Vector3(-side * 0.04, -0.02, 0.0),
-		0.09, _materials.textile,
+		_pressure_shoulder_mesh, _materials.textile,
 		Vector3(1.04, 1.0, 0.96)
 	)
-	_pilot_sphere(
+	_pilot_mesh_instance(
 		parent, "Shoulder%s" % suffix, Vector3(-side * 0.04, 0.005, -0.018),
-		0.095, _materials.hard_armor,
+		_shoulder_mesh, _materials.hard_armor,
 		Vector3(1.18, 0.56, 0.94)
 	)
-	_pilot_cylinder(
+	_pilot_mesh_instance(
 		parent, "UpperArm%s" % suffix, Vector3(-side * 0.032, -0.21, 0.0),
-		0.082, 0.068, 0.36, _materials.textile,
+		_upper_arm_mesh, _materials.textile,
 		Vector3(1.0, 1.0, 0.92),
 		Vector3(0.0, 0.0, side * deg_to_rad(3.0))
 	)
-	_pilot_torus(
+	_pilot_mesh_instance(
 		parent, "UpperArmBand%s" % suffix, Vector3(-side * 0.039, -0.292, 0.0),
-		0.073, 0.087, _materials.piping,
+		_upper_arm_band_mesh, _materials.piping,
 		Vector3(1.0, 1.0, 0.92)
 	)
-	_pilot_sphere(
+	_pilot_mesh_instance(
 		parent, "Elbow%s" % suffix, Vector3(-side * 0.045, -0.425, 0.0),
-		0.077, _materials.soft_armor,
+		_elbow_mesh, _materials.soft_armor,
 		Vector3(1.0, 0.9, 0.96)
 	)
-	_pilot_cylinder(
+	_pilot_mesh_instance(
 		parent, "Forearm%s" % suffix, Vector3(-side * 0.055, -0.56, -0.012),
-		0.072, 0.058, 0.275, _materials.hard_armor,
+		_forearm_mesh, _materials.hard_armor,
 		Vector3(1.0, 1.0, 0.9),
 		Vector3(0.0, 0.0, side * deg_to_rad(4.0))
 	)
-	_pilot_torus(
+	_pilot_mesh_instance(
 		parent, "WristSeal%s" % suffix, Vector3(-side * 0.065, -0.7, -0.015),
-		0.058, 0.072, _materials.rubber,
+		_wrist_seal_mesh, _materials.rubber,
 		Vector3(1.0, 1.0, 0.93)
 	)
-	_pilot_capsule(
+	_pilot_mesh_instance(
 		parent, "Glove%s" % suffix, Vector3(-side * 0.068, -0.765, -0.045),
-		0.071, 0.18, _materials.rubber,
+		_glove_mesh, _materials.rubber,
 		Vector3(0.9, 1.0, 0.88),
 		Vector3(deg_to_rad(8.0), 0.0, side * deg_to_rad(4.0))
 	)
-	_pilot_sphere(
+	_pilot_mesh_instance(
 		parent, "GloveKnuckle%s" % suffix, Vector3(-side * 0.068, -0.82, -0.092),
-		0.054, _materials.ceramic,
+		_glove_knuckle_mesh, _materials.ceramic,
 		Vector3(1.04, 0.52, 0.4)
 	)
 
@@ -672,11 +1011,7 @@ func _pilot_capsule(
 		scale_value: Vector3 = Vector3.ONE,
 		rotation_value: Vector3 = Vector3.ZERO
 	) -> MeshInstance3D:
-	var mesh := CapsuleMesh.new()
-	mesh.radius = radius
-	mesh.height = maxf(height, radius * 2.0)
-	mesh.radial_segments = 24
-	mesh.rings = 8
+	var mesh := _new_capsule_mesh(radius, height)
 	return _pilot_mesh_instance(
 		parent, part_name, position, mesh, material, scale_value, rotation_value
 	)
@@ -691,11 +1026,7 @@ func _pilot_sphere(
 		scale_value: Vector3 = Vector3.ONE,
 		rotation_value: Vector3 = Vector3.ZERO
 	) -> MeshInstance3D:
-	var mesh := SphereMesh.new()
-	mesh.radius = radius
-	mesh.height = radius * 2.0
-	mesh.radial_segments = 24
-	mesh.rings = 12
+	var mesh := _new_sphere_mesh(radius)
 	return _pilot_mesh_instance(
 		parent, part_name, position, mesh, material, scale_value, rotation_value
 	)
@@ -712,12 +1043,7 @@ func _pilot_cylinder(
 		scale_value: Vector3 = Vector3.ONE,
 		rotation_value: Vector3 = Vector3.ZERO
 	) -> MeshInstance3D:
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = top_radius
-	mesh.bottom_radius = bottom_radius
-	mesh.height = height
-	mesh.radial_segments = 24
-	mesh.rings = 4
+	var mesh := _new_cylinder_mesh(top_radius, bottom_radius, height)
 	return _pilot_mesh_instance(
 		parent, part_name, position, mesh, material, scale_value, rotation_value
 	)
@@ -733,11 +1059,7 @@ func _pilot_torus(
 		scale_value: Vector3 = Vector3.ONE,
 		rotation_value: Vector3 = Vector3.ZERO
 	) -> MeshInstance3D:
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = inner_radius
-	mesh.outer_radius = outer_radius
-	mesh.rings = 24
-	mesh.ring_segments = 10
+	var mesh := _new_torus_mesh(inner_radius, outer_radius)
 	return _pilot_mesh_instance(
 		parent, part_name, position, mesh, material, scale_value, rotation_value
 	)
@@ -757,3 +1079,44 @@ func _pilot_box(
 	return _pilot_mesh_instance(
 		parent, part_name, position, mesh, material, scale_value, rotation_value
 	)
+
+
+func _new_capsule_mesh(radius: float, height: float) -> CapsuleMesh:
+	var mesh := CapsuleMesh.new()
+	mesh.radius = radius
+	mesh.height = maxf(height, radius * 2.0)
+	mesh.radial_segments = 24
+	mesh.rings = 8
+	return mesh
+
+
+func _new_sphere_mesh(radius: float) -> SphereMesh:
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 24
+	mesh.rings = 12
+	return mesh
+
+
+func _new_cylinder_mesh(
+		top_radius: float,
+		bottom_radius: float,
+		height: float
+	) -> CylinderMesh:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = top_radius
+	mesh.bottom_radius = bottom_radius
+	mesh.height = height
+	mesh.radial_segments = 24
+	mesh.rings = 4
+	return mesh
+
+
+func _new_torus_mesh(inner_radius: float, outer_radius: float) -> TorusMesh:
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = inner_radius
+	mesh.outer_radius = outer_radius
+	mesh.rings = 24
+	mesh.ring_segments = 10
+	return mesh
