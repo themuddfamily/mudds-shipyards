@@ -3,7 +3,7 @@ extends SceneTree
 const RIG_SCENE := preload(
 	"res://scenes/world/components/planetary_atmosphere_world_rig.tscn"
 )
-const EXPECTED_ASSERTIONS := 39
+const EXPECTED_ASSERTIONS := 40
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -60,9 +60,9 @@ func _run() -> void:
 	_test_observation_boundaries(first)
 	_test_strict_inputs_and_signal_reentry(first)
 	_test_partial_failure_and_exact_retry(first)
-	await _test_lifecycle(first, host)
 	_test_structured_scene_mutations(first, second)
 	_test_detached_reports(first)
+	await _test_lifecycle(first, host)
 	host.queue_free()
 	await process_frame
 	_finish()
@@ -521,6 +521,22 @@ func _test_lifecycle(
 		and bool(rig.audit().valid),
 		"whole-rig re-entry reapplies retained generation across all four adapters"
 	)
+	var queued_before := rig.get_snapshot()
+	var queued_signal_count := _root_signal_events.size()
+	rig.queue_free()
+	var queued_observation := rig.present_observation(
+		_observation(6_000.0, 6.0), rig.get_generation()
+	)
+	_check(
+		rig.is_inside_tree() and rig.is_queued_for_deletion()
+		and not bool(queued_observation.get("accepted", true))
+		and queued_observation.get("reason", &"") == &"rig_detached"
+		and rig.get_snapshot() == queued_before
+		and _root_signal_events.size() == queued_signal_count
+		and _all_adapters_at_expected(rig),
+		"queued whole-rig disposal rejects direct observation without adapter, state, or signal mutation"
+	)
+	await process_frame
 
 
 func _test_structured_scene_mutations(

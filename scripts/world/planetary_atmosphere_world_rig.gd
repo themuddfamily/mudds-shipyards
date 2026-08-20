@@ -311,7 +311,7 @@ func present_observation(
 	# A standalone rig can be called directly, without the composition wrapper.
 	# Do not let an off-tree caller advance retained presentation that would only
 	# become visible on a later re-entry.
-	if not is_inside_tree():
+	if not is_inside_tree() or is_queued_for_deletion():
 		return _result(false, &"rig_detached")
 	if not _is_exact_integer(expected_generation) \
 			or int(expected_generation) != _generation:
