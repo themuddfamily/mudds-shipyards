@@ -1,6 +1,7 @@
 extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const SHIPYARD_WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 
 ## Extra simulated physics frames granted on top of the frames a wait's nominal
 ## duration implies. This is a frame count, never a wall-clock grace. See
@@ -15,14 +16,41 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var authored_world := SHIPYARD_WORLD_SCENE.instantiate() as ShipyardWorld
+	root.add_child(authored_world)
+	await process_frame
+	var authored_tie_socket := authored_world.get_node_or_null(^"LandingPad/IntegratedDeckServices/TieDownSocket") as MeshInstance3D
+	var authored_tie_mesh := authored_tie_socket.mesh as TorusMesh if authored_tie_socket != null else null
+	var authored_tie_down_audit := authored_world.get_tie_down_socket_allocation_audit()
+	_check(
+		bool(authored_tie_down_audit.valid) \
+			and authored_tie_mesh != null \
+			and not authored_tie_mesh.has_meta(TorusGeometryBudget.AUTHORED_META) \
+			and authored_tie_mesh.rings == 64 \
+			and authored_tie_mesh.ring_segments == 16,
+		"tie-down sockets retain the authored 64 by 16 recipe before TorusGeometryBudget"
+	)
+	authored_world.queue_free()
+	await process_frame
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
 	await physics_frame
-	game.start_shift()
 	var world := game.get_node("ShipyardWorld") as ShipyardWorld
+	game.start_shift()
 	var player := game.get_node("Player") as PlayerController
 	var module := world.get_node_or_null("AftJunctionStack") as AftJunctionStack
+	var tie_down_audit := world.get_tie_down_socket_allocation_audit()
+	_check(bool(tie_down_audit.valid) and int(tie_down_audit.copies) == 6 and int(tie_down_audit.mesh_resource_allocations) == 1, "six flush tie-down sockets share one presentation-only torus mesh")
+	var tie_socket := world.get_node_or_null(^"LandingPad/IntegratedDeckServices/TieDownSocket") as MeshInstance3D
+	if tie_socket != null:
+		var tie_mesh := tie_socket.mesh
+		tie_socket.mesh = tie_mesh.duplicate() as TorusMesh
+		var tie_red := world.get_tie_down_socket_allocation_audit()
+		tie_socket.mesh = tie_mesh
+		_check(not bool(tie_red.valid) and (tie_red.errors as PackedStringArray).has("tie_down_socket_mesh_count_drift") and bool(world.get_tie_down_socket_allocation_audit().valid), "splitting one tie-down mesh is a structured red and restores")
+	TorusGeometryBudget.normalise_tree(world)
+	_check(bool(world.get_tie_down_socket_allocation_audit().valid), "TorusGeometryBudget preserves tie-down sharing")
 	_check(module != null, "the aft junction is instantiated inside the shared shipyard world")
 	if module == null:
 		game.queue_free()

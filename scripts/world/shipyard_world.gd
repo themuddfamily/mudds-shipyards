@@ -838,6 +838,7 @@ var _guide_lens_material_cache: Dictionary = {}
 var _guide_lens_nodes: Array[MeshInstance3D] = []
 var _guide_light_nodes: Array[OmniLight3D] = []
 var _landing_pad_deck_connector_mesh: TorusMesh
+var _tie_down_socket_mesh: TorusMesh
 var _exterior_target_core_mesh: SphereMesh
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
@@ -1216,6 +1217,46 @@ func get_guide_light_allocation_audit() -> Dictionary:
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
 	}
+
+
+func get_tie_down_socket_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var meshes := {}
+	var details := get_node_or_null(^"LandingPad/IntegratedDeckServices") as Node
+	var sockets: Array[MeshInstance3D] = []
+	if details != null:
+		for child in details.get_children():
+			var socket := child as MeshInstance3D
+			if socket != null and bool(socket.get_meta("flush_deck_detail", false)):
+				sockets.append(socket)
+	for raw_socket in sockets:
+		var socket := raw_socket as MeshInstance3D
+		var mesh := socket.mesh as TorusMesh
+		if mesh == null:
+			errors.append("tie_down_socket_mesh_missing")
+			continue
+		meshes[mesh.get_instance_id()] = true
+		if mesh != _tie_down_socket_mesh:
+			errors.append("tie_down_socket_mesh_identity_drift")
+		var authored_tessellation := mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) as Vector2i
+		var budgeted_tessellation := TorusGeometryBudget.plan(mesh.outer_radius, mesh.inner_radius)
+		var is_unbudgeted_authored_recipe := not mesh.has_meta(TorusGeometryBudget.AUTHORED_META) \
+				and mesh.rings == 64 and mesh.ring_segments == 16
+		var is_budgeted_authored_recipe := authored_tessellation == Vector2i(64, 16) \
+				and mesh.rings == int(budgeted_tessellation.rings) \
+				and mesh.ring_segments == int(budgeted_tessellation.ring_segments)
+		if not is_equal_approx(mesh.inner_radius, 0.16) \
+				or not is_equal_approx(mesh.outer_radius, 0.25) \
+				or not (is_unbudgeted_authored_recipe or is_budgeted_authored_recipe):
+			errors.append("tie_down_socket_recipe_drift")
+		if socket.material_override != _materials.get("steel_blue") or not bool(socket.get_meta("flush_deck_detail", false)) or not socket.find_children("*", "CollisionObject3D", true, false).is_empty():
+			errors.append("tie_down_socket_presentation_or_authority_drift")
+	if sockets.size() != 6:
+		errors.append("tie_down_socket_copy_count_drift")
+	if meshes.size() != 1:
+		errors.append("tie_down_socket_mesh_count_drift")
+	errors.sort()
+	return {"valid": errors.is_empty(), "errors": errors, "copies": sockets.size(), "mesh_resource_allocations": meshes.size()}.duplicate(true)
 
 
 ## Renderer-independent allocation audit for one LandingPad-local visual family.
@@ -5408,6 +5449,11 @@ func _build_central_deck_details(pad: Node3D) -> void:
 
 	# Six flush tie-down sockets add scale and believable work detail without
 	# filling the player or craft lanes with freestanding props.
+	_tie_down_socket_mesh = TorusMesh.new()
+	_tie_down_socket_mesh.inner_radius = 0.16
+	_tie_down_socket_mesh.outer_radius = 0.25
+	_tie_down_socket_mesh.rings = 64
+	_tie_down_socket_mesh.ring_segments = 16
 	for tie_position in [
 		Vector3(-8.7, 0.125, -21.5),
 		Vector3(8.7, 0.125, -21.5),
@@ -5416,7 +5462,7 @@ func _build_central_deck_details(pad: Node3D) -> void:
 		Vector3(-8.7, 0.125, 3.2),
 		Vector3(8.7, 0.125, 3.2),
 	]:
-		var tie_down := _torus(details, "TieDownSocket", tie_position, 0.16, 0.25, _materials["steel_blue"])
+		var tie_down := _torus(details, "TieDownSocket", tie_position, 0.16, 0.25, _materials["steel_blue"], Vector3.ZERO, _tie_down_socket_mesh)
 		tie_down.set_meta("flush_deck_detail", true)
 		_tag_central_feature(tie_down, &"work_detail")
 
@@ -7763,17 +7809,20 @@ func _torus(
 	inner_radius: float,
 	outer_radius: float,
 	material: Material,
-	torus_rotation_degrees: Vector3 = Vector3.ZERO
+	torus_rotation_degrees: Vector3 = Vector3.ZERO,
+	shared_mesh: TorusMesh = null
 ) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
 	mesh_instance.position = torus_position
 	mesh_instance.rotation_degrees = torus_rotation_degrees
-	var torus_mesh := TorusMesh.new()
-	torus_mesh.inner_radius = inner_radius
-	torus_mesh.outer_radius = outer_radius
-	torus_mesh.rings = 64
-	torus_mesh.ring_segments = 16
+	var torus_mesh := shared_mesh
+	if torus_mesh == null:
+		torus_mesh = TorusMesh.new()
+		torus_mesh.inner_radius = inner_radius
+		torus_mesh.outer_radius = outer_radius
+		torus_mesh.rings = 64
+		torus_mesh.ring_segments = 16
 	mesh_instance.mesh = torus_mesh
 	mesh_instance.material_override = material
 	parent.add_child(mesh_instance)
