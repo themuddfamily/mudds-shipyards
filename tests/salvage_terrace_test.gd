@@ -39,6 +39,7 @@ func _run() -> void:
 	_test_rails_dressing_and_authority(module)
 	_test_short_side_rail_visual_sharing(module)
 	_test_performance_and_lifecycle(module)
+	await _test_queued_module_enable_guard()
 	await _test_real_player_ramp_traversal(module)
 	await _test_mutations_turn_audit_red(module)
 	await _test_cleanup(module)
@@ -458,6 +459,41 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		and bool(module.get_audit_report().valid),
 		"re-enable restores identical nodes, shared rail resources, World collision, and a green audit"
 	)
+
+
+func _test_queued_module_enable_guard() -> void:
+	var module := MODULE_SCENE.instantiate() as SalvageTerrace
+	module.set_module_enabled(false)
+	_check(
+		not module.is_module_enabled(),
+		"detached pre-tree module enable configuration remains supported"
+	)
+	module.set_module_enabled(true)
+	_test_root.add_child(module)
+	await process_frame
+	var generated_root := module.get_node_or_null(^"GeneratedRoot") as Node3D
+	module.set_module_enabled(false)
+	_check(
+		not module.is_module_enabled()
+		and generated_root != null and not generated_root.visible
+		and bool(module.get_lifecycle_contract().collision_matches_enabled),
+		"live module enable control still hides presentation and clears collision"
+	)
+	module.set_module_enabled(true)
+	var live_snapshot := module.get_lifecycle_contract()
+	var live_visibility := generated_root.visible if generated_root != null else false
+	module.queue_free()
+	module.set_module_enabled(false)
+	_check(
+		module.is_inside_tree()
+		and module.is_queued_for_deletion()
+		and module.is_module_enabled()
+		and module.get_lifecycle_contract() == live_snapshot
+		and generated_root != null and generated_root.visible == live_visibility,
+		"queued module enable request is inert before visibility or collision mutation"
+	)
+	await process_frame
+	_check(not is_instance_valid(module), "queued module-enable fixture releases cleanly")
 
 
 func _test_real_player_ramp_traversal(module: SalvageTerrace) -> void:

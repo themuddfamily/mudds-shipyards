@@ -568,6 +568,10 @@ func get_long_rail_visual_allocation_audit() -> Dictionary:
 
 
 func set_module_enabled(enabled: bool) -> void:
+	# Detached/pre-tree callers may configure the next installed lifecycle, but a
+	# queued module must not rewrite visibility or collision during disposal.
+	if is_queued_for_deletion():
+		return
 	_enabled = enabled
 	_apply_enabled_state()
 
