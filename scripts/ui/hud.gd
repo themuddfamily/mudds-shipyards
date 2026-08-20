@@ -842,6 +842,8 @@ func set_interaction(text: String, is_visible: bool = true) -> void:
 
 
 func update_ship_telemetry(data: Dictionary) -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	var speed: float = float(data.get("speed", 0.0))
 	var altitude: float = maxf(0.0, float(data.get("altitude", 0.0)))
 	var throttle: float = clampf(float(data.get("throttle", 0.0)), -1.0, 1.0)

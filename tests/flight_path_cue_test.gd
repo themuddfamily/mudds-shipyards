@@ -115,14 +115,15 @@ func _test_hud_contract() -> void:
 	var retained_telemetry := _hud_telemetry(center + Vector2(84.0, 22.0))
 	retained_telemetry["flight_path_clamped"] = true
 	hud.update_ship_telemetry(retained_telemetry)
-	var retained_before := _cue_state(cue.get_audit_report())
+	var retained_before := _hud_telemetry_state(hud)
 	root.remove_child(hud)
+	hud.update_ship_telemetry(_hud_telemetry(center + Vector2(-120.0, -44.0)))
 	cue.set_piloting(false)
 	cue.update_from_telemetry(_hud_telemetry(center + Vector2(-120.0, -44.0)))
 	cue.clear()
 	_check(
-		_cue_state(cue.get_audit_report()) == retained_before,
-		"a detached flight-path cue rejects piloting, telemetry, and clear mutations atomically"
+		_hud_telemetry_state(hud) == retained_before,
+		"a detached HUD rejects parent telemetry plus child cue mutations atomically"
 	)
 
 	root.add_child(hud)
@@ -139,17 +140,20 @@ func _test_hud_contract() -> void:
 		"a reentered flight-path cue accepts only a fresh live telemetry sample"
 	)
 
-	var queued_before := _cue_state(cue.get_audit_report())
+	var queued_before := _hud_telemetry_state(hud)
 	cue.queue_free()
+	hud.queue_free()
+	hud.update_ship_telemetry(_hud_telemetry(center + Vector2(200.0, 30.0)))
 	cue.set_piloting(false)
 	cue.update_from_telemetry(_hud_telemetry(center + Vector2(200.0, 30.0)))
 	cue.clear()
 	_check(
-		_cue_state(cue.get_audit_report()) == queued_before,
-		"a queued in-tree flight-path cue rejects all public visual-state mutations"
+		hud.is_inside_tree()
+		and hud.is_queued_for_deletion()
+		and _hud_telemetry_state(hud) == queued_before,
+		"a queued HUD rejects parent telemetry plus child cue mutations atomically"
 	)
 
-	hud.queue_free()
 	await process_frame
 	await process_frame
 
@@ -285,6 +289,29 @@ func _cue_state(report: Dictionary) -> Dictionary:
 		"rearward": bool(report.get("rearward", false)),
 		"alignment": float(report.get("alignment", 0.0)),
 		"camera_view": StringName(report.get("camera_view", &"")),
+	}.duplicate(true)
+
+
+func _hud_telemetry_state(hud: GameHUD) -> Dictionary:
+	var speed_label := hud.get("_speed_label") as Label
+	var altitude_label := hud.get("_altitude_label") as Label
+	var throttle_label := hud.get("_throttle_label") as Label
+	var throttle_bar := hud.get("_throttle_bar") as ProgressBar
+	var hull_bar := hud.get("_hull_bar") as ProgressBar
+	var damage_label := hud.get("_damage_status_label") as Label
+	var engine_label := hud.get("_engine_label") as Label
+	return {
+		"state_damage": hud.get("_state_damage"),
+		"state_throttle_reverse": hud.get("_state_throttle_reverse"),
+		"state_engine": hud.get("_state_engine"),
+		"speed": speed_label.text if speed_label != null else "",
+		"altitude": altitude_label.text if altitude_label != null else "",
+		"throttle": throttle_label.text if throttle_label != null else "",
+		"throttle_value": throttle_bar.value if throttle_bar != null else -1.0,
+		"hull_value": hull_bar.value if hull_bar != null else -1.0,
+		"damage": damage_label.text if damage_label != null else "",
+		"engine": engine_label.text if engine_label != null else "",
+		"cue": _cue_state(hud.get_flight_cue_report()),
 	}.duplicate(true)
 
 
