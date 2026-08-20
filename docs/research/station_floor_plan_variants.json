@@ -14,8 +14,12 @@
     {
       "variant_id": "b2_comb_overview_v1",
       "scope": "original_era_observed",
-      "source_ids": ["B2"],
-      "claim_ids": ["station.comb_trunk_rung_slab_rhythm"],
+      "source_ids": [
+        "B2"
+      ],
+      "claim_ids": [
+        "station.original_era_comb_trunk_rungs_slabs"
+      ],
       "resolved": {
         "adjacency": false,
         "scale": false,
@@ -27,8 +31,12 @@
     {
       "variant_id": "b3_deck_room_graph_v1",
       "scope": "observed_build",
-      "source_ids": ["B3"],
-      "claim_ids": ["station.spawn_deck_short_vertical_transition"],
+      "source_ids": [
+        "B3"
+      ],
+      "claim_ids": [
+        "station.spawn_deck_short_vertical_transition"
+      ],
       "resolved": {
         "adjacency": false,
         "scale": false,
@@ -40,8 +48,12 @@
     {
       "variant_id": "c1_habitat_vip_graph_v1",
       "scope": "later_source_only",
-      "source_ids": ["C1"],
-      "claim_ids": ["station.habitat_entry_bunks_chair_route_vip"],
+      "source_ids": [
+        "C1"
+      ],
+      "claim_ids": [
+        "later_source.habitat_bunks_chairs_consoles_vip_visible"
+      ],
       "resolved": {
         "adjacency": false,
         "scale": false,
