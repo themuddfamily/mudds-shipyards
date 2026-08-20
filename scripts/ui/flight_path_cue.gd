@@ -31,12 +31,16 @@ func _ready() -> void:
 
 
 func set_piloting(enabled: bool) -> void:
+	if not _can_mutate_live_cue():
+		return
 	_piloting = enabled
 	if not enabled:
 		clear()
 
 
 func update_from_telemetry(data: Dictionary) -> void:
+	if not _can_mutate_live_cue():
+		return
 	var position_value: Variant = data.get("flight_path_screen_position", Vector2.ZERO)
 	var has_valid_position := position_value is Vector2 and (position_value as Vector2).is_finite()
 	_marker_visible = _piloting and bool(data.get("flight_path_visible", false)) and has_valid_position
@@ -50,6 +54,8 @@ func update_from_telemetry(data: Dictionary) -> void:
 
 
 func clear() -> void:
+	if not _can_mutate_live_cue():
+		return
 	_marker_visible = false
 	_marker_position = Vector2.ZERO
 	_clamped = false
@@ -58,6 +64,10 @@ func clear() -> void:
 	_camera_view = &""
 	visible = false
 	queue_redraw()
+
+
+func _can_mutate_live_cue() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func get_audit_report() -> Dictionary:

@@ -19,7 +19,7 @@ func _test_hud_contract() -> void:
 	root.add_child(hud)
 	await process_frame
 	var gameplay_hud := hud.get("_hud") as Control
-	var cue := hud.get("_flight_cue_layer") as Control
+	var cue := hud.get("_flight_cue_layer") as FlightPathCue
 	var reticle := hud.get("_reticle") as Control
 	gameplay_hud.visible = true
 	hud.set_mode("piloting")
@@ -111,6 +111,43 @@ func _test_hud_contract() -> void:
 		"ship help resolves the current gamepad bindings instead of a stale static summary"
 	)
 	_check(_all_controls_passthrough(gameplay_hud), "the complete gameplay HUD remains transparent to look and fire input")
+
+	var retained_telemetry := _hud_telemetry(center + Vector2(84.0, 22.0))
+	retained_telemetry["flight_path_clamped"] = true
+	hud.update_ship_telemetry(retained_telemetry)
+	var retained_before := _cue_state(cue.get_audit_report())
+	root.remove_child(hud)
+	cue.set_piloting(false)
+	cue.update_from_telemetry(_hud_telemetry(center + Vector2(-120.0, -44.0)))
+	cue.clear()
+	_check(
+		_cue_state(cue.get_audit_report()) == retained_before,
+		"a detached flight-path cue rejects piloting, telemetry, and clear mutations atomically"
+	)
+
+	root.add_child(hud)
+	await process_frame
+	var fresh_telemetry := _hud_telemetry(center + Vector2(-120.0, -44.0))
+	fresh_telemetry["flight_path_rearward"] = true
+	hud.update_ship_telemetry(fresh_telemetry)
+	var fresh_report := cue.get_audit_report()
+	_check(
+		bool(fresh_report.get("marker_visible", false))
+		and bool(fresh_report.get("rearward", false))
+		and (fresh_report.get("marker_position", Vector2.ZERO) as Vector2)
+			.is_equal_approx(fresh_telemetry.get("flight_path_screen_position") as Vector2),
+		"a reentered flight-path cue accepts only a fresh live telemetry sample"
+	)
+
+	var queued_before := _cue_state(cue.get_audit_report())
+	cue.queue_free()
+	cue.set_piloting(false)
+	cue.update_from_telemetry(_hud_telemetry(center + Vector2(200.0, 30.0)))
+	cue.clear()
+	_check(
+		_cue_state(cue.get_audit_report()) == queued_before,
+		"a queued in-tree flight-path cue rejects all public visual-state mutations"
+	)
 
 	hud.queue_free()
 	await process_frame
@@ -237,6 +274,18 @@ func _hud_telemetry(position: Vector2) -> Dictionary:
 		"flight_path_alignment": 1.0,
 		"camera_view": &"chase",
 	}
+
+
+func _cue_state(report: Dictionary) -> Dictionary:
+	return {
+		"layer_visible": bool(report.get("layer_visible", false)),
+		"marker_visible": bool(report.get("marker_visible", false)),
+		"marker_position": report.get("marker_position", Vector2.ZERO) as Vector2,
+		"clamped": bool(report.get("clamped", false)),
+		"rearward": bool(report.get("rearward", false)),
+		"alignment": float(report.get("alignment", 0.0)),
+		"camera_view": StringName(report.get("camera_view", &"")),
+	}.duplicate(true)
 
 
 func _ellipse_metric(offset: Vector2, radii: Vector2) -> float:
