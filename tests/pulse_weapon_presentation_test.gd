@@ -895,6 +895,56 @@ func _run() -> void:
 	)
 	_check(bool(presentation.get_audit_report().valid), "reset pool retains a valid immutable build")
 
+	var queued_presentation := PRESENTATION_SCENE.instantiate() as PulseWeaponPresentation
+	host.add_child(queued_presentation)
+	await process_frame
+	queued_presentation.set_auto_advance_enabled(false)
+	var queued_signal_events: Array[StringName] = []
+	queued_presentation.shot_presented.connect(
+		func(_shot_id: int, _style_id: StringName, _source_instance_id: int, _hit: bool) -> void:
+			queued_signal_events.append(&"presented")
+	)
+	queued_presentation.shot_finished.connect(
+		func(_shot_id: int) -> void:
+			queued_signal_events.append(&"finished")
+	)
+	queued_presentation.effects_cleared.connect(
+		func() -> void:
+			queued_signal_events.append(&"cleared")
+	)
+	queued_presentation.presentation_enabled_changed.connect(
+		func(_enabled: bool) -> void:
+			queued_signal_events.append(&"enabled")
+	)
+	_check(
+		queued_presentation.present_shot(Vector3(2.0, 1.0, 4.0), Vector3(2.0, 1.0, -24.0), &"amber", null, true),
+		"queued-currentness fixture starts with one live hit pulse"
+	)
+	queued_presentation.queue_free()
+	var queued_snapshots := queued_presentation.get_active_shot_snapshots()
+	var queued_statistics := queued_presentation.get_statistics()
+	var queued_enabled := queued_presentation.is_presentation_enabled()
+	var queued_auto_advance := queued_presentation.is_auto_advance_enabled()
+	var queued_process := queued_presentation.is_processing()
+	var queued_signal_count := queued_signal_events.size()
+	queued_presentation.set_presentation_enabled(false)
+	queued_presentation.set_auto_advance_enabled(true)
+	queued_presentation.clear_effects()
+	queued_presentation.reset_for_reuse()
+	_check(
+		queued_presentation.is_inside_tree()
+		and queued_presentation.is_queued_for_deletion()
+		and not queued_presentation.advance_simulation(1.0)
+		and not queued_presentation.present_shot(Vector3.ZERO, Vector3.FORWARD * 10.0)
+		and queued_presentation.get_active_shot_snapshots() == queued_snapshots
+		and queued_presentation.get_statistics() == queued_statistics
+		and queued_presentation.is_presentation_enabled() == queued_enabled
+		and queued_presentation.is_auto_advance_enabled() == queued_auto_advance
+		and queued_presentation.is_processing() == queued_process
+		and queued_signal_events.size() == queued_signal_count,
+		"queued presentation rejects every direct mutator without pool, telemetry, lifecycle, or signal drift"
+	)
+
 	# Audits fail red for forbidden authority or shared-resource mutation and recover.
 	var pool_root := presentation.get_node("PoolRoot") as Node3D
 	var forbidden_area := Area3D.new()

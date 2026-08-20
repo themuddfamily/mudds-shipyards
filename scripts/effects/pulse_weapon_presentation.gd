@@ -182,6 +182,8 @@ func present_shot(
 		hit: bool = false,
 		presentation_receipt_id: int = -1
 	) -> bool:
+	if not _can_mutate_current_presentation():
+		return false
 	if not _can_present(origin, end, style_id, source_entity):
 		_rejected_count += 1
 		return false
@@ -251,6 +253,8 @@ func present_shot(
 ## Deterministically advances all live visuals. This is available even when
 ## automatic processing is disabled, which keeps captures and tests reproducible.
 func advance_simulation(delta: float) -> bool:
+	if not _can_mutate_current_presentation():
+		return false
 	if (
 		not _built
 		or not _presentation_enabled
@@ -300,12 +304,16 @@ func advance_shot_simulation(delta: float) -> bool:
 ## Immediately hides every active slot. No nodes or resources are freed, so a
 ## subsequent shot reuses the same immutable pool without allocation.
 func clear_effects() -> void:
+	if not _can_mutate_current_presentation():
+		return
 	_clear_effects_internal(true)
 
 
 ## Clears active visuals and statistics while preserving the allocated pool.
 ## This is the explicit reentry API for recycled combat/world presentations.
 func reset_for_reuse() -> void:
+	if not _can_mutate_current_presentation():
+		return
 	_lifecycle_transaction_active = true
 	var aborted_receipts := _clear_effects_internal(false, false)
 	_next_shot_id = 1
@@ -322,6 +330,8 @@ func reset_for_reuse() -> void:
 
 
 func set_presentation_enabled(enabled: bool) -> void:
+	if not _can_mutate_current_presentation():
+		return
 	_enabled_overridden = true
 	if _presentation_enabled == enabled:
 		_refresh_lifecycle()
@@ -342,6 +352,8 @@ func is_presentation_enabled() -> bool:
 
 
 func set_auto_advance_enabled(enabled: bool) -> void:
+	if not _can_mutate_current_presentation():
+		return
 	_auto_advance_overridden = true
 	_auto_advance_enabled = enabled
 	_refresh_lifecycle()
@@ -693,6 +705,10 @@ func _can_present(
 	if source_entity != null and not is_instance_valid(source_entity):
 		return false
 	return true
+
+
+func _can_mutate_current_presentation() -> bool:
+	return not is_queued_for_deletion()
 
 
 func _find_available_slot() -> int:
