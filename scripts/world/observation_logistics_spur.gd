@@ -130,7 +130,7 @@ const DRAWN_COPY_COUNT := 58
 const BASELINE_SURFACE_SUBMISSION_COUNT := 49
 const SURFACE_SUBMISSION_COUNT := 49
 const BASELINE_MESH_RESOURCE_COUNT := 49
-const MESH_RESOURCE_COUNT := 42
+const MESH_RESOURCE_COUNT := 37
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
 const MATERIAL_RESOURCE_COUNT := 9
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -139,6 +139,9 @@ const OBSERVATION_LENS_COPY_COUNT := 3
 const PRACTICAL_LENS_SIZE := Vector3(0.42, 0.18, 0.42)
 const PRACTICAL_LENS_COPY_COUNT := 6
 const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
+const LOGISTICS_CASE_SIZE := Vector3(2.1, 0.52, 1.28)
+const LOGISTICS_CASE_COPY_COUNT := 6
+const LOGISTICS_CASE_MESH_RESOURCE_COUNT := 1
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -158,6 +161,9 @@ const CONTENT_NOTE := (
 var _materials: Dictionary = {}
 var _observation_lens_mesh: BoxMesh
 var _practical_lens_mesh: BoxMesh
+## Immutable visual resource only; every named case retains its StaticBody3D
+## and CollisionShape3D while the six identical cargo-case renderers share it.
+var _logistics_case_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
 var _built := false
@@ -376,6 +382,28 @@ func get_visual_resource_contract() -> Dictionary:
 			and lens.get_child_count() == 0
 			and bool(lens.get_meta("visual_detail_only", false))
 		)
+	var logistics_case_mesh_resource_ids := {}
+	var logistics_case_identities_exact := is_instance_valid(_logistics_case_mesh)
+	for case_index in LOGISTICS_CASE_COPY_COUNT:
+		var case_body := get_node_or_null(NodePath(
+			"Structure/Dressing/LogisticsCase%02d" % (case_index + 1)
+		)) as StaticBody3D
+		var case_mesh := (
+			case_body.get_node_or_null("Mesh") as MeshInstance3D
+			if case_body != null else null
+		)
+		if case_mesh == null or case_mesh.mesh == null:
+			logistics_case_identities_exact = false
+			continue
+		logistics_case_mesh_resource_ids[case_mesh.mesh.get_instance_id()] = true
+		logistics_case_identities_exact = (
+			logistics_case_identities_exact
+			and case_mesh.mesh == _logistics_case_mesh
+			and (case_mesh.mesh as BoxMesh).size.is_equal_approx(LOGISTICS_CASE_SIZE)
+			and case_mesh.material_override == _materials.get("cargo")
+			and case_mesh.get_parent() == case_body
+			and case_body.get_node_or_null("CollisionShape3D") is CollisionShape3D
+		)
 
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
@@ -390,12 +418,14 @@ func get_visual_resource_contract() -> Dictionary:
 		and lens_identities_exact
 		and practical_lens_mesh_resource_ids.size() == PRACTICAL_LENS_MESH_RESOURCE_COUNT
 		and practical_lens_identities_exact
+		and logistics_case_mesh_resource_ids.size() == LOGISTICS_CASE_MESH_RESOURCE_COUNT
+		and logistics_case_identities_exact
 	)
 	return {
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"observation_lenses",
+		"selected_family": &"observation_lenses_and_logistics_cases",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -420,6 +450,9 @@ func get_visual_resource_contract() -> Dictionary:
 		"practical_lens_copies": PRACTICAL_LENS_COPY_COUNT,
 		"practical_lens_mesh_resources": practical_lens_mesh_resource_ids.size(),
 		"practical_lens_identities_exact": practical_lens_identities_exact,
+		"logistics_case_copies": LOGISTICS_CASE_COPY_COUNT,
+		"logistics_case_mesh_resources": logistics_case_mesh_resource_ids.size(),
+		"logistics_case_identities_exact": logistics_case_identities_exact,
 	}.duplicate(true)
 
 
@@ -539,7 +572,7 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its frozen performance budgets")
 	if not bool(get_visual_resource_contract().exact):
-		errors.append("observation lens visual-resource sharing drifted")
+		errors.append("observation lens or logistics-case visual-resource sharing drifted")
 	var materials := get_material_retention_contract()
 	if int(materials.catalog_entry_count) != 9 \
 			or int(materials.retained_unique_materials) != 9 \
@@ -691,12 +724,14 @@ func _build_dressing(parent: Node3D) -> void:
 		_box(parent, "ObservationLens%02d" % (console_index + 1), Vector3(-11.05, 0.76, console_z), OBSERVATION_LENS_SIZE, _materials["cyan"], false, _observation_lens_mesh)
 	_box(parent, "ObservationBench", Vector3(-5.0, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
+	_logistics_case_mesh = BoxMesh.new()
+	_logistics_case_mesh.size = LOGISTICS_CASE_SIZE
 	for stack_index in 3:
 		var stack_z := 28.8 + float(stack_index) * 2.75
 		_box(parent, "LogisticsPallet%02d" % (stack_index + 1), Vector3(11.15, 0.12, stack_z), Vector3(2.4, 0.24, 1.55), _materials["rail"], true)
 		for tier_index in 2:
 			var case_index := stack_index * 2 + tier_index + 1
-			_box(parent, "LogisticsCase%02d" % case_index, Vector3(11.15, 0.48 + float(tier_index) * 0.58, stack_z), Vector3(2.1, 0.52, 1.28), _materials["cargo"], true)
+			_box(parent, "LogisticsCase%02d" % case_index, Vector3(11.15, 0.48 + float(tier_index) * 0.58, stack_z), LOGISTICS_CASE_SIZE, _materials["cargo"], true, _logistics_case_mesh)
 	# Sparse connector rhythm provides scale without narrowing its 4 m lane.
 	var connector_marker_transforms: Array[Transform3D] = []
 	for bay_index in 5:

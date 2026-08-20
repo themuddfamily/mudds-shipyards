@@ -199,7 +199,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"observation_lenses"
+		and StringName(performance.selected_family) == &"observation_lenses_and_logistics_cases"
 		and int(performance.baseline_descendant_nodes) == 133
 		and int(performance.descendant_nodes) == 133
 		and int(performance.baseline_renderer_nodes) == 49
@@ -208,12 +208,12 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.drawn_copies) == 58
 		and int(performance.baseline_surface_submissions) == 49
 		and int(performance.surface_submissions) == 49,
-		"observation-lens sharing preserves 133 nodes, 49 renderer nodes, 58 drawn copies and 49 submissions"
+		"lens and logistics-case sharing preserve 133 nodes, 49 renderer nodes, 58 drawn copies and 49 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 49
-		and int(performance.mesh_resources) == 42
-		and int(performance.mesh_resource_delta) == -7
+		and int(performance.mesh_resources) == 37
+		and int(performance.mesh_resource_delta) == -12
 		and int(performance.baseline_material_resources) == 9
 		and int(performance.material_resources) == 9
 		and int(performance.baseline_family_nodes) == 3
@@ -222,7 +222,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_submissions) == 3
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"the two visual-only lens families reduce mesh resources 49 -> 42 without changing nodes, submissions or materials"
+		"lens and collidable-case families reduce mesh resources 49 -> 37 without changing nodes, submissions or materials"
 	)
 	var practical_lenses: Array[MeshInstance3D] = []
 	for lens_index in ObservationLogisticsSpur.PRACTICAL_LENS_COPY_COUNT:
@@ -243,10 +243,59 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		practical_lenses[1].mesh = practical_mesh
 		_check(
 			not bool(practical_red.exact)
-			and int(practical_red.mesh_resources) == 43
+			and int(practical_red.mesh_resources) == 38
 			and int(practical_red.practical_lens_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
+		)
+
+	var case_meshes: Array[MeshInstance3D] = []
+	var case_contract_matches := true
+	for case_index in ObservationLogisticsSpur.LOGISTICS_CASE_COPY_COUNT:
+		var case_body := module.get_node_or_null(NodePath(
+			"Structure/Dressing/LogisticsCase%02d" % (case_index + 1)
+		)) as StaticBody3D
+		var case_mesh := case_body.get_node_or_null("Mesh") as MeshInstance3D if case_body != null else null
+		var collision := case_body.get_node_or_null("CollisionShape3D") as CollisionShape3D if case_body != null else null
+		var stack_index := int(case_index / 2)
+		var tier_index := case_index % 2
+		case_meshes.append(case_mesh)
+		case_contract_matches = case_contract_matches and (
+			case_body != null
+			and case_body.position.is_equal_approx(Vector3(
+				11.15, 0.48 + float(tier_index) * 0.58, 28.8 + float(stack_index) * 2.75
+			))
+			and case_mesh != null
+			and case_mesh.mesh is BoxMesh
+			and (case_mesh.mesh as BoxMesh).size.is_equal_approx(
+				ObservationLogisticsSpur.LOGISTICS_CASE_SIZE
+			)
+			and case_mesh.material_override != null
+			and collision != null
+			and collision.shape is BoxShape3D
+			and (collision.shape as BoxShape3D).size.is_equal_approx(
+				ObservationLogisticsSpur.LOGISTICS_CASE_SIZE
+			)
+		)
+	_check(
+		case_contract_matches
+		and case_meshes.all(func(case_mesh: MeshInstance3D) -> bool: return case_mesh.mesh == case_meshes[0].mesh)
+		and int(performance.logistics_case_copies) == 6
+		and int(performance.logistics_case_mesh_resources) == 1
+		and bool(performance.logistics_case_identities_exact),
+		"six named collidable logistics cases retain their six bodies/shapes and share one cargo BoxMesh"
+	)
+	if case_meshes[0] != null and case_meshes[1] != null:
+		var case_mesh := case_meshes[1].mesh
+		case_meshes[1].mesh = case_mesh.duplicate() as BoxMesh
+		var case_red := module.get_visual_resource_contract()
+		case_meshes[1].mesh = case_mesh
+		_check(
+			not bool(case_red.exact)
+			and int(case_red.mesh_resources) == 38
+			and int(case_red.logistics_case_mesh_resources) == 2
+			and bool(module.get_visual_resource_contract().exact),
+			"red mutation: splitting one logistics-case mesh fails the resource contract and restores cleanly"
 		)
 
 	var lenses: Array[MeshInstance3D] = []
@@ -285,10 +334,10 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and int(red.mesh_resources) == 43
+		and int(red.mesh_resources) == 38
 		and int(red.family_mesh_resources) == 2
 		and module.get_validation_errors().has(
-			"observation lens visual-resource sharing drifted"
+			"observation lens or logistics-case visual-resource sharing drifted"
 		),
 		"red mutation: splitting one observation lens resource turns the component-local allocation contract red"
 	)
