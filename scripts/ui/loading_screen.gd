@@ -86,7 +86,7 @@ func configure(descriptor: Dictionary) -> void:
 
 ## Names the stage now running and how far startup has actually got, 0..1.
 func set_stage(stage_text: String, progress: float, detail_text: String = "") -> void:
-	if is_queued_for_deletion():
+	if not _can_mutate_live_presentation():
 		return
 	_stage_text = stage_text
 	_detail_text = detail_text
@@ -104,7 +104,7 @@ func set_stage(stage_text: String, progress: float, detail_text: String = "") ->
 ## Loads and fades in the shared title backdrop. Called after the first frames
 ## have been presented, so its import cost is never part of time-to-first-frame.
 func attach_backdrop() -> void:
-	if is_queued_for_deletion():
+	if not _can_mutate_live_presentation():
 		return
 	if _backdrop_slot == null or _backdrop_slot.get_child_count() > 0:
 		return
@@ -135,7 +135,7 @@ func attach_backdrop() -> void:
 ## unreachable `RefCounted` instances, which the engine reports as leaks at exit;
 ## a counter costs less and cannot outlive the node it animates.
 func dismiss() -> void:
-	if is_queued_for_deletion():
+	if not _can_mutate_live_presentation():
 		return
 	if _dismissed:
 		return
@@ -156,6 +156,10 @@ func get_progress() -> float:
 
 func get_stage_text() -> String:
 	return _stage_text
+
+
+func _can_mutate_live_presentation() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 ## Everything the screen is currently showing, for tests and for the startup

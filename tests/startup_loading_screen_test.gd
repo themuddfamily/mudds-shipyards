@@ -63,25 +63,44 @@ func _test_queued_loading_screen_public_mutators_are_inert() -> void:
 	await process_frame
 	_check(not is_instance_valid(screen), "the queued loading-screen fixture frees normally")
 
-	var reentered := LoadingScreenType.new() as LoadingScreen
-	root.add_child(reentered)
+	var detached := LoadingScreenType.new() as LoadingScreen
+	root.add_child(detached)
 	await process_frame
-	root.remove_child(reentered)
-	root.add_child(reentered)
+	detached.configure({"ui_scale": 1.3, "reduced_motion": false})
+	detached.set_stage("Live stage", 0.35, "Live detail")
+	var detached_backdrop_slot := detached.get_node_or_null("LoadingRoot/BackdropSlot") as Control
+	var detached_report_before := detached.get_report()
+	var detached_backdrop_count_before := (
+		detached_backdrop_slot.get_child_count() if detached_backdrop_slot != null else -1
+	)
+	root.remove_child(detached)
+	detached.set_stage("Stale stage", 1.0, "Stale detail")
+	detached.attach_backdrop()
+	detached.dismiss()
+	_check(
+		not detached.is_inside_tree()
+			and not detached.is_queued_for_deletion()
+			and detached.get_report() == detached_report_before
+			and (detached_backdrop_slot.get_child_count() if detached_backdrop_slot != null else -1) == detached_backdrop_count_before,
+		"a detached loading screen rejects stage, backdrop, and dismissal mutation atomically"
+	)
+	root.add_child(detached)
 	await process_frame
-	reentered.configure({"ui_scale": 1.3, "reduced_motion": true})
-	reentered.set_stage("Reentered stage", 0.6, "Current detail")
-	reentered.attach_backdrop()
-	var reentered_report := reentered.get_report()
+	detached.set_stage("Reentered stage", 0.6, "Current detail")
+	detached.attach_backdrop()
+	detached.dismiss()
+	var reentered_report := detached.get_report()
 	_check(
 		is_equal_approx(float(reentered_report.ui_scale), 1.3)
-		and bool(reentered_report.reduced_motion)
+		and not bool(reentered_report.reduced_motion)
 		and str(reentered_report.stage) == "Reentered stage"
 		and str(reentered_report.detail) == "Current detail"
-		and bool(reentered_report.backdrop_attached),
-		"a fresh live re-entry still accepts current loading-screen presentation updates"
+		and bool(reentered_report.backdrop_attached)
+		and bool(reentered_report.dismissed)
+		and not detached.is_queued_for_deletion(),
+		"a fresh live re-entry still accepts current loading-screen stage, backdrop, and dismissal updates"
 	)
-	reentered.queue_free()
+	detached.queue_free()
 	await process_frame
 
 
