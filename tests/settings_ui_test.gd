@@ -505,6 +505,20 @@ func _test_deferred_settings_scroll_currentness() -> void:
 		"a reentered HUD accepts a fresh Settings scroll for its current binding row"
 	)
 
+	scroll.scroll_vertical = 0
+	var pause := probe.get("_pause") as Control
+	var hidden_ancestor_before := _scroll_snapshot(scroll)
+	probe.call("_scroll_to_input_binding", target)
+	pause.visible = false
+	await process_frame
+	_check(
+		settings_page.visible
+		and not settings_page.is_visible_in_tree()
+		and _scroll_snapshot(scroll) == hidden_ancestor_before,
+		"a hidden pause ancestor discards pending Settings scroll without retaining an offset"
+	)
+	pause.visible = true
+
 	var queued_before := _scroll_snapshot(scroll)
 	probe.call("_scroll_to_input_binding", target)
 	probe.queue_free()

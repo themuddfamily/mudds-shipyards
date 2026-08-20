@@ -2247,9 +2247,11 @@ func _ensure_settings_control_visible(control: Control) -> void:
 		or _settings_page.is_queued_for_deletion()
 		or not _settings_page.is_inside_tree()
 		or not _settings_page.visible
+		or not _settings_page.is_visible_in_tree()
 		or not is_instance_valid(control)
 		or control.is_queued_for_deletion()
 		or not control.is_inside_tree()
+		or not control.is_visible_in_tree()
 		or not _settings_page.is_ancestor_of(control)
 	):
 		return
