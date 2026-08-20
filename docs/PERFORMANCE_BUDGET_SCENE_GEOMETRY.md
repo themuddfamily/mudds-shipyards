@@ -178,7 +178,7 @@ and HIGH quality, freezes:
 | Triangles | 1,684,993 | 1,802,450 | +117,457 |
 | Mesh renderer nodes | 5,685 | 5,851 | +166 |
 | Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,536 | 2,638 | +102 |
+| Unique meshes | 2,529 | 2,631 | +102 |
 | Bound-phase materials | 451 | 470 | +19 |
 | Retained/reachable materials | 640 | 659 | +19 |
 | Unique shaders | 2 | 2 | 0 |
@@ -193,6 +193,14 @@ retain 20 named nodes, visible copies, and surface submissions but share one
 immutable SphereMesh, so both production scenarios retain 19 fewer unique
 meshes. No collision, interaction, evidence or lifecycle node moved into that
 visual family, and its four frame roots remain in the physical moving interior.
+
+The resident Observation Logistics Spur and Salvage Terrace shares also retain
+every renderer node, submission, material, collision and authority boundary in
+both scenarios. The six named practical lenses now share one BoxMesh instead of
+six, while the three long safety-rail visuals share one BoxMesh instead of three
+without merging their three collision shapes. Together they remove seven more
+unique meshes from both complete-scene rosters, leaving the streamed Cinder
+delta unchanged at `+102`.
 
 The Arrow follow-up keeps the six existing childless `CurveJoint` sphere nodes,
 their exact paths and transforms beneath `PortLateralArray` and
@@ -327,9 +335,9 @@ copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The resident measurement fingerprint is
-`e5110ffa13f84b088e6292ac457a170f1ab2a0aa4655fd1ec586615ce0d8e8c8`;
+`2d2a9bc7de7022bacd81625f47d770d1e584787ff272b06add5185baf8e73bac`;
 the loaded fingerprint is
-`eaa236383d10d4512bd9e9270517c66750732e8f763992293315e5cd8983d959`.
+`7d533b36947b1dc612ee9d399c534f6a3d8bda53c66e36421c933c319d85897d`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
@@ -820,11 +828,9 @@ also stays at 909 descendants, 427 MeshInstance3D nodes plus one MultiMesh,
 428 surfaces, 439 visible geometry copies, 207 static bodies and 210 collision
 shapes; its interaction/lifecycle/authority contract is unchanged.
 
-Absolute whole-scene triangles, renderer nodes, surfaces, unique meshes,
-retained materials and scene nodes are deliberately **not re-frozen here**.
-Salvage Terrace landed after this profile's original census, and the pending
-Central and Upper performance branches will change those totals again. Run one
-final current-tree census after those merges, then update the main budget table;
+The current-tree scenario census above now includes Salvage Terrace and its
+long-rail resource share. Any later Central or Upper performance merge must
+trigger a new full production census before the main budget table is updated;
 the bounded 2,048-triangle family delta above does not depend on those totals.
 
 One matched 1920x1080 Forward+ comparison rendered the same frozen production
