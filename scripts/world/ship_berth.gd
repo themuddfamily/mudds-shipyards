@@ -440,6 +440,8 @@ func try_reserve(requester: Node, definition: ShipDefinition) -> StringName:
 ## Converts a valid reservation into physical occupancy. The reservation token
 ## remains the lease authority until release, making duplicate occupy calls safe.
 func occupy(requester: Node, token: StringName) -> bool:
+	if not _is_lease_current():
+		return false
 	_cleanup_stale_claims()
 	if not _owns_reservation(requester, token):
 		return false
@@ -456,6 +458,8 @@ func occupy(requester: Node, token: StringName) -> bool:
 ## Releases either a pending reservation or an occupied lease. Both requester
 ## identity and token must match; stale, duplicate, or foreign releases fail.
 func release(requester: Node, token: StringName) -> bool:
+	if not _is_lease_current():
+		return false
 	_cleanup_stale_claims()
 	if not _owns_reservation(requester, token):
 		return false
@@ -496,6 +500,8 @@ func has_valid_lease(
 	token: StringName,
 	expected_ship_id: StringName
 	) -> bool:
+	if not _is_lease_current():
+		return false
 	_cleanup_stale_claims()
 	if expected_ship_id.is_empty() \
 			or _reserved_ship_id != expected_ship_id \
@@ -605,6 +611,10 @@ func _owns_reservation(requester: Node, token: StringName) -> bool:
 		and not token.is_empty() \
 		and token == _reservation_token \
 		and get_reservation_owner() == requester
+
+
+func _is_lease_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 func _cleanup_stale_claims() -> void:
