@@ -30,11 +30,45 @@ func _run() -> void:
 	_test_distinct_presentation(arrow)
 	await _test_entry_heat_attachment(arrow)
 	_test_visual_performance_batch(arrow)
+	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
 	_finish()
+
+
+func _test_boarding_step_mesh_sharing(arrow: ArrowReconShip) -> void:
+	var steps: Array[MeshInstance3D] = []
+	for child in arrow.get_arrow_visual_root().get_children():
+		var step := child as MeshInstance3D
+		if step != null and step.position.y >= -0.13 and step.position.y <= 0.45 \
+			and step.position.x <= -1.64 and step.position.x >= -2.30 \
+			and is_equal_approx(step.position.z, 0.05):
+			steps.append(step)
+	var meshes: Dictionary = {}
+	for step in steps:
+		if step.mesh != null:
+			meshes[step.mesh.get_instance_id()] = true
+	_check(
+		steps.size() == ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES
+		and meshes.size() == 1
+		and steps[0].mesh is ArrayMesh
+		and (steps[0].mesh as ArrayMesh).surface_get_material(0) != null
+		and steps[0].mesh == steps[2].mesh,
+		"three named visual-only boarding steps share one exact inherited rounded ArrayMesh while retaining all copies"
+	)
+	var retained := steps[0].mesh
+	steps[2].mesh = (retained as ArrayMesh).duplicate() as ArrayMesh
+	var split: Dictionary = {}
+	for step in steps:
+		split[step.mesh.get_instance_id()] = true
+	_check(split.size() == 2, "RED: a private boarding-step mesh breaks the exact 3 -> 1 sharing contract")
+	steps[2].mesh = retained
+	meshes.clear()
+	for step in steps:
+		meshes[step.mesh.get_instance_id()] = true
+	_check(meshes.size() == 1, "restoring the boarding-step mesh returns its sharing contract green")
 
 
 func _test_definition_and_evidence(arrow: ArrowReconShip) -> void:
@@ -454,10 +488,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 159,
 			"visible_geometry_copies": 160,
-			"unique_mesh_resource_allocations": 125,
+			"unique_mesh_resource_allocations": 123,
 			"auto_fallback_names": 23,
 		},
-		"whole Arrow visual freezes the exact Stage-2 179-node, 159-submission, 125-mesh census with all 160 copies"
+		"whole Arrow visual freezes the exact Stage-2 179-node, 159-submission, 123-mesh census with all 160 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -466,7 +500,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 124,
+			"unique_mesh_resource_allocations": 122,
 			"auto_fallback_names": 23,
 		}
 		and report.entry_heat_target_delta == {
@@ -481,14 +515,14 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and report.reductions == {
 			"nodes": -2,
 			"geometry_submissions": 0,
-			"unique_mesh_resource_allocations": 17,
+			"unique_mesh_resource_allocations": 19,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": -1,
 		}
 		and report.phase9_reductions_before_entry_heat == {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 18,
+			"unique_mesh_resource_allocations": 20,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},

@@ -99,6 +99,8 @@ const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
 const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
 const ARRAY_RECEIVER_RADIUS := 0.15
 const ARRAY_RECEIVER_VISIBLE_COPIES := 2
+const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
+const BOARDING_STEP_VISIBLE_COPIES := 3
 const ENTRY_HEAT_TARGET_SCENE: PackedScene = preload(
 	"res://scenes/effects/planetary_entry_heat_target.tscn"
 )
@@ -130,7 +132,7 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 124,
+	"unique_mesh_resource_allocations": 122,
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
@@ -139,7 +141,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 159,
 	"visible_geometry_copies": 160,
-	"unique_mesh_resource_allocations": 125,
+	"unique_mesh_resource_allocations": 123,
 	"auto_fallback_names": 23,
 }
 const ENTRY_HEAT_TARGET_VISUAL_DELTA := {
@@ -167,6 +169,7 @@ var _sensor_leading_edge_curve_joint_mesh: SphereMesh
 var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
 var _fuselage_panel_band_mesh: TorusMesh
 var _array_receiver_mesh: SphereMesh
+var _boarding_step_mesh: ArrayMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -341,14 +344,14 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": -2,
 			"geometry_submissions": 0,
-			"unique_mesh_resource_allocations": 17,
+			"unique_mesh_resource_allocations": 19,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": -1,
 		},
 		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 18,
+			"unique_mesh_resource_allocations": 20,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
@@ -757,7 +760,13 @@ func _build_engines_and_landing_gear() -> void:
 	_cylinder(_arrow_visual, "NoseGearStrut", Vector3(0, -0.02, -4.2), 0.065, 1.12, _arrow_materials.graphite)
 	_torus(_arrow_visual, "NoseGearFoot", Vector3(0, -0.56, -4.2), 0.18, 0.29, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.4, 0.55, 1.0))
 	for step_index in 3:
-		_box(_arrow_visual, "BoardingStep", Vector3(-1.65 - float(step_index) * 0.32, -0.12 + float(step_index) * 0.28, 0.05), Vector3(0.58, 0.1, 0.62), _arrow_materials.pod)
+		if _boarding_step_mesh == null:
+			_boarding_step_mesh = _rounded_box_mesh(BOARDING_STEP_SIZE, _arrow_materials.pod)
+		var step := MeshInstance3D.new()
+		step.name = "BoardingStep"
+		step.position = Vector3(-1.65 - float(step_index) * 0.32, -0.12 + float(step_index) * 0.28, 0.05)
+		step.mesh = _boarding_step_mesh
+		_arrow_visual.add_child(step)
 
 
 func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
