@@ -155,6 +155,8 @@ var _halfway_warned := false
 
 
 func _physics_process(delta: float) -> void:
+	if not _is_current():
+		return
 	if not enabled or not is_finite(delta) or delta < 0.0:
 		return
 	_update_arming(delta)
@@ -239,6 +241,8 @@ func get_roster() -> Array[Node3D]:
 ## The single fire gate for every craft this director dispatched. Asked on the
 ## frame a shot is dispatched, not on the frame its charge began.
 func is_fire_authorized(member: Node) -> bool:
+	if not _is_current():
+		return false
 	if _state != STATE_RUNNING:
 		return false
 	if not is_instance_valid(member) or not _roster.has(member):
@@ -254,6 +258,8 @@ func is_fire_authorized(member: Node) -> bool:
 ## goes through `_update_arming`; this exists so a suite can drive one branch
 ## deterministically without staging a whole guided sortie.
 func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
+	if not _is_current():
+		return false
 	# An unknown identifier is refused by return value rather than by an engine
 	# diagnostic: `get_validation_errors()` already names an unrecognised entry
 	# in the authored roster, and the frozen matrix treats stray warnings in a
@@ -293,6 +299,8 @@ func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
 
 ## Ends a running scenario on the caller's behalf. Idempotent.
 func abort(outcome: StringName = OUTCOME_ABORTED) -> void:
+	if not _is_current():
+		return
 	if _state != STATE_RUNNING:
 		return
 	_conclude(outcome if TERMINAL_OUTCOMES.has(outcome) else OUTCOME_ABORTED)
@@ -340,6 +348,10 @@ func _next_scenario() -> StringName:
 		return SCENARIO_NONE
 	var candidate := scenario_sequence[_sequence_cursor % scenario_sequence.size()]
 	return candidate if SCENARIO_IDS.has(candidate) else SCENARIO_NONE
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 # ---------------------------------------------------------- termination ----

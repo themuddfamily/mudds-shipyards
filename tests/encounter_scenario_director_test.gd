@@ -72,6 +72,7 @@ func _run() -> void:
 	await _test_courier_direct_mutation_currentness()
 	await _test_player_flight_withdraws_the_scenario()
 	await _test_player_loss_aborts_the_scenario()
+	await _test_queued_director_rejects_public_mutation()
 	await _test_queued_target_is_rejected_before_scenario_mutation()
 	await _test_queued_target_aborts_an_active_scenario()
 	await _test_paired_wing_cleared_when_broken()
@@ -265,6 +266,128 @@ func _test_player_loss_aborts_the_scenario() -> void:
 	)
 	await _assert_fully_terminated(fixture, "player destroyed")
 	await _free_fixture(fixture)
+
+
+func _test_queued_director_rejects_public_mutation() -> void:
+	var prestart_fixture := await _make_fixture()
+	var prestart_director: EncounterScenarioDirector = prestart_fixture.director
+	var prestart_authority: LiveCombatAuthority = prestart_fixture.authority
+	var prestart_target: EncounterTarget = prestart_fixture.target
+	var prestart_began: Array[StringName] = []
+	prestart_director.scenario_began.connect(func(scenario_id: StringName) -> void:
+		prestart_began.append(scenario_id)
+	)
+	var prestart_before := _director_currentness_snapshot(
+		prestart_director, prestart_authority
+	)
+	prestart_director.queue_free()
+	var prestart_accepted := prestart_director.begin_scenario(
+		EncounterScenarioDirector.SCENARIO_PAIRED_WING, prestart_target
+	)
+	_check(
+		prestart_director.is_inside_tree()
+		and prestart_director.is_queued_for_deletion()
+		and not prestart_accepted
+		and _director_currentness_snapshot(prestart_director, prestart_authority)
+		== prestart_before
+		and prestart_began.is_empty(),
+		"a queued director rejects scenario admission before state, roster, resolver, or signal mutation"
+	)
+	await _free_fixture(prestart_fixture)
+
+	var detached_fixture := await _make_fixture()
+	var detached_director: EncounterScenarioDirector = detached_fixture.director
+	var detached_authority: LiveCombatAuthority = detached_fixture.authority
+	var detached_target: EncounterTarget = detached_fixture.target
+	var detached_lead: FlankingSkirmisherOpponent = detached_fixture.skirmishers[0]
+	var detached_events: Array[StringName] = []
+	detached_director.scenario_began.connect(
+		func(_scenario_id: StringName) -> void:
+			detached_events.append(&"began")
+	)
+	detached_director.scenario_concluded.connect(
+		func(_scenario_id: StringName, _outcome: StringName) -> void:
+			detached_events.append(&"concluded")
+	)
+	var detached_parent := detached_director.get_parent()
+	var detached_before := _director_currentness_snapshot(
+		detached_director, detached_authority
+	)
+	detached_parent.remove_child(detached_director)
+	var detached_accepted := detached_director.begin_scenario(
+		EncounterScenarioDirector.SCENARIO_PAIRED_WING, detached_target
+	)
+	detached_director._physics_process(1.0 / 60.0)
+	detached_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(
+		not detached_director.is_inside_tree()
+		and not detached_accepted
+		and not detached_director.is_fire_authorized(detached_lead)
+		and _director_currentness_snapshot(detached_director, detached_authority)
+		== detached_before
+		and detached_events.is_empty(),
+		"a detached director rejects public admission, physics, abort, and fire authorization atomically"
+	)
+	detached_parent.add_child(detached_director)
+	detached_events.clear()
+	_check(
+		detached_director.is_inside_tree()
+		and detached_director.begin_scenario(
+			EncounterScenarioDirector.SCENARIO_PAIRED_WING, detached_target
+		)
+		and detached_director.is_fire_authorized(detached_lead)
+		and detached_events.size() == 1
+		and detached_events[0] == &"began",
+		"a reattached director accepts one fresh paired-wing admission"
+	)
+	var detached_active_before := _director_currentness_snapshot(
+		detached_director, detached_authority
+	)
+	detached_events.clear()
+	detached_parent.remove_child(detached_director)
+	detached_director._physics_process(1.0 / 60.0)
+	detached_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(
+		not detached_director.is_inside_tree()
+		and not detached_director.is_fire_authorized(detached_lead)
+		and _director_currentness_snapshot(detached_director, detached_authority)
+		== detached_active_before
+		and detached_events.is_empty(),
+		"a detached active director leaves its scenario, resolver, and signals frozen"
+	)
+	detached_parent.add_child(detached_director)
+	await _free_fixture(detached_fixture)
+
+	var active_fixture := await _make_fixture()
+	var active_director: EncounterScenarioDirector = active_fixture.director
+	var active_authority: LiveCombatAuthority = active_fixture.authority
+	var active_target: EncounterTarget = active_fixture.target
+	var active_lead: FlankingSkirmisherOpponent = active_fixture.skirmishers[0]
+	var active_conclusions: Array[StringName] = []
+	active_director.scenario_concluded.connect(
+		func(_scenario_id: StringName, outcome: StringName) -> void:
+			active_conclusions.append(outcome)
+	)
+	_check(
+		active_director.begin_scenario(
+			EncounterScenarioDirector.SCENARIO_PAIRED_WING, active_target
+		)
+		and active_director.is_fire_authorized(active_lead),
+		"a live director control starts and authorizes its paired wing"
+	)
+	var active_before := _director_currentness_snapshot(active_director, active_authority)
+	active_director.queue_free()
+	active_director._physics_process(1.0 / 60.0)
+	active_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(
+		active_director.is_inside_tree()
+		and active_director.is_queued_for_deletion()
+		and not active_director.is_fire_authorized(active_lead)
+		and _director_currentness_snapshot(active_director, active_authority) == active_before
+		and active_conclusions.is_empty(),
+		"a queued director rejects physics and abort mutation while revoking fire authorization"
+	)
+	await _free_fixture(active_fixture)
 
 
 func _test_queued_target_is_rejected_before_scenario_mutation() -> void:
@@ -585,6 +708,25 @@ func _courier_mutation_snapshot(courier: CourierRunnerOpponent) -> Dictionary:
 		"distress_broadcast": courier.is_distress_broadcast(),
 		"beacon_visible": beacon.visible if beacon != null else false,
 		"light_energy": light.light_energy if light != null else 0.0,
+	}.duplicate(true)
+
+
+func _director_currentness_snapshot(
+		director: EncounterScenarioDirector,
+		authority: LiveCombatAuthority
+	) -> Dictionary:
+	var roster_ids := PackedInt64Array()
+	for member in director.get_roster():
+		if is_instance_valid(member):
+			roster_ids.append(member.get_instance_id())
+	return {
+		"state": director.get_state(),
+		"scenario": director.get_active_scenario(),
+		"outcome": director.get_outcome(),
+		"elapsed": director.get_elapsed(),
+		"completed_runs": director.get_completed_run_count(),
+		"roster_ids": roster_ids,
+		"resolver_sources": authority.get_resolver().get_registered_source_count(),
 	}.duplicate(true)
 
 
