@@ -14,8 +14,8 @@ extends SceneTree
 ##    guided Torrent activity and the range contacts are all untouched by it.
 ## 3. Prove the player cannot be stranded — including the case where the tractor
 ##    ends up off the station with the driver aboard.
-## 4. Prove the vehicle survives a whole-`Main` detach and re-entry without
-##    duplicating itself or leaving an occupant behind.
+## 4. Prove a whole-`Main` detach invalidates an in-flight boarding handoff,
+##    then re-enters with one vehicle and a fresh, usable driver station.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -330,12 +330,29 @@ func _run() -> void:
 	_check(torrent_selected, "the recovered player can still select the guided Torrent")
 
 	# --- Group 6: whole-Main detach and re-entry -----------------------------
+	# Begin a real, deliberately long boarding handoff, then stream Main out
+	# before PlayerController can emit its completion. The retained node will
+	# otherwise complete after re-entry, which used to let this stale request take
+	# the tractor camera and drive authority.
+	game.boarding_motion_time = 0.8
+	_walk_to(player, tractor)
+	await _wait_until(
+		func() -> bool: return game.station_interaction_candidate == station,
+		PHASE_SETTLE_SECONDS
+	)
+	await _press(&"interact", 1)
+	_check(
+		not player.is_control_enabled()
+		and not player.is_seated()
+		and not game.is_driving_tow_tractor(),
+		"red witness: the real tractor boarding handoff is live before Main detaches"
+	)
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
 	parent.add_child(game)
 	await process_frame
-	await physics_frame
+	await _advance(_frame_budget(game.boarding_motion_time))
 	_check(
 		world.find_children("*", "TowTractor", true, false).size() == 1,
 		"a whole-Main detach and re-entry does not duplicate the tractor"
@@ -345,9 +362,14 @@ func _run() -> void:
 		"the re-entered session re-binds the same tractor instance"
 	)
 	_check(
-		not game.is_driving_tow_tractor() and not player.is_seated(),
-		"the re-entered session leaves no stranded occupant aboard"
+		not game.is_driving_tow_tractor()
+		and not player.is_seated()
+		and player.is_control_enabled()
+		and not tractor.is_driven()
+		and tractor.is_boardable(),
+		"a pre-detach boarding completion cannot claim drive authority after re-entry"
 	)
+	game.boarding_motion_time = 0.04
 	_walk_to(player, tractor)
 	await _wait_until(
 		func() -> bool: return game.station_interaction_candidate == station,

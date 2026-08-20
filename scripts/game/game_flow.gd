@@ -272,6 +272,14 @@ var _transition_busy := false
 ## destructive recovery advances it before restoring the player, so stale
 ## continuations can never reacquire cameras, seats, phases, or berth state.
 var _transition_generation := 0
+## A ground transition has no persistent ship or berth ownership to restore
+## after a whole-Main detach. Its awaiting continuation must therefore be
+## cancelled at that lifecycle boundary rather than resuming into drive
+## authority after the retained nodes re-enter.
+var _ground_transition_active := false
+## Captured while the station is live. Child nodes leave the tree before Main,
+## so a detach transaction must never query the world's global spawn transform.
+var _ground_transition_recovery_transform := Transform3D.IDENTITY
 var _opponent_spawned := false
 var runtime_settings: RuntimeSettings
 ## Process-lifetime persistence composition for the one production settings
@@ -404,6 +412,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_cancel_ground_transition_for_detach()
 	_detach_cinder_race_session()
 	_detach_caption_presentation()
 	# Travelling pulse slots are presentation-only and are cleared by their own
@@ -1608,6 +1617,7 @@ func _is_ground_transition_current(generation: int) -> bool:
 	return (
 		generation == _transition_generation
 		and _transition_busy
+		and _ground_transition_active
 		and is_instance_valid(tow_tractor)
 	)
 
@@ -1622,6 +1632,8 @@ func _board_tow_tractor() -> void:
 	if phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]:
 		return
 	_transition_busy = true
+	_ground_transition_active = true
+	_ground_transition_recovery_transform = world.get_player_spawn()
 	var generation := _begin_transition_generation()
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
@@ -1632,6 +1644,7 @@ func _board_tow_tractor() -> void:
 		boarding_motion_time
 	):
 		_transition_busy = false
+		_ground_transition_active = false
 		player.set_control_enabled(true)
 		_restore_on_foot_objective()
 		return
@@ -1656,6 +1669,7 @@ func _board_tow_tractor() -> void:
 	)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_ground_transition_active = false
 
 
 func _exit_tow_tractor() -> void:
@@ -1669,6 +1683,8 @@ func _exit_tow_tractor() -> void:
 		)
 		return
 	_transition_busy = true
+	_ground_transition_active = true
+	_ground_transition_recovery_transform = world.get_player_spawn()
 	var generation := _begin_transition_generation()
 	tow_tractor.set_driven(false)
 	player.set_camera_active(true)
@@ -1682,6 +1698,7 @@ func _exit_tow_tractor() -> void:
 		tow_tractor.set_driven(true)
 		player.set_camera_active(false)
 		_transition_busy = false
+		_ground_transition_active = false
 		return
 	await player.disembarking_completed
 	if not _is_ground_transition_current(generation):
@@ -1694,6 +1711,26 @@ func _exit_tow_tractor() -> void:
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_ground_transition_active = false
+
+
+## A retained whole-Main subtree may re-enter, but a partially completed
+## tractor embodiment has no durable handback contract. Cancel it at the
+## lifecycle boundary so its deferred completion cannot acquire the tractor's
+## camera or drive input after re-entry.
+func _cancel_ground_transition_for_detach() -> void:
+	if not _ground_transition_active:
+		return
+	_invalidate_transition_generation()
+	_ground_transition_active = false
+	_transition_busy = false
+	_driving = false
+	if is_instance_valid(tow_tractor):
+		tow_tractor.set_driven(false)
+	if is_instance_valid(player):
+		player.force_recovery_to_on_foot(_ground_transition_recovery_transform)
+		player.set_camera_active(true)
+		player.set_control_enabled(true)
 
 
 ## The tow tractor's half of the crash-recovery contract.
@@ -1709,6 +1746,7 @@ func _recover_from_lost_tractor(reason: StringName) -> void:
 	var had_driver := _driving
 	_recovering = true
 	_invalidate_transition_generation()
+	_ground_transition_active = false
 	_transition_busy = true
 	if had_driver:
 		hud.set_enemy_status("", 0.0, 1.0, false)
