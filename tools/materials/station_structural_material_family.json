@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "metadata_only",
+  "claim_scope": "structural_family_metadata_only",
+  "ship_atlas_policy": "forbidden",
+  "mapping": {
+    "projection": "world_triplanar",
+    "coordinate_space": "world_metric",
+    "metric_scales": [0.22, 0.28, 0.30]
+  },
+  "targets": [
+    {"id": "wider_lattice", "role": "frame", "material_family": "station_symmetric_panel", "ship_atlas": null, "mapping": "inherits_world_metric_family"},
+    {"id": "catwalk", "role": "trim", "material_family": "station_symmetric_panel", "ship_atlas": null, "mapping": "inherits_world_metric_family"},
+    {"id": "control_room", "role": "trim", "material_family": "station_symmetric_panel", "ship_atlas": null, "mapping": "inherits_world_metric_family"},
+    {"id": "aft_structural_beams", "role": "beam", "material_family": "station_symmetric_panel", "ship_atlas": null, "mapping": "inherits_world_metric_family"},
+    {"id": "habitat_structural_frames", "role": "frame", "material_family": "station_symmetric_panel", "ship_atlas": null, "mapping": "inherits_world_metric_family"},
+    {"id": "freight_structural_trim", "role": "trim", "material_family": "station_symmetric_panel", "ship_atlas": null, "mapping": "inherits_world_metric_family"}
+  ],
+  "artist_asset_limitations": {
+    "authored_sets_present": false,
+    "baked_sets_present": false,
+    "scanned_sets_present": false,
+    "reason": "Source meshes and a human-owned bake pipeline are not present; this fixture records procedural treatment only."
+  }
+}
