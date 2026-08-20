@@ -66,6 +66,7 @@ func _run() -> void:
 	await _test_fail_red_corruption()
 	await _test_detach_reentry_release_and_cleanup()
 	await _test_queued_reentry_restore_is_inert()
+	await _test_public_mutators_currentness()
 
 	for rig_value in rigs.values():
 		var rig := rig_value as ShipAudioRig
@@ -664,6 +665,107 @@ func _test_queued_reentry_restore_is_inert() -> void:
 	)
 	await process_frame
 	_check(not is_instance_valid(rig), "the queued re-entry ship-audio fixture frees normally")
+
+
+func _test_public_mutators_currentness() -> void:
+	var pre_tree := RIG_SCENE.instantiate() as ShipAudioRig
+	_check(
+		pre_tree != null
+		and pre_tree.set_engine_running(true, false)
+		and pre_tree.set_thrust_state(0.45, true)
+		and pre_tree.set_damage_alarm_active(true),
+		"pre-tree desired ship-audio state configuration remains available"
+	)
+	if pre_tree == null:
+		return
+	pre_tree.set_rig_enabled(false)
+	_test_root.add_child(pre_tree)
+	await process_frame
+	var pre_tree_state := pre_tree.get_state_snapshot()
+	_check(
+		not pre_tree.is_rig_enabled()
+		and bool(pre_tree_state.engine_running)
+		and is_equal_approx(float(pre_tree_state.throttle), 0.45)
+		and bool(pre_tree_state.boost_requested)
+		and bool(pre_tree_state.damage_alarm_active),
+		"pre-tree desired state commits unchanged on first live entry"
+	)
+	pre_tree.queue_free()
+	await process_frame
+
+	var queued := _make_rig(ShipAudioRig.PROFILE_STANDARD_FIGHTER, "QueuedMutatorProbe")
+	if queued == null:
+		return
+	await process_frame
+	queued.set_engine_running(true, false)
+	queued.set_thrust_state(0.42, false)
+	queued.set_damage_alarm_active(true)
+	var state_events: Array[Dictionary] = []
+	var cue_events: Array[Dictionary] = []
+	queued.state_changed.connect(func(snapshot: Dictionary) -> void:
+		state_events.append(snapshot.duplicate(true))
+	)
+	queued.cue_requested.connect(func(cue_id: StringName, intensity: float, playback_queued: bool) -> void:
+		cue_events.append({
+			"cue_id": cue_id,
+			"intensity": intensity,
+			"playback_queued": playback_queued,
+		})
+	)
+	queued.queue_free()
+	var queued_before := queued.get_state_snapshot()
+	var synthesis_before := queued.get_synthesis_report()
+	queued.set_rig_enabled(false)
+	var queued_engine := queued.set_engine_running(false)
+	var queued_thrust := queued.set_thrust_state(0.9, true)
+	var queued_alarm := queued.set_damage_alarm_active(false)
+	var queued_cue := queued.play_cue(ShipAudioRig.CUE_FIRE)
+	var queued_destruction := queued.play_destruction()
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and not queued_engine
+		and not queued_thrust
+		and not queued_alarm
+		and not queued_cue
+		and not queued_destruction
+		and queued.get_state_snapshot() == queued_before
+		and queued.get_synthesis_report() == synthesis_before
+		and state_events.is_empty()
+		and cue_events.is_empty(),
+		"queued rig rejects every public runtime mutator without desired-state, resource, player, or signal drift"
+	)
+	await process_frame
+
+	var reentered := _make_rig(ShipAudioRig.PROFILE_STANDARD_FIGHTER, "ReentryMutatorProbe")
+	if reentered == null:
+		return
+	await process_frame
+	var parent := reentered.get_parent()
+	parent.remove_child(reentered)
+	await process_frame
+	parent.add_child(reentered)
+	await process_frame
+	var cue_count_before := int(reentered.get_state_snapshot().cue_request_count)
+	var reentry_engine := reentered.set_engine_running(true, false)
+	var reentry_thrust := reentered.set_thrust_state(0.66, true)
+	var reentry_alarm := reentered.set_damage_alarm_active(true)
+	reentered.play_cue(ShipAudioRig.CUE_FIRE)
+	var reentry_state := reentered.get_state_snapshot()
+	_check(
+		reentered.is_inside_tree()
+		and reentry_engine
+		and reentry_thrust
+		and reentry_alarm
+		and bool(reentry_state.engine_running)
+		and is_equal_approx(float(reentry_state.throttle), 0.66)
+		and bool(reentry_state.boost_requested)
+		and bool(reentry_state.damage_alarm_active)
+		and int(reentry_state.cue_request_count) == cue_count_before + 1,
+		"fresh live reentry accepts desired-state and cue mutation"
+	)
+	reentered.queue_free()
+	await process_frame
 
 
 ## Waits for `predicate` on both the simulation clock and the monotonic clock,

@@ -279,6 +279,8 @@ func get_supported_cues() -> PackedStringArray:
 
 
 func set_rig_enabled(enabled: bool) -> void:
+	if not _can_mutate_runtime_state():
+		return
 	if rig_enabled == enabled:
 		if is_inside_tree():
 			if enabled:
@@ -301,6 +303,8 @@ func is_rig_enabled() -> bool:
 ## Changes the desired engine state. The return value reports a state change,
 ## not whether a real audio driver played the optional transition cue.
 func set_engine_running(running: bool, play_transition: bool = true) -> bool:
+	if not _can_mutate_runtime_state():
+		return false
 	if _engine_running == running:
 		return false
 	_engine_running = running
@@ -320,6 +324,8 @@ func is_engine_running() -> bool:
 ## Updates continuous thrust layers without adding a per-frame callback. Invalid
 ## non-finite input is rejected; ordinary finite input is clamped to [0, 1].
 func set_thrust_state(throttle: float, boosting: bool = false) -> bool:
+	if not _can_mutate_runtime_state():
+		return false
 	if not is_finite(throttle):
 		return false
 	var safe_throttle := clampf(throttle, 0.0, 1.0)
@@ -333,6 +339,8 @@ func set_thrust_state(throttle: float, boosting: bool = false) -> bool:
 
 
 func set_damage_alarm_active(active: bool) -> bool:
+	if not _can_mutate_runtime_state():
+		return false
 	if _damage_alarm_active == active:
 		return false
 	_damage_alarm_active = active
@@ -356,7 +364,7 @@ func play_cue(cue_id: StringName, intensity: float = 1.0) -> bool:
 		or not is_finite(intensity)
 		or intensity <= 0.0
 		or not rig_enabled
-		or _tearing_down
+		or not _can_mutate_runtime_state()
 		or not is_inside_tree()
 	):
 		return false
@@ -405,6 +413,8 @@ func play_hull_hit(intensity: float = 1.0) -> bool:
 
 
 func play_destruction(intensity: float = 1.0) -> bool:
+	if not _can_mutate_runtime_state():
+		return false
 	_engine_running = false
 	_boost_requested = false
 	_damage_alarm_active = false
@@ -427,6 +437,13 @@ func play_docking(intensity: float = 1.0) -> bool:
 func release_audio_resources() -> void:
 	rig_enabled = false
 	_discard_audio_resources(true)
+
+
+## Public desired-state setters remain useful for scene-authored pre-tree setup,
+## but an initialized detached or terminal rig cannot accept runtime intent.
+func _can_mutate_runtime_state() -> bool:
+	return not _tearing_down and not is_queued_for_deletion() \
+		and (not _initialized or is_inside_tree())
 
 
 func get_profile_report() -> Dictionary:
