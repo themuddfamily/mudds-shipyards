@@ -212,7 +212,18 @@ func _enter_tree() -> void:
 	# back, and it comes back through the same setter the inspector uses so there
 	# is one path rather than two.
 	if _built:
-		call_deferred("set_cluster_enabled", _cluster_enabled)
+		call_deferred("_restore_cluster_enabled_after_reentry")
+
+
+## A deferred re-entry callback must use the state retained at execution time:
+## callers may synchronously change the presentation profile after mounting the
+## component and before idle. A callback that captured the old boolean would
+## overwrite that newer request. It also becomes inert if the component leaves
+## the tree again before idle.
+func _restore_cluster_enabled_after_reentry() -> void:
+	if not _built or not is_inside_tree():
+		return
+	set_cluster_enabled(_cluster_enabled)
 
 
 func _ready() -> void:

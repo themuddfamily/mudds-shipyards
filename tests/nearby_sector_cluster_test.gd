@@ -926,7 +926,25 @@ func _test_lifecycle(world: ShipyardWorld, cluster: NearbySectorCluster) -> void
 	await process_frame
 	_check(not cluster.is_inside_tree(), "the cluster detaches cleanly from the world")
 	parent.add_child(cluster)
+	# Re-entry schedules its lifecycle restoration on idle. A caller may still
+	# choose the retained profile in the same turn; the deferred work must not
+	# restore the pre-detach value over that newer choice.
+	cluster.set_cluster_enabled(false)
 	await process_frame
+	_check(
+		cluster.is_inside_tree()
+		and not cluster.is_cluster_enabled()
+		and not cluster.visible
+		and not cluster.is_processing(),
+		"a same-turn post-reentry disable survives the deferred lifecycle restoration"
+	)
+	_check(
+		cluster.get_cluster_audit_report() == report_before
+		and cluster.get_boulder_offsets().size() == EXPECTED_BOULDER_COUNT,
+		"the post-reentry profile change retains the original built field"
+	)
+
+	cluster.set_cluster_enabled(true)
 	await process_frame
 	_check(
 		cluster.is_inside_tree()
