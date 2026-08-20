@@ -142,6 +142,40 @@ func _run() -> void:
 	_check(area.is_available(), "reenabled unoccupied seat becomes available")
 	_check(_player_discovers(player, area), "production player rediscovers the reenabled point")
 
+	_check(area.try_reserve(first_player_token), "seat reserves before owner detach")
+	var detach_reentry_probe := {"attempted": false, "accepted": true}
+	area.reservation_changed.connect(
+		func(reserved: bool, released_token: Variant) -> void:
+			if reserved or released_token != first_player_token:
+				return
+			detach_reentry_probe["attempted"] = true
+			detach_reentry_probe["accepted"] = area.try_reserve(second_player_token),
+		CONNECT_ONE_SHOT
+	)
+	host.remove_child(ship)
+	await process_frame
+	_check(
+		bool(detach_reentry_probe.attempted)
+		and not bool(detach_reentry_probe.accepted)
+		and not area.is_inside_tree()
+		and not area.is_reserved()
+		and area.get_reservation_token() == null
+		and not area.is_available()
+		and not area.is_available_for(first_player_token)
+		and not area.try_reserve(first_player_token),
+		"detached ship clears its reservation and rejects ordinary or hostile boarding handoffs"
+	)
+	host.add_child(ship)
+	await _physics_frames(3)
+	_check(
+		area.is_available()
+		and _player_discovers(player, area)
+		and area.try_reserve(second_player_token)
+		and area.get_reservation_token() == second_player_token,
+		"re-entry restores physical discovery without carrying the detached pilot token"
+	)
+	_check(area.release_reservation(second_player_token), "new pilot releases the re-entered seat")
+
 	_check(area.try_reserve(first_player_token), "object token reserves before lifetime cleanup")
 	first_player_token.queue_free()
 	await process_frame
@@ -157,7 +191,7 @@ func _run() -> void:
 	_check(invalid_area.get_ship() == null, "owner resolution rejects a ship without the boarding contract")
 	_check(not invalid_area.is_available(), "invalid owner cannot expose an available boarding prompt")
 
-	_check(_reservation_events.size() == 6, "reservation signals report claims, releases, disable, and stale cleanup exactly once")
+	_check(_reservation_events.size() == 10, "reservation signals report claims, releases, disable, detach, re-entry, and stale cleanup exactly once")
 	_check(_availability_events.has(false) and _availability_events.has(true), "availability transitions are signalled in both directions")
 
 	host.queue_free()

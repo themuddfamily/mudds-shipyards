@@ -31,11 +31,26 @@ const INTERACTABLE_LAYER := PhysicsLayers.INTERACTABLE_AREA_LAYER
 var _has_reservation := false
 var _reservation_token: Variant = null
 var _last_reported_availability := false
+var _detaching := false
+
+
+func _enter_tree() -> void:
+	_detaching = false
 
 
 func _ready() -> void:
 	_apply_enabled_state()
 	_last_reported_availability = is_available()
+
+
+## A boarding reservation names one live physical handoff. A streamed-out ship
+## cannot retain a seat claim for a transition that no longer has a world owner.
+func _exit_tree() -> void:
+	# `reservation_changed` is synchronous. Close availability before releasing
+	# so an observer cannot claim this seat again while this node is still inside
+	# the exiting parent tree.
+	_detaching = true
+	clear_reservation()
 
 
 ## Resolves the spacecraft that owns this interaction point. The return value is
@@ -126,10 +141,10 @@ func set_boarding_enabled(enabled: bool) -> void:
 
 
 func _base_availability() -> bool:
-	if not boarding_enabled:
+	if _detaching or not is_inside_tree() or not boarding_enabled:
 		return false
 	var ship := get_ship()
-	if ship == null:
+	if ship == null or not ship.is_inside_tree():
 		return false
 	if ship.has_method("is_boardable") and not bool(ship.call("is_boardable")):
 		return false
