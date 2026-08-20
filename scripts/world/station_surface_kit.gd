@@ -210,6 +210,52 @@ static func rounded_box_mesh(size: Vector3) -> ArrayMesh:
 	return rounded_box_mesh_with_bevel(size, bevel_for_size(size))
 
 
+## Audit the immutable geometry recipe used by structural station pieces.
+##
+## A bevel is only useful if it survives into the submitted mesh: a caller can
+## accidentally retain a `BoxMesh` while publishing a bevel width in metadata,
+## which makes the art-direction contract green while the edge is still a hard
+## 90-degree line.  The builder emits one surface and nine quads per face (324
+## vertices); checking that topology plus the exact AABB makes the contract both
+## headless-safe and independent of a renderer or captured frame.  The AABB
+## equality is intentional: a bevel may alter highlights, never a station
+## footprint, collision envelope, or authored broad shape.
+static func structural_bevel_contract(
+		mesh: Mesh,
+		size: Vector3,
+		expected_bevel: float
+	) -> Dictionary:
+	var errors := PackedStringArray()
+	if mesh == null:
+		errors.append("mesh_missing")
+		return {"valid": false, "errors": errors, "recipe": &"station_chamfered_box_v1"}
+	if expected_bevel <= 0.0:
+		errors.append("bevel_width_must_be_positive")
+	if not mesh is ArrayMesh:
+		errors.append("mesh_must_be_array_mesh")
+	if mesh.get_surface_count() != 1:
+		errors.append("mesh_surface_count_drift")
+	var expected_aabb := AABB(-size * 0.5, size)
+	if not mesh.get_aabb().is_equal_approx(expected_aabb):
+		errors.append("mesh_aabb_drift")
+	var vertex_count := 0
+	if mesh.get_surface_count() == 1:
+		var arrays := mesh.surface_get_arrays(0)
+		if arrays.size() > Mesh.ARRAY_VERTEX and arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+			vertex_count = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	if vertex_count != 324:
+		errors.append("chamfered_box_topology_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"recipe": &"station_chamfered_box_v1",
+		"bevel_width": expected_bevel,
+		"aabb": mesh.get_aabb(),
+		"vertex_count": vertex_count,
+		"surface_count": mesh.get_surface_count(),
+	}
+
+
 ## The chamfered-box builder itself, with the chamfer width supplied rather than
 ## derived. Every station builder shares this body; only the bevel rule and the
 ## UV convention were ever genuinely different between them.
