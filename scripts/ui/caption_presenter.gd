@@ -71,6 +71,8 @@ func _enter_tree() -> void:
 ## Applies only the service's detached presentation snapshot schema. Malformed
 ## or hand-authored lookalikes reject without changing the last committed view.
 func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
+	if not _can_mutate_live_presentation():
+		return false
 	if not _is_valid_presentation_snapshot(snapshot):
 		return false
 	var was_visible := visible
@@ -105,6 +107,8 @@ func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
 
 
 func set_ui_scale(value: float) -> bool:
+	if not _can_configure_layout():
+		return false
 	if not is_finite(value) or value < MIN_UI_SCALE or value > MAX_UI_SCALE:
 		return false
 	if is_equal_approx(_ui_scale, value):
@@ -124,6 +128,8 @@ func get_ui_scale() -> float:
 ## The value is expressed in final viewport pixels because the host may apply a
 ## different layout ceiling from the requested accessibility scale.
 func set_host_bottom_safe_margin(value: float) -> bool:
+	if not _can_configure_layout():
+		return false
 	if not is_finite(value) or value < 0.0:
 		return false
 	if is_equal_approx(_host_bottom_safe_margin, value):
@@ -134,6 +140,8 @@ func set_host_bottom_safe_margin(value: float) -> bool:
 
 
 func clear_host_bottom_safe_margin() -> void:
+	if not _can_configure_layout():
+		return
 	if _host_bottom_safe_margin < 0.0:
 		return
 	_host_bottom_safe_margin = -1.0
@@ -297,6 +305,14 @@ func _is_valid_presentation_snapshot(snapshot: Dictionary) -> bool:
 		and remaining > 0.0
 		and remaining <= event.duration_physics_seconds
 	)
+
+
+func _can_mutate_live_presentation() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
+
+
+func _can_configure_layout() -> bool:
+	return not is_queued_for_deletion() and (not is_node_ready() or is_inside_tree())
 
 
 func _apply_scale_theme() -> void:

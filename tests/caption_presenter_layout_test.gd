@@ -25,6 +25,7 @@ func _run() -> void:
 	viewport.size = Vector2i(1280, 720)
 	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	root.add_child(viewport)
+	await _test_pre_tree_configuration(viewport)
 	var presenter := PRESENTER_SCENE.instantiate() as CaptionPresenter
 	viewport.add_child(presenter)
 	await process_frame
@@ -38,6 +39,29 @@ func _run() -> void:
 	viewport.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_pre_tree_configuration(viewport: SubViewport) -> void:
+	var preconfigured := PRESENTER_SCENE.instantiate() as CaptionPresenter
+	_check(
+		preconfigured != null
+		and preconfigured.set_ui_scale(1.5)
+		and preconfigured.set_host_bottom_safe_margin(216.0)
+		and not preconfigured.apply_presentation_snapshot(_snapshot(false, "Pre-tree snapshot.")),
+		"pre-tree layout configuration remains accepted while live snapshot presentation rejects"
+	)
+	if preconfigured == null:
+		return
+	viewport.add_child(preconfigured)
+	await _settle()
+	var report := preconfigured.get_layout_report()
+	_check(
+		is_equal_approx(preconfigured.get_ui_scale(), 1.5)
+		and is_equal_approx(float(report.effective_safe_margin_bottom), 216.0),
+		"pre-tree layout configuration commits on first live entry"
+	)
+	preconfigured.queue_free()
+	await process_frame
 
 
 func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
@@ -181,19 +205,43 @@ func _test_detached_layout_currentness(viewport: SubViewport, presenter: Caption
 	await process_frame
 	await process_frame
 	var detached := presenter.get_layout_report()
+	var detached_snapshot := presenter.get_applied_snapshot()
+	var detached_scale := presenter.get_ui_scale()
+	var detached_apply := presenter.apply_presentation_snapshot(_snapshot(false, "Detached mutation."))
+	var detached_scale_result := presenter.set_ui_scale(0.8)
+	var detached_margin_result := presenter.set_host_bottom_safe_margin(288.0)
+	presenter.clear_host_bottom_safe_margin()
+	var detached_after_mutation := presenter.get_layout_report()
 	_check(
 		not presenter.is_inside_tree()
 		and (detached.panel_rect as Rect2).is_equal_approx(baseline.panel_rect as Rect2),
 		"detached deferred layout leaves the retained panel geometry unchanged"
 	)
+	_check(
+		not detached_apply
+		and not detached_scale_result
+		and not detached_margin_result
+		and presenter.get_applied_snapshot() == detached_snapshot
+		and is_equal_approx(presenter.get_ui_scale(), detached_scale)
+		and detached_after_mutation == detached,
+		"detached presenter rejects public snapshot and layout mutation atomically"
+	)
 	viewport.add_child(presenter)
+	await _settle()
+	var reentry_snapshot := _snapshot(false, "Fresh re-entry snapshot.")
+	presenter.set_ui_scale(1.25)
+	presenter.set_host_bottom_safe_margin(188.0)
+	var reentry_accepted := presenter.apply_presentation_snapshot(reentry_snapshot)
 	await _settle()
 	var reentered := presenter.get_layout_report()
 	_check(
 		presenter.is_inside_tree()
-		and is_equal_approx(float(reentered.ui_scale), 1.5)
+		and reentry_accepted
+		and is_equal_approx(float(reentered.ui_scale), 1.25)
+		and is_equal_approx(float(reentered.effective_safe_margin_bottom), 188.0)
+		and str(reentered.rendered_text) == "Fresh re-entry snapshot."
 		and not (reentered.panel_rect as Rect2).is_equal_approx(baseline.panel_rect as Rect2),
-		"re-entry schedules one current layout pass using the retained scale and live viewport"
+		"re-entry accepts fresh live snapshot and layout mutations"
 	)
 
 
@@ -202,17 +250,32 @@ func _test_queued_layout_currentness(viewport: SubViewport) -> void:
 	viewport.add_child(queued)
 	await _settle()
 	queued.set_ui_scale(1.5)
+	queued.apply_presentation_snapshot(_snapshot(false, "Queued baseline."))
+	await _settle()
 	var token := int(queued.get("_layout_token"))
 	var before := queued.get_layout_report()
+	var before_snapshot := queued.get_applied_snapshot()
+	var before_scale := queued.get_ui_scale()
+	var before_margin := float(before.effective_safe_margin_bottom)
 	queued.queue_free()
+	var queued_apply := queued.apply_presentation_snapshot(_snapshot(false, "Queued mutation."))
+	var queued_scale := queued.set_ui_scale(0.8)
+	var queued_margin := queued.set_host_bottom_safe_margin(288.0)
+	queued.clear_host_bottom_safe_margin()
 	queued.call("_layout_pass_one", token)
 	queued.call("_layout_pass_two", token)
 	var after := queued.get_layout_report()
 	_check(
 		queued.is_inside_tree()
 		and queued.is_queued_for_deletion()
+		and not queued_apply
+		and not queued_scale
+		and not queued_margin
+		and queued.get_applied_snapshot() == before_snapshot
+		and is_equal_approx(queued.get_ui_scale(), before_scale)
+		and is_equal_approx(float(after.effective_safe_margin_bottom), before_margin)
 		and (after.panel_rect as Rect2).is_equal_approx(before.panel_rect as Rect2),
-		"queued-but-live presenter rejects its pending layout callback before Control mutation"
+		"queued-but-live presenter rejects public and pending layout mutation atomically"
 	)
 	await process_frame
 
