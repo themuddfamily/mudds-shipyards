@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://ember-streaming-production-settings.json"
-const EXPECTED_ASSERTIONS := 21
+const EXPECTED_ASSERTIONS := 25
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -90,6 +90,7 @@ func _run() -> void:
 	game.set_physics_process(false)
 	await _test_composition_and_absolute_observation(game, binding, bootstrap)
 	await _test_rebase_preview_and_fail_closed_journey(game, binding, bootstrap)
+	await _test_queued_activation_currentness(binding)
 	await _test_detach_reentry(game, binding, bootstrap)
 	await _cleanup(game)
 	_finish()
@@ -305,6 +306,59 @@ func _test_detach_reentry(
 				== int(before_queued.get("physics_tick_count", -2)),
 		"queued bootstrap fails tick and preview closed without advancing cadence",
 	)
+
+
+func _test_queued_activation_currentness(
+		live_binding: EmberMoonStreamingProductionBinding
+	) -> void:
+	_check(
+		live_binding != null and bool(live_binding.get_snapshot().get("activated", false)),
+		"separate live activation control receives the validated production binding"
+	)
+	if live_binding == null:
+		return
+	var live_before := live_binding.get_snapshot()
+	live_binding.call("_activate_scene_binding")
+	var live_snapshot := live_binding.get_snapshot()
+	_check(
+		bool(live_snapshot.get("activated", false))
+			and int(live_snapshot.get("bootstrap_instance_id", 0))
+				== int(live_before.get("bootstrap_instance_id", -1))
+			and int(live_snapshot.get("coordinate_frame_instance_id", 0))
+				== int(live_before.get("coordinate_frame_instance_id", -1))
+			and int(live_snapshot.get("bound_coordinate_frame_generation", 0))
+				== int(live_before.get("bound_coordinate_frame_generation", -1))
+			and int(live_snapshot.get("physics_tick_count", -1))
+				== int(live_before.get("physics_tick_count", -2)),
+		"a current live activation callback preserves its exact bootstrap and frame"
+	)
+
+	var queued_game := MAIN_SCENE.instantiate() as GameFlow
+	queued_game.configure_runtime_settings_persistence(
+		Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore,
+		"memory://ember-streaming-production-queued-control.cfg"
+	)
+	root.add_child(queued_game)
+	var queued_binding := queued_game.get_node_or_null(
+		^"EmberMoonStreamingProductionBinding"
+	) as EmberMoonStreamingProductionBinding
+	_check(
+		queued_binding != null,
+		"queued activation witness resolves a fresh authored Ember binding"
+	)
+	if queued_binding == null:
+		await _cleanup(queued_game)
+		return
+	var before := queued_binding.get_snapshot()
+	queued_binding.queue_free()
+	queued_binding.call("_activate_scene_binding")
+	_check(
+		queued_binding.is_queued_for_deletion()
+			and queued_binding.get_snapshot() == before,
+		"queued deferred activation leaves binding state and owned identities untouched"
+	)
+	await process_frame
+	await _cleanup(queued_game)
 
 
 func _sample(position: Vector3, kind: StringName, instance_id: int) -> Dictionary:

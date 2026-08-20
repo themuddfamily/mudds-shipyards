@@ -350,7 +350,7 @@ func audit() -> Dictionary:
 
 
 func _activate_scene_binding() -> void:
-	if _activated or not is_inside_tree():
+	if _activated or is_queued_for_deletion() or not is_inside_tree():
 		return
 	_bootstrap = get_node_or_null(bootstrap_path) as EmberMoonStreamingBootstrap
 	if not is_instance_valid(_bootstrap) or _bootstrap.get_parent() != get_parent():
