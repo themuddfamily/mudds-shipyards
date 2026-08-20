@@ -29,6 +29,23 @@ func _run() -> void:
 			and (contract.get_snapshot().edges as Array).size() == 2,
 		"snapshot publishes the bounded node and edge roster"
 	)
+	_check(
+		(contract.get_snapshot().route_markers as Array).size() == 3
+			and (contract.get_snapshot().landing_sites as Array).size() == 1
+			and (contract.get_snapshot().landmarks as Array).size() == 2
+			and (contract.get_snapshot().hazards as Array).size() == 2,
+		"snapshot publishes route markers, landing sites, landmarks, and hazards"
+	)
+	_check(
+		contract.get_route_marker_ids().has("surface_staging_gate")
+			and (contract.get_snapshot().edges as Array)[0].route_id == &"pad_to_surface_staging",
+		"authored route markers expose stable route IDs"
+	)
+	_check(
+		((audit.snapshot as Dictionary).evidence as Dictionary).procedural_generation == false
+			and (audit.authority as Dictionary).teleport == false,
+		"surface content is authored and cannot grant procedural or teleport authority"
+	)
 
 	var disconnected := contract.duplicate()
 	disconnected.node_ids = PackedStringArray([
@@ -68,6 +85,28 @@ func _run() -> void:
 	_check(
 		_not_empty(duplicate.get_validation_errors(), "unique"),
 		"duplicate landmark IDs are rejected"
+	)
+
+	var bad_route_reference := contract.duplicate()
+	bad_route_reference.landmark_route_ids[0] = "missing_surface_route"
+	_check(
+		_not_empty(bad_route_reference.get_validation_errors(), "unknown route"),
+		"landmarks fail closed on unknown route IDs"
+	)
+
+	var bad_marker_reference := contract.duplicate()
+	bad_marker_reference.hazard_marker_ids[0] = "missing_marker"
+	_check(
+		_not_empty(bad_marker_reference.get_validation_errors(), "unknown route marker"),
+		"hazards fail closed on unknown route markers"
+	)
+
+	var disconnected_route := contract.duplicate()
+	disconnected_route.edge_from_ids = PackedStringArray(["pad_alpha_egress", "caldera_overlook"])
+	disconnected_route.edge_to_ids = PackedStringArray(["surface_staging_gate", "surface_staging_gate"])
+	_check(
+		_not_empty(disconnected_route.get_validation_errors(), "unreachable"),
+		"route graph rejects a disconnected authored marker"
 	)
 
 	var detached := contract.get_snapshot()
