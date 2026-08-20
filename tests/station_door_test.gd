@@ -171,8 +171,36 @@ func _run() -> void:
 		"state signal history includes open, close, completion, and interrupted reversal transitions"
 	)
 
+	# The physical door remains in-tree until the deletion queue drains. It must
+	# already be absent from prompt/discovery/direct interaction admission so a
+	# terminal leaf cannot start an opening transition or publish stale signals.
+	door.set_deferred_access(false)
+	var queued_state := door.get_state()
+	var queued_portal_blocked := door.is_portal_blocked()
+	var queued_panel_transform := partial_panel.transform
+	var queued_state_events := state_events.size()
+	var queued_completed_events := completed_states.size()
+	var queued_accepted_events := accepted_requests.size()
+	var queued_refused_events := refusal_reasons.size()
 	var door_reference: WeakRef = weakref(door)
 	door.queue_free()
+	_check(
+		door.is_inside_tree() and door.is_queued_for_deletion(),
+		"a queued door remains in-tree during its terminal deletion window"
+	)
+	_check(
+		door.get_interaction_prompt().is_empty()
+		and not door.can_interact(actor)
+		and not door.interact(actor)
+		and door.get_state() == queued_state
+		and door.is_portal_blocked() == queued_portal_blocked
+		and partial_panel.transform.is_equal_approx(queued_panel_transform)
+		and state_events.size() == queued_state_events
+		and completed_states.size() == queued_completed_events
+		and accepted_requests.size() == queued_accepted_events
+		and refusal_reasons.size() == queued_refused_events,
+		"a queued door rejects prompt, discovery, and direct interaction without physical or signal mutation"
+	)
 	door = null
 	actor.queue_free()
 	await process_frame
