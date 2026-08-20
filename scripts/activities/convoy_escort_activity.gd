@@ -135,6 +135,8 @@ func start(
 	convoy_generation: int,
 	expected_generation: int
 ) -> Dictionary:
+	if not _is_current():
+		return _result(false, &"activity_detached")
 	if _signal_dispatch_active:
 		return _result(false, &"reentrant_call")
 	if expected_generation != _generation:
@@ -175,6 +177,8 @@ func submit_entity_sample(
 	convoy_status: int,
 	expected_generation: int
 ) -> Dictionary:
+	if not _is_current():
+		return _result(false, &"activity_detached")
 	if _signal_dispatch_active:
 		return _result(false, &"reentrant_call")
 	if expected_generation != _generation:
@@ -237,6 +241,8 @@ func submit_entity_sample(
 ## Advances mission and continuous-separation time from the caller's physics
 ## clock. Samples and wall-clock/tree time never advance these values.
 func advance_physics(delta: float, expected_generation: int) -> Dictionary:
+	if not _is_current():
+		return _result(false, &"activity_detached")
 	if _signal_dispatch_active:
 		return _result(false, &"reentrant_call")
 	if expected_generation != _generation:
@@ -269,6 +275,8 @@ func advance_physics(delta: float, expected_generation: int) -> Dictionary:
 
 
 func abort(reason: StringName, expected_generation: int) -> Dictionary:
+	if not _is_current():
+		return _result(false, &"activity_detached")
 	if _signal_dispatch_active:
 		return _result(false, &"reentrant_call")
 	if expected_generation != _generation:
@@ -285,6 +293,8 @@ func abort(reason: StringName, expected_generation: int) -> Dictionary:
 
 
 func reset(expected_generation: int) -> Dictionary:
+	if not _is_current():
+		return _result(false, &"activity_detached")
 	if _signal_dispatch_active:
 		return _result(false, &"reentrant_call")
 	if expected_generation != _generation:
@@ -316,6 +326,10 @@ func get_generation() -> int:
 
 func get_state() -> int:
 	return _state
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 ## Detached, HUD-ready identifiers, progress, timing, and proximity state.

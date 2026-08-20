@@ -19,6 +19,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_configuration_snapshot_and_authority_boundary()
+	await _test_direct_lifecycle_currentness()
 	await _test_ordered_legs_safe_arrival_and_signal_guards()
 	await _test_destroyed_lost_timeout_abort_and_reset()
 	await _test_detach_reentry_and_time_overflow()
@@ -133,6 +134,122 @@ func _test_configuration_snapshot_and_authority_boundary() -> void:
 	duplicate.queue_free()
 	invalid_limits.queue_free()
 	mismatched_identity.queue_free()
+	await process_frame
+
+
+func _test_direct_lifecycle_currentness() -> void:
+	var prestart_fixture := _fixture()
+	var prestart := prestart_fixture.activity as ConvoyEscortActivity
+	var prestart_director := prestart_fixture.director as ActivityDirector
+	var prestart_events: Array[StringName] = []
+	prestart.started.connect(
+		func(_activity_id: StringName, _generation: int, _convoy_id: StringName, _convoy_generation: int) -> void:
+			prestart_events.append(&"started")
+	)
+	var prestart_before := prestart.get_snapshot()
+	prestart.queue_free()
+	var queued_start := prestart.start(CONVOY_ID, 44, 0)
+	_check(
+		prestart.is_inside_tree()
+			and prestart.is_queued_for_deletion()
+			and not bool(queued_start.get("accepted", true))
+			and queued_start.get("reason") == &"activity_detached"
+			and prestart.get_snapshot() == prestart_before
+			and prestart_events.is_empty(),
+		"a queued pre-start escort rejects direct admission before generation, state, or signal mutation"
+	)
+	prestart_director.queue_free()
+	await process_frame
+
+	var detached_fixture := _fixture()
+	var detached := detached_fixture.activity as ConvoyEscortActivity
+	var detached_generation := int(detached.start(CONVOY_ID, 45, 0).get("generation", -1))
+	var detached_events: Array[StringName] = []
+	detached.leg_reached.connect(
+		func(_activity_id: StringName, _leg_index: int, _generation: int) -> void:
+			detached_events.append(&"leg_reached")
+	)
+	detached.aborted.connect(
+		func(_activity_id: StringName, _reason: StringName, _generation: int) -> void:
+			detached_events.append(&"aborted")
+	)
+	detached.escort_reset.connect(
+		func(_activity_id: StringName, _generation: int) -> void:
+			detached_events.append(&"reset")
+	)
+	var detached_before := detached.get_snapshot()
+	root.remove_child(detached)
+	var detached_sample := detached.submit_entity_sample(
+		CONVOY_ID, 45, LEG_ALPHA, LEG_ALPHA,
+		ConvoyEscortActivity.EntityStatus.ACTIVE, detached_generation
+	)
+	var detached_advance := detached.advance_physics(1.0, detached_generation)
+	var detached_abort := detached.abort(&"detached_abort", detached_generation)
+	var detached_reset := detached.reset(detached_generation)
+	_check(
+		not detached.is_inside_tree()
+			and not bool(detached_sample.get("accepted", true))
+			and not bool(detached_advance.get("accepted", true))
+			and not bool(detached_abort.get("accepted", true))
+			and not bool(detached_reset.get("accepted", true))
+			and detached_sample.get("reason") == &"activity_detached"
+			and detached.get_snapshot() == detached_before
+			and detached_events.is_empty(),
+		"a detached active escort rejects sample, clock, abort, and reset without lifecycle or signal drift"
+	)
+	root.add_child(detached)
+	var resumed := detached.submit_entity_sample(
+		CONVOY_ID, 45, LEG_ALPHA, LEG_ALPHA,
+		ConvoyEscortActivity.EntityStatus.ACTIVE, detached_generation
+	)
+	_check(
+		bool(resumed.get("accepted", false))
+			and resumed.get("reason") == &"leg_reached"
+			and int(detached.get_snapshot().get("completed_leg_count", -1)) == 1
+			and detached_events == [&"leg_reached"],
+		"a reattached escort accepts the same current generation exactly once"
+	)
+	await _free_fixture(detached_fixture)
+
+	var queued_fixture := _fixture()
+	var queued := queued_fixture.activity as ConvoyEscortActivity
+	var queued_generation := int(queued.start(CONVOY_ID, 46, 0).get("generation", -1))
+	var queued_events: Array[StringName] = []
+	queued.leg_reached.connect(
+		func(_activity_id: StringName, _leg_index: int, _generation: int) -> void:
+			queued_events.append(&"leg_reached")
+	)
+	queued.aborted.connect(
+		func(_activity_id: StringName, _reason: StringName, _generation: int) -> void:
+			queued_events.append(&"aborted")
+	)
+	queued.escort_reset.connect(
+		func(_activity_id: StringName, _generation: int) -> void:
+			queued_events.append(&"reset")
+	)
+	var queued_before := queued.get_snapshot()
+	queued.queue_free()
+	var queued_sample := queued.submit_entity_sample(
+		CONVOY_ID, 46, LEG_ALPHA, LEG_ALPHA,
+		ConvoyEscortActivity.EntityStatus.ACTIVE, queued_generation
+	)
+	var queued_advance := queued.advance_physics(1.0, queued_generation)
+	var queued_abort := queued.abort(&"queued_abort", queued_generation)
+	var queued_reset := queued.reset(queued_generation)
+	_check(
+		queued.is_inside_tree()
+			and queued.is_queued_for_deletion()
+			and not bool(queued_sample.get("accepted", true))
+			and not bool(queued_advance.get("accepted", true))
+			and not bool(queued_abort.get("accepted", true))
+			and not bool(queued_reset.get("accepted", true))
+			and queued_sample.get("reason") == &"activity_detached"
+			and queued.get_snapshot() == queued_before
+			and queued_events.is_empty(),
+		"a queued active escort rejects sample, clock, abort, and reset without lifecycle or signal drift"
+	)
+	var queued_director := queued_fixture.director as ActivityDirector
+	queued_director.queue_free()
 	await process_frame
 
 
