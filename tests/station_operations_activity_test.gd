@@ -444,10 +444,59 @@ func _run() -> void:
 	(activity.get_node("PresentationRoot/MaintenanceGantry/AnimatedGantryCarriage") as Node3D).position = original_carriage_position
 	_check(bool(activity.get_audit_report().valid), "restoring presentation resources and poses restores the complete audit")
 
-	var elapsed_before_reentry := activity.get_activity_time()
+	var detached_signal_events: Array[bool] = []
+	activity.solid_volume_state_changed.connect(
+		func(active: bool, _activity_global_transform: Transform3D) -> void:
+			detached_signal_events.append(active)
+	)
 	root.remove_child(activity)
+	await process_frame
+	var detached_state := activity.get_activity_state()
+	var detached_time := activity.get_activity_time()
+	var detached_process := activity.is_processing()
+	var detached_signal_count := detached_signal_events.size()
+	_check(
+		not activity.advance_activity_simulation(1.0)
+		and not activity.set_activity_time(detached_time + 3.0)
+		and detached_signal_events.size() == detached_signal_count,
+		"detached activity rejects stale direct clock requests without a signal"
+	)
+	activity.set_activity_enabled(false)
+	activity.set_activity_paused(true)
+	activity.reset_activity_time()
+	_check(
+		not activity.is_inside_tree()
+		and _states_match(detached_state, activity.get_activity_state())
+		and activity.is_processing() == detached_process
+		and detached_signal_events.size() == detached_signal_count,
+		"detached activity setters and reset preserve canonical lifecycle, pose, and signals"
+	)
 	root.add_child(activity)
 	await process_frame
+	await process_frame
+	var reentered_time := activity.get_activity_time()
+	_check(
+		activity.advance_activity_simulation(0.25)
+		and is_equal_approx(activity.get_activity_time(), reentered_time + 0.25),
+		"re-added activity accepts fresh direct advancement"
+	)
+	_check(
+		activity.set_activity_time(7.5)
+		and is_equal_approx(activity.get_activity_time(), 7.5),
+		"re-added activity accepts fresh set-time requests"
+	)
+	activity.reset_activity_time()
+	_check(
+		is_zero_approx(activity.get_activity_time()),
+		"re-added activity accepts fresh reset-time requests"
+	)
+	activity.set_activity_paused(true)
+	_check(activity.is_activity_paused() and not activity.is_processing(), "re-added activity accepts fresh pause requests")
+	activity.set_activity_paused(false)
+	activity.set_activity_enabled(false)
+	_check(not activity.is_activity_enabled() and not activity.is_processing(), "re-added activity accepts fresh enabled-state requests")
+	activity.set_activity_enabled(true)
+	var elapsed_before_reentry := activity.get_activity_time()
 	await process_frame
 	_check(
 		activity.is_activity_advancing()
@@ -489,15 +538,42 @@ func _run() -> void:
 	activity.set_activity_enabled(true)
 
 	var preconfigured := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
-	preconfigured.set_activity_enabled(false)
-	preconfigured.set_activity_paused(true)
 	root.add_child(preconfigured)
 	await process_frame
+	preconfigured.set_activity_enabled(false)
+	preconfigured.set_activity_paused(true)
 	_check(
 		not preconfigured.is_activity_enabled()
 		and preconfigured.is_activity_paused()
 		and not preconfigured.is_processing(),
-		"lifecycle configuration made before tree entry is preserved by ready"
+		"attached lifecycle configuration controls process work"
+	)
+
+	var queued := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+	root.add_child(queued)
+	await process_frame
+	var queued_signal_events: Array[bool] = []
+	queued.solid_volume_state_changed.connect(
+		func(active: bool, _activity_global_transform: Transform3D) -> void:
+			queued_signal_events.append(active)
+	)
+	queued.queue_free()
+	var queued_state := queued.get_activity_state()
+	var queued_time := queued.get_activity_time()
+	var queued_process := queued.is_processing()
+	var queued_signal_count := queued_signal_events.size()
+	queued.set_activity_enabled(false)
+	queued.set_activity_paused(true)
+	queued.reset_activity_time()
+	_check(
+		queued.is_inside_tree()
+		and queued.is_queued_for_deletion()
+		and not queued.advance_activity_simulation(1.0)
+		and not queued.set_activity_time(queued_time + 3.0)
+		and _states_match(queued_state, queued.get_activity_state())
+		and queued.is_processing() == queued_process
+		and queued_signal_events.size() == queued_signal_count,
+		"queued activity rejects every direct mutator without lifecycle, pose, or signal drift"
 	)
 
 	var detached_audit := activity.get_audit_report()

@@ -782,6 +782,8 @@ func get_evidence_metadata() -> Dictionary:
 
 
 func set_activity_enabled(enabled: bool) -> void:
+	if not _can_mutate_activity():
+		return
 	_enabled_overridden = true
 	if _activity_enabled == enabled:
 		_refresh_lifecycle()
@@ -795,6 +797,8 @@ func is_activity_enabled() -> bool:
 
 
 func set_activity_paused(paused: bool) -> void:
+	if not _can_mutate_activity():
+		return
 	_paused_overridden = true
 	if _activity_paused == paused:
 		_refresh_lifecycle()
@@ -811,9 +815,15 @@ func is_activity_advancing() -> bool:
 	return _activity_enabled and not _activity_paused
 
 
+func _can_mutate_activity() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
+
+
 ## Advances the component only while enabled and unpaused. The transforms are
 ## functions of total elapsed time, so frame subdivision does not change state.
 func advance_activity_simulation(delta: float) -> bool:
+	if not _can_mutate_activity():
+		return false
 	if not is_activity_advancing() or not is_finite(delta) or delta <= 0.0:
 		return false
 	_elapsed += delta
@@ -824,6 +834,8 @@ func advance_activity_simulation(delta: float) -> bool:
 ## Deterministic seek used by capture tooling. This intentionally works while
 ## paused or disabled, but it never changes either lifecycle flag.
 func set_activity_time(seconds: float) -> bool:
+	if not _can_mutate_activity():
+		return false
 	if not is_finite(seconds) or seconds < 0.0:
 		return false
 	_elapsed = seconds
@@ -832,6 +844,8 @@ func set_activity_time(seconds: float) -> bool:
 
 
 func reset_activity_time() -> void:
+	if not _can_mutate_activity():
+		return
 	_elapsed = 0.0
 	_update_activity_transforms()
 
