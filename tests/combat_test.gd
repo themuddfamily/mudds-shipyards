@@ -256,6 +256,41 @@ func _run() -> void:
 		_validate_vertical_shot(opponent, target, _shots[below_shot_index], -1.0, "below")
 	_check(opponent.global_basis.x.is_finite() and opponent.global_basis.y.is_finite() and opponent.global_basis.z.is_finite(), "inverse vertical tracking keeps a finite attitude basis")
 
+	# A target scheduled for deletion remains in the tree until the deferred free,
+	# so every target admission, tracking, and direct firing path must reject it
+	# before it can retain a stale aim or emit another projectile.
+	var queued_target := _make_target()
+	host.add_child(queued_target)
+	queued_target.global_position = opponent.global_position + Vector3(0.0, 0.0, -38.0)
+	queued_target.queue_free()
+	opponent.call("set_target", queued_target)
+	_check(opponent.get("_target") == null, "queued target cannot replace the live opponent target binding")
+	var shots_before_queued_target := _shots.size()
+	var alternate_muzzle_before_queued_target := bool(opponent.get("_alternate_muzzle"))
+	opponent.set("_cooldown_remaining", 0.37)
+	opponent.set("_target", queued_target)
+	opponent.set("_telegraph_remaining", 1.0)
+	opponent.call("_physics_process", 0.0)
+	opponent.call("_fire_at_target", queued_target.global_position)
+	_check(
+		_shots.size() == shots_before_queued_target
+		and is_zero_approx(float(opponent.get("_telegraph_remaining")))
+		and is_equal_approx(float(opponent.get("_cooldown_remaining")), 0.37)
+		and bool(opponent.get("_alternate_muzzle")) == alternate_muzzle_before_queued_target,
+		"queued target is atomic across tracking and direct fire-time admission"
+	)
+	await process_frame
+	var rebound_target := _make_target()
+	host.add_child(rebound_target)
+	rebound_target.global_position = opponent.global_position + Vector3(0.0, 0.0, -38.0)
+	opponent.call("set_target", rebound_target)
+	opponent.set("_cooldown_remaining", 0.0)
+	opponent.call("_fire_at_target", rebound_target.global_position)
+	_check(
+		opponent.get("_target") == rebound_target and _shots.size() == shots_before_queued_target + 1,
+		"a fresh live target can rebind and fire after queued-target rejection"
+	)
+
 	# A live pulse may reach its target during the same idle turn that an
 	# individual opponent is scheduled for disposal. Its pending target-side
 	# receipt must remain inert until teardown clears it; the doomed craft cannot

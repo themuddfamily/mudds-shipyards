@@ -166,7 +166,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_elapsed += delta
 	_cooldown_remaining = maxf(0.0, _cooldown_remaining - delta)
-	var valid_target := is_instance_valid(_target) and _target.is_inside_tree()
+	var valid_target := _has_current_target()
 	if not valid_target:
 		_telegraph_remaining = 0.0
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * 0.45 * delta)
@@ -212,11 +212,11 @@ func _process(delta: float) -> void:
 
 ## Assigns the craft that the range defender should pursue and engage.
 func set_target(target: Node3D) -> void:
-	_target = target
+	_target = target if _is_live_target(target) else null
 	_target_aim_shape = null
-	if not is_instance_valid(target):
+	if _target == null:
 		return
-	for candidate in target.find_children("*", "CollisionShape3D", true, false):
+	for candidate in _target.find_children("*", "CollisionShape3D", true, false):
 		var collision_shape := candidate as CollisionShape3D
 		if collision_shape != null and not collision_shape.disabled and collision_shape.shape != null:
 			_target_aim_shape = collision_shape
@@ -224,9 +224,22 @@ func set_target(target: Node3D) -> void:
 
 
 func _get_target_aim_position() -> Vector3:
-	if is_instance_valid(_target_aim_shape) and not _target_aim_shape.disabled:
+	if (
+		is_instance_valid(_target_aim_shape)
+		and _target_aim_shape.is_inside_tree()
+		and not _target_aim_shape.is_queued_for_deletion()
+		and not _target_aim_shape.disabled
+	):
 		return _target_aim_shape.global_position
-	return _target.global_position if is_instance_valid(_target) else global_position - global_basis.z
+	return _target.global_position if _has_current_target() else global_position - global_basis.z
+
+
+func _has_current_target() -> bool:
+	return _is_live_target(_target)
+
+
+func _is_live_target(target: Node3D) -> bool:
+	return is_instance_valid(target) and target.is_inside_tree() and not target.is_queued_for_deletion()
 
 
 ## Restores the interceptor and places it at a world-space spawn transform.
@@ -776,7 +789,7 @@ func _has_line_of_sight(target_position: Vector3) -> bool:
 
 
 func _fire_at_target(target_position: Vector3) -> void:
-	if not _active or not is_instance_valid(_target):
+	if not _active or not _has_current_target():
 		return
 	var muzzle := _muzzle_starboard if _alternate_muzzle else _muzzle_port
 	_alternate_muzzle = not _alternate_muzzle
