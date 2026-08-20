@@ -268,6 +268,7 @@ func get_state_snapshot() -> Dictionary:
 		_bound
 		and not _closed
 		and is_inside_tree()
+		and not is_queued_for_deletion()
 		and authority_available
 		and handle_current
 		and authority_attached
@@ -673,9 +674,9 @@ func get_physical_contract() -> Dictionary:
 
 
 func _restore_authority_binding() -> void:
-	_restore_pending = false
-	if not is_inside_tree() or not _bound or _closed:
+	if is_queued_for_deletion() or not is_inside_tree() or not _bound or _closed:
 		return
+	_restore_pending = false
 	if not is_instance_valid(_authority) or not _authority.is_inside_tree():
 		_apply_interaction_availability(false)
 		return
@@ -720,6 +721,8 @@ func _disconnect_authority_signals() -> void:
 
 
 func _on_authority_manifest_changed(changed_handle: Dictionary) -> void:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return
 	if not _handles_equal(changed_handle, _handle):
 		return
 	_apply_interaction_availability(bool(get_state_snapshot().ready))
@@ -732,7 +735,7 @@ func _on_authority_tree_exiting() -> void:
 
 
 func _apply_interaction_availability(available: bool) -> void:
-	var enabled := available and is_inside_tree() and not _closed
+	var enabled := available and is_inside_tree() and not is_queued_for_deletion() and not _closed
 	collision_layer = INTERACTABLE_LAYER if enabled else 0
 	monitorable = enabled
 	if is_instance_valid(_interaction_shape):

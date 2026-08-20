@@ -63,6 +63,7 @@ func _run() -> void:
 	await _test_detach_reentry_and_stale_authority(
 		stage, authority, source, destination, source_handle, destination_handle
 	)
+	await _test_queued_terminal_admission_and_restore_currentness()
 	await _cleanup(stage, authority)
 	_finish()
 
@@ -616,6 +617,151 @@ func _test_detach_reentry_and_stale_authority(
 		== source_quantity,
 		"closing the adapter withdraws interaction without retiring or owning inventory"
 	)
+
+
+func _test_queued_terminal_admission_and_restore_currentness() -> void:
+	for queue_source in [true, false]:
+		var fixture := await _make_queued_currentness_fixture(
+			"QueuedSource" if queue_source else "QueuedDestination"
+		)
+		_check(not fixture.is_empty(), "queued terminal fixture binds both current authority handles")
+		if fixture.is_empty():
+			continue
+		var authority := fixture.authority as CargoTransferAuthority
+		var source := fixture.source as CargoTransferTerminal
+		var destination := fixture.destination as CargoTransferTerminal
+		var source_handle := fixture.source_handle as Dictionary
+		var destination_handle := fixture.destination_handle as Dictionary
+		var candidate := source if queue_source else destination
+		var interaction_events: Array[bool] = []
+		candidate.interaction_requested.connect(func(_actor: Node, _snapshot: Dictionary) -> void:
+			interaction_events.append(true)
+		)
+		var source_before := authority.get_quantity(source_handle, &"queued_fixture_item")
+		var destination_before := authority.get_quantity(
+			destination_handle, &"queued_fixture_item"
+		)
+		candidate.queue_free()
+		var transfer := source.transfer_to(
+			destination,
+			&"queued_terminal_transfer",
+			&"queued_fixture_item",
+			1,
+			source.get_terminal_generation(),
+			destination.get_terminal_generation()
+		)
+		var expected_reason: StringName = &"source_detached" if queue_source else &"destination_detached"
+		_check(
+			candidate.is_inside_tree()
+			and candidate.is_queued_for_deletion()
+			and not bool(candidate.get_state_snapshot().ready)
+			and candidate.get_state_snapshot().state_id == &"detached"
+			and not candidate.can_interact()
+			and not candidate.interact()
+			and transfer.reason == expected_reason
+			and authority.get_quantity(source_handle, &"queued_fixture_item") == source_before
+			and authority.get_quantity(destination_handle, &"queued_fixture_item") == destination_before
+			and interaction_events.is_empty(),
+			"queued %s terminal rejects interaction and transfer without authority or signal mutation"
+			% ("source" if queue_source else "destination")
+		)
+		await process_frame
+		await _cleanup(fixture.stage as Node3D, authority)
+
+	var restore_fixture := await _make_queued_currentness_fixture("QueuedRestore")
+	_check(not restore_fixture.is_empty(), "queued restore fixture binds one current source terminal")
+	if restore_fixture.is_empty():
+		return
+	var restore_authority := restore_fixture.authority as CargoTransferAuthority
+	var restore_stage := restore_fixture.stage as Node3D
+	var restore_source := restore_fixture.source as CargoTransferTerminal
+	var restore_handle := restore_fixture.source_handle as Dictionary
+	var restore_events: Array[bool] = []
+	restore_source.binding_changed.connect(func(_snapshot: Dictionary) -> void:
+		restore_events.append(true)
+	)
+	restore_stage.remove_child(restore_source)
+	await process_frame
+	var detached_before := restore_authority.get_manifest_snapshot(restore_handle)
+	var detached_event_count := restore_events.size()
+	restore_source.call("_restore_authority_binding")
+	_check(
+		not bool(detached_before.attached)
+		and restore_authority.get_manifest_snapshot(restore_handle) == detached_before
+		and restore_events.size() == detached_event_count,
+		"a detached terminal cannot restore authority ownership or publish binding state"
+	)
+	restore_stage.add_child(restore_source)
+	restore_source.queue_free()
+	var queued_before := restore_authority.get_manifest_snapshot(restore_handle)
+	restore_source.call("_restore_authority_binding")
+	_check(
+		restore_source.is_queued_for_deletion()
+		and restore_authority.get_manifest_snapshot(restore_handle) == queued_before
+		and not bool(queued_before.attached)
+		and restore_events.size() == detached_event_count,
+		"a queued reentry terminal cannot restore authority ownership or publish binding state"
+	)
+	await process_frame
+	_check(
+		not is_instance_valid(restore_source)
+		and restore_authority.get_manifest_snapshot(restore_handle).is_empty()
+		and restore_events.size() == detached_event_count,
+		"the queued deferred restore stays inert while authority retires its freed owner"
+	)
+	await _cleanup(restore_stage, restore_authority)
+
+
+func _make_queued_currentness_fixture(label: String) -> Dictionary:
+	var stage := Node3D.new()
+	stage.name = "%sCargoTerminalStage" % label
+	root.add_child(stage)
+	var source := SOURCE_SCENE.instantiate() as CargoTransferTerminal
+	var destination := DESTINATION_SCENE.instantiate() as CargoTransferTerminal
+	if source == null or destination == null:
+		stage.queue_free()
+		await process_frame
+		return {}
+	stage.add_child(source)
+	stage.add_child(destination)
+	var authority := AuthorityScript.new() as CargoTransferAuthority
+	authority.name = "%sCargoAuthority" % label
+	root.add_child(authority)
+	await process_frame
+	await physics_frame
+	var item := ItemScript.new() as CargoItemDefinition
+	item.item_id = &"queued_fixture_item"
+	item.display_name = "Queued fixture item"
+	item.unit_capacity = 1
+	var item_registered := authority.register_item(item)
+	var source_registration := authority.register_entity(
+		source, source.terminal_id, source.manifest_id, 2, {&"queued_fixture_item": 1}
+	)
+	var destination_registration := authority.register_entity(
+		destination, destination.terminal_id, destination.manifest_id, 2
+	)
+	if (
+		not bool(item_registered.accepted)
+		or not bool(source_registration.accepted)
+		or not bool(destination_registration.accepted)
+	):
+		await _cleanup(stage, authority)
+		return {}
+	var source_handle := source_registration.handle as Dictionary
+	var destination_handle := destination_registration.handle as Dictionary
+	var source_bound := source.bind_authority(authority, source_handle, 0)
+	var destination_bound := destination.bind_authority(authority, destination_handle, 0)
+	if not bool(source_bound.accepted) or not bool(destination_bound.accepted):
+		await _cleanup(stage, authority)
+		return {}
+	return {
+		"stage": stage,
+		"authority": authority,
+		"source": source,
+		"destination": destination,
+		"source_handle": source_handle.duplicate(true),
+		"destination_handle": destination_handle.duplicate(true),
+	}.duplicate(true)
 
 
 func _walk_actor_to(
