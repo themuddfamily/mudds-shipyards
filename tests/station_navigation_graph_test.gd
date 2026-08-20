@@ -739,6 +739,35 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 		int(material_counts.bound_material_references) == 49,
 		"catalog sharing preserves all seven visible material bindings on each of seven couriers"
 	)
+	var pod_mesh_roster := StationServiceAgent.audit_pod_mesh_roster(material_roster_nodes)
+	var pod_mesh_counts := pod_mesh_roster.counts as Dictionary
+	print("STATION_SERVICE_POD_MESH_ROSTER: ", pod_mesh_roster)
+	_check(
+		bool(pod_mesh_roster.valid)
+		and bool(pod_mesh_roster.mesh_shared)
+		and bool(pod_mesh_roster.recipe_matches)
+		and int(pod_mesh_counts.instance_count) == 7
+		and int(pod_mesh_counts.pod_copy_count) == 14
+		and int(pod_mesh_counts.retained_unique_meshes) == 1,
+		"seven couriers retain one immutable PortPod/StarboardPod mesh across fourteen stable presentation nodes"
+	)
+	if agents.size() >= 2:
+		var mutated_pod := agents[1].get_node_or_null(^"PresentationRoot/ServiceCarriage/PortPod") as MeshInstance3D
+		_check(mutated_pod != null, "a second production courier exposes PortPod at its stable presentation path")
+		if mutated_pod != null:
+			var original_pod_mesh := mutated_pod.mesh
+			mutated_pod.mesh = original_pod_mesh.duplicate()
+			var mutated_pod_roster := StationServiceAgent.audit_pod_mesh_roster(material_roster_nodes)
+			_check(
+				not bool(mutated_pod_roster.valid)
+				and int((mutated_pod_roster.counts as Dictionary).retained_unique_meshes) == 2,
+				"MUTATION: replacing one PortPod mesh turns the cross-instance sharing audit red"
+			)
+			mutated_pod.mesh = original_pod_mesh
+			_check(
+				bool(StationServiceAgent.audit_pod_mesh_roster(material_roster_nodes).valid),
+				"restoring the session-shared PortPod mesh returns the production roster audit to green"
+			)
 	if not agents.is_empty():
 		var catalog := agents[0].get_material_catalog_audit()
 		var visible_parameters := catalog.visible_parameters_by_key as Dictionary

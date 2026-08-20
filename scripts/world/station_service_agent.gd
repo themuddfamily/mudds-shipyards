@@ -82,6 +82,16 @@ const RECOMMENDED_MAX_INSTANCES := 6
 ## Route clocks, poses, and the status-lens override remain instance-owned.
 static var _shared_material_catalog: Dictionary = {}
 
+## The two graphite side pods have one unchanged immutable recipe. Keeping this
+## resource class-static lets every live courier reference one session-retained
+## mesh while each node keeps its own stable path, transform, and material
+## override.
+const POD_MESH_SIZE := Vector3(0.2, 0.22, 0.6)
+const PODS_PER_AGENT := 2
+const PORT_POD_POSITION := Vector3(-0.56, -0.02, 0.06)
+const STARBOARD_POD_POSITION := Vector3(0.56, -0.02, 0.06)
+static var _shared_pod_mesh: ArrayMesh
+
 const CONTENT_NOTE := (
 	"The remake brief supports ambient station activity, cargo movement, and "
 	+ "animated equipment. It does not authenticate this courier silhouette, its "
@@ -575,6 +585,60 @@ static func audit_material_catalog_roster(candidates: Array[Node]) -> Dictionary
 			"catalog_entries": reference_identity_by_key.size(),
 			"retained_unique_materials": retained_material_ids.size(),
 			"bound_material_references": bound_material_references,
+		},
+	}
+
+
+## Production-roster evidence for the session-retained PortPod/StarboardPod
+## mesh. This is deliberately separate from an individual courier audit because
+## the allocation contract is meaningful only across independently built agents.
+static func audit_pod_mesh_roster(candidates: Array[Node]) -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	var pod_copy_count := 0
+	var instance_count := 0
+	var recipe_matches := _shared_pod_mesh != null \
+		and _shared_pod_mesh.get_surface_count() == 1 \
+		and _shared_pod_mesh.get_aabb().size.is_equal_approx(POD_MESH_SIZE) \
+		and _shared_pod_mesh.surface_get_material(0) == null
+	if not recipe_matches:
+		errors.append("shared courier pod mesh no longer matches its immutable rounded-box recipe")
+	for candidate in candidates:
+		if not candidate is StationServiceAgent:
+			errors.append("pod mesh roster contains a node that is not StationServiceAgent")
+			continue
+		var agent := candidate as StationServiceAgent
+		instance_count += 1
+		for pod_name: StringName in [&"PortPod", &"StarboardPod"]:
+			var expected_position := PORT_POD_POSITION if pod_name == &"PortPod" else STARBOARD_POD_POSITION
+			var pod := agent.get_node_or_null(NodePath("PresentationRoot/ServiceCarriage/" + str(pod_name))) as MeshInstance3D
+			if pod == null:
+				errors.append("courier '%s' is missing %s at its stable presentation path" % [agent.get_agent_id(), pod_name])
+				continue
+			pod_copy_count += 1
+			if pod.mesh == null:
+				errors.append("courier '%s' %s has no mesh" % [agent.get_agent_id(), pod_name])
+				continue
+			mesh_ids[pod.mesh.get_instance_id()] = true
+			if pod.mesh != _shared_pod_mesh:
+				errors.append("courier '%s' %s does not reference the session-shared pod mesh" % [agent.get_agent_id(), pod_name])
+			if not pod.position.is_equal_approx(expected_position) or not pod.basis.is_equal_approx(Basis.IDENTITY):
+				errors.append("courier '%s' %s transform diverged from the authored pod placement" % [agent.get_agent_id(), pod_name])
+			if pod.material_override != agent._materials.get("graphite"):
+				errors.append("courier '%s' %s no longer keeps its graphite material override" % [agent.get_agent_id(), pod_name])
+	var mesh_shared := pod_copy_count > 0 and mesh_ids.size() == 1 and mesh_ids.has(_shared_pod_mesh.get_instance_id() if _shared_pod_mesh != null else 0)
+	if not mesh_shared:
+		errors.append("courier pod roster retains %d mesh resources instead of one" % mesh_ids.size())
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"mesh_shared": mesh_shared,
+		"recipe_matches": recipe_matches,
+		"counts": {
+			"instance_count": instance_count,
+			"pod_copy_count": pod_copy_count,
+			"retained_unique_meshes": mesh_ids.size(),
 		},
 	}
 
@@ -1108,8 +1172,9 @@ func _build_courier() -> void:
 	_presentation_root.add_child(_carriage)
 	_box(_carriage, "Hull", Vector3(0.0, 0.0, 0.0), Vector3(0.86, 0.34, 1.18), _materials["hull"])
 	_box(_carriage, "ForwardCowl", Vector3(0.0, 0.02, -0.72), Vector3(0.5, 0.26, 0.34), _materials["hull_edge"])
-	_box(_carriage, "PortPod", Vector3(-0.56, -0.02, 0.06), Vector3(0.2, 0.22, 0.6), _materials["graphite"])
-	_box(_carriage, "StarboardPod", Vector3(0.56, -0.02, 0.06), Vector3(0.2, 0.22, 0.6), _materials["graphite"])
+	var pod_mesh := _get_shared_pod_mesh()
+	_box(_carriage, "PortPod", PORT_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
+	_box(_carriage, "StarboardPod", STARBOARD_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
 	_box(_carriage, "CargoPod", Vector3(0.0, -0.3, 0.12), Vector3(0.54, 0.3, 0.62), _materials["orange"])
 	_status_lens = _box(_carriage, "StatusLens", Vector3(0.0, 0.2, -0.5), Vector3(0.22, 0.1, 0.06), _materials["cyan_dim"])
 	_box(_carriage, "TailFin", Vector3(0.0, 0.28, 0.5), Vector3(0.08, 0.42, 0.36), _materials["hull_edge"])
@@ -1120,7 +1185,8 @@ func _box(
 		node_name: String,
 		local_position: Vector3,
 		size: Vector3,
-		material: Material
+		material: Material,
+		shared_mesh: ArrayMesh = null
 	) -> MeshInstance3D:
 	# Chamfered rather than a raw `BoxMesh`: the bounding box, and therefore the
 	# published service envelope and `BODY_HALF_EXTENTS`, are unchanged, but the
@@ -1128,7 +1194,7 @@ func _box(
 	# builder and the bevel rule are the shared kit's, not a local copy.
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
-	instance.mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+	instance.mesh = shared_mesh if shared_mesh != null else StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
 		size,
 		StationSurfaceKit.proportional_bevel_for_size(size, 0.2),
 		_rounded_box_cache,
@@ -1138,6 +1204,17 @@ func _box(
 	instance.position = local_position
 	parent.add_child(instance)
 	return instance
+
+
+static func _get_shared_pod_mesh() -> ArrayMesh:
+	if _shared_pod_mesh == null:
+		_shared_pod_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+			POD_MESH_SIZE,
+			StationSurfaceKit.proportional_bevel_for_size(POD_MESH_SIZE, 0.2),
+			{},
+			StationSurfaceKit.BevelUV.FACE_GRID
+		)
+	return _shared_pod_mesh
 
 
 func _capture_built_hierarchy() -> void:
