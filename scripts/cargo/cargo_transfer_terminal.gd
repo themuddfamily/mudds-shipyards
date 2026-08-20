@@ -214,6 +214,11 @@ func bind_authority(
 ## Permanently disables this physical adapter without retiring the manifest.
 ## Inventory lifecycle remains exclusively with CargoTransferAuthority.
 func close(expected_terminal_generation: int) -> Dictionary:
+	# Closing is a permanent presentation/interaction decision. A detached or
+	# queued terminal has no live physical owner, so it must not retain that
+	# decision for a later re-entry.
+	if is_queued_for_deletion() or not is_inside_tree():
+		return _result(false, &"terminal_unavailable")
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	_mutation_active = true

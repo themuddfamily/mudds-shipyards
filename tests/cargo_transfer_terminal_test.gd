@@ -507,9 +507,15 @@ func _test_detach_reentry_and_stale_authority(
 	var source_instance_id := source.get_instance_id()
 	var source_generation := source.get_terminal_generation()
 	var snapshot_before := source.get_state_snapshot()
+	var detached_binding_events: Array[bool] = []
+	source.binding_changed.connect(func(_snapshot: Dictionary) -> void:
+		detached_binding_events.append(true)
+	)
 	stage.remove_child(source)
 	await process_frame
 	var detached := source.get_state_snapshot()
+	var detached_physical := _interaction_physical_snapshot(source)
+	detached_binding_events.clear()
 	_check(
 		detached.state_id == &"detached"
 		and not bool(detached.ready)
@@ -530,6 +536,15 @@ func _test_detach_reentry_and_stale_authority(
 			destination.get_terminal_generation()
 		).reason == &"source_detached",
 		"detached physical source fails closed before authority mutation"
+	)
+	var detached_close := source.close(source_generation)
+	_check(
+		not bool(detached_close.accepted)
+			and detached_close.reason == &"terminal_unavailable"
+			and source.get_state_snapshot() == detached
+			and _interaction_physical_snapshot(source) == detached_physical
+			and detached_binding_events.is_empty(),
+		"detached close rejects before terminal state, collision, or binding publication mutate"
 	)
 	stage.add_child(source)
 	await process_frame
@@ -634,14 +649,21 @@ func _test_queued_terminal_admission_and_restore_currentness() -> void:
 		var destination_handle := fixture.destination_handle as Dictionary
 		var candidate := source if queue_source else destination
 		var interaction_events: Array[bool] = []
+		var binding_events: Array[bool] = []
 		candidate.interaction_requested.connect(func(_actor: Node, _snapshot: Dictionary) -> void:
 			interaction_events.append(true)
+		)
+		candidate.binding_changed.connect(func(_snapshot: Dictionary) -> void:
+			binding_events.append(true)
 		)
 		var source_before := authority.get_quantity(source_handle, &"queued_fixture_item")
 		var destination_before := authority.get_quantity(
 			destination_handle, &"queued_fixture_item"
 		)
 		candidate.queue_free()
+		var queued_terminal_snapshot := candidate.get_state_snapshot()
+		var queued_physical_snapshot := _interaction_physical_snapshot(candidate)
+		var queued_close := candidate.close(candidate.get_terminal_generation())
 		var transfer := source.transfer_to(
 			destination,
 			&"queued_terminal_transfer",
@@ -658,12 +680,20 @@ func _test_queued_terminal_admission_and_restore_currentness() -> void:
 			and candidate.get_state_snapshot().state_id == &"detached"
 			and not candidate.can_interact()
 			and not candidate.interact()
+			and not bool(queued_close.accepted)
+			and queued_close.reason == &"terminal_unavailable"
+			and candidate.get_state_snapshot() == queued_terminal_snapshot
+			and _interaction_physical_snapshot(candidate) == queued_physical_snapshot
 			and transfer.reason == expected_reason
 			and authority.get_quantity(source_handle, &"queued_fixture_item") == source_before
 			and authority.get_quantity(destination_handle, &"queued_fixture_item") == destination_before
 			and interaction_events.is_empty(),
-			"queued %s terminal rejects interaction and transfer without authority or signal mutation"
+			"queued %s terminal rejects interaction, transfer, and close without authority or signal mutation"
 			% ("source" if queue_source else "destination")
+		)
+		_check(
+			binding_events.is_empty(),
+			"queued %s close publishes no binding change" % ("source" if queue_source else "destination")
 		)
 		await process_frame
 		await _cleanup(fixture.stage as Node3D, authority)
@@ -831,6 +861,17 @@ func _cleanup(stage: Node3D, authority: CargoTransferAuthority) -> void:
 	authority.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _interaction_physical_snapshot(terminal: CargoTransferTerminal) -> Dictionary:
+	var shape := terminal.get_node_or_null(^"InteractionShape") as CollisionShape3D
+	return {
+		"collision_layer": terminal.collision_layer,
+		"collision_mask": terminal.collision_mask,
+		"monitoring": terminal.monitoring,
+		"monitorable": terminal.monitorable,
+		"shape_disabled": shape.disabled if shape != null else true,
+	}.duplicate(true)
 
 
 func _check(condition: bool, description: String) -> bool:
