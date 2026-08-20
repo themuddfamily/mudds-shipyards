@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://planetary-cruise-production-settings.json"
-const EXPECTED_ASSERTIONS := 38
+const EXPECTED_ASSERTIONS := 39
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -73,6 +73,12 @@ func _run() -> void:
 	)
 	if binding == null or ember == null or owner == null or ship == null:
 		await _cleanup(game); _finish(); return
+	# The bootstrap permits loader replacement only before its first request. The
+	# witness below uses a real rebase to reach Ember, where this exact loader
+	# rejects the otherwise current location generation.
+	var rejecting_ember_loader_installed := ember.set_scene_loader(
+		Callable(self, &"_reject_ember_scene_loader")
+	)
 	var controller := binding.get_controller()
 	var identities := [binding.get_instance_id(), controller.get_instance_id()]
 	var audit := binding.audit()
@@ -372,6 +378,44 @@ func _run() -> void:
 	)
 	other_ship.set_piloted(false)
 	game.active_ship = ship
+	var streaming_witness_engaged := bool(
+		game.engage_planetary_cruise().get("accepted", false)
+	)
+	var body_coordinate := (
+		frame.get_snapshot().get("body_center_orbital_coordinate", {}) as Dictionary
+	).duplicate(true)
+	var body_world := frame.orbital_to_world_streaming_position(
+		body_coordinate, frame.get_generation()
+	)
+	var generation_before_streaming_rejection := frame.get_generation()
+	var accepted_ticks_before_streaming_rejection := int(
+		binding.get_snapshot().get("accepted_tick_count", -1)
+	)
+	ship.global_position = body_world.get("position", Vector3.INF) as Vector3
+	game._physics_process(1.0 / 60.0)
+	var streaming_rejection := (
+		ember.get_snapshot().get("last_update_result", {}) as Dictionary
+	)
+	var streaming_gate := binding.get_snapshot()
+	var streaming_pending := (
+		ship.get_planetary_cruise_attachment_report().get("pending_envelope", {})
+		as Dictionary
+	)
+	_check(
+		streaming_witness_engaged
+			and rejecting_ember_loader_installed
+			and bool(body_world.get("accepted", false))
+			and frame.get_generation() == generation_before_streaming_rejection + 1
+			and not bool(streaming_rejection.get("accepted", true))
+			and streaming_rejection.get("reason") == &"loader_rejected"
+			and streaming_gate.get("last_reason") == &"ember_streaming_unavailable"
+			and not bool(streaming_gate.get("engagement_requested", true))
+			and int(streaming_gate.get("accepted_tick_count", -2))
+				== accepted_ticks_before_streaming_rejection
+			and streaming_pending.is_empty()
+			and ship.global_position.is_zero_approx(),
+		"a committed origin shift whose required Ember load rejects retires cruise before it queues an envelope",
+	)
 	_check(bool(game.engage_planetary_cruise().get("accepted", false)), "safe-integer witness begins from one live engagement")
 	game.set("_planetary_cruise_caller_tick", PlanetaryCruiseProductionBinding.MAX_SAFE_INTEGER)
 	game._physics_process(1.0 / 60.0)
@@ -485,6 +529,14 @@ func _reject_rebase_commit(
 		_source_generation: int,
 	) -> Dictionary:
 	return {"accepted": false, "reason": &"forced_rebase_commit_rejection"}
+
+
+func _reject_ember_scene_loader(
+		_definition: Variant,
+		_generation: int,
+		_completion: Callable,
+	) -> bool:
+	return false
 
 
 func _has_exact_zero_common_authority(audit: Dictionary) -> bool:

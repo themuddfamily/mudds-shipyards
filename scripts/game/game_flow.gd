@@ -994,6 +994,11 @@ func _physics_process(delta: float) -> void:
 		_caption_presentation_service.advance_physics(delta)
 	var actor_sample := _capture_cinder_actor_sample()
 	var coordinate_frame_generation := 0
+	# A live cruise requires the same accepted Ember streaming observation that
+	# supplied its frame/sample. A frame commit alone is insufficient: the
+	# binding reconciles its generation before reporting the resulting streaming
+	# transition, which can still reject (for example, a load failure).
+	var ember_streaming_accepted := false
 	# Cruise may decode its canonical destination only after an origin rebase
 	# required by this exact actor observation has committed. A rejected owner
 	# transaction leaves the source frame live, but that frame is not a valid
@@ -1003,6 +1008,7 @@ func _physics_process(delta: float) -> void:
 		var ember_tick := ember_streaming_binding.physics_tick_from_caller_sample(
 			delta, actor_sample
 		)
+		ember_streaming_accepted = bool(ember_tick.get("accepted", false))
 		coordinate_frame_generation = int(
 			ember_tick.get("coordinate_frame_generation", 0)
 		)
@@ -1027,10 +1033,15 @@ func _physics_process(delta: float) -> void:
 						)
 						if preview_requires_rebase:
 							required_origin_rebase_uncommitted = false
+							var receipt := rebase.get("receipt", {}) as Dictionary
+							var streaming := receipt.get("ember_streaming", {}) as Dictionary
+							ember_streaming_accepted = bool(streaming.get("accepted", false))
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
 		if required_origin_rebase_uncommitted:
 			cruise_gate_reason = &"origin_rebase_required"
+		elif not ember_streaming_accepted:
+			cruise_gate_reason = &"ember_streaming_unavailable"
 		if _planetary_cruise_caller_tick >= PLANETARY_CRUISE_MAX_CALLER_TICK:
 			planetary_cruise_binding.request_caller_tick_exhausted(
 				planetary_cruise_binding.get_generation()
