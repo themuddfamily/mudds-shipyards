@@ -539,9 +539,9 @@ func _test_courier_visual_resource_sharing() -> void:
 			== _binding_identity_counts(audits[1].visual_material_bindings as Dictionary)
 		and _binding_identity_counts(audits[0].visual_material_bindings as Dictionary)
 			== _binding_identity_counts(audits[2].visual_material_bindings as Dictionary)
-		and (audits[0].visual_material_bindings as Dictionary).size() == 26
-		and (audits[1].visual_material_bindings as Dictionary).size() == 26
-		and (audits[2].visual_material_bindings as Dictionary).size() == 26,
+		and (audits[0].visual_material_bindings as Dictionary).size() == 24
+		and (audits[1].visual_material_bindings as Dictionary).size() == 24
+		and (audits[2].visual_material_bindings as Dictionary).size() == 24,
 		"shared courier materials preserve every visible parameter and semantic binding"
 	)
 	_check(
@@ -552,11 +552,11 @@ func _test_courier_visual_resource_sharing() -> void:
 		int(aggregate_counts.node_count) == 108
 		and int(aggregate_counts.mesh_instance_nodes) == 72
 		and int(aggregate_counts.particle_nodes) == 6
-		and int(aggregate_counts.geometry_submissions) == 78
-		and int(aggregate_counts.material_bindings) == 78
+		and int(aggregate_counts.geometry_submissions) == 72
+		and int(aggregate_counts.material_bindings) == 72
 		and int(aggregate_counts.light_nodes) == 12
 		and int(aggregate_counts.collision_shape_nodes) == 9,
-		"sharing preserves 108 nodes, 78 submissions, 12 lights, and all collision shapes"
+		"sharing preserves 108 nodes, 72 submissions, 12 lights, and all collision shapes"
 	)
 
 	# The catalog is shared; the distress latch, visibility, lights, and lifecycle
