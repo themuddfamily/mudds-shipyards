@@ -1806,7 +1806,6 @@ func _build_hud() -> void:
 	interaction_margin.add_child(_interaction_label)
 	_interaction_panel.visible = false
 
-
 	_flight_cue_layer = FlightPathCueType.new() as FlightPathCue
 	_flight_cue_layer.name = "FlightPathCue"
 	_flight_cue_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
