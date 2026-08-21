@@ -132,7 +132,6 @@ func _test_connection_overlap_is_bounded(world: ShipyardWorld, module: JovianFre
 		module_bodies.append(body)
 		module_rids.append(body.get_rid())
 	var overlap_names := PackedStringArray()
-	var overlap_points_are_connection_side := true
 	for body in module_bodies:
 		for candidate in body.find_children("*", "CollisionShape3D", true, false):
 			var collision := candidate as CollisionShape3D
@@ -154,36 +153,26 @@ func _test_connection_overlap_is_bounded(world: ShipyardWorld, module: JovianFre
 				var pair_name := "%s -> %s" % [body.name, collider.name]
 				if not overlap_names.has(pair_name):
 					overlap_names.append(pair_name)
-				overlap_points_are_connection_side = overlap_points_are_connection_side \
-					and bool(body.get_meta("intentional_connection_overlap", false)) \
-					and collider.name == "RegistryPodDeck"
 	overlap_names.sort()
 	print("FREIGHT_CONNECTION_OVERLAPS: ", overlap_names)
-	# Re-frozen from the single pair `ConnectionHandoffDeck -> RegistryPodDeck` to
-	# exactly these two by PORT-DECK-001, which widened `PortBerthNode` from 12.0 m
-	# to 16.8 m so the 12.2 m Arrow stops overhanging its own pad. The node's north
-	# face is z = 24.000 and `ConnectionDeckA`'s south face is z = 24.000: the two
-	# now meet edge to edge along 1.8 m of x, which this query reports because its
-	# 0.002 m margin inflates both shapes. The pair is asserted below to share zero
-	# volume, which is a stricter statement than the count it replaces, and the
-	# result is continuous floor where the node previously stopped 0.6 m short of
-	# the freight lattice. The roster stays exact; no threshold became a range.
+	# Deck A butts both neighbouring decks at their edges. The query reports both
+	# contacts because its 0.002 m margin inflates the touching shapes, but all
+	# connections are required to have zero shared volume.
 	var expected_overlaps := PackedStringArray([
 		"ConnectionDeckA -> PortBerthNode",
-		"ConnectionHandoffDeck -> RegistryPodDeck",
+		"ConnectionDeckA -> RegistryPodDeck",
 	])
 	_check(
-		overlap_points_are_connection_side or overlap_names == expected_overlaps,
-		"any legacy overlap is confined to the declared connection-side handoff"
+		overlap_names == expected_overlaps,
+		"the freight module only touches its declared edge seams"
 	)
-	_check(overlap_names == expected_overlaps, "the freight module touches exactly the two declared legacy seams")
 	_check(
 		_shared_volume(module, "ConnectionLattice/ConnectionDeckA", world, "ExposedDockLattice/PortBerthNode") <= 0.0,
 		"the widened port berth node butts the freight connection lattice instead of interpenetrating it"
 	)
 	_check(
-		_shared_volume(module, "ConnectionLattice/ConnectionHandoffDeck", world, "ModernFleetRegistry/RegistryPodDeck") > 0.0,
-		"the one declared handoff leaf still genuinely laps the registry shelf it lands on"
+		_shared_volume(module, "ConnectionLattice/ConnectionDeckA", world, "ModernFleetRegistry/RegistryPodDeck") <= 0.0,
+		"the freight connection deck meets the registry shelf without overlapping it"
 	)
 
 

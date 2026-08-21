@@ -405,11 +405,7 @@ func _test_activity_mount_support(world: ShipyardWorld, activities: Array[Statio
 		],
 		&"FreightApproachGantry": [
 			[Vector3(-55.72, 0.63, 25.4), Vector3(-55.72, -0.22, 25.4), [&"ConnectionDeckA"]],
-			# Two decks meet here and their top faces are coincident, so which one
-			# a downward ray reports is broad-phase registration order rather than
-			# anything about the station. Both are audited supports at the same
-			# plane; the height check above is what proves the foot is seated.
-			[Vector3(-50.28, 0.63, 25.4), Vector3(-50.28, -0.22, 25.4), [&"ConnectionDeckA", &"ConnectionHandoffDeck"]],
+			[Vector3(-50.28, 0.63, 25.4), Vector3(-50.28, -0.22, 25.4), [&"ConnectionDeckA"]],
 			[Vector3(-55.72, 0.63, 34.0), Vector3(-55.72, -0.22, 34.0), [&"ConnectionDeckC"]],
 			[Vector3(-50.28, 0.63, 34.0), Vector3(-50.28, -0.22, 34.0), [&"ConnectionDeckC"]],
 		],

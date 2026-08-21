@@ -1131,16 +1131,13 @@ func _build_connection_lattice() -> void:
 	root_node.name = "ConnectionLattice"
 	add_child(root_node)
 
-	# Three overlapping chamfered deck leaves guarantee physical floor support
-	# across the integration seam while leaving the surrounding structure open.
-	_rounded_box(root_node, "ConnectionDeckA", Vector3(0, -0.31, -2.25), Vector3(6.8, 0.62, 5.1), _materials["deck"])
+	# Three chamfered deck leaves guarantee physical floor support across the
+	# integration seam while leaving the surrounding structure open. Deck A ends
+	# exactly at the registry shelf: one continuous dark deck, with no coplanar
+	# handoff tile left to overlap it.
+	_rounded_box(root_node, "ConnectionDeckA", Vector3(0, -0.31, -2.25), Vector3(8.0, 0.62, 5.1), _materials["deck"])
 	_rounded_box(root_node, "ConnectionDeckB", Vector3(0, -0.31, 2.1), Vector3(7.4, 0.62, 4.2), _materials["deck"])
 	_rounded_box(root_node, "ConnectionDeckC", Vector3(0, -0.31, 6.45), Vector3(8.4, 0.62, 5.0), _materials["deck"])
-	# A short east-facing leaf lands on the open edge of the existing elevated
-	# registry shelf. The main approach remains west of its back wall, so only
-	# this explicitly named handoff shares legacy floor collision.
-	var handoff := _rounded_box(root_node, "ConnectionHandoffDeck", Vector3(3.5, -0.3, -3.2), Vector3(7.0, 0.6, 3.0), _materials["ceramic_floor"])
-	handoff.set_meta("intentional_connection_overlap", true)
 
 	for side in [-1.0, 1.0]:
 		# Curved handrail and tapered lattice legs preserve the exposed Keth-like

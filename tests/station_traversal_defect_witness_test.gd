@@ -89,7 +89,6 @@ const REQUIRED_ROUTE_SURFACES := [
 	# reaches its deck from the player spawn through every door on the way.
 	["HabitatSpine", "Structure/SideBranchGarden/BranchLink/LinkFloor"],
 	["HabitatSpine", "Structure/SideBranchGarden/GardenShell/GardenFloor"],
-	["JovianFreightBerth", "ConnectionLattice/ConnectionHandoffDeck"],
 	["JovianFreightBerth", "ConnectionLattice/ConnectionDeckA"],
 	["JovianFreightBerth", "LoadingApron/ApronDeck01"],
 	["JovianFreightBerth", "LoadingApron/ApronDeck03"],
@@ -132,7 +131,7 @@ const POD_WALK_INS := [
 		"inside the operations pod, past its glazed frontage"],
 	["ModernFleetRegistry/RegistryPodDeck", Vector3(-46.5, 0.18, 21.0), 26.0,
 		"onto the fleet registry pod deck, whose terminal interaction MAP-002 made unreachable"],
-	["JovianFreightBerth/ConnectionLattice/ConnectionHandoffDeck", Vector3(-47.0, 0.18, 21.0), 26.0,
+	["JovianFreightBerth/ConnectionLattice/ConnectionDeckA", Vector3(-47.0, 0.18, 21.0), 26.0,
 		"out along the freight branch connection lattice"],
 ]
 ## PORT-DECK-001. The 2026-08-16 report: "the walkway to enter isn't wide enough
@@ -488,21 +487,21 @@ func _test_pod_decks_can_be_walked_into(player: PlayerController) -> void:
 func _test_freight_branch_has_a_walkable_approach(world: ShipyardWorld) -> void:
 	var port := world.get_node_or_null(^"ExposedDockLattice/PortBerthNode") as StaticBody3D
 	var freight := world.get_node_or_null(^"JovianFreightBerth") as JovianFreightBerth
-	var handoff: StaticBody3D
+	var connection_deck: StaticBody3D
 	if freight != null:
-		handoff = freight.get_node_or_null(^"ConnectionLattice/ConnectionHandoffDeck") as StaticBody3D
-	if port == null or handoff == null:
-		_check(false, "the port berth node and the freight handoff deck both resolve")
+		connection_deck = freight.get_node_or_null(^"ConnectionLattice/ConnectionDeckA") as StaticBody3D
+	if port == null or connection_deck == null:
+		_check(false, "the port berth node and freight connection deck both resolve")
 		return
 	var port_box := _body_world_box(port)
-	var handoff_box := _body_world_box(handoff)
+	var connection_deck_box := _body_world_box(connection_deck)
 	# Sample the seam the freight branch is supposed to hand off across.
 	var voids := PackedStringArray()
-	var x_start: float = maxf(port_box.position.x, handoff_box.position.x) + 0.4
-	var x_end: float = minf(port_box.end.x, handoff_box.end.x) - 0.4
+	var x_start: float = maxf(port_box.position.x, connection_deck_box.position.x) + 0.4
+	var x_end: float = minf(port_box.end.x, connection_deck_box.end.x) - 0.4
 	var sample_x := (x_start + x_end) * 0.5
 	var z := port_box.end.z - 1.0
-	while z <= handoff_box.position.z + 1.0:
+	while z <= connection_deck_box.position.z + 1.0:
 		var ray := PhysicsRayQueryParameters3D.create(
 			Vector3(sample_x, 20.0, z), Vector3(sample_x, -20.0, z), WORLD_LAYER
 		)
@@ -512,7 +511,7 @@ func _test_freight_branch_has_a_walkable_approach(world: ShipyardWorld) -> void:
 		if hit.is_empty():
 			voids.append("%.2f,%.2f" % [sample_x, z])
 		z += 0.25
-	print("FREIGHT_HANDOFF_SEAM: x=", sample_x, " void_samples=", voids)
+	print("FREIGHT_CONNECTION_SEAM: x=", sample_x, " void_samples=", voids)
 	_check(
 		voids.is_empty(),
 		"the freight branch hands off to the port berth node across continuous walkable structure, not a void"

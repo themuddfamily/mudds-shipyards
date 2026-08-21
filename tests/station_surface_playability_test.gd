@@ -58,7 +58,6 @@ const FREIGHT_SURFACE_PATHS := [
 	"ConnectionLattice/ConnectionDeckA",
 	"ConnectionLattice/ConnectionDeckB",
 	"ConnectionLattice/ConnectionDeckC",
-	"ConnectionLattice/ConnectionHandoffDeck",
 	"LoadingApron/ApronDeck01",
 	"LoadingApron/ApronDeck02",
 	"LoadingApron/ApronDeck03",
@@ -1269,10 +1268,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 			"LoadingApron/ApronDeck03",
 			"LoadingApron/ApronDeck04",
 		]],
-		[freight, "ceramic_floor", [
-			"ConnectionLattice/ConnectionHandoffDeck",
-			"FreightControlRoom/RoomFloor",
-		]],
+		[freight, "ceramic_floor", ["FreightControlRoom/RoomFloor"]],
 		[world.get_node_or_null(^"FabricationAnnex"), "deck", FABRICATION_SURFACE_PATHS],
 	]
 	var coplanar_phase_exact := true

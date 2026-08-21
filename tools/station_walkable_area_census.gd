@@ -71,7 +71,6 @@ const PRODUCTION_SURFACES := [
 	[&"jovian_freight_berth", &"connection-deck-a", "JovianFreightBerth/ConnectionLattice/ConnectionDeckA", &"level"],
 	[&"jovian_freight_berth", &"connection-deck-b", "JovianFreightBerth/ConnectionLattice/ConnectionDeckB", &"level"],
 	[&"jovian_freight_berth", &"connection-deck-c", "JovianFreightBerth/ConnectionLattice/ConnectionDeckC", &"level"],
-	[&"jovian_freight_berth", &"connection-handoff-deck", "JovianFreightBerth/ConnectionLattice/ConnectionHandoffDeck", &"level"],
 	[&"jovian_freight_berth", &"apron-deck-01", "JovianFreightBerth/LoadingApron/ApronDeck01", &"level"],
 	[&"jovian_freight_berth", &"apron-deck-02", "JovianFreightBerth/LoadingApron/ApronDeck02", &"level"],
 	[&"jovian_freight_berth", &"apron-deck-03", "JovianFreightBerth/LoadingApron/ApronDeck03", &"level"],
