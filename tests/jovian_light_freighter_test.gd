@@ -28,6 +28,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_definition_and_evidence(jovian)
+	_test_defensive_weapon_visual(jovian)
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
 	_test_cargo_frame_joint_allocation(jovian)
@@ -72,6 +73,80 @@ func _test_definition_and_evidence(jovian: JovianLightFreighter) -> void:
 	_check(str(audit.weapon_class) == "freighter_defensive_pulse" and int(audit.engine_count) == 4, "audit exposes restrained weapons and quad-engine layout")
 	_check(bool(jovian.get_meta("jovian_light_freighter_candidate", false)), "root metadata identifies a candidate")
 	_check(not bool(jovian.get_meta("authenticated_historical_silhouette", true)), "root metadata cannot imply historical silhouette authentication")
+	_check(str(jovian.get_meta("weapon_visual_status", "")) == "modern_provisional", "root metadata explicitly scopes the weapon visual as modern provisional")
+	_check(not bool(jovian.get_meta("authenticated_historical_weapon", true)), "root metadata denies an authenticated historical weapon claim")
+
+
+func _test_defensive_weapon_visual(jovian: JovianLightFreighter) -> void:
+	var report := jovian.get_defensive_weapon_visual_report()
+	var paths := report.get("component_paths", PackedStringArray()) as PackedStringArray
+	_check(
+		bool(report.get("valid", false))
+		and str(report.get("interpretation_status", "")) == "modern_provisional"
+		and str(report.get("weapon_role", "")) == "freighter_defensive"
+		and not bool(report.get("authenticated_historical_weapon", true))
+		and bool(report.get("visual_only", false)),
+		"twin defensive fit is explicitly modern provisional, unauthenticated, and visual-only"
+	)
+	_check(
+		int(report.get("turret_count", 0)) == 2
+		and int(report.get("components_per_turret", 0)) == 7
+		and paths.size() == 14,
+		"defensive weapon roster contains two complete seven-part mounts"
+	)
+	var visual := jovian.get_jovian_visual_root()
+	var expected_suffixes := PackedStringArray([
+		"DefensiveTurretBase",
+		"DefensiveTurretRotationCollar",
+		"DefensiveTurretReceiver",
+		"DefensiveTurretBarrelShroud",
+		"DefensivePulseBarrel",
+		"DefensiveTurretMuzzleCollar",
+		"DefensiveTurretMuzzleLens",
+	])
+	for prefix in ["Port", "Starboard"]:
+		for suffix in expected_suffixes:
+			var component := visual.get_node_or_null(NodePath(prefix + suffix)) as MeshInstance3D
+			_check(
+				component != null
+				and str(component.get_meta("interpretation_status", "")) == "modern_provisional"
+				and str(component.get_meta("weapon_role", "")) == "freighter_defensive"
+				and not bool(component.get_meta("authenticated_historical_weapon", true))
+				and bool(component.get_meta("visual_only", false))
+				and component.get_child_count() == 0,
+				"%s %s is a metadata-scoped presentation-only detail" % [prefix, suffix]
+			)
+	var left_muzzle := jovian.get_node(^"LeftMuzzle") as Marker3D
+	var right_muzzle := jovian.get_node(^"RightMuzzle") as Marker3D
+	var port_lens := visual.get_node(^"PortDefensiveTurretMuzzleLens") as MeshInstance3D
+	var starboard_lens := visual.get_node(^"StarboardDefensiveTurretMuzzleLens") as MeshInstance3D
+	_check(
+		left_muzzle.position.is_equal_approx(Vector3(-5.15, 3.76, -6.95))
+		and right_muzzle.position.is_equal_approx(Vector3(5.15, 3.76, -6.95))
+		and left_muzzle.get_parent() == jovian and right_muzzle.get_parent() == jovian,
+		"fixed inherited muzzle markers retain their ship-root positions and authority"
+	)
+	_check(
+		port_lens.position.x == left_muzzle.position.x
+		and port_lens.position.y == left_muzzle.position.y
+		and is_equal_approx(port_lens.position.z - 0.03, left_muzzle.position.z)
+		and starboard_lens.position.x == right_muzzle.position.x
+		and starboard_lens.position.y == right_muzzle.position.y
+		and is_equal_approx(starboard_lens.position.z - 0.03, right_muzzle.position.z),
+		"both muzzle-lens forward faces align exactly with the unchanged firing plane"
+	)
+	for prefix in ["Port", "Starboard"]:
+		var base_mesh := (visual.get_node(NodePath(prefix + "DefensiveTurretBase")) as MeshInstance3D).mesh
+		var barrel_mesh := (visual.get_node(NodePath(prefix + "DefensivePulseBarrel")) as MeshInstance3D).mesh
+		var receiver_mesh := (visual.get_node(NodePath(prefix + "DefensiveTurretReceiver")) as MeshInstance3D).mesh
+		var shroud_mesh := (visual.get_node(NodePath(prefix + "DefensiveTurretBarrelShroud")) as MeshInstance3D).mesh
+		_check(
+			base_mesh.get_aabb().size.is_equal_approx(Vector3(1.36, 0.38, 1.36))
+			and barrel_mesh.get_aabb().size.is_equal_approx(Vector3(0.38, 1.55, 0.38))
+			and receiver_mesh.get_aabb().size.is_equal_approx(Vector3(0.76, 0.48, 0.7))
+			and shroud_mesh.get_aabb().size.is_equal_approx(Vector3(0.56, 0.46, 0.72)),
+			"%s defensive mount keeps the frozen freighter-scale base, barrel, receiver, and shroud dimensions" % prefix
+		)
 
 
 func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:

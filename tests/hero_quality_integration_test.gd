@@ -234,7 +234,7 @@ func _run() -> void:
 		var shot_origin := torrent.global_position + Vector3(0.0, 0.8, -5.5)
 		var result := combat.submit_hitscan(
 			torrent,
-			&"combat_pulse_cannon",
+			GameFlow.TORRENT_COMBAT_WEAPON_ID,
 			shot_origin,
 			Vector3.FORWARD
 		)

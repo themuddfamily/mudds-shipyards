@@ -106,8 +106,8 @@ func _run() -> void:
 		player_stream.data = original_data
 	_check(bool(presentation.get_audit_report().get("valid", false)), "restored frozen PCM content audits green")
 
-	# Local safing is deliberately not submitted. It gets a restrained click and
-	# can never masquerade as an accepted pulse shot.
+	# Freeplay fire is submitted even before the guided Torrent activity. It owns
+	# the normal player-fire cue and authority sequence, never a tutorial dry click.
 	game.active_ship = hero
 	game.phase = GameFlow.Phase.INTRO
 	game.set("_guided_activity_complete", false)
@@ -115,14 +115,20 @@ func _run() -> void:
 	var before := presentation.get_state_snapshot()
 	var sequence_before := authority.get_last_submitted_sequence(hero)
 	game.call("_on_projectile_fired", origin, Vector3.FORWARD, hero)
-	var after_safed := presentation.get_state_snapshot()
+	var preguide_result: Dictionary = game.get_last_player_shot_result()
+	var preguide_request := preguide_result.get("request") as ShotRequest
+	var after_preguide := presentation.get_state_snapshot()
 	_check(
-		_cue_count(after_safed, CombatAudioPresentation.CUE_DRY_FIRE)
-		== _cue_count(before, CombatAudioPresentation.CUE_DRY_FIRE) + 1
-		and _cue_count(after_safed, CombatAudioPresentation.CUE_PLAYER_FIRE)
-		== _cue_count(before, CombatAudioPresentation.CUE_PLAYER_FIRE)
-		and authority.get_last_submitted_sequence(hero) == sequence_before,
-		"safed trigger produces one dry click, zero fire cues, and no authority sequence"
+		bool(preguide_result.get("accepted", false))
+		and bool(preguide_result.get("resolved", false))
+		and preguide_request != null
+		and preguide_request.weapon_id == GameFlow.TORRENT_COMBAT_WEAPON_ID
+		and _cue_count(after_preguide, CombatAudioPresentation.CUE_DRY_FIRE)
+		== _cue_count(before, CombatAudioPresentation.CUE_DRY_FIRE)
+		and _cue_count(after_preguide, CombatAudioPresentation.CUE_PLAYER_FIRE)
+		== _cue_count(before, CombatAudioPresentation.CUE_PLAYER_FIRE) + 1
+		and authority.get_last_submitted_sequence(hero) == sequence_before + 1,
+		"pre-guide freeplay trigger produces one fire cue, zero dry clicks, and one authority sequence"
 	)
 
 	# A real accepted miss still fired a weapon and therefore owns exactly one cue.
@@ -166,7 +172,7 @@ func _run() -> void:
 	# A rejected callback is presentation-inert even if it contains a plausible
 	# request. This protects replay/invalid/not-authority paths from fake gunfire.
 	var rejected_request := ShotRequestType.new(
-		hero, 1101, &"shipyard_flight_test", &"combat_pulse_cannon", 999,
+		hero, 1101, &"shipyard_flight_test", GameFlow.TORRENT_COMBAT_WEAPON_ID, 999,
 		accepted_origin, Vector3.UP, 360.0, 34.0
 	)
 	var before_rejected := presentation.get_state_snapshot()

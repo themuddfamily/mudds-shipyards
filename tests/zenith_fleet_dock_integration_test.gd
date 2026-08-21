@@ -143,14 +143,20 @@ func _test_fleet_definition_and_combat(
 	)
 
 	var combat_profile := authority.call(
-		"get_weapon_profile", zenith, GameFlow.COMBAT_WEAPON_ID
+		"get_weapon_profile", zenith, GameFlow.ZENITH_COMBAT_WEAPON_ID
 	) as Dictionary
 	_check(
 		combat_profile.size() == 3
-		and is_equal_approx(float(combat_profile.get("range", -1.0)), 390.0)
-		and is_equal_approx(float(combat_profile.get("damage", -1.0)), 27.0)
+		and is_equal_approx(float(combat_profile.get("range", -1.0)), 420.0)
+		and is_equal_approx(float(combat_profile.get("damage", -1.0)), 28.0)
 		and is_equal_approx(float(combat_profile.get("origin_tolerance", -1.0)), 24.0),
-		"live combat authority owns the exact modern Zenith pulse profile"
+		"live combat authority owns the exact modern Zenith interceptor-repeater profile"
+	)
+	_check(
+		(authority.call(
+			"get_weapon_profile", zenith, GameFlow.TORRENT_COMBAT_WEAPON_ID
+		) as Dictionary).is_empty(),
+		"Zenith cannot borrow Torrent's compact pulse-cannon registration"
 	)
 
 
@@ -467,28 +473,32 @@ func _test_physical_sortie(
 	var production_weapon_cooldown := zenith.weapon_cooldown
 	_check(
 		is_equal_approx(production_weapon_cooldown, 0.24),
-		"Zenith protected-fire fixture begins from the exact production weapon cadence"
+		"Zenith freeplay-fire fixture begins from the exact production weapon cadence"
 	)
 	zenith.weapon_cooldown = 0.02
 	await _press_live_action(&"fire", 2)
 	await process_frame
 	zenith.weapon_cooldown = production_weapon_cooldown
-	var protected_result := game.get_last_player_shot_result()
+	var freeplay_result := game.get_last_player_shot_result()
+	var freeplay_request := freeplay_result.get("request") as ShotRequest
 	_check(
 		not fired_events.is_empty(),
 		"live fire input emits at least one real Zenith projectile event"
 	)
 	_check(
-		protected_result.get("status", &"") == &"guided_range_reserved"
-		and protected_result.get("source_entity") == zenith
-		and int(protected_result.get("source_id", 0)) == 1104,
-		"combat authority protects the pending guided range while retaining Zenith source 1104"
+		bool(freeplay_result.get("accepted", false))
+		and bool(freeplay_result.get("resolved", false))
+		and freeplay_result.get("source_entity") == zenith
+		and int(freeplay_result.get("source_id", 0)) == 1104
+		and freeplay_request != null
+		and freeplay_request.weapon_id == GameFlow.ZENITH_COMBAT_WEAPON_ID,
+		"Zenith live input resolves before guide completion through its own weapon profile and source 1104"
 	)
 	_check(
 		world.get_target_count() == target_count_before
 		and world.get_destroyed_target_count() == destroyed_before
 		and _targets_match_health(targets, health_before),
-		"protected Zenith fire cannot damage, remove or credit any Torrent range contact"
+		"the dock-facing Zenith shot misses and leaves every guided range contact unchanged"
 	)
 
 	var departure_origin := zenith.global_position

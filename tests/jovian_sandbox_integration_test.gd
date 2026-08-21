@@ -290,25 +290,29 @@ func _run() -> void:
 	var production_weapon_cooldown := jovian.weapon_cooldown
 	_check(
 		is_equal_approx(production_weapon_cooldown, 0.62),
-		"Jovian protected-fire fixture begins from the exact production weapon cadence"
+		"Jovian freeplay-fire fixture begins from the exact production weapon cadence"
 	)
 	jovian.weapon_cooldown = 0.02
 	await _press_live_action(&"fire", 2)
 	await process_frame
 	jovian.weapon_cooldown = production_weapon_cooldown
-	var protected_result := game.get_last_player_shot_result()
+	var freeplay_result := game.get_last_player_shot_result()
+	var freeplay_request := freeplay_result.get("request") as ShotRequest
 	_check(
-		protected_result.get("status") == &"guided_range_reserved"
-		and protected_result.get("source_entity") == jovian
-		and int(protected_result.get("source_id", 0)) == 1103,
-		"pre-guide Jovian fire is explicitly protected while retaining source 1103"
+		bool(freeplay_result.get("accepted", false))
+		and bool(freeplay_result.get("resolved", false))
+		and freeplay_result.get("source_entity") == jovian
+		and int(freeplay_result.get("source_id", 0)) == 1103
+		and freeplay_request != null
+		and freeplay_request.weapon_id == GameFlow.JOVIAN_COMBAT_WEAPON_ID,
+		"pre-guide Jovian live input resolves through its own weapon profile and source 1103"
 	)
 	_check(
 		game.destroyed_targets == 0
 		and world.get_destroyed_target_count() == destroyed_before
 		and world.get_target_count() == target_count_before
 		and _targets_match_health(targets, target_health_before),
-		"protected Jovian fire cannot damage, remove, or credit Torrent range contacts"
+		"the berth-facing Jovian shot misses and leaves every guided range contact unchanged"
 	)
 
 	var departure_origin := jovian.global_position

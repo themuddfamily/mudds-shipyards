@@ -122,12 +122,18 @@ const FLIGHT_PATH_SAFE_HORIZONTAL_VIEWPORT_RATIO := 0.27
 const FLIGHT_PATH_SAFE_HORIZONTAL_ASPECT_LIMIT := 0.52
 const FLIGHT_PATH_SAFE_VERTICAL_VIEWPORT_RATIO := 0.18
 const BOARDING_FALLBACK_REACH := 7.0
-const SAFED_PULSE_DISTANCE := 0.20
 const OPPONENT_SOURCE_ID := 2101
 const PLAYER_FACTION: StringName = &"shipyard_flight_test"
 const OPPONENT_FACTION: StringName = &"range_defence"
 const RANGE_WEAPON_ID: StringName = &"range_pulse_cannon"
-const COMBAT_WEAPON_ID: StringName = &"combat_pulse_cannon"
+const TORRENT_COMBAT_WEAPON_ID: StringName = &"torrent_compact_pulse_cannon"
+const ARROW_COMBAT_WEAPON_ID: StringName = &"arrow_precision_recon_emitter"
+const ZENITH_COMBAT_WEAPON_ID: StringName = &"zenith_interceptor_repeater"
+const JOVIAN_COMBAT_WEAPON_ID: StringName = &"jovian_heavy_defensive_cannon"
+const HALYARD_COMBAT_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
+## Compatibility name for the guided Torrent activity. Other ships must use
+## their explicit per-hull weapon IDs above.
+const COMBAT_WEAPON_ID: StringName = TORRENT_COMBAT_WEAPON_ID
 const OPPONENT_WEAPON_ID: StringName = &"defence_pulse_cannon"
 const TORRENT_SHIP_ID: StringName = &"torrent_provisional"
 const TORRENT_COMBAT_ORIGIN_TOLERANCE_METERS := 24.0
@@ -2587,56 +2593,14 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 	var firing_ship := source_ship if is_instance_valid(source_ship) else active_ship
 	if not is_instance_valid(firing_ship) or firing_ship != active_ship:
 		return
-	# Range drones belong to the pending guided Torrent sortie. Before that guide
-	# completes, non-Torrent craft remain presentation-only and Torrent weapons are
-	# safed outside its launch/range/live-contact phases. Demand can power a weapon
-	# while still berthed, but allowing damage before physical departure could
-	# permanently remove an uncredited range target.
-	var guided_weapon_authorized := (
-		firing_ship == ship
-		and phase in [
-			Phase.LAUNCH,
-			Phase.TARGET_PRACTICE,
-			Phase.INTERCEPTOR_ENGAGEMENT,
-			Phase.RETURN_TO_YARD,
-		]
-	)
-	if not _guided_activity_complete and not guided_weapon_authorized:
-		var safe_direction := direction.normalized() if direction.is_finite() else Vector3.ZERO
-		_last_player_shot_result = {
-			"accepted": false,
-			"resolved": false,
-			"hit": false,
-			"damaged": false,
-			"destroyed": false,
-			"status": &"guided_range_reserved" if firing_ship != ship else &"weapons_safed",
-			"reason": (
-				"guided range contacts are reserved for the Torrent activity"
-				if firing_ship != ship
-				else "Torrent weapons are safed until guided flight authority is active"
-			),
-			"source_entity": firing_ship,
-			"source_id": combat_authority.get_source_id(firing_ship),
-			"position": Vector3.INF,
-			"distance": 0.0,
-		}
-		# This is a local safing acknowledgement, not an authority result. Keep the
-		# visual inside the muzzle envelope so it cannot resemble an unoccluded
-		# max-range miss or imply that world geometry/damage resolution occurred.
-		if safe_direction.length_squared() > 0.000001 and origin.is_finite():
-			combat_audio.play_dry_fire(origin, firing_ship.get_instance_id())
-			_present_pulse_shot(
-				origin,
-				origin + safe_direction * SAFED_PULSE_DISTANCE,
-				&"cyan",
-				firing_ship,
-				false
-			)
-		return
+	# Fleet weapons are free-play equipment: the pending guided Torrent activity
+	# does not safe another hull or suppress valid fire before its completion.
+	# Torrent keeps the fixed range profile during the two tutorial range phases;
+	# every other shot uses the firing hull's authored combat profile.
 	var weapon_id := (
 		RANGE_WEAPON_ID
-		if phase in [Phase.LAUNCH, Phase.TARGET_PRACTICE]
-		else COMBAT_WEAPON_ID
+		if firing_ship == ship and phase in [Phase.LAUNCH, Phase.TARGET_PRACTICE]
+		else _get_player_combat_weapon_id(firing_ship)
 	)
 	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
 		firing_ship, weapon_id, origin, direction
@@ -2831,26 +2795,28 @@ func get_pending_combat_presentation_receipt_count() -> int:
 	return _pending_combat_audio_receipts.size()
 
 
-## A drop here would be permanent: `authorize_target_destruction()` is one-shot
-## and nothing re-reads the world's destroyed count. That is safe only because
-## the phases this gate rejects are exactly the phases in which no live drone can
-## be damaged. Player fire is safed outside the guided weapon window, guided range
-## contacts are reserved against non-Torrent craft, and the two live-fire phases
-## the gate does reject — `INTERCEPTOR_ENGAGEMENT` and `RETURN_TO_YARD` — cannot
-## be entered until `destroyed_targets >= total_targets`, which is reached only by
-## accepting one authorization per drone. Both defenders are likewise dormant
-## until then. Widening the weapon window, or admitting a second producer of drone
-## damage, would strand the guided sortie at an uncountable range contact;
-## `tests/combat_encounter_authority_gate_test.gd` guards both halves.
+## Range drones are valid free-play targets for every fleet ship. Their one-shot
+## destruction authorization must therefore be retained even when the Torrent
+## guide is not active; otherwise an early sandbox kill would leave the later
+## guided target quota permanently unreachable. Only an active Torrent target
+## practice phase consumes a completed quota into the interceptor transition.
 func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:
-	if active_ship != ship or (phase != Phase.LAUNCH and phase != Phase.TARGET_PRACTICE):
+	if _guided_activity_complete:
 		return
-	destroyed_targets = mini(total_targets, destroyed_targets + 1)
+	# ShipyardWorld commits its one-shot destruction ledger before emitting this
+	# signal. Re-sync from that authority instead of assuming this listener has
+	# observed every earlier free-play kill exactly once.
+	destroyed_targets = mini(total_targets, world.get_destroyed_target_count())
 	hud.set_target_count(destroyed_targets, total_targets)
-	if destroyed_targets >= total_targets and phase == Phase.TARGET_PRACTICE:
+	if destroyed_targets >= total_targets and active_ship == ship and phase == Phase.TARGET_PRACTICE:
 		_begin_interceptor_engagement()
-	elif destroyed_targets >= total_targets:
+	elif destroyed_targets >= total_targets and active_ship == ship and phase == Phase.LAUNCH:
 		hud.toast("Range contacts cleared", "Clear the launch aperture to receive your return vector")
+	elif destroyed_targets >= total_targets:
+		hud.toast(
+			"Range contacts cleared",
+			"Progress retained — the pending Torrent flight test can continue when ready"
+		)
 	else:
 		hud.toast("Target destroyed", "%d range contacts remain" % (total_targets - destroyed_targets))
 
@@ -3201,7 +3167,7 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		var migrated_profile := _get_torrent_combat_weapon_profile(candidate)
 		if migrated_profile.is_empty():
 			return {}
-		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		profiles[TORRENT_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
 	if candidate.get_ship_id() == ARROW_SHIP_ID:
 		# Arrow has no legacy override after migration. Reject invalid authored data
@@ -3209,7 +3175,7 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		var migrated_profile := _get_arrow_combat_weapon_profile(candidate)
 		if migrated_profile.is_empty():
 			return {}
-		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		profiles[ARROW_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
 	if candidate.get_ship_id() == ZENITH_SHIP_ID:
 		# Zenith has no legacy override after migration. Invalid modern weapon data
@@ -3217,7 +3183,7 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		var migrated_profile := _get_zenith_combat_weapon_profile(candidate)
 		if migrated_profile.is_empty():
 			return {}
-		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		profiles[ZENITH_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
 	if candidate.get_ship_id() == JOVIAN_SHIP_ID:
 		# Jovian has no legacy override after migration. Invalid modern weapon data
@@ -3225,7 +3191,7 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		var migrated_profile := _get_jovian_combat_weapon_profile(candidate)
 		if migrated_profile.is_empty():
 			return {}
-		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		profiles[JOVIAN_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
 	if candidate.get_ship_id() == HALYARD_SHIP_ID:
 		# Halyard has no legacy override after migration. Invalid modern weapon data
@@ -3233,15 +3199,34 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		var migrated_profile := _get_halyard_combat_weapon_profile(candidate)
 		if migrated_profile.is_empty():
 			return {}
-		profiles[COMBAT_WEAPON_ID] = migrated_profile
+		profiles[HALYARD_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
 	return profiles
+
+
+func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
+	if not is_instance_valid(candidate):
+		return &""
+	match candidate.get_ship_id():
+		TORRENT_SHIP_ID:
+			return TORRENT_COMBAT_WEAPON_ID
+		ARROW_SHIP_ID:
+			return ARROW_COMBAT_WEAPON_ID
+		ZENITH_SHIP_ID:
+			return ZENITH_COMBAT_WEAPON_ID
+		JOVIAN_SHIP_ID:
+			return JOVIAN_COMBAT_WEAPON_ID
+		HALYARD_SHIP_ID:
+			return HALYARD_COMBAT_WEAPON_ID
+		_:
+			return &""
 
 
 func _get_torrent_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 	return _get_migrated_player_combat_weapon_profile(
 		candidate,
 		TORRENT_COMBAT_WEAPON_DEFINITION,
+		TORRENT_COMBAT_WEAPON_ID,
 		TORRENT_COMBAT_ORIGIN_TOLERANCE_METERS,
 		TORRENT_COMBAT_PRESENTATION_ID,
 		TORRENT_COMBAT_FIRE_AUDIO_ID,
@@ -3254,6 +3239,7 @@ func _get_arrow_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 	return _get_migrated_player_combat_weapon_profile(
 		candidate,
 		ARROW_COMBAT_WEAPON_DEFINITION,
+		ARROW_COMBAT_WEAPON_ID,
 		ARROW_COMBAT_ORIGIN_TOLERANCE_METERS,
 		ARROW_COMBAT_PRESENTATION_ID,
 		ARROW_COMBAT_FIRE_AUDIO_ID,
@@ -3266,6 +3252,7 @@ func _get_zenith_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 	return _get_migrated_player_combat_weapon_profile(
 		candidate,
 		ZENITH_COMBAT_WEAPON_DEFINITION,
+		ZENITH_COMBAT_WEAPON_ID,
 		ZENITH_COMBAT_ORIGIN_TOLERANCE_METERS,
 		ZENITH_COMBAT_PRESENTATION_ID,
 		ZENITH_COMBAT_FIRE_AUDIO_ID,
@@ -3278,6 +3265,7 @@ func _get_jovian_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 	return _get_migrated_player_combat_weapon_profile(
 		candidate,
 		JOVIAN_COMBAT_WEAPON_DEFINITION,
+		JOVIAN_COMBAT_WEAPON_ID,
 		JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS,
 		JOVIAN_COMBAT_PRESENTATION_ID,
 		JOVIAN_COMBAT_FIRE_AUDIO_ID,
@@ -3290,6 +3278,7 @@ func _get_halyard_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 	return _get_migrated_player_combat_weapon_profile(
 		candidate,
 		HALYARD_COMBAT_WEAPON_DEFINITION,
+		HALYARD_COMBAT_WEAPON_ID,
 		HALYARD_COMBAT_ORIGIN_TOLERANCE_METERS,
 		HALYARD_COMBAT_PRESENTATION_ID,
 		HALYARD_COMBAT_FIRE_AUDIO_ID,
@@ -3301,6 +3290,7 @@ func _get_halyard_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 func _get_migrated_player_combat_weapon_profile(
 	candidate: HeroShip,
 	definition: WeaponDefinition,
+	expected_weapon_id: StringName,
 	origin_tolerance_meters: float,
 	presentation_id: StringName,
 	fire_audio_id: StringName,
@@ -3310,6 +3300,7 @@ func _get_migrated_player_combat_weapon_profile(
 	if (
 		not is_instance_valid(candidate)
 		or definition == null
+		or definition.weapon_id != expected_weapon_id
 		or not is_finite(candidate.weapon_cooldown)
 		or candidate.weapon_cooldown <= 0.0
 		or not is_equal_approx(
@@ -3327,7 +3318,7 @@ func _get_migrated_player_combat_weapon_profile(
 		PLAYER_FACTION,
 		origin_tolerance_meters
 	)
-	return (converted.get(COMBAT_WEAPON_ID, {}) as Dictionary).duplicate(true)
+	return (converted.get(expected_weapon_id, {}) as Dictionary).duplicate(true)
 
 
 func _get_ship_entry_descriptor(candidate: HeroShip) -> Dictionary:

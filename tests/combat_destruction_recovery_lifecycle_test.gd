@@ -8,7 +8,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const PhysicsLayers := preload("res://scripts/core/physics_layers.gd")
 
-const WEAPON_ID := GameFlow.COMBAT_WEAPON_ID
+const WEAPON_ID := GameFlow.ARROW_COMBAT_WEAPON_ID
 const OPEN_ARENA := Vector3(48000.0, 32000.0, -41000.0)
 
 var _assertions := 0
@@ -62,7 +62,7 @@ func _run() -> void:
 		game,
 		&"RetiredCombatTarget",
 		OPEN_ARENA + Vector3(0.0, 0.0, -16.0),
-		50.0
+		48.0
 	)
 	var recovery_target := _make_target(
 		game,

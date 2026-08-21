@@ -732,24 +732,27 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 7. Test duplicates/out-of-order sequences, invalid owner/faction, self/friendly/world occlusion, miss, close/min-duration hit, hitch past impact, saturation/reentrant callbacks, reverse receipt arrival, lethal/nonlethal chronology, detach/re-entry, reset/regeneration, repair interruption, exact pool/resource ceilings, and one score/damage commit.
 8. Capture phase-locked muzzle, mid-flight, impact, damaged, critical, explosion, and cleanup frames at combat distance with High and glow-disabled profiles. Human review must confirm colour/team distinction, endpoint alignment, effect size, damage readability, no hard pop, and acceptable audio chronology/mix.
 
-The immutable profile foundation and first player-fleet migration pass are now
-complete without changing combat balance or authority. `WeaponDefinition` is a strict
+The immutable profile foundation, first player-fleet migration, and first
+per-craft role-balance pass are now complete without changing combat authority.
+`WeaponDefinition` is a strict
 typed Resource for hitscan/projectile/beam mode, range, damage, cadence,
 faction/friendly-fire policy, optional spread/heat/ammunition, presentation and
 audio IDs, evidence, serialization and zero-authority audit. A pure fail-closed
 converter feeds the existing `LiveCombatAuthority` profile shape; it never
 creates a `ShotRequest`, ray query, receipt or damage. Torrent, Arrow, Zenith,
-Jovian and Halyard now load checked definitions at their exact former envelopes:
-`360/34/0.22/24`, `410/25/0.38/24`, `390/27/0.24/24`,
-`315/23/0.62/32`, and `280/18/0.95/30` for
-range/damage/cooldown/origin tolerance. Invalid resource
+Jovian and Halyard now load distinct checked weapon identities at
+`360/34/0.22/24`, `480/24/0.38/24`, `420/28/0.24/24`,
+`650/70/0.62/32`, and `560/52/0.95/30` for
+range/damage/cooldown/origin tolerance. The two medium craft therefore beat
+every small craft on per-shot damage and range, paid for through their existing
+slower cadence and handling. Invalid resource
 mutation or cadence drift has no legacy fallback. Source generations,
 monotonic receipts, faction policy, presentation/audio IDs and whole-`Main`
 re-entry remain unchanged. No player-fleet legacy combat override remains;
 an unknown ship identity is range-only and gains no combat fallback. This
-migration adds no second weapon, ammunition, heat, repair,
-shield, projectile gameplay or balance variety, so the Phase 6 expansion items
-remain open.
+pass adds five distinct hitscan weapon profiles, but no ammunition, heat,
+repair, shield, projectile gameplay, presentation-pool expansion, or audio-route
+expansion, so the broader Phase 6 items remain open.
 
 The shared damage-state prerequisite now also has a standalone data-only
 foundation. `ComponentDamageModel` freezes ordered component definitions,

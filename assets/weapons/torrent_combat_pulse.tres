@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1_definition")
-weapon_id = &"combat_pulse_cannon"
-display_name = "Torrent combat pulse cannon"
+weapon_id = &"torrent_compact_pulse_cannon"
+display_name = "Torrent Compact Pulse Cannon"
 resolution_mode = 0
 evidence_status = 2
-evidence_notes = "New prototype balance migrated exactly from the production Torrent combat pulse; not a recovered historical weapon specification."
+evidence_notes = "New modern role balance for the compact Torrent frame; not a recovered historical weapon specification."
 range_meters = 360.0
 damage_per_hit = 34.0
 cadence_shots_per_second = 4.54545454545455

@@ -54,7 +54,7 @@ func _run() -> void:
 		_finish()
 		return
 
-	await _test_safed_fire_contract(game, authority, pulse, opponent, fleet)
+	await _test_pre_guide_freeplay_fire_contract(game, authority, pulse, opponent, fleet)
 	await _test_whole_main_reentry(game, world, audio, authority, resolver, pulse, opponent, fleet)
 	await _test_destroyed_source_impact_ordering(game, pulse, fleet)
 	await _clean_up(game)
@@ -119,7 +119,7 @@ func _test_whole_main_reentry(
 	)
 	var initial_replay_result := authority.submit_hitscan(
 		torrent,
-		GameFlow.COMBAT_WEAPON_ID,
+		GameFlow.TORRENT_COMBAT_WEAPON_ID,
 		replay_origin,
 		Vector3.UP
 	)
@@ -408,11 +408,11 @@ func _test_whole_main_reentry(
 		var presented_before := int(pulse.get_statistics().presented)
 		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, zenith, halyard, opponent]
 		var submission_weapons: Array[StringName] = [
-			GameFlow.COMBAT_WEAPON_ID,
-			GameFlow.COMBAT_WEAPON_ID,
-			GameFlow.COMBAT_WEAPON_ID,
-			GameFlow.COMBAT_WEAPON_ID,
-			GameFlow.COMBAT_WEAPON_ID,
+			GameFlow.TORRENT_COMBAT_WEAPON_ID,
+			GameFlow.ARROW_COMBAT_WEAPON_ID,
+			GameFlow.JOVIAN_COMBAT_WEAPON_ID,
+			GameFlow.ZENITH_COMBAT_WEAPON_ID,
+			GameFlow.HALYARD_COMBAT_WEAPON_ID,
 			GameFlow.OPPONENT_WEAPON_ID,
 		]
 		var every_submission_live := true
@@ -607,7 +607,7 @@ func _world_deferred_receipt_snapshot(
 	}.duplicate(true)
 
 
-func _test_safed_fire_contract(
+func _test_pre_guide_freeplay_fire_contract(
 	game: GameFlow,
 	authority: LiveCombatAuthority,
 	pulse: PulseWeaponPresentation,
@@ -618,10 +618,17 @@ func _test_safed_fire_contract(
 	game.add_child(blocker)
 	await physics_frame
 	var opponent_health_before := float(opponent.call("get_health"))
-	var all_safed_truthful := true
+	var weapon_ids_by_ship_id := {
+		&"torrent_provisional": GameFlow.TORRENT_COMBAT_WEAPON_ID,
+		&"arrow_provisional": GameFlow.ARROW_COMBAT_WEAPON_ID,
+		&"jovian_provisional": GameFlow.JOVIAN_COMBAT_WEAPON_ID,
+		&"zenith_b7_observed": GameFlow.ZENITH_COMBAT_WEAPON_ID,
+		&"halyard_new_design": GameFlow.HALYARD_COMBAT_WEAPON_ID,
+	}
+	var all_freeplay_fire_truthful := true
 	for firing_ship in fleet:
 		game.active_ship = firing_ship
-		game.phase = GameFlow.Phase.INTRO
+		game.phase = GameFlow.Phase.FREE_FLIGHT
 		game.set("_guided_activity_complete", false)
 		pulse.clear_effects()
 		var origin := firing_ship.global_position + Vector3.UP * 0.5
@@ -631,30 +638,25 @@ func _test_safed_fire_contract(
 		var sequence_before := authority.get_last_submitted_sequence(firing_ship)
 		game.call("_on_projectile_fired", origin, direction, firing_ship)
 		var result: Dictionary = game.get_last_player_shot_result()
+		var request := result.get("request") as ShotRequest
 		var shots := pulse.get_active_shot_snapshots()
 		var snapshot: Dictionary = shots[0] if shots.size() == 1 else {}
-		var expected_status: StringName = (
-			&"weapons_safed"
-			if firing_ship == game.get_guided_ship()
-			else &"guided_range_reserved"
-		)
-		all_safed_truthful = (
-			all_safed_truthful
-			and not bool(result.get("accepted", true))
-			and not bool(result.get("resolved", true))
-			and not bool(result.get("hit", true))
-			and not bool(result.get("damaged", true))
-			and result.get("status", &"") == expected_status
-			and authority.get_last_submitted_sequence(firing_ship) == sequence_before
+		all_freeplay_fire_truthful = (
+			all_freeplay_fire_truthful
+			and bool(result.get("accepted", false))
+			and bool(result.get("resolved", false))
+			and result.get("status", &"") == &"world_blocked"
+			and request != null
+			and request.weapon_id == weapon_ids_by_ship_id.get(firing_ship.get_ship_id(), &"")
+			and authority.get_last_submitted_sequence(firing_ship) == sequence_before + 1
 			and shots.size() == 1
-			and is_equal_approx(float(snapshot.get("distance", 0.0)), GameFlow.SAFED_PULSE_DISTANCE)
-			and float(snapshot.get("distance", INF)) < origin.distance_to(blocker.global_position)
-			and not bool(snapshot.get("hit", true))
+			and float(snapshot.get("distance", 0.0)) > 0.2
+			and bool(snapshot.get("hit", false))
 		)
 	_check(
-		all_safed_truthful
+		all_freeplay_fire_truthful
 		and is_equal_approx(float(opponent.call("get_health")), opponent_health_before),
-		"all five craft report safed fire as unresolved and show only an exact 0.2 m muzzle pulse before world geometry"
+		"all five craft resolve pre-guide freeplay fire through their own weapon profile and stop at world geometry"
 	)
 	game.active_ship = game.get_guided_ship()
 	blocker.queue_free()

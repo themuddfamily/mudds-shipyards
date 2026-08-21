@@ -233,7 +233,7 @@ func _test_production_encounter() -> void:
 	await _advance_physics(2)
 	var player_shot: Dictionary = authority.submit_hitscan(
 		torrent,
-		GameFlow.COMBAT_WEAPON_ID,
+		GameFlow.TORRENT_COMBAT_WEAPON_ID,
 		torrent.global_position,
 		(picket.global_position - torrent.global_position).normalized()
 	)

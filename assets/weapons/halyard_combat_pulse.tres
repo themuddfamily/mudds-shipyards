@@ -4,13 +4,13 @@
 
 [resource]
 script = ExtResource("1_definition")
-weapon_id = &"combat_pulse_cannon"
-display_name = "Halyard combat pulse cannon"
+weapon_id = &"halyard_long_range_defensive_lance"
+display_name = "Halyard Long-Range Defensive Lance"
 resolution_mode = 0
 evidence_status = 2
-evidence_notes = "New prototype balance migrated exactly from the production Halyard combat pulse; not a recovered historical weapon specification."
-range_meters = 280.0
-damage_per_hit = 18.0
+evidence_notes = "New modern role balance giving the large Halyard transport a long-range defensive advantage; not a recovered historical weapon specification."
+range_meters = 560.0
+damage_per_hit = 52.0
 cadence_shots_per_second = 1.05263157894737
 faction_policy = 0
 friendly_fire_policy = 0

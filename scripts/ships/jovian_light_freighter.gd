@@ -158,6 +158,27 @@ const ENGINE_AQUA := Color("70eee7")
 const JOVIAN_NAV_RED := Color("ff635d")
 const JOVIAN_NAV_GREEN := Color("70e995")
 
+# Modern-provisional civilian defensive fit. These dimensions deliberately sit
+# between the Arrow's light nose guns and gunship-scale hardware: broad mounts
+# carry the visual load, while the short barrels end at the inherited firing
+# markers and remain subordinate to the freighter hull.
+const DEFENSIVE_TURRET_STATUS: StringName = &"modern_provisional"
+const DEFENSIVE_TURRET_ROLE: StringName = &"freighter_defensive"
+const DEFENSIVE_TURRET_MUZZLE_Z := -6.95
+const DEFENSIVE_TURRET_BASE_RADIUS := 0.68
+const DEFENSIVE_TURRET_BASE_HEIGHT := 0.38
+const DEFENSIVE_TURRET_BARREL_RADIUS := 0.19
+const DEFENSIVE_TURRET_BARREL_LENGTH := 1.55
+const DEFENSIVE_TURRET_PART_SUFFIXES: Array[StringName] = [
+	&"DefensiveTurretBase",
+	&"DefensiveTurretRotationCollar",
+	&"DefensiveTurretReceiver",
+	&"DefensiveTurretBarrelShroud",
+	&"DefensivePulseBarrel",
+	&"DefensiveTurretMuzzleCollar",
+	&"DefensiveTurretMuzzleLens",
+]
+
 var _jovian_built := false
 var _jovian_visual: Node3D
 var _jovian_materials: Dictionary = {}
@@ -408,8 +429,80 @@ func get_jovian_evidence_report() -> Dictionary:
 	}
 
 
+## Visual-only audit for the restrained twin defensive fit. Actual projectile
+## authority remains on HeroShip and its two root muzzle markers.
+func get_defensive_weapon_visual_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var component_paths := PackedStringArray()
+	var visual_only := true
+	for side_index in 2:
+		var prefix := "Port" if side_index == 0 else "Starboard"
+		var expected_x := -5.15 if side_index == 0 else 5.15
+		for suffix in DEFENSIVE_TURRET_PART_SUFFIXES:
+			var path := prefix + String(suffix)
+			var component := _jovian_visual.get_node_or_null(NodePath(path)) as MeshInstance3D \
+				if _jovian_visual != null else null
+			component_paths.append(path)
+			if component == null:
+				errors.append("defensive_turret_component_missing:%s" % path)
+				continue
+			if (
+				StringName(component.get_meta("interpretation_status", &"")) != DEFENSIVE_TURRET_STATUS
+				or StringName(component.get_meta("weapon_role", &"")) != DEFENSIVE_TURRET_ROLE
+				or bool(component.get_meta("authenticated_historical_weapon", true))
+				or not bool(component.get_meta("visual_only", false))
+			):
+				errors.append("defensive_turret_metadata_drift:%s" % path)
+			visual_only = visual_only and component.get_child_count() == 0
+		var muzzle := get_node_or_null(NodePath("LeftMuzzle" if side_index == 0 else "RightMuzzle")) as Marker3D
+		if muzzle == null or not muzzle.position.is_equal_approx(Vector3(expected_x, 3.76, DEFENSIVE_TURRET_MUZZLE_Z)):
+			errors.append("defensive_turret_muzzle_alignment_drift:%s" % prefix)
+	var port_base := _jovian_visual.get_node_or_null(^"PortDefensiveTurretBase") as MeshInstance3D \
+		if _jovian_visual != null else null
+	var port_barrel := _jovian_visual.get_node_or_null(^"PortDefensivePulseBarrel") as MeshInstance3D \
+		if _jovian_visual != null else null
+	var base_size := port_base.mesh.get_aabb().size if port_base != null and port_base.mesh != null else Vector3.ZERO
+	var barrel_size := port_barrel.mesh.get_aabb().size if port_barrel != null and port_barrel.mesh != null else Vector3.ZERO
+	if (
+		not base_size.is_equal_approx(Vector3(
+			DEFENSIVE_TURRET_BASE_RADIUS * 2.0,
+			DEFENSIVE_TURRET_BASE_HEIGHT,
+			DEFENSIVE_TURRET_BASE_RADIUS * 2.0
+		))
+	):
+		errors.append("defensive_turret_base_dimensions_drift")
+	if (
+		not barrel_size.is_equal_approx(Vector3(
+			DEFENSIVE_TURRET_BARREL_RADIUS * 2.0,
+			DEFENSIVE_TURRET_BARREL_LENGTH,
+			DEFENSIVE_TURRET_BARREL_RADIUS * 2.0
+		))
+	):
+		errors.append("defensive_turret_barrel_dimensions_drift")
+	if not visual_only:
+		errors.append("defensive_turret_visual_gained_children")
+	return {
+		"schema_version": 1,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"interpretation_status": DEFENSIVE_TURRET_STATUS,
+		"weapon_role": DEFENSIVE_TURRET_ROLE,
+		"authenticated_historical_weapon": false,
+		"visual_only": visual_only,
+		"turret_count": 2,
+		"components_per_turret": DEFENSIVE_TURRET_PART_SUFFIXES.size(),
+		"component_paths": component_paths,
+		"muzzle_positions": [Vector3(-5.15, 3.76, DEFENSIVE_TURRET_MUZZLE_Z), Vector3(5.15, 3.76, DEFENSIVE_TURRET_MUZZLE_Z)],
+		"base_radius": DEFENSIVE_TURRET_BASE_RADIUS,
+		"base_height": DEFENSIVE_TURRET_BASE_HEIGHT,
+		"barrel_radius": DEFENSIVE_TURRET_BARREL_RADIUS,
+		"barrel_length": DEFENSIVE_TURRET_BARREL_LENGTH,
+	}
+
+
 func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
+	var defensive_weapon_visual := get_defensive_weapon_visual_report()
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
@@ -440,6 +533,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("provisional quad-engine presentation is incomplete")
 	if get_node_or_null("LeftMuzzle") == null or get_node_or_null("RightMuzzle") == null:
 		errors.append("defensive muzzle markers are missing")
+	if not bool(defensive_weapon_visual.get("valid", false)):
+		errors.append("modern provisional defensive weapon visual drifted")
 	if not bool(dorsal_rib_allocation.get("valid", false)):
 		errors.append("dorsal cargo rib joint allocation contract drifted")
 	if not bool(shoulder_rail_allocation.get("valid", false)):
@@ -459,6 +554,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"role": get_role(),
 		"engine_count": _engine_plumes.size(),
 		"weapon_class": &"freighter_defensive_pulse",
+		"defensive_weapon_visual": defensive_weapon_visual,
 		"combat_source_id": COMBAT_SOURCE_ID,
 		"interior": get_walkable_interior_report(),
 		"evidence": get_jovian_evidence_report(),
@@ -2020,11 +2116,58 @@ func _build_propulsion_and_gear() -> void:
 			_cylinder(_jovian_visual, "LandingDamper", Vector3(side * 4.64, -0.22, z_position), 0.13, 1.25, _jovian_materials.amber)
 
 	# Twin defensive pulse mounts communicate capability without turning the
-	# freighter into a gunship. The common weapon lifecycle uses their markers.
+	# freighter into a gunship. Their broad bases and compact receivers read as
+	# ship-scale defensive hardware, while the barrels stop exactly at the fixed
+	# muzzle plane. The common weapon lifecycle continues to use root markers.
 	for side in [-1.0, 1.0]:
 		var prefix := "Port" if side < 0.0 else "Starboard"
-		_cylinder(_jovian_visual, prefix + "DefensiveTurretBase", Vector3(side * 5.15, 3.72, -5.55), 0.48, 0.3, _jovian_materials.structure)
-		_cylinder(_jovian_visual, prefix + "DefensivePulseBarrel", Vector3(side * 5.15, 3.76, -6.25), 0.14, 1.35, _jovian_materials.dark, Vector3(90.0, 0.0, 0.0))
+		_mark_defensive_weapon_detail(_cylinder(
+			_jovian_visual, prefix + "DefensiveTurretBase",
+			Vector3(side * 5.15, 3.72, -5.55),
+			DEFENSIVE_TURRET_BASE_RADIUS, DEFENSIVE_TURRET_BASE_HEIGHT,
+			_jovian_materials.structure
+		), &"mount_base")
+		_mark_defensive_weapon_detail(_cylinder(
+			_jovian_visual, prefix + "DefensiveTurretRotationCollar",
+			Vector3(side * 5.15, 3.96, -5.55), 0.5, 0.16,
+			_jovian_materials.hull_cool
+		), &"rotation_collar")
+		_mark_defensive_weapon_detail(_box(
+			_jovian_visual, prefix + "DefensiveTurretReceiver",
+			Vector3(side * 5.15, 3.78, -5.72), Vector3(0.76, 0.48, 0.7),
+			_jovian_materials.structure
+		), &"receiver")
+		_mark_defensive_weapon_detail(_box(
+			_jovian_visual, prefix + "DefensiveTurretBarrelShroud",
+			Vector3(side * 5.15, 3.76, -6.02), Vector3(0.56, 0.46, 0.72),
+			_jovian_materials.hull_cool
+		), &"barrel_shroud")
+		_mark_defensive_weapon_detail(_cylinder(
+			_jovian_visual, prefix + "DefensivePulseBarrel",
+			Vector3(side * 5.15, 3.76, -6.175),
+			DEFENSIVE_TURRET_BARREL_RADIUS, DEFENSIVE_TURRET_BARREL_LENGTH,
+			_jovian_materials.dark, Vector3(90.0, 0.0, 0.0)
+		), &"pulse_barrel")
+		_mark_defensive_weapon_detail(_cylinder(
+			_jovian_visual, prefix + "DefensiveTurretMuzzleCollar",
+			Vector3(side * 5.15, 3.76, -6.79), 0.27, 0.2,
+			_jovian_materials.structure, Vector3(90.0, 0.0, 0.0)
+		), &"muzzle_collar")
+		# Its forward face, not its centre, coincides with the firing marker so
+		# the new detail does not extend the weapon's visible firing profile.
+		_mark_defensive_weapon_detail(_cylinder(
+			_jovian_visual, prefix + "DefensiveTurretMuzzleLens",
+			Vector3(side * 5.15, 3.76, -6.92), 0.17, 0.06,
+			_jovian_materials.teal, Vector3(90.0, 0.0, 0.0)
+		), &"muzzle_lens")
+
+
+func _mark_defensive_weapon_detail(component: MeshInstance3D, component_role: StringName) -> void:
+	component.set_meta("interpretation_status", DEFENSIVE_TURRET_STATUS)
+	component.set_meta("weapon_role", DEFENSIVE_TURRET_ROLE)
+	component.set_meta("component_role", component_role)
+	component.set_meta("authenticated_historical_weapon", false)
+	component.set_meta("visual_only", true)
 
 
 func _replace_collision_and_markers() -> void:
@@ -2283,6 +2426,8 @@ func _apply_jovian_metadata() -> void:
 	set_meta("connected_walkable_interior", true)
 	set_meta("content_note", PROVISIONAL_NOTE)
 	set_meta("weapon_class", &"freighter_defensive_pulse")
+	set_meta("weapon_visual_status", DEFENSIVE_TURRET_STATUS)
+	set_meta("authenticated_historical_weapon", false)
 	set_meta("engine_profile", &"heavy_quad_freighter")
 
 

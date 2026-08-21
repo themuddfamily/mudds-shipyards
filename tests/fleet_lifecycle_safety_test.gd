@@ -28,7 +28,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_engine_and_departure_authority()
-	await _test_pre_guide_torrent_fire_is_phase_locked()
+	await _test_pre_guide_torrent_fire_is_freeplay()
 	await _test_inactive_loss_and_occupied_berth_retry()
 	_finish()
 
@@ -160,7 +160,7 @@ func _test_engine_and_departure_authority() -> void:
 	await _clean_up(game)
 
 
-func _test_pre_guide_torrent_fire_is_phase_locked() -> void:
+func _test_pre_guide_torrent_fire_is_freeplay() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "range-authority production scene instantiates")
 	if game == null:
@@ -190,37 +190,43 @@ func _test_pre_guide_torrent_fire_is_phase_locked() -> void:
 	target.set_meta("base_position", (target.get_parent() as Node3D).to_local(target.global_position))
 	await physics_frame
 
-	var health_before := float(target.get_meta("health", -1.0))
 	var destroyed_before := world.get_destroyed_target_count()
 	var progress_before := game.destroyed_targets
 	var target_count_before := world.get_target_count()
 	var shot_origin := torrent.global_position + Vector3(0.0, 0.5, -5.0)
-	var any_authoritative_damage := false
+	var all_shots_authoritative := true
 	for _shot in 4:
+		if bool(target.get_meta("destroyed", false)):
+			break
 		var shot_direction := (target.global_position - shot_origin).normalized()
 		game.call("_on_projectile_fired", shot_origin, shot_direction, torrent)
-		var result := game.get_last_player_shot_result()
-		any_authoritative_damage = any_authoritative_damage \
-			or bool(result.get("damaged", false)) \
-			or bool(result.get("destroyed", false))
+		var result: Dictionary = game.get_last_player_shot_result()
+		var request := result.get("request") as ShotRequest
+		all_shots_authoritative = (
+			all_shots_authoritative
+			and bool(result.get("accepted", false))
+			and bool(result.get("resolved", false))
+			and bool(result.get("damaged", false))
+			and request != null
+			and request.weapon_id == GameFlow.TORRENT_COMBAT_WEAPON_ID
+		)
 		await physics_frame
 
 	_check(
-		not any_authoritative_damage,
-		"pre-guide Torrent shots outside LAUNCH/TARGET_PRACTICE receive no damage authority"
+		all_shots_authoritative,
+		"pre-guide Torrent shots receive normal freeplay authority through the Torrent weapon"
 	)
 	_check(
-		not bool(target.get_meta("destroyed", false))
-		and is_equal_approx(float(target.get_meta("health", -2.0)), health_before),
-		"phase-locked Torrent fire preserves the range target's canonical health"
+		bool(target.get_meta("destroyed", false)),
+		"pre-guide freeplay Torrent fire can destroy a physical range contact"
 	)
 	_check(
-		world.get_destroyed_target_count() == destroyed_before
+		world.get_destroyed_target_count() == destroyed_before + 1
 		and world.get_target_count() == target_count_before,
-		"phase-locked Torrent fire cannot consume a physical guided range contact"
+		"freeplay destruction is retained by the world's physical target ledger"
 	)
-	_check(game.destroyed_targets == progress_before, "phase-locked Torrent fire cannot mutate guided mission progress")
-	_check(not game.is_guided_activity_complete(), "rejected pre-guide fire leaves the guided activity pending")
+	_check(game.destroyed_targets == progress_before + 1, "freeplay target destruction advances retained range progress")
+	_check(not game.is_guided_activity_complete(), "freeplay fire alone leaves the guided activity pending")
 
 	await _clean_up(game)
 

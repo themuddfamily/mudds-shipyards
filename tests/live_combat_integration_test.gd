@@ -67,40 +67,167 @@ func _run() -> void:
 		production_source_ids.size() == 6,
 		"all five player craft and the defender retain six distinct combat source identities"
 	)
-	var torrent_profile := authority.get_weapon_profile(hero, &"combat_pulse_cannon")
-	var arrow_profile := authority.get_weapon_profile(reserve, &"combat_pulse_cannon")
-	var jovian_profile := authority.get_weapon_profile(jovian, &"combat_pulse_cannon")
-	var zenith_profile := authority.get_weapon_profile(zenith, &"combat_pulse_cannon")
-	var halyard_profile := authority.get_weapon_profile(halyard, &"combat_pulse_cannon")
+	var combat_specs: Array[Dictionary] = [
+		{
+			"craft": hero,
+			"weapon_id": GameFlow.TORRENT_COMBAT_WEAPON_ID,
+			"range": 360.0,
+			"damage": 34.0,
+			"origin_tolerance": 24.0,
+			"name": "Torrent",
+		},
+		{
+			"craft": reserve,
+			"weapon_id": GameFlow.ARROW_COMBAT_WEAPON_ID,
+			"range": 480.0,
+			"damage": 24.0,
+			"origin_tolerance": 24.0,
+			"name": "Arrow",
+		},
+		{
+			"craft": zenith,
+			"weapon_id": GameFlow.ZENITH_COMBAT_WEAPON_ID,
+			"range": 420.0,
+			"damage": 28.0,
+			"origin_tolerance": 24.0,
+			"name": "Zenith",
+		},
+		{
+			"craft": jovian,
+			"weapon_id": GameFlow.JOVIAN_COMBAT_WEAPON_ID,
+			"range": 650.0,
+			"damage": 70.0,
+			"origin_tolerance": 32.0,
+			"name": "Jovian",
+		},
+		{
+			"craft": halyard,
+			"weapon_id": GameFlow.HALYARD_COMBAT_WEAPON_ID,
+			"range": 560.0,
+			"damage": 52.0,
+			"origin_tolerance": 30.0,
+			"name": "Halyard",
+		},
+	]
+	var combat_weapon_ids: Array[StringName] = [
+		GameFlow.TORRENT_COMBAT_WEAPON_ID,
+		GameFlow.ARROW_COMBAT_WEAPON_ID,
+		GameFlow.ZENITH_COMBAT_WEAPON_ID,
+		GameFlow.JOVIAN_COMBAT_WEAPON_ID,
+		GameFlow.HALYARD_COMBAT_WEAPON_ID,
+	]
+	var combat_profiles: Dictionary = {}
+	var foreign_profiles_absent := true
+	for spec in combat_specs:
+		var craft := spec.get("craft") as HeroShip
+		var weapon_id := spec.get("weapon_id") as StringName
+		var profile := authority.get_weapon_profile(craft, weapon_id)
+		combat_profiles[weapon_id] = profile
+		_check(
+			profile.size() == 3
+			and is_equal_approx(float(profile.get("range", 0.0)), float(spec.get("range", 0.0)))
+			and is_equal_approx(float(profile.get("damage", 0.0)), float(spec.get("damage", 0.0)))
+			and is_equal_approx(
+				float(profile.get("origin_tolerance", 0.0)),
+				float(spec.get("origin_tolerance", 0.0))
+			),
+			"%s owns its exact size-relevant combat profile under its unique weapon ID" % spec.get("name", "craft")
+		)
+		for foreign_weapon_id in combat_weapon_ids:
+			if foreign_weapon_id == weapon_id:
+				continue
+			foreign_profiles_absent = (
+				foreign_profiles_absent
+				and authority.get_weapon_profile(craft, foreign_weapon_id).is_empty()
+			)
 	_check(
-		is_equal_approx(float(torrent_profile.get("range", 0.0)), 360.0)
-		and is_equal_approx(float(torrent_profile.get("damage", 0.0)), 34.0),
-		"Torrent retains its production combat profile"
+		foreign_profiles_absent,
+		"every fleet combat profile is absent under all four foreign ship weapon IDs"
+	)
+	var foreign_weapon_requests_rejected := true
+	for index in combat_specs.size():
+		var spec := combat_specs[index]
+		var craft := spec.get("craft") as HeroShip
+		var foreign_weapon_id := combat_weapon_ids[(index + 1) % combat_weapon_ids.size()]
+		var foreign_result := authority.submit_hitscan(
+			craft, foreign_weapon_id, craft.global_position, Vector3.UP
+		)
+		foreign_weapon_requests_rejected = (
+			foreign_weapon_requests_rejected
+			and not bool(foreign_result.get("accepted", true))
+			and foreign_result.get("status", &"") == &"weapon_not_authorized"
+		)
+	_check(
+		foreign_weapon_requests_rejected,
+		"authority rejects a foreign per-ship combat weapon ID for every fleet source"
+	)
+	var torrent_profile := combat_profiles.get(GameFlow.TORRENT_COMBAT_WEAPON_ID, {}) as Dictionary
+	var arrow_profile := combat_profiles.get(GameFlow.ARROW_COMBAT_WEAPON_ID, {}) as Dictionary
+	var zenith_profile := combat_profiles.get(GameFlow.ZENITH_COMBAT_WEAPON_ID, {}) as Dictionary
+	var jovian_profile := combat_profiles.get(GameFlow.JOVIAN_COMBAT_WEAPON_ID, {}) as Dictionary
+	var halyard_profile := combat_profiles.get(GameFlow.HALYARD_COMBAT_WEAPON_ID, {}) as Dictionary
+	var maximum_small_range := maxf(
+		float(torrent_profile.get("range", 0.0)),
+		maxf(float(arrow_profile.get("range", 0.0)), float(zenith_profile.get("range", 0.0)))
+	)
+	var maximum_small_damage := maxf(
+		float(torrent_profile.get("damage", 0.0)),
+		maxf(float(arrow_profile.get("damage", 0.0)), float(zenith_profile.get("damage", 0.0)))
 	)
 	_check(
-		is_equal_approx(float(arrow_profile.get("range", 0.0)), 410.0)
-		and is_equal_approx(float(arrow_profile.get("damage", 0.0)), 25.0),
-		"Arrow retains its lighter long-range combat profile"
+		float(jovian_profile.get("range", 0.0)) > maximum_small_range
+		and float(halyard_profile.get("range", 0.0)) > maximum_small_range
+		and float(jovian_profile.get("damage", 0.0)) > maximum_small_damage
+		and float(halyard_profile.get("damage", 0.0)) > maximum_small_damage,
+		"both medium craft exceed every small craft in range and per-shot damage"
 	)
-	_check(
-		is_equal_approx(float(jovian_profile.get("range", 0.0)), 315.0)
-		and is_equal_approx(float(jovian_profile.get("damage", 0.0)), 23.0),
-		"Jovian receives its distinct defensive production combat profile"
-	)
-	_check(
-		zenith_profile.size() == 3
-		and is_equal_approx(float(zenith_profile.get("range", 0.0)), 390.0)
-		and is_equal_approx(float(zenith_profile.get("damage", 0.0)), 27.0)
-		and is_equal_approx(float(zenith_profile.get("origin_tolerance", 0.0)), 24.0),
-		"Zenith retains its exact protected production combat profile"
-	)
-	_check(
-		halyard_profile.size() == 3
-		and is_equal_approx(float(halyard_profile.get("range", 0.0)), 280.0)
-		and is_equal_approx(float(halyard_profile.get("damage", 0.0)), 18.0)
-		and is_equal_approx(float(halyard_profile.get("origin_tolerance", 0.0)), 30.0),
-		"Halyard retains its exact self-defence production combat profile"
-	)
+
+	# Prove the live player command path can fire every craft immediately. The
+	# Torrent guide remains pending throughout: freeplay weapon access must not be
+	# coupled to tutorial completion, and the coordinator must route the emitted
+	# projectile through that hull's own registered weapon profile.
+	game.set("_guided_activity_complete", false)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	for spec in combat_specs:
+		var craft := spec.get("craft") as HeroShip
+		for fleet_craft in game.get_flyable_ships():
+			fleet_craft.set_piloted(fleet_craft == craft)
+		game.active_ship = craft
+		var original_engine_start_time := craft.engine_start_time
+		var original_weapon_cooldown := craft.weapon_cooldown
+		craft.engine_start_time = 0.01
+		craft.weapon_cooldown = 0.01
+		craft.request_engine_start()
+		for _engine_frame in 8:
+			await physics_frame
+			if str(craft.get_telemetry().get("engine_state", "")) == "ONLINE":
+				break
+		var emitted_count := [0]
+		craft.projectile_fired.connect(
+			func(_origin: Vector3, _direction: Vector3) -> void: emitted_count[0] += 1,
+			CONNECT_ONE_SHOT
+		)
+		Input.action_press(&"fire")
+		await physics_frame
+		Input.action_release(&"fire")
+		await physics_frame
+		var routed_result: Dictionary = game.call("get_last_player_shot_result")
+		var routed_request := routed_result.get("request") as ShotRequest
+		_check(
+			emitted_count[0] == 1
+			and bool(routed_result.get("accepted", false))
+			and bool(routed_result.get("resolved", false))
+			and routed_result.get("source_entity") == craft
+			and routed_request != null
+			and routed_request.weapon_id == spec.get("weapon_id")
+			and not game.is_guided_activity_complete(),
+			"pre-guide live fire input routes %s through its own combat weapon ID"
+				% spec.get("name", "craft")
+		)
+		craft.engine_start_time = original_engine_start_time
+		craft.weapon_cooldown = original_weapon_cooldown
+		craft.set_piloted(false)
+	game.active_ship = hero
 	_check(
 		hero.get_node_or_null("AuthoritativeDamageable") is DamageableScript
 		and reserve.get_node_or_null("AuthoritativeDamageable") is DamageableScript
@@ -246,13 +373,13 @@ func _run() -> void:
 	).normalized()
 	var hero_source_id := authority.get_source_id(hero)
 	var hero_faction := authority.get_source_faction(hero)
-	var combat_profile := authority.get_weapon_profile(hero, &"combat_pulse_cannon")
+	var combat_profile := authority.get_weapon_profile(hero, GameFlow.TORRENT_COMBAT_WEAPON_ID)
 	var direct_sequence := resolver.get_last_sequence(hero, hero_source_id) + 1
 	var friendly_request := ShotRequestScript.new(
 		hero,
 		hero_source_id,
 		hero_faction,
-		&"combat_pulse_cannon",
+		GameFlow.TORRENT_COMBAT_WEAPON_ID,
 		direct_sequence,
 		friendly_origin,
 		friendly_direction,
@@ -270,7 +397,7 @@ func _run() -> void:
 		reserve,
 		hero_source_id,
 		hero_faction,
-		&"combat_pulse_cannon",
+		GameFlow.TORRENT_COMBAT_WEAPON_ID,
 		direct_sequence + 1,
 		reserve.global_position,
 		Vector3.FORWARD,
@@ -283,7 +410,7 @@ func _run() -> void:
 		hero,
 		hero_source_id,
 		&"range_defence",
-		&"combat_pulse_cannon",
+		GameFlow.TORRENT_COMBAT_WEAPON_ID,
 		direct_sequence + 1,
 		hero.global_position,
 		Vector3.FORWARD,
@@ -315,7 +442,7 @@ func _run() -> void:
 		var direct_origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
 		var direct_result := authority.submit_hitscan(
 			hero,
-			GameFlow.COMBAT_WEAPON_ID,
+			GameFlow.TORRENT_COMBAT_WEAPON_ID,
 			direct_origin,
 			(opponent.global_position - direct_origin).normalized()
 		)
@@ -423,7 +550,9 @@ func _run() -> void:
 	var queued_roster := resolver.get_registered_source_count()
 	authority.queue_free()
 	var queued_registration := authority.register_source(hero, 9911, &"test", {})
-	var queued_shot := authority.submit_hitscan(hero, GameFlow.COMBAT_WEAPON_ID, hero.global_position, Vector3.FORWARD)
+	var queued_shot := authority.submit_hitscan(
+		hero, GameFlow.TORRENT_COMBAT_WEAPON_ID, hero.global_position, Vector3.FORWARD
+	)
 	_check(
 		not queued_registration and not bool(queued_shot.get("accepted", true))
 		and StringName(queued_shot.get("reason", &"")) == &"authority_unavailable"

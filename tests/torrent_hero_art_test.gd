@@ -207,6 +207,74 @@ func _test_propulsion_and_hardware(torrent: HeroShip) -> void:
 	_check(jaw_contract_matches, "four capture jaws retain their authored paths/transforms and share one gold rounded-box mesh")
 	_check(modern_systems != null and modern_systems.find_children("*RCSCluster", "Node3D", true, false).size() == 4, "four presentation-only RCS clusters are visible")
 	_check(modern_systems != null and modern_systems.find_children("*DorsalVentBank", "Node3D", true, false).size() == 2, "paired louvred vent banks service the aft fuselage")
+	_test_compact_pulse_cannons(torrent, modern_systems)
+
+
+func _test_compact_pulse_cannons(torrent: HeroShip, modern_systems: Node3D) -> void:
+	var weapons := modern_systems.get_node_or_null("Weapons") as Node3D if modern_systems != null else null
+	_check(
+		weapons != null
+		and str(weapons.get_meta("weapon_class", "")) == "compact_twin_pulse_cannon"
+		and str(weapons.get_meta("mount_scale", "")) == "interceptor_light",
+		"Torrent carries one interceptor-scale compact twin pulse-cannon battery"
+	)
+	if weapons == null:
+		return
+	var source_core := torrent.get_variant_visual_root().find_child("SourceCore", true, false)
+	_check(
+		weapons.get_parent() == modern_systems
+		and (source_core == null or not source_core.is_ancestor_of(weapons))
+		and str(weapons.get_meta("evidence_status", "")) == "modern_interpretation"
+		and not bool(weapons.get_meta("historically_supported", true)),
+		"unsupported weapon geometry remains modern presentation outside SourceCore"
+	)
+	_check(
+		weapons.find_children("*GunRail", "MeshInstance3D", false, false).size() == 2
+		and weapons.find_children("*PulseCannon", "MeshInstance3D", false, false).size() == 2
+		and weapons.find_children("*CannonShroud", "MeshInstance3D", false, false).size() == 2
+		and weapons.find_children("*MuzzleCollar", "MeshInstance3D", false, false).size() == 2
+		and weapons.find_children("*MuzzleLens", "MeshInstance3D", false, false).size() == 2,
+		"compact battery has two complete rail, cannon, shroud, collar and muzzle-lens sets"
+	)
+	for side_name: String in ["Port", "Starboard"]:
+		var marker_name := "LeftMuzzle" if side_name == "Port" else "RightMuzzle"
+		var marker := torrent.get_node_or_null(marker_name) as Marker3D
+		var rail := weapons.get_node_or_null(side_name + "GunRail") as MeshInstance3D
+		var cannon := weapons.get_node_or_null(side_name + "PulseCannon") as MeshInstance3D
+		var shroud := weapons.get_node_or_null(side_name + "CannonShroud") as MeshInstance3D
+		var collar := weapons.get_node_or_null(side_name + "MuzzleCollar") as MeshInstance3D
+		var lens := weapons.get_node_or_null(side_name + "MuzzleLens") as MeshInstance3D
+		var complete := marker != null and rail != null and cannon != null and shroud != null and collar != null and lens != null
+		_check(complete, "%s compact pulse-cannon detail resolves by stable semantic names" % side_name)
+		if not complete:
+			continue
+		_check(
+			is_equal_approx(rail.position.x, marker.position.x)
+			and is_equal_approx(cannon.position.x, marker.position.x)
+			and is_equal_approx(shroud.position.x, marker.position.x)
+			and is_equal_approx(collar.position.x, marker.position.x)
+			and is_equal_approx(lens.position.x, marker.position.x)
+			and is_equal_approx(lens.position.y, marker.position.y)
+			and marker.position.z < lens.position.z
+			and lens.position.z - marker.position.z < 0.03,
+			"%s cannon is coaxial with its unchanged functional muzzle marker" % side_name
+		)
+		_check(
+			shroud.mesh.get_aabb().size.x < 0.4
+			and collar.mesh.get_aabb().size.x < shroud.mesh.get_aabb().size.x
+			and lens.mesh.get_aabb().size.x < cannon.mesh.get_aabb().size.x
+			and cannon.mesh.get_aabb().size.y < rail.mesh.get_aabb().size.z,
+			"%s weapon shroud, collar and lens retain a compact interceptor-relative profile" % side_name
+		)
+		for weapon_part in [rail, cannon, shroud, collar, lens]:
+			_check(
+				bool(weapon_part.get_meta("presentation_only", false))
+				and str(weapon_part.get_meta("weapon_class", "")) == "compact_pulse_cannon"
+				and str(weapon_part.get_meta("mount_scale", "")) == "interceptor_light"
+				and str(weapon_part.get_meta("evidence_status", "")) == "modern_interpretation"
+				and not bool(weapon_part.get_meta("historically_supported", true)),
+				"%s is explicitly bounded as modern interceptor weapon presentation" % weapon_part.name
+			)
 
 
 func _test_render_allocations(torrent: HeroShip) -> void:
@@ -280,25 +348,25 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 	var component := report.get("component", {}) as Dictionary
 	var fallback := report.get("modern_fallback", {}) as Dictionary
 	_check(
-		int(component.get("descendant_nodes", -1)) == 293
-		and int(component.get("mesh_instances", -1)) == 235
+		int(component.get("descendant_nodes", -1)) == 299
+		and int(component.get("mesh_instances", -1)) == 241
 		and int(component.get("multimesh_batches", -1)) == 2,
-		"Torrent-local renderer nodes freeze at 303 -> 293, MeshInstances 247 -> 235 and batches 0 -> 2"
+		"Torrent-local renderer census includes the six compact weapon-detail meshes"
 	)
 	_check(
-		int(component.get("drawn_copies", -1)) == 247
-		and int(component.get("geometry_submissions", -1)) == 237
-		and int(component.get("unique_mesh_resources", -1)) == 205
-		and int(component.get("unique_material_resources", -1)) == 36,
-		"drawn copies/materials remain 247/36 while submissions remain 237 and unique meshes fall 219 -> 205"
+		int(component.get("drawn_copies", -1)) == 253
+		and int(component.get("geometry_submissions", -1)) == 243
+		and int(component.get("unique_mesh_resources", -1)) == 209
+		and int(component.get("unique_material_resources", -1)) == 37,
+		"weapon detail extends the frozen draw, mesh and cyan-lens material census exactly"
 	)
 	_check(
-		int(fallback.get("descendant_nodes", -1)) == 107
-		and int(fallback.get("mesh_instances", -1)) == 89
+		int(fallback.get("descendant_nodes", -1)) == 113
+		and int(fallback.get("mesh_instances", -1)) == 95
 		and int(fallback.get("multimesh_batches", -1)) == 2
-		and int(fallback.get("drawn_copies", -1)) == 101
-		and int(fallback.get("geometry_submissions", -1)) == 91,
-		"modern-fallback local nodes freeze at 117 -> 107 and submissions 101 -> 91 without dropping its 101 copies"
+		and int(fallback.get("drawn_copies", -1)) == 107
+		and int(fallback.get("geometry_submissions", -1)) == 97,
+		"modern-fallback census owns all six added weapon details and no authored source geometry"
 	)
 	_check(
 		int(report.get("vent_louver_batches", -1)) == 2

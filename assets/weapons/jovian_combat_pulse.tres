@@ -4,13 +4,13 @@
 
 [resource]
 script = ExtResource("1_definition")
-weapon_id = &"combat_pulse_cannon"
-display_name = "Jovian combat pulse cannon"
+weapon_id = &"jovian_heavy_defensive_cannon"
+display_name = "Jovian Heavy Defensive Cannon"
 resolution_mode = 0
 evidence_status = 2
-evidence_notes = "New prototype balance migrated exactly from the production Jovian combat pulse; not a recovered historical weapon specification."
-range_meters = 315.0
-damage_per_hit = 23.0
+evidence_notes = "New modern role balance giving the large Jovian freighter a heavy defensive advantage; not a recovered historical weapon specification."
+range_meters = 650.0
+damage_per_hit = 70.0
 cadence_shots_per_second = 1.61290322580645
 faction_policy = 0
 friendly_fire_policy = 0

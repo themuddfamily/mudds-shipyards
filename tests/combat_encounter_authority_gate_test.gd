@@ -17,17 +17,10 @@ extends SceneTree
 ##     `_destroy_interceptor()` for the defender's own death, and
 ##     `_recover_from_destroyed_ship()` for the pilot's.
 ##
-## `GameFlow._on_target_destroyed()` fails closed outside
-## `Phase.LAUNCH`/`Phase.TARGET_PRACTICE` and has no fallback, so a dropped
-## authorization would be permanent -- `authorize_target_destruction()` is
-## one-shot. That drop stays unreachable only while the two facts asserted below
-## hold: player fire is safed in every phase that the gate rejects while a drone
-## is live, and the interceptor engagement (the first phase in which player fire
-## is live but the target gate is shut) cannot begin until every drone is
-## already destroyed and counted.
-##
-## Widening either weapon authorization, or moving either deactivation off the
-## phase-ending call, reopens a real damage window. This test is the tripwire.
+## Range targets are intentionally freeplay combatants. Destruction by any fleet
+## craft must be counted even before the guided Torrent sortie, without silently
+## completing that guide or waking the defender from an unrelated phase. The
+## defender's own encounter fire remains governed by its active lifecycle.
 
 const OPPONENT_ARENA_OFFSET := Vector3(0.0, 0.0, 60.0)
 const ARENA_ORIGIN := Vector3(600.0, 90.0, -900.0)
@@ -112,9 +105,7 @@ func _run() -> void:
 		"launch with drones still standing routes to target practice, never to the engagement"
 	)
 
-	# ------------------------------------- safed phases cannot destroy a drone --
-	# Every phase the target gate rejects while a drone is live must also refuse
-	# the shot, otherwise the one-shot authorization would be dropped forever.
+	# ----------------------------- alternate craft can clear a range contact --
 	var drones := _live_drones(world)
 	_check(drones.size() == _game.total_targets, "every generated drone is live before the sortie")
 	if drones.is_empty():
@@ -122,63 +113,63 @@ func _run() -> void:
 		_finish()
 		return
 	var probe_drone := drones[0] as StaticBody3D
-	_hero.global_position = DRONE_ARENA_ORIGIN
 	_place_drone(probe_drone, DRONE_ARENA_ORIGIN + Vector3(0.0, 0.0, -30.0))
 	await physics_frame
 	var drone_origin := DRONE_ARENA_ORIGIN + Vector3(0.0, 0.0, -5.5)
 	var drone_direction := Vector3(0.0, 0.0, -1.0)
-	var safed_phases: Array[GameFlow.Phase] = [
-		GameFlow.Phase.APPROACH_SHIP,
-		GameFlow.Phase.BOARDING,
-		GameFlow.Phase.START_ENGINES,
-		GameFlow.Phase.SHUT_DOWN,
-		GameFlow.Phase.DISEMBARKING,
-		GameFlow.Phase.FREE_FLIGHT,
-		GameFlow.Phase.RECOVERING,
-	]
-	var drone_health_before := float(probe_drone.get_meta("health", 0.0))
-	for safed_phase in safed_phases:
-		_game.phase = safed_phase
-		_game.call("_on_projectile_fired", drone_origin, drone_direction, _hero)
-		var safed_result: Dictionary = _game.call("get_last_player_shot_result")
-		_check(
-			not bool(safed_result.get("damaged", false))
-			and is_equal_approx(float(probe_drone.get_meta("health", 0.0)), drone_health_before)
-			and not bool(probe_drone.get_meta("destroyed", false)),
-			"phase %d safes player fire, so no drone authorization can be dropped there"
-				% int(safed_phase)
-		)
-
-	# A non-guided craft is likewise reserved out of the range while the guided
-	# activity is still pending, in a phase whose target gate is also shut.
 	var arrow := _game.get_node("ArrowReconShip") as HeroShip
 	var arrow_active_before := _game.active_ship
 	_game.active_ship = arrow
 	arrow.global_position = DRONE_ARENA_ORIGIN
 	_game.phase = GameFlow.Phase.FREE_FLIGHT
 	await physics_frame
-	_game.call("_on_projectile_fired", drone_origin, drone_direction, arrow)
-	var reserved_result: Dictionary = _game.call("get_last_player_shot_result")
+	var alternate_counted_before := _game.destroyed_targets
+	var all_arrow_shots_authorized := true
+	for _shot in 6:
+		if bool(probe_drone.get_meta("destroyed", false)):
+			break
+		_game.call("_on_projectile_fired", drone_origin, drone_direction, arrow)
+		var arrow_result: Dictionary = _game.call("get_last_player_shot_result")
+		var arrow_request := arrow_result.get("request") as ShotRequest
+		all_arrow_shots_authorized = (
+			all_arrow_shots_authorized
+			and bool(arrow_result.get("accepted", false))
+			and bool(arrow_result.get("resolved", false))
+			and bool(arrow_result.get("damaged", false))
+			and arrow_request != null
+			and arrow_request.weapon_id == GameFlow.ARROW_COMBAT_WEAPON_ID
+		)
+		await physics_frame
 	_check(
-		reserved_result.get("status") == &"guided_range_reserved"
-		and not bool(probe_drone.get_meta("destroyed", false)),
-		"a sandbox craft cannot destroy a guided range drone into the shut target gate"
+		all_arrow_shots_authorized
+		and bool(probe_drone.get_meta("destroyed", false))
+		and _game.destroyed_targets == alternate_counted_before + 1
+		and int(world.call("get_destroyed_target_count")) == alternate_counted_before + 1,
+		"pre-guide Arrow fire destroys and credits a live range contact through its own weapon"
+	)
+	_check(
+		_game.phase == GameFlow.Phase.FREE_FLIGHT
+		and not _game.is_guided_activity_complete()
+		and not bool(_opponent.call("is_active")),
+		"alternate-craft target progress does not skip Torrent flight or start the interceptor encounter"
 	)
 	_game.active_ship = arrow_active_before
 	arrow.global_position = ARENA_ORIGIN + Vector3(400.0, 0.0, 0.0)
 
 	# ------------------------------------- authorized destruction is counted 1:1 --
+	var torrent_probe := drones[1] as StaticBody3D
+	_place_drone(torrent_probe, DRONE_ARENA_ORIGIN + Vector3(0.0, 0.0, -30.0))
 	_game.phase = GameFlow.Phase.TARGET_PRACTICE
 	_hero.global_position = DRONE_ARENA_ORIGIN
 	await physics_frame
 	var counted_before := _game.destroyed_targets
 	for _shot in 4:
-		if bool(probe_drone.get_meta("destroyed", false)):
+		if bool(torrent_probe.get_meta("destroyed", false)):
 			break
 		_game.call("_on_projectile_fired", drone_origin, drone_direction, _hero)
 		await physics_frame
 	_check(
-		bool(probe_drone.get_meta("destroyed", false))
+		bool(torrent_probe.get_meta("destroyed", false))
 		and _game.destroyed_targets == counted_before + 1,
 		"an authorized drone destruction inside the open gate is credited exactly once"
 	)
@@ -189,8 +180,43 @@ func _run() -> void:
 		"a re-shot dead drone never issues a second authorization to drop or double count"
 	)
 
+	# Clear the rest of the range with Arrow, then enter the normal Torrent launch
+	# seam. Freeplay progress must be sufficient to start the defender instead of
+	# leaving the guide waiting for contacts that no longer exist.
+	_game.active_ship = arrow
+	_game.phase = GameFlow.Phase.FREE_FLIGHT
+	arrow.global_position = DRONE_ARENA_ORIGIN
+	for remaining_drone in _live_drones(world):
+		_place_drone(remaining_drone, DRONE_ARENA_ORIGIN + Vector3(0.0, 0.0, -30.0))
+		await physics_frame
+		for _shot in 6:
+			if bool(remaining_drone.get_meta("destroyed", false)):
+				break
+			_game.call("_on_projectile_fired", drone_origin, drone_direction, arrow)
+			await physics_frame
+	_check(
+		_game.destroyed_targets == _game.total_targets
+		and int(world.call("get_destroyed_target_count")) == _game.total_targets
+		and _game.phase == GameFlow.Phase.FREE_FLIGHT
+		and not _game.is_guided_activity_complete()
+		and not bool(_opponent.call("is_active")),
+		"alternate-craft freeplay can clear the range without prematurely completing the guide"
+	)
+	_game.active_ship = _hero
+	_game.set("_piloting", true)
+	_game.set("_sandbox_sortie", false)
+	_game.set("_launch_registered", false)
+	_game.phase = GameFlow.Phase.LAUNCH
+	_hero.global_position = ARENA_ORIGIN
+	_game.call("_update_pilot_flow")
+	_check(
+		_game.phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
+		and bool(_opponent.call("is_active")),
+		"Torrent launch consumes retained freeplay progress without an unreachable target quota"
+	)
+
 	# ------------------------------------------- live encounter, ungated handler --
-	_restore_arena_pilot(true)
+	_restore_arena_pilot(false)
 	var hull_before := float(_hero.get_telemetry().get("hull", 0.0))
 	_emissions.clear()
 	for _frame in LIVE_FIRE_PHYSICS_FRAMES:

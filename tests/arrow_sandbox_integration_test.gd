@@ -2,8 +2,8 @@ extends SceneTree
 
 ## Focused integration regression for the provisional Arrow's place in the
 ## persistent five-craft yard. This deliberately begins before the guided
-## Torrent activity so an Arrow sortie cannot accidentally consume mission
-## state or replace the authored guide.
+## Torrent activity so Arrow freeplay remains available without replacing the
+## authored guide.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -144,19 +144,26 @@ func _run() -> void:
 		"automatic power alone preserves Arrow's occupied berth authority"
 	)
 
-	# Fire through the ship-owned command source. GameFlow should still produce a
-	# tracer/result, but its explicit reservation status must protect every guided
-	# range contact from damage or mission-counter mutation.
+	# Fire through the ship-owned command source. Freeplay weapons are available
+	# before the Torrent guide; this berth-facing shot misses its contacts and must
+	# route through Arrow's own profile rather than a tutorial-only weapon.
 	arrow.weapon_cooldown = 0.02
 	await _press_live_action(&"fire", 2)
 	await process_frame
-	var protected_result := game.get_last_player_shot_result()
-	_check(protected_result.get("status") == &"guided_range_reserved", "Arrow fire is explicitly rejected from the pending guided range")
-	_check(protected_result.get("source_entity") == arrow, "protected shot result retains Arrow source identity")
-	_check(int(protected_result.get("source_id", 0)) == 1102, "protected Arrow shot retains its stable combat source ID")
-	_check(game.destroyed_targets == 0, "Arrow fire cannot advance guided target progress")
-	_check(world.get_destroyed_target_count() == destroyed_before, "Arrow fire cannot mutate world target-destruction state")
-	_check(world.get_target_count() == target_total_before, "all guided range contacts remain registered")
+	var freeplay_result := game.get_last_player_shot_result()
+	var freeplay_request := freeplay_result.get("request") as ShotRequest
+	_check(
+		bool(freeplay_result.get("accepted", false))
+		and bool(freeplay_result.get("resolved", false))
+		and freeplay_request != null
+		and freeplay_request.weapon_id == GameFlow.ARROW_COMBAT_WEAPON_ID,
+		"Arrow live input resolves before guide completion through its own weapon profile"
+	)
+	_check(freeplay_result.get("source_entity") == arrow, "freeplay shot result retains Arrow source identity")
+	_check(int(freeplay_result.get("source_id", 0)) == 1102, "freeplay Arrow shot retains its stable combat source ID")
+	_check(game.destroyed_targets == 0, "the berth-facing Arrow shot does not advance guided target progress")
+	_check(world.get_destroyed_target_count() == destroyed_before, "the missed Arrow shot leaves world target-destruction state unchanged")
+	_check(world.get_target_count() == target_total_before, "all unhit guided range contacts remain registered")
 	for target in targets:
 		_check(
 			not bool(target.get_meta("destroyed", false))
@@ -164,7 +171,7 @@ func _run() -> void:
 				float(target.get_meta("health", -2.0)),
 				float(target_health_before.get(target.get_instance_id(), -1.0))
 			),
-			"%s retains full pre-guide health after Arrow fire" % target.name
+			"%s retains full health after the berth-facing Arrow shot" % target.name
 		)
 
 	# Depart under real thrust input, proving the sandbox does not treat the
@@ -340,7 +347,7 @@ func _run() -> void:
 	_check(torrent_launched, "Torrent departure reaches the guided launch phase inside its frame budget")
 	_check(game.phase == GameFlow.Phase.LAUNCH, "Torrent physical launch still enters the guided launch phase")
 	_check(not game.is_guided_activity_complete(), "entering Torrent launch does not prematurely complete the guide")
-	_check(game.destroyed_targets == 0 and world.get_destroyed_target_count() == destroyed_before, "all reserved target progress is intact for Torrent")
+	_check(game.destroyed_targets == 0 and world.get_destroyed_target_count() == destroyed_before, "all retained target progress is intact for Torrent")
 
 	await _clean_up(game)
 	_finish()

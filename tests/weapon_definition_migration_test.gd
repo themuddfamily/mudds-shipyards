@@ -17,7 +17,11 @@ const JOVIAN_SOURCE_ID := 1103
 const ZENITH_SOURCE_ID := 1104
 const HALYARD_SOURCE_ID := 1105
 const SOURCE_FACTION: StringName = &"shipyard_flight_test"
-const WEAPON_ID: StringName = &"combat_pulse_cannon"
+const TORRENT_WEAPON_ID: StringName = &"torrent_compact_pulse_cannon"
+const ARROW_WEAPON_ID: StringName = &"arrow_precision_recon_emitter"
+const ZENITH_WEAPON_ID: StringName = &"zenith_interceptor_repeater"
+const JOVIAN_WEAPON_ID: StringName = &"jovian_heavy_defensive_cannon"
+const HALYARD_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
 const ORIGIN_TOLERANCE := 24.0
 const JOVIAN_ORIGIN_TOLERANCE := 32.0
 const HALYARD_ORIGIN_TOLERANCE := 30.0
@@ -27,23 +31,23 @@ const TORRENT_EXPECTED_PROFILE := {
 	"origin_tolerance": ORIGIN_TOLERANCE,
 }
 const ARROW_EXPECTED_PROFILE := {
-	"range": 410.0,
-	"damage": 25.0,
+	"range": 480.0,
+	"damage": 24.0,
 	"origin_tolerance": ORIGIN_TOLERANCE,
 }
 const ZENITH_EXPECTED_PROFILE := {
-	"range": 390.0,
-	"damage": 27.0,
+	"range": 420.0,
+	"damage": 28.0,
 	"origin_tolerance": ORIGIN_TOLERANCE,
 }
 const JOVIAN_EXPECTED_PROFILE := {
-	"range": 315.0,
-	"damage": 23.0,
+	"range": 650.0,
+	"damage": 70.0,
 	"origin_tolerance": JOVIAN_ORIGIN_TOLERANCE,
 }
 const HALYARD_EXPECTED_PROFILE := {
-	"range": 280.0,
-	"damage": 18.0,
+	"range": 560.0,
+	"damage": 52.0,
 	"origin_tolerance": HALYARD_ORIGIN_TOLERANCE,
 }
 
@@ -77,6 +81,13 @@ func _run() -> void:
 	_test_zenith_checked_in_resource(zenith_definition)
 	_test_jovian_checked_in_resource(jovian_definition)
 	_test_halyard_checked_in_resource(halyard_definition)
+	_test_weapon_class_distinction(
+		torrent_definition,
+		arrow_definition,
+		zenith_definition,
+		jovian_definition,
+		halyard_definition
+	)
 	_test_pure_converter(torrent_definition)
 	_test_production_selection(
 		torrent_definition,
@@ -90,6 +101,7 @@ func _run() -> void:
 		TORRENT_SOURCE_ID,
 		ORIGIN_TOLERANCE,
 		TORRENT_EXPECTED_PROFILE,
+		TORRENT_WEAPON_ID,
 		360.0,
 		34.0,
 		"Torrent"
@@ -99,8 +111,9 @@ func _run() -> void:
 		ARROW_SOURCE_ID,
 		ORIGIN_TOLERANCE,
 		ARROW_EXPECTED_PROFILE,
-		410.0,
-		25.0,
+		ARROW_WEAPON_ID,
+		480.0,
+		24.0,
 		"Arrow"
 	)
 	await _test_authority_lifecycle(
@@ -108,8 +121,9 @@ func _run() -> void:
 		ZENITH_SOURCE_ID,
 		ORIGIN_TOLERANCE,
 		ZENITH_EXPECTED_PROFILE,
-		390.0,
-		27.0,
+		ZENITH_WEAPON_ID,
+		420.0,
+		28.0,
 		"Zenith"
 	)
 	await _test_authority_lifecycle(
@@ -117,8 +131,9 @@ func _run() -> void:
 		JOVIAN_SOURCE_ID,
 		JOVIAN_ORIGIN_TOLERANCE,
 		JOVIAN_EXPECTED_PROFILE,
-		315.0,
-		23.0,
+		JOVIAN_WEAPON_ID,
+		650.0,
+		70.0,
 		"Jovian"
 	)
 	await _test_authority_lifecycle(
@@ -126,8 +141,9 @@ func _run() -> void:
 		HALYARD_SOURCE_ID,
 		HALYARD_ORIGIN_TOLERANCE,
 		HALYARD_EXPECTED_PROFILE,
-		280.0,
-		18.0,
+		HALYARD_WEAPON_ID,
+		560.0,
+		52.0,
 		"Halyard"
 	)
 	_finish()
@@ -140,9 +156,9 @@ func _test_checked_in_resource(definition: WeaponDefinition) -> void:
 	_check(definition.resource_path == TORRENT_DEFINITION_PATH, "production definition has one checked-in resource identity")
 	_check(definition.is_definition_valid(), "production Torrent definition passes strict validation")
 	_check(
-		definition.weapon_id == WEAPON_ID
+		definition.weapon_id == TORRENT_WEAPON_ID
 			and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
-		"resource preserves the existing combat weapon ID and hitscan mode"
+		"resource preserves Torrent's distinct combat weapon ID and hitscan mode"
 	)
 	_check(
 		is_equal_approx(definition.range_meters, 360.0)
@@ -183,13 +199,13 @@ func _test_arrow_checked_in_resource(definition: WeaponDefinition) -> void:
 	)
 	_check(definition.is_definition_valid(), "production Arrow definition passes strict validation")
 	_check(
-		definition.weapon_id == WEAPON_ID
+		definition.weapon_id == ARROW_WEAPON_ID
 			and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
-		"Arrow resource preserves the existing combat weapon ID and hitscan mode"
+		"Arrow resource preserves its distinct combat weapon ID and hitscan mode"
 	)
 	_check(
-		is_equal_approx(definition.range_meters, 410.0)
-			and is_equal_approx(definition.damage_per_hit, 25.0),
+		is_equal_approx(definition.range_meters, 480.0)
+			and is_equal_approx(definition.damage_per_hit, 24.0),
 		"Arrow resource preserves its exact production range and damage"
 	)
 	_check(
@@ -217,13 +233,13 @@ func _test_arrow_checked_in_resource(definition: WeaponDefinition) -> void:
 	var converted := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
 	)
-	(converted.get(WEAPON_ID, {}) as Dictionary)["range"] = -1.0
+	(converted.get(ARROW_WEAPON_ID, {}) as Dictionary)["range"] = -1.0
 	var fresh := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
 	)
 	_check(
-		(fresh.get(WEAPON_ID, {}) as Dictionary) == ARROW_EXPECTED_PROFILE
-			and is_equal_approx(definition.range_meters, 410.0),
+		(fresh.get(ARROW_WEAPON_ID, {}) as Dictionary) == ARROW_EXPECTED_PROFILE
+			and is_equal_approx(definition.range_meters, 480.0),
 		"Arrow conversion output is detached from the resource and later conversions"
 	)
 
@@ -238,13 +254,13 @@ func _test_zenith_checked_in_resource(definition: WeaponDefinition) -> void:
 	)
 	_check(definition.is_definition_valid(), "production Zenith definition passes strict validation")
 	_check(
-		definition.weapon_id == WEAPON_ID
+		definition.weapon_id == ZENITH_WEAPON_ID
 			and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
-		"Zenith resource preserves the existing combat weapon ID and hitscan mode"
+		"Zenith resource preserves its distinct combat weapon ID and hitscan mode"
 	)
 	_check(
-		is_equal_approx(definition.range_meters, 390.0)
-			and is_equal_approx(definition.damage_per_hit, 27.0),
+		is_equal_approx(definition.range_meters, 420.0)
+			and is_equal_approx(definition.damage_per_hit, 28.0),
 		"Zenith resource preserves its exact production range and damage"
 	)
 	_check(
@@ -272,13 +288,13 @@ func _test_zenith_checked_in_resource(definition: WeaponDefinition) -> void:
 	var converted := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
 	)
-	(converted.get(WEAPON_ID, {}) as Dictionary)["damage"] = -1.0
+	(converted.get(ZENITH_WEAPON_ID, {}) as Dictionary)["damage"] = -1.0
 	var fresh := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
 	)
 	_check(
-		(fresh.get(WEAPON_ID, {}) as Dictionary) == ZENITH_EXPECTED_PROFILE
-			and is_equal_approx(definition.damage_per_hit, 27.0),
+		(fresh.get(ZENITH_WEAPON_ID, {}) as Dictionary) == ZENITH_EXPECTED_PROFILE
+			and is_equal_approx(definition.damage_per_hit, 28.0),
 		"Zenith conversion output is detached from the resource and later conversions"
 	)
 
@@ -293,13 +309,13 @@ func _test_jovian_checked_in_resource(definition: WeaponDefinition) -> void:
 	)
 	_check(definition.is_definition_valid(), "production Jovian definition passes strict validation")
 	_check(
-		definition.weapon_id == WEAPON_ID
+		definition.weapon_id == JOVIAN_WEAPON_ID
 			and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
-		"Jovian resource preserves the existing combat weapon ID and hitscan mode"
+		"Jovian resource preserves its distinct combat weapon ID and hitscan mode"
 	)
 	_check(
-		is_equal_approx(definition.range_meters, 315.0)
-			and is_equal_approx(definition.damage_per_hit, 23.0),
+		is_equal_approx(definition.range_meters, 650.0)
+			and is_equal_approx(definition.damage_per_hit, 70.0),
 		"Jovian resource preserves its exact production range and damage"
 	)
 	_check(
@@ -327,13 +343,13 @@ func _test_jovian_checked_in_resource(definition: WeaponDefinition) -> void:
 	var converted := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, JOVIAN_ORIGIN_TOLERANCE
 	)
-	(converted.get(WEAPON_ID, {}) as Dictionary)["origin_tolerance"] = -1.0
+	(converted.get(JOVIAN_WEAPON_ID, {}) as Dictionary)["origin_tolerance"] = -1.0
 	var fresh := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, JOVIAN_ORIGIN_TOLERANCE
 	)
 	_check(
-		(fresh.get(WEAPON_ID, {}) as Dictionary) == JOVIAN_EXPECTED_PROFILE
-			and is_equal_approx(definition.range_meters, 315.0),
+		(fresh.get(JOVIAN_WEAPON_ID, {}) as Dictionary) == JOVIAN_EXPECTED_PROFILE
+			and is_equal_approx(definition.range_meters, 650.0),
 		"Jovian conversion output is detached from the resource and later conversions"
 	)
 
@@ -348,13 +364,13 @@ func _test_halyard_checked_in_resource(definition: WeaponDefinition) -> void:
 	)
 	_check(definition.is_definition_valid(), "production Halyard definition passes strict validation")
 	_check(
-		definition.weapon_id == WEAPON_ID
+		definition.weapon_id == HALYARD_WEAPON_ID
 			and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
-		"Halyard resource preserves the existing combat weapon ID and hitscan mode"
+		"Halyard resource preserves its distinct combat weapon ID and hitscan mode"
 	)
 	_check(
-		is_equal_approx(definition.range_meters, 280.0)
-			and is_equal_approx(definition.damage_per_hit, 18.0),
+		is_equal_approx(definition.range_meters, 560.0)
+			and is_equal_approx(definition.damage_per_hit, 52.0),
 		"Halyard resource preserves its exact production range and damage"
 	)
 	_check(
@@ -382,15 +398,71 @@ func _test_halyard_checked_in_resource(definition: WeaponDefinition) -> void:
 	var converted := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, HALYARD_ORIGIN_TOLERANCE
 	)
-	(converted.get(WEAPON_ID, {}) as Dictionary)["damage"] = -1.0
+	(converted.get(HALYARD_WEAPON_ID, {}) as Dictionary)["damage"] = -1.0
 	var fresh := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, HALYARD_ORIGIN_TOLERANCE
 	)
 	_check(
-		(fresh.get(WEAPON_ID, {}) as Dictionary) == HALYARD_EXPECTED_PROFILE
-			and is_equal_approx(definition.damage_per_hit, 18.0),
+		(fresh.get(HALYARD_WEAPON_ID, {}) as Dictionary) == HALYARD_EXPECTED_PROFILE
+			and is_equal_approx(definition.damage_per_hit, 52.0),
 		"Halyard conversion output is detached from the resource and later conversions"
 	)
+
+
+func _test_weapon_class_distinction(
+	torrent_definition: WeaponDefinition,
+	arrow_definition: WeaponDefinition,
+	zenith_definition: WeaponDefinition,
+	jovian_definition: WeaponDefinition,
+	halyard_definition: WeaponDefinition
+	) -> void:
+	if (
+		torrent_definition == null
+		or arrow_definition == null
+		or zenith_definition == null
+		or jovian_definition == null
+		or halyard_definition == null
+	):
+		return
+	var definitions: Array[WeaponDefinition] = [
+		torrent_definition,
+		arrow_definition,
+		zenith_definition,
+		jovian_definition,
+		halyard_definition,
+	]
+	var weapon_ids := {}
+	for definition in definitions:
+		weapon_ids[definition.weapon_id] = true
+	_check(
+		weapon_ids.size() == definitions.size(),
+		"every selectable ship has a unique combat weapon ID"
+	)
+
+	var small_definitions: Array[WeaponDefinition] = [
+		torrent_definition,
+		arrow_definition,
+		zenith_definition,
+	]
+	var medium_definitions: Array[WeaponDefinition] = [
+		jovian_definition,
+		halyard_definition,
+	]
+	for medium_definition in medium_definitions:
+		var exceeds_every_small := true
+		for small_definition in small_definitions:
+			exceeds_every_small = (
+				exceeds_every_small
+				and medium_definition.damage_per_hit > small_definition.damage_per_hit
+				and medium_definition.range_meters > small_definition.range_meters
+				and medium_definition.cadence_shots_per_second
+					< small_definition.cadence_shots_per_second
+			)
+		_check(
+			exceeds_every_small,
+			"%s medium weapon exceeds every small craft in per-shot damage and range with slower cadence"
+				% medium_definition.weapon_id
+		)
 
 
 func _test_pure_converter(definition: WeaponDefinition) -> void:
@@ -401,16 +473,16 @@ func _test_pure_converter(definition: WeaponDefinition) -> void:
 	)
 	_check(
 		profiles.size() == 1
-			and profiles.has(WEAPON_ID)
-			and (profiles[WEAPON_ID] as Dictionary) == TORRENT_EXPECTED_PROFILE,
+			and profiles.has(TORRENT_WEAPON_ID)
+			and (profiles[TORRENT_WEAPON_ID] as Dictionary) == TORRENT_EXPECTED_PROFILE,
 		"converter emits the exact existing detached resolver profile shape"
 	)
-	(profiles[WEAPON_ID] as Dictionary)["damage"] = -1.0
+	(profiles[TORRENT_WEAPON_ID] as Dictionary)["damage"] = -1.0
 	var fresh := ConverterScript.to_resolver_profiles(
 		definition, SOURCE_FACTION, ORIGIN_TOLERANCE
 	)
 	_check(
-		(fresh[WEAPON_ID] as Dictionary) == TORRENT_EXPECTED_PROFILE
+		(fresh[TORRENT_WEAPON_ID] as Dictionary) == TORRENT_EXPECTED_PROFILE
 			and is_equal_approx(definition.damage_per_hit, 34.0),
 		"mutating converted nested data cannot alter the definition or a later conversion"
 	)
@@ -519,7 +591,7 @@ func _test_production_selection(
 	var profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
 	_check(
 		profiles.size() == 2
-			and (profiles.get(WEAPON_ID, {}) as Dictionary) == TORRENT_EXPECTED_PROFILE,
+			and (profiles.get(TORRENT_WEAPON_ID, {}) as Dictionary) == TORRENT_EXPECTED_PROFILE,
 		"production Torrent selection combines the migrated combat profile with the unchanged range profile"
 	)
 	_check(
@@ -531,7 +603,9 @@ func _test_production_selection(
 		"Torrent's separate range-target pulse remains exactly unchanged"
 	)
 	_check(
-		not GameFlow.PLAYER_WEAPON_PROFILES.has(WEAPON_ID),
+		GameFlow.PLAYER_WEAPON_PROFILES.size() == 1
+			and GameFlow.PLAYER_WEAPON_PROFILES.has(GameFlow.RANGE_WEAPON_ID)
+			and not GameFlow.PLAYER_WEAPON_PROFILES.has(TORRENT_WEAPON_ID),
 		"production constants contain no legacy Torrent combat fallback"
 	)
 	_check(
@@ -550,7 +624,7 @@ func _test_production_selection(
 	var arrow_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
 	_check(
 		arrow_profiles.size() == 2
-			and (arrow_profiles.get(WEAPON_ID, {}) as Dictionary) == ARROW_EXPECTED_PROFILE,
+			and (arrow_profiles.get(ARROW_WEAPON_ID, {}) as Dictionary) == ARROW_EXPECTED_PROFILE,
 		"production Arrow selection combines the migrated combat profile with the unchanged range profile"
 	)
 	_check(
@@ -580,7 +654,7 @@ func _test_production_selection(
 	) as Dictionary
 	_check(
 		rejected_mutation.is_empty()
-			and (restored_profiles.get(WEAPON_ID, {}) as Dictionary)
+			and (restored_profiles.get(ARROW_WEAPON_ID, {}) as Dictionary)
 				== ARROW_EXPECTED_PROFILE,
 		"invalid live Arrow resource mutation fails closed without a legacy fallback and restores cleanly"
 	)
@@ -595,7 +669,7 @@ func _test_production_selection(
 	var zenith_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
 	_check(
 		zenith_profiles.size() == 2
-			and (zenith_profiles.get(WEAPON_ID, {}) as Dictionary) == ZENITH_EXPECTED_PROFILE,
+			and (zenith_profiles.get(ZENITH_WEAPON_ID, {}) as Dictionary) == ZENITH_EXPECTED_PROFILE,
 		"production Zenith selection combines the migrated combat profile with the unchanged range profile"
 	)
 	_check(
@@ -625,7 +699,7 @@ func _test_production_selection(
 	) as Dictionary
 	_check(
 		rejected_zenith_mutation.is_empty()
-			and (restored_zenith_profiles.get(WEAPON_ID, {}) as Dictionary)
+			and (restored_zenith_profiles.get(ZENITH_WEAPON_ID, {}) as Dictionary)
 				== ZENITH_EXPECTED_PROFILE,
 		"invalid live Zenith resource mutation fails closed without a legacy fallback and restores cleanly"
 	)
@@ -640,7 +714,7 @@ func _test_production_selection(
 	var jovian_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
 	_check(
 		jovian_profiles.size() == 2
-			and (jovian_profiles.get(WEAPON_ID, {}) as Dictionary) == JOVIAN_EXPECTED_PROFILE,
+			and (jovian_profiles.get(JOVIAN_WEAPON_ID, {}) as Dictionary) == JOVIAN_EXPECTED_PROFILE,
 		"production Jovian selection combines the migrated combat profile with the unchanged range profile"
 	)
 	_check(
@@ -670,7 +744,7 @@ func _test_production_selection(
 	) as Dictionary
 	_check(
 		rejected_jovian_mutation.is_empty()
-			and (restored_jovian_profiles.get(WEAPON_ID, {}) as Dictionary)
+			and (restored_jovian_profiles.get(JOVIAN_WEAPON_ID, {}) as Dictionary)
 				== JOVIAN_EXPECTED_PROFILE,
 		"invalid live Jovian resource mutation fails closed without a legacy fallback and restores cleanly"
 	)
@@ -684,7 +758,7 @@ func _test_production_selection(
 	var halyard_profiles := flow.call("_get_player_weapon_profiles", candidate) as Dictionary
 	_check(
 		halyard_profiles.size() == 2
-			and (halyard_profiles.get(WEAPON_ID, {}) as Dictionary) == HALYARD_EXPECTED_PROFILE,
+			and (halyard_profiles.get(HALYARD_WEAPON_ID, {}) as Dictionary) == HALYARD_EXPECTED_PROFILE,
 		"production Halyard selection combines the migrated combat profile with the unchanged range profile"
 	)
 	_check(
@@ -714,7 +788,7 @@ func _test_production_selection(
 	) as Dictionary
 	_check(
 		rejected_halyard_mutation.is_empty()
-			and (restored_halyard_profiles.get(WEAPON_ID, {}) as Dictionary)
+			and (restored_halyard_profiles.get(HALYARD_WEAPON_ID, {}) as Dictionary)
 				== HALYARD_EXPECTED_PROFILE,
 		"invalid live Halyard resource mutation fails closed without a legacy fallback and restores cleanly"
 	)
@@ -731,7 +805,11 @@ func _test_production_selection(
 	_check(
 		legacy_probe_profiles.size() == 1
 			and legacy_probe_profiles.has(GameFlow.RANGE_WEAPON_ID)
-			and not legacy_probe_profiles.has(WEAPON_ID),
+			and not legacy_probe_profiles.has(TORRENT_WEAPON_ID)
+			and not legacy_probe_profiles.has(ARROW_WEAPON_ID)
+			and not legacy_probe_profiles.has(ZENITH_WEAPON_ID)
+			and not legacy_probe_profiles.has(JOVIAN_WEAPON_ID)
+			and not legacy_probe_profiles.has(HALYARD_WEAPON_ID),
 		"unknown player identity cannot enter combat through a legacy override fallback"
 	)
 	candidate.free()
@@ -743,6 +821,7 @@ func _test_authority_lifecycle(
 	source_id: int,
 	origin_tolerance: float,
 	expected_profile: Dictionary,
+	weapon_id: StringName,
 	expected_range: float,
 	expected_damage: float,
 	label: String
@@ -772,11 +851,11 @@ func _test_authority_lifecycle(
 		"%s converted profile registers through the unchanged LiveCombatAuthority API" % label
 	)
 	_check(
-		authority.get_weapon_profile(source, WEAPON_ID) == expected_profile,
+		authority.get_weapon_profile(source, weapon_id) == expected_profile,
 		"%s authority stores the exact converted resolver envelope" % label
 	)
 	var first := authority.submit_hitscan_with_deferred_presentation(
-		source, WEAPON_ID, source.global_position, Vector3.UP
+		source, weapon_id, source.global_position, Vector3.UP
 	)
 	var first_request: ShotRequest = (
 		_captured_requests.back() if not _captured_requests.is_empty() else null
@@ -787,7 +866,7 @@ func _test_authority_lifecycle(
 			and first_request != null
 			and first_request.source_id == source_id
 			and first_request.faction_id == SOURCE_FACTION
-			and first_request.weapon_id == WEAPON_ID
+			and first_request.weapon_id == weapon_id
 			and first_request.sequence == 0
 			and first_request.presentation_receipt_id == 1
 			and is_equal_approx(first_request.range, expected_range)
@@ -824,7 +903,7 @@ func _test_authority_lifecycle(
 		"%s conversion cannot revive a stale pre-detach source generation" % label
 	)
 	var second := authority.submit_hitscan_with_deferred_presentation(
-		source, WEAPON_ID, source.global_position, Vector3.UP
+		source, weapon_id, source.global_position, Vector3.UP
 	)
 	var second_request: ShotRequest = (
 		_captured_requests.back() if not _captured_requests.is_empty() else null
@@ -836,10 +915,10 @@ func _test_authority_lifecycle(
 			and second_request.presentation_receipt_id == 2,
 		"%s re-entry preserves monotonic source sequence and session receipt identity" % label
 	)
-	var returned_profile := authority.get_weapon_profile(source, WEAPON_ID)
+	var returned_profile := authority.get_weapon_profile(source, weapon_id)
 	returned_profile["damage"] = -1.0
 	_check(
-		authority.get_weapon_profile(source, WEAPON_ID) == expected_profile,
+		authority.get_weapon_profile(source, weapon_id) == expected_profile,
 		"%s authority profile getter remains detached after converted registration" % label
 	)
 

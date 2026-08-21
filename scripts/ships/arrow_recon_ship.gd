@@ -101,6 +101,27 @@ const ARRAY_RECEIVER_RADIUS := 0.15
 const ARRAY_RECEIVER_VISIBLE_COPIES := 2
 const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
 const BOARDING_STEP_VISIBLE_COPIES := 3
+const RECON_PULSE_EMITTER_NAMES := [
+	"PortReconPulseEmitter",
+	"StarboardReconPulseEmitter",
+]
+const RECON_PULSE_EMITTER_POSITIONS := [
+	Vector3(-1.05, 0.72, -5.7),
+	Vector3(1.05, 0.72, -5.7),
+]
+const RECON_PULSE_EMITTER_COMPONENT_ROSTER := [
+	"RecessedGraphiteMount",
+	"CompactGraphiteShroud",
+	"LightPulseBarrel",
+	"CyanMuzzleLens",
+]
+const RECON_PULSE_MOUNT_SIZE := Vector3(0.38, 0.22, 0.62)
+const RECON_PULSE_BARREL_RADIUS := 0.09
+const RECON_PULSE_BARREL_LENGTH := 0.4
+const RECON_PULSE_SHROUD_INNER_RADIUS := 0.105
+const RECON_PULSE_SHROUD_OUTER_RADIUS := 0.155
+const RECON_PULSE_MUZZLE_LENS_RADIUS := 0.075
+const RECON_PULSE_MUZZLE_LENS_DEPTH := 0.02
 const ENTRY_HEAT_TARGET_SCENE: PackedScene = preload(
 	"res://scenes/effects/planetary_entry_heat_target.tscn"
 )
@@ -136,13 +157,20 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 179,
-	"mesh_instance_nodes": 158,
+	"nodes": 189,
+	"mesh_instance_nodes": 166,
 	"multi_mesh_instance_nodes": 1,
-	"geometry_submissions": 159,
-	"visible_geometry_copies": 160,
-	"unique_mesh_resource_allocations": 123,
+	"geometry_submissions": 167,
+	"visible_geometry_copies": 168,
+	"unique_mesh_resource_allocations": 127,
 	"auto_fallback_names": 23,
+}
+const RECON_PULSE_EMITTER_VISUAL_DELTA := {
+	"assembly_nodes": 2,
+	"renderer_nodes": 8,
+	"geometry_submissions": 8,
+	"visible_geometry_copies": 8,
+	"unique_mesh_resource_allocations": 4,
 }
 const ENTRY_HEAT_TARGET_VISUAL_DELTA := {
 	"target_subtree_nodes": 3,
@@ -303,9 +331,10 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"wing_root_rib_batch": {},
 			"lateral_array_curve_joint_sharing": {},
 			"sensor_leading_edge_curve_joint_sharing": {},
-		"dorsal_data_conduit_curve_joint_sharing": {},
-		"fuselage_panel_band_mesh_sharing": {},
-		"array_receiver_mesh_sharing": {},
+			"dorsal_data_conduit_curve_joint_sharing": {},
+			"fuselage_panel_band_mesh_sharing": {},
+			"array_receiver_mesh_sharing": {},
+			"recon_pulse_emitters": {},
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
@@ -330,6 +359,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var receivers := _inspect_array_receiver_mesh_sharing()
 	if not bool(receivers.valid):
 		errors.append_array(receivers.errors as PackedStringArray)
+	var pulse_emitters := _inspect_recon_pulse_emitters()
+	if not bool(pulse_emitters.valid):
+		errors.append_array(pulse_emitters.errors as PackedStringArray)
 	var entry_heat_target := _inspect_entry_heat_attachment()
 	if not bool(entry_heat_target.valid):
 		errors.append_array(entry_heat_target.errors as PackedStringArray)
@@ -339,14 +371,15 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
 		"phase9_before_entry_heat": PHASE9_ARROW_VISUAL_CENSUS.duplicate(true),
 		"expected": EXPECTED_ARROW_VISUAL_CENSUS.duplicate(true),
+		"recon_pulse_emitter_delta": RECON_PULSE_EMITTER_VISUAL_DELTA.duplicate(true),
 		"current": current,
 		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),
 		"reductions": {
-			"nodes": -2,
-			"geometry_submissions": 0,
-			"unique_mesh_resource_allocations": 19,
+			"nodes": -12,
+			"geometry_submissions": -8,
+			"unique_mesh_resource_allocations": 15,
 			"auto_fallback_names": 1,
-			"visible_geometry_copies": -1,
+			"visible_geometry_copies": -9,
 		},
 		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
@@ -361,6 +394,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"dorsal_data_conduit_curve_joint_sharing": dorsal_conduit_joints,
 		"fuselage_panel_band_mesh_sharing": panel_bands,
 		"array_receiver_mesh_sharing": receivers,
+		"recon_pulse_emitters": pulse_emitters,
 		"entry_heat_target": entry_heat_target,
 	}.duplicate(true)
 
@@ -426,6 +460,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_create_arrow_materials()
 	_build_slender_airframe()
 	_build_recon_systems()
+	_build_recon_pulse_emitters()
 	_build_escape_pods()
 	_build_engines_and_landing_gear()
 	_restyle_inherited_cockpit(cockpit, canopy)
@@ -687,6 +722,73 @@ func _build_recon_systems() -> void:
 			_arrow_materials.sensor,
 			_lateral_array_curve_joint_mesh
 		)
+
+
+func _build_recon_pulse_emitters() -> void:
+	# These small, recessed emitters are a modern provisional presentation of
+	# the inherited light-pulse gameplay markers. They are deliberately separate
+	# from the ventral optical/spectral gimbal and own no collision or firing
+	# authority. At 0.09 m radius the barrels remain visibly lighter than the
+	# Torrent's 0.13 m and Jovian's 0.19 m pulse barrels.
+	var port_emitter := Node3D.new()
+	port_emitter.name = RECON_PULSE_EMITTER_NAMES[0]
+	port_emitter.position = RECON_PULSE_EMITTER_POSITIONS[0]
+	_configure_recon_pulse_emitter_metadata(port_emitter, &"port")
+	_arrow_visual.add_child(port_emitter)
+	_box(
+		port_emitter,
+		"RecessedGraphiteMount",
+		Vector3(0.0, 0.09, 0.31),
+		RECON_PULSE_MOUNT_SIZE,
+		_arrow_materials.graphite
+	)
+	_torus(
+		port_emitter,
+		"CompactGraphiteShroud",
+		Vector3(0.0, 0.0, 0.08),
+		RECON_PULSE_SHROUD_INNER_RADIUS,
+		RECON_PULSE_SHROUD_OUTER_RADIUS,
+		_arrow_materials.graphite,
+		Vector3(90.0, 0.0, 0.0)
+	)
+	_cylinder(
+		port_emitter,
+		"LightPulseBarrel",
+		Vector3(0.0, 0.0, RECON_PULSE_BARREL_LENGTH * 0.5),
+		RECON_PULSE_BARREL_RADIUS,
+		RECON_PULSE_BARREL_LENGTH,
+		_arrow_materials.graphite,
+		Vector3(90.0, 0.0, 0.0)
+	)
+	_cylinder(
+		port_emitter,
+		"CyanMuzzleLens",
+		Vector3.ZERO,
+		RECON_PULSE_MUZZLE_LENS_RADIUS,
+		RECON_PULSE_MUZZLE_LENS_DEPTH,
+		_arrow_materials.sensor,
+		Vector3(90.0, 0.0, 0.0)
+	)
+
+	# The mirrored assembly shares the exact four immutable mesh resources while
+	# retaining its own named nodes, side tag, and authored muzzle alignment.
+	var starboard_emitter := port_emitter.duplicate() as Node3D
+	starboard_emitter.name = RECON_PULSE_EMITTER_NAMES[1]
+	starboard_emitter.position = RECON_PULSE_EMITTER_POSITIONS[1]
+	starboard_emitter.set_meta("weapon_side", &"starboard")
+	_arrow_visual.add_child(starboard_emitter)
+
+
+func _configure_recon_pulse_emitter_metadata(
+	emitter: Node3D, side: StringName
+	) -> void:
+	emitter.set_meta("presentation_status", &"modern_provisional")
+	emitter.set_meta("geometry_status", EVIDENCE_STATUS)
+	emitter.set_meta("authenticated_historical_weapon", false)
+	emitter.set_meta("weapon_class", &"light_recon_pulse")
+	emitter.set_meta("weapon_side", side)
+	emitter.set_meta("visual_only", true)
+	emitter.set_meta("gameplay_authority", false)
 
 
 func _build_escape_pods() -> void:
@@ -961,6 +1063,99 @@ func _collect_arrow_visual_census() -> Dictionary:
 		"unique_mesh_resource_allocations": unique_mesh_resources.size(),
 		"auto_fallback_names": auto_fallback_names,
 	}
+
+
+func _inspect_recon_pulse_emitters() -> Dictionary:
+	var errors := PackedStringArray()
+	var roster := PackedStringArray()
+	var mesh_resources := {}
+	var renderer_nodes := 0
+	for index in RECON_PULSE_EMITTER_NAMES.size():
+		var emitter_name: String = RECON_PULSE_EMITTER_NAMES[index]
+		var emitter := _arrow_visual.get_node_or_null(emitter_name) as Node3D
+		if emitter == null:
+			errors.append("Arrow recon pulse-emitter roster is missing %s" % emitter_name)
+			continue
+		roster.append(str(emitter.name))
+		if emitter.get_parent() != _arrow_visual \
+				or emitter.position != RECON_PULSE_EMITTER_POSITIONS[index] \
+				or emitter.rotation != Vector3.ZERO \
+				or emitter.scale != Vector3.ONE:
+			errors.append("%s authored muzzle alignment drift" % emitter_name)
+		var marker_name := "LeftMuzzle" if index == 0 else "RightMuzzle"
+		var marker := get_node_or_null(marker_name) as Marker3D
+		if marker == null or marker.position != emitter.position:
+			errors.append("%s no longer aligns to %s" % [emitter_name, marker_name])
+		var expected_side: StringName = &"port" if index == 0 else &"starboard"
+		if emitter.get_meta("presentation_status", &"") != &"modern_provisional" \
+				or emitter.get_meta("geometry_status", &"") != EVIDENCE_STATUS \
+				or bool(emitter.get_meta("authenticated_historical_weapon", true)) \
+				or emitter.get_meta("weapon_class", &"") != &"light_recon_pulse" \
+				or emitter.get_meta("weapon_side", &"") != expected_side \
+				or not bool(emitter.get_meta("visual_only", false)) \
+				or bool(emitter.get_meta("gameplay_authority", true)):
+			errors.append("%s modern provisional presentation tags drift" % emitter_name)
+		if emitter.get_child_count() != RECON_PULSE_EMITTER_COMPONENT_ROSTER.size():
+			errors.append("%s exact four-component roster drift" % emitter_name)
+		for component_name: String in RECON_PULSE_EMITTER_COMPONENT_ROSTER:
+			var component := emitter.get_node_or_null(component_name) as MeshInstance3D
+			if component == null or component.get_parent() != emitter \
+					or component.mesh == null:
+				errors.append("%s is missing %s" % [emitter_name, component_name])
+				continue
+			renderer_nodes += 1
+			mesh_resources[component.mesh.get_instance_id()] = true
+			if component.find_children("*", "CollisionObject3D", true, false).size() > 0:
+				errors.append("%s gained collision authority" % component.get_path())
+
+		var mount := emitter.get_node_or_null("RecessedGraphiteMount") as MeshInstance3D
+		var shroud := emitter.get_node_or_null("CompactGraphiteShroud") as MeshInstance3D
+		var barrel := emitter.get_node_or_null("LightPulseBarrel") as MeshInstance3D
+		var lens := emitter.get_node_or_null("CyanMuzzleLens") as MeshInstance3D
+		if mount == null or not (mount.mesh is BoxMesh) \
+				or (mount.mesh as BoxMesh).size != RECON_PULSE_MOUNT_SIZE \
+				or mount.position != Vector3(0.0, 0.09, 0.31) \
+				or (mount.mesh as BoxMesh).material != _arrow_materials.graphite:
+			errors.append("%s compact graphite recessed-mount dimensions drift" % emitter_name)
+		if shroud == null or not (shroud.mesh is TorusMesh) \
+				or not is_equal_approx((shroud.mesh as TorusMesh).inner_radius, RECON_PULSE_SHROUD_INNER_RADIUS) \
+				or not is_equal_approx((shroud.mesh as TorusMesh).outer_radius, RECON_PULSE_SHROUD_OUTER_RADIUS) \
+				or shroud.position != Vector3(0.0, 0.0, 0.08) \
+				or not shroud.rotation.is_equal_approx(Vector3(PI * 0.5, 0.0, 0.0)) \
+				or (shroud.mesh as TorusMesh).material != _arrow_materials.graphite:
+			errors.append("%s compact graphite shroud dimensions drift" % emitter_name)
+		if barrel == null or barrel.mesh == null \
+				or barrel.position != Vector3(0.0, 0.0, RECON_PULSE_BARREL_LENGTH * 0.5) \
+				or not barrel.rotation.is_equal_approx(Vector3(PI * 0.5, 0.0, 0.0)) \
+				or not is_equal_approx(barrel.mesh.get_aabb().size.x, RECON_PULSE_BARREL_RADIUS * 2.0) \
+				or not is_equal_approx(barrel.mesh.get_aabb().size.z, RECON_PULSE_BARREL_RADIUS * 2.0) \
+				or not is_equal_approx(barrel.mesh.get_aabb().size.y, RECON_PULSE_BARREL_LENGTH) \
+				or barrel.mesh.surface_get_material(0) != _arrow_materials.graphite:
+			errors.append("%s 0.09m light-pulse barrel dimensions drift" % emitter_name)
+		if lens == null or lens.mesh == null \
+				or lens.position != Vector3.ZERO \
+				or not lens.rotation.is_equal_approx(Vector3(PI * 0.5, 0.0, 0.0)) \
+				or not is_equal_approx(lens.mesh.get_aabb().size.x, RECON_PULSE_MUZZLE_LENS_RADIUS * 2.0) \
+				or not is_equal_approx(lens.mesh.get_aabb().size.y, RECON_PULSE_MUZZLE_LENS_DEPTH) \
+				or lens.mesh.surface_get_material(0) != _arrow_materials.sensor:
+			errors.append("%s cyan muzzle-lens dimensions or material drift" % emitter_name)
+		if not emitter.find_children("*", "CollisionObject3D", true, false).is_empty():
+			errors.append("%s must remain an uncollidable visual assembly" % emitter_name)
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"assembly_roster": roster,
+		"component_roster": RECON_PULSE_EMITTER_COMPONENT_ROSTER.duplicate(),
+		"assembly_nodes": roster.size(),
+		"renderer_nodes": renderer_nodes,
+		"geometry_submissions": renderer_nodes,
+		"visible_geometry_copies": renderer_nodes,
+		"unique_mesh_resource_allocations": mesh_resources.size(),
+		"barrel_radius": RECON_PULSE_BARREL_RADIUS,
+		"barrel_length": RECON_PULSE_BARREL_LENGTH,
+		"mount_size": RECON_PULSE_MOUNT_SIZE,
+		"muzzle_positions": RECON_PULSE_EMITTER_POSITIONS.duplicate(),
+	}.duplicate(true)
 
 
 func _inspect_entry_heat_attachment() -> Dictionary:

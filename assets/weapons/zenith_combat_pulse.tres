@@ -4,13 +4,13 @@
 
 [resource]
 script = ExtResource("1_definition")
-weapon_id = &"combat_pulse_cannon"
-display_name = "Zenith combat pulse cannon"
+weapon_id = &"zenith_interceptor_repeater"
+display_name = "Zenith Interceptor Repeater"
 resolution_mode = 0
 evidence_status = 2
-evidence_notes = "New prototype balance migrated exactly from the production Zenith combat pulse; not a recovered historical weapon specification."
-range_meters = 390.0
-damage_per_hit = 27.0
+evidence_notes = "New modern role balance for the fast-firing Zenith interceptor; not a recovered historical weapon specification."
+range_meters = 420.0
+damage_per_hit = 28.0
 cadence_shots_per_second = 4.16666666666667
 faction_policy = 0
 friendly_fire_policy = 0

@@ -172,21 +172,21 @@ const TORRENT_VENT_LOUVERS_PER_BANK := 6
 const TORRENT_VENT_LOUVER_COPY_COUNT := 12
 const TORRENT_CAPTURE_JAW_COPY_COUNT := 4
 # Component-local render census retains all close art and semantic/system roots.
-# The two louvre batches reduce 219 to 208 meshes; the four unchanged capture
-# jaw renderers then share one immutable mesh, reducing that roster to 205.
-const TORRENT_RENDER_DESCENDANT_COUNT := 293
-const TORRENT_RENDER_MESH_INSTANCE_COUNT := 235
+# The two louvre batches and four shared capture jaws retain the frozen base
+# census; six compact weapon-detail meshes extend that roster explicitly.
+const TORRENT_RENDER_DESCENDANT_COUNT := 299
+const TORRENT_RENDER_MESH_INSTANCE_COUNT := 241
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 2
-const TORRENT_RENDER_DRAWN_COPY_COUNT := 247
-const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 237
-const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 205
-const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 36
-const TORRENT_MODERN_DESCENDANT_COUNT := 107
-const TORRENT_MODERN_MESH_INSTANCE_COUNT := 89
-const TORRENT_MODERN_DRAWN_COPY_COUNT := 101
-const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 91
-const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 70
-const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 10
+const TORRENT_RENDER_DRAWN_COPY_COUNT := 253
+const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 243
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 209
+const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 37
+const TORRENT_MODERN_DESCENDANT_COUNT := 113
+const TORRENT_MODERN_MESH_INSTANCE_COUNT := 95
+const TORRENT_MODERN_DRAWN_COPY_COUNT := 107
+const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 97
+const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 74
+const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 11
 
 @export_category("Identity")
 @export var ship_id: StringName = &"torrent_test_article_01"
@@ -3954,11 +3954,23 @@ func _build_torrent_modern_systems() -> void:
 	var weapons := Node3D.new()
 	weapons.name = "Weapons"
 	weapons.set_meta("presentation_only", true)
+	weapons.set_meta("weapon_class", &"compact_twin_pulse_cannon")
+	weapons.set_meta("mount_scale", &"interceptor_light")
+	weapons.set_meta("historically_supported", false)
+	_tag_modern_interpretation(weapons)
 	modern.add_child(weapons)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(weapons, side_name + "GunRail", Vector3(side * 2.82, 0.42, -2.18), Vector3(0.22, 0.22, 1.45), _materials.dark)
-		_cylinder(weapons, side_name + "PulseCannon", Vector3(side * 2.82, 0.42, -3.02), 0.13, 0.72, _materials.structure, Vector3(90.0, 0.0, 0.0))
+		var rail := _box(weapons, side_name + "GunRail", Vector3(side * 2.82, 0.42, -2.18), Vector3(0.22, 0.22, 1.45), _materials.dark)
+		var cannon := _cylinder(weapons, side_name + "PulseCannon", Vector3(side * 2.82, 0.42, -3.02), 0.13, 0.72, _materials.structure, Vector3(90.0, 0.0, 0.0))
+		var shroud := _box(weapons, side_name + "CannonShroud", Vector3(side * 2.82, 0.42, -2.68), Vector3(0.38, 0.32, 0.40), _materials.dark)
+		var collar := _cylinder(weapons, side_name + "MuzzleCollar", Vector3(side * 2.82, 0.42, -3.34), 0.18, 0.12, _materials.dark, Vector3(90.0, 0.0, 0.0))
+		var lens := _cylinder(weapons, side_name + "MuzzleLens", Vector3(side * 2.82, 0.42, -3.405), 0.105, 0.025, _materials.cyan, Vector3(90.0, 0.0, 0.0))
+		for weapon_part in [rail, cannon, shroud, collar, lens]:
+			weapon_part.set_meta("presentation_only", true)
+			weapon_part.set_meta("weapon_class", &"compact_pulse_cannon")
+			weapon_part.set_meta("mount_scale", &"interceptor_light")
+			_tag_modern_interpretation(weapon_part)
 
 	var engines := Node3D.new()
 	engines.name = "EngineInterpretations"
