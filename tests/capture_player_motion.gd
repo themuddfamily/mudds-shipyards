@@ -630,7 +630,7 @@ func _validate_authored_motion_contract() -> void:
 		and presentation_audit.get("motion_authorship", &"") == audit.get("authorship", &"")
 		and presentation_audit.get("version", &"") == &"blender_skinned_v2"
 		and not bool(presentation_audit.get("motion_capture", true))
-		and int(presentation_audit.get("visible_part_count", 0)) == 1,
+		and int(presentation_audit.get("visible_part_count", 0)) == 2,
 		"presentation and motion audits agree on the visible imported contract"
 	)
 	_validate_asset_manifest_provenance()
@@ -673,10 +673,14 @@ func _validate_exact_rig_and_skin() -> void:
 		_pilot_visual_root.find_children("*", "MeshInstance3D", true, false)
 		if _pilot_visual_root != null else []
 	)
+	var harness_release := (
+		_pilot_visual_root.find_child("HarnessRelease", true, false) as MeshInstance3D
+		if _pilot_visual_root != null else null
+	)
 	_check(
-		all_visual_meshes.size() == 1 and _pilot_suit != null
-		and all_visual_meshes[0] == _pilot_suit,
-		"PilotArt exposes exactly one joined PilotSuit mesh"
+		all_visual_meshes.size() == 2 and _pilot_suit != null
+		and harness_release != null,
+		"PilotArt exposes one skinned suit and one rigid harness light"
 	)
 	if _pilot_suit == null:
 		return
@@ -699,19 +703,31 @@ func _validate_exact_rig_and_skin() -> void:
 	)
 	var role_names := PackedStringArray()
 	if _pilot_suit.mesh != null:
-		_check(_pilot_suit.mesh.get_surface_count() == 8, "PilotSuit retains exactly eight material surfaces")
+		_check(_pilot_suit.mesh.get_surface_count() == 7, "PilotSuit excludes the rigid amber status-light surface")
 		for surface_index in _pilot_suit.mesh.get_surface_count():
 			var active_material := _pilot_suit.get_active_material(surface_index)
 			if active_material != null:
 				role_names.append(active_material.resource_name)
+	if harness_release != null and harness_release.get_active_material(0) != null:
+		role_names.append(harness_release.get_active_material(0).resource_name)
 	var exact_roles := role_names.size() == REQUIRED_MATERIAL_ROLES.size()
 	for required_role in REQUIRED_MATERIAL_ROLES:
 		exact_roles = exact_roles and role_names.has(required_role)
-	_check(exact_roles, "PilotSuit preserves the exact eight-role imported material separation")
+	_check(exact_roles, "pilot presentation preserves the exact eight-role imported material separation")
 	_check(
-		_player.get_pilot_visual_parts() == [_pilot_suit]
+		_player.get_pilot_visual_parts().size() == 2
+		and _player.get_pilot_visual_parts().has(_pilot_suit)
+		and _player.get_pilot_visual_parts().has(harness_release)
 		and _player.get_pilot_visual_root() == _pilot_visual_root,
-		"PlayerController publishes only the imported suit through its visual accessors"
+		"PlayerController publishes the imported suit and rigid harness light"
+	)
+	_check(
+		harness_release != null
+		and harness_release.get_parent() is BoneAttachment3D
+		and (harness_release.get_parent() as BoneAttachment3D).bone_name == &"spine_02"
+		and harness_release.skin == null
+		and harness_release.skeleton.is_empty(),
+		"HarnessRelease remains outside skeletal vertex deformation"
 	)
 	var body_pivot := _player.get_node_or_null("VisualRoot/BodyPivot") as Node3D
 	var visible_mesh_count := 0
@@ -719,7 +735,7 @@ func _validate_exact_rig_and_skin() -> void:
 		for candidate in body_pivot.find_children("*", "MeshInstance3D", true, false):
 			if (candidate as MeshInstance3D).is_visible_in_tree():
 				visible_mesh_count += 1
-	_check(visible_mesh_count == 1, "legacy proxy meshes remain inert while PilotSuit is the sole visible mesh")
+	_check(visible_mesh_count == 2, "legacy proxy meshes remain inert while the two imported pilot meshes stay visible")
 
 
 func _validate_asset_manifest_provenance() -> void:

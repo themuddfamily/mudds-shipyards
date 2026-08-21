@@ -27,37 +27,36 @@ const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest
 ## CHANGED: every animation curve; per-clip imported track count 17 -> 23, as
 ## the cycles now key the whole spine, both clavicles, both hands and a real
 ## pelvis translation instead of leaving them at rest.
-## UNCHANGED: the joined skinned mesh (7588 vertices, 14988 triangles), the
-## 23-bone tree and every bone's rest head/tail, the bind bounds
-## (1.143782 x 0.545 x 1.945 m, soles on z = 0), the skin, all eight materials,
-## the nine-clip roster and all nine clip durations. The Godot-side mesh, skin,
-## material and animation subresource IDs below are likewise unchanged, which
-## is what confirms the import produced the same resource graph shape.
-const EXPECTED_ASSET_SHA256 := "b2d0c05e29c5ab036ec40209c820b6d77e9ff48dd18999bad355e0be8a4e7bac"
-const EXPECTED_SOURCE_SHA256 := "aa0700ece03c76cd1cb375ebdff84ad5a28f9c483400f4b4d2fbf04dba61927f"
-const EXPECTED_SOURCE_CONTENT_SHA256 := "f9f0b788a140656cc428ea7423d13ff874a12cc73da26bbefb16af1b58c829b2"
-const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_s2leb"
-const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_uftr0"
+## The amber harness release is intentionally a separate rigid mesh attached to
+## spine_02 at runtime. Windows Forward+ intermittently expanded triangles from
+## its former joined skinned surface into the reported screen-sized red panes;
+## rigid single-bone detail has no reason to enter the GPU skinning buffer.
+const EXPECTED_ASSET_SHA256 := "457c783ba0c27ef21531ce17c15d62d486bfa7216a0b8a120d09f0b046af4099"
+const EXPECTED_SOURCE_SHA256 := "612840e09b44342f06c596b162dda4e67bb711713ff0bf20a34babf36326a1a6"
+const EXPECTED_SOURCE_CONTENT_SHA256 := "21208f9d6d33407ef05f58b79c95f22d1e4ef7dcaf6f85a7485cdd8e4197bfe2"
+const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_38ank"
+const EXPECTED_RIGID_HARNESS_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_dfldj"
+const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_l0rqn"
 const EXPECTED_MATERIAL_RESOURCE_PATHS := [
-	ASSET_PATH + "::StandardMaterial3D_des0f",
-	ASSET_PATH + "::StandardMaterial3D_8mxbs",
-	ASSET_PATH + "::StandardMaterial3D_dfldj",
 	ASSET_PATH + "::StandardMaterial3D_jwsbr",
 	ASSET_PATH + "::StandardMaterial3D_opf7r",
 	ASSET_PATH + "::StandardMaterial3D_ox1kl",
 	ASSET_PATH + "::StandardMaterial3D_w3v3p",
 	ASSET_PATH + "::StandardMaterial3D_2f858",
+	ASSET_PATH + "::StandardMaterial3D_s2leb",
+	ASSET_PATH + "::StandardMaterial3D_uftr0",
+	ASSET_PATH + "::StandardMaterial3D_des0f",
 ]
 const EXPECTED_ANIMATION_RESOURCE_PATHS := {
-	&"RESET": ASSET_PATH + "::Animation_38ank",
-	&"airborne": ASSET_PATH + "::Animation_l0rqn",
-	&"boarding": ASSET_PATH + "::Animation_78yge",
-	&"disembark_recovery": ASSET_PATH + "::Animation_ptm1b",
-	&"idle": ASSET_PATH + "::Animation_5fek6",
-	&"jump": ASSET_PATH + "::Animation_bp0df",
-	&"run": ASSET_PATH + "::Animation_iusdu",
-	&"seated_control": ASSET_PATH + "::Animation_yxp60",
-	&"walk": ASSET_PATH + "::Animation_hq1nq",
+	&"RESET": ASSET_PATH + "::Animation_78yge",
+	&"airborne": ASSET_PATH + "::Animation_ptm1b",
+	&"boarding": ASSET_PATH + "::Animation_5fek6",
+	&"disembark_recovery": ASSET_PATH + "::Animation_bp0df",
+	&"idle": ASSET_PATH + "::Animation_iusdu",
+	&"jump": ASSET_PATH + "::Animation_yxp60",
+	&"run": ASSET_PATH + "::Animation_hq1nq",
+	&"seated_control": ASSET_PATH + "::Animation_3a2f5",
+	&"walk": ASSET_PATH + "::Animation_at33j",
 }
 
 const EXPECTED_NODE_PATHS := {
@@ -66,6 +65,8 @@ const EXPECTED_NODE_PATHS := {
 	"PilotMotionImport/PilotArt/PilotRig": "Node3D",
 	"PilotMotionImport/PilotArt/PilotRig/PilotSkeleton": "Skeleton3D",
 	"PilotMotionImport/PilotArt/PilotRig/PilotSkeleton/PilotSuit": "MeshInstance3D",
+	"PilotMotionImport/PilotArt/PilotRig/PilotSkeleton/HarnessReleaseAttachment": "BoneAttachment3D",
+	"PilotMotionImport/PilotArt/PilotRig/PilotSkeleton/HarnessReleaseAttachment/HarnessRelease": "MeshInstance3D",
 	"PilotMotionImport/PilotAnimationPlayer": "AnimationPlayer",
 }
 
@@ -158,6 +159,8 @@ var _visual_root: Node3D
 var _rig_root: Node3D
 var _skeleton: Skeleton3D
 var _animation_player: AnimationPlayer
+var _harness_release_attachment: BoneAttachment3D
+var _harness_release: MeshInstance3D
 var _skinned_meshes: Array[MeshInstance3D] = []
 var _built := false
 var _local_observer_culled := false
@@ -207,6 +210,7 @@ func _build_once() -> void:
 	_animation_player = _import_root.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	_capture_source_resource_contract()
 	_normalize_runtime_names()
+	_attach_rigid_harness_release()
 	_collect_skinned_meshes()
 	_capture_integrity_contract()
 
@@ -216,10 +220,16 @@ func _capture_source_resource_contract() -> void:
 	if _import_root == null or _animation_player == null:
 		return
 	var source_meshes := _import_root.find_children("*", "MeshInstance3D", true, false)
-	if source_meshes.size() != 1:
+	if source_meshes.size() != 2:
 		return
-	var suit := source_meshes[0] as MeshInstance3D
-	if suit.mesh == null or suit.skin == null:
+	var suit := _import_root.find_child("PilotSuit", true, false) as MeshInstance3D
+	var harness_release := _import_root.find_child("HarnessRelease", true, false) as MeshInstance3D
+	if (
+		suit == null or suit.mesh == null or suit.skin == null
+		or harness_release == null or harness_release.mesh == null
+		or harness_release.skin != null
+		or not harness_release.skeleton.is_empty()
+	):
 		return
 	var material_paths := PackedStringArray()
 	var material_signatures := []
@@ -231,6 +241,15 @@ func _capture_source_resource_contract() -> void:
 			"name": material.resource_name if material != null else "",
 			"signature": _resource_signature(material),
 		})
+	var harness_material := harness_release.get_active_material(0)
+	material_paths.append(
+		harness_material.resource_path if harness_material != null else ""
+	)
+	material_signatures.append({
+		"path": harness_material.resource_path if harness_material != null else "",
+		"name": harness_material.resource_name if harness_material != null else "",
+		"signature": _resource_signature(harness_material),
+	})
 	var animation_paths := {}
 	var animation_signatures := []
 	for animation_name in _animation_player.get_animation_list():
@@ -245,6 +264,8 @@ func _capture_source_resource_contract() -> void:
 		"nodes": _source_node_contract(),
 		"mesh_path": suit.mesh.resource_path,
 		"mesh_signature": _mesh_signature(suit.mesh),
+		"rigid_harness_mesh_path": harness_release.mesh.resource_path,
+		"rigid_harness_mesh_signature": _mesh_signature(harness_release.mesh),
 		"skin_path": suit.skin.resource_path,
 		"skin_signature": _variant_sha256(&"pilot_skin_v2", _skin_contract(suit.skin)),
 		"materials": material_signatures,
@@ -258,6 +279,7 @@ func _capture_source_resource_contract() -> void:
 		),
 		"mesh_source_path": suit.mesh.resource_path,
 		"skin_source_path": suit.skin.resource_path,
+		"rigid_harness_mesh_source_path": harness_release.mesh.resource_path,
 		"material_source_paths": material_paths,
 		"animation_source_paths": animation_paths,
 		"source_content_signature": _variant_sha256(
@@ -265,6 +287,32 @@ func _capture_source_resource_contract() -> void:
 			source_signature_payload
 		),
 	}
+
+
+func _attach_rigid_harness_release() -> void:
+	_harness_release = null
+	_harness_release_attachment = null
+	if _visual_root == null or _skeleton == null:
+		return
+	var source := _visual_root.get_node_or_null("HarnessRelease") as MeshInstance3D
+	var spine_index := _skeleton.find_bone("spine_02")
+	if (
+		source == null or source.mesh == null or source.skin != null
+		or not source.skeleton.is_empty() or spine_index < 0
+	):
+		return
+	var attachment := BoneAttachment3D.new()
+	attachment.name = "HarnessReleaseAttachment"
+	attachment.bone_name = "spine_02"
+	attachment.use_external_skeleton = false
+	_skeleton.add_child(attachment)
+	_skeleton.force_update_all_bone_transforms()
+	# Preserve the authored rest-space placement while transferring ownership to
+	# the live bone. Only this rigid node follows spine_02; its vertices never
+	# enter a Skin or skeletal surface again.
+	source.reparent(attachment, true)
+	_harness_release_attachment = attachment
+	_harness_release = source
 
 
 func _source_node_contract() -> Array:
@@ -384,6 +432,8 @@ func _capture_integrity_contract() -> void:
 		or _rig_root == null
 		or _skeleton == null
 		or _animation_player == null
+		or _harness_release_attachment == null
+		or _harness_release == null
 		or _skinned_meshes.size() != 1
 	):
 		return
@@ -484,6 +534,24 @@ func _capture_integrity_contract() -> void:
 		"skeleton_animate_physical_bones": _skeleton.animate_physical_bones,
 		"skeleton_modifier_callback": _skeleton.modifier_callback_mode_process,
 		"material_contract": material_contract,
+		"harness_mesh_instance_id": _harness_release.mesh.get_instance_id(),
+		"harness_mesh_path": _harness_release.mesh.resource_path,
+		"harness_mesh_signature": _mesh_signature(_harness_release.mesh),
+		"harness_material_instance_id": (
+			_harness_release.get_active_material(0).get_instance_id()
+			if _harness_release.get_active_material(0) != null else 0
+		),
+		"harness_material_path": (
+			_harness_release.get_active_material(0).resource_path
+			if _harness_release.get_active_material(0) != null else ""
+		),
+		"harness_material_signature": _resource_signature(
+			_harness_release.get_active_material(0)
+		),
+		"harness_layers": _harness_release.layers,
+		"harness_cast_shadow": _harness_release.cast_shadow,
+		"harness_bone_name": _harness_release_attachment.bone_name,
+		"harness_external_skeleton": _harness_release_attachment.use_external_skeleton,
 		"animation_library_id": (
 			_animation_player.get_animation_library(&"").get_instance_id()
 			if _animation_player.get_animation_library(&"") != null else 0
@@ -542,6 +610,8 @@ func _append_integrity_errors(errors: PackedStringArray) -> void:
 			!= EXPECTED_MESH_RESOURCE_PATH
 		or str(_canonical_resource_contract.get("skin_source_path", ""))
 			!= EXPECTED_SKIN_RESOURCE_PATH
+		or str(_canonical_resource_contract.get("rigid_harness_mesh_source_path", ""))
+			!= EXPECTED_RIGID_HARNESS_MESH_RESOURCE_PATH
 		or source_material_paths != PackedStringArray(EXPECTED_MATERIAL_RESOURCE_PATHS)
 		or source_animation_paths != EXPECTED_ANIMATION_RESOURCE_PATHS
 	):
@@ -580,7 +650,12 @@ func _append_integrity_errors(errors: PackedStringArray) -> void:
 			errors.append("runtime node script or process-mode drift: %s" % relative_path)
 		if node is Node3D:
 			var node_3d := node as Node3D
-			if not node_3d.transform.is_equal_approx(expected.get("transform", Transform3D.IDENTITY)):
+			if (
+				not (node_3d is BoneAttachment3D)
+				and not node_3d.transform.is_equal_approx(
+					expected.get("transform", Transform3D.IDENTITY)
+				)
+			):
 				errors.append("runtime node transform drift: %s" % relative_path)
 			if node_3d.top_level != bool(expected.get("top_level", false)):
 				errors.append("runtime node top-level drift: %s" % relative_path)
@@ -722,6 +797,41 @@ func _append_integrity_errors(errors: PackedStringArray) -> void:
 					or _resource_signature(material) != str(expected_material.get("signature", ""))
 				):
 					errors.append("PilotSuit active material drift at surface %d" % surface_index)
+
+	var harness_material := (
+		_harness_release.get_active_material(0)
+		if is_instance_valid(_harness_release) else null
+	)
+	if (
+		not is_instance_valid(_harness_release_attachment)
+		or _harness_release_attachment.get_parent() != _skeleton
+		or _harness_release_attachment.bone_name
+			!= StringName(_integrity_contract.get("harness_bone_name", &""))
+		or _harness_release_attachment.use_external_skeleton
+			!= bool(_integrity_contract.get("harness_external_skeleton", true))
+		or not is_instance_valid(_harness_release)
+		or _harness_release.get_parent() != _harness_release_attachment
+		or _harness_release.skin != null
+		or not _harness_release.skeleton.is_empty()
+		or _harness_release.mesh == null
+		or _harness_release.mesh.get_instance_id()
+			!= int(_integrity_contract.get("harness_mesh_instance_id", 0))
+		or _harness_release.mesh.resource_path
+			!= str(_integrity_contract.get("harness_mesh_path", ""))
+		or _mesh_signature(_harness_release.mesh)
+			!= str(_integrity_contract.get("harness_mesh_signature", ""))
+		or harness_material == null
+		or harness_material.get_instance_id()
+			!= int(_integrity_contract.get("harness_material_instance_id", 0))
+		or harness_material.resource_path
+			!= str(_integrity_contract.get("harness_material_path", ""))
+		or _resource_signature(harness_material)
+			!= str(_integrity_contract.get("harness_material_signature", ""))
+		or _harness_release.layers != get_expected_suit_render_layers()
+		or _harness_release.cast_shadow
+			!= int(_integrity_contract.get("harness_cast_shadow", 0))
+	):
+		errors.append("rigid harness-release attachment contract drift")
 
 	var animation_players := find_children("*", "AnimationPlayer", true, false)
 	if animation_players.size() != 1 or animation_players[0] != _animation_player:
@@ -1075,10 +1185,14 @@ func get_asset_audit_report() -> Dictionary:
 				var surface_material := mesh_instance.get_active_material(surface_index)
 				if surface_material != null and not material_roles.has(surface_material.resource_name):
 					material_roles.append(surface_material.resource_name)
+	if is_instance_valid(_harness_release):
+		var harness_material := _harness_release.get_active_material(0)
+		if harness_material != null and not material_roles.has(harness_material.resource_name):
+			material_roles.append(harness_material.resource_name)
 	if weighted_bone_count != REQUIRED_BONE_PARENTS.size():
 		errors.append("skin does not bind the exact authored skeleton")
 	if material_roles.size() != 8:
-		errors.append("joined suit does not preserve the exact eight-role material separation")
+		errors.append("pilot presentation does not preserve the exact eight-role material separation")
 
 	var forbidden_count := 0
 	for type_name in FORBIDDEN_AUTHORITY_TYPES:
@@ -1116,6 +1230,9 @@ func get_asset_audit_report() -> Dictionary:
 		"source_skin_resource_path": str(
 			_canonical_resource_contract.get("skin_source_path", "")
 		),
+		"source_rigid_harness_mesh_resource_path": str(
+			_canonical_resource_contract.get("rigid_harness_mesh_source_path", "")
+		),
 		"source_material_resource_paths": source_material_paths,
 		"source_animation_resource_paths": source_animation_paths,
 		"source_content_signature": str(
@@ -1131,6 +1248,7 @@ func get_asset_audit_report() -> Dictionary:
 		"clip_count": REQUIRED_CLIP_DURATIONS.size(),
 		"imported_track_count": imported_track_count,
 		"skinned_mesh_count": _skinned_meshes.size(),
+		"rigid_harness_mesh_count": 1 if is_instance_valid(_harness_release) else 0,
 		"weighted_bone_count": weighted_bone_count,
 		"material_roles": material_roles,
 		"material_role_count": material_roles.size(),
@@ -1221,10 +1339,14 @@ func set_local_observer_culled(culled: bool) -> bool:
 	var suit := get_node_or_null(
 		"PilotMotionImport/PilotArt/PilotRig/PilotSkeleton/PilotSuit"
 	) as MeshInstance3D
-	if suit == null or _integrity_contract.is_empty():
+	if (
+		suit == null or not is_instance_valid(_harness_release)
+		or _integrity_contract.is_empty()
+	):
 		return false
 	_local_observer_culled = culled
 	suit.layers = get_expected_suit_render_layers()
+	_harness_release.layers = get_expected_suit_render_layers()
 	return true
 
 

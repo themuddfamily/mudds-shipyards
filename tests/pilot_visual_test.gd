@@ -203,6 +203,12 @@ func _test_integrated_presentation_contract(
 		"audit pins the imported Skin provenance"
 	)
 	_check(
+		str(audit.get("source_rigid_harness_mesh_resource_path", "")).begins_with(
+			GLB_PATH + "::"
+		),
+		"audit pins the unskinned HarnessRelease mesh provenance"
+	)
+	_check(
 		bool(audit.get("resource_cache_isolated", false))
 			and not str(audit.get("source_content_signature", "")).is_empty(),
 		"audit binds isolated runtime resources to a signed canonical GLB graph"
@@ -210,6 +216,7 @@ func _test_integrated_presentation_contract(
 	_check(str(audit.get("source_path", "")) == BLEND_PATH, "audit identifies the editable Blender source")
 	_check(int(audit.get("bone_count", 0)) == 23, "audit observes the complete 23-bone armature")
 	_check(int(audit.get("skinned_mesh_count", 0)) == 1, "audit observes one joined skinned suit")
+	_check(int(audit.get("rigid_harness_mesh_count", 0)) == 1, "audit observes one rigid harness light")
 	_check(int(audit.get("weighted_bone_count", 0)) == 23, "audit observes all 23 skin bindings")
 	_check(int(audit.get("material_role_count", 0)) == 8, "audit observes exactly eight imported material roles")
 	_check(absf(float(audit.get("root_motion_horizontal_m", 1.0))) <= 0.0001, "imported motion leaves horizontal traversal to CharacterBody")
@@ -244,7 +251,10 @@ func _test_integrated_presentation_contract(
 			exposed_legacy_meshes += 1
 		else:
 			hidden_legacy_meshes += 1
-	_check(visible_meshes.size() == 1, "one imported skinned mesh is the sole visible pilot presentation")
+	_check(
+		visible_meshes.size() == 2,
+		"one skinned suit and one rigid harness light are the sole visible pilot presentation"
+	)
 	_check(
 		hidden_legacy_meshes == LEGACY_FALLBACK_MESH_COUNT and exposed_legacy_meshes == 0,
 		"all 23 procedural/blockout fallback meshes remain present and hidden"
@@ -295,10 +305,11 @@ func _test_exact_imported_rig_and_skin(
 		_check(parent_name == EXPECTED_BONE_PARENTS[bone_name], "%s has the exact authored parent" % bone_name)
 
 	var meshes := visual_root.find_children("*", "MeshInstance3D", true, false)
-	_check(meshes.size() == 1, "PilotArt contains exactly one joined runtime suit mesh")
-	if meshes.is_empty():
+	_check(meshes.size() == 2, "PilotArt contains one skinned suit and one rigid harness light")
+	var suit := visual_root.find_child("PilotSuit", true, false) as MeshInstance3D
+	var harness_release := visual_root.find_child("HarnessRelease", true, false) as MeshInstance3D
+	if suit == null or harness_release == null:
 		return
-	var suit := meshes[0] as MeshInstance3D
 	_suit_id = suit.get_instance_id()
 	_check(suit.name == &"PilotSuit", "joined mesh retains its exact PilotSuit identity")
 	_check(suit.mesh is ArrayMesh, "PilotSuit uses imported ArrayMesh geometry rather than primitive proxies")
@@ -309,7 +320,7 @@ func _test_exact_imported_rig_and_skin(
 	_skin_resource_id = suit.skin.get_instance_id()
 	_check(suit.skin.get_bind_count() == 23, "PilotSuit skin binds the complete 23-bone armature")
 	_check(suit.get_node_or_null(suit.skeleton) == skeleton, "PilotSuit resolves its exact live PilotSkeleton target")
-	_check(suit.mesh.get_surface_count() == 8, "PilotSuit preserves exactly eight authored material surfaces")
+	_check(suit.mesh.get_surface_count() == 7, "PilotSuit excludes the rigid amber status-light surface")
 	_check(suit.mesh.resource_path.begins_with(GLB_PATH + "::"), "PilotSuit ArrayMesh resource originates in the checked-in GLB")
 	_check(suit.skin.resource_path.begins_with(GLB_PATH + "::"), "PilotSuit Skin resource originates in the checked-in GLB")
 
@@ -320,12 +331,26 @@ func _test_exact_imported_rig_and_skin(
 		if material != null:
 			material_roles.append(material.resource_name)
 			materials_from_glb = materials_from_glb and material.resource_path.begins_with(GLB_PATH + "::")
+	var harness_material := harness_release.get_active_material(0)
+	if harness_material != null:
+		material_roles.append(harness_material.resource_name)
+		materials_from_glb = (
+			materials_from_glb
+			and harness_material.resource_path.begins_with(GLB_PATH + "::")
+		)
 	material_roles.sort()
 	var expected_roles := PackedStringArray(EXPECTED_MATERIAL_ROLES)
 	expected_roles.sort()
 	_check(material_roles == expected_roles, "eight exact construction material roles survive the GLB boundary")
-	_check(materials_from_glb, "every active PilotSuit material resource originates in the checked-in GLB")
-	_check(player.get_pilot_visual_parts().size() == 1, "Player API exposes only the joined imported PilotSuit")
+	_check(materials_from_glb, "every active pilot material resource originates in the checked-in GLB")
+	_check(
+		harness_release.get_parent() is BoneAttachment3D
+		and (harness_release.get_parent() as BoneAttachment3D).bone_name == &"spine_02"
+		and harness_release.skin == null
+		and harness_release.skeleton.is_empty(),
+		"HarnessRelease bypasses GPU skinning as a rigid spine_02 attachment"
+	)
+	_check(player.get_pilot_visual_parts().size() == 2, "Player API exposes the suit and rigid harness light")
 
 
 func _test_imported_motion_library(

@@ -1837,8 +1837,10 @@ func _imported_motion_authority_is_healthy() -> bool:
 		or not (imported_root as Node3D).visible
 		or (imported_root as Node3D).top_level
 		or not (imported_root as Node3D).transform.is_equal_approx(Transform3D.IDENTITY)
-		or imported_parts.size() != 1
-		or not imported_parts[0].visible
+		or imported_parts.size() != 2
+		or not imported_parts.all(
+			func(part: MeshInstance3D) -> bool: return is_instance_valid(part) and part.visible
+		)
 		or not _fallback_render_hierarchy_is_inert()
 		or not expected_player.active
 		or expected_player.callback_mode_process

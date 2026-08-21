@@ -27,8 +27,9 @@ const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
 ## authored motion. Every animation curve changed and the per-clip imported
 ## track count went 17 -> 23; the mesh, rig, bind bounds, bone tree, skin,
 ## materials, clip roster and clip durations did not.
-## dc7167a7e66a36ad... -> f9f0b788a140656c...
-const SOURCE_CONTENT_SIGNATURE := "f9f0b788a140656cc428ea7423d13ff874a12cc73da26bbefb16af1b58c829b2"
+## The rigid harness-light split changes the source graph without changing the
+## armature or the nine authored clips.
+const SOURCE_CONTENT_SIGNATURE := "21208f9d6d33407ef05f58b79c95f22d1e4ef7dcaf6f85a7485cdd8e4197bfe2"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -140,20 +141,43 @@ func _test_exact_rig_and_skin(presentation: PilotSkinnedPresentation) -> void:
 		_check(parent_name == EXPECTED_PARENTS[bone_name], "%s has the exact authored parent" % bone_name)
 
 	var meshes := visual_root.find_children("*", "MeshInstance3D", true, false)
-	_check(meshes.size() == 1, "source components export as one joined runtime suit mesh")
-	if meshes.is_empty():
+	_check(meshes.size() == 2, "source exports one skinned suit plus one rigid harness light")
+	var suit := visual_root.find_child("PilotSuit", true, false) as MeshInstance3D
+	var harness_release := visual_root.find_child("HarnessRelease", true, false) as MeshInstance3D
+	if suit == null or harness_release == null:
 		return
-	var suit := meshes[0] as MeshInstance3D
 	_check(suit.name == &"PilotSuit", "joined mesh retains its semantic PilotSuit name")
 	_check(suit.mesh is ArrayMesh, "runtime suit is imported authored geometry rather than a PrimitiveMesh proxy")
 	_check(suit.skin != null and suit.skin.get_bind_count() == 23, "PilotSuit is genuinely skinned to every required bone")
 	_check(suit.get_node_or_null(suit.skeleton) == skeleton, "PilotSuit resolves its live PilotSkeleton deformation target")
-	_check(suit.mesh.get_surface_count() == 8, "joined suit preserves eight materially distinct construction surfaces")
+	_check(suit.mesh.get_surface_count() == 7, "skinned suit excludes the rigid amber status-light surface")
+	_check(
+		harness_release.get_parent() is BoneAttachment3D
+		and (harness_release.get_parent() as BoneAttachment3D).bone_name == &"spine_02"
+		and harness_release.skin == null
+		and harness_release.skeleton.is_empty()
+		and harness_release.mesh != null
+		and harness_release.mesh.get_surface_count() == 1,
+		"HarnessRelease is one unskinned rigid mesh attached to spine_02"
+	)
+	var harness_arrays := harness_release.mesh.surface_get_arrays(0)
+	var harness_bones: Variant = harness_arrays[Mesh.ARRAY_BONES]
+	var harness_weights: Variant = harness_arrays[Mesh.ARRAY_WEIGHTS]
+	_check(
+		(harness_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() == 216
+		and (harness_arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size() == 324
+		and (harness_bones == null or (harness_bones is PackedInt32Array and harness_bones.is_empty()))
+		and (harness_weights == null or (harness_weights is PackedFloat32Array and harness_weights.is_empty())),
+		"HarnessRelease render submission contains no skeletal vertex channels"
+	)
 	var role_names := PackedStringArray()
 	for surface_index in suit.mesh.get_surface_count():
 		var role := suit.get_active_material(surface_index)
 		if role != null:
 			role_names.append(role.resource_name)
+	var harness_role := harness_release.get_active_material(0)
+	if harness_role != null:
+		role_names.append(harness_role.resource_name)
 	for required_role in [
 		"PressureTextile", "CeramicArmor", "GraphiteArmor", "JointRubber",
 		"HarnessWebbing", "VisorGlazing", "CyanStatusLight", "AmberStatusLight",
@@ -583,10 +607,20 @@ func _test_manifest() -> void:
 	_check(str(manifest.get("blender_version", "")) == "4.0.2", "manifest pins the actual Blender 4.0.2 authoring tool")
 	_check(str(manifest.get("authorship", "")) == "original_script_assisted_blender", "manifest preserves honest provenance")
 	_check(not bool(manifest.get("motion_capture", true)) and not bool(manifest.get("runtime_generation", true)), "manifest makes no mocap or runtime-generation claim")
-	_check(int(manifest.get("bone_count", 0)) == 23 and int(manifest.get("skinned_mesh_count", 0)) == 1, "manifest pins the exact armature/skin topology")
+	_check(
+		int(manifest.get("bone_count", 0)) == 23
+		and int(manifest.get("skinned_mesh_count", 0)) == 1
+		and int(manifest.get("rigid_bone_attachment_mesh_count", 0)) == 1,
+		"manifest pins the exact armature, skin, and rigid harness topology"
+	)
 	_check(int(manifest.get("source_part_count", 0)) >= 50, "editable source records a detailed multi-part suit construction")
 	_check(int(manifest.get("mesh_vertices_exported_evaluated", 0)) >= 7000, "authored suit carries substantial close-range vertex detail")
 	_check(int(manifest.get("mesh_triangles_exported_evaluated", 0)) >= 14000, "authored suit carries substantial close-range triangle detail")
+	_check(
+		int(manifest.get("rigid_mesh_vertices_exported_evaluated", 0)) == 56
+		and int(manifest.get("rigid_mesh_triangles_exported_evaluated", 0)) == 108,
+		"rigid harness lamp stays a bounded rounded box without skinned pole triangles"
+	)
 	_check((manifest.get("actions", []) as Array).size() == 9, "manifest records the complete nine-action source library")
 	_check(str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256(GLB_PATH), "manifest pins the exact runtime GLB hash")
 	_check(str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256(BLEND_PATH), "manifest pins the exact editable Blender source hash")

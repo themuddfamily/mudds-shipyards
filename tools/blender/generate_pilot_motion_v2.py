@@ -376,8 +376,19 @@ def build_original_suit(rig: bpy.types.Object) -> bpy.types.Object:
     # Small readable functional details; no glowing body-wide strips.
     box_part("BeltWebbing", (0, -.16, .98), (.43, .035, .045), harness,
              {"pelvis": .55, "spine_01": .45}, .008)
-    uv_part("HarnessRelease", (0, -.222, 1.16), (.045, .02, .045), amber,
-            {"spine_02": 1.0}, 16, 8)
+    # This lamp is rigidly attached to one bone, so it must not participate in
+    # skeletal vertex deformation. On the Windows Forward+ path its old joined,
+    # skinned UV-sphere surface intermittently expanded into several
+    # screen-sized emissive wedges even though every authored vertex, weight and
+    # bone pose remained finite and inside the pilot's 1.95 m envelope. Keep the
+    # cue as a tiny rounded box, but export it as a separate spine_02 child.
+    harness_release = box_part(
+        "HarnessRelease", (0, -.222, 1.16), (.09, .04, .09), amber,
+        {"spine_02": 1.0}, .008,
+    )
+    PARTS.remove(harness_release)
+    for vertex_group in list(harness_release.vertex_groups):
+        harness_release.vertex_groups.remove(vertex_group)
     for side, suffix in ((-1, "L"), (1, "R")):
         cylinder_part(f"ServiceHose{suffix}", (side*.14, .19, 1.40),
                       (side*.23, .20, 1.10), .018, rubber,
@@ -399,6 +410,12 @@ def build_original_suit(rig: bpy.types.Object) -> bpy.types.Object:
     modifier.use_deform_preserve_volume = True
     suit.parent = rig
     suit.matrix_parent_inverse = rig.matrix_world.inverted()
+    harness_world = harness_release.matrix_world.copy()
+    harness_release.parent = rig.parent
+    harness_release.matrix_world = harness_world
+    harness_release["asset_role"] = "rigid_bone_status_light"
+    harness_release["bone_attachment"] = "spine_02"
+    harness_release["visual_only"] = True
     return suit
 
 
@@ -1535,12 +1552,14 @@ def main() -> None:
     bpy.context.collection.objects.link(pilot_art)
     rig = build_rig(pilot_art)
     suit = build_original_suit(rig)
+    harness_release = bpy.data.objects["HarnessRelease"]
     # Anatomical authoring reads every bone's rest frame off the built rig, so
     # this must happen before a single pose is keyed.
     capture_rest_frames(rig)
     build_actions(rig)
 
     vertex_count, triangle_count = evaluated_counts(suit)
+    rigid_vertex_count, rigid_triangle_count = evaluated_counts(harness_release)
     bpy.context.view_layer.objects.active = rig
     rig.animation_data.action = None
     reset_pose(rig)
@@ -1599,16 +1618,22 @@ def main() -> None:
                 "+X; the shin never rotates forward past the thigh"
             ),
         },
-        "hierarchy_contract": ["PilotArt", "PilotRig", "PilotSkeleton", "PilotSuit"],
+        "hierarchy_contract": [
+            "PilotArt", "HarnessRelease", "PilotRig", "PilotSkeleton", "PilotSuit",
+        ],
         "bone_tree": BONE_TREE,
         "bone_count": len(BONE_TREE),
         "actions": ACTION_SPECS,
         "source_part_names": PART_NAMES,
         "source_part_count": len(PART_NAMES),
         "skinned_mesh_count": 1,
+        "rigid_bone_attachment_mesh_count": 1,
+        "rigid_bone_attachment": "HarnessRelease -> spine_02",
         "material_roles": sorted(MATERIALS),
         "mesh_vertices_exported_evaluated": vertex_count,
         "mesh_triangles_exported_evaluated": triangle_count,
+        "rigid_mesh_vertices_exported_evaluated": rigid_vertex_count,
+        "rigid_mesh_triangles_exported_evaluated": rigid_triangle_count,
         "bind_bounds": object_bounds(suit),
         "blend_sha256": sha256(BLEND_PATH),
         "glb_sha256": sha256(GLB_PATH),
