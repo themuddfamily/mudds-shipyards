@@ -844,7 +844,11 @@ func _panel_material(
 		roughness: float
 	) -> StandardMaterial3D:
 	var material := _plain_material(color, metallic, roughness)
-	StationSurfaceKit.apply_panel_triplanar(material, PANEL_SURFACE_SCALE)
+	if StationSurfaceKit.apply_panel_triplanar(material, PANEL_SURFACE_SCALE):
+		# The shared station recipe projects in world space so adjoining static
+		# architecture keeps one continuous phase. A moving vehicle must instead
+		# carry the projection with it or it drives through a stationary texture.
+		material.uv1_world_triplanar = false
 	return material
 
 

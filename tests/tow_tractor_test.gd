@@ -133,13 +133,22 @@ func _check_construction_contract() -> void:
 	_check(cylinder_count >= 4, "the four wheels are built by the shared chamfered-cylinder builder")
 	_check(raw_primitives == 0, "no unbevelled engine primitive survives in the tractor")
 
-	var chassis_material := _tractor.get_node("Visual/Chassis").material_override as StandardMaterial3D
-	_check(
-		chassis_material != null
-		and chassis_material.uv1_triplanar
-		and chassis_material.uv1_world_triplanar,
-		"the chassis binds the registered world-space triplanar panel family"
-	)
+	var panel_materials: Array[StandardMaterial3D] = []
+	for path: NodePath in [^"Visual/Chassis", ^"Visual/Bonnet", ^"Visual/SeatPad"]:
+		var panel_material := (_tractor.get_node(path) as MeshInstance3D).material_override as StandardMaterial3D
+		if panel_material != null and not panel_materials.has(panel_material):
+			panel_materials.append(panel_material)
+	_check(panel_materials.size() == 3, "the chassis, cab and trim retain three independently styled panel materials")
+	for panel_material in panel_materials:
+		_check(
+			panel_material.uv1_triplanar
+			and not panel_material.uv1_world_triplanar
+			and panel_material.albedo_texture != null
+			and panel_material.normal_texture != null
+			and panel_material.roughness_texture != null,
+			"every textured tractor finish uses vehicle-local triplanar projection"
+		)
+	var chassis_material: StandardMaterial3D = panel_materials[0] if not panel_materials.is_empty() else null
 	_check(
 		chassis_material != null
 		and chassis_material.normal_enabled
