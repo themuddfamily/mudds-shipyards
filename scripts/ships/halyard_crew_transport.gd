@@ -132,10 +132,11 @@ const HALYARD_NAV_GREEN := Color("74ec97")
 # ------------------------------------------------------------- surfacing ----
 #
 # Every surface on this craft is built by `StationSurfaceKit`'s chamfered
-# builders and finished with the registered world-triplanar panel recipe
+# builders and finished with the registered object-local triplanar panel recipe
 # (`StationSurfaceKit.apply_panel_triplanar`), which binds the registered
 # `procedural-panel-triplanar-*-v2` albedo/normal/roughness trio at
-# `normal_scale = 1.0`, world triplanar, sharpness 4.0.
+# `normal_scale = 1.0`, triplanar projection, sharpness 4.0. The helper's
+# station-world projection is disabled after binding because this craft moves.
 #
 # One deliberate departure, with both rules named. `apply_panel_triplanar` sets
 # `normal_scale = 1.0`; that is the *station* family's relief, and
@@ -669,14 +670,14 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.nav_green = _halyard_material(HALYARD_NAV_GREEN, 0.10, 0.22, HALYARD_NAV_GREEN, 2.3)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
-	# The registered world-triplanar station panel recipe, applied through the
+	# The registered station panel maps and triplanar recipe, applied through the
 	# shared kit. See the surfacing note at the top of this file for why the two
 	# hull skins step `normal_scale` back into the fleet band afterwards and the
 	# walked/structural surfaces keep the registered 1.0.
 	for hull_material: StandardMaterial3D in [
 		_halyard_materials.hull_olive, _halyard_materials.hull_shade
 	]:
-		if StationSurfaceKit.apply_panel_triplanar(hull_material, HULL_PANEL_UV_SCALE):
+		if _apply_vehicle_panel_triplanar(hull_material, HULL_PANEL_UV_SCALE):
 			hull_material.normal_scale = HULL_NORMAL_SCALE
 			hull_material.clearcoat_enabled = true
 			hull_material.clearcoat = HULL_CLEARCOAT
@@ -690,10 +691,19 @@ func _create_halyard_materials() -> void:
 		_halyard_materials.accent, _halyard_materials.trim,
 		_halyard_materials.locker,
 	]:
-		StationSurfaceKit.apply_panel_triplanar(structural_material, STRUCTURE_PANEL_UV_SCALE)
+		_apply_vehicle_panel_triplanar(structural_material, STRUCTURE_PANEL_UV_SCALE)
 	# Surfaces the crew physically stands on take the walked panel scale, exactly
 	# as the freight berth's decks do.
-	StationSurfaceKit.apply_panel_triplanar(_halyard_materials.deck, WALKED_PANEL_UV_SCALE)
+	_apply_vehicle_panel_triplanar(_halyard_materials.deck, WALKED_PANEL_UV_SCALE)
+
+
+func _apply_vehicle_panel_triplanar(material: StandardMaterial3D, uv_scale: float) -> bool:
+	if not StationSurfaceKit.apply_panel_triplanar(material, uv_scale):
+		return false
+	# Static station pieces need world-continuous projection. This moving craft
+	# must carry its projection with it so the panel pattern cannot swim in flight.
+	material.uv1_world_triplanar = false
+	return true
 
 
 func get_variant_materials() -> Dictionary:
