@@ -1633,6 +1633,18 @@ func _test_lattice_decks_do_not_share_the_authored_runway_volume(world: Shipyard
 		intruders.is_empty(),
 		"no station surface renders inside the authored runway shell's own surface band where they overlap"
 	)
+	var junction := world.get_node_or_null(^"ExposedDockLattice/CentralJunction") as StaticBody3D
+	var junction_mesh := junction.get_node_or_null(^"Mesh") as MeshInstance3D if junction != null else null
+	if junction_mesh == null or junction_mesh.mesh == null:
+		_check(false, "CentralJunction keeps its visible mesh for the runway-seam clearance check")
+		return
+	var junction_bounds := (junction_mesh.global_transform * junction_mesh.mesh.get_aabb()).abs()
+	var shell_clearance := junction_bounds.position.z - footprint.end.z
+	print("AUTHORED_RUNWAY_JUNCTION_CLEARANCE: ", shell_clearance)
+	_check(
+		shell_clearance >= 0.035 and shell_clearance <= 0.045,
+		"CentralJunction retains a 4 cm visual clearance beyond the authored runway fascia while hidden berth collision bridges the join"
+	)
 
 
 func _column_is_drawn(buckets: Dictionary, x: float, z: float, surface_y: float) -> bool:
