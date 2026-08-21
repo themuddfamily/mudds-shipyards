@@ -154,16 +154,16 @@ const ROOF_VENT_COLLAR_COPY_COUNT := 2
 const ROOF_VENT_COLLAR_POSITIONS := [Vector3(3.05, 5.31, 13.0), Vector3(8.1, 5.31, 13.0)]
 const ROOF_VENT_COLLAR_FAMILY_META: StringName = &"aft_roof_vent_collar_family"
 const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1159
-const RENDER_DESCENDANT_NODE_COUNT := 1156
-const BASELINE_RENDERER_NODE_COUNT := 851
-const RENDERER_NODE_COUNT := 848
-const BASELINE_DRAWN_COPY_COUNT := 851
-const DRAWN_COPY_COUNT := 851
-const BASELINE_SURFACE_SUBMISSION_COUNT := 851
-const SURFACE_SUBMISSION_COUNT := 848
-const BASELINE_MESH_RESOURCE_COUNT := 317
-const MESH_RESOURCE_COUNT := 293
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1162
+const RENDER_DESCENDANT_NODE_COUNT := 1159
+const BASELINE_RENDERER_NODE_COUNT := 852
+const RENDERER_NODE_COUNT := 849
+const BASELINE_DRAWN_COPY_COUNT := 852
+const DRAWN_COPY_COUNT := 852
+const BASELINE_SURFACE_SUBMISSION_COUNT := 852
+const SURFACE_SUBMISSION_COUNT := 849
+const BASELINE_MESH_RESOURCE_COUNT := 318
+const MESH_RESOURCE_COUNT := 294
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -2321,7 +2321,16 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 	structure.add_child(lower)
 
 	_box(lower, "ConnectionDeck", Vector3(0.0, -0.32, 2.5), Vector3(7.0, 0.64, 5.0), _materials["off_white_floor"])
-	_box(lower, "JunctionDeck", Vector3(0.0, -0.32, 7.5), Vector3(11.0, 0.64, 5.0), _materials["warm_grey_floor"])
+	# Stop exactly at the operations-room floor instead of extending 0.9 m under
+	# it. The old slabs occupied the same full-depth volume from z=9.1 to 10.0,
+	# so their different floor materials fought for the top face immediately
+	# behind Operations Access. A butt seam preserves continuous collision and
+	# removes the coplanar render surfaces.
+	_box(lower, "JunctionDeck", Vector3(0.0, -0.32, 7.05), Vector3(11.0, 0.64, 4.1), _materials["warm_grey_floor"])
+	# Retain the old junction footprint west of the operations-room shell. This
+	# apron owns only x=-5.5..0.4 where OperationsFloor does not exist, so the
+	# outside route stays supported without reintroducing the doorway overlap.
+	_box(lower, "JunctionDeckWestApron", Vector3(-2.55, -0.32, 9.55), Vector3(5.9, 0.64, 0.9), _materials["warm_grey_floor"])
 	# The stair begins west of ConnectionDeck. Its former first tread and ramp
 	# floated across a 0.8 m physics gap, so this compact landing gives a
 	# straight, level run onto the unchanged ramp. It shares its whole eastern

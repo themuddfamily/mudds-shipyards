@@ -16,6 +16,15 @@ const PROFILE_OBSERVATORY: StringName = &"observatory"
 const PROFILE_CREW_WORKPOST: StringName = &"crew_workpost"
 const PROFILE_CARGO_LINE_LONG: StringName = &"cargo_line_long"
 
+## The Aft Operations placement puts this nonblocking articulated arm directly
+## behind the third-person camera at the access door. At steep downward pitch
+## the boom can enter the arm even though the player's body cannot. Hide every
+## animated arm part before it reaches the near plane; 1.40 m leaves at least 0.15 m
+## beyond the 1.165 m half-diagonal of UpperArm plus the 0.08 m camera near
+## distance. The fixed collision-backed pedestal remains visible; only the
+## deliberately nonblocking animated subtree needs this camera guard.
+const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 1.4
+
 var _presentation_root: Node3D
 var _profile_id: StringName = PROFILE_FULL
 var _drone_count := 0
@@ -291,6 +300,13 @@ func _build_service_arm() -> void:
 	_box(_service_arm_tool, "ToolHousing", Vector3(0.0, 0.26, 0.0), Vector3(0.62, 0.34, 0.72), _materials["graphite"])
 	for x_side in [-1.0, 1.0]:
 		_box(_service_arm_tool, "DiagnosticFork", Vector3(x_side * 0.23, 0.62, 0.0), Vector3(0.12, 0.62, 0.16), _materials["cyan_dim"])
+	for candidate in _service_arm_shoulder.find_children("*", "MeshInstance3D", true, false):
+		var arm_mesh := candidate as MeshInstance3D
+		arm_mesh.visibility_range_begin = SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+		arm_mesh.visibility_range_begin_margin = 0.0
+		arm_mesh.visibility_range_fade_mode = (
+			GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		)
 
 
 func _build_service_drones() -> void:
