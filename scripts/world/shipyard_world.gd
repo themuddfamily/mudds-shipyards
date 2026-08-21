@@ -347,25 +347,25 @@ const SPACE_BACKDROP_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestia
 const SPACE_BACKDROP_BODY_SPECS := {
 	&"CelestialGreenBody": {
 		"position": Vector3(-310.0, 100.0, -890.0),
-		"radius": 135.0,
+		"radius": 95.0,
 		"palette_role": &"green",
 		"color": Color("5a9b58"),
 	},
 	&"CelestialTanBody": {
 		"position": Vector3(250.0, -120.0, -1040.0),
-		"radius": 165.0,
+		"radius": 110.0,
 		"palette_role": &"tan_cream",
 		"color": Color("c7b887"),
 	},
 	&"CelestialGreyBody": {
 		"position": Vector3(70.0, 230.0, -1250.0),
-		"radius": 120.0,
+		"radius": 85.0,
 		"palette_role": &"grey",
 		"color": Color("86878c"),
 	},
 	&"CelestialOrangeBody": {
 		"position": Vector3(-500.0, -160.0, -1150.0),
-		"radius": 105.0,
+		"radius": 75.0,
 		"palette_role": &"orange",
 		"color": Color("d57635"),
 	},
@@ -3995,12 +3995,12 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			or not material.albedo_color.is_equal_approx(spec.color as Color)
 			or not material.emission_enabled
 			or not material.emission.is_equal_approx(spec.color as Color)
-			# Re-frozen from 0.32/0.9 by the global art pass. See the body material
+			# Re-frozen from 0.32/0.9 by the anti-flare presentation pass. See the body material
 			# construction for the full reason: at 0.32 emission each body filled its
 			# own night side back in and rendered as a flat saturated disc rather
 			# than a lit sphere. Still an exact equality, still the same four
-			# authored colours, radii and placements.
-			or not is_equal_approx(material.emission_energy_multiplier, 0.1)
+			# source-bounded colours and placements, with deliberately bounded radii.
+			or not is_equal_approx(material.emission_energy_multiplier, 0.04)
 			or not is_equal_approx(material.roughness, 1.0)
 			or body.get_meta(&"palette_role", &"") != spec.palette_role
 			or body.get_meta(&"visual_resource_family_id", &"") != SPACE_BACKDROP_BODY_MESH_FAMILY_ID
@@ -7263,17 +7263,18 @@ func _build_space_backdrop() -> void:
 	for body_name: StringName in SPACE_BACKDROP_BODY_SPECS:
 		var spec := SPACE_BACKDROP_BODY_SPECS[body_name] as Dictionary
 		var body_color := spec.color as Color
-		# Emission re-frozen from 0.32 to 0.10. The four bodies are lit by the same
+		# Emission re-frozen from 0.32 to 0.04. The four bodies are lit by the same
 		# key light as the station, but at 0.32 the self-emission was bright enough
 		# to fill the unlit half back in, so each one rendered as a flat saturated
 		# disc with a barely visible terminator - four coloured circles pasted on
 		# the backdrop, and the most toy-like objects left in any wide frame. At
-		# 0.10 the emission is a night-side floor rather than a fill, the terminator
+		# 0.04 the emission is a night-side floor rather than a fill, the terminator
 		# resolves, and a body reads as a sphere with a lit limb whose bright side
 		# agrees with the direction everything else on screen is lit from. The
-		# authored colours, radii and placements are untouched; this changes only
-		# how the surface answers light, which is the whole subject of the pass.
-		var body_material := _material(body_color, 0.0, 1.0, body_color, 0.1)
+		# colours and placements remain source-bounded; the radii are deliberately
+		# reduced to keep a low-poly facet from becoming a screen-sized white/orange
+		# flare when it crosses the station sightline.
+		var body_material := _material(body_color, 0.0, 1.0, body_color, 0.04)
 		body_material.disable_receive_shadows = true
 		# The bodies deliberately stay *in* the depth fog, unlike the star shell.
 		# Exempting them was tried and reverted: unfogged and lit by the raised key

@@ -33,25 +33,25 @@ const EXPECTED_BERTH_IDS: Array[String] = [
 const EXPECTED_BODY_SPECS := {
 	&"CelestialGreenBody": {
 		"position": Vector3(-310.0, 100.0, -890.0),
-		"radius": 135.0,
+		"radius": 95.0,
 		"palette_role": &"green",
 		"color": Color("5a9b58"),
 	},
 	&"CelestialTanBody": {
 		"position": Vector3(250.0, -120.0, -1040.0),
-		"radius": 165.0,
+		"radius": 110.0,
 		"palette_role": &"tan_cream",
 		"color": Color("c7b887"),
 	},
 	&"CelestialGreyBody": {
 		"position": Vector3(70.0, 230.0, -1250.0),
-		"radius": 120.0,
+		"radius": 85.0,
 		"palette_role": &"grey",
 		"color": Color("86878c"),
 	},
 	&"CelestialOrangeBody": {
 		"position": Vector3(-500.0, -160.0, -1150.0),
-		"radius": 105.0,
+		"radius": 75.0,
 		"palette_role": &"orange",
 		"color": Color("d57635"),
 	},
@@ -419,12 +419,12 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 			# own night side back in, so the four of them rendered as flat saturated
 			# discs with no terminator - the most toy-like objects in any wide frame,
 			# and untouched by every previous presentation pass because none of them
-			# reached a kilometre out. At 0.10 the emission is a floor under the
+			# reached a kilometre out. At 0.04 the emission is a floor under the
 			# night side rather than a fill, and a body reads as a sphere lit from
-			# the same direction as the station. Colour, radius, placement and the
-			# non-lighting/non-shadowing contract are all unchanged, and this stays
-			# an exact equality.
-			and is_equal_approx(material.emission_energy_multiplier, 0.1)
+			# the same direction as the station. Colour, placement and the
+			# non-lighting/non-shadowing contract remain unchanged; the bounded radii
+			# above are the explicit anti-flare presentation correction.
+			and is_equal_approx(material.emission_energy_multiplier, 0.04)
 			and is_equal_approx(material.roughness, 1.0)
 			and material.disable_receive_shadows
 			and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
