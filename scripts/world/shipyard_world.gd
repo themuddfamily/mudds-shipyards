@@ -214,13 +214,6 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 ## Every generic lattice deck stops at or beyond this plane so no station surface
 ## shares a volume with the authored runway plate.
 const AUTHORED_CENTRAL_BERTH_EDGE_Z := 7.75
-## The visual deck begins slightly beyond the authored shell rather than ending
-## on its exact boundary.  The shell's end fascia and the procedural deck's
-## chamfered end otherwise resolve to the same depth at grazing angles, which
-## makes the seam shimmer despite their floor areas not overlapping.  The hidden
-## HeroBerthNode collider spans this clearance, so it cannot form a walkability
-## gap.
-const CENTRAL_JUNCTION_VISUAL_CLEARANCE := 0.04
 ## Drawn top faces the hero cell's ground-support line is seated against.
 ##
 ## These are two different planes and confusing them is how the berth cues came
@@ -4767,10 +4760,8 @@ func _build_architecture() -> void:
 	# arms, compact solid nodes, and substantial void—not these exact dimensions.
 	# Each visible deck module carries its own collision; there is deliberately no
 	# hidden full-footprint slab bridging the gaps.
-	# The walkway stops just beyond the authored central-berth shell's outer edge
+	# The walkway stops at the authored central-berth shell's outer edge
 	# (z = AUTHORED_CENTRAL_BERTH_EDGE_Z) instead of running 2.75 m underneath it.
-	# The small clearance prevents its chamfered end face from sharing depth with
-	# the shell's fascia at the join; HeroBerthNode remains continuous underneath.
 	# The authored plate's deck panels bottom out at y = -0.005 and its recessed
 	# service channels reach y = -0.110, while this walkway's top face is at
 	# y = -0.020: over the old x = -12.5 … 12.5, z = 5.0 … 7.55 band the walkway
@@ -4780,8 +4771,8 @@ func _build_architecture() -> void:
 	_box(
 		shell,
 		"CentralJunction",
-		Vector3(0, -0.62, (AUTHORED_CENTRAL_BERTH_EDGE_Z + CENTRAL_JUNCTION_VISUAL_CLEARANCE + 23.0) * 0.5),
-		Vector3(25.0, 1.2, 23.0 - AUTHORED_CENTRAL_BERTH_EDGE_Z - CENTRAL_JUNCTION_VISUAL_CLEARANCE),
+		Vector3(0, -0.62, (AUTHORED_CENTRAL_BERTH_EDGE_Z + 23.0) * 0.5),
+		Vector3(25.0, 1.2, 23.0 - AUTHORED_CENTRAL_BERTH_EDGE_Z),
 		_materials["deck"]
 	)
 	# The walkable floor must not move when the render slab does, so the hidden
@@ -5233,11 +5224,9 @@ func _build_landing_pad() -> void:
 	)
 	_central_berth_hero_presentation.name = "CentralBerthHeroPresentation"
 	pad.add_child(_central_berth_hero_presentation)
-	# Bright border, split into straightforward bars for crisp silhouettes.
-	for x_position in [-12.2, 12.2]:
-		_box(pad, "PadBorder", Vector3(x_position, 0.115, -10), Vector3(0.28, 0.05, 34.5), _materials["ivory"], false)
-	for z_position in [-27.1, 7.1]:
-		_box(pad, "PadBorder", Vector3(0, 0.115, z_position), Vector3(24.5, 0.05, 0.28), _materials["ivory"], false)
+	# The authored berth asset owns its deck margins and ivory fascia.  The old
+	# primitive borders occupied the same edge band and intersected the imported
+	# deck by 5 mm, producing the flickering seam at the runway perimeter.
 
 	# Centreline and launch-vector arrows lead straight to the open aperture.
 	_box(pad, "Centreline", Vector3(0, 0.145, -10), Vector3(0.22, 0.04, 31.5), _materials["berth_cyan_glow"], false)
