@@ -72,6 +72,7 @@ const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 )
 const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL := 9_007_199_254_740_991
+const DEBUG_AIM_DISTANCE_METERS := 10_000.0
 
 ## Production Main can be destroyed and rebuilt by the shift-restart loader
 ## without ending the OS process. Keep the atomic composition root here so that
@@ -968,6 +969,7 @@ func _process(delta: float) -> void:
 	# gameplay startup tail has run.
 	if not _initialized:
 		return
+	_update_debug_overlay()
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
 	if phase == Phase.INTRO:
@@ -993,6 +995,183 @@ func _process(delta: float) -> void:
 		):
 			player.teleport_to(world.get_player_spawn())
 			hud.toast("Regeneration safety recall", "Returned to the central junction", 2.0)
+
+
+func _update_debug_overlay() -> void:
+	if (
+		not is_instance_valid(hud)
+		or not hud.has_method(&"is_debug_overlay_visible")
+		or not bool(hud.call(&"is_debug_overlay_visible"))
+	):
+		return
+	hud.call(&"update_debug_overlay", get_debug_overlay_snapshot())
+
+
+## Detached, side-effect-free diagnostics for screenshots and focused tests.
+## Scene coordinates are current floating-origin metres; the separate absolute
+## cell/offset record remains stable when that origin is rebased.
+func get_debug_overlay_snapshot() -> Dictionary:
+	var actor: Node3D = _get_debug_actor()
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera == null:
+		camera = _get_debug_camera(actor)
+	var viewport_size: Vector2 = (
+		get_viewport().get_visible_rect().size if is_inside_tree() else Vector2.ZERO
+	)
+	var actor_position: Vector3 = (
+		actor.global_position if is_instance_valid(actor) else Vector3.ZERO
+	)
+	var actor_velocity: Vector3 = (
+		(actor as CharacterBody3D).velocity if actor is CharacterBody3D else Vector3.ZERO
+	)
+	var camera_position: Vector3 = (
+		camera.global_position if is_instance_valid(camera) else actor_position
+	)
+	var camera_forward: Vector3 = (
+		-camera.global_basis.orthonormalized().z.normalized()
+		if is_instance_valid(camera)
+		else Vector3.FORWARD
+	)
+	var yaw_degrees := rad_to_deg(atan2(camera_forward.x, -camera_forward.z))
+	var pitch_degrees := rad_to_deg(asin(clampf(camera_forward.y, -1.0, 1.0)))
+	var snapshot := {
+		"schema_version": 1,
+		"mode": _get_debug_mode(),
+		"phase": _get_debug_phase_name(),
+		"actor_name": _get_debug_actor_name(actor),
+		"actor_path": str(get_path_to(actor)) if is_instance_valid(actor) else "UNAVAILABLE",
+		"actor_position": actor_position,
+		"actor_velocity": actor_velocity,
+		"camera_path": str(get_path_to(camera)) if is_instance_valid(camera) else "UNAVAILABLE",
+		"camera_position": camera_position,
+		"camera_forward": camera_forward,
+		"camera_fov": camera.fov if is_instance_valid(camera) else 0.0,
+		"facing": _debug_cardinal(camera_forward),
+		"yaw_degrees": yaw_degrees,
+		"pitch_degrees": pitch_degrees,
+		"fps": Engine.get_frames_per_second(),
+		"frame": Engine.get_process_frames(),
+		"viewport_size": Vector2i(roundi(viewport_size.x), roundi(viewport_size.y)),
+	}
+	snapshot.merge(_get_debug_aim_snapshot(camera, actor), true)
+	_add_debug_absolute_coordinate(snapshot, actor_position, "absolute_coordinate")
+	if bool(snapshot.get("aim_hit", false)):
+		_add_debug_absolute_coordinate(
+			snapshot,
+			snapshot.get("aim_position", Vector3.ZERO) as Vector3,
+			"aim_absolute_coordinate"
+		)
+	return snapshot.duplicate(true)
+
+
+func _get_debug_actor() -> Node3D:
+	if _driving and is_instance_valid(tow_tractor) and tow_tractor.is_inside_tree():
+		return tow_tractor
+	if (
+		is_instance_valid(active_ship)
+		and active_ship.is_inside_tree()
+		and (_piloting or active_ship.is_piloted())
+		and not active_ship.is_destroyed()
+	):
+		return active_ship
+	return player if is_instance_valid(player) and player.is_inside_tree() else null
+
+
+func _get_debug_camera(actor: Node3D) -> Camera3D:
+	if actor is HeroShip:
+		return (actor as HeroShip).get_camera()
+	if actor is TowTractor:
+		return (actor as TowTractor).get_camera()
+	if is_instance_valid(player):
+		return player.get_camera()
+	return null
+
+
+func _get_debug_actor_name(actor: Node3D) -> String:
+	if actor is HeroShip:
+		return (actor as HeroShip).get_display_name()
+	if actor is TowTractor:
+		return "YARD TOW TRACTOR"
+	if actor == player:
+		return "PLAYER"
+	return str(actor.name) if is_instance_valid(actor) else "UNAVAILABLE"
+
+
+func _get_debug_mode() -> String:
+	if _piloting:
+		return "PILOTING"
+	if _driving:
+		return "DRIVING"
+	if phase == Phase.IN_FLIGHT_CABIN:
+		return "ABOARD"
+	return "ON FOOT"
+
+
+func _get_debug_phase_name() -> String:
+	var phase_names := Phase.keys()
+	return str(phase_names[phase]) if phase >= 0 and phase < phase_names.size() else "UNKNOWN"
+
+
+func _get_debug_aim_snapshot(camera: Camera3D, actor: Node3D) -> Dictionary:
+	if not is_instance_valid(camera) or camera.get_world_3d() == null:
+		return {"aim_hit": false, "aim_endpoint": Vector3.ZERO}
+	var viewport_rect := camera.get_viewport().get_visible_rect()
+	var centre := viewport_rect.position + viewport_rect.size * 0.5
+	var origin := camera.project_ray_origin(centre)
+	var direction := camera.project_ray_normal(centre).normalized()
+	var endpoint := origin + direction * DEBUG_AIM_DISTANCE_METERS
+	var query := PhysicsRayQueryParameters3D.create(origin, endpoint)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	if actor is CollisionObject3D:
+		query.exclude = [(actor as CollisionObject3D).get_rid()]
+	var hit := camera.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return {"aim_hit": false, "aim_endpoint": endpoint}
+	var collider := hit.get("collider") as Object
+	var collider_path := str(collider)
+	if collider is Node:
+		collider_path = str((collider as Node).get_path())
+	var hit_position := hit.get("position", endpoint) as Vector3
+	return {
+		"aim_hit": true,
+		"aim_position": hit_position,
+		"aim_distance": origin.distance_to(hit_position),
+		"aim_collider": collider_path,
+		"aim_endpoint": endpoint,
+	}
+
+
+func _add_debug_absolute_coordinate(
+		snapshot: Dictionary,
+		world_position: Vector3,
+		field: String
+	) -> void:
+	if not is_instance_valid(ember_streaming_bootstrap):
+		return
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null or not frame.is_configured():
+		return
+	var generation := frame.get_generation()
+	var decoded := frame.decode_world_streaming_position(world_position, generation)
+	if not bool(decoded.get("accepted", false)):
+		return
+	var coordinate := decoded.get("coordinate", {}) as Dictionary
+	var absolute := coordinate.get("orbital_coordinate", {}) as Dictionary
+	if absolute.is_empty():
+		return
+	snapshot["coordinate_frame_generation"] = generation
+	snapshot[field] = absolute.duplicate(true)
+
+
+func _debug_cardinal(forward: Vector3) -> String:
+	var horizontal := Vector2(forward.x, -forward.z)
+	if horizontal.length_squared() < 0.000001:
+		return "VERTICAL"
+	var heading := fposmod(rad_to_deg(atan2(horizontal.x, horizontal.y)), 360.0)
+	var names := ["NORTH (-Z)", "NORTHEAST", "EAST (+X)", "SOUTHEAST", \
+		"SOUTH (+Z)", "SOUTHWEST", "WEST (-X)", "NORTHWEST"]
+	return names[posmod(roundi(heading / 45.0), names.size())]
 
 
 func _physics_process(delta: float) -> void:

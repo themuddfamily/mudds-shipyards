@@ -7,6 +7,7 @@ const InputBindingProfileType := preload("res://scripts/settings/input_binding_p
 const InputRebindServiceType := preload("res://scripts/settings/input_rebind_service.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
 const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
+const DebugOverlayType := preload("res://scripts/ui/debug_overlay.gd")
 
 signal start_requested
 signal restart_requested
@@ -157,6 +158,7 @@ const TOAST_FADE_IN_SECONDS := 0.18
 const TOAST_FADE_OUT_SECONDS := 0.35
 const INTRO_FADE_SECONDS := 0.45
 const SCREENSHOT_ACTION: StringName = &"capture_screenshot"
+const DEBUG_OVERLAY_KEY := KEY_F3
 const SCREENSHOT_DIRECTORY_URI := "user://screenshots"
 const SCREENSHOT_FILE_PREFIX := "mudds_shipyards_"
 const SCREENSHOT_MAX_COLLISION_SUFFIX := 999
@@ -179,6 +181,7 @@ const MODE_ABOARD: StringName = &"aboard"
 const MODE_DRIVING: StringName = &"driving"
 
 var _root: Control
+var _debug_overlay: DebugOverlay
 var _intro: Control
 var _hud: Control
 var _hud_panels: Control
@@ -391,7 +394,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _binding_capture_action.is_empty():
 		_capture_binding_event(event)
 		return
+	if _started and _is_debug_overlay_toggle_event(event):
+		_debug_overlay.visible = not _debug_overlay.visible
+		if _debug_overlay.visible:
+			_refresh_debug_overlay_from_host()
+		get_viewport().set_input_as_handled()
+		return
 	if _is_screenshot_capture_event(event):
+		if is_debug_overlay_visible():
+			_refresh_debug_overlay_from_host()
 		_capture_screenshot()
 		get_viewport().set_input_as_handled()
 		return
@@ -424,6 +435,48 @@ func _is_screenshot_capture_event(event: InputEvent) -> bool:
 	if not event.is_action_pressed(SCREENSHOT_ACTION):
 		return false
 	return not (event is InputEventKey and (event as InputEventKey).echo)
+
+
+func _is_debug_overlay_toggle_event(event: InputEvent) -> bool:
+	if event is not InputEventKey:
+		return false
+	var key_event := event as InputEventKey
+	return (
+		key_event.pressed
+		and not key_event.echo
+		and (
+			key_event.physical_keycode == DEBUG_OVERLAY_KEY
+			or (key_event.physical_keycode == 0 and key_event.keycode == DEBUG_OVERLAY_KEY)
+		)
+	)
+
+
+func is_debug_overlay_visible() -> bool:
+	return is_instance_valid(_debug_overlay) and _debug_overlay.visible
+
+
+func update_debug_overlay(snapshot: Dictionary) -> void:
+	if not is_debug_overlay_visible():
+		return
+	_debug_overlay.present(snapshot)
+
+
+func get_debug_overlay_report() -> Dictionary:
+	if not is_instance_valid(_debug_overlay):
+		return {
+			"schema_version": DebugOverlay.SCHEMA_VERSION,
+			"visible": false,
+			"mouse_passthrough": true,
+			"text": "",
+			"snapshot": {},
+		}
+	return _debug_overlay.get_report()
+
+
+func _refresh_debug_overlay_from_host() -> void:
+	var host := get_parent()
+	if host != null and host.has_method(&"get_debug_overlay_snapshot"):
+		update_debug_overlay(host.call(&"get_debug_overlay_snapshot") as Dictionary)
 
 
 ## Captures after the current frame has drawn, which makes the saved image the
@@ -1558,9 +1611,16 @@ func _build_interface() -> void:
 	_build_intro()
 	_build_hud()
 	_build_pause()
+	_build_debug_overlay()
 	_set_mouse_passthrough(_hud)
 	_apply_ui_scale()
 	show_intro()
+
+
+func _build_debug_overlay() -> void:
+	_debug_overlay = DebugOverlayType.new() as DebugOverlay
+	_debug_overlay.visible = false
+	_root.add_child(_debug_overlay)
 
 
 func _build_intro() -> void:
@@ -1745,6 +1805,7 @@ func _build_hud() -> void:
 	_interaction_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	interaction_margin.add_child(_interaction_label)
 	_interaction_panel.visible = false
+
 
 	_flight_cue_layer = FlightPathCueType.new() as FlightPathCue
 	_flight_cue_layer.name = "FlightPathCue"
@@ -2402,6 +2463,13 @@ func _capture_binding_event(event: InputEvent) -> void:
 			return
 		if key.physical_keycode == KEY_ESCAPE:
 			_cancel_input_binding_capture()
+			_get_viewport_and_handle_input()
+			return
+		if (
+			key.physical_keycode == DEBUG_OVERLAY_KEY
+			or (key.physical_keycode == 0 and key.keycode == DEBUG_OVERLAY_KEY)
+		):
+			set_settings_status("F3 IS RESERVED FOR SCREENSHOT DIAGNOSTICS", false)
 			_get_viewport_and_handle_input()
 			return
 	elif event is InputEventMouseButton:

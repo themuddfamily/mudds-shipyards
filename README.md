@@ -123,6 +123,8 @@ Propulsion is automatic. The previous prototype mapped keyboard `Y` / gamepad D-
 | `E` | Leave the pilot seat once automatically offline: at a berth you step out onto the deck; away from one you step into the craft's own cabin, if it has a walkable one (the Jovian and Halyard do; the fighters refuse). Press `E` again at the cockpit to sit back down. |
 | `Esc` | Pause; open **Settings** from the pause panel |
 | `F1` | Toggle controls |
+| `F2` | Save a screenshot to `user://screenshots` |
+| `F3` | Toggle screenshot diagnostics: active actor and camera XYZ, facing, velocity, centre-view hit position, and rebase-stable absolute cell/offset coordinates for both the actor and hit point |
 
 Common SDL-style gamepad, on foot and while piloting (`0.18` stick/trigger deadzone):
 
