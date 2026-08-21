@@ -38,6 +38,7 @@ const WORLD_SURFACE_PATHS := [
 const AFT_SURFACE_PATHS := [
 	"Structure/LowerOpenDeck/ConnectionDeck",
 	"Structure/LowerOpenDeck/JunctionDeck",
+	"Structure/LowerOpenDeck/JunctionDeckWestApron",
 	"Structure/LowerOpenDeck/StairBaseLanding",
 	"Structure/Circulation/ContinuousStairRamp",
 	"Structure/UpperOpenDeck/UpperFloor",
@@ -185,7 +186,7 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(observation, OBSERVATION_LOGISTICS_SURFACE_PATHS) and every_surface_exact
 	if salvage != null:
 		every_surface_exact = _surface_roster_matches(salvage, SALVAGE_TERRACE_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 70 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	_check(every_surface_exact, "all 71 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:

@@ -282,11 +282,11 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1159,
-			"renderer_nodes": 851,
-			"drawn_copies": 851,
-			"surface_submissions": 851,
-			"mesh_resource_allocations": 317,
+			"descendant_nodes": 1162,
+			"renderer_nodes": 852,
+			"drawn_copies": 852,
+			"surface_submissions": 852,
+			"mesh_resource_allocations": 318,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
@@ -294,18 +294,18 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1156,
-			"renderer_nodes": 848,
-			"drawn_copies": 851,
-			"surface_submissions": 848,
-			"mesh_resource_allocations": 293,
+			"descendant_nodes": 1159,
+			"renderer_nodes": 849,
+			"drawn_copies": 852,
+			"surface_submissions": 849,
+			"mesh_resource_allocations": 294,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"pod, spine, roof-vent, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1156 descendants, 848 renderers/submissions, 851 copies, and 293 mesh allocations"
+		"pod, spine, roof-vent, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1159 descendants, 849 renderers/submissions, 852 copies, and 294 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -385,7 +385,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 293
+		int(detached.current.mesh_resource_allocations) == 294
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -427,7 +427,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 294
+		and int(identity_red.current.mesh_resource_allocations) == 295
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -1559,8 +1559,8 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.lease_authority_count) == 0
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
-		and int(collision.body_count) == 102
-		and int(collision.shape_count) == 108
+		and int(collision.body_count) == 103
+		and int(collision.shape_count) == 109
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null
@@ -1570,7 +1570,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and vip.find_children(
 			"VIPFacadeColumnCrown", "MeshInstance3D", false, false
 		).is_empty(),
-		"batch adds zero collision, interaction, evidence or lifecycle authority and preserves both doors plus 102 bodies and 108 shapes"
+		"batch adds zero collision, interaction, evidence or lifecycle authority and preserves both doors plus 103 bodies and 109 shapes"
 	)
 
 	(report.current as Dictionary)["renderer_nodes"] = -1

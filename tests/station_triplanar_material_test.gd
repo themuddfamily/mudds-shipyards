@@ -570,12 +570,14 @@ func _test_live_station_coverage(
 	# 0.28 ordinary surfaces into one mapped MultiMesh in c8280f7. The visible
 	# copy/material roster is unchanged: ordinary bindings 2612 -> 2600 and the
 	# instanced-family census below gains exactly one mapped batch.
+	# Splitting the Aft junction deck at Operations Access adds one mapped 0.30
+	# apron while removing the prior positive-area floor overlap: 2600 -> 2601.
 	_check(
-		mapped_surface_count == 2600
+		mapped_surface_count == 2601
 		and scale_022_count == 130
 		and scale_028_count == 850
-		and scale_030_count == 1620,
-		"live station binds exactly 2600 ordinary surfaces after the twelve-copy Habitat hatch batch"
+		and scale_030_count == 1621,
+		"live station binds exactly 2601 ordinary surfaces after the Aft threshold seam split"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
