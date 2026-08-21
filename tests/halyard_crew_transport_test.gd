@@ -35,9 +35,9 @@ extends SceneTree
 ##      from the airstair to the pilot seat, and a cabin offer derived from the
 ##      live coordinator rather than asserted. Red: unbind the coordinator, and
 ##      destroy the craft; both must withdraw the offer.
-##   G. surfacing — the registered world-triplanar panel recipe is actually
-##      bound, and the hull skin is not left at station relief. Red: a stripped
-##      material is detected.
+##   G. surfacing — the registered panel recipe is bound in moving-ship-local
+##      triplanar space, and the hull skin is not left at station relief. Red: a
+##      stripped material is detected.
 ##   H. berth — the craft's complete collision envelope fits the strict landing
 ##      volume of the berth it is assigned to. Red: an inflated envelope does
 ##      not fit.
@@ -1136,9 +1136,9 @@ func _test_surfacing(craft: HeroShip) -> void:
 			"%s binds the registered panel albedo/normal/roughness trio" % key
 		)
 		_check(
-			material.uv1_triplanar and material.uv1_world_triplanar
+			material.uv1_triplanar and not material.uv1_world_triplanar
 			and is_equal_approx(material.uv1_triplanar_sharpness, PANEL_TRIPLANAR_SHARPNESS),
-			"%s uses the registered world-triplanar projection" % key
+			"%s uses the registered ship-local triplanar projection" % key
 		)
 		_check(
 			material.normal_scale >= SHIP_NORMAL_SCALE_BAND.x
@@ -1152,15 +1152,16 @@ func _test_surfacing(craft: HeroShip) -> void:
 
 	# Walked and structural surfaces keep the registered station relief, which is
 	# exactly where that family belongs.
-	for key: String in ["deck", "structure", "trim"]:
+	for key: String in ["deck", "structure", "dark", "accent", "trim", "locker"]:
 		var material := materials.get(key) as StandardMaterial3D
 		_check(material != null, "the transport publishes its %s surface material" % key)
 		if material == null:
 			continue
 		_check(
-			material.normal_texture != null and material.uv1_world_triplanar
+			material.normal_texture != null and material.uv1_triplanar
+			and not material.uv1_world_triplanar
 			and is_equal_approx(material.normal_scale, STATION_PANEL_NORMAL_SCALE),
-			"%s keeps the registered panel recipe at normal_scale %.1f" % [key, STATION_PANEL_NORMAL_SCALE]
+			"%s keeps the ship-local panel recipe at normal_scale %.1f" % [key, STATION_PANEL_NORMAL_SCALE]
 		)
 
 	# RED: a stripped material must be detected by the same predicate.
