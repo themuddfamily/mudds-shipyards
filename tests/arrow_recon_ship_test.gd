@@ -705,16 +705,17 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and int(report.fuselage_panel_band_mesh_sharing.visible_geometry_copies) == 5
 		and int(report.fuselage_panel_band_mesh_sharing.primitive_mesh_allocations) == 1
 		and int(report.fuselage_panel_band_mesh_sharing.resource_allocation_reduction) == 4
-		and not bool(report.fuselage_panel_band_mesh_sharing.normalised_by_torus_budget)
-		and report.fuselage_panel_band_mesh_sharing.authored_tessellation == Vector2i(64, 18)
-		and report.fuselage_panel_band_mesh_sharing.current_tessellation == Vector2i(64, 18)
+		and StringName(report.fuselage_panel_band_mesh_sharing.mesh_kind) == &"BoxMesh"
+		and (report.fuselage_panel_band_mesh_sharing.mesh_size as Vector3).is_equal_approx(
+			Vector3(2.0, 0.045, 0.11)
+		)
 		and (report.fuselage_panel_band_mesh_sharing.node_paths as PackedStringArray).size() == 5
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[0]) == "FuselagePanelBand"
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[1]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[2]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[3]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[4]).begins_with("@MeshInstance3D@"),
-		"five ordinary named panel-band nodes/submissions/copies retain one exact authored TorusMesh instead of five"
+		"five ordinary dorsal panel seams retain one shallow BoxMesh instead of hollow full-circumference loops"
 	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
@@ -733,7 +734,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	_check(
 		visual.get_node_or_null("FuselagePanelBand") is MeshInstance3D,
-		"the torus-smoothness evidence node remains independently addressable"
+		"the first dorsal panel-seam evidence node remains independently addressable"
 	)
 
 	# Detached report and structured-red mutations cover the whole census,
@@ -801,11 +802,9 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	_check(
 		bool(budgeted_panel_report.valid)
-		and bool(budgeted_panel_report.normalised_by_torus_budget)
-		and budgeted_panel_report.authored_tessellation == Vector2i(64, 18)
-		and budgeted_panel_report.current_tessellation == Vector2i(41, 12)
-		and int(torus_budget_report.tori) == 16,
-		"production torus budget includes both compact emitter shrouds while retaining the panel band's exact 64x18 authored and 41x12 live recipes"
+		and StringName(budgeted_panel_report.mesh_kind) == &"BoxMesh"
+		and int(torus_budget_report.tori) == 11,
+		"production torus budget retains both compact emitter shrouds while leaving the Arrow's shallow dorsal seams outside torus normalization"
 	)
 	var injected := Node3D.new()
 	injected.name = "ForbiddenVisualAllocation"
@@ -1061,8 +1060,8 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	var last_panel_band := (
 		visual.get_node(NodePath(panel_band_paths[-1])) as MeshInstance3D
 	)
-	var shared_panel_band_mesh := first_panel_band.mesh as TorusMesh
-	last_panel_band.mesh = shared_panel_band_mesh.duplicate() as TorusMesh
+	var shared_panel_band_mesh := first_panel_band.mesh as BoxMesh
+	last_panel_band.mesh = shared_panel_band_mesh.duplicate() as BoxMesh
 	_check(
 		not bool(arrow.get_arrow_audit_report().valid)
 		and _report_has_error(
@@ -1072,8 +1071,8 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		"structured-red: one private panel-band mesh fails shared-allocation identity"
 	)
 	last_panel_band.mesh = shared_panel_band_mesh
-	var budgeted_ring_segments := shared_panel_band_mesh.ring_segments
-	shared_panel_band_mesh.ring_segments -= 1
+	var authored_panel_size := shared_panel_band_mesh.size
+	shared_panel_band_mesh.size.x -= 0.1
 	_check(
 		not bool(arrow.get_arrow_audit_report().valid)
 		and _report_has_error(
@@ -1082,25 +1081,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		),
 		"structured-red: shared panel-band live recipe mutation fails presentation audit"
 	)
-	shared_panel_band_mesh.ring_segments = budgeted_ring_segments
-	var authored_panel_tessellation: Vector2i = shared_panel_band_mesh.get_meta(
-		TorusGeometryBudget.AUTHORED_META
-	)
-	shared_panel_band_mesh.set_meta(
-		TorusGeometryBudget.AUTHORED_META,
-		Vector2i(authored_panel_tessellation.x - 1, authored_panel_tessellation.y)
-	)
-	_check(
-		not bool(arrow.get_arrow_audit_report().valid)
-		and _report_has_error(
-			arrow.get_arrow_visual_performance_report(),
-			"fuselage panel-band authored budget metadata drift"
-		),
-		"structured-red: panel-band authored-budget metadata mutation fails its 64x18 provenance gate"
-	)
-	shared_panel_band_mesh.set_meta(
-		TorusGeometryBudget.AUTHORED_META, authored_panel_tessellation
-	)
+	shared_panel_band_mesh.size = authored_panel_size
 	var authored_panel_material := shared_panel_band_mesh.material
 	shared_panel_band_mesh.material = null
 	_check(

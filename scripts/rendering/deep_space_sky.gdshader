@@ -122,7 +122,14 @@ void sky() {
 		acos(clamp(direction.y, -1.0, 1.0)) / PI
 	);
 	float pole_fade = smoothstep(0.0, 0.24, cover_uv.y) * smoothstep(0.0, 0.24, 1.0 - cover_uv.y);
-	color += texture(nebula_cover, cover_uv).rgb * nebula_strength * pole_fade;
+	// The legacy cover is panoramic but its two image edges do not match. It is
+	// intentionally only a faint layer over the analytic sky, so fade it out at
+	// the equirectangular wrap rather than allowing a full-height discontinuity
+	// to leak into the frame. The analytic band/core sky remains continuous at
+	// that meridian and carries the missing few degrees of backdrop.
+	float wrap_distance = min(cover_uv.x, 1.0 - cover_uv.x);
+	float wrap_fade = smoothstep(0.0, 0.035, wrap_distance);
+	color += texture(nebula_cover, cover_uv).rgb * nebula_strength * pole_fade * wrap_fade;
 
 	COLOR = color;
 }

@@ -26,6 +26,8 @@ extends SceneTree
 ##      100% backwards against that same calibration, so the craft overrides
 ##      `_box` onto `StationSurfaceKit`. Red: a reversed copy of one of this
 ##      craft's own meshes is detected as fully backwards.
+##   D1. bow docking arch — the nose hardware remains legible as a docking
+##      target while its lower half stays open rather than forming a hollow wheel.
 ##   D2. render allocations — the seven childless dorsal ribs retain their exact
 ##      copies, mesh, material and culling union through one renderer batch.
 ##      Red: a mutated renderer buffer and a mutated culling box are rejected.
@@ -205,6 +207,7 @@ func _run() -> void:
 	_test_lateral_role(craft)
 	_test_readable_colour(craft)
 	_test_winding(craft)
+	_test_bow_docking_arch(craft)
 	_test_render_allocations(craft)
 	_test_weapon_presentation(craft)
 	_test_cockpit_and_boarding(craft)
@@ -696,6 +699,62 @@ func _reversed_copy(mesh: Mesh) -> ArrayMesh:
 	return result
 
 
+func _test_bow_docking_arch(craft: HeroShip) -> void:
+	var visual := craft.call("get_halyard_visual_root") as Node3D
+	var arch_matches := visual != null
+	var lower_half_clear := true
+	if visual != null:
+		for segment_index in 5:
+			var angle := PI * float(segment_index) / 4.0
+			var segment := visual.get_node_or_null(
+				"BowDockingArchSegment%02d" % segment_index
+			) as MeshInstance3D
+			var expected_position := Vector3(
+				HalyardCrewTransport.BOW_RING_RADIUS * cos(angle),
+				HalyardCrewTransport.BOW_RING_CENTRE_Y + HalyardCrewTransport.BOW_RING_RADIUS * sin(angle),
+				HalyardCrewTransport.BOW_RING_Z
+			)
+			arch_matches = arch_matches and segment != null and segment.mesh != null \
+				and segment.position.is_equal_approx(expected_position)
+			if segment != null:
+				lower_half_clear = lower_half_clear and segment.position.y \
+					>= HalyardCrewTransport.BOW_RING_CENTRE_Y - 0.001
+		var old_loop_segments := visual.find_children(
+			"BowCollarSegment*", "MeshInstance3D", false, false
+		)
+		var struts_match := true
+		var arch_struts: Array[MeshInstance3D] = []
+		for strut_index in 2:
+			var strut_angle := PI * (2.0 * float(strut_index) + 1.0) / 4.0
+			var strut := visual.get_node_or_null(
+				"BowDockingArchStrut%02d" % strut_index
+			) as MeshInstance3D
+			var expected_strut_position := Vector3(
+				(HalyardCrewTransport.BOW_RING_RADIUS - 0.42) * cos(strut_angle) * 0.92,
+				HalyardCrewTransport.BOW_RING_CENTRE_Y + (HalyardCrewTransport.BOW_RING_RADIUS - 0.42) * sin(strut_angle) * 0.92,
+				-12.94
+			)
+			struts_match = struts_match and strut != null and strut.mesh != null \
+				and strut.position.is_equal_approx(expected_strut_position)
+			if strut != null:
+				arch_struts.append(strut)
+		var struts_are_mirrored := arch_struts.size() == 2 \
+			and is_equal_approx(arch_struts[0].position.x, -arch_struts[1].position.x) \
+			and is_equal_approx(arch_struts[0].position.y, arch_struts[1].position.y) \
+			and is_equal_approx(arch_struts[0].position.z, arch_struts[1].position.z)
+		var target_plate := visual.get_node_or_null("BowDockingTargetPlate") as MeshInstance3D
+		arch_matches = arch_matches and old_loop_segments.is_empty() and struts_match \
+			and struts_are_mirrored and target_plate != null and target_plate.mesh != null
+	var collision := craft.get_node_or_null("BowCollarCollision") as CollisionShape3D
+	var collision_box := collision.shape as BoxShape3D if collision != null else null
+	_check(
+		arch_matches and lower_half_clear
+			and collision != null and collision.position.is_equal_approx(Vector3(0.0, 1.85, -13.55)) \
+			and collision_box != null and collision_box.size.is_equal_approx(Vector3(5.30, 5.30, 0.60)),
+		"five-piece open bow docking arch leaves no lower arch segments while preserving its target, mirrored supports and gameplay envelope"
+	)
+
+
 func _test_render_allocations(craft: HeroShip) -> void:
 	var visual := craft.call("get_halyard_visual_root") as Node3D
 	var batch := visual.get_node_or_null(^"SpineRibs") as MultiMeshInstance3D if visual != null else null
@@ -749,16 +808,16 @@ func _test_render_allocations(craft: HeroShip) -> void:
 
 	var report := craft.call("get_halyard_render_allocation_report") as Dictionary
 	_check(
-		int(report.descendant_nodes) == 167
-		and int(report.mesh_instances) == 161
+		int(report.descendant_nodes) == 162
+		and int(report.mesh_instances) == 156
 		and int(report.multimesh_batches) == 1,
-		"weapon-complete renderer nodes freeze at 167, MeshInstances at 161, batches at 1"
+		"weapon-complete open-arch renderer nodes freeze at 162, MeshInstances at 156, batches at 1"
 	)
 	_check(
-		int(report.drawn_copies) == 168
-		and int(report.geometry_submissions) == 162
+		int(report.drawn_copies) == 163
+		and int(report.geometry_submissions) == 157
 		and int(report.spine_rib_copies) == 7,
-		"weapon-complete drawn copies freeze at 168 and surface submissions at 162"
+		"weapon-complete open-arch drawn copies freeze at 163 and surface submissions at 157"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 65
