@@ -46,9 +46,9 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 
 # Phase 9 allocation freeze. These two mirrored ribs were the first repeated
 # Arrow family with identical mesh/material state and no gameplay, evidence,
-# collision, lifecycle, or stable-node identity. The five later panel bands keep
+# collision, lifecycle, or stable-node identity. The five later dorsal seams keep
 # every ordinary renderer, including the checked-in `FuselagePanelBand` capture
-# path, while sharing only their identical TorusMesh resource. The other audited
+# path, while sharing only their identical BoxMesh resource. The other audited
 # families are narrower still: only the identical, childless CurveJoint sphere
 # resources under the paired lateral arrays, sensor-wing leading edges and
 # three-point dorsal data conduit are shared within their exact family. All
@@ -89,12 +89,10 @@ const DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS := [
 	"DorsalDataConduit/@MeshInstance3D@8",
 	"DorsalDataConduit/@MeshInstance3D@9",
 ]
-const FUSELAGE_PANEL_BAND_INNER_RADIUS := 1.31
-const FUSELAGE_PANEL_BAND_OUTER_RADIUS := 1.35
-const FUSELAGE_PANEL_BAND_AUTHORED_RINGS := 64
-const FUSELAGE_PANEL_BAND_AUTHORED_RING_SEGMENTS := 18
-const FUSELAGE_PANEL_BAND_BUDGETED_RINGS := 41
-const FUSELAGE_PANEL_BAND_BUDGETED_RING_SEGMENTS := 12
+## Five shallow dorsal seams break the Arrow fuselage into manufactured bays
+## without wrapping the silhouette in wheel-like full-circumference tori.
+const FUSELAGE_PANEL_BAND_SIZE := Vector3(2.0, 0.045, 0.11)
+const FUSELAGE_PANEL_BAND_HEIGHT := 1.84
 const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
 const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
 const ARRAY_RECEIVER_RADIUS := 0.15
@@ -167,7 +165,7 @@ var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 var _lateral_array_curve_joint_mesh: SphereMesh
 var _sensor_leading_edge_curve_joint_mesh: SphereMesh
 var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
-var _fuselage_panel_band_mesh: TorusMesh
+var _fuselage_panel_band_mesh: BoxMesh
 var _array_receiver_mesh: SphereMesh
 var _boarding_step_mesh: ArrayMesh
 
@@ -517,11 +515,8 @@ func _build_slender_airframe() -> void:
 	_dorsal_data_conduit_curve_joint_mesh.radial_segments = DORSAL_DATA_CONDUIT_CURVE_JOINT_RADIAL_SEGMENTS
 	_dorsal_data_conduit_curve_joint_mesh.rings = DORSAL_DATA_CONDUIT_CURVE_JOINT_RINGS
 	_dorsal_data_conduit_curve_joint_mesh.material = _arrow_materials.sensor
-	_fuselage_panel_band_mesh = TorusMesh.new()
-	_fuselage_panel_band_mesh.inner_radius = FUSELAGE_PANEL_BAND_INNER_RADIUS
-	_fuselage_panel_band_mesh.outer_radius = FUSELAGE_PANEL_BAND_OUTER_RADIUS
-	_fuselage_panel_band_mesh.rings = FUSELAGE_PANEL_BAND_AUTHORED_RINGS
-	_fuselage_panel_band_mesh.ring_segments = FUSELAGE_PANEL_BAND_AUTHORED_RING_SEGMENTS
+	_fuselage_panel_band_mesh = BoxMesh.new()
+	_fuselage_panel_band_mesh.size = FUSELAGE_PANEL_BAND_SIZE
 	_fuselage_panel_band_mesh.material = _arrow_materials.titanium
 	# A narrow 32-section elliptical fuselage, not the Torrent's broad delta.
 	_loft_hull(
@@ -633,17 +628,11 @@ func _build_slender_airframe() -> void:
 		_dorsal_data_conduit_curve_joint_mesh
 	)
 	for seam_z in [-4.4, -2.6, 0.4, 2.2, 4.3]:
-		_torus(
-			_arrow_visual,
-			"FuselagePanelBand",
-			Vector3(0, 1.22, seam_z),
-			FUSELAGE_PANEL_BAND_INNER_RADIUS,
-			FUSELAGE_PANEL_BAND_OUTER_RADIUS,
-			_arrow_materials.titanium,
-			Vector3(90, 0, 0),
-			Vector3(1.0, 0.58, 1.0),
-			_fuselage_panel_band_mesh
-		)
+		var panel_band := MeshInstance3D.new()
+		panel_band.name = "FuselagePanelBand"
+		panel_band.position = Vector3(0, FUSELAGE_PANEL_BAND_HEIGHT, seam_z)
+		panel_band.mesh = _fuselage_panel_band_mesh
+		_arrow_visual.add_child(panel_band)
 
 
 func _build_recon_systems() -> void:
@@ -1423,14 +1412,10 @@ func _inspect_fuselage_panel_band_mesh_sharing() -> Dictionary:
 	var expected_transforms := _fuselage_panel_band_transforms()
 	for child in _arrow_visual.get_children():
 		var band := child as MeshInstance3D
-		if band == null or band.mesh is not TorusMesh:
+		if band == null or band.mesh is not BoxMesh:
 			continue
-		var band_mesh := band.mesh as TorusMesh
-		if not is_equal_approx(
-			band_mesh.inner_radius, FUSELAGE_PANEL_BAND_INNER_RADIUS
-		) or not is_equal_approx(
-			band_mesh.outer_radius, FUSELAGE_PANEL_BAND_OUTER_RADIUS
-		):
+		var band_mesh := band.mesh as BoxMesh
+		if not band_mesh.size.is_equal_approx(FUSELAGE_PANEL_BAND_SIZE):
 			continue
 		var index := bands.size()
 		bands.append(band)
@@ -1447,10 +1432,6 @@ func _inspect_fuselage_panel_band_mesh_sharing() -> Dictionary:
 			or band.layers != 1 \
 			or not is_zero_approx(band.transparency):
 			errors.append("fuselage panel-band render-state drift: %s" % path)
-		if not StringName(
-			band.get_meta(TorusGeometryBudget.PROFILE_META, &"")
-		).is_empty():
-			errors.append("fuselage panel-band torus-budget profile drift: %s" % path)
 		if band.get_child_count() != 0 \
 			or band.get_script() != null \
 			or not band.get_groups().is_empty() \
@@ -1469,45 +1450,15 @@ func _inspect_fuselage_panel_band_mesh_sharing() -> Dictionary:
 		errors.append("fuselage panel-band shared-mesh identity drift")
 
 	var mesh := _fuselage_panel_band_mesh
-	var normalised := mesh != null \
-		and mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
-	var authored_tessellation := Vector2i(
-		FUSELAGE_PANEL_BAND_AUTHORED_RINGS,
-		FUSELAGE_PANEL_BAND_AUTHORED_RING_SEGMENTS
-	)
-	var retained_authored_tessellation := Vector2i.ZERO
-	if normalised:
-		var authored_value: Variant = mesh.get_meta(
-			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
-		)
-		if authored_value is Vector2i:
-			retained_authored_tessellation = authored_value
-		if retained_authored_tessellation != authored_tessellation:
-			errors.append("fuselage panel-band authored budget metadata drift")
-	var expected_tessellation := Vector2i(
-		FUSELAGE_PANEL_BAND_BUDGETED_RINGS,
-		FUSELAGE_PANEL_BAND_BUDGETED_RING_SEGMENTS
-	) if normalised else authored_tessellation
 	if mesh == null \
-		or not is_equal_approx(mesh.inner_radius, FUSELAGE_PANEL_BAND_INNER_RADIUS) \
-		or not is_equal_approx(mesh.outer_radius, FUSELAGE_PANEL_BAND_OUTER_RADIUS) \
-		or mesh.rings != expected_tessellation.x \
-		or mesh.ring_segments != expected_tessellation.y \
+		or not mesh.size.is_equal_approx(FUSELAGE_PANEL_BAND_SIZE) \
 		or mesh.get_surface_count() != 1:
 		errors.append("fuselage panel-band primitive recipe drift")
 	elif mesh.material != _arrow_materials.titanium:
 		errors.append("fuselage panel-band material identity drift")
 	if mesh != null:
-		var expected_mesh_metadata := PackedStringArray([
-			TorusGeometryBudget.AUTHORED_META
-		]) if normalised else PackedStringArray()
-		var actual_mesh_metadata := PackedStringArray()
-		for key in mesh.get_meta_list():
-			actual_mesh_metadata.append(str(key))
-		actual_mesh_metadata.sort()
-		expected_mesh_metadata.sort()
-		if actual_mesh_metadata != expected_mesh_metadata:
-			errors.append("fuselage panel-band mesh budget metadata roster drift")
+		if not mesh.get_meta_list().is_empty():
+			errors.append("fuselage panel-band mesh gained metadata")
 		if mesh.resource_local_to_scene:
 			errors.append("fuselage panel-band mesh became scene-local")
 	for band in bands:
@@ -1527,12 +1478,8 @@ func _inspect_fuselage_panel_band_mesh_sharing() -> Dictionary:
 		"resource_allocation_reduction": 4,
 		"component_retained_mesh_present": mesh != null,
 		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
-		"normalised_by_torus_budget": normalised,
-		"authored_tessellation": authored_tessellation,
-		"current_tessellation": Vector2i(
-			mesh.rings, mesh.ring_segments
-		) if mesh != null else Vector2i.ZERO,
-		"budget_profile": &"",
+		"mesh_kind": &"BoxMesh",
+		"mesh_size": mesh.size if mesh != null else Vector3.ZERO,
 		"legacy": {
 			"geometry_nodes": 5,
 			"geometry_submissions": 5,
@@ -1590,13 +1537,9 @@ static func _dorsal_data_conduit_curve_joint_transforms() -> Array[Transform3D]:
 
 
 static func _fuselage_panel_band_transforms() -> Array[Transform3D]:
-	var basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
-	basis.x *= 1.0
-	basis.y *= 0.58
-	basis.z *= 1.0
 	var transforms: Array[Transform3D] = []
 	for seam_z in [-4.4, -2.6, 0.4, 2.2, 4.3]:
-		transforms.append(Transform3D(basis, Vector3(0, 1.22, seam_z)))
+		transforms.append(Transform3D(Basis.IDENTITY, Vector3(0, FUSELAGE_PANEL_BAND_HEIGHT, seam_z)))
 	return transforms
 
 
