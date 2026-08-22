@@ -32,7 +32,7 @@ extends HeroShip
 ##
 ## **The silhouette.** A long faceted octagonal pressure tube — the only craft in
 ## the fleet whose dominant mass is a tube rather than a plate, wedge, delta or
-## slab — carrying a proud octagonal bow docking collar on four struts, a lit
+## slab — carrying a proud open bow docking arch on two struts, a lit
 ## band of ten cabin windows down each flank, a dorsal service spine, and a
 ## transverse tail yoke with four engines in a single row. Span-to-length is
 ## 0.34, well clear of Torrent 0.80, Arrow 0.91, Jovian 0.71 and Zenith 1.38. It
@@ -200,11 +200,11 @@ const CABIN_WINDOW_PITCH := 1.55
 ## submission through a ship-local MultiMesh.
 const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
-const RENDER_DESCENDANT_COUNT := 161
-const RENDER_MESH_INSTANCE_COUNT := 155
+const RENDER_DESCENDANT_COUNT := 156
+const RENDER_MESH_INSTANCE_COUNT := 150
 const RENDER_MULTIMESH_BATCH_COUNT := 1
-const RENDER_DRAWN_COPY_COUNT := 162
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 156
+const RENDER_DRAWN_COPY_COUNT := 157
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 151
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 61
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
@@ -623,7 +623,7 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 	_create_halyard_materials()
 	_relocate_and_restyle_cockpit(cockpit, canopy, hinge_bar, hinge_mounts)
 	_build_pressure_hull()
-	_build_bow_collar()
+	_build_bow_docking_arch()
 	_build_flank_detail()
 	_build_connected_interior()
 	_build_propulsion_and_gear()
@@ -843,16 +843,17 @@ func _build_pressure_hull() -> void:
 	)
 
 
-## The at-distance signature: an octagonal bow docking collar standing proud of
-## the nose on four struts. Eight chamfered box segments, so the ring is built in
-## the same language as the hull rather than as a smooth torus.
-func _build_bow_collar() -> void:
+## The at-distance signature: an open bow docking arch standing proud of the
+## nose on two struts. Its five chamfered box segments retain a readable docking
+## aperture and target plate without completing the wheel-like hollow loop that
+## the original eight-segment collar formed.
+func _build_bow_docking_arch() -> void:
 	var segment_length := 2.0 * BOW_RING_RADIUS * tan(PI / 8.0)
-	for segment_index in 8:
-		var angle := TAU * (float(segment_index) + 0.5) / 8.0
+	for segment_index in 5:
+		var angle := PI * float(segment_index) / 4.0
 		var segment := _box(
 			_halyard_visual,
-			"BowCollarSegment%02d" % segment_index,
+			"BowDockingArchSegment%02d" % segment_index,
 			Vector3(
 				BOW_RING_RADIUS * cos(angle),
 				BOW_RING_CENTRE_Y + BOW_RING_RADIUS * sin(angle),
@@ -862,11 +863,11 @@ func _build_bow_collar() -> void:
 			_halyard_materials.hull_shade if segment_index % 2 == 0 else _halyard_materials.accent
 		)
 		segment.rotation.z = angle + PI * 0.5
-	for strut_index in 4:
-		var strut_angle := TAU * (float(strut_index) + 0.5) / 4.0
+	for strut_index in 2:
+		var strut_angle := PI * (2.0 * float(strut_index) + 1.0) / 4.0
 		_box(
 			_halyard_visual,
-			"BowCollarStrut%02d" % strut_index,
+			"BowDockingArchStrut%02d" % strut_index,
 			Vector3(
 				(BOW_RING_RADIUS - 0.42) * cos(strut_angle) * 0.92,
 				BOW_RING_CENTRE_Y + (BOW_RING_RADIUS - 0.42) * sin(strut_angle) * 0.92,
@@ -875,7 +876,7 @@ func _build_bow_collar() -> void:
 			Vector3(0.24, 0.24, 1.05),
 			_halyard_materials.structure
 		)
-	_box(_halyard_visual, "BowCollarCapturePlate", Vector3(0.0, BOW_RING_CENTRE_Y - 2.05, BOW_RING_Z), Vector3(1.30, 0.22, 0.70), _halyard_materials.dark)
+	_box(_halyard_visual, "BowDockingTargetPlate", Vector3(0.0, BOW_RING_CENTRE_Y - 2.05, BOW_RING_Z), Vector3(1.30, 0.22, 0.70), _halyard_materials.dark)
 
 
 ## Ten lit cabin windows down each flank, in a recessed frame. No other craft in
