@@ -16,7 +16,13 @@ func _run() -> void:
 	var hero := HeroScene.instantiate() as Node
 	root.add_child(hero)
 	await process_frame
+	await process_frame
 	var rig := hero.get_node("ShipAudioRig") as Node
+	var automatic: Dictionary = rig.get_hero_fleet_audio_snapshot()
+	_check(bool(automatic.attached), "scene rig auto-binds valid hero parent")
+	_check((automatic.authority as Dictionary).ship == false, "automatic binding owns no ship authority")
+	hero.component_damage_changed.emit(&"engine_bay", 0, 1.0)
+	_check(is_zero_approx(float(rig.get_engine_degradation())), "nominal parent signal leaves engine baseline unchanged")
 	var binding := Binding.new()
 	_check(bool(binding.bind(&"torrent_interceptor", rig).accepted), "baseline hero rig binds")
 	rig.semantic_engine_cue_emitted.connect(_on_cue)

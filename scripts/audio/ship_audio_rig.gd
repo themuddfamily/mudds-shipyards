@@ -1,6 +1,8 @@
 class_name ShipAudioRig
 extends Node3D
 
+const HeroFleetAudioBindingScript := preload("res://scripts/audio/hero_fleet_audio_binding.gd")
+
 signal semantic_engine_cue_emitted(cue_id: StringName, intensity: float)
 
 ## Reusable ship-local, profile-driven positional audio component.
@@ -235,6 +237,8 @@ var _last_velocity_high := false
 var _last_load_active := false
 var _boost_requested := false
 var _damage_alarm_active := false
+var _hero_fleet_audio_binding: RefCounted
+var _hero_fleet_parent: Node
 var _last_cue_id: StringName = &""
 var _cue_request_count := 0
 var _expected_volumes: Dictionary = {}
@@ -272,11 +276,56 @@ func _ready() -> void:
 	if rig_enabled:
 		_ensure_synthesized()
 	_apply_runtime_state()
+	call_deferred("_attach_hero_fleet_audio")
 
 
 func _exit_tree() -> void:
 	_tearing_down = true
+	_detach_hero_fleet_audio()
 	_discard_audio_resources(true)
+
+
+func _attach_hero_fleet_audio() -> void:
+	if _tearing_down or _hero_fleet_audio_binding != null:
+		return
+	var parent := get_parent()
+	if parent == null:
+		return
+	var binding: RefCounted = HeroFleetAudioBindingScript.new()
+	var result: Dictionary = binding.bind_parent(parent, self)
+	if not bool(result.get("accepted", false)):
+		return
+	if not parent.is_connected(&"component_damage_changed", _on_hero_component_damage_changed):
+		parent.connect(&"component_damage_changed", _on_hero_component_damage_changed)
+	_hero_fleet_parent = parent
+	_hero_fleet_audio_binding = binding
+	binding.present_parent_damage(&"", 0, 1.0)
+
+
+func _detach_hero_fleet_audio() -> void:
+	if is_instance_valid(_hero_fleet_parent) and _hero_fleet_parent.is_connected(
+			&"component_damage_changed", _on_hero_component_damage_changed):
+		_hero_fleet_parent.disconnect(&"component_damage_changed", _on_hero_component_damage_changed)
+	if _hero_fleet_audio_binding != null:
+		_hero_fleet_audio_binding.detach()
+	_hero_fleet_audio_binding = null
+	_hero_fleet_parent = null
+
+
+func _on_hero_component_damage_changed(
+		component_id: StringName,
+		state: int,
+		integrity: float
+	) -> void:
+	if _hero_fleet_audio_binding != null:
+		_hero_fleet_audio_binding.present_parent_damage(component_id, state, integrity)
+
+
+func get_hero_fleet_audio_snapshot() -> Dictionary:
+	return _hero_fleet_audio_binding.get_snapshot() if _hero_fleet_audio_binding != null else {
+		"attached": false,
+		"generation": 0,
+	}.duplicate(true)
 
 
 func get_component_id() -> StringName:
