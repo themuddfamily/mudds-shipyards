@@ -55,6 +55,7 @@ const ReturnTravelAdapterScript := preload("res://scripts/world/ember_relay_surv
 const ReturnBerthAdapterScript := preload("res://scripts/world/planetary_return_berth_adapter.gd")
 const ReturnPersistenceAdapterScript := preload("res://scripts/world/planetary_return_persistence_adapter.gd")
 const PlanetaryTravelAudioBindingScript := preload("res://scripts/audio/planetary_travel_audio_binding.gd")
+const ArrowEntryPresentationBindingScript := preload("res://scripts/ships/arrow_entry_presentation_binding.gd")
 const RETURN_PERSISTENCE_SCHEMA_VERSION := 1
 const RETURN_PERSISTENCE_PAYLOAD_KIND: StringName = &"ember_planetary_return"
 const RETURN_PERSISTENCE_RECORD_KEYS := [
@@ -101,6 +102,8 @@ var _return_persistence_replayed_generation := -1
 var _return_persistence_replayed_digest := ""
 var _return_persistence_retired_generation := -1
 var _travel_audio_binding: RefCounted
+var _entry_presentation_binding: RefCounted
+var _last_entry_presentation_result: Dictionary = {}
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -192,6 +195,7 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	var retained_session: Variant = _host.get_travel_session_observation_source()
 	if retained_session is Object:
 		bind_planetary_travel_audio(retained_session as Object)
+	_attach_entry_presentation()
 	process_physics_priority = PHYSICS_PRIORITY
 	set_physics_process(is_inside_tree())
 	return _finish(true, &"configured")
@@ -253,6 +257,8 @@ func configure_planetary_surface(
 		_relay_return_manifest = ReturnManifestScript.new()
 		_relay_return_travel = ReturnTravelAdapterScript.new()
 	_atmosphere_composition = atmosphere_composition
+	if bool(result.get("accepted", false)) and atmosphere_composition != null:
+		_configure_entry_atmosphere(atmosphere_composition)
 	return result
 
 
@@ -1197,6 +1203,16 @@ func advance_from_caller_sample(
 	_last_prepared_evidence = _pending_envelope.duplicate(true)
 	var transition := {"accepted": true, "reason": &"no_transition"}
 	var host_phase := get_host_phase()
+	if host_phase in [
+		EmberSurfaceLoopHost.Phase.ORBIT_APPROACH,
+		EmberSurfaceLoopHost.Phase.DESCENT,
+		EmberSurfaceLoopHost.Phase.SURFACE_APPROACH,
+		EmberSurfaceLoopHost.Phase.LANDING_APPROACH,
+	]:
+		_present_entry_observation(
+			velocity_mps.length(),
+			host_phase == EmberSurfaceLoopHost.Phase.LANDING_APPROACH,
+		)
 	if reboarded:
 		if host_phase != EmberSurfaceLoopHost.Phase.ON_FOOT:
 			return _reject(&"caller_reboard_phase_mismatch")
@@ -1379,7 +1395,57 @@ func get_snapshot() -> Dictionary:
 		"completion_handback": _completion_handback.duplicate(true),
 		"planetary_orbit_return_consumed": _planetary_orbit_return_consumed,
 		"planetary_surface": get_planetary_surface_snapshot(),
+		"entry_presentation": _entry_presentation_binding.get_snapshot() \
+			if _entry_presentation_binding != null else {"attached": false},
+		"last_entry_presentation_result": _last_entry_presentation_result.duplicate(true),
 	}.duplicate(true)
+
+
+## Resolves the retained gameplay HUD beside this production owner. Failure is
+## presentation-local: travel, physics, landing, and damage continue unchanged.
+func _attach_entry_presentation() -> Dictionary:
+	if _entry_presentation_binding != null:
+		return {"accepted": true, "reason": &"entry_presentation_retained"}
+	if not _ship is ArrowReconShip or _composition_root == null:
+		return {"accepted": false, "reason": &"entry_presentation_unavailable"}
+	var hud := _composition_root.get_node_or_null(^"HUD") as GameHUD
+	if hud == null:
+		return {"accepted": false, "reason": &"entry_hud_unavailable"}
+	var binding := ArrowEntryPresentationBindingScript.new() as RefCounted
+	var result: Dictionary = binding.call(&"attach", _ship as ArrowReconShip, hud)
+	if bool(result.get("accepted", false)):
+		_entry_presentation_binding = binding
+	return result
+
+
+func _configure_entry_atmosphere(atmosphere_composition: Node) -> Dictionary:
+	var attached := _attach_entry_presentation()
+	if not bool(attached.get("accepted", false)):
+		return attached
+	var profile: PlanetaryAtmosphereProfile = atmosphere_composition.get(
+		"atmosphere_profile"
+	) as PlanetaryAtmosphereProfile
+	if profile == null:
+		return {"accepted": false, "reason": &"entry_atmosphere_profile_unavailable"}
+	return _entry_presentation_binding.call(&"configure_atmosphere", profile)
+
+
+func _present_entry_observation(speed_mps: float, landing_supported: bool) -> void:
+	var attached := _attach_entry_presentation()
+	if not bool(attached.get("accepted", false)):
+		_last_entry_presentation_result = attached.duplicate(true)
+		return
+	if _atmosphere_composition != null:
+		var snapshot: Dictionary = _entry_presentation_binding.call(&"get_snapshot")
+		if snapshot.get("branch_id", &"airless") != &"atmospheric":
+			var configured := _configure_entry_atmosphere(_atmosphere_composition)
+			if not bool(configured.get("accepted", false)):
+				_last_entry_presentation_result = configured.duplicate(true)
+				return
+	_last_entry_presentation_result = _entry_presentation_binding.call(
+		&"present_observation", _last_planetary_altitude_m, speed_mps,
+		landing_supported
+	) as Dictionary
 
 
 func audit() -> Dictionary:
