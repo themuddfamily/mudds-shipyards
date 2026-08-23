@@ -333,6 +333,14 @@ const MODERN_REGISTRY_LIGHT_COUNT := 2
 const MODERN_REGISTRY_HEADER_SIZE := Vector3(12.0, 1.0, 0.42)
 const MODERN_REGISTRY_HEADER_END_RADIUS := 0.5
 const MODERN_REGISTRY_HEADER_CURVE_SEGMENTS := 8
+## The roof edge is the upper structural header of Dock Operations' glazed
+## frontage. Its former 121 mm proportional bevel still read as a rectangular
+## cap above the already-curved sign fascia from the central approach. A true
+## half-height capsule keeps the exact roof/collider envelope while making that
+## remaining window-header silhouette coherent at walking distance.
+const CENTRAL_OPERATIONS_WINDOW_HEADER_SIZE := Vector3(12.0, 0.55, 8.0)
+const CENTRAL_OPERATIONS_WINDOW_HEADER_END_RADIUS := 0.275
+const CENTRAL_OPERATIONS_WINDOW_HEADER_CURVE_SEGMENTS := 8
 ## Port berth node, widened from 12.0 m so the 12.2 m Arrow no longer overhangs
 ## the pad it is parked on. Its centre is unchanged, so berth transforms, the
 ## landing envelope and the cue strips all keep their published coordinates.
@@ -7209,7 +7217,19 @@ func _build_catwalks_and_control_room() -> void:
 	operations_threshold.set_meta("station_doorway", true)
 	operations_threshold.set_meta("open_bay_center_x", 43.0)
 	operations_threshold.set_meta("open_bay_clear_width", 3.34)
-	_box(upper, "OperationsPodRoof", Vector3(43.0, 5.9, 27.0), Vector3(12.0, 0.55, 8.0), _materials["ivory"])
+	var operations_window_header := _extruded_capsule_fascia(
+		upper,
+		"OperationsPodRoof",
+		Vector3(43.0, 5.9, 27.0),
+		CENTRAL_OPERATIONS_WINDOW_HEADER_SIZE,
+		_materials["ivory"],
+		CENTRAL_OPERATIONS_WINDOW_HEADER_END_RADIUS,
+		CENTRAL_OPERATIONS_WINDOW_HEADER_CURVE_SEGMENTS
+	)
+	var operations_window_header_visual := operations_window_header.get_node(^"Mesh") as MeshInstance3D
+	operations_window_header_visual.mesh.resource_name = "central_operations_window_capsule_header_v1"
+	operations_window_header.set_meta("geometry_profile", &"central_operations_window_capsule_header")
+	operations_window_header.set_meta("authenticated_original_geometry", false)
 	_box(upper, "OperationsPodBack", Vector3(43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["steel_blue"])
 	for x_position in [37.5, 41.2, 44.8, 48.5]:
 		_box(upper, "OperationsWindowMullion", Vector3(x_position, 3.0, 22.95), Vector3(0.26, 5.4, 0.32), _materials["steel_blue"])
