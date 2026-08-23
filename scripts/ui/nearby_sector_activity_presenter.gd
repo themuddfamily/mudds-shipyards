@@ -103,8 +103,13 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var cargo_progress: Dictionary = {}
 	if activity_id == &"cinder_platform_supply_run":
 		cargo_progress = _cargo_progress(state)
+	var convoy_feedback: Dictionary = {}
+	if activity_id == &"cinder_reach_emberline_convoy":
+		convoy_feedback = _convoy_feedback(state)
 	var progress := (
-		"  //  %s" % str(cargo_progress.get("summary", ""))
+		"  //  %s" % str(convoy_feedback.get("summary", ""))
+		if not convoy_feedback.is_empty()
+		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
 	)
@@ -127,8 +132,98 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"recovery_text": recovery,
 		"objective_text": str(cargo_progress.get("objective_text", "")),
 		"cargo_progress": cargo_progress.duplicate(true),
+		"convoy_feedback": convoy_feedback.duplicate(true),
+		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
+		"caption_text": str(convoy_feedback.get("caption_text", "")),
 		"activity_authority": false,
 		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Presents the convoy authority's existing proximity/grace/failure state. The
+## model neither samples positions nor owns convoy health, movement, or failure.
+func _convoy_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var state_id := StringName(state.get("state_id", &"idle"))
+	var has_sample := bool(state.get("has_entity_sample", false))
+	var distance := maxf(float(state.get("escort_distance", -1.0)), -1.0)
+	var radius := maxf(float(state.get("escort_proximity_radius", 0.0)), 0.0)
+	var within_range := bool(state.get("escort_within_proximity", false))
+	var separation_remaining := maxf(
+		float(state.get("separation_remaining_seconds", 0.0)), 0.0
+	)
+	var maximum_separation := maxf(
+		float(state.get("maximum_separation_seconds", 0.0)), 0.0
+	)
+	var completed_legs := maxi(int(state.get("completed_leg_count", 0)), 0)
+	var leg_count := maxi(int(state.get("leg_count", 0)), 0)
+	var threat_id: StringName = &"secure"
+	var semantic_cue_id: StringName = &"convoy_escort_secure"
+	var caption := "Convoy escort secure"
+	var summary := "ESCORT SECURE"
+
+	if state_id == &"idle" or (state_id == &"active" and not has_sample):
+		threat_id = &"rendezvous"
+		semantic_cue_id = &""
+		caption = "Rendezvous with the supply tender"
+		summary = "RENDEZVOUS WITH SUPPLY TENDER"
+	elif state_id == &"completed":
+		threat_id = &"secured"
+		semantic_cue_id = &"convoy_escort_arrived"
+		caption = "Convoy safely arrived"
+		summary = "CONVOY SECURED"
+	elif state_id in [&"failed", &"aborted"]:
+		threat_id = &"lost" if state_id == &"failed" else &"aborted"
+		semantic_cue_id = &"convoy_escort_lost" if state_id == &"failed" \
+			else &"convoy_escort_aborted"
+		var reason := StringName(state.get("terminal_reason", &""))
+		var readable_reason := str(reason).replace("_", " ").to_upper()
+		caption = "Convoy lost: %s" % str(reason).replace("_", " ") \
+			if state_id == &"failed" else "Convoy escort aborted"
+		summary = "%s%s" % [
+			"CONVOY LOST" if state_id == &"failed" else "ESCORT ABORTED",
+			(" — " + readable_reason) if not readable_reason.is_empty() else "",
+		]
+	elif state_id == &"active" and has_sample and not within_range:
+		var critical_window := maxf(1.0, maximum_separation * 0.25)
+		var critical := separation_remaining <= critical_window
+		threat_id = &"critical" if critical else &"separated"
+		semantic_cue_id = &"convoy_escort_separation_critical" if critical \
+			else &"convoy_escort_separation_warning"
+		caption = (
+			"Critical convoy separation. Rejoin now."
+			if critical else "Convoy separation warning. Rejoin convoy."
+		)
+		summary = "%s  //  %.1fs TO LOSS" % [
+			"CRITICAL SEPARATION: REJOIN NOW" if critical \
+				else "SEPARATION THREAT: REJOIN CONVOY",
+			separation_remaining,
+		]
+	elif state_id == &"active" and has_sample and radius > 0.0 \
+			and distance >= radius * 0.8:
+		threat_id = &"range_high"
+		semantic_cue_id = &"convoy_escort_range_high"
+		caption = "Convoy escort range high. Close the gap."
+		summary = "ESCORT RANGE HIGH: CLOSE GAP"
+
+	if state_id == &"active" and has_sample and distance >= 0.0 and radius > 0.0:
+		summary += "  //  %.0fm / %.0fm" % [distance, radius]
+	if state_id in [&"active", &"completed"] and leg_count > 0:
+		summary += "  //  LEG %d/%d" % [mini(completed_legs + 1, leg_count), leg_count]
+	return {
+		"threat_id": threat_id,
+		"semantic_cue_id": semantic_cue_id,
+		"caption_text": caption,
+		"escort_distance": distance,
+		"escort_proximity_radius": radius,
+		"separation_remaining_seconds": separation_remaining,
+		"completed_leg_count": completed_legs,
+		"leg_count": leg_count,
+		"summary": summary,
+		"combat_authority": false,
+		"damage_authority": false,
+		"activity_authority": false,
 	}.duplicate(true)
 
 
