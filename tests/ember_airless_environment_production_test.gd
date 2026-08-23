@@ -2,6 +2,9 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
+const AirlessEnvironmentPresentation := preload(
+	"res://scripts/world/ember_airless_environment_presentation.gd"
+)
 const STORE_PATH := "memory://ember-airless-environment-settings.json"
 const EXPECTED_ASSERTIONS := 11
 
@@ -129,7 +132,7 @@ func _run() -> void:
 		and is_equal_approx(
 			environment.ambient_light_energy,
 			float(baseline.ambient_light_energy) \
-				* EmberAirlessEnvironmentPresentation.TERMINATOR_AMBIENT_MULTIPLIER
+				* AirlessEnvironmentPresentation.TERMINATOR_AMBIENT_MULTIPLIER
 		)
 		and not environment.fog_enabled,
 		"the real post-rebase horizon sample produces an airless terminator",
@@ -154,7 +157,7 @@ func _run() -> void:
 		and is_equal_approx(
 			float((day_presentation.current as Dictionary).ambient_light_energy),
 			float(baseline.ambient_light_energy) \
-				* EmberAirlessEnvironmentPresentation.DAY_AMBIENT_MULTIPLIER
+				* AirlessEnvironmentPresentation.DAY_AMBIENT_MULTIPLIER
 		)
 		and bool(day_presentation.black_star_field_preserved)
 		and int(day_presentation.node_budget) == 0
