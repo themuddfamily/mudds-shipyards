@@ -31,7 +31,7 @@ func _ready() -> void:
 	_readout.outline_size = 8
 	_readout.no_depth_test = true
 	_readout.set_meta("presentation_only", true)
-	_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]"
+	_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
 	add_child(_readout)
 	_clear_display_snapshot()
 
@@ -42,6 +42,7 @@ func present_crew_snapshot(source: Dictionary) -> Dictionary:
 	var departure := source.get("departure_readiness", {}) as Dictionary
 	var power_routing := source.get("power_routing", {}) as Dictionary
 	var engineer_route := power_routing.get("engineer", {}) as Dictionary
+	var engineer_repair := source.get("engineer_repair", {}) as Dictionary
 	var handoff := source.get("emergency_pilot_handoff", {}) as Dictionary
 	var role_states := {}
 	var role_occupancy := source.get("role_occupancy", {}) as Dictionary
@@ -71,6 +72,7 @@ func present_crew_snapshot(source: Dictionary) -> Dictionary:
 		"optional_crew_count": optional_count,
 		"role_states": role_states,
 		"engineer_route": route_token,
+		"engineer_repair": _repair_token(engineer_repair),
 		"emergency_handoff": handoff_view,
 		"presentation_only": true,
 	}.duplicate(true)
@@ -89,7 +91,7 @@ func get_readout_text() -> String:
 func clear_for_detach() -> void:
 	_clear_display_snapshot()
 	if is_instance_valid(_readout):
-		_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]"
+		_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
 
 
 func _clear_display_snapshot() -> void:
@@ -99,6 +101,7 @@ func _clear_display_snapshot() -> void:
 		"optional_crew_count": 0,
 		"role_states": {},
 		"engineer_route": "[NONE]",
+		"engineer_repair": "[READY]",
 		"emergency_handoff": {},
 		"presentation_only": true,
 	}.duplicate(true)
@@ -115,10 +118,11 @@ func _format_readout(snapshot: Dictionary) -> String:
 	role_line += "]"
 	var departure_token := "READY" if bool(snapshot.get("pilot_ready", false)) else "WAIT PILOT"
 	var route_token := str(snapshot.get("engineer_route", "[NONE]"))
-	var text := role_line + "\nDEPART [%s] CREW[%d]\nENG ROUTE %s" % [
+	var text := role_line + "\nDEPART [%s] CREW[%d]\nENG ROUTE %s REPAIR %s" % [
 		departure_token,
 		int(snapshot.get("optional_crew_count", 0)),
 		route_token,
+		str(snapshot.get("engineer_repair", "[READY]")),
 	]
 	var handoff := snapshot.get("emergency_handoff", {}) as Dictionary
 	if not handoff.is_empty():
@@ -142,3 +146,15 @@ func _route_token(channel: StringName) -> String:
 			return "[TARGET]"
 		_:
 			return "[NONE]"
+
+
+func _repair_token(repair: Dictionary) -> String:
+	var status := StringName(repair.get("status", &"idle"))
+	if status == &"repairing":
+		return "[WORK %d%%]" % int(round(clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0))
+	if status == &"interrupted":
+		return "[INTERRUPTED]"
+	var cooldown := maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0)
+	if cooldown > 0.0:
+		return "[COOLDOWN %.1fs]" % cooldown
+	return "[READY]"

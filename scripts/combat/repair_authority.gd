@@ -111,8 +111,9 @@ func advance(delta: float) -> Dictionary:
 
 ## Validates the immutable request envelope and reserves one token. The exact
 ## context is actor_id, target_id, component_id, generation, distance_meters,
-## seated, resource_id, and interrupted. Health is intentionally checked at
-## commit time against the authoritative model, avoiding a stale read window.
+## seated, resource_id, and interrupted. A caller may include `repair` up to
+## the configured amount; omitting it retains the authored fixed pulse. Health
+## is checked at commit time against authority, avoiding a stale read window.
 func request_repair(context: Dictionary) -> Dictionary:
 	if not is_configuration_valid():
 		return _result(false, &"invalid_configuration")
@@ -124,10 +125,13 @@ func request_repair(context: Dictionary) -> Dictionary:
 		return _result(false, &"cooldown")
 	if _resource_units <= 0:
 		return _result(false, &"resource_exhausted")
-	if not _has_exact_keys(context, [
+	var required_keys := [
 		"actor_id", "target_id", "component_id", "generation",
 		"distance_meters", "seated", "resource_id", "interrupted",
-	]):
+	]
+	var requested_amount_keys := required_keys + ["repair"]
+	var has_requested_amount := _has_exact_keys(context, requested_amount_keys)
+	if not _has_exact_keys(context, required_keys) and not has_requested_amount:
 		return _result(false, &"invalid_context")
 	var actor_id := _canonical_id(_field(context, "actor_id", &""))
 	var target_id := _canonical_id(_field(context, "target_id", &""))
@@ -156,6 +160,15 @@ func request_repair(context: Dictionary) -> Dictionary:
 		return _result(false, &"invalid_interruption")
 	if bool(_field(context, "interrupted", false)):
 		return _result(false, &"interrupted")
+	var repair := _repair_amount
+	if has_requested_amount:
+		var raw_repair: Variant = _field(context, "repair", NAN)
+		if not (raw_repair is int or raw_repair is float) \
+				or not is_finite(float(raw_repair)) \
+				or float(raw_repair) <= 0.0 \
+				or float(raw_repair) > _repair_amount:
+			return _result(false, &"invalid_repair_amount")
+		repair = float(raw_repair)
 
 	var token := _next_token
 	_next_token += 1
@@ -165,7 +178,7 @@ func request_repair(context: Dictionary) -> Dictionary:
 		"target_id": _target_id,
 		"component_id": component_id,
 		"generation": _generation,
-		"repair": _repair_amount,
+		"repair": repair,
 	}
 	var receipt := _result(true, &"requested")
 	receipt["token"] = token
@@ -210,6 +223,54 @@ func commit_repair(model: ComponentDamageModel, token: int = -1) -> Dictionary:
 		"generation": expected_generation,
 		"sequence": model.get_last_operation_sequence() + 1,
 	})
+	return _finish_commit(active_token, component_id, operation)
+
+
+## Commits through ShipComponentDamage's component-targeted adapter instead of
+## exposing its private generic ledger. The authority still owns reservation,
+## generation, resource and cooldown; the adapter remains the only ship-local
+## repair mutator and preserves its revision and presentation signals.
+func commit_component_repair(model: Object, token: int = -1) -> Dictionary:
+	if _active.is_empty():
+		return _result(false, &"no_active_repair")
+	var active_token := int(_active.get("token", -1))
+	if token < 0:
+		token = active_token
+	if token != active_token:
+		return _result(false, &"stale_token")
+	var component_id := StringName(_active.get("component_id", &""))
+	var expected_generation := int(_active.get("generation", -1))
+	if model == null or not is_instance_valid(model) \
+			or not model.has_method(&"get_ledger_generation") \
+			or not model.has_method(&"get_component_integrity") \
+			or not model.has_method(&"get_component_report") \
+			or not model.has_method(&"tick_component_repair"):
+		_active.clear()
+		return _result(false, &"model_unavailable")
+	if int(model.call(&"get_ledger_generation")) != expected_generation:
+		_active.clear()
+		return _result(false, &"stale_generation")
+	var current := float(model.call(&"get_component_integrity", component_id))
+	if not is_finite(current) or current < 0.0:
+		_active.clear()
+		return _result(false, &"unknown_component")
+	if current >= 1.0:
+		_active.clear()
+		return _result(false, &"component_not_damaged")
+	var report := model.call(&"get_component_report") as Dictionary
+	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
+	var repair := minf(float(_active.get("repair", 0.0)), 1.0 - current)
+	var operation := model.call(
+		&"tick_component_repair", component_id, repair / rate, true
+	) as Dictionary
+	return _finish_commit(active_token, component_id, operation)
+
+
+func _finish_commit(
+	active_token: int,
+	component_id: StringName,
+	operation: Dictionary
+) -> Dictionary:
 	_active.clear()
 	if not bool(operation.get("accepted", false)):
 		var rejected := _result(false, StringName(operation.get("reason", &"model_rejected")))

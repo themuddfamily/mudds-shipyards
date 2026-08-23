@@ -131,14 +131,71 @@ func _run() -> void:
 		bool(consumed.get("accepted", false))
 			and bool(consumed.get("consumed", false))
 			and consumed.get("status", &"") == &"intent_consumed"
-			and bool(effect.get("accepted", false)),
-		"the Halyard consumes the authoritative engineer receipt exactly once"
+			and bool(effect.get("accepted", false))
+			and effect.get("status", &"") == &"repair_started",
+		"the Halyard reserves one repair action through the existing authority"
 	)
 	_check(
-		model.get_component_integrity(system_id) > integrity_before,
-		"the consumed engineer receipt delegates a bounded repair pulse to the component owner"
+		is_equal_approx(model.get_component_integrity(system_id), integrity_before)
+			and StringName(craft.get_engineer_repair_state().get("status", &"")) == &"repairing"
+			and craft.get_crew_status_display().get_readout_text().contains("REPAIR [WORK"),
+		"repair remains pending and the physical crew panel shows active work"
 	)
-	_check(selected[0] == 1 and selected_generation[0] == 1, "the repair receipt selects its component target")
+	await physics_frame
+	await physics_frame
+	var integrity_at_departure := model.get_component_integrity(system_id)
+	_check(
+		integrity_at_departure > integrity_before,
+		"passive berth recovery continues while the engineer action is pending"
+	)
+	craft.set("_landed", false)
+	await physics_frame
+	var interrupted_state := craft.get_engineer_repair_state()
+	_check(
+		StringName(interrupted_state.get("status", &"")) == &"interrupted"
+			and StringName(interrupted_state.get("reason", &"")) == &"left_berth"
+			and is_equal_approx(
+				model.get_component_integrity(system_id), integrity_at_departure
+			)
+			and is_zero_approx(float(interrupted_state.get("cooldown_remaining", -1.0)))
+			and craft.get_crew_status_display().get_readout_text().contains("[INTERRUPTED]"),
+		"departing the berth interrupts visibly without committing repair or cooldown"
+	)
+	craft.set("_landed", true)
+	_check(
+		bool(model.record_damage(70.0, Vector3.INF).get("accepted", false)),
+		"the interrupted system can receive fresh damage before a retry"
+	)
+	var restart_before := model.get_component_integrity(system_id)
+	var restarted := craft.submit_crew_intent(
+		1,
+		77,
+		&"engineer_avatar",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{"system_id": system_id, "repair": 0.5, "system_generation": 1},
+		4
+	)
+	_check(
+		bool(restarted.get("consumed", false))
+			and (restarted.get("effect", {}) as Dictionary).get("status", &"") == &"repair_started",
+		"the interrupted token can be retried without spending its resource"
+	)
+	for _frame in 60:
+		if StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed":
+			break
+		await physics_frame
+	var completed_state := craft.get_engineer_repair_state()
+	var completion_receipt := completed_state.get("receipt", {}) as Dictionary
+	var completion_operation := completion_receipt.get("operation", {}) as Dictionary
+	_check(
+		StringName(completed_state.get("status", &"")) == &"completed"
+			and model.get_component_integrity(system_id) > restart_before
+			and int(completion_operation.get("repaired_components", 0)) == 1
+			and float(completed_state.get("cooldown_remaining", 0.0)) > 0.0
+			and craft.get_crew_status_display().get_readout_text().contains("[COOLDOWN"),
+		"completed work repairs the selected component and exposes the physics-time cooldown"
+	)
+	_check(selected[0] == 2 and selected_generation[0] == 1, "repair retries retain the generation-fenced component target")
 	var selection_result := effect.get("selection", {}) as Dictionary
 	var selection := selection_result.get("selection", {}) as Dictionary
 	var route_modifiers := craft.get_operational_modifiers()
@@ -152,19 +209,20 @@ func _run() -> void:
 	_check(
 		is_equal_approx(float(route.get("bonus", 0.0)), HalyardCrewTransport.ENGINEER_POWER_ROUTE_BONUS)
 			and float(route_modifiers.get("mobility_multiplier", 0.0)) > 0.0
-			and route_changes[0] == 1
+			and route_changes[0] == 2
 			and last_route[0] == &"mobility_multiplier",
 		"the engineer route adds a bounded live mobility priority without mutating damage"
 	)
-	var healthy := craft.submit_crew_intent(
+	model.record_damage(20.0, Vector3.INF)
+	var cooldown_attempt := craft.submit_crew_intent(
 		1, 77, &"engineer_avatar", Authority.ACTION_ENGINEER_REPAIR,
-		{"system_id": system_id, "repair": 0.0, "system_generation": 1}, 4
+		{"system_id": system_id, "repair": 0.2, "system_generation": 1}, 5
 	)
 	_check(
-		bool(healthy.get("accepted", false))
-			and not bool(healthy.get("consumed", false))
-			and (healthy.get("effect", {}) as Dictionary).get("status", &"") == &"healthy_component",
-		"a healthy component cannot be selected as a repair target"
+		bool(cooldown_attempt.get("accepted", false))
+			and not bool(cooldown_attempt.get("consumed", false))
+			and (cooldown_attempt.get("effect", {}) as Dictionary).get("status", &"") == &"cooldown",
+		"a second repair is rejected until the visible cooldown expires"
 	)
 
 	var replay := craft.submit_crew_intent(
@@ -172,8 +230,8 @@ func _run() -> void:
 		77,
 		&"engineer_avatar",
 		Authority.ACTION_ENGINEER_REPAIR,
-			{"system_id": system_id, "repair": 0.5, "system_generation": 1},
-		4
+			{"system_id": system_id, "repair": 0.2, "system_generation": 1},
+		5
 	)
 	_check(
 		not bool(replay.get("accepted", false))
@@ -390,11 +448,11 @@ func _run() -> void:
 		77,
 		&"engineer_avatar",
 		&"crew_port_01",
-		5,
+		6,
 		78,
 		&"replacement_engineer",
 		Authority.ROLE_ENGINEER,
-		6
+		7
 	)
 	_check(
 		bool(handoff.get("accepted", false))
@@ -409,7 +467,7 @@ func _run() -> void:
 		&"replacement_engineer",
 		Authority.ACTION_ENGINEER_REPAIR,
 		{"system_id": replacement_system_id, "repair": 0.0, "system_generation": 1},
-		7
+		8
 	)
 	_check(
 		bool(stale_generation.get("accepted", false))
@@ -424,21 +482,21 @@ func _run() -> void:
 		&"replacement_engineer",
 		Authority.ACTION_ENGINEER_REPAIR,
 		{"system_id": replacement_system_id, "repair": 0.0, "system_generation": 2},
-		8
+		9
 	)
 	_check(
 		bool(replacement.get("accepted", false))
 			and bool(replacement.get("consumed", false))
-			and selected[0] == 2
+			and selected[0] == 3
 			and selected_generation[0] == 2,
 		"the replacement engineer selects the fresh component generation"
 	)
-	var released := authority.release(1, 78, &"replacement_engineer", &"crew_port_01", 9)
+	var released := authority.release(1, 78, &"replacement_engineer", &"crew_port_01", 10)
 	_check(bool(released.get("accepted", false)), "the replacement engineer can be detached")
 	await physics_frame
 	_check(cleared[0] == 2 and clear_reason[0] == &"role_detached", "detach clears the replacement component selection")
 	_check(
-		route_changes[0] == 4
+		route_changes[0] == 5
 			and last_route[0] == &"none"
 			and not craft.get_operational_modifiers().has("engineer_power_route"),
 		"handoff and detach clear the engineer power route before a new occupant acts"
