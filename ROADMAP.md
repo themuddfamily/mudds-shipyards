@@ -839,8 +839,8 @@ and human mix review remain open.
 7. Require a 30-minute two-client soak with zero authority divergence, duplicate entities/seats, unbounded queue growth, or leaks; record tick/bandwidth budgets and complete a native-Windows two-client playtest before increasing player count or implementing gunner/engineer roles.
 
 - [ ] Add authoritative networked movement, moving-interior occupancy, boarding, ship ownership, projectiles, landing, damage, and respawn; current local authority seams and authority-gated tests do not constitute multiplayer.
-- [ ] Keep fighters immediately accessible while adding optional pilot/gunner/passenger/engineer roles to larger vessels. Halyard now has pilot, gunner, passenger and engineer role gameplay; Bulwark has an optional gunner; Jovian's physical `passenger_port_01` can be admitted as an engineer and delegates bounded repair to the existing component authority. The fleet role registry publishes those capabilities without owning seats. The item remains open because the roles have not passed the required real multi-process/native multiplayer and human accessibility gates.
-- [ ] Test moving-interior stability under latency before broadening player counts. A server-owned bounded relationship stream rejects stale/reordered ticks, freezes across excessive gaps, publishes generation-framed per-recipient snapshots, ties accepted seat claims to one relationship, and resets on release/transfer/disconnect/migration. Client replicas interpolate and boundedly extrapolate accepted frame-local poses; the ENet adapter now binds caller-registered remote avatar/frame nodes, rejects physics targets, freezes on frame loss, supports admitted-peer late-join resync, and applies deterministic per-recipient snapshot/byte budgets with coalescing that never drops generation or release transitions. Deterministic jitter/reorder/teleport/lifecycle/budget tests are green, but the required real three-process 100 ms RTT/loss run, 30-minute soak, and native Windows two-client review are still missing, so this remains open.
+- [ ] Keep fighters immediately accessible while adding optional pilot/gunner/passenger/engineer roles to larger vessels. Halyard now has pilot, gunner, passenger and engineer role gameplay; real production `GameFlow` publishes its loadmaster receipts; Bulwark has an optional gunner; Jovian's physical `passenger_port_01` can be admitted as an engineer and delegates bounded repair to the existing component authority. The fleet role registry publishes those capabilities without owning seats. The exact three-process authority harness is green, but the roles have not passed the required native multiplayer and human accessibility gates, so this remains open.
+- [ ] Test moving-interior stability under latency before broadening player counts. A server-owned bounded relationship stream rejects stale/reordered ticks, freezes across excessive gaps, publishes generation-framed per-recipient snapshots, ties accepted seat claims to one relationship, and resets on release/transfer/disconnect/migration. Client replicas interpolate and boundedly extrapolate accepted frame-local poses; the ENet adapter now binds caller-registered remote avatar/frame nodes, rejects physics targets, freezes on frame loss, supports admitted-peer late-join resync, and applies deterministic per-recipient snapshot/byte budgets with coalescing that never drops generation or release transitions. Deterministic jitter/reorder/teleport/lifecycle/budget tests and the exact three-process 100 ms RTT/loss harness are green, but the 30-minute soak and native Windows two-client review are still missing, so this remains open.
 
 ## Phase 8 — Nearby world and activities
 
@@ -1117,15 +1117,18 @@ cruise path now reaches a fixed Ember navigation target through production, but
 its braking contract intentionally completes about 55 km before the surface
 host's approach envelope; no owner yet flies that bounded low-speed final leg.
 The Host now exposes the required atomic ownership-return and exact committed
-origin-adoption primitives. A focused 37-assertion standalone
-`EmberSurfaceLoopProductionBinding` is now composed into Main/GameFlow and proves the
-required two-phase cadence: receipt adoption occurs in an early caller phase before
-Arrow moves and one Host start/advance occurs at priority 2 after Arrow and Player,
-with same-frame fencing, typed intent forwarding and exact handback validation. The
-production visit remains blocked at the host-composition/boarding handoff: GameFlow
-still needs the exclusive embodiment handoff, completion handback routing, and a
-cruise retirement gate before it can start the Host. Whole-Main detach remains a
-terminal standalone visit rather than proven production continuity. Production
+origin-adoption primitives. Main now samples the near path through the real production
+route, commits a generation-2 rebase, performs one asynchronous Ember load, validates
+the exact host/berth/boarding contracts, and admits the deferred journey exactly once.
+`EmberSurfaceLoopProductionBinding` is composed into Main/GameFlow and its focused
+contract defines the required two-phase cadence: receipt adoption occurs in an early
+caller phase before Arrow moves and one Host start/advance is scheduled at priority 2
+after Arrow and Player, with same-frame fencing, typed intent forwarding and exact
+handback validation. The
+bounded visit remains blocked by the missing roughly 55 km final approach and Host
+start/boarding handoff; the full surface loop, native performance, and human review
+remain open. Whole-Main detach remains a terminal standalone visit rather than proven
+production continuity. Production
 must satisfy those contracts without reparenting Main's retained actors,
 teleporting final approach, adding a second mover/origin owner or travel
 session, or polling raw Input in the binding. The audited station
