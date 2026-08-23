@@ -152,6 +152,22 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func restore_snapshot(snapshot: Variant) -> Dictionary:
+	if not _configured or not snapshot is Dictionary:
+		return _result(false, &"invalid_hazard_snapshot")
+	var saved := snapshot as Dictionary
+	var saved_exposure_value: Variant = saved.get("exposure", {})
+	if not saved_exposure_value is Dictionary:
+		return _result(false, &"invalid_hazard_exposure")
+	var saved_exposure := saved_exposure_value as Dictionary
+	for hazard_id: StringName in _hazards.keys():
+		var value := float(saved_exposure.get(hazard_id, 0.0))
+		if not is_finite(value) or value < 0.0 or value > MAX_EXPOSURE:
+			return _result(false, &"invalid_hazard_exposure")
+		_exposure[hazard_id] = value
+	return _result(true, &"hazard_restored")
+
+
 func _finite_range(value: Variant, minimum: float, maximum: float) -> bool:
 	if value is not float and value is not int:
 		return false

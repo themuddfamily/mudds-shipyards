@@ -89,6 +89,25 @@ func resume_route(position: Variant) -> Dictionary:
 	return _result(true, &"route_resumed")
 
 
+## Restores detached route progress without restoring actor motion. Active
+## sessions reopen as interrupted so a caller must explicitly resume them.
+func restore_snapshot(snapshot: Variant) -> Dictionary:
+	if _contract == null or not snapshot is Dictionary:
+		return _result(false, &"invalid_route_snapshot")
+	var saved := snapshot as Dictionary
+	var saved_route := StringName(saved.get("route_id", &""))
+	var saved_index := int(saved.get("waypoint_index", -1))
+	if saved_route.is_empty() or saved_route != StringName(_landmarks[0].get("route_id", &"")):
+		return _result(false, &"route_snapshot_mismatch")
+	if saved_index < 0 or saved_index > _landmarks.size():
+		return _result(false, &"route_snapshot_invalid_index")
+	_route_id = saved_route
+	_waypoint_index = saved_index
+	_last_interruption = StringName(saved.get("last_interruption", &"session_restore"))
+	_state = State.COMPLETED if saved_index == _landmarks.size() else State.INTERRUPTED
+	return _result(true, &"route_restored")
+
+
 func get_snapshot() -> Dictionary:
 	var next_landmark: StringName = &""
 	if _waypoint_index >= 0 and _waypoint_index < _landmarks.size():

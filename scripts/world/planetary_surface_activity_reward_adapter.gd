@@ -394,6 +394,59 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_session_snapshot() -> Dictionary:
+	var generations := _host_generations() if _host_is_current() else {}
+	return {
+		"schema_version": 1,
+		"run_generation": generations.get("run", -1),
+		"attachment_generation": generations.get("attachment", -1),
+		"state": _state_id(),
+		"activity_sequence": {
+			"activity_ids": _sequence_ids.duplicate(),
+			"index": _sequence_index,
+		},
+		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
+		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
+	}.duplicate(true)
+
+
+## Rehydrates detached route/sequence/hazard progress on a newer attachment.
+## The active activity is reopened as failed and must be explicitly retried.
+func restore_session_snapshot(
+		snapshot: Variant,
+		navigation: RefCounted,
+		hazard: RefCounted
+	) -> Dictionary:
+	if not _bound or not snapshot is Dictionary or navigation == null or hazard == null:
+		return _reject(&"invalid_session_snapshot")
+	var saved := snapshot as Dictionary
+	var generations := _host_generations()
+	if int(saved.get("run_generation", -1)) != generations.run \
+			or generations.attachment <= int(saved.get("attachment_generation", -1)):
+		return _reject(&"stale_session_snapshot")
+	var route_result: Dictionary = navigation.call(
+		&"restore_snapshot", saved.get("surface_route", {})
+	)
+	if not bool(route_result.get("accepted", false)):
+		return _reject(route_result.get("reason", &"route_restore_rejected") as StringName)
+	var hazard_result: Dictionary = hazard.call(
+		&"restore_snapshot", saved.get("surface_hazard", {})
+	)
+	if not bool(hazard_result.get("accepted", false)):
+		return _reject(hazard_result.get("reason", &"hazard_restore_rejected") as StringName)
+	var sequence := saved.get("activity_sequence", {}) as Dictionary
+	_sequence_ids = sequence.get("activity_ids", []) as Array[StringName]
+	_sequence_index = int(sequence.get("index", -1))
+	_navigation = navigation
+	_hazard = hazard
+	_state = State.FAILED
+	return _with_adapter({
+		"route": route_result,
+		"hazard": hazard_result,
+		"activity_recovery_required": true,
+	}, true, &"surface_session_restored")
+
+
 func audit() -> Dictionary:
 	var errors := _configuration_errors.duplicate()
 	if _bound and not _host_is_current():

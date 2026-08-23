@@ -53,6 +53,7 @@ func _run() -> void:
 	await _test_sequence_failure_recovery()
 	await _test_surface_route_admits_activity_sequence()
 	await _test_surface_hazard_interrupts_and_recovers_route()
+	await _test_surface_session_restore_fences_reentry()
 	_finish()
 
 
@@ -379,6 +380,65 @@ func _test_surface_hazard_interrupts_and_recovers_route() -> void:
 		"fresh re-entry resumes the current waypoint and does not duplicate rewards"
 	)
 	director.queue_free()
+	await process_frame
+
+
+func _test_surface_session_restore_fences_reentry() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var navigation := NavigationScript.new()
+	var hazard := HazardScript.new()
+	navigation.configure(NavigationContractScript.new())
+	hazard.configure(NavigationContractScript.new())
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.bind_surface_hazard(hazard)
+	adapter.start_surface_activity_sequence(
+		[&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName],
+		navigation,
+		{"surface_staging_gate": &"ridge_relay"}
+	)
+	hazard.submit_exposure(
+		&"caldera_thermal_vent", Vector3(58.0, 120000.0, -4.0), 1.0, 8.0
+	)
+	var saved := adapter.get_session_snapshot()
+	var restored_host := FakeHost.new()
+	restored_host.attachment_generation = 4
+	var restored_director := _director_with_activity()
+	var restored_adapter := AdapterScript.new()
+	var restored_runtime := RuntimeScript.new()
+	var restored_navigation := NavigationScript.new()
+	var restored_hazard := HazardScript.new()
+	restored_navigation.configure(NavigationContractScript.new())
+	restored_hazard.configure(NavigationContractScript.new())
+	restored_adapter.bind(
+		restored_host, restored_runtime, restored_director,
+		Callable(self, "_accept_reward")
+	)
+	var restored := restored_adapter.restore_session_snapshot(
+		saved, restored_navigation, restored_hazard
+	)
+	_check(
+		restored.accepted and restored.reason == &"surface_session_restored"
+			and restored.adapter.state == &"failed"
+			and restored.adapter.activity_sequence.index == 0
+			and restored.adapter.surface_route.state == &"interrupted"
+			and is_equal_approx(
+				float(restored.adapter.surface_hazard.exposure[&"caldera_thermal_vent"]),
+				0.8
+			),
+		"new attachment restores route sequence and hazard exposure as recoverable state"
+	)
+	restored_host.attachment_generation = 2
+	_check(
+		restored_adapter.restore_session_snapshot(
+			saved, restored_navigation, restored_hazard
+		).reason == &"stale_session_snapshot",
+		"same or older attachment cannot replay a detached surface session"
+	)
+	director.queue_free()
+	restored_director.queue_free()
 	await process_frame
 
 
