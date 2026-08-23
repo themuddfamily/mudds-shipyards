@@ -153,6 +153,30 @@ func present_payload_release(record: Dictionary) -> Dictionary:
 	return _payload_binding.present_release_record(record)
 
 
+func begin_payload_generation(expected_generation: int) -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	var snapshot := _payload_binding.get_snapshot() as Dictionary
+	var current_generation := int(snapshot.get("generation", -1))
+	if bool(snapshot.get("attached", false)):
+		if expected_generation == current_generation:
+			return _result(true, &"payload_generation_active")
+		if expected_generation != current_generation + 1:
+			return _result(false, &"stale_payload_generation")
+		_payload_binding.detach()
+	elif expected_generation != current_generation:
+		return _result(false, &"stale_payload_generation")
+	return _payload_binding.attach(expected_generation)
+
+
+func end_payload_generation() -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	if not bool(_payload_binding.get_snapshot().get("attached", false)):
+		return _result(true, &"payload_generation_detached")
+	return _payload_binding.detach()
+
+
 func present_payload_abort(record: Dictionary) -> Dictionary:
 	if _ship_id != &"bomber" or _payload_binding == null:
 		return _result(false, &"payload_audio_not_supported")

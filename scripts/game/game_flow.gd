@@ -5,6 +5,9 @@ const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_autho
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
+const BomberPayloadProjectileType := preload("res://scripts/combat/bomber_payload_projectile.gd")
+const BomberPayloadCombatAdapterType := preload("res://scripts/combat/bomber_payload_combat_adapter.gd")
+const CinderLongRangeBomberType := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const WeaponDefinitionResolverProfileType := preload(
 	"res://scripts/combat/weapon_definition_resolver_profile.gd"
 )
@@ -131,6 +134,7 @@ const PLAYER_SOURCE_IDS := {
 	&"jovian_provisional": 1103,
 	&"zenith_b7_observed": 1104,
 	&"halyard_new_design": 1105,
+	&"cinder-long-range-bomber": 1106,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -198,6 +202,13 @@ const HALYARD_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUD
 const HALYARD_COMBAT_WEAPON_DEFINITION := preload(
 	"res://assets/weapons/halyard_combat_pulse.tres"
 )
+const CINDER_BOMBER_SHIP_ID: StringName = &"cinder-long-range-bomber"
+const CINDER_BOMBER_WEAPON_ID: StringName = &"bomber_payload_release"
+const CINDER_BOMBER_PAYLOAD_PROFILE := {
+	"range": 900.0,
+	"damage": 80.0,
+	"origin_tolerance": 30.0,
+}
 const PLAYER_WEAPON_PROFILES := {
 	RANGE_WEAPON_ID: {
 		"range": 360.0,
@@ -264,6 +275,12 @@ var nearby_activity_music_adapter: Node
 var halyard_crew_semantic_audio_binding: Node
 var _halyard_crew_semantic_bound := false
 var _last_halyard_crew_event_sequence := -2
+var _bomber_payload_ship: CinderLongRangeBomber
+var _bomber_payload_generation := 0
+var _bomber_payload_request_sequence := 0
+var _bomber_payload_projectiles: Array[BomberPayloadProjectile] = []
+var _bomber_payload_adapter: BomberPayloadCombatAdapter
+var _last_bomber_payload_result: Dictionary = {}
 var nearby_activity_persistence_store: RefCounted
 var nearby_activity_persistence_slot: StringName = &"nearby_activity"
 var _nearby_activity_persistence_commit_serial := 0
@@ -473,6 +490,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_bomber_payload_loop(&"game_flow_exit")
 	_cancel_station_seat_for_detach()
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
@@ -1668,6 +1686,7 @@ func _physics_process(delta: float) -> void:
 	if _convoy_is_running() and not _convoy_lifecycle_accepts_sample(actor_sample):
 		_fail_active_activity(_convoy_lifecycle_failure_reason(actor_sample))
 	_update_minimap(actor_sample)
+	_advance_bomber_payload_loop(delta)
 	if not _piloting:
 		return
 	if not is_instance_valid(active_ship):
@@ -1688,6 +1707,211 @@ func _physics_process(delta: float) -> void:
 		return
 	# The ship-local positional rig consumes the already sampled ShipCommand and
 	# smoothed throttle. The coordinator performs no raw Input read or global hum.
+
+
+func _advance_bomber_payload_loop(delta: float) -> void:
+	var bomber := active_ship as CinderLongRangeBomber if active_ship is CinderLongRangeBomber else null
+	var should_run := is_instance_valid(bomber) and _piloting and bomber.is_piloted()
+	if should_run:
+		if not _ensure_bomber_payload_session(bomber):
+			if is_instance_valid(hud) and hud.has_method(&"clear_bomber_payload_status"):
+				hud.call(&"clear_bomber_payload_status")
+			return
+		for projectile_variant: Variant in _bomber_payload_projectiles.duplicate():
+			var projectile := projectile_variant as BomberPayloadProjectile
+			if projectile == null:
+				continue
+			var previous_position: Vector3 = projectile.get_snapshot().get("position", Vector3.INF)
+			var advanced := projectile.advance(maxf(delta, 0.0))
+			if bool(advanced.get("accepted", false)) and not (advanced.get("terminal_intent", {}) as Dictionary).is_empty():
+				_consume_bomber_payload_terminal(projectile)
+				continue
+			if bool(advanced.get("accepted", false)):
+				_try_submit_bomber_payload_collision(projectile, previous_position)
+		_publish_bomber_payload_snapshot(bomber)
+		return
+	var had_payload_session := _bomber_payload_ship != null
+	if had_payload_session:
+		_clear_bomber_payload_loop(&"pilot_or_ship_lost")
+	if had_payload_session and is_instance_valid(hud) and hud.has_method(&"clear_bomber_payload_status"):
+		hud.call(&"clear_bomber_payload_status")
+
+
+func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
+	if not is_instance_valid(bomber):
+		return false
+	var authority_snapshot := bomber.get_payload_authority_snapshot()
+	if _bomber_payload_ship == bomber and not bool(authority_snapshot.get("active", false)):
+		_clear_bomber_payload_loop(&"ship_payload_reset")
+	if _bomber_payload_ship != null and _bomber_payload_ship != bomber:
+		_clear_bomber_payload_loop(&"active_ship_replaced")
+	if _bomber_payload_ship == bomber:
+		return _bomber_payload_adapter != null
+	_bomber_payload_generation += 1
+	_bomber_payload_request_sequence = 0
+	var started := bomber.begin_payload_generation(_bomber_payload_generation)
+	if not bool(started.get("accepted", false)):
+		return false
+	_bomber_payload_adapter = BomberPayloadCombatAdapterType.new()
+	var adapter_started := _bomber_payload_adapter.begin_generation(_bomber_payload_generation)
+	if not bool(adapter_started.get("accepted", false)):
+		bomber.detach_payload_authority(&"adapter_start_failed")
+		_bomber_payload_adapter = null
+		return false
+	_bomber_payload_ship = bomber
+	_present_bomber_payload_audio(&"begin_payload_audio_generation", {
+		"generation": _bomber_payload_generation,
+	})
+	return true
+
+
+func _consume_bomber_payload_release() -> Dictionary:
+	if _bomber_payload_ship == null or _bomber_payload_adapter == null:
+		_last_bomber_payload_result = {"accepted": false, "reason": &"payload_session_unavailable"}
+		return _last_bomber_payload_result.duplicate(true)
+	var hardpoints := _bomber_payload_ship.get_payload_hardpoints()
+	if hardpoints.is_empty():
+		return {"accepted": false, "reason": &"hardpoint_unavailable"}
+	var request_sequence := _bomber_payload_request_sequence + 1
+	var hardpoint_index := _bomber_payload_request_sequence % hardpoints.size()
+	var release_velocity := _bomber_payload_ship.velocity + (-_bomber_payload_ship.global_basis.z * 220.0)
+	var result := _bomber_payload_ship.request_payload_release(
+		1, &"player_pilot", _bomber_payload_generation, request_sequence,
+		hardpoint_index, release_velocity,
+	)
+	if not bool(result.get("accepted", false)):
+		_last_bomber_payload_result = result.duplicate(true)
+		return result
+	_bomber_payload_request_sequence = request_sequence
+	var record := result.get("record", {}) as Dictionary
+	var projectile := BomberPayloadProjectileType.new(
+		1, Vector3(0.0, -9.81, 0.0), 30.0, 500.0, 100_000.0,
+	) as BomberPayloadProjectile
+	var projectile_started := projectile.begin_generation(_bomber_payload_generation)
+	var consumed := projectile.consume_release_record(1, record)
+	if not bool(projectile_started.get("accepted", false)) or not bool(consumed.get("accepted", false)):
+		_last_bomber_payload_result = {"accepted": false, "reason": &"projectile_admission_failed"}
+		return _last_bomber_payload_result.duplicate(true)
+	_bomber_payload_projectiles.append(projectile)
+	_present_bomber_payload_audio(&"present_payload_release", record)
+	_present_bomber_payload_audio(&"present_projectile_launch", record)
+	_last_bomber_payload_result = result.duplicate(true)
+	return result.duplicate(true)
+
+
+func _consume_bomber_payload_terminal(projectile: BomberPayloadProjectile) -> void:
+	if projectile == null or _bomber_payload_ship == null or _bomber_payload_adapter == null:
+		return
+	var terminal := projectile.get_terminal_intent()
+	if terminal.is_empty():
+		return
+	var release_record := projectile.get_snapshot().get("release_record", {}) as Dictionary
+	terminal["payload_id"] = release_record.get("payload_id", &"")
+	var combat_result := _bomber_payload_adapter.consume_terminal_intent(
+		1, projectile, _bomber_payload_ship,
+		int(PLAYER_SOURCE_IDS.get(CINDER_BOMBER_SHIP_ID, 0)), combat_authority,
+	)
+	_bomber_payload_ship.present_payload_terminal_record(terminal)
+	_present_bomber_payload_audio(&"present_projectile_terminal", terminal)
+	_last_bomber_payload_result = combat_result.duplicate(true)
+	_bomber_payload_projectiles.erase(projectile)
+	projectile.detach(&"terminal_forwarded")
+
+
+func _try_submit_bomber_payload_collision(
+	projectile: BomberPayloadProjectile,
+	previous_position: Vector3,
+) -> void:
+	if _bomber_payload_ship == null or get_world_3d() == null:
+		return
+	var current_position: Vector3 = projectile.get_snapshot().get("position", Vector3.INF)
+	if not previous_position.is_finite() or not current_position.is_finite() \
+			or previous_position.distance_squared_to(current_position) <= 0.000001:
+		return
+	var query := PhysicsRayQueryParameters3D.create(
+		previous_position, current_position, PhysicsLayers.HITSCAN_QUERY_MASK,
+		[_bomber_payload_ship.get_rid()],
+	)
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+	var impact_position: Variant = hit.get("position", current_position)
+	var impact_normal: Variant = hit.get("normal", Vector3.UP)
+	if not impact_position is Vector3 or not impact_normal is Vector3:
+		return
+	var result := projectile.submit_impact(1, impact_position, impact_normal)
+	if bool(result.get("accepted", false)):
+		_consume_bomber_payload_terminal(projectile)
+
+
+func _publish_bomber_payload_snapshot(bomber: CinderLongRangeBomber) -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_bomber_payload_snapshot"):
+		return
+	var authority := bomber.get_payload_authority_snapshot()
+	var projectiles: Array[Dictionary] = []
+	for projectile in _bomber_payload_projectiles:
+		if projectile != null:
+			projectiles.append(projectile.get_snapshot())
+	var snapshot := {
+		"generation": int(authority.get("generation", _bomber_payload_generation)),
+		"active": bool(authority.get("active", false)) and _piloting and bomber.is_piloted(),
+		"ammo": int(authority.get("ammunition_remaining", 0)),
+		"cooldown_remaining": float(authority.get("cooldown_remaining", 0.0)),
+		"release_allowed": _bomber_payload_projectiles.size() < 4,
+		"action_label": "RELEASE PAYLOAD",
+		"action_glyph": "",
+		"projectiles": projectiles,
+		"adapter": _bomber_payload_adapter.get_snapshot(),
+	}
+	hud.call(&"apply_bomber_payload_snapshot", snapshot)
+
+
+func _present_bomber_payload_audio(method: StringName, payload: Dictionary) -> void:
+	if not is_instance_valid(world) or not world.has_method(&"get_fleet_expansion_production_binding"):
+		return
+	var binding := world.call(&"get_fleet_expansion_production_binding") as Node
+	if is_instance_valid(binding) and binding.has_method(method):
+		binding.call(method, &"cinder_long_range_bomber", payload)
+
+
+func _clear_bomber_payload_loop(reason: StringName) -> void:
+	for projectile in _bomber_payload_projectiles:
+		if projectile != null:
+			var release_record := projectile.get_snapshot().get("release_record", {}) as Dictionary
+			if not release_record.is_empty():
+				_present_bomber_payload_audio(&"present_payload_abort", release_record)
+				_present_bomber_payload_audio(&"present_projectile_abort", release_record)
+			projectile.detach(reason)
+	_bomber_payload_projectiles.clear()
+	if _bomber_payload_adapter != null:
+		if bool(_bomber_payload_adapter.get_snapshot().get("active", false)):
+			_bomber_payload_adapter.detach(reason)
+	if _bomber_payload_ship != null:
+		if bool(_bomber_payload_ship.get_payload_authority_snapshot().get("active", false)):
+			_bomber_payload_ship.detach_payload_authority(reason)
+		_present_bomber_payload_audio(&"end_payload_audio_generation", {})
+	_bomber_payload_adapter = null
+	_bomber_payload_ship = null
+	_bomber_payload_request_sequence = 0
+	_last_bomber_payload_result = {"accepted": true, "reason": reason, "cleared": true}
+
+
+func get_bomber_payload_loop_snapshot() -> Dictionary:
+	var projectiles: Array[Dictionary] = []
+	for projectile in _bomber_payload_projectiles:
+		if projectile != null:
+			projectiles.append(projectile.get_snapshot())
+	return {
+		"active": _bomber_payload_ship != null and _bomber_payload_adapter != null,
+		"generation": _bomber_payload_generation,
+		"request_sequence": _bomber_payload_request_sequence,
+		"ship_id": _bomber_payload_ship.get_ship_id() if _bomber_payload_ship != null else &"",
+		"projectiles": projectiles,
+		"adapter": _bomber_payload_adapter.get_snapshot() if _bomber_payload_adapter != null else {},
+		"last_result": _last_bomber_payload_result.duplicate(true),
+	}.duplicate(true)
 
 
 func _capture_cinder_actor_sample() -> Dictionary:
@@ -2025,6 +2249,10 @@ func _on_network_crew_command_result(result: Dictionary) -> void:
 
 
 func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary) -> void:
+	if kind == &"bomber":
+		if StringName(str(payload.get("intent", payload.get("action", &"")))) == &"release_payload":
+			_consume_bomber_payload_release()
+		return
 	if kind == &"tutorial":
 		_handle_first_sortie_tutorial_intent(payload)
 		return
@@ -2964,6 +3192,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	# newly boarded craft silently resumes another ship's activity.
 	if _selected_activity_is_running() and candidate != active_ship:
 		_fail_active_activity(&"active_ship_replaced")
+	if candidate != active_ship:
+		_clear_bomber_payload_loop(&"active_ship_replaced")
 	active_ship = candidate
 	_first_sortie_tutorial_generation += 1
 	_first_sortie_tutorial_active_step = &""
@@ -3098,6 +3328,7 @@ func _try_exit_ship() -> void:
 	await active_ship.canopy_motion_finished
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
 		return
+	_clear_bomber_payload_loop(&"pilot_disembarked")
 	active_ship.set_piloted(false)
 	active_ship.get_camera().current = false
 	player.set_camera_active(true)
@@ -3818,9 +4049,11 @@ func _refresh_production_flyable_registry() -> void:
 			var snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
 			if bool(snapshot.get("built", false)):
 				_register_flyable_ships()
+				_initialize_live_combat()
 				return
 		await get_tree().process_frame
 	_register_flyable_ships()
+	_initialize_live_combat()
 
 
 func _get_expansion_flyable_contract(candidate: HeroShip, binding: Node) -> Dictionary:
@@ -4003,6 +4236,9 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		if migrated_profile.is_empty():
 			return {}
 		profiles[HALYARD_COMBAT_WEAPON_ID] = migrated_profile
+		return profiles
+	if candidate.get_ship_id() == CINDER_BOMBER_SHIP_ID:
+		profiles[CINDER_BOMBER_WEAPON_ID] = CINDER_BOMBER_PAYLOAD_PROFILE.duplicate(true)
 		return profiles
 	return profiles
 

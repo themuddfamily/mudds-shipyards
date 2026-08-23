@@ -76,8 +76,45 @@ func _initialize() -> void:
 		var boarded := await _approach_and_board(game, player, craft)
 		_check(boarded, "%s boards through the real walked-up GameFlow path" % craft_id)
 		_check(game.get_active_ship() == craft and craft.is_piloted(), "%s becomes the active piloted craft" % craft_id)
+		if craft_id == &"cinder-long-range-bomber" and boarded:
+			await physics_frame
+			await process_frame
+			var before_payload := game.get_bomber_payload_loop_snapshot()
+			_check(bool(before_payload.get("active", false)), "the piloted bomber opens one production payload session")
+			var hud_release: Dictionary = game.hud.request_bomber_payload_release()
+			var released := game.get_bomber_payload_loop_snapshot()
+			_check(
+				bool(hud_release.get("accepted", false))
+				and int(released.get("request_sequence", 0)) == 1
+				and (released.get("projectiles", []) as Array).size() == 1
+				and bool((released.get("last_result", {}) as Dictionary).get("accepted", false)),
+				"the real HUD intent admits one bomber release and creates one caller-advanced projectile (hud=%s loop=%s)" % [hud_release, released]
+			)
+			var fleet_snapshot: Dictionary = game.world.get_fleet_expansion_production_binding().get_fleet_snapshot()
+			var bomber_audio := _fleet_craft_audio(fleet_snapshot, &"cinder_long_range_bomber")
+			var payload_audio := bomber_audio.get("payload_audio", {}) as Dictionary
+			var projectile_audio := payload_audio.get("projectile_audio", {}) as Dictionary
+			_check(
+				bool(payload_audio.get("attached", false))
+				and int(payload_audio.get("generation", -1)) == int(released.get("generation", -2))
+				and int(payload_audio.get("emitted_cue_count", 0)) == 1
+				and int(projectile_audio.get("emitted_cue_count", 0)) == 1,
+				"the matching production audio generation emits one release and one projectile-launch cue (payload=%s projectile=%s)" % [payload_audio, projectile_audio]
+			)
 		var disembarked := await _disembark(game, player)
 		_check(disembarked, "%s disembarks through the real GameFlow path" % craft_id)
+		if craft_id == &"cinder-long-range-bomber":
+			var cleared := game.get_bomber_payload_loop_snapshot()
+			var cleared_fleet: Dictionary = game.world.get_fleet_expansion_production_binding().get_fleet_snapshot()
+			var cleared_payload_audio := (
+				_fleet_craft_audio(cleared_fleet, &"cinder_long_range_bomber").get("payload_audio", {}) as Dictionary
+			)
+			_check(
+				not bool(cleared.get("active", true))
+				and (cleared.get("projectiles", []) as Array).is_empty()
+				and not bool(cleared_payload_audio.get("attached", true)),
+				"disembarking clears bomber payload, projectile, and audio-generation state"
+			)
 	_finish(game)
 
 
@@ -86,6 +123,14 @@ func _find_craft(fleet: Array[HeroShip], craft_id: StringName) -> HeroShip:
 		if craft.get_ship_id() == craft_id:
 			return craft
 	return null
+
+
+func _fleet_craft_audio(snapshot: Dictionary, craft_id: StringName) -> Dictionary:
+	for row_variant: Variant in snapshot.get("craft", []) as Array:
+		var row := row_variant as Dictionary
+		if StringName(row.get("craft_id", &"")) == craft_id:
+			return (row.get("audio", {}) as Dictionary).duplicate(true)
+	return {}
 
 
 func _approach_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) -> bool:

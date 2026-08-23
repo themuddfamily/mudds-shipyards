@@ -35,7 +35,17 @@ func attach(expected_generation: int = 0) -> Dictionary:
 	_clear_state()
 	_projectile_binding = ProjectileBinding.new()
 	_projectile_binding.semantic_engine_cue_emitted.connect(_on_projectile_cue)
-	_projectile_binding.attach(expected_generation)
+	var projectile_result: Dictionary = _projectile_binding.attach(0)
+	for generation in range(expected_generation):
+		if not bool(projectile_result.get("accepted", false)):
+			break
+		_projectile_binding.detach()
+		projectile_result = _projectile_binding.attach(generation + 1)
+	if not bool(projectile_result.get("accepted", false)):
+		_projectile_binding.free()
+		_projectile_binding = null
+		_attached = false
+		return _result(false, &"projectile_binding_failed")
 	return _result(true, &"attached")
 
 

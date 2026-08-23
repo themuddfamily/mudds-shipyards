@@ -114,6 +114,50 @@ func detach_craft(craft_id: StringName) -> Dictionary:
 	return {"accepted": false, "reason": &"unknown_craft"}
 
 
+## Forwards bomber payload presentation/audio records to the craft-local binding.
+## The production binding owns composition only; it never admits, advances, or
+## resolves a payload.
+func present_payload_release(craft_id: StringName, record: Dictionary) -> Dictionary:
+	return _present_payload_audio(craft_id, &"present_payload_release", record)
+
+
+func begin_payload_audio_generation(craft_id: StringName, payload: Dictionary) -> Dictionary:
+	return _present_payload_audio(craft_id, &"begin_payload_generation", payload)
+
+
+func end_payload_audio_generation(craft_id: StringName, _payload: Dictionary = {}) -> Dictionary:
+	return _present_payload_audio(craft_id, &"end_payload_generation", {})
+
+
+func present_payload_abort(craft_id: StringName, record: Dictionary) -> Dictionary:
+	return _present_payload_audio(craft_id, &"present_payload_abort", record)
+
+
+func present_projectile_launch(craft_id: StringName, record: Dictionary) -> Dictionary:
+	return _present_payload_audio(craft_id, &"present_projectile_launch", record)
+
+
+func present_projectile_terminal(craft_id: StringName, intent: Dictionary) -> Dictionary:
+	return _present_payload_audio(craft_id, &"present_projectile_terminal", intent)
+
+
+func present_projectile_abort(craft_id: StringName, record: Dictionary) -> Dictionary:
+	return _present_payload_audio(craft_id, &"present_projectile_abort", record)
+
+
+func _present_payload_audio(craft_id: StringName, method: StringName, payload: Dictionary) -> Dictionary:
+	if craft_id != &"cinder_long_range_bomber" or not _audio_bindings.has(craft_id):
+		return {"accepted": false, "reason": &"payload_audio_not_supported"}
+	var binding := _audio_bindings[craft_id] as RefCounted
+	if binding == null or not binding.has_method(method):
+		return {"accepted": false, "reason": &"payload_audio_unavailable"}
+	if method == &"begin_payload_generation":
+		return binding.call(method, int(payload.get("generation", -1))) as Dictionary
+	if method == &"end_payload_generation":
+		return binding.call(method) as Dictionary
+	return binding.call(method, payload) as Dictionary
+
+
 func reattach_craft(craft_id: StringName) -> Dictionary:
 	if _berths == null or not _craft_by_id.has(craft_id):
 		return {"accepted": false, "reason": &"unknown_craft"}

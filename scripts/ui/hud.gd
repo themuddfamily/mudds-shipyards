@@ -2400,6 +2400,8 @@ func apply_bomber_payload_snapshot(snapshot: Dictionary) -> bool:
 	if _bomber_payload_presenter == null:
 		_bomber_payload_presenter = BomberPayloadPresenterType.new()
 		_bomber_payload_presenter.attach()
+	elif not bool(_bomber_payload_presenter.get_snapshot().get("attached", false)):
+		_bomber_payload_presenter.attach()
 	var presentation: Dictionary = _bomber_payload_presenter.present_snapshot(snapshot)
 	if not bool(presentation.get("attached", false)):
 		return false

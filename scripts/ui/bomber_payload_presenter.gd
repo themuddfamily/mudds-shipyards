@@ -8,6 +8,7 @@ extends RefCounted
 const SCHEMA_VERSION := 1
 var _attached := false
 var _generation := 0
+var _source_generation := -1
 var _snapshot: Dictionary = {}
 
 func attach() -> Dictionary:
@@ -27,6 +28,9 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		return _reject(&"detached")
 	if not snapshot.has("generation") or not snapshot.generation is int or int(snapshot.generation) < 0:
 		return _reject(&"invalid_generation")
+	if int(snapshot.generation) < _source_generation:
+		return _reject(&"stale_generation")
+	_source_generation = int(snapshot.generation)
 	_snapshot = snapshot.duplicate(true)
 	return get_snapshot()
 
