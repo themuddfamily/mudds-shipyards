@@ -319,6 +319,7 @@ func set_engine_running(running: bool, play_transition: bool = true) -> bool:
 	if not running:
 		_boost_requested = false
 	_apply_runtime_state()
+	semantic_engine_cue_emitted.emit(&"engine_started" if running else &"engine_stopped", 1.0 if running else 0.0)
 	if play_transition:
 		play_cue(CUE_STARTUP if running else CUE_STOP)
 	_emit_state_changed()
