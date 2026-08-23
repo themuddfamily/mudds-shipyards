@@ -192,6 +192,20 @@ func export_support_bundle(export_root: String, expected_generation: int) -> Dic
 	return {"accepted": true, "reason": &"exported", "generation": expected_generation, "path": export_path, "index_path": index_path}
 
 
+## Selects the next monotonic export generation for an explicit startup export.
+## The existing fixed-root/path and atomic publication checks remain authoritative.
+func export_support_bundle_next_generation(export_root: String) -> Dictionary:
+	if not _valid_export_root(export_root):
+		return {"accepted": false, "reason": &"export_root_invalid"}
+	var index := _read_export_index(export_root + "/" + _EXPORT_INDEX_NAME)
+	if not bool(index.accepted):
+		return index
+	var next_generation := 1
+	for entry in index.entries as Array:
+		next_generation = maxi(next_generation, int((entry as Dictionary).get("generation", 0)) + 1)
+	return export_support_bundle(export_root, next_generation)
+
+
 func _read_export_index(path: String) -> Dictionary:
 	if not _filesystem.file_exists(path):
 		return {"accepted": true, "entries": []}

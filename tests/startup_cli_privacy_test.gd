@@ -22,6 +22,18 @@ func _run() -> void:
 		StartupLoaderType.cli_mode(PackedStringArray(["--support-info", "--version"])) == &"support_info",
 		"support-info deterministically wins when both information flags are present"
 	)
+	_check(
+		StartupLoaderType.cli_mode(PackedStringArray(["--support-export", "user://diagnostics/exports"])) == &"support_export",
+		"support-export selects the early export path"
+	)
+	_check(
+		StartupLoaderType.cli_support_export_path(PackedStringArray(["--support-export", "user://diagnostics/exports"])) == "user://diagnostics/exports",
+		"support-export reads one explicit destination argument"
+	)
+	_check(
+		StartupLoaderType.cli_support_export_path(PackedStringArray(["--support-export"])) == "",
+		"support-export rejects a missing destination argument"
+	)
 	var version := StartupLoaderType.format_cli_output(&"version")
 	_check(version == "Mudds Shipyards 0.12.0", "version output is stable project identity only")
 	var support := StartupLoaderType.format_cli_output(&"support_info")

@@ -31,11 +31,13 @@ extends Node3D
 ## detach/re-add cycle - gets the original synchronous `_ready()`, unchanged.
 
 const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
+const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
 
 const MAIN_SCENE_PATH := "res://scenes/main.tscn"
 
 const CLI_VERSION := &"--version"
 const CLI_SUPPORT_INFO := &"--support-info"
+const CLI_SUPPORT_EXPORT := &"--support-export"
 
 ## Frames to present before any expensive work starts. Two, because the first
 ## one is where the loading screen's Controls take their layout.
@@ -71,10 +73,15 @@ var _mouse_was_free := true
 var _worst_frame_ms := 0.0
 var _last_frame_usec := 0
 var _display_settings_report: Dictionary = {}
+var _early_cli_exit_code := 0
 
 
 func _ready() -> void:
-	var early_cli_mode := cli_mode(OS.get_cmdline_args())
+	var command_line := OS.get_cmdline_args()
+	var early_cli_mode := cli_mode(command_line)
+	if early_cli_mode == &"support_export":
+		_run_early_support_export(cli_support_export_path(command_line))
+		return
 	if not early_cli_mode.is_empty():
 		print(format_cli_output(early_cli_mode))
 		call_deferred("_quit_after_cli_output")
@@ -94,18 +101,39 @@ func _ready() -> void:
 
 
 func _quit_after_cli_output() -> void:
-	get_tree().quit(0)
+	get_tree().quit(_early_cli_exit_code)
 
 
 ## Returns the one supported early-start information mode, or an empty name.
 ## Unknown arguments remain the ordinary game startup path. If both supported
 ## flags are present, the more detailed support report wins deterministically.
 static func cli_mode(args: PackedStringArray) -> StringName:
+	if CLI_SUPPORT_EXPORT in args:
+		return &"support_export"
 	if CLI_SUPPORT_INFO in args:
 		return &"support_info"
 	if CLI_VERSION in args:
 		return &"version"
 	return &""
+
+
+static func cli_support_export_path(args: PackedStringArray) -> String:
+	var flag_index := args.find(CLI_SUPPORT_EXPORT)
+	if flag_index < 0 or flag_index + 1 >= args.size():
+		return ""
+	return args[flag_index + 1]
+
+
+func _run_early_support_export(export_root: String) -> void:
+	var result: Dictionary
+	if export_root.is_empty():
+		result = {"accepted": false, "reason": &"support_export_path_missing"}
+	else:
+		var sink := SessionDiagnosticFileSinkType.new("user://diagnostics")
+		result = sink.export_support_bundle_next_generation(export_root)
+	_early_cli_exit_code = 0 if bool(result.get("accepted", false)) else 1
+	print("Support export: %s" % ("completed" if _early_cli_exit_code == 0 else "rejected"))
+	call_deferred("_quit_after_cli_output")
 
 
 ## Produces only stable build/runtime facts. This intentionally omits paths,
