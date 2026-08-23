@@ -34,6 +34,10 @@ func _run() -> void:
 	var playstation_interact := presenter.resolve_action(&"interact")
 	var playstation_move := presenter.resolve_action(&"move_forward")
 	_check(playstation_interact.text == "Cross" and playstation_move.text == "Left Stick Up", "PlayStation button and axis glyph labels resolve")
+	_check(presenter.supports_device_family(Presenter.DEVICE_FAMILY_NINTENDO), "Nintendo family is an explicit presenter contract")
+	_check(bool(presenter.set_device_family(Presenter.DEVICE_FAMILY_NINTENDO).attached), "Nintendo family selection is presentation-only")
+	var nintendo_interact := presenter.resolve_action(&"interact")
+	_check(nintendo_interact.text == "B", "Nintendo face-button semantics preserve physical south action meaning")
 	_check(not presenter.supports_device_family(&"gamepad_unknown"), "unknown controller families remain unsupported")
 	var remapped := profile.duplicate_profile()
 	var replacement := {"device": &"keyboard", "type": &"key", "physical_keycode": KEY_TAB}

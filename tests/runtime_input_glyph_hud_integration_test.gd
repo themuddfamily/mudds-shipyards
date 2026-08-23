@@ -1,6 +1,7 @@
 extends SceneTree
 
 const HudType := preload("res://scripts/ui/hud.gd")
+const RebindService := preload("res://scripts/settings/input_rebind_service.gd")
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -26,6 +27,13 @@ func _run() -> void:
 	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
 	presenter.set_device_family(&"keyboard")
 	_check(str(hud.call("_action_prompts", interact_actions)) == "Tab", "controls overlay refreshes after remapped profile snapshot")
+	var selector := (hud.get("_settings_page") as Control).find_child("ControllerGlyphFamilyControl", true, false) as OptionButton
+	selector.select(4)
+	selector.item_selected.emit(4)
+	var controller_profile: InputBindingProfile = RebindService.new().get_defaults()
+	controller_profile.set_bindings(&"interact", [{"device": &"gamepad", "type": &"joy_button", "button_index": JOY_BUTTON_A}])
+	presenter.refresh(controller_profile)
+	_check(str(hud.call("_action_prompts", interact_actions)) == "B", "Nintendo selector preserves physical south action semantics")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():
