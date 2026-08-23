@@ -58,6 +58,19 @@ const ROLE_CONTRACTS := {
 		"signature_axes": {
 			"maximum_speed": &"minimum",
 		},
+		"crew_role_capabilities": {
+			&"engineer": {
+				"seat_id": &"passenger_port_01",
+				"anchor_id": &"passenger_port_01",
+				"physical": true,
+				"capabilities": [&"systems_control"],
+				"actions": [&"engineer_repair"],
+				"authority_owner": &"CrewSeatRoleAuthority",
+				"consumer_owner": &"JovianLightFreighter",
+				"generation_fenced": true,
+				"sequence_fenced": true,
+			},
+		},
 	},
 	&"zenith_b7_observed": {
 		"role_id": &"zenith_interceptor",
@@ -108,6 +121,15 @@ const ROLE_CONTRACTS := {
 
 static func get_role_contract(ship_id: StringName) -> Dictionary:
 	return (ROLE_CONTRACTS.get(ship_id, {}) as Dictionary).duplicate(true)
+
+
+## Detached discoverability contract for optional multicrew capabilities. This
+## returns policy data only: it cannot claim a seat, mutate a ship, or dispatch
+## a repair/action request.
+static func get_crew_role_contract(ship_id: StringName, role: StringName) -> Dictionary:
+	var contract := get_role_contract(ship_id)
+	var roles := contract.get("crew_role_capabilities", {}) as Dictionary
+	return (roles.get(role, {}) as Dictionary).duplicate(true)
 
 
 static func get_supported_ship_ids() -> Array[StringName]:
@@ -194,6 +216,33 @@ static func _validate_definition_contract(definition: ShipDefinition, errors: Pa
 		errors.append("%s has an incompatible small/medium craft tag" % ship_id)
 	if not definition.is_definition_valid():
 		errors.append("%s publishes an invalid ShipDefinition" % ship_id)
+	_validate_crew_role_capabilities(ship_id, contract, errors)
+
+
+static func _validate_crew_role_capabilities(
+		ship_id: StringName,
+		contract: Dictionary,
+		errors: PackedStringArray
+) -> void:
+	var roles := contract.get("crew_role_capabilities", {}) as Dictionary
+	for role_variant in roles.keys():
+		var role := StringName(role_variant)
+		var capability := roles[role] as Dictionary
+		if capability.is_empty():
+			errors.append("%s crew role '%s' has an empty capability contract" % [ship_id, role])
+			continue
+		for key in [&"seat_id", &"anchor_id", &"authority_owner", &"consumer_owner"]:
+			if not capability.has(key) or str(capability[key]).is_empty():
+				errors.append("%s crew role '%s' is missing %s" % [ship_id, role, key])
+		for list_key in [&"capabilities", &"actions"]:
+			var values := capability.get(list_key, []) as Array
+			if values.is_empty():
+				errors.append("%s crew role '%s' has no %s" % [ship_id, role, list_key])
+		if not bool(capability.get("physical", false)):
+			errors.append("%s crew role '%s' must publish a physical station" % [ship_id, role])
+		if not bool(capability.get("generation_fenced", false)) \
+				or not bool(capability.get("sequence_fenced", false)):
+			errors.append("%s crew role '%s' is missing lifecycle fencing" % [ship_id, role])
 
 
 static func _profile(definition: ShipDefinition) -> Dictionary:

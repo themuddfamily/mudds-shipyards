@@ -24,6 +24,32 @@ func _initialize() -> void:
 	_check(int(report.get("craft_count", 0)) == 6, "the role registry audits all six current craft")
 	_check(int(report.get("role_count", 0)) == 6, "each current craft owns a distinct stable role ID")
 	_check(int(report.get("schema_version", 0)) == Registry.SCHEMA_VERSION, "role audit exposes its schema version")
+	var jovian_engineer := Registry.get_crew_role_contract(&"jovian_provisional", &"engineer")
+	_check(not jovian_engineer.is_empty(), "Jovian engineer capability is discoverable without constructing the ship")
+	_check(
+		jovian_engineer.get("seat_id", &"") == &"passenger_port_01"
+			and jovian_engineer.get("anchor_id", &"") == &"passenger_port_01"
+			and bool(jovian_engineer.get("physical", false)),
+		"Jovian engineer publishes its physical passenger-cabin station"
+	)
+	_check(
+		(jovian_engineer.get("capabilities", []) as Array).has(&"systems_control")
+			and (jovian_engineer.get("actions", []) as Array).has(&"engineer_repair")
+			and jovian_engineer.get("authority_owner", &"") == &"CrewSeatRoleAuthority"
+			and jovian_engineer.get("consumer_owner", &"") == &"JovianLightFreighter",
+		"Jovian engineer publishes its bounded systems capability and consumer"
+	)
+	_check(
+		bool(jovian_engineer.get("generation_fenced", false))
+			and bool(jovian_engineer.get("sequence_fenced", false)),
+		"Jovian engineer discoverability retains generation and sequence fencing"
+	)
+	var detached_engineer := Registry.get_crew_role_contract(&"jovian_provisional", &"engineer")
+	detached_engineer["seat_id"] = &"tampered"
+	_check(
+		Registry.get_crew_role_contract(&"jovian_provisional", &"engineer").get("seat_id", &"") == &"passenger_port_01",
+		"Jovian engineer capability returns detached policy data"
+	)
 
 	var drifted_arrow := (DEFINITIONS[1] as ShipDefinition).duplicate(true) as ShipDefinition
 	drifted_arrow.role_name = "Interceptor"
