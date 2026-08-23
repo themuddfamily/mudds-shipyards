@@ -138,6 +138,13 @@ const REDUCED_DAMAGE_FLASH_ALPHA := 0.07
 const DAMAGE_FLASH_FADE_SECONDS := 0.42
 const DAMAGE_DIRECTION_FADE_SECONDS := 0.62
 const REDUCED_MOTION_HOLD_SECONDS := 0.45
+const SENSOR_RETICLE_CRITICAL_INTEGRITY := 0.40
+const SENSOR_RETICLE_MARK_LAYOUT := [
+	[Vector2(20.0, 0.0), Vector2(4.0, 12.0)],
+	[Vector2(20.0, 32.0), Vector2(4.0, 12.0)],
+	[Vector2(0.0, 20.0), Vector2(12.0, 4.0)],
+	[Vector2(32.0, 20.0), Vector2(12.0, 4.0)],
+]
 ## Smallest logical layout the HUD panels are authored for. The gameplay panels
 ## use fixed pixel offsets, so scaling past the point where that layout stops
 ## fitting the viewport makes readouts overlap instead of becoming more legible.
@@ -419,8 +426,10 @@ const HELP_ROWS_PER_PAGE := 5
 ## would violate whole-Main identity even though the displayed copy is the same.
 var _help_row_controls: Array[Dictionary] = []
 var _reticle: Control
+var _reticle_marks: Array[ColorRect] = []
 var _reticle_state_label: Label
 var _reticle_state: StringName = &"searching"
+var _sensor_reticle_profile: Dictionary = {}
 var _flight_cue_layer: FlightPathCue
 var _toast_serial := 0
 var _toast_tween: Tween
@@ -1474,6 +1483,7 @@ func get_hero_component_hud_snapshot() -> Dictionary:
 
 func _present_bound_hero_component_report(report: Dictionary) -> void:
 	var presentation := _component_degradation_presenter.present_hero_report(report)
+	_present_sensor_reticle_report(report)
 	if not is_instance_valid(_component_status_label):
 		return
 	_component_status_label.text = str(presentation.get("text", ""))
@@ -1486,6 +1496,7 @@ func _present_bound_hero_component_report(report: Dictionary) -> void:
 
 func _clear_bound_hero_component_report() -> void:
 	_component_degradation_presenter.detach()
+	_apply_sensor_reticle_stage(&"nominal", 1.0, &"cleared")
 	if is_instance_valid(_component_status_label):
 		_component_status_label.text = ""
 		_component_status_label.visible = false
@@ -1494,6 +1505,97 @@ func _clear_bound_hero_component_report() -> void:
 func _resume_bound_hero_component_report_after_reentry() -> void:
 	if _hero_component_hud_binding != null:
 		_hero_component_hud_binding.resume_after_tree_entry()
+
+
+## Reshapes only the four retained targeting bars. Component authority remains
+## in HeroShip and target/lock authority remains with GameFlow; the existing
+## state label is deliberately untouched by this presentation.
+func _present_sensor_reticle_report(report: Dictionary) -> void:
+	var sensor: Dictionary = {}
+	for raw_component in report.get("components", []) as Array:
+		if raw_component is Dictionary \
+				and StringName((raw_component as Dictionary).get("id", &"")) == &"core_systems":
+			sensor = raw_component as Dictionary
+			break
+	if not bool(report.get("configured", false)) or sensor.is_empty():
+		_apply_sensor_reticle_stage(&"nominal", 1.0, &"unavailable")
+		return
+	var integrity := clampf(float(sensor.get("integrity", 0.0)), 0.0, 1.0)
+	var authoritative_stage := StringName(sensor.get("state_id", &"failed"))
+	var stage: StringName = &"nominal"
+	if authoritative_stage == &"failed":
+		stage = &"failed"
+	elif integrity <= SENSOR_RETICLE_CRITICAL_INTEGRITY:
+		stage = &"critical"
+	elif authoritative_stage == &"impaired":
+		stage = &"degraded"
+	_apply_sensor_reticle_stage(stage, integrity, authoritative_stage)
+
+
+func _apply_sensor_reticle_stage(
+		stage: StringName,
+		integrity: float,
+		authoritative_stage: StringName
+	) -> void:
+	var visible_count := 4
+	var length := 12.0
+	match stage:
+		&"degraded":
+			length = 8.0
+		&"critical":
+			visible_count = 2
+			length = 6.0
+		&"failed":
+			visible_count = 0
+			length = 0.0
+		_:
+			stage = &"nominal"
+	for index in mini(_reticle_marks.size(), SENSOR_RETICLE_MARK_LAYOUT.size()):
+		var mark := _reticle_marks[index]
+		var layout := SENSOR_RETICLE_MARK_LAYOUT[index] as Array
+		var base_position := layout[0] as Vector2
+		var base_size := layout[1] as Vector2
+		var vertical := base_size.y > base_size.x
+		var mark_size := Vector2(base_size.x, length) if vertical else Vector2(length, base_size.y)
+		var mark_position := base_position
+		if index == 1:
+			mark_position.y = 44.0 - length
+		elif index == 3:
+			mark_position.x = 44.0 - length
+		mark.position = mark_position
+		mark.size = mark_size
+		# Critical retains the top/bottom axis; failed retains no targeting bars.
+		mark.visible = index < visible_count
+	_sensor_reticle_profile = {
+		"stage": stage,
+		"integrity": clampf(integrity, 0.0, 1.0),
+		"authoritative_stage": authoritative_stage,
+		"visible_mark_count": visible_count,
+		"mark_length": length,
+		"mark_node_count": _reticle_marks.size(),
+		"geometry_policy": &"static",
+		"flashing": false,
+		"reduced_flash_safe": true,
+		"changes_lock_state": false,
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
+
+
+func get_sensor_reticle_component_snapshot() -> Dictionary:
+	var snapshot := _sensor_reticle_profile.duplicate(true)
+	var marks: Array[Dictionary] = []
+	for mark in _reticle_marks:
+		marks.append({
+			"instance_id": mark.get_instance_id(),
+			"position": mark.position,
+			"size": mark.size,
+			"visible": mark.visible,
+		})
+	snapshot["marks"] = marks
+	snapshot["lock_state"] = _reticle_state
+	snapshot["lock_text"] = _reticle_state_label.text if is_instance_valid(_reticle_state_label) else ""
+	return snapshot
 
 
 func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
@@ -3325,15 +3427,13 @@ func _build_hud() -> void:
 	_reticle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_reticle.pivot_offset = Vector2(22.0, 22.0)
 	_hud.add_child(_reticle)
-	for rect_data: Array in [
-		[Vector2(20, 0), Vector2(4, 12)], [Vector2(20, 32), Vector2(4, 12)],
-		[Vector2(0, 20), Vector2(12, 4)], [Vector2(32, 20), Vector2(12, 4)]
-	]:
+	for rect_data: Array in SENSOR_RETICLE_MARK_LAYOUT:
 		var mark := ColorRect.new()
 		mark.position = rect_data[0]
 		mark.size = rect_data[1]
 		_tint_rect(mark, NOMINAL)
 		_reticle.add_child(mark)
+		_reticle_marks.append(mark)
 	_reticle_state_label = _label("[...]  SEARCHING", 10, NOMINAL_SOFT)
 	_reticle_state_label.position = Vector2(-46.0, 48.0)
 	_reticle_state_label.size = Vector2(136.0, 22.0)
@@ -3341,6 +3441,7 @@ func _build_hud() -> void:
 	_reticle_state_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_reticle.add_child(_reticle_state_label)
 	_reticle.visible = false
+	_apply_sensor_reticle_stage(&"nominal", 1.0, &"nominal")
 
 	_build_telemetry()
 	_build_enemy_status()
