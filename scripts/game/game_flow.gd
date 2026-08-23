@@ -78,6 +78,7 @@ const ACTIVITY_KIND_PATROL: StringName = &"patrol"
 const ACTIVITY_KIND_CARGO_DELIVERY: StringName = &"cargo_delivery"
 const ACTIVITY_KIND_CONVOY_ESCORT: StringName = &"convoy_escort"
 const CINDER_CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
+const NETWORK_REPAIR_CRAFT_ID: StringName = &"halyard_new_design"
 ## The tender stays on its authored route. This audited point is the centre of
 ## the collision-clear player rendezvous lane 20 metres above route point zero.
 const CINDER_CONVOY_ACTIVATION_CENTER := Vector3(84.0, -48.0, -724.0)
@@ -4339,6 +4340,12 @@ func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
 		&"destroyed",
 		Callable(self, "_on_ship_destroyed").bind(candidate)
 	)
+	if candidate.get_ship_id() == NETWORK_REPAIR_CRAFT_ID:
+		_connect_signal_once(
+			candidate,
+			&"engineer_repair_state_changed",
+			Callable(self, "_on_engineer_repair_state_changed").bind(candidate)
+		)
 
 
 func _connect_signal_once(source: Object, signal_name: StringName, callback: Callable) -> void:
@@ -7327,6 +7334,94 @@ func _publish_network_damage_state(
 		entity_id, entity_generation, maxf(0.0, health), state, destroyed,
 		entity_generation if destroyed else 0, [], _network_damage_server_tick
 	)
+
+
+## Publishes only presentation state already emitted by Halyard's server-owned
+## RepairAuthority. The ship receipt remains the mutation proof; this path
+## merely attaches its bounded lifecycle to the existing canonical damage row.
+func _on_engineer_repair_state_changed(
+	repair_state: Dictionary,
+	source_ship: HeroShip
+) -> void:
+	if _network_session_mode != &"server" \
+			or not is_instance_valid(network_session) \
+			or not network_session.is_server() \
+			or not is_instance_valid(source_ship) \
+			or source_ship.get_ship_id() != NETWORK_REPAIR_CRAFT_ID:
+		return
+	var local_state := StringName(repair_state.get("status", &""))
+	var progress := clampf(float(repair_state.get("progress", 0.0)), 0.0, 1.0)
+	var network_state: StringName = &""
+	match local_state:
+		&"repairing":
+			network_state = &"started" if progress <= 0.0 else &"progress"
+		&"completed":
+			network_state = &"completed"
+		&"interrupted":
+			network_state = &"aborted"
+		_:
+			return
+	var component_generation := int(repair_state.get("component_generation", 0))
+	var component_id := StringName(repair_state.get("component_id", &""))
+	if component_generation <= 0 or component_id.is_empty():
+		return
+	var entity_id := source_ship.get_ship_id()
+	var entity_generation := int(_network_damage_entities.get(entity_id, 0))
+	if entity_generation <= 0:
+		var telemetry := source_ship.get_telemetry()
+		var damage_published := _publish_network_damage_state(
+			source_ship,
+			float(telemetry.get("hull", 0.0)),
+			bool(telemetry.get("destroyed", false))
+		)
+		if not bool(damage_published.get("accepted", false)):
+			return
+		entity_generation = int(_network_damage_entities.get(entity_id, 0))
+	var owner := _network_engineer_repair_owner(source_ship, component_id)
+	if owner.is_empty():
+		return
+	_network_damage_server_tick += 1
+	network_session.publish_repair_lifecycle_snapshot(
+		entity_id,
+		entity_generation,
+		{
+			"state": network_state,
+			"component_id": component_id,
+			"component_generation": component_generation,
+			"progress": progress,
+			"token": int(repair_state.get("token", -1)),
+			"receipt": (repair_state.get("receipt", {}) as Dictionary).duplicate(true),
+			"owner_peer_id": int(owner.get("occupant_peer_id", 0)),
+			"avatar_id": StringName(owner.get("avatar_id", &"")),
+			"seat_id": StringName(owner.get("seat_id", &"")),
+			"seat_generation": int(owner.get("seat_generation", 0)),
+		},
+		_network_damage_server_tick
+	)
+
+
+func _network_engineer_repair_owner(
+	source_ship: HeroShip,
+	component_id: StringName
+) -> Dictionary:
+	if not source_ship.has_method(&"get_crew_role_gameplay_snapshot"):
+		return {}
+	var crew := source_ship.call(&"get_crew_role_gameplay_snapshot") as Dictionary
+	var selected := (
+		(crew.get("selected_targets", {}) as Dictionary).get("engineer", {}) as Dictionary
+	)
+	var selected_peer_id := int(selected.get("occupant_peer_id", 0))
+	var selected_avatar_id := StringName(selected.get("avatar_id", &""))
+	if selected_peer_id <= 0 \
+			or StringName(selected.get("component_id", &"")) != component_id:
+		return {}
+	for occupant_variant in crew.get("occupants", []) as Array:
+		var occupant := occupant_variant as Dictionary
+		if StringName(occupant.get("role", &"")) == &"engineer" \
+				and int(occupant.get("occupant_peer_id", 0)) == selected_peer_id \
+				and StringName(occupant.get("avatar_id", &"")) == selected_avatar_id:
+			return occupant.duplicate(true)
+	return {}
 
 
 func _on_ship_hull_changed(current: float, _maximum: float, source_ship: HeroShip = null) -> void:

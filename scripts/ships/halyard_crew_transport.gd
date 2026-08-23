@@ -1671,6 +1671,10 @@ func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
 		"component_generation": system_generation,
 		"progress": 0.0,
 		"token": int(repair_request.get("token", -1)),
+		# Retain the authority-issued receipt as presentation evidence. The
+		# network projection copies bounded identity fields from this same
+		# receipt; it never creates or commits a second repair operation.
+		"receipt": repair_request.duplicate(true),
 	})
 	var result := _crew_role_result(true, &"repair_started")
 	result["system_id"] = system_id
@@ -1854,13 +1858,15 @@ func _interrupt_engineer_repair(reason: StringName) -> void:
 	if _engineer_repair_authority == null \
 			or not _engineer_repair_authority.has_active_repair():
 		return
-	_engineer_repair_authority.interrupt(reason)
+	var interruption_receipt := _engineer_repair_authority.interrupt(reason)
 	_set_engineer_repair_state({
 		"status": &"interrupted",
 		"reason": reason,
 		"component_id": StringName(_engineer_repair_state.get("component_id", &"")),
 		"component_generation": int(_engineer_repair_state.get("component_generation", 0)),
 		"progress": float(_engineer_repair_state.get("progress", 0.0)),
+		"token": int(_engineer_repair_state.get("token", -1)),
+		"receipt": interruption_receipt.duplicate(true),
 	})
 
 

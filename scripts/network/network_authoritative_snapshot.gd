@@ -4,7 +4,7 @@ extends RefCounted
 ## Server-published typed state boundary for the first multiplayer slice.
 ##
 ## The existing movement, ship-ownership, projectile, boarding, damage/respawn,
-## and landing authorities each own their own ledger. This synchronizer joins
+## repair, and landing authorities each own their own ledger. This synchronizer joins
 ## their already-committed detached records into one generation-fenced
 ## snapshot. It does not move nodes, apply damage, reserve seats or berths,
 ## spawn projectiles, or call RPC; server adapters publish here and replicas
@@ -19,6 +19,7 @@ const DAMAGE_RESPAWN_STATES := [
 	&"active", &"healthy", &"damaged", &"destroyed", &"recovering",
 	&"recovery_ready", &"ready", &"respawn_pending", &"respawning",
 ]
+const REPAIR_STATES := [&"started", &"progress", &"completed", &"aborted"]
 const OWNERSHIP_STATES := [&"owned", &"released", &"transferred", &"disconnected"]
 const BOARDING_STATES := [&"boarded", &"released", &"transferred", &"disconnected"]
 const PROJECTILE_STATES := [&"spawned", &"active", &"impacted", &"expired", &"aborted"]
@@ -238,6 +239,8 @@ func audit() -> Dictionary:
 		"boarding_records_are_presentation_only": true,
 		"server_owns_respawn_snapshot": true,
 		"damage_respawn_records_are_presentation_only": true,
+		"server_owns_repair_snapshot": true,
+		"repair_records_are_presentation_only": true,
 		"server_owns_landing_snapshot": true,
 		"landing_records_are_presentation_only": true,
 		"client_can_mutate_snapshot": false,
@@ -334,6 +337,42 @@ func _valid_damage_entry(entry: Dictionary) -> bool:
 				or float(maximum_variant) <= 0.0 \
 				or float(health_variant) > float(maximum_variant):
 			return false
+	if entry.has("repair"):
+		var repair_variant: Variant = entry.get("repair")
+		if not repair_variant is Dictionary \
+				or not _valid_repair_entry(repair_variant as Dictionary, entry):
+			return false
+	return true
+
+
+func _valid_repair_entry(repair: Dictionary, damage: Dictionary) -> bool:
+	var progress_variant: Variant = repair.get("progress")
+	var state := StringName(repair.get("state", &""))
+	var terminal_variant: Variant = repair.get("terminal")
+	if not _valid_positive_integer(repair.get("repair_generation")) \
+			or not _valid_positive_integer(repair.get("repair_sequence")) \
+			or not _valid_nonnegative_integer(repair.get("repair_server_tick")) \
+			or not _valid_id(repair.get("component_id")) \
+			or int(repair.get("component_generation", 0)) \
+				!= int(damage.get("component_generation", 0)) \
+			or not _valid_positive_integer(repair.get("owner_peer_id")) \
+			or not _valid_positive_integer(repair.get("owner_peer_generation")) \
+			or not _valid_id(repair.get("avatar_id")) \
+			or not _valid_id(repair.get("seat_id")) \
+			or not _valid_nonnegative_integer(repair.get("seat_generation")) \
+			or not (progress_variant is int or progress_variant is float) \
+			or not is_finite(float(progress_variant)) \
+			or float(progress_variant) < 0.0 or float(progress_variant) > 1.0 \
+			or not state in REPAIR_STATES \
+			or not terminal_variant is bool \
+			or bool(terminal_variant) != (state in [&"completed", &"aborted"]):
+		return false
+	if state == &"started":
+		return float(progress_variant) == 0.0
+	if state == &"progress":
+		return float(progress_variant) > 0.0
+	if state == &"completed":
+		return float(progress_variant) == 1.0
 	return true
 
 
@@ -448,6 +487,45 @@ func _validate_damage_progress(records: Array) -> Dictionary:
 				and damage_revision == prior_revision \
 				and record != (prior.get("record", {}) as Dictionary):
 			return {"valid": false, "status": &"stale_damage_revision"}
+		var repair_status := _validate_repair_progress(record, prior)
+		if not bool(repair_status.get("valid", false)):
+			return repair_status
+	return {"valid": true}
+
+
+func _validate_repair_progress(record: Dictionary, prior: Dictionary) -> Dictionary:
+	var prior_record := prior.get("record", {}) as Dictionary
+	var prior_repair := prior_record.get("repair", {}) as Dictionary
+	if prior_repair.is_empty():
+		return {"valid": true}
+	var repair := record.get("repair", {}) as Dictionary
+	if repair.is_empty():
+		if int(record.get("component_generation", 0)) \
+				> int(prior_record.get("component_generation", 0)):
+			return {"valid": true}
+		return {"valid": false, "status": &"repair_lifecycle_missing"}
+	var generation := int(repair.get("repair_generation", 0))
+	var prior_generation := int(prior_repair.get("repair_generation", 0))
+	var sequence := int(repair.get("repair_sequence", 0))
+	var prior_sequence := int(prior_repair.get("repair_sequence", 0))
+	if generation < prior_generation:
+		return {"valid": false, "status": &"stale_repair_generation"}
+	if sequence < prior_sequence:
+		return {"valid": false, "status": &"stale_repair_sequence"}
+	if int(repair.get("repair_server_tick", 0)) \
+			< int(prior_repair.get("repair_server_tick", 0)):
+		return {"valid": false, "status": &"stale_repair_server_tick"}
+	if generation == prior_generation and sequence == prior_sequence:
+		return {"valid": repair == prior_repair, "status": &"stale_repair_sequence"}
+	if generation > prior_generation:
+		if StringName(repair.get("state", &"")) != &"started":
+			return {"valid": false, "status": &"repair_generation_not_started"}
+		return {"valid": true}
+	if bool(prior_repair.get("terminal", false)):
+		return {"valid": false, "status": &"repair_generation_terminal"}
+	if StringName(repair.get("state", &"")) == &"started" \
+			or float(repair.get("progress", 0.0)) < float(prior_repair.get("progress", 0.0)):
+		return {"valid": false, "status": &"invalid_repair_transition"}
 	return {"valid": true}
 
 

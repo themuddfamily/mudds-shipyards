@@ -101,6 +101,7 @@ const DAMAGE_COMPONENT_FLOAT_FIELDS := [
 const DAMAGE_COMPONENT_BOOL_FIELDS := [
 	&"engine_disabled", &"weapon_disabled", &"targeting_disabled",
 ]
+const REPAIR_PRESENTATION_STATES := [&"started", &"progress", &"completed", &"aborted"]
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -1355,6 +1356,13 @@ func publish_damage_respawn_snapshot(
 		"recovery_generation": recovery_generation,
 		"damage_event_count": damage_event_count,
 	}
+	# Repair presentation is a bounded projection on this exact damage record.
+	# Hull-only updates must not erase an in-flight or terminal repair receipt;
+	# a component-generation change (respawn/reset) retires it automatically.
+	if not prior.is_empty() \
+			and int(prior.get("component_generation", 0)) == component_generation \
+			and prior.get("repair", null) is Dictionary:
+		damage_record["repair"] = (prior.get("repair", {}) as Dictionary).duplicate(true)
 	for field_variant in component_summary.keys():
 		damage_record[StringName(field_variant)] = component_summary[field_variant]
 	var presentation_record := damage_record.duplicate(true)
@@ -1369,6 +1377,104 @@ func publish_damage_respawn_snapshot(
 		if _peer != null:
 			_send_damage_respawn_snapshot.rpc_id(int(peer_variant), packet)
 	return _remember(_result(true, &"damage_snapshot_published", {"packet": packet, "recipients": target_peers.size()}))
+
+
+## Projects one already-authorized Halyard engineer repair receipt into the
+## craft's canonical damage record. RepairAuthority and ShipComponentDamage
+## remain the only mutators; this method owns only monotonic presentation
+## metadata and atomically publishes the resulting late-join snapshot.
+func publish_repair_lifecycle_snapshot(
+	entity_id: StringName,
+	entity_generation: int,
+	lifecycle: Dictionary,
+	server_tick: int = 0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var prior := _damage_authoritative_records.get(entity_id, {}) as Dictionary
+	if prior.is_empty() \
+			or int(prior.get("entity_generation", 0)) != entity_generation:
+		return _remember(_result(false, &"stale_damage_entity"))
+	var state := StringName(lifecycle.get("state", &""))
+	var component_id := StringName(lifecycle.get("component_id", &""))
+	var component_generation := int(lifecycle.get("component_generation", 0))
+	var progress_variant: Variant = lifecycle.get("progress", NAN)
+	var owner_peer_id := int(lifecycle.get("owner_peer_id", 0))
+	var owner_peer_generation := (
+		1 if owner_peer_id == AUTHORITY_PEER_ID
+		else int(_peer_generations.get(owner_peer_id, 0))
+	)
+	if state not in REPAIR_PRESENTATION_STATES \
+			or component_id.is_empty() \
+			or component_generation != int(prior.get("component_generation", 0)) \
+			or not (progress_variant is int or progress_variant is float) \
+			or not is_finite(float(progress_variant)) \
+			or float(progress_variant) < 0.0 or float(progress_variant) > 1.0 \
+			or owner_peer_id <= 0 or owner_peer_generation <= 0 \
+			or server_tick < int(prior.get("damage_server_tick", 0)):
+		return _remember(_result(false, &"invalid_repair_snapshot"))
+	var terminal := state in [&"completed", &"aborted"]
+	if (state == &"started" and float(progress_variant) != 0.0) \
+			or (state == &"progress" and float(progress_variant) <= 0.0) \
+			or (state == &"completed" and float(progress_variant) != 1.0):
+		return _remember(_result(false, &"invalid_repair_progress"))
+	var prior_repair := prior.get("repair", {}) as Dictionary
+	var repair_generation := int(prior_repair.get("repair_generation", 0))
+	if state == &"started":
+		if not prior_repair.is_empty() and not bool(prior_repair.get("terminal", false)):
+			return _remember(_result(false, &"repair_already_active"))
+		repair_generation += 1
+	elif repair_generation <= 0 or bool(prior_repair.get("terminal", false)):
+		return _remember(_result(false, &"repair_start_required"))
+	var repair_sequence := int(prior_repair.get("repair_sequence", 0)) + 1
+	var receipt := lifecycle.get("receipt", {}) as Dictionary
+	var operation := receipt.get("operation", {}) as Dictionary
+	var repair_record := {
+		"repair_generation": repair_generation,
+		"repair_sequence": repair_sequence,
+		"repair_server_tick": server_tick,
+		"component_id": component_id,
+		"component_generation": component_generation,
+		"owner_peer_id": owner_peer_id,
+		"owner_peer_generation": owner_peer_generation,
+		"avatar_id": StringName(lifecycle.get("avatar_id", &"")),
+		"seat_id": StringName(lifecycle.get("seat_id", &"")),
+		"seat_generation": maxi(0, int(lifecycle.get("seat_generation", 0))),
+		"progress": float(progress_variant),
+		"state": state,
+		"terminal": terminal,
+		# Only bounded identity/status fields from the existing receipt cross the
+		# network boundary; the repair ledger itself remains ship-local.
+		"receipt_status": StringName(receipt.get("reason", receipt.get("status", &""))),
+		"receipt_token": maxi(-1, int(receipt.get("token", lifecycle.get("token", -1)))),
+		"receipt_operation_generation": maxi(0, int(operation.get("generation", 0))),
+		"receipt_operation_sequence": maxi(0, int(operation.get("sequence", 0))),
+	}
+	var damage_revision_before := _damage_snapshot_revision
+	var record_before := prior.duplicate(true)
+	_damage_snapshot_revision += 1
+	var next_record := prior.duplicate(true)
+	next_record["damage_revision"] = _damage_snapshot_revision
+	next_record["damage_server_tick"] = server_tick
+	next_record["repair"] = repair_record
+	_damage_authoritative_records[entity_id] = next_record
+	var authoritative := get_authoritative_snapshot()
+	var sections := authoritative.get("sections", {}) as Dictionary
+	var canonical_tick := maxi(server_tick, maxi(0, int(authoritative.get("server_tick", -1))))
+	var published := publish_snapshot(
+		canonical_tick,
+		(sections.get(&"movement", []) as Array).duplicate(true),
+		[],
+		(sections.get(&"respawn", []) as Array).duplicate(true)
+	)
+	if not bool(published.get("accepted", false)):
+		_damage_snapshot_revision = damage_revision_before
+		_damage_authoritative_records[entity_id] = record_before
+		return _remember(published)
+	var result := published.duplicate(true)
+	result["status"] = &"repair_lifecycle_snapshot_published"
+	result["repair"] = repair_record.duplicate(true)
+	return _remember(result)
 
 
 func tick_damage_recovery(entity_id: StringName, entity_generation: int, delta: float) -> Dictionary:
