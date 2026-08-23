@@ -17,7 +17,9 @@ func _run() -> void:
 	)
 	var snapshot := presentation.get_snapshot()
 	if not configured.accepted or not applied.accepted or snapshot.material_instance_id == 0 \
-			or snapshot.recipe.water_color.a != 1.0 or snapshot.authority.physics:
+			or snapshot.recipe.water_color.a != 1.0 \
+			or not snapshot.authored_anchor_body_local_m.is_equal_approx(Vector3(220.0, 120001.5, -219.0)) \
+			or snapshot.authored_radius_m < 16.0 or snapshot.authority.physics:
 		push_error("water presentation target failed")
 		quit(1)
 		return

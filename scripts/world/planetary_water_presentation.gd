@@ -13,6 +13,8 @@ var _mesh: MeshInstance3D
 var _material: ShaderMaterial
 var _last_recipe: Dictionary = {}
 var _graphics_profile: StringName = &"high"
+var _authored_anchor := Vector3.ZERO
+var _authored_radius_m := 8.0
 
 
 func _ready() -> void:
@@ -37,6 +39,16 @@ func configure(contract: PlanetaryWaterSurfaceMaterialContract = null) -> Dictio
 	_contract = contract if contract != null else ContractScript.new()
 	if not _contract.is_definition_valid():
 		return {"accepted": false, "reason": &"invalid_water_contract"}
+	var hazards := _contract.get_snapshot().get("shoreline_hazards", []) as Array
+	if not hazards.is_empty():
+		for item in hazards:
+			_authored_anchor += (item as Dictionary).get("position_body_local_m", Vector3.ZERO) as Vector3
+		_authored_anchor /= float(hazards.size())
+		for item in hazards:
+			_authored_radius_m = maxf(_authored_radius_m, _authored_anchor.distance_to((item as Dictionary).get("position_body_local_m", _authored_anchor) as Vector3) + 16.0)
+	if _mesh != null:
+		_mesh.position = _authored_anchor
+		_mesh.scale = Vector3.ONE * (_authored_radius_m / 4.0)
 	_configured = true
 	_generation += 1
 	return {"accepted": true, "reason": &"configured", "generation": _generation}
@@ -82,4 +94,4 @@ func apply_graphics_profile(profile: StringName) -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
-	return {"configured": _configured, "generation": _generation, "material_id": _contract.water_surface_material_id if _contract != null else &"", "mesh_instance_id": _mesh.get_instance_id() if _mesh != null else 0, "material_instance_id": _material.get_instance_id() if _material != null else 0, "recipe": _last_recipe.duplicate(true), "graphics_profile": _graphics_profile, "authority": {"physics": false, "movement": false, "water_simulation": false, "clock": false}}.duplicate(true)
+	return {"configured": _configured, "generation": _generation, "material_id": _contract.water_surface_material_id if _contract != null else &"", "mesh_instance_id": _mesh.get_instance_id() if _mesh != null else 0, "material_instance_id": _material.get_instance_id() if _material != null else 0, "authored_anchor_body_local_m": _authored_anchor, "authored_radius_m": _authored_radius_m, "recipe": _last_recipe.duplicate(true), "graphics_profile": _graphics_profile, "authority": {"physics": false, "movement": false, "water_simulation": false, "clock": false}}.duplicate(true)
