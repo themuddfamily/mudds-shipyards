@@ -28,6 +28,7 @@ const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_pre
 const SafeStartRecoveryPresenterType := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
 const CopilotNavigationSupportPresenterType := preload("res://scripts/ui/copilot_navigation_support_presenter.gd")
 const ComponentDegradationPresenterType := preload("res://scripts/ui/component_degradation_presenter.gd")
+const LoadmasterTelemetryPresenterType := preload("res://scripts/ui/loadmaster_telemetry_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -414,6 +415,7 @@ var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _copilot_navigation_presenter := CopilotNavigationSupportPresenterType.new()
 var _component_degradation_presenter := ComponentDegradationPresenterType.new()
+var _loadmaster_telemetry_presenter := LoadmasterTelemetryPresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _semantic_transcript_panel: PanelContainer
 var _semantic_transcript_body: Label
@@ -1333,6 +1335,15 @@ func update_component_degradation(snapshot: Dictionary) -> void:
 
 func clear_component_degradation() -> void:
 	_component_degradation_presenter.detach()
+	clear_runtime_status()
+
+
+func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
+	_render_runtime_status(_loadmaster_telemetry_presenter.present_snapshot(snapshot), &"loadmaster")
+
+
+func clear_loadmaster_telemetry() -> void:
+	_loadmaster_telemetry_presenter.detach()
 	clear_runtime_status()
 
 
