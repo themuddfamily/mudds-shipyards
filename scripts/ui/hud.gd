@@ -38,6 +38,7 @@ signal planetary_cruise_toggle_requested(request_serial: int)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
+signal settings_repair_confirmation_requested(confirmation: String)
 signal display_settings_keep_requested(generation: int)
 signal display_settings_revert_requested(generation: int)
 signal orderly_shutdown_requested
@@ -297,6 +298,12 @@ var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
 var _settings_status_label: Label
+var _settings_repair_panel: PanelContainer
+var _settings_repair_title: Label
+var _settings_repair_detail: Label
+var _settings_repair_confirm_button: Button
+var _settings_repair_report: Dictionary = {}
+var _settings_repair_confirmation := ""
 var _display_confirmation_panel: PanelContainer
 var _display_confirmation_label: Label
 var _display_confirmation_summary_label: Label
@@ -495,6 +502,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	clear_nearby_activity_snapshot()
 	clear_semantic_caption_transcript()
+	clear_runtime_settings_repair_report()
 	if _pause == null or not _pause.visible:
 		return
 	var viewport := get_viewport()
@@ -1814,6 +1822,138 @@ func _confirm_settings_reset() -> void:
 		_settings_reset_confirmation.visible = false
 	settings_reset_requested.emit()
 	set_settings_status("RESET REQUESTED", true)
+
+
+## Renders only the detached status published by the caller-owned repair
+## binding. This surface never inspects a store, prepares a write, or interprets
+## a button press as a successful repair.
+func present_runtime_settings_repair_report(report: Dictionary) -> bool:
+	if not is_instance_valid(_settings_repair_panel):
+		return false
+	if report.is_empty() or not bool(report.get("attached", false)):
+		clear_runtime_settings_repair_report()
+		return false
+	var status_variant: Variant = report.get("last_status", report)
+	if status_variant is not Dictionary:
+		_show_settings_repair_failure(
+			"SETTINGS RECOVERY STATUS UNAVAILABLE",
+			"Recovery details were incomplete. This HUD made no settings changes."
+		)
+		return false
+	var status := (status_variant as Dictionary).duplicate(true)
+	_settings_repair_report = report.duplicate(true)
+	_settings_repair_confirmation = ""
+	_settings_repair_confirm_button.visible = false
+	_settings_repair_confirm_button.disabled = true
+	_settings_repair_panel.visible = true
+	_configure_settings_repair_focus(false)
+	var reason := StringName(status.get("reason", &""))
+	if (
+		bool(status.get("accepted", false))
+		and reason == &"repair_available"
+		and status.get("kind", &"") == &"promote_verified_backup"
+		and int(status.get("generation", -1)) > 0
+		and not str(status.get("confirmation", "")).is_empty()
+	):
+		_settings_repair_confirmation = str(status.get("confirmation", ""))
+		_settings_repair_title.text = "SETTINGS BACKUP RECOVERY AVAILABLE"
+		_settings_repair_title.modulate = _c(CAUTION)
+		_settings_repair_detail.text = (
+			"A verified backup can replace the unreadable primary settings file. "
+			+ "Nothing will be repaired until you confirm and the settings owner completes the request."
+		)
+		_settings_repair_confirm_button.visible = true
+		_settings_repair_confirm_button.disabled = false
+		_configure_settings_repair_focus(true)
+		return true
+	if reason == &"unsupported_newer_schema":
+		_show_settings_repair_failure(
+			"NEWER SETTINGS DATA PRESERVED",
+			"These settings belong to a newer game version. They were not changed or downgraded."
+		)
+		return true
+	if bool(status.get("repair_authority_cleared", false)) or reason in [
+		&"authority_changed", &"authority_changed_during_staging",
+		&"directory_sync_failed", &"atomic_replace_failed",
+		&"published_verification_failed", &"published_directory_sync_failed",
+	]:
+		_show_settings_repair_failure(
+			"SETTINGS REPAIR RESULT AMBIGUOUS",
+			"The repair outcome could not be verified. No success is being reported; inspect the current settings authority before trying again."
+		)
+		return true
+	if reason in [
+		&"load_not_repairable", &"settings_payload_missing",
+		&"stale_load_generation", &"confirmation_mismatch", &"replay_rejected",
+	]:
+		_show_settings_repair_failure(
+			"SETTINGS RECOVERY BLOCKED",
+			"The settings data is corrupt, stale, or cannot be verified. It was left unchanged."
+		)
+		return true
+	_show_settings_repair_failure(
+		"SETTINGS RECOVERY STATUS UNAVAILABLE",
+		"No verified backup repair can be offered. This HUD made no settings changes."
+	)
+	return false
+
+
+func _show_settings_repair_failure(title: String, detail: String) -> void:
+	_settings_repair_title.text = title
+	_settings_repair_title.modulate = _c(DANGER)
+	_settings_repair_detail.text = detail
+	_settings_repair_confirm_button.visible = false
+	_settings_repair_confirm_button.disabled = true
+
+
+func _request_settings_repair_confirmation() -> void:
+	if _settings_repair_confirmation.is_empty():
+		return
+	settings_repair_confirmation_requested.emit(_settings_repair_confirmation)
+
+
+## Caller detach and state reset share this clearing seam. The retained report
+## and token are deep-detached presentation state and carry no authority.
+func clear_runtime_settings_repair_report() -> void:
+	_settings_repair_report.clear()
+	_settings_repair_confirmation = ""
+	if is_instance_valid(_settings_repair_panel):
+		_settings_repair_panel.visible = false
+	if is_instance_valid(_settings_repair_confirm_button):
+		_settings_repair_confirm_button.disabled = true
+	_configure_settings_repair_focus(false)
+
+
+func _configure_settings_repair_focus(active: bool) -> void:
+	if not is_instance_valid(_settings_page):
+		return
+	var save := _settings_page.find_child("SettingsSaveButton", true, false) as Button
+	var back := _settings_page.find_child("SettingsBackButton", true, false) as Button
+	if not is_instance_valid(save) or not is_instance_valid(back):
+		return
+	if active and is_instance_valid(_settings_repair_confirm_button):
+		# Keep the conditional row reachable without pointer input. The surrounding
+		# page is scrollable, so focus-following remains safe at large UI scale.
+		save.focus_neighbor_bottom = save.get_path_to(_settings_repair_confirm_button)
+		_settings_repair_confirm_button.focus_neighbor_top = (
+			_settings_repair_confirm_button.get_path_to(save)
+		)
+		_settings_repair_confirm_button.focus_neighbor_bottom = (
+			_settings_repair_confirm_button.get_path_to(back)
+		)
+		back.focus_neighbor_top = back.get_path_to(_settings_repair_confirm_button)
+		return
+	save.focus_neighbor_bottom = NodePath()
+	back.focus_neighbor_top = NodePath()
+
+
+func get_runtime_settings_repair_presentation() -> Dictionary:
+	return {
+		"visible": is_instance_valid(_settings_repair_panel) and _settings_repair_panel.visible,
+		"confirmation_available": not _settings_repair_confirmation.is_empty(),
+		"report": _settings_repair_report.duplicate(true),
+		"authority": {"persistence": false, "store": false, "commit": false},
+	}.duplicate(true)
 
 
 func _cancel_settings_reset() -> void:
@@ -3978,6 +4118,35 @@ func _build_settings_page() -> void:
 	_settings_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_status_label.visible = false
 	page_stack.add_child(_settings_status_label)
+	_settings_repair_panel = PanelContainer.new()
+	_settings_repair_panel.name = "SettingsRepairNotice"
+	_settings_repair_panel.visible = false
+	_settings_repair_panel.add_theme_stylebox_override(
+		"panel", _border_box(Color("241d17"), 6, CAUTION)
+	)
+	var repair_margin := _margin(14, 10, 14, 10)
+	_settings_repair_panel.add_child(repair_margin)
+	var repair_stack := VBoxContainer.new()
+	repair_stack.add_theme_constant_override("separation", 6)
+	repair_margin.add_child(repair_stack)
+	_settings_repair_title = _label("SETTINGS RECOVERY", 11, CAUTION)
+	_settings_repair_title.name = "SettingsRepairTitle"
+	_settings_repair_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	repair_stack.add_child(_settings_repair_title)
+	_settings_repair_detail = _label("", 10, NOMINAL_SOFT)
+	_settings_repair_detail.name = "SettingsRepairDetail"
+	_settings_repair_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_settings_repair_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	repair_stack.add_child(_settings_repair_detail)
+	_settings_repair_confirm_button = _menu_button("CONFIRM BACKUP REPAIR", CAUTION)
+	_settings_repair_confirm_button.name = "SettingsRepairConfirmButton"
+	_settings_repair_confirm_button.focus_mode = Control.FOCUS_ALL
+	_settings_repair_confirm_button.tooltip_text = (
+		"Send the exact backup-repair confirmation to the settings owner."
+	)
+	_settings_repair_confirm_button.pressed.connect(_request_settings_repair_confirmation)
+	repair_stack.add_child(_settings_repair_confirm_button)
+	page_stack.add_child(_settings_repair_panel)
 	_display_confirmation_panel = PanelContainer.new()
 	_display_confirmation_panel.name = "DisplaySettingsConfirmation"
 	_display_confirmation_panel.visible = false
