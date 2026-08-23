@@ -93,6 +93,7 @@ func _ready() -> void:
 	bind_mining_presentation(Callable(self, "_on_mining_audio_snapshot"))
 	bind_structure_scan_presentation(Callable(self, "_on_structure_scan_audio_snapshot"))
 	bind_beacon_traversal_presentation(Callable(self, "_on_beacon_audio_snapshot"))
+	_publish_cinder_route_audio()
 
 
 func _exit_tree() -> void:
@@ -118,6 +119,19 @@ func _on_beacon_audio_snapshot(snapshot: Dictionary) -> void:
 
 func _on_beacon_audio_result(result: Dictionary) -> void:
 	_cinder_field_audio.present_beacon_result(result)
+
+
+func _publish_cinder_route_audio() -> void:
+	if _cinder_field_audio == null:
+		return
+	if _race_session != null:
+		_cinder_field_audio.present_activity_snapshot(
+			(_race_session.get_presentation_snapshot() as Dictionary).duplicate(true)
+		)
+	if _patrol != null:
+		_cinder_field_audio.present_activity_snapshot(
+			(_patrol.get_presentation_snapshot() as Dictionary).duplicate(true)
+		)
 
 
 ## Binds the production physical adapters to the one existing cargo authority.
@@ -340,13 +354,17 @@ func reset_convoy() -> Dictionary:
 func start_race() -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
-	return _race_session.start(_race_session.get_session_generation())
+	var result: Dictionary = _race_session.start(_race_session.get_session_generation())
+	_publish_cinder_route_audio()
+	return result
 
 
 func advance_race(delta: float) -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
-	return _race_session.advance_physics(delta, _race_session.get_session_generation())
+	var result: Dictionary = _race_session.advance_physics(delta, _race_session.get_session_generation())
+	_publish_cinder_route_audio()
+	return result
 
 
 func submit_race_position(position: Vector3) -> Dictionary:
@@ -358,25 +376,33 @@ func submit_race_position(position: Vector3) -> Dictionary:
 func reset_race() -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
-	return _race_session.reset(_race_session.get_session_generation())
+	var result: Dictionary = _race_session.reset(_race_session.get_session_generation())
+	_publish_cinder_route_audio()
+	return result
 
 
 func start_patrol() -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
-	return _patrol.start(_patrol.get_generation())
+	var result: Dictionary = _patrol.start(_patrol.get_generation())
+	_publish_cinder_route_audio()
+	return result
 
 
 func advance_patrol(delta: float, position: Vector3) -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
-	return _patrol.advance_physics(delta, position, _patrol.get_generation())
+	var result: Dictionary = _patrol.advance_physics(delta, position, _patrol.get_generation())
+	_publish_cinder_route_audio()
+	return result
 
 
 func reset_patrol() -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
-	return _patrol.reset(_patrol.get_generation())
+	var result: Dictionary = _patrol.reset(_patrol.get_generation())
+	_publish_cinder_route_audio()
+	return result
 
 
 func start_cargo_run() -> Dictionary:
