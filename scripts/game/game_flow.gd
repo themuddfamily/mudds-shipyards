@@ -1212,6 +1212,19 @@ func _start_up() -> void:
 	# signals can sample it.
 	_apply_all_runtime_settings()
 	_connect_runtime_signals()
+	opponent.set_target(active_ship)
+	opponent.deactivate()
+	total_targets = world.get_target_count()
+	hud.set_target_count(0, total_targets)
+	hud.set_mode("on-foot")
+	hud.set_interaction("", false)
+	hud.set_enemy_status("", 0.0, 1.0, false)
+	_update_music_bed_state()
+	_sync_halyard_crew_semantic_audio()
+	_apply_torus_geometry_budget()
+	_sync_activity_hud()
+	_sync_planetary_cruise_hud()
+	_initialized = true
 
 
 func _initialize_session_diagnostics() -> void:
@@ -1365,19 +1378,6 @@ func _diagnostic_ship_code(candidate: HeroShip) -> int:
 			return 8
 		_:
 			return 0
-	opponent.set_target(active_ship)
-	opponent.deactivate()
-	total_targets = world.get_target_count()
-	hud.set_target_count(0, total_targets)
-	hud.set_mode("on-foot")
-	hud.set_interaction("", false)
-	hud.set_enemy_status("", 0.0, 1.0, false)
-	_update_music_bed_state()
-	_sync_halyard_crew_semantic_audio()
-	_apply_torus_geometry_budget()
-	_sync_activity_hud()
-	_sync_planetary_cruise_hud()
-	_initialized = true
 
 
 ## Brings every ring and collar in the scene under one geometry budget.
