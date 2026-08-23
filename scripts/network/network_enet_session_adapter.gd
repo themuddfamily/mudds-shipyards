@@ -3201,9 +3201,12 @@ func _configure_multiplayer() -> void:
 	if _configured:
 		return
 	_configured = true
-	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	if not multiplayer.peer_connected.is_connected(_on_peer_connected):
+		multiplayer.peer_connected.connect(_on_peer_connected)
+	if not multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
+		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	if not multiplayer.server_disconnected.is_connected(_on_server_disconnected):
+		multiplayer.server_disconnected.connect(_on_server_disconnected)
 	multiplayer.multiplayer_peer = _peer
 
 
