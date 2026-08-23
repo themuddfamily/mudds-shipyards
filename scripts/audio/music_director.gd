@@ -19,10 +19,14 @@ const PRESENTATION_STATES: Array[StringName] = [
 	Transition.STATE_COMBAT,
 	Transition.STATE_LANDING,
 	Transition.STATE_PLANETARY,
+	Transition.STATE_ORBIT,
+	Transition.STATE_SURFACE,
 ]
 const OBSERVED_PHASES: Array[StringName] = [
 	&"station",
 	&"flight",
+	&"orbit",
+	&"surface",
 	&"combat",
 	&"landing",
 	&"planetary",
@@ -58,6 +62,10 @@ func observe_phase(phase: StringName) -> Dictionary:
 			mapped_state = Transition.STATE_LANDING
 		&"planetary", &"flight":
 			mapped_state = Transition.STATE_PLANETARY
+		&"orbit":
+			mapped_state = Transition.STATE_ORBIT
+		&"surface":
+			mapped_state = Transition.STATE_SURFACE
 	return _accept_observation(mapped_state, phase)
 
 
@@ -141,6 +149,10 @@ func _accept_observation(state: StringName, observation: StringName) -> Dictiona
 	var previous_state := StringName(transition.get("previous_state", &""))
 	if state == Transition.STATE_LANDING and previous_state != state:
 		semantic_music_cue_emitted.emit(&"music_landing", 1.0)
+	elif state == Transition.STATE_ORBIT and previous_state != state:
+		semantic_music_cue_emitted.emit(&"music_orbit", 1.0)
+	elif state == Transition.STATE_SURFACE and previous_state != state:
+		semantic_music_cue_emitted.emit(&"music_surface", 1.0)
 	elif state == Transition.STATE_COMBAT and previous_state != state:
 		semantic_music_cue_emitted.emit(&"music_combat", 1.0)
 	elif state == Transition.STATE_STATION and previous_state != state:
@@ -172,6 +184,6 @@ func _session_state_for(state: StringName) -> StringName:
 	match state:
 		Transition.STATE_COMBAT:
 			return &"combat"
-		Transition.STATE_PLANETARY, Transition.STATE_LANDING:
+		Transition.STATE_PLANETARY, Transition.STATE_LANDING, Transition.STATE_ORBIT, Transition.STATE_SURFACE:
 			return &"flight"
 	return &"rest"
