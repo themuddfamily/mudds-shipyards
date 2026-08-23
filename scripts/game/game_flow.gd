@@ -341,6 +341,9 @@ var _bomber_payload_projectiles: Array[BomberPayloadProjectile] = []
 var _bomber_payload_adapter: BomberPayloadCombatAdapter
 var _last_bomber_payload_result: Dictionary = {}
 var _bomber_payload_server_tick := 0
+var _bomber_payload_canonical_publish_pending := false
+var _last_bomber_payload_network_result: Dictionary = {}
+var _last_bomber_payload_canonical_result: Dictionary = {}
 var _bomber_payload_replica_migration_generation := 0
 var _bomber_payload_replica_generations: Dictionary = {}
 var nearby_activity_persistence_store: RefCounted
@@ -2560,6 +2563,7 @@ func _advance_bomber_payload_loop(delta: float) -> void:
 				_try_submit_bomber_payload_collision(projectile, previous_position)
 				if _bomber_payload_projectiles.has(projectile):
 					_publish_bomber_payload_network(projectile, false)
+		_publish_bomber_payload_canonical_snapshot()
 		_publish_bomber_payload_snapshot(bomber)
 		return
 	var had_payload_session := _bomber_payload_ship != null
@@ -2567,6 +2571,7 @@ func _advance_bomber_payload_loop(delta: float) -> void:
 		_clear_bomber_payload_loop(&"pilot_or_ship_lost")
 	if had_payload_session and is_instance_valid(hud) and hud.has_method(&"clear_bomber_payload_status"):
 		hud.call(&"clear_bomber_payload_status")
+	_publish_bomber_payload_canonical_snapshot()
 
 
 func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
@@ -2634,6 +2639,7 @@ func _consume_bomber_payload_release() -> Dictionary:
 	_bomber_payload_projectiles.append(projectile)
 	_bomber_payload_server_tick += 1
 	_publish_bomber_payload_network(projectile, false)
+	_publish_bomber_payload_canonical_snapshot()
 	_present_bomber_payload_audio(&"present_payload_release", record)
 	_present_bomber_payload_audio(&"present_projectile_launch", record)
 	_last_bomber_payload_result = result.duplicate(true)
@@ -2774,9 +2780,31 @@ func _publish_bomber_payload_network(
 			if terminal else {}
 		),
 	}
-	return network_session.publish_projectile_snapshot(
+	var published: Dictionary = network_session.publish_projectile_snapshot(
 		packet, recipients, terminal, _bomber_payload_server_tick
 	)
+	_last_bomber_payload_network_result = published.duplicate(true)
+	if bool(published.get("accepted", false)):
+		_bomber_payload_canonical_publish_pending = true
+	return published
+
+
+func _publish_bomber_payload_canonical_snapshot(force: bool = false) -> Dictionary:
+	if not force and not _bomber_payload_canonical_publish_pending:
+		return {"accepted": true, "status": &"projectile_canonical_snapshot_current"}
+	if (
+		not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or _network_session_mode != &"server"
+	):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var published: Dictionary = network_session.publish_projectile_canonical_snapshot(
+		_bomber_payload_server_tick
+	)
+	_last_bomber_payload_canonical_result = published.duplicate(true)
+	if bool(published.get("accepted", false)):
+		_bomber_payload_canonical_publish_pending = false
+	return published
 
 
 func _republish_bomber_payloads_for_peer(peer_id: int) -> Dictionary:
@@ -2790,11 +2818,15 @@ func _republish_bomber_payloads_for_peer(peer_id: int) -> Dictionary:
 		if not bool(result.get("accepted", false)):
 			return result
 		published += 1
+	var canonical := _publish_bomber_payload_canonical_snapshot(true)
+	if not bool(canonical.get("accepted", false)):
+		return canonical
 	return {
 		"accepted": true,
 		"status": &"game_flow_projectile_resync_published",
 		"peer_id": peer_id,
 		"projectile_count": published,
+		"canonical_revision": int(canonical.get("revision", 0)),
 	}.duplicate(true)
 
 
@@ -2930,6 +2962,7 @@ func _clear_bomber_payload_loop(reason: StringName) -> void:
 				_present_bomber_payload_audio(&"present_projectile_abort", release_record)
 			projectile.detach(reason)
 	_bomber_payload_projectiles.clear()
+	_publish_bomber_payload_canonical_snapshot()
 	if _bomber_payload_adapter != null:
 		if bool(_bomber_payload_adapter.get_snapshot().get("active", false)):
 			_bomber_payload_adapter.detach(reason)
@@ -2956,6 +2989,9 @@ func get_bomber_payload_loop_snapshot() -> Dictionary:
 		"projectiles": projectiles,
 		"adapter": _bomber_payload_adapter.get_snapshot() if _bomber_payload_adapter != null else {},
 		"last_result": _last_bomber_payload_result.duplicate(true),
+		"canonical_publish_pending": _bomber_payload_canonical_publish_pending,
+		"last_network_result": _last_bomber_payload_network_result.duplicate(true),
+		"last_canonical_result": _last_bomber_payload_canonical_result.duplicate(true),
 	}.duplicate(true)
 
 
@@ -3532,6 +3568,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 func _on_network_session_stopped(reason: StringName) -> void:
 	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_STOP, 0, false)
+	_bomber_payload_canonical_publish_pending = false
 	if _network_session_mode == &"client":
 		_clear_bomber_payload_replica_presentation()
 	_detach_network_ship_authority_composition(reason)

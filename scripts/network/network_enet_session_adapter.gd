@@ -742,6 +742,37 @@ func publish_projectile_snapshot(
 	}))
 
 
+## Promotes the projectile records already admitted by
+## publish_projectile_snapshot() into the canonical late-join envelope. The
+## existing movement and damage sections are retained from the last accepted
+## authority packet, and this adapter chooses a monotonic envelope tick so a
+## caller-local projectile cadence cannot regress another server publisher.
+func publish_projectile_canonical_snapshot(minimum_server_tick: int = 0) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if minimum_server_tick < 0:
+		return _remember(_result(false, &"invalid_server_tick"))
+	var authoritative := get_authoritative_snapshot()
+	var sections := authoritative.get("sections", {}) as Dictionary
+	var current_server_tick := int(authoritative.get("server_tick", -1))
+	# Equal outer ticks are valid because the lifecycle adapter advances the
+	# canonical event sequence/revision. Avoid inventing an extra clock step here:
+	# GameFlow's ship telemetry publisher must remain able to advance on its next
+	# physics sample even when a release occurs between frames.
+	var canonical_server_tick := maxi(
+		minimum_server_tick, maxi(0, current_server_tick)
+	)
+	var movement := (sections.get(&"movement", []) as Array).duplicate(true)
+	var respawn := (sections.get(&"respawn", []) as Array).duplicate(true)
+	var published := publish_snapshot(canonical_server_tick, movement, [], respawn)
+	if not bool(published.get("accepted", false)):
+		return published
+	var result := published.duplicate(true)
+	result["status"] = &"projectile_canonical_snapshot_published"
+	result["server_tick"] = canonical_server_tick
+	return _remember(result)
+
+
 func get_projectile_replication_budget(peer_id: int = 0) -> Dictionary:
 	if peer_id > 0:
 		return (_projectile_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
@@ -883,10 +914,12 @@ func _canonical_projectile_state(
 ) -> StringName:
 	if terminal:
 		var raw_state := StringName(projectile.get("state", &""))
-		if raw_state == &"expired":
+		var terminal_intent := projectile.get("terminal_intent", {}) as Dictionary
+		if raw_state == &"expired" \
+				or StringName(terminal_intent.get("kind", &"")) == &"expiry":
 			return &"expired"
 		if raw_state in [&"resolved", &"impacted", &"impact_pending"] \
-				or not (projectile.get("terminal_intent", {}) as Dictionary).is_empty():
+				or not terminal_intent.is_empty():
 			return &"impacted"
 		return &"aborted"
 	return &"spawned" if prior.is_empty() \
