@@ -363,6 +363,7 @@ var _palette: Dictionary = PaletteType.get_palette(PaletteType.MODE_NONE)
 var _palette_targets: Array[Dictionary] = []
 var _ui_scale := 1.0
 var _reduced_motion := false
+var _reduced_flash := false
 var _captions_enabled := false
 var _caption_preview_revision := 0
 ## Containers whose contents scale with the UI-scale preference. The reticle,
@@ -1441,6 +1442,8 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			(control as CheckButton).button_pressed = bool(value)
 			if key == &"captions_enabled":
 				set_captions_enabled(bool(value))
+			elif key == &"reduced_flash":
+				set_reduced_flash(bool(value))
 		elif control is OptionButton:
 			var option := control as OptionButton
 			option.select(clampi(int(value), 0, option.item_count - 1))
@@ -1569,6 +1572,8 @@ func set_accessibility(descriptor: Dictionary) -> void:
 		set_hud_palette(StringName(str(descriptor["colorblind_palette_id"])))
 	if descriptor.has("reduced_motion"):
 		set_reduced_motion(bool(descriptor["reduced_motion"]))
+	if descriptor.has("reduced_flash"):
+		set_reduced_flash(bool(descriptor["reduced_flash"]))
 	if descriptor.has("captions_enabled"):
 		set_captions_enabled(bool(descriptor["captions_enabled"]))
 
@@ -1785,12 +1790,16 @@ func set_reduced_motion(enabled: bool) -> void:
 	_reduced_motion = enabled
 
 
+func set_reduced_flash(enabled: bool) -> void:
+	_reduced_flash = enabled
+
+
 func is_reduced_motion() -> bool:
 	return _reduced_motion
 
 
 func get_damage_flash_alpha() -> float:
-	return REDUCED_DAMAGE_FLASH_ALPHA if _reduced_motion else DAMAGE_FLASH_ALPHA
+	return REDUCED_DAMAGE_FLASH_ALPHA if _reduced_motion or _reduced_flash else DAMAGE_FLASH_ALPHA
 
 
 func get_toast_fade_seconds() -> float:
@@ -1965,6 +1974,7 @@ func get_accessibility_report() -> Dictionary:
 		"engine_label_color": _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
 		"hull_label_color": _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
 		"reduced_motion": _reduced_motion,
+		"reduced_flash": _reduced_flash,
 		"damage_flash_alpha": get_damage_flash_alpha(),
 		"toast_fade_seconds": get_toast_fade_seconds(),
 		"captions_enabled": _captions_enabled,
@@ -3213,6 +3223,13 @@ func _build_settings_page() -> void:
 		0
 	)
 	_add_toggle_setting(accessibility_group, &"reduced_motion", "Reduced motion", false)
+	_add_toggle_setting_with_help(
+		accessibility_group,
+		&"reduced_flash",
+		"Reduce screen flashes",
+		"Suppresses bright damage flashes while retaining text and directional cues.",
+		false
+	)
 	_add_toggle_setting_with_help(
 		accessibility_group,
 		&"reduced_dynamic_range",

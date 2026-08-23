@@ -50,7 +50,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 5
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 6
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -89,6 +89,7 @@ const DEFAULT_COLORBLIND_PALETTE := ColorblindPalette.NONE
 const DEFAULT_REDUCED_MOTION := false
 const DEFAULT_CAPTIONS_ENABLED := false
 const DEFAULT_REDUCED_DYNAMIC_RANGE := false
+const DEFAULT_REDUCED_FLASH := false
 const DEFAULT_SHOW_TUTORIALS := true
 const MIN_MULTIPLAYER_DISPLAY_NAME_LENGTH := 1
 const MAX_MULTIPLAYER_DISPLAY_NAME_LENGTH := 32
@@ -131,11 +132,21 @@ const _USER_DATA_VALUE_KEYS := [
 	"reduced_motion",
 	"captions_enabled",
 	"reduced_dynamic_range",
+	"reduced_flash",
 	"show_tutorials",
 	"multiplayer_display_name",
 	"network_default_port",
 	"multiplayer_max_players",
 	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V5 := [
+	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
+	"invert_on_foot_y", "camera_fov", "master_volume", "ambience_volume",
+	"engine_volume", "weapons_volume", "ui_volume", "music_volume",
+	"graphics_profile", "window_mode", "control_preset", "ui_scale",
+	"colorblind_palette", "reduced_motion", "captions_enabled",
+	"reduced_dynamic_range", "show_tutorials", "multiplayer_display_name",
+	"network_default_port", "multiplayer_max_players", "input_binding_profile",
 ]
 const _USER_DATA_VALUE_KEYS_V4 := [
 	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
@@ -396,6 +407,14 @@ var reduced_dynamic_range := DEFAULT_REDUCED_DYNAMIC_RANGE:
 		reduced_dynamic_range = validated
 		_queue_change(&"reduced_dynamic_range", validated)
 
+var reduced_flash := DEFAULT_REDUCED_FLASH:
+	set(value):
+		var validated := bool(value)
+		if reduced_flash == validated:
+			return
+		reduced_flash = validated
+		_queue_change(&"reduced_flash", validated)
+
 var show_tutorials := DEFAULT_SHOW_TUTORIALS:
 	set(value):
 		var validated := bool(value)
@@ -481,6 +500,7 @@ func to_dictionary() -> Dictionary:
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
+		"reduced_flash": reduced_flash,
 		"show_tutorials": show_tutorials,
 		"multiplayer_display_name": multiplayer_display_name,
 		"network_default_port": network_default_port,
@@ -516,6 +536,7 @@ func to_user_data_payload() -> Dictionary:
 			"reduced_motion": reduced_motion,
 			"captions_enabled": captions_enabled,
 			"reduced_dynamic_range": reduced_dynamic_range,
+			"reduced_flash": reduced_flash,
 			"show_tutorials": show_tutorials,
 			"multiplayer_display_name": multiplayer_display_name,
 			"network_default_port": network_default_port,
@@ -567,6 +588,7 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	reduced_motion = bool(values.reduced_motion)
 	captions_enabled = bool(values.captions_enabled)
 	reduced_dynamic_range = bool(values.reduced_dynamic_range)
+	reduced_flash = bool(values.reduced_flash)
 	show_tutorials = bool(values.show_tutorials)
 	multiplayer_display_name = String(values.multiplayer_display_name)
 	network_default_port = int(values.network_default_port)
@@ -599,6 +621,7 @@ func reset_to_defaults() -> void:
 	reduced_motion = DEFAULT_REDUCED_MOTION
 	captions_enabled = DEFAULT_CAPTIONS_ENABLED
 	reduced_dynamic_range = DEFAULT_REDUCED_DYNAMIC_RANGE
+	reduced_flash = DEFAULT_REDUCED_FLASH
 	show_tutorials = DEFAULT_SHOW_TUTORIALS
 	multiplayer_display_name = DEFAULT_MULTIPLAYER_DISPLAY_NAME
 	network_default_port = DEFAULT_NETWORK_DEFAULT_PORT
@@ -669,6 +692,7 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_motion", reduced_motion)
 	config.set_value(_SECTION_ACCESSIBILITY, "captions", captions_enabled)
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_dynamic_range", reduced_dynamic_range)
+	config.set_value(_SECTION_ACCESSIBILITY, "reduced_flash", reduced_flash)
 	config.set_value(_SECTION_ACCESSIBILITY, "show_tutorials", show_tutorials)
 	config.set_value(_SECTION_NETWORK, "multiplayer_display_name", multiplayer_display_name)
 	config.set_value(_SECTION_NETWORK, "default_port", network_default_port)
@@ -810,6 +834,7 @@ func load_from_file(path_override: String = "") -> Error:
 		"reduced_dynamic_range",
 		DEFAULT_REDUCED_DYNAMIC_RANGE
 	)
+	reduced_flash = _read_bool(config, _SECTION_ACCESSIBILITY, "reduced_flash", DEFAULT_REDUCED_FLASH)
 	show_tutorials = _read_bool(
 		config, _SECTION_ACCESSIBILITY, "show_tutorials", DEFAULT_SHOW_TUTORIALS
 	)
@@ -900,6 +925,7 @@ func get_accessibility_descriptor() -> Dictionary:
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
+		"reduced_flash": reduced_flash,
 		"show_tutorials": show_tutorials,
 	}
 
@@ -992,7 +1018,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 4:
+	if schema == 5:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V5
+	elif schema == 4:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V4
 	elif schema == 3:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V3
@@ -1013,7 +1041,10 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		if schema <= 3:
 			raw_values["multiplayer_display_name"] = DEFAULT_MULTIPLAYER_DISPLAY_NAME
 			raw_values["network_default_port"] = DEFAULT_NETWORK_DEFAULT_PORT
-		raw_values["multiplayer_max_players"] = DEFAULT_MULTIPLAYER_MAX_PLAYERS
+			raw_values["multiplayer_max_players"] = DEFAULT_MULTIPLAYER_MAX_PLAYERS
+	if schema <= 5:
+		raw_values = raw_values.duplicate()
+	raw_values["reduced_flash"] = DEFAULT_REDUCED_FLASH
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -1058,6 +1089,7 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		"reduced_motion",
 		"captions_enabled",
 		"reduced_dynamic_range",
+		"reduced_flash",
 		"show_tutorials",
 	]:
 		if not raw_values[key] is bool:
