@@ -3693,21 +3693,37 @@ func _build_settings_page() -> void:
 	_display_confirmation_panel.name = "DisplaySettingsConfirmation"
 	_display_confirmation_panel.visible = false
 	var display_confirmation_stack := VBoxContainer.new()
+	display_confirmation_stack.add_theme_constant_override("separation", 5)
 	_display_confirmation_panel.add_child(display_confirmation_stack)
-	_display_confirmation_label = _label("DISPLAY CHANGE PENDING", 10, CAUTION)
+	_display_confirmation_summary_label = _label("PENDING DISPLAY", 11, NOMINAL_SOFT)
+	_display_confirmation_summary_label.name = "DisplayConfirmationSummary"
+	_display_confirmation_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	display_confirmation_stack.add_child(_display_confirmation_summary_label)
+	_display_confirmation_label = _label("KEEP DISPLAY CHANGE  //  REVERT IN: 0 SECONDS", 10, NOMINAL_SOFT)
+	_display_confirmation_label.name = "DisplayConfirmationCountdown"
 	_display_confirmation_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	display_confirmation_stack.add_child(_display_confirmation_label)
+	_display_confirmation_result_label = _label("", 10, NOMINAL_SOFT)
+	_display_confirmation_result_label.name = "DisplayConfirmationResult"
+	_display_confirmation_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_display_confirmation_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_display_confirmation_result_label.visible = false
+	display_confirmation_stack.add_child(_display_confirmation_result_label)
 	var display_confirmation_actions := HBoxContainer.new()
 	display_confirmation_actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	display_confirmation_stack.add_child(display_confirmation_actions)
-	var keep_display := _binding_button("KEEP DISPLAY")
-	keep_display.name = "KeepDisplaySettingsButton"
-	keep_display.pressed.connect(func() -> void: display_settings_keep_requested.emit(_display_confirmation_generation))
-	display_confirmation_actions.add_child(keep_display)
-	var revert_display := _binding_button("REVERT DISPLAY")
-	revert_display.name = "RevertDisplaySettingsButton"
-	revert_display.pressed.connect(func() -> void: display_settings_revert_requested.emit(_display_confirmation_generation))
-	display_confirmation_actions.add_child(revert_display)
+	_display_confirmation_keep_button = _binding_button("KEEP DISPLAY")
+	_display_confirmation_keep_button.name = "KeepDisplaySettingsButton"
+	_display_confirmation_keep_button.tooltip_text = "Keep the pending resolution and window mode."
+	_display_confirmation_keep_button.focus_neighbor_right = NodePath("../RevertDisplaySettingsButton")
+	_display_confirmation_keep_button.pressed.connect(func() -> void: display_settings_keep_requested.emit(_display_confirmation_generation))
+	display_confirmation_actions.add_child(_display_confirmation_keep_button)
+	_display_confirmation_revert_button = _binding_button("REVERT DISPLAY")
+	_display_confirmation_revert_button.name = "RevertDisplaySettingsButton"
+	_display_confirmation_revert_button.tooltip_text = "Revert the pending resolution and window mode."
+	_display_confirmation_revert_button.focus_neighbor_left = NodePath("../KeepDisplaySettingsButton")
+	_display_confirmation_revert_button.pressed.connect(func() -> void: display_settings_revert_requested.emit(_display_confirmation_generation))
+	display_confirmation_actions.add_child(_display_confirmation_revert_button)
 	page_stack.add_child(_display_confirmation_panel)
 	_settings_reset_confirmation = PanelContainer.new()
 	_settings_reset_confirmation.name = "SettingsResetConfirmation"
