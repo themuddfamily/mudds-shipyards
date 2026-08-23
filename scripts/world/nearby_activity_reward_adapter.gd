@@ -47,7 +47,7 @@ func consume(activity_snapshot: Variant, expected_generation: int) -> Dictionary
 		return _reject(&"reward_already_consumed")
 	if expected_generation < 1 or generation != expected_generation:
 		return _reject(&"stale_activity_generation")
-	if StringName(snapshot.get("state_id", &"")) not in [&"concluded", &"completed"] \
+	if StringName(snapshot.get("state_id", &"")) not in [&"concluded", &"completed", &"complete"] \
 			or StringName(snapshot.get("outcome", &"")) != &"cleared":
 		return _reject(&"activity_not_reward_complete")
 	var reward_id: StringName = _activity_rewards[activity_id]

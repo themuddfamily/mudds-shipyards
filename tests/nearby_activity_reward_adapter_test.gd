@@ -61,6 +61,15 @@ func _run() -> void:
 		"outcome": &"cleared",
 		"generation": 17,
 	}, 17)
+	var beacon_registered := adapter.register_activity(
+		&"cinder_debris_beacon_traversal", &"debris_route_navigation_data"
+	)
+	var beacon_completed := adapter.consume({
+		"activity_id": &"cinder_debris_beacon_traversal",
+		"state_id": &"complete",
+		"outcome": &"cleared",
+		"generation": 19,
+	}, 19)
 	var duplicate := adapter.consume({
 		"activity_id": &"shipyard_perimeter_defense",
 		"state_id": &"concluded",
@@ -80,15 +89,17 @@ func _run() -> void:
 			and convoy_completed.accepted and cargo_registered.accepted \
 			and cargo_completed.accepted and patrol_registered.accepted \
 			and patrol_completed.accepted and race_registered.accepted \
-			and race_completed.accepted \
+			and race_completed.accepted and beacon_registered.accepted \
+			and beacon_completed.accepted \
 			and not duplicate.accepted and detached.accepted and reentered.accepted \
-			and not failed_state.accepted and reset.accepted and callback_count == 5 \
+			and not failed_state.accepted and reset.accepted and callback_count == 6 \
 			and binding.has_method(&"configure_station_defense_reward") \
 			and binding.has_method(&"request_station_defense_reward") \
 			and binding.has_method(&"request_convoy_reward") \
 			and binding.has_method(&"request_cargo_reward") \
 			and binding.has_method(&"request_patrol_reward") \
 			and binding.has_method(&"request_race_reward") \
+			and binding.has_method(&"request_beacon_reward") \
 			and binding.has_method(&"detach_station_defense_reward")
 	if not valid:
 		push_error("nearby activity reward adapter failed")

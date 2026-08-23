@@ -243,6 +243,10 @@ func configure_station_defense_reward(
 			"register_activity", RACE_ACTIVITY_ID,
 			&"return_race_record_to_shipyard"
 		)
+		_station_reward_adapter.call(
+			"register_activity", BEACON_ACTIVITY.ACTIVITY_ID,
+			BEACON_ACTIVITY.REWARD_ID
+		)
 	return result
 
 
@@ -310,6 +314,19 @@ func request_race_reward(expected_generation: int) -> Dictionary:
 		"state_id": race.get("state_id", &""),
 		"outcome": &"cleared" if race.get("state_id", &"") == &"completed" else &"",
 		"generation": race.get("activity_generation", 0),
+	}.duplicate(true)
+	return _station_reward_adapter.call("consume", normalized, expected_generation)
+
+
+func request_beacon_reward(expected_generation: int) -> Dictionary:
+	if _beacon_activity == null or _station_reward_adapter == null:
+		return _result(false, &"beacon_reward_unavailable")
+	var beacon := _beacon_activity.call("get_snapshot") as Dictionary
+	var normalized := {
+		"activity_id": BEACON_ACTIVITY.ACTIVITY_ID,
+		"state_id": &"complete" if int(beacon.get("state", -1)) == BEACON_ACTIVITY.State.COMPLETE else &"",
+		"outcome": &"cleared" if int(beacon.get("state", -1)) == BEACON_ACTIVITY.State.COMPLETE else &"",
+		"generation": beacon.get("generation", 0),
 	}.duplicate(true)
 	return _station_reward_adapter.call("consume", normalized, expected_generation)
 
