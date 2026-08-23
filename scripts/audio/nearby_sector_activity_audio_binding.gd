@@ -11,6 +11,13 @@ const MAXIMUM_SIMULTANEOUS_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const PROGRESS_THRESHOLDS := [0.25, 0.5, 0.75]
 const ACTIVITY_STATES := [&"idle", &"selected", &"active", &"complete", &"reset"]
+const CUE_PRIORITIES := {
+	&"activity_progress": 10,
+	&"activity_checkpoint": 20,
+	&"activity_complete": 80,
+	&"activity_reset": 85,
+	&"activity_reward_pending": 90,
+}
 
 var _attached := false
 var _generation := 0
@@ -22,6 +29,9 @@ var _last_progress := 0.0
 var _last_reward_pending := false
 var _progress_thresholds_emitted := {}
 var _emitted_cue_count := 0
+var _active_cue_slots: Array[Dictionary] = []
+var _preempted_cue_count := 0
+var _last_preempted_cue: StringName = &""
 
 
 func attach(expected_generation: int = 0) -> Dictionary:
@@ -35,6 +45,8 @@ func attach(expected_generation: int = 0) -> Dictionary:
 	_last_progress = 0.0
 	_last_reward_pending = false
 	_progress_thresholds_emitted.clear()
+	_active_cue_slots.clear()
+	_last_preempted_cue = &""
 	return _result(true, &"attached")
 
 
@@ -88,6 +100,8 @@ func detach() -> Dictionary:
 	_last_progress = 0.0
 	_last_reward_pending = false
 	_progress_thresholds_emitted.clear()
+	_active_cue_slots.clear()
+	_last_preempted_cue = &""
 	return _result(true, &"detached")
 
 
@@ -100,6 +114,9 @@ func get_snapshot() -> Dictionary:
 		"last_state": _last_state,
 		"last_progress_unitless": _last_progress,
 		"emitted_cue_count": _emitted_cue_count,
+		"active_cue_slots": _active_cue_slots.duplicate(true),
+		"preempted_cue_count": _preempted_cue_count,
+		"last_preempted_cue": _last_preempted_cue,
 		"maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES,
 		"authority": {"activity": false, "reward": false, "gameplay": false, "audio_cues": true},
 	}.duplicate(true)
@@ -132,8 +149,32 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 
 
 func _emit_cue(cue_id: StringName, activity_id: StringName, intensity: float) -> void:
+	if not _admit_cue(cue_id, activity_id):
+		return
 	_emitted_cue_count += 1
 	semantic_activity_cue_emitted.emit(cue_id, activity_id, clampf(intensity, 0.0, 1.0))
+
+
+func _admit_cue(cue_id: StringName, activity_id: StringName) -> bool:
+	if not CUE_PRIORITIES.has(cue_id):
+		return true
+	var priority := int(CUE_PRIORITIES[cue_id])
+	if _active_cue_slots.size() < MAXIMUM_SIMULTANEOUS_VOICES:
+		_active_cue_slots.append({"cue_id": cue_id, "activity_id": activity_id, "priority": priority})
+		return true
+	var lowest_index := 0
+	for index in range(1, _active_cue_slots.size()):
+		if int(_active_cue_slots[index].get("priority", 0)) < int(_active_cue_slots[lowest_index].get("priority", 0)):
+			lowest_index = index
+	var lowest_priority := int(_active_cue_slots[lowest_index].get("priority", 0))
+	if priority <= lowest_priority:
+		return false
+	_last_preempted_cue = StringName(_active_cue_slots[lowest_index].get("cue_id", &""))
+	_preempted_cue_count += 1
+	_active_cue_slots[lowest_index] = {
+		"cue_id": cue_id, "activity_id": activity_id, "priority": priority,
+	}
+	return true
 
 
 func _finite_range(value: Variant, minimum: float, maximum: float) -> bool:

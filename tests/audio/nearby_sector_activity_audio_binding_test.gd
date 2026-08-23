@@ -24,6 +24,16 @@ func _run() -> void:
 	_check(_has_cue(&"activity_checkpoint") and _has_cue(&"activity_progress"), "checkpoint and progress cues emit")
 	_check(bool(binding.present_activity_snapshot(_snapshot(&"race_caldera", &"complete", 1.0, &"checkpoint_beta", true, 0)).accepted), "completion snapshot is accepted")
 	_check(_has_cue(&"activity_complete") and _has_cue(&"activity_reward_pending"), "completion and reward cues emit")
+	var priority_audit := binding.get_snapshot()
+	var active_slots := priority_audit.active_cue_slots as Array
+	_check(active_slots.size() == 2, "priority allocator keeps the two-voice ceiling")
+	_check(
+		active_slots[0].cue_id in [&"activity_complete", &"activity_reward_pending"]
+		and active_slots[1].cue_id in [&"activity_complete", &"activity_reward_pending"],
+		"completion and reward cues occupy both priority slots"
+	)
+	_check(int(priority_audit.preempted_cue_count) >= 2, "high-priority cues preempt lower-priority cues")
+	_check(priority_audit.last_preempted_cue == &"activity_checkpoint", "reward cue preempts checkpoint deterministically")
 	_check(bool(binding.present_activity_snapshot(_snapshot(&"race_caldera", &"reset", 0.0, &"", false, 1)).accepted), "reset snapshot is accepted")
 	_check(_has_cue(&"activity_reset"), "reset cue emits once")
 	_check((binding.get_snapshot().authority as Dictionary).activity == false, "binding owns no activity authority")
