@@ -10,6 +10,9 @@ const BomberPayloadCombatAdapterType := preload("res://scripts/combat/bomber_pay
 const CinderLongRangeBomberType := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const CinderCargoHaulerType := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const CinderLoadmasterHudBindingType := preload("res://scripts/ui/cinder_loadmaster_hud_binding.gd")
+const CinderNavigatorPingHudCompositionType := preload(
+	"res://scripts/ui/cinder_navigator_ping_hud_composition.gd"
+)
 const FinalApproachHudCompositionType := preload("res://scripts/ui/final_approach_hud_composition.gd")
 const WeaponDefinitionResolverProfileType := preload(
 	"res://scripts/combat/weapon_definition_resolver_profile.gd"
@@ -357,6 +360,8 @@ var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var _final_approach_hud_composition: FinalApproachHudComposition
 var _cinder_loadmaster_hud_binding: CinderLoadmasterHudBinding
 var _cinder_loadmaster_hud_craft: CinderCargoHauler
+var _cinder_navigator_ping_hud_composition: RefCounted
+var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
@@ -725,6 +730,7 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"session_started", _on_network_session_started)
 	_connect_signal_once(network_session, &"session_stopped", _on_network_session_stopped)
 	_connect_signal_once(network_session, &"peer_admitted", _on_network_peer_admitted)
+	_connect_signal_once(network_session, &"peer_disconnected", _on_network_peer_disconnected)
 	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
 	_connect_signal_once(network_session, &"crew_role_result", _on_network_crew_role_result)
 	_connect_signal_once(network_session, &"crew_command_result", _on_network_crew_command_result)
@@ -741,7 +747,18 @@ func _attach_network_ship_authority_composition() -> Dictionary:
 		_network_ship_authority_composition = NetworkShipAuthorityCompositionType.new()
 		_network_ship_authority_composition.name = "NetworkShipAuthorityComposition"
 		add_child(_network_ship_authority_composition)
+		_connect_signal_once(
+			_network_ship_authority_composition,
+			&"cinder_navigator_ping_result_forwarded",
+			_on_cinder_navigator_ping_result_forwarded
+		)
+		_connect_signal_once(
+			_network_ship_authority_composition,
+			&"cinder_navigator_ping_tombstones_forwarded",
+			_on_cinder_navigator_ping_tombstones_forwarded
+		)
 	if _network_composition_ship == active_ship:
+		_sync_cinder_navigator_presentations()
 		return {"accepted": true, "status": &"already_attached", "ship_generation": _network_ship_generation}
 	if _network_ship_generation >= NETWORK_MAX_SAFE_GENERATION:
 		return {"accepted": false, "status": &"generation_exhausted", "ship_generation": _network_ship_generation}
@@ -752,15 +769,24 @@ func _attach_network_ship_authority_composition() -> Dictionary:
 	if bool(result.get("accepted", false)):
 		_network_composition_ship = active_ship
 		_network_ship_event_sequence = 0
+		_sync_cinder_navigator_presentations()
+	else:
+		_unbind_cinder_navigator_presentations()
 	return result
 
 
 func _detach_network_ship_authority_composition(reason: StringName = &"detached") -> Dictionary:
-	_network_composition_ship = null
 	_network_ship_event_sequence = 0
 	if _network_ship_authority_composition == null:
+		_network_composition_ship = null
+		_unbind_cinder_navigator_presentations()
 		return {"accepted": true, "status": &"already_detached"}
-	return _network_ship_authority_composition.detach(reason)
+	# Detach emits its final real tombstone synchronously while the old Cinder
+	# assignment and generation are still the presentation authorities.
+	var result: Dictionary = _network_ship_authority_composition.detach(reason)
+	_network_composition_ship = null
+	_unbind_cinder_navigator_presentations()
+	return result
 
 
 func _attach_network_halyard_command_bridge() -> Dictionary:
@@ -2826,6 +2852,11 @@ func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
 		_publish_network_session_snapshot(
 			&"connected", &"client", "Session host accepted peer %d." % peer_id, false
 		)
+
+
+func _on_network_peer_disconnected(peer_id: int, _receipt: Dictionary) -> void:
+	if _network_ship_authority_composition != null:
+		_network_ship_authority_composition.release_peer(peer_id)
 
 
 func _on_network_transport_rejected(status: StringName) -> void:
@@ -7007,10 +7038,15 @@ func _initialize_optional_semantic_audio() -> void:
 		optional_semantic_audio_composition.name = "OptionalSemanticAudioComposition"
 		add_child(optional_semantic_audio_composition)
 	var cinder: Node = active_ship if active_ship is CinderCargoHaulerType else null
+	var navigator_generation := _get_cinder_navigator_presentation_generation()
 	if not bool(optional_semantic_audio_composition.get_snapshot().get("attached", false)):
-		optional_semantic_audio_composition.attach(audio, cinder, planetary_cruise_binding)
+		optional_semantic_audio_composition.attach(
+			audio, cinder, planetary_cruise_binding, navigator_generation
+		)
 	else:
 		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
+		optional_semantic_audio_composition.set_navigator_generation(navigator_generation)
+	_sync_cinder_navigator_hud_composition(navigator_generation)
 
 
 func _sync_optional_semantic_audio() -> void:
@@ -7020,11 +7056,158 @@ func _sync_optional_semantic_audio() -> void:
 	if is_instance_valid(audio):
 		var cinder: Node = active_ship if active_ship is CinderCargoHaulerType else null
 		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
+		optional_semantic_audio_composition.set_navigator_generation(
+			_get_cinder_navigator_presentation_generation()
+		)
+	_sync_cinder_navigator_hud_composition(
+		_get_cinder_navigator_presentation_generation()
+	)
 
 
 func _detach_optional_semantic_audio() -> void:
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.detach()
+
+
+func _get_cinder_navigator_presentation_generation() -> int:
+	if (
+		_network_ship_authority_composition == null
+		or not is_instance_valid(_network_composition_ship)
+		or not _network_composition_ship is CinderCargoHaulerType
+	):
+		return 0
+	return _network_ship_generation
+
+
+func _sync_cinder_navigator_presentations() -> void:
+	var navigator_generation := _get_cinder_navigator_presentation_generation()
+	if is_instance_valid(optional_semantic_audio_composition) \
+			and bool(optional_semantic_audio_composition.get_snapshot().get("attached", false)):
+		optional_semantic_audio_composition.set_navigator_generation(navigator_generation)
+	_sync_cinder_navigator_hud_composition(navigator_generation)
+
+
+func _sync_cinder_navigator_hud_composition(navigator_generation: int) -> void:
+	if navigator_generation <= 0 or not is_instance_valid(hud):
+		if _cinder_navigator_ping_hud_composition != null:
+			_cinder_navigator_ping_hud_composition.detach()
+		_cinder_navigator_presentation_ship_generation = 0
+		return
+	if _cinder_navigator_ping_hud_composition == null:
+		_cinder_navigator_ping_hud_composition = (
+			CinderNavigatorPingHudCompositionType.new()
+		)
+	var snapshot: Dictionary = _cinder_navigator_ping_hud_composition.get_snapshot()
+	if (
+		_cinder_navigator_presentation_ship_generation != navigator_generation
+		or not bool(snapshot.get("attached", false))
+	):
+		var attached: Dictionary = _cinder_navigator_ping_hud_composition.attach(hud)
+		_cinder_navigator_presentation_ship_generation = (
+			navigator_generation if bool(attached.get("accepted", false)) else 0
+		)
+
+
+func _unbind_cinder_navigator_presentations() -> void:
+	if is_instance_valid(optional_semantic_audio_composition) \
+			and bool(optional_semantic_audio_composition.get_snapshot().get("attached", false)):
+		optional_semantic_audio_composition.set_navigator_generation(0)
+	if _cinder_navigator_ping_hud_composition != null:
+		_cinder_navigator_ping_hud_composition.detach()
+	_cinder_navigator_presentation_ship_generation = 0
+
+
+func _on_cinder_navigator_ping_result_forwarded(result: Dictionary) -> void:
+	_forward_cinder_navigator_presentation(result, false)
+
+
+func _on_cinder_navigator_ping_tombstones_forwarded(result: Dictionary) -> void:
+	_forward_cinder_navigator_presentation(result, true)
+
+
+func _forward_cinder_navigator_presentation(
+	result: Dictionary, tombstone_envelope: bool
+	) -> void:
+	var navigator_generation := _get_cinder_navigator_presentation_generation()
+	if navigator_generation <= 0 \
+			or not _cinder_navigator_result_matches_generation(
+				result, navigator_generation
+			):
+		return
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.present_cinder_navigator_bridge_result(result)
+	if _cinder_navigator_ping_hud_composition == null \
+			or _cinder_navigator_presentation_ship_generation != navigator_generation:
+		return
+	var crew_snapshot := _get_cinder_navigator_crew_snapshot()
+	# A ping receipt is never sufficient evidence of passenger occupancy. The
+	# HUD receives only the exact retained physical assignment; without it, the
+	# presentation fails closed instead of synthesizing a passenger row.
+	if crew_snapshot.is_empty():
+		return
+	if tombstone_envelope:
+		_cinder_navigator_ping_hud_composition.apply_tombstones(
+			result.get("tombstones", []) as Array, crew_snapshot
+		)
+	else:
+		_cinder_navigator_ping_hud_composition.apply_bridge_result(
+			result, crew_snapshot
+		)
+
+
+func _cinder_navigator_result_matches_generation(
+	result: Dictionary, navigator_generation: int
+	) -> bool:
+	var receipt := result.get("wire_receipt", {}) as Dictionary
+	if not receipt.is_empty():
+		return int(receipt.get("ship_generation", 0)) == navigator_generation
+	for item_variant in result.get("tombstones", []) as Array:
+		if not item_variant is Dictionary:
+			return false
+		var tombstone := (item_variant as Dictionary).get("receipt", {}) as Dictionary
+		if int(tombstone.get("ship_generation", 0)) != navigator_generation:
+			return false
+	return true
+
+
+func _get_cinder_navigator_crew_snapshot() -> Dictionary:
+	if not is_instance_valid(_network_composition_ship) \
+			or not _network_composition_ship is CinderCargoHaulerType \
+			or not _network_composition_ship.has_method(&"get_crew_role_authority"):
+		return {}
+	var authority: Object = _network_composition_ship.call(&"get_crew_role_authority")
+	if authority == null or not is_instance_valid(authority) \
+			or not authority.has_method(&"get_snapshot"):
+		return {}
+	for assignment_variant in (authority.call(&"get_snapshot") as Dictionary).get(
+		"assignments", []
+	) as Array:
+		if not assignment_variant is Dictionary:
+			continue
+		var assignment := assignment_variant as Dictionary
+		var avatar_id := StringName(assignment.get("avatar_id", &""))
+		if (
+			StringName(assignment.get("seat_id", &""))
+				!= CinderCargoHaulerType.NAVIGATOR_STATION_SEAT_ID
+			or StringName(assignment.get("role", &"")) != &"passenger"
+			or StringName(assignment.get("vessel_id", &""))
+				!= CinderCargoHaulerType.COMPONENT_ID
+			or int(assignment.get("occupant_peer_id", 0)) <= 0
+			or int(assignment.get("seat_generation", 0)) <= 0
+			or avatar_id.is_empty()
+		):
+			continue
+		return {
+			"actor_id": CinderCargoHaulerType.COMPONENT_ID,
+			"roles": {
+				&"passenger": {
+					"occupant": str(avatar_id),
+					"available": false,
+					"seat_id": CinderCargoHaulerType.NAVIGATOR_STATION_SEAT_ID,
+				},
+			},
+		}.duplicate(true)
+	return {}
 
 
 
