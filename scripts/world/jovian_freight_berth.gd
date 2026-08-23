@@ -2875,7 +2875,7 @@ func _build_lighting_and_signage() -> void:
 	_sign_practical(presentation, "BerthLegendWash", Vector3(0.0, 0.55, 9.8), Color("f7b866"), 0.44, 4.4)
 	_label(presentation, "FREIGHT CONTROL", Vector3(16.05, 3.95, 29.0), 0.42, Color("8df2ed"), Vector3(0, -90, 0))
 	_sign_practical(presentation, "ControlSignWash", Vector3(15.62, 3.7, 29.0), Color("8df2ed"), 0.4, 3.6)
-	_label(presentation, "KEEP TRANSFER LANE CLEAR", Vector3(12.7, 0.13, 29.0), 0.3, Color("ffb45b"), Vector3(-90, 0, 90))
+	_label(presentation, "KEEP TRANSFER LANE CLEAR", Vector3(12.7, 0.13, 29.0), 0.3, Color("ffb45b"), Vector3(-90, 0, -90))
 	_sign_practical(presentation, "TransferLaneWash", Vector3(12.7, 0.5, 29.0), Color("f7b866"), 0.36, 3.8)
 
 	# The two new handling bays and the stores bank are legends in their own right.

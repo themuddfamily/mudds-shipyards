@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
 	_test_floor_label_orientation(module)
+	_test_transfer_lane_label_orientation(module)
 	_test_handling_infrastructure(module)
 	_test_recessed_lashing_ring_profile(module)
 	_test_lashing_ring_visual_allocation(module)
@@ -524,6 +525,40 @@ func _test_floor_label_orientation(module: JovianFreightBerth) -> void:
 	_check(basis.y.is_equal_approx(Vector3.BACK), "BERTH F-01 glyph-up follows the documented local +Z outbound reader direction")
 	_check(is_equal_approx(basis.determinant(), 1.0), "BERTH F-01 rotation remains a proper orientation with determinant +1")
 	_check(berth_label.find_children("*", "CollisionObject3D", true, false).is_empty(), "BERTH F-01 remains presentation-only and collision-free")
+
+
+## The transfer-lane legend is read while travelling from cargo transfer toward
+## the service threshold. Derive that direction from the live route contract so
+## this test follows the route if its authored markers move or the module rotates.
+func _test_transfer_lane_label_orientation(module: JovianFreightBerth) -> void:
+	var matching_labels: Array[Label3D] = []
+	for candidate in module.find_children("*", "Label3D", true, false):
+		var label := candidate as Label3D
+		if label != null and label.text == "KEEP TRANSFER LANE CLEAR":
+			matching_labels.append(label)
+	_check(matching_labels.size() == 1, "exactly one KEEP TRANSFER LANE CLEAR floor legend is present")
+	if matching_labels.size() != 1:
+		return
+	var transfer_label := matching_labels[0]
+	var route_direction := (
+		module.get_route_transform(&"service-threshold").origin
+		- module.get_route_transform(&"cargo-transfer").origin
+	).normalized()
+	var basis := transfer_label.global_transform.basis.orthonormalized()
+	_check(
+		transfer_label.position.is_equal_approx(Vector3(12.7, 0.13, 29.0))
+		and transfer_label.font_size == 32
+		and is_equal_approx(transfer_label.pixel_size, 0.3 / 32.0)
+		and transfer_label.modulate.is_equal_approx(Color("ffb45b")),
+		"KEEP TRANSFER LANE CLEAR preserves its authored position, physical size, and amber colour"
+	)
+	_check(basis.z.is_equal_approx(module.global_basis.y.normalized()), "KEEP TRANSFER LANE CLEAR remains painted face-up on the floor plane")
+	_check(basis.y.is_equal_approx(route_direction), "KEEP TRANSFER LANE CLEAR glyph-up follows cargo-transfer to service-threshold")
+	_check(is_equal_approx(basis.determinant(), 1.0), "KEEP TRANSFER LANE CLEAR rotation remains a proper orientation with determinant +1")
+	_check(transfer_label.find_children("*", "CollisionObject3D", true, false).is_empty(), "KEEP TRANSFER LANE CLEAR remains presentation-only and collision-free")
+	var old_angle_basis := Basis.from_euler(Vector3(deg_to_rad(-90.0), 0.0, deg_to_rad(90.0)))
+	var old_angle_glyph_up := (module.global_basis * old_angle_basis).orthonormalized().y
+	_check(not old_angle_glyph_up.is_equal_approx(route_direction), "the old +90-degree transfer-lane label mutation remains red")
 
 
 ## The freight-handling infrastructure a berth this size has to own before it
