@@ -797,7 +797,8 @@ func advance_from_caller_sample(
 		origin_result: Variant, coordinate_frame_generation: int,
 		location_generation: int, expected_generation: int,
 		orbit_return_ready: bool = false, occupied_receipt: Variant = {},
-		landing_return_contract: Object = null, return_observation: Dictionary = {}
+		landing_return_contract: Object = null, return_observation: Dictionary = {},
+		return_travel_session: Object = null
 	) -> Dictionary:
 	if actor_kind not in [&"ship", &"player"] \
 			or actor_instance_id < 1 or craft_instance_id < 1 \
@@ -852,6 +853,14 @@ func advance_from_caller_sample(
 		)
 		if not bool(completed.get("accepted", false)):
 			return completed
+		if return_travel_session != null and _return_persistence_configured():
+			var saved := save_planetary_return_persistence(
+				return_travel_session, landing_return_contract, completed,
+				_return_persistence_store.get_generation(),
+				"ember-return-%d" % _generation
+			)
+			if not bool(saved.get("accepted", false)):
+				return {"accepted": false, "reason": &"return_persistence_commit_rejected", "store": saved}
 		transition = completed
 	return {"accepted": true, "reason": &"caller_sample_advanced", "transition": transition, "envelope": _pending_envelope.duplicate(true)}
 
