@@ -896,6 +896,13 @@ const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
 const OUTBOUND_CLEARANCE_CEILING := 3.80
 const OUTBOUND_CLEARANCE_FLOOR := 1.24
 const LAUNCH_GATE_AIM_Y := 2.5
+## Central launch signal crossbeam. Its old 176 mm proportional bevel still read
+## as a rectangular bar from the berth approach; this half-height capsule radius
+## visibly authors the silhouette while retaining its exact presentation-only
+## envelope above the published flight band.
+const SIGNAL_GANTRY_SIZE := Vector3(27.0, 0.8, 0.8)
+const SIGNAL_GANTRY_END_RADIUS := 0.4
+const SIGNAL_GANTRY_CURVE_SEGMENTS := 8
 ## Nine positions along the header beam. Nine and not four because the span is
 ## 63 m: at four the lamps are 15.75 m apart and the beam still reads as unlit
 ## structure between them from the launch gate.
@@ -7068,7 +7075,16 @@ func _build_launch_corridor() -> void:
 		_cylinder(launch, "SignalMastCollar", Vector3(side * 13.0, 1.6, -66.0), 1.0, 0.65, _materials["orange"], false)
 		for y_position in [2.7, 6.2, 9.7]:
 			_add_guide_light(launch, Vector3(side * 12.9, y_position, -65.45), ALERT_RED, true)
-	_box(launch, "SignalGantry", Vector3(0, 12.2, -66.0), Vector3(27.0, 0.8, 0.8), _materials["steel_blue"], false)
+	_extruded_capsule_header_visual(
+		launch,
+		"SignalGantry",
+		Vector3(0, 12.2, -66.0),
+		SIGNAL_GANTRY_SIZE,
+		_materials["steel_blue"],
+		SIGNAL_GANTRY_END_RADIUS,
+		SIGNAL_GANTRY_CURVE_SEGMENTS,
+		&"central_launch_capsule_crossbeam"
+	)
 	_box(launch, "SignalFace", Vector3(0, 12.15, -65.52), Vector3(12.0, 1.4, 0.08), _materials["navy"], false)
 	var launch_vector_sign := _text_sign(
 		launch,
@@ -8903,6 +8919,35 @@ func _extruded_capsule_fascia(
 	collision.shape = shape
 	body.add_child(collision)
 	return body
+
+
+## Presentation-only sibling of `_extruded_capsule_fascia`. The launch signal
+## crossbeam has never owned collision or authority, so this retains its exact
+## one-node/one-submission contract instead of introducing a structural body.
+func _extruded_capsule_header_visual(
+		parent: Node3D,
+		node_name: String,
+		header_position: Vector3,
+		size: Vector3,
+		material: Material,
+		end_radius: float,
+		segments_per_end: int,
+		geometry_profile: StringName,
+	) -> MeshInstance3D:
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.position = header_position
+	visual.mesh = _extruded_capsule_mesh(size, end_radius, segments_per_end)
+	visual.mesh.resource_name = "central_launch_signal_capsule_gantry_v1"
+	visual.material_override = material
+	visual.set_meta("geometry_profile", geometry_profile)
+	visual.set_meta("end_radius_m", end_radius)
+	visual.set_meta("curve_segments_per_end", segments_per_end)
+	visual.set_meta("evidence_status", OPERATIONAL_LATTICE_EVIDENCE_STATUS)
+	visual.set_meta("historical_form_identified", false)
+	visual.set_meta("authenticated_original_geometry", false)
+	parent.add_child(visual)
+	return visual
 
 
 ## Give the normal Habitat walk route a true curved pressure-lintel silhouette
