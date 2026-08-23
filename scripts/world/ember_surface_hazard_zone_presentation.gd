@@ -12,9 +12,17 @@ var _display_name := ""
 var _anchor := Vector3.ZERO
 var _radius_m := 0.0
 var _state: StringName = &"clear"
+var _recovery_landmark_id: StringName = &""
+var _recovery_target := Vector3.ZERO
+var _recovery_path_start := Vector3.ZERO
+var _recovery_direction := Vector3.ZERO
 var _ring: MeshInstance3D
 var _beacon: MeshInstance3D
 var _material: StandardMaterial3D
+var _recovery_cue_root: Node3D
+var _recovery_cue_material: StandardMaterial3D
+
+const RECOVERY_CUE_DASH_COUNT := 4
 
 
 func _ready() -> void:
@@ -38,6 +46,15 @@ func _ready() -> void:
 	_beacon.position = Vector3(0.0, 1.2, 0.0)
 	_beacon.material_override = _material
 	add_child(_beacon)
+	_recovery_cue_material = StandardMaterial3D.new()
+	_recovery_cue_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_recovery_cue_material.emission_enabled = true
+	_recovery_cue_material.albedo_color = Color(0.92, 0.96, 1.0, 1.0)
+	_recovery_cue_material.emission = Color(0.72, 0.88, 1.0)
+	_recovery_cue_material.emission_energy_multiplier = 1.8
+	_recovery_cue_root = Node3D.new()
+	_recovery_cue_root.name = "OwnedStaticRecoveryDirectionCue"
+	add_child(_recovery_cue_root)
 	_set_visible(false)
 
 
@@ -65,6 +82,31 @@ func configure(hazard: Variant, radius_m: float) -> Dictionary:
 	_attached = true
 	_apply_state(&"clear")
 	return {"accepted": true, "reason": &"hazard_zone_configured"}
+
+
+func configure_recovery_target(landmark: Variant) -> Dictionary:
+	if not _configured or not landmark is Dictionary or not _recovery_landmark_id.is_empty():
+		return {"accepted": false, "reason": &"invalid_recovery_target_configuration"}
+	var record := landmark as Dictionary
+	var landmark_id := StringName(record.get("id", &""))
+	var target: Variant = record.get("position_body_local_m", Vector3.INF)
+	if landmark_id.is_empty() or not target is Vector3 or not (target as Vector3).is_finite():
+		return {"accepted": false, "reason": &"invalid_recovery_target_configuration"}
+	var target_position := target as Vector3
+	var target_offset := target_position - _anchor
+	if target_offset.is_zero_approx():
+		return {"accepted": false, "reason": &"invalid_recovery_target_configuration"}
+	var path_start := _anchor + target_offset.normalized() * _radius_m
+	var path := target_position - path_start
+	if path.is_zero_approx():
+		return {"accepted": false, "reason": &"invalid_recovery_target_configuration"}
+	_recovery_landmark_id = landmark_id
+	_recovery_target = target_position
+	_recovery_path_start = path_start
+	_recovery_direction = path.normalized()
+	_build_recovery_cue(path.length())
+	_set_recovery_cue_visible(false)
+	return {"accepted": true, "reason": &"recovery_target_configured"}
 
 
 func apply_status(status: Variant) -> Dictionary:
@@ -107,6 +149,21 @@ func get_snapshot() -> Dictionary:
 		"radius_m": _radius_m,
 		"state": _state,
 		"visible": _attached and _ring != null and _ring.visible,
+		"recovery_cue": {
+			"configured": not _recovery_landmark_id.is_empty(),
+			"visible": _recovery_cue_root != null and _recovery_cue_root.visible,
+			"target_landmark_id": _recovery_landmark_id,
+			"path_start_body_local_m": _recovery_path_start,
+			"target_body_local_m": _recovery_target,
+			"direction_unit": _recovery_direction,
+			"dash_count": RECOVERY_CUE_DASH_COUNT,
+			"color_independent_shape": &"progressive_width_dashes",
+			"static": true,
+			"authority": {
+				"navigation": false, "movement": false, "recovery": false,
+				"health": false, "reward": false, "lifecycle": false,
+			},
+		},
 		"authority": {
 			"damage": false, "health": false, "movement": false,
 			"recovery": false, "reward": false, "hud": false,
@@ -132,6 +189,7 @@ func _apply_state(state: StringName) -> void:
 				_material.emission = Color(0.9, 0.32, 0.03)
 				_material.emission_energy_multiplier = 0.65
 	_set_visible(_attached)
+	_set_recovery_cue_visible(_attached and state == &"recovery_required")
 
 
 func _set_visible(value: bool) -> void:
@@ -139,3 +197,28 @@ func _set_visible(value: bool) -> void:
 		_ring.visible = value
 	if _beacon != null:
 		_beacon.visible = value
+	if not value:
+		_set_recovery_cue_visible(false)
+
+
+func _build_recovery_cue(path_length_m: float) -> void:
+	var local_start := _recovery_path_start - _anchor
+	var local_target := _recovery_target - _anchor
+	var dash_length := minf(0.75, path_length_m / float(RECOVERY_CUE_DASH_COUNT + 1))
+	for index in RECOVERY_CUE_DASH_COUNT:
+		var dash := MeshInstance3D.new()
+		dash.name = "RecoveryDirectionDash%d" % (index + 1)
+		var dash_mesh := BoxMesh.new()
+		# Increasing widths form a directional silhouette even without color.
+		dash_mesh.size = Vector3(0.22 + float(index) * 0.18, 0.08, dash_length)
+		dash.mesh = dash_mesh
+		dash.material_override = _recovery_cue_material
+		var progress := float(index + 1) / float(RECOVERY_CUE_DASH_COUNT + 1)
+		dash.position = local_start.lerp(local_target, progress) + Vector3.UP * 0.16
+		dash.basis = Basis.looking_at(_recovery_direction, Vector3.UP)
+		_recovery_cue_root.add_child(dash)
+
+
+func _set_recovery_cue_visible(value: bool) -> void:
+	if _recovery_cue_root != null:
+		_recovery_cue_root.visible = value and not _recovery_landmark_id.is_empty()

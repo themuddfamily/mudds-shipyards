@@ -30,6 +30,7 @@ func _run() -> void:
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 4)
 	_check(configured.accepted and configured.runtime.composition_generation == 1 and configured.runtime.navigation.state == &"idle" and configured.runtime.hazard.configured and configured.runtime.water.state == &"idle" and configured.runtime.landmarks.configured and configured.runtime.settlement.configured, "one generation-fenced Ember composition retains all planetary runtimes")
 	var hazard_anchor := Vector3(92.0, 120001.0, -5.0)
+	var staging_relay := Vector3(96.0, 120000.0, 0.0)
 	var base_observation := {
 		"actor_instance_id": 101,
 		"delta_seconds": 1.0,
@@ -75,7 +76,8 @@ func _run() -> void:
 			and not warned.status.authority.movement
 			and not warned.status.authority.reward
 			and not warned.presentation.authority.lifecycle
-			and warned.presentation.state == &"warning",
+			and warned.presentation.state == &"warning"
+			and not warned.presentation.recovery_cue.visible,
 		"caller position enters the visible Relay Arc and emits detached warning requests"
 	)
 	var recovery_observation := base_observation.duplicate(true)
@@ -89,8 +91,24 @@ func _run() -> void:
 			and recovery.status.recovery_id == &"safe_recovery_at_staging_relay"
 			and recovery.sample.recovery_request.requested
 			and not recovery.sample.recovery_request.movement_mutation
+			and recovery.presentation.recovery_cue.visible
+			and recovery.presentation.recovery_cue.target_landmark_id == &"ember_staging_relay"
+			and recovery.presentation.recovery_cue.target_body_local_m == staging_relay
+			and recovery.presentation.recovery_cue.direction_unit.is_equal_approx(
+				(staging_relay - recovery.presentation.recovery_cue.path_start_body_local_m).normalized()
+			)
+			and is_equal_approx(
+				(recovery.presentation.recovery_cue.path_start_body_local_m - hazard_anchor).length(),
+				12.0
+			)
+			and recovery.presentation.recovery_cue.color_independent_shape == &"progressive_width_dashes"
+			and recovery.presentation.recovery_cue.dash_count == 4
+			and recovery.presentation.recovery_cue.static
+			and not recovery.presentation.recovery_cue.authority.navigation
+			and not recovery.presentation.recovery_cue.authority.movement
+			and not recovery.presentation.recovery_cue.authority.recovery
 			and _reward_calls == 0,
-		"sustained exposure publishes the authored recovery without applying it or rewarding"
+		"sustained exposure reveals a static authored-relay path cue without applying recovery"
 	)
 	var detached_status := binding.get_authored_hazard_status()
 	detached_status.state = &"tampered"
@@ -105,19 +123,21 @@ func _run() -> void:
 		clear.accepted and clear.reason == &"hazard_zone_clear"
 			and not clear.status.visible and clear.status.state == &"clear"
 			and is_zero_approx(float(binding.get_snapshot().hazard.exposure[&"ember_relay_arc"]))
-			and clear.presentation.visible,
+			and clear.presentation.visible
+			and not clear.presentation.recovery_cue.visible,
 		"exiting clears accumulated exposure and HUD status while retaining the visible perimeter"
 	)
 	var discovered := binding.discover_settlements(Vector3(92.0, 120000.5, -18.0), 20.0)
 	var entered := binding.enter_settlement(&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0))
 	_check(discovered.accepted and entered.accepted and entered.receipt.route_id == &"ember_pad_to_settlement_spine", "production composition forwards authored discovery and entry")
-	_check(binding.detach().accepted and binding.get_snapshot().state == &"detached" and binding.get_snapshot().settlement.state == &"detached" and not binding.get_snapshot().hazard_zone_presentation.visible and binding.get_authored_hazard_status().state == &"clear", "detaching clears the hazard presentation/status with the surface composition")
+	_check(binding.detach().accepted and binding.get_snapshot().state == &"detached" and binding.get_snapshot().settlement.state == &"detached" and not binding.get_snapshot().hazard_zone_presentation.visible and not binding.get_snapshot().hazard_zone_presentation.recovery_cue.visible and binding.get_authored_hazard_status().state == &"clear", "detaching clears the hazard presentation/status and recovery cue with the surface composition")
 	host.attachment_generation = 2
-	_check(binding.reenter().accepted and binding.get_snapshot().state == &"bound" and binding.get_snapshot().settlement.state == &"inside" and binding.get_snapshot().hazard_zone_presentation.visible and binding.get_authored_hazard_status().state == &"clear" and binding.enter_settlement(&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0)).reason == &"settlement_entry_already_consumed", "re-entry restores the clear hazard perimeter and preserves existing settlement handoff")
+	_check(binding.reenter().accepted and binding.get_snapshot().state == &"bound" and binding.get_snapshot().settlement.state == &"inside" and binding.get_snapshot().hazard_zone_presentation.visible and not binding.get_snapshot().hazard_zone_presentation.recovery_cue.visible and binding.get_authored_hazard_status().state == &"clear" and binding.enter_settlement(&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0)).reason == &"settlement_entry_already_consumed", "re-entry restores the clear hazard perimeter without replaying the recovery cue")
 	var reentered := binding.submit_authored_hazard_observation(base_observation, 4, 2)
 	_check(
 		reentered.accepted and reentered.status.state == &"warning"
-			and float(reentered.status.exposure_unitless) < 0.8,
+			and float(reentered.status.exposure_unitless) < 0.8
+			and not reentered.presentation.recovery_cue.visible,
 		"fresh re-entry starts recoverably without replaying prior severe exposure"
 	)
 	binding.queue_free()

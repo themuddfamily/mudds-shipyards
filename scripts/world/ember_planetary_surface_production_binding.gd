@@ -36,6 +36,7 @@ const SurfaceAudioPolicyScript := preload("res://scripts/world/planetary_surface
 const SurfaceAudioCatalog := preload("res://assets/audio/planetary/temperate_surface_audio_catalog.tres")
 
 const AUTHORED_HAZARD_ID: StringName = &"ember_relay_arc"
+const AUTHORED_HAZARD_RECOVERY_LANDMARK_ID: StringName = &"ember_staging_relay"
 const AUTHORED_HAZARD_MARKER_ID: StringName = &"surface_staging_gate"
 const AUTHORED_HAZARD_RUNTIME_ROUTE_ID: StringName = &"pad_to_surface_staging"
 
@@ -141,6 +142,11 @@ func configure(
 	)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"hazard_zone_presentation_rejected")
+	configured = _hazard_zone_presentation.call(
+		&"configure_recovery_target", hazard_composition.get("recovery_landmark", {})
+	)
+	if not bool(configured.get("accepted", false)):
+		return _result(false, &"hazard_recovery_cue_rejected")
 	_set_hazard_semantic_clear(&"hazard_zone_ready")
 	_surface_audio_policy = SurfaceAudioPolicyScript.new()
 	configured = _surface_audio_policy.call(&"configure", WeatherProfile)
@@ -578,6 +584,7 @@ func _compose_authored_hazard_navigation_contract(
 		content_snapshot: Dictionary
 	) -> Dictionary:
 	var selected := {}
+	var recovery_landmark := {}
 	for hazard_value in content_snapshot.get("hazards", []) as Array:
 		var hazard := hazard_value as Dictionary
 		if StringName(hazard.get("id", &"")) == AUTHORED_HAZARD_ID:
@@ -585,6 +592,13 @@ func _compose_authored_hazard_navigation_contract(
 			break
 	if selected.is_empty():
 		return {"accepted": false, "reason": &"authored_hazard_missing"}
+	for landmark_value in content_snapshot.get("landmarks", []) as Array:
+		var landmark := landmark_value as Dictionary
+		if StringName(landmark.get("id", &"")) == AUTHORED_HAZARD_RECOVERY_LANDMARK_ID:
+			recovery_landmark = landmark.duplicate(true)
+			break
+	if recovery_landmark.is_empty():
+		return {"accepted": false, "reason": &"authored_hazard_recovery_landmark_missing"}
 	var contract := NavigationContractScript.new() as PlanetarySurfaceNavigationContract
 	contract.hazard_ids.append(String(selected.id))
 	contract.hazard_display_names.append(String(selected.display_name))
@@ -602,6 +616,7 @@ func _compose_authored_hazard_navigation_contract(
 	return {
 		"accepted": true, "reason": &"authored_hazard_composed",
 		"contract": contract, "hazard": selected,
+		"recovery_landmark": recovery_landmark,
 	}
 
 
