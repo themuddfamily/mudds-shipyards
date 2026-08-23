@@ -170,13 +170,23 @@ func submit_ping(
 		"action": RoleProfile.ACTION_PASSENGER_PING,
 		"payload": snapshot_receipt.duplicate(true),
 	}
-	var published: Dictionary = _adapter.publish_crew_snapshot([{"receipt": wire_receipt}])
-	if not bool(published.get("accepted", false)):
-		return _result(false, &"network_publish_failed", {"publication": published.duplicate(true)})
+	# Cinder has already committed the authoritative intent at this point. Keep
+	# the exact bridge cursors and detached receipt before transport
+	# normalization so a failed publication cannot make that mutation
+	# replayable or prevent a later release/detach tombstone.
 	_last_sequence[key] = request_sequence
 	_last_receipts[key] = wire_receipt.duplicate(true)
 	_last_server_ticks[key] = server_tick
 	_last_migration_generations[key] = migration_generation
+	var published: Dictionary = _adapter.publish_crew_snapshot([{"receipt": wire_receipt}])
+	if not bool(published.get("accepted", false)):
+		return _result(false, &"network_publish_failed", {
+			"mutation_committed": true,
+			"receipt": receipt.duplicate(true),
+			"snapshot": snapshot.duplicate(true),
+			"wire_receipt": wire_receipt.duplicate(true),
+			"publication": published.duplicate(true),
+		})
 	return _result(true, &"navigator_ping_published", {
 		"receipt": receipt.duplicate(true),
 		"snapshot": snapshot.duplicate(true),

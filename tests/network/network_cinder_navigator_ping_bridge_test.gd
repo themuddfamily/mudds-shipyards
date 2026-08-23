@@ -5,6 +5,29 @@ const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd"
 const Cinder := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 
+
+class FailOncePublicationAdapter extends RefCounted:
+	var delegate: Object
+	var publications: Array = []
+	var fail_next := true
+
+	func _init(p_delegate: Object) -> void:
+		delegate = p_delegate
+
+	func is_server() -> bool:
+		return delegate.is_server()
+
+	func get_migration_snapshot() -> Dictionary:
+		return delegate.get_migration_snapshot()
+
+	func publish_crew_snapshot(snapshot: Array) -> Dictionary:
+		publications.append(snapshot.duplicate(true))
+		if fail_next:
+			fail_next = false
+			return {"accepted": false, "status": &"normalization_failed"}
+		return delegate.publish_crew_snapshot(snapshot)
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -129,7 +152,48 @@ func _run() -> void:
 		"detach tombstone is generation-fenced and advances the receipt sequence"
 	)
 	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 4, {}, 16, 2).get("status", &"") == &"detached", "detach closes navigator publication")
-	var released := interaction.release(actor, 1, 62, &"navigator_avatar", 4)
+
+	var fail_once_adapter := FailOncePublicationAdapter.new(adapter)
+	var failure_bridge := Bridge.new()
+	_check(bool(failure_bridge.attach(fail_once_adapter, cinder).get("accepted", false)), "publication failure fixture attaches to the real Cinder and hosted session")
+	var before_failed_publication := cinder.get_navigator_ping_snapshot()
+	var failed_publication := failure_bridge.submit_ping(
+		62,
+		3,
+		&"navigator_avatar",
+		1,
+		4,
+		{"channel": &"sensor", "marker_id": &"normalization_failure"},
+		16,
+		2
+	)
+	var failed_wire := failed_publication.get("wire_receipt", {}) as Dictionary
+	_check(
+		failed_publication.get("status", &"") == &"network_publish_failed"
+			and bool(failed_publication.get("mutation_committed", false))
+			and StringName((failed_wire.get("payload", {}) as Dictionary).get("marker_id", &"")) == &"normalization_failure"
+			and cinder.get_navigator_ping_snapshot() != before_failed_publication
+			and int(failure_bridge.get_snapshot().get("last_receipt_count", 0)) == 1,
+		"failed normalization exposes and retains the exact authoritative Cinder mutation"
+	)
+	var committed_after_failure := cinder.get_navigator_ping_snapshot()
+	_check(
+		failure_bridge.submit_ping(62, 3, &"navigator_avatar", 1, 4, {}, 17, 2).get("status", &"") == &"stale_request_sequence"
+			and cinder.get_navigator_ping_snapshot() == committed_after_failure,
+		"retry after publication failure is fenced before duplicate Cinder mutation"
+	)
+	var failed_release := failure_bridge.release_peer(62)
+	var failed_clear := ((failed_release.get("tombstones", []) as Array)[0] as Dictionary).get("receipt", {}) as Dictionary
+	_check(
+		int(failed_release.get("tombstone_count", 0)) == 1
+			and bool((failed_release.get("tombstone_publication", {}) as Dictionary).get("accepted", false))
+			and int(failed_clear.get("request_sequence", 0)) == 5
+			and int((failed_clear.get("payload", {}) as Dictionary).get("source_request_sequence", 0)) == 4
+			and StringName((failed_clear.get("payload", {}) as Dictionary).get("marker_id", &"")) == &"normalization_failure",
+		"release publishes a valid tombstone for the retained failed-publication receipt"
+	)
+	failure_bridge.detach()
+	var released := interaction.release(actor, 1, 62, &"navigator_avatar", 5)
 	_check(bool(released.get("accepted", false)), "physical navigator actor releases cleanly")
 	_check(authority.get_assignment(62, &"navigator_avatar").is_empty(), "release clears the shared navigator assignment")
 
