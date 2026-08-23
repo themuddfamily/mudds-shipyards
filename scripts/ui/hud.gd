@@ -66,6 +66,8 @@ const CAPTION_CUES := {
 	&"station_machinery_offline": [&"system", "Station machinery", "[ station machinery offline ]", 85],
 	&"boarding_confirmed": [&"system", "Boarding computer", "[ boarding confirmed ]", 55],
 	&"disembark_confirmed": [&"system", "Boarding computer", "[ disembark confirmed ]", 55],
+	&"surface_entry_severe": [&"system", "Entry guidance", "[ severe surface entry ]", 95],
+	&"surface_entry_clear": [&"system", "Entry guidance", "[ surface entry clear ]", 45],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4

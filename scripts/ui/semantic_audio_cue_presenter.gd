@@ -21,6 +21,8 @@ const REGISTERED_CUES := {
 	&"station_machinery_offline": {"caption": "Station machinery offline", "default_severity": &"high"},
 	&"boarding_confirmed": {"caption": "Boarding confirmed", "default_severity": &"low"},
 	&"disembark_confirmed": {"caption": "Disembark confirmed", "default_severity": &"low"},
+	&"surface_entry_severe": {"caption": "Severe surface entry", "default_severity": &"high"},
+	&"surface_entry_clear": {"caption": "Surface entry clear", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
