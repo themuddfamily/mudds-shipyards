@@ -7833,14 +7833,18 @@ func get_runtime_settings_persistence_report() -> Dictionary:
 
 ## Explicit caller-owned repair seam. Inspection never mutates settings or
 ## bytes; callers must present the returned confirmation to prepare and commit.
-func inspect_runtime_settings_repair(load_status: Dictionary = {}) -> Dictionary:
+## The optional argument remains for source compatibility, but is deliberately
+## not an authority: only this GameFlow's retained startup receipt may make a
+## repair eligible for the currently attached adapter/store generation.
+func inspect_runtime_settings_repair(_load_status: Dictionary = {}) -> Dictionary:
 	_ensure_runtime_settings_repair_binding()
 	if _runtime_settings_repair_binding == null:
 		return {"accepted": false, "reason": &"repair_unavailable"}
-	var observed := load_status
-	if observed.is_empty():
-		observed = _runtime_settings_load_status
-	return _runtime_settings_repair_binding.inspect(observed)
+	if not _runtime_settings_load_attempted or _runtime_settings_load_status.is_empty():
+		return {"accepted": false, "reason": &"startup_load_unavailable"}
+	return _runtime_settings_repair_binding.inspect(
+		_runtime_settings_load_status.duplicate(true)
+	)
 
 
 func prepare_runtime_settings_repair(confirmation: String, commit_id: String) -> Dictionary:
