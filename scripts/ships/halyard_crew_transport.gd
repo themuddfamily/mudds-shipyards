@@ -328,6 +328,7 @@ var _pilot_command_source: HalyardPilotCommandSource
 var _pilot_command_state: Dictionary = {}
 var _pilot_last_request_sequence := -1
 var _pilot_command_seat_generation := 0
+var _emergency_pilot_handoff_state: Dictionary = {}
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -737,6 +738,7 @@ func handoff_crew_role(
 		seat_generation
 	)
 	if bool(result.get("accepted", false)):
+		_clear_emergency_pilot_handoff_state()
 		_clear_crew_role_state(
 			previous_occupant_peer_id,
 			previous_avatar_id,
@@ -841,6 +843,18 @@ func request_emergency_pilot_handoff(
 		return claim
 	var pilot_assignment := claim.get("assignment", {}) as Dictionary
 	_clear_crew_role_state(new_occupant_peer_id, new_avatar_id, &"emergency_handoff")
+	_emergency_pilot_handoff_state = {
+		"status": &"completed",
+		"previous_role": StringName(assignment.get("role", &"")),
+		"new_role": CrewRoleGameplayProfileType.ROLE_PILOT,
+		"previous_seat_generation": int(assignment.get("seat_generation", 0)),
+		"new_seat_generation": int(pilot_assignment.get("seat_generation", 0)),
+		"release_request_sequence": release_request_sequence,
+		"claim_request_sequence": claim_request_sequence,
+		"occupant_peer_id": new_occupant_peer_id,
+		"avatar_id": new_avatar_id,
+		"neutral_command_confirmed": _pilot_command_state.is_empty() and not _piloted,
+	}
 	occupant.set_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {
 		"occupant_peer_id": new_occupant_peer_id,
 		"avatar_id": new_avatar_id,
@@ -903,6 +917,7 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 			},
 			"authority_event_sequence": -1,
 		},
+		"emergency_pilot_handoff": {},
 	}
 	if _crew_role_authority == null:
 		return snapshot
@@ -1008,6 +1023,28 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 			optional_crew_count += 1
 	departure_readiness["optional_crew_count"] = optional_crew_count
 	departure_readiness["ready"] = bool(departure_readiness.get("pilot_present", false))
+	var handoff_snapshot := {}
+	if not _emergency_pilot_handoff_state.is_empty():
+		var handoff_assignment := _crew_role_authority.get_assignment(
+			int(_emergency_pilot_handoff_state.get("occupant_peer_id", 0)),
+			StringName(_emergency_pilot_handoff_state.get("avatar_id", &""))
+		)
+		if StringName(handoff_assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PILOT:
+			handoff_snapshot = {
+				"status": _emergency_pilot_handoff_state.get("status", &"completed"),
+				"previous_role": _emergency_pilot_handoff_state.get("previous_role", &""),
+				"new_role": _emergency_pilot_handoff_state.get("new_role", &"pilot"),
+				"previous_seat_generation": int(_emergency_pilot_handoff_state.get("previous_seat_generation", 0)),
+				"new_seat_generation": int(_emergency_pilot_handoff_state.get("new_seat_generation", 0)),
+				"release_request_sequence": int(_emergency_pilot_handoff_state.get("release_request_sequence", -1)),
+				"claim_request_sequence": int(_emergency_pilot_handoff_state.get("claim_request_sequence", -1)),
+				"authority_event_sequence": int(authority_snapshot.get("event_sequence", -1)),
+				"ready": bool(departure_readiness.get("ready", false)),
+				"neutral_command_confirmed": bool(_emergency_pilot_handoff_state.get("neutral_command_confirmed", false))
+					and _pilot_command_state.is_empty()
+					and not _piloted,
+			}.duplicate(true)
+	snapshot["emergency_pilot_handoff"] = handoff_snapshot
 	(snapshot["occupants"] as Array).sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
 	)
@@ -2601,6 +2638,10 @@ func _clear_crew_role_state(
 			and int(_pilot_command_state.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_pilot_command_state.get("avatar_id", &"")) == avatar_id:
 		_clear_pilot_command(reason)
+	if not _emergency_pilot_handoff_state.is_empty() \
+			and int(_emergency_pilot_handoff_state.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_emergency_pilot_handoff_state.get("avatar_id", &"")) == avatar_id:
+		_clear_emergency_pilot_handoff_state()
 
 
 func _advance_crew_role_cooldowns(delta: float) -> void:
@@ -2692,6 +2733,10 @@ func _clear_pilot_command(_reason: StringName) -> void:
 	_pilot_command_seat_generation = 0
 	if _piloted:
 		set_piloted(false)
+
+
+func _clear_emergency_pilot_handoff_state() -> void:
+	_emergency_pilot_handoff_state.clear()
 
 
 static func _passenger_ping_actor_key(occupant_peer_id: int, avatar_id: StringName) -> StringName:

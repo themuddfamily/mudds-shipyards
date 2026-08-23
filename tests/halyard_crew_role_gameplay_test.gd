@@ -521,6 +521,27 @@ func _run() -> void:
 			and not bool(craft.get("_piloted")),
 		"the emergency replacement receives only the pilot role and starts neutral"
 	)
+	var emergency_snapshot := craft.get_crew_role_gameplay_snapshot()
+	var handoff_snapshot := emergency_snapshot.get("emergency_pilot_handoff", {}) as Dictionary
+	_check(
+		StringName(handoff_snapshot.get("previous_role", &"")) == Authority.ROLE_PASSENGER
+			and StringName(handoff_snapshot.get("new_role", &"")) == Authority.ROLE_PILOT
+			and int(handoff_snapshot.get("previous_seat_generation", 0)) == 1
+			and int(handoff_snapshot.get("new_seat_generation", 0)) == 1
+			and int(handoff_snapshot.get("release_request_sequence", -1)) == 3
+			and int(handoff_snapshot.get("claim_request_sequence", -1)) == 4
+			and bool(handoff_snapshot.get("ready", false))
+			and bool(handoff_snapshot.get("neutral_command_confirmed", false)),
+		"the detached snapshot exposes generation-fenced emergency handoff readiness"
+	)
+	_check(
+		not handoff_snapshot.has("occupant_peer_id")
+			and not handoff_snapshot.has("avatar_id")
+			and not handoff_snapshot.has("occupant")
+			and int(handoff_snapshot.get("authority_event_sequence", -1))
+			== int(emergency_snapshot.get("authority_event_sequence", -2)),
+		"the emergency snapshot receipt contains no PII or object references"
+	)
 	var emergency_replay := craft.request_emergency_pilot_handoff(
 		1,
 		73,
@@ -544,6 +565,11 @@ func _run() -> void:
 			and not frame.is_occupant_registered(emergency_avatar)
 			and authority.get_assignment(73, &"passenger_avatar").is_empty(),
 		"the emergency pilot can be released through the normal authority and occupancy path"
+	)
+	var cleared_emergency_snapshot := craft.get_crew_role_gameplay_snapshot()
+	_check(
+		(cleared_emergency_snapshot.get("emergency_pilot_handoff", {}) as Dictionary).is_empty(),
+		"detaching the emergency pilot clears the detached handoff receipt"
 	)
 	emergency_avatar.queue_free()
 
