@@ -10,10 +10,14 @@ const COMPONENT_ID: StringName = &"arrow-entry-presentation-binding"
 const LandingDustWashScript := preload(
 	"res://scripts/effects/arrow_landing_dust_wash_presentation.gd"
 )
+const CockpitReadoutScript := preload(
+	"res://scripts/effects/arrow_entry_cockpit_readout_presentation.gd"
+)
 
 var _arrow_ref: WeakRef
 var _hud_ref: WeakRef
 var _landing_wash: Node3D
+var _cockpit_readout: Label3D
 var _attached := false
 var _atmospheric := false
 var _generation := 0
@@ -34,6 +38,11 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 	var presentation := arrow.get_entry_heat_target().get_presentation()
 	if presentation == null:
 		return _reject(&"entry_presentation_unavailable")
+	var cockpit_cluster := arrow.get_arrow_visual_root().get_node_or_null(
+		^"CockpitInterior/InstrumentCluster"
+	) as Node3D
+	if cockpit_cluster == null:
+		return _reject(&"physical_cockpit_display_unavailable")
 	var state := presentation.get_state_snapshot()
 	if bool(state.get("configured", false)):
 		if not bool(presentation.audit().get("valid", false)):
@@ -44,6 +53,9 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 	_landing_wash = LandingDustWashScript.new() as Node3D
 	_landing_wash.name = "ArrowLandingDustWashPresentation"
 	arrow.get_arrow_visual_root().add_child(_landing_wash)
+	_cockpit_readout = CockpitReadoutScript.new() as Label3D
+	_cockpit_readout.name = "EntryDescentReadout"
+	cockpit_cluster.add_child(_cockpit_readout)
 	_attached = true
 	_generation += 1
 	return _result(true, &"attached")
@@ -133,17 +145,29 @@ func present_observation(
 		"reduced_motion": bool(accessibility.get("reduced_motion", false)),
 	}
 	hud.update_atmospheric_entry_status(source)
+	var cockpit_result: Dictionary = {
+		"accepted": false, "reason": &"cockpit_readout_unavailable",
+	}
+	if _cockpit_readout != null:
+		cockpit_result = _cockpit_readout.call(
+			&"present_source", source
+		) as Dictionary
 	_observation_count += 1
 	_last_result = _result(true, &"entry_presented", {
 		"source": source.duplicate(true),
 		"heat": heat_result.duplicate(true),
 		"landing_wash": wash_result.duplicate(true),
+		"cockpit_readout": cockpit_result.duplicate(true),
 		"entry_intensity": intensity,
 	})
 	return _last_result.duplicate(true)
 
 
 func detach() -> Dictionary:
+	if _cockpit_readout != null:
+		_cockpit_readout.call(&"clear", &"detached")
+		_cockpit_readout.queue_free()
+		_cockpit_readout = null
 	if _landing_wash != null:
 		_landing_wash.call(&"clear", &"detached_zero")
 		_landing_wash.queue_free()
@@ -174,6 +198,10 @@ func get_snapshot() -> Dictionary:
 			if _landing_wash != null else {
 				"visible": false, "intensity": 0.0,
 				"last_reason": &"detached_zero",
+			},
+		"cockpit_readout": _cockpit_readout.call(&"get_snapshot") \
+			if _cockpit_readout != null else {
+				"visible": false, "text": "", "state": &"detached",
 			},
 		"presentation_only": true,
 		"physics_authority": false,

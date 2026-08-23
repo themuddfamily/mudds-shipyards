@@ -66,6 +66,12 @@ func _run() -> void:
 	var normal_wash := (airless_snapshot.entry_presentation as Dictionary).get(
 		"landing_wash", {}
 	) as Dictionary
+	var safe_cockpit := (airless_snapshot.entry_presentation as Dictionary).get(
+		"cockpit_readout", {}
+	) as Dictionary
+	var physical_entry_readout := arrow.get_arrow_visual_root().get_node_or_null(
+		^"CockpitInterior/InstrumentCluster/EntryDescentReadout"
+	) as Label3D
 	var entry_presenter := hud.get("_entry_guidance_presenter") as RefCounted
 	var safe_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
 	_check(
@@ -82,8 +88,17 @@ func _run() -> void:
 		and normal_wash.get("damage_authority") == false
 		and normal_wash.get("atmosphere_authority") == false
 		and normal_wash.get("landing_authority") == false
+		and safe_cockpit.get("text") == "AIRLESS | [v] DESCENT SAFE"
+		and safe_cockpit.get("symbol") == &"[v]"
+		and safe_cockpit.get("color_independent") == true
+		and safe_cockpit.get("collision_authority") == false
+		and safe_cockpit.get("movement_authority") == false
+		and safe_cockpit.get("damage_authority") == false
+		and safe_cockpit.get("landing_authority") == false
+		and physical_entry_readout != null
+		and physical_entry_readout.text == safe_cockpit.get("text")
 		and hud.get("_runtime_status_kind") == &"entry",
-		"low-altitude Ember descent presents zero entry heat plus ship-local landing wash",
+		"low Ember descent reaches HUD, landing wash, and the physical cockpit readout",
 	)
 
 	hud.set_reduced_flash(true)
@@ -96,35 +111,62 @@ func _run() -> void:
 	var reduced_wash := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("landing_wash", {}) as Dictionary
+	var reduced_cockpit := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("cockpit_readout", {}) as Dictionary
 	_check(
 		bool(reduced.get("accepted", false))
 		and float(reduced_wash.get("intensity", 0.0)) \
 			< float(normal_wash.get("intensity", 0.0))
 		and reduced_wash.get("reduced_flash") == true
 		and reduced_wash.get("reduced_motion") == true
-		and reduced_wash.get("steady_emission") == true,
+		and reduced_wash.get("steady_emission") == true
+		and reduced_cockpit.get("reduced_flash") == true
+		and reduced_cockpit.get("reduced_motion") == true
+		and reduced_cockpit.get("steady") == true,
 		"reduced settings lower the wash and retain steady emission",
 	)
 
-	var climbing_airless := production.advance_from_caller_sample(
+	var high_sink_airless := production.advance_from_caller_sample(
 		3, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
+		false, false, false, {}, 1, 1, 0
+	)
+	var high_sink_cockpit := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("cockpit_readout", {}) as Dictionary
+	_check(
+		bool(high_sink_airless.get("accepted", false))
+		and high_sink_cockpit.get("text") == "AIRLESS | [!!] HIGH SINK"
+		and high_sink_cockpit.get("symbol") == &"[!!]"
+		and high_sink_cockpit.get("steady") == true
+		and physical_entry_readout.text == high_sink_cockpit.get("text"),
+		"high sink is legible on the physical display without relying on color",
+	)
+
+	var climbing_airless := production.advance_from_caller_sample(
+		4, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 15.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
 	var climb_zero := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("landing_wash", {}) as Dictionary
+	var climb_cockpit := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("cockpit_readout", {}) as Dictionary
 	_check(
 		bool(climbing_airless.get("accepted", false))
 		and is_zero_approx(float(climb_zero.get("intensity", -1.0)))
 		and climb_zero.get("dust_emitting") == false
-		and climb_zero.get("last_reason") == &"climb_or_level_zero",
+		and climb_zero.get("last_reason") == &"climb_or_level_zero"
+		and climb_cockpit.get("text") == "AIRLESS | [^] CLIMB / EXIT",
 		"climb immediately clears the landing wash to exact zero",
 	)
 
 	production.set("_last_planetary_altitude_m", 500.0)
 	var high_airless := production.advance_from_caller_sample(
-		4, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		5, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -20.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -144,7 +186,7 @@ func _run() -> void:
 	production.set("_atmosphere_composition", atmosphere)
 	production.set("_last_planetary_altitude_m", 10_000.0)
 	var atmospheric := production.advance_from_caller_sample(
-		5, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		6, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -155,6 +197,7 @@ func _run() -> void:
 	var title := hud.get("_runtime_status_title") as Label
 	var detail := hud.get("_runtime_status_detail") as Label
 	var high_sink_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
+	var atmospheric_cockpit := bridge.get("cockpit_readout", {}) as Dictionary
 	_check(
 		bool(atmospheric.get("accepted", false))
 		and source.get("branch_id") == &"atmospheric"
@@ -169,12 +212,16 @@ func _run() -> void:
 		and high_sink_presentation.get(
 			"descent_advisory_color_independent"
 		) == true
-		and detail.text.contains("[ HIGH SINK RATE // 60 M/S DOWN"),
+		and detail.text.contains("[ HIGH SINK RATE // 60 M/S DOWN")
+		and atmospheric_cockpit.get("text") \
+			== "ATM HEAT | [!!] CRITICAL"
+		and atmospheric_cockpit.get("symbol") == &"[!!]"
+		and atmospheric_cockpit.get("steady") == true,
 		"atmospheric altitude and Arrow speed drive visible steady reduced-flash heat guidance",
 	)
 
 	var climb := production.advance_from_caller_sample(
-		6, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		7, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 15.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -198,18 +245,23 @@ func _run() -> void:
 	var detached_wash := entry_binding.call(&"get_snapshot").get(
 		"landing_wash", {}
 	) as Dictionary
+	var detached_cockpit := entry_binding.call(&"get_snapshot").get(
+		"cockpit_readout", {}
+	) as Dictionary
 	_check(
 		bool(detached.get("accepted", false))
 		and is_zero_approx(float(detached_wash.get("intensity", -1.0)))
 		and detached_wash.get("visible") == false
-		and detached_wash.get("last_reason") == &"detached_zero",
+		and detached_wash.get("last_reason") == &"detached_zero"
+		and detached_cockpit.get("visible") == false
+		and detached_cockpit.get("text") == "",
 		"detaching the production bridge clears the wash to exact zero",
 	)
 
 	composition.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 8 assertions")
+		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 9 assertions")
 		quit(0)
 		return
 	for failure in _failures:
