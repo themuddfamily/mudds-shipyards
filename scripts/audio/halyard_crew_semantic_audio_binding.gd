@@ -1,6 +1,8 @@
 class_name HalyardCrewSemanticAudioBinding
 extends Node
 
+const EngineerBindingScript := preload("res://scripts/audio/crew_engineer_audio_binding.gd")
+
 ## Audio-only presentation bridge for detached Halyard crew snapshots. Crew role,
 ## handoff, routing, and departure authority remain with the caller.
 
@@ -14,6 +16,10 @@ const CUE_PRIORITIES := {
 	&"crew_engineer_route_changed": 55,
 	&"crew_departure_ready": 70,
 	&"crew_emergency_pilot_handoff": 90,
+	&"crew_engineer_repair_started": 60,
+	&"crew_engineer_repair_progress": 20,
+	&"crew_engineer_repair_interrupted": 80,
+	&"crew_engineer_repair_completed": 100,
 }
 const CREW_ROLES := [&"pilot", &"gunner", &"engineer", &"passenger"]
 
@@ -28,6 +34,7 @@ var _active_cue_slots: Array[Dictionary] = []
 var _emitted_cue_count := 0
 var _preempted_cue_count := 0
 var _last_preempted_cue: StringName = &""
+var _engineer_binding: Node
 
 
 func attach(expected_generation: int = 0) -> Dictionary:
@@ -35,6 +42,13 @@ func attach(expected_generation: int = 0) -> Dictionary:
 		return _result(false, &"stale_generation")
 	_attached = true
 	_clear_state()
+	if _engineer_binding == null:
+		_engineer_binding = EngineerBindingScript.new()
+		add_child(_engineer_binding)
+		_engineer_binding.semantic_crew_cue_emitted.connect(_on_engineer_cue)
+	var engineer_result: Dictionary = _engineer_binding.attach(expected_generation)
+	if not bool(engineer_result.get("accepted", false)):
+		return _result(false, &"engineer_binding_attach_failed")
 	return _result(true, &"attached")
 
 
@@ -44,6 +58,18 @@ func present_crew_snapshot(snapshot: Dictionary) -> Dictionary:
 	var decoded := _decode_snapshot(snapshot)
 	if not bool(decoded.get("accepted", false)):
 		return _result(false, StringName(decoded.get("reason", &"invalid_snapshot")))
+	var engineer_snapshot: Variant = snapshot.get("engineer_repair", {})
+	if not engineer_snapshot is Dictionary:
+		return _result(false, &"invalid_engineer_repair")
+	if not (engineer_snapshot as Dictionary).is_empty():
+		var repair := (engineer_snapshot as Dictionary).duplicate(true)
+		if not repair.has("generation"):
+			repair["generation"] = _generation
+		var engineer_result: Dictionary = _engineer_binding.present_repair_snapshot(repair)
+		var engineer_reason: StringName = engineer_result.get("reason", &"")
+		if not bool(engineer_result.get("accepted", false)) \
+				and engineer_reason not in [&"duplicate_sequence", &"stale_sequence"]:
+			return _result(false, &"invalid_engineer_repair")
 	var occupants := decoded.occupants as Dictionary
 	for actor_key: String in _last_occupants:
 		if not occupants.has(actor_key):
@@ -74,6 +100,8 @@ func detach() -> Dictionary:
 		return _result(false, &"not_attached")
 	_attached = false
 	_generation += 1
+	if _engineer_binding != null:
+		_engineer_binding.detach()
 	_clear_state()
 	return _result(true, &"detached")
 
@@ -91,6 +119,7 @@ func get_snapshot() -> Dictionary:
 		"emitted_cue_count": _emitted_cue_count,
 		"preempted_cue_count": _preempted_cue_count,
 		"last_preempted_cue": _last_preempted_cue,
+		"engineer_binding": _engineer_binding.get_snapshot() if _engineer_binding != null else {},
 		"maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES,
 		"authority": {"crew_roles": false, "handoff": false, "departure": false, "audio_cues": true},
 	}.duplicate(true)
@@ -144,6 +173,10 @@ func _emit_cue(cue_id: StringName, role: StringName, intensity: float) -> void:
 		return
 	_emitted_cue_count += 1
 	semantic_crew_cue_emitted.emit(cue_id, role, clampf(intensity, 0.0, 1.0))
+
+
+func _on_engineer_cue(cue_id: StringName, role: StringName, intensity: float) -> void:
+	_emit_cue(cue_id, role, intensity)
 
 
 func _admit_cue(cue_id: StringName, role: StringName) -> bool:
