@@ -5,6 +5,7 @@ extends HeroShip
 ## payload, or mission claim is authenticated here.
 
 const PayloadAuthority := preload("res://scripts/combat/bomber_payload_authority.gd")
+const PayloadPresentation := preload("res://scripts/effects/bomber_payload_presentation.gd")
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-long-range-bomber"
@@ -27,6 +28,7 @@ var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
 var _bomber_built := false
 var _payload_authority: BomberPayloadAuthority
+var _payload_presentation
 
 
 func _init() -> void:
@@ -51,6 +53,7 @@ func _ready() -> void:
 	super._ready()
 	if not _bomber_built:
 		_bomber_built = rebuild_variant_presentation(_build_bomber_variant)
+	_build_payload_presentation()
 
 
 func _physics_process(delta: float) -> void:
@@ -59,12 +62,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if _payload_authority != null:
 		_payload_authority.advance(maxf(delta, 0.0))
+	if is_instance_valid(_payload_presentation):
+		_payload_presentation.advance_simulation(maxf(delta, 0.0))
 
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	if _payload_authority != null and bool(_payload_authority.get_snapshot().get("active", false)):
 		_payload_authority.detach(&"ship_reused")
+	if is_instance_valid(_payload_presentation):
+		_payload_presentation.detach()
 
 
 func _build_bomber_variant(_controller: HeroShip) -> bool:
@@ -104,11 +111,17 @@ func begin_payload_generation(generation: int) -> Dictionary:
 
 ## Re-enters payload admission after explicit detach or HeroShip reuse cleanup.
 func reset_payload_for_reuse(generation: int) -> Dictionary:
-	return _payload_authority.reset_for_reuse(generation)
+	var result := _payload_authority.reset_for_reuse(generation)
+	if bool(result.get("accepted", false)) and is_instance_valid(_payload_presentation):
+		_payload_presentation.reset_for_reuse()
+	return result
 
 
 func detach_payload_authority(reason: StringName = &"detached") -> Dictionary:
-	return _payload_authority.detach(reason)
+	var result := _payload_authority.detach(reason)
+	if bool(result.get("accepted", false)) and is_instance_valid(_payload_presentation):
+		_payload_presentation.detach()
+	return result
 
 
 func advance_payload_cooldown(delta: float) -> Dictionary:
@@ -117,6 +130,19 @@ func advance_payload_cooldown(delta: float) -> Dictionary:
 
 func get_payload_authority_snapshot() -> Dictionary:
 	return _payload_authority.get_snapshot()
+
+
+func get_payload_presentation():
+	return _payload_presentation
+
+
+## Mirrors one terminal record already emitted by BomberPayloadProjectile (and
+## accepted by the caller's combat path) into the visual pool. Cinder neither
+## submits collision evidence nor interprets target, damage, or scoring fields.
+func present_payload_terminal_record(terminal_record: Dictionary) -> Dictionary:
+	if not is_instance_valid(_payload_presentation):
+		return {"accepted": false, "reason": &"payload_presentation_unavailable"}
+	return _payload_presentation.consume_terminal_record(terminal_record)
 
 
 ## Maps one authored hardpoint to a finite release pose and delegates all
@@ -156,6 +182,11 @@ func request_payload_release(
 	)
 	if bool(result.get("accepted", false)):
 		result["hardpoint_index"] = hardpoint_index
+		result["presentation"] = (
+			_payload_presentation.consume_release_record(result.get("record", {}) as Dictionary)
+			if is_instance_valid(_payload_presentation)
+			else {"accepted": false, "reason": &"payload_presentation_unavailable"}
+		)
 	return result.duplicate(true)
 
 
@@ -169,6 +200,12 @@ func get_audit_report() -> Dictionary:
 		errors.append("four caller-owned payload hardpoints are required")
 	if _payload_authority == null or not _payload_authority.is_configuration_valid():
 		errors.append("bomber payload admission authority is unavailable")
+	if (
+		not is_instance_valid(_payload_presentation)
+		or _payload_presentation.get_parent() != self
+		or not bool(_payload_presentation.get_audit_report().get("valid", false))
+	):
+		errors.append("bounded bomber payload presentation is unavailable")
 	if not bool(get_landing_collision_report().get("valid", false)):
 		errors.append("bomber requires HeroShip root collision")
 	return {
@@ -188,10 +225,20 @@ func get_audit_report() -> Dictionary:
 		"ordnance_authority": false,
 		"payload_admission_authority": true,
 		"payload_records_unresolved": true,
+		"payload_presentation_composed": is_instance_valid(_payload_presentation),
+		"payload_presentation_authority": false,
 		"berth_authority": false,
 		"game_flow_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+func _build_payload_presentation() -> void:
+	if is_instance_valid(_payload_presentation):
+		return
+	_payload_presentation = PayloadPresentation.new()
+	_payload_presentation.name = "BomberPayloadPresentation"
+	add_child(_payload_presentation)
 
 
 func _build_collision() -> void:

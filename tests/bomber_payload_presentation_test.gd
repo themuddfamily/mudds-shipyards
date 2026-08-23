@@ -1,6 +1,8 @@
 extends SceneTree
 
 const Presentation := preload("res://scripts/effects/bomber_payload_presentation.gd")
+const Bomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
+const Projectile := preload("res://scripts/combat/bomber_payload_projectile.gd")
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -205,6 +207,103 @@ func _run() -> void:
 		not bool(second.consume_release_record(invalid).accepted)
 		and not bool(second.consume_terminal_record(_terminal(999, &"impact", Vector3.ZERO, Vector3.ZERO, Vector3.UP)).accepted),
 		"invalid poses and terminal records without a live release fail closed"
+	)
+
+	# Production composition: the Cinder bomber owns the visual node and mirrors
+	# only records that have already passed payload/projectile authority.
+	var bomber = Bomber.new()
+	bomber.name = "ProductionCinderBomber"
+	host.add_child(bomber)
+	await process_frame
+	await process_frame
+	var composed = bomber.get_payload_presentation()
+	_check(
+		is_instance_valid(composed)
+		and composed.get_parent() == bomber
+		and composed.name == "BomberPayloadPresentation"
+		and bool(bomber.get_audit_report().payload_presentation_composed),
+		"production Cinder instantiates one bounded bomber-owned presentation pool"
+	)
+	_check(bool(bomber.begin_payload_generation(1).accepted), "production payload generation starts through Cinder authority")
+	var live_release: Dictionary = bomber.request_payload_release(
+		1, &"production_gunner", 1, 1, 0, Vector3(2.0, -36.0, -8.0)
+	)
+	var live_record := live_release.get("record", {}) as Dictionary
+	var live_presentation := live_release.get("presentation", {}) as Dictionary
+	var live_snapshots: Array = composed.get_active_snapshots()
+	_check(
+		bool(live_release.accepted)
+		and bool(live_presentation.accepted)
+		and live_snapshots.size() == 1,
+		"one authority-accepted production release is immediately fed to the composed pool"
+	)
+	_check(
+		(live_snapshots[0].release_position as Vector3).is_equal_approx(live_record.release_position)
+		and (live_snapshots[0].release_velocity as Vector3).is_equal_approx(live_record.release_velocity),
+		"production composition preserves the exact hardpoint world pose record"
+	)
+
+	var projectile = Projectile.new(1, Vector3.ZERO, 3.0, 200.0, 500.0)
+	projectile.begin_generation(1)
+	_check(
+		bool(projectile.consume_release_record(1, live_record).accepted),
+		"the same accepted production record enters the real projectile authority"
+	)
+	projectile.advance(0.2)
+	var resolved_position := (projectile.get_snapshot().position as Vector3) + Vector3(0.0, -2.0, 0.0)
+	var projectile_terminal: Dictionary = projectile.submit_impact(
+		1, resolved_position, Vector3(0.1, 0.98, 0.05).normalized(), &"resolved_target", 3
+	)
+	var live_terminal := projectile_terminal.get("terminal_intent", {}) as Dictionary
+	_check(
+		bool(projectile_terminal.accepted)
+		and bool(bomber.present_payload_terminal_record(live_terminal).accepted),
+		"the real projectile terminal record is fed through Cinder's non-authoritative presentation seam"
+	)
+	live_snapshots = composed.get_active_snapshots()
+	_check(
+		live_snapshots.size() == 1
+		and live_snapshots[0].phase == &"terminal"
+		and (live_snapshots[0].terminal_position as Vector3).is_equal_approx(live_terminal.position),
+		"live production impact snaps the composed visual to the exact resolved terminal pose"
+	)
+	composed.advance_simulation(0.33)
+	_check(composed.get_active_snapshots().is_empty(), "production terminal art self-cleans on the fixed pool clock")
+
+	bomber.advance_payload_cooldown(1.0)
+	var switch_release: Dictionary = bomber.request_payload_release(
+		1, &"production_gunner", 1, 2, 1, Vector3(0.0, -30.0, 0.0)
+	)
+	_check(
+		bool(switch_release.accepted) and composed.get_active_snapshots().size() == 1,
+		"a live payload visual exists before ship-switch reuse"
+	)
+	var switch_result: Dictionary = bomber.reset_for_reuse(
+		Transform3D(Basis.IDENTITY, Vector3(80.0, 12.0, -40.0))
+	)
+	_check(
+		bool(switch_result.accepted)
+		and composed.get_active_snapshots().is_empty()
+		and not bool(bomber.get_payload_authority_snapshot().active),
+		"ship-switch reuse atomically detaches payload authority and clears presentation"
+	)
+	_check(
+		bool(bomber.reset_payload_for_reuse(2).accepted),
+		"new payload generation resets the retained visual pool after a ship switch"
+	)
+	var reused_release: Dictionary = bomber.request_payload_release(
+		1, &"replacement_gunner", 2, 1, 2, Vector3(0.0, -24.0, 3.0)
+	)
+	_check(
+		bool(reused_release.accepted)
+		and bool((reused_release.presentation as Dictionary).accepted)
+		and composed.get_active_snapshots().size() == 1,
+		"re-entered production generation feeds a fresh release into the same pool"
+	)
+	_check(
+		bool(bomber.detach_payload_authority(&"combat_owner_detached").accepted)
+		and composed.get_active_snapshots().is_empty(),
+		"explicit production authority detach synchronously clears its live visual"
 	)
 
 	host.queue_free()
