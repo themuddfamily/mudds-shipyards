@@ -19,7 +19,49 @@ extends SceneTree
 ##    describes it.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const Settings := preload("res://scripts/settings/runtime_settings.gd")
+const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const WORLD_LAYER := PhysicsLayers.WORLD
+
+
+class IsolatedFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes,
+		}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path) or files.has(to_path):
+			return ERR_FILE_NOT_FOUND if not files.has(from_path) else ERR_ALREADY_EXISTS
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 ## Tolerance for the "shares volume with drawn geometry" sweep. 2 mm: the two
 ## signs sit 0.5 mm proud of the panel they are lettered onto so their glyphs are
@@ -41,6 +83,18 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	var filesystem := IsolatedFilesystem.new()
+	var store := Store.new("memory://vip-reception-settings.json", filesystem)
+	var settings := Settings.new("memory://vip-reception-settings.cfg")
+	_check(bool(store.load().get("accepted", false)), "isolated settings store opens empty")
+	_check(
+		bool(store.commit({Adapter.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload()}, 0, "fixture").get("accepted", false)),
+		"isolated settings fixture publishes a validated payload"
+	)
+	_check(
+		game.configure_runtime_settings_persistence(store, "memory://vip-reception-settings.cfg"),
+		"GameFlow accepts the isolated settings fixture before startup"
+	)
 	root.add_child(game)
 	await process_frame
 	await physics_frame
@@ -51,13 +105,13 @@ func _run() -> void:
 	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
 	_check(world != null, "production world is live")
 	if world == null:
+		await _dispose_game(game)
 		_finish()
 		return
 	var suite := world.get_node_or_null(^"VipReceptionSuite") as VipReceptionSuite
 	_check(suite != null, "the VIP reception suite is instantiated in the production world")
 	if suite == null:
-		game.queue_free()
-		await process_frame
+		await _dispose_game(game)
 		_finish()
 		return
 
@@ -75,10 +129,27 @@ func _run() -> void:
 	await _test_landmark_opens_onto_the_room(world, suite)
 	await _test_lifecycle(suite)
 
+	await _dispose_game(game)
+	_finish()
+
+
+func _dispose_game(game: GameFlow) -> void:
+	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+	var production := world.get_fleet_expansion_production_binding() if world != null else null
+	if production != null:
+		for craft_id: StringName in [
+			&"cinder_cargo_hauler",
+			&"cinder_long_range_bomber",
+			&"cinder_light_interceptor",
+		]:
+			var result: Dictionary = production.detach_craft(craft_id)
+			_check(
+				bool(result.get("accepted", false)),
+				"teardown releases retained %s presentation bindings" % craft_id
+			)
 	game.queue_free()
 	await process_frame
 	await process_frame
-	_finish()
 
 
 func _test_contract(suite: VipReceptionSuite) -> void:
