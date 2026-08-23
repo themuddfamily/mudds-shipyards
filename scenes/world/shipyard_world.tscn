@@ -111,7 +111,7 @@ assist_capture_maximum_speed = 26.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="BulwarkFleetDockBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, -1.21, 0)
+position = Vector3(0, 1.19, 0)
 cue_half_width = 4.7
 cue_half_length = 4.7
 

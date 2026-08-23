@@ -239,7 +239,10 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["bulwark_gunship"],
 		"feedback_path": NodePath("BulwarkFleetDockBerth/BerthFeedback"),
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.21, 0.0)),
+		# Fleet Dock 03 is the comb's raised deck: its top is 2.4 m above Dock 02.
+		# Seat this presentation cue on that surface without moving the berth,
+		# landing volume, or ship authority owned by ShipBerth.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, 1.19, 0.0)),
 		"cue_half_width": 4.7,
 		"cue_half_length": 4.7,
 	},
