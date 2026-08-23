@@ -410,6 +410,22 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 	)
 	var top_port := module.get_node(^"GeneratedRoot/TopPort/Mesh") as MeshInstance3D
 	var entry_port := module.get_node(^"GeneratedRoot/EntryFrontPort/Mesh") as MeshInstance3D
+	if top_port != null:
+		var original_missing_mesh := top_port.mesh
+		top_port.mesh = null
+		var missing_visual_red := module.get_four_meter_rail_visual_allocation_audit()
+		var missing_visual_full_audit_red := module.get_audit_report()
+		top_port.mesh = original_missing_mesh
+		_check(
+			not bool(missing_visual_red.valid)
+			and (missing_visual_red.errors as PackedStringArray).has("four_meter_rail_visual_missing")
+			and (missing_visual_red.errors as PackedStringArray).has("four_meter_rail_visual_aabb_drift")
+			and not bool(missing_visual_red.visual_aabbs_match_collision)
+			and not bool(missing_visual_full_audit_red.valid)
+			and bool(module.get_four_meter_rail_visual_allocation_audit().valid)
+			and bool(module.get_audit_report().valid),
+			"MUTATION: removing one rail visual mesh returns a structured red audit without an AABB runtime error"
+		)
 	if top_port != null and entry_port != null:
 		var original_top_port_mesh := top_port.mesh
 		top_port.mesh = entry_port.mesh

@@ -583,7 +583,8 @@ func get_four_meter_rail_visual_allocation_audit() -> Dictionary:
 			ENTRY_FRONT_RAIL_VISUAL_SIZE
 			if rail_name in ENTRY_FRONT_RAIL_NAMES else TOP_SIDE_RAIL_VISUAL_SIZE
 		)
-		if visual == null or not (visual.mesh is BoxMesh):
+		var has_box_visual := visual != null and visual.mesh is BoxMesh
+		if not has_box_visual:
 			errors.append("four_meter_rail_visual_missing")
 		else:
 			mesh_ids[visual.mesh.get_instance_id()] = true
@@ -601,10 +602,14 @@ func get_four_meter_rail_visual_allocation_audit() -> Dictionary:
 			var collision_bounds := _transformed_aabb(
 				AABB(-collision_shape.size * 0.5, collision_shape.size), collision.transform
 			)
-			var visual_bounds := _transformed_aabb(visual.mesh.get_aabb(), visual.transform) if visual != null else AABB()
-			if not visual_bounds.is_equal_approx(collision_bounds):
+			if not has_box_visual:
 				aabb_matches_collision = false
 				errors.append("four_meter_rail_visual_aabb_drift")
+			else:
+				var visual_bounds := _transformed_aabb(visual.mesh.get_aabb(), visual.transform)
+				if not visual_bounds.is_equal_approx(collision_bounds):
+					aabb_matches_collision = false
+					errors.append("four_meter_rail_visual_aabb_drift")
 	if mesh_ids.size() != 2:
 		errors.append("four_meter_rail_visual_mesh_count_drift")
 	if collision_ids.size() != FOUR_METER_RAIL_VISUAL_COUNT:
