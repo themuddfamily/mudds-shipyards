@@ -1216,9 +1216,10 @@ above plus the empty-project recipe at the end of the investigation document. Th
 matrix structurally cannot see this — `--headless` creates no rendering device — which is
 why `tools/release/run_test_matrix.sh` stays clean and is not a regression on it.
 
-## CAPTURE-001 — `tests/capture_hero_cell.gd` cannot pass on unmodified `main` in this environment — **REPRODUCED**
+## CAPTURE-001 — `tests/capture_hero_cell.gd` cannot pass on this software-rendered environment — **PARTIALLY FIXED**
 
-- Status: `PARTIALLY_FIXED`, **adjudicated 2026-08-16**. The record no longer holds an
+- Status: `PARTIALLY_FIXED`, **adjudicated 2026-08-16; collateral fixes reconciled
+  2026-08-23**. The record no longer holds an
   unadjudicated hypothesis: the decisive experiment it named was run, the hypothesis was
   upheld in substance and wrong about which emitter, and that **gate-design defect is now
   fixed** in the harness with no threshold moved. The uncontrolled backdrop assertion was
@@ -1486,41 +1487,45 @@ This one **is** genuinely environment-shaped — a real GPU with a stable TAA hi
 plausibly sit far below 0.005 — but it cannot be adjudicated from one rasteriser, and the
 gate value was not touched.
 
-### Two things found on the way that are not this defect
+### Two collateral defects found on the way — fixed 2026-08-23
 
-- **`apply_damage` normalises an infinite vector on its own default path.**
-  `_torrent.apply_damage(amount)` with no hit position leaves `world_hit_position` at
-  `Vector3.INF`, and `scripts/ships/hero_ship.gd:1263` then evaluates
-  `(world_hit_position - global_position).normalized()`, which prints
-  `WARNING: Vector3 cannot be normalized, the elements must be finite`. The result is
-  discarded — `present_impact` is correctly skipped because `is_finite()` is false — so this
-  is cosmetic, but it fires on every damage call that omits a position. Not repaired here:
-  `scripts/ships/` is outside this worktree's scope.
-- **The stale transaction directory is still not cleaned on the failure path**, exactly as
-  the section below records. Unchanged.
+- **`apply_damage` no longer normalises an infinite vector on its default path.**
+  `_torrent.apply_damage(amount)` leaves `world_hit_position` at `Vector3.INF`; production
+  now checks finiteness before deriving and normalising an impact direction. It still
+  preserves every finite non-zero explicit normal and radial direction, including close
+  `0.01`-m witnesses. `ship_component_damage_integration_test.gd` passes **53 assertions**
+  with no matching `Vector3` diagnostic. The reviewed correction is `b4ab2ae01`.
+- **Failed and interrupted captures now clean their isolated transaction.** Every full run
+  first validates output ancestry and, once that is safe, invalidates any prior
+  evidence/source manifest before renderer setup or transaction cleanup. Normal failure and
+  engine-finalize paths attempt bounded removal, print measured metrics, and exit non-zero
+  on interruption or cleanup failure. Root, nested, and broken transaction links are
+  unlinked as leaves; linked output ancestors are rejected without touching their targets.
+  Parse-only and propulsion staging modes do not arm cleanup and leave artifacts
+  byte-identical. Independent review found commits `2806cee5e`, `483b49d1d`,
+  `ccf53c594`, and `5dbf3cce6` cumulatively push-safe.
 
-### The harness publishes nothing on failure
+### The harness publishes nothing on failure and cleans its staging
 
 The capture is transactional. All 18 PNGs are written to
-`artifacts/hero_cell/.capture_transaction/` and promoted only after every check passes, so
-a failing run leaves `artifacts/hero_cell/` containing **no published frames, no
-`source_manifest.sha256` and no `evidence_manifest.json`** — just a stale
-`.capture_transaction/` directory with 18 orphaned files. Verified directly after all
-three runs. Two consequences worth recording:
+`artifacts/hero_cell/.capture_transaction/` and promoted only after every check passes. A
+new failing run publishes no frames and cannot authenticate frames from an older run: it
+invalidates `source_manifest.sha256` and `evidence_manifest.json` before renderer setup,
+then removes transaction staging before its terminal result. Previously published PNGs may
+remain for diagnosis, but without those manifests they are not current evidence.
 
-- There is no `log/image path + hash` evidence to cite for this record, which is why the
-  metric table above is the durable anchor. (`artifacts/` is gitignored in any case; the
-  package build record uses the same hashes-as-anchor convention.)
-- Anyone re-running the harness inherits the previous run's stale transaction directory.
-  Nothing observed it being cleaned up on the failure path.
+Two consequences are now explicit:
 
-**Partly addressed, 2026-08-16.** The first consequence was the more expensive one — the
-numbers this record exists to preserve were reachable only by scraping assertion text — so
-the harness now prints every measurement it took, on both paths, as `HERO_CELL_METRICS:`
-lines carrying the full JSON of `ship_mask_lighting` and of every pair comparison including
-the non-gated ones (`_print_measured_metrics`, called unconditionally from `_finish`). The
-stale-transaction consequence is **unchanged**: nothing cleans `.capture_transaction/` on
-the failure path.
+- There is no authenticated `log/image path + hash` evidence to cite for a failed run, which
+  is why the metric table above is the durable anchor. (`artifacts/` is gitignored in any
+  case; the package build record uses the same hashes-as-anchor convention.)
+- Successful bounded cleanup prevents a rerun from inheriting stale transaction files. If
+  cleanup cannot complete, that failure joins the terminal failure list and the process
+  exits `1`; it never turns a failed or interrupted capture green.
+
+The earlier metrics repair remains in place: the harness prints every measurement it took,
+on both paths, as `HERO_CELL_METRICS:` lines carrying the full JSON of
+`ship_mask_lighting` and every pair comparison, including non-gated diagnostics.
 
 ### Linked reproducer / regression
 
@@ -1530,8 +1535,8 @@ the matrix glob and turn a tooling defect into a gate, and it would go red the m
 harness is repaired. The correct regression is the harness itself, once an owner has
 decided what it should assert on a GPU-less box. That reasoning is unchanged by the
 adjudication: the ONLINE/CRITICAL repair is a change to `tests/capture_hero_cell.gd` and its
-regression is the harness's own `HERO_CELL_PASS` line, which the matrix structurally cannot
-run and should not be made to.
+regression is the harness's own `HERO_CELL_CAPTURE_OK` line, which the matrix structurally
+cannot run and should not be made to.
 
 ### What would close this record
 
@@ -1541,8 +1546,10 @@ run and should not be made to.
    valid platform for it — which is a documentation change, not a threshold change.
 
 The ONLINE/CRITICAL **gate-design** defect is closed and needs nothing further; what remains
-on that row is item 2 above, shared with its sibling. The harness still exits `1` on this
-box, on `graphite_background_delta` and on both exterior comparisons.
+on that row is item 2 above, shared with its sibling. `graphite_background_delta` is now
+diagnostic-only, while the controlled `ivory_graphite_delta >= 0.08` material-separation
+gate remains. The harness can still exit `1` on this box when either exterior comparison
+exceeds `0.005`; real-GPU renderer qualification is the only open item in this record.
 
 ---
 
