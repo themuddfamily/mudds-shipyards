@@ -39,8 +39,13 @@ func _run() -> void:
 	# The focused binding fixture supplies only identities normally captured by
 	# configure(); it does not substitute movement, berth, or GameFlow owners.
 	var host := HostScript.new() as EmberSurfaceLoopHost
+	root.add_child(host)
 	host.set("_generation", session.get_generation())
 	host.set("_attachment_generation", session.get_attachment_generation())
+	host.set("_attached", true)
+	host.set("_phase", EmberSurfaceLoopHost.Phase.ON_FOOT)
+	host.set("_player_instance_id", ACTOR_INSTANCE_ID)
+	host.set("_ship_instance_id", CRAFT_INSTANCE_ID)
 	host.set("_session", session)
 	var binding := BindingScript.new() as EmberSurfaceLoopProductionBinding
 	binding.set("_host", host)
@@ -74,15 +79,38 @@ func _run() -> void:
 	var reboarded := binding.submit_planetary_return_reboard(
 		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID, true, true
 	)
+	var reboard_snapshot := host.get_snapshot()
+	var reboard_replay := binding.submit_planetary_return_reboard(
+		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID, true, true
+	)
+	var reboard_after_replay := host.get_snapshot()
 	var took_off := binding.submit_planetary_return_takeoff(
 		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID, true, false
 	)
+	var takeoff_snapshot := host.get_snapshot()
+	var takeoff_replay := binding.submit_planetary_return_takeoff(
+		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID, true, false
+	)
+	var takeoff_after_replay := host.get_snapshot()
 	var ascended := binding.submit_planetary_return_ascent(
 		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID, true,
 		_absolute(frame, Vector3(0.0, 128_500.0, 0.0)), 5.0,
 		frame.get_generation()
 	)
+	var ascent_snapshot := host.get_snapshot()
+	var ascent_replay := binding.submit_planetary_return_ascent(
+		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID, true,
+		_absolute(frame, Vector3(0.0, 128_500.0, 0.0)), 5.0,
+		frame.get_generation()
+	)
+	var ascent_after_replay := host.get_snapshot()
 	var orbit_return := binding.submit_planetary_return_orbit(
+		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
+		_absolute(frame, Vector3(0.0, 140_000.0, 0.0)), 900.0,
+		frame.get_generation()
+	)
+	var orbit_snapshot := host.get_snapshot()
+	var orbit_replay := binding.submit_planetary_return_orbit(
 		null, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
 		_absolute(frame, Vector3(0.0, 140_000.0, 0.0)), 900.0,
 		frame.get_generation()
@@ -100,10 +128,35 @@ func _run() -> void:
 		and after_admission.last_return_intent.craft_instance_id == CRAFT_INSTANCE_ID \
 		and not wrong_reboard.accepted \
 		and wrong_reboard.reason == &"return_travel_bound_actor_mismatch" \
-		and reboarded.accepted and reboarded.state_id == &"reboarded" \
-		and took_off.accepted and took_off.state_id == &"takeoff" \
-		and ascended.accepted and ascended.state_id == &"ascent" \
-		and orbit_return.accepted and orbit_return.state_id == &"orbit_return" \
+		and reboarded.accepted and reboarded.phase_id == &"reboarded" \
+		and reboarded.travel_session.state_id == &"reboarded" \
+		and reboard_snapshot.phase_id == &"reboarded" \
+		and reboard_snapshot.travel_session.state_id == &"reboarded" \
+		and not reboard_replay.accepted \
+		and reboard_replay.reason == &"return_reboard_evidence_replayed" \
+		and reboard_after_replay == reboard_snapshot \
+		and took_off.accepted and took_off.phase_id == &"ascent" \
+		and took_off.travel_session.state_id == &"takeoff" \
+		and takeoff_snapshot.phase_id == &"ascent" \
+		and takeoff_snapshot.travel_session.state_id == &"takeoff" \
+		and not takeoff_replay.accepted \
+		and takeoff_replay.reason == &"return_takeoff_evidence_replayed" \
+		and takeoff_after_replay == takeoff_snapshot \
+		and ascended.accepted and ascended.phase_id == &"ascent" \
+		and ascended.travel_session.state_id == &"ascent" \
+		and ascent_snapshot.phase_id == &"ascent" \
+		and ascent_snapshot.travel_session.state_id == &"ascent" \
+		and not ascent_replay.accepted \
+		and ascent_replay.reason == &"return_ascent_evidence_replayed" \
+		and ascent_after_replay == ascent_snapshot \
+		and orbit_return.accepted and orbit_return.phase_id == &"orbit_return" \
+		and orbit_return.travel_session.state_id == &"orbit_return" \
+		and orbit_snapshot.phase_id == &"orbit_return" \
+		and orbit_snapshot.travel_session.state_id == &"orbit_return" \
+		and orbit_snapshot.transition_count == 3 \
+		and not orbit_replay.accepted \
+		and orbit_replay.reason == &"return_orbit_evidence_replayed" \
+		and host.get_snapshot() == orbit_snapshot \
 		and final_snapshot.state_id == &"orbit_return" \
 		and final_snapshot.last_return_activity_generation == ACTIVITY_GENERATION \
 		and not adapter_snapshot.authority.movement \

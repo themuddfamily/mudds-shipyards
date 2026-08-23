@@ -189,7 +189,7 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	_state = State.IDLE
 	# The host owns the retained session; audio observes its detached
 	# presentation signal without advancing travel or claiming movement authority.
-	var retained_session: Variant = _host.get("_session")
+	var retained_session: Variant = _host.get_travel_session_observation_source()
 	if retained_session is Object:
 		bind_planetary_travel_audio(retained_session as Object)
 	process_physics_priority = PHYSICS_PRIORITY
@@ -460,13 +460,11 @@ func admit_planetary_relay_survey_return(
 	) -> Dictionary:
 	if _relay_return_travel == null or _host == null:
 		return _reject(&"return_travel_session_unavailable")
-	var session_result := _resolve_planetary_return_session(
-		travel_session, actor_instance_id, craft_instance_id,
-		&"admit_return_travel_intent"
-	)
-	if not bool(session_result.get("accepted", false)):
-		return session_result
-	var session := session_result.get("session") as Object
+	var retained := travel_session == null
+	if retained and not _host.has_method(&"admit_return_travel_intent"):
+		return _reject(&"return_travel_session_unavailable")
+	if not retained and not travel_session.has_method(&"admit_return_travel_intent"):
+		return _reject(&"return_travel_session_unavailable")
 	var consumed: Dictionary = _relay_return_travel.call(
 		&"consume", manifest_result, actor_instance_id, craft_instance_id,
 		_host.get_attachment_generation()
@@ -474,10 +472,19 @@ func admit_planetary_relay_survey_return(
 	if not bool(consumed.get("accepted", false)):
 		return consumed
 	var intent := consumed.get("intent", {}) as Dictionary
-	var admitted: Dictionary = session.call(
-		&"admit_return_travel_intent", intent, actor_instance_id,
-		craft_instance_id, _host.get_generation(), _host.get_attachment_generation()
-	)
+	var admitted: Dictionary
+	if retained:
+		admitted = _host.call(
+			&"admit_return_travel_intent", intent, actor_instance_id,
+			craft_instance_id, _host.get_generation(),
+			_host.get_attachment_generation()
+		)
+	else:
+		admitted = travel_session.call(
+			&"admit_return_travel_intent", intent, actor_instance_id,
+			craft_instance_id, _host.get_generation(),
+			_host.get_attachment_generation()
+		)
 	if not bool(admitted.get("accepted", false)):
 		_relay_return_travel.call(&"reset")
 		return admitted
@@ -939,44 +946,56 @@ func _submit_authorized_return_sample(
 	) -> Dictionary:
 	if _host == null:
 		return _reject(&"return_travel_session_unavailable")
-	var session_result := _resolve_planetary_return_session(
-		travel_session, actor_instance_id, craft_instance_id, method
-	)
-	if not bool(session_result.get("accepted", false)):
-		return session_result
-	var session := session_result.get("session") as Object
+	if travel_session == null:
+		if not _host.has_method(&"submit_return_travel_evidence"):
+			return _reject(&"return_travel_session_unavailable")
+		var evidence_result := _return_evidence_from_sample(method, sample_args)
+		if not bool(evidence_result.get("accepted", false)):
+			return evidence_result
+		return _host.call(
+			&"submit_return_travel_evidence",
+			evidence_result.kind as StringName,
+			actor_instance_id, craft_instance_id,
+			evidence_result.evidence as Dictionary,
+			_host.get_generation(), _host.get_attachment_generation()
+		)
+	if not travel_session.has_method(method):
+		return _reject(&"return_travel_session_unavailable")
 	var args: Array = [actor_instance_id, craft_instance_id]
 	args.append_array(sample_args)
 	args.append(_host.get_generation())
 	args.append(_host.get_attachment_generation())
-	return session.callv(method, args)
+	return travel_session.callv(method, args)
 
 
-## Resolves the one session already retained by the bound Ember Host. Null is
-## the production path: it is fenced to the exact Player and HeroShip captured
-## at configure time. Explicit sessions preserve the existing test/integration
-## seam without gaining actor, movement, berth, reward, or GameFlow authority.
-func _resolve_planetary_return_session(
-		candidate: Object, actor_instance_id: int, craft_instance_id: int,
-		required_method: StringName
-	) -> Dictionary:
-	var session := candidate
-	if session == null:
-		if actor_instance_id != _player_instance_id \
-				or craft_instance_id != _ship_instance_id:
-			return _reject(&"return_travel_bound_actor_mismatch")
-		var retained: Variant = _host.get("_session") if _host != null else null
-		if not retained is Object:
-			return _reject(&"return_travel_session_unavailable")
-		session = retained as Object
-	if session == null or not session.has_method(required_method):
-		return _reject(&"return_travel_session_unavailable")
-	return {
-		"accepted": true,
-		"reason": &"return_travel_session_resolved",
-		"session": session,
-		"retained": candidate == null,
-	}.duplicate(true)
+func _return_evidence_from_sample(method: StringName, args: Array) -> Dictionary:
+	match method:
+		&"submit_authorized_return_reboard":
+			if args.size() == 2:
+				return {"accepted": true, "kind": &"reboard", "evidence": {
+					"player_reboarded": args[0], "ship_still_landed": args[1],
+				}}.duplicate(true)
+		&"submit_authorized_return_takeoff":
+			if args.size() == 2:
+				return {"accepted": true, "kind": &"takeoff", "evidence": {
+					"takeoff_started": args[0], "ship_still_landed": args[1],
+				}}.duplicate(true)
+		&"submit_authorized_return_ascent":
+			if args.size() == 4:
+				return {"accepted": true, "kind": &"ascent", "evidence": {
+					"surface_clear_confirmed": args[0],
+					"orbital_coordinate": args[1],
+					"speed_meters_per_second": args[2],
+					"coordinate_frame_generation": args[3],
+				}}.duplicate(true)
+		&"submit_authorized_return_orbit":
+			if args.size() == 3:
+				return {"accepted": true, "kind": &"orbit", "evidence": {
+					"orbital_coordinate": args[0],
+					"speed_meters_per_second": args[1],
+					"coordinate_frame_generation": args[2],
+				}}.duplicate(true)
+	return _reject(&"invalid_return_travel_evidence")
 
 
 func abort_planetary_relay_survey_return(reason: StringName = &"caller_aborted") -> Dictionary:

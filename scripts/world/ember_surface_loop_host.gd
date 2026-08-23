@@ -792,6 +792,67 @@ func request_takeoff(
 	)
 
 
+## Admits the caller-authorized homebound intent into this Host's retained
+## session. The Host owns the session reference; callers never receive it.
+## Admission does not move an actor or change phase.
+func admit_return_travel_intent(
+		intent: Variant, actor_instance_id: int, craft_instance_id: int,
+		expected_generation: int, expected_attachment_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if actor_instance_id != _player_instance_id \
+			or craft_instance_id != _ship_instance_id:
+		return _finish(false, &"return_travel_bound_actor_mismatch")
+	if _session == null or _phase not in [Phase.ON_FOOT, Phase.BOARDING, Phase.REBOARDED]:
+		return _finish(false, &"return_travel_out_of_order")
+	var admitted := _session.admit_return_travel_intent(
+		intent, actor_instance_id, craft_instance_id,
+		_generation, _session.get_attachment_generation()
+	)
+	return _finish(
+		bool(admitted.get("accepted", false)),
+		admitted.get("reason", &"return_travel_intent_rejected") as StringName
+	)
+
+
+## Atomically joins one caller-observed physical return fact to both the Host
+## phase and its retained travel session. It never moves/reparents actors,
+## changes a berth, or grants a reward. The normal Host cadence uses the same
+## private commit path after observing its live Player/HeroShip dependencies.
+func submit_return_travel_evidence(
+		kind: StringName, actor_instance_id: int, craft_instance_id: int,
+		evidence: Variant, expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if actor_instance_id != _player_instance_id \
+			or craft_instance_id != _ship_instance_id:
+		return _finish(false, &"return_travel_bound_actor_mismatch")
+	if not evidence is Dictionary:
+		return _finish(false, &"invalid_return_travel_evidence")
+	var committed := _commit_return_travel_evidence(
+		kind, actor_instance_id, craft_instance_id, evidence as Dictionary, true
+	)
+	return _finish(
+		bool(committed.get("accepted", false)),
+		committed.get("reason", &"return_travel_evidence_rejected") as StringName
+	)
+
+
 ## Adopts one already committed common-origin transaction. This method cannot
 ## request, apply, defer, cancel, or commit a rebase. It accepts only the exact
 ## detached receipt produced after the shared root roster was translated, proves
@@ -944,6 +1005,12 @@ func get_attachment_generation() -> int:
 
 func get_phase() -> int:
 	return _phase
+
+
+## Read-only observer source for presentation bindings. Travel mutations must
+## use the Host-owned intent/evidence APIs instead of this signal source.
+func get_travel_session_observation_source() -> Object:
+	return _session
 
 
 func get_snapshot() -> Dictionary:
@@ -1320,12 +1387,12 @@ func _advance_boarding() -> Dictionary:
 	_player.set_camera_active(false)
 	_player.gravity_multiplier = _original_player_gravity_multiplier
 	_ship.set_piloted(true)
-	var result := _session.submit_reboard_sample(
-		true, true, _generation, _session.get_attachment_generation()
+	var result := _commit_return_travel_evidence(
+		&"reboard", _player_instance_id, _ship_instance_id,
+		{"player_reboarded": true, "ship_still_landed": true}
 	)
-	if not bool(result.get("accepted", false)) or result.get("state_id") != &"reboarded":
+	if not bool(result.get("accepted", false)):
 		return {"accepted": false, "reason": &"reboard_desynchronized"}
-	_set_phase(Phase.REBOARDED)
 	return {"accepted": true, "reason": &"reboarded"}
 
 
@@ -1352,12 +1419,12 @@ func _advance_takeoff() -> Dictionary:
 	if _berth_token.is_empty() or not _berth.release(_ship, _berth_token):
 		return {"accepted": false, "reason": &"departure_lease_release_failed"}
 	_berth_token = &""
-	var result := _session.submit_takeoff_sample(
-		true, false, _generation, _session.get_attachment_generation()
+	var result := _commit_return_travel_evidence(
+		&"takeoff", _player_instance_id, _ship_instance_id,
+		{"takeoff_started": true, "ship_still_landed": false}
 	)
-	if not bool(result.get("accepted", false)) or result.get("state_id") != &"takeoff":
+	if not bool(result.get("accepted", false)):
 		return {"accepted": false, "reason": &"takeoff_desynchronized"}
-	_set_phase(Phase.ASCENT)
 	return {"accepted": true, "reason": &"departed_surface"}
 
 
@@ -1373,30 +1440,144 @@ func _advance_ascent() -> Dictionary:
 	if not bool(observation.get("accepted", false)):
 		return {"accepted": false, "reason": &"ascent_observation_rejected"}
 	if not _surface_clear_submitted and altitude >= SURFACE_CLEAR_ALTITUDE_M:
-		var ascent := _session.submit_ascent_sample(
-			true,
-			observation.orbital_coordinate as Dictionary,
-			float(observation.speed_meters_per_second),
-			_coordinate_frame_generation,
-			_generation,
-			_session.get_attachment_generation()
+		var ascent := _commit_return_travel_evidence(
+			&"ascent", _player_instance_id, _ship_instance_id,
+			{
+				"surface_clear_confirmed": true,
+				"orbital_coordinate": observation.orbital_coordinate,
+				"speed_meters_per_second": observation.speed_meters_per_second,
+				"coordinate_frame_generation": _coordinate_frame_generation,
+			}
 		)
-		if not bool(ascent.get("accepted", false)) or ascent.get("state_id") != &"ascent":
+		if not bool(ascent.get("accepted", false)):
 			return {"accepted": false, "reason": &"ascent_desynchronized"}
 		_surface_clear_submitted = true
 	if altitude < ORBIT_RETURN_ALTITUDE_M:
 		return {"accepted": true, "reason": &"production_ascent_in_progress"}
-	var returned := _session.submit_orbit_return_sample(
-		observation.orbital_coordinate as Dictionary,
-		float(observation.speed_meters_per_second),
-		_coordinate_frame_generation,
-		_generation,
-		_session.get_attachment_generation()
+	var returned := _commit_return_travel_evidence(
+		&"orbit", _player_instance_id, _ship_instance_id,
+		{
+			"orbital_coordinate": observation.orbital_coordinate,
+			"speed_meters_per_second": observation.speed_meters_per_second,
+			"coordinate_frame_generation": _coordinate_frame_generation,
+		}
 	)
-	if not bool(returned.get("accepted", false)) or returned.get("state_id") != &"orbit_return":
+	if not bool(returned.get("accepted", false)):
 		return {"accepted": false, "reason": &"orbit_return_desynchronized"}
-	_set_phase(Phase.ORBIT_RETURN)
 	return {"accepted": true, "reason": &"orbit_return_reached"}
+
+
+func _commit_return_travel_evidence(
+		kind: StringName, actor_instance_id: int, craft_instance_id: int,
+		evidence: Dictionary, require_return_intent: bool = false
+	) -> Dictionary:
+	if _session == null:
+		return {"accepted": false, "reason": &"return_travel_session_unavailable"}
+	var session_snapshot := _session.get_presentation_snapshot()
+	var session_state := StringName(session_snapshot.get("state_id", &""))
+	var has_return_intent := not (
+		session_snapshot.get("last_return_intent", {}) as Dictionary
+	).is_empty()
+	if require_return_intent and not has_return_intent:
+		return {"accepted": false, "reason": &"return_travel_intent_required"}
+	var result: Dictionary
+	match kind:
+		&"reboard":
+			if _phase not in [Phase.ON_FOOT, Phase.BOARDING] \
+					or session_state != &"on_foot":
+				return {"accepted": false, "reason": &"return_reboard_evidence_replayed"}
+			if evidence.size() != 2 \
+					or evidence.get("player_reboarded") is not bool \
+					or evidence.get("ship_still_landed") is not bool:
+				return {"accepted": false, "reason": &"invalid_return_travel_evidence"}
+			if has_return_intent:
+				result = _session.submit_authorized_return_reboard(
+					actor_instance_id, craft_instance_id,
+					bool(evidence.player_reboarded), bool(evidence.ship_still_landed),
+					_generation, _session.get_attachment_generation()
+				)
+			else:
+				result = _session.submit_reboard_sample(
+					bool(evidence.player_reboarded), bool(evidence.ship_still_landed),
+					_generation, _session.get_attachment_generation()
+				)
+			if bool(result.get("accepted", false)):
+				_set_phase(Phase.REBOARDED)
+		&"takeoff":
+			if _phase not in [Phase.REBOARDED, Phase.TAKEOFF] \
+					or session_state != &"reboarded":
+				return {"accepted": false, "reason": &"return_takeoff_evidence_replayed"}
+			if evidence.size() != 2 \
+					or evidence.get("takeoff_started") is not bool \
+					or evidence.get("ship_still_landed") is not bool:
+				return {"accepted": false, "reason": &"invalid_return_travel_evidence"}
+			if has_return_intent:
+				result = _session.submit_authorized_return_takeoff(
+					actor_instance_id, craft_instance_id,
+					bool(evidence.takeoff_started), bool(evidence.ship_still_landed),
+					_generation, _session.get_attachment_generation()
+				)
+			else:
+				result = _session.submit_takeoff_sample(
+					bool(evidence.takeoff_started), bool(evidence.ship_still_landed),
+					_generation, _session.get_attachment_generation()
+				)
+			if bool(result.get("accepted", false)):
+				_set_phase(Phase.ASCENT)
+		&"ascent":
+			if _phase != Phase.ASCENT or session_state != &"takeoff":
+				return {"accepted": false, "reason": &"return_ascent_evidence_replayed"}
+			if evidence.size() != 4 \
+					or evidence.get("surface_clear_confirmed") is not bool \
+					or evidence.get("orbital_coordinate") is not Dictionary \
+					or evidence.get("speed_meters_per_second") is not float \
+					or evidence.get("coordinate_frame_generation") is not int:
+				return {"accepted": false, "reason": &"invalid_return_travel_evidence"}
+			if has_return_intent:
+				result = _session.submit_authorized_return_ascent(
+					actor_instance_id, craft_instance_id,
+					bool(evidence.surface_clear_confirmed), evidence.orbital_coordinate,
+					float(evidence.speed_meters_per_second),
+					int(evidence.coordinate_frame_generation), _generation,
+					_session.get_attachment_generation()
+				)
+			else:
+				result = _session.submit_ascent_sample(
+					bool(evidence.surface_clear_confirmed), evidence.orbital_coordinate,
+					float(evidence.speed_meters_per_second),
+					int(evidence.coordinate_frame_generation), _generation,
+					_session.get_attachment_generation()
+				)
+		&"orbit":
+			if _phase != Phase.ASCENT or session_state != &"ascent":
+				return {"accepted": false, "reason": &"return_orbit_evidence_replayed"}
+			if evidence.size() != 3 \
+					or evidence.get("orbital_coordinate") is not Dictionary \
+					or evidence.get("speed_meters_per_second") is not float \
+					or evidence.get("coordinate_frame_generation") is not int:
+				return {"accepted": false, "reason": &"invalid_return_travel_evidence"}
+			if has_return_intent:
+				result = _session.submit_authorized_return_orbit(
+					actor_instance_id, craft_instance_id, evidence.orbital_coordinate,
+					float(evidence.speed_meters_per_second),
+					int(evidence.coordinate_frame_generation), _generation,
+					_session.get_attachment_generation()
+				)
+			else:
+				result = _session.submit_orbit_return_sample(
+					evidence.orbital_coordinate,
+					float(evidence.speed_meters_per_second),
+					int(evidence.coordinate_frame_generation), _generation,
+					_session.get_attachment_generation()
+				)
+			if bool(result.get("accepted", false)):
+				_set_phase(Phase.ORBIT_RETURN)
+		_:
+			return {"accepted": false, "reason": &"unknown_return_travel_evidence"}
+	return {
+		"accepted": bool(result.get("accepted", false)),
+		"reason": result.get("reason", &"return_travel_evidence_rejected"),
+	}.duplicate(true)
 
 
 func _complete_orbit_return() -> Dictionary:
