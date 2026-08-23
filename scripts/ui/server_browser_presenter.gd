@@ -24,6 +24,7 @@ var _include_full := true
 var _generation := 0
 var _latest_capacity_generation := 0
 var _last_snapshot: Dictionary = {}
+var _focus_target: StringName = &"refresh"
 
 
 func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_ANY, include_full: bool = true) -> Dictionary:
@@ -54,8 +55,9 @@ func present(browser: RefCounted) -> Dictionary:
 func present_result(result: Dictionary) -> Dictionary:
 	if not bool(result.get("accepted", false)):
 		var reason := StringName(str(result.get("reason", &"directory_unavailable")))
-		var message := str(result.get("message", "Server list unavailable. Try again."))
+		var message := _status_reason_message(reason, str(result.get("message", "")))
 		var retryable := bool(result.get("retryable", true))
+		_focus_target = &"retry" if retryable else &"cancel"
 		return _store_snapshot(_status_snapshot(&"error", [], reason, message, retryable))
 	var source_rows: Array = result.get("rows", []) as Array
 	var newest_capacity_generation := _latest_capacity_generation
@@ -73,7 +75,12 @@ func present_result(result: Dictionary) -> Dictionary:
 		var source_generation := int((source as Dictionary).get("capacity_generation", (source as Dictionary).get("generation", 0)))
 		if source_generation > 0 and source_generation < _latest_capacity_generation:
 			continue
-		rows.append(_present_row(source as Dictionary))
+		var row := _present_row(source as Dictionary)
+		rows.append(row)
+	if not rows.is_empty():
+		_focus_target = &"row:%s" % str(rows[0].get("session_id", ""))
+	else:
+		_focus_target = &"refresh"
 	return _store_snapshot(_status_snapshot(
 		&"ready" if not rows.is_empty() else &"empty",
 		rows,
@@ -81,6 +88,20 @@ func present_result(result: Dictionary) -> Dictionary:
 		"" if not rows.is_empty() else "No matching servers.",
 		false
 	))
+
+
+func set_focus_target(control_id: StringName) -> Dictionary:
+	var allowed := [&"refresh", &"retry", &"cancel", &"host_session", &"manual_join"]
+	if not allowed.has(control_id) and not control_id.begins_with("row:"):
+		return {"accepted": false, "reason": &"unknown_focus_target", "presentation_only": true}
+	_focus_target = control_id
+	if _last_snapshot.is_empty():
+		return {"accepted": true, "reason": &"focus_target_set", "focus_target": _focus_target, "presentation_only": true}
+	_last_snapshot["focus_target"] = _focus_target
+	var focused := _last_snapshot.duplicate(true)
+	focused["accepted"] = true
+	focused["reason"] = &"focus_target_set"
+	return focused
 
 
 func request_retry() -> Dictionary:
@@ -111,6 +132,8 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		"error_message": message,
 		"retryable": retryable,
 		"actions": actions,
+		"focus_target": _focus_target,
+		"focus_order": [&"refresh", &"host_session", &"manual_join", &"retry", &"cancel"],
 		"controls": _browser_controls(),
 		"accessibility_prompts": get_accessibility_prompts(),
 		"presentation_only": true,
@@ -147,6 +170,9 @@ func get_accessibility_prompts() -> Dictionary:
 		"retry": "Retry server list",
 		"cancel": "Cancel",
 		"join_hint": "Select a server to request joining",
+		"focus_target": "Current keyboard/controller focus target",
+		"focus_marker": "[FOCUS]",
+		"status_reason": "Connection status reason",
 	}.duplicate(true)
 
 
@@ -231,6 +257,8 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"capacity_generation": capacity_generation,
 		"full": is_full,
 		"selectable": true,
+		"focus_label": "[ ] %s  %s" % [str(source.get("title", "Server")), "%d/%d players" % [players, maximum]],
+		"focus_marker": "[ ]",
 		"stale": false,
 		"join_authority": false,
 	}.duplicate(true)
@@ -284,3 +312,14 @@ func _validation_error(reason: StringName, message: String) -> Dictionary:
 		"presentation_only": true,
 		"authority": false,
 	}
+
+
+func _status_reason_message(reason: StringName, fallback: String) -> String:
+	var known := {
+		&"directory_timeout": "Server directory timed out. Retry is available.",
+		&"directory_unavailable": "Server directory is unavailable. Retry is available.",
+		&"directory_closed": "Server directory is closed. Cancel to return.",
+		&"session_full": "That session is full. Choose another server.",
+		&"join_failed": "Joining the selected session failed. Retry is available.",
+	}
+	return str(known.get(reason, fallback if not fallback.is_empty() else "Server directory unavailable."))

@@ -22,6 +22,7 @@ func _run() -> void:
 	_check(snapshot.rows[0].region_label == "EU-WEST" and snapshot.rows[0].ping_label == "Fast", "region and ping labels are textual")
 	_check(snapshot.rows[1].full and snapshot.rows[1].occupancy_label == "4/4 players", "occupancy label exposes full state")
 	_check(snapshot.rows[0].capacity_label == "AVAILABLE" and snapshot.rows[1].capacity_label == "FULL", "capacity state is textual and color-independent")
+	_check(str(snapshot.rows[0].focus_label).begins_with("[ ]") and str(snapshot.accessibility_prompts.focus_marker) == "[FOCUS]", "server rows expose high-contrast textual focus labels")
 	var generation_presenter := Presenter.new()
 	var generation_snapshot := generation_presenter.present_result({
 		"accepted": true,
@@ -48,9 +49,10 @@ func _run() -> void:
 	_check(
 		failure_snapshot.status == &"error"
 		and failure_snapshot.error_code == &"directory_timeout"
-		and failure_snapshot.error_message == "Directory timed out. Try again.",
+		and "timed out" in failure_snapshot.error_message,
 		"caller failure results become explicit textual error state"
 	)
+	_check(failure_snapshot.focus_target == &"retry" and failure_snapshot.accessibility_prompts.status_reason == "Connection status reason", "failure chooses deterministic retry focus and textual reason")
 	_check(
 		failure_snapshot.actions.size() == 2
 		and failure_snapshot.actions[0].id == &"retry"
@@ -60,6 +62,7 @@ func _run() -> void:
 		"failure state exposes controller-focusable retry and cancel actions"
 	)
 	_check(presenter.request_retry().accepted and presenter.request_cancel().accepted, "retry and cancel return external caller intents")
+	_check(presenter.set_focus_target(&"cancel").accepted and presenter.get_last_snapshot().focus_target == &"cancel", "focus target can be restored after a failed join")
 	var terminal := presenter.present_result({"accepted": false, "reason": &"directory_closed", "retryable": false})
 	_check(terminal.status == &"error" and terminal.actions.size() == 1 and terminal.actions[0].id == &"cancel", "non-retryable failure keeps an explicit cancel action")
 	var audit := presenter.audit()
