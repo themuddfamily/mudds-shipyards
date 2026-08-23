@@ -308,6 +308,51 @@ func reset(expected_generation: int) -> Dictionary:
 	return result.duplicate(true)
 
 
+## Restores only a terminal history generation into fresh IDLE production
+## content. The loaded activity itself is never resumed: no enemy activates,
+## no damage/health record is applied, and no reward or combat source is created.
+func restore_terminal_session_history(history: Dictionary) -> Dictionary:
+	if _content_mutation_active or not _initialized:
+		return _content_result(false, &"content_unavailable")
+	var state_id := StringName(history.get("state_id", &""))
+	var history_generation := int(history.get("generation", -1))
+	var activity := _host.get_snapshot().get("activity", {}) as Dictionary
+	if (
+		state_id not in [&"idle", &"completed", &"failed"]
+		or history_generation < 0
+		or StringName(activity.get("state_id", &"")) != &"idle"
+		or int(activity.get("generation", -1)) != 0
+	):
+		return _content_result(false, &"pristine_idle_restore_required")
+	var target_generation := history_generation + 1
+	if target_generation > StationDefenseContract.MAX_SAFE_INTEGER:
+		return _content_result(false, &"generation_exhausted")
+	var target_handle := {
+		"asset_id": StationDefensePerimeterAsset.ASSET_ID,
+		"generation": target_generation,
+	}
+	var asset_preflight := _protected_asset.preflight_pristine_generation_restore(
+		target_generation
+	)
+	if not bool(asset_preflight.get("accepted", false)):
+		return _content_result(false, &"pristine_asset_restore_required")
+	_content_mutation_active = true
+	var host_restore := _host.restore_idle_session_generation(
+		target_generation, target_handle
+	)
+	if not bool(host_restore.get("accepted", false)):
+		_content_mutation_active = false
+		_flush_publish()
+		return host_restore
+	var asset_restore := _protected_asset.restore_pristine_generation(target_generation)
+	_content_mutation_active = false
+	_apply_protected_asset_presentation()
+	_flush_publish()
+	if not bool(asset_restore.get("accepted", false)):
+		return _content_result(false, &"asset_generation_restore_failed")
+	return _content_result(true, &"terminal_history_restored_as_idle")
+
+
 func get_evidence_metadata() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,

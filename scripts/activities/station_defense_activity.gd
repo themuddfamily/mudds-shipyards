@@ -260,6 +260,34 @@ func reset(expected_generation: int) -> Dictionary:
 	return _finish_mutation(true, &"reset")
 
 
+## Adopts only a persisted generation floor into a pristine IDLE activity.
+## No active wave, damage, reward, clock, or hostile ledger is restored.
+func restore_idle_generation(
+		target_generation: int,
+		protected_asset_handle: Dictionary
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	if (
+		_state != State.IDLE
+		or _generation != 0
+		or target_generation < 1
+		or target_generation > StationDefenseContract.MAX_SAFE_INTEGER
+		or _protected_asset_states.size() != 1
+		or not _valid_input_handle(protected_asset_handle, "asset_id")
+		or int(protected_asset_handle.get("generation", -1)) != target_generation
+	):
+		return _result(false, &"pristine_idle_restore_required")
+	_mutation_active = true
+	_generation = target_generation
+	_protected_asset_states[0] = {
+		"handle": StationDefenseContract.canonical_asset_handle(protected_asset_handle),
+		"damage_event_count": 0,
+		"destroyed": false,
+	}
+	return _finish_mutation(true, &"idle_generation_restored")
+
+
 ## Rebinds one protected object to its next exact physical generation. This is
 ## permitted only in the post-reset IDLE state, never during an encounter, and
 ## changes no activity generation or clock. Signal observers see the committed

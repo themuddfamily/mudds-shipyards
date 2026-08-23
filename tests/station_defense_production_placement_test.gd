@@ -13,6 +13,25 @@ const ACTIVITY_BOARD_TRANSFORM := Transform3D(
 const TORRENT_SOURCE_ID := 1101
 const TORRENT_FACTION: StringName = &"shipyard_flight_test"
 
+class MemoryUserDataStore extends RefCounted:
+	var payload: Dictionary = {}
+	var generation := 0
+
+	func commit(next_payload: Dictionary, expected_generation: int, _commit_id: String) -> Dictionary:
+		if expected_generation != generation:
+			return {"accepted": false, "reason": &"stale_generation", "generation": generation}
+		payload = next_payload.duplicate(true)
+		generation += 1
+		return {"accepted": true, "reason": &"committed", "generation": generation}
+
+	func load() -> Dictionary:
+		return {
+			"accepted": true,
+			"reason": &"ok",
+			"generation": generation,
+			"payload": payload.duplicate(true),
+		}
+
 var _assertions := 0
 var _failures: Array[String] = []
 var _reward_requests: Array[Dictionary] = []
@@ -109,10 +128,15 @@ func _run() -> void:
 	var reward_configured := world.configure_station_defense_reward_handoff(
 			Callable(self, "_accept_reward_request")
 		)
+	var session_store := MemoryUserDataStore.new()
+	var persistence_configured := world.configure_station_defense_session_persistence(
+		session_store, &"station_defense_slot"
+	)
 	_check(
 		torrent.get_ship_id() == &"torrent_provisional"
 		and torrent_registered
-		and bool(reward_configured.get("accepted", false)),
+		and bool(reward_configured.get("accepted", false))
+		and persistence_configured,
 		"real production Torrent source and shared nearby reward handoff join the existing live authority"
 	)
 
@@ -144,6 +168,22 @@ func _run() -> void:
 		"embodied board interaction starts the externally combat-owned encounter and its first authored wave"
 	)
 	generation = content.get_generation()
+	var active_save := world.save_station_defense_session(
+		session_store.generation, "station-defense-active-history"
+	)
+	var active_saved_history := (
+		((session_store.payload.get("session", {}) as Dictionary).get("history", {}))
+		as Dictionary
+	)
+	_check(
+		bool(active_save.get("accepted", false))
+		and active_saved_history.get("state_id") == &"idle"
+		and int(active_saved_history.get("generation", -1)) == 0
+		and not active_saved_history.has("active_hostile_handles")
+		and not active_saved_history.has("health")
+		and not active_saved_history.has("leases"),
+		"saving during combat records only the prior safe idle history and no live encounter state"
+	)
 	var roster := content.get_node(^"OpponentRoster") as Node3D
 	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
 	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
@@ -155,6 +195,13 @@ func _run() -> void:
 	var gamma_terminal := await _destroy_with_torrent(authority, torrent, gamma)
 	await process_frame
 	var reward_snapshot: Dictionary = board.get_reward_handoff_snapshot()
+	var completed_save := world.save_station_defense_session(
+		session_store.generation, "station-defense-completed-history"
+	)
+	var persisted_history := (
+		((session_store.payload.get("session", {}) as Dictionary).get("history", {}))
+		as Dictionary
+	).duplicate(true)
 	_check(
 		bool(alpha_terminal.get("destroyed", false))
 		and bool(relief.get("accepted", false))
@@ -164,6 +211,10 @@ func _run() -> void:
 		and _reward_requests.size() == 1
 		and int(_reward_requests[0].activity_generation) == generation
 		and int(reward_snapshot.highest_reward_generation) == generation
+		and bool(completed_save.get("accepted", false))
+		and persisted_history.get("state_id") == &"completed"
+		and int(persisted_history.get("reward_handoff_generation", 0)) == generation
+		and not bool(persisted_history.get("reward_replayable", true))
 		and authority.get_resolver().get_registered_source_count() == 1,
 		"real fleet fire resolves every wave and completion feeds the shared reward adapter exactly once"
 	)
@@ -259,6 +310,7 @@ func _run() -> void:
 	production_root.queue_free()
 	for _frame in 10:
 		await process_frame
+	await _verify_terminal_history_reload(session_store, persisted_history)
 	call_deferred("_finish")
 
 
@@ -286,6 +338,88 @@ func _destroy_with_torrent(
 		if bool(result.get("destroyed", false)):
 			break
 	return result.duplicate(true)
+
+
+func _verify_terminal_history_reload(
+		store: MemoryUserDataStore,
+		persisted_history: Dictionary
+	) -> void:
+	var reload_root := Node3D.new()
+	reload_root.name = "StationDefenseReloadRoot"
+	root.add_child(reload_root)
+	var authority := LiveCombatAuthority.new()
+	authority.name = "CombatAuthority"
+	reload_root.add_child(authority)
+	var director := ActivityDirector.new()
+	director.name = "ActivityDirector"
+	reload_root.add_child(director)
+	var world := WORLD_SCENE.instantiate() as ShipyardWorld
+	reload_root.add_child(world)
+	await process_frame
+	await process_frame
+	await physics_frame
+	var board: Variant = world.get_station_defense_activity_board()
+	var content := world.get_station_defense_content()
+	var before_sources := authority.get_resolver().get_registered_source_count()
+	var reward_before := _reward_requests.size()
+	var configured := (
+		world.configure_station_defense_session_persistence(
+			store, &"station_defense_slot"
+		)
+		and bool(world.configure_station_defense_reward_handoff(
+			Callable(self, "_accept_reward_request")
+		).get("accepted", false))
+	)
+	var loaded := world.load_station_defense_session()
+	var content_snapshot := content.get_snapshot()
+	var asset := content.get_protected_asset()
+	var damageable := asset.get_damageable_component()
+	_check(
+		configured
+		and bool(loaded.get("accepted", false))
+		and content_snapshot.host.activity.state_id == &"idle"
+		and int(content_snapshot.host.activity.generation) \
+			== int(persisted_history.generation) + 1
+		and int(asset.get_asset_handle().generation) \
+			== int(persisted_history.generation) + 1
+		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
+		and not damageable.is_destroyed()
+		and authority.get_resolver().get_registered_source_count() == before_sources
+		and int(content_snapshot.host.active_entity_count) == 0
+		and _reward_requests.size() == reward_before
+		and not bool(board.get_session_persistence_snapshot().reward_replayable),
+		"reload restores terminal history as pristine idle without enemies, damage, new sources, leases, or reward replay"
+	)
+	content.snapshot_changed.emit({"host": {"activity": persisted_history.duplicate(true)}})
+	_check(
+		_reward_requests.size() == reward_before
+		and int(board.get_reward_handoff_snapshot().replay_generation_floor) \
+			== int(persisted_history.generation),
+		"the loaded terminal generation is permanently fenced from reward replay"
+	)
+	var actor := Node3D.new()
+	reload_root.add_child(actor)
+	actor.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	var started: bool = board.interact(actor)
+	_check(
+		started
+		and content.get_generation() > int(persisted_history.generation)
+		and authority.get_resolver().get_registered_source_count() == before_sources
+		and _reward_requests.size() == reward_before,
+		"the restored board starts a fresh higher generation without replaying the prior reward or duplicating sources"
+	)
+	board.abort_and_reset(actor, content.get_generation())
+	var fleet_expansion := world.get_fleet_expansion_production_binding()
+	if fleet_expansion != null:
+		for craft_id: StringName in [
+			&"cinder_cargo_hauler",
+			&"cinder_long_range_bomber",
+			&"cinder_light_interceptor",
+		]:
+			fleet_expansion.detach_craft(craft_id)
+	reload_root.queue_free()
+	for _frame in 10:
+		await process_frame
 
 
 func _check(condition: bool, description: String) -> void:

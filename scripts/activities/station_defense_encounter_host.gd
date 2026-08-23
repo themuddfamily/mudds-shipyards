@@ -183,6 +183,28 @@ func start(expected_generation: int) -> Dictionary:
 	return _finish_mutation(bool(result.accepted), StringName(result.reason))
 
 
+func restore_idle_session_generation(
+		target_generation: int,
+		protected_asset_handle: Dictionary
+	) -> Dictionary:
+	if _mutation_active or not _configured or _activity == null:
+		return _result(false, &"host_unavailable")
+	for record: Dictionary in _record_by_key.values():
+		var entity_ref := record.get("entity") as WeakRef
+		var entity := entity_ref.get_ref() as RangeOpponent if entity_ref != null else null
+		if not is_instance_valid(entity) or entity.is_active():
+			return _result(false, &"pristine_roster_required")
+	_mutation_active = true
+	var restored := _activity.restore_idle_generation(
+		target_generation, protected_asset_handle
+	)
+	_publish_snapshot()
+	return _finish_mutation(
+		bool(restored.get("accepted", false)),
+		StringName(restored.get("reason", &"idle_generation_restore_failed"))
+	)
+
+
 ## Advances only caller-supplied physics time. This host has no process or
 ## physics-process callback and never reads a wall clock.
 func advance_physics(delta: float, expected_generation: int) -> Dictionary:

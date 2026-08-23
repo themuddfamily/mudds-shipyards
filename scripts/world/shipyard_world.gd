@@ -1943,6 +1943,34 @@ func configure_station_defense_reward_handoff(callback: Callable) -> Dictionary:
 	return _station_defense_activity_board.call("configure_reward_handoff", callback)
 
 
+func configure_station_defense_session_persistence(
+		store: RefCounted,
+		slot_id: StringName
+	) -> bool:
+	return is_instance_valid(_station_defense_activity_board) and bool(
+		_station_defense_activity_board.call(
+			"configure_session_persistence", store, slot_id
+		)
+	)
+
+
+func save_station_defense_session(
+		expected_store_generation: int,
+		commit_id: String
+	) -> Dictionary:
+	if not is_instance_valid(_station_defense_activity_board):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	return _station_defense_activity_board.call(
+		"save_session", expected_store_generation, commit_id
+	)
+
+
+func load_station_defense_session() -> Dictionary:
+	if not is_instance_valid(_station_defense_activity_board):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	return _station_defense_activity_board.call("load_session")
+
+
 ## Resolves the currently committed, coordinator-owned Cinder instance without
 ## caching a Node across streaming generations. The cluster is intentionally
 ## absent at station start and after return travel, so callers must handle null.

@@ -309,6 +309,31 @@ func preflight_renew(expected_generation: int) -> Dictionary:
 	return _result(true, &"renewal_preflight_ready")
 
 
+func preflight_pristine_generation_restore(target_generation: int) -> Dictionary:
+	if not is_instance_valid(_damageable) or not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"asset_unavailable")
+	if (
+		target_generation < handle_generation
+		or target_generation > StationDefenseContract.MAX_SAFE_INTEGER
+		or _event_sequence != 0
+		or not _last_event_handle.is_empty()
+		or not _pending_terminal_event.is_empty()
+		or _damageable.is_destroyed()
+		or not is_equal_approx(_damageable.get_health(), _damageable.get_maximum_health())
+	):
+		return _result(false, &"pristine_asset_required")
+	return _result(true, &"pristine_generation_restore_ready")
+
+
+func restore_pristine_generation(target_generation: int) -> Dictionary:
+	var preflight := preflight_pristine_generation_restore(target_generation)
+	if not bool(preflight.get("accepted", false)):
+		return preflight
+	handle_generation = target_generation
+	_apply_live_state()
+	return _result(true, &"pristine_generation_restored")
+
+
 ## Renews this exact physical object after the activity has accepted the same
 ## old->new handle. Health is reset only through the existing Damageable API.
 func renew(expected_generation: int) -> Dictionary:

@@ -10,6 +10,10 @@ signal interaction_resolved(actor: Node, result: Dictionary)
 const COMPONENT_ID: StringName = &"station-defense-activity-board"
 const ACTIVITY_ID: StringName = &"shipyard_perimeter_defense"
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
+const SESSION_ADAPTER := preload("res://scripts/persistence/station_defense_session_adapter.gd")
+const PERSISTENCE_BINDING := preload(
+	"res://scripts/persistence/nearby_sector_activity_persistence_binding.gd"
+)
 const INTERACTION_RADIUS := 2.6
 const BOARD_SIZE := Vector3(0.75, 1.35, 1.8)
 const PEDESTAL_SIZE := Vector3(1.4, 1.0, 2.2)
@@ -23,6 +27,11 @@ var _last_result: Dictionary = {}
 var _reward_adapter: RefCounted
 var _last_reward_result: Dictionary = {}
 var _highest_reward_generation := 0
+var _reward_replay_generation_floor := 0
+var _terminal_history: Dictionary = {}
+var _session_adapter: RefCounted
+var _persistence_binding: RefCounted
+var _restored_session: Dictionary = {}
 
 
 func _ready() -> void:
@@ -68,6 +77,7 @@ func configure_external_owners(
 	_activity_director = activity_director
 	if not _content.snapshot_changed.is_connected(_on_content_snapshot_changed):
 		_content.snapshot_changed.connect(_on_content_snapshot_changed)
+	_capture_safe_history(_content.get_snapshot())
 	return _result(true, &"configured")
 
 
@@ -84,6 +94,75 @@ func configure_reward_handoff(callback: Callable) -> Dictionary:
 		return configured
 	_reward_adapter = adapter
 	return _result(true, &"reward_handoff_configured")
+
+
+func configure_session_persistence(store: RefCounted, slot_id: StringName) -> bool:
+	if _persistence_binding != null or store == null or slot_id.is_empty():
+		return false
+	_session_adapter = SESSION_ADAPTER.new() as RefCounted
+	_persistence_binding = PERSISTENCE_BINDING.new() as RefCounted
+	if not bool(_persistence_binding.call(
+		"configure", store, _session_adapter, slot_id
+	)):
+		_session_adapter = null
+		_persistence_binding = null
+		return false
+	return true
+
+
+func save_session(expected_store_generation: int, commit_id: String) -> Dictionary:
+	if _persistence_binding == null:
+		return _result(false, &"persistence_not_configured")
+	return _persistence_binding.call(
+		"save", get_session_persistence_snapshot(), expected_store_generation, commit_id
+	)
+
+
+func load_session() -> Dictionary:
+	if _persistence_binding == null or not is_instance_valid(_content):
+		return _result(false, &"persistence_not_configured")
+	var loaded: Dictionary = _persistence_binding.call("load")
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	var session := loaded.get("session", {}) as Dictionary
+	var history := session.get("history", {}) as Dictionary
+	var restored := _content.restore_terminal_session_history(history)
+	if not bool(restored.get("accepted", false)):
+		return restored
+	_terminal_history = history.duplicate(true)
+	_highest_reward_generation = maxi(
+		_highest_reward_generation,
+		int(history.get("reward_handoff_generation", 0))
+	)
+	_reward_replay_generation_floor = maxi(
+		_reward_replay_generation_floor,
+		int(history.get("generation", 0))
+	)
+	_restored_session = {
+		"history": history.duplicate(true),
+		"runtime_state": &"idle",
+		"reward_replayable": false,
+	}.duplicate(true)
+	return {
+		"accepted": true,
+		"reason": &"terminal_history_loaded_idle",
+		"history": history.duplicate(true),
+		"content": restored.duplicate(true),
+	}.duplicate(true)
+
+
+func get_session_persistence_snapshot() -> Dictionary:
+	return {
+		"component_id": COMPONENT_ID,
+		"history": _terminal_history.duplicate(true),
+		"restored_session": _restored_session.duplicate(true),
+		"store_authority": false,
+		"active_runtime_state_persisted": false,
+		"combat_sources_persisted": false,
+		"asset_damage_persisted": false,
+		"leases_persisted": false,
+		"reward_replayable": false,
+	}.duplicate(true)
 
 
 func get_interaction_snapshot(actor: Node, expected_generation: int) -> Dictionary:
@@ -164,6 +243,7 @@ func get_reward_handoff_snapshot() -> Dictionary:
 	return {
 		"configured": _reward_adapter != null,
 		"highest_reward_generation": _highest_reward_generation,
+		"replay_generation_floor": _reward_replay_generation_floor,
 		"last_result": _last_reward_result.duplicate(true),
 		"adapter": (
 			_reward_adapter.call("get_snapshot")
@@ -187,6 +267,7 @@ func get_snapshot() -> Dictionary:
 		),
 		"last_result": _last_result.duplicate(true),
 		"reward_handoff": get_reward_handoff_snapshot(),
+		"session_persistence": get_session_persistence_snapshot(),
 		"combat_authority": false,
 		"activity_authority": false,
 		"health_authority": false,
@@ -197,24 +278,45 @@ func get_snapshot() -> Dictionary:
 
 
 func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
-	if _reward_adapter == null:
-		return
 	var host := snapshot.get("host", {}) as Dictionary
 	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
 	var generation := int(activity.get("generation", 0))
 	if (
-		StringName(activity.get("state_id", &"")) != &"completed"
-		or generation <= _highest_reward_generation
+		_reward_adapter != null
+		and StringName(activity.get("state_id", &"")) == &"completed"
+		and generation > maxi(
+			_highest_reward_generation, _reward_replay_generation_floor
+		)
 	):
+		activity["activity_id"] = ACTIVITY_ID
+		# StationDefenseActivity publishes a terminal state rather than duplicating
+		# EncounterScenarioDirector's outcome field. Completion is its exact cleared
+		# terminal, so the adapter receives the canonical shared handoff vocabulary.
+		activity["outcome"] = &"cleared"
+		_last_reward_result = _reward_adapter.call("consume", activity, generation)
+		if bool(_last_reward_result.get("accepted", false)):
+			_highest_reward_generation = generation
+	_capture_safe_history(snapshot)
+
+
+func _capture_safe_history(snapshot: Dictionary) -> void:
+	var activity := (
+		(snapshot.get("host", {}) as Dictionary).get("activity", {}) as Dictionary
+	)
+	var state_id := StringName(activity.get("state_id", &""))
+	if state_id not in [&"idle", &"completed", &"failed"]:
 		return
-	activity["activity_id"] = ACTIVITY_ID
-	# StationDefenseActivity publishes a terminal state rather than duplicating
-	# EncounterScenarioDirector's outcome field. Completion is its exact cleared
-	# terminal, so the adapter receives the canonical shared handoff vocabulary.
-	activity["outcome"] = &"cleared"
-	_last_reward_result = _reward_adapter.call("consume", activity, generation)
-	if bool(_last_reward_result.get("accepted", false)):
-		_highest_reward_generation = generation
+	_terminal_history = {
+		"activity_id": ACTIVITY_ID,
+		"state_id": state_id,
+		"generation": int(activity.get("generation", 0)),
+		"failure_reason": (
+			StringName(activity.get("failure_reason", &""))
+			if state_id == &"failed" else &""
+		),
+		"reward_handoff_generation": _highest_reward_generation,
+		"reward_replayable": false,
+	}.duplicate(true)
 
 
 func _build_physical_board() -> void:
