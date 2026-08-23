@@ -57,6 +57,10 @@ const ReturnPersistenceAdapterScript := preload("res://scripts/world/planetary_r
 const PlanetaryTravelAudioBindingScript := preload("res://scripts/audio/planetary_travel_audio_binding.gd")
 const RETURN_PERSISTENCE_SCHEMA_VERSION := 1
 const RETURN_PERSISTENCE_PAYLOAD_KIND: StringName = &"ember_planetary_return"
+const RETURN_PERSISTENCE_RECORD_KEYS := [
+	"schema_version", "payload_kind", "slot_id", "binding_generation",
+	"run_generation", "receipt_sha256", "session",
+]
 
 var _state := State.IDLE
 var _generation := 0
@@ -93,6 +97,9 @@ var _return_berth_adapter: RefCounted
 var _return_persistence_adapter: RefCounted
 var _return_persistence_store: RefCounted
 var _return_persistence_slot: StringName = &""
+var _return_persistence_replayed_generation := -1
+var _return_persistence_replayed_digest := ""
+var _return_persistence_retired_generation := -1
 var _travel_audio_binding: RefCounted
 
 var _last_caller_serial := 0
@@ -593,18 +600,31 @@ func reset_planetary_return_berth() -> Dictionary:
 	return _return_berth_adapter.call(&"reset")
 
 
-## Caller-owned UserDataStore bridge for the terminal Ember return. Only the
-## completed marker is committed; surface attachment and berth lease authority
-## are deliberately absent from the persisted payload.
+## Caller-owned UserDataStore bridge for the terminal Ember return. The exact
+## completed evidence is committed in one namespaced transaction, while the
+## restorable state remains detached and carries no berth or reward authority.
 func configure_planetary_return_persistence(
 		store: RefCounted, slot_id: StringName = &"ember_planetary_return"
 	) -> Dictionary:
-	if store == null or str(slot_id).strip_edges().is_empty():
+	if store == null or str(slot_id).strip_edges().is_empty() \
+			or not store.has_method(&"load") or not store.has_method(&"commit") \
+			or not store.has_method(&"get_snapshot") \
+			or not store.has_method(&"get_generation"):
 		return _reject(&"return_persistence_configuration_invalid")
+	if _return_persistence_configured():
+		return _reject(&"return_persistence_already_configured")
 	_return_persistence_store = store
 	_return_persistence_slot = slot_id
 	_return_persistence_adapter = ReturnPersistenceAdapterScript.new()
-	return {"accepted": true, "reason": &"return_persistence_configured", "slot_id": slot_id}
+	_return_persistence_replayed_generation = -1
+	_return_persistence_replayed_digest = ""
+	_return_persistence_retired_generation = -1
+	return {
+		"accepted": true,
+		"reason": &"return_persistence_configured",
+		"slot_id": slot_id,
+		"owns_save_authority": false,
+	}
 
 
 func save_planetary_return_persistence(
@@ -618,15 +638,36 @@ func save_planetary_return_persistence(
 	var captured: Dictionary = _return_persistence_adapter.call(
 		&"capture", travel_session, return_contract, returned_receipt
 	)
-	if not bool(captured.get("accepted", true)):
+	if not bool(captured.get("accepted", false)):
 		return captured
-	var payload := {
+	if int(_return_persistence_store.call(&"get_generation")) != expected_store_generation:
+		return _reject(&"return_persistence_stale_store_generation")
+	var payload: Dictionary = _return_persistence_store.call(&"get_snapshot")
+	var slot_key := String(_return_persistence_slot)
+	if payload.has(slot_key):
+		var existing_variant: Variant = payload.get(slot_key)
+		if not existing_variant is Dictionary:
+			return _reject(&"return_persistence_payload_corrupt")
+		var existing := existing_variant as Dictionary
+		if int(existing.get("schema_version", 0)) > RETURN_PERSISTENCE_SCHEMA_VERSION:
+			return _reject(&"return_persistence_newer_schema")
+		if not _return_persistence_record_valid(existing):
+			return _reject(&"return_persistence_payload_corrupt")
+		if StringName(existing.get("slot_id", &"")) != _return_persistence_slot:
+			return _reject(&"return_persistence_wrong_slot")
+		if int(existing.get("run_generation", 0)) \
+				>= int(captured.get("run_generation", 0)):
+			return _reject(&"return_persistence_stale_generation")
+	var record := {
 		"schema_version": RETURN_PERSISTENCE_SCHEMA_VERSION,
-		"payload_kind": RETURN_PERSISTENCE_PAYLOAD_KIND,
-		"slot_id": _return_persistence_slot,
+		"payload_kind": String(RETURN_PERSISTENCE_PAYLOAD_KIND),
+		"slot_id": String(_return_persistence_slot),
 		"binding_generation": _generation,
+		"run_generation": int(captured.get("run_generation", 0)),
+		"receipt_sha256": str(captured.get("receipt_sha256", "")),
 		"session": captured.duplicate(true),
 	}
+	payload[slot_key] = record
 	var result: Dictionary = _return_persistence_store.call(
 		&"commit", payload, expected_store_generation, commit_id
 	)
@@ -641,20 +682,101 @@ func restore_planetary_return_persistence() -> Dictionary:
 	if not bool(loaded.get("accepted", false)):
 		return loaded
 	var payload := loaded.get("payload", {}) as Dictionary
-	if int(payload.get("schema_version", 0)) != RETURN_PERSISTENCE_SCHEMA_VERSION \
-			or StringName(payload.get("payload_kind", &"")) != RETURN_PERSISTENCE_PAYLOAD_KIND \
-			or StringName(payload.get("slot_id", &"")) != _return_persistence_slot:
+	var slot_key := String(_return_persistence_slot)
+	if not payload.has(slot_key):
+		for candidate_variant in payload.values():
+			if candidate_variant is Dictionary \
+					and StringName((candidate_variant as Dictionary).get("payload_kind", &"")) \
+						== RETURN_PERSISTENCE_PAYLOAD_KIND:
+				return _reject(&"return_persistence_wrong_slot")
+		return _reject(
+			&"return_persistence_retired"
+			if _return_persistence_retired_generation >= 1
+			else &"return_persistence_not_found"
+		)
+	var record_variant: Variant = payload.get(slot_key)
+	if not record_variant is Dictionary:
+		return _reject(&"return_persistence_payload_corrupt")
+	var record := record_variant as Dictionary
+	if int(record.get("schema_version", 0)) > RETURN_PERSISTENCE_SCHEMA_VERSION:
+		return _reject(&"return_persistence_newer_schema")
+	if not _return_persistence_record_valid(record):
+		return _reject(&"return_persistence_payload_corrupt")
+	if StringName(record.get("slot_id", &"")) != _return_persistence_slot:
 		return _reject(&"return_persistence_wrong_slot")
 	if _planetary_composition != null:
 		var surface := _planetary_composition.call(&"get_snapshot") as Dictionary
 		if bool(surface.get("attached", false)):
 			return _reject(&"return_persistence_surface_attachment_active")
+	if bool((record.get("session", {}) as Dictionary).get("reward_replay_allowed", true)):
+		return _reject(&"return_persistence_reward_authority_present")
+	var session := record.get("session", {}) as Dictionary
+	if int(record.get("run_generation", 0)) != int(session.get("run_generation", -1)) \
+			or str(record.get("receipt_sha256", "")) \
+				!= str(session.get("receipt_sha256", "")):
+		return _reject(&"return_persistence_payload_corrupt")
 	var restored: Dictionary = _return_persistence_adapter.call(
-		&"restore", payload.get("session", {})
+		&"restore", session
 	)
 	if not bool(restored.get("accepted", false)):
 		return restored
-	return {"accepted": true, "reason": &"return_persistence_loaded", "detached": true, "fresh_station": true, "session": restored}
+	_return_persistence_replayed_generation = int(restored.run_generation)
+	_return_persistence_replayed_digest = str(restored.receipt_sha256)
+	return {
+		"accepted": true,
+		"reason": &"return_persistence_loaded",
+		"detached": true,
+		"fresh_station": true,
+		"requires_retirement": true,
+		"store_generation": int(loaded.get("generation", -1)),
+		"session": restored,
+	}.duplicate(true)
+
+
+## Removes the exact replayed slot through the same atomic UserDataStore
+## transaction. A failed write leaves the published receipt available to a
+## fresh binding after process re-entry; this binding may retry retirement.
+func retire_planetary_return_persistence(
+		expected_store_generation: int, commit_id: String
+	) -> Dictionary:
+	if not _return_persistence_configured():
+		return _reject(&"return_persistence_unavailable")
+	if _return_persistence_replayed_generation < 1 \
+			or _return_persistence_replayed_digest.is_empty():
+		return _reject(&"return_persistence_replay_required")
+	if expected_store_generation < 0 or commit_id.strip_edges().is_empty():
+		return _reject(&"return_persistence_retire_request_invalid")
+	if int(_return_persistence_store.call(&"get_generation")) != expected_store_generation:
+		return _reject(&"return_persistence_stale_store_generation")
+	var payload: Dictionary = _return_persistence_store.call(&"get_snapshot")
+	var slot_key := String(_return_persistence_slot)
+	var record_variant: Variant = payload.get(slot_key)
+	if not record_variant is Dictionary:
+		return _reject(&"return_persistence_payload_corrupt")
+	var record := record_variant as Dictionary
+	if not _return_persistence_record_valid(record) \
+			or int(record.get("run_generation", -1)) \
+				!= _return_persistence_replayed_generation \
+			or str(record.get("receipt_sha256", "")) \
+				!= _return_persistence_replayed_digest:
+		return _reject(&"return_persistence_retire_receipt_mismatch")
+	payload.erase(slot_key)
+	var result: Dictionary = _return_persistence_store.call(
+		&"commit", payload, expected_store_generation, commit_id
+	)
+	result["binding_reason"] = (
+		&"retired" if bool(result.get("accepted", false)) else &"store_rejected"
+	)
+	if not bool(result.get("accepted", false)):
+		return result
+	var retired: Dictionary = _return_persistence_adapter.call(
+		&"retire", _return_persistence_replayed_generation
+	)
+	if not bool(retired.get("accepted", false)):
+		return _reject(&"return_persistence_adapter_retire_rejected")
+	_return_persistence_retired_generation = _return_persistence_replayed_generation
+	result["run_generation"] = _return_persistence_retired_generation
+	return result
 
 
 func get_planetary_return_persistence_snapshot() -> Dictionary:
@@ -663,8 +785,16 @@ func get_planetary_return_persistence_snapshot() -> Dictionary:
 		"slot_id": _return_persistence_slot,
 		"detached": true,
 		"fresh_station": true,
+		"replayed_generation": _return_persistence_replayed_generation,
+		"retired_generation": _return_persistence_retired_generation,
+		"retirement_pending": _return_persistence_replayed_generation >= 1 \
+				and _return_persistence_retired_generation \
+					!= _return_persistence_replayed_generation,
 		"adapter": _return_persistence_adapter.call(&"get_snapshot") if _return_persistence_adapter != null else {},
 		"owns_save_authority": false,
+		"owns_movement_authority": false,
+		"owns_berth_authority": false,
+		"owns_reward_authority": false,
 	}.duplicate(true)
 
 
@@ -672,6 +802,33 @@ func _return_persistence_configured() -> bool:
 	return is_instance_valid(_return_persistence_store) \
 			and _return_persistence_adapter != null \
 			and not _return_persistence_slot.is_empty()
+
+
+func _return_persistence_record_valid(record: Dictionary) -> bool:
+	if record.size() != RETURN_PERSISTENCE_RECORD_KEYS.size():
+		return false
+	for key in RETURN_PERSISTENCE_RECORD_KEYS:
+		if not record.has(key):
+			return false
+	return _return_persistence_integral_number(record.get("schema_version")) \
+			and int(record.get("schema_version", 0)) == RETURN_PERSISTENCE_SCHEMA_VERSION \
+			and record.get("payload_kind") is String \
+			and record.get("slot_id") is String \
+			and StringName(record.get("payload_kind", &"")) \
+				== RETURN_PERSISTENCE_PAYLOAD_KIND \
+			and _return_persistence_integral_number(record.get("binding_generation")) \
+			and int(record.get("binding_generation", -1)) >= 0 \
+			and _return_persistence_integral_number(record.get("run_generation")) \
+			and int(record.get("run_generation", 0)) >= 1 \
+			and record.get("receipt_sha256") is String \
+			and str(record.get("receipt_sha256", "")).length() == 64 \
+			and record.get("session") is Dictionary
+
+
+func _return_persistence_integral_number(value: Variant) -> bool:
+	if value is int:
+		return true
+	return value is float and is_finite(value) and value == floor(value)
 
 
 func retire_planetary_return(next_session_generation: int) -> Dictionary:
