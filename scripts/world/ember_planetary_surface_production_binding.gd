@@ -24,6 +24,7 @@ const RouteTrailScript := preload("res://scripts/world/planetary_surface_route_t
 const RelaySurveyScript := preload("res://scripts/world/ember_surface_relay_survey_activity.gd")
 const ActivityDefinitionScript := preload("res://scripts/activities/activity_definition.gd")
 const LocationDefinitionScript := preload("res://scripts/world/definitions/world_location_definition.gd")
+const RelaySurveyPresentationScript := preload("res://scripts/world/ember_surface_relay_survey_presentation.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -53,6 +54,7 @@ var _landing_markers: Dictionary = {}
 var _orbital_ring: Node
 var _route_trail: Node
 var _relay_survey: RefCounted
+var _relay_survey_presentation: Node
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -142,6 +144,9 @@ func configure(
 	_route_trail.call(&"configure", route_points)
 	_relay_survey = RelaySurveyScript.new()
 	_register_relay_survey_activity(director)
+	_relay_survey_presentation = RelaySurveyPresentationScript.new() as Node
+	_relay_survey_presentation.name = "OwnedRelaySurveyPresentation"
+	add_child(_relay_survey_presentation)
 	_orbital_ring = OrbitalRingScript.new() as Node
 	_orbital_ring.name = "OwnedOrbitalApproachRing"
 	add_child(_orbital_ring)
@@ -178,7 +183,9 @@ func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Diction
 
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	return _relay_survey.begin(_adapter, _navigation)
+	var result: Dictionary = _relay_survey.begin(_adapter, _navigation)
+	_apply_relay_survey_presentation()
+	return result
 
 func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
@@ -186,11 +193,15 @@ func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) ->
 
 func submit_relay_survey_position(position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	return _relay_survey.submit_position(_adapter, position)
+	var result: Dictionary = _relay_survey.submit_position(_adapter, position)
+	_apply_relay_survey_presentation()
+	return result
 
 func commit_relay_survey_reward() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	return _relay_survey.commit_reward(_adapter)
+	var result: Dictionary = _relay_survey.commit_reward(_adapter)
+	_apply_relay_survey_presentation()
+	return result
 
 
 func discover_settlements(position: Variant, radius_m: Variant) -> Dictionary:
@@ -350,6 +361,7 @@ func detach() -> Dictionary:
 		practical.call(&"detach")
 	for marker: Node in _landing_markers.values():
 		marker.call(&"detach")
+	_relay_survey_presentation.call(&"detach")
 	_orbital_ring.call(&"detach")
 	_route_trail.call(&"detach")
 	for beacon: Node in _landmark_beacons.values():
@@ -385,6 +397,7 @@ func reenter() -> Dictionary:
 	_apply_landing_markers()
 	_orbital_ring.call(&"reenter")
 	_route_trail.call(&"reenter")
+	_apply_relay_survey_presentation()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
 		_water.call(&"reenter", next_attachment)
@@ -441,6 +454,7 @@ func get_snapshot() -> Dictionary:
 		"orbital_ring": _orbital_ring.call(&"get_snapshot") if _orbital_ring != null else {},
 		"route_trail": _route_trail.call(&"get_snapshot") if _route_trail != null else {},
 		"relay_survey": _relay_survey.get_snapshot() if _relay_survey != null else {},
+		"relay_survey_presentation": _relay_survey_presentation.call(&"get_snapshot") if _relay_survey_presentation != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
@@ -464,6 +478,13 @@ func _register_relay_survey_activity(director: ActivityDirector) -> void:
 		Vector3(180.0, 120009.0, -44.0), Vector3(540.0, 120030.0, -210.0)
 	])
 	director.register_definition(definition)
+
+
+func _apply_relay_survey_presentation() -> void:
+	if _relay_survey_presentation == null or _adapter == null:
+		return
+	var activity_snapshot: Dictionary = _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
+	_relay_survey_presentation.call(&"apply_activity_snapshot", activity_snapshot)
 
 
 func get_session_snapshot() -> Dictionary:
