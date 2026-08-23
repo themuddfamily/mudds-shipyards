@@ -3,23 +3,28 @@ extends RefCounted
 
 ## Server-published typed state boundary for the first multiplayer slice.
 ##
-## The existing movement, ship-ownership, projectile, boarding, and damage /
-## respawn authorities each own their own ledger. This synchronizer joins their
-## already-committed detached records into one generation-fenced snapshot. It
-## does not move nodes, apply damage, reserve seats, spawn projectiles, or call
-## RPC; server adapters publish here and replicas consume the copied result.
+## The existing movement, ship-ownership, projectile, boarding, damage/respawn,
+## and landing authorities each own their own ledger. This synchronizer joins
+## their already-committed detached records into one generation-fenced
+## snapshot. It does not move nodes, apply damage, reserve seats or berths,
+## spawn projectiles, or call RPC; server adapters publish here and replicas
+## consume the copied result.
 
-const SCHEMA_VERSION := 1
-const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v1"
+const SCHEMA_VERSION := 2
+const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v2"
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ENTRIES_PER_SECTION := 256
-const SECTION_NAMES := [&"movement", &"ownership", &"projectiles", &"boarding", &"respawn"]
+const LANDING_STATES := [&"flying", &"landing_pending", &"landed"]
+const SECTION_NAMES := [
+	&"movement", &"ownership", &"projectiles", &"boarding", &"respawn", &"landing",
+]
 const SECTION_ID_FIELDS := {
 	&"movement": &"entity_id",
 	&"ownership": &"ship_id",
 	&"projectiles": &"projectile_id",
 	&"boarding": &"seat_id",
 	&"respawn": &"entity_id",
+	&"landing": &"entity_id",
 }
 const SECTION_REQUIRED_FIELDS := {
 	&"movement": [&"entity_id", &"entity_generation", &"owner_peer_id", &"mode"],
@@ -35,6 +40,10 @@ const SECTION_REQUIRED_FIELDS := {
 	&"respawn": [
 		&"entity_id", &"entity_generation", &"component_generation", &"state",
 	],
+	&"landing": [
+		&"entity_id", &"entity_generation", &"landing_revision",
+		&"landing_server_tick", &"position", &"state",
+	],
 }
 const COMPONENT_MODIFIER_FIELDS := [&"engine_power", &"weapon_power", &"targeting_power"]
 const COMPONENT_DISABLED_FIELDS := [&"engine_disabled", &"weapon_disabled", &"targeting_disabled"]
@@ -44,6 +53,7 @@ var _server_tick := -1
 var _event_sequence := -1
 var _revision := 0
 var _sections: Dictionary = {}
+var _landing_high_water: Dictionary = {}
 var _last_result: Dictionary = {}
 
 
@@ -64,7 +74,8 @@ func publish(
 	ownership: Array,
 	projectiles: Array,
 	boarding: Array,
-	respawn: Array
+	respawn: Array,
+	landing: Array = []
 ) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))
@@ -82,14 +93,19 @@ func publish(
 		&"projectiles": projectiles,
 		&"boarding": boarding,
 		&"respawn": respawn,
+		&"landing": landing,
 	}
 	var section_status := _validate_sections(incoming)
 	if not bool(section_status.get("valid", false)):
 		return _remember(_result(false, section_status.get("status", &"invalid_sections")))
+	var landing_status := _validate_landing_progress(landing)
+	if not bool(landing_status.get("valid", false)):
+		return _remember(_result(false, landing_status.get("status", &"stale_landing_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision += 1
 	_sections = _copy_sections(incoming)
+	_remember_landing_progress(landing)
 	return _remember(_result(true, &"published", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -123,10 +139,15 @@ func apply_replica(source_peer_id: int, packet: Dictionary) -> Dictionary:
 	var section_status := _validate_sections(incoming_variant as Dictionary)
 	if not bool(section_status.get("valid", false)):
 		return _remember(_result(false, section_status.get("status", &"invalid_sections")))
+	var landing := (incoming_variant as Dictionary).get(&"landing", []) as Array
+	var landing_status := _validate_landing_progress(landing)
+	if not bool(landing_status.get("valid", false)):
+		return _remember(_result(false, landing_status.get("status", &"stale_landing_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision = revision
 	_sections = _copy_sections(incoming_variant as Dictionary)
+	_remember_landing_progress(landing)
 	return _remember(_result(true, &"replica_applied", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -159,6 +180,8 @@ func audit() -> Dictionary:
 		"server_owns_projectile_snapshot": true,
 		"server_owns_boarding_snapshot": true,
 		"server_owns_respawn_snapshot": true,
+		"server_owns_landing_snapshot": true,
+		"landing_records_are_presentation_only": true,
 		"client_can_mutate_snapshot": false,
 		"replicas_apply_only_server_packets": true,
 		"replicas_interpolate_or_present_only": true,
@@ -204,7 +227,57 @@ func _validate_sections(raw_sections: Dictionary) -> Dictionary:
 				return {"valid": false, "status": &"invalid_section_generation"}
 			if not _valid_component_modifiers(entry):
 				return {"valid": false, "status": &"invalid_component_modifiers"}
+			if section_name == &"landing" and not _valid_landing_entry(entry):
+				return {"valid": false, "status": &"invalid_landing_record"}
 	return {"valid": true}
+
+
+func _valid_landing_entry(entry: Dictionary) -> bool:
+	var position_variant: Variant = entry.get("position")
+	return _valid_positive_integer(entry.get("landing_revision")) \
+		and _valid_nonnegative_integer(entry.get("landing_server_tick")) \
+		and position_variant is Vector3 \
+		and (position_variant as Vector3).is_finite() \
+		and StringName(entry.get("state", &"")) in LANDING_STATES
+
+
+## A newer canonical envelope cannot regress one landing entity's own
+## generation/revision. Equal records are allowed because unrelated canonical
+## sections may publish while a landing remains unchanged.
+func _validate_landing_progress(records: Array) -> Dictionary:
+	for record_variant in records:
+		var record := record_variant as Dictionary
+		var entity_id := StringName(record.get("entity_id", &""))
+		var prior := _landing_high_water.get(entity_id, {}) as Dictionary
+		if prior.is_empty():
+			continue
+		var entity_generation := int(record.get("entity_generation", 0))
+		var prior_generation := int(prior.get("entity_generation", 0))
+		var landing_revision := int(record.get("landing_revision", 0))
+		var prior_revision := int(prior.get("landing_revision", 0))
+		if entity_generation < prior_generation:
+			return {"valid": false, "status": &"stale_landing_generation"}
+		if landing_revision < prior_revision \
+				or (entity_generation > prior_generation and landing_revision <= prior_revision):
+			return {"valid": false, "status": &"stale_landing_revision"}
+		if int(record.get("landing_server_tick", 0)) \
+				< int(prior.get("landing_server_tick", 0)):
+			return {"valid": false, "status": &"stale_landing_server_tick"}
+		if entity_generation == prior_generation and landing_revision == prior_revision \
+				and record != (prior.get("record", {}) as Dictionary):
+			return {"valid": false, "status": &"stale_landing_revision"}
+	return {"valid": true}
+
+
+func _remember_landing_progress(records: Array) -> void:
+	for record_variant in records:
+		var record := (record_variant as Dictionary).duplicate(true)
+		_landing_high_water[StringName(record.get("entity_id", &""))] = {
+			"entity_generation": int(record.get("entity_generation", 0)),
+			"landing_revision": int(record.get("landing_revision", 0)),
+			"landing_server_tick": int(record.get("landing_server_tick", 0)),
+			"record": record,
+		}
 
 
 func _valid_component_modifiers(entry: Dictionary) -> bool:

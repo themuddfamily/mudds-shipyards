@@ -143,6 +143,7 @@ var _projectile_replica_migration_generation := 1
 var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
 var _landing_snapshot_revision := 0
+var _landing_authoritative_records: Dictionary = {}
 var _damage_jitter
 var _damage_replica_samples: Dictionary = {}
 var _damage_snapshot_revision := 0
@@ -372,6 +373,8 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_projectile_recipient_pending.clear()
 	_projectile_published_generations.clear()
 	_reset_projectile_replica_state(1)
+	_landing_snapshot_revision = 0
+	_landing_authoritative_records.clear()
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -861,6 +864,16 @@ func publish_landing_snapshot(
 		return _remember(_result(false, &"authority_required"))
 	if entity_id.is_empty() or entity_generation <= 0 or not position.is_finite():
 		return _remember(_result(false, &"invalid_landing_snapshot"))
+	var authoritative_entity: Dictionary = _landing.get_entity_snapshot(entity_id)
+	if authoritative_entity.is_empty() \
+			or int(authoritative_entity.get("entity_generation", 0)) != entity_generation:
+		return _remember(_result(false, &"stale_landing_entity"))
+	if StringName(authoritative_entity.get("state", &"")) != state:
+		return _remember(_result(false, &"landing_state_not_committed"))
+	var prior := _landing_authoritative_records.get(entity_id, {}) as Dictionary
+	if not prior.is_empty() \
+			and maxi(0, server_tick) < int(prior.get("landing_server_tick", 0)):
+		return _remember(_result(false, &"stale_landing_server_tick"))
 	var target_peers: Array = recipients.duplicate()
 	if target_peers.is_empty():
 		target_peers = _peer_generations.keys()
@@ -877,6 +890,14 @@ func publish_landing_snapshot(
 			"position": position,
 			"state": state,
 		},
+	}
+	_landing_authoritative_records[entity_id] = {
+		"entity_id": entity_id,
+		"entity_generation": entity_generation,
+		"landing_revision": _landing_snapshot_revision,
+		"landing_server_tick": maxi(0, server_tick),
+		"position": position,
+		"state": state,
 	}
 	for peer_variant in target_peers:
 		if _peer != null:
@@ -1878,6 +1899,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 		_moving_replica.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 	_landing_replica_samples.clear()
 	_landing_snapshot_revision = 0
+	_landing_authoritative_records.clear()
 	_landing_jitter.reset(migration_generation)
 	_damage_replica_samples.clear()
 	_damage_snapshot_revision = 0
@@ -2862,7 +2884,8 @@ func publish_snapshot(
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var published: Dictionary = _lifecycle.publish_authority_snapshot(
-		AUTHORITY_PEER_ID, server_tick, movement, projectiles, respawn
+		AUTHORITY_PEER_ID, server_tick, movement, projectiles, respawn,
+		_canonical_landing_records()
 	)
 	if not bool(published.get("accepted", false)):
 		return _remember(published)
@@ -2876,6 +2899,18 @@ func publish_snapshot(
 		"revision": int(packet.get("revision", 0)),
 		"packet": packet,
 	}))
+
+
+func _canonical_landing_records() -> Array:
+	var records: Array = []
+	for entity_id_variant in _landing_authoritative_records.keys():
+		records.append(
+			(_landing_authoritative_records[entity_id_variant] as Dictionary).duplicate(true)
+		)
+	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("entity_id", "")) < str(right.get("entity_id", ""))
+	)
+	return records
 
 
 func publish_cargo_manifest_snapshot(
@@ -3528,6 +3563,7 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 				AUTHORITY_PEER_ID, entity_id, int(entity.get("entity_generation", 0))
 			)
 			_landing_entities.erase(entity_id)
+			_landing_authoritative_records.erase(entity_id)
 	for damage_id_variant in _damage_entities.keys():
 		var damage_id := StringName(damage_id_variant)
 		var damage_entity := _damage_entities[damage_id] as Dictionary

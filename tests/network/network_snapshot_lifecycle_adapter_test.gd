@@ -35,7 +35,9 @@ func _test_lifecycle_records_feed_snapshot() -> void:
 	_check(adapter.register_seat(99, &"jovian_pilot", &"jovian_a", &"pilot", &"flight_frame", 7).accepted, "adapter registers the server-owned pilot seat")
 	_check(adapter.claim_ship(99, 7, 4, &"jovian_a", 4, 0).accepted, "session claim commits ship ownership")
 	_check(adapter.claim_seat(99, 7, 4, &"avatar_a", &"jovian_pilot", &"pilot", 1).accepted, "session claim commits boarding occupancy")
-	var result := adapter.publish_authority_snapshot(99, 20, _movement(), _projectiles(), _respawn())
+	var result := adapter.publish_authority_snapshot(
+		99, 20, _movement(), _projectiles(), _respawn(), _landing()
+	)
 	_check(
 		result.accepted
 		and result.status == &"published"
@@ -46,8 +48,10 @@ func _test_lifecycle_records_feed_snapshot() -> void:
 	_check(
 		(authoritative.sections.ownership as Array).size() == 1
 		and int(authoritative.sections.ownership[0].owner_peer_id) == 7
-		and (authoritative.sections.boarding as Array).size() == 1,
-		"lifecycle ship and seat records feed the synchronized ownership/boarding sections"
+		and (authoritative.sections.boarding as Array).size() == 1
+		and (authoritative.sections.landing as Array).size() == 1
+		and authoritative.sections.landing[0].state == &"landing_pending",
+		"session ownership and committed landing records feed the synchronized sections"
 	)
 	var audit := adapter.audit()
 	_check(
@@ -89,7 +93,9 @@ func _test_replica_boundary() -> void:
 	server.register_ship(99, &"jovian_a", 4, 7)
 	server.register_seat(99, &"jovian_pilot", &"jovian_a", &"pilot", &"flight_frame", 7)
 	server.claim_seat(99, 7, 4, &"avatar_a", &"jovian_pilot", &"pilot", 1)
-	var server_packet_result := server.publish_authority_snapshot(99, 20, _movement(), _projectiles(), _respawn())
+	var server_packet_result := server.publish_authority_snapshot(
+		99, 20, _movement(), _projectiles(), _respawn(), _landing()
+	)
 	_check(server_packet_result.accepted, "server produces the replica packet")
 	var packet := server.get_authoritative_snapshot()
 	var replica := Adapter.new(99, 1, 2, 3)
@@ -99,8 +105,9 @@ func _test_replica_boundary() -> void:
 	)
 	_check(
 		replica.apply_replica_snapshot(99, packet).accepted
-		and replica.get_authoritative_snapshot().sections.movement.size() == 1,
-		"replica adapter applies the server-owned synchronized packet"
+		and replica.get_authoritative_snapshot().sections.movement.size() == 1
+		and replica.get_authoritative_snapshot().sections.landing[0].state == &"landing_pending",
+		"replica adapter applies the server-owned synchronized landing packet"
 	)
 
 
@@ -114,6 +121,17 @@ func _projectiles() -> Array:
 
 func _respawn() -> Array:
 	return [{"entity_id": &"jovian_a", "entity_generation": 4, "component_generation": 1, "state": &"active"}]
+
+
+func _landing() -> Array:
+	return [{
+		"entity_id": &"jovian_a",
+		"entity_generation": 4,
+		"landing_revision": 3,
+		"landing_server_tick": 20,
+		"position": Vector3(12.0, 0.0, -4.0),
+		"state": &"landing_pending",
+	}]
 
 
 func _check(condition: bool, description: String) -> void:

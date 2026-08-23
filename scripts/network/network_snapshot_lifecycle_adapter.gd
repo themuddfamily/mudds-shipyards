@@ -7,7 +7,8 @@ extends RefCounted
 ## generations, seat claims, ship ownership, and disconnect cleanup. This
 ## adapter feeds those committed session records into
 ## `NetworkAuthoritativeSnapshot` beside caller-supplied movement, projectile,
-## and damage/respawn records. It owns no RPC, node, physics, or health state.
+## damage/respawn, and landing records. It owns no RPC, node, physics, health,
+## or berth state.
 
 const Lifecycle := preload("res://scripts/network/network_disconnect_lifecycle.gd")
 const Snapshot := preload("res://scripts/network/network_authoritative_snapshot.gd")
@@ -127,13 +128,14 @@ func claim_seat(
 
 
 ## Publishes session-owned ship/seat records together with movement,
-## projectile, and respawn records from the other server authorities.
+## projectile, respawn, and landing records from the other server authorities.
 func publish_authority_snapshot(
 	source_peer_id: int,
 	server_tick: int,
 	movement: Array,
 	projectiles: Array,
-	respawn: Array
+	respawn: Array,
+	landing: Array = []
 ) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))
@@ -153,7 +155,8 @@ func publish_authority_snapshot(
 		ownership,
 		projectiles,
 		boarding,
-		respawn
+		respawn,
+		landing
 	)
 	if bool(published.get("accepted", false)):
 		_last_snapshot_event_sequence = next_event_sequence

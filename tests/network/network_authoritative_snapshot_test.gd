@@ -17,6 +17,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_server_publication_and_detachment()
 	_test_order_and_generation_guards()
+	_test_landing_lifecycle_guards()
 	_test_replica_server_boundary()
 	if _failures.is_empty():
 		print("OK: network authoritative snapshot synchronization (%d assertions)" % _assertions)
@@ -30,7 +31,7 @@ func _run() -> void:
 func _test_server_publication_and_detachment() -> void:
 	var authority := Authority.new(99)
 	var sections := _sections()
-	var published := authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn)
+	var published := authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing)
 	_check(published.accepted and published.status == &"published", "server publishes one mixed authority snapshot")
 	var snapshot: Dictionary = authority.get_snapshot()
 	_check(
@@ -46,8 +47,9 @@ func _test_server_publication_and_detachment() -> void:
 		and (copied_sections.ownership as Array).size() == 1
 		and (copied_sections.projectiles as Array).size() == 1
 		and (copied_sections.boarding as Array).size() == 1
-		and (copied_sections.respawn as Array).size() == 1,
-		"movement, ownership, projectile, boarding, and respawn records are synchronized together"
+		and (copied_sections.respawn as Array).size() == 1
+		and (copied_sections.landing as Array).size() == 1,
+		"movement, ownership, projectile, boarding, respawn, and landing records synchronize together"
 	)
 	(sections.movement[0] as Dictionary).entity_id = &"mutated_after_publish"
 	(copied_sections.movement as Array).clear()
@@ -68,6 +70,8 @@ func _test_server_publication_and_detachment() -> void:
 		and bool(audit.server_owns_projectile_snapshot)
 		and bool(audit.server_owns_boarding_snapshot)
 		and bool(audit.server_owns_respawn_snapshot)
+		and bool(audit.server_owns_landing_snapshot)
+		and bool(audit.landing_records_are_presentation_only)
 		and not bool(audit.client_can_mutate_snapshot),
 		"audit exposes one server-owned synchronization boundary without replica mutation"
 	)
@@ -77,15 +81,15 @@ func _test_order_and_generation_guards() -> void:
 	var authority := Authority.new(99)
 	var sections := _sections()
 	_check(
-		authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn).accepted,
+		authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).accepted,
 		"guard fixture publishes its initial generation-bearing state"
 	)
 	_check(
-		authority.publish(99, 39, 13, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn).status == &"stale_server_tick",
+		authority.publish(99, 39, 13, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).status == &"stale_server_tick",
 		"late server ticks cannot replace authoritative state"
 	)
 	_check(
-		authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn).status == &"stale_event_sequence",
+		authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).status == &"stale_event_sequence",
 		"duplicate authority events cannot replay a snapshot"
 	)
 	var invalid := _sections()
@@ -106,13 +110,73 @@ func _test_order_and_generation_guards() -> void:
 		authority.publish(99, 41, 13, invalid_modifiers.movement, invalid_modifiers.ownership, invalid_modifiers.projectiles, invalid_modifiers.boarding, invalid_modifiers.respawn).status == &"invalid_component_modifiers",
 		"component modifiers reject non-normalized authoritative values"
 	)
+	var invalid_landing := _sections()
+	(invalid_landing.landing[0] as Dictionary).position = Vector3(NAN, 0.0, 0.0)
+	_check(
+		authority.publish(99, 41, 13, invalid_landing.movement, invalid_landing.ownership, invalid_landing.projectiles, invalid_landing.boarding, invalid_landing.respawn, invalid_landing.landing).status == &"invalid_landing_record",
+		"canonical landing records require a finite server-published pose"
+	)
+
+
+func _test_landing_lifecycle_guards() -> void:
+	var authority := Authority.new(99)
+	var sections := _sections()
+	_check(
+		authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).accepted,
+		"landing fixture publishes an approach-pending server record"
+	)
+	var aborted := _sections()
+	(aborted.landing[0] as Dictionary).state = &"flying"
+	(aborted.landing[0] as Dictionary).landing_revision = 6
+	(aborted.landing[0] as Dictionary).landing_server_tick = 41
+	_check(
+		authority.publish(99, 41, 13, aborted.movement, aborted.ownership, aborted.projectiles, aborted.boarding, aborted.respawn, aborted.landing).accepted
+		and authority.get_section(&"landing")[0].state == &"flying",
+		"an authoritative abort advances the same entity to flying"
+	)
+	var reserved_again := _sections()
+	(reserved_again.landing[0] as Dictionary).landing_revision = 7
+	(reserved_again.landing[0] as Dictionary).landing_server_tick = 42
+	_check(authority.publish(99, 42, 14, reserved_again.movement, reserved_again.ownership, reserved_again.projectiles, reserved_again.boarding, reserved_again.respawn, reserved_again.landing).accepted,
+		"the server can reserve a later approach for the same generation")
+	var landed := _sections()
+	(landed.landing[0] as Dictionary).state = &"landed"
+	(landed.landing[0] as Dictionary).landing_revision = 8
+	(landed.landing[0] as Dictionary).landing_server_tick = 43
+	_check(authority.publish(99, 43, 15, landed.movement, landed.ownership, landed.projectiles, landed.boarding, landed.respawn, landed.landing).accepted,
+		"the committed berth occupancy advances to landed")
+	var released := _sections()
+	(released.landing[0] as Dictionary).state = &"flying"
+	(released.landing[0] as Dictionary).entity_generation = 5
+	(released.landing[0] as Dictionary).landing_revision = 9
+	(released.landing[0] as Dictionary).landing_server_tick = 44
+	_check(
+		authority.publish(99, 44, 16, released.movement, released.ownership, released.projectiles, released.boarding, released.respawn, released.landing).accepted
+		and int(authority.get_section(&"landing")[0].entity_generation) == 5,
+		"berth release publishes flying only with the advanced entity generation"
+	)
+	var stale_generation := released.duplicate(true)
+	(stale_generation.landing[0] as Dictionary).entity_generation = 4
+	(stale_generation.landing[0] as Dictionary).landing_revision = 10
+	(stale_generation.landing[0] as Dictionary).landing_server_tick = 45
+	_check(
+		authority.publish(99, 45, 17, stale_generation.movement, stale_generation.ownership, stale_generation.projectiles, stale_generation.boarding, stale_generation.respawn, stale_generation.landing).status == &"stale_landing_generation",
+		"a newer envelope cannot regress a released landing entity generation"
+	)
+	var stale_revision := released.duplicate(true)
+	(stale_revision.landing[0] as Dictionary).landing_revision = 8
+	(stale_revision.landing[0] as Dictionary).landing_server_tick = 45
+	_check(
+		authority.publish(99, 45, 17, stale_revision.movement, stale_revision.ownership, stale_revision.projectiles, stale_revision.boarding, stale_revision.respawn, stale_revision.landing).status == &"stale_landing_revision",
+		"a newer envelope cannot reorder an older landing record"
+	)
 
 
 func _test_replica_server_boundary() -> void:
 	var server := Authority.new(99)
 	var sections := _sections()
 	_check(
-		server.publish(99, 50, 20, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn).accepted,
+		server.publish(99, 50, 20, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).accepted,
 		"server creates a replica packet from committed authority records"
 	)
 	var packet := server.get_snapshot()
@@ -179,6 +243,14 @@ func _sections() -> Dictionary:
 			"entity_generation": 4,
 			"component_generation": 2,
 			"state": &"active",
+		}],
+		"landing": [{
+			"entity_id": &"jovian_a",
+			"entity_generation": 4,
+			"landing_revision": 5,
+			"landing_server_tick": 40,
+			"position": Vector3(10.0, 0.0, 4.0),
+			"state": &"landing_pending",
 		}],
 	}
 
