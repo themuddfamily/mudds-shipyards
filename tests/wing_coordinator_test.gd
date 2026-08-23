@@ -57,6 +57,7 @@ func _run() -> void:
 	await _test_frontal_craft_anchors_and_peer_flanks()
 	await _test_swap_requires_margin_and_hold()
 	await _test_hurt_anchor_is_relieved_immediately()
+	await _test_critically_damaged_members_disengage()
 	await _test_stand_down_and_roster_lifecycle()
 	await _test_queued_target_stands_down_and_live_rebinds()
 	await _test_queued_coordinator_tick_is_inert()
@@ -211,6 +212,35 @@ func _test_hurt_anchor_is_relieved_immediately() -> void:
 	_check(
 		coordinator.get_role(fresh) == WingCoordinator.ROLE_ANCHOR,
 		"relief does not fire when no peer is in better shape than the incumbent"
+	)
+	await _free_fixture(fixture)
+
+
+func _test_critically_damaged_members_disengage() -> void:
+	var fixture := await _make_fixture(2)
+	var coordinator: WingCoordinator = fixture.coordinator
+	var first: WingMember = fixture.members[0]
+	var second: WingMember = fixture.members[1]
+	_place(first, Vector3(0.0, 0.0, -120.0))
+	_place(second, Vector3(0.0, 0.0, 120.0))
+	coordinator.update_assignments(0.0)
+	first.health = first.maximum_health * (coordinator.critical_disengage_ratio - 0.01)
+	coordinator.update_assignments(0.0)
+	_check(
+		coordinator.is_member_disengaging(first)
+		and coordinator.get_role(first) == WingCoordinator.ROLE_FLANKER
+		and coordinator.get_role(second) == WingCoordinator.ROLE_ANCHOR,
+		"a critical member consumes the wide flanker maneuver while its healthy peer anchors"
+	)
+	second.health = first.health
+	coordinator.update_assignments(0.0)
+	_check(
+		coordinator.is_member_disengaging(second)
+		and coordinator.get_anchor() == null
+		and coordinator.get_role(first) == WingCoordinator.ROLE_FLANKER
+		and coordinator.get_role(second) == WingCoordinator.ROLE_FLANKER
+		and coordinator.get_validation_errors().is_empty(),
+		"an all-critical wing breaks away without inventing a healthy anchor or invalid state"
 	)
 	await _free_fixture(fixture)
 

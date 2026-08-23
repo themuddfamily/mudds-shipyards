@@ -547,6 +547,20 @@ func _test_paired_wing_suppression_opens_crossfire() -> void:
 		and bool(flanker.call("_is_fire_authorized")),
 		"bounded lead expiry releases crossfire through the existing opponent dispatch gate"
 	)
+	flanker.apply_damage(
+		flanker.maximum_health * (1.0 - coordinator.critical_disengage_ratio + 0.01),
+		flanker.global_position
+	)
+	coordinator.update_assignments(0.0)
+	var retreat_intent := director.get_member_tactic_intent(flanker)
+	_check(
+		retreat_intent.action == EncounterScenarioDirector.TACTIC_DISENGAGE
+		and bool(retreat_intent.disengaging)
+		and not bool(retreat_intent.fire_authorized)
+		and flanker.get_wing_role() == WingCoordinator.ROLE_FLANKER
+		and not bool(flanker.call("_is_fire_authorized")),
+		"critical damage drives the existing opponent's wide maneuver role and dispatch-frame fire denial"
+	)
 	await _free_fixture(fixture)
 
 

@@ -95,6 +95,7 @@ const TACTIC_SUPPRESS: StringName = &"suppress"
 const TACTIC_FLANK_UNDER_COVER: StringName = &"flank_under_cover"
 const TACTIC_ENGAGE: StringName = &"engage"
 const TACTIC_WITHHOLD: StringName = &"withhold"
+const TACTIC_DISENGAGE: StringName = &"disengage"
 
 const CONTENT_NOTE := (
 	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
@@ -260,8 +261,14 @@ func is_fire_authorized(member: Node) -> bool:
 		return false
 	if not _is_phase_authorized():
 		return false
+	var coordinator := _get_wing_coordinator()
+	if (
+		is_instance_valid(coordinator)
+		and member is Node3D
+		and coordinator.is_member_disengaging(member as Node3D)
+	):
+		return false
 	if _paired_wing_suppression_active():
-		var coordinator := _get_wing_coordinator()
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
 	return true
@@ -278,7 +285,14 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 	var coordinator := _get_wing_coordinator()
 	if is_instance_valid(coordinator) and member is Node3D:
 		role = coordinator.get_role(member as Node3D)
-	if _paired_wing_suppression_active():
+	var disengaging := (
+		is_instance_valid(coordinator)
+		and member is Node3D
+		and coordinator.is_member_disengaging(member as Node3D)
+	)
+	if disengaging:
+		action = TACTIC_DISENGAGE
+	elif _paired_wing_suppression_active():
 		action = (
 			TACTIC_SUPPRESS
 			if role == WingCoordinator.ROLE_ANCHOR
@@ -291,6 +305,7 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 		"fire_authorized": authorized,
 		"role": role,
 		"suppression_active": _paired_wing_suppression_active(),
+		"disengaging": disengaging,
 		"elapsed": _elapsed,
 	}.duplicate(true)
 

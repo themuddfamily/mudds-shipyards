@@ -17,6 +17,8 @@ extends Node
 ## own `_physics_process` can both answer yes on the same frame — which is
 ## exactly the bug that makes a "coordinated pair" read as two identical craft
 ## flying at you. One owner, one decision, deterministic order.
+## The one deliberate zero-anchor state is an all-critical wing: both craft then
+## consume the flanker breakaway maneuver instead of inventing a healthy lead.
 ##
 ## Determinism. There is no randomness here. Ties break on the member's stable
 ## `wing_priority` (its combat source identity), so the same positions always
@@ -43,7 +45,7 @@ const MAX_MEMBERS := 4
 
 const CONTENT_NOTE := (
 	"The anchor/flanker split, the swap margin, the swap hold, and the "
-	+ "hurt-anchor relief rule are an original modern interpretation. They do "
+	+ "hurt-anchor relief and critical disengage rules are an original modern interpretation. They do "
 	+ "not reproduce or claim any authenticated historical Keth Shipyards "
 	+ "formation, doctrine, tactic, or unit name."
 )
@@ -63,9 +65,14 @@ const CONTENT_NOTE := (
 ## frontal job even though the geometry still favours the incumbent, so focusing
 ## one craft down while ignoring the other does not work.
 @export_range(0.0, 1.0, 0.01) var anchor_relief_ratio := 0.4
+## Below this existing hull ratio a member stops contesting the anchor and is
+## assigned the already-consumed flanker motion role to break away from the
+## player's forward arc. The coordinator observes health; it never mutates it.
+@export_range(0.0, 1.0, 0.01) var critical_disengage_ratio := 0.22
 
 var _members: Array[Node3D] = []
 var _roles: Dictionary = {}
+var _disengaging_member_ids: Dictionary = {}
 var _target: Node3D
 var _pending_challenger: Node3D
 var _pending_hold := 0.0
@@ -104,6 +111,7 @@ func dismiss(member: Node3D) -> void:
 		_members.remove_at(index)
 	if is_instance_valid(member):
 		_roles.erase(member.get_instance_id())
+		_disengaging_member_ids.erase(member.get_instance_id())
 	if _pending_challenger == member:
 		_clear_pending_swap()
 
@@ -114,6 +122,7 @@ func dismiss_all() -> void:
 			_roles.erase(member.get_instance_id())
 	_members.clear()
 	_roles.clear()
+	_disengaging_member_ids.clear()
 	_clear_pending_swap()
 
 
@@ -124,6 +133,7 @@ func set_target(target: Node3D) -> void:
 	if _target == resolved_target:
 		return
 	_target = resolved_target
+	_disengaging_member_ids.clear()
 	_clear_pending_swap()
 
 
@@ -160,6 +170,13 @@ func get_assignment_count() -> int:
 	return _assignment_count
 
 
+func is_member_disengaging(member: Node3D) -> bool:
+	return (
+		is_instance_valid(member)
+		and _disengaging_member_ids.has(member.get_instance_id())
+	)
+
+
 # --------------------------------------------------------- assignment ----
 
 ## Recomputes the assignment from one consistent snapshot. Public so a suite can
@@ -180,28 +197,42 @@ func update_assignments(delta: float) -> void:
 	var active := _collect_active_members()
 	if active.is_empty() or not _has_live_target():
 		_target = null
+		_disengaging_member_ids.clear()
 		_clear_pending_swap()
 		_assign_all(ROLE_UNASSIGNED)
 		return
 
-	# A lone survivor always fights head-on. This is the readable consequence of
-	# killing half a wing: the fight stops being a pincer and becomes a duel.
-	if active.size() == 1:
+	_refresh_disengaging_members(active)
+	var anchor_candidates: Array[Node3D] = []
+	for member in active:
+		if not is_member_disengaging(member):
+			anchor_candidates.append(member)
+	if anchor_candidates.is_empty():
+		# No critically damaged craft is forced back into the player's guns merely
+		# to preserve an anchor invariant. The existing flanker role is a consumed
+		# wide/rear maneuver with its gun safed until a separate authority allows it.
 		_clear_pending_swap()
-		_commit_anchor(active[0])
+		_assign_all(ROLE_FLANKER)
+		return
+
+	# A lone combat-capable survivor always fights head-on. This is the readable consequence of
+	# killing half a wing: the fight stops being a pincer and becomes a duel.
+	if anchor_candidates.size() == 1:
+		_clear_pending_swap()
+		_commit_anchor(anchor_candidates[0])
 		return
 
 	var claims := {}
-	for member in active:
+	for member in anchor_candidates:
 		claims[member.get_instance_id()] = _frontal_claim(member)
 
 	var incumbent := get_anchor()
-	if not is_instance_valid(incumbent) or not active.has(incumbent):
+	if not is_instance_valid(incumbent) or not anchor_candidates.has(incumbent):
 		_clear_pending_swap()
-		_commit_anchor(_best_claimant(active, claims))
+		_commit_anchor(_best_claimant(anchor_candidates, claims))
 		return
 
-	var relief := _relief_candidate(incumbent, active)
+	var relief := _relief_candidate(incumbent, anchor_candidates)
 	if is_instance_valid(relief):
 		# A hurt anchor rotates out immediately; there is no geometric hold on a
 		# craft that is about to die in the player's gunsight.
@@ -209,7 +240,7 @@ func update_assignments(delta: float) -> void:
 		_commit_anchor(relief)
 		return
 
-	var challenger := _best_claimant_excluding(active, claims, incumbent)
+	var challenger := _best_claimant_excluding(anchor_candidates, claims, incumbent)
 	var incumbent_claim := float(claims.get(incumbent.get_instance_id(), -1.0))
 	var challenger_claim := (
 		float(claims.get(challenger.get_instance_id(), -1.0))
@@ -274,6 +305,14 @@ func _health_ratio(member: Node3D) -> float:
 	if declared is float or declared is int:
 		maximum = maxf(0.001, float(declared))
 	return clampf(float(member.call(&"get_health")) / maximum, 0.0, 1.0)
+
+
+func _refresh_disengaging_members(active: Array[Node3D]) -> void:
+	var current := {}
+	for member in active:
+		if _health_ratio(member) <= critical_disengage_ratio:
+			current[member.get_instance_id()] = true
+	_disengaging_member_ids = current
 
 
 func _best_claimant(active: Array[Node3D], claims: Dictionary) -> Node3D:
@@ -368,6 +407,12 @@ func _prune_invalid_members() -> void:
 			var key := member.get_instance_id()
 			surviving[key] = _roles.get(key, ROLE_UNASSIGNED)
 		_roles = surviving
+		var surviving_disengaging := {}
+		for member in _members:
+			var key := member.get_instance_id()
+			if _disengaging_member_ids.has(key):
+				surviving_disengaging[key] = true
+		_disengaging_member_ids = surviving_disengaging
 	if not is_instance_valid(_pending_challenger):
 		_clear_pending_swap()
 
@@ -421,6 +466,7 @@ func get_evidence_metadata() -> Dictionary:
 			"anchor and flanker role split within an opponent wing",
 			"frontal-arc claim, swap margin, and swap hold window",
 			"hurt-anchor relief rotation",
+			"critical-member breakaway through the consumed flanker maneuver",
 		]),
 		"explicit_unknowns": PackedStringArray([
 			"any historical opposing formation, doctrine, tactic, or unit name",
@@ -445,6 +491,7 @@ func get_audit_report() -> Dictionary:
 		"members": _members.size(),
 		"active_members": get_active_member_count(),
 		"roles": roles,
+		"disengaging_members": _disengaging_member_ids.size(),
 		"anchor": String(get_anchor().name) if is_instance_valid(get_anchor()) else "",
 		"assignments": _assignment_count,
 		"anchor_commits": _swap_count,
@@ -454,6 +501,7 @@ func get_audit_report() -> Dictionary:
 			"role_swap_margin": role_swap_margin,
 			"role_swap_hold": role_swap_hold,
 			"anchor_relief_ratio": anchor_relief_ratio,
+			"critical_disengage_ratio": critical_disengage_ratio,
 		},
 	}.duplicate(true)
 
@@ -464,16 +512,23 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("wing roster exceeds the fixed bound")
 	if _roles.size() > _members.size():
 		errors.append("role table retains entries for members that are no longer enlisted")
+	if _disengaging_member_ids.size() > _members.size():
+		errors.append("disengage table retains entries for members that are no longer enlisted")
 	var anchors := 0
 	for member in _members:
 		if is_instance_valid(member) and get_role(member) == ROLE_ANCHOR:
 			anchors += 1
 	if anchors > 1:
 		errors.append("more than one anchor is assigned at the same time")
+	var all_active_disengaging := (
+		get_active_member_count() > 0
+		and _disengaging_member_ids.size() == get_active_member_count()
+	)
 	if (
 		_assignment_count > 0
 		and get_active_member_count() > 0
 		and is_instance_valid(_target)
+		and not all_active_disengaging
 		and anchors != 1
 	):
 		errors.append("an engaged wing must hold exactly one anchor")
@@ -481,6 +536,9 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("a stood-down wing must hold no anchor")
 	if not is_finite(role_swap_hold) or role_swap_hold < 0.0:
 		errors.append("role swap hold must be finite and non-negative")
+	if not is_finite(critical_disengage_ratio) \
+			or critical_disengage_ratio < 0.0 or critical_disengage_ratio > 1.0:
+		errors.append("critical disengage ratio must be inside 0..1")
 	if not is_finite(_pending_hold) or _pending_hold < 0.0:
 		errors.append("pending swap hold must be finite and non-negative")
 	return errors
