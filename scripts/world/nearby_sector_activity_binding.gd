@@ -35,6 +35,10 @@ var _cargo_authority: CargoTransferAuthority
 var _cargo_activity: CargoDeliveryActivity
 var _cargo_source_handle: Dictionary
 var _cargo_destination_handle: Dictionary
+var _cargo_access: CinderCargoAccess
+var _cargo_terminal: CargoTransferTerminal
+var _cargo_source_entity: Node
+var _cargo_access_attachment_generation := 0
 var _station_director: Node
 var _station_target: Node3D
 var _station_anchor: Node3D
@@ -68,36 +72,109 @@ func _ready() -> void:
 	_cargo_authority = CargoTransferAuthority.new()
 	_cargo_authority.name = "CinderCargoTransferAuthority"
 	add_child(_cargo_authority)
+	_cargo_authority.manifest_retired.connect(_on_cargo_manifest_retired)
 	var cargo_item := CargoItemDefinition.new()
 	cargo_item.item_id = &"cinder_supply_crates"
 	cargo_item.display_name = "Cinder supply crates"
 	cargo_item.unit_capacity = 1
 	_cargo_authority.register_item(cargo_item)
-	var source := Node.new()
-	source.name = "CinderCargoSource"
-	add_child(source)
-	var destination := Node.new()
-	destination.name = "CinderCargoDestination"
-	add_child(destination)
+	_mining_activity = MINING_ACTIVITY.new() as RefCounted
+	_scan_activity = SCAN_ACTIVITY.new() as RefCounted
+	_beacon_activity = BEACON_ACTIVITY.new() as RefCounted
+	_session_adapter = SESSION_ADAPTER.new() as RefCounted
+
+
+## Binds the production physical adapters to the one existing cargo authority.
+## The destination can bind immediately; the source manifest is created only
+## for the actual craft occupying the exact Cinder berth.
+func bind_cargo_access(
+		access: CinderCargoAccess,
+		terminal: CargoTransferTerminal,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if not is_inside_tree() or not is_instance_valid(_cargo_authority):
+		return _result(false, &"cargo_authority_unavailable")
+	if not is_instance_valid(access) or not is_instance_valid(terminal):
+		return _result(false, &"cargo_physical_endpoint_required")
+	var attachment := access.get_attachment_snapshot(expected_attachment_generation)
+	if not bool(attachment.get("accepted", false)):
+		return _result(false, StringName(attachment.get("reason", &"stale_attachment_generation")))
+	if is_instance_valid(_cargo_access) or is_instance_valid(_cargo_terminal):
+		if _cargo_access == access and _cargo_terminal == terminal:
+			_cargo_access_attachment_generation = expected_attachment_generation
+			return _result(true, &"cargo_access_already_bound")
+		return _result(false, &"cargo_access_already_bound")
+	var destination_registration := _cargo_authority.register_entity(
+		terminal, terminal.terminal_id, terminal.manifest_id, 8
+	)
+	if not bool(destination_registration.get("accepted", false)):
+		return _result(false, &"cargo_destination_registration_failed")
+	var destination_handle := (
+		destination_registration.get("handle", {}) as Dictionary
+	).duplicate(true)
+	var terminal_binding := terminal.bind_authority(
+		_cargo_authority, destination_handle, terminal.get_terminal_generation()
+	)
+	if not bool(terminal_binding.get("accepted", false)):
+		_cargo_authority.retire_entity(destination_handle)
+		return _result(false, StringName(terminal_binding.get("reason", &"cargo_terminal_binding_failed")))
+	_cargo_access = access
+	_cargo_terminal = terminal
+	_cargo_access_attachment_generation = expected_attachment_generation
+	_cargo_destination_handle = destination_handle
+	var berth := access.get_berth()
+	if not berth.occupancy_changed.is_connected(_on_cargo_berth_occupancy_changed):
+		berth.occupancy_changed.connect(_on_cargo_berth_occupancy_changed)
+	var occupant := berth.get_occupant()
+	if is_instance_valid(occupant):
+		_on_cargo_berth_occupancy_changed(occupant)
+	return _result(true, &"cargo_access_bound")
+
+
+func get_cargo_transfer_authority() -> CargoTransferAuthority:
+	return _cargo_authority if is_instance_valid(_cargo_authority) else null
+
+
+func get_cargo_source_handle() -> Dictionary:
+	return _cargo_source_handle.duplicate(true)
+
+
+func get_cargo_destination_handle() -> Dictionary:
+	return _cargo_destination_handle.duplicate(true)
+
+
+func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
+	if not is_instance_valid(occupant) or not _cargo_source_handle.is_empty():
+		return
+	if not occupant.has_method("get_ship_id") \
+		or StringName(occupant.call("get_ship_id")) != &"jovian_provisional":
+		return
 	var source_registration := _cargo_authority.register_entity(
-		source, &"cinder_supply_tender", &"cinder_supply_manifest", 8,
+		occupant, &"jovian_provisional", &"cinder_jovian_source_manifest", 8,
 		{&"cinder_supply_crates": 2}
 	)
-	var destination_registration := _cargo_authority.register_entity(
-		destination, &"cinder_platform", &"cinder_platform_manifest", 8
-	)
-	_cargo_source_handle = source_registration.get("handle", {}).duplicate(true)
-	_cargo_destination_handle = destination_registration.get("handle", {}).duplicate(true)
+	if not bool(source_registration.get("accepted", false)):
+		return
+	_cargo_source_entity = occupant
+	_cargo_source_handle = (
+		source_registration.get("handle", {}) as Dictionary
+	).duplicate(true)
 	var cargo_contract := CARGO_CONTRACT.new(
 		&"cinder_platform_supply_run", _cargo_source_handle,
 		_cargo_destination_handle, &"cinder_supply_crates", 1,
 		[&"load_crate", &"clear_gate", &"dock_platform"], 120.0
 	)
-	_cargo_activity = CARGO_ACTIVITY.new(_cargo_authority, cargo_contract) as CargoDeliveryActivity
-	_mining_activity = MINING_ACTIVITY.new() as RefCounted
-	_scan_activity = SCAN_ACTIVITY.new() as RefCounted
-	_beacon_activity = BEACON_ACTIVITY.new() as RefCounted
-	_session_adapter = SESSION_ADAPTER.new() as RefCounted
+	_cargo_activity = CARGO_ACTIVITY.new(
+		_cargo_authority, cargo_contract
+	) as CargoDeliveryActivity
+
+
+func _on_cargo_manifest_retired(handle: Dictionary) -> void:
+	if handle != _cargo_source_handle:
+		return
+	_cargo_source_handle.clear()
+	_cargo_source_entity = null
+	_cargo_activity = null
 
 
 func start_convoy() -> Dictionary:
@@ -453,6 +530,31 @@ func get_snapshot() -> Dictionary:
 		"race": _race_session.get_presentation_snapshot() if is_instance_valid(_race_session) else {},
 		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
 		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
+		"cargo_binding": {
+			"access_bound": is_instance_valid(_cargo_access),
+			"access_attachment_generation": _cargo_access_attachment_generation,
+			"terminal_bound": (
+				bool(_cargo_terminal.get_state_snapshot().get("bound", false))
+				if is_instance_valid(_cargo_terminal) else false
+			),
+			"terminal_ready": (
+				bool(_cargo_terminal.get_state_snapshot().get("ready", false))
+				if is_instance_valid(_cargo_terminal) else false
+			),
+			"source_entity_instance_id": (
+				_cargo_source_entity.get_instance_id()
+				if is_instance_valid(_cargo_source_entity) else 0
+			),
+			"source_handle": _cargo_source_handle.duplicate(true),
+			"destination_handle": _cargo_destination_handle.duplicate(true),
+			"authority_instance_id": (
+				_cargo_authority.get_instance_id()
+				if is_instance_valid(_cargo_authority) else 0
+			),
+			"inventory_authority": false,
+			"ship_motion_authority": false,
+			"reward_authority": false,
+		},
 		"station_defense_bound": _station_binding_current(),
 		"station_defense_state": (
 			_station_director.call("get_state") if _station_binding_current() else &"unbound"
@@ -486,7 +588,16 @@ func audit() -> Dictionary:
 		errors.append("authored beacon race audit failed")
 	if not is_instance_valid(_patrol) or not bool(_patrol.audit().get("valid", false)):
 		errors.append("authored beacon patrol audit failed")
-	if not is_instance_valid(_cargo_activity) or not _cargo_activity.is_configuration_valid():
+	if not is_instance_valid(_cargo_authority) or _cargo_authority.get_parent() != self:
+		errors.append("one existing cargo authority is required")
+	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_terminal):
+		errors.append("production cargo physical endpoints are required")
+	elif (
+		_cargo_destination_handle.is_empty()
+		or not bool(_cargo_terminal.get_state_snapshot().get("bound", false))
+	):
+		errors.append("production cargo destination terminal is not bound")
+	if is_instance_valid(_cargo_activity) and not _cargo_activity.is_configuration_valid():
 		errors.append("authored platform cargo run audit failed")
 	if _station_binding_current() and not _station_director.has_method("begin_station_defense"):
 		errors.append("station defense authority contract is incomplete")

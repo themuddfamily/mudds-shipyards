@@ -288,6 +288,13 @@ func _enter_tree() -> void:
 func _restore_cluster_enabled_after_reentry() -> void:
 	if not _built or is_queued_for_deletion() or not is_inside_tree():
 		return
+	if is_instance_valid(_cargo_access) and is_instance_valid(_cargo_destination_terminal):
+		_activity_binding.call(
+			"bind_cargo_access",
+			_cargo_access,
+			_cargo_destination_terminal,
+			_cargo_access.get_attachment_generation()
+		)
 	set_cluster_enabled(_cluster_enabled)
 
 
@@ -1707,6 +1714,12 @@ func _build_cargo_access(platform: Node3D) -> void:
 	_cargo_destination_terminal.name = "CargoDestinationTerminal"
 	_cargo_destination_terminal.transform = CinderCargoAccess.DESTINATION_TERMINAL_ROOT_LOCAL
 	platform.add_child(_cargo_destination_terminal)
+	_activity_binding.call(
+		"bind_cargo_access",
+		_cargo_access,
+		_cargo_destination_terminal,
+		_cargo_access.get_attachment_generation()
+	)
 
 
 ## Original-modern activity silhouette. Every child is presentation-only:

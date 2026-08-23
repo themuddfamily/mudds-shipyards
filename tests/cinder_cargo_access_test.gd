@@ -64,13 +64,13 @@ func _run() -> void:
 		"*", "CargoTransferAuthority", true, false
 	)
 	_check(
-		not bool(terminal_state.bound)
-		and not bool(terminal_state.ready)
-		and StringName(terminal_state.state_id) == &"unbound"
+		bool(terminal_state.bound)
+		and bool(terminal_state.ready)
+		and StringName(terminal_state.state_id) == &"ready"
 		and existing_cargo_authorities.size() == 1
 		and existing_cargo_authorities[0].name == &"CinderCargoTransferAuthority"
 		and existing_cargo_authorities[0].get_parent() == cluster.get_node(^"ActivityBinding"),
-		"physical terminal stays unbound while the cluster's existing cargo activity retains its sole authority"
+		"physical terminal delegates to the cluster's one existing cargo authority"
 	)
 	var cluster_audit := cluster.get_cluster_audit_report()
 	_check(bool(cluster_audit.valid), "cargo access placement remains inside the production cluster audit budget")
@@ -81,6 +81,7 @@ func _run() -> void:
 	var lease_token := StringName(fit.get("lease_token", &""))
 	if ship != null and not lease_token.is_empty():
 		await _test_gameflow_compatible_landing_and_egress(access, ship, lease_token)
+		_test_live_cargo_binding(cluster, access, terminal, ship, lease_token)
 		await _test_embodied_bidirectional_route(access, ship)
 		await _test_detach_reentry(platform, access, ship, lease_token)
 	else:
@@ -91,6 +92,47 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_live_cargo_binding(
+		cluster: NearbySectorCluster,
+		access: CinderCargoAccess,
+		terminal: CargoTransferTerminal,
+		ship: HeroShip,
+		lease_token: StringName
+	) -> void:
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var authority := binding.get_cargo_transfer_authority()
+	var source_handle := binding.get_cargo_source_handle()
+	var destination_handle := binding.get_cargo_destination_handle()
+	var source_manifest := authority.get_manifest_snapshot(source_handle)
+	var destination_manifest := authority.get_manifest_snapshot(destination_handle)
+	var binding_snapshot := binding.get_snapshot()
+	_check(
+		int(binding_snapshot.cargo_binding.source_entity_instance_id) == ship.get_instance_id()
+		and StringName(source_handle.entity_id) == ship.get_ship_id()
+		and StringName(source_handle.manifest_id) == &"cinder_jovian_source_manifest"
+		and StringName(destination_handle.entity_id) == terminal.terminal_id
+		and StringName(destination_handle.manifest_id) == terminal.manifest_id
+		and int(source_manifest.used_capacity) == 2
+		and int(destination_manifest.used_capacity) == 0
+		and bool(source_manifest.attached) and bool(destination_manifest.attached)
+		and bool(binding_snapshot.cargo_binding.terminal_ready),
+		"landed live Jovian and physical destination terminal publish the exact source/destination manifests owned by one authority"
+	)
+	var terminal_before_stale := terminal.get_state_snapshot()
+	_check(
+		terminal.bind_authority(authority, destination_handle, 0).reason \
+			== &"stale_terminal_generation"
+		and terminal.get_state_snapshot() == terminal_before_stale,
+		"stale terminal generation cannot replace or mutate the live destination binding"
+	)
+	_check(
+		not access.get_berth().release(ship, &"stale-cinder-berth-lease")
+		and access.get_berth().get_occupant() == ship
+		and access.get_berth().get_reservation_token(ship) == lease_token,
+		"stale berth lease cannot release the landed Jovian or disturb its live cargo source"
+	)
 
 
 func _test_identity_placement_budget_and_authority(
@@ -615,6 +657,11 @@ func _test_detach_reentry(
 	var streaming_parent := cluster.get_parent()
 	var terminal := cluster.get_cinder_cargo_destination_terminal()
 	var terminal_id := terminal.get_instance_id()
+	var terminal_generation := terminal.get_terminal_generation()
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var cargo_authority_id := binding.get_cargo_transfer_authority().get_instance_id()
+	var source_handle := binding.get_cargo_source_handle()
+	var destination_handle := binding.get_cargo_destination_handle()
 	var berth := access.get_berth()
 	var berth_id := berth.get_instance_id()
 	var old_attachment_generation := access.get_attachment_generation()
@@ -659,6 +706,16 @@ func _test_detach_reentry(
 		and access.get_berth().get_instance_id() == berth_id
 		and cluster.get_cinder_cargo_access() == access
 		and cluster.get_cinder_cargo_destination_terminal().get_instance_id() == terminal_id
+		and terminal.get_terminal_generation() == terminal_generation
+		and bool(terminal.get_state_snapshot().ready)
+		and binding.get_cargo_transfer_authority().get_instance_id() == cargo_authority_id
+		and binding.get_cargo_source_handle() == source_handle
+		and binding.get_cargo_destination_handle() == destination_handle
+		and int(binding.get_snapshot().cargo_binding.access_attachment_generation) \
+			== access.get_attachment_generation()
+		and bool(binding.get_cargo_transfer_authority().get_manifest_snapshot(
+			destination_handle
+		).attached)
 		and body_ids == reentry_body_ids
 		and route_batch_ids == reentry_route_batch_ids
 		and route_batch_buffers == reentry_route_batch_buffers
@@ -670,6 +727,13 @@ func _test_detach_reentry(
 		and bool(access.audit().budget_exact)
 		and bool(access.get_route_cue_visual_allocation_audit().valid),
 		"re-entry preserves occupied lease and node identities, advances attachment generation once, rejects stale generation, and does not duplicate geometry"
+	)
+	_check(
+		binding.bind_cargo_access(access, terminal, old_attachment_generation).reason \
+			== &"stale_attachment_generation"
+		and binding.get_cargo_source_handle() == source_handle
+		and binding.get_cargo_destination_handle() == destination_handle,
+		"stale streamed berth attachment generation cannot replace either live cargo handle"
 	)
 	_check(berth.release(ship, lease_token), "re-entered occupied Jovian lease releases through the canonical berth contract")
 	ship.queue_free()
@@ -697,14 +761,20 @@ func _test_detach_reentry(
 		"same re-entered berth publicly accepts a fresh off-centre Jovian capture"
 	)
 	var off_center_frames := await _await_public_landing(replacement, 1200)
+	var replacement_source_handle := binding.get_cargo_source_handle()
 	_check(
 		off_center_frames > 0
 		and off_center_frames < 1200
 		and bool(replacement.get_telemetry().landed)
 		and StringName(replacement.get_telemetry().landing_abort_reason).is_empty()
 		and access.get_berth().get_occupant() == replacement
+		and replacement_source_handle != source_handle
+		and int(replacement_source_handle.entity_generation) \
+			> int(source_handle.entity_generation)
+		and int(binding.get_snapshot().cargo_binding.source_entity_instance_id) \
+			== replacement.get_instance_id()
 		and access.get_berth().release(replacement, token),
-		"off-centre public approach completes through real physics to occupancy with no abort"
+		"off-centre replacement becomes the fresh live source generation and lands with no abort"
 	)
 	replacement.queue_free()
 	await process_frame
