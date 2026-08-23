@@ -71,7 +71,7 @@ func enter_structure(structure_id: StringName, position: Variant, attachment_gen
 		var start_distance := (structure.position_body_local_m as Vector3).distance_to(start_landmark.get("position_body_local_m", Vector3.INF) as Vector3)
 		if StringName(activity.get("route_id", &"")) == StringName(structure.get("route_id", &"")) or start_distance <= 40.0:
 			intents.append({"activity_id": activity.get("id", &""), "start_landmark_id": activity.get("start_landmark_id", &""), "activity_intent": true})
-	return _result(true, &"structure_entered", {"receipt": {"interaction_id": &"structure:%s:enter" % structure_id, "structure_id": structure_id, "distance_m": distance, "activity_intents": intents}})
+	return _result(true, &"structure_entered", {"receipt": {"interaction_id": &"structure:%s:enter" % structure_id, "structure_id": structure_id, "route_id": structure.route_id, "distance_m": distance, "activity_intents": intents}})
 
 
 func exit_structure(expected_attachment_generation: Variant) -> Dictionary:
@@ -104,6 +104,24 @@ func reenter(new_attachment_generation: Variant) -> Dictionary:
 
 func get_snapshot() -> Dictionary:
 	return {"configured": _configured, "state": [&"idle", &"inside", &"detached"][_state], "active_structure_id": _active_structure, "attachment_generation": _attachment_generation, "authority": {"movement": false, "activity": false, "reward": false, "doors": false}}.duplicate(true)
+
+
+func restore_snapshot(snapshot: Variant) -> Dictionary:
+	if not _configured or not snapshot is Dictionary:
+		return _result(false, &"invalid_settlement_snapshot")
+	var saved := snapshot as Dictionary
+	var structure_id := StringName(saved.get("active_structure_id", &""))
+	var state_id := StringName(saved.get("state", &"idle"))
+	if not [StringName("idle"), StringName("inside"), StringName("detached")].has(state_id):
+		return _result(false, &"invalid_settlement_snapshot")
+	if state_id != &"idle" and (structure_id.is_empty() or not _structures.has(structure_id)):
+		return _result(false, &"invalid_settlement_snapshot")
+	if state_id == &"idle":
+		structure_id = &""
+	_active_structure = structure_id
+	_attachment_generation = int(saved.get("attachment_generation", 0))
+	_state = [ &"idle", &"inside", &"detached" ].find(state_id)
+	return _result(true, &"settlement_restored")
 
 
 func _valid_generation(value: Variant) -> bool:

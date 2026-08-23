@@ -13,6 +13,8 @@ const WaterScript := preload("res://scripts/world/planetary_water_contact_runtim
 const WaterContractScript := preload("res://scripts/world/planetary_water_surface_material_contract.gd")
 const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark_runtime.gd")
 const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
+const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
+const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 
 class FakeHost:
 	var generation := 7
@@ -61,6 +63,7 @@ func _run() -> void:
 	await _test_surface_origin_rebase_preserves_absolute_identity()
 	await _test_surface_water_recovery_preserves_route()
 	await _test_landmark_discovery_admits_activity_once()
+	await _test_settlement_entry_admits_once_across_reentry()
 	_finish()
 
 
@@ -579,6 +582,51 @@ func _test_landmark_discovery_admits_activity_once() -> void:
 			{"ember_caldera_pad": &"ridge_relay"}
 		).reason == &"landmark_order_mismatch",
 		"the same discovery receipt cannot replay the activity admission"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_settlement_entry_admits_once_across_reentry() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var settlement := SettlementScript.new()
+	settlement.configure(SettlementContractScript.new())
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.bind_settlement(settlement)
+	var discovered := adapter.discover_settlements(
+		Vector3(92.0, 120000.5, -18.0), 20.0
+	)
+	_check(
+		discovered.accepted and discovered.discoveries.size() > 0
+			and discovered.discoveries[0].structure_id == &"ember_habitat_spine",
+		"settlement discovery exposes the authored structure before entry"
+	)
+	var entered := adapter.submit_settlement_entry(
+		&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0), 1
+	)
+	_check(
+		entered.accepted and entered.reason == &"settlement_entry_admitted"
+			and entered.receipt.activity_intents.size() > 0
+			and entered.receipt.route_id == &"ember_pad_to_settlement_spine"
+			and entered.receipt.interaction_id == &"structure:ember_habitat_spine:enter",
+		"settlement entry emits nearby activity and stable route interaction intents"
+	)
+	_check(
+		adapter.submit_settlement_entry(
+			&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0), 1
+		).reason == &"settlement_entry_already_consumed",
+		"the same settlement interaction cannot be admitted twice"
+	)
+	settlement.detach()
+	settlement.reenter(2)
+	var saved := adapter.get_session_snapshot()
+	_check(
+		saved.settlement.state == &"inside"
+			and saved.settlement_entries.has(&"ember_habitat_spine"),
+		"settlement active structure and consumed entry persist across re-entry"
 	)
 	director.queue_free()
 	await process_frame

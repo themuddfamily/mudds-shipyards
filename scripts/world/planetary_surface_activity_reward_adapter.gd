@@ -38,6 +38,8 @@ var _route_activity_landmarks: Dictionary = {}
 var _hazard: RefCounted
 var _water: RefCounted
 var _landmark_runtime: RefCounted
+var _settlement: RefCounted
+var _settlement_entries: Dictionary = {}
 var _coordinate_frame_generation := 0
 var _location_generation := 0
 var _last_origin_receipt: Dictionary = {}
@@ -158,6 +160,47 @@ func bind_activity_landmarks(landmarks: RefCounted) -> Dictionary:
 		return _reject(&"landmarks_unavailable")
 	_landmark_runtime = landmarks
 	return _accept(&"landmarks_bound")
+
+
+func bind_settlement(settlement: RefCounted) -> Dictionary:
+	if settlement == null or not bool(settlement.get_snapshot().get("configured", false)):
+		return _reject(&"settlement_unavailable")
+	_settlement = settlement
+	return _accept(&"settlement_bound")
+
+
+func discover_settlements(position: Variant, radius_m: Variant) -> Dictionary:
+	if _settlement == null:
+		return _reject(&"settlement_unavailable")
+	var discovered: Dictionary = _settlement.call(&"discover", position, radius_m)
+	return _with_adapter(
+		discovered,
+		bool(discovered.get("accepted", false)),
+		discovered.get("reason", &"settlement_discovery_rejected") as StringName
+	)
+
+
+## Enters one authored settlement structure once and exposes its nearby route
+## and activity intents. The adapter does not open doors or start activities.
+func submit_settlement_entry(
+		structure_id: StringName,
+		position: Variant,
+		attachment_generation: int
+	) -> Dictionary:
+	if _settlement == null:
+		return _reject(&"settlement_unavailable")
+	if _settlement_entries.has(structure_id):
+		return _reject(&"settlement_entry_already_consumed")
+	var entered: Dictionary = _settlement.call(
+		&"enter_structure", structure_id, position, attachment_generation
+	)
+	if not bool(entered.get("accepted", false)):
+		return _with_adapter(entered, false, entered.get("reason", &"settlement_entry_rejected") as StringName)
+	_settlement_entries[structure_id] = {
+		"attachment_generation": attachment_generation,
+		"interaction_id": entered.get("receipt", {}).get("interaction_id", &""),
+	}
+	return _with_adapter(entered, true, &"settlement_entry_admitted")
 
 
 ## Consumes one authored landmark receipt. If the current activity is already
@@ -506,6 +549,8 @@ func get_snapshot() -> Dictionary:
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"surface_water": _water.get_snapshot() if _water != null else {},
 		"activity_landmarks": _landmark_runtime.get_snapshot() if _landmark_runtime != null else {},
+		"settlement": _settlement.get_snapshot() if _settlement != null else {},
+		"settlement_entries": _settlement_entries.duplicate(true),
 		"authority": {
 			"host_mutation": false,
 			"activity_authority": false,
@@ -532,6 +577,8 @@ func get_session_snapshot() -> Dictionary:
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"surface_water": _water.get_snapshot() if _water != null else {},
 		"activity_landmarks": _landmark_runtime.get_snapshot() if _landmark_runtime != null else {},
+		"settlement": _settlement.get_snapshot() if _settlement != null else {},
+		"settlement_entries": _settlement_entries.duplicate(true),
 		"coordinate_frame_generation": _coordinate_frame_generation,
 		"location_generation": _location_generation,
 		"last_origin_receipt": _last_origin_receipt.duplicate(true),
@@ -544,7 +591,8 @@ func restore_session_snapshot(
 		snapshot: Variant,
 		navigation: RefCounted,
 		hazard: RefCounted,
-		landmarks: RefCounted = null
+		landmarks: RefCounted = null,
+		settlement: RefCounted = null
 	) -> Dictionary:
 	if not _bound or not snapshot is Dictionary or navigation == null or hazard == null:
 		return _reject(&"invalid_session_snapshot")
@@ -570,6 +618,16 @@ func restore_session_snapshot(
 		if not bool(landmark_result.get("accepted", false)):
 			return _reject(landmark_result.get("reason", &"landmark_restore_rejected") as StringName)
 		_landmark_runtime = landmarks
+	if settlement != null:
+		var settlement_snapshot := saved.get("settlement", {}) as Dictionary
+		if not settlement_snapshot.is_empty():
+			var settlement_result: Dictionary = settlement.call(
+				&"restore_snapshot", settlement_snapshot
+			)
+			if not bool(settlement_result.get("accepted", false)):
+				return _reject(settlement_result.get("reason", &"settlement_restore_rejected") as StringName)
+		_settlement = settlement
+	_settlement_entries = saved.get("settlement_entries", {}).duplicate(true)
 	var sequence := saved.get("activity_sequence", {}) as Dictionary
 	_sequence_ids = sequence.get("activity_ids", []) as Array[StringName]
 	_sequence_index = int(sequence.get("index", -1))
