@@ -40,15 +40,18 @@ const DEFERRED_DOCK_COUNT := 0
 const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
-## Exact post-batch renderer census. The twelve visual-only trunk expansion
-## strips still draw at their authored transforms, but one MultiMesh owns their
-## submission instead of twelve childless MeshInstance3D nodes.
+## Exact post-batch renderer census. The visual-only trunk expansion strips and
+## slab corner beacons still draw at their authored transforms, while one
+## MultiMesh per family owns each family's submission. The beacon nodes remain
+## hidden as stable named inspection anchors.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
-const RENDER_DESCENDANT_COUNT := 133
+const SLAB_CORNER_BEACON_COPY_COUNT := 12
+const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
+const RENDER_DESCENDANT_COUNT := 134
 const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 1
+const RENDER_MULTIMESH_BATCH_COUNT := 2
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 90
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 79
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -215,6 +218,8 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _trunk_expansion_joint_transforms: Array[Transform3D] = []
 var _trunk_expansion_joint_batch: MultiMeshInstance3D = null
+var _slab_corner_beacon_transforms: Array[Transform3D] = []
+var _slab_corner_beacon_batch: MultiMeshInstance3D = null
 
 
 func _ready() -> void:
@@ -476,7 +481,7 @@ func get_render_batch_contract() -> Dictionary:
 	var submissions := 0
 	for raw_node in mesh_nodes:
 		var instance := raw_node as MeshInstance3D
-		if instance.mesh == null:
+		if instance.mesh == null or not instance.visible:
 			continue
 		drawn_copies += 1
 		submissions += instance.mesh.get_surface_count()
@@ -490,19 +495,32 @@ func get_render_batch_contract() -> Dictionary:
 		drawn_copies += visible_copies
 		submissions += batch.multimesh.mesh.get_surface_count()
 
-	var expected_buffer := _encode_multimesh_transforms(_trunk_expansion_joint_transforms)
-	var renderer_buffer_matches := (
+	var expected_joint_buffer := _encode_multimesh_transforms(_trunk_expansion_joint_transforms)
+	var joint_buffer_matches := (
 		is_instance_valid(_trunk_expansion_joint_batch)
 		and _trunk_expansion_joint_batch.multimesh != null
-		and _trunk_expansion_joint_batch.multimesh.buffer == expected_buffer
+		and _trunk_expansion_joint_batch.multimesh.buffer == expected_joint_buffer
 	)
-	var bounds_match := false
+	var expected_beacon_buffer := _encode_multimesh_transforms(_slab_corner_beacon_transforms)
+	var beacon_buffer_matches := (
+		is_instance_valid(_slab_corner_beacon_batch)
+		and _slab_corner_beacon_batch.multimesh != null
+		and _slab_corner_beacon_batch.multimesh.buffer == expected_beacon_buffer
+	)
+	var joint_bounds_match := false
 	if is_instance_valid(_trunk_expansion_joint_batch) and _trunk_expansion_joint_batch.multimesh != null:
 		var expected_bounds := _transformed_mesh_bounds(
 			_trunk_expansion_joint_batch.multimesh.mesh.get_aabb(),
 			_trunk_expansion_joint_transforms
 		)
-		bounds_match = _trunk_expansion_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+		joint_bounds_match = _trunk_expansion_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+	var beacon_bounds_match := false
+	if is_instance_valid(_slab_corner_beacon_batch) and _slab_corner_beacon_batch.multimesh != null:
+		var expected_beacon_bounds := _transformed_mesh_bounds(
+			_slab_corner_beacon_batch.multimesh.mesh.get_aabb(),
+			_slab_corner_beacon_transforms
+		)
+		beacon_bounds_match = _slab_corner_beacon_batch.multimesh.custom_aabb.is_equal_approx(expected_beacon_bounds)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -511,6 +529,17 @@ func get_render_batch_contract() -> Dictionary:
 		and drawn_copies == RENDER_DRAWN_COPY_COUNT
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
 		and _trunk_expansion_joint_transforms.size() == TRUNK_EXPANSION_JOINT_COPY_COUNT
+		and _slab_corner_beacon_transforms.size() == SLAB_CORNER_BEACON_COPY_COUNT
+	)
+	var joint_buffer_floats := (
+		_trunk_expansion_joint_batch.multimesh.buffer.size()
+		if is_instance_valid(_trunk_expansion_joint_batch) and _trunk_expansion_joint_batch.multimesh != null
+		else 0
+	)
+	var beacon_buffer_floats := (
+		_slab_corner_beacon_batch.multimesh.buffer.size()
+		if is_instance_valid(_slab_corner_beacon_batch) and _slab_corner_beacon_batch.multimesh != null
+		else 0
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -520,15 +549,23 @@ func get_render_batch_contract() -> Dictionary:
 		"drawn_copies": drawn_copies,
 		"geometry_submissions": submissions,
 		"trunk_expansion_joint_copies": _trunk_expansion_joint_transforms.size(),
-		"renderer_buffer_floats": (
-			_trunk_expansion_joint_batch.multimesh.buffer.size()
-			if is_instance_valid(_trunk_expansion_joint_batch) and _trunk_expansion_joint_batch.multimesh != null
-			else 0
-		),
-		"renderer_buffer_matches_authored": renderer_buffer_matches,
-		"bounds_match_authored": bounds_match,
+		"slab_corner_beacon_copies": _slab_corner_beacon_transforms.size(),
+		"slab_corner_beacon_submissions_before": SLAB_CORNER_BEACON_COPY_COUNT,
+		"slab_corner_beacon_submissions_after": 1,
+		"geometry_submissions_before_slab_beacon_batch": PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT,
+		"geometry_submissions_removed": PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT - submissions,
+		"trunk_renderer_buffer_floats": joint_buffer_floats,
+		"slab_corner_beacon_renderer_buffer_floats": beacon_buffer_floats,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches,
+		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
+		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match,
+		"trunk_bounds_match_authored": joint_bounds_match,
+		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
+		"authored_slab_corner_beacon_transforms": _slab_corner_beacon_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"route_markers": get_route_ids().size(),
@@ -671,10 +708,14 @@ func get_validation_errors() -> PackedStringArray:
 	var rendering := get_render_batch_contract()
 	if not bool(rendering.exact_counts):
 		errors.append("comb renderer node, batch, copy, or submission counts drifted")
-	if not bool(rendering.renderer_buffer_matches_authored):
+	if not bool(rendering.trunk_renderer_buffer_matches_authored):
 		errors.append("comb trunk-joint renderer buffer drifted from its authored roster")
-	if not bool(rendering.bounds_match_authored):
+	if not bool(rendering.trunk_bounds_match_authored):
 		errors.append("comb trunk-joint batch bounds drifted from its authored copies")
+	if not bool(rendering.slab_corner_beacon_renderer_buffer_matches_authored):
+		errors.append("comb slab-corner-beacon renderer buffer drifted from its authored roster")
+	if not bool(rendering.slab_corner_beacon_bounds_match_authored):
+		errors.append("comb slab-corner-beacon batch bounds drifted from its authored copies")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -908,6 +949,7 @@ func _build_surface_detail() -> void:
 		[Vector3(15.0, 0.02, 25.0), 0.0],
 		[Vector3(15.0, 2.42, 40.0), 2.4],
 	]
+	_slab_corner_beacon_transforms.clear()
 	for index in slab_specs.size():
 		var top_center := slab_specs[index][0] as Vector3
 		var elevation := float(slab_specs[index][1])
@@ -924,13 +966,17 @@ func _build_surface_detail() -> void:
 		_visual_box(detail, "DockCrossStripe%02d" % (index + 1), top_center + Vector3(0, 0.035, 0), Vector3(8.2, 0.03, 0.18), status_material)
 		_visual_box(detail, "DockLongStripe%02d" % (index + 1), top_center + Vector3(0, 0.038, 0), Vector3(0.18, 0.03, 8.2), status_material)
 		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
-			_visual_box(
+			var beacon_anchor := _visual_box(
 				detail,
 				"SlabCornerBeacon%02d" % (index + 1),
 				Vector3(15.0 + corner.x, elevation + 0.08, top_center.z + corner.y),
 				Vector3(0.48, 0.12, 0.48),
 				_materials["amber"]
 			)
+			_slab_corner_beacon_transforms.append(beacon_anchor.transform)
+			# Keep the established names, transforms, meshes and material handles as
+			# stable inspection anchors. The single batch below owns their draw.
+			beacon_anchor.visible = false
 		# One practical per slab, over the slab centre, carrying the amber of the
 		# four corner beacons it stands between. Amber for all three rather than
 		# each slab's own status colour: the beacons are the constant element, and
@@ -945,6 +991,13 @@ func _build_surface_detail() -> void:
 			0.6,
 			7.2
 		)
+	_slab_corner_beacon_batch = _multimesh_boxes(
+		detail,
+		"SlabCornerBeacons",
+		Vector3(0.48, 0.12, 0.48),
+		_materials["amber"],
+		_slab_corner_beacon_transforms
+	)
 
 	# Narrow edge cues belong only to the true walkable rungs. They never bridge
 	# either of the large gaps between slabs.

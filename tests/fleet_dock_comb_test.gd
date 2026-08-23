@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_footprint_routes_and_authority(module)
 	await _test_collision_backed_comb_and_voids(module)
 	_test_trunk_expansion_joint_batch(module)
+	_test_slab_corner_beacon_batch(module)
 	_test_performance_contract(module)
 	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
@@ -256,23 +257,24 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 133
+		int(render.descendant_nodes) == 134
 		and int(render.mesh_instances) == 89
-		and int(render.multimesh_batches) == 1,
-		"renderer nodes freeze at 143 -> 133, MeshInstances 100 -> 89, batches 0 -> 1"
+		and int(render.multimesh_batches) == 2,
+		"renderer census includes one trunk batch and one slab-corner batch"
 	)
 	_check(
 		int(render.drawn_copies) == 101
-		and int(render.geometry_submissions) == 90
+		and int(render.geometry_submissions) == 79
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies become 101 while surface submissions become 90"
+		"drawn copies remain 101 while surface submissions become 79"
 	)
 	_check(
-		int(render.renderer_buffer_floats) == 144
+		int(render.trunk_renderer_buffer_floats) == 144
+		and int(render.renderer_buffer_floats) == 288
 		and bool(render.renderer_buffer_matches_authored)
 		and bool(render.bounds_match_authored)
 		and bool(render.exact_counts),
-		"renderer transform buffer freezes at 0 -> 144 floats with the exact authored culling union"
+		"both renderer buffers freeze at 144 floats with exact authored culling unions"
 	)
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
@@ -318,6 +320,108 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 	)
 	multi.custom_aabb = original_bounds
 	_check(module.get_validation_errors().is_empty(), "restoring the exact batch payload restores a clean module audit")
+
+
+func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
+	var detail := module.get_node_or_null(^"GeneratedComb/SurfaceDetail") as Node3D
+	var batch := module.get_node_or_null(
+		^"GeneratedComb/SurfaceDetail/SlabCornerBeacons"
+	) as MultiMeshInstance3D
+	_check(
+		detail != null and batch != null and batch.multimesh != null,
+		"twelve slab corner beacons resolve as one SurfaceDetail MultiMesh"
+	)
+	if detail == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for slab in [
+		[8.5, 0.08],
+		[25.0, 0.08],
+		[40.0, 2.48],
+	]:
+		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
+			expected.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(15.0 + corner.x, float(slab[1]), float(slab[0]) + corner.y)
+			))
+
+	var anchors: Array[MeshInstance3D] = []
+	for raw_node in detail.get_children():
+		var instance := raw_node as MeshInstance3D
+		if (
+			instance != null
+			and instance.mesh != null
+			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(0.48, 0.12, 0.48))
+			and not instance.visible
+		):
+			anchors.append(instance)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = (
+			anchors_exact
+			and anchors[index].transform.is_equal_approx(expected[index])
+			and anchors[index].get_child_count() == 0
+			and anchors[index].get_script() == null
+			and anchors[index].material_override == anchors[0].material_override
+		)
+	_check(
+		anchors_exact,
+		"all twelve legacy beacon anchors retain exact transforms, mesh, material and childless paths"
+	)
+	var multi := batch.multimesh
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		multi.instance_count == FleetDockComb.SLAB_CORNER_BEACON_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.48, 0.12, 0.48))
+		and anchors.size() == 12
+		and batch.material_override == anchors[0].material_override
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"batch preserves every copy, extent and amber material with no collision descendants"
+	)
+
+	var render := module.get_render_batch_contract()
+	_check(
+		int(render.slab_corner_beacon_submissions_before) == 12
+		and int(render.slab_corner_beacon_submissions_after) == 1
+		and int(render.geometry_submissions_before_slab_beacon_batch) == 90
+		and int(render.geometry_submissions) == 79
+		and int(render.geometry_submissions_removed) == 11
+		and int(render.slab_corner_beacon_renderer_buffer_floats) == 144,
+		"corner-beacon batching measures 12 -> 1 family submissions and 90 -> 79 overall"
+	)
+	_check(
+		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
+		and bool(render.slab_corner_beacon_bounds_match_authored)
+		and int(render.static_bodies) == 7
+		and int(render.collision_shapes) == 7
+		and int(render.route_markers) == 9
+		and int(render.dock_landmarks) == 3,
+		"batch preserves authored transforms, bounds, collision, routes and dock landmarks"
+	)
+	var detached := render.authored_slab_corner_beacon_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((module.get_render_batch_contract().authored_slab_corner_beacon_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"slab beacon render contract returns a detached transform roster"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has("comb slab-corner-beacon renderer buffer drifted from its authored roster"),
+		"mutating one live beacon renderer transform is rejected by the module audit"
+	)
+	multi.buffer = original_buffer
+	_check(module.get_validation_errors().is_empty(), "restoring the exact beacon batch restores a clean module audit")
 
 
 ## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else
