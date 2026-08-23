@@ -44,6 +44,10 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
             self.assertTrue((stage / "SHA256SUMS.txt").is_file())
             self.assertTrue((stage / "Start Mudds Shipyards.cmd").is_file())
             self.assertTrue((stage / "install/windows_portable_installer.py").is_file())
+            self.assertTrue((stage / "install/windows_portable_installer.ps1").is_file())
+            powershell = (stage / "install/windows_portable_installer.ps1").read_text(encoding="utf-8")
+            self.assertIn("ValidateSet('install', 'upgrade', 'status', 'rollback', 'uninstall')", powershell)
+            self.assertIn("Get-FileHash", powershell)
             self.assertEqual(first["manifest"]["signing"], "NOT_RUN")
             self.assertEqual(first["manifest"]["native_validation"], "NOT_RUN")
             self.assertEqual(first["manifest"]["portable_installer"]["launcher"], "Start Mudds Shipyards.cmd")
@@ -52,9 +56,11 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/MuddsShipyards.exe", bundle.namelist())
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/Start Mudds Shipyards.cmd", bundle.namelist())
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/windows_portable_installer.py", bundle.namelist())
+                self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/windows_portable_installer.ps1", bundle.namelist())
             installed = install_package(first["archive"], root / "installed")
             self.assertTrue((Path(installed["destination"]) / "Start Mudds Shipyards.cmd").is_file())
             self.assertTrue((Path(installed["destination"]) / "install/windows_portable_installer.py").is_file())
+            self.assertTrue((Path(installed["destination"]) / "install/windows_portable_installer.ps1").is_file())
 
     def test_checksum_manifest_matches_payload(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -116,6 +116,7 @@ def assemble_distribution(
     _copy(config, stage / "config" / "project.godot")
     (stage / LAUNCHER_NAME).write_bytes(_launcher_bytes())
     _copy(Path(__file__), stage / "install" / "windows_portable_installer.py")
+    _copy(Path(__file__).with_name("windows_portable_installer.ps1"), stage / "install" / "windows_portable_installer.ps1")
 
     payload_paths = [
         artifact_name,
@@ -124,6 +125,7 @@ def assemble_distribution(
         "config/project.godot",
         LAUNCHER_NAME,
         "install/windows_portable_installer.py",
+        "install/windows_portable_installer.ps1",
     ]
     if pck is not None:
         payload_paths.append("MuddsShipyards.pck")
@@ -140,6 +142,7 @@ def assemble_distribution(
         "human_playtest": "NOT_RUN",
         "portable_installer": {
             "path": "install/windows_portable_installer.py",
+            "powershell_path": "install/windows_portable_installer.ps1",
             "launcher": LAUNCHER_NAME,
             "commands": ["install", "upgrade", "status", "rollback", "uninstall"],
         },
