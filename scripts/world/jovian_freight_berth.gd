@@ -120,6 +120,14 @@ const CATWALK_LADDER_RUNG_COPY_COUNT := 12
 const CATWALK_LADDER_RUNG_SIZE := Vector3(0.08, 0.05, 0.9)
 const CATWALK_LADDER_RUNG_SUBMISSIONS_BEFORE := 12
 
+## Four identical visual-only wheels move with the existing animated trolley
+## root. The trolley keeps all motion and equipment identity; only these
+## childless rubber renderers share one bounded submission.
+const TROLLEY_WHEEL_COPY_COUNT := 4
+const TROLLEY_WHEEL_RADIUS := 0.2
+const TROLLEY_WHEEL_HEIGHT := 0.18
+const TROLLEY_WHEEL_SUBMISSIONS_BEFORE := 4
+
 ## Eighteen named, light-owning guide lenses keep their authored transforms and
 ## individual colour materials. Only their identical, one-surface sphere mesh is
 ## shared; this is not batching or a light/material consolidation.
@@ -228,6 +236,8 @@ var _catwalk_ladder_hoop_batch: MultiMeshInstance3D
 var _catwalk_ladder_hoop_transforms: Array[Transform3D] = []
 var _catwalk_ladder_rung_batch: MultiMeshInstance3D
 var _catwalk_ladder_rung_transforms: Array[Transform3D] = []
+var _trolley_wheel_batch: MultiMeshInstance3D
+var _trolley_wheel_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
@@ -758,6 +768,101 @@ func get_catwalk_ladder_rung_batch_contract() -> Dictionary:
 		"collision_authority": false,
 		"route_authority": false,
 		"interaction_authority": false,
+	}.duplicate(true)
+
+
+func get_trolley_wheel_batch_contract() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms: Array[Transform3D] = []
+	for z_side in [-1.0, 1.0]:
+		for x_side in [-1.0, 1.0]:
+			expected_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+				Vector3(x_side * 0.72, -0.35, z_side * 0.52)
+			))
+	var authored := (
+		_trolley_wheel_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_trolley_wheel_batch) else []
+	)
+	var transforms_exact := authored.size() == expected_transforms.size() \
+		and _trolley_wheel_transforms.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		transforms_exact = transforms_exact \
+			and (authored[index] as Transform3D).is_equal_approx(expected_transforms[index]) \
+			and _trolley_wheel_transforms[index].is_equal_approx(expected_transforms[index])
+	var multi: MultiMesh = (
+		_trolley_wheel_batch.multimesh
+		if is_instance_valid(_trolley_wheel_batch) else null
+	)
+	var batch_exact: bool = (
+		is_instance_valid(_crane_trolley)
+		and is_instance_valid(_trolley_wheel_batch)
+		and _trolley_wheel_batch.get_parent() == _crane_trolley
+		and _trolley_wheel_batch.name == &"TrolleyWheelBatch"
+		and multi != null
+		and multi.instance_count == TROLLEY_WHEEL_COPY_COUNT
+		and multi.visible_instance_count in [-1, TROLLEY_WHEEL_COPY_COUNT]
+		and multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(
+			TROLLEY_WHEEL_RADIUS * 2.0,
+			TROLLEY_WHEEL_HEIGHT,
+			TROLLEY_WHEEL_RADIUS * 2.0
+		))
+		and _trolley_wheel_batch.material_override == _materials.get("rubber")
+		and _trolley_wheel_batch.visible
+		and _trolley_wheel_batch.layers == 1
+		and _trolley_wheel_batch.cast_shadow \
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and not _trolley_wheel_batch.ignore_occlusion_culling
+		and is_zero_approx(_trolley_wheel_batch.extra_cull_margin)
+		and is_zero_approx(_trolley_wheel_batch.visibility_range_begin)
+		and is_zero_approx(_trolley_wheel_batch.visibility_range_end)
+		and _trolley_wheel_batch.visibility_range_fade_mode \
+			== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		and _trolley_wheel_batch.get_child_count() == 0
+		and _trolley_wheel_batch.get_script() == null
+		and _trolley_wheel_batch.get_groups().is_empty()
+		and bool(_trolley_wheel_batch.get_meta("visual_detail_only", false))
+		and StringName(_trolley_wheel_batch.get_meta("visual_batch_family_id", &"")) \
+			== &"trolley-wheels"
+		and transforms_exact
+	)
+	var retired_renderers := 0
+	if is_instance_valid(_crane_trolley):
+		for child in _crane_trolley.get_children():
+			if child is MeshInstance3D and str(child.name).begins_with("TrolleyWheel"):
+				retired_renderers += 1
+	if retired_renderers != 0:
+		errors.append("trolley_wheel_per_copy_renderer_not_retired")
+	if not batch_exact:
+		errors.append("trolley_wheel_batch_payload_drift")
+	if (
+		not is_instance_valid(_crane_trolley)
+		or not bool(_crane_trolley.get_meta("animated_station_equipment", false))
+		or get_animated_equipment_count() != 3
+	):
+		errors.append("trolley_equipment_identity_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_freight_berth_trolley_wheels",
+		"legacy": {
+			"renderer_submissions": TROLLEY_WHEEL_SUBMISSIONS_BEFORE,
+			"visible_copies": TROLLEY_WHEEL_COPY_COUNT,
+		},
+		"current": {
+			"renderer_submissions": 1 if batch_exact else 0,
+			"visible_copies": _trolley_wheel_transforms.size(),
+		},
+		"reductions": {
+			"renderer_submissions": TROLLEY_WHEEL_SUBMISSIONS_BEFORE - 1,
+			"visible_copies": 0,
+		},
+		"authored_transforms": _trolley_wheel_transforms.duplicate(),
+		"collision_authority": false,
+		"route_authority": false,
+		"interaction_authority": false,
+		"equipment_identity_retained": true,
 	}.duplicate(true)
 
 
@@ -1296,12 +1401,15 @@ func get_performance_contract() -> Dictionary:
 	contract["schema_version"] = SCHEMA_VERSION
 	var hoop_sharing := get_catwalk_ladder_hoop_visual_allocation_audit()
 	var rung_batching := get_catwalk_ladder_rung_batch_contract()
+	var trolley_wheel_batching := get_trolley_wheel_batch_contract()
 	contract["catwalk_ladder_hoop_visual_sharing"] = hoop_sharing
 	contract["catwalk_ladder_rung_batching"] = rung_batching
+	contract["trolley_wheel_batching"] = trolley_wheel_batching
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(hoop_sharing.valid)
 		and bool(rung_batching.valid)
+		and bool(trolley_wheel_batching.valid)
 	)
 	return contract
 
@@ -1689,9 +1797,29 @@ func _build_crane() -> void:
 	crane.add_child(_crane_trolley)
 	_animated_equipment.append(_crane_trolley)
 	_rounded_box(_crane_trolley, "TrolleyCarriage", Vector3.ZERO, Vector3(2.2, 0.65, 1.7), _materials["graphite"], false)
+	_trolley_wheel_transforms.clear()
 	for z_side in [-1.0, 1.0]:
 		for x_side in [-1.0, 1.0]:
-			_cylinder(_crane_trolley, "TrolleyWheel", Vector3(x_side * 0.72, -0.35, z_side * 0.52), 0.2, 0.18, _materials["rubber"], false, Vector3(90, 0, 0))
+			_trolley_wheel_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+				Vector3(x_side * 0.72, -0.35, z_side * 0.52)
+			))
+	var wheel_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		TROLLEY_WHEEL_RADIUS * 0.94,
+		TROLLEY_WHEEL_RADIUS,
+		TROLLEY_WHEEL_HEIGHT,
+		16,
+		_chamfered_cylinder_cache,
+		2
+	)
+	_trolley_wheel_batch = _multimesh_visuals(
+		_crane_trolley,
+		"TrolleyWheelBatch",
+		wheel_mesh,
+		_materials["rubber"],
+		_trolley_wheel_transforms,
+		&"trolley-wheels"
+	)
 
 	_crane_hook = Node3D.new()
 	_crane_hook.name = "AnimatedHoist"
