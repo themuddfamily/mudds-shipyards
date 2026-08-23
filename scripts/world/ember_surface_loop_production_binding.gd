@@ -53,7 +53,10 @@ const PlanetaryCompositionScript := preload("res://scripts/world/ember_planetary
 const ReturnManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
 const ReturnTravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
 const ReturnBerthAdapterScript := preload("res://scripts/world/planetary_return_berth_adapter.gd")
+const ReturnPersistenceAdapterScript := preload("res://scripts/world/planetary_return_persistence_adapter.gd")
 const PlanetaryTravelAudioBindingScript := preload("res://scripts/audio/planetary_travel_audio_binding.gd")
+const RETURN_PERSISTENCE_SCHEMA_VERSION := 1
+const RETURN_PERSISTENCE_PAYLOAD_KIND: StringName = &"ember_planetary_return"
 
 var _state := State.IDLE
 var _generation := 0
@@ -87,6 +90,9 @@ var _last_planetary_altitude_m := 0.0
 var _relay_return_manifest: RefCounted
 var _relay_return_travel: RefCounted
 var _return_berth_adapter: RefCounted
+var _return_persistence_adapter: RefCounted
+var _return_persistence_store: RefCounted
+var _return_persistence_slot: StringName = &""
 var _travel_audio_binding: RefCounted
 
 var _last_caller_serial := 0
@@ -553,6 +559,87 @@ func reset_planetary_return_berth() -> Dictionary:
 	if _return_berth_adapter == null:
 		return _reject(&"return_berth_adapter_unavailable")
 	return _return_berth_adapter.call(&"reset")
+
+
+## Caller-owned UserDataStore bridge for the terminal Ember return. Only the
+## completed marker is committed; surface attachment and berth lease authority
+## are deliberately absent from the persisted payload.
+func configure_planetary_return_persistence(
+		store: RefCounted, slot_id: StringName = &"ember_planetary_return"
+	) -> Dictionary:
+	if store == null or str(slot_id).strip_edges().is_empty():
+		return _reject(&"return_persistence_configuration_invalid")
+	_return_persistence_store = store
+	_return_persistence_slot = slot_id
+	_return_persistence_adapter = ReturnPersistenceAdapterScript.new()
+	return {"accepted": true, "reason": &"return_persistence_configured", "slot_id": slot_id}
+
+
+func save_planetary_return_persistence(
+		travel_session: Object, return_contract: Object, returned_receipt: Variant,
+		expected_store_generation: int, commit_id: String
+	) -> Dictionary:
+	if not _return_persistence_configured():
+		return _reject(&"return_persistence_unavailable")
+	if expected_store_generation < 0 or commit_id.strip_edges().is_empty():
+		return _reject(&"return_persistence_save_request_invalid")
+	var captured: Dictionary = _return_persistence_adapter.call(
+		&"capture", travel_session, return_contract, returned_receipt
+	)
+	if not bool(captured.get("accepted", true)):
+		return captured
+	var payload := {
+		"schema_version": RETURN_PERSISTENCE_SCHEMA_VERSION,
+		"payload_kind": RETURN_PERSISTENCE_PAYLOAD_KIND,
+		"slot_id": _return_persistence_slot,
+		"binding_generation": _generation,
+		"session": captured.duplicate(true),
+	}
+	var result: Dictionary = _return_persistence_store.call(
+		&"commit", payload, expected_store_generation, commit_id
+	)
+	result["binding_reason"] = &"saved" if bool(result.get("accepted", false)) else &"store_rejected"
+	return result
+
+
+func restore_planetary_return_persistence() -> Dictionary:
+	if not _return_persistence_configured():
+		return _reject(&"return_persistence_unavailable")
+	var loaded: Dictionary = _return_persistence_store.call(&"load")
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	var payload := loaded.get("payload", {}) as Dictionary
+	if int(payload.get("schema_version", 0)) != RETURN_PERSISTENCE_SCHEMA_VERSION \
+			or StringName(payload.get("payload_kind", &"")) != RETURN_PERSISTENCE_PAYLOAD_KIND \
+			or StringName(payload.get("slot_id", &"")) != _return_persistence_slot:
+		return _reject(&"return_persistence_wrong_slot")
+	if _planetary_composition != null:
+		var surface := _planetary_composition.call(&"get_snapshot") as Dictionary
+		if bool(surface.get("attached", false)):
+			return _reject(&"return_persistence_surface_attachment_active")
+	var restored: Dictionary = _return_persistence_adapter.call(
+		&"restore", payload.get("session", {})
+	)
+	if not bool(restored.get("accepted", false)):
+		return restored
+	return {"accepted": true, "reason": &"return_persistence_loaded", "detached": true, "fresh_station": true, "session": restored}
+
+
+func get_planetary_return_persistence_snapshot() -> Dictionary:
+	return {
+		"configured": _return_persistence_configured(),
+		"slot_id": _return_persistence_slot,
+		"detached": true,
+		"fresh_station": true,
+		"adapter": _return_persistence_adapter.call(&"get_snapshot") if _return_persistence_adapter != null else {},
+		"owns_save_authority": false,
+	}.duplicate(true)
+
+
+func _return_persistence_configured() -> bool:
+	return is_instance_valid(_return_persistence_store) \
+			and _return_persistence_adapter != null \
+			and not _return_persistence_slot.is_empty()
 
 
 func retire_planetary_return(next_session_generation: int) -> Dictionary:
