@@ -259,6 +259,10 @@ var cargo_delivery_activity: CargoDeliveryActivity
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
 var network_session: NetworkSessionAdapterType
+var _network_session_mode: StringName = &""
+var _network_session_address := "127.0.0.1"
+var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
+var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -484,7 +488,12 @@ func host_network_session(
 	var session := _ensure_network_session()
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
-	return session.host(port, max_clients)
+	_network_session_mode = &"server"
+	_network_session_port = port
+	_network_session_max_clients = max_clients
+	var result := session.host(port, max_clients)
+	_publish_network_session_result(result, &"server")
+	return result
 
 
 func join_network_session(
@@ -494,13 +503,20 @@ func join_network_session(
 	var session := _ensure_network_session()
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
-	return session.join(address, port)
+	_network_session_mode = &"client"
+	_network_session_address = address
+	_network_session_port = port
+	var result := session.join(address, port)
+	_publish_network_session_result(result, &"client")
+	return result
 
 
 func shutdown_network_session(reason: StringName = &"requested") -> Dictionary:
 	if not is_instance_valid(network_session):
 		return {"accepted": false, "status": &"not_started"}
-	return network_session.shutdown(reason)
+	var result := network_session.shutdown(reason)
+	_publish_network_session_snapshot(&"disconnected", _network_session_mode, "Session closed: %s" % reason, true)
+	return result
 
 
 func get_network_session() -> NetworkSessionAdapterType:
@@ -515,6 +531,10 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	network_session = NetworkSessionAdapterType.new()
 	network_session.name = "NetworkSession"
 	add_child(network_session)
+	_connect_signal_once(network_session, &"session_started", _on_network_session_started)
+	_connect_signal_once(network_session, &"session_stopped", _on_network_session_stopped)
+	_connect_signal_once(network_session, &"peer_admitted", _on_network_peer_admitted)
+	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
 	return network_session
 
 
@@ -1790,6 +1810,11 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
 	_connect_signal_once(
 		hud,
+		&"presentation_intent_requested",
+		_on_hud_presentation_intent_requested
+	)
+	_connect_signal_once(
+		hud,
 		&"orderly_shutdown_requested",
 		_on_orderly_shutdown_requested
 	)
@@ -1842,6 +1867,73 @@ func _connect_runtime_signals() -> void:
 			&"deck_recovery_required",
 			_on_tractor_deck_recovery_required
 		)
+
+
+func _publish_network_session_snapshot(
+	state: StringName, role: StringName, detail: String, retryable := false
+) -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"update_network_session_status"):
+		return
+	hud.call(
+		&"update_network_session_status",
+		{"state": state, "role": role, "detail": detail, "retryable": retryable}
+	)
+
+
+func _publish_network_session_result(result: Dictionary, role: StringName) -> void:
+	if bool(result.get("accepted", false)):
+		var state: StringName = &"connected" if role == &"server" else &"connecting"
+		_publish_network_session_snapshot(
+			state,
+			role,
+			"Session host is listening." if role == &"server" else "Contacting the session host.",
+			false
+		)
+		return
+	_publish_network_session_snapshot(
+		&"failed", role, "Network session failed: %s" % result.get("status", &"unknown"), true
+	)
+
+
+func _on_network_session_started(mode: StringName) -> void:
+	_publish_network_session_snapshot(
+		&"connected" if mode == &"server" else &"connecting",
+		mode,
+		"Session host is listening." if mode == &"server" else "Contacting the session host.",
+		false
+	)
+
+
+func _on_network_session_stopped(reason: StringName) -> void:
+	_publish_network_session_snapshot(
+		&"disconnected", _network_session_mode, "Session closed: %s" % reason, true
+	)
+
+
+func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
+	if _network_session_mode == &"client":
+		_publish_network_session_snapshot(
+			&"connected", &"client", "Session host accepted peer %d." % peer_id, false
+		)
+
+
+func _on_network_transport_rejected(status: StringName) -> void:
+	_publish_network_session_snapshot(
+		&"failed", _network_session_mode, "Network transport rejected: %s" % status, true
+	)
+
+
+func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary) -> void:
+	if kind != &"network":
+		return
+	match StringName(str(payload.get("action", &""))):
+		&"retry":
+			if _network_session_mode == &"server":
+				host_network_session(_network_session_port, _network_session_max_clients)
+			elif _network_session_mode == &"client":
+				join_network_session(_network_session_address, _network_session_port)
+		&"cancel", &"disconnect":
+			shutdown_network_session(&"ui_%s" % payload.get("action", &"cancel"))
 
 
 func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
