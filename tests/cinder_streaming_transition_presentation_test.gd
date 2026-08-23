@@ -146,9 +146,13 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 		and hidden.get("phase") == &"fading_in"
 		and is_zero_approx(float(hidden.get("opacity", -1.0)))
 		and not cluster.visible
-		and renderers.size() == 163
-		and lights.size() == 23,
+		and renderers.size() == 224
+		and lights.size() == 27,
 		"a streamed generation commits fully hidden before its first draw"
+	)
+	_check(
+		_aperture_lens_batch_contract(cluster),
+		"eight semantic aperture lenses retain exact transforms and renderer settings behind one bounded MultiMesh"
 	)
 	_check(
 		_all_renderer_transparency(renderers, 1.0)
@@ -335,6 +339,57 @@ func _visual_resource_ids(renderers: Array[Node]) -> PackedInt64Array:
 		else:
 			ids.append(0)
 	return ids
+
+
+func _aperture_lens_batch_contract(cluster: NearbySectorCluster) -> bool:
+	var platform := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var batch := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
+	) as MultiMeshInstance3D
+	if platform == null or batch == null or batch.multimesh == null:
+		return false
+	var multi := batch.multimesh
+	var transforms := batch.get_meta(
+		&"authored_instance_transforms", []
+	) as Array
+	var source_paths := batch.get_meta(&"semantic_source_paths", []) as Array
+	if multi.instance_count != 8 \
+		or multi.transform_format != MultiMesh.TRANSFORM_3D \
+		or multi.custom_aabb.size.length_squared() <= 0.0 \
+		or transforms.size() != 8 \
+		or source_paths.size() != 8 \
+		or batch.get_meta(&"visual_batch_family_id", &"") \
+			!= &"cinder-streaming-aperture-lenses":
+		return false
+	var exemplar: MeshInstance3D
+	var platform_inverse := platform.global_transform.affine_inverse()
+	for index in source_paths.size():
+		var source := cluster.get_node_or_null(source_paths[index]) as MeshInstance3D
+		if source == null or source.visible or source.mesh == null \
+			or not (transforms[index] as Transform3D).is_equal_approx(
+				platform_inverse * source.global_transform
+			):
+			return false
+		if exemplar == null:
+			exemplar = source
+	if exemplar == null:
+		return false
+	return multi.mesh == exemplar.mesh \
+		and batch.material_override == exemplar.material_override \
+		and batch.material_overlay == exemplar.material_overlay \
+		and batch.cast_shadow == exemplar.cast_shadow \
+		and batch.layers == exemplar.layers \
+		and batch.visibility_range_begin == exemplar.visibility_range_begin \
+		and batch.visibility_range_end == exemplar.visibility_range_end \
+		and batch.visibility_range_begin_margin == exemplar.visibility_range_begin_margin \
+		and batch.visibility_range_end_margin == exemplar.visibility_range_end_margin \
+		and batch.visibility_range_fade_mode == exemplar.visibility_range_fade_mode \
+		and batch.extra_cull_margin == exemplar.extra_cull_margin \
+		and batch.ignore_occlusion_culling == exemplar.ignore_occlusion_culling \
+		and batch.gi_mode == exemplar.gi_mode \
+		and batch.lod_bias == exemplar.lod_bias
 
 
 func _presentation_state(cluster: NearbySectorCluster) -> Dictionary:

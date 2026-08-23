@@ -12,9 +12,16 @@ const UNLOAD_BOUNDARY_METERS := 650.0
 const FADE_IN_SECONDS := 0.5
 const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
-const EXPECTED_RENDERER_COUNT := 163
-const EXPECTED_LIGHT_COUNT := 23
+const EXPECTED_AUTHORED_RENDERER_COUNT := 223
+const EXPECTED_BOUND_RENDERER_COUNT := 224
+const EXPECTED_LIGHT_COUNT := 27
 const EPSILON := 0.000001
+const APERTURE_LENS_BATCH_NAME: StringName = &"StreamingApertureLensBatch"
+const APERTURE_LENS_FAMILY_ID: StringName = &"cinder-streaming-aperture-lenses"
+const APERTURE_FRAME_PATHS: Array[NodePath] = [
+	^"ExtractionPlatform/CinderReachPlatform/GantryFrame1",
+	^"ExtractionPlatform/CinderReachPlatform/GantryFrame2",
+]
 
 var _content_root: Node3D
 var _generation := -1
@@ -48,14 +55,22 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 		"*", "GeometryInstance3D", true, false
 	)
 	var lights := content_root.find_children("*", "Light3D", true, false)
-	if renderers.size() != EXPECTED_RENDERER_COUNT:
+	if renderers.size() != EXPECTED_AUTHORED_RENDERER_COUNT:
 		content_root.visible = false
 		return _result(false, &"renderer_roster_mismatch")
 	if lights.size() != EXPECTED_LIGHT_COUNT:
 		content_root.visible = false
 		return _result(false, &"light_roster_mismatch")
+	var aperture_lens_family := _validate_aperture_lens_family(content_root)
+	if aperture_lens_family.is_empty():
+		content_root.visible = false
+		return _result(false, &"aperture_lens_family_mismatch")
 
 	_mutation_active = true
+	var aperture_lens_batch := _build_aperture_lens_batch(
+		content_root, aperture_lens_family
+	)
+	renderers.append(aperture_lens_batch)
 	_content_root = content_root
 	_generation = generation
 	_renderers.clear()
@@ -189,7 +204,7 @@ func audit() -> Dictionary:
 	var errors := PackedStringArray()
 	if not _bound or not is_instance_valid(_content_root):
 		errors.append("one live streamed content root is required")
-	if _renderers.size() != EXPECTED_RENDERER_COUNT:
+	if _renderers.size() != EXPECTED_BOUND_RENDERER_COUNT:
 		errors.append("renderer roster drifted")
 	if _lights.size() != EXPECTED_LIGHT_COUNT:
 		errors.append("light roster drifted")
@@ -277,6 +292,104 @@ func _apply_opacity() -> void:
 		var light := record.get("node") as Light3D
 		if is_instance_valid(light):
 			light.light_energy = float(record.get("authored_energy", 0.0)) * _opacity
+
+
+## The eight dock-aperture lenses are one immutable mesh/material recipe and
+## carry no collision, navigation, activity state, or animation. Their authored
+## MeshInstance paths stay present as hidden semantic identities; this streamed
+## generation draws their exact transforms through one bounded submission.
+func _validate_aperture_lens_family(content_root: Node3D) -> Array[MeshInstance3D]:
+	var family: Array[MeshInstance3D] = []
+	var exemplar: MeshInstance3D
+	for frame_path in APERTURE_FRAME_PATHS:
+		var frame := content_root.get_node_or_null(frame_path) as Node3D
+		if frame == null:
+			return []
+		var frame_lens_count := 0
+		for child in frame.get_children():
+			var lens := child as MeshInstance3D
+			if lens == null or not lens.mesh is SphereMesh:
+				continue
+			frame_lens_count += 1
+			if not lens.get_children().is_empty():
+				return []
+			if exemplar == null:
+				exemplar = lens
+			elif lens.mesh != exemplar.mesh \
+				or lens.material_override != exemplar.material_override \
+				or lens.material_overlay != exemplar.material_overlay \
+				or lens.cast_shadow != exemplar.cast_shadow \
+				or lens.layers != exemplar.layers \
+				or lens.transparency != exemplar.transparency \
+				or lens.visibility_range_begin != exemplar.visibility_range_begin \
+				or lens.visibility_range_end != exemplar.visibility_range_end \
+				or lens.visibility_range_begin_margin != exemplar.visibility_range_begin_margin \
+				or lens.visibility_range_end_margin != exemplar.visibility_range_end_margin \
+				or lens.visibility_range_fade_mode != exemplar.visibility_range_fade_mode \
+				or lens.extra_cull_margin != exemplar.extra_cull_margin \
+				or lens.ignore_occlusion_culling != exemplar.ignore_occlusion_culling \
+				or lens.gi_mode != exemplar.gi_mode \
+				or lens.lod_bias != exemplar.lod_bias:
+				return []
+			family.append(lens)
+		if frame_lens_count != 4:
+			return []
+	return family
+
+
+func _build_aperture_lens_batch(
+		content_root: Node3D, family: Array[MeshInstance3D]
+	) -> MultiMeshInstance3D:
+	var platform := content_root.get_node(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var exemplar := family[0]
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var has_bounds := false
+	var platform_inverse := platform.global_transform.affine_inverse()
+	for lens in family:
+		var instance_transform := platform_inverse * lens.global_transform
+		transforms.append(instance_transform)
+		var instance_bounds := instance_transform * exemplar.mesh.get_aabb()
+		bounds = bounds.merge(instance_bounds) if has_bounds else instance_bounds
+		has_bounds = true
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = exemplar.mesh
+	multi.instance_count = transforms.size()
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = bounds
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = APERTURE_LENS_BATCH_NAME
+	batch.multimesh = multi
+	batch.material_override = exemplar.material_override
+	batch.material_overlay = exemplar.material_overlay
+	batch.cast_shadow = exemplar.cast_shadow
+	batch.layers = exemplar.layers
+	batch.transparency = exemplar.transparency
+	batch.visibility_range_begin = exemplar.visibility_range_begin
+	batch.visibility_range_end = exemplar.visibility_range_end
+	batch.visibility_range_begin_margin = exemplar.visibility_range_begin_margin
+	batch.visibility_range_end_margin = exemplar.visibility_range_end_margin
+	batch.visibility_range_fade_mode = exemplar.visibility_range_fade_mode
+	batch.extra_cull_margin = exemplar.extra_cull_margin
+	batch.ignore_occlusion_culling = exemplar.ignore_occlusion_culling
+	batch.gi_mode = exemplar.gi_mode
+	batch.lod_bias = exemplar.lod_bias
+	batch.set_meta(&"visual_batch_family_id", APERTURE_LENS_FAMILY_ID)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	var source_paths: Array[NodePath] = []
+	for lens in family:
+		source_paths.append(content_root.get_path_to(lens))
+	batch.set_meta(&"semantic_source_paths", source_paths)
+	platform.add_child(batch)
+	for lens in family:
+		lens.visible = false
+	return batch
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
