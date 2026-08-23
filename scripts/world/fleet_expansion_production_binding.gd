@@ -9,16 +9,30 @@ const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
 const Cargo := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const Bomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
+const ShipAudioRigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
+const FleetAudioBinding := preload("res://scripts/audio/fleet_expansion_audio_binding.gd")
 const CRAFT_SPECS: Array[Dictionary] = [
 	{"pad_id": &"dock_04_cargo", "craft_id": &"cinder_cargo_hauler", "script": Cargo},
 	{"pad_id": &"dock_05_bomber", "craft_id": &"cinder_long_range_bomber", "script": Bomber},
 	{"pad_id": &"dock_06_interceptor", "craft_id": &"cinder_light_interceptor", "script": Interceptor},
 ]
+const AUDIO_RECIPE_BY_CRAFT := {
+	&"cinder_cargo_hauler": &"cargo_craft",
+	&"cinder_long_range_bomber": &"bomber",
+	&"cinder_light_interceptor": &"lightweight_interceptor",
+}
+const RIG_PROFILE_BY_RECIPE := {
+	&"cargo_craft": &"heavy_quad_freighter",
+	&"bomber": &"standard_fighter",
+	&"lightweight_interceptor": &"efficient_twin_recon",
+}
 
 var _berths: Node3D
 var _craft_by_id: Dictionary = {}
 var _built := false
 var _composition_error: StringName = &""
+var _audio_bindings: Dictionary = {}
+var _reduced_dynamic_range := false
 
 
 func _ready() -> void:
@@ -37,6 +51,9 @@ func _assemble() -> void:
 		var craft := (spec.get("script") as GDScript).new() as Node3D
 		craft.name = String(spec.craft_id)
 		craft.set_meta(&"evidence_status", &"NEW")
+		var ship_audio_rig := ShipAudioRigScene.instantiate() as Node3D
+		ship_audio_rig.set("profile_id", RIG_PROFILE_BY_RECIPE[AUDIO_RECIPE_BY_CRAFT[spec.craft_id]])
+		craft.add_child(ship_audio_rig)
 		add_child(craft)
 		_craft_by_id[spec.craft_id] = craft
 	await get_tree().process_frame
@@ -47,7 +64,33 @@ func _assemble() -> void:
 		if not bool(result.get("accepted", false)):
 			_composition_error = StringName(result.get("reason", &"attachment_failed"))
 			return
+		var audio_result := _bind_craft_audio(spec.craft_id, _craft_by_id[spec.craft_id])
+		if not bool(audio_result.get("accepted", false)):
+			_composition_error = StringName(audio_result.get("reason", &"audio_binding_failed"))
+			return
 	_built = true
+
+
+func _bind_craft_audio(craft_id: StringName, craft: Node3D) -> Dictionary:
+	var rig := craft.call("get_ship_audio_rig") as Node if craft.has_method(&"get_ship_audio_rig") else null
+	if not is_instance_valid(rig):
+		return {"accepted": false, "reason": &"ship_audio_rig_missing"}
+	var binding := FleetAudioBinding.new()
+	var result: Dictionary = binding.bind(AUDIO_RECIPE_BY_CRAFT[craft_id], rig)
+	if bool(result.get("accepted", false)):
+		binding.set_reduced_dynamic_range(_reduced_dynamic_range)
+		_audio_bindings[craft_id] = binding
+	return result
+
+
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	_reduced_dynamic_range = enabled
+	var rejected := PackedStringArray()
+	for craft_id: StringName in _audio_bindings:
+		var result: Dictionary = (_audio_bindings[craft_id] as RefCounted).set_reduced_dynamic_range(enabled)
+		if not bool(result.get("accepted", false)):
+			rejected.append(str(craft_id))
+	return {"accepted": rejected.is_empty(), "reason": &"mix_updated" if rejected.is_empty() else &"mix_update_failed"}
 
 
 func detach_craft(craft_id: StringName) -> Dictionary:
@@ -55,7 +98,10 @@ func detach_craft(craft_id: StringName) -> Dictionary:
 		return {"accepted": false, "reason": &"unknown_craft"}
 	for spec in CRAFT_SPECS:
 		if spec.craft_id == craft_id:
-			return _berths.call("detach_craft", spec.pad_id, _craft_by_id[craft_id])
+			var result: Dictionary = _berths.call("detach_craft", spec.pad_id, _craft_by_id[craft_id])
+			if bool(result.get("accepted", false)) and _audio_bindings.has(craft_id):
+				(_audio_bindings[craft_id] as RefCounted).detach()
+			return result
 	return {"accepted": false, "reason": &"unknown_craft"}
 
 
@@ -64,7 +110,12 @@ func reattach_craft(craft_id: StringName) -> Dictionary:
 		return {"accepted": false, "reason": &"unknown_craft"}
 	for spec in CRAFT_SPECS:
 		if spec.craft_id == craft_id:
-			return _berths.call("attach_craft", spec.pad_id, _craft_by_id[craft_id], craft_id)
+			var result: Dictionary = _berths.call("attach_craft", spec.pad_id, _craft_by_id[craft_id], craft_id)
+			if bool(result.get("accepted", false)):
+				var audio_result := _bind_craft_audio(craft_id, _craft_by_id[craft_id])
+				if not bool(audio_result.get("accepted", false)):
+					return audio_result
+			return result
 	return {"accepted": false, "reason": &"unknown_craft"}
 
 
@@ -78,6 +129,7 @@ func get_fleet_snapshot() -> Dictionary:
 			"attached": bool((_berths.call("get_attachment_snapshot", spec.pad_id) if _berths != null else {}).get("attached", false)),
 			"instance_id": craft.get_instance_id() if is_instance_valid(craft) else 0,
 			"boarding_anchor": craft.call("get_boarding_marker").global_position if is_instance_valid(craft) else Vector3.INF,
+			"audio": (_audio_bindings[spec.craft_id] as RefCounted).get_snapshot() if _audio_bindings.has(spec.craft_id) else {},
 		})
 	return {"built": _built, "composition_error": _composition_error, "craft": craft_snapshots}.duplicate(true)
 
@@ -94,6 +146,8 @@ func get_audit_report() -> Dictionary:
 		var craft := _craft_by_id.get(spec.craft_id) as Node3D
 		if craft == null or not bool(craft.call("get_audit_report").get("valid", false)):
 			errors.append("craft audit failed: %s" % spec.craft_id)
+		if not _audio_bindings.has(spec.craft_id):
+			errors.append("audio binding missing: %s" % spec.craft_id)
 	return {
 		"schema_version": 1,
 		"valid": errors.is_empty(),
