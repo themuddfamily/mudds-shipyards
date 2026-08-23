@@ -55,6 +55,8 @@ const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
 const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
+const LOADMASTER_STATION_SEAT_ID: StringName = &"crew_port_00"
+const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 const ENGINEER_POWER_ROUTE_BONUS := 0.15
 const CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION := 1
 const HALYARD_CREW_ROLE_OCCUPANT_META: StringName = &"_halyard_crew_role_occupant"
@@ -115,6 +117,8 @@ signal engineer_power_route_changed(
 	bonus: float,
 	receipt: Dictionary
 )
+signal loadmaster_manifest_intent_accepted(receipt: Dictionary)
+signal loadmaster_manifest_cleared(generation: int, reason: StringName)
 
 const DESIGN_NOTE := (
 	"The Halyard is an original modern design created for this remake. It is not "
@@ -323,6 +327,8 @@ var _crew_status_display: HalyardCrewStatusDisplay
 var _passenger_ping_cooldowns: Dictionary = {}
 var _gunner_role_cooldowns: Dictionary = {}
 var _passenger_ping_markers: Dictionary = {}
+var _loadmaster_manifest_receipt: Dictionary = {}
+var _loadmaster_manifest_generation := 1
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
 var _engineer_component_selection: Dictionary = {}
@@ -362,6 +368,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_loadmaster_manifest(&"ship_detached")
 	if _ship_perspective_audio_binding != null:
 		if camera_view_changed.is_connected(_on_halyard_camera_view_changed):
 			camera_view_changed.disconnect(_on_halyard_camera_view_changed)
@@ -434,6 +441,8 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	if _crew_status_display != null and is_instance_valid(_crew_status_display):
 		_crew_status_display.clear_for_detach()
 	_clear_passenger_ping_markers(&"ship_reused")
+	_clear_loadmaster_manifest(&"ship_reused", false)
+	_loadmaster_manifest_generation = 1
 	_passenger_ping_cooldowns.clear()
 	_gunner_role_cooldowns.clear()
 	_clear_gunner_target_selection(&"ship_reused", false)
@@ -591,6 +600,9 @@ func submit_crew_intent(
 	if assignment.is_empty():
 		return _crew_role_result(false, &"assignment_not_found")
 	var role := StringName(assignment.get("role", &""))
+	var is_loadmaster_manifest := role == CrewRoleGameplayProfileType.ROLE_PASSENGER \
+			and StringName(assignment.get("seat_id", &"")) == LOADMASTER_STATION_SEAT_ID \
+			and action == CrewRoleGameplayProfileType.ACTION_PASSENGER_CARGO_MANIFEST
 	var supported := (
 		role == CrewRoleGameplayProfileType.ROLE_PILOT
 			and action == CrewRoleGameplayProfileType.ACTION_FLIGHT_COMMAND
@@ -603,7 +615,7 @@ func submit_crew_intent(
 	) or (
 		role == CrewRoleGameplayProfileType.ROLE_PASSENGER
 			and action == CrewRoleGameplayProfileType.ACTION_PASSENGER_PING
-	)
+	) or is_loadmaster_manifest
 	if not supported:
 		return _crew_role_result(false, &"unsupported_halyard_role_action")
 	var admission := _crew_role_authority.submit_intent(
@@ -626,7 +638,11 @@ func submit_crew_intent(
 			else (
 				_consume_gunner_fire_intent(intent)
 				if role == CrewRoleGameplayProfileType.ROLE_GUNNER
-				else _consume_passenger_ping_intent(intent)
+				else (
+					_consume_loadmaster_manifest_intent(intent)
+					if is_loadmaster_manifest
+					else _consume_passenger_ping_intent(intent)
+				)
 			)
 		)
 	)
@@ -1012,6 +1028,32 @@ func get_passenger_ping_markers() -> Array[Dictionary]:
 	return markers
 
 
+## The fallback loadmaster station is a real passenger seat in the Halyard's
+## authored cabin. It is intentionally not a second seat ledger or a cargo
+## transfer terminal.
+func get_loadmaster_station_anchor() -> Marker3D:
+	for anchor in _crew_seat_anchors:
+		if StringName(anchor.get_meta("seat_id", &"")) == LOADMASTER_STATION_SEAT_ID:
+			return anchor
+	return null
+
+
+## Returns only caller-owned manifest/readiness evidence. Inventory, reward,
+## cargo movement, and berth authority remain outside this role.
+func get_loadmaster_manifest_snapshot() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"station_seat_id": LOADMASTER_STATION_SEAT_ID,
+		"station_present": is_instance_valid(get_loadmaster_station_anchor()),
+		"manifest_generation": _loadmaster_manifest_generation,
+		"receipt": _loadmaster_manifest_receipt.duplicate(true),
+		"cargo_transfer_authority": false,
+		"inventory_mutation_authority": false,
+		"reward_authority": false,
+		"helm_authority": false,
+	}.duplicate(true)
+
+
 ## Detached occupancy/gameplay view for downstream network and HUD consumers.
 ## The authority remains the owner of claims and generations; this method only
 ## copies its current assignments and Halyard-local role receipts. It returns
@@ -1028,6 +1070,7 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 		"role_occupancy": role_occupancy,
 		"selected_targets": {"gunner": {}, "engineer": {}},
 		"active_markers": [],
+		"loadmaster_manifest": get_loadmaster_manifest_snapshot(),
 		"power_routing": {
 			"engineer": {},
 			"effective_outputs": {
@@ -1112,6 +1155,8 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 				and _crew_role_state_matches_actor(_passenger_ping_markers.get(actor_key, {}), occupant_peer_id, avatar_id):
 			occupant["active_marker"] = (_passenger_ping_markers[actor_key] as Dictionary).duplicate(true)
 			(snapshot["active_markers"] as Array).append(occupant["active_marker"])
+		if _crew_role_state_matches_actor(_loadmaster_manifest_receipt, occupant_peer_id, avatar_id):
+			occupant["loadmaster_manifest"] = _loadmaster_manifest_receipt.duplicate(true)
 		var detached_occupant := occupant.duplicate(true)
 		(snapshot["occupants"] as Array).append(detached_occupant)
 		(role_occupancy[role] as Array).append(occupant.duplicate(true))
@@ -1323,6 +1368,41 @@ func _consume_passenger_ping_intent(intent: Dictionary) -> Dictionary:
 	var result := _crew_role_result(true, &"passenger_ping_emitted")
 	result["marker"] = marker.duplicate(true)
 	result["cooldown_remaining"] = PASSENGER_PING_COOLDOWN_SECONDS
+	return result
+
+
+## Loadmaster support is a receipt-only cabin action. The caller supplies a
+## manifest/route/readiness proposal; this ship records it for downstream
+## consumers but never transfers inventory, grants reward, or claims helm.
+func _consume_loadmaster_manifest_intent(intent: Dictionary) -> Dictionary:
+	var assignment_seat_id := StringName(intent.get("seat_id", &""))
+	if assignment_seat_id != LOADMASTER_STATION_SEAT_ID:
+		return _crew_role_result(false, &"loadmaster_station_required")
+	if not is_instance_valid(get_loadmaster_station_anchor()):
+		return _crew_role_result(false, &"loadmaster_station_unavailable")
+	if is_destroyed():
+		return _crew_role_result(false, &"ship_destroyed")
+	var payload := intent.get("payload", {}) as Dictionary
+	var receipt := {
+		"role": CrewRoleGameplayProfileType.ROLE_PASSENGER,
+		"seat_id": assignment_seat_id,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"seat_generation": int(intent.get("seat_generation", 0)),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+		"manifest_generation": _loadmaster_manifest_generation,
+		"manifest_id": StringName(payload.get("manifest_id", &"")),
+		"route_id": StringName(payload.get("route_id", &"")),
+		"ready": bool(payload.get("ready", false)),
+		"cargo_transfer_authority": false,
+		"inventory_mutation_authority": false,
+		"reward_authority": false,
+		"helm_authority": false,
+	}.duplicate(true)
+	_loadmaster_manifest_receipt = receipt
+	loadmaster_manifest_intent_accepted.emit(receipt.duplicate(true))
+	var result := _crew_role_result(true, &"loadmaster_manifest_recorded")
+	result["receipt"] = receipt.duplicate(true)
 	return result
 
 
@@ -2639,6 +2719,7 @@ func _sync_interior_occupant_collision() -> void:
 func _set_interior_operational(enabled: bool) -> void:
 	if not enabled:
 		_clear_passenger_ping_markers(&"interior_unavailable")
+		_clear_loadmaster_manifest(&"interior_unavailable")
 		_passenger_ping_cooldowns.clear()
 		_gunner_role_cooldowns.clear()
 		_clear_gunner_target_selection(&"interior_unavailable")
@@ -2663,6 +2744,7 @@ func _set_interior_operational(enabled: bool) -> void:
 func _cleanup_detached_passenger_pings() -> void:
 	var tagged_occupancy_present := _cleanup_detached_crew_role_occupants()
 	if _passenger_ping_markers.is_empty() \
+			and _loadmaster_manifest_receipt.is_empty() \
 			and _gunner_target_selection.is_empty() \
 			and _engineer_component_selection.is_empty() \
 			and _pilot_command_state.is_empty() \
@@ -2670,6 +2752,7 @@ func _cleanup_detached_passenger_pings() -> void:
 		return
 	if _crew_role_authority == null:
 		_clear_passenger_ping_markers(&"authority_detached")
+		_clear_loadmaster_manifest(&"authority_detached")
 		_clear_gunner_target_selection(&"authority_detached")
 		_clear_engineer_component_selection(&"authority_detached")
 		_clear_pilot_command(&"authority_detached")
@@ -2689,6 +2772,14 @@ func _cleanup_detached_passenger_pings() -> void:
 			StringName(marker.get("avatar_id", &"")),
 			&"role_detached"
 		)
+	if not _loadmaster_manifest_receipt.is_empty():
+		var loadmaster_assignment := _crew_role_authority.get_assignment(
+			int(_loadmaster_manifest_receipt.get("occupant_peer_id", 0)),
+			StringName(_loadmaster_manifest_receipt.get("avatar_id", &""))
+		)
+		if loadmaster_assignment.is_empty() \
+				or StringName(loadmaster_assignment.get("seat_id", &"")) != LOADMASTER_STATION_SEAT_ID:
+			_clear_loadmaster_manifest(&"role_detached")
 	if not _gunner_target_selection.is_empty():
 		var target_assignment := _crew_role_authority.get_assignment(
 			int(_gunner_target_selection.get("occupant_peer_id", 0)),
@@ -2771,6 +2862,8 @@ func _clear_crew_role_state(
 	_passenger_ping_cooldowns.erase(actor_key)
 	_gunner_role_cooldowns.erase(actor_key)
 	_clear_passenger_ping_for_actor(occupant_peer_id, avatar_id, reason)
+	if _crew_role_state_matches_actor(_loadmaster_manifest_receipt, occupant_peer_id, avatar_id):
+		_clear_loadmaster_manifest(reason)
 	if not _gunner_target_selection.is_empty() \
 			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_gunner_target_selection.get("avatar_id", &"")) == avatar_id:
@@ -2814,6 +2907,16 @@ func _clear_passenger_ping_markers(reason: StringName) -> void:
 			StringName(marker.get("avatar_id", &"")),
 			reason
 		)
+
+
+func _clear_loadmaster_manifest(reason: StringName, advance_generation: bool = true) -> void:
+	_loadmaster_manifest_receipt.clear()
+	if advance_generation:
+		_loadmaster_manifest_generation = mini(
+			_loadmaster_manifest_generation + 1,
+			LOADMASTER_MANIFEST_GENERATION_MAX
+		)
+	loadmaster_manifest_cleared.emit(_loadmaster_manifest_generation, reason)
 
 
 func _clear_gunner_target_selection(reason: StringName, advance_generation: bool = true) -> void:

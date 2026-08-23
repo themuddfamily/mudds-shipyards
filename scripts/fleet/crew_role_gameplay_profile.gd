@@ -26,6 +26,7 @@ const ACTION_FLIGHT_COMMAND: StringName = &"flight_command"
 const ACTION_GUNNER_FIRE: StringName = &"gunner_fire"
 const ACTION_ENGINEER_REPAIR: StringName = &"engineer_repair"
 const ACTION_PASSENGER_PING: StringName = &"passenger_ping"
+const ACTION_PASSENGER_CARGO_MANIFEST: StringName = &"passenger_cargo_manifest"
 
 const ROLE_CAPABILITIES := {
 	ROLE_PILOT: [CAPABILITY_SHIP_COMMAND],
@@ -79,7 +80,8 @@ static func validate_intent(role: StringName, action: StringName, payload: Dicti
 	if not ROLE_ACTIONS.has(role):
 		return _rejected(&"invalid_role")
 	var profile: Dictionary = ROLE_ACTIONS[role]
-	if StringName(profile.get("action", &"")) != action:
+	if StringName(profile.get("action", &"")) != action \
+			and not (role == ROLE_PASSENGER and action == ACTION_PASSENGER_CARGO_MANIFEST):
 		return _rejected(&"action_not_allowed")
 	match action:
 		ACTION_FLIGHT_COMMAND:
@@ -90,6 +92,8 @@ static func validate_intent(role: StringName, action: StringName, payload: Dicti
 			return _engineer_repair(payload)
 		ACTION_PASSENGER_PING:
 			return _passenger_ping(payload)
+		ACTION_PASSENGER_CARGO_MANIFEST:
+			return _passenger_cargo_manifest(payload)
 		_:
 			return _rejected(&"unknown_action")
 
@@ -165,6 +169,21 @@ static func _passenger_ping(payload: Dictionary) -> Dictionary:
 	if not _valid_id(channel) or not _valid_id(marker_id):
 		return _rejected(&"invalid_passenger_ping_payload")
 	return _accepted({"channel": channel, "marker_id": marker_id})
+
+
+static func _passenger_cargo_manifest(payload: Dictionary) -> Dictionary:
+	if not _exact_keys(payload, ["manifest_id", "route_id", "ready"]):
+		return _rejected(&"invalid_cargo_manifest_schema")
+	var manifest_id := StringName(str(payload.get("manifest_id", "")))
+	var route_id := StringName(str(payload.get("route_id", "")))
+	if not _valid_id(manifest_id) or not _valid_id(route_id) \
+			or not payload.get("ready", false) is bool:
+		return _rejected(&"invalid_cargo_manifest_payload")
+	return _accepted({
+		"manifest_id": manifest_id,
+		"route_id": route_id,
+		"ready": bool(payload.get("ready", false)),
+	})
 
 
 static func _exact_keys(payload: Dictionary, expected: Array) -> bool:
