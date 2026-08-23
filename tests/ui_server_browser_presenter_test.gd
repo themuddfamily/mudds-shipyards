@@ -28,6 +28,29 @@ func _run() -> void:
 	_check(not presenter.request_join(&"cinder_run").accepted, "presenter cannot authorize joining")
 	browser.advance_clock(77, 14)
 	_check(presenter.present(browser).row_count == 0, "stale directory rows are omitted on refresh")
+	var failure_snapshot := presenter.present_result({
+		"accepted": false,
+		"reason": &"directory_timeout",
+		"message": "Directory timed out. Try again.",
+		"retryable": true,
+	})
+	_check(
+		failure_snapshot.status == &"error"
+		and failure_snapshot.error_code == &"directory_timeout"
+		and failure_snapshot.error_message == "Directory timed out. Try again.",
+		"caller failure results become explicit textual error state"
+	)
+	_check(
+		failure_snapshot.actions.size() == 2
+		and failure_snapshot.actions[0].id == &"retry"
+		and failure_snapshot.actions[0].focusable
+		and failure_snapshot.actions[1].id == &"cancel"
+		and failure_snapshot.actions[1].focusable,
+		"failure state exposes controller-focusable retry and cancel actions"
+	)
+	_check(presenter.request_retry().accepted and presenter.request_cancel().accepted, "retry and cancel return external caller intents")
+	var terminal := presenter.present_result({"accepted": false, "reason": &"directory_closed", "retryable": false})
+	_check(terminal.status == &"error" and terminal.actions.size() == 1 and terminal.actions[0].id == &"cancel", "non-retryable failure keeps an explicit cancel action")
 	var audit := presenter.audit()
 	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority), "audit records presentation boundary")
 	if _failures.is_empty():

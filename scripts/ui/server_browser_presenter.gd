@@ -39,22 +39,68 @@ func present(browser: RefCounted) -> Dictionary:
 	if browser == null or not browser.has_method("query"):
 		return _reject(&"invalid_browser")
 	var source_rows: Array = browser.query(_region_filter, _max_ping_ms, _include_full)
+	return present_result({"accepted": true, "rows": source_rows})
+
+
+## Consumes a caller-owned directory result without assuming how it was fetched.
+## Error actions are intents for the owning screen; this presenter never retries,
+## cancels a request, or touches a network transport.
+func present_result(result: Dictionary) -> Dictionary:
+	if not bool(result.get("accepted", false)):
+		var reason := StringName(str(result.get("reason", &"directory_unavailable")))
+		var message := str(result.get("message", "Server list unavailable. Try again."))
+		var retryable := bool(result.get("retryable", true))
+		return _store_snapshot(_status_snapshot(&"error", [], reason, message, retryable))
+	var source_rows: Array = result.get("rows", []) as Array
 	var rows: Array = []
 	for source in source_rows:
 		if rows.size() >= MAX_ROWS or not source is Dictionary:
 			break
 		rows.append(_present_row(source as Dictionary))
-	var snapshot := {
+	return _store_snapshot(_status_snapshot(
+		&"ready" if not rows.is_empty() else &"empty",
+		rows,
+		&"" if not rows.is_empty() else &"no_matches",
+		"" if not rows.is_empty() else "No matching servers.",
+		false
+	))
+
+
+func request_retry() -> Dictionary:
+	if _last_snapshot.get("status", &"") != &"error" or not bool(_last_snapshot.get("retryable", false)):
+		return {"accepted": false, "reason": &"retry_not_available", "presentation_only": true}
+	return {"accepted": true, "reason": &"retry_requested", "presentation_only": true}
+
+
+func request_cancel() -> Dictionary:
+	return {"accepted": true, "reason": &"cancel_requested", "presentation_only": true}
+
+
+func _status_snapshot(status: StringName, rows: Array, reason: StringName, message: String, retryable: bool) -> Dictionary:
+	var actions: Array = []
+	if status == &"error":
+		if retryable:
+			actions.append({"id": &"retry", "label": "Retry server list", "focusable": true})
+		actions.append({"id": &"cancel", "label": "Cancel", "focusable": true})
+	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
 		"generation": _generation,
 		"filters": get_filters(),
 		"rows": rows,
 		"row_count": rows.size(),
+		"status": status,
+		"error_code": reason,
+		"error_message": message,
+		"retryable": retryable,
+		"actions": actions,
 		"accessibility_prompts": get_accessibility_prompts(),
 		"presentation_only": true,
 		"join_authority": false,
 	}
+
+
+func _store_snapshot(snapshot: Dictionary) -> Dictionary:
 	_last_snapshot = snapshot.duplicate(true)
 	return snapshot
 
@@ -79,6 +125,9 @@ func get_accessibility_prompts() -> Dictionary:
 		"refresh": "Refresh server list",
 		"empty_results": "No matching servers",
 		"stale_results": "Refresh to see current servers",
+		"error_results": "Server list unavailable",
+		"retry": "Retry server list",
+		"cancel": "Cancel",
 		"join_hint": "Select a server to request joining",
 	}.duplicate(true)
 
