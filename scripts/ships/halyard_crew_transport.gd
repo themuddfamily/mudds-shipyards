@@ -292,11 +292,11 @@ const DEFENSIVE_VISUAL_PARTS_PER_MOUNT := 5
 ## submission through a ship-local MultiMesh.
 const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
-const RENDER_DESCENDANT_COUNT := 143
-const RENDER_MESH_INSTANCE_COUNT := 136
-const RENDER_MULTIMESH_BATCH_COUNT := 2
+const RENDER_DESCENDANT_COUNT := 124
+const RENDER_MESH_INSTANCE_COUNT := 116
+const RENDER_MULTIMESH_BATCH_COUNT := 3
 const RENDER_DRAWN_COPY_COUNT := 163
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 138
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 119
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
@@ -2312,6 +2312,8 @@ func _build_bow_docking_arch() -> void:
 func _build_flank_detail() -> void:
 	var band_centre_z := CABIN_WINDOW_FIRST_Z + CABIN_WINDOW_PITCH * float(CABIN_WINDOW_COUNT - 1) * 0.5
 	var band_length := CABIN_WINDOW_PITCH * float(CABIN_WINDOW_COUNT - 1) + 1.30
+	var cabin_window_glow_transforms: Array[Transform3D] = []
+	var cabin_window_glow_names := PackedStringArray()
 	var cabin_window_pane_transforms: Array[Transform3D] = []
 	var cabin_window_pane_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
@@ -2323,7 +2325,11 @@ func _build_flank_detail() -> void:
 			# The lit pane sits proud of the recessed frame. Authored inboard of it
 			# on the first pass, every window was hidden inside the hull skin and
 			# the band rendered as an unbroken dark stripe.
-			_box(_halyard_visual, side_name + "WindowGlow%02d" % window_index, Vector3(side * (HULL_HALF_WIDTH + 0.09), 2.35, window_z), Vector3(0.05, 0.48, 1.00), _halyard_materials.window_glow)
+			cabin_window_glow_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * (HULL_HALF_WIDTH + 0.09), 2.35, window_z)
+			))
+			cabin_window_glow_names.append(side_name + "WindowGlow%02d" % window_index)
 			cabin_window_pane_transforms.append(Transform3D(
 				Basis.IDENTITY,
 				Vector3(side * (HULL_HALF_WIDTH + 0.13), 2.35, window_z)
@@ -2396,6 +2402,18 @@ func _build_flank_detail() -> void:
 		_halyard_materials.glass,
 		cabin_window_pane_transforms,
 		cabin_window_pane_names
+	)
+	var window_glow_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(0.05, 0.48, 1.00),
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"CabinWindowGlowBatch",
+		window_glow_mesh,
+		_halyard_materials.window_glow,
+		cabin_window_glow_transforms,
+		cabin_window_glow_names
 	)
 
 
