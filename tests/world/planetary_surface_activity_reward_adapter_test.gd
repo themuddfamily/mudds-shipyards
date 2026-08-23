@@ -45,6 +45,7 @@ func _run() -> void:
 	await _test_host_activity_reward_path()
 	await _test_detached_reward_recovery()
 	await _test_failed_activity_requires_fresh_reentry()
+	await _test_completed_activity_repeat()
 	_finish()
 
 
@@ -161,6 +162,37 @@ func _test_failed_activity_requires_fresh_reentry() -> void:
 	adapter.submit_activity_position(Vector3.ZERO)
 	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
 	_check(adapter.commit_activity_reward().accepted and _reward_calls == 3, "retried activity can complete and reward normally")
+	director.queue_free()
+	await process_frame
+
+
+func _test_completed_activity_repeat() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.begin_activity(&"ember_beacon_survey")
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	_check(
+		adapter.repeat_activity(&"ember_beacon_survey").reason == &"stale_attachment_generation",
+		"a completed reward cycle cannot repeat on the same host attachment"
+	)
+	host.attachment_generation = 5
+	var repeated := adapter.repeat_activity(&"ember_beacon_survey")
+	_check(
+		repeated.accepted and repeated.reason == &"activity_repeated"
+			and repeated.adapter.activity_reward.activity_generation == 2,
+		"a fresh attachment starts a new repeatable activity generation"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	_check(
+		adapter.commit_activity_reward().accepted and _reward_calls == 5,
+		"the repeated activity earns a second reward through the same authority"
+	)
 	director.queue_free()
 	await process_frame
 

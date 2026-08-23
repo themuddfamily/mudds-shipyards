@@ -90,13 +90,13 @@ func bind(
 
 
 func begin_visit(run_generation: int, attachment_generation: int) -> Dictionary:
-	if _state not in [State.READY, State.DETACHED, State.FAILED]:
+	if _state not in [State.READY, State.DETACHED, State.FAILED, State.COMPLETED]:
 		return _reject(&"not_ready")
 	if not _valid_generation(run_generation) or not _valid_generation(attachment_generation):
 		return _reject(&"invalid_generation")
-	if _state in [State.DETACHED, State.FAILED] and attachment_generation <= _attachment_generation:
+	if _state in [State.DETACHED, State.FAILED, State.COMPLETED] and attachment_generation <= _attachment_generation:
 		return _reject(&"stale_attachment_generation")
-	if _state == State.FAILED:
+	if _state in [State.FAILED, State.COMPLETED]:
 		_active_activity_id = &""
 		_completed_activity_id = &""
 		_pending_reward = {}

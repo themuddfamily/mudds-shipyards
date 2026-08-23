@@ -159,6 +159,23 @@ func retry_activity(activity_id: StringName) -> Dictionary:
 	return _with_adapter(started, false, started.get("reason", &"retry_start_rejected") as StringName)
 
 
+## Starts another authored activity run after a completed reward cycle. A new
+## attachment generation is mandatory, so repeat visits cannot replay a stale
+## completion or reward receipt on the same surface binding.
+func repeat_activity(activity_id: StringName) -> Dictionary:
+	if _state != State.COMPLETED or not _host_is_current():
+		return _reject(&"repeat_unavailable")
+	var generations := _host_generations()
+	var reentered := _runtime.begin_visit(generations.run, generations.attachment)
+	if not bool(reentered.get("accepted", false)):
+		return _with_adapter(reentered, false, reentered.get("reason", &"repeat_reentry_rejected") as StringName)
+	var started := _runtime.start_activity(activity_id, generations.run, generations.attachment)
+	if not bool(started.get("accepted", false)):
+		return _with_adapter(started, false, started.get("reason", &"repeat_start_rejected") as StringName)
+	_state = State.ACTIVE
+	return _with_adapter(started, true, &"activity_repeated")
+
+
 func detach() -> Dictionary:
 	if not _bound or _state in [State.IDLE, State.DETACHED]:
 		return _reject(&"adapter_not_active")
