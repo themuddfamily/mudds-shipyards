@@ -86,12 +86,59 @@ func _run() -> void:
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
 	_check(
-		int(counts["mesh_instances"]) == 14
-		and int(counts["multimesh_batches"]) == 5
-		and int(counts["geometry_submissions"]) == 19
+		int(counts["mesh_instances"]) == 10
+		and int(counts["multimesh_batches"]) == 6
+		and int(counts["geometry_submissions"]) == 16
 		and int(counts["visible_primitives"]) == 41,
-		"high quality preserves 41 visible copies through 19 renderer submissions"
+		"high quality preserves 41 visible copies through 16 renderer submissions"
 	)
+	var clamp_batch := dressing.get_node_or_null(
+		^"PresentationRoot/ServiceDetailRoot/ConduitClampBatch"
+	) as MultiMeshInstance3D
+	var clamp_audit := dressing.get_conduit_clamp_batch_audit()
+	var expected_clamp_positions := [
+		Vector3(-3.276, -0.3672, 0.156),
+		Vector3(-1.092, -0.3672, 0.156),
+		Vector3(1.092, -0.3672, 0.156),
+		Vector3(3.276, -0.3672, 0.156),
+	]
+	var exact_clamp_anchors := true
+	for clamp_index in expected_clamp_positions.size():
+		var clamp_anchor := dressing.get_node_or_null(NodePath(
+			"PresentationRoot/ServiceDetailRoot/ConduitClamp%02d" % (clamp_index + 1)
+		)) as Marker3D
+		exact_clamp_anchors = exact_clamp_anchors and (
+			clamp_anchor != null
+			and clamp_anchor.position.is_equal_approx(expected_clamp_positions[clamp_index])
+			and clamp_anchor.get_child_count() == 0
+		)
+	_check(
+		bool(clamp_audit["valid"])
+		and int(clamp_audit["baseline_renderer_nodes"]) == 4
+		and int(clamp_audit["renderer_nodes"]) == 1
+		and int(clamp_audit["drawn_copies"]) == 4
+		and clamp_batch != null
+		and clamp_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.0588, 0.3024, 0.0812)
+		)
+		and exact_clamp_anchors
+		and dressing.find_children("ConduitClamp*", "MeshInstance3D", true, false).is_empty(),
+		"four named conduit clamps retain exact geometry and transforms through one inert visual batch"
+	)
+	if clamp_batch != null and clamp_batch.multimesh != null:
+		var original_clamp_buffer := clamp_batch.multimesh.buffer.duplicate()
+		var drifted_clamp_buffer := original_clamp_buffer.duplicate()
+		drifted_clamp_buffer[3] += 0.25
+		clamp_batch.multimesh.buffer = drifted_clamp_buffer
+		_check(
+			not bool(dressing.get_conduit_clamp_batch_audit()["valid"]),
+			"structured red: conduit-clamp renderer-buffer drift fails the batch audit"
+		)
+		clamp_batch.multimesh.buffer = original_clamp_buffer
+		_check(
+			bool(dressing.get_conduit_clamp_batch_audit()["valid"]),
+			"restoring the exact conduit-clamp buffer repairs the batch audit"
+		)
 	var post_batch := dressing.get_node_or_null(
 		^"PresentationRoot/StructuralCoreRoot/KeelPostBatch"
 	) as MultiMeshInstance3D
@@ -204,9 +251,9 @@ func _run() -> void:
 		"eight stable cross-brace paths retain exact geometry and transforms through one inert visual batch"
 	)
 	_check(
-		int(counts["mesh_instances"]) == 27 - 8 - 5
-		and int(counts["multimesh_batches"]) == 3 + 1 + 1
-		and int(counts["geometry_submissions"]) == 30 - 7 - 4,
+		int(counts["mesh_instances"]) == 27 - 8 - 5 - 4
+		and int(counts["multimesh_batches"]) == 3 + 1 + 1 + 1
+		and int(counts["geometry_submissions"]) == 30 - 7 - 4 - 3,
 		"cross-brace family records 8 -> 1 renderer submissions with all eight copies preserved"
 	)
 	if brace_batch != null and brace_batch.multimesh != null:
@@ -281,9 +328,6 @@ func _run() -> void:
 				expected_vent_transforms[vent_index]
 			)
 		)
-	var conduit_clamp := dressing.get_node(
-		"PresentationRoot/ServiceDetailRoot/ConduitClamp01"
-	) as MeshInstance3D
 	_check(
 		vent_batch != null
 		and vent_batch.multimesh != null
@@ -292,7 +336,7 @@ func _run() -> void:
 		and vent_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
 			Vector3(0.075, 0.425088, 0.045)
 		)
-		and vent_batch.material_override == conduit_clamp.material_override
+		and vent_batch.material_override == clamp_batch.material_override
 		and vent_batch.get_child_count() == 0
 		and dressing.find_children("RadiatorVentBlade*", "MeshInstance3D", true, false).is_empty(),
 		"batch replaces only the six legacy renderer nodes without changing their copies or material"
@@ -402,7 +446,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 14 and int(counts["visible_primitives"]) == 33, "medium quality keeps 14 allocated meshes plus five batches and exposes 33 copies")
+	_check(int(counts["mesh_instances"]) == 10 and int(counts["visible_primitives"]) == 33, "medium quality keeps 10 allocated meshes plus six batches and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -508,7 +552,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 14, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 10, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")

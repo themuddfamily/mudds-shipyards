@@ -42,8 +42,9 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
-const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT - CROSS_BRACE_COUNT - STRUCTURAL_POST_COUNT
-const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 5
+const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT - CROSS_BRACE_COUNT - STRUCTURAL_POST_COUNT - CONDUIT_CLAMP_COUNT
+const MULTIMESH_BATCH_COUNT := 6
+const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + MULTIMESH_BATCH_COUNT
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -52,11 +53,11 @@ const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 5
 static var _fascia_fastener_mesh_cache: Dictionary = {}
 
 const PERFORMANCE_BUDGET := {
-	"node_count": 48,
+	"node_count": 49,
 	"visible_primitives": 41,
-	"mesh_instances": 14,
-	"multimesh_batches": 5,
-	"geometry_submissions": 19,
+	"mesh_instances": 10,
+	"multimesh_batches": 6,
+	"geometry_submissions": 16,
 	"unique_materials": 8,
 	"lights": 1,
 	"visible_lights": 1,
@@ -102,6 +103,7 @@ var _task_strip_batch: MultiMeshInstance3D
 var _fascia_fastener_batch: MultiMeshInstance3D
 var _cross_brace_batch: MultiMeshInstance3D
 var _keel_post_batch: MultiMeshInstance3D
+var _conduit_clamp_batch: MultiMeshInstance3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -635,6 +637,68 @@ func get_keel_post_batch_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_conduit_clamp_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms := _conduit_clamp_transforms()
+	var expected_mesh := _conduit_clamp_mesh()
+	var multimesh := _conduit_clamp_batch.multimesh if is_instance_valid(_conduit_clamp_batch) else null
+	if (
+		not is_instance_valid(_conduit_clamp_batch)
+		or _service_detail_root.get_node_or_null(^"ConduitClampBatch") != _conduit_clamp_batch
+		or multimesh == null
+	):
+		errors.append("conduit_clamp_batch_missing")
+	else:
+		if multimesh.mesh != expected_mesh:
+			errors.append("conduit_clamp_mesh_identity_drift")
+		if multimesh.instance_count != CONDUIT_CLAMP_COUNT or multimesh.visible_instance_count != CONDUIT_CLAMP_COUNT:
+			errors.append("conduit_clamp_copy_count_drift")
+		if multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+			errors.append("conduit_clamp_transform_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(expected_mesh.get_aabb(), expected_transforms)
+		):
+			errors.append("conduit_clamp_culling_bounds_drift")
+	if is_instance_valid(_conduit_clamp_batch) and (
+		_conduit_clamp_batch.material_override != _materials.get("frame_edge")
+		or _conduit_clamp_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		or _conduit_clamp_batch.layers != 1
+		or not _conduit_clamp_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		or _conduit_clamp_batch.get_child_count() != 0
+		or _conduit_clamp_batch.get_script() != null
+		or not _conduit_clamp_batch.get_groups().is_empty()
+	):
+		errors.append("conduit_clamp_visual_contract_drift")
+	for clamp_index in CONDUIT_CLAMP_COUNT:
+		var anchor := _service_detail_root.get_node_or_null(
+			NodePath("ConduitClamp%02d" % (clamp_index + 1))
+		) as Marker3D
+		if (
+			anchor == null
+			or not anchor.transform.is_equal_approx(expected_transforms[clamp_index])
+			or anchor.get_child_count() != 0
+			or anchor.get_script() != null
+			or not anchor.get_groups().is_empty()
+		):
+			errors.append("conduit_clamp_anchor_drift:%02d" % (clamp_index + 1))
+	if not _service_detail_root.find_children(
+		"ConduitClamp*", "MeshInstance3D", true, false
+	).is_empty():
+		errors.append("conduit_clamp_legacy_renderer_nodes_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"copy_count": CONDUIT_CLAMP_COUNT,
+		"baseline_renderer_nodes": CONDUIT_CLAMP_COUNT,
+		"renderer_nodes": 1 if multimesh != null else 0,
+		"baseline_geometry_submissions": CONDUIT_CLAMP_COUNT,
+		"geometry_submissions": 1 if multimesh != null else 0,
+		"drawn_copies": multimesh.instance_count if multimesh != null else 0,
+		"collision_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+
+
 func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if (
@@ -692,7 +756,7 @@ func get_validation_errors() -> PackedStringArray:
 	var counts := performance["counts"] as Dictionary
 	if (
 		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
-		or int(counts["multimesh_batches"]) != 5
+		or int(counts["multimesh_batches"]) != MULTIMESH_BATCH_COUNT
 		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
 	):
 		errors.append("stable maximum-detail primitive contract changed")
@@ -719,6 +783,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("cross-brace batch contract diverged")
 	if not bool(get_keel_post_batch_audit().get("valid", false)):
 		errors.append("keel-post batch contract diverged")
+	if not bool(get_conduit_clamp_batch_audit().get("valid", false)):
+		errors.append("conduit-clamp batch contract diverged")
 	if not _all_live_meshes_fit_published_footprint():
 		errors.append("live dressing mesh geometry exceeds the immutable published footprint")
 	return errors
@@ -876,19 +942,26 @@ func _build_service_detail(dimensions: Dictionary) -> void:
 			&"conduit",
 			DetailQuality.MEDIUM
 		)
+	var clamp_transforms := _conduit_clamp_transforms()
 	for clamp_index in CONDUIT_CLAMP_COUNT:
-		var clamp_progress := float(clamp_index + 1) / float(CONDUIT_CLAMP_COUNT + 1)
-		_tag_visual_detail(
-			_box(
-				_service_detail_root,
-				"ConduitClamp%02d" % (clamp_index + 1),
-				Vector3(lerpf(-conduit_length * 0.5, conduit_length * 0.5, clamp_progress), conduit_center_y, conduit_z),
-				Vector3(thickness * 0.42, conduit_spacing * 3.0, thickness * 0.58),
-				_materials["frame_edge"]
-			),
-			&"conduit_clamp",
-			DetailQuality.MEDIUM
-		)
+		var anchor := Marker3D.new()
+		anchor.name = "ConduitClamp%02d" % (clamp_index + 1)
+		anchor.transform = clamp_transforms[clamp_index]
+		anchor.set_meta("component_id", COMPONENT_ID)
+		anchor.set_meta("evidence_status", EVIDENCE_STATUS)
+		anchor.set_meta("presentation_only", true)
+		anchor.set_meta("collision_free", true)
+		anchor.set_meta("detail_role", &"conduit_clamp")
+		anchor.set_meta("quality_tier", DetailQuality.MEDIUM)
+		_service_detail_root.add_child(anchor)
+	_conduit_clamp_batch = _multimesh_rounded_box(
+		_service_detail_root,
+		"ConduitClampBatch",
+		_conduit_clamp_mesh(),
+		_materials["frame_edge"],
+		clamp_transforms
+	)
+	_tag_visual_batch(_conduit_clamp_batch, &"conduit_clamp", DetailQuality.MEDIUM)
 	var manifold_x := -conduit_length * 0.5
 	_tag_visual_detail(
 		_box(
@@ -1084,7 +1157,7 @@ func _get_feature_counts() -> Dictionary:
 		"structural_posts": _structural_core_root.find_children("KeelPost??", "Marker3D", true, false).size() if _structural_core_root != null else 0,
 		"cross_braces": _structural_core_root.find_children("CrossBrace?*", "Marker3D", true, false).size() if _structural_core_root != null else 0,
 		"conduits": _service_detail_root.find_children("Conduit??", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
-		"conduit_clamps": _service_detail_root.find_children("ConduitClamp*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
+		"conduit_clamps": _service_detail_root.find_children("ConduitClamp??", "Marker3D", true, false).size() if _service_detail_root != null else 0,
 		"manifold_couplers": _service_detail_root.find_children("ManifoldCoupler*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_backplates": _service_detail_root.find_children("RadiatorBackplate", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_vents": _radiator_vent_batch.multimesh.instance_count if is_instance_valid(_radiator_vent_batch) and _radiator_vent_batch.multimesh != null else 0,
@@ -1620,6 +1693,38 @@ func _radiator_vent_mesh() -> ArrayMesh:
 		Vector3(0.075, float(dimensions["crossface_span"]) * 0.48 * 0.82, 0.045),
 		_rounded_box_cache
 	)
+
+
+func _conduit_clamp_mesh() -> ArrayMesh:
+	var dimensions := _get_profile_dimensions()
+	var thickness := float(dimensions["frame_thickness"])
+	var conduit_spacing := maxf(0.09, thickness * 0.72)
+	return StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(thickness * 0.42, conduit_spacing * 3.0, thickness * 0.58),
+		_rounded_box_cache
+	)
+
+
+func _conduit_clamp_transforms() -> Array[Transform3D]:
+	var dimensions := _get_profile_dimensions()
+	var length := _get_effective_segment_length()
+	var crossface_span := float(dimensions["crossface_span"])
+	var depth := float(dimensions["outward_depth"])
+	var conduit_length := length * 0.78
+	var conduit_center_y := -minf(crossface_span * 0.34, 0.46)
+	var conduit_z := maxf(depth * 0.2, 0.125)
+	var transforms: Array[Transform3D] = []
+	for clamp_index in CONDUIT_CLAMP_COUNT:
+		var clamp_progress := float(clamp_index + 1) / float(CONDUIT_CLAMP_COUNT + 1)
+		transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				lerpf(-conduit_length * 0.5, conduit_length * 0.5, clamp_progress),
+				conduit_center_y,
+				conduit_z
+			)
+		))
+	return transforms
 
 
 func _cross_brace_transforms() -> Array[Transform3D]:
