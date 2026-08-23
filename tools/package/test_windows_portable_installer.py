@@ -7,9 +7,9 @@ from io import StringIO
 from pathlib import Path
 
 try:
-    from .windows_portable_installer import InstallError, install_package, main, recover_install, rollback_package, uninstall_package
+    from .windows_portable_installer import InstallError, LAUNCHER_NAME, install_package, main, recover_install, rollback_package, uninstall_package
 except ImportError:
-    from windows_portable_installer import InstallError, install_package, main, recover_install, rollback_package, uninstall_package
+    from windows_portable_installer import InstallError, LAUNCHER_NAME, install_package, main, recover_install, rollback_package, uninstall_package
 
 
 class WindowsPortableInstallerTests(unittest.TestCase):
@@ -32,6 +32,8 @@ class WindowsPortableInstallerTests(unittest.TestCase):
             destination = root / "MuddsShipyards"
             first = install_package(package, destination)
             self.assertTrue((destination / "MuddsShipyards.exe").is_file())
+            launcher = destination / LAUNCHER_NAME
+            self.assertEqual(launcher.read_bytes(), b'@echo off\r\nsetlocal\r\n"%~dp0MuddsShipyards.exe" %*\r\n')
             (destination / "user-created.txt").write_text("keep", encoding="utf-8")
             upgraded = self._package(root, "MuddsShipyards-v1.2.4-fedcba9")
             result = install_package(upgraded, destination)
@@ -39,9 +41,11 @@ class WindowsPortableInstallerTests(unittest.TestCase):
             self.assertEqual((Path(result["rollback"]) / "MuddsShipyards.exe").read_bytes(), b"MuddsShipyards-v1.2.3-abcdef1")
             rolled = rollback_package(destination)
             self.assertEqual((destination / "MuddsShipyards.exe").read_bytes(), b"MuddsShipyards-v1.2.3-abcdef1")
+            self.assertEqual((destination / LAUNCHER_NAME).read_bytes(), launcher.read_bytes())
             self.assertEqual((Path(rolled["rollback"]) / "MuddsShipyards.exe").read_bytes(), b"MuddsShipyards-v1.2.4-fedcba9")
             uninstalled = uninstall_package(destination)
             self.assertIn("MuddsShipyards.exe", uninstalled["removed"])
+            self.assertIn(LAUNCHER_NAME, uninstalled["removed"])
             self.assertTrue((destination / "user-created.txt").is_file())
             self.assertFalse((destination / ".mudds-owned.json").exists())
 

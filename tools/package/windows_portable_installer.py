@@ -22,6 +22,8 @@ from pathlib import Path, PurePosixPath
 OWNERSHIP_NAME = ".mudds-owned.json"
 ROLLBACK_SUFFIX = ".rollback"
 STAGING_SUFFIX = ".staging"
+LAUNCHER_NAME = "Start Mudds Shipyards.cmd"
+LAUNCHER_EXE = "MuddsShipyards.exe"
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
 VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 
@@ -56,6 +58,15 @@ def _sha256_bytes(data: bytes) -> str:
 
 def _sha256_file(path: Path) -> str:
     return _sha256_bytes(path.read_bytes())
+
+
+def _launcher_bytes() -> bytes:
+    """Return a safe launcher that resolves the bundled EXE beside itself."""
+    return (
+        "@echo off\r\n"
+        "setlocal\r\n"
+        f'"%~dp0{LAUNCHER_EXE}" %*\r\n'
+    ).encode("ascii")
 
 
 def _version_key(version: str) -> tuple[tuple[int, int, int], tuple[tuple[int, object], ...]]:
@@ -218,6 +229,9 @@ def install_package(package: Path, destination: Path, *, force: bool = False) ->
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
             owned.append(relative)
+        launcher = staging / LAUNCHER_NAME
+        launcher.write_bytes(_launcher_bytes())
+        owned.append(LAUNCHER_NAME)
         for existing in preserve:
             relative = existing.relative_to(destination).as_posix()
             target = staging / relative
