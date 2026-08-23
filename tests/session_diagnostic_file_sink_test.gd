@@ -63,6 +63,8 @@ func _run() -> void:
 	var first := sink.append_snapshot(snapshot)
 	_check(bool(first.accepted) and first.reason == &"written" and int(first.retained_snapshot_count) == 1, "redacted diagnostic snapshot publishes to the fixed local sink")
 	_check(filesystem.files.has("memory://diagnostics/crash-log.json") and not filesystem.files.has("memory://diagnostics/crash-log.json.tmp"), "atomic publication leaves no temporary sibling")
+	var second := sink.append_snapshot(snapshot)
+	_check(bool(second.accepted) and filesystem.files.has("memory://diagnostics/crash-log.previous.json"), "publication rotates exactly one bounded previous generation")
 	for index in 8:
 		var appended := sink.append_snapshot(snapshot)
 		_check(bool(appended.accepted), "bounded sink accepts redacted snapshot %d" % index)
@@ -85,6 +87,17 @@ func _run() -> void:
 	var repaired := malformed_sink.recover_prior_log()
 	_check(bool(repaired.accepted) and repaired.reason == &"malformed_log_quarantined" and malformed_fs.files.has("memory://malformed/crash-log.json.rejected"), "explicit recovery quarantines malformed log bytes")
 	_check(bool(malformed_sink.append_snapshot(snapshot).accepted), "append resumes after explicit malformed-log recovery")
+	var fallback_fs := FakeFilesystem.new()
+	var fallback_sink := Sink.new("memory://fallback", fallback_fs)
+	fallback_fs.files["memory://fallback/crash-log.json"] = "oversize-or-corrupt".to_utf8_buffer()
+	fallback_fs.files["memory://fallback/crash-log.previous.json"] = JSON.stringify([snapshot]).to_utf8_buffer()
+	var fallback := fallback_sink.append_snapshot(snapshot)
+	_check(
+		bool(fallback.accepted)
+		and fallback_fs.files.has("memory://fallback/crash-log.json")
+		and fallback_fs.files.has("memory://fallback/crash-log.previous.json"),
+		"malformed current log falls back to the valid previous generation without unbounded restoration"
+	)
 	_finish()
 
 

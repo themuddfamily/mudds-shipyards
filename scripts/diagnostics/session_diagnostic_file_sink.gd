@@ -11,12 +11,14 @@ const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
 const MAX_RETAINED_SNAPSHOTS := 4
 const MAX_LOG_BYTES := 256 * 1024
 const _LOG_NAME := "crash-log.json"
+const _PREVIOUS_NAME := "crash-log.previous.json"
 const _TEMP_SUFFIX := ".tmp"
 const _REJECTED_SUFFIX := ".rejected"
 
 var _root_path := ""
 var _filesystem: UserDataFilesystem
 var _record_validator := Record.new() as SessionDiagnosticRecord
+var _read_source_previous := false
 
 
 func _init(root_path: String, filesystem: UserDataFilesystem = null) -> void:
@@ -100,9 +102,19 @@ func get_log_path() -> String:
 
 
 func _read_log() -> Dictionary:
+	_read_source_previous = false
+	if _filesystem.file_exists(_log_path()):
+		var current := _read_log_at(_log_path())
+		if bool(current.accepted):
+			return current
+	if _filesystem.file_exists(_previous_path()):
+		var previous := _read_log_at(_previous_path())
+		if bool(previous.accepted):
+			_read_source_previous = true
+			return previous
 	if not _filesystem.file_exists(_log_path()):
 		return {"accepted": true, "snapshots": []}
-	return _read_log_at(_log_path())
+	return {"accepted": false, "reason": &"log_invalid"}
 
 
 func _read_log_at(path: String) -> Dictionary:
@@ -150,11 +162,26 @@ func _quarantine(path: String) -> Dictionary:
 
 
 func _replace_log() -> Error:
+	var current_valid := false
 	if _filesystem.file_exists(_log_path()):
-		var remove_error: Error = _filesystem.remove_path(_log_path())
-		if remove_error != OK:
-			return remove_error
-	return _filesystem.rename_path(_temp_path(), _log_path())
+		current_valid = bool(_read_log_at(_log_path()).accepted)
+	if current_valid and not _read_source_previous:
+		if _filesystem.file_exists(_previous_path()):
+			var remove_previous := _filesystem.remove_path(_previous_path())
+			if remove_previous != OK:
+				return remove_previous
+		var rotate := _filesystem.rename_path(_log_path(), _previous_path())
+		if rotate != OK:
+			return rotate
+	else:
+		if _filesystem.file_exists(_log_path()):
+			var remove_current := _filesystem.remove_path(_log_path())
+			if remove_current != OK:
+				return remove_current
+	var publish := _filesystem.rename_path(_temp_path(), _log_path())
+	if publish != OK and current_valid and not _read_source_previous:
+		_filesystem.rename_path(_previous_path(), _log_path())
+	return publish
 
 
 func _validate_root() -> Dictionary:
@@ -176,6 +203,10 @@ func _validate_root() -> Dictionary:
 
 func _log_path() -> String:
 	return _root_path + "/" + _LOG_NAME
+
+
+func _previous_path() -> String:
+	return _root_path + "/" + _PREVIOUS_NAME
 
 
 func _temp_path() -> String:
