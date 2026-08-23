@@ -54,6 +54,7 @@ var _last_origin_receipt := {}
 var _completed_activity_id: StringName = &""
 var _last_evidence := {}
 var _return_approach_admitted := false
+var _arrival_ready := false
 var _failure_reason: StringName = &""
 var _failed_phase := Phase.IDLE
 
@@ -107,6 +108,7 @@ func begin(
 	_completed_activity_id = &""
 	_last_evidence = {}
 	_return_approach_admitted = false
+	_arrival_ready = false
 	_last_origin_receipt = {}
 	_origin_rebase_count = 0
 	return _accept(&"started")
@@ -290,6 +292,36 @@ func admit_orbit_return_approach(
 	return result
 
 
+## Validate caller-provided arrival evidence after approach admission. This
+## emits a detached arrival-ready receipt and leaves the contract in TAKEOFF.
+func confirm_orbit_arrival_ready(
+		return_target_id: StringName,
+		observation: Dictionary,
+		run_generation: int,
+		attachment_generation: int
+	) -> Dictionary:
+	var rejection := _observation_rejection(
+		Phase.TAKEOFF, run_generation, attachment_generation
+	)
+	if not rejection.is_empty():
+		return _reject(rejection)
+	if not _return_approach_admitted:
+		return _reject(&"orbit_return_approach_required")
+	if _arrival_ready:
+		return _reject(&"orbit_arrival_already_ready")
+	if return_target_id != _return_target_id or not _finite_observation(observation):
+		return _reject(&"orbit_arrival_prerequisites_not_met")
+	_arrival_ready = true
+	_last_evidence["arrival_ready"] = {
+		"return_target_id": return_target_id,
+		"observation": observation.duplicate(true),
+	}.duplicate(true)
+	var result := _accept(&"orbit_arrival_ready")
+	result["return_target_id"] = return_target_id
+	result["next_caller_state"] = &"confirm_orbit_return"
+	return result
+
+
 func fail(reason: StringName) -> Dictionary:
 	if _phase in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED]:
 		return _reject(&"terminal_state")
@@ -368,6 +400,7 @@ func get_snapshot() -> Dictionary:
 		"last_origin_receipt": _last_origin_receipt.duplicate(true),
 		"last_evidence": _last_evidence.duplicate(true),
 		"return_approach_admitted": _return_approach_admitted,
+		"arrival_ready": _arrival_ready,
 		"failure_reason": _failure_reason,
 		"failed_phase": _failed_phase,
 		"authority": {

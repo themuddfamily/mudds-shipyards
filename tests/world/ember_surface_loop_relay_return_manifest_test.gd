@@ -4,6 +4,7 @@ const BindingScript := preload("res://scripts/world/ember_surface_loop_productio
 const ManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
 const TravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
 const TravelSessionScript := preload("res://scripts/world/planetary_travel_session.gd")
+const ReturnContractScript := preload("res://scripts/world/planetary_landing_return_contract.gd")
 
 func _init() -> void:
 	call_deferred("_run")
@@ -68,11 +69,14 @@ func _run() -> void:
 			and binding.has_method(&"submit_planetary_return_orbit") \
 			and binding.has_method(&"prepare_planetary_return_approach") \
 			and binding.has_method(&"admit_planetary_return_contract_approach") \
+			and binding.has_method(&"confirm_planetary_return_arrival_ready") \
 			and TravelSessionScript.new().has_method(&"admit_return_travel_intent") \
 			and TravelSessionScript.new().has_method(&"submit_authorized_return_reboard") \
 			and TravelSessionScript.new().has_method(&"submit_authorized_return_orbit") \
 			and TravelSessionScript.new().has_method(&"prepare_return_approach") \
-			and TravelSessionScript.new().has_method(&"admit_return_contract_approach")
+			and TravelSessionScript.new().has_method(&"admit_return_contract_approach") \
+			and TravelSessionScript.new().has_method(&"confirm_return_arrival_ready") \
+			and ReturnContractScript.new().has_method(&"confirm_orbit_arrival_ready")
 	if not valid:
 		push_error("relay survey return manifest failed")
 		binding.free()
