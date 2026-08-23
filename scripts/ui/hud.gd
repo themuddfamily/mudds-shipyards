@@ -1183,9 +1183,10 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	)
 	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
-	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%" % [
+	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    HULL INTEGRITY  %03d%%" % [
 		_damage_status_accessible_text(damage_status),
 		roundi(engine_power * 100.0),
+		roundi(clampf(hull / maximum_hull, 0.0, 1.0) * 100.0),
 	]
 	_damage_status_label.modulate = _damage_status_color(damage_status)
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
