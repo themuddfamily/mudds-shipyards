@@ -13,12 +13,16 @@ func _initialize() -> void:
 		"race": {"state_id": "completed"},
 		"mining": {"state": 2, "elapsed_seconds": 6.0, "extraction_seconds": 6.0, "reward_requested": true},
 		"beacon_traversal": {"state": 2, "next_beacon_index": 4, "beacon_count": 4},
+		"cargo": {"state": 3, "next_phase_index": 1, "phase_count": 3, "deadline_remaining_seconds": 0.0, "failure_reason": "deadline_expired"},
 	})
 	_check(view.get("focusable", false), "the presenter exposes controller-focusable cards")
 	_check(view.get("color_independent", false), "the presenter publishes text that does not depend on color")
 	_check((view.get("cards", []) as Array).size() == 7, "the presenter renders all integrated activity slots")
 	var mining_card := (view.get("cards", []) as Array)[2] as Dictionary
 	_check("COMPLETED" in str(mining_card.get("text", "")) and bool(mining_card.get("reward_pending", false)), "completed mining text includes state and pending reward")
+	var cargo_card := (view.get("cards", []) as Array)[5] as Dictionary
+	_check("FAILED" in str(cargo_card.get("text", "")) and "RECOVER: DEADLINE EXPIRED" in str(cargo_card.get("text", "")), "cargo failure exposes state and recovery reason")
+	_check("PHASE 1/3" in str(cargo_card.get("text", "")), "cargo snapshot exposes ordered phase progress")
 	var selected := presenter.select(&"cinder_debris_beacon_traversal")
 	_check(bool(selected.get("accepted", false)), "known activity selection is accepted")
 	var intent := presenter.start_intent()

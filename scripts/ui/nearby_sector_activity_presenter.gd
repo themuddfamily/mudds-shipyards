@@ -98,15 +98,23 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var state_id := StringName(state.get("state_id", _state_label(state)))
 	var progress := _progress_text(activity_id, state)
+	var recovery := _recovery_text(state)
+	var reward_pending := bool(state.get("reward_requested", false))
+	var status_suffix := ""
+	if reward_pending:
+		status_suffix += "  REWARD PENDING"
+	if not recovery.is_empty():
+		status_suffix += "  " + recovery
 	return {
 		"activity_id": activity_id,
 		"title": _title(activity_id),
 		"state_id": state_id,
-		"text": "%s — %s%s" % [_title(activity_id), _state_text(state_id), progress],
+		"text": "%s — %s%s%s" % [_title(activity_id), _state_text(state_id), progress, status_suffix],
 		"focusable": true,
 		"selected": activity_id == _selected_activity,
 		"intents": ["select", "start", "reset"],
-		"reward_pending": bool(state.get("reward_requested", false)),
+		"reward_pending": reward_pending,
+		"recovery_text": recovery,
 	}.duplicate(true)
 
 
@@ -117,6 +125,11 @@ func _progress_text(activity_id: StringName, state: Dictionary) -> String:
 		return " (%.1f/%.1f s)" % [float(state.get("elapsed_seconds", 0.0)), float(state.get("extraction_seconds", 0.0))]
 	if activity_id == &"cinder_derelict_structure_scan":
 		return " (%.1f/%.1f s)" % [float(state.get("elapsed_seconds", 0.0)), float(state.get("scan_seconds", 0.0))]
+	if activity_id == &"cinder_platform_supply_run":
+		var next_phase := int(state.get("next_phase_index", 0))
+		var phase_count := maxi(int(state.get("phase_count", 0)), 0)
+		var remaining := float(state.get("deadline_remaining_seconds", 0.0))
+		return " (PHASE %d/%d  %.1fs LEFT)" % [next_phase, phase_count, maxf(remaining, 0.0)]
 	return ""
 
 
@@ -128,11 +141,22 @@ func _state_label(state: Dictionary) -> String:
 		return "completed"
 	if numeric_state == 1:
 		return "active"
+	if numeric_state == 3:
+		return "failed"
+	if numeric_state == 4:
+		return "expired"
 	return "available"
 
 
 func _state_text(state_id: StringName) -> String:
-	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"completed": "COMPLETED", &"complete": "COMPLETED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+
+
+func _recovery_text(state: Dictionary) -> String:
+	var failure := StringName(state.get("failure_reason", &""))
+	if failure.is_empty():
+		return ""
+	return "RECOVER: " + str(failure).replace("_", " ").to_upper()
 
 
 func _title(activity_id: StringName) -> String:
