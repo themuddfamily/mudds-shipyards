@@ -18,6 +18,7 @@ const WaterContractScript := preload("res://scripts/world/planetary_water_surfac
 const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark_runtime.gd")
 const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
 const LandmarkBeaconScript := preload("res://scripts/world/planetary_surface_landmark_beacon_presentation.gd")
+const LandingApproachScript := preload("res://scripts/world/planetary_landing_approach_presentation.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -43,6 +44,7 @@ var _water_presentation: Node
 var _water: RefCounted
 var _landmarks: RefCounted
 var _landmark_beacons: Dictionary = {}
+var _landing_markers: Dictionary = {}
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -122,6 +124,7 @@ func configure(
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"settlement_configuration_rejected")
 	_configure_settlement_practicals(settlement_contract.get_snapshot())
+	_configure_landing_markers(settlement_contract.get_snapshot())
 	_adapter = AdapterScript.new()
 	var runtime := ActivityRuntimeScript.new()
 	var bound: Dictionary = _adapter.call(&"bind", host, runtime, director, reward_sink)
@@ -194,6 +197,7 @@ func submit_weather_exposure(
 		_present_surface_audio()
 		_apply_water_presentation()
 		_apply_landmark_beacons()
+		_apply_landing_markers()
 	return result
 
 
@@ -223,6 +227,7 @@ func submit_solar_observation(
 	}.duplicate(true)
 	_apply_settlement_practicals()
 	_apply_landmark_beacons()
+	_apply_landing_markers()
 	_surface_audio_generation += 1
 	_present_surface_audio()
 	_apply_water_presentation()
@@ -302,6 +307,8 @@ func detach() -> Dictionary:
 		_settlement.call(&"detach")
 	for practical: Node in _settlement_practicals.values():
 		practical.call(&"detach")
+	for marker: Node in _landing_markers.values():
+		marker.call(&"detach")
 	for beacon: Node in _landmark_beacons.values():
 		beacon.call(&"detach")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
@@ -332,6 +339,7 @@ func reenter() -> Dictionary:
 		_settlement.call(&"reenter", next_attachment)
 	_apply_settlement_practicals()
 	_apply_landmark_beacons()
+	_apply_landing_markers()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
 		_water.call(&"reenter", next_attachment)
@@ -384,6 +392,7 @@ func get_snapshot() -> Dictionary:
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},
 		"settlement_practicals": _settlement_practical_snapshot(),
 		"landmark_beacons": _landmark_beacon_snapshot(),
+		"landing_markers": _landing_marker_snapshot(),
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
@@ -478,6 +487,36 @@ func _landmark_beacon_snapshot() -> Dictionary:
 	var snapshot := {}
 	for landmark_id: StringName in _landmark_beacons:
 		snapshot[landmark_id] = (_landmark_beacons[landmark_id] as Node).call(&"get_snapshot")
+	return snapshot
+
+
+func _configure_landing_markers(contract_snapshot: Dictionary) -> void:
+	_landing_markers.clear()
+	for item in contract_snapshot.get("landing_sites", []) as Array:
+		var site := item as Dictionary
+		var landing_id := StringName(site.get("id", &""))
+		var anchor: Variant = site.get("position_body_local_m", Vector3.INF)
+		if landing_id.is_empty() or not anchor is Vector3 or not (anchor as Vector3).is_finite():
+			continue
+		var marker := LandingApproachScript.new() as Node
+		marker.name = "LandingApproach_%s" % landing_id
+		add_child(marker)
+		var result: Dictionary = marker.call(&"configure", landing_id, anchor)
+		if bool(result.get("accepted", false)):
+			_landing_markers[landing_id] = marker
+
+
+func _apply_landing_markers() -> void:
+	if _solar_phase.is_empty() or _weather_observation.is_empty():
+		return
+	for marker: Node in _landing_markers.values():
+		marker.call(&"apply_presentation_recipe", _solar_phase, _weather_observation)
+
+
+func _landing_marker_snapshot() -> Dictionary:
+	var snapshot := {}
+	for landing_id: StringName in _landing_markers:
+		snapshot[landing_id] = (_landing_markers[landing_id] as Node).call(&"get_snapshot")
 	return snapshot
 
 
