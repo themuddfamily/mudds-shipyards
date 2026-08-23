@@ -1086,6 +1086,22 @@ func set_interaction(text: String, is_visible: bool = true) -> void:
 	_interaction_panel.visible = is_visible and not text.is_empty()
 
 
+## Presentation-only transition copy for the first boarding/seat handoff. The
+## caller still owns the actual interact action and transition authority.
+func present_seat_transition_prompt(transition: StringName, subject: String = "") -> void:
+	var target := subject.strip_edges().to_upper()
+	var action_text: String = str({
+		&"board": "BOARD",
+		&"exit": "EXIT SEAT",
+		&"take_seat": "TAKE PILOT SEAT",
+	}.get(transition, "INTERACT"))
+	set_interaction("[ E ]  %s%s" % [action_text, "  //  " + target if not target.is_empty() else ""], true)
+
+
+func dismiss_seat_transition_prompt() -> void:
+	set_interaction("", false)
+
+
 func update_ship_telemetry(data: Dictionary) -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
