@@ -80,17 +80,19 @@ const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
 const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
 const GALLEY_DOOR_PULL_COPY_COUNT := 4
 const POTTING_PULL_COPY_COUNT := 3
+const MESS_BENCH_LEG_COPY_COUNT := 4
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
 const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1240
+const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1877
-const RENDER_MESH_INSTANCE_COUNT := 1220
-const RENDER_MULTIMESH_BATCH_COUNT := 26
+const RENDER_DESCENDANT_COUNT := 1874
+const RENDER_MESH_INSTANCE_COUNT := 1216
+const RENDER_MULTIMESH_BATCH_COUNT := 27
 const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1237
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1234
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -215,6 +217,8 @@ var _galley_door_pull_transforms: Array[Transform3D] = []
 var _galley_door_pull_batch: MultiMeshInstance3D
 var _potting_pull_transforms: Array[Transform3D] = []
 var _potting_pull_batch: MultiMeshInstance3D
+var _mess_bench_leg_transforms: Array[Transform3D] = []
+var _mess_bench_leg_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -1104,6 +1108,33 @@ func get_render_allocation_report() -> Dictionary:
 		and StringName(_potting_pull_batch.get_meta("authored_source_name", &""))
 			== &"PottingPull"
 	)
+	var mess_bench_leg_authored: bool = (
+		is_instance_valid(_mess_bench_leg_batch)
+		and _mess_bench_leg_batch.multimesh != null
+		and _mess_bench_leg_batch.multimesh.instance_count == MESS_BENCH_LEG_COPY_COUNT
+		and _mess_bench_leg_batch.multimesh.visible_instance_count == -1
+		and _mess_bench_leg_batch.multimesh.mesh != null
+		and _mess_bench_leg_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.38, 0.39, 0.10)
+		)
+		and _mess_bench_leg_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_mess_bench_leg_transforms
+		)
+		and _mess_bench_leg_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_mess_bench_leg_batch.multimesh.mesh.get_aabb(), _mess_bench_leg_transforms
+			)
+		)
+		and _mess_bench_leg_batch.material_override == _materials.get("structural")
+		and _mess_bench_leg_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _mess_bench_leg_batch.layers == 1
+		and _mess_bench_leg_batch.get_child_count() == 0
+		and _mess_bench_leg_batch.get_script() == null
+		and _mess_bench_leg_batch.get_groups().is_empty()
+		and bool(_mess_bench_leg_batch.get_meta("visual_detail_only", false))
+		and StringName(_mess_bench_leg_batch.get_meta("authored_source_name", &""))
+			== &"MessBenchLeg"
+	)
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1127,6 +1158,8 @@ func get_render_allocation_report() -> Dictionary:
 		and galley_door_pull_authored
 		and _potting_pull_transforms.size() == POTTING_PULL_COPY_COUNT
 		and potting_pull_authored
+		and _mess_bench_leg_transforms.size() == MESS_BENCH_LEG_COPY_COUNT
+		and mess_bench_leg_authored
 	)
 	return {
 		"schema_version": 1,
@@ -1169,7 +1202,7 @@ func get_render_allocation_report() -> Dictionary:
 			PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT
 		),
 		"geometry_submissions_removed_by_galley_door_pull_batch": (
-			PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT - submissions
+			GALLEY_DOOR_PULL_COPY_COUNT - 1
 		),
 		"galley_door_pull_legacy_renderer_nodes": GALLEY_DOOR_PULL_COPY_COUNT,
 		"galley_door_pull_renderer_nodes": 1 if galley_door_pull_authored else 0,
@@ -1185,6 +1218,19 @@ func get_render_allocation_report() -> Dictionary:
 		"potting_pull_copies": _potting_pull_transforms.size(),
 		"potting_pull_authored": potting_pull_authored,
 		"authored_potting_pull_transforms": _potting_pull_transforms.duplicate(),
+		"mess_bench_leg_legacy_renderer_nodes": MESS_BENCH_LEG_COPY_COUNT,
+		"mess_bench_leg_renderer_nodes": 1 if mess_bench_leg_authored else 0,
+		"mess_bench_leg_legacy_submissions": MESS_BENCH_LEG_COPY_COUNT,
+		"mess_bench_leg_submissions": 1 if mess_bench_leg_authored else 0,
+		"mess_bench_leg_copies": _mess_bench_leg_transforms.size(),
+		"mess_bench_leg_authored": mess_bench_leg_authored,
+		"geometry_submissions_before_mess_bench_leg_batch": (
+			PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT
+		),
+		"geometry_submissions_removed_by_mess_bench_leg_batch": (
+			PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
+		"authored_mess_bench_leg_transforms": _mess_bench_leg_transforms.duplicate(),
 		"unique_mesh_resources": mesh_resource_ids.size(),
 		"unique_material_resources": material_resource_ids.size(),
 		"hatch_fastener_copies": _hatch_fastener_transforms.size(),
@@ -3327,11 +3373,22 @@ func _build_common_mess(common: Node3D) -> void:
 	_box(mess, "MessTableTop", Vector3(table_x, 0.755, table_z), Vector3(1.12, 0.07, 2.32), _materials["shell_light"])
 	_box(mess, "MessTableEdge", Vector3(table_x, 0.755, table_z), Vector3(1.18, 0.045, 2.38), _materials["copper"], false)
 
+	_mess_bench_leg_transforms.clear()
 	for bench_side in [-1.0, 1.0]:
 		var bench_x := table_x + float(bench_side) * 0.83
 		_box(mess, "MessBench", Vector3(bench_x, 0.435, table_z), Vector3(0.44, 0.09, 2.12), _materials["shell_light"])
 		for leg_z in [22.52, 24.08]:
-			_box(mess, "MessBenchLeg", Vector3(bench_x, 0.195, float(leg_z)), Vector3(0.38, 0.39, 0.10), _materials["structural"], false)
+			_mess_bench_leg_transforms.append(
+				Transform3D(Basis.IDENTITY, Vector3(bench_x, 0.195, float(leg_z)))
+			)
+	_mess_bench_leg_batch = _multimesh_visual_stock(
+		mess,
+		"MessBenchLegs",
+		_rounded_box_mesh(Vector3(0.38, 0.39, 0.10)),
+		_materials["structural"],
+		_mess_bench_leg_transforms,
+		&"MessBenchLeg"
+	)
 
 	# Left on the table.
 	_box(mess, "MessTray", Vector3(table_x - 0.10, 0.812, 22.76), Vector3(0.46, 0.045, 0.62), _materials["plastic_pale"], false)

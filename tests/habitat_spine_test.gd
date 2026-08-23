@@ -483,12 +483,13 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_common_ceiling_light_body_batch(module)
 	_test_galley_door_pull_batch(module)
 	_test_potting_pull_batch(module)
+	_test_mess_bench_leg_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1877
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1220
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 26,
-		"visual batching stays frozen at 1877 render nodes, 1220 meshes and 26 MultiMeshes"
+		int(render.descendant_nodes) == 1874
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1216
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 27,
+		"visual batching stays frozen at 1874 render nodes, 1216 meshes and 27 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -582,7 +583,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
-		and int(report.geometry_submissions) == 1237
+		and int(report.geometry_submissions) == 1234
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
 		and int(report.drawn_copies) == 1385
 		and bool(report.corridor_deck_seam_authored),
@@ -668,7 +669,7 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 1243
-		and int(report.geometry_submissions) == 1237
+		and int(report.geometry_submissions) == 1234
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
 		and int(report.drawn_copies) == 1385
 		and bool(report.common_ceiling_light_body_authored),
@@ -730,7 +731,7 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.galley_door_pull_submissions) == 1
 		and int(report.galley_door_pull_copies) == 4
 		and int(report.geometry_submissions_before_galley_door_pull_batch) == 1240
-		and int(report.geometry_submissions) == 1237
+		and int(report.geometry_submissions) == 1234
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -803,6 +804,73 @@ func _test_potting_pull_batch(module: HabitatSpine) -> void:
 		and int(report.potting_pull_copies) == 3
 		and bool(report.potting_pull_authored),
 		"potting pulls measure renderer nodes/submissions 3 -> 1 while all three visible copies remain"
+	)
+
+
+func _test_mess_bench_leg_batch(module: HabitatSpine) -> void:
+	var mess := module.get_node_or_null(
+		^"Structure/ObservationCommon/CommonMess"
+	) as Node3D
+	var batch := mess.get_node_or_null(^"MessBenchLegs") as MultiMeshInstance3D if mess != null else null
+	_check(
+		mess != null and batch != null and batch.multimesh != null,
+		"four mess-bench legs resolve through one visual-only MultiMesh"
+	)
+	if mess == null or batch == null or batch.multimesh == null:
+		return
+	var expected := [
+		Transform3D(Basis.IDENTITY, Vector3(4.72, 0.195, 22.52)),
+		Transform3D(Basis.IDENTITY, Vector3(4.72, 0.195, 24.08)),
+		Transform3D(Basis.IDENTITY, Vector3(6.38, 0.195, 22.52)),
+		Transform3D(Basis.IDENTITY, Vector3(6.38, 0.195, 24.08)),
+	]
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var transforms_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		transforms_exact = transforms_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+	_check(
+		transforms_exact
+		and batch.multimesh.instance_count == HabitatSpine.MESS_BENCH_LEG_COPY_COUNT
+		and batch.multimesh.visible_instance_count == -1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.38, 0.39, 0.10))
+		and batch.multimesh.custom_aabb.is_equal_approx(AABB(
+			Vector3(4.53, 0.0, 22.47), Vector3(2.04, 0.39, 1.66)
+		))
+		and batch.material_override == (mess.get_node(^"MessTrestleTie") as MeshInstance3D).material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"mess-bench leg batch preserves four exact transforms, extent, culling, structural material, shadows and render layer"
+	)
+	var physical_bench_count := 0
+	for child in mess.get_children():
+		var bench := child as StaticBody3D
+		var mesh := bench.get_node_or_null(^"Mesh") as MeshInstance3D if bench != null else null
+		if mesh != null and mesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.44, 0.09, 2.12)):
+			physical_bench_count += 1
+	_check(
+		mess.find_children("MessBenchLeg", "MeshInstance3D", false, false).is_empty()
+		and physical_bench_count == 2
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.get_groups().is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"MessBenchLeg",
+		"only authority-free bench-leg visuals are batched while both physical named benches remain intact"
+	)
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.mess_bench_leg_legacy_renderer_nodes) == 4
+		and int(report.mess_bench_leg_renderer_nodes) == 1
+		and int(report.mess_bench_leg_legacy_submissions) == 4
+		and int(report.mess_bench_leg_submissions) == 1
+		and int(report.mess_bench_leg_copies) == 4
+		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 1237
+		and int(report.geometry_submissions) == 1234
+		and int(report.geometry_submissions_removed_by_mess_bench_leg_batch) == 3
+		and bool(report.mess_bench_leg_authored),
+		"mess-bench legs measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
 	)
 
 
@@ -954,21 +1022,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1877
-		and int(report.mesh_instances) == 1220
-		and int(report.multimesh_batches) == 26,
+		int(report.descendant_nodes) == 1874
+		and int(report.mesh_instances) == 1216
+		and int(report.multimesh_batches) == 27,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
 		int(report.drawn_copies) == 1385
-		and int(report.geometry_submissions) == 1237
+		and int(report.geometry_submissions) == 1234
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1385 while surface submissions hold at 1237"
+		"drawn copies freeze at 1385 while surface submissions hold at 1234"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 33
-		and int(report.multimesh_resources) == 26
+		and int(report.multimesh_resources) == 27
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 349/33 while the hatch batch retains its 144-float renderer buffer"
 	)
