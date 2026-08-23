@@ -1,5 +1,5 @@
 class_name CinderLongRangeBomber
-extends Node3D
+extends HeroShip
 
 ## Original-modern long-range bomber component. No historical craft, weapon,
 ## payload, or mission claim is authenticated here.
@@ -14,22 +14,38 @@ const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
 const SENSOR_COLOR := Color("d6b45d")
 
-var _cockpit_seat: Marker3D
-var _boarding_marker: Marker3D
+var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
-var _built := false
+var _bomber_built := false
+
+
+func _uses_torrent_reconstruction_presentation() -> bool:
+	return false
 
 
 func _ready() -> void:
-	if _built:
-		return
-	_built = true
+	ship_id = COMPONENT_ID
+	display_name = DISPLAY_NAME
+	role_name = "Long-range bomber"
 	set_meta(&"component_id", COMPONENT_ID)
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
-	_build_hull()
-	_build_cockpit()
-	_build_payload_hardpoints()
+	super._ready()
+	if not _bomber_built:
+		_bomber_built = rebuild_variant_presentation(_build_bomber_variant)
+
+
+func _build_bomber_variant(_controller: HeroShip) -> bool:
+	var visual := get_variant_visual_root()
+	if visual == null:
+		return false
+	visual.name = "CinderBomberVisual"
+	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
+	visual.set_meta(&"historically_supported", false)
+	_build_hull(visual)
+	_build_cockpit_and_boarding(visual)
+	_build_payload_hardpoints(visual)
+	return true
 
 
 func get_display_name() -> String:
@@ -37,11 +53,11 @@ func get_display_name() -> String:
 
 
 func get_cockpit_seat_anchor() -> Marker3D:
-	return _cockpit_seat
+	return get_pilot_seat_anchor() as Marker3D
 
 
 func get_boarding_marker() -> Marker3D:
-	return _boarding_marker
+	return _bomber_boarding_marker
 
 
 func get_payload_hardpoints() -> Array[Marker3D]:
@@ -50,14 +66,14 @@ func get_payload_hardpoints() -> Array[Marker3D]:
 
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
-	if not _built:
+	if not _bomber_built:
 		errors.append("bomber has not built its authored component tree")
-	if not is_instance_valid(_cockpit_seat) or not is_instance_valid(_boarding_marker):
+	if not is_instance_valid(get_pilot_seat_anchor()) or not is_instance_valid(_bomber_boarding_marker):
 		errors.append("cockpit and boarding anchors are required")
 	if _payload_hardpoints.size() != PAYLOAD_HARDPOINT_COUNT:
 		errors.append("four caller-owned payload hardpoints are required")
-	if find_children("*", "StaticBody3D", true, false).size() != 1:
-		errors.append("bomber requires one hull collision body")
+	if not bool(get_landing_collision_report().get("valid", false)):
+		errors.append("bomber requires HeroShip root collision")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -66,7 +82,11 @@ func get_audit_report() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"payload_hardpoint_count": _payload_hardpoints.size(),
-		"flight_authority": false,
+		"hero_ship_derived": true,
+		"flight_authority": true,
+		"landing_authority": true,
+		"damage_authority": true,
+		"reuse_authority": true,
 		"combat_authority": false,
 		"ordnance_authority": false,
 		"berth_authority": false,
@@ -75,32 +95,26 @@ func get_audit_report() -> Dictionary:
 	}.duplicate(true)
 
 
-func _build_hull() -> void:
-	var body := StaticBody3D.new()
-	body.name = "HullCollision"
-	body.collision_layer = 1
-	body.collision_mask = 1
-	add_child(body)
-	var collision := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = HULL_SIZE
-	collision.shape = shape
-	body.add_child(collision)
+func _build_collision() -> void:
+	_add_box_collision_shape("BomberHullCollision", Vector3(0.0, 0.0, 0.0), HULL_SIZE)
+
+
+func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "LongRangeHull"
 	var mesh := BoxMesh.new()
 	mesh.size = HULL_SIZE
 	hull.mesh = mesh
-	hull.material_override = _material(HULL_COLOR, 0.78)
-	add_child(hull)
+	hull.material_override = _material(HULL_COLOR, 0.78, 0.4)
+	visual.add_child(hull)
 	var ordnance := MeshInstance3D.new()
 	ordnance.name = "OrdnanceSpine"
 	var ordnance_mesh := BoxMesh.new()
 	ordnance_mesh.size = Vector3(2.2, 1.25, 8.4)
 	ordnance.mesh = ordnance_mesh
 	ordnance.position = Vector3(0.0, -0.15, 1.5)
-	ordnance.material_override = _material(ORDNANCE_COLOR, 0.52)
-	add_child(ordnance)
+	ordnance.material_override = _material(ORDNANCE_COLOR, 0.52, 0.4)
+	visual.add_child(ordnance)
 	var sensor := MeshInstance3D.new()
 	sensor.name = "LongRangeSensor"
 	var sensor_mesh := SphereMesh.new()
@@ -108,42 +122,24 @@ func _build_hull() -> void:
 	sensor_mesh.height = 1.24
 	sensor.mesh = sensor_mesh
 	sensor.position = Vector3(0.0, 1.6, -5.2)
-	sensor.material_override = _material(SENSOR_COLOR, 0.35, SENSOR_COLOR)
-	add_child(sensor)
+	sensor.material_override = _material(SENSOR_COLOR, 0.35, 0.4, SENSOR_COLOR, 1.8)
+	visual.add_child(sensor)
 
 
-func _build_cockpit() -> void:
-	_cockpit_seat = Marker3D.new()
-	_cockpit_seat.name = "PilotCockpitSeat"
-	_cockpit_seat.position = Vector3(0.0, 1.15, -5.0)
-	_cockpit_seat.set_meta(&"seat_role", &"pilot")
-	_cockpit_seat.set_meta(&"physical_boarding_anchor", true)
-	add_child(_cockpit_seat)
-	_boarding_marker = Marker3D.new()
-	_boarding_marker.name = "BoardingMarker"
-	_boarding_marker.position = Vector3(-3.8, -1.0, -0.5)
-	_boarding_marker.set_meta(&"boarding_side", &"port")
-	add_child(_boarding_marker)
+func _build_cockpit_and_boarding(visual: Node3D) -> void:
+	_bomber_boarding_marker = Marker3D.new()
+	_bomber_boarding_marker.name = "BoardingMarker"
+	_bomber_boarding_marker.position = Vector3(-3.8, -1.0, -0.5)
+	_bomber_boarding_marker.set_meta(&"boarding_side", &"port")
+	visual.add_child(_bomber_boarding_marker)
 
 
-func _build_payload_hardpoints() -> void:
+func _build_payload_hardpoints(visual: Node3D) -> void:
 	for index in PAYLOAD_HARDPOINT_COUNT:
 		var hardpoint := Marker3D.new()
 		hardpoint.name = "PayloadHardpoint%02d" % (index + 1)
 		hardpoint.position = Vector3(-1.55 if index % 2 == 0 else 1.55, -1.0, -2.4 + float(index / 2) * 4.8)
 		hardpoint.set_meta(&"payload_slot_index", index)
 		hardpoint.set_meta(&"ordnance_owner", COMPONENT_ID)
-		add_child(hardpoint)
+		visual.add_child(hardpoint)
 		_payload_hardpoints.append(hardpoint)
-
-
-func _material(color: Color, metallic: float, emission: Color = Color.BLACK) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.metallic = metallic
-	material.roughness = 0.4
-	if emission != Color.BLACK:
-		material.emission_enabled = true
-		material.emission = emission
-		material.emission_energy_multiplier = 1.8
-	return material

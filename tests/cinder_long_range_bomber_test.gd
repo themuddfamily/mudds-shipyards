@@ -15,7 +15,7 @@ func _initialize() -> void:
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the bomber makes no historical claim")
 	_check(bomber.get_cockpit_seat_anchor() != null and bomber.get_boarding_marker() != null, "the bomber exposes physical cockpit and boarding anchors")
 	_check(bomber.get_payload_hardpoints().size() == 4, "the bomber exposes four caller-owned payload hardpoints")
-	_check(not bool(audit.get("flight_authority", true)) and not bool(audit.get("combat_authority", true)) and not bool(audit.get("ordnance_authority", true)), "the component adds no duplicate flight, combat, or ordnance authority")
+	_check(bool(bomber is HeroShip) and bool(audit.get("flight_authority", false)) and not bool(audit.get("combat_authority", true)) and not bool(audit.get("ordnance_authority", true)), "HeroShip owns flight while the component adds no duplicate combat or ordnance authority")
 	bomber.queue_free()
 	await process_frame
 	if _failures.is_empty():
