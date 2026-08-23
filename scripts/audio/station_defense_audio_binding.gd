@@ -13,6 +13,9 @@ const CUE_PRIORITIES := {
 	&"station_defense_wave_started": 20,
 	&"station_defense_asset_danger": 50,
 	&"station_defense_asset_critical": 80,
+	&"station_defense_asset_destroyed": 100,
+	&"station_defense_asset_recovered": 70,
+	&"station_defense_asset_safe": 20,
 	&"station_defense_completed": 100,
 	&"station_defense_aborted": 90,
 }
@@ -135,11 +138,17 @@ func _emit_transitions(decoded: Dictionary) -> void:
 		var damage_count := int(asset.get("damage_event_count", 0))
 		var destroyed := bool(asset.get("destroyed", false))
 		var prior := int(_last_asset_damage.get(key, 0))
-		if destroyed and (prior < 2):
-			_emit_cue(&"station_defense_asset_critical", activity_id, 1.0)
+		if destroyed and (prior < 3):
+			if prior < 2:
+				_emit_cue(&"station_defense_asset_critical", activity_id, 1.0)
+			_emit_cue(&"station_defense_asset_destroyed", activity_id, 1.0)
 		elif damage_count > 0 and prior == 0:
 			_emit_cue(&"station_defense_asset_danger", activity_id, 0.5)
-		_last_asset_damage[key] = 2 if destroyed else damage_count
+		elif damage_count == 0 and prior > 0 and not destroyed:
+			_emit_cue(&"station_defense_asset_recovered", activity_id, 0.75)
+		elif damage_count == 0 and not _last_asset_damage.has(key):
+			_emit_cue(&"station_defense_asset_safe", activity_id, 0.25)
+		_last_asset_damage[key] = 3 if destroyed else damage_count
 	if state == &"completed" and _last_state != &"completed":
 		_emit_cue(&"station_defense_completed", activity_id, 1.0)
 	elif state in [&"failed", &"aborted", &"timed_out"] and _last_state not in [&"failed", &"aborted", &"timed_out"]:

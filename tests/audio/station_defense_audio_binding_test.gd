@@ -22,6 +22,9 @@ func _run() -> void:
 	_check(bool(binding.present_snapshot(base).accepted), "idle snapshot is accepted")
 	_check(bool(binding.present_snapshot(_snapshot(&"active", 0, true, [])).accepted), "wave start snapshot is accepted")
 	_check(_events.has(&"station_defense_wave_started"), "wave start emits a typed cue")
+	var safe_asset := {"handle": {"asset_id": &"berth_safe"}, "damage_event_count": 0, "destroyed": false}
+	_check(bool(binding.present_snapshot(_snapshot(&"active", 0, true, [safe_asset])).accepted), "safe asset snapshot is accepted")
+	_check(_events.has(&"station_defense_asset_safe"), "safe asset emits a readiness cue")
 	var danger_asset := {"handle": {"asset_id": &"berth_core"}, "damage_event_count": 1, "destroyed": false}
 	_check(bool(binding.present_snapshot(_snapshot(&"active", 0, true, [danger_asset])).accepted), "asset danger snapshot is accepted")
 	_check(_events.has(&"station_defense_asset_danger"), "asset damage emits danger cue")
@@ -32,6 +35,12 @@ func _run() -> void:
 	critical_asset.destroyed = true
 	_check(bool(binding.present_snapshot(_snapshot(&"active", 0, true, [critical_asset])).accepted), "asset critical snapshot is accepted")
 	_check(_events.has(&"station_defense_asset_critical"), "asset destruction emits critical cue")
+	_check(_events.has(&"station_defense_asset_destroyed"), "asset destruction emits destroyed cue")
+	var recovered_asset := danger_asset.duplicate(true)
+	recovered_asset.destroyed = false
+	recovered_asset.damage_event_count = 0
+	_check(bool(binding.present_snapshot(_snapshot(&"active", 0, true, [recovered_asset])).accepted), "asset recovery snapshot is accepted")
+	_check(_events.has(&"station_defense_asset_recovered"), "asset recovery emits recovered cue")
 	_check(bool(binding.present_snapshot(_snapshot(&"completed", 1, false, [critical_asset])).accepted), "completion snapshot is accepted")
 	_check(_events.has(&"station_defense_completed"), "completion emits a typed cue")
 	_check(bool(binding.present_snapshot(_snapshot(&"aborted", 1, false, [critical_asset])).accepted), "abort snapshot is accepted")
