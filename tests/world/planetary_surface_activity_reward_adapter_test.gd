@@ -47,6 +47,7 @@ func _run() -> void:
 	await _test_failed_activity_requires_fresh_reentry()
 	await _test_completed_activity_repeat()
 	await _test_ordered_activity_sequence()
+	await _test_sequence_failure_recovery()
 	_finish()
 
 
@@ -242,6 +243,47 @@ func _test_ordered_activity_sequence() -> void:
 		adapter.advance_activity_sequence(&"ridge_relay").reason == &"activity_sequence_complete"
 			and _reward_calls == 7,
 		"the ordered sequence closes after each landmark earns its own reward"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_sequence_failure_recovery() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.start_activity_sequence([
+		&"ember_beacon_survey", &"ember_caldera_patrol",
+	] as Array[StringName])
+	adapter.submit_activity_position(Vector3.ZERO)
+	_check(
+		adapter.abort_activity(&"surface_route_lost").accepted,
+		"a failed first landmark enters recovery without creating a reward"
+	)
+	host.attachment_generation = 8
+	var retried := adapter.retry_activity(&"ember_beacon_survey")
+	_check(
+		retried.accepted and retried.reason == &"activity_sequence_retried"
+			and retried.adapter.activity_sequence.index == 0,
+		"mid-sequence retry preserves the current landmark index"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	host.attachment_generation = 9
+	var advanced := adapter.advance_activity_sequence(&"ridge_relay")
+	_check(
+		advanced.accepted and advanced.adapter.activity_sequence.index == 1,
+		"recovered first landmark advances normally to the next landmark"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	_check(
+		_reward_calls == 9,
+		"failed work issues no reward while recovered sequence issues one per completed landmark"
 	)
 	director.queue_free()
 	await process_frame

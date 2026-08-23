@@ -175,7 +175,8 @@ func retry_activity(activity_id: StringName) -> Dictionary:
 	var started := _runtime.start_activity(activity_id, generations.run, generations.attachment)
 	if bool(started.get("accepted", false)):
 		_state = State.ACTIVE
-		return _with_adapter(started, true, &"activity_started")
+		var retry_reason := &"activity_sequence_retried" if _sequence_index >= 0 else &"activity_started"
+		return _with_adapter(started, true, retry_reason)
 	return _with_adapter(started, false, started.get("reason", &"retry_start_rejected") as StringName)
 
 
