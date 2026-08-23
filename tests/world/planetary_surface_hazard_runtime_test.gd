@@ -2,6 +2,8 @@ extends SceneTree
 
 const ContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
 const RuntimeScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
+const WeatherScript := preload("res://scripts/world/planetary_weather_field.gd")
+const ProfileScript := preload("res://scripts/world/definitions/planetary_atmosphere_profile.gd")
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -55,8 +57,42 @@ func _run() -> void:
 	)
 	_check(
 		runtime.get_snapshot().authority.health == false
-			and runtime.get_snapshot().authority.movement == false,
+		and runtime.get_snapshot().authority.movement == false,
 		"hazard runtime retains no health or movement authority"
+	)
+	var neutral_profile := ProfileScript.new()
+	neutral_profile.weather_intensity_unitless = 0.0
+	neutral_profile.wind_velocity_mps = Vector3.ZERO
+	var neutral_weather := WeatherScript.new()
+	neutral_weather.configure(neutral_profile)
+	var neutral_runtime := RuntimeScript.new()
+	neutral_runtime.configure(ContractScript.new())
+	neutral_runtime.bind_weather_field(neutral_weather)
+	var neutral := neutral_runtime.submit_weather_exposure(
+		&"caldera_thermal_vent", heat_position, 0.0, 0.0, 0.5, 1.0
+	)
+	_check(
+		neutral.accepted
+			and is_equal_approx(float(neutral.exposure_unitless), 0.05)
+			and neutral.weather.wind_direction == Vector3.ZERO,
+		"neutral weather leaves exposure unchanged and emits no wind direction"
+	)
+	var storm_profile := ProfileScript.new()
+	storm_profile.weather_intensity_unitless = 1.0
+	storm_profile.wind_velocity_mps = Vector3(20.0, 0.0, 0.0)
+	var storm_weather := WeatherScript.new()
+	storm_weather.configure(storm_profile)
+	var storm_runtime := RuntimeScript.new()
+	storm_runtime.configure(ContractScript.new())
+	storm_runtime.bind_weather_field(storm_weather)
+	var storm := storm_runtime.submit_weather_exposure(
+		&"caldera_thermal_vent", heat_position, 0.0, 0.0, 0.5, 1.0
+	)
+	_check(
+		storm.accepted
+			and float(storm.exposure_unitless) > float(neutral.exposure_unitless)
+			and storm.weather.wind_direction == Vector3.RIGHT,
+		"storm intensity scales exposure and returns authored wind direction"
 	)
 	_finish()
 

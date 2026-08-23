@@ -83,6 +83,7 @@ func sample(
 		"fog_factor_unitless": fog * float(_optics.fog_density_unitless),
 		"wind_velocity_mps": wind,
 		"weather_gust_factor_unitless": gust,
+		"weather_intensity_unitless": float(_weather.weather_intensity_unitless),
 		"caller_time_seconds": caller_time_seconds,
 	})
 

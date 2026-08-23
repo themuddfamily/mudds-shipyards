@@ -17,6 +17,7 @@ const COOLING_RATE_PER_SECOND := 0.2
 var _configured := false
 var _hazards: Dictionary = {}
 var _exposure: Dictionary = {}
+var _weather_field: RefCounted
 
 
 func configure(contract: PlanetarySurfaceNavigationContract) -> Dictionary:
@@ -31,6 +32,51 @@ func configure(contract: PlanetarySurfaceNavigationContract) -> Dictionary:
 		_exposure[hazard_id] = 0.0
 	_configured = true
 	return _result(true, &"configured")
+
+
+func bind_weather_field(weather_field: RefCounted) -> Dictionary:
+	if not _configured:
+		return _result(false, &"not_configured")
+	if weather_field == null or not bool(weather_field.call(&"is_configured")):
+		return _result(false, &"weather_unavailable")
+	_weather_field = weather_field
+	return _result(true, &"weather_bound")
+
+
+## Samples caller-owned weather at the hazard and scales exposure by authored
+## storm intensity. Wind direction is returned as context, never applied.
+func submit_weather_exposure(
+		hazard_id: StringName,
+		position: Variant,
+		altitude_m: Variant,
+		caller_time_seconds: Variant,
+		exposure_scalar: Variant,
+		delta_seconds: Variant
+	) -> Dictionary:
+	if _weather_field == null:
+		return _result(false, &"weather_unavailable")
+	if not _finite_number(altitude_m) or not _finite_number(caller_time_seconds):
+		return _result(false, &"invalid_weather_observation")
+	var weather: Dictionary = _weather_field.call(
+		&"sample", float(altitude_m), position, 0.0, float(caller_time_seconds)
+	)
+	if not bool(weather.get("accepted", false)):
+		return _result(false, weather.get("reason", &"weather_sample_rejected") as StringName)
+	var intensity := clampf(float(weather.get("weather_intensity_unitless", 0.0)), 0.0, 1.0)
+	var gust := clampf(float(weather.get("weather_gust_factor_unitless", 1.0)), 0.0, 1.25)
+	var multiplier := clampf(1.0 + intensity * gust, 1.0, 2.0)
+	var scaled := clampf(float(exposure_scalar) * multiplier, 0.0, 1.0)
+	var sampled := submit_exposure(hazard_id, position, scaled, delta_seconds)
+	if bool(sampled.get("accepted", false)):
+		var wind := weather.get("wind_velocity_mps", Vector3.ZERO) as Vector3
+		sampled["weather"] = {
+			"intensity_unitless": intensity,
+			"gust_factor_unitless": gust,
+			"exposure_multiplier": multiplier,
+			"wind_velocity_mps": wind,
+			"wind_direction": wind.normalized() if wind.length_squared() > 0.0 else Vector3.ZERO,
+		}.duplicate(true)
+	return sampled
 
 
 ## Evaluates one caller-owned hazard observation and returns transport-safe
@@ -95,6 +141,7 @@ func get_snapshot() -> Dictionary:
 			"recovery_transition": false,
 			"terrain": false,
 		},
+		"weather_bound": _weather_field != null,
 	}.duplicate(true)
 
 
@@ -103,6 +150,10 @@ func _finite_range(value: Variant, minimum: float, maximum: float) -> bool:
 		return false
 	var number := float(value)
 	return is_finite(number) and number >= minimum and number <= maximum
+
+
+func _finite_number(value: Variant) -> bool:
+	return (value is float or value is int) and is_finite(float(value))
 
 
 func _finite_vector(value: Variant) -> bool:
