@@ -131,13 +131,13 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-11.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
-const VISUAL_DESCENDANT_NODE_COUNT := 143
+const VISUAL_DESCENDANT_NODE_COUNT := 144
 const BASELINE_RENDERER_NODE_COUNT := 46
-const RENDERER_NODE_COUNT := 44
+const RENDERER_NODE_COUNT := 42
 const BASELINE_DRAWN_COPY_COUNT := 232
 const DRAWN_COPY_COUNT := 270
 const BASELINE_SURFACE_SUBMISSION_COUNT := 46
-const SURFACE_SUBMISSION_COUNT := 44
+const SURFACE_SUBMISSION_COUNT := 42
 const BASELINE_MESH_RESOURCE_COUNT := 46
 const MESH_RESOURCE_COUNT := 34
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
@@ -160,8 +160,23 @@ const OBSERVATION_CONSOLE_COPY_COUNT := 3
 const BASELINE_OBSERVATION_CONSOLE_RENDERER_NODE_COUNT := 3
 const OBSERVATION_CONSOLE_RENDERER_NODE_COUNT := 1
 const PRACTICAL_LENS_SIZE := Vector3(0.28, 0.12, 0.28)
+const PRACTICAL_LENS_POSITIONS := [
+	Vector3(2.32, 2.8, 7.0),
+	Vector3(-2.32, 2.8, 18.0),
+	Vector3(-9.55, 2.8, 23.5),
+	Vector3(-12.72, 2.8, 32.0),
+	Vector3(12.72, 2.8, 32.0),
+	Vector3(2.72, 2.8, 38.0),
+]
 const PRACTICAL_LENS_COPY_COUNT := 6
 const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
+const PRACTICAL_CYAN_LENS_INDICES := [0, 1, 3]
+const PRACTICAL_CYAN_LENS_COPY_COUNT := 3
+const PRACTICAL_CYAN_LENS_CULLING_BOUNDS := AABB(
+	Vector3(-12.86, 2.74, 6.86), Vector3(15.32, 0.12, 25.28)
+)
+const BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT := 3
+const PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT := 1
 const LOGISTICS_CASE_SIZE := Vector3(2.1, 0.52, 1.28)
 const LOGISTICS_CASE_COPY_COUNT := 6
 const LOGISTICS_CASE_MESH_RESOURCE_COUNT := 1
@@ -333,8 +348,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 143 descendant
-	# nodes, 21 MeshInstance3D nodes plus twenty-three visual-only MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 144 descendant
+	# nodes, 18 MeshInstance3D nodes plus twenty-four visual-only MultiMesh batches,
 	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -342,7 +357,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 21,
+		"mesh_instances": 18,
 		"static_bodies": 33,
 		"collision_shapes": 33,
 		"labels": 4,
@@ -520,23 +535,68 @@ func get_visual_resource_contract() -> Dictionary:
 				expected_console_transforms[console_index]
 			)
 		)
+	var practical_cyan_lens_batch := get_node_or_null(
+		^"Structure/Dressing/PracticalCyanLensRenderBatch"
+	) as MultiMeshInstance3D
 	var practical_lens_mesh_resource_ids := {}
 	var practical_lens_identities_exact := is_instance_valid(_practical_lens_mesh)
+	var practical_cyan_lens_identities_exact := practical_cyan_lens_batch != null
+	var authored_practical_cyan_transforms: Array = []
+	var expected_practical_cyan_transforms: Array[Transform3D] = []
+	if practical_cyan_lens_batch != null and practical_cyan_lens_batch.multimesh != null:
+		for lens_index in PRACTICAL_CYAN_LENS_INDICES:
+			expected_practical_cyan_transforms.append(Transform3D(
+				Basis.IDENTITY, PRACTICAL_LENS_POSITIONS[lens_index]
+			))
+		authored_practical_cyan_transforms = practical_cyan_lens_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		var practical_cyan_mesh := practical_cyan_lens_batch.multimesh.mesh as BoxMesh
+		if practical_cyan_mesh != null:
+			practical_lens_mesh_resource_ids[practical_cyan_mesh.get_instance_id()] = true
+		practical_cyan_lens_identities_exact = (
+			practical_cyan_mesh == _practical_lens_mesh
+			and practical_cyan_mesh != null
+			and practical_cyan_mesh.size.is_equal_approx(PRACTICAL_LENS_SIZE)
+			and practical_cyan_lens_batch.material_override == _materials.get("practical_cyan")
+			and practical_cyan_lens_batch.multimesh.instance_count == PRACTICAL_CYAN_LENS_COPY_COUNT
+			and practical_cyan_lens_batch.multimesh.visible_instance_count == PRACTICAL_CYAN_LENS_COPY_COUNT
+			and practical_cyan_lens_batch.multimesh.buffer == _encode_multimesh_transforms(expected_practical_cyan_transforms)
+			and practical_cyan_lens_batch.multimesh.custom_aabb.is_equal_approx(PRACTICAL_CYAN_LENS_CULLING_BOUNDS)
+			and authored_practical_cyan_transforms == expected_practical_cyan_transforms
+			and bool(practical_cyan_lens_batch.get_meta("visual_detail_only", false))
+		)
+	else:
+		practical_cyan_lens_identities_exact = false
 	for lens_index in PRACTICAL_LENS_COPY_COUNT:
-		var lens := get_node_or_null(NodePath(
+		var lens_node := get_node_or_null(NodePath(
 			"Structure/Dressing/LightLens%02d" % (lens_index + 1)
-		)) as MeshInstance3D
+		))
+		if PRACTICAL_CYAN_LENS_INDICES.has(lens_index):
+			var cyan_anchor := lens_node as Marker3D
+			var cyan_transform_index := PRACTICAL_CYAN_LENS_INDICES.find(lens_index)
+			practical_lens_identities_exact = practical_lens_identities_exact \
+				and cyan_anchor != null \
+				and cyan_anchor.position.is_equal_approx(PRACTICAL_LENS_POSITIONS[lens_index]) \
+				and cyan_anchor.get_child_count() == 0 \
+				and bool(cyan_anchor.get_meta("visual_detail_only", false)) \
+				and bool(cyan_anchor.get_meta("batched_visual_anchor", false)) \
+				and authored_practical_cyan_transforms.size() == PRACTICAL_CYAN_LENS_COPY_COUNT \
+				and (authored_practical_cyan_transforms[cyan_transform_index] as Transform3D).is_equal_approx(
+					expected_practical_cyan_transforms[cyan_transform_index]
+				)
+			continue
+		var lens := lens_node as MeshInstance3D
 		if lens == null or lens.mesh == null:
 			practical_lens_identities_exact = false
 			continue
 		practical_lens_mesh_resource_ids[lens.mesh.get_instance_id()] = true
-		practical_lens_identities_exact = (
-			practical_lens_identities_exact
-			and lens.mesh == _practical_lens_mesh
-			and (lens.mesh as BoxMesh).size.is_equal_approx(PRACTICAL_LENS_SIZE)
-			and lens.get_child_count() == 0
+		practical_lens_identities_exact = practical_lens_identities_exact \
+			and lens.mesh == _practical_lens_mesh \
+			and (lens.mesh as BoxMesh).size.is_equal_approx(PRACTICAL_LENS_SIZE) \
+			and lens.get_child_count() == 0 \
 			and bool(lens.get_meta("visual_detail_only", false))
-		)
+	practical_lens_identities_exact = practical_lens_identities_exact and practical_cyan_lens_identities_exact
 	var logistics_case_mesh_resource_ids := {}
 	var logistics_case_identities_exact := is_instance_valid(_logistics_case_mesh)
 	for case_index in LOGISTICS_CASE_COPY_COUNT:
@@ -626,7 +686,7 @@ func get_visual_resource_contract() -> Dictionary:
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"observation_console_render_batch",
+		"selected_family": &"practical_cyan_lens_render_batch",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -640,14 +700,14 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": BASELINE_OBSERVATION_CONSOLE_RENDERER_NODE_COUNT,
-		"family_nodes": OBSERVATION_CONSOLE_RENDERER_NODE_COUNT,
-		"baseline_family_submissions": BASELINE_OBSERVATION_CONSOLE_RENDERER_NODE_COUNT,
-		"family_submissions": OBSERVATION_CONSOLE_RENDERER_NODE_COUNT,
-		"baseline_family_mesh_resources": OBSERVATION_CONSOLE_COPY_COUNT,
-		"family_mesh_resources": console_mesh_resource_ids.size(),
-		"family_copies": OBSERVATION_CONSOLE_COPY_COUNT,
-		"family_identities_exact": console_identities_exact,
+		"baseline_family_nodes": BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"family_nodes": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"baseline_family_submissions": BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"family_submissions": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"baseline_family_mesh_resources": 1,
+		"family_mesh_resources": 1,
+		"family_copies": PRACTICAL_CYAN_LENS_COPY_COUNT,
+		"family_identities_exact": practical_cyan_lens_identities_exact,
 		"observation_lens_anchor_nodes": OBSERVATION_LENS_COPY_COUNT,
 		"baseline_observation_lens_renderer_nodes": BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT,
 		"observation_lens_renderer_nodes": OBSERVATION_LENS_RENDERER_NODE_COUNT,
@@ -672,6 +732,10 @@ func get_visual_resource_contract() -> Dictionary:
 		"practical_lens_copies": PRACTICAL_LENS_COPY_COUNT,
 		"practical_lens_mesh_resources": practical_lens_mesh_resource_ids.size(),
 		"practical_lens_identities_exact": practical_lens_identities_exact,
+		"baseline_practical_cyan_lens_renderer_nodes": BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"practical_cyan_lens_renderer_nodes": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"practical_cyan_lens_renderer_delta": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT - BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
+		"practical_cyan_lens_identities_exact": practical_cyan_lens_identities_exact,
 		"logistics_case_copies": LOGISTICS_CASE_COPY_COUNT,
 		"logistics_case_mesh_resources": logistics_case_mesh_resource_ids.size(),
 		"logistics_case_identities_exact": logistics_case_identities_exact,
@@ -731,7 +795,16 @@ func get_material_retention_contract() -> Dictionary:
 			if material != null:
 				retained_ids[material.get_instance_id()] = true
 	var lens_material_ids := PackedInt64Array()
+	var practical_cyan_batch := get_node_or_null(
+		^"Structure/Dressing/PracticalCyanLensRenderBatch"
+	) as MultiMeshInstance3D
 	for fixture_index in 6:
+		if PRACTICAL_CYAN_LENS_INDICES.has(fixture_index):
+			lens_material_ids.append(
+				practical_cyan_batch.material_override.get_instance_id()
+				if practical_cyan_batch != null and practical_cyan_batch.material_override != null else 0
+			)
+			continue
 		var lens := get_node_or_null(NodePath(
 			"Structure/Dressing/LightLens%02d" % (fixture_index + 1)
 		)) as MeshInstance3D
@@ -1248,6 +1321,7 @@ func _build_lighting(parent: Node3D) -> void:
 		[Vector3(2.72, 2.8, 38.0), Color("dbe8e4"), "practical_white"],
 	]
 	var mast_transforms: Array[Transform3D] = []
+	var practical_cyan_lens_transforms: Array[Transform3D] = []
 	for fixture_index in fixtures.size():
 		var fixture := fixtures[fixture_index] as Array
 		var fixture_position := fixture[0] as Vector3
@@ -1261,7 +1335,16 @@ func _build_lighting(parent: Node3D) -> void:
 		mast_anchor.set_meta("batched_visual_anchor", true)
 		parent.add_child(mast_anchor)
 		mast_transforms.append(Transform3D(Basis.IDENTITY, mast_position))
-		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, PRACTICAL_LENS_SIZE, _materials[fixture_material_key], false, _practical_lens_mesh)
+		if PRACTICAL_CYAN_LENS_INDICES.has(fixture_index):
+			var cyan_anchor := Marker3D.new()
+			cyan_anchor.name = "LightLens%02d" % (fixture_index + 1)
+			cyan_anchor.position = fixture_position
+			cyan_anchor.set_meta("visual_detail_only", true)
+			cyan_anchor.set_meta("batched_visual_anchor", true)
+			parent.add_child(cyan_anchor)
+			practical_cyan_lens_transforms.append(Transform3D(Basis.IDENTITY, fixture_position))
+		else:
+			_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, PRACTICAL_LENS_SIZE, _materials[fixture_material_key], false, _practical_lens_mesh)
 		var light := OmniLight3D.new()
 		light.name = "Practical%02d" % (fixture_index + 1)
 		light.position = fixture_position + Vector3(0, -0.16, 0)
@@ -1281,6 +1364,17 @@ func _build_lighting(parent: Node3D) -> void:
 		_materials["rail"],
 		mast_transforms
 	)
+	var practical_cyan_lens_batch := _multimesh_boxes(
+		parent,
+		"PracticalCyanLensRenderBatch",
+		PRACTICAL_LENS_SIZE,
+		_materials["practical_cyan"],
+		practical_cyan_lens_transforms,
+		_practical_lens_mesh
+	)
+	practical_cyan_lens_batch.multimesh.visible_instance_count = PRACTICAL_CYAN_LENS_COPY_COUNT
+	practical_cyan_lens_batch.multimesh.buffer = _encode_multimesh_transforms(practical_cyan_lens_transforms)
+	practical_cyan_lens_batch.multimesh.custom_aabb = PRACTICAL_CYAN_LENS_CULLING_BOUNDS
 
 
 func _apply_metadata() -> void:

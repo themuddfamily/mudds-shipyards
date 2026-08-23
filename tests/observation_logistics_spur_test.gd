@@ -178,11 +178,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 21
+		and int(performance.mesh_instances) == 18
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 143,
-		"finished district freezes 143 nodes, 21 meshes and 33 body/shape pairs"
+		and module.find_children("*", "Node", true, false).size() == 144,
+		"finished district freezes 144 nodes, 18 meshes and 33 body/shape pairs"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -258,11 +258,11 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 			== (materials.expected_practical_lens_material_ids as PackedInt64Array),
 		"cyan x3, white x2 and amber x1 practical lenses retain their exact shared identities"
 	)
-	var lens := module.get_node(^"Structure/Dressing/LightLens04") as MeshInstance3D
-	var shared_cyan := lens.material_override
-	lens.material_override = shared_cyan.duplicate()
+	var cyan_batch := module.get_node(^"Structure/Dressing/PracticalCyanLensRenderBatch") as MultiMeshInstance3D
+	var shared_cyan := cyan_batch.material_override
+	cyan_batch.material_override = shared_cyan.duplicate()
 	_check(not bool(module.get_audit_report().valid), "red mutation: duplicated practical recipe identity makes audit fail")
-	lens.material_override = shared_cyan
+	cyan_batch.material_override = shared_cyan
 	_check(bool(module.get_audit_report().valid), "restoring the shared practical recipe returns audit to green")
 
 
@@ -271,16 +271,16 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"observation_console_render_batch"
+		and StringName(performance.selected_family) == &"practical_cyan_lens_render_batch"
 		and int(performance.baseline_descendant_nodes) == 133
-		and int(performance.descendant_nodes) == 143
+		and int(performance.descendant_nodes) == 144
 		and int(performance.baseline_renderer_nodes) == 46
-		and int(performance.renderer_nodes) == 44
+		and int(performance.renderer_nodes) == 42
 		and int(performance.baseline_drawn_copies) == 232
 		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 46
-		and int(performance.surface_submissions) == 44,
-		"three observation consoles preserve 270 visible copies while reducing the district to 44 submissions"
+		and int(performance.surface_submissions) == 42,
+		"three cyan practical lenses preserve 270 visible copies while reducing the district to 42 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 46
@@ -292,9 +292,9 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_nodes) == 1
 		and int(performance.baseline_family_submissions) == 3
 		and int(performance.family_submissions) == 1
-		and int(performance.baseline_family_mesh_resources) == 3
+		and int(performance.baseline_family_mesh_resources) == 1
 		and int(performance.family_mesh_resources) == 1,
-		"observation-console batching retains one shell mesh resource and cuts its submissions from three to one"
+		"cyan practical-lens batching retains its shared mesh resource and cuts its submissions from three to one"
 	)
 	var console_batch := module.get_node_or_null(
 		^"Structure/Dressing/ObservationConsoleRenderBatch"
@@ -416,28 +416,57 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 			"red mutation: moving one batched mast copy fails the pose contract and restores cleanly"
 		)
 	var practical_lenses: Array[MeshInstance3D] = []
-	for lens_index in ObservationLogisticsSpur.PRACTICAL_LENS_COPY_COUNT:
+	for lens_index in [2, 4, 5]:
 		practical_lenses.append(module.get_node_or_null(NodePath(
 			"Structure/Dressing/LightLens%02d" % (lens_index + 1)
 		)) as MeshInstance3D)
+	var practical_cyan_batch := module.get_node_or_null(
+		^"Structure/Dressing/PracticalCyanLensRenderBatch"
+	) as MultiMeshInstance3D
+	var practical_cyan_exact := practical_cyan_batch != null and practical_cyan_batch.multimesh != null
+	var authored_practical_cyan_transforms := (
+		practical_cyan_batch.get_meta("authored_instance_transforms", []) as Array
+		if practical_cyan_batch != null else []
+	)
+	for transform_index in ObservationLogisticsSpur.PRACTICAL_CYAN_LENS_INDICES.size():
+		var lens_index: int = ObservationLogisticsSpur.PRACTICAL_CYAN_LENS_INDICES[transform_index]
+		var anchor := module.get_node_or_null(NodePath(
+			"Structure/Dressing/LightLens%02d" % (lens_index + 1)
+		)) as Marker3D
+		practical_cyan_exact = practical_cyan_exact \
+			and anchor != null \
+			and anchor.position.is_equal_approx(ObservationLogisticsSpur.PRACTICAL_LENS_POSITIONS[lens_index]) \
+			and anchor.get_child_count() == 0 \
+			and bool(anchor.get_meta("batched_visual_anchor", false)) \
+			and authored_practical_cyan_transforms.size() == ObservationLogisticsSpur.PRACTICAL_CYAN_LENS_COPY_COUNT \
+			and (authored_practical_cyan_transforms[transform_index] as Transform3D).is_equal_approx(
+				Transform3D(Basis.IDENTITY, ObservationLogisticsSpur.PRACTICAL_LENS_POSITIONS[lens_index])
+			)
 	_check(
 		int(performance.practical_lens_copies) == 6
 		and int(performance.practical_lens_mesh_resources) == 1
 		and bool(performance.practical_lens_identities_exact)
+		and practical_cyan_exact
+		and practical_cyan_batch.multimesh.instance_count == 3
+		and practical_cyan_batch.multimesh.visible_instance_count == 3
+		and practical_cyan_batch.multimesh.custom_aabb.is_equal_approx(ObservationLogisticsSpur.PRACTICAL_CYAN_LENS_CULLING_BOUNDS)
+		and int(performance.baseline_practical_cyan_lens_renderer_nodes) == 3
+		and int(performance.practical_cyan_lens_renderer_nodes) == 1
+		and int(performance.practical_cyan_lens_renderer_delta) == -2
+		and bool(performance.practical_cyan_lens_identities_exact)
 		and practical_lenses.all(func(lens: MeshInstance3D) -> bool: return lens != null and lens.mesh == practical_lenses[0].mesh),
-		"all six named practical lenses share one exact mesh while retaining their per-node material overrides"
+		"three cyan practical anchors retain exact visible poses while one renderer draws them; the remaining named lenses retain their shared mesh"
 	)
-	if practical_lenses[0] != null and practical_lenses[1] != null:
-		var practical_mesh := practical_lenses[1].mesh
-		practical_lenses[1].mesh = practical_mesh.duplicate() as BoxMesh
+	if practical_cyan_batch != null:
+		var practical_bounds := practical_cyan_batch.multimesh.custom_aabb
+		practical_cyan_batch.multimesh.custom_aabb = practical_bounds.grow(0.2)
 		var practical_red := module.get_visual_resource_contract()
-		practical_lenses[1].mesh = practical_mesh
+		practical_cyan_batch.multimesh.custom_aabb = practical_bounds
 		_check(
 			not bool(practical_red.exact)
-			and int(practical_red.mesh_resources) == 35
-			and int(practical_red.practical_lens_mesh_resources) == 2
+			and not bool(practical_red.practical_cyan_lens_identities_exact)
 			and bool(module.get_visual_resource_contract().exact),
-			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
+			"red mutation: changing cyan practical batch culling bounds fails the contract and restores cleanly"
 		)
 
 	var case_meshes: Array[MeshInstance3D] = []
