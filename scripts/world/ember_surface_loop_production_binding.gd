@@ -59,6 +59,9 @@ const ArrowEntryPresentationBindingScript := preload("res://scripts/ships/arrow_
 const HeroAirlessLandingWashBindingScript := preload(
 	"res://scripts/ships/hero_airless_landing_wash_binding.gd"
 )
+const HeroAtmosphericEntryEnvelopeBindingScript := preload(
+	"res://scripts/ships/hero_atmospheric_entry_envelope_binding.gd"
+)
 const RETURN_PERSISTENCE_SCHEMA_VERSION := 1
 const RETURN_PERSISTENCE_PAYLOAD_KIND: StringName = &"ember_planetary_return"
 const RETURN_PERSISTENCE_RECORD_KEYS := [
@@ -111,6 +114,8 @@ var _entry_presentation_binding: RefCounted
 var _last_entry_presentation_result: Dictionary = {}
 var _fleet_landing_wash_binding: RefCounted
 var _last_fleet_landing_wash_result: Dictionary = {}
+var _fleet_entry_envelope_binding: RefCounted
+var _last_fleet_entry_envelope_result: Dictionary = {}
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -156,6 +161,10 @@ func _exit_tree() -> void:
 		_fleet_landing_wash_binding.call(&"detach")
 		_fleet_landing_wash_binding = null
 	_last_fleet_landing_wash_result = {}
+	if _fleet_entry_envelope_binding != null:
+		_fleet_entry_envelope_binding.call(&"detach")
+		_fleet_entry_envelope_binding = null
+	_last_fleet_entry_envelope_result = {}
 	# A staged early envelope belongs to exactly one live tree epoch. Never replay
 	# it after a whole composition detach/re-entry.
 	_pending_envelope.clear()
@@ -207,6 +216,7 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	if retained_session is Object:
 		bind_planetary_travel_audio(retained_session as Object)
 	_attach_fleet_landing_wash_presentation()
+	_attach_fleet_entry_envelope_presentation()
 	_attach_entry_presentation()
 	process_physics_priority = PHYSICS_PRIORITY
 	set_physics_process(is_inside_tree())
@@ -1459,6 +1469,16 @@ func get_snapshot() -> Dictionary:
 		"last_fleet_landing_wash_result": (
 			_last_fleet_landing_wash_result.duplicate(true)
 		),
+		"fleet_entry_envelope_presentation": (
+			_fleet_entry_envelope_binding.call(&"get_snapshot")
+			if _fleet_entry_envelope_binding != null else {
+				"attached": false,
+				"delegated_to_arrow_entry": _ship is ArrowReconShip,
+			}
+		),
+		"last_fleet_entry_envelope_result": (
+			_last_fleet_entry_envelope_result.duplicate(true)
+		),
 	}.duplicate(true)
 
 
@@ -1482,6 +1502,48 @@ func _attach_fleet_landing_wash_presentation() -> Dictionary:
 	if bool(result.get("accepted", false)):
 		_fleet_landing_wash_binding = binding
 	return result
+
+
+## Attaches one shared non-Arrow atmospheric envelope to the accepted HeroShip
+## silhouette. Arrow keeps its existing entry-owned presenter, so no craft
+## receives two compression envelopes.
+func _attach_fleet_entry_envelope_presentation() -> Dictionary:
+	if _ship is ArrowReconShip:
+		return {
+			"accepted": true,
+			"reason": &"delegated_to_arrow_entry",
+		}
+	if _fleet_entry_envelope_binding != null:
+		return {"accepted": true, "reason": &"entry_envelope_retained"}
+	if _ship == null or _composition_root == null:
+		return {"accepted": false, "reason": &"entry_envelope_unavailable"}
+	var hud := _composition_root.get_node_or_null(^"HUD") as GameHUD
+	if hud == null:
+		return {"accepted": false, "reason": &"entry_hud_unavailable"}
+	var binding := HeroAtmosphericEntryEnvelopeBindingScript.new() as RefCounted
+	var result := binding.call(&"attach", _ship, hud) as Dictionary
+	if bool(result.get("accepted", false)):
+		_fleet_entry_envelope_binding = binding
+	return result
+
+
+func _configure_fleet_entry_envelope_atmosphere(
+		atmosphere_composition: Node
+	) -> Dictionary:
+	var attached := _attach_fleet_entry_envelope_presentation()
+	if not bool(attached.get("accepted", false)):
+		return attached
+	var profile: PlanetaryAtmosphereProfile = atmosphere_composition.get(
+		"atmosphere_profile"
+	) as PlanetaryAtmosphereProfile
+	if profile == null:
+		return {
+			"accepted": false,
+			"reason": &"entry_atmosphere_profile_unavailable",
+		}
+	return _fleet_entry_envelope_binding.call(
+		&"configure_atmosphere", profile
+	) as Dictionary
 
 
 ## Resolves the retained gameplay HUD beside this production owner. Failure is
@@ -1516,6 +1578,40 @@ func _configure_entry_atmosphere(atmosphere_composition: Node) -> Dictionary:
 func _present_entry_observation(
 		speed_mps: float, vertical_speed_mps: float, landing_supported: bool
 	) -> void:
+	var fleet_envelope_attached := _attach_fleet_entry_envelope_presentation()
+	if bool(fleet_envelope_attached.get("accepted", false)) \
+			and _fleet_entry_envelope_binding != null:
+		if _atmosphere_composition != null:
+			var envelope_snapshot := _fleet_entry_envelope_binding.call(
+				&"get_snapshot"
+			) as Dictionary
+			if StringName(envelope_snapshot.get("profile_id", &"")) == &"":
+				var configured := _configure_fleet_entry_envelope_atmosphere(
+					_atmosphere_composition
+				)
+				if not bool(configured.get("accepted", false)):
+					_last_fleet_entry_envelope_result = configured.duplicate(true)
+				else:
+					_last_fleet_entry_envelope_result = \
+						_fleet_entry_envelope_binding.call(
+							&"present_observation", _last_planetary_altitude_m,
+							speed_mps, true
+						) as Dictionary
+			else:
+				_last_fleet_entry_envelope_result = \
+					_fleet_entry_envelope_binding.call(
+						&"present_observation", _last_planetary_altitude_m,
+						speed_mps, true
+					) as Dictionary
+		else:
+			_last_fleet_entry_envelope_result = \
+				_fleet_entry_envelope_binding.call(
+					&"present_observation", _last_planetary_altitude_m,
+					speed_mps, false
+				) as Dictionary
+	else:
+		_last_fleet_entry_envelope_result = \
+			fleet_envelope_attached.duplicate(true)
 	var wash_attached := _attach_fleet_landing_wash_presentation()
 	if bool(wash_attached.get("accepted", false)) \
 			and _fleet_landing_wash_binding != null:
