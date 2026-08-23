@@ -91,6 +91,35 @@ const WEAPON_TELEGRAPH_POSITIONS := [
 	Vector3(-2.65, -0.08, -4.98),
 	Vector3(2.65, -0.08, -4.98),
 ]
+const FIRE_PATTERN_SINGLE_SHOT: StringName = &"single_shot"
+const FIRE_PATTERN_SHORT_BURST: StringName = &"short_burst"
+const FIRE_PATTERN_SPACED_SUPPRESSION: StringName = &"spaced_suppression"
+const MAX_PATTERN_PROJECTILES_PER_CYCLE := 3
+const SHORT_BURST_PROJECTILE_COUNT := 3
+const SHORT_BURST_INTERVAL_SECONDS := 0.14
+const SHORT_BURST_OPENING_DELAY_SECONDS := 0.08
+const SUPPRESSION_COOLDOWN_MULTIPLIER := 1.65
+const SUPPRESSION_OPENING_DELAY_SECONDS := 0.22
+const FIRE_PATTERN_PROFILES := {
+	FIRE_PATTERN_SINGLE_SHOT: {
+		"projectile_count": 1,
+		"interval_seconds": 0.0,
+		"cooldown_multiplier": 1.0,
+		"opening_delay_seconds": 0.0,
+	},
+	FIRE_PATTERN_SHORT_BURST: {
+		"projectile_count": SHORT_BURST_PROJECTILE_COUNT,
+		"interval_seconds": SHORT_BURST_INTERVAL_SECONDS,
+		"cooldown_multiplier": 1.0,
+		"opening_delay_seconds": SHORT_BURST_OPENING_DELAY_SECONDS,
+	},
+	FIRE_PATTERN_SPACED_SUPPRESSION: {
+		"projectile_count": 1,
+		"interval_seconds": 0.0,
+		"cooldown_multiplier": SUPPRESSION_COOLDOWN_MULTIPLIER,
+		"opening_delay_seconds": SUPPRESSION_OPENING_DELAY_SECONDS,
+	},
+}
 
 ## The paired gun housings are immutable presentation shells. Weapon authority
 ## remains on the root and its two muzzle markers; charge animation remains on
@@ -137,6 +166,9 @@ var _damage_audio_binding: RefCounted
 var _elapsed := 0.0
 var _cooldown_remaining := 0.0
 var _telegraph_remaining := 0.0
+var _firing_pattern_id: StringName = FIRE_PATTERN_SINGLE_SHOT
+var _pattern_projectiles_remaining := 0
+var _pattern_interval_remaining := 0.0
 var _orbit_sign := 1.0
 var _target: Node3D
 var _alternate_muzzle := false
@@ -209,6 +241,7 @@ func _physics_process(delta: float) -> void:
 	var aware_target := _has_target_awareness(modifiers)
 	if not aware_target:
 		_telegraph_remaining = 0.0
+		_clear_pending_pattern_projectiles()
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * mobility * 0.45 * delta)
 		move_and_slide()
 		return
@@ -351,6 +384,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_elapsed = 0.0
 	_cooldown_remaining = 0.85
 	_telegraph_remaining = 0.0
+	_clear_pending_pattern_projectiles()
 	_alternate_muzzle = false
 	_orbit_sign = 1.0 if spawn_transform.origin.x >= 0.0 else -1.0
 	_bank_angle = 0.0
@@ -382,6 +416,7 @@ func deactivate() -> void:
 	collision_mask = 0
 	_telegraph_remaining = 0.0
 	_cooldown_remaining = 0.0
+	_clear_pending_pattern_projectiles()
 	if _damage_sparks != null:
 		_damage_sparks.emitting = false
 		_restart_particles_cleared(_damage_sparks)
@@ -476,6 +511,56 @@ func get_operational_modifiers() -> Dictionary:
 
 func is_active() -> bool:
 	return _active
+
+
+## Selects one bounded cadence while retaining the existing telegraph, component
+## consequences and projectile signal as the only weapon-dispatch authority.
+func configure_firing_pattern(pattern_id: StringName) -> Dictionary:
+	if not FIRE_PATTERN_PROFILES.has(pattern_id):
+		return {
+			"accepted": false,
+			"reason": &"unknown_firing_pattern",
+			"pattern_id": _firing_pattern_id,
+		}.duplicate(true)
+	if pattern_id == _firing_pattern_id:
+		return {
+			"accepted": true,
+			"reason": &"firing_pattern_unchanged",
+			"pattern_id": _firing_pattern_id,
+		}.duplicate(true)
+	_firing_pattern_id = pattern_id
+	_telegraph_remaining = 0.0
+	_clear_pending_pattern_projectiles()
+	if _active and pattern_id != FIRE_PATTERN_SINGLE_SHOT:
+		var opening_delay := float(
+			(FIRE_PATTERN_PROFILES[pattern_id] as Dictionary).opening_delay_seconds
+		)
+		_cooldown_remaining = minf(_cooldown_remaining, opening_delay)
+	return {
+		"accepted": true,
+		"reason": &"firing_pattern_configured",
+		"pattern_id": _firing_pattern_id,
+	}.duplicate(true)
+
+
+func get_firing_pattern_snapshot() -> Dictionary:
+	var profile := FIRE_PATTERN_PROFILES.get(
+		_firing_pattern_id,
+		FIRE_PATTERN_PROFILES[FIRE_PATTERN_SINGLE_SHOT]
+	) as Dictionary
+	return {
+		"pattern_id": _firing_pattern_id,
+		"projectile_count_per_cycle": int(profile.projectile_count),
+		"maximum_projectiles_per_cycle": MAX_PATTERN_PROJECTILES_PER_CYCLE,
+		"interval_seconds": float(profile.interval_seconds),
+		"cooldown_multiplier": float(profile.cooldown_multiplier),
+		"pending_projectile_count": _pattern_projectiles_remaining,
+		"pending_interval_seconds": _pattern_interval_remaining,
+		"cooldown_remaining_seconds": _cooldown_remaining,
+		"uses_existing_projectile_signal": true,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
 
 
 ## Renderer-independent audit for the base defender's four paired box families.
@@ -867,6 +952,18 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 	)
 	if fire_modifier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
 		_telegraph_remaining = 0.0
+		_clear_pending_pattern_projectiles()
+		return
+	if _pattern_projectiles_remaining > 0:
+		_update_pattern_followup(
+			target_position,
+			target_direction,
+			distance,
+			delta,
+			modifiers,
+			fire_modifier,
+			targeting_modifier
+		)
 		return
 	if _telegraph_remaining > 0.0:
 		# Charging is a visible commitment, not a guaranteed hit. A player who
@@ -921,6 +1018,64 @@ func _fire_at_target(target_position: Vector3) -> void:
 	var fire_modifier := clampf(float(modifiers.get("fire_multiplier", 0.0)), 0.0, 1.0)
 	if fire_modifier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
 		return
+	if not _dispatch_projectile(target_position):
+		return
+	var profile := FIRE_PATTERN_PROFILES.get(
+		_firing_pattern_id,
+		FIRE_PATTERN_PROFILES[FIRE_PATTERN_SINGLE_SHOT]
+	) as Dictionary
+	_pattern_projectiles_remaining = clampi(
+		int(profile.projectile_count) - 1,
+		0,
+		MAX_PATTERN_PROJECTILES_PER_CYCLE - 1
+	)
+	if _pattern_projectiles_remaining > 0:
+		_pattern_interval_remaining = float(profile.interval_seconds) / fire_modifier
+		_cooldown_remaining = 0.0
+	else:
+		_finish_firing_cycle(profile, fire_modifier)
+
+
+func _update_pattern_followup(
+	target_position: Vector3,
+	target_direction: Vector3,
+	distance: float,
+	delta: float,
+	modifiers: Dictionary,
+	fire_modifier: float,
+	targeting_modifier: float
+	) -> void:
+	_pattern_interval_remaining = maxf(0.0, _pattern_interval_remaining - delta)
+	if _pattern_interval_remaining > 0.0:
+		return
+	var still_aimed := (-global_basis.z).dot(target_direction) >= _aim_acceptance_dot(
+		0.82,
+		targeting_modifier
+	)
+	if (
+		distance > engagement_range
+		or not still_aimed
+		or not _has_target_awareness(modifiers)
+		or not _has_line_of_sight(target_position)
+		or not _dispatch_projectile(_get_target_aim_position())
+	):
+		_clear_pending_pattern_projectiles()
+		_cooldown_remaining = maxf(_cooldown_remaining, 0.28 / fire_modifier)
+		return
+	_pattern_projectiles_remaining -= 1
+	var profile := FIRE_PATTERN_PROFILES.get(
+		_firing_pattern_id,
+		FIRE_PATTERN_PROFILES[FIRE_PATTERN_SINGLE_SHOT]
+	) as Dictionary
+	if _pattern_projectiles_remaining > 0:
+		_pattern_interval_remaining = float(profile.interval_seconds) / fire_modifier
+	else:
+		_finish_firing_cycle(profile, fire_modifier)
+
+
+func _dispatch_projectile(target_position: Vector3) -> bool:
+	if not _active or not _has_current_target():
+		return false
 	var muzzle := _muzzle_starboard if _alternate_muzzle else _muzzle_port
 	_alternate_muzzle = not _alternate_muzzle
 	var target_velocity := Vector3.ZERO
@@ -934,7 +1089,19 @@ func _fire_at_target(target_position: Vector3) -> void:
 		direction = -global_basis.z
 	projectile_fired.emit(muzzle.global_position, direction)
 	_spawn_muzzle_flash(muzzle.global_position)
-	_cooldown_remaining = weapon_cooldown / fire_modifier
+	return true
+
+
+func _finish_firing_cycle(profile: Dictionary, fire_modifier: float) -> void:
+	_clear_pending_pattern_projectiles()
+	_cooldown_remaining = (
+		weapon_cooldown * float(profile.cooldown_multiplier) / maxf(fire_modifier, 0.001)
+	)
+
+
+func _clear_pending_pattern_projectiles() -> void:
+	_pattern_projectiles_remaining = 0
+	_pattern_interval_remaining = 0.0
 
 
 func _set_damage_stage() -> void:
@@ -989,6 +1156,8 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	collision_layer = 0
 	collision_mask = 0
 	_telegraph_remaining = 0.0
+	_cooldown_remaining = 0.0
+	_clear_pending_pattern_projectiles()
 	destroyed.emit(death_position)
 
 

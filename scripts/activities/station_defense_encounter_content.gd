@@ -44,6 +44,8 @@ const FEINT_PREFERRED_RANGE := 58.0
 const FEINT_CRUISE_SPEED := 14.0
 const FEINT_CHASE_SPEED := 18.0
 const FEINT_ORBIT_SIGN := -1.0
+const BREAKER_FIRE_PATTERN: StringName = RangeOpponent.FIRE_PATTERN_SHORT_BURST
+const FEINT_FIRE_PATTERN: StringName = RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
 const INTEGRITY_STATE_STABLE: StringName = &"stable"
 const INTEGRITY_STATE_UNDER_FIRE: StringName = &"under_fire"
 const INTEGRITY_STATE_CRITICAL: StringName = &"critical"
@@ -985,6 +987,7 @@ func _capture_nominal_tactic_configuration() -> void:
 			"cruise_speed": entity.cruise_speed,
 			"chase_speed": entity.chase_speed,
 			"orbit_sign": float(entity.get("_orbit_sign")),
+			"firing_pattern_id": entity.get_firing_pattern_snapshot().pattern_id,
 			"telegraph_node_paths": (
 				entity.get_weapon_telegraph_mesh_allocation_audit().get(
 					"node_paths", PackedStringArray()
@@ -1092,6 +1095,10 @@ func _apply_breaker_feint_configuration() -> void:
 	feint.cruise_speed = FEINT_CRUISE_SPEED
 	feint.chase_speed = FEINT_CHASE_SPEED
 	feint.set("_orbit_sign", FEINT_ORBIT_SIGN)
+	var breaker_pattern := breaker.configure_firing_pattern(BREAKER_FIRE_PATTERN)
+	var feint_pattern := feint.configure_firing_pattern(FEINT_FIRE_PATTERN)
+	if not bool(breaker_pattern.accepted) or not bool(feint_pattern.accepted):
+		_restore_later_wave_tactic_configuration()
 
 
 func _restore_later_wave_tactic_configuration() -> void:
@@ -1107,6 +1114,9 @@ func _restore_later_wave_tactic_configuration() -> void:
 		entity.cruise_speed = float(nominal.get("cruise_speed", entity.cruise_speed))
 		entity.chase_speed = float(nominal.get("chase_speed", entity.chase_speed))
 		entity.set("_orbit_sign", float(nominal.get("orbit_sign", 1.0)))
+		entity.configure_firing_pattern(StringName(
+			nominal.get("firing_pattern_id", RangeOpponent.FIRE_PATTERN_SINGLE_SHOT)
+		))
 		var telegraphs := _get_tactic_telegraph_nodes(
 			entity,
 			nominal.get("telegraph_node_paths", PackedStringArray()) as PackedStringArray
@@ -1288,6 +1298,9 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 				"approach": &"direct_zero_orbit",
 				"preferred_range": BREAKER_PREFERRED_RANGE,
 				"chase_speed": BREAKER_CHASE_SPEED,
+				"firing_pattern_id": BREAKER_FIRE_PATTERN,
+				"projectile_count_per_cycle": RangeOpponent.SHORT_BURST_PROJECTILE_COUNT,
+				"projectile_interval_seconds": RangeOpponent.SHORT_BURST_INTERVAL_SECONDS,
 			},
 			{
 				"hostile_id": PINCER_OUTER_HOSTILE_ID,
@@ -1295,6 +1308,9 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 				"approach": &"slow_counter_orbit",
 				"preferred_range": FEINT_PREFERRED_RANGE,
 				"chase_speed": FEINT_CHASE_SPEED,
+				"firing_pattern_id": FEINT_FIRE_PATTERN,
+				"projectile_count_per_cycle": 1,
+				"cooldown_multiplier": RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER,
 			},
 		],
 		"uses_caller_physics_delta": true,

@@ -30,6 +30,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
+	await _test_range_opponent_firing_patterns()
 	await _test_perimeter_renewal_rejects_stale_live_ownership()
 	await _test_checked_in_encounter_content()
 	await _test_detached_configuration_initializes_once_on_reentry()
@@ -40,6 +41,186 @@ func _run() -> void:
 		"content fixture removes the production world, encounter, and external authority"
 	)
 	_finish()
+
+
+func _test_range_opponent_firing_patterns() -> void:
+	var target := Node3D.new()
+	target.name = "FiringPatternTarget"
+	target.position = Vector3(0.0, 0.0, -48.0)
+	root.add_child(target)
+	var opponent := RangeOpponent.new()
+	opponent.name = "FiringPatternOpponent"
+	opponent.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(opponent)
+	await process_frame
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_target(target)
+	var shots: Array[Dictionary] = []
+	opponent.projectile_fired.connect(
+		func(origin: Vector3, direction: Vector3) -> void:
+			shots.append({"origin": origin, "direction": direction})
+	)
+
+	var single_result := opponent.configure_firing_pattern(
+		RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+	)
+	_drive_firing_pattern_cycle(opponent, target, [])
+	var single_snapshot := opponent.get_firing_pattern_snapshot()
+	var single_count := shots.size()
+	var single_cooldown := float(single_snapshot.cooldown_remaining_seconds)
+
+	opponent.deactivate()
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_target(target)
+	shots.clear()
+	var burst_result := opponent.configure_firing_pattern(
+		RangeOpponent.FIRE_PATTERN_SHORT_BURST
+	)
+	_drive_firing_pattern_cycle(opponent, target, [
+		RangeOpponent.SHORT_BURST_INTERVAL_SECONDS * 0.5,
+	])
+	var burst_mid_count := shots.size()
+	var burst_mid := opponent.get_firing_pattern_snapshot()
+	root.remove_child(opponent)
+	await process_frame
+	var detached_burst := opponent.get_firing_pattern_snapshot()
+	root.add_child(opponent)
+	await process_frame
+	var reentered_burst := opponent.get_firing_pattern_snapshot()
+	_drive_firing_pattern_cycle(opponent, target, [
+		RangeOpponent.SHORT_BURST_INTERVAL_SECONDS * 0.5,
+		RangeOpponent.SHORT_BURST_INTERVAL_SECONDS,
+	], false)
+	var burst_snapshot := opponent.get_firing_pattern_snapshot()
+	var burst_count := shots.size()
+	var burst_shots := shots.duplicate(true)
+
+	opponent.deactivate()
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_target(target)
+	shots.clear()
+	var suppression_result := opponent.configure_firing_pattern(
+		RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+	)
+	_drive_firing_pattern_cycle(opponent, target, [])
+	var suppression_snapshot := opponent.get_firing_pattern_snapshot()
+	var suppression_count := shots.size()
+
+	opponent.deactivate()
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_target(target)
+	opponent.apply_damage(34.0, opponent.global_position)
+	var degraded_modifiers := opponent.get_operational_modifiers()
+	var degraded_fire_multiplier := float(degraded_modifiers.fire_multiplier)
+	shots.clear()
+	opponent.configure_firing_pattern(RangeOpponent.FIRE_PATTERN_SHORT_BURST)
+	_drive_firing_pattern_cycle(opponent, target, [])
+	var degraded_pending := opponent.get_firing_pattern_snapshot()
+	_drive_firing_pattern_cycle(
+		opponent,
+		target,
+		[RangeOpponent.SHORT_BURST_INTERVAL_SECONDS],
+		false
+	)
+	var degraded_nominal_interval_count := shots.size()
+	var scaled_interval := (
+		RangeOpponent.SHORT_BURST_INTERVAL_SECONDS / degraded_fire_multiplier
+	)
+	_drive_firing_pattern_cycle(opponent, target, [
+		scaled_interval - RangeOpponent.SHORT_BURST_INTERVAL_SECONDS,
+		scaled_interval,
+	], false)
+	var degraded_burst_snapshot := opponent.get_firing_pattern_snapshot()
+	var degraded_burst_count := shots.size()
+
+	_check(
+		single_result.accepted
+		and single_count == 1
+		and single_snapshot.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and int(single_snapshot.projectile_count_per_cycle) == 1
+		and is_equal_approx(single_cooldown, opponent.weapon_cooldown),
+		"baseline firing remains one telegraphed projectile per nominal cooldown"
+	)
+	_check(
+		burst_result.accepted
+		and burst_mid_count == 1
+		and int(burst_mid.pending_projectile_count) == 2
+		and detached_burst == reentered_burst
+		and burst_count == RangeOpponent.SHORT_BURST_PROJECTILE_COUNT
+		and not (burst_shots[0].origin as Vector3).is_equal_approx(
+			burst_shots[1].origin as Vector3
+		)
+		and (burst_shots[0].origin as Vector3).is_equal_approx(
+			burst_shots[2].origin as Vector3
+		)
+		and burst_snapshot.pattern_id == RangeOpponent.FIRE_PATTERN_SHORT_BURST
+		and int(burst_snapshot.pending_projectile_count) == 0
+		and int(burst_snapshot.maximum_projectiles_per_cycle) == 3
+		and is_equal_approx(
+			float(burst_snapshot.cooldown_remaining_seconds), opponent.weapon_cooldown
+		),
+		"short burst dispatches exactly three alternating projectiles at bounded spacing without detach/re-entry replay"
+	)
+	_check(
+		suppression_result.accepted
+		and suppression_count == 1
+		and suppression_snapshot.pattern_id == RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and int(suppression_snapshot.projectile_count_per_cycle) == 1
+		and is_equal_approx(
+			float(suppression_snapshot.cooldown_remaining_seconds),
+			opponent.weapon_cooldown * RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER
+		),
+		"spaced suppression dispatches one projectile then holds the bounded 1.65x cycle cooldown"
+	)
+	_check(
+		degraded_fire_multiplier > 0.0 and degraded_fire_multiplier < 1.0
+		and degraded_burst_count == RangeOpponent.SHORT_BURST_PROJECTILE_COUNT
+		and degraded_nominal_interval_count == 1
+		and is_equal_approx(
+			float(degraded_pending.pending_interval_seconds), scaled_interval
+		)
+		and is_equal_approx(
+			float(degraded_burst_snapshot.cooldown_remaining_seconds),
+			opponent.weapon_cooldown / degraded_fire_multiplier
+		),
+		"existing weapon degradation scales both burst spacing and post-cycle cooldown without changing its three-shot cap"
+	)
+
+	opponent.deactivate()
+	root.remove_child(opponent)
+	opponent.queue_free()
+	root.remove_child(target)
+	target.queue_free()
+	await process_frame
+
+
+func _drive_firing_pattern_cycle(
+	opponent: RangeOpponent,
+	target: Node3D,
+	followup_deltas: Array,
+	start_cycle: bool = true
+	) -> void:
+	var target_direction := (target.global_position - opponent.global_position).normalized()
+	var distance := opponent.global_position.distance_to(target.global_position)
+	if start_cycle:
+		opponent.set("_cooldown_remaining", 0.0)
+		opponent.set("_telegraph_remaining", 0.0)
+		opponent.call("_update_weapon", target.global_position, target_direction, distance, 0.0)
+		opponent.call(
+			"_update_weapon",
+			target.global_position,
+			target_direction,
+			distance,
+			opponent.telegraph_time
+		)
+	for delta_variant in followup_deltas:
+		opponent.call(
+			"_update_weapon",
+			target.global_position,
+			target_direction,
+			distance,
+			float(delta_variant)
+		)
 
 
 func _test_perimeter_renewal_rejects_stale_live_ownership() -> void:
@@ -567,6 +748,8 @@ func _test_checked_in_encounter_content() -> void:
 	var breaker_snapshot := content.get_snapshot()
 	var breaker_feedback := breaker_snapshot.breaker_feint as Dictionary
 	var breaker_roles := breaker_feedback.roles as Array
+	var beta_breaker_pattern := beta.get_firing_pattern_snapshot()
+	var gamma_feint_pattern := gamma.get_firing_pattern_snapshot()
 	_check(
 		alpha_terminal.destroyed and relief.accepted
 		and beta.is_active() and gamma.is_active()
@@ -577,8 +760,12 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(float(breaker_feedback.duration_seconds), 1.25)
 		and (breaker_roles[0] as Dictionary).role == &"core_breaker"
 		and (breaker_roles[0] as Dictionary).approach == &"direct_zero_orbit"
+		and (breaker_roles[0] as Dictionary).firing_pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SHORT_BURST
 		and (breaker_roles[1] as Dictionary).role == &"outer_feint"
 		and (breaker_roles[1] as Dictionary).approach == &"slow_counter_orbit"
+		and (breaker_roles[1] as Dictionary).firing_pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
 		and is_equal_approx(beta.preferred_range, StationDefenseEncounterContent.BREAKER_PREFERRED_RANGE)
 		and is_equal_approx(beta.cruise_speed, StationDefenseEncounterContent.BREAKER_CRUISE_SPEED)
 		and is_equal_approx(beta.chase_speed, StationDefenseEncounterContent.BREAKER_CHASE_SPEED)
@@ -587,6 +774,13 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(gamma.cruise_speed, StationDefenseEncounterContent.FEINT_CRUISE_SPEED)
 		and is_equal_approx(gamma.chase_speed, StationDefenseEncounterContent.FEINT_CHASE_SPEED)
 		and float(gamma.get("_orbit_sign")) == StationDefenseEncounterContent.FEINT_ORBIT_SIGN
+		and beta_breaker_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SHORT_BURST
+		and int(beta_breaker_pattern.projectile_count_per_cycle) == 3
+		and gamma_feint_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and is_equal_approx(
+			float(gamma_feint_pattern.cooldown_multiplier),
+			RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER
+		)
 		and str(breaker_snapshot.host.activity.next_step).contains(
 			"STOP BETA BREAKER // GAMMA IS THE FEINT"
 		),
@@ -631,6 +825,8 @@ func _test_checked_in_encounter_content() -> void:
 	var pincer_transition := content.advance_physics(0.65, generation)
 	var active_tactic := content.get_snapshot().later_wave_tactic as Dictionary
 	var active_activity := content.get_snapshot().host.activity as Dictionary
+	var beta_pincer_pattern := beta.get_firing_pattern_snapshot()
+	var gamma_pincer_pattern := gamma.get_firing_pattern_snapshot()
 	var close_role := (active_tactic.formation as Array)[0] as Dictionary
 	var outer_role := (active_tactic.formation as Array)[1] as Dictionary
 	_check(
@@ -647,6 +843,8 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(beta.chase_speed, beta_nominal_chase_speed)
 		and is_equal_approx(gamma.cruise_speed, gamma_nominal_cruise_speed)
 		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
+		and beta_pincer_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and gamma_pincer_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
 		and close_role.telegraph_identity == &"compact_pair"
 		and close_role.identity_pattern == "><"
 		and bool(close_role.presentation_active)
@@ -684,14 +882,21 @@ func _test_checked_in_encounter_content() -> void:
 		and signf(beta_orbit_motion) != signf(gamma_orbit_motion),
 		"the two live registered opponents apply visible counter-orbit pressure instead of one repeated approach"
 	)
+	var health_before_relief_manual_shots := damageable.get_health()
+	var accepted_events_before_relief_manual_shots := int(
+		content.get_snapshot().host.activity.accepted_asset_event_count
+	)
 	var beta_hostile_shot := await _emit_hostile_projectile(beta, asset, content)
 	var gamma_hostile_shot := await _emit_hostile_projectile(gamma, asset, content)
 	_check(
 		alpha_hostile_shot.damaged and int(alpha_hostile_shot.source_id) == 2121
 		and beta_hostile_shot.damaged and int(beta_hostile_shot.source_id) == 2122
 		and gamma_hostile_shot.damaged and int(gamma_hostile_shot.source_id) == 2123
-		and is_equal_approx(damageable.get_health(), 207.0)
-		and int(content.get_snapshot().host.activity.accepted_asset_event_count) == 3,
+		and is_equal_approx(
+			damageable.get_health(), health_before_relief_manual_shots - 22.0
+		)
+		and int(content.get_snapshot().host.activity.accepted_asset_event_count) \
+			== accepted_events_before_relief_manual_shots + 2,
 		"all three production projectile signals resolve through their exact injected-authority source identities"
 	)
 	var beta_terminal := await _shoot(authority, attacker, beta)
