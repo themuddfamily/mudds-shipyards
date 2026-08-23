@@ -105,10 +105,13 @@ const PRESENTATION_STATE_IDS: Array[StringName] = [
 const PRESENTATION_NODE_DELTA := 0
 const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
+const CARGO_ACTIVITY_STATE_IDLE := 0
+const CARGO_ACTIVITY_STATE_ACTIVE := 1
 
 ## Phase 9 component-local allocation freeze. The five childless, visual-only
-## route cues retain their exact authored copy names/transforms, five visible
-## copies, one immutable BoxMesh, and two exact material identities. Grouping
+## route cues retain their exact authored copy names/anchors, five visible
+## copies, one immutable BoxMesh, and two exact material identities. Their
+## presentation-only bases may show authoritative cargo state in place. Grouping
 ## those copies by material reduces five renderer nodes/submissions to two;
 ## route markers, collision, interaction and component lifecycle remain separate.
 const ROUTE_CUE_COUNT := 5
@@ -342,34 +345,75 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 	var hazard_energy := 1.5
 	var label_text := "CINDER CARGO — READY"
 	var label_color := CUE_COLOR
+	var geometry_state: StringName = &"pickup_ready"
+	var geometry_scale := Vector3(2.5, 6.0, 2.5)
+	var geometry_turn_degrees := 0.0
+	var urgency_id: StringName = &"normal"
+	var activity := snapshot.get("activity", {}) as Dictionary
+	var activity_state := int(activity.get("state", CARGO_ACTIVITY_STATE_IDLE))
+	var phase_index := maxi(0, int(activity.get("next_phase_index", 0)))
+	var deadline := maxf(0.0, float(activity.get("deadline_seconds", 0.0)))
+	var remaining := clampf(
+		float(activity.get("deadline_remaining_seconds", deadline)), 0.0, deadline
+	)
+	var deadline_fraction := remaining / deadline if deadline > 0.0 else 1.0
 	match state_id:
 		&"unavailable":
 			cue_energy = 0.18
 			hazard_energy = 0.18
 			label_text = "CINDER CARGO — BERTH REQUIRED"
 			label_color = HAZARD_COLOR.darkened(0.35)
+			geometry_state = &"unavailable"
+			geometry_scale = Vector3.ONE
+		&"ready":
+			geometry_state = &"pickup_ready"
 		&"carrying":
 			cue_energy = 2.6
 			hazard_energy = 0.65
 			label_text = "CINDER CARGO — FOLLOW ROUTE"
+			if activity_state == CARGO_ACTIVITY_STATE_ACTIVE and phase_index == 0:
+				geometry_state = &"pickup"
+				geometry_scale = Vector3(2.5, 6.0, 2.5)
+			else:
+				geometry_state = &"carrying"
+				geometry_scale = Vector3(4.0, 1.0, 1.0)
+			if deadline_fraction <= 0.10:
+				urgency_id = &"critical"
+				geometry_state = &"carrying_critical"
+				geometry_scale = Vector3(5.0, 0.5, 5.0)
+				geometry_turn_degrees = 45.0
+			elif deadline_fraction <= 0.25:
+				urgency_id = &"warning"
+				geometry_state = &"carrying_warning"
+				geometry_scale = Vector3(1.5, 5.0, 1.5)
+				geometry_turn_degrees = 30.0
 		&"at_terminal":
 			cue_energy = 3.2
 			hazard_energy = 1.1
 			label_text = "CINDER CARGO — TERMINAL READY"
+			geometry_state = &"delivery_ready"
+			geometry_scale = Vector3(4.0, 4.0, 4.0)
 		&"committed":
 			cue_energy = 3.0
 			hazard_energy = 3.0
 			label_text = "CINDER CARGO — TRANSFER COMMITTED"
+			geometry_state = &"delivered"
+			geometry_scale = Vector3(7.0, 0.35, 7.0)
 		&"stale_rejected":
 			cue_energy = 0.15
 			hazard_energy = 3.4
 			label_text = "CINDER CARGO — REQUEST REJECTED"
 			label_color = HAZARD_COLOR
+			geometry_state = &"failed"
+			geometry_scale = Vector3(1.0, 7.0, 1.0)
+			geometry_turn_degrees = 45.0
 		&"reset":
 			cue_energy = 0.25
 			hazard_energy = 0.25
 			label_text = "CINDER CARGO — RESET"
 			label_color = HAZARD_COLOR.darkened(0.25)
+			geometry_state = &"reset"
+			geometry_scale = Vector3.ONE
 		_:
 			pass
 	_cue_presentation_energy = cue_energy
@@ -381,11 +425,19 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"cargo_route_presentation_missing"}
 	label.text = label_text
 	label.modulate = label_color
+	_apply_route_cue_geometry(geometry_scale, geometry_turn_degrees)
 	_cargo_presentation_state = snapshot.duplicate(true)
 	_cargo_presentation_state.merge({
 		"cue_energy": cue_energy,
 		"hazard_energy": hazard_energy,
 		"label_text": label_text,
+		"geometry_state": geometry_state,
+		"geometry_scale": geometry_scale,
+		"geometry_turn_degrees": geometry_turn_degrees,
+		"urgency_id": urgency_id,
+		"deadline_fraction": deadline_fraction,
+		"cargo_phase_index": phase_index,
+		"static_geometry_only": true,
 		"node_delta": PRESENTATION_NODE_DELTA,
 		"light_delta": PRESENTATION_LIGHT_DELTA,
 		"submission_delta": PRESENTATION_SUBMISSION_DELTA,
@@ -398,6 +450,46 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 
 func get_cargo_presentation_state() -> Dictionary:
 	return _cargo_presentation_state.duplicate(true)
+
+
+func _apply_route_cue_geometry(scale_value: Vector3, turn_degrees: float) -> void:
+	var authored := _get_route_cue_authored_transforms()
+	var presentation := _get_route_cue_presentation_transforms(
+		authored, scale_value, turn_degrees
+	)
+	var batch_specs := [
+		{"name": "RouteCueCyanBatch", "indices": PackedInt32Array([0, 2, 4])},
+		{"name": "RouteCueHazardBatch", "indices": PackedInt32Array([1, 3])},
+	]
+	for spec in batch_specs:
+		var batch := get_node_or_null(
+			NodePath("VisualRouteCues/%s" % String(spec.name))
+		) as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null:
+			continue
+		var transforms: Array[Transform3D] = []
+		for cue_index in spec.indices as PackedInt32Array:
+			transforms.append(presentation[cue_index])
+		batch.multimesh.buffer = _encode_multimesh_transforms(transforms)
+		var mesh := batch.multimesh.mesh as BoxMesh
+		if mesh != null:
+			batch.multimesh.custom_aabb = _transformed_bounds(mesh.get_aabb(), transforms)
+
+
+func _get_route_cue_presentation_transforms(
+		authored: Array[Transform3D],
+		scale_value: Vector3 = Vector3.ONE,
+		turn_degrees: float = 0.0
+	) -> Array[Transform3D]:
+	var result: Array[Transform3D] = []
+	for cue_index in authored.size():
+		var source := authored[cue_index]
+		var turn_sign := -1.0 if cue_index % 2 == 0 else 1.0
+		var presentation_basis := source.basis.rotated(
+			Vector3.FORWARD, deg_to_rad(turn_degrees * turn_sign)
+		).scaled(scale_value)
+		result.append(Transform3D(presentation_basis, source.origin))
+	return result
 
 
 func get_approach_sample_transforms(sample_count: int = 17) -> Array[Transform3D]:
@@ -450,8 +542,9 @@ func get_placement_snapshot() -> Dictionary:
 
 
 ## Headless-safe allocation and renderer-value evidence for the route-cue
-## family. Resource identity comes from live Objects; exact transforms come
-## from the authored CPU roster and its raw renderer buffer.
+## family. Resource identity comes from live Objects; authored anchors and the
+## current authoritative presentation transforms are checked against the raw
+## renderer buffer.
 func get_route_cue_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_resource_ids := {}
@@ -460,6 +553,15 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 	var childless_count := 0
 	var renderer_submission_count := 0
 	var authored_transforms := _get_route_cue_authored_transforms()
+	var presentation_scale := (
+		_cargo_presentation_state.get("geometry_scale", Vector3.ONE) as Vector3
+	)
+	var presentation_turn := float(
+		_cargo_presentation_state.get("geometry_turn_degrees", 0.0)
+	)
+	var presentation_transforms := _get_route_cue_presentation_transforms(
+		authored_transforms, presentation_scale, presentation_turn
+	)
 	var live_transforms: Array[Transform3D] = []
 	live_transforms.resize(ROUTE_CUE_COUNT)
 	var batch_specs := [
@@ -529,8 +631,10 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 			errors.append("route_cue_material_recipe_drift_%s" % String(spec.name))
 		var batch_authored := batch.get_meta("authored_instance_transforms", []) as Array
 		var expected_batch_transforms: Array[Transform3D] = []
+		var authored_batch_transforms: Array[Transform3D] = []
 		for cue_index in indices:
-			expected_batch_transforms.append(authored_transforms[cue_index])
+			expected_batch_transforms.append(presentation_transforms[cue_index])
+			authored_batch_transforms.append(authored_transforms[cue_index])
 		if batch.multimesh.buffer != _encode_multimesh_transforms(expected_batch_transforms):
 			errors.append("route_cue_transform_buffer_drift_%s" % String(spec.name))
 		if batch_authored.size() != indices.size():
@@ -539,10 +643,10 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 			if not batch_authored[instance_index] is Transform3D:
 				errors.append("route_cue_transform_type_drift_%s_%d" % [String(spec.name), instance_index])
 				continue
-			var live_transform := batch_authored[instance_index] as Transform3D
-			var expected_transform := expected_batch_transforms[instance_index]
-			live_transforms[indices[instance_index]] = live_transform
-			if not live_transform.is_equal_approx(expected_transform):
+			var authored_transform := batch_authored[instance_index] as Transform3D
+			var expected_authored := authored_batch_transforms[instance_index]
+			live_transforms[indices[instance_index]] = expected_batch_transforms[instance_index]
+			if not authored_transform.is_equal_approx(expected_authored):
 				errors.append("route_cue_transform_drift_%s_%d" % [String(spec.name), instance_index])
 		if mesh != null and not batch.multimesh.custom_aabb.is_equal_approx(
 			_transformed_bounds(mesh.get_aabb(), expected_batch_transforms)
