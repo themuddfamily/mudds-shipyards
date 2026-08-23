@@ -67,6 +67,9 @@ const HULL_BONE := Color("d5dae2")
 const LANCE_MAGENTA := Color("ff54d7")
 const LANCE_VIOLET := Color("8a5bff")
 const PICKET_ENGINE := Color("9ce8ff")
+const LANCE_EMITTER_CHARGE_SCALE := Vector3(0.72, 1.8, 0.72)
+const LANCE_LENS_CHARGE_SCALE := Vector3.ONE * 1.35
+const LANCE_SPINE_CHARGE_SCALE := Vector3.ONE * 0.78
 
 const MAX_PENDING_LANCE_RECEIPTS := 8
 
@@ -1308,6 +1311,21 @@ func _disconnect_pulse_signals() -> void:
 
 
 # ---------------------------------------------------------- presentation ----
+
+## The long-cadence lance focuses through three retained nodes: a lengthened
+## emitter, a large muzzle lens, and a smaller spine witness. These are static,
+## non-color multipliers on the inherited charge size, not another animation or
+## weapon state.
+func _update_presentation(delta: float) -> void:
+	super(delta)
+	if not _active or _telegraph_remaining <= 0.0:
+		return
+	if is_instance_valid(_lance_emitter):
+		_lance_emitter.scale *= LANCE_EMITTER_CHARGE_SCALE
+	if is_instance_valid(_lance_lens):
+		_lance_lens.scale *= LANCE_LENS_CHARGE_SCALE
+	if _warning_lenses.size() >= 3 and is_instance_valid(_warning_lenses[2]):
+		_warning_lenses[2].scale *= LANCE_SPINE_CHARGE_SCALE
 
 ## Builds the picket hull. Every primitive helper, material helper, particle
 ## helper, and the inherited charge/engine animation are reused from

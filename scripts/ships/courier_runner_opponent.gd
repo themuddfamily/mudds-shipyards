@@ -54,6 +54,7 @@ const HULL_SHADOW := Color("3a3227")
 const CARGO_RUST := Color("d9662f")
 const DISTRESS_RED := Color("ff4a4a")
 const COURIER_ENGINE := Color("8fd0ff")
+const TAIL_TURRET_CHARGE_SCALE := Vector3(1.65, 0.62, 0.62)
 const MATERIAL_CATALOG_ENTRY_COUNT := 19
 
 ## The inherited eleven recipes plus the courier's eight palette recipes are
@@ -517,6 +518,10 @@ func _apply_distress_presentation() -> void:
 
 func _update_presentation(delta: float) -> void:
 	super(delta)
+	if _active and _telegraph_remaining > 0.0 and not _warning_lenses.is_empty():
+		# One retained sphere broadens across the runner's tail. The static
+		# aperture reads as a slow deterrent shot without adding flash motion.
+		_warning_lenses[0].scale *= TAIL_TURRET_CHARGE_SCALE
 	_apply_distress_presentation()
 
 

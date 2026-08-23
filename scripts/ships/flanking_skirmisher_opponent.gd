@@ -64,6 +64,7 @@ const HULL_CHALK := Color("cfd6cc")
 const ROLE_ANCHOR_LAMP := Color("ffb347")
 const ROLE_FLANKER_LAMP := Color("58ff9b")
 const SKIRMISHER_ENGINE := Color("b6ffe3")
+const REPEATER_CHARGE_SCALE := Vector3(0.62, 1.6, 0.62)
 
 # Component-local static presentation budget. The old build retained one
 # BoxMesh per chalk-band node. The mirrored pair has one exact immutable recipe,
@@ -671,6 +672,15 @@ func _update_presentation(delta: float) -> void:
 	super(delta)
 	if not _built:
 		return
+	if (
+		_active
+		and not _weapon_safed
+		and _telegraph_remaining > 0.0
+		and is_instance_valid(_muzzle_lens)
+	):
+		# The fast repeater reads as a narrow vertical tick. Its static scale
+		# signature adds no pulse frequency and remains subordinate to safing.
+		_muzzle_lens.scale *= REPEATER_CHARGE_SCALE
 	if is_instance_valid(_muzzle_lens):
 		_muzzle_lens.visible = _active and not _weapon_safed
 	if is_instance_valid(_warning_light) and _weapon_safed:

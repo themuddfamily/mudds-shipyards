@@ -59,6 +59,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var original_children := root.get_child_count()
+	await _audit_derived_weapon_telegraphs()
 	for entry in [
 		{"id": &"range_defender", "scene": DEFENDER_SCENE},
 		{"id": &"standoff_picket", "scene": PICKET_SCENE},
@@ -77,6 +78,205 @@ func _run() -> void:
 
 
 # ------------------------------------------------------------ opponents ----
+
+func _audit_derived_weapon_telegraphs() -> void:
+	var host := Node3D.new()
+	host.name = "DerivedWeaponTelegraphWorld"
+	root.add_child(host)
+	var picket_target := Node3D.new()
+	picket_target.name = "PicketTelegraphTarget"
+	picket_target.position = Vector3(0.0, 0.0, -100.0)
+	host.add_child(picket_target)
+	var courier_target := Node3D.new()
+	courier_target.name = "CourierTelegraphTarget"
+	courier_target.position = Vector3(0.0, 0.0, 60.0)
+	host.add_child(courier_target)
+	var skirmisher_target := Node3D.new()
+	skirmisher_target.name = "SkirmisherTelegraphTarget"
+	skirmisher_target.position = Vector3(0.0, 0.0, -60.0)
+	host.add_child(skirmisher_target)
+	var picket := PICKET_SCENE.instantiate() as StandoffPicketOpponent
+	var courier := COURIER_SCENE.instantiate() as CourierRunnerOpponent
+	var skirmisher := SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
+	picket.escort_enabled = false
+	for craft in [picket, courier, skirmisher]:
+		host.add_child(craft)
+	await process_frame
+	await physics_frame
+
+	_check(
+		picket.telegraph_time > courier.telegraph_time
+		and courier.telegraph_time > skirmisher.telegraph_time,
+		"derived pre-fire silhouettes follow the authored lance, turret, then repeater cadence"
+	)
+
+	var telegraph_nodes := {
+		&"picket": [
+			picket.get_node("StandoffPicketVisual/LanceEmitter") as MeshInstance3D,
+			picket.get_node("StandoffPicketVisual/LanceChargeLens") as MeshInstance3D,
+			picket.get_node("StandoffPicketVisual/LanceSpineLens") as MeshInstance3D,
+		],
+		&"courier": [
+			courier.get_node("ContractCourierVisual/TailTurretLens") as MeshInstance3D,
+		],
+		&"skirmisher": [
+			skirmisher.get_node("WingSkirmisherVisual/RepeaterLens") as MeshInstance3D,
+		],
+	}
+	var retained_node_ids := _telegraph_node_ids(telegraph_nodes)
+	var retained_resource_ids := _telegraph_resource_ids(telegraph_nodes)
+
+	# Enter each real cancellable charge branch without advancing to dispatch.
+	picket.activate(Transform3D.IDENTITY)
+	picket.set_target(picket_target)
+	picket.set("_cooldown_remaining", 0.0)
+	picket.call("_update_weapon", picket_target.position, Vector3.FORWARD, 100.0, 0.0)
+	picket.call("_update_presentation", 0.0)
+	var picket_charge_scales := _telegraph_scales(telegraph_nodes.picket as Array)
+
+	courier.activate(Transform3D.IDENTITY)
+	courier.set_target(courier_target)
+	courier.set("_cooldown_remaining", 0.0)
+	courier.call("_update_weapon", courier_target.position, Vector3.BACK, 60.0, 0.0)
+	courier.call("_update_presentation", 0.0)
+	var courier_charge_scales := _telegraph_scales(telegraph_nodes.courier as Array)
+
+	skirmisher.activate(Transform3D.IDENTITY)
+	skirmisher.assign_wing_role(WingCoordinator.ROLE_ANCHOR)
+	skirmisher.set_target(skirmisher_target)
+	skirmisher.set("_cooldown_remaining", 0.0)
+	skirmisher.call("_update_weapon", skirmisher_target.position, Vector3.FORWARD, 60.0, 0.0)
+	skirmisher.call("_update_presentation", 0.0)
+	var skirmisher_charge_scales := _telegraph_scales(telegraph_nodes.skirmisher as Array)
+
+	var picket_emitter := picket_charge_scales[0] as Vector3
+	var picket_lens := picket_charge_scales[1] as Vector3
+	var picket_spine := picket_charge_scales[2] as Vector3
+	var courier_lens := courier_charge_scales[0] as Vector3
+	var repeater_lens := skirmisher_charge_scales[0] as Vector3
+	_check(
+		picket.get_lance_charge_snapshot().active
+		and picket_emitter.y > picket_emitter.x * 2.0
+		and is_equal_approx(picket_lens.x, picket_lens.y)
+		and picket_lens.x > picket_spine.x,
+		"the slow siege lance forms a lengthened emitter with large muzzle focus and small spine witness"
+	)
+	_check(
+		float(courier.get("_telegraph_remaining")) > 0.0
+		and courier_lens.x > courier_lens.y * 2.5
+		and float(skirmisher.get("_telegraph_remaining")) > 0.0
+		and not skirmisher.is_weapon_safed()
+		and repeater_lens.y > repeater_lens.x * 2.5,
+		"the tail turret presents a broad aperture while the fast repeater presents a narrow vertical tick"
+	)
+	_check(
+		_telegraph_node_ids(telegraph_nodes) == retained_node_ids
+		and _telegraph_resource_ids(telegraph_nodes) == retained_resource_ids,
+		"all three cadence signatures reuse the exact retained nodes, meshes, and materials"
+	)
+
+	# Whole-owner re-entry must retain the warning without restarting its phase.
+	var charged_remaining := {
+		&"picket": float(picket.get("_telegraph_remaining")),
+		&"courier": float(courier.get("_telegraph_remaining")),
+		&"skirmisher": float(skirmisher.get("_telegraph_remaining")),
+	}
+	for craft in [picket, courier, skirmisher]:
+		host.remove_child(craft)
+		host.add_child(craft)
+	await process_frame
+	for craft in [picket, courier, skirmisher]:
+		craft.call("_update_presentation", 0.0)
+	var reentered_picket_scales := _telegraph_scales(telegraph_nodes.picket as Array)
+	var reentered_courier_scale := (
+		_telegraph_scales(telegraph_nodes.courier as Array)[0] as Vector3
+	)
+	var reentered_repeater_scale := (
+		_telegraph_scales(telegraph_nodes.skirmisher as Array)[0] as Vector3
+	)
+	var reentered_picket_emitter := reentered_picket_scales[0] as Vector3
+	_check(
+		float(picket.get("_telegraph_remaining")) > 0.0
+		and float(picket.get("_telegraph_remaining")) <= float(charged_remaining.picket)
+		and float(courier.get("_telegraph_remaining")) > 0.0
+		and float(courier.get("_telegraph_remaining")) <= float(charged_remaining.courier)
+		and float(skirmisher.get("_telegraph_remaining")) > 0.0
+		and float(skirmisher.get("_telegraph_remaining")) <= float(charged_remaining.skirmisher)
+		and reentered_picket_emitter.y > reentered_picket_emitter.x * 2.0
+		and reentered_courier_scale.x > reentered_courier_scale.y * 2.5
+		and reentered_repeater_scale.y > reentered_repeater_scale.x * 2.5
+		and _telegraph_node_ids(telegraph_nodes) == retained_node_ids,
+		"same-instance re-entry preserves each static pre-fire silhouette without restarting its charge"
+	)
+
+	# Exercise each existing cancel seam, then explicit reuse.
+	picket.cancel_lance_charge(&"presentation_fixture")
+	courier.call("_update_weapon", courier_target.position, Vector3.FORWARD, 60.0, 0.0)
+	skirmisher.assign_wing_role(WingCoordinator.ROLE_UNASSIGNED)
+	skirmisher.call("_update_weapon", skirmisher_target.position, Vector3.FORWARD, 60.0, 0.0)
+	for craft in [picket, courier, skirmisher]:
+		craft.call("_update_presentation", 0.0)
+	var cancellation_clear := _derived_telegraphs_are_idle(telegraph_nodes, [
+		picket, courier, skirmisher,
+	])
+	for craft in [picket, courier, skirmisher]:
+		craft.deactivate()
+		craft.activate(Transform3D.IDENTITY)
+		craft.call("_update_presentation", 0.0)
+	_check(
+		cancellation_clear
+		and _derived_telegraphs_are_idle(telegraph_nodes, [picket, courier, skirmisher]),
+		"charge cancellation and explicit reuse restore all retained lenses to the nominal idle silhouette"
+	)
+
+	await _free_host(host)
+
+
+func _telegraph_scales(nodes: Array) -> Array[Vector3]:
+	var scales: Array[Vector3] = []
+	for node_variant in nodes:
+		var node := node_variant as MeshInstance3D
+		scales.append(node.scale)
+	return scales
+
+
+func _telegraph_node_ids(nodes_by_archetype: Dictionary) -> Dictionary:
+	var identities := {}
+	for archetype in nodes_by_archetype:
+		var node_ids: Array[int] = []
+		for node_variant in nodes_by_archetype[archetype] as Array:
+			var node := node_variant as MeshInstance3D
+			node_ids.append(node.get_instance_id())
+		identities[archetype] = node_ids
+	return identities
+
+
+func _telegraph_resource_ids(nodes_by_archetype: Dictionary) -> Dictionary:
+	var identities := {}
+	for archetype in nodes_by_archetype:
+		var resource_ids: Array[int] = []
+		for node_variant in nodes_by_archetype[archetype] as Array:
+			var node := node_variant as MeshInstance3D
+			var material := node.get_active_material(0)
+			resource_ids.append(node.mesh.get_instance_id())
+			resource_ids.append(material.get_instance_id() if material != null else 0)
+		identities[archetype] = resource_ids
+	return identities
+
+
+func _derived_telegraphs_are_idle(nodes_by_archetype: Dictionary, crafts: Array) -> bool:
+	for nodes_variant in nodes_by_archetype.values():
+		for node_variant in nodes_variant as Array:
+			var node := node_variant as MeshInstance3D
+			if not node.scale.is_equal_approx(Vector3.ONE * 0.8):
+				return false
+	for craft_variant in crafts:
+		var craft := craft_variant as RangeOpponent
+		var warning_light := craft.get("_warning_light") as OmniLight3D
+		if warning_light != null and not is_zero_approx(warning_light.light_energy):
+			return false
+	return true
+
 
 func _audit_opponent(archetype: StringName, scene: PackedScene) -> void:
 	var host := Node3D.new()
