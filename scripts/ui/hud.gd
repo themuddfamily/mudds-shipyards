@@ -1156,6 +1156,15 @@ func toast(title: String, detail: String = "", duration: float = 3.2) -> void:
 	_toast_detail.text = detail
 	_toast_panel.modulate = Color.WHITE if _reduced_motion else Color.TRANSPARENT
 	_toast_panel.visible = true
+	if _reduced_motion:
+		# Reduced motion keeps the toast readable at full opacity and uses a
+		# process-always timer for dismissal rather than a zero-duration tween.
+		var reduced_timer := get_tree().create_timer(duration, true, false, true)
+		reduced_timer.timeout.connect(func() -> void:
+			if serial == _toast_serial:
+				_toast_panel.visible = false
+		)
+		return
 	_toast_tween = create_tween()
 	_toast_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_toast_tween.tween_property(_toast_panel, "modulate", Color.WHITE, get_toast_fade_seconds())

@@ -106,6 +106,16 @@ func _run() -> void:
 	_check((hud.get("_damage_status_label") as Label).text.begins_with("HULL  //  OK"), "healthy hull state uses a stable text marker")
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
+	hud.set_reduced_motion(true)
+	hud.toast("REDUCED MOTION", "Readable toast stays steady.", 0.2)
+	var reduced_toast := hud.get("_toast_panel") as Control
+	_check(
+		reduced_toast.visible
+		and is_equal_approx(reduced_toast.modulate.a, 1.0)
+		and hud.get("_toast_tween") == null,
+		"reduced-motion toast is immediately readable without an animation tween"
+	)
+	hud.set_reduced_motion(false)
 	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")
 	_check(hud.are_captions_enabled(), "caption snapshot enables the HUD caption gate")
 	var caption_preview := (hud.get("_settings_page") as Control).find_child("CaptionPreviewButton", true, false) as Button
