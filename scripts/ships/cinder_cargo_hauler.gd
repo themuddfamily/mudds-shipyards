@@ -3,6 +3,8 @@ extends HeroShip
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
+const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
+const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 
 ## Original-modern industrial cargo craft component. No historical class,
 ## silhouette, cargo contract, or ownership claim is authenticated here.
@@ -14,6 +16,10 @@ const DISPLAY_NAME := "Cinder cargo hauler"
 const CARGO_CAPACITY := 8
 const HULL_SIZE := Vector3(6.4, 3.2, 12.0)
 const WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
+const LOADMASTER_STATION_SEAT_ID: StringName = &"cinder_loadmaster_station"
+const INTERIOR_BOUNDS := AABB(Vector3(-2.55, -0.95, -2.80), Vector3(5.10, 2.10, 5.60))
+const CABIN_ROUTE_ID: StringName = &"cinder_cargo_port_aperture"
+const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 
 const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
@@ -23,9 +29,22 @@ var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
 var _cargo_hold: Node3D
 var _cargo_anchors: Array[Marker3D] = []
+var _walkable_interior: Node3D
+var _cargo_cabin: Node3D
+var _moving_interior_component: MovingInteriorFrame
+var _occupant_volume: Area3D
+var _loadmaster_station_anchor: Marker3D
+var _loadmaster_console: MeshInstance3D
+var _crew_role_authority: CrewSeatRoleAuthority
+var _loadmaster_manifest_receipt: Dictionary = {}
+var _loadmaster_manifest_generation := 1
+var _interior_occupant_count := 0
 var _cargo_built := false
 var _weapon_definition: WeaponDefinition
 var _ship_perspective_audio_binding: RefCounted
+
+signal loadmaster_manifest_intent_accepted(receipt: Dictionary)
+signal loadmaster_manifest_cleared(generation: int, reason: StringName)
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -59,11 +78,21 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_loadmaster_manifest(&"ship_detached")
+	if _moving_interior_component != null and is_instance_valid(_moving_interior_component):
+		_moving_interior_component.clear_occupants(false, &"ship_detached")
 	if _ship_perspective_audio_binding != null:
 		if camera_view_changed.is_connected(_on_cargo_camera_view_changed):
 			camera_view_changed.disconnect(_on_cargo_camera_view_changed)
 		_ship_perspective_audio_binding.detach()
 	super._exit_tree()
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	if _reset_for_reuse_mutation_blocked():
+		return
+	_cleanup_detached_loadmaster()
 
 
 func _rebind_cargo_perspective_audio() -> void:
@@ -85,6 +114,26 @@ func _on_cargo_camera_view_changed(view: StringName) -> void:
 	var perspective: StringName = &"cockpit" if view == CAMERA_VIEW_COCKPIT else &"exterior"
 	var generation := int(_ship_perspective_audio_binding.get_snapshot().get("generation", -1))
 	_ship_perspective_audio_binding.present_perspective(perspective, generation)
+
+
+func apply_damage(
+		amount: float,
+		world_hit_position: Vector3 = Vector3.INF,
+		world_hit_normal: Vector3 = Vector3.ZERO,
+		presentation_receipt_id: int = -1,
+		defer_presentation: bool = false
+	) -> void:
+	super.apply_damage(
+		amount,
+		world_hit_position,
+		world_hit_normal,
+		presentation_receipt_id,
+		defer_presentation
+	)
+	if is_destroyed():
+		_clear_loadmaster_manifest(&"ship_destroyed")
+		if _moving_interior_component != null:
+			_moving_interior_component.clear_occupants(true, &"ship_destroyed")
 
 
 func get_ship_perspective_audio_snapshot() -> Dictionary:
@@ -113,7 +162,17 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	lamp.position = _cargo_boarding_marker.position + Vector3(0.2, 0.5, 0.0)
 	lamp.material_override = _material(ACCENT_COLOR, 0.2, 0.42, ACCENT_COLOR, 1.8)
 	visual.add_child(lamp)
+	var boarding_step := _add_interior_box(
+		visual,
+		"CargoBoardingStep",
+		_cargo_boarding_marker.position + Vector3(0.0, 0.05, 0.0),
+		Vector3(0.72, 0.16, 1.65),
+		ACCENT_COLOR
+	)
+	boarding_step.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_build_cargo_hold(visual)
+	_build_cargo_interior()
+	_bind_cargo_interior_frame()
 	return true
 
 
@@ -141,6 +200,144 @@ func get_cargo_capacity() -> int:
 	return CARGO_CAPACITY
 
 
+## The bounded cargo cabin is a real ship-local walkable volume. The frame owns
+## occupant compensation; this craft only publishes its physical station and
+## consumes detached role receipts.
+func get_in_flight_cabin_report() -> Dictionary:
+	return {
+		"supported": _cargo_built and _walkable_interior != null \
+			and _moving_interior_component != null,
+		"status": &"cinder_cargo_cabin",
+		"frame": _moving_interior_component,
+		"stand_transform": _loadmaster_station_anchor.global_transform \
+			if is_instance_valid(_loadmaster_station_anchor) and _loadmaster_station_anchor.is_inside_tree() \
+			else Transform3D.IDENTITY,
+		"local_bounds": INTERIOR_BOUNDS,
+		"boarding_route_id": CABIN_ROUTE_ID,
+		"loadmaster_station": _loadmaster_station_anchor,
+	}.duplicate(true)
+
+
+func get_cargo_cabin_root() -> Node3D:
+	return _cargo_cabin
+
+
+func get_moving_interior_component() -> MovingInteriorFrame:
+	return _moving_interior_component
+
+
+func get_loadmaster_station_anchor() -> Marker3D:
+	return _loadmaster_station_anchor
+
+
+func get_loadmaster_manifest_snapshot() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"station_id": LOADMASTER_STATION_SEAT_ID,
+		"station_present": is_instance_valid(_loadmaster_station_anchor),
+		"manifest_generation": _loadmaster_manifest_generation,
+		"receipt": _loadmaster_manifest_receipt.duplicate(true),
+		"cargo_transfer_authority": false,
+		"inventory_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+## Binds the caller-owned role ledger to the one physical Cinder station.
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	if _crew_role_authority != null and _crew_role_authority != authority:
+		return _crew_role_result(false, &"authority_already_attached")
+	var snapshot := authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		return _crew_role_result(false, &"roster_not_sealed")
+	var station_found := false
+	for seat_variant in snapshot.get("seats", []) as Array:
+		if not seat_variant is Dictionary:
+			continue
+		var seat := seat_variant as Dictionary
+		if StringName(seat.get("vessel_id", &"")) == get_ship_id() \
+				and StringName(seat.get("seat_id", &"")) == LOADMASTER_STATION_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PASSENGER:
+			station_found = true
+	if not station_found or not is_instance_valid(_loadmaster_station_anchor):
+		return _crew_role_result(false, &"cinder_loadmaster_roster_mismatch")
+	_crew_role_authority = authority
+	return _crew_role_result(true, &"authority_attached")
+
+
+## Consumes only the normalized loadmaster manifest/readiness proposal. Cargo
+## transfer, inventory, rewards and flight remain owned by their existing systems.
+func submit_crew_intent(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		action: StringName,
+		payload: Dictionary,
+		request_sequence: int
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(false, &"assignment_not_found")
+	if StringName(assignment.get("vessel_id", &"")) != get_ship_id():
+		return _crew_role_result(false, &"foreign_vessel")
+	if StringName(assignment.get("seat_id", &"")) != LOADMASTER_STATION_SEAT_ID \
+			or StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_PASSENGER \
+			or action != CrewRoleGameplayProfileType.ACTION_PASSENGER_CARGO_MANIFEST:
+		return _crew_role_result(false, &"unsupported_cinder_role_action")
+	var admission := _crew_role_authority.submit_intent(
+		source_peer_id, occupant_peer_id, avatar_id, action, payload, request_sequence
+	)
+	if not bool(admission.get("accepted", false)):
+		return admission
+	var intent := admission.get("intent", {}) as Dictionary
+	var normalized := intent.get("payload", {}) as Dictionary
+	if normalized.is_empty():
+		return _crew_role_result(false, &"invalid_manifest_intent")
+	var receipt := {
+		"manifest_id": StringName(normalized.get("manifest_id", &"")),
+		"route_id": StringName(normalized.get("route_id", &"")),
+		"ready": bool(normalized.get("ready", false)),
+		"occupant_peer_id": occupant_peer_id,
+		"avatar_id": avatar_id,
+		"seat_generation": int(assignment.get("seat_generation", 0)),
+		"request_sequence": request_sequence,
+		"manifest_generation": _loadmaster_manifest_generation,
+	}
+	_loadmaster_manifest_receipt = receipt
+	loadmaster_manifest_intent_accepted.emit(receipt.duplicate(true))
+	var result := admission.duplicate(true)
+	result["status"] = &"intent_consumed"
+	result["consumed"] = true
+	result["effect"] = {"accepted": true, "reason": &"loadmaster_manifest_recorded", "receipt": receipt.duplicate(true)}
+	return result
+
+
+func release_crew_role(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		seat_id: StringName,
+		request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var released := _crew_role_authority.release(
+		source_peer_id, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
+	)
+	if bool(released.get("accepted", false)):
+		_clear_loadmaster_manifest(&"role_released")
+	return released
+
+
 ## Returns a defensive copy of the cargo hauler's explicit modern combat role.
 ## Combat resolution remains owned by the shared authority; this component only
 ## publishes immutable-by-copy authoring identity.
@@ -159,6 +356,10 @@ func get_audit_report() -> Dictionary:
 	var collision_report := get_landing_collision_report()
 	if not bool(collision_report.get("valid", false)):
 		errors.append("craft requires HeroShip root collision")
+	if not supports_in_flight_cabin_access():
+		errors.append("craft requires its bounded MovingInteriorFrame cabin")
+	if not is_instance_valid(_loadmaster_station_anchor):
+		errors.append("craft requires a physical loadmaster station anchor")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -168,6 +369,13 @@ func get_audit_report() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"cargo_capacity": CARGO_CAPACITY,
+		"walkable_cabin": supports_in_flight_cabin_access(),
+		"cabin_route_id": CABIN_ROUTE_ID,
+		"loadmaster_station_id": LOADMASTER_STATION_SEAT_ID,
+		"loadmaster_seat_type": _loadmaster_station_anchor.get_meta("seat_type", &"") \
+			if is_instance_valid(_loadmaster_station_anchor) else &"",
+		"interior_frame_authority": &"MovingInteriorFrame",
+		"interior_occupancy_authority": &"MovingInteriorFrame",
 		"cargo_transfer_authority": false,
 		"hero_ship_derived": true,
 		"flight_authority": true,
@@ -202,7 +410,17 @@ func _build_weapon_definition() -> WeaponDefinition:
 
 
 func _build_collision() -> void:
-	_add_box_collision_shape("CargoHullCollision", Vector3(0.0, 0.25, 0.0), HULL_SIZE)
+	# The exterior silhouette remains the same, but the old monolithic box made
+	# the cargo hold physically unreachable. These shell pieces retain berth-fit
+	# outer bounds while leaving the port aperture and cabin deck walkable.
+	_add_box_collision_shape("CargoHullFloor", Vector3(0.0, -1.16, 0.0), Vector3(6.4, 0.38, 12.0))
+	_add_box_collision_shape("CargoBoardingDeck", Vector3(-3.35, -1.14, 0.0), Vector3(0.70, 0.30, 1.60))
+	_add_box_collision_shape("CargoHullRoof", Vector3(0.0, 1.57, 0.0), Vector3(6.4, 0.56, 12.0))
+	_add_box_collision_shape("CargoHullStarboardWall", Vector3(3.02, 0.20, 0.0), Vector3(0.76, 2.35, 12.0))
+	_add_box_collision_shape("CargoHullPortWallForward", Vector3(-3.02, 0.20, -4.15), Vector3(0.76, 2.35, 3.70))
+	_add_box_collision_shape("CargoHullPortWallAft", Vector3(-3.02, 0.20, 4.15), Vector3(0.76, 2.35, 3.70))
+	_add_box_collision_shape("CargoHullNoseWall", Vector3(0.0, 0.20, -5.70), Vector3(6.0, 2.35, 0.60))
+	_add_box_collision_shape("CargoHullTailWall", Vector3(0.0, 0.20, 5.70), Vector3(6.0, 2.35, 0.60))
 
 
 func _build_hull(visual: Node3D) -> void:
@@ -236,3 +454,165 @@ func _build_cargo_hold(visual: Node3D) -> void:
 		anchor.set_meta(&"transfer_owner", COMPONENT_ID)
 		_cargo_hold.add_child(anchor)
 		_cargo_anchors.append(anchor)
+
+
+func _build_cargo_interior() -> void:
+	_walkable_interior = Node3D.new()
+	_walkable_interior.name = "WalkableInterior"
+	_walkable_interior.set_meta(&"space_id", &"cinder_cargo_cabin")
+	_walkable_interior.set_meta(&"geometry_status", EVIDENCE_STATUS)
+	add_child(_walkable_interior)
+	_cargo_cabin = Node3D.new()
+	_cargo_cabin.name = "LoadmasterCabin"
+	_cargo_cabin.set_meta(&"space_id", &"loadmaster_cabin")
+	_cargo_cabin.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_walkable_interior.add_child(_cargo_cabin)
+	_add_interior_box(_cargo_cabin, "CabinDeck", Vector3(0.0, -0.92, 0.0), Vector3(4.9, 0.12, 5.3), CARGO_COLOR)
+	_add_interior_box(_cargo_cabin, "CabinCeiling", Vector3(0.0, 1.28, 0.0), Vector3(4.9, 0.10, 5.3), HULL_COLOR)
+	_add_interior_box(_cargo_cabin, "CabinStarboardWall", Vector3(2.35, 0.18, 0.0), Vector3(0.10, 2.0, 5.3), HULL_COLOR)
+	_add_interior_box(_cargo_cabin, "CabinForwardWall", Vector3(0.0, 0.18, -2.55), Vector3(4.7, 2.0, 0.10), HULL_COLOR)
+	_add_interior_box(_cargo_cabin, "CabinAftWall", Vector3(0.0, 0.18, 2.55), Vector3(4.7, 2.0, 0.10), HULL_COLOR)
+	# The port wall is intentionally open between the split outer shell pieces;
+	# this is the physical boarding route, not a teleport marker.
+	_add_interior_box(_cargo_cabin, "LoadmasterSeatBase", Vector3(0.95, -0.55, 1.10), Vector3(0.86, 0.18, 0.82), ACCENT_COLOR)
+	_add_interior_box(_cargo_cabin, "LoadmasterSeatBack", Vector3(0.95, 0.08, 1.42), Vector3(0.86, 1.0, 0.14), ACCENT_COLOR)
+	_loadmaster_console = _add_interior_box(
+		_cargo_cabin,
+		"LoadmasterConsole",
+		Vector3(0.95, 0.20, 0.42),
+		Vector3(0.92, 0.58, 0.08),
+		ACCENT_COLOR
+	)
+	_loadmaster_console.set_meta(&"presentation_only", true)
+	_loadmaster_console.set_meta(&"station_id", LOADMASTER_STATION_SEAT_ID)
+	_loadmaster_station_anchor = Marker3D.new()
+	_loadmaster_station_anchor.name = "LoadmasterStationAnchor"
+	_loadmaster_station_anchor.position = Vector3(0.95, -0.30, 1.10)
+	_loadmaster_station_anchor.set_meta(&"seat_id", LOADMASTER_STATION_SEAT_ID)
+	_loadmaster_station_anchor.set_meta(&"role", CrewRoleGameplayProfileType.ROLE_PASSENGER)
+	_loadmaster_station_anchor.set_meta(&"seat_type", &"physical")
+	_loadmaster_station_anchor.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_cargo_cabin.add_child(_loadmaster_station_anchor)
+	var access := Marker3D.new()
+	access.name = "CargoCabinAccessMarker"
+	access.position = Vector3(-2.20, -0.30, 0.0)
+	access.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_walkable_interior.add_child(access)
+	var exit := Marker3D.new()
+	exit.name = "CargoCabinExitMarker"
+	exit.position = Vector3(-2.75, -0.82, 0.0)
+	exit.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_walkable_interior.add_child(exit)
+	_occupant_volume = Area3D.new()
+	_occupant_volume.name = "InteriorOccupantVolume"
+	_occupant_volume.collision_layer = PhysicsLayers.INTERACTABLE_AREA_LAYER
+	_occupant_volume.collision_mask = PhysicsLayers.PLAYER_BODY_LAYER
+	_occupant_volume.monitoring = true
+	_occupant_volume.monitorable = false
+	_occupant_volume.set_meta(&"ship_local_bounds", INTERIOR_BOUNDS)
+	_walkable_interior.add_child(_occupant_volume)
+	var volume_shape := CollisionShape3D.new()
+	volume_shape.name = "InteriorBoundsShape"
+	volume_shape.position = INTERIOR_BOUNDS.get_center()
+	var volume_box := BoxShape3D.new()
+	volume_box.size = INTERIOR_BOUNDS.size
+	volume_shape.shape = volume_box
+	_occupant_volume.add_child(volume_shape)
+
+
+func _add_interior_box(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		size: Vector3,
+		colour: Color
+) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position_value
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = _material(colour, 0.42, 0.62)
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _bind_cargo_interior_frame() -> void:
+	_moving_interior_component = MovingInteriorFrame.new()
+	_moving_interior_component.name = "MovingInteriorFrame"
+	_moving_interior_component.set_meta(&"frame_id", &"cinder_cargo_walkable_interior")
+	_moving_interior_component.auto_register_from_volume = true
+	add_child(_moving_interior_component)
+	_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
+	_moving_interior_component.occupant_registered.connect(_on_interior_occupant_registered)
+	_moving_interior_component.occupant_unregistered.connect(_on_interior_occupant_unregistered)
+	_moving_interior_component.call_deferred("_register_existing_overlaps")
+
+
+func _on_interior_occupant_registered(_occupant: Node3D) -> void:
+	_sync_interior_occupant_collision()
+
+
+func _on_interior_occupant_unregistered(
+		_occupant: Node3D,
+		_exit_velocity: Vector3,
+		_reason: StringName
+) -> void:
+	_sync_interior_occupant_collision()
+
+
+func _sync_interior_occupant_collision() -> void:
+	_interior_occupant_count = (
+		_moving_interior_component.get_occupant_count()
+		if _moving_interior_component != null else 0
+	)
+	if is_destroyed():
+		return
+	collision_mask = PhysicsLayers.SHIP_BODY_MASK & ~PhysicsLayers.PLAYER \
+		if _interior_occupant_count > 0 else PhysicsLayers.SHIP_BODY_MASK
+
+
+func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
+	super._commit_variant_reset_for_reuse(context)
+	_clear_loadmaster_manifest(&"ship_reused", false)
+	_loadmaster_manifest_generation = 1
+	if _moving_interior_component != null and is_instance_valid(_moving_interior_component):
+		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
+		_moving_interior_component.reset_frame_tracking(true)
+	_sync_interior_occupant_collision()
+
+
+func _cleanup_detached_loadmaster() -> void:
+	if _loadmaster_manifest_receipt.is_empty():
+		return
+	if _crew_role_authority == null:
+		_clear_loadmaster_manifest(&"authority_detached")
+		return
+	var assignment := _crew_role_authority.get_assignment(
+		int(_loadmaster_manifest_receipt.get("occupant_peer_id", 0)),
+		StringName(_loadmaster_manifest_receipt.get("avatar_id", &""))
+	)
+	if assignment.is_empty() \
+			or StringName(assignment.get("seat_id", &"")) != LOADMASTER_STATION_SEAT_ID \
+			or int(assignment.get("seat_generation", 0)) != int(_loadmaster_manifest_receipt.get("seat_generation", 0)):
+		_clear_loadmaster_manifest(&"role_detached")
+
+
+func _clear_loadmaster_manifest(reason: StringName, advance_generation: bool = true) -> void:
+	_loadmaster_manifest_receipt.clear()
+	if advance_generation:
+		_loadmaster_manifest_generation = mini(
+			_loadmaster_manifest_generation + 1,
+			LOADMASTER_MANIFEST_GENERATION_MAX
+		)
+	loadmaster_manifest_cleared.emit(_loadmaster_manifest_generation, reason)
+
+
+func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"status": status,
+		"ship_id": get_ship_id(),
+		"station_id": LOADMASTER_STATION_SEAT_ID,
+	}.duplicate(true)
