@@ -36,6 +36,41 @@ coverage.
 - Prefer implementation and direct validation over multiple overlapping audits.
   One concrete implementer plus one bounded reviewer is normally enough.
 
+## Production progress and evidence policy
+
+Evidence exists to verify product work; it is not a substitute for product
+work. Optimize for named `ROADMAP.md` outcomes that change the running game,
+player-facing content, production integration, or the actual build/release
+pipeline.
+
+- Do **not** create serial numbered validators, schema/version bumps, provenance
+  chains, rollups, attestations, reconciliation layers, or near-duplicate tests
+  merely to generate more evidence or commits.
+- Do **not** advance an existing `vNNN` evidence family unless a named roadmap
+  requirement or real consumer requires that exact format change. A new version
+  must replace or migrate an existing contract, not sit beside it as another
+  equivalent layer.
+- A validator is justified only when it protects a concrete production
+  behavior, artifact, external handoff, or regression that is not already
+  covered. Prefer extending or consolidating an existing check over adding a
+  parallel one.
+- Every implementation assignment should deliver a production behavior,
+  player-visible/content change, or executable build/release capability. Add
+  the smallest focused test needed to prove that behavior.
+- If a proposed task would modify only evidence/validator files under `tools/`
+  and their tests, stop and redirect to the underlying runtime, content, UI,
+  networking, packaging, or gameplay gap unless the user explicitly requested
+  an evidence-only artifact.
+- Do not count evidence-only commits, test-count growth, schema versions, or
+  internal batch numbers as project percentage progress. Report progress using
+  named roadmap deliverables and visible/runtime outcomes.
+- Preserve native-hardware and human-review gates as `NOT_RUN` until actually
+  performed; never manufacture additional evidence layers to make an external
+  gate appear closer to completion.
+- For short visible-delivery sprints, prioritize changes that can be exercised
+  in the next packaged build and state the exact in-game result the user should
+  notice.
+
 ## Dynamic reasoning-effort policy
 
 Choose each new subagent's reasoning effort deliberately from the shape and risk
