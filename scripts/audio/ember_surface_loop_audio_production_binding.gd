@@ -42,6 +42,11 @@ const ENTRY_BED_INTERIOR_GAIN := 0.42
 const ENTRY_BED_REDUCED_RANGE_GAIN := 0.58
 const ENTRY_BED_MIN_PITCH := 1.08
 const ENTRY_BED_MAX_PITCH := 1.34
+const LANDING_BED_EXTERIOR_GAIN := 0.88
+const LANDING_BED_INTERIOR_GAIN := 0.55
+const LANDING_BED_REDUCED_RANGE_GAIN := 0.62
+const LANDING_BED_MIN_PITCH := 0.72
+const LANDING_BED_MAX_PITCH := 1.04
 const ENTRY_ALERT_STATES := [
 	&"atmospheric_rising", &"atmospheric_critical", &"airless_high_sink",
 ]
@@ -91,6 +96,12 @@ var _entry_bed_accepted_intensity_unitless := 0.0
 var _entry_bed_target_intensity_unitless := 0.0
 var _entry_bed_intensity_unitless := 0.0
 var _entry_bed_phase_is_active := false
+var _landing_bed_craft_id: StringName = &""
+var _landing_bed_load_unitless := 0.0
+var _landing_bed_target_intensity_unitless := 0.0
+var _landing_bed_intensity_unitless := 0.0
+var _landing_bed_supported_airless_approach := false
+var _landing_bed_reason: StringName = &"unavailable"
 var _entry_guidance_presenter := EntryGuidancePresenterScript.new() as RefCounted
 
 
@@ -115,6 +126,7 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_last_owner_generation = -1
 	_last_key = ""
 	_reset_entry_transition()
+	_reset_landing_bed()
 	present_snapshot(owner.get_snapshot())
 	return _result(true, &"attached")
 
@@ -129,6 +141,9 @@ func set_perspective(perspective: StringName) -> Dictionary:
 	if _entry_bed_phase_is_active and not _last_entry_observation.is_empty():
 		_configure_entry_bed_target(_last_entry_observation)
 		_entry_bed_intensity_unitless = _entry_bed_target_intensity_unitless
+	if _landing_bed_supported_airless_approach:
+		_configure_landing_bed_target()
+		_landing_bed_intensity_unitless = _landing_bed_target_intensity_unitless
 	_apply_altitude_voice()
 	return _result(true, &"perspective_updated")
 
@@ -140,6 +155,12 @@ func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 		_entry_bed_intensity_unitless = minf(
 			_entry_bed_intensity_unitless,
 			_entry_bed_target_intensity_unitless,
+		)
+	if _landing_bed_supported_airless_approach:
+		_configure_landing_bed_target()
+		_landing_bed_intensity_unitless = minf(
+			_landing_bed_intensity_unitless,
+			_landing_bed_target_intensity_unitless,
 		)
 	_apply_altitude_voice()
 	return _result(true, &"dynamic_range_updated")
@@ -156,6 +177,7 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	_last_entry_result = _present_entry_transition(snapshot, int(owner_generation))
 	_apply_altitude_transition(snapshot, _phase_delta(snapshot))
 	_apply_entry_bed(snapshot, _phase_delta(snapshot))
+	_apply_landing_bed(snapshot)
 	var phase_id := StringName(snapshot.get("phase_id", snapshot.get("state_id", &"")))
 	if _owner != null and _owner.has_method(&"get_host_phase"):
 		var host_phase := int(_owner.get_host_phase())
@@ -194,6 +216,7 @@ func detach() -> Dictionary:
 	_slots.clear()
 	_last_altitude_input.clear()
 	_reset_entry_transition()
+	_reset_landing_bed()
 	_reset_altitude_transition()
 	return _result(true, &"detached")
 
@@ -238,12 +261,34 @@ func get_snapshot() -> Dictionary:
 			"entry_phase_active": _entry_bed_phase_is_active,
 			"presentation_only": true,
 		}.duplicate(true),
+		"landing_bed": {
+			"craft_id": _landing_bed_craft_id,
+			"accepted_clearance_descent_load_unitless": _landing_bed_load_unitless,
+			"target_intensity_unitless": _landing_bed_target_intensity_unitless,
+			"intensity_unitless": _landing_bed_intensity_unitless,
+			"supported_airless_approach": (
+				_landing_bed_supported_airless_approach
+			),
+			"reason": _landing_bed_reason,
+			"exact_zero_outside_supported_airless_approach": (
+				not _landing_bed_supported_airless_approach
+				and is_zero_approx(_landing_bed_target_intensity_unitless)
+				and is_zero_approx(_landing_bed_intensity_unitless)
+			),
+			"perspective_gain": LANDING_BED_INTERIOR_GAIN \
+				if _perspective == &"interior" else LANDING_BED_EXTERIOR_GAIN,
+			"reduced_dynamic_range": _reduced_dynamic_range,
+			"reduced_range_gain_cap": LANDING_BED_REDUCED_RANGE_GAIN,
+			"playback_requested": _attached \
+				and _continuous_voice_mode() == &"airless_landing_thruster_regolith",
+			"reuses_surface_transition_voice": true,
+			"continuous_load_response": true,
+			"presentation_only": true,
+		}.duplicate(true),
 		"continuous_voice": {
 			"voice_ceiling": 1,
 			"active_mode": _continuous_voice_mode(),
-			"combined_intensity_unitless": maxf(
-				_altitude_intensity_unitless, _entry_bed_intensity_unitless
-			),
+			"combined_intensity_unitless": _selected_continuous_intensity(),
 			"playback_requested": _continuous_playback_requested,
 			"volume_db": _altitude_voice.volume_db \
 				if is_instance_valid(_altitude_voice) else -80.0,
@@ -251,6 +296,8 @@ func get_snapshot() -> Dictionary:
 				if is_instance_valid(_altitude_voice) else 1.0,
 			"minimum_entry_pitch": ENTRY_BED_MIN_PITCH,
 			"maximum_entry_pitch": ENTRY_BED_MAX_PITCH,
+			"minimum_landing_pitch": LANDING_BED_MIN_PITCH,
+			"maximum_landing_pitch": LANDING_BED_MAX_PITCH,
 			"node_count": 1,
 			"stream_count": 1 if _altitude_stream != null else 0,
 		}.duplicate(true),
@@ -536,12 +583,142 @@ func _configure_entry_bed_target(source: Dictionary) -> void:
 	)
 
 
+func _apply_landing_bed(snapshot: Dictionary) -> void:
+	var decoded := _decode_accepted_landing_wash(snapshot)
+	_landing_bed_supported_airless_approach = bool(decoded.get(
+		"supported_airless_approach", false
+	))
+	_landing_bed_reason = StringName(decoded.get("reason", &"unavailable"))
+	_landing_bed_craft_id = StringName(decoded.get("craft_id", &""))
+	_landing_bed_load_unitless = clampf(
+		float(decoded.get("presentation_load", 0.0)), 0.0, 1.0
+	)
+	if not _landing_bed_supported_airless_approach:
+		_landing_bed_target_intensity_unitless = 0.0
+		_landing_bed_intensity_unitless = 0.0
+		_apply_altitude_voice()
+		return
+	_configure_landing_bed_target()
+	# The visual wash already applies the continuous clearance × descent curve.
+	# Audio follows that accepted load directly; no second approach envelope is
+	# introduced here.
+	_landing_bed_intensity_unitless = _landing_bed_target_intensity_unitless
+	_apply_altitude_voice()
+
+
+func _configure_landing_bed_target() -> void:
+	var perspective_gain := LANDING_BED_INTERIOR_GAIN \
+		if _perspective == &"interior" else LANDING_BED_EXTERIOR_GAIN
+	var range_gain := minf(
+		perspective_gain, LANDING_BED_REDUCED_RANGE_GAIN
+	) if _reduced_dynamic_range else perspective_gain
+	_landing_bed_target_intensity_unitless = clampf(
+		_landing_bed_load_unitless * range_gain, 0.0, 1.0
+	)
+
+
+func _decode_accepted_landing_wash(snapshot: Dictionary) -> Dictionary:
+	if not _landing_bed_phase_active(snapshot):
+		return {
+			"accepted": true,
+			"supported_airless_approach": false,
+			"reason": &"outside_landing_approach",
+		}
+	var arrow_bridge := snapshot.get("entry_presentation", {}) as Dictionary
+	var arrow_wash := arrow_bridge.get("landing_wash", {}) as Dictionary
+	var arrow_result := snapshot.get(
+		"last_entry_presentation_result", {}
+	) as Dictionary
+	var arrow_wash_result := arrow_result.get("landing_wash", {}) as Dictionary
+	if not arrow_bridge.is_empty() and not arrow_wash.is_empty():
+		return _decoded_landing_wash(
+			arrow_wash, bool(arrow_wash_result.get("accepted", false)), &"arrow"
+		)
+	var fleet_bridge := snapshot.get(
+		"fleet_landing_wash_presentation", {}
+	) as Dictionary
+	var fleet_result := snapshot.get(
+		"last_fleet_landing_wash_result", {}
+	) as Dictionary
+	var fleet_wash := fleet_bridge.get("wash", {}) as Dictionary
+	if not bool(fleet_bridge.get("attached", false)) or fleet_wash.is_empty():
+		return {
+			"accepted": true,
+			"supported_airless_approach": false,
+			"reason": &"landing_wash_unavailable",
+		}
+	return _decoded_landing_wash(
+		fleet_wash, bool(fleet_result.get("accepted", false)),
+		StringName(fleet_bridge.get("craft_id", &""))
+	)
+
+
+func _decoded_landing_wash(
+		wash: Dictionary, accepted: bool, craft_id: StringName
+	) -> Dictionary:
+	var load: Variant = wash.get("presentation_load", 0.0)
+	if not accepted or not (load is float or load is int) \
+			or not is_finite(float(load)) \
+			or float(load) < 0.0 or float(load) > 1.0:
+		return {
+			"accepted": false,
+			"supported_airless_approach": false,
+			"reason": &"landing_wash_not_accepted",
+			"craft_id": craft_id,
+		}
+	var reason := StringName(wash.get("last_reason", &"unavailable"))
+	var supported := reason == &"low_altitude_descent" \
+		and bool(wash.get("landing_supported", false))
+	return {
+		"accepted": true,
+		"supported_airless_approach": supported,
+		"reason": &"accepted_clearance_descent_load" if supported else reason,
+		"craft_id": craft_id,
+		"presentation_load": float(load) if supported else 0.0,
+	}.duplicate(true)
+
+
+func _landing_bed_phase_active(snapshot: Dictionary) -> bool:
+	var phase_id := StringName(snapshot.get(
+		"phase_id", snapshot.get("state_id", &"")
+	))
+	if _owner != null and _owner.has_method(&"get_host_phase"):
+		var host_phase := int(_owner.get_host_phase())
+		phase_id = _host_altitude_phase_id(host_phase) \
+			if host_phase >= 0 else phase_id
+	phase_id = StringName(PRODUCTION_STATE_ALIASES.get(phase_id, phase_id))
+	return phase_id == &"landing_approach"
+
+
+func _reset_landing_bed() -> void:
+	_landing_bed_craft_id = &""
+	_landing_bed_load_unitless = 0.0
+	_landing_bed_target_intensity_unitless = 0.0
+	_landing_bed_intensity_unitless = 0.0
+	_landing_bed_supported_airless_approach = false
+	_landing_bed_reason = &"unavailable"
+
+
 func _continuous_voice_mode() -> StringName:
+	if _landing_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY:
+		return &"airless_landing_thruster_regolith"
 	if _entry_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY:
 		return &"atmospheric_entry_wind_heat"
 	if _altitude_intensity_unitless > MIN_AUDIBLE_INTENSITY:
 		return &"airless_hull_resonance"
 	return &"silence"
+
+
+func _selected_continuous_intensity() -> float:
+	match _continuous_voice_mode():
+		&"airless_landing_thruster_regolith":
+			return _landing_bed_intensity_unitless
+		&"atmospheric_entry_wind_heat":
+			return _entry_bed_intensity_unitless
+		&"airless_hull_resonance":
+			return _altitude_intensity_unitless
+		_:
+			return 0.0
 
 
 ## Consumes the production scheduler's already-adjusted actor sample. The
@@ -706,22 +883,30 @@ func _build_altitude_stream() -> AudioStreamWAV:
 func _apply_altitude_voice() -> void:
 	if not is_instance_valid(_altitude_voice):
 		return
-	var combined_intensity := maxf(
-		_altitude_intensity_unitless, _entry_bed_intensity_unitless
-	)
+	var combined_intensity := _selected_continuous_intensity()
 	_altitude_playback_requested = _attached \
-		and _altitude_intensity_unitless > MIN_AUDIBLE_INTENSITY
+		and _continuous_voice_mode() == &"airless_hull_resonance"
 	_continuous_playback_requested = _attached \
 		and combined_intensity > MIN_AUDIBLE_INTENSITY
 	_altitude_voice.volume_db = (
 		linear_to_db(maxf(combined_intensity, MIN_AUDIBLE_INTENSITY))
 		+ ALTITUDE_LOOP_GAIN_DB
 	)
-	_altitude_voice.pitch_scale = lerpf(
-		ENTRY_BED_MIN_PITCH,
-		ENTRY_BED_MAX_PITCH,
-		_entry_bed_accepted_intensity_unitless,
-	) if _continuous_voice_mode() == &"atmospheric_entry_wind_heat" else 1.0
+	match _continuous_voice_mode():
+		&"airless_landing_thruster_regolith":
+			_altitude_voice.pitch_scale = lerpf(
+				LANDING_BED_MIN_PITCH,
+				LANDING_BED_MAX_PITCH,
+				_landing_bed_load_unitless,
+			)
+		&"atmospheric_entry_wind_heat":
+			_altitude_voice.pitch_scale = lerpf(
+				ENTRY_BED_MIN_PITCH,
+				ENTRY_BED_MAX_PITCH,
+				_entry_bed_accepted_intensity_unitless,
+			)
+		_:
+			_altitude_voice.pitch_scale = 1.0
 	# Dummy has no output sink and may retain a synthetic WAV playback handle
 	# through process shutdown. Keep the same requested mix evidence without
 	# asking that backend to manufacture a voice it cannot render.
