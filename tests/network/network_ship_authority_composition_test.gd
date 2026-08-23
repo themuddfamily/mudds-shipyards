@@ -48,8 +48,10 @@ func _run() -> void:
 	var composition := Composition.new()
 	root.add_child(composition)
 	var forwarded_receipts: Array = []
+	var forwarded_results: Array = []
 	var forwarded_tombstones: Array = []
 	composition.cinder_navigator_ping_receipt_forwarded.connect(func(result: Dictionary) -> void: forwarded_receipts.append(result))
+	composition.cinder_navigator_ping_result_forwarded.connect(func(result: Dictionary) -> void: forwarded_results.append(result))
 	composition.cinder_navigator_ping_tombstones_forwarded.connect(func(result: Dictionary) -> void: forwarded_tombstones.append(result))
 	var attached := composition.attach(session, cinder, 4)
 	_check(attached.accepted and attached.cinder_navigator_attached, "composition attaches telemetry and both Cinder bridges")
@@ -60,27 +62,36 @@ func _run() -> void:
 	_check(receipt.accepted and receipt.receipt.manifest_id == &"cinder_manifest", "real Cinder receipt reaches manifest publisher")
 	_check(composition.submit_cinder_manifest(62, 3, &"loadmaster", 1, 2, {}).status == &"stale_request_sequence", "composition rejects manifest replay")
 	var ping := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 2, {"channel": &"sensor", "marker_id": &"route_beacon"}, 11, 1)
-	_check(ping.accepted and ping.wire_receipt.payload.marker_id == &"route_beacon" and ping.wire_receipt.ship_generation == 4 and forwarded_receipts.size() == 1, "accepted navigator receipt forwards intact with the composition ship generation")
+	_check(ping.accepted and ping.wire_receipt.payload.marker_id == &"route_beacon" and ping.wire_receipt.ship_generation == 4 and forwarded_receipts.size() == 1 and forwarded_results == [ping], "accepted navigator receipt and result forward once with the composition ship generation")
 	var before_client_attempt := cinder.get_navigator_ping_snapshot()
 	session.server = false
 	var client_attempt := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 3, {"channel": &"sensor", "marker_id": &"client_mutation"}, 12, 1)
-	_check(client_attempt.status == &"server_authority_required" and cinder.get_navigator_ping_snapshot() == before_client_attempt, "client mode cannot mutate the Cinder navigator receipt")
+	_check(client_attempt.status == &"server_authority_required" and client_attempt.policy_version == &"network_cinder_navigator_ping_bridge_v1" and forwarded_results.size() == 2 and forwarded_results[1] == client_attempt and forwarded_receipts.size() == 1, "rejected navigator result forwards once with bridge provenance and no accepted receipt")
+	_check(cinder.get_navigator_ping_snapshot() == before_client_attempt, "client mode cannot mutate the Cinder navigator receipt")
 	session.server = true
 	session.migration_generation = 2
-	_check(composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 3, {}, 12, 1).status == &"stale_migration_generation", "composition rejects the retired migration generation")
+	var stale_migration := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 3, {}, 12, 1)
+	_check(stale_migration.status == &"stale_migration_generation" and forwarded_results.size() == 3 and forwarded_results[2] == stale_migration, "composition forwards the retired migration rejection exactly once")
 	var migrated := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 3, {"channel": &"sensor", "marker_id": &"migrated_beacon"}, 12, 2)
-	_check(migrated.accepted and int(migrated.wire_receipt.migration_generation) == 2, "current migration generation publishes through the composition")
+	_check(migrated.accepted and int(migrated.wire_receipt.migration_generation) == 2 and forwarded_results.size() == 4 and forwarded_receipts.size() == 2, "current migration generation publishes through both composition result channels")
 	var peer_release := composition.release_peer(63)
 	var navigator_release := peer_release.cinder_navigator_ping as Dictionary
 	_check(peer_release.accepted and navigator_release.tombstone_count == 1 and forwarded_tombstones.size() == 1, "peer release forwards the navigator clear tombstone")
 	_check(composition.submit_cinder_manifest(62, 3, &"loadmaster", 1, 2, {}).status == &"stale_request_sequence", "navigator peer release preserves the loadmaster cursor")
 	var post_release := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 4, {"channel": &"sensor", "marker_id": &"reentry_beacon"}, 13, 2)
-	_check(post_release.accepted, "released bridge cursor accepts the next authority-valid navigator request")
+	_check(post_release.accepted and forwarded_results.size() == 5 and forwarded_receipts.size() == 3, "released bridge cursor accepts and forwards the next authority-valid navigator request once")
 	var detached := composition.detach(&"ship_replaced")
 	_check((detached.cinder_navigator_ping as Dictionary).tombstone_count == 1 and forwarded_tombstones.size() == 2, "composition detach forwards its final navigator tombstone")
 	_check(composition.submit_server_physics_tick(11, 2).status == &"detached", "replacement detaches old bridges atomically")
+	var detached_attempt := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 5, {}, 14, 2)
+	_check(detached_attempt.status == &"cinder_navigator_unavailable" and forwarded_results.size() == 5, "detached synthetic navigator result is not published as a real bridge submission")
 	var reattached := composition.attach(session, cinder, 5)
 	_check(reattached.accepted and reattached.cinder_navigator_attached and composition.get_cinder_navigator_ping_snapshot().ship_generation == 5 and composition.submit_server_physics_tick(12, 1).accepted, "re-entry starts fresh telemetry and navigator bridge generations")
+	var before_reentry_client_attempt := cinder.get_navigator_ping_snapshot()
+	session.server = false
+	var reentry_client_attempt := composition.submit_cinder_navigator_ping(63, 3, &"navigator", 1, 5, {"channel": &"sensor", "marker_id": &"reentry_client_mutation"}, 14, 2)
+	_check(reentry_client_attempt.status == &"server_authority_required" and forwarded_results.size() == 6 and forwarded_results[5] == reentry_client_attempt and forwarded_receipts.size() == 3, "re-entry forwards one real rejection without duplicating an accepted receipt")
+	_check(cinder.get_navigator_ping_snapshot() == before_reentry_client_attempt, "re-entry client rejection cannot mutate Cinder")
 	if _failures.is_empty(): print("OK: network ship authority composition (%d assertions)" % _assertions); quit(0); return
 	for failure in _failures: push_error(failure)
 	quit(1)

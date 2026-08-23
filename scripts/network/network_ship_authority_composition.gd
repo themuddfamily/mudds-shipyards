@@ -9,6 +9,7 @@ const CinderBridge := preload("res://scripts/network/network_cinder_loadmaster_m
 const CinderNavigatorBridge := preload("res://scripts/network/network_cinder_navigator_ping_bridge.gd")
 
 signal cinder_navigator_ping_receipt_forwarded(result: Dictionary)
+signal cinder_navigator_ping_result_forwarded(result: Dictionary)
 signal cinder_navigator_ping_tombstones_forwarded(result: Dictionary)
 
 var _session: Object
@@ -103,6 +104,7 @@ func submit_cinder_navigator_ping(
 		server_tick,
 		migration_generation
 	)
+	cinder_navigator_ping_result_forwarded.emit(result.duplicate(true))
 	if bool(result.get("accepted", false)):
 		cinder_navigator_ping_receipt_forwarded.emit(result.duplicate(true))
 	return result
