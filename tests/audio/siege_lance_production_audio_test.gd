@@ -62,6 +62,7 @@ func _run() -> void:
 	if _failures.is_empty():
 		print("SIEGE_LANCE_PRODUCTION_AUDIO_TEST_OK: %d assertions" % _assertions)
 		quit(0)
+		return
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
