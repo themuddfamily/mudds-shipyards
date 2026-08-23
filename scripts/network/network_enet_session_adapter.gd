@@ -748,6 +748,37 @@ func publish_moving_interior_snapshot(
 	return _remember(result)
 
 
+func publish_moving_interior_resync(peer_id: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var relationships: Array = []
+	for relationship_key_variant in _seat_moving_relationships.keys():
+		var relationship_key := String(relationship_key_variant)
+		if not relationship_key.begins_with("%d:" % peer_id):
+			continue
+		relationships.append((_seat_moving_relationships[relationship_key_variant] as Dictionary).duplicate(true))
+	if relationships.size() > 128:
+		return _remember(_result(false, &"moving_interior_resync_capacity"))
+	var packet := {
+		"authority_peer_id": AUTHORITY_PEER_ID,
+		"recipient_peer_id": peer_id,
+		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 1)),
+		"revision": maxi(1, _moving_snapshot_revision),
+		"relationships": relationships,
+	}
+	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
+		return _remember(_result(false, &"moving_interior_packet_too_large"))
+	if _peer != null:
+		_send_moving_interior_resync.rpc_id(peer_id, packet)
+	return _remember(_result(true, &"moving_interior_resync_published", {
+		"peer_id": peer_id,
+		"relationship_count": relationships.size(),
+		"packet": packet,
+	}))
+
+
 func register_owned_ship(
 	ship_id: StringName,
 	ship_generation: int,
@@ -2450,6 +2481,55 @@ func _broadcast_moving_interior_snapshot(packet: Dictionary) -> void:
 	var applied := consume_moving_interior_snapshot(packet)
 	moving_interior_result.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_moving_interior_resync(packet: Dictionary) -> void:
+	_apply_moving_interior_resync(packet)
+
+
+func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not packet.has("authority_peer_id") or not packet.has("recipient_peer_id") \
+			or not packet.has("migration_generation") or not packet.has("revision") \
+			or not packet.has("relationships"):
+		return _remember(_result(false, &"invalid_moving_interior_resync"))
+	if int(packet.get("authority_peer_id", 0)) != AUTHORITY_PEER_ID:
+		return _remember(_result(false, &"foreign_moving_interior_resync"))
+	if _configured and multiplayer.get_unique_id() != int(packet.get("recipient_peer_id", 0)):
+		return _remember(_result(false, &"foreign_moving_interior_resync"))
+	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
+		return _remember(_result(false, &"moving_interior_packet_too_large"))
+	var relationships_variant: Variant = packet.get("relationships")
+	if not relationships_variant is Array or (relationships_variant as Array).size() > 128:
+		return _remember(_result(false, &"invalid_moving_interior_resync"))
+	var generation := int(packet.get("migration_generation", 0))
+	var current_generation := int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
+	if generation < current_generation:
+		return _remember(_result(false, &"stale_migration_generation"))
+	if generation > current_generation:
+		var reset_result := reset_snapshot_jitter(generation)
+		if not bool(reset_result.get("accepted", false)):
+			return _remember(reset_result)
+	var applied_count := 0
+	for relationship_variant in relationships_variant as Array:
+		if not relationship_variant is Dictionary:
+			return _remember(_result(false, &"invalid_moving_interior_relationship"))
+		var next_revision := int(_snapshot_jitter.get_snapshot().get("next_revision", 1))
+		var relationship := relationship_variant as Dictionary
+		var applied := consume_moving_interior_snapshot({
+			"revision": next_revision,
+			"server_tick": int(relationship.get("server_tick", -1)),
+			"relationship": relationship,
+		})
+		if not bool(applied.get("accepted", false)):
+			return _remember(_result(false, applied.get("status", &"moving_interior_resync_rejected")))
+		applied_count += 1
+	return _remember(_result(true, &"moving_interior_resync_applied", {
+		"generation": generation,
+		"relationship_count": applied_count,
+	}))
 
 
 @rpc("authority", "call_remote", "reliable")
