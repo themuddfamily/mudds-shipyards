@@ -41,6 +41,10 @@ func _run() -> void:
 		bool(craft.attach_gunner_combat_authority(combat_authority).get("accepted", false)),
 		"Bulwark gunner binds the shared resolver authority"
 	)
+	_check(
+		craft.get_engineer_status_text().contains("[READY]"),
+		"the physical Bulwark crew display boots with engineer repair ready"
+	)
 
 	var emitted := [0]
 	var selected := [0]
@@ -280,6 +284,10 @@ func _run() -> void:
 	var component_model := craft.get_component_damage()
 	_check(component_model != null and component_model.is_configured(), "Bulwark exposes the existing component damage ledger")
 	component_model.record_damage(300.0)
+	var repair_target: StringName = &"port_wing"
+	var adjacent_target: StringName = &"starboard_wing"
+	var repair_integrity_before := component_model.get_component_integrity(repair_target)
+	var adjacent_integrity_before := component_model.get_component_integrity(adjacent_target)
 	var failed_component := craft.get_gunner_gameplay_state().get("gunner_component", {}) as Dictionary
 	_check(
 		not bool(failed_component.get("available", true))
@@ -322,11 +330,118 @@ func _run() -> void:
 		},
 		2
 	)
+	var repair_started := repaired_once.get("effect", {}) as Dictionary
 	_check(
 		bool(repaired_once.get("accepted", false))
 			and bool(repaired_once.get("consumed", false))
-			and (repaired_once.get("effect", {}) as Dictionary).get("status", &"") == &"repair_applied",
-		"the authorized engineer restores the same component ledger"
+			and repair_started.get("status", &"") == &"repair_started"
+			and is_equal_approx(
+				component_model.get_component_integrity(repair_target),
+				repair_integrity_before
+			)
+			and is_equal_approx(
+				component_model.get_component_integrity(adjacent_target),
+				adjacent_integrity_before
+			)
+			and craft.get_engineer_status_text().contains("[WORK"),
+		"the authorized engineer reserves visible work without immediate mutation"
+	)
+	await physics_frame
+	await physics_frame
+	var repair_integrity_at_departure := component_model.get_component_integrity(repair_target)
+	_check(
+		repair_integrity_at_departure > repair_integrity_before,
+		"HeroShip passive berth repair continues while Bulwark engineer work is pending"
+	)
+	craft.set("_landed", false)
+	await physics_frame
+	var interrupted_repair: Dictionary = craft.get_engineer_repair_state()
+	_check(
+		StringName(interrupted_repair.get("status", &"")) == &"interrupted"
+			and StringName(interrupted_repair.get("reason", &"")) == &"left_berth"
+			and is_equal_approx(
+				component_model.get_component_integrity(repair_target),
+				repair_integrity_at_departure
+			)
+			and is_zero_approx(float(interrupted_repair.get("cooldown_remaining", -1.0)))
+			and craft.get_engineer_status_text().contains("[INTERRUPTED]"),
+		"departing the berth visibly interrupts Bulwark repair without commit or cooldown"
+	)
+	craft.set("_landed", true)
+	_check(
+		bool(component_model.record_damage(80.0, Vector3.INF).get("accepted", false)),
+		"the interrupted component ledger accepts fresh damage before retry"
+	)
+	var restart_before := component_model.get_component_integrity(repair_target)
+	var adjacent_restart_before := component_model.get_component_integrity(adjacent_target)
+	var restarted_repair: Dictionary = craft.submit_crew_intent(
+		1,
+		77,
+		&"bulwark_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{
+			"system_id": repair_target,
+			"repair": 0.1,
+			"system_generation": 1,
+		},
+		3
+	)
+	_check(
+		bool(restarted_repair.get("consumed", false))
+			and (restarted_repair.get("effect", {}) as Dictionary).get("status", &"") == &"repair_started",
+		"an interrupted Bulwark repair preserves its resource for retry"
+	)
+	for _frame in 60:
+		if StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed":
+			break
+		await physics_frame
+	var completed_repair: Dictionary = craft.get_engineer_repair_state()
+	var repair_receipt := completed_repair.get("receipt", {}) as Dictionary
+	var repair_operation := repair_receipt.get("operation", {}) as Dictionary
+	var selected_gain := component_model.get_component_integrity(repair_target) - restart_before
+	var adjacent_gain := component_model.get_component_integrity(adjacent_target) - adjacent_restart_before
+	_check(
+		StringName(completed_repair.get("status", &"")) == &"completed"
+			and int(repair_operation.get("repaired_components", 0)) == 1
+			and selected_gain > adjacent_gain
+			and float(completed_repair.get("cooldown_remaining", 0.0)) > 0.0
+			and craft.get_engineer_status_text().contains("[COOLDOWN"),
+		"completed Bulwark work targets one component and exposes the shared cooldown"
+	)
+	var cooldown_attempt: Dictionary = craft.submit_crew_intent(
+		1,
+		77,
+		&"bulwark_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{
+			"system_id": repair_target,
+			"repair": 0.1,
+			"system_generation": 1,
+		},
+		4
+	)
+	_check(
+		bool(cooldown_attempt.get("accepted", false))
+			and not bool(cooldown_attempt.get("consumed", false))
+			and (cooldown_attempt.get("effect", {}) as Dictionary).get("status", &"") == &"cooldown",
+		"a second Bulwark repair is rejected until the visible cooldown expires"
+	)
+	var replayed_repair: Dictionary = craft.submit_crew_intent(
+		1,
+		77,
+		&"bulwark_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{
+			"system_id": repair_target,
+			"repair": 0.1,
+			"system_generation": 1,
+		},
+		4
+	)
+	_check(
+		not bool(replayed_repair.get("accepted", false))
+			and replayed_repair.get("status", &"") == &"stale_request_sequence",
+		"replayed Bulwark engineer receipts cannot commit twice"
 	)
 	var impaired_component := craft.get_gunner_gameplay_state().get("gunner_component", {}) as Dictionary
 	_check(
@@ -335,7 +450,7 @@ func _run() -> void:
 		"a damaged weapon component exposes a reduced allowed cadence"
 	)
 	# Keep the craft in the damaged flight state while the charge/cooldown
-	# evidence is observed; HeroShip's automatic berth repair remains untouched.
+	# evidence is observed; the passive berth repair proven above remains untouched.
 	craft.set("_landed", false)
 	var impaired_charge: Dictionary = craft.submit_crew_intent(
 		1,
@@ -388,9 +503,21 @@ func _run() -> void:
 			"repair": 0.1,
 			"system_generation": 1,
 		},
-		3
+		5
 	)
-	_check(bool(repaired_nominal.get("consumed", false)), "engineer repair returns the weapon component toward nominal")
+	_check(
+		bool(repaired_nominal.get("consumed", false))
+			and (repaired_nominal.get("effect", {}) as Dictionary).get("status", &"") == &"repair_started",
+		"engineer can start another repair after the cooldown expires"
+	)
+	for _frame in 60:
+		if StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed":
+			break
+		await physics_frame
+	_check(
+		StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed",
+		"post-cooldown engineer work returns the weapon component toward nominal"
+	)
 
 	craft.queue_free()
 	await process_frame
