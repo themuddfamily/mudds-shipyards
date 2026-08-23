@@ -13,11 +13,16 @@ extends HeroShip
 ## ship-local hierarchy; no detached or teleported interior is involved.
 
 const SCHEMA_VERSION := 1
+const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
+const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 const EVIDENCE_STATUS: StringName = &"provisional"
 const EVIDENCE_SCOPE: StringName = &"name_and_role_only"
 const NAME_TO_MODEL_STATUS: StringName = &"unknown"
 const COMBAT_SOURCE_ID := 1103
 const INTERIOR_SCHEMA_VERSION := 1
+const PILOT_SEAT_ID: StringName = &"pilot_station"
+const ENGINEER_SEAT_ID: StringName = &"passenger_port_01"
+const MAX_ENGINEER_COMPONENT_GENERATION := 1_000_000
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
 ##
@@ -204,6 +209,12 @@ var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _elapsed_jovian := 0.0
+var _crew_role_authority: CrewSeatRoleAuthority
+var _engineer_component_selection: Dictionary = {}
+var _engineer_component_generation := 1
+
+signal engineer_component_selected(component_id: StringName, component_generation: int, receipt: Dictionary)
+signal engineer_component_cleared(component_id: StringName, component_generation: int, reason: StringName)
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -224,6 +235,7 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if _reset_for_reuse_mutation_blocked():
 		return
+	_cleanup_detached_engineer_state()
 	_elapsed_jovian += delta
 	_update_jovian_presentation(delta)
 
@@ -243,6 +255,7 @@ func apply_damage(
 		defer_presentation
 	)
 	if is_destroyed():
+		_clear_engineer_component_selection(&"ship_destroyed")
 		_set_interior_operational(false)
 
 
@@ -252,6 +265,8 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_clear_engineer_component_selection(&"ship_reused", false)
+	_engineer_component_generation = 1
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -379,6 +394,281 @@ func get_cargo_hardpoints() -> Array[Marker3D]:
 
 func get_passenger_seat_anchors() -> Array[Marker3D]:
 	return _passenger_seat_anchors.duplicate()
+
+
+## The port passenger seat is the optional physical systems station for this
+## freighter. It remains a normal ship-owned anchor; role admission is still
+## delegated to the injected CrewSeatRoleAuthority.
+func get_engineer_seat_anchor() -> Marker3D:
+	for anchor in _passenger_seat_anchors:
+		if StringName(anchor.get_meta("seat_id", &"")) == ENGINEER_SEAT_ID:
+			return anchor
+	return null
+
+
+## Binds the injected role ledger. Jovian consumes only its pilot and engineer
+## entries; it never creates a second occupancy or repair ledger.
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	if _crew_role_authority != null and _crew_role_authority != authority:
+		return _crew_role_result(false, &"authority_already_attached")
+	var snapshot := authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		return _crew_role_result(false, &"roster_not_sealed")
+	var has_pilot := false
+	var has_engineer := false
+	for seat_variant in snapshot.get("seats", []) as Array:
+		if not seat_variant is Dictionary:
+			continue
+		var seat := seat_variant as Dictionary
+		if StringName(seat.get("vessel_id", &"")) != get_ship_id():
+			continue
+		if StringName(seat.get("seat_id", &"")) == PILOT_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PILOT:
+			has_pilot = true
+		if StringName(seat.get("seat_id", &"")) == ENGINEER_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_ENGINEER:
+			has_engineer = true
+	if not has_pilot or not has_engineer:
+		return _crew_role_result(false, &"jovian_roster_mismatch")
+	_crew_role_authority = authority
+	var result := _crew_role_result(true, &"authority_attached")
+	result["role_count"] = (snapshot.get("seats", []) as Array).size()
+	return result
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+## Admits one engineer receipt and routes it to ShipComponentDamage's existing
+## owner-controlled repair pulse. The role consumer owns no health dictionary,
+## movement, combat, or lifecycle authority.
+func submit_crew_intent(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		action: StringName,
+		payload: Dictionary,
+		request_sequence: int
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(false, &"assignment_not_found")
+	if StringName(assignment.get("vessel_id", &"")) != get_ship_id():
+		return _crew_role_result(false, &"foreign_vessel")
+	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_ENGINEER \
+			or StringName(assignment.get("seat_id", &"")) != ENGINEER_SEAT_ID \
+			or action != CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR:
+		return _crew_role_result(false, &"unsupported_jovian_role_action")
+	var admission := _crew_role_authority.submit_intent(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		action,
+		payload,
+		request_sequence
+	)
+	if not bool(admission.get("accepted", false)):
+		return admission
+	var effect := _consume_engineer_repair_intent(admission.get("intent", {}) as Dictionary)
+	var result := admission.duplicate(true)
+	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
+	result["consumed"] = bool(effect.get("accepted", false))
+	result["effect"] = effect
+	return result
+
+
+func release_crew_role(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		seat_id: StringName,
+		request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var result := _crew_role_authority.release(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		seat_id,
+		request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_engineer_component_state(occupant_peer_id, avatar_id, &"role_released")
+	return result
+
+
+func handoff_crew_role(
+		source_peer_id: int,
+		previous_occupant_peer_id: int,
+		previous_avatar_id: StringName,
+		seat_id: StringName,
+		release_request_sequence: int,
+		new_occupant_peer_id: int,
+		new_avatar_id: StringName,
+		requested_role: StringName,
+		claim_request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var result := _crew_role_authority.handoff(
+		source_peer_id,
+		previous_occupant_peer_id,
+		previous_avatar_id,
+		seat_id,
+		release_request_sequence,
+		new_occupant_peer_id,
+		new_avatar_id,
+		requested_role,
+		claim_request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_engineer_component_state(previous_occupant_peer_id, previous_avatar_id, &"role_handoff")
+	return result
+
+
+func get_engineer_gameplay_state() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"authority_attached": _crew_role_authority != null,
+		"component_generation": _engineer_component_generation,
+		"selection": _engineer_component_selection.duplicate(true),
+		"repair_ready": not is_destroyed()
+			and bool(get_telemetry().get("landed", false))
+			and not bool(get_telemetry().get("landing_active", false))
+			and not _engineer_component_selection.is_empty(),
+	}.duplicate(true)
+
+
+func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var component_id := StringName(payload.get("system_id", &""))
+	var requested_repair := float(payload.get("repair", 0.0))
+	var component_generation := int(payload.get("system_generation", 0))
+	var model := get_component_damage()
+	if model == null or not model.is_configured():
+		return _crew_role_result(false, &"component_damage_unavailable")
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return _crew_role_result(false, &"ship_destroyed")
+	if not bool(telemetry.get("landed", false)) or bool(telemetry.get("landing_active", false)):
+		return _crew_role_result(false, &"repair_requires_berthed_ship")
+	var report := model.get_component_report()
+	var order: Array = report.get("component_order", []) as Array
+	if not order.has(component_id):
+		return _crew_role_result(false, &"foreign_component")
+	if component_generation != _engineer_component_generation:
+		return _crew_role_result(false, &"stale_component_generation")
+	var before := model.get_component_integrity(component_id)
+	if before < 0.0:
+		return _crew_role_result(false, &"foreign_component")
+	if before >= 1.0:
+		return _crew_role_result(false, &"healthy_component")
+	var selection := _select_engineer_component(intent, component_id, component_generation)
+	if not bool(selection.get("accepted", false)):
+		return selection
+	if requested_repair <= 0.0:
+		return selection
+	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
+	var repair_result := model.tick_repair(requested_repair / rate, true)
+	var after := model.get_component_integrity(component_id)
+	if not bool(repair_result.get("accepted", false)) or after <= before:
+		var rejected := _crew_role_result(false, StringName(repair_result.get("reason", &"system_not_repaired")))
+		rejected["repair"] = repair_result
+		rejected["selection"] = selection
+		return rejected
+	var result := _crew_role_result(true, &"repair_applied")
+	result["component_id"] = component_id
+	result["integrity_before"] = before
+	result["integrity_after"] = after
+	result["repair"] = repair_result
+	result["selection"] = selection
+	return result
+
+
+func _select_engineer_component(
+		intent: Dictionary,
+		component_id: StringName,
+		component_generation: int
+) -> Dictionary:
+	var selection := {
+		"component_id": component_id,
+		"component_generation": component_generation,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"seat_generation": int(intent.get("seat_generation", 0)),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}
+	_engineer_component_selection = selection
+	engineer_component_selected.emit(
+		component_id,
+		component_generation,
+		selection.duplicate(true)
+	)
+	var result := _crew_role_result(true, &"component_selected")
+	result["selection"] = selection.duplicate(true)
+	return result
+
+
+func _cleanup_detached_engineer_state() -> void:
+	if _engineer_component_selection.is_empty():
+		return
+	if _crew_role_authority == null:
+		_clear_engineer_component_selection(&"authority_detached")
+		return
+	var assignment := _crew_role_authority.get_assignment(
+		int(_engineer_component_selection.get("occupant_peer_id", 0)),
+		StringName(_engineer_component_selection.get("avatar_id", &""))
+	)
+	if assignment.is_empty():
+		_clear_engineer_component_state(
+			int(_engineer_component_selection.get("occupant_peer_id", 0)),
+			StringName(_engineer_component_selection.get("avatar_id", &"")),
+			&"role_detached"
+		)
+
+
+func _clear_engineer_component_state(
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		reason: StringName
+) -> void:
+	if not _engineer_component_selection.is_empty() \
+			and int(_engineer_component_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_engineer_component_selection.get("avatar_id", &"")) == avatar_id:
+		_clear_engineer_component_selection(reason)
+
+
+func _clear_engineer_component_selection(reason: StringName, advance_generation: bool = true) -> void:
+	if _engineer_component_selection.is_empty():
+		if advance_generation:
+			_engineer_component_generation = mini(
+				_engineer_component_generation + 1,
+				MAX_ENGINEER_COMPONENT_GENERATION
+			)
+		return
+	var component_id := StringName(_engineer_component_selection.get("component_id", &""))
+	var component_generation := int(_engineer_component_selection.get("component_generation", 0))
+	_engineer_component_selection.clear()
+	engineer_component_cleared.emit(component_id, component_generation, reason)
+	if advance_generation:
+		_engineer_component_generation = mini(
+			_engineer_component_generation + 1,
+			MAX_ENGINEER_COMPONENT_GENERATION
+		)
+
+
+static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
+	return {"accepted": accepted, "status": status}
 
 
 func get_walkable_interior_report() -> Dictionary:
