@@ -877,6 +877,8 @@ func _emit_semantic_surface_cues(targets: Dictionary) -> void:
 		semantic_surface_cue_emitted.emit(&"surface_wind_severe", wind)
 	if entry >= SEMANTIC_THRESHOLD and _last_semantic_entry < SEMANTIC_THRESHOLD:
 		semantic_surface_cue_emitted.emit(&"surface_entry_severe", entry)
+	elif entry < SEMANTIC_THRESHOLD and _last_semantic_entry >= SEMANTIC_THRESHOLD:
+		semantic_surface_cue_emitted.emit(&"surface_entry_clear", entry)
 	if interior != _last_semantic_interior:
 		semantic_surface_cue_emitted.emit(
 			&"surface_cabin_entered" if interior else &"surface_cabin_exited",

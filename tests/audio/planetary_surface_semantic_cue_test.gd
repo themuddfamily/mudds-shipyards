@@ -33,6 +33,7 @@ func _run() -> void:
 	var cabin := policy.evaluate(_observation(&"cabin", 0.0, 0.0))
 	_check(bool(binding.present_policy_result(cabin, 0.75, generation, 1001, 7, 11).accepted), "cabin transition is accepted")
 	_check(_has_cue(&"surface_cabin_entered"), "cabin entry emits a typed transition cue")
+	_check(_has_cue(&"surface_entry_clear"), "entry intensity clearing emits a typed transition cue")
 	_check(_events.all(func(event): return event.cue_id is StringName and event.intensity is float), "semantic payload has no free text")
 	for failure in _failures:
 		push_error(failure)
