@@ -2034,14 +2034,18 @@ func _build_semantic_transcript_panel() -> void:
 	stack.add_child(_semantic_transcript_body)
 	var controls := HBoxContainer.new()
 	stack.add_child(controls)
-	var up := _menu_button("UP", NOMINAL)
+	var up := _menu_button("NEWER", NOMINAL)
 	up.focus_mode = Control.FOCUS_ALL
 	up.pressed.connect(func() -> void: scroll_semantic_caption_transcript(-1))
 	controls.add_child(up)
-	var down := _menu_button("DOWN", NOMINAL)
+	var down := _menu_button("OLDER", NOMINAL)
 	down.focus_mode = Control.FOCUS_ALL
 	down.pressed.connect(func() -> void: scroll_semantic_caption_transcript(1))
 	controls.add_child(down)
+	var clear := _menu_button("CLEAR", MUTED)
+	clear.focus_mode = Control.FOCUS_ALL
+	clear.pressed.connect(clear_semantic_caption_transcript)
+	controls.add_child(clear)
 
 
 func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:

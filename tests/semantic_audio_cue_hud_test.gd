@@ -38,6 +38,8 @@ func _run() -> void:
 	_check(transcript.size() == 8, "transcript is bounded to eight entries")
 	hud.toggle_semantic_caption_transcript()
 	_check(bool(hud._semantic_transcript_panel.visible), "caption transcript opens through a focusable HUD control")
+	var transcript_controls := hud._semantic_transcript_panel.get_child(0).get_child(0).get_child(2) as HBoxContainer
+	_check(transcript_controls.get_child_count() == 3 and transcript_controls.get_child(0).text == "NEWER" and transcript_controls.get_child(1).text == "OLDER" and transcript_controls.get_child(2).text == "CLEAR", "transcript review controls have deterministic newest-older-clear order")
 	hud.clear_semantic_caption_transcript()
 	_check(hud._semantic_audio_cue_presenter.get_transcript().is_empty(), "transcript clears on explicit session reset")
 	hud.set_captions_enabled(false)
