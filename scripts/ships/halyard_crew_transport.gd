@@ -750,6 +750,112 @@ func handoff_crew_role(
 	return result
 
 
+## Explicit emergency command transfer for a disconnected pilot. This is a
+## caller-invoked release/claim transaction over the existing authority; it
+## never watches for a disconnect or promotes a crew member automatically.
+## The admitted non-pilot keeps its MovingInteriorFrame registration while its
+## seat assignment changes, so the physical occupant does not blink out of the
+## cabin during the authority transition.
+func request_emergency_pilot_handoff(
+		source_peer_id: int,
+		new_occupant_peer_id: int,
+		new_avatar_id: StringName,
+		new_seat_id: StringName,
+		release_request_sequence: int,
+		claim_request_sequence: int,
+		occupant: Node3D,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	if not is_instance_valid(occupant) or not occupant.is_inside_tree():
+		return _crew_role_result(false, &"invalid_occupant")
+	var assignment := _crew_role_authority.get_assignment(new_occupant_peer_id, new_avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(false, &"assignment_not_found")
+	if StringName(assignment.get("seat_id", &"")) != new_seat_id:
+		return _crew_role_result(false, &"seat_mismatch")
+	if StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PILOT:
+		return _crew_role_result(false, &"pilot_assignment_already_present")
+	if release_request_sequence < 0 or claim_request_sequence <= release_request_sequence:
+		return _crew_role_result(false, &"invalid_handoff_sequence")
+	var last_intent := _crew_role_authority.get_last_intent(new_occupant_peer_id, new_avatar_id)
+	if not last_intent.is_empty() \
+			and claim_request_sequence <= int(last_intent.get("request_sequence", -1)):
+		return _crew_role_result(false, &"stale_request_sequence")
+	if _moving_interior_component == null \
+			or not _moving_interior_component.is_occupant_registered(occupant):
+		return _crew_role_result(false, &"occupancy_not_registered")
+	var metadata := occupant.get_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	if int(metadata.get("occupant_peer_id", 0)) != new_occupant_peer_id \
+			or StringName(metadata.get("avatar_id", &"")) != new_avatar_id \
+			or StringName(metadata.get("seat_id", &"")) != new_seat_id:
+		return _crew_role_result(false, &"occupancy_identity_mismatch")
+	var authority_snapshot := _crew_role_authority.get_snapshot()
+	for assignment_variant in authority_snapshot.get("assignments", []) as Array:
+		var live_assignment := assignment_variant as Dictionary
+		if StringName(live_assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PILOT:
+			return _crew_role_result(false, &"pilot_assignment_still_present")
+	var pilot_seat_found := false
+	var pilot_seat_occupied := false
+	for seat_variant in authority_snapshot.get("seats", []) as Array:
+		var seat := seat_variant as Dictionary
+		if StringName(seat.get("seat_id", &"")) != &"pilot_station":
+			continue
+		pilot_seat_found = true
+		if int(seat.get("seat_generation", 0)) != int(assignment.get("seat_generation", 0)) \
+				and seat_generation > 0:
+			return _crew_role_result(false, &"stale_seat_generation")
+		break
+	if not pilot_seat_found:
+		return _crew_role_result(false, &"pilot_seat_unavailable")
+	for assignment_variant in authority_snapshot.get("assignments", []) as Array:
+		var live_assignment := assignment_variant as Dictionary
+		if StringName(live_assignment.get("seat_id", &"")) == &"pilot_station":
+			pilot_seat_occupied = true
+			break
+	if pilot_seat_occupied:
+		return _crew_role_result(false, &"pilot_seat_occupied")
+	# A released pilot may still have one physics tick of held state. Neutralize
+	# it before the explicit replacement can submit a fresh command sequence.
+	_clear_pilot_command(&"emergency_handoff")
+	var release := _crew_role_authority.release(
+		source_peer_id,
+		new_occupant_peer_id,
+		new_avatar_id,
+		new_seat_id,
+		release_request_sequence,
+		seat_generation
+	)
+	if not bool(release.get("accepted", false)):
+		return release
+	var claim := _crew_role_authority.claim(
+		source_peer_id,
+		new_occupant_peer_id,
+		new_avatar_id,
+		&"pilot_station",
+		CrewRoleGameplayProfileType.ROLE_PILOT,
+		claim_request_sequence
+	)
+	if not bool(claim.get("accepted", false)):
+		return claim
+	var pilot_assignment := claim.get("assignment", {}) as Dictionary
+	_clear_crew_role_state(new_occupant_peer_id, new_avatar_id, &"emergency_handoff")
+	occupant.set_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {
+		"occupant_peer_id": new_occupant_peer_id,
+		"avatar_id": new_avatar_id,
+		"seat_id": &"pilot_station",
+		"seat_generation": int(pilot_assignment.get("seat_generation", 0)),
+		"role": CrewRoleGameplayProfileType.ROLE_PILOT,
+	})
+	var result := claim.duplicate(true)
+	result["status"] = &"emergency_pilot_handoff"
+	result["released_assignment"] = release.get("assignment", {}).duplicate(true)
+	result["occupancy_preserved"] = true
+	result["pilot_assignment"] = pilot_assignment.duplicate(true)
+	return result
+
+
 func get_passenger_ping_markers() -> Array[Dictionary]:
 	var markers: Array[Dictionary] = []
 	for marker_variant in _passenger_ping_markers.values():
