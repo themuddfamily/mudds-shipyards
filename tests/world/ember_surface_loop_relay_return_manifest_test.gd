@@ -42,7 +42,13 @@ func _run() -> void:
 			and binding.has_method(&"reset_planetary_relay_survey_return_manifest")
 	if not valid:
 		push_error("relay survey return manifest failed")
+		binding.free()
+		manifest = null
+		await process_frame
 		quit(1)
 		return
 	print("EMBER_SURFACE_LOOP_RELAY_RETURN_MANIFEST_TEST_OK: fenced caller-routed home intent")
+	binding.free()
+	manifest = null
+	await process_frame
 	quit(0)
