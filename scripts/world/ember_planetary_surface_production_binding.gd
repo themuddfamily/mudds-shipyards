@@ -105,7 +105,8 @@ func configure(
 		host: Object,
 		director: ActivityDirector,
 		reward_sink: Callable,
-		expected_generation: int = 0
+		expected_generation: int = 0,
+		service_repair_sink: Callable = Callable()
 	) -> Dictionary:
 	if _state != State.IDLE or host == null or not is_instance_valid(host):
 		return _result(false, &"composition_unavailable")
@@ -216,6 +217,12 @@ func configure(
 	)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"survey_interaction_configuration_rejected")
+	if service_repair_sink.is_valid():
+		configured = _survey_interaction.call(
+			&"configure_service_repair_sink", service_repair_sink
+		)
+		if not bool(configured.get("accepted", false)):
+			return _result(false, &"service_repair_sink_configuration_rejected")
 	var audio_attach: Dictionary = _surface_audio_adapter.call(
 		&"attach", _surface_audio_policy.get_snapshot().get("profile_id", &""),
 		maxi(1, absi(host.get_instance_id())), 1, 1,
@@ -239,6 +246,14 @@ func start_relay_survey() -> Dictionary:
 	var result: Dictionary = _relay_survey.begin(_adapter, _navigation)
 	if bool(result.get("accepted", false)):
 		_restored_relay_survey_completion.clear()
+		var runtime := (
+			_adapter.get_snapshot().get("activity_reward", {}) as Dictionary
+		)
+		var next_generation := int(runtime.get("activity_generation", -1))
+		var service := _survey_interaction.call(&"get_snapshot") as Dictionary
+		var terminal := service.get("service_terminal", {}) as Dictionary
+		if int(terminal.get("terminal_generation", -1)) > 0:
+			_survey_interaction.call(&"reset_service_terminal", next_generation)
 	_apply_relay_survey_presentation()
 	return result
 
@@ -899,7 +914,15 @@ func _bind_relay_survey_pad_guides(host: Object) -> void:
 func _on_survey_interaction_completed(receipt: Dictionary) -> void:
 	if _relay_survey == null or _adapter == null:
 		return
-	_relay_survey.call(&"submit_optional_checkpoint", _adapter, receipt)
+	var result := _relay_survey.call(
+		&"submit_optional_checkpoint", _adapter, receipt
+	) as Dictionary
+	if bool(result.get("accepted", false)):
+		var checkpoint := result.get("checkpoint", {}) as Dictionary
+		_survey_interaction.call(
+			&"activate_service_terminal",
+			int(checkpoint.get("activity_generation", -1))
+		)
 	_apply_relay_survey_presentation()
 
 

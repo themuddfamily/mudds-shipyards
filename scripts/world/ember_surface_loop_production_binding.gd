@@ -253,7 +253,8 @@ func get_planetary_travel_audio_snapshot() -> Dictionary:
 func configure_planetary_surface(
 		director: ActivityDirector,
 		reward_sink: Callable,
-		atmosphere_composition: Node = null
+		atmosphere_composition: Node = null,
+		service_repair_sink: Callable = Callable()
 	) -> Dictionary:
 	if not _configured or _composition_root == null:
 		return _reject(&"production_binding_unavailable")
@@ -270,7 +271,8 @@ func configure_planetary_surface(
 	_planetary_composition.name = "EmberPlanetarySurfaceProductionBinding"
 	_composition_root.add_child(_planetary_composition)
 	var result: Dictionary = _planetary_composition.call(
-		&"configure", _host, director, reward_sink, _host.get_generation()
+		&"configure", _host, director, reward_sink, _host.get_generation(),
+		service_repair_sink
 	)
 	if bool(result.get("accepted", false)) \
 			and _relay_survey_persistence_store != null:

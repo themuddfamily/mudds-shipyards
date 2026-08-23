@@ -17,6 +17,8 @@ const MAX_RANGE_METERS := 100.0
 const MAX_COOLDOWN_SECONDS := 60.0
 const MAX_REPAIR_AMOUNT := 1_000_000_000.0
 const MAX_RESOURCE_UNITS := 1_000_000
+const MAX_REQUEST_SEQUENCE := 9_007_199_254_740_991
+const ADMISSION_SERVICE_TERMINAL: StringName = &"service_terminal"
 
 signal repair_started(receipt: Dictionary)
 signal repair_committed(receipt: Dictionary)
@@ -35,6 +37,10 @@ var _cooldown_remaining := 0.0
 var _next_token := 1
 var _active: Dictionary = {}
 var _configuration_errors := PackedStringArray()
+var _service_terminal_id: StringName
+var _service_terminal_generation := 0
+var _service_actor_range_meters := 0.0
+var _last_service_request_sequence := 0
 
 
 func _init(
@@ -44,7 +50,10 @@ func _init(
 	p_max_range_meters: float = 3.0,
 	p_cooldown_seconds: float = 1.0,
 	p_repair_amount: float = 1.0,
-	p_resource_units: int = 1
+	p_resource_units: int = 1,
+	p_service_terminal_id: StringName = &"",
+	p_service_terminal_generation: int = 0,
+	p_service_actor_range_meters: float = 0.0
 	) -> void:
 	_actor_id = p_actor_id
 	_target_id = p_target_id
@@ -54,6 +63,9 @@ func _init(
 	_repair_amount = p_repair_amount
 	_initial_resource_units = p_resource_units
 	_resource_units = p_resource_units
+	_service_terminal_id = p_service_terminal_id
+	_service_terminal_generation = p_service_terminal_generation
+	_service_actor_range_meters = p_service_actor_range_meters
 	_validate_configuration()
 
 
@@ -121,6 +133,8 @@ func request_repair(context: Dictionary) -> Dictionary:
 		return _result(false, &"inactive_generation")
 	if not _active.is_empty():
 		return _result(false, &"already_repairing")
+	if _canonical_id(_field(context, "admission_kind", &"")) == ADMISSION_SERVICE_TERMINAL:
+		return _request_service_terminal_repair(context)
 	if _cooldown_remaining > 0.0:
 		return _result(false, &"cooldown")
 	if _resource_units <= 0:
@@ -184,6 +198,108 @@ func request_repair(context: Dictionary) -> Dictionary:
 	receipt["token"] = token
 	receipt["component_id"] = component_id
 	receipt["resource_units"] = _resource_units
+	repair_started.emit(receipt.duplicate(true))
+	return receipt
+
+
+## Alternate admission for a physical, caller-owned service terminal. It uses
+## the same reservation, resource, cooldown and component commit transaction as
+## engineer-seat repair, but requires explicit on-foot/landed/ownership and
+## terminal-generation evidence instead of pretending the actor is seated.
+func _request_service_terminal_repair(context: Dictionary) -> Dictionary:
+	var required_keys := [
+		"actor_id", "target_id", "component_id", "generation",
+		"distance_meters", "actor_distance_meters", "resource_id", "interrupted",
+		"admission_kind", "terminal_id", "terminal_generation", "request_sequence",
+		"player_on_foot", "craft_landed", "craft_owned",
+	]
+	var requested_amount_keys := required_keys + ["repair"]
+	var has_requested_amount := _has_exact_keys(context, requested_amount_keys)
+	if not _has_exact_keys(context, required_keys) and not has_requested_amount:
+		return _result(false, &"invalid_service_terminal_context")
+	if _service_terminal_id.is_empty() or _service_terminal_generation <= 0 \
+			or not is_finite(_service_actor_range_meters) \
+			or _service_actor_range_meters <= 0.0:
+		return _result(false, &"service_terminal_unavailable")
+	var actor_id := _canonical_id(_field(context, "actor_id", &""))
+	var target_id := _canonical_id(_field(context, "target_id", &""))
+	var component_id := _canonical_id(_field(context, "component_id", &""))
+	var resource_id := _canonical_id(_field(context, "resource_id", &""))
+	if actor_id != _actor_id:
+		return _result(false, &"actor_mismatch")
+	if target_id != _target_id:
+		return _result(false, &"target_mismatch")
+	if resource_id != _resource_id:
+		return _result(false, &"resource_mismatch")
+	if not _is_stable_id(component_id):
+		return _result(false, &"invalid_component")
+	if _canonical_id(_field(context, "terminal_id", &"")) != _service_terminal_id:
+		return _result(false, &"terminal_mismatch")
+	var raw_generation: Variant = _field(context, "generation", null)
+	var raw_terminal_generation: Variant = _field(context, "terminal_generation", null)
+	var raw_sequence: Variant = _field(context, "request_sequence", null)
+	if not raw_generation is int or int(raw_generation) != _generation:
+		return _result(false, &"stale_generation")
+	if not raw_terminal_generation is int \
+			or int(raw_terminal_generation) != _service_terminal_generation:
+		return _result(false, &"stale_terminal_generation")
+	if not raw_sequence is int or int(raw_sequence) <= _last_service_request_sequence \
+			or int(raw_sequence) < 1 or int(raw_sequence) > MAX_REQUEST_SEQUENCE:
+		return _result(false, &"stale_request_sequence")
+	var raw_distance: Variant = _field(context, "distance_meters", null)
+	var raw_actor_distance: Variant = _field(context, "actor_distance_meters", null)
+	if (not raw_distance is int and not raw_distance is float) \
+			or (not raw_actor_distance is int and not raw_actor_distance is float):
+		return _result(false, &"invalid_distance")
+	var distance := float(raw_distance)
+	var actor_distance := float(raw_actor_distance)
+	if not is_finite(distance) or distance < 0.0 or distance > _max_range_meters:
+		return _result(false, &"out_of_range")
+	if not is_finite(actor_distance) or actor_distance < 0.0 \
+			or actor_distance > _service_actor_range_meters:
+		return _result(false, &"actor_out_of_range")
+	for flag in ["player_on_foot", "craft_landed", "craft_owned"]:
+		if _field(context, flag, false) is not bool or not bool(_field(context, flag, false)):
+			return _result(false, StringName("%s_required" % flag))
+	if _field(context, "interrupted", false) is not bool:
+		return _result(false, &"invalid_interruption")
+	if bool(_field(context, "interrupted", false)):
+		return _result(false, &"interrupted")
+	if _cooldown_remaining > 0.0:
+		return _result(false, &"cooldown")
+	if _resource_units <= 0:
+		return _result(false, &"resource_exhausted")
+	var repair := _repair_amount
+	if has_requested_amount:
+		var raw_repair: Variant = _field(context, "repair", NAN)
+		if not (raw_repair is int or raw_repair is float) \
+				or not is_finite(float(raw_repair)) or float(raw_repair) <= 0.0 \
+				or float(raw_repair) > _repair_amount:
+			return _result(false, &"invalid_repair_amount")
+		repair = float(raw_repair)
+	_last_service_request_sequence = int(raw_sequence)
+	var token := _next_token
+	_next_token += 1
+	_active = {
+		"token": token,
+		"actor_id": _actor_id,
+		"target_id": _target_id,
+		"component_id": component_id,
+		"generation": _generation,
+		"repair": repair,
+		"admission_kind": ADMISSION_SERVICE_TERMINAL,
+		"terminal_id": _service_terminal_id,
+		"terminal_generation": _service_terminal_generation,
+		"request_sequence": _last_service_request_sequence,
+	}
+	var receipt := _result(true, &"requested")
+	receipt["token"] = token
+	receipt["component_id"] = component_id
+	receipt["resource_units"] = _resource_units
+	receipt["admission_kind"] = ADMISSION_SERVICE_TERMINAL
+	receipt["terminal_id"] = _service_terminal_id
+	receipt["terminal_generation"] = _service_terminal_generation
+	receipt["request_sequence"] = _last_service_request_sequence
 	repair_started.emit(receipt.duplicate(true))
 	return receipt
 
@@ -271,6 +387,10 @@ func _finish_commit(
 	component_id: StringName,
 	operation: Dictionary
 ) -> Dictionary:
+	var admission_kind := StringName(_active.get("admission_kind", &""))
+	var terminal_id := StringName(_active.get("terminal_id", &""))
+	var terminal_generation := int(_active.get("terminal_generation", 0))
+	var request_sequence := int(_active.get("request_sequence", 0))
 	_active.clear()
 	if not bool(operation.get("accepted", false)):
 		var rejected := _result(false, StringName(operation.get("reason", &"model_rejected")))
@@ -284,6 +404,11 @@ func _finish_commit(
 	receipt["resource_units"] = _resource_units
 	receipt["cooldown_remaining"] = _cooldown_remaining
 	receipt["operation"] = operation.duplicate(true)
+	if admission_kind == ADMISSION_SERVICE_TERMINAL:
+		receipt["admission_kind"] = admission_kind
+		receipt["terminal_id"] = terminal_id
+		receipt["terminal_generation"] = terminal_generation
+		receipt["request_sequence"] = request_sequence
 	repair_committed.emit(receipt.duplicate(true))
 	return receipt
 
@@ -291,8 +416,7 @@ func _finish_commit(
 func interrupt(reason: StringName = &"interrupted") -> Dictionary:
 	if _active.is_empty():
 		return _result(false, &"no_active_repair")
-	_emit_interruption(reason)
-	return _result(true, reason)
+	return _emit_interruption(reason)
 
 
 func get_snapshot() -> Dictionary:
@@ -308,6 +432,13 @@ func get_snapshot() -> Dictionary:
 		"generation": _generation,
 		"cooldown_remaining": _cooldown_remaining,
 		"active": not _active.is_empty(),
+		"service_terminal": {
+			"configured": not _service_terminal_id.is_empty(),
+			"terminal_id": _service_terminal_id,
+			"terminal_generation": _service_terminal_generation,
+			"actor_range_meters": _service_actor_range_meters,
+			"last_request_sequence": _last_service_request_sequence,
+		},
 		"configuration_errors": get_configuration_errors(),
 		"authority": {
 			"damage": false,
@@ -321,12 +452,18 @@ func audit() -> Dictionary:
 	return {"valid": is_configuration_valid(), "contract": get_snapshot()}.duplicate(true)
 
 
-func _emit_interruption(reason: StringName) -> void:
+func _emit_interruption(reason: StringName) -> Dictionary:
 	var receipt := _result(true, reason)
 	receipt["token"] = int(_active.get("token", -1))
 	receipt["component_id"] = StringName(_active.get("component_id", &""))
+	if StringName(_active.get("admission_kind", &"")) == ADMISSION_SERVICE_TERMINAL:
+		receipt["admission_kind"] = ADMISSION_SERVICE_TERMINAL
+		receipt["terminal_id"] = StringName(_active.get("terminal_id", &""))
+		receipt["terminal_generation"] = int(_active.get("terminal_generation", 0))
+		receipt["request_sequence"] = int(_active.get("request_sequence", 0))
 	_active.clear()
 	repair_interrupted.emit(receipt.duplicate(true))
+	return receipt
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
@@ -354,6 +491,17 @@ func _validate_configuration() -> void:
 		_configuration_errors.append("repair amount is outside its finite bound")
 	if _initial_resource_units < 0 or _initial_resource_units > MAX_RESOURCE_UNITS:
 		_configuration_errors.append("resource units are outside their finite bound")
+	var service_disabled := _service_terminal_id.is_empty() \
+		and _service_terminal_generation == 0 \
+		and is_zero_approx(_service_actor_range_meters)
+	var service_valid := _is_stable_id(_service_terminal_id) \
+		and _service_terminal_generation > 0 \
+		and _service_terminal_generation <= MAX_REQUEST_SEQUENCE \
+		and is_finite(_service_actor_range_meters) \
+		and _service_actor_range_meters > 0.0 \
+		and _service_actor_range_meters <= MAX_RANGE_METERS
+	if not service_disabled and not service_valid:
+		_configuration_errors.append("service terminal envelope is incomplete or invalid")
 
 
 static func _is_stable_id(value: Variant) -> bool:

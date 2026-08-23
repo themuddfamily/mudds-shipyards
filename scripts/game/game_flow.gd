@@ -5,6 +5,7 @@ const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_autho
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
+const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
 const BomberPayloadProjectileType := preload("res://scripts/combat/bomber_payload_projectile.gd")
 const BomberPayloadCombatAdapterType := preload("res://scripts/combat/bomber_payload_combat_adapter.gd")
 const CinderLongRangeBomberType := preload("res://scripts/ships/cinder_long_range_bomber.gd")
@@ -142,6 +143,11 @@ const MUDDS_RETURN_FLEET_IDS: Array[StringName] = [
 	&"zenith_b7_observed",
 	&"halyard_new_design",
 ]
+const EMBER_SERVICE_TERMINAL_ID: StringName = &"ember_bunker_service_terminal"
+const EMBER_SERVICE_RESOURCE_ID: StringName = &"ember_service_charge"
+const EMBER_SERVICE_ACTOR_RANGE_METERS := 2.5
+const EMBER_SERVICE_CRAFT_RANGE_METERS := 48.0
+const EMBER_SERVICE_REPAIR_AMOUNT := 0.20
 const DEBUG_AIM_DISTANCE_METERS := 10_000.0
 const MINIMAP_STATION_RANGE_METERS := 180.0
 const MINIMAP_FLIGHT_RANGE_METERS := 900.0
@@ -650,6 +656,8 @@ var _pending_ember_surface_serial := 0
 var _last_ember_surface_forward_result: Dictionary = {}
 var _ember_surface_forward_count := 0
 var _ember_surface_journey_active := false
+var _ember_service_repair_authority: RepairAuthority
+var _ember_service_repair_context: Dictionary = {}
 var _ember_final_approach_handoff_ready := false
 var _ember_final_approach_completion_receipt: Dictionary = {}
 ## The surface scheduler owns the one atomic command-source handback. These
@@ -6302,6 +6310,159 @@ func restore_ember_relay_survey_persistence() -> Dictionary:
 	) as Dictionary
 
 
+## Consumes one trusted physical service-terminal request. GameFlow supplies
+## player/craft/landing/ownership evidence; RepairAuthority retains the only
+## repair token and commits through the ship-local component adapter.
+func _commit_ember_service_terminal_repair(request: Variant) -> Dictionary:
+	if not request is Dictionary:
+		return {"accepted": false, "reason": &"invalid_service_terminal_request"}
+	var evidence := request as Dictionary
+	var required_keys := [
+		"terminal_id", "terminal_generation", "request_sequence",
+		"host_generation", "attachment_generation", "actor_instance_id",
+		"terminal_world_position",
+	]
+	if evidence.size() != required_keys.size():
+		return {"accepted": false, "reason": &"invalid_service_terminal_request"}
+	for key in required_keys:
+		if not evidence.has(key):
+			return {"accepted": false, "reason": &"invalid_service_terminal_request"}
+	var terminal_position: Variant = evidence.get("terminal_world_position")
+	if evidence.get("terminal_generation") is not int \
+			or evidence.get("request_sequence") is not int \
+			or evidence.get("host_generation") is not int \
+			or evidence.get("attachment_generation") is not int \
+			or evidence.get("actor_instance_id") is not int:
+		return {"accepted": false, "reason": &"invalid_service_terminal_request"}
+	var terminal_generation := int(evidence.get("terminal_generation", -1))
+	var host_generation := int(evidence.get("host_generation", -1))
+	var attachment_generation := int(evidence.get("attachment_generation", -1))
+	var request_sequence := int(evidence.get("request_sequence", -1))
+	if StringName(evidence.get("terminal_id", &"")) != EMBER_SERVICE_TERMINAL_ID \
+			or terminal_position is not Vector3 \
+			or not (terminal_position as Vector3).is_finite() \
+			or terminal_generation < 1 or host_generation < 1 \
+			or attachment_generation < 1 or request_sequence < 1:
+		return {"accepted": false, "reason": &"invalid_service_terminal_request"}
+	if not is_instance_valid(player) \
+			or int(evidence.get("actor_instance_id", 0)) != player.get_instance_id() \
+			or not player.has_method(&"is_seated") \
+			or bool(player.call(&"is_seated")) or _piloting:
+		return {"accepted": false, "reason": &"service_player_not_on_foot"}
+	var actor_distance := player.global_position.distance_to(terminal_position as Vector3)
+	if not is_finite(actor_distance) or actor_distance > EMBER_SERVICE_ACTOR_RANGE_METERS:
+		return {"accepted": false, "reason": &"service_actor_out_of_range"}
+	if not is_instance_valid(active_ship) or not ships.has(active_ship):
+		return {"accepted": false, "reason": &"service_owned_craft_unavailable"}
+	var telemetry := active_ship.get_telemetry()
+	if not bool(telemetry.get("landed", false)) \
+			or bool(telemetry.get("landing_active", false)) \
+			or bool(telemetry.get("destroyed", false)):
+		return {"accepted": false, "reason": &"service_craft_not_landed"}
+	var craft_distance := active_ship.global_position.distance_to(
+		terminal_position as Vector3
+	)
+	if not is_finite(craft_distance) or craft_distance > EMBER_SERVICE_CRAFT_RANGE_METERS:
+		return {"accepted": false, "reason": &"service_target_out_of_range"}
+	var model := active_ship.get_component_damage()
+	if model == null or not model.is_configured():
+		return {"accepted": false, "reason": &"component_damage_unavailable"}
+	var selected_component := &""
+	var selected_integrity := 1.0
+	for component_value in model.get_component_report().get("components", []) as Array:
+		var component := component_value as Dictionary
+		var integrity := float(component.get("integrity", 1.0))
+		if integrity < selected_integrity:
+			selected_component = StringName(component.get("id", &""))
+			selected_integrity = integrity
+	if selected_component.is_empty() or selected_integrity >= 1.0:
+		return {"accepted": false, "reason": &"no_damaged_component"}
+	var service_context := {
+		"host_generation": host_generation,
+		"terminal_generation": terminal_generation,
+		"actor_instance_id": player.get_instance_id(),
+		"target_instance_id": active_ship.get_instance_id(),
+		"component_generation": model.get_ledger_generation(),
+	}
+	if _ember_service_repair_authority == null:
+		var actor_id := StringName("ember_player_%d" % player.get_instance_id())
+		var target_id := StringName("ember_craft_%d" % active_ship.get_instance_id())
+		_ember_service_repair_authority = RepairAuthorityType.new(
+			actor_id, target_id, EMBER_SERVICE_RESOURCE_ID,
+			EMBER_SERVICE_CRAFT_RANGE_METERS, 0.0,
+			EMBER_SERVICE_REPAIR_AMOUNT, 1,
+			EMBER_SERVICE_TERMINAL_ID, terminal_generation,
+			EMBER_SERVICE_ACTOR_RANGE_METERS
+		) as RepairAuthority
+		if _ember_service_repair_authority == null \
+				or not _ember_service_repair_authority.is_configuration_valid() \
+				or not bool(_ember_service_repair_authority.begin_generation(
+					model.get_ledger_generation()
+				).get("accepted", false)):
+			_ember_service_repair_authority = null
+			return {"accepted": false, "reason": &"service_repair_authority_unavailable"}
+		_ember_service_repair_context = service_context.duplicate(true)
+	elif service_context != _ember_service_repair_context:
+		var previous_host := int(_ember_service_repair_context.get("host_generation", -1))
+		var previous_terminal := int(
+			_ember_service_repair_context.get("terminal_generation", -1)
+		)
+		if host_generation < previous_host \
+				or (host_generation == previous_host \
+				and terminal_generation <= previous_terminal):
+			return {"accepted": false, "reason": &"stale_service_terminal_context"}
+		if _ember_service_repair_authority.has_active_repair():
+			_ember_service_repair_authority.interrupt(&"service_terminal_changed")
+		_ember_service_repair_authority = null
+		_ember_service_repair_context.clear()
+		return _commit_ember_service_terminal_repair(evidence)
+	var actor_id := StringName("ember_player_%d" % player.get_instance_id())
+	var target_id := StringName("ember_craft_%d" % active_ship.get_instance_id())
+	var requested := _ember_service_repair_authority.request_repair({
+		"actor_id": actor_id,
+		"target_id": target_id,
+		"component_id": selected_component,
+		"generation": model.get_ledger_generation(),
+		"distance_meters": craft_distance,
+		"actor_distance_meters": actor_distance,
+		"resource_id": EMBER_SERVICE_RESOURCE_ID,
+		"interrupted": false,
+		"admission_kind": RepairAuthorityType.ADMISSION_SERVICE_TERMINAL,
+		"terminal_id": EMBER_SERVICE_TERMINAL_ID,
+		"terminal_generation": terminal_generation,
+		"request_sequence": request_sequence,
+		"player_on_foot": true,
+		"craft_landed": true,
+		"craft_owned": true,
+		"repair": EMBER_SERVICE_REPAIR_AMOUNT,
+	})
+	if not bool(requested.get("accepted", false)):
+		return requested
+	var committed := _ember_service_repair_authority.commit_component_repair(
+		model, int(requested.get("token", -1))
+	)
+	if not bool(committed.get("accepted", false)):
+		return committed
+	var result := committed.duplicate(true)
+	result["reason"] = &"ember_service_component_repaired"
+	result["component_id"] = selected_component
+	result["integrity_before"] = selected_integrity
+	result["integrity_after"] = model.get_component_integrity(selected_component)
+	result["actor_distance_meters"] = actor_distance
+	result["craft_distance_meters"] = craft_distance
+	result["authority_path"] = &"repair_authority_component_adapter"
+	if is_instance_valid(hud):
+		hud.toast(
+			"Bunker service complete",
+			"%s restored to %d%%" % [
+				str(selected_component).replace("_", " ").capitalize(),
+				roundi(float(result.integrity_after) * 100.0),
+			],
+			3.0
+		)
+	return result
+
+
 ## Binds the caller-owned Ember persistence bridge to this Main's already-loaded
 ## UserDataStore. No filesystem or save authority is created here.
 func bind_planetary_return_persistence(binding: Object) -> Dictionary:
@@ -6496,7 +6657,10 @@ func begin_ember_surface_journey(
 		if not bool(configured.get("accepted", false)):
 			return configured
 	if binding.get_planetary_surface_snapshot().is_empty():
-		var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
+		var composed: Dictionary = binding.configure_planetary_surface(
+			director, reward_sink, null,
+			Callable(self, &"_commit_ember_service_terminal_repair")
+		)
 		if not bool(composed.get("accepted", false)):
 			return composed
 	var survey_restore: Dictionary = {}

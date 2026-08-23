@@ -12,8 +12,11 @@ const INTERACTION_LAYER := 1 << 3
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const INTERACTION_ID: StringName = &"ember_bunker_gantry_survey"
 const COMPLETION_RESPONSE_ID: StringName = &"ember_bunker_service_alcove"
+const SERVICE_TERMINAL_ID: StringName = &"ember_bunker_service_terminal"
 const PROMPT_READY := "[ E ]  LOG BUNKER / GANTRY SURVEY"
 const PROMPT_COMPLETE := "[ COMPLETE ]  BUNKER / GANTRY SURVEY LOGGED"
+const PROMPT_SERVICE := "[ E ]  SERVICE NEARBY LANDED CRAFT"
+const PROMPT_SERVICE_COMPLETE := "[ COMPLETE ]  CRAFT COMPONENT SERVICED"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const ALCOVE_WALL_THICKNESS_M := 0.18
 const ALCOVE_FRONT_CLEARANCE_M := 0.65
@@ -47,6 +50,12 @@ var _response_width_m := 0.0
 var _response_height_m := 0.0
 var _response_length_m := 0.0
 var _wayfinding_direction := Vector3.ZERO
+var _service_repair_sink := Callable()
+var _service_terminal_generation := -1
+var _service_request_sequence := 0
+var _service_consumed := false
+var _service_status: StringName = &"locked"
+var _last_service_receipt: Dictionary = {}
 
 
 func _ready() -> void:
@@ -125,16 +134,30 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 func get_interaction_prompt() -> String:
 	if not _current():
 		return ""
-	return PROMPT_COMPLETE if _completed else PROMPT_READY
+	if not _completed:
+		return PROMPT_READY
+	if _service_terminal_generation > 0:
+		return PROMPT_SERVICE_COMPLETE if _service_consumed else PROMPT_SERVICE
+	return PROMPT_COMPLETE
 
 
 func can_interact(actor: Node = null) -> bool:
-	return _current() and not _completed and _actor_is_current(actor)
+	return _current() and _actor_is_current(actor) and (
+		not _completed or (
+			_service_terminal_generation > 0 and not _service_consumed \
+			and _service_repair_sink.is_valid()
+		)
+	)
 
 
 func interact(actor: Node = null) -> bool:
 	if not _current():
 		return false
+	if _completed:
+		return bool(submit_service_repair(
+			actor, _host_generation, _attachment_generation,
+			_service_terminal_generation
+		).get("accepted", false))
 	var submitted := submit_interaction(
 		actor, _host_generation, _attachment_generation
 	)
@@ -171,6 +194,70 @@ func submit_interaction(
 	_apply_presentation()
 	survey_completed.emit(_last_receipt.duplicate(true))
 	return _result(true, &"survey_interaction_completed")
+
+
+func configure_service_repair_sink(sink: Callable) -> Dictionary:
+	if _service_repair_sink.is_valid() or not sink.is_valid():
+		return _result(false, &"service_repair_sink_invalid")
+	_service_repair_sink = sink
+	return _result(true, &"service_repair_sink_configured")
+
+
+func activate_service_terminal(activity_generation: int) -> Dictionary:
+	if not _current() or not _completed or not _service_repair_sink.is_valid() \
+			or activity_generation < 1 or _service_terminal_generation > 0:
+		return _result(false, &"service_terminal_activation_invalid")
+	_service_terminal_generation = activity_generation
+	_service_status = &"available"
+	_last_service_receipt.clear()
+	return _result(true, &"service_terminal_activated")
+
+
+func reset_service_terminal(next_activity_generation: int) -> Dictionary:
+	if _service_terminal_generation < 1 \
+			or next_activity_generation <= _service_terminal_generation:
+		return _result(false, &"service_terminal_reset_invalid")
+	_service_terminal_generation = -1
+	_service_request_sequence = 0
+	_service_consumed = false
+	_service_status = &"locked"
+	_last_service_receipt.clear()
+	return _result(true, &"service_terminal_reset")
+
+
+func submit_service_repair(
+		actor: Node, expected_host_generation: int,
+		expected_attachment_generation: int, expected_terminal_generation: int
+	) -> Dictionary:
+	if not _current() or not _completed or not _service_repair_sink.is_valid():
+		return _result(false, &"service_terminal_unavailable")
+	if expected_host_generation != _host_generation \
+			or expected_attachment_generation != _attachment_generation \
+			or expected_terminal_generation != _service_terminal_generation:
+		return _result(false, &"stale_service_terminal_generation")
+	if not _actor_is_current(actor):
+		return _result(false, &"service_terminal_actor_mismatch")
+	if _service_consumed:
+		return _result(false, &"service_terminal_already_consumed")
+	if _service_request_sequence >= MAX_SAFE_GENERATION:
+		return _result(false, &"service_terminal_sequence_exhausted")
+	_service_request_sequence += 1
+	var result := _service_repair_sink.call({
+		"terminal_id": SERVICE_TERMINAL_ID,
+		"terminal_generation": _service_terminal_generation,
+		"request_sequence": _service_request_sequence,
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"actor_instance_id": actor.get_instance_id(),
+		"terminal_world_position": global_position,
+	}) as Dictionary
+	_last_service_receipt = result.duplicate(true)
+	if bool(result.get("accepted", false)):
+		_service_consumed = true
+		_service_status = &"repair_applied"
+	else:
+		_service_status = StringName(result.get("reason", &"repair_rejected"))
+	return result
 
 
 func detach() -> Dictionary:
@@ -311,6 +398,21 @@ func get_snapshot() -> Dictionary:
 			"collision_shapes": ALCOVE_COLLISION_SHAPE_COUNT,
 			"triangles": ALCOVE_TRIANGLE_COUNT,
 		},
+		"service_terminal": {
+			"terminal_id": SERVICE_TERMINAL_ID,
+			"terminal_generation": _service_terminal_generation,
+			"available": _current() and _completed \
+				and _service_terminal_generation > 0 and not _service_consumed,
+			"consumed": _service_consumed,
+			"request_sequence": _service_request_sequence,
+			"status": _service_status,
+			"status_text": _service_status_text(),
+			"last_receipt": _last_service_receipt.duplicate(true),
+			"authority": {
+				"repair": false, "components": false, "movement": false,
+				"landing": false, "ownership": false, "hud_core": false,
+			},
+		},
 		"wayfinding": _wayfinding_snapshot(),
 		"evidence": {
 			"content_class": &"NEW",
@@ -322,6 +424,16 @@ func get_snapshot() -> Dictionary:
 			"save": false, "history": false, "hud": false,
 		},
 	}.duplicate(true)
+
+
+func _service_status_text() -> String:
+	match _service_status:
+		&"available": return "SERVICE LINK READY — LANDED CRAFT IN RANGE"
+		&"repair_applied": return "COMPONENT SERVICE APPLIED"
+		&"no_damaged_component": return "NO DAMAGED COMPONENT REQUIRES SERVICE"
+		&"service_target_out_of_range": return "LANDED CRAFT OUT OF SERVICE RANGE"
+		&"service_actor_out_of_range": return "MOVE CLOSER TO THE SERVICE TERMINAL"
+	return "SERVICE LINK LOCKED"
 
 
 func _current() -> bool:
