@@ -122,9 +122,10 @@ const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
 ## exterior roof cassettes, six bronze outboard mullion fillets, three servery
-## shelves, and six collision-backed outboard mullions still draw, but five
-## MultiMeshes own their visual-only submissions.
+## shelves, six collision-backed outboard mullions, and seven banquette cushions
+## still draw, but six MultiMeshes own their visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
+const BANQUETTE_CUSHION_COPY_COUNT := 7
 const ROOF_CASSETTE_COPY_COUNT := 5
 const OUTBOARD_MULLION_FILLET_COPY_COUNT := 6
 const OUTBOARD_MULLION_COPY_COUNT := 6
@@ -142,11 +143,12 @@ const PRE_OUTBOARD_MULLION_RENDER_DESCENDANT_COUNT := 460
 const PRE_OUTBOARD_MULLION_RENDER_MESH_INSTANCE_COUNT := 250
 const PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 4
 const PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
-const RENDER_DESCENDANT_COUNT := 455
+const PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT := 249
+const RENDER_DESCENDANT_COUNT := 456
 const RENDER_MESH_INSTANCE_COUNT := 244
-const RENDER_MULTIMESH_BATCH_COUNT := 5
+const RENDER_MULTIMESH_BATCH_COUNT := 6
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 249
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 243
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -183,6 +185,8 @@ var _support_members: Array[Node3D] = []
 var _practical_lights: Array[OmniLight3D] = []
 var _banquette_joint_transforms: Array[Transform3D] = []
 var _banquette_joint_batch: MultiMeshInstance3D = null
+var _banquette_cushion_transforms: Array[Transform3D] = []
+var _banquette_cushion_batch: MultiMeshInstance3D = null
 var _roof_cassette_transforms: Array[Transform3D] = []
 var _roof_cassette_batch: MultiMeshInstance3D = null
 var _outboard_mullion_fillet_transforms: Array[Transform3D] = []
@@ -488,6 +492,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP banquette-joint renderer buffer drifted from its authored roster")
 	if not bool(rendering.banquette_bounds_match_authored):
 		errors.append("VIP banquette-joint batch bounds drifted from its authored copies")
+	if not bool(rendering.banquette_cushion_renderer_buffer_matches_authored):
+		errors.append("VIP banquette-cushion renderer buffer drifted from its authored roster")
+	if not bool(rendering.banquette_cushion_bounds_match_authored):
+		errors.append("VIP banquette-cushion batch bounds drifted from its authored copies")
+	if not bool(rendering.banquette_cushion_visual_contract_matches):
+		errors.append("VIP banquette-cushion visual contract drifted")
 	if not bool(rendering.roof_cassette_renderer_buffer_matches_authored):
 		errors.append("VIP roof-cassette renderer buffer drifted from its authored roster")
 	if not bool(rendering.roof_cassette_bounds_match_authored):
@@ -575,7 +585,7 @@ func get_render_batch_contract() -> Dictionary:
 	var submissions := 0
 	for raw_node in mesh_nodes:
 		var instance := raw_node as MeshInstance3D
-		if instance.mesh == null:
+		if instance.mesh == null or not instance.visible:
 			continue
 		drawn_copies += 1
 		submissions += instance.mesh.get_surface_count()
@@ -605,6 +615,36 @@ func get_render_batch_contract() -> Dictionary:
 		# rebuild MultiMesh.get_aabb() on the CPU in headless validation. The
 		# explicit custom AABB is the culling contract used by the renderer.
 		joint_bounds_match = _banquette_joint_batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+	var expected_cushion_buffer := _encode_multimesh_transforms(_banquette_cushion_transforms)
+	var cushion_renderer_buffer_matches := (
+		is_instance_valid(_banquette_cushion_batch)
+		and _banquette_cushion_batch.multimesh != null
+		and _banquette_cushion_batch.multimesh.buffer == expected_cushion_buffer
+	)
+	var cushion_bounds_match := false
+	var cushion_visual_contract_matches := false
+	if is_instance_valid(_banquette_cushion_batch) and _banquette_cushion_batch.multimesh != null:
+		var expected_cushion_bounds := _transformed_mesh_bounds(
+			_banquette_cushion_batch.multimesh.mesh.get_aabb(),
+			_banquette_cushion_transforms
+		)
+		cushion_bounds_match = _banquette_cushion_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_cushion_bounds
+		)
+		cushion_visual_contract_matches = (
+			_banquette_cushion_batch.multimesh.instance_count == BANQUETTE_CUSHION_COPY_COUNT
+			and _banquette_cushion_batch.multimesh.visible_instance_count == -1
+			and _banquette_cushion_batch.multimesh.mesh.get_surface_count() == 1
+			and _banquette_cushion_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(1.02, 0.14, 0.74)
+			)
+			and _banquette_cushion_batch.material_override == _materials.get("upholstery")
+			and _banquette_cushion_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _banquette_cushion_batch.layers == 1
+			and _banquette_cushion_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _banquette_cushion_batch.get_child_count() == 0
+			and _banquette_cushion_batch.get_script() == null
+		)
 	var expected_roof_buffer := _encode_multimesh_transforms(_roof_cassette_transforms)
 	var roof_renderer_buffer_matches := (
 		is_instance_valid(_roof_cassette_batch)
@@ -699,6 +739,7 @@ func get_render_batch_contract() -> Dictionary:
 		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
 		and drawn_copies == RENDER_DRAWN_COPY_COUNT
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
+		and _banquette_cushion_transforms.size() == BANQUETTE_CUSHION_COPY_COUNT
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -712,6 +753,10 @@ func get_render_batch_contract() -> Dictionary:
 		"drawn_copies": drawn_copies,
 		"baseline_geometry_submissions": BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"geometry_submissions": submissions,
+		"pre_banquette_cushion_geometry_submissions": PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT,
+		"banquette_cushion_geometry_submissions_removed": (
+			PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
 		"pre_mullion_descendant_nodes": PRE_MULLION_RENDER_DESCENDANT_COUNT,
 		"pre_mullion_mesh_instances": PRE_MULLION_RENDER_MESH_INSTANCE_COUNT,
 		"pre_mullion_multimesh_batches": PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT,
@@ -721,6 +766,9 @@ func get_render_batch_contract() -> Dictionary:
 		"pre_outboard_mullion_multimesh_batches": PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT,
 		"pre_outboard_mullion_geometry_submissions": PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"banquette_joint_copies": _banquette_joint_transforms.size(),
+		"banquette_cushion_copies": _banquette_cushion_transforms.size(),
+		"banquette_cushion_baseline_submissions": BANQUETTE_CUSHION_COPY_COUNT,
+		"banquette_cushion_submissions": 1 if cushion_visual_contract_matches else 0,
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
 		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
 		"outboard_mullion_copies": _outboard_mullion_transforms.size(),
@@ -728,6 +776,11 @@ func get_render_batch_contract() -> Dictionary:
 			_banquette_joint_batch.multimesh.buffer.size()
 			if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
 			else 0
+		),
+		"banquette_cushion_renderer_buffer_floats": (
+			_banquette_cushion_batch.multimesh.buffer.size()
+			if is_instance_valid(_banquette_cushion_batch)
+			and _banquette_cushion_batch.multimesh != null else 0
 		),
 		"roof_cassette_renderer_buffer_floats": (
 			_roof_cassette_batch.multimesh.buffer.size()
@@ -757,9 +810,15 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_outboard_mullion_batch.multimesh.buffer.size()
 				if is_instance_valid(_outboard_mullion_batch)
 				and _outboard_mullion_batch.multimesh != null else 0)
+			+ (_banquette_cushion_batch.multimesh.buffer.size()
+				if is_instance_valid(_banquette_cushion_batch)
+				and _banquette_cushion_batch.multimesh != null else 0)
 		),
 		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
 		"banquette_bounds_match_authored": joint_bounds_match,
+		"banquette_cushion_renderer_buffer_matches_authored": cushion_renderer_buffer_matches,
+		"banquette_cushion_bounds_match_authored": cushion_bounds_match,
+		"banquette_cushion_visual_contract_matches": cushion_visual_contract_matches,
 		"roof_cassette_renderer_buffer_matches_authored": roof_renderer_buffer_matches,
 		"roof_cassette_bounds_match_authored": roof_bounds_match,
 		"outboard_mullion_fillet_renderer_buffer_matches_authored": mullion_renderer_buffer_matches,
@@ -773,9 +832,11 @@ func get_render_batch_contract() -> Dictionary:
 			and roof_renderer_buffer_matches
 			and mullion_renderer_buffer_matches
 			and structural_mullion_renderer_buffer_matches
+			and cushion_renderer_buffer_matches
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
-			and mullion_bounds_match and structural_mullion_bounds_match,
+			and mullion_bounds_match and structural_mullion_bounds_match \
+			and cushion_bounds_match,
 		"outboard_mullion_baseline_mesh_instances": OUTBOARD_MULLION_COPY_COUNT,
 		"outboard_mullion_mesh_instances": 0,
 		"outboard_mullion_multimesh_resources": (
@@ -846,6 +907,7 @@ func get_render_batch_contract() -> Dictionary:
 		),
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _banquette_joint_transforms.duplicate(),
+		"authored_banquette_cushion_transforms": _banquette_cushion_transforms.duplicate(),
 		"authored_roof_cassette_transforms": _roof_cassette_transforms.duplicate(),
 		"authored_outboard_mullion_fillet_transforms": (
 			_outboard_mullion_fillet_transforms.duplicate()
@@ -1329,6 +1391,7 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 	# perimeter floor level, so the well's edge becomes the seat.
 	var arc_centre := Vector3(-1.6, 0.0, 8.75)
 	var joint_transforms: Array[Transform3D] = []
+	var cushion_transforms: Array[Transform3D] = []
 	for segment_index in 7:
 		var angle := deg_to_rad(lerpf(128.0, 232.0, float(segment_index) / 6.0))
 		var offset := Vector3(sin(angle), 0.0, cos(angle)) * 2.62
@@ -1337,7 +1400,8 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 			segment_index,
 			arc_centre + offset,
 			rad_to_deg(angle) + 180.0,
-			joint_transforms
+			joint_transforms,
+			cushion_transforms
 		)
 	_banquette_joint_transforms.assign(joint_transforms)
 	_banquette_joint_batch = _multimesh_boxes(
@@ -1346,6 +1410,14 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 		Vector3(0.05, 0.4, 0.76),
 		_materials["lacquer"],
 		_banquette_joint_transforms
+	)
+	_banquette_cushion_transforms.assign(cushion_transforms)
+	_banquette_cushion_batch = _multimesh_boxes(
+		fitout,
+		"BanquetteCushions",
+		Vector3(1.02, 0.14, 0.74),
+		_materials["upholstery"],
+		_banquette_cushion_transforms
 	)
 
 	# Low table on the well floor, with an inlaid ring that is the only light
@@ -1439,7 +1511,8 @@ func _build_banquette_segment(
 		index: int,
 		segment_position: Vector3,
 		yaw_degrees: float,
-		joint_transforms: Array[Transform3D]
+		joint_transforms: Array[Transform3D],
+		cushion_transforms: Array[Transform3D]
 	) -> void:
 	var segment := Node3D.new()
 	segment.name = "Banquette%02d" % (index + 1)
@@ -1457,7 +1530,18 @@ func _build_banquette_segment(
 
 	var base := _box(segment, "Base", Vector3(0.0, -0.225, 0.0), Vector3(1.05, 0.45, 0.78), _materials["lacquer"])
 	_register_support(base, &"banquette seat", &"well floor")
-	_box(segment, "Cushion", Vector3(0.0, 0.06, 0.02), Vector3(1.02, 0.14, 0.74), _materials["upholstery"], false)
+	var cushion_anchor := _box(
+		segment,
+		"Cushion",
+		Vector3(0.0, 0.06, 0.02),
+		Vector3(1.02, 0.14, 0.74),
+		_materials["upholstery"],
+		false
+	) as MeshInstance3D
+	cushion_transforms.append(segment.transform * cushion_anchor.transform)
+	# Preserve the stable cushion path, transform, mesh and upholstery material
+	# as a hidden inspection anchor; the Fitout batch owns the visible copy.
+	cushion_anchor.visible = false
 	_box(segment, "Back", Vector3(0.0, 0.34, -0.34), Vector3(1.02, 0.7, 0.16), _materials["upholstery"], false, Vector3(-9.0, 0.0, 0.0))
 	_box(segment, "BackFillet", Vector3(0.0, 0.7, -0.38), Vector3(1.06, 0.06, 0.2), _materials["bronze"], false)
 	# Segment joints. Photographed from the entry, seven touching segments read as
