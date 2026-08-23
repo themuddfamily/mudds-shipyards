@@ -13,6 +13,7 @@ const STATE_IDLE := "idle"
 const STATE_STARTING := "starting"
 const STATE_STABLE := "stable"
 const STATE_CLEAN := "clean"
+const LIFECYCLE_FLUSH_EVENT_THRESHOLD := 4
 
 var _coordinator: CrashRecoveryCoordinator
 var _record: SessionDiagnosticRecord
@@ -24,6 +25,11 @@ var _last_status: Dictionary = {}
 var _network_generation := 0
 var _recovery_available_snapshot: Dictionary = {}
 var _recovery_choice_generation := -1
+var _accepted_lifecycle_event_count := 0
+var _lifecycle_flush_serial := 0
+var _last_lifecycle_flush_status: Dictionary = {}
+var _last_physics_tick := 0
+var _last_elapsed_physics_seconds := 0.0
 
 
 func _init(
@@ -47,6 +53,8 @@ func begin_session(session_id: int, commit_id: String, physics_tick: int, elapse
 	if not bool(begun.accepted):
 		return _status(false, &"begin_failed", {"coordinator_status": begun})
 	_session_id = session_id
+	_last_physics_tick = physics_tick
+	_last_elapsed_physics_seconds = elapsed_physics_seconds
 	_state = STATE_STARTING
 	var attached := _record.attach_session(session_id)
 	if not bool(attached.accepted) and attached.reason != &"already_attached":
@@ -162,6 +170,8 @@ func mark_stable(
 		return _status(true, &"already_stable")
 	if _state != STATE_STARTING:
 		return _status(false, &"session_not_starting")
+	_last_physics_tick = physics_tick
+	_last_elapsed_physics_seconds = elapsed_physics_seconds
 	var checkpoint := _coordinator.checkpoint(
 		_session_id, physics_tick, elapsed_physics_seconds, commit_id
 	)
@@ -198,6 +208,8 @@ func get_snapshot() -> Dictionary:
 		"recovery_flush_pending": _recovery_flush_pending,
 		"recovery_available": not _recovery_available_snapshot.is_empty(),
 		"recovery_snapshot": _recovery_available_snapshot.duplicate(true),
+		"accepted_lifecycle_event_count": _accepted_lifecycle_event_count,
+		"last_lifecycle_flush_status": _last_lifecycle_flush_status.duplicate(true),
 		"last_status": _last_status.duplicate(true),
 		"coordinator": _coordinator.get_snapshot() if _coordinator != null else {},
 		"record": _record.get_snapshot() if _record != null else {},
@@ -268,12 +280,42 @@ func record_lifecycle_transition(
 		}
 	)
 	var recorded := _record.record(event)
+	if bool(recorded.accepted):
+		_accepted_lifecycle_event_count += 1
+		if _accepted_lifecycle_event_count % LIFECYCLE_FLUSH_EVENT_THRESHOLD == 0:
+			_last_lifecycle_flush_status = _flush_lifecycle_snapshot()
 	_last_status = _status(
 		bool(recorded.accepted),
 		&"lifecycle_recorded" if bool(recorded.accepted) else &"lifecycle_record_failed",
 		{"record_status": recorded}
 	)
 	return _last_status.duplicate(true)
+
+
+func _flush_lifecycle_snapshot() -> Dictionary:
+	_lifecycle_flush_serial += 1
+	var commit_id := "diagnostic-lifecycle-flush-%d" % _lifecycle_flush_serial
+	var persisted := _record.persist(commit_id)
+	if not bool(persisted.accepted) and persisted.reason != &"no_store":
+		return {"accepted": false, "reason": &"record_persist_failed", "persist_status": persisted}
+	var checkpoint := _coordinator.checkpoint(
+		_session_id,
+		_last_physics_tick,
+		_last_elapsed_physics_seconds,
+		"%s-marker" % commit_id
+	)
+	if not bool(checkpoint.accepted):
+		return {"accepted": false, "reason": &"marker_refresh_failed", "checkpoint_status": checkpoint}
+	var written: Dictionary = _sink.append_snapshot(_record.get_snapshot())
+	if not bool(written.accepted):
+		return {"accepted": false, "reason": &"sink_flush_failed", "sink_status": written}
+	return {
+		"accepted": true,
+		"reason": &"lifecycle_flushed",
+		"persist_status": persisted,
+		"checkpoint_status": checkpoint,
+		"sink_status": written,
+	}
 
 
 func _status(accepted: bool, reason: StringName, details: Dictionary = {}) -> Dictionary:

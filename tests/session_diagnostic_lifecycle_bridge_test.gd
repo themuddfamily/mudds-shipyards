@@ -50,6 +50,16 @@ func _run() -> void:
 	var first_bridge := Bridge.new(first_coordinator, Record.new(), Sink.new("memory://diag", filesystem))
 	_check(bool(first_bridge.begin_session(10, "begin-10", 0, 0.0).accepted), "first startup begins through the bridge")
 	_check(bool(first_bridge.mark_stable(4, 0.1, "stable-10").accepted), "caller marks the first startup stable")
+	for transition_code in [1, 2, 3, 4]:
+		_check(bool(first_bridge.record_lifecycle_transition(transition_code, 1).accepted), "lifecycle event %d is accepted" % transition_code)
+	var first_flush: Dictionary = first_bridge.get_snapshot().get("last_lifecycle_flush_status", {})
+	_check(
+		bool(first_flush.accepted)
+		and first_flush.reason == &"lifecycle_flushed"
+		and filesystem.files.has("memory://diag/crash-log.json")
+		and store.get_snapshot().has("crash_recovery"),
+		"fixed lifecycle threshold atomically refreshes marker and diagnostic sink"
+	)
 	var second_store := Store.new(PATH, filesystem) as UserDataStore
 	second_store.load()
 	var second_coordinator := Coordinator.new(second_store)
