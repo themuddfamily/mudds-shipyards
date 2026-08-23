@@ -23,6 +23,7 @@ const SessionMigration := preload("res://scripts/network/network_session_migrati
 const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
 const SnapshotJitterBuffer := preload("res://scripts/network/network_snapshot_jitter_buffer.gd")
+const ReplicationInterest := preload("res://scripts/network/network_replication_interest.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -64,6 +65,7 @@ var _migration
 var _prediction
 var _server_browser
 var _snapshot_jitter
+var _replication_interest
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -98,6 +100,7 @@ func _init() -> void:
 	_prediction = PredictionGuard.new(AUTHORITY_PEER_ID)
 	_server_browser = ServerBrowser.new(AUTHORITY_PEER_ID)
 	_snapshot_jitter = SnapshotJitterBuffer.new()
+	_replication_interest = ReplicationInterest.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -832,6 +835,59 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 
 func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
+
+
+func register_replication_entity(
+	entity_id: StringName,
+	entity_generation: int,
+	owner_peer_id: int,
+	position: Vector3,
+	replication_radius: float = 1000.0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_replication_interest.register_entity(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, owner_peer_id, position, replication_radius
+	))
+
+
+func register_replication_peer(peer_id: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_replication_interest.register_peer(AUTHORITY_PEER_ID, peer_id))
+
+
+func publish_replication_state(
+	entity_id: StringName,
+	entity_generation: int,
+	server_tick: int,
+	position: Vector3,
+	state: Dictionary
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_replication_interest.publish_state(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, server_tick, position, state
+	))
+
+
+func set_replication_interest(
+	peer_id: int,
+	center: Vector3,
+	radius: float,
+	max_entities: int = ReplicationInterest.MAX_ENTITIES
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_replication_interest.set_peer_interest(
+		AUTHORITY_PEER_ID, peer_id, center, radius, max_entities
+	))
+
+
+func replicate_interest_for_peer(peer_id: int, server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_replication_interest.replicate(AUTHORITY_PEER_ID, peer_id, server_tick))
 
 
 func publish_server_directory(directory_generation: int, server_tick: int, entries: Array) -> Dictionary:

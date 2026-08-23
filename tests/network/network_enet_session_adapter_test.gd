@@ -314,6 +314,28 @@ func _initialize() -> void:
 		and _server.query_server_directory().is_empty(),
 		"stale advertised sessions expire from the directory cache"
 	)
+	_check(
+		bool(_server.register_replication_peer(client_peer_id).get("accepted", false)),
+		"server registers the admitted peer's bounded replication interest"
+	)
+	_check(
+		bool(_server.register_replication_entity(&"near_entity", 1, client_peer_id, Vector3.ZERO, 100.0).get("accepted", false))
+		and bool(_server.register_replication_entity(&"far_entity", 1, 0, Vector3(1000.0, 0.0, 0.0), 10.0).get("accepted", false)),
+		"server registers generation-valid nearby and distant replication entities"
+	)
+	_check(
+		bool(_server.set_replication_interest(client_peer_id, Vector3.ZERO, 25.0, 4).get("accepted", false))
+		and bool(_server.publish_replication_state(&"near_entity", 1, 1, Vector3.ZERO, {"kind": &"owned"}).get("accepted", false))
+		and bool(_server.publish_replication_state(&"far_entity", 1, 1, Vector3(1000.0, 0.0, 0.0), {"kind": &"distant"}).get("accepted", false)),
+		"server publishes bounded generation-fenced replication state"
+	)
+	var interest_batch := _server.replicate_interest_for_peer(client_peer_id, 1)
+	_check(
+		bool(interest_batch.get("accepted", false))
+		and (interest_batch.get("entities", []) as Array).size() == 1
+		and (interest_batch.entities[0] as Dictionary).get("entity_id") == &"near_entity",
+		"peer replication receives only nearby or owned entities within its budget"
+	)
 	var prediction_register := _server.register_prediction_entity(client_peer_id, &"prediction_1", 1)
 	_check(
 		bool(prediction_register.get("accepted", false)),
