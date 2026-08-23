@@ -77,12 +77,14 @@ const GARDEN_BENCH_LEG_TRANSVERSE_SIZE := Vector3(0.14, 0.40, 0.42)
 const GARDEN_BENCH_LEG_COPY_COUNT := 6
 const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
 const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
+const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
+const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
-const RENDER_DESCENDANT_COUNT := 1883
-const RENDER_MESH_INSTANCE_COUNT := 1233
-const RENDER_MULTIMESH_BATCH_COUNT := 19
+const RENDER_DESCENDANT_COUNT := 1878
+const RENDER_MESH_INSTANCE_COUNT := 1227
+const RENDER_MULTIMESH_BATCH_COUNT := 20
 const RENDER_DRAWN_COPY_COUNT := 1377
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1243
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1238
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 32
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -201,6 +203,8 @@ var _garden_bench_leg_longitudinal_batch: MultiMeshInstance3D
 var _garden_bench_leg_transverse_batch: MultiMeshInstance3D
 var _corridor_deck_seam_transforms: Array[Transform3D] = []
 var _corridor_deck_seam_batch: MultiMeshInstance3D
+var _common_ceiling_light_body_transforms: Array[Transform3D] = []
+var _common_ceiling_light_body_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -986,6 +990,41 @@ func get_render_allocation_report() -> Dictionary:
 	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
 	var pipe_collar_sharing := _inspect_pipe_collar_mesh_sharing()
 	var garden_bench_leg_batching := _inspect_garden_bench_leg_batching()
+	var common_ceiling_light_body_authored := false
+	if (
+		is_instance_valid(_common_ceiling_light_body_batch)
+		and _common_ceiling_light_body_batch.multimesh != null
+	):
+		var common_light_multi := _common_ceiling_light_body_batch.multimesh
+		common_ceiling_light_body_authored = (
+			common_light_multi.instance_count == COMMON_CEILING_LIGHT_BODY_COPY_COUNT
+			and common_light_multi.visible_instance_count == -1
+			and common_light_multi.mesh != null
+			and common_light_multi.mesh.get_aabb().size.is_equal_approx(
+				Vector3(1.95, 0.12, 0.46)
+			)
+			and common_light_multi.buffer == _encode_multimesh_transforms(
+				_common_ceiling_light_body_transforms
+			)
+			and common_light_multi.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(
+					common_light_multi.mesh.get_aabb(),
+					_common_ceiling_light_body_transforms
+				)
+			)
+			and _common_ceiling_light_body_batch.material_override
+				== _materials.get("graphite")
+			and _common_ceiling_light_body_batch.cast_shadow
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _common_ceiling_light_body_batch.layers == 1
+			and _common_ceiling_light_body_batch.visible
+			and _common_ceiling_light_body_batch.get_child_count() == 0
+			and _common_ceiling_light_body_batch.get_script() == null
+			and _common_ceiling_light_body_batch.get_groups().is_empty()
+			and bool(_common_ceiling_light_body_batch.get_meta("visual_detail_only", false))
+			and StringName(_common_ceiling_light_body_batch.get_meta("authored_source_name", &""))
+				== &"CeilingLightBody"
+		)
 	var deck_seam_authored: bool = (
 		is_instance_valid(_corridor_deck_seam_batch)
 		and _corridor_deck_seam_batch.multimesh != null
@@ -1014,6 +1053,9 @@ func get_render_allocation_report() -> Dictionary:
 		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
 		and _nutrient_valve_transforms.size() == NUTRIENT_VALVE_COPY_COUNT
 		and bool(garden_bench_leg_batching.valid)
+		and _common_ceiling_light_body_transforms.size()
+			== COMMON_CEILING_LIGHT_BODY_COPY_COUNT
+		and common_ceiling_light_body_authored
 		and _corridor_deck_seam_transforms.size() == CORRIDOR_DECK_SEAM_COPY_COUNT
 		and deck_seam_authored
 	)
@@ -1025,9 +1067,30 @@ func get_render_allocation_report() -> Dictionary:
 		"multimesh_resources": multimesh_resource_ids.size(),
 		"drawn_copies": drawn_copies,
 		"geometry_submissions": submissions,
+		"geometry_submissions_before_common_ceiling_light_body_batch": (
+			PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT
+		),
+		"geometry_submissions_removed_by_common_ceiling_light_body_batch": (
+			PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
+		"common_ceiling_light_body_legacy_renderer_nodes": (
+			COMMON_CEILING_LIGHT_BODY_COPY_COUNT
+		),
+		"common_ceiling_light_body_renderer_nodes": (
+			1 if common_ceiling_light_body_authored else 0
+		),
+		"common_ceiling_light_body_legacy_submissions": (
+			COMMON_CEILING_LIGHT_BODY_COPY_COUNT
+		),
+		"common_ceiling_light_body_submissions": (
+			1 if common_ceiling_light_body_authored else 0
+		),
+		"common_ceiling_light_body_copies": _common_ceiling_light_body_transforms.size(),
+		"common_ceiling_light_body_authored": common_ceiling_light_body_authored,
 		"geometry_submissions_before_deck_seam_batch": PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT,
 		"geometry_submissions_removed_by_deck_seam_batch": (
-			PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT - submissions
+			PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT
+			- PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT
 		),
 		"corridor_deck_seam_legacy_submissions": CORRIDOR_DECK_SEAM_COPY_COUNT,
 		"corridor_deck_seam_submissions": 1 if deck_seam_authored else 0,
@@ -1133,6 +1196,9 @@ func get_render_allocation_report() -> Dictionary:
 		),
 		"authored_nutrient_valve_transforms": _nutrient_valve_transforms.duplicate(),
 		"authored_corridor_deck_seam_transforms": _corridor_deck_seam_transforms.duplicate(),
+		"authored_common_ceiling_light_body_transforms": (
+			_common_ceiling_light_body_transforms.duplicate()
+		),
 	}
 
 
@@ -1948,11 +2014,23 @@ func _build_observation_common(structure: Node3D) -> void:
 	# 1.86 m^2) because `warm_light` is shared with the corridor cove strips: its
 	# emission cannot be reduced to pay for more lenses here without dimming a
 	# corridor that was not the problem, so the lenses are made smaller instead.
+	_common_ceiling_light_body_transforms.clear()
 	for light_z in [20.5, 24.3]:
 		for light_x in [-4.7, 0.0, 4.7]:
-			_box(common, "CeilingLightBody", Vector3(float(light_x), 4.58, float(light_z) - 0.2), Vector3(1.95, 0.12, 0.46), _materials["graphite"], false)
+			_common_ceiling_light_body_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(float(light_x), 4.58, float(light_z) - 0.2)
+			))
 			_box(common, "CeilingLightLens", Vector3(float(light_x), 4.5, float(light_z) - 0.2), Vector3(1.55, 0.035, 0.2), _materials["warm_light"], false)
 			_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, float(light_z)), Color("ffe0b4"), 0.66, 9.0)
+	_common_ceiling_light_body_batch = _multimesh_visual_stock(
+		common,
+		"CeilingLightBodies",
+		_rounded_box_mesh(Vector3(1.95, 0.12, 0.46)),
+		_materials["graphite"],
+		_common_ceiling_light_body_transforms,
+		&"CeilingLightBody"
+	)
 	# The rear glazing, as a fixture.
 	#
 	# This room's back wall is four 3.4 m panes onto space and they were reading as

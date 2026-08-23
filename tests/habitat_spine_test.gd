@@ -480,12 +480,13 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_pipe_collar_mesh_sharing(module)
 	_test_cupola_downlight_batch(module)
 	_test_corridor_deck_seam_batch(module)
+	_test_common_ceiling_light_body_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1883
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1233
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 19,
-		"visual batching stays frozen at 1883 render nodes, 1233 meshes and 19 MultiMeshes"
+		int(render.descendant_nodes) == 1878
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1227
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 20,
+		"visual batching stays frozen at 1878 render nodes, 1227 meshes and 20 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -579,7 +580,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
-		and int(report.geometry_submissions) == 1243
+		and int(report.geometry_submissions) == 1238
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
 		and int(report.drawn_copies) == 1377
 		and bool(report.corridor_deck_seam_authored),
@@ -592,6 +593,84 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 			Transform3D.IDENTITY
 		),
 		"deck-seam allocation report returns a detached authored-transform roster"
+	)
+
+
+func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
+	var common := module.get_node_or_null(^"Structure/ObservationCommon") as Node3D
+	var batch := common.get_node_or_null(^"CeilingLightBodies") as MultiMeshInstance3D if common != null else null
+	_check(
+		common != null and batch != null and batch.multimesh != null,
+		"six common-room ceiling-light housings resolve through one visual-only MultiMesh"
+	)
+	if common == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for light_z in [20.5, 24.3]:
+		for light_x in [-4.7, 0.0, 4.7]:
+			expected.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(float(light_x), 4.58, float(light_z) - 0.2)
+			))
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var geometry_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		geometry_exact = geometry_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		geometry_exact
+		and batch.multimesh.instance_count == HabitatSpine.COMMON_CEILING_LIGHT_BODY_COPY_COUNT
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(1.95, 0.12, 0.46))
+		and batch.multimesh.custom_aabb.is_equal_approx(AABB(
+			Vector3(-5.675, 4.52, 20.07), Vector3(11.35, 0.12, 4.26)
+		))
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"ceiling-light batch preserves all six transforms, exact housing extent, culling union, shadows and render layer"
+	)
+	_check(
+		common.find_children("CeilingLightBody", "MeshInstance3D", false, false).is_empty()
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"CeilingLightBody",
+		"only authority-free housing visuals are batched while lenses and practical lights remain ordinary nodes"
+	)
+	var retained_lenses := 0
+	var retained_pool_lights := 0
+	for child in common.get_children():
+		var mesh_instance := child as MeshInstance3D
+		if (
+			mesh_instance != null
+			and mesh_instance.mesh != null
+			and mesh_instance.mesh.get_aabb().size.is_equal_approx(Vector3(1.55, 0.035, 0.2))
+		):
+			retained_lenses += 1
+		var omni := child as OmniLight3D
+		if (
+			omni != null
+			and omni.light_color.is_equal_approx(Color("ffe0b4"))
+			and is_equal_approx(omni.light_energy, 0.66)
+			and is_equal_approx(omni.omni_range, 9.0)
+		):
+			retained_pool_lights += 1
+	_check(
+		retained_lenses == 6 and retained_pool_lights == 6,
+		"all six authored lenses and six actual common-room lights remain intact"
+	)
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.common_ceiling_light_body_legacy_renderer_nodes) == 6
+		and int(report.common_ceiling_light_body_renderer_nodes) == 1
+		and int(report.common_ceiling_light_body_legacy_submissions) == 6
+		and int(report.common_ceiling_light_body_submissions) == 1
+		and int(report.common_ceiling_light_body_copies) == 6
+		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 1243
+		and int(report.geometry_submissions) == 1238
+		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
+		and int(report.drawn_copies) == 1377
+		and bool(report.common_ceiling_light_body_authored),
+		"common ceiling housings measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
 
 
@@ -743,21 +822,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1883
-		and int(report.mesh_instances) == 1233
-		and int(report.multimesh_batches) == 19,
-		"renderer census includes the exact corridor deck-seam batch"
+		int(report.descendant_nodes) == 1878
+		and int(report.mesh_instances) == 1227
+		and int(report.multimesh_batches) == 20,
+		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
 		int(report.drawn_copies) == 1377
-		and int(report.geometry_submissions) == 1243
+		and int(report.geometry_submissions) == 1238
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1377 while surface submissions fall 1251 -> 1243"
+		"drawn copies freeze at 1377 while surface submissions fall 1243 -> 1238"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 32
-		and int(report.multimesh_resources) == 19
+		and int(report.multimesh_resources) == 20
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 349/32 while the hatch batch retains its 144-float renderer buffer"
 	)
