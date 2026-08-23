@@ -853,6 +853,84 @@ func submit_return_travel_evidence(
 	)
 
 
+## Validates the retained orbit-return sample for the existing Mudds approach
+## contract. This only marks approach readiness in the retained session; Host
+## phase, actor transforms, movement ownership, and berth ownership are unchanged.
+func prepare_return_approach(
+		landing_return_contract: Object,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if actor_instance_id != _player_instance_id \
+			or craft_instance_id != _ship_instance_id:
+		return _finish(false, &"return_travel_bound_actor_mismatch")
+	if _session == null:
+		return _finish(false, &"return_travel_session_unavailable")
+	var session_snapshot := _session.get_presentation_snapshot()
+	if _phase != Phase.ORBIT_RETURN \
+			or StringName(session_snapshot.get("state_id", &"")) != &"orbit_return":
+		return _finish(false, &"return_approach_host_session_mismatch")
+	var prepared := _session.prepare_return_approach(
+		landing_return_contract, actor_instance_id, craft_instance_id,
+		_generation, _session.get_attachment_generation()
+	)
+	return _finish(
+		bool(prepared.get("accepted", false)),
+		prepared.get("reason", &"return_approach_rejected") as StringName
+	)
+
+
+## Admits the already prepared Mudds approach intent into the caller-owned
+## landing-return contract while this Host retains the travel session. It does
+## not confirm arrival, complete the Host, move the craft, or reserve a berth.
+func admit_return_contract_approach(
+		landing_return_contract: Object,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if actor_instance_id != _player_instance_id \
+			or craft_instance_id != _ship_instance_id:
+		return _finish(false, &"return_travel_bound_actor_mismatch")
+	if _session == null:
+		return _finish(false, &"return_travel_session_unavailable")
+	var session_snapshot := _session.get_presentation_snapshot()
+	if _phase != Phase.ORBIT_RETURN \
+			or StringName(session_snapshot.get("state_id", &"")) != &"orbit_return":
+		return _finish(false, &"return_approach_host_session_mismatch")
+	var admitted := _session.admit_return_contract_approach(
+		landing_return_contract, actor_instance_id, craft_instance_id,
+		_generation, _session.get_attachment_generation()
+	)
+	var result := _finish(
+		bool(admitted.get("accepted", false)),
+		admitted.get("reason", &"return_contract_approach_rejected") as StringName
+	)
+	if bool(result.get("accepted", false)):
+		result["return_target_id"] = admitted.get("return_target_id", &"")
+		result["next_caller_state"] = admitted.get("next_caller_state", &"")
+	return result
+
+
 ## Adopts one already committed common-origin transaction. This method cannot
 ## request, apply, defer, cancel, or commit a rebase. It accepts only the exact
 ## detached receipt produced after the shared root roster was translated, proves

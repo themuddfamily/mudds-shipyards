@@ -539,8 +539,17 @@ func prepare_planetary_return_approach(
 		travel_session: Object, landing_return_contract: Object,
 		actor_instance_id: int, craft_instance_id: int
 	) -> Dictionary:
-	if _host == null or travel_session == null \
-			or not travel_session.has_method(&"prepare_return_approach"):
+	if _host == null:
+		return _reject(&"return_travel_session_unavailable")
+	if travel_session == null:
+		if not _host.has_method(&"prepare_return_approach"):
+			return _reject(&"return_travel_session_unavailable")
+		return _host.call(
+			&"prepare_return_approach", landing_return_contract,
+			actor_instance_id, craft_instance_id, _host.get_generation(),
+			_host.get_attachment_generation()
+		)
+	if not travel_session.has_method(&"prepare_return_approach"):
 		return _reject(&"return_travel_session_unavailable")
 	return travel_session.call(
 		&"prepare_return_approach", landing_return_contract,
@@ -553,8 +562,17 @@ func admit_planetary_return_contract_approach(
 		travel_session: Object, landing_return_contract: Object,
 		actor_instance_id: int, craft_instance_id: int
 	) -> Dictionary:
-	if _host == null or travel_session == null \
-			or not travel_session.has_method(&"admit_return_contract_approach"):
+	if _host == null:
+		return _reject(&"return_travel_session_unavailable")
+	if travel_session == null:
+		if not _host.has_method(&"admit_return_contract_approach"):
+			return _reject(&"return_travel_session_unavailable")
+		return _host.call(
+			&"admit_return_contract_approach", landing_return_contract,
+			actor_instance_id, craft_instance_id, _host.get_generation(),
+			_host.get_attachment_generation()
+		)
+	if not travel_session.has_method(&"admit_return_contract_approach"):
 		return _reject(&"return_travel_session_unavailable")
 	return travel_session.call(
 		&"admit_return_contract_approach", landing_return_contract,

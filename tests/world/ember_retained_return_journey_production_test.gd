@@ -4,6 +4,7 @@ const BindingScript := preload("res://scripts/world/ember_surface_loop_productio
 const HostScript := preload("res://scripts/world/ember_surface_loop_host.gd")
 const AdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
 const SessionScript := preload("res://scripts/world/planetary_travel_session.gd")
+const ReturnContractScript := preload("res://scripts/world/planetary_landing_return_contract.gd")
 const FrameScript := preload("res://scripts/world/planetary_coordinate_frame.gd")
 const WorldValidatorScript := preload("res://scripts/world/planetary_world_composition_validator.gd")
 const LandingValidatorScript := preload("res://scripts/world/planetary_landing_composition_validator.gd")
@@ -115,6 +116,34 @@ func _run() -> void:
 		_absolute(frame, Vector3(0.0, 140_000.0, 0.0)), 900.0,
 		frame.get_generation()
 	)
+	var orbit_after_replay := host.get_snapshot()
+	var return_contract := ReturnContractScript.new() as PlanetaryLandingReturnContract
+	var contract_ready := _drive_return_contract_to_takeoff(return_contract, frame)
+	var stale_prepare := host.prepare_return_approach(
+		return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
+		host.get_generation(), host.get_attachment_generation() + 1
+	)
+	var foreign_prepare := binding.prepare_planetary_return_approach(
+		null, return_contract, ACTOR_INSTANCE_ID + 1, CRAFT_INSTANCE_ID
+	)
+	var approach_prepared := binding.prepare_planetary_return_approach(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID
+	)
+	var prepared_snapshot := host.get_snapshot()
+	var contract_after_prepare := return_contract.get_snapshot()
+	var prepare_replay := binding.prepare_planetary_return_approach(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID
+	)
+	var prepared_after_replay := host.get_snapshot()
+	var approach_admitted := binding.admit_planetary_return_contract_approach(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID
+	)
+	var admitted_snapshot := host.get_snapshot()
+	var contract_after_admission := return_contract.get_snapshot()
+	var admit_replay := binding.admit_planetary_return_contract_approach(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID
+	)
+	var admitted_after_replay := host.get_snapshot()
 	var final_snapshot := session.get_presentation_snapshot()
 	var adapter_snapshot := binding.get_planetary_relay_survey_return_snapshot()
 	var valid: bool = prepared \
@@ -156,7 +185,44 @@ func _run() -> void:
 		and orbit_snapshot.transition_count == 3 \
 		and not orbit_replay.accepted \
 		and orbit_replay.reason == &"return_orbit_evidence_replayed" \
-		and host.get_snapshot() == orbit_snapshot \
+		and orbit_after_replay == orbit_snapshot \
+		and contract_ready \
+		and not stale_prepare.accepted \
+		and stale_prepare.reason == &"stale_attachment_generation" \
+		and not foreign_prepare.accepted \
+		and foreign_prepare.reason == &"return_travel_bound_actor_mismatch" \
+		and approach_prepared.accepted \
+		and approach_prepared.reason == &"return_approach_ready" \
+		and prepared_snapshot.phase_id == &"orbit_return" \
+		and prepared_snapshot.travel_session.state_id == &"orbit_return" \
+		and prepared_snapshot.travel_session.return_approach_ready \
+		and not prepared_snapshot.travel_session.return_contract_approach_admitted \
+		and prepared_snapshot.transition_count == orbit_snapshot.transition_count \
+		and prepared_snapshot.actor_state == orbit_snapshot.actor_state \
+		and not contract_after_prepare.return_approach_admitted \
+		and not contract_after_prepare.arrival_ready \
+		and contract_after_prepare.phase_id == &"takeoff" \
+		and not prepare_replay.accepted \
+		and prepare_replay.reason == &"return_approach_already_prepared" \
+		and prepared_after_replay == prepared_snapshot \
+		and approach_admitted.accepted \
+		and approach_admitted.reason == &"orbit_return_approach_admitted" \
+		and approach_admitted.return_target_id == &"mudds_shipyards" \
+		and approach_admitted.next_caller_state == &"confirm_orbit_return" \
+		and admitted_snapshot.phase_id == &"orbit_return" \
+		and admitted_snapshot.travel_session.state_id == &"orbit_return" \
+		and admitted_snapshot.travel_session.return_approach_ready \
+		and admitted_snapshot.travel_session.return_contract_approach_admitted \
+		and not admitted_snapshot.travel_session.arrival_ready_receipt \
+		and admitted_snapshot.transition_count == orbit_snapshot.transition_count \
+		and admitted_snapshot.actor_state == orbit_snapshot.actor_state \
+		and contract_after_admission.return_approach_admitted \
+		and not contract_after_admission.arrival_ready \
+		and contract_after_admission.phase_id == &"takeoff" \
+		and not admit_replay.accepted \
+		and admit_replay.reason == &"return_contract_approach_already_admitted" \
+		and admitted_after_replay == admitted_snapshot \
+		and binding.get("_return_berth_adapter") == null \
 		and final_snapshot.state_id == &"orbit_return" \
 		and final_snapshot.last_return_activity_generation == ACTIVITY_GENERATION \
 		and not adapter_snapshot.authority.movement \
@@ -180,7 +246,7 @@ func _run() -> void:
 	session = null
 	frame = null
 	await process_frame
-	print("EMBER_RETAINED_RETURN_JOURNEY_PRODUCTION_TEST_OK: manifest-driven evidence reaches retained orbit return")
+	print("EMBER_RETAINED_RETURN_JOURNEY_PRODUCTION_TEST_OK: retained orbit return admits Mudds approach intent")
 	quit(0)
 
 
@@ -216,6 +282,41 @@ func _drive_to_on_foot(
 	return session.submit_landing_sample(true, identity, 1, 1).accepted \
 		and session.submit_disembark_sample(true, true, 1, 1).accepted \
 		and session.get_presentation_snapshot().state_id == &"on_foot"
+
+
+func _drive_return_contract_to_takeoff(
+		contract: PlanetaryLandingReturnContract,
+		frame: PlanetaryCoordinateFrame
+	) -> bool:
+	var generation := 1
+	var attachment_generation := 1
+	if not contract.begin(
+		generation, attachment_generation, frame.get_generation(), 1
+	).accepted:
+		return false
+	if not contract.confirm_orbit_approach(
+		true,
+		{"position": Vector3(0.0, 140_000.0, 0.0), "speed_meters_per_second": 300.0},
+		generation, attachment_generation
+	).accepted:
+		return false
+	if not contract.confirm_landing(
+		true, &"ember_caldera",
+		{"world_id": &"ember_moon", "region_id": &"ember_caldera", "landing_confirmed": true},
+		true, generation, attachment_generation
+	).accepted:
+		return false
+	return contract.confirm_on_foot(
+		&"pad_alpha_egress", &"caldera_relay_scan", true,
+		generation, attachment_generation
+	).accepted \
+		and contract.confirm_reboarded(
+			true, true, generation, attachment_generation
+		).accepted \
+		and contract.confirm_takeoff(
+			true, false, generation, attachment_generation
+		).accepted \
+		and contract.get_phase_id() == &"takeoff"
 
 
 func _frame() -> PlanetaryCoordinateFrame:
