@@ -77,6 +77,14 @@ func _run() -> void:
 	_check(not bool(failed.accepted) and filesystem.files["memory://diagnostics/crash-log.json"] == bytes_before, "stage failure preserves the prior published log")
 	var unsafe := Sink.new("/tmp/free-path", filesystem)
 	_check(unsafe.get_log_path().is_empty() and not bool(unsafe.append_snapshot(snapshot).accepted), "free filesystem paths are rejected")
+	var malformed_fs := FakeFilesystem.new()
+	var malformed_sink := Sink.new("memory://malformed", malformed_fs)
+	malformed_fs.files["memory://malformed/crash-log.json"] = "{broken".to_utf8_buffer()
+	var blocked := malformed_sink.append_snapshot(snapshot)
+	_check(not bool(blocked.accepted) and blocked.reason == &"log_invalid", "malformed prior logs block implicit append")
+	var repaired := malformed_sink.recover_prior_log()
+	_check(bool(repaired.accepted) and repaired.reason == &"malformed_log_quarantined" and malformed_fs.files.has("memory://malformed/crash-log.json.rejected"), "explicit recovery quarantines malformed log bytes")
+	_check(bool(malformed_sink.append_snapshot(snapshot).accepted), "append resumes after explicit malformed-log recovery")
 	_finish()
 
 

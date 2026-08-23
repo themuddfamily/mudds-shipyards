@@ -12,6 +12,7 @@ const MAX_RETAINED_SNAPSHOTS := 4
 const MAX_LOG_BYTES := 256 * 1024
 const _LOG_NAME := "crash-log.json"
 const _TEMP_SUFFIX := ".tmp"
+const _REJECTED_SUFFIX := ".rejected"
 
 var _root_path := ""
 var _filesystem: UserDataFilesystem
@@ -61,6 +62,39 @@ func append_snapshot(snapshot: Dictionary) -> Dictionary:
 	}
 
 
+## Explicitly repairs the fixed local sink after an interrupted or malformed
+## write. Malformed bytes are quarantined; a valid temp is promoted only when
+## no valid target exists. Normal append never performs either action.
+func recover_prior_log() -> Dictionary:
+	var root_status := _validate_root()
+	if not bool(root_status.accepted):
+		return root_status
+	var target_exists := _filesystem.file_exists(_log_path())
+	var temp_exists := _filesystem.file_exists(_temp_path())
+	if not target_exists and not temp_exists:
+		return {"accepted": false, "reason": &"no_log_recovery_needed"}
+	var target := _read_log_at(_log_path()) if target_exists else {"accepted": true, "snapshots": []}
+	var temp := _read_log_at(_temp_path()) if temp_exists else {"accepted": true, "snapshots": []}
+	if bool(target.accepted) and bool(temp.accepted) and temp_exists:
+		return {"accepted": false, "reason": &"valid_log_and_stage_present"}
+	if target_exists and not bool(target.accepted):
+		var quarantined_target := _quarantine(_log_path())
+		if not bool(quarantined_target.accepted):
+			return quarantined_target
+		target_exists = false
+	if temp_exists and not bool(temp.accepted):
+		var quarantined_temp := _quarantine(_temp_path())
+		if not bool(quarantined_temp.accepted):
+			return quarantined_temp
+		temp_exists = false
+	if temp_exists and not target_exists:
+		var promote_error: Error = _filesystem.rename_path(_temp_path(), _log_path())
+		if promote_error != OK:
+			return {"accepted": false, "reason": &"log_recovery_publish_failed", "error": promote_error}
+		return {"accepted": true, "reason": &"interrupted_log_recovered"}
+	return {"accepted": true, "reason": &"malformed_log_quarantined"}
+
+
 func get_log_path() -> String:
 	return _log_path() if bool(_validate_root().accepted) else ""
 
@@ -68,7 +102,11 @@ func get_log_path() -> String:
 func _read_log() -> Dictionary:
 	if not _filesystem.file_exists(_log_path()):
 		return {"accepted": true, "snapshots": []}
-	var read := _filesystem.read_bytes(_log_path(), MAX_LOG_BYTES)
+	return _read_log_at(_log_path())
+
+
+func _read_log_at(path: String) -> Dictionary:
+	var read := _filesystem.read_bytes(path, MAX_LOG_BYTES)
 	if int(read.get("error", FAILED)) != OK:
 		return {"accepted": false, "reason": &"log_read_failed"}
 	var bytes := read.get("bytes", PackedByteArray()) as PackedByteArray
@@ -86,6 +124,29 @@ func _read_log() -> Dictionary:
 	if snapshots.size() > MAX_RETAINED_SNAPSHOTS:
 		return {"accepted": false, "reason": &"log_invalid"}
 	return {"accepted": true, "snapshots": snapshots}
+
+
+func _quarantine(path: String) -> Dictionary:
+	var rejected_path := path + _REJECTED_SUFFIX
+	if _filesystem.file_exists(rejected_path):
+		return {"accepted": false, "reason": &"log_quarantine_exists"}
+	var read := _filesystem.read_bytes(path, MAX_LOG_BYTES)
+	if int(read.get("error", FAILED)) != OK:
+		return {"accepted": false, "reason": &"log_quarantine_read_failed"}
+	var bytes := read.get("bytes", PackedByteArray()) as PackedByteArray
+	if bytes.is_empty() or bytes.size() > MAX_LOG_BYTES:
+		return {"accepted": false, "reason": &"log_quarantine_read_failed"}
+	var write_error: Error = _filesystem.write_bytes_and_flush(rejected_path, bytes)
+	if write_error != OK:
+		return {"accepted": false, "reason": &"log_quarantine_write_failed"}
+	var verify := _filesystem.read_bytes(rejected_path, MAX_LOG_BYTES)
+	if int(verify.get("error", FAILED)) != OK \
+		or (verify.get("bytes", PackedByteArray()) as PackedByteArray) != bytes:
+		return {"accepted": false, "reason": &"log_quarantine_write_failed"}
+	var remove_error: Error = _filesystem.remove_path(path)
+	if remove_error != OK:
+		return {"accepted": false, "reason": &"log_quarantine_remove_failed"}
+	return {"accepted": true, "reason": &"quarantined"}
 
 
 func _replace_log() -> Error:
