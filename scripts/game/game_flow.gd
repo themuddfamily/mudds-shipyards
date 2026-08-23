@@ -103,6 +103,10 @@ const CINDER_RACE_LAPS := 1
 const CINDER_RACE_COUNTDOWN_SECONDS := 2.0
 const CINDER_RACE_TIMEOUT_SECONDS := 120.0
 const CINDER_PATROL_DWELL_SECONDS := 2.0
+## Arcade recovery budget between authoritative hull loss and the first safe
+## berth-regeneration attempt. The attempt still has to pass reset preflight,
+## acquire the exact home-berth lease, and commit the retained ship lifecycle.
+const DESTROYED_SHIP_REGENERATION_DELAY_MSEC := 2_000
 const CAPTION_CATEGORY_BY_ID := {
 	&"dialogue": CaptionPresentationEvent.Category.DIALOGUE,
 	&"radio": CaptionPresentationEvent.Category.RADIO,
@@ -7180,7 +7184,14 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	hud.set_interaction("", false)
 	hud.set_objective("Regeneration recall in progress", "SPACECRAFT LOST")
-	hud.toast("Hull integrity lost", "Pilot recall engaged — the other craft remains available", 3.0)
+	hud.toast(
+		"Hull integrity lost",
+		(
+			"Pilot recalled — berth regeneration ETA %.0f seconds; "
+			+ "the other craft remains available"
+		) % (float(DESTROYED_SHIP_REGENERATION_DELAY_MSEC) / 1000.0),
+		3.0
+	)
 	destroyed_ship.set_piloted(false)
 	if destroyed_ship.get_camera() != null:
 		destroyed_ship.get_camera().current = false
@@ -8720,7 +8731,9 @@ func _replenish_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	# `get_tree()` on null, permanently stranding the pending craft.
 	_regeneration_pending[instance_id] = {
 		"ship": weakref(destroyed_ship),
-		"ready_at_msec": Time.get_ticks_msec() + 4000,
+		"ready_at_msec": (
+			Time.get_ticks_msec() + DESTROYED_SHIP_REGENERATION_DELAY_MSEC
+		),
 	}
 
 

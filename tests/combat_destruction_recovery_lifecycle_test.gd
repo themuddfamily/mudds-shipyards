@@ -93,13 +93,35 @@ func _run() -> void:
 
 	var arrow_instance_id := arrow.get_instance_id()
 	var arrow_source_id := authority.get_source_id(arrow)
+	# Stage the already-live Arrow as the current pilot hull so this loss runs the
+	# production player recall path, not only the parked-craft replenishment path.
+	game.active_ship = arrow
+	game.set("_piloting", true)
+	arrow.set_piloted(true)
+	var recovery_queued_after_msec := Time.get_ticks_msec()
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
+	var recovery_observed_at_msec := Time.get_ticks_msec()
 	var pending := game.get("_regeneration_pending") as Dictionary
+	var recovery_entry := pending.get(arrow_instance_id, {}) as Dictionary
+	var recovery_ready_at_msec := int(recovery_entry.get("ready_at_msec", 0))
 	_check(
 		arrow.is_destroyed()
 		and arrow_source_id == 1102
 		and pending.has(arrow_instance_id),
 		"Arrow destruction synchronously enters one same-instance berth-regeneration lifecycle"
+	)
+	var recovery_toast_detail := game.hud.get("_toast_detail") as Label
+	_check(
+		GameFlow.DESTROYED_SHIP_REGENERATION_DELAY_MSEC == 2_000
+		and recovery_ready_at_msec
+			>= recovery_queued_after_msec + GameFlow.DESTROYED_SHIP_REGENERATION_DELAY_MSEC
+		and recovery_ready_at_msec
+			<= recovery_observed_at_msec + GameFlow.DESTROYED_SHIP_REGENERATION_DELAY_MSEC
+		and not bool(game.get("_piloting"))
+		and game.phase == GameFlow.Phase.APPROACH_SHIP
+		and recovery_toast_detail != null
+		and recovery_toast_detail.text.contains("regeneration ETA 2 seconds"),
+		"player loss recalls immediately and clearly schedules the first safe regeneration attempt for two seconds"
 	)
 
 	var recovery_health_before: float = recovery_target.damageable.get_health()
@@ -116,6 +138,11 @@ func _run() -> void:
 		and destroyed_epoch_request != null
 		and is_equal_approx(recovery_target.damageable.get_health(), recovery_health_before),
 		"a destroyed fleet source cannot submit live damage while regeneration is pending"
+	)
+	var recovery_registered_source_count := resolver.get_registered_source_count()
+	_check(
+		recovery_registered_source_count > 0,
+		"player recovery retains only the still-valid live combat source roster"
 	)
 
 	var parent := game.get_parent()
@@ -143,14 +170,14 @@ func _run() -> void:
 	await physics_frame
 	await process_frame
 	_check(
-		resolver.get_registered_source_count() == 6
+		resolver.get_registered_source_count() == recovery_registered_source_count
 		and authority.get_source_id(arrow) == arrow_source_id
 		and _connection_count(
 			arrow,
 			&"destroyed",
 			Callable(game, "_on_ship_destroyed").bind(arrow)
 		) == 1,
-		"re-entry restores six registrations and exactly one destruction signal binding"
+		"re-entry restores the recovery-safe source roster and exactly one destruction signal binding"
 	)
 	var reentry_torrent_hull := float(torrent.get_telemetry().get("hull", -1.0))
 	var reentry_proxy_damage := torrent_damageable.apply_damage(
