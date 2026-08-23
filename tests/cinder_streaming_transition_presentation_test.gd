@@ -4,6 +4,22 @@ const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_clus
 const LOCATION_ID: StringName = &"cinder_reach"
 const GENERATION := 7
 const TICK := 1.0 / 60.0
+const EXPECTED_AUTHORED_RENDERER_COUNT := 219
+const EXPECTED_BOUND_RENDERER_COUNT := 221
+const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
+	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
+	+ "|cinder-extraction-arm-collars|3|-1;"
+	+ "ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar"
+	+ "|cinder-extraction-arm-collars|3|-1;"
+	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
+	+ "|cinder-streaming-aperture-lenses|8|-1;"
+	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
+)
+const EXPECTED_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(0.0, -6.0, 0.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, -17.0, 0.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, -28.0, 0.0)),
+]
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -146,9 +162,17 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 		and hidden.get("phase") == &"fading_in"
 		and is_zero_approx(float(hidden.get("opacity", -1.0)))
 		and not cluster.visible
-		and renderers.size() == 225
+		and int(hidden.get("authored_renderer_count", -1)) \
+			== EXPECTED_AUTHORED_RENDERER_COUNT
+		and int(hidden.get("renderer_count", -1)) \
+			== EXPECTED_BOUND_RENDERER_COUNT
+		and renderers.size() == EXPECTED_BOUND_RENDERER_COUNT
 		and lights.size() == 27,
 		"a streamed generation commits fully hidden before its first draw"
+	)
+	_check(
+		_integrated_batch_roster_contract(cluster, hidden),
+		"the bound renderer roster has the exact two extraction-collar, aperture-lens, and beacon-trim batch fingerprint"
 	)
 	_check(
 		_aperture_lens_batch_contract(cluster),
@@ -343,6 +367,55 @@ func _visual_resource_ids(renderers: Array[Node]) -> PackedInt64Array:
 		else:
 			ids.append(0)
 	return ids
+
+
+func _integrated_batch_roster_contract(
+	cluster: NearbySectorCluster, snapshot: Dictionary
+	) -> bool:
+	if snapshot.get("integrated_batch_fingerprint", "") \
+			!= EXPECTED_INTEGRATED_BATCH_FINGERPRINT:
+		return false
+	var paths: Array[NodePath] = [
+		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar",
+		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar",
+		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch",
+		^"StreamingBeaconTrimRingBatch",
+	]
+	var rows := PackedStringArray()
+	var integrated_family_count := 0
+	for candidate in cluster.find_children("*", "MultiMeshInstance3D", true, false):
+		var family := StringName(candidate.get_meta(&"visual_batch_family_id", &""))
+		if family in [
+			&"cinder-extraction-arm-collars",
+			&"cinder-streaming-aperture-lenses",
+			&"cinder-streaming-beacon-trim-rings",
+		]:
+			integrated_family_count += 1
+	for index in paths.size():
+		var batch := cluster.get_node_or_null(paths[index]) as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null:
+			return false
+		rows.append("%s|%s|%d|%d" % [
+			str(paths[index]),
+			str(batch.get_meta(&"visual_batch_family_id", &"")),
+			batch.multimesh.instance_count,
+			batch.multimesh.visible_instance_count,
+		])
+		if index < 2:
+			var transforms := batch.get_meta(
+				&"authored_instance_transforms", []
+			) as Array
+			if transforms != EXPECTED_ARM_COLLAR_TRANSFORMS \
+					or not bool(batch.get_meta(&"visual_detail_only", false)) \
+					or not batch.find_children(
+						"*", "CollisionObject3D", true, false
+					).is_empty() \
+					or not batch.find_children(
+						"*", "CollisionShape3D", true, false
+					).is_empty():
+				return false
+	return integrated_family_count == 4 \
+		and ";".join(rows) == EXPECTED_INTEGRATED_BATCH_FINGERPRINT
 
 
 func _aperture_lens_batch_contract(cluster: NearbySectorCluster) -> bool:

@@ -12,10 +12,26 @@ const UNLOAD_BOUNDARY_METERS := 650.0
 const FADE_IN_SECONDS := 0.5
 const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
-const EXPECTED_AUTHORED_RENDERER_COUNT := 223
-const EXPECTED_BOUND_RENDERER_COUNT := 225
+const EXPECTED_AUTHORED_RENDERER_COUNT := 219
+const EXPECTED_BOUND_RENDERER_COUNT := 221
 const EXPECTED_LIGHT_COUNT := 27
 const EPSILON := 0.000001
+const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
+const EXTRACTION_ARM_COLLAR_PATHS: Array[NodePath] = [
+	^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar",
+	^"ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar",
+]
+const EXTRACTION_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(0.0, -6.0, 0.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, -17.0, 0.0)),
+	Transform3D(Basis.IDENTITY, Vector3(0.0, -28.0, 0.0)),
+]
+const EXTRACTION_ARM_COLLAR_MESH_AABB := AABB(
+	Vector3(-3.0, -0.7, -3.0), Vector3(6.0, 1.4, 6.0)
+)
+const EXTRACTION_ARM_COLLAR_BATCH_AABB := AABB(
+	Vector3(-3.0, -28.7, -3.0), Vector3(6.0, 23.4, 6.0)
+)
 const APERTURE_LENS_BATCH_NAME: StringName = &"StreamingApertureLensBatch"
 const APERTURE_LENS_FAMILY_ID: StringName = &"cinder-streaming-aperture-lenses"
 const APERTURE_FRAME_PATHS: Array[NodePath] = [
@@ -30,6 +46,15 @@ const BEACON_TRIM_RING_PATHS: Array[NodePath] = [
 	^"RouteBeacons/RouteBeaconCharlie/TrimRing",
 	^"RouteBeacons/RouteBeaconDelta/TrimRing",
 ]
+const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
+	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
+	+ "|cinder-extraction-arm-collars|3|-1;"
+	+ "ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar"
+	+ "|cinder-extraction-arm-collars|3|-1;"
+	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
+	+ "|cinder-streaming-aperture-lenses|8|-1;"
+	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
+)
 
 var _content_root: Node3D
 var _generation := -1
@@ -42,6 +67,8 @@ var _advance_count := 0
 var _last_distance_meters := 0.0
 var _retire_ready := false
 var _mutation_active := false
+var _authored_renderer_count := 0
+var _integrated_batch_fingerprint := ""
 var _renderers: Array[Dictionary] = []
 var _lights: Array[Dictionary] = []
 
@@ -69,6 +96,9 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	if lights.size() != EXPECTED_LIGHT_COUNT:
 		content_root.visible = false
 		return _result(false, &"light_roster_mismatch")
+	if not _validate_extraction_arm_collar_family(content_root):
+		content_root.visible = false
+		return _result(false, &"extraction_arm_collar_family_mismatch")
 	var aperture_lens_family := _validate_aperture_lens_family(content_root)
 	if aperture_lens_family.is_empty():
 		content_root.visible = false
@@ -77,6 +107,7 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	if beacon_trim_ring_family.is_empty():
 		content_root.visible = false
 		return _result(false, &"beacon_trim_ring_family_mismatch")
+	var authored_renderer_count := renderers.size()
 
 	_mutation_active = true
 	var aperture_lens_batch := _build_aperture_lens_batch(
@@ -89,6 +120,8 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	renderers.append(beacon_trim_ring_batch)
 	_content_root = content_root
 	_generation = generation
+	_authored_renderer_count = authored_renderer_count
+	_integrated_batch_fingerprint = _build_integrated_batch_fingerprint(content_root)
 	_renderers.clear()
 	_lights.clear()
 	for candidate in renderers:
@@ -205,8 +238,10 @@ func get_snapshot() -> Dictionary:
 		"retire_ready": _retire_ready,
 		"root_visible": _content_root.visible \
 			if is_instance_valid(_content_root) else false,
+		"authored_renderer_count": _authored_renderer_count,
 		"renderer_count": _renderers.size(),
 		"light_count": _lights.size(),
+		"integrated_batch_fingerprint": _integrated_batch_fingerprint,
 		"load_boundary_meters": LOAD_BOUNDARY_METERS,
 		"unload_boundary_meters": UNLOAD_BOUNDARY_METERS,
 		"fade_in_seconds": FADE_IN_SECONDS,
@@ -224,6 +259,13 @@ func audit() -> Dictionary:
 		errors.append("renderer roster drifted")
 	if _lights.size() != EXPECTED_LIGHT_COUNT:
 		errors.append("light roster drifted")
+	if _authored_renderer_count != EXPECTED_AUTHORED_RENDERER_COUNT:
+		errors.append("authored renderer roster drifted")
+	if _integrated_batch_fingerprint != EXPECTED_INTEGRATED_BATCH_FINGERPRINT \
+			or not is_instance_valid(_content_root) \
+			or _build_integrated_batch_fingerprint(_content_root) \
+				!= EXPECTED_INTEGRATED_BATCH_FINGERPRINT:
+		errors.append("integrated visual batch roster drifted")
 	if not is_finite(_opacity) or _opacity < 0.0 or _opacity > 1.0:
 		errors.append("opacity is outside the unit interval")
 	for record in _renderers:
@@ -308,6 +350,76 @@ func _apply_opacity() -> void:
 		var light := record.get("node") as Light3D
 		if is_instance_valid(light):
 			light.light_energy = float(record.get("authored_energy", 0.0)) * _opacity
+
+
+## The two extraction-arm collar batches are authored before the streamed
+## transition binds. Freezing their exact paths, copies, bounds, and transforms
+## keeps the renderer-count reduction attributable to this intended visual
+## batching rather than allowing an unrelated authored renderer loss through.
+func _validate_extraction_arm_collar_family(content_root: Node3D) -> bool:
+	var exemplar_mesh: Mesh
+	var exemplar_material: Material
+	for batch_path in EXTRACTION_ARM_COLLAR_PATHS:
+		var batch := content_root.get_node_or_null(batch_path) as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null:
+			return false
+		var multi := batch.multimesh
+		var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
+		var names := batch.get_meta(&"authored_instance_names", PackedStringArray()) \
+			as PackedStringArray
+		if multi.transform_format != MultiMesh.TRANSFORM_3D \
+				or multi.instance_count != EXTRACTION_ARM_COLLAR_TRANSFORMS.size() \
+				or multi.visible_instance_count != -1 \
+				or multi.mesh == null \
+				or not multi.mesh.get_aabb().is_equal_approx(
+					EXTRACTION_ARM_COLLAR_MESH_AABB
+				) \
+				or not batch.custom_aabb.is_equal_approx(
+					EXTRACTION_ARM_COLLAR_BATCH_AABB
+				) \
+				or batch.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+				or not bool(batch.get_meta(&"visual_detail_only", false)) \
+				or StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
+					!= EXTRACTION_ARM_COLLAR_FAMILY_ID \
+				or transforms != EXTRACTION_ARM_COLLAR_TRANSFORMS \
+				or names != PackedStringArray([
+					"ArmCollar", "ArmCollar", "ArmCollar"
+				]) \
+				or not batch.find_children(
+					"*", "CollisionObject3D", true, false
+				).is_empty() \
+				or not batch.find_children(
+					"*", "CollisionShape3D", true, false
+				).is_empty():
+			return false
+		if exemplar_mesh == null:
+			exemplar_mesh = multi.mesh
+			exemplar_material = batch.material_override
+		elif multi.mesh != exemplar_mesh \
+				or batch.material_override != exemplar_material:
+			return false
+	return true
+
+
+func _build_integrated_batch_fingerprint(content_root: Node3D) -> String:
+	var rows := PackedStringArray()
+	var paths: Array[NodePath] = EXTRACTION_ARM_COLLAR_PATHS.duplicate()
+	paths.append(
+		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
+	)
+	paths.append(^"StreamingBeaconTrimRingBatch")
+	for batch_path in paths:
+		var batch := content_root.get_node_or_null(batch_path) as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null:
+			return ""
+		rows.append("%s|%s|%d|%d" % [
+			str(batch_path),
+			str(batch.get_meta(&"visual_batch_family_id", &"")),
+			batch.multimesh.instance_count,
+			batch.multimesh.visible_instance_count,
+		])
+	return ";".join(rows)
 
 
 ## The eight dock-aperture lenses are one immutable mesh/material recipe and
