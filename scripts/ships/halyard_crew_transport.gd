@@ -49,6 +49,7 @@ const INTERIOR_SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 const HalyardCrewStatusDisplayType := preload("res://scripts/ships/halyard_crew_status_display.gd")
+const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const HALYARD_CREW_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
 const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
@@ -331,20 +332,69 @@ var _pilot_command_state: Dictionary = {}
 var _pilot_last_request_sequence := -1
 var _pilot_command_seat_generation := 0
 var _emergency_pilot_handoff_state: Dictionary = {}
+var _ship_perspective_audio_binding: RefCounted
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
 
+func _enter_tree() -> void:
+	super._enter_tree()
+	if _ship_perspective_audio_binding != null:
+		call_deferred("_rebind_halyard_perspective_audio")
+
+
 func _ready() -> void:
 	super._ready()
+	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
+	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(perspective_result.get("accepted", false)):
+		camera_view_changed.connect(_on_halyard_camera_view_changed)
+	else:
+		_ship_perspective_audio_binding = null
 	if not _halyard_built:
 		_halyard_built = rebuild_variant_presentation(_build_halyard_variant)
 	if _halyard_built:
 		_halyard_built = _reconfigure_component_damage_from_final_root_collision()
 	_apply_halyard_metadata()
 	_sync_halyard_engine_presentation_immediately()
+
+
+func _exit_tree() -> void:
+	if _ship_perspective_audio_binding != null:
+		if camera_view_changed.is_connected(_on_halyard_camera_view_changed):
+			camera_view_changed.disconnect(_on_halyard_camera_view_changed)
+		_ship_perspective_audio_binding.detach()
+	super._exit_tree()
+
+
+func _rebind_halyard_perspective_audio() -> void:
+	if not is_inside_tree() or _ship_perspective_audio_binding == null \
+			or _ship_audio_rig == null or not is_instance_valid(_ship_audio_rig):
+		return
+	var snapshot: Dictionary = _ship_perspective_audio_binding.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		return
+	var result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(result.get("accepted", false)) \
+			and not camera_view_changed.is_connected(_on_halyard_camera_view_changed):
+		camera_view_changed.connect(_on_halyard_camera_view_changed)
+
+
+func _on_halyard_camera_view_changed(view: StringName) -> void:
+	if _ship_perspective_audio_binding == null:
+		return
+	var perspective: StringName = (
+		&"cockpit" if view == CAMERA_VIEW_COCKPIT else &"exterior"
+	)
+	var generation := int(_ship_perspective_audio_binding.get_snapshot().get("generation", -1))
+	_ship_perspective_audio_binding.present_perspective(perspective, generation)
+
+
+func get_ship_perspective_audio_snapshot() -> Dictionary:
+	return _ship_perspective_audio_binding.get_snapshot() \
+		if _ship_perspective_audio_binding != null else {"attached": false}
 
 
 func _physics_process(delta: float) -> void:

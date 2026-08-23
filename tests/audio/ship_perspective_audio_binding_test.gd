@@ -17,6 +17,21 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	var rig := halyard.get_node("ShipAudioRig") as ShipAudioRig
+	var production_snapshot: Dictionary = halyard.get_ship_perspective_audio_snapshot()
+	_check(bool(production_snapshot.attached), "Halyard production owner retains the perspective binding")
+	halyard.set_cockpit_view(true)
+	_check(rig.get_audio_perspective() == ShipAudioRig.PERSPECTIVE_COCKPIT, "Halyard cockpit signal drives the production audio rig")
+	halyard.set_cockpit_view(false)
+	_check(rig.get_audio_perspective() == ShipAudioRig.PERSPECTIVE_EXTERIOR, "Halyard chase signal restores the production exterior mix")
+	root.remove_child(halyard)
+	await process_frame
+	root.add_child(halyard)
+	await process_frame
+	await process_frame
+	var reentry_production: Dictionary = halyard.get_ship_perspective_audio_snapshot()
+	_check(bool(reentry_production.attached), "Halyard production perspective binding re-enters")
+	_check(int(reentry_production.generation) == 1, "Halyard perspective detach/re-entry advances generation")
+	_check(rig.get_audio_perspective() == ShipAudioRig.PERSPECTIVE_EXTERIOR, "Halyard re-entry resets the production mix to exterior")
 	var binding := Binding.new()
 	_check(bool(binding.bind(rig).accepted), "production Halyard scene binds its resident audio rig")
 	_check(binding.get_snapshot().authority.camera == false, "perspective binding owns no camera authority")
