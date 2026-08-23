@@ -13,6 +13,8 @@ var _failures := PackedStringArray()
 class FakeFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
 	var fail_legacy_rename := false
+	var fail_sync_file := false
+	var sync_events := PackedStringArray()
 
 	func file_exists(path: String) -> bool: return files.has(path)
 	func directory_exists(_path: String) -> bool: return false
@@ -33,6 +35,14 @@ class FakeFilesystem extends UserDataFilesystem:
 		if not files.has(from_path) or files.has(to_path): return ERR_CANT_CREATE
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path)
+		return OK
+	func sync_file(path: String) -> Error:
+		sync_events.append("file:" + path)
+		if fail_sync_file:
+			return ERR_FILE_CANT_WRITE
+		return OK
+	func sync_directory(path: String) -> Error:
+		sync_events.append("directory:" + path)
 		return OK
 
 
@@ -84,6 +94,15 @@ func _run() -> void:
 	composed_fs.fail_legacy_rename = false
 	var composed_retry := composed_store.migrate_legacy(LEGACY_PATH, {"save": {"progress": 9}}, "legacy-composed-retry")
 	_check(bool(composed_retry.accepted) and composed_retry.already_published and not composed_fs.files.has(LEGACY_PATH), "store migration path retries retirement without duplicate publish")
+	_check(composed_fs.sync_events.size() >= 3 and composed_fs.sync_events[0].begins_with("file:") and composed_fs.sync_events[1].begins_with("directory:"), "store stages file and directory durability before replace")
+
+	var sync_fs := FakeFilesystem.new()
+	sync_fs.files[LEGACY_PATH] = "sync-failure".to_utf8_buffer()
+	var sync_store := Store.new(STORE_PATH, sync_fs) as UserDataStore
+	sync_store.load()
+	sync_fs.fail_sync_file = true
+	var sync_failed := sync_store.migrate_legacy(LEGACY_PATH, {"save": {"progress": 10}}, "legacy-sync-failure")
+	_check(not bool(sync_failed.accepted) and sync_failed.reason == &"migration_publish_failed" and sync_fs.files.has(LEGACY_PATH), "file durability failure fails closed before legacy retirement")
 	_finish()
 
 

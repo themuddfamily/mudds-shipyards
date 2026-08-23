@@ -2,8 +2,9 @@ class_name UserDataFilesystem
 extends RefCounted
 
 ## Narrow filesystem seam used by UserDataStore. Production writes are flushed
-## through FileAccess before publication; Godot 4.7 does not expose an fsync or
-## directory-sync primitive to GDScript.
+## through FileAccess before publication. The explicit sync hooks below let a
+## platform adapter provide fsync/directory-sync where available; Godot's
+## built-in adapter retains the flushed-file fallback.
 
 
 func file_exists(path: String) -> bool:
@@ -55,6 +56,18 @@ func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 	var flush_error := file.get_error()
 	file.close()
 	return flush_error
+
+
+## Durability hook for platform adapters. FileAccess.flush() above is the
+## strongest portable primitive exposed by the stock Godot runtime.
+func sync_file(_path: String) -> Error:
+	return OK
+
+
+## Durability hook for directory metadata after an atomic replace. Stock Godot
+## has no directory fsync primitive, so injected/native adapters may override.
+func sync_directory(_path: String) -> Error:
+	return OK
 
 
 func remove_path(path: String) -> Error:

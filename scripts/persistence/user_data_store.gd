@@ -301,6 +301,10 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 	if write_error != OK:
 		_cleanup_temp_best_effort()
 		return _commit_result(false, &"temp_write_failed")
+	var temp_sync_error: Error = _filesystem.sync_file(_temp_path())
+	if temp_sync_error != OK:
+		_cleanup_temp_best_effort()
+		return _commit_result(false, &"temp_sync_failed")
 	var staged := _read_document(_temp_path())
 	if not bool(staged.valid) or (staged.document as Dictionary) != intended_document:
 		_cleanup_temp_best_effort()
@@ -341,6 +345,10 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 		if corrupt_cleanup != OK:
 			_cleanup_temp_best_effort()
 			return _commit_result(false, &"corrupt_primary_cleanup_failed")
+	var directory_sync_error: Error = _filesystem.sync_directory(_path)
+	if directory_sync_error != OK:
+		_cleanup_temp_best_effort()
+		return _commit_result(false, &"directory_sync_failed")
 	var publish_error: Error = _filesystem.rename_path(_temp_path(), _path)
 	if publish_error != OK:
 		var rollback_error: Error = OK
@@ -357,6 +365,11 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 	if not bool(published.valid) or (published.document as Dictionary) != intended_document:
 		var rollback := _restore_backup_after_bad_publish(moved_primary or backup_is_authority)
 		return _commit_result(false, &"published_verification_failed", PackedStringArray(), rollback)
+	directory_sync_error = _filesystem.sync_directory(_path)
+	if directory_sync_error != OK:
+		return _commit_result(false, &"published_directory_sync_failed", PackedStringArray(), {
+			"published": true,
+		})
 	# Install the parsed wire representation so commit and later load expose the
 	# same JSON number variants (Godot decodes JSON numbers as floats).
 	_install_document(published.document as Dictionary, &"primary")
