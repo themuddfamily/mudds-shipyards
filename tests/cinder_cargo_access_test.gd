@@ -168,6 +168,7 @@ func _test_identity_placement_budget_and_authority(
 		"component-local nodes and submissions equal the checked-in exact budget"
 	)
 	var route_cue_allocation := access.get_route_cue_visual_allocation_audit()
+	print("CINDER_CARGO_ROUTE_CUE_BATCH: ", route_cue_allocation)
 	_check(
 		bool(route_cue_allocation.valid)
 		and (route_cue_allocation.legacy as Dictionary) == {
@@ -177,16 +178,24 @@ func _test_identity_placement_budget_and_authority(
 			"mesh_resource_allocations": 5,
 			"material_resource_allocations": 2,
 		}
-		and (route_cue_allocation.current as Dictionary) == {
+		and (route_cue_allocation.before as Dictionary) == {
 			"nodes": 5,
 			"visible_copies": 5,
 			"renderer_submissions": 5,
 			"mesh_resource_allocations": 1,
 			"material_resource_allocations": 2,
 		}
-		and int(route_cue_allocation.mesh_resource_allocation_delta) == -4
-		and int(route_cue_allocation.renderer_submission_delta) == 0,
-		"route cues freeze exact 5->1 mesh allocations while retaining five nodes, copies, submissions, and two materials"
+		and (route_cue_allocation.current as Dictionary) == {
+			"nodes": 2,
+			"visible_copies": 5,
+			"renderer_submissions": 2,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 2,
+		}
+		and int(route_cue_allocation.mesh_resource_allocation_delta) == 0
+		and int(route_cue_allocation.renderer_submission_delta) == -3
+		and int(route_cue_allocation.node_delta) == -3,
+		"route cues batch five exact copies into two material-preserving renderer nodes"
 	)
 	var static_box_allocation := access.get_static_box_visual_allocation_audit()
 	_check(
@@ -233,22 +242,27 @@ func _test_identity_placement_budget_and_authority(
 	_check(
 		route_cue_allocation.authored_node_names
 			== PackedStringArray(["RouteCue1", "RouteCue2", "RouteCue3", "RouteCue4", "RouteCue5"])
+		and route_cue_allocation.batch_node_names
+			== PackedStringArray(["RouteCueCyanBatch", "RouteCueHazardBatch"])
 		and route_cue_allocation.authored_transforms == route_cue_allocation.live_transforms
 		and (route_cue_allocation.mesh_size as Vector3).is_equal_approx(Vector3(0.42, 0.08, 0.42))
 		and bool(route_cue_allocation.visual_only)
 		and bool(route_cue_allocation.childless)
-		and not bool(route_cue_allocation.batched),
-		"allocation audit retains the exact named transform roster and renderer recipe without batching semantic nodes"
+		and bool(route_cue_allocation.batched),
+		"allocation audit retains the five-copy transform roster and exact renderer recipe in two batches"
 	)
-	var route_cue_3 := access.get_node_or_null(
-		^"VisualRouteCues/RouteCue3"
-	) as MeshInstance3D
-	var shared_route_cue_mesh := route_cue_3.mesh if route_cue_3 != null else null
-	if route_cue_3 != null and shared_route_cue_mesh != null:
-		route_cue_3.mesh = shared_route_cue_mesh.duplicate() as Mesh
+	var route_cue_cyan := access.get_node_or_null(
+		^"VisualRouteCues/RouteCueCyanBatch"
+	) as MultiMeshInstance3D
+	var shared_route_cue_mesh := (
+		route_cue_cyan.multimesh.mesh
+		if route_cue_cyan != null and route_cue_cyan.multimesh != null else null
+	)
+	if route_cue_cyan != null and shared_route_cue_mesh != null:
+		route_cue_cyan.multimesh.mesh = shared_route_cue_mesh.duplicate() as Mesh
 	var split_resource_red := access.get_route_cue_visual_allocation_audit()
-	if route_cue_3 != null:
-		route_cue_3.mesh = shared_route_cue_mesh
+	if route_cue_cyan != null:
+		route_cue_cyan.multimesh.mesh = shared_route_cue_mesh
 	_check(
 		not bool(split_resource_red.valid)
 		and _has_error(
@@ -257,6 +271,39 @@ func _test_identity_placement_budget_and_authority(
 		)
 		and bool(access.get_route_cue_visual_allocation_audit().valid),
 		"structured-red: splitting one byte-identical route-cue mesh resource fails allocation identity and restores cleanly"
+	)
+	var route_cue_hazard := access.get_node_or_null(
+		^"VisualRouteCues/RouteCueHazardBatch"
+	) as MultiMeshInstance3D
+	_check(
+		route_cue_cyan != null and route_cue_hazard != null
+		and route_cue_cyan.multimesh.instance_count == 3
+		and route_cue_hazard.multimesh.instance_count == 2
+		and route_cue_cyan.multimesh.mesh == route_cue_hazard.multimesh.mesh
+		and route_cue_cyan.material_override != route_cue_hazard.material_override
+		and access.find_children("RouteCue*", "MeshInstance3D", true, false).is_empty()
+		and access.get_node(^"VisualRouteCues").find_children(
+			"*", "CollisionObject3D", true, false
+		).is_empty(),
+		"two inert material batches preserve the exact 3+2 cue copy split without collision nodes"
+	)
+	var authored_cyan_buffer := route_cue_cyan.multimesh.buffer.duplicate()
+	var drifted_cyan_buffer := authored_cyan_buffer.duplicate()
+	drifted_cyan_buffer[3] = 99.0
+	route_cue_cyan.multimesh.buffer = drifted_cyan_buffer
+	var transform_buffer_red := access.get_route_cue_visual_allocation_audit()
+	_check(
+		not bool(transform_buffer_red.valid)
+		and _has_error(
+			transform_buffer_red.errors,
+			"route_cue_transform_buffer_drift_RouteCueCyanBatch"
+		),
+		"structured-red: route-cue batching rejects one transformed-copy buffer drift"
+	)
+	route_cue_cyan.multimesh.buffer = authored_cyan_buffer
+	_check(
+		bool(access.get_route_cue_visual_allocation_audit().valid),
+		"restoring the exact route-cue transform buffer repairs the batch contract"
 	)
 	var surface_ids := PackedStringArray()
 	var surface_census_valid := true
@@ -548,6 +595,12 @@ func _test_detach_reentry(
 	var body_ids: Array[int] = []
 	for body in access.find_children("*", "StaticBody3D", true, false):
 		body_ids.append(body.get_instance_id())
+	var route_batch_ids: Array[int] = []
+	var route_batch_buffers: Array[PackedFloat32Array] = []
+	for batch_node in access.find_children("RouteCue*Batch", "MultiMeshInstance3D", true, false):
+		var batch := batch_node as MultiMeshInstance3D
+		route_batch_ids.append(batch.get_instance_id())
+		route_batch_buffers.append(batch.multimesh.buffer.duplicate())
 	var local_transform := access.transform
 	platform.remove_child(access)
 	await process_frame
@@ -567,6 +620,12 @@ func _test_detach_reentry(
 	var reentry_body_ids: Array[int] = []
 	for body in access.find_children("*", "StaticBody3D", true, false):
 		reentry_body_ids.append(body.get_instance_id())
+	var reentry_route_batch_ids: Array[int] = []
+	var reentry_route_batch_buffers: Array[PackedFloat32Array] = []
+	for batch_node in access.find_children("RouteCue*Batch", "MultiMeshInstance3D", true, false):
+		var batch := batch_node as MultiMeshInstance3D
+		reentry_route_batch_ids.append(batch.get_instance_id())
+		reentry_route_batch_buffers.append(batch.multimesh.buffer.duplicate())
 	var stale_snapshot := access.get_attachment_snapshot(old_attachment_generation)
 	var current_snapshot := access.get_attachment_snapshot(access.get_attachment_generation())
 	_check(
@@ -574,12 +633,15 @@ func _test_detach_reentry(
 		and access.get_attachment_generation() == old_attachment_generation + 1
 		and access.get_berth().get_instance_id() == berth_id
 		and body_ids == reentry_body_ids
+		and route_batch_ids == reentry_route_batch_ids
+		and route_batch_buffers == reentry_route_batch_buffers
 		and berth.get_occupant() == ship
 		and berth.get_reservation_token(ship) == lease_token
 		and not bool(stale_snapshot.accepted)
 		and stale_snapshot.reason == &"stale_attachment_generation"
 		and bool(current_snapshot.accepted)
-		and bool(access.audit().budget_exact),
+		and bool(access.audit().budget_exact)
+		and bool(access.get_route_cue_visual_allocation_audit().valid),
 		"re-entry preserves occupied lease and node identities, advances attachment generation once, rejects stale generation, and does not duplicate geometry"
 	)
 	_check(berth.release(ship, lease_token), "re-entered occupied Jovian lease releases through the canonical berth contract")

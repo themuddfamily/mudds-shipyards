@@ -78,7 +78,9 @@ const LOCAL_BUDGET := {
 	"ship_berths": 1,
 	"static_bodies": 21,
 	"collision_shapes": 21,
-	"mesh_instances": 26,
+	"mesh_instances": 21,
+	"multimesh_instances": 2,
+	"geometry_submissions": 23,
 	"marker_nodes": 9,
 	"label_nodes": 1,
 	"lights": 0,
@@ -95,11 +97,11 @@ const RAIL_COLOR := Color("18343e")
 const CUE_COLOR := Color("56e0e3")
 const HAZARD_COLOR := Color("f6a13b")
 
-## Phase 9 component-local allocation freeze. The first childless, visual-only
-## repeated family in authored order is the five route cues. They retain five
-## named nodes, five visible copies, two exact material identities, and five
-## renderer submissions, while one immutable BoxMesh replaces five identical
-## primitive allocations.
+## Phase 9 component-local allocation freeze. The five childless, visual-only
+## route cues retain their exact authored copy names/transforms, five visible
+## copies, one immutable BoxMesh, and two exact material identities. Grouping
+## those copies by material reduces five renderer nodes/submissions to two;
+## route markers, collision, interaction and component lifecycle remain separate.
 const ROUTE_CUE_COUNT := 5
 const ROUTE_CUE_SIZE := Vector3(0.42, 0.08, 0.42)
 const ROUTE_CUE_NODE_NAMES: Array[String] = [
@@ -116,10 +118,17 @@ const ROUTE_CUE_LEGACY_ALLOCATION := {
 	"mesh_resource_allocations": 5,
 	"material_resource_allocations": 2,
 }
-const ROUTE_CUE_CURRENT_ALLOCATION := {
+const ROUTE_CUE_PREBATCH_ALLOCATION := {
 	"nodes": 5,
 	"visible_copies": 5,
 	"renderer_submissions": 5,
+	"mesh_resource_allocations": 1,
+	"material_resource_allocations": 2,
+}
+const ROUTE_CUE_CURRENT_ALLOCATION := {
+	"nodes": 2,
+	"visible_copies": 5,
+	"renderer_submissions": 2,
 	"mesh_resource_allocations": 1,
 	"material_resource_allocations": 2,
 }
@@ -288,8 +297,8 @@ func get_placement_snapshot() -> Dictionary:
 
 
 ## Headless-safe allocation and renderer-value evidence for the route-cue
-## family. Resource identity comes from live Objects; submission count comes
-## from bound mesh surfaces and does not require a RenderingServer buffer.
+## family. Resource identity comes from live Objects; exact transforms come
+## from the authored CPU roster and its raw renderer buffer.
 func get_route_cue_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_resource_ids := {}
@@ -299,69 +308,111 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 	var renderer_submission_count := 0
 	var authored_transforms := _get_route_cue_authored_transforms()
 	var live_transforms: Array[Transform3D] = []
-	for cue_index in ROUTE_CUE_COUNT:
-		var cue_name := ROUTE_CUE_NODE_NAMES[cue_index]
-		var cue := get_node_or_null(
-			NodePath("VisualRouteCues/%s" % cue_name)
-		) as MeshInstance3D
-		if cue == null:
-			errors.append("route_cue_node_missing_%s" % cue_name)
+	live_transforms.resize(ROUTE_CUE_COUNT)
+	var batch_specs := [
+		{
+			"name": "RouteCueCyanBatch",
+			"indices": PackedInt32Array([0, 2, 4]),
+			"material": _materials.cue,
+			"color": CUE_COLOR,
+		},
+		{
+			"name": "RouteCueHazardBatch",
+			"indices": PackedInt32Array([1, 3]),
+			"material": _materials.hazard,
+			"color": HAZARD_COLOR,
+		},
+	]
+	for spec in batch_specs:
+		var batch := get_node_or_null(
+			NodePath("VisualRouteCues/%s" % String(spec.name))
+		) as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null:
+			errors.append("route_cue_batch_missing_%s" % String(spec.name))
 			continue
-		live_transforms.append(cue.transform)
-		if cue.get_child_count() != 0:
-			errors.append("route_cue_not_childless_%s" % cue_name)
+		if batch.get_child_count() != 0:
+			errors.append("route_cue_batch_not_childless_%s" % String(spec.name))
 		else:
 			childless_count += 1
-		if not cue.transform.is_equal_approx(authored_transforms[cue_index]):
-			errors.append("route_cue_transform_drift_%s" % cue_name)
-		if not cue.visible:
-			errors.append("route_cue_visibility_drift_%s" % cue_name)
+		if (
+			not batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			or batch.get_script() != null
+			or not batch.get_groups().is_empty()
+			or batch.is_processing()
+			or batch.is_physics_processing()
+			or not bool(batch.get_meta("presentation_only", false))
+			or bool(batch.get_meta("collision_authority", true))
+			or bool(batch.get_meta("interaction_authority", true))
+		):
+			errors.append("route_cue_batch_authority_or_lifecycle_drift_%s" % String(spec.name))
+		var indices := spec.indices as PackedInt32Array
+		if batch.multimesh.instance_count != indices.size() \
+			or batch.multimesh.visible_instance_count != indices.size():
+			errors.append("route_cue_batch_copy_count_drift_%s" % String(spec.name))
+		if not batch.visible:
+			errors.append("route_cue_batch_visibility_drift_%s" % String(spec.name))
 		else:
-			visible_copy_count += 1
-		if cue.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
-			or cue.material_overlay != null or cue.layers != 1 \
-			or not is_zero_approx(cue.extra_cull_margin) \
-			or not is_zero_approx(cue.visibility_range_begin) \
-			or not is_zero_approx(cue.visibility_range_end):
-			errors.append("route_cue_renderer_state_drift_%s" % cue_name)
-		var mesh := cue.mesh as BoxMesh
+			visible_copy_count += batch.multimesh.visible_instance_count
+		if batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.material_overlay != null or batch.layers != 1 \
+			or not is_zero_approx(batch.extra_cull_margin) \
+			or not is_zero_approx(batch.visibility_range_begin) \
+			or not is_zero_approx(batch.visibility_range_end):
+			errors.append("route_cue_renderer_state_drift_%s" % String(spec.name))
+		var mesh := batch.multimesh.mesh as BoxMesh
 		if mesh == null:
-			errors.append("route_cue_box_mesh_missing_%s" % cue_name)
+			errors.append("route_cue_box_mesh_missing_%s" % String(spec.name))
 		else:
 			mesh_resource_ids[mesh.get_instance_id()] = true
 			renderer_submission_count += mesh.get_surface_count()
 			if not mesh.size.is_equal_approx(ROUTE_CUE_SIZE) \
 				or mesh.material != null or mesh.get_surface_count() != 1:
-				errors.append("route_cue_mesh_recipe_drift_%s" % cue_name)
-		var material := cue.material_override as StandardMaterial3D
-		var expected_material := (
-			_materials.cue if cue_index % 2 == 0 else _materials.hazard
-		) as StandardMaterial3D
-		var expected_color := CUE_COLOR if cue_index % 2 == 0 else HAZARD_COLOR
-		if material == null:
-			errors.append("route_cue_material_missing_%s" % cue_name)
-		else:
+				errors.append("route_cue_mesh_recipe_drift_%s" % String(spec.name))
+		var material := batch.material_override as StandardMaterial3D
+		if material != null:
 			material_resource_ids[material.get_instance_id()] = true
-			if material != expected_material \
-				or not _matches_route_cue_material_recipe(material, expected_color):
-				errors.append("route_cue_material_recipe_drift_%s" % cue_name)
+		if material == null or material != spec.material \
+			or not _matches_route_cue_material_recipe(material, spec.color as Color):
+			errors.append("route_cue_material_recipe_drift_%s" % String(spec.name))
+		var batch_authored := batch.get_meta("authored_instance_transforms", []) as Array
+		var expected_batch_transforms: Array[Transform3D] = []
+		for cue_index in indices:
+			expected_batch_transforms.append(authored_transforms[cue_index])
+		if batch.multimesh.buffer != _encode_multimesh_transforms(expected_batch_transforms):
+			errors.append("route_cue_transform_buffer_drift_%s" % String(spec.name))
+		if batch_authored.size() != indices.size():
+			errors.append("route_cue_authored_transform_count_drift_%s" % String(spec.name))
+		for instance_index in mini(indices.size(), batch_authored.size()):
+			if not batch_authored[instance_index] is Transform3D:
+				errors.append("route_cue_transform_type_drift_%s_%d" % [String(spec.name), instance_index])
+				continue
+			var live_transform := batch_authored[instance_index] as Transform3D
+			var expected_transform := expected_batch_transforms[instance_index]
+			live_transforms[indices[instance_index]] = live_transform
+			if not live_transform.is_equal_approx(expected_transform):
+				errors.append("route_cue_transform_drift_%s_%d" % [String(spec.name), instance_index])
+		if mesh != null and not batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_bounds(mesh.get_aabb(), expected_batch_transforms)
+		):
+			errors.append("route_cue_culling_bounds_drift_%s" % String(spec.name))
 	if mesh_resource_ids.size() != 1:
 		errors.append("route_cue_mesh_resource_count_drift")
 	if material_resource_ids.size() != 2:
 		errors.append("route_cue_material_resource_count_drift")
 	if visible_copy_count != ROUTE_CUE_COUNT:
 		errors.append("route_cue_visible_copy_count_drift")
-	if renderer_submission_count != ROUTE_CUE_COUNT:
+	if renderer_submission_count != 2:
 		errors.append("route_cue_renderer_submission_count_drift")
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors.duplicate(),
 		"family_id": &"route_cue_boxes",
-		"visual_only": childless_count == ROUTE_CUE_COUNT,
-		"childless": childless_count == ROUTE_CUE_COUNT,
-		"batched": false,
+		"visual_only": childless_count == 2,
+		"childless": childless_count == 2,
+		"batched": true,
 		"immutable_shared_mesh": mesh_resource_ids.size() == 1,
 		"authored_node_names": PackedStringArray(ROUTE_CUE_NODE_NAMES),
+		"batch_node_names": PackedStringArray(["RouteCueCyanBatch", "RouteCueHazardBatch"]),
 		"authored_transforms": authored_transforms.duplicate(true),
 		"live_transforms": live_transforms.duplicate(true),
 		"mesh_size": ROUTE_CUE_SIZE,
@@ -370,15 +421,17 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 		"mesh_resource_allocations": mesh_resource_ids.size(),
 		"material_resource_allocations": material_resource_ids.size(),
 		"legacy": ROUTE_CUE_LEGACY_ALLOCATION.duplicate(true),
+		"before": ROUTE_CUE_PREBATCH_ALLOCATION.duplicate(true),
 		"current": ROUTE_CUE_CURRENT_ALLOCATION.duplicate(true),
 		"mesh_resource_allocation_delta": (
 			int(ROUTE_CUE_CURRENT_ALLOCATION.mesh_resource_allocations)
-			- int(ROUTE_CUE_LEGACY_ALLOCATION.mesh_resource_allocations)
+			- int(ROUTE_CUE_PREBATCH_ALLOCATION.mesh_resource_allocations)
 		),
 		"renderer_submission_delta": (
 			int(ROUTE_CUE_CURRENT_ALLOCATION.renderer_submissions)
-			- int(ROUTE_CUE_LEGACY_ALLOCATION.renderer_submissions)
+			- int(ROUTE_CUE_PREBATCH_ALLOCATION.renderer_submissions)
 		),
+		"node_delta": int(ROUTE_CUE_CURRENT_ALLOCATION.nodes) - int(ROUTE_CUE_PREBATCH_ALLOCATION.nodes),
 	}.duplicate(true)
 
 
@@ -468,6 +521,8 @@ func audit() -> Dictionary:
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"mesh_instances": find_children("*", "MeshInstance3D", true, false).size(),
+		"multimesh_instances": find_children("*", "MultiMeshInstance3D", true, false).size(),
+		"geometry_submissions": _geometry_submission_count(),
 		"marker_nodes": find_children("*", "Marker3D", true, false).size(),
 		"label_nodes": find_children("*", "Label3D", true, false).size(),
 		"lights": find_children("*", "Light3D", true, false).size(),
@@ -804,17 +859,21 @@ func _build_route_markers_and_cues() -> void:
 	add_child(cues)
 	var shared_route_cue_mesh := BoxMesh.new()
 	shared_route_cue_mesh.size = ROUTE_CUE_SIZE
-	for cue_index in ROUTE_CUE_COUNT:
-		var cue_position := ROUTE_LOCAL_POINTS[cue_index]
-		cue_position.y += 0.08
-		_visual_box(
-			cues,
-			"RouteCue%d" % (cue_index + 1),
-			cue_position,
-			ROUTE_CUE_SIZE,
-			_materials.cue if cue_index % 2 == 0 else _materials.hazard,
-			shared_route_cue_mesh
-		)
+	var authored_transforms := _get_route_cue_authored_transforms()
+	_visual_multimesh_boxes(
+		cues,
+		"RouteCueCyanBatch",
+		shared_route_cue_mesh,
+		_materials.cue,
+		[authored_transforms[0], authored_transforms[2], authored_transforms[4]]
+	)
+	_visual_multimesh_boxes(
+		cues,
+		"RouteCueHazardBatch",
+		shared_route_cue_mesh,
+		_materials.hazard,
+		[authored_transforms[1], authored_transforms[3]]
+	)
 	var label := Label3D.new()
 	label.name = "CargoAccessLabel"
 	label.text = "CINDER CARGO ACCESS"
@@ -944,26 +1003,92 @@ func _static_segment(
 	return body
 
 
-func _visual_box(
+func _visual_multimesh_boxes(
 		parent: Node3D,
 		node_name: String,
-		position_value: Vector3,
-		size: Vector3,
+		mesh: BoxMesh,
 		material: Material,
-		shared_mesh: BoxMesh = null
-	) -> MeshInstance3D:
-	var visible := MeshInstance3D.new()
+		transforms: Array
+	) -> MultiMeshInstance3D:
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = transforms.size()
+	var authored_transforms: Array[Transform3D] = []
+	for transform_value in transforms:
+		var authored_transform := transform_value as Transform3D
+		authored_transforms.append(authored_transform)
+	multimesh.buffer = _encode_multimesh_transforms(authored_transforms)
+	multimesh.custom_aabb = _transformed_bounds(mesh.get_aabb(), authored_transforms)
+	var visible := MultiMeshInstance3D.new()
 	visible.name = node_name
-	visible.position = position_value
-	var mesh := shared_mesh
-	if mesh == null:
-		mesh = BoxMesh.new()
-		mesh.size = size
-	visible.mesh = mesh
+	visible.multimesh = multimesh
 	visible.material_override = material
 	visible.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	visible.set_meta("presentation_only", true)
+	visible.set_meta("collision_authority", false)
+	visible.set_meta("interaction_authority", false)
+	visible.set_meta("authored_instance_transforms", authored_transforms.duplicate())
 	parent.add_child(visible)
 	return visible
+
+
+static func _encode_multimesh_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for transform_index in transforms.size():
+		var transform_value := transforms[transform_index]
+		var offset := transform_index * 12
+		buffer[offset] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
+
+
+func _geometry_submission_count() -> int:
+	var count := 0
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var mesh := (candidate as MeshInstance3D).mesh
+		count += mesh.get_surface_count() if mesh != null else 0
+	for candidate in find_children("*", "MultiMeshInstance3D", true, false):
+		var multimesh := (candidate as MultiMeshInstance3D).multimesh
+		count += multimesh.mesh.get_surface_count() \
+			if multimesh != null and multimesh.mesh != null else 0
+	return count
+
+
+static func _transformed_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var bounds := AABB()
+	var initialized := false
+	for transform_value in transforms:
+		for corner_index in 8:
+			var corner := mesh_bounds.position + Vector3(
+				mesh_bounds.size.x if corner_index & 1 else 0.0,
+				mesh_bounds.size.y if corner_index & 2 else 0.0,
+				mesh_bounds.size.z if corner_index & 4 else 0.0
+			)
+			var point := transform_value * corner
+			if initialized:
+				bounds = bounds.expand(point)
+			else:
+				bounds = AABB(point, Vector3.ZERO)
+				initialized = true
+	return bounds
 
 
 func _get_route_cue_authored_transforms() -> Array[Transform3D]:
