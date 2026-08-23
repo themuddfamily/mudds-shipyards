@@ -154,6 +154,7 @@ var _spark_particle_mesh: BoxMesh
 var _smoke_particle_mesh: QuadMesh
 var _damage_sparks: CPUParticles3D
 var _damage_smoke: CPUParticles3D
+var _weapon_damage_sparks: CPUParticles3D
 var _destruction_root: Node3D
 var _destruction_light: OmniLight3D
 var _debris: Dictionary = {}
@@ -173,6 +174,7 @@ func _ready() -> void:
 	_ensure_hull_damage_adapter()
 	_bind_damage_audio()
 	_build_interceptor()
+	_ensure_weapon_component_damage_presentation()
 	if _active:
 		if _apply_spawn_on_ready:
 			global_transform = _pending_spawn_transform
@@ -294,6 +296,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 			"damage_model": reset_result.duplicate(true),
 		}.duplicate(true)
 	_build_interceptor()
+	_ensure_weapon_component_damage_presentation()
 	_clear_destruction_effects()
 	var clean_spawn := spawn_transform
 	clean_spawn.basis = clean_spawn.basis.orthonormalized()
@@ -323,8 +326,10 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_visual_root.rotation = Vector3.ZERO
 	_damage_sparks.emitting = false
 	_damage_smoke.emitting = false
+	_weapon_damage_sparks.emitting = false
 	_restart_particles_cleared(_damage_sparks)
 	_restart_particles_cleared(_damage_smoke)
+	_restart_particles_cleared(_weapon_damage_sparks)
 	_set_damage_stage()
 	health_changed.emit(get_health(), get_maximum_health())
 	return {
@@ -350,6 +355,9 @@ func deactivate() -> void:
 	if _damage_smoke != null:
 		_damage_smoke.emitting = false
 		_restart_particles_cleared(_damage_smoke)
+	if _weapon_damage_sparks != null:
+		_weapon_damage_sparks.emitting = false
+		_restart_particles_cleared(_weapon_damage_sparks)
 	if _visual_root != null:
 		_visual_root.visible = true
 	_clear_destruction_effects()
@@ -901,11 +909,13 @@ func _set_damage_stage_for_health(presented_health: float, presentation_active: 
 	var ratio := presented_health / maxf(get_maximum_health(), 0.001)
 	_damage_sparks.emitting = presentation_active and ratio <= 0.67
 	_damage_smoke.emitting = presentation_active and ratio <= 0.34
+	_set_weapon_component_damage_presentation(presentation_active)
 
 
 func _update_presentation(delta: float) -> void:
 	if not _built:
 		return
+	_sync_weapon_damage_anchor()
 	var ratio := clampf(get_health() / maxf(get_maximum_health(), 0.001), 0.0, 1.0)
 	var engine_strength := 0.0
 	if _active:
@@ -962,6 +972,8 @@ func _present_damage_record(presentation: Dictionary) -> void:
 	if bool(presentation.get("terminal", false)):
 		_damage_sparks.emitting = false
 		_damage_smoke.emitting = false
+		_weapon_damage_sparks.emitting = false
+		_restart_particles_cleared(_weapon_damage_sparks)
 		_visual_root.visible = false
 		_pending_terminal_presentation_sequence = -1
 		var effect_pose: Transform3D = presentation.get("effect_pose", global_transform)
@@ -978,6 +990,66 @@ func _ensure_hull_damage_adapter() -> void:
 	if _hull_damage == null:
 		_hull_damage = RangeOpponentDamageAdapterType.new(maximum_health) \
 			as RangeOpponentComponentDamageAdapter
+
+
+## Persistent, component-local damage feedback. Every production derivative
+## supplies its actual firing muzzle through `_get_firing_muzzle()`, so the one
+## inherited emitter follows a nose cannon, tail turret, repeater, or lance
+## without duplicating presentation or damage authority in each archetype.
+func _set_weapon_component_damage_presentation(presentation_active: bool) -> void:
+	if _weapon_damage_sparks == null:
+		return
+	var weapon_state := _get_component_damage_state(
+		RangeOpponentComponentDamageAdapter.WEAPON_COMPONENT_ID
+	)
+	var stage := weapon_state.get("stage", {}) as Dictionary
+	var stage_id := StringName(stage.get("stage_id", &"nominal"))
+	var should_emit := presentation_active and stage_id != &"nominal"
+	_sync_weapon_damage_anchor()
+	if _weapon_damage_sparks.emitting and not should_emit:
+		_restart_particles_cleared(_weapon_damage_sparks)
+	else:
+		_weapon_damage_sparks.emitting = should_emit
+
+
+func _ensure_weapon_component_damage_presentation() -> void:
+	if _weapon_damage_sparks != null and is_instance_valid(_weapon_damage_sparks):
+		return
+	_ensure_particle_meshes()
+	_weapon_damage_sparks = _make_spark_particles(10, 0.55, 2.8)
+	_weapon_damage_sparks.name = "WeaponDamageSparks"
+	_weapon_damage_sparks.one_shot = false
+	_weapon_damage_sparks.emitting = false
+	add_child(_weapon_damage_sparks)
+	_sync_weapon_damage_anchor()
+
+
+func _sync_weapon_damage_anchor() -> void:
+	if _weapon_damage_sparks == null or not is_instance_valid(_weapon_damage_sparks):
+		return
+	var muzzle := _get_firing_muzzle()
+	if muzzle != null and is_instance_valid(muzzle) and muzzle.is_inside_tree():
+		_weapon_damage_sparks.global_position = muzzle.global_position
+
+
+## Shared presentation anchor. Resolver-backed derivatives may override this
+## for non-nose mounts; the base defender follows its alternating live muzzle.
+func _get_firing_muzzle() -> Node3D:
+	return _muzzle_starboard if _alternate_muzzle else _muzzle_port
+
+
+func _get_component_damage_state(component_id: StringName) -> Dictionary:
+	if _hull_damage == null:
+		return {}
+	var snapshot := _hull_damage.get_snapshot()
+	var model := snapshot.get("model", {}) as Dictionary
+	for component_variant in model.get("components", []) as Array:
+		if not component_variant is Dictionary:
+			continue
+		var component := component_variant as Dictionary
+		if StringName(component.get("component_id", &"")) == component_id:
+			return component.duplicate(true)
+	return {}
 
 
 func _clear_pending_damage_presentations() -> void:
@@ -1364,6 +1436,7 @@ func _build_damage_effects() -> void:
 	_damage_smoke.position = Vector3(-2.67, 0.15, 3.55)
 	_damage_smoke.emitting = false
 	add_child(_damage_smoke)
+	_ensure_weapon_component_damage_presentation()
 
 
 func _make_spark_particles(count: int, lifetime_value: float, speed: float) -> CPUParticles3D:

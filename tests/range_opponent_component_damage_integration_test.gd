@@ -7,6 +7,9 @@ const LifecycleAdapterType := preload(
 	"res://scripts/combat/lifecycle_damageable_adapter.gd"
 )
 const OPPONENT_SCENE := preload("res://scenes/ships/range_opponent.tscn")
+const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
+const COURIER_SCENE := preload("res://scenes/ships/courier_runner_opponent.tscn")
+const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
 const SHIP_LAYER := 1 << 2
 const TARGET_LAYER := 1 << 5
 
@@ -23,6 +26,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_detached_adapter_contract()
 	await _test_runtime_modifier_consumption()
+	await _test_derived_archetype_weapon_damage_presentation()
 	await _test_production_lifecycle()
 	_finish()
 
@@ -183,6 +187,57 @@ func _test_runtime_modifier_consumption() -> void:
 		and is_equal_approx(float(restored.targeting_multiplier), 1.0),
 		"reuse repair restores all runtime operational modifiers through the same model"
 	)
+	host.queue_free()
+	await process_frame
+
+
+func _test_derived_archetype_weapon_damage_presentation() -> void:
+	var host := Node3D.new()
+	host.name = "DerivedOpponentComponentPresentationWorld"
+	root.add_child(host)
+	var archetypes := [
+		[&"standoff_picket", PICKET_SCENE],
+		[&"courier_runner", COURIER_SCENE],
+		[&"flanking_skirmisher", SKIRMISHER_SCENE],
+	]
+	for archetype_index in archetypes.size():
+		var archetype := archetypes[archetype_index] as Array
+		var archetype_id := StringName(archetype[0])
+		var scene := archetype[1] as PackedScene
+		var opponent := scene.instantiate() as RangeOpponent
+		host.add_child(opponent)
+		opponent.set_physics_process(false)
+		opponent.set_process(false)
+		await process_frame
+		var activated := opponent.activate_with_result(
+			Transform3D(Basis.IDENTITY, Vector3(archetype_index * 20.0, 0.0, 0.0))
+		)
+		var weapon_sparks := opponent.get_node_or_null("WeaponDamageSparks") as CPUParticles3D
+		_check(
+			bool(activated.get("accepted", false))
+				and weapon_sparks != null
+				and not weapon_sparks.emitting,
+			"%s activation starts with a clean localized weapon presentation" % archetype_id
+		)
+		opponent.apply_damage(opponent.get_maximum_health() * 0.4, opponent.global_position)
+		var muzzle := opponent.call("_get_firing_muzzle") as Node3D
+		_check(
+			weapon_sparks.emitting
+				and muzzle != null
+				and weapon_sparks.global_position.is_equal_approx(muzzle.global_position),
+			"%s weapon degradation sparks at its real archetype muzzle" % archetype_id
+		)
+		opponent.deactivate()
+		var reused := opponent.activate_with_result(opponent.global_transform)
+		var weapon_state := _component_state(opponent, &"weapon")
+		_check(
+			bool(reused.get("accepted", false))
+				and not weapon_sparks.emitting
+				and (weapon_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal",
+			"%s reuse clears weapon sparks and restores the shared component stage" % archetype_id
+		)
+		opponent.queue_free()
+		await process_frame
 	host.queue_free()
 	await process_frame
 
@@ -379,10 +434,19 @@ func _test_production_lifecycle() -> void:
 
 
 func _hull_state(opponent: RangeOpponent) -> Dictionary:
+	return _component_state(opponent, &"hull")
+
+
+func _component_state(opponent: RangeOpponent, component_id: StringName) -> Dictionary:
 	var snapshot := opponent.get_component_damage_snapshot()
 	var model := snapshot.get("model", {}) as Dictionary
-	var components := model.get("components", []) as Array
-	return (components[0] as Dictionary).duplicate(true) if components.size() == 4 else {}
+	for component_variant in model.get("components", []) as Array:
+		if not component_variant is Dictionary:
+			continue
+		var component := component_variant as Dictionary
+		if StringName(component.get("component_id", &"")) == component_id:
+			return component.duplicate(true)
+	return {}
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
