@@ -75,6 +75,8 @@ var _snapshot_fragmenter
 var _moving_replica_samples: Dictionary = {}
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
+var _landing_jitter
+var _landing_replica_samples: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -115,6 +117,7 @@ func _init() -> void:
 	_snapshot_delta_decoder = SnapshotDeltaCodec.new()
 	_snapshot_fragmenter = SnapshotFragmenter.new()
 	_projectile_jitter = SnapshotJitterBuffer.new()
+	_landing_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -849,6 +852,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_moving_replica_samples.clear()
 	_projectile_replica_samples.clear()
 	_projectile_jitter.reset(migration_generation)
+	_landing_replica_samples.clear()
+	_landing_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -998,6 +1003,75 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 
 func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
+
+
+## Presents landing/support state only; landing acceptance and support remain
+## server-owned. Delayed packets freeze the last pose until the gap recovers.
+func consume_landing_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("landing") or not is_finite(alpha):
+		return _remember(_result(false, &"invalid_landing_snapshot"))
+	var landing_variant: Variant = packet.get("landing")
+	if not landing_variant is Dictionary:
+		return _remember(_result(false, &"invalid_landing_snapshot"))
+	var landing := landing_variant as Dictionary
+	var entity_id := StringName(landing.get("entity_id", &""))
+	var position_variant: Variant = landing.get("position")
+	if entity_id.is_empty() or not position_variant is Vector3 \
+			or not (position_variant as Vector3).is_finite():
+		return _remember(_result(false, &"invalid_landing_snapshot"))
+	var buffered: Dictionary = _landing_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _landing_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var ready_landing_variant: Variant = ready.get("landing")
+		if not ready_landing_variant is Dictionary:
+			return _remember(_result(false, &"invalid_landing_snapshot"))
+		var ready_landing := ready_landing_variant as Dictionary
+		var ready_id := StringName(ready_landing.get("entity_id", &""))
+		var ready_position_variant: Variant = ready_landing.get("position")
+		if ready_id.is_empty() or not ready_position_variant is Vector3 \
+				or not (ready_position_variant as Vector3).is_finite():
+			return _remember(_result(false, &"invalid_landing_snapshot"))
+		var position: Vector3 = ready_position_variant as Vector3
+		var prior: Dictionary = _landing_replica_samples.get(ready_id, {})
+		if not prior.is_empty():
+			position = (prior.get("position", position) as Vector3).lerp(
+				position, clampf(alpha, 0.0, 1.0)
+			)
+		_landing_replica_samples[ready_id] = {
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"position": position,
+			"state": StringName(ready_landing.get("state", &"flying")),
+		}
+		presented.append({
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"entity_id": ready_id,
+			"state": StringName(ready_landing.get("state", &"flying")),
+			"position": position,
+		})
+	if presented.is_empty():
+		var frozen: Array = []
+		for entity_variant in _landing_replica_samples.keys():
+			var sample: Dictionary = _landing_replica_samples[entity_variant] as Dictionary
+			frozen.append({
+				"revision": int(sample.get("revision", 0)),
+				"server_tick": int(sample.get("server_tick", 0)),
+				"entity_id": StringName(entity_variant),
+				"state": sample.get("state", &"flying"),
+				"position": sample.get("position", Vector3.ZERO),
+			})
+		return _remember(_result(true, &"landing_waiting_for_gap", {
+			"samples": frozen,
+			"frozen": true,
+		}))
+	return _remember(_result(true, &"landing_presented", {"samples": presented}))
 
 
 func register_replication_entity(
