@@ -41,6 +41,7 @@ func _run() -> void:
 	await _test_stair_circulation(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
+	_test_ceiling_luminaire_lens_batch(module)
 	_test_pod_corner_collar_visual_resource_sharing(module)
 	_test_junction_arc_tile_batch(module)
 	_test_rack_card_batch(module)
@@ -295,6 +296,75 @@ func _test_operations_contents(module: AftJunctionStack) -> void:
 	_check(service_wall != null and bool(service_wall.get_meta("station_service_wall", false)), "service wall is present and semantically tagged")
 
 
+func _test_ceiling_luminaire_lens_batch(module: AftJunctionStack) -> void:
+	var report := module.get_ceiling_luminaire_lens_batch_audit()
+	_check(
+		bool(report.valid)
+		and (report.errors as PackedStringArray).is_empty()
+		and report.legacy == {
+			"renderer_nodes": 6,
+			"drawn_copies": 6,
+			"surface_submissions": 6,
+		}
+		and report.current == {
+			"stable_anchor_nodes": 6,
+			"renderer_nodes": 1,
+			"drawn_copies": 6,
+			"surface_submissions": 1,
+		}
+		and report.reductions == {
+			"renderer_nodes": 5,
+			"drawn_copies": 0,
+			"surface_submissions": 5,
+		}
+		and int(report.fixture_housings) == 6
+		and int(report.fixture_practicals) == 6
+		and not bool(report.collision_authority_added)
+		and not bool(report.interaction_authority_added)
+		and not bool(report.semantic_authority_added),
+		"six exact luminaire-lens copies move from six submissions to one while housings, practicals, and authority stay unchanged"
+	)
+	var lighting := module.get_node_or_null(
+		^"Structure/OperationsRoom/LocalizedLighting"
+	) as Node3D
+	var batch := (
+		lighting.get_node_or_null(^"CeilingLuminaireLensRenderBatch") as MultiMeshInstance3D
+		if lighting != null else null
+	)
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and batch.multimesh.mesh != null
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			AftJunctionStack.CEILING_LUMINAIRE_LENS_SIZE
+		)
+		and batch.material_override != null
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0,
+		"the bounded batch preserves the exact lens mesh, material, shadow, layer, and childless visual state"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var original_buffer := batch.multimesh.buffer
+	var shifted_buffer := original_buffer.duplicate()
+	shifted_buffer[3] += 0.5
+	batch.multimesh.buffer = shifted_buffer
+	var drift := module.get_ceiling_luminaire_lens_batch_audit()
+	_check(
+		not bool(drift.valid)
+		and (drift.errors as PackedStringArray).has(
+			"ceiling_luminaire_lens_renderer_buffer_drift"
+		),
+		"a lens-transform mutation fails the exact visible-copy roster closed"
+	)
+	batch.multimesh.buffer = original_buffer
+	_check(
+		bool(module.get_ceiling_luminaire_lens_batch_audit().valid),
+		"restoring the authored lens transform returns the batch audit green"
+	)
+
+
 func _test_pod_corner_collar_visual_resource_sharing(
 		module: AftJunctionStack
 	) -> void:
@@ -328,10 +398,10 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1173,
-			"renderer_nodes": 817,
+			"descendant_nodes": 1174,
+			"renderer_nodes": 812,
 			"drawn_copies": 856,
-			"surface_submissions": 817,
+			"surface_submissions": 812,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
@@ -339,7 +409,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus visual batching freeze 1173 descendants, 817 renderers/submissions, 856 copies, and 296 mesh allocations"
+		"shared collar families plus visual batching freeze 1174 descendants, 812 renderers/submissions, 856 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {

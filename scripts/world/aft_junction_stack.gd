@@ -160,14 +160,27 @@ const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
 const RACK_CARD_SIZE := Vector3(0.02, 0.24, 0.10)
 const RACK_CARD_COPY_COUNT := 14
 const JUNCTION_ARC_TILE_COPY_COUNT := 8
+## Six identical emissive lenses are presentation surfaces for six independent
+## ceiling practicals. The housings and Light3D nodes remain ordinary; only the
+## visual-only rounded-box submissions are combined here.
+const CEILING_LUMINAIRE_LENS_SIZE := Vector3(1.85, 0.035, 0.2)
+const CEILING_LUMINAIRE_LENS_COPY_COUNT := 6
+const CEILING_LUMINAIRE_LENS_POSITIONS := [
+	Vector3(3.2, 4.405, 11.15),
+	Vector3(3.2, 4.405, 14.15),
+	Vector3(3.2, 4.405, 16.15),
+	Vector3(8.0, 4.405, 11.15),
+	Vector3(8.0, 4.405, 14.15),
+	Vector3(8.0, 4.405, 16.15),
+]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1173
+const RENDER_DESCENDANT_NODE_COUNT := 1174
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 817
+const RENDERER_NODE_COUNT := 812
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 856
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 817
+const SURFACE_SUBMISSION_COUNT := 812
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -242,6 +255,7 @@ var _rack_card_batch: MultiMeshInstance3D
 var _junction_arc_tile_batch: MultiMeshInstance3D
 var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
+var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
@@ -678,6 +692,7 @@ func get_performance_contract() -> Dictionary:
 	var pedestal_bearing_sharing := get_pedestal_bearing_visual_allocation_audit()
 	var conduit_collar_sharing := get_conduit_collar_visual_allocation_audit()
 	var roof_vent_collar_sharing := get_roof_vent_collar_visual_allocation_audit()
+	var ceiling_lens_batch := get_ceiling_luminaire_lens_batch_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["rack_card_batch"] = rack_card_batch
@@ -688,6 +703,7 @@ func get_performance_contract() -> Dictionary:
 	contract["pedestal_bearing_visual_sharing"] = pedestal_bearing_sharing
 	contract["conduit_collar_visual_sharing"] = conduit_collar_sharing
 	contract["roof_vent_collar_visual_sharing"] = roof_vent_collar_sharing
+	contract["ceiling_luminaire_lens_batch"] = ceiling_lens_batch
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
@@ -700,8 +716,131 @@ func get_performance_contract() -> Dictionary:
 		and bool(pedestal_bearing_sharing.valid)
 		and bool(conduit_collar_sharing.valid)
 		and bool(roof_vent_collar_sharing.valid)
+		and bool(ceiling_lens_batch.valid)
 	)
 	return contract
+
+
+## Component-local proof for the six visual-only ceiling-luminaire lenses.
+## Housings and practical Light3D nodes stay ordinary and retain their authored
+## transforms; one bounded MultiMesh replaces only the six lens submissions.
+func get_ceiling_luminaire_lens_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var batch := _ceiling_luminaire_lens_batch
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh if multimesh != null else null
+	var lighting := get_node_or_null(
+		^"Structure/OperationsRoom/LocalizedLighting"
+	) as Node3D
+	var expected_transforms: Array[Transform3D] = []
+	for position in CEILING_LUMINAIRE_LENS_POSITIONS:
+		expected_transforms.append(Transform3D(Basis.IDENTITY, position as Vector3))
+	var expected_buffer := _encode_multimesh_transforms(expected_transforms)
+	var expected_bounds := (
+		_transformed_mesh_bounds(mesh.get_aabb(), expected_transforms)
+		if mesh != null else AABB()
+	)
+	var anchors: Array[Marker3D] = []
+	var housings: Array[MeshInstance3D] = []
+	var practicals: Array[OmniLight3D] = []
+	if lighting != null:
+		for child in lighting.get_children():
+			if child is Marker3D and bool(child.get_meta("ceiling_luminaire_lens_anchor", false)):
+				anchors.append(child as Marker3D)
+			elif child is MeshInstance3D:
+				var housing_candidate := child as MeshInstance3D
+				if housing_candidate.material_override == _materials.get("hull_dark") \
+						and housing_candidate.mesh != null \
+						and housing_candidate.mesh.get_aabb().size.is_equal_approx(Vector3(2.15, 0.11, 0.44)):
+					housings.append(housing_candidate)
+			elif child is OmniLight3D:
+				var light_candidate := child as OmniLight3D
+				for lens_position in CEILING_LUMINAIRE_LENS_POSITIONS:
+					if light_candidate.position.is_equal_approx(
+						(lens_position as Vector3) + Vector3(0.0, -0.405, 0.0)
+					):
+						practicals.append(light_candidate)
+						break
+	if anchors.size() != CEILING_LUMINAIRE_LENS_COPY_COUNT:
+		errors.append("ceiling_luminaire_lens_anchor_count_drift")
+	if housings.size() != CEILING_LUMINAIRE_LENS_COPY_COUNT \
+			or practicals.size() != CEILING_LUMINAIRE_LENS_COPY_COUNT:
+		errors.append("ceiling_luminaire_fixture_node_count_drift")
+	for index in mini(anchors.size(), expected_transforms.size()):
+		var anchor := anchors[index]
+		if not anchor.transform.is_equal_approx(expected_transforms[index]) \
+				or anchor.get_parent() != lighting \
+				or anchor.get_child_count() != 0 \
+				or anchor.get_script() != null \
+				or not anchor.get_groups().is_empty() \
+				or anchor.get_meta_list().size() != 1 \
+				or not anchor.get_meta_list().has(&"ceiling_luminaire_lens_anchor") \
+				or not bool(anchor.get_meta("ceiling_luminaire_lens_anchor", false)):
+			errors.append("ceiling_luminaire_lens_anchor_roster_drift")
+	if batch == null or multimesh == null or mesh == null:
+		errors.append("ceiling_luminaire_lens_batch_missing")
+	else:
+		if batch.get_parent() != lighting or str(batch.name) != "CeilingLuminaireLensRenderBatch":
+			errors.append("ceiling_luminaire_lens_batch_path_drift")
+		if multimesh.transform_format != MultiMesh.TRANSFORM_3D \
+				or multimesh.use_colors or multimesh.use_custom_data:
+			errors.append("ceiling_luminaire_lens_multimesh_format_drift")
+		if multimesh.instance_count != CEILING_LUMINAIRE_LENS_COPY_COUNT \
+				or multimesh.visible_instance_count != CEILING_LUMINAIRE_LENS_COPY_COUNT:
+			errors.append("ceiling_luminaire_lens_visible_copy_roster_drift")
+		if multimesh.buffer != expected_buffer:
+			errors.append("ceiling_luminaire_lens_renderer_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(expected_bounds):
+			errors.append("ceiling_luminaire_lens_culling_bounds_drift")
+		if mesh != _rounded_box_mesh(CEILING_LUMINAIRE_LENS_SIZE) \
+				or mesh.get_surface_count() != 1 \
+				or mesh.surface_get_material(0) != null \
+				or mesh.resource_local_to_scene \
+				or not mesh.get_aabb().size.is_equal_approx(CEILING_LUMINAIRE_LENS_SIZE):
+			errors.append("ceiling_luminaire_lens_mesh_recipe_drift")
+		if not batch.transform.is_equal_approx(Transform3D.IDENTITY) \
+				or not batch.visible \
+				or batch.layers != 1 \
+				or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or batch.material_override != _materials.get("worklight") \
+				or batch.material_overlay != null \
+				or not is_zero_approx(batch.transparency):
+			errors.append("ceiling_luminaire_lens_render_state_drift")
+		var metadata_keys := batch.get_meta_list()
+		if batch.get_child_count() != 0 \
+				or batch.get_script() != null \
+				or not batch.get_groups().is_empty() \
+				or metadata_keys.size() != 2 \
+				or not metadata_keys.has(&"visual_detail_only") \
+				or not metadata_keys.has(&"authored_instance_transforms") \
+				or not bool(batch.get_meta("visual_detail_only", false)) \
+				or not _transform_arrays_match(
+					batch.get_meta("authored_instance_transforms", []) as Array,
+					expected_transforms
+				):
+			errors.append("ceiling_luminaire_lens_batch_gained_semantic_authority")
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_ceiling_luminaire_lenses",
+		"legacy": {"renderer_nodes": 6, "drawn_copies": 6, "surface_submissions": 6},
+		"current": {
+			"stable_anchor_nodes": anchors.size(),
+			"renderer_nodes": 1 if batch != null else 0,
+			"drawn_copies": multimesh.visible_instance_count if multimesh != null else 0,
+			"surface_submissions": mesh.get_surface_count() if mesh != null else 0,
+		},
+		"reductions": {"renderer_nodes": 5, "drawn_copies": 0, "surface_submissions": 5},
+		"fixture_housings": housings.size(),
+		"fixture_practicals": practicals.size(),
+		"authored_transforms": expected_transforms.duplicate(),
+		"renderer_buffer": multimesh.buffer if multimesh != null else PackedFloat32Array(),
+		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
+		"collision_authority_added": false,
+		"interaction_authority_added": false,
+		"semantic_authority_added": false,
+	}.duplicate(true)
 
 
 ## Renderer-independent, component-local evidence for the first eligible Aft
@@ -3328,11 +3467,28 @@ func _build_operations_lighting(room: Node3D) -> void:
 	lighting.name = "LocalizedLighting"
 	lighting.set_meta("forward_plus_local_lighting", true)
 	room.add_child(lighting)
+	var lens_transforms: Array[Transform3D] = []
 	for luminaire_x in [3.2, 8.0]:
 		for z_position in [11.15, 14.15, 16.15]:
 			_box(lighting, "CeilingLuminaireBody", Vector3(float(luminaire_x), 4.47, float(z_position)), Vector3(2.15, 0.11, 0.44), _materials["hull_dark"], false)
-			_box(lighting, "CeilingLuminaireLens", Vector3(float(luminaire_x), 4.405, float(z_position)), Vector3(1.85, 0.035, 0.2), _materials["worklight"], false)
+			var lens_transform := Transform3D(
+				Basis.IDENTITY,
+				Vector3(float(luminaire_x), 4.405, float(z_position))
+			)
+			var lens_anchor := Marker3D.new()
+			lens_anchor.name = "CeilingLuminaireLens"
+			lens_anchor.transform = lens_transform
+			lens_anchor.set_meta("ceiling_luminaire_lens_anchor", true)
+			lighting.add_child(lens_anchor)
+			lens_transforms.append(lens_transform)
 			_omni_light(lighting, "OperationsPoolLight", Vector3(float(luminaire_x), 4.0, float(z_position)), Color("d9f6f3"), 0.82, 9.0)
+	_ceiling_luminaire_lens_batch = _multimesh_rounded_box(
+		lighting,
+		"CeilingLuminaireLensRenderBatch",
+		CEILING_LUMINAIRE_LENS_SIZE,
+		_materials["worklight"],
+		lens_transforms
+	)
 	for cove_x in [0.86, 10.34]:
 		_beam_between(lighting, "CeilingCoveRail", Vector3(float(cove_x), 4.3, 9.55), Vector3(float(cove_x), 4.3, 16.85), 0.055, _materials["cyan_dim"], false)
 	# The two coves are the room's own fixtures and were lighting nothing. Giving
