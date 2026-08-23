@@ -54,6 +54,7 @@ const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
 const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
 const CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION := 1
+const HALYARD_CREW_ROLE_OCCUPANT_META: StringName = &"_halyard_crew_role_occupant"
 
 
 class HalyardPilotCommandSource:
@@ -552,6 +553,126 @@ func _consume_pilot_flight_intent(intent: Dictionary) -> Dictionary:
 	return result
 
 
+## Binds one already-authorized non-pilot role to the existing moving-interior
+## coordinator. The role authority owns the claim; MovingInteriorFrame owns the
+## physical registration, so this method creates no second occupancy ledger.
+func attach_crew_role_occupant(
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	occupant: Node3D,
+	options: Dictionary = {}
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(false, &"assignment_not_found")
+	if StringName(assignment.get("seat_id", &"")) != seat_id:
+		return _crew_role_result(false, &"seat_mismatch")
+	if StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PILOT:
+		return _crew_role_result(false, &"pilot_occupancy_reserved")
+	if not is_instance_valid(occupant) or not occupant.is_inside_tree():
+		return _crew_role_result(false, &"invalid_occupant")
+	if _moving_interior_component == null or not is_instance_valid(_moving_interior_component):
+		return _crew_role_result(false, &"moving_interior_unavailable")
+	if _moving_interior_component.is_occupant_registered(occupant):
+		if not occupant.has_meta(HALYARD_CREW_ROLE_OCCUPANT_META):
+			return _crew_role_result(false, &"occupancy_already_owned")
+		var existing_metadata := occupant.get_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+		if int(existing_metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
+				or StringName(existing_metadata.get("avatar_id", &"")) != avatar_id \
+				or StringName(existing_metadata.get("seat_id", &"")) != seat_id:
+			return _crew_role_result(false, &"occupancy_identity_mismatch")
+		var already := _crew_role_result(true, &"already_registered")
+		already["assignment"] = assignment.duplicate(true)
+		return already
+	var registration_options := options.duplicate(true)
+	registration_options["registration_source"] = &"crew_role_seat"
+	var registration := _moving_interior_component.register_occupant(occupant, registration_options)
+	if not bool(registration.get("registered", false)):
+		return registration
+	occupant.set_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {
+		"occupant_peer_id": occupant_peer_id,
+		"avatar_id": avatar_id,
+		"seat_id": seat_id,
+		"seat_generation": int(assignment.get("seat_generation", 0)),
+		"role": StringName(assignment.get("role", &"")),
+	})
+	var result := _crew_role_result(true, StringName(registration.get("status", &"registered")))
+	result["assignment"] = assignment.duplicate(true)
+	result["registration"] = registration.duplicate(true)
+	return result
+
+
+## Releases the physical registration and then the matching server-owned seat.
+## A caller that already released the authority claim cannot accidentally clear
+## another occupant: the metadata and exact seat/assignment checks fail closed.
+func release_crew_role_occupant(
+	source_peer_id: int,
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	occupant: Node3D,
+	request_sequence: int,
+	seat_generation: int = 0,
+	inherit_velocity: bool = false
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	if not is_instance_valid(occupant):
+		return _crew_role_result(false, &"invalid_occupant")
+	if _moving_interior_component == null \
+			or not _moving_interior_component.is_occupant_registered(occupant):
+		return _crew_role_result(false, &"occupancy_not_registered")
+	var metadata := occupant.get_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	if int(metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
+			or StringName(metadata.get("avatar_id", &"")) != avatar_id \
+			or StringName(metadata.get("seat_id", &"")) != seat_id:
+		return _crew_role_result(false, &"occupancy_identity_mismatch")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty() or StringName(assignment.get("seat_id", &"")) != seat_id:
+		return _crew_role_result(false, &"assignment_not_found")
+	var release := _crew_role_authority.release(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		seat_id,
+		request_sequence,
+		seat_generation
+	)
+	if not bool(release.get("accepted", false)):
+		return release
+	var unregistration := _moving_interior_component.unregister_occupant(
+		occupant,
+		inherit_velocity,
+		&"crew_role_released"
+	)
+	occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
+	_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
+	var result := release.duplicate(true)
+	result["occupancy"] = unregistration.duplicate(true)
+	return result
+
+
+func _release_tagged_crew_role_occupants(
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	reason: StringName
+) -> void:
+	if _moving_interior_component == null or not is_instance_valid(_moving_interior_component):
+		return
+	for occupant in _moving_interior_component.get_registered_occupants():
+		if not occupant.has_meta(HALYARD_CREW_ROLE_OCCUPANT_META):
+			continue
+		var metadata := occupant.get_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+		if int(metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
+				or StringName(metadata.get("avatar_id", &"")) != avatar_id:
+			continue
+		_moving_interior_component.unregister_occupant(occupant, false, reason)
+		occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
+
+
 ## Releases a session assignment through the same authority that owns the claim,
 ## then lets the ship clear any passenger markers owned by that avatar. Calling
 ## the authority directly remains safe: the physics cleanup pass observes the
@@ -576,6 +697,7 @@ func release_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
+		_release_tagged_crew_role_occupants(occupant_peer_id, avatar_id, &"role_released")
 	return result
 
 
@@ -609,6 +731,11 @@ func handoff_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_crew_role_state(
+			previous_occupant_peer_id,
+			previous_avatar_id,
+			&"role_handoff"
+		)
+		_release_tagged_crew_role_occupants(
 			previous_occupant_peer_id,
 			previous_avatar_id,
 			&"role_handoff"
@@ -2131,10 +2258,12 @@ func _set_interior_operational(enabled: bool) -> void:
 
 
 func _cleanup_detached_passenger_pings() -> void:
+	var tagged_occupancy_present := _cleanup_detached_crew_role_occupants()
 	if _passenger_ping_markers.is_empty() \
 			and _gunner_target_selection.is_empty() \
 			and _engineer_component_selection.is_empty() \
-			and _pilot_command_state.is_empty():
+			and _pilot_command_state.is_empty() \
+			and not tagged_occupancy_present:
 		return
 	if _crew_role_authority == null:
 		_clear_passenger_ping_markers(&"authority_detached")
@@ -2190,6 +2319,26 @@ func _cleanup_detached_passenger_pings() -> void:
 				StringName(_pilot_command_state.get("avatar_id", &"")),
 				&"role_detached"
 			)
+
+
+func _cleanup_detached_crew_role_occupants() -> bool:
+	if _moving_interior_component == null or not is_instance_valid(_moving_interior_component):
+		return false
+	var tagged_occupancy_present := false
+	for occupant in _moving_interior_component.get_registered_occupants():
+		if not occupant.has_meta(HALYARD_CREW_ROLE_OCCUPANT_META):
+			continue
+		tagged_occupancy_present = true
+		var metadata := occupant.get_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+		var assignment := _crew_role_authority.get_assignment(
+			int(metadata.get("occupant_peer_id", 0)),
+			StringName(metadata.get("avatar_id", &""))
+		) if _crew_role_authority != null else {}
+		if assignment.is_empty() \
+				or StringName(assignment.get("seat_id", &"")) != StringName(metadata.get("seat_id", &"")):
+			_moving_interior_component.unregister_occupant(occupant, false, &"role_detached")
+			occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
+	return tagged_occupancy_present
 
 
 func _clear_passenger_ping_for_actor(

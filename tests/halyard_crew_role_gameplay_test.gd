@@ -45,6 +45,35 @@ func _run() -> void:
 		bool(authority.claim(1, 73, &"passenger_avatar", &"crew_port_00", Authority.ROLE_PASSENGER, 1).get("accepted", false)),
 		"the passenger assignment is visible to the detached gameplay view"
 	)
+	var crew_avatar := CharacterBody3D.new()
+	crew_avatar.name = "gunner_crew_avatar"
+	root.add_child(crew_avatar)
+	crew_avatar.global_position = craft.global_position + Vector3(0.0, 1.0, 0.0)
+	await process_frame
+	var frame := craft.get_moving_interior_component()
+	var occupancy := craft.attach_crew_role_occupant(
+		72, &"gunner_avatar", &"co_pilot_station", crew_avatar
+	)
+	_check(
+		bool(occupancy.get("accepted", false))
+			and frame.is_occupant_registered(crew_avatar)
+			and frame.get_occupant_count() == 1
+			and frame.get_moving_frame() == craft,
+		"an admitted non-pilot role attaches to the existing moving-interior frame"
+	)
+	var duplicate_occupancy := craft.attach_crew_role_occupant(
+		72, &"gunner_avatar", &"co_pilot_station", crew_avatar
+	)
+	_check(
+		bool(duplicate_occupancy.get("accepted", false))
+			and duplicate_occupancy.get("status", &"") == &"already_registered"
+			and frame.get_occupant_count() == 1,
+		"re-attaching one role occupant does not create a second physical registration"
+	)
+	_check(
+		frame.get_status_report().get("occupant_count", 0) == 1,
+		"the moving-interior frame retains one canonical non-pilot occupant"
+	)
 
 	var model := craft.get_component_damage()
 	var selected := [0]
@@ -209,6 +238,7 @@ func _run() -> void:
 		"the admitted pilot receipt reaches the Halyard command source"
 	)
 	await physics_frame
+	await physics_frame
 	var pilot_command := craft.get_last_ship_command()
 	_check(
 		is_equal_approx(pilot_command.throttle, 0.8)
@@ -342,6 +372,16 @@ func _run() -> void:
 			and (after_detach.get("selected_targets", {}).get("engineer", {}) as Dictionary).is_empty(),
 		"the detached snapshot removes the released engineer and stale selection"
 	)
+	var occupancy_release := craft.release_crew_role_occupant(
+		1, 72, &"gunner_avatar", &"co_pilot_station", crew_avatar, 3
+	)
+	_check(
+		bool(occupancy_release.get("accepted", false))
+			and not frame.is_occupant_registered(crew_avatar)
+			and frame.get_occupant_count() == 0,
+		"releasing the role clears its physical moving-interior occupancy exactly once"
+	)
+	crew_avatar.queue_free()
 
 	craft.queue_free()
 	await process_frame
