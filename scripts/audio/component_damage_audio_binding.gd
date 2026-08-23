@@ -12,6 +12,7 @@ var _attached := false
 var _generation := 0
 var _last_snapshot: Dictionary = {}
 var _last_degradation := 0.0
+var _last_stage: StringName = &"nominal"
 
 
 func bind(rig: Node) -> Dictionary:
@@ -21,12 +22,14 @@ func bind(rig: Node) -> Dictionary:
 			or rig.call(&"get_component_id") != &"ship-audio-rig":
 		return _result(false, &"foreign_audio_rig")
 	if not rig.has_method(&"set_engine_degradation") \
-			or not rig.has_method(&"set_damage_alarm_active"):
+			or not rig.has_method(&"set_damage_alarm_active") \
+			or not rig.has_method(&"play_destruction"):
 		return _result(false, &"incomplete_audio_rig")
 	_rig = rig
 	_attached = true
 	_last_snapshot.clear()
 	_last_degradation = 0.0
+	_last_stage = &"nominal"
 	return _result(true, &"bound")
 
 
@@ -37,13 +40,21 @@ func present_damage_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not bool(decoded.get("accepted", false)):
 		return _result(false, StringName(decoded.get("reason", &"invalid_snapshot")))
 	var degradation := float(decoded.degradation)
+	var stage: StringName = decoded.stage
 	var changed := not is_equal_approx(degradation, _last_degradation)
+	var stage_changed := stage != _last_stage
 	if changed:
 		_rig.call(&"set_engine_degradation", degradation)
-	_rig.call(&"set_damage_alarm_active", degradation >= 0.75)
-	_last_degradation = degradation
+		_rig.call(&"set_damage_alarm_active", degradation >= 0.75)
+		_last_degradation = degradation
+	if stage == &"destroyed" and stage_changed:
+		_rig.call(&"play_destruction", 1.0)
+	_last_stage = stage
 	_last_snapshot = snapshot.duplicate(true)
-	return _result(true, &"damage_presented" if changed else &"damage_unchanged")
+	return _result(
+		true,
+		&"damage_presented" if changed or stage_changed else &"damage_unchanged"
+	)
 
 
 func detach() -> Dictionary:
@@ -57,6 +68,7 @@ func detach() -> Dictionary:
 	_rig = null
 	_last_snapshot.clear()
 	_last_degradation = 0.0
+	_last_stage = &"nominal"
 	return _result(true, &"detached")
 
 
@@ -66,6 +78,7 @@ func get_snapshot() -> Dictionary:
 		"generation": _generation,
 		"last_snapshot": _last_snapshot.duplicate(true),
 		"last_degradation": _last_degradation,
+		"last_stage": _last_stage,
 		"authority": {"damage": false, "repair": false, "ship": false, "audio_presentation": true},
 	}.duplicate(true)
 
@@ -88,7 +101,11 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 			degradation = maxf(degradation, 0.25)
 		elif stage in [&"critical", &"destroyed"]:
 			degradation = maxf(degradation, 0.75)
-	return {"accepted": true, "degradation": clampf(degradation, 0.0, 1.0)}.duplicate(true)
+	return {
+		"accepted": true,
+		"degradation": clampf(degradation, 0.0, 1.0),
+		"stage": stage,
+	}.duplicate(true)
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
