@@ -82,8 +82,11 @@ func _test_disconnect_requires_refresh() -> void:
 	var ownership: Array = adapter.get_authoritative_snapshot().sections.ownership
 	var boarding: Array = adapter.get_authoritative_snapshot().sections.boarding
 	_check(
-		ownership.size() == 1 and int(ownership[0].owner_peer_id) == 0 and boarding.is_empty(),
-		"refreshed snapshot removes disconnected seat occupancy and releases ship ownership"
+		ownership.size() == 1 and int(ownership[0].owner_peer_id) == 0
+		and ownership[0].state == &"disconnected"
+		and boarding.size() == 1 and int(boarding[0].occupant_peer_id) == 0
+		and boarding[0].state == &"disconnected",
+		"refreshed snapshot retains presentation-only disconnect tombstones"
 	)
 
 

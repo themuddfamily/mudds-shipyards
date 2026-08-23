@@ -19,6 +19,7 @@ func _run() -> void:
 	_test_order_and_generation_guards()
 	_test_landing_lifecycle_guards()
 	_test_damage_respawn_lifecycle_guards()
+	_test_boarding_ownership_lifecycle_guards()
 	_test_replica_server_boundary()
 	if _failures.is_empty():
 		print("OK: network authoritative snapshot synchronization (%d assertions)" % _assertions)
@@ -238,6 +239,74 @@ func _test_damage_respawn_lifecycle_guards() -> void:
 		"newer envelope cannot regress the per-entity damage server tick")
 
 
+func _test_boarding_ownership_lifecycle_guards() -> void:
+	var authority := Authority.new(99)
+	var sections := _sections()
+	_check(authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).accepted,
+		"ownership fixture publishes one boarded seat")
+	var transferred := _sections()
+	(transferred.ownership[0] as Dictionary).owner_peer_id = 8
+	(transferred.ownership[0] as Dictionary).owner_peer_generation = 1
+	(transferred.ownership[0] as Dictionary).ownership_generation = 2
+	(transferred.ownership[0] as Dictionary).ownership_revision = 4
+	(transferred.ownership[0] as Dictionary).ownership_server_tick = 41
+	(transferred.ownership[0] as Dictionary).state = &"transferred"
+	(transferred.boarding[0] as Dictionary).occupant_peer_id = 8
+	(transferred.boarding[0] as Dictionary).occupant_peer_generation = 1
+	(transferred.boarding[0] as Dictionary).boarding_revision = 4
+	(transferred.boarding[0] as Dictionary).boarding_server_tick = 41
+	(transferred.boarding[0] as Dictionary).state = &"transferred"
+	_check(authority.publish(99, 41, 13, transferred.movement, transferred.ownership, transferred.projectiles, transferred.boarding, transferred.respawn, transferred.landing).accepted,
+		"server transfer advances owner and occupant generations with record revisions")
+	var released := transferred.duplicate(true)
+	(released.ownership[0] as Dictionary).owner_peer_id = 0
+	(released.ownership[0] as Dictionary).owner_peer_generation = 0
+	(released.ownership[0] as Dictionary).ownership_generation = 3
+	(released.ownership[0] as Dictionary).ownership_revision = 5
+	(released.ownership[0] as Dictionary).ownership_server_tick = 42
+	(released.ownership[0] as Dictionary).state = &"released"
+	(released.boarding[0] as Dictionary).occupant_peer_id = 0
+	(released.boarding[0] as Dictionary).occupant_peer_generation = 0
+	(released.boarding[0] as Dictionary).avatar_id = &""
+	(released.boarding[0] as Dictionary).boarding_revision = 5
+	(released.boarding[0] as Dictionary).boarding_server_tick = 42
+	(released.boarding[0] as Dictionary).state = &"released"
+	_check(authority.publish(99, 42, 14, released.movement, released.ownership, released.projectiles, released.boarding, released.respawn, released.landing).accepted,
+		"released ownership and seat remain explicit presentation tombstones")
+	var stale_owner_generation := released.duplicate(true)
+	(stale_owner_generation.ownership[0] as Dictionary).ownership_generation = 2
+	(stale_owner_generation.ownership[0] as Dictionary).ownership_revision = 6
+	(stale_owner_generation.ownership[0] as Dictionary).ownership_server_tick = 43
+	_check(authority.publish(99, 43, 15, stale_owner_generation.movement, stale_owner_generation.ownership, stale_owner_generation.projectiles, stale_owner_generation.boarding, stale_owner_generation.respawn, stale_owner_generation.landing).status == &"stale_ownership_generation",
+		"ownership generation cannot regress after release")
+	var stale_owner_revision := released.duplicate(true)
+	(stale_owner_revision.ownership[0] as Dictionary).ownership_revision = 4
+	(stale_owner_revision.ownership[0] as Dictionary).ownership_server_tick = 43
+	_check(authority.publish(99, 43, 15, stale_owner_revision.movement, stale_owner_revision.ownership, stale_owner_revision.projectiles, stale_owner_revision.boarding, stale_owner_revision.respawn, stale_owner_revision.landing).status == &"stale_ownership_revision",
+		"ownership record revision rejects reorder")
+	var stale_owner_tick := released.duplicate(true)
+	(stale_owner_tick.ownership[0] as Dictionary).ownership_revision = 6
+	(stale_owner_tick.ownership[0] as Dictionary).ownership_server_tick = 41
+	_check(authority.publish(99, 43, 15, stale_owner_tick.movement, stale_owner_tick.ownership, stale_owner_tick.projectiles, stale_owner_tick.boarding, stale_owner_tick.respawn, stale_owner_tick.landing).status == &"stale_ownership_server_tick",
+		"ownership server tick rejects reordered transition records")
+	var stale_seat_generation := released.duplicate(true)
+	(stale_seat_generation.boarding[0] as Dictionary).seat_generation = 2
+	(stale_seat_generation.boarding[0] as Dictionary).boarding_revision = 6
+	(stale_seat_generation.boarding[0] as Dictionary).boarding_server_tick = 43
+	_check(authority.publish(99, 43, 15, stale_seat_generation.movement, stale_seat_generation.ownership, stale_seat_generation.projectiles, stale_seat_generation.boarding, stale_seat_generation.respawn, stale_seat_generation.landing).status == &"stale_boarding_seat_generation",
+		"seat generation cannot regress after release")
+	var stale_boarding_revision := released.duplicate(true)
+	(stale_boarding_revision.boarding[0] as Dictionary).boarding_revision = 4
+	(stale_boarding_revision.boarding[0] as Dictionary).boarding_server_tick = 43
+	_check(authority.publish(99, 43, 15, stale_boarding_revision.movement, stale_boarding_revision.ownership, stale_boarding_revision.projectiles, stale_boarding_revision.boarding, stale_boarding_revision.respawn, stale_boarding_revision.landing).status == &"stale_boarding_revision",
+		"boarding record revision rejects reorder")
+	var stale_boarding_tick := released.duplicate(true)
+	(stale_boarding_tick.boarding[0] as Dictionary).boarding_revision = 6
+	(stale_boarding_tick.boarding[0] as Dictionary).boarding_server_tick = 41
+	_check(authority.publish(99, 43, 15, stale_boarding_tick.movement, stale_boarding_tick.ownership, stale_boarding_tick.projectiles, stale_boarding_tick.boarding, stale_boarding_tick.respawn, stale_boarding_tick.landing).status == &"stale_boarding_server_tick",
+		"boarding server tick rejects reordered transition records")
+
+
 func _test_replica_server_boundary() -> void:
 	var server := Authority.new(99)
 	var sections := _sections()
@@ -281,7 +350,11 @@ func _sections() -> Dictionary:
 			"ship_id": &"jovian_a",
 			"ship_generation": 4,
 			"owner_peer_id": 7,
+			"owner_peer_generation": 4,
 			"ownership_generation": 1,
+			"ownership_revision": 3,
+			"ownership_server_tick": 40,
+			"state": &"owned",
 			"engine_power": 0.8,
 			"weapon_power": 1.0,
 			"targeting_power": 0.6,
@@ -300,9 +373,14 @@ func _sections() -> Dictionary:
 			"seat_id": &"jovian_pilot",
 			"seat_generation": 3,
 			"occupant_peer_id": 7,
+			"occupant_peer_generation": 4,
 			"avatar_id": &"avatar_a",
 			"vessel_id": &"jovian_a",
+			"ship_generation": 4,
 			"role": &"pilot",
+			"boarding_revision": 3,
+			"boarding_server_tick": 40,
+			"state": &"boarded",
 		}],
 		"respawn": [{
 			"entity_id": &"jovian_a",

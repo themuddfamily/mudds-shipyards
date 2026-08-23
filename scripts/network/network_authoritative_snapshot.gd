@@ -10,8 +10,8 @@ extends RefCounted
 ## spawn projectiles, or call RPC; server adapters publish here and replicas
 ## consume the copied result.
 
-const SCHEMA_VERSION := 3
-const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v3"
+const SCHEMA_VERSION := 4
+const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v4"
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ENTRIES_PER_SECTION := 256
 const LANDING_STATES := [&"flying", &"landing_pending", &"landed"]
@@ -19,6 +19,8 @@ const DAMAGE_RESPAWN_STATES := [
 	&"active", &"healthy", &"damaged", &"destroyed", &"recovering",
 	&"recovery_ready", &"ready", &"respawn_pending", &"respawning",
 ]
+const OWNERSHIP_STATES := [&"owned", &"released", &"transferred", &"disconnected"]
+const BOARDING_STATES := [&"boarded", &"released", &"transferred", &"disconnected"]
 const SECTION_NAMES := [
 	&"movement", &"ownership", &"projectiles", &"boarding", &"respawn", &"landing",
 ]
@@ -32,14 +34,18 @@ const SECTION_ID_FIELDS := {
 }
 const SECTION_REQUIRED_FIELDS := {
 	&"movement": [&"entity_id", &"entity_generation", &"owner_peer_id", &"mode"],
-	&"ownership": [&"ship_id", &"ship_generation", &"owner_peer_id", &"ownership_generation"],
+	&"ownership": [
+		&"ship_id", &"ship_generation", &"owner_peer_id", &"owner_peer_generation",
+		&"ownership_generation", &"ownership_revision", &"ownership_server_tick", &"state",
+	],
 	&"projectiles": [
 		&"projectile_id", &"projectile_generation", &"source_entity_id",
 		&"source_generation", &"state",
 	],
 	&"boarding": [
-		&"seat_id", &"seat_generation", &"occupant_peer_id", &"avatar_id",
-		&"vessel_id", &"role",
+		&"seat_id", &"seat_generation", &"occupant_peer_id", &"occupant_peer_generation",
+		&"avatar_id", &"vessel_id", &"ship_generation", &"role",
+		&"boarding_revision", &"boarding_server_tick", &"state",
 	],
 	&"respawn": [
 		&"entity_id", &"entity_generation", &"component_generation",
@@ -61,6 +67,8 @@ var _revision := 0
 var _sections: Dictionary = {}
 var _landing_high_water: Dictionary = {}
 var _damage_high_water: Dictionary = {}
+var _ownership_high_water: Dictionary = {}
+var _boarding_high_water: Dictionary = {}
 var _last_result: Dictionary = {}
 
 
@@ -111,12 +119,20 @@ func publish(
 	var damage_status := _validate_damage_progress(respawn)
 	if not bool(damage_status.get("valid", false)):
 		return _remember(_result(false, damage_status.get("status", &"stale_damage_snapshot")))
+	var ownership_status := _validate_ownership_progress(ownership)
+	if not bool(ownership_status.get("valid", false)):
+		return _remember(_result(false, ownership_status.get("status", &"stale_ownership_snapshot")))
+	var boarding_status := _validate_boarding_progress(boarding)
+	if not bool(boarding_status.get("valid", false)):
+		return _remember(_result(false, boarding_status.get("status", &"stale_boarding_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision += 1
 	_sections = _copy_sections(incoming)
 	_remember_landing_progress(landing)
 	_remember_damage_progress(respawn)
+	_remember_ownership_progress(ownership)
+	_remember_boarding_progress(boarding)
 	return _remember(_result(true, &"published", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -158,12 +174,22 @@ func apply_replica(source_peer_id: int, packet: Dictionary) -> Dictionary:
 	var damage_status := _validate_damage_progress(respawn)
 	if not bool(damage_status.get("valid", false)):
 		return _remember(_result(false, damage_status.get("status", &"stale_damage_snapshot")))
+	var ownership := (incoming_variant as Dictionary).get(&"ownership", []) as Array
+	var ownership_status := _validate_ownership_progress(ownership)
+	if not bool(ownership_status.get("valid", false)):
+		return _remember(_result(false, ownership_status.get("status", &"stale_ownership_snapshot")))
+	var boarding := (incoming_variant as Dictionary).get(&"boarding", []) as Array
+	var boarding_status := _validate_boarding_progress(boarding)
+	if not bool(boarding_status.get("valid", false)):
+		return _remember(_result(false, boarding_status.get("status", &"stale_boarding_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision = revision
 	_sections = _copy_sections(incoming_variant as Dictionary)
 	_remember_landing_progress(landing)
 	_remember_damage_progress(respawn)
+	_remember_ownership_progress(ownership)
+	_remember_boarding_progress(boarding)
 	return _remember(_result(true, &"replica_applied", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -195,6 +221,7 @@ func audit() -> Dictionary:
 		"server_owns_ship_ownership_snapshot": true,
 		"server_owns_projectile_snapshot": true,
 		"server_owns_boarding_snapshot": true,
+		"boarding_records_are_presentation_only": true,
 		"server_owns_respawn_snapshot": true,
 		"damage_respawn_records_are_presentation_only": true,
 		"server_owns_landing_snapshot": true,
@@ -248,6 +275,10 @@ func _validate_sections(raw_sections: Dictionary) -> Dictionary:
 				return {"valid": false, "status": &"invalid_landing_record"}
 			if section_name == &"respawn" and not _valid_damage_entry(entry):
 				return {"valid": false, "status": &"invalid_damage_record"}
+			if section_name == &"ownership" and not _valid_ownership_entry(entry):
+				return {"valid": false, "status": &"invalid_ownership_record"}
+			if section_name == &"boarding" and not _valid_boarding_entry(entry):
+				return {"valid": false, "status": &"invalid_boarding_record"}
 	return {"valid": true}
 
 
@@ -288,6 +319,37 @@ func _valid_damage_entry(entry: Dictionary) -> bool:
 				or float(health_variant) > float(maximum_variant):
 			return false
 	return true
+
+
+func _valid_ownership_entry(entry: Dictionary) -> bool:
+	var owner_peer_id := int(entry.get("owner_peer_id", -1))
+	var owner_peer_generation := int(entry.get("owner_peer_generation", -1))
+	var state := StringName(entry.get("state", &""))
+	if owner_peer_id < 0 or not state in OWNERSHIP_STATES \
+			or not _valid_positive_integer(entry.get("ownership_revision")) \
+			or not _valid_nonnegative_integer(entry.get("ownership_server_tick")):
+		return false
+	if owner_peer_id == 0:
+		return owner_peer_generation == 0 and state in [&"released", &"disconnected"]
+	return owner_peer_generation > 0 and state in [&"owned", &"transferred"]
+
+
+func _valid_boarding_entry(entry: Dictionary) -> bool:
+	var occupant_peer_id := int(entry.get("occupant_peer_id", -1))
+	var occupant_peer_generation := int(entry.get("occupant_peer_generation", -1))
+	var avatar_id := StringName(entry.get("avatar_id", &""))
+	var state := StringName(entry.get("state", &""))
+	if occupant_peer_id < 0 or not _valid_id(StringName(entry.get("vessel_id", &""))) \
+			or not _valid_id(StringName(entry.get("role", &""))) \
+			or not state in BOARDING_STATES \
+			or not _valid_positive_integer(entry.get("boarding_revision")) \
+			or not _valid_nonnegative_integer(entry.get("boarding_server_tick")):
+		return false
+	if occupant_peer_id == 0:
+		return occupant_peer_generation == 0 and avatar_id.is_empty() \
+			and state in [&"released", &"disconnected"]
+	return occupant_peer_generation > 0 and _valid_id(avatar_id) \
+		and state in [&"boarded", &"transferred"]
 
 
 ## A newer canonical envelope cannot regress one landing entity's own
@@ -372,6 +434,77 @@ func _remember_damage_progress(records: Array) -> void:
 		}
 
 
+func _validate_ownership_progress(records: Array) -> Dictionary:
+	for record_variant in records:
+		var record := record_variant as Dictionary
+		var ship_id := StringName(record.get("ship_id", &""))
+		var prior := _ownership_high_water.get(ship_id, {}) as Dictionary
+		if prior.is_empty():
+			continue
+		if int(record.get("ship_generation", 0)) < int(prior.get("ship_generation", 0)):
+			return {"valid": false, "status": &"stale_ownership_ship_generation"}
+		if int(record.get("ship_generation", 0)) == int(prior.get("ship_generation", 0)) \
+				and int(record.get("ownership_generation", 0)) < int(prior.get("ownership_generation", 0)):
+			return {"valid": false, "status": &"stale_ownership_generation"}
+		var revision := int(record.get("ownership_revision", 0))
+		var prior_revision := int(prior.get("ownership_revision", 0))
+		if revision < prior_revision:
+			return {"valid": false, "status": &"stale_ownership_revision"}
+		if int(record.get("ownership_server_tick", 0)) \
+				< int(prior.get("ownership_server_tick", 0)):
+			return {"valid": false, "status": &"stale_ownership_server_tick"}
+		if revision == prior_revision and record != (prior.get("record", {}) as Dictionary):
+			return {"valid": false, "status": &"stale_ownership_revision"}
+	return {"valid": true}
+
+
+func _remember_ownership_progress(records: Array) -> void:
+	for record_variant in records:
+		var record := (record_variant as Dictionary).duplicate(true)
+		_ownership_high_water[StringName(record.get("ship_id", &""))] = {
+			"ship_generation": int(record.get("ship_generation", 0)),
+			"ownership_generation": int(record.get("ownership_generation", 0)),
+			"ownership_revision": int(record.get("ownership_revision", 0)),
+			"ownership_server_tick": int(record.get("ownership_server_tick", 0)),
+			"record": record,
+		}
+
+
+func _validate_boarding_progress(records: Array) -> Dictionary:
+	for record_variant in records:
+		var record := record_variant as Dictionary
+		var seat_id := StringName(record.get("seat_id", &""))
+		var prior := _boarding_high_water.get(seat_id, {}) as Dictionary
+		if prior.is_empty():
+			continue
+		if int(record.get("seat_generation", 0)) < int(prior.get("seat_generation", 0)):
+			return {"valid": false, "status": &"stale_boarding_seat_generation"}
+		if int(record.get("ship_generation", 0)) < int(prior.get("ship_generation", 0)):
+			return {"valid": false, "status": &"stale_boarding_ship_generation"}
+		var revision := int(record.get("boarding_revision", 0))
+		var prior_revision := int(prior.get("boarding_revision", 0))
+		if revision < prior_revision:
+			return {"valid": false, "status": &"stale_boarding_revision"}
+		if int(record.get("boarding_server_tick", 0)) \
+				< int(prior.get("boarding_server_tick", 0)):
+			return {"valid": false, "status": &"stale_boarding_server_tick"}
+		if revision == prior_revision and record != (prior.get("record", {}) as Dictionary):
+			return {"valid": false, "status": &"stale_boarding_revision"}
+	return {"valid": true}
+
+
+func _remember_boarding_progress(records: Array) -> void:
+	for record_variant in records:
+		var record := (record_variant as Dictionary).duplicate(true)
+		_boarding_high_water[StringName(record.get("seat_id", &""))] = {
+			"seat_generation": int(record.get("seat_generation", 0)),
+			"ship_generation": int(record.get("ship_generation", 0)),
+			"boarding_revision": int(record.get("boarding_revision", 0)),
+			"boarding_server_tick": int(record.get("boarding_server_tick", 0)),
+			"record": record,
+		}
+
+
 func _valid_component_modifiers(entry: Dictionary) -> bool:
 	for field_variant in COMPONENT_MODIFIER_FIELDS:
 		var field: StringName = field_variant
@@ -391,7 +524,10 @@ func _valid_component_modifiers(entry: Dictionary) -> bool:
 func _valid_entry_generations(entry: Dictionary, section_name: StringName) -> bool:
 	for key in entry.keys():
 		var field := StringName(key)
-		if field in [&"ownership_generation", &"recovery_generation"]:
+		if field in [
+			&"ownership_generation", &"recovery_generation",
+			&"owner_peer_generation", &"occupant_peer_generation",
+		]:
 			if not _valid_nonnegative_integer(entry.get(key)):
 				return false
 		elif field.ends_with("_generation") or field == &"component_generation":
@@ -401,8 +537,6 @@ func _valid_entry_generations(entry: Dictionary, section_name: StringName) -> bo
 		if entry.has(key) and not _valid_nonnegative_integer(entry.get(key)):
 			return false
 	if section_name == &"movement" and int(entry.get("owner_peer_id", 0)) <= 0:
-		return false
-	if section_name == &"boarding" and int(entry.get("occupant_peer_id", 0)) <= 0:
 		return false
 	return true
 

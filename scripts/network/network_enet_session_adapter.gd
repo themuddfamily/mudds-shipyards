@@ -164,6 +164,12 @@ var _damage_authoritative_records: Dictionary = {}
 var _boarding_jitter
 var _boarding_replica_samples: Dictionary = {}
 var _boarding_snapshot_revision := 0
+var _canonical_ownership_revision := 0
+var _canonical_boarding_revision := 0
+var _ownership_authoritative_records: Dictionary = {}
+var _boarding_authoritative_records: Dictionary = {}
+var _ownership_transition_states: Dictionary = {}
+var _boarding_transition_states: Dictionary = {}
 var _migration_jitter
 var _migration_replica_generation := 0
 var _migration_replica_samples: Dictionary = {}
@@ -391,6 +397,12 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_landing_authoritative_records.clear()
 	_damage_snapshot_revision = 0
 	_damage_authoritative_records.clear()
+	_canonical_ownership_revision = 0
+	_canonical_boarding_revision = 0
+	_ownership_authoritative_records.clear()
+	_boarding_authoritative_records.clear()
+	_ownership_transition_states.clear()
+	_boarding_transition_states.clear()
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -1488,6 +1500,8 @@ func register_owned_ship(
 	var result: Dictionary = _ship_ownership.register_ship(
 		AUTHORITY_PEER_ID, ship_id, ship_generation, owner_peer_id
 	)
+	if bool(result.get("accepted", false)):
+		_ownership_transition_states[ship_id] = &"owned" if owner_peer_id > 0 else &"released"
 	ship_ownership_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -1505,6 +1519,8 @@ func claim_ship_for_peer(
 	var result: Dictionary = _ship_ownership.claim(
 		AUTHORITY_PEER_ID, claimant_peer_id, ship_id, ship_generation, request_sequence
 	)
+	if bool(result.get("accepted", false)):
+		_ownership_transition_states[ship_id] = &"owned"
 	ship_ownership_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -1523,6 +1539,8 @@ func transfer_owned_ship(
 	var result: Dictionary = _ship_ownership.transfer(
 		AUTHORITY_PEER_ID, from_peer_id, to_peer_id, ship_id, ship_generation, request_sequence
 	)
+	if bool(result.get("accepted", false)):
+		_ownership_transition_states[ship_id] = &"transferred"
 	ship_ownership_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -1540,6 +1558,8 @@ func release_owned_ship(
 	var result: Dictionary = _ship_ownership.release(
 		AUTHORITY_PEER_ID, owner_peer_id, ship_id, ship_generation, request_sequence
 	)
+	if bool(result.get("accepted", false)):
+		_ownership_transition_states[ship_id] = &"released"
 	ship_ownership_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -1562,6 +1582,8 @@ func register_crew_seat(
 	var result: Dictionary = _seat_authority.register_seat(
 		seat_id, vessel_id, role, frame_id, seat_generation
 	)
+	if bool(result.get("accepted", false)):
+		_boarding_transition_states[seat_id] = &"released"
 	seat_occupancy_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -1595,6 +1617,7 @@ func claim_crew_seat(
 		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, requested_role, request_sequence
 	)
 	if bool(result.get("accepted", false)):
+		_boarding_transition_states[seat_id] = &"boarded"
 		var assignment: Dictionary = result.get("assignment", {}) as Dictionary
 		var relationship := _relationship_for_seat_assignment(assignment)
 		_seat_moving_relationships[_seat_relationship_key(occupant_peer_id, avatar_id)] = relationship.get_snapshot()
@@ -1618,6 +1641,7 @@ func release_crew_seat(
 		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
 	if bool(result.get("accepted", false)):
+		_boarding_transition_states[seat_id] = &"released"
 		_seat_moving_relationships.erase(_seat_relationship_key(occupant_peer_id, avatar_id))
 		_crew_roles.release_avatar(AUTHORITY_PEER_ID, occupant_peer_id,
 			int(_peer_generations.get(occupant_peer_id, 0)), avatar_id)
@@ -1643,6 +1667,7 @@ func transfer_crew_seat(
 		AUTHORITY_PEER_ID, from_peer_id, to_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
 	if bool(result.get("accepted", false)):
+		_boarding_transition_states[seat_id] = &"transferred"
 		var relationship_key := _seat_relationship_key(from_peer_id, avatar_id)
 		var relationship: Dictionary = _seat_moving_relationships.get(relationship_key, {}) as Dictionary
 		_seat_moving_relationships.erase(relationship_key)
@@ -1950,6 +1975,12 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_damage_jitter.reset(migration_generation)
 	_boarding_replica_samples.clear()
 	_boarding_snapshot_revision = 0
+	_canonical_ownership_revision = 0
+	_canonical_boarding_revision = 0
+	_ownership_authoritative_records.clear()
+	_boarding_authoritative_records.clear()
+	_ownership_transition_states.clear()
+	_boarding_transition_states.clear()
 	_boarding_jitter.reset(migration_generation)
 	_migration_replica_generation = migration_generation
 	_migration_replica_samples.clear()
@@ -2927,12 +2958,27 @@ func publish_snapshot(
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
+	# Canonical record metadata commits atomically with the envelope. A rejected
+	# stale/invalid publication must not poison a later retry with an unpublished
+	# revision or server tick.
+	var ownership_cache_before := _ownership_authoritative_records.duplicate(true)
+	var boarding_cache_before := _boarding_authoritative_records.duplicate(true)
+	var ownership_revision_before := _canonical_ownership_revision
+	var boarding_revision_before := _canonical_boarding_revision
+	var ownership_records := _canonical_ownership_records(server_tick)
+	var boarding_records := _canonical_boarding_records(server_tick)
 	var published: Dictionary = _lifecycle.publish_authority_snapshot(
 		AUTHORITY_PEER_ID, server_tick, movement, projectiles,
 		_canonical_damage_respawn_records(respawn),
-		_canonical_landing_records()
+		_canonical_landing_records(),
+		ownership_records,
+		boarding_records
 	)
 	if not bool(published.get("accepted", false)):
+		_ownership_authoritative_records = ownership_cache_before
+		_boarding_authoritative_records = boarding_cache_before
+		_canonical_ownership_revision = ownership_revision_before
+		_canonical_boarding_revision = boarding_revision_before
 		return _remember(published)
 	var packet := (published.get("snapshot", {}) as Dictionary).duplicate(true)
 	_latest_snapshot_revision = int(packet.get("revision", 0))
@@ -2974,6 +3020,94 @@ func _canonical_damage_respawn_records(fallback_records: Array) -> Array:
 		return str(left.get("entity_id", "")) < str(right.get("entity_id", ""))
 	)
 	return records
+
+
+func _canonical_ownership_records(server_tick: int) -> Array:
+	var current_ids: Dictionary = {}
+	for ship_variant in (_ship_ownership.get_snapshot().get("ships", []) as Array):
+		var source := (ship_variant as Dictionary).duplicate(true)
+		var ship_id := StringName(source.get("ship_id", &""))
+		var owner_peer_id := int(source.get("owner_peer_id", 0))
+		current_ids[ship_id] = true
+		source["owner_peer_generation"] = int(_peer_generations.get(owner_peer_id, 0)) \
+			if owner_peer_id > 0 else 0
+		source["state"] = _ownership_transition_states.get(
+			ship_id, &"owned" if owner_peer_id > 0 else &"released"
+		)
+		var cached := _ownership_authoritative_records.get(ship_id, {}) as Dictionary
+		if cached.is_empty() or not _same_without_canonical_meta(
+			source, cached, [&"ownership_revision", &"ownership_server_tick"]
+		):
+			_canonical_ownership_revision += 1
+			source["ownership_revision"] = _canonical_ownership_revision
+			source["ownership_server_tick"] = maxi(0, server_tick)
+			_ownership_authoritative_records[ship_id] = source.duplicate(true)
+	for ship_id_variant in _ownership_authoritative_records.keys():
+		if not current_ids.has(ship_id_variant):
+			_ownership_authoritative_records.erase(ship_id_variant)
+	var records: Array = _ownership_authoritative_records.values()
+	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("ship_id", "")) < str(right.get("ship_id", ""))
+	)
+	return records.duplicate(true)
+
+
+func _canonical_boarding_records(server_tick: int) -> Array:
+	var seat_snapshot: Dictionary = _seat_authority.get_snapshot()
+	var assignments_by_seat: Dictionary = {}
+	for assignment_variant in seat_snapshot.get("assignments", []) as Array:
+		var assignment := assignment_variant as Dictionary
+		assignments_by_seat[StringName(assignment.get("seat_id", &""))] = assignment
+	var current_ids: Dictionary = {}
+	for seat_variant in seat_snapshot.get("seats", []) as Array:
+		var seat := seat_variant as Dictionary
+		var seat_id := StringName(seat.get("seat_id", &""))
+		var vessel_id := StringName(seat.get("vessel_id", &""))
+		var assignment := assignments_by_seat.get(seat_id, {}) as Dictionary
+		var occupant_peer_id := int(assignment.get("occupant_peer_id", 0))
+		var ship: Dictionary = _ship_ownership.get_ship_snapshot(vessel_id)
+		var source := {
+			"seat_id": seat_id,
+			"seat_generation": int(seat.get("seat_generation", 0)),
+			"occupant_peer_id": occupant_peer_id,
+			"occupant_peer_generation": int(_peer_generations.get(occupant_peer_id, 0)) \
+				if occupant_peer_id > 0 else 0,
+			"avatar_id": StringName(assignment.get("avatar_id", &"")),
+			"vessel_id": vessel_id,
+			"ship_generation": int(ship.get("ship_generation", 0)),
+			"role": StringName(seat.get("role", &"")),
+			"state": _boarding_transition_states.get(
+				seat_id, &"boarded" if occupant_peer_id > 0 else &"released"
+			),
+		}
+		current_ids[seat_id] = true
+		var cached := _boarding_authoritative_records.get(seat_id, {}) as Dictionary
+		if cached.is_empty() or not _same_without_canonical_meta(
+			source, cached, [&"boarding_revision", &"boarding_server_tick"]
+		):
+			_canonical_boarding_revision += 1
+			source["boarding_revision"] = _canonical_boarding_revision
+			source["boarding_server_tick"] = maxi(0, server_tick)
+			_boarding_authoritative_records[seat_id] = source.duplicate(true)
+	for seat_id_variant in _boarding_authoritative_records.keys():
+		if not current_ids.has(seat_id_variant):
+			_boarding_authoritative_records.erase(seat_id_variant)
+	var records: Array = _boarding_authoritative_records.values()
+	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
+	)
+	return records.duplicate(true)
+
+
+func _same_without_canonical_meta(
+	left: Dictionary, right: Dictionary, metadata_fields: Array
+) -> bool:
+	var clean_left := left.duplicate(true)
+	var clean_right := right.duplicate(true)
+	for field_variant in metadata_fields:
+		clean_left.erase(field_variant)
+		clean_right.erase(field_variant)
+	return clean_left == clean_right
 
 
 func _valid_damage_component_summary(summary: Dictionary, health: float) -> bool:
@@ -3612,9 +3746,24 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 	_security_strikes.erase(peer_id)
 	_secure_window_counts.erase(peer_id)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
+	var disconnected_ship_ids: Array = []
+	for ship_variant in (_ship_ownership.get_snapshot().get("ships", []) as Array):
+		var ship := ship_variant as Dictionary
+		if int(ship.get("owner_peer_id", 0)) == peer_id:
+			disconnected_ship_ids.append(StringName(ship.get("ship_id", &"")))
+	var disconnected_seat_ids: Array = []
+	for assignment_variant in (_seat_authority.get_snapshot().get("assignments", []) as Array):
+		var assignment := assignment_variant as Dictionary
+		if int(assignment.get("occupant_peer_id", 0)) == peer_id:
+			disconnected_seat_ids.append(StringName(assignment.get("seat_id", &"")))
 	_crew_roles.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_crew_commands.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
+	_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
+	for ship_id_variant in disconnected_ship_ids:
+		_ownership_transition_states[StringName(ship_id_variant)] = &"disconnected"
+	for seat_id_variant in disconnected_seat_ids:
+		_boarding_transition_states[StringName(seat_id_variant)] = &"disconnected"
 	for relationship_key_variant in _seat_moving_relationships.keys():
 		var relationship_key := String(relationship_key_variant)
 		if relationship_key.begins_with("%d:" % peer_id):

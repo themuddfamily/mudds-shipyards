@@ -21,6 +21,12 @@ var _lifecycle
 var _snapshot
 var _last_snapshot_event_sequence := -1
 var _snapshot_needs_publish := true
+var _ownership_record_revision := 0
+var _boarding_record_revision := 0
+var _ownership_record_cache: Dictionary = {}
+var _boarding_record_cache: Dictionary = {}
+var _ownership_transition_states: Dictionary = {}
+var _boarding_transition_states: Dictionary = {}
 var _last_result: Dictionary = {}
 
 
@@ -135,7 +141,9 @@ func publish_authority_snapshot(
 	movement: Array,
 	projectiles: Array,
 	respawn: Array,
-	landing: Array = []
+	landing: Array = [],
+	ownership_override: Variant = null,
+	boarding_override: Variant = null
 ) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))
@@ -145,8 +153,14 @@ func publish_authority_snapshot(
 		lifecycle_event_sequence,
 		_last_snapshot_event_sequence + 1
 	)
-	var ownership := _ownership_records(lifecycle_snapshot)
-	var boarding := _boarding_records(lifecycle_snapshot)
+	var ownership_cache_before := _ownership_record_cache.duplicate(true)
+	var boarding_cache_before := _boarding_record_cache.duplicate(true)
+	var ownership_revision_before := _ownership_record_revision
+	var boarding_revision_before := _boarding_record_revision
+	var ownership: Array = ownership_override as Array if ownership_override is Array \
+		else _ownership_records(lifecycle_snapshot, server_tick)
+	var boarding: Array = boarding_override as Array if boarding_override is Array \
+		else _boarding_records(lifecycle_snapshot, server_tick)
 	var published: Dictionary = _snapshot.publish(
 		_authority_peer_id,
 		server_tick,
@@ -163,6 +177,11 @@ func publish_authority_snapshot(
 		_snapshot_needs_publish = false
 		published["lifecycle_event_sequence"] = lifecycle_event_sequence
 		published["session_generation"] = _session_generation(lifecycle_snapshot)
+	else:
+		_ownership_record_cache = ownership_cache_before
+		_boarding_record_cache = boarding_cache_before
+		_ownership_record_revision = ownership_revision_before
+		_boarding_record_revision = boarding_revision_before
 	return _remember(published)
 
 
@@ -179,10 +198,25 @@ func disconnect_peer(
 	peer_id: int,
 	peer_generation: int
 ) -> Dictionary:
+	var before: Dictionary = _lifecycle.get_snapshot()
+	var disconnected_ship_ids: Array = []
+	for ship_variant in ((before.get("ships", {}) as Dictionary).get("ships", []) as Array):
+		var ship := ship_variant as Dictionary
+		if int(ship.get("owner_peer_id", 0)) == peer_id:
+			disconnected_ship_ids.append(StringName(ship.get("ship_id", &"")))
+	var disconnected_seat_ids: Array = []
+	for assignment_variant in ((before.get("seats", {}) as Dictionary).get("assignments", []) as Array):
+		var assignment := assignment_variant as Dictionary
+		if int(assignment.get("occupant_peer_id", 0)) == peer_id:
+			disconnected_seat_ids.append(StringName(assignment.get("seat_id", &"")))
 	var disconnected: Dictionary = _lifecycle.disconnect_peer(
 		source_peer_id, peer_id, peer_generation
 	)
 	if bool(disconnected.get("accepted", false)):
+		for ship_id_variant in disconnected_ship_ids:
+			_ownership_transition_states[StringName(ship_id_variant)] = &"disconnected"
+		for seat_id_variant in disconnected_seat_ids:
+			_boarding_transition_states[StringName(seat_id_variant)] = &"disconnected"
 		_snapshot_needs_publish = true
 		disconnected["snapshot_requires_publish"] = true
 	return _remember(disconnected)
@@ -227,14 +261,93 @@ func get_last_result() -> Dictionary:
 	return _last_result.duplicate(true)
 
 
-func _ownership_records(lifecycle_snapshot: Dictionary) -> Array:
+func _ownership_records(lifecycle_snapshot: Dictionary, server_tick: int) -> Array:
 	var ships_state: Dictionary = lifecycle_snapshot.get("ships", {}) as Dictionary
-	return (ships_state.get("ships", []) as Array).duplicate(true)
+	var records: Array = []
+	for ship_variant in ships_state.get("ships", []) as Array:
+		var ship := (ship_variant as Dictionary).duplicate(true)
+		var ship_id := StringName(ship.get("ship_id", &""))
+		var owner_peer_id := int(ship.get("owner_peer_id", 0))
+		ship["owner_peer_generation"] = _peer_generation(lifecycle_snapshot, owner_peer_id)
+		ship["state"] = _ownership_transition_states.get(
+			ship_id, &"owned" if owner_peer_id > 0 else &"released"
+		)
+		var cached := _ownership_record_cache.get(ship_id, {}) as Dictionary
+		if cached.is_empty() or not _same_without_snapshot_meta(
+			ship, cached, [&"ownership_revision", &"ownership_server_tick"]
+		):
+			_ownership_record_revision += 1
+			ship["ownership_revision"] = _ownership_record_revision
+			ship["ownership_server_tick"] = server_tick
+			_ownership_record_cache[ship_id] = ship.duplicate(true)
+		else:
+			ship = cached.duplicate(true)
+		records.append(ship)
+	return records
 
 
-func _boarding_records(lifecycle_snapshot: Dictionary) -> Array:
+func _boarding_records(lifecycle_snapshot: Dictionary, server_tick: int) -> Array:
 	var seats_state: Dictionary = lifecycle_snapshot.get("seats", {}) as Dictionary
-	return (seats_state.get("assignments", []) as Array).duplicate(true)
+	var assignments_by_seat: Dictionary = {}
+	for assignment_variant in seats_state.get("assignments", []) as Array:
+		var assignment := assignment_variant as Dictionary
+		assignments_by_seat[StringName(assignment.get("seat_id", &""))] = assignment
+	var ship_generations: Dictionary = {}
+	for ship_variant in ((lifecycle_snapshot.get("ships", {}) as Dictionary).get("ships", []) as Array):
+		var ship := ship_variant as Dictionary
+		ship_generations[StringName(ship.get("ship_id", &""))] = int(ship.get("ship_generation", 0))
+	var records: Array = []
+	for seat_variant in seats_state.get("seats", []) as Array:
+		var seat := seat_variant as Dictionary
+		var seat_id := StringName(seat.get("seat_id", &""))
+		var assignment := assignments_by_seat.get(seat_id, {}) as Dictionary
+		var occupant_peer_id := int(assignment.get("occupant_peer_id", 0))
+		var record := {
+			"seat_id": seat_id,
+			"seat_generation": int(seat.get("seat_generation", 0)),
+			"occupant_peer_id": occupant_peer_id,
+			"occupant_peer_generation": _peer_generation(lifecycle_snapshot, occupant_peer_id),
+			"avatar_id": StringName(assignment.get("avatar_id", &"")),
+			"vessel_id": StringName(seat.get("vessel_id", &"")),
+			"ship_generation": int(ship_generations.get(seat.get("vessel_id", &""), 0)),
+			"role": StringName(seat.get("role", &"")),
+			"state": _boarding_transition_states.get(
+				seat_id, &"boarded" if occupant_peer_id > 0 else &"released"
+			),
+		}
+		var cached := _boarding_record_cache.get(seat_id, {}) as Dictionary
+		if cached.is_empty() or not _same_without_snapshot_meta(
+			record, cached, [&"boarding_revision", &"boarding_server_tick"]
+		):
+			_boarding_record_revision += 1
+			record["boarding_revision"] = _boarding_record_revision
+			record["boarding_server_tick"] = server_tick
+			_boarding_record_cache[seat_id] = record.duplicate(true)
+		else:
+			record = cached.duplicate(true)
+		records.append(record)
+	return records
+
+
+func _peer_generation(lifecycle_snapshot: Dictionary, peer_id: int) -> int:
+	if peer_id <= 0:
+		return 0
+	for peer_variant in lifecycle_snapshot.get("peers", []) as Array:
+		var peer := peer_variant as Dictionary
+		if int(peer.get("peer_id", 0)) == peer_id:
+			return int(peer.get("peer_generation", 0))
+	return 0
+
+
+func _same_without_snapshot_meta(
+	left: Dictionary, right: Dictionary, metadata_fields: Array
+) -> bool:
+	var clean_left := left.duplicate(true)
+	var clean_right := right.duplicate(true)
+	for field_variant in metadata_fields:
+		clean_left.erase(field_variant)
+		clean_right.erase(field_variant)
+	return clean_left == clean_right
 
 
 func _session_generation(lifecycle_snapshot: Dictionary) -> int:
