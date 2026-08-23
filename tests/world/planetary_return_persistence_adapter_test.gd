@@ -104,17 +104,18 @@ func _run() -> void:
 			AdapterScript.new().restore(authority_red).reason == &"return_persistence_reward_authority_present",
 			"nested %s is rejected even with a matching digest" % authority_key,
 		)
-	var authority_map_red := saved.duplicate(true)
-	authority_map_red.completed_return.returned_receipt.contract_receipt["nested"] = {
-		"authority": {"occupancy": true},
-	}
-	authority_map_red.receipt_sha256 = AdapterScript.new().call(
-		"_digest", authority_map_red.completed_return
-	)
-	_check(
-		AdapterScript.new().restore(authority_map_red).reason == &"return_persistence_reward_authority_present",
-		"nested authority maps reject live occupancy authority",
-	)
+	for authority_key in ["occupancy", "release", "game_flow"]:
+		var authority_map_red := saved.duplicate(true)
+		authority_map_red.completed_return.returned_receipt.contract_receipt["nested"] = {
+			"authority": {authority_key: true},
+		}
+		authority_map_red.receipt_sha256 = AdapterScript.new().call(
+			"_digest", authority_map_red.completed_return
+		)
+		_check(
+			AdapterScript.new().restore(authority_map_red).reason == &"return_persistence_reward_authority_present",
+			"nested authority maps reject live %s authority" % authority_key,
+		)
 	var direct_authority_red := saved.duplicate(true)
 	direct_authority_red.completed_return.returned_receipt.contract_receipt.ship_movement_authority = true
 	direct_authority_red.receipt_sha256 = AdapterScript.new().call(
@@ -181,6 +182,24 @@ func _run() -> void:
 		not bool(AdapterScript.new().capture(FakeRuntime.new(), FakeRuntime.new(), incomplete_receipt).get("accepted", false)),
 		"capture requires complete nested contract receipt identity evidence",
 	)
+	var legacy_runtime := FakeRuntime.new()
+	var legacy_saved := AdapterScript.new().capture(
+		legacy_runtime, legacy_runtime, _legacy_receipt(legacy_runtime)
+	)
+	_check(
+		bool(legacy_saved.get("accepted", false))
+		and bool(AdapterScript.new().restore(legacy_saved).get("accepted", false)),
+		"legacy completed-contract snapshots retain exact terminal correlation",
+	)
+	var legacy_generation_red := legacy_saved.duplicate(true)
+	legacy_generation_red.completed_return.returned_receipt.contract_receipt.snapshot.run_generation = 8
+	legacy_generation_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", legacy_generation_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(legacy_generation_red).reason == &"return_persistence_receipt_corrupt",
+		"legacy contract snapshots must exactly match the completed contract evidence",
+	)
 
 	if not _failures.is_empty():
 		for failure in _failures:
@@ -219,6 +238,16 @@ func _receipt() -> Dictionary:
 			},
 		},
 	}
+
+
+func _legacy_receipt(runtime: FakeRuntime) -> Dictionary:
+	var receipt := _receipt()
+	receipt.contract_receipt = {
+		"accepted": true,
+		"reason": &"returned_to_station",
+		"snapshot": runtime.get_snapshot(),
+	}
+	return receipt
 
 
 func _check(condition: bool, message: String) -> void:

@@ -22,10 +22,11 @@ const DIRECT_AUTHORITY_KEYS := [
 	"movement_authority", "ship_movement_authority", "teleport_authority",
 	"reparent_authority", "berth_authority", "reservation_authority",
 	"occupancy_authority", "lease_authority", "attachment_authority",
+	"release_authority", "game_flow_authority",
 ]
 const AUTHORITY_MAP_KEYS := [
 	"reward", "movement", "ship_movement", "teleport", "reparent", "berth",
-	"reservation", "occupancy", "lease", "attachment",
+	"reservation", "occupancy", "lease", "attachment", "release", "game_flow",
 ]
 const CONTRACT_RECEIPT_REASONS := [
 	"returned_to_station", "physical_station_arrival_completed",
@@ -231,11 +232,7 @@ func _completed_evidence_rejection(
 			or not _positive_integral(berth.get("session_generation")) \
 			or not _positive_integral(berth.get("attachment_generation")) \
 			or not _positive_integral(berth.get("actor_instance_id")) \
-			or not _positive_integral(berth.get("craft_instance_id")) \
-			or not _positive_integral(contract_receipt.get("session_generation")) \
-			or not _positive_integral(contract_receipt.get("attachment_generation")) \
-			or not _positive_integral(contract_receipt.get("actor_instance_id")) \
-			or not _positive_integral(contract_receipt.get("craft_instance_id")):
+			or not _positive_integral(berth.get("craft_instance_id")):
 		return &"return_persistence_receipt_corrupt"
 	if StringName(travel.get("state_id", &"")) != &"completed" \
 			or StringName(travel.get("world_id", &"")) != WORLD_ID \
@@ -258,13 +255,24 @@ func _completed_evidence_rejection(
 			or int(berth.get("actor_instance_id", 0)) != expected_actor_instance_id \
 			or int(berth.get("craft_instance_id", 0)) != expected_craft_instance_id \
 			or not bool(contract_receipt.get("accepted", false)) \
-			or StringName(contract_receipt.get("reason", &"")) not in CONTRACT_RECEIPT_REASONS \
-			or StringName(contract_receipt.get("return_target_id", &"")) != RETURN_TARGET_ID \
-			or int(contract_receipt.get("session_generation", 0)) != expected_run_generation \
-			or int(contract_receipt.get("attachment_generation", 0)) != expected_attachment_generation \
-			or int(contract_receipt.get("actor_instance_id", 0)) != expected_actor_instance_id \
-			or int(contract_receipt.get("craft_instance_id", 0)) != expected_craft_instance_id:
+			or StringName(contract_receipt.get("reason", &"")) not in CONTRACT_RECEIPT_REASONS:
 		return &"return_persistence_receipt_corrupt"
+	var contract_receipt_reason := StringName(contract_receipt.get("reason", &""))
+	if contract_receipt_reason == &"physical_station_arrival_completed":
+		if not _positive_integral(contract_receipt.get("session_generation")) \
+				or not _positive_integral(contract_receipt.get("attachment_generation")) \
+				or not _positive_integral(contract_receipt.get("actor_instance_id")) \
+				or not _positive_integral(contract_receipt.get("craft_instance_id")) \
+				or StringName(contract_receipt.get("return_target_id", &"")) != RETURN_TARGET_ID \
+				or int(contract_receipt.get("session_generation", 0)) != expected_run_generation \
+				or int(contract_receipt.get("attachment_generation", 0)) != expected_attachment_generation \
+				or int(contract_receipt.get("actor_instance_id", 0)) != expected_actor_instance_id \
+				or int(contract_receipt.get("craft_instance_id", 0)) != expected_craft_instance_id:
+			return &"return_persistence_receipt_corrupt"
+	else:
+		if not contract_receipt.get("snapshot") is Dictionary \
+				or _digest(contract_receipt.get("snapshot")) != _digest(contract):
+			return &"return_persistence_receipt_corrupt"
 	return &""
 
 
