@@ -36,6 +36,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 		"color_independent": true,
 		"activity_authority": false,
 		"reward_authority": false,
+		"actions": _persistence_actions(),
+		"persistence_feedback": {"status": &"none", "text": "No progress result received."},
 	}.duplicate(true)
 
 
@@ -52,6 +54,24 @@ func start_intent(activity_id: StringName = _selected_activity) -> Dictionary:
 
 func reset_intent(activity_id: StringName = _selected_activity) -> Dictionary:
 	return _intent_result(&"reset_requested", activity_id)
+
+
+func save_progress_intent() -> Dictionary:
+	return {"accepted": true, "reason": &"save_requested", "action": &"save_progress", "authority": false}
+
+
+func load_progress_intent() -> Dictionary:
+	return {"accepted": true, "reason": &"load_requested", "action": &"load_progress", "authority": false}
+
+
+## Formats a detached persistence receipt without reading or writing a store.
+## The returned actions remain available so callers can retry after a failure.
+func present_persistence_result(result: Dictionary) -> Dictionary:
+	var view := present(_snapshot)
+	var status := StringName(str(result.get("status", result.get("reason", &"unknown"))))
+	var feedback := _persistence_feedback(status, bool(result.get("accepted", false)))
+	view["persistence_feedback"] = feedback
+	return view
 
 
 func get_snapshot() -> Dictionary:
@@ -129,3 +149,26 @@ func _title(activity_id: StringName) -> String:
 
 func _intent_result(reason: StringName, activity_id: StringName) -> Dictionary:
 	return {"accepted": ACTIVITY_IDS.has(activity_id), "reason": reason, "activity_id": activity_id, "authority": false}
+
+
+func _persistence_actions() -> Array[Dictionary]:
+	return [
+		{"id": &"save_progress", "label": "Save progress", "focusable": true, "authority": false},
+		{"id": &"load_progress", "label": "Load progress", "focusable": true, "authority": false},
+	]
+
+
+func _persistence_feedback(status: StringName, accepted: bool) -> Dictionary:
+	if accepted and status in [&"saved", &"save_succeeded", &"progress_saved"]:
+		return {"status": &"saved", "text": "Progress saved.", "color_independent": true}
+	if accepted and status in [&"restored", &"loaded", &"progress_restored"]:
+		return {"status": &"restored", "text": "Progress restored.", "color_independent": true}
+	if status in [&"invalid", &"invalid_payload", &"corrupt"]:
+		return {"status": &"invalid", "text": "Saved progress is invalid; current activity state is unchanged.", "color_independent": true}
+	if status == &"newer_schema":
+		return {"status": &"newer_schema", "text": "Saved progress belongs to a newer version.", "color_independent": true}
+	if status in [&"failed_write", &"save_failed"]:
+		return {"status": &"failed_write", "text": "Progress could not be saved.", "color_independent": true}
+	if status in [&"load_failed", &"read_failed"]:
+		return {"status": &"load_failed", "text": "Progress could not be loaded.", "color_independent": true}
+	return {"status": &"unknown", "text": "Progress result unavailable.", "color_independent": true}
