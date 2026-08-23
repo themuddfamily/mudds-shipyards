@@ -28,6 +28,7 @@ const CoordinatorScript := preload("res://scripts/combat/wing_coordinator.gd")
 const AuthorityScript := preload("res://scripts/combat/live_combat_authority.gd")
 const COURIER_SCENE := preload("res://scenes/ships/courier_runner_opponent.tscn")
 const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
+const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 
 ## Short, bounded values so every branch resolves inside a frame budget. The
 ## production values are asserted separately, from the real scene.
@@ -85,6 +86,7 @@ func _run() -> void:
 	await _test_station_defense_guard_opens_intercept_crossfire()
 	await _test_convoy_interdiction_generation_and_screen_guard()
 	await _test_heavy_standoff_advances_on_range_or_health()
+	await _test_heavy_breach_picket_and_screen_objective()
 	await _test_wing_regroup_recovers_before_critical_breakaway()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
@@ -759,6 +761,149 @@ func _test_heavy_standoff_advances_on_range_or_health() -> void:
 	await _free_fixture(fixture)
 
 
+func _test_heavy_breach_picket_and_screen_objective() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var coordinator: WingCoordinator = fixture.coordinator
+	var target: EncounterTarget = fixture.target
+	var protected := EncounterTarget.new()
+	protected.name = "HeavyBreachProtectedObjective"
+	(fixture.host as Node3D).add_child(protected)
+	protected.collision_layer = 0
+	protected.global_position = Vector3(0.0, 0.0, -180.0)
+	var picket: StandoffPicketOpponent = fixture.picket
+	picket.acceleration = 0.0
+	picket.cruise_speed = 0.0
+	picket.initial_arming_delay = 0.0
+	picket.telegraph_time = 1.5
+	picket._cooldown_remaining = 0.0
+	_check(
+		director.begin_heavy_breach(target, protected),
+		"caller-owned protected objective admits the heavy picket breach"
+	)
+	picket._cooldown_remaining = 0.0
+	var generation := director.get_scenario_generation()
+	var receipt := director.get_heavy_breach_receipt(generation)
+	_check(
+		bool(receipt.get("accepted", false))
+			and int(receipt.get("generation", 0)) == generation
+			and int(receipt.get("picket_instance_id", 0)) == picket.get_instance_id()
+			and int(receipt.get("protected_objective_instance_id", 0)) == protected.get_instance_id()
+			and not bool(director.get_heavy_breach_receipt(generation + 1).get("accepted", false)),
+		"heavy breach receipt fences the picket and protected objective generation"
+	)
+	var screen: FlankingSkirmisherOpponent = fixture.skirmishers[0]
+	_check(
+		picket.is_active()
+			and screen.is_active()
+			and coordinator.get_target() == target
+			and coordinator.get_member_count() == 2,
+		"the production picket and one paired wing member launch as the bounded breach roster"
+	)
+	var picket_intent := director.get_member_tactic_intent(picket)
+	var screen_intent := director.get_member_tactic_intent(screen)
+	_check(
+		picket_intent.action == EncounterScenarioDirector.TACTIC_BREACH
+			and bool(picket_intent.fire_authorized)
+			and screen_intent.action == EncounterScenarioDirector.TACTIC_SCREEN_GUARD
+			and bool(screen_intent.fire_authorized),
+		"the picket charges the protected objective while its paired wing screens the caller"
+	)
+	await _advance_physics(24)
+	var charge := picket.get_lance_charge_snapshot()
+	_check(
+		int(charge.get("target_instance_id", 0)) == protected.get_instance_id()
+			and int(charge.get("target_generation", 0)) > 0
+			and bool(charge.get("active", false)),
+		"the production picket keeps a generation-fenced protected-objective target"
+	)
+	screen.apply_damage(
+		screen.maximum_health * (1.0 - coordinator.critical_disengage_ratio + 0.01),
+		screen.global_position,
+	)
+	coordinator.update_assignments(0.0)
+	var critical_screen_intent := director.get_member_tactic_intent(screen)
+	_check(
+		critical_screen_intent.action == EncounterScenarioDirector.TACTIC_DISENGAGE
+			and not bool(critical_screen_intent.fire_authorized),
+		"critical disengage remains higher priority than the breach screen"
+	)
+	picket.apply_damage(picket.maximum_health, picket.global_position)
+	await _advance_until(func() -> bool: return director.is_concluded(), 60)
+	_check(
+		director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+			and director.get_roster().is_empty(),
+		"resolver destruction of the heavy picket clears and stands down the breach"
+	)
+	await _assert_fully_terminated(fixture, "heavy breach picket destroyed")
+	protected.queue_free()
+	await _free_fixture(fixture)
+
+	var protected_loss_fixture := await _make_fixture()
+	var protected_loss_director: EncounterScenarioDirector = protected_loss_fixture.director
+	var protected_loss_objective := EncounterTarget.new()
+	(protected_loss_fixture.host as Node3D).add_child(protected_loss_objective)
+	protected_loss_objective.collision_layer = 0
+	protected_loss_objective.global_position = Vector3(0.0, 0.0, -180.0)
+	_check(
+		protected_loss_director.begin_heavy_breach(
+			protected_loss_fixture.target,
+			protected_loss_objective,
+		),
+		"a second breach admits a fresh protected-objective generation"
+	)
+	protected_loss_objective.destroyed = true
+	protected_loss_director._physics_process(0.01)
+	_check(
+		protected_loss_director.is_concluded()
+			and protected_loss_director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED,
+		"protected-objective terminal state fails the breach before any stale dispatch"
+	)
+	protected_loss_objective.queue_free()
+	await _free_fixture(protected_loss_fixture)
+
+	var timeout_fixture := await _make_fixture()
+	var timeout_director: EncounterScenarioDirector = timeout_fixture.director
+	var timeout_objective := EncounterTarget.new()
+	(timeout_fixture.host as Node3D).add_child(timeout_objective)
+	timeout_objective.collision_layer = 0
+	timeout_objective.global_position = Vector3(0.0, 0.0, -180.0)
+	timeout_director.scenario_time_limit = 0.1
+	_check(
+		timeout_director.begin_heavy_breach(timeout_fixture.target, timeout_objective),
+		"the heavy breach admits a finite timeout backstop"
+	)
+	await _advance_physics(12)
+	_check(
+		timeout_director.get_outcome() == EncounterScenarioDirector.OUTCOME_EXPIRED,
+		"an unresolved heavy breach fails closed on its unconditional timeout"
+	)
+	timeout_objective.queue_free()
+	await _free_fixture(timeout_fixture)
+
+	var player_loss_fixture := await _make_fixture()
+	var player_loss_director: EncounterScenarioDirector = player_loss_fixture.director
+	var player_loss_objective := EncounterTarget.new()
+	(player_loss_fixture.host as Node3D).add_child(player_loss_objective)
+	player_loss_objective.collision_layer = 0
+	player_loss_objective.global_position = Vector3(0.0, 0.0, -180.0)
+	_check(
+		player_loss_director.begin_heavy_breach(
+			player_loss_fixture.target,
+			player_loss_objective,
+		),
+		"the heavy breach retains the player-loss abort branch"
+	)
+	player_loss_fixture.target.destroyed = true
+	player_loss_director._physics_process(0.01)
+	_check(
+		player_loss_director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED,
+		"player loss aborts the heavy breach and revokes dispatch authorization"
+	)
+	player_loss_objective.queue_free()
+	await _free_fixture(player_loss_fixture)
+
+
 func _test_wing_regroup_recovers_before_critical_breakaway() -> void:
 	var fixture := await _make_fixture()
 	var director: EncounterScenarioDirector = fixture.director
@@ -989,10 +1134,12 @@ func _assert_fully_terminated(fixture: Dictionary, branch: String) -> void:
 	await _advance_physics(2)
 
 
-func _all_opponents(fixture: Dictionary) -> Array[ResolverBackedOpponent]:
-	var craft: Array[ResolverBackedOpponent] = [fixture.courier]
+func _all_opponents(fixture: Dictionary) -> Array:
+	var craft: Array = [fixture.courier]
 	for member in fixture.skirmishers:
 		craft.append(member)
+	if fixture.has("picket"):
+		craft.append(fixture.picket)
 	return craft
 
 
@@ -1090,10 +1237,20 @@ func _make_fixture() -> Dictionary:
 		host.add_child(member)
 		skirmishers.append(member)
 
+	var picket := PICKET_SCENE.instantiate() as StandoffPicketOpponent
+	picket.name = "StandoffPicket"
+	picket.escort_enabled = false
+	_wire(picket)
+	host.add_child(picket)
+
 	director.scenario_concluded.connect(_on_scenario_concluded)
 	await process_frame
 	await physics_frame
 	await process_frame
+	# This fixture intentionally omits presentation/audio banks. The production
+	# binding is exercised by its own focused suite; keeping this optional consumer
+	# detached lets the scenario test measure resolver/lifecycle behavior only.
+	picket.set("_siege_lance_audio_binding", null)
 	return {
 		"host": host,
 		"authority": authority,
@@ -1102,19 +1259,21 @@ func _make_fixture() -> Dictionary:
 		"target": target,
 		"courier": courier,
 		"skirmishers": skirmishers,
+		"picket": picket,
 	}
 
 
-func _wire(craft: ResolverBackedOpponent) -> void:
-	craft.combat_authority_path = NodePath("../CombatAuthority")
+func _wire(craft: Node) -> void:
+	craft.set("combat_authority_path", NodePath("../CombatAuthority"))
 	# The pooled visual and voice banks are deliberately absent: this suite
 	# measures scenario termination, not presentation, and both seams already
 	# fail closed when unavailable.
-	craft.pulse_presentation_path = NodePath("../MissingPulse")
-	craft.combat_audio_path = NodePath("../MissingAudio")
-	craft.hud_path = NodePath("../MissingHud")
-	craft.encounter_host_path = NodePath("..")
-	craft.scenario_director_path = NodePath("../EncounterScenarios")
+	craft.set("pulse_presentation_path", NodePath("../MissingPulse"))
+	craft.set("combat_audio_path", NodePath("../MissingAudio"))
+	craft.set("hud_path", NodePath("../MissingHud"))
+	craft.set("encounter_host_path", NodePath(".."))
+	if craft is ResolverBackedOpponent:
+		craft.set("scenario_director_path", NodePath("../EncounterScenarios"))
 
 
 func _free_fixture(fixture: Dictionary) -> void:

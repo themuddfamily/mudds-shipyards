@@ -79,9 +79,13 @@ const SCENARIO_HEAVY_STANDOFF: StringName = &"heavy_standoff"
 ## A damaged-but-not-critical paired wing creates room for one craft to regroup
 ## while its existing peer covers the recovery window.
 const SCENARIO_WING_REGROUP: StringName = &"wing_regroup"
+## A heavy picket charges a caller-owned protected objective while one paired
+## wing member screens the caller. The picket is the breach objective.
+const SCENARIO_HEAVY_BREACH: StringName = &"heavy_breach"
 const SCENARIO_IDS: Array[StringName] = [
 	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
 	SCENARIO_CONVOY_INTERDICTION, SCENARIO_HEAVY_STANDOFF, SCENARIO_WING_REGROUP,
+	SCENARIO_HEAVY_BREACH,
 ]
 
 const STATE_IDLE: StringName = &"idle"
@@ -119,6 +123,7 @@ const TACTIC_STANDOFF: StringName = &"standoff"
 const TACTIC_ADVANCE: StringName = &"advance"
 const TACTIC_REGROUP: StringName = &"regroup"
 const TACTIC_COVER_RECOVERY: StringName = &"cover_recovery"
+const TACTIC_BREACH: StringName = &"breach"
 
 const DEFAULT_HEAVY_STANDOFF_RANGE := 120.0
 const DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO := 0.35
@@ -128,7 +133,8 @@ const DEFAULT_REGROUP_HEALTH_RATIO := 0.65
 const CONTENT_NOTE := (
 	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
 	+ "suppression opening, caller-owned protected-anchor defense, heavy stand-off/advance "
-	+ "posture, damaged-wing regroup/recovery posture, and every timing "
+	+ "posture, damaged-wing regroup/recovery posture, heavy picket breach and "
+	+ "screen objective, and every timing "
 	+ "value are an original modern interpretation. They do not "
 	+ "reproduce or claim any authenticated historical Keth Shipyards mission, "
 	+ "patrol, objective, or scenario."
@@ -177,6 +183,7 @@ const CONTENT_NOTE := (
 @export var skirmisher_paths: Array[NodePath] = [
 	NodePath("../WingSkirmisherLead"), NodePath("../WingSkirmisherWing"),
 ]
+@export var breach_picket_path := NodePath("../StandoffPicket")
 
 var _state: StringName = STATE_IDLE
 var _scenario: StringName = SCENARIO_NONE
@@ -195,6 +202,7 @@ var _courier_launch_origin := Vector3.ZERO
 var _target: Node3D
 var _protected_anchor: Node3D
 var _cargo_target: Node3D
+var _breach_picket: Node3D
 var _heavy_standoff_range := DEFAULT_HEAVY_STANDOFF_RANGE
 var _heavy_advance_health_ratio := DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 var _regroup_range := DEFAULT_REGROUP_RANGE
@@ -263,6 +271,26 @@ func get_convoy_interdiction_receipt(expected_generation: int = 0) -> Dictionary
 			if is_instance_valid(_cargo_target) else 0,
 		"escort_anchor": String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else "",
 		"escort_anchor_instance_id": _protected_anchor.get_instance_id()
+			if is_instance_valid(_protected_anchor) else 0,
+		"authority": {"motion": false, "fire": false, "damage": false},
+	}.duplicate(true)
+
+
+func get_heavy_breach_receipt(expected_generation: int = 0) -> Dictionary:
+	if _scenario != SCENARIO_HEAVY_BREACH or not _is_current():
+		return {"accepted": false, "reason": &"heavy_breach_inactive"}
+	if expected_generation > 0 and expected_generation != _scenario_generation:
+		return {"accepted": false, "reason": &"stale_generation"}
+	return {
+		"accepted": true,
+		"generation": _scenario_generation,
+		"scenario": _scenario,
+		"picket": String(_breach_picket.name) if is_instance_valid(_breach_picket) else "",
+		"picket_instance_id": _breach_picket.get_instance_id()
+			if is_instance_valid(_breach_picket) else 0,
+		"protected_objective": String(_protected_anchor.name)
+			if is_instance_valid(_protected_anchor) else "",
+		"protected_objective_instance_id": _protected_anchor.get_instance_id()
 			if is_instance_valid(_protected_anchor) else 0,
 		"authority": {"motion": false, "fire": false, "damage": false},
 	}.duplicate(true)
@@ -357,6 +385,8 @@ func is_fire_authorized(member: Node) -> bool:
 		return _is_target_alive()
 	if _scenario == SCENARIO_WING_REGROUP:
 		return _is_target_alive() and not _is_regrouping_member(member as Node3D)
+	if _scenario == SCENARIO_HEAVY_BREACH:
+		return _is_heavy_breach_live()
 	if _paired_wing_suppression_active():
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
@@ -409,6 +439,11 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 			action = TACTIC_REGROUP
 		elif role != WingCoordinator.ROLE_UNASSIGNED:
 			action = TACTIC_COVER_RECOVERY
+	elif _scenario == SCENARIO_HEAVY_BREACH and _is_heavy_breach_live():
+		if member == _breach_picket:
+			action = TACTIC_BREACH
+		else:
+			action = TACTIC_SCREEN_GUARD
 	elif _paired_wing_suppression_active():
 		action = (
 			TACTIC_SUPPRESS
@@ -434,6 +469,7 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 		"regroup_range": _regroup_range,
 		"regroup_health_ratio": _regroup_health_ratio,
+		"heavy_breach": _scenario == SCENARIO_HEAVY_BREACH,
 		"generation": _scenario_generation,
 	}.duplicate(true)
 
@@ -478,6 +514,22 @@ func begin_convoy_interdiction(
 		caller_target,
 		escort_anchor,
 		cargo_target,
+	)
+
+
+## Admits one heavy breach: the production standoff picket owns the protected
+## objective target while one paired wing member screens the caller. The
+## protected node and both combatants remain caller-owned; this director only
+## publishes objective and dispatch authorization.
+func begin_heavy_breach(target: Node3D, protected_objective: Node3D) -> bool:
+	if not _is_live_anchor(protected_objective):
+		return false
+	if not is_instance_valid(_get_breach_picket()) or _get_skirmishers().is_empty():
+		return false
+	return _begin_scenario(
+		SCENARIO_HEAVY_BREACH,
+		target,
+		protected_objective,
 	)
 
 
@@ -572,13 +624,22 @@ func _begin_scenario(
 	if scenario_id == SCENARIO_CONVOY_INTERDICTION \
 			and (not _is_live_anchor(protected_anchor) or not _is_live_anchor(cargo_target)):
 		return false
+	if scenario_id == SCENARIO_HEAVY_BREACH \
+			and (not _is_live_anchor(protected_anchor)
+			or not is_instance_valid(_get_breach_picket())
+			or _get_skirmishers().is_empty()):
+		return false
 	_reset_run_state()
 	_protected_anchor = protected_anchor if scenario_id == SCENARIO_STATION_DEFENSE else null
 	if scenario_id == SCENARIO_CONVOY_INTERDICTION:
 		_protected_anchor = protected_anchor
 		_cargo_target = cargo_target
+	elif scenario_id == SCENARIO_HEAVY_BREACH:
+		_protected_anchor = protected_anchor
+		_breach_picket = _get_breach_picket()
 	else:
 		_cargo_target = null
+		_breach_picket = null
 	if scenario_id == SCENARIO_HEAVY_STANDOFF:
 		_heavy_standoff_range = heavy_standoff_range
 		_heavy_advance_health_ratio = heavy_advance_health_ratio
@@ -610,6 +671,8 @@ func _begin_scenario(
 			_launch_wing()
 		SCENARIO_WING_REGROUP:
 			_launch_wing()
+		SCENARIO_HEAVY_BREACH:
+			_launch_heavy_breach()
 	if scenario_id == SCENARIO_HEAVY_STANDOFF:
 		_update_heavy_posture()
 	if scenario_id == SCENARIO_WING_REGROUP:
@@ -693,6 +756,8 @@ func _evaluate_termination(delta: float) -> StringName:
 		return OUTCOME_ABORTED
 	if _scenario == SCENARIO_CONVOY_INTERDICTION and not _is_protected_anchor_alive():
 		return OUTCOME_ABORTED
+	if _scenario == SCENARIO_HEAVY_BREACH and not _is_protected_anchor_alive():
+		return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -762,6 +827,9 @@ func _evaluate_objective() -> StringName:
 		SCENARIO_WING_REGROUP:
 			if _active_roster_count() == 0:
 				return OUTCOME_CLEARED
+		SCENARIO_HEAVY_BREACH:
+			if _is_breach_picket_destroyed():
+				return OUTCOME_CLEARED
 	return OUTCOME_PENDING
 
 
@@ -794,6 +862,7 @@ func _stand_down() -> void:
 	_target = null
 	_protected_anchor = null
 	_cargo_target = null
+	_breach_picket = null
 	_regroup_original_postures.clear()
 
 
@@ -892,6 +961,42 @@ func _launch_wing(anchor_position: Vector3 = Vector3.INF) -> void:
 		# One immediate assignment so the pair never spends a frame with two
 		# unassigned craft, which would briefly read as two anchors.
 		coordinator.update_assignments(0.0)
+
+
+func _launch_heavy_breach() -> void:
+	var picket := _breach_picket
+	var screen_candidates := _get_skirmishers()
+	if not is_instance_valid(picket) or not is_instance_valid(_protected_anchor) \
+			or screen_candidates.is_empty():
+		return
+	var to_objective := _protected_anchor.global_position - _target.global_position
+	if to_objective.length_squared() <= 0.001:
+		to_objective = Vector3.FORWARD
+	to_objective = to_objective.normalized()
+	var lateral := Vector3.UP.cross(to_objective)
+	if lateral.length_squared() <= 0.001:
+		lateral = Vector3.RIGHT
+	lateral = lateral.normalized()
+	var picket_origin := _protected_anchor.global_position - to_objective * 132.0 + Vector3.UP * 28.0
+	var picket_facing := _protected_anchor.global_position - picket_origin
+	var picket_up := Vector3.UP if absf(picket_facing.normalized().dot(Vector3.UP)) < 0.965 else Vector3.FORWARD
+	picket.activate(Transform3D(Basis.looking_at(picket_facing.normalized(), picket_up).orthonormalized(), picket_origin))
+	picket.set_target(_protected_anchor)
+	var coordinator := _get_wing_coordinator()
+	if is_instance_valid(coordinator):
+		coordinator.enlist(picket)
+	_roster.append(picket)
+	var screen := screen_candidates[0]
+	var screen_origin := _target.global_position + to_objective * 92.0 + lateral * 54.0 + Vector3.UP * 16.0
+	var screen_facing := _target.global_position - screen_origin
+	var screen_up := Vector3.UP if absf(screen_facing.normalized().dot(Vector3.UP)) < 0.965 else Vector3.FORWARD
+	screen.activate(Transform3D(Basis.looking_at(screen_facing.normalized(), screen_up).orthonormalized(), screen_origin))
+	screen.set_target(_target)
+	if is_instance_valid(coordinator):
+		coordinator.enlist(screen)
+		coordinator.set_target(_target)
+		coordinator.update_assignments(0.0)
+	_roster.append(screen)
 
 
 func _update_courier_scenario(delta: float) -> void:
@@ -1081,6 +1186,22 @@ func _is_convoy_interdiction_live() -> bool:
 	return _is_live_objective(_cargo_target) and _is_protected_anchor_alive()
 
 
+func _is_heavy_breach_live() -> bool:
+	return _is_target_alive() and _is_protected_anchor_alive() \
+		and is_instance_valid(_breach_picket) and not _is_breach_picket_destroyed()
+
+
+func _is_breach_picket_destroyed() -> bool:
+	if not is_instance_valid(_breach_picket):
+		return false
+	if _breach_picket.has_method(&"is_destroyed"):
+		return bool(_breach_picket.call(&"is_destroyed"))
+	if _breach_picket.has_method(&"get_health") \
+			and _breach_picket.has_method(&"get_maximum_health"):
+		return float(_breach_picket.call(&"get_health")) <= 0.0
+	return false
+
+
 func _get_courier() -> Node3D:
 	return get_node_or_null(courier_path) as Node3D
 
@@ -1092,6 +1213,10 @@ func _get_skirmishers() -> Array[Node3D]:
 		if is_instance_valid(member):
 			members.append(member)
 	return members
+
+
+func _get_breach_picket() -> Node3D:
+	return get_node_or_null(breach_picket_path) as Node3D
 
 
 func _get_wing_coordinator() -> WingCoordinator:
@@ -1162,6 +1287,12 @@ func _announce_begin() -> void:
 				"One attacker pressures the cargo while its wing screens the escort",
 				4.0
 			)
+		SCENARIO_HEAVY_BREACH:
+			_toast(
+				"Heavy breach contact",
+				"Break the charged picket before it reaches the protected objective",
+				4.0
+			)
 
 
 func _announce_conclusion(outcome: StringName) -> void:
@@ -1171,6 +1302,8 @@ func _announce_conclusion(outcome: StringName) -> void:
 				_toast("Courier intercepted", "The boundary run is stopped", 3.2)
 			elif _scenario == SCENARIO_CONVOY_INTERDICTION:
 				_toast("Cargo protected", "The interdiction wing is broken", 3.2)
+			elif _scenario == SCENARIO_HEAVY_BREACH:
+				_toast("Breach stopped", "The heavy picket is down", 3.2)
 			else:
 				_toast("Wing broken", "Both contacts are down", 3.2)
 		OUTCOME_ESCAPED:
@@ -1205,6 +1338,7 @@ func get_evidence_metadata() -> Dictionary:
 			"generation-fenced convoy cargo interdiction with escort screening",
 			"caller-bounded heavy stand-off and health-triggered anchor advance",
 			"caller-bounded damaged-wing regroup and cover-recovery posture",
+			"caller-bounded heavy picket breach with protected-objective screening",
 			"distress broadcast and escort response timing",
 			"every scenario duration, radius, and delay",
 		]),
@@ -1260,6 +1394,7 @@ func get_audit_report() -> Dictionary:
 			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
 		),
 		"cargo_target": String(_cargo_target.name) if is_instance_valid(_cargo_target) else "",
+		"breach_picket": String(_breach_picket.name) if is_instance_valid(_breach_picket) else "",
 		"heavy_standoff_range": _heavy_standoff_range,
 		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 		"regroup_range": _regroup_range,
@@ -1306,6 +1441,9 @@ func get_validation_errors() -> PackedStringArray:
 	if _state == STATE_RUNNING and _scenario == SCENARIO_CONVOY_INTERDICTION \
 			and not _is_convoy_interdiction_live():
 		errors.append("a running convoy interdiction must retain its cargo and escort anchors")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_HEAVY_BREACH \
+			and (not _is_protected_anchor_alive() or not is_instance_valid(_breach_picket)):
+		errors.append("a running heavy breach must retain its protected objective and picket")
 	if not is_finite(_elapsed) or _elapsed < 0.0:
 		errors.append("scenario elapsed time must be finite and non-negative")
 	if _state == STATE_RUNNING and _elapsed > scenario_time_limit:
