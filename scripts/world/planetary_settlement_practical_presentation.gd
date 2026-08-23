@@ -10,6 +10,7 @@ var _configured := false
 var _generation := 0
 var _light: OmniLight3D
 var _last_solar: Dictionary = {}
+var _graphics_profile: StringName = &"high"
 
 
 func _ready() -> void:
@@ -43,10 +44,20 @@ func apply_solar_phase(snapshot: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_solar_phase"}
 	var night_factor := clampf(-float(elevation), 0.0, 1.0) if state != &"daylight" else 0.0
 	_light.visible = night_factor > 0.01
-	_light.light_energy = clampf(night_factor * 1.1, 0.0, 1.1)
+	var energy_cap := 0.45 if _graphics_profile == &"low" else 1.1
+	_light.light_energy = clampf(night_factor * energy_cap, 0.0, energy_cap)
 	_light.light_color = Color(1.0, 0.55 + night_factor * 0.2, 0.3 + night_factor * 0.25, 1.0)
 	_last_solar = solar.duplicate(true)
 	return {"accepted": true, "reason": &"practical_solar_applied", "night_factor_unitless": night_factor}
+
+
+func apply_graphics_profile(profile: StringName) -> Dictionary:
+	if profile not in [&"low", &"high"]:
+		return {"accepted": false, "reason": &"invalid_graphics_profile"}
+	_graphics_profile = profile
+	if not _last_solar.is_empty():
+		apply_solar_phase(_last_solar)
+	return {"accepted": true, "reason": &"graphics_profile_applied", "profile": _graphics_profile}
 
 
 func detach() -> Dictionary:
@@ -63,4 +74,4 @@ func reenter() -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
-	return {"configured": _configured, "structure_id": _structure_id, "generation": _generation, "light_instance_id": _light.get_instance_id() if _light != null else 0, "visible": _light.visible if _light != null else false, "energy": _light.light_energy if _light != null else 0.0, "last_solar": _last_solar.duplicate(true), "authority": {"clock": false, "settlement_interaction": false, "gameplay": false, "movement": false}}.duplicate(true)
+	return {"configured": _configured, "structure_id": _structure_id, "generation": _generation, "light_instance_id": _light.get_instance_id() if _light != null else 0, "visible": _light.visible if _light != null else false, "energy": _light.light_energy if _light != null else 0.0, "last_solar": _last_solar.duplicate(true), "graphics_profile": _graphics_profile, "authority": {"clock": false, "settlement_interaction": false, "gameplay": false, "movement": false}}.duplicate(true)

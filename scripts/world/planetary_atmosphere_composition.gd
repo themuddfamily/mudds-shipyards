@@ -25,6 +25,8 @@ var _baseline_fog_sky_affect := 0.0
 var _baseline_background_energy := 1.0
 var _last_recipe: Dictionary = {}
 var _cloud_shadow_projection: MeshInstance3D
+var _graphics_profile: StringName = &"high"
+var _cloud_shadow_enabled := true
 
 
 func _ready() -> void:
@@ -161,7 +163,7 @@ func apply_retained_presentation_recipe(
 		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35, 0.0, 0.35)
 		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
 		shadow_material.set_shader_parameter("wind_offset", weather.get("wind_velocity_mps", Vector3.ZERO))
-		_cloud_shadow_projection.visible = shadow_opacity > 0.01
+		_cloud_shadow_projection.visible = _cloud_shadow_enabled and shadow_opacity > 0.01
 	var retained_weather := (weather_snapshot as Dictionary).duplicate(true)
 	retained_weather["altitude_m"] = altitude_m
 	_last_recipe = {
@@ -189,8 +191,21 @@ func get_presentation_snapshot() -> Dictionary:
 		"fog_density": target.environment.fog_density if target != null and target.environment != null else 0.0,
 		"fog_sky_affect": target.environment.fog_sky_affect if target != null and target.environment != null else 0.0,
 		"background_energy_multiplier": target.environment.background_energy_multiplier if target != null and target.environment != null else 0.0,
+		"graphics_profile": _graphics_profile,
 		"recipe": _last_recipe.duplicate(true),
 	}.duplicate(true)
+
+
+func apply_graphics_profile(profile: StringName) -> Dictionary:
+	if profile not in [&"low", &"high"]:
+		return {"accepted": false, "reason": &"invalid_graphics_profile"}
+	_graphics_profile = profile
+	_cloud_shadow_enabled = profile != &"low"
+	if not _cloud_shadow_enabled and _cloud_shadow_projection != null:
+		_cloud_shadow_projection.visible = false
+	elif _cloud_shadow_enabled and not _last_recipe.is_empty():
+		apply_retained_presentation_recipe(_last_recipe.solar, _last_recipe.weather)
+	return {"accepted": true, "reason": &"graphics_profile_applied", "profile": _graphics_profile}
 
 
 func get_world_environment() -> WorldEnvironment:

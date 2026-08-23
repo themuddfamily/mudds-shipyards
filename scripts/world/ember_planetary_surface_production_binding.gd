@@ -223,6 +223,15 @@ func submit_solar_observation(
 	return _result(true, &"solar_observation_accepted")
 
 
+func apply_graphics_profile(profile: StringName) -> Dictionary:
+	if not _live() or profile not in [&"low", &"high"]:
+		return _result(false, &"invalid_graphics_profile")
+	_water_presentation.call(&"apply_graphics_profile", profile)
+	for practical: Node in _settlement_practicals.values():
+		practical.call(&"apply_graphics_profile", profile)
+	return _result(true, &"graphics_profile_applied")
+
+
 func _present_surface_audio() -> void:
 	if _surface_audio_adapter == null or _surface_audio_policy == null \
 			or _solar_phase.is_empty() or _weather_observation.is_empty():
