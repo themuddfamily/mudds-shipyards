@@ -92,6 +92,9 @@ def _install_instructions(manifest: dict[str, object]) -> str:
         f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} uninstall -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n\n'
         "Upgrade by running the install command again with a newer distribution.\n"
         "The helper keeps one rollback and preserves files it does not own.\n\n"
+        "Optional shortcuts (PowerShell, opt in explicitly):\n"
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} install -Destination "$env:LOCALAPPDATA\\MuddsShipyards" -StartMenuShortcut\n'
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} install -Destination "$env:LOCALAPPDATA\\MuddsShipyards" -DesktopShortcut\n\n'
         "Portable run (no installation):\n"
         f'  .\\{launcher}\n\n'
         "Verify the exported executable before use:\n"

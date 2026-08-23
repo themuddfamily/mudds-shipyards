@@ -14,7 +14,9 @@ param(
     [string]$Command,
     [Parameter(Mandatory = $true)] [string]$Destination,
     [string]$Source = (Split-Path -Parent $PSScriptRoot),
-    [switch]$Force
+    [switch]$Force,
+    [switch]$StartMenuShortcut,
+    [switch]$DesktopShortcut
 )
 
 Set-StrictMode -Version Latest
@@ -73,6 +75,37 @@ function Read-Owned([string]$Root) {
     return $owned
 }
 
+function Read-ExternalShortcuts([string]$Root) {
+    $path = Join-Path $Root $OwnershipName
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return @() }
+    $manifest = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
+    if ($null -eq $manifest.external_shortcuts) { return @() }
+    return @($manifest.external_shortcuts | ForEach-Object { [IO.Path]::GetFullPath([string]$_) })
+}
+
+function Requested-Shortcuts {
+    $paths = @()
+    if ($StartMenuShortcut) { $paths += Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Mudds Shipyards.lnk' }
+    if ($DesktopShortcut) { $paths += Join-Path $env:USERPROFILE 'Desktop\Mudds Shipyards.lnk' }
+    return @($paths | Select-Object -Unique)
+}
+
+function New-LauncherShortcut([string]$Path, [string]$Target) {
+    if (Test-Path -LiteralPath $Path) { throw "Shortcut target already exists: $Path" }
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($Path)
+    $shortcut.TargetPath = $Target
+    $shortcut.WorkingDirectory = Split-Path -Parent $Target
+    $shortcut.Save()
+}
+
+function Remove-ExternalShortcuts([object[]]$Paths) {
+    foreach ($path in @($Paths)) {
+        if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force }
+    }
+}
+
 function Read-DistributionManifest([string]$Root) {
     $path = Join-Path $Root 'distribution-manifest.json'
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'Distribution manifest is missing' }
@@ -98,16 +131,19 @@ function Compare-DistributionVersion([string]$Left, [string]$Right) {
 
 function Remove-Owned([string]$Root) {
     $owned = Read-Owned $Root
+    $external = Read-ExternalShortcuts $Root
     foreach ($relative in $owned | Sort-Object { $_.Length } -Descending) {
         $path = Join-Path $Root ($relative -replace '/', '\')
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force }
     }
     Remove-Item -LiteralPath (Join-Path $Root $OwnershipName) -Force
+    Remove-ExternalShortcuts $external
 }
 
 $destination = Resolve-SafeDestination $Destination
 $rollback = "$destination.rollback"
 $staging = "$destination.staging"
+$createdShortcuts = @()
 try {
     switch ($Command) {
         'status' {
@@ -124,8 +160,12 @@ try {
         'rollback' {
             if (-not (Test-Path -LiteralPath $rollback -PathType Container)) { throw 'Rollback package is missing' }
             Get-ChecksumEntries $rollback | Out-Null
+            $currentExternal = Read-ExternalShortcuts $destination
+            $rollbackExternal = Read-ExternalShortcuts $rollback
+            Remove-ExternalShortcuts $currentExternal
             if (Test-Path -LiteralPath $destination) { Move-Item -LiteralPath $destination -Destination "$destination.current" -Force; Move-Item -LiteralPath "$destination.current" -Destination $rollback -Force }
             Move-Item -LiteralPath $rollback -Destination $destination -Force
+            foreach ($shortcut in $rollbackExternal) { New-LauncherShortcut $shortcut (Join-Path $destination $LauncherName) }
             [pscustomobject]@{ destination = $destination; reason = 'rolled_back' } | ConvertTo-Json -Compress
         }
         default {
@@ -147,7 +187,20 @@ try {
                     if ($existing -notcontains $relative) { $target = Join-Path $staging ($relative -replace '/', '\'); New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null; Copy-Item $file.FullName $target }
                 }
             }
+            $requestedShortcuts = Requested-Shortcuts
+            $existingShortcuts = if (Test-Path -LiteralPath $destination -PathType Container) { Read-ExternalShortcuts $destination } else { @() }
+            foreach ($shortcut in $requestedShortcuts) {
+                if ((Test-Path -LiteralPath $shortcut) -and ($existingShortcuts -notcontains $shortcut)) { throw "Shortcut target already exists: $shortcut" }
+            }
             Copy-Tree $source $staging $entries
+            $ownershipPath = Join-Path $staging $OwnershipName
+            $ownership = Get-Content -Raw -LiteralPath $ownershipPath | ConvertFrom-Json
+            $ownership | Add-Member -NotePropertyName external_shortcuts -NotePropertyValue @($requestedShortcuts) -Force
+            $ownership | ConvertTo-Json -Compress | Set-Content -LiteralPath $ownershipPath -Encoding UTF8
+            foreach ($shortcut in @($requestedShortcuts | Where-Object { $existingShortcuts -notcontains $_ })) {
+                New-LauncherShortcut $shortcut (Join-Path $destination $LauncherName)
+                $createdShortcuts += $shortcut
+            }
             if (Test-Path -LiteralPath $rollback) { Remove-Item -LiteralPath $rollback -Recurse -Force }
             if (Test-Path -LiteralPath $destination) { Move-Item -LiteralPath $destination -Destination $rollback }
             Move-Item -LiteralPath $staging -Destination $destination
@@ -156,6 +209,7 @@ try {
     }
 } catch {
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+    Remove-ExternalShortcuts $createdShortcuts
     Write-Error $_
     exit 2
 }
