@@ -46,6 +46,8 @@ const EVIDENCE_SCOPE: StringName = &"original_design"
 const NAME_TO_MODEL_STATUS: StringName = &"not_applicable"
 const COMBAT_SOURCE_ID := 1105
 const INTERIOR_SCHEMA_VERSION := 1
+const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
+const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 
 const DESIGN_NOTE := (
 	"The Halyard is an original modern design created for this remake. It is not "
@@ -249,6 +251,7 @@ var _elapsed_halyard := 0.0
 var _spine_rib_mesh: Mesh
 var _spine_rib_batch: MultiMeshInstance3D
 var _spine_rib_transforms: Array[Transform3D] = []
+var _crew_role_authority: CrewSeatRoleAuthority
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -314,6 +317,120 @@ func get_halyard_visual_root() -> Node3D:
 ## authority remains the owner of actual registration.
 func get_combat_source_id() -> int:
 	return COMBAT_SOURCE_ID
+
+
+## Binds the session-owned seat/role authority to this physical Halyard. The
+## Halyard never creates a second seat ledger: claims, generations, and intent
+## sequencing remain in the injected authority, while this ship only consumes
+## receipts that its own component owner can apply.
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	if _crew_role_authority != null and _crew_role_authority != authority:
+		return _crew_role_result(false, &"authority_already_attached")
+	var snapshot := authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		return _crew_role_result(false, &"roster_not_sealed")
+	var seats: Array = snapshot.get("seats", []) as Array
+	if seats.size() != CrewSeatRoleAuthorityType.get_halyard_roster().size():
+		return _crew_role_result(false, &"halyard_roster_mismatch")
+	for seat_variant in seats:
+		if not seat_variant is Dictionary:
+			return _crew_role_result(false, &"halyard_roster_mismatch")
+		var seat := seat_variant as Dictionary
+		if StringName(seat.get("vessel_id", &"")) != &"halyard_new_design" \
+				or StringName(seat.get("frame_id", &"")) != &"halyard_walkable_interior":
+			return _crew_role_result(false, &"halyard_roster_mismatch")
+	_crew_role_authority = authority
+	var result := _crew_role_result(true, &"authority_attached")
+	result["role_count"] = seats.size()
+	return result
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+## Admits and immediately consumes the one currently implemented non-pilot
+## action: an engineer repair pulse. Admission is server-owned by
+## CrewSeatRoleAuthority; mutation is still owner-owned by ShipComponentDamage.
+## Other role actions are intentionally left to their downstream authorities
+## and are not accepted here until those consumers exist.
+func submit_crew_intent(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		action: StringName,
+		payload: Dictionary,
+		request_sequence: int
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(false, &"assignment_not_found")
+	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_ENGINEER \
+			or action != CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR:
+		return _crew_role_result(false, &"unsupported_halyard_role_action")
+	var admission := _crew_role_authority.submit_intent(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		action,
+		payload,
+		request_sequence
+	)
+	if not bool(admission.get("accepted", false)):
+		return admission
+	var intent := admission.get("intent", {}) as Dictionary
+	var effect := _consume_engineer_repair_intent(intent)
+	var result := admission.duplicate(true)
+	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
+	result["consumed"] = bool(effect.get("accepted", false))
+	result["effect"] = effect
+	return result
+
+
+func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var system_id := StringName(payload.get("system_id", &""))
+	var requested_repair := float(payload.get("repair", 0.0))
+	var model := get_component_damage()
+	if model == null or not model.is_configured():
+		return _crew_role_result(false, &"component_damage_unavailable")
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return _crew_role_result(false, &"ship_destroyed")
+	if not bool(telemetry.get("landed", false)) or bool(telemetry.get("landing_active", false)):
+		return _crew_role_result(false, &"repair_requires_berthed_ship")
+	if requested_repair <= 0.0:
+		return _crew_role_result(false, &"zero_repair_request")
+	var report := model.get_component_report()
+	var order: Array = report.get("component_order", []) as Array
+	if not order.has(system_id):
+		return _crew_role_result(false, &"unknown_system")
+	var before := model.get_component_integrity(system_id)
+	if before < 0.0:
+		return _crew_role_result(false, &"unknown_system")
+	if before >= 1.0:
+		return _crew_role_result(false, &"system_nominal")
+	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
+	var repair_result := model.tick_repair(requested_repair / rate, true)
+	var after := model.get_component_integrity(system_id)
+	if not bool(repair_result.get("accepted", false)) or after <= before:
+		var rejected := _crew_role_result(false, StringName(repair_result.get("reason", &"system_not_repaired")))
+		rejected["repair"] = repair_result
+		return rejected
+	var result := _crew_role_result(true, &"repair_applied")
+	result["system_id"] = system_id
+	result["integrity_before"] = before
+	result["integrity_after"] = after
+	result["repair"] = repair_result
+	return result
+
+
+static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
+	return {"accepted": accepted, "status": status}
 
 
 func get_interior_root() -> Node3D:
