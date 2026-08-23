@@ -219,6 +219,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"colorblind_palette",
 	&"reduced_motion",
 	&"captions_enabled",
+	&"reduced_dynamic_range",
 	&"input_binding_profile",
 ]
 
@@ -6041,8 +6042,7 @@ func _apply_all_runtime_settings() -> void:
 		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 		tow_tractor.set_camera_fov(runtime_settings.camera_fov)
 	runtime_settings.apply_audio_settings()
-	if is_instance_valid(audio) and audio.has_method(&"set_reduced_dynamic_range"):
-		audio.call(&"set_reduced_dynamic_range", _reduced_dynamic_range)
+	_apply_reduced_dynamic_range_setting()
 	runtime_settings.apply_window_mode()
 	if world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
@@ -6173,18 +6173,29 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			runtime_settings.apply_window_mode()
 	elif setting == &"input_binding_profile":
 		_apply_runtime_input_bindings_and_options()
+	elif setting == &"reduced_dynamic_range":
+		_apply_reduced_dynamic_range_setting()
 	elif setting in [
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:
 		_apply_accessibility_settings()
 
 
-## Caller-owned accessibility seam; RuntimeSettings remains the authority for
-## persisted settings until it exposes this policy as a validated key.
+## Caller-facing convenience seam; RuntimeSettings remains the authority for
+## validation and persistence before audio consumers receive the value.
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	if runtime_settings != null:
+		runtime_settings.reduced_dynamic_range = enabled
+		return _apply_reduced_dynamic_range_setting()
 	_reduced_dynamic_range = enabled
+	return _apply_reduced_dynamic_range_setting()
+
+
+func _apply_reduced_dynamic_range_setting() -> Dictionary:
+	if runtime_settings != null:
+		_reduced_dynamic_range = runtime_settings.reduced_dynamic_range
 	if is_instance_valid(audio) and audio.has_method(&"set_reduced_dynamic_range"):
-		return audio.call(&"set_reduced_dynamic_range", enabled)
+		return audio.call(&"set_reduced_dynamic_range", _reduced_dynamic_range)
 	return {"accepted": true, "reason": &"retained_until_audio_ready"}
 
 
