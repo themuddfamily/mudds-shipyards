@@ -2433,7 +2433,20 @@ func update_network_session_status(snapshot: Dictionary) -> void:
 
 
 func update_crew_role_status(snapshot: Dictionary) -> void:
-	_render_runtime_status(_crew_role_presenter.present_snapshot(snapshot), &"crew")
+	var presentation := _crew_role_presenter.present_snapshot(snapshot)
+	var gunner := presentation.get("gunner_weapon", {}) as Dictionary
+	if not gunner.is_empty():
+		var actions := presentation.get("actions", []) as Array
+		var fire_action := StringName(gunner.get("fire_action", &"fire"))
+		var aim_action := StringName(gunner.get("aim_action", &"aim"))
+		var fire: Dictionary = _runtime_input_glyph_presenter.resolve_action(fire_action)
+		var aim: Dictionary = _runtime_input_glyph_presenter.resolve_action(aim_action)
+		if bool(fire.get("valid", false)):
+			actions.append({"id": &"gunner_fire", "label": "[%s] GUNNER FIRE" % str(fire.get("text", "INPUT")), "focusable": true})
+		if bool(aim.get("valid", false)):
+			actions.append({"id": &"gunner_aim", "label": "[%s] GUNNER AIM" % str(aim.get("text", "INPUT")), "focusable": true})
+		presentation["actions"] = actions
+	_render_runtime_status(presentation, &"crew")
 
 
 func update_surface_route_status(snapshot: Dictionary) -> void:
@@ -2547,6 +2560,17 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 			detail += "\nCOOLDOWN // %.1f S" % cooldown
 		if not bool(snapshot.get("release_allowed", false)):
 			detail += "\nUNAVAILABLE // %s" % str(snapshot.get("reason", "unavailable")).to_upper()
+	if kind == &"crew" and snapshot.has("gunner_weapon"):
+		var gunner := snapshot.get("gunner_weapon", {}) as Dictionary
+		detail += "\n%s" % str(gunner.get("status", "GUNNER UNAVAILABLE"))
+		detail += "\nSIEGE LANCE CHARGE // %d%%" % roundi(float(gunner.get("charge_progress", 0.0)) * 100.0)
+		detail += "\nAMMO // %d" % maxi(0, int(gunner.get("ammunition", 0)))
+		var gunner_cooldown := maxf(0.0, float(gunner.get("cooldown_remaining", 0.0)))
+		if gunner_cooldown > 0.0:
+			detail += "\nCOOLDOWN // %.1f S" % gunner_cooldown
+		var gunner_reason := str(gunner.get("unavailable_reason", "")).strip_edges()
+		if not gunner_reason.is_empty():
+			detail += "\nUNAVAILABLE // %s" % gunner_reason.to_upper()
 	_runtime_status_detail.text = detail
 	for action: Dictionary in snapshot.get("actions", []):
 		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)

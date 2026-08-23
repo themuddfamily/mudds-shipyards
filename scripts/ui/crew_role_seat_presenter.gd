@@ -11,6 +11,7 @@ const POWER_ROUTES := [&"offline", &"auxiliary", &"primary"]
 const MOBILITY_STATES := [&"immobile", &"limited", &"mobile"]
 const FIRE_STATES := [&"blocked", &"restricted", &"available"]
 const TARGETING_STATES := [&"unavailable", &"degraded", &"available"]
+const GUNNER_REASONS := [&"", &"role_transfer", &"disconnected", &"weapon_unavailable", &"cooldown", &"ammunition_depleted", &"target_unavailable"]
 
 var _snapshot: Dictionary = {}
 
@@ -60,6 +61,33 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			"controls": "Neutral" if bool(raw_emergency_handoff.get("neutral_command_confirmed", false)) else "Pending",
 			"presentation_only": true,
 		}
+	var gunner_weapon: Dictionary = {}
+	var gunner_record := raw_roles.get(&"gunner", {}) as Dictionary
+	var raw_weapon := source.get("gunner_weapon", source.get("weapon", gunner_record.get("weapon", {}))) as Dictionary
+	var gunner_disconnected := detached or bool(source.get("disconnected", false)) or bool(gunner_record.get("disconnected", false))
+	if not raw_weapon.is_empty() or not gunner_record.is_empty():
+		var reason := _bounded_state(
+			raw_weapon.get("unavailable_reason", gunner_record.get("unavailable_reason", &"")),
+			GUNNER_REASONS, &"weapon_unavailable"
+		)
+		var ammo := maxi(0, int(raw_weapon.get("ammunition", raw_weapon.get("ammo", raw_weapon.get("ammunition_remaining", 0)))))
+		var cooldown := maxf(0.0, float(raw_weapon.get("cooldown_remaining", gunner_record.get("cooldown_remaining", 0.0))))
+		var charge := clampf(float(raw_weapon.get("charge_progress", raw_weapon.get("charge", 0.0))), 0.0, 1.0)
+		var ready := bool(raw_weapon.get("ready", raw_weapon.get("weapon_ready", cooldown <= 0.0 and not gunner_disconnected)))
+		var status := "GUNNER DISCONNECTED" if gunner_disconnected else ("ROLE TRANSFER IN PROGRESS" if bool(source.get("handoff", false)) else "GUNNER READY" if ready else "GUNNER UNAVAILABLE")
+		gunner_weapon = {
+			"role": &"gunner",
+			"status": status,
+			"weapon_id": StringName(str(raw_weapon.get("weapon_id", &"siege_lance"))),
+			"charge_progress": charge,
+			"ammunition": ammo,
+			"cooldown_remaining": cooldown,
+			"ready": ready,
+			"unavailable_reason": reason,
+			"fire_action": StringName(str(raw_weapon.get("fire_action", &"fire"))),
+			"aim_action": StringName(str(raw_weapon.get("aim_action", &"aim"))),
+			"presentation_only": true,
+		}
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"actor_id": str(source.get("actor_id", "")),
@@ -73,6 +101,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"engineer_route": engineer_route,
 		"engineer_route_attached": not detached,
 		"emergency_handoff": emergency_handoff_view,
+		"gunner_weapon": gunner_weapon,
 		"presentation_only": true,
 	}
 	return _snapshot.duplicate(true)
