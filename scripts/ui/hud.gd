@@ -179,6 +179,26 @@ const MAX_UI_SCALE := 1.6
 const GAMEPAD_CAPTURE_THRESHOLD := 0.75
 const MAX_PLANETARY_CRUISE_TOGGLE_SERIAL := 9_007_199_254_740_991
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
+const MAX_SESSION_RECOVERY_PHYSICS_SECONDS := 2_592_000.0
+const MAX_SESSION_RECOVERY_UNCLEAN_STARTS := 3
+const SESSION_RECOVERY_SNAPSHOT_KEYS := [
+	"schema_version",
+	"state",
+	"session_id",
+	"startup_generation",
+	"unclean_start_count",
+	"last_physics_tick",
+	"last_elapsed_physics_seconds",
+]
+const SESSION_RECOVERY_RECOMMENDATION_KEYS := [
+	"available",
+	"requires_caller_choice",
+	"severity",
+	"choices",
+	"safe_start_patch",
+	"applies_settings",
+	"persists_settings",
+]
 const SESSION_RECOVERY_CHOICES := [
 	&"normal_start",
 	&"safe_graphics_windowed",
@@ -453,6 +473,7 @@ var _session_recovery_snapshot: Dictionary = {}
 var _session_recovery_recommendation: Dictionary = {}
 var _session_recovery_token := 0
 var _session_recovery_generation := 0
+var _session_recovery_choice_latched := false
 var _session_recovery_action_buttons: Dictionary = {}
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _server_browser_presenter := ServerBrowserPresenterType.new()
@@ -2477,13 +2498,20 @@ func present_session_recovery_notice(
 	if (
 		_session_recovery_generation == generation
 		and _session_recovery_token > 0
-		and _session_recovery_token != token
 	):
-		return {"accepted": false, "reason": &"recovery_token_mismatch"}
+		return {
+			"accepted": false,
+			"reason": (
+				&"replayed_recovery_notice"
+				if _session_recovery_token == token
+				else &"recovery_token_mismatch"
+			),
+		}
 	_session_recovery_snapshot = recovery_snapshot.duplicate(true)
 	_session_recovery_recommendation = recommendation.duplicate(true)
 	_session_recovery_token = token
 	_session_recovery_generation = generation
+	_session_recovery_choice_latched = false
 	_render_session_recovery_notice()
 	return {
 		"accepted": true,
@@ -2499,39 +2527,106 @@ func _validate_session_recovery_notice(
 	recovery_snapshot: Dictionary,
 	recommendation: Dictionary
 ) -> Dictionary:
-	var token := int(recovery_snapshot.get("session_id", 0))
-	var generation := int(recovery_snapshot.get("startup_generation", 0))
+	if not _has_exact_string_keys(recovery_snapshot, SESSION_RECOVERY_SNAPSHOT_KEYS):
+		return {"accepted": false, "reason": &"recovery_snapshot_schema_invalid"}
+	var schema: Variant = recovery_snapshot.get("schema_version")
+	var state: Variant = recovery_snapshot.get("state")
+	var token_value: Variant = recovery_snapshot.get("session_id")
+	var generation_value: Variant = recovery_snapshot.get("startup_generation")
+	var count_value: Variant = recovery_snapshot.get("unclean_start_count")
+	var tick_value: Variant = recovery_snapshot.get("last_physics_tick")
+	var elapsed_value: Variant = recovery_snapshot.get("last_elapsed_physics_seconds")
 	if (
-		StringName(str(recovery_snapshot.get("state", &""))) != &"running"
+		schema is not int
+		or token_value is not int
+		or generation_value is not int
+		or count_value is not int
+		or tick_value is not int
+		or elapsed_value is not float
+		or not (state is String or state is StringName)
+	):
+		return {"accepted": false, "reason": &"recovery_snapshot_types_invalid"}
+	var token := token_value as int
+	var generation := generation_value as int
+	var count := count_value as int
+	var physics_tick := tick_value as int
+	var elapsed := elapsed_value as float
+	if (
+		schema != 1
+		or StringName(str(state)) != &"running"
 		or token <= 0
 		or token > MAX_SESSION_RECOVERY_TOKEN
 		or generation <= 0
 		or generation > MAX_SESSION_RECOVERY_TOKEN
+		or count < 0
+		or count > MAX_SESSION_RECOVERY_UNCLEAN_STARTS
+		or physics_tick < 0
+		or physics_tick > MAX_SESSION_RECOVERY_TOKEN
+		or is_nan(elapsed)
+		or is_inf(elapsed)
+		or elapsed < 0.0
+		or elapsed > MAX_SESSION_RECOVERY_PHYSICS_SECONDS
 	):
-		return {"accepted": false, "reason": &"recovery_snapshot_invalid"}
+		return {"accepted": false, "reason": &"recovery_snapshot_values_invalid"}
+	if not _has_exact_string_keys(
+		recommendation, SESSION_RECOVERY_RECOMMENDATION_KEYS
+	):
+		return {"accepted": false, "reason": &"recovery_recommendation_schema_invalid"}
+	var available: Variant = recommendation.get("available")
+	var caller_choice: Variant = recommendation.get("requires_caller_choice")
+	var severity_value: Variant = recommendation.get("severity")
+	var choices_value: Variant = recommendation.get("choices")
+	var patch_value: Variant = recommendation.get("safe_start_patch")
+	var applies: Variant = recommendation.get("applies_settings")
+	var persists: Variant = recommendation.get("persists_settings")
 	if (
-		recommendation.get("available") != true
-		or recommendation.get("requires_caller_choice") != true
-		or recommendation.get("applies_settings", false) != false
-		or recommendation.get("persists_settings", false) != false
+		available is not bool
+		or caller_choice is not bool
+		or not (severity_value is String or severity_value is StringName)
+		or choices_value is not Array
+		or patch_value is not Dictionary
+		or applies is not bool
+		or persists is not bool
 	):
-		return {"accepted": false, "reason": &"recovery_recommendation_invalid"}
-	var choices := recommendation.get("choices", []) as Array
+		return {"accepted": false, "reason": &"recovery_recommendation_types_invalid"}
+	var severity := StringName(str(severity_value))
+	if (
+		available != true
+		or caller_choice != true
+		or severity not in [&"review_prior_session", &"safe_graphics_recommended"]
+		or applies != false
+		or persists != false
+	):
+		return {"accepted": false, "reason": &"recovery_recommendation_values_invalid"}
+	var choices := choices_value as Array
 	if choices.size() != SESSION_RECOVERY_CHOICES.size():
 		return {"accepted": false, "reason": &"recovery_choices_invalid"}
 	for index in SESSION_RECOVERY_CHOICES.size():
-		if StringName(str(choices[index])) != SESSION_RECOVERY_CHOICES[index]:
+		var choice: Variant = choices[index]
+		if (
+			not (choice is String or choice is StringName)
+			or StringName(str(choice)) != SESSION_RECOVERY_CHOICES[index]
+		):
 			return {"accepted": false, "reason": &"recovery_choices_invalid"}
 	return {"accepted": true, "reason": &"recovery_notice_valid"}
+
+
+func _has_exact_string_keys(source: Dictionary, expected: Array) -> bool:
+	if source.size() != expected.size():
+		return false
+	for key: Variant in source.keys():
+		if key is not String or key not in expected:
+			return false
+	return true
 
 
 func _render_session_recovery_notice() -> void:
 	if not is_instance_valid(_recovery_prompt_panel):
 		return
 	_recovery_prompt_title.text = "INTERRUPTED SESSION"
-	var ticks := maxi(0, int(_session_recovery_snapshot.get("last_physics_tick", 0)))
-	var elapsed := maxf(0.0, float(_session_recovery_snapshot.get("last_elapsed_physics_seconds", 0.0)))
-	var unfinished := maxi(0, int(_session_recovery_snapshot.get("unclean_start_count", 0)))
+	var ticks := _session_recovery_snapshot.get("last_physics_tick") as int
+	var elapsed := _session_recovery_snapshot.get("last_elapsed_physics_seconds") as float
+	var unfinished := _session_recovery_snapshot.get("unclean_start_count") as int
 	var advice := StringName(str(_session_recovery_recommendation.get("severity", &"review_prior_session")))
 	_recovery_prompt_detail.text = (
 		"Session %d did not close cleanly after %d physics ticks (%.2f seconds).\n"
@@ -2587,8 +2682,16 @@ func _request_session_recovery_action(
 		or not _recovery_prompt_panel.visible
 		or recovery_token != _session_recovery_token
 		or recovery_generation != _session_recovery_generation
+		or _session_recovery_choice_latched
 	):
 		return false
+	if action not in [&"safe", &"continue", &"discard"]:
+		return false
+	_session_recovery_choice_latched = true
+	for button_variant: Variant in _session_recovery_action_buttons.values():
+		var button := button_variant as Button
+		if is_instance_valid(button):
+			button.disabled = true
 	match action:
 		&"safe":
 			session_recovery_safe_requested.emit(recovery_token, recovery_generation)
@@ -2596,8 +2699,6 @@ func _request_session_recovery_action(
 			session_recovery_continue_requested.emit(recovery_token, recovery_generation)
 		&"discard":
 			session_recovery_discard_requested.emit(recovery_token, recovery_generation)
-		_:
-			return false
 	return true
 
 
@@ -2606,6 +2707,7 @@ func clear_session_recovery_notice() -> void:
 	_session_recovery_recommendation.clear()
 	_session_recovery_token = 0
 	_session_recovery_generation = 0
+	_session_recovery_choice_latched = false
 	_clear_recovery_action_controls()
 	if is_instance_valid(_recovery_prompt_dismiss_button):
 		_recovery_prompt_dismiss_button.visible = true
@@ -2631,6 +2733,7 @@ func get_session_recovery_notice_snapshot() -> Dictionary:
 		"active": _session_recovery_token > 0 and _session_recovery_generation > 0,
 		"recovery_token": _session_recovery_token,
 		"recovery_generation": _session_recovery_generation,
+		"choice_latched": _session_recovery_choice_latched,
 		"recovery_snapshot": _session_recovery_snapshot.duplicate(true),
 		"recommendation": _session_recovery_recommendation.duplicate(true),
 		"reduced_motion": _reduced_motion,

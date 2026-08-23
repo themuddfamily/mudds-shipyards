@@ -21,7 +21,7 @@ func _run() -> void:
 	hud.session_recovery_discard_requested.connect(_capture_request.bind(&"discard"))
 	var recovery := {
 		"schema_version": 1,
-		"state": &"running",
+		"state": "running",
 		"session_id": 41,
 		"startup_generation": 7,
 		"unclean_start_count": 2,
@@ -37,6 +37,8 @@ func _run() -> void:
 		"applies_settings": false,
 		"persists_settings": false,
 	}
+	var authentic_recovery := recovery.duplicate(true)
+	var authentic_recommendation := recommendation.duplicate(true)
 	var presented := hud.present_session_recovery_notice(recovery, recommendation)
 	_check(
 		bool(presented.accepted)
@@ -87,15 +89,66 @@ func _run() -> void:
 		int(hud.get_session_recovery_notice_snapshot().recovery_snapshot.session_id) == 41,
 		"the public notice snapshot is also a deep copy"
 	)
-	var stale := recovery.duplicate(true)
+	var replayed_recovery := authentic_recovery.duplicate(true)
+	replayed_recovery["last_physics_tick"] = 999
+	var replayed_recommendation := authentic_recommendation.duplicate(true)
+	replayed_recommendation["severity"] = &"safe_graphics_recommended"
+	_check(
+		hud.present_session_recovery_notice(
+			replayed_recovery, replayed_recommendation
+		).reason == &"replayed_recovery_notice"
+		and int(hud.get_session_recovery_notice_snapshot().recovery_snapshot.last_physics_tick) == 125
+		and hud.get_session_recovery_notice_snapshot().recommendation.severity == &"review_prior_session",
+		"same-token same-generation replay is rejected without overwriting retained state"
+	)
+	var malformed_cases: Array[Dictionary] = []
+	var bad_schema := authentic_recovery.duplicate(true)
+	bad_schema["schema_version"] = 2
+	malformed_cases.append({"snapshot": bad_schema, "recommendation": authentic_recommendation})
+	var bad_type := authentic_recovery.duplicate(true)
+	bad_type["session_id"] = "41"
+	malformed_cases.append({"snapshot": bad_type, "recommendation": authentic_recommendation})
+	var bad_tick := authentic_recovery.duplicate(true)
+	bad_tick["last_physics_tick"] = -1
+	malformed_cases.append({"snapshot": bad_tick, "recommendation": authentic_recommendation})
+	var bad_elapsed := authentic_recovery.duplicate(true)
+	bad_elapsed["last_elapsed_physics_seconds"] = NAN
+	malformed_cases.append({"snapshot": bad_elapsed, "recommendation": authentic_recommendation})
+	var bad_count := authentic_recovery.duplicate(true)
+	bad_count["unclean_start_count"] = 4
+	malformed_cases.append({"snapshot": bad_count, "recommendation": authentic_recommendation})
+	var extra_field := authentic_recovery.duplicate(true)
+	extra_field["forged"] = true
+	malformed_cases.append({"snapshot": extra_field, "recommendation": authentic_recommendation})
+	var bad_severity := authentic_recommendation.duplicate(true)
+	bad_severity["severity"] = &"automatic_repair"
+	malformed_cases.append({"snapshot": authentic_recovery, "recommendation": bad_severity})
+	var bad_authority := authentic_recommendation.duplicate(true)
+	bad_authority["applies_settings"] = true
+	malformed_cases.append({"snapshot": authentic_recovery, "recommendation": bad_authority})
+	var all_malformed_rejected := true
+	for malformed in malformed_cases:
+		all_malformed_rejected = all_malformed_rejected and not bool(
+			hud.present_session_recovery_notice(
+				malformed.snapshot as Dictionary,
+				malformed.recommendation as Dictionary
+			).get("accepted", true)
+		)
+	_check(
+		all_malformed_rejected
+		and detail.text.contains("125 physics ticks (12.50 seconds)")
+		and int(hud.get_session_recovery_notice_snapshot().recovery_token) == 41,
+		"malformed schema, types, progress, count, severity, and authority flags never render clamped data"
+	)
+	var stale := authentic_recovery.duplicate(true)
 	stale["session_id"] = 40
 	stale["startup_generation"] = 6
-	var conflicting := recovery.duplicate(true)
+	var conflicting := authentic_recovery.duplicate(true)
 	conflicting["session_id"] = 42
 	conflicting["startup_generation"] = 7
 	_check(
-		hud.present_session_recovery_notice(stale, recommendation).reason == &"stale_recovery_generation"
-		and hud.present_session_recovery_notice(conflicting, recommendation).reason == &"recovery_token_mismatch"
+		hud.present_session_recovery_notice(stale, authentic_recommendation).reason == &"stale_recovery_generation"
+		and hud.present_session_recovery_notice(conflicting, authentic_recommendation).reason == &"recovery_token_mismatch"
 		and int(hud.get_session_recovery_notice_snapshot().recovery_token) == 41,
 		"stale generations and same-generation token substitution fail without replacing the notice"
 	)
@@ -109,13 +162,11 @@ func _run() -> void:
 	continue_button.pressed.emit()
 	discard.pressed.emit()
 	_check(
-		_requests == [
-			{"action": &"safe", "token": 41, "generation": 7},
-			{"action": &"continue", "token": 41, "generation": 7},
-			{"action": &"discard", "token": 41, "generation": 7},
-		]
+		_requests == [{"action": &"safe", "token": 41, "generation": 7}]
+		and bool(hud.get_session_recovery_notice_snapshot().choice_latched)
+		and safe.disabled and continue_button.disabled and discard.disabled
 		and panel.visible,
-		"each choice emits its dedicated exact fenced request and the HUD does not assume its outcome"
+		"one explicit choice latches the notice and repeated or cross-choice presses cannot emit"
 	)
 	var report := hud.get_session_recovery_notice_snapshot()
 	_check(
@@ -146,11 +197,31 @@ func _run() -> void:
 		and actions.get_child_count() == 0,
 		"explicit reset clears presentation, focus actions, token, generation, and detached state"
 	)
-	var fresh_recovery := stale.duplicate(true)
-	fresh_recovery["session_id"] = 43
-	fresh_recovery["startup_generation"] = 8
+	var continue_recovery := authentic_recovery.duplicate(true)
+	continue_recovery["session_id"] = 42
+	continue_recovery["startup_generation"] = 8
 	_check(
-		bool(hud.present_session_recovery_notice(fresh_recovery, recommendation).accepted),
+		bool(hud.present_session_recovery_notice(continue_recovery, authentic_recommendation).accepted)
+		and hud._request_session_recovery_action(&"continue", 42, 8)
+		and _requests.back() == {"action": &"continue", "token": 42, "generation": 8},
+		"a fresh notice can emit the dedicated Continue request"
+	)
+	hud.reset_session_recovery_notice()
+	var discard_recovery := authentic_recovery.duplicate(true)
+	discard_recovery["session_id"] = 43
+	discard_recovery["startup_generation"] = 9
+	_check(
+		bool(hud.present_session_recovery_notice(discard_recovery, authentic_recommendation).accepted)
+		and hud._request_session_recovery_action(&"discard", 43, 9)
+		and _requests.back() == {"action": &"discard", "token": 43, "generation": 9},
+		"a fresh notice can emit the dedicated Discard request"
+	)
+	hud.reset_session_recovery_notice()
+	var fresh_recovery := authentic_recovery.duplicate(true)
+	fresh_recovery["session_id"] = 43
+	fresh_recovery["startup_generation"] = 10
+	_check(
+		bool(hud.present_session_recovery_notice(fresh_recovery, authentic_recommendation).accepted),
 		"a reset accepts a fresh caller-owned recovery generation"
 	)
 	root.remove_child(hud)
