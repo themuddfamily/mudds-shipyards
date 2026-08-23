@@ -1311,6 +1311,8 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 				"firing_pattern_id": BREAKER_FIRE_PATTERN,
 				"projectile_count_per_cycle": RangeOpponent.SHORT_BURST_PROJECTILE_COUNT,
 				"projectile_interval_seconds": RangeOpponent.SHORT_BURST_INTERVAL_SECONDS,
+				"pre_discharge_telegraph_id": RangeOpponent.FIRE_TELEGRAPH_STEPPED_BURST,
+				"telegraph_identity_pattern": "o O",
 			},
 			{
 				"hostile_id": PINCER_OUTER_HOSTILE_ID,
@@ -1321,6 +1323,8 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 				"firing_pattern_id": FEINT_FIRE_PATTERN,
 				"projectile_count_per_cycle": 1,
 				"cooldown_multiplier": RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER,
+				"pre_discharge_telegraph_id": RangeOpponent.FIRE_TELEGRAPH_SUPPRESSION_BRACE,
+				"telegraph_identity_pattern": "O O",
 				"evasive_maneuver_id": FEINT_EVASIVE_MANEUVER,
 				"evasive_duration_seconds": RangeOpponent.LATERAL_BREAK_DURATION_SECONDS,
 				"evasive_speed_multiplier": RangeOpponent.LATERAL_BREAK_SPEED_MULTIPLIER,

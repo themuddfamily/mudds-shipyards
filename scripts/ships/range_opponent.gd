@@ -94,30 +94,41 @@ const WEAPON_TELEGRAPH_POSITIONS := [
 const FIRE_PATTERN_SINGLE_SHOT: StringName = &"single_shot"
 const FIRE_PATTERN_SHORT_BURST: StringName = &"short_burst"
 const FIRE_PATTERN_SPACED_SUPPRESSION: StringName = &"spaced_suppression"
+const FIRE_TELEGRAPH_UNIFORM_PAIR: StringName = &"uniform_pair"
+const FIRE_TELEGRAPH_STEPPED_BURST: StringName = &"stepped_burst_pair"
+const FIRE_TELEGRAPH_SUPPRESSION_BRACE: StringName = &"suppression_brace"
 const MAX_PATTERN_PROJECTILES_PER_CYCLE := 3
 const SHORT_BURST_PROJECTILE_COUNT := 3
 const SHORT_BURST_INTERVAL_SECONDS := 0.14
 const SHORT_BURST_OPENING_DELAY_SECONDS := 0.08
 const SUPPRESSION_COOLDOWN_MULTIPLIER := 1.65
 const SUPPRESSION_OPENING_DELAY_SECONDS := 0.22
+const SHORT_BURST_TELEGRAPH_SCALE_MULTIPLIERS := [0.72, 1.38]
+const SUPPRESSION_TELEGRAPH_SCALE_MULTIPLIERS := [1.42, 1.42]
 const FIRE_PATTERN_PROFILES := {
 	FIRE_PATTERN_SINGLE_SHOT: {
 		"projectile_count": 1,
 		"interval_seconds": 0.0,
 		"cooldown_multiplier": 1.0,
 		"opening_delay_seconds": 0.0,
+		"telegraph_identity": FIRE_TELEGRAPH_UNIFORM_PAIR,
+		"telegraph_scale_multipliers": [1.0, 1.0],
 	},
 	FIRE_PATTERN_SHORT_BURST: {
 		"projectile_count": SHORT_BURST_PROJECTILE_COUNT,
 		"interval_seconds": SHORT_BURST_INTERVAL_SECONDS,
 		"cooldown_multiplier": 1.0,
 		"opening_delay_seconds": SHORT_BURST_OPENING_DELAY_SECONDS,
+		"telegraph_identity": FIRE_TELEGRAPH_STEPPED_BURST,
+		"telegraph_scale_multipliers": SHORT_BURST_TELEGRAPH_SCALE_MULTIPLIERS,
 	},
 	FIRE_PATTERN_SPACED_SUPPRESSION: {
 		"projectile_count": 1,
 		"interval_seconds": 0.0,
 		"cooldown_multiplier": SUPPRESSION_COOLDOWN_MULTIPLIER,
 		"opening_delay_seconds": SUPPRESSION_OPENING_DELAY_SECONDS,
+		"telegraph_identity": FIRE_TELEGRAPH_SUPPRESSION_BRACE,
+		"telegraph_scale_multipliers": SUPPRESSION_TELEGRAPH_SCALE_MULTIPLIERS,
 	},
 }
 const EVASIVE_MANEUVER_NONE: StringName = &"none"
@@ -582,6 +593,13 @@ func get_firing_pattern_snapshot() -> Dictionary:
 		"maximum_projectiles_per_cycle": MAX_PATTERN_PROJECTILES_PER_CYCLE,
 		"interval_seconds": float(profile.interval_seconds),
 		"cooldown_multiplier": float(profile.cooldown_multiplier),
+		"pre_discharge_telegraph_id": StringName(profile.telegraph_identity),
+		"pre_discharge_scale_multipliers": (
+			_get_firing_pattern_telegraph_scale_multipliers()
+		),
+		"pre_discharge_uses_static_geometry": true,
+		"pre_discharge_color_only": false,
+		"pre_discharge_motion_added": false,
 		"pending_projectile_count": _pattern_projectiles_remaining,
 		"pending_interval_seconds": _pattern_interval_remaining,
 		"cooldown_remaining_seconds": _cooldown_remaining,
@@ -1285,15 +1303,45 @@ func _update_presentation(delta: float) -> void:
 			_engine_lights[index].light_energy = engine_strength * side_damage * 1.9
 
 	var charge := 0.0
-	if _active and _telegraph_remaining > 0.0:
+	var charge_active := _active and _telegraph_remaining > 0.0
+	if charge_active:
 		charge = 1.0 - _telegraph_remaining / maxf(telegraph_time, 0.001)
 		charge = clampf(charge, 0.0, 1.0)
 		charge = 0.22 + charge * 1.15 + sin(_elapsed * 34.0) * 0.08
+	var telegraph_multipliers := _get_firing_pattern_telegraph_scale_multipliers()
+	var retained_telegraph_index := 0
 	for lens in _warning_lenses:
-		lens.scale = Vector3.ONE * (0.8 + charge * 0.55)
+		var pattern_multiplier := 1.0
+		if (
+			charge_active
+			and _weapon_telegraph_mesh != null
+			and lens.mesh == _weapon_telegraph_mesh
+		):
+			if retained_telegraph_index < telegraph_multipliers.size():
+				pattern_multiplier = telegraph_multipliers[retained_telegraph_index]
+			retained_telegraph_index += 1
+		lens.scale = Vector3.ONE * (0.8 + charge * 0.55) * pattern_multiplier
 		lens.visible = _active
 	if _warning_light != null:
 		_warning_light.light_energy = charge * 5.0
+
+
+## Static, non-color geometry only. This composes with the existing charge size
+## and never touches muzzle/projectile dispatch or derived-archetype lenses.
+func _get_firing_pattern_telegraph_scale_multipliers() -> PackedFloat32Array:
+	var profile := FIRE_PATTERN_PROFILES.get(
+		_firing_pattern_id,
+		FIRE_PATTERN_PROFILES[FIRE_PATTERN_SINGLE_SHOT]
+	) as Dictionary
+	var configured := profile.get("telegraph_scale_multipliers", [1.0, 1.0]) as Array
+	var multipliers := PackedFloat32Array()
+	for index in WEAPON_TELEGRAPH_COPY_COUNT:
+		multipliers.append(clampf(
+			float(configured[index]) if index < configured.size() else 1.0,
+			0.5,
+			1.5
+		))
+	return multipliers
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:

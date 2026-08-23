@@ -64,6 +64,7 @@ func _test_range_opponent_firing_patterns() -> void:
 	var single_result := opponent.configure_firing_pattern(
 		RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
 	)
+	var single_pre_discharge := _start_and_capture_pattern_telegraph(opponent, target)
 	_drive_firing_pattern_cycle(opponent, target, [])
 	var single_snapshot := opponent.get_firing_pattern_snapshot()
 	var single_count := shots.size()
@@ -76,6 +77,13 @@ func _test_range_opponent_firing_patterns() -> void:
 	var burst_result := opponent.configure_firing_pattern(
 		RangeOpponent.FIRE_PATTERN_SHORT_BURST
 	)
+	var burst_pre_discharge := _start_and_capture_pattern_telegraph(opponent, target)
+	root.remove_child(opponent)
+	await process_frame
+	root.add_child(opponent)
+	await process_frame
+	opponent.call("_update_presentation", 0.0)
+	var burst_pre_discharge_reentered := _capture_pattern_telegraph(opponent)
 	_drive_firing_pattern_cycle(opponent, target, [
 		RangeOpponent.SHORT_BURST_INTERVAL_SECONDS * 0.5,
 	])
@@ -94,6 +102,8 @@ func _test_range_opponent_firing_patterns() -> void:
 	var burst_snapshot := opponent.get_firing_pattern_snapshot()
 	var burst_count := shots.size()
 	var burst_shots := shots.duplicate(true)
+	opponent.call("_update_presentation", 0.0)
+	var burst_cleared_telegraph := _capture_pattern_telegraph(opponent)
 
 	opponent.deactivate()
 	opponent.activate(Transform3D.IDENTITY)
@@ -102,6 +112,18 @@ func _test_range_opponent_firing_patterns() -> void:
 	var suppression_result := opponent.configure_firing_pattern(
 		RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
 	)
+	opponent.call("_update_presentation", 0.0)
+	var suppression_reuse_idle := _capture_pattern_telegraph(opponent)
+	var suppression_pre_discharge := _start_and_capture_pattern_telegraph(opponent, target)
+	opponent.call(
+		"_update_weapon",
+		target.global_position,
+		Vector3.BACK,
+		opponent.global_position.distance_to(target.global_position),
+		0.0
+	)
+	opponent.call("_update_presentation", 0.0)
+	var suppression_cancelled := _capture_pattern_telegraph(opponent)
 	_drive_firing_pattern_cycle(opponent, target, [])
 	var suppression_snapshot := opponent.get_firing_pattern_snapshot()
 	var suppression_count := shots.size()
@@ -219,6 +241,42 @@ func _test_range_opponent_firing_patterns() -> void:
 		),
 		"spaced suppression dispatches one projectile then holds the bounded 1.65x cycle cooldown"
 	)
+	var single_scales := single_pre_discharge.scales as Array
+	var burst_scales := burst_pre_discharge.scales as Array
+	var suppression_scales := suppression_pre_discharge.scales as Array
+	_check(
+		single_snapshot.pre_discharge_telegraph_id == RangeOpponent.FIRE_TELEGRAPH_UNIFORM_PAIR
+		and burst_snapshot.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_STEPPED_BURST
+		and suppression_snapshot.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_SUPPRESSION_BRACE
+		and single_scales.size() == 2
+		and burst_scales.size() == 2
+		and suppression_scales.size() == 2
+		and is_equal_approx((single_scales[0] as Vector3).x, (single_scales[1] as Vector3).x)
+		and (burst_scales[0] as Vector3).x < (single_scales[0] as Vector3).x
+		and (burst_scales[1] as Vector3).x > (single_scales[1] as Vector3).x
+		and is_equal_approx(
+			(suppression_scales[0] as Vector3).x,
+			(suppression_scales[1] as Vector3).x
+		)
+		and (suppression_scales[0] as Vector3).x > (burst_scales[1] as Vector3).x
+		and burst_pre_discharge.positions == single_pre_discharge.positions
+		and suppression_pre_discharge.positions == single_pre_discharge.positions
+		and burst_pre_discharge.mesh_ids == single_pre_discharge.mesh_ids
+		and suppression_pre_discharge.mesh_ids == single_pre_discharge.mesh_ids
+		and burst_pre_discharge.material_ids == single_pre_discharge.material_ids
+		and suppression_pre_discharge.material_ids == single_pre_discharge.material_ids
+		and burst_pre_discharge_reentered.scales == burst_pre_discharge.scales
+		and _telegraph_scales_are_uniform(burst_cleared_telegraph.scales as Array, 0.8)
+		and _telegraph_scales_are_uniform(suppression_reuse_idle.scales as Array, 0.8)
+		and _telegraph_scales_are_uniform(suppression_cancelled.scales as Array, 0.8)
+		and is_zero_approx(float(suppression_cancelled.warning_light_energy))
+		and bool(burst_snapshot.pre_discharge_uses_static_geometry)
+		and not bool(burst_snapshot.pre_discharge_color_only)
+		and not bool(burst_snapshot.pre_discharge_motion_added),
+		"retained muzzle spheres show stepped burst and heavy suppression silhouettes before discharge without color or added motion"
+	)
 	_check(
 		degraded_fire_multiplier > 0.0 and degraded_fire_multiplier < 1.0
 		and degraded_burst_count == RangeOpponent.SHORT_BURST_PROJECTILE_COUNT
@@ -290,6 +348,50 @@ func _drive_firing_pattern_cycle(
 			distance,
 			float(delta_variant)
 		)
+
+
+func _start_and_capture_pattern_telegraph(
+	opponent: RangeOpponent,
+	target: Node3D
+	) -> Dictionary:
+	var target_direction := (target.global_position - opponent.global_position).normalized()
+	var distance := opponent.global_position.distance_to(target.global_position)
+	opponent.set("_cooldown_remaining", 0.0)
+	opponent.set("_telegraph_remaining", 0.0)
+	opponent.call("_update_weapon", target.global_position, target_direction, distance, 0.0)
+	opponent.call("_update_presentation", 0.0)
+	return _capture_pattern_telegraph(opponent)
+
+
+func _capture_pattern_telegraph(opponent: RangeOpponent) -> Dictionary:
+	var scales: Array[Vector3] = []
+	var positions: Array[Vector3] = []
+	var mesh_ids: Array[int] = []
+	var material_ids: Array[int] = []
+	for node in _weapon_telegraph_nodes(opponent):
+		scales.append(node.scale)
+		positions.append(node.position)
+		mesh_ids.append(node.mesh.get_instance_id())
+		var sphere := node.mesh as SphereMesh
+		material_ids.append(sphere.material.get_instance_id() if sphere.material != null else 0)
+	var warning_light := opponent.get("_warning_light") as OmniLight3D
+	return {
+		"scales": scales,
+		"positions": positions,
+		"mesh_ids": mesh_ids,
+		"material_ids": material_ids,
+		"warning_light_energy": warning_light.light_energy if warning_light != null else 0.0,
+	}.duplicate(true)
+
+
+func _telegraph_scales_are_uniform(scales: Array, expected: float) -> bool:
+	if scales.size() != RangeOpponent.WEAPON_TELEGRAPH_COPY_COUNT:
+		return false
+	for scale_variant in scales:
+		var scale := scale_variant as Vector3
+		if not scale.is_equal_approx(Vector3.ONE * expected):
+			return false
+	return true
 
 
 func _test_perimeter_renewal_rejects_stale_live_ownership() -> void:
@@ -832,10 +934,16 @@ func _test_checked_in_encounter_content() -> void:
 		and (breaker_roles[0] as Dictionary).approach == &"direct_zero_orbit"
 		and (breaker_roles[0] as Dictionary).firing_pattern_id \
 			== RangeOpponent.FIRE_PATTERN_SHORT_BURST
+		and (breaker_roles[0] as Dictionary).pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_STEPPED_BURST
+		and (breaker_roles[0] as Dictionary).telegraph_identity_pattern == "o O"
 		and (breaker_roles[1] as Dictionary).role == &"outer_feint"
 		and (breaker_roles[1] as Dictionary).approach == &"slow_counter_orbit"
 		and (breaker_roles[1] as Dictionary).firing_pattern_id \
 			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and (breaker_roles[1] as Dictionary).pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_SUPPRESSION_BRACE
+		and (breaker_roles[1] as Dictionary).telegraph_identity_pattern == "O O"
 		and (breaker_roles[1] as Dictionary).evasive_maneuver_id \
 			== RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
 		and is_equal_approx(beta.preferred_range, StationDefenseEncounterContent.BREAKER_PREFERRED_RANGE)
@@ -847,8 +955,12 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(gamma.chase_speed, StationDefenseEncounterContent.FEINT_CHASE_SPEED)
 		and float(gamma.get("_orbit_sign")) == StationDefenseEncounterContent.FEINT_ORBIT_SIGN
 		and beta_breaker_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SHORT_BURST
+		and beta_breaker_pattern.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_STEPPED_BURST
 		and int(beta_breaker_pattern.projectile_count_per_cycle) == 3
 		and gamma_feint_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and gamma_feint_pattern.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_SUPPRESSION_BRACE
 		and is_equal_approx(
 			float(gamma_feint_pattern.cooldown_multiplier),
 			RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER
@@ -925,6 +1037,10 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
 		and beta_pincer_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
 		and gamma_pincer_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and beta_pincer_pattern.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_UNIFORM_PAIR
+		and gamma_pincer_pattern.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_UNIFORM_PAIR
 		and gamma_pincer_maneuver.maneuver_id == RangeOpponent.EVASIVE_MANEUVER_NONE
 		and gamma_pincer_maneuver.state_id == &"cancelled"
 		and close_role.telegraph_identity == &"compact_pair"
