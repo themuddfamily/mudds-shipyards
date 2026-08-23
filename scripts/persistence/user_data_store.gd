@@ -50,6 +50,11 @@ func load() -> Dictionary:
 	if _has_newer_schema([primary, temporary, backup]):
 		_restore_state(previous)
 		return _load_result(false, &"newer_schema", &"none", primary, backup)
+	# A valid temporary document is an interrupted transaction, not an empty
+	# or stale sibling. Fail closed so a caller cannot silently discard it.
+	if bool(temporary.valid):
+		_restore_state(previous)
+		return _load_result(false, &"interrupted_transaction", &"none", primary, backup)
 	if bool(primary.valid) and bool(backup.valid) and not _documents_form_chain(
 		primary.document as Dictionary, backup.document as Dictionary
 	):
@@ -100,6 +105,8 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 	var current_backup := _read_document(_backup_path())
 	if _has_newer_schema([current_primary, current_temporary, current_backup]):
 		return _commit_result(false, &"newer_schema")
+	if bool(current_temporary.valid):
+		return _commit_result(false, &"interrupted_transaction")
 	if bool(current_primary.valid) and bool(current_backup.valid) and not _documents_form_chain(
 		current_primary.document as Dictionary, current_backup.document as Dictionary
 	):

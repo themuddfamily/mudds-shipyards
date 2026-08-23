@@ -93,6 +93,7 @@ func _run() -> void:
 	_test_corrupt_and_both_invalid_behavior()
 	_test_future_schema_and_unknown_fields()
 	_test_stale_temp_and_interrupted_write()
+	_test_valid_temp_blocks_recovery_and_overwrite()
 	_test_rename_rollback_and_cleanup_failures()
 	_test_exact_authority_concurrency()
 	_test_payload_and_document_bounds()
@@ -245,6 +246,34 @@ func _test_stale_temp_and_interrupted_write() -> void:
 	filesystem.read_failures[PATH + ".tmp"] = 1
 	var unreadable_stage := store.commit({"value": 3}, 2, "commit-003")
 	_check(not bool(unreadable_stage.accepted) and unreadable_stage.reason == &"temp_verification_failed" and not filesystem.files.has(PATH + ".tmp"), "failed staged re-read preserves authority and cleans verified-temp residue")
+
+
+func _test_valid_temp_blocks_recovery_and_overwrite() -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := _one_commit_store(filesystem)
+	var primary_bytes := (filesystem.files[PATH] as PackedByteArray).duplicate()
+	filesystem.files[PATH + ".tmp"] = primary_bytes.duplicate()
+	var temp_bytes := (filesystem.files[PATH + ".tmp"] as PackedByteArray).duplicate()
+
+	var blocked_load := Store.new(PATH, filesystem).load()
+	_check(
+		not bool(blocked_load.accepted) and blocked_load.reason == &"interrupted_transaction",
+		"a valid temporary transaction fails closed instead of being treated as stale or empty"
+	)
+	_check(
+		filesystem.files[PATH] == primary_bytes and filesystem.files[PATH + ".tmp"] == temp_bytes,
+		"failed interrupted-transaction recovery preserves primary and temporary bytes"
+	)
+
+	var blocked_commit := store.commit({"value": 2}, 1, "commit-002")
+	_check(
+		not bool(blocked_commit.accepted) and blocked_commit.reason == &"interrupted_transaction",
+		"a loaded writer cannot overwrite a valid interrupted transaction"
+	)
+	_check(
+		filesystem.files[PATH] == primary_bytes and filesystem.files[PATH + ".tmp"] == temp_bytes,
+		"interrupted-transaction commit rejection performs no mutation"
+	)
 
 
 func _test_rename_rollback_and_cleanup_failures() -> void:
