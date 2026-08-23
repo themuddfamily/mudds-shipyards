@@ -37,6 +37,8 @@ const REGISTERED_CUES := {
 	&"engine_stopped": {"caption": "Engine stopped", "default_severity": &"medium"},
 	&"boost_engaged": {"caption": "Boost engaged", "default_severity": &"medium"},
 	&"boost_released": {"caption": "Boost released", "default_severity": &"low"},
+	&"thrust_load_engaged": {"caption": "Thrust load engaged", "default_severity": &"medium"},
+	&"thrust_load_released": {"caption": "Thrust load released", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

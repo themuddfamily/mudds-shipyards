@@ -82,6 +82,8 @@ const CAPTION_CUES := {
 	&"engine_stopped": [&"system", "Engine monitor", "[ engine stopped ]", 70],
 	&"boost_engaged": [&"system", "Flight computer", "[ boost engaged ]", 70],
 	&"boost_released": [&"system", "Flight computer", "[ boost released ]", 45],
+	&"thrust_load_engaged": [&"system", "Flight computer", "[ thrust load engaged ]", 70],
+	&"thrust_load_released": [&"system", "Flight computer", "[ thrust load released ]", 45],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
