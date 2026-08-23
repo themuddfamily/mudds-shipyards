@@ -157,6 +157,7 @@ var _last_sample: Dictionary = {}
 var _last_return_intent: Dictionary = {}
 var _last_return_activity_generation := -1
 var _return_approach_ready := false
+var _return_contract_approach_admitted := false
 var _landing_composition_report: Dictionary = {}
 var _last_coordinate_frame_generation := 0
 var _mutation_active := false
@@ -475,6 +476,42 @@ func prepare_return_approach(
 	}.duplicate(true)
 	var result := _finish(true, &"return_approach_ready")
 	_emit_snapshot_signal(presentation_changed)
+	return result
+
+
+func admit_return_contract_approach(
+		landing_return_contract: Object,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
+	if not identity_rejection.is_empty():
+		return _result(false, identity_rejection)
+	var rejection := _attachment_rejection(expected_generation, expected_attachment_generation)
+	if not rejection.is_empty():
+		return _result(false, rejection)
+	if not _return_approach_ready:
+		return _result(false, &"return_approach_not_prepared")
+	if _return_contract_approach_admitted:
+		return _result(false, &"return_contract_approach_already_admitted")
+	if landing_return_contract == null \
+			or not landing_return_contract.has_method(&"admit_orbit_return_approach"):
+		return _result(false, &"landing_return_contract_unavailable")
+	var position := _last_sample.get("body_local_position_meters", Vector3.INF) as Vector3
+	var contract_result: Dictionary = landing_return_contract.call(
+		&"admit_orbit_return_approach", &"mudds_shipyards",
+		{"position": position, "activity_generation": _last_return_activity_generation},
+		expected_generation, expected_attachment_generation
+	)
+	if not bool(contract_result.get("accepted", false)):
+		return contract_result
+	_return_contract_approach_admitted = true
+	var result := contract_result.duplicate(true)
+	result["actor_instance_id"] = actor_instance_id
+	result["craft_instance_id"] = craft_instance_id
+	result["session_generation"] = expected_generation
 	return result
 
 
@@ -840,6 +877,7 @@ func reset(
 	_last_return_intent = {}
 	_last_return_activity_generation = -1
 	_return_approach_ready = false
+	_return_contract_approach_admitted = false
 	_landing_composition_report = {}
 	var result := _finish(true, &"reset")
 	_emit_snapshot_signal(session_reset)
@@ -896,6 +934,7 @@ func get_presentation_snapshot() -> Dictionary:
 		"last_return_intent": _last_return_intent.duplicate(true),
 		"last_return_activity_generation": _last_return_activity_generation,
 		"return_approach_ready": _return_approach_ready,
+		"return_contract_approach_admitted": _return_contract_approach_admitted,
 		"landing_composition": _landing_composition_report.duplicate(true),
 		"landing_composition_bound": not _landing_composition_report.is_empty(),
 		"presentation": presentation,

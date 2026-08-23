@@ -457,6 +457,20 @@ func prepare_planetary_return_approach(
 	)
 
 
+func admit_planetary_return_contract_approach(
+		travel_session: Object, landing_return_contract: Object,
+		actor_instance_id: int, craft_instance_id: int
+	) -> Dictionary:
+	if _host == null or travel_session == null \
+			or not travel_session.has_method(&"admit_return_contract_approach"):
+		return _reject(&"return_travel_session_unavailable")
+	return travel_session.call(
+		&"admit_return_contract_approach", landing_return_contract,
+		actor_instance_id, craft_instance_id, _host.get_generation(),
+		_host.get_attachment_generation()
+	)
+
+
 func _submit_authorized_return_sample(
 		travel_session: Object, method: StringName, actor_instance_id: int,
 		craft_instance_id: int, sample_args: Array
