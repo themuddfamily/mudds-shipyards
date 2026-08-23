@@ -35,6 +35,10 @@ class CinderLoadmasterInteraction:
 	var _seat_generation := 1
 	var _reach_meters := 1.20
 	var _actor: Node
+	var _source_peer_id := 0
+	var _occupant_peer_id := 0
+	var _avatar_id: StringName = &""
+	var _claim_request_sequence := -1
 
 
 	func configure(
@@ -92,6 +96,10 @@ class CinderLoadmasterInteraction:
 		)
 		if bool(result.get("accepted", false)):
 			_actor = actor
+			_source_peer_id = source_peer_id
+			_occupant_peer_id = occupant_peer_id
+			_avatar_id = avatar_id
+			_claim_request_sequence = request_sequence
 			_apply_availability(false)
 		return result
 
@@ -110,12 +118,23 @@ class CinderLoadmasterInteraction:
 		)
 		if bool(result.get("accepted", false)):
 			_actor = null
+			_clear_assignment_tracking()
 			_apply_availability(true)
 		return result
 
 
 	func clear_for_detach() -> void:
+		if _actor != null and _craft != null and _craft.get_crew_role_authority() != null:
+			_craft.release_loadmaster_station(
+				_actor,
+				_source_peer_id,
+				_occupant_peer_id,
+				_avatar_id,
+				_claim_request_sequence + 1,
+				_seat_generation
+			)
 		_actor = null
+		_clear_assignment_tracking()
 		_apply_availability(false)
 
 
@@ -128,6 +147,13 @@ class CinderLoadmasterInteraction:
 		for child in get_children():
 			if child is CollisionShape3D:
 				(child as CollisionShape3D).set_deferred(&"disabled", not monitorable)
+
+
+	func _clear_assignment_tracking() -> void:
+		_source_peer_id = 0
+		_occupant_peer_id = 0
+		_avatar_id = &""
+		_claim_request_sequence = -1
 
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
@@ -437,6 +463,9 @@ func claim_loadmaster_station(
 		return {"accepted": false, "status": &"interaction_out_of_range"}
 	if not is_loadmaster_station_available():
 		return {"accepted": false, "status": &"station_occupied"}
+	var expected_generation := int(_loadmaster_station_anchor.get_meta(&"seat_generation", 1))
+	if seat_generation != expected_generation:
+		return {"accepted": false, "status": &"stale_seat_generation"}
 	return _crew_role_authority.claim(
 		source_peer_id,
 		occupant_peer_id,
@@ -455,7 +484,7 @@ func release_loadmaster_station(
 		request_sequence: int,
 		seat_generation: int
 ) -> Dictionary:
-	if _loadmaster_interaction == null or not is_instance_valid(actor):
+	if _loadmaster_interaction == null or _crew_role_authority == null or not is_instance_valid(actor):
 		return {"accepted": false, "status": &"invalid_interaction_actor"}
 	var result := _crew_role_authority.release(
 		source_peer_id,
@@ -782,6 +811,7 @@ func _build_cargo_interior() -> void:
 	_loadmaster_station_anchor.set_meta(&"role", CrewRoleGameplayProfileType.ROLE_PASSENGER)
 	_loadmaster_station_anchor.set_meta(&"seat_type", &"physical")
 	_loadmaster_station_anchor.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_loadmaster_station_anchor.set_meta(&"seat_generation", 1)
 	_cargo_cabin.add_child(_loadmaster_station_anchor)
 	_loadmaster_interaction = CinderLoadmasterInteraction.new()
 	_loadmaster_interaction.name = "LoadmasterStationInteraction"

@@ -63,6 +63,14 @@ func _run() -> void:
 	var out_of_range := interaction.try_claim(actor, 1, 73, &"interaction_loadmaster", 1)
 	_check(not bool(out_of_range.get("accepted", true)) and out_of_range.get("status", &"") == &"interaction_out_of_range", "the station rejects an out-of-range actor")
 	actor.global_position = interaction.global_position
+	craft.get_loadmaster_station_anchor().set_meta(&"seat_generation", 2)
+	var stale_generation := interaction.try_claim(actor, 1, 73, &"interaction_loadmaster", 1)
+	_check(
+		not bool(stale_generation.get("accepted", true))
+			and stale_generation.get("status", &"") == &"stale_seat_generation",
+		"a generation-one interaction cannot claim a generation-two seat"
+	)
+	craft.get_loadmaster_station_anchor().set_meta(&"seat_generation", 1)
 	var claimed := interaction.try_claim(actor, 1, 73, &"interaction_loadmaster", 1)
 	_check(bool(claimed.get("accepted", false)), "the in-range station interaction delegates an atomic authority claim")
 	_check(
@@ -74,18 +82,26 @@ func _run() -> void:
 	root.add_child(wrong_actor)
 	var wrong_release := interaction.release(wrong_actor, 1, 73, &"interaction_loadmaster", 2)
 	_check(not bool(wrong_release.get("accepted", true)), "a different actor cannot release the station")
-	var released := interaction.release(actor, 1, 73, &"interaction_loadmaster", 2)
-	_check(bool(released.get("accepted", false)), "the owning actor releases through the interaction seam")
-	_check(interaction.is_available(), "release reopens the station interaction")
-	_check(authority.get_assignment(73, &"interaction_loadmaster").is_empty(), "release removes the authority assignment exactly once")
 
 	var reset := craft.reset_for_reuse(Transform3D(Basis.IDENTITY, Vector3(8.0, 0.0, -4.0)))
 	_check(bool(reset.get("accepted", false)), "Cinder reset completes through the existing lifecycle")
+	_check(authority.get_assignment(73, &"interaction_loadmaster").is_empty(), "reset releases the physical authority assignment")
 	_check(interaction.is_available(), "reset leaves a clean re-entry interaction")
 	_check(boarding.is_available(), "reset leaves the public boarding area available")
+	var fresh_actor := CharacterBody3D.new()
+	fresh_actor.name = "CinderLoadmasterFreshActor"
+	root.add_child(fresh_actor)
+	fresh_actor.global_position = interaction.global_position
+	var fresh_claim := interaction.try_claim(fresh_actor, 1, 74, &"interaction_loadmaster_fresh", 1)
+	_check(bool(fresh_claim.get("accepted", false)), "a fresh generation can claim after reset cleanup")
+	var released := interaction.release(fresh_actor, 1, 74, &"interaction_loadmaster_fresh", 2)
+	_check(bool(released.get("accepted", false)), "the fresh owner releases through the interaction seam")
+	_check(interaction.is_available(), "release reopens the station interaction")
+	_check(authority.get_assignment(74, &"interaction_loadmaster_fresh").is_empty(), "release removes the fresh authority assignment exactly once")
 
 	wrong_actor.queue_free()
 	actor.queue_free()
+	fresh_actor.queue_free()
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():
