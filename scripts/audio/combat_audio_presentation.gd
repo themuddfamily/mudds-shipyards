@@ -10,6 +10,7 @@ signal cue_started(
 	world_position: Vector3,
 	source_instance_id: int
 )
+signal semantic_cue_emitted(cue_id: StringName, world_position: Vector3, intensity: float)
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"combat-audio-presentation"
@@ -63,6 +64,7 @@ var _last_source_instance_id := 0
 var _last_cue_pitch_scale := 1.0
 var _last_cue_volume_db := -80.0
 var _occlusion := 0.0
+var _last_semantic_intensity := 0.0
 var _initialized := false
 var _audio_available := true
 
@@ -104,11 +106,11 @@ func _exit_tree() -> void:
 
 
 func play_player_fire(world_position: Vector3, source_instance_id: int) -> bool:
-	return _play(CUE_PLAYER_FIRE, &"fire", world_position, source_instance_id, 0.0)
+	return _play(CUE_PLAYER_FIRE, &"fire", world_position, source_instance_id, 0.0, 1.0)
 
 
 func play_defender_fire(world_position: Vector3, source_instance_id: int) -> bool:
-	return _play(CUE_DEFENDER_FIRE, &"fire", world_position, source_instance_id, -1.0)
+	return _play(CUE_DEFENDER_FIRE, &"fire", world_position, source_instance_id, -1.0, 1.0)
 
 
 func play_dry_fire(world_position: Vector3, source_instance_id: int) -> bool:
@@ -126,11 +128,11 @@ func play_impact(world_position: Vector3, intensity: float, source_instance_id: 
 		cue_id = CUE_IMPACT_MEDIUM
 	var volume_db := lerpf(-5.0, -1.0, severity)
 	var pitch_scale := lerpf(1.08, 0.88, severity)
-	return _play(cue_id, &"impact", world_position, source_instance_id, volume_db, pitch_scale)
+	return _play(cue_id, &"impact", world_position, source_instance_id, volume_db, pitch_scale, severity)
 
 
 func play_explosion(world_position: Vector3, source_instance_id: int) -> bool:
-	return _play(CUE_EXPLOSION, &"explosion", world_position, source_instance_id, 1.0)
+	return _play(CUE_EXPLOSION, &"explosion", world_position, source_instance_id, 1.0, 1.0, 1.0)
 
 
 ## Records caller-owned interior occlusion. Zero is exterior; one is fully
@@ -167,6 +169,7 @@ func get_state_snapshot() -> Dictionary:
 		"last_cue_pitch_scale": _last_cue_pitch_scale,
 		"last_cue_volume_db": _last_cue_volume_db,
 		"occlusion": _occlusion,
+		"last_semantic_intensity": _last_semantic_intensity,
 		"active_voice_names": active_voices,
 		"voice_count": _voice_ids.size(),
 	}.duplicate(true)
@@ -248,7 +251,7 @@ func _play(
 		world_position: Vector3,
 		source_instance_id: int,
 		volume_db: float
-		, pitch_scale: float = 1.0
+		, pitch_scale: float = 1.0, semantic_intensity: float = 1.0
 	) -> bool:
 	if is_queued_for_deletion() or not is_inside_tree() \
 			or not world_position.is_finite() or source_instance_id < 0:
@@ -293,7 +296,9 @@ func _play(
 	_last_source_instance_id = source_instance_id
 	_last_cue_pitch_scale = occluded_pitch_scale
 	_last_cue_volume_db = occluded_volume_db
+	_last_semantic_intensity = clampf(semantic_intensity, 0.0, 1.0)
 	cue_started.emit(cue_id, StringName(player.name), world_position, source_instance_id)
+	semantic_cue_emitted.emit(cue_id, world_position, _last_semantic_intensity)
 	return true
 
 
