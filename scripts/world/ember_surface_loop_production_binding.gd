@@ -93,6 +93,8 @@ var _player_instance_id := 0
 var _loaded_scene_instance_id := 0
 var _location_generation := 0
 var _planetary_composition: Node
+var _relay_survey_persistence_store: RefCounted
+var _relay_survey_persistence_slot: StringName = &""
 var _atmosphere_composition: Node
 var _last_planetary_altitude_m := 0.0
 var _relay_return_manifest: RefCounted
@@ -260,6 +262,16 @@ func configure_planetary_surface(
 	var result: Dictionary = _planetary_composition.call(
 		&"configure", _host, director, reward_sink, _host.get_generation()
 	)
+	if bool(result.get("accepted", false)) \
+			and _relay_survey_persistence_store != null:
+		var persistence_configured := _planetary_composition.call(
+			&"configure_relay_survey_persistence",
+			_relay_survey_persistence_store, _relay_survey_persistence_slot
+		) as Dictionary
+		if not bool(persistence_configured.get("accepted", false)):
+			_planetary_composition.queue_free()
+			_planetary_composition = null
+			return persistence_configured
 	if not bool(result.get("accepted", false)):
 		_planetary_composition.queue_free()
 		_planetary_composition = null
@@ -423,6 +435,32 @@ func commit_planetary_relay_survey_reward() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	return _planetary_composition.call(&"commit_relay_survey_reward")
+
+
+func configure_relay_survey_persistence(
+		store: RefCounted, slot_id: StringName = &"ember_relay_survey_completion"
+	) -> Dictionary:
+	if store == null or str(slot_id).strip_edges().is_empty() \
+			or _relay_survey_persistence_store != null:
+		return _reject(&"survey_persistence_configuration_invalid")
+	_relay_survey_persistence_store = store
+	_relay_survey_persistence_slot = slot_id
+	if _planetary_composition != null:
+		return _planetary_composition.call(
+			&"configure_relay_survey_persistence", store, slot_id
+		)
+	return {
+		"accepted": true,
+		"reason": &"survey_persistence_configured",
+		"slot_id": slot_id,
+		"owns_save_authority": false,
+	}.duplicate(true)
+
+
+func restore_relay_survey_persistence() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"restore_relay_survey_persistence")
 
 
 ## Emits a caller-routed return intent after the survey's reward handoff is

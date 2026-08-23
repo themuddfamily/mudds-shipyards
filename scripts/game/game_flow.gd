@@ -538,6 +538,9 @@ var _guided_return_ready_for_completion := false
 var _planetary_return_receipt_consumed := false
 var _planetary_return_persistence_binding: Object
 const PLANETARY_RETURN_PERSISTENCE_SLOT: StringName = &"ember_planetary_return"
+var _ember_relay_survey_persistence_binding: Object
+const EMBER_RELAY_SURVEY_PERSISTENCE_SLOT: StringName = \
+	&"ember_relay_survey_completion"
 const PLANETARY_RETURN_RETIRE_COMMIT_PREFIX := "planetary-return-retire-"
 const PLANETARY_RETURN_RETIRE_MAX_STORE_GENERATION := 2_147_483_647
 var _planetary_return_startup_restore_receipt: Dictionary = {}
@@ -1419,6 +1422,7 @@ func _get_startup_stager() -> MainStartupStagerType:
 func _start_up() -> void:
 	_initialize_runtime_settings()
 	bind_planetary_return_persistence(ember_surface_loop_production_binding)
+	bind_ember_relay_survey_persistence(ember_surface_loop_production_binding)
 	_restore_and_retire_planetary_return_persistence()
 	_initialize_session_diagnostics()
 	_apply_command_line_recovery_args(OS.get_cmdline_args())
@@ -5967,6 +5971,32 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
 
+## Binds the terminal Ember relay-survey receipt bridge to this Main's
+## already-loaded UserDataStore. No filesystem or reward authority is created.
+func bind_ember_relay_survey_persistence(binding: Object) -> Dictionary:
+	if binding == null or not binding.has_method(&"configure_relay_survey_persistence") \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"survey_persistence_unavailable"}
+	var result := binding.call(
+		&"configure_relay_survey_persistence",
+		_runtime_settings_user_data_store, EMBER_RELAY_SURVEY_PERSISTENCE_SLOT
+	) as Dictionary
+	if bool(result.get("accepted", false)):
+		_ember_relay_survey_persistence_binding = binding
+	return result
+
+
+func restore_ember_relay_survey_persistence() -> Dictionary:
+	if _ember_relay_survey_persistence_binding == null \
+			or not _ember_relay_survey_persistence_binding.has_method(
+				&"restore_relay_survey_persistence"
+			):
+		return {"accepted": false, "reason": &"survey_persistence_unavailable"}
+	return _ember_relay_survey_persistence_binding.call(
+		&"restore_relay_survey_persistence"
+	) as Dictionary
+
+
 ## Binds the caller-owned Ember persistence bridge to this Main's already-loaded
 ## UserDataStore. No filesystem or save authority is created here.
 func bind_planetary_return_persistence(binding: Object) -> Dictionary:
@@ -6164,6 +6194,9 @@ func begin_ember_surface_journey(
 		var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
 		if not bool(composed.get("accepted", false)):
 			return composed
+	var survey_restore: Dictionary = {}
+	if binding == _ember_relay_survey_persistence_binding:
+		survey_restore = restore_ember_relay_survey_persistence()
 	var final_approach := _arm_ember_final_approach(host)
 	if not bool(final_approach.get("accepted", false)):
 		return final_approach
@@ -6196,6 +6229,7 @@ func begin_ember_surface_journey(
 		"reason": &"ember_surface_journey_admitted",
 		"binding_generation": binding.get_generation(),
 		"caller_serial": caller_serial,
+		"relay_survey_persistence": survey_restore.duplicate(true),
 	}
 
 

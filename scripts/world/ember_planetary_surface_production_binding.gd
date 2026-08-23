@@ -29,6 +29,9 @@ const LocationDefinitionScript := preload("res://scripts/world/definitions/world
 const RelaySurveyPresentationScript := preload("res://scripts/world/ember_surface_relay_survey_presentation.gd")
 const SurveyInteractionScript := preload("res://scripts/world/ember_survey_bunker_interaction_binding.gd")
 const EmberAuthoredSceneScript := preload("res://scripts/world/ember_moon_authored_scene.gd")
+const RelaySurveyPersistenceScript := preload(
+	"res://scripts/persistence/ember_relay_survey_persistence_binding.gd"
+)
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -68,6 +71,8 @@ var _orbital_ring: Node
 var _route_trail: Node
 var _relay_survey: RefCounted
 var _relay_survey_presentation: Node
+var _relay_survey_persistence: RefCounted
+var _restored_relay_survey_completion: Dictionary = {}
 var _survey_interaction: Area3D
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
@@ -232,6 +237,8 @@ func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Diction
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	var result: Dictionary = _relay_survey.begin(_adapter, _navigation)
+	if bool(result.get("accepted", false)):
+		_restored_relay_survey_completion.clear()
 	_apply_relay_survey_presentation()
 	return result
 
@@ -249,7 +256,52 @@ func commit_relay_survey_reward() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	var result: Dictionary = _relay_survey.commit_reward(_adapter)
 	_apply_relay_survey_presentation()
+	if bool(result.get("accepted", false)) and _relay_survey_persistence != null:
+		var next_store_generation := int(
+			_relay_survey_persistence.call(&"get_store_generation")
+		) + 1
+		result["persistence"] = _relay_survey_persistence.call(
+			&"save", get_snapshot(),
+			"ember-relay-survey-%010d" % next_store_generation
+		)
 	return result
+
+
+func configure_relay_survey_persistence(
+		store: RefCounted, slot_id: StringName = &"ember_relay_survey_completion"
+	) -> Dictionary:
+	if _relay_survey_persistence != null:
+		return _result(false, &"survey_persistence_already_configured")
+	var persistence := RelaySurveyPersistenceScript.new() as RefCounted
+	var configured := persistence.call(&"configure", store, slot_id) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		return configured
+	_relay_survey_persistence = persistence
+	return configured
+
+
+func restore_relay_survey_persistence() -> Dictionary:
+	if not _live() or _relay_survey_persistence == null:
+		return _result(false, &"survey_persistence_unavailable")
+	if not _restored_relay_survey_completion.is_empty():
+		return _result(false, &"survey_persistence_already_restored")
+	var loaded := _relay_survey_persistence.call(&"load") as Dictionary
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	var runtime := _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
+	if StringName(runtime.get("state", &"")) != &"ready":
+		return _result(false, &"survey_persistence_live_activity_present")
+	_restored_relay_survey_completion = (
+		loaded.get("completion", {}) as Dictionary
+	).duplicate(true)
+	_apply_relay_survey_presentation()
+	return {
+		"accepted": true,
+		"reason": &"survey_completion_restored",
+		"store_generation": int(loaded.get("store_generation", -1)),
+		"reward_replay_allowed": false,
+		"completion": _restored_relay_survey_completion.duplicate(true),
+	}.duplicate(true)
 
 func abort_relay_survey(reason: StringName = &"caller_evidence_lost") -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
@@ -581,6 +633,13 @@ func get_snapshot() -> Dictionary:
 		"route_trail": _route_trail.call(&"get_snapshot") if _route_trail != null else {},
 		"relay_survey": _relay_survey.get_snapshot(_adapter) if _relay_survey != null else {},
 		"relay_survey_presentation": _relay_survey_presentation.call(&"get_snapshot") if _relay_survey_presentation != null else {},
+		"relay_survey_persistence": {
+			"configured": _relay_survey_persistence != null,
+			"restored": not _restored_relay_survey_completion.is_empty(),
+			"reward_replay_allowed": false,
+			"completion": _restored_relay_survey_completion.duplicate(true),
+			"authority": {"save": false, "reward": false, "activity": false},
+		},
 		"survey_interaction": _survey_interaction.call(&"get_snapshot") if _survey_interaction != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
@@ -779,6 +838,18 @@ func _apply_relay_survey_presentation() -> void:
 	var survey_snapshot := _relay_survey.get_snapshot(_adapter) as Dictionary
 	var checkpoint_snapshot := survey_snapshot.get("optional_checkpoint", {}) as Dictionary
 	var mandatory_route := survey_snapshot.get("mandatory_route", {}) as Dictionary
+	if not _restored_relay_survey_completion.is_empty() \
+			and StringName(activity_snapshot.get("state", &"")) == &"ready":
+		activity_snapshot = {
+			"state": &"completed",
+			"activity_generation": int(
+				_restored_relay_survey_completion.get("activity_generation", -1)
+			),
+		}
+		checkpoint_snapshot = {}
+		mandatory_route = (
+			_restored_relay_survey_completion.get("mandatory_route", {}) as Dictionary
+		).duplicate(true)
 	_relay_survey_presentation.call(
 		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot,
 		mandatory_route
