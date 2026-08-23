@@ -268,6 +268,8 @@ func audit() -> Dictionary:
 func _present_row(source: Dictionary) -> Dictionary:
 	var ping_ms := int(source.get("ping_ms", -1))
 	var ping_label := _human_ping_label(source.get("ping_label", &"unavailable"), ping_ms)
+	var password_label := _password_label(source)
+	var compatibility_label := _compatibility_label(source)
 	var players := int(source.get("player_count", 0))
 	var maximum := clampi(int(source.get("max_players", 0)), 0, 256)
 	players = clampi(players, 0, maximum if maximum > 0 else 256)
@@ -280,6 +282,9 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"region_label": _region_label(source.get("region_id", "")),
 		"ping_ms": ping_ms,
 		"ping_label": ping_label,
+		"latency_band": ping_label,
+		"password_label": password_label,
+		"compatibility_label": compatibility_label,
 		"player_count": players,
 		"max_players": maximum,
 		"occupancy_label": "%d/%d players" % [players, maximum],
@@ -287,7 +292,13 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"capacity_generation": capacity_generation,
 		"full": is_full,
 		"selectable": true,
-		"focus_label": "[ ] %s  %s" % [str(source.get("title", "Server")), "%d/%d players" % [players, maximum]],
+		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s" % [
+			str(source.get("title", "Server")),
+			ping_label,
+			"%d/%d players" % [players, maximum],
+			password_label,
+			compatibility_label,
+		],
 		"focus_marker": "[ ]",
 		"stale": false,
 		"join_authority": false,
@@ -300,13 +311,30 @@ func _region_label(value: Variant) -> String:
 
 
 func _human_ping_label(value: Variant, ping_ms: int) -> String:
-	if ping_ms < 0 or str(value) == "unavailable":
-		return "Unavailable"
-	match str(value):
-		"fast": return "Fast"
-		"medium": return "Medium"
-		"slow": return "Slow"
-	return "%d ms" % ping_ms
+	if ping_ms < 0:
+		return "Latency Unknown"
+	if ping_ms <= 80:
+		return "Latency Excellent"
+	if ping_ms <= 160:
+		return "Latency Good"
+	return "Latency Poor"
+
+
+func _password_label(source: Dictionary) -> String:
+	if bool(source.get("password_required", source.get("password_protected", false))):
+		return "Password Required"
+	return "No Password"
+
+
+func _compatibility_label(source: Dictionary) -> String:
+	if source.has("compatible"):
+		return "Compatible" if bool(source.get("compatible")) else "Incompatible"
+	var status := str(source.get("compatibility", "unknown")).to_lower()
+	if status in ["compatible", "ok", "ready"]:
+		return "Compatible"
+	if status in ["incompatible", "unsupported", "mismatch"]:
+		return "Incompatible"
+	return "Compatibility Unknown"
 
 
 func _reject(reason: StringName) -> Dictionary:

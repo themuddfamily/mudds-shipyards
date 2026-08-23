@@ -2514,6 +2514,7 @@ func _build_hud() -> void:
 	_objective_panel = PanelContainer.new()
 	_objective_panel.name = "ObjectivePanel"
 	_objective_panel.position = Vector2(30.0, 126.0)
+	_objective_panel.custom_minimum_size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_objective_panel)
@@ -3478,18 +3479,20 @@ func _render_server_browser(presentation: Dictionary) -> void:
 			continue
 		var row := row_value as Dictionary
 		var button := _menu_button(
-			"%s  //  %s  //  %s  //  %s  //  %s" % [
+			"%s  //  %s  //  %s  //  %s  //  %s  //  %s  //  %s" % [
 				str(row.get("title", "Unnamed session")),
 				str(row.get("region_label", "UNKNOWN")),
-				str(row.get("ping_label", "Unavailable")),
+				str(row.get("latency_band", row.get("ping_label", "Latency Unknown"))),
 				str(row.get("occupancy_label", "0/0 players")),
 				str(row.get("capacity_label", "AVAILABLE")),
+				str(row.get("password_label", "Password Unknown")),
+				str(row.get("compatibility_label", "Compatibility Unknown")),
 			],
 			MUTED if bool(row.get("full", false)) else NOMINAL_SOFT
 		)
 		button.focus_mode = Control.FOCUS_ALL
 		button.disabled = bool(row.get("full", false))
-		button.tooltip_text = "Session full" if button.disabled else "Request joining this session"
+		button.tooltip_text = str(row.get("focus_label", "Select server"))
 		button.pressed.connect(request_server_browser_join.bind(StringName(str(row.get("session_id", &"")))))
 		_server_browser_rows.add_child(button)
 	if status == &"error":

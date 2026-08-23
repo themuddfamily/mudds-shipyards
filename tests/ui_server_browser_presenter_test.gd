@@ -12,17 +12,27 @@ func _init() -> void:
 func _run() -> void:
 	var browser := Browser.new(77, 3)
 	var entries := [
-		{"session_id": &"cinder_run", "host_peer_id": 7, "title": "Cinder Run", "region_id": &"eu-west", "ping_ms": 42, "player_count": 1, "max_players": 4},
-		{"session_id": &"ember_duel", "host_peer_id": 8, "title": "Ember Duel", "region_id": &"us-east", "ping_ms": 220, "player_count": 4, "max_players": 4},
+		{"session_id": &"cinder_run", "host_peer_id": 7, "title": "Cinder Run", "region_id": &"eu-west", "ping_ms": 42, "player_count": 1, "max_players": 4, "password_required": false, "compatible": true},
+		{"session_id": &"ember_duel", "host_peer_id": 8, "title": "Ember Duel", "region_id": &"us-east", "ping_ms": 220, "player_count": 4, "max_players": 4, "password_required": true, "compatible": false},
 	]
 	_check(browser.publish_snapshot(77, 1, 10, entries).accepted, "directory fixture publishes")
 	var presenter := Presenter.new()
 	var snapshot := presenter.present(browser)
 	_check(snapshot.row_count == 2, "fresh directory records become visible rows")
-	_check(snapshot.rows[0].region_label == "EU-WEST" and snapshot.rows[0].ping_label == "Fast", "region and ping labels are textual")
+	_check(snapshot.rows[0].region_label == "EU-WEST" and snapshot.rows[0].latency_band == "Latency Excellent", "region and latency bands are textual")
 	_check(snapshot.rows[1].full and snapshot.rows[1].occupancy_label == "4/4 players", "occupancy label exposes full state")
 	_check(snapshot.rows[0].capacity_label == "AVAILABLE" and snapshot.rows[1].capacity_label == "FULL", "capacity state is textual and color-independent")
 	_check(str(snapshot.rows[0].focus_label).begins_with("[ ]") and str(snapshot.accessibility_prompts.focus_marker) == "[FOCUS]", "server rows expose high-contrast textual focus labels")
+	var rich_snapshot := presenter.present_result({
+		"accepted": true,
+		"rows": [
+			{"session_id": &"rich", "title": "Rich Run", "ping_ms": 42, "player_count": 1, "max_players": 4, "password_required": false, "compatible": true},
+			{"session_id": &"locked", "title": "Locked Run", "ping_ms": 220, "player_count": 4, "max_players": 4, "password_required": true, "compatible": false},
+		],
+	})
+	_check(rich_snapshot.rows[0].password_label == "No Password" and rich_snapshot.rows[1].password_label == "Password Required", "password state is textual")
+	_check(rich_snapshot.rows[0].compatibility_label == "Compatible" and rich_snapshot.rows[1].compatibility_label == "Incompatible", "compatibility state is textual")
+	_check("Latency Excellent" in rich_snapshot.rows[0].focus_label and "No Password" in rich_snapshot.rows[0].focus_label and "Compatible" in rich_snapshot.rows[0].focus_label, "spoken focus label composes all row status fields")
 	var generation_presenter := Presenter.new()
 	var generation_snapshot := generation_presenter.present_result({
 		"accepted": true,
