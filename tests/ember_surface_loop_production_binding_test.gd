@@ -322,6 +322,11 @@ func _test_real_scheduler_complete_loop() -> void:
 			and atmosphere.get_atmosphere_rig().get_cloud_shell().transparency >= 0.0,
 		"retained solar/weather observations apply bounded values to live atmosphere nodes"
 	)
+	_check(
+		not production.get_planetary_surface_snapshot().water_presentation.recipe.is_empty()
+			and production.get_planetary_surface_snapshot().water_presentation.material_instance_id > 0,
+		"retained solar/weather observations apply to the owned planetary water target"
+	)
 	var planetary_session := production.get_planetary_surface_session_snapshot()
 	var malformed_session := planetary_session.duplicate(true)
 	malformed_session.schema_version = 99

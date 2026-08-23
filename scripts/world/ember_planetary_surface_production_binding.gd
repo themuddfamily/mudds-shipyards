@@ -12,6 +12,7 @@ const NavigationContractScript := preload("res://scripts/world/planetary_surface
 const HazardScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
 const WeatherScript := preload("res://scripts/world/planetary_weather_field.gd")
 const WeatherProfile := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
+const WaterPresentationScript := preload("res://scripts/world/planetary_water_presentation.gd")
 const WaterScript := preload("res://scripts/world/planetary_water_contact_runtime.gd")
 const WaterContractScript := preload("res://scripts/world/planetary_water_surface_material_contract.gd")
 const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark_runtime.gd")
@@ -31,9 +32,20 @@ var _navigation: RefCounted
 var _hazard: RefCounted
 var _weather: RefCounted
 var _solar_phase: Dictionary = {}
+var _weather_observation: Dictionary = {}
+var _water_presentation: Node
 var _water: RefCounted
 var _landmarks: RefCounted
 var _settlement: RefCounted
+
+
+func _ready() -> void:
+	set_process(false)
+	set_physics_process(false)
+	_water_presentation = WaterPresentationScript.new() as Node
+	_water_presentation.name = "OwnedPlanetaryWaterPresentation"
+	add_child(_water_presentation)
+	_water_presentation.call(&"configure")
 
 
 func configure(
@@ -133,10 +145,14 @@ func submit_weather_exposure(
 	) -> Dictionary:
 	if not _live():
 		return _result(false, &"composition_detached")
-	return _hazard.call(
+	var result: Dictionary = _hazard.call(
 		&"submit_weather_exposure", hazard_id, position, altitude_m,
 		caller_time_seconds, exposure, delta_seconds, shelter_scalar
 	)
+	if bool(result.get("accepted", false)):
+		_weather_observation = result.get("weather", {}).duplicate(true)
+		_apply_water_presentation()
+	return result
 
 
 func submit_solar_observation(
@@ -163,7 +179,19 @@ func submit_solar_observation(
 		"twilight_factor_unitless": twilight,
 		"caller_time_seconds": caller_time_seconds,
 	}.duplicate(true)
+	_apply_water_presentation()
 	return _result(true, &"solar_observation_accepted")
+
+
+func _apply_water_presentation() -> void:
+	if _water_presentation == null or _solar_phase.is_empty() or _weather_observation.is_empty():
+		return
+	var solar_recipe := {
+		"sun_energy_unitless": clampf(float(_solar_phase.get("sun_elevation_sine", 0.0)), 0.0, 1.0),
+	}
+	_water_presentation.call(
+		&"apply_presentation_recipe", solar_recipe, _weather_observation
+	)
 
 
 func submit_water_contact(position: Variant, depth_m: float, velocity_mps: Variant, delta_seconds: float) -> Dictionary:
@@ -250,6 +278,8 @@ func get_snapshot() -> Dictionary:
 		"hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"weather": _weather.call(&"audit") if _weather != null else {},
 		"solar_phase": _solar_phase.duplicate(true),
+		"weather_observation": _weather_observation.duplicate(true),
+		"water_presentation": _water_presentation.call(&"get_snapshot") if _water_presentation != null else {},
 		"water": _water.get_snapshot() if _water != null else {},
 		"landmarks": _landmarks.get_snapshot() if _landmarks != null else {},
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},
