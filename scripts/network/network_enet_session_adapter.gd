@@ -127,6 +127,8 @@ var _handshake_deadline: Dictionary = {
 	"migration_generation": 0,
 	"timeout_milliseconds": HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS,
 }
+var _next_join_intent_sequence := 1
+var _last_join_intent_sequence := 0
 
 
 func _init() -> void:
@@ -169,6 +171,8 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 	_configure_multiplayer()
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
+	_next_join_intent_sequence = 1
+	_last_join_intent_sequence = 0
 	session_started.emit(&"server")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"server_started", {"port": _bound_port}))
@@ -188,6 +192,8 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 	_configure_multiplayer()
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
+	_next_join_intent_sequence = 1
+	_last_join_intent_sequence = 0
 	session_started.emit(&"client")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"client_started", {"address": address, "port": _bound_port}))
@@ -256,6 +262,10 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	record_session_end(reason)
 	_reset_handshake_deadline()
 	_server_browser.detach(AUTHORITY_PEER_ID)
+	_next_join_intent_sequence = 1
+	_last_join_intent_sequence = 0
+	_next_join_intent_sequence = 1
+	_last_join_intent_sequence = 0
 	session_stopped.emit(reason)
 	return _remember(_result(true, &"stopped", {"reason": reason}))
 
@@ -895,6 +905,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
 	_server_browser.detach(AUTHORITY_PEER_ID)
+	_next_join_intent_sequence = 1
+	_last_join_intent_sequence = 0
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
 	_moving_replica_samples.clear()
@@ -1686,13 +1698,35 @@ func create_join_intent(session_id: StringName) -> Dictionary:
 		return _remember(_result(false, &"session_not_found"))
 	if int(entry.get("player_count", 0)) >= int(entry.get("max_players", 0)):
 		return _remember(_result(false, &"session_full"))
+	var sequence := _next_join_intent_sequence
+	_next_join_intent_sequence += 1
 	return _remember(_result(true, &"join_intent_created", {
 		"intent": {
 			"session_id": session_id,
 			"host_peer_id": int(entry.get("host_peer_id", 0)),
 			"directory_generation": int(entry.get("directory_generation", 0)),
+			"intent_sequence": sequence,
 		},
 	}))
+
+
+func consume_join_intent(intent: Dictionary, address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var session_id := StringName(intent.get("session_id", &""))
+	var generation := int(intent.get("directory_generation", 0))
+	var sequence := int(intent.get("intent_sequence", 0))
+	if session_id.is_empty() or generation <= 0 or sequence <= 0:
+		return _remember(_result(false, &"invalid_join_intent"))
+	if sequence <= _last_join_intent_sequence:
+		return _remember(_result(false, &"stale_join_intent"))
+	var entry: Dictionary = _server_browser.get_session(session_id)
+	if entry.is_empty():
+		return _remember(_result(false, &"session_not_found"))
+	if generation != int(entry.get("directory_generation", 0)):
+		return _remember(_result(false, &"stale_join_intent_generation"))
+	_last_join_intent_sequence = sequence
+	return request_join_advertised_session(session_id, address, port)
 
 
 func request_join_advertised_session(
