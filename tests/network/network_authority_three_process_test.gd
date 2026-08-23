@@ -72,6 +72,9 @@ func _evidence_complete() -> bool:
 		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
 			or not client_log.contains("PROJECTILE_PRESENTED") \
 			or not client_log.contains("PROJECTILE_TERMINAL_PRESENTED") \
+			or not client_log.contains("CLIENT_PAYLOAD_POOL_RELEASED") \
+			or not client_log.contains("CLIENT_PAYLOAD_POOL_TERMINAL") \
+			or not client_log.contains("CLIENT_TERMINAL_DUPLICATE_REJECTED") \
 			or not client_log.contains("RELATIONSHIP_RELEASED") \
 			or not client_log.contains("DAMAGE_DESTROYED_PRESENTED") \
 			or not client_log.contains("DAMAGE_RESPAWN_PRESENTED") \

@@ -47,6 +47,7 @@ signal movement_intent_result(result: Dictionary)
 signal boarding_intent_result(result: Dictionary)
 signal projectile_intent_result(result: Dictionary)
 signal projectile_replica_result(result: Dictionary)
+signal projectile_replica_packet(packet: Dictionary, result: Dictionary)
 signal landing_intent_result(result: Dictionary)
 signal damage_respawn_result(result: Dictionary)
 signal moving_interior_result(result: Dictionary)
@@ -3001,6 +3002,7 @@ func _send_projectile_snapshot(packet: Dictionary) -> void:
 		return
 	var applied := _apply_projectile_replica_snapshot(packet)
 	projectile_replica_result.emit(applied.duplicate(true))
+	projectile_replica_packet.emit(packet.duplicate(true), applied.duplicate(true))
 
 
 func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:

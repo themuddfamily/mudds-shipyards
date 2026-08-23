@@ -6,6 +6,9 @@ const JovianScene := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const PlayerScene := preload("res://scenes/player/player.tscn")
 const CinderBomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const PayloadProjectile := preload("res://scripts/combat/bomber_payload_projectile.gd")
+const LiveCombatAuthority := preload("res://scripts/combat/live_combat_authority.gd")
+const BomberPayloadCombatAdapter := preload("res://scripts/combat/bomber_payload_combat_adapter.gd")
+const LifecycleDamageableAdapter := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 
 var _role := ""
 var _port := 29140
@@ -15,6 +18,7 @@ var _jovian: Node3D
 var _player: Node3D
 var _passenger_player: Node3D
 var _cinder: Node3D
+var _combat_authority: Node
 var _projectile_logged := false
 
 
@@ -38,9 +42,13 @@ func _init() -> void:
 	_cinder.name = &"CinderAuthorityBomber"
 	_cinder.position = Vector3(20.0, 8.0, 0.0)
 	root.add_child(_cinder)
+	_combat_authority = LiveCombatAuthority.new()
+	_combat_authority.name = &"AuthoritativeCombat"
+	root.add_child(_combat_authority)
 	_adapter.moving_interior_result.connect(_on_moving_interior_result)
 	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
 	_adapter.projectile_replica_result.connect(_on_projectile_replica_result)
+	_adapter.projectile_replica_packet.connect(_on_projectile_replica_packet)
 	_adapter.seat_occupancy_result.connect(_on_seat_result)
 	_adapter.landing_intent_result.connect(_on_landing_result)
 	call_deferred(&"_start")
@@ -214,6 +222,22 @@ func _server_loop() -> void:
 							1, payload_projectile.get_snapshot().get("position", Vector3.ZERO), Vector3.UP,
 							&"jovian_authority_craft", 3
 						)
+						var target_damageable: Node = _combat_authority.attach_lifecycle_damageable(
+							_jovian, LifecycleDamageableAdapter.LifecycleKind.HERO_SHIP, &"shipyard_flight_test"
+						)
+						var source_registered: bool = _combat_authority.register_source(
+							_cinder, 9001, &"range_defence", {&"bomber_payload_release": {
+								"range": 900.0, "damage": 80.0, "origin_tolerance": 30.0,
+							}}
+						)
+						var payload_combat := BomberPayloadCombatAdapter.new()
+						var payload_combat_generation: Dictionary = payload_combat.begin_generation(1)
+						var combat_result: Dictionary = payload_combat.consume_terminal_intent(
+							1, payload_projectile, _cinder, 9001, _combat_authority
+						)
+						var duplicate_combat_result: Dictionary = payload_combat.consume_terminal_intent(
+							1, payload_projectile, _cinder, 9001, _combat_authority
+						)
 						var terminal_wire := _projectile_wire(payload_projectile.get_snapshot(), true)
 						var terminal_published := _adapter.publish_projectile_snapshot(terminal_wire, peer_ids, true, 56)
 						var terminal_record := payload_projectile.get_terminal_intent()
@@ -226,7 +250,12 @@ func _server_loop() -> void:
 							and bool(release_published.get("accepted", false)) \
 							and bool(impact.get("accepted", false)) \
 							and bool(terminal_published.get("accepted", false)) \
-							and bool(terminal_presented.get("accepted", false)):
+							and bool(terminal_presented.get("accepted", false)) \
+							and is_instance_valid(target_damageable) \
+							and source_registered \
+							and bool(payload_combat_generation.get("accepted", false)) \
+							and bool(combat_result.get("accepted", false)) \
+							and not bool(duplicate_combat_result.get("accepted", false)):
 							_log("REAL_PAYLOAD_RELEASED")
 							_log("REAL_PAYLOAD_TERMINAL_RESOLVED")
 							_log("DAMAGE_ONCE_SERVER_ONLY")
@@ -384,6 +413,8 @@ func _projectile_wire(snapshot: Dictionary, terminal: bool) -> Dictionary:
 		"position": snapshot.get("position", Vector3.ZERO),
 		"last_update_tick": 55 if not terminal else 56,
 		"state": &"terminal" if terminal else &"flying",
+		"release_record": release_record,
+		"terminal_intent": terminal_record if terminal else {},
 		"terminal": terminal_record if terminal else {},
 	}
 
@@ -415,6 +446,28 @@ func _on_projectile_replica_result(result: Dictionary) -> void:
 		_log("PROJECTILE_PRESENTED")
 	elif status == &"projectile_terminal_applied":
 		_log("PROJECTILE_TERMINAL_PRESENTED")
+
+
+func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> void:
+	if _role == "server":
+		return
+	var projectile := packet.get("projectile", {}) as Dictionary
+	var status := StringName(result.get("status", &""))
+	if status == &"projectile_presented":
+		var release_record := projectile.get("release_record", {}) as Dictionary
+		var presented: Dictionary = _cinder.call("get_payload_presentation").call(
+			&"consume_release_record", release_record
+		)
+		if bool(presented.get("accepted", false)):
+			_log("CLIENT_PAYLOAD_POOL_RELEASED")
+	elif status == &"projectile_terminal_applied":
+		var terminal_record := projectile.get("terminal_intent", {}) as Dictionary
+		var terminal: Dictionary = _cinder.call("present_payload_terminal_record", terminal_record)
+		if bool(terminal.get("accepted", false)):
+			_log("CLIENT_PAYLOAD_POOL_TERMINAL")
+		var duplicate: Dictionary = _cinder.call("present_payload_terminal_record", terminal_record)
+		if not bool(duplicate.get("accepted", false)):
+			_log("CLIENT_TERMINAL_DUPLICATE_REJECTED")
 
 
 func _on_seat_result(result: Dictionary) -> void:
