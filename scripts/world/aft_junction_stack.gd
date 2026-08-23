@@ -96,9 +96,9 @@ const RACK_CABLE_TRAY_CLAMP_POSITIONS := [
 	Vector3(9.45, 2.44, 9.58),
 ]
 ## Six rubber isolation collars around the three console bays' existing copper
-## shock mounts. The mounts and console-bay roots retain all physical and
-## semantic meaning; the childless TorusMesh renderers remain ordinary nodes
-## while their identical immutable mesh recipe is shared component-locally.
+## shock mounts. Childless Marker3D anchors retain every bay-local path and pose;
+## one room-local MultiMesh draws the exact torus copies. Mounts and bays retain
+## all collision, interaction and semantic authority.
 const CONSOLE_SHOCK_COLLAR_INNER_RADIUS := 0.09
 const CONSOLE_SHOCK_COLLAR_OUTER_RADIUS := 0.13
 const CONSOLE_SHOCK_COLLAR_RINGS := 48
@@ -161,13 +161,13 @@ const RACK_CARD_SIZE := Vector3(0.02, 0.24, 0.10)
 const RACK_CARD_COPY_COUNT := 14
 const JUNCTION_ARC_TILE_COPY_COUNT := 8
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1171
+const RENDER_DESCENDANT_NODE_COUNT := 1172
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 833
+const RENDERER_NODE_COUNT := 828
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 856
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 833
+const SURFACE_SUBMISSION_COUNT := 828
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -240,6 +240,7 @@ var _pod_corner_collar_mesh: TorusMesh
 var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _rack_card_batch: MultiMeshInstance3D
 var _junction_arc_tile_batch: MultiMeshInstance3D
+var _console_shock_collar_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
@@ -594,7 +595,7 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-        "mesh_instances": 833,
+        "mesh_instances": 828,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -1374,119 +1375,95 @@ func get_rack_cable_tray_clamp_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Detached component-local proof for the six ordinary ConsoleShockCollar
-## renderers. Sharing changes only mesh allocation identity: every console bay,
-## node, transform, visible copy, submission, material and renderer value stays
-## at its authored value while the copper mount retains physical authority.
+## Detached proof for the six ConsoleShockCollar copies. Bay-local Marker3D
+## anchors preserve exact paths/poses while one room-local renderer submits the
+## immutable torus family. Adjacent copper mounts retain physical authority.
 func get_console_shock_collar_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
-	var family_nodes: Array[MeshInstance3D] = []
-	var mesh_ids := {}
-	var material_ids := {}
-	var node_paths := PackedStringArray()
-	var transforms: Array[Transform3D] = []
-	var surface_submissions := 0
-	var visible_copies := 0
-	var collision_nodes := 0
-	var authority_nodes := 0
-	for raw_node in find_children("*", "MeshInstance3D", true, false):
-		var instance := raw_node as MeshInstance3D
-		if StringName(instance.get_meta(
-			TorusGeometryBudget.PROFILE_META, &""
-		)) != TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
-			continue
-		if StringName(instance.get_meta(INTERFACE_COLLAR_KIND_META, &"")) \
-				!= &"ConsoleShockCollar":
-			continue
-		family_nodes.append(instance)
-		node_paths.append(String(get_path_to(instance)))
-		transforms.append(instance.transform)
-		visible_copies += 1 if instance.visible else 0
-		if instance.mesh != null:
-			mesh_ids[instance.mesh.get_instance_id()] = true
-			surface_submissions += instance.mesh.get_surface_count()
-		if instance.material_override != null:
-			material_ids[instance.material_override.get_instance_id()] = true
-		if instance.mesh != _console_shock_collar_mesh:
-			errors.append("console_shock_collar_mesh_identity_not_shared")
-		if instance.material_override != _materials.get("rubber"):
-			errors.append("console_shock_collar_material_identity_drift")
-		var family_index := family_nodes.size() - 1
-		if family_index >= CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS.size() \
-				or not instance.position.is_equal_approx(
-					CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS[family_index] as Vector3
+	var room := get_node_or_null(^"Structure/OperationsRoom") as Node3D
+	var anchors: Array[Marker3D] = []
+	var anchor_paths := PackedStringArray()
+	var anchor_local_transforms: Array[Transform3D] = []
+	var anchors_exact := room != null
+	for bay_index in 3:
+		var bay := get_node_or_null(NodePath(
+			"Structure/OperationsRoom/ConsoleBay%02d" % (bay_index + 1)
+		)) as Node3D
+		var bay_anchors: Array[Marker3D] = []
+		if bay != null:
+			for child in bay.get_children():
+				# Godot gives the second same-named internal anchor an @Marker3D@
+				# name. Both Marker3D children are this visual family's frozen
+				# bay-local anchors; the bay has no semantic Marker3D children.
+				if child is Marker3D:
+					bay_anchors.append(child as Marker3D)
+		anchors_exact = anchors_exact and bay != null and bay_anchors.size() == 2
+		for side_index in bay_anchors.size():
+			var anchor := bay_anchors[side_index]
+			var flat_index := bay_index * 2 + side_index
+			anchors.append(anchor)
+			anchor_paths.append(String(get_path_to(anchor)))
+			anchor_local_transforms.append(anchor.transform)
+			anchors_exact = anchors_exact \
+				and flat_index < CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS.size() \
+				and anchor.position.is_equal_approx(
+					CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS[flat_index] as Vector3
 				) \
-				or not instance.rotation_degrees.is_equal_approx(
-					Vector3(90.0, 0.0, 0.0)
-				) \
-				or instance.scale != Vector3.ONE:
-			errors.append("console_shock_collar_transform_drift")
-		if not instance.visible \
-				or instance.layers != 1 \
-				or instance.cast_shadow \
-					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
-				or instance.material_overlay != null \
-				or not is_zero_approx(instance.transparency):
-			errors.append("console_shock_collar_renderer_state_drift")
-		var bay_index := int(family_index / 2)
-		var expected_parent := get_node_or_null(
-			NodePath("Structure/OperationsRoom/ConsoleBay%02d" % (bay_index + 1))
-		) as Node3D
-		var metadata_keys := instance.get_meta_list()
-		var exact_metadata := (
-			metadata_keys.size() == 2
-			and metadata_keys.has(TorusGeometryBudget.PROFILE_META)
-			and metadata_keys.has(INTERFACE_COLLAR_KIND_META)
-			and StringName(instance.get_meta(
-				TorusGeometryBudget.PROFILE_META, &""
-			)) == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
-			and StringName(instance.get_meta(
-				INTERFACE_COLLAR_KIND_META, &""
-			)) == &"ConsoleShockCollar"
-		)
-		var gained_authority := (
-			instance.get_parent() != expected_parent
-			or instance.get_child_count() != 0
-			or instance.get_script() != null
-			or not instance.get_groups().is_empty()
-			or not exact_metadata
-		)
-		if gained_authority:
-			authority_nodes += 1
-			errors.append("console_shock_collar_gained_authority_or_lifecycle")
-		collision_nodes += instance.find_children(
-			"*", "CollisionObject3D", true, false
-		).size()
-		collision_nodes += instance.find_children(
-			"*", "CollisionShape3D", true, false
-		).size()
+				and anchor.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0)) \
+				and anchor.scale == Vector3.ONE \
+				and anchor.get_child_count() == 0 \
+				and anchor.get_script() == null \
+				and anchor.get_groups().is_empty() \
+				and anchor.get_meta_list().is_empty()
+	if not anchors_exact or anchors.size() != CONSOLE_SHOCK_COLLAR_COPY_COUNT:
+		errors.append("console_shock_collar_anchor_roster_or_transform_drift")
 
-	if family_nodes.size() != CONSOLE_SHOCK_COLLAR_COPY_COUNT:
-		errors.append("console_shock_collar_visual_node_count_drift")
-	var stable_paths := family_nodes.size() == CONSOLE_SHOCK_COLLAR_COPY_COUNT
-	if stable_paths:
-		for index in family_nodes.size():
-			var bay_path := "Structure/OperationsRoom/ConsoleBay%02d" % (
-				int(index / 2) + 1
-			)
-			stable_paths = (
-				stable_paths
-				and family_nodes[index].get_parent() != null
-				and String(get_path_to(family_nodes[index].get_parent())) == bay_path
-				and (
-					String(node_paths[index]) == bay_path + "/ConsoleShockCollar"
-					if index % 2 == 0
-					else String(family_nodes[index].name).begins_with("@MeshInstance3D@")
-				)
-			)
-	if not stable_paths:
-		errors.append("console_shock_collar_node_path_roster_drift")
-	if mesh_ids.size() != 1:
-		errors.append("console_shock_collar_mesh_identity_not_shared")
-	if material_ids.size() != 1:
-		errors.append("console_shock_collar_material_identity_drift")
-	if collision_nodes != 0:
-		errors.append("console_shock_collar_gained_collision_authority")
+	var batch := _console_shock_collar_batch
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh as TorusMesh if multimesh != null else null
+	var expected_transforms := _console_shock_collar_transforms()
+	var expected_buffer := _encode_multimesh_transforms(expected_transforms)
+	var expected_bounds := _transformed_mesh_bounds(
+		_console_shock_collar_mesh.get_aabb(), expected_transforms
+	) if _console_shock_collar_mesh != null else AABB()
+	var semantic_authority_count := 0
+	if batch == null or multimesh == null or mesh == null:
+		errors.append("console_shock_collar_batch_missing")
+	else:
+		if batch.get_parent() != room or str(batch.name) != "ConsoleShockCollarRenderBatch":
+			errors.append("console_shock_collar_batch_path_drift")
+		if multimesh.transform_format != MultiMesh.TRANSFORM_3D \
+				or multimesh.use_colors or multimesh.use_custom_data:
+			errors.append("console_shock_collar_multimesh_format_drift")
+		if multimesh.instance_count != CONSOLE_SHOCK_COLLAR_COPY_COUNT \
+				or multimesh.visible_instance_count != CONSOLE_SHOCK_COLLAR_COPY_COUNT:
+			errors.append("console_shock_collar_visible_copy_roster_drift")
+		if multimesh.buffer != expected_buffer:
+			errors.append("console_shock_collar_renderer_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(expected_bounds):
+			errors.append("console_shock_collar_culling_bounds_drift")
+		if mesh != _console_shock_collar_mesh:
+			errors.append("console_shock_collar_mesh_identity_not_shared")
+		if batch.material_override != _materials.get("rubber"):
+			errors.append("console_shock_collar_material_identity_drift")
+		if batch.transform != Transform3D.IDENTITY or not batch.visible \
+				or batch.layers != 1 \
+				or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or batch.material_overlay != null or not is_zero_approx(batch.transparency):
+			errors.append("console_shock_collar_renderer_state_drift")
+		var metadata_keys := batch.get_meta_list()
+		if batch.get_child_count() != 0 or batch.get_script() != null \
+				or not batch.get_groups().is_empty() \
+				or metadata_keys.size() != 2 \
+				or not metadata_keys.has(&"visual_detail_only") \
+				or not metadata_keys.has(&"authored_instance_transforms") \
+				or not bool(batch.get_meta("visual_detail_only", false)) \
+				or not _transform_arrays_match(
+					batch.get_meta("authored_instance_transforms", []) as Array,
+					expected_transforms
+				):
+			semantic_authority_count = 1
+			errors.append("console_shock_collar_gained_authority_or_lifecycle")
 
 	var authored_tessellation := Vector2i(
 		CONSOLE_SHOCK_COLLAR_RINGS,
@@ -1542,37 +1519,47 @@ func get_console_shock_collar_visual_allocation_audit() -> Dictionary:
 		"scope": &"aft_junction_stack_console_shock_collar_visuals",
 		"legacy": {
 			"visual_nodes": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
+			"renderer_nodes": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
 			"drawn_copies": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
 			"surface_submissions": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
-			"mesh_resource_allocations": CONSOLE_SHOCK_COLLAR_COPY_COUNT,
+			# The immediately preceding sharing pass already held one immutable
+			# recipe. This audit freezes the incremental batching delta honestly.
+			"mesh_resource_allocations": 1,
 			"material_resource_allocations": 1,
 		},
 		"current": {
-			"visual_nodes": family_nodes.size(),
-			"drawn_copies": visible_copies,
-			"surface_submissions": surface_submissions,
-			"mesh_resource_allocations": mesh_ids.size(),
-			"material_resource_allocations": material_ids.size(),
+			"visual_nodes": anchors.size() + (1 if batch != null else 0),
+			"stable_anchor_nodes": anchors.size(),
+			"renderer_nodes": 1 if batch != null else 0,
+			"drawn_copies": multimesh.visible_instance_count if multimesh != null else 0,
+			"surface_submissions": mesh.get_surface_count() if mesh != null else 0,
+			"mesh_resource_allocations": 1 if mesh != null else 0,
+			"material_resource_allocations": 1 if batch != null and batch.material_override != null else 0,
 		},
 		"reductions": {
-			"visual_nodes": 0,
+			"visual_nodes": -1,
+			"renderer_nodes": 5,
 			"drawn_copies": 0,
-			"surface_submissions": 0,
-			"mesh_resource_allocations": 5,
+			"surface_submissions": 5,
+			"mesh_resource_allocations": 0,
 			"material_resource_allocations": 0,
 		},
-		"node_paths": node_paths,
-		"authored_transforms": transforms,
+		"node_paths": anchor_paths,
+		"anchor_local_transforms": anchor_local_transforms,
+		"authored_transforms": expected_transforms,
+		"renderer_buffer": expected_buffer,
+		"renderer_buffer_float_count": multimesh.buffer.size() if multimesh != null else 0,
+		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
 		"authored_tessellation": authored_tessellation,
 		"live_tessellation": Vector2i(
 			_console_shock_collar_mesh.rings,
 			_console_shock_collar_mesh.ring_segments
 		) if _console_shock_collar_mesh != null else Vector2i.ZERO,
 		"normalised": normalised,
-		"material_identity_preserved": material_ids.size() == 1,
-		"collision_authority_count": collision_nodes,
-		"semantic_authority_count": authority_nodes,
-		"batched": false,
+		"material_identity_preserved": batch != null and batch.material_override == _materials.get("rubber"),
+		"collision_authority_count": 0,
+		"semantic_authority_count": semantic_authority_count,
+		"batched": true,
 		"renderer_values_changed": false,
 	}.duplicate(true)
 
@@ -2888,6 +2875,15 @@ func _build_operations_room(structure: Node3D) -> void:
 		CONSOLE_SHOCK_COLLAR_RING_SEGMENTS
 	)
 	_console_shock_collar_mesh.resource_name = "AftConsoleShockCollarMesh"
+	# MultiMesh renderers are intentionally outside TorusGeometryBudget's
+	# MeshInstance3D traversal. Apply the same narrowly reviewed interface-collar
+	# profile once to the shared recipe so batching preserves the production
+	# 32x8 silhouette that the six former renderers received at startup.
+	TorusGeometryBudget.apply_profile(
+		_console_shock_collar_mesh,
+		1.0,
+		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+	)
 	for bay_index in 3:
 		var bay := Node3D.new()
 		bay.name = "ConsoleBay%02d" % (bay_index + 1)
@@ -2901,16 +2897,11 @@ func _build_operations_room(structure: Node3D) -> void:
 		_box(bay, "PlinthInset", Vector3(0, 0.7, -0.47), Vector3(1.72, 0.48, 0.08), _materials["hull_dark"], false)
 		for support_x in [-0.86, 0.86]:
 			_cylinder(bay, "ConsoleShockMount", Vector3(float(support_x), 0.23, 0.34), 0.085, 0.38, _materials["copper"], false)
-			_interface_collar(
-				bay,
-				"ConsoleShockCollar",
-				Vector3(float(support_x), 0.08, 0.34),
-				CONSOLE_SHOCK_COLLAR_INNER_RADIUS,
-				CONSOLE_SHOCK_COLLAR_OUTER_RADIUS,
-				_materials["rubber"],
-				Vector3(90, 0, 0),
-				_console_shock_collar_mesh
-			)
+			var collar_anchor := Marker3D.new()
+			collar_anchor.name = "ConsoleShockCollar"
+			collar_anchor.position = Vector3(float(support_x), 0.08, 0.34)
+			collar_anchor.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+			bay.add_child(collar_anchor)
 		_box(bay, "AngledConsole", Vector3(0, 1.26, -0.1), Vector3(2.18, 0.28, 1.0), _materials["graphite"], true, Vector3(-12, 0, 0))
 		_box(bay, "ConsoleEdgeRail", Vector3(0, 1.43, -0.56), Vector3(2.18, 0.09, 0.09), _materials["panel_light"], false, Vector3(-12, 0, 0))
 		_box(bay, "PrimaryDisplay", Vector3(0, 1.43, -0.18), Vector3(1.55, 0.035, 0.56), _materials["screen"], false, Vector3(-12, 0, 0))
@@ -2959,6 +2950,13 @@ func _build_operations_room(structure: Node3D) -> void:
 			0.24,
 			1.25
 		)
+	_console_shock_collar_batch = _multimesh_torus(
+		room,
+		"ConsoleShockCollarRenderBatch",
+		_console_shock_collar_mesh,
+		_materials["rubber"],
+		_console_shock_collar_transforms()
+	)
 
 	# Three operator chairs plus a side-facing coordinator chair.
 	#
@@ -4701,6 +4699,21 @@ static func _rack_card_transforms() -> Array[Transform3D]:
 					module_y,
 					10.000
 				)
+			))
+	return transforms
+
+
+static func _console_shock_collar_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var collar_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	for bay_index in 3:
+		var bay_origin := Vector3(
+			3.15 + float(bay_index) * 2.85, 0.0, 15.7
+		)
+		for support_x in [-0.86, 0.86]:
+			transforms.append(Transform3D(
+				collar_basis,
+				bay_origin + Vector3(float(support_x), 0.08, 0.34),
 			))
 	return transforms
 

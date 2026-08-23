@@ -327,10 +327,10 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1171,
-			"renderer_nodes": 833,
+			"descendant_nodes": 1172,
+			"renderer_nodes": 828,
 			"drawn_copies": 856,
-			"surface_submissions": 833,
+			"surface_submissions": 828,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
@@ -338,7 +338,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus VIP trim, rack-card and arc-tile batching freeze 1171 descendants, 833 renderers/submissions, 856 copies, and 296 mesh allocations"
+		"shared collar families plus VIP trim, rack-card, arc-tile and console-collar batching freeze 1172 descendants, 828 renderers/submissions, 856 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -867,125 +867,126 @@ func _test_console_shock_collar_visual_resource_sharing(
 		bool(report.valid)
 		and report.legacy == {
 			"visual_nodes": 6,
-			"drawn_copies": 6,
-			"surface_submissions": 6,
-			"mesh_resource_allocations": 6,
-			"material_resource_allocations": 1,
-		}
-		and report.current == {
-			"visual_nodes": 6,
+			"renderer_nodes": 6,
 			"drawn_copies": 6,
 			"surface_submissions": 6,
 			"mesh_resource_allocations": 1,
 			"material_resource_allocations": 1,
 		}
+		and report.current == {
+			"visual_nodes": 7,
+			"stable_anchor_nodes": 6,
+			"renderer_nodes": 1,
+			"drawn_copies": 6,
+			"surface_submissions": 1,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+		}
 		and report.reductions == {
-			"visual_nodes": 0,
+			"visual_nodes": -1,
+			"renderer_nodes": 5,
 			"drawn_copies": 0,
-			"surface_submissions": 0,
-			"mesh_resource_allocations": 5,
+			"surface_submissions": 5,
+			"mesh_resource_allocations": 0,
 			"material_resource_allocations": 0,
 		}
-		and not bool(report.batched)
+		and bool(report.batched)
 		and not bool(report.renderer_values_changed)
-		and not bool(report.normalised)
+		and bool(report.normalised)
 		and report.authored_tessellation == Vector2i(48, 16)
-		and report.live_tessellation == Vector2i(48, 16)
+		and report.live_tessellation == Vector2i(32, 8)
 		and bool(report.material_identity_preserved)
 		and int(report.collision_authority_count) == 0
 		and int(report.semantic_authority_count) == 0,
-		"six ConsoleShockCollar renderers preserve nodes, copies and submissions while immutable mesh allocations fall 6 -> 1"
+		"six ConsoleShockCollar copies retain exact poses while renderers/submissions fall 6 -> 1 and the already-shared mesh remains one allocation"
 	)
 
 	var paths := report.node_paths as PackedStringArray
 	var transforms := report.authored_transforms as Array
-	var collars: Array[MeshInstance3D] = []
-	for raw_node in module.find_children("*", "MeshInstance3D", true, false):
-		var instance := raw_node as MeshInstance3D
-		if StringName(instance.get_meta(
-			AftJunctionStack.INTERFACE_COLLAR_KIND_META, &""
-		)) == &"ConsoleShockCollar":
-			collars.append(instance)
-	var shared_mesh := collars[0].mesh as TorusMesh if not collars.is_empty() else null
-	var shared_material := (
-		collars[0].material_override if not collars.is_empty() else null
-	)
+	var local_transforms := report.anchor_local_transforms as Array
+	var batch := module.get_node_or_null(
+		^"Structure/OperationsRoom/ConsoleShockCollarRenderBatch"
+	) as MultiMeshInstance3D
+	var shared_mesh := batch.multimesh.mesh as TorusMesh \
+		if batch != null and batch.multimesh != null else null
 	var exact_family := (
-		collars.size() == AftJunctionStack.CONSOLE_SHOCK_COLLAR_COPY_COUNT
-		and paths.size() == AftJunctionStack.CONSOLE_SHOCK_COLLAR_COPY_COUNT
+		paths.size() == AftJunctionStack.CONSOLE_SHOCK_COLLAR_COPY_COUNT
 		and transforms.size() == AftJunctionStack.CONSOLE_SHOCK_COLLAR_COPY_COUNT
+		and local_transforms.size() == AftJunctionStack.CONSOLE_SHOCK_COLLAR_COPY_COUNT
+		and batch != null and batch.multimesh != null
+		and batch.multimesh.instance_count == 6
+		and batch.multimesh.visible_instance_count == 6
+		and batch.multimesh.buffer == (report.renderer_buffer as PackedFloat32Array)
+		and int(report.renderer_buffer_float_count) == 72
+		and batch.multimesh.custom_aabb.is_equal_approx(report.culling_bounds as AABB)
+		and batch.get_child_count() == 0 and batch.get_script() == null
+		and batch.get_groups().is_empty()
 	)
-	for index in collars.size():
-		var collar := collars[index]
+	for index in paths.size():
 		var bay_path := "Structure/OperationsRoom/ConsoleBay%02d" % (
 			int(index / 2) + 1
 		)
+		var anchor := module.get_node_or_null(NodePath(paths[index])) as Marker3D
 		exact_family = (
 			exact_family
-			and collar.mesh == shared_mesh
-			and collar.material_override == shared_material
-			and shared_material != null
-			and collar.position.is_equal_approx(
+			and anchor != null
+			and anchor.position.is_equal_approx(
 				AftJunctionStack.CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS[index]
 					as Vector3
 			)
-			and collar.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
-			and collar.scale == Vector3.ONE
-			and (transforms[index] as Transform3D).is_equal_approx(collar.transform)
-			and collar.visible
-			and collar.layers == 1
-			and collar.cast_shadow \
-				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-			and collar.material_overlay == null
-			and is_zero_approx(collar.transparency)
-			and collar.get_child_count() == 0
-			and collar.get_script() == null
-			and String(module.get_path_to(collar.get_parent())) == bay_path
+			and anchor.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+			and (local_transforms[index] as Transform3D).is_equal_approx(anchor.transform)
+			and anchor.get_child_count() == 0 and anchor.get_script() == null
+			and String(module.get_path_to(anchor.get_parent())) == bay_path
 			and (
 				String(paths[index]) == bay_path + "/ConsoleShockCollar"
 				if index % 2 == 0
-				else String(collar.name).begins_with("@MeshInstance3D@")
+				else String(anchor.name).begins_with("@Marker3D@")
 			)
 		)
 	_check(
 		exact_family
 		and shared_mesh != null
+		and batch.material_override != null
 		and shared_mesh.resource_name == "AftConsoleShockCollarMesh"
 		and not shared_mesh.resource_local_to_scene
 		and shared_mesh.material == null
 		and is_equal_approx(shared_mesh.inner_radius, 0.09)
 		and is_equal_approx(shared_mesh.outer_radius, 0.13)
-		and shared_mesh.rings == 48
-		and shared_mesh.ring_segments == 16
+		and shared_mesh.rings == 32
+		and shared_mesh.ring_segments == 8
+		and shared_mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+			== Vector2i(48, 16)
 		and shared_mesh.get_surface_count() == 1,
-		"the exact three-bay node/path/transform roster, rubber material, renderer state and authored 48x16 recipe remain intact"
+		"six stable bay anchors, one exact raw transform buffer, rubber binding and production 48x16 -> 32x8 recipe remain intact"
 	)
 
-	(report.current as Dictionary)["mesh_resource_allocations"] = -1
+	(report.current as Dictionary)["renderer_nodes"] = -1
 	paths[0] = "mutated"
 	transforms.clear()
 	var detached := module.get_console_shock_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 1
+		int(detached.current.renderer_nodes) == 1
 		and (detached.node_paths as PackedStringArray)[0] \
 			== "Structure/OperationsRoom/ConsoleBay01/ConsoleShockCollar"
 		and (detached.authored_transforms as Array).size() == 6,
-		"console-shock-collar allocation, path and transform evidence is deeply detached"
+		"console-shock-collar batch allocation, path and transform evidence is deeply detached"
 	)
 
 	var baseline_errors := module.get_validation_errors()
-	var original_second_mesh := collars[1].mesh
-	collars[1].mesh = shared_mesh.duplicate() as Mesh
-	var identity_red := module.get_console_shock_collar_visual_allocation_audit()
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var corrupt_buffer := original_buffer.duplicate()
+	corrupt_buffer[3] += 0.25
+	batch.multimesh.buffer = corrupt_buffer
+	var buffer_red := module.get_console_shock_collar_visual_allocation_audit()
 	_check(
-		not bool(identity_red.valid)
-		and (identity_red.errors as PackedStringArray).has(
-			"console_shock_collar_mesh_identity_not_shared"
-		)
-		and int(identity_red.current.mesh_resource_allocations) == 2,
-		"RED identity mutation rejects a private exact-looking console-shock-collar mesh"
+		not bool(buffer_red.valid)
+		and (buffer_red.errors as PackedStringArray).has(
+			"console_shock_collar_renderer_buffer_drift"
+		),
+		"RED renderer-buffer mutation rejects a shifted collar copy"
 	)
-	collars[1].mesh = original_second_mesh
+	batch.multimesh.buffer = original_buffer
 
 	var original_rings := shared_mesh.rings
 	shared_mesh.rings += 1
@@ -999,6 +1000,9 @@ func _test_console_shock_collar_visual_resource_sharing(
 	)
 	shared_mesh.rings = original_rings
 
+	var original_authored := shared_mesh.get_meta(
+		TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+	) as Vector2i
 	shared_mesh.set_meta(TorusGeometryBudget.AUTHORED_META, Vector2i(47, 15))
 	var budget_red := module.get_console_shock_collar_visual_allocation_audit()
 	_check(
@@ -1008,10 +1012,10 @@ func _test_console_shock_collar_visual_resource_sharing(
 		),
 		"RED authored-budget metadata mutation rejects a false console-shock-collar recipe"
 	)
-	shared_mesh.remove_meta(TorusGeometryBudget.AUTHORED_META)
+	shared_mesh.set_meta(TorusGeometryBudget.AUTHORED_META, original_authored)
 
-	var original_material := collars[2].material_override
-	collars[2].material_override = null
+	var original_material := batch.material_override
+	batch.material_override = null
 	var material_red := module.get_console_shock_collar_visual_allocation_audit()
 	_check(
 		not bool(material_red.valid)
@@ -1020,10 +1024,10 @@ func _test_console_shock_collar_visual_resource_sharing(
 		),
 		"RED material mutation rejects loss of the shared rubber binding"
 	)
-	collars[2].material_override = original_material
+	batch.material_override = original_material
 
-	var original_layers := collars[3].layers
-	collars[3].layers = 2
+	var original_layers := batch.layers
+	batch.layers = 2
 	var renderer_red := module.get_console_shock_collar_visual_allocation_audit()
 	_check(
 		not bool(renderer_red.valid)
@@ -1032,9 +1036,9 @@ func _test_console_shock_collar_visual_resource_sharing(
 		),
 		"RED renderer mutation rejects a console-shock-collar layer drift"
 	)
-	collars[3].layers = original_layers
+	batch.layers = original_layers
 
-	collars[4].set_meta("forbidden_evidence_authority", true)
+	batch.set_meta("forbidden_evidence_authority", true)
 	var authority_red := module.get_console_shock_collar_visual_allocation_audit()
 	_check(
 		not bool(authority_red.valid)
@@ -1044,7 +1048,7 @@ func _test_console_shock_collar_visual_resource_sharing(
 		and int(authority_red.semantic_authority_count) == 1,
 		"RED metadata mutation rejects authority on a visual-only console shock collar"
 	)
-	collars[4].remove_meta("forbidden_evidence_authority")
+	batch.remove_meta("forbidden_evidence_authority")
 	_check(
 		bool(module.get_console_shock_collar_visual_allocation_audit().valid)
 		and module.get_validation_errors() == baseline_errors,
@@ -1876,7 +1880,6 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 
 func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 	var expected_counts := {
-		&"ConsoleShockCollar": 6,
 		&"SpineClamp": 5,
 		&"ExteriorPipeClamp": 4,
 		&"RackCableTrayClamp": 4,
@@ -1906,8 +1909,8 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 			"aabb": mesh.get_aabb(),
 		})
 
-	_check(observed_counts == expected_counts, "Aft profile selects only the exact 26 interface-collar roster")
-	_check(mesh_ids.size() == 9, "26 profiled collars retain 9 TorusMesh resources after exact spine, rack, console, chair-bearing and conduit sharing")
+	_check(observed_counts == expected_counts, "Aft profile selects the exact 20 ordinary interface-collar renderers; the six-copy console batch is audited separately")
+	_check(mesh_ids.size() == 8, "20 ordinary profiled collars retain 8 TorusMesh resources; the console batch retains one separately profiled shared resource")
 	# The operations test deliberately leaves the door open. Production performs
 	# the geometry pass at startup with this portal closed, so restore that real
 	# lifecycle state before asserting the complete module contract below.
@@ -1920,7 +1923,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 	)
 	operations_door.motion_duration = original_motion_duration
 	var report := TorusGeometryBudget.normalise_tree(module)
-	var exact_geometry := snapshots.size() == 26
+	var exact_geometry := snapshots.size() == 20
 	for snapshot in snapshots:
 		var instance := snapshot["instance"] as MeshInstance3D
 		var mesh := instance.mesh as TorusMesh
@@ -1945,15 +1948,15 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
 	) as Dictionary
 	_check(
-		int(profile_report.get("resources", 0)) == 9
-		and int(profile_report.get("instances", 0)) == 26
-		and int(profile_report.get("surfaces", 0)) == 26,
-		"profile report freezes 9 resources, 26 visible instances, and 26 surfaces"
+		int(profile_report.get("resources", 0)) == 8
+		and int(profile_report.get("instances", 0)) == 20
+		and int(profile_report.get("surfaces", 0)) == 20,
+		"profile report freezes 8 ordinary resources, 20 visible instances, and 20 surfaces"
 	)
 	_check(
-		int(profile_report.get("triangles_baseline", 0)) == 19968
-		and int(profile_report.get("triangles_after", 0)) == 13312,
-		"Aft interface family freezes at 19968 -> 13312 triangles"
+		int(profile_report.get("triangles_baseline", 0)) == 15360
+		and int(profile_report.get("triangles_after", 0)) == 10240,
+		"ordinary Aft interface renderers freeze at 15360 -> 10240 triangles; the six-copy batch preserves the total-family 19968 -> 13312 budget"
 	)
 
 	var pod_report := module.get_pod_corner_collar_visual_allocation_audit()
