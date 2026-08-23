@@ -68,7 +68,11 @@ const SCENARIO_COURIER_INTERCEPT: StringName = &"courier_intercept"
 ## A coordinated pair. One craft holds your nose, the other only shoots you in
 ## the back, and they trade those jobs when you turn.
 const SCENARIO_PAIRED_WING: StringName = &"paired_wing"
-const SCENARIO_IDS: Array[StringName] = [SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING]
+## A caller-owned station/convoy anchor is guarded by the same coordinated pair.
+const SCENARIO_STATION_DEFENSE: StringName = &"station_defense"
+const SCENARIO_IDS: Array[StringName] = [
+	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
+]
 
 const STATE_IDLE: StringName = &"idle"
 const STATE_ARMING: StringName = &"arming"
@@ -96,10 +100,14 @@ const TACTIC_FLANK_UNDER_COVER: StringName = &"flank_under_cover"
 const TACTIC_ENGAGE: StringName = &"engage"
 const TACTIC_WITHHOLD: StringName = &"withhold"
 const TACTIC_DISENGAGE: StringName = &"disengage"
+const TACTIC_GUARD: StringName = &"guard"
+const TACTIC_INTERCEPT: StringName = &"intercept"
+const TACTIC_DEFEND: StringName = &"defend"
 
 const CONTENT_NOTE := (
 	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
-	+ "suppression opening, and every timing value are an original modern interpretation. They do not "
+	+ "suppression opening, caller-owned protected-anchor defense, and every timing "
+	+ "value are an original modern interpretation. They do not "
 	+ "reproduce or claim any authenticated historical Keth Shipyards mission, "
 	+ "patrol, objective, or scenario."
 )
@@ -135,6 +143,9 @@ const CONTENT_NOTE := (
 ## dispatch-frame fire gate; the resolver and each craft's movement/arc rules
 ## remain the sole authorities for what happens after the intent.
 @export_range(0.0, 10.0, 0.1) var suppression_lead_time := 2.2
+## Threat distance from the caller-owned anchor at which the guard wing opens
+## crossfire. Outside it, the anchor-role craft intercepts while its peer guards.
+@export_range(25.0, 1000.0, 5.0) var defense_trigger_radius := 180.0
 
 @export_category("Encounter wiring")
 @export var encounter_host_path := NodePath("..")
@@ -160,6 +171,7 @@ var _distress_broadcast := false
 var _scenario_origin := Vector3.ZERO
 var _courier_launch_origin := Vector3.ZERO
 var _target: Node3D
+var _protected_anchor: Node3D
 var _roster: Array[Node3D] = []
 var _completed_runs := 0
 var _outcome_counts: Dictionary = {}
@@ -268,6 +280,16 @@ func is_fire_authorized(member: Node) -> bool:
 		and coordinator.is_member_disengaging(member as Node3D)
 	):
 		return false
+	if _scenario == SCENARIO_STATION_DEFENSE:
+		if not _is_protected_anchor_alive():
+			return false
+		if is_instance_valid(coordinator):
+			var role := coordinator.get_role(member as Node3D)
+			if role == WingCoordinator.ROLE_ANCHOR:
+				return true
+			return _target.global_position.distance_to(
+				_protected_anchor.global_position
+			) <= defense_trigger_radius
 	if _paired_wing_suppression_active():
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
@@ -292,6 +314,15 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 	)
 	if disengaging:
 		action = TACTIC_DISENGAGE
+	elif _scenario == SCENARIO_STATION_DEFENSE and _is_protected_anchor_alive():
+		if role == WingCoordinator.ROLE_ANCHOR:
+			action = TACTIC_INTERCEPT
+		elif _target.global_position.distance_to(
+				_protected_anchor.global_position
+			) <= defense_trigger_radius:
+			action = TACTIC_DEFEND
+		else:
+			action = TACTIC_GUARD
 	elif _paired_wing_suppression_active():
 		action = (
 			TACTIC_SUPPRESS
@@ -307,6 +338,9 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 		"suppression_active": _paired_wing_suppression_active(),
 		"disengaging": disengaging,
 		"elapsed": _elapsed,
+		"protected_anchor": (
+			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
+		),
 	}.duplicate(true)
 
 
@@ -325,6 +359,21 @@ func _paired_wing_suppression_active() -> bool:
 ## goes through `_update_arming`; this exists so a suite can drive one branch
 ## deterministically without staging a whole guided sortie.
 func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
+	return _begin_scenario(scenario_id, target, null)
+
+
+## Explicit admission for the caller-owned defense anchor. The director retains
+## only the live Node identity for scenario distance/loss observations and never
+## mutates its transform, health, collision, ownership, or lifecycle.
+func begin_station_defense(target: Node3D, protected_anchor: Node3D) -> bool:
+	return _begin_scenario(SCENARIO_STATION_DEFENSE, target, protected_anchor)
+
+
+func _begin_scenario(
+		scenario_id: StringName,
+		target: Node3D,
+		protected_anchor: Node3D
+	) -> bool:
 	if not _is_current():
 		return false
 	# An unknown identifier is refused by return value rather than by an engine
@@ -341,7 +390,10 @@ func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
 		or not target.is_inside_tree()
 	):
 		return false
+	if scenario_id == SCENARIO_STATION_DEFENSE and not _is_live_anchor(protected_anchor):
+		return false
 	_reset_run_state()
+	_protected_anchor = protected_anchor if scenario_id == SCENARIO_STATION_DEFENSE else null
 	_scenario = scenario_id
 	_target = target
 	_scenario_origin = target.global_position
@@ -352,6 +404,8 @@ func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
 			_launch_courier()
 		SCENARIO_PAIRED_WING:
 			_launch_wing()
+		SCENARIO_STATION_DEFENSE:
+			_launch_wing(_protected_anchor.global_position)
 	if _roster.is_empty():
 		# Nothing could be staged. Terminating immediately is the only honest
 		# result; leaving the director RUNNING with an empty roster is precisely
@@ -427,6 +481,8 @@ func _evaluate_termination(delta: float) -> StringName:
 	# 1. The player is gone.
 	if not _is_target_alive():
 		return OUTCOME_ABORTED
+	if _scenario == SCENARIO_STATION_DEFENSE and not _is_protected_anchor_alive():
+		return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -482,6 +538,9 @@ func _evaluate_objective() -> StringName:
 		SCENARIO_PAIRED_WING:
 			if _active_roster_count() == 0:
 				return OUTCOME_CLEARED
+		SCENARIO_STATION_DEFENSE:
+			if _active_roster_count() == 0:
+				return OUTCOME_CLEARED
 	return OUTCOME_PENDING
 
 
@@ -511,6 +570,7 @@ func _stand_down() -> void:
 			member.call(&"deactivate")
 	_roster.clear()
 	_target = null
+	_protected_anchor = null
 
 
 func _reset_run_state() -> void:
@@ -664,6 +724,23 @@ func _is_target_alive() -> bool:
 	return true
 
 
+func _is_live_anchor(anchor: Node3D) -> bool:
+	return (
+		is_instance_valid(anchor)
+		and not anchor.is_queued_for_deletion()
+		and anchor.is_inside_tree()
+	)
+
+
+func _is_protected_anchor_alive() -> bool:
+	if not _is_live_anchor(_protected_anchor):
+		return false
+	if _protected_anchor.has_method(&"is_destroyed") \
+			and bool(_protected_anchor.call(&"is_destroyed")):
+		return false
+	return true
+
+
 func _get_courier() -> Node3D:
 	return get_node_or_null(courier_path) as Node3D
 
@@ -731,6 +808,12 @@ func _announce_begin() -> void:
 			_toast(
 				"Wing pair on approach",
 				"Two contacts, split high and low — do not give them your back",
+				4.0
+			)
+		SCENARIO_STATION_DEFENSE:
+			_toast(
+				"Guard wing holding the station",
+				"Break its intercept before closing on the protected anchor",
 				4.0
 			)
 
@@ -811,7 +894,11 @@ func get_audit_report() -> Dictionary:
 			"escape_distance": escape_distance,
 			"start_delay": start_delay,
 			"suppression_lead_time": suppression_lead_time,
+			"defense_trigger_radius": defense_trigger_radius,
 		},
+		"protected_anchor": (
+			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
+		),
 	}.duplicate(true)
 
 
@@ -829,6 +916,12 @@ func get_validation_errors() -> PackedStringArray:
 	if not is_finite(suppression_lead_time) \
 			or suppression_lead_time < 0.0 or suppression_lead_time > 10.0:
 		errors.append("the suppression lead time must stay inside its finite 0..10 second bound")
+	if not is_finite(defense_trigger_radius) \
+			or defense_trigger_radius < 25.0 or defense_trigger_radius > 1000.0:
+		errors.append("the defense trigger radius must stay inside its finite 25..1000 metre bound")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_STATION_DEFENSE \
+			and not _is_protected_anchor_alive():
+		errors.append("a running station defense must retain its caller-owned protected anchor")
 	if not is_finite(_elapsed) or _elapsed < 0.0:
 		errors.append("scenario elapsed time must be finite and non-negative")
 	if _state == STATE_RUNNING and _elapsed > scenario_time_limit:

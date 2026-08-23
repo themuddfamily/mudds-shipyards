@@ -77,6 +77,7 @@ func _run() -> void:
 	await _test_queued_target_aborts_an_active_scenario()
 	await _test_paired_wing_cleared_when_broken()
 	await _test_paired_wing_suppression_opens_crossfire()
+	await _test_station_defense_guard_opens_intercept_crossfire()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
 	await _test_production_bounds_and_audit()
@@ -560,6 +561,65 @@ func _test_paired_wing_suppression_opens_crossfire() -> void:
 		and flanker.get_wing_role() == WingCoordinator.ROLE_FLANKER
 		and not bool(flanker.call("_is_fire_authorized")),
 		"critical damage drives the existing opponent's wide maneuver role and dispatch-frame fire denial"
+	)
+	await _free_fixture(fixture)
+
+
+func _test_station_defense_guard_opens_intercept_crossfire() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var coordinator: WingCoordinator = fixture.coordinator
+	var target: EncounterTarget = fixture.target
+	var protected := EncounterTarget.new()
+	protected.name = "ProtectedStationAnchor"
+	(fixture.host as Node3D).add_child(protected)
+	protected.global_position = Vector3(0.0, 0.0, -320.0)
+	var protected_pose := protected.global_transform
+	_check(
+		not director.begin_scenario(EncounterScenarioDirector.SCENARIO_STATION_DEFENSE, target)
+		and director.get_state() == EncounterScenarioDirector.STATE_IDLE,
+		"station defense refuses admission without an explicit caller-owned anchor"
+	)
+	_check(
+		director.begin_station_defense(target, protected),
+		"caller-owned protected anchor admits the station-defense scenario"
+	)
+	var interceptor := coordinator.get_anchor() as FlankingSkirmisherOpponent
+	var guard: FlankingSkirmisherOpponent = null
+	for member in fixture.skirmishers as Array[FlankingSkirmisherOpponent]:
+		if member != interceptor:
+			guard = member
+			break
+	guard.global_position = target.global_position + Vector3(0.0, 0.0, 36.0)
+	guard.look_at(target.global_position, Vector3.UP)
+	var intercept_intent := director.get_member_tactic_intent(interceptor)
+	var guard_intent := director.get_member_tactic_intent(guard)
+	_check(
+		intercept_intent.action == EncounterScenarioDirector.TACTIC_INTERCEPT
+		and bool(intercept_intent.fire_authorized)
+		and guard_intent.action == EncounterScenarioDirector.TACTIC_GUARD
+		and not bool(guard_intent.fire_authorized)
+		and not bool(guard.call("_is_fire_authorized")),
+		"outside the defense radius the interceptor fires while the rear-arc-ready guard withholds"
+	)
+	target.global_position = protected.global_position + Vector3(0.0, 0.0, 40.0)
+	guard.global_position = target.global_position + Vector3(0.0, 0.0, 36.0)
+	guard.look_at(target.global_position, Vector3.UP)
+	var defend_intent := director.get_member_tactic_intent(guard)
+	_check(
+		defend_intent.action == EncounterScenarioDirector.TACTIC_DEFEND
+		and bool(defend_intent.fire_authorized)
+		and bool(guard.call("_is_fire_authorized"))
+		and protected.global_transform.is_equal_approx(protected_pose),
+		"threat proximity opens consumed guard crossfire without moving the caller-owned anchor"
+	)
+	protected.destroyed = true
+	director._physics_process(0.01)
+	_check(
+		director.is_concluded()
+		and director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED
+		and director.get_roster().is_empty(),
+		"loss of the protected anchor terminates and stands down the defense wing"
 	)
 	await _free_fixture(fixture)
 
