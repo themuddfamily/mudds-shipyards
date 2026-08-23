@@ -37,6 +37,7 @@ func _run() -> void:
 	_check(probe.snapshots.back().get("state") == &"disconnected", "shutdown presents disconnected")
 	_check(flow.get_network_session() == null, "status wiring does not create an opt-in network node")
 	flow.free()
+	probe.free()
 	if _failures.is_empty():
 		print("GAME_FLOW_HUD_NETWORK_STATUS_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
