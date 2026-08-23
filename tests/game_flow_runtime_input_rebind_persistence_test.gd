@@ -63,6 +63,17 @@ func _run() -> void:
 	settings.setting_changed.connect(flow._on_runtime_setting_changed)
 	hud.setting_change_requested.connect(flow._on_setting_change_requested)
 	hud.call("_show_settings_page")
+	var sprint_controls := (
+		(hud.get("_binding_option_controls") as Dictionary)[&"sprint_boost"]
+		as Dictionary
+	)
+	(sprint_controls.hold_mode as OptionButton).select(1)
+	(sprint_controls.hold_mode as OptionButton).item_selected.emit(1)
+	_check(
+		settings.get_input_binding_profile().get_action_options(&"sprint_boost").hold_mode
+		== &"toggle",
+		"HUD hold-toggle choice reaches RuntimeSettings immediately"
+	)
 
 	_check(hud.begin_input_binding_capture(&"fire"), "HUD starts the remap transaction")
 	var remap := InputEventKey.new()
@@ -98,8 +109,10 @@ func _run() -> void:
 	_check(bool(restored_status.get("accepted", false)), "new GameFlow loads the accepted settings envelope")
 	_check(
 		_profile_has_key(restored.get_input_binding_profile(), &"fire", KEY_F13)
-		and _profile_has_key(restored.get_input_binding_profile(), &"barrel_roll", KEY_H),
-		"reload retains remap and conflict replacement"
+		and _profile_has_key(restored.get_input_binding_profile(), &"barrel_roll", KEY_H)
+		and restored.get_input_binding_profile().get_action_options(&"sprint_boost").hold_mode
+		== &"toggle",
+		"reload retains remaps, conflict replacement, and hold-toggle choice"
 	)
 	root.add_child(restored_hud)
 	await process_frame
@@ -108,6 +121,14 @@ func _run() -> void:
 		str(restored_hud.call("_action_bindings_text", &"fire")) == "F13"
 		and _profile_has_key(restored_hud.get("_input_binding_profile"), &"barrel_roll", KEY_H),
 		"fresh GameFlow/HUD restores profile and visible glyph row"
+	)
+	var restored_sprint_controls := (
+		(restored_hud.get("_binding_option_controls") as Dictionary)[&"sprint_boost"]
+		as Dictionary
+	)
+	_check(
+		(restored_sprint_controls.hold_mode as OptionButton).selected == 1,
+		"fresh GameFlow/HUD visibly restores the persisted toggle choice"
 	)
 
 	var defaults := RebindServiceType.new().get_defaults()

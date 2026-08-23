@@ -1730,6 +1730,10 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			(control as LineEdit).text = str(value)
 	_refresh_accessibility_tooltips()
 	_updating_settings = false
+	# Binding option widgets live outside the generic settings-control map. A
+	# retained or recreated HUD therefore needs an explicit refresh after the
+	# canonical profile snapshot has replaced its local presenter state.
+	_refresh_binding_option_controls()
 
 
 ## Supplies the process-stable authored defaults owned by RuntimeSettings.
