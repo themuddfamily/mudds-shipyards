@@ -17,6 +17,8 @@ var _sample_count := 0
 func attach(expected_generation: int = 0) -> Dictionary:
 	if expected_generation != _generation:
 		return _result(false, &"stale_generation")
+	if not _is_current():
+		return _result(false, &"command_source_detached")
 	if _attached:
 		return _result(false, &"already_attached")
 	_generation += 1
@@ -29,6 +31,8 @@ func attach(expected_generation: int = 0) -> Dictionary:
 func set_mode(mode: int, expected_generation: int) -> Dictionary:
 	if expected_generation != _generation:
 		return _result(false, &"stale_generation")
+	if not _is_current():
+		return _result(false, &"command_source_detached")
 	if not _attached:
 		return _result(false, &"not_attached")
 	if mode < Mode.NEUTRAL or mode > Mode.ASCENT:
@@ -40,6 +44,8 @@ func set_mode(mode: int, expected_generation: int) -> Dictionary:
 func detach(expected_generation: int) -> Dictionary:
 	if expected_generation != _generation:
 		return _result(false, &"stale_generation")
+	if not _is_current():
+		return _result(false, &"command_source_detached")
 	if not _attached:
 		return _result(false, &"not_attached")
 	_mode = Mode.NEUTRAL
@@ -68,9 +74,9 @@ func get_snapshot() -> Dictionary:
 
 
 func _sample_controls() -> Dictionary:
-	_sample_count += 1
-	if not _attached:
+	if not _is_current() or not _attached:
 		return {}
+	_sample_count += 1
 	match _mode:
 		Mode.APPROACH:
 			return {"throttle": 1.0}
@@ -89,6 +95,10 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result.duplicate(true)
+
+
+func _is_current() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion()
 
 
 static func _mode_id(mode: int) -> StringName:

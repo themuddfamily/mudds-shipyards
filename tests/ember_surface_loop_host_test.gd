@@ -25,6 +25,7 @@ func _run() -> void:
 	await _test_normal_public_actor_loop()
 	await _test_queued_host_lifecycle_currentness()
 	await _test_active_command_source_replacement()
+	await _test_command_source_currentness()
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
 	await _test_synchronous_destruction_first_wins()
@@ -773,6 +774,89 @@ func _test_active_command_source_replacement() -> void:
 			and bool(foreign.get_snapshot().get("attached", false)),
 		"foreign-source retirement releases only the Host-owned Player token and never detaches foreign authority",
 	)
+	await _cleanup(fixture)
+
+
+func _test_command_source_currentness() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var source := ship.get_command_source() as EmberSurfaceLoopCommandSource
+	if source == null:
+		_check(false, "started Ember host installs its exact command-source witness")
+		await _cleanup(fixture)
+		return
+
+	var detached_probe := EmberSurfaceLoopCommandSource.new()
+	var detached_before := detached_probe.get_snapshot()
+	var detached_delivery_generation := detached_probe.get_delivery_generation()
+	var detached_stream_id := detached_probe.get_stream_id()
+	var detached_attach := detached_probe.attach(0)
+	_check(
+		not bool(detached_attach.get("accepted", true))
+			and detached_attach.get("reason", &"") == &"command_source_detached"
+			and detached_probe.get_snapshot() == detached_before
+			and detached_probe.get_delivery_generation() == detached_delivery_generation
+			and detached_probe.get_stream_id() == detached_stream_id,
+		"off-tree command-source attach rejects atomically before resetting its transport",
+	)
+
+	var detached_before_mutation := source.get_snapshot()
+	host.remove_child(source)
+	var detached_mode := source.set_mode(
+		EmberSurfaceLoopCommandSource.Mode.BRAKE, source.get_generation()
+	)
+	var detached_detach := source.detach(source.get_generation())
+	var detached_command := source.next_command()
+	_check(
+		not bool(detached_mode.get("accepted", true))
+			and detached_mode.get("reason", &"") == &"command_source_detached"
+			and not bool(detached_detach.get("accepted", true))
+			and detached_detach.get("reason", &"") == &"command_source_detached"
+			and not detached_command.brake
+			and is_zero_approx(detached_command.throttle)
+			and source.get_snapshot() == detached_before_mutation,
+		"detached installed source rejects mode and detach while sampling an atomic neutral command",
+	)
+	host.add_child(source)
+	var reentered_mode := source.set_mode(
+		EmberSurfaceLoopCommandSource.Mode.BRAKE, source.get_generation()
+	)
+	var reentered_command := source.next_command()
+	_check(
+		bool(reentered_mode.get("accepted", false))
+			and reentered_command.brake,
+		"readded installed source accepts a fresh mode and resumes its command stream",
+	)
+
+	host.add_child(detached_probe)
+	var attached_probe := detached_probe.attach(0)
+	detached_probe.set_mode(
+		EmberSurfaceLoopCommandSource.Mode.BRAKE, detached_probe.get_generation()
+	)
+	detached_probe.queue_free()
+	var queued_before := detached_probe.get_snapshot()
+	var queued_mode := detached_probe.set_mode(
+		EmberSurfaceLoopCommandSource.Mode.APPROACH, detached_probe.get_generation()
+	)
+	var queued_detach := detached_probe.detach(detached_probe.get_generation())
+	var queued_command := detached_probe.next_command()
+	_check(
+		bool(attached_probe.get("accepted", false))
+			and detached_probe.is_inside_tree()
+			and detached_probe.is_queued_for_deletion()
+			and not bool(queued_mode.get("accepted", true))
+			and queued_mode.get("reason", &"") == &"command_source_detached"
+			and not bool(queued_detach.get("accepted", true))
+			and queued_detach.get("reason", &"") == &"command_source_detached"
+			and not queued_command.brake
+			and is_zero_approx(queued_command.throttle)
+			and detached_probe.get_snapshot() == queued_before,
+		"queued command source rejects lifecycle and mode mutation while retaining atomic neutral sampling",
+	)
+	await process_frame
 	await _cleanup(fixture)
 
 
