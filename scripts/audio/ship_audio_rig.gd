@@ -299,6 +299,8 @@ func set_rig_enabled(enabled: bool) -> void:
 			_playback_queue_allowed = _detect_playback_queue_candidate()
 			_ensure_synthesized()
 		_apply_runtime_state()
+	if enabled:
+		semantic_engine_cue_emitted.emit(&"ship_audio_recovery_ready", 1.0)
 	_emit_state_changed()
 
 
