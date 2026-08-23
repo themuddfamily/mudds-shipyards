@@ -37,6 +37,12 @@ func _run() -> void:
 	_check(action_options.curve == &"squared", "squared curve persists through presenter commit")
 	_check(action_options.hold_mode == &"toggle", "toggle mode persists through presenter commit")
 	_check(_profile_events >= 1, "option changes use standard profile persistence intent")
+	var status := hud.get("_settings_status_label") as Label
+	_check(
+		status.visible
+		and status.text == "INPUT OPTIONS  //  FIRE  //  TOGGLE  //  SQUARED CURVE  //  33% DEADZONE",
+		"accepted option change immediately identifies the active controller behavior",
+	)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

@@ -4858,14 +4858,29 @@ func _commit_binding_options(action: StringName) -> void:
 	var controls := _binding_option_controls.get(action, {}) as Dictionary
 	if controls.is_empty():
 		return
-	var snapshot := _input_remapping_presenter.commit_options(
-		action,
-		(controls.deadzone as HSlider).value,
-		&"squared" if (controls.curve as OptionButton).selected == 1 else &"linear",
+	var deadzone := (controls.deadzone as HSlider).value
+	var curve := (
+		&"squared" if (controls.curve as OptionButton).selected == 1 else &"linear"
+	)
+	var hold_mode := (
 		&"toggle" if (controls.hold_mode as OptionButton).selected == 1 else &"hold"
 	)
+	var snapshot := _input_remapping_presenter.commit_options(
+		action,
+		deadzone,
+		curve,
+		hold_mode
+	)
 	if snapshot.status == &"committed":
-		_commit_input_remapping_snapshot("OPTIONS UPDATED  //  %s" % _input_action_label(action).to_upper())
+		_commit_input_remapping_snapshot(
+			"INPUT OPTIONS  //  %s  //  %s  //  %s CURVE  //  %d%% DEADZONE"
+			% [
+				_input_action_label(action).to_upper(),
+				String(hold_mode).to_upper(),
+				String(curve).to_upper(),
+				roundi(deadzone * 100.0),
+			]
+		)
 	else:
 		set_settings_status("OPTIONS UPDATE REJECTED", false)
 
