@@ -3237,6 +3237,13 @@ func _build_settings_page() -> void:
 		"Limits extreme brightness and contrast changes while preserving readable state cues.",
 		false
 	)
+	_add_option_setting(
+		accessibility_group,
+		&"payload_visual_intensity",
+		"Payload visual intensity",
+		["Low", "Medium", "High"],
+		2
+	)
 	_add_toggle_setting(accessibility_group, &"captions_enabled", "Audio cue captions", false)
 	_add_toggle_setting_with_help(
 		accessibility_group,
@@ -4045,6 +4052,7 @@ func _add_option_setting(
 	var selector := OptionButton.new()
 	selector.name = String(key).to_pascal_case() + "Control"
 	selector.custom_minimum_size.y = 38.0
+	selector.focus_mode = Control.FOCUS_ALL
 	selector.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	selector.add_theme_font_size_override("font_size", 11)
 	_tint_theme_color(selector, &"font_color", PRIMARY)
