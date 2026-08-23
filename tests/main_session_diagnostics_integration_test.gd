@@ -1,5 +1,6 @@
 extends SceneTree
 
+const MAIN_SCENE := preload("res://scenes/main.tscn")
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
@@ -10,6 +11,8 @@ var _assertions := 0
 
 class MemoryFilesystem extends Filesystem:
 	var files: Dictionary = {}
+	var write_count := 0
+	var fail_write_number := -1
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -29,6 +32,9 @@ class MemoryFilesystem extends Filesystem:
 		return {"error": OK, "bytes": bytes}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		write_count += 1
+		if write_count == fail_write_number:
+			return ERR_FILE_CANT_WRITE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -156,12 +162,205 @@ func _run() -> void:
 	)
 	discard_flow.mark_orderly_session_shutdown()
 	discard_flow.free()
+	_test_orderly_shutdown_composition()
+	await _test_detach_reentry_and_free_remain_dirty()
 	if _failures.is_empty():
 		print("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 		return
 	printerr("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_FAILED: ", _failures)
 	quit(1)
+
+
+func _test_orderly_shutdown_composition() -> void:
+	var successful_filesystem := MemoryFilesystem.new()
+	var successful := _new_composed_marker_flow(
+		"memory://orderly-composite-success.json",
+		successful_filesystem
+	)
+	var successful_before := _unrelated_state_snapshot(successful)
+	var successful_writes_before := successful_filesystem.write_count
+	var closed := successful.mark_orderly_shutdown()
+	var safe_status := closed.get("safe_start", {}) as Dictionary
+	var diagnostics_status := closed.get("session_diagnostics", {}) as Dictionary
+	_check(
+		bool(closed.get("accepted", false))
+		and StringName(closed.get("reason", &"")) == &"orderly_shutdown"
+		and bool(safe_status.get("accepted", false))
+		and StringName(safe_status.get("reason", &"")) == &"clean_shutdown"
+		and bool(diagnostics_status.get("accepted", false))
+		and StringName(diagnostics_status.get("reason", &"")) == &"orderly_shutdown"
+		and successful_filesystem.write_count - successful_writes_before == 2
+		and StringName(
+			successful.get_safe_start_recovery_report().policy_snapshot.state
+		) == &"clean_shutdown"
+		and StringName(successful.get_session_diagnostics_snapshot().bridge.state) == &"clean",
+		"one explicit orderly close independently publishes both clean markers"
+	)
+	_check(
+		_unrelated_state_snapshot(successful) == successful_before,
+		"orderly marker composition does not mutate gameplay, settings, network, or recovery-choice state"
+	)
+	safe_status["reason"] = &"caller_mutation"
+	diagnostics_status["reason"] = &"caller_mutation"
+	_check(
+		StringName(
+			successful.get_safe_start_recovery_report().orderly_shutdown_status.reason
+		) == &"clean_shutdown"
+		and StringName(
+			successful.get_session_diagnostics_snapshot().last_status.reason
+		) == &"orderly_shutdown",
+		"composite marker statuses are detached from both retained owners"
+	)
+	var writes_after_close := successful_filesystem.write_count
+	var repeated := successful.mark_orderly_shutdown()
+	_check(
+		bool(repeated.get("accepted", false))
+		and StringName(repeated.get("reason", &"")) == &"orderly_shutdown"
+		and StringName(
+			(repeated.get("safe_start", {}) as Dictionary).get("reason", &"")
+		) == &"already_clean"
+		and StringName(
+			(repeated.get("session_diagnostics", {}) as Dictionary).get("reason", &"")
+		) == &"already_clean"
+		and successful_filesystem.write_count == writes_after_close,
+		"repeat HUD/window close ingress is idempotent across both marker owners"
+	)
+	successful.free()
+
+	var safe_failure_filesystem := MemoryFilesystem.new()
+	var safe_failure := _new_composed_marker_flow(
+		"memory://orderly-composite-safe-failure.json",
+		safe_failure_filesystem
+	)
+	var safe_failure_before := _unrelated_state_snapshot(safe_failure)
+	var safe_failure_writes_before := safe_failure_filesystem.write_count
+	safe_failure_filesystem.fail_write_number = safe_failure_writes_before + 1
+	var safe_partial := safe_failure.mark_orderly_shutdown()
+	_check(
+		not bool(safe_partial.get("accepted", true))
+		and StringName(safe_partial.get("reason", &"")) == &"orderly_shutdown_partial_failure"
+		and not bool(
+			(safe_partial.get("safe_start", {}) as Dictionary).get("accepted", true)
+		)
+		and bool(
+			(safe_partial.get("session_diagnostics", {}) as Dictionary).get("accepted", false)
+		)
+		and safe_failure_filesystem.write_count - safe_failure_writes_before == 2
+		and StringName(safe_failure.get_safe_start_recovery_report().policy_snapshot.state) == &"starting"
+		and StringName(safe_failure.get_session_diagnostics_snapshot().bridge.state) == &"clean"
+		and _unrelated_state_snapshot(safe_failure) == safe_failure_before,
+		"a failed safe-start clean write cannot skip diagnostics or mutate unrelated state"
+	)
+	safe_failure.free()
+
+	var diagnostics_failure_filesystem := MemoryFilesystem.new()
+	var diagnostics_failure := _new_composed_marker_flow(
+		"memory://orderly-composite-diagnostics-failure.json",
+		diagnostics_failure_filesystem
+	)
+	var diagnostics_failure_before := _unrelated_state_snapshot(diagnostics_failure)
+	var diagnostics_failure_writes_before := diagnostics_failure_filesystem.write_count
+	diagnostics_failure_filesystem.fail_write_number = diagnostics_failure_writes_before + 2
+	var diagnostics_partial := diagnostics_failure.mark_orderly_shutdown()
+	_check(
+		not bool(diagnostics_partial.get("accepted", true))
+		and StringName(diagnostics_partial.get("reason", &"")) == &"orderly_shutdown_partial_failure"
+		and bool(
+			(diagnostics_partial.get("safe_start", {}) as Dictionary).get("accepted", false)
+		)
+		and not bool(
+			(diagnostics_partial.get("session_diagnostics", {}) as Dictionary).get("accepted", true)
+		)
+		and diagnostics_failure_filesystem.write_count - diagnostics_failure_writes_before == 2
+		and StringName(
+			diagnostics_failure.get_safe_start_recovery_report().policy_snapshot.state
+		) == &"clean_shutdown"
+		and StringName(
+			diagnostics_failure.get_session_diagnostics_snapshot().bridge.state
+		) == &"starting"
+		and _unrelated_state_snapshot(diagnostics_failure) == diagnostics_failure_before,
+		"a failed diagnostics clean write still follows a successful safe-start write without unrelated mutation"
+	)
+	diagnostics_failure.free()
+
+
+func _test_detach_reentry_and_free_remain_dirty() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var path := "memory://orderly-composite-dirty.json"
+	var store := Store.new(path, filesystem)
+	var flow := MAIN_SCENE.instantiate() as GameFlow
+	flow.set_physics_process(false)
+	_check(
+		flow.configure_runtime_settings_persistence(store, path + ".cfg"),
+		"real Main dirty-marker fixture installs isolated persistence before startup"
+	)
+	flow.set_session_diagnostics_filesystem(filesystem)
+	root.add_child(flow)
+	flow.set_physics_process(false)
+	await process_frame
+	await process_frame
+	var writes_before := filesystem.write_count
+	var generation_before := store.get_generation()
+	var bytes_before := (filesystem.files[path] as PackedByteArray).duplicate()
+	# This focused marker test does not need to re-compose every gameplay binding;
+	# suppress that unrelated deferred work while retaining the real tree hooks.
+	flow.set("_initialized", false)
+	root.remove_child(flow)
+	await process_frame
+	root.add_child(flow)
+	await process_frame
+	_check(
+		filesystem.write_count == writes_before
+		and store.get_generation() == generation_before
+		and filesystem.files[path] == bytes_before
+		and StringName(store.get_snapshot().safe_start_recovery.state) == &"starting"
+		and StringName(store.get_snapshot().crash_recovery.state) == &"running",
+		"plain Main-node detach and retained-tree reentry publish no clean marker"
+	)
+	flow.queue_free()
+	await process_frame
+	await process_frame
+	var restarted_store := Store.new(path, filesystem)
+	var reloaded := restarted_store.load()
+	_check(
+		bool(reloaded.get("accepted", false))
+		and filesystem.write_count == writes_before
+		and restarted_store.get_generation() == generation_before
+		and filesystem.files[path] == bytes_before
+		and StringName(restarted_store.get_snapshot().safe_start_recovery.state) == &"starting"
+		and StringName(restarted_store.get_snapshot().crash_recovery.state) == &"running",
+		"queued free leaves both dirty markers for fresh-process recovery instead of inferring shutdown"
+	)
+
+
+func _new_composed_marker_flow(
+	path: String,
+	filesystem: MemoryFilesystem,
+	store: Store = null
+	) -> GameFlow:
+	var marker_store := store if store != null else Store.new(path, filesystem)
+	var flow := GameFlowType.new()
+	_check(
+		flow.configure_runtime_settings_persistence(marker_store, path + ".cfg"),
+		"composite fixture installs isolated persistence before startup"
+	)
+	flow._initialize_runtime_settings()
+	flow.set_session_diagnostics_filesystem(filesystem)
+	flow._initialize_session_diagnostics()
+	return flow
+
+
+func _unrelated_state_snapshot(flow: GameFlow) -> Dictionary:
+	var diagnostics := flow.get_session_diagnostics_snapshot()
+	return {
+		"phase": flow.phase,
+		"settings": flow.get_runtime_settings().to_dictionary(),
+		"network_mode": flow.get("_network_session_mode"),
+		"recovery_available": flow.get_recovery_available_snapshot(),
+		"recovery_command": diagnostics.recovery_command,
+		"recovery_hud": diagnostics.recovery_hud,
+	}.duplicate(true)
 
 
 func _check(condition: bool, description: String) -> void:

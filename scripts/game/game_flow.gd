@@ -658,10 +658,6 @@ func _exit_tree() -> void:
 		cancel_ember_surface_journey()
 	if not _pending_display_confirmation.is_empty() and runtime_settings != null:
 		_revert_display_settings(int(_pending_display_confirmation.generation), &"detach")
-	if is_queued_for_deletion() and _session_diagnostics_bridge != null:
-		_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(
-			0, 0.0, "runtime"
-		)
 	if _runtime_settings_repair_binding != null:
 		_runtime_settings_repair_binding.set_attached(false)
 	if is_instance_valid(hud) and hud.has_method(&"clear_runtime_settings_repair_report"):
@@ -1479,6 +1475,8 @@ func set_session_diagnostics_filesystem(filesystem: UserDataFilesystem) -> void:
 func mark_orderly_session_shutdown() -> Dictionary:
 	if _session_diagnostics_bridge == null:
 		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	if StringName(_session_diagnostics_bridge.get_snapshot().get("state", &"")) == &"clean":
+		return {"accepted": true, "reason": &"already_clean"}.duplicate(true)
 	_record_session_lifecycle_transition(_DIAGNOSTIC_SHUTDOWN)
 	var clean_commit_id := "main-session-clean-%d" % (_runtime_settings_user_data_store.get_generation() + 1)
 	_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(0, 0.0, clean_commit_id)
@@ -9091,15 +9089,34 @@ func get_safe_start_recovery_report() -> Dictionary:
 	)
 
 
-## Explicit application-owned orderly-shutdown seam. `_exit_tree()`, free, and
-## whole-Main streaming never call this method because none of them proves an OS
-## process shutdown. The caller may invoke it after deciding shutdown is clean.
+## Explicit application-owned orderly-shutdown seam. Both retained marker
+## owners receive the same caller-confirmed close intent, and one failed write
+## never suppresses the other attempt. `_exit_tree()`, free, and whole-Main
+## streaming never call this method because none of them proves an OS process
+## shutdown.
 func mark_orderly_shutdown() -> Dictionary:
-	if _safe_start_production_recovery == null:
-		return {"accepted": false, "reason": &"policy_unavailable"}
-	var result := _safe_start_production_recovery.mark_orderly_shutdown()
+	var safe_start_status := (
+		_safe_start_production_recovery.mark_orderly_shutdown()
+		if _safe_start_production_recovery != null
+		else {"accepted": false, "reason": &"policy_unavailable"}
+	) as Dictionary
+	var session_diagnostics_status := mark_orderly_session_shutdown()
 	_sync_production_runtime_settings_state()
-	return result
+	var safe_start_accepted := bool(safe_start_status.get("accepted", false))
+	var session_diagnostics_accepted := bool(
+		session_diagnostics_status.get("accepted", false)
+	)
+	var reason := &"orderly_shutdown_failed"
+	if safe_start_accepted and session_diagnostics_accepted:
+		reason = &"orderly_shutdown"
+	elif safe_start_accepted or session_diagnostics_accepted:
+		reason = &"orderly_shutdown_partial_failure"
+	return {
+		"accepted": safe_start_accepted and session_diagnostics_accepted,
+		"reason": reason,
+		"safe_start": safe_start_status.duplicate(true),
+		"session_diagnostics": session_diagnostics_status.duplicate(true),
+	}.duplicate(true)
 
 
 ## The HUD has no persistence or process-lifecycle authority. Its explicit exit
