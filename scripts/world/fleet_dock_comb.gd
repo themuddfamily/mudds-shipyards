@@ -52,6 +52,13 @@ const RUNG_EDGE_CUE_COPY_COUNT := 4
 const MOORING_CLEAT_PAD_COPY_COUNT := 6
 const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
 const DOCK_MAST_CAP_COPY_COUNT := 3
+## Dock 03's deployed service boom is the rendered overhead/header read at the
+## raised threshold. Its former 57 mm proportional bevel left the 3.1 m member
+## boxy at walking distance. A half-height capsule end authors that silhouette
+## without moving its exact outboard service envelope or adding a draw call.
+const DOCK_03_SERVICE_HEADER_SIZE := Vector3(0.30, 0.26, 3.10)
+const DOCK_03_SERVICE_HEADER_END_RADIUS := 0.13
+const DOCK_03_SERVICE_HEADER_CURVE_SEGMENTS := 8
 const PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT := 66
 const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
 const PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT := 79
@@ -1457,7 +1464,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			# Run out along the berth flank, deliberately *not* swung over the pad:
 			# the pad is the parked hull's airspace and a boom crossing it would
 			# read as a boom through a ship.
-			_service_box(
+			var service_boom := _service_box(
 				service,
 				"DockServiceBoom" + suffix,
 				Vector3(21.9, elevation + 2.62, slab_z + 1.30),
@@ -1465,6 +1472,19 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 				_materials["underframe"],
 				"deployed service boom over open void outboard of the slab"
 			)
+			if index == 2:
+				service_boom.mesh = _yz_extruded_capsule_mesh(
+					DOCK_03_SERVICE_HEADER_SIZE,
+					DOCK_03_SERVICE_HEADER_END_RADIUS,
+					DOCK_03_SERVICE_HEADER_CURVE_SEGMENTS
+				)
+				service_boom.mesh.resource_name = "fleet_dock_03_capsule_service_header_v1"
+				service_boom.set_meta("geometry_profile", &"yz_extruded_capsule_service_header")
+				service_boom.set_meta("end_radius_m", DOCK_03_SERVICE_HEADER_END_RADIUS)
+				service_boom.set_meta("curve_segments_per_end", DOCK_03_SERVICE_HEADER_CURVE_SEGMENTS)
+				service_boom.set_meta("evidence_status", EVIDENCE_STATUS)
+				service_boom.set_meta("historical_form_identified", false)
+				service_boom.set_meta("authenticated_original_geometry", false)
 			var hose := _beam_between(
 				service,
 				"DockUmbilicalHose" + suffix,
@@ -1761,6 +1781,74 @@ func _visual_box(parent: Node3D, node_name: String, local_position: Vector3, siz
 	result.set_meta("visual_detail_only", true)
 	parent.add_child(result)
 	return result
+
+
+## Capsule outline in local Y/Z with constant X depth, matching the deployed
+## service boom's authored axis. The boundary reaches every original min/max
+## plane, so this is a silhouette change rather than a clearance change.
+func _yz_extruded_capsule_mesh(
+		size: Vector3,
+		end_radius: float,
+		segments_per_end: int
+	) -> ArrayMesh:
+	var radius := clampf(end_radius, 0.001, minf(size.y, size.z) * 0.5)
+	var segment_count := maxi(segments_per_end, 2)
+	var straight_half_length := size.z * 0.5 - radius
+	var boundary: Array[Vector2] = []
+	for segment in segment_count + 1:
+		var angle := lerpf(-PI * 0.5, PI * 0.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			straight_half_length + cos(angle) * radius,
+			sin(angle) * radius
+		))
+	for segment in segment_count + 1:
+		var angle := lerpf(PI * 0.5, PI * 1.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			-straight_half_length + cos(angle) * radius,
+			sin(angle) * radius
+		))
+
+	var half_depth := size.x * 0.5
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in boundary.size():
+		var current := boundary[index]
+		var next := boundary[(index + 1) % boundary.size()]
+		var current_uv := Vector2(current.x / size.z + 0.5, current.y / size.y + 0.5)
+		var next_uv := Vector2(next.x / size.z + 0.5, next.y / size.y + 0.5)
+		# Port cap, outward toward local -X.
+		_emit_capsule_vertex(surface, Vector3(-half_depth, 0.0, 0.0), Vector3.LEFT, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
+		_emit_capsule_vertex(surface, Vector3(-half_depth, next.y, next.x), Vector3.LEFT, next_uv)
+		# Starboard cap, outward toward local +X.
+		_emit_capsule_vertex(surface, Vector3(half_depth, 0.0, 0.0), Vector3.RIGHT, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
+		_emit_capsule_vertex(surface, Vector3(half_depth, current.y, current.x), Vector3.RIGHT, current_uv)
+		# Constant-depth rim following the Y/Z capsule outline.
+		var rim_normal := Vector3(0.0, current.x - next.x, next.y - current.y).normalized()
+		var rim_u := float(index) / float(boundary.size())
+		var rim_next_u := float(index + 1) / float(boundary.size())
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(-half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 0.0))
+	surface.generate_tangents()
+	var mesh := surface.commit() as ArrayMesh
+	mesh.resource_name = "fleet_dock_03_capsule_service_header_v1"
+	return mesh
+
+
+func _emit_capsule_vertex(
+		surface: SurfaceTool,
+		position: Vector3,
+		normal: Vector3,
+		uv: Vector2
+	) -> void:
+	surface.set_normal(normal)
+	surface.set_uv(uv)
+	surface.add_vertex(position)
 
 
 ## Batches only repeated, childless, non-colliding surface detail. Transforms
