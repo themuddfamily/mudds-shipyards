@@ -82,6 +82,8 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
             self.assertIn("'repair'", powershell)
             self.assertIn("Repair source version must match", powershell)
             self.assertIn("$repairRoot", powershell)
+            self.assertIn("status = 'repair_required'", powershell)
+            self.assertIn("run repair with the matching extracted distribution", powershell)
             self.assertIn("AddRemovePrograms", powershell)
             self.assertIn("MuddsOwned", powershell)
             self.assertIn("HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MuddsShipyardsPortable", powershell)

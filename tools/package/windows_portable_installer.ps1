@@ -237,9 +237,20 @@ try {
             if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
             $operationVersion = [string](Read-DistributionManifest $destination).version
             $owned = Read-Owned $destination
-            Get-ChecksumEntries $destination | Out-Null
-            Write-OperationLog $Command $operationVersion 'ok'
-            [pscustomobject]@{ destination = $destination; owned_file_count = $owned.Count; rollback_present = Test-Path -LiteralPath $rollback -PathType Container } | ConvertTo-Json -Compress
+            try {
+                $entries = Get-ChecksumEntries $destination
+                foreach ($relative in $owned) {
+                    if (-not $entries.ContainsKey($relative)) { throw "Owned file is absent from checksum manifest: $relative" }
+                    $target = Join-Path $destination ($relative -replace '/', '\')
+                    if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "Owned file is missing: $relative" }
+                }
+                Write-OperationLog $Command $operationVersion 'ok'
+                [pscustomobject]@{ status = 'ok'; destination = $destination; owned_file_count = $owned.Count; rollback_present = Test-Path -LiteralPath $rollback -PathType Container } | ConvertTo-Json -Compress
+            } catch {
+                Write-OperationLog $Command $operationVersion 'repair_required'
+                [pscustomobject]@{ status = 'repair_required'; destination = $destination; repair = 'run repair with the matching extracted distribution'; error = $_.Exception.Message } | ConvertTo-Json -Compress
+                exit 1
+            }
         }
         'uninstall' {
             if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
