@@ -117,11 +117,45 @@ func _run() -> void:
 		"a fresh sequence can publish one replacement marker after cooldown"
 	)
 
-	var released := authority.release(1, 91, &"passenger_avatar", &"crew_port_00", 5)
-	_check(bool(released.get("accepted", false)), "the session authority releases the passenger role")
+	var handoff := craft.handoff_crew_role(
+		1,
+		91,
+		&"passenger_avatar",
+		&"crew_port_00",
+		5,
+		92,
+		&"replacement_passenger",
+		Authority.ROLE_PASSENGER,
+		6
+	)
+	_check(
+		bool(handoff.get("accepted", false))
+			and clear_reason[0] == &"role_handoff"
+			and craft.get_passenger_ping_markers().is_empty(),
+		"an atomic passenger handoff clears the outgoing marker and role state"
+	)
+	var replacement := craft.submit_crew_intent(
+		1,
+		92,
+		&"replacement_passenger",
+		Authority.ACTION_PASSENGER_PING,
+		{"channel": &"cabin", "marker_id": &"replacement_marker"},
+		7
+	)
+	_check(
+		bool(replacement.get("accepted", false))
+			and bool(replacement.get("consumed", false))
+			and emitted[0] == 3,
+		"the replacement passenger acts immediately without inheriting stale cadence"
+	)
+
+	var released := authority.release(
+		1, 92, &"replacement_passenger", &"crew_port_00", 8
+	)
+	_check(bool(released.get("accepted", false)), "the session authority releases the replacement role")
 	await physics_frame
 	_check(
-		cleared[0] == 1
+		cleared[0] == 2
 			and clear_reason[0] == &"role_detached"
 			and craft.get_passenger_ping_markers().is_empty(),
 		"detaching the role clears the ship-local passenger marker exactly once"

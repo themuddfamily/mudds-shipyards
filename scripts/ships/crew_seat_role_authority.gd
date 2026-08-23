@@ -249,6 +249,75 @@ func release_peer(source_peer_id: int, occupant_peer_id: int) -> Dictionary:
 	return _remember(_result(true, &"peer_released", {"assignments": removed}))
 
 
+## Atomically hands one physical seat from its current occupant to a newly
+## admitted avatar. The seat ledger, intent receipt, and both peer sequence
+## cursors move in one server-owned event; no caller can observe a free-seat
+## window or make the new avatar inherit the old avatar's intent receipt.
+func handoff(
+		source_peer_id: int,
+		previous_occupant_peer_id: int,
+		previous_avatar_id: StringName,
+		seat_id: StringName,
+		release_request_sequence: int,
+		new_occupant_peer_id: int,
+		new_avatar_id: StringName,
+		requested_role: StringName,
+		claim_request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if previous_occupant_peer_id <= 0 or new_occupant_peer_id <= 0 \
+			or not _valid_id(previous_avatar_id) or not _valid_id(new_avatar_id):
+		return _remember(_result(false, &"invalid_handoff_request"))
+	if not _valid_nonnegative_integer(release_request_sequence) \
+			or not _valid_nonnegative_integer(claim_request_sequence):
+		return _remember(_result(false, &"invalid_handoff_sequence"))
+	if not _roster_sealed:
+		return _remember(_result(false, &"roster_not_sealed"))
+	if not _seats.has(seat_id):
+		return _remember(_result(false, &"unknown_seat"))
+	var seat := _seats[seat_id] as Dictionary
+	if StringName(seat.get("role", &"")) != requested_role:
+		return _remember(_result(false, &"role_mismatch"))
+	var previous_key := _assignment_key(previous_occupant_peer_id, previous_avatar_id)
+	if not _assignments.has(previous_key):
+		return _remember(_result(false, &"assignment_not_found"))
+	var previous_assignment := _assignments[previous_key] as Dictionary
+	if StringName(previous_assignment.get("seat_id", &"")) != seat_id:
+		return _remember(_result(false, &"seat_mismatch"))
+	if seat_generation > 0 and int(previous_assignment.get("seat_generation", 0)) != seat_generation:
+		return _remember(_result(false, &"stale_seat_generation"))
+	var new_key := _assignment_key(new_occupant_peer_id, new_avatar_id)
+	if _assignments.has(new_key):
+		return _remember(_result(false, &"avatar_already_seated"))
+	if not _accept_sequence(previous_occupant_peer_id, release_request_sequence):
+		return _remember(_result(false, &"stale_request_sequence"))
+	if not _accept_sequence(new_occupant_peer_id, claim_request_sequence):
+		return _remember(_result(false, &"stale_request_sequence"))
+	_assignments.erase(previous_key)
+	_last_intents.erase(previous_key)
+	var assignment := {
+		"occupant_peer_id": new_occupant_peer_id,
+		"avatar_id": new_avatar_id,
+		"seat_id": seat.seat_id,
+		"vessel_id": seat.vessel_id,
+		"role": seat.role,
+		"frame_id": seat.frame_id,
+		"anchor_id": seat.anchor_id,
+		"seat_generation": int(seat.seat_generation),
+		"claim_sequence": claim_request_sequence,
+	}
+	_assignments[new_key] = assignment
+	_last_request_sequence_by_peer[previous_occupant_peer_id] = release_request_sequence
+	_last_request_sequence_by_peer[new_occupant_peer_id] = claim_request_sequence
+	_event_sequence += 1
+	return _remember(_result(true, &"role_handoff", {
+		"previous_assignment": previous_assignment,
+		"assignment": assignment,
+	}))
+
+
 ## Authorizes a role capability without granting movement, damage, landing, or
 ## occupancy authority. This is intentionally a pure read of the ledger.
 func authorize_action(

@@ -269,7 +269,8 @@ var _spine_rib_mesh: Mesh
 var _spine_rib_batch: MultiMeshInstance3D
 var _spine_rib_transforms: Array[Transform3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
-var _passenger_ping_cooldown_remaining := 0.0
+var _passenger_ping_cooldowns: Dictionary = {}
+var _gunner_role_cooldowns: Dictionary = {}
 var _passenger_ping_markers: Dictionary = {}
 
 
@@ -291,9 +292,7 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if _reset_for_reuse_mutation_blocked():
 		return
-	_passenger_ping_cooldown_remaining = maxf(
-		0.0, _passenger_ping_cooldown_remaining - maxf(delta, 0.0)
-	)
+	_advance_crew_role_cooldowns(maxf(delta, 0.0))
 	_cleanup_detached_passenger_pings()
 	_elapsed_halyard += delta
 	_update_halyard_presentation(delta)
@@ -324,7 +323,8 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	_clear_passenger_ping_markers(&"ship_reused")
-	_passenger_ping_cooldown_remaining = 0.0
+	_passenger_ping_cooldowns.clear()
+	_gunner_role_cooldowns.clear()
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -457,7 +457,44 @@ func release_crew_role(
 		seat_generation
 	)
 	if bool(result.get("accepted", false)):
-		_clear_passenger_ping_for_actor(occupant_peer_id, avatar_id, &"role_released")
+		_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
+	return result
+
+
+## Swaps one physical seat through the session authority's atomic handoff
+## receipt, then clears only the outgoing avatar's ship-local role state.
+func handoff_crew_role(
+		source_peer_id: int,
+		previous_occupant_peer_id: int,
+		previous_avatar_id: StringName,
+		seat_id: StringName,
+		release_request_sequence: int,
+		new_occupant_peer_id: int,
+		new_avatar_id: StringName,
+		requested_role: StringName,
+		claim_request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var result := _crew_role_authority.handoff(
+		source_peer_id,
+		previous_occupant_peer_id,
+		previous_avatar_id,
+		seat_id,
+		release_request_sequence,
+		new_occupant_peer_id,
+		new_avatar_id,
+		requested_role,
+		claim_request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_crew_role_state(
+			previous_occupant_peer_id,
+			previous_avatar_id,
+			&"role_handoff"
+		)
 	return result
 
 
@@ -479,6 +516,7 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	var payload := intent.get("payload", {}) as Dictionary
 	var weapon_id := StringName(payload.get("weapon_id", &""))
 	var target_id := StringName(payload.get("target_id", &""))
+	var actor_key := _crew_role_actor_key(intent)
 	if weapon_id != HALYARD_CREW_WEAPON_ID:
 		return _crew_role_result(false, &"weapon_not_authorized")
 	if not bool(payload.get("trigger", false)):
@@ -492,6 +530,8 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 		return _crew_role_result(false, &"weapon_blocked_during_landing")
 	if _weapon_timer > 0.0:
 		return _crew_role_result(false, &"weapon_cooldown")
+	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
+		return _crew_role_result(false, &"role_cooldown")
 	var previous_timer := _weapon_timer
 	_fire_weapon()
 	if _weapon_timer <= previous_timer:
@@ -503,6 +543,7 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	result["target_id"] = target_id
 	result["request_sequence"] = int(intent.get("request_sequence", -1))
 	result["cooldown_remaining"] = _weapon_timer
+	_gunner_role_cooldowns[actor_key] = weapon_cooldown
 	return result
 
 
@@ -513,7 +554,8 @@ func _consume_passenger_ping_intent(intent: Dictionary) -> Dictionary:
 	var payload := intent.get("payload", {}) as Dictionary
 	var marker_id := StringName(payload.get("marker_id", &""))
 	var channel := StringName(payload.get("channel", &""))
-	if _passenger_ping_cooldown_remaining > 0.0:
+	var actor_key := _crew_role_actor_key(intent)
+	if float(_passenger_ping_cooldowns.get(actor_key, 0.0)) > 0.0:
 		return _crew_role_result(false, &"passenger_ping_cooldown")
 	var cabin := get_in_flight_cabin_report()
 	var deck_frame: MovingInteriorFrame = cabin.get("frame", null) as MovingInteriorFrame
@@ -526,7 +568,6 @@ func _consume_passenger_ping_intent(intent: Dictionary) -> Dictionary:
 		return _crew_role_result(false, &"marker_position_unavailable")
 	var occupant_peer_id := int(intent.get("occupant_peer_id", 0))
 	var avatar_id := StringName(intent.get("avatar_id", &""))
-	var actor_key := _passenger_ping_actor_key(occupant_peer_id, avatar_id)
 	if not _passenger_ping_markers.has(actor_key) \
 			and _passenger_ping_markers.size() >= MAX_PASSENGER_PING_MARKERS:
 		return _crew_role_result(false, &"passenger_ping_limit")
@@ -539,7 +580,7 @@ func _consume_passenger_ping_intent(intent: Dictionary) -> Dictionary:
 		"request_sequence": int(intent.get("request_sequence", -1)),
 	}
 	_passenger_ping_markers[actor_key] = marker
-	_passenger_ping_cooldown_remaining = PASSENGER_PING_COOLDOWN_SECONDS
+	_passenger_ping_cooldowns[actor_key] = PASSENGER_PING_COOLDOWN_SECONDS
 	passenger_cabin_ping_emitted.emit(
 		marker_id,
 		channel,
@@ -548,7 +589,7 @@ func _consume_passenger_ping_intent(intent: Dictionary) -> Dictionary:
 	)
 	var result := _crew_role_result(true, &"passenger_ping_emitted")
 	result["marker"] = marker.duplicate(true)
-	result["cooldown_remaining"] = _passenger_ping_cooldown_remaining
+	result["cooldown_remaining"] = PASSENGER_PING_COOLDOWN_SECONDS
 	return result
 
 
@@ -1804,7 +1845,8 @@ func _sync_interior_occupant_collision() -> void:
 func _set_interior_operational(enabled: bool) -> void:
 	if not enabled:
 		_clear_passenger_ping_markers(&"interior_unavailable")
-		_passenger_ping_cooldown_remaining = 0.0
+		_passenger_ping_cooldowns.clear()
+		_gunner_role_cooldowns.clear()
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -1833,7 +1875,7 @@ func _cleanup_detached_passenger_pings() -> void:
 		if assignment.is_empty():
 			detached.append(marker)
 	for marker in detached:
-		_clear_passenger_ping_for_actor(
+		_clear_crew_role_state(
 			int(marker.get("occupant_peer_id", 0)),
 			StringName(marker.get("avatar_id", &"")),
 			&"role_detached"
@@ -1858,6 +1900,31 @@ func _clear_passenger_ping_for_actor(
 	)
 
 
+func _clear_crew_role_state(
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	reason: StringName
+) -> void:
+	var actor_key := _crew_role_actor_key_from_values(occupant_peer_id, avatar_id)
+	_passenger_ping_cooldowns.erase(actor_key)
+	_gunner_role_cooldowns.erase(actor_key)
+	_clear_passenger_ping_for_actor(occupant_peer_id, avatar_id, reason)
+
+
+func _advance_crew_role_cooldowns(delta: float) -> void:
+	for cooldowns in [_passenger_ping_cooldowns, _gunner_role_cooldowns]:
+		var expired: Array[StringName] = []
+		for key_variant in cooldowns.keys():
+			var key := StringName(key_variant)
+			var remaining := maxf(0.0, float(cooldowns[key]) - delta)
+			if remaining <= 0.0:
+				expired.append(key)
+			else:
+				cooldowns[key] = remaining
+		for key in expired:
+			cooldowns.erase(key)
+
+
 func _clear_passenger_ping_markers(reason: StringName) -> void:
 	var actors: Array[Dictionary] = []
 	for marker_variant in _passenger_ping_markers.values():
@@ -1871,6 +1938,20 @@ func _clear_passenger_ping_markers(reason: StringName) -> void:
 
 
 static func _passenger_ping_actor_key(occupant_peer_id: int, avatar_id: StringName) -> StringName:
+	return StringName("%d:%s" % [occupant_peer_id, str(avatar_id)])
+
+
+static func _crew_role_actor_key(intent: Dictionary) -> StringName:
+	return _crew_role_actor_key_from_values(
+		int(intent.get("occupant_peer_id", 0)),
+		StringName(intent.get("avatar_id", &""))
+	)
+
+
+static func _crew_role_actor_key_from_values(
+	occupant_peer_id: int,
+	avatar_id: StringName
+) -> StringName:
 	return StringName("%d:%s" % [occupant_peer_id, str(avatar_id)])
 
 
