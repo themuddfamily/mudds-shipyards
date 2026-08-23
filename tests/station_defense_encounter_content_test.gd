@@ -298,6 +298,14 @@ func _test_checked_in_encounter_content() -> void:
 	var beta_nominal_preferred_range := beta.preferred_range
 	var gamma_nominal_preferred_range := gamma.preferred_range
 	var gamma_nominal_orbit_sign := float(gamma.get("_orbit_sign"))
+	var beta_role_lamps := _weapon_telegraph_nodes(beta)
+	var gamma_role_lamps := _weapon_telegraph_nodes(gamma)
+	var beta_nominal_lamp_positions := _telegraph_positions(beta_role_lamps)
+	var gamma_nominal_lamp_positions := _telegraph_positions(gamma_role_lamps)
+	var beta_nominal_lamp_radius := _telegraph_radius(beta_role_lamps)
+	var gamma_nominal_lamp_radius := _telegraph_radius(gamma_role_lamps)
+	var beta_role_lamp_ids := _node_instance_ids(beta_role_lamps)
+	var gamma_role_lamp_ids := _node_instance_ids(gamma_role_lamps)
 	var opponents: Array[RangeOpponent] = [alpha, beta, gamma]
 	var asset := content.get_protected_asset()
 	var damageable := asset.get_damageable_component() if asset != null else null
@@ -548,6 +556,8 @@ func _test_checked_in_encounter_content() -> void:
 	await physics_frame
 	var active_tactic := content.get_snapshot().later_wave_tactic as Dictionary
 	var active_activity := content.get_snapshot().host.activity as Dictionary
+	var close_role := (active_tactic.formation as Array)[0] as Dictionary
+	var outer_role := (active_tactic.formation as Array)[1] as Dictionary
 	_check(
 		alpha_terminal.destroyed and relief.accepted
 		and beta.is_active() and gamma.is_active()
@@ -558,8 +568,30 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(gamma.preferred_range, StationDefenseEncounterContent.PINCER_OUTER_PREFERRED_RANGE)
 		and float(beta.get("_orbit_sign")) == StationDefenseEncounterContent.PINCER_CLOSE_ORBIT_SIGN
 		and float(gamma.get("_orbit_sign")) == StationDefenseEncounterContent.PINCER_OUTER_ORBIT_SIGN
+		and close_role.telegraph_identity == &"compact_pair"
+		and close_role.identity_pattern == "><"
+		and bool(close_role.presentation_active)
+		and outer_role.telegraph_identity == &"wide_guard"
+		and outer_role.identity_pattern == "|    |"
+		and bool(outer_role.presentation_active)
+		and _telegraph_positions_match(
+			beta_role_lamps,
+			StationDefenseEncounterContent.PINCER_CLOSE_TELEGRAPH_POSITIONS
+		)
+		and _telegraph_positions_match(
+			gamma_role_lamps,
+			StationDefenseEncounterContent.PINCER_OUTER_TELEGRAPH_POSITIONS
+		)
+		and is_equal_approx(
+			_telegraph_radius(beta_role_lamps),
+			StationDefenseEncounterContent.PINCER_CLOSE_TELEGRAPH_RADIUS
+		)
+		and is_equal_approx(
+			_telegraph_radius(gamma_role_lamps),
+			StationDefenseEncounterContent.PINCER_OUTER_TELEGRAPH_RADIUS
+		)
 		and str(active_activity.next_step).contains("BREAK CROSSFIRE PINCER"),
-		"the later relief wave activates distinct close and outer counter-orbit roles with retained objective feedback"
+		"the later relief wave gives close and outer counter-orbit roles distinct compact and guard lamp silhouettes"
 	)
 	for _frame in 18:
 		await physics_frame
@@ -585,15 +617,24 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	var beta_terminal := await _shoot(authority, attacker, beta)
 	var broken_tactic := content.get_snapshot().later_wave_tactic as Dictionary
+	var broken_formation := broken_tactic.formation as Array
 	_check(
 		beta_terminal.destroyed
 		and broken_tactic.state_id == &"broken"
 		and not bool(broken_tactic.applied)
+		and not bool((broken_formation[0] as Dictionary).presentation_active)
+		and not bool((broken_formation[1] as Dictionary).presentation_active)
 		and str(broken_tactic.objective).contains("FINISH REMAINING RAIDER")
 		and is_equal_approx(gamma.preferred_range, gamma_nominal_preferred_range)
 		and float(gamma.get("_orbit_sign")) == gamma_nominal_orbit_sign
+		and _telegraph_positions_match(beta_role_lamps, beta_nominal_lamp_positions)
+		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions)
+		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
+		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
+		and _node_instance_ids(beta_role_lamps) == beta_role_lamp_ids
+		and _node_instance_ids(gamma_role_lamps) == gamma_role_lamp_ids
 		and beta_nominal_preferred_range == gamma_nominal_preferred_range,
-		"destroying either pincer wing breaks the tactic and restores bounded nominal pursuit"
+		"destroying either pincer wing clears both role silhouettes and restores the exact retained lamps and nominal pursuit"
 	)
 	var gamma_terminal := await _shoot(authority, attacker, gamma)
 	var completed := content.get_snapshot()
@@ -623,8 +664,12 @@ func _test_checked_in_encounter_content() -> void:
 		and int(asset.get_asset_handle().generation) == 2
 		and int(reset_after_completion.activity.protected_assets[0].handle.generation) == 2
 		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
+		and _telegraph_positions_match(beta_role_lamps, beta_nominal_lamp_positions)
+		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions)
+		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
+		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
 		and asset.collision_layer == PhysicsLayers.TARGET,
-		"post-completion reset commits host renewal before physical health/collision generation plus one"
+		"post-completion reset keeps both role-lamp pairs nominal while renewing health/collision generation plus one"
 	)
 	var timeout_start := content.start(idle_generation)
 	var timeout_generation := int(timeout_start.activity.generation)
@@ -687,10 +732,14 @@ func _test_checked_in_encounter_content() -> void:
 		and resolver.get_registered_source_count() == 4
 		and int(asset.get_asset_handle().generation) == retained_asset_generation
 		and is_equal_approx(damageable.get_health(), retained_health)
+		and _telegraph_positions_match(beta_role_lamps, beta_nominal_lamp_positions)
+		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions)
+		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
+		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
 		and reentry_integrity.state_id == &"stable"
 		and int(reentry_integrity.health_percent) == 100
 		and reentry_integrity.pattern == "[||||]",
-		"same-instance re-entry restores exact authority/source wiring and a fresh stable integrity readout without rebuilding or healing"
+		"same-instance re-entry restores exact wiring with nominal retained role lamps and stable integrity without rebuilding or healing"
 	)
 
 	var renewal_reentry := {}
@@ -1107,6 +1156,46 @@ func _count_direct_opponents(roster: Node3D) -> int:
 		if child is RangeOpponent:
 			count += 1
 	return count
+
+
+func _weapon_telegraph_nodes(opponent: RangeOpponent) -> Array[MeshInstance3D]:
+	var nodes: Array[MeshInstance3D] = []
+	var visual := opponent.get_node(^"RangeInterceptorVisual") as Node3D
+	var audit := opponent.get_weapon_telegraph_mesh_allocation_audit()
+	for path_text in audit.get("node_paths", PackedStringArray()) as PackedStringArray:
+		var node := visual.get_node(NodePath(path_text)) as MeshInstance3D
+		nodes.append(node)
+	return nodes
+
+
+func _telegraph_positions(nodes: Array[MeshInstance3D]) -> Array[Vector3]:
+	var positions: Array[Vector3] = []
+	for node in nodes:
+		positions.append(node.position)
+	return positions
+
+
+func _telegraph_positions_match(nodes: Array[MeshInstance3D], expected: Array) -> bool:
+	if nodes.size() != expected.size():
+		return false
+	for index in nodes.size():
+		if not nodes[index].position.is_equal_approx(expected[index] as Vector3):
+			return false
+	return true
+
+
+func _telegraph_radius(nodes: Array[MeshInstance3D]) -> float:
+	if nodes.is_empty():
+		return 0.0
+	var sphere := nodes[0].mesh as SphereMesh
+	return sphere.radius if sphere != null else 0.0
+
+
+func _node_instance_ids(nodes: Array[MeshInstance3D]) -> Array[int]:
+	var ids: Array[int] = []
+	for node in nodes:
+		ids.append(node.get_instance_id())
+	return ids
 
 
 func _authority_is_exactly_excluded(authority: Dictionary) -> bool:

@@ -25,6 +25,16 @@ const PINCER_CLOSE_PREFERRED_RANGE := 22.0
 const PINCER_OUTER_PREFERRED_RANGE := 74.0
 const PINCER_CLOSE_ORBIT_SIGN := -1.0
 const PINCER_OUTER_ORBIT_SIGN := 1.0
+const PINCER_CLOSE_TELEGRAPH_RADIUS := 0.24
+const PINCER_OUTER_TELEGRAPH_RADIUS := 0.16
+const PINCER_CLOSE_TELEGRAPH_POSITIONS := [
+	Vector3(-0.62, 0.58, -4.98),
+	Vector3(0.62, 0.58, -4.98),
+]
+const PINCER_OUTER_TELEGRAPH_POSITIONS := [
+	Vector3(-3.55, 0.58, -4.30),
+	Vector3(3.55, 0.58, -4.30),
+]
 const INTEGRITY_STATE_STABLE: StringName = &"stable"
 const INTEGRITY_STATE_UNDER_FIRE: StringName = &"under_fire"
 const INTEGRITY_STATE_CRITICAL: StringName = &"critical"
@@ -117,6 +127,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_last_live_world_transform = global_transform
 	if _initialized:
+		_restore_later_wave_tactic_configuration()
 		_retire_hostile_sources()
 
 
@@ -935,6 +946,13 @@ func _capture_nominal_tactic_configuration() -> void:
 		_nominal_tactic_configuration_by_key[key] = {
 			"preferred_range": entity.preferred_range,
 			"orbit_sign": float(entity.get("_orbit_sign")),
+			"telegraph_node_paths": (
+				entity.get_weapon_telegraph_mesh_allocation_audit().get(
+					"node_paths", PackedStringArray()
+				) as PackedStringArray
+			).duplicate(),
+			"telegraph_positions": _get_tactic_telegraph_positions(entity),
+			"telegraph_radius": _get_tactic_telegraph_radius(entity),
 		}.duplicate(true)
 
 
@@ -979,11 +997,24 @@ func _apply_later_wave_tactic_configuration() -> void:
 	if not is_instance_valid(close_entity) or not is_instance_valid(outer_entity):
 		_restore_later_wave_tactic_configuration()
 		return
+	_later_wave_tactic_applied = true
 	close_entity.preferred_range = PINCER_CLOSE_PREFERRED_RANGE
 	close_entity.set("_orbit_sign", PINCER_CLOSE_ORBIT_SIGN)
 	outer_entity.preferred_range = PINCER_OUTER_PREFERRED_RANGE
 	outer_entity.set("_orbit_sign", PINCER_OUTER_ORBIT_SIGN)
-	_later_wave_tactic_applied = true
+	if (
+		not _apply_tactic_telegraph_identity(
+			close_entity,
+			PINCER_CLOSE_TELEGRAPH_POSITIONS,
+			PINCER_CLOSE_TELEGRAPH_RADIUS
+		)
+		or not _apply_tactic_telegraph_identity(
+			outer_entity,
+			PINCER_OUTER_TELEGRAPH_POSITIONS,
+			PINCER_OUTER_TELEGRAPH_RADIUS
+		)
+	):
+		_restore_later_wave_tactic_configuration()
 
 
 func _restore_later_wave_tactic_configuration() -> void:
@@ -997,7 +1028,91 @@ func _restore_later_wave_tactic_configuration() -> void:
 			continue
 		entity.preferred_range = float(nominal.get("preferred_range", entity.preferred_range))
 		entity.set("_orbit_sign", float(nominal.get("orbit_sign", 1.0)))
+		var telegraphs := _get_tactic_telegraph_nodes(
+			entity,
+			nominal.get("telegraph_node_paths", PackedStringArray()) as PackedStringArray
+		)
+		var nominal_positions := nominal.get("telegraph_positions", []) as Array
+		for index in mini(telegraphs.size(), nominal_positions.size()):
+			telegraphs[index].position = nominal_positions[index] as Vector3
+		var nominal_radius := float(nominal.get("telegraph_radius", 0.0))
+		if nominal_radius > 0.0:
+			for telegraph in telegraphs:
+				var sphere := telegraph.mesh as SphereMesh
+				if sphere != null:
+					sphere.radius = nominal_radius
+					sphere.height = nominal_radius * 2.0
 	_later_wave_tactic_applied = false
+
+
+func _get_tactic_telegraph_nodes(
+	entity: RangeOpponent,
+	node_paths: PackedStringArray = PackedStringArray()
+	) -> Array[MeshInstance3D]:
+	var nodes: Array[MeshInstance3D] = []
+	if not is_instance_valid(entity):
+		return nodes
+	var visual := entity.get_node_or_null(^"RangeInterceptorVisual") as Node3D
+	if not is_instance_valid(visual):
+		return nodes
+	var paths := node_paths
+	if paths.is_empty():
+		paths = entity.get_weapon_telegraph_mesh_allocation_audit().get(
+			"node_paths", PackedStringArray()
+		) as PackedStringArray
+	for path_text in paths:
+		var telegraph := visual.get_node_or_null(NodePath(path_text)) as MeshInstance3D
+		if is_instance_valid(telegraph) and telegraph.mesh is SphereMesh:
+			nodes.append(telegraph)
+	return nodes
+
+
+func _get_tactic_telegraph_positions(entity: RangeOpponent) -> Array[Vector3]:
+	var positions: Array[Vector3] = []
+	for telegraph in _get_tactic_telegraph_nodes(entity):
+		positions.append(telegraph.position)
+	return positions
+
+
+func _get_tactic_telegraph_radius(entity: RangeOpponent) -> float:
+	var telegraphs := _get_tactic_telegraph_nodes(entity)
+	if telegraphs.is_empty():
+		return 0.0
+	var sphere := telegraphs[0].mesh as SphereMesh
+	return sphere.radius if sphere != null else 0.0
+
+
+func _apply_tactic_telegraph_identity(
+	entity: RangeOpponent,
+	positions: Array,
+	radius: float
+	) -> bool:
+	var nominal := _nominal_tactic_configuration_by_key.get(
+		_find_tactic_entity_key(entity), {}
+	) as Dictionary
+	var telegraphs := _get_tactic_telegraph_nodes(
+		entity,
+		nominal.get("telegraph_node_paths", PackedStringArray()) as PackedStringArray
+	)
+	if telegraphs.size() != positions.size() or radius <= 0.0:
+		return false
+	for telegraph in telegraphs:
+		if not (telegraph.mesh is SphereMesh):
+			return false
+	for index in telegraphs.size():
+		telegraphs[index].position = positions[index] as Vector3
+		var sphere := telegraphs[index].mesh as SphereMesh
+		sphere.radius = radius
+		sphere.height = radius * 2.0
+	return true
+
+
+func _find_tactic_entity_key(entity: RangeOpponent) -> String:
+	for key_variant in _entity_by_key:
+		var key := str(key_variant)
+		if _entity_by_key.get(key) == entity:
+			return key
+	return ""
 
 
 func _get_tactic_entity(hostile_id: StringName) -> RangeOpponent:
@@ -1048,12 +1163,20 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 				"role": &"close_pressure",
 				"preferred_range": PINCER_CLOSE_PREFERRED_RANGE,
 				"orbit_sign": PINCER_CLOSE_ORBIT_SIGN,
+				"telegraph_identity": &"compact_pair",
+				"identity_pattern": "><",
+				"presentation_active": state == &"active" and _later_wave_tactic_applied,
+				"telegraph_positions": PINCER_CLOSE_TELEGRAPH_POSITIONS.duplicate(),
 			},
 			{
 				"hostile_id": PINCER_OUTER_HOSTILE_ID,
 				"role": &"outer_crossfire",
 				"preferred_range": PINCER_OUTER_PREFERRED_RANGE,
 				"orbit_sign": PINCER_OUTER_ORBIT_SIGN,
+				"telegraph_identity": &"wide_guard",
+				"identity_pattern": "|    |",
+				"presentation_active": state == &"active" and _later_wave_tactic_applied,
+				"telegraph_positions": PINCER_OUTER_TELEGRAPH_POSITIONS.duplicate(),
 			},
 		],
 		"terminal_or_break_restores_nominal": true,
