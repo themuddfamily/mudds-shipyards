@@ -73,6 +73,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(visual != null and visual.get_node_or_null("ArmoredCentralSlab") is MeshInstance3D, "armored central slab is a real visual mesh")
 	_test_armored_shoulder_batch(visual)
 	_test_identity_band_batch(visual)
+	_test_cockpit_console_cyan_key_mesh_sharing(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -182,6 +183,48 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 		"legacy identity-band renderer submissions are removed"
 	)
 	print("BULWARK_IDENTITY_BAND_BATCH: visible_copies 2->2 submissions 2->1")
+
+
+func _test_cockpit_console_cyan_key_mesh_sharing(visual: Node3D) -> void:
+	var cockpit := visual.get_node_or_null("CockpitInterior") as Node3D if visual != null else null
+	var key_names := PackedStringArray([
+		"PortConsoleKey00",
+		"PortConsoleKey02",
+		"StarboardConsoleKey00",
+		"StarboardConsoleKey02",
+	])
+	var expected_positions := [
+		Vector3(-0.76, 2.41, -0.88),
+		Vector3(-0.67, 2.41, -0.24),
+		Vector3(0.76, 2.41, -0.88),
+		Vector3(0.85, 2.41, -0.24),
+	]
+	var keys: Array[MeshInstance3D] = []
+	for key_name in key_names:
+		var key := cockpit.get_node_or_null(NodePath(key_name)) as MeshInstance3D if cockpit != null else null
+		if key != null:
+			keys.append(key)
+	_check(keys.size() == 4, "four named cyan console-key visual copies remain present")
+	if keys.size() != 4:
+		return
+	var shared_mesh := keys[0].mesh
+	var material := shared_mesh.surface_get_material(0) as StandardMaterial3D if shared_mesh != null else null
+	var exact_transforms := true
+	var shared_resources := true
+	for index in keys.size():
+		exact_transforms = exact_transforms and keys[index].position.is_equal_approx(expected_positions[index])
+		shared_resources = shared_resources and keys[index].mesh == shared_mesh
+	_check(
+		shared_resources
+		and shared_mesh != null
+		and shared_mesh.get_surface_count() == 1
+		and shared_mesh.get_aabb().size.is_equal_approx(Vector3(0.12, 0.035, 0.12))
+		and material != null
+		and material.albedo_color.is_equal_approx(Color("16383e"))
+		and exact_transforms,
+		"cyan console-key mesh sharing preserves names, transforms, material, and four visible submissions"
+	)
+	print("BULWARK_COCKPIT_CONSOLE_CYAN_KEYS: visible_copies 4->4 submissions 4->4 mesh_resources 4->1")
 
 
 func _test_base_lifecycle(ship: HeroShip) -> void:

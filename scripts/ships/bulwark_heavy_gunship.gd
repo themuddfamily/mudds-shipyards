@@ -56,6 +56,7 @@ const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.9, 5.3)
 const ARMORED_SHOULDER_COPY_COUNT := 2
 const IDENTITY_BAND_SIZE := Vector3(0.16, 1.25, 3.2)
 const IDENTITY_BAND_COPY_COUNT := 2
+const COCKPIT_CONSOLE_CYAN_KEY_COPY_COUNT := 4
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
@@ -253,6 +254,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		hinge_bar.reparent(_bulwark_visual, true)
 	for mount in hinge_mounts:
 		(mount as Node3D).reparent(_bulwark_visual, true)
+	_share_cockpit_console_cyan_key_meshes(cockpit)
 
 	var armor_dark := _material(ARMOR_DARK, 0.78, 0.32)
 	var armor_blue := _material(ARMOR_BLUE, 0.72, 0.28)
@@ -361,6 +363,31 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	add_child(_boarding_area)
 
 	return replace_variant_visual_root(_bulwark_visual)
+
+
+## The four cyan console keys are immutable cockpit dressing.  Retain their
+## individual named MeshInstance3D nodes (and therefore their exact transforms
+## and four submissions) while sharing the previously duplicated, identical mesh.
+func _share_cockpit_console_cyan_key_meshes(cockpit: Node3D) -> void:
+	if cockpit == null:
+		return
+	var key_names := PackedStringArray([
+		"PortConsoleKey00",
+		"PortConsoleKey02",
+		"StarboardConsoleKey00",
+		"StarboardConsoleKey02",
+	])
+	var keys: Array[MeshInstance3D] = []
+	for key_name in key_names:
+		var key := cockpit.get_node_or_null(NodePath(key_name)) as MeshInstance3D
+		if key == null or key.mesh == null:
+			return
+		keys.append(key)
+	if keys.size() != COCKPIT_CONSOLE_CYAN_KEY_COPY_COUNT:
+		return
+	var shared_mesh := keys[0].mesh
+	for key in keys:
+		key.mesh = shared_mesh
 
 
 ## The mirrored shoulder shells are childless silhouette presentation with no
