@@ -18,6 +18,7 @@ const RACE_SESSION := preload("res://scripts/activities/cinder_timed_race_sessio
 const PATROL_ACTIVITY := preload("res://scripts/activities/patrol_activity.gd")
 const CARGO_ACTIVITY := preload("res://scripts/cargo/cargo_delivery_activity.gd")
 const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd")
+const CARGO_REWARD_HANDOFF := preload("res://scripts/cargo/cinder_cargo_reward_handoff.gd")
 const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BEACON_ACTIVITY := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
@@ -37,6 +38,7 @@ var _patrol_director: ActivityDirector
 var _patrol: PatrolActivity
 var _cargo_authority: CargoTransferAuthority
 var _cargo_activity: CargoDeliveryActivity
+var _cargo_reward_handoff: CinderCargoRewardHandoff
 var _cargo_source_handle: Dictionary
 var _cargo_destination_handle: Dictionary
 var _cargo_access: CinderCargoAccess
@@ -269,6 +271,7 @@ func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
 	_cargo_activity = CARGO_ACTIVITY.new(
 		_cargo_authority, cargo_contract
 	) as CargoDeliveryActivity
+	_bind_cargo_reward_handoff()
 	_publish_cargo_presentation()
 
 
@@ -277,6 +280,9 @@ func _on_cargo_manifest_retired(handle: Dictionary) -> void:
 		return
 	_cargo_source_handle.clear()
 	_cargo_source_entity = null
+	if _cargo_reward_handoff != null:
+		_cargo_reward_handoff.detach()
+		_cargo_reward_handoff = null
 	_cargo_activity = null
 	_publish_cargo_presentation()
 
@@ -490,6 +496,8 @@ func reset_cargo_run() -> Dictionary:
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
 	var result := _cargo_activity.reset(_cargo_activity.get_generation())
+	if bool(result.get("accepted", false)) and _cargo_reward_handoff != null:
+		_cargo_reward_handoff.reset(int(result.get("generation", 0)))
 	_publish_cargo_presentation(result)
 	return result
 
@@ -553,6 +561,7 @@ func configure_station_defense_reward(
 			"register_activity", &"cinder_kit_cargo_run",
 			&"return_fabrication_kits_to_shipyard"
 		)
+		_bind_cargo_reward_handoff()
 		_station_reward_adapter.call(
 			"register_activity", &"cinder_relay_patrol",
 			&"return_patrol_log_to_shipyard"
@@ -604,14 +613,27 @@ func request_convoy_reward(expected_generation: int) -> Dictionary:
 func request_cargo_reward(expected_generation: int) -> Dictionary:
 	if _cargo_activity == null or _station_reward_adapter == null:
 		return _result(false, &"cargo_reward_unavailable")
-	var cargo := _cargo_activity.get_snapshot()
-	var normalized := {
-		"activity_id": &"cinder_kit_cargo_run",
-		"state_id": &"completed" if int(cargo.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED else &"",
-		"outcome": &"cleared" if int(cargo.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED else &"",
-		"generation": cargo.get("generation", 0),
-	}.duplicate(true)
-	return _station_reward_adapter.call("consume", normalized, expected_generation)
+	_bind_cargo_reward_handoff()
+	if _cargo_reward_handoff == null:
+		return _result(false, &"cargo_reward_unavailable")
+	return _cargo_reward_handoff.request(expected_generation)
+
+
+func get_cargo_reward_handoff_snapshot() -> Dictionary:
+	return (
+		_cargo_reward_handoff.get_snapshot()
+		if _cargo_reward_handoff != null else {}
+	)
+
+
+func _bind_cargo_reward_handoff() -> void:
+	if _cargo_reward_handoff != null or _cargo_activity == null \
+			or _station_reward_adapter == null:
+		return
+	var handoff := CARGO_REWARD_HANDOFF.new() as CinderCargoRewardHandoff
+	var attached := handoff.attach(_cargo_activity, _station_reward_adapter)
+	if bool(attached.get("accepted", false)):
+		_cargo_reward_handoff = handoff
 
 
 func request_patrol_reward(expected_generation: int) -> Dictionary:
@@ -962,6 +984,7 @@ func get_snapshot() -> Dictionary:
 		"race": _race_session.get_presentation_snapshot() if is_instance_valid(_race_session) else {},
 		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
 		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
+		"cargo_reward_handoff": get_cargo_reward_handoff_snapshot(),
 		"cargo_binding": {
 			"access_bound": is_instance_valid(_cargo_access),
 			"access_attachment_generation": _cargo_access_attachment_generation,
