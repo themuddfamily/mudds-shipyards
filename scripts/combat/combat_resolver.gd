@@ -84,6 +84,61 @@ func register_source(
 
 
 func resolve_hitscan(request: ShotRequestType) -> Dictionary:
+	return _resolve_request(request)
+
+
+## Resolves one caller-provided projectile endpoint through the same registered
+## source, world-occlusion, faction, and Damageable chain as hitscan. The
+## endpoint narrows the ray to the projectile's actual travel path; it cannot
+## extend a registered weapon profile's authoritative range.
+func resolve_projectile_impact(
+		source_entity: Node3D,
+		source_id: int,
+		faction_id: StringName,
+		weapon_id: StringName,
+		sequence: int,
+		origin: Vector3,
+		terminal_position: Vector3
+	) -> Dictionary:
+	var profile := get_registered_weapon_profile(source_entity, source_id, weapon_id)
+	var request_range := float(profile.get("range", 1.0))
+	var request_damage := float(profile.get("damage", 1.0))
+	var direction := terminal_position - origin
+	if not direction.is_finite() or direction.length_squared() <= 0.000001:
+		direction = Vector3.FORWARD
+	else:
+		direction = direction.normalized()
+	var request := ShotRequestType.new(
+		source_entity,
+		source_id,
+		faction_id,
+		weapon_id,
+		sequence,
+		origin,
+		direction,
+		request_range,
+		request_damage
+	) as ShotRequestType
+	return _resolve_request(request, terminal_position)
+
+
+## Detached profile read used by adapters that need to construct a typed
+## request without copying weapon range or damage authority into their ledger.
+func get_registered_weapon_profile(
+		source_entity: Node3D,
+		source_id: int,
+		weapon_id: StringName
+	) -> Dictionary:
+	var source_key := _source_key(source_entity, source_id)
+	var registration: Dictionary = _source_registry.get(source_key, {})
+	var profiles: Dictionary = registration.get("weapons", {})
+	return (profiles.get(weapon_id, {}) as Dictionary).duplicate(true)
+
+
+func _resolve_request(
+		request: ShotRequestType,
+		endpoint_override: Vector3 = Vector3.INF
+	) -> Dictionary:
 	var result := _make_result(request)
 	if request == null:
 		return _reject(result, &"invalid_request", "request is null", request)
@@ -174,9 +229,18 @@ func resolve_hitscan(request: ShotRequestType) -> Dictionary:
 	var authoritative_damage: float = authority_context.damage
 	var authoritative_faction: StringName = authority_context.faction_id
 	var ray_direction := request.get_normalized_direction()
+	var ray_endpoint := request.origin + ray_direction * authoritative_range
+	if endpoint_override.is_finite():
+		var endpoint_delta := endpoint_override - request.origin
+		if not endpoint_delta.is_finite() or endpoint_delta.length_squared() <= 0.000001:
+			return _reject(result, &"invalid_projectile_endpoint", "projectile endpoint is not a finite displacement", request)
+		if endpoint_delta.length() > authoritative_range + 0.0001:
+			return _reject(result, &"projectile_out_of_range", "projectile endpoint exceeds the registered weapon range", request)
+		ray_direction = endpoint_delta.normalized()
+		ray_endpoint = endpoint_override
 	var query := PhysicsRayQueryParameters3D.create(
 		request.origin,
-		request.origin + ray_direction * authoritative_range,
+		ray_endpoint,
 		PhysicsLayerContract.HITSCAN_QUERY_MASK,
 		_collect_source_exclusions(authoritative_entity)
 	)
