@@ -25,7 +25,7 @@ func _run() -> void:
 	root.add_child(director)
 	var binding := BindingScript.new()
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 4)
-	_check(configured.accepted and configured.runtime.composition_generation == 1 and configured.runtime.navigation.state == &"idle" and configured.runtime.hazard.configured and configured.runtime.water.configured and configured.runtime.landmarks.configured and configured.runtime.settlement.configured, "one generation-fenced Ember composition retains all planetary runtimes")
+	_check(configured.accepted and configured.runtime.composition_generation == 1 and configured.runtime.navigation.state == &"idle" and configured.runtime.hazard.configured and configured.runtime.water.state == &"idle" and configured.runtime.landmarks.configured and configured.runtime.settlement.configured, "one generation-fenced Ember composition retains all planetary runtimes")
 	var discovered := binding.discover_settlements(Vector3(92.0, 120000.5, -18.0), 20.0)
 	var entered := binding.enter_settlement(&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0))
 	_check(discovered.accepted and entered.accepted and entered.receipt.route_id == &"ember_pad_to_settlement_spine", "production composition forwards authored discovery and entry")
