@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"bulwark_heavy_gunship"
+display_name = "Bulwark Heavy Gunship"
+role_name = "Heavy gunship"
+evidence_status = 2
+evidence_references = PackedStringArray()
+evidence_notes = "Original modern design. Bulwark makes no historical claim: its name, armored silhouette, dimensions, colours, cockpit, gunner station, systems, handling, boarding, landing, recovery, and Fleet Dock 03 assignment are new gameplay design with no historical evidence references. EvidenceStatus.NEW is deliberate."
+compatibility_tags = PackedStringArray("medium_craft", "gunship", "bulwark_gunship", "single_pilot")
+maximum_speed = 98.0
+thrust_acceleration = 22.0
+brake_acceleration = 30.0
+passive_drag = 2.35
+throttle_response = 6.4
+boost_speed = 120.0
+boost_multiplier = 1.22
+yaw_speed_degrees = 46.0
+roll_speed_degrees = 68.0
+flight_assist_strength = 4.2
+visual_bank_degrees = 9.0
+maximum_mouse_turn_degrees = 12.0
+engine_start_time = 2.75
+weapon_cooldown = 0.3
+maximum_hull = 300.0
+landing_maximum_speed = 13.0
+entry_noun = "armored canopy"
+entry_open_verb = "unlock"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"bulwark_heavy_gunship"

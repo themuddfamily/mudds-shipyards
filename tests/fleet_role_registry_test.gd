@@ -11,6 +11,7 @@ const DEFINITIONS := [
 	preload("res://assets/ships/jovian_provisional.tres"),
 	preload("res://assets/ships/zenith_b7_observed.tres"),
 	preload("res://assets/ships/halyard_new_design.tres"),
+	preload("res://assets/ships/bulwark_new_design.tres"),
 ]
 
 var _failures := 0
@@ -19,9 +20,9 @@ var _checks := 0
 
 func _initialize() -> void:
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
-	_check(bool(report.get("valid", false)), "the five production definitions satisfy the role registry")
-	_check(int(report.get("craft_count", 0)) == 5, "the role registry audits all five current craft")
-	_check(int(report.get("role_count", 0)) == 5, "each current craft owns a distinct stable role ID")
+	_check(bool(report.get("valid", false)), "the six production definitions satisfy the role registry")
+	_check(int(report.get("craft_count", 0)) == 6, "the role registry audits all six current craft")
+	_check(int(report.get("role_count", 0)) == 6, "each current craft owns a distinct stable role ID")
 	_check(int(report.get("schema_version", 0)) == Registry.SCHEMA_VERSION, "role audit exposes its schema version")
 
 	var drifted_arrow := (DEFINITIONS[1] as ShipDefinition).duplicate(true) as ShipDefinition
@@ -41,6 +42,7 @@ func _initialize() -> void:
 		&"jovian_provisional": "connected hold and cabin",
 		&"zenith_b7_observed": "high-response interceptor",
 		&"halyard_new_design": "walkable flight deck and cabin",
+		&"bulwark_heavy_gunship": "durable sustained fire",
 	}
 	for definition in DEFINITIONS:
 		var contract: Dictionary = Registry.get_role_contract(definition.get_ship_id())

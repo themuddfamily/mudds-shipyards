@@ -6,9 +6,9 @@ extends Node3D
 ## scale, direction, count, vertical transition, and placement are modern.
 ##
 ## Dock markers are deliberately non-authoritative landmarks. Dock 01 records a
-## modern external Zenith assignment and Dock 02 a modern external Halyard
-## assignment while ShipyardWorld owns both actual berths, leases and landing
-## volumes; only Dock 03 remains visibly empty and deferred. This component itself
+## modern external Zenith assignment, Dock 02 a modern external Halyard
+## assignment, and Dock 03 a modern external Bulwark assignment while
+## ShipyardWorld owns all actual berths, leases and landing volumes. This component itself
 ## owns no ShipBerth, landing area, lease, audio, activity, or process loop.
 
 const SCHEMA_VERSION := 2
@@ -31,11 +31,12 @@ const DOCK_MARKER_COUNT := 3
 # The marker's bookkeeping moves with the craft rather than after it: a slab
 # that still reported `deferred_empty` while a 27 m transport stood on it would
 # be exactly the documentation drift this repository keeps having to correct.
-# The module still owns no berth authority for either assignment; the world owns
-# both berths (`ShipyardWorld.SHIP_BERTH_FEEDBACK_SPECS`). Dock 03 remains
-# genuinely deferred and genuinely empty.
-const ASSIGNED_DOCK_COUNT := 2
-const DEFERRED_DOCK_COUNT := 1
+# The module still owns no berth authority for any assignment; the world owns
+# all three berths (`ShipyardWorld.SHIP_BERTH_FEEDBACK_SPECS`). Dock 03's marker
+# retains its deferred key as a stable landmark identity while its live status
+# is assigned.
+const ASSIGNED_DOCK_COUNT := 3
+const DEFERRED_DOCK_COUNT := 0
 const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
@@ -43,11 +44,11 @@ const COLLISION_SHAPE_COUNT := 7
 ## strips still draw at their authored transforms, but one MultiMesh owns their
 ## submission instead of twelve childless MeshInstance3D nodes.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
-const RENDER_DESCENDANT_COUNT := 132
-const RENDER_MESH_INSTANCE_COUNT := 88
+const RENDER_DESCENDANT_COUNT := 133
+const RENDER_MESH_INSTANCE_COUNT := 89
 const RENDER_MULTIMESH_BATCH_COUNT := 1
-const RENDER_DRAWN_COPY_COUNT := 100
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 89
+const RENDER_DRAWN_COPY_COUNT := 101
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 90
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -175,8 +176,8 @@ const CONTENT_NOTE := (
 	+ "surface design, short ramp, materials, labels, and world adjacency are modern "
 	+ "interpretation. Dock 01 is a modern externally-owned assignment for the "
 	+ "B7-observed Zenith partial reconstruction; Dock 02 is a modern externally-"
-	+ "owned assignment for the project-original modern Halyard design; only Dock 03 remains empty "
-	+ "and deferred. No marker grants landing, lease, boarding, regeneration, or ship-"
+	+ "owned assignments for the project-original modern Halyard and Bulwark designs. No marker "
+	+ "grants landing, lease, boarding, regeneration, or ship-"
 	+ "spawn authority inside this module. The per-arm service hardware — mast, "
 	+ "umbilical head, boom, service pod, mooring cleats, toe kerb and the trunk/rung conduit "
 	+ "run — is modern interpretation with no source at all: no anchor in any "
@@ -604,9 +605,9 @@ func get_validation_errors() -> PackedStringArray:
 	if _dock_markers.size() != DOCK_MARKER_COUNT:
 		errors.append("dock registry must contain exactly three physical landmarks")
 	if get_assigned_dock_ids().size() != ASSIGNED_DOCK_COUNT:
-		errors.append("dock registry must contain exactly two external assignments")
+		errors.append("dock registry must contain exactly three external assignments")
 	if get_deferred_dock_ids().size() != DEFERRED_DOCK_COUNT:
-		errors.append("dock registry must retain exactly one empty deferred landmark")
+		errors.append("dock registry must contain no empty deferred landmarks")
 	if _surface_nodes.size() != WALKABLE_SURFACE_COUNT:
 		errors.append("walkable surface roster must contain exactly seven collision-backed surfaces")
 	var roster := get_component_roster()
@@ -633,15 +634,10 @@ func get_validation_errors() -> PackedStringArray:
 			or bool(dock.boarding_area_present):
 			errors.append("dock landmarks must remain non-authoritative inside the comb")
 			break
-	for dock in get_deferred_dock_roster():
-		if dock.status != &"deferred_empty" \
-			or dock.ship_assignment != &"none":
-			errors.append("dock 03 must remain empty, deferred, and non-authoritative")
-			break
-	# Two external assignments, checked by dock id rather than by position, so a
+	# Three external assignments, checked by dock id rather than by position, so a
 	# reordered roster cannot silently validate the wrong dock. Neither is a
 	# historical class-to-berth mapping: dock 01 carries the B7-observed Zenith
-	# reconstruction, and dock 02 carries the Halyard, an original modern design.
+	# reconstruction, while dock 02 and dock 03 carry original modern designs.
 	var expected_assignments := {
 		&"assigned-dock-01": {
 			"ship": &"zenith_b7_observed",
@@ -650,6 +646,10 @@ func get_validation_errors() -> PackedStringArray:
 		&"deferred-dock-02": {
 			"ship": &"halyard_new_design",
 			"berth": &"halyard_fleet_dock_berth",
+		},
+		&"deferred-dock-03": {
+			"ship": &"bulwark_heavy_gunship",
+			"berth": &"bulwark_fleet_dock_berth",
 		},
 	}
 	var assigned := get_assigned_dock_roster()
@@ -753,6 +753,14 @@ func _index_semantics() -> void:
 			marker.set_meta("ship_assignment", &"halyard_new_design")
 			marker.set_meta("external_berth_id", &"halyard_fleet_dock_berth")
 			marker.set_meta("historical_class_to_berth_mapping", false)
+		elif dock_id == &"deferred-dock-03":
+			# Bulwark is an original modern design; this production assignment
+			# makes no historical class-to-berth claim.
+			marker.set_meta("deferred_dock", false)
+			marker.set_meta("dock_status", &"assigned_external")
+			marker.set_meta("ship_assignment", &"bulwark_heavy_gunship")
+			marker.set_meta("external_berth_id", &"bulwark_fleet_dock_berth")
+			marker.set_meta("historical_class_to_berth_mapping", false)
 		else:
 			marker.set_meta("deferred_dock", true)
 			marker.set_meta("dock_status", &"deferred_empty")
@@ -852,7 +860,7 @@ func _build_structure() -> void:
 		&"rung-03-vertical",
 		&"orthogonal-rung-vertical-transition"
 	)
-	_register_surface(_surface_box(surfaces, "DockSlab03Upper", Vector3(15.0, 2.1, 40.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-03-upper", &"broad-deferred-slab-upper")
+	_register_surface(_surface_box(surfaces, "DockSlab03Upper", Vector3(15.0, 2.1, 40.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-03-upper", &"broad-assigned-slab")
 
 	_build_surface_detail()
 	_build_understructure()
@@ -1286,13 +1294,12 @@ func _build_deferred_landmarks() -> void:
 	landmarks.set_meta("non_authoritative_presentation", true)
 	_build_root.add_child(landmarks)
 	# Text and colour follow the dock registry for the same reason the paint and
-	# the hardware do. `DEFERRED DOCK 02` stood in red under a berthed Halyard,
-	# which is the plainest possible form of a module's presentation contradicting
-	# its own published roster. Dock 03 is still genuinely empty and still says so.
+	# the hardware do. Assigned modern designs use their stable names; no deferred
+	# label remains after Dock 03's Bulwark promotion.
 	var label_specs := [
 		["ZENITH // B7 OBSERVED", Vector3(15.0, 0.18, 4.55), "DEFERRED DOCK 01"],
 		["HALYARD // MODERN DESIGN", Vector3(15.0, 0.18, 19.55), "DEFERRED DOCK 02"],
-		["DEFERRED DOCK 03", Vector3(15.0, 2.58, 34.55), "DEFERRED DOCK 03"],
+		["BULWARK // MODERN DESIGN", Vector3(15.0, 2.58, 34.55), "DEFERRED DOCK 03"],
 	]
 	for index in label_specs.size():
 		var label := Label3D.new()

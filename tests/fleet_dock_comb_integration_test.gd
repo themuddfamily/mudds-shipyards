@@ -5,6 +5,7 @@ const EXPECTED_BERTH_IDS: Array[StringName] = [
 	&"arrow_recon_berth",
 	&"central_berth",
 	&"halyard_fleet_dock_berth",
+	&"bulwark_fleet_dock_berth",
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
 ]
@@ -50,15 +51,15 @@ func _run() -> void:
 
 func _test_integration_audit(world: ShipyardWorld, module: FleetDockComb) -> void:
 	var report := world.get_fleet_dock_comb_integration_audit_report()
-	_check(int(report.schema_version) == 2 and bool(report.valid), "production comb placement, assignment and connector pass the delegated v2 integration audit")
+	_check(int(report.schema_version) == 3 and bool(report.valid), "production comb placement, assignment and connector pass the delegated v3 integration audit")
 	_check((report.errors as PackedStringArray).is_empty(), "valid integration reports no hidden placement or authority errors")
 	_check(str(report.evidence_status) == "modern_interpretation" and str(report.source_claim) == "OE-B2-COMB", "world keeps the exact placement modern while naming the bounded B2 claim")
 	_check(
-		int(report.external_assignment_count) == 2
-		and int(report.deferred_empty_dock_count) == 1
+		int(report.external_assignment_count) == 3
+		and int(report.deferred_empty_dock_count) == 0
 		and not bool(report.historical_class_to_berth_mapping)
 		and bool(report.placement_authored),
-		"integration separates two modern external assignments from one deferred dock"
+		"integration separates three modern external assignments from no deferred dock"
 	)
 	_check(bool((report.component as Dictionary).valid), "world delegates to the complete live component audit")
 	var expected_transform := Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(12.0, 4.2, 68.3))
@@ -135,27 +136,28 @@ func _test_landing_and_berth_authority_unchanged(world: ShipyardWorld, module: F
 	var exact_berth_roster := live_berth_ids.size() == EXPECTED_BERTH_IDS.size()
 	for berth_id in EXPECTED_BERTH_IDS:
 		exact_berth_roster = exact_berth_roster and live_berth_ids.has(berth_id)
-	_check(exact_berth_roster, "production berth registry contains the exact five assigned physical berths")
+	_check(exact_berth_roster, "production berth registry contains the exact six assigned physical berths")
 	var expected_transforms := {
 		&"central_berth": Transform3D(Basis.IDENTITY, Vector3(0.0, 1.15, -10.0)),
 		&"arrow_recon_berth": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-43.0, 1.15, 15.5)),
 		&"jovian_freight_berth": Transform3D(Basis(Vector3.UP, PI), Vector3(-53.0, 1.63, 57.3)),
 		&"zenith_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(22.0, 5.28, 53.3)),
 		&"halyard_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(37.0, 5.28, 53.3)),
+		&"bulwark_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(52.0, 5.28, 53.3)),
 	}
 	var all_transforms_exact := true
 	var all_live := true
 	for berth_id in EXPECTED_BERTH_IDS:
 		all_live = all_live and world.get_berth_node(berth_id) != null
 		all_transforms_exact = all_transforms_exact and world.get_berth_transform(berth_id).is_equal_approx(expected_transforms[berth_id] as Transform3D)
-	_check(all_live and all_transforms_exact, "all five authoritative berth identities and transforms remain exact")
+	_check(all_live and all_transforms_exact, "all six authoritative berth identities and transforms remain exact")
 
 	var authority := module.get_authority_contract()
 	_check(int(authority.ship_berth_count) == 0 and int(authority.landing_or_interaction_area_count) == 0, "deferred comb markers add no landing, boarding or interaction authority")
 	_check(
-		module.get_assigned_dock_roster().size() == 2
-		and module.get_deferred_dock_roster().size() == 1,
-		"two assigned and one deferred dock landmarks remain independently visible and non-authoritative"
+		module.get_assigned_dock_roster().size() == 3
+		and module.get_deferred_dock_roster().is_empty(),
+		"three assigned dock landmarks remain independently visible and non-authoritative"
 	)
 	var assigned := _find_assigned_dock(module.get_assigned_dock_roster(), &"assigned-dock-01")
 	var zenith_berth := world.get_berth_node(&"zenith_fleet_dock_berth")
@@ -196,7 +198,7 @@ func _test_fail_red_and_reentry(world: ShipyardWorld, module: FleetDockComb) -> 
 	_check(not bool(world.get_fleet_dock_comb_integration_audit_report().valid), "integration fails red if an empty landmark gains ShipBerth authority")
 	module.remove_child(rogue_berth)
 	rogue_berth.free()
-	_check(bool(world.get_fleet_dock_comb_integration_audit_report().valid), "removing forbidden authority restores the exact deferred contract")
+	_check(bool(world.get_fleet_dock_comb_integration_audit_report().valid), "removing forbidden authority restores the exact assigned-landmark contract")
 
 	var module_id := module.get_instance_id()
 	var connector := world.get_node(^"ExposedDockLattice/FleetDockCombConnector")

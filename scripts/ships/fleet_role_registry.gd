@@ -56,7 +56,6 @@ const ROLE_CONTRACTS := {
 		"crew_story": "A durable utility hull whose connected hold and cabin make the route the mission.",
 		"weakness": "The fleet's slowest and least agile craft.",
 		"signature_axes": {
-			"maximum_hull": &"maximum",
 			"maximum_speed": &"minimum",
 		},
 	},
@@ -90,6 +89,18 @@ const ROLE_CONTRACTS := {
 			"landing_maximum_speed": &"minimum",
 			"engine_start_time": &"maximum",
 			"weapon_cooldown": &"maximum",
+		},
+	},
+	&"bulwark_heavy_gunship": {
+		"role_id": &"bulwark_heavy_gunship",
+		"role_name": "Heavy gunship",
+		"required_tags": [&"medium_craft", &"gunship", &"bulwark_gunship", &"single_pilot"],
+		"scale_band": &"medium",
+		"interior_expected": false,
+		"crew_story": "An armored gunline hull that trades agility for durable sustained fire.",
+		"weakness": "Slower and less responsive than the small-craft specialists.",
+		"signature_axes": {
+			"maximum_hull": &"maximum",
 		},
 	},
 }

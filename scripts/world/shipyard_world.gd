@@ -17,6 +17,7 @@ const ARROW_RECON_BERTH_ID: StringName = &"arrow_recon_berth"
 const JOVIAN_FREIGHT_BERTH_ID: StringName = &"jovian_freight_berth"
 const ZENITH_FLEET_DOCK_BERTH_ID: StringName = &"zenith_fleet_dock_berth"
 const HALYARD_FLEET_DOCK_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
+const BULWARK_FLEET_DOCK_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
 const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
 const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
@@ -25,6 +26,7 @@ const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
 	JOVIAN_FREIGHT_BERTH_ID,
 	ZENITH_FLEET_DOCK_BERTH_ID,
 	HALYARD_FLEET_DOCK_BERTH_ID,
+	BULWARK_FLEET_DOCK_BERTH_ID,
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -205,6 +207,27 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		# berth origin aft to the comb trunk (the forward apron is deeper still).
 		"cue_half_width": 4.7,
 		"cue_half_length": 11.3,
+	},
+	# Fleet Dock 03. This is the first original-modern Bulwark assignment: the
+	# berth owns the physical landing/recovery contract while the comb marker
+	# remains presentation-only. No historical class-to-berth mapping is implied.
+	BULWARK_FLEET_DOCK_BERTH_ID: {
+		"berth_path": NodePath("BulwarkFleetDockBerth"),
+		"berth_local_transform": Transform3D(
+			Basis.IDENTITY,
+			Vector3(52.0, 5.28, 53.3)
+		),
+		"dock_transform": Transform3D.IDENTITY,
+		"landing_half_extents": Vector3(6.0, 4.5, 6.4),
+		"assist_capture_center": Vector3(0.0, 10.0, -18.0),
+		"assist_capture_half_extents": Vector3(20.0, 14.0, 30.0),
+		"assist_capture_maximum_speed": 26.0,
+		"assist_maximum_tilt_degrees": 75.0,
+		"compatibility_tags": ["bulwark_gunship"],
+		"feedback_path": NodePath("BulwarkFleetDockBerth/BerthFeedback"),
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.21, 0.0)),
+		"cue_half_width": 4.7,
+		"cue_half_length": 4.7,
 	},
 }
 ## PORT-DECK-001 / RUNWAY-SEAM-001 measured geometry constants.
@@ -1885,10 +1908,9 @@ func get_nearby_sector_cluster_audit_report() -> Dictionary:
 
 
 ## Source-bounded B2 comb/slab macro correction. Dock 01 records a modern,
-## externally owned Zenith assignment and Dock 02 a modern, externally owned
-## Halyard assignment; only Dock 03 remains empty and deferred. The component
-## exposes station circulation and landmarks, never berth or ship-regeneration
-## authority itself.
+## externally owned Zenith assignment; Dock 02 and Dock 03 record externally
+## owned Halyard and Bulwark assignments. The component exposes station
+## circulation and landmarks, never berth or ship-regeneration authority itself.
 func get_fleet_dock_comb() -> FleetDockComb:
 	return fleet_dock_comb
 
@@ -1918,11 +1940,11 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 			errors.append("fleet dock comb integration transform drifted")
 		if not fleet_dock_comb.find_children("*", "ShipBerth", true, false).is_empty():
 			errors.append("fleet dock comb landmark module gained live berth authority")
-		# Dock 01 carries the Zenith; dock 02 carries the Halyard Crew Transport,
-		# an original modern design. Neither assignment gives the comb any berth
-		# authority, and neither is a historical class-to-berth mapping.
-		if assigned_docks.size() != 2:
-			errors.append("fleet dock comb must expose exactly two external dock assignments")
+		# Dock 01 carries the Zenith; dock 02 carries the Halyard and dock 03 the
+		# Bulwark, both original modern designs. None of these assignments gives
+		# the comb berth authority or makes a historical class-to-berth mapping.
+		if assigned_docks.size() != 3:
+			errors.append("fleet dock comb must expose exactly three external dock assignments")
 		else:
 			var expected_assignments := {
 				&"assigned-dock-01": {
@@ -1932,6 +1954,10 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 				&"deferred-dock-02": {
 					"ship": &"halyard_new_design",
 					"berth": HALYARD_FLEET_DOCK_BERTH_ID,
+				},
+				&"deferred-dock-03": {
+					"ship": &"bulwark_heavy_gunship",
+					"berth": BULWARK_FLEET_DOCK_BERTH_ID,
 				},
 			}
 			for assignment in assigned_docks:
@@ -1950,15 +1976,8 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 						"marker_transform", Transform3D.IDENTITY
 					) as Transform3D
 					expected_berth_origin = assigned_marker_transform.origin + Vector3.UP * 0.93
-		if deferred_docks.size() != 1:
-			errors.append("fleet dock comb must retain exactly one deferred empty dock")
-		else:
-			for dock in deferred_docks:
-				if dock.get("status", &"") != &"deferred_empty" \
-					or dock.get("ship_assignment", &"") != &"none" \
-					or bool(dock.get("owns_berth_authority", true)):
-					errors.append("fleet dock 03 deferred landmark contract drifted")
-					break
+		if not deferred_docks.is_empty():
+			errors.append("fleet dock comb must have no deferred empty dock after Bulwark promotion")
 	var zenith_berth := get_berth_node(ZENITH_FLEET_DOCK_BERTH_ID)
 	if not is_instance_valid(zenith_berth):
 		errors.append("world-owned Zenith fleet dock berth is missing")
@@ -1978,6 +1997,22 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 			or not is_equal_approx(zenith_berth.get_assist_capture_maximum_speed(), 34.0) \
 			or not is_equal_approx(zenith_berth.get_assist_maximum_tilt_degrees(), 75.0):
 			errors.append("Zenith fleet dock assist-capture contract drifted")
+	var bulwark_berth := get_berth_node(BULWARK_FLEET_DOCK_BERTH_ID)
+	if not is_instance_valid(bulwark_berth):
+		errors.append("world-owned Bulwark fleet dock berth is missing")
+	else:
+		if bulwark_berth.get_parent() != self:
+			errors.append("Bulwark fleet dock berth must remain owned directly by ShipyardWorld")
+		if not bulwark_berth.global_transform.is_equal_approx(
+			Transform3D(Basis.IDENTITY, Vector3(52.0, 5.28, 53.3))
+		):
+			errors.append("Bulwark fleet dock berth no longer aligns above assigned dock 03")
+		if bulwark_berth.get_compatibility_tags() != PackedStringArray(["bulwark_gunship"]):
+			errors.append("Bulwark fleet dock berth compatibility must remain class-specific")
+		if not bulwark_berth.get_landing_half_extents().is_equal_approx(Vector3(6.0, 4.5, 6.4)) \
+			or not is_equal_approx(bulwark_berth.get_assist_capture_maximum_speed(), 26.0) \
+			or not is_equal_approx(bulwark_berth.get_assist_maximum_tilt_degrees(), 75.0):
+			errors.append("Bulwark fleet dock landing/recovery contract drifted")
 	var connector := get_node_or_null(^"ExposedDockLattice/FleetDockCombConnector") as Node3D
 	if connector == null:
 		errors.append("fleet dock comb connector is missing")
@@ -1988,7 +2023,7 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 		elif floor.get_node_or_null(^"Collision") == null:
 			errors.append("fleet dock comb connector floor lacks collision")
 	return {
-		"schema_version": 2,
+		"schema_version": 3,
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"evidence_status": &"modern_interpretation",
@@ -2002,6 +2037,9 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 		"zenith_berth_transform": zenith_berth.global_transform if is_instance_valid(zenith_berth) else Transform3D.IDENTITY,
 		"zenith_berth_id": ZENITH_FLEET_DOCK_BERTH_ID,
 		"zenith_ship_id": &"zenith_b7_observed",
+		"bulwark_berth_transform": bulwark_berth.global_transform if is_instance_valid(bulwark_berth) else Transform3D.IDENTITY,
+		"bulwark_berth_id": BULWARK_FLEET_DOCK_BERTH_ID,
+		"bulwark_ship_id": &"bulwark_heavy_gunship",
 		"connector_local_bounds": AABB(Vector3(-0.25, 3.56, 66.5), Vector3(12.5, 1.94, 3.6)),
 		"assigned_docks": assigned_docks.duplicate(true),
 		"deferred_docks": deferred_docks.duplicate(true),

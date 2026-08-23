@@ -56,7 +56,9 @@ func _init() -> void:
 	definition.evidence_status = EVIDENCE_STATUS_ENUM
 	definition.evidence_references = PackedStringArray()
 	definition.evidence_notes = DESIGN_NOTE
-	definition.compatibility_tags = PackedStringArray(["medium_craft", "gunship", "single_pilot"])
+	definition.compatibility_tags = PackedStringArray([
+		"medium_craft", "gunship", "bulwark_gunship", "single_pilot",
+	])
 	var flight: Dictionary = profile.get("flight_profile", {})
 	definition.maximum_speed = float(flight.get("maximum_speed", 98.0))
 	definition.thrust_acceleration = float(flight.get("thrust_acceleration", 22.0))
@@ -72,8 +74,10 @@ func _init() -> void:
 	definition.roll_speed_degrees = float(flight.get("roll_speed_degrees", 68.0))
 	var systems: Dictionary = profile.get("systems_profile", {})
 	definition.engine_start_time = float(systems.get("engine_start_time", 2.75))
-	definition.weapon_cooldown = float(systems.get("weapon_cooldown", 0.30))
-	definition.maximum_hull = float(systems.get("maximum_hull", 320.0))
+	# The runtime fit owns the fleet's highest hull budget while retaining a
+	# deliberately slower cadence than the interceptor specialists.
+	definition.weapon_cooldown = 0.30
+	definition.maximum_hull = 300.0
 	definition.landing_maximum_speed = float(systems.get("landing_maximum_speed", 13.0))
 	definition.entry_noun = "armored canopy"
 	definition.entry_open_verb = "unlock"
@@ -84,7 +88,7 @@ func _init() -> void:
 	ship_id = definition.ship_id
 	display_name = definition.display_name
 	role_name = definition.role_name
-	home_berth_id = &"bulwark_heavy_gunship_unassigned"
+	home_berth_id = &"bulwark_fleet_dock_berth"
 	identification_accent = IDENTITY_AMBER
 	minimum_chase_camera_distance = 14.0
 	maximum_chase_camera_distance = 32.0
@@ -229,6 +233,21 @@ func get_gunner_station_anchor() -> Marker3D:
 	return _gunner_station_anchor
 
 
+func get_berth_clearance_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"home_berth_id": get_home_berth_id(),
+		"parked_render_bounds": AABB(Vector3(-5.8, -0.9, -6.0), Vector3(11.6, 5.0, 12.0)),
+		"flight_collision_bounds": AABB(Vector3(-5.8, -0.2, -5.3), Vector3(11.6, 3.1, 10.8)),
+		"landing_contact_y": -1.21,
+		"dock_role": &"fleet_dock_03",
+		"provisional": false,
+		"historical_class_to_berth_mapping": false,
+		"physical_boarding_contract": true,
+		"recovery_contract": &"HeroShip.request_berth_landing",
+	}
+
+
 func get_gunner_station_role_contract() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -316,4 +335,3 @@ func _apply_bulwark_metadata() -> void:
 	set_meta("combat_authority", &"HeroShip")
 	set_meta("lifecycle_authority", &"HeroShip")
 	set_meta("content_note", DESIGN_NOTE)
-

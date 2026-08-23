@@ -51,7 +51,7 @@ func _test_evidence_roster_and_audit(module: FleetDockComb) -> void:
 	_check(int(roster.walkable_surface_count) == 7, "roster exposes exactly seven collision-backed walkable surfaces")
 	_check(int(roster.rung_count) == 3 and int(roster.dock_slab_count) == 3, "roster contains exactly three rungs and three broad end slabs")
 	_check(int(roster.vertical_transition_count) == 1, "roster contains exactly one short vertical transition")
-	_check(int(roster.assigned_dock_count) == 2 and int(roster.deferred_dock_count) == 1, "roster separates two external assignments from one deferred empty dock")
+	_check(int(roster.assigned_dock_count) == 3 and int(roster.deferred_dock_count) == 0, "roster exposes three external assignments with no deferred empty dock")
 	_check(roster.surface_ids == roster.expected_surface_ids, "actual surface identities exactly match the public roster")
 	var audit := module.get_audit_report()
 	_check(int(audit.schema_version) == 2 and bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "fresh module passes its complete v2 assignment-aware public audit")
@@ -76,22 +76,13 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 		_check(module.has_route_marker(route_id) and module.get_route_marker(route_id) != null, "route marker resolves: %s" % route_id)
 
 	var docks := module.get_deferred_dock_roster()
-	_check(docks.size() == 1, "dock 03 remains deferred without creating berth specifications")
-	var every_dock_deferred := true
-	for dock in docks:
-		every_dock_deferred = every_dock_deferred \
-			and dock.status == &"deferred_empty" \
-			and dock.ship_assignment == &"none" \
-			and not bool(dock.owns_berth_authority) \
-			and not bool(dock.landing_volume_present) \
-			and not bool(dock.boarding_area_present)
-	_check(every_dock_deferred, "the remaining deferred dock stays empty, unassigned, and non-authoritative")
+	_check(docks.is_empty(), "Dock 03 is no longer deferred after the Bulwark production assignment")
 	var assigned := module.get_assigned_dock_roster()
 	var assigned_dock_01 := _find_assigned_dock(assigned, &"assigned-dock-01")
 	# Dock 02 keeps its original `deferred-dock-02` marker id after promotion.
 	var assigned_dock_02 := _find_assigned_dock(assigned, &"deferred-dock-02")
 	_check(
-		assigned.size() == 2
+		assigned.size() == 3
 		and not assigned_dock_01.is_empty()
 		and assigned_dock_01.ship_assignment == &"zenith_b7_observed"
 		and assigned_dock_01.berth_id == &"zenith_fleet_dock_berth"
@@ -106,6 +97,21 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 		and not bool(assigned_dock_02.owns_berth_authority)
 		and not bool(assigned_dock_02.historical_class_to_berth_mapping),
 		"dock 02 exposes one modern external Halyard assignment without owning authority"
+	)
+	var assigned_dock_03 := _find_assigned_dock(assigned, &"deferred-dock-03")
+	_check(
+		not assigned_dock_03.is_empty()
+		and assigned_dock_03.ship_assignment == &"bulwark_heavy_gunship"
+		and assigned_dock_03.berth_id == &"bulwark_fleet_dock_berth"
+		and not bool(assigned_dock_03.owns_berth_authority)
+		and not bool(assigned_dock_03.historical_class_to_berth_mapping),
+		"dock 03 exposes one modern external Bulwark assignment without owning authority"
+	)
+	var dock_03_surface := module.find_child("DockSlab03Upper", true, false) as StaticBody3D
+	_check(
+		dock_03_surface != null
+		and StringName(dock_03_surface.get_meta("surface_role", &"")) == &"broad-assigned-slab",
+		"dock 03's live walkable-surface role agrees with its Bulwark assignment"
 	)
 	var dock_02_surface := module.find_child("DockSlab02", true, false) as StaticBody3D
 	_check(
@@ -250,16 +256,16 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 132
-		and int(render.mesh_instances) == 88
+		int(render.descendant_nodes) == 133
+		and int(render.mesh_instances) == 89
 		and int(render.multimesh_batches) == 1,
-		"renderer nodes freeze at 143 -> 132, MeshInstances 100 -> 88, batches 0 -> 1"
+		"renderer nodes freeze at 143 -> 133, MeshInstances 100 -> 89, batches 0 -> 1"
 	)
 	_check(
-		int(render.drawn_copies) == 100
-		and int(render.geometry_submissions) == 89
+		int(render.drawn_copies) == 101
+		and int(render.geometry_submissions) == 90
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies remain 100 while surface submissions fall 100 -> 89"
+		"drawn copies become 101 while surface submissions become 90"
 	)
 	_check(
 		int(render.renderer_buffer_floats) == 144
@@ -282,9 +288,9 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 	_check(
 		int(authority.ship_berth_count) == 0
 		and int(authority.landing_or_interaction_area_count) == 0
-		and module.get_assigned_dock_roster().size() == 2
-		and module.get_deferred_dock_roster().size() == 1,
-		"batching leaves berth and interaction authority absent and the dock roster unchanged"
+		and module.get_assigned_dock_roster().size() == 3
+		and module.get_deferred_dock_roster().is_empty(),
+		"batching leaves berth and interaction authority absent and preserves three assigned docks"
 	)
 
 	var detached := render.authored_joint_transforms as Array
@@ -388,14 +394,12 @@ func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
 	# Halyard berth pass put a 28 m crew transport on arm 02 and the module already
 	# counts that arm as an external assignment, but the hardware kept testing the
 	# slab index instead of the dock's status and so stayed stowed and blanked under
-	# a berthed craft. Both assigned arms run their booms out; dock 03 is still
-	# genuinely empty and still stowed, which is what keeps this an exact roster
-	# rather than "all three".
+	# a berthed craft. All three assigned arms run their booms out.
 	_check(
 		int(roster.dock_service_mast_count) == 3
 		and int(roster.dock_mooring_cleat_count) == 6
-		and int(roster.deployed_service_boom_count) == 2,
-		"every arm carries a service mast and two mooring cleats, and exactly the two assigned arms are run out"
+		and int(roster.deployed_service_boom_count) == 3,
+		"every arm carries a service mast and two mooring cleats, and all three assigned arms are run out"
 	)
 	_check(
 		int(roster.deployed_service_boom_count) == int(roster.assigned_dock_count),
