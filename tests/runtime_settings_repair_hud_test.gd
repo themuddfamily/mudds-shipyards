@@ -1,6 +1,7 @@
 extends SceneTree
 
 const HudType := preload("res://scripts/ui/hud.gd")
+const SafeAreaType := preload("res://scripts/ui/ultrawide_safe_area_contract.gd")
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -36,6 +37,9 @@ func _run() -> void:
 	var title := hud.get("_settings_repair_title") as Label
 	var detail := hud.get("_settings_repair_detail") as Label
 	var button := hud.get("_settings_repair_confirm_button") as Button
+	var settings_page := hud.get("_settings_page") as Control
+	var save := settings_page.find_child("SettingsSaveButton", true, false) as Button
+	var back := settings_page.find_child("SettingsBackButton", true, false) as Button
 	_check(
 		panel.visible
 		and title.text == "SETTINGS BACKUP RECOVERY AVAILABLE"
@@ -44,6 +48,28 @@ func _run() -> void:
 		and not button.disabled
 		and button.focus_mode == Control.FOCUS_ALL,
 		"backup recovery is explicit, controller-focusable, and never automatic"
+	)
+	_check(
+		save.get_node(save.focus_neighbor_bottom) == button
+		and button.get_node(button.focus_neighbor_top) == save
+		and button.get_node(button.focus_neighbor_bottom) == back
+		and back.get_node(back.focus_neighbor_top) == button,
+		"visible recovery action is linked into the real controller focus path"
+	)
+	await process_frame
+	var stable_rect := panel.get_global_rect()
+	await process_frame
+	var settings_rect := settings_page.get_global_rect()
+	var safe_rect := SafeAreaType.safe_rect(Vector2(5120.0, 1440.0), hud.get_effective_ui_scale())
+	_check(
+		hud.is_reduced_motion()
+		and panel.get_global_rect() == stable_rect
+		and panel.modulate == Color.WHITE,
+		"reduced motion keeps the recovery notice static and fully readable"
+	)
+	_check(
+		safe_rect.encloses(settings_rect),
+		"32:9 layout keeps the recovery notice's settings page inside the readable safe band"
 	)
 	var emitted: Array[String] = []
 	hud.settings_repair_confirmation_requested.connect(
@@ -62,6 +88,7 @@ func _run() -> void:
 	)
 
 	_check(hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
 		"attached": true,
 		"last_status": {"accepted": false, "reason": &"unsupported_newer_schema"},
 	}), "newer settings report remains visibly fail-closed")
@@ -72,6 +99,7 @@ func _run() -> void:
 		"newer authority cannot expose the repair action"
 	)
 	_check(hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
 		"attached": true,
 		"last_status": {"accepted": false, "reason": &"load_not_repairable"},
 	}), "corrupt settings report remains visibly fail-closed")
@@ -82,6 +110,7 @@ func _run() -> void:
 		"corrupt authority cannot be presented as repaired"
 	)
 	_check(hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
 		"attached": true,
 		"last_status": {
 			"accepted": false,
@@ -96,6 +125,39 @@ func _run() -> void:
 		"ambiguous repair never fabricates success or retry authority"
 	)
 
+	_check(not hud.present_runtime_settings_repair_report({
+		"schema_version": 2,
+		"attached": true,
+		"last_status": available.last_status.duplicate(true),
+	}), "future repair report is rejected")
+	_check(
+		title.text == "SETTINGS RECOVERY STATUS UNAVAILABLE"
+		and not button.visible
+		and not hud.get_runtime_settings_repair_presentation().confirmation_available
+		and save.focus_neighbor_bottom.is_empty()
+		and back.focus_neighbor_top.is_empty(),
+		"future report clears the old token and controller links before showing unavailable"
+	)
+	_check(not hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
+		"attached": true,
+		"last_status": "malformed",
+	}), "malformed repair status is rejected")
+	button.pressed.emit()
+	_check(
+		emitted == [token]
+		and title.text == "SETTINGS RECOVERY STATUS UNAVAILABLE"
+		and not hud.get_runtime_settings_repair_presentation().confirmation_available,
+		"malformed status cannot replay an earlier confirmation or overwrite unavailable text"
+	)
+	var incomplete_available := available.duplicate(true)
+	incomplete_available.last_status.erase("preserves_unrelated_payload")
+	_check(
+		not hud.present_runtime_settings_repair_report(incomplete_available)
+		and not button.visible,
+		"incomplete backup contract cannot become actionable"
+	)
+
 	hud.present_runtime_settings_repair_report(available)
 	hud.present_runtime_settings_repair_report({"attached": false})
 	_check(
@@ -103,6 +165,7 @@ func _run() -> void:
 		"caller detach clears the notice and detached report"
 	)
 	hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
 		"attached": true,
 		"last_status": {
 			"accepted": true,
@@ -110,6 +173,8 @@ func _run() -> void:
 			"kind": &"promote_verified_backup",
 			"generation": 8,
 			"confirmation": "reset-token",
+			"preserves_unrelated_payload": true,
+			"newer_schema": false,
 		},
 	})
 	hud.clear_runtime_settings_repair_report()
@@ -118,7 +183,27 @@ func _run() -> void:
 		and not hud.get_runtime_settings_repair_presentation().confirmation_available,
 		"caller state reset clears the action token"
 	)
-	hud.queue_free()
+	hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
+		"attached": true,
+		"last_status": {
+			"accepted": true,
+			"reason": &"repair_available",
+			"kind": &"promote_verified_backup",
+			"generation": 9,
+			"confirmation": "detach-token",
+			"preserves_unrelated_payload": true,
+			"newer_schema": false,
+		},
+	})
+	root.remove_child(hud)
+	_check(
+		not panel.visible
+		and hud.get_runtime_settings_repair_presentation().report.is_empty()
+		and not hud.get_runtime_settings_repair_presentation().confirmation_available,
+		"actual HUD exit-tree clears the detached report and confirmation"
+	)
+	hud.free()
 	await process_frame
 	if _failures.is_empty():
 		print("RUNTIME_SETTINGS_REPAIR_HUD_TEST_OK (%d assertions)" % _assertions)

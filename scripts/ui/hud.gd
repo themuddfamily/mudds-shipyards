@@ -1833,6 +1833,18 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 	if report.is_empty() or not bool(report.get("attached", false)):
 		clear_runtime_settings_repair_report()
 		return false
+	# Clear the previous actionable state before parsing anything supplied by the
+	# caller. A malformed or future report can therefore never inherit an older
+	# token or controller path.
+	clear_runtime_settings_repair_report()
+	_settings_repair_report = report.duplicate(true)
+	_settings_repair_panel.visible = true
+	if int(report.get("schema_version", -1)) != 1:
+		_show_settings_repair_failure(
+			"SETTINGS RECOVERY STATUS UNAVAILABLE",
+			"Recovery details use an unsupported format. This HUD made no settings changes."
+		)
+		return false
 	var status_variant: Variant = report.get("last_status", report)
 	if status_variant is not Dictionary:
 		_show_settings_repair_failure(
@@ -1841,12 +1853,6 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 		)
 		return false
 	var status := (status_variant as Dictionary).duplicate(true)
-	_settings_repair_report = report.duplicate(true)
-	_settings_repair_confirmation = ""
-	_settings_repair_confirm_button.visible = false
-	_settings_repair_confirm_button.disabled = true
-	_settings_repair_panel.visible = true
-	_configure_settings_repair_focus(false)
 	var reason := StringName(status.get("reason", &""))
 	if (
 		bool(status.get("accepted", false))
@@ -1854,6 +1860,8 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 		and status.get("kind", &"") == &"promote_verified_backup"
 		and int(status.get("generation", -1)) > 0
 		and not str(status.get("confirmation", "")).is_empty()
+		and status.get("preserves_unrelated_payload", false) == true
+		and status.get("newer_schema", true) == false
 	):
 		_settings_repair_confirmation = str(status.get("confirmation", ""))
 		_settings_repair_title.text = "SETTINGS BACKUP RECOVERY AVAILABLE"
@@ -1920,6 +1928,7 @@ func clear_runtime_settings_repair_report() -> void:
 	if is_instance_valid(_settings_repair_panel):
 		_settings_repair_panel.visible = false
 	if is_instance_valid(_settings_repair_confirm_button):
+		_settings_repair_confirm_button.visible = false
 		_settings_repair_confirm_button.disabled = true
 	_configure_settings_repair_focus(false)
 
