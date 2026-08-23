@@ -409,6 +409,18 @@ func is_fire_authorized(member: Node) -> bool:
 	return true
 
 
+## Explicit owner/generation seam consumed by the production standoff picket.
+## The picket re-asks this on the dispatch frame, so a concluded/replaced
+## scenario generation cannot transfer its old fire grant to a later run.
+func is_picket_dispatch_authorized(member: Node, expected_generation: int) -> bool:
+	return (
+		expected_generation == _scenario_generation
+		and _scenario == SCENARIO_HEAVY_BREACH
+		and member == _breach_picket
+		and is_fire_authorized(member)
+	)
+
+
 ## Detached maneuver/fire intent for the live paired-wing tactic. Opponents use
 ## `is_fire_authorized()` directly; this snapshot makes the simultaneous anchor
 ## suppression and covered flanking decision inspectable without owning motion,
@@ -1055,8 +1067,21 @@ func _launch_heavy_breach() -> void:
 	var picket_origin := _protected_anchor.global_position - to_objective * 132.0 + Vector3.UP * 28.0
 	var picket_facing := _protected_anchor.global_position - picket_origin
 	var picket_up := Vector3.UP if absf(picket_facing.normalized().dot(Vector3.UP)) < 0.965 else Vector3.FORWARD
-	picket.activate(Transform3D(Basis.looking_at(picket_facing.normalized(), picket_up).orthonormalized(), picket_origin))
-	picket.set_target(_protected_anchor)
+	if not picket.has_method(&"activate_authorized_dispatch"):
+		return
+	var picket_dispatch: Dictionary = picket.call(
+		&"activate_authorized_dispatch",
+		Transform3D(
+			Basis.looking_at(picket_facing.normalized(), picket_up).orthonormalized(),
+			picket_origin,
+		),
+		_protected_anchor,
+		self,
+		_scenario_generation,
+		null,
+	) as Dictionary
+	if not bool(picket_dispatch.get("accepted", false)):
+		return
 	var coordinator := _get_wing_coordinator()
 	if is_instance_valid(coordinator):
 		coordinator.enlist(picket)

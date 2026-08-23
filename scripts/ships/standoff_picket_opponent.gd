@@ -141,6 +141,11 @@ const CONTENT_NOTE := (
 var _registered := false
 var _escort_dispatched := false
 var _escort_fire_authorized := false
+var _dispatch_generation := 0
+var _dispatch_owner_generation := 0
+var _dispatch_owner_instance_id := 0
+var _dispatch_authority_owner: Node
+var _dispatch_defender: RangeOpponent
 var _escort_elapsed := 0.0
 var _engagement_state: StringName = STATE_DORMANT
 var _last_shot_result: Dictionary = {}
@@ -155,6 +160,7 @@ var _shots_aborted := 0
 var _weapon_definition: WeaponDefinition
 var _lance_charge_generation := 0
 var _lance_charge_target_instance_id := 0
+var _lance_charge_dispatch_generation := 0
 var _lance_charge_armed := false
 var _lance_charge_cancel_reason: StringName = &""
 var _audio_sequence := 0
@@ -185,13 +191,12 @@ func _ready() -> void:
 	set_meta("modern_interpretation", &"standoff_picket_opponent")
 	_attach_damage_proxy()
 	_connect_pulse_signals()
-	_bind_escort_defender_signal()
 	_bind_siege_lance_audio()
 
 
 func _exit_tree() -> void:
 	_unbind_siege_lance_audio()
-	_unbind_escort_defender_signal()
+	_revoke_dispatch_authorization(&"detached")
 	_disconnect_pulse_signals()
 	# Damage authority is already final; only queued presentation is dropped so a
 	# streamed teardown can never resurrect a transient on re-entry.
@@ -281,6 +286,7 @@ func get_lance_charge_snapshot() -> Dictionary:
 		"remaining": maxf(_telegraph_remaining, 0.0),
 		"target_generation": _lance_charge_generation,
 		"target_instance_id": _lance_charge_target_instance_id,
+		"dispatch_generation": _lance_charge_dispatch_generation,
 		"armed": _lance_charge_armed,
 		"cancel_reason": _lance_charge_cancel_reason,
 	}.duplicate(true)
@@ -475,6 +481,9 @@ func get_audit_report() -> Dictionary:
 			"escort_enabled": escort_enabled,
 			"escort_dispatched": _escort_dispatched,
 			"escort_fire_authorized": _escort_fire_authorized,
+			"dispatch_generation": _dispatch_generation,
+			"dispatch_owner_generation": _dispatch_owner_generation,
+			"dispatch_owner_instance_id": _dispatch_owner_instance_id,
 			"engagement_state": _engagement_state,
 			"pending_lance_receipts": _lance_receipts.size(),
 			"shots_fired": _shots_fired,
@@ -541,6 +550,10 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 			"accepted": false,
 			"reason": &"queued_for_deletion",
 		}.duplicate(true)
+	# In escort mode activation alone is movement/lifecycle authority, never fire
+	# authority. Only `activate_authorized_dispatch()` below may publish a grant.
+	if escort_enabled:
+		_revoke_dispatch_authorization(&"activation_reset")
 	var activation := super(spawn_transform) as Dictionary
 	if not bool(activation.get("accepted", false)):
 		return activation
@@ -552,6 +565,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_cancel_lance_charge(&"activation_reset", false)
 	_lance_charge_generation = 0
 	_lance_charge_target_instance_id = 0
+	_lance_charge_dispatch_generation = 0
 	_discard_lance_receipts()
 	if _siege_lance_audio_binding != null:
 		_siege_lance_audio_binding.reset_for_reuse()
@@ -560,8 +574,57 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	return activation
 
 
+## Activates one explicitly owned dispatch and returns its detached authority
+## receipt. Escort dispatches name their defender as both owner and synchronous
+## cancellation source. Scenario dispatches name the director and its scenario
+## generation; that owner is re-asked at the irreversible fire seam.
+func activate_authorized_dispatch(
+		spawn_transform: Transform3D,
+		target: Node3D,
+		authority_owner: Node,
+		owner_generation: int,
+		escort_defender: RangeOpponent = null
+	) -> Dictionary:
+	if not escort_enabled:
+		return {"accepted": false, "reason": &"escort_mode_disabled"}.duplicate(true)
+	if (
+		not is_instance_valid(target)
+		or target.is_queued_for_deletion()
+		or not target.is_inside_tree()
+		or not is_instance_valid(authority_owner)
+		or authority_owner.is_queued_for_deletion()
+		or not authority_owner.is_inside_tree()
+		or owner_generation <= 0
+	):
+		return {"accepted": false, "reason": &"invalid_dispatch_authority"}.duplicate(true)
+	if is_instance_valid(escort_defender):
+		if authority_owner != escort_defender or not escort_defender.is_active():
+			return {"accepted": false, "reason": &"invalid_escort_owner"}.duplicate(true)
+	elif not authority_owner.has_method(&"is_picket_dispatch_authorized"):
+		return {"accepted": false, "reason": &"unsupported_dispatch_owner"}.duplicate(true)
+
+	var activation := activate(spawn_transform)
+	if not bool(activation.get("accepted", false)):
+		return activation
+	set_target(target)
+	_dispatch_generation += 1
+	_dispatch_owner_generation = owner_generation
+	_dispatch_authority_owner = authority_owner
+	_dispatch_owner_instance_id = authority_owner.get_instance_id()
+	_dispatch_defender = escort_defender
+	_escort_dispatched = true
+	_escort_fire_authorized = true
+	if is_instance_valid(_dispatch_defender):
+		_bind_escort_defender_signal(_dispatch_defender)
+	var receipt := activation.duplicate(true)
+	receipt["dispatch_generation"] = _dispatch_generation
+	receipt["owner_generation"] = _dispatch_owner_generation
+	receipt["owner_instance_id"] = _dispatch_owner_instance_id
+	return receipt
+
+
 func deactivate() -> void:
-	_escort_fire_authorized = false
+	_revoke_dispatch_authorization(&"deactivated")
 	_post_shot_relocation_remaining = 0.0
 	_cancel_lance_charge(&"deactivated", false)
 	_lance_charge_target_instance_id = 0
@@ -588,7 +651,7 @@ func _unbind_siege_lance_audio() -> void:
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
-	_escort_fire_authorized = false
+	_revoke_dispatch_authorization(&"destroyed")
 	_post_shot_relocation_remaining = 0.0
 	_cancel_lance_charge(&"destroyed", false)
 	_lance_charge_target_instance_id = 0
@@ -604,7 +667,6 @@ func _restore_after_reentry() -> void:
 	if is_queued_for_deletion() or not is_inside_tree():
 		return
 	_connect_pulse_signals()
-	_bind_escort_defender_signal()
 	_attach_damage_proxy()
 	if _active:
 		_register_combat_source()
@@ -615,19 +677,35 @@ func _restore_after_reentry() -> void:
 ## Dispatches and withdraws the picket with the defender wave it escorts. The
 ## delay is accumulated from fixed physics deltas, never from a wall clock.
 func _update_escort_dispatch(delta: float) -> void:
-	if not escort_enabled or not is_inside_tree():
+	if not is_inside_tree():
 		return
-	_bind_escort_defender_signal()
-	var defender := get_node_or_null(defender_path)
+	if not escort_enabled:
+		# A runtime switch to direct/manual use severs the old escort signal before
+		# it can cancel a manual charge.
+		if is_instance_valid(_dispatch_authority_owner) or is_instance_valid(_bound_escort_defender):
+			_revoke_dispatch_authorization(&"manual_mode")
+		return
+	var defender := get_node_or_null(defender_path) as RangeOpponent
+	if is_instance_valid(_dispatch_authority_owner):
+		# A scenario-owned grant is deliberately independent of the ambient defender.
+		if not is_instance_valid(_dispatch_defender):
+			return
+		if defender == _dispatch_defender and defender.is_active():
+			return
+		var was_active_dispatch := _escort_dispatched
+		_revoke_dispatch_authorization(&"escort_owner_changed")
+		if was_active_dispatch and _active:
+			deactivate()
+		return
 	var defender_active := (
 		is_instance_valid(defender)
 		and defender.has_method(&"is_active")
 		and bool(defender.call(&"is_active"))
 	)
 	if not defender_active:
-		_escort_fire_authorized = false
 		_escort_elapsed = 0.0
 		if _escort_dispatched:
+			_revoke_dispatch_authorization(&"escort_stood_down")
 			_escort_dispatched = false
 			if _active:
 				deactivate()
@@ -642,14 +720,16 @@ func _update_escort_dispatch(delta: float) -> void:
 	var target := _resolve_encounter_target()
 	if not is_instance_valid(target):
 		return
-	_escort_dispatched = true
-	var activation := activate(_compute_dispatch_transform(defender as Node3D, target))
+	var next_owner_generation := _dispatch_generation + 1
+	var activation := activate_authorized_dispatch(
+		_compute_dispatch_transform(defender, target),
+		target,
+		defender,
+		next_owner_generation,
+		defender,
+	)
 	if not bool(activation.get("accepted", false)):
-		_escort_dispatched = false
-		_escort_fire_authorized = false
 		return
-	_escort_fire_authorized = true
-	set_target(target)
 
 
 ## Dispatch is authorized only while the coordinator is actually running its
@@ -676,16 +756,30 @@ func _is_fire_authorized() -> bool:
 		return true
 	if not _escort_dispatched or not _escort_fire_authorized:
 		return false
-	var defender := get_node_or_null(defender_path)
+	if (
+		not is_instance_valid(_dispatch_authority_owner)
+		or _dispatch_authority_owner.get_instance_id() != _dispatch_owner_instance_id
+		or not _dispatch_authority_owner.is_inside_tree()
+		or _dispatch_owner_generation <= 0
+	):
+		return false
+	if is_instance_valid(_dispatch_defender):
+		return (
+			_dispatch_authority_owner == _dispatch_defender
+			and get_node_or_null(defender_path) == _dispatch_defender
+			and _dispatch_defender.is_active()
+		)
 	return (
-		is_instance_valid(defender)
-		and defender.has_method(&"is_active")
-		and bool(defender.call(&"is_active"))
+		_dispatch_authority_owner.has_method(&"is_picket_dispatch_authorized")
+		and bool(_dispatch_authority_owner.call(
+			&"is_picket_dispatch_authorized", self, _dispatch_owner_generation
+		))
 	)
 
 
-func _bind_escort_defender_signal() -> void:
-	var defender := get_node_or_null(defender_path) as RangeOpponent
+func _bind_escort_defender_signal(defender: RangeOpponent) -> void:
+	if not escort_enabled:
+		return
 	if defender == _bound_escort_defender:
 		return
 	_unbind_escort_defender_signal()
@@ -707,9 +801,21 @@ func _unbind_escort_defender_signal() -> void:
 
 
 func _on_escort_defender_destroyed(_death_position: Vector3) -> void:
+	if not escort_enabled or _bound_escort_defender != _dispatch_defender:
+		return
+	_revoke_dispatch_authorization(&"escort_stood_down")
+
+
+func _revoke_dispatch_authorization(reason: StringName) -> void:
 	_escort_fire_authorized = false
+	_escort_dispatched = false
+	_dispatch_owner_generation = 0
+	_dispatch_owner_instance_id = 0
+	_dispatch_authority_owner = null
+	_dispatch_defender = null
+	_unbind_escort_defender_signal()
 	if _lance_charge_armed or _telegraph_remaining > 0.0:
-		_cancel_lance_charge(&"escort_stood_down", false)
+		_cancel_lance_charge(reason, false)
 
 
 func _resolve_encounter_target() -> Node3D:
@@ -818,6 +924,7 @@ func _update_weapon(
 		return
 	_lance_charge_target_instance_id = _target.get_instance_id()
 	_lance_charge_generation = maxi(_lance_charge_generation, 1)
+	_lance_charge_dispatch_generation = _dispatch_generation if escort_enabled else 0
 	_lance_charge_armed = true
 	_lance_charge_cancel_reason = &""
 	_telegraph_remaining = telegraph_time
@@ -849,6 +956,7 @@ func _cancel_lance_charge(reason: StringName, count_abort: bool) -> void:
 	if _telegraph_remaining > 0.0:
 		_telegraph_remaining = 0.0
 	_lance_charge_armed = false
+	_lance_charge_dispatch_generation = 0
 	_lance_charge_cancel_reason = reason
 
 
@@ -858,6 +966,7 @@ func _is_lance_charge_authorized() -> bool:
 		and _has_current_target()
 		and _target.get_instance_id() == _lance_charge_target_instance_id
 		and _lance_charge_generation > 0
+		and (not escort_enabled or _lance_charge_dispatch_generation == _dispatch_generation)
 	)
 
 

@@ -29,6 +29,8 @@ const AuthorityScript := preload("res://scripts/combat/live_combat_authority.gd"
 const COURIER_SCENE := preload("res://scenes/ships/courier_runner_opponent.tscn")
 const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
 const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
+const DEFENDER_SCENE := preload("res://scenes/ships/range_opponent.tscn")
+const AdapterScript := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 
 ## Short, bounded values so every branch resolves inside a frame budget. The
 ## production values are asserted separately, from the real scene.
@@ -766,16 +768,24 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 	var director: EncounterScenarioDirector = fixture.director
 	var coordinator: WingCoordinator = fixture.coordinator
 	var target: EncounterTarget = fixture.target
-	var protected := EncounterTarget.new()
+	var protected := DEFENDER_SCENE.instantiate() as RangeOpponent
 	protected.name = "HeavyBreachProtectedObjective"
+	_wire(protected)
 	(fixture.host as Node3D).add_child(protected)
-	protected.collision_layer = 0
-	protected.global_position = Vector3(0.0, 0.0, -180.0)
+	protected.acceleration = 0.0
+	protected.cruise_speed = 0.0
+	protected.chase_speed = 0.0
+	protected.activate(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, -180.0)))
+	(fixture.authority as LiveCombatAuthority).attach_lifecycle_damageable(
+		protected,
+		AdapterScript.LifecycleKind.RANGE_OPPONENT,
+		&"protected_objective",
+	)
 	var picket: StandoffPicketOpponent = fixture.picket
 	picket.acceleration = 0.0
 	picket.cruise_speed = 0.0
 	picket.initial_arming_delay = 0.0
-	picket.telegraph_time = 1.5
+	picket.telegraph_time = 0.2
 	picket._cooldown_remaining = 0.0
 	_check(
 		director.begin_heavy_breach(target, protected),
@@ -784,13 +794,16 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 	picket._cooldown_remaining = 0.0
 	var generation := director.get_scenario_generation()
 	var receipt := director.get_heavy_breach_receipt(generation)
+	var dispatch_lifecycle := picket.get_audit_report().lifecycle as Dictionary
 	_check(
 		bool(receipt.get("accepted", false))
 			and int(receipt.get("generation", 0)) == generation
 			and int(receipt.get("picket_instance_id", 0)) == picket.get_instance_id()
 			and int(receipt.get("protected_objective_instance_id", 0)) == protected.get_instance_id()
+			and int(dispatch_lifecycle.get("dispatch_owner_generation", 0)) == generation
+			and int(dispatch_lifecycle.get("dispatch_owner_instance_id", 0)) == director.get_instance_id()
 			and not bool(director.get_heavy_breach_receipt(generation + 1).get("accepted", false)),
-		"heavy breach receipt fences the picket and protected objective generation"
+		"heavy breach receipt fences the picket, owner, and protected objective generation"
 	)
 	var screen: FlankingSkirmisherOpponent = fixture.skirmishers[0]
 	_check(
@@ -809,13 +822,25 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 			and bool(screen_intent.fire_authorized),
 		"the picket charges the protected objective while its paired wing screens the caller"
 	)
-	await _advance_physics(24)
-	var charge := picket.get_lance_charge_snapshot()
+	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
+	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
+	var protected_health_before := protected.get_health()
+	var resolved_fire := await _advance_until(
+		func() -> bool:
+			return resolver.get_last_sequence(picket, picket.source_id) > sequence_before,
+		180,
+	)
+	var scenario_shot := picket.get_last_shot_result()
 	_check(
-		int(charge.get("target_instance_id", 0)) == protected.get_instance_id()
-			and int(charge.get("target_generation", 0)) > 0
-			and bool(charge.get("active", false)),
-		"the production picket keeps a generation-fenced protected-objective target"
+		resolved_fire
+			and bool(scenario_shot.get("accepted", false))
+			and bool(scenario_shot.get("resolved", false))
+			and bool(scenario_shot.get("damaged", false))
+			and resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1
+			and is_equal_approx(
+				protected.get_health(), protected_health_before - picket.lance_damage
+			),
+		"RED: production heavy-breach authority resolves one picket lance and authoritative damage"
 	)
 	screen.apply_damage(
 		screen.maximum_health * (1.0 - coordinator.critical_disengage_ratio + 0.01),
@@ -836,6 +861,7 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 		"resolver destruction of the heavy picket clears and stands down the breach"
 	)
 	await _assert_fully_terminated(fixture, "heavy breach picket destroyed")
+	protected.deactivate()
 	protected.queue_free()
 	await _free_fixture(fixture)
 
@@ -1239,7 +1265,6 @@ func _make_fixture() -> Dictionary:
 
 	var picket := PICKET_SCENE.instantiate() as StandoffPicketOpponent
 	picket.name = "StandoffPicket"
-	picket.escort_enabled = false
 	_wire(picket)
 	host.add_child(picket)
 
