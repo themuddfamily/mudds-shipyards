@@ -789,6 +789,26 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 		and int(pod_mesh_counts.retained_unique_meshes) == 1,
 		"seven couriers retain one immutable PortPod/StarboardPod mesh across fourteen stable presentation nodes"
 	)
+	var hull_mesh_ids := {}
+	var hulls_preserve_presentation_contract := true
+	for agent in agents:
+		var hull := agent.get_node_or_null(^"PresentationRoot/ServiceCarriage/Hull") as MeshInstance3D
+		if hull == null or hull.mesh == null:
+			hulls_preserve_presentation_contract = false
+			continue
+		hull_mesh_ids[hull.mesh.get_instance_id()] = true
+		var material_ids := (agent.get_material_catalog_audit().identity_by_key as Dictionary)
+		hulls_preserve_presentation_contract = hulls_preserve_presentation_contract \
+			and hull.position.is_equal_approx(Vector3.ZERO) \
+			and hull.basis.is_equal_approx(Basis.IDENTITY) \
+			and hull.material_override != null \
+			and hull.material_override.get_instance_id() == int(material_ids.get("hull", 0))
+	_check(
+		hulls_preserve_presentation_contract
+		and hull_mesh_ids.size() == 1
+		and agents.size() == 7,
+		"seven couriers retain one immutable Hull mesh across their stable presentation nodes"
+	)
 	if agents.size() >= 2:
 		var mutated_pod := agents[1].get_node_or_null(^"PresentationRoot/ServiceCarriage/PortPod") as MeshInstance3D
 		_check(mutated_pod != null, "a second production courier exposes PortPod at its stable presentation path")

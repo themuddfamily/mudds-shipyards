@@ -92,6 +92,12 @@ const PORT_POD_POSITION := Vector3(-0.56, -0.02, 0.06)
 const STARBOARD_POD_POSITION := Vector3(0.56, -0.02, 0.06)
 static var _shared_pod_mesh: ArrayMesh
 
+## Every courier's central hull is the same immutable, visual-only recipe.
+## Retaining it once per session removes one identical mesh allocation from each
+## independently built production courier without changing any presentation node.
+const HULL_MESH_SIZE := Vector3(0.86, 0.34, 1.18)
+static var _shared_hull_mesh: ArrayMesh
+
 const CONTENT_NOTE := (
 	"The remake brief supports ambient station activity, cargo movement, and "
 	+ "animated equipment. It does not authenticate this courier silhouette, its "
@@ -1180,7 +1186,7 @@ func _build_courier() -> void:
 	_carriage = Node3D.new()
 	_carriage.name = "ServiceCarriage"
 	_presentation_root.add_child(_carriage)
-	_box(_carriage, "Hull", Vector3(0.0, 0.0, 0.0), Vector3(0.86, 0.34, 1.18), _materials["hull"])
+	_box(_carriage, "Hull", Vector3.ZERO, HULL_MESH_SIZE, _materials["hull"], _get_shared_hull_mesh())
 	_box(_carriage, "ForwardCowl", Vector3(0.0, 0.02, -0.72), Vector3(0.5, 0.26, 0.34), _materials["hull_edge"])
 	var pod_mesh := _get_shared_pod_mesh()
 	_box(_carriage, "PortPod", PORT_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
@@ -1225,6 +1231,17 @@ static func _get_shared_pod_mesh() -> ArrayMesh:
 			StationSurfaceKit.BevelUV.FACE_GRID
 		)
 	return _shared_pod_mesh
+
+
+static func _get_shared_hull_mesh() -> ArrayMesh:
+	if _shared_hull_mesh == null:
+		_shared_hull_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+			HULL_MESH_SIZE,
+			StationSurfaceKit.proportional_bevel_for_size(HULL_MESH_SIZE, 0.2),
+			{},
+			StationSurfaceKit.BevelUV.FACE_GRID
+		)
+	return _shared_hull_mesh
 
 
 func _capture_built_hierarchy() -> void:
