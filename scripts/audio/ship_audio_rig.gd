@@ -215,6 +215,7 @@ var _built_reference_distance := 0.0
 
 var _engine_running := false
 var _throttle := 0.0
+var _engine_degradation := 0.0
 var _boost_requested := false
 var _damage_alarm_active := false
 var _last_cue_id: StringName = &""
@@ -315,6 +316,21 @@ func set_engine_running(running: bool, play_transition: bool = true) -> bool:
 		play_cue(CUE_STARTUP if running else CUE_STOP)
 	_emit_state_changed()
 	return true
+
+
+## Applies caller-owned presentation degradation to engine loops. Zero is the
+## authored baseline; this never reads health or owns damage authority.
+func set_engine_degradation(degradation: float) -> bool:
+	if not _can_mutate_runtime_state() or not is_finite(degradation) \
+			or degradation < 0.0 or degradation > 1.0:
+		return false
+	_engine_degradation = degradation
+	_update_expected_mix(_get_built_profile_spec())
+	return true
+
+
+func get_engine_degradation() -> float:
+	return _engine_degradation
 
 
 func is_engine_running() -> bool:
@@ -483,6 +499,7 @@ func get_state_snapshot() -> Dictionary:
 		"rig_enabled": rig_enabled,
 		"engine_running": _engine_running,
 		"throttle": _throttle,
+		"engine_degradation": _engine_degradation,
 		"boost_requested": _boost_requested,
 		"boost_active": _engine_running and _boost_requested and _throttle >= MINIMUM_BOOST_THROTTLE,
 		"damage_alarm_active": _damage_alarm_active,
@@ -804,13 +821,15 @@ func _is_loop_desired(loop_id: StringName) -> bool:
 
 func _update_expected_mix(profile: Dictionary) -> void:
 	var engine_pitch := float(profile.get("engine_pitch_scale", 1.0))
-	_expected_volumes[VOICE_IDLE] = float(profile.get("idle_volume_db", -15.0)) + lerpf(-1.0, 1.0, _throttle)
-	_expected_volumes[VOICE_LOAD] = float(profile.get("load_volume_db", -10.5)) + linear_to_db(maxf(_throttle, 0.05))
-	_expected_volumes[VOICE_BOOST] = float(profile.get("boost_volume_db", -7.0))
+	var degradation_gain_db := -6.0 * _engine_degradation
+	var degradation_pitch := lerpf(1.0, 0.86, _engine_degradation)
+	_expected_volumes[VOICE_IDLE] = float(profile.get("idle_volume_db", -15.0)) + lerpf(-1.0, 1.0, _throttle) + degradation_gain_db
+	_expected_volumes[VOICE_LOAD] = float(profile.get("load_volume_db", -10.5)) + linear_to_db(maxf(_throttle, 0.05)) + degradation_gain_db
+	_expected_volumes[VOICE_BOOST] = float(profile.get("boost_volume_db", -7.0)) + degradation_gain_db
 	_expected_volumes[VOICE_ALARM] = float(profile.get("alarm_volume_db", -8.5))
-	_expected_pitches[VOICE_IDLE] = engine_pitch * lerpf(0.92, 1.06, _throttle)
-	_expected_pitches[VOICE_LOAD] = engine_pitch * lerpf(0.84, 1.22, _throttle)
-	_expected_pitches[VOICE_BOOST] = engine_pitch * lerpf(1.08, 1.18, _throttle)
+	_expected_pitches[VOICE_IDLE] = engine_pitch * lerpf(0.92, 1.06, _throttle) * degradation_pitch
+	_expected_pitches[VOICE_LOAD] = engine_pitch * lerpf(0.84, 1.22, _throttle) * degradation_pitch
+	_expected_pitches[VOICE_BOOST] = engine_pitch * lerpf(1.08, 1.18, _throttle) * degradation_pitch
 	_expected_pitches[VOICE_ALARM] = float(profile.get("cue_pitch_scale", 1.0))
 	for voice_id in LOOP_VOICE_IDS:
 		var player := _players.get(voice_id) as AudioStreamPlayer3D
