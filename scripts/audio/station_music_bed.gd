@@ -312,6 +312,10 @@ func set_combat_mix_intensity(intensity: float) -> bool:
 	if not _can_mutate_live_bed() or not is_finite(intensity) \
 			or intensity < 0.0 or intensity > MAX_COMBAT_MIX_INTENSITY:
 		return false
+	if is_instance_valid(_music_director):
+		var observation := _music_director.set_combat_intensity(intensity)
+		if not bool(observation.get("accepted", false)):
+			return false
 	_combat_mix_intensity = intensity
 	_apply_session_targets()
 	if is_inside_tree() and not _tearing_down:

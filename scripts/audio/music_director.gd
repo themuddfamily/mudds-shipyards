@@ -26,10 +26,12 @@ const OBSERVED_PHASES: Array[StringName] = [
 	&"planetary",
 ]
 const OBSERVED_SESSION_STATES: Array[StringName] = [&"rest", &"flight", &"combat"]
+const MAX_COMBAT_INTENSITY := 1.0
 
 var _transition := Transition.new()
 var _last_observation: StringName = &"station"
 var _observation_count := 0
+var _combat_intensity := 0.0
 
 
 ## Records the already-decided station-bed session vocabulary.
@@ -60,6 +62,24 @@ func advance(delta_seconds: float) -> bool:
 	return _transition.advance(delta_seconds)
 
 
+## Records a caller-owned presentation intensity; this never selects combat or
+## changes gameplay state. StationMusicBed may consume the detached value.
+func set_combat_intensity(intensity: float) -> Dictionary:
+	if not is_finite(intensity) or intensity < 0.0 or intensity > MAX_COMBAT_INTENSITY:
+		return _rejected(&"invalid_combat_intensity")
+	_combat_intensity = intensity
+	return {
+		"accepted": true,
+		"reason": &"combat_intensity_recorded",
+		"combat_intensity": _combat_intensity,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
+func get_combat_intensity() -> float:
+	return _combat_intensity
+
+
 func set_accessibility_muted(muted: bool) -> Dictionary:
 	return _transition.set_accessibility_muted(muted)
 
@@ -74,6 +94,7 @@ func get_snapshot() -> Dictionary:
 	snapshot["component_id"] = COMPONENT_ID
 	snapshot["last_observation"] = _last_observation
 	snapshot["observation_count"] = _observation_count
+	snapshot["combat_intensity"] = _combat_intensity
 	return snapshot.duplicate(true)
 
 

@@ -21,6 +21,10 @@ func _run() -> void:
 		"combat remains silent until a presentation intensity is supplied"
 	)
 	_check(bed.set_combat_mix_intensity(0.75), "bounded combat mix intensity is accepted")
+	_check(
+		is_equal_approx(bed.get_music_director().get_combat_intensity(), 0.75),
+		"combat intensity is recorded by the presentation music director"
+	)
 	var tension_targets := bed.get_state_snapshot().layer_targets as Dictionary
 	_check(
 		is_equal_approx(float(tension_targets.drone), 0.09)
