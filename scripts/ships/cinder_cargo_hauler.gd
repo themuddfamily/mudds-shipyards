@@ -468,24 +468,19 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 		ACCENT_COLOR
 	)
 	boarding_step.set_meta(&"route_id", CABIN_ROUTE_ID)
-	var threshold_post_port := _add_interior_box(
+	var threshold_post_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, _cargo_boarding_marker.position + Vector3(0.0, 1.02, -0.72)),
+		Transform3D(Basis.IDENTITY, _cargo_boarding_marker.position + Vector3(0.0, 1.02, 0.72)),
+	]
+	var threshold_posts := _add_visual_box_batch(
 		visual,
-		"CargoThresholdPostPort",
-		_cargo_boarding_marker.position + Vector3(0.0, 1.02, -0.72),
+		"CargoThresholdPostBatch",
 		Vector3(0.16, 2.05, 0.16),
-		ACCENT_COLOR
+		threshold_post_transforms,
+		ACCENT_COLOR,
+		PackedStringArray(["CargoThresholdPostPort", "CargoThresholdPostStarboard"])
 	)
-	threshold_post_port.set_meta(&"presentation_only", true)
-	threshold_post_port.set_meta(&"route_id", CABIN_ROUTE_ID)
-	var threshold_post_starboard := _add_interior_box(
-		visual,
-		"CargoThresholdPostStarboard",
-		_cargo_boarding_marker.position + Vector3(0.0, 1.02, 0.72),
-		Vector3(0.16, 2.05, 0.16),
-		ACCENT_COLOR
-	)
-	threshold_post_starboard.set_meta(&"presentation_only", true)
-	threshold_post_starboard.set_meta(&"route_id", CABIN_ROUTE_ID)
+	threshold_posts.set_meta(&"route_id", CABIN_ROUTE_ID)
 	var threshold_header := _add_interior_box(
 		visual,
 		"CargoThresholdHeader",
@@ -1190,6 +1185,41 @@ func _add_interior_box(
 	mesh_instance.material_override = _material(colour, 0.42, 0.62)
 	parent.add_child(mesh_instance)
 	return mesh_instance
+
+
+## Repeated, childless presentation stock shares one submission while retaining
+## its authored local transforms and semantic names for inspection.
+func _add_visual_box_batch(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		transforms: Array[Transform3D],
+		colour: Color,
+		authored_names: PackedStringArray
+	) -> MultiMeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = _material(colour, 0.42, 0.62)
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", authored_names.duplicate())
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
 
 
 func _bind_cargo_interior_frame() -> void:
