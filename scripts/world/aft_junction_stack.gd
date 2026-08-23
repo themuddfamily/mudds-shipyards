@@ -3138,7 +3138,10 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	_box(upper, "UpperFloorInset", Vector3(-5.15, 4.225, 16.4), Vector3(7.7, 0.05, 5.8), _materials["warm_grey_floor"], false)
 	_box(upper, "VIPAccessApronInset", Vector3(-5.15, 4.225, 20.95), Vector3(7.7, 0.05, 3.3), _materials["warm_grey_floor"], false)
 	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 17.2), Vector3(0.16, 0.05, 8.5), _materials["red"], false)
-	_add_rail(upper, Vector3(-10.1, 4.2, 12.7), Vector3(-10.1, 4.2, 22.25), "UpperWestRail")
+	# The former rail began at z=12.7 and joined UpperSouthRail into a sealed
+	# corner. Start it at z=14.5 to preserve the guarded edge while exposing a
+	# 1.8 m player-clear gate onto the Cinder south access transition.
+	_add_rail(upper, Vector3(-10.1, 4.2, 14.5), Vector3(-10.1, 4.2, 22.25), "UpperWestRail")
 	_add_rail(upper, Vector3(-9.8, 4.2, 12.55), Vector3(-7.45, 4.2, 12.55), "UpperSouthRail")
 	_add_rail(upper, Vector3(-3.9, 4.2, 12.55), Vector3(-0.25, 4.2, 12.55), "UpperSouthReturnRail")
 	for z_position in [13.25, 16.5, 19.75]:
