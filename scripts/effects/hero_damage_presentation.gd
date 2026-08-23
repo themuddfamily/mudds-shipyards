@@ -109,6 +109,8 @@ const COMPONENT_STATE_IMPAIRED := 1
 const COMPONENT_STATE_FAILED := 2
 const COMPONENT_SPARK_AMOUNT := 28
 const COMPONENT_SMOKE_COLOR := Color(0.24, 0.22, 0.21, 0.46)
+const COMPONENT_FAILURE_SHARD_NODE_COUNT := 2
+const COMPONENT_FAILURE_TRIANGLES_PER_SHARD := 12
 const COMPONENT_REPAIR_CUE_LIFETIME := 0.48
 const COMPONENT_REPAIR_CUE_LIGHT_PEAK := 3.2
 const MAX_COMPONENT_REPAIR_CUES := 4
@@ -441,13 +443,80 @@ func _create_component_effect(
 	glow.omni_range = 4.6
 	glow.shadow_enabled = false
 	rig.add_child(glow)
+	var failure_shards := _create_component_failure_silhouette(component_id, rig)
 	_component_effects[component_id] = {
 		"root": rig,
 		"sparks": sparks,
 		"smoke": smoke,
 		"glow": glow,
+		"failure_shards": failure_shards,
 		"state": state,
 	}
+
+
+func _create_component_failure_silhouette(
+		component_id: StringName,
+		rig: Node3D
+	) -> Array[MeshInstance3D]:
+	var profile := _component_failure_shard_profile(component_id)
+	var shards: Array[MeshInstance3D] = []
+	for index in COMPONENT_FAILURE_SHARD_NODE_COUNT:
+		var shard := MeshInstance3D.new()
+		shard.name = "ComponentFailureShard%s" % String.chr(65 + index)
+		shard.mesh = _meshes.component_failure_shard
+		shard.position = profile[index].position as Vector3
+		shard.rotation = profile[index].rotation as Vector3
+		shard.scale = profile[index].scale as Vector3
+		shard.material_override = (
+			_materials.debris_ivory if index == 0 else _materials.debris_dark
+		)
+		shard.visible = false
+		rig.add_child(shard)
+		shards.append(shard)
+	return shards
+
+
+## Geometry, not color, identifies the failed section at combat distance. The
+## five retained roster sections receive deliberately different paired-fracture
+## silhouettes; unknown future sections use a compact crossed fallback.
+func _component_failure_shard_profile(component_id: StringName) -> Array[Dictionary]:
+	match component_id:
+		&"forward_hull":
+			return [
+				{"position": Vector3(-0.38, 0.05, -0.08), "rotation": Vector3(0.0, 0.48, 0.62), "scale": Vector3(1.05, 0.13, 0.24)},
+				{"position": Vector3(0.38, -0.04, -0.08), "rotation": Vector3(0.0, -0.48, -0.62), "scale": Vector3(1.05, 0.13, 0.24)},
+			]
+		&"port_wing":
+			return [
+				{"position": Vector3(-0.48, 0.02, 0.08), "rotation": Vector3(0.18, -0.22, 0.34), "scale": Vector3(1.32, 0.10, 0.20)},
+				{"position": Vector3(-0.12, 0.16, 0.42), "rotation": Vector3(-0.28, 0.64, -0.18), "scale": Vector3(0.18, 0.12, 0.84)},
+			]
+		&"starboard_wing":
+			return [
+				{"position": Vector3(0.48, 0.02, 0.08), "rotation": Vector3(0.18, 0.22, -0.34), "scale": Vector3(1.32, 0.10, 0.20)},
+				{"position": Vector3(0.12, 0.16, 0.42), "rotation": Vector3(-0.28, -0.64, 0.18), "scale": Vector3(0.18, 0.12, 0.84)},
+			]
+		&"core_systems":
+			return [
+				{"position": Vector3.ZERO, "rotation": Vector3(0.0, 0.0, 0.78), "scale": Vector3(1.16, 0.14, 0.20)},
+				{"position": Vector3.ZERO, "rotation": Vector3(0.0, 0.0, -0.78), "scale": Vector3(1.16, 0.14, 0.20)},
+			]
+		&"engine_bay":
+			return [
+				{"position": Vector3(-0.28, 0.0, 0.36), "rotation": Vector3(0.12, -0.18, 0.04), "scale": Vector3(0.18, 0.16, 1.08)},
+				{"position": Vector3(0.28, 0.0, 0.36), "rotation": Vector3(0.12, 0.18, -0.04), "scale": Vector3(0.18, 0.16, 1.08)},
+			]
+	return [
+		{"position": Vector3.ZERO, "rotation": Vector3(0.0, 0.0, 0.55), "scale": Vector3(0.88, 0.12, 0.20)},
+		{"position": Vector3.ZERO, "rotation": Vector3(0.0, 0.0, -0.55), "scale": Vector3(0.88, 0.12, 0.20)},
+	]
+
+
+func _set_component_failure_shards_visible(effect: Dictionary, visible: bool) -> void:
+	for shard in effect.get("failure_shards", []) as Array:
+		var mesh_instance := shard as MeshInstance3D
+		if is_instance_valid(mesh_instance):
+			mesh_instance.visible = visible
 
 
 func _update_component_effect(
@@ -517,6 +586,7 @@ func _start_component_repair_cue(component_id: StringName, effect: Dictionary) -
 		sparks.emitting = false
 	if is_instance_valid(smoke):
 		smoke.emitting = false
+	_set_component_failure_shards_visible(effect, false)
 	glow.light_color = ENGINE_CYAN
 	glow.light_energy = COMPONENT_REPAIR_CUE_LIGHT_PEAK
 	glow.omni_range = 3.8
@@ -606,6 +676,63 @@ func get_component_repair_cue_budget() -> Dictionary:
 	}.duplicate(true)
 
 
+## Fixed presentation budget for the static failed-section silhouette. Both
+## MeshInstance3D nodes reuse one immutable BoxMesh and existing damage
+## materials; they own no script, collision, physics, or gameplay state.
+func get_component_failure_silhouette_budget() -> Dictionary:
+	_ensure_built()
+	return {
+		"maximum_component_effects": MAX_COMPONENT_EFFECTS,
+		"nodes_per_failed_component": COMPONENT_FAILURE_SHARD_NODE_COUNT,
+		"mesh_resources_per_presentation": 1,
+		"triangles_per_shard": COMPONENT_FAILURE_TRIANGLES_PER_SHARD,
+		"triangles_per_failed_component": (
+			COMPONENT_FAILURE_SHARD_NODE_COUNT * COMPONENT_FAILURE_TRIANGLES_PER_SHARD
+		),
+		"maximum_silhouette_nodes": (
+			MAX_COMPONENT_EFFECTS * COMPONENT_FAILURE_SHARD_NODE_COUNT
+		),
+		"maximum_silhouette_triangles": (
+			MAX_COMPONENT_EFFECTS
+			* COMPONENT_FAILURE_SHARD_NODE_COUNT
+			* COMPONENT_FAILURE_TRIANGLES_PER_SHARD
+		),
+		"collision_shapes": 0,
+		"physics_bodies": 0,
+		"gameplay_authority": false,
+	}.duplicate(true)
+
+
+func get_component_failure_silhouette_snapshot(component_id: StringName) -> Dictionary:
+	var effect: Dictionary = _component_effects.get(component_id, {})
+	if effect.is_empty():
+		return {}
+	var shards := effect.get("failure_shards", []) as Array
+	var shard_snapshots: Array[Dictionary] = []
+	for shard in shards:
+		var mesh_instance := shard as MeshInstance3D
+		if not is_instance_valid(mesh_instance):
+			continue
+		shard_snapshots.append({
+			"name": String(mesh_instance.name),
+			"transform": mesh_instance.transform,
+			"visible": mesh_instance.visible,
+			"mesh_instance_id": (
+				mesh_instance.mesh.get_instance_id() if mesh_instance.mesh != null else 0
+			),
+		})
+	return {
+		"component_id": component_id,
+		"state": int(effect.get("state", COMPONENT_STATE_NOMINAL)),
+		"shards": shard_snapshots,
+		"visible_shard_count": shard_snapshots.filter(
+			func(snapshot: Dictionary) -> bool: return bool(snapshot.get("visible", false))
+		).size(),
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
+
+
 func _failed_component_ids_set() -> Dictionary:
 	var failed: Dictionary = {}
 	for component_id: StringName in _component_effects.keys():
@@ -661,6 +788,10 @@ func _apply_component_effect_visibility() -> void:
 		var smoke := effect.get("smoke") as CPUParticles3D
 		var glow := effect.get("glow") as OmniLight3D
 		var state := int(effect.get("state", COMPONENT_STATE_NOMINAL))
+		_set_component_failure_shards_visible(
+			effect,
+			allowed and state >= COMPONENT_STATE_FAILED
+		)
 		if is_instance_valid(sparks):
 			sparks.emitting = allowed and state >= COMPONENT_STATE_IMPAIRED
 		if is_instance_valid(smoke):
@@ -1559,6 +1690,12 @@ func _create_shared_meshes() -> void:
 	impact_flash_mesh.rings = 8
 	impact_flash_mesh.material = _materials.impact_flash
 	_meshes.impact_flash = impact_flash_mesh
+
+	# Both fragments in every failed-section silhouette reuse this one immutable
+	# 12-triangle box. Their transforms supply the distinct fracture patterns.
+	var component_failure_shard := BoxMesh.new()
+	component_failure_shard.size = Vector3.ONE
+	_meshes.component_failure_shard = component_failure_shard
 
 
 func _emissive_material(color: Color, energy: float) -> StandardMaterial3D:
