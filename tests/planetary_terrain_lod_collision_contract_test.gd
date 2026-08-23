@@ -204,6 +204,24 @@ func _test_motion_budgets_and_purity() -> void:
 			and rejected_support.motion.accepted,
 		"an otherwise safe movement is rejected when its LOD collision tile is absent"
 	)
+	var recovery: Dictionary = contract.build_support_recovery_handoff(
+		Vector3(0.2, 0.0, 0.2), Vector3(1.4, 0.0, 1.4), 0.05, missing_support
+	)
+	_check(
+		recovery.accepted and recovery.reason == &"support_recovery_required"
+			and recovery.action == &"request_collision_residency"
+			and recovery.safe_position == Vector3(0.2, 0.0, 0.2)
+			and recovery.transform_writes == 0 and recovery.collision_writes == 0,
+		"missing terrain support yields a detached collision-residency recovery action"
+	)
+	var long_recovery: Dictionary = contract.build_support_recovery_handoff(
+		Vector3.ZERO, Vector3(2.01, 0.0, 0.0), 0.0, resident_plan
+	)
+	_check(
+		long_recovery.accepted
+			and long_recovery.action == &"subdivide_motion_sweep",
+		"an overlong terrain sweep yields a safe subdivision recovery action"
+	)
 	var invalid: Dictionary = contract.validate_motion_sample(
 		Vector3.ZERO, Vector3.ZERO, NAN
 	)

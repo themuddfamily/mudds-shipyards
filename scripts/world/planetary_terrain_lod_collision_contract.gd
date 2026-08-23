@@ -308,6 +308,41 @@ func validate_supported_motion_handoff(
 	})
 
 
+## Produces a safe caller action after a support handoff is rejected. The
+## receipt never writes transforms or collision state: the caller holds its
+## last supported position, repairs the stream plan or subdivides the sweep,
+## then retries the same movement segment.
+func build_support_recovery_handoff(
+		previous_world_streaming_position: Vector3,
+		current_world_streaming_position: Vector3,
+		support_jitter_meters: Variant,
+		stream_plan: Variant
+	) -> Dictionary:
+	var handoff := validate_supported_motion_handoff(
+		previous_world_streaming_position,
+		current_world_streaming_position,
+		support_jitter_meters,
+		stream_plan
+	)
+	if bool(handoff.get("accepted", false)):
+		return _result(false, &"support_recovery_not_needed", {
+			"handoff": handoff.duplicate(true),
+		})
+	var action: StringName = &"hold_last_supported_position"
+	if handoff.reason == &"collision_tile_missing":
+		action = &"request_collision_residency"
+	elif handoff.reason == &"tunneling_budget_exceeded":
+		action = &"subdivide_motion_sweep"
+	return _result(true, &"support_recovery_required", {
+		"action": action,
+		"safe_position": previous_world_streaming_position,
+		"rejected_reason": handoff.reason,
+		"handoff": handoff.duplicate(true),
+		"transform_writes": 0,
+		"collision_writes": 0,
+	})
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
