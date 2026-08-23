@@ -931,6 +931,51 @@ func admit_return_contract_approach(
 	return result
 
 
+## Confirms caller-observed Mudds arrival readiness through the retained travel
+## session after approach admission. The receipt is evidence-only: Host/session
+## remain in orbit return and no movement, berth, or reward authority is gained.
+func confirm_return_arrival_ready(
+		landing_return_contract: Object,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		observation: Variant,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if actor_instance_id != _player_instance_id \
+			or craft_instance_id != _ship_instance_id:
+		return _finish(false, &"return_travel_bound_actor_mismatch")
+	if not observation is Dictionary:
+		return _finish(false, &"invalid_return_arrival_observation")
+	if _session == null:
+		return _finish(false, &"return_travel_session_unavailable")
+	var session_snapshot := _session.get_presentation_snapshot()
+	if _phase != Phase.ORBIT_RETURN \
+			or StringName(session_snapshot.get("state_id", &"")) != &"orbit_return":
+		return _finish(false, &"return_arrival_host_session_mismatch")
+	var confirmed := _session.confirm_return_arrival_ready(
+		landing_return_contract, actor_instance_id, craft_instance_id,
+		(observation as Dictionary).duplicate(true),
+		_generation, _session.get_attachment_generation()
+	)
+	var result := _finish(
+		bool(confirmed.get("accepted", false)),
+		confirmed.get("reason", &"return_arrival_rejected") as StringName
+	)
+	if bool(result.get("accepted", false)):
+		result["return_target_id"] = confirmed.get("return_target_id", &"")
+		result["next_caller_state"] = confirmed.get("next_caller_state", &"")
+	return result
+
+
 ## Adopts one already committed common-origin transaction. This method cannot
 ## request, apply, defer, cancel, or commit a rebase. It accepts only the exact
 ## detached receipt produced after the shared root roster was translated, proves

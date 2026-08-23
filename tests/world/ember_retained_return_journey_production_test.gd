@@ -144,6 +144,35 @@ func _run() -> void:
 		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID
 	)
 	var admitted_after_replay := host.get_snapshot()
+	var arrival_observation := {
+		"position": Vector3(0.0, 0.0, 50_000.0),
+		"speed_meters_per_second": 900.0,
+	}.duplicate(true)
+	var stale_arrival := host.confirm_return_arrival_ready(
+		return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
+		arrival_observation, host.get_generation(),
+		host.get_attachment_generation() + 1
+	)
+	var foreign_arrival := binding.confirm_planetary_return_arrival_ready(
+		null, return_contract, ACTOR_INSTANCE_ID + 1, CRAFT_INSTANCE_ID,
+		arrival_observation
+	)
+	var invalid_arrival := binding.confirm_planetary_return_arrival_ready(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
+		{"position": Vector3.INF, "speed_meters_per_second": 900.0}
+	)
+	var after_invalid_arrival := host.get_snapshot()
+	var arrival_ready := binding.confirm_planetary_return_arrival_ready(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
+		arrival_observation
+	)
+	var arrival_snapshot := host.get_snapshot()
+	var contract_after_arrival := return_contract.get_snapshot()
+	var arrival_replay := binding.confirm_planetary_return_arrival_ready(
+		null, return_contract, ACTOR_INSTANCE_ID, CRAFT_INSTANCE_ID,
+		arrival_observation
+	)
+	var arrival_after_replay := host.get_snapshot()
 	var final_snapshot := session.get_presentation_snapshot()
 	var adapter_snapshot := binding.get_planetary_relay_survey_return_snapshot()
 	var valid: bool = prepared \
@@ -222,6 +251,30 @@ func _run() -> void:
 		and not admit_replay.accepted \
 		and admit_replay.reason == &"return_contract_approach_already_admitted" \
 		and admitted_after_replay == admitted_snapshot \
+		and not stale_arrival.accepted \
+		and stale_arrival.reason == &"stale_attachment_generation" \
+		and not foreign_arrival.accepted \
+		and foreign_arrival.reason == &"return_travel_bound_actor_mismatch" \
+		and not invalid_arrival.accepted \
+		and invalid_arrival.reason == &"orbit_arrival_prerequisites_not_met" \
+		and after_invalid_arrival == admitted_snapshot \
+		and arrival_ready.accepted \
+		and arrival_ready.reason == &"orbit_arrival_ready" \
+		and arrival_ready.return_target_id == &"mudds_shipyards" \
+		and arrival_ready.next_caller_state == &"confirm_orbit_return" \
+		and arrival_snapshot.phase_id == &"orbit_return" \
+		and arrival_snapshot.travel_session.state_id == &"orbit_return" \
+		and arrival_snapshot.travel_session.arrival_ready_receipt \
+		and arrival_snapshot.transition_count == orbit_snapshot.transition_count \
+		and arrival_snapshot.actor_state == orbit_snapshot.actor_state \
+		and contract_after_arrival.phase_id == &"takeoff" \
+		and contract_after_arrival.return_approach_admitted \
+		and contract_after_arrival.arrival_ready \
+		and contract_after_arrival.last_evidence.arrival_ready.observation \
+			== arrival_observation \
+		and not arrival_replay.accepted \
+		and arrival_replay.reason == &"return_arrival_already_ready" \
+		and arrival_after_replay == arrival_snapshot \
 		and binding.get("_return_berth_adapter") == null \
 		and final_snapshot.state_id == &"orbit_return" \
 		and final_snapshot.last_return_activity_generation == ACTIVITY_GENERATION \
@@ -246,7 +299,7 @@ func _run() -> void:
 	session = null
 	frame = null
 	await process_frame
-	print("EMBER_RETAINED_RETURN_JOURNEY_PRODUCTION_TEST_OK: retained orbit return admits Mudds approach intent")
+	print("EMBER_RETAINED_RETURN_JOURNEY_PRODUCTION_TEST_OK: retained Mudds approach confirms detached arrival readiness")
 	quit(0)
 
 

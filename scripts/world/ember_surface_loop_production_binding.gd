@@ -586,8 +586,17 @@ func confirm_planetary_return_arrival_ready(
 		actor_instance_id: int, craft_instance_id: int,
 		observation: Dictionary
 	) -> Dictionary:
-	if _host == null or travel_session == null \
-			or not travel_session.has_method(&"confirm_return_arrival_ready"):
+	if _host == null:
+		return _reject(&"return_travel_session_unavailable")
+	if travel_session == null:
+		if not _host.has_method(&"confirm_return_arrival_ready"):
+			return _reject(&"return_travel_session_unavailable")
+		return _host.call(
+			&"confirm_return_arrival_ready", landing_return_contract,
+			actor_instance_id, craft_instance_id, observation,
+			_host.get_generation(), _host.get_attachment_generation()
+		)
+	if not travel_session.has_method(&"confirm_return_arrival_ready"):
 		return _reject(&"return_travel_session_unavailable")
 	return travel_session.call(
 		&"confirm_return_arrival_ready", landing_return_contract,
