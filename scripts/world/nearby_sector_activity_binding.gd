@@ -239,6 +239,10 @@ func configure_station_defense_reward(
 			"register_activity", &"cinder_relay_patrol",
 			&"return_patrol_log_to_shipyard"
 		)
+		_station_reward_adapter.call(
+			"register_activity", RACE_ACTIVITY_ID,
+			&"return_race_record_to_shipyard"
+		)
 	return result
 
 
@@ -293,6 +297,19 @@ func request_patrol_reward(expected_generation: int) -> Dictionary:
 		"state_id": patrol.get("state_id", &""),
 		"outcome": &"cleared" if patrol.get("state_id", &"") == &"completed" else &"",
 		"generation": patrol.get("generation", 0),
+	}.duplicate(true)
+	return _station_reward_adapter.call("consume", normalized, expected_generation)
+
+
+func request_race_reward(expected_generation: int) -> Dictionary:
+	if _race_session == null or _station_reward_adapter == null:
+		return _result(false, &"race_reward_unavailable")
+	var race := _race_session.get_presentation_snapshot()
+	var normalized := {
+		"activity_id": RACE_ACTIVITY_ID,
+		"state_id": race.get("state_id", &""),
+		"outcome": &"cleared" if race.get("state_id", &"") == &"completed" else &"",
+		"generation": race.get("activity_generation", 0),
 	}.duplicate(true)
 	return _station_reward_adapter.call("consume", normalized, expected_generation)
 
