@@ -67,6 +67,7 @@ var _occlusion := 0.0
 var _last_semantic_intensity := 0.0
 var _target_lock_active := false
 var _target_lock_position := Vector3.ZERO
+var _weapon_ready_announced := true
 var _initialized := false
 var _audio_available := true
 
@@ -108,7 +109,11 @@ func _exit_tree() -> void:
 
 
 func play_player_fire(world_position: Vector3, source_instance_id: int) -> bool:
-	return _play(CUE_PLAYER_FIRE, &"fire", world_position, source_instance_id, 0.0, 1.0)
+	var accepted := _play(CUE_PLAYER_FIRE, &"fire", world_position, source_instance_id, 0.0, 1.0)
+	if not _weapon_ready_announced:
+		semantic_cue_emitted.emit(&"weapon_ready", world_position, 1.0)
+		_weapon_ready_announced = true
+	return accepted
 
 
 func play_defender_fire(world_position: Vector3, source_instance_id: int) -> bool:
@@ -116,7 +121,11 @@ func play_defender_fire(world_position: Vector3, source_instance_id: int) -> boo
 
 
 func play_dry_fire(world_position: Vector3, source_instance_id: int) -> bool:
-	return _play(CUE_DRY_FIRE, &"dry", world_position, source_instance_id, -7.0)
+	var accepted := _play(CUE_DRY_FIRE, &"dry", world_position, source_instance_id, -7.0)
+	if _weapon_ready_announced:
+		semantic_cue_emitted.emit(&"weapon_not_ready", world_position, 1.0)
+		_weapon_ready_announced = false
+	return accepted
 
 
 func play_impact(world_position: Vector3, intensity: float, source_instance_id: int) -> bool:
