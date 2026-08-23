@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
 	_test_load_mark_render_allocation(jovian)
+	_test_cargo_deck_lane_render_allocation(jovian)
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
 	_test_cargo_frame_joint_allocation(jovian)
@@ -197,6 +198,46 @@ func _test_load_mark_render_allocation(jovian: JovianLightFreighter) -> void:
 		bool(jovian.get_load_mark_render_audit().get("valid", false)),
 		"restoring the load-mark transform buffer returns the render allocation audit green"
 	)
+
+
+func _test_cargo_deck_lane_render_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_cargo_deck_lane_render_audit()
+	var current := audit.get("current", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	var cargo_bay := jovian.get_node_or_null(^"WalkableInterior/CargoBay") as Node3D
+	var batch := cargo_bay.get_node_or_null(^"CargoDeckLaneBatch") as MultiMeshInstance3D \
+		if cargo_bay != null else null
+	_check(
+		bool(audit.get("valid", false))
+			and int(current.get("renderer_nodes", 0)) == 1
+			and int(current.get("submissions", 0)) == 1
+			and int(current.get("copies", 0)) == 3
+			and int(delta.get("renderer_nodes", 0)) == -2
+			and int(delta.get("submissions", 0)) == -2,
+		"three cargo-deck lane inlays batch to one renderer/submission without losing a copy"
+	)
+	_check(
+		batch != null and batch.multimesh != null
+			and batch.get_child_count() == 0
+			and bool(batch.get_meta("visual_detail_only", false))
+			and (audit.get("authored_transforms", []) as Array) == [
+				Transform3D(Basis.IDENTITY, Vector3(-2.15, 0.61, 3.15)),
+				Transform3D(Basis.IDENTITY, Vector3(0.0, 0.61, 3.15)),
+				Transform3D(Basis.IDENTITY, Vector3(2.15, 0.61, 3.15)),
+			],
+		"cargo-deck lane batch preserves its exact moving-interior transforms and visual-only authority"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.1
+	batch.multimesh.buffer = mutated_buffer
+	_check(
+		not bool(jovian.get_cargo_deck_lane_render_audit().get("valid", true)),
+		"RED: mutating one live cargo-deck lane transform fails its focused audit"
+	)
+	batch.multimesh.buffer = original_buffer
 
 
 func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:

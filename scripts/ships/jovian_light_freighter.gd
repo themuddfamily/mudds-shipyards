@@ -72,6 +72,12 @@ const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
 const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
 
+## Three childless teal deck-lane inlays are one identical visual recipe. They
+## carry no collision, interaction, cargo, route, or evidence identity, so the
+## moving cargo bay can submit their three exact local transforms as one batch.
+const CARGO_DECK_LANE_COPY_COUNT := 3
+const CARGO_DECK_LANE_SIZE := Vector3(0.11, 0.025, 11.4)
+
 ## Six childless load marks are the same amber exterior cue at mirrored flank
 ## transforms. They own no collision, interaction, evidence or lifecycle state,
 ## so one visual-only MultiMesh keeps all six visible copies while removing five
@@ -223,6 +229,9 @@ var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _load_mark_mesh: ArrayMesh
 var _load_mark_batch: MultiMeshInstance3D
 var _load_mark_transforms: Array[Transform3D] = []
+var _cargo_deck_lane_mesh: ArrayMesh
+var _cargo_deck_lane_batch: MultiMeshInstance3D
+var _cargo_deck_lane_transforms: Array[Transform3D] = []
 var _elapsed_jovian := 0.0
 var _crew_role_authority: CrewSeatRoleAuthority
 var _engineer_component_selection: Dictionary = {}
@@ -1029,6 +1038,7 @@ func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var defensive_weapon_visual := get_defensive_weapon_visual_report()
 	var load_mark_allocation := get_load_mark_render_audit()
+	var cargo_deck_lane_allocation := get_cargo_deck_lane_render_audit()
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
@@ -1063,6 +1073,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("modern provisional defensive weapon visual drifted")
 	if not bool(load_mark_allocation.get("valid", false)):
 		errors.append("load-mark visual batching contract drifted")
+	if not bool(cargo_deck_lane_allocation.get("valid", false)):
+		errors.append("cargo-deck lane visual batching contract drifted")
 	if not bool(dorsal_rib_allocation.get("valid", false)):
 		errors.append("dorsal cargo rib joint allocation contract drifted")
 	if not bool(shoulder_rail_allocation.get("valid", false)):
@@ -1084,6 +1096,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"weapon_class": &"freighter_defensive_pulse",
 		"defensive_weapon_visual": defensive_weapon_visual,
 		"load_mark_render_allocation": load_mark_allocation,
+		"cargo_deck_lane_render_allocation": cargo_deck_lane_allocation,
 		"combat_source_id": COMBAT_SOURCE_ID,
 		"interior": get_walkable_interior_report(),
 		"evidence": get_jovian_evidence_report(),
@@ -1174,6 +1187,68 @@ func _load_mark_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AAB
 		else:
 			result = result.merge(transformed)
 	return result
+
+
+func get_cargo_deck_lane_render_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var multi := _cargo_deck_lane_batch.multimesh \
+		if is_instance_valid(_cargo_deck_lane_batch) else null
+	var expected_names := PackedStringArray([
+		"CargoDeckLane", "CargoDeckLane", "CargoDeckLane",
+	])
+	if not is_instance_valid(_cargo_bay):
+		errors.append("cargo_deck_lane_parent_unavailable")
+	if not is_instance_valid(_cargo_deck_lane_batch) or multi == null or multi.mesh == null:
+		errors.append("cargo_deck_lane_batch_unavailable")
+	else:
+		if (
+			_cargo_deck_lane_batch.get_parent() != _cargo_bay
+			or _cargo_deck_lane_batch.name != &"CargoDeckLaneBatch"
+		):
+			errors.append("cargo_deck_lane_batch_path_drift")
+		if (
+			multi.mesh != _cargo_deck_lane_mesh
+			or not multi.mesh.get_aabb().size.is_equal_approx(CARGO_DECK_LANE_SIZE)
+		):
+			errors.append("cargo_deck_lane_mesh_recipe_drift")
+		if (
+			multi.instance_count != CARGO_DECK_LANE_COPY_COUNT
+			or multi.visible_instance_count != -1
+			or multi.mesh.get_surface_count() != 1
+			or multi.mesh.surface_get_material(0) != _jovian_materials.get("teal")
+			or _cargo_deck_lane_batch.cast_shadow
+				!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			or _cargo_deck_lane_batch.layers != 1
+			or not is_zero_approx(_cargo_deck_lane_batch.extra_cull_margin)
+		):
+			errors.append("cargo_deck_lane_renderer_recipe_drift")
+		if multi.buffer != _encode_load_mark_transforms(_cargo_deck_lane_transforms):
+			errors.append("cargo_deck_lane_transform_buffer_drift")
+		if not multi.custom_aabb.is_equal_approx(
+			_load_mark_bounds(multi.mesh.get_aabb(), _cargo_deck_lane_transforms)
+		):
+			errors.append("cargo_deck_lane_culling_bounds_drift")
+		if _cargo_deck_lane_batch.get_meta(
+			"authored_visual_names", PackedStringArray()
+		) != expected_names:
+			errors.append("cargo_deck_lane_authored_name_roster_drift")
+		if (
+			_cargo_deck_lane_batch.get_child_count() != 0
+			or not bool(_cargo_deck_lane_batch.get_meta("visual_detail_only", false))
+		):
+			errors.append("cargo_deck_lane_gained_authority")
+	if _cargo_deck_lane_transforms.size() != CARGO_DECK_LANE_COPY_COUNT:
+		errors.append("cargo_deck_lane_transform_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy": {"renderer_nodes": CARGO_DECK_LANE_COPY_COUNT, "submissions": CARGO_DECK_LANE_COPY_COUNT},
+		"current": {"renderer_nodes": 1, "submissions": 1, "copies": CARGO_DECK_LANE_COPY_COUNT},
+		"delta": {"renderer_nodes": 1 - CARGO_DECK_LANE_COPY_COUNT, "submissions": 1 - CARGO_DECK_LANE_COPY_COUNT},
+		"authored_transforms": _cargo_deck_lane_transforms.duplicate(),
+		"batched": true,
+		"collision_authority": false,
+	}.duplicate(true)
 
 
 ## Six passenger seats retain all 18 visible parts and submissions, while their
@@ -2505,7 +2580,30 @@ func _build_cargo_bay() -> void:
 	_box(_cargo_bay, "CargoDeck", Vector3(0.0, 0.5, 3.15), Vector3(11.3, 0.18, 12.1), _jovian_materials.deck)
 	# Slim inlaid lanes leave an unobstructed route from ramp to forward cabin.
 	for lane_x in [-2.15, 0.0, 2.15]:
-		_box(_cargo_bay, "CargoDeckLane", Vector3(lane_x, 0.61, 3.15), Vector3(0.11, 0.025, 11.4), _jovian_materials.teal)
+		_cargo_deck_lane_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(lane_x, 0.61, 3.15)
+		))
+	_cargo_deck_lane_mesh = _rounded_box_mesh(CARGO_DECK_LANE_SIZE, _jovian_materials.teal)
+	var cargo_deck_lanes := MultiMesh.new()
+	cargo_deck_lanes.transform_format = MultiMesh.TRANSFORM_3D
+	cargo_deck_lanes.mesh = _cargo_deck_lane_mesh
+	cargo_deck_lanes.instance_count = _cargo_deck_lane_transforms.size()
+	cargo_deck_lanes.visible_instance_count = -1
+	cargo_deck_lanes.buffer = _encode_load_mark_transforms(_cargo_deck_lane_transforms)
+	cargo_deck_lanes.custom_aabb = _load_mark_bounds(
+		_cargo_deck_lane_mesh.get_aabb(), _cargo_deck_lane_transforms
+	)
+	_cargo_deck_lane_batch = MultiMeshInstance3D.new()
+	_cargo_deck_lane_batch.name = "CargoDeckLaneBatch"
+	_cargo_deck_lane_batch.multimesh = cargo_deck_lanes
+	_cargo_deck_lane_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_cargo_deck_lane_batch.layers = 1
+	_cargo_deck_lane_batch.extra_cull_margin = 0.0
+	_cargo_deck_lane_batch.set_meta("visual_detail_only", true)
+	_cargo_deck_lane_batch.set_meta("authored_visual_names", PackedStringArray([
+		"CargoDeckLane", "CargoDeckLane", "CargoDeckLane",
+	]))
+	_cargo_bay.add_child(_cargo_deck_lane_batch)
 	# Starboard wall is continuous. The port wall is split around the open ramp.
 	_box(_cargo_bay, "StarboardInnerWall", Vector3(5.64, 2.5, 3.15), Vector3(0.18, 3.86, 12.0), _jovian_materials.structure)
 	_box(_cargo_bay, "PortInnerWallForward", Vector3(-5.64, 2.5, -0.9), Vector3(0.18, 3.86, 3.65), _jovian_materials.structure)
