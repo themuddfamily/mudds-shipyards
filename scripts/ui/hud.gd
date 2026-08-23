@@ -360,6 +360,13 @@ var _help_panel: PanelContainer
 var _help_margin: MarginContainer
 var _help_stack: VBoxContainer
 var _help_heading: Label
+var _help_page_label: Label
+var _help_previous_button: Button
+var _help_next_button: Button
+var _help_close_button: Button
+var _help_rows: Array = []
+var _help_page_index := 0
+const HELP_ROWS_PER_PAGE := 5
 ## Stable row controls reused when mode, device family, or binding text changes.
 ## Re-entry reapplies an unchanged snapshot, so rebuilding these nodes there
 ## would violate whole-Main identity even though the displayed copy is the same.
@@ -578,6 +585,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		# button reach the identical toggle. `is_action_pressed()` still rejects
 		# key repeats, so the previous physical-`F1` behaviour is unchanged.
 		_help_panel.visible = not _help_panel.visible
+		if _help_panel.visible:
+			_help_page_index = 0
+			_refresh_help_page()
+			if is_instance_valid(_help_close_button):
+				_help_close_button.grab_focus()
 
 
 func _is_screenshot_capture_event(event: InputEvent) -> bool:
@@ -5138,6 +5150,9 @@ func _set_help_text(rows: Array) -> void:
 	_help_heading.text = (
 		"CONTROLS  //  %s" % _action_prompts([&"toggle_controls_overlay"])
 	)
+	_help_rows = rows.duplicate(true)
+	var page_count := maxi(1, ceili(float(_help_rows.size()) / float(HELP_ROWS_PER_PAGE)))
+	_help_page_index = clampi(_help_page_index, 0, page_count - 1)
 	while _help_row_controls.size() < rows.size():
 		var index := _help_row_controls.size()
 		var line := HBoxContainer.new()
@@ -5175,8 +5190,72 @@ func _set_help_text(rows: Array) -> void:
 		_bomber_payload_help_button.focus_mode = Control.FOCUS_ALL
 		_bomber_payload_help_button.pressed.connect(request_bomber_payload_release)
 		_help_stack.add_child(_bomber_payload_help_button)
+	if _help_close_button == null:
+		var navigation := HBoxContainer.new()
+		navigation.name = "HelpNavigation"
+		navigation.alignment = BoxContainer.ALIGNMENT_CENTER
+		navigation.add_theme_constant_override("separation", 5)
+		_help_previous_button = _menu_button("PREVIOUS", MUTED)
+		_help_previous_button.name = "HelpPreviousButton"
+		_help_previous_button.tooltip_text = "Show the previous controls page"
+		_help_previous_button.focus_mode = Control.FOCUS_ALL
+		_help_previous_button.pressed.connect(_previous_help_page)
+		navigation.add_child(_help_previous_button)
+		_help_page_label = _label("PAGE 1 / 1", 10, NOMINAL_SOFT)
+		_help_page_label.name = "HelpPageLabel"
+		_help_page_label.custom_minimum_size.x = 86.0
+		_help_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		navigation.add_child(_help_page_label)
+		_help_next_button = _menu_button("NEXT", MUTED)
+		_help_next_button.name = "HelpNextButton"
+		_help_next_button.tooltip_text = "Show the next controls page"
+		_help_next_button.focus_mode = Control.FOCUS_ALL
+		_help_next_button.pressed.connect(_next_help_page)
+		navigation.add_child(_help_next_button)
+		_help_close_button = _menu_button("CLOSE", NOMINAL)
+		_help_close_button.name = "HelpCloseButton"
+		_help_close_button.tooltip_text = "Close controls help"
+		_help_close_button.focus_mode = Control.FOCUS_ALL
+		_help_close_button.pressed.connect(_close_help_panel)
+		navigation.add_child(_help_close_button)
+		_help_stack.add_child(navigation)
+	_refresh_help_page()
 	_refresh_bomber_payload_help()
 	_set_mouse_passthrough(_help_panel)
+
+
+func _refresh_help_page() -> void:
+	if not is_instance_valid(_help_page_label):
+		return
+	var page_count := maxi(1, ceili(float(_help_rows.size()) / float(HELP_ROWS_PER_PAGE)))
+	_help_page_index = clampi(_help_page_index, 0, page_count - 1)
+	var first := _help_page_index * HELP_ROWS_PER_PAGE
+	for index in _help_row_controls.size():
+		var controls := _help_row_controls[index] as Dictionary
+		var line := controls.line as Control
+		line.visible = index >= first and index < mini(first + HELP_ROWS_PER_PAGE, _help_rows.size())
+	_help_page_label.text = "PAGE %d / %d" % [_help_page_index + 1, page_count]
+	_help_previous_button.disabled = _help_page_index <= 0
+	_help_next_button.disabled = _help_page_index >= page_count - 1
+
+
+func _previous_help_page() -> void:
+	_help_page_index = maxi(_help_page_index - 1, 0)
+	_refresh_help_page()
+	_help_previous_button.grab_focus()
+
+
+func _next_help_page() -> void:
+	var page_count := maxi(1, ceili(float(_help_rows.size()) / float(HELP_ROWS_PER_PAGE)))
+	_help_page_index = mini(_help_page_index + 1, page_count - 1)
+	_refresh_help_page()
+	_help_next_button.grab_focus()
+
+
+func _close_help_panel() -> void:
+	_help_panel.visible = false
+	if is_instance_valid(_help_close_button):
+		_help_close_button.release_focus()
 
 
 func _refresh_bomber_payload_help() -> void:
