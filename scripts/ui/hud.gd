@@ -72,6 +72,8 @@ const CAPTION_CUES := {
 	&"surface_departure": [&"system", "Surface guidance", "[ surface departure ]", 70],
 	&"ship_destroyed": [&"system", "Damage control", "[ ship destroyed ]", 100],
 	&"ship_audio_recovery_ready": [&"system", "Audio recovery", "[ ship audio recovery ready ]", 50],
+	&"station_service_servo": [&"ambient", "Station service", "[ station service servo ]", 40],
+	&"station_service_latch": [&"system", "Station service", "[ station service latch ]", 65],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4

@@ -27,6 +27,8 @@ const REGISTERED_CUES := {
 	&"surface_departure": {"caption": "Surface departure", "default_severity": &"medium"},
 	&"ship_destroyed": {"caption": "Ship destroyed", "default_severity": &"high"},
 	&"ship_audio_recovery_ready": {"caption": "Ship audio recovery ready", "default_severity": &"low"},
+	&"station_service_servo": {"caption": "Station service servo", "default_severity": &"low"},
+	&"station_service_latch": {"caption": "Station service latch", "default_severity": &"medium"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
