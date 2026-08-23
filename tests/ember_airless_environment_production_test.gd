@@ -6,7 +6,7 @@ const AirlessEnvironmentPresentation := preload(
 	"res://scripts/world/ember_airless_environment_presentation.gd"
 )
 const STORE_PATH := "memory://ember-airless-environment-settings.json"
-const EXPECTED_ASSERTIONS := 11
+const EXPECTED_ASSERTIONS := 13
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -58,6 +58,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_continuous_curve_contract()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
 	_check(
@@ -129,6 +130,9 @@ func _run() -> void:
 		and bool(terminator.active)
 		and (terminator_presentation.last_result as Dictionary).visual_state \
 			== &"airless_terminator"
+		and (terminator_presentation.last_result as Dictionary).curve_input_source \
+			== &"accepted_sun_horizon_clearance_degrees"
+		and bool((terminator_presentation.last_result as Dictionary).continuous_curve)
 		and is_equal_approx(
 			environment.ambient_light_energy,
 			float(baseline.ambient_light_energy) \
@@ -267,6 +271,91 @@ func _sample(actor: Node3D) -> Dictionary:
 	}
 
 
+func _test_continuous_curve_contract() -> void:
+	var night := AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(
+		-AirlessEnvironmentPresentation.TRANSITION_HALF_WIDTH_DEGREES
+	)
+	var terminator := (
+		AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(0.0)
+	)
+	var day := AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(
+		AirlessEnvironmentPresentation.TRANSITION_HALF_WIDTH_DEGREES
+	)
+	_check(
+		is_equal_approx(
+			float(night.ambient),
+			AirlessEnvironmentPresentation.NIGHT_AMBIENT_MULTIPLIER
+		)
+		and is_equal_approx(
+			float(night.sky), AirlessEnvironmentPresentation.NIGHT_SKY_MULTIPLIER
+		)
+		and is_equal_approx(
+			float(terminator.ambient),
+			AirlessEnvironmentPresentation.TERMINATOR_AMBIENT_MULTIPLIER
+		)
+		and is_equal_approx(
+			float(terminator.sky),
+			AirlessEnvironmentPresentation.TERMINATOR_SKY_MULTIPLIER
+		)
+		and is_equal_approx(
+			float(day.ambient),
+			AirlessEnvironmentPresentation.DAY_AMBIENT_MULTIPLIER
+		)
+		and is_equal_approx(
+			float(day.sky), AirlessEnvironmentPresentation.DAY_SKY_MULTIPLIER
+		),
+		"continuous curve retains the exact night, horizon, and day ceilings",
+	)
+	var monotonic := true
+	var bounded_step := true
+	var previous := (
+		AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(-5.0)
+	)
+	for index in range(1, 81):
+		var clearance := -5.0 + float(index) * 0.125
+		var current := (
+			AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(
+				clearance
+			)
+		)
+		var ambient_delta := float(current.ambient) - float(previous.ambient)
+		var sky_delta := float(current.sky) - float(previous.sky)
+		monotonic = monotonic and ambient_delta >= 0.0 and sky_delta >= 0.0
+		bounded_step = bounded_step \
+			and ambient_delta < 0.008 and sky_delta < 0.01
+		previous = current
+	var epsilon := 0.0001
+	var left_horizon := (
+		AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(-epsilon)
+	)
+	var right_horizon := (
+		AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(epsilon)
+	)
+	var night_inside := (
+		AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(
+			-AirlessEnvironmentPresentation.TRANSITION_HALF_WIDTH_DEGREES + epsilon
+		)
+	)
+	var day_inside := (
+		AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(
+			AirlessEnvironmentPresentation.TRANSITION_HALF_WIDTH_DEGREES - epsilon
+		)
+	)
+	_check(
+		monotonic and bounded_step
+		and absf(float(night_inside.ambient) - float(night.ambient)) < epsilon
+		and absf(float(night_inside.sky) - float(night.sky)) < epsilon
+		and absf(float(left_horizon.ambient) - float(terminator.ambient)) < epsilon
+		and absf(float(right_horizon.ambient) - float(terminator.ambient)) < epsilon
+		and absf(float(left_horizon.sky) - float(terminator.sky)) < epsilon
+		and absf(float(right_horizon.sky) - float(terminator.sky)) < epsilon
+		and absf(float(day_inside.ambient) - float(day.ambient)) < epsilon
+		and absf(float(day_inside.sky) - float(day.sky)) < epsilon
+		and AirlessEnvironmentPresentation.continuous_multipliers_for_clearance(INF).is_empty(),
+		"the accepted-clearance response is monotonic, continuous, bounded, and finite-only",
+	)
+
+
 func _wait_for_environment_presentation(
 	bootstrap: EmberMoonStreamingBootstrap, maximum_frames := 180
 	) -> void:
@@ -304,7 +393,7 @@ func _finish() -> void:
 			"expected %d assertions, ran %d" % [EXPECTED_ASSERTIONS, _assertions]
 		)
 	if _failures.is_empty():
-		print("EMBER_AIRLESS_ENVIRONMENT_PRODUCTION_TEST_OK: 11 assertions")
+		print("EMBER_AIRLESS_ENVIRONMENT_PRODUCTION_TEST_OK: 13 assertions")
 		quit(0)
 		return
 	for failure in _failures:

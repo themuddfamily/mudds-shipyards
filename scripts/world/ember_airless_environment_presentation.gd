@@ -7,7 +7,7 @@ extends RefCounted
 
 const COMPONENT_ID: StringName = &"ember-airless-environment-presentation"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
-const TERMINATOR_CLEARANCE_DEGREES := 5.0
+const TRANSITION_HALF_WIDTH_DEGREES := 5.0
 const DAY_AMBIENT_MULTIPLIER := 0.32
 const DAY_SKY_MULTIPLIER := 0.42
 const TERMINATOR_AMBIENT_MULTIPLIER := 0.12
@@ -98,7 +98,7 @@ func present_accepted_sun(
 	if not is_finite(clearance):
 		return _result(false, &"invalid_sun_clearance")
 	var visual_state := _visual_state(clearance)
-	var multipliers := _multipliers(visual_state)
+	var multipliers := continuous_multipliers_for_clearance(clearance)
 	var environment := _environment()
 	var requested := {
 		"ambient_light_energy": float(_baseline.ambient_light_energy) \
@@ -118,6 +118,8 @@ func present_accepted_sun(
 	_last_result = _result(true, &"airless_environment_presented", {
 		"visual_state": visual_state,
 		"sun_horizon_clearance_degrees": clearance,
+		"curve_input_source": &"accepted_sun_horizon_clearance_degrees",
+		"continuous_curve": true,
 		"relative_multipliers": multipliers.duplicate(true),
 	})
 	return _last_result.duplicate(true)
@@ -232,24 +234,63 @@ func _identity_reason(
 
 
 func _visual_state(clearance_degrees: float) -> StringName:
-	if clearance_degrees > TERMINATOR_CLEARANCE_DEGREES:
+	if clearance_degrees >= TRANSITION_HALF_WIDTH_DEGREES:
 		return &"surface_day"
-	if clearance_degrees >= -TERMINATOR_CLEARANCE_DEGREES:
+	if clearance_degrees > -TRANSITION_HALF_WIDTH_DEGREES:
 		return &"airless_terminator"
 	return &"surface_night"
 
 
-func _multipliers(state: StringName) -> Dictionary:
-	match state:
-		&"surface_day":
-			return {"ambient": DAY_AMBIENT_MULTIPLIER, "sky": DAY_SKY_MULTIPLIER}
-		&"airless_terminator":
-			return {
-				"ambient": TERMINATOR_AMBIENT_MULTIPLIER,
-				"sky": TERMINATOR_SKY_MULTIPLIER,
-			}
-		_:
-			return {"ambient": NIGHT_AMBIENT_MULTIPLIER, "sky": NIGHT_SKY_MULTIPLIER}
+## Deterministic C1-continuous response to the signed clearance contained in
+## the accepted sun evaluation. The curve owns no cadence: the caller decides
+## when a new observation exists, and the same clearance always returns the same
+## multipliers.
+static func continuous_multipliers_for_clearance(
+		clearance_degrees: float
+	) -> Dictionary:
+	if not is_finite(clearance_degrees):
+		return {}
+	if clearance_degrees <= -TRANSITION_HALF_WIDTH_DEGREES:
+		return {
+			"ambient": NIGHT_AMBIENT_MULTIPLIER,
+			"sky": NIGHT_SKY_MULTIPLIER,
+		}
+	if clearance_degrees < 0.0:
+		var night_to_terminator := smoothstep(
+			-TRANSITION_HALF_WIDTH_DEGREES, 0.0, clearance_degrees
+		)
+		return {
+			"ambient": lerpf(
+				NIGHT_AMBIENT_MULTIPLIER,
+				TERMINATOR_AMBIENT_MULTIPLIER,
+				night_to_terminator
+			),
+			"sky": lerpf(
+				NIGHT_SKY_MULTIPLIER,
+				TERMINATOR_SKY_MULTIPLIER,
+				night_to_terminator
+			),
+		}
+	if clearance_degrees < TRANSITION_HALF_WIDTH_DEGREES:
+		var terminator_to_day := smoothstep(
+			0.0, TRANSITION_HALF_WIDTH_DEGREES, clearance_degrees
+		)
+		return {
+			"ambient": lerpf(
+				TERMINATOR_AMBIENT_MULTIPLIER,
+				DAY_AMBIENT_MULTIPLIER,
+				terminator_to_day
+			),
+			"sky": lerpf(
+				TERMINATOR_SKY_MULTIPLIER,
+				DAY_SKY_MULTIPLIER,
+				terminator_to_day
+			),
+		}
+	return {
+		"ambient": DAY_AMBIENT_MULTIPLIER,
+		"sky": DAY_SKY_MULTIPLIER,
+	}
 
 
 func _target() -> WorldEnvironment:
