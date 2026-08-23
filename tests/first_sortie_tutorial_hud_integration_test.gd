@@ -32,13 +32,30 @@ func _run() -> void:
 	glyph_presenter.set_device_family(&"keyboard")
 	hud.call("_refresh_input_prompts")
 	_check(detail.text.contains("Tab") and _intents.is_empty(), "profile refresh redraws the same tutorial generation without emitting an intent")
+	root.remove_child(hud)
+	await process_frame
+	hud.set_settings_snapshot({"input_binding_profile": RebindService.new().get_defaults().to_dictionary()})
+	glyph_presenter.set_device_family(&"gamepad_xbox")
+	root.add_child(hud)
+	await process_frame
+	var reentered_interact := str(glyph_presenter.resolve_action(&"interact").get("text", "INPUT"))
+	_check(
+		detail.text.contains(reentered_interact)
+		and int((hud.get("_first_sortie_tutorial_source_snapshot") as Dictionary).get("generation", -1)) == 4
+		and _intents.is_empty(),
+		"retained HUD re-entry refreshes current glyphs without replacing tutorial generation or emitting intent"
+	)
 	var dismiss := hud.request_first_sortie_tutorial_action(&"dismiss")
 	_check(dismiss.accepted, "dismiss action is accepted through HUD seam")
 	_check(_intents.size() == 1 and _intents[0].kind == &"tutorial", "tutorial action forwards presentation intent")
 	_check(_intents[0].payload.completion_intent.persist, "completion intent remains caller-owned")
 	glyph_presenter.set_device_family(&"gamepad_xbox")
 	hud.call("_refresh_input_prompts")
-	_check(not (hud.get("_runtime_status_panel") as PanelContainer).visible and _intents.size() == 1, "dismissed tutorial cannot reappear on later glyph refresh")
+	root.remove_child(hud)
+	await process_frame
+	root.add_child(hud)
+	await process_frame
+	_check(not (hud.get("_runtime_status_panel") as PanelContainer).visible and _intents.size() == 1, "dismissed tutorial cannot reappear on later glyph refresh or retained re-entry")
 	var invalid := hud.apply_first_sortie_tutorial_snapshot({"step_id": &"unknown"})
 	_check(not invalid, "invalid tutorial snapshot is rejected")
 	hud.queue_free()

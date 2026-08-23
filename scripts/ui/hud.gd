@@ -540,6 +540,14 @@ func _enter_tree() -> void:
 	# focus that the Viewport necessarily dropped during detach.
 	if _pause != null:
 		call_deferred("_restore_pause_focus_after_reentry")
+	if (
+		not _first_sortie_tutorial_source_snapshot.is_empty()
+		and _runtime_input_glyph_presenter != null
+	):
+		# The retained prompt may have a different preferred device or binding
+		# profile after Main was detached. Reuse the ordinary presentation refresh
+		# only after the HUD has rejoined the tree; this emits no tutorial intent.
+		call_deferred("_refresh_input_prompts_after_reentry")
 
 
 func _exit_tree() -> void:
@@ -5145,6 +5153,12 @@ func _refresh_input_prompts() -> void:
 		_set_help_text(_help_rows_with_role_context(_state_mode))
 	if _runtime_status_kind == &"tutorial" and not _first_sortie_tutorial_source_snapshot.is_empty():
 		apply_first_sortie_tutorial_snapshot(_first_sortie_tutorial_source_snapshot)
+
+
+func _refresh_input_prompts_after_reentry() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	_refresh_input_prompts()
 
 
 func _tutorial_input_family() -> StringName:
