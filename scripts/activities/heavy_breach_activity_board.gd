@@ -18,6 +18,8 @@ const INTERACTION_RADIUS := 2.8
 const BOARD_SIZE := Vector3(0.75, 1.35, 1.8)
 const PEDESTAL_SIZE := Vector3(1.4, 1.0, 2.2)
 const CONSOLE_OFFSET := Vector3(0.0, 0.0, 0.0)
+const HEADER_SIZE := Vector3(1.25, 1.25, 0.10)
+const HEADER_POSITION := Vector3(0.0, 1.5, 0.97)
 
 var _director: EncounterScenarioDirector
 var _combat_authority: LiveCombatAuthority
@@ -246,6 +248,16 @@ func get_snapshot() -> Dictionary:
 			"reward": false,
 		},
 		"process_loops": int(is_processing()) + int(is_physics_processing()),
+		"presentation": {
+			"silhouette": &"diamond_activity_board",
+			"signage": &"heavy_breach_activity_board",
+			"geometry_nodes": 3,
+			"label_nodes": 1,
+			"custom_materials": 1,
+			"lights": 0,
+			"pulsing": false,
+			"interaction_radius": INTERACTION_RADIUS,
+		},
 	}.duplicate(true)
 
 
@@ -312,13 +324,24 @@ func _build_physical_board() -> void:
 	material.emission = Color("ff9b39")
 	material.emission_energy_multiplier = 0.35
 	console.material_override = material
+	var header := MeshInstance3D.new()
+	header.name = "ActivityBoardSilhouette"
+	var header_box := BoxMesh.new()
+	header_box.size = HEADER_SIZE
+	header.mesh = header_box
+	header.position = HEADER_POSITION
+	header.rotation.z = PI * 0.25
+	# Reuse the console material so the shape adds no retained material or light.
+	header.material_override = material
+	body.add_child(header)
 	var label := Label3D.new()
 	label.name = "ActivityLabel"
-	label.text = "HEAVY BREACH"
-	label.font_size = 32
+	label.text = "HEAVY BREACH\nACTIVITY BOARD"
+	label.font_size = 25
 	label.modulate = Color("ffd08e")
-	label.position = CONSOLE_OFFSET + Vector3(0.0, 0.72, 0.94)
-	label.pixel_size = 0.006
+	label.position = CONSOLE_OFFSET + Vector3(0.0, 1.5, 1.04)
+	label.pixel_size = 0.0048
+	label.outline_size = 5
 	add_child(label)
 	var interaction_shape := CollisionShape3D.new()
 	interaction_shape.name = "InteractionCollision"

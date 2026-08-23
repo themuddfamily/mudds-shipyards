@@ -76,6 +76,43 @@ func _run() -> void:
 		await process_frame
 		_finish()
 		return
+	var board_console := board.get_node(
+		^"CollisionBackedConsole/ActivityBoardConsole"
+	) as MeshInstance3D
+	var board_header := board.get_node(
+		^"CollisionBackedConsole/ActivityBoardSilhouette"
+	) as MeshInstance3D
+	var board_label := board.get_node(^"ActivityLabel") as Label3D
+	var interaction_collision := board.get_node(^"InteractionCollision") as CollisionShape3D
+	var objective_marker := objective.get_node(^"ProtectedObjectiveMarker") as MeshInstance3D
+	var objective_label := objective.get_node(^"ProtectedObjectiveLabel") as Label3D
+	var objective_mesh := objective_marker.mesh as CylinderMesh
+	_check(
+		(board_header.mesh as BoxMesh).size == Vector3(1.25, 1.25, 0.10)
+			and is_equal_approx(board_header.rotation.z, PI * 0.25)
+			and board_header.material_override == board_console.material_override
+			and board_label.text == "HEAVY BREACH\nACTIVITY BOARD"
+			and objective_mesh.radial_segments == 6
+			and is_equal_approx(objective_mesh.top_radius, 1.35)
+			and is_equal_approx(objective_marker.rotation.x, PI * 0.5)
+			and objective_label.text == "BREACH\nPROTECTED ASSET",
+		"board diamond and protected hex shield remain distinct shape-first approach silhouettes"
+	)
+	var board_presentation: Dictionary = board.get_snapshot().presentation
+	_check(
+		(interaction_collision.shape as BoxShape3D).size == Vector3(2.4, 2.2, 1.8)
+			and interaction_collision.position == Vector3(0.0, 0.25, 0.45)
+			and objective.find_children("*", "CollisionShape3D", true, false).is_empty()
+			and board.find_children("*", "Light3D", true, false).is_empty()
+			and objective.find_children("*", "Light3D", true, false).is_empty()
+			and board.find_children("*", "AnimationPlayer", true, false).is_empty()
+			and board_presentation.geometry_nodes == 3
+			and board_presentation.custom_materials == 1
+			and board_presentation.lights == 0
+			and not bool(board_presentation.pulsing)
+			and is_equal_approx(float(board_presentation.interaction_radius), 2.8),
+		"visual upgrade preserves the exact interaction envelope and zero-light, no-pulse, collision-free objective budget"
+	)
 	var configured := world.configure_heavy_breach_reward_handoff(
 		Callable(self, "_accept_reward_request")
 	)

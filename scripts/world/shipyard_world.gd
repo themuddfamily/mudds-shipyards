@@ -1057,25 +1057,30 @@ func _build_heavy_breach_production_activity() -> void:
 	var objective_marker := MeshInstance3D.new()
 	objective_marker.name = "ProtectedObjectiveMarker"
 	var marker_mesh := CylinderMesh.new()
-	marker_mesh.top_radius = 1.2
-	marker_mesh.bottom_radius = 1.2
-	marker_mesh.height = 0.18
+	marker_mesh.top_radius = 1.35
+	marker_mesh.bottom_radius = 1.35
+	marker_mesh.height = 0.16
+	marker_mesh.radial_segments = 6
 	objective_marker.mesh = marker_mesh
-	objective_marker.position = Vector3(0.0, -0.88, 0.0)
+	# A vertical hexagonal shield remains collisionless presentation, but reads
+	# from the station approach unlike the old flat floor puck.
+	objective_marker.position = Vector3(0.0, 0.55, 0.0)
+	objective_marker.rotation.x = PI * 0.5
 	var marker_material := StandardMaterial3D.new()
 	marker_material.albedo_color = Color("5b2020")
 	marker_material.emission_enabled = true
 	marker_material.emission = Color("ff5c43")
-	marker_material.emission_energy_multiplier = 0.3
+	marker_material.emission_energy_multiplier = 0.24
 	objective_marker.material_override = marker_material
 	_heavy_breach_protected_objective.add_child(objective_marker)
 	var objective_label := Label3D.new()
 	objective_label.name = "ProtectedObjectiveLabel"
-	objective_label.text = "PROTECTED ASSET"
-	objective_label.font_size = 24
+	objective_label.text = "BREACH\nPROTECTED ASSET"
+	objective_label.font_size = 22
 	objective_label.modulate = Color("ffb09a")
-	objective_label.pixel_size = 0.005
-	objective_label.position = Vector3(0.0, 0.6, 0.0)
+	objective_label.pixel_size = 0.0045
+	objective_label.outline_size = 5
+	objective_label.position = Vector3(0.0, 2.25, 0.0)
 	_heavy_breach_protected_objective.add_child(objective_label)
 	_heavy_breach_activity_board = HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT.new() as Area3D
 	_heavy_breach_activity_board.name = "HeavyBreachActivityBoard"
