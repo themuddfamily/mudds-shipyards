@@ -176,6 +176,39 @@ func _initialize() -> void:
 		_landing_results.size() == 2 and _landing_results[1].get("status") == &"stale_sequence",
 		"server rejects a replayed landing sequence"
 	)
+	_check(
+		bool(_server.register_damage_entity(client_peer_id, &"target-1", 1, 1, 1.0, 0.0).get("accepted", false)),
+		"server registers the admitted damage lifecycle owner"
+	)
+	var damage_event := {
+		"event_sequence": 1,
+		"projectile_id": &"projectile-1",
+		"target_entity_id": &"target-1",
+		"target_generation": 1,
+		"damage": 100.0,
+	}
+	var component_receipt := {
+		"accepted": true,
+		"reason": &"applied",
+		"generation": 1,
+		"sequence": 0,
+		"component_id": &"hull",
+		"applied_damage": 100.0,
+	}
+	var damage_result := _server.record_damage(&"target-1", 1, damage_event, component_receipt, true)
+	_check(
+		bool(damage_result.get("accepted", false)) and damage_result.get("status") == &"damage_destroyed",
+		"server records authoritative damage without trusting a client amount"
+	)
+	var recovery_result := _server.tick_damage_recovery(&"target-1", 1, 1.0)
+	_check(
+		bool(recovery_result.get("accepted", false)) and recovery_result.get("status") == &"recovery_ready",
+		"server advances the generation-fenced recovery gate"
+	)
+	_check(
+		_client.record_damage(&"target-1", 1, damage_event, component_receipt, false).get("status") == &"authority_required",
+		"client cannot mutate the damage/respawn ledger"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -209,6 +242,10 @@ func _initialize() -> void:
 	_check(
 		_server.get_landing_entity(&"ship-1").is_empty(),
 		"server disconnect cleanup retires the peer-owned landing entity"
+	)
+	_check(
+		_server.get_damage_entity(&"target-1").is_empty(),
+		"server disconnect cleanup retires the peer-owned damage lifecycle"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),

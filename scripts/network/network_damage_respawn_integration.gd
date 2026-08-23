@@ -82,6 +82,23 @@ func register_entity(
 	return _remember(_result(true, &"registered", {"entity_id": entity_id}))
 
 
+func retire_entity(
+	source_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int
+) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if not _entities.has(entity_id):
+		return _remember(_result(false, &"unknown_entity"))
+	var entity := _entities[entity_id] as Dictionary
+	if int(entity.get("entity_generation", -1)) != entity_generation:
+		return _remember(_result(false, &"stale_entity_generation"))
+	_entities.erase(entity_id)
+	_event_sequence += 1
+	return _remember(_result(true, &"retired", {"entity_id": entity_id}))
+
+
 ## Joins one server projectile receipt to one server component-damage receipt.
 ## The caller must pass the exact target generation and no client-provided
 ## amount is trusted. A destroyed receipt starts the bounded recovery policy.

@@ -15,6 +15,7 @@ const MovementAuthority := preload("res://scripts/network/network_movement_autho
 const BoardingAuthority := preload("res://scripts/network/network_boarding_authority.gd")
 const ProjectileAuthority := preload("res://scripts/network/network_projectile_authority.gd")
 const LandingAuthority := preload("res://scripts/network/network_landing_authority.gd")
+const DamageRespawnIntegration := preload("res://scripts/network/network_damage_respawn_integration.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -27,6 +28,7 @@ signal movement_intent_result(result: Dictionary)
 signal boarding_intent_result(result: Dictionary)
 signal projectile_intent_result(result: Dictionary)
 signal landing_intent_result(result: Dictionary)
+signal damage_respawn_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -39,11 +41,13 @@ var _movement
 var _boarding
 var _projectile
 var _landing
+var _damage_respawn
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
 var _projectile_sources: Dictionary = {}
 var _landing_entities: Dictionary = {}
+var _damage_entities: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
@@ -56,6 +60,7 @@ func _init() -> void:
 	_boarding = BoardingAuthority.new(AUTHORITY_PEER_ID)
 	_projectile = ProjectileAuthority.new(AUTHORITY_PEER_ID)
 	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
+	_damage_respawn = DamageRespawnIntegration.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -117,6 +122,14 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 						AUTHORITY_PEER_ID, entity_id, int(entity.get("entity_generation", 0))
 					)
 					_landing_entities.erase(entity_id)
+			for damage_id_variant in _damage_entities.keys():
+				var damage_id := StringName(damage_id_variant)
+				var damage_entity := _damage_entities[damage_id] as Dictionary
+				if int(damage_entity.get("owner_peer_id", 0)) == peer_id:
+					_damage_respawn.retire_entity(
+						AUTHORITY_PEER_ID, damage_id, int(damage_entity.get("entity_generation", 0))
+					)
+					_damage_entities.erase(damage_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -313,6 +326,92 @@ func get_landing_entity(entity_id: StringName) -> Dictionary:
 	return _landing.get_entity_snapshot(entity_id)
 
 
+func register_damage_entity(
+	owner_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int,
+	component_generation: int,
+	recovery_seconds: float = 2.0,
+	invulnerability_seconds: float = 0.75
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(owner_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _damage_respawn.register_entity(
+		AUTHORITY_PEER_ID, owner_peer_id, entity_id, entity_generation,
+		component_generation, recovery_seconds, invulnerability_seconds
+	)
+	if bool(result.get("accepted", false)):
+		_damage_entities[entity_id] = {
+			"owner_peer_id": owner_peer_id,
+			"entity_generation": entity_generation,
+		}
+	return _remember(result)
+
+
+func record_damage(
+	entity_id: StringName,
+	entity_generation: int,
+	damage_event: Dictionary,
+	component_receipt: Dictionary,
+	destroyed: bool
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _damage_respawn.record_damage(
+		AUTHORITY_PEER_ID, entity_id, entity_generation,
+		damage_event, component_receipt, destroyed
+	)
+	damage_respawn_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func tick_damage_recovery(entity_id: StringName, entity_generation: int, delta: float) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _damage_respawn.tick_recovery(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, delta
+	)
+	damage_respawn_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func reserve_damage_respawn(
+	entity_id: StringName,
+	entity_generation: int,
+	reservation: Dictionary
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _damage_respawn.reserve_respawn(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, reservation
+	)
+	damage_respawn_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func commit_damage_respawn(
+	entity_id: StringName,
+	entity_generation: int,
+	commit: Dictionary,
+	component_reset: Dictionary
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _damage_respawn.commit_respawn(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, commit, component_reset
+	)
+	if bool(result.get("accepted", false)) and _damage_entities.has(entity_id):
+		_damage_entities[entity_id]["entity_generation"] = int(result.get("entity_generation", entity_generation))
+	damage_respawn_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_damage_entity(entity_id: StringName) -> Dictionary:
+	return _damage_respawn.get_entity_snapshot(entity_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -469,6 +568,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 				AUTHORITY_PEER_ID, entity_id, int(entity.get("entity_generation", 0))
 			)
 			_landing_entities.erase(entity_id)
+	for damage_id_variant in _damage_entities.keys():
+		var damage_id := StringName(damage_id_variant)
+		var damage_entity := _damage_entities[damage_id] as Dictionary
+		if int(damage_entity.get("owner_peer_id", 0)) == peer_id:
+			_damage_respawn.retire_entity(
+				AUTHORITY_PEER_ID, damage_id, int(damage_entity.get("entity_generation", 0))
+			)
+			_damage_entities.erase(damage_id)
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
 
 
