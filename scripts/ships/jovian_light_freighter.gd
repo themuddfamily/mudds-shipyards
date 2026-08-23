@@ -85,6 +85,12 @@ const CARGO_DECK_LANE_SIZE := Vector3(0.11, 0.025, 11.4)
 const LOAD_MARK_COPY_COUNT := 6
 const LOAD_MARK_SIZE := Vector3(0.12, 0.42, 0.72)
 
+## Seven childless shoulder service panels share one structure-material visual
+## recipe. They own no collision, interaction, marker, evidence, or lifecycle
+## authority, so one exterior-root batch preserves their exact authored copies.
+const SERVICE_PANEL_COPY_COUNT := 7
+const SERVICE_PANEL_SIZE := Vector3(0.1, 1.48, 2.45)
+
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
 # Their geometry recipe and structure material are exact, so those nodes share
@@ -229,6 +235,9 @@ var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _load_mark_mesh: ArrayMesh
 var _load_mark_batch: MultiMeshInstance3D
 var _load_mark_transforms: Array[Transform3D] = []
+var _service_panel_mesh: ArrayMesh
+var _service_panel_batch: MultiMeshInstance3D
+var _service_panel_transforms: Array[Transform3D] = []
 var _cargo_deck_lane_mesh: ArrayMesh
 var _cargo_deck_lane_batch: MultiMeshInstance3D
 var _cargo_deck_lane_transforms: Array[Transform3D] = []
@@ -1038,6 +1047,7 @@ func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var defensive_weapon_visual := get_defensive_weapon_visual_report()
 	var load_mark_allocation := get_load_mark_render_audit()
+	var service_panel_allocation := get_service_panel_render_audit()
 	var cargo_deck_lane_allocation := get_cargo_deck_lane_render_audit()
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
@@ -1073,6 +1083,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("modern provisional defensive weapon visual drifted")
 	if not bool(load_mark_allocation.get("valid", false)):
 		errors.append("load-mark visual batching contract drifted")
+	if not bool(service_panel_allocation.get("valid", false)):
+		errors.append("service-panel visual batching contract drifted")
 	if not bool(cargo_deck_lane_allocation.get("valid", false)):
 		errors.append("cargo-deck lane visual batching contract drifted")
 	if not bool(dorsal_rib_allocation.get("valid", false)):
@@ -1096,6 +1108,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"weapon_class": &"freighter_defensive_pulse",
 		"defensive_weapon_visual": defensive_weapon_visual,
 		"load_mark_render_allocation": load_mark_allocation,
+		"service_panel_render_allocation": service_panel_allocation,
 		"cargo_deck_lane_render_allocation": cargo_deck_lane_allocation,
 		"combat_source_id": COMBAT_SOURCE_ID,
 		"interior": get_walkable_interior_report(),
@@ -1174,6 +1187,80 @@ func _encode_load_mark_transforms(transforms: Array[Transform3D]) -> PackedFloat
 		buffer[offset + 10] = value.basis.z.z
 		buffer[offset + 11] = value.origin.z
 	return buffer
+
+
+func get_service_panel_render_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var multi := _service_panel_batch.multimesh \
+		if is_instance_valid(_service_panel_batch) else null
+	var expected_names := PackedStringArray([
+		"PortServicePanel00", "PortServicePanel01", "PortServicePanel03",
+		"StarboardServicePanel00", "StarboardServicePanel01",
+		"StarboardServicePanel02", "StarboardServicePanel03",
+	])
+	if not is_instance_valid(_jovian_visual):
+		errors.append("service_panel_visual_root_unavailable")
+	if not is_instance_valid(_service_panel_batch) or multi == null or multi.mesh == null:
+		errors.append("service_panel_batch_unavailable")
+	else:
+		if (
+			_service_panel_batch.get_parent() != _jovian_visual
+			or _service_panel_batch.name != &"ServicePanelBatch"
+		):
+			errors.append("service_panel_batch_path_drift")
+		if (
+			multi.mesh != _service_panel_mesh
+			or not multi.mesh.get_aabb().size.is_equal_approx(SERVICE_PANEL_SIZE)
+		):
+			errors.append("service_panel_mesh_recipe_drift")
+		if (
+			multi.instance_count != SERVICE_PANEL_COPY_COUNT
+			or multi.visible_instance_count != -1
+			or multi.mesh.get_surface_count() != 1
+			or multi.mesh.surface_get_material(0) != _jovian_materials.get("structure")
+			or _service_panel_batch.cast_shadow
+				!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			or _service_panel_batch.layers != 1
+			or not is_zero_approx(_service_panel_batch.extra_cull_margin)
+		):
+			errors.append("service_panel_renderer_recipe_drift")
+		if multi.buffer != _encode_load_mark_transforms(_service_panel_transforms):
+			errors.append("service_panel_transform_buffer_drift")
+		if not multi.custom_aabb.is_equal_approx(
+			_load_mark_bounds(multi.mesh.get_aabb(), _service_panel_transforms)
+		):
+			errors.append("service_panel_culling_bounds_drift")
+		if _service_panel_batch.get_meta(
+			"authored_visual_names", PackedStringArray()
+		) != expected_names:
+			errors.append("service_panel_authored_name_roster_drift")
+		if (
+			_service_panel_batch.get_child_count() != 0
+			or not bool(_service_panel_batch.get_meta("visual_detail_only", false))
+		):
+			errors.append("service_panel_gained_authority")
+	if _service_panel_transforms.size() != SERVICE_PANEL_COPY_COUNT:
+		errors.append("service_panel_transform_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy": {
+			"renderer_nodes": SERVICE_PANEL_COPY_COUNT,
+			"submissions": SERVICE_PANEL_COPY_COUNT,
+		},
+		"current": {
+			"renderer_nodes": 1,
+			"submissions": 1,
+			"copies": SERVICE_PANEL_COPY_COUNT,
+		},
+		"delta": {
+			"renderer_nodes": 1 - SERVICE_PANEL_COPY_COUNT,
+			"submissions": 1 - SERVICE_PANEL_COPY_COUNT,
+		},
+		"authored_transforms": _service_panel_transforms.duplicate(),
+		"batched": true,
+		"collision_authority": false,
+	}.duplicate(true)
 
 
 func _load_mark_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
@@ -2401,13 +2488,9 @@ func _build_exterior() -> void:
 			if side < 0.0 and panel_index == 2:
 				continue
 			var panel_z := -4.1 + float(panel_index) * 3.75
-			_box(
-				_jovian_visual,
-				side_name + "ServicePanel%02d" % panel_index,
-				Vector3(side * 7.83, 2.12, panel_z),
-				Vector3(0.1, 1.48, 2.45),
-				_jovian_materials.structure
-			)
+			_service_panel_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(side * 7.83, 2.12, panel_z)
+			))
 		_sphere(
 			_jovian_visual,
 			side_name + "NavigationLight",
@@ -2488,6 +2571,32 @@ func _build_exterior() -> void:
 				Basis.from_euler(Vector3(0.0, 0.0, side * deg_to_rad(18.0))),
 				Vector3(side * 7.88, 1.15, -1.3 + stripe_index * 1.1)
 			))
+	_service_panel_mesh = _rounded_box_mesh(SERVICE_PANEL_SIZE, _jovian_materials.structure)
+	var service_panels := MultiMesh.new()
+	service_panels.transform_format = MultiMesh.TRANSFORM_3D
+	service_panels.mesh = _service_panel_mesh
+	service_panels.instance_count = _service_panel_transforms.size()
+	service_panels.visible_instance_count = -1
+	service_panels.buffer = _encode_load_mark_transforms(_service_panel_transforms)
+	service_panels.custom_aabb = _load_mark_bounds(
+		_service_panel_mesh.get_aabb(), _service_panel_transforms
+	)
+	_service_panel_batch = MultiMeshInstance3D.new()
+	_service_panel_batch.name = "ServicePanelBatch"
+	_service_panel_batch.multimesh = service_panels
+	_service_panel_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_service_panel_batch.layers = 1
+	_service_panel_batch.extra_cull_margin = 0.0
+	_service_panel_batch.set_meta("visual_detail_only", true)
+	_service_panel_batch.set_meta("authored_visual_names", PackedStringArray([
+		"PortServicePanel00", "PortServicePanel01", "PortServicePanel03",
+		"StarboardServicePanel00", "StarboardServicePanel01",
+		"StarboardServicePanel02", "StarboardServicePanel03",
+	]))
+	_service_panel_batch.set_meta(
+		"authored_instance_transforms", _service_panel_transforms.duplicate()
+	)
+	_jovian_visual.add_child(_service_panel_batch)
 	_load_mark_mesh = _rounded_box_mesh(LOAD_MARK_SIZE, _jovian_materials.amber)
 	var load_marks := MultiMesh.new()
 	load_marks.transform_format = MultiMesh.TRANSFORM_3D

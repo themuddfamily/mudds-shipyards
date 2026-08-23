@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
 	_test_load_mark_render_allocation(jovian)
+	_test_service_panel_render_allocation(jovian)
 	_test_cargo_deck_lane_render_allocation(jovian)
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
@@ -198,6 +199,55 @@ func _test_load_mark_render_allocation(jovian: JovianLightFreighter) -> void:
 		bool(jovian.get_load_mark_render_audit().get("valid", false)),
 		"restoring the load-mark transform buffer returns the render allocation audit green"
 	)
+
+
+func _test_service_panel_render_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_service_panel_render_audit()
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	var visual := jovian.get_node_or_null(^"JovianFreighterVisual") as Node3D
+	var batch := visual.get_node_or_null(^"ServicePanelBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var transforms := audit.get("authored_transforms", []) as Array
+	_check(
+		bool(audit.get("valid", false))
+			and int(legacy.get("renderer_nodes", 0)) == 7
+			and int(legacy.get("submissions", 0)) == 7
+			and int(current.get("renderer_nodes", 0)) == 1
+			and int(current.get("submissions", 0)) == 1
+			and int(current.get("copies", 0)) == 7
+			and int(delta.get("renderer_nodes", 0)) == -6
+			and int(delta.get("submissions", 0)) == -6,
+		"seven visual-only shoulder service panels batch to one renderer/submission"
+	)
+	_check(
+		batch != null and batch.multimesh != null
+			and batch.get_child_count() == 0
+			and bool(batch.get_meta("visual_detail_only", false))
+			and transforms.size() == 7
+			and (transforms[0] as Transform3D).origin.is_equal_approx(
+				Vector3(-7.83, 2.12, -4.1)
+			)
+			and (transforms[2] as Transform3D).origin.is_equal_approx(
+				Vector3(-7.83, 2.12, 7.15)
+			)
+			and (transforms[6] as Transform3D).origin.is_equal_approx(
+				Vector3(7.83, 2.12, 7.15)
+			),
+		"service-panel batch preserves the exact authored transforms and no authority"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.1
+	batch.multimesh.buffer = mutated_buffer
+	_check(
+		not bool(jovian.get_service_panel_render_audit().get("valid", true)),
+		"RED: mutating a live service-panel transform fails its focused audit"
+	)
+	batch.multimesh.buffer = original_buffer
 
 
 func _test_cargo_deck_lane_render_allocation(jovian: JovianLightFreighter) -> void:
