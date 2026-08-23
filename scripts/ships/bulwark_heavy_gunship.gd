@@ -16,6 +16,7 @@ const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_autho
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
 const WeaponDefinitionResolverProfileType := preload("res://scripts/combat/weapon_definition_resolver_profile.gd")
 const SiegeLanceDefinition := preload("res://assets/weapons/picket_siege_lance.tres")
+const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_audio_binding.gd")
 
 const SCHEMA_VERSION := 1
 const COMBAT_SOURCE_ID := 1106
@@ -68,6 +69,7 @@ var _gunner_target_generation := 1
 var _engineer_component_selection: Dictionary = {}
 var _engineer_component_generation := 1
 var _siege_lance_audio_sequence := 0
+var _siege_lance_audio_binding: RefCounted
 
 signal gunner_target_selected(target_id: StringName, target_generation: int, receipt: Dictionary)
 signal gunner_target_cleared(target_id: StringName, target_generation: int, reason: StringName)
@@ -134,6 +136,8 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	if _bulwark_built:
+		_bind_siege_lance_audio()
 	var rig := get_node_or_null("ShipAudioRig") as ShipAudioRig
 	if rig != null:
 		rig.profile_id = ShipAudioRig.PROFILE_HEAVY_QUAD_FREIGHTER
@@ -145,6 +149,11 @@ func _ready() -> void:
 	if not _bulwark_built:
 		_bulwark_built = rebuild_variant_presentation(_build_bulwark_variant)
 	_apply_bulwark_metadata()
+	_bind_siege_lance_audio()
+
+func _exit_tree() -> void:
+	_unbind_siege_lance_audio()
+	super._exit_tree()
 
 
 func _physics_process(delta: float) -> void:
@@ -158,6 +167,8 @@ func _physics_process(delta: float) -> void:
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	if _siege_lance_audio_binding != null:
+		_siege_lance_audio_binding.reset_for_reuse()
 	_gunner_role_cooldowns.clear()
 	_gunner_role_ammunition.clear()
 	_clear_all_gunner_charges(&"ship_reused")
@@ -165,6 +176,22 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_gunner_target_generation = 1
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
+
+func get_siege_lance_audio_binding() -> RefCounted:
+	return _siege_lance_audio_binding
+
+func _bind_siege_lance_audio() -> void:
+	if _siege_lance_audio_binding == null:
+		_siege_lance_audio_binding = SiegeLanceAudioBindingType.new()
+	else:
+		var snapshot: Dictionary = _siege_lance_audio_binding.get_snapshot()
+		if bool(snapshot.get("attached", false)):
+			return
+	_siege_lance_audio_binding.attach(self, int(_siege_lance_audio_binding.get_snapshot().get("generation", 0)))
+
+func _unbind_siege_lance_audio() -> void:
+	if _siege_lance_audio_binding != null:
+		_siege_lance_audio_binding.detach()
 
 
 func apply_damage(

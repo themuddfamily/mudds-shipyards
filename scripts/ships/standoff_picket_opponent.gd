@@ -5,6 +5,7 @@ const WeaponDefinitionResolverProfileType := preload(
 	"res://scripts/combat/weapon_definition_resolver_profile.gd"
 )
 const SIEGE_LANCE_DEFINITION := preload("res://assets/weapons/picket_siege_lance.tres")
+const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_audio_binding.gd")
 
 ## Standoff picket lance — a second, laterally differentiated range-defence
 ## archetype for the Phase 6 encounter.
@@ -141,6 +142,7 @@ var _lance_charge_target_instance_id := 0
 var _lance_charge_armed := false
 var _lance_charge_cancel_reason: StringName = &""
 var _audio_sequence := 0
+var _siege_lance_audio_binding: RefCounted
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -151,6 +153,7 @@ func _enter_tree() -> void:
 	# again. Restoring the registration is deferred so the coordinator's own
 	# deferred combat restore observes the same source roster it built at boot.
 	if _built:
+		_bind_siege_lance_audio()
 		call_deferred("_restore_after_reentry")
 
 
@@ -163,9 +166,11 @@ func _ready() -> void:
 	set_meta("modern_interpretation", &"standoff_picket_opponent")
 	_attach_damage_proxy()
 	_connect_pulse_signals()
+	_bind_siege_lance_audio()
 
 
 func _exit_tree() -> void:
+	_unbind_siege_lance_audio()
 	_disconnect_pulse_signals()
 	# Damage authority is already final; only queued presentation is dropped so a
 	# streamed teardown can never resurrect a transient on re-entry.
@@ -483,6 +488,8 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_lance_charge_generation = 0
 	_lance_charge_target_instance_id = 0
 	_discard_lance_receipts()
+	if _siege_lance_audio_binding != null:
+		_siege_lance_audio_binding.reset_for_reuse()
 	_register_combat_source()
 	_set_engagement_state(STATE_CLOSING)
 	return activation
@@ -495,6 +502,22 @@ func deactivate() -> void:
 	_discard_lance_receipts()
 	super()
 	_set_engagement_state(STATE_DORMANT)
+
+func get_siege_lance_audio_binding() -> RefCounted:
+	return _siege_lance_audio_binding
+
+func _bind_siege_lance_audio() -> void:
+	if _siege_lance_audio_binding == null:
+		_siege_lance_audio_binding = SiegeLanceAudioBindingType.new()
+	else:
+		var snapshot: Dictionary = _siege_lance_audio_binding.get_snapshot()
+		if bool(snapshot.get("attached", false)):
+			return
+	_siege_lance_audio_binding.attach(self, int(_siege_lance_audio_binding.get_snapshot().get("generation", 0)))
+
+func _unbind_siege_lance_audio() -> void:
+	if _siege_lance_audio_binding != null:
+		_siege_lance_audio_binding.detach()
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
