@@ -5,7 +5,8 @@ extends RefCounted
 ## admission, host/join authority, and all lifecycle transitions.
 
 const COMPONENT_ID: StringName = &"network-session-status-presenter"
-const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"disconnected"]
+const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"disconnected", &"migrating"]
+const LOCAL_ROLES := [&"pilot", &"passenger", &"observer"]
 const SESSION_END_MESSAGES := {
 	&"timeout": "Session timed out.",
 	&"rejected": "Session request was rejected.",
@@ -16,9 +17,16 @@ const SESSION_END_MESSAGES := {
 }
 
 var _snapshot: Dictionary = {}
+var _source_generation := -1
 
 
 func present_snapshot(source: Dictionary) -> Dictionary:
+	if source.has("generation"):
+		if not source.generation is int or int(source.generation) < 0:
+			return _invalid_snapshot(&"invalid_generation")
+		if int(source.generation) < _source_generation:
+			return _snapshot.duplicate(true)
+		_source_generation = int(source.generation)
 	var state := StringName(str(source.get("state", &"disconnected")))
 	if not STATES.has(state):
 		return _invalid_snapshot(&"invalid_state")
@@ -28,10 +36,15 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var attempt := clampi(int(source.get("attempt", 0)), 0, 99)
 	var seconds_remaining := clampf(float(source.get("seconds_remaining", 0.0)), 0.0, 300.0)
 	var end_reason := _normalize_end_reason(source.get("end_reason", &""), state)
+	var local_role := _normalize_local_role(source.get("local_role", source.get("player_role", &"observer")))
+	var craft_name := str(source.get("controlled_craft", source.get("craft_name", ""))).strip_edges()
+	if craft_name.length() > 48:
+		craft_name = craft_name.left(48)
 	var actions: Array = []
 	match state:
 		&"connecting": actions.append({"id": &"cancel", "label": "Cancel Connection", "focusable": true})
 		&"reconnecting": actions.append({"id": &"cancel", "label": "Cancel Reconnect", "focusable": true})
+		&"migrating": actions.append({"id": &"cancel", "label": "Cancel Migration", "focusable": true})
 		&"connected": actions.append({"id": &"disconnect", "label": "Disconnect", "focusable": true})
 		&"failed":
 			if retryable:
@@ -46,11 +59,15 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		&"connected": "Connected",
 		&"failed": "Connection Failed",
 		&"disconnected": "Disconnected",
+		&"migrating": "Host Migration",
 	}[state]
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"state": state,
 		"role": role,
+		"local_role": local_role,
+		"ownership_text": String(local_role).to_upper(),
+		"controlled_craft": craft_name,
 		"title": title,
 		"message": detail if not detail.is_empty() else (SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)),
 		"end_reason": end_reason,
@@ -109,7 +126,13 @@ func _default_message(state: StringName) -> String:
 		&"connected": "Session is ready.",
 		&"failed": "The session could not be established.",
 		&"disconnected": "No active session.",
+		&"migrating": "The session host is changing.",
 	}[state]
+
+
+func _normalize_local_role(raw_role: Variant) -> StringName:
+	var role := StringName(str(raw_role).strip_edges().to_lower())
+	return role if LOCAL_ROLES.has(role) else &"observer"
 
 
 func _normalize_end_reason(raw_reason: Variant, state: StringName) -> StringName:
