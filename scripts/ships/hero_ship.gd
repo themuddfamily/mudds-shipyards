@@ -3801,6 +3801,8 @@ func _record_component_damage(
 		local_hit_position = to_local(world_hit_position)
 	if collision_contact:
 		_component_damage.record_collision_damage(amount, local_hit_position)
+	elif local_hit_position.is_finite():
+		_component_damage.record_projectile_damage(amount, local_hit_position)
 	else:
 		_component_damage.record_damage(amount, local_hit_position)
 
