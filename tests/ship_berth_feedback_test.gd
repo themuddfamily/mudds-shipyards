@@ -79,6 +79,11 @@ func _run() -> void:
 	_check(feedback != null and feedback.get_component_id() == &"ship_berth_feedback", "typed feedback scene exposes stable component identity")
 	_check(feedback.get_parent() == berth and feedback.is_in_group(&"ship_berth_feedback"), "feedback binds only to its direct authoritative ShipBerth")
 	_check(feedback.get_feedback_state() == &"released", "fresh unclaimed berth renders released state")
+	var berth_audio: RefCounted = feedback.get_audio_binding()
+	var berth_cues: Array[StringName] = []
+	berth_audio.semantic_berth_cue_emitted.connect(func(cue_id: StringName, _berth_id: StringName, _intensity: float) -> void: berth_cues.append(cue_id))
+	_check(berth_audio != null and bool(berth_audio.get_snapshot().attached), "feedback composes an attached berth audio binding")
+	_check(int(berth_audio.get_snapshot().maximum_simultaneous_voices) == 2 and berth_audio.get_snapshot().prebuilt_voice_ids.size() == 2, "berth audio keeps two fixed prebuilt voice identities")
 	_check(bool(feedback.get_audit_report().valid), "fresh component passes its complete audit")
 	var perf := feedback.get_performance_report()
 	# All sixteen named/stateful copies and submissions remain. Seven exact size
@@ -126,13 +131,16 @@ func _run() -> void:
 	var token := berth.try_reserve(ship, TORRENT_DEFINITION)
 	await process_frame
 	_check(not token.is_empty() and feedback.get_feedback_state() == &"approach", "real reservation transition renders approach state")
+	_check(berth_cues == [&"berth_open_vector"], "approach emits one open-vector semantic cue")
 	_check(feedback.get_state_snapshot().label == "APPROACH VECTOR", "approach state publishes its exact visible label")
 	_check(berth.occupy(ship, token), "fixture converts the exact opaque lease to occupancy")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"occupied" and feedback.get_state_snapshot().label == "BERTH SECURED", "real occupancy transition renders secured state")
+	_check(berth_cues == [&"berth_open_vector", &"berth_capture_secured"], "occupancy emits one capture-secured semantic cue")
 	_check(berth.release(ship, token), "fixture releases the authoritative occupied lease")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released", "real lease release restores open state")
+	_check(berth_cues == [&"berth_open_vector", &"berth_capture_secured", &"berth_release"], "release emits one semantic release cue")
 
 	await _test_state_channels(berth, feedback, ship)
 
@@ -245,6 +253,7 @@ func _run() -> void:
 	berth.remove_child(feedback)
 	await process_frame
 	var detached_state := feedback.get_state_snapshot()
+	_check(not bool(berth_audio.get_snapshot().attached), "detaching feedback clears the berth audio binding")
 	feedback.advance_simulation(1.0)
 	feedback.seek_simulation(float(detached_state.elapsed) + 3.0)
 	feedback.set_feedback_enabled(false)
@@ -259,6 +268,9 @@ func _run() -> void:
 	berth.add_child(feedback)
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released" and bool(feedback.get_audit_report().valid), "child detach and re-add reconnects lifecycle without rebuilding")
+	var reentered_audio: RefCounted = feedback.get_audio_binding()
+	_check(bool(reentered_audio.get_snapshot().attached) and int(reentered_audio.get_snapshot().emitted_cue_count) == 0, "re-entry creates a clean deduplicated berth audio generation")
+	_check(not bool(reentered_audio.present_state(&"released").accepted), "duplicate released state does not emit a berth cue")
 	feedback.set_feedback_paused(true)
 	feedback.set_auto_advance_enabled(true)
 	feedback.set_feedback_enabled(false)

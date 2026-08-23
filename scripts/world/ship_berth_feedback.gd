@@ -37,6 +37,8 @@ extends Node3D
 
 signal state_changed(state: StringName)
 
+const ShipBerthAudioBindingType := preload("res://scripts/audio/ship_berth_audio_binding.gd")
+
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"ship_berth_feedback"
 const STATE_RELEASED: StringName = &"released"
@@ -139,12 +141,14 @@ var _auto_advance := true
 var _built := false
 var _emitting_state := false
 var _pending_state: StringName = &""
+var _audio_binding: RefCounted
 
 
 func _enter_tree() -> void:
 	add_to_group(&"ship_berth_feedback")
 	if _built:
 		_bind_berth()
+		_bind_audio()
 		_reconcile_state(true)
 		_refresh_processing()
 
@@ -166,11 +170,13 @@ func _ready() -> void:
 	_capture_integrity_contract()
 	_built = true
 	_bind_berth()
+	_bind_audio()
 	_reconcile_state(true)
 	_refresh_processing()
 
 
 func _exit_tree() -> void:
+	_unbind_audio()
 	_unbind_berth()
 	set_process(false)
 
@@ -188,6 +194,9 @@ func get_component_id() -> StringName:
 func get_feedback_state() -> StringName:
 	_reconcile_state(false)
 	return _state
+
+func get_audio_binding() -> RefCounted:
+	return _audio_binding
 
 
 func _can_mutate_feedback() -> bool:
@@ -941,6 +950,18 @@ func _bind_berth() -> void:
 		_berth.reservation_changed.connect(_on_berth_state_signal)
 	if not _berth.occupancy_changed.is_connected(_on_berth_state_signal):
 		_berth.occupancy_changed.connect(_on_berth_state_signal)
+
+
+func _bind_audio() -> void:
+	_unbind_audio()
+	_audio_binding = ShipBerthAudioBindingType.new()
+	_audio_binding.attach(self)
+
+
+func _unbind_audio() -> void:
+	if _audio_binding != null:
+		_audio_binding.detach()
+	_audio_binding = null
 
 
 func _unbind_berth() -> void:
