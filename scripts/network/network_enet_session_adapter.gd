@@ -30,6 +30,7 @@ const SnapshotDeltaCodec := preload("res://scripts/network/network_snapshot_delt
 const SnapshotFragmenter := preload("res://scripts/network/network_snapshot_fragmenter.gd")
 const CrewSnapshotCodec := preload("res://scripts/network/network_crew_snapshot_codec.gd")
 const MovingInteriorRelationship := preload("res://scripts/network/moving_interior_relationship.gd")
+const MovingInteriorRelationshipStream := preload("res://scripts/network/moving_interior_relationship_stream.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -97,6 +98,7 @@ var _crew_snapshot_fragmenter
 var _crew_snapshot_revision := 0
 var _crew_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
+var _moving_relationship_stream
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _landing_jitter
@@ -164,6 +166,7 @@ func _init() -> void:
 	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
 	_damage_respawn = DamageRespawnIntegration.new(AUTHORITY_PEER_ID)
 	_moving_interior = MovingInteriorAuthority.new(AUTHORITY_PEER_ID)
+	_moving_relationship_stream = MovingInteriorRelationshipStream.new(AUTHORITY_PEER_ID, 2)
 	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
 	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
 	_crew_roles = CrewRoleAuthority.new(_seat_authority, AUTHORITY_PEER_ID)
@@ -1101,6 +1104,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
 	_moving_replica_samples.clear()
+	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
+		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 	_projectile_replica_samples.clear()
 	_projectile_jitter.reset(migration_generation)
 	_landing_replica_samples.clear()
@@ -1315,6 +1320,19 @@ func consume_moving_interior_snapshot(
 		var raw_relationship: Variant = ready.get("relationship")
 		if not raw_relationship is Dictionary:
 			return _remember(_result(false, &"invalid_moving_interior_relationship"))
+		var relationship_gate: Dictionary = _moving_relationship_stream.accept_snapshot(
+			AUTHORITY_PEER_ID,
+			raw_relationship as Dictionary,
+			int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
+		)
+		if not bool(relationship_gate.get("accepted", false)):
+			return _remember(_result(false, relationship_gate.get("status", &"relationship_rejected")))
+		if relationship_gate.get("status") == &"gap_hold":
+			return _remember(_result(true, &"moving_interior_waiting_for_gap", {
+				"samples": _frozen_moving_interior_samples(frame_world_transform),
+				"buffered_revision": int(ready.get("revision", 0)),
+				"frozen": true,
+			}))
 		var relationship := MovingInteriorRelationship.from_dictionary(raw_relationship as Dictionary)
 		if not relationship.is_valid():
 			return _remember(_result(false, &"invalid_moving_interior_relationship"))
