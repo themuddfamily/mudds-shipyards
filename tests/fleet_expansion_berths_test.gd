@@ -13,7 +13,7 @@ func _initialize() -> void:
 	var audit := berths.get_audit_report()
 	_check(bool(audit.get("valid", false)), "two expansion pads build within their geometry budget")
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the expansion makes no historical berth claim")
-	_check(berths.get_pad_ids() == [&"dock_04_cargo", &"dock_05_bomber"], "Dock 04 cargo and Dock 05 bomber are stable authored IDs")
+	_check(berths.get_pad_ids() == [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"], "Dock 04 cargo, Dock 05 bomber, and Dock 06 interceptor are stable authored IDs")
 	for pad_id in berths.get_pad_ids():
 		var contract := berths.get_landing_contract(pad_id)
 		_check(bool(contract.get("accepted", false)) and (contract.get("landing_anchor", Vector3.INF) as Vector3).is_finite(), "landing contract is finite for %s" % pad_id)

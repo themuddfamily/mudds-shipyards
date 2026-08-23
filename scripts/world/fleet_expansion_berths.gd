@@ -7,13 +7,15 @@ extends Node3D
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"fleet-expansion-berths"
 const EVIDENCE_STATUS: StringName = &"NEW"
-const PAD_IDS: Array[StringName] = [&"dock_04_cargo", &"dock_05_bomber"]
-const PAD_POSITIONS: Array[Vector3] = [Vector3(-34.0, 0.0, -18.0), Vector3(34.0, 0.0, -18.0)]
+const PAD_IDS: Array[StringName] = [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"]
+const PAD_POSITIONS: Array[Vector3] = [
+	Vector3(-34.0, 0.0, -18.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+]
 const PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
 const LANDING_ANCHOR_Y := 4.0
-const MAX_STATIC_BODIES := 8
-const MAX_MESH_INSTANCES := 24
+const MAX_STATIC_BODIES := 10
+const MAX_MESH_INSTANCES := 30
 
 var _pads: Dictionary = {}
 var _built := false
@@ -56,8 +58,8 @@ func get_landing_contract(pad_id: StringName) -> Dictionary:
 
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
-	if PAD_IDS.size() != 2 or _pads.size() != 2:
-		errors.append("exactly two authored expansion pads are required")
+	if PAD_IDS.size() != 3 or _pads.size() != 3:
+		errors.append("exactly three authored expansion pads are required")
 	var bodies := find_children("*", "StaticBody3D", true, false).size()
 	var meshes := find_children("*", "MeshInstance3D", true, false).size()
 	if bodies > MAX_STATIC_BODIES:
@@ -121,7 +123,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	pad.add_child(landing)
 	var sign := Label3D.new()
 	sign.name = "PadSign"
-	sign.text = "DOCK %02d  %s" % [index + 4, "CARGO" if index == 0 else "BOMBER"]
+	sign.text = "DOCK %02d  %s" % [index + 4, ["CARGO", "BOMBER", "INTERCEPTOR"][index]]
 	sign.position = Vector3(0.0, 4.5, -18.0)
 	sign.font_size = 32
 	sign.modulate = Color("63dbe0")
