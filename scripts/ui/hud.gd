@@ -7,6 +7,7 @@ const InputBindingProfileType := preload("res://scripts/settings/input_binding_p
 const InputRebindServiceType := preload("res://scripts/settings/input_rebind_service.gd")
 const RuntimeInputRemappingControllerType := preload("res://scripts/settings/runtime_input_remapping_controller.gd")
 const RuntimeInputRemappingPresenterType := preload("res://scripts/ui/runtime_input_remapping_presenter.gd")
+const RuntimeInputRebindPresenterType := preload("res://scripts/ui/runtime_input_rebind_presenter.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
 const RuntimeInputGlyphPresenterType := preload("res://scripts/ui/runtime_input_glyph_presenter.gd")
 const UltrawideSafeAreaContractType := preload("res://scripts/ui/ultrawide_safe_area_contract.gd")
@@ -285,6 +286,7 @@ var _updating_settings := false
 var _input_rebind_service: InputRebindService
 var _input_remapping_controller: RuntimeInputRemappingController
 var _input_remapping_presenter: RuntimeInputRemappingPresenter
+var _runtime_input_rebind_presenter: RefCounted
 var _input_binding_profile: InputBindingProfile
 var _input_binding_defaults: InputBindingProfile
 var _input_glyph_resolver: InputGlyphResolver
@@ -457,6 +459,11 @@ func _ready() -> void:
 	_runtime_input_glyph_presenter = RuntimeInputGlyphPresenterType.new(_input_glyph_resolver)
 	_runtime_input_glyph_presenter.attach(_input_binding_profile)
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
+	_runtime_input_rebind_presenter = RuntimeInputRebindPresenterType.new(
+		_input_rebind_service,
+		_input_glyph_resolver
+	)
+	_runtime_input_rebind_presenter.attach(_input_binding_profile)
 	_build_interface()
 	set_process_input(true)
 	set_process_unhandled_input(true)
@@ -1404,6 +1411,7 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			_input_binding_profile = parsed_profile.duplicate_profile()
 			_runtime_input_glyph_presenter.refresh(_input_binding_profile)
 			_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
+			_runtime_input_rebind_presenter.attach(_input_binding_profile)
 			_refresh_input_prompts()
 	for raw_key: Variant in snapshot:
 		var key := StringName(str(raw_key))
@@ -1444,6 +1452,10 @@ func set_input_binding_defaults(defaults: InputBindingProfile) -> bool:
 		return false
 	_input_rebind_service = replacement_service
 	_input_binding_defaults = detached_defaults
+	_runtime_input_rebind_presenter = RuntimeInputRebindPresenterType.new(
+		_input_rebind_service,
+		_input_glyph_resolver
+	)
 	if (
 		_input_binding_profile == null
 		or not _input_rebind_service.is_profile_compatible_with_defaults(_input_binding_profile)
@@ -1452,6 +1464,8 @@ func set_input_binding_defaults(defaults: InputBindingProfile) -> bool:
 	if _runtime_input_glyph_presenter != null:
 		_runtime_input_glyph_presenter.refresh(_input_binding_profile)
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
+	if _runtime_input_rebind_presenter != null:
+		_runtime_input_rebind_presenter.attach(_input_binding_profile)
 	_refresh_input_prompts()
 	return true
 
@@ -3452,6 +3466,11 @@ func begin_input_binding_capture(action: StringName) -> bool:
 	):
 		return false
 	_cancel_pending_input_conflict()
+	if _runtime_input_rebind_presenter == null:
+		return false
+	var capture: Dictionary = _runtime_input_rebind_presenter.begin_capture(action)
+	if not bool(capture.get("accepted", false)):
+		return false
 	_binding_capture_action = action
 	_refresh_all_binding_rows()
 	set_settings_status(
@@ -3508,18 +3527,27 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 		action,
 		_binding_device_family(candidate)
 	)
-	_rebuild_input_remapping_presenter(_input_binding_defaults, replacement_base)
-	var snapshot := _input_remapping_presenter.submit_binding(action, candidate)
-	if snapshot.status == &"committed":
-		_commit_input_remapping_snapshot(
+	if _runtime_input_rebind_presenter == null:
+		set_settings_status("BINDING REJECTED", false)
+		return
+	_runtime_input_rebind_presenter.attach(replacement_base)
+	var capture: Dictionary = _runtime_input_rebind_presenter.begin_capture(action)
+	var snapshot: Dictionary = _runtime_input_rebind_presenter.capture_replacement(
+		action,
+		candidate,
+		int(capture.get("generation", -1))
+	)
+	if bool(snapshot.get("accepted", false)):
+		_commit_input_rebind_result(
+			snapshot,
 			"BOUND  //  %s  //  %s" % [
 				_input_action_label(action).to_upper(),
 				_binding_text(candidate).to_upper(),
 			]
 		)
 		return
-	var conflicts := snapshot.pending_conflict.get("conflicts", []) as Array
-	if snapshot.status != &"conflict" or conflicts.is_empty():
+	var conflicts := snapshot.get("conflicts", []) as Array
+	if snapshot.get("intent", &"") != &"conflict" or conflicts.is_empty():
 		set_settings_status("BINDING REJECTED", false)
 		_refresh_all_binding_rows()
 		return
@@ -3542,12 +3570,16 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 
 
 func _replace_pending_input_conflict() -> void:
-	if _pending_binding_conflict.is_empty() or _input_remapping_presenter == null:
+	if _pending_binding_conflict.is_empty() or _runtime_input_rebind_presenter == null:
 		return
 	var action := StringName(_pending_binding_conflict.action)
-	var snapshot := _input_remapping_presenter.replace_pending_conflict()
-	if snapshot.status == &"committed":
-		_commit_input_remapping_snapshot(
+	var snapshot: Dictionary = _runtime_input_rebind_presenter.resolve_conflict(
+		&"replace",
+		int(_runtime_input_rebind_presenter.get_snapshot().get("generation", -1))
+	)
+	if bool(snapshot.get("accepted", false)):
+		_commit_input_rebind_result(
+			snapshot,
 			"CONFLICT REPLACED  //  %s" % _input_action_label(action).to_upper()
 		)
 	else:
@@ -3558,8 +3590,11 @@ func _replace_pending_input_conflict() -> void:
 func _cancel_pending_input_conflict(clear_status: bool = true) -> void:
 	var return_action := StringName(_pending_binding_conflict.get("action", &""))
 	_pending_binding_conflict.clear()
-	if _input_remapping_presenter != null:
-		_input_remapping_presenter.cancel_pending_conflict()
+	if _runtime_input_rebind_presenter != null:
+		_runtime_input_rebind_presenter.resolve_conflict(
+			&"cancel",
+			int(_runtime_input_rebind_presenter.get_snapshot().get("generation", -1))
+		)
 	if _binding_conflict_panel != null:
 		_binding_conflict_panel.visible = false
 	if clear_status:
@@ -3581,24 +3616,29 @@ func _cancel_input_binding_capture() -> void:
 
 
 func _reset_input_action(action: StringName) -> void:
-	if not _input_binding_defaults.bindings.has(action):
+	if _runtime_input_rebind_presenter == null or not _input_binding_defaults.bindings.has(action):
 		return
-	var updated := _input_rebind_service.reset_action_to_defaults(_input_binding_profile, action)
-	if updated == null:
+	var result: Dictionary = _runtime_input_rebind_presenter.reset_action(
+		action,
+		int(_runtime_input_rebind_presenter.get_snapshot().get("generation", -1))
+	)
+	if not bool(result.get("accepted", false)):
 		set_settings_status("RESET FAILED  //  %s" % _input_action_label(action).to_upper(), false)
 		return
-	_commit_input_binding_profile(
-		updated,
+	_commit_input_rebind_result(
+		result,
 		"DEFAULT RESTORED  //  %s" % _input_action_label(action).to_upper()
 	)
 
 
 func _reset_all_input_bindings() -> void:
-	if _input_remapping_presenter == null:
+	if _runtime_input_rebind_presenter == null:
 		return
-	var snapshot := _input_remapping_presenter.reset()
-	if snapshot.status == &"committed":
-		_commit_input_remapping_snapshot("ALL INPUT BINDINGS RESTORED")
+	var snapshot: Dictionary = _runtime_input_rebind_presenter.reset(
+		int(_runtime_input_rebind_presenter.get_snapshot().get("generation", -1))
+	)
+	if bool(snapshot.get("accepted", false)):
+		_commit_input_rebind_result(snapshot, "ALL INPUT BINDINGS RESTORED")
 	else:
 		set_settings_status("ALL INPUT BINDINGS RESET FAILED", false)
 
@@ -3659,6 +3699,15 @@ func _commit_input_binding_profile(profile: InputBindingProfile, status: String)
 		&"input_binding_profile",
 		_input_binding_profile.duplicate_profile()
 	)
+
+
+func _commit_input_rebind_result(result: Dictionary, status: String) -> void:
+	var raw_profile: Variant = result.get("profile", {})
+	var profile := InputBindingProfileType.from_dictionary(raw_profile)
+	if profile == null:
+		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
+		return
+	_commit_input_binding_profile(profile, status)
 
 
 ## Observes presentation preference only. This deliberately does not mark the
