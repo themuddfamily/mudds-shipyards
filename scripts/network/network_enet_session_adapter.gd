@@ -255,6 +255,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	mark_reconnect_succeeded()
 	record_session_end(reason)
 	_reset_handshake_deadline()
+	_server_browser.detach(AUTHORITY_PEER_ID)
 	session_stopped.emit(reason)
 	return _remember(_result(true, &"stopped", {"reason": reason}))
 
@@ -893,6 +894,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	mark_reconnect_succeeded()
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
+	_server_browser.detach(AUTHORITY_PEER_ID)
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
 	_moving_replica_samples.clear()
@@ -1642,6 +1644,16 @@ func publish_server_directory(directory_generation: int, server_tick: int, entri
 	return _remember(result)
 
 
+func apply_server_directory_snapshot(directory_generation: int, server_tick: int, entries: Array) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var result: Dictionary = _server_browser.publish_snapshot(
+		AUTHORITY_PEER_ID, directory_generation, server_tick, entries
+	)
+	server_browser_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
 func advance_server_directory_clock(server_tick: int) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -1650,8 +1662,37 @@ func advance_server_directory_clock(server_tick: int) -> Dictionary:
 	return _remember(result)
 
 
+func expire_server_directory(server_tick: int) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var result: Dictionary = _server_browser.expire_stale(AUTHORITY_PEER_ID, server_tick)
+	server_browser_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
 func query_server_directory(region_filter: StringName = &"", max_ping_ms: int = -1, include_full: bool = true) -> Array:
 	return _server_browser.query(region_filter, max_ping_ms, include_full)
+
+
+func detach_server_directory() -> Dictionary:
+	var result: Dictionary = _server_browser.detach(AUTHORITY_PEER_ID)
+	server_browser_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func create_join_intent(session_id: StringName) -> Dictionary:
+	var entry: Dictionary = _server_browser.get_session(session_id)
+	if entry.is_empty():
+		return _remember(_result(false, &"session_not_found"))
+	if int(entry.get("player_count", 0)) >= int(entry.get("max_players", 0)):
+		return _remember(_result(false, &"session_full"))
+	return _remember(_result(true, &"join_intent_created", {
+		"intent": {
+			"session_id": session_id,
+			"host_peer_id": int(entry.get("host_peer_id", 0)),
+			"directory_generation": int(entry.get("directory_generation", 0)),
+		},
+	}))
 
 
 func request_join_advertised_session(
