@@ -109,6 +109,18 @@ func release_peer(source_peer_id: int, peer_id: int, peer_generation: int) -> Di
 	return _remember(_result(true, &"peer_released", {"released_roles": released}))
 
 
+func release_avatar(source_peer_id: int, peer_id: int, peer_generation: int, avatar_id: StringName) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if int(_peers.get(peer_id, 0)) != peer_generation or avatar_id.is_empty():
+		return _remember(_result(false, &"stale_peer_generation"))
+	var key := _key(peer_id, avatar_id)
+	_roles.erase(key)
+	_last_sequence.erase(key)
+	_event_sequence += 1
+	return _remember(_result(true, &"avatar_released"))
+
+
 func reset_migration(source_peer_id: int, migration_generation: int) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))

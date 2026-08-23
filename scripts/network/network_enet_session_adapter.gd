@@ -761,6 +761,11 @@ func release_crew_seat(
 	var result: Dictionary = _seat_authority.release(
 		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
+	if bool(result.get("accepted", false)):
+		_crew_roles.release_avatar(AUTHORITY_PEER_ID, occupant_peer_id,
+			int(_peer_generations.get(occupant_peer_id, 0)), avatar_id)
+		_crew_commands.release_avatar(AUTHORITY_PEER_ID, occupant_peer_id,
+			int(_peer_generations.get(occupant_peer_id, 0)), avatar_id)
 	seat_occupancy_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -1902,9 +1907,19 @@ func publish_crew_snapshot(command_receipts: Array = []) -> Dictionary:
 		return _remember(encoded)
 	_crew_snapshot_revision += 1
 	var generation := int(_migration.get_snapshot().get("migration_generation", 1))
-	var wire := {"crew_snapshot": (encoded.bytes as PackedByteArray).get_string_from_utf8()}
-	for fragment in _crew_snapshot_fragmenter.fragment(wire, generation, _crew_snapshot_revision):
-		_broadcast_crew_snapshot_fragment.rpc(fragment)
+	var role_snapshot: Dictionary = _crew_roles.get_snapshot()
+	var command_snapshot: Dictionary = _crew_commands.get_snapshot()
+	for peer_variant in _peer_generations.keys():
+		var recipient := int(peer_variant)
+		var filtered := _crew_snapshot_for_peer(recipient, role_snapshot, command_receipts)
+		var filtered_encoded: Dictionary = _crew_snapshot_codec.encode(
+			filtered.roles, command_snapshot, filtered.receipts
+		)
+		if not bool(filtered_encoded.get("accepted", false)):
+			continue
+		var wire := {"crew_snapshot": (filtered_encoded.bytes as PackedByteArray).get_string_from_utf8()}
+		for fragment in _crew_snapshot_fragmenter.fragment(wire, generation, _crew_snapshot_revision):
+			_broadcast_crew_snapshot_fragment.rpc_id(recipient, fragment)
 	var snapshot := {"revision": _crew_snapshot_revision, "generation": generation, "entry_count": encoded.get("entry_count", 0)}
 	crew_snapshot_published.emit(snapshot.duplicate(true))
 	return _remember(_result(true, &"crew_snapshot_published", snapshot))
@@ -1912,6 +1927,29 @@ func publish_crew_snapshot(command_receipts: Array = []) -> Dictionary:
 
 func get_crew_replica_snapshot() -> Dictionary:
 	return _crew_replica_snapshot.duplicate(true)
+
+
+func _crew_snapshot_for_peer(recipient_peer_id: int, role_snapshot: Dictionary, receipts: Array) -> Dictionary:
+	var ship_ids: Dictionary = {}
+	var roles: Dictionary = {}
+	for key_variant in (role_snapshot.get("roles", {}) as Dictionary).keys():
+		var role := (role_snapshot.roles[key_variant] as Dictionary).duplicate(true)
+		if int(role.get("peer_id", 0)) == recipient_peer_id:
+			ship_ids[StringName(role.get("ship_id", &""))] = true
+	for key_variant in (role_snapshot.get("roles", {}) as Dictionary).keys():
+		var role := (role_snapshot.roles[key_variant] as Dictionary).duplicate(true)
+		if ship_ids.has(StringName(role.get("ship_id", &""))):
+			roles[key_variant] = role
+	var filtered_receipts: Array = []
+	for receipt_variant in receipts:
+		var receipt := receipt_variant as Dictionary
+		var command := receipt.get("receipt", receipt) as Dictionary
+		if int(command.get("peer_id", 0)) == recipient_peer_id \
+			or ship_ids.has(StringName(command.get("ship_id", &""))):
+			filtered_receipts.append(receipt.duplicate(true))
+	var filtered_roles := role_snapshot.duplicate(true)
+	filtered_roles["roles"] = roles
+	return {"roles": filtered_roles, "receipts": filtered_receipts}
 
 
 @rpc("any_peer", "reliable")

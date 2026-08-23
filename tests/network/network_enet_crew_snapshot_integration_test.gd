@@ -22,6 +22,19 @@ func _run() -> void:
 		"server publication does not mutate client presentation state")
 	adapter.shutdown(&"test_complete")
 	_check(adapter.get_crew_replica_snapshot().is_empty(), "shutdown clears crew replica state")
+	var roles := {
+		"7:pilot": {"peer_id": 7, "ship_id": &"ship_7"},
+		"8:gunner": {"peer_id": 8, "ship_id": &"ship_8"},
+		"9:engineer": {"peer_id": 9, "ship_id": &"ship_7"},
+	}
+	var receipts: Array = [
+		{"receipt": {"peer_id": 8, "ship_id": &"ship_8"}},
+		{"receipt": {"peer_id": 9, "ship_id": &"ship_7"}},
+	]
+	var filtered := adapter._crew_snapshot_for_peer(7, {"roles": roles}, receipts)
+	_check(filtered.roles.roles.size() == 2 and filtered.receipts.size() == 1
+		and filtered.receipts[0].receipt.ship_id == &"ship_7",
+		"publication filter keeps only recipient ship state")
 	if _failures.is_empty():
 		print("OK: ENet crew snapshot integration (%d assertions)" % _assertions)
 		quit(0)

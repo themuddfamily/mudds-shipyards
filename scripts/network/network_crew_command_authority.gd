@@ -108,6 +108,21 @@ func release_peer(source_peer_id: int, peer_id: int, peer_generation: int) -> Di
 	return _remember(_result(true, &"peer_commands_released"))
 
 
+func release_avatar(source_peer_id: int, peer_id: int, peer_generation: int, avatar_id: StringName) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if peer_id <= 0 or peer_generation <= 0 or avatar_id.is_empty():
+		return _remember(_result(false, &"invalid_peer_generation"))
+	var prefix := "%d:%s:" % [peer_id, str(avatar_id)]
+	for key_variant in _last_sequence.keys():
+		if str(key_variant).begins_with(prefix):
+			_last_sequence.erase(key_variant)
+	for tick_key_variant in _tick_counts.keys():
+		if str(tick_key_variant).begins_with(prefix):
+			_tick_counts.erase(tick_key_variant)
+	return _remember(_result(true, &"avatar_commands_released"))
+
+
 func reset_migration(source_peer_id: int, migration_generation: int) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))
