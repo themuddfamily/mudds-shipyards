@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 50
+const EXPECTED_ASSERTIONS := 51
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -71,10 +71,10 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 37
-			and audit.performance.mesh_instances == 11
-			and audit.performance.multi_mesh_instances == 2
-			and audit.performance.multi_mesh_copies == 11
+		audit.performance.node_count == 36
+			and audit.performance.mesh_instances == 9
+			and audit.performance.multi_mesh_instances == 3
+			and audit.performance.multi_mesh_copies == 13
 			and audit.performance.static_bodies == 5
 			and audit.performance.collision_shapes == 7
 			and audit.performance.triangle_count <= 8192,
@@ -154,9 +154,15 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	var cues := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"
 	) as MultiMeshInstance3D
-	var guide := scene.get_node(
-		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual"
-	) as MeshInstance3D
+	var guide_batch := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/PadGuideVisuals"
+	) as MultiMeshInstance3D
+	var guide_multi := guide_batch.multimesh if guide_batch != null else null
+	var guide_mesh := guide_multi.mesh as BoxMesh if guide_multi != null else null
+	var guide_material := guide_batch.material_override as StandardMaterial3D \
+		if guide_batch != null else null
+	var guide_transforms: Array = guide_batch.get_meta("authored_transforms", []) as Array \
+		if guide_batch != null else []
 	var cue_batch := cues.multimesh if cues != null else null
 	var cue_mesh := cue_batch.mesh as BoxMesh if cue_batch != null else null
 	var authored_transforms: Array = cues.get_meta("authored_transforms", []) as Array \
@@ -164,7 +170,7 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	var cue_family_exact := cues != null and cues.get_child_count() == 0 \
 		and cue_batch != null and cue_batch.instance_count == 8 \
 		and cue_mesh != null and cue_mesh.size == Vector3(0.72, 0.03, 4.0) \
-		and cue_mesh.material == guide.material_override \
+		and guide_mesh != null and cue_mesh.material == guide_mesh.material \
 		and authored_transforms.size() == 8 \
 		and StringName(cues.get_meta("content_class", &"")) == &"NEW" \
 		and StringName(cues.get_meta("status", &"")) == &"modern_interpretation"
@@ -179,6 +185,36 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	_check(
 		cue_family_exact,
 		"four paired geometric chevrons share the guide material in one collision-free batch outside the touchdown pad",
+	)
+	_check(
+		guide_batch != null and guide_batch.get_child_count() == 0 \
+			and guide_multi != null and guide_multi.instance_count == 2 \
+			and guide_mesh != null and guide_mesh.size == Vector3(0.5, 1.8, 0.5) \
+			and guide_mesh.material == guide_batch.material_override \
+			and guide_material != null \
+			and guide_material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED \
+			and guide_material.albedo_color.is_equal_approx(Color("71d9da")) \
+			and guide_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			and guide_batch.gi_mode == GeometryInstance3D.GI_MODE_DISABLED \
+			and guide_batch.layers == 1 \
+			and not guide_batch.ignore_occlusion_culling \
+			and is_zero_approx(guide_batch.extra_cull_margin) \
+			and is_zero_approx(guide_batch.visibility_range_begin) \
+			and is_zero_approx(guide_batch.visibility_range_end) \
+			and is_zero_approx(guide_batch.visibility_range_begin_margin) \
+			and is_zero_approx(guide_batch.visibility_range_end_margin) \
+			and guide_batch.visibility_range_fade_mode \
+				== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED \
+			and guide_multi.custom_aabb.is_equal_approx(AABB(
+				Vector3(14.55, 0.0, -5.25), Vector3(0.5, 1.8, 10.5)
+			)) \
+			and guide_transforms == [
+				Transform3D(Basis.IDENTITY, Vector3(14.8, 0.9, -5.0)),
+				Transform3D(Basis.IDENTITY, Vector3(14.8, 0.9, 5.0)),
+			] \
+			and scene.get_node(^"LandingRegion/SurfaceLandmarks/PadGuidancePort") is StaticBody3D \
+			and scene.get_node(^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard") is StaticBody3D,
+		"paired pad-guide renderers share one bounded batch while both semantic solid landmarks remain",
 	)
 	var orbital_cue := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue"

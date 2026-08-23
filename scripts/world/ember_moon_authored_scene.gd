@@ -39,6 +39,11 @@ const SURFACE_ROUTE_POINTS_M := [
 const PAD_GUIDE_SIZE_M := Vector3(0.5, 1.8, 0.5)
 const PORT_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, -5.0)
 const STARBOARD_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, 5.0)
+const PAD_GUIDE_INSTANCE_COUNT := 2
+const PAD_GUIDE_BATCH_BOUNDS := AABB(
+	Vector3(14.55, 0.0, -5.25),
+	Vector3(0.5, 1.8, 10.5),
+)
 const APPROACH_CUE_BAR_SIZE_M := Vector3(0.72, 0.03, 4.0)
 const APPROACH_CUE_CENTRE_Z_M := [20.0, 27.0, 34.0, 41.0]
 const APPROACH_CUE_INSTANCE_COUNT := 8
@@ -70,10 +75,10 @@ const GUIDE_COLOR := Color("71d9da")
 const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
 
-const EXPECTED_NODE_COUNT := 37
-const EXPECTED_MESH_INSTANCE_COUNT := 11
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 2
-const EXPECTED_MULTI_MESH_COPY_COUNT := 11
+const EXPECTED_NODE_COUNT := 36
+const EXPECTED_MESH_INSTANCE_COUNT := 9
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 3
+const EXPECTED_MULTI_MESH_COPY_COUNT := 13
 const EXPECTED_STATIC_BODY_COUNT := 5
 const EXPECTED_COLLISION_SHAPE_COUNT := 7
 const MAXIMUM_TRIANGLE_COUNT := 8192
@@ -116,6 +121,7 @@ func _ready() -> void:
 	set_physics_process(false)
 	_configure_landing_approach_cues()
 	_configure_orbital_landing_datum_cue()
+	_configure_pad_guide_visuals()
 	_initialize_contract()
 
 
@@ -350,12 +356,11 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks": "Node3D",
 		^"LandingRegion/SurfaceLandmarks/LandingApproachCues": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue": "MultiMeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/PadGuideVisuals": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort": "StaticBody3D",
-		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/CollisionShape3D": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard": "StaticBody3D",
-		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/CollisionShape3D": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/SampleRack": "StaticBody3D",
 		^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual": "MeshInstance3D",
@@ -377,7 +382,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		if node == null or not node.is_class(expected[path]):
 			_append_error(errors, &"missing_or_wrong_node", StringName(str(path)), "required authored node is missing or has the wrong type")
 	if _count_nodes() != EXPECTED_NODE_COUNT:
-		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-seven nodes")
+		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-six nodes")
 	var landing_root := get_node_or_null(^"LandingRegion")
 	var walkable := get_node_or_null(^"LandingRegion/WalkablePatch")
 	var markers := get_node_or_null(^"LandingRegion/Markers")
@@ -388,7 +393,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
-			or landmarks == null or landmarks.get_child_count() != 8 \
+			or landmarks == null or landmarks.get_child_count() != 9 \
 			or route_markers == null or route_markers.get_child_count() != 3 \
 			or relay == null or relay.get_child_count() != 6:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
@@ -413,8 +418,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var route := get_node_or_null(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
 	var approach_cues := get_node_or_null(^"LandingRegion/SurfaceLandmarks/LandingApproachCues") as MultiMeshInstance3D
 	var orbital_cue := get_node_or_null(^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue") as MultiMeshInstance3D
-	var port_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual") as MeshInstance3D
-	var starboard_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual") as MeshInstance3D
+	var pad_guides := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuideVisuals") as MultiMeshInstance3D
 	var rack := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual") as MeshInstance3D
 	var relay_base := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual") as MeshInstance3D
 	var relay_mast := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual") as MeshInstance3D
@@ -424,8 +428,6 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var rim_mesh := rim.mesh as TorusMesh if rim != null else null
 	var pad_mesh := pad.mesh as BoxMesh if pad != null else null
 	var route_mesh := route.mesh as BoxMesh if route != null else null
-	var port_guide_mesh := port_guide.mesh as BoxMesh if port_guide != null else null
-	var starboard_guide_mesh := starboard_guide.mesh as BoxMesh if starboard_guide != null else null
 	var rack_mesh := rack.mesh as BoxMesh if rack != null else null
 	var relay_base_mesh := relay_base.mesh as BoxMesh if relay_base != null else null
 	var relay_mast_mesh := relay_mast.mesh as CylinderMesh if relay_mast != null else null
@@ -451,12 +453,11 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	if route_mesh == null or route_mesh.size != SURFACE_ROUTE_VISUAL_SIZE_M \
 			or route == null or route.position != SURFACE_ROUTE_VISUAL_POSITION_M:
 		_append_error(errors, &"surface_route_visual_drift", &"EgressRouteVisual", "continuous pad-to-staging route visual drifted")
-	if not _landing_approach_cues_are_exact(approach_cues, port_guide):
+	if not _landing_approach_cues_are_exact(approach_cues, pad_guides):
 		_append_error(errors, &"landing_approach_cue_drift", &"LandingApproachCues", "batched final-approach chevrons drifted from their bounded passive recipe")
 	if not _orbital_landing_datum_cue_is_exact(orbital_cue, route):
 		_append_error(errors, &"orbital_landing_datum_cue_drift", &"OrbitalLandingDatumCue", "orbital landing-side arrow drifted from the exact approach-to-pad datum")
-	if port_guide_mesh == null or port_guide_mesh.size != PAD_GUIDE_SIZE_M \
-			or starboard_guide_mesh == null or starboard_guide_mesh.size != PAD_GUIDE_SIZE_M:
+	if not _pad_guide_visuals_are_exact(pad_guides):
 		_append_error(errors, &"pad_guidance_visual_drift", &"PadGuidance", "paired solid pad guidance recipe drifted")
 	if rack_mesh == null or rack_mesh.size != SAMPLE_RACK_SIZE_M:
 		_append_error(errors, &"sample_rack_visual_drift", &"SampleRack", "low solid sample-rack recipe drifted")
@@ -474,8 +475,6 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		rim: RIM_COLOR,
 		pad: PAD_COLOR,
 		route: ROUTE_COLOR,
-		port_guide: GUIDE_COLOR,
-		starboard_guide: GUIDE_COLOR,
 		rack: EQUIPMENT_COLOR,
 		relay_base: EQUIPMENT_COLOR,
 		relay_mast: EQUIPMENT_COLOR,
@@ -621,9 +620,10 @@ func _configure_landing_approach_cues() -> void:
 
 func _landing_approach_cues_are_exact(
 		cues: MultiMeshInstance3D,
-		guide: MeshInstance3D,
+		pad_guides: MultiMeshInstance3D,
 	) -> bool:
-	if cues == null or guide == null or cues.multimesh == null \
+	if cues == null or pad_guides == null or pad_guides.multimesh == null \
+			or cues.multimesh == null \
 			or cues.transform != Transform3D.IDENTITY \
 			or cues.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			or cues.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
@@ -632,11 +632,12 @@ func _landing_approach_cues_are_exact(
 		return false
 	var batch := cues.multimesh
 	var bar := batch.mesh as BoxMesh
+	var guide_mesh := pad_guides.multimesh.mesh as BoxMesh
 	if batch.transform_format != MultiMesh.TRANSFORM_3D \
 			or batch.instance_count != APPROACH_CUE_INSTANCE_COUNT \
 			or batch.visible_instance_count not in [-1, APPROACH_CUE_INSTANCE_COUNT] \
 			or bar == null or bar.size != APPROACH_CUE_BAR_SIZE_M \
-			or bar.material != guide.material_override:
+			or guide_mesh == null or bar.material != guide_mesh.material:
 		return false
 	var authored: Variant = cues.get_meta("authored_transforms", [])
 	var expected := _approach_cue_transforms()
@@ -647,6 +648,110 @@ func _landing_approach_cues_are_exact(
 				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
 			return false
 	return true
+
+
+func _configure_pad_guide_visuals() -> void:
+	var landmarks := get_node_or_null(^"LandingRegion/SurfaceLandmarks") as Node3D
+	var port := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual"
+	) as MeshInstance3D
+	var starboard := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual"
+	) as MeshInstance3D
+	if landmarks == null or port == null or starboard == null \
+			or port.mesh == null or port.mesh != starboard.mesh \
+			or port.material_override != starboard.material_override \
+			or port.cast_shadow != starboard.cast_shadow \
+			or port.layers != starboard.layers \
+			or port.ignore_occlusion_culling != starboard.ignore_occlusion_culling \
+			or port.gi_mode != starboard.gi_mode \
+			or port.extra_cull_margin != starboard.extra_cull_margin \
+			or port.visibility_range_begin != starboard.visibility_range_begin \
+			or port.visibility_range_end != starboard.visibility_range_end \
+			or port.visibility_range_begin_margin != starboard.visibility_range_begin_margin \
+			or port.visibility_range_end_margin != starboard.visibility_range_end_margin \
+			or port.visibility_range_fade_mode != starboard.visibility_range_fade_mode:
+		return
+	var transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, PORT_PAD_GUIDE_POSITION_M),
+		Transform3D(Basis.IDENTITY, STARBOARD_PAD_GUIDE_POSITION_M),
+	]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = port.mesh
+	multi.instance_count = PAD_GUIDE_INSTANCE_COUNT
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = PAD_GUIDE_BATCH_BOUNDS
+	var batch := MultiMeshInstance3D.new()
+	batch.name = &"PadGuideVisuals"
+	batch.multimesh = multi
+	batch.material_override = port.material_override
+	batch.cast_shadow = port.cast_shadow
+	batch.gi_mode = port.gi_mode
+	batch.extra_cull_margin = port.extra_cull_margin
+	batch.visibility_range_begin = port.visibility_range_begin
+	batch.visibility_range_end = port.visibility_range_end
+	batch.visibility_range_begin_margin = port.visibility_range_begin_margin
+	batch.visibility_range_end_margin = port.visibility_range_end_margin
+	batch.visibility_range_fade_mode = port.visibility_range_fade_mode
+	batch.layers = port.layers
+	batch.ignore_occlusion_culling = port.ignore_occlusion_culling
+	batch.sorting_offset = port.sorting_offset
+	batch.sorting_use_aabb_center = port.sorting_use_aabb_center
+	batch.set_meta("authored_transforms", transforms.duplicate())
+	batch.set_meta("source_landmark_ids", PackedStringArray([
+		"ember_pad_guidance_port",
+		"ember_pad_guidance_starboard",
+	]))
+	landmarks.add_child(batch)
+	port.free()
+	starboard.free()
+
+
+func _pad_guide_visuals_are_exact(batch: MultiMeshInstance3D) -> bool:
+	if batch == null or batch.multimesh == null \
+			or batch.transform != Transform3D.IDENTITY \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or batch.layers != 1 \
+			or batch.ignore_occlusion_culling \
+			or not is_zero_approx(batch.extra_cull_margin) \
+			or not is_zero_approx(batch.visibility_range_begin) \
+			or not is_zero_approx(batch.visibility_range_end) \
+			or not is_zero_approx(batch.visibility_range_begin_margin) \
+			or not is_zero_approx(batch.visibility_range_end_margin) \
+			or batch.visibility_range_fade_mode \
+				!= GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED:
+		return false
+	var multi := batch.multimesh
+	var mesh := multi.mesh as BoxMesh
+	var material := batch.material_override as StandardMaterial3D
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != PAD_GUIDE_INSTANCE_COUNT \
+			or multi.visible_instance_count not in [-1, PAD_GUIDE_INSTANCE_COUNT] \
+			or not multi.custom_aabb.is_equal_approx(PAD_GUIDE_BATCH_BOUNDS) \
+			or mesh == null or mesh.size != PAD_GUIDE_SIZE_M \
+			or mesh.material != batch.material_override \
+			or material == null \
+			or material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED \
+			or not material.albedo_color.is_equal_approx(GUIDE_COLOR):
+		return false
+	var expected: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, PORT_PAD_GUIDE_POSITION_M),
+		Transform3D(Basis.IDENTITY, STARBOARD_PAD_GUIDE_POSITION_M),
+	]
+	var authored: Variant = batch.get_meta("authored_transforms", [])
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return batch.get_meta("source_landmark_ids", PackedStringArray()) == PackedStringArray([
+		"ember_pad_guidance_port",
+		"ember_pad_guidance_starboard",
+	])
 
 
 static func _approach_cue_transforms() -> Array[Transform3D]:
