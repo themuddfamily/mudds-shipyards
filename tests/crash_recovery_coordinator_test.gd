@@ -2,6 +2,7 @@ extends SceneTree
 
 const Coordinator := preload("res://scripts/diagnostics/crash_recovery_coordinator.gd")
 const Event := preload("res://scripts/diagnostics/session_diagnostic_event.gd")
+const Record := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 
 const STORE_PATH := "memory://crash_recovery_coordinator.json"
@@ -104,6 +105,29 @@ func _run() -> void:
 		and event.severity == Event.Severity.ERROR
 		and event.fields == {"attempt_count": 1, "recovered": true},
 		"recovery exposes a privacy-bounded typed event for SessionDiagnosticRecord"
+	)
+	var diagnostic_record := Record.new() as SessionDiagnosticRecord
+	_check(
+		bool(diagnostic_record.attach_session(42).accepted),
+		"recovery diagnostic record attaches to the recovered session"
+	)
+	var recorded_recovery := restarted.record_recovery_event(
+		diagnostic_record, 1, 0.01
+	)
+	_check(
+		bool(recorded_recovery.accepted)
+		and recorded_recovery.reason == &"recovery_event_recorded"
+		and diagnostic_record.get_snapshot().events.size() == 1,
+		"coordinator records the typed recovery event through the diagnostic service"
+	)
+	var duplicate_recovery := restarted.record_recovery_event(
+		diagnostic_record, 2, 0.02
+	)
+	_check(
+		not bool(duplicate_recovery.accepted)
+		and duplicate_recovery.reason == &"recovery_event_already_recorded"
+		and diagnostic_record.get_snapshot().events.size() == 1,
+		"one recovered startup cannot duplicate its crash diagnostic event"
 	)
 	_check(
 		restarted.mark_clean_shutdown(42, 4, 0.1, "crash-clean-2").accepted,

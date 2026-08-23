@@ -42,6 +42,7 @@ var _last_physics_tick := 0
 var _last_elapsed_physics_seconds := 0.0
 var _state := _STATE_CLEAN
 var _last_begin_recovered := false
+var _recovery_event_recorded := false
 var _last_status: Dictionary = {}
 
 
@@ -105,6 +106,7 @@ func begin_session(session_id: int, commit_id: String) -> Dictionary:
 	_install_snapshot(candidate)
 	_active = true
 	_last_begin_recovered = _unclean_start_count > 0
+	_recovery_event_recorded = false
 	return _status(
 		true,
 		&"recovered_previous_session" if _last_begin_recovered else &"started",
@@ -185,6 +187,8 @@ func get_recovery_event(
 		) -> Dictionary:
 	if not _active or not _last_begin_recovered:
 		return {"accepted": false, "reason": &"no_recovery_event"}
+	if _recovery_event_recorded:
+		return {"accepted": false, "reason": &"recovery_event_already_recorded"}
 	if not _valid_progress(physics_tick, elapsed_physics_seconds):
 		return {"accepted": false, "reason": &"invalid_progress"}
 	return {
@@ -203,11 +207,41 @@ func get_recovery_event(
 	}
 
 
+## Records the one recovery event through the caller-owned diagnostic service.
+## The coordinator owns event eligibility; SessionDiagnosticRecord owns its
+## retention, privacy checks, and persistence. A failed record leaves the
+## event available for an explicit retry without mutating coordinator state.
+func record_recovery_event(
+		diagnostic_record: SessionDiagnosticRecord,
+		physics_tick: int,
+		elapsed_physics_seconds: float
+		) -> Dictionary:
+	if diagnostic_record == null:
+		return {"accepted": false, "reason": &"diagnostic_record_unavailable"}
+	var recovery_event := get_recovery_event(physics_tick, elapsed_physics_seconds)
+	if not bool(recovery_event.get("accepted", false)):
+		return recovery_event
+	var recorded := diagnostic_record.record(recovery_event.get("event") as SessionDiagnosticEvent)
+	if not bool(recorded.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": &"diagnostic_record_rejected",
+			"record_result": recorded.duplicate(true),
+		}
+	_recovery_event_recorded = true
+	return {
+		"accepted": true,
+		"reason": &"recovery_event_recorded",
+		"record_result": recorded.duplicate(true),
+	}
+
+
 func get_snapshot() -> Dictionary:
 	var snapshot := _snapshot()
 	snapshot["restored"] = _restored
 	snapshot["active"] = _active
 	snapshot["last_begin_recovered"] = _last_begin_recovered
+	snapshot["recovery_event_recorded"] = _recovery_event_recorded
 	return snapshot.duplicate(true)
 
 
@@ -277,6 +311,7 @@ func _reset_clean() -> void:
 	_last_physics_tick = 0
 	_last_elapsed_physics_seconds = 0.0
 	_last_begin_recovered = false
+	_recovery_event_recorded = false
 
 
 func _status(accepted: bool, reason: StringName, details: Dictionary = {}) -> Dictionary:
