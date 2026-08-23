@@ -326,6 +326,13 @@ const MODERN_REGISTRY_RENDER_SUBMISSION_COUNT := 36
 const MODERN_REGISTRY_PHYSICS_BODY_COUNT := 12
 const MODERN_REGISTRY_COLLISION_SHAPE_COUNT := 12
 const MODERN_REGISTRY_LIGHT_COUNT := 2
+## Spawn-facing identity header for the modern regeneration/registry deck. Its
+## previous 92 mm proportional bevel was imperceptible across the branch-arm
+## approach; a half-metre capsule radius gives the twelve-metre fascia a real
+## authored silhouette without moving its sign seat, collider or roof lap.
+const MODERN_REGISTRY_HEADER_SIZE := Vector3(12.0, 1.0, 0.42)
+const MODERN_REGISTRY_HEADER_END_RADIUS := 0.5
+const MODERN_REGISTRY_HEADER_CURVE_SEGMENTS := 8
 ## Port berth node, widened from 12.0 m so the 12.2 m Arrow no longer overhangs
 ## the pad it is parked on. Its centre is unchanged, so berth transforms, the
 ## landing envelope and the cue strips all keep their published coordinates.
@@ -7515,7 +7522,19 @@ func _build_regeneration_gallery() -> void:
 	# where the existing glyphs already stand. The legend's position, rotation,
 	# scale, wording and material are deliberately untouched, so `MAP-004`'s
 	# recorded approach-facing expectation still holds unchanged.
-	_box(gallery, "RegistryPodFascia", Vector3(-43.0, 5.35, 23.03), Vector3(12.0, 1.0, 0.42), _materials["navy"])
+	var registry_header := _extruded_capsule_fascia(
+		gallery,
+		"RegistryPodFascia",
+		Vector3(-43.0, 5.35, 23.03),
+		MODERN_REGISTRY_HEADER_SIZE,
+		_materials["navy"],
+		MODERN_REGISTRY_HEADER_END_RADIUS,
+		MODERN_REGISTRY_HEADER_CURVE_SEGMENTS
+	)
+	var registry_header_visual := registry_header.get_node(^"Mesh") as MeshInstance3D
+	registry_header_visual.mesh.resource_name = "modern_registry_capsule_header_v1"
+	registry_header.set_meta("geometry_profile", &"regeneration_deck_capsule_header")
+	registry_header.set_meta("authenticated_original_geometry", false)
 	# MAP-004, same cause as the Dock Operations legend above.
 	_text_sign(
 		gallery,
