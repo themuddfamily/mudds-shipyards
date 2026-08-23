@@ -230,6 +230,8 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"captions_enabled",
 	&"reduced_dynamic_range",
 	&"show_tutorials",
+	&"multiplayer_display_name",
+	&"network_default_port",
 	&"input_binding_profile",
 ]
 
@@ -6405,6 +6407,21 @@ func _sync_runtime_settings_hud() -> void:
 		hud.set_input_binding_defaults(runtime_settings.get_project_input_binding_defaults())
 	if hud.has_method("set_settings_snapshot"):
 		hud.set_settings_snapshot(runtime_settings.to_dictionary())
+	_sync_server_browser_defaults()
+
+
+## Applies caller-owned multiplayer defaults to the retained browser controls.
+## The browser presenter still validates and emits intents; GameFlow only keeps
+## its display name and port fields aligned with the accepted settings snapshot.
+func _sync_server_browser_defaults() -> void:
+	if runtime_settings == null or not is_instance_valid(hud):
+		return
+	var port_control := hud.get("_server_browser_port") as LineEdit
+	if port_control != null:
+		port_control.text = str(runtime_settings.network_default_port)
+	var name_control := hud.get("_server_browser_player_name") as LineEdit
+	if name_control != null:
+		name_control.text = runtime_settings.multiplayer_display_name
 
 
 ## Pushes the validated accessibility snapshot to the presentation owners.
@@ -6520,6 +6537,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			runtime_settings.apply_window_mode()
 	elif setting == &"input_binding_profile":
 		_apply_runtime_input_bindings_and_options()
+	elif setting in [&"multiplayer_display_name", &"network_default_port"]:
+		_sync_server_browser_defaults()
 	elif setting == &"reduced_dynamic_range":
 		_apply_reduced_dynamic_range_setting()
 	elif setting in [
