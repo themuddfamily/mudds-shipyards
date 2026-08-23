@@ -9,11 +9,20 @@ signal semantic_cue_emitted(source_id: StringName, cue_id: StringName, intensity
 
 const MAX_SIMULTANEOUS_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
+const CONTENT_COMPONENT_ID: StringName = &"shipyard_perimeter_defense_content"
 const PINCER_WAVE_ID: StringName = &"dockside_relief"
 const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
 const PINCER_OUTER_HOSTILE_ID: StringName = &"perimeter_raider_gamma"
+const BREAKER_FEINT_TACTIC_ID: StringName = &"core_breaker_outer_feint"
+const BREAKER_STATES: Array[StringName] = [
+	&"idle", &"standby", &"inbound", &"active", &"transitioned", &"interrupted",
+	&"completed", &"failed", &"aborted", &"timed_out",
+]
 const CUE_PRIORITIES := {
 	&"station_defense_wave_started": 20,
+	&"station_defense_breaker_inbound": 55,
+	&"station_defense_breaker_active": 70,
+	&"station_defense_breaker_interrupted": 65,
 	&"station_defense_pincer_inbound": 55,
 	&"station_defense_crossfire_active": 75,
 	&"station_defense_pincer_wing_broken": 65,
@@ -28,6 +37,7 @@ const CUE_PRIORITIES := {
 }
 
 var _host: Node
+var _snapshot_source: Node
 var _attached := false
 var _generation := 0
 var _last_state: StringName = &"idle"
@@ -63,10 +73,14 @@ func attach(host: Node) -> Dictionary:
 		return _result(false, &"already_attached")
 	if host == null or not is_instance_valid(host) or not host.has_signal(&"snapshot_changed"):
 		return _result(false, &"invalid_host")
+	var snapshot_source := _resolve_snapshot_source(host)
+	if snapshot_source == null:
+		return _result(false, &"invalid_snapshot_source")
 	_host = host
+	_snapshot_source = snapshot_source
 	var callback := Callable(self, "_on_host_snapshot")
-	if not host.is_connected(&"snapshot_changed", callback):
-		host.connect(&"snapshot_changed", callback)
+	if not snapshot_source.is_connected(&"snapshot_changed", callback):
+		snapshot_source.connect(&"snapshot_changed", callback)
 	_attached = true
 	_last_state = &"idle"
 	_last_wave_index = -1
@@ -89,12 +103,13 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 func detach() -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
-	if is_instance_valid(_host):
+	if is_instance_valid(_snapshot_source):
 		var callback := Callable(self, "_on_host_snapshot")
-		if _host.is_connected(&"snapshot_changed", callback):
-			_host.disconnect(&"snapshot_changed", callback)
+		if _snapshot_source.is_connected(&"snapshot_changed", callback):
+			_snapshot_source.disconnect(&"snapshot_changed", callback)
 	_attached = false
 	_host = null
+	_snapshot_source = null
 	_last_state = &"idle"
 	_last_wave_index = -1
 	_last_asset_damage.clear()
@@ -123,8 +138,31 @@ func _on_host_snapshot(snapshot: Dictionary) -> void:
 	present_snapshot(snapshot)
 
 
+func _resolve_snapshot_source(host: Node) -> Node:
+	var parent := host.get_parent()
+	if (
+		parent != null
+		and parent.has_signal(&"snapshot_changed")
+		and parent.has_method(&"get_snapshot")
+	):
+		var parent_snapshot: Variant = parent.call(&"get_snapshot")
+		if (
+			parent_snapshot is Dictionary
+			and StringName((parent_snapshot as Dictionary).get("component_id", &""))
+			== CONTENT_COMPONENT_ID
+		):
+			return parent
+	return host
+
+
 func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
-	var activity: Variant = snapshot.get("activity", snapshot)
+	var activity: Variant = snapshot.get("activity", null)
+	if not activity is Dictionary:
+		var host_snapshot: Variant = snapshot.get("host", {})
+		if host_snapshot is Dictionary:
+			activity = (host_snapshot as Dictionary).get("activity", null)
+	if not activity is Dictionary:
+		activity = snapshot
 	if not activity is Dictionary:
 		return _result(false, &"invalid_activity_snapshot")
 	var state: Variant = activity.get("state_id", &"")
@@ -143,6 +181,9 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 			or int(generation) > MAX_SAFE_GENERATION \
 			or not wave_id is StringName or not active_hostile_handles is Array:
 		return _result(false, &"invalid_activity_snapshot")
+	var breaker := _decode_breaker_state(snapshot, activity as Dictionary, int(generation))
+	if not bool(breaker.get("accepted", false)):
+		return _result(false, StringName(breaker.get("reason", &"invalid_breaker_snapshot")))
 	return {
 		"accepted": true,
 		"state": state,
@@ -153,7 +194,42 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		"wave_active": bool(wave_active),
 		"active_hostile_handles": active_hostile_handles,
 		"assets": assets,
+		"breaker_authoritative": bool(breaker.get("available", false)),
+		"breaker_state": StringName(breaker.get("state_id", &"unavailable")),
 	}.duplicate(true)
+
+
+func _decode_breaker_state(
+	snapshot: Dictionary,
+	activity: Dictionary,
+	activity_generation: int
+	) -> Dictionary:
+	var state: Variant = &"unavailable"
+	var tactic_generation := activity_generation
+	var breaker: Variant = snapshot.get("breaker_feint", null)
+	if breaker is Dictionary and not (breaker as Dictionary).is_empty():
+		if StringName((breaker as Dictionary).get("tactic_id", &"")) != BREAKER_FEINT_TACTIC_ID:
+			return {"accepted": false, "reason": &"invalid_breaker_snapshot"}
+		state = (breaker as Dictionary).get("state_id", &"")
+		var generation_variant: Variant = (breaker as Dictionary).get("generation", -1)
+		if (
+			not generation_variant is int
+			or int(generation_variant) < 0
+			or int(generation_variant) > MAX_SAFE_GENERATION
+		):
+			return {"accepted": false, "reason": &"invalid_breaker_snapshot"}
+		tactic_generation = int(generation_variant)
+	elif StringName(activity.get("opening_tactic_id", &"")) == BREAKER_FEINT_TACTIC_ID:
+		state = activity.get("opening_tactic_state_id", &"")
+	elif StringName(snapshot.get("component_id", &"")) == CONTENT_COMPONENT_ID:
+		return {"accepted": false, "reason": &"missing_breaker_snapshot"}
+	else:
+		return {"accepted": true, "available": false, "state_id": &"unavailable"}
+	if not state is StringName or StringName(state) not in BREAKER_STATES:
+		return {"accepted": false, "reason": &"invalid_breaker_snapshot"}
+	if StringName(state) not in [&"idle", &"standby"] and tactic_generation != activity_generation:
+		return {"accepted": false, "reason": &"stale_breaker_snapshot"}
+	return {"accepted": true, "available": true, "state_id": StringName(state)}
 
 
 func _emit_transitions(decoded: Dictionary) -> void:
@@ -163,7 +239,7 @@ func _emit_transitions(decoded: Dictionary) -> void:
 	if state == &"active" and bool(decoded.wave_active) \
 			and (wave_index != _last_wave_index or _last_state != &"active"):
 		_emit_cue(&"station_defense_wave_started", activity_id, 1.0)
-	_emit_pincer_transition(decoded)
+	_emit_tactic_transition(decoded)
 	for asset_variant in decoded.assets as Array:
 		if not asset_variant is Dictionary:
 			continue
@@ -192,7 +268,7 @@ func _emit_transitions(decoded: Dictionary) -> void:
 	_last_wave_index = wave_index
 
 
-func _emit_pincer_transition(decoded: Dictionary) -> void:
+func _emit_tactic_transition(decoded: Dictionary) -> void:
 	var activity_id: StringName = decoded.activity_id
 	var activity_key := str(activity_id)
 	var generation := int(decoded.generation)
@@ -205,10 +281,19 @@ func _emit_pincer_transition(decoded: Dictionary) -> void:
 		_seen_tactic_cues_by_activity[activity_key] = {}
 
 	var prior_state: StringName = _tactic_state_by_activity.get(activity_key, &"idle")
-	var tactic_state := _decode_pincer_state(decoded, prior_state)
+	var tactic_state := _decode_tactic_state(decoded, prior_state)
 	var cue_id: StringName = &""
 	var intensity := 0.0
 	match tactic_state:
+		&"breaker_inbound":
+			cue_id = &"station_defense_breaker_inbound"
+			intensity = 0.7
+		&"breaker_active":
+			cue_id = &"station_defense_breaker_active"
+			intensity = 0.9
+		&"breaker_interrupted":
+			cue_id = &"station_defense_breaker_interrupted"
+			intensity = 0.85
 		&"inbound":
 			cue_id = &"station_defense_pincer_inbound"
 			intensity = 0.7
@@ -219,7 +304,10 @@ func _emit_pincer_transition(decoded: Dictionary) -> void:
 			cue_id = &"station_defense_pincer_wing_broken"
 			intensity = 0.85
 		&"cleared":
-			if prior_state in [&"inbound", &"active", &"broken"]:
+			if prior_state in [
+				&"breaker_inbound", &"breaker_active", &"breaker_interrupted",
+				&"inbound", &"active", &"broken",
+			]:
 				cue_id = &"station_defense_pincer_cleared"
 				intensity = 0.65
 
@@ -231,26 +319,47 @@ func _emit_pincer_transition(decoded: Dictionary) -> void:
 	_tactic_state_by_activity[activity_key] = tactic_state
 
 
-func _decode_pincer_state(decoded: Dictionary, prior_state: StringName) -> StringName:
+func _decode_tactic_state(decoded: Dictionary, prior_state: StringName) -> StringName:
 	var state: StringName = decoded.state
 	var wave_id: StringName = decoded.wave_id
 	if state == &"active" and wave_id == PINCER_WAVE_ID:
+		if bool(decoded.breaker_authoritative):
+			match StringName(decoded.breaker_state):
+				&"inbound":
+					return &"breaker_inbound"
+				&"active":
+					return &"breaker_active"
+				&"interrupted":
+					return &"breaker_interrupted"
+				&"transitioned":
+					return _decode_live_pincer_state(decoded)
+				&"completed", &"failed", &"aborted", &"timed_out":
+					return &"cleared"
+				_:
+					return &"idle"
 		if not bool(decoded.wave_active):
 			return &"inbound"
-		var active_ids: Array[StringName] = []
-		for handle_variant in decoded.active_hostile_handles as Array:
-			if handle_variant is Dictionary:
-				active_ids.append(StringName((handle_variant as Dictionary).get("hostile_id", &"")))
-		var close_active := PINCER_CLOSE_HOSTILE_ID in active_ids
-		var outer_active := PINCER_OUTER_HOSTILE_ID in active_ids
-		if close_active and outer_active:
-			return &"active"
-		if close_active or outer_active:
-			return &"broken"
-		return &"cleared"
-	if prior_state in [&"inbound", &"active", &"broken"]:
+		return _decode_live_pincer_state(decoded)
+	if prior_state in [
+		&"breaker_inbound", &"breaker_active", &"breaker_interrupted",
+		&"inbound", &"active", &"broken",
+	]:
 		return &"cleared"
 	return &"idle"
+
+
+func _decode_live_pincer_state(decoded: Dictionary) -> StringName:
+	var active_ids: Array[StringName] = []
+	for handle_variant in decoded.active_hostile_handles as Array:
+		if handle_variant is Dictionary:
+			active_ids.append(StringName((handle_variant as Dictionary).get("hostile_id", &"")))
+	var close_active := PINCER_CLOSE_HOSTILE_ID in active_ids
+	var outer_active := PINCER_OUTER_HOSTILE_ID in active_ids
+	if close_active and outer_active:
+		return &"active"
+	if close_active or outer_active:
+		return &"broken"
+	return &"cleared"
 
 
 func _emit_cue(cue_id: StringName, activity_id: StringName, intensity: float) -> void:

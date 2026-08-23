@@ -4,6 +4,22 @@ const Binding := preload("res://scripts/audio/station_defense_audio_binding.gd")
 const HudType := preload("res://scripts/ui/hud.gd")
 const Settings := preload("res://scripts/settings/runtime_settings.gd")
 
+
+class ContentSnapshotSource extends Node:
+	signal snapshot_changed(snapshot: Dictionary)
+
+	var retained_snapshot := {
+		"component_id": &"shipyard_perimeter_defense_content",
+	}.duplicate(true)
+
+	func get_snapshot() -> Dictionary:
+		return retained_snapshot.duplicate(true)
+
+	func publish(snapshot: Dictionary) -> void:
+		retained_snapshot = snapshot.duplicate(true)
+		snapshot_changed.emit(retained_snapshot.duplicate(true))
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 var _events: Array[StringName] = []
@@ -99,68 +115,108 @@ func _snapshot(
 	}
 
 
+func _content_snapshot(activity: Dictionary, breaker_state: StringName) -> Dictionary:
+	var enriched_activity := activity.duplicate(true)
+	enriched_activity["opening_tactic_id"] = &"core_breaker_outer_feint"
+	enriched_activity["opening_tactic_state_id"] = breaker_state
+	return {
+		"component_id": &"shipyard_perimeter_defense_content",
+		"host": {"activity": enriched_activity},
+		"breaker_feint": {
+			"tactic_id": &"core_breaker_outer_feint",
+			"state_id": breaker_state,
+			"generation": int(activity.generation),
+		},
+	}.duplicate(true)
+
+
 func _test_generation_fenced_pincer_cues() -> void:
+	var content_source := ContentSnapshotSource.new()
+	root.add_child(content_source)
 	var host := Node.new()
 	host.add_user_signal("snapshot_changed")
-	root.add_child(host)
+	content_source.add_child(host)
 	var binding := Binding.new()
 	binding.semantic_cue_emitted.connect(_capture_pincer_semantic_cue)
-	_check(bool(binding.set_reduced_dynamic_range(true).accepted), "pincer cues accept reduced dynamic range")
-	_check(bool(binding.attach(host).accepted), "pincer fixture attaches to the real host snapshot seam")
+	_check(bool(binding.set_reduced_dynamic_range(true).accepted), "tactic cues accept reduced dynamic range")
+	_check(
+		bool(binding.attach(host).accepted),
+		"audio binding attaches through the host to its authoritative encounter-content snapshot source"
+	)
 	var beta := {"hostile_id": &"perimeter_raider_beta", "generation": 2}
 	var gamma := {"hostile_id": &"perimeter_raider_gamma", "generation": 3}
-	var inbound := _snapshot(&"active", 1, false, [], 7, &"dockside_relief", [])
-	var crossfire := _snapshot(&"active", 1, true, [], 7, &"dockside_relief", [beta, gamma])
-	var broken := _snapshot(&"active", 1, true, [], 7, &"dockside_relief", [gamma])
-	var cleared := _snapshot(&"completed", 1, false, [], 7)
-	binding.present_snapshot(inbound)
-	binding.present_snapshot(inbound)
-	binding.present_snapshot(crossfire)
-	binding.present_snapshot(crossfire)
-	var before_reentry := _count_pincer_cue(&"station_defense_crossfire_active")
+	var inbound := _content_snapshot(
+		_snapshot(&"active", 1, false, [], 7, &"dockside_relief", []), &"inbound"
+	)
+	var breaker_active := _content_snapshot(
+		_snapshot(&"active", 1, true, [], 7, &"dockside_relief", [beta, gamma]), &"active"
+	)
+	var transitioned := _content_snapshot(
+		_snapshot(&"active", 1, true, [], 7, &"dockside_relief", [beta, gamma]), &"transitioned"
+	)
+	var interrupted := _content_snapshot(
+		_snapshot(&"active", 1, true, [], 7, &"dockside_relief", [gamma]), &"interrupted"
+	)
+	var cleared := _content_snapshot(_snapshot(&"completed", 1, false, [], 7), &"completed")
+	content_source.publish(inbound)
+	content_source.publish(inbound)
+	content_source.publish(breaker_active)
+	content_source.publish(breaker_active)
+	_check(
+		_count_pincer_cue(&"station_defense_breaker_inbound") == 1
+		and _count_pincer_cue(&"station_defense_breaker_active") == 1
+		and _count_pincer_cue(&"station_defense_crossfire_active") == 0,
+		"inbound and active breaker cues are distinct while crossfire stays silent before handoff"
+	)
+	var before_reentry := _count_pincer_cue(&"station_defense_breaker_active")
 	binding.detach()
 	binding.attach(host)
-	binding.present_snapshot(crossfire)
+	content_source.publish(breaker_active)
 	_check(
-		_count_pincer_cue(&"station_defense_crossfire_active") == before_reentry,
-		"same-generation detach/re-entry does not replay the active-crossfire cue"
+		_count_pincer_cue(&"station_defense_breaker_active") == before_reentry
+		and _count_pincer_cue(&"station_defense_crossfire_active") == 0,
+		"same-generation detach/re-entry neither replays breaker-active nor announces crossfire early"
 	)
-	binding.present_snapshot(broken)
-	binding.present_snapshot(broken)
-	binding.present_snapshot(cleared)
-	binding.present_snapshot(cleared)
+	content_source.publish(transitioned)
+	content_source.publish(transitioned)
+	content_source.publish(interrupted)
+	content_source.publish(interrupted)
+	content_source.publish(cleared)
+	content_source.publish(cleared)
 	_check(
-		_count_pincer_cue(&"station_defense_pincer_inbound") == 1
-		and _count_pincer_cue(&"station_defense_crossfire_active") == 1
-		and _count_pincer_cue(&"station_defense_pincer_wing_broken") == 1
+		_count_pincer_cue(&"station_defense_crossfire_active") == 1
+		and _count_pincer_cue(&"station_defense_breaker_interrupted") == 1
 		and _count_pincer_cue(&"station_defense_pincer_cleared") == 1,
-		"inbound, live crossfire, one-wing break, and clear each emit exactly once per generation"
+		"authoritative handoff, interruption, and clear each emit their distinct cue once per generation"
 	)
 	_check(
-		is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_inbound"), 0.525)
+		is_equal_approx(_pincer_cue_intensity(&"station_defense_breaker_inbound"), 0.525)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_breaker_active"), 0.675)
 		and is_equal_approx(_pincer_cue_intensity(&"station_defense_crossfire_active"), 0.75)
-		and is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_wing_broken"), 0.6375)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_breaker_interrupted"), 0.6375)
 		and is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_cleared"), 0.4875)
 		and bool(binding.get_snapshot().reduced_dynamic_range),
-		"all pincer semantic intensities follow the retained reduced-range policy"
+		"all breaker and pincer semantic intensities follow the retained reduced-range policy"
 	)
 	var before_stale := _pincer_transition_count()
-	binding.present_snapshot(_snapshot(&"idle", 0, false, [], 8))
-	binding.present_snapshot(broken)
+	content_source.publish(_content_snapshot(_snapshot(&"idle", 0, false, [], 8), &"idle"))
+	content_source.publish(interrupted)
 	_check(
 		_pincer_transition_count() == before_stale
 		and int(binding.get_snapshot().tactic_generation_fences.station_defense_alpha) == 8,
-		"reset generation fences stale pre-reset pincer snapshots without replay"
+		"reset generation fences stale pre-reset breaker snapshots without replay"
 	)
-	var next_inbound := _snapshot(&"active", 1, false, [], 8, &"dockside_relief", [])
-	binding.present_snapshot(next_inbound)
-	binding.present_snapshot(next_inbound)
+	var next_inbound := _content_snapshot(
+		_snapshot(&"active", 1, false, [], 8, &"dockside_relief", []), &"inbound"
+	)
+	content_source.publish(next_inbound)
+	content_source.publish(next_inbound)
 	_check(
-		_count_pincer_cue(&"station_defense_pincer_inbound") == 2,
-		"a fresh activity generation admits one new inbound cue and still deduplicates repeats"
+		_count_pincer_cue(&"station_defense_breaker_inbound") == 2,
+		"a fresh activity generation admits one new breaker-inbound cue and deduplicates repeats"
 	)
 	binding.detach()
-	host.free()
+	content_source.free()
 
 
 func _on_cue(cue_id: StringName, _activity_id: StringName, _intensity: float) -> void:
@@ -206,7 +262,10 @@ func _count_pincer_cue(cue_id: StringName) -> int:
 
 func _pincer_transition_count() -> int:
 	return (
-		_count_pincer_cue(&"station_defense_pincer_inbound")
+		_count_pincer_cue(&"station_defense_breaker_inbound")
+		+ _count_pincer_cue(&"station_defense_breaker_active")
+		+ _count_pincer_cue(&"station_defense_breaker_interrupted")
+		+ _count_pincer_cue(&"station_defense_pincer_inbound")
 		+ _count_pincer_cue(&"station_defense_crossfire_active")
 		+ _count_pincer_cue(&"station_defense_pincer_wing_broken")
 		+ _count_pincer_cue(&"station_defense_pincer_cleared")
