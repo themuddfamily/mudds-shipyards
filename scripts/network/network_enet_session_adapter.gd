@@ -57,6 +57,7 @@ signal crew_role_result(result: Dictionary)
 signal crew_command_result(result: Dictionary)
 signal crew_snapshot_published(snapshot: Dictionary)
 signal crew_snapshot_applied(result: Dictionary)
+signal cargo_manifest_result(result: Dictionary)
 signal migration_result(result: Dictionary)
 signal prediction_correction_result(result: Dictionary)
 signal server_browser_result(result: Dictionary)
@@ -111,6 +112,10 @@ var _snapshot_fragmenter
 var _crew_snapshot_codec
 var _crew_snapshot_fragmenter
 var _crew_snapshot_revision := 0
+var _cargo_manifest_revision := 0
+var _cargo_manifest_replica_revision := 0
+var _cargo_manifest_replica_generation := 0
+var _cargo_manifest_terminal_generation := 0
 var _crew_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
 var _moving_relationship_stream
@@ -346,6 +351,10 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_server_offer.clear()
 	_crew_snapshot_fragmenter.reset()
 	_crew_snapshot_revision = 0
+	_cargo_manifest_revision = 0
+	_cargo_manifest_replica_revision = 0
+	_cargo_manifest_replica_generation = 0
+	_cargo_manifest_terminal_generation = 0
 	_crew_replica_snapshot.clear()
 	_moving_snapshot_revision = 0
 	_moving_resync_revision = 0
@@ -2716,6 +2725,74 @@ func publish_snapshot(
 	return _remember(_result(true, &"snapshot_published", {
 		"revision": int(packet.get("revision", 0)),
 		"packet": packet,
+	}))
+
+
+func publish_cargo_manifest_snapshot(
+	manifest: Dictionary, recipients: Array = []
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _valid_cargo_manifest(manifest):
+		return _remember(_result(false, &"invalid_cargo_manifest"))
+	var target_peers: Array = recipients.duplicate()
+	if target_peers.is_empty():
+		target_peers = _peer_generations.keys()
+	for peer_variant in target_peers:
+		if not _peer_generations.has(int(peer_variant)):
+			return _remember(_result(false, &"peer_not_admitted"))
+	_cargo_manifest_revision += 1
+	var packet := {
+		"revision": _cargo_manifest_revision,
+		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 1)),
+		"manifest": manifest.duplicate(true),
+	}
+	for peer_variant in target_peers:
+		_send_cargo_manifest_snapshot.rpc_id(int(peer_variant), packet)
+	return _remember(_result(true, &"cargo_manifest_published", {
+		"revision": _cargo_manifest_revision, "recipients": target_peers.size()
+	}))
+
+
+func _valid_cargo_manifest(manifest: Dictionary) -> bool:
+	for key in [&"manifest_generation", &"terminal_generation", &"quantity"]:
+		if not manifest.get(key) is int or int(manifest.get(key, 0)) <= 0:
+			return false
+	for key in [&"source_id", &"destination_id", &"berth_id", &"state"]:
+		if not manifest.get(key) is String and not manifest.get(key) is StringName:
+			return false
+	if int(manifest.get("quantity", 0)) > 100000:
+		return false
+	return not StringName(manifest.get("source_id", &"")).is_empty() \
+		and not StringName(manifest.get("destination_id", &"")).is_empty() \
+		and not StringName(manifest.get("berth_id", &"")).is_empty()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_cargo_manifest_snapshot(packet: Dictionary) -> void:
+	if is_server():
+		return
+	var revision := int(packet.get("revision", 0))
+	var generation := int(packet.get("migration_generation", 0))
+	var manifest := packet.get("manifest", {}) as Dictionary
+	if revision <= _cargo_manifest_replica_revision or generation <= 0 \
+		or not _valid_cargo_manifest(manifest):
+		cargo_manifest_result.emit(_result(false, &"stale_or_invalid_cargo_manifest"))
+		return
+	if _cargo_manifest_replica_generation > 0 and generation != _cargo_manifest_replica_generation:
+		cargo_manifest_result.emit(_result(false, &"stale_cargo_manifest_generation"))
+		return
+	var manifest_state := StringName(manifest.get("state", &""))
+	var terminal_generation := int(manifest.get("terminal_generation", 0))
+	if manifest_state == &"completed" and terminal_generation <= _cargo_manifest_terminal_generation:
+		cargo_manifest_result.emit(_result(false, &"stale_cargo_terminal"))
+		return
+	_cargo_manifest_replica_revision = revision
+	_cargo_manifest_replica_generation = generation
+	if manifest_state == &"completed":
+		_cargo_manifest_terminal_generation = terminal_generation
+	cargo_manifest_result.emit(_result(true, &"cargo_manifest_presented", {
+		"revision": revision, "manifest": manifest.duplicate(true), "presentation_only": true
 	}))
 
 

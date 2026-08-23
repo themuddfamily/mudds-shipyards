@@ -67,6 +67,8 @@ func _evidence_complete() -> bool:
 		"REAL_PAYLOAD_RELEASED", "REAL_PAYLOAD_TERMINAL_RESOLVED", "DAMAGE_ONCE_SERVER_ONLY",
 		"STATION_DEFENSE_STARTED", "STATION_ACTIVE_WAVE", "STATION_ASSET_CRITICAL",
 		"STATION_DEFENSE_TERMINAL", "STATION_REPLAY_SENT", "STATION_INVALID_GENERATION_REJECTED",
+		"CARGO_MANIFEST_READY", "CARGO_TRANSFER_COMMITTED", "CARGO_TRANSFER_COMPLETED",
+		"CARGO_QUANTITY_CONSERVED_12", "CARGO_REPLAY_SENT", "CARGO_INVALID_GENERATION_REJECTED",
 		"RECONNECT_OLD_COMMAND_REJECTED", "RECONNECT_RESYNC_PUBLISHED", "RECONNECT_GENERATION_FRESH",
 	]:
 		if not server_log.contains(marker):
@@ -85,6 +87,14 @@ func _evidence_complete() -> bool:
 		if not client_a_log.contains(station_marker) or not client_b_log.contains(station_marker):
 			return false
 	if not client_a_log.contains("STATION_TERMINAL_RESYNC_PRESENTED"):
+		return false
+	for cargo_marker in [
+		"CARGO_READY_PRESENTED", "CARGO_TRANSIT_PRESENTED", "CARGO_COMMIT_PRESENTED",
+		"CARGO_COMPLETED_PRESENTED", "CARGO_REPLAY_REJECTED",
+	]:
+		if not client_a_log.contains(cargo_marker) or not client_b_log.contains(cargo_marker):
+			return false
+	if not client_a_log.contains("CARGO_TERMINAL_RESYNC_PRESENTED"):
 		return false
 	for client_log in [client_a_log, client_b_log]:
 		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \

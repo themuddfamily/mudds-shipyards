@@ -28,6 +28,7 @@ var _last_terminal_record: Dictionary = {}
 var _reconnect_damage_seen := false
 var _reconnect_relationship_seen := false
 var _station_terminal_seen := false
+var _cargo_completed_seen := false
 
 
 func _init() -> void:
@@ -57,6 +58,7 @@ func _init() -> void:
 	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
 	_adapter.projectile_replica_result.connect(_on_projectile_replica_result)
 	_adapter.projectile_replica_packet.connect(_on_projectile_replica_packet)
+	_adapter.cargo_manifest_result.connect(_on_cargo_manifest_result)
 	_adapter.seat_occupancy_result.connect(_on_seat_result)
 	_adapter.landing_intent_result.connect(_on_landing_result)
 	call_deferred(&"_start")
@@ -138,6 +140,33 @@ func _server_loop() -> void:
 				_log("STATION_REPLAY_SENT")
 			if not bool(station_invalid.get("accepted", false)):
 				_log("STATION_INVALID_GENERATION_REJECTED")
+			var cargo_manifest := _cargo_manifest(&"ready", 1, 12)
+			var cargo_ready := _adapter.publish_cargo_manifest_snapshot(cargo_manifest, peer_ids)
+			var cargo_transit := _adapter.publish_cargo_manifest_snapshot(
+				_cargo_manifest(&"in_transit", 1, 12), peer_ids
+			)
+			var cargo_commit := _adapter.publish_cargo_manifest_snapshot(
+				_cargo_manifest(&"committed", 1, 12), peer_ids
+			)
+			var cargo_completed := _adapter.publish_cargo_manifest_snapshot(
+				_cargo_manifest(&"completed", 1, 12), peer_ids
+			)
+			var cargo_replay := _adapter.publish_cargo_manifest_snapshot(
+				_cargo_manifest(&"completed", 1, 12), peer_ids
+			)
+			var cargo_invalid := _adapter.publish_cargo_manifest_snapshot(
+				_cargo_manifest(&"completed", 0, 0), peer_ids
+			)
+			if bool(cargo_ready.get("accepted", false)) and bool(cargo_transit.get("accepted", false)) \
+				and bool(cargo_commit.get("accepted", false)) and bool(cargo_completed.get("accepted", false)):
+				_log("CARGO_MANIFEST_READY")
+				_log("CARGO_TRANSFER_COMMITTED")
+				_log("CARGO_TRANSFER_COMPLETED")
+				_log("CARGO_QUANTITY_CONSERVED_12")
+			if bool(cargo_replay.get("accepted", false)):
+				_log("CARGO_REPLAY_SENT")
+			if not bool(cargo_invalid.get("accepted", false)):
+				_log("CARGO_INVALID_GENERATION_REJECTED")
 			if not bool(relationship_result.get("accepted", false)):
 				_log("RELATIONSHIP_STATUS_%s" % relationship_result.get("status", &"unknown"))
 			var accepted_count := 0
@@ -436,12 +465,16 @@ func _server_loop() -> void:
 					var station_terminal_resync := _adapter.publish_damage_respawn_snapshot(
 						&"station_defense_protected_asset", 1, 0.0, &"destroyed", true, 1, current_peers, 4
 					)
+					var cargo_terminal_resync := _adapter.publish_cargo_manifest_snapshot(
+						_cargo_manifest(&"completed", 1, 12), current_peers
+					)
 					var resync_relationship := _adapter.publish_moving_interior_snapshot(
 						_resync_relationship_snapshot(relationship.get_snapshot()), current_peers, 2
 					)
 					_log("RECONNECT_RESYNC_STATUS %s %s" % [resync_damage.get("status", &"unknown"), resync_relationship.get("status", &"unknown")])
 					if bool(resync_damage.get("accepted", false)) \
 						and bool(station_terminal_resync.get("accepted", false)) \
+						and bool(cargo_terminal_resync.get("accepted", false)) \
 						and bool(resync_relationship.get("accepted", false)):
 						_log("RECONNECT_RESYNC_PUBLISHED")
 					break
@@ -527,6 +560,18 @@ func _resync_relationship_snapshot(snapshot: Dictionary) -> Dictionary:
 	return resync
 
 
+func _cargo_manifest(state: StringName, terminal_generation: int, quantity: int) -> Dictionary:
+	return {
+		"manifest_generation": 1,
+		"terminal_generation": terminal_generation,
+		"quantity": quantity,
+		"source_id": &"cinder_cargo_hold",
+		"destination_id": &"station_defense_berth",
+		"berth_id": &"jovian_cargo_berth",
+		"state": state,
+	}
+
+
 func _projectile_wire(snapshot: Dictionary, terminal: bool) -> Dictionary:
 	var release_record := snapshot.get("release_record", {}) as Dictionary
 	var terminal_record := snapshot.get("terminal_intent", {}) as Dictionary
@@ -600,6 +645,26 @@ func _on_projectile_replica_result(result: Dictionary) -> void:
 	elif status == &"projectile_terminal_applied":
 		_projectile_terminal_seen = true
 		_log("PROJECTILE_TERMINAL_PRESENTED")
+
+
+func _on_cargo_manifest_result(result: Dictionary) -> void:
+	var status := StringName(result.get("status", &""))
+	if status == &"cargo_manifest_presented":
+		var manifest := result.get("manifest", {}) as Dictionary
+		var state := StringName(manifest.get("state", &""))
+		if state == &"ready":
+			_log("CARGO_READY_PRESENTED")
+		elif state == &"in_transit":
+			_log("CARGO_TRANSIT_PRESENTED")
+		elif state == &"committed":
+			_log("CARGO_COMMIT_PRESENTED")
+		elif state == &"completed":
+			_cargo_completed_seen = true
+			_log("CARGO_COMPLETED_PRESENTED")
+			if _reconnect_attempted:
+				_log("CARGO_TERMINAL_RESYNC_PRESENTED")
+	elif status in [&"stale_cargo_terminal", &"stale_or_invalid_cargo_manifest"]:
+		_log("CARGO_REPLAY_REJECTED")
 
 
 func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> void:
