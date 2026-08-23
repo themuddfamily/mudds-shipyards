@@ -485,6 +485,41 @@ audibility pass, or human gameplay review, and no Phase 6–10 umbrella item clo
   not update the last whole-scene geometry census and do not prove driver draw calls,
   GPU/CPU time, VRAM, or frame-time improvement.
 
+### Wave 13 production reconciliation checkpoint — 2026-08-23
+
+This additive checkpoint records landed runtime and player-visible source outcomes only.
+It does not close any Phase umbrella item, and UIDs, validators, or test counts are not
+counted as project progress:
+
+- Startup now authenticates the real settings-repair receipt, retains failed/retry state,
+  and carries the resolved confirmation through `GameFlow` into the recovery HUD instead
+  of presenting an inferred repair. The resulting focusable status and confirmation are
+  player-visible, while package and native controller review remain open.
+- Cinder's navigator ping now traverses the production network authority, semantic audio,
+  HUD, bridge-result and `GameFlow` seams with identity/generation fencing, retained failed
+  publications, and bounded replacement handling. Multiple detached presentation observers
+  can receive the same lifecycle-fenced state without acquiring navigation authority.
+- Streamed Ember now composes its airless sun and the complete source-level surface-return
+  cadence through `GameFlow`. The authenticated generation/receipt handback fences stale or
+  duplicate completion and returns the retained craft to the existing owner exactly once;
+  it does not claim that the end-to-end journey has been packaged or flown by a human.
+- Bomber projectiles now use the real network presentation loop: replica lifecycle,
+  resynchronization window and acceptance are bounded and generation-fenced while the
+  existing payload HUD/trail/terminal presentation remains the consumer. Siege-lance audio
+  reuse now releases and reacquires pooled voices cleanly instead of creating parallel
+  audio authority.
+- **41** bounded family-local batching changes are committed in this reconciliation span.
+  Representative exact source deltas include station door frame posts `2→1`, Cinder
+  console keys `4→1`, Jovian service panels `7→1`, and range-opponent engine pods
+  `2→1`. The current streamed-Cinder local census preserves **758 visible copies** and
+  **125,706 triangles** across **209 MeshInstance3D + 12 MultiMeshInstance3D = 221** renderer
+  nodes/surface submissions. These family-local facts do not update the historical
+  whole-scene census or establish a driver draw-call or frame-time delta.
+
+The full matrix, source-current package, native-Windows execution, uninterrupted human
+playthrough, audibility review, representative native frame/GPU timing, and VRAM gates all
+remain `NOT_RUN` for this checkpoint.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
