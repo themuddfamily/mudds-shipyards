@@ -34,6 +34,7 @@ func _run() -> void:
 	_test_slab_corner_beacon_batch(module)
 	_test_slab_support_batch(module)
 	_test_rung_edge_cue_batch(module)
+	_test_mooring_cleat_pad_batch(module)
 	_test_performance_contract(module)
 	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
@@ -259,24 +260,24 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 136
+		int(render.descendant_nodes) == 137
 		and int(render.mesh_instances) == 89
-		and int(render.multimesh_batches) == 4,
-		"renderer census includes trunk, slab-corner, slab-support and rung-edge batches"
+		and int(render.multimesh_batches) == 5,
+		"renderer census includes trunk, slab-corner, slab-support, rung-edge and cleat-pad batches"
 	)
 	_check(
 		int(render.drawn_copies) == 101
-		and int(render.geometry_submissions) == 71
+		and int(render.geometry_submissions) == 66
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies remain 101 while surface submissions become 71"
+		"drawn copies remain 101 while surface submissions become 66"
 	)
 	_check(
 		int(render.trunk_renderer_buffer_floats) == 144
-		and int(render.renderer_buffer_floats) == 408
+		and int(render.renderer_buffer_floats) == 480
 		and bool(render.renderer_buffer_matches_authored)
 		and bool(render.bounds_match_authored)
 		and bool(render.exact_counts),
-		"all renderer buffers freeze at 408 floats with exact authored culling unions"
+		"all renderer buffers freeze at 480 floats with exact authored culling unions"
 	)
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
@@ -392,10 +393,10 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 		int(render.slab_corner_beacon_submissions_before) == 12
 		and int(render.slab_corner_beacon_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_beacon_batch) == 90
-		and int(render.geometry_submissions) == 71
-		and int(render.geometry_submissions_removed) == 19
+		and int(render.geometry_submissions) == 66
+		and int(render.geometry_submissions_removed) == 24
 		and int(render.slab_corner_beacon_renderer_buffer_floats) == 144,
-		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 71 overall"
+		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 66 overall"
 	)
 	_check(
 		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
@@ -489,7 +490,7 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 		int(render.slab_support_submissions_before) == 6
 		and int(render.slab_support_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_support_batch) == 79
-		and int(render.geometry_submissions) == 71
+		and int(render.geometry_submissions) == 66
 		and int(render.slab_support_renderer_buffer_floats) == 72
 		and bool(render.slab_support_renderer_buffer_matches_authored)
 		and bool(render.slab_support_bounds_match_authored)
@@ -589,7 +590,7 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 		int(render.rung_edge_cue_submissions_before) == 4
 		and int(render.rung_edge_cue_submissions_after) == 1
 		and int(render.geometry_submissions_before_rung_edge_cue_batch) == 74
-		and int(render.geometry_submissions) == 71
+		and int(render.geometry_submissions) == 66
 		and int(render.drawn_copies) == 101
 		and int(render.rung_edge_cue_renderer_buffer_floats) == 48
 		and bool(render.rung_edge_cue_renderer_buffer_matches_authored)
@@ -616,6 +617,93 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(module.get_validation_errors().is_empty(), "restoring the rung-cue batch restores a clean module audit")
+
+
+func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
+	var service := module.get_node_or_null(^"GeneratedComb/SurfaceDetail/DockArmService") as Node3D
+	var batch := module.get_node_or_null(
+		^"GeneratedComb/SurfaceDetail/DockArmService/DockMooringCleatPads"
+	) as MultiMeshInstance3D
+	_check(
+		service != null and batch != null and batch.multimesh != null,
+		"six mooring cleat pads resolve as one dock-service MultiMesh"
+	)
+	if service == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	var expected_names := PackedStringArray()
+	var slab_specs: Array[Vector2] = [Vector2(8.5, 0.02), Vector2(25.0, 0.02), Vector2(40.0, 2.42)]
+	for slab_index in 3:
+		var slab_spec := slab_specs[slab_index]
+		for side: float in [-1.0, 1.0]:
+			expected.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(9.5, slab_spec.y, slab_spec.x + side * 4.4)
+			))
+			expected_names.append(
+				"DockMooringCleatPad%02d_%s" % [slab_index + 1, "A" if side < 0.0 else "B"]
+			)
+	var anchors: Array[MeshInstance3D] = []
+	for raw_node in service.get_children():
+		if str(raw_node.name).begins_with("DockMooringCleatPad"):
+			var anchor := raw_node as MeshInstance3D
+			if anchor != null:
+				anchors.append(anchor)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = (
+			anchors_exact
+			and str(anchors[index].name) == expected_names[index]
+			and anchors[index].transform.is_equal_approx(expected[index])
+			and not anchors[index].visible
+			and anchors[index].mesh != null
+			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.66, 0.05, 0.66))
+			and anchors[index].get_child_count() == 0
+			and anchors[index].get_script() == null
+		)
+	var multi := batch.multimesh
+	var render := module.get_render_batch_contract()
+	_check(
+		anchors_exact
+		and multi.instance_count == FleetDockComb.MOORING_CLEAT_PAD_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.66, 0.05, 0.66))
+		and multi.mesh.get_surface_count() == 1
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.material_override == anchors[0].material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0
+		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and service.find_children("*", "Area3D", true, false).is_empty(),
+		"cleat-pad batch preserves exact transforms, grip material, shadows, culling layer and visual-only ownership"
+	)
+	_check(
+		int(render.mooring_cleat_pad_submissions_before) == 6
+		and int(render.mooring_cleat_pad_submissions_after) == 1
+		and int(render.geometry_submissions_before_mooring_cleat_pad_batch) == 71
+		and int(render.geometry_submissions) == 66
+		and int(render.drawn_copies) == 101
+		and int(render.mooring_cleat_pad_renderer_buffer_floats) == 72
+		and bool(render.mooring_cleat_pad_renderer_buffer_matches_authored)
+		and bool(render.mooring_cleat_pad_bounds_match_authored)
+		and bool(render.mooring_cleat_pad_contract_matches)
+		and int(render.static_bodies) == 7
+		and int(render.collision_shapes) == 7
+		and int(render.route_markers) == 9
+		and int(render.dock_landmarks) == 3,
+		"cleat pads reduce 6 -> 1 submissions without changing copies, physics, routes or dock identities"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has("comb mooring-cleat-pad renderer buffer drifted from its authored roster"),
+		"mutating one live cleat-pad transform is rejected by the production audit"
+	)
+	multi.buffer = original_buffer
+	_check(module.get_validation_errors().is_empty(), "restoring the cleat-pad batch restores a clean module audit")
 
 
 ## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else
