@@ -29,6 +29,8 @@ var _reconnect_damage_seen := false
 var _reconnect_relationship_seen := false
 var _station_terminal_seen := false
 var _cargo_completed_seen := false
+var _handshake_retry_started := false
+var _handshake_wait_frames := 0
 
 
 func _init() -> void:
@@ -59,6 +61,7 @@ func _init() -> void:
 	_adapter.projectile_replica_result.connect(_on_projectile_replica_result)
 	_adapter.projectile_replica_packet.connect(_on_projectile_replica_packet)
 	_adapter.cargo_manifest_result.connect(_on_cargo_manifest_result)
+	_adapter.transport_rejected.connect(_on_transport_rejected)
 	_adapter.seat_occupancy_result.connect(_on_seat_result)
 	_adapter.landing_intent_result.connect(_on_landing_result)
 	call_deferred(&"_start")
@@ -71,6 +74,8 @@ func _start() -> void:
 		_log("HOST_%s" % ("READY" if hosted.get("accepted", false) else "FAILED"))
 		call_deferred(&"_server_loop")
 	else:
+		if _role == "client_b":
+			_adapter.configure_handshake_versions(99, 1)
 		var joined := _adapter.join("127.0.0.1", _port)
 		_log("JOIN_%s" % ("STARTED" if joined.get("accepted", false) else "FAILED"))
 		call_deferred(&"_client_loop")
@@ -494,6 +499,14 @@ func _server_loop() -> void:
 func _client_loop() -> void:
 	for _frame in 300:
 		await process_frame
+		if _role == "client_b" and not _handshake_retry_started and _adapter._server_offer.is_empty():
+			_handshake_wait_frames += 1
+			if _handshake_wait_frames >= 50:
+				_handshake_retry_started = true
+				_adapter.shutdown(&"protocol_mismatch")
+				_adapter.configure_handshake_versions(1, 1)
+				var retry := _adapter.join("127.0.0.1", _port)
+				_log("HANDSHAKE_MISMATCH_REJECTED" if retry.get("accepted", false) else "HANDSHAKE_RETRY_FAILED")
 		if not _projectile_logged and (
 			not _adapter._projectile_replica_generations.is_empty()
 			or StringName(_adapter._last_result.get("status", &"")) == &"projectile_terminal_applied"
@@ -665,6 +678,11 @@ func _on_cargo_manifest_result(result: Dictionary) -> void:
 				_log("CARGO_TERMINAL_RESYNC_PRESENTED")
 	elif status in [&"stale_cargo_terminal", &"stale_or_invalid_cargo_manifest"]:
 		_log("CARGO_REPLAY_REJECTED")
+
+
+func _on_transport_rejected(status: StringName) -> void:
+	if _role == "server" and status == &"protocol_mismatch":
+		_log("HANDSHAKE_MISMATCH_REJECTED")
 
 
 func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> void:

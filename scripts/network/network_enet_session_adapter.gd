@@ -195,6 +195,8 @@ var _handshake_deadline: Dictionary = {
 }
 var _next_join_intent_sequence := 1
 var _last_join_intent_sequence := 0
+var _handshake_protocol_version := NETWORK_PROTOCOL_VERSION
+var _handshake_package_generation := NETWORK_BUILD_VERSION
 
 
 func _init() -> void:
@@ -273,6 +275,14 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 	session_started.emit(&"client")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"client_started", {"address": address, "port": _bound_port}))
+
+
+func configure_handshake_versions(protocol_version: int, package_generation: int) -> Dictionary:
+	if protocol_version <= 0 or package_generation <= 0:
+		return _remember(_result(false, &"invalid_handshake_versions"))
+	_handshake_protocol_version = protocol_version
+	_handshake_package_generation = package_generation
+	return _remember(_result(true, &"handshake_versions_configured"))
 
 
 func shutdown(reason: StringName = &"requested") -> Dictionary:
@@ -2856,6 +2866,10 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
+	if int(wire.get("protocol_version", 0)) != NETWORK_PROTOCOL_VERSION \
+		or int(wire.get("package_generation", 0)) != NETWORK_BUILD_VERSION:
+		transport_rejected.emit(&"protocol_mismatch")
+		return
 	var payload := _accept_secure_rpc(source_peer_id, wire, &"movement")
 	if payload.is_empty():
 		return
@@ -3291,7 +3305,8 @@ func _on_peer_connected(peer_id: int) -> void:
 	if is_server() or peer_id != AUTHORITY_PEER_ID:
 		return
 	var hello := LifecycleAdapter.create_hello(
-		multiplayer.get_unique_id(), _next_peer_generation, 1, 1, 1
+		multiplayer.get_unique_id(), _next_peer_generation,
+		_handshake_protocol_version, _handshake_package_generation, 1
 	)
 	_next_peer_generation += 1
 	_receive_hello.rpc_id(AUTHORITY_PEER_ID, hello)
