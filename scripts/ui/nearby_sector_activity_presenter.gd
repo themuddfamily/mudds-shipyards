@@ -549,6 +549,7 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 	var percentage := clampi(roundi(progress * 100.0), 0, 100)
 	var remaining := maxf(duration - elapsed, 0.0)
 	var reward_pending := bool(state.get("reward_requested", false))
+	var capacity_persisted := bool(state.get("capacity_persisted", false))
 	var stage_id: StringName = &"available"
 	var summary := "EXTRACTION READY  //  0%"
 	var objective := "APPROACH THE CINDER EXTRACTION PLATFORM"
@@ -560,14 +561,22 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 			]
 			objective = "HOLD EXTRACTION UNTIL 100%"
 		2:
-			stage_id = &"reward_pending" if reward_pending else &"complete"
+			stage_id = &"capacity_recorded" if capacity_persisted else (
+				&"reward_pending" if reward_pending else &"complete"
+			)
 			summary = (
-				"EXTRACTION COMPLETE  //  REWARD PENDING"
-				if reward_pending else "EXTRACTION COMPLETE  //  ORE SAMPLE READY"
+				"CAPACITY READY  //  EXTRACTION RECEIPT SAVED"
+				if capacity_persisted else (
+					"EXTRACTION COMPLETE  //  REWARD PENDING"
+					if reward_pending else "EXTRACTION COMPLETE  //  ORE SAMPLE READY"
+				)
 			)
 			objective = (
-				"AWAIT ORE REWARD HANDOFF"
-				if reward_pending else "REQUEST THE ORE SAMPLE REWARD"
+				"RETURN-READY CAPACITY RETAINED"
+				if capacity_persisted else (
+					"AWAIT ORE REWARD HANDOFF"
+					if reward_pending else "REQUEST THE ORE SAMPLE REWARD"
+				)
 			)
 		3:
 			stage_id = &"interrupted"
@@ -580,6 +589,7 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 		"elapsed_seconds": elapsed,
 		"remaining_seconds": remaining,
 		"reward_pending": reward_pending,
+		"capacity_persisted": capacity_persisted,
 		"summary": summary,
 		"objective_text": objective,
 		"activity_authority": false,

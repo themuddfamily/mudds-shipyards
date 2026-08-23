@@ -556,6 +556,7 @@ const EMBER_RELAY_SURVEY_PERSISTENCE_SLOT: StringName = \
 const CINDER_RACE_BEST_PERSISTENCE_SLOT: StringName = &"cinder_race_best_result"
 const CINDER_SCAN_DISCOVERY_PERSISTENCE_SLOT: StringName = &"cinder_scan_discovery"
 const CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT: StringName = &"cinder_cargo_delivery"
+const CINDER_MINING_CAPACITY_PERSISTENCE_SLOT: StringName = &"cinder_mining_capacity"
 const PLANETARY_RETURN_RETIRE_COMMIT_PREFIX := "planetary-return-retire-"
 const PLANETARY_RETURN_RETIRE_MAX_STORE_GENERATION := 2_147_483_647
 var _planetary_return_startup_restore_receipt: Dictionary = {}
@@ -6261,6 +6262,20 @@ func bind_cinder_cargo_delivery_persistence(binding: Object) -> Dictionary:
 	) as Dictionary
 
 
+## Supplies the retained mining presentation with Main's atomic store. Only a
+## terminal capacity receipt returns; ore and extraction authority stay live-only.
+func bind_cinder_mining_capacity_persistence(binding: Object) -> Dictionary:
+	if binding == null \
+			or not binding.has_method(&"configure_cinder_mining_capacity_persistence") \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"mining_capacity_persistence_unavailable"}
+	return binding.call(
+		&"configure_cinder_mining_capacity_persistence",
+		_runtime_settings_user_data_store,
+		CINDER_MINING_CAPACITY_PERSISTENCE_SLOT
+	) as Dictionary
+
+
 ## Binds the terminal Ember relay-survey receipt bridge to this Main's
 ## already-loaded UserDataStore. No filesystem or reward authority is created.
 func bind_ember_relay_survey_persistence(binding: Object) -> Dictionary:
@@ -9206,6 +9221,7 @@ func _sync_nearby_activity_hud() -> void:
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
 	bind_cinder_cargo_delivery_persistence(binding)
+	bind_cinder_mining_capacity_persistence(binding)
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
