@@ -3565,6 +3565,12 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 			detail += "\nOWNERSHIP // %s" % str(ownership_row)
 		for ownership_notice in snapshot.get("ownership_notices", []) as Array:
 			detail += "\n%s" % str(ownership_notice)
+		var craft_lifecycle := str(snapshot.get("craft_lifecycle_text", ""))
+		if not craft_lifecycle.is_empty():
+			detail += "\nCRAFT LIFECYCLE // %s" % craft_lifecycle
+		var craft_lifecycle_notice := str(snapshot.get("craft_lifecycle_notice", ""))
+		if not craft_lifecycle_notice.is_empty():
+			detail += "\n%s" % craft_lifecycle_notice
 		for receipt in snapshot.get("history", []) as Array:
 			detail += "\nHISTORY // %s" % str(receipt)
 	if kind == &"bomber":

@@ -71,29 +71,58 @@ func _run() -> void:
 	_check(caller_snapshot.local_peer_id == production_session.multiplayer.get_unique_id()
 		and caller_snapshot.controlled_craft_id == production_ship_id
 		and int((caller_snapshot.authoritative_snapshot as Dictionary).get("revision", 0)) == 12
-		and detail.contains("OWNERSHIP // CRAFT %s // LOCAL PEER 1" % str(production_ship_id).to_upper()),
+		and detail.contains("OWNERSHIP // CRAFT %s // LOCAL PEER 1" % str(production_ship_id).to_upper())
+		and detail.contains("CRAFT LIFECYCLE // HEALTHY"),
 		"production GameFlow caller binds live peer, craft identity, and authoritative snapshot into HUD")
 	production_session.authoritative_snapshot = _authority_snapshot(
-		11, production_ship_id, 7
+		11, production_ship_id, 7, &"destroyed"
 	)
 	production_flow._publish_network_session_snapshot(&"connected", &"server", "Still ready.")
 	detail = (production_hud.get("_runtime_status_detail") as Label).text
 	_check(detail.contains("OWNERSHIP // CRAFT %s // LOCAL PEER 1" % str(production_ship_id).to_upper())
-		and not detail.contains("CONTROL DENIED"),
-		"production caller cannot let a reordered authority revision replace local ownership")
+		and detail.contains("CRAFT LIFECYCLE // HEALTHY")
+		and not detail.contains("CONTROL UNAVAILABLE"),
+		"production caller cannot let a reordered authority revision replace ownership or damage lifecycle")
 	production_session.authoritative_snapshot = _authority_snapshot(
-		13, production_ship_id, 7
+		13, production_ship_id, 1, &"damaged"
 	)
-	production_flow._publish_network_session_snapshot(&"connected", &"server", "Transferred.")
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Hull damaged.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("CRAFT LIFECYCLE // DAMAGED")
+		and not detail.contains("CONTROL UNAVAILABLE"),
+		"authoritative damage lifecycle presents a damaged but controllable craft")
+	production_session.authoritative_snapshot = _authority_snapshot(
+		14, production_ship_id, 7, &"destroyed"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Destroyed.")
 	detail = (production_hud.get("_runtime_status_detail") as Label).text
 	var production_presentation := (
 		production_hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
 	).get_snapshot()
 	_check(detail.contains("OWNERSHIP // CRAFT %s // REMOTE PEER 7" % str(production_ship_id).to_upper())
 		and detail.contains("CONTROL DENIED")
+		and detail.contains("CRAFT LIFECYCLE // DESTROYED")
+		and detail.contains("CONTROL UNAVAILABLE // %s DESTROYED" % str(production_ship_id).to_upper())
+		and not bool(production_presentation.get("craft_control_available", true))
 		and bool(production_presentation.get("presentation_only", false))
 		and not production_presentation.has("control_authority"),
-		"new production authority revision presents remote denial without granting control")
+		"destroyed authority revision presents explicit unavailability without granting control")
+	production_session.authoritative_snapshot = _authority_snapshot(
+		15, production_ship_id, 7, &"respawn_pending"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Respawning.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("CRAFT LIFECYCLE // RESPAWNING")
+		and not detail.contains("CONTROL UNAVAILABLE //"),
+		"authoritative respawn-pending state presents as respawning")
+	production_session.authoritative_snapshot = _authority_snapshot(
+		16, production_ship_id, 7, &"recovery_ready"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Ready.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("CRAFT LIFECYCLE // READY")
+		and not detail.contains("CONTROL UNAVAILABLE //"),
+		"authoritative recovery-ready state presents as ready")
 	production_flow.free()
 	production_bomber.queue_free()
 	production_session.queue_free()
@@ -146,7 +175,12 @@ func _session_snapshot(generation: int, revision: int, owner_peer_id: int) -> Di
 	}
 
 
-func _authority_snapshot(revision: int, ship_id: StringName, owner_peer_id: int) -> Dictionary:
+func _authority_snapshot(
+	revision: int,
+	ship_id: StringName,
+	owner_peer_id: int,
+	lifecycle_state: StringName = &"healthy",
+) -> Dictionary:
 	return {
 		"authority_peer_id": 1,
 		"revision": revision,
@@ -164,6 +198,12 @@ func _authority_snapshot(revision: int, ship_id: StringName, owner_peer_id: int)
 				"avatar_id": &"production_avatar",
 				"vessel_id": ship_id,
 				"role": &"pilot",
+			}],
+			&"respawn": [{
+				"entity_id": ship_id,
+				"entity_generation": 1,
+				"component_generation": 1,
+				"state": lifecycle_state,
 			}],
 		},
 	}

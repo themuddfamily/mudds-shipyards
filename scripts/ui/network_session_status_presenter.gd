@@ -20,7 +20,7 @@ var _snapshot: Dictionary = {}
 var _source_generation := -1
 var _authority_peer_id := 0
 var _authority_revision := -1
-var _authority_records: Dictionary = {&"ownership": [], &"boarding": []}
+var _authority_records: Dictionary = {&"ownership": [], &"boarding": [], &"respawn": []}
 var _ownership_view: Dictionary = {}
 
 
@@ -98,6 +98,10 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"authoritative_ownership": ownership_view,
 		"ownership_rows": ownership_view.get("rows", []),
 		"ownership_notices": ownership_view.get("notices", []),
+		"craft_lifecycle_state": ownership_view.get("craft_lifecycle_state", &""),
+		"craft_lifecycle_text": ownership_view.get("craft_lifecycle_text", ""),
+		"craft_lifecycle_notice": ownership_view.get("craft_lifecycle_notice", ""),
+		"craft_control_available": ownership_view.get("craft_control_available", true),
 		"title": title,
 		"message": detail if not detail.is_empty() else (SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)),
 		"peer_generation": peer_generation,
@@ -187,7 +191,7 @@ func _present_authoritative_ownership(
 	if state == &"disconnected":
 		_authority_peer_id = 0
 		_authority_revision = -1
-		_authority_records = {&"ownership": [], &"boarding": []}
+		_authority_records = {&"ownership": [], &"boarding": [], &"respawn": []}
 		_ownership_view.clear()
 		return {}
 	if not raw_snapshot is Dictionary or (raw_snapshot as Dictionary).is_empty():
@@ -196,6 +200,7 @@ func _present_authoritative_ownership(
 		_ownership_view = _build_ownership_view(
 			_authority_records.get(&"ownership", []) as Array,
 			_authority_records.get(&"boarding", []) as Array,
+			_authority_records.get(&"respawn", []) as Array,
 			_authority_records,
 			local_peer_id,
 			craft_id,
@@ -218,24 +223,34 @@ func _present_authoritative_ownership(
 	var sections := sections_variant as Dictionary
 	var ownership_variant: Variant = sections.get(&"ownership", [])
 	var boarding_variant: Variant = sections.get(&"boarding", [])
-	if not ownership_variant is Array or not boarding_variant is Array:
+	var respawn_variant: Variant = sections.get(&"respawn", [])
+	if not ownership_variant is Array or not boarding_variant is Array \
+			or not respawn_variant is Array:
 		return _ownership_view.duplicate(true)
 	var ownership := _valid_ownership_records(ownership_variant as Array)
 	var boarding := _valid_boarding_records(boarding_variant as Array)
+	var respawn := _valid_respawn_records(respawn_variant as Array)
 	if ownership.size() != (ownership_variant as Array).size() \
-			or boarding.size() != (boarding_variant as Array).size():
+			or boarding.size() != (boarding_variant as Array).size() \
+			or respawn.size() != (respawn_variant as Array).size():
 		return _ownership_view.duplicate(true)
 	var previous_records := _authority_records
 	if revision > _authority_revision:
 		_authority_peer_id = authority_peer_id
 		_authority_revision = revision
-		_authority_records = {&"ownership": ownership, &"boarding": boarding}
+		_authority_records = {
+			&"ownership": ownership,
+			&"boarding": boarding,
+			&"respawn": respawn,
+		}
 	else:
 		ownership = (_authority_records.get(&"ownership", []) as Array).duplicate(true)
 		boarding = (_authority_records.get(&"boarding", []) as Array).duplicate(true)
+		respawn = (_authority_records.get(&"respawn", []) as Array).duplicate(true)
 	_ownership_view = _build_ownership_view(
 		ownership,
 		boarding,
+		respawn,
 		previous_records,
 		local_peer_id,
 		craft_id,
@@ -251,6 +266,7 @@ func _present_authoritative_ownership(
 func _build_ownership_view(
 	ownership: Array,
 	boarding: Array,
+	respawn: Array,
 	previous_records: Dictionary,
 	local_peer_id: int,
 	craft_id: StringName,
@@ -323,7 +339,15 @@ func _build_ownership_view(
 					_peer_scope(prior_occupant, local_peer_id),
 					_peer_scope(occupant_peer_id, local_peer_id),
 				])
-	return {"rows": rows, "notices": notices}
+	var lifecycle := _craft_lifecycle_view(respawn, selected_ship_id)
+	return {
+		"rows": rows,
+		"notices": notices,
+		"craft_lifecycle_state": lifecycle.get("state", &""),
+		"craft_lifecycle_text": lifecycle.get("text", ""),
+		"craft_lifecycle_notice": lifecycle.get("notice", ""),
+		"craft_control_available": lifecycle.get("control_available", true),
+	}
 
 
 func _valid_ownership_records(records: Array) -> Array:
@@ -355,6 +379,66 @@ func _valid_boarding_records(records: Array) -> Array:
 			continue
 		valid.append(record.duplicate(true))
 	return valid
+
+
+func _valid_respawn_records(records: Array) -> Array:
+	var valid: Array = []
+	for record_variant in records:
+		if not record_variant is Dictionary:
+			continue
+		var record := record_variant as Dictionary
+		if str(record.get("entity_id", "")).is_empty() \
+				or str(record.get("state", "")).is_empty() \
+				or int(record.get("entity_generation", 0)) <= 0 \
+				or int(record.get("component_generation", 0)) <= 0:
+			continue
+		valid.append(record.duplicate(true))
+	return valid
+
+
+func _craft_lifecycle_view(records: Array, craft_id: StringName) -> Dictionary:
+	if craft_id.is_empty():
+		return {}
+	var selected: Dictionary = {}
+	for record_variant in records:
+		var record := record_variant as Dictionary
+		if str(record.get("entity_id", "")).nocasecmp_to(str(craft_id)) == 0:
+			selected = record
+			break
+	if selected.is_empty():
+		return {}
+	var raw_state := StringName(str(selected.get("state", &"")).to_lower())
+	var lifecycle_state: StringName
+	match raw_state:
+		&"healthy": lifecycle_state = &"healthy"
+		&"damaged": lifecycle_state = &"damaged"
+		&"destroyed", &"recovering": lifecycle_state = &"destroyed"
+		&"respawning", &"respawn_pending": lifecycle_state = &"respawning"
+		&"ready", &"recovery_ready": lifecycle_state = &"ready"
+		&"active":
+			var health := float(selected.get("health", 1.0))
+			var maximum_health := float(selected.get("maximum_health", selected.get("max_health", health)))
+			if bool(selected.get("destroyed", false)) or health <= 0.0:
+				lifecycle_state = &"destroyed"
+			elif maximum_health > 0.0 and health < maximum_health:
+				lifecycle_state = &"damaged"
+			else:
+				lifecycle_state = &"healthy"
+		_:
+			return {}
+	var destroyed := lifecycle_state == &"destroyed"
+	return {
+		"state": lifecycle_state,
+		"text": String(lifecycle_state).to_upper(),
+		"notice": (
+			"CONTROL UNAVAILABLE // %s DESTROYED" % str(craft_id).to_upper()
+			if destroyed else ""
+		),
+		"control_available": not destroyed,
+		"entity_generation": int(selected.get("entity_generation", 0)),
+		"component_generation": int(selected.get("component_generation", 0)),
+		"presentation_only": true,
+	}
 
 
 func _select_ship(records: Array, craft_id: StringName, local_peer_id: int) -> Dictionary:
