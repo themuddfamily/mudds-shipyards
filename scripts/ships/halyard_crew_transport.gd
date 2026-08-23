@@ -260,6 +260,12 @@ const COCKPIT_SHIFT := Vector3(-0.70, -1.47, -11.55)
 ## `_build_flank_detail` for why this is a deck-driven number rather than a
 ## styling one.
 const AIRSTAIR_Z := -4.80
+## The port airstair and its visible hatch surround are 1.90 m wide along the
+## hull.  Keep a physical aperture of the same width in the pressure wall: it
+## is 1.14 m wider than the production player's 0.76 m capsule diameter, so a
+## crew member can actually pass from the stair onto the cabin deck while the
+## wall continues to protect both adjacent exterior edges.
+const PORT_AIRSTAIR_HATCH_APERTURE_WIDTH := 1.90
 ## Transverse engine yoke station, clear aft of the pressure hull.
 const TAIL_YOKE_Z := 11.20
 const CREW_SEAT_ROWS: Array[float] = [-8.00, -5.40, -2.80]
@@ -359,6 +365,11 @@ func _enter_tree() -> void:
 		call_deferred("_rebind_halyard_perspective_audio")
 	if _loadmaster_audio_binding != null:
 		call_deferred("_rebind_loadmaster_audio")
+	# `_ready()` runs only once for a retained Node.  On later tree entries the
+	# existing occupant Area has a fresh physics space, so rebind it after the
+	# tree is live instead of leaving cabin walkers unregistered.
+	if _halyard_built:
+		call_deferred("_bind_optional_interior_frame")
 
 
 func _ready() -> void:
@@ -376,6 +387,11 @@ func _ready() -> void:
 		_halyard_built = rebuild_variant_presentation(_build_halyard_variant)
 	if _halyard_built:
 		_halyard_built = _reconfigure_component_damage_from_final_root_collision()
+		# A retained transport may leave and re-enter the scene tree without
+		# rebuilding its variant presentation.  Reconfigure the live occupancy
+		# Area in that path as well so a crew member who crosses the hatch after
+		# re-entry is registered with the moving interior.
+		_bind_optional_interior_frame()
 	_apply_halyard_metadata()
 	_sync_halyard_engine_presentation_immediately()
 	_build_loadmaster_station_display()
@@ -2768,7 +2784,25 @@ func _replace_collision_and_markers() -> void:
 	# The pressure hull itself. The interior is enclosed by real geometry, not by
 	# the containment guard alone.
 	_add_box_collision("HullCrownCollision", Vector3(0.0, 3.62, -1.20), Vector3(5.30, 0.90, 18.80))
-	_add_box_collision("PortHullWallCollision", Vector3(-2.58, 1.95, -1.20), Vector3(0.28, 2.90, 18.80))
+	# HALYARD-DECK-002: the original continuous port wall ran straight across the
+	# visible airstair hatch.  Split it around that existing opening instead of
+	# weakening the pressure hull elsewhere.  The two retained segments preserve
+	# fall protection on both sides of the stair while the player can cross from
+	# the real ramp collider to the real cabin deck.
+	var port_wall_min_z := -10.60
+	var port_wall_max_z := 8.20
+	var hatch_min_z := AIRSTAIR_Z - PORT_AIRSTAIR_HATCH_APERTURE_WIDTH * 0.5
+	var hatch_max_z := AIRSTAIR_Z + PORT_AIRSTAIR_HATCH_APERTURE_WIDTH * 0.5
+	_add_box_collision(
+		"PortHullWallForwardCollision",
+		Vector3(-2.58, 1.95, (port_wall_min_z + hatch_min_z) * 0.5),
+		Vector3(0.28, 2.90, hatch_min_z - port_wall_min_z)
+	)
+	_add_box_collision(
+		"PortHullWallAftCollision",
+		Vector3(-2.58, 1.95, (hatch_max_z + port_wall_max_z) * 0.5),
+		Vector3(0.28, 2.90, port_wall_max_z - hatch_max_z)
+	)
 	_add_box_collision("StarboardHullWallCollision", Vector3(2.58, 1.95, -1.20), Vector3(0.28, 2.90, 18.80))
 	_add_box_collision("VentralHullCollision", Vector3(0.0, 0.04, -1.20), Vector3(5.20, 0.78, 18.80))
 	# The nose is a shell around the flight deck, so its collision is roof and
