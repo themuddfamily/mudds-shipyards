@@ -479,23 +479,26 @@ func _test_escape_pods_and_sensors(arrow: ArrowReconShip) -> void:
 	_check(mast != null and mast.get_parent().name == "ReconSensorMast", "sensor sweep sits on a dedicated dorsal mast")
 	var receiver_report := arrow.get_arrow_visual_performance_report().array_receiver_mesh_sharing as Dictionary
 	_check(
-		bool(receiver_report.valid) and int(receiver_report.geometry_nodes) == 2
-			and int(receiver_report.primitive_mesh_allocations) == 1,
-		"mirrored sensor receivers retain one exact shared SphereMesh"
+		bool(receiver_report.valid) and int(receiver_report.geometry_nodes) == 1
+			and int(receiver_report.geometry_submissions) == 1
+			and int(receiver_report.visible_geometry_copies) == 2
+			and int(receiver_report.primitive_mesh_allocations) == 1
+			and int(receiver_report.multimesh_allocations) == 1,
+		"mirrored sensor receivers retain both exact copies in one bounded batch"
 	)
 	if mast != null:
-		var receiver := mast.get_node_or_null("ArrayReceiver") as MeshInstance3D
-		if receiver != null:
-			var shared_mesh := receiver.mesh
-			receiver.mesh = shared_mesh.duplicate() as SphereMesh
+		var receiver := mast.get_node_or_null("ArrayReceiver") as MultiMeshInstance3D
+		if receiver != null and receiver.multimesh != null:
+			var authored_bounds := receiver.multimesh.custom_aabb
+			receiver.multimesh.custom_aabb = authored_bounds.grow(0.1)
 			_check(
 				not bool((arrow.get_arrow_visual_performance_report().array_receiver_mesh_sharing as Dictionary).valid),
-				"structured-red: one private receiver mesh fails the sharing audit"
+				"structured-red: receiver culling-bounds drift fails the batch audit"
 			)
-			receiver.mesh = shared_mesh
+			receiver.multimesh.custom_aabb = authored_bounds
 			_check(
 				bool((arrow.get_arrow_visual_performance_report().array_receiver_mesh_sharing as Dictionary).valid),
-				"restoring the shared receiver mesh clears the allocation audit"
+				"restoring receiver culling bounds clears the batch audit"
 			)
 	_check(arrow.get_arrow_visual_root().get_node_or_null("VentralSensorGimbal") is MeshInstance3D, "recon craft has a ventral optical/spectral gimbal")
 	_check(
@@ -600,15 +603,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 188,
-			"mesh_instance_nodes": 164,
-			"multi_mesh_instance_nodes": 2,
-			"geometry_submissions": 166,
+			"nodes": 187,
+			"mesh_instance_nodes": 162,
+			"multi_mesh_instance_nodes": 3,
+			"geometry_submissions": 165,
 			"visible_geometry_copies": 169,
 			"unique_mesh_resource_allocations": 128,
-			"auto_fallback_names": 21,
+			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 188-node, 166-submission, 128-mesh census with all 169 copies"
+		"entry-complete Arrow freezes the exact 187-node, 165-submission, 128-mesh census with all 169 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -637,10 +640,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"unique_mesh_resource_allocations": 4,
 		}
 		and report.reductions == {
-			"nodes": -11,
-			"geometry_submissions": -7,
+			"nodes": -10,
+			"geometry_submissions": -6,
 			"unique_mesh_resource_allocations": 14,
-			"auto_fallback_names": 3,
+			"auto_fallback_names": 4,
 			"visible_geometry_copies": -10,
 		}
 		and report.phase9_reductions_before_entry_heat == {
@@ -681,11 +684,11 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and int(report.lateral_array_curve_joint_sharing.resource_allocation_reduction) == 5
 		and report.lateral_array_curve_joint_sharing.node_paths == PackedStringArray([
 			"PortLateralArray/CurveJoint",
+			"PortLateralArray/@MeshInstance3D@14",
 			"PortLateralArray/@MeshInstance3D@15",
-			"PortLateralArray/@MeshInstance3D@16",
 			"StarboardLateralArray/CurveJoint",
+			"StarboardLateralArray/@MeshInstance3D@16",
 			"StarboardLateralArray/@MeshInstance3D@17",
-			"StarboardLateralArray/@MeshInstance3D@18",
 		]),
 		"six unchanged lateral-array nodes/submissions/copies and exact paths now retain one immutable SphereMesh instead of six"
 	)
@@ -792,7 +795,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 188
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 187
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations

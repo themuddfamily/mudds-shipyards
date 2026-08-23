@@ -55,7 +55,9 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # retained nodes, paths, transforms, materials, shadows, copies and submissions
 # remain ordinary independent renderers. The later boarding-step batch preserves
 # the family's sole stable path and three exact visual copies while removing two
-# fallback-name renderers and two submissions.
+# fallback-name renderers and two submissions. The sensor-sweep receiver batch
+# likewise preserves its sole stable path and two exact visual copies while
+# removing one fallback-name renderer and one submission.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -64,11 +66,11 @@ const LATERAL_ARRAY_CURVE_JOINT_RINGS := 14
 const LATERAL_ARRAY_CURVE_JOINT_VISIBLE_COPIES := 6
 const LATERAL_ARRAY_CURVE_JOINT_PATHS := [
 	"PortLateralArray/CurveJoint",
+	"PortLateralArray/@MeshInstance3D@14",
 	"PortLateralArray/@MeshInstance3D@15",
-	"PortLateralArray/@MeshInstance3D@16",
 	"StarboardLateralArray/CurveJoint",
+	"StarboardLateralArray/@MeshInstance3D@16",
 	"StarboardLateralArray/@MeshInstance3D@17",
-	"StarboardLateralArray/@MeshInstance3D@18",
 ]
 const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS := 0.105
 const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIAL_SEGMENTS := 28
@@ -99,6 +101,7 @@ const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
 const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
 const ARRAY_RECEIVER_RADIUS := 0.15
 const ARRAY_RECEIVER_VISIBLE_COPIES := 2
+const ARRAY_RECEIVER_BATCH_NAME := "ArrayReceiver"
 const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
 const BOARDING_STEP_VISIBLE_COPIES := 3
 # Retain the only stable renderer path from the former three-node family; the
@@ -160,13 +163,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 188,
-	"mesh_instance_nodes": 164,
-	"multi_mesh_instance_nodes": 2,
-	"geometry_submissions": 166,
+	"nodes": 187,
+	"mesh_instance_nodes": 162,
+	"multi_mesh_instance_nodes": 3,
+	"geometry_submissions": 165,
 	"visible_geometry_copies": 169,
 	"unique_mesh_resource_allocations": 128,
-	"auto_fallback_names": 21,
+	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
 	"assembly_nodes": 2,
@@ -378,10 +381,10 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"current": current,
 		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),
 		"reductions": {
-			"nodes": -11,
-			"geometry_submissions": -7,
+			"nodes": -10,
+			"geometry_submissions": -6,
 			"unique_mesh_resource_allocations": 14,
-			"auto_fallback_names": 3,
+			"auto_fallback_names": 4,
 			"visible_geometry_copies": -10,
 		},
 		"phase9_reductions_before_entry_heat": {
@@ -690,8 +693,12 @@ func _build_recon_systems() -> void:
 	_torus(_sensor_sweep, "PassiveArrayRing", Vector3.ZERO, 0.45, 0.54, _arrow_materials.sensor, Vector3(90, 0, 0))
 	_cylinder(_sensor_sweep, "ArrayCrossbar", Vector3.ZERO, 0.055, 1.45, _arrow_materials.titanium, Vector3(0, 0, 90))
 	_array_receiver_mesh = _make_array_receiver_mesh()
-	for side in [-1.0, 1.0]:
-		_sphere(_sensor_sweep, "ArrayReceiver", Vector3(side * 0.67, 0, 0), ARRAY_RECEIVER_RADIUS, _arrow_materials.sensor, _array_receiver_mesh)
+	_multi_mesh_from_mesh(
+		_sensor_sweep,
+		ARRAY_RECEIVER_BATCH_NAME,
+		_array_receiver_mesh,
+		_array_receiver_transforms()
+	)
 
 	# Ventral camera/spectral turret is a smooth gimbal, not a weapon hardpoint.
 	_sphere(_arrow_visual, "VentralSensorGimbal", Vector3(0, -0.06, -1.8), 0.42, _arrow_materials.titanium)
@@ -2047,51 +2054,72 @@ func _make_array_receiver_mesh() -> SphereMesh:
 	return mesh
 
 
+func _array_receiver_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(Basis.IDENTITY, Vector3(-0.67, 0, 0)),
+		Transform3D(Basis.IDENTITY, Vector3(0.67, 0, 0)),
+	]
+
+
 func _inspect_array_receiver_mesh_sharing() -> Dictionary:
 	var errors := PackedStringArray()
-	var receivers: Array[MeshInstance3D] = []
-	var mesh_ids := {}
-	var paths := PackedStringArray()
-	if is_instance_valid(_sensor_sweep):
-		for child in _sensor_sweep.get_children():
-			var receiver := child as MeshInstance3D
-			if receiver == null or receiver.mesh is not SphereMesh:
-				continue
-			var mesh := receiver.mesh as SphereMesh
-			if not is_equal_approx(mesh.radius, ARRAY_RECEIVER_RADIUS) \
-					or not is_equal_approx(mesh.height, ARRAY_RECEIVER_RADIUS * 2.0):
-				continue
-			receivers.append(receiver)
-			mesh_ids[mesh.get_instance_id()] = true
-			paths.append(str(_arrow_visual.get_path_to(receiver)))
-			if not receiver.visible or receiver.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
-					or receiver.material_override != null or receiver.get_child_count() != 0 \
-					or receiver.get_script() != null or not receiver.get_groups().is_empty() \
-					or not receiver.get_meta_list().is_empty():
-				errors.append("array receiver presentation or authority drift")
-	if receivers.size() != ARRAY_RECEIVER_VISIBLE_COPIES or paths.size() != ARRAY_RECEIVER_VISIBLE_COPIES \
-			or paths.is_empty() or paths[0] != "ReconSensorMast/SensorSweep/ArrayReceiver" \
-			or not paths[1].begins_with("ReconSensorMast/SensorSweep/@MeshInstance3D@"):
-		errors.append("array receiver copy/path roster drift")
-	if mesh_ids.size() != 1:
-		errors.append("array receiver shared-mesh identity drift")
-	if _array_receiver_mesh == null \
+	var batch := (
+		_sensor_sweep.get_node_or_null(ARRAY_RECEIVER_BATCH_NAME)
+		as MultiMeshInstance3D if is_instance_valid(_sensor_sweep) else null
+	)
+	if batch == null or batch.multimesh == null:
+		return {
+			"valid": false,
+			"errors": PackedStringArray(["array receiver batch is missing"]),
+		}.duplicate(true)
+	var multimesh := batch.multimesh
+	var mesh := multimesh.mesh as SphereMesh
+	var expected_transforms := _array_receiver_transforms()
+	var metadata_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+	if multimesh.transform_format != MultiMesh.TRANSFORM_3D \
+			or multimesh.use_colors or multimesh.use_custom_data:
+		errors.append("array receiver batch format drift")
+	if multimesh.instance_count != ARRAY_RECEIVER_VISIBLE_COPIES \
+			or multimesh.visible_instance_count != ARRAY_RECEIVER_VISIBLE_COPIES:
+		errors.append("array receiver visible-copy roster drift")
+	if not _transform_arrays_match(metadata_transforms, expected_transforms):
+		errors.append("array receiver authored transform metadata drift")
+	var expected_buffer := _multi_mesh_transform_buffer(expected_transforms)
+	if not multimesh.buffer.is_empty() and multimesh.buffer != expected_buffer:
+		errors.append("array receiver renderer transform buffer drift")
+	if mesh != null and not multimesh.custom_aabb.is_equal_approx(
+		_transformed_mesh_bounds(mesh.get_aabb(), expected_transforms)
+	):
+		errors.append("array receiver culling bounds drift")
+	if not batch.transform.is_equal_approx(Transform3D.IDENTITY) or not batch.visible \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or batch.material_override != null or batch.material_overlay != null \
+			or batch.layers != 1 or not is_zero_approx(batch.transparency):
+		errors.append("array receiver render-state drift")
+	var metadata_keys := batch.get_meta_list()
+	if batch.get_child_count() != 0 or batch.get_script() != null \
+			or not batch.get_groups().is_empty() or metadata_keys.size() != 2 \
+			or not metadata_keys.has(&"visual_detail_only") \
+			or not metadata_keys.has(&"authored_instance_transforms") \
+			or not bool(batch.get_meta("visual_detail_only", false)):
+		errors.append("array receiver batch gained semantic authority")
+	if _array_receiver_mesh == null or mesh != _array_receiver_mesh \
 			or not is_equal_approx(_array_receiver_mesh.radius, ARRAY_RECEIVER_RADIUS) \
 			or not is_equal_approx(_array_receiver_mesh.height, ARRAY_RECEIVER_RADIUS * 2.0) \
 			or _array_receiver_mesh.radial_segments != 28 or _array_receiver_mesh.rings != 14 \
 			or _array_receiver_mesh.material != _arrow_materials.sensor \
 			or _array_receiver_mesh.resource_local_to_scene:
 		errors.append("array receiver primitive recipe drift")
-	for receiver in receivers:
-		if receiver.mesh != _array_receiver_mesh:
-			errors.append("array receiver retained a private mesh")
-			break
 	return {
-		"valid": errors.is_empty(), "errors": errors, "node_paths": paths,
-		"geometry_nodes": receivers.size(), "geometry_submissions": receivers.size(),
-		"visible_geometry_copies": receivers.size(), "primitive_mesh_allocations": mesh_ids.size(),
+		"valid": errors.is_empty(), "errors": errors,
+		"node_path": str(_arrow_visual.get_path_to(batch)),
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": 1, "geometry_submissions": 1,
+		"visible_geometry_copies": multimesh.visible_instance_count,
+		"primitive_mesh_allocations": 1 if mesh != null else 0,
+		"multimesh_allocations": 1,
 		"resource_allocation_reduction": 1,
-		"legacy": {"geometry_nodes": 2, "geometry_submissions": 2, "visible_geometry_copies": 2, "primitive_mesh_allocations": 2},
+		"legacy": {"geometry_nodes": 2, "geometry_submissions": 2, "visible_geometry_copies": 2, "primitive_mesh_allocations": 2, "multimesh_allocations": 0},
 	}.duplicate(true)
 
 
