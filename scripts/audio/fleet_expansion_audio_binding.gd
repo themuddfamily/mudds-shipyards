@@ -19,6 +19,12 @@ var _reduced_dynamic_range := false
 var _attached := false
 var _generation := 0
 var _applied_plan: Dictionary = {}
+var _profile_cache: Dictionary = {}
+var _plan_cache: Dictionary = {}
+var _plan_build_count := 0
+var _plan_apply_count := 0
+var _baseline_player_count := -1
+var _baseline_synthesis_generation := -1
 
 
 func bind(ship_id: StringName, rig: Node) -> Dictionary:
@@ -38,6 +44,12 @@ func bind(ship_id: StringName, rig: Node) -> Dictionary:
 	_ship_id = ship_id
 	_profile_id = ship_id
 	_attached = true
+	if not _profile_cache.has(ship_id):
+		_profile_cache[ship_id] = Profile.get_profile(ship_id)
+	if _baseline_player_count < 0 and rig.has_method(&"get_performance_report"):
+		_baseline_player_count = int(rig.call(&"get_performance_report").get("audio_player_count", -1))
+	if _baseline_synthesis_generation < 0 and rig.has_method(&"get_synthesis_report"):
+		_baseline_synthesis_generation = int(rig.call(&"get_synthesis_report").get("generation_count", -1))
 	_apply_plan()
 	return _result(true, &"bound")
 
@@ -45,6 +57,8 @@ func bind(ship_id: StringName, rig: Node) -> Dictionary:
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_bound")
+	if _reduced_dynamic_range == enabled:
+		return _result(true, &"mix_unchanged")
 	_reduced_dynamic_range = enabled
 	_apply_plan()
 	return _result(true, &"mix_updated")
@@ -71,20 +85,53 @@ func get_snapshot() -> Dictionary:
 		"profile_id": _profile_id,
 		"reduced_dynamic_range": _reduced_dynamic_range,
 		"applied_plan": _applied_plan.duplicate(true),
+		"profile_cache_entries": _profile_cache.size(),
+		"plan_cache_entries": _plan_cache.size(),
+		"plan_build_count": _plan_build_count,
+		"plan_apply_count": _plan_apply_count,
+		"audit": get_audit(),
 		"authority": {"flight": false, "engine_state": false, "audio_playback": false},
 	}.duplicate(true)
 
 
 func _apply_plan() -> void:
-	var profile := Profile.get_profile(_profile_id)
-	var attenuation := float(profile.get("reduced_dynamic_range_gain_db", 0.0)) if _reduced_dynamic_range else 0.0
-	_applied_plan = {
-		"engine_pitch_scale": float(profile.get("engine_pitch_scale", 1.0)),
-		"idle_volume_db": float(profile.get("idle_volume_db", -15.0)) + attenuation,
-		"load_volume_db": float(profile.get("load_volume_db", -10.5)) + attenuation,
-		"boost_volume_db": float(profile.get("boost_volume_db", -7.0)) + attenuation,
-		"load_throttle_range": profile.get("load_throttle_range", Vector2.ZERO),
-		"boost_throttle_range": profile.get("boost_throttle_range", Vector2.ZERO),
+	var cache_key := "%s|%s" % [_profile_id, "reduced" if _reduced_dynamic_range else "nominal"]
+	if not _plan_cache.has(cache_key):
+		var profile := _profile_cache.get(_profile_id, {}) as Dictionary
+		if profile.is_empty():
+			profile = Profile.get_profile(_profile_id)
+		var attenuation := float(profile.get("reduced_dynamic_range_gain_db", 0.0)) if _reduced_dynamic_range else 0.0
+		_plan_cache[cache_key] = {
+			"engine_pitch_scale": float(profile.get("engine_pitch_scale", 1.0)),
+			"idle_volume_db": float(profile.get("idle_volume_db", -15.0)) + attenuation,
+			"load_volume_db": float(profile.get("load_volume_db", -10.5)) + attenuation,
+			"boost_volume_db": float(profile.get("boost_volume_db", -7.0)) + attenuation,
+			"load_throttle_range": profile.get("load_throttle_range", Vector2.ZERO),
+			"boost_throttle_range": profile.get("boost_throttle_range", Vector2.ZERO),
+		}.duplicate(true)
+		_plan_build_count += 1
+	_applied_plan = _plan_cache[cache_key]
+	_plan_apply_count += 1
+
+
+func get_audit() -> Dictionary:
+	var current_player_count := -1
+	var current_synthesis_generation := -1
+	if is_instance_valid(_rig) and _rig.has_method(&"get_performance_report"):
+		current_player_count = int(_rig.call(&"get_performance_report").get("audio_player_count", -1))
+	if is_instance_valid(_rig) and _rig.has_method(&"get_synthesis_report"):
+		current_synthesis_generation = int(_rig.call(&"get_synthesis_report").get("generation_count", -1))
+	return {
+		"valid": _plan_build_count <= 2 and _plan_apply_count >= 0,
+		"plan_build_count": _plan_build_count,
+		"plan_apply_count": _plan_apply_count,
+		"plan_cache_entries": _plan_cache.size(),
+		"player_count_stable": _baseline_player_count < 0 or current_player_count == _baseline_player_count,
+		"resource_generation_stable": _baseline_synthesis_generation < 0 or current_synthesis_generation == _baseline_synthesis_generation,
+		"baseline_player_count": _baseline_player_count,
+		"current_player_count": current_player_count,
+		"baseline_synthesis_generation": _baseline_synthesis_generation,
+		"current_synthesis_generation": current_synthesis_generation,
 	}.duplicate(true)
 
 
