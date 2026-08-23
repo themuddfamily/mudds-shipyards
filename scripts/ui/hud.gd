@@ -1075,7 +1075,12 @@ func get_activity_objective_report() -> Dictionary:
 func set_interaction(text: String, is_visible: bool = true) -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
-	_interaction_label.text = text
+	var display_text := text
+	if text.begins_with("[ E ]"):
+		var interact_prompt := _action_prompts([&"interact"])
+		if not interact_prompt.is_empty():
+			display_text = "[ %s ]%s" % [interact_prompt, text.substr(5)]
+	_interaction_label.text = display_text
 	_interaction_panel.visible = is_visible and not text.is_empty()
 
 
