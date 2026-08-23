@@ -75,6 +75,12 @@ func _run() -> void:
 			and surface_mix.wind_gain_unitless == 0.0,
 		"Ember's checked-in airless contract keeps fog, clouds, and wind at exact zero"
 	)
+	_check(
+		bool(audio.present_snapshot({"generation": 3, "phase_id": &"descent"}).accepted)
+			and audio.get_snapshot().altitude_transition.intensity_unitless == 0.0
+			and not bool(audio.get_snapshot().altitude_transition.playback_requested),
+		"loss of actor/root evidence silences the continuous hull loop instead of retaining a ghost voice"
+	)
 	var on_foot := _altitude_snapshot(3, ember_root, 0.0, 0.0, &"on_foot", &"player")
 	_check(bool(audio.present_snapshot(on_foot).accepted), "on-foot surface observation is presented")
 	_check(

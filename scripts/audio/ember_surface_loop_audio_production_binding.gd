@@ -191,6 +191,18 @@ func _emit(cue_id: StringName) -> void:
 func _apply_altitude_transition(snapshot: Dictionary, caller_delta: float) -> void:
 	var decoded := _decode_altitude_input(snapshot)
 	if not bool(decoded.get("accepted", false)):
+		# Actor/root evidence can disappear before the binding itself detaches.
+		# Fail the continuous layer toward silence instead of retaining a ghost
+		# hull loop from the last valid ship sample.
+		_last_altitude_input.clear()
+		_altitude_target_intensity_unitless = 0.0
+		var silence_step := clampf(caller_delta / ALTITUDE_FADE_SECONDS, 0.0, 1.0)
+		if caller_delta <= 0.0:
+			silence_step = 1.0
+		_altitude_intensity_unitless = move_toward(
+			_altitude_intensity_unitless, 0.0, silence_step
+		)
+		_apply_altitude_voice()
 		return
 	_last_altitude_input = decoded.duplicate(true)
 	_apply_decoded_altitude_transition(decoded, caller_delta)
