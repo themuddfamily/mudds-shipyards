@@ -429,6 +429,7 @@ var _safe_start_recovery_presenter := SafeStartRecoveryPresenterType.new()
 var _recovery_prompt_panel: PanelContainer
 var _recovery_prompt_detail: Label
 var _recovery_prompt_actions: HBoxContainer
+var _recovery_prompt_dismiss_button: Button
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
@@ -2237,13 +2238,25 @@ func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
 	_recovery_prompt_detail.text = "%s\n%s" % [presentation.get("message", ""), presentation.get("summary", "")]
 	for child in _recovery_prompt_actions.get_children():
 		child.queue_free()
+	var action_buttons: Array[Button] = []
 	for action_variant in presentation.get("actions", []) as Array:
 		var action := action_variant as Dictionary
 		var button := _menu_button(str(action.get("label", "Choice")), NOMINAL)
 		button.focus_mode = Control.FOCUS_ALL
+		button.tooltip_text = "Recovery choice: " + str(action.get("label", "Choice"))
 		var choice := StringName(action.get("id", &""))
 		button.pressed.connect(func() -> void: _request_recovery_choice(choice))
 		_recovery_prompt_actions.add_child(button)
+		action_buttons.append(button)
+	if not action_buttons.is_empty():
+		for index in action_buttons.size():
+			var button := action_buttons[index]
+			button.focus_neighbor_left = button.get_path_to(action_buttons[maxi(0, index - 1)])
+			button.focus_neighbor_right = button.get_path_to(action_buttons[mini(action_buttons.size() - 1, index + 1)])
+		action_buttons[0].grab_focus()
+	if is_instance_valid(_recovery_prompt_dismiss_button) and not action_buttons.is_empty():
+		_recovery_prompt_dismiss_button.focus_neighbor_left = _recovery_prompt_dismiss_button.get_path_to(action_buttons.back())
+		action_buttons.back().focus_neighbor_right = action_buttons.back().get_path_to(_recovery_prompt_dismiss_button)
 	return presentation
 
 
@@ -2282,10 +2295,11 @@ func _build_recovery_prompt_panel() -> void:
 	_recovery_prompt_actions = HBoxContainer.new()
 	_recovery_prompt_actions.add_theme_constant_override("separation", 8)
 	stack.add_child(_recovery_prompt_actions)
-	var dismiss := _menu_button("DISMISS", MUTED)
-	dismiss.focus_mode = Control.FOCUS_ALL
-	dismiss.pressed.connect(dismiss_recovery_prompt)
-	stack.add_child(dismiss)
+	_recovery_prompt_dismiss_button = _menu_button("DISMISS", MUTED)
+	_recovery_prompt_dismiss_button.focus_mode = Control.FOCUS_ALL
+	_recovery_prompt_dismiss_button.tooltip_text = "Dismiss recovery choices"
+	_recovery_prompt_dismiss_button.pressed.connect(dismiss_recovery_prompt)
+	stack.add_child(_recovery_prompt_dismiss_button)
 
 
 func show_caption(text: String) -> bool:

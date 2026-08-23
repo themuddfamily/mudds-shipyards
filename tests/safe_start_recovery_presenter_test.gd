@@ -34,6 +34,10 @@ func _run() -> void:
 	})
 	_check(choice.status == &"choice_required" and bool(hud._recovery_prompt_panel.visible), "diagnostic recovery snapshot opens the blocking choice prompt")
 	_check(hud._recovery_prompt_actions.get_child_count() == 3, "normal safe-graphics and discard choices are focusable")
+	var first_choice := hud._recovery_prompt_actions.get_child(0) as Button
+	var last_choice := hud._recovery_prompt_actions.get_child(2) as Button
+	_check(first_choice.focus_mode == Control.FOCUS_ALL and first_choice.focus_neighbor_right == first_choice.get_path_to(hud._recovery_prompt_actions.get_child(1)), "recovery choices have deterministic controller focus order")
+	_check(last_choice.focus_neighbor_right == last_choice.get_path_to(hud._recovery_prompt_dismiss_button) and first_choice.tooltip_text.contains("Recovery choice"), "recovery choices link to dismiss and expose readable descriptions")
 	hud._request_recovery_choice(&"safe_graphics_windowed")
 	_check(_intents.size() == 1 and _intents[0].choice == &"safe_graphics_windowed", "HUD emits only the caller-owned recovery choice intent")
 	hud.apply_recovery_choice_snapshot({"available": true, "requires_caller_choice": true, "severity": &"review_prior_session"})
