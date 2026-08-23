@@ -573,4 +573,5 @@ position = Vector3(-17.5, 0, -17.5)
 metadata/marker_id = &"ember_survey_service_bunker_access"
 metadata/interaction_id = &"ember_bunker_gantry_survey"
 metadata/interaction_prompt = "LOG BUNKER / GANTRY SURVEY"
+metadata/completion_response_id = &"ember_bunker_service_alcove"
 metadata/historical_claim = false

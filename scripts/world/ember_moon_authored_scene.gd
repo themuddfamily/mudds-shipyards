@@ -94,6 +94,9 @@ const BUNKER_ROOF_SIZE_M := Vector3(8.4, 0.5, 6.6)
 const BUNKER_ROOF_POSITION_M := Vector3(0.0, 3.4, 0.0)
 const BUNKER_DOOR_SIZE_M := Vector3(0.3, 2.1, 2.2)
 const BUNKER_DOOR_POSITION_M := Vector3(3.82, 1.55, 0.0)
+const BUNKER_SERVICE_ALCOVE_ID: StringName = &"ember_bunker_service_alcove"
+const BUNKER_SERVICE_ALCOVE_WIDTH_M := 2.4
+const BUNKER_SERVICE_ALCOVE_HEIGHT_M := 2.6
 const BUNKER_VENT_RADIUS_M := 0.28
 const BUNKER_VENT_HEIGHT_M := 1.1
 const BUNKER_PORT_VENT_POSITION_M := Vector3(-2.0, 4.2, -1.6)
@@ -161,10 +164,17 @@ var _initialized := false
 
 
 static func get_survey_interaction_definition() -> Dictionary:
+	var bunker_door_ground_m := BUNKER_ROOT_POSITION_M + Basis(
+		Vector3.UP, BUNKER_YAW_RADIANS
+	) * Vector3(BUNKER_DOOR_POSITION_M.x, 0.0, BUNKER_DOOR_POSITION_M.z)
 	return {
 		"interaction_id": &"ember_bunker_gantry_survey",
 		"world_id": WORLD_ID,
 		"position_body_local_m": BUNKER_ACCESS_POSITION_M + Vector3.UP * BODY_RADIUS_M,
+		"completion_response_id": BUNKER_SERVICE_ALCOVE_ID,
+		"bunker_door_ground_body_local_m": bunker_door_ground_m + Vector3.UP * BODY_RADIUS_M,
+		"service_alcove_width_m": BUNKER_SERVICE_ALCOVE_WIDTH_M,
+		"service_alcove_height_m": BUNKER_SERVICE_ALCOVE_HEIGHT_M,
 		"landmark_ids": PackedStringArray([
 			"ember_survey_service_bunker", "ember_derelict_survey_gantry",
 		]),

@@ -9,10 +9,19 @@ extends Area3D
 signal survey_completed(receipt: Dictionary)
 
 const INTERACTION_LAYER := 1 << 3
+const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const INTERACTION_ID: StringName = &"ember_bunker_gantry_survey"
+const COMPLETION_RESPONSE_ID: StringName = &"ember_bunker_service_alcove"
 const PROMPT_READY := "[ E ]  LOG BUNKER / GANTRY SURVEY"
 const PROMPT_COMPLETE := "[ COMPLETE ]  BUNKER / GANTRY SURVEY LOGGED"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
+const ALCOVE_WALL_THICKNESS_M := 0.18
+const ALCOVE_FRONT_CLEARANCE_M := 0.65
+const ALCOVE_DOOR_CLEARANCE_M := 0.45
+const ALCOVE_RUNTIME_NODE_COUNT := 7
+const ALCOVE_MESH_INSTANCE_COUNT := 3
+const ALCOVE_COLLISION_SHAPE_COUNT := 3
+const ALCOVE_TRIANGLE_COUNT := 36
 
 var _host: Object
 var _host_generation := -1
@@ -25,6 +34,13 @@ var _definition: Dictionary = {}
 var _last_receipt: Dictionary = {}
 var _marker: MeshInstance3D
 var _material: StandardMaterial3D
+var _response_body: StaticBody3D
+var _response_meshes: Array[MeshInstance3D] = []
+var _response_material: StandardMaterial3D
+var _response_center_body_local_m := Vector3.ZERO
+var _response_width_m := 0.0
+var _response_height_m := 0.0
+var _response_length_m := 0.0
 
 
 func _ready() -> void:
@@ -65,10 +81,21 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 		return _result(false, &"invalid_survey_interaction_configuration")
 	var record := definition as Dictionary
 	var position_value: Variant = record.get("position_body_local_m", Vector3.INF)
+	var door_value: Variant = record.get("bunker_door_ground_body_local_m", Vector3.INF)
+	var response_width := float(record.get("service_alcove_width_m", 0.0))
+	var response_height := float(record.get("service_alcove_height_m", 0.0))
 	if StringName(record.get("interaction_id", &"")) != INTERACTION_ID \
 			or StringName(record.get("world_id", &"")) != &"ember_moon" \
 			or position_value is not Vector3 or not (position_value as Vector3).is_finite() \
+			or StringName(record.get("completion_response_id", &"")) != COMPLETION_RESPONSE_ID \
+			or door_value is not Vector3 or not (door_value as Vector3).is_finite() \
+			or not is_finite(response_width) or response_width < 2.0 \
+			or not is_finite(response_height) or response_height < 2.3 \
 			or bool(record.get("historical_claim", true)):
+		return _result(false, &"invalid_survey_interaction_configuration")
+	var route_delta := (door_value as Vector3) - (position_value as Vector3)
+	route_delta.y = 0.0
+	if route_delta.length() <= ALCOVE_FRONT_CLEARANCE_M + ALCOVE_DOOR_CLEARANCE_M + 1.0:
 		return _result(false, &"invalid_survey_interaction_configuration")
 	_host = host
 	_host_generation = int(host.call(&"get_generation"))
@@ -77,6 +104,9 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 		return _result(false, &"invalid_survey_interaction_generation")
 	_definition = record.duplicate(true)
 	position = position_value as Vector3
+	_build_completion_response(
+		door_value as Vector3, response_width, response_height
+	)
 	_configured = true
 	_attached = true
 	_apply_presentation()
@@ -127,6 +157,7 @@ func submit_interaction(
 		"activity_started": false,
 		"reward_granted": false,
 		"historical_claim": false,
+		"completion_response_id": COMPLETION_RESPONSE_ID,
 	}.duplicate(true)
 	_apply_presentation()
 	survey_completed.emit(_last_receipt.duplicate(true))
@@ -209,6 +240,22 @@ func get_snapshot() -> Dictionary:
 			"radius_m": 0.65,
 			"marker_visible": _marker.visible if _marker != null else false,
 		},
+		"completion_response": {
+			"response_id": COMPLETION_RESPONSE_ID,
+			"kind": &"three_sided_service_alcove",
+			"revealed": _response_is_active(),
+			"collision_enabled": _response_body != null and _response_body.collision_layer == WORLD_LAYER,
+			"center_body_local_m": _response_center_body_local_m,
+			"open_route": true,
+			"open_front": true,
+			"corridor_width_m": _response_width_m,
+			"headroom_m": _response_height_m,
+			"length_m": _response_length_m,
+			"runtime_nodes": ALCOVE_RUNTIME_NODE_COUNT,
+			"mesh_instances": ALCOVE_MESH_INSTANCE_COUNT,
+			"collision_shapes": ALCOVE_COLLISION_SHAPE_COUNT,
+			"triangles": ALCOVE_TRIANGLE_COUNT,
+		},
 		"evidence": {
 			"content_class": &"NEW",
 			"status": &"modern_interpretation",
@@ -247,6 +294,81 @@ func _apply_presentation() -> void:
 			else Color(0.95, 0.52, 0.18, 1.0)
 		_material.emission = _material.albedo_color
 		_material.emission_energy_multiplier = 1.2 if _completed else 0.7
+	var response_active := _response_is_active()
+	if _response_body != null:
+		_response_body.collision_layer = WORLD_LAYER if response_active else 0
+		_response_body.collision_mask = 0
+	for response_mesh: MeshInstance3D in _response_meshes:
+		response_mesh.visible = response_active
+
+
+func _build_completion_response(
+		door_ground_body_local_m: Vector3,
+		corridor_width_m: float,
+		headroom_m: float
+	) -> void:
+	var direction := door_ground_body_local_m - position
+	direction.y = 0.0
+	var total_distance := direction.length()
+	direction /= total_distance
+	_response_length_m = total_distance - ALCOVE_FRONT_CLEARANCE_M - ALCOVE_DOOR_CLEARANCE_M
+	_response_width_m = corridor_width_m
+	_response_height_m = headroom_m
+	var center_offset := direction * (ALCOVE_FRONT_CLEARANCE_M + _response_length_m * 0.5)
+	_response_center_body_local_m = position + center_offset
+
+	_response_body = StaticBody3D.new()
+	_response_body.name = "OwnedBunkerServiceAlcove"
+	_response_body.position = center_offset
+	_response_body.basis = Basis.looking_at(direction, Vector3.UP)
+	_response_body.collision_layer = 0
+	_response_body.collision_mask = 0
+	_response_body.set_meta("completion_response_id", COMPLETION_RESPONSE_ID)
+	_response_body.set_meta("presentation_only", true)
+	add_child(_response_body)
+
+	_response_material = StandardMaterial3D.new()
+	_response_material.albedo_color = Color("786553")
+	_response_material.metallic = 0.42
+	_response_material.roughness = 0.68
+	var wall_offset := corridor_width_m * 0.5 + ALCOVE_WALL_THICKNESS_M * 0.5
+	_add_alcove_part(
+		"PortWall", Vector3(ALCOVE_WALL_THICKNESS_M, headroom_m, _response_length_m),
+		Vector3(-wall_offset, headroom_m * 0.5, 0.0)
+	)
+	_add_alcove_part(
+		"StarboardWall", Vector3(ALCOVE_WALL_THICKNESS_M, headroom_m, _response_length_m),
+		Vector3(wall_offset, headroom_m * 0.5, 0.0)
+	)
+	_add_alcove_part(
+		"Roof",
+		Vector3(corridor_width_m + ALCOVE_WALL_THICKNESS_M * 2.0, ALCOVE_WALL_THICKNESS_M, _response_length_m),
+		Vector3(0.0, headroom_m + ALCOVE_WALL_THICKNESS_M * 0.5, 0.0)
+	)
+
+
+func _add_alcove_part(part_name: String, size: Vector3, local_position: Vector3) -> void:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = part_name + "Visual"
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = _response_material
+	mesh_instance.position = local_position
+	mesh_instance.visible = false
+	_response_body.add_child(mesh_instance)
+	_response_meshes.append(mesh_instance)
+	var shape_node := CollisionShape3D.new()
+	shape_node.name = part_name + "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	shape_node.shape = shape
+	shape_node.position = local_position
+	_response_body.add_child(shape_node)
+
+
+func _response_is_active() -> bool:
+	return _configured and _attached and _completed
 
 
 func _valid_generation(value: int) -> bool:
