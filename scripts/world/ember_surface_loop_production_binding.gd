@@ -216,6 +216,23 @@ func accept_planetary_origin_rebase(receipt: Variant) -> Dictionary:
 	return _planetary_composition.call(&"accept_origin_rebase", receipt)
 
 
+func submit_planetary_weather_exposure(
+		hazard_id: StringName,
+		position: Variant,
+		altitude_m: float,
+		caller_time_seconds: float,
+		exposure: float,
+		delta_seconds: float,
+		shelter_scalar: float
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"submit_weather_exposure", hazard_id, position, altitude_m,
+		caller_time_seconds, exposure, delta_seconds, shelter_scalar
+	)
+
+
 func discover_planetary_settlements(position: Variant, radius_m: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")

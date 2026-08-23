@@ -10,6 +10,8 @@ const ActivityRuntimeScript := preload("res://scripts/world/planetary_activity_r
 const NavigationScript := preload("res://scripts/world/planetary_surface_navigation_runtime.gd")
 const NavigationContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
 const HazardScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
+const WeatherScript := preload("res://scripts/world/planetary_weather_field.gd")
+const WeatherProfile := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
 const WaterScript := preload("res://scripts/world/planetary_water_contact_runtime.gd")
 const WaterContractScript := preload("res://scripts/world/planetary_water_surface_material_contract.gd")
 const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark_runtime.gd")
@@ -27,6 +29,7 @@ var _composition_generation := 0
 var _adapter: RefCounted
 var _navigation: RefCounted
 var _hazard: RefCounted
+var _weather: RefCounted
 var _water: RefCounted
 var _landmarks: RefCounted
 var _settlement: RefCounted
@@ -57,6 +60,13 @@ func configure(
 	configured = _hazard.call(&"configure", navigation_contract)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"hazard_configuration_rejected")
+	_weather = WeatherScript.new()
+	configured = _weather.call(&"configure", WeatherProfile)
+	if not bool(configured.get("accepted", false)):
+		return _result(false, &"weather_configuration_rejected")
+	configured = _hazard.call(&"bind_weather_field", _weather)
+	if not bool(configured.get("accepted", false)):
+		return _result(false, &"weather_binding_rejected")
 	_water = WaterScript.new()
 	configured = _water.call(&"configure", WaterContractScript.new())
 	if not bool(configured.get("accepted", false)):
@@ -109,6 +119,23 @@ func submit_hazard_exposure(hazard_id: StringName, position: Variant, exposure: 
 	if not _live():
 		return _result(false, &"composition_detached")
 	return _adapter.call(&"submit_surface_hazard_exposure", hazard_id, position, exposure, delta_seconds)
+
+
+func submit_weather_exposure(
+		hazard_id: StringName,
+		position: Variant,
+		altitude_m: float,
+		caller_time_seconds: float,
+		exposure: float,
+		delta_seconds: float,
+		shelter_scalar: float
+	) -> Dictionary:
+	if not _live():
+		return _result(false, &"composition_detached")
+	return _hazard.call(
+		&"submit_weather_exposure", hazard_id, position, altitude_m,
+		caller_time_seconds, exposure, delta_seconds, shelter_scalar
+	)
 
 
 func submit_water_contact(position: Variant, depth_m: float, velocity_mps: Variant, delta_seconds: float) -> Dictionary:
@@ -185,6 +212,7 @@ func get_snapshot() -> Dictionary:
 		"adapter": _adapter.get_snapshot() if _adapter != null else {},
 		"navigation": _navigation.get_snapshot() if _navigation != null else {},
 		"hazard": _hazard.get_snapshot() if _hazard != null else {},
+		"weather": _weather.call(&"audit") if _weather != null else {},
 		"water": _water.get_snapshot() if _water != null else {},
 		"landmarks": _landmarks.get_snapshot() if _landmarks != null else {},
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},

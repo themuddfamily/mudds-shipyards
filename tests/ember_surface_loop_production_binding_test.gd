@@ -280,6 +280,16 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_planetary_surface_snapshot().settlement.active_structure_id == &"ember_habitat_spine",
 		"caller-owned origin rebase preserves authored route and settlement identity"
 	)
+	var sheltered_exposure := production.submit_planetary_weather_exposure(
+		&"caldera_thermal_vent", Vector3(58.0, 120000.0, -4.0),
+		1000.0, 12.0, 1.0, 1.0 / 60.0, 0.8
+	)
+	_check(
+		sheltered_exposure.accepted
+			and sheltered_exposure.weather.shelter_scalar == 0.8
+			and production.get_planetary_surface_snapshot().weather.valid,
+		"retained Ember hazard samples authored weather and shelter without damage authority"
+	)
 	var planetary_session := production.get_planetary_surface_session_snapshot()
 	var malformed_session := planetary_session.duplicate(true)
 	malformed_session.schema_version = 99
