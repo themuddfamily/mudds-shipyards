@@ -27,6 +27,7 @@ const CINDER_CARGO_TERMINAL_AUDIO := preload("res://scripts/audio/cinder_cargo_t
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
+const RACE_BEST_PERSISTENCE := preload("res://scripts/persistence/cinder_race_best_persistence.gd")
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 const PRESENTATION_OBSERVER_LIMIT := 3
 const CINDER_PATROL_DWELL_SECONDS := 2.0
@@ -62,6 +63,9 @@ var _beacon_traversal_presentation_consumers: Array[Callable] = []
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
+var _race_best_persistence: RefCounted
+var _race_best_result: Dictionary = {}
+var _last_race_best_persistence_result: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
@@ -91,6 +95,7 @@ func _ready() -> void:
 		1, CINDER_RACE_COUNTDOWN_SECONDS, 120.0
 	) as CinderTimedRaceSession
 	_race_session.attach(_race_director, _race_session.get_session_generation())
+	_race_session.session_completed.connect(_on_race_session_completed)
 	_patrol_director = ActivityDirector.new()
 	_patrol_director.name = "CinderBeaconPatrolDirector"
 	add_child(_patrol_director)
@@ -761,7 +766,95 @@ func request_race_reward(expected_generation: int) -> Dictionary:
 		"outcome": &"cleared" if race.get("state_id", &"") == &"completed" else &"",
 		"generation": race.get("activity_generation", 0),
 	}.duplicate(true)
-	return _station_reward_adapter.call("consume", normalized, expected_generation)
+	var result := _station_reward_adapter.call(
+		"consume", normalized, expected_generation
+	) as Dictionary
+	if bool(result.get("accepted", false)):
+		_persist_race_best_result(true)
+		_publish_race_presentation()
+	return result
+
+
+## Composes the retained race with GameFlow's existing atomic store. Restore is
+## presentation-only: no completed/running session or transient generation is
+## recreated, so a saved completion cannot be presented to reward authority.
+func configure_cinder_race_best_persistence(
+		store: RefCounted, slot_id: StringName = &"cinder_race_best_result"
+	) -> Dictionary:
+	if _race_best_persistence != null:
+		return _result(true, &"race_best_persistence_already_configured")
+	var persistence := RACE_BEST_PERSISTENCE.new() as RefCounted
+	var configured := persistence.call(&"configure", store, slot_id) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		return configured
+	_race_best_persistence = persistence
+	var restored := persistence.call(&"load") as Dictionary
+	if bool(restored.get("accepted", false)):
+		_race_best_result = (
+			restored.get("best_result", {}) as Dictionary
+		).duplicate(true)
+		_last_race_best_persistence_result = restored.duplicate(true)
+		_publish_race_presentation()
+	elif StringName(restored.get("reason", &"")) != &"race_best_not_found":
+		_last_race_best_persistence_result = restored.duplicate(true)
+		return restored
+	return configured
+
+
+func get_cinder_race_best_persistence_snapshot() -> Dictionary:
+	return {
+		"configured": _race_best_persistence != null,
+		"best_result": _race_best_result.duplicate(true),
+		"last_result": _last_race_best_persistence_result.duplicate(true),
+		"restores_activity_authority": false,
+		"restores_reward_authority": false,
+	}.duplicate(true)
+
+
+func _on_race_session_completed(snapshot: Dictionary) -> void:
+	_capture_race_best_result(snapshot)
+	_persist_race_best_result(false)
+
+
+func _capture_race_best_result(snapshot: Dictionary) -> void:
+	if StringName(snapshot.get("state_id", &"")) != &"completed":
+		return
+	var time := float(snapshot.get("last_time_seconds", -1.0))
+	var penalty := float(snapshot.get("penalty_seconds", 0.0))
+	if not is_finite(time) or time <= 0.0 or time > 86_400.0 \
+			or not is_finite(penalty) or penalty < 0.0 or penalty > time:
+		return
+	var previous_time := float(_race_best_result.get("time_seconds", INF))
+	if time >= previous_time:
+		return
+	_race_best_result = {
+		"activity_id": String(RACE_ACTIVITY_ID),
+		"time_seconds": time,
+		"penalty_seconds": penalty,
+		"reward_receipt": {},
+	}.duplicate(true)
+
+
+func _persist_race_best_result(reward_consumed: bool) -> void:
+	if _race_best_persistence == null or _race_best_result.is_empty():
+		return
+	if reward_consumed:
+		var race := _race_session.get_presentation_snapshot() as Dictionary
+		if is_equal_approx(
+			float(race.get("last_time_seconds", -1.0)),
+			float(_race_best_result.get("time_seconds", -2.0))
+		):
+			_race_best_result["reward_receipt"] = {
+				"activity_id": String(RACE_ACTIVITY_ID),
+				"reward_id": "return_race_record_to_shipyard",
+				"replay_allowed": false,
+			}
+	var store_generation := int(_race_best_persistence.call(&"get_store_generation")) \
+		if _race_best_persistence.has_method(&"get_store_generation") else 0
+	var commit_id := "cinder-race-best-%010d" % (store_generation + 1)
+	_last_race_best_persistence_result = _race_best_persistence.call(
+		&"save", _race_best_result, commit_id
+	) as Dictionary
 
 
 func request_beacon_reward(expected_generation: int) -> Dictionary:
@@ -1199,6 +1292,17 @@ func _race_presentation_snapshot() -> Dictionary:
 	if not is_instance_valid(_race_session):
 		return {}
 	var snapshot := _race_session.get_presentation_snapshot() as Dictionary
+	var live_best := float(snapshot.get("best_time_seconds", -1.0))
+	var persisted_best := float(_race_best_result.get("time_seconds", -1.0))
+	if persisted_best > 0.0 and (live_best <= 0.0 or persisted_best < live_best):
+		snapshot["best_time_seconds"] = persisted_best
+		snapshot["best_penalty_seconds"] = float(
+			_race_best_result.get("penalty_seconds", 0.0)
+		)
+	snapshot["best_result_persisted"] = persisted_best > 0.0
+	snapshot["best_reward_consumed"] = not (
+		_race_best_result.get("reward_receipt", {}) as Dictionary
+	).is_empty()
 	snapshot["presentation_reason"] = _last_race_feedback_reason
 	return snapshot.duplicate(true)
 

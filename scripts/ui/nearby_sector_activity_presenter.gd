@@ -481,9 +481,14 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 	var next_checkpoint := maxi(int(state.get("next_checkpoint_index", 0)), 0)
 	var checkpoint_count := maxi(int(state.get("checkpoint_count", 0)), 0)
 	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
+	var best_time := float(state.get("best_time_seconds", -1.0))
+	var best_persisted := bool(state.get("best_result_persisted", false))
 	var stage_id: StringName = &"approach"
 	var summary := "RACE READY  //  LINE UP AT GATE 1"
 	var objective := "START THE CINDER BEACON RACE"
+	if state_id == &"idle" and best_persisted and best_time > 0.0:
+		summary = "BEST %.2fs  //  RACE READY" % best_time
+		objective = "START A NEW RUN TO IMPROVE THE SAVED BEST"
 	if presentation_reason == &"outside_checkpoint":
 		stage_id = &"missed_gate"
 		summary = "FLY THROUGH CHECKPOINT %d/%d" % [
@@ -522,6 +527,8 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 		"next_checkpoint_index": next_checkpoint,
 		"checkpoint_count": checkpoint_count,
 		"reward_pending": reward_pending,
+		"best_time_seconds": best_time,
+		"best_result_persisted": best_persisted,
 		"summary": summary,
 		"objective_text": objective,
 		"race_authority": false,

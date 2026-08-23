@@ -553,6 +553,7 @@ const PLANETARY_RETURN_PERSISTENCE_SLOT: StringName = &"ember_planetary_return"
 var _ember_relay_survey_persistence_binding: Object
 const EMBER_RELAY_SURVEY_PERSISTENCE_SLOT: StringName = \
 	&"ember_relay_survey_completion"
+const CINDER_RACE_BEST_PERSISTENCE_SLOT: StringName = &"cinder_race_best_result"
 const PLANETARY_RETURN_RETIRE_COMMIT_PREFIX := "planetary-return-retire-"
 const PLANETARY_RETURN_RETIRE_MAX_STORE_GENERATION := 2_147_483_647
 var _planetary_return_startup_restore_receipt: Dictionary = {}
@@ -6207,6 +6208,21 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
 
+## Supplies the retained nearby race with Main's already-loaded atomic store.
+## The binding restores only a displayable best result and reward receipt; it
+## cannot restore a live/completed activity generation.
+func bind_cinder_race_best_persistence(binding: Object) -> Dictionary:
+	if binding == null \
+			or not binding.has_method(&"configure_cinder_race_best_persistence") \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"race_best_persistence_unavailable"}
+	return binding.call(
+		&"configure_cinder_race_best_persistence",
+		_runtime_settings_user_data_store,
+		CINDER_RACE_BEST_PERSISTENCE_SLOT
+	) as Dictionary
+
+
 ## Binds the terminal Ember relay-survey receipt bridge to this Main's
 ## already-loaded UserDataStore. No filesystem or reward authority is created.
 func bind_ember_relay_survey_persistence(binding: Object) -> Dictionary:
@@ -9030,6 +9046,7 @@ func _sync_nearby_activity_hud() -> void:
 		if hud.has_method(&"clear_nearby_activity_snapshot"):
 			hud.call(&"clear_nearby_activity_snapshot")
 		return
+	bind_cinder_race_best_persistence(binding)
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
