@@ -4,11 +4,20 @@ extends HeroShip
 ## Original-modern long-range bomber component. No historical craft, weapon,
 ## payload, or mission claim is authenticated here.
 
+const PayloadAuthority := preload("res://scripts/combat/bomber_payload_authority.gd")
+
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-long-range-bomber"
 const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder long-range bomber"
 const PAYLOAD_HARDPOINT_COUNT := 4
+const PAYLOAD_AUTHORITY_PEER_ID := 1
+const PAYLOAD_AMMUNITION := 4
+const PAYLOAD_COOLDOWN_SECONDS := 1.0
+const PAYLOAD_ID: StringName = &"cinder_payload_alpha"
+const PAYLOAD_WEAPON_ID: StringName = &"bomber_payload_release"
+const PAYLOAD_PRESENTATION_ID: StringName = &"payload_release_flash"
+const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
 const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
@@ -17,6 +26,15 @@ const SENSOR_COLOR := Color("d6b45d")
 var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
 var _bomber_built := false
+var _payload_authority: BomberPayloadAuthority
+
+
+func _init() -> void:
+	_payload_authority = PayloadAuthority.new(
+		PAYLOAD_AUTHORITY_PEER_ID,
+		PAYLOAD_AMMUNITION,
+		PAYLOAD_COOLDOWN_SECONDS
+	)
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -33,6 +51,20 @@ func _ready() -> void:
 	super._ready()
 	if not _bomber_built:
 		_bomber_built = rebuild_variant_presentation(_build_bomber_variant)
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	if _reset_for_reuse_mutation_blocked():
+		return
+	if _payload_authority != null:
+		_payload_authority.advance(maxf(delta, 0.0))
+
+
+func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
+	super._commit_variant_reset_for_reuse(context)
+	if _payload_authority != null and bool(_payload_authority.get_snapshot().get("active", false)):
+		_payload_authority.detach(&"ship_reused")
 
 
 func _build_bomber_variant(_controller: HeroShip) -> bool:
@@ -64,6 +96,69 @@ func get_payload_hardpoints() -> Array[Marker3D]:
 	return _payload_hardpoints.duplicate()
 
 
+## Starts the caller-owned payload admission lifecycle. Cinder does not infer a
+## generation from scene entry; its session/shipyard owner must provide one.
+func begin_payload_generation(generation: int) -> Dictionary:
+	return _payload_authority.begin_generation(generation)
+
+
+## Re-enters payload admission after explicit detach or HeroShip reuse cleanup.
+func reset_payload_for_reuse(generation: int) -> Dictionary:
+	return _payload_authority.reset_for_reuse(generation)
+
+
+func detach_payload_authority(reason: StringName = &"detached") -> Dictionary:
+	return _payload_authority.detach(reason)
+
+
+func advance_payload_cooldown(delta: float) -> Dictionary:
+	return _payload_authority.advance(delta)
+
+
+func get_payload_authority_snapshot() -> Dictionary:
+	return _payload_authority.get_snapshot()
+
+
+## Maps one authored hardpoint to a finite release pose and delegates all
+## admission/resource/sequence checks to BomberPayloadAuthority. The returned
+## record is unresolved; a later CombatResolver owns actual ordnance effects.
+func request_payload_release(
+		source_peer_id: int,
+		actor_id: StringName,
+		generation: int,
+		request_sequence: int,
+		hardpoint_index: int,
+		release_velocity: Vector3,
+		payload_id: StringName = PAYLOAD_ID,
+		weapon_id: StringName = PAYLOAD_WEAPON_ID,
+		presentation_id: StringName = PAYLOAD_PRESENTATION_ID,
+		audio_id: StringName = PAYLOAD_AUDIO_ID
+) -> Dictionary:
+	if hardpoint_index < 0 or hardpoint_index >= _payload_hardpoints.size():
+		return {"accepted": false, "reason": &"invalid_hardpoint"}
+	var hardpoint := _payload_hardpoints[hardpoint_index]
+	if not is_instance_valid(hardpoint):
+		return {"accepted": false, "reason": &"hardpoint_unavailable"}
+	var payload := {
+		"generation": generation,
+		"payload_id": payload_id,
+		"weapon_id": weapon_id,
+		"presentation_id": presentation_id,
+		"audio_id": audio_id,
+		"release_position": hardpoint.global_position,
+		"release_velocity": release_velocity,
+	}
+	var result := _payload_authority.submit_release_intent(
+		source_peer_id,
+		actor_id,
+		payload,
+		request_sequence
+	)
+	if bool(result.get("accepted", false)):
+		result["hardpoint_index"] = hardpoint_index
+	return result.duplicate(true)
+
+
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if not _bomber_built:
@@ -72,6 +167,8 @@ func get_audit_report() -> Dictionary:
 		errors.append("cockpit and boarding anchors are required")
 	if _payload_hardpoints.size() != PAYLOAD_HARDPOINT_COUNT:
 		errors.append("four caller-owned payload hardpoints are required")
+	if _payload_authority == null or not _payload_authority.is_configuration_valid():
+		errors.append("bomber payload admission authority is unavailable")
 	if not bool(get_landing_collision_report().get("valid", false)):
 		errors.append("bomber requires HeroShip root collision")
 	return {
@@ -89,6 +186,8 @@ func get_audit_report() -> Dictionary:
 		"reuse_authority": true,
 		"combat_authority": false,
 		"ordnance_authority": false,
+		"payload_admission_authority": true,
+		"payload_records_unresolved": true,
 		"berth_authority": false,
 		"game_flow_authority": false,
 		"network_authority": false,
