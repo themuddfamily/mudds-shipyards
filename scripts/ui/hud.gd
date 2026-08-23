@@ -16,6 +16,7 @@ const CrewRoleSeatPresenterType := preload("res://scripts/ui/crew_role_seat_pres
 const SurfaceRouteHazardPresenterType := preload("res://scripts/ui/surface_route_hazard_presenter.gd")
 const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmospheric_entry_guidance_presenter.gd")
 const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
+const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie_tutorial_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -338,6 +339,7 @@ var _crew_role_presenter := CrewRoleSeatPresenterType.new()
 var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
+var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _runtime_status_panel: PanelContainer
 var _runtime_status_title: Label
 var _runtime_status_detail: Label
@@ -2306,6 +2308,34 @@ func update_surface_route_status(snapshot: Dictionary) -> void:
 
 func update_atmospheric_entry_status(snapshot: Dictionary) -> void:
 	_render_runtime_status(_entry_guidance_presenter.present_snapshot(snapshot), &"entry")
+
+
+func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
+	var presentation := _first_sortie_tutorial_presenter.present_snapshot(snapshot)
+	if not bool(presentation.get("accepted", false)):
+		return false
+	var runtime_snapshot := presentation.duplicate(true)
+	runtime_snapshot["message"] = presentation.prompt
+	runtime_snapshot["detail"] = presentation.prompt
+	_render_runtime_status(runtime_snapshot, &"tutorial")
+	return true
+
+
+func dismiss_first_sortie_tutorial() -> Dictionary:
+	var result := _first_sortie_tutorial_presenter.request(&"dismiss")
+	if bool(result.get("accepted", false)):
+		presentation_intent_requested.emit(&"tutorial", result)
+	clear_runtime_status()
+	return result
+
+
+func request_first_sortie_tutorial_action(action: StringName) -> Dictionary:
+	var result := _first_sortie_tutorial_presenter.request(action)
+	if bool(result.get("accepted", false)):
+		presentation_intent_requested.emit(&"tutorial", result)
+		if action == &"dismiss":
+			clear_runtime_status()
+	return result
 
 
 func clear_runtime_status() -> void:

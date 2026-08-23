@@ -34,6 +34,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		prompt = prompt.replace("{%s}" % str(raw_key), str(glyphs[raw_key]))
 	_snapshot = {
 		"component_id": COMPONENT_ID,
+		"accepted": true,
 		"step_id": step_id,
 		"step_index": STEP_ORDER.find(step_id),
 		"title": copy.title,
