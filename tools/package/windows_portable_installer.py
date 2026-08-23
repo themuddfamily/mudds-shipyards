@@ -330,6 +330,29 @@ def rollback_package(destination: Path) -> dict[str, object]:
     return {"destination": destination, "rollback": rollback, "files": sorted(rollback_owned)}
 
 
+def package_status(destination: Path) -> dict[str, object]:
+    destination = _destination(destination)
+    if not destination.is_dir():
+        raise InstallError("installed package is missing")
+    manifest = json.loads((destination / OWNERSHIP_NAME).read_text(encoding="utf-8"))
+    _ownership_files(destination)
+    _validate_directory_checksums(destination)
+    rollback = destination.parent / f".{destination.name}{ROLLBACK_SUFFIX}"
+    rollback_status: dict[str, object] = {"present": rollback.is_dir()}
+    if rollback.is_dir():
+        rollback_manifest = json.loads((rollback / OWNERSHIP_NAME).read_text(encoding="utf-8"))
+        _ownership_files(rollback)
+        _validate_directory_checksums(rollback)
+        rollback_status.update({"version": rollback_manifest.get("version"), "valid": True})
+    return {
+        "destination": destination,
+        "version": manifest.get("version"),
+        "source_commit": manifest.get("source_commit"),
+        "owned_file_count": len(_ownership_files(destination)),
+        "rollback": rollback_status,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -337,19 +360,74 @@ def main(argv: list[str] | None = None) -> int:
     install.add_argument("package", type=Path)
     install.add_argument("destination", type=Path)
     install.add_argument("--force", action="store_true")
+    install.add_argument("--dry-run", action="store_true")
+    upgrade = subparsers.add_parser("upgrade")
+    upgrade.add_argument("package", type=Path)
+    upgrade.add_argument("destination", type=Path)
+    upgrade.add_argument("--force", action="store_true")
+    upgrade.add_argument("--dry-run", action="store_true")
     uninstall = subparsers.add_parser("uninstall")
     uninstall.add_argument("destination", type=Path)
+    uninstall.add_argument("--dry-run", action="store_true")
     rollback = subparsers.add_parser("rollback")
     rollback.add_argument("destination", type=Path)
+    rollback.add_argument("--dry-run", action="store_true")
+    status = subparsers.add_parser("status")
+    status.add_argument("destination", type=Path)
     args = parser.parse_args(argv)
     try:
         if args.command == "install":
-            result = install_package(args.package, args.destination, force=args.force)
+            if args.dry_run:
+                root, entries = _read_archive(args.package.resolve())
+                version, source_commit = _archive_metadata(entries, root)
+                destination = _destination(args.destination)
+                manifest_path = destination / OWNERSHIP_NAME
+                if destination.exists() and manifest_path.is_file() and not args.force:
+                    current = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if _version_key(version) < _version_key(str(current["version"])):
+                        raise InstallError("downgrade requires force=True")
+                    if _version_key(version) == _version_key(str(current["version"])):
+                        if current.get("package_sha256") != _sha256_file(args.package.resolve()):
+                            raise InstallError("same-version replacement requires force=True")
+                result = {"action": "install", "dry_run": True, "version": version, "source_commit": source_commit, "destination": destination}
+            elif _destination(args.destination).exists():
+                raise InstallError("destination exists; use upgrade")
+            else:
+                result = install_package(args.package, args.destination, force=args.force)
+        elif args.command == "upgrade":
+            if not _destination(args.destination).exists():
+                raise InstallError("upgrade destination is missing")
+            if args.dry_run:
+                root, entries = _read_archive(args.package.resolve())
+                version, source_commit = _archive_metadata(entries, root)
+                destination = _destination(args.destination)
+                if not args.force:
+                    current = json.loads((destination / OWNERSHIP_NAME).read_text(encoding="utf-8"))
+                    if _version_key(version) < _version_key(str(current["version"])):
+                        raise InstallError("downgrade requires force=True")
+                    if _version_key(version) == _version_key(str(current["version"])):
+                        if current.get("package_sha256") != _sha256_file(args.package.resolve()):
+                            raise InstallError("same-version replacement requires force=True")
+                result = {"action": "upgrade", "dry_run": True, "version": version, "source_commit": source_commit, "destination": destination}
+            else:
+                result = install_package(args.package, args.destination, force=args.force)
+        elif args.command == "status":
+            result = package_status(args.destination)
         elif args.command == "rollback":
-            result = rollback_package(args.destination)
+            if args.dry_run:
+                result = package_status(args.destination)
+                result["action"] = "rollback"
+                result["dry_run"] = True
+            else:
+                result = rollback_package(args.destination)
         else:
-            result = uninstall_package(args.destination)
-    except (InstallError, OSError, zipfile.BadZipFile) as error:
+            if args.dry_run:
+                destination = _destination(args.destination)
+                owned = sorted(_ownership_files(destination))
+                result = {"action": "uninstall", "dry_run": True, "destination": destination, "would_remove": owned}
+            else:
+                result = uninstall_package(args.destination)
+    except (InstallError, OSError, ValueError, zipfile.BadZipFile) as error:
         print(f"windows-portable-installer: ERROR: {error}")
         return 2
     print(json.dumps({key: str(value) for key, value in result.items()}, sort_keys=True))

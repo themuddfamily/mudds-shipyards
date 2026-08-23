@@ -2,12 +2,14 @@ import hashlib
 import tempfile
 import unittest
 import zipfile
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 try:
-    from .windows_portable_installer import InstallError, install_package, rollback_package, uninstall_package
+    from .windows_portable_installer import InstallError, install_package, main, rollback_package, uninstall_package
 except ImportError:
-    from windows_portable_installer import InstallError, install_package, rollback_package, uninstall_package
+    from windows_portable_installer import InstallError, install_package, main, rollback_package, uninstall_package
 
 
 class WindowsPortableInstallerTests(unittest.TestCase):
@@ -65,6 +67,21 @@ class WindowsPortableInstallerTests(unittest.TestCase):
                 install_package(same_version, destination)
             install_package(same_version, destination, force=True)
             self.assertEqual((destination / "README.md").read_bytes(), b"changed")
+
+    def test_cli_status_and_dry_run_are_explicit_and_non_mutating(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            destination = root / "MuddsShipyards"
+            package = self._package(root)
+            output = StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(main(["install", str(package), str(destination)]), 0)
+            before = (destination / "MuddsShipyards.exe").read_bytes()
+            with redirect_stdout(StringIO()):
+                self.assertEqual(main(["upgrade", str(package), str(destination), "--dry-run"]), 0)
+                self.assertEqual(main(["status", str(destination)]), 0)
+                self.assertEqual(main(["uninstall", str(destination), "--dry-run"]), 0)
+            self.assertEqual((destination / "MuddsShipyards.exe").read_bytes(), before)
 
     def test_checksum_and_traversal_rejected_before_install(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
