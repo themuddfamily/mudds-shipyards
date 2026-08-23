@@ -1127,6 +1127,7 @@ func _start_up() -> void:
 	restore_planetary_return_persistence()
 	_initialize_session_diagnostics()
 	_apply_command_line_recovery_args(OS.get_cmdline_args())
+	_publish_recovery_choice_to_hud()
 	player.teleport_to(world.get_player_spawn())
 	player.set_control_enabled(false)
 	player.set_camera_active(false)
@@ -1209,6 +1210,12 @@ func get_session_start_recommendation() -> Dictionary:
 	if _safe_start_production_recovery != null:
 		safe_patch = _safe_start_production_recovery.get_recovery_recommendation_patch()
 	return _session_diagnostics_bridge.get_recovery_recommendation(safe_patch)
+
+
+func _publish_recovery_choice_to_hud() -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_recovery_choice_snapshot"):
+		return
+	hud.call(&"apply_recovery_choice_snapshot", get_session_start_recommendation())
 
 
 func acknowledge_recovery() -> Dictionary:
@@ -2570,6 +2577,14 @@ func _on_network_crew_command_result(result: Dictionary) -> void:
 
 
 func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary) -> void:
+	if kind == &"recovery":
+		var choice := StringName(str(payload.get("choice", &"")))
+		var result := choose_session_start_recovery(choice)
+		if bool(result.get("accepted", false)):
+			_publish_recovery_choice_to_hud()
+		elif is_instance_valid(hud) and hud.has_method(&"apply_recovery_choice_snapshot"):
+			hud.call(&"apply_recovery_choice_snapshot", get_session_start_recommendation())
+		return
 	if kind == &"bomber":
 		if StringName(str(payload.get("intent", payload.get("action", &"")))) == &"release_payload":
 			_consume_bomber_payload_release()

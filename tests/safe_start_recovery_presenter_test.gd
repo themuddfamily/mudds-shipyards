@@ -1,7 +1,9 @@
 extends SceneTree
 
 const Presenter := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
+const HudType := preload("res://scripts/ui/hud.gd")
 var _failures: PackedStringArray = []
+var _intents: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -23,8 +25,24 @@ func _run() -> void:
 	_check(bool(presenter.get_snapshot().details.stability_confirmed), "presented recovery details are detached")
 	var invalid := presenter.present_receipt({"graphics_recovery_receipt": {}})
 	_check(invalid.status == &"invalid" and invalid.actions.size() == 1 and presenter.request_restore().accepted == false, "incomplete receipts fail closed to keep-safe only")
+	var hud := HudType.new()
+	root.add_child(hud)
+	await process_frame
+	hud.presentation_intent_requested.connect(_on_intent)
+	var choice := hud.apply_recovery_choice_snapshot({
+		"available": true, "requires_caller_choice": true, "severity": &"safe_graphics_recommended",
+	})
+	_check(choice.status == &"choice_required" and bool(hud._recovery_prompt_panel.visible), "diagnostic recovery snapshot opens the blocking choice prompt")
+	_check(hud._recovery_prompt_actions.get_child_count() == 3, "normal safe-graphics and discard choices are focusable")
+	hud._request_recovery_choice(&"safe_graphics_windowed")
+	_check(_intents.size() == 1 and _intents[0].choice == &"safe_graphics_windowed", "HUD emits only the caller-owned recovery choice intent")
+	hud.apply_recovery_choice_snapshot({"available": true, "requires_caller_choice": true, "severity": &"review_prior_session"})
+	_check(bool(hud._recovery_prompt_panel.visible), "failed or retried recovery publication retains the prompt")
+	hud.apply_recovery_choice_snapshot({"available": false, "requires_caller_choice": false})
+	_check(not bool(hud._recovery_prompt_panel.visible), "accepted recovery publication clears the prompt")
+	hud.free()
 	if _failures.is_empty():
-		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 5 assertions")
+		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 11 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)
@@ -35,3 +53,8 @@ func _run() -> void:
 func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+func _on_intent(kind: StringName, payload: Dictionary) -> void:
+	if kind == &"recovery":
+		_intents.append(payload.duplicate(true))

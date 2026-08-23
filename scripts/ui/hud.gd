@@ -23,6 +23,7 @@ const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie
 const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_presenter.gd")
 const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
 const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_presenter.gd")
+const SafeStartRecoveryPresenterType := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -387,6 +388,10 @@ var _semantic_transcript_body: Label
 var _semantic_transcript_toggle: Button
 var _semantic_transcript_scroll := 0
 var _semantic_transcript_tick := 0
+var _safe_start_recovery_presenter := SafeStartRecoveryPresenterType.new()
+var _recovery_prompt_panel: PanelContainer
+var _recovery_prompt_detail: Label
+var _recovery_prompt_actions: HBoxContainer
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
@@ -2039,6 +2044,67 @@ func _build_semantic_transcript_panel() -> void:
 	controls.add_child(down)
 
 
+func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
+	var presentation := _safe_start_recovery_presenter.present_recovery_choice(snapshot)
+	if not is_instance_valid(_recovery_prompt_panel):
+		return presentation
+	_recovery_prompt_panel.visible = presentation.get("status", &"hidden") == &"choice_required"
+	if not _recovery_prompt_panel.visible:
+		return presentation
+	_recovery_prompt_detail.text = "%s\n%s" % [presentation.get("message", ""), presentation.get("summary", "")]
+	for child in _recovery_prompt_actions.get_children():
+		child.queue_free()
+	for action_variant in presentation.get("actions", []) as Array:
+		var action := action_variant as Dictionary
+		var button := _menu_button(str(action.get("label", "Choice")), NOMINAL)
+		button.focus_mode = Control.FOCUS_ALL
+		var choice := StringName(action.get("id", &""))
+		button.pressed.connect(func() -> void: _request_recovery_choice(choice))
+		_recovery_prompt_actions.add_child(button)
+	return presentation
+
+
+func _request_recovery_choice(choice: StringName) -> void:
+	var intent := _safe_start_recovery_presenter.request_choice(choice)
+	if bool(intent.get("accepted", false)):
+		presentation_intent_requested.emit(&"recovery", intent)
+
+
+func dismiss_recovery_prompt() -> void:
+	if is_instance_valid(_recovery_prompt_panel):
+		_recovery_prompt_panel.visible = false
+
+
+func get_recovery_prompt_snapshot() -> Dictionary:
+	return _safe_start_recovery_presenter.get_snapshot()
+
+
+func _build_recovery_prompt_panel() -> void:
+	_recovery_prompt_panel = PanelContainer.new()
+	_recovery_prompt_panel.name = "RecoveryChoicePrompt"
+	_recovery_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_recovery_prompt_panel.position = Vector2(-300.0, -120.0)
+	_recovery_prompt_panel.size = Vector2(600.0, 240.0)
+	_recovery_prompt_panel.visible = false
+	_hud_panels.add_child(_recovery_prompt_panel)
+	var margin := _margin(18, 16, 18, 16)
+	_recovery_prompt_panel.add_child(margin)
+	var stack := VBoxContainer.new()
+	margin.add_child(stack)
+	stack.add_child(_label("RECOVERY CHOICE REQUIRED", 16, PRIMARY))
+	_recovery_prompt_detail = _label("", 12, NOMINAL_SOFT)
+	_recovery_prompt_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_recovery_prompt_detail.custom_minimum_size = Vector2(550.0, 70.0)
+	stack.add_child(_recovery_prompt_detail)
+	_recovery_prompt_actions = HBoxContainer.new()
+	_recovery_prompt_actions.add_theme_constant_override("separation", 8)
+	stack.add_child(_recovery_prompt_actions)
+	var dismiss := _menu_button("DISMISS", MUTED)
+	dismiss.focus_mode = Control.FOCUS_ALL
+	dismiss.pressed.connect(dismiss_recovery_prompt)
+	stack.add_child(dismiss)
+
+
 func show_caption(text: String) -> bool:
 	if not _captions_enabled:
 		return false
@@ -2437,6 +2503,7 @@ func _build_hud() -> void:
 	_build_toast()
 	_build_runtime_status_panel()
 	_build_semantic_transcript_panel()
+	_build_recovery_prompt_panel()
 	_attach_caption_presenter()
 	_build_damage_flash()
 
