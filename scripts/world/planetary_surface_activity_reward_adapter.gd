@@ -9,6 +9,7 @@ extends RefCounted
 
 const RuntimeScript := preload("res://scripts/world/planetary_activity_reward_runtime.gd")
 const HostScript := preload("res://scripts/world/ember_surface_loop_host.gd")
+const NavigationScript := preload("res://scripts/world/planetary_surface_navigation_runtime.gd")
 
 const REQUIRED_HOST_ID: StringName = &"ember_surface_loop"
 const REQUIRED_WORLD_ID: StringName = &"ember_moon"
@@ -32,6 +33,8 @@ var _host_instance_id := 0
 var _bound := false
 var _sequence_ids: Array[StringName] = []
 var _sequence_index := -1
+var _navigation: RefCounted
+var _route_activity_landmarks: Dictionary = {}
 
 
 func is_configuration_valid() -> bool:
@@ -104,6 +107,65 @@ func start_activity_sequence(activity_ids: Array[StringName]) -> Dictionary:
 	_sequence_ids = []
 	_sequence_index = -1
 	return started
+
+
+## Starts an activity sequence alongside the authored surface route. Route
+## evidence is consumed by the navigation runtime; this adapter only admits
+## the next activity after the current reward is already committed.
+func start_surface_activity_sequence(
+		activity_ids: Array[StringName],
+		navigation: RefCounted,
+		route_activity_landmarks: Dictionary = {}
+	) -> Dictionary:
+	if navigation == null:
+		return _reject(&"navigation_unavailable")
+	if _state != State.READY:
+		return _reject(&"adapter_not_ready")
+	var route_started: Dictionary = navigation.call(&"start_route")
+	if not bool(route_started.get("accepted", false)):
+		return _reject(route_started.get("reason", &"route_start_rejected") as StringName)
+	_navigation = navigation
+	_route_activity_landmarks = route_activity_landmarks.duplicate(true)
+	var started := start_activity_sequence(activity_ids)
+	if not bool(started.get("accepted", false)):
+		_navigation = null
+		_route_activity_landmarks = {}
+	return started
+
+
+## Accepts the current authored route landmark after the preceding activity
+## reward is committed, then admits the mapped next activity step.
+func submit_surface_route_landmark(
+		route_landmark_id: StringName, position: Variant
+	) -> Dictionary:
+	if _navigation == null:
+		return _reject(&"navigation_unavailable")
+	if _state != State.COMPLETED:
+		return _reject(&"activity_sequence_not_ready")
+	if _sequence_index < 0:
+		return _reject(&"activity_sequence_complete")
+	if _sequence_index + 1 >= _sequence_ids.size():
+		var final_reached: Dictionary = _navigation.call(
+			&"submit_landmark_evidence", route_landmark_id, position
+		)
+		return _with_adapter(
+			final_reached,
+			bool(final_reached.get("accepted", false)),
+			final_reached.get("reason", &"route_landmark_rejected") as StringName
+		)
+	var next_activity := _sequence_ids[_sequence_index + 1]
+	var expected_activity_landmark := _runtime.get_activity_landmark_id(next_activity)
+	var mapped_activity_landmark := StringName(
+		_route_activity_landmarks.get(route_landmark_id, expected_activity_landmark)
+	)
+	if mapped_activity_landmark != expected_activity_landmark:
+		return _reject(&"route_activity_landmark_mismatch")
+	var reached: Dictionary = _navigation.call(
+		&"submit_landmark_evidence", route_landmark_id, position
+	)
+	if not bool(reached.get("accepted", false)):
+		return _with_adapter(reached, false, reached.get("reason", &"route_landmark_rejected") as StringName)
+	return advance_activity_sequence(mapped_activity_landmark)
 
 
 func submit_activity_position(position: Vector3) -> Dictionary:
@@ -268,6 +330,7 @@ func get_snapshot() -> Dictionary:
 			"index": _sequence_index,
 			"complete": _sequence_index >= 0 and _sequence_index + 1 >= _sequence_ids.size(),
 		},
+		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
 		"authority": {
 			"host_mutation": false,
 			"activity_authority": false,

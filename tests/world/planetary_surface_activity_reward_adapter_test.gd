@@ -6,6 +6,8 @@ const HostScript := preload("res://scripts/world/ember_surface_loop_host.gd")
 const DirectorScript := preload("res://scripts/activities/activity_director.gd")
 const ActivityDefinitionScript := preload("res://scripts/activities/activity_definition.gd")
 const LocationScript := preload("res://scripts/world/definitions/world_location_definition.gd")
+const NavigationScript := preload("res://scripts/world/planetary_surface_navigation_runtime.gd")
+const NavigationContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
 
 class FakeHost:
 	var generation := 7
@@ -48,6 +50,7 @@ func _run() -> void:
 	await _test_completed_activity_repeat()
 	await _test_ordered_activity_sequence()
 	await _test_sequence_failure_recovery()
+	await _test_surface_route_admits_activity_sequence()
 	_finish()
 
 
@@ -284,6 +287,54 @@ func _test_sequence_failure_recovery() -> void:
 	_check(
 		_reward_calls == 9,
 		"failed work issues no reward while recovered sequence issues one per completed landmark"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_surface_route_admits_activity_sequence() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var navigation := NavigationScript.new()
+	navigation.configure(NavigationContractScript.new())
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	var started := adapter.start_surface_activity_sequence(
+		[&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName],
+		navigation,
+		{"surface_staging_gate": &"ridge_relay"}
+	)
+	_check(
+		started.accepted and started.adapter.surface_route.state == &"active",
+		"surface route and ordered activity sequence start as one fenced visit"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	_check(
+		adapter.submit_surface_route_landmark(
+			&"surface_staging_gate", Vector3(100.0, 120000.0, 0.0)
+		).reason == &"landmark_out_of_range",
+		"route evidence rejects an out-of-range landmark without advancing activity"
+	)
+	host.attachment_generation = 3
+	var advanced := adapter.submit_surface_route_landmark(
+		&"surface_staging_gate", Vector3(42.0, 120000.0, 0.0)
+	)
+	_check(
+		advanced.accepted and advanced.reason == &"activity_sequence_advanced"
+			and advanced.adapter.activity_sequence.index == 1,
+		"reaching the authored route landmark admits the mapped next activity"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	_check(
+		adapter.submit_surface_route_landmark(
+			&"caldera_overlook", Vector3(420.0, 120025.0, -180.0)
+		).reason == &"route_completed",
+		"the final authored route landmark closes the already rewarded sequence"
 	)
 	director.queue_free()
 	await process_frame
