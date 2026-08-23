@@ -795,7 +795,9 @@ func advance_from_caller_sample(
 		actor_instance_id: int, craft_instance_id: int, position: Vector3,
 		velocity_mps: Vector3, landed: bool, reboarded: bool, takeoff: bool,
 		origin_result: Variant, coordinate_frame_generation: int,
-		location_generation: int, expected_generation: int
+		location_generation: int, expected_generation: int,
+		orbit_return_ready: bool = false, occupied_receipt: Variant = {},
+		landing_return_contract: Object = null, return_observation: Dictionary = {}
 	) -> Dictionary:
 	if actor_kind not in [&"ship", &"player"] \
 			or actor_instance_id < 1 or craft_instance_id < 1 \
@@ -840,6 +842,17 @@ func advance_from_caller_sample(
 		transition = queue_takeoff_intent(_last_intent_serial + 1, expected_generation)
 	if not bool(transition.get("accepted", false)):
 		return transition
+	if orbit_return_ready:
+		if get_host_phase() not in [EmberSurfaceLoopHost.Phase.ORBIT_RETURN, EmberSurfaceLoopHost.Phase.COMPLETED]:
+			return _reject(&"caller_return_phase_mismatch")
+		if _return_berth_adapter == null or landing_return_contract == null:
+			return _reject(&"caller_return_contract_unavailable")
+		var completed := complete_planetary_return_contract(
+			occupied_receipt, landing_return_contract, return_observation
+		)
+		if not bool(completed.get("accepted", false)):
+			return completed
+		transition = completed
 	return {"accepted": true, "reason": &"caller_sample_advanced", "transition": transition, "envelope": _pending_envelope.duplicate(true)}
 
 
