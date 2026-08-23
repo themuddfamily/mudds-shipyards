@@ -34,6 +34,9 @@ const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
 
 const MAIN_SCENE_PATH := "res://scenes/main.tscn"
 
+const CLI_VERSION := &"--version"
+const CLI_SUPPORT_INFO := &"--support-info"
+
 ## Frames to present before any expensive work starts. Two, because the first
 ## one is where the loading screen's Controls take their layout.
 const PRESENT_FRAMES := 2
@@ -71,6 +74,11 @@ var _display_settings_report: Dictionary = {}
 
 
 func _ready() -> void:
+	var early_cli_mode := cli_mode(OS.get_cmdline_args())
+	if not early_cli_mode.is_empty():
+		print(format_cli_output(early_cli_mode))
+		call_deferred("_quit_after_cli_output")
+		return
 	_boot_usec = Time.get_ticks_usec()
 	# Nothing is playable yet, so nothing may own the cursor. This is also the
 	# backstop for a reloaded scene: `reload_current_scene()` returns here with
@@ -83,6 +91,43 @@ func _ready() -> void:
 	_screen.set_stage("Starting up", 0.0)
 	if auto_start:
 		run_startup()
+
+
+func _quit_after_cli_output() -> void:
+	get_tree().quit(0)
+
+
+## Returns the one supported early-start information mode, or an empty name.
+## Unknown arguments remain the ordinary game startup path. If both supported
+## flags are present, the more detailed support report wins deterministically.
+static func cli_mode(args: PackedStringArray) -> StringName:
+	if CLI_SUPPORT_INFO in args:
+		return &"support_info"
+	if CLI_VERSION in args:
+		return &"version"
+	return &""
+
+
+## Produces only stable build/runtime facts. This intentionally omits paths,
+## usernames, hardware identifiers, settings, saves, and environment values.
+static func format_cli_output(mode: StringName) -> String:
+	var project_name := str(ProjectSettings.get_setting("application/config/name", "Mudds Shipyards"))
+	var project_version := str(ProjectSettings.get_setting("application/config/version", "unknown"))
+	if mode == &"version":
+		return "%s %s" % [project_name, project_version]
+	if mode != &"support_info":
+		return ""
+	var engine_info := Engine.get_version_info()
+	var engine_version := str(engine_info.get("string", "unknown"))
+	return "\n".join([
+		"Project: %s" % project_name,
+		"Version: %s" % project_version,
+		"Godot: %s" % engine_version,
+		"OS: %s" % OS.get_name(),
+		"Architecture: %s" % Engine.get_architecture_name(),
+		"Renderer: %s" % RenderingServer.get_current_rendering_method(),
+		"Display: %s" % DisplayServer.get_name(),
+	])
 
 
 func _exit_tree() -> void:
