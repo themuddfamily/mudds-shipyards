@@ -6,6 +6,7 @@ extends RefCounted
 
 const COMPONENT_ID: StringName = &"semantic-audio-cue-presenter"
 const MAX_SOURCE_LENGTH := 64
+const MAX_TRANSCRIPT_ENTRIES := 8
 const REGISTERED_CUES := {
 	&"ui_confirm": {"caption": "Action confirmed", "default_severity": &"low"},
 	&"combat_alert": {"caption": "Combat alert", "default_severity": &"high"},
@@ -73,6 +74,7 @@ const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
 var _last_key := ""
 var _last_snapshot: Dictionary = {}
+var _transcript: Array[Dictionary] = []
 
 
 func present_cue(
@@ -110,7 +112,43 @@ func present_cue(
 		_last_snapshot["direction"] = direction
 	if metadata.has("priority") and (metadata.priority is int or metadata.priority is float):
 		_last_snapshot["priority"] = clampi(int(metadata.priority), 0, 100)
+	_record_transcript(_last_snapshot, metadata)
 	return _last_snapshot.duplicate(true)
+
+
+func get_transcript(current_tick: int = 0) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry in _transcript:
+		var copy := entry.duplicate(true)
+		copy["age_ticks"] = maxi(0, current_tick - int(copy.get("tick", current_tick)))
+		copy.erase("key")
+		copy.erase("tick")
+		result.append(copy)
+	return result
+
+
+func clear_transcript() -> void:
+	_transcript.clear()
+
+
+func _record_transcript(snapshot: Dictionary, metadata: Dictionary) -> void:
+	var tick := int(metadata.get("tick", 0))
+	var priority := int(snapshot.get("priority", {&"low": 45, &"medium": 70, &"high": 90}.get(snapshot.get("severity", &"low"), 45)))
+	var direction := str(snapshot.get("direction", "")).strip_edges()
+	var key := "%s|%s|%d|%s" % [snapshot.get("cue_id", &""), snapshot.get("source", &""), priority, direction]
+	if not _transcript.is_empty() and str(_transcript[0].get("key", "")) == key:
+		_transcript[0]["tick"] = tick
+		return
+	_transcript.push_front({
+		"key": key,
+		"cue_id": snapshot.get("cue_id", &""),
+		"label": snapshot.get("caption", ""),
+		"direction": direction,
+		"priority": priority,
+		"tick": tick,
+	})
+	while _transcript.size() > MAX_TRANSCRIPT_ENTRIES:
+		_transcript.pop_back()
 
 
 func get_snapshot() -> Dictionary:

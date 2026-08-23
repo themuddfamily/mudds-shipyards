@@ -382,6 +382,11 @@ var _crew_role_presenter := CrewRoleSeatPresenterType.new()
 var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
+var _semantic_transcript_panel: PanelContainer
+var _semantic_transcript_body: Label
+var _semantic_transcript_toggle: Button
+var _semantic_transcript_scroll := 0
+var _semantic_transcript_tick := 0
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
@@ -444,6 +449,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	clear_nearby_activity_snapshot()
+	clear_semantic_caption_transcript()
 	if _pause == null or not _pause.visible:
 		return
 	var viewport := get_viewport()
@@ -1943,6 +1949,8 @@ func present_semantic_audio_cue(
 	)
 	if not bool(presentation.get("accepted", false)):
 		return false
+	_semantic_transcript_tick = int(metadata.get("tick", _semantic_transcript_tick))
+	_refresh_semantic_transcript()
 	var severity := StringName(presentation.get("severity", &"low"))
 	var priority: int = int(presentation.get("priority", {&"low": 45, &"medium": 70, &"high": 90}.get(severity, 45)))
 	var text := "%s %s" % [presentation.get("severity_marker", "○"), presentation.caption]
@@ -1956,6 +1964,79 @@ func present_semantic_audio_cue(
 		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
 		"priority": priority,
 	})
+
+
+func set_semantic_transcript_tick(tick: int) -> void:
+	_semantic_transcript_tick = maxi(tick, 0)
+	_refresh_semantic_transcript()
+
+
+func clear_semantic_caption_transcript() -> void:
+	_semantic_audio_cue_presenter.clear_transcript()
+	_semantic_transcript_scroll = 0
+	_refresh_semantic_transcript()
+
+
+func toggle_semantic_caption_transcript() -> void:
+	if not is_instance_valid(_semantic_transcript_panel):
+		return
+	_semantic_transcript_panel.visible = not _semantic_transcript_panel.visible
+	_semantic_transcript_toggle.text = "CLOSE CAPTION LOG" if _semantic_transcript_panel.visible else "OPEN CAPTION LOG"
+
+
+func scroll_semantic_caption_transcript(delta: int) -> void:
+	_semantic_transcript_scroll = maxi(0, _semantic_transcript_scroll + delta)
+	_refresh_semantic_transcript()
+
+
+func _refresh_semantic_transcript() -> void:
+	if not is_instance_valid(_semantic_transcript_body):
+		return
+	var entries := _semantic_audio_cue_presenter.get_transcript(_semantic_transcript_tick)
+	var lines: PackedStringArray = []
+	for entry in entries:
+		var direction := str(entry.get("direction", "")).strip_edges()
+		var suffix := (" // " + direction) if not direction.is_empty() else ""
+		lines.append("%s%s  P%d  +%dT" % [str(entry.get("label", "Cue")), suffix, int(entry.get("priority", 0)), int(entry.get("age_ticks", 0))])
+	var start := mini(_semantic_transcript_scroll, maxi(0, lines.size() - 8))
+	_semantic_transcript_body.text = "\n".join(lines.slice(start, start + 8)) if not lines.is_empty() else "No semantic captions yet."
+
+
+func _build_semantic_transcript_panel() -> void:
+	_semantic_transcript_toggle = _menu_button("OPEN CAPTION LOG", NOMINAL)
+	_semantic_transcript_toggle.name = "SemanticCaptionTranscriptToggle"
+	_semantic_transcript_toggle.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_semantic_transcript_toggle.position = Vector2(-250.0, 16.0)
+	_semantic_transcript_toggle.size = Vector2(230.0, 34.0)
+	_semantic_transcript_toggle.focus_mode = Control.FOCUS_ALL
+	_semantic_transcript_toggle.pressed.connect(toggle_semantic_caption_transcript)
+	_hud_panels.add_child(_semantic_transcript_toggle)
+	_semantic_transcript_panel = PanelContainer.new()
+	_semantic_transcript_panel.name = "SemanticCaptionTranscriptPanel"
+	_semantic_transcript_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_semantic_transcript_panel.position = Vector2(-470.0, 56.0)
+	_semantic_transcript_panel.size = Vector2(450.0, 190.0)
+	_semantic_transcript_panel.visible = false
+	_hud_panels.add_child(_semantic_transcript_panel)
+	var margin := _margin(12, 10, 12, 10)
+	_semantic_transcript_panel.add_child(margin)
+	var stack := VBoxContainer.new()
+	margin.add_child(stack)
+	stack.add_child(_label("SEMANTIC CAPTION LOG  //  8 MAX", 11, PRIMARY))
+	_semantic_transcript_body = _label("No semantic captions yet.", 11, NOMINAL_SOFT)
+	_semantic_transcript_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_semantic_transcript_body.custom_minimum_size = Vector2(420.0, 120.0)
+	stack.add_child(_semantic_transcript_body)
+	var controls := HBoxContainer.new()
+	stack.add_child(controls)
+	var up := _menu_button("UP", NOMINAL)
+	up.focus_mode = Control.FOCUS_ALL
+	up.pressed.connect(func() -> void: scroll_semantic_caption_transcript(-1))
+	controls.add_child(up)
+	var down := _menu_button("DOWN", NOMINAL)
+	down.focus_mode = Control.FOCUS_ALL
+	down.pressed.connect(func() -> void: scroll_semantic_caption_transcript(1))
+	controls.add_child(down)
 
 
 func show_caption(text: String) -> bool:
@@ -2355,6 +2436,7 @@ func _build_hud() -> void:
 	_build_enemy_status()
 	_build_toast()
 	_build_runtime_status_panel()
+	_build_semantic_transcript_panel()
 	_attach_caption_presenter()
 	_build_damage_flash()
 
