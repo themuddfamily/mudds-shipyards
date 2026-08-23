@@ -325,6 +325,8 @@ var _spine_rib_batch: MultiMeshInstance3D
 var _spine_rib_transforms: Array[Transform3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
 var _crew_status_display: HalyardCrewStatusDisplay
+var _loadmaster_station_sign: Label3D
+var _loadmaster_station_sign_snapshot: Dictionary = {}
 var _passenger_ping_cooldowns: Dictionary = {}
 var _gunner_role_cooldowns: Dictionary = {}
 var _passenger_ping_markers: Dictionary = {}
@@ -349,6 +351,7 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	_clear_loadmaster_station_display(&"ship_attached")
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_halyard_perspective_audio")
 	if _loadmaster_audio_binding != null:
@@ -372,10 +375,12 @@ func _ready() -> void:
 		_halyard_built = _reconfigure_component_damage_from_final_root_collision()
 	_apply_halyard_metadata()
 	_sync_halyard_engine_presentation_immediately()
+	_build_loadmaster_station_display()
 
 
 func _exit_tree() -> void:
 	_clear_loadmaster_manifest(&"ship_detached")
+	_clear_loadmaster_station_display(&"ship_detached")
 	if _ship_perspective_audio_binding != null:
 		if camera_view_changed.is_connected(_on_halyard_camera_view_changed):
 			camera_view_changed.disconnect(_on_halyard_camera_view_changed)
@@ -486,6 +491,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 		_crew_status_display.clear_for_detach()
 	_clear_passenger_ping_markers(&"ship_reused")
 	_clear_loadmaster_manifest(&"ship_reused", false)
+	_clear_loadmaster_station_display(&"ship_reused")
 	_loadmaster_manifest_generation = 1
 	_passenger_ping_cooldowns.clear()
 	_gunner_role_cooldowns.clear()
@@ -554,11 +560,117 @@ func get_crew_role_authority() -> CrewSeatRoleAuthority:
 func refresh_crew_status_display() -> Dictionary:
 	if _crew_status_display == null or not is_instance_valid(_crew_status_display):
 		return {}
-	return _crew_status_display.present_crew_snapshot(get_crew_role_gameplay_snapshot())
+	var snapshot := get_crew_role_gameplay_snapshot()
+	var display_snapshot := _crew_status_display.present_crew_snapshot(snapshot)
+	_present_loadmaster_station_snapshot(snapshot.get("loadmaster_manifest", {}))
+	return display_snapshot
 
 
 func get_crew_status_display() -> HalyardCrewStatusDisplay:
 	return _crew_status_display
+
+
+func get_loadmaster_station_display_snapshot() -> Dictionary:
+	return _loadmaster_station_sign_snapshot.duplicate(true)
+
+
+func get_loadmaster_station_display_readout() -> String:
+	return _loadmaster_station_sign.text if is_instance_valid(_loadmaster_station_sign) else ""
+
+
+## Builds one presentation-only sign outside the authored visual root. Keeping
+## it on the ship root preserves the frozen Halyard mesh/collision budgets while
+## the sign still follows the physical cabin seat through the moving hull.
+func _build_loadmaster_station_display() -> void:
+	if is_instance_valid(_loadmaster_station_sign):
+		_position_loadmaster_station_display()
+		return
+	_loadmaster_station_sign = Label3D.new()
+	_loadmaster_station_sign.name = "LoadmasterStationSign"
+	_loadmaster_station_sign.font_size = 24
+	_loadmaster_station_sign.pixel_size = 0.0012
+	_loadmaster_station_sign.modulate = Color("b9f1d0")
+	_loadmaster_station_sign.outline_modulate = Color("07111d")
+	_loadmaster_station_sign.outline_size = 8
+	_loadmaster_station_sign.no_depth_test = true
+	_loadmaster_station_sign.set_meta("presentation_only", true)
+	_loadmaster_station_sign.set_meta("seat_id", LOADMASTER_STATION_SEAT_ID)
+	_loadmaster_station_sign.set_meta("route_id", &"crew_cabin_port_row_00")
+	add_child(_loadmaster_station_sign)
+	_position_loadmaster_station_display()
+	_clear_loadmaster_station_display(&"display_ready")
+
+
+func _position_loadmaster_station_display() -> void:
+	if not is_instance_valid(_loadmaster_station_sign):
+		return
+	var anchor := get_loadmaster_station_anchor()
+	if not is_instance_valid(anchor):
+		_loadmaster_station_sign.visible = false
+		return
+	_loadmaster_station_sign.global_position = anchor.global_position \
+			+ anchor.global_basis * Vector3(0.0, 0.86, -0.42)
+	_loadmaster_station_sign.global_rotation = anchor.global_rotation
+	_loadmaster_station_sign.visible = true
+
+
+func _present_loadmaster_station_snapshot(source: Variant) -> void:
+	if not source is Dictionary:
+		_clear_loadmaster_station_display(&"invalid_snapshot")
+		return
+	var detached := source as Dictionary
+	var receipt := detached.get("receipt", {}) as Dictionary
+	var state := &"standby"
+	var manifest_id := &""
+	var route_id := &""
+	var ready := false
+	var generation := int(detached.get("manifest_generation", 0))
+	if not receipt.is_empty():
+		manifest_id = StringName(receipt.get("manifest_id", &""))
+		route_id = StringName(receipt.get("route_id", &""))
+		ready = bool(receipt.get("ready", false))
+		state = &"ready" if ready else &"blocked"
+	_loadmaster_station_sign_snapshot = {
+		"schema_version": 1,
+		"seat_id": LOADMASTER_STATION_SEAT_ID,
+		"route_id": route_id,
+		"manifest_id": manifest_id,
+		"manifest_generation": generation,
+		"state": state,
+		"ready": ready,
+		"presentation_only": true,
+		"cargo_transfer_authority": false,
+		"inventory_mutation_authority": false,
+		"reward_authority": false,
+		"helm_authority": false,
+	}.duplicate(true)
+	if is_instance_valid(_loadmaster_station_sign):
+		_loadmaster_station_sign.text = (
+			"LOADMASTER\n[%s]\nMANIFEST %s\nROUTE %s"
+			% [str(state).to_upper(), str(manifest_id) if not manifest_id.is_empty() else "--", str(route_id) if not route_id.is_empty() else "--"]
+		)
+		_position_loadmaster_station_display()
+
+
+func _clear_loadmaster_station_display(reason: StringName) -> void:
+	_loadmaster_station_sign_snapshot = {
+		"schema_version": 1,
+		"seat_id": LOADMASTER_STATION_SEAT_ID,
+		"route_id": &"",
+		"manifest_id": &"",
+		"manifest_generation": _loadmaster_manifest_generation,
+		"state": &"standby",
+		"ready": false,
+		"reason": reason,
+		"presentation_only": true,
+		"cargo_transfer_authority": false,
+		"inventory_mutation_authority": false,
+		"reward_authority": false,
+		"helm_authority": false,
+	}.duplicate(true)
+	if is_instance_valid(_loadmaster_station_sign):
+		_loadmaster_station_sign.text = "LOADMASTER\n[STANDBY]\nMANIFEST --\nROUTE --"
+		_loadmaster_station_sign.visible = is_inside_tree()
 
 
 ## Server-only bridge for the network session's already-admitted role receipt.
@@ -2966,6 +3078,7 @@ func _clear_loadmaster_manifest(reason: StringName, advance_generation: bool = t
 			_loadmaster_manifest_generation + 1,
 			LOADMASTER_MANIFEST_GENERATION_MAX
 		)
+	_clear_loadmaster_station_display(reason)
 	loadmaster_manifest_cleared.emit(_loadmaster_manifest_generation, reason)
 
 
