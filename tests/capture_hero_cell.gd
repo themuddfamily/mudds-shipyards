@@ -280,7 +280,9 @@ func _run() -> void:
 		directory_error == OK or directory_error == ERR_ALREADY_EXISTS,
 		"hero-cell output directory is available"
 	)
-	_reset_capture_transaction()
+	if not _reset_capture_transaction():
+		_finish()
+		return
 	_check(
 		DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR)),
 		"isolated hero-cell capture transaction directory is available"
@@ -2390,12 +2392,14 @@ func _write_evidence_manifest() -> void:
 	)
 
 
-func _reset_capture_transaction() -> void:
+func _reset_capture_transaction() -> bool:
 	# A run invalidates any prior claim immediately. If the process crashes later,
 	# old PNGs may remain for diagnosis but no stale manifest can authenticate them.
 	_invalidate_published_claims("prior published claim")
-	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR)):
-		_remove_directory_tree(TRANSACTION_DIR)
+	# Always attempt the bounded removal: dir_exists_absolute() follows links and
+	# also reports false for a broken link, while cleanup must unlink either kind.
+	if not _remove_directory_tree(TRANSACTION_DIR):
+		return false
 	var error := DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path(TRANSACTION_DIR)
 	)
@@ -2403,6 +2407,7 @@ func _reset_capture_transaction() -> void:
 		error == OK or error == ERR_ALREADY_EXISTS,
 		"fresh isolated capture transaction directory is created"
 	)
+	return error == OK or error == ERR_ALREADY_EXISTS
 
 
 func _publish_capture_transaction() -> void:
@@ -2668,18 +2673,47 @@ func _remove_file_if_present(path: String, description: String) -> bool:
 	return error == OK
 
 
+func _is_strict_transaction_path(path: String) -> bool:
+	if path.is_empty() or path.contains("\\") or path != path.simplify_path():
+		return false
+	return path == TRANSACTION_DIR or path.begins_with(TRANSACTION_DIR + "/")
+
+
+func _path_is_link(path: String) -> bool:
+	# Query the containing directory, not the candidate path. Opening the candidate
+	# first would follow a directory link; this also detects broken root links.
+	var parent_path := path.get_base_dir()
+	var entry_name := path.get_file()
+	if parent_path.is_empty() or entry_name.is_empty():
+		return false
+	var parent_directory := DirAccess.open(parent_path)
+	return parent_directory != null and parent_directory.is_link(entry_name)
+
+
+func _remove_transaction_leaf(path: String, kind: String) -> bool:
+	var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if error != OK:
+		_fail("transaction %s cleanup failed: %s" % [kind, path])
+		return false
+	return true
+
+
 func _remove_directory_tree(path: String) -> bool:
-	if path != TRANSACTION_DIR and not path.begins_with(TRANSACTION_DIR + "/"):
+	if not _is_strict_transaction_path(path):
 		_fail("refusing broad transaction cleanup outside %s: %s" % [TRANSACTION_DIR, path])
 		return false
 	var absolute_path := ProjectSettings.globalize_path(path)
+	if _path_is_link(path):
+		return _remove_transaction_leaf(path, "link")
 	if not DirAccess.dir_exists_absolute(absolute_path):
+		if FileAccess.file_exists(path):
+			return _remove_transaction_leaf(path, "file")
 		return true
 	var directory := DirAccess.open(path)
 	if directory == null:
 		_fail("transaction directory cannot be opened for cleanup: %s" % path)
 		return false
-	var files := PackedStringArray()
+	var leaves := PackedStringArray()
 	var directories := PackedStringArray()
 	var list_error := directory.list_dir_begin()
 	if list_error != OK:
@@ -2688,38 +2722,32 @@ func _remove_directory_tree(path: String) -> bool:
 	var entry := directory.get_next()
 	while not entry.is_empty():
 		if entry != "." and entry != "..":
-			if directory.current_is_dir():
+			# is_link() must precede current_is_dir(): linked directories are leaf
+			# entries and their targets must never be opened or enumerated.
+			if directory.is_link(entry):
+				leaves.append(entry)
+			elif directory.current_is_dir():
 				directories.append(entry)
 			else:
-				files.append(entry)
+				leaves.append(entry)
 		entry = directory.get_next()
 	directory.list_dir_end()
 	var valid := true
-	for file_name in files:
-		var error := DirAccess.remove_absolute(
-			ProjectSettings.globalize_path(path.path_join(file_name))
-		)
-		if error != OK:
-			_fail("transaction file cleanup failed: %s" % path.path_join(file_name))
-			valid = false
+	for leaf_name in leaves:
+		valid = _remove_transaction_leaf(path.path_join(leaf_name), "leaf") and valid
 	for directory_name in directories:
 		valid = _remove_directory_tree(path.path_join(directory_name)) and valid
-	var remove_error := DirAccess.remove_absolute(absolute_path)
-	if remove_error != OK:
-		_fail("transaction directory cleanup failed: %s" % path)
-		valid = false
-	return valid
+	return _remove_transaction_leaf(path, "directory") and valid
 
 
-func _cleanup_capture_transaction(context: String) -> void:
+func _cleanup_capture_transaction(context: String) -> bool:
 	if not _capture_transaction_cleanup_armed:
-		return
-	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR)):
-		_capture_transaction_cleanup_armed = false
-		return
+		return true
 	if _remove_directory_tree(TRANSACTION_DIR):
 		_capture_transaction_cleanup_armed = false
 		print("HERO_CELL_TRANSACTION_CLEANUP: %s" % context)
+		return true
+	return false
 
 
 func _transform_dictionary(transform: Transform3D) -> Dictionary:
@@ -2818,5 +2846,8 @@ func _finish() -> void:
 
 func _finalize() -> void:
 	# MainLoop invokes this on engine shutdown, including close/abort paths which
-	# bypass _finish(). The guard makes the retry idempotent after normal cleanup.
-	_cleanup_capture_transaction("engine shutdown")
+	# bypass _finish(). The guard makes the retry idempotent after normal cleanup;
+	# a finalize-only cleanup failure must also make an otherwise green exit fail.
+	if not _cleanup_capture_transaction("engine shutdown"):
+		push_error("HERO_CELL_CAPTURE_FAILED: transaction cleanup failed during engine shutdown")
+		quit(1)
