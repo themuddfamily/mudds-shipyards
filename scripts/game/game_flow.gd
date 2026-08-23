@@ -1867,6 +1867,10 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	if frame == null or not frame.is_configured():
 		return {"accepted": false, "reason": &"coordinate_frame_unavailable"}
+	var landing_region := loaded_scene.get_node_or_null(^"LandingRegion") as Node3D
+	if not is_instance_valid(landing_region):
+		return {"accepted": false, "reason": &"loaded_landing_region_unavailable"}
+	ember_surface_berth.global_transform = landing_region.global_transform
 	var bound := ember_surface_loop_host.bind_dependencies(
 		ember_streaming_bootstrap, ember_surface_berth, active_ship,
 		player_controller, 1.62, location_generation,

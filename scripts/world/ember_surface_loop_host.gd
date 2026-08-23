@@ -1843,7 +1843,8 @@ func _origin_receipt_roster_rejection(receipt: Dictionary) -> StringName:
 	)
 	var expected_roots: Array[Node3D] = []
 	for node in expected_covered_nodes:
-		if node.get_parent() == _composition_root or node.top_level:
+		if (node.get_parent() == _composition_root or node.top_level) \
+				and not node is EmberSurfaceLoopHost:
 			expected_roots.append(node)
 	if roots.size() != expected_roots.size():
 		return &"origin_receipt_roster_count_mismatch"

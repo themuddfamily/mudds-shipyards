@@ -366,7 +366,8 @@ func _capture_live_roster() -> Dictionary:
 			"global_transform": node.global_transform,
 			"transform": node.transform,
 		})
-		if node.get_parent() == host or node.top_level:
+		if (node.get_parent() == host or node.top_level) \
+				and not node is EmberSurfaceLoopHost:
 			roots.append({
 				"node": node,
 				"instance_id": node.get_instance_id(),
