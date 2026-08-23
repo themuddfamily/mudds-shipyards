@@ -28,6 +28,7 @@ const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activi
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 const PRESENTATION_OBSERVER_LIMIT := 3
+const CINDER_PATROL_DWELL_SECONDS := 2.0
 
 var _host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
@@ -81,7 +82,13 @@ func _ready() -> void:
 	_patrol_director.name = "CinderBeaconPatrolDirector"
 	add_child(_patrol_director)
 	_patrol_director.register_definition(RACE_ROUTE)
-	_patrol = PATROL_ACTIVITY.new(RACE_ROUTE, 0.0) as PatrolActivity
+	# A patrol is an inspection sweep rather than a second zero-dwell race.
+	# Holding each authored beacon for two seconds gives the player a readable
+	# station-keeping objective while PatrolActivity retains all route/dwell
+	# authority.
+	_patrol = PATROL_ACTIVITY.new(
+		RACE_ROUTE, CINDER_PATROL_DWELL_SECONDS
+	) as PatrolActivity
 	_patrol.attach(_patrol_director, _patrol.get_generation())
 	_cargo_authority = CargoTransferAuthority.new()
 	_cargo_authority.name = "CinderCargoTransferAuthority"
@@ -435,6 +442,13 @@ func start_patrol() -> Dictionary:
 func advance_patrol(delta: float, position: Vector3) -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
+	# This is the production caller seam, so translate arrival samples before
+	# advancing dwell. Previously no public binding method submitted an arrival;
+	# callers could start the patrol but could never leave its first travel leg.
+	var before := _patrol.get_presentation_snapshot()
+	if before.get("state_id", &"") == &"active" \
+		and before.get("phase_id", &"") == &"travel":
+		_patrol.submit_position(position, _patrol.get_generation())
 	var result: Dictionary = _patrol.advance_physics(delta, position, _patrol.get_generation())
 	_publish_cinder_route_audio()
 	return result
