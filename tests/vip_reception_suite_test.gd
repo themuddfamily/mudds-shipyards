@@ -118,6 +118,7 @@ func _run() -> void:
 	_test_contract(suite)
 	_test_banquette_joint_batch(suite)
 	_test_banquette_cushion_batch(suite)
+	_test_armchair_arm_batch(suite)
 	_test_roof_cassette_batch(suite)
 	_test_outboard_mullion_fillet_batch(suite)
 	_test_outboard_mullion_batch(suite)
@@ -311,20 +312,20 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	var render := suite.get_render_batch_contract()
 	_check(
 		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 456
+		and int(render.descendant_nodes) == 457
 		and int(render.baseline_mesh_instances) == 264
 		and int(render.mesh_instances) == 244
 		and int(render.baseline_multimesh_batches) == 1
-		and int(render.multimesh_batches) == 6,
-		"cumulative visual batching freezes descendants 468 -> 456, MeshInstances 264 -> 244, and batches 1 -> 6"
+		and int(render.multimesh_batches) == 7,
+		"cumulative visual batching freezes descendants 468 -> 457, MeshInstances 264 -> 244, and batches 1 -> 7"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
 		and int(render.drawn_copies) == 278
 		and int(render.baseline_geometry_submissions) == 265
-		and int(render.geometry_submissions) == 243
+		and int(render.geometry_submissions) == 236
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while batched families lower submissions 265 -> 243"
+		"drawn copies remain 278 while batched families lower submissions 265 -> 236"
 	)
 	_check(
 		int(render.banquette_renderer_buffer_floats) == 168
@@ -412,7 +413,7 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 		int(render.banquette_cushion_baseline_submissions) == 7
 		and int(render.banquette_cushion_submissions) == 1
 		and int(render.pre_banquette_cushion_geometry_submissions) == 249
-		and int(render.geometry_submissions) == 243
+		and int(render.geometry_submissions) == 236
 		and int(render.banquette_cushion_geometry_submissions_removed) == 6
 		and int(render.drawn_copies) == 278,
 		"banquette cushions measure 7 -> 1 submissions while all seven visible copies remain"
@@ -443,6 +444,106 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 	)
 	batch.multimesh.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the exact cushion payload restores a clean module audit")
+
+
+func _test_armchair_arm_batch(suite: VipReceptionSuite) -> void:
+	var fitout := suite.get_node_or_null(^"Structure/Fitout") as Node3D
+	var batch := fitout.get_node_or_null(^"ArmchairArms") as MultiMeshInstance3D if fitout != null else null
+	_check(
+		fitout != null and batch != null and batch.multimesh != null,
+		"eight visual-only armchair arms resolve through one Fitout-level MultiMesh"
+	)
+	if fitout == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	var anchors: Array[MeshInstance3D] = []
+	var semantic_seats_intact := true
+	for chair_index in 4:
+		var chair := fitout.get_node_or_null(
+			NodePath("Armchair%02d" % (chair_index + 1))
+		) as Node3D
+		semantic_seats_intact = (
+			semantic_seats_intact
+			and chair != null
+			and bool(chair.get_meta("station_seat", false))
+			and chair.get_node_or_null(^"StationSeatInteraction") is Area3D
+		)
+		if chair == null:
+			continue
+		for raw_child in chair.get_children():
+			if not raw_child is MeshInstance3D:
+				continue
+			var arm := raw_child as MeshInstance3D
+			if arm.mesh == null or not arm.mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.09, 0.16, 0.56)
+			):
+				continue
+			anchors.append(arm)
+			expected.append(chair.transform * arm.transform)
+	var anchor_material: Material = anchors[0].material_override if not anchors.is_empty() else null
+	var anchors_exact := anchors.size() == VipReceptionSuite.ARMCHAIR_ARM_COPY_COUNT
+	for arm in anchors:
+		anchors_exact = (
+			anchors_exact
+			and not arm.visible
+			and arm.mesh != null
+			and arm.mesh.get_aabb().size.is_equal_approx(Vector3(0.09, 0.16, 0.56))
+			and arm.material_override == anchor_material
+			and arm.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and arm.layers == 1
+			and arm.get_child_count() == 0
+			and arm.get_script() == null
+		)
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		semantic_seats_intact and anchors_exact,
+		"four semantic chair roots and all eight chair-local arm anchors remain intact"
+	)
+	_check(
+		batch.multimesh.instance_count == VipReceptionSuite.ARMCHAIR_ARM_COPY_COUNT
+		and batch.multimesh.visible_instance_count == -1
+		and authored_exact
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.09, 0.16, 0.56))
+		and batch.material_override == anchor_material
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"arm batch preserves every pose, material, culling input, shadow state and render layer"
+	)
+	var render := suite.get_render_batch_contract()
+	_check(
+		int(render.armchair_arm_copies) == 8
+		and int(render.armchair_arm_baseline_submissions) == 8
+		and int(render.armchair_arm_submissions) == 1
+		and int(render.pre_armchair_arm_geometry_submissions) == 243
+		and int(render.geometry_submissions) == 236
+		and int(render.armchair_arm_geometry_submissions_removed) == 7
+		and int(render.drawn_copies) == 278,
+		"armchair arms reduce submissions 8 -> 1 and suite submissions 243 -> 236"
+	)
+	_check(
+		int(render.armchair_arm_renderer_buffer_floats) == 96
+		and bool(render.armchair_arm_renderer_buffer_matches_authored)
+		and bool(render.armchair_arm_bounds_match_authored)
+		and bool(render.armchair_arm_visual_contract_matches)
+		and bool(render.exact_counts),
+		"arm renderer payload and aggregate culling bounds remain exact"
+	)
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	batch.multimesh.buffer = mutated_buffer
+	_check(
+		suite.get_validation_errors().has("VIP armchair-arm renderer buffer drifted from its authored roster"),
+		"RED: mutating one live arm pose is rejected by the module audit"
+	)
+	batch.multimesh.buffer = original_buffer
+	_check(suite.get_validation_errors().is_empty(), "restoring the exact arm payload restores a clean module audit")
 
 
 func _test_servery_shelf_batch(suite: VipReceptionSuite) -> void:
@@ -568,7 +669,7 @@ func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
 	_check(
 		int(render.roof_cassette_copies) == 5
 		and int(render.roof_cassette_renderer_buffer_floats) == 60
-		and int(render.renderer_buffer_floats) == 456
+		and int(render.renderer_buffer_floats) == 552
 		and bool(render.roof_cassette_renderer_buffer_matches_authored)
 		and bool(render.roof_cassette_bounds_match_authored)
 		and bool(render.renderer_buffer_matches_authored)
@@ -645,13 +746,13 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_mullion_descendant_nodes) == 464
-		and int(render.descendant_nodes) == 456
+		and int(render.descendant_nodes) == 457
 		and int(render.pre_mullion_mesh_instances) == 259
 		and int(render.mesh_instances) == 244
 		and int(render.pre_mullion_multimesh_batches) == 2
-		and int(render.multimesh_batches) == 6
+		and int(render.multimesh_batches) == 7
 		and int(render.pre_mullion_geometry_submissions) == 261
-		and int(render.geometry_submissions) == 243
+		and int(render.geometry_submissions) == 236
 		and int(render.drawn_copies) == 278,
 		"fillet family cuts six renderer nodes/submissions to one while preserving all drawn copies"
 	)
@@ -735,13 +836,13 @@ func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_outboard_mullion_descendant_nodes) == 460
-		and int(render.descendant_nodes) == 456
+		and int(render.descendant_nodes) == 457
 		and int(render.pre_outboard_mullion_mesh_instances) == 250
 		and int(render.mesh_instances) == 244
 		and int(render.pre_outboard_mullion_multimesh_batches) == 4
-		and int(render.multimesh_batches) == 6
+		and int(render.multimesh_batches) == 7
 		and int(render.pre_outboard_mullion_geometry_submissions) == 254
-		and int(render.geometry_submissions) == 243
+		and int(render.geometry_submissions) == 236
 		and int(render.drawn_copies) == 278,
 		"mullion batching removes five renderer submissions while preserving all 278 copies"
 	)

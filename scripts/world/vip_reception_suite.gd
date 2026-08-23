@@ -122,14 +122,16 @@ const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
 ## exterior roof cassettes, six bronze outboard mullion fillets, three servery
-## shelves, six collision-backed outboard mullions, and seven banquette cushions
-## still draw, but six MultiMeshes own their visual-only submissions.
+## shelves, six collision-backed outboard mullions, seven banquette cushions,
+## and eight armchair arms still draw, but seven MultiMeshes own their
+## visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const BANQUETTE_CUSHION_COPY_COUNT := 7
 const ROOF_CASSETTE_COPY_COUNT := 5
 const OUTBOARD_MULLION_FILLET_COPY_COUNT := 6
 const OUTBOARD_MULLION_COPY_COUNT := 6
 const SERVERY_SHELF_COPY_COUNT := 3
+const ARMCHAIR_ARM_COPY_COUNT := 8
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
@@ -144,11 +146,12 @@ const PRE_OUTBOARD_MULLION_RENDER_MESH_INSTANCE_COUNT := 250
 const PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 4
 const PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
 const PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT := 249
-const RENDER_DESCENDANT_COUNT := 456
+const PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT := 243
+const RENDER_DESCENDANT_COUNT := 457
 const RENDER_MESH_INSTANCE_COUNT := 244
-const RENDER_MULTIMESH_BATCH_COUNT := 6
+const RENDER_MULTIMESH_BATCH_COUNT := 7
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 243
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 236
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -194,6 +197,8 @@ var _outboard_mullion_fillet_batch: MultiMeshInstance3D = null
 var _outboard_mullion_transforms: Array[Transform3D] = []
 var _outboard_mullion_batch: MultiMeshInstance3D = null
 var _servery_shelf_batch: MultiMeshInstance3D = null
+var _armchair_arm_transforms: Array[Transform3D] = []
+var _armchair_arm_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -514,6 +519,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP outboard-mullion batch bounds drifted from its authored copies")
 	if not bool(rendering.outboard_mullion_visual_contract_matches):
 		errors.append("VIP outboard-mullion visual contract drifted")
+	if not bool(rendering.armchair_arm_renderer_buffer_matches_authored):
+		errors.append("VIP armchair-arm renderer buffer drifted from its authored roster")
+	if not bool(rendering.armchair_arm_bounds_match_authored):
+		errors.append("VIP armchair-arm batch bounds drifted from its authored copies")
+	if not bool(rendering.armchair_arm_visual_contract_matches):
+		errors.append("VIP armchair-arm visual contract drifted")
 	return errors
 
 
@@ -732,6 +743,39 @@ func get_render_batch_contract() -> Dictionary:
 			and _outboard_mullion_batch.get_child_count() == 0
 			and _outboard_mullion_batch.get_script() == null
 		)
+	var expected_armchair_arm_buffer := _encode_multimesh_transforms(
+		_armchair_arm_transforms
+	)
+	var armchair_arm_renderer_buffer_matches := (
+		is_instance_valid(_armchair_arm_batch)
+		and _armchair_arm_batch.multimesh != null
+		and _armchair_arm_batch.multimesh.buffer == expected_armchair_arm_buffer
+	)
+	var armchair_arm_bounds_match := false
+	var armchair_arm_visual_contract_matches := false
+	if is_instance_valid(_armchair_arm_batch) and _armchair_arm_batch.multimesh != null:
+		var expected_armchair_arm_bounds := _transformed_mesh_bounds(
+			_armchair_arm_batch.multimesh.mesh.get_aabb(),
+			_armchair_arm_transforms
+		)
+		armchair_arm_bounds_match = _armchair_arm_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_armchair_arm_bounds
+		)
+		armchair_arm_visual_contract_matches = (
+			_armchair_arm_batch.multimesh.instance_count == ARMCHAIR_ARM_COPY_COUNT
+			and _armchair_arm_batch.multimesh.visible_instance_count == -1
+			and _armchair_arm_batch.multimesh.mesh.get_surface_count() == 1
+			and _armchair_arm_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.09, 0.16, 0.56)
+			)
+			and _armchair_arm_batch.material_override == _materials.get("upholstery_dark")
+			and _armchair_arm_batch.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _armchair_arm_batch.layers == 1
+			and _armchair_arm_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _armchair_arm_batch.get_child_count() == 0
+			and _armchair_arm_batch.get_script() == null
+		)
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -740,6 +784,7 @@ func get_render_batch_contract() -> Dictionary:
 		and drawn_copies == RENDER_DRAWN_COPY_COUNT
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
 		and _banquette_cushion_transforms.size() == BANQUETTE_CUSHION_COPY_COUNT
+		and _armchair_arm_transforms.size() == ARMCHAIR_ARM_COPY_COUNT
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -755,7 +800,8 @@ func get_render_batch_contract() -> Dictionary:
 		"geometry_submissions": submissions,
 		"pre_banquette_cushion_geometry_submissions": PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT,
 		"banquette_cushion_geometry_submissions_removed": (
-			PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT - submissions
+			PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT
+			- PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT
 		),
 		"pre_mullion_descendant_nodes": PRE_MULLION_RENDER_DESCENDANT_COUNT,
 		"pre_mullion_mesh_instances": PRE_MULLION_RENDER_MESH_INSTANCE_COUNT,
@@ -769,6 +815,13 @@ func get_render_batch_contract() -> Dictionary:
 		"banquette_cushion_copies": _banquette_cushion_transforms.size(),
 		"banquette_cushion_baseline_submissions": BANQUETTE_CUSHION_COPY_COUNT,
 		"banquette_cushion_submissions": 1 if cushion_visual_contract_matches else 0,
+		"pre_armchair_arm_geometry_submissions": PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT,
+		"armchair_arm_geometry_submissions_removed": (
+			PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
+		"armchair_arm_copies": _armchair_arm_transforms.size(),
+		"armchair_arm_baseline_submissions": ARMCHAIR_ARM_COPY_COUNT,
+		"armchair_arm_submissions": 1 if armchair_arm_visual_contract_matches else 0,
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
 		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
 		"outboard_mullion_copies": _outboard_mullion_transforms.size(),
@@ -797,6 +850,11 @@ func get_render_batch_contract() -> Dictionary:
 			if is_instance_valid(_outboard_mullion_batch)
 			and _outboard_mullion_batch.multimesh != null else 0
 		),
+		"armchair_arm_renderer_buffer_floats": (
+			_armchair_arm_batch.multimesh.buffer.size()
+			if is_instance_valid(_armchair_arm_batch)
+			and _armchair_arm_batch.multimesh != null else 0
+		),
 		"renderer_buffer_floats": (
 			(_banquette_joint_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -813,6 +871,9 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_banquette_cushion_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_cushion_batch)
 				and _banquette_cushion_batch.multimesh != null else 0)
+			+ (_armchair_arm_batch.multimesh.buffer.size()
+				if is_instance_valid(_armchair_arm_batch)
+				and _armchair_arm_batch.multimesh != null else 0)
 		),
 		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
 		"banquette_bounds_match_authored": joint_bounds_match,
@@ -827,6 +888,9 @@ func get_render_batch_contract() -> Dictionary:
 		"outboard_mullion_renderer_buffer_matches_authored": structural_mullion_renderer_buffer_matches,
 		"outboard_mullion_bounds_match_authored": structural_mullion_bounds_match,
 		"outboard_mullion_visual_contract_matches": structural_mullion_visual_contract_matches,
+		"armchair_arm_renderer_buffer_matches_authored": armchair_arm_renderer_buffer_matches,
+		"armchair_arm_bounds_match_authored": armchair_arm_bounds_match,
+		"armchair_arm_visual_contract_matches": armchair_arm_visual_contract_matches,
 		"renderer_buffer_matches_authored": (
 			joint_renderer_buffer_matches
 			and roof_renderer_buffer_matches
@@ -834,10 +898,12 @@ func get_render_batch_contract() -> Dictionary:
 			and structural_mullion_renderer_buffer_matches
 			and cushion_renderer_buffer_matches
 			and cushion_visual_contract_matches
+			and armchair_arm_renderer_buffer_matches
+			and armchair_arm_visual_contract_matches
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
 			and mullion_bounds_match and structural_mullion_bounds_match \
-			and cushion_bounds_match,
+			and cushion_bounds_match and armchair_arm_bounds_match,
 		"outboard_mullion_baseline_mesh_instances": OUTBOARD_MULLION_COPY_COUNT,
 		"outboard_mullion_mesh_instances": 0,
 		"outboard_mullion_multimesh_resources": (
@@ -914,6 +980,7 @@ func get_render_batch_contract() -> Dictionary:
 			_outboard_mullion_fillet_transforms.duplicate()
 		),
 		"authored_outboard_mullion_transforms": _outboard_mullion_transforms.duplicate(),
+		"authored_armchair_arm_transforms": _armchair_arm_transforms.duplicate(),
 	}
 
 
@@ -1435,10 +1502,19 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 
 	# Four armchairs: two in the well facing the view across the table, two on the
 	# starboard glazing as a window pair.
-	_build_armchair(fitout, 0, Vector3(-3.35, WELL_FLOOR, 9.9), 118.0)
-	_build_armchair(fitout, 1, Vector3(0.15, WELL_FLOOR, 9.9), -118.0)
-	_build_armchair(fitout, 2, Vector3(3.0, 0.0, 7.2), -74.0)
-	_build_armchair(fitout, 3, Vector3(3.0, 0.0, 10.3), -106.0)
+	var armchair_arm_transforms: Array[Transform3D] = []
+	_build_armchair(fitout, 0, Vector3(-3.35, WELL_FLOOR, 9.9), 118.0, armchair_arm_transforms)
+	_build_armchair(fitout, 1, Vector3(0.15, WELL_FLOOR, 9.9), -118.0, armchair_arm_transforms)
+	_build_armchair(fitout, 2, Vector3(3.0, 0.0, 7.2), -74.0, armchair_arm_transforms)
+	_build_armchair(fitout, 3, Vector3(3.0, 0.0, 10.3), -106.0, armchair_arm_transforms)
+	_armchair_arm_transforms.assign(armchair_arm_transforms)
+	_armchair_arm_batch = _multimesh_boxes(
+		fitout,
+		"ArmchairArms",
+		Vector3(0.09, 0.16, 0.56),
+		_materials["upholstery_dark"],
+		_armchair_arm_transforms
+	)
 	_cylinder(fitout, "WindowPairTable", Vector3(3.35, 0.28, 8.75), 0.34, 0.56, _materials["bronze"], true)
 
 	# Servery on the port wall: stone counter, lacquer body, a lit niche behind
@@ -1556,7 +1632,13 @@ func _build_banquette_segment(
 		)
 
 
-func _build_armchair(parent: Node3D, index: int, chair_position: Vector3, yaw_degrees: float) -> void:
+func _build_armchair(
+		parent: Node3D,
+		index: int,
+		chair_position: Vector3,
+		yaw_degrees: float,
+		arm_transforms: Array[Transform3D]
+	) -> void:
 	var chair := Node3D.new()
 	chair.name = "Armchair%02d" % (index + 1)
 	chair.position = chair_position
@@ -1573,7 +1655,11 @@ func _build_armchair(parent: Node3D, index: int, chair_position: Vector3, yaw_de
 	_box(chair, "Seat", Vector3(0.0, 0.44, 0.0), Vector3(0.72, 0.16, 0.7), _materials["upholstery"], false)
 	_box(chair, "Back", Vector3(0.0, 0.75, -0.29), Vector3(0.72, 0.62, 0.14), _materials["upholstery"], false, Vector3(-11.0, 0.0, 0.0))
 	for side in [-1.0, 1.0]:
-		_box(chair, "Arm", Vector3(float(side) * 0.37, 0.6, -0.02), Vector3(0.09, 0.16, 0.56), _materials["upholstery_dark"], false)
+		var arm_anchor := _box(chair, "Arm", Vector3(float(side) * 0.37, 0.6, -0.02), Vector3(0.09, 0.16, 0.56), _materials["upholstery_dark"], false)
+		arm_transforms.append(chair.transform * arm_anchor.transform)
+		# Preserve each stable chair-local arm path and exact transform as a hidden
+		# inspection anchor; the Fitout batch owns only the visible copies.
+		arm_anchor.visible = false
 		_beam_between(chair, "ArmStay", Vector3(float(side) * 0.37, 0.44, 0.16), Vector3(float(side) * 0.37, 0.53, 0.16), 0.03, _materials["bronze"], false)
 
 
