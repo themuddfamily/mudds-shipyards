@@ -29,6 +29,7 @@ func _run() -> void:
 
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
+	_test_load_mark_render_allocation(jovian)
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
 	_test_cargo_frame_joint_allocation(jovian)
@@ -147,6 +148,55 @@ func _test_defensive_weapon_visual(jovian: JovianLightFreighter) -> void:
 			and shroud_mesh.get_aabb().size.is_equal_approx(Vector3(0.56, 0.46, 0.72)),
 			"%s defensive mount keeps the frozen freighter-scale base, barrel, receiver, and shroud dimensions" % prefix
 		)
+
+
+func _test_load_mark_render_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_load_mark_render_audit()
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	var visual := jovian.get_node_or_null(^"JovianFreighterVisual") as Node3D
+	var batch := visual.get_node_or_null(^"LoadMarkBatch") as MultiMeshInstance3D if visual != null else null
+	_check(
+		bool(audit.get("valid", false))
+			and int(legacy.get("renderer_nodes", 0)) == 6
+			and int(legacy.get("submissions", 0)) == 6
+			and int(current.get("renderer_nodes", 0)) == 1
+			and int(current.get("submissions", 0)) == 1
+			and int(current.get("copies", 0)) == 6
+			and int(delta.get("renderer_nodes", 0)) == -5
+			and int(delta.get("submissions", 0)) == -5,
+		"six exterior amber load marks batch from six renderer nodes/submissions to one without losing a visible copy"
+	)
+	_check(
+		batch != null and batch.multimesh != null
+			and batch.multimesh.instance_count == JovianLightFreighter.LOAD_MARK_COPY_COUNT
+			and batch.get_child_count() == 0
+			and bool(batch.get_meta("visual_detail_only", false)),
+		"load-mark batch remains childless visual-only presentation"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var transforms := audit.get("authored_transforms", []) as Array
+	_check(
+		transforms.size() == 6
+			and (transforms[0] as Transform3D).origin.is_equal_approx(Vector3(-7.88, 1.15, -1.3))
+			and (transforms[5] as Transform3D).origin.is_equal_approx(Vector3(7.88, 1.15, 0.9)),
+		"batched load marks retain the frozen port-to-starboard authored transform roster"
+	)
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.1
+	batch.multimesh.buffer = mutated_buffer
+	_check(
+		not bool(jovian.get_load_mark_render_audit().get("valid", true)),
+		"RED: mutating a live load-mark transform buffer fails the render allocation audit"
+	)
+	batch.multimesh.buffer = original_buffer
+	_check(
+		bool(jovian.get_load_mark_render_audit().get("valid", false)),
+		"restoring the load-mark transform buffer returns the render allocation audit green"
+	)
 
 
 func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:

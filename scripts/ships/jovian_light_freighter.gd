@@ -72,6 +72,13 @@ const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
 const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
 
+## Six childless load marks are the same amber exterior cue at mirrored flank
+## transforms. They own no collision, interaction, evidence or lifecycle state,
+## so one visual-only MultiMesh keeps all six visible copies while removing five
+## renderer nodes and structural surface submissions.
+const LOAD_MARK_COPY_COUNT := 6
+const LOAD_MARK_SIZE := Vector3(0.12, 0.42, 0.72)
+
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
 # Their geometry recipe and structure material are exact, so those nodes share
@@ -213,6 +220,9 @@ var _passenger_seat_base_mesh: ArrayMesh
 var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
+var _load_mark_mesh: ArrayMesh
+var _load_mark_batch: MultiMeshInstance3D
+var _load_mark_transforms: Array[Transform3D] = []
 var _elapsed_jovian := 0.0
 var _crew_role_authority: CrewSeatRoleAuthority
 var _engineer_component_selection: Dictionary = {}
@@ -1018,6 +1028,7 @@ func get_defensive_weapon_visual_report() -> Dictionary:
 func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var defensive_weapon_visual := get_defensive_weapon_visual_report()
+	var load_mark_allocation := get_load_mark_render_audit()
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
@@ -1050,6 +1061,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("defensive muzzle markers are missing")
 	if not bool(defensive_weapon_visual.get("valid", false)):
 		errors.append("modern provisional defensive weapon visual drifted")
+	if not bool(load_mark_allocation.get("valid", false)):
+		errors.append("load-mark visual batching contract drifted")
 	if not bool(dorsal_rib_allocation.get("valid", false)):
 		errors.append("dorsal cargo rib joint allocation contract drifted")
 	if not bool(shoulder_rail_allocation.get("valid", false)):
@@ -1070,6 +1083,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"engine_count": _engine_plumes.size(),
 		"weapon_class": &"freighter_defensive_pulse",
 		"defensive_weapon_visual": defensive_weapon_visual,
+		"load_mark_render_allocation": load_mark_allocation,
 		"combat_source_id": COMBAT_SOURCE_ID,
 		"interior": get_walkable_interior_report(),
 		"evidence": get_jovian_evidence_report(),
@@ -1079,6 +1093,87 @@ func get_jovian_audit_report() -> Dictionary:
 		"passenger_seat_mesh_allocation": passenger_seat_allocation,
 		"passenger_cabin_light_strip_allocation": passenger_cabin_light_strip_allocation,
 	}
+
+
+func get_load_mark_render_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var multi := _load_mark_batch.multimesh if is_instance_valid(_load_mark_batch) else null
+	var expected_names := PackedStringArray([
+		"PortLoadMark00", "PortLoadMark01", "PortLoadMark02",
+		"StarboardLoadMark00", "StarboardLoadMark01", "StarboardLoadMark02",
+	])
+	if _jovian_visual == null or not is_instance_valid(_jovian_visual):
+		errors.append("load_mark_visual_root_unavailable")
+	if not is_instance_valid(_load_mark_batch) or multi == null or multi.mesh == null:
+		errors.append("load_mark_batch_unavailable")
+	else:
+		if _load_mark_batch.get_parent() != _jovian_visual or _load_mark_batch.name != &"LoadMarkBatch":
+			errors.append("load_mark_batch_path_drift")
+		if multi.mesh != _load_mark_mesh or not multi.mesh.get_aabb().size.is_equal_approx(LOAD_MARK_SIZE):
+			errors.append("load_mark_mesh_recipe_drift")
+		if (
+			multi.instance_count != LOAD_MARK_COPY_COUNT
+			or multi.visible_instance_count != -1
+			or multi.mesh.get_surface_count() != 1
+			or multi.mesh.surface_get_material(0) != _jovian_materials.get("amber")
+			or _load_mark_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			or _load_mark_batch.layers != 1
+		):
+			errors.append("load_mark_renderer_recipe_drift")
+		if multi.buffer != _encode_load_mark_transforms(_load_mark_transforms):
+			errors.append("load_mark_transform_buffer_drift")
+		if not multi.custom_aabb.is_equal_approx(_load_mark_bounds(multi.mesh.get_aabb(), _load_mark_transforms)):
+			errors.append("load_mark_culling_bounds_drift")
+		if _load_mark_batch.get_meta("authored_visual_names", PackedStringArray()) != expected_names:
+			errors.append("load_mark_authored_name_roster_drift")
+		if _load_mark_batch.get_child_count() != 0 or not bool(_load_mark_batch.get_meta("visual_detail_only", false)):
+			errors.append("load_mark_gained_authority")
+	if _load_mark_transforms.size() != LOAD_MARK_COPY_COUNT:
+		errors.append("load_mark_transform_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy": {"renderer_nodes": LOAD_MARK_COPY_COUNT, "submissions": LOAD_MARK_COPY_COUNT},
+		"current": {"renderer_nodes": 1, "submissions": 1, "copies": LOAD_MARK_COPY_COUNT},
+		"delta": {"renderer_nodes": 1 - LOAD_MARK_COPY_COUNT, "submissions": 1 - LOAD_MARK_COPY_COUNT},
+		"authored_transforms": _load_mark_transforms.duplicate(),
+		"batched": true,
+		"collision_authority": false,
+	}.duplicate(true)
+
+
+func _encode_load_mark_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+func _load_mark_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform in transforms:
+		var transformed := (transform * mesh_bounds).abs()
+		if first:
+			result = transformed
+			first = false
+		else:
+			result = result.merge(transformed)
+	return result
 
 
 ## Six passenger seats retain all 18 visible parts and submissions, while their
@@ -2314,14 +2409,30 @@ func _build_exterior() -> void:
 			_jovian_materials.structure
 		)
 		for stripe_index in 3:
-			_box(
-				_jovian_visual,
-				"PortLoadMark" if side < 0.0 else "StarboardLoadMark",
-				Vector3(side * 7.88, 1.15, -1.3 + stripe_index * 1.1),
-				Vector3(0.12, 0.42, 0.72),
-				_jovian_materials.amber,
-				Vector3(0.0, 0.0, side * deg_to_rad(18.0))
-			)
+			_load_mark_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(0.0, 0.0, side * deg_to_rad(18.0))),
+				Vector3(side * 7.88, 1.15, -1.3 + stripe_index * 1.1)
+			))
+	_load_mark_mesh = _rounded_box_mesh(LOAD_MARK_SIZE, _jovian_materials.amber)
+	var load_marks := MultiMesh.new()
+	load_marks.transform_format = MultiMesh.TRANSFORM_3D
+	load_marks.mesh = _load_mark_mesh
+	load_marks.instance_count = _load_mark_transforms.size()
+	load_marks.visible_instance_count = -1
+	load_marks.buffer = _encode_load_mark_transforms(_load_mark_transforms)
+	load_marks.custom_aabb = _load_mark_bounds(_load_mark_mesh.get_aabb(), _load_mark_transforms)
+	_load_mark_batch = MultiMeshInstance3D.new()
+	_load_mark_batch.name = "LoadMarkBatch"
+	_load_mark_batch.multimesh = load_marks
+	_load_mark_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_load_mark_batch.layers = 1
+	_load_mark_batch.set_meta("visual_detail_only", true)
+	_load_mark_batch.set_meta("authored_visual_names", PackedStringArray([
+		"PortLoadMark00", "PortLoadMark01", "PortLoadMark02",
+		"StarboardLoadMark00", "StarboardLoadMark01", "StarboardLoadMark02",
+	]))
+	_load_mark_batch.set_meta("authored_instance_transforms", _load_mark_transforms.duplicate())
+	_jovian_visual.add_child(_load_mark_batch)
 
 	# The deployed ramp and frame are deliberately obvious from the berth. The
 	# opening remains geometrically clear all the way to the cargo deck.
