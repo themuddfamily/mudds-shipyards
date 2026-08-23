@@ -329,6 +329,26 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY] == settings_payload,
 		"STABLE refreshes the policy after the adapter's shared-store recommendation commit"
 	)
+	var restored_profile := flow._safe_start_production_recovery.restore_prior_graphics_profile(
+		Callable(flow, "_persist_runtime_settings")
+	)
+	_check(
+		bool(restored_profile.accepted)
+		and restored_profile.reason == &"prior_graphics_profile_restored"
+		and flow.get_runtime_settings().graphics_profile == Settings.GraphicsProfile.HIGH
+		and flow.get_runtime_settings().window_mode == Settings.WindowMode.FULLSCREEN
+		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY].values.graphics_profile == "high"
+		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY].values.window_mode == "fullscreen",
+		"stable safe-start recovery explicitly restores the one-time prior graphics profile"
+	)
+	var repeated_restore := flow._safe_start_production_recovery.restore_prior_graphics_profile(
+		Callable(flow, "_persist_runtime_settings")
+	)
+	_check(
+		not bool(repeated_restore.accepted)
+		and repeated_restore.reason == &"recovery_receipt_consumed",
+		"the graphics recovery receipt cannot be replayed"
+	)
 	flow.free()
 
 	filesystem = FakeFilesystem.new()

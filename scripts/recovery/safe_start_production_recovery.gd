@@ -55,6 +55,7 @@ var _transition_success_count := 0
 var _last_commit_id := ""
 var _begin_attempted_before_first_apply := false
 var _starting_before_first_apply := false
+var _graphics_recovery_receipt: Dictionary = {}
 
 
 func _init(
@@ -226,6 +227,56 @@ func mark_orderly_shutdown() -> Dictionary:
 	return _orderly_shutdown_status.duplicate(true)
 
 
+## Restores the validated graphics/window profile that safe-start temporarily
+## replaced, but only after this instance has reached STABLE. The receipt is
+## one-shot and remains available when live or durable restoration fails.
+func restore_prior_graphics_profile(persist_settings: Callable) -> Dictionary:
+	if _policy == null or not _initialized:
+		return _local_status(false, &"policy_unavailable")
+	if _graphics_recovery_receipt.is_empty():
+		return _local_status(false, &"no_recovery_receipt")
+	if bool(_graphics_recovery_receipt.get("consumed", false)):
+		return _local_status(false, &"recovery_receipt_consumed")
+	if _policy.get_snapshot().get("state") != Record.STATE_STABLE:
+		return _local_status(false, &"stability_not_confirmed")
+	if _stable_status.get("reason") not in [&"startup_stable", &"already_stable"]:
+		return _local_status(false, &"stability_not_confirmed")
+	if not persist_settings.is_valid():
+		return _local_status(false, &"settings_persistence_unavailable")
+	var before_payload := _settings.to_user_data_payload()
+	var before_values := before_payload.get("values", {}) as Dictionary
+	if before_values.get("graphics_profile") != "low" \
+		or before_values.get("window_mode") != "windowed":
+		return _local_status(false, &"live_profile_changed")
+	var prior_values := _graphics_recovery_receipt.get("prior_values", {}) as Dictionary
+	if not prior_values.has("graphics_profile") or not prior_values.has("window_mode"):
+		return _local_status(false, &"recovery_receipt_invalid")
+	var merged_payload := before_payload.duplicate(true)
+	var merged_values := merged_payload.get("values", {}) as Dictionary
+	merged_values["graphics_profile"] = prior_values.graphics_profile
+	merged_values["window_mode"] = prior_values.window_mode
+	merged_payload["values"] = merged_values
+	var merged_validation := _settings.validate_user_data_payload(merged_payload)
+	if not bool(merged_validation.get("accepted", false)):
+		return _local_status(false, &"restored_profile_invalid")
+	var applied := _settings.apply_user_data_payload(merged_payload)
+	if not bool(applied.get("accepted", false)):
+		return _local_status(false, &"restored_profile_apply_failed", {"apply_status": applied})
+	var generation_before := _store.get_generation()
+	var saved := persist_settings.call() as Dictionary
+	if not bool(saved.get("accepted", false)):
+		_settings.apply_user_data_payload(before_payload)
+		return _local_status(false, &"restored_profile_save_failed", {
+			"save_status": saved,
+			"rolled_back_live_settings": true,
+		})
+	_graphics_recovery_receipt["consumed"] = true
+	return _local_status(true, &"prior_graphics_profile_restored", {
+		"save_status": saved,
+		"store_generation_changed": _store.get_generation() != generation_before,
+	})
+
+
 func validate_recommendation(recommendation: Dictionary) -> Dictionary:
 	var expected_keys := [
 		"schema_version",
@@ -297,6 +348,7 @@ func get_report() -> Dictionary:
 		"stable_status": _stable_status.duplicate(true),
 		"orderly_shutdown_status": _orderly_shutdown_status.duplicate(true),
 		"recommendation_status": _recommendation_status.duplicate(true),
+		"graphics_recovery_receipt": _graphics_recovery_receipt.duplicate(true),
 		"policy_snapshot": policy_snapshot.duplicate(true),
 		"last_commit_id": _last_commit_id,
 		"commit_clock": &"store_generation_successor",
@@ -346,6 +398,7 @@ func _apply_recommendation(
 				{"payload_reason": existing_validation.get("reason")}
 			)
 	var before_payload := _settings.to_user_data_payload()
+	var before_values := before_payload.get("values", {}) as Dictionary
 	var merged_payload := before_payload.duplicate(true)
 	var merged_values := merged_payload.get("values", {}) as Dictionary
 	merged_values["graphics_profile"] = "low"
@@ -374,11 +427,21 @@ func _apply_recommendation(
 	var saved := persist_settings.call() as Dictionary
 	if not bool(saved.get("accepted", false)):
 		_settings.apply_user_data_payload(before_payload)
+		_graphics_recovery_receipt = {}
 		return _local_status(false, &"settings_save_failed", {
 			"save_status": saved,
 			"rolled_back_live_settings": true,
 			"store_generation_changed": _store.get_generation() != generation_before,
 		})
+	_graphics_recovery_receipt = {
+		"consumed": false,
+		"source_store_generation": _store.get_generation(),
+		"startup_generation": _startup_generation,
+		"prior_values": {
+			"graphics_profile": before_values.get("graphics_profile"),
+			"window_mode": before_values.get("window_mode"),
+		},
+	}
 	return _local_status(true, &"settings_merged", {
 		"save_status": saved,
 		"rolled_back_live_settings": false,
