@@ -11,6 +11,9 @@ const RELAY_ANCHOR := Vector3(180.0, 120009.0, -44.0)
 const RETURN_ANCHOR := Vector3(540.0, 120030.0, -210.0)
 const APPROACH_SCALE := Vector3(1.35, 0.55, 1.35)
 const ACTIVE_SCALE := Vector3.ONE
+const ROUTE_COMPLETE_RING_SCALE := Vector3(1.35, 1.35, 1.35)
+const REWARD_CONFIRMED_RING_SCALE := Vector3(1.08, 1.08, 1.08)
+const REWARD_CONFIRMED_SEAL_SCALE := Vector3(1.18, 1.18, 1.18)
 const RELAY_COLOR := Color(0.2, 0.7, 1.0, 1.0)
 const RETURN_COLOR := Color(1.0, 0.55, 0.15, 1.0)
 const COMPLETION_COLOR := Color(0.95, 0.82, 0.25, 1.0)
@@ -24,6 +27,7 @@ var _cue_mode: StringName = &"hidden"
 var _optional_checkpoint: Dictionary = {}
 var _mandatory_route: Dictionary = {}
 var _attached := true
+var _activity_generation := -1
 
 func _ready() -> void:
 	set_process(false)
@@ -68,6 +72,7 @@ func apply_activity_snapshot(
 	):
 		return {"accepted": false, "reason": &"invalid_mandatory_route_snapshot"}
 	_state = state
+	_activity_generation = int(activity.get("activity_generation", -1))
 	_optional_checkpoint = checkpoint.duplicate(true)
 	_mandatory_route = route.duplicate(true)
 	_attached = true
@@ -99,6 +104,7 @@ func get_snapshot() -> Dictionary:
 		"return_silhouette": &"return_ring",
 		"completion_silhouette": &"diamond_reward_seal",
 		"route_direction": _route_direction_snapshot(),
+		"completion_response": _completion_response_snapshot(),
 		"reward_confirmation_persistent": true,
 		"hud": _checkpoint_hud_snapshot(),
 		"reduced_flash_safe": true,
@@ -120,6 +126,8 @@ func get_snapshot() -> Dictionary:
 
 func _apply_state(state: StringName) -> void:
 	_relay_marker.position = RELAY_ANCHOR
+	_return_marker.scale = Vector3.ONE
+	_completion_seal.scale = Vector3.ONE
 	_relay_marker.visible = state in [&"ready", &"active"]
 	_return_marker.visible = state in [&"awaiting_reward", &"completed"]
 	_completion_seal.visible = state == &"completed"
@@ -142,10 +150,14 @@ func _apply_state(state: StringName) -> void:
 			_relay_marker.rotation = Vector3.ZERO
 			_cue_mode = &"active_relay"
 	elif state == &"awaiting_reward":
+		# The existing ring expands as a static, shape-only route lock witness.
+		_return_marker.scale = ROUTE_COMPLETE_RING_SCALE
 		_cue_mode = &"return"
 	elif state == &"completed":
 		# The ring remains as the return landmark while its static diamond core
 		# confirms that the authoritative reward handoff succeeded.
+		_return_marker.scale = REWARD_CONFIRMED_RING_SCALE
+		_completion_seal.scale = REWARD_CONFIRMED_SEAL_SCALE
 		_cue_mode = &"reward_confirmed"
 	else:
 		_cue_mode = &"hidden"
@@ -186,6 +198,45 @@ func _route_direction_snapshot() -> Dictionary:
 			"triangles": 0, "maximum_visible_submissions": 1,
 		},
 		"authority": {"navigation": false, "movement": false, "reward": false},
+	}.duplicate(true)
+
+
+func _completion_response_snapshot() -> Dictionary:
+	var visible := _attached and _state in [&"awaiting_reward", &"completed"]
+	var response_state: StringName = &"hidden"
+	var status_text := ""
+	var silhouette: StringName = &"none"
+	if visible and _state == &"awaiting_reward":
+		response_state = &"route_complete_pending_reward"
+		status_text = "Survey route locked — return data ready"
+		silhouette = &"expanded_return_ring"
+	elif visible and _state == &"completed":
+		response_state = &"reward_confirmed"
+		status_text = "Survey data accepted"
+		silhouette = &"ring_and_expanded_diamond"
+	return {
+		"visible": visible,
+		"state": response_state,
+		"status_text": status_text,
+		"anchor": RETURN_ANCHOR,
+		"activity_generation": _activity_generation,
+		"route_complete": _state in [&"awaiting_reward", &"completed"],
+		"reward_committed": _state == &"completed",
+		"silhouette": silhouette,
+		"color_independent": true,
+		"ring_scale": _return_marker.scale if _return_marker != null else Vector3.ONE,
+		"seal_scale": _completion_seal.scale if _completion_seal != null else Vector3.ONE,
+		"reused_nodes": PackedStringArray([
+			"OwnedReturnSurveyMarker", "OwnedRewardCompletionSeal",
+		]),
+		"incremental_budget": {
+			"nodes": 0, "mesh_instances": 0, "materials": 0,
+			"triangles": 0, "lights": 0,
+		},
+		"authority": {
+			"activity": false, "reward": false, "movement": false,
+			"navigation": false, "audio": false,
+		},
 	}.duplicate(true)
 
 
