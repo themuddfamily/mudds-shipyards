@@ -131,6 +131,7 @@ var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
 var _damage_jitter
 var _damage_replica_samples: Dictionary = {}
+var _damage_snapshot_revision := 0
 var _boarding_jitter
 var _boarding_replica_samples: Dictionary = {}
 var _migration_jitter
@@ -740,7 +741,7 @@ func register_damage_entity(
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
-	if not _peer_generations.has(owner_peer_id):
+	if owner_peer_id != AUTHORITY_PEER_ID and not _peer_generations.has(owner_peer_id):
 		return _remember(_result(false, &"peer_not_admitted"))
 	var result: Dictionary = _damage_respawn.register_entity(
 		AUTHORITY_PEER_ID, owner_peer_id, entity_id, entity_generation,
@@ -769,6 +770,45 @@ func record_damage(
 	)
 	damage_respawn_result.emit(result.duplicate(true))
 	return _remember(result)
+
+
+func publish_damage_respawn_snapshot(
+	entity_id: StringName,
+	entity_generation: int,
+	health: float,
+	state: StringName,
+	destroyed: bool = false,
+	recovery_generation: int = 0,
+	recipients: Array = [],
+	server_tick: int = 0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if entity_id.is_empty() or entity_generation <= 0 or not is_finite(health) or health < 0.0:
+		return _remember(_result(false, &"invalid_damage_snapshot"))
+	var target_peers: Array = recipients.duplicate()
+	if target_peers.is_empty():
+		target_peers = _peer_generations.keys()
+	for peer_variant in target_peers:
+		if not _peer_generations.has(int(peer_variant)):
+			return _remember(_result(false, &"peer_not_admitted"))
+	_damage_snapshot_revision += 1
+	var packet := {
+		"revision": _damage_snapshot_revision,
+		"server_tick": maxi(0, server_tick),
+		"damage": {
+			"entity_id": entity_id,
+			"entity_generation": entity_generation,
+			"health": health,
+			"state": state,
+			"destroyed": destroyed,
+			"recovery_generation": recovery_generation,
+		},
+	}
+	for peer_variant in target_peers:
+		if _peer != null:
+			_send_damage_respawn_snapshot.rpc_id(int(peer_variant), packet)
+	return _remember(_result(true, &"damage_snapshot_published", {"packet": packet, "recipients": target_peers.size()}))
 
 
 func tick_damage_recovery(entity_id: StringName, entity_generation: int, delta: float) -> Dictionary:
@@ -1530,6 +1570,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_landing_replica_samples.clear()
 	_landing_jitter.reset(migration_generation)
 	_damage_replica_samples.clear()
+	_damage_snapshot_revision = 0
 	_damage_jitter.reset(migration_generation)
 	_boarding_replica_samples.clear()
 	_boarding_jitter.reset(migration_generation)
@@ -2839,6 +2880,15 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	local_packet["revision"] = _projectile_replica_revision
 	var applied := consume_projectile_snapshot(local_packet)
 	return _remember(applied)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_damage_respawn_snapshot(packet: Dictionary) -> void:
+	if is_server():
+		return
+	var applied := consume_damage_respawn_snapshot(packet)
+	damage_respawn_result.emit(applied.duplicate(true))
+	_last_result = applied.duplicate(true)
 
 
 @rpc("authority", "call_remote", "reliable")

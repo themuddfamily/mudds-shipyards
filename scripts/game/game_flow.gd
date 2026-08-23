@@ -306,6 +306,8 @@ var _network_session_mode: StringName = &""
 var _network_session_address := "127.0.0.1"
 var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
 var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
+var _network_damage_entities: Dictionary = {}
+var _network_damage_server_tick := 0
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -3971,9 +3973,43 @@ func _on_opponent_projectile_fired(origin: Vector3, direction: Vector3) -> void:
 		hud.flash_damage(applied_damage / 20.0, Vector2(local_source.x, local_source.z))
 
 
+func _publish_network_damage_state(
+	ship_to_publish: HeroShip,
+	health: float,
+	destroyed: bool = false,
+) -> Dictionary:
+	if (
+		not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or not is_instance_valid(ship_to_publish)
+	):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var entity_id := ship_to_publish.get_ship_id()
+	var component := ship_to_publish.get_component_damage()
+	var component_generation := component.get_ledger_generation() if component != null else 1
+	var entity_generation := int(_network_damage_entities.get(entity_id, 0))
+	if entity_generation <= 0:
+		entity_generation = 1
+		var registered := network_session.register_damage_entity(
+			1, entity_id, entity_generation, component_generation
+		)
+		if not bool(registered.get("accepted", false)) and registered.get("status") != &"duplicate_entity":
+			return registered
+		_network_damage_entities[entity_id] = entity_generation
+	var telemetry := ship_to_publish.get_telemetry()
+	var state: StringName = &"destroyed" if destroyed or bool(telemetry.get("destroyed", false)) else &"active"
+	_network_damage_server_tick += 1
+	return network_session.publish_damage_respawn_snapshot(
+		entity_id, entity_generation, maxf(0.0, health), state, destroyed,
+		entity_generation if destroyed else 0, [], _network_damage_server_tick
+	)
+
+
 func _on_ship_hull_changed(current: float, _maximum: float, source_ship: HeroShip = null) -> void:
 	if source_ship != null and source_ship != active_ship:
+		_publish_network_damage_state(source_ship, current)
 		return
+	_publish_network_damage_state(source_ship if source_ship != null else active_ship, current)
 	if current <= 0.0:
 		hud.set_enemy_status("", 0.0, 1.0, false)
 
@@ -4670,6 +4706,7 @@ func _on_ship_destroyed(
 	) -> void:
 	if not is_instance_valid(source_ship) or not ships.has(source_ship):
 		return
+	_publish_network_damage_state(source_ship, 0.0, true)
 	if source_ship.get_pending_terminal_damage_presentation_receipt_id() < 0:
 		combat_audio.play_explosion(world_position, source_ship.get_instance_id())
 	_release_ship_berth(source_ship)
