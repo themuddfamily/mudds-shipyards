@@ -160,6 +160,7 @@ func _run() -> void:
 	_test_audit_constants(document, audit_source, metrics_source)
 	_test_palette(document, audit_source)
 	_test_surface_values(document)
+	_test_expanded_production_roles(document)
 	_test_evidence_rows(document, matrix)
 	_test_prohibited_wording(document, matrix)
 	_finish()
@@ -241,6 +242,26 @@ func _test_surface_values(document: String) -> void:
 		)
 		expected[key] = value
 	_compare_key_table(document, "GRAMMAR-SURFACE", expected, true)
+
+
+func _test_expanded_production_roles(document: String) -> void:
+	_check(
+		document.find("### Expanded production matrix") >= 0,
+		"the grammar documents the expanded production balance matrix"
+	)
+	for definition_path: String in [
+		"assets/ships/cinder_cargo_hauler_new_design.tres",
+		"assets/ships/cinder_long_range_bomber_new_design.tres",
+		"assets/ships/cinder_light_interceptor_new_design.tres",
+	]:
+		_check(
+			document.find(definition_path) >= 0,
+			"the grammar names the production definition %s" % definition_path
+		)
+	_check(
+		document.find("Signature advantage") >= 0 and document.find("Deliberate weakness") >= 0,
+		"the expanded matrix records both advantage and weakness for each new role"
+	)
 
 
 # ------------------------------------------------------ evidence ----

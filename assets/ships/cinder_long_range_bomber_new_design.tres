@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"cinder-long-range-bomber"
+display_name = "Cinder Long-Range Bomber"
+role_name = "Long-range bomber"
+evidence_status = 2
+evidence_notes = "Original-modern bomber craft tuning; not a recovered historical specification."
+compatibility_tags = PackedStringArray("medium_craft", "bomber", "ordnance")
+maximum_speed = 72.0
+thrust_acceleration = 18.0
+brake_acceleration = 28.0
+passive_drag = 1.8
+throttle_response = 5.5
+boost_speed = 95.0
+boost_multiplier = 1.25
+yaw_speed_degrees = 28.0
+roll_speed_degrees = 34.0
+flight_assist_strength = 3.2
+visual_bank_degrees = 6.0
+maximum_mouse_turn_degrees = 8.0
+engine_start_time = 3.6
+weapon_cooldown = 0.85
+maximum_hull = 240.0
+landing_maximum_speed = 14.0
+entry_noun = "bomber cockpit"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"standard_fighter"

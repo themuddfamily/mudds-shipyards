@@ -606,8 +606,8 @@ The three excluded axes — `flight_assist_strength`, `visual_bank_degrees`,
 excluded on purpose.
 
 **The rule:** for every *ordered* pair `(A, B)` of distinct craft, `B` must beat
-`A` on at least one of the 13 trade-off axes. With five craft that is 20 ordered
-pairs, all 20 of which the audit asserts. Equivalently: no craft's handling
+`A` on at least one of the 13 trade-off axes. With eight craft that is 56 ordered
+pairs, all 56 of which the audit asserts. Equivalently: no craft's handling
 vector weakly dominates another's across all 13 axes.
 
 Two further conditions stop the rule being satisfied trivially:
@@ -632,9 +632,39 @@ Two further conditions stop the rule being satisfied trivially:
 resources carried by the craft in the production Main scene, so it measures the
 handling that actually ships rather than a constant declared somewhere in source.
 
+### Expanded production matrix
+
+The three original-modern production craft now have explicit `.tres` handling
+definitions. Their advantage and weakness are intentional: the cargo hauler
+trades acceleration and hull for freight stability, the bomber trades turn
+rate and cadence for hull and braking, and the light interceptor trades hull
+and drag tolerance for speed, boost and turn response. Each has at least one
+advantage and one weakness against every other craft; none strictly dominates.
+
+| Craft | Definition | Signature advantage | Deliberate weakness |
+| --- | --- | --- | --- |
+| Cinder cargo hauler | `assets/ships/cinder_cargo_hauler_new_design.tres` | `maximum_hull` and `passive_drag` over fighters | `maximum_speed`, `thrust_acceleration`, `weapon_cooldown` |
+| Cinder long-range bomber | `assets/ships/cinder_long_range_bomber_new_design.tres` | `maximum_hull` and `brake_acceleration` among new craft | `yaw_speed_degrees`, `roll_speed_degrees`, `weapon_cooldown` |
+| Cinder light interceptor | `assets/ships/cinder_light_interceptor_new_design.tres` | `maximum_speed`, `boost_multiplier`, `roll_speed_degrees` among new craft | `maximum_hull`, `passive_drag`, `engine_start_time` |
+
+The expanded advantage counts below are `B` over `A`, measured by
+`tests/fleet_role_differentiation_test.gd` from the eight production
+definitions. They are a balance matrix, not historical evidence.
+
+| B over A | Torrent | Arrow | Jovian | Zenith | Halyard | Cargo | Bomber | Interceptor |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Torrent | — | 8 | 11 | 5 | 10 | 11 | 11 | 7 |
+| Arrow | 5 | — | 11 | 3 | 10 | 11 | 11 | 4 |
+| Jovian | 2 | 2 | — | 2 | 11 | 11 | 6 | 2 |
+| Zenith | 8 | 8 | 11 | — | 10 | 11 | 11 | 7 |
+| Halyard | 3 | 3 | 2 | 3 | — | 2 | 6 | 3 |
+| Cargo | 2 | 2 | 11 | 2 | 2 | — | 9 | 11 |
+| Bomber | 2 | 2 | 6 | 2 | 6 | 4 | — | 2 |
+| Interceptor | 7 | 4 | 2 | 7 | 3 | 2 | 2 | — |
+
 ### The current margin, and why it is thin
 
-Advantage counts today (`B` over `A`), computed from the five
+Advantage counts today (`B` over `A`), computed from the eight
 `assets/ships/*.tres` files with the same two axis lists:
 
 | B (row) beats A (column) on | Torrent | Arrow | Jovian | Zenith | Halyard |
@@ -645,8 +675,8 @@ Advantage counts today (`B` over `A`), computed from the five
 | **Zenith** | 8 | 8 | 11 | — | 10 |
 | **Halyard** | 3 | 3 | 2 | 3 | — |
 
-The minimum is **2**: the freighter's, three times over, and now the transport's
-against the freighter. Jovian's entire lateral case against every fighter is
+The minimum is **2**: the freighter's, the transport's, and the three new
+craft's narrowest matchups. Jovian's entire lateral case against every fighter is
 `maximum_hull` and `passive_drag` and nothing else; the transport's case against
 the freighter is `maximum_speed` and `boost_speed` and nothing else. The audit
 asserts only `> 0`, so this is a measured margin, not a frozen floor — but it is
@@ -659,7 +689,7 @@ almost no room left to exist without dominating something.
 2. Run `get_validation_errors()`. The schema already constrains the trade-off
    space: `boost_speed >= maximum_speed`, `brake_acceleration >= passive_drag`,
    `landing_maximum_speed <= maximum_speed`, and every field has a hard range.
-3. For each of the five existing craft, count advantages **in both directions**
+3. For each of the eight existing craft, count advantages **in both directions**
    over the 13 axes. Both counts must be `> 0`. Any zero means one of the two
    craft is strictly dominated and the candidate is not shippable.
 4. Count differing axes against each existing craft. Fewer than
@@ -668,12 +698,12 @@ almost no room left to exist without dominating something.
 5. Name the candidate's signature axis — the one thing it is the sole extreme
    on — and name what it pays for it. If neither exists, the craft has no role.
 6. Check the candidate does not take a signature away from an existing craft. The
-   five signature assertions above are frozen; a new craft that out-rolls Zenith
+   original signature assertions above are frozen; a new craft that out-rolls Zenith
    or out-hulls Jovian turns them red.
 7. Only then build geometry, and add the craft to the fleet so
    `tests/fleet_role_differentiation_test.gd` measures it for real.
 
-Steps 3–6 are a table exercise on five `.tres` files and take minutes. They are
+Steps 3–6 are a table exercise on eight `.tres` files and take minutes. They are
 cheap precisely because they happen before art.
 
 ---

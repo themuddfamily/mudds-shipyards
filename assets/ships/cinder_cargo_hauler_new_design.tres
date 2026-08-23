@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"cinder-cargo-hauler"
+display_name = "Cinder Cargo Hauler"
+role_name = "Cargo hauler"
+evidence_status = 2
+evidence_notes = "Original-modern cargo craft tuning; not a recovered historical specification."
+compatibility_tags = PackedStringArray("medium_craft", "cargo_hauler", "freight")
+maximum_speed = 64.0
+thrust_acceleration = 14.0
+brake_acceleration = 22.0
+passive_drag = 1.5
+throttle_response = 4.5
+boost_speed = 88.0
+boost_multiplier = 1.18
+yaw_speed_degrees = 32.0
+roll_speed_degrees = 40.0
+flight_assist_strength = 3.5
+visual_bank_degrees = 5.0
+maximum_mouse_turn_degrees = 9.0
+engine_start_time = 3.8
+weapon_cooldown = 0.7
+maximum_hull = 220.0
+landing_maximum_speed = 11.0
+entry_noun = "cargo cockpit"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"heavy_quad_freighter"

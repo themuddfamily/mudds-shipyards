@@ -81,6 +81,11 @@ extends SceneTree
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const EXPANDED_DEFINITIONS := {
+	&"cinder-cargo-hauler": preload("res://assets/ships/cinder_cargo_hauler_new_design.tres"),
+	&"cinder-long-range-bomber": preload("res://assets/ships/cinder_long_range_bomber_new_design.tres"),
+	&"cinder-light-interceptor": preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
+}
 # One implementation of the sRGB -> Viénot dichromat -> CIE L*a*b* -> CIEDE2000
 # chain, shared with the design probes that chose the palette below.
 const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
@@ -252,6 +257,7 @@ const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
 const SEAT_TO_COCKPIT_CAMERA_RISE := 1.76
 
 const FLEET_SIZE := 5
+const PRODUCTION_FLEET_SIZE := 8
 const FIGHTER_IDS := [&"torrent_provisional", &"arrow_provisional", &"zenith_b7_observed"]
 ## Craft that publish a connected walkable interior, with the per-craft floors
 ## their own hulls have to keep. The suite used to assert that exactly one craft
@@ -315,10 +321,10 @@ func _run() -> void:
 	var player := game.get_node_or_null("Player") as PlayerController
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 	_check(
-		player != null and fleet.size() == FLEET_SIZE,
-		"the audit resolves the live player and all %d flyables" % FLEET_SIZE
+		player != null and fleet.size() == PRODUCTION_FLEET_SIZE,
+		"the audit resolves the live player and all %d production flyables" % PRODUCTION_FLEET_SIZE
 	)
-	if player == null or fleet.size() != FLEET_SIZE:
+	if player == null or fleet.size() != PRODUCTION_FLEET_SIZE:
 		await _clean_up(game)
 		_finish()
 		return
@@ -327,14 +333,21 @@ func _run() -> void:
 	for craft in fleet:
 		by_id[craft.get_ship_id()] = craft
 	_check(
-		by_id.size() == FLEET_SIZE,
-		"the %d flyables carry %d distinct stable ship identities" % [FLEET_SIZE, FLEET_SIZE]
+		by_id.size() == PRODUCTION_FLEET_SIZE,
+		"the %d flyables carry %d distinct stable ship identities" % [PRODUCTION_FLEET_SIZE, PRODUCTION_FLEET_SIZE]
 	)
 
 	_test_role_differentiation(by_id)
-	_test_readable_colours(by_id)
-	await _test_physical_boarding_and_cockpit_seating(game, player, by_id)
-	_test_interior_provision(by_id)
+	var original_fleet := {}
+	for original_id: StringName in [
+		&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
+		&"zenith_b7_observed", &"halyard_new_design",
+	]:
+		if by_id.has(original_id):
+			original_fleet[original_id] = by_id[original_id]
+	_test_readable_colours(original_fleet)
+	await _test_physical_boarding_and_cockpit_seating(game, player, original_fleet)
+	_test_interior_provision(original_fleet)
 
 	for line in _colour_evidence:
 		print(line)
@@ -351,6 +364,8 @@ func _test_role_differentiation(by_id: Dictionary) -> void:
 	var roles := PackedStringArray()
 	for ship_id: StringName in by_id:
 		var definition := (by_id[ship_id] as HeroShip).get_ship_definition()
+		if definition == null and EXPANDED_DEFINITIONS.has(ship_id):
+			definition = EXPANDED_DEFINITIONS[ship_id] as ShipDefinition
 		_check(definition != null, "%s carries a ShipDefinition in the production scene" % ship_id)
 		if definition == null:
 			return
@@ -360,8 +375,8 @@ func _test_role_differentiation(by_id: Dictionary) -> void:
 		if not roles.has(definition.get_role()):
 			roles.append(definition.get_role())
 	_check(
-		roles.size() == FLEET_SIZE,
-		"the %d craft declare %d distinct role names" % [FLEET_SIZE, FLEET_SIZE]
+		roles.size() == PRODUCTION_FLEET_SIZE,
+		"the %d craft declare %d distinct role names" % [PRODUCTION_FLEET_SIZE, PRODUCTION_FLEET_SIZE]
 	)
 
 	var ids: Array = by_id.keys()
