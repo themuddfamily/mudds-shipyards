@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/ships/bulwark_heavy_gunship.gd" id="1_bulwark"]
 [ext_resource type="Resource" path="res://assets/ships/bulwark_new_design.tres" id="2_definition"]
 [ext_resource type="PackedScene" path="res://scenes/effects/hero_damage_presentation.tscn" id="3_damage"]
 [ext_resource type="PackedScene" path="res://scenes/interaction/ship_boarding_area.tscn" id="4_boarding"]
+[ext_resource type="PackedScene" path="res://scenes/audio/ship_audio_rig.tscn" id="5_ship_audio"]
+[ext_resource type="Script" path="res://scripts/audio/ship_perspective_audio_scene_adapter.gd" id="6_perspective_audio"]
 
 [node name="BulwarkHeavyGunship" type="CharacterBody3D"]
 collision_layer = 4
@@ -32,3 +34,9 @@ destruction_debris_count = 12
 [node name="ShipBoardingArea" parent="." instance=ExtResource("4_boarding")]
 position = Vector3(-5.9, 0.48, 1.0)
 prompt_text = "[ E ]  BOARD BULWARK HEAVY GUNSHIP"
+
+[node name="ShipAudioRig" parent="." instance=ExtResource("5_ship_audio")]
+profile_id = &"heavy_quad_freighter"
+
+[node name="ShipPerspectiveAudioAdapter" type="Node" parent="."]
+script = ExtResource("6_perspective_audio")

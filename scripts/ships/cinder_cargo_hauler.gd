@@ -2,6 +2,7 @@ class_name CinderCargoHauler
 extends HeroShip
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
+const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 
 ## Original-modern industrial cargo craft component. No historical class,
 ## silhouette, cargo contract, or ownership claim is authenticated here.
@@ -24,10 +25,17 @@ var _cargo_hold: Node3D
 var _cargo_anchors: Array[Marker3D] = []
 var _cargo_built := false
 var _weapon_definition: WeaponDefinition
+var _ship_perspective_audio_binding: RefCounted
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
+
+
+func _enter_tree() -> void:
+	super._enter_tree()
+	if _ship_perspective_audio_binding != null:
+		call_deferred("_rebind_cargo_perspective_audio")
 
 
 func _ready() -> void:
@@ -40,8 +48,48 @@ func _ready() -> void:
 	set_meta(&"historically_supported", false)
 	set_meta(&"content_class", EVIDENCE_STATUS)
 	super._ready()
+	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
+	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(perspective_result.get("accepted", false)):
+		camera_view_changed.connect(_on_cargo_camera_view_changed)
+	else:
+		_ship_perspective_audio_binding = null
 	if not _cargo_built:
 		_cargo_built = rebuild_variant_presentation(_build_cargo_variant)
+
+
+func _exit_tree() -> void:
+	if _ship_perspective_audio_binding != null:
+		if camera_view_changed.is_connected(_on_cargo_camera_view_changed):
+			camera_view_changed.disconnect(_on_cargo_camera_view_changed)
+		_ship_perspective_audio_binding.detach()
+	super._exit_tree()
+
+
+func _rebind_cargo_perspective_audio() -> void:
+	if not is_inside_tree() or _ship_perspective_audio_binding == null \
+			or _ship_audio_rig == null or not is_instance_valid(_ship_audio_rig):
+		return
+	var snapshot: Dictionary = _ship_perspective_audio_binding.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		return
+	var result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(result.get("accepted", false)) \
+			and not camera_view_changed.is_connected(_on_cargo_camera_view_changed):
+		camera_view_changed.connect(_on_cargo_camera_view_changed)
+
+
+func _on_cargo_camera_view_changed(view: StringName) -> void:
+	if _ship_perspective_audio_binding == null:
+		return
+	var perspective: StringName = &"cockpit" if view == CAMERA_VIEW_COCKPIT else &"exterior"
+	var generation := int(_ship_perspective_audio_binding.get_snapshot().get("generation", -1))
+	_ship_perspective_audio_binding.present_perspective(perspective, generation)
+
+
+func get_ship_perspective_audio_snapshot() -> Dictionary:
+	return _ship_perspective_audio_binding.get_snapshot() \
+		if _ship_perspective_audio_binding != null else {"attached": false}
 
 
 func _build_cargo_variant(_controller: HeroShip) -> bool:

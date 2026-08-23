@@ -116,6 +116,13 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
 
+func _enter_tree() -> void:
+	super._enter_tree()
+	var rig := get_node_or_null("ShipAudioRig") as ShipAudioRig
+	if rig != null:
+		rig.profile_id = ShipAudioRig.PROFILE_HEAVY_QUAD_FREIGHTER
+
+
 func _ready() -> void:
 	super._ready()
 	if not _bulwark_built:
