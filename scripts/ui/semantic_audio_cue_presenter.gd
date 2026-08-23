@@ -31,6 +31,8 @@ const REGISTERED_CUES := {
 	&"station_service_latch": {"caption": "Station service latch", "default_severity": &"medium"},
 	&"target_lock_acquired": {"caption": "Target lock acquired", "default_severity": &"medium"},
 	&"target_lock_lost": {"caption": "Target lock lost", "default_severity": &"low"},
+	&"weapon_not_ready": {"caption": "Weapon not ready", "default_severity": &"medium"},
+	&"weapon_ready": {"caption": "Weapon ready", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

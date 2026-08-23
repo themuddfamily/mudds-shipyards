@@ -76,6 +76,8 @@ const CAPTION_CUES := {
 	&"station_service_latch": [&"system", "Station service", "[ station service latch ]", 65],
 	&"target_lock_acquired": [&"system", "Targeting computer", "[ target lock acquired ]", 75],
 	&"target_lock_lost": [&"system", "Targeting computer", "[ target lock lost ]", 50],
+	&"weapon_not_ready": [&"system", "Weapons computer", "[ weapon not ready ]", 70],
+	&"weapon_ready": [&"system", "Weapons computer", "[ weapon ready ]", 45],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
