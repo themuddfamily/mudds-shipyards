@@ -63,7 +63,8 @@ func _run() -> void:
 		integration.authority_policy == &"accepted_release_and_terminal_records_presentation_only"
 		and integration.coordinate_space == &"world_space_records"
 		and int(integration.light_budget) == 0
-		and integration.voice_policy == &"voice_free_no_audio_nodes",
+		and integration.voice_policy == &"voice_free_no_audio_nodes"
+		and integration.graphics_profiles == PackedStringArray(["low", "medium", "high"]),
 		"integration contract retains projectile, resolver, and audio authority outside presentation"
 	)
 	_check(
@@ -124,8 +125,11 @@ func _run() -> void:
 	)
 	_check(
 		not bool(snapshot.silhouette_visible) and not bool(snapshot.trail_visible)
-		and bool(snapshot.terminal_visible) and snapshot.terminal_kind == &"impact",
-		"impact replaces flight art with one compact flare and ring"
+		and bool(snapshot.terminal_flare_visible) and bool(snapshot.terminal_ring_visible)
+		and is_zero_approx(float(snapshot.terminal_flare_transparency))
+		and is_zero_approx(float(snapshot.terminal_ring_transparency))
+		and snapshot.terminal_kind == &"impact",
+		"default high profile retains the full compact flare and ring"
 	)
 	_check(
 		not bool(presentation.consume_terminal_record(_terminal(1, &"impact", impact_position, impact_velocity, impact_normal)).accepted),
@@ -150,6 +154,114 @@ func _run() -> void:
 	)
 	presentation.advance_simulation(0.33)
 	_check(presentation.get_active_snapshots().is_empty(), "compact expiry art self-cleans after 0.32 seconds")
+
+	# Graphics/accessibility profiles restyle only the retained pool. Low shortens
+	# the trail and removes the flare; reduced flash retains a steady readable ring.
+	var profile_node_count := _count_descendants(presentation)
+	var profile_resource_ids: Dictionary = presentation.get_resource_identity_audit()
+	var default_profile := presentation.get_presentation_profile()
+	_check(
+		default_profile.graphics_profile == &"high"
+		and not bool(default_profile.reduced_flash)
+		and default_profile.terminal_policy == &"full_flare_and_ring",
+		"high graphics with full flash is the authored default"
+	)
+	_check(
+		not bool(presentation.apply_graphics_profile(&"minimum").accepted)
+		and presentation.get_presentation_profile().graphics_profile == &"high",
+		"unknown graphics profiles fail atomically"
+	)
+	_check(
+		bool(presentation.apply_presentation_profile(&"low", false).accepted),
+		"caller can select the minimum supported graphics profile"
+	)
+	var low_position := Vector3(11.0, 24.0, -15.0)
+	var low_velocity := Vector3(0.0, -10.0, 2.0)
+	presentation.consume_release_record(_release(3, low_position, low_velocity))
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	_check(
+		snapshot.graphics_profile == &"low"
+		and not bool(snapshot.reduced_flash)
+		and is_equal_approx(float(snapshot.trail_scale), 0.42)
+		and is_equal_approx(float(snapshot.trail_persistence_seconds), 1.25),
+		"low profile shortens and bounds trail persistence without replacing its mesh"
+	)
+	presentation.advance_simulation(1.3)
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	_check(
+		not bool(snapshot.trail_visible)
+		and bool(snapshot.silhouette_visible)
+		and (snapshot.release_position as Vector3).is_equal_approx(low_position),
+		"low trail expires early while the bomb silhouette and exact release pose remain"
+	)
+	var low_terminal_position := Vector3(11.0, 10.0, -12.0)
+	presentation.consume_terminal_record(
+		_terminal(3, &"impact", low_terminal_position, low_velocity, Vector3.UP)
+	)
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	_check(
+		not bool(snapshot.terminal_flare_visible)
+		and bool(snapshot.terminal_ring_visible)
+		and float(snapshot.terminal_ring_transparency) >= 0.4
+		and bool(snapshot.terminal_visible)
+		and (snapshot.visual_position as Vector3).is_equal_approx(low_terminal_position),
+		"low terminal suppresses the bright flare but retains a subdued exact-pose ring"
+	)
+	presentation.advance_simulation(0.33)
+
+	_check(
+		bool(presentation.apply_presentation_profile(&"high", true).accepted),
+		"reduced flash composes independently with graphics quality"
+	)
+	var reduced_position := Vector3(-9.0, 17.0, 5.0)
+	presentation.consume_release_record(_release(4, reduced_position, Vector3.DOWN * 12.0))
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	_check(
+		bool(snapshot.reduced_flash)
+		and is_equal_approx(float(snapshot.trail_scale), 0.3)
+		and is_equal_approx(float(snapshot.trail_persistence_seconds), 0.7),
+		"reduced flash further shortens and softens the trail on a high profile"
+	)
+	var reduced_terminal_position := Vector3(-9.0, 3.0, 5.0)
+	presentation.consume_terminal_record(
+		_terminal(4, &"impact", reduced_terminal_position, Vector3.DOWN, Vector3.UP)
+	)
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	var steady_ring_scale := float(snapshot.terminal_ring_scale)
+	_check(
+		not bool(snapshot.terminal_flare_visible)
+		and bool(snapshot.terminal_ring_visible)
+		and float(snapshot.terminal_ring_transparency) >= 0.55
+		and (snapshot.visual_position as Vector3).is_equal_approx(reduced_terminal_position),
+		"reduced flash presents only a subdued readable ring at the exact terminal pose"
+	)
+	presentation.advance_simulation(0.12)
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	_check(
+		is_equal_approx(float(snapshot.terminal_ring_scale), steady_ring_scale),
+		"reduced-flash ring remains steady rather than pulsing"
+	)
+	presentation.advance_simulation(0.3)
+	_check(
+		bool(presentation.apply_presentation_profile(&"high", false).accepted),
+		"caller can restore the authored high-profile presentation"
+	)
+	presentation.consume_release_record(_release(5, Vector3.ZERO, Vector3.DOWN))
+	presentation.consume_terminal_record(_terminal(5, &"impact", Vector3.DOWN, Vector3.DOWN, Vector3.UP))
+	snapshot = presentation.get_active_snapshots()[0] as Dictionary
+	_check(
+		bool(snapshot.terminal_flare_visible)
+		and bool(snapshot.terminal_ring_visible)
+		and is_zero_approx(float(snapshot.terminal_flare_transparency))
+		and is_zero_approx(float(snapshot.terminal_ring_transparency)),
+		"restored high profile exactly retains the original full terminal look"
+	)
+	presentation.advance_simulation(0.33)
+	_check(
+		_count_descendants(presentation) == profile_node_count
+		and presentation.get_resource_identity_audit() == profile_resource_ids,
+		"profile switches allocate no pool nodes or visual resources"
+	)
 
 	# Saturation recycles only the oldest presentation and allocates no nodes or resources.
 	var before_nodes := _count_descendants(presentation)
@@ -225,6 +337,12 @@ func _run() -> void:
 		"production Cinder instantiates one bounded bomber-owned presentation pool"
 	)
 	_check(bool(bomber.begin_payload_generation(1).accepted), "production payload generation starts through Cinder authority")
+	_check(
+		bool(bomber.set_payload_presentation_profile(&"low", true).accepted)
+		and bomber.get_payload_presentation().get_presentation_profile().graphics_profile == &"low"
+		and bool(bomber.get_payload_presentation().get_presentation_profile().reduced_flash),
+		"Cinder setter/getter composes caller graphics and reduced-flash policy without settings authority"
+	)
 	var live_release: Dictionary = bomber.request_payload_release(
 		1, &"production_gunner", 1, 1, 0, Vector3(2.0, -36.0, -8.0)
 	)
@@ -239,8 +357,10 @@ func _run() -> void:
 	)
 	_check(
 		(live_snapshots[0].release_position as Vector3).is_equal_approx(live_record.release_position)
-		and (live_snapshots[0].release_velocity as Vector3).is_equal_approx(live_record.release_velocity),
-		"production composition preserves the exact hardpoint world pose record"
+		and (live_snapshots[0].release_velocity as Vector3).is_equal_approx(live_record.release_velocity)
+		and live_snapshots[0].graphics_profile == &"low"
+		and bool(live_snapshots[0].reduced_flash),
+		"production composition preserves exact hardpoint pose under the caller profile"
 	)
 
 	var projectile = Projectile.new(1, Vector3.ZERO, 3.0, 200.0, 500.0)

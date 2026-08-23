@@ -136,6 +136,17 @@ func get_payload_presentation():
 	return _payload_presentation
 
 
+## Presentation-only caller seam for graphics/accessibility composition. The
+## bomber forwards policy but retains no settings, UI, or profile authority.
+func set_payload_presentation_profile(
+		graphics_profile: StringName,
+		reduced_flash: bool
+) -> Dictionary:
+	if not is_instance_valid(_payload_presentation):
+		return {"accepted": false, "reason": &"payload_presentation_unavailable"}
+	return _payload_presentation.apply_presentation_profile(graphics_profile, reduced_flash)
+
+
 ## Mirrors one terminal record already emitted by BomberPayloadProjectile (and
 ## accepted by the caller's combat path) into the visual pool. Cinder neither
 ## submits collision evidence nor interprets target, damage, or scoring fields.

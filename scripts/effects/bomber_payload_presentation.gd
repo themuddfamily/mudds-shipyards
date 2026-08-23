@@ -28,6 +28,17 @@ const TERMINAL_VISUAL_LIFETIME := 0.32
 const MAX_FLIGHT_VISUAL_LIFETIME := 8.0
 const MAX_WORLD_POSITION := 2_000_000.0
 const MAX_RELEASE_SPEED := 10_000.0
+const GRAPHICS_PROFILES: Array[StringName] = [&"low", &"medium", &"high"]
+const TRAIL_PERSISTENCE_BY_PROFILE := {
+	&"low": 1.25,
+	&"medium": 4.0,
+	&"high": MAX_FLIGHT_VISUAL_LIFETIME,
+}
+const TRAIL_SCALE_BY_PROFILE := {
+	&"low": 0.42,
+	&"medium": 0.72,
+	&"high": 1.0,
+}
 
 const RELEASE_REQUIRED_KEYS := [
 	"schema_version", "record_id", "release_sequence", "generation",
@@ -52,6 +63,8 @@ var _terminal_count := 0
 var _finished_count := 0
 var _recycled_count := 0
 var _rejected_count := 0
+var _graphics_profile: StringName = &"high"
+var _reduced_flash := false
 
 
 func _ready() -> void:
@@ -67,6 +80,38 @@ func _exit_tree() -> void:
 
 func get_component_id() -> StringName:
 	return COMPONENT_ID
+
+
+## Applies graphics quality and accessibility atomically. Profile changes only
+## mutate per-node presentation properties; the fixed pool and shared resource
+## catalog remain untouched, including when live effects are restyled.
+func apply_presentation_profile(graphics_profile: StringName, reduced_flash: bool) -> Dictionary:
+	if graphics_profile not in GRAPHICS_PROFILES:
+		return _result(false, &"invalid_graphics_profile")
+	_graphics_profile = graphics_profile
+	_reduced_flash = reduced_flash
+	_refresh_active_profile()
+	return _result(true, &"presentation_profile_applied", {
+		"graphics_profile": _graphics_profile,
+		"reduced_flash": _reduced_flash,
+	})
+
+
+func apply_graphics_profile(graphics_profile: StringName) -> Dictionary:
+	return apply_presentation_profile(graphics_profile, _reduced_flash)
+
+
+func set_reduced_flash_enabled(enabled: bool) -> Dictionary:
+	return apply_presentation_profile(_graphics_profile, enabled)
+
+
+func get_presentation_profile() -> Dictionary:
+	return {
+		"graphics_profile": _graphics_profile,
+		"reduced_flash": _reduced_flash,
+		"trail_persistence_seconds": _trail_persistence_seconds(),
+		"terminal_policy": _terminal_policy_id(),
+	}.duplicate(true)
 
 
 ## Consumes one already-accepted authority record. The exact world pose is
@@ -225,9 +270,21 @@ func get_active_snapshots() -> Array[Dictionary]:
 			"terminal_kind": StringName(slot.get("terminal_kind", &"")),
 			"visual_position": root.global_position if is_instance_valid(root) else Vector3.ZERO,
 			"age": float(slot.get("age", 0.0)),
+			"graphics_profile": _graphics_profile,
+			"reduced_flash": _reduced_flash,
+			"trail_persistence_seconds": _trail_persistence_seconds(),
 			"silhouette_visible": _slot_flight_visible(slot),
 			"trail_visible": (slot.get("trail") as MeshInstance3D).visible,
-			"terminal_visible": (slot.get("terminal_flare") as MeshInstance3D).visible,
+			"trail_scale": (slot.get("trail") as MeshInstance3D).scale.y,
+			"terminal_visible": (
+				(slot.get("terminal_flare") as MeshInstance3D).visible
+				or (slot.get("terminal_ring") as MeshInstance3D).visible
+			),
+			"terminal_flare_visible": (slot.get("terminal_flare") as MeshInstance3D).visible,
+			"terminal_ring_visible": (slot.get("terminal_ring") as MeshInstance3D).visible,
+			"terminal_flare_transparency": (slot.get("terminal_flare") as MeshInstance3D).transparency,
+			"terminal_ring_transparency": (slot.get("terminal_ring") as MeshInstance3D).transparency,
+			"terminal_ring_scale": (slot.get("terminal_ring") as MeshInstance3D).scale.x,
 		})
 	return snapshots.duplicate(true)
 
@@ -257,6 +314,10 @@ func get_integration_contract() -> Dictionary:
 		"pool_capacity": POOL_CAPACITY,
 		"voice_policy": &"voice_free_no_audio_nodes",
 		"light_budget": GENERATED_LIGHT_COUNT,
+		"graphics_profiles": PackedStringArray(GRAPHICS_PROFILES),
+		"graphics_profile": _graphics_profile,
+		"reduced_flash": _reduced_flash,
+		"reduced_flash_policy": &"steady_ring_no_terminal_flare_short_trail",
 		"tree_exit_policy": &"synchronous_clear_reentry_safe",
 	}.duplicate(true)
 
@@ -424,6 +485,7 @@ func _apply_flight_pose(slot_index: int, position: Vector3, velocity: Vector3) -
 		(slot.get(key) as MeshInstance3D).visible = true
 	(slot.get("terminal_flare") as MeshInstance3D).visible = false
 	(slot.get("terminal_ring") as MeshInstance3D).visible = false
+	_update_flight_profile(slot_index)
 
 
 func _apply_terminal_pose(slot_index: int, position: Vector3, velocity: Vector3, normal: Vector3, kind: StringName) -> void:
@@ -441,15 +503,85 @@ func _apply_terminal_pose(slot_index: int, position: Vector3, velocity: Vector3,
 	ring.material_override = _shared_catalog[material_key] as Material
 	flare.scale = Vector3.ONE
 	ring.scale = Vector3.ONE
-	flare.visible = true
-	ring.visible = true
+	_update_terminal_scale(slot_index, 0.0)
 
 
 func _update_terminal_scale(slot_index: int, progress: float) -> void:
 	var slot := _slots[slot_index]
-	var eased := sin(clampf(progress, 0.0, 1.0) * PI)
-	(slot.get("terminal_flare") as MeshInstance3D).scale = Vector3.ONE * (0.65 + eased * 1.55)
-	(slot.get("terminal_ring") as MeshInstance3D).scale = Vector3.ONE * (1.0 + progress * 3.0)
+	var flare := slot.get("terminal_flare") as MeshInstance3D
+	var ring := slot.get("terminal_ring") as MeshInstance3D
+	var bounded_progress := clampf(progress, 0.0, 1.0)
+	if _reduced_flash:
+		flare.visible = false
+		flare.transparency = 1.0
+		ring.visible = true
+		ring.transparency = 0.58
+		ring.scale = Vector3.ONE * 1.35
+		return
+	var eased := sin(bounded_progress * PI)
+	if _graphics_profile == &"low":
+		flare.visible = false
+		flare.transparency = 1.0
+		ring.visible = true
+		ring.transparency = 0.42
+		ring.scale = Vector3.ONE * (1.0 + bounded_progress * 1.15)
+	elif _graphics_profile == &"medium":
+		flare.visible = true
+		flare.transparency = 0.38
+		flare.scale = Vector3.ONE * (0.55 + eased * 0.8)
+		ring.visible = true
+		ring.transparency = 0.18
+		ring.scale = Vector3.ONE * (1.0 + bounded_progress * 2.0)
+	else:
+		flare.visible = true
+		flare.transparency = 0.0
+		flare.scale = Vector3.ONE * (0.65 + eased * 1.55)
+		ring.visible = true
+		ring.transparency = 0.0
+		ring.scale = Vector3.ONE * (1.0 + bounded_progress * 3.0)
+
+
+func _update_flight_profile(slot_index: int) -> void:
+	var slot := _slots[slot_index]
+	var trail := slot.get("trail") as MeshInstance3D
+	var scale_factor := float(TRAIL_SCALE_BY_PROFILE.get(_graphics_profile, 1.0))
+	if _reduced_flash:
+		scale_factor = minf(scale_factor, 0.3)
+	trail.scale = Vector3(0.72 if _reduced_flash else 1.0, scale_factor, 0.72 if _reduced_flash else 1.0)
+	trail.position.y = -0.4 - 1.6 * scale_factor
+	trail.transparency = 0.38 if _reduced_flash else (0.25 if _graphics_profile == &"low" else 0.0)
+	trail.visible = float(slot.get("age", 0.0)) < _trail_persistence_seconds()
+
+
+func _refresh_active_profile() -> void:
+	for slot_index in _slots.size():
+		var slot := _slots[slot_index]
+		if not bool(slot.get("active", false)):
+			continue
+		if StringName(slot.get("phase", &"")) == &"flight":
+			_update_flight_profile(slot_index)
+		else:
+			_update_terminal_scale(
+				slot_index,
+				float(slot.get("age", 0.0)) / TERMINAL_VISUAL_LIFETIME
+			)
+
+
+func _trail_persistence_seconds() -> float:
+	var persistence := float(
+		TRAIL_PERSISTENCE_BY_PROFILE.get(_graphics_profile, MAX_FLIGHT_VISUAL_LIFETIME)
+	)
+	return minf(persistence, 0.7) if _reduced_flash else persistence
+
+
+func _terminal_policy_id() -> StringName:
+	if _reduced_flash:
+		return &"steady_subdued_ring"
+	if _graphics_profile == &"low":
+		return &"subdued_ring_no_flare"
+	if _graphics_profile == &"medium":
+		return &"softened_flare_and_ring"
+	return &"full_flare_and_ring"
 
 
 func _deactivate_slot(slot_index: int, emit_finished: bool) -> void:
