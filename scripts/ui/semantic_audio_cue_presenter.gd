@@ -110,6 +110,10 @@ func present_cue(
 	var direction := str(metadata.get("direction", "")).strip_edges()
 	if not direction.is_empty() and direction.length() <= 32 and not direction.contains("\n") and not direction.contains("\r"):
 		_last_snapshot["direction"] = direction
+	if metadata.has("distance_m") and (metadata.distance_m is int or metadata.distance_m is float) and is_finite(float(metadata.distance_m)) and float(metadata.distance_m) >= 0.0:
+		var distance := float(metadata.distance_m)
+		_last_snapshot["distance_m"] = minf(distance, 1_000_000.0)
+		_last_snapshot["distance_band"] = &"near" if distance < 25.0 else (&"mid" if distance < 250.0 else &"far")
 	if metadata.has("priority") and (metadata.priority is int or metadata.priority is float):
 		_last_snapshot["priority"] = clampi(int(metadata.priority), 0, 100)
 	_record_transcript(_last_snapshot, metadata)

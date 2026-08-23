@@ -1969,6 +1969,9 @@ func present_semantic_audio_cue(
 	var direction := str(presentation.get("direction", "")).strip_edges()
 	if not direction.is_empty():
 		text += " // %s" % direction
+	var distance_band := StringName(presentation.get("distance_band", &""))
+	if not distance_band.is_empty():
+		text += " // %s" % distance_band.to_upper()
 	return _submit_caption_request({
 		"category_id": &"system",
 		"speaker": str(presentation.source),

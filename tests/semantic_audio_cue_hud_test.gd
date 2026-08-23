@@ -25,13 +25,18 @@ func _run() -> void:
 	)
 	_check(_requests.size() == 1, "exactly one caption request is emitted")
 	_check(str(_requests[0].get("text", "")).begins_with("! Combat alert"), "caption includes shape-safe severity")
-	var transcript := hud._semantic_audio_cue_presenter.get_transcript(12)
-	_check(transcript.size() == 1 and int(transcript[0].get("age_ticks", -1)) == 2, "transcript retains redacted cue metadata and relative age")
-	_check(hud.is_reduced_motion(), "existing reduced-motion policy remains enabled")
 	_check(
 		not hud.present_semantic_audio_cue(&"combat_alert", &"ship_audio", 1.0, position),
 		"duplicate semantic cue is suppressed"
 	)
+	_check(
+		hud.present_semantic_audio_cue(&"target_destroyed", &"range", 0.6, position, {"direction": "rear-left", "distance_m": 180.0, "tick": 11}),
+		"caller-resolved direction and distance metadata submits"
+	)
+	_check("rear-left" in str(_requests[1].get("text", "")) and "MID" in str(_requests[1].get("text", "")), "caption includes nonvisual direction and bounded distance band")
+	var transcript := hud._semantic_audio_cue_presenter.get_transcript(12)
+	_check(transcript.size() == 2 and int(transcript[0].get("age_ticks", -1)) == 1, "transcript retains redacted cue metadata and relative age")
+	_check(hud.is_reduced_motion(), "existing reduced-motion policy remains enabled")
 	for index in range(10):
 		hud.present_semantic_audio_cue(&"target_destroyed", StringName("range_%d" % index), 0.5, position, {"tick": 20 + index})
 	transcript = hud._semantic_audio_cue_presenter.get_transcript(30)
