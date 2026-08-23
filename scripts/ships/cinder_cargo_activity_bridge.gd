@@ -7,6 +7,7 @@ extends RefCounted
 ## rewards, or the activity lifecycle.
 
 const CRAFT_SCRIPT := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const CARGO_AUDIO_BINDING := preload("res://scripts/audio/cinder_cargo_transfer_audio_binding.gd")
 const COMPONENT_ID: StringName = &"cinder-cargo-hauler"
 const EXPECTED_CARGO_ID: StringName = &"cinder_supply_crates"
 
@@ -16,6 +17,7 @@ var _craft_instance_id := 0
 var _binding_instance_id := 0
 var _binding_generation := -1
 var _bound := false
+var _audio_binding: RefCounted
 
 
 func bind(craft: Node, binding: Node) -> Dictionary:
@@ -46,6 +48,11 @@ func bind(craft: Node, binding: Node) -> Dictionary:
 	_craft_instance_id = candidate.get_instance_id()
 	_binding_instance_id = binding.get_instance_id()
 	_binding_generation = int(cargo.get("generation", -1))
+	_audio_binding = CARGO_AUDIO_BINDING.new()
+	var audio_result: Dictionary = _audio_binding.attach(0)
+	if not bool(audio_result.get("accepted", false)):
+		_audio_binding = null
+		return _result(false, &"audio_binding_failed")
 	_bound = true
 	return _result(true, &"bound")
 
@@ -57,6 +64,7 @@ func start(anchor_id: StringName, cargo_id: StringName = EXPECTED_CARGO_ID) -> D
 	var result: Dictionary = _binding.call("start_cargo_run")
 	if bool(result.get("accepted", false)):
 		_binding_generation = int(result.get("generation", _binding_generation))
+		_sync_audio_generation(_binding_generation)
 	return _decorate(result, anchor_id)
 
 
@@ -79,6 +87,9 @@ func detach() -> Dictionary:
 	elif int(cargo.get("state", 0)) == 1:
 		cleanup = _binding.call("reset_cargo_run")
 	_bound = false
+	if _audio_binding != null:
+		_audio_binding.detach()
+	_audio_binding = null
 	_craft = null
 	_binding = null
 	_craft_instance_id = 0
@@ -98,7 +109,27 @@ func get_snapshot() -> Dictionary:
 		"inventory_authority": false,
 		"reward_authority": false,
 		"flight_authority": false,
+		"audio": _audio_binding.get_snapshot() if _audio_binding != null else {"attached": false},
 	}.duplicate(true)
+
+
+## Forwards one caller-validated cargo receipt to presentation only. The
+## bridge never manufactures transfer authority or reward outcomes.
+func present_audio_receipt(receipt: Dictionary) -> Dictionary:
+	if _audio_binding == null:
+		return _result(false, &"audio_binding_unavailable")
+	return _audio_binding.present_transfer_receipt(receipt)
+
+
+func _sync_audio_generation(target_generation: int) -> void:
+	if _audio_binding == null or target_generation < 0:
+		return
+	var current := int(_audio_binding.get_snapshot().get("generation", -1))
+	while current < target_generation:
+		_audio_binding.detach()
+		current = int(_audio_binding.get_snapshot().get("generation", -1))
+	if current == target_generation and not bool(_audio_binding.get_snapshot().get("attached", false)):
+		_audio_binding.attach(current)
 
 
 func _validate_intent(anchor_id: StringName, cargo_id: StringName) -> Dictionary:
