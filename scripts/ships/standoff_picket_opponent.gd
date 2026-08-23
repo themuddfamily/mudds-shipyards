@@ -73,13 +73,13 @@ const MAX_PENDING_LANCE_RECEIPTS := 8
 # and exact duplicates, so the cache reduces only retained mesh resources:
 # nodes, visible copies, surfaces/submissions, materials and transforms stay put.
 const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
-const PRESENTATION_VISUAL_NODE_COUNT := 32
+const PRESENTATION_VISUAL_NODE_COUNT := 31
 const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
-const PRESENTATION_MESH_INSTANCE_COUNT := 29
-const PRESENTATION_RENDERER_NODE_COUNT := 30
+const PRESENTATION_MESH_INSTANCE_COUNT := 27
+const PRESENTATION_RENDERER_NODE_COUNT := 29
 const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 31
 const BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 30
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 29
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 22
@@ -87,8 +87,9 @@ const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
 const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
 const PRESENTATION_BOX_INSTANCE_COUNT := 14
 const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
-const PRESENTATION_MULTIMESH_BATCH_COUNT := 1
+const PRESENTATION_MULTIMESH_BATCH_COUNT := 2
 const ENGINE_POD_COPY_COUNT := 2
+const LANCE_RAIL_COPY_COUNT := 2
 
 const CONTENT_NOTE := (
 	"The picket silhouette, palette, lance telegraph, standoff band, minimum arming "
@@ -1099,8 +1100,7 @@ func _build_interceptor() -> void:
 	# Forward lance barrel. The charge lens is the long-range read.
 	_cylinder(_visual_root, "LanceBarrel", Vector3(0.0, -0.06, -5.6), 0.3, 5.6, _materials.picket_slate, Vector3(90.0, 0.0, 0.0))
 	_cylinder(_visual_root, "LanceCollar", Vector3(0.0, -0.06, -3.2), 0.46, 0.5, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
-	_cylinder(_visual_root, "LanceRailPort", Vector3(-0.34, 0.16, -5.4), 0.07, 4.6, _materials.picket_magenta, Vector3(90.0, 0.0, 0.0))
-	_cylinder(_visual_root, "LanceRailStarboard", Vector3(0.34, 0.16, -5.4), 0.07, 4.6, _materials.picket_magenta, Vector3(90.0, 0.0, 0.0))
+	_add_lance_rail_batch(_visual_root)
 	_cylinder(_visual_root, "LanceMuzzleRing", Vector3(0.0, -0.06, -8.15), 0.38, 0.32, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
 	_lance_emitter = _cylinder(
 		_visual_root, "LanceEmitter", Vector3(0.0, -0.06, -8.4), 0.17, 0.4,
@@ -1182,6 +1182,42 @@ func _add_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
 	batch.set_meta(&"authored_visual_names", PackedStringArray(["PortEnginePod", "StarboardEnginePod"]))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+## The mirrored lance rails are an immutable identification detail. Neither
+## rail participates in lance aiming, charge animation, collision or damage;
+## the independently named emitter, lens and muzzle retain those live roles.
+func _add_lance_rail_batch(parent: Node3D) -> MultiMeshInstance3D:
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.07, 0.07, 4.6, 28, _chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.picket_magenta
+	)
+	var rail_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var transforms: Array[Transform3D] = [
+		Transform3D(rail_basis, Vector3(-0.34, 0.16, -5.4)),
+		Transform3D(rail_basis, Vector3(0.34, 0.16, -5.4)),
+	]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = LANCE_RAIL_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in LANCE_RAIL_COPY_COUNT:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "LanceRailBatch"
+	batch.multimesh = multi
+	batch.layers = 1
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(["LanceRailPort", "LanceRailStarboard"]))
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch

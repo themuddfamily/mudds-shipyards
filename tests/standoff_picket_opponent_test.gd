@@ -123,13 +123,13 @@ func _test_contract_and_evidence() -> void:
 		bool(performance.valid)
 		and bool(performance.headless_safe)
 		and int(performance.baseline_visual_nodes) == 33
-		and int(performance.visual_nodes) == 32
+		and int(performance.visual_nodes) == 31
 		and int(performance.baseline_mesh_instances) == 31
-		and int(performance.mesh_instances) == 29
-		and int(performance.renderer_nodes) == 30
+		and int(performance.mesh_instances) == 27
+		and int(performance.renderer_nodes) == 29
 		and int(performance.visible_geometry_copies) == 31
 		and int(performance.baseline_surface_submissions) == 31
-		and int(performance.surface_submissions) == 30
+		and int(performance.surface_submissions) == 29
 		and int(performance.baseline_mesh_resources) == 27
 		and int(performance.mesh_resources) == 22
 		and int(performance.mesh_resource_delta) == -5
@@ -138,8 +138,8 @@ func _test_contract_and_evidence() -> void:
 		and int(performance.box_instances) == 14
 		and int(performance.shared_box_families) == 5
 		and int(performance.material_resources) == 8
-		and int(performance.multimesh_batches) == 1,
-		"the engine-pod batch preserves 31 visible copies while renderer nodes/submissions fall 31 -> 30"
+		and int(performance.multimesh_batches) == 2,
+		"the two safe batches preserve 31 visible copies while renderer nodes/submissions fall 31 -> 29"
 	)
 
 	var engine_pods := visual.get_node_or_null("EnginePodBatch") as MultiMeshInstance3D \
@@ -178,6 +178,43 @@ func _test_contract_and_evidence() -> void:
 		and is_equal_approx(pod_material.roughness, 0.32)
 		and bool(engine_pods.get_meta(&"presentation_only", false)),
 		"engine-pod batching preserves exact transforms, authored identities, bounds, material mesh and shadow policy"
+	)
+
+	var lance_rails := visual.get_node_or_null("LanceRailBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var rail_multi := lance_rails.multimesh if lance_rails != null else null
+	var rail_transforms: Array = lance_rails.get_meta(&"authored_instance_transforms", []) as Array \
+		if lance_rails != null else []
+	var rail_names := lance_rails.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray \
+		if lance_rails != null else PackedStringArray()
+	var expected_rail_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var expected_rail_transforms: Array[Transform3D] = [
+		Transform3D(expected_rail_basis, Vector3(-0.34, 0.16, -5.4)),
+		Transform3D(expected_rail_basis, Vector3(0.34, 0.16, -5.4)),
+	]
+	var expected_rail_bounds := AABB()
+	if rail_multi != null and rail_multi.mesh != null:
+		for index in expected_rail_transforms.size():
+			var instance_bounds := (expected_rail_transforms[index] * rail_multi.mesh.get_aabb()).abs()
+			expected_rail_bounds = instance_bounds if index == 0 else expected_rail_bounds.merge(instance_bounds)
+	var rail_material := rail_multi.mesh.surface_get_material(0) as StandardMaterial3D \
+		if rail_multi != null and rail_multi.mesh != null else null
+	_check(
+		rail_multi != null
+		and rail_multi.transform_format == MultiMesh.TRANSFORM_3D
+		and rail_multi.instance_count == 2
+		and rail_multi.visible_instance_count == -1
+		and rail_multi.mesh != null
+		and rail_multi.mesh.get_surface_count() == 1
+		and rail_transforms == expected_rail_transforms
+		and rail_names == PackedStringArray(["LanceRailPort", "LanceRailStarboard"])
+		and rail_multi.custom_aabb.is_equal_approx(expected_rail_bounds)
+		and lance_rails.layers == 1
+		and lance_rails.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(lance_rails.extra_cull_margin)
+		and rail_material == picket._materials.picket_magenta
+		and bool(lance_rails.get_meta(&"presentation_only", false)),
+		"lance-rail batching preserves exact transforms, authored identities, bounds, material, culling and shadows"
 	)
 
 	var pair_specs: Array[Dictionary] = [
