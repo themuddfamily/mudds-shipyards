@@ -252,6 +252,23 @@ func _run() -> void:
 			),
 		"the detached snapshot exposes bounded effective mobility, fire, and targeting outputs"
 	)
+	var departure_readiness := gameplay_snapshot.get("departure_readiness", {}) as Dictionary
+	var optional_roles := departure_readiness.get("optional_roles", {}) as Dictionary
+	_check(
+		bool(departure_readiness.get("pilot_required", false))
+			and bool(departure_readiness.get("pilot_present", false))
+			and bool(departure_readiness.get("ready", false))
+			and int(departure_readiness.get("pilot_seat_generation", 0)) == 1
+			and int(departure_readiness.get("authority_event_sequence", -1))
+			== int(gameplay_snapshot.get("authority_event_sequence", -2)),
+		"the detached snapshot reports pilot-gated departure readiness with its authority fence"
+	)
+	_check(
+		int(departure_readiness.get("optional_crew_count", 0)) == 3
+			and bool((optional_roles.get(Authority.ROLE_ENGINEER, {}) as Dictionary).get("occupied", false))
+			and int((optional_roles.get(Authority.ROLE_ENGINEER, {}) as Dictionary).get("seat_generation", 0)) == 1,
+		"the detached snapshot reports optional crew occupancy and seat generations"
+	)
 	var detached_copy := gameplay_snapshot.duplicate(true)
 	((detached_copy.get("occupants", []) as Array)[0] as Dictionary)["avatar_id"] = &"tampered"
 	var fresh_snapshot := craft.get_crew_role_gameplay_snapshot()
@@ -357,6 +374,15 @@ func _run() -> void:
 		1, 74, &"replacement_pilot", &"pilot_station", 6
 	)
 	_check(bool(pilot_release.get("accepted", false)) and not bool(craft.get("_piloted")), "pilot release neutralizes controls")
+	var pilotless_snapshot := craft.get_crew_role_gameplay_snapshot()
+	var pilotless_departure := pilotless_snapshot.get("departure_readiness", {}) as Dictionary
+	_check(
+		not bool(pilotless_departure.get("pilot_present", true))
+			and not bool(pilotless_departure.get("ready", true))
+			and int(pilotless_departure.get("pilot_seat_generation", -1)) == 0
+			and int(pilotless_departure.get("optional_crew_count", 0)) == 3,
+		"detaching the pilot resets departure readiness without removing optional crew"
+	)
 	craft.set("_landed", true)
 
 	var handoff := craft.handoff_crew_role(

@@ -784,13 +784,31 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 				"targeting_multiplier": 1.0,
 			},
 		},
+		"departure_readiness": {
+			"pilot_required": true,
+			"pilot_present": false,
+			"pilot_seat_generation": 0,
+			"ready": false,
+			"optional_crew_count": 0,
+			"optional_roles": {
+				CrewRoleGameplayProfileType.ROLE_GUNNER: {"occupied": false, "seat_generation": 0},
+				CrewRoleGameplayProfileType.ROLE_ENGINEER: {"occupied": false, "seat_generation": 0},
+				CrewRoleGameplayProfileType.ROLE_PASSENGER: {"occupied": false, "seat_generation": 0},
+			},
+			"authority_event_sequence": -1,
+		},
 	}
 	if _crew_role_authority == null:
 		return snapshot
 	var authority_snapshot := _crew_role_authority.get_snapshot()
 	snapshot["authority_event_sequence"] = int(authority_snapshot.get("event_sequence", -1))
+	(snapshot["departure_readiness"] as Dictionary)["authority_event_sequence"] = int(
+		authority_snapshot.get("event_sequence", -1)
+	)
 	var live_assignments: Array = authority_snapshot.get("assignments", []) as Array
 	var live_actors := {}
+	var departure_readiness := snapshot["departure_readiness"] as Dictionary
+	var optional_roles := departure_readiness["optional_roles"] as Dictionary
 	for assignment_variant in live_assignments:
 		if not assignment_variant is Dictionary:
 			continue
@@ -802,6 +820,16 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 		var avatar_id := StringName(assignment.get("avatar_id", &""))
 		var actor_key := _crew_role_actor_key_from_values(occupant_peer_id, avatar_id)
 		live_actors[actor_key] = {"role": role, "assignment": assignment}
+		var seat_generation := int(assignment.get("seat_generation", 0))
+		if role == CrewRoleGameplayProfileType.ROLE_PILOT:
+			departure_readiness["pilot_present"] = true
+			departure_readiness["pilot_seat_generation"] = seat_generation
+		elif optional_roles.has(role):
+			var optional_role := optional_roles[role] as Dictionary
+			optional_role["occupied"] = true
+			optional_role["seat_generation"] = seat_generation
+			optional_role["occupant_peer_id"] = occupant_peer_id
+			optional_role["avatar_id"] = avatar_id
 		var cooldown_remaining := 0.0
 		if role == CrewRoleGameplayProfileType.ROLE_GUNNER:
 			cooldown_remaining = maxf(0.0, float(_gunner_role_cooldowns.get(actor_key, 0.0)))
@@ -868,6 +896,12 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 	}
 	(snapshot["power_routing"] as Dictionary)["engineer"] = route_view
 	(snapshot["power_routing"] as Dictionary)["effective_outputs"] = effective_outputs
+	var optional_crew_count := 0
+	for optional_role_variant in optional_roles.values():
+		if bool((optional_role_variant as Dictionary).get("occupied", false)):
+			optional_crew_count += 1
+	departure_readiness["optional_crew_count"] = optional_crew_count
+	departure_readiness["ready"] = bool(departure_readiness.get("pilot_present", false))
 	(snapshot["occupants"] as Array).sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
 	)
