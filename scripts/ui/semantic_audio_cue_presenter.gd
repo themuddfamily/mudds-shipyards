@@ -26,6 +26,7 @@ const REGISTERED_CUES := {
 	&"surface_touchdown": {"caption": "Surface touchdown", "default_severity": &"medium"},
 	&"surface_departure": {"caption": "Surface departure", "default_severity": &"medium"},
 	&"ship_destroyed": {"caption": "Ship destroyed", "default_severity": &"high"},
+	&"ship_audio_recovery_ready": {"caption": "Ship audio recovery ready", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

@@ -71,6 +71,7 @@ const CAPTION_CUES := {
 	&"surface_touchdown": [&"system", "Surface guidance", "[ surface touchdown ]", 70],
 	&"surface_departure": [&"system", "Surface guidance", "[ surface departure ]", 70],
 	&"ship_destroyed": [&"system", "Damage control", "[ ship destroyed ]", 100],
+	&"ship_audio_recovery_ready": [&"system", "Audio recovery", "[ ship audio recovery ready ]", 50],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
