@@ -58,7 +58,9 @@ const DROP_LIMIT := 4.0
 const X_MIN := -80.0
 const X_MAX := 134.0
 const Z_MIN := -92.0
-const Z_MAX := 86.0
+# Dock 04's cargo boarding point is at z = 105.5. The previous z = 86 bound
+# silently excluded the whole pad and could never prove or disprove its route.
+const Z_MAX := 120.0
 
 ## Route surfaces the roadmap requires an on-foot player to reach from spawn.
 const REQUIRED_ROUTE_SURFACES := [
@@ -96,6 +98,15 @@ const REQUIRED_ROUTE_SURFACES := [
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/Trunk"],
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab01"],
 	["FleetDockComb", "GeneratedComb/WalkableSurfaces/DockSlab03Upper"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/AccessCirculation/SharedSpineNorth"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/AccessCirculation/SharedSpineSouth"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/AccessCirculation/Dock04CargoRamp"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/AccessCirculation/Dock05BomberRamp"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/AccessCirculation/Dock06Branch"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/AccessCirculation/Dock06InterceptorRamp"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/dock_04_cargo/WalkablePadCollision"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/dock_05_bomber/WalkablePadCollision"],
+	["FleetExpansionProductionBinding", "FleetExpansionBerths/dock_06_interceptor/WalkablePadCollision"],
 	["FabricationAnnex", "GeneratedAnnex/ConnectorApron"],
 	["FabricationAnnex", "GeneratedAnnex/CentralThroughAisle"],
 	["FabricationAnnex", "GeneratedAnnex/PortWorkBay"],
@@ -182,6 +193,11 @@ const FLEET_DOCK_DECK_TOP := 4.2
 ## and requires the prompt from every standable point on it.
 const BOARDING_RING_RADII := [3.0, 5.0, 7.0]
 const BOARDING_RING_SAMPLES := 16
+const CINDER_BOARDING_TOUR_ORDER := [
+	"cinder_long_range_bomber",
+	"cinder_light_interceptor",
+	"cinder_cargo_hauler",
+]
 
 ## Top of every raised pod deck the walk-ins have to finish standing on.
 const POD_DECK_TOP := 0.38
@@ -227,15 +243,14 @@ func _run() -> void:
 		_finish()
 		return
 
-	# The player body would otherwise occlude its own reachability sweep.
-	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
-	await physics_frame
-
 	_space = world.get_world_3d().direct_space_state
 	_capsule = CapsuleShape3D.new()
 	_capsule.radius = CAPSULE_RADIUS
 	_capsule.height = CAPSULE_HEIGHT
 	_collect_openable_door_blockers(world)
+	# Keep the live player on the production spawn for the all-craft walk while
+	# excluding its own body from graph probes.
+	_door_blockers.append(player.get_rid())
 
 	var spawn_marker := world.get_node_or_null(^"%PlayerSpawn") as Marker3D
 	_check(spawn_marker != null, "production spawn marker resolves")
@@ -250,8 +265,13 @@ func _run() -> void:
 	)
 
 	_test_required_route_surfaces_reachable(world, reachable)
+	_test_fleet_expansion_pad_bounds(world)
+	_report_fleet_expansion_access_route(world, reachable)
 	_test_freight_branch_has_a_walkable_approach(world)
 	_test_every_flyable_ship_is_boardable_on_foot(game, world, reachable)
+	await _test_cinder_boarding_positions_from_real_spawn(game, world, player, spawn)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
+	await physics_frame
 	_test_arrow_berth_can_be_walked_around(reachable)
 	_test_halyard_berth_can_be_walked_around(reachable)
 	_test_parked_craft_are_fully_supported_by_their_berth_decks(game, world)
@@ -443,6 +463,54 @@ func _test_required_route_surfaces_reachable(world: ShipyardWorld, reachable: Di
 	)
 
 
+func _report_fleet_expansion_access_route(world: ShipyardWorld, reachable: Dictionary) -> void:
+	var berths := world.get_node_or_null(
+		^"FleetExpansionProductionBinding/FleetExpansionBerths"
+	) as Node3D
+	if berths == null:
+		return
+	var route := [
+		Vector3(18.0, 0.0, 0.6), Vector3(10.0, 0.0, 0.6),
+		Vector3(2.4, 0.0, 1.5), Vector3(-2.4, 0.0, 1.5),
+		Vector3(-5.0, 0.0, 0.6), Vector3(-10.0, 0.0, 0.6),
+		Vector3(-15.0, 0.0, 0.6), Vector3(-18.0, 0.0, 0.6),
+		Vector3(-19.0, 0.15, 0.6), Vector3(-20.0, 0.3, 0.6),
+	]
+	var report := PackedStringArray()
+	for local_point in route:
+		var world_point := berths.global_transform * (local_point as Vector3)
+		report.append("local=%s world=%s reachable=%s" % [
+			local_point, world_point,
+			_has_reachable_node_near(world_point, 0.65, reachable),
+		])
+	print("FLEET_EXPANSION_ACCESS_ROUTE_SAMPLES: ", report)
+
+
+func _test_fleet_expansion_pad_bounds(world: ShipyardWorld) -> void:
+	var berths := world.get_node_or_null(
+		^"FleetExpansionProductionBinding/FleetExpansionBerths"
+	) as Node3D
+	var expected := {
+		&"dock_04_cargo": AABB(Vector3(-27.0, 3.9, 88.3), Vector3(42.0, 0.6, 28.0)),
+		&"dock_05_bomber": AABB(Vector3(-27.0, 3.9, 20.3), Vector3(42.0, 0.6, 28.0)),
+		&"dock_06_interceptor": AABB(Vector3(25.0, 3.9, 54.3), Vector3(42.0, 0.6, 28.0)),
+	}
+	var report := PackedStringArray()
+	var valid := berths != null
+	for pad_id: StringName in expected:
+		var body := berths.get_node_or_null(
+			NodePath(String(pad_id) + "/WalkablePadCollision")
+		) as StaticBody3D if berths != null else null
+		var bounds := _body_world_box(body) if body != null else AABB()
+		report.append("%s=%s" % [pad_id, bounds])
+		valid = valid and body != null and bounds.is_equal_approx(expected[pad_id])
+	print("FLEET_EXPANSION_PRODUCTION_PAD_BOUNDS: ", report)
+	_check(
+		valid,
+		"Dock 04/05/06 reachability samples their real production collision bounds at z=105.5, z=37.5, and z=71.5"
+	)
+
+
 ## MAP-002's recorded reproduction, run through the production controller:
 ## stand on the lattice deck in front of a raised deck, face it, hold
 ## `move_forward`, and require the capsule to finish standing on that raised
@@ -530,16 +598,221 @@ func _test_every_flyable_ship_is_boardable_on_foot(
 		if ship == null:
 			continue
 		var boarding_position := ship.call("get_boarding_position") as Vector3
-		if not _has_reachable_node_near(boarding_position, 2.6, reachable):
+		var boarding_area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+		if not _has_reachable_boarding_node(boarding_area, boarding_position, reachable):
 			stranded.append("%s at %s" % [ship.name, str(boarding_position)])
 	print("STRANDED_SHIPS: ", stranded)
 	_check(
-		fleet.size() == 5,
-		"the production fleet still exposes exactly five flyable craft"
+		fleet.size() == 8,
+		"the production GameFlow exposes the complete eight-craft flyable roster"
 	)
 	_check(
 		stranded.is_empty(),
 		"every flyable craft can be approached on foot from spawn without a jump"
+	)
+
+
+func _has_reachable_boarding_node(
+		boarding_area: ShipBoardingArea,
+		legacy_boarding_position: Vector3,
+		reachable: Dictionary
+	) -> bool:
+	var target := boarding_area.global_position \
+		if is_instance_valid(boarding_area) else legacy_boarding_position
+	# GameFlow's production fallback compares the player's 1.42 m-high
+	# interaction origin with a seven-metre boarding point. Modern areas are
+	# stricter in availability/reservation, but use the same physical vicinity.
+	for key: String in reachable:
+		var parts := key.split(":")
+		var point := Vector3(
+			X_MIN + float(int(parts[0])) * GRID,
+			float(parts[2]) + 1.42,
+			Z_MIN + float(int(parts[1])) * GRID
+		)
+		if point.distance_to(target) <= 7.0:
+			return true
+	return false
+
+
+## The exact-bounds flood above proves the complete eight-craft roster. This
+## smaller physical witness drives the live controller only through the defect's
+## three formerly isolated pads: real spawn -> Aft stair -> Fleet connector ->
+## Dock 05 -> Dock 06 -> Dock 04. Route points owned by modules are transformed
+## from their live local frames; no player origin is ever assigned and jump is
+## never pressed.
+func _test_cinder_boarding_positions_from_real_spawn(
+		game: GameFlow,
+		world: ShipyardWorld,
+		player: PlayerController,
+		spawn: Vector3
+	) -> void:
+	var aft := world.get_node_or_null(^"AftJunctionStack") as Node3D
+	var comb := world.get_node_or_null(^"FleetDockComb") as Node3D
+	var connector_deck := world.get_node_or_null(
+		^"ExposedDockLattice/FleetDockCombConnector/FleetDockCombConnectorDeck"
+	) as Node3D
+	var berths := world.get_node_or_null(
+		^"FleetExpansionProductionBinding/FleetExpansionBerths"
+	) as Node3D
+	var ships := {}
+	for entry in game.call("get_flyable_ships"):
+		var ship := entry as HeroShip
+		if ship != null and ship.name in CINDER_BOARDING_TOUR_ORDER:
+			ships[String(ship.name)] = ship
+	var resolved := aft != null and comb != null and connector_deck != null \
+		and berths != null and ships.size() == CINDER_BOARDING_TOUR_ORDER.size()
+	if not resolved:
+		_check(false, "the three Cinder craft and their live Aft/Fleet/berth route owners resolve")
+		return
+
+	var spawn_error := player.global_position.distance_to(spawn)
+	var station_to_stair := PackedVector3Array([
+		Vector3(0.0, 0.0, spawn.z),
+		Vector3(0.0, 0.0, 30.0),
+		(aft.call("get_route_transform", &"approach") as Transform3D).origin,
+		(aft.call("get_route_transform", &"lower-junction") as Transform3D).origin,
+		(aft.call("get_route_transform", &"stair-base") as Transform3D).origin,
+		(aft.call("get_route_transform", &"stair-top") as Transform3D).origin,
+	])
+	var lower_leg := await _walk_world_waypoints(player, station_to_stair)
+	var upper_to_fleet := PackedVector3Array([
+		# Stay on the open east lane clear of live upper-deck dressing, then meet
+		# the connector at its real Aft-local boundary.
+		aft.global_transform * Vector3(-4.6, 4.2, 15.0),
+		aft.global_transform * Vector3(-1.0, 4.2, 15.0),
+		aft.global_transform * Vector3(-1.0, 4.2, 20.3),
+		aft.global_transform * Vector3(-0.15, 4.2, 20.3),
+		connector_deck.global_position + Vector3.UP * 0.32,
+		(comb.call("get_route_transform", &"approach") as Transform3D).origin,
+		berths.global_transform * Vector3(0.3, 0.0, 1.5),
+	])
+	var upper_leg := await _walk_world_waypoints(player, upper_to_fleet)
+
+	var local_legs := {
+		"cinder_long_range_bomber": PackedVector3Array([
+			Vector3(2.4, 0.0, 1.5), Vector3(8.0, 0.0, 0.6),
+			Vector3(18.0, 0.0, 0.6), Vector3(19.0, 0.15, 0.6),
+			Vector3(20.0, 0.3, 0.6), Vector3(22.0, 0.3, 0.6),
+			Vector3(27.5, 0.3, 0.6), Vector3(27.5, 0.3, -17.35),
+		]),
+		"cinder_light_interceptor": PackedVector3Array([
+			Vector3(27.5, 0.3, 0.6), Vector3(22.0, 0.3, 0.6),
+			Vector3(20.0, 0.3, 0.6), Vector3(19.0, 0.15, 0.6),
+			Vector3(18.0, 0.0, 0.6), Vector3(8.0, 0.0, 0.6),
+			Vector3(2.4, 0.0, 1.5), Vector3(-2.4, 0.0, 1.5),
+			Vector3(-8.0, 0.0, 0.6), Vector3(-10.5, 0.0, 3.0),
+			Vector3(-10.5, 0.0, 11.0), Vector3(-10.5, 0.3, 13.0),
+			Vector3(-10.5, 0.3, 24.0), Vector3(-6.0, 0.3, 34.65),
+		]),
+		"cinder_cargo_hauler": PackedVector3Array([
+			Vector3(-10.5, 0.3, 24.0), Vector3(-10.5, 0.3, 13.0),
+			Vector3(-10.5, 0.0, 11.0), Vector3(-10.5, 0.0, 3.0),
+			Vector3(-10.5, 0.0, 0.6), Vector3(-18.0, 0.0, 0.6),
+			Vector3(-19.0, 0.15, 0.6), Vector3(-20.0, 0.3, 0.6),
+			Vector3(-24.0, 0.3, 0.6), Vector3(-40.0, 0.3, 0.6),
+			Vector3(-40.0, 0.3, -18.0),
+		]),
+	}
+	var route_distance := float(lower_leg.get("distance", 0.0)) \
+		+ float(upper_leg.get("distance", 0.0))
+	var failures := PackedStringArray()
+	var visited := PackedStringArray()
+	if not bool(lower_leg.get("reached", false)) \
+			or float(lower_leg.get("minimum_y", -INF)) < -0.10:
+		failures.append("spawn-to-stair stopped/fell at %s" % player.global_position)
+	if not bool(upper_leg.get("reached", false)) \
+			or float(upper_leg.get("minimum_y", -INF)) < 4.0:
+		failures.append("upper-to-fleet stopped/fell at %s" % player.global_position)
+	if failures.is_empty():
+		for ship_name in CINDER_BOARDING_TOUR_ORDER:
+			var route := PackedVector3Array()
+			for local_point in local_legs[ship_name] as PackedVector3Array:
+				route.append(berths.global_transform * local_point)
+			var walked := await _walk_world_waypoints(player, route)
+			route_distance += float(walked.get("distance", 0.0))
+			if not bool(walked.get("reached", false)) \
+					or float(walked.get("minimum_y", -INF)) < 4.0:
+				failures.append("%s route stopped/fell at %s" % [ship_name, player.global_position])
+				break
+			await physics_frame
+			await process_frame
+			game.call("_refresh_interaction_targets")
+			var ship := ships[ship_name] as HeroShip
+			var area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+			var selected := game.boarding_candidate == ship
+			var reserved := area.try_reserve(player) if area != null else ship.is_boardable()
+			if area != null and reserved:
+				area.release_reservation(player)
+			if selected and reserved:
+				visited.append(ship_name)
+			else:
+				failures.append("%s selected=%s reserved=%s at %s" % [
+					ship_name, selected, reserved, player.global_position,
+				])
+				break
+	print(
+		"REAL_SPAWN_CINDER_BOARDING_ROUTE: spawn_error=%.3f distance=%.2f lower_min_y=%.3f upper_min_y=%.3f visited=%s failed=%s" % [
+			spawn_error, route_distance,
+			float(lower_leg.get("minimum_y", -INF)),
+			float(upper_leg.get("minimum_y", -INF)), visited, failures,
+		]
+	)
+	_check(
+		spawn_error <= 0.35 and visited.size() == 3 and failures.is_empty(),
+		"the production player walks from real spawn through the Fleet connector to all three Cinder boarding positions and passes GameFlow selection/reservation without teleporting, jumping, falling, or respawning"
+	)
+
+
+func _walk_world_waypoints(
+		player: PlayerController, waypoints: PackedVector3Array
+	) -> Dictionary:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+		Input.action_release(action)
+	var distance_walked := 0.0
+	var minimum_y := player.global_position.y
+	for target in waypoints:
+		var flat_distance := Vector2(
+			player.global_position.x - target.x,
+			player.global_position.z - target.z
+		).length()
+		if flat_distance <= 0.20:
+			continue
+		var previous := player.global_position
+		var reached := false
+		var stuck_frames := 0
+		Input.action_press(&"move_forward")
+		for _frame in int(ceil(flat_distance / 5.0 * 60.0)) + 120:
+			var desired := target - player.global_position
+			desired.y = 0.0
+			if desired.length() <= 0.20:
+				reached = true
+				break
+			player.global_basis = Basis.looking_at(
+				desired.normalized(), Vector3.UP
+			).orthonormalized()
+			await physics_frame
+			distance_walked += player.global_position.distance_to(previous)
+			minimum_y = minf(minimum_y, player.global_position.y)
+			if player.global_position.distance_to(previous) < 0.005:
+				stuck_frames += 1
+				if stuck_frames >= 50:
+					break
+			else:
+				stuck_frames = 0
+			previous = player.global_position
+		Input.action_release(&"move_forward")
+		await physics_frame
+		if not reached:
+			return {"reached": false, "distance": distance_walked, "minimum_y": minimum_y}
+	return {"reached": true, "distance": distance_walked, "minimum_y": minimum_y}
+
+
+func _node_position_from_key(key: String) -> Vector3:
+	var parts := key.split(":")
+	return Vector3(
+		X_MIN + float(int(parts[0])) * GRID,
+		float(parts[2]),
+		Z_MIN + float(int(parts[1])) * GRID
 	)
 
 
@@ -612,14 +885,25 @@ func _test_parked_craft_are_fully_supported_by_their_berth_decks(
 			Vector3(box.position.x, 0.0, box.end.z),
 			Vector3(box.end.x, 0.0, box.end.z),
 		]:
-			var ray := PhysicsRayQueryParameters3D.create(
-				Vector3(corner.x, box.position.y, corner.z),
-				Vector3(corner.x, box.position.y - 12.0, corner.z),
-				WORLD_LAYER
-			)
-			ray.collide_with_areas = false
-			ray.exclude = _door_blockers
-			if _space.intersect_ray(ray).is_empty():
+			var supported := false
+			# A footprint corner can lie exactly on two deck-body boundaries (the
+			# interceptor does at the comb/Halyard seam). Probe the physical contact
+			# patch one centimetre inward as well as the mathematically exact point;
+			# this avoids treating broad-phase edge ownership as an open void.
+			var inward: Vector3 = (box.get_center() - (corner as Vector3)).slide(Vector3.UP).normalized()
+			for inset in [0.0, 0.01, 0.02]:
+				var sample: Vector3 = (corner as Vector3) + inward * float(inset)
+				var ray := PhysicsRayQueryParameters3D.create(
+					Vector3(sample.x, box.position.y, sample.z),
+					Vector3(sample.x, box.position.y - 12.0, sample.z),
+					WORLD_LAYER
+				)
+				ray.collide_with_areas = false
+				ray.exclude = _door_blockers
+				if not _space.intersect_ray(ray).is_empty():
+					supported = true
+					break
+			if not supported:
 				missing += 1
 		report.append("%s footprint=%s unsupported_corners=%d" % [ship.name, str(box.size), missing])
 		if missing > 0:
@@ -1237,7 +1521,7 @@ func _capsule_clear(centre: Vector3) -> bool:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = _capsule
 	query.transform = Transform3D(Basis.IDENTITY, centre)
-	query.collision_mask = WORLD_LAYER
+	query.collision_mask = WORLD_LAYER | PhysicsLayers.SHIP
 	query.collide_with_areas = false
 	query.margin = 0.0
 	query.exclude = _door_blockers
@@ -1249,7 +1533,7 @@ func _sweep_clear(from_centre: Vector3, to_centre: Vector3) -> bool:
 	query.shape = _capsule
 	query.transform = Transform3D(Basis.IDENTITY, from_centre)
 	query.motion = to_centre - from_centre
-	query.collision_mask = WORLD_LAYER
+	query.collision_mask = WORLD_LAYER | PhysicsLayers.SHIP
 	query.collide_with_areas = false
 	query.margin = 0.0
 	query.exclude = _door_blockers
@@ -1345,6 +1629,20 @@ func _body_world_box(body: Node3D) -> AABB:
 			first = false
 		else:
 			box = box.merge(world_box)
+	if first:
+		for candidate in body.find_children("*", "CollisionShape3D", true, false):
+			var collision := candidate as CollisionShape3D
+			if collision.disabled or collision.shape is not BoxShape3D:
+				continue
+			var size := (collision.shape as BoxShape3D).size
+			var world_box := (
+				collision.global_transform * AABB(-size * 0.5, size)
+			).abs()
+			if first:
+				box = world_box
+				first = false
+			else:
+				box = box.merge(world_box)
 	return box
 
 
