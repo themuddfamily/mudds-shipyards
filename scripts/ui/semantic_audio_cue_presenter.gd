@@ -14,6 +14,9 @@ const REGISTERED_CUES := {
 	&"hull_impact_medium": {"caption": "Hull impact detected", "default_severity": &"medium"},
 	&"hull_impact_heavy": {"caption": "Heavy hull impact", "default_severity": &"high"},
 	&"ship_explosion": {"caption": "Ship destruction", "default_severity": &"high"},
+	&"engine_damage_alarm": {"caption": "Engine damage alarm", "default_severity": &"high"},
+	&"engine_damage_alarm_cleared": {"caption": "Engine damage alarm cleared", "default_severity": &"low"},
+	&"ship_landing_contact": {"caption": "Landing contact", "default_severity": &"medium"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

@@ -59,6 +59,9 @@ const CAPTION_CUES := {
 	&"hull_impact_medium": [&"ambient", "Hull sensors", "[ hull impact ]", 75],
 	&"hull_impact_heavy": [&"ambient", "Hull sensors", "[ heavy hull impact ]", 85],
 	&"ship_explosion": [&"ambient", "Combat audio", "[ ship explosion ]", 90],
+	&"engine_damage_alarm": [&"system", "Engine monitor", "[ engine damage alarm ]", 95],
+	&"engine_damage_alarm_cleared": [&"system", "Engine monitor", "[ engine damage alarm cleared ]", 45],
+	&"ship_landing_contact": [&"ambient", "Landing sensors", "[ landing contact ]", 70],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
