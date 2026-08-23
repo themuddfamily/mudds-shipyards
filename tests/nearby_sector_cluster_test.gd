@@ -96,14 +96,14 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 211
-const EXPECTED_LOCAL_MULTIMESH_NODES := 11
-const EXPECTED_LOCAL_RENDERER_NODES := 222
+const EXPECTED_LOCAL_MESH_NODES := 209
+const EXPECTED_LOCAL_MULTIMESH_NODES := 12
+const EXPECTED_LOCAL_RENDERER_NODES := 221
 const EXPECTED_LOCAL_VISIBLE_COPIES := 758
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 222
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 221
 const EXPECTED_LOCAL_TRIANGLES := 125706
-const EXPECTED_LOCAL_STATIC_BODIES := 38
-const EXPECTED_LOCAL_COLLISION_SHAPES := 38
+const EXPECTED_LOCAL_STATIC_BODIES := 61
+const EXPECTED_LOCAL_COLLISION_SHAPES := 62
 const EXPECTED_LAMP_LENS_COPY_COUNT := 26
 const EXPECTED_LAMP_LENS_RADIUS := 0.45
 const EXPECTED_LAMP_LENS_HEIGHT := 0.9
@@ -237,9 +237,16 @@ func _test_identity_and_authority(world: ShipyardWorld, cluster: NearbySectorClu
 		if bool(candidate.get_meta("is_shipyard_target", false)):
 			stray_targets += 1
 	_check(stray_targets == 0, "the cluster contributes no range targets of its own")
+	var interaction_areas := cluster.find_children("*", "Area3D", true, false)
+	var cargo_access := cluster.get_cinder_cargo_access()
+	var cargo_terminal := cluster.get_cinder_cargo_destination_terminal()
 	_check(
-		cluster.find_children("*", "Area3D", true, false).is_empty(),
-		"the cluster owns no interaction or trigger volumes"
+		interaction_areas.size() == 1
+		and cargo_access != null
+		and cargo_access.get_berth() != null
+		and cargo_terminal != null
+		and interaction_areas[0] == cargo_terminal,
+		"the destination terminal is the only interaction volume and the production berth remains lease-only"
 	)
 
 	# Structured red: the returned report is a deep copy, so a caller mutating it
@@ -766,18 +773,18 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 211 Mesh + 11 MultiMesh renderers after cargo-support batching"
+		"NearbySectorCluster owns 209 Mesh + 12 MultiMesh renderers after streamed-aperture batching"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census preserves 758 copies and 125706 triangles while submissions fall 223 -> 222"
+		"the local census preserves 758 copies and 125706 triangles while submissions fall 222 -> 221"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
 		and int(geometry["collision_shapes"]) == EXPECTED_LOCAL_COLLISION_SHAPES,
-		"the bounded trim leaves the cluster's 38 bodies and 38 collision shapes unchanged"
+		"production composition retains 61 static bodies and the terminal's one interaction shape"
 	)
 
 
