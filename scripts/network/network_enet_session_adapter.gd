@@ -74,6 +74,9 @@ const KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS := 10000
 const KEEPALIVE_MAX_TIMEOUT_MILLISECONDS := 60000
 const MAX_PRESENTATION_ENTITIES := 256
 const MAX_MOVING_INTERIOR_PACKET_BYTES := 12000
+const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
+const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
+const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -106,6 +109,10 @@ var _moving_replica
 var _moving_replica_binding
 var _moving_replica_binding_ids: Dictionary = {}
 var _moving_snapshot_revision := 0
+var _moving_resync_revision := 0
+var _moving_recipient_budgets: Dictionary = {}
+var _moving_recipient_entities: Dictionary = {}
+var _moving_recipient_pending: Dictionary = {}
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _landing_jitter
@@ -302,6 +309,9 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_is_server = false
 	_peer_generations.clear()
 	_seat_moving_relationships.clear()
+	_moving_recipient_budgets.clear()
+	_moving_recipient_entities.clear()
+	_moving_recipient_pending.clear()
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -309,6 +319,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
 	_moving_snapshot_revision = 0
+	_moving_resync_revision = 0
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
@@ -709,7 +720,8 @@ func get_moving_interior_occupancy(entity_id: StringName) -> Dictionary:
 ## revision/generation framing and never accepts a client publication.
 func publish_moving_interior_snapshot(
 	relationship_snapshot: Dictionary,
-	recipients: Array = []
+	recipients: Array = [],
+	budget_tick: int = -1
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -726,6 +738,7 @@ func publish_moving_interior_snapshot(
 		if peer_id <= 0 or not _peer_generations.has(peer_id):
 			return _remember(_result(false, &"peer_not_admitted"))
 	var generation := int(_migration.get_snapshot().get("migration_generation", 1))
+	var logical_tick := relationship.get_server_tick() if budget_tick < 0 else budget_tick
 	var next_revision := _moving_snapshot_revision + 1
 	var packet := {
 		"revision": next_revision,
@@ -736,19 +749,29 @@ func publish_moving_interior_snapshot(
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
 		return _remember(_result(false, &"moving_interior_packet_too_large"))
 	_moving_snapshot_revision = next_revision
+	var coalesced := 0
 	for peer_variant in target_peers:
-		_broadcast_moving_interior_snapshot.rpc_id(int(peer_variant), packet)
-	var result := _result(true, &"moving_interior_snapshot_published", {
+		var peer_id := int(peer_variant)
+		var entity_id := relationship.get_entity_id()
+		var prior: Dictionary = (_moving_recipient_entities.get(peer_id, {}) as Dictionary).get(entity_id, {}) as Dictionary
+		var transition := prior.is_empty() or int(prior.get("entity_generation", 0)) != relationship.get_entity_generation()
+		var budget := _moving_budget_decision(peer_id, packet, entity_id, logical_tick, transition)
+		if bool(budget.get("accepted", false)) and _peer != null:
+			_broadcast_moving_interior_snapshot.rpc_id(peer_id, packet)
+		elif budget.get("status") == &"coalesced":
+			coalesced += 1
+	var result := _result(true, &"moving_interior_snapshot_coalesced" if coalesced == target_peers.size() and not target_peers.is_empty() else &"moving_interior_snapshot_published", {
 		"revision": next_revision,
 		"migration_generation": generation,
 		"recipients": target_peers.size(),
+		"coalesced": coalesced,
 		"packet": packet,
 	})
 	moving_interior_result.emit(result.duplicate(true))
 	return _remember(result)
 
 
-func publish_moving_interior_resync(peer_id: int) -> Dictionary:
+func publish_moving_interior_resync(peer_id: int, budget_tick: int = -1) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	if not _peer_generations.has(peer_id):
@@ -761,22 +784,107 @@ func publish_moving_interior_resync(peer_id: int) -> Dictionary:
 		relationships.append((_seat_moving_relationships[relationship_key_variant] as Dictionary).duplicate(true))
 	if relationships.size() > 128:
 		return _remember(_result(false, &"moving_interior_resync_capacity"))
+	var prior_entities: Dictionary = _moving_recipient_entities.get(peer_id, {}) as Dictionary
+	var current_entities: Dictionary = {}
+	for relationship_variant in relationships:
+		var relationship := relationship_variant as Dictionary
+		current_entities[StringName(relationship.get("entity_id", &""))] = relationship.duplicate(true)
+	var released_entities: Array = []
+	for entity_variant in prior_entities.keys():
+		if not current_entities.has(entity_variant):
+			released_entities.append(StringName(entity_variant))
 	var packet := {
 		"authority_peer_id": AUTHORITY_PEER_ID,
 		"recipient_peer_id": peer_id,
 		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 1)),
 		"revision": maxi(1, _moving_snapshot_revision),
 		"relationships": relationships,
+		"released_entities": released_entities,
 	}
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
 		return _remember(_result(false, &"moving_interior_packet_too_large"))
-	if _peer != null:
+	var logical_tick := budget_tick if budget_tick >= 0 else int(_migration.get_snapshot().get("migration_generation", 1))
+	var transition := not released_entities.is_empty()
+	for entity_variant in current_entities.keys():
+		var prior: Dictionary = prior_entities.get(entity_variant, {}) as Dictionary
+		var current: Dictionary = current_entities[entity_variant] as Dictionary
+		if prior.is_empty() or int(prior.get("entity_generation", 0)) != int(current.get("entity_generation", 0)):
+			transition = true
+	var budget := _moving_budget_decision(peer_id, packet, &"__resync__", logical_tick, transition)
+	if bool(budget.get("accepted", false)) and _peer != null:
 		_send_moving_interior_resync.rpc_id(peer_id, packet)
-	return _remember(_result(true, &"moving_interior_resync_published", {
+	if bool(budget.get("accepted", false)):
+		_moving_recipient_entities[peer_id] = current_entities
+	return _remember(_result(bool(budget.get("accepted", false)), budget.get("status", &"moving_interior_resync_published"), {
 		"peer_id": peer_id,
 		"relationship_count": relationships.size(),
+		"released_count": released_entities.size(),
 		"packet": packet,
 	}))
+
+
+func get_moving_interior_budget_snapshot(peer_id: int = 0) -> Dictionary:
+	if peer_id > 0:
+		return (_moving_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
+	return _moving_recipient_budgets.duplicate(true)
+
+
+func _moving_budget_decision(
+	peer_id: int,
+	packet: Dictionary,
+	entity_id: StringName,
+	logical_tick: int,
+	transition: bool
+) -> Dictionary:
+	var size_bytes := Marshalls.variant_to_base64(packet).to_utf8_buffer().size()
+	if size_bytes > MAX_MOVING_INTERIOR_PACKET_BYTES:
+		return _result(false, &"moving_interior_packet_too_large")
+	var state: Dictionary = _moving_recipient_budgets.get(peer_id, {}) as Dictionary
+	if state.is_empty():
+		state = {"window_tick": logical_tick, "snapshot_count": 0, "byte_count": 0,
+			"coalesced_count": 0, "transition_count": 0, "forced_transition_count": 0, "pending_count": 0}
+	elif logical_tick < int(state.get("window_tick", logical_tick)):
+		return _result(false, &"stale_moving_interior_budget_tick")
+	elif logical_tick >= int(state.get("window_tick", logical_tick)) + MOVING_INTERIOR_BUDGET_WINDOW_TICKS:
+		state["window_tick"] = logical_tick
+		state["snapshot_count"] = 0
+		state["byte_count"] = 0
+		var pending: Dictionary = _moving_recipient_pending.get(peer_id, {}) as Dictionary
+		for pending_variant in pending.values():
+			var pending_packet := pending_variant as Dictionary
+			var pending_size := Marshalls.variant_to_base64(pending_packet).to_utf8_buffer().size()
+			if int(state.snapshot_count) >= MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW \
+					or int(state.byte_count) + pending_size > MOVING_INTERIOR_MAX_BYTES_PER_WINDOW:
+				break
+			if _peer != null:
+				_broadcast_moving_interior_snapshot.rpc_id(peer_id, pending_packet)
+			state.snapshot_count = int(state.snapshot_count) + 1
+			state.byte_count = int(state.byte_count) + pending_size
+			pending.erase(pending_variant)
+		_moving_recipient_pending[peer_id] = pending
+	if int(state.snapshot_count) >= MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW \
+			or int(state.byte_count) + size_bytes > MOVING_INTERIOR_MAX_BYTES_PER_WINDOW:
+		if transition:
+			state.forced_transition_count = int(state.get("forced_transition_count", 0)) + 1
+		else:
+			var pending: Dictionary = _moving_recipient_pending.get(peer_id, {}) as Dictionary
+			pending[entity_id] = packet.duplicate(true)
+			_moving_recipient_pending[peer_id] = pending
+			state.coalesced_count = int(state.get("coalesced_count", 0)) + 1
+			state.pending_count = pending.size()
+			_moving_recipient_budgets[peer_id] = state
+			return _result(false, &"coalesced", {"pending_count": pending.size()})
+	if transition:
+		state.transition_count = int(state.get("transition_count", 0)) + 1
+	state.snapshot_count = int(state.snapshot_count) + 1
+	state.byte_count = int(state.byte_count) + size_bytes
+	_moving_recipient_budgets[peer_id] = state
+	if entity_id != &"__resync__":
+		var entities: Dictionary = _moving_recipient_entities.get(peer_id, {}) as Dictionary
+		var relationship: Dictionary = packet.get("relationship", {}) as Dictionary
+		entities[entity_id] = relationship.duplicate(true)
+		_moving_recipient_entities[peer_id] = entities
+	return _result(true, &"sent", {"bytes": size_bytes})
 
 
 func register_owned_ship(
@@ -1066,6 +1174,9 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
 	if bool(result.get("accepted", false)):
 		_moving_snapshot_revision = 0
+		_moving_recipient_budgets.clear()
+		_moving_recipient_entities.clear()
+		_moving_recipient_pending.clear()
 		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -1217,6 +1328,10 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_replica_snapshot.clear()
 	_moving_replica_samples.clear()
 	_moving_snapshot_revision = 0
+	_moving_resync_revision = 0
+	_moving_recipient_budgets.clear()
+	_moving_recipient_entities.clear()
+	_moving_recipient_pending.clear()
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
@@ -2501,8 +2616,14 @@ func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"foreign_moving_interior_resync"))
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
 		return _remember(_result(false, &"moving_interior_packet_too_large"))
+	var resync_revision := int(packet.get("revision", 0))
+	if resync_revision < _moving_resync_revision:
+		return _remember(_result(false, &"stale_moving_interior_resync"))
 	var relationships_variant: Variant = packet.get("relationships")
 	if not relationships_variant is Array or (relationships_variant as Array).size() > 128:
+		return _remember(_result(false, &"invalid_moving_interior_resync"))
+	var released_list_variant: Variant = packet.get("released_entities", [])
+	if not released_list_variant is Array or (released_list_variant as Array).size() > 128:
 		return _remember(_result(false, &"invalid_moving_interior_resync"))
 	var generation := int(packet.get("migration_generation", 0))
 	var current_generation := int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
@@ -2526,9 +2647,19 @@ func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
 		if not bool(applied.get("accepted", false)):
 			return _remember(_result(false, applied.get("status", &"moving_interior_resync_rejected")))
 		applied_count += 1
+	for released_item in released_list_variant as Array:
+		if not released_item is String and not released_item is StringName:
+			return _remember(_result(false, &"invalid_moving_interior_resync"))
+		var released_id := StringName(released_item)
+		_moving_replica.detach_entity(released_id)
+		_moving_replica_samples.erase(released_id)
+		_moving_replica_binding.detach(released_id)
+		_moving_replica_binding_ids.erase(released_id)
+	_moving_resync_revision = resync_revision
 	return _remember(_result(true, &"moving_interior_resync_applied", {
 		"generation": generation,
 		"relationship_count": applied_count,
+		"released_count": (released_list_variant as Array).size(),
 	}))
 
 
@@ -2616,6 +2747,9 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 			_prediction_entities.erase(prediction_id)
 	_peer_generations.erase(peer_id)
 	_peer_keepalive_deadlines.erase(peer_id)
+	_moving_recipient_budgets.erase(peer_id)
+	_moving_recipient_entities.erase(peer_id)
+	_moving_recipient_pending.erase(peer_id)
 	_refresh_hosted_directory()
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)
