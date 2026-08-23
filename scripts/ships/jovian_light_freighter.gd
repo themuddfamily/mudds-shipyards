@@ -76,6 +76,12 @@ const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
 const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
 const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
+## Broad amber lintel above the deployed cargo ramp. The old rounded box spent
+## 108 triangles on a 0.054 m bevel that still read rectangular while boarding.
+## A true Y/Z capsule uses the same bounds and one surface in 72 triangles.
+const CARGO_APERTURE_HEADER_SIZE := Vector3(0.34, 0.30, 4.20)
+const CARGO_APERTURE_HEADER_END_RADIUS := 0.15
+const CARGO_APERTURE_HEADER_CURVE_SEGMENTS := 8
 
 ## Three childless teal deck-lane inlays are one identical visual recipe. They
 ## carry no collision, interaction, cargo, route, or evidence identity, so the
@@ -3024,7 +3030,15 @@ func _build_exterior() -> void:
 		)
 	for vertical_z in [1.25, 5.15]:
 		_box(_jovian_visual, "CargoApertureUpright", Vector3(-5.78, 2.38, vertical_z), Vector3(0.32, 3.75, 0.3), _jovian_materials.amber)
-	_box(_jovian_visual, "CargoApertureHeader", Vector3(-5.78, 4.22, 3.2), Vector3(0.34, 0.3, 4.2), _jovian_materials.amber)
+	_cargo_aperture_capsule_header(
+		_jovian_visual,
+		"CargoApertureHeader",
+		Vector3(-5.78, 4.22, 3.2),
+		CARGO_APERTURE_HEADER_SIZE,
+		_jovian_materials.amber,
+		CARGO_APERTURE_HEADER_END_RADIUS,
+		CARGO_APERTURE_HEADER_CURVE_SEGMENTS
+	)
 	_box(_jovian_visual, "CargoRampActuator", Vector3(-6.1, 0.12, 1.3), Vector3(0.24, 0.24, 1.35), _jovian_materials.structure, Vector3(0.0, 0.0, ramp_angle))
 	_box(_jovian_visual, "CargoRampActuator", Vector3(-6.1, 0.12, 5.1), Vector3(0.24, 0.24, 1.35), _jovian_materials.structure, Vector3(0.0, 0.0, ramp_angle))
 
@@ -3868,3 +3882,103 @@ func _ramp_wedge(
 	instance.mesh = tool.commit()
 	parent.add_child(instance)
 	return instance
+
+
+## One capsule lintel in the broad local Y/Z plane, extruded through local X.
+## It is presentation-only like the former `_box`: the true ramp wedge and hull
+## collision remain ship-root shapes, and no boarding, door, seat, or cargo
+## authority moves under this node.
+func _cargo_aperture_capsule_header(
+	parent: Node3D,
+	node_name: String,
+	header_position: Vector3,
+	size: Vector3,
+	material: Material,
+	end_radius: float,
+	segments_per_end: int,
+) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = header_position
+	instance.mesh = _cargo_aperture_capsule_mesh(
+		size, material, end_radius, segments_per_end
+	)
+	instance.set_meta("geometry_profile", &"yz_extruded_capsule")
+	instance.set_meta("end_radius_m", end_radius)
+	instance.set_meta("curve_segments_per_end", segments_per_end)
+	instance.set_meta("evidence_status", EVIDENCE_STATUS)
+	instance.set_meta("authenticated_historical_geometry", false)
+	instance.set_meta("visual_only", true)
+	parent.add_child(instance)
+	return instance
+
+
+func _cargo_aperture_capsule_mesh(
+	size: Vector3,
+	material: Material,
+	end_radius: float,
+	segments_per_end: int,
+) -> ArrayMesh:
+	var radius := clampf(end_radius, 0.001, minf(size.y, size.z) * 0.5)
+	var segment_count := maxi(segments_per_end, 2)
+	var straight_half_length := size.z * 0.5 - radius
+	# Vector2 stores local (Z, Y), counter-clockwise around the approach face.
+	var boundary: Array[Vector2] = []
+	for segment in segment_count + 1:
+		var angle := lerpf(-PI * 0.5, PI * 0.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			straight_half_length + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+	for segment in segment_count + 1:
+		var angle := lerpf(PI * 0.5, PI * 1.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			-straight_half_length + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+
+	var half_depth := size.x * 0.5
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for index in boundary.size():
+		var current := boundary[index]
+		var next := boundary[(index + 1) % boundary.size()]
+		var current_uv := Vector2(current.x / size.z + 0.5, current.y / size.y + 0.5)
+		var next_uv := Vector2(next.x / size.z + 0.5, next.y / size.y + 0.5)
+		# Port/approach cap, facing local -X.
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, 0.0, 0.0), Vector3.LEFT, Vector2(0.5, 0.5))
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, next.y, next.x), Vector3.LEFT, next_uv)
+		# Cargo-bay cap, facing local +X.
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, 0.0, 0.0), Vector3.RIGHT, Vector2(0.5, 0.5))
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, current.y, current.x), Vector3.RIGHT, current_uv)
+		var rim_normal := Vector3(
+			0.0,
+			-(next.x - current.x),
+			next.y - current.y
+		).normalized()
+		var rim_u := float(index) / float(boundary.size())
+		var rim_next_u := float(index + 1) / float(boundary.size())
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 1.0))
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 0.0))
+	tool.generate_tangents()
+	var mesh := tool.commit()
+	mesh.resource_name = "jovian_cargo_aperture_capsule_header_v1"
+	return mesh
+
+
+func _emit_cargo_header_vertex(
+	tool: SurfaceTool,
+	position: Vector3,
+	normal: Vector3,
+	uv: Vector2,
+) -> void:
+	tool.set_normal(normal)
+	tool.set_uv(uv)
+	tool.add_vertex(position)
