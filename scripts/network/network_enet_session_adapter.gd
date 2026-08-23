@@ -32,6 +32,7 @@ const CrewSnapshotCodec := preload("res://scripts/network/network_crew_snapshot_
 const MovingInteriorRelationship := preload("res://scripts/network/moving_interior_relationship.gd")
 const MovingInteriorRelationshipStream := preload("res://scripts/network/moving_interior_relationship_stream.gd")
 const MovingInteriorReplica := preload("res://scripts/network/network_moving_interior_replica.gd")
+const MovingInteriorReplicaBinding := preload("res://scripts/network/network_moving_interior_replica_binding.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -102,6 +103,8 @@ var _crew_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
 var _moving_relationship_stream
 var _moving_replica
+var _moving_replica_binding
+var _moving_replica_binding_ids: Dictionary = {}
 var _moving_snapshot_revision := 0
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
@@ -173,6 +176,7 @@ func _init() -> void:
 	_moving_interior = MovingInteriorAuthority.new(AUTHORITY_PEER_ID)
 	_moving_relationship_stream = MovingInteriorRelationshipStream.new(AUTHORITY_PEER_ID, 2)
 	_moving_replica = MovingInteriorReplica.new(AUTHORITY_PEER_ID, 2, 0.0, 0.25, 8.0)
+	_moving_replica_binding = MovingInteriorReplicaBinding.new(8.0)
 	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
 	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
 	_crew_roles = CrewRoleAuthority.new(_seat_authority, AUTHORITY_PEER_ID)
@@ -305,6 +309,9 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
 	_moving_snapshot_revision = 0
+	for entity_variant in _moving_replica_binding_ids.keys():
+		_moving_replica_binding.detach(StringName(entity_variant))
+	_moving_replica_binding_ids.clear()
 	mark_reconnect_succeeded()
 	record_session_end(reason)
 	_reset_handshake_deadline()
@@ -1179,6 +1186,9 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_replica_snapshot.clear()
 	_moving_replica_samples.clear()
 	_moving_snapshot_revision = 0
+	for entity_variant in _moving_replica_binding_ids.keys():
+		_moving_replica_binding.detach(StringName(entity_variant))
+	_moving_replica_binding_ids.clear()
 	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
 		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 		_moving_replica.reset_migration(AUTHORITY_PEER_ID, migration_generation)
@@ -1463,7 +1473,48 @@ func sample_moving_interior_replica(entity_id: StringName, now_seconds: float) -
 func detach_moving_interior_replica(entity_id: StringName) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
-	return _remember(_moving_replica.detach_entity(entity_id))
+	var result: Dictionary = _moving_replica.detach_entity(entity_id)
+	_moving_replica_binding.detach(entity_id)
+	_moving_replica_binding_ids.erase(entity_id)
+	return _remember(result)
+
+
+func bind_moving_interior_replica(
+	entity_id: StringName,
+	entity_generation: int,
+	avatar_node: Node3D,
+	frame_node: Node3D,
+	frame_generation: int
+) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var result: Dictionary = _moving_replica_binding.bind(
+		entity_id, entity_generation, avatar_node, frame_node, frame_generation
+	)
+	if bool(result.get("accepted", false)):
+		_moving_replica_binding_ids[entity_id] = {
+			"entity_generation": entity_generation,
+			"frame_generation": frame_generation,
+		}
+	return _remember(result)
+
+
+func apply_moving_interior_replica(entity_id: StringName, now_seconds: float) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var sampled: Dictionary = _moving_replica.sample(entity_id, now_seconds)
+	if not bool(sampled.get("accepted", false)):
+		return _remember(sampled)
+	var binding_identity: Dictionary = _moving_replica_binding_ids.get(entity_id, {}) as Dictionary
+	if binding_identity.is_empty():
+		return _remember(_result(false, &"entity_not_bound"))
+	var binding: Dictionary = _moving_replica_binding.apply_sample(
+		entity_id,
+		sampled,
+		int(binding_identity.get("entity_generation", 0)),
+		int(binding_identity.get("frame_generation", 0))
+	)
+	return _remember(binding)
 
 
 func _frozen_moving_interior_samples(frame_world_transform: Transform3D) -> Array:
