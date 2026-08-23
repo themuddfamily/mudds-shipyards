@@ -20,10 +20,114 @@ const LOADMASTER_STATION_SEAT_ID: StringName = &"cinder_loadmaster_station"
 const INTERIOR_BOUNDS := AABB(Vector3(-2.55, -0.95, -2.80), Vector3(5.10, 2.10, 5.60))
 const CABIN_ROUTE_ID: StringName = &"cinder_cargo_port_aperture"
 const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
+const LOADMASTER_INTERACTION_REACH := 1.20
 
 const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
 const ACCENT_COLOR := Color("42c9cf")
+
+
+class CinderLoadmasterInteraction:
+	extends Area3D
+
+	var _craft: CinderCargoHauler
+	var _seat_id: StringName
+	var _seat_generation := 1
+	var _reach_meters := 1.20
+	var _actor: Node
+
+
+	func configure(
+			craft: CinderCargoHauler,
+			seat_id: StringName,
+			seat_generation: int,
+			reach_meters: float
+	) -> void:
+		_craft = craft
+		_seat_id = seat_id
+		_seat_generation = seat_generation
+		_reach_meters = reach_meters
+		collision_layer = PhysicsLayers.INTERACTABLE_AREA_LAYER
+		collision_mask = 0
+		monitoring = false
+		monitorable = true
+		var shape := CollisionShape3D.new()
+		shape.name = "InteractionShape"
+		var sphere := SphereShape3D.new()
+		sphere.radius = reach_meters
+		shape.shape = sphere
+		add_child(shape)
+
+
+	func get_interaction_prompt() -> String:
+		return "[ E ]  SIT  // LOADMASTER" if is_available() else ""
+
+
+	func get_seat_id() -> StringName:
+		return _seat_id
+
+
+	func get_seat_generation() -> int:
+		return _seat_generation
+
+
+	func is_available() -> bool:
+		return is_inside_tree() and _actor == null and _craft != null \
+			and _craft.is_loadmaster_station_available()
+
+
+	func try_claim(
+			actor: Node,
+			source_peer_id: int,
+			occupant_peer_id: int,
+			avatar_id: StringName,
+			request_sequence: int
+	) -> Dictionary:
+		if not is_instance_valid(actor) or not is_available():
+			return {"accepted": false, "status": &"interaction_unavailable"}
+		if not actor is Node3D or global_position.distance_to((actor as Node3D).global_position) > _reach_meters:
+			return {"accepted": false, "status": &"interaction_out_of_range"}
+		var result := _craft.claim_loadmaster_station(
+			actor, source_peer_id, occupant_peer_id, avatar_id, request_sequence, _seat_generation
+		)
+		if bool(result.get("accepted", false)):
+			_actor = actor
+			_apply_availability(false)
+		return result
+
+
+	func release(
+			actor: Node,
+			source_peer_id: int,
+			occupant_peer_id: int,
+			avatar_id: StringName,
+			request_sequence: int
+	) -> Dictionary:
+		if _actor != actor:
+			return {"accepted": false, "status": &"interaction_actor_mismatch"}
+		var result := _craft.release_loadmaster_station(
+			actor, source_peer_id, occupant_peer_id, avatar_id, request_sequence, _seat_generation
+		)
+		if bool(result.get("accepted", false)):
+			_actor = null
+			_apply_availability(true)
+		return result
+
+
+	func clear_for_detach() -> void:
+		_actor = null
+		_apply_availability(false)
+
+
+	func refresh_availability() -> void:
+		_apply_availability(true)
+
+
+	func _apply_availability(enabled: bool) -> void:
+		monitorable = enabled and _craft != null and _craft.is_loadmaster_station_available()
+		for child in get_children():
+			if child is CollisionShape3D:
+				(child as CollisionShape3D).set_deferred(&"disabled", not monitorable)
 
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
@@ -37,6 +141,7 @@ var _moving_interior_component: MovingInteriorFrame
 var _occupant_volume: Area3D
 var _loadmaster_station_anchor: Marker3D
 var _loadmaster_console: MeshInstance3D
+var _loadmaster_interaction: CinderLoadmasterInteraction
 var _loadmaster_status_panel: MeshInstance3D
 var _loadmaster_status_display: Label3D
 var _loadmaster_status_snapshot: Dictionary = {}
@@ -84,6 +189,8 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_clear_loadmaster_manifest(&"ship_detached")
+	if _loadmaster_interaction != null:
+		_loadmaster_interaction.clear_for_detach()
 	if _moving_interior_component != null and is_instance_valid(_moving_interior_component):
 		_moving_interior_component.clear_occupants(false, &"ship_detached")
 	if _ship_perspective_audio_binding != null:
@@ -137,6 +244,8 @@ func apply_damage(
 	)
 	if is_destroyed():
 		_clear_loadmaster_manifest(&"ship_destroyed")
+		if _loadmaster_interaction != null:
+			_loadmaster_interaction.clear_for_detach()
 		if _moving_interior_component != null:
 			_moving_interior_component.clear_occupants(true, &"ship_destroyed")
 
@@ -159,6 +268,18 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	_cargo_boarding_marker.position = Vector3(-3.4, -1.1, 0.0)
 	_cargo_boarding_marker.set_meta(&"boarding_side", &"port")
 	visual.add_child(_cargo_boarding_marker)
+	var boarding_area := ShipBoardingArea.new()
+	boarding_area.name = "ShipBoardingArea"
+	boarding_area.interaction_id = &"board_cinder_cargo_hauler"
+	boarding_area.prompt_text = "[ E ]  BOARD CINDER CARGO HAULER"
+	boarding_area.position = _cargo_boarding_marker.position
+	var boarding_shape := CollisionShape3D.new()
+	boarding_shape.name = "BoardingRange"
+	var boarding_sphere := SphereShape3D.new()
+	boarding_sphere.radius = 4.5
+	boarding_shape.shape = boarding_sphere
+	boarding_area.add_child(boarding_shape)
+	add_child(boarding_area)
 	var lamp := MeshInstance3D.new()
 	lamp.name = "CargoBoardingLamp"
 	var lamp_mesh := BoxMesh.new()
@@ -288,6 +409,67 @@ func get_loadmaster_station_anchor() -> Marker3D:
 	return _loadmaster_station_anchor
 
 
+func get_loadmaster_interaction() -> CinderLoadmasterInteraction:
+	return _loadmaster_interaction
+
+
+func is_loadmaster_station_available() -> bool:
+	if _crew_role_authority == null or not is_instance_valid(_loadmaster_station_anchor):
+		return false
+	for assignment_variant in _crew_role_authority.get_snapshot().get("assignments", []) as Array:
+		if StringName((assignment_variant as Dictionary).get("seat_id", &"")) == LOADMASTER_STATION_SEAT_ID:
+			return false
+	return true
+
+
+func claim_loadmaster_station(
+		actor: Node,
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		request_sequence: int,
+		seat_generation: int
+) -> Dictionary:
+	if not is_instance_valid(actor) or not actor is Node3D:
+		return {"accepted": false, "status": &"invalid_interaction_actor"}
+	if _loadmaster_interaction == null \
+			or _loadmaster_interaction.global_position.distance_to((actor as Node3D).global_position) > LOADMASTER_INTERACTION_REACH:
+		return {"accepted": false, "status": &"interaction_out_of_range"}
+	if not is_loadmaster_station_available():
+		return {"accepted": false, "status": &"station_occupied"}
+	return _crew_role_authority.claim(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		LOADMASTER_STATION_SEAT_ID,
+		CrewRoleGameplayProfileType.ROLE_PASSENGER,
+		request_sequence
+	)
+
+
+func release_loadmaster_station(
+		actor: Node,
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		request_sequence: int,
+		seat_generation: int
+) -> Dictionary:
+	if _loadmaster_interaction == null or not is_instance_valid(actor):
+		return {"accepted": false, "status": &"invalid_interaction_actor"}
+	var result := _crew_role_authority.release(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		LOADMASTER_STATION_SEAT_ID,
+		request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_loadmaster_manifest(&"role_released")
+	return result
+
+
 func get_loadmaster_manifest_snapshot() -> Dictionary:
 	return {
 		"schema_version": 1,
@@ -349,6 +531,8 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 	if not station_found or not is_instance_valid(_loadmaster_station_anchor):
 		return _crew_role_result(false, &"cinder_loadmaster_roster_mismatch")
 	_crew_role_authority = authority
+	if _loadmaster_interaction != null:
+		_loadmaster_interaction.refresh_availability()
 	refresh_loadmaster_status_display()
 	return _crew_role_result(true, &"authority_attached")
 
@@ -599,6 +783,19 @@ func _build_cargo_interior() -> void:
 	_loadmaster_station_anchor.set_meta(&"seat_type", &"physical")
 	_loadmaster_station_anchor.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_cargo_cabin.add_child(_loadmaster_station_anchor)
+	_loadmaster_interaction = CinderLoadmasterInteraction.new()
+	_loadmaster_interaction.name = "LoadmasterStationInteraction"
+	_loadmaster_interaction.position = _loadmaster_station_anchor.position + Vector3(0.0, 0.0, -0.72)
+	_loadmaster_interaction.configure(
+		self,
+		LOADMASTER_STATION_SEAT_ID,
+		1,
+		LOADMASTER_INTERACTION_REACH
+	)
+	_loadmaster_interaction.set_meta(&"station_id", LOADMASTER_STATION_SEAT_ID)
+	_loadmaster_interaction.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_loadmaster_interaction.set_meta(&"authority_owner", &"CrewSeatRoleAuthority")
+	_cargo_cabin.add_child(_loadmaster_interaction)
 	var access := Marker3D.new()
 	access.name = "CargoCabinAccessMarker"
 	access.position = Vector3(-2.20, -0.30, 0.0)
@@ -686,6 +883,9 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	if _moving_interior_component != null and is_instance_valid(_moving_interior_component):
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
 		_moving_interior_component.reset_frame_tracking(true)
+	if _loadmaster_interaction != null:
+		_loadmaster_interaction.clear_for_detach()
+		_loadmaster_interaction.refresh_availability()
 	_sync_interior_occupant_collision()
 
 
