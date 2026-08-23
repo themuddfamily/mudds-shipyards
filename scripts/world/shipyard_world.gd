@@ -2042,6 +2042,16 @@ func get_heavy_breach_protected_objective() -> Node3D:
 	)
 
 
+## The one diegetic adapter for the shared sortie-selection board.  Its parent
+## console remains part of the authored Aft Operations room; this accessor only
+## exposes the live interaction node to the production coordinator.
+func get_activity_board_console() -> Area3D:
+	var console := get_node_or_null(
+		^"AftJunctionStack/Structure/OperationsRoom/ConsoleBay02/ActivityBoardConsole"
+	) as Area3D
+	return console if is_instance_valid(console) else null
+
+
 ## Binds the caller-owned reward sink to the board's shared nearby-activity
 ## adapter. ShipyardWorld never grants or persists the reward itself.
 func configure_station_defense_reward_handoff(callback: Callable) -> Dictionary:

@@ -3200,6 +3200,13 @@ func _build_operations_room(structure: Node3D) -> void:
 			0.42,
 			3.4
 		)
+		# One existing console is an embodied entry point to the Activity Board.
+		# The adapter adds only proximity discovery; GameFlow and HUD retain the
+		# selection and activity lifecycle authority.
+		if bay_index == 1:
+			var activity_board_console := ActivityBoardConsole.new()
+			activity_board_console.name = "ActivityBoardConsole"
+			bay.add_child(activity_board_console)
 		# The bay's one warm lamp gets its own tiny pool. It is the only warm
 		# source on the console line and it is what stops three identical cyan
 		# consoles reading as one extruded strip.

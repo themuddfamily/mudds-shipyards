@@ -5558,6 +5558,22 @@ func _show_activity_selection_page() -> void:
 		selected_button.grab_focus()
 
 
+## Public embodied entry point for the existing Activity Board.  The board is
+## still the pause-overlay page: this method only exposes its established
+## visibility and focus lifecycle to a physical station console.
+func open_activity_board() -> bool:
+	if (
+		is_queued_for_deletion()
+		or not is_inside_tree()
+		or _pause == null
+		or _activity_selection_page == null
+	):
+		return false
+	set_paused(true)
+	_show_activity_selection_page()
+	return _pause.visible and _activity_selection_page.visible
+
+
 ## Commits presentation only after GameFlow returns its validated result. A
 ## rejected button press therefore cannot make the board lie about selection.
 func set_activity_selection_state(

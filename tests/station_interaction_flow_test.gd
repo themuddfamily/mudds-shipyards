@@ -80,6 +80,7 @@ func _run() -> void:
 	)
 
 	await _test_production_station_seat(game, player)
+	await _test_activity_board_console(game, player)
 
 	# A remote door must not disturb the established physical ship interaction.
 	var arrow := game.get_node("ArrowReconShip") as HeroShip
@@ -143,6 +144,54 @@ func _test_production_station_seat(game: GameFlow, player: PlayerController) -> 
 	_check(
 		player.is_control_enabled() and seat.is_available() and not seat.is_reserved_for(player),
 		"standing restores locomotion and releases the chair for reuse"
+	)
+
+
+func _test_activity_board_console(game: GameFlow, player: PlayerController) -> void:
+	var console := game.world.call(&"get_activity_board_console") as Area3D
+	var hud := game.hud as GameHUD
+	_check(console != null, "Aft Operations ConsoleBay02 exposes one physical Activity Board interaction")
+	if console == null or hud == null:
+		return
+	var selection_before := game.get_activity_integration_report()
+	var console_connections := console.get_signal_connection_list(&"open_requested")
+	var approach := console.global_position + Vector3(0.0, 0.0, -1.05)
+	player.teleport_to(Transform3D(Basis(Vector3.UP, PI), approach))
+	await physics_frame
+	await physics_frame
+	await process_frame
+	_check(
+		game.station_interaction_candidate == console
+		and "ACTIVITY BOARD" in str(console.call(&"get_interaction_prompt")),
+		"facing the physical console selects its shared on-foot prompt"
+	)
+	game.call(&"_on_interact_requested")
+	var pause_overlay := hud.get("_pause") as Control
+	var activity_page := hud.get("_activity_selection_page") as Control
+	_check(
+		pause_overlay != null and pause_overlay.visible
+		and activity_page != null and activity_page.visible,
+		"one embodied interaction pauses and focuses the existing Activity Board page"
+	)
+	var selection_after := game.get_activity_integration_report()
+	_check(
+		selection_before.get("selected_activity_kind", &"") == selection_after.get("selected_activity_kind", &"")
+		and selection_before.get("active_activity_id", &"") == selection_after.get("active_activity_id", &"")
+		and selection_before.get("active_generation", -1) == selection_after.get("active_generation", -2),
+		"opening the console changes no selection, start, generation, or reward authority"
+	)
+	hud.set_paused(false)
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	var rebound_console := game.world.call(&"get_activity_board_console") as Area3D
+	_check(
+		rebound_console == console
+		and rebound_console.get_signal_connection_list(&"open_requested").size()
+		== console_connections.size(),
+		"Main detach/reentry retains one console and one GameFlow signal binding"
 	)
 
 

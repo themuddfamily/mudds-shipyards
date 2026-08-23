@@ -312,6 +312,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 # always did.
 var world: Node3D
 var player: CharacterBody3D
+var activity_board_console: Area3D
 ## Legacy primary alias retained for the guided vertical-slice tests. Runtime
 ## gameplay uses `active_ship` and the physical `ships` registry below.
 var ship: HeroShip
@@ -927,6 +928,11 @@ func _ready() -> void:
 func _resolve_scene_bindings() -> void:
 	world = get_node_or_null(^"ShipyardWorld") as Node3D
 	player = get_node_or_null(^"Player") as CharacterBody3D
+	activity_board_console = (
+		world.call(&"get_activity_board_console") as Area3D
+		if is_instance_valid(world) and world.has_method(&"get_activity_board_console")
+		else null
+	)
 	ship = get_node_or_null(^"TorrentInterceptor") as HeroShip
 	opponent = get_node_or_null(^"RangeOpponent") as CharacterBody3D
 	combat_authority = get_node_or_null(^"CombatAuthority") as LiveCombatAuthorityType
@@ -3122,6 +3128,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 
 
 func _connect_runtime_signals() -> void:
+	_bind_activity_board_console()
 	_connect_signal_once(
 		combat_authority,
 		&"authoritative_shot_submitted",
@@ -3672,6 +3679,17 @@ func start_shift() -> void:
 ## the suppression, the boarding-area reservation and the station facing test are
 ## all evaluated against the world as it is at the instant of the press.
 func _refresh_interaction_targets() -> void:
+	# ShipyardWorld finishes its procedural Aft Operations children after Main's
+	# first binding pass.  Resolve this one optional adapter when on-foot
+	# discovery begins so a late-built console still receives exactly one signal
+	# connection; subsequent refreshes retain that same instance.
+	if (
+		not is_instance_valid(activity_board_console)
+		or not activity_board_console.is_connected(
+			&"open_requested", _on_activity_board_console_open_requested
+		)
+	):
+		_bind_activity_board_console()
 	if is_instance_valid(_reboard_blocked_ship):
 		if player.get_interaction_origin().distance_to(
 			_reboard_blocked_ship.get_boarding_position()
@@ -4126,6 +4144,39 @@ func _unhandled_input(event: InputEvent) -> void:
 		active_ship.consume_sampled_camera_edges(command)
 		if not _drain_pending_lifecycle_commands(source):
 			_consume_active_ship_command(command)
+
+
+func _bind_activity_board_console() -> void:
+	if not is_instance_valid(world) or not world.has_method(&"get_activity_board_console"):
+		activity_board_console = null
+		return
+	activity_board_console = world.call(&"get_activity_board_console") as Area3D
+	_connect_signal_once(
+		activity_board_console,
+		&"open_requested",
+		_on_activity_board_console_open_requested
+	)
+
+
+## The physical console is a presentation/input adapter only.  It cannot
+## select, start, reward, or otherwise mutate an activity; it opens the same
+## existing Activity Board page whose buttons already forward selection intent
+## to this coordinator.
+func _on_activity_board_console_open_requested(actor: Node) -> void:
+	if (
+		actor != player
+		or _piloting
+		or _transition_busy
+		or _station_seated
+		or not is_instance_valid(player)
+		or not player.is_control_enabled()
+		or player.is_seated()
+		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
+		or not is_instance_valid(hud)
+		or not hud.has_method(&"open_activity_board")
+	):
+		return
+	hud.call(&"open_activity_board")
 
 
 func _on_interact_requested() -> void:
