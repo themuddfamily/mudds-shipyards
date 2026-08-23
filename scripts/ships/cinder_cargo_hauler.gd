@@ -1041,7 +1041,17 @@ func _build_cargo_interior() -> void:
 	_add_interior_box(_cargo_cabin, "CabinAftWall", Vector3(0.0, 0.18, 2.55), Vector3(4.7, 2.0, 0.10), HULL_COLOR)
 	# The port wall is intentionally open between the split outer shell pieces;
 	# this is the physical boarding route, not a teleport marker.
-	_add_interior_box(_cargo_cabin, "LoadmasterSeatBase", Vector3(0.95, -0.55, 1.10), Vector3(0.86, 0.18, 0.82), ACCENT_COLOR)
+	_add_visual_box_batch(
+		_cargo_cabin,
+		"CrewSeatBaseBatch",
+		Vector3(0.86, 0.18, 0.82),
+		[
+			Transform3D(Basis.IDENTITY, Vector3(0.95, -0.55, 1.10)),
+			Transform3D(Basis.IDENTITY, Vector3(-0.95, -0.55, 1.10)),
+		],
+		ACCENT_COLOR,
+		PackedStringArray(["LoadmasterSeatBase", "NavigatorSeatBase"])
+	)
 	_add_interior_box(_cargo_cabin, "LoadmasterSeatBack", Vector3(0.95, 0.08, 1.42), Vector3(0.86, 1.0, 0.14), ACCENT_COLOR)
 	_loadmaster_console = _add_interior_box(
 		_cargo_cabin,
@@ -1097,13 +1107,6 @@ func _build_cargo_interior() -> void:
 	_loadmaster_interaction.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_loadmaster_interaction.set_meta(&"authority_owner", &"CrewSeatRoleAuthority")
 	_cargo_cabin.add_child(_loadmaster_interaction)
-	_add_interior_box(
-		_cargo_cabin,
-		"NavigatorSeatBase",
-		Vector3(-0.95, -0.55, 1.10),
-		Vector3(0.86, 0.18, 0.82),
-		ACCENT_COLOR
-	)
 	_add_interior_box(
 		_cargo_cabin,
 		"NavigatorSeatBack",

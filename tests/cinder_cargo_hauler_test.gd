@@ -57,6 +57,39 @@ func _initialize() -> void:
 			and craft.get_node_or_null(^"CinderCargoVisual/CargoThresholdPostStarboard") == null,
 		"threshold posts reduce renderer submissions from two to one without dropping a visible copy"
 	)
+	var cabin := craft.get_node_or_null(^"WalkableInterior/LoadmasterCabin")
+	var seat_bases := cabin.get_node_or_null(^"CrewSeatBaseBatch") as MultiMeshInstance3D \
+		if cabin != null else null
+	var expected_seat_base_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(0.95, -0.55, 1.10)),
+		Transform3D(Basis.IDENTITY, Vector3(-0.95, -0.55, 1.10)),
+	]
+	var seat_base_material := seat_bases.material_override as StandardMaterial3D \
+		if seat_bases != null else null
+	_check(
+		seat_bases != null
+			and seat_bases.multimesh.instance_count == 2
+			and seat_bases.multimesh.visible_instance_count == -1
+			and seat_bases.multimesh.mesh is BoxMesh
+			and (seat_bases.multimesh.mesh as BoxMesh).size == Vector3(0.86, 0.18, 0.82)
+			and seat_bases.get_meta(&"authored_visual_names", PackedStringArray())
+				== PackedStringArray(["LoadmasterSeatBase", "NavigatorSeatBase"])
+			and seat_bases.get_meta(&"authored_instance_transforms", [])
+				== expected_seat_base_transforms
+			and bool(seat_bases.get_meta(&"presentation_only", false))
+			and seat_bases.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and seat_bases.layers == 1
+			and is_zero_approx(seat_bases.extra_cull_margin)
+			and is_zero_approx(seat_bases.visibility_range_begin)
+			and is_zero_approx(seat_bases.visibility_range_end)
+			and seat_base_material != null
+			and seat_base_material.albedo_color == Hauler.ACCENT_COLOR
+			and is_equal_approx(seat_base_material.metallic, 0.42)
+			and is_equal_approx(seat_base_material.roughness, 0.62)
+			and cabin.get_node_or_null(^"LoadmasterSeatBase") == null
+			and cabin.get_node_or_null(^"NavigatorSeatBase") == null,
+		"seat bases share one bounded renderer while preserving both exact authored visuals"
+	)
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():
