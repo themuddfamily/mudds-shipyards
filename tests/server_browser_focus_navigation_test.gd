@@ -23,7 +23,15 @@ func _run() -> void:
 	var host := hud.get("_server_browser_page").find_child("ServerBrowserHostButton", true, false) as Control
 	var manual := hud.get("_server_browser_page").find_child("ServerBrowserManualJoinButton", true, false) as Control
 	var back := hud.get("_server_browser_page").find_child("ServerBrowserBackButton", true, false) as Control
-	var ordered: Array[Control] = [address, port, name, refresh, host, manual, back]
+	var compatible := hud.get("_server_browser_page").find_child("ServerBrowserFilterCompatibleOnly", true, false) as Control
+	var not_full := hud.get("_server_browser_page").find_child("ServerBrowserFilterNotFull", true, false) as Control
+	var no_password := hud.get("_server_browser_page").find_child("ServerBrowserFilterNoPassword", true, false) as Control
+	var latency := hud.get("_server_browser_page").find_child("ServerBrowserFilterLatency", true, false) as Control
+	var clear_filters := hud.get("_server_browser_page").find_child("ServerBrowserClearFiltersButton", true, false) as Control
+	var sort_key := hud.get("_server_browser_page").find_child("ServerBrowserSortKey", true, false) as Control
+	var sort_direction := hud.get("_server_browser_page").find_child("ServerBrowserSortDirection", true, false) as Control
+	var clear_sort := hud.get("_server_browser_page").find_child("ServerBrowserClearSortButton", true, false) as Control
+	var ordered: Array[Control] = [address, port, name, compatible, not_full, no_password, latency, clear_filters, sort_key, sort_direction, clear_sort, refresh, host, manual, back]
 	for index in ordered.size():
 		_check(ordered[index].focus_mode == Control.FOCUS_ALL, "browser control %d is focusable" % index)
 		_check(ordered[index].focus_neighbor_bottom == ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)]), "browser control %d has next focus" % index)
