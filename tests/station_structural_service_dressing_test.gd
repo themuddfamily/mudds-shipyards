@@ -177,6 +177,17 @@ func _run() -> void:
 			bool(dressing.get_audit_report()["valid"]),
 			"restoring the exact cross-brace renderer buffer repairs the component audit"
 		)
+		var original_brace_transform := brace_batch.transform
+		brace_batch.position += Vector3(0.25, 0.0, 0.0)
+		_check(
+			not bool(dressing.get_audit_report()["valid"]),
+			"structured red: cross-brace batch-root drift fails the component audit"
+		)
+		brace_batch.transform = original_brace_transform
+		_check(
+			bool(dressing.get_audit_report()["valid"]),
+			"restoring the identity cross-brace batch root repairs the component audit"
+		)
 	var task_batch := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStripBatch") as MultiMeshInstance3D
 	var task_anchor_01 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip01") as Marker3D
 	var task_anchor_02 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip02") as Marker3D

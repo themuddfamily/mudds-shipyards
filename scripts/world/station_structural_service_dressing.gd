@@ -534,6 +534,7 @@ func get_cross_brace_batch_audit() -> Dictionary:
 		_cross_brace_batch.material_override != _materials.get("brace")
 		or _cross_brace_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		or _cross_brace_batch.layers != 1
+		or not _cross_brace_batch.transform.is_equal_approx(Transform3D.IDENTITY)
 		or _cross_brace_batch.get_child_count() != 0
 		or _cross_brace_batch.get_script() != null
 		or not _cross_brace_batch.get_groups().is_empty()
