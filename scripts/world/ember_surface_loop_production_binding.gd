@@ -447,18 +447,26 @@ func consume_planetary_relay_survey_return(
 	)
 
 
-## Feeds the accepted caller intent into an existing travel session. The
-## session admits the request but remains responsible for its normal reboard,
-## takeoff, ascent, and orbit-return evidence.
+## Feeds the accepted caller intent into the retained host travel session by
+## default. An explicit session remains available to compatibility callers,
+## but production no longer requires GameFlow to reach into the Host's private
+## session. The session still advances only from normal reboard, takeoff,
+## ascent, and orbit-return evidence.
 func admit_planetary_relay_survey_return(
 		manifest_result: Variant,
 		actor_instance_id: int,
 		craft_instance_id: int,
-		travel_session: Object
+		travel_session: Object = null
 	) -> Dictionary:
-	if _relay_return_travel == null or _host == null or travel_session == null \
-			or not travel_session.has_method(&"admit_return_travel_intent"):
+	if _relay_return_travel == null or _host == null:
 		return _reject(&"return_travel_session_unavailable")
+	var session_result := _resolve_planetary_return_session(
+		travel_session, actor_instance_id, craft_instance_id,
+		&"admit_return_travel_intent"
+	)
+	if not bool(session_result.get("accepted", false)):
+		return session_result
+	var session := session_result.get("session") as Object
 	var consumed: Dictionary = _relay_return_travel.call(
 		&"consume", manifest_result, actor_instance_id, craft_instance_id,
 		_host.get_attachment_generation()
@@ -466,7 +474,7 @@ func admit_planetary_relay_survey_return(
 	if not bool(consumed.get("accepted", false)):
 		return consumed
 	var intent := consumed.get("intent", {}) as Dictionary
-	var admitted: Dictionary = travel_session.call(
+	var admitted: Dictionary = session.call(
 		&"admit_return_travel_intent", intent, actor_instance_id,
 		craft_instance_id, _host.get_generation(), _host.get_attachment_generation()
 	)
@@ -929,13 +937,46 @@ func _submit_authorized_return_sample(
 		travel_session: Object, method: StringName, actor_instance_id: int,
 		craft_instance_id: int, sample_args: Array
 	) -> Dictionary:
-	if _host == null or travel_session == null or not travel_session.has_method(method):
+	if _host == null:
 		return _reject(&"return_travel_session_unavailable")
+	var session_result := _resolve_planetary_return_session(
+		travel_session, actor_instance_id, craft_instance_id, method
+	)
+	if not bool(session_result.get("accepted", false)):
+		return session_result
+	var session := session_result.get("session") as Object
 	var args: Array = [actor_instance_id, craft_instance_id]
 	args.append_array(sample_args)
 	args.append(_host.get_generation())
 	args.append(_host.get_attachment_generation())
-	return travel_session.callv(method, args)
+	return session.callv(method, args)
+
+
+## Resolves the one session already retained by the bound Ember Host. Null is
+## the production path: it is fenced to the exact Player and HeroShip captured
+## at configure time. Explicit sessions preserve the existing test/integration
+## seam without gaining actor, movement, berth, reward, or GameFlow authority.
+func _resolve_planetary_return_session(
+		candidate: Object, actor_instance_id: int, craft_instance_id: int,
+		required_method: StringName
+	) -> Dictionary:
+	var session := candidate
+	if session == null:
+		if actor_instance_id != _player_instance_id \
+				or craft_instance_id != _ship_instance_id:
+			return _reject(&"return_travel_bound_actor_mismatch")
+		var retained: Variant = _host.get("_session") if _host != null else null
+		if not retained is Object:
+			return _reject(&"return_travel_session_unavailable")
+		session = retained as Object
+	if session == null or not session.has_method(required_method):
+		return _reject(&"return_travel_session_unavailable")
+	return {
+		"accepted": true,
+		"reason": &"return_travel_session_resolved",
+		"session": session,
+		"retained": candidate == null,
+	}.duplicate(true)
 
 
 func abort_planetary_relay_survey_return(reason: StringName = &"caller_aborted") -> Dictionary:
