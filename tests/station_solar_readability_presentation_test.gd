@@ -5,7 +5,10 @@ const Presenter := preload(
 	"res://scripts/world/station_solar_readability_presentation.gd"
 )
 const SKY_SHADER := preload("res://scripts/rendering/deep_space_sky.gdshader")
-const EXPECTED_ASSERTIONS := 11
+const RuntimeSettingsScript := preload(
+	"res://scripts/settings/runtime_settings.gd"
+)
+const EXPECTED_ASSERTIONS := 17
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -90,6 +93,63 @@ func _test_bounded_adapter() -> void:
 		and not bool(snapshot.gameplay_authority),
 		"presentation preserves sun direction/core and adds no resource or authority",
 	)
+	var reduced := presenter.set_reduced_flash(
+		true, presenter.get_generation()
+	)
+	var reduced_snapshot := presenter.get_snapshot()
+	var reduced_values := reduced_snapshot.current as Dictionary
+	var reduced_levels := reduced_values.glow_levels as Array
+	_check(
+		bool(reduced.accepted) and reduced.reason == &"reduced_flash_presented"
+		and bool(reduced_snapshot.reduced_flash)
+		and reduced_snapshot.profile_id == &"reduced_flash"
+		and is_equal_approx(float(reduced_values.tonemap_exposure),
+			Presenter.REDUCED_FLASH_MAX_TONEMAP_EXPOSURE)
+		and is_equal_approx(float(reduced_values.glow_intensity),
+			Presenter.REDUCED_FLASH_MAX_GLOW_INTENSITY)
+		and is_equal_approx(float(reduced_values.glow_strength),
+			Presenter.REDUCED_FLASH_MAX_GLOW_STRENGTH)
+		and is_equal_approx(float(reduced_values.glow_bloom),
+			Presenter.REDUCED_FLASH_MAX_GLOW_BLOOM)
+		and is_equal_approx(float(reduced_values.glow_hdr_threshold),
+			Presenter.REDUCED_FLASH_MIN_GLOW_HDR_THRESHOLD)
+		and is_equal_approx(float(reduced_values.glow_hdr_scale),
+			Presenter.REDUCED_FLASH_MAX_GLOW_HDR_SCALE)
+		and is_equal_approx(float(reduced_values.glow_hdr_luminance_cap),
+			Presenter.REDUCED_FLASH_MAX_GLOW_HDR_LUMINANCE_CAP)
+		and is_equal_approx(float(reduced_levels[3]), 0.06),
+		"reduced flash deterministically lowers the retained exposure/glow profile",
+	)
+	_check(
+		is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo")),
+			Presenter.REDUCED_FLASH_SUN_HALO_STRENGTH)
+		and (sky_material.get_shader_parameter(&"sun_direction") as Vector3) \
+			== sun_direction
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_focus")),
+			Presenter.SUN_CORE_FOCUS)
+		and int(reduced_snapshot.node_budget) == 0
+		and int(reduced_snapshot.resource_budget) == 0,
+		"reduced flash lowers only the secondary halo without resources or sun authority",
+	)
+	var reduced_again := presenter.set_reduced_flash(
+		true, presenter.get_generation()
+	)
+	_check(
+		bool(reduced_again.accepted)
+		and _environment_values(environment) == reduced_values,
+		"repeated reduced-flash application is exact and non-compounding",
+	)
+	var normal_again := presenter.set_reduced_flash(
+		false, presenter.get_generation()
+	)
+	_check(
+		bool(normal_again.accepted)
+		and normal_again.reason == &"normal_readability_restored"
+		and _environment_values(environment) == bounded
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo")),
+			Presenter.SUN_HALO_STRENGTH),
+		"disabling reduced flash restores the normal bounded profile exactly",
+	)
 	var stale := presenter.detach(&"stale", presenter.get_generation() + 1)
 	_check(
 		not bool(stale.accepted) and stale.reason == &"stale_generation"
@@ -98,7 +158,9 @@ func _test_bounded_adapter() -> void:
 	)
 	var detached := presenter.detach(&"fixture_detached", presenter.get_generation())
 	_check(
-		bool(detached.accepted) and _environment_values(environment) == baseline,
+		bool(detached.accepted) and _environment_values(environment) == baseline
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo")),
+			Presenter.SUN_HALO_STRENGTH),
 		"a current detach restores every selected profile value exactly",
 	)
 
@@ -128,12 +190,46 @@ func _test_production_world_lifecycle() -> void:
 		return
 	var environment := world_environment.environment
 	var profile_baseline := presentation.baseline as Dictionary
+	var normal_profile := presentation.current as Dictionary
+	var direct_child_count := world.get_child_count()
+	var settings = RuntimeSettingsScript.new()
+	var settings_bound := world.bind_station_solar_runtime_settings(settings)
+	settings.reduced_flash = true
+	report = world.get_station_solar_readability_report()
+	presentation = report.presentation as Dictionary
+	var production_reduced := presentation.current as Dictionary
+	_check(
+		bool(settings_bound.accepted) and bool(report.runtime_settings_bound)
+		and bool(report.reduced_flash) and bool(presentation.reduced_flash)
+		and is_equal_approx(float(production_reduced.tonemap_exposure),
+			Presenter.REDUCED_FLASH_MAX_TONEMAP_EXPOSURE)
+		and is_equal_approx(float(production_reduced.glow_bloom),
+			Presenter.REDUCED_FLASH_MAX_GLOW_BLOOM)
+		and is_equal_approx(float((presentation.sky as Dictionary).sun_halo),
+			Presenter.REDUCED_FLASH_SUN_HALO_STRENGTH)
+		and int(report.attach_count) == 1
+		and world.get_child_count() == direct_child_count,
+		"the live RuntimeSettings signal immediately applies the zero-budget reduced profile",
+	)
+	settings.reduced_flash = false
+	report = world.get_station_solar_readability_report()
+	presentation = report.presentation as Dictionary
+	_check(
+		not bool(report.reduced_flash) and not bool(presentation.reduced_flash)
+		and (presentation.current as Dictionary) == normal_profile
+		and is_equal_approx(float((presentation.sky as Dictionary).sun_halo),
+			Presenter.SUN_HALO_STRENGTH)
+		and int(report.attach_count) == 1,
+		"disabling the live setting restores normal bounds without reattachment",
+	)
+	settings.reduced_flash = true
 	var parent := world.get_parent()
 	parent.remove_child(world)
 	await process_frame
 	var detached_report := world.get_station_solar_readability_report()
 	_check(
 		not bool(detached_report.active) and int(detached_report.detach_count) == 1
+		and bool(detached_report.reduced_flash)
 		and _environment_values(environment) == profile_baseline,
 		"whole-station detach restores the exact selected visual-quality profile",
 	)
@@ -141,13 +237,16 @@ func _test_production_world_lifecycle() -> void:
 	await process_frame
 	await process_frame
 	report = world.get_station_solar_readability_report()
+	presentation = report.presentation as Dictionary
 	_check(
 		bool(report.active) and int(report.attach_count) == 2
 		and int(report.detach_count) == 1
+		and bool(presentation.reduced_flash)
+		and is_equal_approx(float((presentation.current as Dictionary).glow_bloom),
+			Presenter.REDUCED_FLASH_MAX_GLOW_BLOOM)
 		and bool((world.get_space_backdrop_audit_report() as Dictionary).valid),
 		"station re-entry reapplies exactly one bounded presentation",
 	)
-	var direct_child_count := world.get_child_count()
 	world.apply_visual_quality(1)
 	report = world.get_station_solar_readability_report()
 	presentation = report.presentation as Dictionary
@@ -158,7 +257,7 @@ func _test_production_world_lifecycle() -> void:
 		and bool((presentation.current as Dictionary).glow_levels is Array)
 		and is_equal_approx(
 			float((presentation.current as Dictionary).glow_bloom),
-			Presenter.MAX_GLOW_BLOOM
+			Presenter.REDUCED_FLASH_MAX_GLOW_BLOOM
 		),
 		"quality reselection derives fresh bounded values without nodes or compounding",
 	)
@@ -197,7 +296,7 @@ func _finish() -> void:
 			"expected %d assertions, ran %d" % [EXPECTED_ASSERTIONS, _assertions]
 		)
 	if _failures.is_empty():
-		print("STATION_SOLAR_READABILITY_PRESENTATION_TEST_OK: 11 assertions")
+		print("STATION_SOLAR_READABILITY_PRESENTATION_TEST_OK: 17 assertions")
 		quit(0)
 		return
 	for failure in _failures:

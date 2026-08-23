@@ -1016,6 +1016,8 @@ var _station_solar_readability_presentation: RefCounted
 var _last_station_solar_readability_result: Dictionary = {}
 var _station_solar_readability_attach_count := 0
 var _station_solar_readability_detach_count := 0
+var _station_solar_runtime_settings_ref: WeakRef
+var _station_solar_reduced_flash := false
 
 
 func _enter_tree() -> void:
@@ -4539,6 +4541,8 @@ func get_visual_quality_report() -> Dictionary:
 func get_station_solar_readability_report() -> Dictionary:
 	return {
 		"active": _station_solar_readability_presentation != null,
+		"runtime_settings_bound": _station_solar_runtime_settings() != null,
+		"reduced_flash": _station_solar_reduced_flash,
 		"attach_count": _station_solar_readability_attach_count,
 		"detach_count": _station_solar_readability_detach_count,
 		"last_result": _last_station_solar_readability_result.duplicate(true),
@@ -4547,6 +4551,55 @@ func get_station_solar_readability_report() -> Dictionary:
 			if _station_solar_readability_presentation != null else {}
 		),
 	}.duplicate(true)
+
+
+## Retains the process-owned RuntimeSettings signal without taking validation or
+## persistence authority. Its synchronous setting_changed callback makes the
+## existing station Environment respond in the same settings transaction.
+func bind_station_solar_runtime_settings(settings: RuntimeSettings) -> Dictionary:
+	if settings == null or not is_instance_valid(settings):
+		return {"accepted": false, "reason": &"runtime_settings_unavailable"}
+	var current := _station_solar_runtime_settings()
+	if current != null and current != settings:
+		var old_callback := Callable(self, &"_on_station_solar_setting_changed")
+		if current.setting_changed.is_connected(old_callback):
+			current.setting_changed.disconnect(old_callback)
+	_station_solar_runtime_settings_ref = weakref(settings)
+	var callback := Callable(self, &"_on_station_solar_setting_changed")
+	if not settings.setting_changed.is_connected(callback):
+		settings.setting_changed.connect(callback)
+	return set_station_solar_reduced_flash(settings.reduced_flash)
+
+
+func set_station_solar_reduced_flash(enabled: bool) -> Dictionary:
+	_station_solar_reduced_flash = enabled
+	if _station_solar_readability_presentation == null:
+		return {
+			"accepted": true,
+			"reason": &"retained_until_station_presented",
+			"reduced_flash": enabled,
+		}
+	var result := _station_solar_readability_presentation.call(
+		&"set_reduced_flash", enabled,
+		_station_solar_readability_presentation.call(&"get_generation")
+	) as Dictionary
+	_last_station_solar_readability_result = result.duplicate(true)
+	return result
+
+
+func _on_station_solar_setting_changed(
+		setting: StringName, value: Variant
+	) -> void:
+	if setting == &"reduced_flash":
+		set_station_solar_reduced_flash(bool(value))
+
+
+func _station_solar_runtime_settings() -> RuntimeSettings:
+	if _station_solar_runtime_settings_ref == null:
+		return null
+	var candidate: Variant = _station_solar_runtime_settings_ref.get_ref()
+	return candidate as RuntimeSettings \
+		if is_instance_valid(candidate) and candidate is RuntimeSettings else null
 
 
 func get_space_backdrop_evidence_metadata() -> Dictionary:
@@ -4640,7 +4693,11 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		if (
 			not _sky_vector_matches(sky_material, &"sun_direction", sky_sun_direction())
 			or not _sky_scalar_matches(sky_material, &"sun_focus", SKY_SUN_FOCUS)
-			or not _sky_scalar_matches(sky_material, &"sun_halo", SKY_SUN_HALO)
+			or not _sky_scalar_matches(
+				sky_material, &"sun_halo",
+				StationSolarReadabilityPresentation.REDUCED_FLASH_SUN_HALO_STRENGTH
+				if _station_solar_reduced_flash else SKY_SUN_HALO
+			)
 			or not _sky_scalar_matches(
 				sky_material, &"sun_halo_focus", SKY_SUN_HALO_FOCUS
 			)
@@ -5005,7 +5062,7 @@ func _present_station_solar_readability() -> Dictionary:
 		return _last_station_solar_readability_result.duplicate(true)
 	var candidate := STATION_SOLAR_READABILITY_SCRIPT.new() as RefCounted
 	var configured := candidate.call(
-		&"configure", environment, sky_material
+		&"configure", environment, sky_material, _station_solar_reduced_flash
 	) as Dictionary
 	_last_station_solar_readability_result = configured.duplicate(true)
 	if not bool(configured.get("accepted", false)):

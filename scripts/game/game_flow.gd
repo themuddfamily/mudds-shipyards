@@ -11084,6 +11084,7 @@ func _apply_all_runtime_settings() -> void:
 	_apply_reduced_dynamic_range_setting()
 	runtime_settings.apply_window_mode()
 	runtime_settings.apply_display_settings()
+	_bind_station_solar_runtime_settings()
 	if world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	_apply_accessibility_settings()
@@ -11125,6 +11126,7 @@ func _sync_server_browser_defaults() -> void:
 func _apply_accessibility_settings() -> void:
 	if runtime_settings == null:
 		return
+	_bind_station_solar_runtime_settings()
 	if hud.has_method("set_accessibility"):
 		hud.set_accessibility(runtime_settings.get_accessibility_descriptor())
 	if _caption_presentation_service != null:
@@ -11147,6 +11149,14 @@ func _apply_accessibility_settings() -> void:
 			else float(_authored_chase_camera_lag[instance_id])
 		)
 	_apply_bomber_payload_presentation_profile()
+
+
+## Gives the station's zero-budget Environment presenter the validated setting;
+## RuntimeSettings remains the sole value/persistence authority.
+func _bind_station_solar_runtime_settings() -> void:
+	if runtime_settings != null and is_instance_valid(world) \
+			and world.has_method(&"bind_station_solar_runtime_settings"):
+		world.call(&"bind_station_solar_runtime_settings", runtime_settings)
 
 
 func _apply_bomber_payload_presentation_profile(target: CinderLongRangeBomber = null) -> void:
