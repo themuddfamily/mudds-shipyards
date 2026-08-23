@@ -1888,18 +1888,22 @@ func caption_activity_cue(cue_id: StringName, activity_label: String) -> bool:
 ## caption request path. This does not play audio or retain a second caption
 ## queue; CaptionPresenter continues to own scale, safe-area, and motion policy.
 func present_semantic_audio_cue(
-	cue_id: StringName, source: StringName, intensity: float, world_position: Vector3
+	cue_id: StringName, source: StringName, intensity: float, world_position: Vector3,
+	metadata: Dictionary = {}
 ) -> bool:
 	if not _captions_enabled:
 		return false
 	var presentation := _semantic_audio_cue_presenter.present_cue(
-		cue_id, source, intensity, world_position
+		cue_id, source, intensity, world_position, metadata
 	)
 	if not bool(presentation.get("accepted", false)):
 		return false
 	var severity := StringName(presentation.get("severity", &"low"))
-	var priority: int = int({&"low": 45, &"medium": 70, &"high": 90}.get(severity, 45))
+	var priority: int = int(presentation.get("priority", {&"low": 45, &"medium": 70, &"high": 90}.get(severity, 45)))
 	var text := "%s %s" % [presentation.get("severity_marker", "○"), presentation.caption]
+	var direction := str(presentation.get("direction", "")).strip_edges()
+	if not direction.is_empty():
+		text += " // %s" % direction
 	return _submit_caption_request({
 		"category_id": &"system",
 		"speaker": str(presentation.source),

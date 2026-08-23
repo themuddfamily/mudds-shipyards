@@ -51,6 +51,23 @@ const REGISTERED_CUES := {
 	&"crew_departure_ready": {"caption": "Crew departure ready", "default_severity": &"medium"},
 	&"crew_emergency_pilot_handoff": {"caption": "Emergency pilot handoff", "default_severity": &"high"},
 	&"crew_emergency_handoff": {"caption": "Emergency pilot handoff", "default_severity": &"high"},
+	&"station_defense_wave_started": {"caption": "Station defense wave started", "default_severity": &"medium"},
+	&"station_defense_asset_danger": {"caption": "Station defense asset in danger", "default_severity": &"high"},
+	&"station_defense_asset_critical": {"caption": "Station defense asset critical", "default_severity": &"high"},
+	&"station_defense_completed": {"caption": "Station defense completed", "default_severity": &"low"},
+	&"station_defense_aborted": {"caption": "Station defense aborted", "default_severity": &"high"},
+	&"cargo_transfer_pickup_accepted": {"caption": "Cargo pickup accepted", "default_severity": &"low"},
+	&"cargo_transfer_destination_delivered": {"caption": "Cargo delivered", "default_severity": &"medium"},
+	&"cargo_transfer_rejected": {"caption": "Cargo transfer rejected", "default_severity": &"high"},
+	&"cargo_transfer_activity_completed": {"caption": "Cargo transfer completed", "default_severity": &"low"},
+	&"cargo_transfer_aborted": {"caption": "Cargo transfer aborted", "default_severity": &"high"},
+	&"planetary_orbit_approach": {"caption": "Approaching planetary orbit", "default_severity": &"medium"},
+	&"planetary_atmospheric_entry": {"caption": "Planetary atmospheric entry", "default_severity": &"high"},
+	&"planetary_landed": {"caption": "Planetary landing complete", "default_severity": &"low"},
+	&"planetary_takeoff": {"caption": "Planetary takeoff", "default_severity": &"medium"},
+	&"planetary_ascent": {"caption": "Planetary ascent", "default_severity": &"medium"},
+	&"planetary_orbit_return": {"caption": "Returning to orbit", "default_severity": &"medium"},
+	&"planetary_returned_to_station": {"caption": "Returned to station", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
@@ -59,7 +76,8 @@ var _last_snapshot: Dictionary = {}
 
 
 func present_cue(
-	cue_id: StringName, source: StringName, intensity: float, world_position: Vector3
+	cue_id: StringName, source: StringName, intensity: float, world_position: Vector3,
+	metadata: Dictionary = {}
 ) -> Dictionary:
 	if not REGISTERED_CUES.has(cue_id):
 		return _rejected(&"unregistered_cue")
@@ -87,6 +105,11 @@ func present_cue(
 		"world_position": world_position,
 		"presentation_only": true,
 	}.duplicate(true)
+	var direction := str(metadata.get("direction", "")).strip_edges()
+	if not direction.is_empty() and direction.length() <= 32 and not direction.contains("\n") and not direction.contains("\r"):
+		_last_snapshot["direction"] = direction
+	if metadata.has("priority") and (metadata.priority is int or metadata.priority is float):
+		_last_snapshot["priority"] = clampi(int(metadata.priority), 0, 100)
 	return _last_snapshot.duplicate(true)
 
 
