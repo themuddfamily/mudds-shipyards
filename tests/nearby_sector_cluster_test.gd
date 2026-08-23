@@ -48,6 +48,15 @@ const EXPECTED_MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
 const EXPECTED_MINING_PRESENTATION_MESH_NODES := 18
 const EXPECTED_MINING_PRESENTATION_LIGHT_NODES := 2
 const EXPECTED_MINING_PRESENTATION_DESCENDANTS := 21
+const EXPECTED_STRUCTURE_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
+const EXPECTED_STRUCTURE_SCAN_APPROACH_ANCHOR := Vector3(60.0, -66.0, -680.0)
+const EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, 4.0, 20.0)
+const EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
+	Vector3(-30.0, -4.0, -24.0), Vector3(64.0, 38.0, 40.0)
+)
+const EXPECTED_STRUCTURE_SCAN_MESH_NODES := 15
+const EXPECTED_STRUCTURE_SCAN_LIGHT_NODES := 2
+const EXPECTED_STRUCTURE_SCAN_DESCENDANTS := 18
 const EXPECTED_SPINE_RIB_AABB := AABB(
 	Vector3(-6.5, -4.75, -0.8), Vector3(13.0, 9.5, 1.6)
 )
@@ -69,15 +78,15 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 185
+const EXPECTED_LOCAL_MESH_NODES := 200
 const EXPECTED_LOCAL_MULTIMESH_NODES := 3
-const EXPECTED_LOCAL_RENDERER_NODES := 188
-const EXPECTED_LOCAL_VISIBLE_COPIES := 713
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 188
-const EXPECTED_LOCAL_TRIANGLES := 122010
+const EXPECTED_LOCAL_RENDERER_NODES := 203
+const EXPECTED_LOCAL_VISIBLE_COPIES := 728
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 203
+const EXPECTED_LOCAL_TRIANGLES := 125346
 const EXPECTED_LOCAL_STATIC_BODIES := 38
 const EXPECTED_LOCAL_COLLISION_SHAPES := 38
-const EXPECTED_LAMP_LENS_COPY_COUNT := 24
+const EXPECTED_LAMP_LENS_COPY_COUNT := 26
 const EXPECTED_LAMP_LENS_RADIUS := 0.45
 const EXPECTED_LAMP_LENS_HEIGHT := 0.9
 const EXPECTED_LAMP_LENS_RADIAL_SEGMENTS := 12
@@ -124,6 +133,7 @@ func _run() -> void:
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
 	_test_mining_platform_activity_presentation(cluster)
+	_test_structure_scan_activity_presentation(cluster)
 	_test_processing_spine_rib_batch(cluster)
 	_test_gantry_rail_batch(cluster)
 	_test_lamp_lens_mesh_sharing(cluster)
@@ -333,6 +343,115 @@ func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -
 	)
 
 
+func _test_structure_scan_activity_presentation(cluster: NearbySectorCluster) -> void:
+	var audit := cluster.get_structure_scan_presentation_audit()
+	var presentation := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/AbandonedStructureScanPresentation"
+	) as Node3D
+	var approach := presentation.get_node_or_null(^"StructureScanApproachAnchor") as Marker3D \
+		if presentation != null else null
+	var bounds := audit.get("presentation_local_bounds", AABB()) as AABB
+	var counts := audit.get("counts", {}) as Dictionary
+	var budgets := audit.get("budgets", {}) as Dictionary
+	_check(
+		bool(audit.get("valid", false))
+		and (audit.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
+		and StringName(audit.get("activity_id", &"")) == EXPECTED_STRUCTURE_SCAN_ACTIVITY_ID
+		and StringName(audit.get("content_class", &"")) == &"NEW"
+		and StringName(audit.get("evidence_status", &"")) == EXPECTED_EVIDENCE_STATUS,
+		"the abandoned-structure activity ID terminates on one valid original-modern derelict presentation"
+	)
+	_check(
+		(audit.get("structure_anchor", Vector3.ZERO) as Vector3).is_equal_approx(
+			EXPECTED_PLATFORM_ANCHOR
+		)
+		and (audit.get("approach_anchor", Vector3.ZERO) as Vector3).is_equal_approx(
+			EXPECTED_STRUCTURE_SCAN_APPROACH_ANCHOR
+		)
+		and approach != null
+		and approach.position.is_equal_approx(EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL),
+		"the fixed scan anchors bind to the existing platform and its twenty-metre approach point"
+	)
+	_check(
+		presentation != null
+		and int(counts.get("mesh_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_MESH_NODES
+		and int(counts.get("light_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_LIGHT_NODES
+		and int(counts.get("descendant_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_DESCENDANTS
+		and int(budgets.get("mesh_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_MESH_NODES
+		and int(budgets.get("light_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_LIGHT_NODES
+		and int(budgets.get("descendant_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_DESCENDANTS,
+		"the derelict silhouette freezes at 15 meshes, 2 lights, and 18 descendants"
+	)
+	_check(
+		EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS.encloses(bounds)
+		and bounds.size.x >= 44.0 and bounds.size.y >= 30.0
+		and bounds.get_center().z < EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL.z
+		and float(audit.get("world_outer_distance", INF)) < 760.0
+		and is_equal_approx(
+			float(audit.get("maximum_content_distance", 0.0)),
+			NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE
+		)
+		and bool(audit.get("approach_readable", false))
+		and presentation.get_node_or_null(^"SurveyPylonPort") != null
+		and presentation.get_node_or_null(^"SurveyPylonStarboard") != null
+		and presentation.get_node_or_null(^"FracturedHeaderPort") != null
+		and presentation.get_node_or_null(^"FracturedHeaderStarboard") != null
+		and presentation.get_node_or_null(^"DeadArrayReceiver") != null
+		and presentation.get_node_or_null(^"HullRuptureShard01") != null
+		and presentation.get_node_or_null(^"Sign_DERELICT_SCAN") != null,
+		"the scan approach reads as a fractured datum frame, dead receiver, loose hull, and signed derelict"
+	)
+	var port_light := presentation.get_node_or_null(^"DerelictDatumLampPort") as OmniLight3D \
+		if presentation != null else null
+	var starboard_light := presentation.get_node_or_null(^"DerelictDatumLampStarboard") as OmniLight3D \
+		if presentation != null else null
+	_check(
+		port_light != null and starboard_light != null
+		and not port_light.shadow_enabled and not starboard_light.shadow_enabled
+		and absf(port_light.position.x - starboard_light.position.x) >= 44.0,
+		"two low-energy shadowless datum lights bracket the abandoned silhouette"
+	)
+	_check(
+		not bool(audit.get("scan_authority", true))
+		and not bool(audit.get("interaction_authority", true))
+		and not bool(audit.get("collision_authority", true))
+		and not bool(audit.get("reward_authority", true))
+		and presentation.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and presentation.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and presentation.find_children("*", "Area3D", true, false).is_empty(),
+		"the derelict datum owns no scan, trigger, collision, progress, or reward authority"
+	)
+	var detached := cluster.get_structure_scan_presentation_audit()
+	detached["scan_authority"] = true
+	(detached["errors"] as PackedStringArray).append("injected")
+	_check(
+		bool(cluster.get_structure_scan_presentation_audit().valid),
+		"the structure-scan presentation audit is detached from caller mutation"
+	)
+	if approach == null:
+		return
+	approach.position.x += 1.0
+	var anchor_drift := cluster.get_structure_scan_presentation_audit()
+	_check(
+		not bool(anchor_drift.valid)
+		and (anchor_drift.errors as PackedStringArray).has(
+			"structure_scan_approach_marker_drift"
+		),
+		"moving the scan marker away from its fixed approach point is structured red"
+	)
+	approach.position = EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL
+	_check(
+		bool(cluster.get_structure_scan_presentation_audit().valid),
+		"restoring the fixed scan marker returns the derelict audit green"
+	)
+	print(
+		"CINDER_STRUCTURE_SCAN_PRESENTATION: meshes=%d lights=%d descendants=%d bounds=%s" % [
+			int(counts.get("mesh_nodes", -1)), int(counts.get("light_nodes", -1)),
+			int(counts.get("descendant_nodes", -1)), str(bounds),
+		]
+	)
+
+
 # --- Bounded renderer batch --------------------------------------------------
 
 
@@ -422,13 +541,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 185 Mesh + 3 MultiMesh renderers after the bounded mining silhouette"
+		"NearbySectorCluster owns 200 Mesh + 3 MultiMesh renderers after both bounded activity silhouettes"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census includes the mining silhouette at 713 copies, 188 submissions, and 122010 triangles"
+		"the local census includes both activity silhouettes at 728 copies, 203 submissions, and 125346 triangles"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
@@ -493,7 +612,7 @@ func _test_lamp_lens_mesh_sharing(cluster: NearbySectorCluster) -> void:
 		and is_equal_approx(shared_mesh.height, EXPECTED_LAMP_LENS_HEIGHT)
 		and shared_mesh.radial_segments == EXPECTED_LAMP_LENS_RADIAL_SEGMENTS
 		and shared_mesh.rings == EXPECTED_LAMP_LENS_RINGS,
-		"all 24 named presentation-only lamp lenses share one exact immutable sphere mesh"
+		"all 26 named presentation-only lamp lenses share one exact immutable sphere mesh"
 	)
 	if shared_mesh == null or second_lens == null:
 		return

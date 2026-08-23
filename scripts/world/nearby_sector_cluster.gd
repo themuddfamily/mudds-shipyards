@@ -145,7 +145,7 @@ const LAMP_LENS_RADIUS := 0.45
 const LAMP_LENS_HEIGHT := 0.9
 const LAMP_LENS_RADIAL_SEGMENTS := 12
 const LAMP_LENS_RINGS := 6
-const LAMP_LENS_COPY_COUNT := 24
+const LAMP_LENS_COPY_COUNT := 26
 const TORUS_RINGS := 40
 const TORUS_RING_SEGMENTS := 14
 const TORUS_COPY_COUNT := 19
@@ -162,6 +162,18 @@ const MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
 const MINING_PRESENTATION_MESH_BUDGET := 18
 const MINING_PRESENTATION_LIGHT_BUDGET := 2
 const MINING_PRESENTATION_DESCENDANT_BUDGET := 21
+
+## The scan begins twenty metres in front of the platform centre. A fractured
+## datum frame gathers the existing torn habitat and collapsed solar wing into
+## one readable derelict silhouette without becoming a scan target or trigger.
+const STRUCTURE_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
+const STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, GANTRY_CENTER_Y, 20.0)
+const STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
+	Vector3(-30.0, -4.0, -24.0), Vector3(64.0, 38.0, 40.0)
+)
+const STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET := 15
+const STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET := 2
+const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 18
 
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 44,
@@ -549,6 +561,139 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Detached proof that the abandoned-structure scan points at the existing
+## platform wreckage and one bounded visual datum, never a second interaction.
+func get_structure_scan_presentation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var platform := get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var presentation := get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/AbandonedStructureScanPresentation"
+	) as Node3D
+	var approach := (
+		presentation.get_node_or_null(^"StructureScanApproachAnchor") as Marker3D
+		if presentation != null else null
+	)
+	var scan_snapshot: Dictionary = {}
+	if is_instance_valid(_activity_binding):
+		scan_snapshot = (
+			_activity_binding.call("get_snapshot").get("structure_scan", {}) as Dictionary
+		).duplicate(true)
+	if StringName(scan_snapshot.get("activity_id", &"")) != STRUCTURE_SCAN_ACTIVITY_ID:
+		errors.append("structure_scan_activity_id_not_bound")
+	if (scan_snapshot.get("structure_anchor", Vector3(999999.0, 999999.0, 999999.0)) as Vector3) \
+			.distance_to(PLATFORM_ANCHOR) > 0.001:
+		errors.append("structure_scan_anchor_not_bound_to_platform")
+	var expected_approach := PLATFORM_ANCHOR + STRUCTURE_SCAN_APPROACH_LOCAL
+	if (scan_snapshot.get("approach_anchor", Vector3(999999.0, 999999.0, 999999.0)) as Vector3) \
+			.distance_to(expected_approach) > 0.001:
+		errors.append("structure_scan_approach_anchor_not_bound")
+	if platform == null or presentation == null or approach == null:
+		errors.append("structure_scan_presentation_roster_missing")
+	var mesh_nodes: Array[Node] = []
+	var light_nodes: Array[Node] = []
+	var descendant_count := 0
+	var material_ids: Dictionary = {}
+	var local_bounds := AABB()
+	var first_bound := true
+	var world_outer_distance := 0.0
+	if presentation != null:
+		descendant_count = presentation.find_children("*", "", true, false).size()
+		mesh_nodes = presentation.find_children("*", "MeshInstance3D", true, false)
+		light_nodes = presentation.find_children("*", "Light3D", true, false)
+		var presentation_inverse := presentation.global_transform.affine_inverse()
+		for raw_node in mesh_nodes:
+			var instance := raw_node as MeshInstance3D
+			if instance.mesh == null:
+				errors.append("structure_scan_presentation_mesh_missing")
+				continue
+			if instance.material_override != null:
+				material_ids[instance.material_override.get_instance_id()] = true
+			var bounds := (
+				presentation_inverse * instance.global_transform * instance.mesh.get_aabb()
+			).abs()
+			if first_bound:
+				local_bounds = bounds
+				first_bound = false
+			else:
+				local_bounds = local_bounds.merge(bounds)
+		if presentation.get_parent() != platform \
+				or not presentation.transform.is_equal_approx(Transform3D.IDENTITY) \
+				or not bool(presentation.get_meta(&"presentation_only", false)) \
+				or StringName(presentation.get_meta(&"activity_id", &"")) \
+					!= STRUCTURE_SCAN_ACTIVITY_ID:
+			errors.append("structure_scan_presentation_root_drift")
+		for corner_x in [0.0, 1.0]:
+			for corner_y in [0.0, 1.0]:
+				for corner_z in [0.0, 1.0]:
+					var local_corner := local_bounds.position + local_bounds.size * Vector3(
+						corner_x, corner_y, corner_z
+					)
+					world_outer_distance = maxf(
+						world_outer_distance, presentation.to_global(local_corner).length()
+					)
+	if approach == null \
+			or not approach.position.is_equal_approx(STRUCTURE_SCAN_APPROACH_LOCAL) \
+			or approach.get_child_count() != 0:
+		errors.append("structure_scan_approach_marker_drift")
+	if mesh_nodes.size() != STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET:
+		errors.append("structure_scan_presentation_mesh_budget_drift")
+	if light_nodes.size() != STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET:
+		errors.append("structure_scan_presentation_light_budget_drift")
+	if descendant_count != STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET:
+		errors.append("structure_scan_presentation_node_budget_drift")
+	if not STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS.encloses(local_bounds):
+		errors.append("structure_scan_presentation_left_local_bounds")
+	if world_outer_distance > MAXIMUM_CONTENT_DISTANCE:
+		errors.append("structure_scan_presentation_left_cluster_bounds")
+	if local_bounds.size.x < 44.0 or local_bounds.size.y < 30.0 \
+			or presentation == null \
+			or presentation.get_node_or_null(^"Sign_DERELICT_SCAN") == null:
+		errors.append("structure_scan_approach_readability_drift")
+	for raw_light in light_nodes:
+		if (raw_light as Light3D).shadow_enabled:
+			errors.append("structure_scan_shadow_light_added")
+	if presentation != null \
+			and (not presentation.find_children(
+				"*", "CollisionObject3D", true, false
+			).is_empty() \
+			or not presentation.find_children("*", "CollisionShape3D", true, false).is_empty() \
+			or not presentation.find_children("*", "Area3D", true, false).is_empty()):
+		errors.append("structure_scan_gained_collision_or_interaction_authority")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"activity_id": STRUCTURE_SCAN_ACTIVITY_ID,
+		"content_class": &"NEW",
+		"evidence_status": EVIDENCE_STATUS,
+		"structure_anchor": PLATFORM_ANCHOR,
+		"approach_anchor": expected_approach,
+		"presentation_local_bounds": local_bounds,
+		"maximum_local_bounds": STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS,
+		"world_outer_distance": world_outer_distance,
+		"maximum_content_distance": MAXIMUM_CONTENT_DISTANCE,
+		"counts": {
+			"mesh_nodes": mesh_nodes.size(),
+			"light_nodes": light_nodes.size(),
+			"descendant_nodes": descendant_count,
+			"material_resources": material_ids.size(),
+		},
+		"budgets": {
+			"mesh_nodes": STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET,
+			"light_nodes": STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET,
+			"descendant_nodes": STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET,
+		},
+		"approach_readable": local_bounds.size.x >= 44.0 \
+			and local_bounds.size.y >= 30.0,
+		"scan_authority": false,
+		"interaction_authority": false,
+		"collision_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
 ## One immutable primitive serves every visual-only lamp lens. The individual
 ## MeshInstance3D nodes retain their authored paths, transforms, materials and
 ## light siblings; only indistinguishable resource allocation is shared.
@@ -719,6 +864,12 @@ func _compose_audit_report() -> Dictionary:
 	if not bool(mining_presentation.valid):
 		for presentation_error in (mining_presentation.get("errors", PackedStringArray()) as PackedStringArray):
 			errors.append("mining presentation: %s" % presentation_error)
+	var structure_scan_presentation := get_structure_scan_presentation_audit()
+	if not bool(structure_scan_presentation.valid):
+		for presentation_error in (
+			structure_scan_presentation.get("errors", PackedStringArray()) as PackedStringArray
+		):
+			errors.append("structure scan presentation: %s" % presentation_error)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -749,6 +900,7 @@ func _compose_audit_report() -> Dictionary:
 		"gantry_clear_width": GANTRY_CLEAR_WIDTH,
 		"gantry_clear_height": GANTRY_CLEAR_HEIGHT,
 		"mining_platform_presentation": mining_presentation,
+		"structure_scan_presentation": structure_scan_presentation,
 		"counts": counts,
 		"budget": PERFORMANCE_BUDGET.duplicate(true),
 		"errors": errors,
@@ -1202,6 +1354,7 @@ func _build_extraction_platform() -> void:
 	_build_gantry(platform)
 	_build_extraction_arms(platform)
 	_build_derelict_hardware(platform)
+	_build_structure_scan_presentation(platform)
 	_build_platform_mast(platform)
 	_build_mining_activity_presentation(platform)
 
@@ -1238,6 +1391,39 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
 	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
 	_sign(presentation, "ORE EXTRACTION", Vector3(0.0, 27.0, 18.0), Vector3.ZERO, 2.4, _materials["orange_glow"])
+
+
+## A fractured datum frame visually gathers the already-authored torn habitat,
+## dead solar wing, and loose shards into one approach read. It carries no body,
+## Area, progress state, scan callback, or reward path.
+func _build_structure_scan_presentation(platform: Node3D) -> void:
+	var presentation := Node3D.new()
+	presentation.name = "AbandonedStructureScanPresentation"
+	presentation.set_meta(&"presentation_only", true)
+	presentation.set_meta(&"activity_id", STRUCTURE_SCAN_ACTIVITY_ID)
+	platform.add_child(presentation)
+
+	var approach := Marker3D.new()
+	approach.name = "StructureScanApproachAnchor"
+	approach.position = STRUCTURE_SCAN_APPROACH_LOCAL
+	presentation.add_child(approach)
+
+	_box(presentation, "SurveyPylonPort", Vector3(-22.0, 13.0, -5.0), Vector3(3.0, 30.0, 3.0), _materials["char"], false, Vector3(0.0, 0.0, -8.0))
+	_box(presentation, "SurveyPylonStarboard", Vector3(22.0, 12.0, -5.0), Vector3(3.0, 29.0, 3.0), _materials["hull_shadow"], false, Vector3(0.0, 0.0, 13.0))
+	_box(presentation, "FracturedHeaderPort", Vector3(-11.5, 28.0, -5.0), Vector3(20.0, 2.5, 3.0), _materials["steel"], false, Vector3(0.0, 0.0, 6.0))
+	_box(presentation, "FracturedHeaderStarboard", Vector3(11.5, 27.0, -5.0), Vector3(19.0, 2.5, 3.0), _materials["char"], false, Vector3(0.0, 0.0, -11.0))
+	_box(presentation, "FractureBracePort", Vector3(-12.0, 16.0, -5.0), Vector3(25.0, 1.2, 2.0), _materials["hull_shadow"], false, Vector3(0.0, 0.0, 44.0))
+	_box(presentation, "FractureBraceStarboard", Vector3(12.0, 15.0, -5.0), Vector3(24.0, 1.2, 2.0), _materials["steel"], false, Vector3(0.0, 0.0, -49.0))
+	_box(presentation, "DeadArrayBoom", Vector3(20.0, 12.0, -1.0), Vector3(2.0, 2.0, 22.0), _materials["char"], false, Vector3(8.0, -7.0, 0.0))
+	_cylinder(presentation, "DeadArrayReceiver", Vector3(20.0, 15.0, 8.0), 2.0, 6.0, 5.0, _materials["solar_dead"], false, Vector3(90.0, 0.0, 0.0))
+	_cylinder(presentation, "DeadArrayCollar", Vector3(20.0, 15.0, 5.0), 2.8, 2.8, 0.8, _materials["orange"], false, Vector3(90.0, 0.0, 0.0))
+	_box(presentation, "HullRuptureShard01", Vector3(17.0, 7.0, -13.0), Vector3(7.0, 1.0, 3.0), _materials["char"], false, Vector3(18.0, 25.0, 14.0))
+	_box(presentation, "HullRuptureShard02", Vector3(29.0, 13.0, -10.0), Vector3(5.0, 1.2, 4.0), _materials["hull_shadow"], false, Vector3(-12.0, -16.0, 31.0))
+	_box(presentation, "HullRuptureShard03", Vector3(24.0, 3.0, -17.0), Vector3(6.0, 1.0, 2.5), _materials["steel"], false, Vector3(34.0, 10.0, -22.0))
+
+	_lamp(presentation, "DerelictDatumLampPort", Vector3(-22.0, 28.0, 0.0), KETH_ORANGE, 1.1, 20.0, false)
+	_lamp(presentation, "DerelictDatumLampStarboard", Vector3(22.0, 27.0, 0.0), MOONLET_TEAL, 0.8, 18.0, false)
+	_sign(presentation, "DERELICT SCAN", Vector3(0.0, 23.0, 4.0), Vector3.ZERO, 2.0, _materials["orange_glow"])
 
 
 ## Four identical visual-only ribs use the exact cached bevel mesh, steel
