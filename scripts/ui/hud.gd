@@ -3490,6 +3490,17 @@ func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
 	return true
 
 
+func _apply_show_tutorials_setting(enabled: bool) -> void:
+	if enabled:
+		return
+	# RuntimeSettings owns whether tutorials are enabled. The HUD only retires
+	# its current presentation so an already-visible prompt cannot outlive the
+	# setting or reappear when this retained layer re-enters the tree.
+	_first_sortie_tutorial_source_snapshot.clear()
+	if _runtime_status_kind == &"tutorial":
+		clear_runtime_status()
+
+
 func dismiss_first_sortie_tutorial() -> Dictionary:
 	var result := _first_sortie_tutorial_presenter.request(&"dismiss")
 	if bool(result.get("accepted", false)):
@@ -5564,6 +5575,8 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 			# keeps an in-progress accessibility adjustment visible even when the
 			# HUD is detached or the owner responds on a later frame.
 			set_ui_scale(float(value))
+	if key == &"show_tutorials":
+		_apply_show_tutorials_setting(bool(value))
 	if not _updating_settings:
 		_settings_dirty = true
 		setting_change_requested.emit(key, value)

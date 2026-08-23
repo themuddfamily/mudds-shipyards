@@ -2,6 +2,7 @@ extends SceneTree
 
 const HudType := preload("res://scripts/ui/hud.gd")
 const RebindService := preload("res://scripts/settings/input_rebind_service.gd")
+const Settings := preload("res://scripts/settings/runtime_settings.gd")
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -60,6 +61,7 @@ func _run() -> void:
 	_check(not invalid, "invalid tutorial snapshot is rejected")
 	hud.queue_free()
 	await process_frame
+	await _test_show_tutorials_round_trip()
 	if _failures.is_empty():
 		print("FIRST_SORTIE_TUTORIAL_HUD_INTEGRATION_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -71,6 +73,49 @@ func _run() -> void:
 
 func _on_intent(kind: StringName, payload: Dictionary) -> void:
 	_intents.append({"kind": kind, "payload": payload})
+
+
+func _test_show_tutorials_round_trip() -> void:
+	var path := "user://first_sortie_tutorial_visibility_%d.cfg" % Time.get_ticks_usec()
+	var settings := Settings.new(path)
+	var hud := HudType.new()
+	root.add_child(hud)
+	await process_frame
+	hud.set_settings_snapshot(settings.to_dictionary())
+	hud.setting_change_requested.connect(
+		func(key: StringName, value: Variant) -> void:
+			settings.set(key, value)
+			settings.save_to_file()
+	)
+	_check(hud.apply_first_sortie_tutorial_snapshot({"step_id": &"launch", "generation": 7}), "enabled persisted setting presents the current tutorial")
+	var controls := hud.get("_settings_controls") as Dictionary
+	var tutorial_toggle := controls.get(&"show_tutorials") as CheckButton
+	tutorial_toggle.button_pressed = false
+	_check(
+		not (hud.get("_runtime_status_panel") as Control).visible
+		and (hud.get("_first_sortie_tutorial_source_snapshot") as Dictionary).is_empty(),
+		"turning the displayed tutorial setting off immediately clears the retained prompt"
+	)
+	hud.queue_free()
+	await process_frame
+	var restored := Settings.new(path)
+	_check(restored.load_from_file() == OK and not restored.show_tutorials, "tutorial visibility persists off through RuntimeSettings")
+	var reentered := HudType.new()
+	root.add_child(reentered)
+	await process_frame
+	_check(reentered.apply_first_sortie_tutorial_snapshot({"step_id": &"fire", "generation": 8}), "re-entry witness starts with one visible retained tutorial")
+	reentered.set_settings_snapshot(restored.to_dictionary())
+	root.remove_child(reentered)
+	root.add_child(reentered)
+	await process_frame
+	_check(
+		not (reentered.get("_runtime_status_panel") as Control).visible
+		and (reentered.get("_first_sortie_tutorial_source_snapshot") as Dictionary).is_empty(),
+		"the restored off setting keeps the tutorial hidden across retained HUD re-entry"
+	)
+	reentered.queue_free()
+	await process_frame
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func _check(condition: bool, message: String) -> void:
