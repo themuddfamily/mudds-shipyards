@@ -52,6 +52,15 @@ const HalyardCrewSemanticAudioBindingType := preload(
 const OptionalSemanticAudioCompositionType := preload(
 	"res://scripts/audio/optional_semantic_audio_composition.gd"
 )
+const EmberSurfaceLoopAudioCompositionType := preload(
+	"res://scripts/audio/ember_surface_loop_audio_composition.gd"
+)
+const EmberSurfaceReturnStatusBindingType := preload(
+	"res://scripts/ui/ember_surface_return_status_binding.gd"
+)
+const EmberSurfaceReturnHudAdapterType := preload(
+	"res://scripts/ui/ember_surface_return_hud_adapter.gd"
+)
 const CrashRecoveryCoordinatorType := preload("res://scripts/diagnostics/crash_recovery_coordinator.gd")
 const SessionDiagnosticRecordType := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
 const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
@@ -322,6 +331,12 @@ var ember_streaming_binding: EmberMoonStreamingProductionBinding
 var ember_surface_loop_production_binding: EmberSurfaceLoopProductionBinding
 var ember_surface_loop_host: EmberSurfaceLoopHost
 var ember_surface_berth: EmberSurfaceBerth
+## Retained presentation identities for the one production Ember Host. They
+## detach targeted registrations at the Main tree boundary and are reused on
+## re-entry; neither component owns Host, movement, session, reward, or playback.
+var _ember_surface_loop_audio_composition: Node
+var _ember_surface_return_status_binding: RefCounted
+var _ember_surface_return_hud_adapter: RefCounted
 var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var _final_approach_hud_composition: FinalApproachHudComposition
@@ -590,6 +605,7 @@ func _exit_tree() -> void:
 	_detach_final_approach_hud_composition()
 	_detach_caption_presentation()
 	_detach_nearby_activity_audio()
+	_detach_ember_surface_presentations()
 	_detach_optional_semantic_audio()
 	_detach_halyard_crew_semantic_audio()
 	# Travelling pulse slots are presentation-only and are cleared by their own
@@ -2074,6 +2090,8 @@ func _physics_process(delta: float) -> void:
 	var ember_host_bind_result := _ensure_ember_surface_loop_host_bound(
 		ember_streaming_accepted and not required_origin_rebase_uncommitted
 	)
+	if bool(ember_host_bind_result.get("accepted", false)):
+		_ensure_ember_surface_presentations()
 	if bool(ember_host_bind_result.get("accepted", false)) \
 			and not _pending_ember_surface_request.is_empty():
 		_last_ember_surface_forward_result = _forward_pending_ember_surface_journey()
@@ -2578,6 +2596,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_restore_cabin_occupancy_after_reentry()
 	_sync_cinder_loadmaster_hud_binding()
 	_ensure_final_approach_hud_composition()
+	_ensure_ember_surface_presentations()
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
 
@@ -7837,6 +7856,101 @@ func _detach_final_approach_hud_composition() -> void:
 	if _final_approach_hud_composition != null:
 		_final_approach_hud_composition.detach()
 	_final_approach_hud_composition = null
+
+
+## Attaches presentation only after the asynchronous production Host and its
+## early/late binding are the live configured pair. Repeated physics calls are
+## deliberately idempotent: one AudioDirector registration and one HUD signal
+## path observe the retained owner, while ordinary surface-route presentation
+## remains an external HUD producer.
+func _ensure_ember_surface_presentations() -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_host) \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or not is_instance_valid(audio) \
+			or not (hud is GameHUD):
+		return {"accepted": false, "reason": &"ember_presentation_dependencies_missing"}
+	var host_snapshot := ember_surface_loop_host.get_snapshot()
+	var production_snapshot := ember_surface_loop_production_binding.get_snapshot()
+	if not bool(host_snapshot.get("attached", false)) \
+			or not bool(production_snapshot.get("configured", false)):
+		return {"accepted": false, "reason": &"ember_production_not_bound"}
+
+	if not is_instance_valid(_ember_surface_loop_audio_composition):
+		_ember_surface_loop_audio_composition = EmberSurfaceLoopAudioCompositionType.new()
+		_ember_surface_loop_audio_composition.name = "EmberSurfaceLoopAudioComposition"
+		add_child(_ember_surface_loop_audio_composition)
+	var audio_was_attached := bool(
+		(_ember_surface_loop_audio_composition.call(&"get_snapshot") as Dictionary).get(
+			"attached", false
+		)
+	)
+	if not audio_was_attached:
+		var audio_result := _ember_surface_loop_audio_composition.call(
+			&"attach", audio, ember_surface_loop_production_binding
+		) as Dictionary
+		if not bool(audio_result.get("accepted", false)):
+			return audio_result
+
+	if _ember_surface_return_status_binding == null:
+		_ember_surface_return_status_binding = EmberSurfaceReturnStatusBindingType.new()
+	if _ember_surface_return_hud_adapter == null:
+		_ember_surface_return_hud_adapter = EmberSurfaceReturnHudAdapterType.new()
+	var status_attached := bool(
+		(_ember_surface_return_status_binding.call(&"get_snapshot") as Dictionary).get(
+			"attached", false
+		)
+	)
+	var hud_attached := bool(
+		(_ember_surface_return_hud_adapter.call(&"get_snapshot") as Dictionary).get(
+			"attached", false
+		)
+	)
+	if status_attached and hud_attached:
+		return {
+			"accepted": true,
+			"reason": &"already_attached",
+			"presentation_only": true,
+		}.duplicate(true)
+	if status_attached or hud_attached:
+		_ember_surface_return_hud_adapter.call(&"detach")
+		_ember_surface_return_status_binding.call(&"detach")
+	var reduced_motion := bool(runtime_settings.reduced_motion) \
+		if runtime_settings != null else false
+	var status_result := _ember_surface_return_status_binding.call(
+		&"attach", ember_surface_loop_production_binding,
+		ember_surface_loop_host, null, reduced_motion
+	) as Dictionary
+	if not bool(status_result.get("accepted", false)):
+		if not audio_was_attached:
+			_ember_surface_loop_audio_composition.call(&"detach")
+		return status_result
+	var hud_result := _ember_surface_return_hud_adapter.call(
+		&"attach", _ember_surface_return_status_binding, hud
+	) as Dictionary
+	if not bool(hud_result.get("accepted", false)):
+		_ember_surface_return_status_binding.call(&"detach")
+		if not audio_was_attached:
+			_ember_surface_loop_audio_composition.call(&"detach")
+		return hud_result
+	return {
+		"accepted": true,
+		"reason": &"attached",
+		"presentation_only": true,
+		"host_authority": false,
+		"session_authority": false,
+		"movement_authority": false,
+		"reward_authority": false,
+		"audio_playback_authority": false,
+	}.duplicate(true)
+
+
+func _detach_ember_surface_presentations() -> void:
+	if _ember_surface_return_hud_adapter != null:
+		_ember_surface_return_hud_adapter.call(&"detach")
+	if _ember_surface_return_status_binding != null:
+		_ember_surface_return_status_binding.call(&"detach")
+	if is_instance_valid(_ember_surface_loop_audio_composition):
+		_ember_surface_loop_audio_composition.call(&"detach")
 
 
 func get_planetary_cruise_report() -> Dictionary:
