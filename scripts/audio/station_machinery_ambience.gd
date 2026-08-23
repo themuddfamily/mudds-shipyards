@@ -188,6 +188,10 @@ func play_cue(cue_id: StringName = CUE_SERVO, intensity: float = 1.0) -> bool:
 		return false
 	_expected_cue_volume_db = requested_cue_volume_db
 	_apply_room_mix()
+	semantic_maintenance_cue_emitted.emit(
+		&"station_service_servo" if cue_id == CUE_SERVO else &"station_service_latch",
+		safe_intensity
+	)
 	return true
 
 
