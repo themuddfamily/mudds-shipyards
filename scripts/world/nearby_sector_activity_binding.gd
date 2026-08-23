@@ -30,6 +30,7 @@ const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_ac
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 const PRESENTATION_OBSERVER_LIMIT := 3
 const CINDER_PATROL_DWELL_SECONDS := 2.0
+const CINDER_RACE_COUNTDOWN_SECONDS := 3.0
 
 var _host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
@@ -61,6 +62,7 @@ var _restored_session: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
+var _last_race_feedback_reason: StringName = &""
 
 
 func _enter_tree() -> void:
@@ -78,7 +80,9 @@ func _ready() -> void:
 	_race_director.name = "CinderBeaconRaceDirector"
 	add_child(_race_director)
 	_race_director.register_definition(RACE_ROUTE)
-	_race_session = RACE_SESSION.new(1, 0.0, 120.0) as CinderTimedRaceSession
+	_race_session = RACE_SESSION.new(
+		1, CINDER_RACE_COUNTDOWN_SECONDS, 120.0
+	) as CinderTimedRaceSession
 	_race_session.attach(_race_director, _race_session.get_session_generation())
 	_patrol_director = ActivityDirector.new()
 	_patrol_director.name = "CinderBeaconPatrolDirector"
@@ -411,6 +415,8 @@ func start_race() -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _race_session.start(_race_session.get_session_generation())
+	if bool(result.get("accepted", false)):
+		_last_race_feedback_reason = &""
 	_publish_cinder_route_audio()
 	return result
 
@@ -426,13 +432,22 @@ func advance_race(delta: float) -> Dictionary:
 func submit_race_position(position: Vector3) -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
-	return _race_session.submit_position(position, _race_session.get_session_generation())
+	var result := _race_session.submit_position(
+		position, _race_session.get_session_generation()
+	)
+	_last_race_feedback_reason = (
+		&"" if bool(result.get("accepted", false))
+		else StringName(result.get("reason", &""))
+	)
+	return result
 
 
 func reset_race() -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _race_session.reset(_race_session.get_session_generation())
+	if bool(result.get("accepted", false)):
+		_last_race_feedback_reason = &""
 	_publish_cinder_route_audio()
 	return result
 
@@ -983,7 +998,7 @@ func get_snapshot() -> Dictionary:
 		"host_instance_id": _host.get_instance_id() if is_instance_valid(_host) else 0,
 		"host": _host.get_snapshot() if is_instance_valid(_host) else {},
 		"race_activity_id": RACE_ACTIVITY_ID,
-		"race": _race_session.get_presentation_snapshot() if is_instance_valid(_race_session) else {},
+		"race": _race_presentation_snapshot(),
 		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
 		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
 		"cargo_reward_handoff": get_cargo_reward_handoff_snapshot(),
@@ -1027,6 +1042,14 @@ func get_snapshot() -> Dictionary:
 		"hud_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+func _race_presentation_snapshot() -> Dictionary:
+	if not is_instance_valid(_race_session):
+		return {}
+	var snapshot := _race_session.get_presentation_snapshot() as Dictionary
+	snapshot["presentation_reason"] = _last_race_feedback_reason
+	return snapshot.duplicate(true)
 
 
 func audit() -> Dictionary:

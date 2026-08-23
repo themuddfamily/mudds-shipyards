@@ -100,6 +100,9 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	if activity_id == &"cinder_debris_beacon_traversal" \
 			and StringName(state.get("reason", &"")) == &"out_of_order_beacon":
 		state_id = &"wrong_order"
+	if activity_id == &"cinder_reach_checkpoint_route" \
+			and StringName(state.get("presentation_reason", &"")) == &"outside_checkpoint":
+		state_id = &"missed_gate"
 	if activity_id == &"cinder_platform_mining_run" and int(state.get("state", -1)) == 3:
 		state_id = &"interrupted"
 	if activity_id == &"cinder_derelict_structure_scan":
@@ -119,6 +122,9 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var scan_feedback: Dictionary = {}
 	if activity_id == &"cinder_derelict_structure_scan":
 		scan_feedback = _scan_feedback(state)
+	var race_feedback: Dictionary = {}
+	if activity_id == &"cinder_reach_checkpoint_route":
+		race_feedback = _race_feedback(state)
 	var progress := (
 		"  //  %s" % str(convoy_feedback.get("summary", ""))
 		if not convoy_feedback.is_empty()
@@ -126,14 +132,20 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		if not scan_feedback.is_empty()
 		else "  //  %s" % str(mining_feedback.get("summary", ""))
 		if not mining_feedback.is_empty()
+		else "  //  %s" % str(race_feedback.get("summary", ""))
+		if not race_feedback.is_empty()
 		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
 	)
-	var recovery := "" if not scan_feedback.is_empty() or not mining_feedback.is_empty() else _recovery_text(state)
-	var reward_pending := bool(state.get("reward_requested", false))
+	var recovery := (
+		"" if not race_feedback.is_empty() or not scan_feedback.is_empty()
+		or not mining_feedback.is_empty() else _recovery_text(state)
+	)
+	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
 	var status_suffix := ""
-	if reward_pending and scan_feedback.is_empty() and mining_feedback.is_empty():
+	if reward_pending and race_feedback.is_empty() and scan_feedback.is_empty() \
+			and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
 		status_suffix += "  " + recovery
@@ -147,18 +159,81 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
-		"objective_text": str(scan_feedback.get(
-			"objective_text", mining_feedback.get(
-				"objective_text", cargo_progress.get("objective_text", "")
+		"objective_text": str(race_feedback.get(
+			"objective_text", scan_feedback.get(
+				"objective_text", mining_feedback.get(
+					"objective_text", cargo_progress.get("objective_text", "")
+				)
 			)
 		)),
 		"cargo_progress": cargo_progress.duplicate(true),
 		"convoy_feedback": convoy_feedback.duplicate(true),
 		"mining_feedback": mining_feedback.duplicate(true),
 		"scan_feedback": scan_feedback.duplicate(true),
+		"race_feedback": race_feedback.duplicate(true),
 		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
 		"caption_text": str(convoy_feedback.get("caption_text", "")),
 		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Presents only the timed-race/session snapshot and the binding's retained
+## position rejection. It does not sample gates, advance clocks, or grant rewards.
+func _race_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var state_id := StringName(state.get("state_id", &"idle"))
+	var presentation_reason := StringName(state.get("presentation_reason", &""))
+	var lap_number := maxi(int(state.get("lap_number", 0)), 0)
+	var lap_count := maxi(int(state.get("lap_count", 0)), 0)
+	var next_checkpoint := maxi(int(state.get("next_checkpoint_index", 0)), 0)
+	var checkpoint_count := maxi(int(state.get("checkpoint_count", 0)), 0)
+	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
+	var stage_id: StringName = &"approach"
+	var summary := "RACE READY  //  LINE UP AT GATE 1"
+	var objective := "START THE CINDER BEACON RACE"
+	if presentation_reason == &"outside_checkpoint":
+		stage_id = &"missed_gate"
+		summary = "FLY THROUGH CHECKPOINT %d/%d" % [
+			mini(next_checkpoint + 1, checkpoint_count), checkpoint_count,
+		]
+		objective = "RETURN TO THE MARKED CHECKPOINT"
+	else:
+		match state_id:
+			&"countdown":
+				stage_id = &"countdown"
+				var countdown := maxf(float(state.get("countdown_remaining_seconds", 0.0)), 0.0)
+				summary = "START IN %.1fs  //  LAP %d/%d" % [countdown, lap_number, lap_count]
+				objective = "HOLD FOR THE START SIGNAL"
+			&"active":
+				stage_id = &"racing"
+				summary = "LAP %d/%d  //  CHECKPOINT %d/%d  //  %.1fs" % [
+					lap_number, lap_count, mini(next_checkpoint + 1, checkpoint_count),
+					checkpoint_count, maxf(float(state.get("current_time_seconds", 0.0)), 0.0),
+				]
+				objective = "FLY THROUGH THE NEXT MARKED CHECKPOINT"
+			&"failed":
+				stage_id = &"timeout" if StringName(state.get("failure_reason", &"")) == &"timeout" else &"failed"
+				summary = "TIMEOUT  //  RACE ENDED" if stage_id == &"timeout" else "RACE FAILED"
+				objective = "RESET THE RACE TO TRY AGAIN"
+			&"completed":
+				stage_id = &"reward_pending" if reward_pending else &"complete"
+				var last_time := maxf(float(state.get("last_time_seconds", 0.0)), 0.0)
+				summary = "FINISH %.2fs  //  %s" % [
+					last_time, "REWARD PENDING" if reward_pending else "TIME RECORDED",
+				]
+				objective = "AWAIT RACE REWARD HANDOFF" if reward_pending else "RACE COMPLETE"
+	return {
+		"stage_id": stage_id,
+		"lap_number": lap_number,
+		"lap_count": lap_count,
+		"next_checkpoint_index": next_checkpoint,
+		"checkpoint_count": checkpoint_count,
+		"reward_pending": reward_pending,
+		"summary": summary,
+		"objective_text": objective,
+		"race_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
 
@@ -475,7 +550,7 @@ func _state_label(state: Dictionary) -> String:
 
 
 func _state_text(state_id: StringName) -> String:
-	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"wrong_order": "WRONG ORDER", &"wrong_position": "WRONG POSITION", &"interrupted": "INTERRUPTED", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"countdown": "COUNTDOWN", &"missed_gate": "MISSED GATE", &"wrong_order": "WRONG ORDER", &"wrong_position": "WRONG POSITION", &"interrupted": "INTERRUPTED", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
 
 
 func _recovery_text(state: Dictionary) -> String:
