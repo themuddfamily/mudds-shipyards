@@ -16,6 +16,17 @@ const PROFILE_OBSERVATORY: StringName = &"observatory"
 const PROFILE_CREW_WORKPOST: StringName = &"crew_workpost"
 const PROFILE_CARGO_LINE_LONG: StringName = &"cargo_line_long"
 
+## Service drones are deliberately nonblocking presentation. A route-height
+## clearance alone cannot keep their geometry out of every player camera: the
+## walking camera has user-controlled pitch and an 8 m boom, and can also start
+## from elevated decks. Hide each small drone part before its surface can cross
+## a camera near plane. Normal views are unaffected because the cutoff is only
+## 0.65 m; at that distance the largest part (the 0.38 m-radius drone body)
+## still has 0.15 m between its bounding radius and the production 0.08 m near
+## plane. The hard cutoff is intentional: a dithered emissive lens can still
+## paint a flashing screen-sized slice during the fade interval.
+const DRONE_CAMERA_CLEARANCE_DISTANCE := 0.65
+
 ## The Aft Operations placement puts this nonblocking articulated arm directly
 ## behind the third-person camera at the access door. At steep downward pitch
 ## the boom can enter the arm even though the player's body cannot. Hide every
@@ -324,6 +335,13 @@ func _build_service_drones() -> void:
 			_box(drone, "ThrusterGlow", Vector3(x_side * 0.73, -0.105, 0.0), Vector3(0.13, 0.035, 0.13), _materials["cyan_lit"])
 		var lens := _box(drone, "NavigationLens", Vector3(0.0, 0.03, -0.39), Vector3(0.28, 0.12, 0.055), _materials["cyan_lit"])
 		_drone_beacon_lenses.append(lens)
+		for candidate in drone.find_children("*", "MeshInstance3D", true, false):
+			var drone_mesh := candidate as MeshInstance3D
+			drone_mesh.visibility_range_begin = DRONE_CAMERA_CLEARANCE_DISTANCE
+			drone_mesh.visibility_range_begin_margin = 0.0
+			drone_mesh.visibility_range_fade_mode = (
+				GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+			)
 
 
 ## Cargo movement: a short fixed transfer rail with a powered container sled, an

@@ -2105,12 +2105,26 @@ authored `1.48/1.70 m` base/envelope values. Geometry, pulse phase and duration,
 red/cyan material identities, presentation-only collision policy, and activity
 lifecycle are unchanged.
 
-`tests/station_operations_activity_test.gd` samples the complete `FULL` drone
-orbit for 15 seconds against the production camera sweep and independently
-reconstructs the unchanged roof route. `tools/capture_full_drone_camera_clearance.gd`
-then runs the actual Forward+ presentation across the complete 1.35-second pulse.
-The inspected frame places the drones above the player lane and below the gantry;
-the exact legacy near-plane witness has a maximum red-screen fraction of
-`0.000660`. Source fix: `4b1554c`. The previously exported `68756b7` Windows
-binary predates this correction and still requires replacement before the bug can
-be called fixed in a packaged build.
+That first source fix (`4b1554c`) was incomplete. A 2026-08-21 packaged-build
+playtest reproduced the slice from an elevated, downward-looking camera. The
+test had frozen only the default `10 degree` pitch and `5.2 m` boom, leaving just
+`0.117 m` of clearance; production already allowed an `8 m` boom, pitch down to
+`-52 degrees`, jumping and elevated walkable decks. The Forward+ witness also
+looked at the old lens position rather than either current moving lens. The
+Habitat `DRONE_PATROL`, which the first fix deliberately kept at its original
+mount-relative elevation, remained vulnerable too.
+
+The second-pass fix is route-independent. Every mesh in both nonblocking drone
+assemblies now has a hard `0.65 m` camera visibility cutoff. That distance is
+beyond the largest part's bounding radius plus the production camera's `0.08 m`
+near plane, so a drone surface stops drawing before it can cross the near plane;
+ordinary-distance presentation, routes, materials, pulses and collision policy
+remain unchanged. The component audit freezes all 20 guarded surfaces per
+profile and fails if a cutoff is removed.
+
+`tools/capture_full_drone_camera_clearance.gd` now follows both lenses in both
+production profiles, using their production seeds, through the complete
+`1.35-second` pulse and tests both lens faces. With the guard deliberately
+disabled, the current moving lenses reproduce the defect across `90.0017%`
+(`FULL`) and `90.4653%` (`DRONE_PATROL`) of sampled pixels. Restoring the guard
+on the identical frames reduces those maxima to `1.2951%` and `0.4462%`.

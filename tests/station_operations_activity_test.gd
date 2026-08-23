@@ -8,6 +8,9 @@ const ACTIVITY_SCENE := preload("res://scenes/world/components/station_operation
 const WALKING_CAMERA_SWEEP_TOP_Y := 1.42 + sin(deg_to_rad(10.0)) * 5.2 + 0.16 + 0.28 + 0.08
 const DRONE_LOWEST_VISUAL_OFFSET_Y := -0.61
 const LEGACY_FULL_DRONE_BASE_ELEVATION := 1.48
+const DRONE_CAMERA_CLEARANCE_DISTANCE := 0.65
+const PRODUCTION_CAMERA_NEAR := 0.08
+const MINIMUM_DRONE_CAMERA_SURFACE_CLEARANCE := 0.15
 
 var _failures: Array[String] = []
 
@@ -673,6 +676,66 @@ func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
 	_check(
 		pulse_materials_unchanged,
 		"FULL reroute preserves the roof patrol's exact 1.35 s pulse timing and shared material identity"
+	)
+
+	var proximity_guard_complete := true
+	var guarded_mesh_count := 0
+	var minimum_surface_clearance := INF
+	for guarded_activity in [full, roof_patrol]:
+		for drone_index in 2:
+			var drone := guarded_activity.get_node(
+				NodePath("PresentationRoot/AnimatedServiceDrone%02d" % (drone_index + 1))
+			) as Node3D
+			for candidate in drone.find_children("*", "MeshInstance3D", true, false):
+				var drone_mesh := candidate as MeshInstance3D
+				guarded_mesh_count += 1
+				var bounding_radius := 0.0
+				for surface_index in drone_mesh.mesh.get_surface_count():
+					var surface_arrays := drone_mesh.mesh.surface_get_arrays(surface_index)
+					var vertices := surface_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+					for vertex in vertices:
+						bounding_radius = maxf(
+							bounding_radius,
+							(drone_mesh.basis * vertex).length()
+						)
+				minimum_surface_clearance = minf(
+					minimum_surface_clearance,
+					DRONE_CAMERA_CLEARANCE_DISTANCE
+						- bounding_radius
+						- PRODUCTION_CAMERA_NEAR
+				)
+				proximity_guard_complete = (
+					proximity_guard_complete
+					and is_equal_approx(
+						drone_mesh.visibility_range_begin,
+						DRONE_CAMERA_CLEARANCE_DISTANCE
+					)
+					and is_zero_approx(drone_mesh.visibility_range_begin_margin)
+					and drone_mesh.visibility_range_fade_mode
+						== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+				)
+	_check(
+		guarded_mesh_count == 40 and proximity_guard_complete,
+		"all FULL and roof-patrol drone surfaces hard-cut before entering any camera near plane"
+	)
+	_check(
+		minimum_surface_clearance >= MINIMUM_DRONE_CAMERA_SURFACE_CLEARANCE,
+		"every guarded drone mesh retains at least 0.15 m beyond its radius and the camera near plane (actual %.6f m)"
+			% minimum_surface_clearance
+	)
+
+	var guarded_lens := full.get_node(
+		^"PresentationRoot/AnimatedServiceDrone01/NavigationLens"
+	) as MeshInstance3D
+	guarded_lens.visibility_range_begin = 0.0
+	_check(
+		not bool(full.get_audit_report().valid),
+		"component audit rejects removal of a drone's camera-proximity guard"
+	)
+	guarded_lens.visibility_range_begin = DRONE_CAMERA_CLEARANCE_DISTANCE
+	_check(
+		bool(full.get_audit_report().valid),
+		"restoring the drone camera-proximity guard restores the component audit"
 	)
 
 	roof_patrol.queue_free()
