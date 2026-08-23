@@ -22,6 +22,19 @@ func _run() -> void:
 	_check(bool(presenter.set_device_family(&"gamepad_xbox").attached), "Xbox family selection is presentation-only")
 	var xbox := presenter.get_snapshot().rows[1] as Dictionary
 	_check(xbox.device_family == &"gamepad_xbox" and xbox.text != "Unbound Input", "Xbox-style controller glyph labels resolve")
+	var controller_profile := profile.duplicate_profile()
+	_check(
+		controller_profile.set_bindings(&"interact", [{"device": &"gamepad", "type": &"joy_button", "button_index": JOY_BUTTON_A}])
+		and controller_profile.set_bindings(&"move_forward", [{"device": &"gamepad", "type": &"joy_motion", "axis": JOY_AXIS_LEFT_Y, "axis_value": -1.0}]),
+		"controller remap descriptors are accepted by the presentation profile"
+	)
+	presenter.refresh(controller_profile)
+	_check(presenter.supports_device_family(&"gamepad_playstation"), "PlayStation family is an explicit presenter contract")
+	_check(bool(presenter.set_device_family(&"gamepad_playstation").attached), "PlayStation family selection is presentation-only")
+	var playstation_interact := presenter.resolve_action(&"interact")
+	var playstation_move := presenter.resolve_action(&"move_forward")
+	_check(playstation_interact.text == "Cross" and playstation_move.text == "Left Stick Up", "PlayStation button and axis glyph labels resolve")
+	_check(not presenter.supports_device_family(&"gamepad_unknown"), "unknown controller families remain unsupported")
 	var remapped := profile.duplicate_profile()
 	var replacement := {"device": &"keyboard", "type": &"key", "physical_keycode": KEY_TAB}
 	_check(remapped.set_bindings(&"interact", [replacement]), "caller remap profile is accepted")

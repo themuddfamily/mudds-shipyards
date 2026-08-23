@@ -9,6 +9,18 @@ const Resolver := preload("res://scripts/ui/input_glyph_resolver.gd")
 const Profile := preload("res://scripts/settings/input_binding_profile.gd")
 
 const SCHEMA_VERSION := 1
+const DEVICE_FAMILY_KEYBOARD: StringName = &"keyboard"
+const DEVICE_FAMILY_XBOX: StringName = &"gamepad_xbox"
+const DEVICE_FAMILY_PLAYSTATION: StringName = &"gamepad_playstation"
+const DEVICE_FAMILY_GENERIC_GAMEPAD: StringName = &"gamepad_generic"
+const SUPPORTED_DEVICE_FAMILIES: Array[StringName] = [
+	DEVICE_FAMILY_KEYBOARD,
+	&"mouse",
+	DEVICE_FAMILY_GENERIC_GAMEPAD,
+	DEVICE_FAMILY_XBOX,
+	DEVICE_FAMILY_PLAYSTATION,
+	&"gamepad_nintendo",
+]
 const CORE_ACTIONS: Array[StringName] = [
 	&"move_forward", &"interact", &"jump", &"sprint_boost", &"fire", &"pause",
 ]
@@ -38,6 +50,10 @@ func set_device_family(family: StringName) -> Dictionary:
 	if not _resolver.set_explicit_device_family_override(family):
 		return _reject(&"invalid_device_family")
 	return get_snapshot()
+
+
+func supports_device_family(family: StringName) -> bool:
+	return SUPPORTED_DEVICE_FAMILIES.has(family)
 
 
 func clear_device_family_override() -> Dictionary:
