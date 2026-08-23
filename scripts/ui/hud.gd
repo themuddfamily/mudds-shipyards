@@ -29,6 +29,7 @@ const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_pre
 const SafeStartRecoveryPresenterType := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
 const CopilotNavigationSupportPresenterType := preload("res://scripts/ui/copilot_navigation_support_presenter.gd")
 const ComponentDegradationPresenterType := preload("res://scripts/ui/component_degradation_presenter.gd")
+const HeroComponentHudBindingType := preload("res://scripts/ui/hero_component_hud_binding.gd")
 const LoadmasterTelemetryPresenterType := preload("res://scripts/ui/loadmaster_telemetry_presenter.gd")
 
 signal start_requested
@@ -389,6 +390,7 @@ var _throttle_label: Label
 var _throttle_bar: ProgressBar
 var _hull_bar: ProgressBar
 var _damage_status_label: Label
+var _component_status_label: Label
 var _telemetry_panel: PanelContainer
 var _target_label: Label
 var _enemy_panel: PanelContainer
@@ -455,6 +457,7 @@ var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _copilot_navigation_presenter := CopilotNavigationSupportPresenterType.new()
 var _component_degradation_presenter := ComponentDegradationPresenterType.new()
+var _hero_component_hud_binding := HeroComponentHudBindingType.new()
 var _loadmaster_telemetry_presenter := LoadmasterTelemetryPresenterType.new()
 var _copilot_help_snapshot: Dictionary = {}
 var _loadmaster_help_snapshot: Dictionary = {}
@@ -550,9 +553,16 @@ func _enter_tree() -> void:
 		# profile after Main was detached. Reuse the ordinary presentation refresh
 		# only after the HUD has rejoined the tree; this emits no tutorial intent.
 		call_deferred("_refresh_input_prompts_after_reentry")
+	if _component_status_label != null:
+		call_deferred("_resume_bound_hero_component_report_after_reentry")
 
 
 func _exit_tree() -> void:
+	if _hero_component_hud_binding != null:
+		if is_queued_for_deletion():
+			_hero_component_hud_binding.detach()
+		else:
+			_hero_component_hud_binding.suspend_for_tree_exit()
 	clear_session_recovery_notice()
 	clear_nearby_activity_snapshot()
 	clear_semantic_caption_transcript()
@@ -905,6 +915,8 @@ func _refresh_mode_readouts() -> void:
 			_mode_label.text = "ON FOOT  //  %s" % _state_location
 	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
 	_telemetry_panel.visible = piloting
+	if _hero_component_hud_binding != null:
+		_hero_component_hud_binding.set_presenting(piloting)
 	_reticle.visible = piloting
 	if _flight_cue_layer != null:
 		_flight_cue_layer.set_piloting(piloting)
@@ -1441,6 +1453,47 @@ func update_component_degradation(snapshot: Dictionary) -> void:
 func clear_component_degradation() -> void:
 	_component_degradation_presenter.detach()
 	clear_runtime_status()
+
+
+func bind_hero_component_ship(ship: Node) -> bool:
+	if _hero_component_hud_binding == null:
+		return false
+	var attached := _hero_component_hud_binding.attach(self, ship)
+	_hero_component_hud_binding.set_presenting(_state_mode == MODE_PILOTING)
+	return attached
+
+
+func clear_hero_component_ship() -> void:
+	if _hero_component_hud_binding != null:
+		_hero_component_hud_binding.detach()
+
+
+func get_hero_component_hud_snapshot() -> Dictionary:
+	return _component_degradation_presenter.get_snapshot()
+
+
+func _present_bound_hero_component_report(report: Dictionary) -> void:
+	var presentation := _component_degradation_presenter.present_hero_report(report)
+	if not is_instance_valid(_component_status_label):
+		return
+	_component_status_label.text = str(presentation.get("text", ""))
+	_component_status_label.visible = bool(presentation.get("visible", false)) and _state_mode == MODE_PILOTING
+	var wording := StringName(presentation.get("wording", &"nominal"))
+	_component_status_label.modulate = _c(DANGER) if wording in [&"critical", &"failed"] else (
+		_c(CAUTION) if wording == &"degraded" else _c(MUTED)
+	)
+
+
+func _clear_bound_hero_component_report() -> void:
+	_component_degradation_presenter.detach()
+	if is_instance_valid(_component_status_label):
+		_component_status_label.text = ""
+		_component_status_label.visible = false
+
+
+func _resume_bound_hero_component_report_after_reentry() -> void:
+	if _hero_component_hud_binding != null:
+		_hero_component_hud_binding.resume_after_tree_entry()
 
 
 func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
@@ -3322,7 +3375,7 @@ func _build_telemetry() -> void:
 	_telemetry_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_telemetry_panel.offset_left = -(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN)
 	_telemetry_panel.offset_right = -PANEL_MARGIN
-	_telemetry_panel.offset_top = -250.0
+	_telemetry_panel.offset_top = -270.0
 	_telemetry_panel.offset_bottom = -PANEL_MARGIN
 	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_telemetry_panel)
@@ -3356,6 +3409,10 @@ func _build_telemetry() -> void:
 	stack.add_child(_hull_bar)
 	_damage_status_label = _label("HULL  //  OK    ENGINE OUTPUT  100%", 9, MUTED)
 	stack.add_child(_damage_status_label)
+	_component_status_label = _label("", 9, MUTED)
+	_component_status_label.name = "ComponentStatus"
+	_component_status_label.visible = false
+	stack.add_child(_component_status_label)
 	_telemetry_panel.visible = false
 
 

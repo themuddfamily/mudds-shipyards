@@ -1,0 +1,130 @@
+class_name HeroComponentHudBinding
+extends RefCounted
+
+## Presentation-only bridge from one retained HeroShip to the real flight HUD.
+## Both endpoints remain authoritative for their existing domains; this object
+## only requests detached reports and forwards them for rendering.
+
+var _hud_reference: WeakRef
+var _ship_reference: WeakRef
+var _presentation_requested := false
+var _tree_suspended := false
+
+
+func attach(hud: Node, ship: Node) -> bool:
+	detach()
+	if (
+		not is_instance_valid(hud)
+		or not is_instance_valid(ship)
+		or not ship.has_method("get_component_damage_report")
+		or not ship.has_signal("component_damage_changed")
+	):
+		return false
+	_hud_reference = weakref(hud)
+	_ship_reference = weakref(ship)
+	ship.connect(&"component_damage_changed", _on_component_damage_changed)
+	if ship.has_signal("hull_changed"):
+		ship.connect(&"hull_changed", _on_hull_changed)
+	ship.connect(&"tree_exiting", _on_ship_tree_exiting)
+	ship.connect(&"tree_entered", _on_ship_tree_entered)
+	return true
+
+
+func detach() -> void:
+	var ship := _get_ship()
+	if is_instance_valid(ship):
+		_disconnect_if_connected(ship, &"component_damage_changed", _on_component_damage_changed)
+		_disconnect_if_connected(ship, &"hull_changed", _on_hull_changed)
+		_disconnect_if_connected(ship, &"tree_exiting", _on_ship_tree_exiting)
+		_disconnect_if_connected(ship, &"tree_entered", _on_ship_tree_entered)
+	_clear_hud()
+	_hud_reference = null
+	_ship_reference = null
+	_presentation_requested = false
+	_tree_suspended = false
+
+
+func set_presenting(enabled: bool) -> void:
+	_presentation_requested = enabled
+	if enabled and not _tree_suspended:
+		refresh()
+	else:
+		_clear_hud()
+
+
+func suspend_for_tree_exit() -> void:
+	_tree_suspended = true
+	_clear_hud()
+
+
+func resume_after_tree_entry() -> void:
+	_tree_suspended = false
+	if _presentation_requested:
+		refresh()
+
+
+func refresh() -> bool:
+	var hud := _get_hud()
+	var ship := _get_ship()
+	if (
+		_tree_suspended
+		or not _presentation_requested
+		or not is_instance_valid(hud)
+		or not is_instance_valid(ship)
+		or not hud.is_inside_tree()
+		or not ship.is_inside_tree()
+	):
+		_clear_hud()
+		return false
+	hud.call("_present_bound_hero_component_report", ship.call("get_component_damage_report"))
+	return true
+
+
+func is_attached() -> bool:
+	return is_instance_valid(_get_hud()) and is_instance_valid(_get_ship())
+
+
+func get_bound_ship_instance_id() -> int:
+	var ship := _get_ship()
+	return ship.get_instance_id() if is_instance_valid(ship) else 0
+
+
+func _on_component_damage_changed(_component_id: StringName, _state: int, _integrity: float) -> void:
+	refresh()
+
+
+func _on_hull_changed(_current: float, _maximum: float) -> void:
+	# Hull remains unrelated authority; its signal is only a reliable notification
+	# that a localized component observation has just committed at finer-than-stage cadence.
+	refresh()
+
+
+func _on_ship_tree_exiting() -> void:
+	_tree_suspended = true
+	_clear_hud()
+
+
+func _on_ship_tree_entered() -> void:
+	_tree_suspended = false
+	var hud := _get_hud()
+	if _presentation_requested and is_instance_valid(hud):
+		hud.call_deferred("_resume_bound_hero_component_report_after_reentry")
+
+
+func _disconnect_if_connected(source: Object, signal_name: StringName, callback: Callable) -> void:
+	if source.has_signal(signal_name) and source.is_connected(signal_name, callback):
+		source.disconnect(signal_name, callback)
+
+
+func _clear_hud() -> void:
+	var hud := _get_hud()
+	if is_instance_valid(hud):
+		hud.call("_clear_bound_hero_component_report")
+
+
+func _get_hud() -> Node:
+	return _hud_reference.get_ref() as Node if _hud_reference != null else null
+
+
+func _get_ship() -> Node:
+	return _ship_reference.get_ref() as Node if _ship_reference != null else null

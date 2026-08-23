@@ -5,6 +5,14 @@ extends RefCounted
 ## with the caller; history is bounded to the published receipt data.
 
 const MAX_HISTORY := 4
+const CRITICAL_INTEGRITY_THRESHOLD := 0.40
+const COMPONENT_NAMES := {
+	&"forward_hull": "FORWARD HULL",
+	&"port_wing": "PORT WING",
+	&"starboard_wing": "STARBOARD WING",
+	&"core_systems": "CORE SYSTEMS",
+	&"engine_bay": "ENGINE BAY",
+}
 var _snapshot: Dictionary = {}
 
 
@@ -47,6 +55,52 @@ func _metric(snapshot: Dictionary, key: StringName, label: String) -> Dictionary
 
 
 func get_snapshot() -> Dictionary:
+	return _snapshot.duplicate(true)
+
+
+## Compact retained-flight rendering of the authoritative Hero component report.
+## “Critical” is a presentation-only sub-band inside the report's impaired
+## integrity range; no stage, health, damage, or repair state is written back.
+func present_hero_report(report: Dictionary) -> Dictionary:
+	var worst: Dictionary = {}
+	for raw_component in report.get("components", []) as Array:
+		if not raw_component is Dictionary:
+			continue
+		var component := raw_component as Dictionary
+		var integrity := clampf(float(component.get("integrity", 0.0)), 0.0, 1.0)
+		if worst.is_empty() or integrity < float(worst.get("integrity", 2.0)):
+			worst = component
+	if not bool(report.get("configured", false)) or worst.is_empty():
+		_snapshot = {"visible": false, "presentation_only": true, "authority": false}
+		return _snapshot.duplicate(true)
+	var component_id := StringName(worst.get("id", &"unknown"))
+	var integrity := clampf(float(worst.get("integrity", 0.0)), 0.0, 1.0)
+	var authoritative_stage := StringName(worst.get("state_id", &"failed"))
+	var wording := &"nominal"
+	if authoritative_stage == &"failed":
+		wording = &"failed"
+	elif integrity <= CRITICAL_INTEGRITY_THRESHOLD:
+		wording = &"critical"
+	elif authoritative_stage == &"impaired":
+		wording = &"degraded"
+	var component_name := str(COMPONENT_NAMES.get(component_id, String(component_id))).to_upper()
+	var percentage := clampi(roundi(integrity * 100.0), 0, 100)
+	_snapshot = {
+		"visible": true,
+		"text": "COMPONENT  //  %s  %03d%%  //  %s" % [
+			component_name,
+			percentage,
+			String(wording).to_upper(),
+		],
+		"component_id": component_id,
+		"component_name": component_name,
+		"integrity": integrity,
+		"percentage": percentage,
+		"authoritative_stage": authoritative_stage,
+		"wording": wording,
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
 	return _snapshot.duplicate(true)
 
 

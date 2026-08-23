@@ -4608,6 +4608,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	if _selected_activity_is_running() and candidate != active_ship:
 		_fail_active_activity(&"active_ship_replaced")
 	if candidate != active_ship:
+		if hud.has_method("clear_hero_component_ship"):
+			hud.clear_hero_component_ship()
 		_clear_bomber_payload_loop(&"active_ship_replaced")
 		_detach_cinder_loadmaster_hud_binding()
 		if is_instance_valid(network_session):
@@ -4703,6 +4705,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	phase = Phase.START_ENGINES
 	publish_first_sortie_tutorial_phase(&"take_seat", _first_sortie_tutorial_generation)
 	hud.set_mode("piloting")
+	if hud.has_method("bind_hero_component_ship"):
+		hud.bind_hero_component_ship(active_ship)
 	hud.set_objective("Apply thrust to launch %s from its physical pilot seat" % active_ship.get_display_name())
 	hud.set_interaction("[ W/S / LEFT STICK ]  APPLY THRUST")
 	if from_cabin:
@@ -4785,6 +4789,8 @@ func _try_exit_ship() -> void:
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
 	hud.set_mode("on-foot")
+	if hud.has_method("clear_hero_component_ship"):
+		hud.clear_hero_component_ship()
 	hud.set_interaction("", false)
 	if (
 		transition_ship == ship
