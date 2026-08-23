@@ -1,8 +1,8 @@
 extends SceneTree
 
-## Focused contract for the standalone Cinder cargo berth/access module. The
-## production cluster, destination-terminal fixture, Jovian and Player are
-## composed only inside this test; no production world or route owner is edited.
+## Focused production journey for the streamed Cinder cargo berth/access module.
+## The cluster must compose its real access scene and destination terminal; this
+## test adds only the Jovian and Player actors needed to exercise the route.
 
 const ACCESS_SCENE := preload("res://scenes/world/components/cinder_cargo_access.tscn")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
@@ -45,13 +45,35 @@ func _run() -> void:
 		_finish()
 		return
 
-	var access := ACCESS_SCENE.instantiate() as CinderCargoAccess
-	platform.add_child(access)
-	var terminal := DESTINATION_SCENE.instantiate() as CargoTransferTerminal
-	terminal.transform = CinderCargoAccess.DESTINATION_TERMINAL_ROOT_LOCAL
-	platform.add_child(terminal)
-	await process_frame
-	await physics_frame
+	var access := cluster.get_cinder_cargo_access()
+	var terminal := cluster.get_cinder_cargo_destination_terminal()
+	_check(
+		access != null and terminal != null
+		and access.scene_file_path == "res://scenes/world/components/cinder_cargo_access.tscn"
+		and terminal.scene_file_path == "res://scenes/world/modules/cargo_destination_terminal.tscn"
+		and access.get_parent() == platform and terminal.get_parent() == platform,
+		"streamed production cluster places the existing access and real destination terminal under its fixed platform anchor"
+	)
+	if access == null or terminal == null:
+		stage.queue_free()
+		await process_frame
+		_finish()
+		return
+	var terminal_state := terminal.get_state_snapshot()
+	var existing_cargo_authorities := cluster.find_children(
+		"*", "CargoTransferAuthority", true, false
+	)
+	_check(
+		not bool(terminal_state.bound)
+		and not bool(terminal_state.ready)
+		and StringName(terminal_state.state_id) == &"unbound"
+		and existing_cargo_authorities.size() == 1
+		and existing_cargo_authorities[0].name == &"CinderCargoTransferAuthority"
+		and existing_cargo_authorities[0].get_parent() == cluster.get_node(^"ActivityBinding"),
+		"physical terminal stays unbound while the cluster's existing cargo activity retains its sole authority"
+	)
+	var cluster_audit := cluster.get_cluster_audit_report()
+	_check(bool(cluster_audit.valid), "cargo access placement remains inside the production cluster audit budget")
 
 	_test_identity_placement_budget_and_authority(access, terminal)
 	var fit := await _test_jovian_fit_capture_and_sweep(stage, access)
@@ -156,11 +178,11 @@ func _test_identity_placement_budget_and_authority(
 		"bounded five-marker connector path publishes stable IDs and exact world transforms"
 	)
 	_check(
-		bool(snapshot.requires_world_owner)
-		and not bool(snapshot.production_route_claim)
+		not bool(snapshot.requires_world_owner)
+		and bool(snapshot.production_route_claim)
 		and not bool(snapshot.station_registry_claim)
-		and not bool(snapshot.streaming_ownership_claim),
-		"standalone slots remain honest about deferred world and streaming ownership"
+		and bool(snapshot.streaming_ownership_claim),
+		"live slots report their cluster-owned production route and streaming composition"
 	)
 	_check(
 		bool(audit.budget_exact)
@@ -589,6 +611,10 @@ func _test_detach_reentry(
 		ship: HeroShip,
 		lease_token: StringName
 	) -> void:
+	var cluster := platform.get_parent().get_parent() as NearbySectorCluster
+	var streaming_parent := cluster.get_parent()
+	var terminal := cluster.get_cinder_cargo_destination_terminal()
+	var terminal_id := terminal.get_instance_id()
 	var berth := access.get_berth()
 	var berth_id := berth.get_instance_id()
 	var old_attachment_generation := access.get_attachment_generation()
@@ -601,8 +627,7 @@ func _test_detach_reentry(
 		var batch := batch_node as MultiMeshInstance3D
 		route_batch_ids.append(batch.get_instance_id())
 		route_batch_buffers.append(batch.multimesh.buffer.duplicate())
-	var local_transform := access.transform
-	platform.remove_child(access)
+	streaming_parent.remove_child(cluster)
 	await process_frame
 	var detached_snapshot := access.get_attachment_snapshot(old_attachment_generation)
 	_check(
@@ -610,11 +635,11 @@ func _test_detach_reentry(
 		and berth.get_reservation_owner() == ship
 		and berth.get_reservation_token(ship) == lease_token
 		and not bool(detached_snapshot.accepted)
-		and detached_snapshot.reason == &"detached",
-		"live occupied lease retains exact owner/token while detached and streaming snapshot fails closed"
+		and detached_snapshot.reason == &"detached"
+		and not terminal.is_inside_tree(),
+		"whole streamed cluster detach retains the exact lease while access and terminal leave the tree together"
 	)
-	platform.add_child(access)
-	access.transform = local_transform
+	streaming_parent.add_child(cluster)
 	await process_frame
 	await physics_frame
 	var reentry_body_ids: Array[int] = []
@@ -632,6 +657,8 @@ func _test_detach_reentry(
 		access.get_build_generation() == 1
 		and access.get_attachment_generation() == old_attachment_generation + 1
 		and access.get_berth().get_instance_id() == berth_id
+		and cluster.get_cinder_cargo_access() == access
+		and cluster.get_cinder_cargo_destination_terminal().get_instance_id() == terminal_id
 		and body_ids == reentry_body_ids
 		and route_batch_ids == reentry_route_batch_ids
 		and route_batch_buffers == reentry_route_batch_buffers
@@ -834,11 +861,15 @@ func _capture_forward_plus_frame() -> void:
 	root.size = Vector2i(1400, 900)
 	var stage := Node3D.new()
 	root.add_child(stage)
-	var access := ACCESS_SCENE.instantiate() as CinderCargoAccess
-	stage.add_child(access)
-	var terminal := DESTINATION_SCENE.instantiate() as CargoTransferTerminal
-	terminal.transform = CinderCargoAccess.DESTINATION_TERMINAL_ROOT_LOCAL
-	stage.add_child(terminal)
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	stage.add_child(cluster)
+	await process_frame
+	var access := cluster.get_cinder_cargo_access()
+	var terminal := cluster.get_cinder_cargo_destination_terminal()
+	if access == null or terminal == null:
+		print("CINDER_CARGO_ACCESS_CAPTURE_FAILED")
+		quit(1)
+		return
 	var ship := JOVIAN_SCENE.instantiate() as HeroShip
 	stage.add_child(ship)
 	await process_frame
@@ -862,9 +893,9 @@ func _capture_forward_plus_frame() -> void:
 	var camera := Camera3D.new()
 	camera.current = true
 	camera.fov = 58.0
-	camera.position = Vector3(21.0, 16.0, 39.0)
 	stage.add_child(camera)
-	camera.look_at(Vector3(-11.0, 3.3, 10.0), Vector3.UP)
+	camera.global_position = access.to_global(Vector3(-48.0, 17.0, 39.0))
+	camera.look_at(access.to_global(Vector3(-15.0, 3.3, 11.0)), Vector3.UP)
 	for _frame in 10:
 		await process_frame
 		# HeroShip owns its gameplay camera each process tick. Evidence ownership is

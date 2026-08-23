@@ -1,13 +1,15 @@
 class_name CinderCargoAccess
 extends Node3D
 
-## Standalone physical access module for the modern Cinder Reach cargo landing.
+## Physical access module for the modern Cinder Reach cargo landing.
 ##
 ## This component deliberately stops at two handoff boundaries: its identity
 ## transform is a reusable placement slot on the existing extraction-platform
 ## anchor, and its final route marker is the reserved destination-terminal
 ## Player-root floor position. A later world owner may compose those pieces; this
-## module does not claim that production integration has happened.
+## module owns no inventory or transfer authority. NearbySectorCluster now
+## production-places this same scene and the real destination terminal at those
+## slots; standalone instantiation remains supported for focused validation.
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-cargo-access"
@@ -17,9 +19,9 @@ const BERTH_ID: StringName = &"cinder_cargo_jovian_berth"
 const PLACEMENT_SLOT_ID: StringName = &"cinder_reach_cargo_access_slot"
 const TERMINAL_SLOT_ID: StringName = &"station_cargo_destination_terminal_slot"
 
-## Mount the component with this transform under the cluster/world root, or with
-## identity under CinderReachPlatform. It is a published recommendation, not a
-## live production-route or registry claim.
+## Production mounts the component with identity under CinderReachPlatform;
+## this equivalent cluster-root transform remains published for standalone
+## tooling and focused placement checks.
 const RECOMMENDED_CLUSTER_TRANSFORM := Transform3D(
 	Basis.IDENTITY,
 	Vector3(60.0, -70.0, -700.0)
@@ -263,6 +265,7 @@ func get_approach_sample_transforms(sample_count: int = 17) -> Array[Transform3D
 
 
 func get_placement_snapshot() -> Dictionary:
+	var production_placed := _is_production_placed()
 	var root_local := (
 		_placement_root.transform
 		if is_instance_valid(_placement_root)
@@ -288,10 +291,10 @@ func get_placement_snapshot() -> Dictionary:
 		"destination_terminal_root_local": terminal_local,
 		"destination_terminal_player_approach_local": approach_local,
 		"destination_terminal_player_approach_world": global_transform * approach_local,
-		"requires_world_owner": true,
-		"production_route_claim": false,
+		"requires_world_owner": not production_placed,
+		"production_route_claim": production_placed,
 		"station_registry_claim": false,
-		"streaming_ownership_claim": false,
+		"streaming_ownership_claim": production_placed,
 		"attachment_generation": _attachment_generation,
 	}.duplicate(true)
 
@@ -576,8 +579,21 @@ func audit() -> Dictionary:
 		"ship_control_authority": false,
 		"landing_motion_authority": false,
 		"owns_physical_berth_lease": true,
-		"production_route_claim": false,
+		"production_route_claim": _is_production_placed(),
 	}.duplicate(true)
+
+
+func _is_production_placed() -> bool:
+	var platform := get_parent() as Node3D
+	if not is_instance_valid(platform) or platform.name != &"CinderReachPlatform":
+		return false
+	var terminal := platform.get_node_or_null(^"CargoDestinationTerminal") as CargoTransferTerminal
+	return (
+		is_instance_valid(terminal)
+		and transform.is_equal_approx(EXTRACTION_PLATFORM_LOCAL_TRANSFORM)
+		and terminal.transform.is_equal_approx(DESTINATION_TERMINAL_ROOT_LOCAL)
+		and terminal.placement_slot_id == TERMINAL_SLOT_ID
+	)
 
 
 func _get_contract_errors(actual_budget: Dictionary) -> PackedStringArray:

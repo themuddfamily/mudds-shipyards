@@ -46,6 +46,8 @@ const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"nearby-sector-cluster"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const WORLD_LAYER := PhysicsLayers.WORLD
+const CARGO_ACCESS_SCENE := preload("res://scenes/world/components/cinder_cargo_access.tscn")
+const CARGO_DESTINATION_TERMINAL_SCENE := preload("res://scenes/world/modules/cargo_destination_terminal.tscn")
 
 const CONTENT_NOTE := (
 	"Cinder Reach, its extraction platform, the route beacon chain and the ringed "
@@ -208,11 +210,13 @@ const STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET := 2
 const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 18
 
 const PERFORMANCE_BUDGET := {
-	"static_bodies": 44,
-	"mesh_instances": 200,
+	# Includes the production cargo access route (21 bodies/21 meshes/two
+	# batches) and the real destination terminal (two bodies/four meshes).
+	"static_bodies": 61,
+	"mesh_instances": 213,
 	# Three bounded visual batches retain the debris shell, processing-spine ribs,
 	# and gantry rails without increasing gameplay or collision ownership.
-	"multimesh_instances": 8,
+	"multimesh_instances": 10,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -263,6 +267,8 @@ var _quality_level: int = DetailQuality.HIGH
 var _elapsed := 0.0
 var _audit_report: Dictionary = {}
 var _streaming_transition: CinderStreamingTransitionPresentation
+var _cargo_access: CinderCargoAccess
+var _cargo_destination_terminal: CargoTransferTerminal
 
 
 func _enter_tree() -> void:
@@ -434,6 +440,14 @@ func _arm_streaming_transition() -> void:
 ## Straight-line distance from the station origin to the platform, in metres.
 func get_platform_distance() -> float:
 	return PLATFORM_ANCHOR.length()
+
+
+func get_cinder_cargo_access() -> CinderCargoAccess:
+	return _cargo_access if is_instance_valid(_cargo_access) else null
+
+
+func get_cinder_cargo_destination_terminal() -> CargoTransferTerminal:
+	return _cargo_destination_terminal if is_instance_valid(_cargo_destination_terminal) else null
 
 
 ## Seconds at the Torrent's steady cruise speed, ignoring spin-up. Reported so
@@ -1675,6 +1689,24 @@ func _build_extraction_platform() -> void:
 	_build_structure_scan_presentation(platform)
 	_build_platform_mast(platform)
 	_build_mining_activity_presentation(platform)
+	_build_cargo_access(platform)
+
+
+## Production composition only: the access module owns the physical berth and
+## walkable route, while the reusable terminal remains an unbound adapter until
+## the caller-owned CargoTransferAuthority/GameFlow composition supplies it a
+## registered handle.
+func _build_cargo_access(platform: Node3D) -> void:
+	_cargo_access = CARGO_ACCESS_SCENE.instantiate() as CinderCargoAccess
+	_cargo_access.name = "CinderCargoAccess"
+	_cargo_access.transform = CinderCargoAccess.EXTRACTION_PLATFORM_LOCAL_TRANSFORM
+	platform.add_child(_cargo_access)
+	_cargo_destination_terminal = (
+		CARGO_DESTINATION_TERMINAL_SCENE.instantiate() as CargoTransferTerminal
+	)
+	_cargo_destination_terminal.name = "CargoDestinationTerminal"
+	_cargo_destination_terminal.transform = CinderCargoAccess.DESTINATION_TERMINAL_ROOT_LOCAL
+	platform.add_child(_cargo_destination_terminal)
 
 
 ## Original-modern activity silhouette. Every child is presentation-only:
