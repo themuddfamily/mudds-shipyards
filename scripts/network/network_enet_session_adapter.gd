@@ -43,6 +43,8 @@ signal prediction_correction_result(result: Dictionary)
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
 const AUTHORITY_PEER_ID := 1
+const MAX_SECURE_PACKETS_PER_WINDOW := 32
+const SECURE_WINDOW_MILLISECONDS := 1000
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -70,6 +72,10 @@ var _bound_port := 0
 var _latest_snapshot_revision := 0
 var _prediction_entities: Dictionary = {}
 var _next_peer_generation := 1
+var _secure_sequences: Dictionary = {}
+var _security_strikes: Dictionary = {}
+var _secure_window_started := 0
+var _secure_window_counts: Dictionary = {}
 
 
 func _init() -> void:
@@ -160,6 +166,8 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_migration.disconnect_peer(AUTHORITY_PEER_ID, peer_id, int(_peer_generations.get(peer_id, 0)))
+			_security_strikes.erase(peer_id)
+			_secure_window_counts.erase(peer_id)
 			for prediction_id_variant in _prediction_entities.keys():
 				var prediction_id := StringName(prediction_id_variant)
 				var prediction_entity := _prediction_entities[prediction_id] as Dictionary
@@ -225,7 +233,7 @@ func send_movement_intent(wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
-	_receive_movement_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	_receive_movement_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"movement", wire))
 	return _remember(_result(true, &"queued"))
 
 
@@ -266,7 +274,7 @@ func send_boarding_intent(wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
-	_receive_boarding_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	_receive_boarding_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"boarding", wire))
 	return _remember(_result(true, &"queued"))
 
 
@@ -306,7 +314,7 @@ func send_projectile_intent(wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
-	_receive_projectile_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	_receive_projectile_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"projectile", wire))
 	return _remember(_result(true, &"queued"))
 
 
@@ -356,7 +364,7 @@ func send_landing_intent(wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
-	_receive_landing_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	_receive_landing_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"landing", wire))
 	return _remember(_result(true, &"queued"))
 
 
@@ -837,7 +845,10 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
-	var result: Dictionary = _movement.accept_intent(source_peer_id, wire)
+	var payload := _accept_secure_rpc(source_peer_id, wire, &"movement")
+	if payload.is_empty():
+		return
+	var result: Dictionary = _movement.accept_intent(source_peer_id, payload)
 	movement_intent_result.emit(result.duplicate(true))
 
 
@@ -846,7 +857,10 @@ func _receive_boarding_intent(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
-	var result: Dictionary = _boarding.accept_intent(source_peer_id, wire)
+	var payload := _accept_secure_rpc(source_peer_id, wire, &"boarding")
+	if payload.is_empty():
+		return
+	var result: Dictionary = _boarding.accept_intent(source_peer_id, payload)
 	boarding_intent_result.emit(result.duplicate(true))
 
 
@@ -855,7 +869,10 @@ func _receive_projectile_intent(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
-	var result: Dictionary = _projectile.accept_fire(source_peer_id, wire)
+	var payload := _accept_secure_rpc(source_peer_id, wire, &"projectile")
+	if payload.is_empty():
+		return
+	var result: Dictionary = _projectile.accept_fire(source_peer_id, payload)
 	projectile_intent_result.emit(result.duplicate(true))
 
 
@@ -864,7 +881,10 @@ func _receive_landing_intent(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
-	var result: Dictionary = _landing.accept_intent(source_peer_id, wire)
+	var payload := _accept_secure_rpc(source_peer_id, wire, &"landing")
+	if payload.is_empty():
+		return
+	var result: Dictionary = _landing.accept_intent(source_peer_id, payload)
 	landing_intent_result.emit(result.duplicate(true))
 
 
@@ -918,6 +938,10 @@ func _send_server_offer(offer: Dictionary) -> void:
 	if is_server():
 		return
 	_server_offer = offer.duplicate(true)
+	var peer: Dictionary = offer.get("transport", {}) as Dictionary
+	_transport.register_peer(
+		AUTHORITY_PEER_ID, int(peer.get("peer_id", 0)), int((offer.get("admission", {}) as Dictionary).get("peer", {}).get("peer_generation", 0))
+	)
 	peer_admitted.emit(
 		int((offer.get("admission", {}) as Dictionary).get("peer", {}).get("peer_id", 0)),
 		offer.duplicate(true)
@@ -971,6 +995,8 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		AUTHORITY_PEER_ID, peer_id, peer_generation
 	)
 	_migration.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
+	_security_strikes.erase(peer_id)
+	_secure_window_counts.erase(peer_id)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 	for prediction_id_variant in _prediction_entities.keys():
@@ -1015,6 +1041,34 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _on_server_disconnected() -> void:
 	if not is_server():
 		shutdown(&"server_disconnected")
+
+
+func _make_secure_rpc_packet(stream_id: StringName, payload: Dictionary) -> Dictionary:
+	var sequence := int(_secure_sequences.get(stream_id, -1)) + 1
+	_secure_sequences[stream_id] = sequence
+	return _transport.make_packet(
+		multiplayer.get_unique_id(), _next_peer_generation - 1, stream_id, sequence, payload
+	)
+
+
+func _accept_secure_rpc(source_peer_id: int, packet: Dictionary, stream_id: StringName) -> Dictionary:
+	var now := Time.get_ticks_msec()
+	if now - _secure_window_started >= SECURE_WINDOW_MILLISECONDS:
+		_secure_window_started = now
+		_secure_window_counts.clear()
+	var count := int(_secure_window_counts.get(source_peer_id, 0))
+	if count >= MAX_SECURE_PACKETS_PER_WINDOW:
+		_security_strikes[source_peer_id] = int(_security_strikes.get(source_peer_id, 0)) + 1
+		return {}
+	_secure_window_counts[source_peer_id] = count + 1
+	var checked: Dictionary = _transport.accept_packet(source_peer_id, packet)
+	if not bool(checked.get("accepted", false)):
+		_security_strikes[source_peer_id] = int(_security_strikes.get(source_peer_id, 0)) + 1
+		return {}
+	if StringName(checked.get("stream_id", &"")) != stream_id:
+		_security_strikes[source_peer_id] = int(_security_strikes.get(source_peer_id, 0)) + 1
+		return {}
+	return checked.get("payload", {}) as Dictionary
 
 
 
