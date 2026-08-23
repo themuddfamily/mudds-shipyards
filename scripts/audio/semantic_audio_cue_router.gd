@@ -19,6 +19,7 @@ const SOURCE_SIGNALS := {
 	&"music": &"semantic_music_cue_emitted",
 	&"ship": &"semantic_engine_cue_emitted",
 	&"planetary": &"semantic_surface_cue_emitted",
+	&"station": &"semantic_maintenance_cue_emitted",
 }
 
 var _bindings: Array[Dictionary] = []

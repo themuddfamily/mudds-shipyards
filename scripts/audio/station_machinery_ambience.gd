@@ -1,6 +1,8 @@
 class_name StationMachineryAmbience
 extends Node3D
 
+signal semantic_maintenance_cue_emitted(cue_id: StringName, intensity: float)
+
 ## Reusable positional station machinery bed with one bounded transient voice.
 ##
 ## Every sample is synthesized by this project from deterministic oscillator
@@ -119,7 +121,13 @@ func set_ambience_enabled(enabled: bool) -> void:
 	# the retained desired state that its next entry will restore.
 	if _initialized and (_tearing_down or is_queued_for_deletion() or not is_inside_tree()):
 		return
+	var changed := ambience_enabled != enabled
 	ambience_enabled = enabled
+	if changed:
+		semantic_maintenance_cue_emitted.emit(
+			&"station_machinery_available" if enabled else &"station_machinery_offline",
+			1.0 if enabled else 0.0
+		)
 	if not is_inside_tree():
 		return
 	_apply_enabled_state()
