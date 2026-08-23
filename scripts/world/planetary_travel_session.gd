@@ -156,6 +156,7 @@ var _terminal_reason: StringName = &""
 var _last_sample: Dictionary = {}
 var _last_return_intent: Dictionary = {}
 var _last_return_activity_generation := -1
+var _return_approach_ready := false
 var _landing_composition_report: Dictionary = {}
 var _last_coordinate_frame_generation := 0
 var _mutation_active := false
@@ -434,6 +435,47 @@ func submit_authorized_return_orbit(
 		expected_coordinate_frame_generation, expected_generation,
 		expected_attachment_generation
 	)
+
+
+## Validates the completed orbital sample against the existing landing-return
+## contract and emits approach readiness only. The contract is not advanced;
+## arrival, landing lease, movement, and GameFlow remain caller-owned.
+func prepare_return_approach(
+		landing_return_contract: Object,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
+	if not identity_rejection.is_empty():
+		return _result(false, identity_rejection)
+	var rejection := _attachment_rejection(expected_generation, expected_attachment_generation)
+	if not rejection.is_empty():
+		return _result(false, rejection)
+	if _state != State.ORBIT_RETURN:
+		return _result(false, &"return_approach_requires_orbit_ready")
+	if _return_approach_ready:
+		return _result(false, &"return_approach_already_prepared")
+	if landing_return_contract == null or not landing_return_contract.has_method(&"get_snapshot"):
+		return _result(false, &"landing_return_contract_unavailable")
+	var contract_snapshot := landing_return_contract.call(&"get_snapshot") as Dictionary
+	if StringName(contract_snapshot.get("return_target_id", &"")) != &"mudds_shipyards":
+		return _result(false, &"return_approach_destination_mismatch")
+	var contract_audit := landing_return_contract.call(&"audit") as Dictionary \
+		if landing_return_contract.has_method(&"audit") else contract_snapshot
+	if bool(contract_audit.get("terminal", false)):
+		return _result(false, &"landing_return_contract_terminal")
+	_return_approach_ready = true
+	_last_sample["return_approach_ready"] = {
+		"destination_id": &"mudds_shipyards",
+		"actor_instance_id": actor_instance_id,
+		"craft_instance_id": craft_instance_id,
+		"contract_snapshot": contract_snapshot.duplicate(true),
+	}.duplicate(true)
+	var result := _finish(true, &"return_approach_ready")
+	_emit_snapshot_signal(presentation_changed)
+	return result
 
 
 func advance_physics(
@@ -797,6 +839,7 @@ func reset(
 	_last_sample = {}
 	_last_return_intent = {}
 	_last_return_activity_generation = -1
+	_return_approach_ready = false
 	_landing_composition_report = {}
 	var result := _finish(true, &"reset")
 	_emit_snapshot_signal(session_reset)
@@ -852,6 +895,7 @@ func get_presentation_snapshot() -> Dictionary:
 		"last_sample": _last_sample.duplicate(true),
 		"last_return_intent": _last_return_intent.duplicate(true),
 		"last_return_activity_generation": _last_return_activity_generation,
+		"return_approach_ready": _return_approach_ready,
 		"landing_composition": _landing_composition_report.duplicate(true),
 		"landing_composition_bound": not _landing_composition_report.is_empty(),
 		"presentation": presentation,

@@ -66,9 +66,11 @@ func _run() -> void:
 			and binding.has_method(&"submit_planetary_return_takeoff") \
 			and binding.has_method(&"submit_planetary_return_ascent") \
 			and binding.has_method(&"submit_planetary_return_orbit") \
+			and binding.has_method(&"prepare_planetary_return_approach") \
 			and TravelSessionScript.new().has_method(&"admit_return_travel_intent") \
 			and TravelSessionScript.new().has_method(&"submit_authorized_return_reboard") \
-			and TravelSessionScript.new().has_method(&"submit_authorized_return_orbit")
+			and TravelSessionScript.new().has_method(&"submit_authorized_return_orbit") \
+			and TravelSessionScript.new().has_method(&"prepare_return_approach")
 	if not valid:
 		push_error("relay survey return manifest failed")
 		binding.free()
