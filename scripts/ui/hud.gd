@@ -4367,6 +4367,16 @@ func request_server_browser_join(session_id: StringName) -> Dictionary:
 
 func _render_server_browser(presentation: Dictionary) -> void:
 	var status := StringName(str(presentation.get("status", &"empty")))
+	var refresh := (
+		_server_browser_page.find_child("ServerBrowserRefreshButton", true, false)
+		as Button
+	)
+	var clear_sort := _server_browser_sort_controls.get(&"clear_sort") as Control
+	# A prior error may have spliced a transient retry button into this edge.
+	# Restore the authored static route before rebuilding dynamic browser rows.
+	if is_instance_valid(refresh) and is_instance_valid(clear_sort):
+		clear_sort.focus_neighbor_bottom = clear_sort.get_path_to(refresh)
+		refresh.focus_neighbor_top = refresh.get_path_to(clear_sort)
 	var status_title: String = {
 		&"loading": "SEARCHING…",
 		&"empty": "NO SESSIONS FOUND",
@@ -4397,6 +4407,7 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		latency_filter.select(maxi(latency_index, 0))
 	for child in _server_browser_rows.get_children():
 		child.queue_free()
+	var retry_focus_target: Button
 	var rows: Array = presentation.get("rows", [])
 	for row_value in rows:
 		if not row_value is Dictionary:
@@ -4419,12 +4430,25 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		button.tooltip_text = str(row.get("focus_label", "Select server"))
 		button.pressed.connect(request_server_browser_join.bind(StringName(str(row.get("session_id", &"")))))
 		_server_browser_rows.add_child(button)
-	if status == &"error":
+	if status == &"error" and bool(presentation.get("retryable", false)):
 		var retry := _menu_button("RETRY SERVER LIST", NOMINAL)
 		retry.name = "ServerBrowserRetryButton"
+		retry.focus_mode = Control.FOCUS_ALL
+		retry.tooltip_text = "Retry the server directory request"
 		retry.pressed.connect(request_server_browser_refresh)
 		_server_browser_rows.add_child(retry)
+		retry_focus_target = retry
+		if is_instance_valid(refresh) and is_instance_valid(clear_sort):
+			clear_sort.focus_neighbor_bottom = clear_sort.get_path_to(retry)
+			retry.focus_neighbor_top = retry.get_path_to(clear_sort)
+			retry.focus_neighbor_bottom = retry.get_path_to(refresh)
+			refresh.focus_neighbor_top = refresh.get_path_to(retry)
 	_server_browser_page.visible = true
+	if is_instance_valid(retry_focus_target):
+		# The presenter's retry focus target is an accessibility instruction. Keep
+		# the live retained control as the re-entry target as well as focusing it now.
+		_server_browser_focus_target = retry_focus_target
+		retry_focus_target.grab_focus()
 
 
 func _add_activity_selection_row(

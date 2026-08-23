@@ -37,6 +37,26 @@ func _run() -> void:
 		_check(ordered[index].focus_neighbor_bottom == ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)]), "browser control %d has next focus" % index)
 	hud.apply_server_browser_result({"accepted": false, "message": "Directory unavailable.", "retryable": true})
 	_check((hud.get("_server_browser_title") as Label).text == "SERVER LIST UNAVAILABLE", "error state remains explicit")
+	await process_frame
+	var retry := hud.get("_server_browser_page").find_child("ServerBrowserRetryButton", true, false) as Control
+	_check(
+		is_instance_valid(retry)
+		and retry.focus_mode == Control.FOCUS_ALL
+		and retry.focus_neighbor_bottom == retry.get_path_to(refresh)
+		and refresh.focus_neighbor_top == refresh.get_path_to(retry),
+		"retry action is linked into the controller focus graph",
+	)
+	_check(
+		root.get_viewport().gui_get_focus_owner() == retry,
+		"retryable failure moves controller focus directly to recovery",
+	)
+	hud.call("_show_pause_main")
+	hud.call("_show_server_browser_page")
+	await process_frame
+	_check(
+		root.get_viewport().gui_get_focus_owner() == retry,
+		"retained browser re-entry returns controller focus to retry",
+	)
 	address.grab_focus()
 	await process_frame
 	hud.call("_show_pause_main")
