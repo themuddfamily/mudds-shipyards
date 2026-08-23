@@ -63,11 +63,11 @@ const ROUTE_IDS := [
 ## build rather than padded during integration, so any added submission/node
 ## turns audit red.
 const PERFORMANCE_BUDGET := {
-	"mesh_instances": 40,
+	"mesh_instances": 36,
 	"multimesh_batches": 6,
 	"multimesh_instances": 164,
-	"geometry_submissions": 46,
-	"visible_geometry_copies": 204,
+	"geometry_submissions": 42,
+	"visible_geometry_copies": 200,
 	"multimesh_buffer_floats": 1968,
 	"static_bodies": 26,
 	"collision_shapes": 26,
@@ -86,11 +86,11 @@ const MULTIMESH_INSTANCE_COUNTS := {
 	"RailDetailBatch": 126,
 }
 
-## First unbatched repeated family after the three authored dressing batches.
-## These four physical rails keep separate bodies, collision shapes, renderer
-## nodes, stable paths, and submissions; only their identical visual BoxMesh is
-## shared. Batching would erase the semantic rail paths and couple presentation
-## to the independently audited collision roster.
+## These four physical rails keep separate bodies, collision shapes, stable
+## paths and exact transforms. Their conservative solid renderer was already
+## permanently hidden because RailDetailBatch draws the visible open rail, so
+## the stable `Mesh` path is retained as an inert anchor without allocating a
+## renderer, mesh resource, material binding or structural submission.
 const SHORT_SIDE_RAIL_VISUAL_SIZE := Vector3(0.16, 1.3, 2.0)
 const SHORT_SIDE_RAIL_NAMES := [
 	"EntryPortForward",
@@ -140,7 +140,6 @@ var _built_node_transforms: Dictionary = {}
 var _built_multimesh_buffers: Dictionary = {}
 var _built_multimesh_visible_counts: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
-var _short_side_rail_visual_mesh: BoxMesh
 var _long_rail_visual_mesh: BoxMesh
 var _rail_detail_transforms: Array[Transform3D] = []
 
@@ -377,13 +376,10 @@ func get_performance_contract() -> Dictionary:
 ## frame-time, GPU, VRAM, or pixel-equivalence claim.
 func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
-	var mesh_ids := {}
-	var material_ids := {}
 	var collision_shape_ids := {}
 	var behavior_rows: Array[Dictionary] = []
-	var visual_node_count := 0
-	var visible_copy_count := 0
-	var structural_submissions := 0
+	var stable_path_node_count := 0
+	var renderer_node_count := 0
 	var physical_rail_body_count := 0
 	var collision_shape_count := 0
 	var scripted_node_count := 0
@@ -398,30 +394,23 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 			errors.append("short_side_rail_visual_missing:%s" % rail_name)
 			continue
 		physical_rail_body_count += 1
-		var visual := rail.get_node_or_null(^"Mesh") as MeshInstance3D
+		var visual_anchor := rail.get_node_or_null(^"Mesh") as Marker3D
 		var collision := rail.get_node_or_null(^"Collision") as CollisionShape3D
-		if visual == null:
+		if visual_anchor == null:
 			errors.append("short_side_rail_visual_missing:%s/Mesh" % rail_name)
 		else:
-			visual_node_count += 1
-			visible_copy_count += 1 if visual.visible else 0
-			if visual.mesh != null:
-				mesh_ids[visual.mesh.get_instance_id()] = true
-				structural_submissions += visual.mesh.get_surface_count()
-			if visual.material_override != null:
-				material_ids[visual.material_override.get_instance_id()] = true
-			if visual.mesh != _short_side_rail_visual_mesh:
-				errors.append("short_side_rail_visual_mesh_identity_not_shared")
+			stable_path_node_count += 1
 			if (
-				visual.material_override != _materials.get("rail")
-				or not visual.transform.is_equal_approx(Transform3D.IDENTITY)
-				or visual.layers != 1
-				or visual.visible
-				or visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-				or str(visual.get_meta("non_walkable_reason", ""))
+				not visual_anchor.transform.is_equal_approx(Transform3D.IDENTITY)
+				or not bool(visual_anchor.get_meta("renderer_elided_anchor", false))
+				or str(visual_anchor.get_meta("non_walkable_reason", ""))
 					!= "physical safety rail, not a route surface"
+				or visual_anchor.get_child_count() != 0
 			):
-				errors.append("short_side_rail_visual_render_state_drift")
+				errors.append("short_side_rail_visual_anchor_state_drift")
+		for child in rail.get_children():
+			if child is MeshInstance3D or child is MultiMeshInstance3D:
+				renderer_node_count += 1
 		if collision == null or not (collision.shape is BoxShape3D):
 			errors.append("short_side_rail_physics_contract_drift")
 		else:
@@ -440,7 +429,7 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 			or rail.get_child_count() != 2
 		):
 			errors.append("short_side_rail_physics_contract_drift")
-		for candidate in [rail, visual, collision]:
+		for candidate in [rail, visual_anchor, collision]:
 			if candidate == null:
 				continue
 			var node := candidate as Node
@@ -465,23 +454,10 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 			"collision_path": String(rail_path) + "/Collision",
 		})
 
-	var shared_mesh := _short_side_rail_visual_mesh
-	if (
-		shared_mesh == null
-		or not shared_mesh.size.is_equal_approx(SHORT_SIDE_RAIL_VISUAL_SIZE)
-		or shared_mesh.get_surface_count() != 1
-	):
-		errors.append("short_side_rail_visual_mesh_recipe_drift")
-	if visual_node_count != SHORT_SIDE_RAIL_VISUAL_COUNT:
+	if stable_path_node_count != SHORT_SIDE_RAIL_VISUAL_COUNT:
 		errors.append("short_side_rail_visual_node_count_drift")
-	if visible_copy_count != 0:
-		errors.append("short_side_rail_visual_copy_count_drift")
-	if structural_submissions != SHORT_SIDE_RAIL_VISUAL_COUNT:
+	if renderer_node_count != 0:
 		errors.append("short_side_rail_visual_submission_count_drift")
-	if mesh_ids.size() != 1:
-		errors.append("short_side_rail_visual_mesh_identity_count_drift")
-	if material_ids.size() != 1:
-		errors.append("short_side_rail_visual_material_identity_count_drift")
 	if (
 		physical_rail_body_count != SHORT_SIDE_RAIL_VISUAL_COUNT
 		or collision_shape_count != SHORT_SIDE_RAIL_VISUAL_COUNT
@@ -491,22 +467,24 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 	if scripted_node_count != 0 or foreign_authority_node_count != 0 or processing_node_count != 0:
 		errors.append("short_side_rail_visual_path_gained_authority_or_lifecycle")
 
-	var legacy := {
-		"visual_nodes": 4,
-		"visible_geometry_copies": 4,
+	var before := {
+		"stable_path_nodes": 4,
+		"renderer_nodes": 4,
+		"visible_geometry_copies": 0,
 		"structural_submissions": 4,
-		"mesh_resource_allocations": 4,
+		"mesh_resource_allocations": 1,
 		"material_resource_allocations": 1,
 		"physical_rail_bodies": 4,
 		"collision_shapes": 4,
 		"collision_resource_allocations": 4,
 	}
 	var current := {
-		"visual_nodes": visual_node_count,
-		"visible_geometry_copies": visible_copy_count,
-		"structural_submissions": structural_submissions,
-		"mesh_resource_allocations": mesh_ids.size(),
-		"material_resource_allocations": material_ids.size(),
+		"stable_path_nodes": stable_path_node_count,
+		"renderer_nodes": renderer_node_count,
+		"visible_geometry_copies": 0,
+		"structural_submissions": 0,
+		"mesh_resource_allocations": 0,
+		"material_resource_allocations": 0,
 		"physical_rail_bodies": physical_rail_body_count,
 		"collision_shapes": collision_shape_count,
 		"collision_resource_allocations": collision_shape_ids.size(),
@@ -516,25 +494,23 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"scope": &"salvage_terrace_short_side_rail_visuals",
-		"legacy": legacy,
+		"before": before,
 		"current": current,
 		"reductions": {
-			"visual_nodes": 0,
-			"visible_geometry_copies": 4,
-			"structural_submissions": 0,
-			"mesh_resource_allocations": 3,
+			"stable_path_nodes": 0,
+			"renderer_nodes": 4,
+			"visible_geometry_copies": 0,
+			"structural_submissions": 4,
+			"mesh_resource_allocations": 1,
 			"physical_rail_bodies": 0,
 			"collision_shapes": 0,
-		},
-		"mesh_recipe": {
-			"size": shared_mesh.size if shared_mesh != null else Vector3.ZERO,
-			"surface_count": shared_mesh.get_surface_count() if shared_mesh != null else 0,
 		},
 		"behavior_rows": behavior_rows,
 		"scripted_node_count": scripted_node_count,
 		"foreign_authority_node_count": foreign_authority_node_count,
 		"processing_node_count": processing_node_count,
 		"batched": false,
+		"renderer_elided": true,
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
 		"vram_claimed": false,
@@ -823,9 +799,6 @@ func _tag_walkable_surface(body: StaticBody3D, surface_id: StringName, kind: Str
 func _build_safety_rails() -> void:
 	# Every exposed edge is a continuous physical barrier. Gates exist only where
 	# another declared walkable surface meets it, plus the 4 m local-origin entry.
-	_short_side_rail_visual_mesh = BoxMesh.new()
-	_short_side_rail_visual_mesh.resource_name = "SalvageTerraceShortSideRailVisualMesh"
-	_short_side_rail_visual_mesh.size = SHORT_SIDE_RAIL_VISUAL_SIZE
 	_long_rail_visual_mesh = BoxMesh.new()
 	_long_rail_visual_mesh.resource_name = "SalvageTerraceLongRailVisualMesh"
 	_long_rail_visual_mesh.size = LONG_RAIL_VISUAL_SIZE
@@ -857,19 +830,22 @@ func _build_safety_rails() -> void:
 
 func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void:
 	var visual_mesh: BoxMesh = null
-	if node_name in SHORT_SIDE_RAIL_NAMES:
-		visual_mesh = _short_side_rail_visual_mesh
-	elif StringName(node_name) in LONG_RAIL_NAMES:
+	var omit_hidden_renderer := node_name in SHORT_SIDE_RAIL_NAMES
+	if StringName(node_name) in LONG_RAIL_NAMES:
 		visual_mesh = _long_rail_visual_mesh
 	var rail := _box_body(
-		_build_root, node_name, transform, size, _materials.rail, visual_mesh
+		_build_root, node_name, transform, size, _materials.rail, visual_mesh,
+		omit_hidden_renderer
 	)
 	rail.set_meta("safety_rail", true)
-	var mesh := rail.get_node(^"Mesh") as MeshInstance3D
+	var visual_path_node := rail.get_node(^"Mesh") as Node3D
 	# Keep the proven conservative physics envelope but do not render it as a
 	# waist-high solid wall. Open rail bars and posts are drawn by RailDetailBatch.
-	mesh.visible = false
-	mesh.set_meta("non_walkable_reason", "physical safety rail, not a route surface")
+	if visual_path_node is MeshInstance3D:
+		(visual_path_node as MeshInstance3D).visible = false
+	visual_path_node.set_meta(
+		"non_walkable_reason", "physical safety rail, not a route surface"
+	)
 	_rail_nodes.append(rail)
 	_append_rail_detail_transforms(transform, size)
 
@@ -1081,7 +1057,8 @@ func _box_body(
 		transform: Transform3D,
 		size: Vector3,
 		material: Material,
-		shared_visual_mesh: BoxMesh = null
+		shared_visual_mesh: BoxMesh = null,
+		omit_hidden_renderer: bool = false
 	) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = node_name
@@ -1089,15 +1066,21 @@ func _box_body(
 	body.collision_layer = WORLD_LAYER
 	body.collision_mask = 0
 	parent.add_child(body)
-	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.name = "Mesh"
-	var mesh := shared_visual_mesh
-	if mesh == null:
-		mesh = BoxMesh.new()
-		mesh.size = size
-	mesh_instance.mesh = mesh
-	mesh_instance.material_override = material
-	body.add_child(mesh_instance)
+	if omit_hidden_renderer:
+		var visual_anchor := Marker3D.new()
+		visual_anchor.name = "Mesh"
+		visual_anchor.set_meta("renderer_elided_anchor", true)
+		body.add_child(visual_anchor)
+	else:
+		var mesh_instance := MeshInstance3D.new()
+		mesh_instance.name = "Mesh"
+		var mesh := shared_visual_mesh
+		if mesh == null:
+			mesh = BoxMesh.new()
+			mesh.size = size
+		mesh_instance.mesh = mesh
+		mesh_instance.material_override = material
+		body.add_child(mesh_instance)
 	var collision := CollisionShape3D.new()
 	collision.name = "Collision"
 	var shape := BoxShape3D.new()

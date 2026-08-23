@@ -215,8 +215,15 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 	for raw_rail in module.find_children("*", "StaticBody3D", true, false):
 		var rail_body := raw_rail as StaticBody3D
 		if bool(rail_body.get_meta("safety_rail", false)):
-			hidden_rail_colliders = hidden_rail_colliders \
-				and not (rail_body.get_node(^"Mesh") as MeshInstance3D).visible
+			var visual_path_node := rail_body.get_node(^"Mesh") as Node3D
+			hidden_rail_colliders = hidden_rail_colliders and (
+				(visual_path_node is Marker3D and bool(
+					visual_path_node.get_meta("renderer_elided_anchor", false)
+				))
+				or (visual_path_node is MeshInstance3D and not (
+					visual_path_node as MeshInstance3D
+				).visible)
+			)
 	_check(
 		hidden_rail_colliders and rail_detail != null and rail_detail.multimesh != null
 		and rail_detail.multimesh.instance_count == 126,
@@ -280,30 +287,21 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 	var report := module.get_short_side_rail_visual_allocation_audit()
 	print(
 		"SALVAGE_TERRACE_SHORT_SIDE_RAIL_VISUALS: "
-		+ "nodes %d->%d submissions %d->%d mesh_resources %d->%d copies %d->%d" % [
-			int(report.legacy.visual_nodes), int(report.current.visual_nodes),
-			int(report.legacy.structural_submissions),
+		+ "renderers %d->%d submissions %d->%d mesh_resources %d->%d copies %d->%d" % [
+			int(report.before.renderer_nodes), int(report.current.renderer_nodes),
+			int(report.before.structural_submissions),
 			int(report.current.structural_submissions),
-			int(report.legacy.mesh_resource_allocations),
+			int(report.before.mesh_resource_allocations),
 			int(report.current.mesh_resource_allocations),
-			int(report.legacy.visible_geometry_copies),
+			int(report.before.visible_geometry_copies),
 			int(report.current.visible_geometry_copies),
 		]
 	)
 	_check(
 		bool(report.valid)
-		and report.legacy == {
-			"visual_nodes": 4,
-			"visible_geometry_copies": 4,
-			"structural_submissions": 4,
-			"mesh_resource_allocations": 4,
-			"material_resource_allocations": 1,
-			"physical_rail_bodies": 4,
-			"collision_shapes": 4,
-			"collision_resource_allocations": 4,
-		}
-		and report.current == {
-			"visual_nodes": 4,
+		and report.before == {
+			"stable_path_nodes": 4,
+			"renderer_nodes": 4,
 			"visible_geometry_copies": 0,
 			"structural_submissions": 4,
 			"mesh_resource_allocations": 1,
@@ -311,23 +309,38 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 			"physical_rail_bodies": 4,
 			"collision_shapes": 4,
 			"collision_resource_allocations": 4,
+		}
+		and report.current == {
+			"stable_path_nodes": 4,
+			"renderer_nodes": 0,
+			"visible_geometry_copies": 0,
+			"structural_submissions": 0,
+			"mesh_resource_allocations": 0,
+			"material_resource_allocations": 0,
+			"physical_rail_bodies": 4,
+			"collision_shapes": 4,
+			"collision_resource_allocations": 4,
 		},
-		"short-side conservative colliders freeze exact nodes 4->4 and mesh allocations 4->1 while hiding all four solid visual copies"
+		"four short-side paths stay exact while hidden renderers/submissions drop 4->0 and mesh resources 1->0"
 	)
 	_check(
-		report.reductions.mesh_resource_allocations == 3
+		report.reductions.stable_path_nodes == 0
+		and report.reductions.renderer_nodes == 4
+		and report.reductions.structural_submissions == 4
+		and report.reductions.mesh_resource_allocations == 1
 		and report.reductions.physical_rail_bodies == 0
 		and report.reductions.collision_shapes == 0
 		and not bool(report.batched)
+		and bool(report.renderer_elided)
 		and not bool(report.frame_time_claimed)
 		and not bool(report.gpu_draw_call_claimed)
 		and not bool(report.vram_claimed)
 		and not bool(report.whole_scene_budget_claimed)
 		and not bool(report.pixel_equivalence_claimed),
-		"allocation evidence is component-local and makes no batching, timing, GPU, VRAM, whole-scene, or pixel claim"
+		"allocation evidence records renderer elision without timing, GPU, VRAM, whole-scene, or pixel claims"
 	)
 
-	var meshes: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	var bodies: Array[StaticBody3D] = []
 	var collision_resource_ids := {}
 	for rail_name in [
@@ -335,32 +348,31 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 		"UpperInboardForward", "UpperInboardAft",
 	]:
 		var body := module.get_node(NodePath("GeneratedRoot/%s" % rail_name)) as StaticBody3D
-		var mesh := body.get_node(^"Mesh") as MeshInstance3D
+		var anchor := body.get_node(^"Mesh") as Marker3D
 		var collision := body.get_node(^"Collision") as CollisionShape3D
 		bodies.append(body)
-		meshes.append(mesh)
+		anchors.append(anchor)
 		collision_resource_ids[collision.shape.get_instance_id()] = true
-	var shared_mesh := meshes[0].mesh as BoxMesh
-	var exact_paths_and_resources := shared_mesh != null
-	for index in meshes.size():
+	var exact_paths_and_resources := true
+	for index in anchors.size():
 		exact_paths_and_resources = (
 			exact_paths_and_resources
-			and meshes[index].mesh == shared_mesh
-			and meshes[index].material_override == meshes[0].material_override
+			and anchors[index] != null
+			and anchors[index].transform.is_equal_approx(Transform3D.IDENTITY)
+			and bool(anchors[index].get_meta("renderer_elided_anchor", false))
 			and bodies[index].get_child_count() == 2
 			and bool(bodies[index].get_meta("safety_rail", false))
 		)
 	_check(
 		exact_paths_and_resources
-		and collision_resource_ids.size() == 4
-		and shared_mesh.size.is_equal_approx(Vector3(0.16, 1.3, 2.0)),
-		"four stable physical rail paths retain four private colliders while sharing one exact visual BoxMesh"
+		and collision_resource_ids.size() == 4,
+		"four stable Mesh anchor paths retain exact transforms and four private colliders without renderers"
 	)
 	_check(
 		int(report.scripted_node_count) == 0
 		and int(report.foreign_authority_node_count) == 0
 		and int(report.processing_node_count) == 0,
-		"shared visual paths add no script, processing loop, or foreign gameplay authority"
+		"renderer-elided paths add no script, processing loop, or foreign gameplay authority"
 	)
 	var long_report := module.get_long_rail_visual_allocation_audit()
 	_check(
@@ -392,47 +404,29 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_short_side_rail_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 1
+		int(detached.current.mesh_resource_allocations) == 0
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation evidence is deeply detached from caller mutation"
 	)
 
-	var original_size := shared_mesh.size
-	shared_mesh.size.x += 0.01
-	var recipe_mutation := module.get_short_side_rail_visual_allocation_audit()
-	var mutation_reached_every_copy := true
-	for mesh in meshes:
-		mutation_reached_every_copy = mutation_reached_every_copy \
-			and is_equal_approx((mesh.mesh as BoxMesh).size.x, original_size.x + 0.01)
+	var original_anchor_transform := anchors[1].transform
+	anchors[1].position.x += 0.01
+	var anchor_mutation := module.get_short_side_rail_visual_allocation_audit()
 	_check(
-		not bool(recipe_mutation.valid)
-		and (recipe_mutation.errors as PackedStringArray).has(
-			"short_side_rail_visual_mesh_recipe_drift"
+		not bool(anchor_mutation.valid)
+		and (anchor_mutation.errors as PackedStringArray).has(
+			"short_side_rail_visual_anchor_state_drift"
 		)
-		and mutation_reached_every_copy
 		and _errors_include(
 			module.get_validation_errors(),
 			"shared safety-rail visual allocation contract"
 		),
-		"MUTATION: changing the shared visual recipe reaches all four copies and turns the module audit red"
+		"MUTATION: moving one stable renderer-elision anchor turns the module audit red"
 	)
-	shared_mesh.size = original_size
-
-	var original_second_mesh := meshes[1].mesh
-	meshes[1].mesh = shared_mesh.duplicate()
-	var identity_mutation := module.get_short_side_rail_visual_allocation_audit()
-	_check(
-		not bool(identity_mutation.valid)
-		and (identity_mutation.errors as PackedStringArray).has(
-			"short_side_rail_visual_mesh_identity_not_shared"
-		)
-		and int(identity_mutation.current.mesh_resource_allocations) == 2,
-		"MUTATION: an exact-looking private rail mesh turns shared identity evidence red"
-	)
-	meshes[1].mesh = original_second_mesh
+	anchors[1].transform = original_anchor_transform
 	_check(
 		bool(module.get_audit_report().valid),
-		"restoring the shared rail mesh recipe and identity returns the full module audit green"
+		"restoring the exact stable anchor transform returns the full module audit green"
 	)
 
 
@@ -441,7 +435,7 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.mesh_instances) == 40
+		int(performance.mesh_instances) == 36
 		and int(performance.static_bodies) == 26
 		and int(performance.collision_shapes) == 26
 		and int(performance.lights) == 3
@@ -450,12 +444,12 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		and int(performance.multimesh_instances) == 164
 		and int(performance.multimesh_drawn_copies) == 164
 		and int(performance.multimesh_buffer_floats) == 1968
-		and int(performance.geometry_submissions) == 46
-		and int(performance.visible_geometry_copies) == 204
+		and int(performance.geometry_submissions) == 42
+		and int(performance.visible_geometry_copies) == 200
 		and int(performance.nodes) == 112
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 46 submissions, 204 authored copies, 26 bodies/shapes, 112 nodes, one label, three bounded lights, and zero loops"
+		"exact census freezes 42 submissions, 200 authored copies, 26 bodies/shapes, 112 nodes, one label, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)
