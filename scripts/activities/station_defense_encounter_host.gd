@@ -12,6 +12,8 @@ extends Node3D
 
 signal snapshot_changed(snapshot: Dictionary)
 
+const StationDefenseAudioBindingType := preload("res://scripts/audio/station_defense_audio_binding.gd")
+
 const MAX_SPAWN_ROSTER := StationDefenseContract.MAX_TOTAL_HOSTILES
 
 const _AUTHORITY_EXCLUSIONS := {
@@ -45,6 +47,7 @@ var _detached_by_tree := false
 var _resolver_connected := false
 var _pending_failure_reason: StringName = &""
 var _last_observation_result: Dictionary = {}
+var _audio_binding: RefCounted
 
 
 func _enter_tree() -> void:
@@ -60,7 +63,9 @@ func _exit_tree() -> void:
 	var snapshot := _activity.get_snapshot()
 	if bool(snapshot.get("attached", false)):
 		_activity.detach(generation)
-	_detached_by_tree = true
+		_detached_by_tree = true
+	if _audio_binding != null:
+		_audio_binding.detach()
 
 
 func configure(
@@ -87,6 +92,8 @@ func configure(
 	_connect_activity_signals()
 	_connect_resolver()
 	_configured = true
+	_audio_binding = StationDefenseAudioBindingType.new()
+	_audio_binding.attach(self)
 	_publish_snapshot()
 	return _finish_mutation(true, &"configured")
 
@@ -265,6 +272,10 @@ func get_generation() -> int:
 
 func get_combat_authority() -> LiveCombatAuthority:
 	return _combat_authority if is_instance_valid(_combat_authority) else null
+
+
+func get_audio_binding_snapshot() -> Dictionary:
+	return _audio_binding.get_snapshot() if _audio_binding != null else {"attached": false}
 
 
 func get_snapshot() -> Dictionary:
