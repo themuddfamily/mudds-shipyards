@@ -27,6 +27,7 @@ const CROSSFADE_SECONDS := 0.75
 const MAX_CALLER_DELTA_SECONDS := 1.0
 const SILENCE_DB := -80.0
 const WIND_BASE_GAIN_DB := -9.0
+const ENTRY_MAX_GAIN_DB := 3.0
 const MAX_GAIN_DB := 24.0
 const MIN_AUDIBLE_LINEAR := 0.0001
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
@@ -111,6 +112,8 @@ var _intensity_unitless := 0.0
 var _target_intensity_unitless := 0.0
 var _wind_intensity_unitless := 0.0
 var _target_wind_intensity_unitless := 0.0
+var _entry_intensity_unitless := 0.0
+var _target_entry_intensity_unitless := 0.0
 var _exterior_gain_db := SILENCE_DB
 var _interior_gain_db := SILENCE_DB
 var _last_policy_evaluation := {}
@@ -277,6 +280,7 @@ func present_policy_result(
 	_exterior_gain_db = float(targets.get("exterior_gain_db", SILENCE_DB))
 	_interior_gain_db = float(targets.get("interior_gain_db", SILENCE_DB))
 	_target_wind_intensity_unitless = float(targets.get("wind_intensity_unitless", 0.0))
+	_target_entry_intensity_unitless = float(targets.get("entry_intensity_unitless", 0.0))
 	_last_policy_evaluation = evaluation.duplicate(true)
 	var before := _fade_value_snapshot()
 	if not _paused and caller_physics_delta > 0.0:
@@ -289,6 +293,9 @@ func present_policy_result(
 		)
 		_wind_intensity_unitless = move_toward(
 			_wind_intensity_unitless, _target_wind_intensity_unitless, step
+		)
+		_entry_intensity_unitless = move_toward(
+			_entry_intensity_unitless, _target_entry_intensity_unitless, step
 		)
 	var apply_result := _apply_voice_state()
 	if not bool(apply_result.get("accepted", false)):
@@ -388,10 +395,14 @@ func get_state_snapshot() -> Dictionary:
 			"target_intensity_unitless": _target_intensity_unitless,
 			"wind_intensity_unitless": _wind_intensity_unitless,
 			"target_wind_intensity_unitless": _target_wind_intensity_unitless,
+			"entry_intensity_unitless": _entry_intensity_unitless,
+			"target_entry_intensity_unitless": _target_entry_intensity_unitless,
 			"exterior_gain_db": _exterior_gain_db,
 			"interior_gain_db": _interior_gain_db,
 			"wind_gain_db": _wind_gain_db_for_intensity(_wind_intensity_unitless),
 			"target_wind_gain_db": _wind_gain_db_for_intensity(_target_wind_intensity_unitless),
+			"entry_gain_db": _entry_gain_db_for_intensity(_entry_intensity_unitless),
+			"target_entry_gain_db": _entry_gain_db_for_intensity(_target_entry_intensity_unitless),
 			"exterior_route_weight_unitless": route_weights.exterior,
 			"interior_route_weight_unitless": route_weights.interior,
 			"target_exterior_route_weight_unitless": target_weights.exterior,
@@ -549,6 +560,9 @@ func _decode_policy_result(policy_result: Dictionary) -> Dictionary:
 			WIND_BASE_GAIN_DB + linear_to_db(float(ambient_wind)),
 			WIND_BASE_GAIN_DB
 		)
+	var entry_sample: Variant = (evaluation.get("atmosphere_sample") as Dictionary).get("entry_effect_intensity")
+	if not _finite_range(entry_sample, 0.0, 1.0):
+		return {"accepted": false, "reason": &"invalid_entry_intensity"}
 	return {
 		"accepted": true,
 		"reason": &"decoded",
@@ -560,6 +574,7 @@ func _decode_policy_result(policy_result: Dictionary) -> Dictionary:
 			"interior_gain_db": expected_interior_gain,
 			"wind_gain_db": wind_gain_db,
 			"wind_intensity_unitless": float(ambient_wind) if not uses_interior else 0.0,
+			"entry_intensity_unitless": float(entry_sample) if not uses_interior else 0.0,
 		}.duplicate(true),
 	}
 
@@ -584,6 +599,7 @@ func _apply_voice_state() -> Dictionary:
 		&"exterior": _intensity_unitless * (
 			db_to_linear(_exterior_gain_db)
 			+ db_to_linear(WIND_BASE_GAIN_DB) * _wind_intensity_unitless
+			+ db_to_linear(ENTRY_MAX_GAIN_DB) * _entry_intensity_unitless
 		) * float(weights.exterior),
 		&"interior": _intensity_unitless * db_to_linear(_interior_gain_db) \
 			* float(weights.interior),
@@ -629,6 +645,7 @@ func _voice_snapshot() -> Dictionary:
 		var effective_linear := _intensity_unitless * (
 			db_to_linear(base_gain) + (
 				db_to_linear(WIND_BASE_GAIN_DB) * _wind_intensity_unitless
+				+ db_to_linear(ENTRY_MAX_GAIN_DB) * _entry_intensity_unitless
 				if route == &"exterior" else 0.0
 		)
 		) * weight
@@ -760,6 +777,8 @@ func _reset_fade_state() -> void:
 	_target_intensity_unitless = 0.0
 	_wind_intensity_unitless = 0.0
 	_target_wind_intensity_unitless = 0.0
+	_entry_intensity_unitless = 0.0
+	_target_entry_intensity_unitless = 0.0
 	_exterior_gain_db = SILENCE_DB
 	_interior_gain_db = SILENCE_DB
 
@@ -799,6 +818,7 @@ func _attachment_values_are_clear() -> bool:
 			"route": 0.0, "target_route": 0.0,
 			"intensity": 0.0, "target_intensity": 0.0,
 			"wind_intensity": 0.0, "target_wind_intensity": 0.0,
+			"entry_intensity": 0.0, "target_entry_intensity": 0.0,
 			"exterior_gain": SILENCE_DB, "interior_gain": SILENCE_DB,
 			"wind_gain": SILENCE_DB,
 		}
@@ -812,6 +832,8 @@ func _fade_value_snapshot() -> Dictionary:
 		"target_intensity": _target_intensity_unitless,
 		"wind_intensity": _wind_intensity_unitless,
 		"target_wind_intensity": _target_wind_intensity_unitless,
+		"entry_intensity": _entry_intensity_unitless,
+		"target_entry_intensity": _target_entry_intensity_unitless,
 		"exterior_gain": _exterior_gain_db,
 		"interior_gain": _interior_gain_db,
 		"wind_gain": _wind_gain_db_for_intensity(_wind_intensity_unitless),
@@ -825,6 +847,8 @@ func _fade_state_is_bounded() -> bool:
 		and _finite_range(_target_intensity_unitless, 0.0, 1.0) \
 		and _finite_range(_wind_intensity_unitless, 0.0, 1.0) \
 		and _finite_range(_target_wind_intensity_unitless, 0.0, 1.0) \
+		and _finite_range(_entry_intensity_unitless, 0.0, 1.0) \
+		and _finite_range(_target_entry_intensity_unitless, 0.0, 1.0) \
 		and _finite_range(_exterior_gain_db, SILENCE_DB, MAX_GAIN_DB) \
 		and _finite_range(_interior_gain_db, SILENCE_DB, MAX_GAIN_DB) \
 		and _finite_range(_wind_gain_db_for_intensity(_wind_intensity_unitless), SILENCE_DB, 0.0)
@@ -833,6 +857,12 @@ func _fade_state_is_bounded() -> bool:
 func _wind_gain_db_for_intensity(intensity: float) -> float:
 	return SILENCE_DB if intensity <= 0.0 else minf(
 		WIND_BASE_GAIN_DB + linear_to_db(intensity), WIND_BASE_GAIN_DB
+	)
+
+
+func _entry_gain_db_for_intensity(intensity: float) -> float:
+	return 0.0 if intensity <= 0.0 else linear_to_db(
+		1.0 + db_to_linear(ENTRY_MAX_GAIN_DB) * intensity
 	)
 
 

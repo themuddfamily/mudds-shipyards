@@ -66,6 +66,32 @@ func _run() -> void:
 		),
 		"weather transition settles at its authored wind target"
 	)
+	var entry_low: Dictionary = policy.evaluate({
+		"altitude_m": 0.0,
+		"listener_context": &"exterior",
+		"grounded": false,
+		"speed_mps": 0.0,
+		"ambient_wind_scalar_unitless": 0.0,
+	})
+	var entry_high: Dictionary = policy.evaluate({
+		"altitude_m": 0.0,
+		"listener_context": &"exterior",
+		"grounded": false,
+		"speed_mps": 2000.0,
+		"ambient_wind_scalar_unitless": 0.0,
+	})
+	_check(
+		bool(binding.present_policy_result(entry_low, 0.75, generation, 1001, 7, 11).accepted)
+		and bool(binding.present_policy_result(entry_high, 0.1875, generation, 1001, 7, 11).accepted),
+		"entry descent policy reaches the playback adapter"
+	)
+	var entry_fade := binding.get_state_snapshot().fade as Dictionary
+	_check(
+		float(entry_fade.entry_intensity_unitless) > 0.0
+		and float(entry_fade.entry_intensity_unitless) < float(entry_fade.target_entry_intensity_unitless)
+		and float(entry_fade.target_entry_gain_db) > 0.0,
+		"entry intensity crossfades an exterior arrival gain without adding a voice"
+	)
 	var cabin: Dictionary = policy.evaluate({
 		"altitude_m": 0.0,
 		"listener_context": &"cabin",
