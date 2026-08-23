@@ -23,6 +23,9 @@ const COMBAT_SOURCE_ID := 1103
 const INTERIOR_SCHEMA_VERSION := 1
 const PILOT_SEAT_ID: StringName = &"pilot_station"
 const ENGINEER_SEAT_ID: StringName = &"passenger_port_01"
+const COPILOT_SEAT_ID: StringName = &"co_pilot_station"
+const COPILOT_ROLE_ID: StringName = &"copilot_navigation_support"
+const COPILOT_NAVIGATION_CHANNEL: StringName = &"navigation_route"
 const MAX_ENGINEER_COMPONENT_GENERATION := 1_000_000
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
@@ -213,10 +216,14 @@ var _elapsed_jovian := 0.0
 var _crew_role_authority: CrewSeatRoleAuthority
 var _engineer_component_selection: Dictionary = {}
 var _engineer_component_generation := 1
+var _copilot_navigation_receipt: Dictionary = {}
+var _copilot_navigation_generation := 1
 var _ship_perspective_audio_binding: RefCounted
 
 signal engineer_component_selected(component_id: StringName, component_generation: int, receipt: Dictionary)
 signal engineer_component_cleared(component_id: StringName, component_generation: int, reason: StringName)
+signal copilot_navigation_intent_accepted(receipt: Dictionary)
+signal copilot_navigation_intent_cleared(generation: int, reason: StringName)
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -246,6 +253,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_copilot_navigation_state(&"ship_detached")
 	if _ship_perspective_audio_binding != null:
 		if camera_view_changed.is_connected(_on_jovian_camera_view_changed):
 			camera_view_changed.disconnect(_on_jovian_camera_view_changed)
@@ -304,6 +312,7 @@ func apply_damage(
 	)
 	if is_destroyed():
 		_clear_engineer_component_selection(&"ship_destroyed")
+		_clear_copilot_navigation_state(&"ship_destroyed")
 		_set_interior_operational(false)
 
 
@@ -315,6 +324,8 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
+	_clear_copilot_navigation_state(&"ship_reused")
+	_copilot_navigation_generation = 1
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -454,6 +465,16 @@ func get_engineer_seat_anchor() -> Marker3D:
 	return null
 
 
+## Physical cockpit-side station for the freighter's optional navigation
+## support role. The role ledger remains caller-owned; this anchor only names
+## the seat that may submit navigation-route receipts.
+func get_copilot_seat_anchor() -> Marker3D:
+	var cockpit := _walkable_interior.get_node_or_null(^"CockpitInterior") as Node3D \
+		if _walkable_interior != null else null
+	return cockpit.get_node_or_null(^"CopilotSeatAnchor") as Marker3D \
+		if cockpit != null else null
+
+
 ## Binds the injected role ledger. Jovian consumes only its pilot and engineer
 ## entries; it never creates a second occupancy or repair ledger.
 func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
@@ -466,6 +487,7 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 		return _crew_role_result(false, &"roster_not_sealed")
 	var has_pilot := false
 	var has_engineer := false
+	var has_copilot := false
 	for seat_variant in snapshot.get("seats", []) as Array:
 		if not seat_variant is Dictionary:
 			continue
@@ -478,7 +500,11 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 		if StringName(seat.get("seat_id", &"")) == ENGINEER_SEAT_ID \
 				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_ENGINEER:
 			has_engineer = true
-	if not has_pilot or not has_engineer:
+		if StringName(seat.get("seat_id", &"")) == COPILOT_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PASSENGER:
+			has_copilot = true
+	if not has_pilot or not has_engineer or not has_copilot \
+			or get_copilot_seat_anchor() == null:
 		return _crew_role_result(false, &"jovian_roster_mismatch")
 	_crew_role_authority = authority
 	var result := _crew_role_result(true, &"authority_attached")
@@ -511,6 +537,30 @@ func submit_crew_intent(
 	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_ENGINEER \
 			or StringName(assignment.get("seat_id", &"")) != ENGINEER_SEAT_ID \
 			or action != CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR:
+		if StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PASSENGER \
+				and StringName(assignment.get("seat_id", &"")) == COPILOT_SEAT_ID \
+				and action == CrewRoleGameplayProfileType.ACTION_PASSENGER_PING:
+			var navigation_admission := _crew_role_authority.submit_intent(
+				source_peer_id,
+				occupant_peer_id,
+				avatar_id,
+				action,
+				payload,
+				request_sequence
+			)
+			if not bool(navigation_admission.get("accepted", false)):
+				return navigation_admission
+			var navigation_effect := _consume_copilot_navigation_intent(
+				navigation_admission.get("intent", {}) as Dictionary
+			)
+			var navigation_result := navigation_admission.duplicate(true)
+			navigation_result["status"] = (
+				&"intent_consumed" if bool(navigation_effect.get("accepted", false))
+				else &"intent_effect_rejected"
+			)
+			navigation_result["consumed"] = bool(navigation_effect.get("accepted", false))
+			navigation_result["effect"] = navigation_effect
+			return navigation_result
 		return _crew_role_result(false, &"unsupported_jovian_role_action")
 	var admission := _crew_role_authority.submit_intent(
 		source_peer_id,
@@ -550,6 +600,7 @@ func release_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_engineer_component_state(occupant_peer_id, avatar_id, &"role_released")
+		_clear_copilot_navigation_state_for_actor(occupant_peer_id, avatar_id, &"role_released")
 	return result
 
 
@@ -581,6 +632,7 @@ func handoff_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_engineer_component_state(previous_occupant_peer_id, previous_avatar_id, &"role_handoff")
+		_clear_copilot_navigation_state_for_actor(previous_occupant_peer_id, previous_avatar_id, &"role_handoff")
 	return result
 
 
@@ -595,6 +647,83 @@ func get_engineer_gameplay_state() -> Dictionary:
 			and not bool(get_telemetry().get("landing_active", false))
 			and not _engineer_component_selection.is_empty(),
 	}.duplicate(true)
+
+
+## Detached navigation-support state. Cargo and berth values are read-only
+## observations; this role never steers, throttles, fires, mutates cargo, or
+## claims a helm/landing lease.
+func get_copilot_navigation_state() -> Dictionary:
+	var telemetry := get_telemetry()
+	return {
+		"schema_version": 1,
+		"role": COPILOT_ROLE_ID,
+		"seat_id": COPILOT_SEAT_ID,
+		"authority_attached": _crew_role_authority != null,
+		"navigation_generation": _copilot_navigation_generation,
+		"receipt": _copilot_navigation_receipt.duplicate(true),
+		"cargo_status": {
+			"hardpoint_count": _cargo_hardpoints.size(),
+			"secured": _cargo_hardpoints.size() == CARGO_UNIT_ANCHORS.size(),
+			"mutation_authority": false,
+		},
+		"berth_status": {
+			"home_berth_id": get_home_berth_id(),
+			"landed": bool(telemetry.get("landed", false)),
+			"landing_active": bool(telemetry.get("landing_active", false)),
+			"lease_authority": false,
+		},
+		"authority": {
+			"navigation": false,
+			"movement": false,
+			"throttle": false,
+			"fire": false,
+			"cargo": false,
+			"helm": false,
+		},
+	}.duplicate(true)
+
+
+func _consume_copilot_navigation_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	if StringName(payload.get("channel", &"")) != COPILOT_NAVIGATION_CHANNEL:
+		return _crew_role_result(false, &"unsupported_navigation_channel")
+	if is_destroyed():
+		return _crew_role_result(false, &"ship_destroyed")
+	var receipt := {
+		"role": COPILOT_ROLE_ID,
+		"seat_id": COPILOT_SEAT_ID,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"seat_generation": int(intent.get("seat_generation", 0)),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+		"navigation_generation": _copilot_navigation_generation,
+		"route_id": StringName(payload.get("marker_id", &"")),
+		"target_id": StringName(payload.get("marker_id", &"")),
+		"cargo_status": get_copilot_navigation_state().get("cargo_status", {}).duplicate(true),
+		"berth_status": get_copilot_navigation_state().get("berth_status", {}).duplicate(true),
+	}.duplicate(true)
+	_copilot_navigation_receipt = receipt
+	copilot_navigation_intent_accepted.emit(receipt.duplicate(true))
+	var result := _crew_role_result(true, &"navigation_receipt_accepted")
+	result["receipt"] = receipt.duplicate(true)
+	return result
+
+
+func _clear_copilot_navigation_state_for_actor(
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	reason: StringName
+) -> void:
+	if not _copilot_navigation_receipt.is_empty() \
+			and int(_copilot_navigation_receipt.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_copilot_navigation_receipt.get("avatar_id", &"")) == avatar_id:
+		_clear_copilot_navigation_state(reason)
+
+
+func _clear_copilot_navigation_state(reason: StringName) -> void:
+	_copilot_navigation_receipt.clear()
+	_copilot_navigation_generation = mini(_copilot_navigation_generation + 1, 1_000_000)
+	copilot_navigation_intent_cleared.emit(_copilot_navigation_generation, reason)
 
 
 func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
@@ -2374,6 +2503,17 @@ func _build_interior_route_and_markers() -> void:
 	_box(_walkable_interior, "CockpitConnectorDeck", Vector3(0.0, 0.5, -8.0), Vector3(2.75, 0.18, 1.45), _jovian_materials.deck)
 	for side in [-1.0, 1.0]:
 		_box(_walkable_interior, "CockpitConnectorRail", Vector3(side * 1.42, 1.75, -8.0), Vector3(0.12, 2.4, 1.42), _jovian_materials.structure)
+	var cockpit := _walkable_interior.get_node_or_null(^"CockpitInterior") as Node3D
+	if cockpit != null:
+		_box(cockpit, "CopilotSeatBase", Vector3(1.05, 1.18, -0.02), Vector3(0.78, 0.18, 0.82), _jovian_materials.cabin_cloth)
+		_box(cockpit, "CopilotSeatBack", Vector3(1.05, 1.72, 0.34), Vector3(0.78, 0.96, 0.16), _jovian_materials.cabin_cloth, Vector3(deg_to_rad(8.0), 0.0, 0.0))
+		var copilot_anchor := Marker3D.new()
+		copilot_anchor.name = "CopilotSeatAnchor"
+		copilot_anchor.position = Vector3(1.05, 1.44, -0.02)
+		copilot_anchor.set_meta("seat_id", COPILOT_SEAT_ID)
+		copilot_anchor.set_meta("role_id", COPILOT_ROLE_ID)
+		copilot_anchor.set_meta("route_id", &"pilot_cockpit")
+		cockpit.add_child(copilot_anchor)
 
 	_interior_access_marker = Marker3D.new()
 	_interior_access_marker.name = "InteriorAccessMarker"
