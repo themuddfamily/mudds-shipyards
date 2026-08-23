@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3 uid="uid://d7picketlance01"]
+
+[ext_resource type="Script" path="res://scripts/combat/weapon_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+weapon_id = &"picket_siege_lance"
+display_name = "Picket Siege Lance"
+resolution_mode = 0
+evidence_status = 2
+evidence_notes = "Original-modern heavy standoff tuning with a slow, high-impact pulse; not a recovered historical weapon specification."
+range_meters = 560.0
+damage_per_hit = 22.0
+cadence_shots_per_second = 0.20833333333333334
+faction_policy = 0
+friendly_fire_policy = 0
+presentation_id = &"magenta"
+fire_audio_id = &"picket_siege_lance_fire"
+impact_audio_id = &"picket_siege_lance_impact"
+dry_fire_audio_id = &"picket_siege_lance_dry_fire"

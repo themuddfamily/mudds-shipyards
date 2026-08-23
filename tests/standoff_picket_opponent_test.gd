@@ -247,6 +247,24 @@ func _test_contract_and_evidence() -> void:
 		and is_equal_approx(float(profiles[StandoffPicketOpponent.LANCE_WEAPON_ID]["range"]), picket.lance_range),
 		"the picket declares exactly one immutable lance weapon profile"
 	)
+	var siege_definition := picket.get_weapon_definition()
+	_check(
+		siege_definition != null
+			and siege_definition.is_definition_valid()
+			and siege_definition.weapon_id == StandoffPicketOpponent.LANCE_WEAPON_ID
+			and is_equal_approx(siege_definition.range_meters, 560.0)
+			and is_equal_approx(siege_definition.damage_per_hit, 22.0)
+			and siege_definition.cadence_shots_per_second < 0.25
+			and siege_definition.presentation_id == StandoffPicketOpponent.LANCE_PULSE_STYLE,
+		"the heavy picket consumes one valid slow-cadence, high-impact shared weapon definition"
+	)
+	_check(
+		is_equal_approx(
+			float(profiles[StandoffPicketOpponent.LANCE_WEAPON_ID]["damage"]),
+			siege_definition.damage_per_hit
+		),
+		"the resolver registration profile is converted from the shared definition without a second damage path"
+	)
 
 	# --- structured red A1: a non-positive lance damage must fail the audit ---
 	var healthy_damage := picket.lance_damage

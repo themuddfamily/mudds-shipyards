@@ -1,6 +1,11 @@
 class_name StandoffPicketOpponent
 extends RangeOpponent
 
+const WeaponDefinitionResolverProfileType := preload(
+	"res://scripts/combat/weapon_definition_resolver_profile.gd"
+)
+const SIEGE_LANCE_DEFINITION := preload("res://assets/weapons/picket_siege_lance.tres")
+
 ## Standoff picket lance — a second, laterally differentiated range-defence
 ## archetype for the Phase 6 encounter.
 ##
@@ -41,7 +46,7 @@ const DISPLAY_NAME := "Mudds range standoff picket"
 
 const DEFAULT_SOURCE_ID := 2102
 const DEFAULT_FACTION: StringName = &"range_defence"
-const LANCE_WEAPON_ID: StringName = &"picket_lance_cannon"
+const LANCE_WEAPON_ID: StringName = &"picket_siege_lance"
 const LANCE_PULSE_STYLE: StringName = &"magenta"
 
 const STATE_DORMANT: StringName = &"dormant"
@@ -87,8 +92,8 @@ const CONTENT_NOTE := (
 ## Stable session identity. Must not collide with the fleet or the defender.
 @export var source_id := DEFAULT_SOURCE_ID
 @export var faction_id: StringName = DEFAULT_FACTION
-@export var lance_range := 520.0
-@export var lance_damage := 21.0
+@export var lance_range := 560.0
+@export var lance_damage := 22.0
 @export var lance_origin_tolerance := 22.0
 
 @export_category("Picket tactics")
@@ -129,6 +134,7 @@ var _lance_emitter: MeshInstance3D
 var _picket_box_mesh_cache: Dictionary = {}
 var _shots_fired := 0
 var _shots_aborted := 0
+var _weapon_definition: WeaponDefinition
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -144,6 +150,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	super()
+	_weapon_definition = SIEGE_LANCE_DEFINITION.duplicate(true) as WeaponDefinition
 	set_meta("component_id", COMPONENT_ID)
 	set_meta("evidence_status", EVIDENCE_STATUS)
 	set_meta("historically_supported", false)
@@ -200,15 +207,22 @@ func get_last_shot_result() -> Dictionary:
 	return _last_shot_result.duplicate(true)
 
 
+## Defensive copy of the checked-in heavy/standoff weapon authoring profile.
+func get_weapon_definition() -> WeaponDefinition:
+	return _weapon_definition.duplicate(true) as WeaponDefinition \
+		if _weapon_definition != null else null
+
+
 ## Immutable authority envelope submitted to `LiveCombatAuthority`.
 func get_weapon_profiles() -> Dictionary:
-	return {
-		LANCE_WEAPON_ID: {
-			"range": lance_range,
-			"damage": lance_damage,
-			"origin_tolerance": lance_origin_tolerance,
-		},
-	}.duplicate(true)
+	var definition := get_weapon_definition()
+	if definition == null or definition.weapon_id != LANCE_WEAPON_ID:
+		return {}
+	return WeaponDefinitionResolverProfileType.to_resolver_profiles(
+		definition,
+		faction_id,
+		lance_origin_tolerance,
+	)
 
 
 ## Ordered trade-off axes used by the opponent role-differentiation audit. Every
@@ -344,6 +358,10 @@ func get_audit_report() -> Dictionary:
 			"weapon_id": LANCE_WEAPON_ID,
 			"pulse_style_id": LANCE_PULSE_STYLE,
 		},
+		"weapon_definition": (
+			_weapon_definition.get_definition_snapshot()
+			if _weapon_definition != null else {}
+		),
 		"lifecycle": {
 			"inside_tree": is_inside_tree(),
 			"active": is_active(),
@@ -373,6 +391,17 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("lance damage must be finite and positive")
 	if not is_finite(lance_origin_tolerance) or lance_origin_tolerance <= 0.0:
 		errors.append("lance origin tolerance must be finite and positive")
+	if _weapon_definition == null:
+		errors.append("picket siege lance weapon definition is required")
+	else:
+		for definition_error in _weapon_definition.get_validation_errors():
+			errors.append("picket siege lance definition: %s" % definition_error)
+		if _weapon_definition.weapon_id != LANCE_WEAPON_ID:
+			errors.append("picket siege lance definition ID must match the resolver weapon ID")
+		if not is_equal_approx(_weapon_definition.range_meters, lance_range):
+			errors.append("picket siege lance range must match the authored runtime envelope")
+		if not is_equal_approx(_weapon_definition.damage_per_hit, lance_damage):
+			errors.append("picket siege lance damage must match the authored runtime envelope")
 	if minimum_arming_range >= standoff_range:
 		errors.append("minimum arming range must sit inside the standoff band")
 	if standoff_range >= engagement_range:
@@ -627,6 +656,11 @@ func _fire_at_target(target_position: Vector3) -> void:
 	if not is_instance_valid(resolver) or not _registered:
 		_cooldown_remaining = weapon_cooldown
 		return
+	var definition := _weapon_definition
+	if definition == null or not definition.is_definition_valid():
+		_cooldown_remaining = weapon_cooldown
+		_last_shot_result = {"accepted": false, "status": &"weapon_definition_invalid"}
+		return
 	var muzzle := _muzzle_port if is_instance_valid(_muzzle_port) else self as Node3D
 	var origin: Vector3 = muzzle.global_position
 	var direction := target_position - origin
@@ -650,8 +684,8 @@ func _fire_at_target(target_position: Vector3) -> void:
 		sequence,
 		origin,
 		direction,
-		lance_range,
-		lance_damage,
+		definition.range_meters,
+		definition.damage_per_hit,
 		receipt_id
 	)
 	var result := resolver.resolve_hitscan(request)
@@ -674,7 +708,8 @@ func _present_lance_shot(
 		receipt_id: int,
 		result: Dictionary
 	) -> void:
-	var endpoint := origin + direction * lance_range
+	var endpoint_range := _weapon_definition.range_meters if _weapon_definition != null else lance_range
+	var endpoint := origin + direction * endpoint_range
 	if bool(result.get("hit", false)):
 		var resolved_position: Variant = result.get("position", endpoint)
 		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
@@ -745,7 +780,7 @@ func _flash_target_damage(origin: Vector3, result: Dictionary) -> void:
 	var local_source := target_node.global_basis.inverse() * (origin - target_node.global_position)
 	hud.call(
 		&"flash_damage",
-		float(result.get("applied_damage", lance_damage)) / 20.0,
+		float(result.get("applied_damage", _weapon_definition.damage_per_hit if _weapon_definition != null else lance_damage)) / 20.0,
 		Vector2(local_source.x, local_source.z)
 	)
 
