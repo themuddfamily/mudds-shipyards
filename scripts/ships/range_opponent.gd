@@ -97,6 +97,16 @@ const GUN_HOUSING_POSITIONS := [
 ]
 const GUN_HOUSING_NAMES := ["PortGunHousing", "StarboardGunHousing"]
 
+## The mirrored engine-pod shells are immutable presentation stock. Their
+## animated plume renderers and practical lights remain independent so staged
+## damage and reuse can continue to drive each side without touching the batch.
+const RANGE_ENGINE_POD_COPY_COUNT := 2
+const RANGE_ENGINE_POD_POSITIONS := [
+	Vector3(-2.67, 0.05, 3.1),
+	Vector3(2.67, 0.05, 3.1),
+]
+const RANGE_ENGINE_POD_NAMES := ["PortEnginePod", "StarboardEnginePod"]
+
 @export_category("Defense craft")
 @export_range(1.0, 1000.0, 1.0) var maximum_health := 85.0
 @export_range(10.0, 160.0, 1.0) var cruise_speed := 38.0
@@ -1178,6 +1188,7 @@ func _build_interceptor() -> void:
 	_weapon_telegraph_mesh.rings = WEAPON_TELEGRAPH_RINGS
 	_weapon_telegraph_mesh.material = _materials.amber_emissive
 	_add_gun_housing_batch(_visual_root)
+	_add_range_engine_pod_batch(_visual_root)
 
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
@@ -1202,7 +1213,6 @@ func _build_interceptor() -> void:
 		)
 		_warning_lenses.append(lens)
 
-		_cylinder(_visual_root, "EnginePod", Vector3(side * 2.67, 0.05, 3.1), 0.58, 1.45, _materials.frame, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "EngineCollar", Vector3(side * 2.67, 0.05, 3.82), 0.68, 0.26, _materials.shade, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "EngineCore", Vector3(side * 2.67, 0.05, 3.99), 0.39, 0.15, _materials.engine, Vector3(90.0, 0.0, 0.0))
 		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 2.67, 0.05, 4.42), 0.24, 0.78, _materials.engine, Vector3(90.0, 0.0, 0.0))
@@ -1265,6 +1275,38 @@ func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
 	batch.set_meta(&"authored_visual_names", PackedStringArray(GUN_HOUSING_NAMES))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _add_range_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.58, 0.58, 1.45, 28, _chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.frame
+	)
+	var rotation_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = RANGE_ENGINE_POD_COPY_COUNT
+	multi.visible_instance_count = -1
+	for index in RANGE_ENGINE_POD_COPY_COUNT:
+		var authored_transform := Transform3D(rotation_basis, RANGE_ENGINE_POD_POSITIONS[index])
+		transforms.append(authored_transform)
+		multi.set_instance_transform(index, authored_transform)
+		var instance_bounds := (authored_transform * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "RangeEnginePodBatch"
+	batch.multimesh = multi
+	batch.layers = 1
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(RANGE_ENGINE_POD_NAMES))
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
