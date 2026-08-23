@@ -133,8 +133,8 @@ func _run() -> void:
 	var budgets := performance.budgets as Dictionary
 	print("PULSE_WEAPON_PRESENTATION_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget), "fresh pool remains within every strict effect budget")
-	_check(int(counts.node_count) == 80 and int(budgets.node_count) == 80, "six slots allocate exactly eighty total nodes")
-	_check(int(counts.mesh_instances) == 60 and int(counts.lights) == 12, "pool has exact immutable mesh and light counts")
+	_check(int(counts.node_count) == 86 and int(budgets.node_count) == 86, "six slots allocate exactly eighty-six total nodes")
+	_check(int(counts.mesh_instances) == 66 and int(counts.lights) == 12, "pool has exact immutable mesh and light counts")
 	_check(
 		int(counts.collision_nodes) == 0 and int(counts.physics_query_nodes) == 0,
 		"component contains no collision bodies, shapes, raycasts, or shapecasts"
@@ -230,6 +230,7 @@ func _run() -> void:
 	)
 	_check(
 		_count_visible_named(presentation, "ImpactFlare") == 0
+		and _count_visible_named(presentation, "ImpactBackwash") == 0
 		and _count_visible_prefix(presentation, "ImpactSpark") == 0,
 		"miss request never shows premature impact visuals"
 	)
@@ -295,13 +296,25 @@ func _run() -> void:
 	_check(_impact_events.size() == impacts_before + 1, "visible impact continuation never repeats its one-shot event")
 	_check(
 		_count_visible_named(presentation, "ImpactFlare") == 1
+		and _count_visible_named(presentation, "ImpactBackwash") == 1
 		and _count_visible_prefix(presentation, "ImpactSpark") == 4,
-		"hit exposes one flare and exactly four deterministic mesh sparks"
+		"hit exposes one flare, one directional backwash, and four deterministic mesh sparks"
+	)
+	var backwash := presentation.get_node_or_null(
+		"PoolRoot/ShotSlot01/ImpactBackwash"
+	) as MeshInstance3D
+	_check(
+		bool(hit_state.get("impact_backwash_visible", false))
+		and backwash != null
+		and backwash.global_position.z > hit_end.z
+		and backwash.transparency >= 0.0
+		and backwash.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"impact backwash points from the endpoint toward the incoming shot and remains shadowless"
 	)
 	performance = presentation.get_performance_audit()
 	counts = performance.counts as Dictionary
 	_check(
-		int(counts.visible_meshes) <= 5 and int(counts.visible_lights) <= 1,
+		int(counts.visible_meshes) <= 6 and int(counts.visible_lights) <= 1,
 		"single hit remains inside its strict simultaneous visible-effect budget"
 	)
 	_check(presentation.advance_simulation(0.3), "large finite step advances and expires a hit safely")
@@ -431,11 +444,11 @@ func _run() -> void:
 		"three components reduce immutable Resource allocations from 33 to 11"
 	)
 	_check(
-		aggregate_node_count == 240
-		and aggregate_mesh_instance_nodes == 180
+		aggregate_node_count == 258
+		and aggregate_mesh_instance_nodes == 198
 		and aggregate_light_nodes == 36
-		and aggregate_submission_ceiling == 90,
-		"sharing preserves 240 nodes, 180 semantic mesh nodes, 36 lights, and the 90-submission ceiling"
+		and aggregate_submission_ceiling == 108,
+		"sharing preserves 258 nodes, 198 semantic mesh nodes, 36 lights, and the 108-submission ceiling"
 	)
 	var detached_catalog_audit := presentation.get_resource_catalog_audit()
 	(detached_catalog_audit.identity_contracts as Dictionary).clear()
@@ -678,6 +691,7 @@ func _run() -> void:
 		and int(impact_reentry_audit.statistics.active) == 1
 		and _count_visible_named(impact_reentry, "MuzzleFlash") == 1
 		and _count_visible_named(impact_reentry, "ImpactFlare") == 0
+		and _count_visible_named(impact_reentry, "ImpactBackwash") == 0
 		and _count_visible_prefix(impact_reentry, "ImpactSpark") == 0,
 		"impact reentry leaves audit counts and replacement-only visuals coherent"
 	)

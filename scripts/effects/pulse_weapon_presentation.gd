@@ -48,10 +48,10 @@ const DEFAULT_POOL_CAPACITY := 6
 const MAX_POOL_CAPACITY := 8
 const BEAM_SEGMENTS_PER_SHOT := 3
 const IMPACT_SPARKS_PER_HIT := 4
-const MESHES_PER_SLOT := 10
+const MESHES_PER_SLOT := 11
 const LIGHTS_PER_SLOT := 2
-const NODES_PER_SLOT := 13
-const MAX_VISIBLE_MESHES_PER_SHOT := 5
+const NODES_PER_SLOT := 14
+const MAX_VISIBLE_MESHES_PER_SHOT := 6
 const MAX_VISIBLE_LIGHTS_PER_SHOT := 1
 const RESOURCE_CATALOG_MESH_COUNT := 2
 const RESOURCE_CATALOG_MATERIAL_COUNT := 9
@@ -73,7 +73,7 @@ const MIN_VISIBLE_SEGMENT_LENGTH := 0.015
 
 const CONTENT_NOTE := (
 	"The authored atlas, segmented travelling pulse, muzzle flash, palette, timing, "
-	+ "impact flare, spark arrangement, dimensions, and pooling policy are an original modern "
+	+ "impact flare, directional backwash, spark arrangement, dimensions, and pooling policy are an original modern "
 	+ "presentation treatment. They do not claim to reproduce an authenticated "
 	+ "historical Keth Shipyards weapon effect or weapon-system behaviour."
 )
@@ -395,6 +395,7 @@ func get_active_shot_snapshots() -> Array[Dictionary]:
 		var travel_duration := float(slot.get("travel_duration", MIN_TRAVEL_DURATION))
 		var pulse := slot.get("pulse") as MeshInstance3D
 		var impact := slot.get("impact") as MeshInstance3D
+		var backwash := slot.get("impact_backwash") as MeshInstance3D
 		snapshots.append({
 			"shot_id": int(slot.get("shot_id", 0)),
 			"origin": slot.get("origin", Vector3.ZERO),
@@ -411,6 +412,9 @@ func get_active_shot_snapshots() -> Array[Dictionary]:
 			"pulse_position": pulse.global_position if is_instance_valid(pulse) else Vector3.ZERO,
 			"pulse_visible": pulse.visible if is_instance_valid(pulse) else false,
 			"impact_visible": impact.visible if is_instance_valid(impact) else false,
+			"impact_backwash_visible": (
+				backwash.visible if is_instance_valid(backwash) else false
+			),
 			"visible_beam_segments": _count_visible_slot_segments(slot),
 		})
 	snapshots.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
@@ -465,7 +469,7 @@ func get_evidence_metadata() -> Dictionary:
 			"cyan, amber, and magenta emissive presentation styles",
 			"spherical muzzle flash and tightly bounded practical light",
 			"tintable authored pulse, impact, and shock-ring atlas treatment",
-			"atlas impact with eight painted streaks plus four deterministic mesh sparks",
+			"atlas impact with eight painted streaks, directional backwash, plus four deterministic mesh sparks",
 			"timing, scale, brightness, pool size, and oldest-visual recycle policy",
 		]),
 		"explicit_unknowns": PackedStringArray([
@@ -802,6 +806,11 @@ func _build_pool() -> void:
 			))
 		var pulse := _make_mesh(slot_root, "TravellingPulse", _shared_meshes[&"orb"] as Mesh)
 		var impact := _make_mesh(slot_root, "ImpactFlare", _shared_meshes[&"orb"] as Mesh)
+		var impact_backwash := _make_mesh(
+			slot_root,
+			"ImpactBackwash",
+			_shared_meshes[&"dash"] as Mesh
+		)
 		var impact_light := _make_light(slot_root, "ImpactLight", 2.8)
 		var sparks: Array[MeshInstance3D] = []
 		for spark_index in IMPACT_SPARKS_PER_HIT:
@@ -819,6 +828,7 @@ func _build_pool() -> void:
 			"segments": segments,
 			"pulse": pulse,
 			"impact": impact,
+			"impact_backwash": impact_backwash,
 			"impact_light": impact_light,
 			"sparks": sparks,
 			"active": false,
@@ -1036,10 +1046,12 @@ func _update_impact(
 		style_id: StringName
 	) -> void:
 	var impact := slot.get("impact") as MeshInstance3D
+	var impact_backwash := slot.get("impact_backwash") as MeshInstance3D
 	var impact_light := slot.get("impact_light") as OmniLight3D
 	var sparks := slot.get("sparks") as Array[MeshInstance3D]
 	var visible := bool(slot.get("hit", false)) and impact_age >= 0.0 and impact_age < IMPACT_DURATION
 	impact.visible = visible
+	impact_backwash.visible = visible
 	impact_light.visible = visible
 	for spark in sparks:
 		spark.visible = visible
@@ -1052,6 +1064,23 @@ func _update_impact(
 	_set_world_mesh_transform(impact, end, direction, Vector3(1.12, 1.12, 1.0) * flare_scale)
 	impact_light.global_position = end
 	impact_light.light_energy = (1.0 - phase) * 2.7 * _style_light(style_id)
+
+	# The billboarded flare reads from any camera angle but cannot show which way
+	# the resolved pulse arrived. This preallocated streak kicks back along the
+	# incoming path using only the endpoints already supplied by the resolver.
+	var backwash_envelope := sin(phase * PI)
+	var backwash_travel := (0.06 + phase * 0.82) * width_scale
+	impact_backwash.transparency = smoothstep(0.48, 1.0, phase)
+	_set_world_mesh_transform(
+		impact_backwash,
+		end - direction * backwash_travel,
+		-direction,
+		Vector3(
+			0.1 + backwash_envelope * 0.1,
+			0.1 + backwash_envelope * 0.1,
+			0.06 + backwash_envelope * 0.76
+		) * width_scale
+	)
 
 	var radial_a := direction.cross(Vector3.UP)
 	if radial_a.length_squared() <= 0.001:
@@ -1160,7 +1189,7 @@ func _hide_slot(slot: Dictionary) -> void:
 
 func _get_slot_meshes(slot: Dictionary) -> Array[MeshInstance3D]:
 	var result: Array[MeshInstance3D] = []
-	for key: String in ["muzzle", "pulse", "impact"]:
+	for key: String in ["muzzle", "pulse", "impact", "impact_backwash"]:
 		var candidate := slot.get(key) as MeshInstance3D
 		if is_instance_valid(candidate):
 			result.append(candidate)
