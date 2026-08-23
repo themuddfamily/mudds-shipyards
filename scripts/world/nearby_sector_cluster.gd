@@ -205,6 +205,10 @@ const MINING_PRESENTATION_STATE_SUBMISSION_DELTA := 0
 const MINING_PRESENTATION_PREBATCH_RENDERERS := 18
 const MINING_PRESENTATION_PREBATCH_SUBMISSIONS := 18
 const MINING_PRESENTATION_PREBATCH_DESCENDANTS := 21
+const MINING_COLLECTOR_COUNT := 3
+const MINING_COLLECTOR_BAND_IDLE_Y := 4.0
+const MINING_COLLECTOR_BAND_FULL_Y := 7.0
+const MINING_CAPACITY_HOPPER_SCALE := Vector3(1.2, 1.0, 1.2)
 
 ## The scan begins twenty metres in front of the platform centre. A fractured
 ## datum frame gathers the existing torn habitat and collapsed solar wing into
@@ -1998,11 +2002,18 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 			2.6, 3.2, 7.0, 24, _cylinder_cache, 4, true, true
 		), _materials["hull_shadow"], bin_transforms, &"mining-ore-buffer-bins"
 	)
-	_presentation_multimesh_batch(
+	var collector_bands := _presentation_multimesh_batch(
 		presentation, "MiningOreBufferBands",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(6.6, 0.8, 6.6), _box_cache),
 		_materials["steel"], bin_band_transforms, &"mining-ore-buffer-bands"
 	)
+	# The retained bands travel only inside their fixed collectors. Expand the
+	# batch culling bounds once for that complete presentation range; snapshots
+	# subsequently change transforms only and never allocate geometry.
+	for full_transform in _mining_collector_band_transforms(1.0):
+		collector_bands.custom_aabb = collector_bands.custom_aabb.merge(
+			(full_transform * collector_bands.multimesh.mesh.get_aabb()).abs()
+		)
 
 	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
 	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
@@ -2013,9 +2024,10 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	)
 
 
-## Reuses the two crown practicals and fixed sign to distinguish available,
-## extracting, secured, and reset states. It consumes authority snapshots only;
-## no node/resource is allocated and no progress is inferred from world state.
+## Reuses the two crown practicals, fixed sign, ore-buffer bands, and hopper
+## service ring to distinguish available, extracting, secured, and reset states.
+## It consumes authority snapshots only; no node/resource is allocated and no
+## progress is inferred from world state.
 func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	if StringName(snapshot.get("activity_id", &"")) != MINING_ACTIVITY_ID:
 		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
@@ -2035,9 +2047,18 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	var port_lens := presentation.get_node_or_null(^"MiningCrownLampPortLens") as MeshInstance3D
 	var starboard_lens := presentation.get_node_or_null(^"MiningCrownLampStarboardLens") as MeshInstance3D
 	var sign := presentation.get_node_or_null(^"Sign_ORE_EXTRACTION") as MeshInstance3D
-	if port == null or starboard == null or port_lens == null or starboard_lens == null or sign == null:
+	var collector_bands := presentation.get_node_or_null(^"MiningOreBufferBands") as MultiMeshInstance3D
+	var hopper_band := presentation.get_node_or_null(^"HopperServiceBand") as MeshInstance3D
+	if port == null or starboard == null or port_lens == null or starboard_lens == null \
+			or sign == null or collector_bands == null or collector_bands.multimesh == null \
+			or hopper_band == null:
 		return {"accepted": false, "reason": &"presentation_roster_incomplete"}
 	var progress := clampf(elapsed / duration, 0.0, 1.0)
+	var collector_levels := _mining_collector_levels(progress)
+	var collector_transforms := _mining_collector_band_transforms(progress)
+	collector_bands.multimesh.buffer = _mining_collector_transform_buffer(
+		collector_transforms
+	)
 	var state_id: StringName = &"available"
 	port.light_color = KETH_CYAN
 	starboard.light_color = KETH_ORANGE
@@ -2047,6 +2068,7 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	starboard.light_energy = 0.7
 	sign.material_override = _materials["orange_glow"]
 	sign.scale = Vector3.ONE * 2.4
+	hopper_band.scale = Vector3.ONE
 	match state:
 		CinderMiningPlatformActivity.State.ACTIVE:
 			state_id = &"extracting"
@@ -2062,6 +2084,7 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 			starboard_lens.material_override = _lens_material(KETH_CYAN)
 			sign.material_override = _materials["cyan_glow"]
 			sign.scale = Vector3.ONE * 2.75
+			hopper_band.scale = MINING_CAPACITY_HOPPER_SCALE
 		CinderMiningPlatformActivity.State.RESET:
 			state_id = &"reset"
 			port.light_energy = 0.35
@@ -2079,6 +2102,14 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		"port_color": port.light_color,
 		"starboard_color": starboard.light_color,
 		"sign_scale": sign.scale.x,
+		"collector_levels": collector_levels,
+		"collector_band_heights": collector_transforms.map(
+			func(transform_value: Transform3D) -> float: return transform_value.origin.y
+		),
+		"capacity_ready_geometry": hopper_band.scale.is_equal_approx(
+			MINING_CAPACITY_HOPPER_SCALE
+		),
+		"hopper_scale": hopper_band.scale,
 		"node_delta": MINING_PRESENTATION_STATE_NODE_DELTA,
 		"light_delta": MINING_PRESENTATION_STATE_LIGHT_DELTA,
 		"submission_delta": MINING_PRESENTATION_STATE_SUBMISSION_DELTA,
@@ -2086,6 +2117,59 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		"reward_authority": false,
 	}.duplicate(true)
 	return {"accepted": true, "reason": &"mining_presentation_applied"}
+
+
+func _mining_collector_levels(progress: float) -> Array[float]:
+	var levels: Array[float] = []
+	for collector_index in MINING_COLLECTOR_COUNT:
+		levels.append(clampf(
+			progress * float(MINING_COLLECTOR_COUNT) - float(collector_index),
+			0.0,
+			1.0
+		))
+	return levels
+
+
+func _mining_collector_band_transforms(progress: float) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var levels := _mining_collector_levels(progress)
+	for collector_index in MINING_COLLECTOR_COUNT:
+		transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				-8.0 + float(collector_index) * 8.0,
+				lerpf(
+					MINING_COLLECTOR_BAND_IDLE_Y,
+					MINING_COLLECTOR_BAND_FULL_Y,
+					levels[collector_index]
+				),
+				11.0
+			)
+		))
+	return transforms
+
+
+func _mining_collector_transform_buffer(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for transform_index in transforms.size():
+		var transform_value := transforms[transform_index]
+		var offset := transform_index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
 
 
 func get_mining_activity_presentation_state() -> Dictionary:

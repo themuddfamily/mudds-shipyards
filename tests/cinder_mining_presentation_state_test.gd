@@ -18,13 +18,19 @@ func _run() -> void:
 	var presentation := cluster.get_node(
 		^"ExtractionPlatform/CinderReachPlatform/MiningActivityPresentation"
 	) as Node3D
+	var collector_bands := presentation.get_node(^"MiningOreBufferBands") as MultiMeshInstance3D
+	var hopper_band := presentation.get_node(^"HopperServiceBand") as MeshInstance3D
+	var retained_collectors_id := collector_bands.get_instance_id()
+	var retained_hopper_id := hopper_band.get_instance_id()
 	var initial_counts := _presentation_counts(presentation)
 	var initial := cluster.get_mining_activity_presentation_state()
 	_check(
 		initial.state_id == &"available"
 		and is_equal_approx(float(initial.port_energy), 0.7)
-		and is_equal_approx(float(initial.starboard_energy), 0.7),
-		"the production mining silhouette begins with a restrained available cue"
+		and is_equal_approx(float(initial.starboard_energy), 0.7)
+		and _collector_heights(collector_bands) == [4.0, 4.0, 4.0]
+		and hopper_band.scale.is_equal_approx(Vector3.ONE),
+		"the production mining silhouette begins with empty retained collector gauges"
 	)
 
 	var started: Dictionary = binding.call(
@@ -36,8 +42,10 @@ func _run() -> void:
 		and active.state_id == &"extracting"
 		and is_equal_approx(float(active.progress), 0.0)
 		and float(active.port_energy) < float(active.starboard_energy)
-		and is_equal_approx(float(active.sign_scale), 2.55),
-		"activity start makes extraction readable through asymmetric crown lights and the fixed sign"
+		and is_equal_approx(float(active.sign_scale), 2.55)
+		and active.collector_levels == [0.0, 0.0, 0.0]
+		and _collector_heights(collector_bands) == [4.0, 4.0, 4.0],
+		"activity start retains empty physical gauges while extraction begins"
 	)
 	root.remove_child(cluster)
 	await process_frame
@@ -49,8 +57,12 @@ func _run() -> void:
 		bool(half_step.get("accepted", false))
 		and halfway.state_id == &"extracting"
 		and is_equal_approx(float(halfway.progress), 0.5)
-		and is_equal_approx(float(halfway.port_energy), float(halfway.starboard_energy)),
-		"detach/re-entry retains authority state and caller progress crosses the two lights at midpoint"
+		and is_equal_approx(float(halfway.port_energy), float(halfway.starboard_energy))
+		and halfway.collector_levels == [1.0, 0.5, 0.0]
+		and _collector_heights(collector_bands) == [7.0, 5.5, 4.0]
+		and collector_bands.get_instance_id() == retained_collectors_id
+		and hopper_band.get_instance_id() == retained_hopper_id,
+		"detach/re-entry keeps the retained gauges and makes half extraction readable in geometry"
 	)
 	var completed: Dictionary = binding.call("advance_mining_activity", 3.0)
 	var secured := cluster.get_mining_activity_presentation_state()
@@ -63,8 +75,12 @@ func _run() -> void:
 		and is_equal_approx(float(secured.starboard_energy), 3.4)
 		and (secured.port_color as Color).is_equal_approx(secured.starboard_color as Color)
 		and is_equal_approx(float(secured.sign_scale), 2.75)
+		and secured.collector_levels == [1.0, 1.0, 1.0]
+		and _collector_heights(collector_bands) == [7.0, 7.0, 7.0]
+		and bool(secured.capacity_ready_geometry)
+		and hopper_band.scale.is_equal_approx(Vector3(1.2, 1.0, 1.2))
 		and bool(secured_audit.valid),
-		"completion resolves to two steady cyan practicals and a stronger secured silhouette"
+		"completion parks all gauges high and widens the hopper ring for a color-independent capacity-ready cue"
 	)
 	var reward: Dictionary = binding.call("request_mining_reward")
 	_check(
@@ -81,12 +97,27 @@ func _run() -> void:
 		and reset_state.state_id == &"reset"
 		and is_equal_approx(float(reset_state.port_energy), 0.35)
 		and is_equal_approx(float(reset_state.starboard_energy), 0.35)
+		and reset_state.collector_levels == [0.0, 0.0, 0.0]
+		and _collector_heights(collector_bands) == [4.0, 4.0, 4.0]
+		and hopper_band.scale.is_equal_approx(Vector3.ONE)
 		and _presentation_counts(presentation) == initial_counts
 		and bool(audit.valid)
 		and int(audit.state_feedback.node_delta) == 0
 		and int(audit.state_feedback.light_delta) == 0
 		and int(audit.state_feedback.submission_delta) == 0,
-		"reset dims the fixed roster with zero renderer, light, collision, or authority growth"
+		"reset restores the same collector geometry with zero renderer, light, collision, or authority growth"
+	)
+	var restarted: Dictionary = binding.call(
+		"start_mining_activity", CinderMiningPlatformActivity.APPROACH_ANCHOR
+	)
+	var restarted_state := cluster.get_mining_activity_presentation_state()
+	_check(
+		bool(restarted.get("accepted", false))
+		and int(restarted_state.generation) == 2
+		and restarted_state.collector_levels == [0.0, 0.0, 0.0]
+		and collector_bands.get_instance_id() == retained_collectors_id
+		and hopper_band.get_instance_id() == retained_hopper_id,
+		"a fresh authoritative generation reuses the reset collector and hopper nodes"
 	)
 
 	cluster.queue_free()
@@ -103,6 +134,14 @@ func _presentation_counts(presentation: Node3D) -> Dictionary:
 		"lights": presentation.find_children("*", "Light3D", true, false).size(),
 		"collision_objects": presentation.find_children("*", "CollisionObject3D", true, false).size(),
 	}
+
+
+func _collector_heights(collector_bands: MultiMeshInstance3D) -> Array[float]:
+	var heights: Array[float] = []
+	var transform_buffer := collector_bands.multimesh.buffer
+	for collector_index in collector_bands.multimesh.instance_count:
+		heights.append(transform_buffer[collector_index * 12 + 7])
+	return heights
 
 
 func _check(condition: bool, description: String) -> void:
