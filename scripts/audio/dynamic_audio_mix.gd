@@ -22,11 +22,15 @@ const DEFAULT_BUS_CEILINGS_DB := {
 	&"Weapons": 0.0, &"UI": 0.0, &"Music": 0.0,
 }
 const MAX_VOICES := {&"station": 8, &"planetary": 8, &"combat": 10}
+const REDUCED_RANGE_ATTENUATION_DB := {
+	&"station": -6.0, &"planetary": -6.0, &"combat": -12.0,
+}
 
 var _gains := {&"station": 1.0, &"planetary": 0.0, &"combat": 0.0}
 var _ducking := {&"station": 0.0, &"planetary": 0.0, &"combat": 0.0}
 var _ceilings_db: Dictionary = DEFAULT_BUS_CEILINGS_DB.duplicate()
 var _muted := false
+var _reduced_dynamic_range := false
 var _generation := 0
 
 
@@ -78,12 +82,23 @@ func set_accessibility_muted(muted: bool) -> Dictionary:
 	return _accepted()
 
 
+## Caller-driven accessibility mix mode. It changes only authored layer gains;
+## bus ownership, voice ceilings, and gameplay authority remain untouched.
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	_reduced_dynamic_range = enabled
+	_generation += 1
+	return _accepted()
+
+
 func get_mix_plan() -> Dictionary:
 	var layers: Dictionary = {}
 	var total_voices := 0
 	for layer in LAYERS:
 		var bus: StringName = LAYER_BUSES[layer]
-		var raw := float(_gains[layer]) * (1.0 - float(_ducking[layer]))
+		var range_linear := db_to_linear(
+			float(REDUCED_RANGE_ATTENUATION_DB[layer])
+		) if _reduced_dynamic_range else 1.0
+		var raw := float(_gains[layer]) * (1.0 - float(_ducking[layer])) * range_linear
 		var ceiling_linear := db_to_linear(float(_ceilings_db[bus]))
 		var effective := 0.0 if _muted else minf(raw, ceiling_linear)
 		layers[layer] = {
@@ -99,6 +114,7 @@ func get_mix_plan() -> Dictionary:
 		"bus_ceilings_db": _ceilings_db.duplicate(),
 		"total_voice_ceiling": total_voices,
 		"accessibility_muted": _muted,
+		"reduced_dynamic_range": _reduced_dynamic_range,
 		"generation": _generation,
 		"presentation_only": true,
 		"playback_authority": false,
@@ -113,6 +129,7 @@ func get_snapshot() -> Dictionary:
 		"ducking": _ducking.duplicate(),
 		"ceilings_db": _ceilings_db.duplicate(),
 		"accessibility_muted": _muted,
+		"reduced_dynamic_range": _reduced_dynamic_range,
 		"generation": _generation,
 	}
 
@@ -139,6 +156,7 @@ func restore(snapshot: Dictionary) -> bool:
 		_gains = old_gains; _ducking = old_ducking; _ceilings_db = old_ceilings
 		return false
 	_muted = bool(snapshot.get("accessibility_muted", false))
+	_reduced_dynamic_range = bool(snapshot.get("reduced_dynamic_range", false))
 	_generation = maxi(_generation, int(snapshot.get("generation", _generation)))
 	return true
 
