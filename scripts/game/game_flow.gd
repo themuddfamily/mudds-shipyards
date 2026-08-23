@@ -463,6 +463,7 @@ var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
 var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
 var _session_recovery_command_status: Dictionary = {}
+var _session_recovery_hud_status: Dictionary = {}
 const _DIAGNOSTIC_STARTUP := 1
 const _DIAGNOSTIC_BOARD := 2
 const _DIAGNOSTIC_DISEMBARK := 3
@@ -1433,6 +1434,7 @@ func get_session_diagnostics_snapshot() -> Dictionary:
 		"last_status": _session_diagnostics_last_status.duplicate(true),
 		"bridge": _session_diagnostics_bridge.get_snapshot() if _session_diagnostics_bridge != null else {},
 		"recovery_command": _session_recovery_command_status.duplicate(true),
+		"recovery_hud": _session_recovery_hud_status.duplicate(true),
 	}.duplicate(true)
 
 
@@ -1472,9 +1474,145 @@ func get_session_start_recommendation() -> Dictionary:
 
 
 func _publish_recovery_choice_to_hud() -> void:
-	if not is_instance_valid(hud) or not hud.has_method(&"apply_recovery_choice_snapshot"):
+	if not is_instance_valid(hud):
 		return
-	hud.call(&"apply_recovery_choice_snapshot", get_session_start_recommendation())
+	var recovery_snapshot := get_recovery_available_snapshot()
+	if recovery_snapshot.is_empty():
+		if hud.has_method(&"clear_session_recovery_notice"):
+			hud.call(&"clear_session_recovery_notice")
+		elif hud.has_method(&"apply_recovery_choice_snapshot"):
+			hud.call(
+				&"apply_recovery_choice_snapshot",
+				{"available": false, "requires_caller_choice": false}
+			)
+		return
+	var recommendation := get_session_start_recommendation()
+	if hud.has_method(&"present_session_recovery_notice"):
+		var presentation := hud.call(
+			&"present_session_recovery_notice",
+			recovery_snapshot.duplicate(true),
+			recommendation.duplicate(true)
+		) as Dictionary
+		if not bool(presentation.get("accepted", false)):
+			_session_recovery_hud_status = {
+				"accepted": false,
+				"reason": presentation.get("reason", &"hud_rejected_recovery_notice"),
+				"source": &"presentation",
+			}.duplicate(true)
+		return
+	# Compatibility for retained HUD test doubles predating the fenced surface.
+	if hud.has_method(&"apply_recovery_choice_snapshot"):
+		hud.call(&"apply_recovery_choice_snapshot", recommendation.duplicate(true))
+
+
+func _connect_session_recovery_hud_signals() -> void:
+	_connect_signal_once(
+		hud,
+		&"session_recovery_safe_requested",
+		_on_hud_session_recovery_safe_requested
+	)
+	_connect_signal_once(
+		hud,
+		&"session_recovery_continue_requested",
+		_on_hud_session_recovery_continue_requested
+	)
+	_connect_signal_once(
+		hud,
+		&"session_recovery_discard_requested",
+		_on_hud_session_recovery_discard_requested
+	)
+
+
+func _restore_session_recovery_hud_after_reentry() -> void:
+	_connect_session_recovery_hud_signals()
+	_publish_recovery_choice_to_hud()
+
+
+func _on_hud_session_recovery_safe_requested(token: int, generation: int) -> void:
+	_handle_hud_session_recovery_choice(&"safe_graphics_windowed", token, generation)
+
+
+func _on_hud_session_recovery_continue_requested(token: int, generation: int) -> void:
+	_handle_hud_session_recovery_choice(&"normal_start", token, generation)
+
+
+func _on_hud_session_recovery_discard_requested(token: int, generation: int) -> void:
+	_handle_hud_session_recovery_choice(&"discard", token, generation)
+
+
+func _handle_hud_session_recovery_choice(
+	choice: StringName,
+	token: int,
+	generation: int
+) -> Dictionary:
+	var recovery_snapshot := get_recovery_available_snapshot()
+	if recovery_snapshot.is_empty():
+		return _record_session_recovery_hud_result(
+			false, &"no_recovery_available", choice, token, generation, {}
+		)
+	if (
+		token != int(recovery_snapshot.get("session_id", 0))
+		or generation != int(recovery_snapshot.get("startup_generation", 0))
+	):
+		return _record_session_recovery_hud_result(
+			false, &"stale_recovery_fence", choice, token, generation, {}
+		)
+	var result: Dictionary
+	match choice:
+		&"safe_graphics_windowed":
+			# The bridge invokes only SafeStartProductionRecovery's existing
+			# generation-fenced two-setting callback. GameFlow does not inspect,
+			# widen, persist, or recreate that patch here.
+			result = choose_session_start_recovery(choice)
+		&"normal_start":
+			result = acknowledge_recovery()
+		&"discard":
+			result = discard_recovery()
+		_:
+			result = {"accepted": false, "reason": &"invalid_recovery_choice"}
+	var status := _record_session_recovery_hud_result(
+		bool(result.get("accepted", false)),
+		StringName(str(result.get("reason", &"recovery_choice_failed"))),
+		choice,
+		token,
+		generation,
+		result
+	)
+	# Re-observe bridge truth after the request. Success removes the notice only
+	# when the bridge actually retired its receipt; failure leaves the latched
+	# decision visible and cannot manufacture a fresh choice generation.
+	if get_recovery_available_snapshot().is_empty():
+		# A Button is locked while its pressed signal is on the stack. Defer the
+		# presentation cleanup past that emission boundary; no choice or bridge
+		# mutation is deferred with it.
+		if is_instance_valid(hud) and hud.has_method(&"clear_session_recovery_notice"):
+			hud.call_deferred(&"clear_session_recovery_notice")
+		elif is_instance_valid(hud) and hud.has_method(&"apply_recovery_choice_snapshot"):
+			hud.call_deferred(
+				&"apply_recovery_choice_snapshot",
+				{"available": false, "requires_caller_choice": false}
+			)
+	return status
+
+
+func _record_session_recovery_hud_result(
+	accepted: bool,
+	reason: StringName,
+	choice: StringName,
+	token: int,
+	generation: int,
+	result: Dictionary
+) -> Dictionary:
+	_session_recovery_hud_status = {
+		"accepted": accepted,
+		"reason": reason,
+		"choice": choice,
+		"recovery_token": token,
+		"recovery_generation": generation,
+		"result": result.duplicate(true),
+		"automatic_choice": false,
+	}.duplicate(true)
+	return _session_recovery_hud_status.duplicate(true)
 
 
 func acknowledge_recovery() -> Dictionary:
@@ -2962,6 +3100,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
 	_publish_runtime_settings_repair_to_hud()
+	_restore_session_recovery_hud_after_reentry()
 
 
 func _connect_runtime_signals() -> void:
@@ -3001,6 +3140,7 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
+	_connect_session_recovery_hud_signals()
 	_connect_runtime_settings_repair_hud()
 	_connect_signal_once(hud, &"display_settings_keep_requested", _on_display_settings_keep_requested)
 	_connect_signal_once(hud, &"display_settings_revert_requested", _on_display_settings_revert_requested)
