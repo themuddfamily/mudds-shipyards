@@ -1692,6 +1692,11 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		var status_rect := compute_runtime_status_panel_rect(
 			viewport_size, _safe_area_insets, effective
 		)
+		var readable_safe := Rect2(
+			contract_safe.position / maxf(effective, 0.01),
+			contract_safe.size / maxf(effective, 0.01)
+		)
+		status_rect = _clamp_rect_to_safe_area(status_rect, readable_safe)
 		_runtime_status_panel.position = status_rect.position - logical * 0.5
 		_runtime_status_panel.size = status_rect.size
 	if is_instance_valid(_reticle):
@@ -1730,6 +1735,16 @@ static func compute_runtime_status_panel_rect(
 	var center_x := left + (logical.x - left - right) * 0.5
 	var center_y := top + (logical.y - top - bottom) * 0.5
 	return Rect2(Vector2(center_x - width * 0.5, center_y - 150.0), Vector2(width, 300.0))
+
+
+static func _clamp_rect_to_safe_area(rect: Rect2, safe: Rect2) -> Rect2:
+	var width := minf(rect.size.x, safe.size.x)
+	var height := minf(rect.size.y, safe.size.y)
+	var position := Vector2(
+		clampf(rect.position.x, safe.position.x, safe.end.x - width),
+		clampf(rect.position.y, safe.position.y, safe.end.y - height)
+	)
+	return Rect2(position, Vector2(width, height))
 
 
 ## Applies physical-pixel display cutout/overscan insets to edge-anchored HUD
