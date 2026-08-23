@@ -43,6 +43,23 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			"power_marker": "●" if StringName(engineer.get("power_route", &"offline")) == &"primary" else "○",
 			"presentation_only": true,
 		}
+	var emergency_handoff_view: Dictionary = {}
+	var raw_emergency_handoff := source.get("emergency_pilot_handoff", {}) as Dictionary
+	var previous_role := _bounded_state(raw_emergency_handoff.get("previous_role", &""), ROLE_ORDER, &"")
+	var new_role := _bounded_state(raw_emergency_handoff.get("new_role", &""), ROLE_ORDER, &"")
+	if not raw_emergency_handoff.is_empty() and not previous_role.is_empty() and not new_role.is_empty():
+		var previous_label := str(previous_role).capitalize()
+		var new_label := str(new_role).capitalize()
+		emergency_handoff_view = {
+			"transition": "%s → %s" % [previous_label, new_label],
+			"previous_role": previous_role,
+			"new_role": new_role,
+			"ready": bool(raw_emergency_handoff.get("ready", false)),
+			"readiness": "Ready" if bool(raw_emergency_handoff.get("ready", false)) else "Not ready",
+			"neutral_controls_confirmed": bool(raw_emergency_handoff.get("neutral_command_confirmed", false)),
+			"controls": "Neutral" if bool(raw_emergency_handoff.get("neutral_command_confirmed", false)) else "Pending",
+			"presentation_only": true,
+		}
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"actor_id": str(source.get("actor_id", "")),
@@ -55,6 +72,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		],
 		"engineer_route": engineer_route,
 		"engineer_route_attached": not detached,
+		"emergency_handoff": emergency_handoff_view,
 		"presentation_only": true,
 	}
 	return _snapshot.duplicate(true)
