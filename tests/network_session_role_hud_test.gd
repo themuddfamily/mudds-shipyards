@@ -12,9 +12,15 @@ var _failures: PackedStringArray = []
 
 class SessionProbe extends AdapterType:
 	var authoritative_snapshot: Dictionary = {}
+	var landing_entity: Dictionary = {}
 
 	func get_authoritative_snapshot() -> Dictionary:
 		return authoritative_snapshot.duplicate(true)
+
+	func get_landing_entity(entity_id: StringName) -> Dictionary:
+		if StringName(landing_entity.get("entity_id", &"")) != entity_id:
+			return {}
+		return landing_entity.duplicate(true)
 
 
 func _init() -> void:
@@ -61,7 +67,12 @@ func _run() -> void:
 	production_flow.network_session = production_session
 	production_flow.active_ship = production_bomber
 	production_flow._piloting = true
+	production_flow._network_session_mode = &"server"
+	production_session._is_server = true
+	production_session._configured = true
 	var production_ship_id := production_bomber.get_ship_id()
+	production_session.landing_entity = _landing_entity(production_ship_id, &"flying")
+	production_flow._network_landing_server_tick = 12
 	production_session.authoritative_snapshot = _authority_snapshot(
 		12, production_ship_id, 1
 	)
@@ -72,7 +83,8 @@ func _run() -> void:
 		and caller_snapshot.controlled_craft_id == production_ship_id
 		and int((caller_snapshot.authoritative_snapshot as Dictionary).get("revision", 0)) == 12
 		and detail.contains("OWNERSHIP // CRAFT %s // LOCAL PEER 1" % str(production_ship_id).to_upper())
-		and detail.contains("CRAFT LIFECYCLE // HEALTHY"),
+		and detail.contains("CRAFT LIFECYCLE // HEALTHY")
+		and detail.contains("LANDING // FLYING"),
 		"production GameFlow caller binds live peer, craft identity, and authoritative snapshot into HUD")
 	production_session.authoritative_snapshot = _authority_snapshot(
 		11, production_ship_id, 7, &"destroyed"
@@ -123,6 +135,84 @@ func _run() -> void:
 	_check(detail.contains("CRAFT LIFECYCLE // READY")
 		and not detail.contains("CONTROL UNAVAILABLE //"),
 		"authoritative recovery-ready state presents as ready")
+	production_flow._network_landing_handoffs[production_ship_id] = _landing_handoff(
+		production_ship_id, &"landing_pending"
+	)
+	production_session.landing_entity = _landing_entity(
+		production_ship_id, &"landing_pending", &"berth_alpha"
+	)
+	production_flow._network_landing_server_tick = 17
+	production_session.authoritative_snapshot = _authority_snapshot(
+		17, production_ship_id, 7, &"healthy"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Approach reserved.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	production_presentation = (
+		production_hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
+	).get_snapshot()
+	_check(detail.contains("LANDING // APPROACH PENDING // BERTH BERTH_ALPHA")
+		and detail.contains("CONTROL UNAVAILABLE // LANDING TRANSITION PENDING")
+		and not bool(production_presentation.get("landing_control_available", true))
+		and not bool(production_presentation.get("craft_control_available", true)),
+		"server landing reservation presents an approach-pending control fence")
+	production_flow._network_landing_handoffs[production_ship_id] = _landing_handoff(
+		production_ship_id, &"abort_pending_publication"
+	)
+	production_session.landing_entity = _landing_entity(production_ship_id, &"flying")
+	production_flow._network_landing_server_tick = 16
+	production_session.authoritative_snapshot = _authority_snapshot(
+		18, production_ship_id, 7, &"healthy"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Reordered landing.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("LANDING // APPROACH PENDING")
+		and not detail.contains("ABORT PUBLICATION PENDING"),
+		"newer HUD publication cannot admit an older authoritative landing revision")
+	production_flow._network_landing_handoffs[production_ship_id] = _landing_handoff(
+		production_ship_id, &"landed"
+	)
+	production_session.landing_entity = _landing_entity(
+		production_ship_id, &"landed", &"berth_alpha"
+	)
+	production_flow._network_landing_server_tick = 18
+	production_session.authoritative_snapshot = _authority_snapshot(
+		19, production_ship_id, 7, &"healthy"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Berth occupied.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("LANDING // LANDED // BERTH BERTH_ALPHA OCCUPIED")
+		and not detail.contains("CONTROL UNAVAILABLE // LANDING"),
+		"committed server landing presents the occupied berth")
+	production_flow._network_landing_handoffs[production_ship_id] = _landing_handoff(
+		production_ship_id, &"abort_pending_publication"
+	)
+	production_session.landing_entity = _landing_entity(production_ship_id, &"flying")
+	production_flow._network_landing_server_tick = 19
+	production_session.authoritative_snapshot = _authority_snapshot(
+		20, production_ship_id, 7, &"healthy"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Abort publication pending.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("LANDING // ABORT PUBLICATION PENDING")
+		and detail.contains("CONTROL UNAVAILABLE // LANDING TRANSITION PENDING"),
+		"committed abort awaiting publication remains visibly unavailable")
+	production_flow._network_landing_handoffs[production_ship_id] = _landing_handoff(
+		production_ship_id, &"release_pending_publication"
+	)
+	production_flow._network_landing_server_tick = 20
+	production_session.authoritative_snapshot = _authority_snapshot(
+		21, production_ship_id, 7, &"healthy"
+	)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Retry publication pending.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	production_presentation = (
+		production_hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
+	).get_snapshot()
+	_check(detail.contains("LANDING // RETRY PUBLICATION PENDING")
+		and detail.contains("CONTROL UNAVAILABLE // LANDING TRANSITION PENDING")
+		and bool(production_presentation.get("presentation_only", false))
+		and not production_presentation.has("landing_authority"),
+		"retry publication latch is visible without exposing landing mutation authority")
 	production_flow.free()
 	production_bomber.queue_free()
 	production_session.queue_free()
@@ -206,4 +296,28 @@ func _authority_snapshot(
 				"state": lifecycle_state,
 			}],
 		},
+	}
+
+
+func _landing_entity(
+	ship_id: StringName,
+	state: StringName,
+	target_id: StringName = &"",
+) -> Dictionary:
+	return {
+		"entity_id": ship_id,
+		"entity_generation": 1,
+		"state": state,
+		"target_id": target_id,
+	}
+
+
+func _landing_handoff(ship_id: StringName, state: StringName) -> Dictionary:
+	return {
+		"entity_id": ship_id,
+		"entity_generation": 1,
+		"target_id": &"berth_alpha",
+		"network_lease_id": &"landing_lease_1",
+		"physical_token": &"physical_lease_1",
+		"state": state,
 	}

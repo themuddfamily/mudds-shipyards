@@ -3446,6 +3446,54 @@ func _network_local_role_presentation() -> Dictionary:
 		"controlled_craft": craft_name,
 		"controlled_craft_id": craft_id,
 		"authoritative_snapshot": authoritative_snapshot.duplicate(true),
+		"authoritative_landing": _network_authoritative_landing_presentation(craft_id),
+	}
+
+
+## Projects the server's already-committed landing entity/handoff into the HUD
+## snapshot. This does not publish transport state or mutate either authority;
+## it only makes retry latches visible to the local server presentation.
+func _network_authoritative_landing_presentation(craft_id: StringName) -> Dictionary:
+	if craft_id.is_empty() or _network_session_mode != &"server" \
+			or not is_instance_valid(network_session) or not network_session.is_server():
+		return {}
+	var entity: Dictionary = {}
+	if network_session.has_method(&"get_landing_entity"):
+		entity = network_session.get_landing_entity(craft_id) as Dictionary
+	var handoff := _network_landing_handoffs.get(craft_id, {}) as Dictionary
+	if entity.is_empty() and handoff.is_empty():
+		return {}
+	var state := StringName(handoff.get("state", entity.get("state", &"flying")))
+	var retryable := state in [&"abort_pending_publication", &"release_pending_publication"]
+	var last_handoff := _last_network_landing_handoff_result.get("handoff", {}) as Dictionary
+	if not handoff.is_empty() \
+			and StringName(last_handoff.get("entity_id", &"")) == craft_id \
+			and int(last_handoff.get("entity_generation", 0)) \
+				== int(handoff.get("entity_generation", -1)) \
+			and StringName(last_handoff.get("network_lease_id", &"")) \
+				== StringName(handoff.get("network_lease_id", &"missing")) \
+			and bool(_last_network_landing_handoff_result.get("retryable", false)):
+		retryable = true
+		if state == &"landed":
+			state = &"retry_publication_pending"
+	if state == &"release_pending_publication":
+		state = &"retry_publication_pending"
+	var target_id := StringName(handoff.get("target_id", entity.get("target_id", &"")))
+	return {
+		"authority_peer_id": 1,
+		"revision": maxi(1, _network_landing_server_tick),
+		"landing": {
+			"entity_id": craft_id,
+			"entity_generation": maxi(1, int(handoff.get(
+				"entity_generation", entity.get("entity_generation", 1)
+			))),
+			"state": state,
+			"target_id": target_id,
+			"occupied": state in [&"landed", &"retry_publication_pending"],
+			"retryable": retryable,
+			"presentation_only": true,
+		},
+		"presentation_only": true,
 	}
 
 

@@ -22,6 +22,10 @@ var _authority_peer_id := 0
 var _authority_revision := -1
 var _authority_records: Dictionary = {&"ownership": [], &"boarding": [], &"respawn": []}
 var _ownership_view: Dictionary = {}
+var _landing_authority_peer_id := 0
+var _landing_revision := -1
+var _landing_record: Dictionary = {}
+var _landing_view: Dictionary = {}
 
 
 func present_snapshot(source: Dictionary) -> Dictionary:
@@ -60,6 +64,11 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		local_peer_id,
 		craft_id,
 		local_role,
+		state
+	)
+	var landing_view := _present_authoritative_landing(
+		source.get("authoritative_landing", {}),
+		craft_id,
 		state
 	)
 	var actions: Array = []
@@ -101,7 +110,15 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"craft_lifecycle_state": ownership_view.get("craft_lifecycle_state", &""),
 		"craft_lifecycle_text": ownership_view.get("craft_lifecycle_text", ""),
 		"craft_lifecycle_notice": ownership_view.get("craft_lifecycle_notice", ""),
-		"craft_control_available": ownership_view.get("craft_control_available", true),
+		"landing_state": landing_view.get("state", &""),
+		"landing_text": landing_view.get("text", ""),
+		"landing_notice": landing_view.get("notice", ""),
+		"landing_target_id": landing_view.get("target_id", &""),
+		"landing_control_available": landing_view.get("control_available", true),
+		"craft_control_available": (
+			bool(ownership_view.get("craft_control_available", true))
+			and bool(landing_view.get("control_available", true))
+		),
 		"title": title,
 		"message": detail if not detail.is_empty() else (SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)),
 		"peer_generation": peer_generation,
@@ -261,6 +278,89 @@ func _present_authoritative_ownership(
 	_ownership_view["authority_peer_id"] = authority_peer_id
 	_ownership_view["presentation_only"] = true
 	return _ownership_view.duplicate(true)
+
+
+func _present_authoritative_landing(
+	raw_snapshot: Variant,
+	craft_id: StringName,
+	state: StringName
+) -> Dictionary:
+	if state == &"disconnected":
+		_landing_authority_peer_id = 0
+		_landing_revision = -1
+		_landing_record.clear()
+		_landing_view.clear()
+		return {}
+	if not raw_snapshot is Dictionary or (raw_snapshot as Dictionary).is_empty():
+		return _landing_view_for_craft(_landing_record, craft_id)
+	var authoritative := raw_snapshot as Dictionary
+	var authority_peer_id := int(authoritative.get("authority_peer_id", 0))
+	var revision := int(authoritative.get("revision", 0))
+	var landing_variant: Variant = authoritative.get("landing", {})
+	if authority_peer_id <= 0 or revision <= 0 or not landing_variant is Dictionary \
+			or (_landing_authority_peer_id > 0 and authority_peer_id != _landing_authority_peer_id) \
+			or (_authority_peer_id > 0 and authority_peer_id != _authority_peer_id) \
+			or revision <= _landing_revision:
+		return _landing_view_for_craft(_landing_record, craft_id)
+	var landing := landing_variant as Dictionary
+	if str(landing.get("entity_id", "")).is_empty() \
+			or int(landing.get("entity_generation", 0)) <= 0 \
+			or not landing.get("state", &"") in [
+				&"flying", &"landing_pending", &"landed",
+				&"abort_pending_publication", &"retry_publication_pending",
+			]:
+		return _landing_view_for_craft(_landing_record, craft_id)
+	_landing_authority_peer_id = authority_peer_id
+	_landing_revision = revision
+	_landing_record = landing.duplicate(true)
+	_landing_view = _landing_view_for_craft(_landing_record, craft_id)
+	_landing_view["revision"] = revision
+	_landing_view["authority_peer_id"] = authority_peer_id
+	_landing_view["presentation_only"] = true
+	return _landing_view.duplicate(true)
+
+
+func _landing_view_for_craft(record: Dictionary, craft_id: StringName) -> Dictionary:
+	if record.is_empty() or craft_id.is_empty() \
+			or str(record.get("entity_id", "")).nocasecmp_to(str(craft_id)) != 0:
+		return {}
+	var state := StringName(record.get("state", &""))
+	var target_id := StringName(record.get("target_id", &""))
+	var target_text := str(target_id).to_upper()
+	var text := ""
+	var pending := false
+	match state:
+		&"flying": text = "FLYING"
+		&"landing_pending":
+			text = "APPROACH PENDING"
+			pending = true
+		&"landed":
+			text = "LANDED"
+			if bool(record.get("occupied", false)):
+				text += " // %s OCCUPIED" % (
+					"BERTH %s" % target_text if not target_text.is_empty() else "BERTH"
+				)
+		&"abort_pending_publication":
+			text = "ABORT PUBLICATION PENDING"
+			pending = true
+		&"retry_publication_pending":
+			text = "RETRY PUBLICATION PENDING"
+			pending = true
+		_:
+			return {}
+	if state == &"landing_pending" and not target_text.is_empty():
+		text += " // BERTH %s" % target_text
+	return {
+		"state": state,
+		"text": text,
+		"notice": (
+			"CONTROL UNAVAILABLE // LANDING TRANSITION PENDING" if pending else ""
+		),
+		"target_id": target_id,
+		"control_available": not pending,
+		"entity_generation": int(record.get("entity_generation", 0)),
+		"presentation_only": true,
+	}
 
 
 func _build_ownership_view(
