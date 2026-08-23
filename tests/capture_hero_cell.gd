@@ -229,7 +229,9 @@ var _triangle_mesh_cache: Dictionary = {}
 var _cockpit_camera_for_metrics: Camera3D
 var _cockpit_critical_exterior_control: Image
 var _quiesced_damage_emitters := PackedStringArray()
+var _full_capture_started := false
 var _capture_transaction_cleanup_armed := false
+var _terminal_result_emitted := false
 
 var _stage: Node3D
 var _world: ShipyardWorld
@@ -255,10 +257,18 @@ func _run() -> void:
 		await _run_automatic_propulsion_witness()
 		return
 
-	# Only the full capture owns this transaction. Arm cleanup before the first
-	# renderer check so an early failure also clears staging orphaned by a prior
-	# interrupted run; parse-only and propulsion staging remain artifact-free.
+	# Only the full capture owns published evidence or transaction staging.
+	# Establish safe output ancestry and invalidate any prior green claim before
+	# renderer checks or transaction cleanup can end this attempt.
+	_full_capture_started = true
 	_capture_transaction_cleanup_armed = true
+	if not _capture_output_ancestors_are_safe():
+		_finish()
+		return
+	_invalidate_published_claims("prior published claim")
+	if not _failures.is_empty():
+		_finish()
+		return
 	_configure_native_capture()
 	if not _capture_renderer_is_available():
 		_fail("capture renderer is unavailable; refusing to wait for a frame that cannot be read back")
@@ -274,9 +284,6 @@ func _run() -> void:
 		"source-current capture scope has a complete frozen start snapshot"
 	)
 
-	if not _capture_output_ancestors_are_safe():
-		_finish()
-		return
 	var output_absolute := ProjectSettings.globalize_path(OUTPUT_DIR)
 	var directory_error := DirAccess.make_dir_recursive_absolute(output_absolute)
 	_check(
@@ -2398,14 +2405,8 @@ func _write_evidence_manifest() -> void:
 func _reset_capture_transaction() -> bool:
 	# Always attempt the bounded removal: dir_exists_absolute() follows links and
 	# also reports false for a broken link, while cleanup must unlink either kind.
-	# This check precedes published-claim removal so a linked OUTPUT_DIR ancestor
-	# cannot redirect either cleanup operation outside the project.
 	if not _remove_directory_tree(TRANSACTION_DIR):
 		return false
-	# A run invalidates any prior claim immediately after its output ancestry is
-	# known safe. If the process crashes later, old PNGs may remain for diagnosis
-	# but no stale manifest can authenticate them.
-	_invalidate_published_claims("prior published claim")
 	var error := DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path(TRANSACTION_DIR)
 	)
@@ -2861,10 +2862,13 @@ func _print_measured_metrics() -> void:
 
 
 func _finish() -> void:
+	if _terminal_result_emitted:
+		return
 	# Preserve all top-level published evidence: only the isolated transaction
 	# subtree is eligible for cleanup. Cleanup failures join the existing failure
 	# list, so they cannot turn a failed capture green or hide its measurements.
 	_cleanup_capture_transaction("capture finish")
+	_terminal_result_emitted = true
 	_print_measured_metrics()
 	if _failures.is_empty():
 		print(
@@ -2878,9 +2882,15 @@ func _finish() -> void:
 
 
 func _finalize() -> void:
-	# MainLoop invokes this on engine shutdown, including close/abort paths which
-	# bypass _finish(). The guard makes the retry idempotent after normal cleanup;
-	# a finalize-only cleanup failure must also make an otherwise green exit fail.
-	if not _cleanup_capture_transaction("engine shutdown"):
-		push_error("HERO_CELL_CAPTURE_FAILED: transaction cleanup failed during engine shutdown")
-		quit(1)
+	# Parse/staging runs own no capture transaction, and a normal _finish() has
+	# already emitted its one terminal record. Any other full-capture shutdown is
+	# an interruption: retry cleanup, retain its failures, and emit metrics plus a
+	# failure summary even when that retry succeeds.
+	if not _full_capture_started or _terminal_result_emitted:
+		return
+	_cleanup_capture_transaction("engine shutdown")
+	_fail("full capture terminated before emitting a terminal result")
+	_terminal_result_emitted = true
+	_print_measured_metrics()
+	push_error("HERO_CELL_CAPTURE_FAILED: " + "; ".join(_failures))
+	quit(1)
