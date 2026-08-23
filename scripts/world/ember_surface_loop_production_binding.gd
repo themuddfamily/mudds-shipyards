@@ -930,6 +930,10 @@ func get_state() -> int:
 	return _state
 
 
+func get_host_phase() -> int:
+	return _host.get_phase() if _host != null else -1
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,

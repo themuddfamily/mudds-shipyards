@@ -510,6 +510,7 @@ var _planetary_cruise_caller_tick := 0
 ## survives whole-Main detach/re-entry with the HUD's matching serial.
 var _last_hud_planetary_cruise_toggle_serial := 0
 var _planetary_cruise_hud_toggle_active := false
+var _ember_surface_caller_serial := 0
 ## Station topology is captured in ShipyardWorld-local coordinates. A common
 ## floating-origin rebase can then translate the live world root without leaving
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
@@ -1822,6 +1823,7 @@ func _physics_process(delta: float) -> void:
 	# binding reconciles its generation before reporting the resulting streaming
 	# transition, which can still reject (for example, a load failure).
 	var ember_streaming_accepted := false
+	var ember_origin_result: Dictionary = {}
 	# A required rebase may enter Ember's load envelope. In that exact case, an
 	# asynchronous `load_requested` acknowledgement is not yet a physical world
 	# root for HeroShip's collision proof; do not queue cruise until it exists.
@@ -1850,6 +1852,8 @@ func _physics_process(delta: float) -> void:
 					var rebase := common_world_origin_rebase_owner.consume_rebase_preview(
 						preview, actor_sample
 					)
+					if bool(rebase.get("accepted", false)):
+						ember_origin_result = rebase.duplicate(true)
 					if bool(rebase.get("accepted", false)) and rebase.has("actor_sample"):
 						actor_sample = (rebase.get("actor_sample", {}) as Dictionary).duplicate(true)
 						coordinate_frame_generation = int(
@@ -1857,7 +1861,7 @@ func _physics_process(delta: float) -> void:
 								"coordinate_frame_generation",
 								coordinate_frame_generation,
 							)
-						)
+							)
 						if preview_requires_rebase:
 							required_origin_rebase_uncommitted = false
 							var receipt := rebase.get("receipt", {}) as Dictionary
@@ -1867,6 +1871,25 @@ func _physics_process(delta: float) -> void:
 								ember_streaming_accepted
 								and streaming.get("action", &"") == &"load"
 							)
+	if is_instance_valid(ember_surface_loop_production_binding):
+		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
+		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
+		if surface_state in [&"start_pending", &"running"] \
+				and not ember_origin_result.is_empty() \
+				and is_instance_valid(active_ship) and active_ship.is_piloted():
+			if _ember_surface_caller_serial < EmberSurfaceLoopHost.MAX_SAFE_INTEGER:
+				_ember_surface_caller_serial += 1
+				var telemetry := active_ship.get_telemetry()
+				var host_phase := ember_surface_loop_production_binding.get_host_phase()
+				ember_surface_loop_production_binding.advance_from_caller_sample(
+					_ember_surface_caller_serial, delta, &"ship",
+					active_ship.get_instance_id(), active_ship.get_instance_id(),
+					active_ship.global_position, active_ship.velocity,
+					bool(telemetry.get("landed", false)), host_phase == 10,
+					host_phase >= 11, ember_origin_result,
+					coordinate_frame_generation, int(ember_origin_result.get("location_generation", 1)),
+					ember_surface_loop_production_binding.get_generation()
+				)
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
 		if required_origin_rebase_uncommitted:
