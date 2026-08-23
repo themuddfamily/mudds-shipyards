@@ -20,6 +20,7 @@ const MovingInteriorAuthority := preload("res://scripts/network/network_moving_i
 const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_ownership_authority.gd")
 const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd")
 const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
+const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -37,6 +38,7 @@ signal moving_interior_result(result: Dictionary)
 signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
 signal migration_result(result: Dictionary)
+signal prediction_correction_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -54,6 +56,7 @@ var _moving_interior
 var _ship_ownership
 var _seat_authority
 var _migration
+var _prediction
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -65,6 +68,7 @@ var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
 var _latest_snapshot_revision := 0
+var _prediction_entities: Dictionary = {}
 
 
 func _init() -> void:
@@ -79,6 +83,7 @@ func _init() -> void:
 	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
 	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
 	_migration = SessionMigration.new(AUTHORITY_PEER_ID)
+	_prediction = PredictionGuard.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -153,6 +158,14 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 				_moving_occupants.erase(peer_id)
 			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
+			for prediction_id_variant in _prediction_entities.keys():
+				var prediction_id := StringName(prediction_id_variant)
+				var prediction_entity := _prediction_entities[prediction_id] as Dictionary
+				if int(prediction_entity.get("owner_peer_id", 0)) == peer_id:
+					_prediction.retire_entity(
+						AUTHORITY_PEER_ID, prediction_id, int(prediction_entity.get("entity_generation", 0))
+					)
+					_prediction_entities.erase(prediction_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -716,6 +729,84 @@ func get_migration_snapshot() -> Dictionary:
 	return snapshot.duplicate(true)
 
 
+func register_prediction_entity(
+	owner_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(owner_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _prediction.register_entity(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, owner_peer_id
+	)
+	if bool(result.get("accepted", false)):
+		_prediction_entities[entity_id] = {
+			"owner_peer_id": owner_peer_id,
+			"entity_generation": entity_generation,
+		}
+	prediction_correction_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func publish_prediction_snapshot(
+	entity_id: StringName,
+	entity_generation: int,
+	server_tick: int,
+	event_sequence: int,
+	position: Vector3,
+	velocity: Vector3
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _prediction_entities.has(entity_id):
+		return _remember(_result(false, &"unknown_entity"))
+	var entity: Dictionary = _prediction_entities[entity_id]
+	var owner_peer_id := int(entity.get("owner_peer_id", 0))
+	var snapshot := PredictionGuard.create_snapshot(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, owner_peer_id,
+		server_tick, event_sequence, position, velocity
+	)
+	var packet := {
+		"snapshot": snapshot,
+		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 0)),
+	}.duplicate(true)
+	_broadcast_prediction_correction.rpc(packet)
+	prediction_correction_result.emit({"accepted": true, "status": &"snapshot_published", "packet": packet}.duplicate(true))
+	return _remember({"accepted": true, "status": &"snapshot_published", "packet": packet})
+
+
+func apply_prediction_correction(
+	client_tick: int,
+	predicted_state: Dictionary,
+	packet: Dictionary
+) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	if not packet.has("snapshot") or not packet.has("migration_generation"):
+		return _remember(_result(false, &"invalid_prediction_packet"))
+	if int(packet.get("migration_generation", -1)) != int(_migration.get_snapshot().get("migration_generation", 0)):
+		return _remember(_result(false, &"stale_migration_generation"))
+	var snapshot: Dictionary = packet.get("snapshot", {}) as Dictionary
+	var entity_id := StringName(snapshot.get("entity_id", &""))
+	var entity_generation := int(snapshot.get("entity_generation", 0))
+	var owner_peer_id := int(snapshot.get("owner_peer_id", 0))
+	if owner_peer_id != multiplayer.get_unique_id():
+		return _remember(_result(false, &"owner_mismatch"))
+	if _prediction.get_entity_snapshot(entity_id).is_empty():
+		_prediction.register_entity(AUTHORITY_PEER_ID, entity_id, entity_generation, owner_peer_id)
+	var result: Dictionary = _prediction.accept_snapshot(
+		AUTHORITY_PEER_ID, owner_peer_id, client_tick, predicted_state, snapshot
+	)
+	prediction_correction_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_prediction_entity(entity_id: StringName) -> Dictionary:
+	return _prediction.get_entity_snapshot(entity_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -835,6 +926,14 @@ func _broadcast_snapshot(packet: Dictionary) -> void:
 	_last_result = applied.duplicate(true)
 
 
+@rpc("authority", "call_remote", "reliable")
+func _broadcast_prediction_correction(packet: Dictionary) -> void:
+	if is_server():
+		return
+	# The replica applies the packet explicitly through apply_prediction_correction.
+	# Transport delivery alone never mutates prediction or gameplay state.
+
+
 func _configure_multiplayer() -> void:
 	if _configured:
 		return
@@ -865,6 +964,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
+	for prediction_id_variant in _prediction_entities.keys():
+		var prediction_id := StringName(prediction_id_variant)
+		var prediction_entity := _prediction_entities[prediction_id] as Dictionary
+		if int(prediction_entity.get("owner_peer_id", 0)) == peer_id:
+			_prediction.retire_entity(
+				AUTHORITY_PEER_ID, prediction_id, int(prediction_entity.get("entity_generation", 0))
+			)
+			_prediction_entities.erase(prediction_id)
 	_peer_generations.erase(peer_id)
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)

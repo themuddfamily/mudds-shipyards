@@ -285,6 +285,33 @@ func _initialize() -> void:
 		_client.rotate_session_migration(2).get("status") == &"authority_required",
 		"client cannot rotate the authoritative migration epoch"
 	)
+	var prediction_register := _server.register_prediction_entity(client_peer_id, &"prediction_1", 1)
+	_check(
+		bool(prediction_register.get("accepted", false)),
+		"server registers the admitted prediction owner generation"
+	)
+	var prediction_publish := _server.publish_prediction_snapshot(
+		&"prediction_1", 1, 1, 1, Vector3(0.5, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)
+	)
+	_check(bool(prediction_publish.get("accepted", false)), "server publishes a bounded correction snapshot")
+	var prediction_packet: Dictionary = prediction_publish.get("packet", {})
+	var prediction_state := {
+		"entity_id": &"prediction_1",
+		"entity_generation": 1,
+		"position": [0.0, 0.0, 0.0],
+		"velocity": [0.0, 0.0, 0.0],
+	}
+	var correction := _client.apply_prediction_correction(1, prediction_state, prediction_packet)
+	_check(
+		bool(correction.get("accepted", false)) and correction.get("status") == &"correction_required",
+		"client applies the server-owned bounded prediction correction"
+	)
+	var stale_prediction := prediction_packet.duplicate(true)
+	stale_prediction["migration_generation"] = 0
+	_check(
+		_client.apply_prediction_correction(1, prediction_state, stale_prediction).get("status") == &"stale_migration_generation",
+		"client rejects a correction from an old migration generation"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -347,6 +374,10 @@ func _initialize() -> void:
 	_check(
 		_server.get_crew_assignment(client_peer_id, &"avatar-1").is_empty(),
 		"server disconnect cleanup releases peer-owned crew seats"
+	)
+	_check(
+		_server.get_prediction_entity(&"prediction_1").is_empty(),
+		"server disconnect cleanup retires peer-owned prediction state"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),
