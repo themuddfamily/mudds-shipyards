@@ -46,6 +46,7 @@ func _run() -> void:
 	await _test_detached_reward_recovery()
 	await _test_failed_activity_requires_fresh_reentry()
 	await _test_completed_activity_repeat()
+	await _test_ordered_activity_sequence()
 	_finish()
 
 
@@ -197,6 +198,46 @@ func _test_completed_activity_repeat() -> void:
 	await process_frame
 
 
+func _test_ordered_activity_sequence() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	var sequence := [&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName]
+	var started := adapter.start_activity_sequence(sequence)
+	_check(
+		started.accepted and started.reason == &"activity_sequence_started"
+			and started.adapter.activity_sequence.index == 0,
+		"ordered surface landmarks start at the first authored activity"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	_check(
+		adapter.advance_activity_sequence().reason == &"stale_attachment_generation",
+		"the next landmark cannot advance on the completed attachment"
+	)
+	host.attachment_generation = 6
+	var advanced := adapter.advance_activity_sequence()
+	_check(
+		advanced.accepted and advanced.reason == &"activity_sequence_advanced"
+			and advanced.adapter.activity_reward.activity_id == &"ember_caldera_patrol"
+			and advanced.adapter.activity_sequence.index == 1,
+		"a fresh attachment advances to the next authoritative landmark"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	_check(
+		adapter.advance_activity_sequence().reason == &"activity_sequence_complete"
+			and _reward_calls == 7,
+		"the ordered sequence closes after each landmark earns its own reward"
+	)
+	director.queue_free()
+	await process_frame
+
+
 func _director_with_activity() -> ActivityDirector:
 	var location := LocationScript.new()
 	location.location_id = &"ember_caldera"
@@ -214,6 +255,21 @@ func _director_with_activity() -> ActivityDirector:
 	])
 	var director := DirectorScript.new() as ActivityDirector
 	director.register_definition(definition)
+	var second_location := LocationScript.new()
+	second_location.location_id = &"ember_ridge"
+	second_location.display_name = "Ember Ridge"
+	second_location.sector_id = &"ember_moon"
+	second_location.anchor_source_id = &"ridge_relay"
+	second_location.content_note = "Focused sequence fixture."
+	var second_definition := ActivityDefinitionScript.new()
+	second_definition.activity_id = &"ember_caldera_patrol"
+	second_definition.display_name = "Ember Caldera Patrol"
+	second_definition.content_note = "Focused sequence fixture."
+	second_definition.location = second_location
+	second_definition.checkpoint_positions = PackedVector3Array([
+		Vector3.ZERO, Vector3(10.0, 0.0, 0.0),
+	])
+	director.register_definition(second_definition)
 	root.add_child(director)
 	return director
 

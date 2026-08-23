@@ -30,6 +30,8 @@ var _state := State.IDLE
 var _configuration_errors := PackedStringArray()
 var _host_instance_id := 0
 var _bound := false
+var _sequence_ids: Array[StringName] = []
+var _sequence_index := -1
 
 
 func is_configuration_valid() -> bool:
@@ -84,6 +86,24 @@ func begin_activity(activity_id: StringName) -> Dictionary:
 		return _reject(result.get("reason", &"activity_start_rejected") as StringName)
 	_state = State.ACTIVE
 	return _with_adapter(result, true, &"activity_started")
+
+
+## Starts an ordered set of existing activity landmarks. Completion and reward
+## commit of each entry are required before advance_activity_sequence can move
+## to the next entry on a fresh host attachment.
+func start_activity_sequence(activity_ids: Array[StringName]) -> Dictionary:
+	if activity_ids.is_empty():
+		return _reject(&"activity_sequence_empty")
+	if _state != State.READY:
+		return _reject(&"adapter_not_ready")
+	_sequence_ids = activity_ids.duplicate()
+	_sequence_index = 0
+	var started := begin_activity(_sequence_ids[0])
+	if bool(started.get("accepted", false)):
+		return _with_adapter(started, true, &"activity_sequence_started")
+	_sequence_ids = []
+	_sequence_index = -1
+	return started
 
 
 func submit_activity_position(position: Vector3) -> Dictionary:
@@ -176,6 +196,20 @@ func repeat_activity(activity_id: StringName) -> Dictionary:
 	return _with_adapter(started, true, &"activity_repeated")
 
 
+func advance_activity_sequence() -> Dictionary:
+	if _sequence_index < 0 or _sequence_index + 1 >= _sequence_ids.size():
+		return _reject(&"activity_sequence_complete")
+	if _state != State.COMPLETED:
+		return _reject(&"activity_sequence_not_ready")
+	var next_index := _sequence_index + 1
+	var next_activity := _sequence_ids[next_index]
+	var repeated := repeat_activity(next_activity)
+	if bool(repeated.get("accepted", false)):
+		_sequence_index = next_index
+		return _with_adapter(repeated, true, &"activity_sequence_advanced")
+	return repeated
+
+
 func detach() -> Dictionary:
 	if not _bound or _state in [State.IDLE, State.DETACHED]:
 		return _reject(&"adapter_not_active")
@@ -223,6 +257,11 @@ func get_snapshot() -> Dictionary:
 		"host_instance_id": _host_instance_id,
 		"host": _host.call(&"get_snapshot").duplicate(true) if _host_is_current() else {},
 		"activity_reward": _runtime.get_snapshot() if _runtime != null else {},
+		"activity_sequence": {
+			"activity_ids": _sequence_ids.duplicate(),
+			"index": _sequence_index,
+			"complete": _sequence_index >= 0 and _sequence_index + 1 >= _sequence_ids.size(),
+		},
 		"authority": {
 			"host_mutation": false,
 			"activity_authority": false,
