@@ -32,6 +32,15 @@ func _run() -> void:
 	_check(detail.text.contains("MANIFEST CHECKED") and detail.text.contains("OLD RECEIPT") and not detail.text.contains("IGNORED OVERFLOW"), "receipt history is bounded")
 	_check(detail.text.contains("NO INVENTORY TRANSFER") and detail.text.contains("NO REWARD AUTHORITY") and detail.text.contains("NO HELM AUTHORITY"), "authority boundaries are explicit")
 	_check(actions.get_child_count() == 1 and (actions.get_child(0) as Button).focus_mode == Control.FOCUS_ALL, "loadmaster review is controller and keyboard focusable")
+	hud.update_cinder_loadmaster_telemetry(
+		&"cinder_cargo_hauler", &"loadmaster",
+		{"state": "manifest_ready", "manifest_id": "cinder_manifest", "route_id": "dock_04_cargo", "generation": 4},
+		{"station_id": &"cinder_loadmaster_station", "manifest_generation": 4, "receipt": {"ready": true, "route_id": &"dock_04_cargo"}}
+	)
+	_check(detail.text.contains("CRAFT // CINDER_CARGO_HAULER") and detail.text.contains("SEAT MANIFEST_READY"), "Cinder craft and detached seat state are explicit")
+	_check(detail.text.contains("GENERATION // 4") and detail.text.contains("ROUTE // dock_04_cargo"), "Cinder manifest route and generation are readable")
+	hud.update_cinder_loadmaster_telemetry(&"cinder_cargo_hauler", &"loadmaster", {"state": "released", "generation": 5}, {})
+	_check(detail.text.contains("SEAT RELEASED") and detail.text.contains("GENERATION // 5"), "Cinder release/re-entry state remains readable")
 	hud.clear_loadmaster_telemetry()
 	_check(not panel.visible, "loadmaster status clears on detach")
 	hud.queue_free()

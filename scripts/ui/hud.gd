@@ -1387,6 +1387,24 @@ func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
 	_refresh_input_prompts()
 
 
+## Explicit caller seam for the Cinder Cargo Hauler. The HUD receives detached
+## role/status/manifest records; it does not discover the craft or own claims.
+func update_cinder_loadmaster_telemetry(
+		craft_id: StringName,
+		role: StringName,
+		status_snapshot: Dictionary,
+		manifest_snapshot: Dictionary = {}
+) -> void:
+	_loadmaster_help_snapshot = status_snapshot.duplicate(true)
+	_loadmaster_help_snapshot["craft_id"] = craft_id
+	_loadmaster_help_snapshot["role"] = role
+	var presentation: Dictionary = _loadmaster_telemetry_presenter.present_cinder_snapshot(
+		craft_id, role, status_snapshot, manifest_snapshot
+	)
+	_render_runtime_status(presentation, &"loadmaster")
+	_refresh_input_prompts()
+
+
 func clear_loadmaster_telemetry() -> void:
 	_loadmaster_help_snapshot = {}
 	_loadmaster_telemetry_presenter.detach()
