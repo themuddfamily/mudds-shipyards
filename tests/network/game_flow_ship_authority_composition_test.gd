@@ -44,6 +44,22 @@ func _run() -> void:
 		"active ship replacement reattaches a fresh composition generation",
 	)
 	_check(composition.get("_cinder_bridge") != null, "Cinder replacement retains its loadmaster bridge")
+	var halyard_bridge: Variant = game.get("_network_halyard_command_bridge")
+	_check(
+		halyard_bridge != null and halyard_bridge.get("_halyard") == replacement,
+		"ship replacement retires stale Halyard dispatch target",
+	)
+	var server_sequence := int(game.get("_network_ship_event_sequence"))
+	game.set("_network_session_mode", &"client")
+	game._physics_process(1.0 / 60.0)
+	_check(
+		int(game.get("_network_ship_event_sequence")) == server_sequence,
+		"client mode never publishes authoritative telemetry",
+	)
+	_check(
+		int(session.get("_cargo_manifest_revision")) == 0,
+		"Cinder bridge remains inert until an admitted manifest intent",
+	)
 	root.remove_child(game)
 	await process_frame
 	_check(composition.get("_ship") == null, "whole-GameFlow detach clears composition state")

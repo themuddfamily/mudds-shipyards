@@ -20,6 +20,9 @@ const CaptionPresentationServiceType := preload("res://scripts/ui/caption_presen
 const RuntimeSettingsStoreAdapterType := preload(
 	"res://scripts/settings/runtime_settings_store_adapter.gd"
 )
+const RuntimeSettingsRepairBindingType := preload(
+	"res://scripts/persistence/runtime_settings_repair_binding.gd"
+)
 const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
 const SafeStartProductionRecoveryType := preload(
 	"res://scripts/recovery/safe_start_production_recovery.gd"
@@ -33,6 +36,7 @@ const NetworkHalyardCrewCommandBridgeType := preload(
 const NetworkShipAuthorityCompositionType := preload(
 	"res://scripts/network/network_ship_authority_composition.gd"
 )
+const NETWORK_MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const MovingInteriorRelationshipType := preload(
 	"res://scripts/network/moving_interior_relationship.gd"
 )
@@ -401,6 +405,7 @@ var _runtime_settings_store_adapter: RuntimeSettingsStoreAdapter
 var _runtime_settings_legacy_path := RuntimeSettings.DEFAULT_CONFIG_PATH
 var _runtime_settings_load_attempted := false
 var _runtime_settings_load_status: Dictionary = {}
+var _runtime_settings_repair_binding: RuntimeSettingsRepairBinding
 var _runtime_settings_last_save_status: Dictionary = {}
 var _runtime_settings_load_attempt_count := 0
 var _runtime_settings_save_attempt_count := 0
@@ -570,6 +575,8 @@ func _exit_tree() -> void:
 		_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(
 			0, 0.0, "runtime"
 		)
+	if _runtime_settings_repair_binding != null:
+		_runtime_settings_repair_binding.set_attached(false)
 	_clear_bomber_payload_loop(&"game_flow_exit")
 	_cancel_station_seat_for_detach()
 	if is_instance_valid(network_session):
@@ -688,9 +695,9 @@ func _attach_network_ship_authority_composition() -> Dictionary:
 		add_child(_network_ship_authority_composition)
 	if _network_composition_ship == active_ship:
 		return {"accepted": true, "status": &"already_attached", "ship_generation": _network_ship_generation}
+	if _network_ship_generation >= NETWORK_MAX_SAFE_GENERATION:
+		return {"accepted": false, "status": &"generation_exhausted", "ship_generation": _network_ship_generation}
 	_network_ship_generation += 1
-	if _network_ship_generation <= 0:
-		_network_ship_generation = 1
 	var result := _network_ship_authority_composition.attach(
 		 network_session, active_ship, _network_ship_generation
 	)
@@ -2540,6 +2547,8 @@ func _convoy_lifecycle_failure_reason(sample: Dictionary) -> StringName:
 func _restore_runtime_bindings_after_reentry() -> void:
 	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
 		return
+	if _runtime_settings_repair_binding != null:
+		_runtime_settings_repair_binding.set_attached(true)
 	# The world subtree is not rebuilt by a detach, so this re-binds the same
 	# single vehicle rather than producing a second one. Re-resolving is what keeps
 	# the binding honest if the instance was released while detached.
@@ -3749,8 +3758,11 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	if candidate != active_ship:
 		_clear_bomber_payload_loop(&"active_ship_replaced")
 		_detach_cinder_loadmaster_hud_binding()
+		if is_instance_valid(network_session):
+			_detach_network_halyard_command_bridge()
 	active_ship = candidate
 	if is_instance_valid(network_session):
+		_attach_network_halyard_command_bridge()
 		_attach_network_ship_authority_composition()
 	_sync_optional_semantic_audio()
 	_sync_cinder_loadmaster_hud_binding()
@@ -7494,6 +7506,39 @@ func get_runtime_settings_persistence_report() -> Dictionary:
 	}.duplicate(true)
 
 
+## Explicit caller-owned repair seam. Inspection never mutates settings or
+## bytes; callers must present the returned confirmation to prepare and commit.
+func inspect_runtime_settings_repair(load_status: Dictionary = {}) -> Dictionary:
+	_ensure_runtime_settings_repair_binding()
+	if _runtime_settings_repair_binding == null:
+		return {"accepted": false, "reason": &"repair_unavailable"}
+	var observed := load_status
+	if observed.is_empty():
+		observed = _runtime_settings_load_status
+	return _runtime_settings_repair_binding.inspect(observed)
+
+
+func prepare_runtime_settings_repair(confirmation: String, commit_id: String) -> Dictionary:
+	_ensure_runtime_settings_repair_binding()
+	if _runtime_settings_repair_binding == null:
+		return {"accepted": false, "reason": &"repair_unavailable"}
+	return _runtime_settings_repair_binding.prepare(confirmation, commit_id)
+
+
+func commit_runtime_settings_repair(confirmation: String) -> Dictionary:
+	_ensure_runtime_settings_repair_binding()
+	if _runtime_settings_repair_binding == null:
+		return {"accepted": false, "reason": &"repair_unavailable"}
+	return _runtime_settings_repair_binding.commit(confirmation)
+
+
+func get_runtime_settings_repair_report() -> Dictionary:
+	return _runtime_settings_repair_binding.get_report() if _runtime_settings_repair_binding != null else {
+		"attached": false,
+		"reason": &"repair_unavailable",
+	}.duplicate(true)
+
+
 ## Detached diagnostics for the process startup marker and caller-owned
 ## stability window. No live policy, store, settings, or filesystem object is
 ## exposed. In particular, a scene-tree detach is not represented as shutdown.
@@ -7896,6 +7941,7 @@ func _initialize_runtime_settings() -> void:
 		and not _production_runtime_settings_state.is_empty()
 	):
 		_adopt_production_runtime_settings_state()
+		_ensure_runtime_settings_repair_binding()
 		return
 	if runtime_settings == null:
 		runtime_settings = RuntimeSettings.new(_runtime_settings_legacy_path)
@@ -7910,6 +7956,7 @@ func _initialize_runtime_settings() -> void:
 			_runtime_settings_legacy_path
 		)
 	if _runtime_settings_load_attempted:
+		_ensure_runtime_settings_repair_binding()
 		return
 	_runtime_settings_load_attempted = true
 	_runtime_settings_load_attempt_count += 1
@@ -7936,7 +7983,22 @@ func _initialize_runtime_settings() -> void:
 			]
 		)
 	_initialize_safe_start_recovery()
+	_ensure_runtime_settings_repair_binding()
 	_sync_production_runtime_settings_state()
+
+
+func _ensure_runtime_settings_repair_binding() -> void:
+	if _runtime_settings_repair_binding != null:
+		return
+	if _runtime_settings_store_adapter == null or _runtime_settings_user_data_store == null:
+		return
+	_runtime_settings_repair_binding = RuntimeSettingsRepairBindingType.new()
+	var configured := _runtime_settings_repair_binding.configure(
+		_runtime_settings_store_adapter,
+		_runtime_settings_user_data_store
+	)
+	if not bool(configured.get("accepted", false)):
+		_runtime_settings_repair_binding = null
 
 
 ## Restores and begins exactly one process startup after the settings adapter's
