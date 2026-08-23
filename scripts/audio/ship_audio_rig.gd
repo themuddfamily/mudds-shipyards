@@ -479,7 +479,10 @@ func play_destruction(intensity: float = 1.0) -> bool:
 
 
 func play_landing(intensity: float = 1.0) -> bool:
-	return play_cue(CUE_LANDING, intensity)
+	var accepted := play_cue(CUE_LANDING, intensity)
+	if accepted:
+		semantic_engine_cue_emitted.emit(&"ship_landing_contact", clampf(intensity, 0.0, 1.0))
+	return accepted
 
 
 func play_docking(intensity: float = 1.0) -> bool:
