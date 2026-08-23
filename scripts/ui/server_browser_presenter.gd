@@ -25,6 +25,7 @@ var _generation := 0
 var _latest_capacity_generation := 0
 var _last_snapshot: Dictionary = {}
 var _focus_target: StringName = &"refresh"
+var _manual_connect: Dictionary = {"address": "", "port": DEFAULT_PORT, "player_name": "", "error": "", "focus_target": &"manual_address"}
 
 
 func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_ANY, include_full: bool = true) -> Dictionary:
@@ -202,14 +203,23 @@ func host_session_intent(port: int = DEFAULT_PORT, player_name: String = "") -> 
 
 func manual_join_intent(address: String, port: int = DEFAULT_PORT, player_name: String = "") -> Dictionary:
 	var clean_address := address.strip_edges()
-	if clean_address.is_empty() or clean_address.length() > MAX_ADDRESS_LENGTH or clean_address.contains(" "):
-		return _validation_error(&"invalid_address", "Enter a valid host address or name.")
+	var address_validation := _validate_address(clean_address)
+	if not bool(address_validation.get("accepted", false)):
+		_focus_target = &"manual_address"
+		_manual_connect.error = str(address_validation.get("validation_error", "Enter a valid host address or name."))
+		return address_validation
 	var validation := _validate_port(port)
 	if not bool(validation.get("accepted", false)):
+		_focus_target = &"manual_port"
+		_manual_connect.error = str(validation.get("validation_error", "Enter a valid port."))
 		return validation
 	validation = _validate_player_name(player_name)
 	if not bool(validation.get("accepted", false)):
+		_focus_target = &"manual_player_name"
+		_manual_connect.error = str(validation.get("validation_error", "Enter a player name."))
 		return validation
+	_manual_connect = {"address": clean_address, "port": port, "player_name": player_name.strip_edges(), "error": "", "focus_target": &"manual_join"}
+	_focus_target = &"manual_join"
 	return {
 		"accepted": true,
 		"reason": &"manual_join_requested",
@@ -220,6 +230,26 @@ func manual_join_intent(address: String, port: int = DEFAULT_PORT, player_name: 
 		"presentation_only": true,
 		"authority": false,
 	}
+
+
+func configure_manual_connect(address: String, port: int = DEFAULT_PORT, player_name: String = "") -> Dictionary:
+	_manual_connect["address"] = address.strip_edges()
+	_manual_connect["port"] = port
+	_manual_connect["player_name"] = player_name.strip_edges()
+	var result := manual_join_intent(address, port, player_name)
+	_manual_connect["error"] = str(result.get("validation_error", ""))
+	_manual_connect["focus_target"] = _focus_target
+	return {
+		"accepted": bool(result.get("accepted", false)),
+		"form": _manual_connect.duplicate(true),
+		"intent": result.duplicate(true),
+		"focus_target": _focus_target,
+		"presentation_only": true,
+	}
+
+
+func get_manual_connect_view() -> Dictionary:
+	return {"form": _manual_connect.duplicate(true), "focus_target": _focus_target, "actions": [{"id": &"manual_join", "label": "Connect", "focusable": true}, {"id": &"cancel", "label": "Cancel", "focusable": true}], "presentation_only": true}
 
 
 func audit() -> Dictionary:
@@ -293,6 +323,14 @@ func _browser_controls() -> Array[Dictionary]:
 func _validate_port(port: int) -> Dictionary:
 	if port < MIN_PORT or port > MAX_PORT:
 		return _validation_error(&"invalid_port", "Port must be between %d and %d." % [MIN_PORT, MAX_PORT])
+	return {"accepted": true}
+
+
+func _validate_address(address: String) -> Dictionary:
+	if address.is_empty() or address.length() > MAX_ADDRESS_LENGTH or address.contains(" ") or address.contains("\n") or address.contains("\r"):
+		return _validation_error(&"invalid_address", "Enter a valid IPv4, IPv6-local, or host name.")
+	if address.begins_with("[") and not address.ends_with("]"):
+		return _validation_error(&"invalid_address", "IPv6 addresses must close with ].")
 	return {"accepted": true}
 
 
