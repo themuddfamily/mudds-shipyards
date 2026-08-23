@@ -127,6 +127,16 @@ func _run() -> void:
 	)
 	styles.clear()
 	_check(presentation.get_supported_style_ids().size() == 3, "supported-style arrays are detached from component state")
+	var profiles := presentation.get_supported_profile_ids()
+	_check(
+		profiles == [&"standard", &"siege_lance", &"tail_turret", &"repeater"],
+		"component exposes four stable non-colour silhouette profiles"
+	)
+	profiles.clear()
+	_check(
+		presentation.get_supported_profile_ids().size() == 4,
+		"supported-profile arrays are detached from component state"
+	)
 
 	var performance := presentation.get_performance_audit()
 	var counts := performance.counts as Dictionary
@@ -183,7 +193,19 @@ func _run() -> void:
 		"unknown style IDs are rejected rather than silently remapped"
 	)
 	_check(
-		int(presentation.get_statistics().rejected) == rejected_before + 5
+		not presentation.present_shot(
+			Vector3.ZERO,
+			Vector3.FORWARD * 12.0,
+			&"cyan",
+			null,
+			false,
+			-1,
+			&"unsupported"
+		),
+		"unknown silhouette profiles are rejected rather than silently remapped"
+	)
+	_check(
+		int(presentation.get_statistics().rejected) == rejected_before + 6
 		and presentation.get_active_effect_count() == 0,
 		"invalid requests affect only rejection telemetry"
 	)
@@ -270,6 +292,72 @@ func _run() -> void:
 	)
 	_check(_clear_events == clear_before + 1, "explicit cleanup emits a completion event")
 
+	# The three derived opponent weapons share this exact retained pool. Their
+	# static profiles must remain readable without colour, new resources, or
+	# timing changes: lance is long/slim, tail turret broad/short, repeater compact.
+	var silhouette_origin := Vector3(-20.0, 2.0, 8.0)
+	for profile_index in 3:
+		var profile_id: StringName = [
+			PulseWeaponPresentation.PROFILE_SIEGE_LANCE,
+			PulseWeaponPresentation.PROFILE_TAIL_TURRET,
+			PulseWeaponPresentation.PROFILE_REPEATER,
+		][profile_index]
+		var profile_origin := silhouette_origin + Vector3(float(profile_index) * 20.0, 0.0, 0.0)
+		_check(
+			presentation.present_shot(
+				profile_origin,
+				profile_origin + Vector3.FORWARD * 24.0,
+				&"cyan",
+				null,
+				true,
+				-1,
+				profile_id
+			),
+			"%s silhouette enters the existing fixed pool" % profile_id
+		)
+	var silhouette_snapshots := presentation.get_active_shot_snapshots()
+	_check(
+		silhouette_snapshots.size() == 3
+		and StringName(silhouette_snapshots[0].profile_id) == &"siege_lance"
+		and StringName(silhouette_snapshots[1].profile_id) == &"tail_turret"
+		and StringName(silhouette_snapshots[2].profile_id) == &"repeater",
+		"active slots retain each caller-selected silhouette identity"
+	)
+	var lance_pulse := presentation.get_node("PoolRoot/ShotSlot01/TravellingPulse") as MeshInstance3D
+	var turret_pulse := presentation.get_node("PoolRoot/ShotSlot02/TravellingPulse") as MeshInstance3D
+	var repeater_pulse := presentation.get_node("PoolRoot/ShotSlot03/TravellingPulse") as MeshInstance3D
+	var lance_scale := lance_pulse.global_basis.get_scale()
+	var turret_scale := turret_pulse.global_basis.get_scale()
+	var repeater_scale := repeater_pulse.global_basis.get_scale()
+	_check(
+		lance_scale.is_equal_approx(PulseWeaponPresentation.SIEGE_LANCE_TRAVEL_PULSE_SCALE)
+		and turret_scale.is_equal_approx(PulseWeaponPresentation.TAIL_TURRET_TRAVEL_PULSE_SCALE)
+		and repeater_scale.is_equal_approx(PulseWeaponPresentation.REPEATER_TRAVEL_PULSE_SCALE),
+		"travel pulses render exact long-slim, broad-short, and compact profiles"
+	)
+	var silhouette_travel := float(silhouette_snapshots[0].travel_duration)
+	presentation.advance_simulation(silhouette_travel + 0.01)
+	var lance_impact := presentation.get_node("PoolRoot/ShotSlot01/ImpactFlare") as MeshInstance3D
+	var turret_impact := presentation.get_node("PoolRoot/ShotSlot02/ImpactFlare") as MeshInstance3D
+	var repeater_impact := presentation.get_node("PoolRoot/ShotSlot03/ImpactFlare") as MeshInstance3D
+	lance_scale = lance_impact.global_basis.get_scale()
+	turret_scale = turret_impact.global_basis.get_scale()
+	repeater_scale = repeater_impact.global_basis.get_scale()
+	_check(
+		lance_impact.visible and turret_impact.visible and repeater_impact.visible
+		and lance_scale.y > lance_scale.x
+		and turret_scale.x > turret_scale.y
+		and repeater_scale.x < turret_scale.y,
+		"impact silhouettes preserve lance length, turret breadth, and repeater compactness"
+	)
+	var pool_identity_before_clear := presentation.get_resource_catalog_audit()
+	presentation.clear_effects()
+	_check(
+		presentation.get_active_effect_count() == 0
+		and presentation.get_resource_catalog_audit() == pool_identity_before_clear,
+		"profile cleanup hides every effect without replacing fixed pool resources"
+	)
+
 	# A hit changes presentation only after the travelling pulse reaches the end.
 	var hit_origin := Vector3(2.0, 3.0, 4.0)
 	var hit_end := Vector3(2.0, 3.0, -20.0)
@@ -278,6 +366,16 @@ func _run() -> void:
 		"valid hit request enters the same pool without a source entity"
 	)
 	var hit_state := presentation.get_active_shot_snapshots()[0]
+	var recycled_default_pulse := presentation.get_node(
+		"PoolRoot/ShotSlot01/TravellingPulse"
+	) as MeshInstance3D
+	_check(
+		StringName(hit_state.profile_id) == &"standard"
+		and recycled_default_pulse.global_basis.get_scale().is_equal_approx(
+			PulseWeaponPresentation.STANDARD_TRAVEL_PULSE_SCALE * 1.08
+		),
+		"cleared profile slots return to the unchanged standard geometry on reuse"
+	)
 	var travel_duration := float(hit_state.travel_duration)
 	_check(not bool(hit_state.impact_visible), "impact remains hidden during pulse travel")
 	var impacts_before := _impact_events.size()

@@ -44,6 +44,31 @@ const STYLE_MAGENTA: StringName = &"magenta"
 const DEFAULT_STYLE_ID: StringName = STYLE_CYAN
 const STYLE_IDS: Array[StringName] = [STYLE_CYAN, STYLE_AMBER, STYLE_MAGENTA]
 
+## Static geometry profiles are independent from colour style: the courier and
+## skirmisher deliberately share amber, but their tail turret and repeater must
+## still read differently in silhouette. Profiles only scale retained pool
+## nodes; they never alter travel timing, hit state, receipts, or authority.
+const PROFILE_STANDARD: StringName = &"standard"
+const PROFILE_SIEGE_LANCE: StringName = &"siege_lance"
+const PROFILE_TAIL_TURRET: StringName = &"tail_turret"
+const PROFILE_REPEATER: StringName = &"repeater"
+const DEFAULT_PROFILE_ID: StringName = PROFILE_STANDARD
+const PROFILE_IDS: Array[StringName] = [
+	PROFILE_STANDARD,
+	PROFILE_SIEGE_LANCE,
+	PROFILE_TAIL_TURRET,
+	PROFILE_REPEATER,
+]
+
+const STANDARD_TRAVEL_PULSE_SCALE := Vector3(1.18, 0.62, 1.0)
+const SIEGE_LANCE_TRAVEL_PULSE_SCALE := Vector3(0.68, 1.72, 1.0)
+const TAIL_TURRET_TRAVEL_PULSE_SCALE := Vector3(1.44, 0.46, 1.0)
+const REPEATER_TRAVEL_PULSE_SCALE := Vector3(0.50, 0.78, 1.0)
+const STANDARD_IMPACT_PROFILE_SCALE := Vector3.ONE
+const SIEGE_LANCE_IMPACT_PROFILE_SCALE := Vector3(0.82, 1.55, 1.0)
+const TAIL_TURRET_IMPACT_PROFILE_SCALE := Vector3(1.48, 0.72, 1.0)
+const REPEATER_IMPACT_PROFILE_SCALE := Vector3(0.64, 0.64, 1.0)
+
 const DEFAULT_POOL_CAPACITY := 6
 const MAX_POOL_CAPACITY := 8
 const BEAM_SEGMENTS_PER_SHOT := 3
@@ -180,11 +205,12 @@ func present_shot(
 		style_id: StringName = DEFAULT_STYLE_ID,
 		source_entity: Node = null,
 		hit: bool = false,
-		presentation_receipt_id: int = -1
+		presentation_receipt_id: int = -1,
+		profile_id: StringName = DEFAULT_PROFILE_ID
 	) -> bool:
 	if not _can_mutate_current_presentation():
 		return false
-	if not _can_present(origin, end, style_id, source_entity):
+	if not _can_present(origin, end, style_id, profile_id, source_entity):
 		_rejected_count += 1
 		return false
 
@@ -224,6 +250,7 @@ func present_shot(
 	slot["direction"] = (end - origin) / distance
 	slot["distance"] = distance
 	slot["style_id"] = style_id
+	slot["profile_id"] = profile_id
 	slot["source_instance_id"] = source_instance_id
 	slot["hit"] = hit
 	slot["impact_started"] = false
@@ -375,6 +402,10 @@ func get_supported_style_ids() -> Array[StringName]:
 	return STYLE_IDS.duplicate()
 
 
+func get_supported_profile_ids() -> Array[StringName]:
+	return PROFILE_IDS.duplicate()
+
+
 func get_statistics() -> Dictionary:
 	return {
 		"presented": _presented_count,
@@ -403,6 +434,7 @@ func get_active_shot_snapshots() -> Array[Dictionary]:
 			"direction": slot.get("direction", Vector3.FORWARD),
 			"distance": float(slot.get("distance", 0.0)),
 			"style_id": StringName(slot.get("style_id", DEFAULT_STYLE_ID)),
+			"profile_id": StringName(slot.get("profile_id", DEFAULT_PROFILE_ID)),
 			"source_instance_id": int(slot.get("source_instance_id", 0)),
 			"hit": bool(slot.get("hit", false)),
 			"age": age,
@@ -427,7 +459,7 @@ func get_integration_contract() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
-		"api": &"present_shot(origin_world, end_world, style_id, source_entity, hit, presentation_receipt_id=-1)",
+		"api": &"present_shot(origin_world, end_world, style_id, source_entity, hit, presentation_receipt_id=-1, profile_id=standard)",
 		"returns": &"bool_accepted",
 		"coordinate_space": &"world_space",
 		"authority_policy": &"external_hitscan_authority_presentation_only",
@@ -446,6 +478,7 @@ func get_integration_contract() -> Dictionary:
 		"minimum_shot_distance": MIN_SHOT_DISTANCE,
 		"maximum_shot_distance": MAX_SHOT_DISTANCE,
 		"supported_style_ids": PackedStringArray(get_supported_style_ids()),
+		"supported_profile_ids": PackedStringArray(get_supported_profile_ids()),
 		"collision_policy": &"none_presentation_only_nonblocking",
 		"audio_policy": &"none_voice_free_caller_owned",
 		"particle_policy": &"none_deterministic_mesh_sparks",
@@ -690,6 +723,7 @@ func _can_present(
 		origin: Vector3,
 		end: Vector3,
 		style_id: StringName,
+		profile_id: StringName,
 		source_entity: Node
 	) -> bool:
 	if (
@@ -705,6 +739,8 @@ func _can_present(
 	if not is_finite(distance) or distance < MIN_SHOT_DISTANCE or distance > MAX_SHOT_DISTANCE:
 		return false
 	if not STYLE_IDS.has(style_id):
+		return false
+	if not PROFILE_IDS.has(profile_id):
 		return false
 	if source_entity != null and not is_instance_valid(source_entity):
 		return false
@@ -839,6 +875,7 @@ func _build_pool() -> void:
 			"direction": Vector3.FORWARD,
 			"distance": 0.0,
 			"style_id": DEFAULT_STYLE_ID,
+			"profile_id": DEFAULT_PROFILE_ID,
 			"source_instance_id": 0,
 			"hit": false,
 			"impact_started": false,
@@ -947,6 +984,7 @@ func _update_slot(slot_index: int) -> void:
 	var travel_duration := float(slot.get("travel_duration", MIN_TRAVEL_DURATION))
 	var travel_progress := clampf(age / travel_duration, 0.0, 1.0)
 	var style_id := StringName(slot.get("style_id", DEFAULT_STYLE_ID))
+	var profile_id := StringName(slot.get("profile_id", DEFAULT_PROFILE_ID))
 	var width_scale := _style_width(style_id)
 
 	var root := slot.get("root") as Node3D
@@ -988,10 +1026,12 @@ func _update_slot(slot_index: int) -> void:
 			pulse,
 			origin.lerp(end, travel_progress),
 			direction,
-			Vector3(1.18, 0.62, 1.0) * width_scale
+			_travel_pulse_scale(profile_id) * width_scale
 		)
-	_update_beam_segments(slot, travelling, origin, direction, distance, travel_progress, width_scale)
-	_update_impact(slot, age - travel_duration, end, direction, width_scale, style_id)
+	_update_beam_segments(
+		slot, travelling, origin, direction, distance, travel_progress, width_scale, profile_id
+	)
+	_update_impact(slot, age - travel_duration, end, direction, width_scale, style_id, profile_id)
 	# This is deliberately the final operation. A synchronous callback may recycle
 	# this slot; returning immediately prevents stale outer writes from repainting
 	# the replacement effect.
@@ -1014,14 +1054,18 @@ func _update_beam_segments(
 		direction: Vector3,
 		distance: float,
 		travel_progress: float,
-		width_scale: float
+		width_scale: float,
+		profile_id: StringName
 	) -> void:
 	var segments := slot.get("segments") as Array[MeshInstance3D]
 	var head_distance := travel_progress * distance
 	for segment_index in segments.size():
 		var segment := segments[segment_index]
 		var center_distance := head_distance - float(segment_index) * SEGMENT_SPACING
-		var half_length := minf(SEGMENT_LENGTH * 0.5, distance * 0.5)
+		var half_length := minf(
+			SEGMENT_LENGTH * _segment_length_scale(profile_id) * 0.5,
+			distance * 0.5
+		)
 		var start_distance := clampf(center_distance - half_length, 0.0, distance)
 		var end_distance := clampf(center_distance + half_length, 0.0, distance)
 		var visible_length := end_distance - start_distance
@@ -1033,7 +1077,13 @@ func _update_beam_segments(
 			segment,
 			origin + direction * visible_center,
 			direction,
-			Vector3(0.14, 0.14, visible_length) * width_scale
+			Vector3(0.14, 0.14, visible_length)
+				* width_scale
+				* Vector3(
+					_profile_width_scale(profile_id),
+					_profile_width_scale(profile_id),
+					1.0
+				)
 		)
 
 
@@ -1043,7 +1093,8 @@ func _update_impact(
 		end: Vector3,
 		direction: Vector3,
 		width_scale: float,
-		style_id: StringName
+		style_id: StringName,
+		profile_id: StringName
 	) -> void:
 	var impact := slot.get("impact") as MeshInstance3D
 	var impact_backwash := slot.get("impact_backwash") as MeshInstance3D
@@ -1061,7 +1112,13 @@ func _update_impact(
 
 	var phase := clampf(impact_age / IMPACT_DURATION, 0.0, 1.0)
 	var flare_scale := (1.15 + sin(phase * PI) * 1.05) * width_scale
-	_set_world_mesh_transform(impact, end, direction, Vector3(1.12, 1.12, 1.0) * flare_scale)
+	var impact_profile_scale := _impact_profile_scale(profile_id)
+	_set_world_mesh_transform(
+		impact,
+		end,
+		direction,
+		Vector3(1.12, 1.12, 1.0) * flare_scale * impact_profile_scale
+	)
 	impact_light.global_position = end
 	impact_light.light_energy = (1.0 - phase) * 2.7 * _style_light(style_id)
 
@@ -1079,7 +1136,11 @@ func _update_impact(
 			0.1 + backwash_envelope * 0.1,
 			0.1 + backwash_envelope * 0.1,
 			0.06 + backwash_envelope * 0.76
-		) * width_scale
+		) * width_scale * Vector3(
+			_profile_width_scale(profile_id),
+			_profile_width_scale(profile_id),
+			_segment_length_scale(profile_id)
+		)
 	)
 
 	var radial_a := direction.cross(Vector3.UP)
@@ -1099,8 +1160,58 @@ func _update_impact(
 			sparks[spark_index],
 			end + spark_direction * travel,
 			spark_direction,
-			Vector3(0.065, 0.065, maxf(0.065, 0.52 * (1.0 - phase))) * width_scale
+			Vector3(0.065, 0.065, maxf(0.065, 0.52 * (1.0 - phase)))
+				* width_scale
+				* Vector3(
+					_profile_width_scale(profile_id),
+					_profile_width_scale(profile_id),
+					_segment_length_scale(profile_id)
+				)
 		)
+
+
+func _travel_pulse_scale(profile_id: StringName) -> Vector3:
+	match profile_id:
+		PROFILE_SIEGE_LANCE:
+			return SIEGE_LANCE_TRAVEL_PULSE_SCALE
+		PROFILE_TAIL_TURRET:
+			return TAIL_TURRET_TRAVEL_PULSE_SCALE
+		PROFILE_REPEATER:
+			return REPEATER_TRAVEL_PULSE_SCALE
+	return STANDARD_TRAVEL_PULSE_SCALE
+
+
+func _impact_profile_scale(profile_id: StringName) -> Vector3:
+	match profile_id:
+		PROFILE_SIEGE_LANCE:
+			return SIEGE_LANCE_IMPACT_PROFILE_SCALE
+		PROFILE_TAIL_TURRET:
+			return TAIL_TURRET_IMPACT_PROFILE_SCALE
+		PROFILE_REPEATER:
+			return REPEATER_IMPACT_PROFILE_SCALE
+	return STANDARD_IMPACT_PROFILE_SCALE
+
+
+func _segment_length_scale(profile_id: StringName) -> float:
+	match profile_id:
+		PROFILE_SIEGE_LANCE:
+			return 1.65
+		PROFILE_TAIL_TURRET:
+			return 0.62
+		PROFILE_REPEATER:
+			return 0.44
+	return 1.0
+
+
+func _profile_width_scale(profile_id: StringName) -> float:
+	match profile_id:
+		PROFILE_SIEGE_LANCE:
+			return 0.78
+		PROFILE_TAIL_TURRET:
+			return 1.34
+		PROFILE_REPEATER:
+			return 0.64
+	return 1.0
 
 
 func _set_world_mesh_transform(
@@ -1133,6 +1244,7 @@ func _deactivate_slot(slot_index: int, emit_completion: bool) -> int:
 	slot["active"] = false
 	slot["source_instance_id"] = 0
 	slot["presentation_receipt_id"] = -1
+	slot["profile_id"] = DEFAULT_PROFILE_ID
 	slot["age"] = 0.0
 	_slots[slot_index] = slot
 	_active_effect_count = maxi(0, _active_effect_count - 1)
@@ -1396,6 +1508,7 @@ func _slot_state_is_valid() -> bool:
 		if active:
 			live_count += 1
 			var activation_serial := int(slot.get("activation_serial", 0))
+			var profile_id := StringName(slot.get("profile_id", DEFAULT_PROFILE_ID))
 			var origin := slot.get("origin", Vector3.ZERO) as Vector3
 			var end := slot.get("end", Vector3.ZERO) as Vector3
 			var direction := slot.get("direction", Vector3.ZERO) as Vector3
@@ -1405,6 +1518,7 @@ func _slot_state_is_valid() -> bool:
 				or activation_serial <= 0
 				or activation_serial > _latest_activation_serial
 				or live_activation_serials.has(activation_serial)
+				or not PROFILE_IDS.has(profile_id)
 				or not origin.is_finite()
 				or not end.is_finite()
 				or not direction.is_finite()

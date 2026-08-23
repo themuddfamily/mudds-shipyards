@@ -1122,8 +1122,9 @@ func _test_lance_firing_and_receipts() -> void:
 	_check(
 		snapshots.size() == 1
 		and StringName((snapshots[0] as Dictionary).style_id) == &"magenta"
+		and StringName((snapshots[0] as Dictionary).profile_id) == &"siege_lance"
 		and int((snapshots[0] as Dictionary).source_instance_id) == picket.get_instance_id(),
-		"the lance is presented in magenta, distinct from the player's cyan and the defender's amber"
+		"the lance dispatch selects its long non-colour silhouette as well as magenta"
 	)
 	_check(
 		StandoffPicketOpponent.LANCE_PULSE_STYLE != &"cyan"

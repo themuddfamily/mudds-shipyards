@@ -152,6 +152,10 @@ func get_pulse_style_id() -> StringName:
 	return PulseWeaponPresentation.STYLE_AMBER
 
 
+func get_pulse_profile_id() -> StringName:
+	return PulseWeaponPresentation.PROFILE_STANDARD
+
+
 func get_weapon_id() -> StringName:
 	return &"resolver_backed_cannon"
 
@@ -237,6 +241,8 @@ func get_resolver_backed_errors() -> PackedStringArray:
 		errors.append("weapon origin tolerance must be finite and positive")
 	if not PulseWeaponPresentation.STYLE_IDS.has(get_pulse_style_id()):
 		errors.append("pulse style must be one of the pooled presentation's frozen styles")
+	if not PulseWeaponPresentation.PROFILE_IDS.has(get_pulse_profile_id()):
+		errors.append("pulse profile must be one of the pooled presentation's frozen silhouettes")
 	if _registered and not is_instance_valid(_get_combat_authority()):
 		errors.append("registration is claimed without a live combat authority")
 	if _shot_receipts.size() > MAX_PENDING_SHOT_RECEIPTS:
@@ -361,7 +367,8 @@ func _present_resolved_shot(
 			get_pulse_style_id(),
 			self,
 			bool(result.get("hit", false)),
-			receipt_id if damaged else -1
+			receipt_id if damaged else -1,
+			get_pulse_profile_id()
 		)
 	if damaged and not presented:
 		# The pool refused or is unavailable. Authority is already final, so the

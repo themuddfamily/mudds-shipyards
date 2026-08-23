@@ -51,6 +51,7 @@ const DEFAULT_SOURCE_ID := 2102
 const DEFAULT_FACTION: StringName = &"range_defence"
 const LANCE_WEAPON_ID: StringName = &"picket_siege_lance"
 const LANCE_PULSE_STYLE: StringName = &"magenta"
+const LANCE_PULSE_PROFILE: StringName = PulseWeaponPresentation.PROFILE_SIEGE_LANCE
 
 const STATE_DORMANT: StringName = &"dormant"
 const STATE_CLOSING: StringName = &"closing"
@@ -473,6 +474,7 @@ func get_audit_report() -> Dictionary:
 			"registered": _registered,
 			"weapon_id": LANCE_WEAPON_ID,
 			"pulse_style_id": LANCE_PULSE_STYLE,
+			"pulse_profile_id": LANCE_PULSE_PROFILE,
 		},
 		"weapon_definition": (
 			_weapon_definition.get_definition_snapshot()
@@ -1101,7 +1103,8 @@ func _present_lance_shot(
 			LANCE_PULSE_STYLE,
 			self,
 			bool(result.get("hit", false)),
-			receipt_id if damaged else -1
+			receipt_id if damaged else -1,
+			LANCE_PULSE_PROFILE
 		)
 	if damaged and not presented:
 		# The pool refused or is unavailable. Authority is already final, so the

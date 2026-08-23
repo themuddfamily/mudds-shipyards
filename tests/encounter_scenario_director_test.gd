@@ -1121,6 +1121,20 @@ func _test_fire_authorization_is_withdrawn_on_the_concluding_frame() -> void:
 
 func _test_production_bounds_and_audit() -> void:
 	var director := DirectorScript.new() as EncounterScenarioDirector
+	var production_courier := COURIER_SCENE.instantiate() as CourierRunnerOpponent
+	var production_skirmisher := SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
+	_check(
+		production_courier.get_pulse_style_id() == production_skirmisher.get_pulse_style_id()
+		and production_courier.get_pulse_profile_id()
+			== PulseWeaponPresentation.PROFILE_TAIL_TURRET
+		and production_skirmisher.get_pulse_profile_id()
+			== PulseWeaponPresentation.PROFILE_REPEATER
+		and production_courier.get_pulse_profile_id()
+			!= production_skirmisher.get_pulse_profile_id(),
+		"shared amber tail-turret and repeater shots select distinct non-colour pool profiles"
+	)
+	production_courier.free()
+	production_skirmisher.free()
 	_check(
 		director.get_validation_errors().is_empty(),
 		"the authored production director defaults pass their own audit"

@@ -44,6 +44,7 @@ const COURIER_WEAPON_ID: StringName = &"courier_tail_deterrent"
 ## Ordinary opponent gun, so it takes the pooled amber; magenta stays reserved
 ## for the picket's heavy charged lance.
 const COURIER_PULSE_STYLE: StringName = &"amber"
+const COURIER_PULSE_PROFILE: StringName = PulseWeaponPresentation.PROFILE_TAIL_TURRET
 
 ## A pale sand hull with a warm cargo stripe. Deliberately the brightest and
 ## most civilian-looking opponent in the roster: at the distance you first see
@@ -143,6 +144,10 @@ func get_weapon_id() -> StringName:
 
 func get_pulse_style_id() -> StringName:
 	return COURIER_PULSE_STYLE
+
+
+func get_pulse_profile_id() -> StringName:
+	return COURIER_PULSE_PROFILE
 
 
 ## Fixes the boundary run. Called by the scenario that dispatched the courier so
@@ -250,6 +255,7 @@ func get_audit_report() -> Dictionary:
 			"registered": is_combat_source_registered(),
 			"weapon_id": COURIER_WEAPON_ID,
 			"pulse_style_id": COURIER_PULSE_STYLE,
+			"pulse_profile_id": COURIER_PULSE_PROFILE,
 		},
 		"escape": {
 			"run_set": _escape_run_set,
