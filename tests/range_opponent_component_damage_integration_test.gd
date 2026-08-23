@@ -208,6 +208,11 @@ func _test_production_lifecycle() -> void:
 	opponent.add_child(lifecycle_proxy)
 	await process_frame
 	await physics_frame
+	var damage_audio: RefCounted = opponent.get_damage_audio_binding()
+	var damage_cues: Array[StringName] = []
+	damage_audio.semantic_damage_cue_emitted.connect(func(cue_id: StringName, _intensity: float) -> void: damage_cues.append(cue_id))
+	_check(bool(damage_audio.get_snapshot().attached), "RangeOpponent composes its damage audio binding")
+	_check(int(damage_audio.get_snapshot().maximum_simultaneous_voices) == 2, "opponent damage audio preserves a two-voice ceiling")
 
 	var dormant := opponent.get_component_damage_snapshot()
 	_check(
@@ -219,6 +224,7 @@ func _test_production_lifecycle() -> void:
 
 	var spawn := Transform3D(Basis(Vector3.UP, 0.3), Vector3(8.0, 3.0, -15.0))
 	var activation := opponent.activate_with_result(spawn)
+	_check(damage_cues.is_empty(), "activation reset clears stale opponent damage cues")
 	var active_snapshot := opponent.get_component_damage_snapshot()
 	_check(
 		bool(activation.get("accepted", false))
@@ -236,6 +242,7 @@ func _test_production_lifecycle() -> void:
 	var smoke := opponent.get_node_or_null("EngineSmoke") as CPUParticles3D
 	var visual := opponent.get_node_or_null("RangeInterceptorVisual") as Node3D
 	opponent.apply_damage(34.0, opponent.global_position + Vector3.RIGHT)
+	_check(damage_cues == [&"opponent_component_degraded"], "degraded component stage emits one external semantic cue")
 	var damaged := _hull_state(opponent)
 	_check(
 		is_equal_approx(opponent.get_health(), 51.0)
@@ -262,6 +269,7 @@ func _test_production_lifecycle() -> void:
 		opponent.commit_deferred_damage_presentation(700) and smoke.emitting,
 		"the unchanged presentation receipt commits the critical smoke cue"
 	)
+	_check(damage_cues == [&"opponent_component_degraded", &"opponent_component_critical"], "critical component stage emits one deduplicated semantic cue")
 
 	var before_rejections := opponent.get_component_damage_snapshot()
 	var health_event_count := _health_events.size()
@@ -328,7 +336,9 @@ func _test_production_lifecycle() -> void:
 		"whole-owner re-entry preserves the exact model generation, sequence, revision, and health"
 	)
 
+	var cues_before_third := damage_cues.size()
 	var third_activation := opponent.activate_with_result(spawn)
+	_check(damage_cues.size() == cues_before_third, "reuse generation clears prior opponent damage presentation without emitting stale cues")
 	var generation_three := opponent.get_component_damage_snapshot()
 	_check(
 		bool(third_activation.get("accepted", false))

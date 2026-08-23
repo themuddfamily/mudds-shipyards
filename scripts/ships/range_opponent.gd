@@ -4,6 +4,9 @@ extends CharacterBody3D
 const RangeOpponentDamageAdapterType := preload(
 	"res://scripts/combat/range_opponent_component_damage_adapter.gd"
 )
+const RangeOpponentDamageAudioBindingType := preload(
+	"res://scripts/audio/range_opponent_component_damage_audio_binding.gd"
+)
 
 ## Reusable range-defense interceptor for the prototype combat encounter.
 ##
@@ -103,6 +106,7 @@ var _chamfered_cylinder_cache: Dictionary = {}
 var _active := false
 var _built := false
 var _hull_damage: RangeOpponentComponentDamageAdapter
+var _damage_audio_binding: RefCounted
 var _elapsed := 0.0
 var _cooldown_remaining := 0.0
 var _telegraph_remaining := 0.0
@@ -146,6 +150,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	_ensure_hull_damage_adapter()
+	_bind_damage_audio()
 	_build_interceptor()
 	if _active:
 		if _apply_spawn_on_ready:
@@ -158,6 +163,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_tearing_down = true
+	_unbind_damage_audio()
 	_clear_destruction_effects()
 
 
@@ -257,6 +263,8 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 ## evidence. Existing valid callers may continue to ignore the detached result.
 func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_ensure_hull_damage_adapter()
+	if _damage_audio_binding != null:
+		_damage_audio_binding.reset_for_reuse()
 	var reset_result := _hull_damage.reset_for_reuse(maximum_health)
 	if not bool(reset_result.get("accepted", false)):
 		return {
@@ -368,6 +376,19 @@ func apply_damage(
 
 func get_health() -> float:
 	return _hull_damage.get_health() if _hull_damage != null else 0.0
+
+func get_damage_audio_binding() -> RefCounted:
+	return _damage_audio_binding
+
+func _bind_damage_audio() -> void:
+	_unbind_damage_audio()
+	_damage_audio_binding = RangeOpponentDamageAudioBindingType.new()
+	_damage_audio_binding.attach(self)
+
+func _unbind_damage_audio() -> void:
+	if _damage_audio_binding != null:
+		_damage_audio_binding.detach()
+	_damage_audio_binding = null
 
 
 func get_maximum_health() -> float:
