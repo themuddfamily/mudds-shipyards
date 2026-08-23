@@ -344,6 +344,16 @@ var _engine_lights: Array[OmniLight3D] = []
 var _engine_exhaust_damage_overlay: StandardMaterial3D
 var _engine_exhaust_original_overlays: Dictionary = {}
 var _engine_exhaust_original_light_colors: Dictionary = {}
+var _weapon_component_emitters: Array[MeshInstance3D] = []
+var _weapon_component_original_scales: Dictionary = {}
+var _weapon_component_original_overlays: Dictionary = {}
+var _weapon_component_original_transparency: Dictionary = {}
+var _weapon_component_original_visibility: Dictionary = {}
+var _weapon_component_damage_overlay: StandardMaterial3D
+var _weapon_component_fallback_mesh: Mesh
+var _weapon_component_fallback_node_count := 0
+var _weapon_component_fallback_mesh_count := 0
+var _weapon_component_presentation_initialized := false
 var _materials: Dictionary = {}
 var _fire_from_left := true
 var _damage_presentation: HeroDamagePresentation
@@ -459,6 +469,9 @@ func _ready() -> void:
 	_ensure_component_damage()
 	_component_damage_final_collision_capture_open = true
 	call_deferred("_close_component_damage_final_collision_capture")
+	# Fleet subclasses finish replacing the base visual after super._ready().
+	# Discover their retained muzzle lenses only after that replacement settles.
+	call_deferred("_initialize_weapon_component_presentation")
 	_set_camera_current(_piloted)
 	if _piloted and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -1922,6 +1935,7 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 		# Component reset is the point where the exhaust grade becomes nominal;
 		# restore its shared overlay and geometry before reuse observers run.
 		_sync_engine_visuals_immediately()
+		_sync_weapon_component_presentation()
 	_set_camera_current(false)
 	engine_state_changed.emit(_engine_state)
 	hull_changed.emit(_hull, maximum_hull)
@@ -3811,10 +3825,12 @@ func _on_component_state_changed(
 		state: int,
 		integrity: float
 	) -> void:
+	_sync_weapon_component_presentation()
 	component_damage_changed.emit(component_id, state, integrity)
 
 
 func _on_component_repair_committed(progress: Dictionary) -> void:
+	_sync_weapon_component_presentation()
 	component_repair_progressed.emit(progress.duplicate(true))
 
 
@@ -3833,6 +3849,7 @@ func _sync_damage_presentation() -> void:
 		state,
 		velocity
 	)
+	_sync_weapon_component_presentation()
 
 
 func _apply_collision_damage(pre_collision_velocity: Vector3) -> void:
@@ -5506,6 +5523,228 @@ func _ensure_engine_exhaust_damage_overlay() -> void:
 	_engine_exhaust_damage_overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_engine_exhaust_damage_overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_engine_exhaust_damage_overlay.emission_enabled = true
+
+
+## Static, authority-free grade for the weaker of the two wing-mounted weapon
+## sections. HeroShip's existing fire-status and dispatch methods remain the
+## only firing authority; this snapshot only drives retained emitter geometry.
+func get_weapon_component_presentation_profile() -> Dictionary:
+	var integrity := 1.0
+	var authoritative_state := ShipComponentDamage.ComponentState.NOMINAL
+	if _component_damage != null and _component_damage.is_configured():
+		var port_integrity := _component_damage.get_component_integrity(
+			ShipComponentDamage.COMPONENT_PORT_WING
+		)
+		var starboard_integrity := _component_damage.get_component_integrity(
+			ShipComponentDamage.COMPONENT_STARBOARD_WING
+		)
+		integrity = clampf(minf(port_integrity, starboard_integrity), 0.0, 1.0)
+		authoritative_state = maxi(
+			_component_damage.get_component_state(ShipComponentDamage.COMPONENT_PORT_WING),
+			_component_damage.get_component_state(ShipComponentDamage.COMPONENT_STARBOARD_WING)
+		)
+	var stage: StringName = &"nominal"
+	var geometry_multiplier := 1.0
+	var intensity_multiplier := 1.0
+	var visible_fraction := 1.0
+	var overlay_color := Color.TRANSPARENT
+	if authoritative_state >= ShipComponentDamage.ComponentState.FAILED:
+		stage = &"failed"
+		geometry_multiplier = 0.0
+		intensity_multiplier = 0.0
+		visible_fraction = 0.0
+		overlay_color = Color("ff3b35")
+	elif integrity <= 0.40:
+		stage = &"critical"
+		geometry_multiplier = 0.48
+		intensity_multiplier = 0.36
+		visible_fraction = 0.5
+		overlay_color = Color("ff5944")
+	elif authoritative_state >= ShipComponentDamage.ComponentState.IMPAIRED:
+		stage = &"degraded"
+		geometry_multiplier = 0.76
+		intensity_multiplier = 0.70
+		overlay_color = Color("ffd166")
+	return {
+		"stage": stage,
+		"weapon_integrity": integrity,
+		"authoritative_state": authoritative_state,
+		"geometry_multiplier": geometry_multiplier,
+		"intensity_multiplier": intensity_multiplier,
+		"visible_fraction": visible_fraction,
+		"overlay_color": overlay_color,
+		"emitter_count": _weapon_component_emitters.size(),
+		"fallback_node_count": _weapon_component_fallback_node_count,
+		"fallback_mesh_count": _weapon_component_fallback_mesh_count,
+		"maximum_damage_overlay_materials_per_ship": 1,
+		"transition_policy": &"static",
+		"flashing": false,
+		"motion_animation_added": false,
+		"collision_shapes": 0,
+		"fire_authority": false,
+	}.duplicate(true)
+
+
+func get_weapon_component_emitter_snapshot() -> Dictionary:
+	_ensure_weapon_component_emitters()
+	var emitters: Array[Dictionary] = []
+	for emitter in _weapon_component_emitters:
+		if not is_instance_valid(emitter):
+			continue
+		var overlay := emitter.material_overlay as StandardMaterial3D
+		emitters.append({
+			"name": String(emitter.name),
+			"instance_id": emitter.get_instance_id(),
+			"global_position": emitter.global_position,
+			"scale": emitter.scale,
+			"visible": emitter.visible and emitter.is_visible_in_tree(),
+			"transparency": emitter.transparency,
+			"overlay_color": overlay.emission if overlay != null else Color.TRANSPARENT,
+		})
+	var snapshot := get_weapon_component_presentation_profile()
+	snapshot["emitters"] = emitters
+	snapshot["visible_emitter_count"] = emitters.filter(
+		func(record: Dictionary) -> bool: return bool(record.get("visible", false))
+	).size()
+	return snapshot.duplicate(true)
+
+
+func _sync_weapon_component_presentation() -> void:
+	if not _weapon_component_presentation_initialized:
+		return
+	_ensure_weapon_component_emitters()
+	if _weapon_component_emitters.is_empty():
+		return
+	var profile := get_weapon_component_presentation_profile()
+	var stage := StringName(profile.get("stage", &"nominal"))
+	var geometry_multiplier := float(profile.get("geometry_multiplier", 1.0))
+	var intensity_multiplier := float(profile.get("intensity_multiplier", 1.0))
+	var overlay: Material = null
+	if stage in [&"degraded", &"critical"]:
+		_ensure_weapon_component_damage_overlay()
+		var color := profile.get("overlay_color", Color.WHITE) as Color
+		_weapon_component_damage_overlay.albedo_color = Color(color, 0.56)
+		_weapon_component_damage_overlay.emission = color
+		_weapon_component_damage_overlay.emission_energy_multiplier = intensity_multiplier
+		overlay = _weapon_component_damage_overlay
+	for index in _weapon_component_emitters.size():
+		var emitter := _weapon_component_emitters[index]
+		if not is_instance_valid(emitter):
+			continue
+		var instance_id := emitter.get_instance_id()
+		var base_scale := _weapon_component_original_scales.get(
+			instance_id, Vector3.ONE
+		) as Vector3
+		emitter.scale = base_scale * geometry_multiplier
+		emitter.material_overlay = (
+			overlay
+			if overlay != null
+			else _weapon_component_original_overlays.get(instance_id) as Material
+		)
+		var base_transparency := float(
+			_weapon_component_original_transparency.get(instance_id, 0.0)
+		)
+		emitter.transparency = clampf(
+			base_transparency + (1.0 - intensity_multiplier) * 0.75,
+			0.0,
+			1.0
+		)
+		var visible := bool(_weapon_component_original_visibility.get(instance_id, true))
+		if stage == &"critical":
+			visible = visible and index % 2 == 0
+		elif stage == &"failed":
+			visible = false
+		emitter.visible = visible and not _destroyed
+
+
+func _initialize_weapon_component_presentation() -> void:
+	_weapon_component_presentation_initialized = true
+	_sync_weapon_component_presentation()
+
+
+func _ensure_weapon_component_emitters() -> void:
+	# Component configuration can emit during HeroShip._ready(), before variant
+	# visuals have finished registering their authored lenses. Defer discovery
+	# until the complete craft is ready so that fallback geometry is only used
+	# when a retained variant genuinely has no independent live emitter mesh.
+	if not is_node_ready():
+		return
+	var retained: Array[MeshInstance3D] = []
+	for emitter in _weapon_component_emitters:
+		if is_instance_valid(emitter):
+			retained.append(emitter)
+	if retained.size() >= 2:
+		_weapon_component_emitters = retained
+		return
+	_weapon_component_emitters.clear()
+	var visual := get_variant_visual_root()
+	var all_lenses: Array[MeshInstance3D] = []
+	if visual != null:
+		for candidate in visual.find_children("*", "MeshInstance3D", true, false):
+			if String(candidate.name).ends_with("MuzzleLens"):
+				all_lenses.append(candidate as MeshInstance3D)
+	for lens in all_lenses:
+		if _weapon_emitter_is_authored_visible(lens, visual):
+			_weapon_component_emitters.append(lens)
+	if _weapon_component_emitters.size() < 2:
+		_weapon_component_emitters.clear()
+		var reusable_mesh := all_lenses[0].mesh if not all_lenses.is_empty() else null
+		if reusable_mesh == null:
+			var fallback_mesh := SphereMesh.new()
+			fallback_mesh.radius = 0.11
+			fallback_mesh.height = 0.22
+			fallback_mesh.radial_segments = 12
+			fallback_mesh.rings = 6
+			fallback_mesh.material = _materials.get("cyan") as Material
+			reusable_mesh = fallback_mesh
+			_weapon_component_fallback_mesh_count = 1
+		_weapon_component_fallback_mesh = reusable_mesh
+		for marker in [_muzzle_left, _muzzle_right]:
+			if marker == null or not is_instance_valid(marker):
+				continue
+			var emitter := marker.get_node_or_null("WeaponChargeEmitter") as MeshInstance3D
+			if emitter == null:
+				emitter = MeshInstance3D.new()
+				emitter.name = "WeaponChargeEmitter"
+				emitter.mesh = _weapon_component_fallback_mesh
+				emitter.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				emitter.set_meta("presentation_only", true)
+				emitter.set_meta("gameplay_authority", false)
+				marker.add_child(emitter)
+				_weapon_component_fallback_node_count += 1
+			_weapon_component_emitters.append(emitter)
+	_weapon_component_emitters.sort_custom(
+		func(left: MeshInstance3D, right: MeshInstance3D) -> bool:
+			return left.global_position.x < right.global_position.x
+	)
+	for emitter in _weapon_component_emitters:
+		var instance_id := emitter.get_instance_id()
+		_weapon_component_original_scales[instance_id] = emitter.scale
+		_weapon_component_original_overlays[instance_id] = emitter.material_overlay
+		_weapon_component_original_transparency[instance_id] = emitter.transparency
+		_weapon_component_original_visibility[instance_id] = emitter.visible
+
+
+func _weapon_emitter_is_authored_visible(emitter: MeshInstance3D, visual: Node3D) -> bool:
+	var current: Node = emitter
+	while current != null:
+		if current is Node3D and not (current as Node3D).visible:
+			return false
+		if current == visual:
+			break
+		current = current.get_parent()
+	return current == visual
+
+
+func _ensure_weapon_component_damage_overlay() -> void:
+	if _weapon_component_damage_overlay != null:
+		return
+	_weapon_component_damage_overlay = StandardMaterial3D.new()
+	_weapon_component_damage_overlay.resource_name = "WeaponComponentDamageOverlay"
+	_weapon_component_damage_overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_weapon_component_damage_overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_weapon_component_damage_overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_weapon_component_damage_overlay.emission_enabled = true
 
 
 func _sync_imported_canopy_immediately() -> void:
