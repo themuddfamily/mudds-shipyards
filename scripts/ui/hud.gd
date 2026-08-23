@@ -1415,6 +1415,8 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 		elif control is OptionButton:
 			var option := control as OptionButton
 			option.select(clampi(int(value), 0, option.item_count - 1))
+		elif control is LineEdit:
+			(control as LineEdit).text = str(value)
 	_updating_settings = false
 
 
@@ -3103,6 +3105,10 @@ func _build_settings_page() -> void:
 	_add_option_setting(display_group, &"graphics_profile", "Graphics quality", ["Low", "Medium", "High"], 2)
 	_add_option_setting(display_group, &"window_mode", "Window mode", ["Windowed", "Borderless", "Fullscreen"], 0)
 
+	var network_group := _settings_group(left_column, "MULTIPLAYER", "Defaults for the server browser; joining remains caller-owned.")
+	_add_text_setting(network_group, &"multiplayer_display_name", "Display name", "Pilot")
+	_add_spin_setting(network_group, &"network_default_port", "Default host/join port", 1, 65535, 1, 27101)
+
 	var audio_group := _settings_group(right_column, "AUDIO MIX", "Independent linear volume controls.")
 	_add_slider_setting(audio_group, &"master_volume", "Master", 0.0, 1.0, 0.01, 1.0)
 	_add_slider_setting(audio_group, &"ambience_volume", "Shipyard ambience", 0.0, 1.0, 0.01, 1.0)
@@ -3800,6 +3806,54 @@ func _add_slider_setting(
 	_settings_controls[key] = slider
 	_settings_value_labels[key] = value_label
 	_update_setting_value_label(key, initial)
+
+
+func _add_text_setting(parent: VBoxContainer, key: StringName, title: String, initial: String) -> void:
+	var row := VBoxContainer.new()
+	row.name = String(key).to_pascal_case() + "Row"
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	row.add_child(_label(title, 11, PRIMARY))
+	var edit := LineEdit.new()
+	edit.name = String(key).to_pascal_case() + "Control"
+	edit.text = initial
+	edit.max_length = 32
+	edit.placeholder_text = initial
+	edit.custom_minimum_size.y = 36.0
+	edit.focus_mode = Control.FOCUS_ALL
+	edit.add_theme_font_size_override("font_size", 11)
+	edit.text_submitted.connect(func(value: String) -> void: _on_setting_value_changed(key, value.strip_edges()))
+	edit.focus_exited.connect(func() -> void: _on_setting_value_changed(key, edit.text.strip_edges()))
+	row.add_child(edit)
+	_settings_controls[key] = edit
+
+
+func _add_spin_setting(
+	parent: VBoxContainer,
+	key: StringName,
+	title: String,
+	minimum: float,
+	maximum: float,
+	step: float,
+	initial: float
+) -> void:
+	var row := VBoxContainer.new()
+	row.name = String(key).to_pascal_case() + "Row"
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	row.add_child(_label(title, 11, PRIMARY))
+	var spin := SpinBox.new()
+	spin.name = String(key).to_pascal_case() + "Control"
+	spin.min_value = minimum
+	spin.max_value = maximum
+	spin.step = step
+	spin.value = initial
+	spin.custom_minimum_size.y = 36.0
+	spin.focus_mode = Control.FOCUS_ALL
+	spin.add_theme_font_size_override("font_size", 11)
+	spin.value_changed.connect(func(value: float) -> void: _on_setting_value_changed(key, value))
+	row.add_child(spin)
+	_settings_controls[key] = spin
 
 
 func _add_toggle_setting(parent: VBoxContainer, key: StringName, title: String, initial: bool) -> void:

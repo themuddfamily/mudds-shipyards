@@ -50,7 +50,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 3
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 4
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -90,6 +90,12 @@ const DEFAULT_REDUCED_MOTION := false
 const DEFAULT_CAPTIONS_ENABLED := false
 const DEFAULT_REDUCED_DYNAMIC_RANGE := false
 const DEFAULT_SHOW_TUTORIALS := true
+const MIN_MULTIPLAYER_DISPLAY_NAME_LENGTH := 1
+const MAX_MULTIPLAYER_DISPLAY_NAME_LENGTH := 32
+const DEFAULT_MULTIPLAYER_DISPLAY_NAME := "Pilot"
+const MIN_NETWORK_DEFAULT_PORT := 1
+const MAX_NETWORK_DEFAULT_PORT := 65535
+const DEFAULT_NETWORK_DEFAULT_PORT := 27101
 
 const _SECTION_META := "meta"
 const _SECTION_CONTROLS := "controls"
@@ -99,6 +105,7 @@ const _SECTION_AUDIO := "audio"
 const _SECTION_GRAPHICS := "graphics"
 const _SECTION_DISPLAY := "display"
 const _SECTION_ACCESSIBILITY := "accessibility"
+const _SECTION_NETWORK := "network"
 
 const _USER_DATA_SECTION_KEYS := ["schema_version", "values"]
 const _USER_DATA_VALUE_KEYS := [
@@ -122,7 +129,17 @@ const _USER_DATA_VALUE_KEYS := [
 	"captions_enabled",
 	"reduced_dynamic_range",
 	"show_tutorials",
+	"multiplayer_display_name",
+	"network_default_port",
 	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V3 := [
+	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
+	"invert_on_foot_y", "camera_fov", "master_volume", "ambience_volume",
+	"engine_volume", "weapons_volume", "ui_volume", "music_volume",
+	"graphics_profile", "window_mode", "control_preset", "ui_scale",
+	"colorblind_palette", "reduced_motion", "captions_enabled",
+	"reduced_dynamic_range", "show_tutorials", "input_binding_profile",
 ]
 const _USER_DATA_VALUE_KEYS_V2 := [
 	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
@@ -374,6 +391,22 @@ var show_tutorials := DEFAULT_SHOW_TUTORIALS:
 		show_tutorials = validated
 		_queue_change(&"show_tutorials", validated)
 
+var multiplayer_display_name := DEFAULT_MULTIPLAYER_DISPLAY_NAME:
+	set(value):
+		var validated := _validated_multiplayer_display_name(value)
+		if multiplayer_display_name == validated:
+			return
+		multiplayer_display_name = validated
+		_queue_change(&"multiplayer_display_name", validated)
+
+var network_default_port := DEFAULT_NETWORK_DEFAULT_PORT:
+	set(value):
+		var validated := clampi(int(value), MIN_NETWORK_DEFAULT_PORT, MAX_NETWORK_DEFAULT_PORT)
+		if network_default_port == validated:
+			return
+		network_default_port = validated
+		_queue_change(&"network_default_port", validated)
+
 ## Detached on read and validated on write. Callers cannot mutate the canonical
 ## profile through an aliased Resource; use [method set_input_binding_profile]
 ## and then explicitly call [method apply_input_bindings].
@@ -428,6 +461,8 @@ func to_dictionary() -> Dictionary:
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
 		"show_tutorials": show_tutorials,
+		"multiplayer_display_name": multiplayer_display_name,
+		"network_default_port": network_default_port,
 		"input_binding_profile": _input_binding_profile.to_dictionary(),
 	}
 
@@ -460,6 +495,8 @@ func to_user_data_payload() -> Dictionary:
 			"captions_enabled": captions_enabled,
 			"reduced_dynamic_range": reduced_dynamic_range,
 			"show_tutorials": show_tutorials,
+			"multiplayer_display_name": multiplayer_display_name,
+			"network_default_port": network_default_port,
 			"input_binding_profile": _input_profile_to_json_dictionary(
 				_input_binding_profile
 			),
@@ -508,6 +545,8 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	captions_enabled = bool(values.captions_enabled)
 	reduced_dynamic_range = bool(values.reduced_dynamic_range)
 	show_tutorials = bool(values.show_tutorials)
+	multiplayer_display_name = String(values.multiplayer_display_name)
+	network_default_port = int(values.network_default_port)
 	# Compatibility was proven by the decoder against this same service.
 	set_input_binding_profile(profile)
 	_end_batch()
@@ -537,6 +576,8 @@ func reset_to_defaults() -> void:
 	captions_enabled = DEFAULT_CAPTIONS_ENABLED
 	reduced_dynamic_range = DEFAULT_REDUCED_DYNAMIC_RANGE
 	show_tutorials = DEFAULT_SHOW_TUTORIALS
+	multiplayer_display_name = DEFAULT_MULTIPLAYER_DISPLAY_NAME
+	network_default_port = DEFAULT_NETWORK_DEFAULT_PORT
 	input_binding_profile = _input_rebind_service.reset_to_defaults()
 	_end_batch()
 
@@ -604,6 +645,8 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_ACCESSIBILITY, "captions", captions_enabled)
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_dynamic_range", reduced_dynamic_range)
 	config.set_value(_SECTION_ACCESSIBILITY, "show_tutorials", show_tutorials)
+	config.set_value(_SECTION_NETWORK, "multiplayer_display_name", multiplayer_display_name)
+	config.set_value(_SECTION_NETWORK, "default_port", network_default_port)
 
 	var save_error := config.save(staging_path)
 	if save_error != OK:
@@ -688,6 +731,13 @@ func load_from_file(path_override: String = "") -> Error:
 		config, _SECTION_ACCESSIBILITY, "ui_scale", DEFAULT_UI_SCALE
 	)
 	var loaded_input_profile := _read_input_binding_profile(config)
+	var loaded_display_name := _read_multiplayer_display_name(
+		config.get_value(_SECTION_NETWORK, "multiplayer_display_name", DEFAULT_MULTIPLAYER_DISPLAY_NAME)
+	)
+	var loaded_default_port := _read_int_bounded(
+		config, _SECTION_NETWORK, "default_port", DEFAULT_NETWORK_DEFAULT_PORT,
+		MIN_NETWORK_DEFAULT_PORT, MAX_NETWORK_DEFAULT_PORT
+	)
 
 	_begin_batch()
 	ship_mouse_sensitivity = loaded_ship_sensitivity
@@ -733,6 +783,8 @@ func load_from_file(path_override: String = "") -> Error:
 	show_tutorials = _read_bool(
 		config, _SECTION_ACCESSIBILITY, "show_tutorials", DEFAULT_SHOW_TUTORIALS
 	)
+	multiplayer_display_name = loaded_display_name
+	network_default_port = loaded_default_port
 	input_binding_profile = loaded_input_profile
 	_end_batch()
 	return OK
@@ -909,7 +961,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 2:
+	if schema == 3:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V3
+	elif schema == 2:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V2
 	elif schema == 1:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V1
@@ -921,6 +975,10 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if schema <= 2:
 		raw_values = raw_values.duplicate()
 		raw_values["show_tutorials"] = DEFAULT_SHOW_TUTORIALS
+	if schema <= 3:
+		raw_values = raw_values.duplicate()
+		raw_values["multiplayer_display_name"] = DEFAULT_MULTIPLAYER_DISPLAY_NAME
+		raw_values["network_default_port"] = DEFAULT_NETWORK_DEFAULT_PORT
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -941,6 +999,18 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		if not _is_bounded_number(raw_value, float(bounds[0]), float(bounds[1])):
 			return {"accepted": false, "reason": StringName("invalid_%s" % key)}
 		decoded[key] = float(raw_value)
+	if not raw_values.multiplayer_display_name is String:
+		return {"accepted": false, "reason": &"invalid_multiplayer_display_name"}
+	var decoded_name := _validated_multiplayer_display_name(raw_values.multiplayer_display_name)
+	if decoded_name != String(raw_values.multiplayer_display_name).strip_edges():
+		return {"accepted": false, "reason": &"invalid_multiplayer_display_name"}
+	decoded["multiplayer_display_name"] = decoded_name
+	if not _is_integral_json_number(raw_values.network_default_port):
+		return {"accepted": false, "reason": &"invalid_network_default_port"}
+	var decoded_port := int(raw_values.network_default_port)
+	if decoded_port < MIN_NETWORK_DEFAULT_PORT or decoded_port > MAX_NETWORK_DEFAULT_PORT:
+		return {"accepted": false, "reason": &"invalid_network_default_port"}
+	decoded["network_default_port"] = decoded_port
 	for key: String in [
 		"invert_ship_y",
 		"invert_on_foot_y",
@@ -1227,6 +1297,17 @@ static func _validated_colorblind_palette(value: int) -> int:
 	return value if _COLORBLIND_PALETTE_IDS.has(value) else DEFAULT_COLORBLIND_PALETTE
 
 
+static func _validated_multiplayer_display_name(value: Variant) -> String:
+	if not value is String:
+		return DEFAULT_MULTIPLAYER_DISPLAY_NAME
+	var normalized := (value as String).strip_edges()
+	if normalized.length() < MIN_MULTIPLAYER_DISPLAY_NAME_LENGTH:
+		return DEFAULT_MULTIPLAYER_DISPLAY_NAME
+	if normalized.length() > MAX_MULTIPLAYER_DISPLAY_NAME_LENGTH:
+		return normalized.substr(0, MAX_MULTIPLAYER_DISPLAY_NAME_LENGTH)
+	return normalized
+
+
 func _read_input_binding_profile(config: ConfigFile) -> InputBindingProfile:
 	var defaults := _input_rebind_service.get_defaults()
 	if not config.has_section_key(_SECTION_INPUT_BINDINGS, "profile"):
@@ -1250,6 +1331,24 @@ static func _read_number(config: ConfigFile, section: String, key: String, defau
 static func _read_bool(config: ConfigFile, section: String, key: String, default_value: bool) -> bool:
 	var value: Variant = config.get_value(section, key, default_value)
 	return bool(value) if typeof(value) == TYPE_BOOL else default_value
+
+
+static func _read_multiplayer_display_name(value: Variant) -> String:
+	if not value is String:
+		return DEFAULT_MULTIPLAYER_DISPLAY_NAME
+	var normalized := (value as String).strip_edges()
+	if normalized.length() < MIN_MULTIPLAYER_DISPLAY_NAME_LENGTH or normalized.length() > MAX_MULTIPLAYER_DISPLAY_NAME_LENGTH:
+		return DEFAULT_MULTIPLAYER_DISPLAY_NAME
+	return normalized
+
+
+static func _read_int_bounded(
+	config: ConfigFile, section: String, key: String, default_value: int, minimum: int, maximum: int
+) -> int:
+	var value: Variant = config.get_value(section, key, default_value)
+	if typeof(value) != TYPE_INT:
+		return default_value
+	return clampi(int(value), minimum, maximum)
 
 
 static func _has_supported_schema(config: ConfigFile) -> bool:
