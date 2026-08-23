@@ -33,6 +33,18 @@ func _run() -> void:
 		1, 77, &"engineer_avatar", &"crew_port_01", Authority.ROLE_ENGINEER, 1
 	)
 	_check(bool(claimed.get("accepted", false)), "the engineer claim is admitted for the physical systems seat")
+	_check(
+		bool(authority.claim(1, 71, &"pilot_avatar", &"pilot_station", Authority.ROLE_PILOT, 1).get("accepted", false)),
+		"the pilot assignment is visible to the detached gameplay view"
+	)
+	_check(
+		bool(authority.claim(1, 72, &"gunner_avatar", &"co_pilot_station", Authority.ROLE_GUNNER, 1).get("accepted", false)),
+		"the gunner assignment is visible to the detached gameplay view"
+	)
+	_check(
+		bool(authority.claim(1, 73, &"passenger_avatar", &"crew_port_00", Authority.ROLE_PASSENGER, 1).get("accepted", false)),
+		"the passenger assignment is visible to the detached gameplay view"
+	)
 
 	var model := craft.get_component_damage()
 	var selected := [0]
@@ -113,6 +125,66 @@ func _run() -> void:
 			and replay.get("status", &"") == &"stale_request_sequence",
 		"a replayed receipt cannot mutate the Halyard twice"
 	)
+	craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	var gunner_intent := craft.submit_crew_intent(
+		1,
+		72,
+		&"gunner_avatar",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
+			"target_id": &"snapshot_target",
+			"trigger": false,
+			"target_generation": 1,
+		},
+		2
+	)
+	_check(bool(gunner_intent.get("consumed", false)), "the gunner target is available to the gameplay snapshot")
+	var passenger_intent := craft.submit_crew_intent(
+		1,
+		73,
+		&"passenger_avatar",
+		Authority.ACTION_PASSENGER_PING,
+		{"channel": &"cabin", "marker_id": &"snapshot_marker"},
+		2
+	)
+	_check(bool(passenger_intent.get("consumed", false)), "the passenger marker is available to the gameplay snapshot")
+	var gameplay_snapshot := craft.get_crew_role_gameplay_snapshot()
+	var role_occupancy := gameplay_snapshot.get("role_occupancy", {}) as Dictionary
+	_check(
+		int(gameplay_snapshot.get("schema_version", 0)) == HalyardCrewTransport.CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION
+			and int(gameplay_snapshot.get("authority_event_sequence", -1)) == int(authority.get_snapshot().get("event_sequence", -2))
+			and (gameplay_snapshot.get("occupants", []) as Array).size() == 4,
+		"the detached snapshot carries the authority generation fence and all four role occupants"
+	)
+	_check(
+		(role_occupancy.get(Authority.ROLE_PILOT, []) as Array).size() == 1
+			and (role_occupancy.get(Authority.ROLE_GUNNER, []) as Array).size() == 1
+			and (role_occupancy.get(Authority.ROLE_ENGINEER, []) as Array).size() == 1
+			and (role_occupancy.get(Authority.ROLE_PASSENGER, []) as Array).size() == 1,
+		"the snapshot groups pilot, gunner, engineer, and passenger occupancy"
+	)
+	var gunner_view := (role_occupancy.get(Authority.ROLE_GUNNER, []) as Array)[0] as Dictionary
+	var passenger_view := (role_occupancy.get(Authority.ROLE_PASSENGER, []) as Array)[0] as Dictionary
+	_check(
+		StringName((gunner_view.get("selected_target", {}) as Dictionary).get("target_id", &"")) == &"snapshot_target"
+			and is_zero_approx(float(gunner_view.get("cooldown_remaining", -1.0)))
+			and bool(gunner_view.get("cooldown_ready", false)),
+		"the snapshot carries generation-fenced gunner selection and cooldown readiness"
+	)
+	_check(
+		StringName((passenger_view.get("active_marker", {}) as Dictionary).get("marker_id", &"")) == &"snapshot_marker"
+			and (gameplay_snapshot.get("active_markers", []) as Array).size() == 1
+			and float(passenger_view.get("cooldown_remaining", 0.0)) > 0.0,
+		"the snapshot carries the passenger marker and active ping cadence"
+	)
+	var detached_copy := gameplay_snapshot.duplicate(true)
+	((detached_copy.get("occupants", []) as Array)[0] as Dictionary)["avatar_id"] = &"tampered"
+	var fresh_snapshot := craft.get_crew_role_gameplay_snapshot()
+	_check(
+		StringName(((fresh_snapshot.get("occupants", []) as Array)[0] as Dictionary).get("avatar_id", &"")) != &"tampered",
+		"snapshot consumers receive detached copies rather than mutable Halyard internals"
+	)
 
 	var handoff := craft.handoff_crew_role(
 		1,
@@ -166,6 +238,12 @@ func _run() -> void:
 	_check(bool(released.get("accepted", false)), "the replacement engineer can be detached")
 	await physics_frame
 	_check(cleared[0] == 2 and clear_reason[0] == &"role_detached", "detach clears the replacement component selection")
+	var after_detach := craft.get_crew_role_gameplay_snapshot()
+	_check(
+		(after_detach.get("role_occupancy", {}).get(Authority.ROLE_ENGINEER, []) as Array).is_empty()
+			and (after_detach.get("selected_targets", {}).get("engineer", {}) as Dictionary).is_empty(),
+		"the detached snapshot removes the released engineer and stale selection"
+	)
 
 	craft.queue_free()
 	await process_frame

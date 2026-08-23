@@ -53,6 +53,7 @@ const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
 const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
+const CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION := 1
 
 signal passenger_cabin_ping_emitted(
 	marker_id: StringName,
@@ -535,6 +536,94 @@ func get_passenger_ping_markers() -> Array[Dictionary]:
 		return str(left.get("marker_id", "")) < str(right.get("marker_id", ""))
 	)
 	return markers
+
+
+## Detached occupancy/gameplay view for downstream network and HUD consumers.
+## The authority remains the owner of claims and generations; this method only
+## copies its current assignments and Halyard-local role receipts. It returns
+## no Nodes, authority objects, or mutable ship-owned dictionaries.
+func get_crew_role_gameplay_snapshot() -> Dictionary:
+	var role_occupancy := {}
+	for role in CrewRoleGameplayProfileType.ROLES:
+		role_occupancy[role] = []
+	var snapshot := {
+		"schema_version": CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION,
+		"authority_attached": _crew_role_authority != null,
+		"authority_event_sequence": -1,
+		"occupants": [],
+		"role_occupancy": role_occupancy,
+		"selected_targets": {"gunner": {}, "engineer": {}},
+		"active_markers": [],
+	}
+	if _crew_role_authority == null:
+		return snapshot
+	var authority_snapshot := _crew_role_authority.get_snapshot()
+	snapshot["authority_event_sequence"] = int(authority_snapshot.get("event_sequence", -1))
+	var live_assignments: Array = authority_snapshot.get("assignments", []) as Array
+	var live_actors := {}
+	for assignment_variant in live_assignments:
+		if not assignment_variant is Dictionary:
+			continue
+		var assignment := assignment_variant as Dictionary
+		var role := StringName(assignment.get("role", &""))
+		if not role_occupancy.has(role):
+			continue
+		var occupant_peer_id := int(assignment.get("occupant_peer_id", 0))
+		var avatar_id := StringName(assignment.get("avatar_id", &""))
+		var actor_key := _crew_role_actor_key_from_values(occupant_peer_id, avatar_id)
+		live_actors[actor_key] = {"role": role, "assignment": assignment}
+		var cooldown_remaining := 0.0
+		if role == CrewRoleGameplayProfileType.ROLE_GUNNER:
+			cooldown_remaining = maxf(0.0, float(_gunner_role_cooldowns.get(actor_key, 0.0)))
+		elif role == CrewRoleGameplayProfileType.ROLE_PASSENGER:
+			cooldown_remaining = maxf(0.0, float(_passenger_ping_cooldowns.get(actor_key, 0.0)))
+		var occupant := {
+			"occupant_peer_id": occupant_peer_id,
+			"avatar_id": avatar_id,
+			"seat_id": StringName(assignment.get("seat_id", &"")),
+			"role": role,
+			"seat_generation": int(assignment.get("seat_generation", 0)),
+			"capabilities": (assignment.get("capabilities", []) as Array).duplicate(true),
+			"cooldown_remaining": cooldown_remaining,
+			"cooldown_ready": cooldown_remaining <= 0.0,
+			"selected_target": {},
+			"active_marker": {},
+		}
+		if role == CrewRoleGameplayProfileType.ROLE_GUNNER \
+				and _crew_role_state_matches_actor(_gunner_target_selection, occupant_peer_id, avatar_id):
+			occupant["selected_target"] = _gunner_target_selection.duplicate(true)
+			(snapshot["selected_targets"] as Dictionary)["gunner"] = _gunner_target_selection.duplicate(true)
+		elif role == CrewRoleGameplayProfileType.ROLE_ENGINEER \
+				and _crew_role_state_matches_actor(_engineer_component_selection, occupant_peer_id, avatar_id):
+			occupant["selected_target"] = _engineer_component_selection.duplicate(true)
+			(snapshot["selected_targets"] as Dictionary)["engineer"] = _engineer_component_selection.duplicate(true)
+		elif role == CrewRoleGameplayProfileType.ROLE_PASSENGER \
+				and _crew_role_state_matches_actor(_passenger_ping_markers.get(actor_key, {}), occupant_peer_id, avatar_id):
+			occupant["active_marker"] = (_passenger_ping_markers[actor_key] as Dictionary).duplicate(true)
+			(snapshot["active_markers"] as Array).append(occupant["active_marker"])
+		var detached_occupant := occupant.duplicate(true)
+		(snapshot["occupants"] as Array).append(detached_occupant)
+		(role_occupancy[role] as Array).append(occupant.duplicate(true))
+	var selected_targets := snapshot["selected_targets"] as Dictionary
+	for target_role in [&"gunner", &"engineer"]:
+		var selection := selected_targets[target_role] as Dictionary
+		if selection.is_empty():
+			continue
+		var selection_key := _crew_role_actor_key_from_values(
+			int(selection.get("occupant_peer_id", 0)),
+			StringName(selection.get("avatar_id", &""))
+		)
+		var live_actor := live_actors.get(selection_key, {}) as Dictionary
+		var expected_role := CrewRoleGameplayProfileType.ROLE_GUNNER if target_role == &"gunner" else CrewRoleGameplayProfileType.ROLE_ENGINEER
+		if live_actor.is_empty() or StringName(live_actor.get("role", &"")) != expected_role:
+			selected_targets[target_role] = {}
+	(snapshot["occupants"] as Array).sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
+	)
+	(snapshot["active_markers"] as Array).sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("marker_id", "")) < str(right.get("marker_id", ""))
+	)
+	return snapshot.duplicate(true)
 
 
 ## Hands one admitted gunner receipt to HeroShip's existing weapon request
@@ -2123,6 +2212,18 @@ static func _crew_role_actor_key_from_values(
 	avatar_id: StringName
 ) -> StringName:
 	return StringName("%d:%s" % [occupant_peer_id, str(avatar_id)])
+
+
+static func _crew_role_state_matches_actor(
+	state: Variant,
+	occupant_peer_id: int,
+	avatar_id: StringName
+) -> bool:
+	if not state is Dictionary or (state as Dictionary).is_empty():
+		return false
+	var record := state as Dictionary
+	return int(record.get("occupant_peer_id", 0)) == occupant_peer_id \
+		and StringName(record.get("avatar_id", &"")) == avatar_id
 
 
 # ---------------------------------------------------------- presentation ----
