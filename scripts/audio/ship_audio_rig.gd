@@ -1,6 +1,8 @@
 class_name ShipAudioRig
 extends Node3D
 
+signal semantic_engine_cue_emitted(cue_id: StringName, intensity: float)
+
 ## Reusable ship-local, profile-driven positional audio component.
 ##
 ## The rig owns a fixed six-voice hierarchy: four independently gated loop
@@ -217,6 +219,8 @@ var _engine_running := false
 var _throttle := 0.0
 var _engine_degradation := 0.0
 var _engine_velocity := 0.0
+var _last_degradation_band := 0
+var _last_velocity_high := false
 var _boost_requested := false
 var _damage_alarm_active := false
 var _last_cue_id: StringName = &""
@@ -327,6 +331,15 @@ func set_engine_degradation(degradation: float) -> bool:
 		return false
 	_engine_degradation = degradation
 	_update_expected_mix(_get_built_profile_spec())
+	var band := 2 if degradation >= 0.75 else (1 if degradation >= 0.25 else 0)
+	if band != _last_degradation_band:
+		if band == 2:
+			semantic_engine_cue_emitted.emit(&"engine_critical", degradation)
+		elif band == 1:
+			semantic_engine_cue_emitted.emit(&"engine_degraded", degradation)
+		elif _last_degradation_band > 0:
+			semantic_engine_cue_emitted.emit(&"engine_recovered", degradation)
+		_last_degradation_band = band
 	return true
 
 
@@ -341,6 +354,13 @@ func set_engine_velocity(velocity: float) -> bool:
 		return false
 	_engine_velocity = velocity
 	_update_expected_mix(_get_built_profile_spec())
+	var high_load := velocity >= 0.75
+	if high_load != _last_velocity_high:
+		semantic_engine_cue_emitted.emit(
+			&"engine_load_high" if high_load else &"engine_load_normal",
+			velocity
+		)
+		_last_velocity_high = high_load
 	return true
 
 
