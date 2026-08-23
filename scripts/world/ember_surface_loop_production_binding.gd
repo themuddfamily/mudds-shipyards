@@ -787,6 +787,50 @@ func prepare_early_tick(
 	return _finish(true, &"early_tick_prepared")
 
 
+## Explicit caller-sample facade for production owners that already hold the
+## live actor/craft observation. It delegates to the existing early envelope;
+## the binding's priority-2 callback remains the only advancement owner.
+func advance_from_caller_sample(
+		caller_serial: int, delta: float, actor_kind: StringName,
+		actor_instance_id: int, craft_instance_id: int, position: Vector3,
+		velocity_mps: Vector3, landed: bool, reboarded: bool, takeoff: bool,
+		origin_result: Variant, coordinate_frame_generation: int,
+		location_generation: int, expected_generation: int
+	) -> Dictionary:
+	if actor_kind not in [&"ship", &"player"] \
+			or actor_instance_id < 1 or craft_instance_id < 1 \
+			or not position.is_finite() or not velocity_mps.is_finite():
+		return _reject(&"caller_sample_identity_invalid")
+	if actor_kind == &"ship" and actor_instance_id != _ship_instance_id:
+		return _reject(&"caller_sample_actor_mismatch")
+	if craft_instance_id != _ship_instance_id:
+		return _reject(&"caller_sample_craft_mismatch")
+	if not is_finite(delta) or delta < 0.0 \
+			or delta > EmberSurfaceLoopHost.MAX_CALLER_DELTA_SECONDS:
+		return _reject(&"invalid_delta")
+	var sample := {
+		"actor_kind": actor_kind,
+		"actor_instance_id": actor_instance_id,
+		"available": true,
+		"position": position,
+	}
+	var prepared := prepare_early_tick(
+		caller_serial, delta, sample, origin_result,
+		coordinate_frame_generation, location_generation, expected_generation
+	)
+	if not bool(prepared.get("accepted", false)):
+		return prepared
+	_pending_envelope["caller_kinematics"] = {
+		"craft_instance_id": craft_instance_id,
+		"velocity_mps": velocity_mps,
+		"landed": landed,
+		"reboarded": reboarded,
+		"takeoff": takeoff,
+	}.duplicate(true)
+	_last_prepared_evidence = _pending_envelope.duplicate(true)
+	return {"accepted": true, "reason": &"caller_sample_advanced", "envelope": _pending_envelope.duplicate(true)}
+
+
 ## Queue a disembark intent against the prepared early envelope. The priority-2
 ## callback alone calls the Host's public mutation.
 func queue_disembark_intent(intent_serial: int, expected_generation: int) -> Dictionary:
