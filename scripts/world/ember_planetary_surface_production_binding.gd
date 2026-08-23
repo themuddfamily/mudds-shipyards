@@ -19,6 +19,10 @@ const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark
 const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
+const SurfaceAudioBindingScene := preload("res://scenes/audio/planetary_surface_audio_playback_binding.tscn")
+const SurfaceAudioAdapterScript := preload("res://scripts/audio/planetary_surface_audio_environment_adapter.gd")
+const SurfaceAudioPolicyScript := preload("res://scripts/world/planetary_surface_audio_policy.gd")
+const SurfaceAudioCatalog := preload("res://assets/audio/planetary/temperate_surface_audio_catalog.tres")
 
 enum State { IDLE, BOUND, DETACHED }
 
@@ -37,6 +41,12 @@ var _water_presentation: Node
 var _water: RefCounted
 var _landmarks: RefCounted
 var _settlement: RefCounted
+var _surface_audio_binding: Node
+var _surface_audio_adapter: Node
+var _surface_audio_policy: RefCounted
+var _surface_audio_generation := 0
+var _surface_audio_altitude_m := 0.0
+var _surface_audio_exposure := 0.0
 
 
 func _ready() -> void:
@@ -46,6 +56,14 @@ func _ready() -> void:
 	_water_presentation.name = "OwnedPlanetaryWaterPresentation"
 	add_child(_water_presentation)
 	_water_presentation.call(&"configure")
+	_surface_audio_binding = SurfaceAudioBindingScene.instantiate()
+	_surface_audio_binding.name = "OwnedPlanetarySurfaceAudioBinding"
+	add_child(_surface_audio_binding)
+	_surface_audio_adapter = SurfaceAudioAdapterScript.new() as Node
+	_surface_audio_adapter.name = "OwnedPlanetarySurfaceAudioAdapter"
+	add_child(_surface_audio_adapter)
+	_surface_audio_binding.call(&"configure", SurfaceAudioCatalog)
+	_surface_audio_adapter.call(&"configure", _surface_audio_binding)
 
 
 func configure(
@@ -80,6 +98,10 @@ func configure(
 	configured = _hazard.call(&"bind_weather_field", _weather)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"weather_binding_rejected")
+	_surface_audio_policy = SurfaceAudioPolicyScript.new()
+	configured = _surface_audio_policy.call(&"configure", WeatherProfile)
+	if not bool(configured.get("accepted", false)):
+		return _result(false, &"surface_audio_policy_rejected")
 	_water = WaterScript.new()
 	configured = _water.call(&"configure", WaterContractScript.new())
 	if not bool(configured.get("accepted", false)):
@@ -105,6 +127,13 @@ func configure(
 	]:
 		if not bool(binding.get("accepted", false)):
 			return _result(false, binding.get("reason", &"runtime_binding_rejected") as StringName)
+	var audio_attach: Dictionary = _surface_audio_adapter.call(
+		&"attach", _surface_audio_policy.get_snapshot().get("profile_id", &""),
+		maxi(1, absi(host.get_instance_id())), 1, 1,
+		_surface_audio_binding.call(&"get_attachment_generation")
+	)
+	if not bool(audio_attach.get("accepted", false)):
+		return _result(false, &"surface_audio_attach_rejected")
 	_composition_generation += 1
 	_state = State.BOUND
 	return _result(true, &"composition_bound")
@@ -151,6 +180,10 @@ func submit_weather_exposure(
 	)
 	if bool(result.get("accepted", false)):
 		_weather_observation = result.get("weather", {}).duplicate(true)
+		_surface_audio_altitude_m = altitude_m
+		_surface_audio_exposure = clampf(exposure, 0.0, 1.0)
+		_surface_audio_generation += 1
+		_present_surface_audio()
 		_apply_water_presentation()
 	return result
 
@@ -179,8 +212,36 @@ func submit_solar_observation(
 		"twilight_factor_unitless": twilight,
 		"caller_time_seconds": caller_time_seconds,
 	}.duplicate(true)
+	_surface_audio_generation += 1
+	_present_surface_audio()
 	_apply_water_presentation()
 	return _result(true, &"solar_observation_accepted")
+
+
+func _present_surface_audio() -> void:
+	if _surface_audio_adapter == null or _surface_audio_policy == null \
+			or _solar_phase.is_empty() or _weather_observation.is_empty():
+		return
+	var shelter := float(_weather_observation.get("shelter_scalar", 0.0))
+	var context: StringName = &"cabin" if shelter >= 0.75 else &"exterior"
+	var policy_result: Dictionary = _surface_audio_policy.call(&"evaluate", {
+		"altitude_m": _surface_audio_altitude_m,
+		"listener_context": context,
+		"grounded": false,
+		"speed_mps": 0.0,
+		"ambient_wind_scalar_unitless": 1.0,
+	})
+	var environment := {
+		"generation": _surface_audio_generation,
+		"solar": _solar_phase.duplicate(true),
+		"weather": _weather_observation.duplicate(true),
+		"cabin_exposed": context == &"cabin",
+	}.duplicate(true)
+	_surface_audio_adapter.call(
+		&"present_environment", environment, policy_result, 0.0,
+		_surface_audio_binding.call(&"get_attachment_generation"),
+		maxi(1, absi(_host.get_instance_id())), 1, 1
+	)
 
 
 func _apply_water_presentation() -> void:
@@ -222,6 +283,11 @@ func detach() -> Dictionary:
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"in_water":
 		_water.call(&"detach")
+	if _surface_audio_adapter != null:
+		_surface_audio_adapter.call(
+			&"detach", &"caller_detached",
+			_surface_audio_binding.call(&"get_attachment_generation")
+		)
 	_state = State.DETACHED
 	return _result(true, &"composition_detached")
 
@@ -243,6 +309,13 @@ func reenter() -> Dictionary:
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
 		_water.call(&"reenter", next_attachment)
+	var audio_attach: Dictionary = _surface_audio_adapter.call(
+		&"attach", _surface_audio_policy.get_snapshot().get("profile_id", &""),
+		maxi(1, absi(_host.get_instance_id())), 1, 1,
+		_surface_audio_binding.call(&"get_attachment_generation")
+	)
+	if not bool(audio_attach.get("accepted", false)):
+		return _result(false, &"surface_audio_reentry_rejected")
 	_state = State.BOUND
 	return _result(true, &"composition_reentered")
 
@@ -283,6 +356,7 @@ func get_snapshot() -> Dictionary:
 		"water": _water.get_snapshot() if _water != null else {},
 		"landmarks": _landmarks.get_snapshot() if _landmarks != null else {},
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},
+		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
 

@@ -319,7 +319,8 @@ func _test_real_scheduler_complete_loop() -> void:
 	)
 	_check(
 		atmosphere.get_atmosphere_rig().get_sun_light().light_energy >= 0.1
-			and atmosphere.get_atmosphere_rig().get_cloud_shell().transparency >= 0.0,
+			and atmosphere.get_atmosphere_rig().get_cloud_shell().transparency >= 0.0
+			and (atmosphere.get_node(^"OwnedCloudShadowProjection") as MeshInstance3D).visible,
 		"retained solar/weather observations apply bounded values to live atmosphere nodes"
 	)
 	_check(
