@@ -2498,6 +2498,13 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		detail += "\nNEXT // %s // %.1f M" % [snapshot.next_landmark, float(snapshot.distance_m)]
 	if snapshot.has("state"):
 		detail += "\nSTATE // " + str(snapshot.state).to_upper()
+	if kind == &"bomber":
+		detail += "\nPAYLOADS REMAINING // %d" % maxi(0, int(snapshot.get("ammo", 0)))
+		var cooldown := maxf(0.0, float(snapshot.get("cooldown_remaining", 0.0)))
+		if cooldown > 0.0:
+			detail += "\nCOOLDOWN // %.1f S" % cooldown
+		if not bool(snapshot.get("release_allowed", false)):
+			detail += "\nUNAVAILABLE // %s" % str(snapshot.get("reason", "unavailable")).to_upper()
 	_runtime_status_detail.text = detail
 	for action: Dictionary in snapshot.get("actions", []):
 		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)

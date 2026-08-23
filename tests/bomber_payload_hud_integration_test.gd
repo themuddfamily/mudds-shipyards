@@ -17,17 +17,20 @@ func _run() -> void:
 	var panel := hud.get("_runtime_status_panel") as PanelContainer
 	_check(panel.visible and (hud.get("_runtime_status_title") as Label).text == "BOMBER PAYLOAD", "bomber status uses the retained runtime panel")
 	var action_button := (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
-	_check((hud.get("_runtime_status_detail") as Label).text.contains("[READY]") and action_button.text.contains("RELEASE PAYLOAD") and action_button.focus_mode == Control.FOCUS_ALL, "ready state is readable with a mapped glyph action")
+	var ready_detail := (hud.get("_runtime_status_detail") as Label).text
+	_check(ready_detail.contains("[READY]") and ready_detail.contains("PAYLOADS REMAINING // 2") and action_button.text.contains("RELEASE PAYLOAD") and action_button.focus_mode == Control.FOCUS_ALL, "ready state shows remaining payloads with a mapped glyph action")
 	var release := hud.request_bomber_payload_release()
 	_check(bool(release.accepted) and _intents.size() == 1 and _intents[0].kind == &"bomber", "release emits a caller-owned presentation intent")
 	action_button.pressed.emit()
 	_check(_intents.size() == 2 and _intents[1].kind == &"bomber", "focused action row routes through the same release intent")
 	hud.apply_bomber_payload_snapshot({"generation": 2, "active": true, "ammo": 1, "cooldown_remaining": 1.5, "action_glyph": "Cross", "reduced_motion": true})
 	await process_frame
-	_check((hud.get("_runtime_status_detail") as Label).text.contains("[WAIT]") and (hud.get("_runtime_status_actions") as HBoxContainer).get_child_count() == 0, "cooldown state removes release action")
+	var cooldown_detail := (hud.get("_runtime_status_detail") as Label).text
+	_check(cooldown_detail.contains("[WAIT]") and cooldown_detail.contains("PAYLOADS REMAINING // 1") and cooldown_detail.contains("COOLDOWN // 1.5 S") and (hud.get("_runtime_status_actions") as HBoxContainer).get_child_count() == 0, "cooldown state shows remaining payloads and seconds")
 	hud.apply_bomber_payload_snapshot({"generation": 3, "active": true, "ammo": 0, "cooldown_remaining": 0.0, "denied_reason": "hardpoint_locked"})
 	await process_frame
-	_check((hud.get("_runtime_status_detail") as Label).text.contains("[DENIED]"), "denied state is explicit and color-independent")
+	var denied_detail := (hud.get("_runtime_status_detail") as Label).text
+	_check(denied_detail.contains("[DENIED]") and denied_detail.contains("UNAVAILABLE // HARDPOINT_LOCKED"), "denied state shows an explicit unavailable reason")
 	hud.clear_bomber_payload_status()
 	_check(not panel.visible, "detach clears bomber presentation")
 	hud.queue_free()
