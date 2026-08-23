@@ -7,9 +7,13 @@ extends RefCounted
 ## landing outcome.
 
 const COMPONENT_ID: StringName = &"arrow-entry-presentation-binding"
+const LandingDustWashScript := preload(
+	"res://scripts/effects/arrow_landing_dust_wash_presentation.gd"
+)
 
 var _arrow_ref: WeakRef
 var _hud_ref: WeakRef
+var _landing_wash: Node3D
 var _attached := false
 var _atmospheric := false
 var _generation := 0
@@ -37,6 +41,9 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 		_atmospheric = true
 	_arrow_ref = weakref(arrow)
 	_hud_ref = weakref(hud)
+	_landing_wash = LandingDustWashScript.new() as Node3D
+	_landing_wash.name = "ArrowLandingDustWashPresentation"
+	arrow.get_arrow_visual_root().add_child(_landing_wash)
 	_attached = true
 	_generation += 1
 	return _result(true, &"attached")
@@ -56,6 +63,8 @@ func configure_atmosphere(profile: PlanetaryAtmosphereProfile) -> Dictionary:
 		if state.get("profile_id", &"") != profile.profile_id:
 			return _reject(&"atmosphere_profile_mismatch")
 		_atmospheric = true
+		if _landing_wash != null:
+			_landing_wash.call(&"clear", &"atmospheric_branch_zero")
 		return _result(true, &"atmosphere_retained")
 	var configured := presentation.configure(
 		profile, arrow.get_entry_heat_target().get_material()
@@ -65,6 +74,8 @@ func configure_atmosphere(profile: PlanetaryAtmosphereProfile) -> Dictionary:
 			"presentation_reason": configured.get("reason", &"unknown"),
 		})
 	_atmospheric = true
+	if _landing_wash != null:
+		_landing_wash.call(&"clear", &"atmospheric_branch_zero")
 	return _result(true, &"atmosphere_configured")
 
 
@@ -101,6 +112,16 @@ func present_observation(
 			"entry_effect_intensity_unitless", 0.0
 		))
 	var accessibility := hud.get_accessibility_report()
+	var wash_result: Dictionary = {
+		"accepted": false, "reason": &"landing_wash_unavailable",
+	}
+	if _landing_wash != null:
+		wash_result = _landing_wash.call(
+			&"present_observation", altitude_m, vertical_speed_mps,
+			not _atmospheric,
+			bool(accessibility.get("reduced_flash", false)),
+			bool(accessibility.get("reduced_motion", false))
+		) as Dictionary
 	var source := {
 		"world_id": &"aurora_temperate" if _atmospheric else &"ember_moon",
 		"branch_id": &"atmospheric" if _atmospheric else &"airless",
@@ -116,12 +137,17 @@ func present_observation(
 	_last_result = _result(true, &"entry_presented", {
 		"source": source.duplicate(true),
 		"heat": heat_result.duplicate(true),
+		"landing_wash": wash_result.duplicate(true),
 		"entry_intensity": intensity,
 	})
 	return _last_result.duplicate(true)
 
 
 func detach() -> Dictionary:
+	if _landing_wash != null:
+		_landing_wash.call(&"clear", &"detached_zero")
+		_landing_wash.queue_free()
+		_landing_wash = null
 	var presentation := _presentation()
 	if presentation != null and bool(
 		presentation.get_state_snapshot().get("configured", false)
@@ -144,6 +170,11 @@ func get_snapshot() -> Dictionary:
 		"branch_id": &"atmospheric" if _atmospheric else &"airless",
 		"observation_count": _observation_count,
 		"last_result": _last_result.duplicate(true),
+		"landing_wash": _landing_wash.call(&"get_snapshot") \
+			if _landing_wash != null else {
+				"visible": false, "intensity": 0.0,
+				"last_reason": &"detached_zero",
+			},
 		"presentation_only": true,
 		"physics_authority": false,
 		"movement_authority": false,
