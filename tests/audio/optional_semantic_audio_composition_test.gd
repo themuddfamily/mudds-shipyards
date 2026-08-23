@@ -2,11 +2,7 @@ extends SceneTree
 
 const Director := preload("res://scripts/audio/audio_director.gd")
 const Composition := preload("res://scripts/audio/optional_semantic_audio_composition.gd")
-
-class MockCinder:
-	extends Node
-	signal loadmaster_manifest_intent_accepted(receipt: Dictionary)
-	signal loadmaster_manifest_cleared(generation: int, reason: StringName)
+const Cinder := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 
 class MockCruise:
 	extends Node
@@ -28,7 +24,7 @@ func _init() -> void:
 func _run() -> void:
 	var director := Director.new()
 	var composition := Composition.new()
-	var cinder := MockCinder.new()
+	var cinder := Cinder.new()
 	var cruise := MockCruise.new()
 	var retained := RetainedSource.new()
 	root.add_child(director)
@@ -46,7 +42,7 @@ func _run() -> void:
 	_check(_has(&"cinder_loadmaster_manifest_ready") and _has(&"planetary_final_approach_armed"), "both optional sources route cues")
 	_check(bool(composition.present_cinder_rejected({"reason": &"stale_sequence"}).accepted), "Cinder rejection forwards")
 	_check(_has(&"cinder_loadmaster_rejected"), "Cinder rejection reaches director")
-	var replacement := MockCinder.new()
+	var replacement := Cinder.new()
 	root.add_child(replacement)
 	_check(bool(composition.set_sources(replacement, null).accepted), "ship replacement unbinds old sources")
 	_check(director.get_semantic_audio_binding_count() == 2, "replacement retains unrelated source only")
