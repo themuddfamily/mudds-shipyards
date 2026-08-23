@@ -10,7 +10,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('install', 'upgrade', 'status', 'rollback', 'uninstall')]
+    [ValidateSet('install', 'upgrade', 'status', 'rollback', 'uninstall', 'repair')]
     [string]$Command,
     [Parameter(Mandatory = $true)] [string]$Destination,
     [string]$Source = (Split-Path -Parent $PSScriptRoot),
@@ -172,6 +172,46 @@ function Remove-Owned([string]$Root) {
     Remove-ExternalShortcuts $external
 }
 
+function Repair-Owned([string]$Root, [string]$SourceRoot) {
+    $sourceManifest = Read-DistributionManifest $SourceRoot
+    $currentManifest = Read-DistributionManifest $Root
+    if ((Compare-DistributionVersion ([string]$sourceManifest.version) ([string]$currentManifest.version)) -ne 0) {
+        throw 'Repair source version must match the installed version'
+    }
+    $sourceEntries = Get-ChecksumEntries $SourceRoot
+    $owned = Read-Owned $Root
+    $repairRoot = Join-Path (Split-Path -Parent $Root) ('.' + (Split-Path -Leaf $Root) + '.repair-' + [guid]::NewGuid().ToString('N'))
+    $backups = @{}
+    $created = @()
+    try {
+        New-Item -ItemType Directory -Path $repairRoot | Out-Null
+        foreach ($relative in $owned) {
+            if (-not $sourceEntries.ContainsKey($relative)) { throw "Repair source does not own file: $relative" }
+            $source = Join-Path $SourceRoot ($relative -replace '/', '\')
+            $target = Join-Path $Root ($relative -replace '/', '\')
+            if (Test-Path -LiteralPath $target -PathType Leaf) {
+                $backup = Join-Path $repairRoot ($relative -replace '/', '\')
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
+                Copy-Item -LiteralPath $target -Destination $backup -Force
+                $backups[$relative] = $backup
+            } else { $created += $target }
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+            Copy-Item -LiteralPath $source -Destination $target -Force
+        }
+        Get-ChecksumEntries $Root | Out-Null
+        Remove-Item -LiteralPath $repairRoot -Recurse -Force
+        return @($owned).Count
+    } catch {
+        foreach ($target in $created) { if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force } }
+        foreach ($relative in $backups.Keys) {
+            $target = Join-Path $Root ($relative -replace '/', '\')
+            Copy-Item -LiteralPath $backups[$relative] -Destination $target -Force
+        }
+        if (Test-Path -LiteralPath $repairRoot) { Remove-Item -LiteralPath $repairRoot -Recurse -Force }
+        throw
+    }
+}
+
 $destination = Resolve-SafeDestination $Destination
 $rollback = "$destination.rollback"
 $staging = "$destination.staging"
@@ -203,6 +243,12 @@ try {
             if ($rollbackAddRemove) { Set-AddRemovePrograms $destination }
             foreach ($shortcut in $rollbackExternal) { New-LauncherShortcut $shortcut (Join-Path $destination $LauncherName) }
             [pscustomobject]@{ destination = $destination; reason = 'rolled_back' } | ConvertTo-Json -Compress
+        }
+        'repair' {
+            if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
+            if (-not (Test-Path -LiteralPath $Source -PathType Container)) { throw 'Repair source distribution is missing' }
+            $repaired = Repair-Owned $destination ([IO.Path]::GetFullPath($Source))
+            [pscustomobject]@{ destination = $destination; reason = 'repaired'; owned_files_checked = $repaired } | ConvertTo-Json -Compress
         }
         default {
             $source = [IO.Path]::GetFullPath($Source)

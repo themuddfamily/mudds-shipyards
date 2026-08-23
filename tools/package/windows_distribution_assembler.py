@@ -90,6 +90,7 @@ def _install_instructions(manifest: dict[str, object]) -> str:
         f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} status -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n'
         f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} rollback -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n'
         f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} uninstall -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n\n'
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} repair -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n\n'
         "Upgrade by running the install command again with a newer distribution.\n"
         "The helper keeps one rollback and preserves files it does not own.\n\n"
         "Optional shortcuts (PowerShell, opt in explicitly):\n"
