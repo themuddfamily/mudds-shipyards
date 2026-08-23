@@ -45,6 +45,7 @@ const CARGO_POD_POSITIONS := [
 ]
 const CARGO_POD_SIZE := Vector3(2.15, 2.5, 6.4)
 const BASELINE_VISUAL_NODE_COUNT := 7
+const RETAINED_VISUAL_RENDERER_NODE_COUNT := 6
 const BASELINE_VISUAL_MESH_RESOURCE_COUNT := 7
 const RETAINED_VISUAL_MESH_RESOURCE_COUNT := 6
 const VISUAL_MATERIAL_RESOURCE_COUNT := 5
@@ -65,6 +66,7 @@ var _director: ActivityDirector
 var _activity: ConvoyEscortActivity
 var _convoy_entity: Node3D
 var _cargo_pod_mesh: BoxMesh
+var _cargo_pod_multimesh: MultiMesh
 var _built := false
 var _attached := false
 var _entity_generation := 0
@@ -415,16 +417,15 @@ func get_evidence_metadata() -> Dictionary:
 
 
 ## Renderer-independent allocation evidence for the exact paired cargo-pod
-## visual family. Structural surface submissions are mesh surfaces referenced by
-## live MeshInstance3D nodes, not driver draw calls. The host's movement and
-## activity lifecycle authority is outside this childless visual-only family.
+## visual family. One MultiMesh renderer retains both named semantic anchors,
+## exact authored transforms, material, bounds, layers, and shadow recipe. The
+## host's movement and activity lifecycle authority remains outside the family.
 func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var all_mesh_ids: Dictionary = {}
 	var all_material_ids: Dictionary = {}
-	var cargo_pod_mesh_ids: Dictionary = {}
-	var cargo_pod_material_ids: Dictionary = {}
-	var visual_node_count := 0
+	var visual_renderer_node_count := 0
+	var drawn_copy_count := 0
 	var structural_surface_submissions := 0
 	var cargo_pod_child_count := 0
 	var cargo_pod_script_count := 0
@@ -449,40 +450,91 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 			"*", "NavigationRegion3D", true, false
 		).size()
 		for raw_child in _convoy_entity.get_children():
-			var instance := raw_child as MeshInstance3D
-			if instance == null:
+			var mesh_instance := raw_child as MeshInstance3D
+			if mesh_instance != null:
+				visual_renderer_node_count += 1
+				drawn_copy_count += 1
+				var mesh := mesh_instance.mesh
+				if mesh == null:
+					errors.append("convoy_visual_mesh_missing:%s" % String(mesh_instance.name))
+					continue
+				all_mesh_ids[mesh.get_instance_id()] = true
+				structural_surface_submissions += mesh.get_surface_count()
+				if mesh_instance.material_override != null:
+					all_material_ids[mesh_instance.material_override.get_instance_id()] = true
 				continue
-			visual_node_count += 1
-			var mesh := instance.mesh
-			if mesh == null:
-				errors.append("convoy_visual_mesh_missing:%s" % String(instance.name))
+			var batch := raw_child as MultiMeshInstance3D
+			if batch == null:
 				continue
-			all_mesh_ids[mesh.get_instance_id()] = true
-			structural_surface_submissions += mesh.get_surface_count()
-			if instance.material_override != null:
-				all_material_ids[instance.material_override.get_instance_id()] = true
+			visual_renderer_node_count += 1
+			if batch.multimesh == null or batch.multimesh.mesh == null:
+				errors.append("convoy_visual_mesh_missing:%s" % String(batch.name))
+				continue
+			drawn_copy_count += batch.multimesh.instance_count
+			all_mesh_ids[batch.multimesh.mesh.get_instance_id()] = true
+			structural_surface_submissions += (
+				batch.multimesh.mesh.get_surface_count() * batch.multimesh.instance_count
+			)
+			if batch.material_override != null:
+				all_material_ids[batch.material_override.get_instance_id()] = true
 
-		for pod_index in CARGO_POD_NAMES.size():
-			var pod_name: StringName = CARGO_POD_NAMES[pod_index]
-			var pod := _convoy_entity.get_node_or_null(NodePath(String(pod_name))) as MeshInstance3D
-			if pod == null:
-				errors.append("cargo_pod_node_missing:%s" % String(pod_name))
-				continue
-			var pod_mesh := pod.mesh as BoxMesh
-			var pod_material := pod.material_override as StandardMaterial3D
-			cargo_pod_child_count += pod.get_child_count()
-			cargo_pod_metadata_entry_count += pod.get_meta_list().size()
-			cargo_pod_group_count += pod.get_groups().size()
-			if pod.get_script() != null:
+		var batch := _convoy_entity.get_node_or_null(^"PortCargoPod") as MultiMeshInstance3D
+		var starboard_anchor := _convoy_entity.get_node_or_null(^"StarboardCargoPod") as Node3D
+		if batch == null:
+			errors.append("cargo_pod_batch_missing")
+		elif batch.multimesh == null:
+			errors.append("cargo_pod_multimesh_missing")
+		else:
+			var pod_mesh := batch.multimesh.mesh as BoxMesh
+			var pod_material := batch.material_override as StandardMaterial3D
+			if batch.multimesh != _cargo_pod_multimesh:
+				errors.append("cargo_pod_multimesh_identity_drift")
+			if batch.multimesh.transform_format != MultiMesh.TRANSFORM_3D \
+					or batch.multimesh.instance_count != CARGO_POD_NAMES.size() \
+					or batch.multimesh.visible_instance_count != -1:
+				errors.append("cargo_pod_multimesh_recipe_drift")
+			var expected_batch_aabb := AABB(
+				-CARGO_POD_SIZE * 0.5, CARGO_POD_SIZE
+			).merge(
+				AABB(
+					CARGO_POD_POSITIONS[1] - CARGO_POD_POSITIONS[0]
+					- CARGO_POD_SIZE * 0.5,
+					CARGO_POD_SIZE
+				)
+			)
+			if not batch.multimesh.custom_aabb.is_equal_approx(expected_batch_aabb):
+				errors.append("cargo_pod_culling_bounds_drift")
+			var expected_transforms: Array[Transform3D] = [
+				Transform3D.IDENTITY,
+				Transform3D(Basis.IDENTITY, Vector3(6.7, 0.0, 0.0)),
+			]
+			if batch.multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+				errors.append("cargo_pod_instance_transform_buffer_drift")
+			if (
+				not batch.position.is_equal_approx(CARGO_POD_POSITIONS[0])
+				or not batch.rotation.is_equal_approx(Vector3.ZERO)
+				or not batch.scale.is_equal_approx(Vector3.ONE)
+				or not batch.visible
+				or batch.layers != 1
+				or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				or batch.material_overlay != null
+				or not is_zero_approx(batch.transparency)
+				or not is_zero_approx(batch.extra_cull_margin)
+				or batch.custom_aabb != AABB()
+			):
+				errors.append("cargo_pod_renderer_recipe_drift:PortCargoPod")
+			cargo_pod_child_count += batch.get_child_count()
+			cargo_pod_metadata_entry_count += batch.get_meta_list().size()
+			cargo_pod_group_count += batch.get_groups().size()
+			if batch.get_script() != null:
 				cargo_pod_script_count += 1
-			if pod.is_processing() or pod.is_physics_processing():
+			if batch.is_processing() or batch.is_physics_processing():
 				cargo_pod_processing_count += 1
 			if pod_mesh == null:
-				errors.append("cargo_pod_mesh_type_drift:%s" % String(pod_name))
+				errors.append("cargo_pod_mesh_type_drift")
 			else:
-				cargo_pod_mesh_ids[pod_mesh.get_instance_id()] = true
 				if pod_mesh != _cargo_pod_mesh:
-					errors.append("cargo_pod_mesh_identity_drift:%s" % String(pod_name))
+					errors.append("cargo_pod_mesh_identity_drift")
 				if (
 					not pod_mesh.size.is_equal_approx(CARGO_POD_SIZE)
 					or pod_mesh.material != null
@@ -491,11 +543,10 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 						AABB(-CARGO_POD_SIZE * 0.5, CARGO_POD_SIZE)
 					)
 				):
-					errors.append("cargo_pod_mesh_recipe_drift:%s" % String(pod_name))
+					errors.append("cargo_pod_mesh_recipe_drift")
 			if pod_material == null:
-				errors.append("cargo_pod_material_missing:%s" % String(pod_name))
+				errors.append("cargo_pod_material_missing")
 			else:
-				cargo_pod_material_ids[pod_material.get_instance_id()] = true
 				if (
 					pod_material.resource_name != "EmberlineCargo"
 					or pod_material.albedo_color != Color("8b6d3f")
@@ -503,41 +554,50 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 					or not is_equal_approx(pod_material.roughness, 0.52)
 					or pod_material.emission_enabled
 				):
-					errors.append("cargo_pod_material_recipe_drift:%s" % String(pod_name))
+					errors.append("cargo_pod_material_recipe_drift")
+		if starboard_anchor == null or starboard_anchor is GeometryInstance3D:
+			errors.append("cargo_pod_semantic_anchor_drift:StarboardCargoPod")
+		else:
+			cargo_pod_child_count += starboard_anchor.get_child_count()
+			cargo_pod_metadata_entry_count += starboard_anchor.get_meta_list().size()
+			cargo_pod_group_count += starboard_anchor.get_groups().size()
+			if starboard_anchor.get_script() != null:
+				cargo_pod_script_count += 1
+			if starboard_anchor.is_processing() or starboard_anchor.is_physics_processing():
+				cargo_pod_processing_count += 1
 			if (
-				not pod.position.is_equal_approx(CARGO_POD_POSITIONS[pod_index])
-				or not pod.rotation.is_equal_approx(Vector3.ZERO)
-				or not pod.scale.is_equal_approx(Vector3.ONE)
-				or not pod.visible
-				or pod.layers != 1
-				or pod.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-				or pod.material_overlay != null
-				or not is_zero_approx(pod.transparency)
-				or not is_zero_approx(pod.extra_cull_margin)
-				or pod.custom_aabb != AABB()
+				not starboard_anchor.position.is_equal_approx(CARGO_POD_POSITIONS[1])
+				or not starboard_anchor.rotation.is_equal_approx(Vector3.ZERO)
+				or not starboard_anchor.scale.is_equal_approx(Vector3.ONE)
+				or not starboard_anchor.visible
 			):
-				errors.append("cargo_pod_renderer_recipe_drift:%s" % String(pod_name))
+				errors.append("cargo_pod_semantic_anchor_drift:StarboardCargoPod")
+
+		for pod_index in CARGO_POD_NAMES.size():
+			var pod_name: StringName = CARGO_POD_NAMES[pod_index]
 			behavior_rows.append({
 				"name": String(pod_name),
-				"position": [pod.position.x, pod.position.y, pod.position.z],
-				"rotation": [pod.rotation.x, pod.rotation.y, pod.rotation.z],
-				"scale": [pod.scale.x, pod.scale.y, pod.scale.z],
+				"position": [
+					CARGO_POD_POSITIONS[pod_index].x,
+					CARGO_POD_POSITIONS[pod_index].y,
+					CARGO_POD_POSITIONS[pod_index].z,
+				],
+				"rotation": [0.0, 0.0, 0.0],
+				"scale": [1.0, 1.0, 1.0],
 				"size": [CARGO_POD_SIZE.x, CARGO_POD_SIZE.y, CARGO_POD_SIZE.z],
 				"material": "EmberlineCargo",
 			})
 
-	if visual_node_count != BASELINE_VISUAL_NODE_COUNT:
+	if visual_renderer_node_count != RETAINED_VISUAL_RENDERER_NODE_COUNT:
 		errors.append("convoy_visual_node_count_drift")
+	if drawn_copy_count != BASELINE_VISUAL_NODE_COUNT:
+		errors.append("convoy_visual_drawn_copy_count_drift")
 	if all_mesh_ids.size() != RETAINED_VISUAL_MESH_RESOURCE_COUNT:
 		errors.append("convoy_visual_mesh_resource_count_drift")
 	if all_material_ids.size() != VISUAL_MATERIAL_RESOURCE_COUNT:
 		errors.append("convoy_visual_material_resource_count_drift")
 	if structural_surface_submissions != BASELINE_STRUCTURAL_SURFACE_SUBMISSION_COUNT:
 		errors.append("convoy_visual_structural_submission_count_drift")
-	if cargo_pod_mesh_ids.size() != 1:
-		errors.append("cargo_pod_mesh_identity_count_drift")
-	if cargo_pod_material_ids.size() != 1:
-		errors.append("cargo_pod_material_identity_count_drift")
 	if collision_object_count != 0 or collision_shape_count != 0 or navigation_region_count != 0:
 		errors.append("convoy_visuals_gained_collision_or_navigation_authority")
 	if (
@@ -553,22 +613,22 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"scope": &"cinder_convoy_escort_host_cargo_pod_visuals",
-		"visual_node_count": visual_node_count,
+		"visual_node_count": visual_renderer_node_count,
 		"baseline_visual_node_count": BASELINE_VISUAL_NODE_COUNT,
-		"visual_node_delta": visual_node_count - BASELINE_VISUAL_NODE_COUNT,
-		"drawn_copy_count": visual_node_count,
+		"visual_node_delta": visual_renderer_node_count - BASELINE_VISUAL_NODE_COUNT,
+		"drawn_copy_count": drawn_copy_count,
 		"baseline_drawn_copy_count": BASELINE_VISUAL_NODE_COUNT,
-		"drawn_copy_delta": visual_node_count - BASELINE_VISUAL_NODE_COUNT,
+		"drawn_copy_delta": drawn_copy_count - BASELINE_VISUAL_NODE_COUNT,
 		"mesh_resource_identity_count": all_mesh_ids.size(),
 		"baseline_mesh_resource_identity_count": BASELINE_VISUAL_MESH_RESOURCE_COUNT,
 		"mesh_resource_identity_delta": (
 			all_mesh_ids.size() - BASELINE_VISUAL_MESH_RESOURCE_COUNT
 		),
 		"cargo_pod_copy_count": CARGO_POD_NAMES.size(),
-		"cargo_pod_mesh_resource_identity_count": cargo_pod_mesh_ids.size(),
+		"cargo_pod_mesh_resource_identity_count": 1 if is_instance_valid(_cargo_pod_mesh) else 0,
 		"baseline_cargo_pod_mesh_resource_identity_count": CARGO_POD_NAMES.size(),
 		"cargo_pod_mesh_resource_identity_delta": (
-			cargo_pod_mesh_ids.size() - CARGO_POD_NAMES.size()
+			(1 if is_instance_valid(_cargo_pod_mesh) else 0) - CARGO_POD_NAMES.size()
 		),
 		"material_resource_identity_count": all_material_ids.size(),
 		"baseline_material_resource_identity_count": VISUAL_MATERIAL_RESOURCE_COUNT,
@@ -590,7 +650,7 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 		"cargo_pod_metadata_entry_count": cargo_pod_metadata_entry_count,
 		"cargo_pod_group_count": cargo_pod_group_count,
 		"cargo_pod_processing_count": cargo_pod_processing_count,
-		"batched": false,
+		"batched": true,
 		"driver_draw_call_claimed": false,
 		"frame_time_claimed": false,
 		"vram_claimed": false,
@@ -639,7 +699,12 @@ func audit() -> Dictionary:
 			errors.append("convoy visual component roster drifted")
 		if not _convoy_entity.find_children("*", "CollisionObject3D", true, false).is_empty():
 			errors.append("visual-only convoy content gained collision authority")
-		if _convoy_entity.find_children("*", "MeshInstance3D", true, false).size() != 7:
+		if (
+			_convoy_entity.find_children("*", "MeshInstance3D", true, false).size() != 5
+			or _convoy_entity.find_children(
+				"*", "MultiMeshInstance3D", true, false
+			).size() != 1
+		):
 			errors.append("convoy visual mesh count drifted")
 	var report := get_snapshot()
 	report["valid"] = errors.is_empty()
@@ -647,6 +712,7 @@ func audit() -> Dictionary:
 	report["visual_component_names"] = PackedStringArray(VISUAL_COMPONENT_NAMES)
 	report["visual_mesh_count"] = (
 		_convoy_entity.find_children("*", "MeshInstance3D", true, false).size()
+		+ _convoy_entity.find_children("*", "MultiMeshInstance3D", true, false).size()
 		if is_instance_valid(_convoy_entity) else 0
 	)
 	report["entity_count"] = 1 if is_instance_valid(_convoy_entity) else 0
@@ -700,11 +766,61 @@ func _build_entity_visuals() -> void:
 	_box("ForwardKeel", Vector3(3.4, 1.25, 2.2), Vector3(0.0, -0.18, -5.45), hull_material)
 	_cargo_pod_mesh = BoxMesh.new()
 	_cargo_pod_mesh.size = CARGO_POD_SIZE
-	_box("PortCargoPod", CARGO_POD_SIZE, CARGO_POD_POSITIONS[0], cargo_material, _cargo_pod_mesh)
-	_box("StarboardCargoPod", CARGO_POD_SIZE, CARGO_POD_POSITIONS[1], cargo_material, _cargo_pod_mesh)
+	_cargo_pod_multimesh = MultiMesh.new()
+	_cargo_pod_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	_cargo_pod_multimesh.mesh = _cargo_pod_mesh
+	_cargo_pod_multimesh.instance_count = CARGO_POD_NAMES.size()
+	_cargo_pod_multimesh.visible_instance_count = -1
+	var cargo_pod_transforms: Array[Transform3D] = [
+		Transform3D.IDENTITY,
+		Transform3D(Basis.IDENTITY, Vector3(6.7, 0.0, 0.0)),
+	]
+	_cargo_pod_multimesh.buffer = _encode_multimesh_transforms(cargo_pod_transforms)
+	_cargo_pod_multimesh.custom_aabb = AABB(
+		-CARGO_POD_SIZE * 0.5, CARGO_POD_SIZE
+	).merge(
+		AABB(
+			CARGO_POD_POSITIONS[1] - CARGO_POD_POSITIONS[0] - CARGO_POD_SIZE * 0.5,
+			CARGO_POD_SIZE
+		)
+	)
+	var cargo_pod_batch := MultiMeshInstance3D.new()
+	cargo_pod_batch.name = "PortCargoPod"
+	cargo_pod_batch.multimesh = _cargo_pod_multimesh
+	cargo_pod_batch.material_override = cargo_material
+	cargo_pod_batch.position = CARGO_POD_POSITIONS[0]
+	cargo_pod_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_convoy_entity.add_child(cargo_pod_batch)
+	var starboard_cargo_pod := Node3D.new()
+	starboard_cargo_pod.name = "StarboardCargoPod"
+	starboard_cargo_pod.position = CARGO_POD_POSITIONS[1]
+	_convoy_entity.add_child(starboard_cargo_pod)
 	_box("DriveBlock", Vector3(3.8, 1.5, 1.2), Vector3(0.0, -0.05, 5.25), dark_material)
 	_box("DriveGlow", Vector3(3.0, 0.72, 0.16), Vector3(0.0, -0.05, 5.92), glow_material)
 	_box("NavigationBeacon", Vector3(0.42, 0.34, 0.42), Vector3(0.0, 1.2, -1.2), beacon_material)
+
+
+func _encode_multimesh_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
 
 
 func _box(

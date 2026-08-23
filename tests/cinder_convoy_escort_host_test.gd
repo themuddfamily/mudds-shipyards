@@ -62,15 +62,15 @@ func _test_cargo_pod_visual_allocation(host: CinderConvoyEscortHost) -> void:
 		"cargo-pod visual allocation audit is green: %s" % [audit.get("errors", [])]
 	)
 	_check(
-		int(audit.get("visual_node_count", 0)) == 7
+		int(audit.get("visual_node_count", 0)) == 6
 		and int(audit.get("baseline_visual_node_count", 0)) == 7
-		and int(audit.get("visual_node_delta", 99)) == 0
+		and int(audit.get("visual_node_delta", 99)) == -1
 		and int(audit.get("drawn_copy_count", 0)) == 7
 		and int(audit.get("drawn_copy_delta", 99)) == 0
 		and int(audit.get("mesh_resource_identity_count", 0)) == 6
 		and int(audit.get("baseline_mesh_resource_identity_count", 0)) == 7
 		and int(audit.get("mesh_resource_identity_delta", 0)) == -1,
-		"seven visible nodes and copies retain six meshes instead of seven"
+		"one cargo batch reduces six renderer nodes while retaining seven exact copies and six meshes"
 	)
 	_check(
 		int(audit.get("cargo_pod_copy_count", 0)) == 2
@@ -92,11 +92,11 @@ func _test_cargo_pod_visual_allocation(host: CinderConvoyEscortHost) -> void:
 		and int(audit.get("cargo_pod_metadata_entry_count", -1)) == 0
 		and int(audit.get("cargo_pod_group_count", -1)) == 0
 		and int(audit.get("cargo_pod_processing_count", -1)) == 0
-		and not bool(audit.get("batched", true))
+		and bool(audit.get("batched", false))
 		and not bool(audit.get("driver_draw_call_claimed", true))
 		and not bool(audit.get("frame_time_claimed", true))
 		and not bool(audit.get("vram_claimed", true)),
-		"renderer surfaces remain exact and cargo-pod stock owns no collision, navigation, or lifecycle authority"
+		"batched renderer surfaces remain exact and cargo-pod stock owns no collision, navigation, or lifecycle authority"
 	)
 
 	var rows := audit.get("behavior_rows", []) as Array
@@ -112,32 +112,33 @@ func _test_cargo_pod_visual_allocation(host: CinderConvoyEscortHost) -> void:
 
 	var allocation_port_pod := host.get_node(
 		^"EmberlineSupplyTender/PortCargoPod"
-	) as MeshInstance3D
+	) as MultiMeshInstance3D
 	var allocation_starboard_pod := host.get_node(
 		^"EmberlineSupplyTender/StarboardCargoPod"
-	) as MeshInstance3D
-	var shared_mesh := allocation_port_pod.mesh
-	_check(allocation_starboard_pod.mesh == shared_mesh, "both named cargo pods reference the same exact mesh")
-	allocation_starboard_pod.mesh = shared_mesh.duplicate() as Mesh
+	) as Node3D
+	var shared_mesh := allocation_port_pod.multimesh.mesh
+	_check(
+		allocation_port_pod.multimesh.instance_count == 2
+		and not (allocation_starboard_pod is GeometryInstance3D),
+		"one two-copy renderer retains the starboard semantic anchor"
+	)
+	allocation_port_pod.multimesh.mesh = shared_mesh.duplicate() as Mesh
 	var identity_red := host.get_cargo_pod_visual_allocation_audit()
 	_check(
 		not bool(identity_red.get("valid", true))
-		and int(identity_red.get("mesh_resource_identity_count", 0)) == 7
-		and int(identity_red.get("cargo_pod_mesh_resource_identity_count", 0)) == 2
-		and _audit_has_error(identity_red, "cargo_pod_mesh_identity_drift:StarboardCargoPod")
-		and _audit_has_error(identity_red, "cargo_pod_mesh_identity_count_drift"),
-		"structured red: duplicating one identical pod mesh invalidates retained allocation identity"
+		and _audit_has_error(identity_red, "cargo_pod_mesh_identity_drift"),
+		"structured red: replacing the batched pod mesh invalidates retained allocation identity"
 	)
-	allocation_starboard_pod.mesh = shared_mesh
+	allocation_port_pod.multimesh.mesh = shared_mesh
 
-	allocation_starboard_pod.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	allocation_port_pod.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var renderer_red := host.get_cargo_pod_visual_allocation_audit()
 	_check(
 		not bool(renderer_red.get("valid", true))
-		and _audit_has_error(renderer_red, "cargo_pod_renderer_recipe_drift:StarboardCargoPod"),
+		and _audit_has_error(renderer_red, "cargo_pod_renderer_recipe_drift:PortCargoPod"),
 		"structured red: renderer shadow drift invalidates the exact pod recipe"
 	)
-	allocation_starboard_pod.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	allocation_port_pod.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 	var rogue_area := Area3D.new()
 	rogue_area.name = "RoguePodInteraction"
@@ -198,15 +199,16 @@ func _test_remaining_content_and_authority_contract(
 	_check(
 		entity != null
 		and Array(actual_names) == EXPECTED_VISUAL_COMPONENT_NAMES
-		and entity.find_children("*", "MeshInstance3D", true, false).size() == 7
+		and entity.find_children("*", "MeshInstance3D", true, false).size() == 5
+		and entity.find_children("*", "MultiMeshInstance3D", true, false).size() == 1
 		and entity.find_children("*", "CollisionObject3D", true, false).is_empty()
 		and entity.find_children("*", "Light3D", true, false).is_empty(),
 		"one deterministic seven-part visual-only tender exists without collision or lighting authority"
 	)
 	if entity != null:
 		var hull := entity.get_node_or_null(^"MainHull") as MeshInstance3D
-		var port_pod := entity.get_node_or_null(^"PortCargoPod") as MeshInstance3D
-		var starboard_pod := entity.get_node_or_null(^"StarboardCargoPod") as MeshInstance3D
+		var port_pod := entity.get_node_or_null(^"PortCargoPod") as MultiMeshInstance3D
+		var starboard_pod := entity.get_node_or_null(^"StarboardCargoPod") as Node3D
 		var drive_glow := entity.get_node_or_null(^"DriveGlow") as MeshInstance3D
 		_check(
 			hull != null and hull.mesh is BoxMesh
@@ -214,6 +216,8 @@ func _test_remaining_content_and_authority_contract(
 			and port_pod != null and starboard_pod != null
 			and port_pod.position.is_equal_approx(Vector3(-3.35, 0.05, 0.4))
 			and starboard_pod.position.is_equal_approx(Vector3(3.35, 0.05, 0.4))
+			and port_pod.multimesh.instance_count == 2
+			and is_equal_approx(port_pod.multimesh.buffer[15], 6.7)
 			and drive_glow != null
 			and (drive_glow.material_override as StandardMaterial3D).emission_enabled,
 			"the original tender's hull, paired cargo pods, and bounded drive emission retain exact authored recipes"
