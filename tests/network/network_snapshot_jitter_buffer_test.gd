@@ -19,6 +19,12 @@ func _run() -> void:
 	_check(int(buffer.pop_ready().revision) == 1, "buffer releases the first contiguous revision")
 	_check(int(buffer.pop_ready().revision) == 2, "buffer releases the queued next revision")
 	_check(buffer.push(_packet(2, 2)).status == &"stale_or_duplicate", "buffer drops a replayed revision")
+	_check(buffer.reset(5).accepted, "buffer resets before a realistic server tick trace")
+	_check(buffer.push(_packet(1, 1200)).accepted, "buffer accepts a snapshot with a realistic server tick")
+	_check(buffer.pop_ready().revision == 1, "buffer releases the realistic-tick baseline")
+	_check(buffer.push(_packet(2, 1201)).accepted, "buffer compares tick gaps against server ticks, not revisions")
+	_check(buffer.push(_packet(3, 1215)).status == &"snapshot_gap_too_large", "buffer rejects an excessive server tick gap")
+	_check(buffer.push(_packet(4, 1199)).status == &"stale_server_tick", "buffer rejects a stale server tick")
 	_check(buffer.reset(4).accepted and buffer.pop_ready().is_empty(), "migration reset clears pending snapshots and cursors")
 	if _failures.is_empty():
 		print("OK: network snapshot jitter buffer (%d assertions)" % _assertions)

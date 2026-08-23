@@ -13,6 +13,7 @@ const MAX_TICK_GAP := 8
 var _migration_generation := 1
 var _next_revision := 1
 var _last_released_revision := 0
+var _last_released_server_tick := -1
 var _pending: Dictionary = {}
 var _last_result: Dictionary = {"accepted": false, "status": &"uninitialized"}
 
@@ -23,6 +24,7 @@ func reset(migration_generation: int = 1) -> Dictionary:
 	_migration_generation = migration_generation
 	_next_revision = 1
 	_last_released_revision = 0
+	_last_released_server_tick = -1
 	_pending.clear()
 	return _remember({"accepted": true, "status": &"reset", "migration_generation": _migration_generation})
 
@@ -36,7 +38,11 @@ func push(packet: Dictionary) -> Dictionary:
 		return _remember({"accepted": false, "status": &"invalid_snapshot"})
 	if revision < _next_revision or _pending.has(revision):
 		return _remember({"accepted": false, "status": &"stale_or_duplicate"})
-	if server_tick > _last_released_revision + MAX_TICK_GAP and _last_released_revision > 0:
+	if _last_released_server_tick >= 0 \
+			and server_tick < _last_released_server_tick:
+		return _remember({"accepted": false, "status": &"stale_server_tick"})
+	if server_tick > _last_released_server_tick + MAX_TICK_GAP \
+			and _last_released_server_tick >= 0:
 		return _remember({"accepted": false, "status": &"snapshot_gap_too_large"})
 	if _pending.size() >= MAX_PACKETS:
 		return _remember({"accepted": false, "status": &"buffer_full"})
@@ -50,6 +56,7 @@ func pop_ready() -> Dictionary:
 	var packet: Dictionary = _pending[_next_revision]
 	_pending.erase(_next_revision)
 	_last_released_revision = _next_revision
+	_last_released_server_tick = int(packet.get("server_tick", -1))
 	_next_revision += 1
 	_last_result = {"accepted": true, "status": &"released", "revision": _last_released_revision}
 	return packet.duplicate(true)
@@ -60,6 +67,7 @@ func get_snapshot() -> Dictionary:
 		"migration_generation": _migration_generation,
 		"next_revision": _next_revision,
 		"last_released_revision": _last_released_revision,
+		"last_released_server_tick": _last_released_server_tick,
 		"pending_revisions": _pending.keys(),
 		"capacity": MAX_PACKETS,
 	}.duplicate(true)
