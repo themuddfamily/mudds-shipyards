@@ -4,6 +4,8 @@ extends RefCounted
 ## Caller-injected bridge from PlanetaryCruiseProductionBinding receipts to the
 ## detached final-approach presenter. It owns no cruise, movement, or landing.
 
+signal presentation_changed(view: Dictionary)
+
 const PresenterType := preload("res://scripts/ui/final_approach_status_presenter.gd")
 
 var _source: Object
@@ -12,6 +14,7 @@ var _reduced_motion := false
 var _generation := 0
 var _attached := false
 var _snapshot: Dictionary = {}
+var _presenter_view: Dictionary = {}
 
 
 func attach(source: Object, presenter: FinalApproachStatusPresenter = null, reduced_motion: bool = false) -> Dictionary:
@@ -26,6 +29,7 @@ func attach(source: Object, presenter: FinalApproachStatusPresenter = null, redu
 	_reduced_motion = reduced_motion
 	_generation += 1
 	_attached = true
+	_presenter_view = {}
 	_source.connect(&"engagement_changed", _on_engagement_changed)
 	_source.connect(&"tick_committed", _on_tick_committed)
 	_source.connect(&"final_approach_completed", _on_completed)
@@ -42,7 +46,9 @@ func detach() -> Dictionary:
 		if _source.is_connected(&"final_approach_completed", _on_completed):
 			_source.disconnect(&"final_approach_completed", _on_completed)
 	if _presenter != null:
-		_presenter.detach()
+		var detached_view := _presenter.detach()
+		detached_view["binding_generation"] = _generation + 1
+		_emit_view_if_changed(detached_view)
 	_source = null
 	_attached = false
 	_generation += 1
@@ -59,6 +65,10 @@ func get_snapshot() -> Dictionary:
 		"movement_authority": false,
 		"landing_authority": false,
 	}.duplicate(true)
+
+
+func get_presenter_snapshot() -> Dictionary:
+	return _presenter_view.duplicate(true)
 
 
 func _on_engagement_changed(snapshot: Dictionary) -> void:
@@ -92,6 +102,15 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 	if bool(view.get("accepted", false)):
 		_snapshot = snapshot.duplicate(true)
 		view["binding_generation"] = _generation
+		_emit_view_if_changed(view)
+
+
+func _emit_view_if_changed(view: Dictionary) -> void:
+	var detached := view.duplicate(true)
+	if detached == _presenter_view:
+		return
+	_presenter_view = detached
+	presentation_changed.emit(detached.duplicate(true))
 
 
 func _set_receipt_generation(snapshot: Dictionary, receipt: Dictionary) -> void:

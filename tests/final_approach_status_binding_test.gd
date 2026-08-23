@@ -13,6 +13,7 @@ const PresenterType := preload("res://scripts/ui/final_approach_status_presenter
 const BindingType := preload("res://scripts/ui/final_approach_status_binding.gd")
 var _assertions := 0
 var _failures: PackedStringArray = []
+var _presentation_events: Array[Dictionary] = []
 
 func _init() -> void:
 	call_deferred(&"_run")
@@ -21,8 +22,10 @@ func _run() -> void:
 	var source := FakeCruise.new()
 	var presenter := PresenterType.new()
 	var binding := BindingType.new()
+	binding.presentation_changed.connect(_on_presentation_changed)
 	_check(bool(binding.attach(source, presenter, true).get("accepted", false)), "binding attaches through caller signal contract")
 	_check(presenter.get_snapshot().state == &"armed", "initial detached source snapshot reaches presenter")
+	_check(binding.get_presenter_snapshot().state == &"armed" and _presentation_events.size() == 1, "binding exposes a detached initial presenter view")
 	source.snapshot = {"generation": 2, "engagement_requested": true, "controller": {"final_approach": {"state_id": &"final_approach"}}}
 	source.engagement_changed.emit(source.snapshot)
 	source.tick_committed.emit({"accepted": true, "reason": &"final_approach_envelope_submitted", "generation": 2, "controller": {"distance_to_destination_meters": 30.0, "ship_speed_meters_per_second": 5.0, "alignment_dot": 0.9}})
@@ -33,11 +36,13 @@ func _run() -> void:
 	_check(presenter.get_snapshot().state == &"rejected", "rejection receipt is presented explicitly")
 	source.engagement_changed.emit({"generation": 2, "controller": {"final_approach": {"state_id": &"armed"}}})
 	_check(presenter.get_snapshot().state == &"rejected", "stale engagement snapshot cannot overwrite newer receipt")
+	_check(_presentation_events.size() == 5, "stale presenter output is not re-emitted")
 	binding.detach()
 	source.final_approach_completed.emit({"accepted": true, "generation": 5})
 	_check(not bool(presenter.get_snapshot().get("attached", true)), "detach disconnects future source signals")
 	source.snapshot = {"generation": 5, "engagement_requested": true, "controller": {"final_approach": {"state_id": &"armed"}}}
 	_check(bool(binding.attach(source, presenter).get("accepted", false)) and presenter.get_snapshot().state == &"armed", "re-entry reads a fresh caller snapshot")
+	_check(binding.get_presenter_snapshot().get("binding_generation", -1) > 0, "re-entry exposes a fresh binding generation")
 	binding.detach()
 	source = null
 	presenter = null
@@ -55,3 +60,7 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _on_presentation_changed(view: Dictionary) -> void:
+	_presentation_events.append(view.duplicate(true))
