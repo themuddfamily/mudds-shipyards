@@ -776,6 +776,14 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 		"role_occupancy": role_occupancy,
 		"selected_targets": {"gunner": {}, "engineer": {}},
 		"active_markers": [],
+		"power_routing": {
+			"engineer": {},
+			"effective_outputs": {
+				"mobility_multiplier": 1.0,
+				"fire_multiplier": 1.0,
+				"targeting_multiplier": 1.0,
+			},
+		},
 	}
 	if _crew_role_authority == null:
 		return snapshot
@@ -839,6 +847,27 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 		var expected_role := CrewRoleGameplayProfileType.ROLE_GUNNER if target_role == &"gunner" else CrewRoleGameplayProfileType.ROLE_ENGINEER
 		if live_actor.is_empty() or StringName(live_actor.get("role", &"")) != expected_role:
 			selected_targets[target_role] = {}
+	var route_view := {}
+	var route_modifiers := get_operational_modifiers()
+	var engineer_selection := selected_targets.get("engineer", {}) as Dictionary
+	if not engineer_selection.is_empty():
+		route_view = {
+			"component_id": StringName(engineer_selection.get("component_id", &"")),
+			"component_generation": int(engineer_selection.get("component_generation", 0)),
+			"channel": StringName(engineer_selection.get("power_route", &"none")),
+			"bonus": float(engineer_selection.get("power_route_bonus", 0.0)),
+		}.duplicate(true)
+	else:
+		# A detached or handed-off selection must never leave routed output in the
+		# detached consumer view, even if authority cleanup is mid-frame.
+		route_modifiers = super.get_operational_modifiers()
+	var effective_outputs := {
+		"mobility_multiplier": clampf(float(route_modifiers.get("mobility_multiplier", 1.0)), 0.0, 1.0),
+		"fire_multiplier": clampf(float(route_modifiers.get("fire_multiplier", 1.0)), 0.0, 1.0),
+		"targeting_multiplier": clampf(float(route_modifiers.get("targeting_multiplier", 1.0)), 0.0, 1.0),
+	}
+	(snapshot["power_routing"] as Dictionary)["engineer"] = route_view
+	(snapshot["power_routing"] as Dictionary)["effective_outputs"] = effective_outputs
 	(snapshot["occupants"] as Array).sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
 	)

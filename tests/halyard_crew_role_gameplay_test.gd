@@ -233,6 +233,25 @@ func _run() -> void:
 			and float(passenger_view.get("cooldown_remaining", 0.0)) > 0.0,
 		"the snapshot carries the passenger marker and active ping cadence"
 	)
+	var power_routing := gameplay_snapshot.get("power_routing", {}) as Dictionary
+	var snapshot_engineer_route := power_routing.get("engineer", {}) as Dictionary
+	var effective_outputs := power_routing.get("effective_outputs", {}) as Dictionary
+	_check(
+		StringName(snapshot_engineer_route.get("component_id", &"")) == system_id
+			and int(snapshot_engineer_route.get("component_generation", 0)) == 1
+			and StringName(snapshot_engineer_route.get("channel", &"")) == &"mobility_multiplier",
+		"the detached snapshot exposes the live engineer route and component generation"
+	)
+	_check(
+		effective_outputs.has("mobility_multiplier")
+			and effective_outputs.has("fire_multiplier")
+			and effective_outputs.has("targeting_multiplier")
+			and is_equal_approx(
+				float(effective_outputs.get("mobility_multiplier", -1.0)),
+				float(route_modifiers.get("mobility_multiplier", -2.0))
+			),
+		"the detached snapshot exposes bounded effective mobility, fire, and targeting outputs"
+	)
 	var detached_copy := gameplay_snapshot.duplicate(true)
 	((detached_copy.get("occupants", []) as Array)[0] as Dictionary)["avatar_id"] = &"tampered"
 	var fresh_snapshot := craft.get_crew_role_gameplay_snapshot()
@@ -403,6 +422,11 @@ func _run() -> void:
 		(after_detach.get("role_occupancy", {}).get(Authority.ROLE_ENGINEER, []) as Array).is_empty()
 			and (after_detach.get("selected_targets", {}).get("engineer", {}) as Dictionary).is_empty(),
 		"the detached snapshot removes the released engineer and stale selection"
+	)
+	_check(
+		(after_detach.get("power_routing", {}).get("engineer", {}) as Dictionary).is_empty()
+			and (after_detach.get("power_routing", {}).get("effective_outputs", {}) as Dictionary).has("mobility_multiplier"),
+		"handoff and detach reset routed engineer state while retaining detached effective outputs"
 	)
 	var occupancy_release := craft.release_crew_role_occupant(
 		1, 72, &"gunner_avatar", &"co_pilot_station", crew_avatar, 3
