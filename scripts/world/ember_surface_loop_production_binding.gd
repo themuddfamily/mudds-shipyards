@@ -210,6 +210,12 @@ func consume_planetary_orbit_return(handback: Variant) -> Dictionary:
 	return _planetary_composition.call(&"consume_orbit_return_handback", handback)
 
 
+func accept_planetary_origin_rebase(receipt: Variant) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"accept_origin_rebase", receipt)
+
+
 func discover_planetary_settlements(position: Variant, radius_m: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")

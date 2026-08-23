@@ -170,6 +170,12 @@ func consume_orbit_return_handback(handback: Variant) -> Dictionary:
 	return _result(true, &"planetary_orbit_return_consumed")
 
 
+func accept_origin_rebase(receipt: Variant) -> Dictionary:
+	if _state != State.BOUND or _adapter == null:
+		return _result(false, &"origin_rebase_unavailable")
+	return _adapter.call(&"accept_origin_rebase", receipt)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"state": [&"idle", &"bound", &"detached"][_state],

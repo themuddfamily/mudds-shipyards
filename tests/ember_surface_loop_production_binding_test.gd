@@ -267,6 +267,19 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_planetary_surface_snapshot().settlement.state == &"inside",
 		"real Ember production owner consumes authored planetary settlement entry"
 	)
+	var planetary_rebase := production.accept_planetary_origin_rebase({
+		"accepted": true,
+		"source_generation": 0,
+		"target_generation": 1,
+		"target_location_generation": 3,
+	})
+	_check(
+		planetary_rebase.accepted
+			and planetary_rebase.reason == &"origin_rebase_accepted"
+			and planetary_rebase.route_identity_preserved
+			and production.get_planetary_surface_snapshot().settlement.active_structure_id == &"ember_habitat_spine",
+		"caller-owned origin rebase preserves authored route and settlement identity"
+	)
 	var planetary_session := production.get_planetary_surface_session_snapshot()
 	var malformed_session := planetary_session.duplicate(true)
 	malformed_session.schema_version = 99
