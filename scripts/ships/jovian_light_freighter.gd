@@ -16,6 +16,7 @@ const SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
+const JovianCopilotNavigationAudioBindingType := preload("res://scripts/audio/jovian_copilot_navigation_audio_binding.gd")
 const EVIDENCE_STATUS: StringName = &"provisional"
 const EVIDENCE_SCOPE: StringName = &"name_and_role_only"
 const NAME_TO_MODEL_STATUS: StringName = &"unknown"
@@ -219,6 +220,7 @@ var _engineer_component_generation := 1
 var _copilot_navigation_receipt: Dictionary = {}
 var _copilot_navigation_generation := 1
 var _ship_perspective_audio_binding: RefCounted
+var _copilot_navigation_audio_binding: RefCounted
 
 signal engineer_component_selected(component_id: StringName, component_generation: int, receipt: Dictionary)
 signal engineer_component_cleared(component_id: StringName, component_generation: int, reason: StringName)
@@ -234,16 +236,22 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_jovian_perspective_audio")
+	if _copilot_navigation_audio_binding != null:
+		call_deferred("_rebind_copilot_navigation_audio")
 
 
 func _ready() -> void:
 	super._ready()
 	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
+	_copilot_navigation_audio_binding = JovianCopilotNavigationAudioBindingType.new()
+	_copilot_navigation_audio_binding.attach()
 	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
 	if bool(perspective_result.get("accepted", false)):
 		camera_view_changed.connect(_on_jovian_camera_view_changed)
 	else:
 		_ship_perspective_audio_binding = null
+	if not copilot_navigation_intent_cleared.is_connected(_on_copilot_navigation_audio_cleared):
+		copilot_navigation_intent_cleared.connect(_on_copilot_navigation_audio_cleared)
 	if not _jovian_built:
 		_jovian_built = rebuild_variant_presentation(_build_jovian_variant)
 	if _jovian_built:
@@ -258,6 +266,10 @@ func _exit_tree() -> void:
 		if camera_view_changed.is_connected(_on_jovian_camera_view_changed):
 			camera_view_changed.disconnect(_on_jovian_camera_view_changed)
 		_ship_perspective_audio_binding.detach()
+	if _copilot_navigation_audio_binding != null:
+		if copilot_navigation_intent_cleared.is_connected(_on_copilot_navigation_audio_cleared):
+			copilot_navigation_intent_cleared.disconnect(_on_copilot_navigation_audio_cleared)
+		_copilot_navigation_audio_binding.detach()
 	super._exit_tree()
 
 
@@ -270,8 +282,18 @@ func _rebind_jovian_perspective_audio() -> void:
 		return
 	var result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
 	if bool(result.get("accepted", false)) \
-			and not camera_view_changed.is_connected(_on_jovian_camera_view_changed):
+		and not camera_view_changed.is_connected(_on_jovian_camera_view_changed):
 		camera_view_changed.connect(_on_jovian_camera_view_changed)
+
+
+func _rebind_copilot_navigation_audio() -> void:
+	if not is_inside_tree() or _copilot_navigation_audio_binding == null:
+		return
+	var snapshot: Dictionary = _copilot_navigation_audio_binding.get_snapshot()
+	if not bool(snapshot.get("attached", false)):
+		_copilot_navigation_audio_binding.attach(int(snapshot.get("generation", 0)))
+	if camera_view_changed.is_connected(_on_jovian_camera_view_changed):
+		_on_jovian_camera_view_changed(get_camera_view())
 
 
 func _on_jovian_camera_view_changed(view: StringName) -> void:
@@ -280,6 +302,30 @@ func _on_jovian_camera_view_changed(view: StringName) -> void:
 	var perspective: StringName = &"cockpit" if view == CAMERA_VIEW_COCKPIT else &"exterior"
 	var generation := int(_ship_perspective_audio_binding.get_snapshot().get("generation", -1))
 	_ship_perspective_audio_binding.present_perspective(perspective, generation)
+	if _copilot_navigation_audio_binding != null:
+		_copilot_navigation_audio_binding.present_perspective(perspective)
+
+
+func _on_copilot_navigation_audio_cleared(generation: int, reason: StringName) -> void:
+	if _copilot_navigation_audio_binding != null:
+		_copilot_navigation_audio_binding.present_cleared(generation, reason)
+
+
+func get_copilot_navigation_audio_snapshot() -> Dictionary:
+	return _copilot_navigation_audio_binding.get_snapshot() \
+		if _copilot_navigation_audio_binding != null else {"attached": false}
+
+
+func _present_copilot_navigation_result(result: Dictionary) -> void:
+	if _copilot_navigation_audio_binding == null:
+		return
+	if bool(result.get("accepted", false)):
+		var effect := result.get("effect", {}) as Dictionary
+		var receipt := effect.get("receipt", {}) as Dictionary
+		if not receipt.is_empty():
+			_copilot_navigation_audio_binding.present_accepted_receipt(receipt)
+	else:
+		_copilot_navigation_audio_binding.present_rejected_result(result)
 
 
 func get_ship_perspective_audio_snapshot() -> Dictionary:
@@ -549,6 +595,7 @@ func submit_crew_intent(
 				request_sequence
 			)
 			if not bool(navigation_admission.get("accepted", false)):
+				_present_copilot_navigation_result(navigation_admission)
 				return navigation_admission
 			var navigation_effect := _consume_copilot_navigation_intent(
 				navigation_admission.get("intent", {}) as Dictionary
@@ -560,6 +607,7 @@ func submit_crew_intent(
 			)
 			navigation_result["consumed"] = bool(navigation_effect.get("accepted", false))
 			navigation_result["effect"] = navigation_effect
+			_present_copilot_navigation_result(navigation_result)
 			return navigation_result
 		return _crew_role_result(false, &"unsupported_jovian_role_action")
 	var admission := _crew_role_authority.submit_intent(
