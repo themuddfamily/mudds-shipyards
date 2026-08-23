@@ -506,6 +506,14 @@ var _guided_return_ready_for_completion := false
 var _planetary_return_receipt_consumed := false
 var _planetary_return_persistence_binding: Object
 const PLANETARY_RETURN_PERSISTENCE_SLOT: StringName = &"ember_planetary_return"
+const PLANETARY_RETURN_RETIRE_COMMIT_PREFIX := "planetary-return-retire-"
+const PLANETARY_RETURN_RETIRE_MAX_STORE_GENERATION := 2_147_483_647
+var _planetary_return_startup_restore_receipt: Dictionary = {}
+var _planetary_return_startup_retirement_result: Dictionary = {}
+var _planetary_return_startup_retirement_store_generation := -1
+var _planetary_return_startup_retirement_commit_id := ""
+var _planetary_return_startup_retirement_pending := false
+var _planetary_return_startup_retired := false
 var _sandbox_sortie := false
 ## A parked craft begins with `landed == true`. Free-flight return handling must
 ## not interpret that initial state as a completed sortie before the first
@@ -1376,7 +1384,7 @@ func _get_startup_stager() -> MainStartupStagerType:
 func _start_up() -> void:
 	_initialize_runtime_settings()
 	bind_planetary_return_persistence(ember_surface_loop_production_binding)
-	restore_planetary_return_persistence()
+	_restore_and_retire_planetary_return_persistence()
 	_initialize_session_diagnostics()
 	_apply_command_line_recovery_args(OS.get_cmdline_args())
 	_publish_recovery_choice_to_hud()
@@ -5081,6 +5089,119 @@ func restore_planetary_return_persistence() -> Dictionary:
 			or not _planetary_return_persistence_binding.has_method(&"restore_planetary_return_persistence"):
 		return {"accepted": false, "reason": &"planetary_return_persistence_unavailable"}
 	return _planetary_return_persistence_binding.call(&"restore_planetary_return_persistence")
+
+
+## Startup observes one detached terminal record only long enough to retire its
+## persistence slot. The saved gameplay receipt is never dispatched back into
+## movement, berth, reward, or GameFlow completion authority.
+func _restore_and_retire_planetary_return_persistence() -> Dictionary:
+	if _planetary_return_startup_retired:
+		return {
+			"accepted": false,
+			"reason": &"planetary_return_startup_already_retired",
+		}
+	if _planetary_return_startup_retirement_pending:
+		return retry_planetary_return_persistence_retirement()
+	var restored := restore_planetary_return_persistence()
+	_planetary_return_startup_restore_receipt = restored.duplicate(true)
+	if not _planetary_return_startup_restore_is_authentic(restored):
+		if bool(restored.get("accepted", false)):
+			return {
+				"accepted": false,
+				"reason": &"planetary_return_startup_restore_invalid",
+			}.duplicate(true)
+		return restored
+	var store_generation := int(restored.get("store_generation", -1))
+	_planetary_return_startup_retirement_store_generation = store_generation
+	_planetary_return_startup_retirement_commit_id = (
+		PLANETARY_RETURN_RETIRE_COMMIT_PREFIX + "%010d" % store_generation
+	)
+	_planetary_return_startup_retirement_pending = true
+	return retry_planetary_return_persistence_retirement()
+
+
+## A failed atomic write retains the exact restored generation and deterministic
+## commit ID. Retrying cannot re-run restore or replay any gameplay evidence.
+func retry_planetary_return_persistence_retirement() -> Dictionary:
+	if _planetary_return_startup_retired:
+		return {
+			"accepted": false,
+			"reason": &"planetary_return_startup_already_retired",
+		}
+	if not _planetary_return_startup_retirement_pending:
+		return {
+			"accepted": false,
+			"reason": &"planetary_return_retirement_not_pending",
+		}
+	if _planetary_return_persistence_binding == null \
+			or not _planetary_return_persistence_binding.has_method(
+				&"retire_planetary_return_persistence"
+			):
+		_planetary_return_startup_retirement_result = {
+			"accepted": false,
+			"reason": &"planetary_return_persistence_unavailable",
+		}.duplicate(true)
+		return _planetary_return_startup_retirement_result.duplicate(true)
+	var retired := _planetary_return_persistence_binding.call(
+		&"retire_planetary_return_persistence",
+		_planetary_return_startup_retirement_store_generation,
+		_planetary_return_startup_retirement_commit_id,
+	) as Dictionary
+	_planetary_return_startup_retirement_result = retired.duplicate(true)
+	if bool(retired.get("accepted", false)):
+		_planetary_return_startup_retirement_pending = false
+		_planetary_return_startup_retired = true
+	return retired
+
+
+func _planetary_return_startup_restore_is_authentic(
+		restored: Dictionary
+	) -> bool:
+	if not bool(restored.get("accepted", false)) \
+			or StringName(restored.get("reason", &"")) \
+				!= &"return_persistence_loaded" \
+			or not bool(restored.get("detached", false)) \
+			or not bool(restored.get("fresh_station", false)) \
+			or not bool(restored.get("requires_retirement", false)) \
+			or not restored.get("store_generation") is int:
+		return false
+	var store_generation := int(restored.get("store_generation", -1))
+	if store_generation < 0 \
+			or store_generation > PLANETARY_RETURN_RETIRE_MAX_STORE_GENERATION \
+			or not restored.get("session") is Dictionary:
+		return false
+	var session := restored.get("session", {}) as Dictionary
+	if not bool(session.get("accepted", false)) \
+			or StringName(session.get("reason", &"")) \
+				!= &"returned_to_station_restored" \
+			or StringName(session.get("marker", &"")) != &"returned_to_station" \
+			or int(session.get("run_generation", 0)) < 1 \
+			or int(session.get("attachment_generation", 0)) < 1 \
+			or int(session.get("actor_instance_id", 0)) < 1 \
+			or int(session.get("craft_instance_id", 0)) < 1 \
+			or str(session.get("receipt_sha256", "")).length() != 64 \
+			or bool(session.get("reward_replay_allowed", true)):
+		return false
+	if not session.get("surface_attachment") is Dictionary \
+			or not session.get("berth_lease") is Dictionary:
+		return false
+	var surface := session.get("surface_attachment", {}) as Dictionary
+	var berth := session.get("berth_lease", {}) as Dictionary
+	if bool(surface.get("active", true)) \
+			or StringName(surface.get("state", &"")) != &"detached" \
+			or bool(berth.get("active", true)) \
+			or StringName(berth.get("state", &"")) != &"fresh_station":
+		return false
+	for authority_key in [
+		"reward_authority", "reward_grant_authority", "movement_authority",
+		"ship_movement_authority", "teleport_authority", "reparent_authority",
+		"berth_authority", "reservation_authority", "occupancy_authority",
+		"lease_authority", "attachment_authority", "release_authority",
+		"game_flow_authority",
+	]:
+		if bool(session.get(authority_key, false)):
+			return false
+	return true
 
 
 ## Caller-facing Ember surface admission. The host and activity/reward callback

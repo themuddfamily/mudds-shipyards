@@ -49,6 +49,60 @@ class ReturnBinding:
 	func get_planetary_surface_snapshot() -> Dictionary:
 		return {"attachment_generation": 3}
 
+class StartupPersistenceBinding:
+	var restore_calls := 0
+	var retire_calls := 0
+	var retirement_generations: Array[int] = []
+	var retirement_commit_ids: Array[String] = []
+	var fail_retirement_once := false
+	var forge_movement_authority := false
+
+	func restore_planetary_return_persistence() -> Dictionary:
+		restore_calls += 1
+		return {
+			"accepted": true,
+			"reason": &"return_persistence_loaded",
+			"detached": true,
+			"fresh_station": true,
+			"requires_retirement": true,
+			"store_generation": 12,
+			"session": {
+				"accepted": true,
+				"reason": &"returned_to_station_restored",
+				"marker": &"returned_to_station",
+				"run_generation": 7,
+				"attachment_generation": 4,
+				"actor_instance_id": 101,
+				"craft_instance_id": 202,
+				"receipt_sha256": "a".repeat(64),
+				"surface_attachment": {
+					"active": false, "state": &"detached",
+				},
+				"berth_lease": {
+					"active": false, "state": &"fresh_station",
+				},
+				"reward_replay_allowed": false,
+				"movement_authority": forge_movement_authority,
+			}.duplicate(true),
+		}.duplicate(true)
+
+	func retire_planetary_return_persistence(
+			expected_store_generation: int, commit_id: String
+		) -> Dictionary:
+		retire_calls += 1
+		retirement_generations.append(expected_store_generation)
+		retirement_commit_ids.append(commit_id)
+		if fail_retirement_once:
+			fail_retirement_once = false
+			return {"accepted": false, "reason": &"temp_write_failed"}
+		return {
+			"accepted": true,
+			"reason": &"committed",
+			"binding_reason": &"retired",
+			"generation": expected_store_generation + 1,
+			"run_generation": 7,
+		}.duplicate(true)
+
 class Runtime:
 	func get_presentation_snapshot() -> Dictionary:
 		return {"state_id": &"completed", "generation": 7}
@@ -110,6 +164,62 @@ func _run() -> void:
 	var replay := flow.consume_planetary_return_receipt(
 		receipt, binding, berth, craft, actor
 	)
+
+	var startup_flow := GameFlowScript.new()
+	startup_flow.phase = GameFlowScript.Phase.RETURN_TO_YARD
+	var startup_binding := StartupPersistenceBinding.new()
+	startup_binding.fail_retirement_once = true
+	startup_flow.set("_planetary_return_persistence_binding", startup_binding)
+	var startup_phase_before := startup_flow.phase
+	var failed_startup_retirement := (
+		startup_flow._restore_and_retire_planetary_return_persistence()
+	)
+	var retried_startup_retirement := (
+		startup_flow.retry_planetary_return_persistence_retirement()
+	)
+	var retired_replay := (
+		startup_flow.retry_planetary_return_persistence_retirement()
+	)
+	var startup_retirement_valid: bool = (
+		not bool(failed_startup_retirement.get("accepted", true))
+		and failed_startup_retirement.get("reason") == &"temp_write_failed"
+		and bool(retried_startup_retirement.get("accepted", false))
+		and retired_replay.get("reason") \
+			== &"planetary_return_startup_already_retired"
+		and startup_binding.restore_calls == 1
+		and startup_binding.retire_calls == 2
+		and startup_binding.retirement_generations == [12, 12]
+		and startup_binding.retirement_commit_ids == [
+			"planetary-return-retire-0000000012",
+			"planetary-return-retire-0000000012",
+		]
+		and bool(startup_flow.get(
+			"_planetary_return_startup_retired"
+		))
+		and not bool(startup_flow.get(
+			"_planetary_return_startup_retirement_pending"
+		))
+		and startup_flow.phase == startup_phase_before
+		and not bool(startup_flow.get("_return_registered"))
+		and not bool(startup_flow.get("_planetary_return_receipt_consumed"))
+		and (startup_flow.get("_berth_tokens") as Dictionary).is_empty()
+		and (startup_flow.get("_reserved_berth_ids") as Dictionary).is_empty()
+	)
+	var forged_flow := GameFlowScript.new()
+	var forged_binding := StartupPersistenceBinding.new()
+	forged_binding.forge_movement_authority = true
+	forged_flow.set("_planetary_return_persistence_binding", forged_binding)
+	var forged_restore := (
+		forged_flow._restore_and_retire_planetary_return_persistence()
+	)
+	startup_retirement_valid = startup_retirement_valid \
+		and forged_restore.get("reason") \
+			== &"planetary_return_startup_restore_invalid" \
+		and forged_binding.restore_calls == 1 \
+		and forged_binding.retire_calls == 0 \
+		and not bool(forged_flow.get(
+			"_planetary_return_startup_retirement_pending"
+		))
 	var valid: bool = authored_binding_count == 1 \
 			and begin_rejected.reason == &"ember_surface_request_invalid" \
 			and occupied and not rejected.accepted \
@@ -121,7 +231,10 @@ func _run() -> void:
 			and persistence_bound.accepted and binding.saved and restored.accepted \
 			and berth.is_occupied() \
 			and berth.get_occupant() == craft \
-			and not replay.accepted
+			and not replay.accepted \
+			and startup_retirement_valid
+	startup_flow.free()
+	forged_flow.free()
 	flow.free()
 	actor.free()
 	craft.free()
