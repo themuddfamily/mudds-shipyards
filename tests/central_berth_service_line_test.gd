@@ -59,6 +59,7 @@ func _run() -> void:
 		return
 
 	_test_report_and_roster(world)
+	_test_access_platform_rounded_profile(world)
 	_test_black_bin_stock_batch(world)
 	_test_solid_pieces_match_their_drawn_mesh(world)
 	_test_pieces_are_seated_on_drawn_geometry(world)
@@ -114,6 +115,56 @@ func _test_report_and_roster(world: ShipyardWorld) -> void:
 	)
 	var pad_bodies := pad.find_children("*", "PhysicsBody3D", true, false).size() if pad != null else -1
 	_check(pad_bodies == 0, "no collision leaked into the berth's presentation-only dressing roster")
+
+
+func _test_access_platform_rounded_profile(world: ShipyardWorld) -> void:
+	var platform := world.get_node_or_null(
+		^"CentralBerthServiceLine/PortFlank/AccessWorkStand/StandPlatform"
+	) as StaticBody3D
+	var visual := platform.get_node_or_null(^"Mesh") as MeshInstance3D if platform != null else null
+	var collision := platform.get_node_or_null(^"Collision") as CollisionShape3D if platform != null else null
+	var shape := collision.shape as BoxShape3D if collision != null else null
+	_check(
+		platform != null and visual != null and visual.mesh != null and shape != null,
+		"the access stand keeps one rendered, collision-backed main platform"
+	)
+	if platform == null or visual == null or visual.mesh == null or shape == null:
+		return
+	var arrays := visual.mesh.surface_get_arrays(0)
+	var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var triangle_count := vertices.size() / 3
+	_check(
+		visual.mesh.resource_name == "central_berth_access_platform_rounded_v1"
+		and triangle_count == 64
+		and visual.mesh.get_surface_count() == 1,
+		"the visibly rounded platform uses one 64-triangle surface instead of the 108-triangle shallow box"
+	)
+	_check(
+		visual.mesh.get_aabb().position.is_equal_approx(-ShipyardWorld.ACCESS_STAND_PLATFORM_SIZE * 0.5)
+		and visual.mesh.get_aabb().size.is_equal_approx(ShipyardWorld.ACCESS_STAND_PLATFORM_SIZE)
+		and shape.size.is_equal_approx(ShipyardWorld.ACCESS_STAND_PLATFORM_SIZE),
+		"rounded render bounds and the retained box collider keep the exact 1.8 x 0.1 x 2.2 m footprint"
+	)
+	var lower_step := world.get_node_or_null(
+		^"CentralBerthServiceLine/PortFlank/AccessWorkStand/StandStepLower/Mesh"
+	) as MeshInstance3D
+	_check(
+		lower_step != null
+		and visual.material_override == lower_step.material_override
+		and platform.get_child_count() == 2
+		and platform.collision_layer == PhysicsLayers.WORLD
+		and platform.collision_mask == PhysicsLayers.NONE,
+		"the platform retains the deck-light material, two-child hierarchy, and World-only collision authority"
+	)
+	_check(
+		str(platform.get_meta("geometry_profile", "")) == "horizontal_rounded_rectangle"
+		and is_equal_approx(float(platform.get_meta("corner_radius_m", 0.0)), 0.35)
+		and int(platform.get_meta("curve_segments_per_corner", 0)) == 4
+		and str(platform.get_meta("geometry_status", "")) == "modern_interpretation"
+		and str(platform.get_meta("interpretation_confidence", "")) == "low"
+		and not bool(platform.get_meta("authenticated_original_geometry", true)),
+		"the 0.35 m authored curve keeps the service line's honest modern-interpretation evidence status"
+	)
 
 
 func _test_black_bin_stock_batch(world: ShipyardWorld) -> void:

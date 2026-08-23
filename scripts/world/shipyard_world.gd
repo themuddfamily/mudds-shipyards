@@ -298,6 +298,15 @@ const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 96
 const SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT := 1
 const SERVICE_LINE_RENDER_DRAWN_COPY_COUNT := 100
 const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 97
+## Rounded plan profile for the access stand's main boarding platform.
+##
+## The old 1.8 x 2.2 m shallow `_box` had only a 0.022 m bevel because its
+## 0.10 m thickness drove the shared proportional rule. At walking distance it
+## therefore read as an unmodified rectangle. This radius is large enough to
+## author the footprint visibly while keeping the exact old AABB and collider.
+const ACCESS_STAND_PLATFORM_SIZE := Vector3(1.80, 0.10, 2.20)
+const ACCESS_STAND_PLATFORM_CORNER_RADIUS := 0.35
+const ACCESS_STAND_PLATFORM_CURVE_SEGMENTS := 4
 ## Local renderer contract for ModernFleetRegistry's four roof-column visuals.
 ##
 ## The four `StaticBody3D` columns and their box colliders stay independent and
@@ -6566,7 +6575,15 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 				Vector3(0.16, 0.685, 0.16),
 				_materials["steel_blue"]
 			)
-	_box(stand, "StandPlatform", Vector3(0.0, platform_top - 0.05, 0.0), Vector3(1.80, 0.10, 2.20), _materials["deck_light"])
+	_rounded_access_platform(
+		stand,
+		"StandPlatform",
+		Vector3(0.0, platform_top - ACCESS_STAND_PLATFORM_SIZE.y * 0.5, 0.0),
+		ACCESS_STAND_PLATFORM_SIZE,
+		_materials["deck_light"],
+		ACCESS_STAND_PLATFORM_CORNER_RADIUS,
+		ACCESS_STAND_PLATFORM_CURVE_SEGMENTS
+	)
 	_box(stand, "StandStepLower", Vector3(0.0, _seated_centre_y(deck, 0.205), 1.44), Vector3(1.00, 0.205, 0.34), _materials["deck_light"])
 	_box(stand, "StandStepUpper", Vector3(0.0, _seated_centre_y(deck, 0.495), 1.10), Vector3(1.00, 0.495, 0.34), _materials["deck_light"])
 	# Rail on the outboard side only, so crew on the platform face the hull.
@@ -8520,6 +8537,100 @@ func _box(
 		mesh_instance.mesh = box_mesh
 		mesh_instance.material_override = material
 	return container
+
+
+## One rounded-plan boarding platform with the access stand's original bounds,
+## material, box collider and node hierarchy. Four quarter-circle arcs replace
+## the almost invisible shallow-box bevel in plan view. At four segments per
+## corner this mesh is 64 triangles instead of the shared box's 108, so the more
+## legible silhouette also costs less geometry and no extra submission.
+func _rounded_access_platform(
+	parent: Node3D,
+	node_name: String,
+	platform_position: Vector3,
+	size: Vector3,
+	material: Material,
+	corner_radius: float,
+	segments_per_corner: int,
+) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = platform_position
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = PhysicsLayers.NONE
+	body.set_meta("geometry_profile", &"horizontal_rounded_rectangle")
+	body.set_meta("corner_radius_m", corner_radius)
+	body.set_meta("curve_segments_per_corner", segments_per_corner)
+	body.set_meta("geometry_status", &"modern_interpretation")
+	body.set_meta("interpretation_confidence", &"low")
+	body.set_meta("authenticated_original_geometry", false)
+	parent.add_child(body)
+
+	var visual := MeshInstance3D.new()
+	visual.name = "Mesh"
+	visual.mesh = _horizontal_rounded_rectangle_mesh(size, corner_radius, segments_per_corner)
+	visual.material_override = material
+	body.add_child(visual)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+func _horizontal_rounded_rectangle_mesh(
+	size: Vector3,
+	corner_radius: float,
+	segments_per_corner: int,
+) -> ArrayMesh:
+	var radius := clampf(corner_radius, 0.001, minf(size.x, size.z) * 0.5)
+	var segment_count := maxi(segments_per_corner, 2)
+	var half_size := Vector2(size.x, size.z) * 0.5
+	var centres: Array[Vector2] = [
+		Vector2(half_size.x - radius, -half_size.y + radius),
+		Vector2(half_size.x - radius, half_size.y - radius),
+		Vector2(-half_size.x + radius, half_size.y - radius),
+		Vector2(-half_size.x + radius, -half_size.y + radius),
+	]
+	var boundary: Array[Vector2] = []
+	for corner_index in centres.size():
+		var start_angle := -PI * 0.5 + float(corner_index) * PI * 0.5
+		for segment in segment_count:
+			var angle := start_angle + float(segment) / float(segment_count) * PI * 0.5
+			boundary.append(centres[corner_index] + Vector2(cos(angle), sin(angle)) * radius)
+
+	var half_height := size.y * 0.5
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in boundary.size():
+		var current := boundary[index]
+		var next := boundary[(index + 1) % boundary.size()]
+		var current_uv := Vector2(current.x / size.x + 0.5, current.y / size.z + 0.5)
+		var next_uv := Vector2(next.x / size.x + 0.5, next.y / size.z + 0.5)
+		# Standard counter-clockwise X/Z points face down in Godot coordinates,
+		# so reverse the upper cap and retain that order for the lower cap.
+		_emit_capsule_vertex(surface, Vector3(0.0, half_height, 0.0), Vector3.UP, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(next.x, half_height, next.y), Vector3.UP, next_uv)
+		_emit_capsule_vertex(surface, Vector3(current.x, half_height, current.y), Vector3.UP, current_uv)
+		_emit_capsule_vertex(surface, Vector3(0.0, -half_height, 0.0), Vector3.DOWN, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(current.x, -half_height, current.y), Vector3.DOWN, current_uv)
+		_emit_capsule_vertex(surface, Vector3(next.x, -half_height, next.y), Vector3.DOWN, next_uv)
+		var rim_normal := Vector3(next.y - current.y, 0.0, current.x - next.x).normalized()
+		var rim_u := float(index) / float(boundary.size())
+		var rim_next_u := float(index + 1) / float(boundary.size())
+		_emit_capsule_vertex(surface, Vector3(current.x, -half_height, current.y), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(current.x, half_height, current.y), rim_normal, Vector2(rim_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(next.x, half_height, next.y), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(current.x, -half_height, current.y), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(next.x, half_height, next.y), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(next.x, -half_height, next.y), rim_normal, Vector2(rim_next_u, 0.0))
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_name = "central_berth_access_platform_rounded_v1"
+	return mesh
 
 
 ## One audited batch for repeated, anonymous visual stock. Semantic and solid
