@@ -5,15 +5,16 @@ extends RefCounted
 ## adapter. It contributes IDs and caller evidence only; the adapter/director
 ## remain authoritative for progression and reward commitment.
 
-const ACTIVITY_ID: StringName = &"ember_relay_repair"
+const ACTIVITY_ID: StringName = &"ember_beacon_survey"
 const START_LANDMARK_ID: StringName = &"ember_relay_tower"
 const FINISH_LANDMARK_ID: StringName = &"ember_return_beacon"
-const REWARD_ID: StringName = &"ember_relay_repair_data"
+const REWARD_ID: StringName = &"ember_beacon_data"
 
 func begin(adapter: Object) -> Dictionary:
-	if adapter == null or not adapter.has_method(&"start_surface_activity_sequence"):
+	if adapter == null or not adapter.has_method(&"start_activity_sequence"):
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
-	return adapter.call(&"start_surface_activity_sequence", [ACTIVITY_ID])
+	var ids: Array[StringName] = [ACTIVITY_ID]
+	return adapter.call(&"start_activity_sequence", ids)
 
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"submit_activity_landmark_discovery") \

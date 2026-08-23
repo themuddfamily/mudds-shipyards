@@ -21,6 +21,9 @@ const LandmarkBeaconScript := preload("res://scripts/world/planetary_surface_lan
 const LandingApproachScript := preload("res://scripts/world/planetary_landing_approach_presentation.gd")
 const OrbitalRingScript := preload("res://scripts/world/planetary_orbital_approach_ring_presentation.gd")
 const RouteTrailScript := preload("res://scripts/world/planetary_surface_route_trail_presentation.gd")
+const RelaySurveyScript := preload("res://scripts/world/ember_surface_relay_survey_activity.gd")
+const ActivityDefinitionScript := preload("res://scripts/activities/activity_definition.gd")
+const LocationDefinitionScript := preload("res://scripts/world/definitions/world_location_definition.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -49,6 +52,7 @@ var _landmark_beacons: Dictionary = {}
 var _landing_markers: Dictionary = {}
 var _orbital_ring: Node
 var _route_trail: Node
+var _relay_survey: RefCounted
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -136,6 +140,8 @@ func configure(
 	for landmark in landmark_contract.get_snapshot().get("landmarks", []) as Array:
 		route_points.append((landmark as Dictionary).get("position_body_local_m", Vector3.ZERO))
 	_route_trail.call(&"configure", route_points)
+	_relay_survey = RelaySurveyScript.new()
+	_register_relay_survey_activity(director)
 	_orbital_ring = OrbitalRingScript.new() as Node
 	_orbital_ring.name = "OwnedOrbitalApproachRing"
 	add_child(_orbital_ring)
@@ -169,6 +175,22 @@ func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Diction
 	if not _live():
 		return _result(false, &"composition_detached")
 	return _adapter.call(&"start_surface_activity_sequence", activity_ids, _navigation)
+
+func start_relay_survey() -> Dictionary:
+	if not _live(): return _result(false, &"composition_detached")
+	return _relay_survey.begin(_adapter)
+
+func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
+	if not _live(): return _result(false, &"composition_detached")
+	return _relay_survey.submit_landmark(_adapter, landmark_id, position)
+
+func submit_relay_survey_position(position: Vector3) -> Dictionary:
+	if not _live(): return _result(false, &"composition_detached")
+	return _relay_survey.submit_position(_adapter, position)
+
+func commit_relay_survey_reward() -> Dictionary:
+	if not _live(): return _result(false, &"composition_detached")
+	return _relay_survey.commit_reward(_adapter)
 
 
 func discover_settlements(position: Variant, radius_m: Variant) -> Dictionary:
@@ -418,8 +440,30 @@ func get_snapshot() -> Dictionary:
 		"landing_markers": _landing_marker_snapshot(),
 		"orbital_ring": _orbital_ring.call(&"get_snapshot") if _orbital_ring != null else {},
 		"route_trail": _route_trail.call(&"get_snapshot") if _route_trail != null else {},
+		"relay_survey": _relay_survey.get_snapshot() if _relay_survey != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
+
+
+func _register_relay_survey_activity(director: ActivityDirector) -> void:
+	if director.get_definition(_relay_survey.ACTIVITY_ID) != null:
+		return
+	var location := LocationDefinitionScript.new()
+	location.location_id = &"ember_relay_survey_location"
+	location.display_name = "Ember Relay Survey"
+	location.sector_id = &"ember_moon_surface"
+	location.anchor_source_id = _relay_survey.START_LANDMARK_ID
+	location.anchor_position = Vector3(180.0, 120009.0, -44.0)
+	location.content_note = "Authored Ember relay survey anchor."
+	var definition := ActivityDefinitionScript.new()
+	definition.activity_id = _relay_survey.ACTIVITY_ID
+	definition.display_name = "Relay Survey"
+	definition.content_note = "Survey the authored Ember relay route."
+	definition.location = location
+	definition.checkpoint_positions = PackedVector3Array([
+		Vector3(180.0, 120009.0, -44.0), Vector3(540.0, 120030.0, -210.0)
+	])
+	director.register_definition(definition)
 
 
 func get_session_snapshot() -> Dictionary:
