@@ -32,24 +32,47 @@ func _run() -> void:
 	_check(client._apply_projectile_replica_snapshot(published_packet).accepted, "client accepts flying projectile")
 	_check(int(client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,
 		"client stores presentation-only projectile state")
+	_check(client._apply_projectile_replica_snapshot(published_packet).get("status") == &"stale_projectile_revision",
+		"exact packet replay is rejected by its per-projectile revision")
+	var equal_tick := published_packet.duplicate(true)
+	equal_tick["revision"] = int(published_packet.get("revision", 0)) + 1
+	_check(client._apply_projectile_replica_snapshot(equal_tick).get("status") == &"stale_projectile_tick",
+		"a newer packet revision cannot replay an equal projectile tick")
 	var stale := published_packet.duplicate(true)
 	stale["projectile"] = _projectile(0, &"flying", Vector3.ZERO)
 	_check(client._apply_projectile_replica_snapshot(stale).get("status") == &"invalid_projectile_snapshot",
 		"malformed generation is rejected")
 	var terminal_packet := published_packet.duplicate(true)
+	terminal_packet["revision"] = int(published_packet.get("revision", 0)) + 2
 	terminal_packet["terminal"] = true
 	terminal_packet["projectile"] = _projectile(1, &"expired", Vector3.ZERO)
+	terminal_packet.projectile.last_update_tick = 2
 	_check(client._apply_projectile_replica_snapshot(terminal_packet).get("status") == &"projectile_terminal_applied",
 		"terminal packet retires client presentation")
 	_check(int(client.get_presentation_cursor_audit().get("projectile_count", 0)) == 0,
 		"terminal cleanup removes the replica cursor")
+	_check(client._apply_projectile_replica_snapshot(terminal_packet).get("status") == &"stale_projectile_revision",
+		"terminal packet replay is rejected")
+	var resurrection := _packet(_projectile(1, &"flying", Vector3.ONE), 12, int(terminal_packet.revision) + 1)
+	_check(client._apply_projectile_replica_snapshot(resurrection).get("status") == &"projectile_generation_terminal",
+		"a terminal generation cannot be resurrected by a later tick")
+	var next_generation := _packet(_projectile(2, &"flying", Vector3.ONE), 13, int(resurrection.revision) + 1)
+	var next_generation_result: Dictionary = client._apply_projectile_replica_snapshot(next_generation)
+	_check(next_generation_result.get("status") == &"projectile_presented"
+		and int(client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,
+		"a strictly newer projectile generation replaces and presents after a terminal generation")
 	var oversized := published_packet.duplicate(true)
 	var oversized_projectile: Dictionary = _projectile(1, &"flying", Vector3.ZERO)
 	oversized_projectile["padding"] = "x".repeat(7000)
 	oversized["projectile"] = oversized_projectile
 	_check(client._apply_projectile_replica_snapshot(oversized).get("status") == &"projectile_packet_too_large",
 		"oversized packet is rejected")
-	client._projectile_replica_migration_generation = 2
+	_check(client.reset_snapshot_jitter(3).accepted
+		and client._projectile_replica_samples.is_empty()
+		and client._projectile_replica_packet_revisions.is_empty()
+		and client._projectile_replica_terminal_generations.is_empty()
+		and client._projectile_jitter.get_snapshot().migration_generation == 3,
+		"explicit reset clears projectile samples, replay fences, tombstones, and jitter")
 	_check(client._apply_projectile_replica_snapshot(published_packet).get("status") == &"stale_migration_generation",
 		"pre-migration packet cannot repopulate the replica")
 	var ordering_client := Adapter.new()
@@ -63,14 +86,42 @@ func _run() -> void:
 	var valid_old_result: Dictionary = ordering_client._apply_projectile_replica_snapshot(valid_old_generation)
 	_check(bool(valid_old_result.get("accepted", false)),
 		"valid prior generation remains usable after stale rejection")
+	var migration_terminal := _packet(_projectile(1, &"expired", Vector3.ZERO), 12, 4)
+	migration_terminal["terminal"] = true
+	_check(ordering_client._apply_projectile_replica_snapshot(migration_terminal).accepted,
+		"pre-migration terminal is accepted")
+	var migrated := _packet(_projectile(1, &"flying", Vector3(2.0, 0.0, 0.0)), 1, 1, 2)
+	_check(ordering_client._apply_projectile_replica_snapshot(migrated).accepted,
+		"migration reset clears revision, tick, and terminal fences")
+	_check(ordering_client.get_snapshot_jitter_state().migration_generation == 1,
+		"shared snapshot jitter remains independent of projectile migration")
+	_check(ordering_client._projectile_jitter.get_snapshot().migration_generation == 2,
+		"projectile jitter adopts the new migration generation")
+	ordering_client._configured = true
+	_check(ordering_client.shutdown(&"replication_test").accepted,
+		"client shutdown is accepted")
+	_check(ordering_client._projectile_replica_samples.is_empty()
+		and ordering_client._projectile_replica_packet_revisions.is_empty()
+		and ordering_client._projectile_replica_terminal_generations.is_empty()
+		and ordering_client._projectile_jitter.get_snapshot().next_revision == 1,
+		"shutdown clears projectile samples, replay fences, tombstones, and jitter")
 	server._projectile._projectiles[projectile.get("projectile_id")] = projectile.duplicate(true)
 	var resync: Dictionary = server.publish_projectile_resync(2, 11)
 	_check(bool(resync.get("accepted", false)) and int(resync.get("projectile_count", 0)) == 1,
 		"late-join resync enumerates active authority projectiles")
 	_check(server.publish_projectile_snapshot(projectile, [9]).get("status") == &"peer_not_admitted",
 		"server rejects unknown recipient")
+	server._projectile_replica_packet_revisions[&"disconnect_probe"] = 4
+	server._projectile_replica_terminal_generations[&"disconnect_probe"] = 2
+	server._projectile_replica_samples[&"disconnect_probe"] = {"position": Vector3.ZERO}
+	server._projectile_jitter.push({"revision": 1, "server_tick": 1})
 	server._on_peer_disconnected(2)
-	_check(server.get_projectile_replication_budget(2).is_empty(), "disconnect clears projectile budget")
+	_check(server.get_projectile_replication_budget(2).is_empty()
+		and server._projectile_replica_packet_revisions.is_empty()
+		and server._projectile_replica_terminal_generations.is_empty()
+		and server._projectile_replica_samples.is_empty()
+		and server._projectile_jitter.get_snapshot().next_revision == 1,
+		"disconnect clears projectile budget, replica fences, samples, and jitter")
 	server.free()
 	client.free()
 	ordering_client.free()
@@ -97,13 +148,13 @@ func _projectile(generation: int, state: StringName, position: Vector3) -> Dicti
 }
 
 
-func _packet(projectile: Dictionary, tick: int, revision: int) -> Dictionary:
+func _packet(projectile: Dictionary, tick: int, revision: int, migration_generation: int = 1) -> Dictionary:
 	var snapshot := projectile.duplicate(true)
 	snapshot["last_update_tick"] = tick
 	return {
 		"revision": revision,
 		"server_tick": tick,
-		"migration_generation": 1,
+		"migration_generation": migration_generation,
 		"projectile": snapshot,
 		"terminal": false,
 	}

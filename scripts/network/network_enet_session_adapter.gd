@@ -135,6 +135,8 @@ var _projectile_recipient_pending: Dictionary = {}
 var _projectile_published_generations: Dictionary = {}
 var _projectile_replica_generations: Dictionary = {}
 var _projectile_replica_ticks: Dictionary = {}
+var _projectile_replica_packet_revisions: Dictionary = {}
+var _projectile_replica_terminal_generations: Dictionary = {}
 var _projectile_replica_revision := 0
 var _projectile_replica_migration_generation := 1
 var _landing_jitter
@@ -368,10 +370,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_projectile_recipient_budgets.clear()
 	_projectile_recipient_pending.clear()
 	_projectile_published_generations.clear()
-	_projectile_replica_generations.clear()
-	_projectile_replica_ticks.clear()
-	_projectile_replica_revision = 0
-	_projectile_replica_migration_generation = 1
+	_reset_projectile_replica_state(1)
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -1576,10 +1575,9 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 		_projectile_recipient_budgets.clear()
 		_projectile_recipient_pending.clear()
 		_projectile_published_generations.clear()
-		_projectile_replica_generations.clear()
-		_projectile_replica_ticks.clear()
-		_projectile_replica_revision = 0
-		_projectile_replica_migration_generation = 1
+		_reset_projectile_replica_state(
+			int(_migration.get_snapshot().get("migration_generation", 1))
+		)
 		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -1740,18 +1738,13 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_projectile_recipient_budgets.clear()
 	_projectile_recipient_pending.clear()
 	_projectile_published_generations.clear()
-	_projectile_replica_generations.clear()
-	_projectile_replica_ticks.clear()
-	_projectile_replica_revision = 0
-	_projectile_replica_migration_generation = migration_generation
+	_reset_projectile_replica_state(migration_generation)
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
 	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
 		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 		_moving_replica.reset_migration(AUTHORITY_PEER_ID, migration_generation)
-	_projectile_replica_samples.clear()
-	_projectile_jitter.reset(migration_generation)
 	_landing_replica_samples.clear()
 	_landing_snapshot_revision = 0
 	_landing_jitter.reset(migration_generation)
@@ -3125,12 +3118,7 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	if migration_generation < _projectile_replica_migration_generation:
 		return _remember(_result(false, &"stale_migration_generation"))
 	if migration_generation > _projectile_replica_migration_generation:
-		_projectile_jitter.reset(1)
-		_projectile_replica_samples.clear()
-		_projectile_replica_generations.clear()
-		_projectile_replica_ticks.clear()
-		_projectile_replica_revision = 0
-		_projectile_replica_migration_generation = migration_generation
+		_reset_projectile_replica_state(migration_generation)
 	var projectile: Dictionary = packet.get("projectile", {}) as Dictionary
 	var validation := _validate_projectile_replica_snapshot(projectile)
 	if not bool(validation.get("accepted", false)):
@@ -3140,16 +3128,23 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	var prior_generation := int(_projectile_replica_generations.get(projectile_id, 0))
 	if generation < prior_generation:
 		return _remember(_result(false, &"stale_projectile_generation"))
+	var packet_revision := int(packet.get("revision", 0))
+	if packet_revision <= int(_projectile_replica_packet_revisions.get(projectile_id, 0)):
+		return _remember(_result(false, &"stale_projectile_revision"))
 	var server_tick := int(projectile.get("last_update_tick", 0))
-	if server_tick < int(_projectile_replica_ticks.get(projectile_id, -1)):
+	if server_tick <= int(_projectile_replica_ticks.get(projectile_id, -1)):
 		return _remember(_result(false, &"stale_projectile_tick"))
+	if generation <= int(_projectile_replica_terminal_generations.get(projectile_id, 0)):
+		return _remember(_result(false, &"projectile_generation_terminal"))
 	if generation > prior_generation:
 		_projectile_replica_samples.erase(projectile_id)
 		_projectile_replica_generations[projectile_id] = generation
+		_projectile_replica_terminal_generations.erase(projectile_id)
+	_projectile_replica_packet_revisions[projectile_id] = packet_revision
 	_projectile_replica_ticks[projectile_id] = server_tick
 	if bool(packet.get("terminal", false)) or StringName(projectile.get("state", &"")) != &"flying":
 		_projectile_replica_samples.erase(projectile_id)
-		_projectile_replica_revision += 1
+		_projectile_replica_terminal_generations[projectile_id] = generation
 		return _remember(_result(true, &"projectile_terminal_applied", {
 			"projectile_id": projectile_id,
 			"state": StringName(projectile.get("state", &"")),
@@ -3159,6 +3154,17 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	local_packet["revision"] = _projectile_replica_revision
 	var applied := consume_projectile_snapshot(local_packet)
 	return _remember(applied)
+
+
+func _reset_projectile_replica_state(migration_generation: int) -> void:
+	_projectile_replica_samples.clear()
+	_projectile_replica_generations.clear()
+	_projectile_replica_ticks.clear()
+	_projectile_replica_packet_revisions.clear()
+	_projectile_replica_terminal_generations.clear()
+	_projectile_replica_revision = 0
+	_projectile_replica_migration_generation = maxi(1, migration_generation)
+	_projectile_jitter.reset(_projectile_replica_migration_generation)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -3364,10 +3370,7 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 	_projectile_recipient_budgets.erase(peer_id)
 	_projectile_recipient_pending.erase(peer_id)
 	_projectile_published_generations.erase(peer_id)
-	_projectile_replica_samples.clear()
-	_projectile_replica_generations.clear()
-	_projectile_replica_ticks.clear()
-	_projectile_replica_revision = 0
+	_reset_projectile_replica_state(_projectile_replica_migration_generation)
 	_refresh_hosted_directory()
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)
