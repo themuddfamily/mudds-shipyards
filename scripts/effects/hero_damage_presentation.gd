@@ -61,6 +61,8 @@ const ENGINE_SPARK_CRITICAL_AMOUNT := 11
 const ENGINE_SPARK_SEVERE_AMOUNT := 24
 const ENGINE_SMOKE_CRITICAL_AMOUNT := 18
 const ENGINE_SMOKE_SEVERE_AMOUNT := 34
+const DEBRIS_AFTERGLOW_LIFETIME := 2.4
+const DEBRIS_FINAL_FADE_WINDOW := 1.2
 
 @export_category("Damage thresholds")
 @export_range(0.05, 0.95, 0.01) var damaged_threshold := 0.68
@@ -114,6 +116,7 @@ var _destruction_root: Node3D
 var _destruction_flash: OmniLight3D
 var _explosion_core: MeshInstance3D
 var _shockwave: MeshInstance3D
+var _destruction_debris: Array[Dictionary] = []
 var _transient_effects: Array[Dictionary] = []
 var _materials: Dictionary = {}
 var _meshes: Dictionary = {}
@@ -1098,6 +1101,7 @@ func _spawn_debris_piece(index: int) -> void:
 	)
 
 	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "HullFragment"
 	var debris_mesh := BoxMesh.new()
 	debris_mesh.size = Vector3(
 		0.18 + float(index % 3) * 0.13,
@@ -1107,7 +1111,25 @@ func _spawn_debris_piece(index: int) -> void:
 	debris_mesh.material = _materials.debris_ivory if index % 3 != 0 else _materials.debris_dark
 	mesh_instance.mesh = debris_mesh
 	debris.add_child(mesh_instance)
+
+	# A small molten fracture face keeps fragments readable after the central
+	# flash has gone. It is purely local art under the already-bounded detached
+	# destruction root and cools without timers or independent world ownership.
+	var ember := MeshInstance3D.new()
+	ember.name = "FractureAfterglow"
+	var ember_mesh := BoxMesh.new()
+	ember_mesh.size = Vector3(
+		debris_mesh.size.x * 1.08,
+		debris_mesh.size.y * 1.08,
+		minf(debris_mesh.size.z * 0.22, 0.14)
+	)
+	ember_mesh.material = _materials.debris_afterglow
+	ember.mesh = ember_mesh
+	ember.position.z = debris_mesh.size.z * 0.5
+	ember.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	debris.add_child(ember)
 	var collision := CollisionShape3D.new()
+	collision.name = "HullFragmentCollision"
 	var shape := BoxShape3D.new()
 	shape.size = debris_mesh.size
 	collision.shape = shape
@@ -1121,6 +1143,12 @@ func _spawn_debris_piece(index: int) -> void:
 		2.2 + float(index % 5) * 0.65,
 		-1.5 - float(index) * 0.41
 	)
+	_destruction_debris.append({
+		"body": debris,
+		"hull": mesh_instance,
+		"afterglow": ember,
+		"index": index,
+	})
 
 
 func _update_destruction_effects(delta: float) -> void:
@@ -1139,6 +1167,24 @@ func _update_destruction_effects(delta: float) -> void:
 	if is_instance_valid(_shockwave):
 		_shockwave.scale = Vector3.ONE * (0.7 + age * 7.2)
 		_shockwave.visible = age <= 1.05
+	var cooling_duration := maxf(
+		minf(DEBRIS_AFTERGLOW_LIFETIME, destruction_effect_lifetime * 0.75),
+		0.001
+	)
+	var cooling_progress := clampf(age / cooling_duration, 0.0, 1.0)
+	var final_fade_window := maxf(
+		minf(DEBRIS_FINAL_FADE_WINDOW, destruction_effect_lifetime * 0.3),
+		0.001
+	)
+	var hull_fade := clampf(1.0 - _destruction_remaining / final_fade_window, 0.0, 1.0)
+	for record in _destruction_debris:
+		var hull := record.get("hull") as MeshInstance3D
+		var afterglow := record.get("afterglow") as MeshInstance3D
+		if is_instance_valid(hull):
+			hull.transparency = smoothstep(0.0, 1.0, hull_fade)
+		if is_instance_valid(afterglow):
+			afterglow.transparency = smoothstep(0.12, 1.0, cooling_progress)
+			afterglow.scale = Vector3.ONE * lerpf(1.0, 0.42, cooling_progress)
 	if _destruction_remaining <= 0.0:
 		_clear_destruction_effect()
 		effects_cleared.emit()
@@ -1195,6 +1241,7 @@ func _clear_all_world_effects(emit_completion: bool) -> void:
 func _clear_destruction_effect() -> void:
 	_destruction_remaining = 0.0
 	_remove_world_node(_destruction_root)
+	_destruction_debris.clear()
 	_destruction_root = null
 	_destruction_flash = null
 	_explosion_core = null
@@ -1321,6 +1368,7 @@ func _create_materials() -> void:
 	_materials.explosion = _emissive_material(Color("fff0b0"), 6.2)
 	_materials.debris_ivory = _solid_material(DEBRIS_IVORY, 0.24, 0.42)
 	_materials.debris_dark = _solid_material(DEBRIS_DARK, 0.52, 0.3)
+	_materials.debris_afterglow = _emissive_material(Color("ff8a38"), 3.8)
 
 	var smoke := StandardMaterial3D.new()
 	smoke.albedo_color = SMOKE_COLOR
