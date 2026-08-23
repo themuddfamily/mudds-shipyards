@@ -366,6 +366,44 @@ func get_component_states() -> Array[Dictionary]:
 	return states
 
 
+## Returns bounded, data-only runtime consequences for caller-designated engine,
+## weapon, and sensor components. The caller retains movement, fire, targeting,
+## and component-role authority; this model only translates its resolved stages
+## into detached multipliers that those authorities may consume.
+##
+## An inactive model or an unknown binding returns an empty dictionary rather
+## than inventing operational state. Valid multipliers are always finite 0..1,
+## with the matching disabled flag copied from the resolved component stage.
+func get_operational_modifiers(
+		engine_component_id: StringName,
+		weapon_component_id: StringName,
+		sensor_component_id: StringName
+	) -> Dictionary:
+	if _generation <= 0:
+		return {}
+	for component_id in [engine_component_id, weapon_component_id, sensor_component_id]:
+		if not _components.has(component_id):
+			return {}
+	var engine_stage := _resolved_stage(engine_component_id)
+	var weapon_stage := _resolved_stage(weapon_component_id)
+	var sensor_stage := _resolved_stage(sensor_component_id)
+	return {
+		"generation": _generation,
+		"revision": _revision,
+		"mobility_multiplier": _stage_multiplier(engine_stage),
+		"fire_multiplier": _stage_multiplier(weapon_stage),
+		"targeting_multiplier": _stage_multiplier(sensor_stage),
+		"mobility_disabled": bool(engine_stage.get("disabled", false)),
+		"fire_disabled": bool(weapon_stage.get("disabled", false)),
+		"targeting_disabled": bool(sensor_stage.get("disabled", false)),
+		"component_bindings": {
+			"engine": engine_component_id,
+			"weapon": weapon_component_id,
+			"sensor": sensor_component_id,
+		},
+	}.duplicate(true)
+
+
 func get_definition_snapshot() -> Dictionary:
 	var components: Array[Dictionary] = []
 	for definition in _definitions:
@@ -651,6 +689,22 @@ func _stage_snapshot(stages: Array, stage_index: int) -> Dictionary:
 	if stage_index < 0 or stage_index >= stages.size():
 		return {}
 	return (stages[stage_index] as Dictionary).duplicate(true)
+
+
+func _resolved_stage(component_id: StringName) -> Dictionary:
+	var component := _components[component_id] as Dictionary
+	return _stage_snapshot(
+		component.get("damage_stages", []) as Array,
+		int(component.get("stage_index", -1))
+	)
+
+
+func _stage_multiplier(stage: Dictionary) -> float:
+	return clampf(
+		float(stage.get("performance_multiplier", 0.0)),
+		0.0,
+		MAX_PERFORMANCE_MULTIPLIER
+	)
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:

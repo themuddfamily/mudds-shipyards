@@ -6,6 +6,7 @@ const ComponentDamageModelType := preload(
 
 const ENGINE_ID: StringName = &"engine_core"
 const WEAPON_ID: StringName = &"pulse_mount"
+const SENSOR_ID: StringName = &"sensor_array"
 const MODEL_SCHEMA_VERSION := 3
 const MAX_FINITE_REPAIR := 1.7976931348623157e308
 const DEFINITION_SNAPSHOT_KEYS := [
@@ -174,6 +175,7 @@ func _run() -> void:
 	_test_typed_configuration_snapshot()
 	_test_reset_and_ordered_stages()
 	_test_ordered_repair_and_shared_sequence()
+	_test_operational_modifiers_follow_damage_and_repair()
 	_test_atomic_damage_batch_order_and_detachment()
 	_test_atomic_repair_batch_order_and_detachment()
 	_test_batch_structured_red_rejections()
@@ -489,6 +491,96 @@ func _test_ordered_repair_and_shared_sequence() -> void:
 				1.0
 			),
 		"repair signal payloads are detached from component health and stage consequences"
+	)
+
+
+func _test_operational_modifiers_follow_damage_and_repair() -> void:
+	var definitions := VALID_DEFINITIONS.duplicate(true)
+	definitions.append({
+		"component_id": SENSOR_ID,
+		"maximum_health": 80.0,
+		"damage_stages": [
+			{
+				"stage_id": &"nominal",
+				"health_ratio_at_or_below": 1.0,
+				"disabled": false,
+				"performance_multiplier": 1.0,
+			},
+			{
+				"stage_id": &"degraded",
+				"health_ratio_at_or_below": 0.5,
+				"disabled": false,
+				"performance_multiplier": 0.64,
+			},
+			{
+				"stage_id": &"failed",
+				"health_ratio_at_or_below": 0.0,
+				"disabled": true,
+				"performance_multiplier": 0.0,
+			},
+		],
+	})
+	var model := ComponentDamageModelType.new(definitions) as ComponentDamageModel
+	_check(
+		model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID).is_empty(),
+		"inactive ledgers publish no invented operational capability"
+	)
+	model.reset_for_reuse(0)
+	var damage := model.apply_component_damage_batch([
+		_damage_context(ENGINE_ID, 65.0, 1, 0),
+		_damage_context(WEAPON_ID, 30.0, 1, 1),
+		_damage_context(SENSOR_ID, 40.0, 1, 2),
+	])
+	var degraded := model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID)
+	_check(
+		bool(damage.accepted)
+			and is_equal_approx(float(degraded.mobility_multiplier), 0.38)
+			and is_equal_approx(float(degraded.fire_multiplier), 0.55)
+			and is_equal_approx(float(degraded.targeting_multiplier), 0.64)
+			and not bool(degraded.mobility_disabled)
+			and not bool(degraded.fire_disabled)
+			and not bool(degraded.targeting_disabled),
+		"resolved engine, weapon, and sensor stages publish bounded runtime modifiers"
+	)
+	var bindings := degraded.component_bindings as Dictionary
+	bindings["engine"] = &"spoofed_engine"
+	degraded["mobility_multiplier"] = 99.0
+	var fresh := model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID)
+	_check(
+		fresh.component_bindings.engine == ENGINE_ID
+			and float(fresh.mobility_multiplier) <= 1.0,
+		"operational modifier snapshots are detached and remain inside their validated bounds"
+	)
+	var failed_weapon := model.apply_component_damage(
+		_damage_context(WEAPON_ID, 30.0, 1, 3)
+	)
+	var failed := model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID)
+	_check(
+		bool(failed_weapon.accepted)
+			and is_zero_approx(float(failed.fire_multiplier))
+			and bool(failed.fire_disabled),
+		"a resolved weapon failure publishes zero fire capability without firing authority"
+	)
+	var repairs := model.apply_component_repair_batch([
+		_repair_context(ENGINE_ID, 65.0, 1, 4),
+		_repair_context(WEAPON_ID, 60.0, 1, 5),
+		_repair_context(SENSOR_ID, 40.0, 1, 6),
+	])
+	var restored := model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID)
+	_check(
+		bool(repairs.accepted)
+			and is_equal_approx(float(restored.mobility_multiplier), 1.0)
+			and is_equal_approx(float(restored.fire_multiplier), 1.0)
+			and is_equal_approx(float(restored.targeting_multiplier), 1.0)
+			and not bool(restored.mobility_disabled)
+			and not bool(restored.fire_disabled)
+			and not bool(restored.targeting_disabled),
+		"caller-authorized repair restores every operational modifier through the same ledger"
+	)
+	_check(
+		model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, &"unknown_sensor").is_empty()
+			and not bool(model.get_authority_report().gameplay),
+		"unknown bindings fail closed while movement, fire, and targeting authority stay external"
 	)
 
 
