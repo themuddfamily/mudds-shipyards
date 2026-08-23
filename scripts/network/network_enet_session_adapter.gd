@@ -57,6 +57,7 @@ const RECONNECT_BACKOFF_MAX_MILLISECONDS := 5000
 const RECONNECT_BACKOFF_MAX_ATTEMPTS := 6
 const HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS := 5000
 const HANDSHAKE_MAX_TIMEOUT_MILLISECONDS := 30000
+const MAX_PRESENTATION_ENTITIES := 256
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -92,6 +93,7 @@ var _migration_replica_samples: Dictionary = {}
 var _interest_jitter
 var _interest_replica_samples: Dictionary = {}
 var _interest_retired_revisions: Dictionary = {}
+var _presentation_evictions := 0
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -907,6 +909,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_migration_jitter.reset(migration_generation)
 	_interest_replica_samples.clear()
 	_interest_retired_revisions.clear()
+	_presentation_evictions = 0
 	_interest_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
@@ -1041,6 +1044,19 @@ func get_handshake_deadline_state() -> Dictionary:
 	return _handshake_deadline.duplicate(true)
 
 
+func get_presentation_cursor_audit() -> Dictionary:
+	return {
+		"capacity_per_category": MAX_PRESENTATION_ENTITIES,
+		"moving_interior_count": _moving_replica_samples.size(),
+		"projectile_count": _projectile_replica_samples.size(),
+		"landing_count": _landing_replica_samples.size(),
+		"damage_count": _damage_replica_samples.size(),
+		"boarding_count": _boarding_replica_samples.size(),
+		"interest_count": _interest_replica_samples.size(),
+		"eviction_count": _presentation_evictions,
+	}.duplicate(true)
+
+
 func _reset_session_end_reason() -> void:
 	_session_end_reason = {
 		"reason": &"unknown",
@@ -1058,6 +1074,16 @@ func _reset_handshake_deadline() -> void:
 		"migration_generation": 0,
 		"timeout_milliseconds": HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS,
 	}
+
+
+func _store_presentation_sample(store: Dictionary, entity_id: StringName, record: Dictionary) -> void:
+	if not store.has(entity_id) and store.size() >= MAX_PRESENTATION_ENTITIES:
+		var keys: Array = store.keys()
+		keys.sort_custom(func(left: Variant, right: Variant) -> bool: return str(left) < str(right))
+		if not keys.is_empty():
+			store.erase(keys[0])
+			_presentation_evictions += 1
+	store[entity_id] = record.duplicate(true)
 
 
 ## Presents a released authoritative moving-interior relationship without
@@ -1093,13 +1119,13 @@ func consume_moving_interior_snapshot(
 		if not prior.is_empty():
 			var prior_transform: Transform3D = prior.get("local_transform", Transform3D.IDENTITY)
 			local_transform = prior_transform.interpolate_with(local_transform, clampf(alpha, 0.0, 1.0))
-		_moving_replica_samples[entity_id] = {
+		_store_presentation_sample(_moving_replica_samples, entity_id, {
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": relationship.get_server_tick(),
 			"parent_frame_id": relationship.get_parent_frame_id(),
 			"parent_frame_generation": relationship.get_parent_frame_generation(),
 			"local_transform": local_transform,
-		}
+		})
 		presented.append({
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": relationship.get_server_tick(),
@@ -1176,11 +1202,11 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 			position = (prior.get("position", position) as Vector3).lerp(
 				position, clampf(alpha, 0.0, 1.0)
 			)
-		_projectile_replica_samples[ready_id] = {
+		_store_presentation_sample(_projectile_replica_samples, ready_id, {
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": int(ready.get("server_tick", 0)),
 			"position": position,
-		}
+		})
 		presented.append({
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": int(ready.get("server_tick", 0)),
@@ -1272,7 +1298,7 @@ func consume_interest_snapshot(packet: Dictionary) -> Dictionary:
 			"entered": entered,
 			"state": (ready_interest.get("state", {}) as Dictionary).duplicate(true),
 		}
-		_interest_replica_samples[entity_id] = record.duplicate(true)
+		_store_presentation_sample(_interest_replica_samples, entity_id, record)
 		presented.append(record)
 	if presented.is_empty():
 		return _remember(_result(true, &"interest_waiting_for_gap", {"samples": [], "frozen": true}))
@@ -1359,7 +1385,7 @@ func consume_boarding_ownership_snapshot(packet: Dictionary) -> Dictionary:
 			"seat_id": seat_id,
 			"seat_occupied": bool(boarding.get("occupied", false)),
 		}
-		_boarding_replica_samples[ship_id] = record.duplicate(true)
+		_store_presentation_sample(_boarding_replica_samples, ship_id, record)
 		presented.append(record)
 	if presented.is_empty():
 		var frozen: Array = []
@@ -1404,12 +1430,12 @@ func consume_damage_respawn_snapshot(packet: Dictionary, alpha: float = 1.0) -> 
 		if not prior.is_empty():
 			displayed_health = lerpf(float(prior.get("health", ready_health)), ready_health, clampf(alpha, 0.0, 1.0))
 		var state := StringName(ready_damage.get("state", &"active"))
-		_damage_replica_samples[ready_id] = {
+		_store_presentation_sample(_damage_replica_samples, ready_id, {
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": int(ready.get("server_tick", 0)),
 			"health": displayed_health,
 			"state": state,
-		}
+		})
 		presented.append({
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": int(ready.get("server_tick", 0)),
@@ -1470,12 +1496,12 @@ func consume_landing_snapshot(packet: Dictionary, alpha: float = 1.0) -> Diction
 			position = (prior.get("position", position) as Vector3).lerp(
 				position, clampf(alpha, 0.0, 1.0)
 			)
-		_landing_replica_samples[ready_id] = {
+		_store_presentation_sample(_landing_replica_samples, ready_id, {
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": int(ready.get("server_tick", 0)),
 			"position": position,
 			"state": StringName(ready_landing.get("state", &"flying")),
-		}
+		})
 		presented.append({
 			"revision": int(ready.get("revision", 0)),
 			"server_tick": int(ready.get("server_tick", 0)),
