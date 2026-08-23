@@ -119,6 +119,21 @@ const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 )
 const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL := 9_007_199_254_740_991
+const MUDDS_RETURN_TARGET_ID: StringName = &"mudds_shipyards"
+const MUDDS_RETURN_CORRIDOR_HALF_LENGTH_METERS := 750_000.0
+const MUDDS_RETURN_CORRIDOR_MINIMUM_HALF_WIDTH_METERS := 100.0
+const MUDDS_RETURN_BRAKE_SHELL_MINIMUM_METERS := 25_000.0
+const MUDDS_RETURN_BRAKE_SHELL_MAXIMUM_METERS := 65_000.0
+const MUDDS_RETURN_MAXIMUM_SPEED_MPS := 12.0
+const MUDDS_RETURN_MAXIMUM_ATTITUDE_DEGREES := 12.0
+const MUDDS_RETURN_HULL_MARGIN_METERS := 0.05
+const MUDDS_RETURN_FLEET_IDS: Array[StringName] = [
+	&"torrent_provisional",
+	&"arrow_provisional",
+	&"jovian_provisional",
+	&"zenith_b7_observed",
+	&"halyard_new_design",
+]
 const DEBUG_AIM_DISTANCE_METERS := 10_000.0
 const MINIMAP_STATION_RANGE_METERS := 180.0
 const MINIMAP_FLIGHT_RANGE_METERS := 900.0
@@ -564,6 +579,15 @@ var _ember_surface_forward_count := 0
 var _ember_surface_journey_active := false
 var _ember_final_approach_handoff_ready := false
 var _ember_final_approach_completion_receipt: Dictionary = {}
+## The surface scheduler owns the one atomic command-source handback. These
+## latches only prevent GameFlow from consuming or replaying it twice before the
+## caller-driven cruise binding reaches the existing station return lifecycle.
+var _mudds_return_handback_consumption_attempted := false
+var _mudds_return_handback_receipt: Dictionary = {}
+var _mudds_return_approach_active := false
+var _mudds_return_approach_completion_attempted := false
+var _mudds_return_approach_completion_receipt: Dictionary = {}
+var _last_mudds_return_approach_result: Dictionary = {}
 ## Station topology is captured in ShipyardWorld-local coordinates. A common
 ## floating-origin rebase can then translate the live world root without leaving
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
@@ -582,6 +606,14 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _mudds_return_approach_active \
+			and not _mudds_return_approach_completion_attempted:
+		_mudds_return_approach_active = false
+		_ember_surface_journey_active = false
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": &"return_approach_main_detached",
+		}.duplicate(true)
 	if not _pending_ember_surface_request.is_empty():
 		cancel_ember_surface_journey()
 	if not _pending_display_confirmation.is_empty() and runtime_settings != null:
@@ -2097,13 +2129,21 @@ func _physics_process(delta: float) -> void:
 		_last_ember_surface_forward_result = _forward_pending_ember_surface_journey()
 		if bool(_last_ember_surface_forward_result.get("accepted", false)):
 			_ember_surface_forward_count += 1
+	if not required_origin_rebase_uncommitted:
+		_advance_mudds_return_approach_handoff(coordinate_frame_generation)
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
+		var return_approach_cadence := (
+			_mudds_return_approach_active
+			and not _mudds_return_approach_completion_attempted
+		)
 		if required_origin_rebase_uncommitted:
 			cruise_gate_reason = &"origin_rebase_required"
-		elif not ember_streaming_accepted:
+		elif not return_approach_cadence and not ember_streaming_accepted:
 			cruise_gate_reason = &"ember_streaming_unavailable"
 		elif (
+			not return_approach_cadence
+			and
 			ember_streaming_residency_required
 			and (
 				not is_instance_valid(ember_streaming_bootstrap)
@@ -2131,6 +2171,13 @@ func _physics_process(delta: float) -> void:
 			)
 			if cruise_tick.get("reason") == &"final_approach_handoff_ready":
 				_consume_ember_final_approach_completion(cruise_tick)
+			elif cruise_tick.get("reason") == &"return_approach_handoff_ready":
+				_consume_mudds_return_approach_completion(cruise_tick)
+			elif return_approach_cadence \
+					and not bool(cruise_tick.get("accepted", false)):
+				_mudds_return_approach_active = false
+				_ember_surface_journey_active = false
+				_last_mudds_return_approach_result = cruise_tick.duplicate(true)
 	# The completing cruise tick releases its Hero attachment before this one
 	# retained late Host envelope is prepared. Keeping both operations in the same
 	# GameFlow callback prevents a new origin transaction from reaching an IDLE
@@ -4595,6 +4642,12 @@ func begin_ember_surface_journey(
 	_ember_surface_journey_active = true
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
+	_mudds_return_handback_consumption_attempted = false
+	_mudds_return_handback_receipt.clear()
+	_mudds_return_approach_active = false
+	_mudds_return_approach_completion_attempted = false
+	_mudds_return_approach_completion_receipt.clear()
+	_last_mudds_return_approach_result.clear()
 	return {
 		"accepted": true,
 		"reason": &"ember_surface_journey_admitted",
@@ -4688,6 +4741,259 @@ func _consume_ember_final_approach_completion(receipt: Dictionary) -> Dictionary
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
 	return discarded
+
+
+## Observes the surface scheduler's already-validated atomic ownership return.
+## It is called from the same GameFlow physics cadence as the outbound cruise,
+## after the Host has completed reboard, takeoff, ascent and orbit return. The
+## handback is attempted once; a stale or malformed receipt cannot re-arm a
+## later binding generation.
+func _advance_mudds_return_approach_handoff(
+		coordinate_frame_generation: int
+	) -> Dictionary:
+	if _mudds_return_handback_consumption_attempted \
+			or _mudds_return_approach_active \
+			or _mudds_return_approach_completion_attempted:
+		return {"accepted": false, "reason": &"return_approach_handoff_already_observed"}
+	if not is_instance_valid(ember_surface_loop_production_binding) \
+			or not is_instance_valid(planetary_cruise_binding):
+		return {"accepted": false, "reason": &"return_approach_binding_unavailable"}
+	var surface_snapshot := ember_surface_loop_production_binding.get_snapshot()
+	if StringName(surface_snapshot.get("state_id", &"")) != &"handoff_pending":
+		return {"accepted": false, "reason": &"return_approach_handoff_not_pending"}
+	_mudds_return_handback_consumption_attempted = true
+	var handback := ember_surface_loop_production_binding.take_completion_handback(
+		ember_surface_loop_production_binding.get_generation()
+	)
+	if not bool(handback.get("accepted", false)):
+		_last_mudds_return_approach_result = handback.duplicate(true)
+		return handback
+	var ownership := handback.get("runtime_ownership_return", {}) as Dictionary
+	var handback_reason := _mudds_return_handback_rejection(ownership)
+	if not handback_reason.is_empty():
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": handback_reason,
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
+	_mudds_return_handback_receipt = ownership.duplicate(true)
+	_ember_surface_journey_active = false
+	var target_result := _build_mudds_return_approach_target()
+	if not bool(target_result.get("accepted", false)):
+		_last_mudds_return_approach_result = target_result.duplicate(true)
+		return target_result
+	if coordinate_frame_generation < 1:
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": &"return_approach_coordinate_frame_unavailable",
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
+	var cruise_snapshot := planetary_cruise_binding.get_snapshot()
+	if bool(cruise_snapshot.get("engagement_requested", false)):
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": &"return_approach_cruise_already_engaged",
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
+	var engaged := planetary_cruise_binding.request_engage(
+		active_ship, coordinate_frame_generation,
+		_planetary_cruise_gate_reason(false),
+		planetary_cruise_binding.get_generation(),
+	)
+	if not bool(engaged.get("accepted", false)):
+		_last_mudds_return_approach_result = engaged.duplicate(true)
+		return engaged
+	var armed := planetary_cruise_binding.request_return_approach(
+		target_result.get("target", {}) as Dictionary,
+		coordinate_frame_generation,
+		planetary_cruise_binding.get_generation(),
+	)
+	if not bool(armed.get("accepted", false)):
+		planetary_cruise_binding.request_disengage(
+			planetary_cruise_binding.get_generation(), true
+		)
+		_last_mudds_return_approach_result = armed.duplicate(true)
+		return armed
+	_mudds_return_approach_active = true
+	_last_mudds_return_approach_result = armed.duplicate(true)
+	return armed
+
+
+func _mudds_return_handback_rejection(receipt: Dictionary) -> StringName:
+	if not is_instance_valid(active_ship) or not is_instance_valid(player):
+		return &"return_approach_actor_unavailable"
+	if receipt.get("reason", &"") != &"runtime_ownership_returned" \
+			or int(receipt.get("ship_instance_id", 0)) != active_ship.get_instance_id() \
+			or int(receipt.get("player_instance_id", 0)) != player.get_instance_id():
+		return &"return_approach_handback_identity_mismatch"
+	if not bool(receipt.get("command_source_restored", false)) \
+			or not bool(receipt.get("boarding_reservation_retained", false)) \
+			or not bool(receipt.get("ship_piloted", false)) \
+			or not bool(receipt.get("player_seated", false)) \
+			or bool(receipt.get("host_attached", true)) \
+			or not active_ship.is_piloted() \
+			or not bool(player.call(&"is_seated")):
+		return &"return_approach_handback_state_mismatch"
+	var retired_generation := int(receipt.get("retired_attachment_generation", 0))
+	if retired_generation < 1 \
+			or int(receipt.get("current_attachment_generation", 0)) \
+				!= retired_generation + 1:
+		return &"return_approach_handback_generation_mismatch"
+	return &""
+
+
+## Builds detached route evidence from the existing owners only: ShipyardWorld
+## publishes the current station datum, and each registered production HeroShip
+## publishes its exact live landing collision bounds. GameFlow does not cache a
+## second station transform or synthesize substitute hull geometry.
+func _build_mudds_return_approach_target() -> Dictionary:
+	if not is_instance_valid(world) or not world.has_method(&"get_ship_spawn"):
+		return {"accepted": false, "reason": &"return_approach_home_target_unavailable"}
+	var home_transform := world.call(&"get_ship_spawn") as Transform3D
+	if not home_transform.origin.is_finite() \
+			or not home_transform.basis.x.is_finite() \
+			or not home_transform.basis.y.is_finite() \
+			or not home_transform.basis.z.is_finite() \
+			or is_zero_approx(home_transform.basis.determinant()):
+		return {"accepted": false, "reason": &"return_approach_home_target_invalid"}
+	var fleet_bounds: Dictionary = {}
+	var maximum_x := 0.0
+	var maximum_y := 0.0
+	for fleet_ship in ships:
+		if not is_instance_valid(fleet_ship):
+			return {"accepted": false, "reason": &"return_approach_fleet_hull_unavailable"}
+		var ship_id := fleet_ship.get_ship_id()
+		# Additional expansion craft have their own berth owner and are outside
+		# the production binding's frozen five-ID return contract.
+		if not MUDDS_RETURN_FLEET_IDS.has(ship_id):
+			continue
+		if fleet_bounds.has(ship_id):
+			return {"accepted": false, "reason": &"return_approach_fleet_roster_mismatch"}
+		var collision_report := fleet_ship.get_landing_collision_report()
+		var bounds := collision_report.get("local_bounds", AABB()) as AABB
+		if not bool(collision_report.get("valid", false)) \
+				or not bounds.position.is_finite() or not bounds.size.is_finite() \
+				or bounds.size.x <= 0.0 or bounds.size.y <= 0.0 or bounds.size.z <= 0.0:
+			return {"accepted": false, "reason": &"return_approach_fleet_hull_invalid"}
+		fleet_bounds[ship_id] = bounds
+		maximum_x = maxf(maximum_x, maxf(absf(bounds.position.x), absf(bounds.end.x)))
+		maximum_y = maxf(maximum_y, maxf(absf(bounds.position.y), absf(bounds.end.y)))
+	for expected_id in MUDDS_RETURN_FLEET_IDS:
+		if not fleet_bounds.has(expected_id):
+			return {"accepted": false, "reason": &"return_approach_fleet_roster_mismatch"}
+	var corridor_half_extents := Vector3(
+		maxf(
+			MUDDS_RETURN_CORRIDOR_MINIMUM_HALF_WIDTH_METERS,
+			maximum_x + MUDDS_RETURN_HULL_MARGIN_METERS,
+		),
+		maxf(
+			MUDDS_RETURN_CORRIDOR_MINIMUM_HALF_WIDTH_METERS,
+			maximum_y + MUDDS_RETURN_HULL_MARGIN_METERS,
+		),
+		MUDDS_RETURN_CORRIDOR_HALF_LENGTH_METERS,
+	)
+	return {
+		"accepted": true,
+		"reason": &"return_approach_target_ready",
+		"target": {
+			"home_target_id": MUDDS_RETURN_TARGET_ID,
+			"home_target_world_transform": home_transform,
+			"corridor_half_extents_m": corridor_half_extents,
+			"brake_shell_min_distance_m": MUDDS_RETURN_BRAKE_SHELL_MINIMUM_METERS,
+			"brake_shell_max_distance_m": MUDDS_RETURN_BRAKE_SHELL_MAXIMUM_METERS,
+			"maximum_speed_mps": MUDDS_RETURN_MAXIMUM_SPEED_MPS,
+			"maximum_attitude_degrees": MUDDS_RETURN_MAXIMUM_ATTITUDE_DEGREES,
+			"hull_margin_m": MUDDS_RETURN_HULL_MARGIN_METERS,
+			"fleet_collision_bounds": fleet_bounds.duplicate(true),
+		}.duplicate(true),
+	}.duplicate(true)
+
+
+func _mudds_return_approach_completion_is_current(receipt: Dictionary) -> bool:
+	if not _mudds_return_approach_active \
+			or not is_instance_valid(active_ship) \
+			or not is_instance_valid(planetary_cruise_binding):
+		return false
+	if receipt.get("reason", &"") != &"return_approach_handoff_ready" \
+			or receipt.get("home_target_id", &"") != MUDDS_RETURN_TARGET_ID \
+			or int(receipt.get("target_generation", 0)) < 1 \
+			or int(receipt.get("ship_instance_id", 0)) != active_ship.get_instance_id():
+		return false
+	var release := receipt.get("controller_release", {}) as Dictionary
+	var ship_report := active_ship.get_planetary_cruise_attachment_report()
+	if not bool(release.get("accepted", false)) \
+			or int(receipt.get("released_ship_attachment_generation", 0)) \
+				!= int(ship_report.get("ship_attachment_generation", -1)) \
+			or int(ship_report.get("controller_instance_id", -1)) != 0:
+		return false
+	var controller_completion := receipt.get("controller_completion", {}) as Dictionary
+	var target := controller_completion.get("target", {}) as Dictionary
+	var measurement := controller_completion.get("measurement", {}) as Dictionary
+	var current_target := _build_mudds_return_approach_target()
+	var expected := current_target.get("target", {}) as Dictionary
+	return bool(current_target.get("accepted", false)) \
+		and target.get("home_target_id", &"") == MUDDS_RETURN_TARGET_ID \
+		and target.get("home_target_world_transform", Transform3D.IDENTITY) \
+			== expected.get("home_target_world_transform", Transform3D.IDENTITY) \
+		and target.get("fleet_collision_bounds", {}) \
+			== expected.get("fleet_collision_bounds", {}) \
+		and bool(measurement.get("all_five_craft_corridor_proven", false))
+
+
+## Consumes the cruise terminal receipt once, then selects the ordinary yard
+## return phase. It deliberately does not move, reparent, reserve, occupy, or
+## land the craft; `_request_landing_assist()` and `_on_landing_completed()`
+## remain the only path into berth occupancy and shutdown.
+func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionary:
+	if _mudds_return_approach_completion_attempted:
+		return {"accepted": false, "reason": &"return_approach_completion_replayed"}
+	_mudds_return_approach_completion_attempted = true
+	if not _mudds_return_approach_completion_is_current(receipt):
+		if is_instance_valid(planetary_cruise_binding) \
+				and int(receipt.get("target_generation", 0)) > 0:
+			planetary_cruise_binding.discard_return_approach_completion(
+				int(receipt.get("target_generation", 0)),
+				planetary_cruise_binding.get_generation(),
+				&"return_approach_completion_stale",
+			)
+		_mudds_return_approach_active = false
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": &"return_approach_completion_stale",
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
+	var consumed := planetary_cruise_binding.consume_return_approach_completion(
+		int(receipt.get("target_generation", 0)),
+		planetary_cruise_binding.get_generation(),
+	)
+	if not bool(consumed.get("accepted", false)):
+		_mudds_return_approach_active = false
+		_last_mudds_return_approach_result = consumed.duplicate(true)
+		return consumed
+	_mudds_return_approach_completion_receipt = consumed.duplicate(true)
+	_mudds_return_approach_active = false
+	_ember_surface_journey_active = false
+	_landing_request_active = false
+	_active_landing_berth_id = &""
+	_return_registered = false
+	_sortie_departed_berth = true
+	phase = Phase.RETURN_TO_YARD
+	_last_mudds_return_approach_result = {
+		"accepted": true,
+		"reason": &"return_approach_handed_to_station_lifecycle",
+		"phase": Phase.RETURN_TO_YARD,
+		"receipt": consumed.duplicate(true),
+	}.duplicate(true)
+	if is_instance_valid(hud):
+		hud.set_objective(
+			"Approach Mudds Shipyards and engage landing assist at a compatible berth",
+			"RETURN TO YARD",
+		)
+		hud.toast(
+			"Mudds approach complete",
+			"Manual flight and the registered berth lifecycle now own the return",
+		)
+	return _last_mudds_return_approach_result.duplicate(true)
 
 
 func cancel_ember_surface_journey() -> Dictionary:
