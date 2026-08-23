@@ -19,6 +19,7 @@ const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark
 const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
 const LandmarkBeaconScript := preload("res://scripts/world/planetary_surface_landmark_beacon_presentation.gd")
 const LandingApproachScript := preload("res://scripts/world/planetary_landing_approach_presentation.gd")
+const OrbitalRingScript := preload("res://scripts/world/planetary_orbital_approach_ring_presentation.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -45,6 +46,7 @@ var _water: RefCounted
 var _landmarks: RefCounted
 var _landmark_beacons: Dictionary = {}
 var _landing_markers: Dictionary = {}
+var _orbital_ring: Node
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -125,6 +127,10 @@ func configure(
 		return _result(false, &"settlement_configuration_rejected")
 	_configure_settlement_practicals(settlement_contract.get_snapshot())
 	_configure_landing_markers(settlement_contract.get_snapshot())
+	_orbital_ring = OrbitalRingScript.new() as Node
+	_orbital_ring.name = "OwnedOrbitalApproachRing"
+	add_child(_orbital_ring)
+	_orbital_ring.call(&"configure", Vector3(0.0, 140000.0, 0.0))
 	_adapter = AdapterScript.new()
 	var runtime := ActivityRuntimeScript.new()
 	var bound: Dictionary = _adapter.call(&"bind", host, runtime, director, reward_sink)
@@ -228,6 +234,7 @@ func submit_solar_observation(
 	_apply_settlement_practicals()
 	_apply_landmark_beacons()
 	_apply_landing_markers()
+	_orbital_ring.call(&"apply_solar_phase", _solar_phase)
 	_surface_audio_generation += 1
 	_present_surface_audio()
 	_apply_water_presentation()
@@ -309,6 +316,7 @@ func detach() -> Dictionary:
 		practical.call(&"detach")
 	for marker: Node in _landing_markers.values():
 		marker.call(&"detach")
+	_orbital_ring.call(&"detach")
 	for beacon: Node in _landmark_beacons.values():
 		beacon.call(&"detach")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
@@ -340,6 +348,7 @@ func reenter() -> Dictionary:
 	_apply_settlement_practicals()
 	_apply_landmark_beacons()
 	_apply_landing_markers()
+	_orbital_ring.call(&"reenter")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
 		_water.call(&"reenter", next_attachment)
@@ -393,6 +402,7 @@ func get_snapshot() -> Dictionary:
 		"settlement_practicals": _settlement_practical_snapshot(),
 		"landmark_beacons": _landmark_beacon_snapshot(),
 		"landing_markers": _landing_marker_snapshot(),
+		"orbital_ring": _orbital_ring.call(&"get_snapshot") if _orbital_ring != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
