@@ -449,6 +449,33 @@ func present_solar_phase_snapshot(snapshot: Variant) -> Dictionary:
 	}).duplicate(true)
 
 
+## Maps caller-owned weather/shelter evidence into bounded atmosphere hints.
+## It does not select weather, advance a clock, or mutate renderer resources.
+func present_weather_exposure_snapshot(snapshot: Variant) -> Dictionary:
+	if not snapshot is Dictionary:
+		return _result(false, &"invalid_weather_snapshot")
+	var weather := snapshot as Dictionary
+	var intensity: Variant = weather.get("intensity_unitless", NAN)
+	var gust: Variant = weather.get("gust_factor_unitless", NAN)
+	var shelter: Variant = weather.get("shelter_scalar", 0.0)
+	var wind: Variant = weather.get("wind_velocity_mps", Vector3.ZERO)
+	if not (intensity is float or intensity is int) or not (gust is float or gust is int) \
+			or not (shelter is float or shelter is int) or not wind is Vector3 \
+			or not (wind as Vector3).is_finite():
+		return _result(false, &"invalid_weather_snapshot")
+	var storm := clampf(float(intensity), 0.0, 1.0)
+	var gust_factor := clampf(float(gust), 0.0, 1.25)
+	var shelter_factor := 1.0 - clampf(float(shelter), 0.0, 1.0) * 0.75
+	var exposure := clampf(storm * gust_factor * shelter_factor, 0.0, 1.0)
+	return _result(true, &"weather_snapshot_mapped", {
+		"fog_density_unitless": exposure,
+		"cloud_visibility_unitless": clampf(1.0 - storm * 0.65, 0.0, 1.0),
+		"cloud_opacity_unitless": clampf(storm * shelter_factor, 0.0, 1.0),
+		"wind_velocity_mps": (wind as Vector3).limit_length(1000.0),
+		"shelter_factor_unitless": shelter_factor,
+	}).duplicate(true)
+
+
 func _build_observation(
 		altitude_m: float,
 		view: Vector3,
