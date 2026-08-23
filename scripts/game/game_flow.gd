@@ -246,6 +246,8 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"reduced_motion",
 	&"captions_enabled",
 	&"reduced_dynamic_range",
+	&"reduced_flash",
+	&"payload_visual_intensity",
 	&"show_tutorials",
 	&"multiplayer_display_name",
 	&"network_default_port",
@@ -1752,6 +1754,7 @@ func _advance_bomber_payload_loop(delta: float) -> void:
 func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 	if not is_instance_valid(bomber):
 		return false
+	_apply_bomber_payload_presentation_profile(bomber)
 	var authority_snapshot := bomber.get_payload_authority_snapshot()
 	if _bomber_payload_ship == bomber and not bool(authority_snapshot.get("active", false)):
 		_clear_bomber_payload_loop(&"ship_payload_reset")
@@ -7056,6 +7059,19 @@ func _apply_accessibility_settings() -> void:
 			if runtime_settings.reduced_motion
 			else float(_authored_chase_camera_lag[instance_id])
 		)
+	_apply_bomber_payload_presentation_profile()
+
+
+func _apply_bomber_payload_presentation_profile(target: CinderLongRangeBomber = null) -> void:
+	if runtime_settings == null:
+		return
+	var intensity_ids: Array[StringName] = [&"low", &"medium", &"high"]
+	var intensity := intensity_ids[clampi(int(runtime_settings.payload_visual_intensity), 0, intensity_ids.size() - 1)]
+	var candidates: Array = [target] if target != null else ships
+	for candidate in candidates:
+		var bomber := candidate as CinderLongRangeBomber
+		if is_instance_valid(bomber):
+			bomber.set_payload_presentation_profile(intensity, runtime_settings.reduced_flash)
 
 
 func _on_audio_cue_started(cue_id: StringName) -> void:
@@ -7147,6 +7163,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		_sync_server_browser_defaults()
 	elif setting == &"reduced_dynamic_range":
 		_apply_reduced_dynamic_range_setting()
+	elif setting in [&"reduced_flash", &"payload_visual_intensity"]:
+		_apply_bomber_payload_presentation_profile()
 	elif setting in [
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:
